@@ -1,101 +1,166 @@
-Received: by ro-out-1112.google.com with SMTP id p7so2529960roc
-        for <linux-mm@kvack.org>; Wed, 28 Nov 2007 04:48:00 -0800 (PST)
-Date: Wed, 28 Nov 2007 20:44:20 +0800
-From: WANG Cong <xiyou.wangcong@gmail.com>
-Subject: Re: [Patch](Resend) mm/sparse.c: Improve the error handling for
-	sparse_add_one_section()
-Message-ID: <20071128124420.GJ2464@hacking>
-Reply-To: WANG Cong <xiyou.wangcong@gmail.com>
-References: <1195507022.27759.146.camel@localhost> <20071123055150.GA2488@hacking> <20071126191316.99CF.Y-GOTO@jp.fujitsu.com> <20071127022609.GA4164@hacking> <1196189625.5764.36.camel@localhost>
-MIME-Version: 1.0
+Received: from toip4.srvr.bell.ca ([209.226.175.87])
+          by tomts5-srv.bellnexxia.net
+          (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
+          id <20071128140955.RAAI17217.tomts5-srv.bellnexxia.net@toip4.srvr.bell.ca>
+          for <linux-mm@kvack.org>; Wed, 28 Nov 2007 09:09:55 -0500
+Date: Wed, 28 Nov 2007 09:09:54 -0500
+From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Subject: [RFC PATCH] LTTng instrumentation mm (using page_to_pfn)
+Message-ID: <20071128140953.GA8018@Krystal>
+References: <20071113193349.214098508@polymtl.ca> <20071113194025.150641834@polymtl.ca> <1195160783.7078.203.camel@localhost> <20071115215142.GA7825@Krystal> <1195164977.27759.10.camel@localhost> <20071116143019.GA16082@Krystal> <1195495485.27759.115.camel@localhost>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1196189625.5764.36.camel@localhost>
+In-Reply-To: <1195495485.27759.115.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Dave Hansen <haveblue@us.ibm.com>
-Cc: WANG Cong <xiyou.wangcong@gmail.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 27, 2007 at 10:53:45AM -0800, Dave Hansen wrote:
->On Tue, 2007-11-27 at 10:26 +0800, WANG Cong wrote:
->> 
->> @@ -414,7 +418,7 @@ int sparse_add_one_section(struct zone *
->>  out:
->>         pgdat_resize_unlock(pgdat, &flags);
->>         if (ret <= 0)
->> -               __kfree_section_memmap(memmap, nr_pages);
->> +               kfree(usemap);
->>         return ret;
->>  }
->>  #endif 
->
->Why did you get rid of the memmap free here?  A bad return from
->sparse_init_one_section() indicates that we didn't use the memmap, so it
->will leak otherwise.
+LTTng instrumentation mm
 
-Sorry, I was confused by the recursion. This one should be OK.
+Memory management core events.
 
-Thanks.
+Changelog:
+- Use page_to_pfn for swap out instrumentation, wait_on_page_bit, do_swap_page,
+  page alloc/free.
 
-
-
-Improve the error handling for mm/sparse.c::sparse_add_one_section().  And I
-see no reason to check 'usemap' until holding the 'pgdat_resize_lock'.
-
-Cc: Christoph Lameter <clameter@sgi.com>
-Cc: Dave Hansen <haveblue@us.ibm.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Andy Whitcroft <apw@shadowen.org>
-Signed-off-by: WANG Cong <xiyou.wangcong@gmail.com>
-
+Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+CC: linux-mm@kvack.org
+CC: Dave Hansen <haveblue@us.ibm.com>
 ---
-Index: linux-2.6/mm/sparse.c
+ mm/filemap.c    |    4 ++++
+ mm/memory.c     |   34 +++++++++++++++++++++++++---------
+ mm/page_alloc.c |    5 +++++
+ mm/page_io.c    |    1 +
+ 4 files changed, 35 insertions(+), 9 deletions(-)
+
+Index: linux-2.6-lttng/mm/filemap.c
 ===================================================================
---- linux-2.6.orig/mm/sparse.c
-+++ linux-2.6/mm/sparse.c
-@@ -391,9 +391,17 @@ int sparse_add_one_section(struct zone *
- 	 * no locking for this, because it does its own
- 	 * plus, it does a kmalloc
- 	 */
--	sparse_index_init(section_nr, pgdat->node_id);
-+	ret = sparse_index_init(section_nr, pgdat->node_id);
-+	if (ret < 0)
-+		return ret;
- 	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, nr_pages);
-+	if (!memmap)
-+		return -ENOMEM;
- 	usemap = __kmalloc_section_usemap();
-+	if (!usemap) {
-+		__kfree_section_memmap(memmap, nr_pages);
-+		return -ENOMEM;
-+	}
+--- linux-2.6-lttng.orig/mm/filemap.c	2007-11-28 08:38:46.000000000 -0500
++++ linux-2.6-lttng/mm/filemap.c	2007-11-28 08:59:05.000000000 -0500
+@@ -514,9 +514,13 @@ void fastcall wait_on_page_bit(struct pa
+ {
+ 	DEFINE_WAIT_BIT(wait, &page->flags, bit_nr);
  
- 	pgdat_resize_lock(pgdat, &flags);
- 
-@@ -403,18 +411,16 @@ int sparse_add_one_section(struct zone *
- 		goto out;
- 	}
- 
--	if (!usemap) {
--		ret = -ENOMEM;
--		goto out;
--	}
- 	ms->section_mem_map |= SECTION_MARKED_PRESENT;
- 
- 	ret = sparse_init_one_section(ms, section_nr, memmap, usemap);
- 
- out:
- 	pgdat_resize_unlock(pgdat, &flags);
--	if (ret <= 0)
-+	if (ret <= 0) {
-+		kfree(usemap);
- 		__kfree_section_memmap(memmap, nr_pages);
-+	}
- 	return ret;
++	trace_mark(mm_filemap_wait_start, "pfn %lu", page_to_pfn(page));
++
+ 	if (test_bit(bit_nr, &page->flags))
+ 		__wait_on_bit(page_waitqueue(page), &wait, sync_page,
+ 							TASK_UNINTERRUPTIBLE);
++
++	trace_mark(mm_filemap_wait_end, "pfn %lu", page_to_pfn(page));
  }
- #endif
+ EXPORT_SYMBOL(wait_on_page_bit);
+ 
+Index: linux-2.6-lttng/mm/memory.c
+===================================================================
+--- linux-2.6-lttng.orig/mm/memory.c	2007-11-28 08:42:09.000000000 -0500
++++ linux-2.6-lttng/mm/memory.c	2007-11-28 09:02:57.000000000 -0500
+@@ -2072,6 +2072,7 @@ static int do_swap_page(struct mm_struct
+ 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+ 	page = lookup_swap_cache(entry);
+ 	if (!page) {
++		trace_mark(mm_swap_in, "pfn %lu", page_to_pfn(page));
+ 		grab_swap_token(); /* Contend for token _before_ read-in */
+  		swapin_readahead(entry, address, vma);
+  		page = read_swap_cache_async(entry, vma, address);
+@@ -2526,30 +2527,45 @@ unlock:
+ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		unsigned long address, int write_access)
+ {
++	int res;
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+ 	pmd_t *pmd;
+ 	pte_t *pte;
+ 
++	trace_mark(mm_handle_fault_entry, "address %lu ip #p%ld",
++		address, KSTK_EIP(current));
++
+ 	__set_current_state(TASK_RUNNING);
+ 
+ 	count_vm_event(PGFAULT);
+ 
+-	if (unlikely(is_vm_hugetlb_page(vma)))
+-		return hugetlb_fault(mm, vma, address, write_access);
++	if (unlikely(is_vm_hugetlb_page(vma))) {
++		res = hugetlb_fault(mm, vma, address, write_access);
++		goto end;
++	}
+ 
+ 	pgd = pgd_offset(mm, address);
+ 	pud = pud_alloc(mm, pgd, address);
+-	if (!pud)
+-		return VM_FAULT_OOM;
++	if (!pud) {
++		res = VM_FAULT_OOM;
++		goto end;
++	}
+ 	pmd = pmd_alloc(mm, pud, address);
+-	if (!pmd)
+-		return VM_FAULT_OOM;
++	if (!pmd) {
++		res = VM_FAULT_OOM;
++		goto end;
++	}
+ 	pte = pte_alloc_map(mm, pmd, address);
+-	if (!pte)
+-		return VM_FAULT_OOM;
++	if (!pte) {
++		res = VM_FAULT_OOM;
++		goto end;
++	}
+ 
+-	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
++	res = handle_pte_fault(mm, vma, address, pte, pmd, write_access);
++end:
++	trace_mark(mm_handle_fault_exit, MARK_NOARGS);
++	return res;
+ }
+ 
+ #ifndef __PAGETABLE_PUD_FOLDED
+Index: linux-2.6-lttng/mm/page_alloc.c
+===================================================================
+--- linux-2.6-lttng.orig/mm/page_alloc.c	2007-11-28 08:38:46.000000000 -0500
++++ linux-2.6-lttng/mm/page_alloc.c	2007-11-28 09:05:36.000000000 -0500
+@@ -519,6 +519,9 @@ static void __free_pages_ok(struct page 
+ 	int i;
+ 	int reserved = 0;
+ 
++	trace_mark(mm_page_free, "order %u pfn %lu",
++		order, page_to_pfn(page));
++
+ 	for (i = 0 ; i < (1 << order) ; ++i)
+ 		reserved += free_pages_check(page + i);
+ 	if (reserved)
+@@ -1639,6 +1642,8 @@ fastcall unsigned long __get_free_pages(
+ 	page = alloc_pages(gfp_mask, order);
+ 	if (!page)
+ 		return 0;
++	trace_mark(mm_page_alloc, "order %u pfn %lu",
++		order, page_to_pfn(page));
+ 	return (unsigned long) page_address(page);
+ }
+ 
+Index: linux-2.6-lttng/mm/page_io.c
+===================================================================
+--- linux-2.6-lttng.orig/mm/page_io.c	2007-11-28 08:38:47.000000000 -0500
++++ linux-2.6-lttng/mm/page_io.c	2007-11-28 08:52:14.000000000 -0500
+@@ -114,6 +114,7 @@ int swap_writepage(struct page *page, st
+ 		rw |= (1 << BIO_RW_SYNC);
+ 	count_vm_event(PSWPOUT);
+ 	set_page_writeback(page);
++	trace_mark(mm_swap_out, "pfn %lu", page_to_pfn(page));
+ 	unlock_page(page);
+ 	submit_bio(rw, bio);
+ out:
+-- 
+Mathieu Desnoyers
+Computer Engineering Ph.D. Student, Ecole Polytechnique de Montreal
+OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
