@@ -1,42 +1,49 @@
-Message-ID: <396327928.04162@ustc.edu.cn>
-Date: Thu, 29 Nov 2007 17:18:40 +0800
-From: Fengguang Wu <wfg@mail.ustc.edu.cn>
-Subject: Re: [patch 06/19] Use page_cache_xxx in mm/filemap_xip.c
-References: <20071129011052.866354847@sgi.com> <20071129011145.652104648@sgi.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lATEhZXG017657
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2007 09:43:35 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lATEhVSq110488
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2007 09:43:35 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lATEhUU1016204
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2007 09:43:31 -0500
+Message-ID: <474ED005.7060300@linux.vnet.ibm.com>
+Date: Thu, 29 Nov 2007 20:13:17 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20071129011145.652104648@sgi.com>
-Message-Id: <E1IxfXc-0005sC-9J@localhost>
+Subject: What can we do to get ready for memory controller merge in 2.6.25
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
+To: Linux Memory Management List <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux kernel mailing list <linux-kernel@vger.kernel.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh@veritas.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelianov <xemul@sw.ru>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Rik van Riel <riel@redhat.com>, Christoph Lameter <clameter@sgi.com>, "Martin J. Bligh" <mbligh@google.com>, Andy Whitcroft <andyw@uk.ibm.com>, Srivatsa Vaddagiri <vatsa@in.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 28, 2007 at 05:10:58PM -0800, Christoph Lameter wrote:
-> Use page_cache_xxx in mm/filemap_xip.c
-> 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> ---
->  mm/filemap_xip.c |   28 ++++++++++++++--------------
->  1 file changed, 14 insertions(+), 14 deletions(-)
-> 
-> Index: mm/mm/filemap_xip.c
-> ===================================================================
-> --- mm.orig/mm/filemap_xip.c	2007-11-28 12:27:32.155962689 -0800
-> +++ mm/mm/filemap_xip.c	2007-11-28 14:10:46.124978450 -0800
-> @@ -60,24 +60,24 @@ do_xip_mapping_read(struct address_space
+They say better strike when the iron is hot.
 
+Since we have so many people discussing the memory controller, I would
+like to access the readiness of the memory controller for mainline
+merge. Given that we have some time until the merge window, I'd like to
+set aside some time (from my other work items) to work on the memory
+controller, fix review comments and defects.
 
-> -			nr = ((isize - 1) & ~PAGE_CACHE_MASK) + 1;
-> +			nr = page_cache_next(mapping, size - 1) + 1;
-                             page_cache_offset(mapping, isize - 1) + 1;
-                         or: page_cache_next(mapping, isize);
+In the past, we've received several useful comments from Rik Van Riel,
+Lee Schermerhorn, Peter Zijlstra, Hugh Dickins, Nick Piggin, Paul Menage
+and code contributions and bug fixes from Hugh Dickins, Pavel Emelianov,
+Lee Schermerhorn, YAMAMOTO-San, Andrew Morton and KAMEZAWA-San. I
+apologize if I missed out any other names or contributions
 
+At the VM-Summit we decided to try the current double LRU approach for
+memory control. At this juncture in the space-time continuum, I seek
+your support, feedback, comments and help to move the memory controller
 
-Cheers,
-Fengguang
+-- 
+	Thanks,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
