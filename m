@@ -1,42 +1,53 @@
-Date: Thu, 29 Nov 2007 14:54:15 +1100
-From: David Chinner <dgc@sgi.com>
-Subject: Re: [patch 17/19] Use page_cache_xxx in fs/reiserfs
-Message-ID: <20071129035415.GX119954183@sgi.com>
-References: <20071129011052.866354847@sgi.com> <20071129011148.263927341@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20071129011148.263927341@sgi.com>
+Date: Wed, 28 Nov 2007 19:55:40 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 14/19] Use page_cache_xxx in ext2
+In-Reply-To: <20071129034521.GV119954183@sgi.com>
+Message-ID: <Pine.LNX.4.64.0711281955010.20688@schroedinger.engr.sgi.com>
+References: <20071129011052.866354847@sgi.com> <20071129011147.567317218@sgi.com>
+ <20071129034521.GV119954183@sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
+To: David Chinner <dgc@sgi.com>
+Cc: akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 28, 2007 at 05:11:09PM -0800, Christoph Lameter wrote:
-> @@ -2000,11 +2001,13 @@ static int grab_tail_page(struct inode *
->  	/* we want the page with the last byte in the file,
->  	 ** not the page that will hold the next byte for appending
->  	 */
-> -	unsigned long index = (p_s_inode->i_size - 1) >> PAGE_CACHE_SHIFT;
-> +	unsigned long index = page_cache_index(p_s_inode->i_mapping,
-> +						p_s_inode->i_size - 1);
->  	unsigned long pos = 0;
->  	unsigned long start = 0;
->  	unsigned long blocksize = p_s_inode->i_sb->s_blocksize;
-> -	unsigned long offset = (p_s_inode->i_size) & (PAGE_CACHE_SIZE - 1);
-> +	unsigned long offset = page_cache_index(p_s_inode->i_mapping,
-> +							p_s_inode->i_size);
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-	unsigned long offset = page_cache_offset(p_s_inode->i_mapping,
+---
+ fs/ext2/dir.c |    9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-Principal Engineer
-SGI Australian Software Group
+Index: mm/fs/ext2/dir.c
+===================================================================
+--- mm.orig/fs/ext2/dir.c	2007-11-28 19:51:05.038882954 -0800
++++ mm/fs/ext2/dir.c	2007-11-28 19:53:59.074132710 -0800
+@@ -63,8 +63,7 @@ static inline void ext2_put_page(struct 
+ 
+ static inline unsigned long dir_pages(struct inode *inode)
+ {
+-	return (inode->i_size+page_cache_size(inode->i_mapping)-1)>>
+-			page_cache_shift(inode->i_mapping);
++	return page_cache_next(inode->i_mapping, inode->i_size);
+ }
+ 
+ /*
+@@ -74,13 +73,9 @@ static inline unsigned long dir_pages(st
+ static unsigned
+ ext2_last_byte(struct inode *inode, unsigned long page_nr)
+ {
+-	unsigned last_byte = inode->i_size;
+ 	struct address_space *mapping = inode->i_mapping;
+ 
+-	last_byte -= page_nr << page_cache_shift(mapping);
+-	if (last_byte > page_cache_size(mapping))
+-		last_byte = page_cache_size(mapping);
+-	return last_byte;
++	return inode->i_size - page_cache_pos(mapping, page_nr, 0);
+ }
+ 
+ static int ext2_commit_chunk(struct page *page, loff_t pos, unsigned len)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
