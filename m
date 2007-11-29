@@ -1,77 +1,144 @@
-Received: by mu-out-0910.google.com with SMTP id w9so2322550mue
-        for <linux-mm@kvack.org>; Wed, 28 Nov 2007 19:01:17 -0800 (PST)
-Message-ID: <29495f1d0711281901l41986e58sf05b6f0fcdc13232@mail.gmail.com>
-Date: Wed, 28 Nov 2007 19:01:11 -0800
-From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
-Subject: Re: [PATCH 1/2] powerpc: add hugepagesz boot-time parameter
-In-Reply-To: <474E187E.7040404@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Thu, 29 Nov 2007 14:03:14 +1100
+From: David Chinner <dgc@sgi.com>
+Subject: Re: [patch 18/19] Use page_cache_xxx for fs/xfs
+Message-ID: <20071129030314.GR119954183@sgi.com>
+References: <20071129011052.866354847@sgi.com> <20071129011148.509714554@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <474CF68E.1040709@us.ibm.com>
-	 <20071128132816.542fa4df.randy.dunlap@oracle.com>
-	 <29495f1d0711281736if4bd8b0wc77d3beb39cb1284@mail.gmail.com>
-	 <474E187E.7040404@oracle.com>
+In-Reply-To: <20071129011148.509714554@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <randy.dunlap@oracle.com>
-Cc: kniht@linux.vnet.ibm.com, Jon Tollefson <kniht@us.ibm.com>, linuxppc-dev <linuxppc-dev@ozlabs.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
 List-ID: <linux-mm.kvack.org>
 
-On 11/28/07, Randy Dunlap <randy.dunlap@oracle.com> wrote:
-> Nish Aravamudan wrote:
-> > On 11/28/07, Randy Dunlap <randy.dunlap@oracle.com> wrote:
-> >> On Tue, 27 Nov 2007 23:03:10 -0600 Jon Tollefson wrote:
-> >>
-> >>> This patch adds the hugepagesz boot-time parameter for ppc64 that lets
-> >>> you pick the size for your huge pages.  The choices available are 64K
-> >>> and 16M.  It defaults to 16M (previously the only choice) if nothing or
-> >>> an invalid choice is specified.  Tested 64K huge pages with the
-> >>> libhugetlbfs 1.2 release with its 'make func' and 'make stress' test
-> >>> invocations.
-> >>>
-> >>> This patch requires the patch posted by Mel Gorman that adds
-> >>> HUGETLB_PAGE_SIZE_VARIABLE; "[PATCH] Fix boot problem with iSeries
-> >>> lacking hugepage support" on 2007-11-15.
-> >>>
-> >>> Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
-> >>> ---
-> >>>
-> >>>  Documentation/kernel-parameters.txt |    1
-> >>>  arch/powerpc/mm/hash_utils_64.c     |   11 +--------
-> >>>  arch/powerpc/mm/hugetlbpage.c       |   41 ++++++++++++++++++++++++++++++++++++
-> >>>  include/asm-powerpc/mmu-hash64.h    |    1
-> >>>  mm/hugetlb.c                        |    1
-> >>>  5 files changed, 46 insertions(+), 9 deletions(-)
-> >>>
-> >>> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-> >>> index 33121d6..2fc1fb8 100644
-> >>> --- a/Documentation/kernel-parameters.txt
-> >>> +++ b/Documentation/kernel-parameters.txt
-> >>> @@ -685,6 +685,7 @@ and is between 256 and 4096 characters. It is defined in the file
-> >>>                       See Documentation/isdn/README.HiSax.
-> >>>
-> >>>       hugepages=      [HW,X86-32,IA-64] Maximal number of HugeTLB pages.
-> >>> +     hugepagesz=     [HW,IA-64,PPC] The size of the HugeTLB pages.
-> >> Any chance of spelling it as "hugepagesize" so that it's a little
-> >> less cryptic and more difficult to typo as "hugepages"?
-> >> (i.e., less confusion between them)
-> >
-> > It already exists as hugepagesz= for IA64. Changing it to hugepagesize
-> > would either make ppc be different than IA64, or require keeping both
-> > so as to make IA64 setups continue working as before?
->
-> Oh, but it wasn't in Doc/kernel-parameters.txt ?  :(
+On Wed, Nov 28, 2007 at 05:11:10PM -0800, Christoph Lameter wrote:
+> Use page_cache_xxx for fs/xfs
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> ---
+>  fs/xfs/linux-2.6/xfs_aops.c |   55 +++++++++++++++++++++++---------------------
+>  fs/xfs/linux-2.6/xfs_lrw.c  |    4 +--
+>  2 files changed, 31 insertions(+), 28 deletions(-)
+> 
+> Index: mm/fs/xfs/linux-2.6/xfs_aops.c
+> ===================================================================
+> --- mm.orig/fs/xfs/linux-2.6/xfs_aops.c	2007-11-28 12:25:38.768212813 -0800
+> +++ mm/fs/xfs/linux-2.6/xfs_aops.c	2007-11-28 14:12:55.637977383 -0800
+> @@ -75,7 +75,7 @@ xfs_page_trace(
+>  	xfs_inode_t	*ip;
+>  	bhv_vnode_t	*vp = vn_from_inode(inode);
+>  	loff_t		isize = i_size_read(inode);
+> -	loff_t		offset = page_offset(page);
+> +	loff_t		offset = page_cache_offset(page->mapping);
 
-Nope :( I wonder how many other kernel parameters are in the same
-boat? Where's an RPJDay-script when you need it?
+That's not right. Should be
 
-> OK, just leave it as is, I think.
+	loff_t		offset = page_cache_pos(page->mapping, page->index, 0);
 
-Yeah, I guess that's probably easiest...unfortunately.
 
--Nish
+> @@ -752,7 +752,8 @@ xfs_convert_page(
+>  	int			bbits = inode->i_blkbits;
+>  	int			len, page_dirty;
+>  	int			count = 0, done = 0, uptodate = 1;
+> - 	xfs_off_t		offset = page_offset(page);
+> +	struct address_space	*map = inode->i_mapping;
+> +	xfs_off_t		offset = page_cache_pos(map, page->index, 0);
+
+But you got that one right ;)
+
+> @@ -772,20 +773,20 @@ xfs_convert_page(
+>  	 * Derivation:
+>  	 *
+>  	 * End offset is the highest offset that this page should represent.
+> -	 * If we are on the last page, (end_offset & (PAGE_CACHE_SIZE - 1))
+> -	 * will evaluate non-zero and be less than PAGE_CACHE_SIZE and
+> +	 * If we are on the last page, (end_offset & page_cache_mask())
+> +	 * will evaluate non-zero and be less than page_cache_size() and
+>  	 * hence give us the correct page_dirty count. On any other page,
+>  	 * it will be zero and in that case we need page_dirty to be the
+>  	 * count of buffers on the page.
+>  	 */
+>  	end_offset = min_t(unsigned long long,
+> -			(xfs_off_t)(page->index + 1) << PAGE_CACHE_SHIFT,
+> +			(xfs_off_t)(page->index + 1) << page_cache_shift(map),
+
+			(xfs_off_t)page_cache_pos(map, page->index + 1, 0),
+
+>  			i_size_read(inode));
+>  
+>  	len = 1 << inode->i_blkbits;
+> -	p_offset = min_t(unsigned long, end_offset & (PAGE_CACHE_SIZE - 1),
+> -					PAGE_CACHE_SIZE);
+> -	p_offset = p_offset ? roundup(p_offset, len) : PAGE_CACHE_SIZE;
+> +	p_offset = min_t(unsigned long, page_cache_offset(map, end_offset),
+> +					page_cache_size(map));
+
+Hmmmm. p_offset = min(val & 4095, 4096)? I think that should just be:
+
+	p_offset = page_cache_offset(map, end_offset);
+
+> @@ -967,22 +970,22 @@ xfs_page_state_convert(
+>  	 * Derivation:
+>  	 *
+>  	 * End offset is the highest offset that this page should represent.
+> -	 * If we are on the last page, (end_offset & (PAGE_CACHE_SIZE - 1))
+> -	 * will evaluate non-zero and be less than PAGE_CACHE_SIZE and
+> -	 * hence give us the correct page_dirty count. On any other page,
+> +	 * If we are on the last page, (page_cache_offset(mapping, end_offset))
+> +	 * will evaluate non-zero and be less than page_cache_size(mapping)
+> +	 * and hence give us the correct page_dirty count. On any other page,
+>  	 * it will be zero and in that case we need page_dirty to be the
+>  	 * count of buffers on the page.
+>   	 */
+>  	end_offset = min_t(unsigned long long,
+> -			(xfs_off_t)(page->index + 1) << PAGE_CACHE_SHIFT, offset);
+> +			(xfs_off_t)page_cache_pos(map, page->index + 1, 0), offset);
+
+You got that one ;)
+
+>  	len = 1 << inode->i_blkbits;
+> -	p_offset = min_t(unsigned long, end_offset & (PAGE_CACHE_SIZE - 1),
+> -					PAGE_CACHE_SIZE);
+> -	p_offset = p_offset ? roundup(p_offset, len) : PAGE_CACHE_SIZE;
+> +	p_offset = min_t(unsigned long, page_cache_offset(map, end_offset),
+> +					pagesize);
+
+Again, that can be:
+
+	p_offset = page_cache_offset(map, end_offset);
+
+and you can kill the new temporary pagesize variable.
+
+> @@ -1130,7 +1133,7 @@ xfs_page_state_convert(
+>  
+>  	if (ioend && iomap_valid) {
+>  		offset = (iomap.iomap_offset + iomap.iomap_bsize - 1) >>
+> -					PAGE_CACHE_SHIFT;
+> +					page_cache_shift(map);
+
+		offset = page_cache_index(map,
+				(iomap.iomap_offset + iomap.iomap_bsize - 1));
+
+> @@ -142,8 +142,8 @@ xfs_iozero(
+>  		unsigned offset, bytes;
+>  		void *fsdata;
+>  
+> -		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
+> -		bytes = PAGE_CACHE_SIZE - offset;
+> +		offset = page_cache_offset(mapping, pos); /* Within page */
+> +		bytes = page_cache_size(mapping) - offset;
+
+Kill the "within page" comment.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+Principal Engineer
+SGI Australian Software Group
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
