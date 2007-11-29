@@ -1,36 +1,49 @@
-Date: Thu, 29 Nov 2007 14:06:45 +1100
-From: David Chinner <dgc@sgi.com>
-Subject: Re: [patch 01/19] Define functions for page cache handling
-Message-ID: <20071129030645.GE115527101@sgi.com>
-References: <20071129011052.866354847@sgi.com> <20071129011144.503535436@sgi.com>
+Date: Thu, 29 Nov 2007 12:18:34 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH][for -mm] per-zone and reclaim enhancements for memory
+ controller take 3 [3/10] per-zone active inactive counter
+Message-Id: <20071129121834.c18ff796.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071129112406.c6820a5e.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20071127115525.e9779108.kamezawa.hiroyu@jp.fujitsu.com>
+	<20071127120048.ef5f2005.kamezawa.hiroyu@jp.fujitsu.com>
+	<1196284799.5318.34.camel@localhost>
+	<20071129103702.cbc5cf73.kamezawa.hiroyu@jp.fujitsu.com>
+	<20071129112406.c6820a5e.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20071129011144.503535436@sgi.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 28, 2007 at 05:10:53PM -0800, Christoph Lameter wrote:
-> +/*
-> + * Index of the page starting on or after the given position.
-> + */
-> +static inline pgoff_t page_cache_next(struct address_space *a,
-> +		loff_t pos)
-> +{
-> +	return page_cache_index(a, pos + page_cache_size(a) - 1);
+On Thu, 29 Nov 2007 11:24:06 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-	return page_cache_index(a, pos + page_cache_mask(a));
+> On Thu, 29 Nov 2007 10:37:02 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > Maybe zonelists of NODE_DATA() is not initialized. you are right.
+> > I think N_HIGH_MEMORY will be suitable here...(I'll consider node-hotplug case later.)
+> > 
+> > Thank you for test!
+> > 
+> Could you try this ? 
+> 
+Sorry..this can be a workaround but I noticed I miss something..
 
-Cheers,
+ok, just use N_HIGH_MEMORY here and add comment for hotplugging support is not yet.
 
-Dave.
--- 
-Dave Chinner
-Principal Engineer
-SGI Australian Software Group
+Christoph-san, Lee-san, could you confirm following ?
+
+- when SLAB is used, kmalloc_node() against offline node will success.
+- when SLUB is used, kmalloc_node() against offline node will panic.
+
+Then, the caller should take care that node is online before kmalloc().
+
+Regards,
+-Kame 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
