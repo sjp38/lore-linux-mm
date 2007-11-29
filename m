@@ -1,44 +1,38 @@
-Date: Thu, 29 Nov 2007 12:25:32 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 28 Nov 2007 19:26:29 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH][for -mm] per-zone and reclaim enhancements for memory
  controller take 3 [3/10] per-zone active inactive counter
-Message-Id: <20071129122532.68ff4e75.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20071129031937.3C86F1CFE80@siro.lan>
-References: <20071127120048.ef5f2005.kamezawa.hiroyu@jp.fujitsu.com>
-	<20071129031937.3C86F1CFE80@siro.lan>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20071129121834.c18ff796.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0711281924580.20367@schroedinger.engr.sgi.com>
+References: <20071127115525.e9779108.kamezawa.hiroyu@jp.fujitsu.com>
+ <20071127120048.ef5f2005.kamezawa.hiroyu@jp.fujitsu.com>
+ <1196284799.5318.34.camel@localhost> <20071129103702.cbc5cf73.kamezawa.hiroyu@jp.fujitsu.com>
+ <20071129112406.c6820a5e.kamezawa.hiroyu@jp.fujitsu.com>
+ <20071129121834.c18ff796.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, akpm@linux-foundation.org, balbir@linux.vnet.ibm.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Nov 2007 12:19:37 +0900 (JST)
-yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
+On Thu, 29 Nov 2007, KAMEZAWA Hiroyuki wrote:
 
-> > @@ -651,10 +758,11 @@
-> >  		/* Avoid race with charge */
-> >  		atomic_set(&pc->ref_cnt, 0);
-> >  		if (clear_page_cgroup(page, pc) == pc) {
-> > +			int active;
-> >  			css_put(&mem->css);
-> > +			active = pc->flags & PAGE_CGROUP_FLAG_ACTIVE;
-> >  			res_counter_uncharge(&mem->res, PAGE_SIZE);
-> > -			list_del_init(&pc->lru);
-> > -			mem_cgroup_charge_statistics(mem, pc->flags, false);
-> > +			__mem_cgroup_remove_list(pc);
-> >  			kfree(pc);
-> >  		} else 	/* being uncharged ? ...do relax */
-> >  			break;
+> ok, just use N_HIGH_MEMORY here and add comment for hotplugging support is not yet.
 > 
-> 'active' seems unused.
+> Christoph-san, Lee-san, could you confirm following ?
 > 
-ok, I will post clean-up against -mm2.
+> - when SLAB is used, kmalloc_node() against offline node will success.
+> - when SLUB is used, kmalloc_node() against offline node will panic.
+> 
+> Then, the caller should take care that node is online before kmalloc().
 
-Thanks,
--Kame
+Hmmmm... An offline node implies that the per node structure does not 
+exist. SLAB should fail too. If there is something wrong with the allocs 
+then its likely a difference in the way hotplug was put into SLAB and 
+SLUB.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
