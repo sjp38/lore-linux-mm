@@ -1,33 +1,44 @@
-Date: Wed, 28 Nov 2007 19:21:42 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 01/19] Define functions for page cache handling
-In-Reply-To: <20071129030645.GE115527101@sgi.com>
-Message-ID: <Pine.LNX.4.64.0711281921050.20367@schroedinger.engr.sgi.com>
-References: <20071129011052.866354847@sgi.com> <20071129011144.503535436@sgi.com>
- <20071129030645.GE115527101@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 29 Nov 2007 12:25:32 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH][for -mm] per-zone and reclaim enhancements for memory
+ controller take 3 [3/10] per-zone active inactive counter
+Message-Id: <20071129122532.68ff4e75.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071129031937.3C86F1CFE80@siro.lan>
+References: <20071127120048.ef5f2005.kamezawa.hiroyu@jp.fujitsu.com>
+	<20071129031937.3C86F1CFE80@siro.lan>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Chinner <dgc@sgi.com>
-Cc: akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
+To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, akpm@linux-foundation.org, balbir@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Nov 2007, David Chinner wrote:
+On Thu, 29 Nov 2007 12:19:37 +0900 (JST)
+yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
 
-> On Wed, Nov 28, 2007 at 05:10:53PM -0800, Christoph Lameter wrote:
-> > +/*
-> > + * Index of the page starting on or after the given position.
-> > + */
-> > +static inline pgoff_t page_cache_next(struct address_space *a,
-> > +		loff_t pos)
-> > +{
-> > +	return page_cache_index(a, pos + page_cache_size(a) - 1);
+> > @@ -651,10 +758,11 @@
+> >  		/* Avoid race with charge */
+> >  		atomic_set(&pc->ref_cnt, 0);
+> >  		if (clear_page_cgroup(page, pc) == pc) {
+> > +			int active;
+> >  			css_put(&mem->css);
+> > +			active = pc->flags & PAGE_CGROUP_FLAG_ACTIVE;
+> >  			res_counter_uncharge(&mem->res, PAGE_SIZE);
+> > -			list_del_init(&pc->lru);
+> > -			mem_cgroup_charge_statistics(mem, pc->flags, false);
+> > +			__mem_cgroup_remove_list(pc);
+> >  			kfree(pc);
+> >  		} else 	/* being uncharged ? ...do relax */
+> >  			break;
 > 
-> 	return page_cache_index(a, pos + page_cache_mask(a));
+> 'active' seems unused.
+> 
+ok, I will post clean-up against -mm2.
 
-Na that is confusing. We really want to go to one byte before the end of 
-the page.
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
