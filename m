@@ -1,35 +1,73 @@
-Date: Thu, 29 Nov 2007 15:20:39 +1100
-From: David Chinner <dgc@sgi.com>
-Subject: Re: [patch 00/19] Page cache: Replace PAGE_CACHE_xx with inline functions
-Message-ID: <20071129042039.GI119954183@sgi.com>
-References: <20071129011052.866354847@sgi.com>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAT6PurS015337
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2007 01:25:56 -0500
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lAT6Pun0472684
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2007 01:25:56 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAT6Pt0e011189
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2007 01:25:55 -0500
+Subject: Re: [RFC PATCH] LTTng instrumentation mm (using page_to_pfn)
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20071129023421.GA711@Krystal>
+References: <20071113193349.214098508@polymtl.ca>
+	 <20071113194025.150641834@polymtl.ca> <1195160783.7078.203.camel@localhost>
+	 <20071115215142.GA7825@Krystal> <1195164977.27759.10.camel@localhost>
+	 <20071116143019.GA16082@Krystal> <1195495485.27759.115.camel@localhost>
+	 <20071128140953.GA8018@Krystal> <1196268856.18851.20.camel@localhost>
+	 <20071129023421.GA711@Krystal>
+Content-Type: text/plain
+Date: Wed, 28 Nov 2007 22:25:52 -0800
+Message-Id: <1196317552.18851.47.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20071129011052.866354847@sgi.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
+To: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 28, 2007 at 05:10:52PM -0800, Christoph Lameter wrote:
-> This patchset cleans up page cache handling by replacing
-> open coded shifts and adds with inline function calls.
-> 
-> The ultimate goal is to replace all uses of PAGE_CACHE_xxx in the
-> kernel through the use of these functions. All the functions take
-> a mapping parameter. The mapping parameter is required if we want
-> to support large block sizes in filesystems and block devices.
-> 
-> Patchset against 2.6.24-rc3-mm2.
+On Wed, 2007-11-28 at 21:34 -0500, Mathieu Desnoyers wrote:
+> Before I start digging deeper in checking whether it is already
+> instrumented by the fs instrumentation (and would therefore be
+> redundant), is there a particular data structure from mm/ that you
+> suggest taking the swap file number and location in swap from ?
 
-Reviewed-by: Dave Chinner <dgc@sgi.com>
+page_private() at this point stores a swp_entry_t.  There are swp_type()
+and swp_offset() helpers to decode the two bits you need after you've
+turned page_private() into a swp_entry_t.  See how get_swap_bio()
+creates a temporary swp_entry_t from the page_private() passed into it,
+then uses swp_type/offset() on it?
 
--- 
-Dave Chinner
-Principal Engineer
-SGI Australian Software Group
+I don't know if there is some history behind it, but it doesn't make a
+whole ton of sense to me to be passing page_private(page) into
+get_swap_bio() (which happens from its only two call sites).  It just
+kinda obfuscates where 'index' came from.
+
+It think we probably could just be doing
+
+	swp_entry_t entry = { .val = page_private(page), };
+
+in get_swap_bio() and not passing page_private().  We have the page in
+there already, so we don't need to pass a derived value like
+page_private().  At the least, it'll save some clutter in the function
+declaration.  
+
+Or, make a helper:
+
+static swp_entry_t page_swp_entry(struct page *page)
+{
+	swp_entry_t entry;
+	VM_BUG_ON(!PageSwapCache(page));
+	entry.val = page_private(page);
+	return entry;
+}
+
+I see at least 4 call sites that could use this.  The try_to_unmap_one()
+caller would trip over the debug check, so you'd have to move the call
+inside of the if(PageSwapCache(page)) statement.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
