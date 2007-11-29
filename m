@@ -1,122 +1,118 @@
-Message-Id: <20071129011146.793912524@sgi.com>
+Message-Id: <20071129011147.323915994@sgi.com>
 References: <20071129011052.866354847@sgi.com>
-Date: Wed, 28 Nov 2007 17:11:03 -0800
+Date: Wed, 28 Nov 2007 17:11:05 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 11/19] Use page_cache_xxx in mm/mpage.c
-Content-Disposition: inline; filename=0012-Use-page_cache_xxx-in-mm-mpage.c.patch
+Subject: [patch 13/19] Use page_cache_xxx in fs/splice.c
+Content-Disposition: inline; filename=0014-Use-page_cache_xxx-in-fs-splice.c.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
 List-ID: <linux-mm.kvack.org>
 
-Use page_cache_xxx in mm/mpage.c
+Use page_cache_xxx in fs/splice.c
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- fs/mpage.c |   28 ++++++++++++++++------------
- 1 file changed, 16 insertions(+), 12 deletions(-)
+ fs/splice.c |   27 ++++++++++++++-------------
+ 1 file changed, 14 insertions(+), 13 deletions(-)
 
-Index: linux-2.6/fs/mpage.c
+Index: mm/fs/splice.c
 ===================================================================
---- linux-2.6.orig/fs/mpage.c	2007-11-26 17:51:53.347521636 -0800
-+++ linux-2.6/fs/mpage.c	2007-11-26 18:12:48.496772168 -0800
-@@ -125,7 +125,8 @@ mpage_alloc(struct block_device *bdev,
- static void 
- map_buffer_to_page(struct page *page, struct buffer_head *bh, int page_block) 
- {
--	struct inode *inode = page->mapping->host;
-+	struct address_space *mapping = page->mapping;
-+	struct inode *inode = mapping->host;
- 	struct buffer_head *page_bh, *head;
- 	int block = 0;
+--- mm.orig/fs/splice.c	2007-11-28 12:25:34.032908404 -0800
++++ mm/fs/splice.c	2007-11-28 14:11:11.285227032 -0800
+@@ -285,9 +285,9 @@ __generic_file_splice_read(struct file *
+ 		.spd_release = spd_release_page,
+ 	};
  
-@@ -134,9 +135,9 @@ map_buffer_to_page(struct page *page, st
- 		 * don't make any buffers if there is only one buffer on
- 		 * the page and the page just needs to be set up to date
- 		 */
--		if (inode->i_blkbits == PAGE_CACHE_SHIFT && 
-+		if (inode->i_blkbits == page_cache_shift(mapping) &&
- 		    buffer_uptodate(bh)) {
--			SetPageUptodate(page);    
-+			SetPageUptodate(page);
- 			return;
- 		}
- 		create_empty_buffers(page, 1 << inode->i_blkbits, 0);
-@@ -169,9 +170,10 @@ do_mpage_readpage(struct bio *bio, struc
- 		sector_t *last_block_in_bio, struct buffer_head *map_bh,
- 		unsigned long *first_logical_block, get_block_t get_block)
- {
--	struct inode *inode = page->mapping->host;
-+	struct address_space *mapping = page->mapping;
-+	struct inode *inode = mapping->host;
- 	const unsigned blkbits = inode->i_blkbits;
--	const unsigned blocks_per_page = PAGE_CACHE_SIZE >> blkbits;
-+	const unsigned blocks_per_page = page_cache_size(mapping) >> blkbits;
- 	const unsigned blocksize = 1 << blkbits;
- 	sector_t block_in_file;
- 	sector_t last_block;
-@@ -188,7 +190,7 @@ do_mpage_readpage(struct bio *bio, struc
- 	if (page_has_buffers(page))
- 		goto confused;
- 
--	block_in_file = (sector_t)page->index << (PAGE_CACHE_SHIFT - blkbits);
-+	block_in_file = (sector_t)page->index << (page_cache_shift(mapping) - blkbits);
- 	last_block = block_in_file + nr_pages * blocks_per_page;
- 	last_block_in_file = (i_size_read(inode) + blocksize - 1) >> blkbits;
- 	if (last_block > last_block_in_file)
-@@ -276,7 +278,8 @@ do_mpage_readpage(struct bio *bio, struc
- 	}
- 
- 	if (first_hole != blocks_per_page) {
--		zero_user_segment(page, first_hole << blkbits, PAGE_CACHE_SIZE);
-+		zero_user_segment(page, first_hole << blkbits,
-+					page_cache_size(mapping));
- 		if (first_hole == 0) {
- 			SetPageUptodate(page);
- 			unlock_page(page);
-@@ -454,7 +457,7 @@ static int __mpage_writepage(struct page
- 	struct inode *inode = page->mapping->host;
- 	const unsigned blkbits = inode->i_blkbits;
- 	unsigned long end_index;
--	const unsigned blocks_per_page = PAGE_CACHE_SIZE >> blkbits;
-+	const unsigned blocks_per_page = page_cache_size(mapping) >> blkbits;
- 	sector_t last_block;
- 	sector_t block_in_file;
- 	sector_t blocks[MAX_BUF_PER_PAGE];
-@@ -523,7 +526,8 @@ static int __mpage_writepage(struct page
- 	 * The page has no buffers: map it to disk
- 	 */
- 	BUG_ON(!PageUptodate(page));
--	block_in_file = (sector_t)page->index << (PAGE_CACHE_SHIFT - blkbits);
-+	block_in_file = (sector_t)page->index <<
-+			(page_cache_shift(mapping) - blkbits);
- 	last_block = (i_size - 1) >> blkbits;
- 	map_bh.b_page = page;
- 	for (page_block = 0; page_block < blocks_per_page; ) {
-@@ -555,7 +559,7 @@ static int __mpage_writepage(struct page
- 	first_unmapped = page_block;
- 
- page_is_mapped:
--	end_index = i_size >> PAGE_CACHE_SHIFT;
-+	end_index = page_cache_index(mapping, i_size);
- 	if (page->index >= end_index) {
- 		/*
- 		 * The page straddles i_size.  It must be zeroed out on each
-@@ -565,11 +569,11 @@ page_is_mapped:
- 		 * is zeroed when mapped, and writes to that region are not
- 		 * written out to the file."
- 		 */
--		unsigned offset = i_size & (PAGE_CACHE_SIZE - 1);
-+		unsigned offset = page_cache_offset(mapping, i_size);
- 
- 		if (page->index > end_index || !offset)
- 			goto confused;
--		zero_user_segment(page, offset, PAGE_CACHE_SIZE);
-+		zero_user_segment(page, offset, page_cache_size(mapping));
- 	}
+-	index = *ppos >> PAGE_CACHE_SHIFT;
+-	loff = *ppos & ~PAGE_CACHE_MASK;
+-	req_pages = (len + loff + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
++	index = page_cache_index(mapping, *ppos);
++	loff = page_cache_offset(mapping, *ppos);
++	req_pages = page_cache_next(mapping, len + loff);
+ 	nr_pages = min(req_pages, (unsigned)PIPE_BUFFERS);
  
  	/*
+@@ -342,7 +342,7 @@ __generic_file_splice_read(struct file *
+ 	 * Now loop over the map and see if we need to start IO on any
+ 	 * pages, fill in the partial map, etc.
+ 	 */
+-	index = *ppos >> PAGE_CACHE_SHIFT;
++	index = page_cache_index(mapping, *ppos);
+ 	nr_pages = spd.nr_pages;
+ 	spd.nr_pages = 0;
+ 	for (page_nr = 0; page_nr < nr_pages; page_nr++) {
+@@ -354,7 +354,8 @@ __generic_file_splice_read(struct file *
+ 		/*
+ 		 * this_len is the max we'll use from this page
+ 		 */
+-		this_len = min_t(unsigned long, len, PAGE_CACHE_SIZE - loff);
++		this_len = min_t(unsigned long, len,
++					page_cache_size(mapping) - loff);
+ 		page = pages[page_nr];
+ 
+ 		if (PageReadahead(page))
+@@ -414,7 +415,7 @@ fill_it:
+ 		 * i_size must be checked after PageUptodate.
+ 		 */
+ 		isize = i_size_read(mapping->host);
+-		end_index = (isize - 1) >> PAGE_CACHE_SHIFT;
++		end_index = page_cache_index(mapping, isize - 1);
+ 		if (unlikely(!isize || index > end_index))
+ 			break;
+ 
+@@ -428,7 +429,7 @@ fill_it:
+ 			/*
+ 			 * max good bytes in this page
+ 			 */
+-			plen = ((isize - 1) & ~PAGE_CACHE_MASK) + 1;
++			plen = page_cache_offset(mapping, isize - 1) + 1;
+ 			if (plen <= loff)
+ 				break;
+ 
+@@ -453,7 +454,7 @@ fill_it:
+ 	 */
+ 	while (page_nr < nr_pages)
+ 		page_cache_release(pages[page_nr++]);
+-	in->f_ra.prev_pos = (loff_t)index << PAGE_CACHE_SHIFT;
++	in->f_ra.prev_pos = page_cache_index(mapping, index);
+ 
+ 	if (spd.nr_pages)
+ 		return splice_to_pipe(pipe, &spd);
+@@ -579,11 +580,11 @@ static int pipe_to_file(struct pipe_inod
+ 	if (unlikely(ret))
+ 		return ret;
+ 
+-	offset = sd->pos & ~PAGE_CACHE_MASK;
++	offset = page_cache_offset(mapping, sd->pos);
+ 
+ 	this_len = sd->len;
+-	if (this_len + offset > PAGE_CACHE_SIZE)
+-		this_len = PAGE_CACHE_SIZE - offset;
++	if (this_len + offset > page_cache_size(mapping))
++		this_len = page_cache_size(mapping) - offset;
+ 
+ 	ret = pagecache_write_begin(file, mapping, sd->pos, this_len,
+ 				AOP_FLAG_UNINTERRUPTIBLE, &page, &fsdata);
+@@ -790,7 +791,7 @@ generic_file_splice_write_nolock(struct 
+ 		unsigned long nr_pages;
+ 
+ 		*ppos += ret;
+-		nr_pages = (ret + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
++		nr_pages = page_cache_next(mapping, ret);
+ 
+ 		/*
+ 		 * If file or inode is SYNC and we actually wrote some data,
+@@ -852,7 +853,7 @@ generic_file_splice_write(struct pipe_in
+ 		unsigned long nr_pages;
+ 
+ 		*ppos += ret;
+-		nr_pages = (ret + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
++		nr_pages = page_cache_next(mapping, ret);
+ 
+ 		/*
+ 		 * If file or inode is SYNC and we actually wrote some data,
 
 -- 
 
