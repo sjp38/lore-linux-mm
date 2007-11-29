@@ -1,55 +1,116 @@
-Date: Wed, 28 Nov 2007 19:58:45 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 16/19] Use page_cache_xxx in fs/ext4
-In-Reply-To: <20071129034857.GW119954183@sgi.com>
-Message-ID: <Pine.LNX.4.64.0711281958250.20688@schroedinger.engr.sgi.com>
-References: <20071129011052.866354847@sgi.com> <20071129011148.032437954@sgi.com>
- <20071129034857.GW119954183@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 29 Nov 2007 14:58:33 +1100
+From: David Chinner <dgc@sgi.com>
+Subject: Re: [patch 18/19] Use page_cache_xxx for fs/xfs
+Message-ID: <20071129035833.GY119954183@sgi.com>
+References: <20071129011052.866354847@sgi.com> <20071129011148.509714554@sgi.com> <20071129030314.GR119954183@sgi.com> <Pine.LNX.4.64.0711281927520.20367@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0711281927520.20367@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Chinner <dgc@sgi.com>
-Cc: akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: David Chinner <dgc@sgi.com>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Nov 2007, David Chinner wrote:
+On Wed, Nov 28, 2007 at 07:28:17PM -0800, Christoph Lameter wrote:
+> In other words the following patch?
+> Index: mm/fs/xfs/linux-2.6/xfs_aops.c
+> ===================================================================
+> --- mm.orig/fs/xfs/linux-2.6/xfs_aops.c	2007-11-28 19:13:13.323382722 -0800
+> +++ mm/fs/xfs/linux-2.6/xfs_aops.c	2007-11-28 19:22:15.686920219 -0800
+> @@ -75,7 +75,7 @@ xfs_page_trace(
+>  	xfs_inode_t	*ip;
+>  	bhv_vnode_t	*vp = vn_from_inode(inode);
+>  	loff_t		isize = i_size_read(inode);
+> -	loff_t		offset = page_cache_offset(page->mapping);
+> +	loff_t		offset = page_cache_pos(page->mapping, page->index, 0);
+>  	int		delalloc = -1, unmapped = -1, unwritten = -1;
+>  
+>  	if (page_has_buffers(page))
 
-> These three should use the pagesize variable.
+Good.
 
-ext4: use pagesize variable instead of the inline function
+> @@ -780,13 +780,11 @@ xfs_convert_page(
+>  	 * count of buffers on the page.
+>  	 */
+>  	end_offset = min_t(unsigned long long,
+> -			(xfs_off_t)(page->index + 1) << page_cache_shift(map),
+> +			(xfs_off_t)page_cache_pos(map, page->index + 1, 0),
+>  			i_size_read(inode));
+>  
+>  	len = 1 << inode->i_blkbits;
+> -	p_offset = min_t(unsigned long, page_cache_offset(map, end_offset),
+> -					page_cache_size(map));
+> -	p_offset = p_offset ? roundup(p_offset, len) : page_cache_size(map);
+> +	p_offset = page_cache_offset(map, end_offset);
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+No, still need the roundup. i.e.:
 
----
- fs/ext4/inode.c |    7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+-	p_offset = min_t(unsigned long, page_cache_offset(map, end_offset),
+-					page_cache_size(map));
++	p_offset = page_cache_offset(map, end_offset);
+	p_offset = p_offset ? roundup(p_offset, len) : page_cache_size(map);
 
-Index: mm/fs/ext4/inode.c
-===================================================================
---- mm.orig/fs/ext4/inode.c	2007-11-28 19:56:18.234382799 -0800
-+++ mm/fs/ext4/inode.c	2007-11-28 19:57:10.774132672 -0800
-@@ -1693,17 +1693,16 @@ static int ext4_journalled_writepage(str
- 		 * doesn't seem much point in redirtying the page here.
- 		 */
- 		ClearPageChecked(page);
--		ret = block_prepare_write(page, 0, page_cache_size(mapping),
--					ext4_get_block);
-+		ret = block_prepare_write(page, 0, pagesize, ext4_get_block);
- 		if (ret != 0) {
- 			ext4_journal_stop(handle);
- 			goto out_unlock;
- 		}
- 		ret = walk_page_buffers(handle, page_buffers(page), 0,
--			page_cache_size(mapping), NULL, do_journal_get_write_access);
-+			pagesize, NULL, do_journal_get_write_access);
- 
- 		err = walk_page_buffers(handle, page_buffers(page), 0,
--			page_cache_size(mapping), NULL, write_end_fn);
-+			pagesize, NULL, write_end_fn);
- 		if (ret == 0)
- 			ret = err;
- 		EXT4_I(inode)->i_state |= EXT4_STATE_JDATA;
+>  	page_dirty = p_offset / len;
+>  
+>  	bh = head = page_buffers(page);
+> @@ -943,7 +941,6 @@ xfs_page_state_convert(
+>  	int			trylock = 0;
+>  	int			all_bh = unmapped;
+>  	struct address_space	*map = inode->i_mapping;
+> -	int			pagesize = page_cache_size(map);
+>  
+>  	if (startio) {
+>  		if (wbc->sync_mode == WB_SYNC_NONE && wbc->nonblocking)
+> @@ -979,9 +976,7 @@ xfs_page_state_convert(
+>  	end_offset = min_t(unsigned long long,
+>  			(xfs_off_t)page_cache_pos(map, page->index + 1, 0), offset);
+>  	len = 1 << inode->i_blkbits;
+> -	p_offset = min_t(unsigned long, page_cache_offset(map, end_offset),
+> -					pagesize);
+> -	p_offset = p_offset ? roundup(p_offset, len) : pagesize;
+> +	p_offset = page_cache_offset(map, end_offset);
+
+And still need the roundup here as well.
+
+>  	page_dirty = p_offset / len;
+>  
+>  	bh = head = page_buffers(page);
+> @@ -1132,8 +1127,8 @@ xfs_page_state_convert(
+>  		xfs_start_page_writeback(page, wbc, 1, count);
+>  
+>  	if (ioend && iomap_valid) {
+> -		offset = (iomap.iomap_offset + iomap.iomap_bsize - 1) >>
+> -					page_cache_shift(map);
+> +		offset = page_cache_index(map,
+> +			(iomap.iomap_offset + iomap.iomap_bsize - 1));
+
+Good.
+
+>  		tlast = min_t(pgoff_t, offset, last_index);
+>  		xfs_cluster_write(inode, page->index + 1, &iomap, &ioend,
+>  					wbc, startio, all_bh, tlast);
+> Index: mm/fs/xfs/linux-2.6/xfs_lrw.c
+> ===================================================================
+> --- mm.orig/fs/xfs/linux-2.6/xfs_lrw.c	2007-11-28 19:22:35.454383115 -0800
+> +++ mm/fs/xfs/linux-2.6/xfs_lrw.c	2007-11-28 19:22:59.222132796 -0800
+> @@ -142,7 +142,7 @@ xfs_iozero(
+>  		unsigned offset, bytes;
+>  		void *fsdata;
+>  
+> -		offset = page_cache_offset(mapping, pos); /* Within page */
+> +		offset = page_cache_offset(mapping, pos);
+
+Ok.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+Principal Engineer
+SGI Australian Software Group
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
