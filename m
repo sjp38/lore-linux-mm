@@ -1,53 +1,32 @@
-Date: Wed, 28 Nov 2007 19:30:54 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 05/19] Use page_cache_xxx in mm/rmap.c
-In-Reply-To: <20071129031921.GS119954183@sgi.com>
-Message-ID: <Pine.LNX.4.64.0711281928220.20367@schroedinger.engr.sgi.com>
-References: <20071129011052.866354847@sgi.com> <20071129011145.414062339@sgi.com>
- <20071129031921.GS119954183@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH][for -mm] per-zone and reclaim enhancements for memory
+ controller take 3 [3/10] per-zone active inactive counter
+In-Reply-To: Your message of "Tue, 27 Nov 2007 12:00:48 +0900"
+	<20071127120048.ef5f2005.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20071127120048.ef5f2005.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Message-Id: <20071129033328.20E5F1CFEAA@siro.lan>
+Date: Thu, 29 Nov 2007 12:33:28 +0900 (JST)
+From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Chinner <dgc@sgi.com>
-Cc: akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
+To: kamezawa.hiroyu@jp.fujitsu.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, akpm@linux-foundation.org, balbir@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Nov 2007, David Chinner wrote:
+> +static inline struct mem_cgroup_per_zone *
+> +mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
+> +{
+> +	if (!mem->info.nodeinfo[nid])
 
-> >  	unsigned int mapcount;
-> >  	struct address_space *mapping = page->mapping;
-> > -	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-> > +	pgoff_t pgoff = page->index << (page_cache_shift(mapping) - PAGE_SHIFT);
-> 
-> Based on the first hunk, shouldn't this be:
-> 
-> 	pgoff_t pgoff = page->index << mapping_order(mapping);
+can this be true?
 
-Yes that is much simpler
+YAMAMOTO Takashi
 
-
-rmap: simplify page_referenced_file use of page cache inlines
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
----
- mm/rmap.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-Index: mm/mm/rmap.c
-===================================================================
---- mm.orig/mm/rmap.c	2007-11-28 19:28:45.689883608 -0800
-+++ mm/mm/rmap.c	2007-11-28 19:29:35.090382690 -0800
-@@ -350,7 +350,7 @@ static int page_referenced_file(struct p
- {
- 	unsigned int mapcount;
- 	struct address_space *mapping = page->mapping;
--	pgoff_t pgoff = page->index << (page_cache_shift(mapping) - PAGE_SHIFT);
-+	pgoff_t pgoff = page->index << mapping_order(mapping);
- 	struct vm_area_struct *vma;
- 	struct prio_tree_iter iter;
- 	int referenced = 0;
+> +		return NULL;
+> +	return &mem->info.nodeinfo[nid]->zoneinfo[zid];
+> +}
+> +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
