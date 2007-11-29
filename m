@@ -1,53 +1,37 @@
-Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
-	by smtp-out.google.com with ESMTP id lAT6wnR3024963
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2007 22:58:49 -0800
-Received: from py-out-1112.google.com (pyia25.prod.google.com [10.34.253.25])
-	by zps75.corp.google.com with ESMTP id lAT6wm6G030981
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2007 22:58:48 -0800
-Received: by py-out-1112.google.com with SMTP id a25so3940940pyi
-        for <linux-mm@kvack.org>; Wed, 28 Nov 2007 22:58:48 -0800 (PST)
-Message-ID: <532480950711282258w14fcd5adh497e19463bf51081@mail.gmail.com>
-Date: Wed, 28 Nov 2007 22:58:48 -0800
-From: "Michael Rubin" <mrubin@google.com>
-Subject: Re: [patch 1/1] Writeback fix for concurrent large and small file writes
-In-Reply-To: <E1IxYuL-0001tu-8f@faramir.fjphome.nl>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Thu, 29 Nov 2007 00:24:04 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 18/19] Use page_cache_xxx for fs/xfs
+Message-Id: <20071129002404.dc4c9cae.akpm@linux-foundation.org>
+In-Reply-To: <20071129041013.GF119954183@sgi.com>
+References: <20071129011052.866354847@sgi.com>
+	<20071129011148.509714554@sgi.com>
+	<20071129030314.GR119954183@sgi.com>
+	<Pine.LNX.4.64.0711281927520.20367@schroedinger.engr.sgi.com>
+	<20071129035833.GY119954183@sgi.com>
+	<Pine.LNX.4.64.0711282006140.20688@schroedinger.engr.sgi.com>
+	<20071129041013.GF119954183@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20071128192957.511EAB8310@localhost>
-	 <E1IxYuL-0001tu-8f@faramir.fjphome.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Frans Pop <elendil@planet.nl>
-Cc: a.p.zijlstra@chello.nl, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wfg@mail.ustc.edu.cn
+To: David Chinner <dgc@sgi.com>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
 List-ID: <linux-mm.kvack.org>
 
-Thank you. Integrated the fixes in my patch.
+On Thu, 29 Nov 2007 15:10:13 +1100 David Chinner <dgc@sgi.com> wrote:
 
-On Nov 28, 2007 6:13 PM, Frans Pop <elendil@planet.nl> wrote:
-> Two typos in comments.
->
-> Cheers,
-> FJP
->
-> Michael Rubin wrote:
-> > + * The flush tree organizes the dirtied_when keys with the rb_tree. Any
-> > + * inodes with a duplicate dirtied_when value are link listed together.
-> > This + * link list is sorted by the inode's i_flushed_when. When both the
-> > + * dirited_when and the i_flushed_when are indentical the order in the
-> > + * linked list determines the order we flush the inodes.
->
-> s/dirited_when/dirtied_when/
->
-> > + * Here is where we interate to find the next inode to process. The
-> > + * strategy is to first look for any other inodes with the same
-> > dirtied_when + * value. If we have already processed that node then we
-> > need to find + * the next highest dirtied_when value in the tree.
->
-> s/interate/iterate/
->
->
+> On Wed, Nov 28, 2007 at 08:06:30PM -0800, Christoph Lameter wrote:
+> > Is this correct?
+> 
+> Yup, looks good now.
+> 
+
+Given the error rate in the xfs patch my confidence in the rest
+of the series isn't terribly high, sorry.
+
+I guess I can suck up the core and xfs bits, but who is going to 
+review the rest of them this closely?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
