@@ -1,109 +1,77 @@
-Date: Thu, 29 Nov 2007 11:42:43 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [Patch](Resend) mm/sparse.c: Improve the error handling for sparse_add_one_section()
-In-Reply-To: <20071128124420.GJ2464@hacking>
-References: <1196189625.5764.36.camel@localhost> <20071128124420.GJ2464@hacking>
-Message-Id: <20071129113903.03E3.Y-GOTO@jp.fujitsu.com>
+Received: by mu-out-0910.google.com with SMTP id w9so2322550mue
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2007 19:01:17 -0800 (PST)
+Message-ID: <29495f1d0711281901l41986e58sf05b6f0fcdc13232@mail.gmail.com>
+Date: Wed, 28 Nov 2007 19:01:11 -0800
+From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
+Subject: Re: [PATCH 1/2] powerpc: add hugepagesz boot-time parameter
+In-Reply-To: <474E187E.7040404@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <474CF68E.1040709@us.ibm.com>
+	 <20071128132816.542fa4df.randy.dunlap@oracle.com>
+	 <29495f1d0711281736if4bd8b0wc77d3beb39cb1284@mail.gmail.com>
+	 <474E187E.7040404@oracle.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: WANG Cong <xiyou.wangcong@gmail.com>
-Cc: Dave Hansen <haveblue@us.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: kniht@linux.vnet.ibm.com, Jon Tollefson <kniht@us.ibm.com>, linuxppc-dev <linuxppc-dev@ozlabs.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Looks good to me.
-
-Thanks.
-
-Acked-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-
-
-
-> On Tue, Nov 27, 2007 at 10:53:45AM -0800, Dave Hansen wrote:
-> >On Tue, 2007-11-27 at 10:26 +0800, WANG Cong wrote:
-> >> 
-> >> @@ -414,7 +418,7 @@ int sparse_add_one_section(struct zone *
-> >>  out:
-> >>         pgdat_resize_unlock(pgdat, &flags);
-> >>         if (ret <= 0)
-> >> -               __kfree_section_memmap(memmap, nr_pages);
-> >> +               kfree(usemap);
-> >>         return ret;
-> >>  }
-> >>  #endif 
+On 11/28/07, Randy Dunlap <randy.dunlap@oracle.com> wrote:
+> Nish Aravamudan wrote:
+> > On 11/28/07, Randy Dunlap <randy.dunlap@oracle.com> wrote:
+> >> On Tue, 27 Nov 2007 23:03:10 -0600 Jon Tollefson wrote:
+> >>
+> >>> This patch adds the hugepagesz boot-time parameter for ppc64 that lets
+> >>> you pick the size for your huge pages.  The choices available are 64K
+> >>> and 16M.  It defaults to 16M (previously the only choice) if nothing or
+> >>> an invalid choice is specified.  Tested 64K huge pages with the
+> >>> libhugetlbfs 1.2 release with its 'make func' and 'make stress' test
+> >>> invocations.
+> >>>
+> >>> This patch requires the patch posted by Mel Gorman that adds
+> >>> HUGETLB_PAGE_SIZE_VARIABLE; "[PATCH] Fix boot problem with iSeries
+> >>> lacking hugepage support" on 2007-11-15.
+> >>>
+> >>> Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
+> >>> ---
+> >>>
+> >>>  Documentation/kernel-parameters.txt |    1
+> >>>  arch/powerpc/mm/hash_utils_64.c     |   11 +--------
+> >>>  arch/powerpc/mm/hugetlbpage.c       |   41 ++++++++++++++++++++++++++++++++++++
+> >>>  include/asm-powerpc/mmu-hash64.h    |    1
+> >>>  mm/hugetlb.c                        |    1
+> >>>  5 files changed, 46 insertions(+), 9 deletions(-)
+> >>>
+> >>> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+> >>> index 33121d6..2fc1fb8 100644
+> >>> --- a/Documentation/kernel-parameters.txt
+> >>> +++ b/Documentation/kernel-parameters.txt
+> >>> @@ -685,6 +685,7 @@ and is between 256 and 4096 characters. It is defined in the file
+> >>>                       See Documentation/isdn/README.HiSax.
+> >>>
+> >>>       hugepages=      [HW,X86-32,IA-64] Maximal number of HugeTLB pages.
+> >>> +     hugepagesz=     [HW,IA-64,PPC] The size of the HugeTLB pages.
+> >> Any chance of spelling it as "hugepagesize" so that it's a little
+> >> less cryptic and more difficult to typo as "hugepages"?
+> >> (i.e., less confusion between them)
 > >
-> >Why did you get rid of the memmap free here?  A bad return from
-> >sparse_init_one_section() indicates that we didn't use the memmap, so it
-> >will leak otherwise.
-> 
-> Sorry, I was confused by the recursion. This one should be OK.
-> 
-> Thanks.
-> 
-> 
-> 
-> Improve the error handling for mm/sparse.c::sparse_add_one_section().  And I
-> see no reason to check 'usemap' until holding the 'pgdat_resize_lock'.
-> 
-> Cc: Christoph Lameter <clameter@sgi.com>
-> Cc: Dave Hansen <haveblue@us.ibm.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Yasunori Goto <y-goto@jp.fujitsu.com>
-> Cc: Andy Whitcroft <apw@shadowen.org>
-> Signed-off-by: WANG Cong <xiyou.wangcong@gmail.com>
-> 
-> ---
-> Index: linux-2.6/mm/sparse.c
-> ===================================================================
-> --- linux-2.6.orig/mm/sparse.c
-> +++ linux-2.6/mm/sparse.c
-> @@ -391,9 +391,17 @@ int sparse_add_one_section(struct zone *
->  	 * no locking for this, because it does its own
->  	 * plus, it does a kmalloc
->  	 */
-> -	sparse_index_init(section_nr, pgdat->node_id);
-> +	ret = sparse_index_init(section_nr, pgdat->node_id);
-> +	if (ret < 0)
-> +		return ret;
->  	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, nr_pages);
-> +	if (!memmap)
-> +		return -ENOMEM;
->  	usemap = __kmalloc_section_usemap();
-> +	if (!usemap) {
-> +		__kfree_section_memmap(memmap, nr_pages);
-> +		return -ENOMEM;
-> +	}
->  
->  	pgdat_resize_lock(pgdat, &flags);
->  
-> @@ -403,18 +411,16 @@ int sparse_add_one_section(struct zone *
->  		goto out;
->  	}
->  
-> -	if (!usemap) {
-> -		ret = -ENOMEM;
-> -		goto out;
-> -	}
->  	ms->section_mem_map |= SECTION_MARKED_PRESENT;
->  
->  	ret = sparse_init_one_section(ms, section_nr, memmap, usemap);
->  
->  out:
->  	pgdat_resize_unlock(pgdat, &flags);
-> -	if (ret <= 0)
-> +	if (ret <= 0) {
-> +		kfree(usemap);
->  		__kfree_section_memmap(memmap, nr_pages);
-> +	}
->  	return ret;
->  }
->  #endif
+> > It already exists as hugepagesz= for IA64. Changing it to hugepagesize
+> > would either make ppc be different than IA64, or require keeping both
+> > so as to make IA64 setups continue working as before?
+>
+> Oh, but it wasn't in Doc/kernel-parameters.txt ?  :(
 
--- 
-Yasunori Goto 
+Nope :( I wonder how many other kernel parameters are in the same
+boat? Where's an RPJDay-script when you need it?
 
+> OK, just leave it as is, I think.
+
+Yeah, I guess that's probably easiest...unfortunately.
+
+-Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
