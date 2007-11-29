@@ -1,36 +1,55 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lATHlrPj006348
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2007 12:47:53 -0500
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lATHlYCI128902
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2007 12:47:53 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lATHlYKT030878
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2007 12:47:34 -0500
-Subject: Re: [Patch](Resend) mm/sparse.c: Improve the error handling for
-	sparse_add_one_section()
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20071128124420.GJ2464@hacking>
-References: <1195507022.27759.146.camel@localhost>
-	 <20071123055150.GA2488@hacking> <20071126191316.99CF.Y-GOTO@jp.fujitsu.com>
-	 <20071127022609.GA4164@hacking> <1196189625.5764.36.camel@localhost>
-	 <20071128124420.GJ2464@hacking>
-Content-Type: text/plain
-Date: Thu, 29 Nov 2007 09:47:30 -0800
-Message-Id: <1196358450.18851.72.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 29 Nov 2007 12:05:13 -0700
+From: Matthew Wilcox <matthew@wil.cx>
+Subject: [PATCH] Fix kmem_cache_free performance regression in slab
+Message-ID: <20071129190513.GD2584@parisc-linux.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: WANG Cong <xiyou.wangcong@gmail.com>
-Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>
+To: Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This looks fine now.
+The database performance group have found that half the cycles spent
+in kmem_cache_free are spent in this one call to BUG_ON.  Moving it
+into the CONFIG_SLAB_DEBUG-only function cache_free_debugcheck() is a
+performance win of almost 0.5% on their particular benchmark.
 
-Acked-by: Dave Hansen <haveblue@us.ibm.com> 
+The call was added as part of commit ddc2e812d592457747c4367fb73edcaa8e1e49ff
+with the comment that "overhead should be minimal".  It may have been
+minimal at the time, but it isn't now.
 
--- Dave
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+
+diff --git a/mm/slab.c b/mm/slab.c
+index cfa6be4..6e16431 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2881,6 +2881,8 @@ static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
+ 	unsigned int objnr;
+ 	struct slab *slabp;
+ 
++	BUG_ON(virt_to_cache(objp) != cachep);
++
+ 	objp -= obj_offset(cachep);
+ 	kfree_debugcheck(objp);
+ 	page = virt_to_head_page(objp);
+@@ -3759,8 +3761,6 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
+ {
+ 	unsigned long flags;
+ 
+-	BUG_ON(virt_to_cache(objp) != cachep);
+-
+ 	local_irq_save(flags);
+ 	debug_check_no_locks_freed(objp, obj_size(cachep));
+ 	__cache_free(cachep, objp);
+
+-- 
+Intel are signing my paycheques ... these opinions are still mine
+"Bill, look, we understand that you're interested in selling us this
+operating system, but compare it to ours.  We can't possibly take such
+a retrograde step."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
