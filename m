@@ -1,78 +1,199 @@
-Message-ID: <396296481.07368@ustc.edu.cn>
-Date: Thu, 29 Nov 2007 08:34:33 +0800
-From: Fengguang Wu <wfg@mail.ustc.edu.cn>
-Subject: Re: [patch 1/1] Writeback fix for concurrent large and small file
-	writes
-References: <20071128192957.511EAB8310@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20071128192957.511EAB8310@localhost>
-Message-Id: <E1IxXMP-0002i8-4S@localhost>
+Message-Id: <20071129011148.509714554@sgi.com>
+References: <20071129011052.866354847@sgi.com>
+Date: Wed, 28 Nov 2007 17:11:10 -0800
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [patch 18/19] Use page_cache_xxx for fs/xfs
+Content-Disposition: inline; filename=0019-Use-page_cache_xxx-for-fs-xfs.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Michael Rubin <mrubin@google.com>
-Cc: a.p.zijlstra@chello.nl, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>
+To: akpm@linux-foundation.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 28, 2007 at 11:29:57AM -0800, Michael Rubin wrote:
-> >From mrubin@matchstick.corp.google.com Wed Nov 28 11:10:06 2007
-> Message-Id: <20071128190121.716364000@matchstick.corp.google.com>
-> Date: Wed, 28 Nov 2007 11:01:21 -0800
-> From: mrubin@google.com
-> To: mrubin@google.com
-> Subject: [patch 1/1] Writeback fix for concurrent large and small file writes.
-> 
-> From: Michael Rubin <mrubin@google.com>
-> 
-> Fixing a bug where writing to large files while concurrently writing to
-> smaller ones creates a situation where writeback cannot keep up with the
+Use page_cache_xxx for fs/xfs
 
-Could you demonstrate the situation? Or if I guess it right, could it
-be fixed by the following patch? (not a nack: If so, your patch could
-also be considered as a general purpose improvement, instead of a bug
-fix.)
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+---
+ fs/xfs/linux-2.6/xfs_aops.c |   55 +++++++++++++++++++++++---------------------
+ fs/xfs/linux-2.6/xfs_lrw.c  |    4 +--
+ 2 files changed, 31 insertions(+), 28 deletions(-)
 
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 0fca820..62e62e2 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -301,7 +301,7 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
- 			 * Someone redirtied the inode while were writing back
- 			 * the pages.
- 			 */
--			redirty_tail(inode);
-+			requeue_io(inode);
- 		} else if (atomic_read(&inode->i_count)) {
- 			/*
- 			 * The inode is clean, inuse
+Index: mm/fs/xfs/linux-2.6/xfs_aops.c
+===================================================================
+--- mm.orig/fs/xfs/linux-2.6/xfs_aops.c	2007-11-28 12:25:38.768212813 -0800
++++ mm/fs/xfs/linux-2.6/xfs_aops.c	2007-11-28 14:12:55.637977383 -0800
+@@ -75,7 +75,7 @@ xfs_page_trace(
+ 	xfs_inode_t	*ip;
+ 	bhv_vnode_t	*vp = vn_from_inode(inode);
+ 	loff_t		isize = i_size_read(inode);
+-	loff_t		offset = page_offset(page);
++	loff_t		offset = page_cache_offset(page->mapping);
+ 	int		delalloc = -1, unmapped = -1, unwritten = -1;
+ 
+ 	if (page_has_buffers(page))
+@@ -618,7 +618,7 @@ xfs_probe_page(
+ 					break;
+ 			} while ((bh = bh->b_this_page) != head);
+ 		} else
+-			ret = mapped ? 0 : PAGE_CACHE_SIZE;
++			ret = mapped ? 0 : page_cache_size(page->mapping);
+ 	}
+ 
+ 	return ret;
+@@ -645,7 +645,7 @@ xfs_probe_cluster(
+ 	} while ((bh = bh->b_this_page) != head);
+ 
+ 	/* if we reached the end of the page, sum forwards in following pages */
+-	tlast = i_size_read(inode) >> PAGE_CACHE_SHIFT;
++	tlast = page_cache_index(inode->i_mapping, i_size_read(inode));
+ 	tindex = startpage->index + 1;
+ 
+ 	/* Prune this back to avoid pathological behavior */
+@@ -663,14 +663,14 @@ xfs_probe_cluster(
+ 			size_t pg_offset, pg_len = 0;
+ 
+ 			if (tindex == tlast) {
+-				pg_offset =
+-				    i_size_read(inode) & (PAGE_CACHE_SIZE - 1);
++				pg_offset = page_cache_offset(inode->i_mapping,
++							i_size_read(inode));
+ 				if (!pg_offset) {
+ 					done = 1;
+ 					break;
+ 				}
+ 			} else
+-				pg_offset = PAGE_CACHE_SIZE;
++				pg_offset = page_cache_size(inode->i_mapping);
+ 
+ 			if (page->index == tindex && !TestSetPageLocked(page)) {
+ 				pg_len = xfs_probe_page(page, pg_offset, mapped);
+@@ -752,7 +752,8 @@ xfs_convert_page(
+ 	int			bbits = inode->i_blkbits;
+ 	int			len, page_dirty;
+ 	int			count = 0, done = 0, uptodate = 1;
+- 	xfs_off_t		offset = page_offset(page);
++	struct address_space	*map = inode->i_mapping;
++	xfs_off_t		offset = page_cache_pos(map, page->index, 0);
+ 
+ 	if (page->index != tindex)
+ 		goto fail;
+@@ -760,7 +761,7 @@ xfs_convert_page(
+ 		goto fail;
+ 	if (PageWriteback(page))
+ 		goto fail_unlock_page;
+-	if (page->mapping != inode->i_mapping)
++	if (page->mapping != map)
+ 		goto fail_unlock_page;
+ 	if (!xfs_is_delayed_page(page, (*ioendp)->io_type))
+ 		goto fail_unlock_page;
+@@ -772,20 +773,20 @@ xfs_convert_page(
+ 	 * Derivation:
+ 	 *
+ 	 * End offset is the highest offset that this page should represent.
+-	 * If we are on the last page, (end_offset & (PAGE_CACHE_SIZE - 1))
+-	 * will evaluate non-zero and be less than PAGE_CACHE_SIZE and
++	 * If we are on the last page, (end_offset & page_cache_mask())
++	 * will evaluate non-zero and be less than page_cache_size() and
+ 	 * hence give us the correct page_dirty count. On any other page,
+ 	 * it will be zero and in that case we need page_dirty to be the
+ 	 * count of buffers on the page.
+ 	 */
+ 	end_offset = min_t(unsigned long long,
+-			(xfs_off_t)(page->index + 1) << PAGE_CACHE_SHIFT,
++			(xfs_off_t)(page->index + 1) << page_cache_shift(map),
+ 			i_size_read(inode));
+ 
+ 	len = 1 << inode->i_blkbits;
+-	p_offset = min_t(unsigned long, end_offset & (PAGE_CACHE_SIZE - 1),
+-					PAGE_CACHE_SIZE);
+-	p_offset = p_offset ? roundup(p_offset, len) : PAGE_CACHE_SIZE;
++	p_offset = min_t(unsigned long, page_cache_offset(map, end_offset),
++					page_cache_size(map));
++	p_offset = p_offset ? roundup(p_offset, len) : page_cache_size(map);
+ 	page_dirty = p_offset / len;
+ 
+ 	bh = head = page_buffers(page);
+@@ -941,6 +942,8 @@ xfs_page_state_convert(
+ 	int			page_dirty, count = 0;
+ 	int			trylock = 0;
+ 	int			all_bh = unmapped;
++	struct address_space	*map = inode->i_mapping;
++	int			pagesize = page_cache_size(map);
+ 
+ 	if (startio) {
+ 		if (wbc->sync_mode == WB_SYNC_NONE && wbc->nonblocking)
+@@ -949,11 +952,11 @@ xfs_page_state_convert(
+ 
+ 	/* Is this page beyond the end of the file? */
+ 	offset = i_size_read(inode);
+-	end_index = offset >> PAGE_CACHE_SHIFT;
+-	last_index = (offset - 1) >> PAGE_CACHE_SHIFT;
++	end_index = page_cache_index(map, offset);
++	last_index = page_cache_index(map, (offset - 1));
+ 	if (page->index >= end_index) {
+ 		if ((page->index >= end_index + 1) ||
+-		    !(i_size_read(inode) & (PAGE_CACHE_SIZE - 1))) {
++		    !(page_cache_offset(map, i_size_read(inode)))) {
+ 			if (startio)
+ 				unlock_page(page);
+ 			return 0;
+@@ -967,22 +970,22 @@ xfs_page_state_convert(
+ 	 * Derivation:
+ 	 *
+ 	 * End offset is the highest offset that this page should represent.
+-	 * If we are on the last page, (end_offset & (PAGE_CACHE_SIZE - 1))
+-	 * will evaluate non-zero and be less than PAGE_CACHE_SIZE and
+-	 * hence give us the correct page_dirty count. On any other page,
++	 * If we are on the last page, (page_cache_offset(mapping, end_offset))
++	 * will evaluate non-zero and be less than page_cache_size(mapping)
++	 * and hence give us the correct page_dirty count. On any other page,
+ 	 * it will be zero and in that case we need page_dirty to be the
+ 	 * count of buffers on the page.
+  	 */
+ 	end_offset = min_t(unsigned long long,
+-			(xfs_off_t)(page->index + 1) << PAGE_CACHE_SHIFT, offset);
++			(xfs_off_t)page_cache_pos(map, page->index + 1, 0), offset);
+ 	len = 1 << inode->i_blkbits;
+-	p_offset = min_t(unsigned long, end_offset & (PAGE_CACHE_SIZE - 1),
+-					PAGE_CACHE_SIZE);
+-	p_offset = p_offset ? roundup(p_offset, len) : PAGE_CACHE_SIZE;
++	p_offset = min_t(unsigned long, page_cache_offset(map, end_offset),
++					pagesize);
++	p_offset = p_offset ? roundup(p_offset, len) : pagesize;
+ 	page_dirty = p_offset / len;
+ 
+ 	bh = head = page_buffers(page);
+-	offset = page_offset(page);
++	offset = page_cache_pos(map, page->index, 0);
+ 	flags = BMAPI_READ;
+ 	type = IOMAP_NEW;
+ 
+@@ -1130,7 +1133,7 @@ xfs_page_state_convert(
+ 
+ 	if (ioend && iomap_valid) {
+ 		offset = (iomap.iomap_offset + iomap.iomap_bsize - 1) >>
+-					PAGE_CACHE_SHIFT;
++					page_cache_shift(map);
+ 		tlast = min_t(pgoff_t, offset, last_index);
+ 		xfs_cluster_write(inode, page->index + 1, &iomap, &ioend,
+ 					wbc, startio, all_bh, tlast);
+Index: mm/fs/xfs/linux-2.6/xfs_lrw.c
+===================================================================
+--- mm.orig/fs/xfs/linux-2.6/xfs_lrw.c	2007-11-28 12:25:40.903962745 -0800
++++ mm/fs/xfs/linux-2.6/xfs_lrw.c	2007-11-28 14:12:55.637977383 -0800
+@@ -142,8 +142,8 @@ xfs_iozero(
+ 		unsigned offset, bytes;
+ 		void *fsdata;
+ 
+-		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
+-		bytes = PAGE_CACHE_SIZE - offset;
++		offset = page_cache_offset(mapping, pos); /* Within page */
++		bytes = page_cache_size(mapping) - offset;
+ 		if (bytes > count)
+ 			bytes = count;
+ 
 
-Thank you,
-Fengguang
-
-> traffic and memory baloons until the we hit the threshold watermark. This
-> can result in surprising latency spikes when syncing. This latency
-> can take minutes on large memory systems. Upon request I can provide
-> a test to reproduce this situation. The flush tree fixes this issue and
-> fixes several other minor issues with fairness also.
-> 
-> 1) Adding a data structure to guarantee fairness when writing inodes
-> to disk.  The flush_tree is based on an rbtree. The only difference is
-> how duplicate keys are chained off the same rb_node.
-> 
-> 2) Added a FS flag to mark file systems that are not disk backed so we
-> don't have to flush them. Not sure I marked all of them. But just marking
-> these improves writeback performance.
-> 
-> 3) Added an inode flag to allow inodes to be marked so that they are
-> never written back to disk. See get_pipe_inode.
-> 
-> Under autotest this patch has passed: fsx, bonnie, and iozone. I am
-> currently writing more writeback focused tests (which so far have been
-> passed) to add into autotest.
-> 
-> Signed-off-by: Michael Rubin <mrubin@google.com>
-> ---
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
