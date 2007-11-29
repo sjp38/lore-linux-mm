@@ -1,69 +1,46 @@
-Message-Id: <20071129011145.414062339@sgi.com>
+Message-Id: <20071129011144.958303762@sgi.com>
 References: <20071129011052.866354847@sgi.com>
-Date: Wed, 28 Nov 2007 17:10:57 -0800
+Date: Wed, 28 Nov 2007 17:10:55 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 05/19] Use page_cache_xxx in mm/rmap.c
-Content-Disposition: inline; filename=0006-Use-page_cache_xxx-in-mm-rmap.c.patch
+Subject: [patch 03/19] Use page_cache_xxx in mm/page-writeback.c
+Content-Disposition: inline; filename=0004-Use-page_cache_xxx-in-mm-page-writeback.c.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
 List-ID: <linux-mm.kvack.org>
 
-Use page_cache_xxx in mm/rmap.c
+Use page_cache_xxx in mm/page-writeback.c
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- mm/rmap.c |   13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ mm/page-writeback.c |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-Index: mm/mm/rmap.c
+Index: mm/mm/page-writeback.c
 ===================================================================
---- mm.orig/mm/rmap.c	2007-11-28 12:27:32.312059099 -0800
-+++ mm/mm/rmap.c	2007-11-28 14:10:42.758227810 -0800
-@@ -190,9 +190,14 @@ static void page_unlock_anon_vma(struct 
- static inline unsigned long
- vma_address(struct page *page, struct vm_area_struct *vma)
- {
--	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+	pgoff_t pgoff;
- 	unsigned long address;
- 
-+	if (PageAnon(page))
-+		pgoff = page->index;
-+	else
-+		pgoff = page->index << mapping_order(page->mapping);
-+
- 	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
- 	if (unlikely(address < vma->vm_start || address >= vma->vm_end)) {
- 		/* page should be within @vma mapping range */
-@@ -345,7 +350,7 @@ static int page_referenced_file(struct p
- {
- 	unsigned int mapcount;
- 	struct address_space *mapping = page->mapping;
--	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+	pgoff_t pgoff = page->index << (page_cache_shift(mapping) - PAGE_SHIFT);
- 	struct vm_area_struct *vma;
- 	struct prio_tree_iter iter;
- 	int referenced = 0;
-@@ -464,7 +469,7 @@ out:
- 
- static int page_mkclean_file(struct address_space *mapping, struct page *page)
- {
--	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+	pgoff_t pgoff = page->index << (page_cache_shift(mapping) - PAGE_SHIFT);
- 	struct vm_area_struct *vma;
- 	struct prio_tree_iter iter;
- 	int ret = 0;
-@@ -897,7 +902,7 @@ static int try_to_unmap_anon(struct page
- static int try_to_unmap_file(struct page *page, int migration)
- {
- 	struct address_space *mapping = page->mapping;
--	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+	pgoff_t pgoff = page->index << (page_cache_shift(mapping) - PAGE_SHIFT);
- 	struct vm_area_struct *vma;
- 	struct prio_tree_iter iter;
- 	int ret = SWAP_AGAIN;
+--- mm.orig/mm/page-writeback.c	2007-11-28 12:27:32.211962401 -0800
++++ mm/mm/page-writeback.c	2007-11-28 14:10:34.338227137 -0800
+@@ -818,8 +818,8 @@ int write_cache_pages(struct address_spa
+ 		index = mapping->writeback_index; /* Start from prev offset */
+ 		end = -1;
+ 	} else {
+-		index = wbc->range_start >> PAGE_CACHE_SHIFT;
+-		end = wbc->range_end >> PAGE_CACHE_SHIFT;
++		index = page_cache_index(mapping, wbc->range_start);
++		end = page_cache_index(mapping, wbc->range_end);
+ 		if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
+ 			range_whole = 1;
+ 		scanned = 1;
+@@ -1025,7 +1025,7 @@ int __set_page_dirty_nobuffers(struct pa
+ 				__inc_zone_page_state(page, NR_FILE_DIRTY);
+ 				__inc_bdi_stat(mapping->backing_dev_info,
+ 						BDI_RECLAIMABLE);
+-				task_io_account_write(PAGE_CACHE_SIZE);
++				task_io_account_write(page_cache_size(mapping));
+ 			}
+ 			radix_tree_tag_set(&mapping->page_tree,
+ 				page_index(page), PAGECACHE_TAG_DIRTY);
 
 -- 
 
