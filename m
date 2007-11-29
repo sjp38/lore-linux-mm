@@ -1,15 +1,11 @@
-Date: Thu, 29 Nov 2007 00:24:04 -0800
+Date: Thu, 29 Nov 2007 00:29:12 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 18/19] Use page_cache_xxx for fs/xfs
-Message-Id: <20071129002404.dc4c9cae.akpm@linux-foundation.org>
-In-Reply-To: <20071129041013.GF119954183@sgi.com>
+Subject: Re: [patch 00/19] Page cache: Replace PAGE_CACHE_xx with inline
+ functions
+Message-Id: <20071129002912.145b85a8.akpm@linux-foundation.org>
+In-Reply-To: <20071129042039.GI119954183@sgi.com>
 References: <20071129011052.866354847@sgi.com>
-	<20071129011148.509714554@sgi.com>
-	<20071129030314.GR119954183@sgi.com>
-	<Pine.LNX.4.64.0711281927520.20367@schroedinger.engr.sgi.com>
-	<20071129035833.GY119954183@sgi.com>
-	<Pine.LNX.4.64.0711282006140.20688@schroedinger.engr.sgi.com>
-	<20071129041013.GF119954183@sgi.com>
+	<20071129042039.GI119954183@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -19,19 +15,23 @@ To: David Chinner <dgc@sgi.com>
 Cc: Christoph Lameter <clameter@sgi.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Nov 2007 15:10:13 +1100 David Chinner <dgc@sgi.com> wrote:
+On Thu, 29 Nov 2007 15:20:39 +1100 David Chinner <dgc@sgi.com> wrote:
 
-> On Wed, Nov 28, 2007 at 08:06:30PM -0800, Christoph Lameter wrote:
-> > Is this correct?
+> On Wed, Nov 28, 2007 at 05:10:52PM -0800, Christoph Lameter wrote:
+> > This patchset cleans up page cache handling by replacing
+> > open coded shifts and adds with inline function calls.
+> > 
+> > The ultimate goal is to replace all uses of PAGE_CACHE_xxx in the
+> > kernel through the use of these functions. All the functions take
+> > a mapping parameter. The mapping parameter is required if we want
+> > to support large block sizes in filesystems and block devices.
+> > 
+> > Patchset against 2.6.24-rc3-mm2.
 > 
-> Yup, looks good now.
-> 
+> Reviewed-by: Dave Chinner <dgc@sgi.com>
 
-Given the error rate in the xfs patch my confidence in the rest
-of the series isn't terribly high, sorry.
+thanks ;)  I'll merge version 2..
 
-I guess I can suck up the core and xfs bits, but who is going to 
-review the rest of them this closely?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
