@@ -1,148 +1,78 @@
-Message-Id: <20071128223156.764345931@sgi.com>
-References: <20071128223101.864822396@sgi.com>
-Date: Wed, 28 Nov 2007 14:31:09 -0800
-From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 08/17] Buffer heads: Support slab defrag
-Content-Disposition: inline; filename=0054-Buffer-heads-Support-slab-defrag.patch
+Message-ID: <396296481.07368@ustc.edu.cn>
+Date: Thu, 29 Nov 2007 08:34:33 +0800
+From: Fengguang Wu <wfg@mail.ustc.edu.cn>
+Subject: Re: [patch 1/1] Writeback fix for concurrent large and small file
+	writes
+References: <20071128192957.511EAB8310@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20071128192957.511EAB8310@localhost>
+Message-Id: <E1IxXMP-0002i8-4S@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
+To: Michael Rubin <mrubin@google.com>
+Cc: a.p.zijlstra@chello.nl, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-Defragmentation support for buffer heads. We convert the references to
-buffers to struct page references and try to remove the buffers from
-those pages. If the pages are dirty then trigger writeout so that the
-buffer heads can be removed later.
+On Wed, Nov 28, 2007 at 11:29:57AM -0800, Michael Rubin wrote:
+> >From mrubin@matchstick.corp.google.com Wed Nov 28 11:10:06 2007
+> Message-Id: <20071128190121.716364000@matchstick.corp.google.com>
+> Date: Wed, 28 Nov 2007 11:01:21 -0800
+> From: mrubin@google.com
+> To: mrubin@google.com
+> Subject: [patch 1/1] Writeback fix for concurrent large and small file writes.
+> 
+> From: Michael Rubin <mrubin@google.com>
+> 
+> Fixing a bug where writing to large files while concurrently writing to
+> smaller ones creates a situation where writeback cannot keep up with the
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
----
- fs/buffer.c |  102 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 102 insertions(+)
+Could you demonstrate the situation? Or if I guess it right, could it
+be fixed by the following patch? (not a nack: If so, your patch could
+also be considered as a general purpose improvement, instead of a bug
+fix.)
 
-Index: linux-2.6.24-rc3-mm1/fs/buffer.c
-===================================================================
---- linux-2.6.24-rc3-mm1.orig/fs/buffer.c	2007-11-23 11:55:21.912100605 -0800
-+++ linux-2.6.24-rc3-mm1/fs/buffer.c	2007-11-25 13:05:53.272908551 -0800
-@@ -3268,6 +3268,107 @@ int bh_submit_read(struct buffer_head *b
- 	return -EIO;
- }
- EXPORT_SYMBOL(bh_submit_read);
-+
-+/*
-+ * Writeback a page to clean the dirty state
-+ */
-+static void trigger_write(struct page *page)
-+{
-+	struct address_space *mapping = page_mapping(page);
-+	int rc;
-+	struct writeback_control wbc = {
-+		.sync_mode = WB_SYNC_NONE,
-+		.nr_to_write = 1,
-+		.range_start = 0,
-+		.range_end = LLONG_MAX,
-+		.nonblocking = 1,
-+		.for_reclaim = 0
-+	};
-+
-+	if (!mapping->a_ops->writepage)
-+		/* No write method for the address space */
-+		return;
-+
-+	if (!clear_page_dirty_for_io(page))
-+		/* Someone else already triggered a write */
-+		return;
-+
-+	rc = mapping->a_ops->writepage(page, &wbc);
-+	if (rc < 0)
-+		/* I/O Error writing */
-+		return;
-+
-+	if (rc == AOP_WRITEPAGE_ACTIVATE)
-+		unlock_page(page);
-+}
-+
-+/*
-+ * Get references on buffers.
-+ *
-+ * We obtain references on the page that uses the buffer. v[i] will point to
-+ * the corresponding page after get_buffers() is through.
-+ *
-+ * We are safe from the underlying page being removed simply by doing
-+ * a get_page_unless_zero. The buffer head removal may race at will.
-+ * try_to_free_buffes will later take appropriate locks to remove the
-+ * buffers if they are still there.
-+ */
-+static void *get_buffers(struct kmem_cache *s, int nr, void **v)
-+{
-+	struct page *page;
-+	struct buffer_head *bh;
-+	int i,j;
-+	int n = 0;
-+
-+	for (i = 0; i < nr; i++) {
-+		bh = v[i];
-+		v[i] = NULL;
-+
-+		page = bh->b_page;
-+
-+		if (page && PagePrivate(page)) {
-+			for (j = 0; j < n; j++)
-+				if (page == v[j])
-+					goto cont;
-+		}
-+
-+		if (get_page_unless_zero(page))
-+			v[n++] = page;
-+cont:	;
-+	}
-+	return NULL;
-+}
-+
-+/*
-+ * Despite its name: kick_buffers operates on a list of pointers to
-+ * page structs that was setup by get_buffer
-+ */
-+static void kick_buffers(struct kmem_cache *s, int nr, void **v,
-+							void *private)
-+{
-+	struct page *page;
-+	int i;
-+
-+	for (i = 0; i < nr; i++) {
-+		page = v[i];
-+
-+		if (!page || PageWriteback(page))
-+			continue;
-+
-+
-+		if (!TestSetPageLocked(page)) {
-+			if (PageDirty(page))
-+				trigger_write(page);
-+			else {
-+				if (PagePrivate(page))
-+					try_to_free_buffers(page);
-+				unlock_page(page);
-+			}
-+		}
-+		put_page(page);
-+	}
-+}
-+
- void __init buffer_init(void)
- {
- 	int nrpages;
-@@ -3277,6 +3378,7 @@ void __init buffer_init(void)
- 				(SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
- 				SLAB_MEM_SPREAD),
- 				init_buffer_head);
-+	kmem_cache_setup_defrag(bh_cachep, get_buffers, kick_buffers);
- 
- 	/*
- 	 * Limit the bh occupancy to 10% of ZONE_NORMAL
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 0fca820..62e62e2 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -301,7 +301,7 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
+ 			 * Someone redirtied the inode while were writing back
+ 			 * the pages.
+ 			 */
+-			redirty_tail(inode);
++			requeue_io(inode);
+ 		} else if (atomic_read(&inode->i_count)) {
+ 			/*
+ 			 * The inode is clean, inuse
 
--- 
+Thank you,
+Fengguang
+
+> traffic and memory baloons until the we hit the threshold watermark. This
+> can result in surprising latency spikes when syncing. This latency
+> can take minutes on large memory systems. Upon request I can provide
+> a test to reproduce this situation. The flush tree fixes this issue and
+> fixes several other minor issues with fairness also.
+> 
+> 1) Adding a data structure to guarantee fairness when writing inodes
+> to disk.  The flush_tree is based on an rbtree. The only difference is
+> how duplicate keys are chained off the same rb_node.
+> 
+> 2) Added a FS flag to mark file systems that are not disk backed so we
+> don't have to flush them. Not sure I marked all of them. But just marking
+> these improves writeback performance.
+> 
+> 3) Added an inode flag to allow inodes to be marked so that they are
+> never written back to disk. See get_pipe_inode.
+> 
+> Under autotest this patch has passed: fsx, bonnie, and iozone. I am
+> currently writing more writeback focused tests (which so far have been
+> passed) to add into autotest.
+> 
+> Signed-off-by: Michael Rubin <mrubin@google.com>
+> ---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
