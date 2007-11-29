@@ -1,37 +1,35 @@
-Date: Thu, 29 Nov 2007 12:42:07 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH][for -mm] per-zone and reclaim enhancements for memory
- controller take 3 [3/10] per-zone active inactive counter
-Message-Id: <20071129124207.b59ae745.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20071129033328.20E5F1CFEAA@siro.lan>
-References: <20071127120048.ef5f2005.kamezawa.hiroyu@jp.fujitsu.com>
-	<20071129033328.20E5F1CFEAA@siro.lan>
+Date: Thu, 29 Nov 2007 14:40:11 +1100
+From: David Chinner <dgc@sgi.com>
+Subject: Re: [patch 13/19] Use page_cache_xxx in fs/splice.c
+Message-ID: <20071129034011.GU119954183@sgi.com>
+References: <20071129011052.866354847@sgi.com> <20071129011147.323915994@sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20071129011147.323915994@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, akpm@linux-foundation.org, balbir@linux.vnet.ibm.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Nov 2007 12:33:28 +0900 (JST)
-yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
+On Wed, Nov 28, 2007 at 05:11:05PM -0800, Christoph Lameter wrote:
+> @@ -453,7 +454,7 @@ fill_it:
+>  	 */
+>  	while (page_nr < nr_pages)
+>  		page_cache_release(pages[page_nr++]);
+> -	in->f_ra.prev_pos = (loff_t)index << PAGE_CACHE_SHIFT;
+> +	in->f_ra.prev_pos = page_cache_index(mapping, index);
 
-> > +static inline struct mem_cgroup_per_zone *
-> > +mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
-> > +{
-> > +	if (!mem->info.nodeinfo[nid])
-> 
-> can this be true?
-> 
-> YAMAMOTO Takashi
+	in->f_ra.prev_pos = page_cache_pos(mapping, index, 0);
 
-When I set early_init=1, I added that check.
-BUG_ON() is better ?
+Cheers,
 
-Thanks,
--Kame
+Dave.
+-- 
+Dave Chinner
+Principal Engineer
+SGI Australian Software Group
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
