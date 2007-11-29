@@ -1,48 +1,35 @@
-Message-Id: <20071129011147.052277113@sgi.com>
+Message-Id: <20071129011145.875383656@sgi.com>
 References: <20071129011052.866354847@sgi.com>
-Date: Wed, 28 Nov 2007 17:11:04 -0800
+Date: Wed, 28 Nov 2007 17:10:59 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 12/19] Use page_cache_xxx in mm/fadvise.c
-Content-Disposition: inline; filename=0013-Use-page_cache_xxx-in-mm-fadvise.c.patch
+Subject: [patch 07/19] Use page_cache_xxx in mm/migrate.c
+Content-Disposition: inline; filename=0008-Use-page_cache_xxx-in-mm-migrate.c.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
 List-ID: <linux-mm.kvack.org>
 
-Use page_cache_xxx in mm/fadvise.c
+Use page_cache_xxx in mm/migrate.c
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- mm/fadvise.c |    8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ mm/migrate.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: mm/mm/fadvise.c
+Index: mm/mm/migrate.c
 ===================================================================
---- mm.orig/mm/fadvise.c	2007-11-16 21:16:36.000000000 -0800
-+++ mm/mm/fadvise.c	2007-11-28 14:11:06.164977155 -0800
-@@ -79,8 +79,8 @@ asmlinkage long sys_fadvise64_64(int fd,
- 		}
+--- mm.orig/mm/migrate.c	2007-11-28 12:27:32.184464256 -0800
++++ mm/mm/migrate.c	2007-11-28 14:10:49.200977227 -0800
+@@ -197,7 +197,7 @@ static void remove_file_migration_ptes(s
+ 	struct vm_area_struct *vma;
+ 	struct address_space *mapping = page_mapping(new);
+ 	struct prio_tree_iter iter;
+-	pgoff_t pgoff = new->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
++	pgoff_t pgoff = new->index << mapping_order(mapping);
  
- 		/* First and last PARTIAL page! */
--		start_index = offset >> PAGE_CACHE_SHIFT;
--		end_index = endbyte >> PAGE_CACHE_SHIFT;
-+		start_index = page_cache_index(mapping, offset);
-+		end_index = page_cache_index(mapping, endbyte);
- 
- 		/* Careful about overflow on the "+1" */
- 		nrpages = end_index - start_index + 1;
-@@ -100,8 +100,8 @@ asmlinkage long sys_fadvise64_64(int fd,
- 			filemap_flush(mapping);
- 
- 		/* First and last FULL page! */
--		start_index = (offset+(PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
--		end_index = (endbyte >> PAGE_CACHE_SHIFT);
-+		start_index = page_cache_next(mapping, offset);
-+		end_index = page_cache_index(mapping, endbyte);
- 
- 		if (end_index >= start_index)
- 			invalidate_mapping_pages(mapping, start_index,
+ 	if (!mapping)
+ 		return;
 
 -- 
 
