@@ -1,81 +1,55 @@
-Date: Wed, 28 Nov 2007 19:48:08 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 10/19] Use page_cache_xxx in fs/buffer.c
-In-Reply-To: <20071129033459.GT119954183@sgi.com>
-Message-ID: <Pine.LNX.4.64.0711281947110.20688@schroedinger.engr.sgi.com>
-References: <20071129011052.866354847@sgi.com> <20071129011146.563342672@sgi.com>
- <20071129033459.GT119954183@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 29 Nov 2007 14:48:57 +1100
+From: David Chinner <dgc@sgi.com>
+Subject: Re: [patch 16/19] Use page_cache_xxx in fs/ext4
+Message-ID: <20071129034857.GW119954183@sgi.com>
+References: <20071129011052.866354847@sgi.com> <20071129011148.032437954@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20071129011148.032437954@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Chinner <dgc@sgi.com>
-Cc: akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Nov 2007, David Chinner wrote:
+On Wed, Nov 28, 2007 at 05:11:08PM -0800, Christoph Lameter wrote:
+> @@ -1677,6 +1676,7 @@ static int ext4_journalled_writepage(str
+>  	handle_t *handle = NULL;
+>  	int ret = 0;
+>  	int err;
+> +	int pagesize = page_cache_size(inode->i_mapping);
+>  
+>  	if (ext4_journal_current_handle())
+>  		goto no_write;
+> @@ -1693,17 +1693,17 @@ static int ext4_journalled_writepage(str
+>  		 * doesn't seem much point in redirtying the page here.
+>  		 */
+>  		ClearPageChecked(page);
+> -		ret = block_prepare_write(page, 0, PAGE_CACHE_SIZE,
+> +		ret = block_prepare_write(page, 0, page_cache_size(mapping),
+>  					ext4_get_block);
+>  		if (ret != 0) {
+>  			ext4_journal_stop(handle);
+>  			goto out_unlock;
+>  		}
+>  		ret = walk_page_buffers(handle, page_buffers(page), 0,
+> -			PAGE_CACHE_SIZE, NULL, do_journal_get_write_access);
+> +			page_cache_size(mapping), NULL, do_journal_get_write_access);
+>  
+>  		err = walk_page_buffers(handle, page_buffers(page), 0,
+> -				PAGE_CACHE_SIZE, NULL, write_end_fn);
+> +			page_cache_size(mapping), NULL, write_end_fn);
 
-> > -	while (index > (curidx = (curpos = *bytes)>>PAGE_CACHE_SHIFT)) {
-> > -		zerofrom = curpos & ~PAGE_CACHE_MASK;
-> > +	while (index > (curidx = page_cache_index(mapping, (curpos = *bytes)))) {
-> > +		zerofrom = page_cache_offset(mapping, curpos);
-> 
-> That doesn't get any prettier. Perhaps:
-> 
-> 	while (index > (curidx = page_cache_index(mapping, *bytes))) {
-> 		curpos = *bytes;
-> 		zerofrom = page_cache_offset(mapping, curpos);
+These three should use the pagesize variable.
 
-Results in a gcc warning about the possible use of an unitialized 
-variable.
+Cheers,
 
-How about this?
-
-
-fs/buffer.c enhancements and fixes
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
----
- fs/buffer.c |    8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
-
-Index: mm/fs/buffer.c
-===================================================================
---- mm.orig/fs/buffer.c	2007-11-28 19:39:23.606383803 -0800
-+++ mm/fs/buffer.c	2007-11-28 19:46:10.238382715 -0800
-@@ -914,11 +914,10 @@ struct buffer_head *alloc_page_buffers(s
- {
- 	struct buffer_head *bh, *head;
- 	long offset;
--	unsigned int page_size = page_cache_size(page->mapping);
- 
- try_again:
- 	head = NULL;
--	offset = page_size;
-+	offset = page_cache_size(page->mapping);
- 	while ((offset -= size) >= 0) {
- 		bh = alloc_buffer_head(GFP_NOFS);
- 		if (!bh)
-@@ -2221,7 +2220,8 @@ int cont_expand_zero(struct file *file, 
- 	index = page_cache_index(mapping, pos);
- 	offset = page_cache_offset(mapping, pos);
- 
--	while (index > (curidx = page_cache_index(mapping, (curpos = *bytes)))) {
-+	while (curpos = *bytes, curidx = page_cache_index(mapping, curpos),
-+			index > curidx) {
- 		zerofrom = page_cache_offset(mapping, curpos);
- 		if (zerofrom & (blocksize-1)) {
- 			*bytes |= (blocksize-1);
-@@ -2368,7 +2368,7 @@ block_page_mkwrite(struct vm_area_struct
- 	mapping = page->mapping;
- 	size = i_size_read(inode);
- 	if ((mapping != inode->i_mapping) ||
--	    (page_offset(page) > size)) {
-+	    (page_cache_pos(mapping, page->index, 0) > size)) {
- 		/* page got truncated out from underneath us */
- 		goto out_unlock;
- 	}
+Dave.
+-- 
+Dave Chinner
+Principal Engineer
+SGI Australian Software Group
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
