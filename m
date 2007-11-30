@@ -1,63 +1,176 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAUHRh8d018844
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2007 12:27:43 -0500
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lAUHRh4K492272
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2007 12:27:43 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAUHRh01003078
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2007 12:27:43 -0500
-Subject: Re: [PATCH] mm: fix confusing __GFP_REPEAT related comments
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20071130041922.GQ13444@us.ibm.com>
-References: <20071129214828.GD20882@us.ibm.com>
-	 <1196378080.18851.116.camel@localhost>  <20071130041922.GQ13444@us.ibm.com>
-Content-Type: text/plain
-Date: Fri, 30 Nov 2007 10:27:40 -0800
-Message-Id: <1196447260.19681.8.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Message-Id: <20071130173509.359521529@sgi.com>
+References: <20071130173448.951783014@sgi.com>
+Date: Fri, 30 Nov 2007 09:35:02 -0800
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [patch 14/19] Use page_cache_xxx in ext2
+Content-Disposition: inline; filename=0015-Use-page_cache_xxx-functions-in-fs-ext2.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: akpm@linux-foundation.org, mel@skynet.ie, wli@holomorphy.com, apw@shadowen.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-11-29 at 20:19 -0800, Nishanth Aravamudan wrote: 
-> "In looking at the callers using __GFP_REPEAT, not all handle failure --
-> should they be using __NOFAIL?"
-> 
-> I *think* that all the current __GFP_REPEAT users are order <=
-> PAGE_ALLOC_CSOTLY_ORDER. Perhaps they all mean to use __GPF_NOFAIL? Some
-> don't handle failure immediately, but maybe their callers do, I haven't
-> had time to investigate fully.
+Use page_cache_xxx functions in fs/ext2/*
 
-I think we treat pagetable allocations just like normal ones with error
-handling.  If I saw a pte_alloc() in a patch that was used without
-checking for NULL, I'd certainly bitch about it.
+Reviewed-by: Dave Chinner <dgc@sgi.com>
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+---
+ fs/ext2/dir.c |   41 +++++++++++++++++++++++------------------
+ 1 file changed, 23 insertions(+), 18 deletions(-)
 
-In any case, if we want to nitpick, the *callers* haven't asked for
-__GFP_NOFAIL, so they shouldn't be depending on a lack of failures.
+Index: mm/fs/ext2/dir.c
+===================================================================
+--- mm.orig/fs/ext2/dir.c	2007-11-29 11:30:12.447616737 -0800
++++ mm/fs/ext2/dir.c	2007-11-29 11:53:40.599116418 -0800
+@@ -63,7 +63,7 @@ static inline void ext2_put_page(struct 
+ 
+ static inline unsigned long dir_pages(struct inode *inode)
+ {
+-	return (inode->i_size+PAGE_CACHE_SIZE-1)>>PAGE_CACHE_SHIFT;
++	return page_cache_next(inode->i_mapping, inode->i_size);
+ }
+ 
+ /*
+@@ -74,10 +74,11 @@ static unsigned
+ ext2_last_byte(struct inode *inode, unsigned long page_nr)
+ {
+ 	unsigned last_byte = inode->i_size;
++	struct address_space *mapping = inode->i_mapping;
+ 
+-	last_byte -= page_nr << PAGE_CACHE_SHIFT;
+-	if (last_byte > PAGE_CACHE_SIZE)
+-		last_byte = PAGE_CACHE_SIZE;
++	last_byte -= page_cache_pos(mapping, page_nr, 0);
++	if (last_byte > page_cache_size(mapping))
++		last_byte = page_cache_size(mapping);
+ 	return last_byte;
+ }
+ 
+@@ -105,18 +106,19 @@ static int ext2_commit_chunk(struct page
+ 
+ static void ext2_check_page(struct page *page)
+ {
+-	struct inode *dir = page->mapping->host;
++	struct address_space *mapping = page->mapping;
++	struct inode *dir = mapping->host;
+ 	struct super_block *sb = dir->i_sb;
+ 	unsigned chunk_size = ext2_chunk_size(dir);
+ 	char *kaddr = page_address(page);
+ 	u32 max_inumber = le32_to_cpu(EXT2_SB(sb)->s_es->s_inodes_count);
+ 	unsigned offs, rec_len;
+-	unsigned limit = PAGE_CACHE_SIZE;
++	unsigned limit = page_cache_size(mapping);
+ 	ext2_dirent *p;
+ 	char *error;
+ 
+-	if ((dir->i_size >> PAGE_CACHE_SHIFT) == page->index) {
+-		limit = dir->i_size & ~PAGE_CACHE_MASK;
++	if (page_cache_index(mapping, dir->i_size) == page->index) {
++		limit = page_cache_offset(mapping, dir->i_size);
+ 		if (limit & (chunk_size - 1))
+ 			goto Ebadsize;
+ 		if (!limit)
+@@ -168,7 +170,7 @@ Einumber:
+ bad_entry:
+ 	ext2_error (sb, "ext2_check_page", "bad entry in directory #%lu: %s - "
+ 		"offset=%lu, inode=%lu, rec_len=%d, name_len=%d",
+-		dir->i_ino, error, (page->index<<PAGE_CACHE_SHIFT)+offs,
++		dir->i_ino, error, page_cache_pos(mapping, page->index, offs),
+ 		(unsigned long) le32_to_cpu(p->inode),
+ 		rec_len, p->name_len);
+ 	goto fail;
+@@ -177,7 +179,7 @@ Eend:
+ 	ext2_error (sb, "ext2_check_page",
+ 		"entry in directory #%lu spans the page boundary"
+ 		"offset=%lu, inode=%lu",
+-		dir->i_ino, (page->index<<PAGE_CACHE_SHIFT)+offs,
++		dir->i_ino, page_cache_pos(mapping, page->index, offs),
+ 		(unsigned long) le32_to_cpu(p->inode));
+ fail:
+ 	SetPageChecked(page);
+@@ -276,8 +278,9 @@ ext2_readdir (struct file * filp, void *
+ 	loff_t pos = filp->f_pos;
+ 	struct inode *inode = filp->f_path.dentry->d_inode;
+ 	struct super_block *sb = inode->i_sb;
+-	unsigned int offset = pos & ~PAGE_CACHE_MASK;
+-	unsigned long n = pos >> PAGE_CACHE_SHIFT;
++	struct address_space *mapping = inode->i_mapping;
++	unsigned int offset = page_cache_offset(mapping, pos);
++	unsigned long n = page_cache_index(mapping, pos);
+ 	unsigned long npages = dir_pages(inode);
+ 	unsigned chunk_mask = ~(ext2_chunk_size(inode)-1);
+ 	unsigned char *types = NULL;
+@@ -298,14 +301,14 @@ ext2_readdir (struct file * filp, void *
+ 			ext2_error(sb, __FUNCTION__,
+ 				   "bad page in #%lu",
+ 				   inode->i_ino);
+-			filp->f_pos += PAGE_CACHE_SIZE - offset;
++			filp->f_pos += page_cache_size(mapping) - offset;
+ 			return -EIO;
+ 		}
+ 		kaddr = page_address(page);
+ 		if (unlikely(need_revalidate)) {
+ 			if (offset) {
+ 				offset = ext2_validate_entry(kaddr, offset, chunk_mask);
+-				filp->f_pos = (n<<PAGE_CACHE_SHIFT) + offset;
++				filp->f_pos = page_cache_pos(mapping, n, offset);
+ 			}
+ 			filp->f_version = inode->i_version;
+ 			need_revalidate = 0;
+@@ -328,7 +331,7 @@ ext2_readdir (struct file * filp, void *
+ 
+ 				offset = (char *)de - kaddr;
+ 				over = filldir(dirent, de->name, de->name_len,
+-						(n<<PAGE_CACHE_SHIFT) | offset,
++						page_cache_pos(mapping, n, offset),
+ 						le32_to_cpu(de->inode), d_type);
+ 				if (over) {
+ 					ext2_put_page(page);
+@@ -354,6 +357,7 @@ struct ext2_dir_entry_2 * ext2_find_entr
+ 			struct dentry *dentry, struct page ** res_page)
+ {
+ 	const char *name = dentry->d_name.name;
++	struct address_space *mapping = dir->i_mapping;
+ 	int namelen = dentry->d_name.len;
+ 	unsigned reclen = EXT2_DIR_REC_LEN(namelen);
+ 	unsigned long start, n;
+@@ -395,7 +399,7 @@ struct ext2_dir_entry_2 * ext2_find_entr
+ 		if (++n >= npages)
+ 			n = 0;
+ 		/* next page is past the blocks we've got */
+-		if (unlikely(n > (dir->i_blocks >> (PAGE_CACHE_SHIFT - 9)))) {
++		if (unlikely(n > (dir->i_blocks >> (page_cache_shift(mapping) - 9)))) {
+ 			ext2_error(dir->i_sb, __FUNCTION__,
+ 				"dir %lu size %lld exceeds block count %llu",
+ 				dir->i_ino, dir->i_size,
+@@ -466,6 +470,7 @@ void ext2_set_link(struct inode *dir, st
+ int ext2_add_link (struct dentry *dentry, struct inode *inode)
+ {
+ 	struct inode *dir = dentry->d_parent->d_inode;
++	struct address_space *mapping = inode->i_mapping;
+ 	const char *name = dentry->d_name.name;
+ 	int namelen = dentry->d_name.len;
+ 	unsigned chunk_size = ext2_chunk_size(dir);
+@@ -495,7 +500,7 @@ int ext2_add_link (struct dentry *dentry
+ 		kaddr = page_address(page);
+ 		dir_end = kaddr + ext2_last_byte(dir, n);
+ 		de = (ext2_dirent *)kaddr;
+-		kaddr += PAGE_CACHE_SIZE - reclen;
++		kaddr += page_cache_size(mapping) - reclen;
+ 		while ((char *)de <= kaddr) {
+ 			if ((char *)de == dir_end) {
+ 				/* We hit i_size */
+@@ -531,7 +536,7 @@ int ext2_add_link (struct dentry *dentry
+ got_it:
+ 	pos = page_offset(page) +
+ 		(char*)de - (char*)page_address(page);
+-	err = __ext2_write_begin(NULL, page->mapping, pos, rec_len, 0,
++	err = __ext2_write_begin(NULL, mapping, pos, rec_len, 0,
+ 							&page, NULL);
+ 	if (err)
+ 		goto out_unlock;
 
-> And the whole gist, per the comments in mm/page_alloc.c, is that this is
-> all dependent upon this implementation of the VM. I think that means you
-> can't rely on those semantics being valid forever. So it's best for
-> callers to be as explicit as possible ... but in this case, I'm not sure
-> that the desired semantics actually exist.
-
-I don't really buy this "in this implementation of the VM" crap.  When
-people go to figure out which functions and flags to use, they don't
-just go look at headers.  They look at and depend on the
-implementations.  If we change the implementations, we go change all the
-callers, too.
-
-Your patch highlights an existing problem: we're not being very good
-with __GFP_REPEAT.  All of the pagetable users (on x86 at least) are
-using __GFP_REPEAT, but effectively getting __GFP_NOFAIL.  There are
-some other users around that might have larger buffers, but I think
-pagetable pages are pretty guaranteed to stay <= 1 page in size. :)
-
--- Dave
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
