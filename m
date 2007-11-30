@@ -1,113 +1,63 @@
-Received: from toip4.srvr.bell.ca ([209.226.175.87])
-          by tomts22-srv.bellnexxia.net
-          (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
-          id <20071130170518.RZKI18413.tomts22-srv.bellnexxia.net@toip4.srvr.bell.ca>
-          for <linux-mm@kvack.org>; Fri, 30 Nov 2007 12:05:18 -0500
-Date: Fri, 30 Nov 2007 12:05:16 -0500
-From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: Re: [RFC PATCH] LTTng instrumentation mm (updated)
-Message-ID: <20071130170516.GA31586@Krystal>
-References: <20071115215142.GA7825@Krystal> <1195164977.27759.10.camel@localhost> <20071116143019.GA16082@Krystal> <1195495485.27759.115.camel@localhost> <20071128140953.GA8018@Krystal> <1196268856.18851.20.camel@localhost> <20071129023421.GA711@Krystal> <1196317552.18851.47.camel@localhost> <20071130161155.GA29634@Krystal> <1196444801.18851.127.camel@localhost>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAUHRh8d018844
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2007 12:27:43 -0500
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lAUHRh4K492272
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2007 12:27:43 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAUHRh01003078
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2007 12:27:43 -0500
+Subject: Re: [PATCH] mm: fix confusing __GFP_REPEAT related comments
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20071130041922.GQ13444@us.ibm.com>
+References: <20071129214828.GD20882@us.ibm.com>
+	 <1196378080.18851.116.camel@localhost>  <20071130041922.GQ13444@us.ibm.com>
+Content-Type: text/plain
+Date: Fri, 30 Nov 2007 10:27:40 -0800
+Message-Id: <1196447260.19681.8.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-In-Reply-To: <1196444801.18851.127.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@google.com
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: akpm@linux-foundation.org, mel@skynet.ie, wli@holomorphy.com, apw@shadowen.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Dave Hansen (haveblue@us.ibm.com) wrote:
-> On Fri, 2007-11-30 at 11:11 -0500, Mathieu Desnoyers wrote:
-> > +static inline swp_entry_t page_swp_entry(struct page *page)
-> > +{
-> > +       swp_entry_t entry;
-> > +       VM_BUG_ON(!PageSwapCache(page));
-> > +       entry.val = page_private(page);
-> > +       return entry;
-> > +}
+On Thu, 2007-11-29 at 20:19 -0800, Nishanth Aravamudan wrote: 
+> "In looking at the callers using __GFP_REPEAT, not all handle failure --
+> should they be using __NOFAIL?"
 > 
-> This probably needs to be introduced (and used) in a separate patch.
-> Please fix up those other places in the code that can take advantage of
-> it.
-> 
-Sure,
+> I *think* that all the current __GFP_REPEAT users are order <=
+> PAGE_ALLOC_CSOTLY_ORDER. Perhaps they all mean to use __GPF_NOFAIL? Some
+> don't handle failure immediately, but maybe their callers do, I haven't
+> had time to investigate fully.
 
-> >  #ifdef CONFIG_MIGRATION
-> >  static inline swp_entry_t make_migration_entry(struct page *page, int
-> > write)
-> >  {
-> > Index: linux-2.6-lttng/mm/swapfile.c
-> > ===================================================================
-> > --- linux-2.6-lttng.orig/mm/swapfile.c  2007-11-30 09:18:38.000000000
-> > -0500
-> > +++ linux-2.6-lttng/mm/swapfile.c       2007-11-30 10:21:50.000000000
-> > -0500
-> > @@ -1279,6 +1279,7 @@ asmlinkage long sys_swapoff(const char _
-> >         swap_map = p->swap_map;
-> >         p->swap_map = NULL;
-> >         p->flags = 0;
-> > +       trace_mark(mm_swap_file_close, "filp %p", swap_file);
-> >         spin_unlock(&swap_lock);
-> >         mutex_unlock(&swapon_mutex);
-> >         vfree(swap_map);
-> > @@ -1660,6 +1661,8 @@ asmlinkage long sys_swapon(const char __
-> >         } else {
-> >                 swap_info[prev].next = p - swap_info;
-> >         }
-> > +       trace_mark(mm_swap_file_open, "filp %p filename %s",
-> > +               swap_file, name); 
-> 
-> You print out the filp a number of times here, but how does that help in
-> a trace?  If I was trying to figure out which swapfile, I'd probably
-> just want to know the swp_entry_t->type, then I could look at this:
-> 
-> dave@foo:~/garbage$ cat /proc/swaps 
-> Filename                                Type            Size    Used    Priority
-> /dev/sda2                               partition       1992052 649336  -1
-> 
-> to see the ordering.
-> 
+I think we treat pagetable allocations just like normal ones with error
+handling.  If I saw a pte_alloc() in a patch that was used without
+checking for NULL, I'd certainly bitch about it.
 
-Given a trace including :
-- Swapfiles initially used
-- multiple swapon/swapoff
-- swap in/out events
+In any case, if we want to nitpick, the *callers* haven't asked for
+__GFP_NOFAIL, so they shouldn't be depending on a lack of failures.
 
-We would like to be able to tell which swap file the information has
-been written to/read from at any given time during the trace.
+> And the whole gist, per the comments in mm/page_alloc.c, is that this is
+> all dependent upon this implementation of the VM. I think that means you
+> can't rely on those semantics being valid forever. So it's best for
+> callers to be as explicit as possible ... but in this case, I'm not sure
+> that the desired semantics actually exist.
 
-Therefore, I dump the swap file information at the beginning of the
-trace (see the ltt_dump_swap_files function) and also follow each
-swapon/swapoff.
+I don't really buy this "in this implementation of the VM" crap.  When
+people go to figure out which functions and flags to use, they don't
+just go look at headers.  They look at and depend on the
+implementations.  If we change the implementations, we go change all the
+callers, too.
 
-The minimal information that has to be saved at each swap read/write
-seems to be the struct file * that is used by the operation. We can then
-map back to the file used by knowing the mapping between struct file *
-and associated file names (dump/swapon/swapoff instrumentation).
+Your patch highlights an existing problem: we're not being very good
+with __GFP_REPEAT.  All of the pagetable users (on x86 at least) are
+using __GFP_REPEAT, but effectively getting __GFP_NOFAIL.  There are
+some other users around that might have larger buffers, but I think
+pagetable pages are pretty guaranteed to stay <= 1 page in size. :)
 
-The swp_entry_t->type does not seem to map to any specific information
-in /proc/swaps ? (or I may have missed a detail) Even if it does, it is
-limited to a specific point in time and does not follow swapon/swapoff
-events.
-
-You are talking about ordering in /proc/swaps : I wonder what happens if
-we add/remove swap files from the array : I guess the swp_entry_t
-ordering may become mixed up with the order of the /proc/swaps output,
-since it is based on the swap_info array which will fill empty spots
-upon swapon (again, unless I missed a clever detail).
-
-Mathieu
-
-> -- Dave
-> 
-
--- 
-Mathieu Desnoyers
-Computer Engineering Ph.D. Student, Ecole Polytechnique de Montreal
-OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
