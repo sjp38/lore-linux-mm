@@ -1,46 +1,36 @@
-Date: Fri, 30 Nov 2007 11:14:01 +0200 (EET)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [PATCH] Fix kmem_cache_free performance regression in slab
-In-Reply-To: <20071129184539.ba6342b8.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0711301110540.28494@sbz-30.cs.Helsinki.FI>
-References: <20071129190513.GD2584@parisc-linux.org>
- <20071129184539.ba6342b8.akpm@linux-foundation.org>
+Date: Fri, 30 Nov 2007 19:11:14 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: What can we do to get ready for memory controller merge in
+ 2.6.25
+Message-Id: <20071130191114.866b5ce0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <474F7FDF.3000506@linux.vnet.ibm.com>
+References: <474ED005.7060300@linux.vnet.ibm.com>
+	<200711301311.48291.nickpiggin@yahoo.com.au>
+	<474F7FDF.3000506@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <matthew@wil.cx>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, linux kernel mailing list <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh@veritas.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Pavel Emelianov <xemul@sw.ru>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Rik van Riel <riel@redhat.com>, Christoph Lameter <clameter@sgi.com>, "Martin J. Bligh" <mbligh@google.com>, Andy Whitcroft <andyw@uk.ibm.com>, Srivatsa Vaddagiri <vatsa@in.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Thu, 29 Nov 2007 12:05:13 -0700 Matthew Wilcox <matthew@wil.cx> wrote:
-> > The database performance group have found that half the cycles spent
-> > in kmem_cache_free are spent in this one call to BUG_ON.  Moving it
-> > into the CONFIG_SLAB_DEBUG-only function cache_free_debugcheck() is a
-> > performance win of almost 0.5% on their particular benchmark.
-> > 
-> > The call was added as part of commit ddc2e812d592457747c4367fb73edcaa8e1e49ff
-> > with the comment that "overhead should be minimal".  It may have been
-> > minimal at the time, but it isn't now.
-> > 
-
-On Thu, 29 Nov 2007, Andrew Morton wrote:
-> It is worth noting that the offending commit hit mainline in June 2006.
+On Fri, 30 Nov 2007 08:43:35 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> KAMEZAWA-San posted some test results on background reclaim and per zone
+> reclaim
 > 
-> It takes a very long time for some performance regressions to be
-> discovered.  By which time it is effectively too late to fix it.
 
-What architecture is this? x86_64? I don't think the BUG_ON per se caused 
-the performance regression but rather the virt_to_head_page() changes to 
-virt_to_cache() that were added later. But reverting the BUG_ON is fine by 
-me.
+I'd like to post some patches below in the next week.
+  - throttling the number of callers of try_to_free_mem_cgroup_pages()
+  - background reclaim and high/low watermark.
+  - some cleanups.
 
-Thanks Matthew and others for tracking this down!
+And they are all patches I have now (for this window)
 
-				Pekka
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
