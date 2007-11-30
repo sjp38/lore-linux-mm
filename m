@@ -1,284 +1,201 @@
-Received: from toip4.srvr.bell.ca ([209.226.175.87])
-          by tomts36-srv.bellnexxia.net
-          (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
-          id <20071130161157.UHAO7990.tomts36-srv.bellnexxia.net@toip4.srvr.bell.ca>
-          for <linux-mm@kvack.org>; Fri, 30 Nov 2007 11:11:57 -0500
-Date: Fri, 30 Nov 2007 11:11:55 -0500
-From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: [RFC PATCH] LTTng instrumentation mm (updated)
-Message-ID: <20071130161155.GA29634@Krystal>
-References: <20071113194025.150641834@polymtl.ca> <1195160783.7078.203.camel@localhost> <20071115215142.GA7825@Krystal> <1195164977.27759.10.camel@localhost> <20071116143019.GA16082@Krystal> <1195495485.27759.115.camel@localhost> <20071128140953.GA8018@Krystal> <1196268856.18851.20.camel@localhost> <20071129023421.GA711@Krystal> <1196317552.18851.47.camel@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-In-Reply-To: <1196317552.18851.47.camel@localhost>
+Received: from zps78.corp.google.com (zps78.corp.google.com [172.25.146.78])
+	by smtp-out.google.com with ESMTP id lAUGZ9pR005117
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2007 16:35:09 GMT
+Received: from nf-out-0910.google.com (nfbb2.prod.google.com [10.48.28.2])
+	by zps78.corp.google.com with ESMTP id lAUGYnFh004263
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2007 08:35:08 -0800
+Received: by nf-out-0910.google.com with SMTP id b2so2287671nfb
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2007 08:35:07 -0800 (PST)
+Message-ID: <d43160c70711300835i3f4bb3e0n74d6ee4ff2a8167@mail.gmail.com>
+Date: Fri, 30 Nov 2007 11:35:06 -0500
+From: "Ross Biro" <rossb@google.com>
+Subject: Re: RFC/POC Make Page Tables Relocatable Part 1 Create Conditional Flush
+MIME-Version: 1.0
+Content-Type: multipart/mixed;
+	boundary="----=_Part_1999_5564456.1196440507023"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@google.com
+To: Mel Gorman <mel@skynet.ie>
+Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org, Mel Gorman <MELGOR@ie.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-LTTng instrumentation mm
+------=_Part_1999_5564456.1196440507023
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-Memory management core events.
+Here's the latest version of my changes to make page tables
+relocatable.  Currently they work, but they have not been adequately
+tested.  They are also incomplete because top level page tables cannot
+be relocated because they cannot be forced to reload across all cpus.
+lmbench shows the overhead of rewalking the page tables is less than
+that of spinlock debugging.  I'll do real bench marks once everything
+is complete.  I wanted to send this out now since I'll be on vacation
+and I wanted people to have a chance to look at them sooner rather
+than later.
 
-Changelog:
-- Use page_to_pfn for swap out instrumentation, wait_on_page_bit, do_swap_page,
-  page alloc/free.
-- add missing free_hot_cold_page instrumentation.
-- add hugetlb page_alloc page_free instrumentation.
-- Add write_access to mm fault.
-- Add page bit_nr waited for by wait_on_page_bit.
-- Move page alloc instrumentation to __aloc_pages so we cover the alloc zeroed
-  page path.
-- Add swap file used for swap in and swap out events.
-- Dump the swap files, instrument swapon and swapoff.
+    Ross
 
-(note : I did not change the other sites where page_swp_entry could be
-used)
-(note 2 : my FS instrumentation does not dump the kernel vfs mounts,
-which would be useful to interpret the "dump swap files"
-instrumentation. I should add this eventually.)
+------=_Part_1999_5564456.1196440507023
+Content-Type: application/octet-stream; name=maybeflush.patch
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_f9mxmt3a0
+Content-Disposition: attachment; filename=maybeflush.patch
 
-Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-CC: linux-mm@kvack.org
-CC: Dave Hansen <haveblue@us.ibm.com>
----
- include/linux/swapops.h |    8 ++++++++
- mm/filemap.c            |    6 ++++++
- mm/hugetlb.c            |    2 ++
- mm/memory.c             |   38 +++++++++++++++++++++++++++++---------
- mm/page_alloc.c         |    6 ++++++
- mm/page_io.c            |    5 +++++
- mm/swapfile.c           |   22 ++++++++++++++++++++++
- 7 files changed, 78 insertions(+), 9 deletions(-)
-
-Index: linux-2.6-lttng/mm/filemap.c
-===================================================================
---- linux-2.6-lttng.orig/mm/filemap.c	2007-11-29 20:22:52.000000000 -0500
-+++ linux-2.6-lttng/mm/filemap.c	2007-11-29 20:23:01.000000000 -0500
-@@ -514,9 +514,15 @@ void fastcall wait_on_page_bit(struct pa
- {
- 	DEFINE_WAIT_BIT(wait, &page->flags, bit_nr);
- 
-+	trace_mark(mm_filemap_wait_start, "pfn %lu bit_nr %d",
-+		page_to_pfn(page), bit_nr);
-+
- 	if (test_bit(bit_nr, &page->flags))
- 		__wait_on_bit(page_waitqueue(page), &wait, sync_page,
- 							TASK_UNINTERRUPTIBLE);
-+
-+	trace_mark(mm_filemap_wait_end, "pfn %lu bit_nr %d",
-+		page_to_pfn(page), bit_nr);
- }
- EXPORT_SYMBOL(wait_on_page_bit);
- 
-Index: linux-2.6-lttng/mm/memory.c
-===================================================================
---- linux-2.6-lttng.orig/mm/memory.c	2007-11-29 20:22:52.000000000 -0500
-+++ linux-2.6-lttng/mm/memory.c	2007-11-29 20:42:36.000000000 -0500
-@@ -2090,6 +2090,10 @@ static int do_swap_page(struct mm_struct
- 		/* Had to read the page from swap area: Major fault */
- 		ret = VM_FAULT_MAJOR;
- 		count_vm_event(PGMAJFAULT);
-+		trace_mark(mm_swap_in, "pfn %lu filp %p offset %lu",
-+			page_to_pfn(page),
-+			get_swap_info_struct(swp_type(entry))->swap_file,
-+			swp_offset(entry));
- 	}
- 
- 	mark_page_accessed(page);
-@@ -2526,30 +2530,46 @@ unlock:
- int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long address, int write_access)
- {
-+	int res;
- 	pgd_t *pgd;
- 	pud_t *pud;
- 	pmd_t *pmd;
- 	pte_t *pte;
- 
-+	trace_mark(mm_handle_fault_entry,
-+		"address %lu ip #p%ld write_access %d",
-+		address, KSTK_EIP(current), write_access);
-+
- 	__set_current_state(TASK_RUNNING);
- 
- 	count_vm_event(PGFAULT);
- 
--	if (unlikely(is_vm_hugetlb_page(vma)))
--		return hugetlb_fault(mm, vma, address, write_access);
-+	if (unlikely(is_vm_hugetlb_page(vma))) {
-+		res = hugetlb_fault(mm, vma, address, write_access);
-+		goto end;
-+	}
- 
- 	pgd = pgd_offset(mm, address);
- 	pud = pud_alloc(mm, pgd, address);
--	if (!pud)
--		return VM_FAULT_OOM;
-+	if (!pud) {
-+		res = VM_FAULT_OOM;
-+		goto end;
-+	}
- 	pmd = pmd_alloc(mm, pud, address);
--	if (!pmd)
--		return VM_FAULT_OOM;
-+	if (!pmd) {
-+		res = VM_FAULT_OOM;
-+		goto end;
-+	}
- 	pte = pte_alloc_map(mm, pmd, address);
--	if (!pte)
--		return VM_FAULT_OOM;
-+	if (!pte) {
-+		res = VM_FAULT_OOM;
-+		goto end;
-+	}
- 
--	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
-+	res = handle_pte_fault(mm, vma, address, pte, pmd, write_access);
-+end:
-+	trace_mark(mm_handle_fault_exit, MARK_NOARGS);
-+	return res;
- }
- 
- #ifndef __PAGETABLE_PUD_FOLDED
-Index: linux-2.6-lttng/mm/page_alloc.c
-===================================================================
---- linux-2.6-lttng.orig/mm/page_alloc.c	2007-11-29 20:22:52.000000000 -0500
-+++ linux-2.6-lttng/mm/page_alloc.c	2007-11-29 20:23:01.000000000 -0500
-@@ -519,6 +519,9 @@ static void __free_pages_ok(struct page 
- 	int i;
- 	int reserved = 0;
- 
-+	trace_mark(mm_page_free, "order %u pfn %lu",
-+		order, page_to_pfn(page));
-+
- 	for (i = 0 ; i < (1 << order) ; ++i)
- 		reserved += free_pages_check(page + i);
- 	if (reserved)
-@@ -981,6 +984,8 @@ static void fastcall free_hot_cold_page(
- 	struct per_cpu_pages *pcp;
- 	unsigned long flags;
- 
-+	trace_mark(mm_page_free, "order %u pfn %lu", 0, page_to_pfn(page));
-+
- 	if (PageAnon(page))
- 		page->mapping = NULL;
- 	if (free_pages_check(page))
-@@ -1625,6 +1630,7 @@ nopage:
- 		show_mem();
- 	}
- got_pg:
-+	trace_mark(mm_page_alloc, "order %u pfn %lu", order, page_to_pfn(page));
- 	return page;
- }
- 
-Index: linux-2.6-lttng/mm/page_io.c
-===================================================================
---- linux-2.6-lttng.orig/mm/page_io.c	2007-11-29 20:22:52.000000000 -0500
-+++ linux-2.6-lttng/mm/page_io.c	2007-11-29 20:43:02.000000000 -0500
-@@ -114,6 +114,11 @@ int swap_writepage(struct page *page, st
- 		rw |= (1 << BIO_RW_SYNC);
- 	count_vm_event(PSWPOUT);
- 	set_page_writeback(page);
-+	trace_mark(mm_swap_out, "pfn %lu filp %p offset %lu",
-+			page_to_pfn(page),
-+			get_swap_info_struct(swp_type(
-+				page_swp_entry(page)))->swap_file,
-+			swp_offset(page_swp_entry(page)));
- 	unlock_page(page);
- 	submit_bio(rw, bio);
- out:
-Index: linux-2.6-lttng/mm/hugetlb.c
-===================================================================
---- linux-2.6-lttng.orig/mm/hugetlb.c	2007-11-29 20:22:52.000000000 -0500
-+++ linux-2.6-lttng/mm/hugetlb.c	2007-11-29 20:23:01.000000000 -0500
-@@ -118,6 +118,7 @@ static void free_huge_page(struct page *
- 	int nid = page_to_nid(page);
- 	struct address_space *mapping;
- 
-+	trace_mark(mm_huge_page_free, "pfn %lu", page_to_pfn(page));
- 	mapping = (struct address_space *) page_private(page);
- 	BUG_ON(page_count(page));
- 	INIT_LIST_HEAD(&page->lru);
-@@ -401,6 +402,7 @@ static struct page *alloc_huge_page(stru
- 	if (!IS_ERR(page)) {
- 		set_page_refcounted(page);
- 		set_page_private(page, (unsigned long) mapping);
-+		trace_mark(mm_huge_page_alloc, "pfn %lu", page_to_pfn(page));
- 	}
- 	return page;
- }
-Index: linux-2.6-lttng/include/linux/swapops.h
-===================================================================
---- linux-2.6-lttng.orig/include/linux/swapops.h	2007-11-29 20:22:52.000000000 -0500
-+++ linux-2.6-lttng/include/linux/swapops.h	2007-11-29 20:23:01.000000000 -0500
-@@ -68,6 +68,14 @@ static inline pte_t swp_entry_to_pte(swp
- 	return __swp_entry_to_pte(arch_entry);
- }
- 
-+static inline swp_entry_t page_swp_entry(struct page *page)
-+{
-+	swp_entry_t entry;
-+	VM_BUG_ON(!PageSwapCache(page));
-+	entry.val = page_private(page);
-+	return entry;
-+}
-+
- #ifdef CONFIG_MIGRATION
- static inline swp_entry_t make_migration_entry(struct page *page, int write)
- {
-Index: linux-2.6-lttng/mm/swapfile.c
-===================================================================
---- linux-2.6-lttng.orig/mm/swapfile.c	2007-11-30 09:18:38.000000000 -0500
-+++ linux-2.6-lttng/mm/swapfile.c	2007-11-30 10:21:50.000000000 -0500
-@@ -1279,6 +1279,7 @@ asmlinkage long sys_swapoff(const char _
- 	swap_map = p->swap_map;
- 	p->swap_map = NULL;
- 	p->flags = 0;
-+	trace_mark(mm_swap_file_close, "filp %p", swap_file);
- 	spin_unlock(&swap_lock);
- 	mutex_unlock(&swapon_mutex);
- 	vfree(swap_map);
-@@ -1660,6 +1661,8 @@ asmlinkage long sys_swapon(const char __
- 	} else {
- 		swap_info[prev].next = p - swap_info;
- 	}
-+	trace_mark(mm_swap_file_open, "filp %p filename %s",
-+		swap_file, name);
- 	spin_unlock(&swap_lock);
- 	mutex_unlock(&swapon_mutex);
- 	error = 0;
-@@ -1796,3 +1799,22 @@ int valid_swaphandles(swp_entry_t entry,
- 	spin_unlock(&swap_lock);
- 	return ret;
- }
-+
-+void ltt_dump_swap_files(void *call_data)
-+{
-+	int type;
-+	struct swap_info_struct * p = NULL;
-+
-+	mutex_lock(&swapon_mutex);
-+	for (type = swap_list.head; type >= 0; type = swap_info[type].next) {
-+		p = swap_info + type;
-+		if ((p->flags & SWP_ACTIVE) != SWP_ACTIVE)
-+			continue;
-+		__trace_mark(0, statedump_swap_files, call_data,
-+			"filp %p vfsmount %p dname %s",
-+			p->swap_file, p->swap_file->f_vfsmnt,
-+			p->swap_file->f_dentry->d_name.name);
-+	}
-+	mutex_unlock(&swapon_mutex);
-+}
-+EXPORT_SYMBOL_GPL(ltt_dump_swap_files);
--- 
-Mathieu Desnoyers
-Computer Engineering Ph.D. Student, Ecole Polytechnique de Montreal
-OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
+ZGlmZiAtdXJ3TmJCIDIuNi4yMy9hcmNoL2FscGhhL2tlcm5lbC9zbXAuYyAyLjYuMjNhL2FyY2gv
+YWxwaGEva2VybmVsL3NtcC5jCi0tLSAyLjYuMjMvYXJjaC9hbHBoYS9rZXJuZWwvc21wLmMJMjAw
+Ny0xMC0wOSAxMzozMTozOC4wMDAwMDAwMDAgLTA3MDAKKysrIDIuNi4yM2EvYXJjaC9hbHBoYS9r
+ZXJuZWwvc21wLmMJMjAwNy0xMC0yOSAxMzo1MDowNi4wMDAwMDAwMDAgLTA3MDAKQEAgLTg1MCw2
+ICs4NTAsOCBAQAogewogCXByZWVtcHRfZGlzYWJsZSgpOwogCisJY2xlYXJfYml0KE1NRl9OTkVE
+X0ZMVVNILCBtbS0+ZmxhZ3MpOworCiAJaWYgKG1tID09IGN1cnJlbnQtPmFjdGl2ZV9tbSkgewog
+CQlmbHVzaF90bGJfY3VycmVudChtbSk7CiAJCWlmIChhdG9taWNfcmVhZCgmbW0tPm1tX3VzZXJz
+KSA8PSAxKSB7CmRpZmYgLXVyd05iQiAyLjYuMjMvYXJjaC9hcm0va2VybmVsL3NtcC5jIDIuNi4y
+M2EvYXJjaC9hcm0va2VybmVsL3NtcC5jCi0tLSAyLjYuMjMvYXJjaC9hcm0va2VybmVsL3NtcC5j
+CTIwMDctMTAtMDkgMTM6MzE6MzguMDAwMDAwMDAwIC0wNzAwCisrKyAyLjYuMjNhL2FyY2gvYXJt
+L2tlcm5lbC9zbXAuYwkyMDA3LTEwLTI5IDEzOjUwOjIxLjAwMDAwMDAwMCAtMDcwMApAQCAtNzEz
+LDYgKzcxMyw4IEBACiB7CiAJY3B1bWFza190IG1hc2sgPSBtbS0+Y3B1X3ZtX21hc2s7CiAKKwlj
+bGVhcl9iaXQoTU1GX05ORURfRkxVU0gsIG1tLT5mbGFncyk7CisKIAlvbl9lYWNoX2NwdV9tYXNr
+KGlwaV9mbHVzaF90bGJfbW0sIG1tLCAxLCAxLCBtYXNrKTsKIH0KIApkaWZmIC11cndOYkIgMi42
+LjIzL2FyY2gvYXZyMzIvbW0vdGxiLmMgMi42LjIzYS9hcmNoL2F2cjMyL21tL3RsYi5jCi0tLSAy
+LjYuMjMvYXJjaC9hdnIzMi9tbS90bGIuYwkyMDA3LTEwLTA5IDEzOjMxOjM4LjAwMDAwMDAwMCAt
+MDcwMAorKysgMi42LjIzYS9hcmNoL2F2cjMyL21tL3RsYi5jCTIwMDctMTAtMjkgMTM6NTA6Mzku
+MDAwMDAwMDAwIC0wNzAwCkBAIC0yNDksNiArMjQ5LDggQEAKIAogdm9pZCBmbHVzaF90bGJfbW0o
+c3RydWN0IG1tX3N0cnVjdCAqbW0pCiB7CisJY2xlYXJfYml0KE1NRl9OTkVEX0ZMVVNILCBtbS0+
+ZmxhZ3MpOworCiAJLyogSW52YWxpZGF0ZSBhbGwgVExCIGVudHJpZXMgb2YgdGhpcyBwcm9jZXNz
+IGJ5IGdldHRpbmcgYSBuZXcgQVNJRCAqLwogCWlmIChtbS0+Y29udGV4dCAhPSBOT19DT05URVhU
+KSB7CiAJCXVuc2lnbmVkIGxvbmcgZmxhZ3M7CmRpZmYgLXVyd05iQiAyLjYuMjMvYXJjaC9jcmlz
+L2FyY2gtdjEwL21tL3RsYi5jIDIuNi4yM2EvYXJjaC9jcmlzL2FyY2gtdjEwL21tL3RsYi5jCi0t
+LSAyLjYuMjMvYXJjaC9jcmlzL2FyY2gtdjEwL21tL3RsYi5jCTIwMDctMTAtMDkgMTM6MzE6Mzgu
+MDAwMDAwMDAwIC0wNzAwCisrKyAyLjYuMjNhL2FyY2gvY3Jpcy9hcmNoLXYxMC9tbS90bGIuYwky
+MDA3LTEwLTI5IDEzOjUwOjU1LjAwMDAwMDAwMCAtMDcwMApAQCAtNjksNiArNjksOCBAQAogCiAJ
+RChwcmludGsoInRsYjogZmx1c2ggbW0gY29udGV4dCAlZCAoJXApXG4iLCBwYWdlX2lkLCBtbSkp
+OwogCisJY2xlYXJfYml0KE1NRl9OTkVEX0ZMVVNILCBtbS0+ZmxhZ3MpOworCiAJaWYocGFnZV9p
+ZCA9PSBOT19DT05URVhUKQogCQlyZXR1cm47CiAJCmRpZmYgLXVyd05iQiAyLjYuMjMvYXJjaC9j
+cmlzL2FyY2gtdjMyL2tlcm5lbC9zbXAuYyAyLjYuMjNhL2FyY2gvY3Jpcy9hcmNoLXYzMi9rZXJu
+ZWwvc21wLmMKLS0tIDIuNi4yMy9hcmNoL2NyaXMvYXJjaC12MzIva2VybmVsL3NtcC5jCTIwMDct
+MTAtMDkgMTM6MzE6MzguMDAwMDAwMDAwIC0wNzAwCisrKyAyLjYuMjNhL2FyY2gvY3Jpcy9hcmNo
+LXYzMi9rZXJuZWwvc21wLmMJMjAwNy0xMC0yOSAxMzo1MTowNi4wMDAwMDAwMDAgLTA3MDAKQEAg
+LTIzNyw2ICsyMzcsNyBAQAogCiB2b2lkIGZsdXNoX3RsYl9tbShzdHJ1Y3QgbW1fc3RydWN0ICpt
+bSkKIHsKKwljbGVhcl9iaXQoTU1GX05ORURfRkxVU0gsIG1tLT5mbGFncyk7CiAJX19mbHVzaF90
+bGJfbW0obW0pOwogCWZsdXNoX3RsYl9jb21tb24obW0sIEZMVVNIX0FMTCwgMCk7CiAJLyogTm8g
+bW9yZSBtYXBwaW5ncyBpbiBvdGhlciBDUFVzICovCmRpZmYgLXVyd05iQiAyLjYuMjMvYXJjaC9p
+Mzg2L2tlcm5lbC9zbXAuYyAyLjYuMjNhL2FyY2gvaTM4Ni9rZXJuZWwvc21wLmMKLS0tIDIuNi4y
+My9hcmNoL2kzODYva2VybmVsL3NtcC5jCTIwMDctMTAtMDkgMTM6MzE6MzguMDAwMDAwMDAwIC0w
+NzAwCisrKyAyLjYuMjNhL2FyY2gvaTM4Ni9rZXJuZWwvc21wLmMJMjAwNy0xMC0yOSAxMzo1MTo0
+Ny4wMDAwMDAwMDAgLTA3MDAKQEAgLTQxMCw2ICs0MTAsOCBAQAogewogCWNwdW1hc2tfdCBjcHVf
+bWFzazsKIAorCWNsZWFyX2JpdChNTUZfTk5FRF9GTFVTSCwgbW0tPmZsYWdzKTsKKwogCXByZWVt
+cHRfZGlzYWJsZSgpOwogCWNwdV9tYXNrID0gbW0tPmNwdV92bV9tYXNrOwogCWNwdV9jbGVhcihz
+bXBfcHJvY2Vzc29yX2lkKCksIGNwdV9tYXNrKTsKZGlmZiAtdXJ3TmJCIDIuNi4yMy9hcmNoL2kz
+ODYvbWFjaC12b3lhZ2VyL3ZveWFnZXJfc21wLmMgMi42LjIzYS9hcmNoL2kzODYvbWFjaC12b3lh
+Z2VyL3ZveWFnZXJfc21wLmMKLS0tIDIuNi4yMy9hcmNoL2kzODYvbWFjaC12b3lhZ2VyL3ZveWFn
+ZXJfc21wLmMJMjAwNy0xMC0wOSAxMzozMTozOC4wMDAwMDAwMDAgLTA3MDAKKysrIDIuNi4yM2Ev
+YXJjaC9pMzg2L21hY2gtdm95YWdlci92b3lhZ2VyX3NtcC5jCTIwMDctMTAtMjkgMTM6NTE6NTUu
+MDAwMDAwMDAwIC0wNzAwCkBAIC05MjQsNiArOTI0LDggQEAKIHsKIAl1bnNpZ25lZCBsb25nIGNw
+dV9tYXNrOwogCisJY2xlYXJfYml0KE1NRl9OTkVEX0ZMVVNILCBtbS0+ZmxhZ3MpOworCiAJcHJl
+ZW1wdF9kaXNhYmxlKCk7CiAKIAljcHVfbWFzayA9IGNwdXNfYWRkcihtbS0+Y3B1X3ZtX21hc2sp
+WzBdICYgfigxIDw8IHNtcF9wcm9jZXNzb3JfaWQoKSk7CmRpZmYgLXVyd05iQiAyLjYuMjMvYXJj
+aC9pYTY0L2tlcm5lbC9zbXAuYyAyLjYuMjNhL2FyY2gvaWE2NC9rZXJuZWwvc21wLmMKLS0tIDIu
+Ni4yMy9hcmNoL2lhNjQva2VybmVsL3NtcC5jCTIwMDctMTAtMDkgMTM6MzE6MzguMDAwMDAwMDAw
+IC0wNzAwCisrKyAyLjYuMjNhL2FyY2gvaWE2NC9rZXJuZWwvc21wLmMJMjAwNy0xMC0yOSAxMzo1
+MjowMy4wMDAwMDAwMDAgLTA3MDAKQEAgLTMyNSw2ICszMjUsOCBAQAogdm9pZAogc21wX2ZsdXNo
+X3RsYl9tbSAoc3RydWN0IG1tX3N0cnVjdCAqbW0pCiB7CisJY2xlYXJfYml0KE1NRl9OTkVEX0ZM
+VVNILCBtbS0+ZmxhZ3MpOworCiAJcHJlZW1wdF9kaXNhYmxlKCk7CiAJLyogdGhpcyBoYXBwZW5z
+IGZvciB0aGUgY29tbW9uIGNhc2Ugb2YgYSBzaW5nbGUtdGhyZWFkZWQgZm9yaygpOiAgKi8KIAlp
+ZiAobGlrZWx5KG1tID09IGN1cnJlbnQtPmFjdGl2ZV9tbSAmJiBhdG9taWNfcmVhZCgmbW0tPm1t
+X3VzZXJzKSA9PSAxKSkKZGlmZiAtdXJ3TmJCIDIuNi4yMy9hcmNoL20zMnIva2VybmVsL3NtcC5j
+IDIuNi4yM2EvYXJjaC9tMzJyL2tlcm5lbC9zbXAuYwotLS0gMi42LjIzL2FyY2gvbTMyci9rZXJu
+ZWwvc21wLmMJMjAwNy0xMC0wOSAxMzozMTozOC4wMDAwMDAwMDAgLTA3MDAKKysrIDIuNi4yM2Ev
+YXJjaC9tMzJyL2tlcm5lbC9zbXAuYwkyMDA3LTEwLTI5IDEzOjUyOjQ5LjAwMDAwMDAwMCAtMDcw
+MApAQCAtMjgwLDYgKzI4MCw4IEBACiAJdW5zaWduZWQgbG9uZyAqbW1jOwogCXVuc2lnbmVkIGxv
+bmcgZmxhZ3M7CiAKKwljbGVhcl9iaXQoTU1GX05ORURfRkxVU0gsIG1tLT5mbGFncyk7CisKIAlw
+cmVlbXB0X2Rpc2FibGUoKTsKIAljcHVfaWQgPSBzbXBfcHJvY2Vzc29yX2lkKCk7CiAJbW1jID0g
+Jm1tLT5jb250ZXh0W2NwdV9pZF07CmRpZmYgLXVyd05iQiAyLjYuMjMvYXJjaC9taXBzL2tlcm5l
+bC9zbXAuYyAyLjYuMjNhL2FyY2gvbWlwcy9rZXJuZWwvc21wLmMKLS0tIDIuNi4yMy9hcmNoL21p
+cHMva2VybmVsL3NtcC5jCTIwMDctMTAtMDkgMTM6MzE6MzguMDAwMDAwMDAwIC0wNzAwCisrKyAy
+LjYuMjNhL2FyY2gvbWlwcy9rZXJuZWwvc21wLmMJMjAwNy0xMC0yOSAxMzo1MzoyMS4wMDAwMDAw
+MDAgLTA3MDAKQEAgLTM4Nyw2ICszODcsOCBAQAogCiB2b2lkIGZsdXNoX3RsYl9tbShzdHJ1Y3Qg
+bW1fc3RydWN0ICptbSkKIHsKKwljbGVhcl9iaXQoTU1GX05ORURfRkxVU0gsIG1tLT5mbGFncyk7
+CisKIAlwcmVlbXB0X2Rpc2FibGUoKTsKIAogCWlmICgoYXRvbWljX3JlYWQoJm1tLT5tbV91c2Vy
+cykgIT0gMSkgfHwgKGN1cnJlbnQtPm1tICE9IG1tKSkgewpkaWZmIC11cndOYkIgMi42LjIzL2Fy
+Y2gvcG93ZXJwYy9tbS90bGJfMzIuYyAyLjYuMjNhL2FyY2gvcG93ZXJwYy9tbS90bGJfMzIuYwot
+LS0gMi42LjIzL2FyY2gvcG93ZXJwYy9tbS90bGJfMzIuYwkyMDA3LTEwLTA5IDEzOjMxOjM4LjAw
+MDAwMDAwMCAtMDcwMAorKysgMi42LjIzYS9hcmNoL3Bvd2VycGMvbW0vdGxiXzMyLmMJMjAwNy0x
+MC0yOSAxMzo1NDowNi4wMDAwMDAwMDAgLTA3MDAKQEAgLTE0NCw2ICsxNDQsOCBAQAogewogCXN0
+cnVjdCB2bV9hcmVhX3N0cnVjdCAqbXA7CiAKKwljbGVhcl9iaXQoTU1GX05ORURfRkxVU0gsIG1t
+LT5mbGFncyk7CisKIAlpZiAoSGFzaCA9PSAwKSB7CiAJCV90bGJpYSgpOwogCQlyZXR1cm47CmRp
+ZmYgLXVyd05iQiAyLjYuMjMvYXJjaC9wcGMvbW0vdGxiLmMgMi42LjIzYS9hcmNoL3BwYy9tbS90
+bGIuYwotLS0gMi42LjIzL2FyY2gvcHBjL21tL3RsYi5jCTIwMDctMTAtMDkgMTM6MzE6MzguMDAw
+MDAwMDAwIC0wNzAwCisrKyAyLjYuMjNhL2FyY2gvcHBjL21tL3RsYi5jCTIwMDctMTAtMjkgMTM6
+NTQ6MjEuMDAwMDAwMDAwIC0wNzAwCkBAIC0xNDQsNiArMTQ0LDggQEAKIHsKIAlzdHJ1Y3Qgdm1f
+YXJlYV9zdHJ1Y3QgKm1wOwogCisJY2xlYXJfYml0KE1NRl9OTkVEX0ZMVVNILCBtbS0+ZmxhZ3Mp
+OworCiAJaWYgKEhhc2ggPT0gMCkgewogCQlfdGxiaWEoKTsKIAkJcmV0dXJuOwpkaWZmIC11cndO
+YkIgMi42LjIzL2FyY2gvc2g2NC9tbS9mYXVsdC5jIDIuNi4yM2EvYXJjaC9zaDY0L21tL2ZhdWx0
+LmMKLS0tIDIuNi4yMy9hcmNoL3NoNjQvbW0vZmF1bHQuYwkyMDA3LTEwLTA5IDEzOjMxOjM4LjAw
+MDAwMDAwMCAtMDcwMAorKysgMi42LjIzYS9hcmNoL3NoNjQvbW0vZmF1bHQuYwkyMDA3LTEwLTI5
+IDEzOjU1OjAzLjAwMDAwMDAwMCAtMDcwMApAQCAtNTE3LDYgKzUxNyw4IEBACiAJKytjYWxsc190
+b19mbHVzaF90bGJfbW07CiAjZW5kaWYKIAorCWNsZWFyX2JpdChNTUZfTk5FRF9GTFVTSCwgbW0t
+PmZsYWdzKTsKKwogCWlmIChtbS0+Y29udGV4dCA9PSBOT19DT05URVhUKQogCQlyZXR1cm47CiAK
+ZGlmZiAtdXJ3TmJCIDIuNi4yMy9hcmNoL3NwYXJjL2tlcm5lbC9zbXAuYyAyLjYuMjNhL2FyY2gv
+c3BhcmMva2VybmVsL3NtcC5jCi0tLSAyLjYuMjMvYXJjaC9zcGFyYy9rZXJuZWwvc21wLmMJMjAw
+Ny0xMC0wOSAxMzozMTozOC4wMDAwMDAwMDAgLTA3MDAKKysrIDIuNi4yM2EvYXJjaC9zcGFyYy9r
+ZXJuZWwvc21wLmMJMjAwNy0xMC0yOSAxMzo1NToyMi4wMDAwMDAwMDAgLTA3MDAKQEAgLTE2Myw2
+ICsxNjMsOCBAQAogCiB2b2lkIHNtcF9mbHVzaF90bGJfbW0oc3RydWN0IG1tX3N0cnVjdCAqbW0p
+CiB7CisJY2xlYXJfYml0KE1NRl9OTkVEX0ZMVVNILCBtbS0+ZmxhZ3MpOworCiAJaWYobW0tPmNv
+bnRleHQgIT0gTk9fQ09OVEVYVCkgewogCQljcHVtYXNrX3QgY3B1X21hc2sgPSBtbS0+Y3B1X3Zt
+X21hc2s7CiAJCWNwdV9jbGVhcihzbXBfcHJvY2Vzc29yX2lkKCksIGNwdV9tYXNrKTsKZGlmZiAt
+dXJ3TmJCIDIuNi4yMy9hcmNoL3NwYXJjNjQva2VybmVsL3NtcC5jIDIuNi4yM2EvYXJjaC9zcGFy
+YzY0L2tlcm5lbC9zbXAuYwotLS0gMi42LjIzL2FyY2gvc3BhcmM2NC9rZXJuZWwvc21wLmMJMjAw
+Ny0xMC0wOSAxMzozMTozOC4wMDAwMDAwMDAgLTA3MDAKKysrIDIuNi4yM2EvYXJjaC9zcGFyYzY0
+L2tlcm5lbC9zbXAuYwkyMDA3LTEwLTI5IDEzOjU2OjMyLjAwMDAwMDAwMCAtMDcwMApAQCAtMTEx
+Miw2ICsxMTEyLDggQEAKIAl1MzIgY3R4ID0gQ1RYX0hXQklUUyhtbS0+Y29udGV4dCk7CiAJaW50
+IGNwdSA9IGdldF9jcHUoKTsKIAorCWNsZWFyX2JpdChNTUZfTk5FRF9GTFVTSCwgbW0tPmZsYWdz
+KTsKKwogCWlmIChhdG9taWNfcmVhZCgmbW0tPm1tX3VzZXJzKSA9PSAxKSB7CiAJCW1tLT5jcHVf
+dm1fbWFzayA9IGNwdW1hc2tfb2ZfY3B1KGNwdSk7CiAJCWdvdG8gbG9jYWxfZmx1c2hfYW5kX291
+dDsKZGlmZiAtdXJ3TmJCIDIuNi4yMy9hcmNoL3VtL2tlcm5lbC90bGIuYyAyLjYuMjNhL2FyY2gv
+dW0va2VybmVsL3RsYi5jCi0tLSAyLjYuMjMvYXJjaC91bS9rZXJuZWwvdGxiLmMJMjAwNy0xMC0w
+OSAxMzozMTozOC4wMDAwMDAwMDAgLTA3MDAKKysrIDIuNi4yM2EvYXJjaC91bS9rZXJuZWwvdGxi
+LmMJMjAwNy0xMC0yOSAxMzo1NzowNS4wMDAwMDAwMDAgLTA3MDAKQEAgLTQwMiw2ICs0MDIsNyBA
+QAogCiB2b2lkIGZsdXNoX3RsYl9tbShzdHJ1Y3QgbW1fc3RydWN0ICptbSkKIHsKKwljbGVhcl9i
+aXQoTU1GX05ORURfRkxVU0gsIG1tLT5mbGFncyk7CiAJQ0hPT1NFX01PREVfUFJPQyhmbHVzaF90
+bGJfbW1fdHQsIGZsdXNoX3RsYl9tbV9za2FzLCBtbSk7CiB9CiAKZGlmZiAtdXJ3TmJCIDIuNi4y
+My9hcmNoL3g4Nl82NC9rZXJuZWwvc21wLmMgMi42LjIzYS9hcmNoL3g4Nl82NC9rZXJuZWwvc21w
+LmMKLS0tIDIuNi4yMy9hcmNoL3g4Nl82NC9rZXJuZWwvc21wLmMJMjAwNy0xMC0wOSAxMzozMToz
+OC4wMDAwMDAwMDAgLTA3MDAKKysrIDIuNi4yM2EvYXJjaC94ODZfNjQva2VybmVsL3NtcC5jCTIw
+MDctMTAtMzAgMDY6Mjc6MjAuMDAwMDAwMDAwIC0wNzAwCkBAIC0yMjksNiArMjI5LDggQEAKIHsK
+IAljcHVtYXNrX3QgY3B1X21hc2s7CiAKKwljbGVhcl9iaXQoTU1GX05FRURfRkxVU0gsICZtbS0+
+ZmxhZ3MpOworCiAJcHJlZW1wdF9kaXNhYmxlKCk7CiAJY3B1X21hc2sgPSBtbS0+Y3B1X3ZtX21h
+c2s7CiAJY3B1X2NsZWFyKHNtcF9wcm9jZXNzb3JfaWQoKSwgY3B1X21hc2spOwpkaWZmIC11cndO
+YkIgMi42LjIzL2FyY2gveHRlbnNhL21tL3RsYi5jIDIuNi4yM2EvYXJjaC94dGVuc2EvbW0vdGxi
+LmMKLS0tIDIuNi4yMy9hcmNoL3h0ZW5zYS9tbS90bGIuYwkyMDA3LTEwLTA5IDEzOjMxOjM4LjAw
+MDAwMDAwMCAtMDcwMAorKysgMi42LjIzYS9hcmNoL3h0ZW5zYS9tbS90bGIuYwkyMDA3LTEwLTI5
+IDEzOjU3OjI2LjAwMDAwMDAwMCAtMDcwMApAQCAtNjMsNiArNjMsOCBAQAogCiB2b2lkIGZsdXNo
+X3RsYl9tbShzdHJ1Y3QgbW1fc3RydWN0ICptbSkKIHsKKwljbGVhcl9iaXQoTU1GX05ORURfRkxV
+U0gsIG1tLT5mbGFncyk7CisKIAlpZiAobW0gPT0gY3VycmVudC0+YWN0aXZlX21tKSB7CiAJCWlu
+dCBmbGFnczsKIAkJbG9jYWxfc2F2ZV9mbGFncyhmbGFncyk7CmRpZmYgLXVyd05iQiAyLjYuMjMv
+aW5jbHVkZS9hc20tZ2VuZXJpYy90bGIuaCAyLjYuMjNhL2luY2x1ZGUvYXNtLWdlbmVyaWMvdGxi
+LmgKLS0tIDIuNi4yMy9pbmNsdWRlL2FzbS1nZW5lcmljL3RsYi5oCTIwMDctMTAtMDkgMTM6MzE6
+MzguMDAwMDAwMDAwIC0wNzAwCisrKyAyLjYuMjNhL2luY2x1ZGUvYXNtLWdlbmVyaWMvdGxiLmgJ
+MjAwNy0xMS0zMCAwODowNDowOS4wMDAwMDAwMDAgLTA4MDAKQEAgLTE0NSw0ICsxNDUsMjMgQEAK
+IAogI2RlZmluZSB0bGJfbWlncmF0ZV9maW5pc2gobW0pIGRvIHt9IHdoaWxlICgwKQogCisvKiBm
+bHVzaCBhbiBtbSB0aGF0IHdlIG1lc3NlZCB3aXRoIGVhcmxpZXIsIGJ1dCBkZWxheWVkIHRoZSBm
+bHVzaAorICAgYXNzdW1pbmcgdGhhdCB3ZSB3b3VsZCBtdWNrIHdpdGggaXQgYSB3aG9sZSBsb3Qg
+bW9yZS4gKi8KK3N0YXRpYyBpbmxpbmUgdm9pZCBtYXliZV9mbHVzaF90bGJfbW0oc3RydWN0IG1t
+X3N0cnVjdCAqbW0pCit7CisJaWYgKHRlc3RfYW5kX2NsZWFyX2JpdChNTUZfTkVFRF9GTFVTSCwg
+Jm1tLT5mbGFncykpCisJCWZsdXNoX3RsYl9tbShtbSk7Cit9CisKKy8qIHBvc3NpYmx5IGZsYWcg
+YW4gbW0gYXMgbmVlZGluZyB0byBiZSBmbHVzaGVkLiAqLworc3RhdGljIGlubGluZSBpbnQgbWF5
+YmVfbmVlZF9mbHVzaF9tbShzdHJ1Y3QgbW1fc3RydWN0ICptbSkKK3sKKwlpZiAoIWNwdXNfZW1w
+dHkobW0tPmNwdV92bV9tYXNrKSkgeworCQlzZXRfYml0KE1NRl9ORUVEX0ZMVVNILCAmbW0tPmZs
+YWdzKTsKKwkJcmV0dXJuIDE7CisJfQorCXJldHVybiAwOworfQorCisKICNlbmRpZiAvKiBfQVNN
+X0dFTkVSSUNfX1RMQl9IICovCmRpZmYgLXVyd05iQiAyLjYuMjMvaW5jbHVkZS9saW51eC9zY2hl
+ZC5oIDIuNi4yM2EvaW5jbHVkZS9saW51eC9zY2hlZC5oCi0tLSAyLjYuMjMvaW5jbHVkZS9saW51
+eC9zY2hlZC5oCTIwMDctMTAtMDkgMTM6MzE6MzguMDAwMDAwMDAwIC0wNzAwCisrKyAyLjYuMjNh
+L2luY2x1ZGUvbGludXgvc2NoZWQuaAkyMDA3LTEwLTI5IDEzOjQ0OjMwLjAwMDAwMDAwMCAtMDcw
+MApAQCAtMzY2LDYgKzM2Niw5IEBACiAjZGVmaW5lIE1NRl9EVU1QX0ZJTFRFUl9ERUZBVUxUIFwK
+IAkoKDEgPDwgTU1GX0RVTVBfQU5PTl9QUklWQVRFKSB8CSgxIDw8IE1NRl9EVU1QX0FOT05fU0hB
+UkVEKSkKIAorLyogTWlzYyBNTSBmbGFncy4gKi8KKyNkZWZpbmUgTU1GX05FRURfRkxVU0gJCTYK
+Kwogc3RydWN0IG1tX3N0cnVjdCB7CiAJc3RydWN0IHZtX2FyZWFfc3RydWN0ICogbW1hcDsJCS8q
+IGxpc3Qgb2YgVk1BcyAqLwogCXN0cnVjdCByYl9yb290IG1tX3JiOwo=
+------=_Part_1999_5564456.1196440507023--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
