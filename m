@@ -1,64 +1,92 @@
-Message-Id: <20071130173507.979003396@sgi.com>
-References: <20071130173448.951783014@sgi.com>
-Date: Fri, 30 Nov 2007 09:34:56 -0800
-From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 08/19] Use page_cache_xxx in fs/libfs.c
-Content-Disposition: inline; filename=0009-Use-page_cache_xxx-in-fs-libfs.c.patch
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAUHh9iw014899
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2007 12:43:09 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lAUHh94d131954
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2007 10:43:09 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAUHh8HE026985
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2007 10:43:08 -0700
+Date: Fri, 30 Nov 2007 09:43:07 -0800
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [PATCH] mm: fix confusing __GFP_REPEAT related comments
+Message-ID: <20071130174307.GS13444@us.ibm.com>
+References: <20071129214828.GD20882@us.ibm.com> <1196378080.18851.116.camel@localhost> <20071130041922.GQ13444@us.ibm.com> <1196447260.19681.8.camel@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1196447260.19681.8.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: akpm@linux-foundation.org, mel@skynet.ie, wli@holomorphy.com, apw@shadowen.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Use page_cache_xxx in fs/libfs.c
+On 30.11.2007 [10:27:40 -0800], Dave Hansen wrote:
+> On Thu, 2007-11-29 at 20:19 -0800, Nishanth Aravamudan wrote: 
+> > "In looking at the callers using __GFP_REPEAT, not all handle failure --
+> > should they be using __NOFAIL?"
+> > 
+> > I *think* that all the current __GFP_REPEAT users are order <=
+> > PAGE_ALLOC_CSOTLY_ORDER. Perhaps they all mean to use __GPF_NOFAIL? Some
+> > don't handle failure immediately, but maybe their callers do, I haven't
+> > had time to investigate fully.
+> 
+> I think we treat pagetable allocations just like normal ones with
+> error handling.  If I saw a pte_alloc() in a patch that was used
+> without checking for NULL, I'd certainly bitch about it.
 
-Reviewed-by: Dave Chinner <dgc@sgi.com>
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
----
- fs/libfs.c |   12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+Hrm, you may be right. And it appears the only non-pagetable callers of
+__GFP_REPEAT allocations are:
 
-Index: mm/fs/libfs.c
-===================================================================
---- mm.orig/fs/libfs.c	2007-11-28 12:24:57.449215408 -0800
-+++ mm/fs/libfs.c	2007-11-28 14:10:51.773477763 -0800
-@@ -17,7 +17,8 @@ int simple_getattr(struct vfsmount *mnt,
- {
- 	struct inode *inode = dentry->d_inode;
- 	generic_fillattr(inode, stat);
--	stat->blocks = inode->i_mapping->nrpages << (PAGE_CACHE_SHIFT - 9);
-+	stat->blocks = inode->i_mapping->nrpages <<
-+				(page_cache_shift(inode->i_mapping) - 9);
- 	return 0;
- }
- 
-@@ -341,10 +342,10 @@ int simple_prepare_write(struct file *fi
- 			unsigned from, unsigned to)
- {
- 	if (!PageUptodate(page)) {
--		if (to - from != PAGE_CACHE_SIZE)
-+		if (to - from != page_cache_size(file->f_mapping))
- 			zero_user_segments(page,
- 				0, from,
--				to, PAGE_CACHE_SIZE);
-+				to, page_cache_size(file->f_mapping));
- 	}
- 	return 0;
- }
-@@ -372,8 +373,9 @@ int simple_write_begin(struct file *file
- static int simple_commit_write(struct file *file, struct page *page,
- 			       unsigned from, unsigned to)
- {
--	struct inode *inode = page->mapping->host;
--	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
-+	struct address_space *mapping = page->mapping;
-+	struct inode *inode = mapping->host;
-+	loff_t pos = page_cache_pos(mapping, page->index, to);
- 
- 	if (!PageUptodate(page))
- 		SetPageUptodate(page);
+drivers/mmc/host/wbsd.c::wbsd_request_dma()
+drivers/net/ppp_deflate.c::z_decomp_alloc()
+drivers/s390/char/vmcp.c::vmcp_write()
+net/core/sock.c::sock_alloc_send_pskb()
+
+But those are of course only the explicit callers -- there are
+presumably many others that are getting the same effect by passing a low
+order.
+
+> In any case, if we want to nitpick, the *callers* haven't asked for
+> __GFP_NOFAIL, so they shouldn't be depending on a lack of failures.
+
+I agree.
+
+> > And the whole gist, per the comments in mm/page_alloc.c, is that this is
+> > all dependent upon this implementation of the VM. I think that means you
+> > can't rely on those semantics being valid forever. So it's best for
+> > callers to be as explicit as possible ... but in this case, I'm not sure
+> > that the desired semantics actually exist.
+> 
+> I don't really buy this "in this implementation of the VM" crap.  When
+> people go to figure out which functions and flags to use, they don't
+> just go look at headers.  They look at and depend on the
+> implementations.  If we change the implementations, we go change all
+> the callers, too.
+
+I agree here, as well. I think that's why I'm asking ... if the
+implementation is changed to perhaps different semantics: first, do we
+have a set of semantics that are more desirably? second, do I interpret
+the current callers flags as is and risk breaking some mild assumption
+somewhere (that, for instance, while __GFP_REPEAT might fail, it doesn't
+currently, so callers, while handling errors, really don't expect to
+ever hit that code path?)
+
+> Your patch highlights an existing problem: we're not being very good
+> with __GFP_REPEAT.  All of the pagetable users (on x86 at least) are
+> using __GFP_REPEAT, but effectively getting __GFP_NOFAIL.  There are
+> some other users around that might have larger buffers, but I think
+> pagetable pages are pretty guaranteed to stay <= 1 page in size. :)
+
+Indeed.
+
+Thanks,
+Nish
 
 -- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
