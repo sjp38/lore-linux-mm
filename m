@@ -1,198 +1,171 @@
-Message-Id: <20071130173510.575451395@sgi.com>
+Message-Id: <20071130173509.595134791@sgi.com>
 References: <20071130173448.951783014@sgi.com>
-Date: Fri, 30 Nov 2007 09:35:06 -0800
+Date: Fri, 30 Nov 2007 09:35:03 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 18/19] Use page_cache_xxx for fs/xfs
-Content-Disposition: inline; filename=0019-Use-page_cache_xxx-for-fs-xfs.patch
+Subject: [patch 15/19] Use page_cache_xxx in fs/ext3
+Content-Disposition: inline; filename=0016-Use-page_cache_xxx-in-fs-ext3.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
 List-ID: <linux-mm.kvack.org>
 
-Use page_cache_xxx for fs/xfs
+Use page_cache_xxx in fs/ext3
 
 Reviewed-by: Dave Chinner <dgc@sgi.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- fs/xfs/linux-2.6/xfs_aops.c |   55 ++++++++++++++++++++++----------------------
- fs/xfs/linux-2.6/xfs_lrw.c  |    4 +--
- 2 files changed, 30 insertions(+), 29 deletions(-)
+ fs/ext3/dir.c   |    3 ++-
+ fs/ext3/inode.c |   39 ++++++++++++++++++++-------------------
+ 2 files changed, 22 insertions(+), 20 deletions(-)
 
-Index: mm/fs/xfs/linux-2.6/xfs_aops.c
+Index: mm/fs/ext3/dir.c
 ===================================================================
---- mm.orig/fs/xfs/linux-2.6/xfs_aops.c	2007-11-29 11:24:19.606866627 -0800
-+++ mm/fs/xfs/linux-2.6/xfs_aops.c	2007-11-29 11:29:55.115116317 -0800
-@@ -75,7 +75,7 @@ xfs_page_trace(
- 	xfs_inode_t	*ip;
- 	bhv_vnode_t	*vp = vn_from_inode(inode);
- 	loff_t		isize = i_size_read(inode);
--	loff_t		offset = page_offset(page);
-+	loff_t		offset = page_cache_pos(page->mapping, page->index, 0);
- 	int		delalloc = -1, unmapped = -1, unwritten = -1;
+--- mm.orig/fs/ext3/dir.c	2007-11-16 21:16:36.000000000 -0800
++++ mm/fs/ext3/dir.c	2007-11-28 14:11:16.689227316 -0800
+@@ -133,7 +133,8 @@ static int ext3_readdir(struct file * fi
+ 						&map_bh, 0, 0);
+ 		if (err > 0) {
+ 			pgoff_t index = map_bh.b_blocknr >>
+-					(PAGE_CACHE_SHIFT - inode->i_blkbits);
++				(page_cache_shift(inode->i_mapping)
++					- inode->i_blkbits);
+ 			if (!ra_has_index(&filp->f_ra, index))
+ 				page_cache_sync_readahead(
+ 					sb->s_bdev->bd_inode->i_mapping,
+Index: mm/fs/ext3/inode.c
+===================================================================
+--- mm.orig/fs/ext3/inode.c	2007-11-28 12:24:24.567962333 -0800
++++ mm/fs/ext3/inode.c	2007-11-28 14:11:16.701086757 -0800
+@@ -1159,8 +1159,8 @@ static int ext3_write_begin(struct file 
+ 	pgoff_t index;
+ 	unsigned from, to;
  
- 	if (page_has_buffers(page))
-@@ -618,7 +618,7 @@ xfs_probe_page(
- 					break;
- 			} while ((bh = bh->b_this_page) != head);
- 		} else
--			ret = mapped ? 0 : PAGE_CACHE_SIZE;
-+			ret = mapped ? 0 : page_cache_size(page->mapping);
+-	index = pos >> PAGE_CACHE_SHIFT;
+-	from = pos & (PAGE_CACHE_SIZE - 1);
++	index = page_cache_index(mapping, pos);
++	from = page_cache_offset(mapping, pos);
+ 	to = from + len;
+ 
+ retry:
+@@ -1256,7 +1256,7 @@ static int ext3_ordered_write_end(struct
+ 	unsigned from, to;
+ 	int ret = 0, ret2;
+ 
+-	from = pos & (PAGE_CACHE_SIZE - 1);
++	from = page_cache_offset(mapping, pos);
+ 	to = from + len;
+ 
+ 	ret = walk_page_buffers(handle, page_buffers(page),
+@@ -1326,7 +1326,7 @@ static int ext3_journalled_write_end(str
+ 	int partial = 0;
+ 	unsigned from, to;
+ 
+-	from = pos & (PAGE_CACHE_SIZE - 1);
++	from = page_cache_offset(mapping, pos);
+ 	to = from + len;
+ 
+ 	if (copied < len) {
+@@ -1489,6 +1489,7 @@ static int ext3_ordered_writepage(struct
+ 	handle_t *handle = NULL;
+ 	int ret = 0;
+ 	int err;
++	int pagesize = page_cache_size(inode->i_mapping);
+ 
+ 	J_ASSERT(PageLocked(page));
+ 
+@@ -1511,8 +1512,7 @@ static int ext3_ordered_writepage(struct
+ 				(1 << BH_Dirty)|(1 << BH_Uptodate));
  	}
+ 	page_bufs = page_buffers(page);
+-	walk_page_buffers(handle, page_bufs, 0,
+-			PAGE_CACHE_SIZE, NULL, bget_one);
++	walk_page_buffers(handle, page_bufs, 0, pagesize, NULL, bget_one);
  
- 	return ret;
-@@ -645,7 +645,7 @@ xfs_probe_cluster(
- 	} while ((bh = bh->b_this_page) != head);
+ 	ret = block_write_full_page(page, ext3_get_block, wbc);
  
- 	/* if we reached the end of the page, sum forwards in following pages */
--	tlast = i_size_read(inode) >> PAGE_CACHE_SHIFT;
-+	tlast = page_cache_index(inode->i_mapping, i_size_read(inode));
- 	tindex = startpage->index + 1;
- 
- 	/* Prune this back to avoid pathological behavior */
-@@ -663,14 +663,14 @@ xfs_probe_cluster(
- 			size_t pg_offset, pg_len = 0;
- 
- 			if (tindex == tlast) {
--				pg_offset =
--				    i_size_read(inode) & (PAGE_CACHE_SIZE - 1);
-+				pg_offset = page_cache_offset(inode->i_mapping,
-+							i_size_read(inode));
- 				if (!pg_offset) {
- 					done = 1;
- 					break;
- 				}
- 			} else
--				pg_offset = PAGE_CACHE_SIZE;
-+				pg_offset = page_cache_size(inode->i_mapping);
- 
- 			if (page->index == tindex && !TestSetPageLocked(page)) {
- 				pg_len = xfs_probe_page(page, pg_offset, mapped);
-@@ -752,7 +752,8 @@ xfs_convert_page(
- 	int			bbits = inode->i_blkbits;
- 	int			len, page_dirty;
- 	int			count = 0, done = 0, uptodate = 1;
-- 	xfs_off_t		offset = page_offset(page);
-+	struct address_space	*map = inode->i_mapping;
-+	xfs_off_t		offset = page_cache_pos(map, page->index, 0);
- 
- 	if (page->index != tindex)
- 		goto fail;
-@@ -760,7 +761,7 @@ xfs_convert_page(
- 		goto fail;
- 	if (PageWriteback(page))
- 		goto fail_unlock_page;
--	if (page->mapping != inode->i_mapping)
-+	if (page->mapping != map)
- 		goto fail_unlock_page;
- 	if (!xfs_is_delayed_page(page, (*ioendp)->io_type))
- 		goto fail_unlock_page;
-@@ -772,20 +773,19 @@ xfs_convert_page(
- 	 * Derivation:
- 	 *
- 	 * End offset is the highest offset that this page should represent.
--	 * If we are on the last page, (end_offset & (PAGE_CACHE_SIZE - 1))
--	 * will evaluate non-zero and be less than PAGE_CACHE_SIZE and
-+	 * If we are on the last page, (end_offset & page_cache_mask())
-+	 * will evaluate non-zero and be less than page_cache_size() and
- 	 * hence give us the correct page_dirty count. On any other page,
- 	 * it will be zero and in that case we need page_dirty to be the
- 	 * count of buffers on the page.
+@@ -1529,13 +1529,12 @@ static int ext3_ordered_writepage(struct
+ 	 * and generally junk.
  	 */
- 	end_offset = min_t(unsigned long long,
--			(xfs_off_t)(page->index + 1) << PAGE_CACHE_SHIFT,
-+			(xfs_off_t)page_cache_pos(map, page->index + 1, 0),
- 			i_size_read(inode));
+ 	if (ret == 0) {
+-		err = walk_page_buffers(handle, page_bufs, 0, PAGE_CACHE_SIZE,
+-					NULL, journal_dirty_data_fn);
++		err = walk_page_buffers(handle, page_bufs, 0, pagesize,
++			NULL, journal_dirty_data_fn);
+ 		if (!ret)
+ 			ret = err;
+ 	}
+-	walk_page_buffers(handle, page_bufs, 0,
+-			PAGE_CACHE_SIZE, NULL, bput_one);
++	walk_page_buffers(handle, page_bufs, 0, pagesize, NULL, bput_one);
+ 	err = ext3_journal_stop(handle);
+ 	if (!ret)
+ 		ret = err;
+@@ -1583,10 +1582,12 @@ out_fail:
+ static int ext3_journalled_writepage(struct page *page,
+ 				struct writeback_control *wbc)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct address_space *mapping = page->mapping;
++	struct inode *inode = mapping->host;
+ 	handle_t *handle = NULL;
+ 	int ret = 0;
+ 	int err;
++	int pagesize = page_cache_size(inode->i_mapping);
  
- 	len = 1 << inode->i_blkbits;
--	p_offset = min_t(unsigned long, end_offset & (PAGE_CACHE_SIZE - 1),
--					PAGE_CACHE_SIZE);
--	p_offset = p_offset ? roundup(p_offset, len) : PAGE_CACHE_SIZE;
-+	p_offset = page_cache_offset(map, end_offset);
-+	p_offset = p_offset ? roundup(p_offset, len) : page_cache_size(map);
- 	page_dirty = p_offset / len;
+ 	if (ext3_journal_current_handle())
+ 		goto no_write;
+@@ -1603,17 +1604,16 @@ static int ext3_journalled_writepage(str
+ 		 * doesn't seem much point in redirtying the page here.
+ 		 */
+ 		ClearPageChecked(page);
+-		ret = block_prepare_write(page, 0, PAGE_CACHE_SIZE,
+-					ext3_get_block);
++		ret = block_prepare_write(page, 0, pagesize, ext3_get_block);
+ 		if (ret != 0) {
+ 			ext3_journal_stop(handle);
+ 			goto out_unlock;
+ 		}
+ 		ret = walk_page_buffers(handle, page_buffers(page), 0,
+-			PAGE_CACHE_SIZE, NULL, do_journal_get_write_access);
++			pagesize, NULL, do_journal_get_write_access);
  
- 	bh = head = page_buffers(page);
-@@ -941,6 +941,7 @@ xfs_page_state_convert(
- 	int			page_dirty, count = 0;
- 	int			trylock = 0;
- 	int			all_bh = unmapped;
-+	struct address_space	*map = inode->i_mapping;
+ 		err = walk_page_buffers(handle, page_buffers(page), 0,
+-				PAGE_CACHE_SIZE, NULL, write_end_fn);
++			pagesize, NULL, write_end_fn);
+ 		if (ret == 0)
+ 			ret = err;
+ 		EXT3_I(inode)->i_state |= EXT3_STATE_JDATA;
+@@ -1828,8 +1828,8 @@ void ext3_set_aops(struct inode *inode)
+ static int ext3_block_truncate_page(handle_t *handle, struct page *page,
+ 		struct address_space *mapping, loff_t from)
+ {
+-	ext3_fsblk_t index = from >> PAGE_CACHE_SHIFT;
+-	unsigned offset = from & (PAGE_CACHE_SIZE-1);
++	ext3_fsblk_t index = page_cache_index(mapping, from);
++	unsigned offset = page_cache_offset(mapping, from);
+ 	unsigned blocksize, iblock, length, pos;
+ 	struct inode *inode = mapping->host;
+ 	struct buffer_head *bh;
+@@ -1837,7 +1837,8 @@ static int ext3_block_truncate_page(hand
  
- 	if (startio) {
- 		if (wbc->sync_mode == WB_SYNC_NONE && wbc->nonblocking)
-@@ -949,11 +950,11 @@ xfs_page_state_convert(
+ 	blocksize = inode->i_sb->s_blocksize;
+ 	length = blocksize - (offset & (blocksize - 1));
+-	iblock = index << (PAGE_CACHE_SHIFT - inode->i_sb->s_blocksize_bits);
++	iblock = index <<
++		(page_cache_shift(mapping) - inode->i_sb->s_blocksize_bits);
  
- 	/* Is this page beyond the end of the file? */
- 	offset = i_size_read(inode);
--	end_index = offset >> PAGE_CACHE_SHIFT;
--	last_index = (offset - 1) >> PAGE_CACHE_SHIFT;
-+	end_index = page_cache_index(map, offset);
-+	last_index = page_cache_index(map, (offset - 1));
- 	if (page->index >= end_index) {
- 		if ((page->index >= end_index + 1) ||
--		    !(i_size_read(inode) & (PAGE_CACHE_SIZE - 1))) {
-+		    !(page_cache_offset(map, i_size_read(inode)))) {
- 			if (startio)
- 				unlock_page(page);
- 			return 0;
-@@ -967,22 +968,22 @@ xfs_page_state_convert(
- 	 * Derivation:
- 	 *
- 	 * End offset is the highest offset that this page should represent.
--	 * If we are on the last page, (end_offset & (PAGE_CACHE_SIZE - 1))
--	 * will evaluate non-zero and be less than PAGE_CACHE_SIZE and
--	 * hence give us the correct page_dirty count. On any other page,
-+	 * If we are on the last page, (page_cache_offset(mapping, end_offset))
-+	 * will evaluate non-zero and be less than page_cache_size(mapping)
-+	 * and hence give us the correct page_dirty count. On any other page,
- 	 * it will be zero and in that case we need page_dirty to be the
- 	 * count of buffers on the page.
-  	 */
- 	end_offset = min_t(unsigned long long,
--			(xfs_off_t)(page->index + 1) << PAGE_CACHE_SHIFT, offset);
-+			(xfs_off_t)page_cache_pos(map, page->index + 1, 0), offset);
- 	len = 1 << inode->i_blkbits;
--	p_offset = min_t(unsigned long, end_offset & (PAGE_CACHE_SIZE - 1),
--					PAGE_CACHE_SIZE);
--	p_offset = p_offset ? roundup(p_offset, len) : PAGE_CACHE_SIZE;
-+	p_offset = page_cache_offset(map, end_offset);
-+	p_offset = p_offset ? roundup(p_offset, len) : page_cache_size(map);
-+
- 	page_dirty = p_offset / len;
- 
- 	bh = head = page_buffers(page);
--	offset = page_offset(page);
-+	offset = page_cache_pos(map, page->index, 0);
- 	flags = BMAPI_READ;
- 	type = IOMAP_NEW;
- 
-@@ -1129,8 +1130,8 @@ xfs_page_state_convert(
- 		xfs_start_page_writeback(page, wbc, 1, count);
- 
- 	if (ioend && iomap_valid) {
--		offset = (iomap.iomap_offset + iomap.iomap_bsize - 1) >>
--					PAGE_CACHE_SHIFT;
-+		offset = page_cache_index(map,
-+			(iomap.iomap_offset + iomap.iomap_bsize - 1));
- 		tlast = min_t(pgoff_t, offset, last_index);
- 		xfs_cluster_write(inode, page->index + 1, &iomap, &ioend,
- 					wbc, startio, all_bh, tlast);
-Index: mm/fs/xfs/linux-2.6/xfs_lrw.c
-===================================================================
---- mm.orig/fs/xfs/linux-2.6/xfs_lrw.c	2007-11-29 11:24:19.618866869 -0800
-+++ mm/fs/xfs/linux-2.6/xfs_lrw.c	2007-11-29 11:29:55.115116317 -0800
-@@ -142,8 +142,8 @@ xfs_iozero(
- 		unsigned offset, bytes;
- 		void *fsdata;
- 
--		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
--		bytes = PAGE_CACHE_SIZE - offset;
-+		offset = page_cache_offset(mapping, pos);
-+		bytes = page_cache_size(mapping) - offset;
- 		if (bytes > count)
- 			bytes = count;
- 
+ 	/*
+ 	 * For "nobh" option,  we can only work if we don't need to
+@@ -2316,7 +2317,7 @@ void ext3_truncate(struct inode *inode)
+ 		page = NULL;
+ 	} else {
+ 		page = grab_cache_page(mapping,
+-				inode->i_size >> PAGE_CACHE_SHIFT);
++				page_cache_index(mapping, inode->i_size));
+ 		if (!page)
+ 			return;
+ 	}
 
 -- 
 
