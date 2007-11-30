@@ -1,79 +1,88 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAUGknTJ032210
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2007 11:46:49 -0500
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lAUGkmAI111044
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2007 09:46:48 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAUGkmZZ007999
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2007 09:46:48 -0700
-Subject: Re: [RFC PATCH] LTTng instrumentation mm (updated)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAUH4TGF006549
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2007 12:04:29 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lAUH4MLU043944
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2007 10:04:27 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAUH4Min011992
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2007 10:04:22 -0700
+Subject: Re: RFC/POC Make Page Tables Relocatable Part 2 Page Table
+	Migration Code
 From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20071130161155.GA29634@Krystal>
-References: <20071113194025.150641834@polymtl.ca>
-	 <1195160783.7078.203.camel@localhost> <20071115215142.GA7825@Krystal>
-	 <1195164977.27759.10.camel@localhost> <20071116143019.GA16082@Krystal>
-	 <1195495485.27759.115.camel@localhost> <20071128140953.GA8018@Krystal>
-	 <1196268856.18851.20.camel@localhost> <20071129023421.GA711@Krystal>
-	 <1196317552.18851.47.camel@localhost>  <20071130161155.GA29634@Krystal>
+In-Reply-To: <d43160c70711300836g52c10a88qc46288cf380192ca@mail.gmail.com>
+References: <d43160c70711300836g52c10a88qc46288cf380192ca@mail.gmail.com>
 Content-Type: text/plain
-Date: Fri, 30 Nov 2007 09:46:41 -0800
-Message-Id: <1196444801.18851.127.camel@localhost>
+Date: Fri, 30 Nov 2007 10:04:17 -0800
+Message-Id: <1196445857.18851.140.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@google.com
+To: Ross Biro <rossb@google.com>
+Cc: Mel Gorman <mel@skynet.ie>, linux-mm@kvack.org, Mel Gorman <MELGOR@ie.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-11-30 at 11:11 -0500, Mathieu Desnoyers wrote:
-> +static inline swp_entry_t page_swp_entry(struct page *page)
+On Fri, 2007-11-30 at 11:36 -0500, Ross Biro wrote:
+> lmbench shows the overhead of rewalking the page tables is less than
+> that of spinlock debugging. 
+
+Spinlock debugging can be pretty heavy, so I wouldn't use it as a
+benchmark.  Thanks for posting them early, though.
+
+> Here's the actual page table migration code.  I'm not sure I plugged
+> it into the correct spot, but it works well enough to test.
+
+Could you remind us exactly what you're trying to do here?  A bit of the
+theory of what you're trying would be good.  Also, this is a wee bit
+hard to review because it's a bit messy, still has lots of debugging
+printks, and needs some CodingStyle love.  Don't forget to add -p do
+your diffs while you're at it.
+
+Where did PageDying() come from?  Where ever it came from, please wrap
+it up in its header in a nice #ifdef so you don't have to do this a
+number of times:
+
+...
 > +{
-> +       swp_entry_t entry;
-> +       VM_BUG_ON(!PageSwapCache(page));
-> +       entry.val = page_private(page);
-> +       return entry;
-> +}
+> +#ifdef CONFIG_SLOW_CACHE
+> +       while (unlikely(PageDying(pmd_page(**pmd))))
+> +#endif
+> +       {
+...
 
-This probably needs to be introduced (and used) in a separate patch.
-Please fix up those other places in the code that can take advantage of
-it.
 
->  #ifdef CONFIG_MIGRATION
->  static inline swp_entry_t make_migration_entry(struct page *page, int
-> write)
->  {
-> Index: linux-2.6-lttng/mm/swapfile.c
-> ===================================================================
-> --- linux-2.6-lttng.orig/mm/swapfile.c  2007-11-30 09:18:38.000000000
-> -0500
-> +++ linux-2.6-lttng/mm/swapfile.c       2007-11-30 10:21:50.000000000
-> -0500
-> @@ -1279,6 +1279,7 @@ asmlinkage long sys_swapoff(const char _
->         swap_map = p->swap_map;
->         p->swap_map = NULL;
->         p->flags = 0;
-> +       trace_mark(mm_swap_file_close, "filp %p", swap_file);
->         spin_unlock(&swap_lock);
->         mutex_unlock(&swapon_mutex);
->         vfree(swap_map);
-> @@ -1660,6 +1661,8 @@ asmlinkage long sys_swapon(const char __
->         } else {
->                 swap_info[prev].next = p - swap_info;
->         }
-> +       trace_mark(mm_swap_file_open, "filp %p filename %s",
-> +               swap_file, name); 
+> +       union {
+>         struct list_head lru;           /* Pageout list, eg. active_list
+>                                          * protected by zone->lru_lock !
+>                                          */
+> +               struct rcu_head rcu;
+> +       };
 
-You print out the filp a number of times here, but how does that help in
-a trace?  If I was trying to figure out which swapfile, I'd probably
-just want to know the swp_entry_t->type, then I could look at this:
+There's a nice shiny comment next to 'lru'.  Hint, hint. ;)
 
-dave@foo:~/garbage$ cat /proc/swaps 
-Filename                                Type            Size    Used    Priority
-/dev/sda2                               partition       1992052 649336  -1
+> +int migrate_top_level_page_table(struct mm_struct *mm, struct page *dest)
+> +{
+> +       return 1;
+> +#if 0
+> +       unsigned long flags;
+> +       void *dest_ptr;
+> +
+> +       /* We can't do this until we get a heavy duty tlb flush, or
+> +          we can force this mm to be switched on all cpus. */
 
-to see the ordering.
+Can you elaborate on this?  You need each cpu to do a task switch _away_
+from this mm?
+
+> +int migrate_pmd(pmd_t *pmd, struct mm_struct *mm, unsigned long addr,
+> +               struct page *dest)
+> +{
+...
+> +       pte = pte_offset_map(pmd, addr);
+> +
+> +       dest_ptr = kmap_atomic(dest, KM_IRQ0);
+
+Why KM_IRQ0 here?  
 
 -- Dave
 
