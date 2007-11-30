@@ -1,79 +1,45 @@
-Message-ID: <396386387.18082@ustc.edu.cn>
-Date: Fri, 30 Nov 2007 09:32:59 +0800
-From: Fengguang Wu <wfg@mail.ustc.edu.cn>
-Subject: Re: [patch 1/1] Writeback fix for concurrent large and small file
-	writes
-References: <20071128192957.511EAB8310@localhost> <396296481.07368@ustc.edu.cn> <532480950711291216l181b0bej17db6c42067aa832@mail.gmail.com>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: What can we do to get ready for memory controller merge in 2.6.25
+Date: Fri, 30 Nov 2007 13:11:47 +1100
+References: <474ED005.7060300@linux.vnet.ibm.com>
+In-Reply-To: <474ED005.7060300@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <532480950711291216l181b0bej17db6c42067aa832@mail.gmail.com>
-Message-Id: <E1IxukV-0003Ns-5C@localhost>
+Message-Id: <200711301311.48291.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Michael Rubin <mrubin@google.com>
-Cc: a.p.zijlstra@chello.nl, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>
+To: balbir@linux.vnet.ibm.com
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, linux kernel mailing list <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh@veritas.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelianov <xemul@sw.ru>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Rik van Riel <riel@redhat.com>, Christoph Lameter <clameter@sgi.com>, "Martin J. Bligh" <mbligh@google.com>, Andy Whitcroft <andyw@uk.ibm.com>, Srivatsa Vaddagiri <vatsa@in.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 29, 2007 at 12:16:36PM -0800, Michael Rubin wrote:
-> Due to my faux pas of top posting (see
-> http://www.zip.com.au/~akpm/linux/patches/stuff/top-posting.txt) I am
-> resending this email.
-> 
-> On Nov 28, 2007 4:34 PM, Fengguang Wu <wfg@mail.ustc.edu.cn> wrote:
-> > Could you demonstrate the situation? Or if I guess it right, could it
-> > be fixed by the following patch? (not a nack: If so, your patch could
-> > also be considered as a general purpose improvement, instead of a bug
-> > fix.)
-> >
-> > diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> > index 0fca820..62e62e2 100644
-> > --- a/fs/fs-writeback.c
-> > +++ b/fs/fs-writeback.c
-> > @@ -301,7 +301,7 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
-> >                          * Someone redirtied the inode while were writing back
-> >                          * the pages.
-> >                          */
-> > -                       redirty_tail(inode);
-> > +                       requeue_io(inode);
-> >                 } else if (atomic_read(&inode->i_count)) {
-> >                         /*
-> >                          * The inode is clean, inuse
-> >
-> 
-> By testing the situation I can confirm that the one line patch above
-> fixes the problem.
-> 
-> I will continue testing some other cases to see if it cause any other
-> issues but I don't expect it to.
+On Friday 30 November 2007 01:43, Balbir Singh wrote:
+> They say better strike when the iron is hot.
+>
+> Since we have so many people discussing the memory controller, I would
+> like to access the readiness of the memory controller for mainline
+> merge. Given that we have some time until the merge window, I'd like to
+> set aside some time (from my other work items) to work on the memory
+> controller, fix review comments and defects.
+>
+> In the past, we've received several useful comments from Rik Van Riel,
+> Lee Schermerhorn, Peter Zijlstra, Hugh Dickins, Nick Piggin, Paul Menage
+> and code contributions and bug fixes from Hugh Dickins, Pavel Emelianov,
+> Lee Schermerhorn, YAMAMOTO-San, Andrew Morton and KAMEZAWA-San. I
+> apologize if I missed out any other names or contributions
+>
+> At the VM-Summit we decided to try the current double LRU approach for
+> memory control. At this juncture in the space-time continuum, I seek
+> your support, feedback, comments and help to move the memory controller
 
-One major concern could be whether a continuous writer dirting pages
-at the 'right' pace will generate a steady flow of write I/Os which are
-_tiny_hence_inefficient_.
+Do you have any test cases, performance numbers, etc.? And also some
+results or even anecdotes of where this is going to be used would be
+interesting...
 
-I have gathered some timing info about writeback speed in
-http://lkml.org/lkml/2007/10/4/468. For ext3, it takes wb_kupdate()
-~15ms to submit 4MB. Whereas one disk I/O typically takes ~5ms. So if
-there are too many tiny write I/Os, they will simply get delayed and
-merged into bigger ones.
-
-So it's not a problem in *theory* :-)
-
-> I will post this change for 2.6.24 and list Feng as author. If that's
-> ok with Feng.
-
-Thank you.
-
-> As for the original patch I will resubmit it for 2.6.25 as a general
-> purpose improvement.
-
-There are some discussions and patches on inode number based writeback
-clustering which you may want to reference/compare with:
-                http://lkml.org/lkml/2007/8/21/396
-                http://lkml.org/lkml/2007/8/27/45
-
-Cheers,
-Fengguang
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
