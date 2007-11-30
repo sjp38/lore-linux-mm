@@ -1,26 +1,47 @@
-Message-Id: <20071130173448.951783014@sgi.com>
-Date: Fri, 30 Nov 2007 09:34:48 -0800
+Message-Id: <20071130173506.829378577@sgi.com>
+References: <20071130173448.951783014@sgi.com>
+Date: Fri, 30 Nov 2007 09:34:51 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 00/19] Page cache: Replace PAGE_CACHE_xx with inline functions V2
+Subject: [patch 03/19] Use page_cache_xxx in mm/page-writeback.c
+Content-Disposition: inline; filename=0004-Use-page_cache_xxx-in-mm-page-writeback.c.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
 List-ID: <linux-mm.kvack.org>
 
-This patchset cleans up page cache handling by replacing
-open coded shifts and adds with inline function calls.
+Use page_cache_xxx in mm/page-writeback.c
 
-The ultimate goal is to replace all uses of PAGE_CACHE_xxx in the
-kernel through the use of these functions. All the functions take
-a mapping parameter. The mapping parameter is required if we want
-to support large block sizes in filesystems and block devices.
+Reviewed-by: Dave Chinner <dgc@sgi.com>
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+---
+ mm/page-writeback.c |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-Patchset against 2.6.24-rc3-mm2.
-
-V1->V2:
-- Review by Dave Chinner. Multiple improvements and fixes.
-- Review by Fengguand Wu with more improvements.
+Index: mm/mm/page-writeback.c
+===================================================================
+--- mm.orig/mm/page-writeback.c	2007-11-28 12:27:32.211962401 -0800
++++ mm/mm/page-writeback.c	2007-11-28 14:10:34.338227137 -0800
+@@ -818,8 +818,8 @@ int write_cache_pages(struct address_spa
+ 		index = mapping->writeback_index; /* Start from prev offset */
+ 		end = -1;
+ 	} else {
+-		index = wbc->range_start >> PAGE_CACHE_SHIFT;
+-		end = wbc->range_end >> PAGE_CACHE_SHIFT;
++		index = page_cache_index(mapping, wbc->range_start);
++		end = page_cache_index(mapping, wbc->range_end);
+ 		if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
+ 			range_whole = 1;
+ 		scanned = 1;
+@@ -1025,7 +1025,7 @@ int __set_page_dirty_nobuffers(struct pa
+ 				__inc_zone_page_state(page, NR_FILE_DIRTY);
+ 				__inc_bdi_stat(mapping->backing_dev_info,
+ 						BDI_RECLAIMABLE);
+-				task_io_account_write(PAGE_CACHE_SIZE);
++				task_io_account_write(page_cache_size(mapping));
+ 			}
+ 			radix_tree_tag_set(&mapping->page_tree,
+ 				page_index(page), PAGECACHE_TAG_DIRTY);
 
 -- 
 
