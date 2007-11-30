@@ -1,47 +1,164 @@
-Message-Id: <20071130173506.829378577@sgi.com>
+Message-Id: <20071130173509.839470512@sgi.com>
 References: <20071130173448.951783014@sgi.com>
-Date: Fri, 30 Nov 2007 09:34:51 -0800
+Date: Fri, 30 Nov 2007 09:35:04 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 03/19] Use page_cache_xxx in mm/page-writeback.c
-Content-Disposition: inline; filename=0004-Use-page_cache_xxx-in-mm-page-writeback.c.patch
+Subject: [patch 16/19] Use page_cache_xxx in fs/ext4
+Content-Disposition: inline; filename=0017-Use-page_cache_xxx-in-fs-ext4.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, Fengguang Wu <fengguang.wu@gmail.com>, swin wang <wangswin@gmail.com>, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
 List-ID: <linux-mm.kvack.org>
 
-Use page_cache_xxx in mm/page-writeback.c
+Use page_cache_xxx in fs/ext4
 
 Reviewed-by: Dave Chinner <dgc@sgi.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- mm/page-writeback.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ fs/ext4/dir.c   |    3 ++-
+ fs/ext4/inode.c |   34 +++++++++++++++++-----------------
+ 2 files changed, 19 insertions(+), 18 deletions(-)
 
-Index: mm/mm/page-writeback.c
+Index: mm/fs/ext4/dir.c
 ===================================================================
---- mm.orig/mm/page-writeback.c	2007-11-28 12:27:32.211962401 -0800
-+++ mm/mm/page-writeback.c	2007-11-28 14:10:34.338227137 -0800
-@@ -818,8 +818,8 @@ int write_cache_pages(struct address_spa
- 		index = mapping->writeback_index; /* Start from prev offset */
- 		end = -1;
+--- mm.orig/fs/ext4/dir.c	2007-11-29 11:24:20.922866366 -0800
++++ mm/fs/ext4/dir.c	2007-11-29 11:29:12.515367251 -0800
+@@ -132,7 +132,8 @@ static int ext4_readdir(struct file * fi
+ 		err = ext4_get_blocks_wrap(NULL, inode, blk, 1, &map_bh, 0, 0);
+ 		if (err > 0) {
+ 			pgoff_t index = map_bh.b_blocknr >>
+-					(PAGE_CACHE_SHIFT - inode->i_blkbits);
++				(page_cache_size(inode->i_mapping)
++					- inode->i_blkbits);
+ 			if (!ra_has_index(&filp->f_ra, index))
+ 				page_cache_sync_readahead(
+ 					sb->s_bdev->bd_inode->i_mapping,
+Index: mm/fs/ext4/inode.c
+===================================================================
+--- mm.orig/fs/ext4/inode.c	2007-11-29 11:24:20.934867896 -0800
++++ mm/fs/ext4/inode.c	2007-11-29 11:29:20.370866280 -0800
+@@ -1110,8 +1110,8 @@ static int ext4_write_begin(struct file 
+  	pgoff_t index;
+  	unsigned from, to;
+ 
+- 	index = pos >> PAGE_CACHE_SHIFT;
+- 	from = pos & (PAGE_CACHE_SIZE - 1);
++ 	index = page_cache_index(mapping, pos);
++ 	from = page_cache_offset(mapping, pos);
+  	to = from + len;
+ 
+ retry:
+@@ -1206,7 +1206,7 @@ static int ext4_ordered_write_end(struct
+ 	unsigned from, to;
+ 	int ret = 0, ret2;
+ 
+-	from = pos & (PAGE_CACHE_SIZE - 1);
++	from = page_cache_offset(mapping, pos);
+ 	to = from + len;
+ 
+ 	ret = walk_page_buffers(handle, page_buffers(page),
+@@ -1276,7 +1276,7 @@ static int ext4_journalled_write_end(str
+ 	int partial = 0;
+ 	unsigned from, to;
+ 
+-	from = pos & (PAGE_CACHE_SIZE - 1);
++	from = page_cache_offset(mapping, pos);
+ 	to = from + len;
+ 
+ 	if (copied < len) {
+@@ -1579,6 +1579,7 @@ static int ext4_ordered_writepage(struct
+ 	handle_t *handle = NULL;
+ 	int ret = 0;
+ 	int err;
++	int pagesize = page_cache_size(inode->i_mapping);
+ 
+ 	J_ASSERT(PageLocked(page));
+ 
+@@ -1601,8 +1602,7 @@ static int ext4_ordered_writepage(struct
+ 				(1 << BH_Dirty)|(1 << BH_Uptodate));
+ 	}
+ 	page_bufs = page_buffers(page);
+-	walk_page_buffers(handle, page_bufs, 0,
+-			PAGE_CACHE_SIZE, NULL, bget_one);
++	walk_page_buffers(handle, page_bufs, 0, pagesize, NULL, bget_one);
+ 
+ 	ret = block_write_full_page(page, ext4_get_block, wbc);
+ 
+@@ -1619,13 +1619,12 @@ static int ext4_ordered_writepage(struct
+ 	 * and generally junk.
+ 	 */
+ 	if (ret == 0) {
+-		err = walk_page_buffers(handle, page_bufs, 0, PAGE_CACHE_SIZE,
++		err = walk_page_buffers(handle, page_bufs, 0, pagesize,
+ 					NULL, jbd2_journal_dirty_data_fn);
+ 		if (!ret)
+ 			ret = err;
+ 	}
+-	walk_page_buffers(handle, page_bufs, 0,
+-			PAGE_CACHE_SIZE, NULL, bput_one);
++	walk_page_buffers(handle, page_bufs, 0, pagesize, NULL, bput_one);
+ 	err = ext4_journal_stop(handle);
+ 	if (!ret)
+ 		ret = err;
+@@ -1677,6 +1676,7 @@ static int ext4_journalled_writepage(str
+ 	handle_t *handle = NULL;
+ 	int ret = 0;
+ 	int err;
++	int pagesize = page_cache_size(inode->i_mapping);
+ 
+ 	if (ext4_journal_current_handle())
+ 		goto no_write;
+@@ -1693,17 +1693,16 @@ static int ext4_journalled_writepage(str
+ 		 * doesn't seem much point in redirtying the page here.
+ 		 */
+ 		ClearPageChecked(page);
+-		ret = block_prepare_write(page, 0, PAGE_CACHE_SIZE,
+-					ext4_get_block);
++		ret = block_prepare_write(page, 0, pagesize, ext4_get_block);
+ 		if (ret != 0) {
+ 			ext4_journal_stop(handle);
+ 			goto out_unlock;
+ 		}
+ 		ret = walk_page_buffers(handle, page_buffers(page), 0,
+-			PAGE_CACHE_SIZE, NULL, do_journal_get_write_access);
++			pagesize, NULL, do_journal_get_write_access);
+ 
+ 		err = walk_page_buffers(handle, page_buffers(page), 0,
+-				PAGE_CACHE_SIZE, NULL, write_end_fn);
++			pagesize, NULL, write_end_fn);
+ 		if (ret == 0)
+ 			ret = err;
+ 		EXT4_I(inode)->i_state |= EXT4_STATE_JDATA;
+@@ -1936,8 +1935,8 @@ void ext4_set_aops(struct inode *inode)
+ int ext4_block_truncate_page(handle_t *handle, struct page *page,
+ 		struct address_space *mapping, loff_t from)
+ {
+-	ext4_fsblk_t index = from >> PAGE_CACHE_SHIFT;
+-	unsigned offset = from & (PAGE_CACHE_SIZE-1);
++	ext4_fsblk_t index = page_cache_index(mapping, from);
++	unsigned offset = page_cache_offset(mapping, from);
+ 	unsigned blocksize, length, pos;
+ 	ext4_lblk_t iblock;
+ 	struct inode *inode = mapping->host;
+@@ -1946,7 +1945,8 @@ int ext4_block_truncate_page(handle_t *h
+ 
+ 	blocksize = inode->i_sb->s_blocksize;
+ 	length = blocksize - (offset & (blocksize - 1));
+-	iblock = index << (PAGE_CACHE_SHIFT - inode->i_sb->s_blocksize_bits);
++	iblock = index <<
++		(page_cache_shift(mapping) - inode->i_sb->s_blocksize_bits);
+ 
+ 	/*
+ 	 * For "nobh" option,  we can only work if we don't need to
+@@ -2426,7 +2426,7 @@ void ext4_truncate(struct inode *inode)
+ 		page = NULL;
  	} else {
--		index = wbc->range_start >> PAGE_CACHE_SHIFT;
--		end = wbc->range_end >> PAGE_CACHE_SHIFT;
-+		index = page_cache_index(mapping, wbc->range_start);
-+		end = page_cache_index(mapping, wbc->range_end);
- 		if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
- 			range_whole = 1;
- 		scanned = 1;
-@@ -1025,7 +1025,7 @@ int __set_page_dirty_nobuffers(struct pa
- 				__inc_zone_page_state(page, NR_FILE_DIRTY);
- 				__inc_bdi_stat(mapping->backing_dev_info,
- 						BDI_RECLAIMABLE);
--				task_io_account_write(PAGE_CACHE_SIZE);
-+				task_io_account_write(page_cache_size(mapping));
- 			}
- 			radix_tree_tag_set(&mapping->page_tree,
- 				page_index(page), PAGECACHE_TAG_DIRTY);
+ 		page = grab_cache_page(mapping,
+-				inode->i_size >> PAGE_CACHE_SHIFT);
++				page_cache_index(mapping, inode->i_size));
+ 		if (!page)
+ 			return;
+ 	}
 
 -- 
 
