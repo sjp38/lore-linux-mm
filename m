@@ -1,61 +1,46 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAU4JRM3010496
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2007 23:19:27 -0500
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lAU4JOgN127684
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2007 21:19:26 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAU4JOSY020039
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2007 21:19:24 -0700
-Date: Thu, 29 Nov 2007 20:19:22 -0800
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH] mm: fix confusing __GFP_REPEAT related comments
-Message-ID: <20071130041922.GQ13444@us.ibm.com>
-References: <20071129214828.GD20882@us.ibm.com> <1196378080.18851.116.camel@localhost>
-MIME-Version: 1.0
+Date: Fri, 30 Nov 2007 11:14:01 +0200 (EET)
+From: Pekka J Enberg <penberg@cs.helsinki.fi>
+Subject: Re: [PATCH] Fix kmem_cache_free performance regression in slab
+In-Reply-To: <20071129184539.ba6342b8.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0711301110540.28494@sbz-30.cs.Helsinki.FI>
+References: <20071129190513.GD2584@parisc-linux.org>
+ <20071129184539.ba6342b8.akpm@linux-foundation.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1196378080.18851.116.camel@localhost>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: akpm@linux-foundation.org, mel@skynet.ie, wli@holomorphy.com, apw@shadowen.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <matthew@wil.cx>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 29.11.2007 [15:14:40 -0800], Dave Hansen wrote:
-> On Thu, 2007-11-29 at 13:48 -0800, Nishanth Aravamudan wrote:
-> > __GFP_NOFAIL means repeat forever
+Hi,
+
+On Thu, 29 Nov 2007 12:05:13 -0700 Matthew Wilcox <matthew@wil.cx> wrote:
+> > The database performance group have found that half the cycles spent
+> > in kmem_cache_free are spent in this one call to BUG_ON.  Moving it
+> > into the CONFIG_SLAB_DEBUG-only function cache_free_debugcheck() is a
+> > performance win of almost 0.5% on their particular benchmark.
 > > 
-> > order <= PAGE_ALLOC_COSTLY_ORDER means __GFP_NOFAIL 
+> > The call was added as part of commit ddc2e812d592457747c4367fb73edcaa8e1e49ff
+> > with the comment that "overhead should be minimal".  It may have been
+> > minimal at the time, but it isn't now.
+> > 
+
+On Thu, 29 Nov 2007, Andrew Morton wrote:
+> It is worth noting that the offending commit hit mainline in June 2006.
 > 
-> If this is true, why do we still pass in __GFP_REPEAT to the
-> pgd_alloc() functions (at least in x86's pgalloc_64.h and
-> pgtable_32.c).  We don''t ever have pagetables exceeding
-> PAGE_ALLOC_COSTLY_ORDER, do we?
+> It takes a very long time for some performance regressions to be
+> discovered.  By which time it is effectively too late to fix it.
 
-That's a very good question. And is related to one of mine that you
-snipped:
+What architecture is this? x86_64? I don't think the BUG_ON per se caused 
+the performance regression but rather the virt_to_head_page() changes to 
+virt_to_cache() that were added later. But reverting the BUG_ON is fine by 
+me.
 
-"In looking at the callers using __GFP_REPEAT, not all handle failure --
-should they be using __NOFAIL?"
+Thanks Matthew and others for tracking this down!
 
-I *think* that all the current __GFP_REPEAT users are order <=
-PAGE_ALLOC_CSOTLY_ORDER. Perhaps they all mean to use __GPF_NOFAIL? Some
-don't handle failure immediately, but maybe their callers do, I haven't
-had time to investigate fully.
-
-And the whole gist, per the comments in mm/page_alloc.c, is that this is
-all dependent upon this implementation of the VM. I think that means you
-can't rely on those semantics being valid forever. So it's best for
-callers to be as explicit as possible ... but in this case, I'm not sure
-that the desired semantics actually exist.
-
-Thanks,
-Nish
-
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+				Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
