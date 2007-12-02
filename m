@@ -1,64 +1,47 @@
-Received: by rv-out-0910.google.com with SMTP id l15so2210803rvb
-        for <linux-mm@kvack.org>; Sun, 02 Dec 2007 08:43:09 -0800 (PST)
-Message-ID: <19f34abd0712020843m1dccfa3bu38388e1a53b05fc@mail.gmail.com>
-Date: Sun, 2 Dec 2007 17:43:09 +0100
-From: "Vegard Nossum" <vegard.nossum@gmail.com>
+Received: by rv-out-0910.google.com with SMTP id l15so2236602rvb
+        for <linux-mm@kvack.org>; Sun, 02 Dec 2007 10:23:35 -0800 (PST)
+Message-ID: <84144f020712021023w7137bafbw9e9d114e68ce524d@mail.gmail.com>
+Date: Sun, 2 Dec 2007 20:23:35 +0200
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
 Subject: Re: [BUG 2.6.24-rc3-git6] SLUB's ksize() fails for size > 2048.
-In-Reply-To: <19f34abd0712020830y4825691atdfc9dac07ce4cb35@mail.gmail.com>
+In-Reply-To: <19f34abd0712020843m1dccfa3bu38388e1a53b05fc@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 References: <200712021939.HHH18792.FLQSOOtFOFJVHM@I-love.SAKURA.ne.jp>
 	 <19f34abd0712020830y4825691atdfc9dac07ce4cb35@mail.gmail.com>
+	 <19f34abd0712020843m1dccfa3bu38388e1a53b05fc@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vegard Nossum <vegard.nossum@gmail.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Dec 2, 2007 5:30 PM, Vegard Nossum <vegard.nossum@gmail.com> wrote:
-> On Dec 2, 2007 11:39 AM, Tetsuo Handa
-> <penguin-kernel@i-love.sakura.ne.jp> wrote:
-> > Hello.
-> >
-> > I can't pass memory allocated by kmalloc() to ksize()
-> > if it is allocated by SLUB allocator and
-> > size is larger than (I guess) PAGE_SIZE / 2.
-> >
-> > Regards.
-> The error of ksize() seems to be that it does not check if the
-> allocation was made by SLUB or the page allocator. Maybe something
-> like this will fix it? (completely untested)
+Hi Vegard,
 
-That didn't work. I guess that's what you get for no testing ;-) After
-some more investigations, it seems that this is the correct way to fix
-it (and tested!):
+On 12/2/07, Vegard Nossum <vegard.nossum@gmail.com> wrote:
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 9acb413..b9f37cb 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -2558,8 +2558,12 @@ size_t ksize(const void *object)
+>         if (unlikely(object == ZERO_SIZE_PTR))
+>                 return 0;
+>
+> -       page = get_object_page(object);
+> +       page = virt_to_head_page(object);
+>         BUG_ON(!page);
+> +
+> +       if (unlikely(!PageSlab(page)))
+> +               return PAGE_SIZE << compound_order(page);
+> +
+>         s = page->slab;
+>         BUG_ON(!s);
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 9acb413..b9f37cb 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2558,8 +2558,12 @@ size_t ksize(const void *object)
-        if (unlikely(object == ZERO_SIZE_PTR))
-                return 0;
+Looks good to me.
 
--       page = get_object_page(object);
-+       page = virt_to_head_page(object);
-        BUG_ON(!page);
-+
-+       if (unlikely(!PageSlab(page)))
-+               return PAGE_SIZE << compound_order(page);
-+
-        s = page->slab;
-        BUG_ON(!s);
-
-
-> It's going to round up, though, so you would get ksize(kmalloc(2049))
-> = PAGE_SIZE.
-
-
-Vegard
+Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
