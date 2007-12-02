@@ -1,60 +1,33 @@
-Received: by rv-out-0910.google.com with SMTP id l15so2156038rvb
-        for <linux-mm@kvack.org>; Sun, 02 Dec 2007 03:59:44 -0800 (PST)
-From: Denis Cheng <crquan@gmail.com>
-Subject: [PATCH] mm/backing-dev.c: fix percpu_counter_destroy call bug in bdi_init
-Date: Sun,  2 Dec 2007 19:59:07 +0800
-Message-Id: <1196596747-5932-1-git-send-email-crquan@gmail.com>
+Date: Sun, 2 Dec 2007 03:58:57 -0800
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [PATCH] mm: fix confusing __GFP_REPEAT related comments
+Message-ID: <20071202115857.GB31637@holomorphy.com>
+References: <20071129214828.GD20882@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20071129214828.GD20882@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>
-Cc: stable@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: haveblue@us.ibm.com, akpm@linux-foundation.org, mel@skynet.ie, apw@shadowen.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-this call should use the array index j, not i:
+On Thu, Nov 29, 2007 at 01:48:28PM -0800, Nishanth Aravamudan wrote:
+> The definition and use of __GFP_REPEAT, __GFP_NOFAIL and __GFP_NORETRY
+> in the core VM have somewhat differing comments as to their actual
+> semantics. Annoyingly, the flags definition has inline and header
+> comments, which might be interpreted as not being equivalent. Just add
+> references to the header comments in the inline ones so they don't go
+> out of sync in the future. In their use in __alloc_pages() clarify that
+> the current implementation treats low-order allocations and __GFP_REPEAT
+> allocations as distinct cases, albeit currently with the same result.
 
-	--- mm/backing-dev.c.orig	2007-12-02 19:42:57.000000000 +0800
-	+++ mm/backing-dev.c	2007-12-02 19:43:14.000000000 +0800
-	@@ -22,7 +22,7 @@ int bdi_init(struct backing_dev_info *bd
-		if (err) {
-	 err:
-			for (j = 0; j < i; j++)
-	-			percpu_counter_destroy(&bdi->bdi_stat[i]);
-	+			percpu_counter_destroy(&bdi->bdi_stat[j]);
-		}
+This is a bit beyond the scope of the patch, but doesn't the obvious
+livelock behavior here disturb anyone else?
 
-		return err;
 
-but with this approach, just one int i is enough, int j is not needed.
-
-Signed-off-by: Denis Cheng <crquan@gmail.com>
----
- mm/backing-dev.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index b0ceb29..e8644b1 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -7,7 +7,7 @@
- 
- int bdi_init(struct backing_dev_info *bdi)
- {
--	int i, j;
-+	int i;
- 	int err;
- 
- 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++) {
-@@ -21,7 +21,7 @@ int bdi_init(struct backing_dev_info *bdi)
- 
- 	if (err) {
- err:
--		for (j = 0; j < i; j++)
-+		while (i--)
- 			percpu_counter_destroy(&bdi->bdi_stat[i]);
- 	}
- 
--- 
-1.5.3.4
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
