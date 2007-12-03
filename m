@@ -1,8 +1,8 @@
-Date: Mon, 3 Dec 2007 18:39:21 +0900
+Date: Mon, 3 Dec 2007 18:41:41 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: [RFC][for -mm] memory controller enhancements for reclaiming take2
- [5/8] throttling simultaneous callers of try_to_free_mem_cgroup_pages
-Message-Id: <20071203183921.72005b21.kamezawa.hiroyu@jp.fujitsu.com>
+ [6/8] high_low watermark for res_counter
+Message-Id: <20071203184141.0c5d22f9.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20071203183355.0061ddeb.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20071203183355.0061ddeb.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -14,111 +14,174 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "riel@redhat.com" <riel@redhat.com>, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-Add throttling direct reclaim.
+This patch adds high/low watermark parameter to res_counter.
+and check routine.
 
-Trying heavy workload under memory controller, you'll see too much
-iowait and system seems heavy. (This is not good.... memory controller
-is usually used for isolating system workload)
-And too much memory are reclaimed.
+splitted out from YAMAMOTO's background page reclaim for memory cgroup set.
 
-This patch adds throttling function for direct reclaim.
-Currently, num_online_cpus/(4) + 1 threads can do direct memory reclaim
-under memory controller.
+TODO?
+ - if res_counter's user doesn't want high/low watermark, res_counter_write()
+   should ignore low <= high <= limit limitation ?
+
+Changelog
+ * added param watermark_state this can ba read without lock lock.
+
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+From: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
 
+ include/linux/res_counter.h |   28 ++++++++++++++++++++++++++++
+ kernel/res_counter.c        |   42 +++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 69 insertions(+), 1 deletion(-)
 
- mm/memcontrol.c |   42 +++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 41 insertions(+), 1 deletion(-)
-
-Index: linux-2.6.24-rc3-mm2/mm/memcontrol.c
+Index: linux-2.6.24-rc3-mm2/include/linux/res_counter.h
 ===================================================================
---- linux-2.6.24-rc3-mm2.orig/mm/memcontrol.c
-+++ linux-2.6.24-rc3-mm2/mm/memcontrol.c
-@@ -36,6 +36,10 @@
- struct cgroup_subsys mem_cgroup_subsys;
- static const int MEM_CGROUP_RECLAIM_RETRIES = 5;
- 
-+/* Page reclaim throttle parameter */
-+#define MEM_CGROUP_THROTTLE_RECLAIM_FACTOR	(4)
-+
-+
- /*
-  * Statistics for memory cgroup.
+--- linux-2.6.24-rc3-mm2.orig/include/linux/res_counter.h
++++ linux-2.6.24-rc3-mm2/include/linux/res_counter.h
+@@ -19,6 +19,12 @@
+  * the helpers described beyond
   */
-@@ -133,6 +137,8 @@ struct mem_cgroup {
  
- 	unsigned long control_type;	/* control RSS or RSS+Pagecache */
- 	int	prev_priority;	/* for recording reclaim priority */
-+	atomic_t	reclaimers; /* # of processes which calls reclaim */
-+	wait_queue_head_t waitq;
++enum watermark_state {
++	RES_WMARK_BELOW_LOW,
++	RES_WMARK_ABOVE_LOW,
++	RES_WMARK_ABOVE_HIGH,
++};
++
+ struct res_counter {
  	/*
- 	 * statistics.
+ 	 * the current resource consumption level
+@@ -33,10 +39,17 @@ struct res_counter {
  	 */
-@@ -565,6 +571,27 @@ unsigned long mem_cgroup_isolate_pages(u
- 	return nr_taken;
+ 	unsigned long long failcnt;
+ 	/*
++	 * Watermarks. Must keep low <= high <= limit.
++	 */
++	unsigned long long high_watermark;
++	unsigned long long low_watermark;
++	/*
+ 	 * the lock to protect all of the above.
+ 	 * the routines below consider this to be IRQ-safe
+ 	 */
+ 	spinlock_t lock;
++	/* can be read without lock */
++	enum watermark_state watermark_state;
+ };
+ 
+ /*
+@@ -66,6 +79,8 @@ enum {
+ 	RES_USAGE,
+ 	RES_LIMIT,
+ 	RES_FAILCNT,
++	RES_HWMARK,
++	RES_LWMARK,
+ };
+ 
+ /*
+@@ -124,4 +139,17 @@ static inline bool res_counter_check_und
+ 	return ret;
  }
  
-+static void mem_cgroup_wait_reclaim(struct mem_cgroup *mem)
++/*
++ * Helper function for implementing high/low watermark to resource controller.
++ */
++static inline bool res_counter_below_low_watermark(struct res_counter *cnt)
 +{
-+	DEFINE_WAIT(wait);
-+	while (1) {
-+		prepare_to_wait(&mem->waitq, &wait, TASK_INTERRUPTIBLE);
-+		if (res_counter_check_under_limit(&mem->res)) {
-+			finish_wait(&mem->waitq, &wait);
++	return (cnt->watermark_state == RES_WMARK_BELOW_LOW);
++}
++
++static inline bool res_counter_above_high_watermark(struct res_counter *cnt)
++{
++	return (cnt->watermark_state == RES_WMARK_ABOVE_HIGH);
++}
++
+ #endif
+Index: linux-2.6.24-rc3-mm2/kernel/res_counter.c
+===================================================================
+--- linux-2.6.24-rc3-mm2.orig/kernel/res_counter.c
++++ linux-2.6.24-rc3-mm2/kernel/res_counter.c
+@@ -17,6 +17,9 @@ void res_counter_init(struct res_counter
+ {
+ 	spin_lock_init(&counter->lock);
+ 	counter->limit = (unsigned long long)LLONG_MAX;
++	counter->low_watermark = (unsigned long long)LLONG_MAX;
++	counter->high_watermark = (unsigned long long)LLONG_MAX;
++	counter->watermark_state = RES_WMARK_BELOW_LOW;
+ }
+ 
+ int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
+@@ -27,6 +30,12 @@ int res_counter_charge_locked(struct res
+ 	}
+ 
+ 	counter->usage += val;
++
++	if (counter->usage > counter->high_watermark)
++		counter->watermark_state = RES_WMARK_ABOVE_HIGH;
++	else if (counter->usage > counter->low_watermark)
++		counter->watermark_state = RES_WMARK_ABOVE_LOW;
++
+ 	return 0;
+ }
+ 
+@@ -47,6 +56,11 @@ void res_counter_uncharge_locked(struct 
+ 		val = counter->usage;
+ 
+ 	counter->usage -= val;
++
++	if (counter->usage < counter->low_watermark)
++		counter->watermark_state = RES_WMARK_BELOW_LOW;
++	else if (counter->usage < counter->high_watermark)
++		counter->watermark_state = RES_WMARK_ABOVE_LOW;
+ }
+ 
+ void res_counter_uncharge(struct res_counter *counter, unsigned long val)
+@@ -69,6 +83,10 @@ res_counter_member(struct res_counter *c
+ 		return &counter->limit;
+ 	case RES_FAILCNT:
+ 		return &counter->failcnt;
++	case RES_HWMARK:
++		return &counter->high_watermark;
++	case RES_LWMARK:
++		return &counter->low_watermark;
+ 	};
+ 
+ 	BUG();
+@@ -123,12 +141,34 @@ ssize_t res_counter_write(struct res_cou
+ 			goto out_free;
+ 	}
+ 	spin_lock_irqsave(&counter->lock, flags);
++	/*
++	 * check low <= high <= limit.
++	 */
++	switch (member) {
++		case RES_LIMIT:
++			if (counter->high_watermark > tmp)
++				goto unlock_free;
 +			break;
-+		}
-+		schedule();
-+		finish_wait(&mem->waitq, &wait);
++		case RES_HWMARK:
++			if (tmp < counter->low_watermark ||
++			    tmp > counter->limit)
++				goto unlock_free;
++			break;
++		case RES_LWMARK:
++			if (tmp > counter->high_watermark)
++				goto unlock_free;
++			break;
++		default:
++			break;
 +	}
-+}
+ 	val = res_counter_member(counter, member);
+ 	*val = tmp;
+-	spin_unlock_irqrestore(&counter->lock, flags);
+ 	ret = nbytes;
++unlock_free:
++	spin_unlock_irqrestore(&counter->lock, flags);
+ out_free:
+ 	kfree(buf);
+ out:
+ 	return ret;
+ }
 +
-+/* throttle simlutaneous LRU scan */
-+static int mem_cgroup_throttle_reclaim(struct mem_cgroup *mem)
-+{
-+	int limit = num_online_cpus()/MEM_CGROUP_THROTTLE_RECLAIM_FACTOR + 1;
-+	return atomic_add_unless(&mem->reclaimers, 1, limit);
-+}
-+
- /*
-  * Charge the memory controller for page usage.
-  * Return
-@@ -635,14 +662,24 @@ retry:
- 	 */
- 	while (res_counter_charge(&mem->res, PAGE_SIZE)) {
- 		bool is_atomic = gfp_mask & GFP_ATOMIC;
-+		int  ret;
- 		/*
- 		 * We cannot reclaim under GFP_ATOMIC, fail the charge
- 		 */
- 		if (is_atomic)
- 			goto noreclaim;
- 
--		if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
-+		if (mem_cgroup_throttle_reclaim(mem)) {
-+			ret = try_to_free_mem_cgroup_pages(mem, gfp_mask);
-+			atomic_dec(&mem->reclaimers);
-+			if (waitqueue_active(&mem->waitq))
-+				wake_up_all(&mem->waitq);
-+			if (ret)
-+				continue;
-+		} else {
-+			mem_cgroup_wait_reclaim(mem);
- 			continue;
-+		}
- 
- 		/*
-  		 * try_to_free_mem_cgroup_pages() might not give us a full
-@@ -1169,6 +1206,9 @@ mem_cgroup_create(struct cgroup_subsys *
- 	mem->control_type = MEM_CGROUP_TYPE_ALL;
- 	memset(&mem->info, 0, sizeof(mem->info));
- 
-+	atomic_set(&mem->reclaimers, 0);
-+	init_waitqueue_head(&mem->waitq);
-+
- 	for_each_node_state(node, N_POSSIBLE)
- 		if (alloc_mem_cgroup_per_zone_info(mem, node))
- 			goto free_out;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
