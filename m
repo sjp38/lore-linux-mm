@@ -1,44 +1,68 @@
-Date: Mon, 3 Dec 2007 09:24:18 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [RFC][for -mm] memory controller enhancements for reclaiming
- take2 [5/8] throttling simultaneous callers of try_to_free_mem_cgroup_pages
-Message-ID: <20071203092418.58631593@bree.surriel.com>
-In-Reply-To: <20071203183921.72005b21.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20071203183355.0061ddeb.kamezawa.hiroyu@jp.fujitsu.com>
-	<20071203183921.72005b21.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lB3I7Ng1021569
+	for <linux-mm@kvack.org>; Mon, 3 Dec 2007 13:07:23 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lB3I6xNc659652
+	for <linux-mm@kvack.org>; Mon, 3 Dec 2007 13:07:21 -0500
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lB3I6lCp010061
+	for <linux-mm@kvack.org>; Mon, 3 Dec 2007 11:06:47 -0700
+Date: Mon, 3 Dec 2007 10:06:38 -0800
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [PATCH] mm: fix confusing __GFP_REPEAT related comments
+Message-ID: <20071203180638.GB28850@us.ibm.com>
+References: <20071129214828.GD20882@us.ibm.com> <20071202115857.GB31637@holomorphy.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20071202115857.GB31637@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, xemul@openvz.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: haveblue@us.ibm.com, akpm@linux-foundation.org, mel@skynet.ie, apw@shadowen.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 3 Dec 2007 18:39:21 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> Add throttling direct reclaim.
+On 02.12.2007 [03:58:57 -0800], William Lee Irwin III wrote:
+> On Thu, Nov 29, 2007 at 01:48:28PM -0800, Nishanth Aravamudan wrote:
+> > The definition and use of __GFP_REPEAT, __GFP_NOFAIL and __GFP_NORETRY
+> > in the core VM have somewhat differing comments as to their actual
+> > semantics. Annoyingly, the flags definition has inline and header
+> > comments, which might be interpreted as not being equivalent. Just add
+> > references to the header comments in the inline ones so they don't go
+> > out of sync in the future. In their use in __alloc_pages() clarify that
+> > the current implementation treats low-order allocations and __GFP_REPEAT
+> > allocations as distinct cases, albeit currently with the same result.
 > 
-> Trying heavy workload under memory controller, you'll see too much
-> iowait and system seems heavy. (This is not good.... memory controller
-> is usually used for isolating system workload)
-> And too much memory are reclaimed.
-> 
-> This patch adds throttling function for direct reclaim.
-> Currently, num_online_cpus/(4) + 1 threads can do direct memory reclaim
-> under memory controller.
+> This is a bit beyond the scope of the patch, but doesn't the obvious
+> livelock behavior here disturb anyone else?
 
-The same problems are true of global reclaim.
+This was a concer to me as well, certainly. And perhaps an argument to
+divorce low-order allocations from __GFP_REPEAT. I guess we hope reclaim
+is good enough to eventually make enough progress ... however, if it
+doesn't, I think we'll trigger this condition:
 
-Now that we're discussing this RFC anyway, I wonder if we
-should think about moving this restriction to the global
-reclaim level...
+
+	if (likely(did_some_progress)) {
+		...
+	} else if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
+		try with high watermarks
+		if still failing the alloc
+			if PAGE_ALLOC_COSTLY_ORDER
+				fail
+		  	else
+				OOM
+	}
+
+So, I think, the livelock condition is avoided in general as (for
+low-order allocations), we can OOM to free memory, so the potentially
+infinite loop should eventually finish?
+
+Thanks,
+Nish
 
 -- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
