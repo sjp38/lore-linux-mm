@@ -1,61 +1,34 @@
+Date: Tue, 4 Dec 2007 12:18:56 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC][for -mm] memory controller enhancements for reclaiming
- take2
- [7/8] bacground reclaim for memory controller
-In-Reply-To: Your message of "Mon, 3 Dec 2007 18:42:44 +0900"
-	<20071203184244.200faee8.kamezawa.hiroyu@jp.fujitsu.com>
+ take2 [7/8] bacground reclaim for memory controller
+Message-Id: <20071204121856.910afa40.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071204030756.25A971D0B8F@siro.lan>
 References: <20071203184244.200faee8.kamezawa.hiroyu@jp.fujitsu.com>
+	<20071204030756.25A971D0B8F@siro.lan>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20071204030756.25A971D0B8F@siro.lan>
-Date: Tue,  4 Dec 2007 12:07:55 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
+To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
 Cc: riel@redhat.com, linux-mm@kvack.org, containers@lists.osdl.org, akpm@linux-foundation.org, xemul@openvz.org, balbir@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-> @@ -1186,6 +1251,16 @@ static void free_mem_cgroup_per_zone_inf
->  
->  static struct mem_cgroup init_mem_cgroup;
->  
-> +static int __init mem_cgroup_reclaim_init(void)
-> +{
-> +	init_mem_cgroup.daemon.thread = kthread_run(mem_cgroup_reclaim_daemon,
-> +					&init_mem_cgroup, "memcontd");
-> +	if (IS_ERR(init_mem_cgroup.daemon.thread))
-> +		BUG();
-> +	return 0;
-> +}
-> +late_initcall(mem_cgroup_reclaim_init);
-> +
->  static struct cgroup_subsys_state *
->  mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
->  {
-> @@ -1213,6 +1288,17 @@ mem_cgroup_create(struct cgroup_subsys *
->  		if (alloc_mem_cgroup_per_zone_info(mem, node))
->  			goto free_out;
->  
-> +	/* Memory Reclaim Daemon per cgroup */
-> +	init_waitqueue_head(&mem->daemon.waitq);
-> +	if (mem != &init_mem_cgroup) {
-> +		/* Complicated...but we cannot call kthread create here..*/
-> +		/* init call will later assign kthread */
-> +		mem->daemon.thread = kthread_run(mem_cgroup_reclaim_daemon,
-> +					mem, "memcontd");
-> +		if (IS_ERR(mem->daemon.thread))
-> +			goto free_out;
-> +	}
-> +
->  	return &mem->css;
->  free_out:
->  	for_each_node_state(node, N_POSSIBLE)
+On Tue,  4 Dec 2007 12:07:55 +0900 (JST)
+yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
+> you don't need the kthread as far as RES_HWMARK is "infinite".
+> given the current default value of RES_HWMARK, you can simplify
+> initialization by deferring the kthread creation to mem_cgroup_write.
+> 
+Hmm, will try. But I wonder whether assumption can be true forever or not.
+For example, when memory controller supports sub-group and a relationship
+between a parent group and children groups are established.
 
-you don't need the kthread as far as RES_HWMARK is "infinite".
-given the current default value of RES_HWMARK, you can simplify
-initialization by deferring the kthread creation to mem_cgroup_write.
+But, think it later is an one way ;) I'll try to make things simpler.
 
-YAMAMOTO Takashi
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
