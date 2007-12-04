@@ -1,69 +1,112 @@
-Received: from zps35.corp.google.com (zps35.corp.google.com [172.25.146.35])
-	by smtp-out.google.com with ESMTP id lB4968VY032699
-	for <linux-mm@kvack.org>; Tue, 4 Dec 2007 01:06:08 -0800
-Received: from py-out-1112.google.com (pyia29.prod.google.com [10.34.253.29])
-	by zps35.corp.google.com with ESMTP id lB495uJL017786
-	for <linux-mm@kvack.org>; Tue, 4 Dec 2007 01:06:08 -0800
-Received: by py-out-1112.google.com with SMTP id a29so10408626pyi
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2007 01:06:07 -0800 (PST)
-Message-ID: <532480950712040106r144ed43m5cb77cc394e2ec8a@mail.gmail.com>
-Date: Tue, 4 Dec 2007 01:06:06 -0800
-From: "Michael Rubin" <mrubin@google.com>
-Subject: Re: [patch 1/1] Writeback fix for concurrent large and small file writes
-In-Reply-To: <396386387.18082@ustc.edu.cn>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lB4DRbms018030
+	for <linux-mm@kvack.org>; Tue, 4 Dec 2007 08:27:37 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lB4DRaxa129916
+	for <linux-mm@kvack.org>; Tue, 4 Dec 2007 06:27:37 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lB4DRal4014699
+	for <linux-mm@kvack.org>; Tue, 4 Dec 2007 06:27:36 -0700
+Message-ID: <475555BA.7070805@linux.vnet.ibm.com>
+Date: Tue, 04 Dec 2007 18:57:22 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
+Subject: Re: [RFC][for -mm] memory controller enhancements for reclaiming
+ take2 [5/8] throttling simultaneous callers of try_to_free_mem_cgroup_pages
+References: <20071203183355.0061ddeb.kamezawa.hiroyu@jp.fujitsu.com> <20071203183921.72005b21.kamezawa.hiroyu@jp.fujitsu.com> <20071203092418.58631593@bree.surriel.com> <20071204103332.ad4cf9b5.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071204103332.ad4cf9b5.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20071128192957.511EAB8310@localhost> <396296481.07368@ustc.edu.cn>
-	 <532480950711291216l181b0bej17db6c42067aa832@mail.gmail.com>
-	 <396386387.18082@ustc.edu.cn>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Fengguang Wu <wfg@mail.ustc.edu.cn>
-Cc: a.p.zijlstra@chello.nl, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Andrew Morton <akpm@linux-foundation.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Nov 29, 2007 5:32 PM, Fengguang Wu <wfg@mail.ustc.edu.cnwrote:
-> > On Nov 28, 2007 4:34 PM, Fengguang Wu <wfg@mail.ustc.edu.cn> wrote:
-> > > Could you demonstrate the situation? Or if I guess it right, could it
-> > > be fixed by the following patch?
+KAMEZAWA Hiroyuki wrote:
+> On Mon, 3 Dec 2007 09:24:18 -0500
+> Rik van Riel <riel@redhat.com> wrote:
+> 
+>> On Mon, 3 Dec 2007 18:39:21 +0900
+>> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>>
+>>> Add throttling direct reclaim.
+>>>
+>>> Trying heavy workload under memory controller, you'll see too much
+>>> iowait and system seems heavy. (This is not good.... memory controller
+>>> is usually used for isolating system workload)
+>>> And too much memory are reclaimed.
+>>>
+>>> This patch adds throttling function for direct reclaim.
+>>> Currently, num_online_cpus/(4) + 1 threads can do direct memory reclaim
+>>> under memory controller.
+>> The same problems are true of global reclaim.
+>>
+>> Now that we're discussing this RFC anyway, I wonder if we
+>> should think about moving this restriction to the global
+>> reclaim level...
+>>
+> Hmm, I agree to some extent.
+> I'd like to add the same level of parameters to memory controller AMAP.
+> 
 
-Feng I am sorry to have been mistaken but I reran my tests and I am
-now finding that the patch you gave me is NOT fixing the problem.  The
-patch I refer to is the one you posted on this thread that adds a
-requeue_io in __sync_single_inode.
+The CKRM memory controller had the following parameters for throttling
 
-I tarred up my test code. It is still in very rough shape but it can
-reproduce the issue. You can find it here:
+Watermarks
 
-http://neverthere.org/mhr/wb/wb-test.tar.bz2
+shrink_at
+shrink_to
 
-Just make the test and run it with the args "-duration 0:5:0
--starvation". You must be root so it can set some sysctl values.
+and
 
-> One major concern could be whether a continuous writer dirting pages
-> at the 'right' pace will generate a steady flow of write I/Os which are
-> _tiny_hence_inefficient_.
->
-> So it's not a problem in *theory* :-)
->
-> > I will post this change for 2.6.24 and list Feng as author. If that's
-> > ok with Feng.
+num_shrinks
+shrink_interval
 
-I am going to try to track down what is up in 2.6.24 and see if I can
-find a less dramatic fix than my tree patch for the short term. If you
-get a chance to reproduce the problem with my test on your patch that
-would rock.
+Number of times shrink can be called in a shrink_interval.
 
-I still would like to see my full patch accepted into 2.6.25. A patch
-should be arriving shortly that will incorporate my larger patch and
-Qi Yong's fix for skip-writing-data-pages-when-inode-is-under-i_sync.
-http://www.gossamer-threads.com/lists/linux/kernel/849493
 
-As always thanks for your patience,
+> But, IMHO, there are differences basically.
+> 
+> Memory controller's reclaim is much heavier than global LRU because of
+> increasing footprint , the number of atomic ops....
+> And memory controller's reclaim policy is simpler than global because
+> it is not  kicked by memory shortage and almost all gfk_mask is GFP_HIGHUSER_MOVABLE
+> and order is always 0.
+> 
+> I think starting from throttling memory controller is not so bad because 
+> it's heavy and it's simple. The benefit of this throttoling is clearer than
+> globals.
+> 
 
-mrubin
+I think global throttling is good as well, sometimes under heavy load I
+find several tasks stuck in reclaim. I suspect throttling them and avoid
+ this scenario. May be worth experimenting an thinking about it deserves
+more discussion.
+
+> Adding this kind of controls to global memory allocator/LRU may cause
+> unexpected slow down in application's response time. High-response application
+> users may dislike this. We may need another gfp_flag or sysctl to allow
+> throttling in global.
+> For memory controller, the user sets its memory limitation by himself. He can
+> adjust parameters and the workload. So, I think this throttoling is not so
+> problematic in memory controller as global.
+> 
+> Of course, we can export "do throttoling or not" control in cgroup interface.
+> 
+
+I think we should export the interface.
+
+> 
+> Thanks,
+> -Kame 
+> 
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
