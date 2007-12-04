@@ -1,49 +1,44 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lB4J3Afp018933
-	for <linux-mm@kvack.org>; Tue, 4 Dec 2007 14:03:10 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lB4J3Amp082320
-	for <linux-mm@kvack.org>; Tue, 4 Dec 2007 12:03:10 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lB4J39R7022339
-	for <linux-mm@kvack.org>; Tue, 4 Dec 2007 12:03:10 -0700
-Message-ID: <4755A460.7060005@linux.vnet.ibm.com>
-Date: Wed, 05 Dec 2007 00:32:56 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Subject: Re: [RFC PATCH] LTTng instrumentation mm (updated)
+References: <20071116143019.GA16082@Krystal>
+	<1195495485.27759.115.camel@localhost> <20071128140953.GA8018@Krystal>
+	<1196268856.18851.20.camel@localhost> <20071129023421.GA711@Krystal>
+	<1196317552.18851.47.camel@localhost> <20071130161155.GA29634@Krystal>
+	<1196444801.18851.127.camel@localhost>
+	<20071130170516.GA31586@Krystal> <1196448122.19681.16.camel@localhost>
+	<20071130191006.GB3955@Krystal>
+From: fche@redhat.com (Frank Ch. Eigler)
+Date: Tue, 04 Dec 2007 14:15:32 -0500
+In-Reply-To: <20071130191006.GB3955@Krystal> (Mathieu Desnoyers's message of "Fri, 30 Nov 2007 14:10:06 -0500")
+Message-ID: <y0mve7ez2y3.fsf@ton.toronto.redhat.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][for -mm] memory controller enhancements for reclaiming
- take2 [4/8] possible race fix in res_counter
-References: <20071203183355.0061ddeb.kamezawa.hiroyu@jp.fujitsu.com> <20071203183809.4b83397c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20071203183809.4b83397c.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Andrew Morton <akpm@linux-foundation.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "riel@redhat.com" <riel@redhat.com>, xemul@openvz.org
+To: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Cc: Dave Hansen <haveblue@us.ibm.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@google.com
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> spinlock is necessary when someone changes res->counter value.
-> splited out from YAMAMOTO's background page reclaim for memory cgroup set.
-> 
-> Changelog v1 -> v2:
->  - fixed type of "flags".
-> 
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> From: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca> writes:
 
-Looks sane to me
+> [...]
+>> > We would like to be able to tell which swap file the information has
+>> > been written to/read from at any given time during the trace.
+>> 
+>> Oh, tracing is expected to be on at all times?  I figured someone would
+>> encounter a problem, then turn it on to dig down a little deeper, then
+>> turn it off.
+>
+> Yep, it can be expected to be on at all times, especially on production
+> systems using "flight recorder" tracing to record information in a
+> circular buffer [...]
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Considering how early in the boot sequence swap partitions are
+activated, it seems optimistic to assume that the monitoring equipment
+will always start up in time to catch the initial swapons.  It would
+be more useful if a marker parameter was included in the swap events
+to let a tool/user map to /proc/swaps or a file name.
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+- FChE
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
