@@ -1,37 +1,42 @@
-Message-ID: <4755F041.4000605@google.com>
-Date: Tue, 04 Dec 2007 16:26:41 -0800
-From: Ethan Solomita <solo@google.com>
-MIME-Version: 1.0
-Subject: Re: page_referenced() and VM_LOCKED
-References: <473D1BC9.8050904@google.com> <20071116144641.f12fd610.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0711161749020.12201@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0711161749020.12201@blonde.wat.veritas.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Wed, 5 Dec 2007 09:44:20 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][for -mm] memory controller enhancements for reclaiming
+ take2 [0/8] introduction
+Message-Id: <20071205094420.9967bab8.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <47556341.4090101@linux.vnet.ibm.com>
+References: <20071203183355.0061ddeb.kamezawa.hiroyu@jp.fujitsu.com>
+	<47556341.4090101@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Andrew Morton <akpm@linux-foundation.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "riel@redhat.com" <riel@redhat.com>, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Fri, 16 Nov 2007, KAMEZAWA Hiroyuki wrote:
->> On Thu, 15 Nov 2007 20:25:45 -0800
->> Ethan Solomita <solo@google.com> wrote:
->>
->>> page_referenced_file() checks for the vma to be VM_LOCKED|VM_MAYSHARE
->>> and adds returns 1.
+On Tue, 04 Dec 2007 19:55:05 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> KAMEZAWA-San, what happens if we use a little less aggressive set of
+> watermarks, something like
 > 
-> That's a case where it can deduce that the page is present and should
-> be treated as referenced, without even examining the page tables.
+> 700/300
 > 
->>> We don't do the same in page_referenced_anon().
-> 
-> It cannot make that same deduction in the page_referenced_anon() case
-> (different vmas may well contain different COWs of some original page).
+will test today. you mean low=300M, high=700M, limit=800M case ?
 
-	Sorry to come back in with this so late -- if the vma is VM_MAYSHARE, 
-would there be COWs of the original page?
-	-- Ethan
+> Can we keep the defaults something close to what each zone uses?
+> pages_low, pages_high and pages_min.
+> 
+After review of Pavel-san, "don't define *default* value" style is used here.
+If we use default value, we'll have to detect "we should adjust high/low
+watermarks when the limit changes."
+
+That will complicate things and may crash the system administrators policy.
+It's not havey work to adjust high/low limit to sutitable value (which was
+defined against the workload by system admin) at setting limit.
+
+Thanks,
+-kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
