@@ -1,43 +1,37 @@
-Date: Wed, 5 Dec 2007 09:26:39 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][for -mm] memory controller enhancements for reclaiming
- take2 [5/8] throttling simultaneous callers of try_to_free_mem_cgroup_pages
-Message-Id: <20071205092639.1744d4c7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <475555BA.7070805@linux.vnet.ibm.com>
-References: <20071203183355.0061ddeb.kamezawa.hiroyu@jp.fujitsu.com>
-	<20071203183921.72005b21.kamezawa.hiroyu@jp.fujitsu.com>
-	<20071203092418.58631593@bree.surriel.com>
-	<20071204103332.ad4cf9b5.kamezawa.hiroyu@jp.fujitsu.com>
-	<475555BA.7070805@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <4755F041.4000605@google.com>
+Date: Tue, 04 Dec 2007 16:26:41 -0800
+From: Ethan Solomita <solo@google.com>
+MIME-Version: 1.0
+Subject: Re: page_referenced() and VM_LOCKED
+References: <473D1BC9.8050904@google.com> <20071116144641.f12fd610.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0711161749020.12201@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0711161749020.12201@blonde.wat.veritas.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Andrew Morton <akpm@linux-foundation.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, xemul@openvz.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 04 Dec 2007 18:57:22 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> > Adding this kind of controls to global memory allocator/LRU may cause
-> > unexpected slow down in application's response time. High-response application
-> > users may dislike this. We may need another gfp_flag or sysctl to allow
-> > throttling in global.
-> > For memory controller, the user sets its memory limitation by himself. He can
-> > adjust parameters and the workload. So, I think this throttoling is not so
-> > problematic in memory controller as global.
-> > 
-> > Of course, we can export "do throttoling or not" control in cgroup interface.
-> > 
+Hugh Dickins wrote:
+> On Fri, 16 Nov 2007, KAMEZAWA Hiroyuki wrote:
+>> On Thu, 15 Nov 2007 20:25:45 -0800
+>> Ethan Solomita <solo@google.com> wrote:
+>>
+>>> page_referenced_file() checks for the vma to be VM_LOCKED|VM_MAYSHARE
+>>> and adds returns 1.
 > 
-> I think we should export the interface.
+> That's a case where it can deduce that the page is present and should
+> be treated as referenced, without even examining the page tables.
 > 
-Ok, I'll export.
+>>> We don't do the same in page_referenced_anon().
+> 
+> It cannot make that same deduction in the page_referenced_anon() case
+> (different vmas may well contain different COWs of some original page).
 
-Thanks,
--Kame
+	Sorry to come back in with this so late -- if the vma is VM_MAYSHARE, 
+would there be COWs of the original page?
+	-- Ethan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
