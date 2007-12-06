@@ -1,81 +1,66 @@
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Thu, 06 Dec 2007 16:20:53 -0500
-Message-Id: <20071206212053.6279.27183.sendpatchset@localhost>
+Date: Thu, 06 Dec 2007 16:21:11 -0500
+Message-Id: <20071206212111.6279.37757.sendpatchset@localhost>
 In-Reply-To: <20071206212047.6279.10881.sendpatchset@localhost>
 References: <20071206212047.6279.10881.sendpatchset@localhost>
-Subject: [PATCH/RFC 1/8] Mem Policy: Write lock mmap_sem while changing task mempolicy
+Subject: [PATCH/RFC 4/8] Mem Policy: Document {set|get}_policy() vm_ops APIs
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, ak@suse.de, mel@skynet.ie, eric.whitney@hp.com, clameter@sgi.com
+Cc: akpm@linux-foundation.org, ak@suse.de, eric.whitney@hp.com, clameter@sgi.com, mel@skynet.ie
 List-ID: <linux-mm.kvack.org>
 
-PATCH/RFC 01/08 Mem Policy: Write lock mmap_sem while changing task mempolicy
+PATCH/RFC 04/08 Mem Policy:  Document {set|get}_policy() vm_ops APIs
 
-Against:  2.6.24-rc2-mm1
+Against: 2.6.24-rc2-mm1
 
-A read of /proc/<pid>/numa_maps holds the target task's mmap_sem
-for read while examining each vma's mempolicy.  A vma's mempolicy
-can fall back to the task's policy.  However, the task could be
-changing it's task policy and free the one that the show_numa_maps()
-is examining.
+Document mempolicy return value reference semantics assumed by
+the rest of the mempolicy code for the set_ and get_policy vm_ops
+in <linux/mm.h>--where the prototypes are defined--to inform any
+future mempolicy vm_op writers what the rest of the subsystem
+expects of them.
 
-To prevent this, grab the mmap_sem for write when updating task
-mempolicy.   Pointed out to me by Christoph Lameter and extracted
-and reworked from Christoph's alternative mempol reference counting
-patch.
-
-This is analogous to the way that do_mbind() and do_get_mempolicy()
-prevent races between task's sharing an mm_struct [a.k.a. threads]
-setting and querying a mempolicy for a particular address.
-
-Note:  this is necessary, but not sufficient, to allow us to stop
-taking an extra reference on "other task's mempolicy" in get_vma_policy.
-Subsequent patches will complete this update, allowing us to simplify
-the tests for whether we need to unref a mempolicy at various points
-in the code.
+Note:  An alternative, suggested by Christoph Lameter:  we could
+define get_policy() to add an extra ref to any non-null mempolicy
+returned.  get_vma_policy() could then inform its caller--e.g., via
+an addtional argument point to a 'needs_unref' variable--that the
+policy needs unref [mpol_free()] after use.
 
 Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-[needs Christoph's sign-off if he agrees]
 
- mm/mempolicy.c |   13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ include/linux/mm.h |   18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
 
-Index: linux-2.6.24-rc4-mm1/mm/mempolicy.c
+Index: Linux/include/linux/mm.h
 ===================================================================
---- linux-2.6.24-rc4-mm1.orig/mm/mempolicy.c	2007-12-05 11:54:20.000000000 -0500
-+++ linux-2.6.24-rc4-mm1/mm/mempolicy.c	2007-12-05 11:54:22.000000000 -0500
-@@ -450,17 +450,30 @@ static void mpol_set_task_struct_flag(vo
- static long do_set_mempolicy(int mode, nodemask_t *nodes)
- {
- 	struct mempolicy *new;
-+	struct mm_struct *mm = current->mm;
- 
- 	if (contextualize_policy(mode, nodes))
- 		return -EINVAL;
- 	new = mpol_new(mode, nodes);
- 	if (IS_ERR(new))
- 		return PTR_ERR(new);
+--- Linux.orig/include/linux/mm.h	2007-10-29 13:20:52.000000000 -0400
++++ Linux/include/linux/mm.h	2007-10-29 13:25:33.000000000 -0400
+@@ -173,7 +173,25 @@ struct vm_operations_struct {
+ 	 * writable, if an error is returned it will cause a SIGBUS */
+ 	int (*page_mkwrite)(struct vm_area_struct *vma, struct page *page);
+ #ifdef CONFIG_NUMA
++	/*
++	 * set_policy() op must add a reference to any non-NULL @new mempolicy
++	 * to hold the policy upon return.  Caller should pass NULL @new to
++	 * remove a policy and fall back to surrounding context--i.e. do not
++	 * install a MPOL_DEFAULT policy, nor the task or system default
++	 * mempolicy.
++	 */
+ 	int (*set_policy)(struct vm_area_struct *vma, struct mempolicy *new);
 +
 +	/*
-+	 * prevent changing our mempolicy while show_numa_maps()
-+	 * is using it.
-+	 * Note:  do_set_mempolicy() can be called at init time
-+	 * with no 'mm'.
++	 * get_policy() op must add reference [mpol_get()] to any policy at
++	 * (vma,addr) marked as MPOL_SHARED.  The shared policy infrastructure
++	 * in mm/mempolicy.c will do this automatically.
++	 * get_policy() must NOT add a ref if the policy at (vma,addr) is not
++	 * marked as MPOL_SHARED. vma policies are protected by the mmap_sem.
++	 * If no [shared/vma] mempolicy exists at the addr, get_policy() op
++	 * must return NULL--i.e., do not "fallback" to task or system default
++	 * policy.
 +	 */
-+	if (mm)
-+		down_write(&mm->mmap_sem);
- 	mpol_free(current->mempolicy);
- 	current->mempolicy = new;
- 	mpol_set_task_struct_flag();
- 	if (new && new->policy == MPOL_INTERLEAVE)
- 		current->il_next = first_node(new->v.nodes);
-+	if (mm)
-+		up_write(&mm->mmap_sem);
-+
- 	return 0;
- }
- 
+ 	struct mempolicy *(*get_policy)(struct vm_area_struct *vma,
+ 					unsigned long addr);
+ 	int (*migrate)(struct vm_area_struct *vma, const nodemask_t *from,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
