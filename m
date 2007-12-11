@@ -1,111 +1,86 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lBB5CJ2G003818
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2007 00:12:19 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lBB5CJ2H487208
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2007 00:12:19 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lBB5CIrM000662
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2007 00:12:19 -0500
-Message-ID: <475E1C2D.1030202@linux.vnet.ibm.com>
-Date: Tue, 11 Dec 2007 10:42:13 +0530
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lBB5Eh2w006934
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2007 00:14:43 -0500
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lBB5Eh3Q092212
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2007 22:14:43 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lBB5Eh9u006764
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2007 22:14:43 -0700
+Message-ID: <475E1CBC.4070408@linux.vnet.ibm.com>
+Date: Tue, 11 Dec 2007 10:44:36 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [DOC][for -mm] update Documentation/controller/memory.txt
-References: <20071211120349.3ae9c55c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20071211120349.3ae9c55c.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH][for -mm] fix accounting in vmscan.c for memory controller
+References: <20071211112644.221a8dc5.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071211112644.221a8dc5.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "riel@redhat.com" <riel@redhat.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "riel@redhat.com" <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 KAMEZAWA Hiroyuki wrote:
-> Balbir-san, could you review this update ?
+> Without this, ALLOCSTALL and PGSCAN_DIRECT increases too much unless
+> there is no memory shortage.
 > 
-> --
-> Documentation updates for memory controller.
+> against 2.6.24-rc4-mm1.
+> 
+> -Kame
+> 
+> ==
+> Some amount of accounting is done while page reclaiming.
+> 
+> Now, there are 2 types of page reclaim (if memory controller is used)
+>   - global: shortage of (global) pages.
+>   - under cgroup: use up to limit.
+> 
+> I think 2 accountings, ALLOCSTALL and DIRECT should be accounted only under
+> global lru scan. They are accounted against memory shortage at alloc_pages().
 > 
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> Index: linux-2.6.24-rc4-mm1/Documentation/controllers/memory.txt
+>  mm/vmscan.c |    6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
+> 
+> Index: linux-2.6.24-rc4-mm1/mm/vmscan.c
 > ===================================================================
-> --- linux-2.6.24-rc4-mm1.orig/Documentation/controllers/memory.txt
-> +++ linux-2.6.24-rc4-mm1/Documentation/controllers/memory.txt
-> @@ -9,8 +9,7 @@ d. Provides a double LRU: global memory 
->     global LRU; a cgroup on hitting a limit, reclaims from the per
->     cgroup LRU
-> 
-> -NOTE: Page Cache (unmapped) also includes Swap Cache pages as a subset
-> -and will not be referred to explicitly in the rest of the documentation.
-> +NOTE: Swap Cache (unmapped) is not accounted now.
-> 
->  Benefits and Purpose of the memory controller
-> 
-> @@ -144,7 +143,7 @@ list.
->  The memory controller uses the following hierarchy
-> 
->  1. zone->lru_lock is used for selecting pages to be isolated
-> -2. mem->lru_lock protects the per cgroup LRU
-> +2. mem->per_zone->lru_lock protects the per cgroup LRU (per zone)
->  3. lock_page_cgroup() is used to protect page->page_cgroup
-> 
->  3. User Interface
-> @@ -193,6 +192,15 @@ this file after a write to guarantee the
->  The memory.failcnt field gives the number of times that the cgroup limit was
->  exceeded.
-> 
-> +The memory.stat file gives accounting information. Now, the number of
-> +caches, RSS and Active pages/Inactive pages are shown.
+> --- linux-2.6.24-rc4-mm1.orig/mm/vmscan.c
+> +++ linux-2.6.24-rc4-mm1/mm/vmscan.c
+> @@ -896,8 +896,9 @@ static unsigned long shrink_inactive_lis
+>  		if (current_is_kswapd()) {
+>  			__count_zone_vm_events(PGSCAN_KSWAPD, zone, nr_scan);
+>  			__count_vm_events(KSWAPD_STEAL, nr_freed);
+> -		} else
+> +		} else if (scan_global_lru(sc))
+>  			__count_zone_vm_events(PGSCAN_DIRECT, zone, nr_scan);
 > +
-> +The memory.force_empty gives an interface to drop *all* charges by force.
-> +
-> +# echo -n 1 > memory.force_empty
-> +
-> +will drop all charges in cgroup. Currently, this is maintained for test.
-> +
->  4. Testing
+>  		__count_zone_vm_events(PGSTEAL, zone, nr_freed);
 > 
->  Balbir posted lmbench, AIM9, LTP and vmmstress results [10] and [11].
-> @@ -222,11 +230,8 @@ reclaimed.
+>  		if (nr_taken == 0)
+> @@ -1333,7 +1334,8 @@ static unsigned long do_try_to_free_page
+>  	unsigned long lru_pages = 0;
+>  	int i;
 > 
->  A cgroup can be removed by rmdir, but as discussed in sections 4.1 and 4.2, a
->  cgroup might have some charge associated with it, even though all
-> -tasks have migrated away from it. If some pages are still left, after following
-> -the steps listed in sections 4.1 and 4.2, check the Swap Cache usage in
-> -/proc/meminfo to see if the Swap Cache usage is showing up in the
-> -cgroups memory.usage_in_bytes counter. A simple test of swapoff -a and
-> -swapon -a should free any pending Swap Cache usage.
-> +tasks have migrated away from it. Such charges are automatically dropped at
-> +rmdir() if there are no tasks.
-> 
->  4.4 Choosing what to account  -- Page Cache (unmapped) vs RSS (mapped)?
-> 
-> @@ -238,15 +243,11 @@ echo -n 1 > memory.control_type
->  5. TODO
-> 
->  1. Add support for accounting huge pages (as a separate controller)
-> -2. Improve the user interface to accept/display memory limits in KB or MB
-> -   rather than pages (since page sizes can differ across platforms/machines).
-> -3. Make cgroup lists per-zone
-> -4. Make per-cgroup scanner reclaim not-shared pages first
-> -5. Teach controller to account for shared-pages
-> -6. Start reclamation when the limit is lowered
-> -7. Start reclamation in the background when the limit is
-> +2. Make per-cgroup scanner reclaim not-shared pages first
-> +3. Teach controller to account for shared-pages
-> +4. Start reclamation when the limit is lowered
-> +5. Start reclamation in the background when the limit is
->     not yet hit but the usage is getting closer
-> -8. Create per zone LRU lists per cgroup
+> -	count_vm_event(ALLOCSTALL);
+> +	if (scan_global_lru(sc))
+> +		count_vm_event(ALLOCSTALL);
+>  	/*
+>  	 * mem_cgroup will not do shrink_slab.
+>  	 */
 > 
 
-Looks very good to me!
+Looks good to me.
 
-Reviewed-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+
+TODO:
+
+1. Should we have vm_events for the memory controller as well?
+   May be in the longer term
 
 -- 
 	Warm Regards,
