@@ -1,65 +1,70 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [rfc] lockless get_user_pages for dio (and more)
-Date: Wed, 12 Dec 2007 16:40:16 +1100
-References: <20071008225234.GC27824@linux-os.sc.intel.com> <200712121557.20807.nickpiggin@yahoo.com.au> <1197436306.6367.12.camel@norville.austin.ibm.com>
-In-Reply-To: <1197436306.6367.12.camel@norville.austin.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
+Subject: Re: [patch 1/1] Writeback fix for concurrent large and small file
+	writes.
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20071211020255.CFFB21080E@localhost>
+References: <20071211020255.CFFB21080E@localhost>
+Content-Type: text/plain
+Date: Wed, 12 Dec 2007 21:55:54 +0100
+Message-Id: <1197492954.6353.64.camel@lappy>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200712121640.17077.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
-Cc: "Siddha, Suresh B" <suresh.b.siddha@intel.com>, Ken Chen <kenchen@google.com>, Badari Pulavarty <pbadari@gmail.com>, linux-mm <linux-mm@kvack.org>, tony.luck@intel.com, Adam Litke <agl@us.ibm.com>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Michael Rubin <mrubin@google.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wfg@mail.ustc.edu.cn
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 12 December 2007 16:11, Dave Kleikamp wrote:
-> On Wed, 2007-12-12 at 15:57 +1100, Nick Piggin wrote:
-> > On Tuesday 11 December 2007 08:30, Dave Kleikamp wrote:
-> > > Nick,
-> > > I've played with the fast_gup patch a bit.  I was able to find a
-> > > problem in follow_hugetlb_page() that Adam Litke fixed.  I'm haven't
-> > > been brave enough to implement it on any other architectures, but I did
-> > > add  a default that takes mmap_sem and calls the normal
-> > > get_user_pages() if the architecture doesn't define fast_gup().  I put
-> > > it in linux/mm.h, for lack of a better place, but it's a little kludgy
-> > > since I didn't want mm.h to have to include sched.h.  This patch is
-> > > against 2.6.24-rc4. It's not ready for inclusion yet, of course.
-> >
-> > Hi Dave,
-> >
-> > Thanks so much. This makes it much more a complete patch (although
-> > still missing the "normal page" detection).
-> >
-> > I think I missed -- or forgot -- what was the follow_hugetlb_page
-> > problem?
->
-> Badari found a problem running some tests and handed it off to me to
-> look at.  I didn't share it publicly.  Anyway, we were finding that
-> fastgup was taking the slow path almost all the time with huge pages.
-> The problem was that follow_hugetlb_page was failing to fault on a
-> non-writable page when it needed a writable one.  So we'd keep seeing a
-> non-writable page over and over.  This is fixed in 2.6.24-rc5.
+On Mon, 2007-12-10 at 18:02 -0800, Michael Rubin wrote:
+> From: Michael Rubin <mrubin@google.com>
+> 
+> Fixing a bug where writing to large files while concurrently writing to
+> smaller ones creates a situation where writeback cannot keep up with the
+> traffic and memory baloons until the we hit the threshold watermark. This
+> can result in surprising latency spikes when syncing. This latency
+> can take minutes on large memory systems. Upon request I can provide
+> a test to reproduce this situation.
 
-Ah yes, I just saw that fix in the changelog. So not a problem with my
-patch as such, but good to get that fixed.
+The part I miss here is the rationale on _how_ you solve the problem.
 
+The patch itself is simple enough, but I've been staring at this code
+for a while now, and I'm just not getting it.
 
-> > Anyway, I am hoping that someone will one day and test if this and
-> > find it helps their workload, but on the other hand, if it doesn't
-> > help anyone then we don't have to worry about adding it to the
-> > kernel ;) I don't have any real setups that hammers DIO with threads.
-> > I'm guessing DB2 and/or Oracle does?
->
-> I'll try to get someone to run a DB2 benchmark and see what it looks
-> like.
-
-That would be great if you could.
-
-Thanks,
-Nick
+> The only concern I have is that this makes the wb_kupdate slightly more
+> agressive. I am not sure it is enough to cause any problems. I think
+> there is enough checks to throttle the background activity.
+> 
+> Feng also the one line change that you recommended here 
+> http://marc.info/?l=linux-kernel&m=119629655402153&w=2 had no effect.
+> 
+> Signed-off-by: Michael Rubin <mrubin@google.com>
+> ---
+> Index: 2624rc3_feng/fs/fs-writeback.c
+> ===================================================================
+> --- 2624rc3_feng.orig/fs/fs-writeback.c	2007-11-29 14:44:24.000000000 -0800
+> +++ 2624rc3_feng/fs/fs-writeback.c	2007-12-10 17:21:45.000000000 -0800
+> @@ -408,8 +408,7 @@ sync_sb_inodes(struct super_block *sb, s
+>  {
+>  	const unsigned long start = jiffies;	/* livelock avoidance */
+>  
+> -	if (!wbc->for_kupdate || list_empty(&sb->s_io))
+> -		queue_io(sb, wbc->older_than_this);
+> +	queue_io(sb, wbc->older_than_this);
+>  
+>  	while (!list_empty(&sb->s_io)) {
+>  		struct inode *inode = list_entry(sb->s_io.prev,
+> Index: 2624rc3_feng/mm/page-writeback.c
+> ===================================================================
+> --- 2624rc3_feng.orig/mm/page-writeback.c	2007-11-16 21:16:36.000000000 -0800
+> +++ 2624rc3_feng/mm/page-writeback.c	2007-12-10 17:37:17.000000000 -0800
+> @@ -638,7 +638,7 @@ static void wb_kupdate(unsigned long arg
+>  		wbc.nr_to_write = MAX_WRITEBACK_PAGES;
+>  		writeback_inodes(&wbc);
+>  		if (wbc.nr_to_write > 0) {
+> -			if (wbc.encountered_congestion || wbc.more_io)
+> +			if (wbc.encountered_congestion)
+>  				congestion_wait(WRITE, HZ/10);
+>  			else
+>  				break;	/* All the old data is written */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
