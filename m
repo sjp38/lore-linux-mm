@@ -1,64 +1,45 @@
-Received: from zps76.corp.google.com (zps76.corp.google.com [172.25.146.76])
-	by smtp-out.google.com with ESMTP id lBCN35Xa026449
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2007 15:03:06 -0800
-Received: from py-out-1112.google.com (pybu77.prod.google.com [10.34.97.77])
-	by zps76.corp.google.com with ESMTP id lBCN2T4w014689
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2007 15:03:05 -0800
-Received: by py-out-1112.google.com with SMTP id u77so1120939pyb.3
-        for <linux-mm@kvack.org>; Wed, 12 Dec 2007 15:03:04 -0800 (PST)
-Message-ID: <532480950712121503r64dbd51oc4778e96cbd37e3c@mail.gmail.com>
-Date: Wed, 12 Dec 2007 15:03:04 -0800
-From: "Michael Rubin" <mrubin@google.com>
-Subject: Re: [patch 1/1] Writeback fix for concurrent large and small file writes.
-In-Reply-To: <1197492954.6353.64.camel@lappy>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Thu, 13 Dec 2007 09:23:38 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 0/6] Use two zonelists per node instead of multiple
+ zonelists v11r2
+Message-Id: <20071213092338.8b10944c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1197495172.5029.62.camel@localhost>
+References: <20071211202157.1961.27940.sendpatchset@skynet.skynet.ie>
+	<1197495172.5029.62.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20071211020255.CFFB21080E@localhost>
-	 <1197492954.6353.64.camel@lappy>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wfg@mail.ustc.edu.cn
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Dec 12, 2007 12:55 PM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
->
-> On Mon, 2007-12-10 at 18:02 -0800, Michael Rubin wrote:
-> > From: Michael Rubin <mrubin@google.com>
-> The part I miss here is the rationale on _how_ you solve the problem.
->
-> The patch itself is simple enough, but I've been staring at this code
-> for a while now, and I'm just not getting it.
+On Wed, 12 Dec 2007 16:32:51 -0500
+Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
 
-Apologies for the lack of rationale. I have been staring at this code
-for awhile also and it makes my head hurt. I have a patch coming
-(hopefully today) that proposes using one data  structure with a more
-consistent priority scheme for 2.6.25. To me it's simpler, but I am
-biased.
+> Just this afternoon, I hit a null pointer deref in
+> __mem_cgroup_remove_list() [called from mem_cgroup_uncharge() if I can
+> trust the stack trace] attempting to unmap a page for migration.  I'm
+> just starting to investigate this.
+> 
+> I'll replace the series I have [~V10] with V11r2 and continue testing in
+> anticipation of the day that we can get this into -mm.
+> 
+Hi, Lee-san.
 
-The problem we encounter when we append to a large file at a fast rate
-while also writing to smaller files is that the wb_kupdate thread does
-not keep up with disk traffic. In this workload often the inodes end
-up at fs/fs-writeback.c:287 after do_writepages, since do_writepages
-did not write all the pages.  This can be due to congestion but I
-think there are other causes also since I have observed so.
+Could you know what is the caller of page migration ?
+system call ? hot removal ? or some new thing ?
 
-The first issue is that the inode is put on the s_more_io queue. This
-ensures that more_io is set at the end of sync_sb_inodes. The result
-from that is the wb_kupdate routine will perform a sleep at
-mm/page-writeback.c:642. This slows us down enough that the wb_kupdate
-cannot keep up with traffic.
+Note: 2.6.24-rc4-mm1's cgroup/migration logic.
 
-The other issue is that the inode that has been placed on the
-s_more_io queue cannot be processed by sync_sb_inodes until the entire
-s_io list is empty. With lots of small files that are not being
-dirtied as quickly as the one large inode on the s_more_io queue the
-inode with the most pages being dirtied is not given attention and
-wb_kupdate cannot keep up again.
+In 2.6.24-rc4-mm1, in page migration, mem_cgroup_prepare_migration() increments
+page_cgroup's refcnt before calling try_to_unmap(). This extra refcnt guarantees 
+the page_cgroup's refcnt will not drop to 0 in sequence of
+unmap_and_move() -> try_to_unmap() -> page_remove_rmap() -> mem_cgroup_unchage(). 
 
-mrubin
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
