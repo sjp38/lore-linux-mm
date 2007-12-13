@@ -1,51 +1,163 @@
-Subject: Re: QUEUE_FLAG_CLUSTER: not working in 2.6.24 ?
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-In-Reply-To: <20071213140207.111f94e2.akpm@linux-foundation.org>
-References: <20071213185326.GQ26334@parisc-linux.org>
-	 <4761821F.3050602@rtr.ca> <20071213192633.GD10104@kernel.dk>
-	 <4761883A.7050908@rtr.ca> <476188C4.9030802@rtr.ca>
-	 <20071213193937.GG10104@kernel.dk> <47618B0B.8020203@rtr.ca>
-	 <20071213195350.GH10104@kernel.dk> <20071213200219.GI10104@kernel.dk>
-	 <476190BE.9010405@rtr.ca> <20071213200958.GK10104@kernel.dk>
-	 <20071213140207.111f94e2.akpm@linux-foundation.org>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lBDMFJdt009375
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2007 17:15:19 -0500
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lBDMFFMP050894
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2007 15:15:16 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lBDMFEpM024106
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2007 15:15:15 -0700
+Subject: Re: [RFC][PATCH 3/3] Documetation: update hugetlb information
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <20071213180116.GF17526@us.ibm.com>
+References: <20071213074156.GA17526@us.ibm.com>
+	 <1197562629.21438.20.camel@localhost> <20071213164453.GC17526@us.ibm.com>
+	 <1197565364.21438.23.camel@localhost>  <20071213180116.GF17526@us.ibm.com>
 Content-Type: text/plain
-Date: Thu, 13 Dec 2007 17:15:06 -0500
-Message-Id: <1197584106.3154.55.camel@localhost.localdomain>
+Date: Thu, 13 Dec 2007 16:17:11 -0600
+Message-Id: <1197584231.16157.47.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jens Axboe <jens.axboe@oracle.com>, liml@rtr.ca, lkml@rtr.ca, matthew@wil.cx, linux-ide@vger.kernel.org, linux-kernel@vger.kernel.org, linux-scsi@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: Dave Hansen <haveblue@us.ibm.com>, wli@holomorphy.com, mel@csn.ul.ie, apw@shadowen.org, akpm@linux-foundation.org, lee.schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-12-13 at 14:02 -0800, Andrew Morton wrote:
-> On Thu, 13 Dec 2007 21:09:59 +0100
-> Jens Axboe <jens.axboe@oracle.com> wrote:
-> 
-> >
-> > OK, it's a vm issue,
-> 
-> cc linux-mm and probable culprit.
-> 
-> >  I have tens of thousand "backward" pages after a
-> > boot - IOW, bvec->bv_page is the page before bvprv->bv_page, not
-> > reverse. So it looks like that bug got reintroduced.
-> 
-> Bill Irwin fixed this a couple of years back: changed the page allocator so
-> that it mostly hands out pages in ascending physical-address order.
-> 
-> I guess we broke that, quite possibly in Mel's page allocator rework.
-> 
-> It would help if you could provide us with a simple recipe for
-> demonstrating this problem, please.
+Additionally, I have some diagrams that illustrate the relationship of
+the various pool counters and the numerous valid states a hugetlb
+pool-managed page can go through.  Due to problems with the linux-mm
+wiki authentication, I have not been able to post them yet :(
 
-The simple way seems to be to malloc a large area, touch every page and
-then look at the physical pages assigned ... they now mostly seem to be
-descending in physical address.
-
-James
-
+On Thu, 2007-12-13 at 10:01 -0800, Nishanth Aravamudan wrote:
+> On 13.12.2007 [09:02:44 -0800], Dave Hansen wrote:
+> > On Thu, 2007-12-13 at 08:44 -0800, Nishanth Aravamudan wrote:
+> > > Err, yes, will need to updated that. I note that the old sysctl is not
+> > > there...nor is nr_hugepages, for that matter. So maybe I'll just add a
+> > > 3rd patch to fix the Documentation? I really just wanted to get the
+> > > patches out there as soon as I got them tested... 
+> > 
+> > Yeah, that should be fine.  Adding nr_hugepages will probably get you
+> > bonus points. :)
+> 
+> Documentation: updated hugetlb information
+> 
+> The hugetlb documentation has gotten a bit out of sync with the current
+> code. Updated the sysctl file to refer to
+> Documentation/vm/hugetlbpage.txt. Update that file to contain the
+> current state of affairs (with the newer named sysctl in place).
+> 
+> Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+> 
+> ---
+> This is 3/3 because it depends on 1/2 and 2/2 ... Not sure if this is
+> complete enough, either. Adam, do you have any input?
+> 
+> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+> index b89570c..6f31f0a 100644
+> --- a/Documentation/sysctl/vm.txt
+> +++ b/Documentation/sysctl/vm.txt
+> @@ -34,6 +34,8 @@ Currently, these files are in /proc/sys/vm:
+>  - oom_kill_allocating_task
+>  - mmap_min_address
+>  - numa_zonelist_order
+> +- nr_hugepages
+> +- nr_overcommit_hugepages
+> 
+>  ==============================================================
+> 
+> @@ -305,3 +307,20 @@ will select "node" order in following case.
+> 
+>  Otherwise, "zone" order will be selected. Default order is recommended unless
+>  this is causing problems for your system/application.
+> +
+> +==============================================================
+> +
+> +nr_hugepages
+> +
+> +Change the minimum size of the hugepage pool.
+> +
+> +See Documentation/vm/hugetlbpage.txt
+> +
+> +==============================================================
+> +
+> +nr_overcommit_hugepages
+> +
+> +Change the maximum size of the hugepage pool. The maximum is
+> +nr_hugepages + nr_overcommit_hugepages.
+> +
+> +See Documentation/vm/hugetlbpage.txt
+> diff --git a/Documentation/vm/hugetlbpage.txt b/Documentation/vm/hugetlbpage.txt
+> index 51ccc48..f962d01 100644
+> --- a/Documentation/vm/hugetlbpage.txt
+> +++ b/Documentation/vm/hugetlbpage.txt
+> @@ -30,9 +30,10 @@ alignment and size of the arguments to the above system calls.
+>  The output of "cat /proc/meminfo" will have lines like:
+> 
+>  .....
+> -HugePages_Total: xxx
+> -HugePages_Free:  yyy
+> -HugePages_Rsvd:  www
+> +HugePages_Total: vvv
+> +HugePages_Free:  www
+> +HugePages_Rsvd:  xxx
+> +HugePages_Surp:  yyy
+>  Hugepagesize:    zzz kB
+> 
+>  where:
+> @@ -42,6 +43,10 @@ allocated.
+>  HugePages_Rsvd is short for "reserved," and is the number of hugepages
+>  for which a commitment to allocate from the pool has been made, but no
+>  allocation has yet been made. It's vaguely analogous to overcommit.
+> +HugePages_Surp is short for "surplus," and is the number of hugepages in
+> +the pool above the value in /proc/sys/vm/nr_hugepages. The maximum
+> +number of surplus hugepages is controlled by
+> +/proc/sys/vm/nr_overcommit_hugepages.
+> 
+>  /proc/filesystems should also show a filesystem of type "hugetlbfs" configured
+>  in the kernel.
+> @@ -71,7 +76,25 @@ or failure of allocation depends on the amount of physically contiguous
+>  memory that is preset in system at this time.  System administrators may want
+>  to put this command in one of the local rc init files.  This will enable the
+>  kernel to request huge pages early in the boot process (when the possibility
+> -of getting physical contiguous pages is still very high).
+> +of getting physical contiguous pages is still very high). In either
+> +case, adminstrators will want to verify the number of hugepages actually
+> +allocated by checking the sysctl or meminfo.
+> +
+> +/proc/sys/vm/nr_overcommit_hugepages indicates how large the pool of
+> +hugepages can grow, if more hugepages than /proc/sys/vm/nr_hugepages are
+> +requested by applications. echo'ing any non-zero value into this file
+> +indicates that the hugetlb subsystem is allowed to try to obtain
+> +hugepages from the buddy allocator, if the normal pool is exhausted. As
+> +these surplus hugepages go out of use, they are freed back to the buddy
+> +allocator.
+> +
+> +Caveat: Shrinking the pool via nr_hugepages while a surplus is in effect
+> +will allow the number of surplus huge pages to exceed the overcommit
+> +value, as the pool hugepages (which must have been in use for a surplus
+> +hugepages to be allocated) will become surplus hugepages.  As long as
+> +this condition holds, however, no more surplus huge pages will be
+> +allowed on the system until one of the two sysctls are increased
+> +sufficiently, or the surplus huge pages go out of use and are freed.
+> 
+>  If the user applications are going to request hugepages using mmap system
+>  call, then it is required that system administrator mount a file system of
+> @@ -94,8 +117,8 @@ provided on command line then no limits are set.  For size and nr_inodes
+>  options, you can use [G|g]/[M|m]/[K|k] to represent giga/mega/kilo. For
+>  example, size=2K has the same meaning as size=2048.
+> 
+> -read and write system calls are not supported on files that reside on hugetlb
+> -file systems.
+> +While read system calls are supported on files that reside on hugetlb
+> +file systems, write system calls are not.
+> 
+>  Regular chown, chgrp, and chmod commands (with right permissions) could be
+>  used to change the file attributes on hugetlbfs.
+> 
+-- 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
