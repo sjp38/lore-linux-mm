@@ -1,64 +1,47 @@
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lBDJOXTk003878
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2007 14:24:33 -0500
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lBDJONBX209548
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2007 12:24:25 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lBDJON6e013878
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2007 12:24:23 -0700
-Date: Thu, 13 Dec 2007 11:24:21 -0800
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [RFC][PATCH 1/2] hugetlb: introduce nr_overcommit_hugepages
-	sysctl
-Message-ID: <20071213192421.GI17526@us.ibm.com>
-References: <20071213074156.GA17526@us.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20071213074156.GA17526@us.ibm.com>
+Date: Thu, 13 Dec 2007 14:02:07 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: QUEUE_FLAG_CLUSTER: not working in 2.6.24 ?
+Message-Id: <20071213140207.111f94e2.akpm@linux-foundation.org>
+In-Reply-To: <20071213200958.GK10104@kernel.dk>
+References: <20071213185326.GQ26334@parisc-linux.org>
+	<4761821F.3050602@rtr.ca>
+	<20071213192633.GD10104@kernel.dk>
+	<4761883A.7050908@rtr.ca>
+	<476188C4.9030802@rtr.ca>
+	<20071213193937.GG10104@kernel.dk>
+	<47618B0B.8020203@rtr.ca>
+	<20071213195350.GH10104@kernel.dk>
+	<20071213200219.GI10104@kernel.dk>
+	<476190BE.9010405@rtr.ca>
+	<20071213200958.GK10104@kernel.dk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: agl@us.ibm.com
-Cc: wli@holomorphy.com, mel@csn.ul.ie, apw@shadowen.org, akpm@linux-foundation.org, lee.schermerhorn@hp.com, linux-mm@kvack.org
+To: Jens Axboe <jens.axboe@oracle.com>
+Cc: liml@rtr.ca, lkml@rtr.ca, matthew@wil.cx, linux-ide@vger.kernel.org, linux-kernel@vger.kernel.org, linux-scsi@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On 12.12.2007 [23:41:56 -0800], Nishanth Aravamudan wrote:
-> hugetlb: introduce nr_overcommit_hugepages sysctl
+On Thu, 13 Dec 2007 21:09:59 +0100
+Jens Axboe <jens.axboe@oracle.com> wrote:
 
-<snip>
+>
+> OK, it's a vm issue,
 
-> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-> index 8ac5171..b85a128 100644
-> --- a/kernel/sysctl.c
-> +++ b/kernel/sysctl.c
-> @@ -912,6 +912,14 @@ static struct ctl_table vm_table[] = {
->  		.mode		= 0644,
->  		.proc_handler	= &proc_dointvec,
->  	},
-> +	{
-> +		.ctl_name	= CTL_UNNUMBERED,
-> +		.procname	= "nr_overcommit_hugepages",
-> +		.data		= &nr_overcommit_huge_pages,
-> +		.maxlen		= sizeof(nr_overcommit_huge_pages),
-> +		.mode		= 0644,
-> +		.proc_handler	= &proc_doulongvec_minmax,
-> +	},
+cc linux-mm and probable culprit.
 
-Dave's reply regarding the sysctl documentation, while unrelated to this
-hunk, did remind me of something I wanted to ask. Having looked at
-proc_doulongvec_minmax() a bit, it seems like I'm ok not specifying a
-min and max, as the code checks to see if the min and max are specified.
-Essentially, I want to allow any unsigned long value. Does this seem ok?
-(there doesn't seem to be a proc_doulongvec() like there is
-proc_dointvec().
+>  I have tens of thousand "backward" pages after a
+> boot - IOW, bvec->bv_page is the page before bvprv->bv_page, not
+> reverse. So it looks like that bug got reintroduced.
 
-Thanks,
-Nish
+Bill Irwin fixed this a couple of years back: changed the page allocator so
+that it mostly hands out pages in ascending physical-address order.
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+I guess we broke that, quite possibly in Mel's page allocator rework.
+
+It would help if you could provide us with a simple recipe for
+demonstrating this problem, please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
