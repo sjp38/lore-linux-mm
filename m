@@ -1,60 +1,40 @@
-Message-Id: <20071214154440.433894000@chello.nl>
+Message-Id: <20071214154441.605741000@chello.nl>
 References: <20071214153907.770251000@chello.nl>
-Date: Fri, 14 Dec 2007 16:39:16 +0100
+Date: Fri, 14 Dec 2007 16:39:25 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 09/29] mm: __GFP_MEMALLOC
-Content-Disposition: inline; filename=mm-page_alloc-GFP_EMERGENCY.patch
+Subject: [PATCH 18/29] netvm: filter emergency skbs.
+Content-Disposition: inline; filename=netvm-sk_filter.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-__GFP_MEMALLOC will allow the allocation to disregard the watermarks, 
-much like PF_MEMALLOC.
+Toss all emergency packets not for a SOCK_MEMALLOC socket. This ensures our
+precious memory reserve doesn't get stuck waiting for user-space.
+
+The correctness of this approach relies on the fact that networks must be
+assumed lossy.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/gfp.h |    3 ++-
- mm/page_alloc.c     |    4 +++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ include/net/sock.h |    3 +++
+ 1 file changed, 3 insertions(+)
 
-Index: linux-2.6/include/linux/gfp.h
+Index: linux-2.6/include/net/sock.h
 ===================================================================
---- linux-2.6.orig/include/linux/gfp.h
-+++ linux-2.6/include/linux/gfp.h
-@@ -43,6 +43,7 @@ struct vm_area_struct;
- #define __GFP_REPEAT	((__force gfp_t)0x400u)	/* Retry the allocation.  Might fail */
- #define __GFP_NOFAIL	((__force gfp_t)0x800u)	/* Retry for ever.  Cannot fail */
- #define __GFP_NORETRY	((__force gfp_t)0x1000u)/* Do not retry.  Might fail */
-+#define __GFP_MEMALLOC  ((__force gfp_t)0x2000u)/* Use emergency reserves */
- #define __GFP_COMP	((__force gfp_t)0x4000u)/* Add compound page metadata */
- #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
- #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
-@@ -88,7 +89,7 @@ struct vm_area_struct;
- /* Control page allocator reclaim behavior */
- #define GFP_RECLAIM_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS|\
- 			__GFP_NOWARN|__GFP_REPEAT|__GFP_NOFAIL|\
--			__GFP_NORETRY|__GFP_NOMEMALLOC)
-+			__GFP_NORETRY|__GFP_MEMALLOC|__GFP_NOMEMALLOC)
- 
- /* Control allocation constraints */
- #define GFP_CONSTRAINT_MASK (__GFP_HARDWALL|__GFP_THISNODE)
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c
-+++ linux-2.6/mm/page_alloc.c
-@@ -1560,7 +1560,9 @@ int gfp_to_alloc_flags(gfp_t gfp_mask)
- 		alloc_flags |= ALLOC_HARDER;
- 
- 	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
--		if (!in_irq() && (p->flags & PF_MEMALLOC))
-+		if (gfp_mask & __GFP_MEMALLOC)
-+			alloc_flags |= ALLOC_NO_WATERMARKS;
-+		else if (!in_irq() && (p->flags & PF_MEMALLOC))
- 			alloc_flags |= ALLOC_NO_WATERMARKS;
- 		else if (!in_interrupt() &&
- 				unlikely(test_thread_flag(TIF_MEMDIE)))
+--- linux-2.6.orig/include/net/sock.h
++++ linux-2.6/include/net/sock.h
+@@ -930,6 +930,9 @@ static inline int sk_filter(struct sock 
+ {
+ 	int err;
+ 	struct sk_filter *filter;
++
++	if (skb_emergency(skb) && !sk_has_memalloc(sk))
++		return -ENOMEM;
+ 	
+ 	err = security_sock_rcv_skb(sk, skb);
+ 	if (err)
 
 --
 
