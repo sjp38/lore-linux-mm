@@ -1,67 +1,76 @@
-Message-Id: <20071214154443.047840000@chello.nl>
+Message-Id: <20071214154440.036070000@chello.nl>
 References: <20071214153907.770251000@chello.nl>
-Date: Fri, 14 Dec 2007 16:39:36 +0100
+Date: Fri, 14 Dec 2007 16:39:13 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 29/29] nfs: fix various memory recursions possible with swap over NFS.
-Content-Disposition: inline; filename=nfs-alloc-recursions.patch
+Subject: [PATCH 06/29] mm: serialize access to min_free_kbytes
+Content-Disposition: inline; filename=mm-setup_per_zone_pages_min.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-GFP_NOFS is not enough, since swap traffic is IO, hence fall back to GFP_NOIO.
+There is a small race between the procfs caller and the memory hotplug caller
+of setup_per_zone_pages_min(). Not a big deal, but the next patch will add yet
+another caller. Time to close the gap.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/nfs/pagelist.c |    2 +-
- fs/nfs/write.c    |    6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ mm/page_alloc.c |   16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
 
-Index: linux-2.6/fs/nfs/write.c
+Index: linux-2.6/mm/page_alloc.c
 ===================================================================
---- linux-2.6.orig/fs/nfs/write.c
-+++ linux-2.6/fs/nfs/write.c
-@@ -44,7 +44,7 @@ static struct kmem_cache *nfs_wdata_cach
+--- linux-2.6.orig/mm/page_alloc.c
++++ linux-2.6/mm/page_alloc.c
+@@ -116,6 +116,7 @@ static char * const zone_names[MAX_NR_ZO
+ 	 "Movable",
+ };
  
- struct nfs_write_data *nfs_commit_alloc(void)
++static DEFINE_SPINLOCK(min_free_lock);
+ int min_free_kbytes = 1024;
+ 
+ unsigned long __meminitdata nr_kernel_pages;
+@@ -4162,12 +4163,12 @@ static void setup_per_zone_lowmem_reserv
+ }
+ 
+ /**
+- * setup_per_zone_pages_min - called when min_free_kbytes changes.
++ * __setup_per_zone_pages_min - called when min_free_kbytes changes.
+  *
+  * Ensures that the pages_{min,low,high} values for each zone are set correctly
+  * with respect to min_free_kbytes.
+  */
+-void setup_per_zone_pages_min(void)
++static void __setup_per_zone_pages_min(void)
  {
--	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
-+	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOIO);
+ 	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
+ 	unsigned long lowmem_pages = 0;
+@@ -4222,6 +4223,15 @@ void setup_per_zone_pages_min(void)
+ 	calculate_totalreserve_pages();
+ }
  
- 	if (p) {
- 		memset(p, 0, sizeof(*p));
-@@ -68,7 +68,7 @@ void nfs_commit_free(struct nfs_write_da
- 
- struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
- {
--	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
-+	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOIO);
- 
- 	if (p) {
- 		memset(p, 0, sizeof(*p));
-@@ -77,7 +77,7 @@ struct nfs_write_data *nfs_writedata_all
- 		if (pagecount <= ARRAY_SIZE(p->page_array))
- 			p->pagevec = p->page_array;
- 		else {
--			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
-+			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOIO);
- 			if (!p->pagevec) {
- 				kmem_cache_free(nfs_wdata_cachep, p);
- 				p = NULL;
-Index: linux-2.6/fs/nfs/pagelist.c
-===================================================================
---- linux-2.6.orig/fs/nfs/pagelist.c
-+++ linux-2.6/fs/nfs/pagelist.c
-@@ -27,7 +27,7 @@ static inline struct nfs_page *
- nfs_page_alloc(void)
- {
- 	struct nfs_page	*p;
--	p = kmem_cache_alloc(nfs_page_cachep, GFP_KERNEL);
-+	p = kmem_cache_alloc(nfs_page_cachep, GFP_NOIO);
- 	if (p) {
- 		memset(p, 0, sizeof(*p));
- 		INIT_LIST_HEAD(&p->wb_list);
++void setup_per_zone_pages_min(void)
++{
++	unsigned long flags;
++
++	spin_lock_irqsave(&min_free_lock, flags);
++	__setup_per_zone_pages_min();
++	spin_unlock_irqrestore(&min_free_lock, flags);
++}
++
+ /*
+  * Initialise min_free_kbytes.
+  *
+@@ -4257,7 +4267,7 @@ static int __init init_per_zone_pages_mi
+ 		min_free_kbytes = 128;
+ 	if (min_free_kbytes > 65536)
+ 		min_free_kbytes = 65536;
+-	setup_per_zone_pages_min();
++	__setup_per_zone_pages_min();
+ 	setup_per_zone_lowmem_reserve();
+ 	return 0;
+ }
 
 --
 
