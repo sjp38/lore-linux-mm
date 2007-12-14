@@ -1,14 +1,14 @@
 From: Daniel Phillips <phillips@phunq.net>
-Subject: Re: [PATCH 00/29] Swap over NFS -v15
-Date: Fri, 14 Dec 2007 13:07:05 -0800
-References: <20071214153907.770251000@chello.nl>
-In-Reply-To: <20071214153907.770251000@chello.nl>
+Subject: Re: [PATCH 16/29] netvm: INET reserves.
+Date: Fri, 14 Dec 2007 13:10:27 -0800
+References: <20071214153907.770251000@chello.nl> <20071214154441.337409000@chello.nl>
+In-Reply-To: <20071214154441.337409000@chello.nl>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200712141307.05635.phillips@phunq.net>
+Message-Id: <200712141310.27690.phillips@phunq.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>
@@ -17,13 +17,8 @@ List-ID: <linux-mm.kvack.org>
 
 Hi Peter,
 
-A major feature of this patch set is the network receive deadlock 
-avoidance, but there is quite a bit of stuff bundled with it, the NFS 
-user accounting for a big part of the patch by itself.
-
-Is it possible to provide a before and after demonstration case for just 
-the network receive deadlock part, given a subset of the patch set and 
-a user space recipe that anybody can try?
+sysctl_intvec_fragment, proc_dointvec_fragment, sysctl_intvec_fragment 
+seem to suffer from cut-n-pastitis.
 
 Regards,
 
