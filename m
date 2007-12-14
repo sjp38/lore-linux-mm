@@ -1,52 +1,37 @@
-Message-Id: <20071214154438.991239000@chello.nl>
+Message-Id: <20071214154440.693615000@chello.nl>
 References: <20071214153907.770251000@chello.nl>
-Date: Fri, 14 Dec 2007 16:39:09 +0100
+Date: Fri, 14 Dec 2007 16:39:18 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 02/29] mm: tag reseve pages
-Content-Disposition: inline; filename=page_alloc-reserve.patch
+Subject: [PATCH 11/29] selinux: tag avc cache alloc as non-critical
+Content-Disposition: inline; filename=mm-selinux-emergency.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, James Morris <jmorris@namei.org>
 List-ID: <linux-mm.kvack.org>
 
-Tag pages allocated from the reserves with a non-zero page->reserve.
-This allows us to distinguish and account reserve pages.
+Failing to allocate a cache entry will only harm performance not correctness.
+Do not consume valuable reserve pages for something like that.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Acked-by: James Morris <jmorris@namei.org>
 ---
- include/linux/mm_types.h |    1 +
- mm/page_alloc.c          |    4 +++-
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ security/selinux/avc.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: linux-2.6/include/linux/mm_types.h
+Index: linux-2.6-2/security/selinux/avc.c
 ===================================================================
---- linux-2.6.orig/include/linux/mm_types.h
-+++ linux-2.6/include/linux/mm_types.h
-@@ -70,6 +70,7 @@ struct page {
- 	union {
- 		pgoff_t index;		/* Our offset within mapping. */
- 		void *freelist;		/* SLUB: freelist req. slab lock */
-+		int reserve;		/* page_alloc: page is a reserve page */
- 	};
- 	struct list_head lru;		/* Pageout list, eg. active_list
- 					 * protected by zone->lru_lock !
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c
-+++ linux-2.6/mm/page_alloc.c
-@@ -1448,8 +1448,10 @@ zonelist_scan:
- 		}
+--- linux-2.6-2.orig/security/selinux/avc.c
++++ linux-2.6-2/security/selinux/avc.c
+@@ -334,7 +334,7 @@ static struct avc_node *avc_alloc_node(v
+ {
+ 	struct avc_node *node;
  
- 		page = buffered_rmqueue(zonelist, zone, order, gfp_mask);
--		if (page)
-+		if (page) {
-+			page->reserve = !!(alloc_flags & ALLOC_NO_WATERMARKS);
- 			break;
-+		}
- this_zone_full:
- 		if (NUMA_BUILD)
- 			zlc_mark_zone_full(zonelist, z);
+-	node = kmem_cache_zalloc(avc_node_cachep, GFP_ATOMIC);
++	node = kmem_cache_zalloc(avc_node_cachep, GFP_ATOMIC|__GFP_NOMEMALLOC);
+ 	if (!node)
+ 		goto out;
+ 
 
 --
 
