@@ -1,101 +1,181 @@
-Message-Id: <20071214154442.394650000@chello.nl>
+Message-Id: <20071214154438.791170000@chello.nl>
 References: <20071214153907.770251000@chello.nl>
-Date: Fri, 14 Dec 2007 16:39:31 +0100
+Date: Fri, 14 Dec 2007 16:39:08 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 24/29] mm: methods for teaching filesystems about PG_swapcache pages
-Content-Disposition: inline; filename=mm-page_file_methods.patch
+Subject: [PATCH 01/29] mm: gfp_to_alloc_flags()
+Content-Disposition: inline; filename=mm-gfp-to-alloc_flags.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-In order to teach filesystems to handle swap cache pages, two new page
-functions are introduced:
-
-  pgoff_t page_file_index(struct page *);
-  struct address_space *page_file_mapping(struct page *);
-
-page_file_index - gives the offset of this page in the file in PAGE_CACHE_SIZE
-blocks. Like page->index is for mapped pages, this function also gives the
-correct index for PG_swapcache pages.
-
-page_file_mapping - gives the mapping backing the actual page; that is for
-swap cache pages it will give swap_file->f_mapping.
-
-page_offset() is modified to use page_file_index(), so that it will give the
-expected result, even for PG_swapcache pages.
+Factor out the gfp to alloc_flags mapping so it can be used in other places.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/mm.h      |   26 ++++++++++++++++++++++++++
- include/linux/pagemap.h |    2 +-
- 2 files changed, 27 insertions(+), 1 deletion(-)
+ mm/internal.h   |   11 ++++++
+ mm/page_alloc.c |   98 ++++++++++++++++++++++++++++++++------------------------
+ 2 files changed, 67 insertions(+), 42 deletions(-)
 
-Index: linux-2.6/include/linux/mm.h
+Index: linux-2.6/mm/internal.h
 ===================================================================
---- linux-2.6.orig/include/linux/mm.h
-+++ linux-2.6/include/linux/mm.h
-@@ -14,6 +14,7 @@
- #include <linux/mm_types.h>
- #include <linux/security.h>
- #include <linux/swap.h>
-+#include <linux/fs.h>
- 
- struct mempolicy;
- struct anon_vma;
-@@ -608,6 +609,16 @@ static inline struct swap_info_struct *p
- 	return get_swap_info_struct(swp_type(swap));
+--- linux-2.6.orig/mm/internal.h
++++ linux-2.6/mm/internal.h
+@@ -47,4 +47,15 @@ static inline unsigned long page_order(s
+ 	VM_BUG_ON(!PageBuddy(page));
+ 	return page_private(page);
  }
- 
-+static inline
-+struct address_space *page_file_mapping(struct page *page)
-+{
-+#ifdef CONFIG_SWAP_FILE
-+	if (unlikely(PageSwapCache(page)))
-+		return page_swap_info(page)->swap_file->f_mapping;
-+#endif
-+	return page->mapping;
-+}
 +
- static inline int PageAnon(struct page *page)
- {
- 	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
-@@ -625,6 +636,21 @@ static inline pgoff_t page_index(struct 
++#define ALLOC_HARDER		0x01 /* try to alloc harder */
++#define ALLOC_HIGH		0x02 /* __GFP_HIGH set */
++#define ALLOC_WMARK_MIN		0x04 /* use pages_min watermark */
++#define ALLOC_WMARK_LOW		0x08 /* use pages_low watermark */
++#define ALLOC_WMARK_HIGH	0x10 /* use pages_high watermark */
++#define ALLOC_NO_WATERMARKS	0x20 /* don't check watermarks at all */
++#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
++
++int gfp_to_alloc_flags(gfp_t gfp_mask);
++
+ #endif
+Index: linux-2.6/mm/page_alloc.c
+===================================================================
+--- linux-2.6.orig/mm/page_alloc.c
++++ linux-2.6/mm/page_alloc.c
+@@ -1139,14 +1139,6 @@ failed:
+ 	return NULL;
  }
+ 
+-#define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
+-#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
+-#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
+-#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
+-#define ALLOC_HARDER		0x10 /* try to alloc harder */
+-#define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
+-#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
+-
+ #ifdef CONFIG_FAIL_PAGE_ALLOC
+ 
+ static struct fail_page_alloc_attr {
+@@ -1535,6 +1527,44 @@ static void set_page_owner(struct page *
+ #endif /* CONFIG_PAGE_OWNER */
  
  /*
-+ * Return the file index of the page. Regular pagecache pages use ->index
-+ * whereas swapcache pages use swp_offset(->private)
++ * get the deepest reaching allocation flags for the given gfp_mask
 + */
-+static inline pgoff_t page_file_index(struct page *page)
++int gfp_to_alloc_flags(gfp_t gfp_mask)
 +{
-+#ifdef CONFIG_SWAP_FILE
-+	if (unlikely(PageSwapCache(page))) {
-+		swp_entry_t swap = { .val = page_private(page) };
-+		return swp_offset(swap);
++	struct task_struct *p = current;
++	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
++	const gfp_t wait = gfp_mask & __GFP_WAIT;
++
++	/*
++	 * The caller may dip into page reserves a bit more if the caller
++	 * cannot run direct reclaim, or if the caller has realtime scheduling
++	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
++	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
++	 */
++	if (gfp_mask & __GFP_HIGH)
++		alloc_flags |= ALLOC_HIGH;
++
++	if (!wait) {
++		alloc_flags |= ALLOC_HARDER;
++		/*
++		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
++		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
++		 */
++		alloc_flags &= ~ALLOC_CPUSET;
++	} else if (unlikely(rt_task(p)) && !in_interrupt())
++		alloc_flags |= ALLOC_HARDER;
++
++	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
++		if (!in_interrupt() &&
++		    ((p->flags & PF_MEMALLOC) ||
++		     unlikely(test_thread_flag(TIF_MEMDIE))))
++			alloc_flags |= ALLOC_NO_WATERMARKS;
 +	}
-+#endif
-+	return page->index;
++
++	return alloc_flags;
 +}
 +
 +/*
-  * The atomic page->_mapcount, like _count, starts from -1:
-  * so that transitions both from it and to it can be tracked,
-  * using atomic_inc_and_test and atomic_add_negative(-1).
-Index: linux-2.6/include/linux/pagemap.h
-===================================================================
---- linux-2.6.orig/include/linux/pagemap.h
-+++ linux-2.6/include/linux/pagemap.h
-@@ -145,7 +145,7 @@ extern void __remove_from_page_cache(str
+  * This is the 'heart' of the zoned buddy allocator.
   */
- static inline loff_t page_offset(struct page *page)
- {
--	return ((loff_t)page->index) << PAGE_CACHE_SHIFT;
-+	return ((loff_t)page_file_index(page)) << PAGE_CACHE_SHIFT;
- }
+ struct page * fastcall
+@@ -1589,48 +1619,28 @@ restart:
+ 	 * OK, we're below the kswapd watermark and have kicked background
+ 	 * reclaim. Now things get more complex, so set up alloc_flags according
+ 	 * to how we want to proceed.
+-	 *
+-	 * The caller may dip into page reserves a bit more if the caller
+-	 * cannot run direct reclaim, or if the caller has realtime scheduling
+-	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
+-	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
+ 	 */
+-	alloc_flags = ALLOC_WMARK_MIN;
+-	if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
+-		alloc_flags |= ALLOC_HARDER;
+-	if (gfp_mask & __GFP_HIGH)
+-		alloc_flags |= ALLOC_HIGH;
+-	if (wait)
+-		alloc_flags |= ALLOC_CPUSET;
++	alloc_flags = gfp_to_alloc_flags(gfp_mask);
  
- static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
+-	/*
+-	 * Go through the zonelist again. Let __GFP_HIGH and allocations
+-	 * coming from realtime tasks go deeper into reserves.
+-	 *
+-	 * This is the last chance, in general, before the goto nopage.
+-	 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
+-	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+-	 */
+-	page = get_page_from_freelist(gfp_mask, order, zonelist, alloc_flags);
++	/* This is the last chance, in general, before the goto nopage. */
++	page = get_page_from_freelist(gfp_mask, order, zonelist,
++			alloc_flags & ~ALLOC_NO_WATERMARKS);
+ 	if (page)
+ 		goto got_pg;
+ 
+ 	/* This allocation should allow future memory freeing. */
+-
+ rebalance:
+-	if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
+-			&& !in_interrupt()) {
+-		if (!(gfp_mask & __GFP_NOMEMALLOC)) {
++	if (alloc_flags & ALLOC_NO_WATERMARKS) {
+ nofail_alloc:
+-			/* go through the zonelist yet again, ignoring mins */
+-			page = get_page_from_freelist(gfp_mask, order,
+-				zonelist, ALLOC_NO_WATERMARKS);
+-			if (page)
+-				goto got_pg;
+-			if (gfp_mask & __GFP_NOFAIL) {
+-				congestion_wait(WRITE, HZ/50);
+-				goto nofail_alloc;
+-			}
++		/* go through the zonelist yet again, ignoring mins */
++		page = get_page_from_freelist(gfp_mask, order, zonelist,
++				ALLOC_NO_WATERMARKS);
++		if (page)
++			goto got_pg;
++
++		if (wait && (gfp_mask & __GFP_NOFAIL)) {
++			congestion_wait(WRITE, HZ/50);
++			goto nofail_alloc;
+ 		}
+ 		goto nopage;
+ 	}
+@@ -1639,6 +1649,10 @@ nofail_alloc:
+ 	if (!wait)
+ 		goto nopage;
+ 
++	/* Avoid recursion of direct reclaim */
++	if (p->flags & PF_MEMALLOC)
++		goto nopage;
++
+ 	cond_resched();
+ 
+ 	/* We now go into synchronous reclaim */
 
 --
 
