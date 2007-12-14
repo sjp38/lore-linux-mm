@@ -1,129 +1,227 @@
-Message-Id: <20071214153907.770251000@chello.nl>
-Date: Fri, 14 Dec 2007 16:39:07 +0100
+Message-Id: <20071214154440.180664000@chello.nl>
+References: <20071214153907.770251000@chello.nl>
+Date: Fri, 14 Dec 2007 16:39:14 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 00/29] Swap over NFS -v15
+Subject: [PATCH 07/29] mm: emergency pool
+Content-Disposition: inline; filename=mm-page_alloc-emerg.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Provide means to reserve a specific amount of pages.
 
-Another posting of the full swap over NFS series. 
+The emergency pool is separated from the min watermark because ALLOC_HARDER
+and ALLOC_HIGH modify the watermark in a relative way and thus do not ensure
+a strict minimum.
 
-Andrew/Linus, could we start thinking of sticking this in -mm?
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ include/linux/mmzone.h |    3 +
+ mm/page_alloc.c        |   82 +++++++++++++++++++++++++++++++++++++++++++------
+ mm/vmstat.c            |    6 +--
+ 3 files changed, 78 insertions(+), 13 deletions(-)
 
-[ patches against 2.6.24-rc5-mm1, also to be found online at:
-  http://programming.kicks-ass.net/kernel-patches/vm_deadlock/v2.6.24-rc5-mm1/ ]
+Index: linux-2.6/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.orig/include/linux/mmzone.h
++++ linux-2.6/include/linux/mmzone.h
+@@ -213,7 +213,7 @@ enum zone_type {
+ 
+ struct zone {
+ 	/* Fields commonly accessed by the page allocator */
+-	unsigned long		pages_min, pages_low, pages_high;
++	unsigned long		pages_emerg, pages_min, pages_low, pages_high;
+ 	/*
+ 	 * We don't know if the memory that we're going to allocate will be freeable
+ 	 * or/and it will be released eventually, so to avoid totally wasting several
+@@ -682,6 +682,7 @@ int sysctl_min_unmapped_ratio_sysctl_han
+ 			struct file *, void __user *, size_t *, loff_t *);
+ int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *, int,
+ 			struct file *, void __user *, size_t *, loff_t *);
++int adjust_memalloc_reserve(int pages);
+ 
+ extern int numa_zonelist_order_handler(struct ctl_table *, int,
+ 			struct file *, void __user *, size_t *, loff_t *);
+Index: linux-2.6/mm/page_alloc.c
+===================================================================
+--- linux-2.6.orig/mm/page_alloc.c
++++ linux-2.6/mm/page_alloc.c
+@@ -118,6 +118,8 @@ static char * const zone_names[MAX_NR_ZO
+ 
+ static DEFINE_SPINLOCK(min_free_lock);
+ int min_free_kbytes = 1024;
++static DEFINE_MUTEX(var_free_mutex);
++int var_free_kbytes;
+ 
+ unsigned long __meminitdata nr_kernel_pages;
+ unsigned long __meminitdata nr_all_pages;
+@@ -1252,7 +1254,7 @@ int zone_watermark_ok(struct zone *z, in
+ 	if (alloc_flags & ALLOC_HARDER)
+ 		min -= min / 4;
+ 
+-	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
++	if (free_pages <= min + z->lowmem_reserve[classzone_idx] + z->pages_emerg)
+ 		return 0;
+ 	for (o = 0; o < order; o++) {
+ 		/* At the next order, this order's pages become unavailable */
+@@ -1733,8 +1735,8 @@ nofail_alloc:
+ nopage:
+ 	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit()) {
+ 		printk(KERN_WARNING "%s: page allocation failure."
+-			" order:%d, mode:0x%x\n",
+-			p->comm, order, gfp_mask);
++			" order:%d, mode:0x%x, alloc_flags:0x%x, pflags:0x%x\n",
++			p->comm, order, gfp_mask, alloc_flags, p->flags);
+ 		dump_stack();
+ 		show_mem();
+ 	}
+@@ -1952,9 +1954,9 @@ void show_free_areas(void)
+ 			"\n",
+ 			zone->name,
+ 			K(zone_page_state(zone, NR_FREE_PAGES)),
+-			K(zone->pages_min),
+-			K(zone->pages_low),
+-			K(zone->pages_high),
++			K(zone->pages_emerg + zone->pages_min),
++			K(zone->pages_emerg + zone->pages_low),
++			K(zone->pages_emerg + zone->pages_high),
+ 			K(zone_page_state(zone, NR_ACTIVE)),
+ 			K(zone_page_state(zone, NR_INACTIVE)),
+ 			K(zone->present_pages),
+@@ -4113,7 +4115,7 @@ static void calculate_totalreserve_pages
+ 			}
+ 
+ 			/* we treat pages_high as reserved pages. */
+-			max += zone->pages_high;
++			max += zone->pages_high + zone->pages_emerg;
+ 
+ 			if (max > zone->present_pages)
+ 				max = zone->present_pages;
+@@ -4170,7 +4172,8 @@ static void setup_per_zone_lowmem_reserv
+  */
+ static void __setup_per_zone_pages_min(void)
+ {
+-	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
++	unsigned pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
++	unsigned pages_emerg = var_free_kbytes >> (PAGE_SHIFT - 10);
+ 	unsigned long lowmem_pages = 0;
+ 	struct zone *zone;
+ 	unsigned long flags;
+@@ -4182,11 +4185,13 @@ static void __setup_per_zone_pages_min(v
+ 	}
+ 
+ 	for_each_zone(zone) {
+-		u64 tmp;
++		u64 tmp, tmp_emerg;
+ 
+ 		spin_lock_irqsave(&zone->lru_lock, flags);
+ 		tmp = (u64)pages_min * zone->present_pages;
+ 		do_div(tmp, lowmem_pages);
++		tmp_emerg = (u64)pages_emerg * zone->present_pages;
++		do_div(tmp_emerg, lowmem_pages);
+ 		if (is_highmem(zone)) {
+ 			/*
+ 			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
+@@ -4205,12 +4210,14 @@ static void __setup_per_zone_pages_min(v
+ 			if (min_pages > 128)
+ 				min_pages = 128;
+ 			zone->pages_min = min_pages;
++			zone->pages_emerg = 0;
+ 		} else {
+ 			/*
+ 			 * If it's a lowmem zone, reserve a number of pages
+ 			 * proportionate to the zone's size.
+ 			 */
+ 			zone->pages_min = tmp;
++			zone->pages_emerg = tmp_emerg;
+ 		}
+ 
+ 		zone->pages_low   = zone->pages_min + (tmp >> 2);
+@@ -4232,6 +4239,63 @@ void setup_per_zone_pages_min(void)
+ 	spin_unlock_irqrestore(&min_free_lock, flags);
+ }
+ 
++static void __adjust_memalloc_reserve(int pages)
++{
++	var_free_kbytes += pages << (PAGE_SHIFT - 10);
++	BUG_ON(var_free_kbytes < 0);
++	setup_per_zone_pages_min();
++}
++
++static int test_reserve_limits(void)
++{
++	struct zone *zone;
++	int node;
++
++	for_each_zone(zone)
++		wakeup_kswapd(zone, 0);
++
++	for_each_online_node(node) {
++		struct page *page = alloc_pages_node(node, GFP_KERNEL, 0);
++		if (!page)
++			return -ENOMEM;
++
++		__free_page(page);
++	}
++
++	return 0;
++}
++
++/**
++ *	adjust_memalloc_reserve - adjust the memalloc reserve
++ *	@pages: number of pages to add
++ *
++ *	It adds a number of pages to the memalloc reserve; if
++ *	the number was positive it kicks reclaim into action to
++ *	satisfy the higher watermarks.
++ *
++ *	returns -ENOMEM when it failed to satisfy the watermarks.
++ */
++int adjust_memalloc_reserve(int pages)
++{
++	int err = 0;
++
++	mutex_lock(&var_free_mutex);
++	__adjust_memalloc_reserve(pages);
++	if (pages > 0) {
++		err = test_reserve_limits();
++		if (err) {
++			__adjust_memalloc_reserve(-pages);
++			goto unlock;
++		}
++	}
++	printk(KERN_DEBUG "Emergency reserve: %d\n", var_free_kbytes);
++
++unlock:
++	mutex_unlock(&var_free_mutex);
++	return err;
++}
++EXPORT_SYMBOL_GPL(adjust_memalloc_reserve);
++
+ /*
+  * Initialise min_free_kbytes.
+  *
+Index: linux-2.6/mm/vmstat.c
+===================================================================
+--- linux-2.6.orig/mm/vmstat.c
++++ linux-2.6/mm/vmstat.c
+@@ -752,9 +752,9 @@ static void zoneinfo_show_print(struct s
+ 		   "\n        spanned  %lu"
+ 		   "\n        present  %lu",
+ 		   zone_page_state(zone, NR_FREE_PAGES),
+-		   zone->pages_min,
+-		   zone->pages_low,
+-		   zone->pages_high,
++		   zone->pages_emerg + zone->pages_min,
++		   zone->pages_emerg + zone->pages_low,
++		   zone->pages_emerg + zone->pages_high,
+ 		   zone->pages_scanned,
+ 		   zone->nr_scan_active, zone->nr_scan_inactive,
+ 		   zone->spanned_pages,
 
-The patch-set can be split in roughtly 5 parts, for each of which I shall give
-a description.
-
-
-  Part 1, patches 1-11
-
-The problem with swap over network is the generic swap problem: needing memory
-to free memory. Normally this is solved using mempools, as can be seen in the
-BIO layer.
-
-Swap over network has the problem that the network subsystem does not use fixed
-sized allocations, but heavily relies on kmalloc(). This makes mempools
-unusable.
-
-This first part provides a generic reserve framework.
-
-Care is taken to only affect the slow paths - when we're low on memory.
-
-Caveats: it currently doesn't do SLOB.
-
- 1 - mm: gfp_to_alloc_flags()
- 2 - mm: tag reseve pages
- 3 - mm: sl[au]b: add knowledge of reserve pages
- 4 - mm: kmem_estimate_pages()
- 5 - mm: allow PF_MEMALLOC from softirq context
- 6 - mm: serialize access to min_free_kbytes
- 7 - mm: emergency pool
- 8 - mm: system wide ALLOC_NO_WATERMARK
- 9 - mm: __GFP_MEMALLOC
-10 - mm: memory reserve management
-11 - selinux: tag avc cache alloc as non-critical
-
-
-  Part 2, patches 12-14
-
-Provide some generic network infrastructure needed later on.
-
-12 - net: wrap sk->sk_backlog_rcv()
-13 - net: packet split receive api
-14 - net: sk_allocation() - concentrate socket related allocations
-
-
-  Part 3, patches 15-21
-
-Now that we have a generic memory reserve system, use it on the network stack.
-The thing that makes this interesting is that, contrary to BIO, both the
-transmit and receive path require memory allocations. 
-
-That is, in the BIO layer write back completion is usually just an ISR flipping
-a bit and waking stuff up. A network write back completion involved receiving
-packets, which when there is no memory, is rather hard. And even when there is
-memory there is no guarantee that the required packet comes in in the window
-that that memory buys us.
-
-The solution to this problem is found in the fact that network is to be assumed
-lossy. Even now, when there is no memory to receive packets the network card
-will have to discard packets. What we do is move this into the network stack.
-
-So we reserve a little pool to act as a receive buffer, this allows us to
-inspect packets before tossing them. This way, we can filter out those packets
-that ensure progress (writeback completion) and disregard the others (as would
-have happened anyway). [ NOTE: this is a stable mode of operation with limited
-memory usage, exactly the kind of thing we need ]
-
-Again, care is taken to keep much of the overhead of this to only affect the
-slow path. Only packets allocated from the reserves will suffer the extra
-atomic overhead needed for accounting.
-
-15 - netvm: network reserve infrastructure
-16 - netvm: INET reserves.
-17 - netvm: hook skb allocation to reserves
-18 - netvm: filter emergency skbs.
-19 - netvm: prevent a TCP specific deadlock
-20 - netfilter: NF_QUEUE vs emergency skbs
-21 - netvm: skb processing
-
-
-  Part 4, patches 22-24
-
-Generic vm infrastructure to handle swapping to a filesystem instead of a block
-device.
-
-This provides new a_ops to handle swapcache pages and could be used to obsolete
-the bmap usage for swapfiles.
-
-22 - mm: prepare swap entry methods for use in page methods
-23 - mm: add support for non block device backed swap files
-24 - mm: methods for teaching filesystems about PG_swapcache pages
-
-
-  Part 5, patches 25-29
-
-Finally, convert NFS to make use of the new network and vm infrastructure to
-provide swap over NFS.
-
-25 - nfs: remove mempools
-26 - nfs: teach the NFS client how to treat PG_swapcache pages
-27 - nfs: disable data cache revalidation for swapfiles
-28 - nfs: enable swap on NFS
-29 - nfs: fix various memory recursions possible with swap over NFS.
-
-
-Changes since -v14:
- - SLAB support
- - a_ops rework
- - various bug fixes and cleanups
-
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
