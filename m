@@ -1,348 +1,366 @@
-Message-Id: <20071214154439.242195000@chello.nl>
+Message-Id: <20071214154442.965802000@chello.nl>
 References: <20071214153907.770251000@chello.nl>
-Date: Fri, 14 Dec 2007 16:39:10 +0100
+Date: Fri, 14 Dec 2007 16:39:35 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 03/29] mm: slb: add knowledge of reserve pages
-Content-Disposition: inline; filename=reserve-slub.patch
+Subject: [PATCH 28/29] nfs: enable swap on NFS
+Content-Disposition: inline; filename=nfs-swap_ops.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Restrict objects from reserve slabs (ALLOC_NO_WATERMARKS) to allocation
-contexts that are entitled to it. This is done to ensure reserve pages don't
-leak out and get consumed.
+Implement all the new swapfile a_ops for NFS. This will set the NFS socket to
+SOCK_MEMALLOC and run socket reconnect under PF_MEMALLOC as well as reset
+SOCK_MEMALLOC before engaging the protocol ->connect() method.
+
+PF_MEMALLOC should allow the allocation of struct socket and related objects
+and the early (re)setting of SOCK_MEMALLOC should allow us to receive the
+packets required for the TCP connection buildup.
+
+(swapping continues over a server reset during heavy network traffic)
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/slub_def.h |    1 
- mm/slab.c                |   59 +++++++++++++++++++++++++++++++++++++++--------
- mm/slub.c                |   27 ++++++++++++++++-----
- 3 files changed, 72 insertions(+), 15 deletions(-)
+ fs/Kconfig                  |   18 ++++++++++++
+ fs/nfs/file.c               |   12 ++++++++
+ fs/nfs/write.c              |   19 +++++++++++++
+ include/linux/nfs_fs.h      |    2 +
+ include/linux/sunrpc/xprt.h |    5 ++-
+ net/sunrpc/sched.c          |    9 ++++--
+ net/sunrpc/xprtsock.c       |   63 ++++++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 125 insertions(+), 3 deletions(-)
 
-Index: linux-2.6/mm/slub.c
+Index: linux-2.6/fs/nfs/file.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c
-+++ linux-2.6/mm/slub.c
-@@ -21,11 +21,12 @@
- #include <linux/ctype.h>
- #include <linux/kallsyms.h>
- #include <linux/memory.h>
-+#include "internal.h"
- 
- /*
-  * Lock order:
-  *   1. slab_lock(page)
-- *   2. slab->list_lock
-+ *   2. node->list_lock
-  *
-  *   The slab_lock protects operations on the object of a particular
-  *   slab and its metadata in the page struct. If the slab lock
-@@ -1071,7 +1072,7 @@ static void setup_object(struct kmem_cac
+--- linux-2.6.orig/fs/nfs/file.c
++++ linux-2.6/fs/nfs/file.c
+@@ -371,6 +371,13 @@ static int nfs_launder_page(struct page 
+ 	return nfs_wb_page(page_file_mapping(page)->host, page);
  }
  
- static noinline struct page *new_slab(struct kmem_cache *s,
--						gfp_t flags, int node)
-+					gfp_t flags, int node, int *reserve)
- {
- 	struct page *page;
- 	struct kmem_cache_node *n;
-@@ -1087,6 +1088,7 @@ static noinline struct page *new_slab(st
- 	if (!page)
- 		goto out;
- 
-+	*reserve = page->reserve;
- 	n = get_node(s, page_to_nid(page));
- 	if (n)
- 		atomic_long_inc(&n->nr_slabs);
-@@ -1517,11 +1519,12 @@ static noinline unsigned long get_new_sl
- {
- 	struct kmem_cache_cpu *c = *pc;
- 	struct page *page;
-+	int reserve;
- 
- 	if (gfpflags & __GFP_WAIT)
- 		local_irq_enable();
- 
--	page = new_slab(s, gfpflags, node);
-+	page = new_slab(s, gfpflags, node, &reserve);
- 
- 	if (gfpflags & __GFP_WAIT)
- 		local_irq_disable();
-@@ -1530,6 +1533,7 @@ static noinline unsigned long get_new_sl
- 		return 0;
- 
- 	*pc = c = get_cpu_slab(s, smp_processor_id());
-+	c->reserve = reserve;
- 	if (c->page)
- 		flush_slab(s, c);
- 	c->page = page;
-@@ -1564,6 +1568,16 @@ static void *__slab_alloc(struct kmem_ca
- 	local_irq_save(flags);
- 	preempt_enable_no_resched();
- #endif
-+	if (unlikely(c->reserve)) {
-+		/*
-+		 * If the current slab is a reserve slab and the current
-+		 * allocation context does not allow access to the reserves we
-+		 * must force an allocation to test the current levels.
-+		 */
-+		if (!(gfp_to_alloc_flags(gfpflags) & ALLOC_NO_WATERMARKS))
-+			goto grow_slab;
-+	}
++#ifdef CONFIG_NFS_SWAP
++static int nfs_swapfile(struct address_space *mapping, int enable)
++{
++	return xs_swapper(NFS_CLIENT(mapping->host)->cl_xprt, enable);
++}
++#endif
 +
- 	if (likely(c->page)) {
- 		state = slab_lock(c->page);
- 
-@@ -1586,7 +1600,7 @@ load_freelist:
- 	 */
- 	VM_BUG_ON(c->page->freelist == c->page->end);
- 
--	if (unlikely(state & SLABDEBUG))
-+	if (unlikely((state & SLABDEBUG) || c->reserve))
- 		goto debug;
- 
- 	object = c->page->freelist;
-@@ -1615,7 +1629,7 @@ grow_slab:
- /* Perform debugging */
- debug:
- 	object = c->page->freelist;
--	if (!alloc_debug_processing(s, c->page, object, addr))
-+	if ((state & SLABDEBUG) && !alloc_debug_processing(s, c->page, object, addr))
- 		goto another_slab;
- 
- 	c->page->inuse++;
-@@ -2156,10 +2170,11 @@ static struct kmem_cache_node *early_kme
- 	struct page *page;
- 	struct kmem_cache_node *n;
- 	unsigned long flags;
-+	int reserve;
- 
- 	BUG_ON(kmalloc_caches->size < sizeof(struct kmem_cache_node));
- 
--	page = new_slab(kmalloc_caches, gfpflags, node);
-+	page = new_slab(kmalloc_caches, gfpflags, node, &reserve);
- 
- 	BUG_ON(!page);
- 	if (page_to_nid(page) != node) {
-Index: linux-2.6/include/linux/slub_def.h
-===================================================================
---- linux-2.6.orig/include/linux/slub_def.h
-+++ linux-2.6/include/linux/slub_def.h
-@@ -18,6 +18,7 @@ struct kmem_cache_cpu {
- 	unsigned int offset;	/* Freepointer offset (in word units) */
- 	unsigned int objsize;	/* Size of an object (from kmem_cache) */
- 	unsigned int objects;	/* Objects per slab (from kmem_cache) */
-+	int reserve;		/* Did the current page come from the reserve */
+ const struct address_space_operations nfs_file_aops = {
+ 	.readpage = nfs_readpage,
+ 	.readpages = nfs_readpages,
+@@ -385,6 +392,11 @@ const struct address_space_operations nf
+ 	.direct_IO = nfs_direct_IO,
+ #endif
+ 	.launder_page = nfs_launder_page,
++#ifdef CONFIG_NFS_SWAP
++	.swapfile = nfs_swapfile,
++	.swap_out = nfs_swap_out,
++	.swap_in = nfs_readpage,
++#endif
  };
  
- struct kmem_cache_node {
-Index: linux-2.6/mm/slab.c
+ static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct page *page)
+Index: linux-2.6/fs/nfs/write.c
 ===================================================================
---- linux-2.6.orig/mm/slab.c
-+++ linux-2.6/mm/slab.c
-@@ -115,6 +115,8 @@
- #include	<asm/tlbflush.h>
- #include	<asm/page.h>
- 
-+#include 	"internal.h"
-+
- /*
-  * DEBUG	- 1 for kmem_cache_create() to honour; SLAB_RED_ZONE & SLAB_POISON.
-  *		  0 for faster, smaller code (especially in the critical paths).
-@@ -265,7 +267,8 @@ struct array_cache {
- 	unsigned int avail;
- 	unsigned int limit;
- 	unsigned int batchcount;
--	unsigned int touched;
-+	unsigned int touched:1,
-+		     reserve:1;
- 	spinlock_t lock;
- 	void *entry[];	/*
- 			 * Must have this definition in here for the proper
-@@ -762,6 +765,27 @@ static inline struct array_cache *cpu_ca
- 	return cachep->array[smp_processor_id()];
+--- linux-2.6.orig/fs/nfs/write.c
++++ linux-2.6/fs/nfs/write.c
+@@ -365,6 +365,25 @@ int nfs_writepage(struct page *page, str
+ 	return ret;
  }
  
-+/*
-+ * If the last page came from the reserves, and the current allocation context
-+ * does not have access to them, force an allocation to test the watermarks.
-+ */
-+static inline int slab_force_alloc(struct kmem_cache *cachep, gfp_t flags)
++int nfs_swap_out(struct file *file, struct page *page,
++		 struct writeback_control *wbc)
 +{
-+	if (unlikely(cpu_cache_get(cachep)->reserve) &&
-+			!(gfp_to_alloc_flags(flags) & ALLOC_NO_WATERMARKS))
-+		return 1;
++	struct nfs_open_context *ctx = nfs_file_open_context(file);
++	int status;
 +
-+	return 0;
++	status = nfs_writepage_setup(ctx, page, 0, nfs_page_length(page));
++	if (status < 0) {
++		nfs_set_pageerror(page);
++		goto out;
++	}
++
++	status = nfs_writepage_locked(page, wbc);
++
++out:
++	unlock_page(page);
++	return status;
 +}
 +
-+static inline void slab_set_reserve(struct kmem_cache *cachep, int reserve)
-+{
-+	struct array_cache *ac = cpu_cache_get(cachep);
-+
-+	if (unlikely(ac->reserve != reserve))
-+		ac->reserve = reserve;
-+}
-+
- static inline struct kmem_cache *__find_general_cachep(size_t size,
- 							gfp_t gfpflags)
+ static int nfs_writepages_callback(struct page *page, struct writeback_control *wbc, void *data)
  {
-@@ -961,6 +985,7 @@ static struct array_cache *alloc_arrayca
- 		nc->limit = entries;
- 		nc->batchcount = batchcount;
- 		nc->touched = 0;
-+		nc->reserve = 0;
- 		spin_lock_init(&nc->lock);
- 	}
- 	return nc;
-@@ -1650,7 +1675,8 @@ __initcall(cpucache_init);
-  * did not request dmaable memory, we might get it, but that
-  * would be relatively rare and ignorable.
-  */
--static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
-+static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid,
-+		int *reserve)
- {
- 	struct page *page;
- 	int nr_pages;
-@@ -1672,6 +1698,7 @@ static void *kmem_getpages(struct kmem_c
- 	if (!page)
- 		return NULL;
+ 	int ret;
+Index: linux-2.6/include/linux/nfs_fs.h
+===================================================================
+--- linux-2.6.orig/include/linux/nfs_fs.h
++++ linux-2.6/include/linux/nfs_fs.h
+@@ -413,6 +413,8 @@ extern int  nfs_flush_incompatible(struc
+ extern int  nfs_updatepage(struct file *, struct page *, unsigned int, unsigned int);
+ extern int nfs_writeback_done(struct rpc_task *, struct nfs_write_data *);
+ extern void nfs_writedata_release(void *);
++extern int  nfs_swap_out(struct file *file, struct page *page,
++			 struct writeback_control *wbc);
  
-+	*reserve = page->reserve;
- 	nr_pages = (1 << cachep->gfporder);
- 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
- 		add_zone_page_state(page_zone(page),
-@@ -2116,6 +2143,7 @@ static int __init_refok setup_cpu_cache(
- 	cpu_cache_get(cachep)->limit = BOOT_CPUCACHE_ENTRIES;
- 	cpu_cache_get(cachep)->batchcount = 1;
- 	cpu_cache_get(cachep)->touched = 0;
-+	cpu_cache_get(cachep)->reserve = 0;
- 	cachep->batchcount = 1;
- 	cachep->limit = BOOT_CPUCACHE_ENTRIES;
- 	return 0;
-@@ -2764,6 +2792,7 @@ static int cache_grow(struct kmem_cache 
- 	size_t offset;
- 	gfp_t local_flags;
- 	struct kmem_list3 *l3;
-+	int reserve;
+ /*
+  * Try to write back everything synchronously (but check the
+Index: linux-2.6/fs/Kconfig
+===================================================================
+--- linux-2.6.orig/fs/Kconfig
++++ linux-2.6/fs/Kconfig
+@@ -1692,6 +1692,18 @@ config NFS_DIRECTIO
+ 	  causes open() to return EINVAL if a file residing in NFS is
+ 	  opened with the O_DIRECT flag.
+ 
++config NFS_SWAP
++	bool "Provide swap over NFS support"
++	default n
++	depends on NFS_FS
++	select SUNRPC_SWAP
++	help
++	  This option enables swapon to work on files located on NFS mounts.
++
++	  For more details, see Documentation/vm_deadlock.txt
++
++	  If unsure, say N.
++
+ config NFSD
+ 	tristate "NFS server support"
+ 	depends on INET
+@@ -1835,6 +1847,12 @@ config SUNRPC_BIND34
+ 	  If unsure, say N to get traditional behavior (version 2 rpcbind
+ 	  requests only).
+ 
++config SUNRPC_SWAP
++	def_bool n
++	depends on SUNRPC
++	select NETVM
++	select SWAP_FILE
++
+ config RPCSEC_GSS_KRB5
+ 	tristate "Secure RPC: Kerberos V mechanism (EXPERIMENTAL)"
+ 	depends on SUNRPC && EXPERIMENTAL
+Index: linux-2.6/include/linux/sunrpc/xprt.h
+===================================================================
+--- linux-2.6.orig/include/linux/sunrpc/xprt.h
++++ linux-2.6/include/linux/sunrpc/xprt.h
+@@ -143,7 +143,9 @@ struct rpc_xprt {
+ 	unsigned int		max_reqs;	/* total slots */
+ 	unsigned long		state;		/* transport state */
+ 	unsigned char		shutdown   : 1,	/* being shut down */
+-				resvport   : 1; /* use a reserved port */
++				resvport   : 1, /* use a reserved port */
++				swapper    : 1; /* we're swapping over this
++						   transport */
+ 	unsigned int		bind_index;	/* bind function index */
  
  	/*
- 	 * Be lazy and only check for valid flags here,  keeping it out of the
-@@ -2802,7 +2831,7 @@ static int cache_grow(struct kmem_cache 
- 	 * 'nodeid'.
- 	 */
- 	if (!objp)
--		objp = kmem_getpages(cachep, local_flags, nodeid);
-+		objp = kmem_getpages(cachep, local_flags, nodeid, &reserve);
- 	if (!objp)
- 		goto failed;
+@@ -246,6 +248,7 @@ struct rpc_rqst *	xprt_lookup_rqst(struc
+ void			xprt_complete_rqst(struct rpc_task *task, int copied);
+ void			xprt_release_rqst_cong(struct rpc_task *task);
+ void			xprt_disconnect(struct rpc_xprt *xprt);
++int			xs_swapper(struct rpc_xprt *xprt, int enable);
  
-@@ -2820,6 +2849,7 @@ static int cache_grow(struct kmem_cache 
- 	if (local_flags & __GFP_WAIT)
- 		local_irq_disable();
- 	check_irq_off();
-+	slab_set_reserve(cachep, reserve);
- 	spin_lock(&l3->list_lock);
- 
- 	/* Make slab active. */
-@@ -2954,7 +2984,7 @@ bad:
- #define check_slabp(x,y) do { } while(0)
- #endif
- 
--static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
-+static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags, int must_refill)
+ /*
+  * Reserved bit positions in xprt->state
+Index: linux-2.6/net/sunrpc/sched.c
+===================================================================
+--- linux-2.6.orig/net/sunrpc/sched.c
++++ linux-2.6/net/sunrpc/sched.c
+@@ -761,7 +761,10 @@ struct rpc_buffer {
+ void *rpc_malloc(struct rpc_task *task, size_t size)
  {
- 	int batchcount;
- 	struct kmem_list3 *l3;
-@@ -2964,6 +2994,8 @@ static void *cache_alloc_refill(struct k
- 	node = numa_node_id();
- 
- 	check_irq_off();
-+	if (unlikely(must_refill))
-+		goto force_grow;
- 	ac = cpu_cache_get(cachep);
- retry:
- 	batchcount = ac->batchcount;
-@@ -3032,11 +3064,14 @@ alloc_done:
- 
- 	if (unlikely(!ac->avail)) {
- 		int x;
-+force_grow:
- 		x = cache_grow(cachep, flags | GFP_THISNODE, node, NULL);
- 
- 		/* cache_grow can reenable interrupts, then ac could change. */
- 		ac = cpu_cache_get(cachep);
--		if (!x && ac->avail == 0)	/* no objects in sight? abort */
+ 	struct rpc_buffer *buf;
+-	gfp_t gfp = RPC_IS_SWAPPER(task) ? GFP_ATOMIC : GFP_NOWAIT;
++	gfp_t gfp = GFP_NOWAIT;
 +
-+		/* no objects in sight? abort */
-+		if (!x && (ac->avail == 0 || must_refill))
- 			return NULL;
++	if (RPC_IS_SWAPPER(task))
++		gfp |= __GFP_MEMALLOC;
  
- 		if (!ac->avail)		/* objects refilled by interrupt? */
-@@ -3191,17 +3226,18 @@ static inline void *____cache_alloc(stru
+ 	size += sizeof(struct rpc_buffer);
+ 	if (size <= RPC_BUFFER_MAXSIZE)
+@@ -816,6 +819,8 @@ void rpc_init_task(struct rpc_task *task
+ 	atomic_set(&task->tk_count, 1);
+ 	task->tk_client = clnt;
+ 	task->tk_flags  = flags;
++	if (clnt->cl_xprt->swapper)
++		task->tk_flags |= RPC_TASK_SWAPPER;
+ 	task->tk_ops = tk_ops;
+ 	if (tk_ops->rpc_call_prepare != NULL)
+ 		task->tk_action = rpc_prepare_task;
+@@ -852,7 +857,7 @@ void rpc_init_task(struct rpc_task *task
+ static struct rpc_task *
+ rpc_alloc_task(void)
  {
- 	void *objp;
- 	struct array_cache *ac;
-+	int must_refill = slab_force_alloc(cachep, flags);
- 
- 	check_irq_off();
- 
- 	ac = cpu_cache_get(cachep);
--	if (likely(ac->avail)) {
-+	if (likely(ac->avail && !must_refill)) {
- 		STATS_INC_ALLOCHIT(cachep);
- 		ac->touched = 1;
- 		objp = ac->entry[--ac->avail];
- 	} else {
- 		STATS_INC_ALLOCMISS(cachep);
--		objp = cache_alloc_refill(cachep, flags);
-+		objp = cache_alloc_refill(cachep, flags, must_refill);
- 	}
- 	return objp;
+-	return (struct rpc_task *)mempool_alloc(rpc_task_mempool, GFP_NOFS);
++	return (struct rpc_task *)mempool_alloc(rpc_task_mempool, GFP_NOIO);
  }
-@@ -3243,7 +3279,7 @@ static void *fallback_alloc(struct kmem_
- 	gfp_t local_flags;
- 	struct zone **z;
- 	void *obj = NULL;
--	int nid;
-+	int nid, reserve;
  
- 	if (flags & __GFP_THISNODE)
- 		return NULL;
-@@ -3277,10 +3313,11 @@ retry:
- 		if (local_flags & __GFP_WAIT)
- 			local_irq_enable();
- 		kmem_flagcheck(cache, flags);
--		obj = kmem_getpages(cache, flags, -1);
-+		obj = kmem_getpages(cache, flags, -1, &reserve);
- 		if (local_flags & __GFP_WAIT)
- 			local_irq_disable();
- 		if (obj) {
-+			slab_set_reserve(cache, reserve);
- 			/*
- 			 * Insert into the appropriate per node queues
- 			 */
-@@ -3319,6 +3356,9 @@ static void *____cache_alloc_node(struct
- 	l3 = cachep->nodelists[nodeid];
- 	BUG_ON(!l3);
+ static void rpc_free_task(struct rcu_head *rcu)
+Index: linux-2.6/net/sunrpc/xprtsock.c
+===================================================================
+--- linux-2.6.orig/net/sunrpc/xprtsock.c
++++ linux-2.6/net/sunrpc/xprtsock.c
+@@ -1397,6 +1397,9 @@ static void xs_udp_finish_connecting(str
+ 		transport->sock = sock;
+ 		transport->inet = sk;
  
-+	if (unlikely(slab_force_alloc(cachep, flags)))
-+		goto force_grow;
++		if (xprt->swapper)
++			sk_set_memalloc(sk);
 +
- retry:
- 	check_irq_off();
- 	spin_lock(&l3->list_lock);
-@@ -3356,6 +3396,7 @@ retry:
+ 		write_unlock_bh(&sk->sk_callback_lock);
+ 	}
+ 	xs_udp_do_set_buffer_size(xprt);
+@@ -1414,11 +1417,15 @@ static void xs_udp_connect_worker4(struc
+ 		container_of(work, struct sock_xprt, connect_worker.work);
+ 	struct rpc_xprt *xprt = &transport->xprt;
+ 	struct socket *sock = transport->sock;
++	unsigned long pflags = current->flags;
+ 	int err, status = -EIO;
  
- must_grow:
- 	spin_unlock(&l3->list_lock);
-+force_grow:
- 	x = cache_grow(cachep, flags | GFP_THISNODE, nodeid, NULL);
- 	if (x)
- 		goto retry;
+ 	if (xprt->shutdown || !xprt_bound(xprt))
+ 		goto out;
+ 
++	if (xprt->swapper)
++		current->flags |= PF_MEMALLOC;
++
+ 	/* Start by resetting any existing state */
+ 	xs_close(xprt);
+ 
+@@ -1441,6 +1448,7 @@ static void xs_udp_connect_worker4(struc
+ out:
+ 	xprt_wake_pending_tasks(xprt, status);
+ 	xprt_clear_connecting(xprt);
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+ }
+ 
+ /**
+@@ -1455,11 +1463,15 @@ static void xs_udp_connect_worker6(struc
+ 		container_of(work, struct sock_xprt, connect_worker.work);
+ 	struct rpc_xprt *xprt = &transport->xprt;
+ 	struct socket *sock = transport->sock;
++	unsigned long pflags = current->flags;
+ 	int err, status = -EIO;
+ 
+ 	if (xprt->shutdown || !xprt_bound(xprt))
+ 		goto out;
+ 
++	if (xprt->swapper)
++		current->flags |= PF_MEMALLOC;
++
+ 	/* Start by resetting any existing state */
+ 	xs_close(xprt);
+ 
+@@ -1482,6 +1494,7 @@ static void xs_udp_connect_worker6(struc
+ out:
+ 	xprt_wake_pending_tasks(xprt, status);
+ 	xprt_clear_connecting(xprt);
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+ }
+ 
+ /*
+@@ -1541,6 +1554,9 @@ static int xs_tcp_finish_connecting(stru
+ 		write_unlock_bh(&sk->sk_callback_lock);
+ 	}
+ 
++	if (xprt->swapper)
++		sk_set_memalloc(transport->inet);
++
+ 	/* Tell the socket layer to start connecting... */
+ 	xprt->stat.connect_count++;
+ 	xprt->stat.connect_start = jiffies;
+@@ -1559,11 +1575,15 @@ static void xs_tcp_connect_worker4(struc
+ 		container_of(work, struct sock_xprt, connect_worker.work);
+ 	struct rpc_xprt *xprt = &transport->xprt;
+ 	struct socket *sock = transport->sock;
++	unsigned long pflags = current->flags;
+ 	int err, status = -EIO;
+ 
+ 	if (xprt->shutdown || !xprt_bound(xprt))
+ 		goto out;
+ 
++	if (xprt->swapper)
++		current->flags |= PF_MEMALLOC;
++
+ 	if (!sock) {
+ 		/* start from scratch */
+ 		if ((err = sock_create_kern(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock)) < 0) {
+@@ -1606,6 +1626,7 @@ out:
+ 	xprt_wake_pending_tasks(xprt, status);
+ out_clear:
+ 	xprt_clear_connecting(xprt);
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+ }
+ 
+ /**
+@@ -1620,11 +1641,15 @@ static void xs_tcp_connect_worker6(struc
+ 		container_of(work, struct sock_xprt, connect_worker.work);
+ 	struct rpc_xprt *xprt = &transport->xprt;
+ 	struct socket *sock = transport->sock;
++	unsigned long pflags = current->flags;
+ 	int err, status = -EIO;
+ 
+ 	if (xprt->shutdown || !xprt_bound(xprt))
+ 		goto out;
+ 
++	if (xprt->swapper)
++		current->flags |= PF_MEMALLOC;
++
+ 	if (!sock) {
+ 		/* start from scratch */
+ 		if ((err = sock_create_kern(PF_INET6, SOCK_STREAM, IPPROTO_TCP, &sock)) < 0) {
+@@ -1666,6 +1691,7 @@ out:
+ 	xprt_wake_pending_tasks(xprt, status);
+ out_clear:
+ 	xprt_clear_connecting(xprt);
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+ }
+ 
+ /**
+@@ -1985,6 +2011,43 @@ int init_socket_xprt(void)
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_SUNRPC_SWAP
++#define RPC_BUF_RESERVE_PAGES \
++	kestimate_single(sizeof(struct rpc_rqst), GFP_KERNEL, RPC_MAX_SLOT_TABLE)
++#define RPC_RESERVE_PAGES	(RPC_BUF_RESERVE_PAGES + TX_RESERVE_PAGES)
++
++/**
++ * xs_swapper - Tag this transport as being used for swap.
++ * @xprt: transport to tag
++ * @enable: enable/disable
++ *
++ */
++int xs_swapper(struct rpc_xprt *xprt, int enable)
++{
++	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
++	int err = 0;
++
++	if (enable) {
++		/*
++		 * keep one extra sock reference so the reserve won't dip
++		 * when the socket gets reconnected.
++		 */
++		err = sk_adjust_memalloc(1, RPC_RESERVE_PAGES);
++		if (!err) {
++			sk_set_memalloc(transport->inet);
++			xprt->swapper = 1;
++		}
++	} else if (xprt->swapper) {
++		xprt->swapper = 0;
++		sk_clear_memalloc(transport->inet);
++		sk_adjust_memalloc(-1, -RPC_RESERVE_PAGES);
++	}
++
++	return err;
++}
++EXPORT_SYMBOL_GPL(xs_swapper);
++#endif
++
+ /**
+  * cleanup_socket_xprt - remove xprtsock's sysctls, unregister
+  *
 
 --
 
