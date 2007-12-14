@@ -1,76 +1,90 @@
-Message-Id: <20071214154440.036070000@chello.nl>
+Message-Id: <20071214154440.817817000@chello.nl>
 References: <20071214153907.770251000@chello.nl>
-Date: Fri, 14 Dec 2007 16:39:13 +0100
+Date: Fri, 14 Dec 2007 16:39:19 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 06/29] mm: serialize access to min_free_kbytes
-Content-Disposition: inline; filename=mm-setup_per_zone_pages_min.patch
+Subject: [PATCH 12/29] net: wrap sk->sk_backlog_rcv()
+Content-Disposition: inline; filename=net-backlog.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-There is a small race between the procfs caller and the memory hotplug caller
-of setup_per_zone_pages_min(). Not a big deal, but the next patch will add yet
-another caller. Time to close the gap.
+Wrap calling sk->sk_backlog_rcv() in a function. This will allow extending the
+generic sk_backlog_rcv behaviour.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- mm/page_alloc.c |   16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ include/net/sock.h   |    5 +++++
+ net/core/sock.c      |    4 ++--
+ net/ipv4/tcp.c       |    2 +-
+ net/ipv4/tcp_timer.c |    2 +-
+ 4 files changed, 9 insertions(+), 4 deletions(-)
 
-Index: linux-2.6/mm/page_alloc.c
+Index: linux-2.6/include/net/sock.h
 ===================================================================
---- linux-2.6.orig/mm/page_alloc.c
-+++ linux-2.6/mm/page_alloc.c
-@@ -116,6 +116,7 @@ static char * const zone_names[MAX_NR_ZO
- 	 "Movable",
- };
- 
-+static DEFINE_SPINLOCK(min_free_lock);
- int min_free_kbytes = 1024;
- 
- unsigned long __meminitdata nr_kernel_pages;
-@@ -4162,12 +4163,12 @@ static void setup_per_zone_lowmem_reserv
+--- linux-2.6.orig/include/net/sock.h
++++ linux-2.6/include/net/sock.h
+@@ -485,6 +485,11 @@ static inline void sk_add_backlog(struct
+ 	skb->next = NULL;
  }
  
- /**
-- * setup_per_zone_pages_min - called when min_free_kbytes changes.
-+ * __setup_per_zone_pages_min - called when min_free_kbytes changes.
-  *
-  * Ensures that the pages_{min,low,high} values for each zone are set correctly
-  * with respect to min_free_kbytes.
-  */
--void setup_per_zone_pages_min(void)
-+static void __setup_per_zone_pages_min(void)
- {
- 	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
- 	unsigned long lowmem_pages = 0;
-@@ -4222,6 +4223,15 @@ void setup_per_zone_pages_min(void)
- 	calculate_totalreserve_pages();
- }
- 
-+void setup_per_zone_pages_min(void)
++static inline int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 +{
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&min_free_lock, flags);
-+	__setup_per_zone_pages_min();
-+	spin_unlock_irqrestore(&min_free_lock, flags);
++	return sk->sk_backlog_rcv(sk, skb);
 +}
 +
- /*
-  * Initialise min_free_kbytes.
-  *
-@@ -4257,7 +4267,7 @@ static int __init init_per_zone_pages_mi
- 		min_free_kbytes = 128;
- 	if (min_free_kbytes > 65536)
- 		min_free_kbytes = 65536;
--	setup_per_zone_pages_min();
-+	__setup_per_zone_pages_min();
- 	setup_per_zone_lowmem_reserve();
- 	return 0;
- }
+ #define sk_wait_event(__sk, __timeo, __condition)			\
+ 	({	int __rc;						\
+ 		release_sock(__sk);					\
+Index: linux-2.6/net/core/sock.c
+===================================================================
+--- linux-2.6.orig/net/core/sock.c
++++ linux-2.6/net/core/sock.c
+@@ -320,7 +320,7 @@ int sk_receive_skb(struct sock *sk, stru
+ 		 */
+ 		mutex_acquire(&sk->sk_lock.dep_map, 0, 1, _RET_IP_);
+ 
+-		rc = sk->sk_backlog_rcv(sk, skb);
++		rc = sk_backlog_rcv(sk, skb);
+ 
+ 		mutex_release(&sk->sk_lock.dep_map, 1, _RET_IP_);
+ 	} else
+@@ -1312,7 +1312,7 @@ static void __release_sock(struct sock *
+ 			struct sk_buff *next = skb->next;
+ 
+ 			skb->next = NULL;
+-			sk->sk_backlog_rcv(sk, skb);
++			sk_backlog_rcv(sk, skb);
+ 
+ 			/*
+ 			 * We are in process context here with softirqs
+Index: linux-2.6/net/ipv4/tcp.c
+===================================================================
+--- linux-2.6.orig/net/ipv4/tcp.c
++++ linux-2.6/net/ipv4/tcp.c
+@@ -1134,7 +1134,7 @@ static void tcp_prequeue_process(struct 
+ 	 * necessary */
+ 	local_bh_disable();
+ 	while ((skb = __skb_dequeue(&tp->ucopy.prequeue)) != NULL)
+-		sk->sk_backlog_rcv(sk, skb);
++		sk_backlog_rcv(sk, skb);
+ 	local_bh_enable();
+ 
+ 	/* Clear memory counter. */
+Index: linux-2.6/net/ipv4/tcp_timer.c
+===================================================================
+--- linux-2.6.orig/net/ipv4/tcp_timer.c
++++ linux-2.6/net/ipv4/tcp_timer.c
+@@ -196,7 +196,7 @@ static void tcp_delack_timer(unsigned lo
+ 		NET_INC_STATS_BH(LINUX_MIB_TCPSCHEDULERFAILED);
+ 
+ 		while ((skb = __skb_dequeue(&tp->ucopy.prequeue)) != NULL)
+-			sk->sk_backlog_rcv(sk, skb);
++			sk_backlog_rcv(sk, skb);
+ 
+ 		tp->ucopy.memory = 0;
+ 	}
 
 --
 
