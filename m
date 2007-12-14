@@ -1,41 +1,52 @@
-Message-Id: <20071214154440.309227000@chello.nl>
+Message-Id: <20071214154438.991239000@chello.nl>
 References: <20071214153907.770251000@chello.nl>
-Date: Fri, 14 Dec 2007 16:39:15 +0100
+Date: Fri, 14 Dec 2007 16:39:09 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 08/29] mm: system wide ALLOC_NO_WATERMARK
-Content-Disposition: inline; filename=global-ALLOC_NO_WATERMARKS.patch
+Subject: [PATCH 02/29] mm: tag reseve pages
+Content-Disposition: inline; filename=page_alloc-reserve.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Change ALLOC_NO_WATERMARK page allocation such that the reserves are system
-wide - which they are per setup_per_zone_pages_min(), when we scrape the
-barrel, do it properly.
+Tag pages allocated from the reserves with a non-zero page->reserve.
+This allows us to distinguish and account reserve pages.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- mm/page_alloc.c |    6 ++++++
- 1 file changed, 6 insertions(+)
+ include/linux/mm_types.h |    1 +
+ mm/page_alloc.c          |    4 +++-
+ 2 files changed, 4 insertions(+), 1 deletion(-)
 
+Index: linux-2.6/include/linux/mm_types.h
+===================================================================
+--- linux-2.6.orig/include/linux/mm_types.h
++++ linux-2.6/include/linux/mm_types.h
+@@ -70,6 +70,7 @@ struct page {
+ 	union {
+ 		pgoff_t index;		/* Our offset within mapping. */
+ 		void *freelist;		/* SLUB: freelist req. slab lock */
++		int reserve;		/* page_alloc: page is a reserve page */
+ 	};
+ 	struct list_head lru;		/* Pageout list, eg. active_list
+ 					 * protected by zone->lru_lock !
 Index: linux-2.6/mm/page_alloc.c
 ===================================================================
 --- linux-2.6.orig/mm/page_alloc.c
 +++ linux-2.6/mm/page_alloc.c
-@@ -1638,6 +1638,12 @@ restart:
- rebalance:
- 	if (alloc_flags & ALLOC_NO_WATERMARKS) {
- nofail_alloc:
-+		/*
-+		 * break out of mempolicy boundaries
-+		 */
-+		zonelist = NODE_DATA(numa_node_id())->node_zonelists +
-+			gfp_zone(gfp_mask);
-+
- 		/* go through the zonelist yet again, ignoring mins */
- 		page = get_page_from_freelist(gfp_mask, order, zonelist,
- 				ALLOC_NO_WATERMARKS);
+@@ -1448,8 +1448,10 @@ zonelist_scan:
+ 		}
+ 
+ 		page = buffered_rmqueue(zonelist, zone, order, gfp_mask);
+-		if (page)
++		if (page) {
++			page->reserve = !!(alloc_flags & ALLOC_NO_WATERMARKS);
+ 			break;
++		}
+ this_zone_full:
+ 		if (NUMA_BUILD)
+ 			zlc_mark_zone_full(zonelist, z);
 
 --
 
