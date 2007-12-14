@@ -1,169 +1,545 @@
-Message-Id: <20071214154441.118211000@chello.nl>
+Message-Id: <20071214154440.561590000@chello.nl>
 References: <20071214153907.770251000@chello.nl>
-Date: Fri, 14 Dec 2007 16:39:21 +0100
+Date: Fri, 14 Dec 2007 16:39:17 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 14/29] net: sk_allocation() - concentrate socket related allocations
-Content-Disposition: inline; filename=net-sk_allocation.patch
+Subject: [PATCH 10/29] mm: memory reserve management
+Content-Disposition: inline; filename=mm-reserve.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Introduce sk_allocation(), this function allows to inject sock specific
-flags to each sock related allocation.
+Generic reserve management code. 
+
+It provides methods to reserve and charge. Upon this, generic alloc/free style
+reserve pools could be build, which could fully replace mempool_t
+functionality.
+
+It should also allow for a Banker's algorithm replacement of __GFP_NOFAIL.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/net/sock.h    |    5 +++++
- net/ipv4/tcp.c        |    2 +-
- net/ipv4/tcp_output.c |   11 ++++++-----
- net/ipv6/tcp_ipv6.c   |   14 +++++++++-----
- 4 files changed, 21 insertions(+), 11 deletions(-)
+ include/linux/reserve.h |   54 +++++
+ mm/Makefile             |    2 
+ mm/reserve.c            |  438 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 493 insertions(+), 1 deletion(-)
 
-Index: linux-2.6/net/ipv4/tcp_output.c
+Index: linux-2.6/include/linux/reserve.h
 ===================================================================
---- linux-2.6.orig/net/ipv4/tcp_output.c
-+++ linux-2.6/net/ipv4/tcp_output.c
-@@ -2063,7 +2063,7 @@ void tcp_send_fin(struct sock *sk)
- 	} else {
- 		/* Socket is locked, keep trying until memory is available. */
- 		for (;;) {
--			skb = alloc_skb_fclone(MAX_TCP_HEADER, GFP_KERNEL);
-+			skb = alloc_skb_fclone(MAX_TCP_HEADER, sk->sk_allocation);
- 			if (skb)
- 				break;
- 			yield();
-@@ -2096,7 +2096,7 @@ void tcp_send_active_reset(struct sock *
- 	struct sk_buff *skb;
- 
- 	/* NOTE: No TCP options attached and we never retransmit this. */
--	skb = alloc_skb(MAX_TCP_HEADER, priority);
-+	skb = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, priority));
- 	if (!skb) {
- 		NET_INC_STATS(LINUX_MIB_TCPABORTFAILED);
- 		return;
-@@ -2169,7 +2169,8 @@ struct sk_buff * tcp_make_synack(struct 
- 	__u8 *md5_hash_location;
- #endif
- 
--	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15, 1, GFP_ATOMIC);
-+	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15, 1,
-+			sk_allocation(sk, GFP_ATOMIC));
- 	if (skb == NULL)
- 		return NULL;
- 
-@@ -2428,7 +2429,7 @@ void tcp_send_ack(struct sock *sk)
- 		 * tcp_transmit_skb() will set the ownership to this
- 		 * sock.
- 		 */
--		buff = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
-+		buff = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, GFP_ATOMIC));
- 		if (buff == NULL) {
- 			inet_csk_schedule_ack(sk);
- 			inet_csk(sk)->icsk_ack.ato = TCP_ATO_MIN;
-@@ -2470,7 +2471,7 @@ static int tcp_xmit_probe_skb(struct soc
- 	struct sk_buff *skb;
- 
- 	/* We don't queue it, tcp_transmit_skb() sets ownership. */
--	skb = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
-+	skb = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, GFP_ATOMIC));
- 	if (skb == NULL)
- 		return -1;
- 
-Index: linux-2.6/include/net/sock.h
+--- /dev/null
++++ linux-2.6/include/linux/reserve.h
+@@ -0,0 +1,54 @@
++/*
++ * Memory reserve management.
++ *
++ *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
++ *
++ * This file contains the public data structure and API definitions.
++ */
++
++#ifndef _LINUX_RESERVE_H
++#define _LINUX_RESERVE_H
++
++#include <linux/list.h>
++#include <linux/spinlock.h>
++
++struct mem_reserve {
++	struct mem_reserve *parent;
++	struct list_head children;
++	struct list_head siblings;
++
++	const char *name;
++
++	long pages;
++	long limit;
++	long usage;
++	spinlock_t lock;	/* protects limit and usage */
++};
++
++extern struct mem_reserve mem_reserve_root;
++
++void mem_reserve_init(struct mem_reserve *res, const char *name,
++		      struct mem_reserve *parent);
++int mem_reserve_connect(struct mem_reserve *new_child,
++	       		struct mem_reserve *node);
++int mem_reserve_disconnect(struct mem_reserve *node);
++
++int mem_reserve_pages_set(struct mem_reserve *res, long pages);
++int mem_reserve_pages_add(struct mem_reserve *res, long pages);
++int mem_reserve_pages_charge(struct mem_reserve *res, long pages,
++			     int overcommit);
++
++int mem_reserve_kmalloc_set(struct mem_reserve *res, long bytes);
++int mem_reserve_kmalloc_charge(struct mem_reserve *res, long bytes,
++			       int overcommit);
++
++struct kmem_cache;
++
++int mem_reserve_kmem_cache_set(struct mem_reserve *res,
++	       		       struct kmem_cache *s,
++			       int objects);
++int mem_reserve_kmem_cache_charge(struct mem_reserve *res,
++				  long objs,
++				  int overcommit);
++
++#endif /* _LINUX_RESERVE_H */
+Index: linux-2.6/mm/Makefile
 ===================================================================
---- linux-2.6.orig/include/net/sock.h
-+++ linux-2.6/include/net/sock.h
-@@ -425,6 +425,11 @@ static inline int sock_flag(struct sock 
- 	return test_bit(flag, &sk->sk_flags);
- }
+--- linux-2.6.orig/mm/Makefile
++++ linux-2.6/mm/Makefile
+@@ -11,7 +11,7 @@ obj-y			:= bootmem.o filemap.o mempool.o
+ 			   page_alloc.o page-writeback.o pdflush.o \
+ 			   readahead.o swap.o truncate.o vmscan.o \
+ 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
+-			   page_isolation.o $(mmu-y)
++			   page_isolation.o reserve.o $(mmu-y)
  
-+static inline gfp_t sk_allocation(struct sock *sk, gfp_t gfp_mask)
+ obj-$(CONFIG_PROC_PAGE_MONITOR) += pagewalk.o
+ obj-$(CONFIG_BOUNCE)	+= bounce.o
+Index: linux-2.6/mm/reserve.c
+===================================================================
+--- /dev/null
++++ linux-2.6/mm/reserve.c
+@@ -0,0 +1,438 @@
++/*
++ * Memory reserve management.
++ *
++ *  Copyright (C) 2007, Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
++ *
++ * Description:
++ *
++ * Manage a set of memory reserves.
++ *
++ * A memory reserve is a reserve for a specified number of object of specified
++ * size. Since memory is managed in pages, this reserve demand is then
++ * translated into a page unit.
++ *
++ * So each reserve has a specified object limit, an object usage count and a
++ * number of pages required to back these objects.
++ *
++ * Usage is charged against a reserve, if the charge fails, the resource must
++ * not be allocated/used.
++ *
++ * The reserves are managed in a tree, and the resource demands (pages and
++ * limit) are propagated up the tree. Obviously the object limit will be
++ * meaningless as soon as the unit starts mixing, but the required page reserve
++ * (being of one unit) is still valid at the root.
++ *
++ * It is the page demand of the root node that is used to set the global
++ * reserve (adjust_memalloc_reserve() which sets zone->pages_emerg).
++ *
++ * As long as a subtree has the same usage unit, an aggregate node can be used
++ * to charge against, instead of the leaf nodes. However, do be consistent with
++ * who is charged, resource usage is not propagated up the tree (for
++ * performance reasons).
++ */
++
++#include <linux/reserve.h>
++#include <linux/mutex.h>
++#include <linux/mmzone.h>
++#include <linux/log2.h>
++#include <linux/proc_fs.h>
++#include <linux/seq_file.h>
++#include <linux/module.h>
++#include <linux/slab.h>
++
++static DEFINE_MUTEX(mem_reserve_mutex);
++
++/**
++ * @mem_reserve_root - the global reserve root
++ *
++ * The global reserve is empty, and has no limit unit, it merely
++ * acts as an aggregation point for reserves and an interface to
++ * adjust_memalloc_reserve().
++ */
++struct mem_reserve mem_reserve_root = {
++	.children = LIST_HEAD_INIT(mem_reserve_root.children),
++	.siblings = LIST_HEAD_INIT(mem_reserve_root.siblings),
++	.name = "total reserve",
++	.lock = __SPIN_LOCK_UNLOCKED(mem_reserve_root.lock),
++};
++
++EXPORT_SYMBOL_GPL(mem_reserve_root);
++
++/**
++ * mem_reserve_init - initialize a memory reserve object
++ * @res - the new reserve object
++ * @name - a name for this reserve
++ */
++void mem_reserve_init(struct mem_reserve *res, const char *name,
++		      struct mem_reserve *parent)
 +{
-+	return gfp_mask;
++	memset(res, 0, sizeof(*res));
++	INIT_LIST_HEAD(&res->children);
++	INIT_LIST_HEAD(&res->siblings);
++	res->name = name;
++	spin_lock_init(&res->lock);
++
++	if (parent)
++		mem_reserve_connect(res, parent);
 +}
 +
- static inline void sk_acceptq_removed(struct sock *sk)
- {
- 	sk->sk_ack_backlog--;
-Index: linux-2.6/net/ipv6/tcp_ipv6.c
-===================================================================
---- linux-2.6.orig/net/ipv6/tcp_ipv6.c
-+++ linux-2.6/net/ipv6/tcp_ipv6.c
-@@ -574,7 +574,8 @@ static int tcp_v6_md5_do_add(struct sock
- 	} else {
- 		/* reallocate new list if current one is full. */
- 		if (!tp->md5sig_info) {
--			tp->md5sig_info = kzalloc(sizeof(*tp->md5sig_info), GFP_ATOMIC);
-+			tp->md5sig_info = kzalloc(sizeof(*tp->md5sig_info),
-+					sk_allocation(sk, GFP_ATOMIC));
- 			if (!tp->md5sig_info) {
- 				kfree(newkey);
- 				return -ENOMEM;
-@@ -587,7 +588,8 @@ static int tcp_v6_md5_do_add(struct sock
- 		}
- 		if (tp->md5sig_info->alloced6 == tp->md5sig_info->entries6) {
- 			keys = kmalloc((sizeof (tp->md5sig_info->keys6[0]) *
--				       (tp->md5sig_info->entries6 + 1)), GFP_ATOMIC);
-+				       (tp->md5sig_info->entries6 + 1)),
-+				       sk_allocation(sk, GFP_ATOMIC));
- 
- 			if (!keys) {
- 				tcp_free_md5sig_pool();
-@@ -711,7 +713,7 @@ static int tcp_v6_parse_md5_keys (struct
- 		struct tcp_sock *tp = tcp_sk(sk);
- 		struct tcp_md5sig_info *p;
- 
--		p = kzalloc(sizeof(struct tcp_md5sig_info), GFP_KERNEL);
-+		p = kzalloc(sizeof(struct tcp_md5sig_info), sk->sk_allocation);
- 		if (!p)
- 			return -ENOMEM;
- 
-@@ -1012,7 +1014,7 @@ static void tcp_v6_send_reset(struct soc
- 	 */
- 
- 	buff = alloc_skb(MAX_HEADER + sizeof(struct ipv6hdr) + tot_len,
--			 GFP_ATOMIC);
-+			 sk_allocation(sk, GFP_ATOMIC));
- 	if (buff == NULL)
- 		return;
- 
-@@ -1091,10 +1093,12 @@ static void tcp_v6_send_ack(struct tcp_t
- 	struct tcp_md5sig_key *key;
- 	struct tcp_md5sig_key tw_key;
- #endif
-+	gfp_t gfp_mask = GFP_ATOMIC;
- 
- #ifdef CONFIG_TCP_MD5SIG
- 	if (!tw && skb->sk) {
- 		key = tcp_v6_md5_do_lookup(skb->sk, &ipv6_hdr(skb)->daddr);
-+		gfp_mask = sk_allocation(skb->sk, gfp_mask);
- 	} else if (tw && tw->tw_md5_keylen) {
- 		tw_key.key = tw->tw_md5_key;
- 		tw_key.keylen = tw->tw_md5_keylen;
-@@ -1112,7 +1116,7 @@ static void tcp_v6_send_ack(struct tcp_t
- #endif
- 
- 	buff = alloc_skb(MAX_HEADER + sizeof(struct ipv6hdr) + tot_len,
--			 GFP_ATOMIC);
-+			 gfp_mask);
- 	if (buff == NULL)
- 		return;
- 
-Index: linux-2.6/net/ipv4/tcp.c
-===================================================================
---- linux-2.6.orig/net/ipv4/tcp.c
-+++ linux-2.6/net/ipv4/tcp.c
-@@ -636,7 +636,7 @@ struct sk_buff *sk_stream_alloc_skb(stru
- 	/* The TCP header must be at least 32-bit aligned.  */
- 	size = ALIGN(size, 4);
- 
--	skb = alloc_skb_fclone(size + sk->sk_prot->max_header, gfp);
-+	skb = alloc_skb_fclone(size + sk->sk_prot->max_header, sk_allocation(sk, gfp));
- 	if (skb) {
- 		if (sk_stream_wmem_schedule(sk, skb->truesize)) {
- 			/*
++EXPORT_SYMBOL_GPL(mem_reserve_init);
++
++/*
++ * propagate the pages and limit changes up the tree.
++ */
++static void __calc_reserve(struct mem_reserve *res, long pages, long limit)
++{
++	unsigned long flags;
++
++	for ( ; res; res = res->parent) {
++		res->pages += pages;
++
++		if (limit) {
++			spin_lock_irqsave(&res->lock, flags);
++			res->limit += limit;
++			spin_unlock_irqrestore(&res->lock, flags);
++		}
++	}
++}
++
++/**
++ * __mem_reserve_add - primitive to change the size of a reserve
++ * @res - reserve to change
++ * @pages - page delta
++ * @limit - usage limit delta
++ *
++ * Returns -ENOMEM when a size increase is not possible atm.
++ */
++static int __mem_reserve_add(struct mem_reserve *res, long pages, long limit)
++{
++	int ret = 0;
++	long reserve;
++
++	reserve = mem_reserve_root.pages;
++	__calc_reserve(res, pages, 0);
++	reserve = mem_reserve_root.pages - reserve;
++
++	if (reserve) {
++		ret = adjust_memalloc_reserve(reserve);
++		if (ret)
++			__calc_reserve(res, -pages, 0);
++	}
++
++	if (!ret)
++		__calc_reserve(res, 0, limit);
++
++	return ret;
++}
++
++/**
++ * __mem_reserve_charge - primitive to charge object usage to a reserve
++ * @res - reserve to charge
++ * @charge - size of the charge
++ * @overcommit - allow despite of limit (use with caution!)
++ *
++ * Returns non-zero on success, zero on failure.
++ */
++static
++int __mem_reserve_charge(struct mem_reserve *res, long charge, int overcommit)
++{
++	unsigned long flags;
++	int ret = 0;
++
++	spin_lock_irqsave(&res->lock, flags);
++	if (charge < 0 || res->usage + charge < res->limit || overcommit) {
++		res->usage += charge;
++		if (unlikely(res->usage < 0))
++			res->usage = 0;
++		ret = 1;
++	}
++	spin_unlock_irqrestore(&res->lock, flags);
++
++	return ret;
++}
++
++/**
++ * mem_reserve_connect - connect a reserve to another in a child-parent relation
++ * @new_child - the reserve node to connect (child)
++ * @node - the reserve node to connect to (parent)
++ *
++ * Returns -ENOMEM when the new connection would increase the reserve (parent
++ * is connected to mem_reserve_root) and there is no memory to do so.
++ *
++ * The child is _NOT_ connected on error.
++ */
++int mem_reserve_connect(struct mem_reserve *new_child, struct mem_reserve *node)
++{
++	int ret;
++
++	WARN_ON(!new_child->name);
++
++	mutex_lock(&mem_reserve_mutex);
++	new_child->parent = node;
++	list_add(&new_child->siblings, &node->children);
++	ret = __mem_reserve_add(node, new_child->pages, new_child->limit);
++	if (ret) {
++		new_child->parent = NULL;
++		list_del_init(&new_child->siblings);
++	}
++	mutex_unlock(&mem_reserve_mutex);
++
++	return ret;
++}
++
++EXPORT_SYMBOL_GPL(mem_reserve_connect);
++
++/**
++ * mem_reserve_disconnect - sever a nodes connection to the reserve tree
++ * @node - the node to disconnect
++ *
++ * Could, in theory, return -ENOMEM, but since disconnecting a node _should_
++ * only decrease the reserves that _should_ not happen.
++ */
++int mem_reserve_disconnect(struct mem_reserve *node)
++{
++	int ret;
++
++	BUG_ON(!node->parent);
++
++	mutex_lock(&mem_reserve_mutex);
++	ret = __mem_reserve_add(node->parent, -node->pages, -node->limit);
++	if (!ret) {
++		node->parent = NULL;
++		list_del_init(&node->siblings);
++	}
++	mutex_unlock(&mem_reserve_mutex);
++
++	return ret;
++}
++
++EXPORT_SYMBOL_GPL(mem_reserve_disconnect);
++
++#ifdef CONFIG_PROC_FS
++
++/*
++ * Simple output of the reserve tree in: /proc/reserve_info
++ * Example:
++ *
++ * localhost ~ # cat /proc/reserve_info
++ * total reserve                  8156K (0/544817)
++ *   total network reserve          8156K (0/544817)
++ *     network TX reserve             196K (0/49)
++ *       protocol TX pages              196K (0/49)
++ *     network RX reserve             7960K (0/544768)
++ *       IPv6 route cache               1372K (0/4096)
++ *       IPv4 route cache               5468K (0/16384)
++ *       SKB data reserve               1120K (0/524288)
++ *         IPv6 fragment cache            560K (0/262144)
++ *         IPv4 fragment cache            560K (0/262144)
++ */
++
++static void mem_reserve_show_item(struct seq_file *m, struct mem_reserve *res,
++				  int nesting)
++{
++	int i;
++	struct mem_reserve *child;
++
++	for (i = 0; i < nesting; i++)
++		seq_puts(m, "  ");
++
++	seq_printf(m, "%-30s %ldK (%ld/%ld)\n",
++		   res->name, res->pages << (PAGE_SHIFT - 10),
++		   res->usage, res->limit);
++
++	list_for_each_entry(child, &res->children, siblings)
++		mem_reserve_show_item(m, child, nesting+1);
++}
++
++static int mem_reserve_show(struct seq_file *m, void *v)
++{
++	mutex_lock(&mem_reserve_mutex);
++	mem_reserve_show_item(m, &mem_reserve_root, 0);
++	mutex_unlock(&mem_reserve_mutex);
++
++	return 0;
++}
++
++static int mem_reserve_open(struct inode *inode, struct file *file)
++{
++	return single_open(file, mem_reserve_show, NULL);
++}
++
++static const struct file_operations mem_reserve_opterations = {
++	.open = mem_reserve_open,
++	.read = seq_read,
++	.llseek = seq_lseek,
++	.release = single_release,
++};
++
++static __init int mem_reserve_proc_init(void)
++{
++	struct proc_dir_entry *entry;
++
++	entry = create_proc_entry("reserve_info", S_IRUSR, NULL);
++	if (entry)
++		entry->proc_fops = &mem_reserve_opterations;
++
++	return 0;
++}
++
++__initcall(mem_reserve_proc_init);
++
++#endif
++
++/*
++ * alloc_page helpers
++ */
++
++/**
++ * mem_reserve_pages_set - set reserves size in pages
++ * @res - reserve to set
++ * @pages - size in pages to set it to
++ *
++ * Returns -ENOMEM when it fails to set the reserve. On failure the old size
++ * is preserved.
++ */
++int mem_reserve_pages_set(struct mem_reserve *res, long pages)
++{
++	int ret;
++
++	mutex_lock(&mem_reserve_mutex);
++	pages -= res->pages;
++	ret = __mem_reserve_add(res, pages, pages);
++	mutex_unlock(&mem_reserve_mutex);
++
++	return ret;
++}
++
++EXPORT_SYMBOL_GPL(mem_reserve_pages_set);
++
++/**
++ * mem_reserve_pages_add - change the size in a relative way
++ * @res - reserve to change
++ * @pages - number of pages to add (or subtract when negative)
++ *
++ * Similar to mem_reserve_pages_set, except that the argument is relative instead
++ * of absolute.
++ *
++ * Returns -ENOMEM when it fails to increase.
++ */
++int mem_reserve_pages_add(struct mem_reserve *res, long pages)
++{
++	int ret;
++
++	mutex_lock(&mem_reserve_mutex);
++	ret = __mem_reserve_add(res, pages, pages);
++	mutex_unlock(&mem_reserve_mutex);
++
++	return ret;
++}
++
++/**
++ * mem_reserve_pages_charge - charge page usage to a reserve
++ * @res - reserve to charge
++ * @pages - size to charge
++ * @overcommit - disregard the usage limit (use with caution!)
++ *
++ * Returns non-zero on success.
++ */
++int mem_reserve_pages_charge(struct mem_reserve *res, long pages, int overcommit)
++{
++	return __mem_reserve_charge(res, pages, overcommit);
++}
++
++EXPORT_SYMBOL_GPL(mem_reserve_pages_charge);
++
++/*
++ * kmalloc helpers
++ */
++
++/**
++ * mem_reserve_kmalloc_set - set this reserve to bytes worth of kmalloc
++ * @res - reserve to change
++ * @bytes - size in bytes to reserve
++ *
++ * Returns -ENOMEM on failure.
++ */
++int mem_reserve_kmalloc_set(struct mem_reserve *res, long bytes)
++{
++	int ret;
++	long pages;
++
++	mutex_lock(&mem_reserve_mutex);
++	pages = kestimate(GFP_ATOMIC, bytes);
++	pages -= res->pages;
++	bytes -= res->limit;
++	ret = __mem_reserve_add(res, pages, bytes);
++	mutex_unlock(&mem_reserve_mutex);
++
++	return ret;
++}
++
++EXPORT_SYMBOL_GPL(mem_reserve_kmalloc_set);
++
++/**
++ * mem_reserve_kmalloc_charge - charge bytes to a reserve
++ * @res - reserve to charge
++ * @bytes - bytes to charge
++ * @overcommit - disregard the usage limit (use with caution!)
++ *
++ * Returns non-zero on success.
++ */
++int mem_reserve_kmalloc_charge(struct mem_reserve *res, long bytes,
++			       int overcommit)
++{
++	if (bytes < 0)
++		bytes = -roundup_pow_of_two(-bytes);
++	else
++		bytes = roundup_pow_of_two(bytes);
++
++	return __mem_reserve_charge(res, bytes, overcommit);
++}
++
++EXPORT_SYMBOL_GPL(mem_reserve_kmalloc_charge);
++
++/*
++ * kmem_cache helpers
++ */
++
++/**
++ * mem_reserve_kmem_cache_set - set reserve to @objects worth of kmem_cache_alloc of @s
++ * @res - reserve to set
++ * @s - kmem_cache to reserve from
++ * @objects - number of objects to reserve
++ *
++ * Returns -ENOMEM on failure.
++ */
++int mem_reserve_kmem_cache_set(struct mem_reserve *res, struct kmem_cache *s,
++			       int objects)
++{
++	int ret;
++	long pages;
++
++	mutex_lock(&mem_reserve_mutex);
++	pages = kmem_estimate_pages(s, GFP_ATOMIC, objects);
++	pages -= res->pages;
++	objects -= res->limit;
++	ret = __mem_reserve_add(res, pages, objects);
++	mutex_unlock(&mem_reserve_mutex);
++
++	return ret;
++}
++
++EXPORT_SYMBOL_GPL(mem_reserve_kmem_cache_set);
++
++/**
++ * mem_reserve_kmem_cache_charge - charge (or uncharge) usage of objs
++ * @res - reserve to charge
++ * @objs - objects to charge for
++ * @overcommit - disregard the usage limit (use with caution!)
++ *
++ * Returns non-zero on success.
++ */
++int mem_reserve_kmem_cache_charge(struct mem_reserve *res, long objs,
++				  int overcommit)
++{
++	return __mem_reserve_charge(res, objs, overcommit);
++}
++
++EXPORT_SYMBOL_GPL(mem_reserve_kmem_cache_charge);
 
 --
 
