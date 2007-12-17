@@ -1,1264 +1,186 @@
 Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate8.de.ibm.com (8.13.8/8.13.8) with ESMTP id lBHIiwL2261854
-	for <linux-mm@kvack.org>; Mon, 17 Dec 2007 18:44:58 GMT
+	by mtagate7.de.ibm.com (8.13.8/8.13.8) with ESMTP id lBHIjEiB055712
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2007 18:45:14 GMT
 Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lBHIiwTX2822306
-	for <linux-mm@kvack.org>; Mon, 17 Dec 2007 19:44:58 +0100
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lBHIjEwx2203876
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2007 19:45:14 +0100
 Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lBHIiwNp017513
-	for <linux-mm@kvack.org>; Mon, 17 Dec 2007 19:44:58 +0100
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lBHIjEHF017883
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2007 19:45:14 +0100
 Subject: 1st version of azfs
-Message-ID: <OFE16CCD4C.0757B0AF-ONC12573B4.00642BAC-C12573B4.0066FFDD@de.ibm.com>
+Message-ID: <OFAD8D300E.47BEB103-ONC12573B4.0066CD4E-C12573B4.0067063E@de.ibm.com>
 From: Maxim Shchetynin <maxim@de.ibm.com>
-Date: Mon, 17 Dec 2007 19:45:00 +0100
+Date: Mon, 17 Dec 2007 19:45:13 +0100
 MIME-Version: 1.0
-Content-type: text/plain; charset=ISO-8859-1
-Content-transfer-encoding: 8BIT
+Content-type: multipart/mixed;
+	Boundary="0__=4EBBF927DFF54BDE8f9e8a93df938690918c4EBBF927DFF54BDE"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linuxppc-dev@ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, arnd@arndb.de
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+--0__=4EBBF927DFF54BDE8f9e8a93df938690918c4EBBF927DFF54BDE
+Content-type: text/plain; charset=ISO-8859-1
+Content-transfer-encoding: quoted-printable
 
-please, have a look at the following patch. This is a first version of a
-non-buffered filesystem to be used on "ioremapped" devices.
-Thank you in advance for your comments.
 
-Subject: azfs: initial submit of azfs, a non-buffered filesystem
 
-From: Maxim Shchetynin <maxim@de.ibm.com>
+...and here once more the same patch as attachment...
 
-Non-buffered filesystem for block devices with a gendisk and
-with direct_access() method in gendisk->fops.
-AZFS does not buffer outgoing traffic and is doing no read ahead.
-AZFS uses block-size and sector-size provided by block device
-and gendisk's queue. Though mmap() method is available only if
-block-size equals to or is greater than system page size.
+(See attached file: linux-2.6.24-rc4-azfs.diff.gz)
 
-Signed-off-by: Maxim Shchetynin <maxim@de.ibm.com>
-
-diff -Nuar linux-2.6.24-rc4/arch/powerpc/configs/cell_defconfig
-linux-2.6.24-rc4-azfs/arch/powerpc/configs/cell_defconfig
---- linux-2.6.24-rc4/arch/powerpc/configs/cell_defconfig
-2007-12-14 11:44:09.000000000 +0100
-+++ linux-2.6.24-rc4-azfs/arch/powerpc/configs/cell_defconfig
-2007-12-07 17:47:35.000000000 +0100
-@@ -206,6 +206,7 @@
- #
- # CONFIG_CPM2 is not set
- CONFIG_AXON_RAM=m
-+CONFIG_AZ_FS=m
- # CONFIG_FSL_ULI1575 is not set
-
- #
-diff -Nuar linux-2.6.24-rc4/fs/Kconfig linux-2.6.24-rc4-azfs/fs/Kconfig
---- linux-2.6.24-rc4/fs/Kconfig            2007-12-14 11:44:23.000000000
-+0100
-+++ linux-2.6.24-rc4-azfs/fs/Kconfig             2007-12-07
-17:47:35.000000000 +0100
-@@ -359,6 +359,17 @@
-               If you are not using a security module that requires using
-               extended attributes for file security labels, say N.
-
-+config AZ_FS
-+            tristate "AZFS filesystem support"
-+            default m
-+            help
-+              Non-buffered filesystem for block devices with a gendisk and
-+              with direct_access() method in gendisk->fops.
-+              AZFS does not buffer outgoing traffic and is doing no read
-ahead.
-+              AZFS uses block-size and sector-size provided by block
-device
-+              and gendisk's queue. Though mmap() method is available only
-if
-+              block-size equals to or is greater than system page size.
-+
- config JFS_FS
-             tristate "JFS filesystem support"
-             select NLS
-diff -Nuar linux-2.6.24-rc4/fs/Makefile linux-2.6.24-rc4-azfs/fs/Makefile
---- linux-2.6.24-rc4/fs/Makefile           2007-12-14 11:44:42.000000000
-+0100
-+++ linux-2.6.24-rc4-azfs/fs/Makefile            2007-12-14
-11:48:47.000000000 +0100
-@@ -118,3 +118,4 @@
- obj-$(CONFIG_DEBUG_FS)                    += debugfs/
- obj-$(CONFIG_OCFS2_FS)                    += ocfs2/
- obj-$(CONFIG_GFS2_FS)           += gfs2/
-+obj-$(CONFIG_AZ_FS)                       += azfs.o
-diff -Nuar linux-2.6.24-rc4/fs/azfs.c linux-2.6.24-rc4-azfs/fs/azfs.c
---- linux-2.6.24-rc4/fs/azfs.c             1970-01-01 01:00:00.000000000
-+0100
-+++ linux-2.6.24-rc4-azfs/fs/azfs.c        2007-12-11 16:26:36.000000000
-+0100
-@@ -0,0 +1,1083 @@
-+/*
-+ * (C) Copyright IBM Deutschland Entwicklung GmbH 2007
-+ *
-+ * Author: Maxim Shchetynin <maxim@de.ibm.com>
-+ *
-+ * Non-buffered filesystem driver.
-+ * It registers a filesystem which may be used for all kind of block
-devices
-+ * which have a direct_access() method in block_device_operations.
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License as published by
-+ * the Free Software Foundation; either version 2, or (at your option)
-+ * any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-+ * GNU General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU General Public License
-+ * along with this program; if not, write to the Free Software
-+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-+ */
-+
-+#include <linux/backing-dev.h>
-+#include <linux/blkdev.h>
-+#include <linux/cache.h>
-+#include <linux/dcache.h>
-+#include <linux/device.h>
-+#include <linux/err.h>
-+#include <linux/fs.h>
-+#include <linux/genhd.h>
-+#include <linux/kernel.h>
-+#include <linux/limits.h>
-+#include <linux/list.h>
-+#include <linux/module.h>
-+#include <linux/mount.h>
-+#include <linux/mm.h>
-+#include <linux/mm_types.h>
-+#include <linux/mutex.h>
-+#include <linux/namei.h>
-+#include <linux/pagemap.h>
-+#include <linux/slab.h>
-+#include <linux/spinlock.h>
-+#include <linux/stat.h>
-+#include <linux/statfs.h>
-+#include <linux/time.h>
-+#include <linux/types.h>
-+#include <linux/aio.h>
-+#include <linux/uio.h>
-+#include <asm/bug.h>
-+#include <asm/page.h>
-+#include <asm/pgtable.h>
-+#include <asm/string.h>
-+
-+#define AZFS_FILESYSTEM_NAME                    "azfs"
-+#define AZFS_FILESYSTEM_FLAGS                         FS_REQUIRES_DEV
-+
-+#define AZFS_SUPERBLOCK_MAGIC                         0xABBA1972
-+#define AZFS_SUPERBLOCK_FLAGS                         MS_NOEXEC | \
-+                                                            MS_SYNCHRONOUS
-| \
-+                                                            MS_DIRSYNC | \
-+                                                            MS_ACTIVE
-+
-+#define AZFS_BDI_CAPABILITIES
-BDI_CAP_NO_ACCT_DIRTY | \
-+
-BDI_CAP_NO_WRITEBACK | \
-+
-BDI_CAP_MAP_COPY | \
-+
-BDI_CAP_MAP_DIRECT | \
-+
-BDI_CAP_VMFLAGS
-+
-+#define AZFS_CACHE_FLAGS                        SLAB_HWCACHE_ALIGN | \
-+
-SLAB_RECLAIM_ACCOUNT | \
-+
-SLAB_MEM_SPREAD
-+
-+enum azfs_direction {
-+            AZFS_MMAP,
-+            AZFS_READ,
-+            AZFS_WRITE
-+};
-+
-+struct azfs_super {
-+            struct list_head                    list;
-+            unsigned long                                   media_size;
-+            unsigned long                                   block_size;
-+            unsigned short                                  block_shift;
-+            unsigned long                                   sector_size;
-+            unsigned short                                  sector_shift;
-+            unsigned long                                   ph_addr;
-+            unsigned long                                   io_addr;
-+            struct block_device                       *blkdev;
-+            struct dentry                                   *root;
-+            struct list_head                    block_list;
-+            rwlock_t                                  lock;
-+};
-+
-+struct azfs_super_list {
-+            struct list_head                    head;
-+            spinlock_t                                lock;
-+};
-+
-+struct azfs_block {
-+            struct list_head                    list;
-+            unsigned long                                   id;
-+            unsigned long                                   count;
-+};
-+
-+struct azfs_znode {
-+            struct list_head                    block_list;
-+            rwlock_t                                  lock;
-+            loff_t                                                size;
-+            struct inode                                    vfs_inode;
-+};
-+
-+static struct azfs_super_list                         super_list;
-+static struct kmem_cache                        *azfs_znode_cache
-__read_mostly = NULL;
-+static struct kmem_cache                        *azfs_block_cache
-__read_mostly = NULL;
-+
-+#define I2Z(inode) \
-+            container_of(inode, struct azfs_znode, vfs_inode)
-+
-+#define for_each_block(block, block_list) \
-+            list_for_each_entry(block, block_list, list)
-+#define for_each_block_reverse(block, block_list) \
-+            list_for_each_entry_reverse(block, block_list, list)
-+#define for_each_block_safe(block, ding, block_list) \
-+            list_for_each_entry_safe(block, ding, block_list, list)
-+#define for_each_block_safe_reverse(block, ding, block_list) \
-+            list_for_each_entry_safe_reverse(block, ding, block_list,
-list)
-+
-+/**
-+ * azfs_block_init - create and initialise a new block in a list
-+ * @block_list: destination list
-+ * @id: block id
-+ * @count: size of a block
-+ */
-+static inline struct azfs_block*
-+azfs_block_init(struct list_head *block_list,
-+                        unsigned long id, unsigned long count)
-+{
-+            struct azfs_block *block;
-+
-+            block = kmem_cache_alloc(azfs_block_cache, GFP_KERNEL);
-+            if (!block)
-+                        return NULL;
-+
-+            block->id = id;
-+            block->count = count;
-+
-+            INIT_LIST_HEAD(&block->list);
-+            list_add_tail(&block->list, block_list);
-+
-+            return block;
-+}
-+
-+/**
-+ * azfs_block_free - remove block from a list and free it back in cache
-+ * @block: block to be removed
-+ */
-+static inline void
-+azfs_block_free(struct azfs_block *block)
-+{
-+            list_del(&block->list);
-+            kmem_cache_free(azfs_block_cache, block);
-+}
-+
-+/**
-+ * azfs_block_move - move block to another list
-+ * @block: block to be moved
-+ * @block_list: destination list
-+ */
-+static inline void
-+azfs_block_move(struct azfs_block *block, struct list_head *block_list)
-+{
-+            list_move_tail(&block->list, block_list);
-+}
-+
-+/**
-+ * azfs_recherche - get real address of a part of a file
-+ * @inode: inode
-+ * @direction: data direction
-+ * @from: offset for read/write operation
-+ * @size: pointer to a value of the amount of data to be read/written
-+ */
-+static unsigned long
-+azfs_recherche(struct inode *inode, enum azfs_direction direction,
-+                   unsigned long from, unsigned long *size)
-+{
-+            struct azfs_super *super;
-+            struct azfs_znode *znode;
-+            struct azfs_block *block;
-+            unsigned long block_id, west, east;
-+
-+            super = inode->i_sb->s_fs_info;
-+            znode = I2Z(inode);
-+
-+            if (from + *size > znode->size) {
-+                        i_size_write(inode, from + *size);
-+                        inode->i_op->truncate(inode);
-+            }
-+
-+            read_lock(&znode->lock);
-+
-+            if (list_empty(&znode->block_list)) {
-+                        read_unlock(&znode->lock);
-+                        return 0;
-+            }
-+
-+            block_id = from >> super->block_shift;
-+
-+            for_each_block(block, &znode->block_list) {
-+                        if (block->count > block_id)
-+                                    break;
-+                        block_id -= block->count;
-+            }
-+
-+            west = from % super->block_size;
-+            east = ((block->count - block_id) << super->block_shift) -
-west;
-+
-+            if (*size > east)
-+                        *size = east;
-+
-+            block_id = ((block->id + block_id) << super->block_shift) +
-west;
-+
-+            read_unlock(&znode->lock);
-+
-+            block_id += direction == AZFS_MMAP ? super->ph_addr :
-super->io_addr;
-+
-+            return block_id;
-+}
-+
-+static struct inode*
-+azfs_new_inode(struct super_block *, struct inode *, int, dev_t);
-+
-+/**
-+ * azfs_mknod - mknod() method for inode_operations
-+ * @dir, @dentry, @mode, @dev: see inode_operations methods
-+ */
-+static int
-+azfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
-+{
-+            struct inode *inode;
-+
-+            inode = azfs_new_inode(dir->i_sb, dir, mode, dev);
-+            if (!inode)
-+                        return -ENOSPC;
-+
-+            if (S_ISREG(mode))
-+                        I2Z(inode)->size = 0;
-+
-+            dget(dentry);
-+            d_instantiate(dentry, inode);
-+
-+            return 0;
-+}
-+
-+/**
-+ * azfs_create - create() method for inode_operations
-+ * @dir, @dentry, @mode, @nd: see inode_operations methods
-+ */
-+static int
-+azfs_create(struct inode *dir, struct dentry *dentry, int mode,
-+                struct nameidata *nd)
-+{
-+            return azfs_mknod(dir, dentry, mode | S_IFREG, 0);
-+}
-+
-+/**
-+ * azfs_mkdir - mkdir() method for inode_operations
-+ * @dir, @dentry, @mode: see inode_operations methods
-+ */
-+static int
-+azfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
-+{
-+            int rc;
-+
-+            rc = azfs_mknod(dir, dentry, mode | S_IFDIR, 0);
-+            if (rc == 0)
-+                        inc_nlink(dir);
-+
-+            return rc;
-+}
-+
-+/**
-+ * azfs_symlink - symlink() method for inode_operations
-+ * @dir, @dentry, @name: see inode_operations methods
-+ */
-+static int
-+azfs_symlink(struct inode *dir, struct dentry *dentry, const char *name)
-+{
-+            struct inode *inode;
-+            int rc;
-+
-+            inode = azfs_new_inode(dir->i_sb, dir, S_IFLNK | S_IRWXUGO,
-0);
-+            if (!inode)
-+                        return -ENOSPC;
-+
-+            rc = page_symlink(inode, name, strlen(name) + 1);
-+            if (rc) {
-+                        iput(inode);
-+                        return rc;
-+            }
-+
-+            dget(dentry);
-+            d_instantiate(dentry, inode);
-+
-+            return 0;
-+}
-+
-+/**
-+ * azfs_aio_read - aio_read() method for file_operations
-+ * @iocb, @iov, @nr_segs, @pos: see file_operations methods
-+ */
-+static ssize_t
-+azfs_aio_read(struct kiocb *iocb, const struct iovec *iov,
-+                  unsigned long nr_segs, loff_t pos)
-+{
-+            struct inode *inode;
-+            void *ziel;
-+            unsigned long pin;
-+            unsigned long size, todo, step;
-+            ssize_t rc;
-+
-+            inode = iocb->ki_filp->f_mapping->host;
-+
-+            mutex_lock(&inode->i_mutex);
-+
-+            if (pos >= i_size_read(inode)) {
-+                        rc = 0;
-+                        goto out;
-+            }
-+
-+            ziel = iov->iov_base;
-+            todo = min((loff_t) iov->iov_len, i_size_read(inode) - pos);
-+
-+            for (step = todo; step; step -= size) {
-+                        size = step;
-+                        pin = azfs_recherche(inode, AZFS_READ, pos,
-&size);
-+                        if (!pin) {
-+                                    rc = -ENOSPC;
-+                                    goto out;
-+                        }
-+                        if (copy_to_user(ziel, (void*) pin, size)) {
-+                                    rc = -EFAULT;
-+                                    goto out;
-+                        }
-+
-+                        iocb->ki_pos += size;
-+                        pos += size;
-+                        ziel += size;
-+            }
-+
-+            rc = todo;
-+
-+out:
-+            mutex_unlock(&inode->i_mutex);
-+
-+            return rc;
-+}
-+
-+/**
-+ * azfs_aio_write - aio_write() method for file_operations
-+ * @iocb, @iov, @nr_segs, @pos: see file_operations methods
-+ */
-+static ssize_t
-+azfs_aio_write(struct kiocb *iocb, const struct iovec *iov,
-+                   unsigned long nr_segs, loff_t pos)
-+{
-+            struct inode *inode;
-+            void *quell;
-+            unsigned long pin;
-+            unsigned long size, todo, step;
-+            ssize_t rc;
-+
-+            inode = iocb->ki_filp->f_mapping->host;
-+
-+            quell = iov->iov_base;
-+            todo = iov->iov_len;
-+
-+            mutex_lock(&inode->i_mutex);
-+
-+            for (step = todo; step; step -= size) {
-+                        size = step;
-+                        pin = azfs_recherche(inode, AZFS_WRITE, pos,
-&size);
-+                        if (!pin) {
-+                                    rc = -ENOSPC;
-+                                    goto out;
-+                        }
-+                        if (copy_from_user((void*) pin, quell, size)) {
-+                                    rc = -EFAULT;
-+                                    goto out;
-+                        }
-+
-+                        iocb->ki_pos += size;
-+                        pos += size;
-+                        quell += size;
-+            }
-+
-+            rc = todo;
-+
-+out:
-+            mutex_unlock(&inode->i_mutex);
-+
-+            return rc;
-+}
-+
-+/**
-+ * azfs_open - open() method for file_operations
-+ * @inode, @file: see file_operations methods
-+ */
-+static int
-+azfs_open(struct inode *inode, struct file *file)
-+{
-+            file->private_data = inode;
-+
-+            if (file->f_flags & O_TRUNC) {
-+                        i_size_write(inode, 0);
-+                        inode->i_op->truncate(inode);
-+            }
-+            if (file->f_flags & O_APPEND)
-+                        inode->i_fop->llseek(file, 0, SEEK_END);
-+
-+            return 0;
-+}
-+
-+/**
-+ * azfs_mmap - mmap() method for file_operations
-+ * @file, @vm: see file_operations methods
-+ */
-+static int
-+azfs_mmap(struct file *file, struct vm_area_struct *vma)
-+{
-+            struct azfs_super *super;
-+            struct azfs_znode *znode;
-+            struct inode *inode;
-+            unsigned long cursor, pin;
-+            unsigned long todo, size, vm_start;
-+            pgprot_t page_prot;
-+
-+            inode = file->private_data;
-+            znode = I2Z(inode);
-+            super = inode->i_sb->s_fs_info;
-+
-+            if (super->block_size < PAGE_SIZE)
-+                        return -EINVAL;
-+
-+            cursor = vma->vm_pgoff << super->block_shift;
-+            todo = vma->vm_end - vma->vm_start;
-+
-+            if (cursor + todo > i_size_read(inode))
-+                        return -EINVAL;
-+
-+            page_prot = pgprot_val(vma->vm_page_prot);
-+            page_prot |= (_PAGE_NO_CACHE | _PAGE_RW);
-+            page_prot &= ~_PAGE_GUARDED;
-+            vma->vm_page_prot = __pgprot(page_prot);
-+
-+            vm_start = vma->vm_start;
-+            for (size = todo; todo; todo -= size, size = todo) {
-+                        pin = azfs_recherche(inode, AZFS_MMAP, cursor,
-&size);
-+                        if (!pin)
-+                                    return -EAGAIN;
-+                        pin >>= PAGE_SHIFT;
-+                        if (remap_pfn_range(vma, vm_start, pin, size,
-vma->vm_page_prot))
-+                                    return -EAGAIN;
-+
-+                        vm_start += size;
-+                        cursor += size;
-+            }
-+
-+            return 0;
-+}
-+
-+/**
-+ * azfs_truncate - truncate() method for inode_operations
-+ * @inode: see inode_operations methods
-+ */
-+static void
-+azfs_truncate(struct inode *inode)
-+{
-+            struct azfs_super *super;
-+            struct azfs_znode *znode;
-+            struct azfs_block *block, *ding, *knoten, *west, *east;
-+            unsigned long id, count;
-+            signed long delta;
-+
-+            super = inode->i_sb->s_fs_info;
-+            znode = I2Z(inode);
-+
-+            delta = i_size_read(inode) + (super->block_size - 1);
-+            delta >>= super->block_shift;
-+            delta -= inode->i_blocks;
-+
-+            if (delta == 0) {
-+                        znode->size = i_size_read(inode);
-+                        return;
-+            }
-+
-+            write_lock(&znode->lock);
-+
-+            while (delta > 0) {
-+                        west = east = NULL;
-+
-+                        write_lock(&super->lock);
-+
-+                        if (list_empty(&super->block_list)) {
-+                                    write_unlock(&super->lock);
-+                                    break;
-+                        }
-+
-+                        for (count = delta; count; count--) {
-+                                    for_each_block(block,
-&super->block_list)
-+                                                if (block->count >= count)
-{
-+                                                            east = block;
-+                                                            break;
-+                                                }
-+                                    if (east)
-+                                                break;
-+                        }
-+
-+                        for_each_block_reverse(block, &znode->block_list)
-{
-+                                    if (block->id + block->count ==
-east->id)
-+                                                west = block;
-+                                    break;
-+                        }
-+
-+                        if (east->count == count) {
-+                                    if (west) {
-+                                                west->count +=
-east->count;
-+                                                azfs_block_free(east);
-+                                    } else {
-+                                                azfs_block_move(east,
-&znode->block_list);
-+                                    }
-+                        } else {
-+                                    if (west) {
-+                                                west->count += count;
-+                                    } else {
-+                                                if
-(!azfs_block_init(&znode->block_list,
-+
-east->id, count)) {
-+
-write_unlock(&super->lock);
-+                                                            break;
-+                                                }
-+                                    }
-+
-+                                    east->id += count;
-+                                    east->count -= count;
-+                        }
-+
-+                        write_unlock(&super->lock);
-+
-+                        inode->i_blocks += count;
-+
-+                        delta -= count;
-+            }
-+
-+            while (delta < 0) {
-+                        for_each_block_safe_reverse(block, knoten,
-&znode->block_list) {
-+                                    id = block->id;
-+                                    count = block->count;
-+                                    if ((signed long) count + delta > 0) {
-+                                                block->count += delta;
-+                                                id += block->count;
-+                                                count -= block->count;
-+                                                block = NULL;
-+                                    }
-+
-+                                    west = east = NULL;
-+
-+                                    write_lock(&super->lock);
-+
-+                                    for_each_block(ding,
-&super->block_list) {
-+                                                if (!west && (ding->id +
-ding->count == id))
-+                                                            west = ding;
-+                                                else if (!east && (id +
-count == ding->id))
-+                                                            east = ding;
-+                                                if (west && east)
-+                                                            break;
-+                                    }
-+
-+                                    if (west && east) {
-+                                                west->count += count +
-east->count;
-+                                                azfs_block_free(east);
-+                                                if (block)
-+
-azfs_block_free(block);
-+                                    } else if (west) {
-+                                                west->count += count;
-+                                                if (block)
-+
-azfs_block_free(block);
-+                                    } else if (east) {
-+                                                east->id -= count;
-+                                                east->count += count;
-+                                                if (block)
-+
-azfs_block_free(block);
-+                                    } else {
-+                                                if (!block) {
-+                                                            if
-(!azfs_block_init(&super->block_list,
-+
-       id, count)) {
-+
-write_unlock(&super->lock);
-+
-break;
-+                                                            }
-+                                                } else {
-+
-azfs_block_move(block, &super->block_list);
-+                                                }
-+                                    }
-+
-+                                    write_unlock(&super->lock);
-+
-+                                    inode->i_blocks -= count;
-+
-+                                    delta += count;
-+
-+                                    break;
-+                        }
-+            }
-+
-+            write_unlock(&znode->lock);
-+
-+            znode->size = min(i_size_read(inode),
-+                                    (loff_t) inode->i_blocks <<
-super->block_shift);
-+}
-+
-+/**
-+ * azfs_getattr - getattr() method for inode_operations
-+ * @mnt, @dentry, @stat: see inode_operations methods
-+ */
-+static int
-+azfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat
-*stat)
-+{
-+            struct azfs_super *super;
-+            struct inode *inode;
-+            unsigned short shift;
-+
-+            inode = dentry->d_inode;
-+            super = inode->i_sb->s_fs_info;
-+
-+            generic_fillattr(inode, stat);
-+            stat->blocks = inode->i_blocks;
-+            shift = super->block_shift - super->sector_shift;
-+            if (shift)
-+                        stat->blocks <<= shift;
-+
-+            return 0;
-+}
-+
-+static const struct address_space_operations azfs_aops = {
-+            .write_begin            = simple_write_begin,
-+            .write_end        = simple_write_end
-+};
-+
-+static struct backing_dev_info azfs_bdi = {
-+            .ra_pages         = 0,
-+            .capabilities           = AZFS_BDI_CAPABILITIES
-+};
-+
-+static struct inode_operations azfs_dir_iops = {
-+            .create                       = azfs_create,
-+            .lookup                       = simple_lookup,
-+            .link                         = simple_link,
-+            .unlink                       = simple_unlink,
-+            .symlink          = azfs_symlink,
-+            .mkdir                        = azfs_mkdir,
-+            .rmdir                        = simple_rmdir,
-+            .mknod                        = azfs_mknod,
-+            .rename                       = simple_rename
-+};
-+
-+static const struct file_operations azfs_reg_fops = {
-+            .llseek                       = generic_file_llseek,
-+            .aio_read         = azfs_aio_read,
-+            .aio_write        = azfs_aio_write,
-+            .open                         = azfs_open,
-+            .mmap                         = azfs_mmap,
-+            .fsync                        = simple_sync_file,
-+};
-+
-+static struct inode_operations azfs_reg_iops = {
-+            .truncate         = azfs_truncate,
-+            .getattr          = azfs_getattr
-+};
-+
-+/**
-+ * azfs_new_inode - cook a new inode
-+ * @sb: super-block
-+ * @dir: parent directory
-+ * @mode: file mode
-+ * @dev: to be forwarded to init_special_inode()
-+ */
-+static struct inode*
-+azfs_new_inode(struct super_block *sb, struct inode *dir, int mode, dev_t
-dev)
-+{
-+            struct inode *inode;
-+
-+            inode = new_inode(sb);
-+            if (!inode)
-+                        return NULL;
-+
-+            inode->i_atime = inode->i_mtime = inode->i_ctime =
-CURRENT_TIME;
-+
-+            inode->i_mode = mode;
-+            if (dir) {
-+                        dir->i_mtime = dir->i_ctime = inode->i_mtime;
-+                        inode->i_uid = current->fsuid;
-+                        if (dir->i_mode & S_ISGID) {
-+                                    if (S_ISDIR(mode))
-+                                                inode->i_mode |= S_ISGID;
-+                                    inode->i_gid = dir->i_gid;
-+                        } else {
-+                                    inode->i_gid = current->fsgid;
-+                        }
-+            } else {
-+                        inode->i_uid = 0;
-+                        inode->i_gid = 0;
-+            }
-+
-+            inode->i_blocks = 0;
-+            inode->i_mapping->a_ops = &azfs_aops;
-+            inode->i_mapping->backing_dev_info = &azfs_bdi;
-+
-+            switch (mode & S_IFMT) {
-+            case S_IFDIR:
-+                        inode->i_op = &azfs_dir_iops;
-+                        inode->i_fop = &simple_dir_operations;
-+                        inc_nlink(inode);
-+                        break;
-+
-+            case S_IFREG:
-+                        inode->i_op = &azfs_reg_iops;
-+                        inode->i_fop = &azfs_reg_fops;
-+                        break;
-+
-+            case S_IFLNK:
-+                        inode->i_op = &page_symlink_inode_operations;
-+                        break;
-+
-+            default:
-+                        init_special_inode(inode, mode, dev);
-+                        break;
-+            }
-+
-+            return inode;
-+}
-+
-+/**
-+ * azfs_alloc_inode - alloc_inode() method for super_operations
-+ * @sb: see super_operations methods
-+ */
-+static struct inode*
-+azfs_alloc_inode(struct super_block *sb)
-+{
-+            struct azfs_znode *znode;
-+
-+            znode = kmem_cache_alloc(azfs_znode_cache, GFP_KERNEL);
-+
-+            INIT_LIST_HEAD(&znode->block_list);
-+            rwlock_init(&znode->lock);
-+
-+            inode_init_once(&znode->vfs_inode);
-+
-+            return znode ? &znode->vfs_inode : NULL;
-+}
-+
-+/**
-+ * azfs_destroy_inode - destroy_inode() method for super_operations
-+ * @inode: see super_operations methods
-+ */
-+static void
-+azfs_destroy_inode(struct inode *inode)
-+{
-+            kmem_cache_free(azfs_znode_cache, I2Z(inode));
-+}
-+
-+/**
-+ * azfs_delete_inode - delete_inode() method for super_operations
-+ * @inode: see super_operations methods
-+ */
-+static void
-+azfs_delete_inode(struct inode *inode)
-+{
-+            if (S_ISREG(inode->i_mode)) {
-+                        i_size_write(inode, 0);
-+                        azfs_truncate(inode);
-+            }
-+            truncate_inode_pages(&inode->i_data, 0);
-+            clear_inode(inode);
-+}
-+
-+/**
-+ * azfs_statfs - statfs() method for super_operations
-+ * @dentry, @stat: see super_operations methods
-+ */
-+static int
-+azfs_statfs(struct dentry *dentry, struct kstatfs *stat)
-+{
-+            struct super_block *sb;
-+            struct azfs_super *super;
-+            struct inode *inode;
-+            unsigned long inodes, blocks;
-+
-+            sb = dentry->d_sb;
-+            super = sb->s_fs_info;
-+
-+            inodes = blocks = 0;
-+            mutex_lock(&sb->s_lock);
-+            list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
-+                        inodes++;
-+                        blocks += inode->i_blocks;
-+            }
-+            mutex_unlock(&sb->s_lock);
-+
-+            stat->f_type = AZFS_SUPERBLOCK_MAGIC;
-+            stat->f_bsize = super->block_size;
-+            stat->f_blocks = super->media_size >> super->block_shift;
-+            stat->f_bfree = stat->f_blocks - blocks;
-+            stat->f_bavail = stat->f_blocks - blocks;
-+            stat->f_files = inodes + blocks;
-+            stat->f_ffree = blocks + 1;
-+            stat->f_namelen = NAME_MAX;
-+
-+            return 0;
-+}
-+
-+static struct super_operations azfs_ops = {
-+            .alloc_inode            = azfs_alloc_inode,
-+            .destroy_inode          = azfs_destroy_inode,
-+            .drop_inode             = generic_delete_inode,
-+            .delete_inode           = azfs_delete_inode,
-+            .statfs                       = azfs_statfs
-+};
-+
-+/**
-+ * azfs_fill_super - fill_super routine for get_sb
-+ * @sb, @data, @silent: see file_system_type methods
-+ */
-+static int
-+azfs_fill_super(struct super_block *sb, void *data, int silent)
-+{
-+            struct gendisk *disk;
-+            struct azfs_super *super = NULL, *knoten;
-+            struct azfs_block *block = NULL;
-+            struct inode *inode = NULL;
-+            int rc;
-+
-+            BUG_ON(!sb->s_bdev);
-+
-+            disk = sb->s_bdev->bd_disk;
-+
-+            if (!disk || !disk->queue) {
-+                        printk(KERN_ERR "%s needs a block device which has
-a gendisk "
-+                                                "with a queue\n",
-+                                                AZFS_FILESYSTEM_NAME);
-+                        return -ENOSYS;
-+            }
-+
-+            if (!disk->fops->direct_access) {
-+                        printk(KERN_ERR "%s needs a block device with a "
-+                                                "direct_access()
-method\n",
-+                                                AZFS_FILESYSTEM_NAME);
-+                        return -ENOSYS;
-+            }
-+
-+            if (!get_device(disk->driverfs_dev)) {
-+                        printk(KERN_ERR "%s cannot get reference to device
-driver\n",
-+                                                AZFS_FILESYSTEM_NAME);
-+                        return -EFAULT;
-+            }
-+
-+            sb->s_magic = AZFS_SUPERBLOCK_MAGIC;
-+            sb->s_flags = AZFS_SUPERBLOCK_FLAGS;
-+            sb->s_op = &azfs_ops;
-+            sb->s_maxbytes = get_capacity(disk) *
-disk->queue->hardsect_size;
-+            sb->s_time_gran = 1;
-+
-+            spin_lock(&super_list.lock);
-+            list_for_each_entry(knoten, &super_list.head, list)
-+                        if (knoten->blkdev == sb->s_bdev) {
-+                                    super = knoten;
-+                                    break;
-+                        }
-+            spin_unlock(&super_list.lock);
-+
-+            if (!super) {
-+                        super = kzalloc(sizeof(struct azfs_super),
-GFP_KERNEL);
-+                        if (!super) {
-+                                    rc = -ENOMEM;
-+                                    goto failed;
-+                        }
-+
-+                        inode = azfs_new_inode(sb, NULL, S_IFDIR |
-S_IRWXUGO, 0);
-+                        if (!inode) {
-+                                    rc = -ENOMEM;
-+                                    goto failed;
-+                        }
-+
-+                        super->root = d_alloc_root(inode);
-+                        if (!super->root) {
-+                                    rc = -ENOMEM;
-+                                    goto failed;
-+                        }
-+                        dget(super->root);
-+
-+                        INIT_LIST_HEAD(&super->list);
-+                        INIT_LIST_HEAD(&super->block_list);
-+                        rwlock_init(&super->lock);
-+
-+                        super->media_size = sb->s_maxbytes;
-+                        super->block_size = sb->s_blocksize;
-+                        super->block_shift = sb->s_blocksize_bits;
-+                        super->sector_size = disk->queue->hardsect_size;
-+                        super->sector_shift =
-blksize_bits(disk->queue->hardsect_size);
-+                        super->blkdev = sb->s_bdev;
-+
-+                        block = azfs_block_init(&super->block_list,
-+                                                0, super->media_size >>
-super->block_shift);
-+                        if (!block) {
-+                                    rc = -ENOMEM;
-+                                    goto failed;
-+                        }
-+
-+                        rc = disk->fops->direct_access(super->blkdev, 0,
-&super->ph_addr);
-+                        if (rc < 0) {
-+                                    rc = -EFAULT;
-+                                    goto failed;
-+                        }
-+
-+                        super->io_addr = (unsigned long) ioremap_flags(
-+                                                super->ph_addr,
-super->media_size, _PAGE_NO_CACHE);
-+                        if (!super->io_addr) {
-+                                    rc = -EFAULT;
-+                                    goto failed;
-+                        }
-+
-+                        spin_lock(&super_list.lock);
-+                        list_add(&super->list, &super_list.head);
-+                        spin_unlock(&super_list.lock);
-+            }
-+
-+            sb->s_root = super->root;
-+            sb->s_fs_info = super;
-+            disk->driverfs_dev->driver_data = super;
-+            disk->driverfs_dev->platform_data = sb;
-+
-+            if (super->block_size < PAGE_SIZE)
-+                        printk(KERN_INFO "Block size on %s is smaller then
-system "
-+                                                "page size: mmap() would
-not be supported\n",
-+                                                disk->disk_name);
-+
-+            return 0;
-+
-+failed:
-+            if (super) {
-+                        sb->s_root = NULL;
-+                        sb->s_fs_info = NULL;
-+                        if (block)
-+                                    azfs_block_free(block);
-+                        if (super->root)
-+                                    dput(super->root);
-+                        if (inode)
-+                                    iput(inode);
-+                        disk->driverfs_dev->driver_data = NULL;
-+                        kfree(super);
-+                        disk->driverfs_dev->platform_data = NULL;
-+                        put_device(disk->driverfs_dev);
-+            }
-+
-+            return rc;
-+}
-+
-+/**
-+ * azfs_get_sb - get_sb() method for file_system_type
-+ * @fs_type, @flags, @dev_name, @data, @mount: see file_system_type
-methods
-+ */
-+static int
-+azfs_get_sb(struct file_system_type *fs_type, int flags,
-+                const char *dev_name, void *data, struct vfsmount *mount)
-+{
-+            return get_sb_bdev(fs_type, flags,
-+                                    dev_name, data, azfs_fill_super,
-mount);
-+}
-+
-+/**
-+ * azfs_kill_sb - kill_sb() method for file_system_type
-+ * @sb: see file_system_type methods
-+ */
-+static void
-+azfs_kill_sb(struct super_block *sb)
-+{
-+            sb->s_root = NULL;
-+            kill_block_super(sb);
-+}
-+
-+static struct file_system_type azfs_fs = {
-+            .owner                        = THIS_MODULE,
-+            .name                         = AZFS_FILESYSTEM_NAME,
-+            .get_sb                       = azfs_get_sb,
-+            .kill_sb          = azfs_kill_sb,
-+            .fs_flags         = AZFS_FILESYSTEM_FLAGS
-+};
-+
-+/**
-+ * azfs_init
-+ */
-+static int __init
-+azfs_init(void)
-+{
-+            int rc;
-+
-+            INIT_LIST_HEAD(&super_list.head);
-+            spin_lock_init(&super_list.lock);
-+
-+            azfs_znode_cache = kmem_cache_create("azfs_znode_cache",
-+                                    sizeof(struct azfs_znode), 0,
-AZFS_CACHE_FLAGS, NULL);
-+            if (!azfs_znode_cache) {
-+                        printk(KERN_ERR "Could not allocate inode cache
-for %s\n",
-+                                                AZFS_FILESYSTEM_NAME);
-+                        rc = -ENOMEM;
-+                        goto failed;
-+            }
-+
-+            azfs_block_cache = kmem_cache_create("azfs_block_cache",
-+                                    sizeof(struct azfs_block), 0,
-AZFS_CACHE_FLAGS, NULL);
-+            if (!azfs_block_cache) {
-+                        printk(KERN_ERR "Could not allocate block cache
-for %s\n",
-+                                                AZFS_FILESYSTEM_NAME);
-+                        rc = -ENOMEM;
-+                        goto failed;
-+            }
-+
-+            rc = register_filesystem(&azfs_fs);
-+            if (rc != 0) {
-+                        printk(KERN_ERR "Could not register %s\n",
-+                                                AZFS_FILESYSTEM_NAME);
-+                        goto failed;
-+            }
-+
-+            return 0;
-+
-+failed:
-+            if (azfs_block_cache)
-+                        kmem_cache_destroy(azfs_block_cache);
-+
-+            if (azfs_znode_cache)
-+                        kmem_cache_destroy(azfs_znode_cache);
-+
-+            return rc;
-+}
-+
-+/**
-+ * azfs_exit
-+ */
-+static void __exit
-+azfs_exit(void)
-+{
-+            struct azfs_super *super, *PILZE;
-+            struct azfs_block *block, *knoten;
-+            struct gendisk *disk;
-+
-+            spin_lock(&super_list.lock);
-+            list_for_each_entry_safe(super, PILZE, &super_list.head, list)
-{
-+                        disk = super->blkdev->bd_disk;
-+                        list_del(&super->list);
-+                        iounmap((void*) super->io_addr);
-+                        write_lock(&super->lock);
-+                        for_each_block_safe(block, knoten,
-&super->block_list)
-+                                    azfs_block_free(block);
-+                        write_unlock(&super->lock);
-+                        disk->driverfs_dev->driver_data = NULL;
-+                        disk->driverfs_dev->platform_data = NULL;
-+                        kfree(super);
-+                        put_device(disk->driverfs_dev);
-+            }
-+            spin_unlock(&super_list.lock);
-+
-+            unregister_filesystem(&azfs_fs);
-+
-+            kmem_cache_destroy(azfs_block_cache);
-+            kmem_cache_destroy(azfs_znode_cache);
-+}
-+
-+module_init(azfs_init);
-+module_exit(azfs_exit);
-+
-+MODULE_LICENSE("GPL");
-+MODULE_AUTHOR("Maxim Shchetynin <maxim@de.ibm.com>");
-+MODULE_DESCRIPTION("Non-buffered file system for IO devices");
-
-Mit freundlichen Grussen / met vriendelijke groeten / avec regards
+Mit freundlichen Gr=FC=DFen / met vriendelijke groeten / avec regards
 
     Maxim V. Shchetynin
     Linux Kernel Entwicklung
     IBM Deutschland Entwicklung GmbH
-    Linux fur Cell, Abteilung 3250
-    Schonaicher Strasse 220
-    71032 Boblingen
+    Linux f=FCr Cell, Abteilung 3250
+    Sch=F6naicher Stra=DFe 220
+    71032 B=F6blingen
 
 Vorsitzender des Aufsichtsrats: Johann Weihen
-Geschaftsfuhrung: Herbert Kircher
-Sitz der Gesellschaft: Boblingen
+Gesch=E4ftsf=FChrung: Herbert Kircher
+Sitz der Gesellschaft: B=F6blingen
 Registriergericht: Amtsgericht Stuttgart, HRB 243294
 
-Fahr nur so schnell wie dein Schutzengel fliegen kann!
+Fahr nur so schnell wie dein Schutzengel fliegen kann!=
+
+--0__=4EBBF927DFF54BDE8f9e8a93df938690918c4EBBF927DFF54BDE
+Content-type: application/octet-stream;
+	name="linux-2.6.24-rc4-azfs.diff.gz"
+Content-Disposition: attachment; filename="linux-2.6.24-rc4-azfs.diff.gz"
+Content-transfer-encoding: base64
+
+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
+le8lwPh/KQu0HZFrAAA=
+
+--0__=4EBBF927DFF54BDE8f9e8a93df938690918c4EBBF927DFF54BDE--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
