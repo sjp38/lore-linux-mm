@@ -1,185 +1,218 @@
-Message-Id: <20071218211550.292178257@redhat.com>
+Message-Id: <20071218211549.536791435@redhat.com>
 References: <20071218211539.250334036@redhat.com>
-Date: Tue, 18 Dec 2007 16:15:57 -0500
+Date: Tue, 18 Dec 2007 16:15:49 -0500
 From: Rik van Riel <riel@redhat.com>
-Subject: [patch 18/20] mlock vma pages under mmap_sem held for read
-Content-Disposition: inline; filename=noreclaim-04.1a-lock-vma-pages-under-read-lock.patch
+Subject: [patch 10/20] SEQ replacement for anonymous pages
+Content-Disposition: inline; filename=rvr-03-linux-2.6-vm-anon-seq.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, lee.shermerhorn@hp.com, Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-kernel@vger.kernel.org, lee.shermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-V2 -> V3:
-+ rebase to 23-mm1 atop RvR's split lru series [no change]
-+ fix function return types [void -> int] to fix build when
-  not configured.
+We avoid evicting and scanning anonymous pages for the most part, but
+under some workloads we can end up with most of memory filled with
+anonymous pages.  At that point, we suddenly need to clear the referenced
+bits on all of memory, which can take ages on very large memory systems.
 
-New in V2.
+We can reduce the maximum number of pages that need to be scanned by
+not taking the referenced state into account when deactivating an
+anonymous page.  After all, every anonymous page starts out referenced,
+so why check?
 
-We need to hold the mmap_sem for write to initiatate mlock()/munlock()
-because we may need to merge/split vmas.  However, this can lead to
-very long lock hold times attempting to fault in a large memory region
-to mlock it into memory.   This can hold off other faults against the
-mm [multithreaded tasks] and other scans of the mm, such as via /proc.
-To alleviate this, downgrade the mmap_sem to read mode during the 
-population of the region for locking.  This is especially the case 
-if we need to reclaim memory to lock down the region.  We [probably?]
-don't need to do this for unlocking as all of the pages should be
-resident--they're already mlocked.
+If an anonymous page gets referenced again before it reaches the end
+of the inactive list, we move it back to the active list.
 
-Now, the caller's of the mlock functions [mlock_fixup() and 
-mlock_vma_pages_range()] expect the mmap_sem to be returned in write
-mode.  Changing all callers appears to be way too much effort at this
-point.  So, restore write mode before returning.  Note that this opens
-a window where the mmap list could change in a multithreaded process.
-So, at least for mlock_fixup(), where we could be called in a loop over
-multiple vmas, we check that a vma still exists at the start address
-and that vma still covers the page range [start,end).  If not, we return
-an error, -EAGAIN, and let the caller deal with it.
+To keep the maximum amount of necessary work reasonable, we scale the
+active to inactive ratio with the size of memory, using the formula
+active:inactive ratio = sqrt(memory in GB * 10).
 
-Return -EAGAIN from mlock_vma_pages_range() function and mlock_fixup()
-if the vma at 'start' disappears or changes so that the page range
-[start,end) is no longer contained in the vma.  Again, let the caller
-deal with it.  Looks like only sys_remap_file_pages() [via mmap_region()]
-should actually care.
+Kswapd CPU use now seems to scale by the amount of pageout bandwidth,
+instead of by the amount of memory present in the system.
 
-With this patch, I no longer see processes like ps(1) blocked for seconds
-or minutes at a time waiting for a large [multiple gigabyte] region to be
-locked down.  
+Signed-off-by: Rik van Riel <riel@redhat.com>
 
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-Signed-off-by:  Rik van Riel <riel@redhat.com>
-
-Index: Linux/mm/mlock.c
+Index: linux-2.6.24-rc3-mm2/include/linux/mm_inline.h
 ===================================================================
---- Linux.orig/mm/mlock.c	2007-11-12 16:21:59.000000000 -0500
-+++ Linux/mm/mlock.c	2007-11-12 16:22:01.000000000 -0500
-@@ -215,6 +215,37 @@ int __mlock_vma_pages_range(struct vm_ar
- 	return ret;
+--- linux-2.6.24-rc3-mm2.orig/include/linux/mm_inline.h
++++ linux-2.6.24-rc3-mm2/include/linux/mm_inline.h
+@@ -106,4 +106,16 @@ del_page_from_lru(struct zone *zone, str
+ 	__dec_zone_state(zone, NR_INACTIVE_ANON + l);
+ }
+ 
++static inline int inactive_anon_low(struct zone *zone)
++{
++	unsigned long active, inactive;
++
++	active = zone_page_state(zone, NR_ACTIVE_ANON);
++	inactive = zone_page_state(zone, NR_INACTIVE_ANON);
++
++	if (inactive * zone->inactive_ratio < active)
++		return 1;
++
++	return 0;
++}
+ #endif
+Index: linux-2.6.24-rc3-mm2/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.24-rc3-mm2.orig/include/linux/mmzone.h
++++ linux-2.6.24-rc3-mm2/include/linux/mmzone.h
+@@ -313,6 +313,11 @@ struct zone {
+ 	 */
+ 	int prev_priority;
+ 
++	/*
++	 * The ratio of active to inactive pages.
++	 */
++	unsigned int inactive_ratio;
++
+ 
+ 	ZONE_PADDING(_pad2_)
+ 	/* Rarely used or read-mostly fields */
+Index: linux-2.6.24-rc3-mm2/mm/page_alloc.c
+===================================================================
+--- linux-2.6.24-rc3-mm2.orig/mm/page_alloc.c
++++ linux-2.6.24-rc3-mm2/mm/page_alloc.c
+@@ -4221,6 +4221,34 @@ void setup_per_zone_pages_min(void)
+ 	calculate_totalreserve_pages();
  }
  
 +/**
-+ * mlock_vma_pages_range
-+ * @vma - vm area to mlock into memory
-+ * @start - start address in @vma of range to mlock,
-+ * @end   - end address in @vma of range
++ * setup_per_zone_inactive_ratio - called when min_free_kbytes changes.
 + *
-+ * Called with current->mm->mmap_sem held write locked.  Downgrade to read
-+ * for faulting in pages.  This can take a looong time for large segments.
++ * The inactive anon list should be small enough that the VM never has to
++ * do too much work, but large enough that each inactive page has a chance
++ * to be referenced again before it is swapped out.
 + *
-+ * We need to restore the mmap_sem to write locked because our callers'
-+ * callers expect this.	 However, because the mmap could have changed
-+ * [in a multi-threaded process], we need to recheck.
++ * The inactive_anon ratio is the ratio of active to inactive anonymous
++ * pages.  Ie. a ratio of 3 means 3:1 or 25% of the anonymous pages are
++ * on the inactive list.
 + */
-+int mlock_vma_pages_range(struct vm_area_struct *vma,
-+			unsigned long start, unsigned long end)
++void setup_per_zone_inactive_ratio(void)
 +{
-+	struct mm_struct *mm = vma->vm_mm;
++	struct zone *zone;
 +
-+	downgrade_write(&mm->mmap_sem);
-+	__mlock_vma_pages_range(vma, start, end, 1);
++	for_each_zone(zone) {
++		unsigned int gb, ratio;
 +
-+	up_read(&mm->mmap_sem);
-+	/* vma can change or disappear */
-+	down_write(&mm->mmap_sem);
-+	vma = find_vma(mm, start);
-+	/* non-NULL vma must contain @start, but need to check @end */
-+	if (!vma ||  end > vma->vm_end)
-+		return -EAGAIN;
-+	return 0;
++		/* Zone size in gigabytes */
++		gb = zone->present_pages >> (30 - PAGE_SHIFT);
++		ratio = int_sqrt(10 * gb);
++		if (!ratio)
++			ratio = 1;
++
++		zone->inactive_ratio = ratio;
++	}
 +}
 +
- #else /* CONFIG_NORECLAIM_MLOCK */
- 
  /*
-@@ -281,14 +312,38 @@ success:
- 	mm->locked_vm += nr_pages;
+  * Initialise min_free_kbytes.
+  *
+@@ -4258,6 +4286,7 @@ static int __init init_per_zone_pages_mi
+ 		min_free_kbytes = 65536;
+ 	setup_per_zone_pages_min();
+ 	setup_per_zone_lowmem_reserve();
++	setup_per_zone_inactive_ratio();
+ 	return 0;
+ }
+ module_init(init_per_zone_pages_min)
+Index: linux-2.6.24-rc3-mm2/mm/vmscan.c
+===================================================================
+--- linux-2.6.24-rc3-mm2.orig/mm/vmscan.c
++++ linux-2.6.24-rc3-mm2/mm/vmscan.c
+@@ -1018,7 +1018,7 @@ static inline int zone_is_near_oom(struc
+ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+ 				struct scan_control *sc, int priority, int file)
+ {
+-	unsigned long pgmoved;
++	unsigned long pgmoved = 0;
+ 	int pgdeactivate = 0;
+ 	unsigned long pgscanned;
+ 	LIST_HEAD(l_hold);	/* The pages which were snipped off */
+@@ -1057,12 +1057,25 @@ static void shrink_active_list(unsigned 
+ 		cond_resched();
+ 		page = lru_to_page(&l_hold);
+ 		list_del(&page->lru);
+-		if (page_referenced(page, 0, sc->mem_cgroup))
+-			lru = LRU_ACTIVE_ANON;
++		if (page_referenced(page, 0, sc->mem_cgroup)) {
++			if (file)
++				/* Referenced file pages stay active. */
++				lru = LRU_ACTIVE_ANON;
++			else
++				/* Anonymous pages always get deactivated. */
++				pgmoved++;
++		}
+ 		list_add(&page->lru, &list[lru]);
+ 	}
  
  	/*
--	 * vm_flags is protected by the mmap_sem held in write mode.
-+	 * vm_flags is protected by the mmap_sem held for write.
- 	 * It's okay if try_to_unmap_one unmaps a page just after we
- 	 * set VM_LOCKED, __mlock_vma_pages_range will bring it back.
- 	 */
- 	vma->vm_flags = newflags;
- 
-+	/*
-+	 * mmap_sem is currently held for write.  If we're locking pages,
-+	 * downgrade the write lock to a read lock so that other faults,
-+	 * mmap scans, ... while we fault in all pages.
++	 * Count the referenced anon pages as rotated, to balance pageout
++	 * scan pressure between file and anonymous pages in get_scan_ratio.
 +	 */
-+	if (lock)
-+		downgrade_write(&mm->mmap_sem);
++	if (!file)
++		zone->recent_rotated_anon += pgmoved;
 +
- 	__mlock_vma_pages_range(vma, start, end, lock);
- 
-+	if (lock) {
-+		/*
-+		 * Need to reacquire mmap sem in write mode, as our callers
-+		 * expect this.  We have no support for atomically upgrading
-+		 * a sem to write, so we need to check for changes while sem
-+		 * is unlocked.
-+		 */
-+		up_read(&mm->mmap_sem);
-+		/* vma can change or disappear */
-+		down_write(&mm->mmap_sem);
-+		*prev = find_vma(mm, start);
-+		/* non-NULL *prev must contain @start, but need to check @end */
-+		if (!(*prev) || end > (*prev)->vm_end)
-+			ret = -EAGAIN;
-+	}
-+
- out:
- 	if (ret == -ENOMEM)
- 		ret = -EAGAIN;
-Index: Linux/mm/internal.h
-===================================================================
---- Linux.orig/mm/internal.h	2007-11-12 16:21:59.000000000 -0500
-+++ Linux/mm/internal.h	2007-11-12 16:22:01.000000000 -0500
-@@ -53,24 +53,21 @@ extern int __mlock_vma_pages_range(struc
- /*
-  * mlock all pages in this vma range.  For mmap()/mremap()/...
-  */
--static inline void mlock_vma_pages_range(struct vm_area_struct *vma,
--			unsigned long start, unsigned long end)
--{
--	__mlock_vma_pages_range(vma, start, end, 1);
--}
-+extern int mlock_vma_pages_range(struct vm_area_struct *vma,
-+			unsigned long start, unsigned long end);
- 
- /*
-  * munlock range of pages.   For munmap() and exit().
-  * Always called to operate on a full vma that is being unmapped.
-  */
--static inline void munlock_vma_pages_range(struct vm_area_struct *vma,
-+static inline int munlock_vma_pages_range(struct vm_area_struct *vma,
- 			unsigned long start, unsigned long end)
++	/*
+ 	 * Now put the pages back to the appropriate [file or anon] inactive
+ 	 * and active lists.
+ 	 */
+@@ -1144,7 +1157,11 @@ static unsigned long shrink_list(enum lr
  {
- // TODO:  verify my assumption.  Should we just drop the start/end args?
- 	VM_BUG_ON(start != vma->vm_start || end != vma->vm_end);
+ 	int file = is_file_lru(lru);
  
- 	vma->vm_flags &= ~VM_LOCKED;	/* try_to_unlock() needs this */
--	__mlock_vma_pages_range(vma, start, end, 0);
-+	return __mlock_vma_pages_range(vma, start, end, 0);
+-	if (lru == LRU_ACTIVE_ANON || lru == LRU_ACTIVE_FILE) {
++	if (lru == LRU_ACTIVE_FILE) {
++		shrink_active_list(nr_to_scan, zone, sc, priority, file);
++		return 0;
++	}
++	if (lru == LRU_ACTIVE_ANON && inactive_anon_low(zone)) {
+ 		shrink_active_list(nr_to_scan, zone, sc, priority, file);
+ 		return 0;
+ 	}
+@@ -1261,6 +1278,9 @@ static unsigned long shrink_zone(int pri
+ 					zone, priority, 0, 0);
+ 	}
+ 
++	if (!inactive_anon_low(zone))
++		nr[LRU_ACTIVE_ANON] = 0;
++
+ 	while (nr[LRU_ACTIVE_ANON] || nr[LRU_INACTIVE_ANON] ||
+ 			nr[LRU_ACTIVE_FILE] || nr[LRU_INACTIVE_FILE]) {
+ 		for_each_lru(l) {
+@@ -1565,6 +1585,14 @@ loop_again:
+ 			    priority != DEF_PRIORITY)
+ 				continue;
+ 
++			/*
++			 * Do some background aging of the anon list, to give
++			 * pages a chance to be referenced before reclaiming.
++			 */
++			if (inactive_anon_low(zone))
++				shrink_active_list(SWAP_CLUSTER_MAX, zone,
++							&sc, priority, 0);
++
+ 			if (!zone_watermark_ok(zone, order, zone->pages_high,
+ 					       0, 0)) {
+ 				end_zone = i;
+Index: linux-2.6.24-rc3-mm2/mm/vmstat.c
+===================================================================
+--- linux-2.6.24-rc3-mm2.orig/mm/vmstat.c
++++ linux-2.6.24-rc3-mm2/mm/vmstat.c
+@@ -807,10 +807,12 @@ static void zoneinfo_show_print(struct s
+ 	seq_printf(m,
+ 		   "\n  all_unreclaimable: %u"
+ 		   "\n  prev_priority:     %i"
+-		   "\n  start_pfn:         %lu",
++		   "\n  start_pfn:         %lu"
++		   "\n  inactive_ratio:    %u",
+ 			   zone_is_all_unreclaimable(zone),
+ 		   zone->prev_priority,
+-		   zone->zone_start_pfn);
++		   zone->zone_start_pfn,
++		   zone->inactive_ratio);
+ 	seq_putc(m, '\n');
  }
- 
- extern void clear_page_mlock(struct page *page);
-@@ -82,10 +79,10 @@ static inline int is_mlocked_vma(struct 
- }
- static inline void clear_page_mlock(struct page *page) { }
- static inline void mlock_vma_page(struct page *page) { }
--static inline void mlock_vma_pages_range(struct vm_area_struct *vma,
--			unsigned long start, unsigned long end) { }
--static inline void munlock_vma_pages_range(struct vm_area_struct *vma,
--			unsigned long start, unsigned long end) { }
-+static inline int mlock_vma_pages_range(struct vm_area_struct *vma,
-+			unsigned long start, unsigned long end) { return 0; }
-+static inline int munlock_vma_pages_range(struct vm_area_struct *vma,
-+			unsigned long start, unsigned long end) { return 0; }
- 
- #endif /* CONFIG_NORECLAIM_MLOCK */
  
 
 -- 
