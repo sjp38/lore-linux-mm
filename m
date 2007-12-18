@@ -1,186 +1,185 @@
-Message-Id: <20071218211549.082418544@redhat.com>
+Message-Id: <20071218211550.292178257@redhat.com>
 References: <20071218211539.250334036@redhat.com>
-Date: Tue, 18 Dec 2007 16:15:44 -0500
+Date: Tue, 18 Dec 2007 16:15:57 -0500
 From: Rik van Riel <riel@redhat.com>
-Subject: [patch 05/20] define page_file_cache() function
-Content-Disposition: inline; filename=rvr-01-linux-2.6-page_file_cache.patch
+Subject: [patch 18/20] mlock vma pages under mmap_sem held for read
+Content-Disposition: inline; filename=noreclaim-04.1a-lock-vma-pages-under-read-lock.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, lee.shermerhorn@hp.com, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-Define page_file_cache() function to answer the question:
-	is page backed by a file?
+V2 -> V3:
++ rebase to 23-mm1 atop RvR's split lru series [no change]
++ fix function return types [void -> int] to fix build when
+  not configured.
 
-Originally part of Rik van Riel's split-lru patch.  Extracted
-to make available for other, independent reclaim patches.
+New in V2.
 
-Moved inline function to linux/mm_inline.h where it will
-be needed by subsequent "split LRU" and "noreclaim" patches.  
+We need to hold the mmap_sem for write to initiatate mlock()/munlock()
+because we may need to merge/split vmas.  However, this can lead to
+very long lock hold times attempting to fault in a large memory region
+to mlock it into memory.   This can hold off other faults against the
+mm [multithreaded tasks] and other scans of the mm, such as via /proc.
+To alleviate this, downgrade the mmap_sem to read mode during the 
+population of the region for locking.  This is especially the case 
+if we need to reclaim memory to lock down the region.  We [probably?]
+don't need to do this for unlocking as all of the pages should be
+resident--they're already mlocked.
 
-Unfortunately this needs to use a page flag, since the
-PG_swapbacked state needs to be preserved all the way
-to the point where the page is last removed from the
-LRU.  Trying to derive the status from other info in
-the page resulted in wrong VM statistics in earlier
-split VM patchsets.
+Now, the caller's of the mlock functions [mlock_fixup() and 
+mlock_vma_pages_range()] expect the mmap_sem to be returned in write
+mode.  Changing all callers appears to be way too much effort at this
+point.  So, restore write mode before returning.  Note that this opens
+a window where the mmap list could change in a multithreaded process.
+So, at least for mlock_fixup(), where we could be called in a loop over
+multiple vmas, we check that a vma still exists at the start address
+and that vma still covers the page range [start,end).  If not, we return
+an error, -EAGAIN, and let the caller deal with it.
 
+Return -EAGAIN from mlock_vma_pages_range() function and mlock_fixup()
+if the vma at 'start' disappears or changes so that the page range
+[start,end) is no longer contained in the vma.  Again, let the caller
+deal with it.  Looks like only sys_remap_file_pages() [via mmap_region()]
+should actually care.
 
-Signed-off-by:  Rik van Riel <riel@redhat.com>
+With this patch, I no longer see processes like ps(1) blocked for seconds
+or minutes at a time waiting for a large [multiple gigabyte] region to be
+locked down.  
+
 Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+Signed-off-by:  Rik van Riel <riel@redhat.com>
 
-
-Index: linux-2.6.24-rc3-mm2/include/linux/mm_inline.h
+Index: Linux/mm/mlock.c
 ===================================================================
---- linux-2.6.24-rc3-mm2.orig/include/linux/mm_inline.h
-+++ linux-2.6.24-rc3-mm2/include/linux/mm_inline.h
-@@ -1,3 +1,24 @@
-+#ifndef LINUX_MM_INLINE_H
-+#define LINUX_MM_INLINE_H
-+
-+/**
-+ * page_file_cache(@page)
-+ * Returns !0 if @page is page cache page backed by a regular filesystem,
-+ * or 0 if @page is anonymous, tmpfs or otherwise ram or swap backed.
-+ *
-+ * We would like to get this info without a page flag, but the state
-+ * needs to survive until the page is last deleted from the LRU, which
-+ * could be as far down as __page_cache_release.
-+ */
-+static inline int page_file_cache(struct page *page)
-+{
-+	if (PageSwapBacked(page))
-+		return 0;
-+
-+	/* The page is page cache backed by a normal filesystem. */
-+	return 2;
-+}
-+
- static inline void
- add_page_to_active_list(struct zone *zone, struct page *page)
- {
-@@ -38,3 +59,4 @@ del_page_from_lru(struct zone *zone, str
- 	}
+--- Linux.orig/mm/mlock.c	2007-11-12 16:21:59.000000000 -0500
++++ Linux/mm/mlock.c	2007-11-12 16:22:01.000000000 -0500
+@@ -215,6 +215,37 @@ int __mlock_vma_pages_range(struct vm_ar
+ 	return ret;
  }
  
-+#endif
-Index: linux-2.6.24-rc3-mm2/mm/shmem.c
-===================================================================
---- linux-2.6.24-rc3-mm2.orig/mm/shmem.c
-+++ linux-2.6.24-rc3-mm2/mm/shmem.c
-@@ -1279,6 +1279,7 @@ repeat:
- 				goto failed;
- 			}
- 
-+			SetPageSwapBacked(filepage);
- 			spin_lock(&info->lock);
- 			entry = shmem_swp_alloc(info, idx, sgp);
- 			if (IS_ERR(entry))
-Index: linux-2.6.24-rc3-mm2/include/linux/page-flags.h
-===================================================================
---- linux-2.6.24-rc3-mm2.orig/include/linux/page-flags.h
-+++ linux-2.6.24-rc3-mm2/include/linux/page-flags.h
-@@ -89,6 +89,7 @@
- #define PG_mappedtodisk		16	/* Has blocks allocated on-disk */
- #define PG_reclaim		17	/* To be reclaimed asap */
- #define PG_buddy		19	/* Page is free, on buddy lists */
-+#define PG_swapbacked		20	/* Page is backed by RAM/swap */
- 
- /* PG_readahead is only used for file reads; PG_reclaim is only for writes */
- #define PG_readahead		PG_reclaim /* Reminder to do async read-ahead */
-@@ -216,6 +217,10 @@ static inline void SetPageUptodate(struc
- #define ClearPageReclaim(page)	clear_bit(PG_reclaim, &(page)->flags)
- #define TestClearPageReclaim(page) test_and_clear_bit(PG_reclaim, &(page)->flags)
- 
-+#define PageSwapBacked(page)	test_bit(PG_swapbacked, &(page)->flags)
-+#define SetPageSwapBacked(page)	set_bit(PG_swapbacked, &(page)->flags)
-+#define __ClearPageSwapBacked(page)	__clear_bit(PG_swapbacked, &(page)->flags)
++/**
++ * mlock_vma_pages_range
++ * @vma - vm area to mlock into memory
++ * @start - start address in @vma of range to mlock,
++ * @end   - end address in @vma of range
++ *
++ * Called with current->mm->mmap_sem held write locked.  Downgrade to read
++ * for faulting in pages.  This can take a looong time for large segments.
++ *
++ * We need to restore the mmap_sem to write locked because our callers'
++ * callers expect this.	 However, because the mmap could have changed
++ * [in a multi-threaded process], we need to recheck.
++ */
++int mlock_vma_pages_range(struct vm_area_struct *vma,
++			unsigned long start, unsigned long end)
++{
++	struct mm_struct *mm = vma->vm_mm;
 +
- #define PageCompound(page)	test_bit(PG_compound, &(page)->flags)
- #define __SetPageCompound(page)	__set_bit(PG_compound, &(page)->flags)
- #define __ClearPageCompound(page) __clear_bit(PG_compound, &(page)->flags)
-Index: linux-2.6.24-rc3-mm2/mm/memory.c
-===================================================================
---- linux-2.6.24-rc3-mm2.orig/mm/memory.c
-+++ linux-2.6.24-rc3-mm2/mm/memory.c
-@@ -1664,6 +1664,7 @@ gotten:
- 		ptep_clear_flush(vma, address, page_table);
- 		set_pte_at(mm, address, page_table, entry);
- 		update_mmu_cache(vma, address, entry);
-+		SetPageSwapBacked(new_page);
- 		lru_cache_add_active(new_page);
- 		page_add_new_anon_rmap(new_page, vma, address);
++	downgrade_write(&mm->mmap_sem);
++	__mlock_vma_pages_range(vma, start, end, 1);
++
++	up_read(&mm->mmap_sem);
++	/* vma can change or disappear */
++	down_write(&mm->mmap_sem);
++	vma = find_vma(mm, start);
++	/* non-NULL vma must contain @start, but need to check @end */
++	if (!vma ||  end > vma->vm_end)
++		return -EAGAIN;
++	return 0;
++}
++
+ #else /* CONFIG_NORECLAIM_MLOCK */
  
-@@ -2132,6 +2133,7 @@ static int do_anonymous_page(struct mm_s
- 	if (!pte_none(*page_table))
- 		goto release;
- 	inc_mm_counter(mm, anon_rss);
-+	SetPageSwapBacked(page);
- 	lru_cache_add_active(page);
- 	page_add_new_anon_rmap(page, vma, address);
- 	set_pte_at(mm, address, page_table, entry);
-@@ -2285,6 +2287,7 @@ static int __do_fault(struct mm_struct *
- 		set_pte_at(mm, address, page_table, entry);
- 		if (anon) {
-                         inc_mm_counter(mm, anon_rss);
-+			SetPageSwapBacked(page);
-                         lru_cache_add_active(page);
-                         page_add_new_anon_rmap(page, vma, address);
- 		} else {
-Index: linux-2.6.24-rc3-mm2/mm/swap_state.c
-===================================================================
---- linux-2.6.24-rc3-mm2.orig/mm/swap_state.c
-+++ linux-2.6.24-rc3-mm2/mm/swap_state.c
-@@ -86,6 +86,7 @@ static int __add_to_swap_cache(struct pa
- 		if (!error) {
- 			page_cache_get(page);
- 			SetPageSwapCache(page);
-+			SetPageSwapBacked(page);
- 			set_page_private(page, entry.val);
- 			total_swapcache_pages++;
- 			__inc_zone_page_state(page, NR_FILE_PAGES);
-Index: linux-2.6.24-rc3-mm2/mm/migrate.c
-===================================================================
---- linux-2.6.24-rc3-mm2.orig/mm/migrate.c
-+++ linux-2.6.24-rc3-mm2/mm/migrate.c
-@@ -546,6 +546,8 @@ static int move_to_new_page(struct page 
- 	/* Prepare mapping for the new page.*/
- 	newpage->index = page->index;
- 	newpage->mapping = page->mapping;
-+	if (PageSwapBacked(page))
-+		SetPageSwapBacked(newpage);
+ /*
+@@ -281,14 +312,38 @@ success:
+ 	mm->locked_vm += nr_pages;
  
- 	mapping = page_mapping(page);
- 	if (!mapping)
-Index: linux-2.6.24-rc3-mm2/mm/page_alloc.c
-===================================================================
---- linux-2.6.24-rc3-mm2.orig/mm/page_alloc.c
-+++ linux-2.6.24-rc3-mm2/mm/page_alloc.c
-@@ -253,6 +253,7 @@ static void bad_page(struct page *page)
- 			1 << PG_slab    |
- 			1 << PG_swapcache |
- 			1 << PG_writeback |
-+			1 << PG_swapbacked |
- 			1 << PG_buddy );
- 	set_page_count(page, 0);
- 	reset_page_mapcount(page);
-@@ -486,6 +487,8 @@ static inline int free_pages_check(struc
- 		bad_page(page);
- 	if (PageDirty(page))
- 		__ClearPageDirty(page);
-+	if (PageSwapBacked(page))
-+		__ClearPageSwapBacked(page);
  	/*
- 	 * For now, we report if PG_reserved was found set, but do not
- 	 * clear it, and do not free the page.  But we shall soon need
-@@ -632,6 +635,7 @@ static int prep_new_page(struct page *pa
- 			1 << PG_swapcache |
- 			1 << PG_writeback |
- 			1 << PG_reserved |
-+			1 << PG_swapbacked |
- 			1 << PG_buddy ))))
- 		bad_page(page);
+-	 * vm_flags is protected by the mmap_sem held in write mode.
++	 * vm_flags is protected by the mmap_sem held for write.
+ 	 * It's okay if try_to_unmap_one unmaps a page just after we
+ 	 * set VM_LOCKED, __mlock_vma_pages_range will bring it back.
+ 	 */
+ 	vma->vm_flags = newflags;
+ 
++	/*
++	 * mmap_sem is currently held for write.  If we're locking pages,
++	 * downgrade the write lock to a read lock so that other faults,
++	 * mmap scans, ... while we fault in all pages.
++	 */
++	if (lock)
++		downgrade_write(&mm->mmap_sem);
++
+ 	__mlock_vma_pages_range(vma, start, end, lock);
+ 
++	if (lock) {
++		/*
++		 * Need to reacquire mmap sem in write mode, as our callers
++		 * expect this.  We have no support for atomically upgrading
++		 * a sem to write, so we need to check for changes while sem
++		 * is unlocked.
++		 */
++		up_read(&mm->mmap_sem);
++		/* vma can change or disappear */
++		down_write(&mm->mmap_sem);
++		*prev = find_vma(mm, start);
++		/* non-NULL *prev must contain @start, but need to check @end */
++		if (!(*prev) || end > (*prev)->vm_end)
++			ret = -EAGAIN;
++	}
++
+ out:
+ 	if (ret == -ENOMEM)
+ 		ret = -EAGAIN;
+Index: Linux/mm/internal.h
+===================================================================
+--- Linux.orig/mm/internal.h	2007-11-12 16:21:59.000000000 -0500
++++ Linux/mm/internal.h	2007-11-12 16:22:01.000000000 -0500
+@@ -53,24 +53,21 @@ extern int __mlock_vma_pages_range(struc
+ /*
+  * mlock all pages in this vma range.  For mmap()/mremap()/...
+  */
+-static inline void mlock_vma_pages_range(struct vm_area_struct *vma,
+-			unsigned long start, unsigned long end)
+-{
+-	__mlock_vma_pages_range(vma, start, end, 1);
+-}
++extern int mlock_vma_pages_range(struct vm_area_struct *vma,
++			unsigned long start, unsigned long end);
+ 
+ /*
+  * munlock range of pages.   For munmap() and exit().
+  * Always called to operate on a full vma that is being unmapped.
+  */
+-static inline void munlock_vma_pages_range(struct vm_area_struct *vma,
++static inline int munlock_vma_pages_range(struct vm_area_struct *vma,
+ 			unsigned long start, unsigned long end)
+ {
+ // TODO:  verify my assumption.  Should we just drop the start/end args?
+ 	VM_BUG_ON(start != vma->vm_start || end != vma->vm_end);
+ 
+ 	vma->vm_flags &= ~VM_LOCKED;	/* try_to_unlock() needs this */
+-	__mlock_vma_pages_range(vma, start, end, 0);
++	return __mlock_vma_pages_range(vma, start, end, 0);
+ }
+ 
+ extern void clear_page_mlock(struct page *page);
+@@ -82,10 +79,10 @@ static inline int is_mlocked_vma(struct 
+ }
+ static inline void clear_page_mlock(struct page *page) { }
+ static inline void mlock_vma_page(struct page *page) { }
+-static inline void mlock_vma_pages_range(struct vm_area_struct *vma,
+-			unsigned long start, unsigned long end) { }
+-static inline void munlock_vma_pages_range(struct vm_area_struct *vma,
+-			unsigned long start, unsigned long end) { }
++static inline int mlock_vma_pages_range(struct vm_area_struct *vma,
++			unsigned long start, unsigned long end) { return 0; }
++static inline int munlock_vma_pages_range(struct vm_area_struct *vma,
++			unsigned long start, unsigned long end) { return 0; }
+ 
+ #endif /* CONFIG_NORECLAIM_MLOCK */
  
 
 -- 
