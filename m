@@ -1,98 +1,76 @@
-Message-Id: <20071218211548.994733453@redhat.com>
+Message-Id: <20071218211549.179361388@redhat.com>
 References: <20071218211539.250334036@redhat.com>
-Date: Tue, 18 Dec 2007 16:15:43 -0500
+Date: Tue, 18 Dec 2007 16:15:45 -0500
 From: Rik van Riel <riel@redhat.com>
-Subject: [patch 04/20] free swap space on swap-in/activation
-Content-Disposition: inline; filename=rvr-00-linux-2.6-swapfree.patch
+Subject: [patch 06/20] debugging checks for page_file_cache()
+Content-Disposition: inline; filename=rvr-page_file_cache-debug.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, lee.shermerhorn@hp.com, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-kernel@vger.kernel.org, lee.shermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-+ lts' convert anon_vma list lock to reader/write lock patch
-+ Nick Piggin's move and rework isolate_lru_page() patch
-
-Free swap cache entries when swapping in pages if vm_swap_full()
-[swap space > 1/2 used?].  Uses new pagevec to reduce pressure
-on locks.
+Debug whether we end up classifying the wrong pages as
+filesystem backed.  This has not triggered in stress
+tests on my system, but who knows...
 
 Signed-off-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 
-Index: linux-2.6.24-rc3-mm2/mm/vmscan.c
+Index: linux-2.6.24-rc3-mm2/include/linux/mm_inline.h
 ===================================================================
---- linux-2.6.24-rc3-mm2.orig/mm/vmscan.c
-+++ linux-2.6.24-rc3-mm2/mm/vmscan.c
-@@ -632,6 +632,9 @@ free_it:
- 		continue;
+--- linux-2.6.24-rc3-mm2.orig/include/linux/mm_inline.h
++++ linux-2.6.24-rc3-mm2/include/linux/mm_inline.h
+@@ -1,6 +1,8 @@
+ #ifndef LINUX_MM_INLINE_H
+ #define LINUX_MM_INLINE_H
  
- activate_locked:
-+		/* Not a candidate for swapping, so reclaim swap space. */
-+		if (PageSwapCache(page) && vm_swap_full())
-+			remove_exclusive_swap_page(page);
- 		SetPageActive(page);
- 		pgactivate++;
- keep_locked:
-@@ -1213,6 +1216,8 @@ static void shrink_active_list(unsigned 
- 			__mod_zone_page_state(zone, NR_ACTIVE, pgmoved);
- 			pgmoved = 0;
- 			spin_unlock_irq(&zone->lru_lock);
-+			if (vm_swap_full())
-+				pagevec_swap_free(&pvec);
- 			__pagevec_release(&pvec);
- 			spin_lock_irq(&zone->lru_lock);
- 		}
-@@ -1222,6 +1227,8 @@ static void shrink_active_list(unsigned 
- 	__count_zone_vm_events(PGREFILL, zone, pgscanned);
- 	__count_vm_events(PGDEACTIVATE, pgdeactivate);
- 	spin_unlock_irq(&zone->lru_lock);
-+	if (vm_swap_full())
-+		pagevec_swap_free(&pvec);
- 
- 	pagevec_release(&pvec);
- }
-Index: linux-2.6.24-rc3-mm2/mm/swap.c
-===================================================================
---- linux-2.6.24-rc3-mm2.orig/mm/swap.c
-+++ linux-2.6.24-rc3-mm2/mm/swap.c
-@@ -465,6 +465,24 @@ void pagevec_strip(struct pagevec *pvec)
- 	}
- }
- 
-+/*
-+ * Try to free swap space from the pages in a pagevec
-+ */
-+void pagevec_swap_free(struct pagevec *pvec)
-+{
-+	int i;
-+
-+	for (i = 0; i < pagevec_count(pvec); i++) {
-+		struct page *page = pvec->pages[i];
-+
-+		if (PageSwapCache(page) && !TestSetPageLocked(page)) {
-+			if (PageSwapCache(page))
-+				remove_exclusive_swap_page(page);
-+			unlock_page(page);
-+		}
-+	}
-+}
++#include <linux/fs.h>  /* for struct address_space */
 +
  /**
-  * pagevec_lookup - gang pagecache lookup
-  * @pvec:	Where the resulting pages are placed
-Index: linux-2.6.24-rc3-mm2/include/linux/pagevec.h
+  * page_file_cache(@page)
+  * Returns !0 if @page is page cache page backed by a regular filesystem,
+@@ -10,11 +12,19 @@
+  * needs to survive until the page is last deleted from the LRU, which
+  * could be as far down as __page_cache_release.
+  */
++extern const struct address_space_operations shmem_aops;
+ static inline int page_file_cache(struct page *page)
+ {
++	struct address_space * mapping = page_mapping(page);
++
+ 	if (PageSwapBacked(page))
+ 		return 0;
+ 
++	/* These pages should all be marked PG_swapbacked */
++	WARN_ON(PageAnon(page));
++	WARN_ON(PageSwapCache(page));
++	WARN_ON(mapping && mapping->a_ops && mapping->a_ops == &shmem_aops);
++
+ 	/* The page is page cache backed by a normal filesystem. */
+ 	return 2;
+ }
+Index: linux-2.6.24-rc3-mm2/mm/shmem.c
 ===================================================================
---- linux-2.6.24-rc3-mm2.orig/include/linux/pagevec.h
-+++ linux-2.6.24-rc3-mm2/include/linux/pagevec.h
-@@ -26,6 +26,7 @@ void __pagevec_free(struct pagevec *pvec
- void __pagevec_lru_add(struct pagevec *pvec);
- void __pagevec_lru_add_active(struct pagevec *pvec);
- void pagevec_strip(struct pagevec *pvec);
-+void pagevec_swap_free(struct pagevec *pvec);
- unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
- 		pgoff_t start, unsigned nr_pages);
- unsigned pagevec_lookup_tag(struct pagevec *pvec,
+--- linux-2.6.24-rc3-mm2.orig/mm/shmem.c
++++ linux-2.6.24-rc3-mm2/mm/shmem.c
+@@ -178,7 +178,7 @@ static inline void shmem_unacct_blocks(u
+ }
+ 
+ static const struct super_operations shmem_ops;
+-static const struct address_space_operations shmem_aops;
++const struct address_space_operations shmem_aops;
+ static const struct file_operations shmem_file_operations;
+ static const struct inode_operations shmem_inode_operations;
+ static const struct inode_operations shmem_dir_inode_operations;
+@@ -2232,7 +2232,7 @@ static void destroy_inodecache(void)
+ 	kmem_cache_destroy(shmem_inode_cachep);
+ }
+ 
+-static const struct address_space_operations shmem_aops = {
++const struct address_space_operations shmem_aops = {
+ 	.writepage	= shmem_writepage,
+ 	.set_page_dirty	= __set_page_dirty_no_writeback,
+ #ifdef CONFIG_TMPFS
 
 -- 
 All Rights Reversed
