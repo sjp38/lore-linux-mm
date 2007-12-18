@@ -1,53 +1,101 @@
-Date: Tue, 18 Dec 2007 12:20:16 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 01/19] Define functions for page cache handling
-In-Reply-To: <20071203141020.c8119197.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0712181216390.22286@schroedinger.engr.sgi.com>
-References: <20071130173448.951783014@sgi.com> <20071130173506.366983341@sgi.com>
- <20071203141020.c8119197.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20071218211548.994733453@redhat.com>
+References: <20071218211539.250334036@redhat.com>
+Date: Tue, 18 Dec 2007 16:15:43 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: [patch 04/20] free swap space on swap-in/activation
+Content-Disposition: inline; filename=rvr-00-linux-2.6-swapfree.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hch@lst.de, mel@skynet.ie, wli@holomorphy.com, dgc@sgi.com, jens.axboe@oracle.com, pbadari@gmail.com, maximlevitsky@gmail.com, fengguang.wu@gmail.com, wangswin@gmail.com, totty.lu@gmail.com, hugh@veritas.com, joern@lazybastard.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, lee.shermerhorn@hp.com, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 3 Dec 2007, Andrew Morton wrote:
++ lts' convert anon_vma list lock to reader/write lock patch
++ Nick Piggin's move and rework isolate_lru_page() patch
 
-> These will of course all work OK as they are presently implemented.
-> 
-> But you have callsites doing things like
-> 
-> 	page_cache_size(page_mapping(page));
-> 
-> which is a whole different thing.  Once page_cache_size() is changed to
-> look inside the address_space we need to handle races against truncation
-> and we need to handle the address_space getting reclaimed, etc.
+Free swap cache entries when swapping in pages if vm_swap_full()
+[swap space > 1/2 used?].  Uses new pagevec to reduce pressure
+on locks.
 
-Right. The page must be locked for that to work right. I tried to avoid
-the above construct as much as possible by relying on the inode mapping. I 
-can go over this again to make sure that there is nothing amiss after the 
-recent changes.
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 
-> So I think it would be misleading to merge these changes at present - they
-> make it _look_ like we can have variable PAGE_CACHE_SIZE just by tweaking a
-> bit of core code, but we in fact cannot do that without a careful review of
-> all callsites and perhaps the addition of new locking and null-checking.
+Index: linux-2.6.24-rc3-mm2/mm/vmscan.c
+===================================================================
+--- linux-2.6.24-rc3-mm2.orig/mm/vmscan.c
++++ linux-2.6.24-rc3-mm2/mm/vmscan.c
+@@ -632,6 +632,9 @@ free_it:
+ 		continue;
+ 
+ activate_locked:
++		/* Not a candidate for swapping, so reclaim swap space. */
++		if (PageSwapCache(page) && vm_swap_full())
++			remove_exclusive_swap_page(page);
+ 		SetPageActive(page);
+ 		pgactivate++;
+ keep_locked:
+@@ -1213,6 +1216,8 @@ static void shrink_active_list(unsigned 
+ 			__mod_zone_page_state(zone, NR_ACTIVE, pgmoved);
+ 			pgmoved = 0;
+ 			spin_unlock_irq(&zone->lru_lock);
++			if (vm_swap_full())
++				pagevec_swap_free(&pvec);
+ 			__pagevec_release(&pvec);
+ 			spin_lock_irq(&zone->lru_lock);
+ 		}
+@@ -1222,6 +1227,8 @@ static void shrink_active_list(unsigned 
+ 	__count_zone_vm_events(PGREFILL, zone, pgscanned);
+ 	__count_vm_events(PGDEACTIVATE, pgdeactivate);
+ 	spin_unlock_irq(&zone->lru_lock);
++	if (vm_swap_full())
++		pagevec_swap_free(&pvec);
+ 
+ 	pagevec_release(&pvec);
+ }
+Index: linux-2.6.24-rc3-mm2/mm/swap.c
+===================================================================
+--- linux-2.6.24-rc3-mm2.orig/mm/swap.c
++++ linux-2.6.24-rc3-mm2/mm/swap.c
+@@ -465,6 +465,24 @@ void pagevec_strip(struct pagevec *pvec)
+ 	}
+ }
+ 
++/*
++ * Try to free swap space from the pages in a pagevec
++ */
++void pagevec_swap_free(struct pagevec *pvec)
++{
++	int i;
++
++	for (i = 0; i < pagevec_count(pvec); i++) {
++		struct page *page = pvec->pages[i];
++
++		if (PageSwapCache(page) && !TestSetPageLocked(page)) {
++			if (PageSwapCache(page))
++				remove_exclusive_swap_page(page);
++			unlock_page(page);
++		}
++	}
++}
++
+ /**
+  * pagevec_lookup - gang pagecache lookup
+  * @pvec:	Where the resulting pages are placed
+Index: linux-2.6.24-rc3-mm2/include/linux/pagevec.h
+===================================================================
+--- linux-2.6.24-rc3-mm2.orig/include/linux/pagevec.h
++++ linux-2.6.24-rc3-mm2/include/linux/pagevec.h
+@@ -26,6 +26,7 @@ void __pagevec_free(struct pagevec *pvec
+ void __pagevec_lru_add(struct pagevec *pvec);
+ void __pagevec_lru_add_active(struct pagevec *pvec);
+ void pagevec_strip(struct pagevec *pvec);
++void pagevec_swap_free(struct pagevec *pvec);
+ unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
+ 		pgoff_t start, unsigned nr_pages);
+ unsigned pagevec_lookup_tag(struct pagevec *pvec,
 
-The mapping is generally available in some form if you cannot get it from 
-the page. In some cases I added a new parameter to functions to pass the 
-mapping so that we do not have to use page->mapping. I can recheck that 
-all is fine on that level.
-
-> And a coding nit: when you implement the out-of-line versions of these
-> functions you're going to stick with VFS conventions and use the identifier
-> `mapping' to identify the address_space*.  So I think it would be better to
-> also call in `mapping' in these inlined stubbed functions, rather than `a'.
-> No?
-
-Ok. A trivial change. But a is shorter and made the 
-functions more concise.
+-- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
