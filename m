@@ -1,9 +1,11 @@
-Message-Id: <20071218233514.634913000@sgi.com>
-References: <20071218233514.501149000@sgi.com>
-Date: Tue, 18 Dec 2007 15:35:15 -0800
+Message-Id: <20071218233758.164807000@sgi.com>
+References: <20071218233757.981161000@sgi.com>
+Date: Tue, 18 Dec 2007 15:37:58 -0800
 From: travis@sgi.com
 Subject: [PATCH 1/1] x86: fix show cpuinfo cpu number always zero
 Content-Disposition: inline; filename=cpuinfo_x86-fix
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Suresh B Siddha <suresh.b.siddha@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
