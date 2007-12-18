@@ -1,147 +1,40 @@
-Message-Id: <20071218211549.799342532@redhat.com>
+Message-Id: <20071218211549.621840854@redhat.com>
 References: <20071218211539.250334036@redhat.com>
-Date: Tue, 18 Dec 2007 16:15:52 -0500
+Date: Tue, 18 Dec 2007 16:15:50 -0500
 From: Rik van Riel <riel@redhat.com>
-Subject: [patch 13/20] Non-reclaimable page statistics
-Content-Disposition: inline; filename=noreclaim-01.2-report-nonreclaimable-memory.patch
+Subject: [patch 11/20] add newly swapped in pages to the inactive list
+Content-Disposition: inline; filename=rvr-swapin-inactive.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, lee.shermerhorn@hp.com, Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-kernel@vger.kernel.org, lee.shermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-V2 -> V3:
-+ rebase to 23-mm1 atop RvR's split LRU series
+Swapin_readahead can read in a lot of data that the processes in
+memory never need.  Adding swap cache pages to the inactive list
+prevents them from putting too much pressure on the working set.
 
-V1 -> V2:
-	no changes
+This has the potential to help the programs that are already in
+memory, but it could also be a disadvantage to processes that
+are trying to get swapped in.
 
-Report non-reclaimable pages per zone and system wide.
+In short, this patch needs testing.
 
-Note:  may want to track/report some specific reasons for 
-nonreclaimability for deciding when to splice the noreclaim
-lists back to the normal lru.  That will be tricky,
-especially in shrink_active_list(), where we'd need someplace
-to save the per page reason for non-reclaimability until the
-pages are dumped back onto the noreclaim list from the pagevec.
+Signed-off-by: Rik van Riel <riel@redhat.com>
 
-Note:  my tests indicate that NR_NORECLAIM and probably the
-other LRU stats aren't being maintained properly--especially
-with large amounts of mlocked memory and the mlock patch in
-this series installed.  Can't be sure of this, as I don't 
-know why the pages are on the noreclaim list. Needs further
-investigation.
-
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-
-Index: linux-2.6.24-rc4-mm1/mm/page_alloc.c
+Index: linux-2.6.23-mm1/mm/swap_state.c
 ===================================================================
---- linux-2.6.24-rc4-mm1.orig/mm/page_alloc.c
-+++ linux-2.6.24-rc4-mm1/mm/page_alloc.c
-@@ -1882,12 +1882,20 @@ void show_free_areas(void)
- 	}
- 
- 	printk("Active_anon:%lu active_file:%lu inactive_anon%lu\n"
--		" inactive_file:%lu dirty:%lu writeback:%lu unstable:%lu\n"
-+		" inactive_file:%lu"
-+//TODO:  check/adjust line lengths
-+#ifdef CONFIG_NORECLAIM
-+		" noreclaim:%lu"
-+#endif
-+		" dirty:%lu writeback:%lu unstable:%lu\n"
- 		" free:%lu slab:%lu mapped:%lu pagetables:%lu bounce:%lu\n",
- 		global_page_state(NR_ACTIVE_ANON),
- 		global_page_state(NR_ACTIVE_FILE),
- 		global_page_state(NR_INACTIVE_ANON),
- 		global_page_state(NR_INACTIVE_FILE),
-+#ifdef CONFIG_NORECLAIM
-+		global_page_state(NR_NORECLAIM),
-+#endif
- 		global_page_state(NR_FILE_DIRTY),
- 		global_page_state(NR_WRITEBACK),
- 		global_page_state(NR_UNSTABLE_NFS),
-@@ -1914,6 +1922,9 @@ void show_free_areas(void)
- 			" inactive_anon:%lukB"
- 			" active_file:%lukB"
- 			" inactive_file:%lukB"
-+#ifdef CONFIG_NORECLAIM
-+			" noreclaim:%lukB"
-+#endif
- 			" present:%lukB"
- 			" pages_scanned:%lu"
- 			" all_unreclaimable? %s"
-@@ -1927,6 +1938,9 @@ void show_free_areas(void)
- 			K(zone_page_state(zone, NR_INACTIVE_ANON)),
- 			K(zone_page_state(zone, NR_ACTIVE_FILE)),
- 			K(zone_page_state(zone, NR_INACTIVE_FILE)),
-+#ifdef CONFIG_NORECLAIM
-+			K(zone_page_state(zone, NR_NORECLAIM)),
-+#endif
- 			K(zone->present_pages),
- 			zone->pages_scanned,
- 			(zone_is_all_unreclaimable(zone) ? "yes" : "no")
-Index: linux-2.6.24-rc4-mm1/mm/vmstat.c
-===================================================================
---- linux-2.6.24-rc4-mm1.orig/mm/vmstat.c
-+++ linux-2.6.24-rc4-mm1/mm/vmstat.c
-@@ -690,6 +690,9 @@ static const char * const vmstat_text[] 
- 	"nr_active_anon",
- 	"nr_inactive_file",
- 	"nr_active_file",
-+#ifdef CONFIG_NORECLAIM
-+	"nr_noreclaim",
-+#endif
- 	"nr_anon_pages",
- 	"nr_mapped",
- 	"nr_file_pages",
-Index: linux-2.6.24-rc4-mm1/drivers/base/node.c
-===================================================================
---- linux-2.6.24-rc4-mm1.orig/drivers/base/node.c
-+++ linux-2.6.24-rc4-mm1/drivers/base/node.c
-@@ -52,6 +52,9 @@ static ssize_t node_read_meminfo(struct 
- 		       "Node %d Inactive(anon): %8lu kB\n"
- 		       "Node %d Active(file):   %8lu kB\n"
- 		       "Node %d Inactive(file): %8lu kB\n"
-+#ifdef CONFIG_NORECLAIM
-+		       "Node %d Noreclaim:    %8lu kB\n"
-+#endif
- #ifdef CONFIG_HIGHMEM
- 		       "Node %d HighTotal:      %8lu kB\n"
- 		       "Node %d HighFree:       %8lu kB\n"
-@@ -76,6 +79,9 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, node_page_state(nid, NR_INACTIVE_ANON),
- 		       nid, node_page_state(nid, NR_ACTIVE_FILE),
- 		       nid, node_page_state(nid, NR_INACTIVE_FILE),
-+#ifdef CONFIG_NORECLAIM
-+		       nid, node_page_state(nid, NR_NORECLAIM),
-+#endif
- #ifdef CONFIG_HIGHMEM
- 		       nid, K(i.totalhigh),
- 		       nid, K(i.freehigh),
-Index: linux-2.6.24-rc4-mm1/fs/proc/proc_misc.c
-===================================================================
---- linux-2.6.24-rc4-mm1.orig/fs/proc/proc_misc.c
-+++ linux-2.6.24-rc4-mm1/fs/proc/proc_misc.c
-@@ -162,6 +162,9 @@ static int meminfo_read_proc(char *page,
- 		"Inactive(anon): %8lu kB\n"
- 		"Active(file):   %8lu kB\n"
- 		"Inactive(file): %8lu kB\n"
-+#ifdef CONFIG_NORECLAIM
-+		"Noreclaim:    %8lu kB\n"
-+#endif
- #ifdef CONFIG_HIGHMEM
- 		"HighTotal:      %8lu kB\n"
- 		"HighFree:       %8lu kB\n"
-@@ -194,6 +197,9 @@ static int meminfo_read_proc(char *page,
- 		K(global_page_state(NR_INACTIVE_ANON)),
- 		K(global_page_state(NR_ACTIVE_FILE)),
- 		K(global_page_state(NR_INACTIVE_FILE)),
-+#ifdef CONFIG_NORECLAIM
-+		K(global_page_state(NR_NORECLAIM)),
-+#endif
- #ifdef CONFIG_HIGHMEM
- 		K(i.totalhigh),
- 		K(i.freehigh),
+--- linux-2.6.23-mm1.orig/mm/swap_state.c
++++ linux-2.6.23-mm1/mm/swap_state.c
+@@ -370,7 +370,7 @@ struct page *read_swap_cache_async(swp_e
+ 			/*
+ 			 * Initiate read into locked page and return.
+ 			 */
+-			lru_cache_add_active_anon(new_page);
++			lru_cache_add_anon(new_page);
+ 			swap_readpage(NULL, new_page);
+ 			return new_page;
+ 		}
 
 -- 
 All Rights Reversed
