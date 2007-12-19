@@ -1,47 +1,35 @@
-Date: Wed, 19 Dec 2007 13:09:10 +0900
+Date: Wed, 19 Dec 2007 14:17:53 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch 02/20] make the inode i_mmap_lock a reader/writer lock
-In-Reply-To: <200712191148.06506.nickpiggin@yahoo.com.au>
-References: <20071218211548.784184591@redhat.com> <200712191148.06506.nickpiggin@yahoo.com.au>
-Message-Id: <20071219124513.9853.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [patch 10/20] SEQ replacement for anonymous pages
+In-Reply-To: <20071218211549.536791435@redhat.com>
+References: <20071218211539.250334036@redhat.com> <20071218211549.536791435@redhat.com>
+Message-Id: <20071219140904.9858.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lee.shermerhorn@hp.com, Lee Schermerhorn <lee.schermerhorn@hp.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lee.shermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-Hi
+Hi Rik-san,
 
-> > rmap:  try_to_unmap_file() required new cond_resched_rwlock().
-> > To reduce code duplication, I recast cond_resched_lock() as a
-> > [static inline] wrapper around reworked cond_sched_lock() =>
-> > __cond_resched_lock(void *lock, int type).
-> > New cond_resched_rwlock() implemented as another wrapper.
-> 
-> Reader/writer locks really suck in terms of fairness and starvation,
-> especially when the read-side is common and frequent. (also, single
-> threaded performance of the read-side is worse).
+> To keep the maximum amount of necessary work reasonable, we scale the
+> active to inactive ratio with the size of memory, using the formula
+> active:inactive ratio = sqrt(memory in GB * 10).
 
-Agreed.
+Great.
 
-rwlock got bad performance some case. (especially on many cpu machine)
+why do you think best formula is sqrt(GB*10)?
+please tell me if you don't mind.
 
-if many cpu grab read-lock on and off on many cpu system.
-then at least 1 cpu always grab read lock and the cpu of waiting write-lock 
-never get lock.
-
-threrefore, rwlock often make performance weakness of stress.
-
-
-I want know testcase for this patch and run it.
-Do you have it?
+and i have a bit worry to it works well or not on small systems.
+because it is indicate 1:1 ratio on less than 100MB memory system.
+Do you think this viewpoint?
 
 
 /kosaki
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
