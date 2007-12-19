@@ -1,54 +1,57 @@
-Date: Wed, 19 Dec 2007 08:40:58 -0500
+Date: Wed, 19 Dec 2007 08:45:34 -0500
 From: Rik van Riel <riel@redhat.com>
-Subject: Re: [patch 10/20] SEQ replacement for anonymous pages
-Message-ID: <20071219084058.6ae3c531@bree.surriel.com>
-In-Reply-To: <20071219140904.9858.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [patch 17/20] non-reclaimable mlocked pages
+Message-ID: <20071219084534.4fee8718@bree.surriel.com>
+In-Reply-To: <200712191156.48507.nickpiggin@yahoo.com.au>
 References: <20071218211539.250334036@redhat.com>
-	<20071218211549.536791435@redhat.com>
-	<20071219140904.9858.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<20071218211550.186819416@redhat.com>
+	<200712191156.48507.nickpiggin@yahoo.com.au>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, lee.shermerhorn@hp.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Dec 2007 14:17:53 +0900
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Wed, 19 Dec 2007 11:56:48 +1100
+Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 
-> Hi Rik-san,
+> On Wednesday 19 December 2007 08:15, Rik van Riel wrote:
 > 
-> > To keep the maximum amount of necessary work reasonable, we scale the
-> > active to inactive ratio with the size of memory, using the formula
-> > active:inactive ratio = sqrt(memory in GB * 10).
+> > Rework of a patch by Nick Piggin -- part 1 of 2.
+> >
+> > This patch:
+> >
+> > 1) defines the [CONFIG_]NORECLAIM_MLOCK sub-option and the
+> >    stub version of the mlock/noreclaim APIs when it's
+> >    not configured.  Depends on [CONFIG_]NORECLAIM.
 
-> why do you think best formula is sqrt(GB*10)?
-> please tell me if you don't mind.
+> Hmm, I still don't know (or forgot) why you don't just use the
+> old scheme of having an mlock count in the LRU bit, and removing
+> the mlocked page from the LRU completely.
 
-On a 1GB system, this leads to a ratio of 3 active anon
-pages to 1 inactive anon page, and a maximum inactive
-anon list size of 250MB.
+How do we detect those pages reliably in the lumpy reclaim code?
  
-On a 1TB system, this leads to a ratio of 100 active anon
-pages to 1 inactive anon page, and a maximum inactive
-anon list size of 10GB.
+> These mlocked pages don't need to be on a non-reclaimable list,
+> because we can find them again via the ptes when they become
+> unlocked, and there is no point background scanning them, because
+> they're always going to be locked while they're mlocked.
 
-The numbers in-between looked reasonable :)
+Agreed.
 
-Basically the requirement is that the inactive anon list 
-is large enough that pages get a chance to be referenced
-again, but small enough that the maximum amount of work
-the VM needs to do is bounded to something reasonable.
+The main reason I sent out these patches now is that I just
+wanted to get some comments from other upstream developers.
 
-> and i have a bit worry to it works well or not on small systems.
-> because it is indicate 1:1 ratio on less than 100MB memory system.
-> Do you think this viewpoint?
+I have gotten distracted by other work so much that I spent
+most of my time forward porting the patch set, and not enough
+time working with the rest of the upstream community to get
+the code moving forward.
 
-A 1:1 ratio simply means that the inactive anon list is
-the same size as the active anon list. Page replacement
-should still work fine that way.
+To be honest, I have only briefly looked at the non-reclaimable
+code.  I would be more than happy to merge any improvements to
+that code.
 
 -- 
 "Debugging is twice as hard as writing the code in the first place.
