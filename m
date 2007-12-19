@@ -1,40 +1,66 @@
-Message-ID: <476999B7.1000203@tmr.com>
-Date: Wed, 19 Dec 2007 17:22:47 -0500
-From: Bill Davidsen <davidsen@tmr.com>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch 17/20] non-reclaimable mlocked pages
+Date: Thu, 20 Dec 2007 10:34:22 +1100
+References: <20071218211539.250334036@redhat.com> <200712191156.48507.nickpiggin@yahoo.com.au> <20071219084534.4fee8718@bree.surriel.com>
+In-Reply-To: <20071219084534.4fee8718@bree.surriel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/29] Swap over NFS -v15
-References: <20071214153907.770251000@chello.nl>
-In-Reply-To: <20071214153907.770251000@chello.nl>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200712201034.22668.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-Peter Zijlstra wrote:
-> Hi,
-> 
-> Another posting of the full swap over NFS series. 
-> 
-> Andrew/Linus, could we start thinking of sticking this in -mm?
-> 
+On Thursday 20 December 2007 00:45, Rik van Riel wrote:
+> On Wed, 19 Dec 2007 11:56:48 +1100
+>
+> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> > On Wednesday 19 December 2007 08:15, Rik van Riel wrote:
+> > > Rework of a patch by Nick Piggin -- part 1 of 2.
+> > >
+> > > This patch:
+> > >
+> > > 1) defines the [CONFIG_]NORECLAIM_MLOCK sub-option and the
+> > >    stub version of the mlock/noreclaim APIs when it's
+> > >    not configured.  Depends on [CONFIG_]NORECLAIM.
+> >
+> > Hmm, I still don't know (or forgot) why you don't just use the
+> > old scheme of having an mlock count in the LRU bit, and removing
+> > the mlocked page from the LRU completely.
+>
+> How do we detect those pages reliably in the lumpy reclaim code?
 
-Two questions:
-1 - what is the memory use impact on the system which don't do swap over 
-NFS, such as embedded systems, and
-2 - what is the advantage of this code over the two existing network 
-swap approaches, swapping to NFS mounted file and swap to NBD device?
+They will have PG_mlocked set.
 
-I've used the NFS file when a program was running out of memory and that 
-seemed to work, people in UNYUUG have reported that the nbd swap works, 
-so what's better here?
 
--- 
-Bill Davidsen <davidsen@tmr.com>
-   "We have more to fear from the bungling of the incompetent than from
-the machinations of the wicked."  - from Slashdot
+> > These mlocked pages don't need to be on a non-reclaimable list,
+> > because we can find them again via the ptes when they become
+> > unlocked, and there is no point background scanning them, because
+> > they're always going to be locked while they're mlocked.
+>
+> Agreed.
+>
+> The main reason I sent out these patches now is that I just
+> wanted to get some comments from other upstream developers.
+>
+> I have gotten distracted by other work so much that I spent
+> most of my time forward porting the patch set, and not enough
+> time working with the rest of the upstream community to get
+> the code moving forward.
+>
+> To be honest, I have only briefly looked at the non-reclaimable
+> code.  I would be more than happy to merge any improvements to
+> that code.
+
+I haven't had too much time to look at it either, although it does
+seem like a reasonable idea.
+
+However the mlock code could be completely separate from the slow
+scan pages (and not be on those LRUs at all).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
