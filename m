@@ -1,74 +1,40 @@
-Date: Thu, 20 Dec 2007 11:04:21 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch 10/20] SEQ replacement for anonymous pages
-In-Reply-To: <20071219084058.6ae3c531@bree.surriel.com>
-References: <20071219140904.9858.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20071219084058.6ae3c531@bree.surriel.com>
-Message-Id: <20071220082806.6F68.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Wed, 19 Dec 2007 23:04:33 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 02/20] make the inode i_mmap_lock a reader/writer lock
+In-Reply-To: <200712201040.29040.nickpiggin@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0712192301120.13118@schroedinger.engr.sgi.com>
+References: <20071218211539.250334036@redhat.com> <1198083218.5333.48.camel@localhost>
+ <1198092503.6484.21.camel@twins> <200712201040.29040.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Peter Zijlstra <peterz@infradead.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Rik-san
 
-> > > To keep the maximum amount of necessary work reasonable, we scale the
-> > > active to inactive ratio with the size of memory, using the formula
-> > > active:inactive ratio = sqrt(memory in GB * 10).
+> The only reason the x86 ticket locks have the 256 CPu limit is that
+> if they go any bigger, we can't use the partial registers so would
+> have to have a few more instructions.
+
+x86_64 is going up to 4k or 16k cpus soon for our new hardware.
+
+> A 32 bit spinlock would allow 64K cpus (ticket lock has 2 counters,
+> each would be 16 bits). And it would actually shrink the spinlock in
+> the case of preempt kernels too (because it would no longer have the
+> lockbreak field).
 > 
-> > why do you think best formula is sqrt(GB*10)?
-> > please tell me if you don't mind.
-> 
-> On a 1GB system, this leads to a ratio of 3 active anon
-> pages to 1 inactive anon page, and a maximum inactive
-> anon list size of 250MB.
->  
-> On a 1TB system, this leads to a ratio of 100 active anon
-> pages to 1 inactive anon page, and a maximum inactive
-> anon list size of 10GB.
-> 
-> The numbers in-between looked reasonable :)
+> And yes, I'll go out on a limb and say that 64k CPUs ought to be
+> enough for anyone ;)
 
-thanks for your kind description.
-I think it make sense.
+I think those things need a timeframe applied to it. Thats likely 
+going to be true for the next 3 years (optimistic assessment ;-)).
 
-and, please add comment liked blow table if you don't mind.
-for take more intuitive description.
+Could you go to 32bit spinlock by default?
 
-total     return    max 
-memory    value     inactive anon
--------------------------------------
- 10MB       1         5MB
-100MB       1        50MB
-  1GB       3       250MB
- 10GB      10       0.9GB
-100GB      31         3GB
-  1TB     101        10GB
- 10TB     320        32GB
-
-
-> Basically the requirement is that the inactive anon list 
-> is large enough that pages get a chance to be referenced
-> again, but small enough that the maximum amount of work
-> the VM needs to do is bounded to something reasonable.
-> 
-> > and i have a bit worry to it works well or not on small systems.
-> > because it is indicate 1:1 ratio on less than 100MB memory system.
-> > Do you think this viewpoint?
-> 
-> A 1:1 ratio simply means that the inactive anon list is
-> the same size as the active anon list. Page replacement
-> should still work fine that way.
-
-I'm sold. thanks.
-
-
-/kosaki
-
-
+How about NUMA awareness for the spinlocks? Larger backoff periods for 
+off node lock contentions please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
