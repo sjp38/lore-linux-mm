@@ -1,59 +1,29 @@
-Date: Thu, 20 Dec 2007 15:56:27 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [patch 17/20] non-reclaimable mlocked pages
-Message-ID: <20071220155627.6872b0e6@bree.surriel.com>
-In-Reply-To: <1198080267.5333.22.camel@localhost>
-References: <20071218211539.250334036@redhat.com>
-	<20071218211550.186819416@redhat.com>
-	<200712191156.48507.nickpiggin@yahoo.com.au>
-	<20071219084534.4fee8718@bree.surriel.com>
-	<1198080267.5333.22.camel@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 20 Dec 2007 15:37:28 -0700
+From: Matthew Wilcox <matthew@wil.cx>
+Subject: Re: [PATCH] fix page_alloc for larger I/O segments (improved)
+Message-ID: <20071220223728.GM29690@parisc-linux.org>
+References: <20071213142935.47ff19d9.akpm@linux-foundation.org> <4761B32A.3070201@rtr.ca> <4761BCB4.1060601@rtr.ca> <4761C8E4.2010900@rtr.ca> <4761CE88.9070406@rtr.ca> <20071213163726.3bb601fa.akpm@linux-foundation.org> <4761D160.7060603@rtr.ca> <4761D279.6050500@rtr.ca> <20071214174236.GA28613@csn.ul.ie> <20071214181339.GW26334@parisc-linux.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20071214181339.GW26334@parisc-linux.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Mark Lord <liml@rtr.ca>, Andrew Morton <akpm@linux-foundation.org>, James.Bottomley@HansenPartnership.com, jens.axboe@oracle.com, lkml@rtr.ca, linux-ide@vger.kernel.org, linux-kernel@vger.kernel.org, linux-scsi@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Dec 2007 11:04:26 -0500
-Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
-> On Wed, 2007-12-19 at 08:45 -0500, Rik van Riel wrote:
-> > On Wed, 19 Dec 2007 11:56:48 +1100
-> > Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+On Fri, Dec 14, 2007 at 11:13:40AM -0700, Matthew Wilcox wrote:
+> I'll send it to our DB team to see if this improves our numbers at all.
 
-> > > Hmm, I still don't know (or forgot) why you don't just use the
-> > > old scheme of having an mlock count in the LRU bit, and removing
-> > > the mlocked page from the LRU completely.
-> > 
-> > How do we detect those pages reliably in the lumpy reclaim code?
-> 
-> I wanted to try to treat nonreclaimable pages, whatever the reason,
-> uniformly.  Lumpy reclaim wasn't there when I started on this, but we've
-> been able to handle them.  I was more interested in page migration.  The
-> act of isolating the page from the LRU [under zone lru_lock] arbitrates
-> between racing tasks attempting to migrate the same page.  That and we
-> keep the isolated pages on a list using the LRU links.  We can't migrate
-> pages that we can't successfully isolate from the LRU list.
+It does, by approximately 0.67%.  This is about double the margin of
+error, and a significant improvement.  Thanks!
 
-Good point.
-
-Lets keep the nonreclaimable pages on a list, so we can keep
-the migration code (and other code) consistent.
-
-We can deal with lazily moving pages back to the nonreclaim
-list if we find that, after one munlock, there are other
-mlocking users of that page.
-
-> I also agree they don't need to be scanned.  And, altho' having them on
-> an LRU list has other uses, I suppose that having mlocked pages on the
-> noreclaim list could be considered "clutter" if we did want to scan the
-> noreclaim list for other types of non-reclaimable pages that might have
-> become reclaimable.  
-
-If we ever want to do that, we can always introduce separate
-lists for those pages.
+-- 
+Intel are signing my paycheques ... these opinions are still mine
+"Bill, look, we understand that you're interested in selling us this
+operating system, but compare it to ours.  We can't possibly take such
+a retrograde step."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
