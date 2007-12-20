@@ -1,50 +1,65 @@
-Received: by wa-out-1112.google.com with SMTP id m33so5064248wag.8
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2007 01:23:53 -0800 (PST)
-Message-ID: <6934efce0712200123h3482ae17x957d019cc87bf093@mail.gmail.com>
-Date: Thu, 20 Dec 2007 01:23:53 -0800
-From: "Jared Hulbert" <jaredeh@gmail.com>
-Subject: Re: [rfc][patch 2/2] xip: support non-struct page memory
-In-Reply-To: <476924E0.8010304@de.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: [rfc][patch] mm: madvise(WILLNEED) for anonymous memory
+From: Peter Zijlstra <peterz@infradead.org>
+Content-Type: text/plain
+Date: Thu, 20 Dec 2007 14:05:38 +0100
+Message-Id: <1198155938.6821.3.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20071214133817.GB28555@wotan.suse.de>
-	 <20071214134106.GC28555@wotan.suse.de> <476924E0.8010304@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: carsteno@de.ibm.com
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>
+To: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: hugh <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, riel <riel@redhat.com>, Lennart Poettering <mztabzr@0pointer.de>
 List-ID: <linux-mm.kvack.org>
 
-On Dec 19, 2007 6:04 AM, Carsten Otte <cotte@de.ibm.com> wrote:
-> Nick Piggin wrote:
-> > This is just a prototype for one possible way of supporting this. I may
-> > be missing some important detail or eg. have missed some requirement of the
-> > s390 XIP block device that makes the idea infeasible... comments?
-> I've tested your patch series on s390 with dcssblk block device and
-> ext2 file system with -o xip. Everything seems to work fine. I will
-> now patch my kernel not to build struct page for the shared segment
-> and see if that works too.
+Hi,
 
-I tested it with AXFS for ARM on NOR flash (pfn) and with a UML build
-on x86 using the UML iomem interface (struct page).  Works slick.
-Cleans up the nastiest part of AXFS and makes a MTD patch unnecessary.
- Very nice.
+Lennart asked for madvise(WILLNEED) to work on anonymous pages, he plans
+to use this to pre-fault pages. He currently uses: mlock/munlock for
+this purpose.
 
-So we've got some documentation to do and you missed this, it won't
-compile with EXT2 XIP off.
+[ compile tested only ]
 
-diff -r e677a09f65e2 fs/ext2/xip.h
---- a/fs/ext2/xip.h     Thu Dec 20 00:53:18 2007 -0800
-+++ b/fs/ext2/xip.h     Thu Dec 20 01:14:41 2007 -0800
-@@ -21,5 +21,5 @@ void *ext2_get_xip_address(struct addres
- #define ext2_xip_verify_sb(sb)                 do { } while (0)
- #define ext2_use_xip(sb)                       0
- #define ext2_clear_xip_target(inode, chain)    0
--#define ext2_get_xip_page                      NULL
-+#define ext2_get_xip_address                   NULL
- #endif
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 93ee375..eff60ce 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -100,6 +100,24 @@ out:
+ 	return error;
+ }
+ 
++static long madvice_willneed_anon(struct vm_area_struct *vma,
++				  struct vm_area_struct **prev,
++				  unsigned long start, unsigned long end)
++{
++	int ret, len;
++
++	*prev = vma;
++	if (end > vma->vm_end)
++		end = vma->vm_end;
++
++	len = end - start;
++	ret = get_user_pages(current, current->mm, start, len,
++			0, 0, NULL, NULL);
++	if (ret < 0)
++		return ret;
++	return ret == len ? 0 : -1;
++}
++
+ /*
+  * Schedule all required I/O operations.  Do not wait for completion.
+  */
+@@ -110,7 +128,7 @@ static long madvise_willneed(struct vm_area_struct * vma,
+ 	struct file *file = vma->vm_file;
+ 
+ 	if (!file)
+-		return -EBADF;
++		return madvice_willneed_anon(vma, prev, start, end);
+ 
+ 	if (file->f_mapping->a_ops->get_xip_page) {
+ 		/* no bad return value, but ignore advice */
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
