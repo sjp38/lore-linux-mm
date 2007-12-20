@@ -1,63 +1,74 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [patch 02/20] make the inode i_mmap_lock a reader/writer lock
-Date: Thu, 20 Dec 2007 10:40:28 +1100
-References: <20071218211539.250334036@redhat.com> <1198083218.5333.48.camel@localhost> <1198092503.6484.21.camel@twins>
-In-Reply-To: <1198092503.6484.21.camel@twins>
+Date: Thu, 20 Dec 2007 11:04:21 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch 10/20] SEQ replacement for anonymous pages
+In-Reply-To: <20071219084058.6ae3c531@bree.surriel.com>
+References: <20071219140904.9858.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20071219084058.6ae3c531@bree.surriel.com>
+Message-Id: <20071220082806.6F68.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200712201040.29040.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 20 December 2007 06:28, Peter Zijlstra wrote:
-> On Wed, 2007-12-19 at 11:53 -0500, Lee Schermerhorn wrote:
-> > On Wed, 2007-12-19 at 11:31 -0500, Rik van Riel wrote:
-> > > On Wed, 19 Dec 2007 10:52:09 -0500
-> > >
-> > > Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
-> > > > I keep these patches up to date for testing.  I don't have conclusive
-> > > > evidence whether they alleviate or exacerbate the problem nor by how
-> > > > much.
-> > >
-> > > When the queued locking from Ingo's x86 tree hits mainline,
-> > > I suspect that spinlocks may end up behaving a lot nicer.
-> >
-> > That would be worth testing with our problematic workloads...
-> >
-> > > Should I drop the rwlock patches from my tree for now and
-> > > focus on just the page reclaim stuff?
-> >
-> > That's fine with me.  They're out there is anyone is interested.  I'll
-> > keep them up to date in my tree [and hope they don't conflict with split
-> > lru and noreclaim patches too much] for occasional testing.
->
-> Of course, someone would need to implement ticket locks for ia64 -
-> preferably without the 256 cpu limit.
+Hi Rik-san
 
-Yep. Wouldn't be hard at all -- ia64 has a "fetchadd" with acquire
-semantics.
+> > > To keep the maximum amount of necessary work reasonable, we scale the
+> > > active to inactive ratio with the size of memory, using the formula
+> > > active:inactive ratio = sqrt(memory in GB * 10).
+> 
+> > why do you think best formula is sqrt(GB*10)?
+> > please tell me if you don't mind.
+> 
+> On a 1GB system, this leads to a ratio of 3 active anon
+> pages to 1 inactive anon page, and a maximum inactive
+> anon list size of 250MB.
+>  
+> On a 1TB system, this leads to a ratio of 100 active anon
+> pages to 1 inactive anon page, and a maximum inactive
+> anon list size of 10GB.
+> 
+> The numbers in-between looked reasonable :)
 
-The only reason the x86 ticket locks have the 256 CPu limit is that
-if they go any bigger, we can't use the partial registers so would
-have to have a few more instructions.
+thanks for your kind description.
+I think it make sense.
+
+and, please add comment liked blow table if you don't mind.
+for take more intuitive description.
+
+total     return    max 
+memory    value     inactive anon
+-------------------------------------
+ 10MB       1         5MB
+100MB       1        50MB
+  1GB       3       250MB
+ 10GB      10       0.9GB
+100GB      31         3GB
+  1TB     101        10GB
+ 10TB     320        32GB
 
 
-> Nick, growing spinlock_t to 64 bits would yield space for 64k cpus
-> right? I'm guessing that would be enough for a while, even for SGI.
+> Basically the requirement is that the inactive anon list 
+> is large enough that pages get a chance to be referenced
+> again, but small enough that the maximum amount of work
+> the VM needs to do is bounded to something reasonable.
+> 
+> > and i have a bit worry to it works well or not on small systems.
+> > because it is indicate 1:1 ratio on less than 100MB memory system.
+> > Do you think this viewpoint?
+> 
+> A 1:1 ratio simply means that the inactive anon list is
+> the same size as the active anon list. Page replacement
+> should still work fine that way.
 
-A 32 bit spinlock would allow 64K cpus (ticket lock has 2 counters,
-each would be 16 bits). And it would actually shrink the spinlock in
-the case of preempt kernels too (because it would no longer have the
-lockbreak field).
+I'm sold. thanks.
 
-And yes, I'll go out on a limb and say that 64k CPUs ought to be
-enough for anyone ;)
+
+/kosaki
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
