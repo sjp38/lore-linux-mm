@@ -1,67 +1,50 @@
-Subject: Re: [PATCH 00/29] Swap over NFS -v15
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <476999B7.1000203@tmr.com>
-References: <20071214153907.770251000@chello.nl>  <476999B7.1000203@tmr.com>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-6SMKnQn+0+PVsF307nk1"
-Date: Thu, 20 Dec 2007 09:00:04 +0100
-Message-Id: <1198137604.6484.25.camel@twins>
-Mime-Version: 1.0
+Received: by wa-out-1112.google.com with SMTP id m33so5064248wag.8
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2007 01:23:53 -0800 (PST)
+Message-ID: <6934efce0712200123h3482ae17x957d019cc87bf093@mail.gmail.com>
+Date: Thu, 20 Dec 2007 01:23:53 -0800
+From: "Jared Hulbert" <jaredeh@gmail.com>
+Subject: Re: [rfc][patch 2/2] xip: support non-struct page memory
+In-Reply-To: <476924E0.8010304@de.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20071214133817.GB28555@wotan.suse.de>
+	 <20071214134106.GC28555@wotan.suse.de> <476924E0.8010304@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bill Davidsen <davidsen@tmr.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
+To: carsteno@de.ibm.com
+Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---=-6SMKnQn+0+PVsF307nk1
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+On Dec 19, 2007 6:04 AM, Carsten Otte <cotte@de.ibm.com> wrote:
+> Nick Piggin wrote:
+> > This is just a prototype for one possible way of supporting this. I may
+> > be missing some important detail or eg. have missed some requirement of the
+> > s390 XIP block device that makes the idea infeasible... comments?
+> I've tested your patch series on s390 with dcssblk block device and
+> ext2 file system with -o xip. Everything seems to work fine. I will
+> now patch my kernel not to build struct page for the shared segment
+> and see if that works too.
 
+I tested it with AXFS for ARM on NOR flash (pfn) and with a UML build
+on x86 using the UML iomem interface (struct page).  Works slick.
+Cleans up the nastiest part of AXFS and makes a MTD patch unnecessary.
+ Very nice.
 
-On Wed, 2007-12-19 at 17:22 -0500, Bill Davidsen wrote:
-> Peter Zijlstra wrote:
-> > Hi,
-> >=20
-> > Another posting of the full swap over NFS series.=20
-> >=20
-> > Andrew/Linus, could we start thinking of sticking this in -mm?
-> >=20
->=20
-> Two questions:
-> 1 - what is the memory use impact on the system which don't do swap over=20
-> NFS, such as embedded systems, and
+So we've got some documentation to do and you missed this, it won't
+compile with EXT2 XIP off.
 
-It should have little to no impact if not used.
-
-> 2 - what is the advantage of this code over the two existing network=20
-> swap approaches,=20
-
-> swapping to NFS mounted file and=20
-
-This is not actually possible with a recent kernel, current swapfile
-support requires a blockdevice.
-
-> swap to NBD device?
-
-> I've used the NFS file when a program was running out of memory and that=20
-> seemed to work, people in UNYUUG have reported that the nbd swap works,=20
-> so what's better here?
-
-swap over NBD works sometimes, its rather easy to deadlock, and its
-impossible to recover from a broken connection.
-
---=-6SMKnQn+0+PVsF307nk1
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
-
-iD8DBQBHaiEEXA2jU0ANEf4RAl93AJ97JZvV0QnnGe1G9cyi4ENjZnyBtgCbBeHc
-BHq+vfwezh/scL/6LPg9c90=
-=VCif
------END PGP SIGNATURE-----
-
---=-6SMKnQn+0+PVsF307nk1--
+diff -r e677a09f65e2 fs/ext2/xip.h
+--- a/fs/ext2/xip.h     Thu Dec 20 00:53:18 2007 -0800
++++ b/fs/ext2/xip.h     Thu Dec 20 01:14:41 2007 -0800
+@@ -21,5 +21,5 @@ void *ext2_get_xip_address(struct addres
+ #define ext2_xip_verify_sb(sb)                 do { } while (0)
+ #define ext2_use_xip(sb)                       0
+ #define ext2_clear_xip_target(inode, chain)    0
+-#define ext2_get_xip_page                      NULL
++#define ext2_get_xip_address                   NULL
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
