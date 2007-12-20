@@ -1,26 +1,41 @@
-Message-ID: <476A8133.5050809@de.ibm.com>
-Date: Thu, 20 Dec 2007 15:50:27 +0100
-From: Carsten Otte <cotte@de.ibm.com>
-Reply-To: carsteno@de.ibm.com
-MIME-Version: 1.0
-Subject: Re: [rfc][patch 2/2] xip: support non-struct page memory
-References: <20071214133817.GB28555@wotan.suse.de> <20071214134106.GC28555@wotan.suse.de> <476A73F0.4070704@de.ibm.com> <476A7D21.7070607@de.ibm.com>
-In-Reply-To: <476A7D21.7070607@de.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [rfc][patch] mm: madvise(WILLNEED) for anonymous memory
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <1198162078.6821.27.camel@twins>
+References: <1198155938.6821.3.camel@twins>
+	 <Pine.LNX.4.64.0712201339010.18399@blonde.wat.veritas.com>
+	 <1198162078.6821.27.camel@twins>
+Content-Type: text/plain
+Date: Thu, 20 Dec 2007 15:56:00 +0100
+Message-Id: <1198162560.6821.30.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: carsteno@de.ibm.com
-Cc: Nick Piggin <npiggin@suse.de>, Jared Hulbert <jaredeh@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <martin.schwidefsky@de.ibm.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, riel <riel@redhat.com>, Lennart Poettering <mztabzr@0pointer.de>
 List-ID: <linux-mm.kvack.org>
 
-Carsten Otte wrote:
-> So bottom line I think we do need a different trigger then pfn_valid() 
-> to select which pages within VM_MIXEDMAP get refcounted and which don't.
-A poor man's solution could be, to store a pfn range of the flash chip 
-and/or shared memory segment inside vm_area_struct, and in case of 
-VM_MIXEDMAP we check if the pfn matches that range. If so: no 
-refcounting. If not: regular refcounting. Is that an option?
+On Thu, 2007-12-20 at 15:47 +0100, Peter Zijlstra wrote:
+> On Thu, 2007-12-20 at 14:09 +0000, Hugh Dickins wrote:
+
+> > Interesting divergence: make_pages_present faults in writable pages
+> > in a writable vma, whereas the file case's force_page_cache_readahead
+> > doesn't even insert the pages into the mm.
+> 
+> Yeah, the find_vma and write fault thing are the reason I didn't use
+> make_pages_present.
+> 
+> I had noticed the difference in pte population between
+> force_page_cache_readahead and make_pages_present, but it seemed to me
+> that writing a function to walk the page tables and populate the
+> swapcache but not populate the ptes wasn't worth the effort.
+
+Ah, another, more important difference:
+
+force_page_cache_readahead will not wait for the read to complete,
+whereas get_user_pages() will be fully synchronous.
+
+I think I'd better come up with something else then,..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
