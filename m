@@ -1,10 +1,10 @@
-Date: Fri, 21 Dec 2007 13:32:31 -0800 (PST)
+Date: Fri, 21 Dec 2007 13:37:13 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: SLUB
-In-Reply-To: <476AFC6C.3080903@hp.com>
-Message-ID: <Pine.LNX.4.64.0712211330350.3795@schroedinger.engr.sgi.com>
+In-Reply-To: <476BF0E3.8010201@hp.com>
+Message-ID: <Pine.LNX.4.64.0712211335270.3795@schroedinger.engr.sgi.com>
 References: <476A850A.1080807@hp.com> <Pine.LNX.4.64.0712201138280.30648@schroedinger.engr.sgi.com>
- <476AFC6C.3080903@hp.com>
+ <476BF0E3.8010201@hp.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -13,60 +13,36 @@ To: Mark Seger <Mark.Seger@hp.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 Dec 2007, Mark Seger wrote:
+On Fri, 21 Dec 2007, Mark Seger wrote:
 
-> What I'm not sure about is how this maps to the old slab info.  Specifically,
-> I believe in the old model one reported on the size taken up by the slabs
-> (number of slabs X number of objects/slab X object size).  There was a second
-> size for the actual number of objects in use, so in my report that looked like
-> this:
+> Sorry for being confused, but I thought that a slab was made up of a number of
+> objects and above you're saying slab_size is the size of single object.
+> Furthermore, looking at /sys/slab/shmem_inode_cache I see:
 > 
-> #                      <-----------Objects----------><---------Slab
-> Allocation------>
-> #Name                  InUse   Bytes   Alloc   Bytes   InUse   Bytes   Total
-> Bytes
-> nfs_direct_cache           0       0       0       0       0       0       0
-> 0
-> nfs_write_data            36   27648      40   30720       8   32768       8
-> 32768
+> object_size = 960
+> objs_per_slab = 4
 > 
-> the slab allocation was real memory allocated (which should come close to
-> Slab: in /proc/meminfo, right?) for the slabs while the object bytes were
+> which implies a slab is made up more than one object, so which is it?  could
+> it be a simple matter of clearer names?  I also see
 
-The real memory allocates can be deducated from the "slabs" field. 
-Multiply that by the order of the slab and you have the size of it.
-
-The "objects" are the actual objects in current use.
-
-> To get back to my original question, I'd like to make sure that I'm reporting
-> useful information and not just data for the sake of it.  In one of your
-> postings I saw a report you had that showed:
+Yes a slab holds "objs_per_slab" object/
 > 
-> slubinfo - version: 1.0
-> # name            <objects> <order> <objsize> <slabs>/<partial>/<cpu> <flags>
-> <nodes>
+> slab_size = 968
+> 
+> which certainly supports your statement about this being the size of an object
+> and it looks like there is 8 bytes of overhead.  finally, I also see
+> 
+> objects = 242
+> 
+> and objects * obj_per_slab = slabsize.  is that a coincidence?
 
-That report can be had using the slabinfo tool. See 
-Documentation/vm/slabinfo.c
+This means that the slab contains 242 active objects. From the "slabs" 
+field you can deduce how many objects the slab could hold:
 
-> How useful is order, cpu, flags and nodes?
-> Do people really care about how much memory is taken up by objects vs slabs?
-> If not, I could see reporting for each slab:
-> - object size
-> - number objects
-> - slab size
-> - number of slabs
-> - total memory (slab size X number of slabs)
-> - whatever else people might think to be useful such as order, cpu, flags, etc
+slabs * objs_per_slab
 
-Sounds fine.
- 
-> Another thing I noticed is a number of the slabs are simply links to the same
-> base name and is it sufficient to just report the base names and not those
-> linked to it?  Seems reasonable to me...
-
-slabinfo reports it like that.
- 
+If you subtract "objects" from this then you have the number of unused 
+objects in the slabs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
