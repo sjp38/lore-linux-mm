@@ -1,55 +1,39 @@
-Date: Fri, 21 Dec 2007 01:40:27 +0100
+Date: Fri, 21 Dec 2007 01:45:56 +0100
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [rfc][patch 2/2] xip: support non-struct page memory
-Message-ID: <20071221004027.GA31040@wotan.suse.de>
-References: <20071214133817.GB28555@wotan.suse.de> <20071214134106.GC28555@wotan.suse.de> <476924E0.8010304@de.ibm.com> <6934efce0712200123h3482ae17x957d019cc87bf093@mail.gmail.com>
+Message-ID: <20071221004556.GB31040@wotan.suse.de>
+References: <20071214133817.GB28555@wotan.suse.de> <20071214134106.GC28555@wotan.suse.de> <476A73F0.4070704@de.ibm.com> <476A7D21.7070607@de.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <6934efce0712200123h3482ae17x957d019cc87bf093@mail.gmail.com>
+In-Reply-To: <476A7D21.7070607@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jared Hulbert <jaredeh@gmail.com>
-Cc: carsteno@de.ibm.com, Linux Memory Management List <linux-mm@kvack.org>
+To: carsteno@de.ibm.com
+Cc: Jared Hulbert <jaredeh@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <martin.schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 20, 2007 at 01:23:53AM -0800, Jared Hulbert wrote:
-> On Dec 19, 2007 6:04 AM, Carsten Otte <cotte@de.ibm.com> wrote:
-> > Nick Piggin wrote:
-> > > This is just a prototype for one possible way of supporting this. I may
-> > > be missing some important detail or eg. have missed some requirement of the
-> > > s390 XIP block device that makes the idea infeasible... comments?
-> > I've tested your patch series on s390 with dcssblk block device and
-> > ext2 file system with -o xip. Everything seems to work fine. I will
-> > now patch my kernel not to build struct page for the shared segment
-> > and see if that works too.
+On Thu, Dec 20, 2007 at 03:33:05PM +0100, Carsten Otte wrote:
+> Carsten Otte wrote:
+> >I'll drill down deeper here to see why it does'nt work as expected...
+> Apparently pfn_valid() is true for our shared memory segment. The s390 
+> implementation checks if the pfn is within max_pfn, which reflects the 
+> size of the kernel page table 1:1 mapping. If that is the case, we use 
+> one of our many magic instructions "lra" to ask our mmu if there is 
+> memory we can access at subject address. Both is true for our shared 
+> memory segment. Thus, the page gets refcounted regular on a struct 
+> page entry that is not initialized.
 > 
-> I tested it with AXFS for ARM on NOR flash (pfn) and with a UML build
-> on x86 using the UML iomem interface (struct page).  Works slick.
-> Cleans up the nastiest part of AXFS and makes a MTD patch unnecessary.
->  Very nice.
+> Even worse, changing the semantic of pfn_valid() on s390 to be false 
+> for shared segments is no option.  We'll want to use the same memory 
+> segment for memory hotplug. And in that case we do want refcounting 
+> because it becomes regular linux memory.
 
-Ah, excellent. Thanks for testing! I may not have a lot more time to spend
-on this before next year, but feel free to do what you please with it until
-then.
+So then you're back to needing struct pages again. Do you allocate
+them at hotplug time?
 
- 
-> So we've got some documentation to do and you missed this, it won't
-> compile with EXT2 XIP off.
-
-Yep, thanks.
-
-> 
-> diff -r e677a09f65e2 fs/ext2/xip.h
-> --- a/fs/ext2/xip.h     Thu Dec 20 00:53:18 2007 -0800
-> +++ b/fs/ext2/xip.h     Thu Dec 20 01:14:41 2007 -0800
-> @@ -21,5 +21,5 @@ void *ext2_get_xip_address(struct addres
->  #define ext2_xip_verify_sb(sb)                 do { } while (0)
->  #define ext2_use_xip(sb)                       0
->  #define ext2_clear_xip_target(inode, chain)    0
-> -#define ext2_get_xip_page                      NULL
-> +#define ext2_get_xip_address                   NULL
->  #endif
+AFAIK, sparsemem keeps track of all sections for pfn_valid(), which would
+work. Any plans to convert s390 to it? ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
