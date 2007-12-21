@@ -1,68 +1,72 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate5.de.ibm.com (8.13.8/8.13.8) with ESMTP id lBLJTqw1450832
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2007 19:29:52 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lBLJTq0u2896110
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2007 20:29:52 +0100
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lBLJTqQK023308
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2007 20:29:52 +0100
-In-Reply-To: <20071221104701.GE28484@wotan.suse.de>
-Subject: Re: [rfc][patch 2/2] xip: support non-struct page memory
-Message-ID: <OFEC52C590.33A28896-ONC12573B8.0069F07E-C12573B8.006B1A41@de.ibm.com>
-From: Martin Schwidefsky <martin.schwidefsky@de.ibm.com>
-Date: Fri, 21 Dec 2007 20:29:50 +0100
+Date: Fri, 21 Dec 2007 13:32:31 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: SLUB
+In-Reply-To: <476AFC6C.3080903@hp.com>
+Message-ID: <Pine.LNX.4.64.0712211330350.3795@schroedinger.engr.sgi.com>
+References: <476A850A.1080807@hp.com> <Pine.LNX.4.64.0712201138280.30648@schroedinger.engr.sgi.com>
+ <476AFC6C.3080903@hp.com>
 MIME-Version: 1.0
-Content-type: text/plain; charset=US-ASCII
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: carsteno@linux.vnet.ibm.com, Heiko Carstens <h.carstens@de.ibm.com>, Jared Hulbert <jaredeh@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: Mark Seger <Mark.Seger@hp.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin <npiggin@suse.de> wrote on 12/21/2007 11:47:01 AM:
-> On Fri, Dec 21, 2007 at 11:35:02AM +0100, Carsten Otte wrote:
-> > Nick Piggin wrote:
-> > >But it doesn't still retain sparsemem sections behind that? Ie. so
-that
-> > >pfn_valid could be used? (I admittedly don't know enough eabout the
-memory
-> > >model code).
-> > Not as far as I know. But arch/s390/mm/vmem.c has:
-> >
-> > struct memory_segment {
-> >         struct list_head list;
-> >         unsigned long start;
-> >         unsigned long size;
-> > };
-> >
-> > static LIST_HEAD(mem_segs);
-> >
-> > This is maintained every time we map a segment/unmap a segment. And we
-> > could add a bit to struct memory_segment meaning "refcount this one".
-> > This way, we could tell core mm whether or not a pfn should be
-refcounted.
->
-> Right, this should work.
->
-> BTW. having a per-arch function sounds reasonable for a start. I'd just
-give
-> it a long name, so that people don't start using it for weird things ;)
-> mixedmap_refcount_pfn() or something.
+On Thu, 20 Dec 2007, Mark Seger wrote:
 
-Hmm, I would prefer to have a pte bit, it seem much more natural to me.
-We know that this is a special pte when it gets mapped, but we "forgot"
-that fact when the pte is picked up again in vm_normal_page. To search a
-list when a simple bit in the pte get the job done just feels wrong.
-By the way, for s390 the lower 8 bits of the pte are OS defined. The lowest
-two bits are used in addition to the hardware invalid and the hardware
-read-
-only bit to define the pte type. For valid ptes the remaining 6 bits are
-unused. Pick one, e.g. 2**2 for the bit that says
-"don't-refcount-this-pte".
+> What I'm not sure about is how this maps to the old slab info.  Specifically,
+> I believe in the old model one reported on the size taken up by the slabs
+> (number of slabs X number of objects/slab X object size).  There was a second
+> size for the actual number of objects in use, so in my report that looked like
+> this:
+> 
+> #                      <-----------Objects----------><---------Slab
+> Allocation------>
+> #Name                  InUse   Bytes   Alloc   Bytes   InUse   Bytes   Total
+> Bytes
+> nfs_direct_cache           0       0       0       0       0       0       0
+> 0
+> nfs_write_data            36   27648      40   30720       8   32768       8
+> 32768
+> 
+> the slab allocation was real memory allocated (which should come close to
+> Slab: in /proc/meminfo, right?) for the slabs while the object bytes were
 
-blue skies,
-   Martin
+The real memory allocates can be deducated from the "slabs" field. 
+Multiply that by the order of the slab and you have the size of it.
+
+The "objects" are the actual objects in current use.
+
+> To get back to my original question, I'd like to make sure that I'm reporting
+> useful information and not just data for the sake of it.  In one of your
+> postings I saw a report you had that showed:
+> 
+> slubinfo - version: 1.0
+> # name            <objects> <order> <objsize> <slabs>/<partial>/<cpu> <flags>
+> <nodes>
+
+That report can be had using the slabinfo tool. See 
+Documentation/vm/slabinfo.c
+
+> How useful is order, cpu, flags and nodes?
+> Do people really care about how much memory is taken up by objects vs slabs?
+> If not, I could see reporting for each slab:
+> - object size
+> - number objects
+> - slab size
+> - number of slabs
+> - total memory (slab size X number of slabs)
+> - whatever else people might think to be useful such as order, cpu, flags, etc
+
+Sounds fine.
+ 
+> Another thing I noticed is a number of the slabs are simply links to the same
+> base name and is it sufficient to just report the base names and not those
+> linked to it?  Seems reasonable to me...
+
+slabinfo reports it like that.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
