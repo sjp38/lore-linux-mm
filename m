@@ -1,53 +1,131 @@
-Date: Fri, 21 Dec 2007 01:56:33 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch 2/2] xip: support non-struct page memory
-Message-ID: <20071221005633.GD31040@wotan.suse.de>
-References: <20071214133817.GB28555@wotan.suse.de> <20071214134106.GC28555@wotan.suse.de> <476A73F0.4070704@de.ibm.com> <476A7D21.7070607@de.ibm.com> <476A8133.5050809@de.ibm.com> <6934efce0712200924o4e676484j95188a01b605bfdc@mail.gmail.com> <6934efce0712201612x57f77ab0le1d4d08d39e92c93@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <6934efce0712201612x57f77ab0le1d4d08d39e92c93@mail.gmail.com>
+Message-ID: <476B122E.7010108@hp.com>
+Date: Thu, 20 Dec 2007 20:09:02 -0500
+From: Mark Seger <Mark.Seger@hp.com>
+MIME-Version: 1.0
+Subject: Re: SLUB
+References: <476A850A.1080807@hp.com> <Pine.LNX.4.64.0712201138280.30648@schroedinger.engr.sgi.com> <476AFC6C.3080903@hp.com>
+In-Reply-To: <476AFC6C.3080903@hp.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jared Hulbert <jaredeh@gmail.com>
-Cc: carsteno@de.ibm.com, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <martin.schwidefsky@de.ibm.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Mark Seger <Mark.Seger@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 20, 2007 at 04:12:52PM -0800, Jared Hulbert wrote:
-> On Dec 20, 2007 9:24 AM, Jared Hulbert <jaredeh@gmail.com> wrote:
-> > > A poor man's solution could be, to store a pfn range of the flash chip
-> > > and/or shared memory segment inside vm_area_struct, and in case of
-> > > VM_MIXEDMAP we check if the pfn matches that range. If so: no
-> > > refcounting. If not: regular refcounting. Is that an option?
-> >
-> > I'm not picturing what is responsible for configuring this stored pfn
-> > range.  Does the fs do it on mount?  Does the MTD or your funky
-> > direct_access block driver do it?
-> >
-> > What if you use VM_PFNMAP instead of VM_MIXEDMAP?
-> 
-> Though that might _work_ for ext2 it doesn't fix VM_MIXEDMAP.
+I did some preliminary prototyping and I guess I'm not sure of the 
+math.  If I understand what you're saying, an object has a particular 
+size, but given the fact that you may need alignment, the true size is 
+really the slab size, and the difference is the overhead.  What I don't 
+understand is how to calculate how much memory a particular slab takes 
+up.  If the slabsize is really the size of an object, wouldn't I 
+multiple that times the number of objects?  But when I do that I get a 
+number smaller than that reported in /proc/meminfo, in my case 15997K vs 
+17388K.  Given memory numbers rarely seem to add up maybe this IS close 
+enough?  If so, what's the significance of the number of slabs?  Would I 
+divide the 15997K by the number of slabs to find out how big a single 
+slab is?  I would have thought that's what the slab_size is but clearly 
+it isn't.
 
-Yeah, I guess they have the same problem as you: they want to be able
-to support COW of non contiguous physical memory mappings as well (which
-PFNMAP can't do).
+In any event, here's a table of what I see on my machine.  The first 4 
+columns come from /sys/slab and the 5th I calculated by just multiplying 
+SlabSize X NumObj.  If I should be doing something else, please tell 
+me.  Also be sure to tell me if I should include other data.  For 
+example, the number of objects is a little misleading since when I look 
+at the file I really see something like:
 
- 
-> vm_normal_page() needs to know if a VM_MIXEDMAP pfn has a struct page
-> or not.  Somebody had suggested we'd need a pfn_normal() or something.
->  Maybe it should be called pfn_has_page() instead.  For ARM
-> pfn_has_page() == pfn_valid() near as I can tell.  What about on s390?
->  If pfn_valid() doesn't work, then can you check if the pfn is
-> hotplugged in?  What would pfn_to_page() return if the associated
-> struct page entry was not initialized?  Can we use what is returned to
-> check if the pfn has no page?
+49 N0=19 N1=30
 
-As fas as I know, that's what pfn_valid() should tell you (ie. that you
-have a struct page allocated). So I think this is kind of a quirk of the
-s390 memory model and I'd rather not "legitimize" it by calling it pfn_normal
-(because then what's pfn_valid for?).
+which I'm guessing may mean 19 objects are allocated to socket 0 and 30 
+to socket 1?  this is a dual-core, dual-socket system.
 
-But definitely I think we could support a hack for them one way or the other.
+-mark
+
+Mark Seger wrote:
+>
+>>> Perhaps someone would like to take this discussion off-line with me 
+>>> and even
+>>> collaborate with me on enhancements for slub in collectl?
+> sounds good to me, I just didn't want to annoy anyone...
+>>> I think we better keep it public (so that it goes into the archive). 
+>>> Here a short description of the field in 
+>>> /sys/kernel/slab/<slabcache> that you would need
+>>>
+>>> -r--r--r-- 1 root root 4096 Dec 20 11:41 object_size
+>>>
+>>> The size of an object. Subtract slab_size - object_size and you have 
+>>> the per object overhead generated by alignements and slab metadata. 
+>>> Does not change you only need to read this once.
+>>>
+>>> -r--r--r-- 1 root root 4096 Dec 20 11:41 objects
+>>>
+>>> Number of objects in use. This changes and you may want to monitor it.
+>>>
+>>> -r--r--r-- 1 root root 4096 Dec 20 11:41 slab_size
+>>>
+>>> Total memory used for a single object. Read this only once.
+>>>
+>>> -r--r--r-- 1 root root 4096 Dec 20 11:41 slabs
+>>>
+>>> Number of slab pages in use for this slab cache. May change if slab 
+>>> is extended.
+>>>     
+> What I'm not sure about is how this maps to the old slab info.  
+> Specifically, I believe in the old model one reported on the size 
+> taken up by the slabs (number of slabs X number of objects/slab X 
+> object size).  There was a second size for the actual number of 
+> objects in use, so in my report that looked like this:
+>
+> #                      <-----------Objects----------><---------Slab 
+> Allocation------>
+> #Name                  InUse   Bytes   Alloc   Bytes   InUse   Bytes   
+> Total   Bytes
+> nfs_direct_cache           0       0       0       0       0       
+> 0       0       0
+> nfs_write_data            36   27648      40   30720       8   
+> 32768       8   32768
+>
+> the slab allocation was real memory allocated (which should come close 
+> to Slab: in /proc/meminfo, right?) for the slabs while the object 
+> bytes were those in use.  Is it worth it to continue this model or do 
+> thing work differently.   It sounds like I can still do this with the 
+> numbers you've pointed me to above and I do now realize I only need to 
+> monitor the number of slabs and the number of objects since the others 
+> are constants.
+>
+> To get back to my original question, I'd like to make sure that I'm 
+> reporting useful information and not just data for the sake of it.  In 
+> one of your postings I saw a report you had that showed:
+>
+> slubinfo - version: 1.0
+> # name            <objects> <order> <objsize> <slabs>/<partial>/<cpu> 
+> <flags> <nodes>
+>
+> How useful is order, cpu, flags and nodes?
+> Do people really care about how much memory is taken up by objects vs 
+> slabs?  If not, I could see reporting for each slab:
+> - object size
+> - number objects
+> - slab size
+> - number of slabs
+> - total memory (slab size X number of slabs)
+> - whatever else people might think to be useful such as order, cpu, 
+> flags, etc
+>
+> Another thing I noticed is a number of the slabs are simply links to 
+> the same base name and is it sufficient to just report the base names 
+> and not those linked to it?  Seems reasonable to me...
+>
+> The interesting thing about collectl is that it's written in perl (but 
+> I'm trying to be very careful to keep it efficient and it tends to use 
+> <0.1% cpu when run as a daemon) and the good news is it's pretty easy 
+> to get something implemented, depending on my free time.  If we can 
+> get some level of agreement on what seems useful I could get a version 
+> up fairly quickly for people to start playing with if there is any 
+> interest.
+>
+> -mark
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
