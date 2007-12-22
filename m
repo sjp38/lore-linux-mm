@@ -1,101 +1,71 @@
-Date: Sat, 22 Dec 2007 12:14:42 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch] mm: fix PageUptodate memory ordering bug
-In-Reply-To: <20071222005737.2675c33b.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0712221152370.7460@blonde.wat.veritas.com>
-References: <20071218012632.GA23110@wotan.suse.de>
- <20071222005737.2675c33b.akpm@linux-foundation.org>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lBMKRf1m017210
+	for <linux-mm@kvack.org>; Sat, 22 Dec 2007 15:27:41 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lBMKRZ8F104000
+	for <linux-mm@kvack.org>; Sat, 22 Dec 2007 13:27:40 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lBMKRZhv014696
+	for <linux-mm@kvack.org>; Sat, 22 Dec 2007 13:27:35 -0700
+Message-ID: <476D7334.4010301@linux.vnet.ibm.com>
+Date: Sun, 23 Dec 2007 01:57:32 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch 00/20] VM pageout scalability improvements
+References: <20071218211539.250334036@redhat.com>
+In-Reply-To: <20071218211539.250334036@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, lee.shermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 22 Dec 2007, Andrew Morton wrote:
-> On Tue, 18 Dec 2007 02:26:32 +0100 Nick Piggin <npiggin@suse.de> wrote:
+Rik van Riel wrote:
+> On large memory systems, the VM can spend way too much time scanning
+> through pages that it cannot (or should not) evict from memory. Not
+> only does it use up CPU time, but it also provokes lock contention
+> and can leave large systems under memory presure in a catatonic state.
 > 
-> > After running SetPageUptodate, preceeding stores to the page contents to
-> > actually bring it uptodate may not be ordered with the store to set the page
-> > uptodate.
-> > 
-> > Therefore, another CPU which checks PageUptodate is true, then reads the
-> > page contents can get stale data.
-> > 
-> > Fix this by having an smp_wmb before SetPageUptodate, and smp_rmb after
-> > PageUptodate.
-> > 
-> > Many places that test PageUptodate, do so with the page locked, and this
-> > would be enough to ensure memory ordering in those places if SetPageUptodate
-> > were only called while the page is locked. Unfortunately that is not always
-> > the case for some filesystems, but it could be an idea for the future.
-> > 
-> > One thing I like about it is that it brings the handling of anonymous page
-> > uptodateness in line with that of file backed page management, by marking anon
-> > pages as uptodate when they _are_ uptodate, rather than when our implementation
-> > requires that they be marked as such.
 
-Nick, you're welcome to make that a separate, less controversial patch,
-to send in ahead.  Though I think the last time this came around, I hit
-one of your BUGs in testing shmem.c swapout or swapin or swapoff:
-something missing there that I've lost the record of - please do
-try testing that, maybe it's already fixed this time around.
+Hi, Rik,
 
-> > Doing allows us to get rid of the
-> > smp_wmb's in the page copying functions, which were especially added for
-> > anonymous pages for an analogous memory ordering problem, and are now handled
-> > with the same code as the PageUptodate memory ordering problem.
-> > 
-> > Introduce a SetNewPageUptodate for these anonymous pages: it contains non
-> > atomic bitops so as not to introduce too much overhead into these paths.
-> > 
+I remember you mentioning that by large memory systems you mean systems
+with at-least 128GB, does this definition still hold?
+
+> This patch series improves VM scalability by:
 > 
-> hrm.
+> 1) making the locking a little more scalable
 > 
-> > +static inline void SetNewPageUptodate(struct page *page)
-> > +{
-> > +	smp_wmb();
-> > +	__set_bit(PG_uptodate, &(page)->flags);
+> 2) putting filesystem backed, swap backed and non-reclaimable pages
+>    onto their own LRUs, so the system only scans the pages that it
+>    can/should evict from memory
 > 
-> argh.  Put the pin back in that thing before you hurt someone.
+> 3) switching to SEQ replacement for the anonymous LRUs, so the
+>    number of pages that need to be scanned when the system
+>    starts swapping is bound to a reasonable number
 > 
-> Sigh.  I guess it's fairly clear but it could do with a big fat warning
-> over it before you go and kill someone.
+> The noreclaim patches come verbatim from Lee Schermerhorn and
+> Nick Piggin.  I have not taken a detailed look at them yet and
+> all I have done is fix the rejects against the latest -mm kernel.
 > 
-> Because if this little hand grenade gets used in the wrong place, it will
-> cause a horrid, horrid data-corrupting bug which might take us literally
-> years to hunt down and fix.
+
+Is there a consolidate patch available, it makes it easier to test.
+
+> I am posting this series now because I would like to get more
+> feedback, while I am studying and improving the noreclaim patches
+> myself.
 > 
-> >  #ifdef CONFIG_S390
-> > +	page_clear_dirty(page);
-> > +#endif
-> > +}
 
-That's an odd little extract, since page_clear_dirty only does anything
-on s390.
+What kind of tests show the problem? I'll try and review and test the code.
 
-> For an overall 0.5% increase in the i386 size of several core mm files.  If
-> you don't blow us up on the spot, you'll slowly bleed us to death.
-> 
-> Can it be improved?
-
-I do wish it could be.
-
-I never find the time to give it the thought it needs; and any criticism
-I make is probably unjust, probably patiently answered by Nick on a
-previous round.
-
-I'm never convinced that SetPageUptodate is the right place for
-this: what's wrong with doing it in those page copying functions?
-Or flush_dcache_page?  Don't we need different kinds of barrier
-according to how the data got into the page (by DMA or not)?
-Doesn't that enter territory discussed down the years between
-James Bottomley and Russell King?  Worth CC'ing them the original?
-
-Let me fall silent for a few days...
-
-Hugh
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
