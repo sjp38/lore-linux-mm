@@ -1,169 +1,116 @@
-Date: Sun, 23 Dec 2007 23:41:05 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] mm: fix PageUptodate memory ordering bug
-Message-ID: <20071223224105.GB1285@wotan.suse.de>
-References: <20071218012632.GA23110@wotan.suse.de> <20071222005737.2675c33b.akpm@linux-foundation.org> <20071223055730.GA29288@wotan.suse.de> <20071222223234.7f0fbd8a.akpm@linux-foundation.org> <20071223071529.GC29288@wotan.suse.de> <alpine.LFD.0.9999.0712230900310.21557@woody.linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.0.9999.0712230900310.21557@woody.linux-foundation.org>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lBNMxlWC028409
+	for <linux-mm@kvack.org>; Sun, 23 Dec 2007 17:59:47 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lBNMxlfq122878
+	for <linux-mm@kvack.org>; Sun, 23 Dec 2007 15:59:47 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lBNMxlB3008962
+	for <linux-mm@kvack.org>; Sun, 23 Dec 2007 15:59:47 -0700
+Message-ID: <476EE858.202@linux.vnet.ibm.com>
+Date: Mon, 24 Dec 2007 04:29:36 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [patch 00/20] VM pageout scalability improvements
+References: <20071218211539.250334036@redhat.com> <476D7334.4010301@linux.vnet.ibm.com> <20071222192119.030f32d5@bree.surriel.com>
+In-Reply-To: <20071222192119.030f32d5@bree.surriel.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Dec 23, 2007 at 09:22:17AM -0800, Linus Torvalds wrote:
+Rik van Riel wrote:
+> On Sun, 23 Dec 2007 01:57:32 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>> Rik van Riel wrote:
+>>> On large memory systems, the VM can spend way too much time scanning
+>>> through pages that it cannot (or should not) evict from memory. Not
+>>> only does it use up CPU time, but it also provokes lock contention
+>>> and can leave large systems under memory presure in a catatonic state.
+>> I remember you mentioning that by large memory systems you mean systems
+>> with at-least 128GB, does this definition still hold?
 > 
-> There's actually a few different PPro errata. There's #51, which is an IO 
-> ordering thing, and can happen on UP too. There's #66, which breaks CPU 
-> ordering, and is SMP-only (and which is probably at least *mostly* fixed 
-> by PPRO_FENCE), and there is #92 which can cause cache incoherency and 
-> where PPRO_FENCE *may* indirectly help.
+> It depends on the workload.  Certain test cases can wedge the
+> VM with as little as 16GB of RAM.  Other workloads cause trouble
+> at 32 or 64GB, with the system sometimes hanging for several
+> minutes, all the CPUs in the pageout code and no actual swap IO.
+> 
 
-BTW. #66 seems to be an issue where a CPU may see the wrong results from a
-RAW, if another CPU has written to the cacheline in the meantime. #92 is a
-data loss bug (although it said they couldn't reproduce it on real hardware).
+Interesting, I have not run into it so far. But I have smaller machines,
+typically 4-8GB.
 
-It says they're actually not a problem if semaphore operations are used to
-protect the data. However a) it is becoming increasingly common that we don't
-do that (eg. with lockless operations), and b) I don't know how the case of
-false sharing in a cacheline can be safe.
+> On systems of 128GB and more, we have seen systems hang in the
+> pageout code overnight, without deciding what to swap out.
+> 
+>>> This patch series improves VM scalability by:
+>>>
+>>> 1) making the locking a little more scalable
+>>>
+>>> 2) putting filesystem backed, swap backed and non-reclaimable pages
+>>>    onto their own LRUs, so the system only scans the pages that it
+>>>    can/should evict from memory
+>>>
+>>> 3) switching to SEQ replacement for the anonymous LRUs, so the
+>>>    number of pages that need to be scanned when the system
+>>>    starts swapping is bound to a reasonable number
+>>>
+>>> The noreclaim patches come verbatim from Lee Schermerhorn and
+>>> Nick Piggin.  I have not taken a detailed look at them yet and
+>>> all I have done is fix the rejects against the latest -mm kernel.
+>> Is there a consolidate patch available, it makes it easier to test.
+> 
+> I will make a big patch available with the next version.  I have
+> to upgrade my patch set to newer noreclaim patches from Lee and
+> add a few small cleanups elsewhere.
+> 
 
-Anyway, I think it is very rare, even on those two systems (one being in
-Alan's basement) that run Linux... The number of cycles everybody else loses
-in spin_unlock combined far outweighs the number of cycles these additional
-CPUs are going to sit idle :)
+That would be nice. I'll try and help out by testing the patches and
+running them
+
+>>> I am posting this series now because I would like to get more
+>>> feedback, while I am studying and improving the noreclaim patches
+>>> myself.
+>> What kind of tests show the problem? I'll try and review and test the code.
+> 
+> The easiest test possible simply allocates a ton of memory and
+> then touches it all.  Enough memory that the system needs to go
+> into swap.
+> 
+> Once memory is full, you will see the VM scan like mad, with a
+> big CPU spike (clearing the referenced bits off all pages) before
+> it starts swapping out anything.  That big CPU spike should be
+> gone or greatly reduced with my patches.
+> 
+> On really huge systems, that big CPU spike can be enough for one
+> CPU to spend so much time in the VM that all the other CPUs join
+> it, and the system goes under in a big lock contention fest.
+> 
+> Besides, even single threadedly clearing the referenced bits on
+> 1TB worth of memory can't result in acceptable latencies :)
+> 
+> In the real world, users with large JVMs on their servers, which
+> sometimes go a little into swap, can trigger this system.  All of
+> the CPUs end up scanning the active list, and all pages have the
+> referenced bit set.  Even if the system eventually recovers, it
+> might as well have been dead.
+> 
+> Going into swap a little should only take a little bit of time.
+> 
+
+Very fascinating, so we need to scale better with larger memory.
+I suspect part of the answer will lie with using large/huge pages.
 
 
-> We could decide to just ignore all of them, or perhaps ignore all but #51. 
-> I think Alan still has an old four-way PPro hidden away somewhere, but 
-> he's probably one of the few people who could even *test* this thing.
 
-This patch uses both your and Andi's ideas... Untested though.
-
-X86_PPRO_FENCE means we might encounter these systems, so workaround #51, and
-disable multiple cpus... unless X86_PPRO_FENCE_SMP, which includes the workarounds
-for #66 and #92.
-
----
-
-Index: linux-2.6/arch/x86/Kconfig.cpu
-===================================================================
---- linux-2.6.orig/arch/x86/Kconfig.cpu
-+++ linux-2.6/arch/x86/Kconfig.cpu
-@@ -321,7 +321,7 @@ config X86_XADD
- 	depends on X86_32 && !M386
- 	default y
- 
--config X86_PPRO_FENCE
-+config X86_BROKEN_PPRO
- 	bool
- 	depends on M686 || M586MMX || M586TSC || M586 || M486 || M386 || MGEODEGX1
- 	default y
-Index: linux-2.6/include/asm-x86/io_32.h
-===================================================================
---- linux-2.6.orig/include/asm-x86/io_32.h
-+++ linux-2.6/include/asm-x86/io_32.h
-@@ -235,7 +235,7 @@ memcpy_toio(volatile void __iomem *dst, 
-  *	2. Accidentally out of order processors (PPro errata #51)
-  */
-  
--#if defined(CONFIG_X86_OOSTORE) || defined(CONFIG_X86_PPRO_FENCE)
-+#if defined(CONFIG_X86_OOSTORE) || defined(CONFIG_X86_BROKEN_PPRO)
- 
- static inline void flush_write_buffers(void)
- {
-Index: linux-2.6/include/asm-x86/spinlock_32.h
-===================================================================
---- linux-2.6.orig/include/asm-x86/spinlock_32.h
-+++ linux-2.6/include/asm-x86/spinlock_32.h
-@@ -101,7 +101,7 @@ static inline int __raw_spin_trylock(raw
-  * (PPro errata 66, 92)
-  */
- 
--#if !defined(CONFIG_X86_OOSTORE) && !defined(CONFIG_X86_PPRO_FENCE)
-+#if !defined(CONFIG_X86_OOSTORE) && !defined(CONFIG_X86_BROKEN_PPRO_SMP)
- 
- static inline void __raw_spin_unlock(raw_spinlock_t *lock)
- {
-Index: linux-2.6/arch/x86/kernel/cpu/intel.c
-===================================================================
---- linux-2.6.orig/arch/x86/kernel/cpu/intel.c
-+++ linux-2.6/arch/x86/kernel/cpu/intel.c
-@@ -108,6 +108,23 @@ static void __cpuinit trap_init_f00f_bug
- }
- #endif
- 
-+/*
-+ * Errata #66, #92
-+ */
-+static void __cpuinit ppro_smp_fence_bug(void)
-+{
-+#if defined(CONFIG_SMP) && defined(CONFIG_X86_BROKEN_PPRO) && !defined(CONFIG_X86_BROKEN_PPRO_SMP)
-+	extern unsigned int maxcpus;
-+
-+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
-+	    boot_cpu_data.x86 == 6 &&
-+	    boot_cpu_data.x86_model == 1) {
-+		printk(KERN_INFO "Pentium Pro with Errata#66, #92 detected. Limiting maxcpus to 1. Enable CONFIG_X86_BROKEN_PPRO_SMP to run with multiple CPUs\n");
-+		maxcpus = 1;
-+	}
-+#endif
-+}
-+
- static void __cpuinit init_intel(struct cpuinfo_x86 *c)
- {
- 	unsigned int l2 = 0;
-@@ -132,6 +149,8 @@ static void __cpuinit init_intel(struct 
- 	}
- #endif
- 
-+	ppro_smp_fence_bug();
-+
- 	select_idle_routine(c);
- 	l2 = init_intel_cacheinfo(c);
- 	if (c->cpuid_level > 9 ) {
-Index: linux-2.6/include/asm-x86/system_32.h
-===================================================================
---- linux-2.6.orig/include/asm-x86/system_32.h
-+++ linux-2.6/include/asm-x86/system_32.h
-@@ -279,7 +279,7 @@ static inline unsigned long get_limit(un
- 
- #ifdef CONFIG_SMP
- #define smp_mb()	mb()
--#ifdef CONFIG_X86_PPRO_FENCE
-+#ifdef CONFIG_X86_BROKEN_PPRO_SMP
- # define smp_rmb()	rmb()
- #else
- # define smp_rmb()	barrier()
-Index: linux-2.6/arch/x86/Kconfig
-===================================================================
---- linux-2.6.orig/arch/x86/Kconfig
-+++ linux-2.6/arch/x86/Kconfig
-@@ -378,6 +378,22 @@ config ES7000_CLUSTERED_APIC
- 
- source "arch/x86/Kconfig.cpu"
- 
-+config X86_BROKEN_PPRO_SMP
-+	bool "PentiumPro memory ordering errata workaround"
-+	depends on X86_BROKEN_PPRO && SMP
-+	default n
-+	help
-+	  Old PentiumPro multiprocessor systems had errata that could cause memory
-+	  operations to violate the x86 ordering standard in rare cases. Enabling this
-+	  option will attempt to work around some (but not all) occurances of these
-+	  problems, at the cost of much heavier spinlock and memory barrier operations.
-+
-+	  If you say N here, these systems will be detected and limited to a single CPU
-+	  at boot time.
-+
-+	  If unsure, say N here. Even distro kernels should think twice before enabling
-+	  this: there are few systems, and an unlikely bug.
-+
- config HPET_TIMER
- 	bool
- 	prompt "HPET Timer Support" if X86_32
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
