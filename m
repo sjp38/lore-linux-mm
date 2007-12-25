@@ -1,9 +1,9 @@
-Date: Tue, 25 Dec 2007 19:31:20 +0900
+Date: Tue, 25 Dec 2007 19:31:14 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [RFC][patch 2/2] mem notifications v3 improvement for large system
+Subject: [RFC][patch 1/2] mem notifications v3 improvement for large system
 In-Reply-To: <20071225164832.D267.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 References: <20071225122326.D25C.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20071225164832.D267.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20071225192625.D273.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20071225182144.D26D.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
@@ -13,235 +13,219 @@ To: Marcelo Tosatti <marcelo@kvack.org>
 Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Daniel =?ISO-2022-JP?B?U3AbJEJpTxsoQmc=?= <daniel.spang@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-2nd improvement
-  - add wakeup rate control
+Hi
+
+I tried resolve too few notification problem.
+
+mem_notify_status global variable mean wakeup 1 process.
+it is too few.
+
+improvement step1:
+- add read method and wake up all process.
 
 1. run >10000 process test
    console1# LANG=C; while [ 1 ] ;do sleep 1; date; vmstat 1 1 -S M -a; done
    console2# sh m.sh 12500
 
-result
-   - swap out unoccured.
-   - time leap unoccured.
-   - max runqueue shrink about 1/10.
-   - too much freed unoccured.
-
-very good.
+result:
+ - wakeup all unoccur neither thundering herd nor soft lock-up.
+ - no swap out occured.
+ - but too much free ;-)
+   in my test-case, over 5GB freed.
 
 
+Wed Dec 26 03:19:20 JST 2007
+procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
+ r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
+ 7  0      0    605    209  12778    0    0   143    11 1458  183 14 10 76  1  0
+Wed Dec 26 03:19:21 JST 2007
+procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
+ r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
+ 6  0      0   2687    209  10769    0    0   142    11 1459  188 14 10 75  1  0
+Wed Dec 26 03:19:22 JST 2007
+procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
+ r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
+ 2  0      0   4560    209   8968    0    0   142    11 1459  191 14 10 75  1  0
+Wed Dec 26 03:19:23 JST 2007
+procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
+ r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
+ 1  0      0   5857    209   7724    0    0   142    11 1457  192 14 10 75  1  0
+Wed Dec 26 03:19:24 JST 2007
+procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
+ r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
+ 1  0      0   5872    209   7724    0    0   141    11 1454  192 14 10 75  1  0
+Wed Dec 26 03:19:25 JST 2007
+procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
+ r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
+ 1  0      0   5884    209   7724    0    0   141    11 1451  192 14 10 75  1  0
+Wed Dec 26 03:19:26 JST 2007
+procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
+ r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
+ 1  0      0   5895    209   7724    0    0   140    11 1448  191 14 10 75  1  0
+Wed Dec 26 03:19:27 JST 2007
+procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
+ r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
+ 1  0      0   5904    209   7724    0    0   140    11 1445  191 14 10 75  1  0
+Wed Dec 26 03:19:28 JST 2007
+procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
+ r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
+ 1  0      0   5912    209   7724    0    0   140    11 1442  190 13 10 75  1  0
+Wed Dec 26 03:19:29 JST 2007
+procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
+ r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
+ 1  0      0   5920    209   7724    0    0   139    11 1439  190 13 10 75  1  0
+Wed Dec 26 03:19:30 JST 2007
+procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
+ r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
+ 1  1      0   5929    209   7724    0    0   139    11 1436  189 13 10 75  1  0
+Wed Dec 26 03:19:32 JST 2007
+procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
+ r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
+ 1  0      0   5935    209   7724    0    0   139    11 1433  189 13 10 75  1  0
+Wed Dec 26 03:19:33 JST 2007
+procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
+ r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
+ 1  0      0   5940    209   7724    0    0   138    11 1430  188 13 10 75  1  0
+Wed Dec 26 03:19:34 JST 2007
+procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
+ r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
+ 2  1      0   5948    209   7725    0    0   138    11 1427  188 13 10 75  1  0
+Wed Dec 26 03:19:35 JST 2007
+procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
+ r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
+ 0  0      0   5676    209   8005    0    0   138    11 1425  188 13 10 75  1  0
+Wed Dec 26 03:19:36 JST 2007
+procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
+ r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
+ 0  1      0   5676    209   8006    0    0   137    11 1422  188 13 10 75  1  0
 
 
-
-Wed Dec 26 04:23:10 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
- 4  0      0   4122    190   9890    0    0   207    15  297  113 17  6 75  2  0
-Wed Dec 26 04:23:11 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
- 3  0      0   3038    190  10809    0    0   206    15  299  117 17  7 75  2  0
-Wed Dec 26 04:23:12 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
- 2  0      0   2004    190  11687    0    0   206    15  301  120 17  7 75  2  0
-Wed Dec 26 04:23:13 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
- 2  0      0   1009    190  12530    0    0   205    15  303  124 17  7 74  2  0
-Wed Dec 26 04:23:14 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
- 2  0      0     69    190  13327    0    0   204    15  305  127 17  7 74  2  0
-Wed Dec 26 04:23:15 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-1109  0      0     88    199  13294    0    0   203    15  404  297 17  7 74  2  0
-Wed Dec 26 04:23:16 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-285  0      0     86    199  13295    0    0   203    15  404  541 17  7 74  2  0
-Wed Dec 26 04:23:17 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-258  0      0     88    199  13294    0    0   202    15  404  779 17  7 74  2  0
-Wed Dec 26 04:23:18 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-185  0      0     88    199  13294    0    0   201    15  403 1012 17  7 74  2  0
-Wed Dec 26 04:23:19 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-454  0      0     87    199  13296    0    0   200    15  403 1240 17  7 74  2  0
-Wed Dec 26 04:23:21 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-216  0      0     87    199  13295    0    0   200    15  403 1463 17  7 74  2  0
-Wed Dec 26 04:23:22 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-402  0      0     87    199  13297    0    0   199    15  403 1681 17  7 74  2  0
-Wed Dec 26 04:23:23 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-716  0      0     86    199  13293    0    0   198    15  403 1893 17  7 74  2  0
-Wed Dec 26 04:23:24 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-131  0      0     86    199  13294    0    0   197    15  402 2101 17  7 74  2  0
-Wed Dec 26 04:23:25 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-417  0      0     87    199  13294    0    0   197    14  402 2301 17  8 74  2  0
-Wed Dec 26 04:23:26 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-42  0      0     87    199  13294    0    0   196    14  402 2502 17  8 74  2  0
-Wed Dec 26 04:23:27 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-968  0      0     88    199  13291    0    0   195    14  402 2697 17  8 74  2  0
-Wed Dec 26 04:23:28 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-335  0      0     86    199  13295    0    0   195    14  402 2887 17  8 74  2  0
-Wed Dec 26 04:23:29 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-386  0      0     87    199  13293    0    0   194    14  401 3071 17  8 74  2  0
-Wed Dec 26 04:23:30 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-658  0      0     89    199  13292    0    0   193    14  401 3254 17  8 74  2  0
-Wed Dec 26 04:23:31 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-72  0      0     87    199  13295    0    0   192    14  401 3439 16  8 74  2  0
-Wed Dec 26 04:23:32 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-697  0      0     86    199  13295    0    0   192    14  401 3612 16  8 74  2  0
-Wed Dec 26 04:23:33 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-289  0      0     87    199  13293    0    0   191    14  400 3780 16  8 74  2  0
-Wed Dec 26 04:23:34 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-633  0      0     87    199  13294    0    0   190    14  400 3944 16  8 74  2  0
-Wed Dec 26 04:23:35 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
- 2  0      0     86    199  13295    0    0   190    14  400 4101 16  8 74  2  0
-Wed Dec 26 04:23:36 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-94  1      0     88    199  13293    0    0   189    14  400 4253 16  8 74  2  0
-Wed Dec 26 04:23:37 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-384  0      0     88    199  13293    0    0   188    14  400 4402 16  8 74  2  0
-Wed Dec 26 04:23:38 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-256  0      0     86    199  13293    0    0   188    14  399 4546 16  8 74  2  0
-Wed Dec 26 04:23:39 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
- 0  0      0     90    199  13288    0    0   187    14  399 4686 16  8 74  2  0
-Wed Dec 26 04:23:40 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
- 0  0      0     90    199  13288    0    0   187    14  398 4822 16  8 74  2  0
-Wed Dec 26 04:23:41 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
- 0  1      0     90    199  13288    0    0   186    14  398 4953 16  8 74  2  0
-Wed Dec 26 04:23:42 JST 2007
-procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu------
- r  b   swpd   free  inact active   si   so    bi    bo   in   cs us sy id wa st
-289  0      0     91    199  13288    0    0   185    14  397 5077 16  8 74  2  0
-
-
-
-$ quilt diff
 Index: linux-2.6.23-mem_notify_v3/mm/mem_notify.c
 ===================================================================
 --- linux-2.6.23-mem_notify_v3.orig/mm/mem_notify.c
 +++ linux-2.6.23-mem_notify_v3/mm/mem_notify.c
-@@ -12,6 +12,9 @@
- #include <linux/vmstat.h>
+@@ -13,7 +13,11 @@
  #include <linux/percpu.h>
  #include <linux/timer.h>
-+#include <linux/delay.h>
-+
-+#define MSLEEP_BONUS_SHIFT 4
 
- struct mem_notify_file_info {
-         long          last_event;
-@@ -20,7 +23,9 @@ struct mem_notify_file_info {
- atomic_t mem_notify_event = ATOMIC_INIT(0);
+-static unsigned long mem_notify_status = 0;
++struct mem_notify_file_info {
++        long          last_event;
++};
++
++atomic_t mem_notify_event = ATOMIC_INIT(0);
 
  static DECLARE_WAIT_QUEUE_HEAD(mem_wait);
--static DEFINE_PER_CPU(unsigned long, last_mem_notify) = INITIAL_JIFFIES;
-+static atomic_long_t last_mem_notify = ATOMIC_LONG_INIT(INITIAL_JIFFIES);
-+static atomic_long_t last_task_wakeup = ATOMIC_LONG_INIT(INITIAL_JIFFIES);
-+static atomic_t mem_notify_timeout_bonus = ATOMIC_INIT(0);
-
- /* maximum 5 notifications per second per cpu */
- void mem_notify_userspace(void)
-@@ -28,10 +33,10 @@ void mem_notify_userspace(void)
-        unsigned long target;
-        unsigned long now = jiffies;
-
--       target = __get_cpu_var(last_mem_notify) + (HZ/5);
-+       target = atomic_long_read(&last_mem_notify) + (HZ/5);
+ static DEFINE_PER_CPU(unsigned long, last_mem_notify) = INITIAL_JIFFIES;
+@@ -28,53 +32,81 @@ void mem_notify_userspace(void)
 
         if (time_after(now, target)) {
--               __get_cpu_var(last_mem_notify) = now;
-+               atomic_long_set(&last_mem_notify, now);
-                atomic_inc(&mem_notify_event);
+                __get_cpu_var(last_mem_notify) = now;
+-               mem_notify_status = 1;
++               atomic_inc(&mem_notify_event);
                 wake_up(&mem_wait);
         }
-@@ -68,12 +73,35 @@ static unsigned int mem_notify_poll(stru
-        struct zone *zone;
-        int pages_high, pages_free, pages_reserve;
-         struct mem_notify_file_info *file_info = file->private_data;
-+       unsigned long bonus;
-+       unsigned long now;
-+       unsigned long last;
+ }
+
+ static int mem_notify_open(struct inode *inode, struct file *file)
+ {
+-       return 0;
++        struct mem_notify_file_info *ptr;
++        int    err = 0;
++
++        ptr = kmalloc(sizeof(*ptr), GFP_KERNEL);
++        if (!ptr) {
++                err = -ENOMEM;
++                goto out;
++        }
++
++        ptr->last_event = atomic_read(&mem_notify_event);
++        file->private_data = ptr;
++
++out:
++        return err;
+ }
+
+ static int mem_notify_release(struct inode *inode, struct file *file)
+ {
++        kfree(file->private_data);
++
+        return 0;
+ }
+
+ static unsigned int mem_notify_poll(struct file *file, poll_table *wait)
+ {
+        unsigned int val = 0;
++       struct zone *zone;
++       int pages_high, pages_free, pages_reserve;
++        struct mem_notify_file_info *file_info = file->private_data;
 
         poll_wait(file, &mem_wait, wait);
 
-         if (file_info->last_event == atomic_read(&mem_notify_event))
-                 goto out;
+-       if (mem_notify_status) {
+-               struct zone *zone;
+-               int pages_high, pages_free, pages_reserve;
+-
+-               mem_notify_status = 0;
+-
+-               /* check if its not a spurious/stale notification */
+-               pages_high = pages_free = pages_reserve = 0;
+-               for_each_zone(zone) {
+-                       if (!populated_zone(zone) || is_highmem(zone))
+-                               continue;
+-                       pages_high += zone->pages_high;
+-                       pages_free += zone_page_state(zone, NR_FREE_PAGES);
+-                       pages_reserve += zone->lowmem_reserve[MAX_NR_ZONES-1];
+-               }
++        if (file_info->last_event == atomic_read(&mem_notify_event))
++                goto out;
 
-+retry:
-+       /* Ugly trick:
-+          when too many task wakeup,
-+          control function exit rate for prevent too much freed.
-+       */
-+       now = jiffies;
-+       last = (unsigned long)atomic_long_read(&last_task_wakeup);
-+        if (time_before_eq(now, last)) {
-+               bonus = atomic_read(&mem_notify_timeout_bonus) >>
-+                       MSLEEP_BONUS_SHIFT;
-+                msleep_interruptible(1 + bonus);
-+               set_current_state(TASK_INTERRUPTIBLE);
-+                if (signal_pending(current))
-+                        goto out;
-+                atomic_inc(&mem_notify_timeout_bonus);
-+                goto retry;
-+        }
-+        atomic_set(&mem_notify_timeout_bonus, 0);
-+        atomic_long_set(&last_task_wakeup, now);
+-               if (pages_free < (pages_high+pages_reserve)*2)
+-                       val = POLLIN;
++       /* check if its not a spurious/stale notification */
++       pages_high = pages_free = pages_reserve = 0;
++       for_each_zone(zone) {
++               if (!populated_zone(zone) || is_highmem(zone))
++                       continue;
++               pages_high += zone->pages_high;
++               pages_free += zone_page_state(zone, NR_FREE_PAGES);
++               pages_reserve += zone->lowmem_reserve[MAX_NR_ZONES-1];
+        }
+-
 +
-        /* check if its not a spurious/stale notification */
-        pages_high = pages_free = pages_reserve = 0;
-        for_each_zone(zone) {
++       if (pages_free < (pages_high+pages_reserve)*2)
++               val = POLLIN;
++
++out:
+        return val;
+ }
+
++static ssize_t mem_notify_read(struct file *file, char __user *buf,
++                               size_t count, loff_t *ppos)
++{
++        struct mem_notify_file_info *file_info = file->private_data;
++        if (!file_info)
++                return -EINVAL;
++
++        file_info->last_event = atomic_read(&mem_notify_event);
++
++        return 0;
++}
++
+ struct file_operations mem_notify_fops = {
+        .open = mem_notify_open,
+        .release = mem_notify_release,
+        .poll = mem_notify_poll,
++        .read = mem_notify_read,
+ };
+ EXPORT_SYMBOL(mem_notify_fops);
+
+
+
+
 
 
 /kosaki
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
