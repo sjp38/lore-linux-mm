@@ -1,117 +1,127 @@
-Message-Id: <20071227053359.844526604@sgi.com>
+Message-Id: <20071227053400.521364629@sgi.com>
 References: <20071227053246.902699851@sgi.com>
-Date: Wed, 26 Dec 2007 21:32:47 -0800
+Date: Wed, 26 Dec 2007 21:32:50 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 01/18] Define functions for page cache handling
-Content-Disposition: inline; filename=0002-Define-functions-for-page-cache-handling.patch
+Subject: [patch 04/18] Use page_cache_xxx in mm/truncate.c
+Content-Disposition: inline; filename=0005-Use-page_cache_xxx-in-mm-truncate.c.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, David Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-- Use "mapping" instead of "a" as the address space parameter
-
-We use the macros PAGE_CACHE_SIZE PAGE_CACHE_SHIFT PAGE_CACHE_MASK
-and PAGE_CACHE_ALIGN in various places in the kernel. Many times
-common operations like calculating the offset or the index are coded
-using shifts and adds. This patch provides inline functions to
-get the calculations accomplished without having to explicitly
-shift and add constants.
-
-All functions take an address_space pointer. The address space pointer
-will be used in the future to eventually support a variable size
-page cache. Information reachable via the mapping may then determine
-page size.
-
-New function                    Related base page constant
-====================================================================
-page_cache_shift(a)             PAGE_CACHE_SHIFT
-page_cache_size(a)              PAGE_CACHE_SIZE
-page_cache_mask(a)              PAGE_CACHE_MASK
-page_cache_index(a, pos)        Calculate page number from position
-page_cache_next(addr, pos)      Page number of next page
-page_cache_offset(a, pos)       Calculate offset into a page
-page_cache_pos(a, index, offset)
-                                Form position based on page number
-                                and an offset.
-
-This provides a basis that would allow the conversion of all page cache
-handling in the kernel and ultimately allow the removal of the PAGE_CACHE_*
-constants.
+Use page_cache_xxx in mm/truncate.c
 
 Reviewed-by: Dave Chinner <dgc@sgi.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- include/linux/pagemap.h |   53 +++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 52 insertions(+), 1 deletion(-)
+ mm/truncate.c |   35 ++++++++++++++++++-----------------
+ 1 file changed, 18 insertions(+), 17 deletions(-)
 
-Index: linux-2.6.24-rc6-mm1/include/linux/pagemap.h
+Index: linux-2.6.24-rc6-mm1/mm/truncate.c
 ===================================================================
---- linux-2.6.24-rc6-mm1.orig/include/linux/pagemap.h	2007-12-26 21:12:59.773000516 -0800
-+++ linux-2.6.24-rc6-mm1/include/linux/pagemap.h	2007-12-26 21:19:15.537477621 -0800
-@@ -52,12 +52,61 @@ static inline void mapping_set_gfp_mask(
-  * space in smaller chunks for same flexibility).
-  *
-  * Or rather, it _will_ be done in larger chunks.
-+ *
-+ * The following constants can be used if a filesystem only supports a single
-+ * page size.
-  */
- #define PAGE_CACHE_SHIFT	PAGE_SHIFT
- #define PAGE_CACHE_SIZE		PAGE_SIZE
- #define PAGE_CACHE_MASK		PAGE_MASK
- #define PAGE_CACHE_ALIGN(addr)	(((addr)+PAGE_CACHE_SIZE-1)&PAGE_CACHE_MASK)
+--- linux-2.6.24-rc6-mm1.orig/mm/truncate.c	2007-12-26 20:06:38.863513630 -0800
++++ linux-2.6.24-rc6-mm1/mm/truncate.c	2007-12-26 20:06:48.143568906 -0800
+@@ -46,9 +46,10 @@ void do_invalidatepage(struct page *page
+ 		(*invalidatepage)(page, offset);
+ }
  
-+/*
-+ * Functions that are currently setup for a fixed PAGE_SIZE. The use of
-+ * these may allow larger page sizes in the future.
-+ */
-+static inline int mapping_order(struct address_space *mapping)
-+{
-+	return 0;
-+}
-+
-+static inline int page_cache_shift(struct address_space *mapping)
-+{
-+	return PAGE_SHIFT;
-+}
-+
-+static inline unsigned int page_cache_size(struct address_space *mapping)
-+{
-+	return PAGE_SIZE;
-+}
-+
-+static inline unsigned int page_cache_offset(struct address_space *mapping,
-+		loff_t pos)
-+{
-+	return pos & ~PAGE_MASK;
-+}
-+
-+static inline pgoff_t page_cache_index(struct address_space *mapping,
-+		loff_t pos)
-+{
-+	return pos >> page_cache_shift(mapping);
-+}
-+
-+/*
-+ * Index of the page starting on or after the given position.
-+ */
-+static inline pgoff_t page_cache_next(struct address_space *mapping,
-+		loff_t pos)
-+{
-+	return page_cache_index(mapping, pos + page_cache_size(mapping) - 1);
-+}
-+
-+static inline loff_t page_cache_pos(struct address_space *mapping,
-+		pgoff_t index, unsigned long offset)
-+{
-+	return ((loff_t)index << page_cache_shift(mapping)) + offset;
-+}
-+
- #define page_cache_get(page)		get_page(page)
- #define page_cache_release(page)	put_page(page)
- void release_pages(struct page **pages, int nr, int cold);
+-static inline void truncate_partial_page(struct page *page, unsigned partial)
++static inline void truncate_partial_page(struct address_space *mapping,
++			struct page *page, unsigned partial)
+ {
+-	zero_user_segment(page, partial, PAGE_CACHE_SIZE);
++	zero_user_segment(page, partial, page_cache_size(mapping));
+ 	if (PagePrivate(page))
+ 		do_invalidatepage(page, partial);
+ }
+@@ -101,7 +102,7 @@ truncate_complete_page(struct address_sp
+ 	if (PagePrivate(page))
+ 		do_invalidatepage(page, 0);
+ 
+-	cancel_dirty_page(page, PAGE_CACHE_SIZE);
++	cancel_dirty_page(page, page_cache_size(mapping));
+ 
+ 	remove_from_page_cache(page);
+ 	ClearPageUptodate(page);
+@@ -160,9 +161,9 @@ invalidate_complete_page(struct address_
+ void truncate_inode_pages_range(struct address_space *mapping,
+ 				loff_t lstart, loff_t lend)
+ {
+-	const pgoff_t start = (lstart + PAGE_CACHE_SIZE-1) >> PAGE_CACHE_SHIFT;
++	const pgoff_t start = page_cache_next(mapping, lstart);
+ 	pgoff_t end;
+-	const unsigned partial = lstart & (PAGE_CACHE_SIZE - 1);
++	const unsigned partial = page_cache_offset(mapping, lstart);
+ 	struct pagevec pvec;
+ 	pgoff_t next;
+ 	int i;
+@@ -170,8 +171,9 @@ void truncate_inode_pages_range(struct a
+ 	if (mapping->nrpages == 0)
+ 		return;
+ 
+-	BUG_ON((lend & (PAGE_CACHE_SIZE - 1)) != (PAGE_CACHE_SIZE - 1));
+-	end = (lend >> PAGE_CACHE_SHIFT);
++	BUG_ON(page_cache_offset(mapping, lend) !=
++				page_cache_size(mapping) - 1);
++	end = page_cache_index(mapping, lend);
+ 
+ 	pagevec_init(&pvec, 0);
+ 	next = start;
+@@ -197,8 +199,8 @@ void truncate_inode_pages_range(struct a
+ 			}
+ 			if (page_mapped(page)) {
+ 				unmap_mapping_range(mapping,
+-				  (loff_t)page_index<<PAGE_CACHE_SHIFT,
+-				  PAGE_CACHE_SIZE, 0);
++				  page_cache_pos(mapping, page_index, 0),
++				  page_cache_size(mapping), 0);
+ 			}
+ 			truncate_complete_page(mapping, page);
+ 			unlock_page(page);
+@@ -211,7 +213,7 @@ void truncate_inode_pages_range(struct a
+ 		struct page *page = find_lock_page(mapping, start - 1);
+ 		if (page) {
+ 			wait_on_page_writeback(page);
+-			truncate_partial_page(page, partial);
++			truncate_partial_page(mapping, page, partial);
+ 			unlock_page(page);
+ 			page_cache_release(page);
+ 		}
+@@ -239,8 +241,8 @@ void truncate_inode_pages_range(struct a
+ 			wait_on_page_writeback(page);
+ 			if (page_mapped(page)) {
+ 				unmap_mapping_range(mapping,
+-				  (loff_t)page->index<<PAGE_CACHE_SHIFT,
+-				  PAGE_CACHE_SIZE, 0);
++				  page_cache_pos(mapping, page->index, 0),
++				  page_cache_size(mapping), 0);
+ 			}
+ 			if (page->index > next)
+ 				next = page->index;
+@@ -424,9 +426,8 @@ int invalidate_inode_pages2_range(struct
+ 					 * Zap the rest of the file in one hit.
+ 					 */
+ 					unmap_mapping_range(mapping,
+-					   (loff_t)page_index<<PAGE_CACHE_SHIFT,
+-					   (loff_t)(end - page_index + 1)
+-							<< PAGE_CACHE_SHIFT,
++					   page_cache_pos(mapping, page_index, 0),
++					   page_cache_pos(mapping, end - page_index + 1, 0),
+ 					    0);
+ 					did_range_unmap = 1;
+ 				} else {
+@@ -434,8 +435,8 @@ int invalidate_inode_pages2_range(struct
+ 					 * Just zap this page
+ 					 */
+ 					unmap_mapping_range(mapping,
+-					  (loff_t)page_index<<PAGE_CACHE_SHIFT,
+-					  PAGE_CACHE_SIZE, 0);
++					  page_cache_pos(mapping, page_index, 0),
++					  page_cache_size(mapping), 0);
+ 				}
+ 			}
+ 			BUG_ON(page_mapped(page));
 
 -- 
 
