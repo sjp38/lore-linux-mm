@@ -1,158 +1,146 @@
-Message-Id: <20071227203405.220284296@sgi.com>
+Message-Id: <20071227203402.147181129@sgi.com>
 References: <20071227203253.297427289@sgi.com>
-Date: Thu, 27 Dec 2007 12:33:09 -0800
+Date: Thu, 27 Dec 2007 12:33:01 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [16/17] dentries: dentry defragmentation
-Content-Disposition: inline; filename=0062-dentries-dentry-defragmentation.patch
+Subject: [08/17] Buffer heads: Support slab defrag
+Content-Disposition: inline; filename=0054-Buffer-heads-Support-slab-defrag.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org
 List-ID: <linux-mm.kvack.org>
 
-The dentry pruning for unused entries works in a straightforward way. It
-could be made more aggressive if one would actually move dentries instead
-of just reclaiming them.
+Defragmentation support for buffer heads. We convert the references to
+buffers to struct page references and try to remove the buffers from
+those pages. If the pages are dirty then trigger writeout so that the
+buffer heads can be removed later.
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- fs/dcache.c |  101 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 100 insertions(+), 1 deletion(-)
+ fs/buffer.c |  102 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 102 insertions(+)
 
-Index: linux-2.6.24-rc6-mm1/fs/dcache.c
+Index: linux-2.6.24-rc6-mm1/fs/buffer.c
 ===================================================================
---- linux-2.6.24-rc6-mm1.orig/fs/dcache.c	2007-12-27 12:04:51.422375508 -0800
-+++ linux-2.6.24-rc6-mm1/fs/dcache.c	2007-12-27 12:04:55.738394484 -0800
-@@ -31,6 +31,7 @@
- #include <linux/seqlock.h>
- #include <linux/swap.h>
- #include <linux/bootmem.h>
-+#include <linux/backing-dev.h>
- #include "internal.h"
- 
- 
-@@ -143,7 +144,10 @@ static struct dentry *d_kill(struct dent
- 
- 	list_del(&dentry->d_u.d_child);
- 	dentry_stat.nr_dentry--;	/* For d_free, below */
--	/*drops the locks, at that point nobody can reach this dentry */
-+	/*
-+	 * drops the locks, at that point nobody (aside from defrag)
-+	 * can reach this dentry
-+	 */
- 	dentry_iput(dentry);
- 	parent = dentry->d_parent;
- 	d_free(dentry);
-@@ -2101,6 +2105,100 @@ static void __init dcache_init_early(voi
- 		INIT_HLIST_HEAD(&dentry_hashtable[loop]);
+--- linux-2.6.24-rc6-mm1.orig/fs/buffer.c	2007-12-27 12:01:09.781396609 -0800
++++ linux-2.6.24-rc6-mm1/fs/buffer.c	2007-12-27 12:04:31.946289493 -0800
+@@ -3269,6 +3269,107 @@ int bh_submit_read(struct buffer_head *b
+ 	return -EIO;
  }
- 
+ EXPORT_SYMBOL(bh_submit_read);
++
 +/*
-+ * The slab allocator is holding off frees. We can safely examine
-+ * the object without the danger of it vanishing from under us.
++ * Writeback a page to clean the dirty state
 + */
-+static void *get_dentries(struct kmem_cache *s, int nr, void **v)
++static void trigger_write(struct page *page)
 +{
-+	struct dentry *dentry;
-+	int i;
++	struct address_space *mapping = page_mapping(page);
++	int rc;
++	struct writeback_control wbc = {
++		.sync_mode = WB_SYNC_NONE,
++		.nr_to_write = 1,
++		.range_start = 0,
++		.range_end = LLONG_MAX,
++		.nonblocking = 1,
++		.for_reclaim = 0
++	};
 +
-+	spin_lock(&dcache_lock);
++	if (!mapping->a_ops->writepage)
++		/* No write method for the address space */
++		return;
++
++	if (!clear_page_dirty_for_io(page))
++		/* Someone else already triggered a write */
++		return;
++
++	rc = mapping->a_ops->writepage(page, &wbc);
++	if (rc < 0)
++		/* I/O Error writing */
++		return;
++
++	if (rc == AOP_WRITEPAGE_ACTIVATE)
++		unlock_page(page);
++}
++
++/*
++ * Get references on buffers.
++ *
++ * We obtain references on the page that uses the buffer. v[i] will point to
++ * the corresponding page after get_buffers() is through.
++ *
++ * We are safe from the underlying page being removed simply by doing
++ * a get_page_unless_zero. The buffer head removal may race at will.
++ * try_to_free_buffes will later take appropriate locks to remove the
++ * buffers if they are still there.
++ */
++static void *get_buffers(struct kmem_cache *s, int nr, void **v)
++{
++	struct page *page;
++	struct buffer_head *bh;
++	int i,j;
++	int n = 0;
++
 +	for (i = 0; i < nr; i++) {
-+		dentry = v[i];
++		bh = v[i];
++		v[i] = NULL;
 +
-+		/*
-+		 * Three sorts of dentries cannot be reclaimed:
-+		 *
-+		 * 1. dentries that are in the process of being allocated
-+		 *    or being freed. In that case the dentry is neither
-+		 *    on the LRU nor hashed.
-+		 *
-+		 * 2. Fake hashed entries as used for anonymous dentries
-+		 *    and pipe I/O. The fake hashed entries have d_flags
-+		 *    set to indicate a hashed entry. However, the
-+		 *    d_hash field indicates that the entry is not hashed.
-+		 *
-+		 * 3. dentries that have a backing store that is not
-+		 *    writable. This is true for tmpsfs and other in
-+		 *    memory filesystems. Removing dentries from them
-+		 *    would loose dentries for good.
-+		 */
-+		if ((d_unhashed(dentry) && list_empty(&dentry->d_lru)) ||
-+		   (!d_unhashed(dentry) && hlist_unhashed(&dentry->d_hash)) ||
-+		   (dentry->d_inode &&
-+		   !mapping_cap_writeback_dirty(dentry->d_inode->i_mapping)))
-+			/* Ignore this dentry */
-+			v[i] = NULL;
-+		else
-+			/* dget_locked will remove the dentry from the LRU */
-+			dget_locked(dentry);
++		page = bh->b_page;
++
++		if (page && PagePrivate(page)) {
++			for (j = 0; j < n; j++)
++				if (page == v[j])
++					goto cont;
++		}
++
++		if (get_page_unless_zero(page))
++			v[n++] = page;
++cont:	;
 +	}
-+	spin_unlock(&dcache_lock);
 +	return NULL;
 +}
 +
 +/*
-+ * Slab has dropped all the locks. Get rid of the refcount obtained
-+ * earlier and also free the object.
++ * Despite its name: kick_buffers operates on a list of pointers to
++ * page structs that was setup by get_buffer
 + */
-+static void kick_dentries(struct kmem_cache *s,
-+				int nr, void **v, void *private)
++static void kick_buffers(struct kmem_cache *s, int nr, void **v,
++							void *private)
 +{
-+	struct dentry *dentry;
++	struct page *page;
 +	int i;
 +
-+	/*
-+	 * First invalidate the dentries without holding the dcache lock
-+	 */
 +	for (i = 0; i < nr; i++) {
-+		dentry = v[i];
++		page = v[i];
 +
-+		if (dentry)
-+			d_invalidate(dentry);
-+	}
-+
-+	/*
-+	 * If we are the last one holding a reference then the dentries can
-+	 * be freed. We need the dcache_lock.
-+	 */
-+	spin_lock(&dcache_lock);
-+	for (i = 0; i < nr; i++) {
-+		dentry = v[i];
-+		if (!dentry)
++		if (!page || PageWriteback(page))
 +			continue;
 +
-+		spin_lock(&dentry->d_lock);
-+		if (atomic_read(&dentry->d_count) > 1) {
-+			spin_unlock(&dentry->d_lock);
-+			spin_unlock(&dcache_lock);
-+			dput(dentry);
-+			spin_lock(&dcache_lock);
-+			continue;
++
++		if (!TestSetPageLocked(page)) {
++			if (PageDirty(page))
++				trigger_write(page);
++			else {
++				if (PagePrivate(page))
++					try_to_free_buffers(page);
++				unlock_page(page);
++			}
 +		}
-+
-+		prune_one_dentry(dentry);
++		put_page(page);
 +	}
-+	spin_unlock(&dcache_lock);
-+
-+	/*
-+	 * dentries are freed using RCU so we need to wait until RCU
-+	 * operations are complete
-+	 */
-+	synchronize_rcu();
 +}
 +
- static void __init dcache_init(void)
+ void __init buffer_init(void)
  {
- 	int loop;
-@@ -2110,6 +2208,7 @@ static void __init dcache_init(void)
- 		dcache_ctor);
+ 	int nrpages;
+@@ -3278,6 +3379,7 @@ void __init buffer_init(void)
+ 				(SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
+ 				SLAB_MEM_SPREAD),
+ 				init_buffer_head);
++	kmem_cache_setup_defrag(bh_cachep, get_buffers, kick_buffers);
  
- 	register_shrinker(&dcache_shrinker);
-+	kmem_cache_setup_defrag(dentry_cache, get_dentries, kick_dentries);
- 
- 	/* Hash may have been set up in dcache_init_early */
- 	if (!hashdist)
+ 	/*
+ 	 * Limit the bh occupancy to 10% of ZONE_NORMAL
 
 -- 
 
