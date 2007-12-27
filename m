@@ -1,47 +1,92 @@
-Message-Id: <20071227053400.295967892@sgi.com>
+Message-Id: <20071227053400.750715035@sgi.com>
 References: <20071227053246.902699851@sgi.com>
-Date: Wed, 26 Dec 2007 21:32:49 -0800
+Date: Wed, 26 Dec 2007 21:32:51 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 03/18] Use page_cache_xxx in mm/page-writeback.c
-Content-Disposition: inline; filename=0004-Use-page_cache_xxx-in-mm-page-writeback.c.patch
+Subject: [patch 05/18] Use page_cache_xxx in mm/rmap.c
+Content-Disposition: inline; filename=0006-Use-page_cache_xxx-in-mm-rmap.c.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, David Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Use page_cache_xxx in mm/page-writeback.c
+- vma_address(): Check for truncation if this is a file based page.
+	return -EFAULT if truncation occurred.
+- page_referenced_file(): Only use mapping after we have made sure
+  that the mapping is valid and the page is locked.
+
+Use page_cache_xxx in mm/rmap.c
 
 Reviewed-by: Dave Chinner <dgc@sgi.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- mm/page-writeback.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ mm/rmap.c |   23 +++++++++++++++++++----
+ 1 file changed, 19 insertions(+), 4 deletions(-)
 
-Index: mm/mm/page-writeback.c
+Index: linux-2.6.24-rc6-mm1/mm/rmap.c
 ===================================================================
---- mm.orig/mm/page-writeback.c	2007-11-28 12:27:32.211962401 -0800
-+++ mm/mm/page-writeback.c	2007-11-28 14:10:34.338227137 -0800
-@@ -818,8 +818,8 @@ int write_cache_pages(struct address_spa
- 		index = mapping->writeback_index; /* Start from prev offset */
- 		end = -1;
- 	} else {
--		index = wbc->range_start >> PAGE_CACHE_SHIFT;
--		end = wbc->range_end >> PAGE_CACHE_SHIFT;
-+		index = page_cache_index(mapping, wbc->range_start);
-+		end = page_cache_index(mapping, wbc->range_end);
- 		if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
- 			range_whole = 1;
- 		scanned = 1;
-@@ -1025,7 +1025,7 @@ int __set_page_dirty_nobuffers(struct pa
- 				__inc_zone_page_state(page, NR_FILE_DIRTY);
- 				__inc_bdi_stat(mapping->backing_dev_info,
- 						BDI_RECLAIMABLE);
--				task_io_account_write(PAGE_CACHE_SIZE);
-+				task_io_account_write(page_cache_size(mapping));
- 			}
- 			radix_tree_tag_set(&mapping->page_tree,
- 				page_index(page), PAGECACHE_TAG_DIRTY);
+--- linux-2.6.24-rc6-mm1.orig/mm/rmap.c	2007-12-26 20:35:03.773114182 -0800
++++ linux-2.6.24-rc6-mm1/mm/rmap.c	2007-12-26 20:40:28.693800636 -0800
+@@ -190,9 +190,21 @@ static void page_unlock_anon_vma(struct 
+ static inline unsigned long
+ vma_address(struct page *page, struct vm_area_struct *vma)
+ {
+-	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
++	pgoff_t pgoff;
+ 	unsigned long address;
+ 
++	if (PageAnon(page))
++		pgoff = page->index;
++	else {
++		struct address_space *mapping = page->mapping;
++
++		if (!mapping)
++			/* Page was truncated */
++			return -EFAULT;
++
++		pgoff = page->index << mapping_order(mapping);
++	}
++
+ 	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
+ 	if (unlikely(address < vma->vm_start || address >= vma->vm_end)) {
+ 		/* page should be within @vma mapping range */
+@@ -348,7 +360,7 @@ static int page_referenced_file(struct p
+ {
+ 	unsigned int mapcount;
+ 	struct address_space *mapping = page->mapping;
+-	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
++	pgoff_t pgoff;
+ 	struct vm_area_struct *vma;
+ 	struct prio_tree_iter iter;
+ 	int referenced = 0;
+@@ -368,6 +380,9 @@ static int page_referenced_file(struct p
+ 	 */
+ 	BUG_ON(!PageLocked(page));
+ 
++	/* Safe to use mapping */
++	pgoff = page->index << mapping_order(mapping);
++
+ 	spin_lock(&mapping->i_mmap_lock);
+ 
+ 	/*
+@@ -467,7 +482,7 @@ out:
+ 
+ static int page_mkclean_file(struct address_space *mapping, struct page *page)
+ {
+-	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
++	pgoff_t pgoff = page->index << mapping_order(mapping);
+ 	struct vm_area_struct *vma;
+ 	struct prio_tree_iter iter;
+ 	int ret = 0;
+@@ -900,7 +915,7 @@ static int try_to_unmap_anon(struct page
+ static int try_to_unmap_file(struct page *page, int migration)
+ {
+ 	struct address_space *mapping = page->mapping;
+-	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
++	pgoff_t pgoff = page->index << mapping_order(mapping);
+ 	struct vm_area_struct *vma;
+ 	struct prio_tree_iter iter;
+ 	int ret = SWAP_AGAIN;
 
 -- 
 
