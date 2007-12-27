@@ -1,66 +1,103 @@
-Message-Id: <20071227203400.276233204@sgi.com>
-References: <20071227203253.297427289@sgi.com>
-Date: Thu, 27 Dec 2007 12:32:56 -0800
+Message-Id: <20071227203253.297427289@sgi.com>
+Date: Thu, 27 Dec 2007 12:32:53 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [03/17] SLUB: Replace ctor field with ops field in /sys/slab/:0000008 /sys/slab/:0000016 /sys/slab/:0000024 /sys/slab/:0000032 /sys/slab/:0000040 /sys/slab/:0000048 /sys/slab/:0000056 /sys/slab/:0000064 /sys/slab/:0000072 /sys/slab/:0000080 /sys/slab/:0000088 /sys/slab/:0000096 /sys/slab/:0000104 /sys/slab/:0000128 /sys/slab/:0000144 /sys/slab/:0000184 /sys/slab/:0000192 /sys/slab/:0000216 /sys/slab/:0000256 /sys/slab/:0000344 /sys/slab/:0000384 /sys/slab/:0000448 /sys/slab/:0000512 /sys/slab/:0000768 /sys/slab/:0000976 /sys/slab/:0001024 /sys/slab/:0001152 /sys/slab/:0001328 /sys/slab/:0001536 /sys/slab/:0002048 /sys/slab/:0003072 /sys/slab/:0004096 /sys/slab/:a-0000016 /sys/slab/:a-0000024 /sys/slab/:a-0000056 /sys/slab/:a-0000080 /sys/slab/:a-0000128 /sys/slab/Acpi-Namespace /sys/slab/Acpi-Operand /sys/slab/Acpi-Parse /sys/slab/Acpi-ParseExt /sys/slab/Acpi-State /sys/slab/RAW /sys/slab/TCP /sys/slab/UDP /sys/slab/UDP-Lite /sys/slab/UNIX /sys/slab/anon_vma /sys/sla
- b/arp_cache /sys/slab/bdev_cache /sys/slab/bio /sys/slab/biovec-1 /sys/slab/biovec-128 /sys/slab/biovec-16 /sys/slab/biovec-256 /sys/slab/biovec-4 /sys/slab/biovec-64 /sys/slab/blkdev_ioc /sys/slab/blkdev_queue /sys/slab/blkdev_requests /sys/slab/buffer_head /sys/slab/cfq_io_context /sys/slab/cfq_queue /sys/slab/dentry /sys/slab/eventpoll_epi /sys/slab/eventpoll_pwq /sys/slab/ext2_inode_cache /sys/slab/ext3_inode_cache /sys/slab/fasync_cache /sys/slab/file_lock_cache /sys/slab/files_cache /sys/slab/filp /sys/slab/flow_cache /sys/slab/fs_cache /sys/slab/idr_layer_cache /sys/slab/inet_peer_cache /sys/slab/inode_cache /sys/slab/inotify_event_cache /sys/slab/inotify_watch_cache /sys/slab/ip_dst_cache /sys/slab/ip_fib_alias /sys/slab/ip_fib_hash /sys/slab/journal_handle /sys/slab/journal_head /sys/slab/kiocb /sys/slab/kioctx /sys/slab/kmalloc-1024 /sys/slab/kmalloc-128 /sys/slab/kmalloc-16 /sys/slab/kmalloc-192 /sys/slab/kmalloc-2048 /sys/slab/kmalloc-256 /sys/slab/kmalloc-32 /sy
- s/slab/kmalloc-512 /sys/slab/kmalloc-64 /sys/slab/kmalloc-8 /sys/slab/kmalloc-96 /sys/slab/mm_struct /sys/slab/mnt_cache /sys/slab/mqueue_inode_cache /sys/slab/names_cache /sys/slab/nfs_direct_cache /sys/slab/nfs_inode_cache /sys/slab/nfs_page /sys/slab/nfs_read_data /sys/slab/nfs_write_data /sys/slab/nfsd4_delegations /sys/slab/nfsd4_files /sys/slab/nfsd4_stateids /sys/slab/nfsd4_stateowners /sys/slab/nsproxy /sys/slab/pid_1 /sys/slab/pid_namespace /sys/slab/posix_timers_cache /sys/slab/proc_inode_cache /sys/slab/radix_tree_node /sys/slab/request_sock_TCP /sys/slab/revoke_record /sys/slab/revoke_table /sys/slab/rpc_buffers /sys/slab/rpc_inode_cache /sys/slab/rpc_tasks /sys/slab/scsi_cmd_cache /sys/slab/scsi_io_context /sys/slab/secpath_cache /sys/slab/sgpool-128 /sys/slab/sgpool-16 /sys/slab/sgpool-32 /sys/slab/sgpool-64 /sys/slab/sgpool-8 /sys/slab/shmem_inode_cache /sys/slab/sighand_cache /sys/slab/signal_cache /sys/slab/sigqueue /sys/slab/skbuff_fclone_cache /sys/slab/sk
- buff_head_cache /sys/slab/sock_inode_cache /sys/slab/sysfs_dir_cache /sys/slab/task_struct /sys/slab/tcp_bind_bucket /sys/slab/tw_sock_TCP /sys/slab/uhci_urb_priv /sys/slab/uid_cache /sys/slab/vm_area_struct /sys/slab/xfrm_dst_cache
-Content-Disposition: inline; filename=0049-SLUB-Replace-ctor-field-with-ops-field-in-sys-slab.patch
+Subject: [00/17] Slab Fragmentation Reduction V9
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org
 List-ID: <linux-mm.kvack.org>
 
-Create an ops field in /sys/slab/*/ops to contain all the operations defined
-on a slab. This will be used to display the additional operations that will
-be defined soon.
+Slab fragmentation is mainly an issue if Linux is used as a fileserver
+and large amounts of dentries, inodes and buffer heads accumulate. In some
+load situations the slabs become very sparsely populated so that a lot of
+memory is wasted by slabs that only contain one or a few objects. In
+extreme cases the performance of a machine will become sluggish since
+we are continually running reclaim. Slab defragmentation adds the
+capability to recover the memory that is wasted.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
----
- mm/slub.c |   16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+Memory reclaim from the following slab caches is possible:
 
-Index: linux-2.6.24-rc6-mm1/mm/slub.c
-===================================================================
---- linux-2.6.24-rc6-mm1.orig/mm/slub.c	2007-12-27 12:02:04.069636421 -0800
-+++ linux-2.6.24-rc6-mm1/mm/slub.c	2007-12-27 12:02:07.405650961 -0800
-@@ -3805,16 +3805,18 @@ static ssize_t order_show(struct kmem_ca
- }
- SLAB_ATTR_RO(order);
- 
--static ssize_t ctor_show(struct kmem_cache *s, char *buf)
-+static ssize_t ops_show(struct kmem_cache *s, char *buf)
- {
--	if (s->ctor) {
--		int n = sprint_symbol(buf, (unsigned long)s->ctor);
-+	int x = 0;
- 
--		return n + sprintf(buf + n, "\n");
-+	if (s->ctor) {
-+		x += sprintf(buf + x, "ctor : ");
-+		x += sprint_symbol(buf + x, (unsigned long)s->ops->ctor);
-+		x += sprintf(buf + x, "\n");
- 	}
--	return 0;
-+	return x;
- }
--SLAB_ATTR_RO(ctor);
-+SLAB_ATTR_RO(ops);
- 
- static ssize_t aliases_show(struct kmem_cache *s, char *buf)
- {
-@@ -4065,7 +4067,7 @@ static struct attribute *slab_attrs[] = 
- 	&slabs_attr.attr,
- 	&partial_attr.attr,
- 	&cpu_slabs_attr.attr,
--	&ctor_attr.attr,
-+	&ops_attr.attr,
- 	&aliases_attr.attr,
- 	&align_attr.attr,
- 	&sanity_checks_attr.attr,
+1. dentry cache
+2. inode cache (with a generic interface to allow easy setup of more
+   filesystems than the currently supported ext2/3/4 reiserfs, XFS
+   and proc)
+3. buffer_heads
+
+One typical mechanism that triggers slab defragmentation on my systems
+is the daily run of
+
+	updatedb
+
+Updatedb scans all files on the system which causes a high inode and dentry
+use. After updatedb is complete we need to go back to the regular use
+patterns (typical on my machine: kernel compiles). Those need the memory now
+for different purposes. The inodes and dentries used for updatedb will
+gradually be aged by the dentry/inode reclaim algorithm which will free
+up the dentries and inode entries randomly through the slabs that were
+allocated. As a result the slabs will become sparsely populated. If they
+become empty then they can be freed but a lot of them will remain sparsely
+populated. That is where slab defrag comes in: It removes the objects from
+the slabs with just a few entries reclaiming more memory for other uses.
+In the simplest case (as provided here) this is done by simply reclaiming
+the objects.
+
+However, if the logic in the kick() function is made more
+sophisticated then we will be able to move the objects out of the slabs.
+Allocations of objects is possible if a slab is fragmented without the use of
+the page allocator because a large number of free slots are available. Moving
+an object will reduce fragmentation in the slab the object is moved to.
+
+V8->V9
+- Rediff against 2.6.24-rc6-mm1
+
+V7->V8
+- Rediff against 2.6.24-rc3-mm2
+
+V6->V7
+- Rediff against 2.6.24-rc2-mm1
+- Remove lumpy reclaim support. No point anymore given that the antifrag
+  handling in 2.6.24-rc2 puts reclaimable slabs into different sections.
+  Targeted reclaim never triggers. This has to wait until we make
+  slabs movable or we need to perform a special version of lumpy reclaim
+  in SLUB while we scan the partial lists for slabs to kick out.
+  Removal simplifies handling significantly since we
+  get to slabs in a more controlled way via the partial lists.
+  The patchset now provides pure reduction of fragmentation levels.
+- SLAB/SLOB: Provide inlines that do nothing
+- Fix various smaller issues that were brought up during review of V6.
+
+V5->V6
+- Rediff against 2.6.24-rc2 + mm slub patches.
+- Add reviewed by lines.
+- Take out the experimental code to make slab pages movable. That
+  has to wait until this has been considered by Mel.
+
+V4->V5:
+- Support lumpy reclaim for slabs
+- Support reclaim via slab_shrink()
+- Add constructors to insure a consistent object state at all times.
+
+V3->V4:
+- Optimize scan for slabs that need defragmentation
+- Add /sys/slab/*/defrag_ratio to allow setting defrag limits
+  per slab.
+- Add support for buffer heads.
+- Describe how the cleanup after the daily updatedb can be
+  improved by slab defragmentation.
+
+V2->V3
+- Support directory reclaim
+- Add infrastructure to trigger defragmentation after slab shrinking if we
+  have slabs with a high degree of fragmentation.
+
+V1->V2
+- Clean up control flow using a state variable. Simplify API. Back to 2
+  functions that now take arrays of objects.
+- Inode defrag support for a set of filesystems
+- Fix up dentry defrag support to work on negative dentries by adding
+  a new dentry flag that indicates that a dentry is not in the process
+  of being freed or allocated.
 
 -- 
 
