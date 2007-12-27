@@ -1,103 +1,104 @@
-Message-Id: <20071227203253.297427289@sgi.com>
-Date: Thu, 27 Dec 2007 12:32:53 -0800
+Message-Id: <20071227203402.850753712@sgi.com>
+References: <20071227203253.297427289@sgi.com>
+Date: Thu, 27 Dec 2007 12:33:03 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [00/17] Slab Fragmentation Reduction V9
+Subject: [10/17] FS: ExtX filesystem defrag
+Content-Disposition: inline; filename=0056-FS-ExtX-filesystem-defrag.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org
 List-ID: <linux-mm.kvack.org>
 
-Slab fragmentation is mainly an issue if Linux is used as a fileserver
-and large amounts of dentries, inodes and buffer heads accumulate. In some
-load situations the slabs become very sparsely populated so that a lot of
-memory is wasted by slabs that only contain one or a few objects. In
-extreme cases the performance of a machine will become sluggish since
-we are continually running reclaim. Slab defragmentation adds the
-capability to recover the memory that is wasted.
+Support defragmentation for extX filesystem inodes
 
-Memory reclaim from the following slab caches is possible:
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+---
+ fs/ext2/super.c |    9 +++++++++
+ fs/ext3/super.c |    8 ++++++++
+ fs/ext4/super.c |    8 ++++++++
+ 3 files changed, 25 insertions(+)
 
-1. dentry cache
-2. inode cache (with a generic interface to allow easy setup of more
-   filesystems than the currently supported ext2/3/4 reiserfs, XFS
-   and proc)
-3. buffer_heads
-
-One typical mechanism that triggers slab defragmentation on my systems
-is the daily run of
-
-	updatedb
-
-Updatedb scans all files on the system which causes a high inode and dentry
-use. After updatedb is complete we need to go back to the regular use
-patterns (typical on my machine: kernel compiles). Those need the memory now
-for different purposes. The inodes and dentries used for updatedb will
-gradually be aged by the dentry/inode reclaim algorithm which will free
-up the dentries and inode entries randomly through the slabs that were
-allocated. As a result the slabs will become sparsely populated. If they
-become empty then they can be freed but a lot of them will remain sparsely
-populated. That is where slab defrag comes in: It removes the objects from
-the slabs with just a few entries reclaiming more memory for other uses.
-In the simplest case (as provided here) this is done by simply reclaiming
-the objects.
-
-However, if the logic in the kick() function is made more
-sophisticated then we will be able to move the objects out of the slabs.
-Allocations of objects is possible if a slab is fragmented without the use of
-the page allocator because a large number of free slots are available. Moving
-an object will reduce fragmentation in the slab the object is moved to.
-
-V8->V9
-- Rediff against 2.6.24-rc6-mm1
-
-V7->V8
-- Rediff against 2.6.24-rc3-mm2
-
-V6->V7
-- Rediff against 2.6.24-rc2-mm1
-- Remove lumpy reclaim support. No point anymore given that the antifrag
-  handling in 2.6.24-rc2 puts reclaimable slabs into different sections.
-  Targeted reclaim never triggers. This has to wait until we make
-  slabs movable or we need to perform a special version of lumpy reclaim
-  in SLUB while we scan the partial lists for slabs to kick out.
-  Removal simplifies handling significantly since we
-  get to slabs in a more controlled way via the partial lists.
-  The patchset now provides pure reduction of fragmentation levels.
-- SLAB/SLOB: Provide inlines that do nothing
-- Fix various smaller issues that were brought up during review of V6.
-
-V5->V6
-- Rediff against 2.6.24-rc2 + mm slub patches.
-- Add reviewed by lines.
-- Take out the experimental code to make slab pages movable. That
-  has to wait until this has been considered by Mel.
-
-V4->V5:
-- Support lumpy reclaim for slabs
-- Support reclaim via slab_shrink()
-- Add constructors to insure a consistent object state at all times.
-
-V3->V4:
-- Optimize scan for slabs that need defragmentation
-- Add /sys/slab/*/defrag_ratio to allow setting defrag limits
-  per slab.
-- Add support for buffer heads.
-- Describe how the cleanup after the daily updatedb can be
-  improved by slab defragmentation.
-
-V2->V3
-- Support directory reclaim
-- Add infrastructure to trigger defragmentation after slab shrinking if we
-  have slabs with a high degree of fragmentation.
-
-V1->V2
-- Clean up control flow using a state variable. Simplify API. Back to 2
-  functions that now take arrays of objects.
-- Inode defrag support for a set of filesystems
-- Fix up dentry defrag support to work on negative dentries by adding
-  a new dentry flag that indicates that a dentry is not in the process
-  of being freed or allocated.
+Index: linux-2.6.24-rc6-mm1/fs/ext2/super.c
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/fs/ext2/super.c	2007-12-26 17:47:01.987405542 -0800
++++ linux-2.6.24-rc6-mm1/fs/ext2/super.c	2007-12-27 12:04:37.798315149 -0800
+@@ -171,6 +171,12 @@ static void init_once(struct kmem_cache 
+ 	inode_init_once(&ei->vfs_inode);
+ }
+ 
++static void *ext2_get_inodes(struct kmem_cache *s, int nr, void **v)
++{
++	return fs_get_inodes(s, nr, v,
++		offsetof(struct ext2_inode_info, vfs_inode));
++}
++
+ static int init_inodecache(void)
+ {
+ 	ext2_inode_cachep = kmem_cache_create("ext2_inode_cache",
+@@ -180,6 +186,9 @@ static int init_inodecache(void)
+ 					     init_once);
+ 	if (ext2_inode_cachep == NULL)
+ 		return -ENOMEM;
++
++	kmem_cache_setup_defrag(ext2_inode_cachep,
++			ext2_get_inodes, kick_inodes);
+ 	return 0;
+ }
+ 
+Index: linux-2.6.24-rc6-mm1/fs/ext3/super.c
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/fs/ext3/super.c	2007-12-26 17:47:01.995405564 -0800
++++ linux-2.6.24-rc6-mm1/fs/ext3/super.c	2007-12-27 12:04:37.802315408 -0800
+@@ -484,6 +484,12 @@ static void init_once(struct kmem_cache 
+ 	inode_init_once(&ei->vfs_inode);
+ }
+ 
++static void *ext3_get_inodes(struct kmem_cache *s, int nr, void **v)
++{
++	return fs_get_inodes(s, nr, v,
++		offsetof(struct ext3_inode_info, vfs_inode));
++}
++
+ static int init_inodecache(void)
+ {
+ 	ext3_inode_cachep = kmem_cache_create("ext3_inode_cache",
+@@ -493,6 +499,8 @@ static int init_inodecache(void)
+ 					     init_once);
+ 	if (ext3_inode_cachep == NULL)
+ 		return -ENOMEM;
++	kmem_cache_setup_defrag(ext3_inode_cachep,
++			ext3_get_inodes, kick_inodes);
+ 	return 0;
+ }
+ 
+Index: linux-2.6.24-rc6-mm1/fs/ext4/super.c
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/fs/ext4/super.c	2007-12-26 17:47:02.011405842 -0800
++++ linux-2.6.24-rc6-mm1/fs/ext4/super.c	2007-12-27 12:04:37.814315317 -0800
+@@ -600,6 +600,12 @@ static void init_once(struct kmem_cache 
+ 	inode_init_once(&ei->vfs_inode);
+ }
+ 
++static void *ext4_get_inodes(struct kmem_cache *s, int nr, void **v)
++{
++	return fs_get_inodes(s, nr, v,
++		offsetof(struct ext4_inode_info, vfs_inode));
++}
++
+ static int init_inodecache(void)
+ {
+ 	ext4_inode_cachep = kmem_cache_create("ext4_inode_cache",
+@@ -609,6 +615,8 @@ static int init_inodecache(void)
+ 					     init_once);
+ 	if (ext4_inode_cachep == NULL)
+ 		return -ENOMEM;
++	kmem_cache_setup_defrag(ext4_inode_cachep,
++			ext4_get_inodes, kick_inodes);
+ 	return 0;
+ }
+ 
 
 -- 
 
