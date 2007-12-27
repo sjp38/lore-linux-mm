@@ -1,150 +1,86 @@
-Message-Id: <20071227203401.658042467@sgi.com>
+Message-Id: <20071227203404.982251777@sgi.com>
 References: <20071227203253.297427289@sgi.com>
-Date: Thu, 27 Dec 2007 12:33:00 -0800
+Date: Thu, 27 Dec 2007 12:33:08 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [07/17] SLUB: Trigger defragmentation from memory reclaim
-Content-Disposition: inline; filename=0053-SLUB-Trigger-defragmentation-from-memory-reclaim.patch
+Subject: [15/17] dentries: Add constructor
+Content-Disposition: inline; filename=0061-dentries-Add-constructor.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org
 List-ID: <linux-mm.kvack.org>
 
-This patch triggers slab defragmentation from memory reclaim.
-The logical point for this is after slab shrinking was performed in
-vmscan.c. At that point the fragmentation ratio of a slab was increased
-because objects were freed via the LRUs. So we call kmem_cache_defrag() from
-there.
+In order to support defragmentation on the dentry cache we need to have
+a determined object state at all times. Without a constructor the object
+would have a random state after allocation.
 
-slab_shrink() from vmscan.c is called in some contexts to do
-global shrinking of slabs and in others to do shrinking for
-a particular zone. Pass the zone to slab_shrink, so that slab_shrink
-can call kmem_cache_defrag() and restrict the defragmentation to
-the node that is under memory pressure.
+So provide a constructor.
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- fs/drop_caches.c   |    2 +-
- include/linux/mm.h |    2 +-
- mm/vmscan.c        |   26 +++++++++++++++++++-------
- 3 files changed, 21 insertions(+), 9 deletions(-)
+ fs/dcache.c |   26 ++++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)
 
-Index: linux-2.6.24-rc6-mm1/fs/drop_caches.c
+Index: linux-2.6.24-rc6-mm1/fs/dcache.c
 ===================================================================
---- linux-2.6.24-rc6-mm1.orig/fs/drop_caches.c	2007-12-20 17:25:48.000000000 -0800
-+++ linux-2.6.24-rc6-mm1/fs/drop_caches.c	2007-12-27 12:03:44.522079834 -0800
-@@ -50,7 +50,7 @@ void drop_slab(void)
- 	int nr_objects;
+--- linux-2.6.24-rc6-mm1.orig/fs/dcache.c	2007-12-26 17:47:01.559403404 -0800
++++ linux-2.6.24-rc6-mm1/fs/dcache.c	2007-12-27 12:04:51.422375508 -0800
+@@ -871,6 +871,16 @@ static struct shrinker dcache_shrinker =
+ 	.seeks = DEFAULT_SEEKS,
+ };
  
- 	do {
--		nr_objects = shrink_slab(1000, GFP_KERNEL, 1000);
-+		nr_objects = shrink_slab(1000, GFP_KERNEL, 1000, NULL);
- 	} while (nr_objects > 10);
- }
++void dcache_ctor(struct kmem_cache *s, void *p)
++{
++	struct dentry *dentry = p;
++
++	spin_lock_init(&dentry->d_lock);
++	dentry->d_inode = NULL;
++	INIT_LIST_HEAD(&dentry->d_lru);
++	INIT_LIST_HEAD(&dentry->d_alias);
++}
++
+ /**
+  * d_alloc	-	allocate a dcache entry
+  * @parent: parent of entry to allocate
+@@ -908,8 +918,6 @@ struct dentry *d_alloc(struct dentry * p
  
-Index: linux-2.6.24-rc6-mm1/mm/vmscan.c
-===================================================================
---- linux-2.6.24-rc6-mm1.orig/mm/vmscan.c	2007-12-26 17:47:14.319471666 -0800
-+++ linux-2.6.24-rc6-mm1/mm/vmscan.c	2007-12-27 12:03:44.522079834 -0800
-@@ -174,10 +174,18 @@ EXPORT_SYMBOL(unregister_shrinker);
-  * are eligible for the caller's allocation attempt.  It is used for balancing
-  * slab reclaim versus page reclaim.
-  *
-+ * zone is the zone for which we are shrinking the slabs. If the intent
-+ * is to do a global shrink then zone may be NULL. Specification of a
-+ * zone is currently only used to limit slab defragmentation to a NUMA node.
-+ * The performace of shrink_slab would be better (in particular under NUMA)
-+ * if it could be targeted as a whole to the zone that is under memory
-+ * pressure but the VFS infrastructure does not allow that at the present
-+ * time.
-+ *
-  * Returns the number of slab objects which we shrunk.
-  */
- unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
--			unsigned long lru_pages)
-+			unsigned long lru_pages, struct zone *zone)
+ 	atomic_set(&dentry->d_count, 1);
+ 	dentry->d_flags = DCACHE_UNHASHED;
+-	spin_lock_init(&dentry->d_lock);
+-	dentry->d_inode = NULL;
+ 	dentry->d_parent = NULL;
+ 	dentry->d_sb = NULL;
+ 	dentry->d_op = NULL;
+@@ -919,9 +927,7 @@ struct dentry *d_alloc(struct dentry * p
+ 	dentry->d_cookie = NULL;
+ #endif
+ 	INIT_HLIST_NODE(&dentry->d_hash);
+-	INIT_LIST_HEAD(&dentry->d_lru);
+ 	INIT_LIST_HEAD(&dentry->d_subdirs);
+-	INIT_LIST_HEAD(&dentry->d_alias);
+ 
+ 	if (parent) {
+ 		dentry->d_parent = dget(parent);
+@@ -2099,14 +2105,10 @@ static void __init dcache_init(void)
  {
- 	struct shrinker *shrinker;
- 	unsigned long ret = 0;
-@@ -240,6 +248,8 @@ unsigned long shrink_slab(unsigned long 
- 		shrinker->nr += total_scan;
- 	}
- 	up_read(&shrinker_rwsem);
-+	if (gfp_mask & __GFP_FS)
-+		kmem_cache_defrag(zone ? zone_to_nid(zone) : -1);
- 	return ret;
- }
+ 	int loop;
  
-@@ -1362,7 +1372,7 @@ static unsigned long do_try_to_free_page
- 		 * over limit cgroups
- 		 */
- 		if (scan_global_lru(sc)) {
--			shrink_slab(sc->nr_scanned, gfp_mask, lru_pages);
-+			shrink_slab(sc->nr_scanned, gfp_mask, lru_pages, NULL);
- 			if (reclaim_state) {
- 				nr_reclaimed += reclaim_state->reclaimed_slab;
- 				reclaim_state->reclaimed_slab = 0;
-@@ -1591,7 +1601,7 @@ loop_again:
- 				nr_reclaimed += shrink_zone(priority, zone, &sc);
- 			reclaim_state->reclaimed_slab = 0;
- 			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
--						lru_pages);
-+						lru_pages, zone);
- 			nr_reclaimed += reclaim_state->reclaimed_slab;
- 			total_scanned += sc.nr_scanned;
- 			if (zone_is_all_unreclaimable(zone))
-@@ -1832,7 +1842,7 @@ unsigned long shrink_all_memory(unsigned
- 	/* If slab caches are huge, it's better to hit them first */
- 	while (nr_slab >= lru_pages) {
- 		reclaim_state.reclaimed_slab = 0;
--		shrink_slab(nr_pages, sc.gfp_mask, lru_pages);
-+		shrink_slab(nr_pages, sc.gfp_mask, lru_pages, NULL);
- 		if (!reclaim_state.reclaimed_slab)
- 			break;
+-	/* 
+-	 * A constructor could be added for stable state like the lists,
+-	 * but it is probably not worth it because of the cache nature
+-	 * of the dcache. 
+-	 */
+-	dentry_cache = KMEM_CACHE(dentry,
+-		SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD);
+-	
++	dentry_cache = kmem_cache_create("dentry_cache", sizeof(struct dentry),
++		0, SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD,
++		dcache_ctor);
++
+ 	register_shrinker(&dcache_shrinker);
  
-@@ -1870,7 +1880,7 @@ unsigned long shrink_all_memory(unsigned
- 
- 			reclaim_state.reclaimed_slab = 0;
- 			shrink_slab(sc.nr_scanned, sc.gfp_mask,
--					count_lru_pages());
-+					count_lru_pages(), NULL);
- 			ret += reclaim_state.reclaimed_slab;
- 			if (ret >= nr_pages)
- 				goto out;
-@@ -1887,7 +1897,8 @@ unsigned long shrink_all_memory(unsigned
- 	if (!ret) {
- 		do {
- 			reclaim_state.reclaimed_slab = 0;
--			shrink_slab(nr_pages, sc.gfp_mask, count_lru_pages());
-+			shrink_slab(nr_pages, sc.gfp_mask,
-+					count_lru_pages(), NULL);
- 			ret += reclaim_state.reclaimed_slab;
- 		} while (ret < nr_pages && reclaim_state.reclaimed_slab > 0);
- 	}
-@@ -2050,7 +2061,8 @@ static int __zone_reclaim(struct zone *z
- 		 * Note that shrink_slab will free memory on all zones and may
- 		 * take a long time.
- 		 */
--		while (shrink_slab(sc.nr_scanned, gfp_mask, order) &&
-+		while (shrink_slab(sc.nr_scanned, gfp_mask, order,
-+						zone) &&
- 			zone_page_state(zone, NR_SLAB_RECLAIMABLE) >
- 				slab_reclaimable - nr_pages)
- 			;
-Index: linux-2.6.24-rc6-mm1/include/linux/mm.h
-===================================================================
---- linux-2.6.24-rc6-mm1.orig/include/linux/mm.h	2007-12-26 17:47:12.523462103 -0800
-+++ linux-2.6.24-rc6-mm1/include/linux/mm.h	2007-12-27 12:04:28.618274649 -0800
-@@ -1181,7 +1181,7 @@ int in_gate_area_no_task(unsigned long a
- int drop_caches_sysctl_handler(struct ctl_table *, int, struct file *,
- 					void __user *, size_t *, loff_t *);
- unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
--			unsigned long lru_pages);
-+			unsigned long lru_pages, struct zone *z);
- void drop_pagecache(void);
- void drop_slab(void);
- 
+ 	/* Hash may have been set up in dcache_init_early */
 
 -- 
 
