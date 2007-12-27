@@ -1,119 +1,376 @@
-Message-Id: <20071227053402.565164972@sgi.com>
+Message-Id: <20071227053401.881095401@sgi.com>
 References: <20071227053246.902699851@sgi.com>
-Date: Wed, 26 Dec 2007 21:32:59 -0800
+Date: Wed, 26 Dec 2007 21:32:56 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 13/18] Use page_cache_xxx in fs/splice.c
-Content-Disposition: inline; filename=0014-Use-page_cache_xxx-in-fs-splice.c.patch
+Subject: [patch 10/18] Use page_cache_xxx in fs/buffer.c
+Content-Disposition: inline; filename=0011-Use-page_cache_xxx-in-fs-buffer.c.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, David Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Use page_cache_xxx in fs/splice.c
+- alloc_page_buffers(): Add comment to explain use of page->mapping
+- Consistently determine mapping if there is a reference chain
+  page->mapping->host to determine the inode.
+
+Use page_cache_xxx in fs/buffer.c.
 
 Reviewed-by: Dave Chinner <dgc@sgi.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- fs/splice.c |   27 ++++++++++++++-------------
- 1 file changed, 14 insertions(+), 13 deletions(-)
+ fs/buffer.c |  112 ++++++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 65 insertions(+), 47 deletions(-)
 
-Index: linux-2.6.24-rc6-mm1/fs/splice.c
+Index: linux-2.6.24-rc6-mm1/fs/buffer.c
 ===================================================================
---- linux-2.6.24-rc6-mm1.orig/fs/splice.c	2007-12-26 17:47:05.535424632 -0800
-+++ linux-2.6.24-rc6-mm1/fs/splice.c	2007-12-26 19:51:07.954144671 -0800
-@@ -285,9 +285,9 @@ __generic_file_splice_read(struct file *
- 		.spd_release = spd_release_page,
- 	};
+--- linux-2.6.24-rc6-mm1.orig/fs/buffer.c	2007-12-26 20:14:13.570253343 -0800
++++ linux-2.6.24-rc6-mm1/fs/buffer.c	2007-12-26 20:59:44.345078534 -0800
+@@ -278,7 +278,7 @@ __find_get_block_slow(struct block_devic
+ 	struct page *page;
+ 	int all_mapped = 1;
  
--	index = *ppos >> PAGE_CACHE_SHIFT;
--	loff = *ppos & ~PAGE_CACHE_MASK;
--	req_pages = (len + loff + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-+	index = page_cache_index(mapping, *ppos);
-+	loff = page_cache_offset(mapping, *ppos);
-+	req_pages = page_cache_next(mapping, len + loff);
- 	nr_pages = min(req_pages, (unsigned)PIPE_BUFFERS);
+-	index = block >> (PAGE_CACHE_SHIFT - bd_inode->i_blkbits);
++	index = block >> (page_cache_shift(bd_mapping) - bd_inode->i_blkbits);
+ 	page = find_get_page(bd_mapping, index);
+ 	if (!page)
+ 		goto out;
+@@ -720,7 +720,7 @@ static int __set_page_dirty(struct page 
+ 			__inc_zone_page_state(page, NR_FILE_DIRTY);
+ 			__inc_bdi_stat(mapping->backing_dev_info,
+ 					BDI_RECLAIMABLE);
+-			task_io_account_write(PAGE_CACHE_SIZE);
++			task_io_account_write(page_cache_size(mapping));
+ 		}
+ 		radix_tree_tag_set(&mapping->page_tree,
+ 				page_index(page), PAGECACHE_TAG_DIRTY);
+@@ -917,7 +917,13 @@ struct buffer_head *alloc_page_buffers(s
+ 
+ try_again:
+ 	head = NULL;
+-	offset = PAGE_SIZE;
++
++	/*
++	 * Page is locked to serialize alloc_page_buffers()
++	 * so we can use page->mapping here.
++	 */
++	offset = page_cache_size(page->mapping);
++
+ 	while ((offset -= size) >= 0) {
+ 		bh = alloc_buffer_head(GFP_NOFS);
+ 		if (!bh)
+@@ -1641,6 +1647,7 @@ static int __block_write_full_page(struc
+ 	struct buffer_head *bh, *head;
+ 	const unsigned blocksize = 1 << inode->i_blkbits;
+ 	int nr_underway = 0;
++	struct address_space *mapping = inode->i_mapping;
+ 
+ 	BUG_ON(!PageLocked(page));
+ 
+@@ -1661,7 +1668,8 @@ static int __block_write_full_page(struc
+ 	 * handle that here by just cleaning them.
+ 	 */
+ 
+-	block = (sector_t)page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
++	block = (sector_t)page->index <<
++		(page_cache_shift(mapping) - inode->i_blkbits);
+ 	head = page_buffers(page);
+ 	bh = head;
+ 
+@@ -1778,7 +1786,7 @@ recover:
+ 	} while ((bh = bh->b_this_page) != head);
+ 	SetPageError(page);
+ 	BUG_ON(PageWriteback(page));
+-	mapping_set_error(page->mapping, err);
++	mapping_set_error(mapping, err);
+ 	set_page_writeback(page);
+ 	do {
+ 		struct buffer_head *next = bh->b_this_page;
+@@ -1845,8 +1853,8 @@ static int __block_prepare_write(struct 
+ 	struct buffer_head *bh, *head, *wait[2], **wait_bh=wait;
+ 
+ 	BUG_ON(!PageLocked(page));
+-	BUG_ON(from > PAGE_CACHE_SIZE);
+-	BUG_ON(to > PAGE_CACHE_SIZE);
++	BUG_ON(from > page_cache_size(inode->i_mapping));
++	BUG_ON(to > page_cache_size(inode->i_mapping));
+ 	BUG_ON(from > to);
+ 
+ 	blocksize = 1 << inode->i_blkbits;
+@@ -1855,7 +1863,8 @@ static int __block_prepare_write(struct 
+ 	head = page_buffers(page);
+ 
+ 	bbits = inode->i_blkbits;
+-	block = (sector_t)page->index << (PAGE_CACHE_SHIFT - bbits);
++	block = (sector_t)page->index <<
++		(page_cache_shift(inode->i_mapping) - bbits);
+ 
+ 	for(bh = head, block_start = 0; bh != head || !block_start;
+ 	    block++, block_start=block_end, bh = bh->b_this_page) {
+@@ -1970,8 +1979,8 @@ int block_write_begin(struct file *file,
+ 	unsigned start, end;
+ 	int ownpage = 0;
+ 
+-	index = pos >> PAGE_CACHE_SHIFT;
+-	start = pos & (PAGE_CACHE_SIZE - 1);
++	index = page_cache_index(mapping, pos);
++	start = page_cache_offset(mapping, pos);
+ 	end = start + len;
+ 
+ 	page = *pagep;
+@@ -2018,7 +2027,7 @@ int block_write_end(struct file *file, s
+ 	struct inode *inode = mapping->host;
+ 	unsigned start;
+ 
+-	start = pos & (PAGE_CACHE_SIZE - 1);
++	start = page_cache_offset(mapping, pos);
+ 
+ 	if (unlikely(copied < len)) {
+ 		/*
+@@ -2083,7 +2092,8 @@ EXPORT_SYMBOL(generic_write_end);
+  */
+ int block_read_full_page(struct page *page, get_block_t *get_block)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct address_space *mapping = page->mapping;
++	struct inode *inode = mapping->host;
+ 	sector_t iblock, lblock;
+ 	struct buffer_head *bh, *head, *arr[MAX_BUF_PER_PAGE];
+ 	unsigned int blocksize;
+@@ -2096,7 +2106,8 @@ int block_read_full_page(struct page *pa
+ 		create_empty_buffers(page, blocksize, 0);
+ 	head = page_buffers(page);
+ 
+-	iblock = (sector_t)page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
++	iblock = (sector_t)page->index <<
++		(page_cache_shift(mapping) - inode->i_blkbits);
+ 	lblock = (i_size_read(inode)+blocksize-1) >> inode->i_blkbits;
+ 	bh = head;
+ 	nr = 0;
+@@ -2214,16 +2225,17 @@ int cont_expand_zero(struct file *file, 
+ 	unsigned zerofrom, offset, len;
+ 	int err = 0;
+ 
+-	index = pos >> PAGE_CACHE_SHIFT;
+-	offset = pos & ~PAGE_CACHE_MASK;
++	index = page_cache_index(mapping, pos);
++	offset = page_cache_offset(mapping, pos);
+ 
+-	while (index > (curidx = (curpos = *bytes)>>PAGE_CACHE_SHIFT)) {
+-		zerofrom = curpos & ~PAGE_CACHE_MASK;
++	while (curpos = *bytes, curidx = page_cache_index(mapping, curpos),
++			index > curidx) {
++		zerofrom = page_cache_offset(mapping, curpos);
+ 		if (zerofrom & (blocksize-1)) {
+ 			*bytes |= (blocksize-1);
+ 			(*bytes)++;
+ 		}
+-		len = PAGE_CACHE_SIZE - zerofrom;
++		len = page_cache_size(mapping) - zerofrom;
+ 
+ 		err = pagecache_write_begin(file, mapping, curpos, len,
+ 						AOP_FLAG_UNINTERRUPTIBLE,
+@@ -2241,7 +2253,7 @@ int cont_expand_zero(struct file *file, 
+ 
+ 	/* page covers the boundary, find the boundary offset */
+ 	if (index == curidx) {
+-		zerofrom = curpos & ~PAGE_CACHE_MASK;
++		zerofrom = page_cache_offset(mapping, curpos);
+ 		/* if we will expand the thing last block will be filled */
+ 		if (offset <= zerofrom) {
+ 			goto out;
+@@ -2287,7 +2299,7 @@ int cont_write_begin(struct file *file, 
+ 	if (err)
+ 		goto out;
+ 
+-	zerofrom = *bytes & ~PAGE_CACHE_MASK;
++	zerofrom = page_cache_offset(mapping, *bytes);
+ 	if (pos+len > *bytes && zerofrom & (blocksize-1)) {
+ 		*bytes |= (blocksize-1);
+ 		(*bytes)++;
+@@ -2320,8 +2332,9 @@ int block_commit_write(struct page *page
+ int generic_commit_write(struct file *file, struct page *page,
+ 		unsigned from, unsigned to)
+ {
+-	struct inode *inode = page->mapping->host;
+-	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
++	struct address_space *mapping = page->mapping;
++	struct inode *inode = mapping->host;
++	loff_t pos = page_cache_pos(mapping, page->index, to);
+ 	__block_commit_write(inode,page,from,to);
+ 	/*
+ 	 * No need to use i_size_read() here, the i_size
+@@ -2357,20 +2370,22 @@ block_page_mkwrite(struct vm_area_struct
+ 	unsigned long end;
+ 	loff_t size;
+ 	int ret = -EINVAL;
++	struct address_space *mapping;
+ 
+ 	lock_page(page);
++	mapping = page->mapping;
+ 	size = i_size_read(inode);
+-	if ((page->mapping != inode->i_mapping) ||
+-	    (page_offset(page) > size)) {
++	if ((mapping != inode->i_mapping) ||
++	    (page_cache_pos(mapping, page->index, 0) > size)) {
+ 		/* page got truncated out from underneath us */
+ 		goto out_unlock;
+ 	}
+ 
+ 	/* page is wholly or partially inside EOF */
+-	if (((page->index + 1) << PAGE_CACHE_SHIFT) > size)
+-		end = size & ~PAGE_CACHE_MASK;
++	if (page_cache_pos(mapping, page->index + 1, 0) > size)
++		end = page_cache_offset(mapping, size);
+ 	else
+-		end = PAGE_CACHE_SIZE;
++		end = page_cache_size(mapping);
+ 
+ 	ret = block_prepare_write(page, 0, end, get_block);
+ 	if (!ret)
+@@ -2438,8 +2453,8 @@ int nobh_write_begin(struct file *file, 
+ 	int ret = 0;
+ 	int is_mapped_to_disk = 1;
+ 
+-	index = pos >> PAGE_CACHE_SHIFT;
+-	from = pos & (PAGE_CACHE_SIZE - 1);
++	index = page_cache_index(mapping, pos);
++	from = page_cache_offset(mapping, pos);
+ 	to = from + len;
+ 
+ 	page = __grab_cache_page(mapping, index);
+@@ -2474,7 +2489,8 @@ int nobh_write_begin(struct file *file, 
+ 		goto out_release;
+ 	}
+ 
+-	block_in_file = (sector_t)page->index << (PAGE_CACHE_SHIFT - blkbits);
++	block_in_file = (sector_t)page->index <<
++			(page_cache_shift(mapping) - blkbits);
  
  	/*
-@@ -342,7 +342,7 @@ __generic_file_splice_read(struct file *
- 	 * Now loop over the map and see if we need to start IO on any
- 	 * pages, fill in the partial map, etc.
+ 	 * We loop across all blocks in the page, whether or not they are
+@@ -2482,7 +2498,7 @@ int nobh_write_begin(struct file *file, 
+ 	 * page is fully mapped-to-disk.
  	 */
--	index = *ppos >> PAGE_CACHE_SHIFT;
-+	index = page_cache_index(mapping, *ppos);
- 	nr_pages = spd.nr_pages;
- 	spd.nr_pages = 0;
- 	for (page_nr = 0; page_nr < nr_pages; page_nr++) {
-@@ -354,7 +354,8 @@ __generic_file_splice_read(struct file *
+ 	for (block_start = 0, block_in_page = 0, bh = head;
+-		  block_start < PAGE_CACHE_SIZE;
++		  block_start < page_cache_size(mapping);
+ 		  block_in_page++, block_start += blocksize, bh = bh->b_this_page) {
+ 		int create;
+ 
+@@ -2608,9 +2624,10 @@ EXPORT_SYMBOL(nobh_write_end);
+ int nobh_writepage(struct page *page, get_block_t *get_block,
+ 			struct writeback_control *wbc)
+ {
+-	struct inode * const inode = page->mapping->host;
++	struct address_space *mapping = page->mapping;
++	struct inode * const inode = mapping->host;
+ 	loff_t i_size = i_size_read(inode);
+-	const pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
++	const pgoff_t end_index = page_cache_index(mapping, i_size);
+ 	unsigned offset;
+ 	int ret;
+ 
+@@ -2619,7 +2636,7 @@ int nobh_writepage(struct page *page, ge
+ 		goto out;
+ 
+ 	/* Is the page fully outside i_size? (truncate in progress) */
+-	offset = i_size & (PAGE_CACHE_SIZE-1);
++	offset = page_cache_offset(mapping, i_size);
+ 	if (page->index >= end_index+1 || !offset) {
  		/*
- 		 * this_len is the max we'll use from this page
- 		 */
--		this_len = min_t(unsigned long, len, PAGE_CACHE_SIZE - loff);
-+		this_len = min_t(unsigned long, len,
-+					page_cache_size(mapping) - loff);
- 		page = pages[page_nr];
- 
- 		if (PageReadahead(page))
-@@ -414,7 +415,7 @@ fill_it:
- 		 * i_size must be checked after PageUptodate.
- 		 */
- 		isize = i_size_read(mapping->host);
--		end_index = (isize - 1) >> PAGE_CACHE_SHIFT;
-+		end_index = page_cache_index(mapping, isize - 1);
- 		if (unlikely(!isize || index > end_index))
- 			break;
- 
-@@ -428,7 +429,7 @@ fill_it:
- 			/*
- 			 * max good bytes in this page
- 			 */
--			plen = ((isize - 1) & ~PAGE_CACHE_MASK) + 1;
-+			plen = page_cache_offset(mapping, isize - 1) + 1;
- 			if (plen <= loff)
- 				break;
- 
-@@ -453,7 +454,7 @@ fill_it:
+ 		 * The page may have dirty, unmapped buffers.  For example,
+@@ -2642,7 +2659,7 @@ int nobh_writepage(struct page *page, ge
+ 	 * the  page size, the remaining memory is zeroed when mapped, and
+ 	 * writes to that region are not written out to the file."
  	 */
- 	while (page_nr < nr_pages)
- 		page_cache_release(pages[page_nr++]);
--	in->f_ra.prev_pos = (loff_t)index << PAGE_CACHE_SHIFT;
-+	in->f_ra.prev_pos = page_cache_pos(mapping, index, 0);
+-	zero_user_segment(page, offset, PAGE_CACHE_SIZE);
++	zero_user_segment(page, offset, page_cache_size(mapping));
+ out:
+ 	ret = mpage_writepage(page, get_block, wbc);
+ 	if (ret == -EAGAIN)
+@@ -2654,8 +2671,8 @@ EXPORT_SYMBOL(nobh_writepage);
+ int nobh_truncate_page(struct address_space *mapping,
+ 			loff_t from, get_block_t *get_block)
+ {
+-	pgoff_t index = from >> PAGE_CACHE_SHIFT;
+-	unsigned offset = from & (PAGE_CACHE_SIZE-1);
++	pgoff_t index = page_cache_index(mapping, from);
++	unsigned offset = page_cache_offset(mapping, from);
+ 	unsigned blocksize;
+ 	sector_t iblock;
+ 	unsigned length, pos;
+@@ -2672,7 +2689,7 @@ int nobh_truncate_page(struct address_sp
+ 		return 0;
  
- 	if (spd.nr_pages)
- 		return splice_to_pipe(pipe, &spd);
-@@ -579,11 +580,11 @@ static int pipe_to_file(struct pipe_inod
- 	if (unlikely(ret))
- 		return ret;
+ 	length = blocksize - length;
+-	iblock = (sector_t)index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
++	iblock = (sector_t)index << (page_cache_shift(mapping) - inode->i_blkbits);
  
--	offset = sd->pos & ~PAGE_CACHE_MASK;
-+	offset = page_cache_offset(mapping, sd->pos);
+ 	page = grab_cache_page(mapping, index);
+ 	err = -ENOMEM;
+@@ -2730,8 +2747,8 @@ EXPORT_SYMBOL(nobh_truncate_page);
+ int block_truncate_page(struct address_space *mapping,
+ 			loff_t from, get_block_t *get_block)
+ {
+-	pgoff_t index = from >> PAGE_CACHE_SHIFT;
+-	unsigned offset = from & (PAGE_CACHE_SIZE-1);
++	pgoff_t index = page_cache_index(mapping, from);
++	unsigned offset = page_cache_offset(mapping, from);
+ 	unsigned blocksize;
+ 	sector_t iblock;
+ 	unsigned length, pos;
+@@ -2748,8 +2765,8 @@ int block_truncate_page(struct address_s
+ 		return 0;
  
- 	this_len = sd->len;
--	if (this_len + offset > PAGE_CACHE_SIZE)
--		this_len = PAGE_CACHE_SIZE - offset;
-+	if (this_len + offset > page_cache_size(mapping))
-+		this_len = page_cache_size(mapping) - offset;
+ 	length = blocksize - length;
+-	iblock = (sector_t)index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+-	
++	iblock = (sector_t)index <<
++			(page_cache_shift(mapping) - inode->i_blkbits);
+ 	page = grab_cache_page(mapping, index);
+ 	err = -ENOMEM;
+ 	if (!page)
+@@ -2808,9 +2825,10 @@ out:
+ int block_write_full_page(struct page *page, get_block_t *get_block,
+ 			struct writeback_control *wbc)
+ {
+-	struct inode * const inode = page->mapping->host;
++	struct address_space *mapping = page->mapping;
++	struct inode * const inode = mapping->host;
+ 	loff_t i_size = i_size_read(inode);
+-	const pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
++	const pgoff_t end_index = page_cache_index(mapping, i_size);
+ 	unsigned offset;
  
- 	ret = pagecache_write_begin(file, mapping, sd->pos, this_len,
- 				AOP_FLAG_UNINTERRUPTIBLE, &page, &fsdata);
-@@ -790,7 +791,7 @@ generic_file_splice_write_nolock(struct 
- 		unsigned long nr_pages;
+ 	/* Is the page fully inside i_size? */
+@@ -2818,7 +2836,7 @@ int block_write_full_page(struct page *p
+ 		return __block_write_full_page(inode, page, get_block, wbc);
  
- 		*ppos += ret;
--		nr_pages = (ret + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-+		nr_pages = page_cache_next(mapping, ret);
- 
+ 	/* Is the page fully outside i_size? (truncate in progress) */
+-	offset = i_size & (PAGE_CACHE_SIZE-1);
++	offset = page_cache_offset(mapping, i_size);
+ 	if (page->index >= end_index+1 || !offset) {
  		/*
- 		 * If file or inode is SYNC and we actually wrote some data,
-@@ -852,7 +853,7 @@ generic_file_splice_write(struct pipe_in
- 		unsigned long nr_pages;
+ 		 * The page may have dirty, unmapped buffers.  For example,
+@@ -2837,7 +2855,7 @@ int block_write_full_page(struct page *p
+ 	 * the  page size, the remaining memory is zeroed when mapped, and
+ 	 * writes to that region are not written out to the file."
+ 	 */
+-	zero_user_segment(page, offset, PAGE_CACHE_SIZE);
++	zero_user_segment(page, offset, page_cache_size(mapping));
+ 	return __block_write_full_page(inode, page, get_block, wbc);
+ }
  
- 		*ppos += ret;
--		nr_pages = (ret + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-+		nr_pages = page_cache_next(mapping, ret);
- 
- 		/*
- 		 * If file or inode is SYNC and we actually wrote some data,
+@@ -3087,7 +3105,7 @@ int try_to_free_buffers(struct page *pag
+ 	 * dirty bit from being lost.
+ 	 */
+ 	if (ret)
+-		cancel_dirty_page(page, PAGE_CACHE_SIZE);
++		cancel_dirty_page(page, page_cache_size(mapping));
+ 	spin_unlock(&mapping->private_lock);
+ out:
+ 	if (buffers_to_free) {
 
 -- 
 
