@@ -1,58 +1,95 @@
-Message-ID: <47740858.7000603@hp.com>
-Date: Thu, 27 Dec 2007 15:17:28 -0500
-From: Mark Seger <Mark.Seger@hp.com>
-MIME-Version: 1.0
-Subject: Re: SLUB
-References: <476A850A.1080807@hp.com> <Pine.LNX.4.64.0712201138280.30648@schroedinger.engr.sgi.com> <476AFC6C.3080903@hp.com> <476B122E.7010108@hp.com> <Pine.LNX.4.64.0712211338380.3795@schroedinger.engr.sgi.com> <4773B50B.6060206@hp.com> <4773CBD2.10703@hp.com> <Pine.LNX.4.64.0712271141390.30555@schroedinger.engr.sgi.com> <477403A6.6070208@hp.com> <Pine.LNX.4.64.0712271157190.30817@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0712271157190.30817@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-Id: <20071227203359.902545246@sgi.com>
+References: <20071227203253.297427289@sgi.com>
+Date: Thu, 27 Dec 2007 12:32:55 -0800
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [02/17] SLUB: Add defrag_ratio field and sysfs support.
+Content-Disposition: inline; filename=0048-SLUB-Add-defrag_ratio-field-and-sysfs-support.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org
 List-ID: <linux-mm.kvack.org>
 
+The defrag_ratio is used to set the threshold at which defragmentation
+should be run on a slabcache.
 
-Christoph Lameter wrote:
-> On Thu, 27 Dec 2007, Mark Seger wrote:
->
->   
->>> The right hand side is okay. Could you list all the slab names that are
->>> covered by :00008 on the left side (maybe separated by commas?) Having the
->>> :00008 there is ugly. slabinfo can show you a way how to get the names.
->>>   
->>>       
->> here's the challenge - I only want to use a single line per entry AND I want
->> all the columns to line up for easy reading (I don't want much do I?).  I'll
->> have to do some experiments to see what might look better.  One thought is to
->> list a 'primary' name (whatever that might mean) in the left-hand column and
->> perhaps line up the rest of the other names to the right of the total.
->>     
->
-> slabinfo has the concept of the "first" name of a slab. See the -f option.
->   
-slick!
->> Another option could be to just repeat the line with each slab entry but that
->> also generates a lot of output and one of the other notions behind collectl is
->> to make it real easy to see what's going on and repeating information can be
->> confusing.
->>     
->
-> I'd say just pack as much as fit into the space and then create a new line 
-> if there are too many aliases of the slab.
->   
-lemme play with it some
->> I'm assuming the way slabinfo gets the names (or at least the way I can think
->> of doing it) it so just look for entries in /sys/slab that are links.
->>     
->
-> It scans for symlinks pointing to that strange name. Source code for 
-> slabinfo is in Documentation/vm/slabinfo.c.
->   
-gottcha...
--mark
+The allocation ratio is measured in the percentage of the available slots
+allocated. The percentage will be lower for slabs that are more fragmented.
 
+Add a defrag ratio field and set it to 30% by default. A limit of 30% specified
+that less than 3 out of 10 available slots for objects are in use before
+slab defragmeentation runs.
+
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+---
+ include/linux/slub_def.h |    7 +++++++
+ mm/slub.c                |   18 ++++++++++++++++++
+ 2 files changed, 25 insertions(+)
+
+Index: linux-2.6.24-rc6-mm1/include/linux/slub_def.h
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/include/linux/slub_def.h	2007-12-26 17:47:12.935464191 -0800
++++ linux-2.6.24-rc6-mm1/include/linux/slub_def.h	2007-12-27 12:02:04.057636233 -0800
+@@ -53,6 +53,13 @@ struct kmem_cache {
+ 	void (*ctor)(struct kmem_cache *, void *);
+ 	int inuse;		/* Offset to metadata */
+ 	int align;		/* Alignment */
++	int defrag_ratio;	/*
++				 * objects/possible-objects limit. If we have
++				 * less that the specified percentage of
++				 * objects allocated then defrag passes
++				 * will start to occur during reclaim.
++				 */
++
+ 	const char *name;	/* Name (only for display!) */
+ 	struct list_head list;	/* List of slab caches */
+ #ifdef CONFIG_SLUB_DEBUG
+Index: linux-2.6.24-rc6-mm1/mm/slub.c
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/mm/slub.c	2007-12-26 17:47:14.291471616 -0800
++++ linux-2.6.24-rc6-mm1/mm/slub.c	2007-12-27 12:02:04.069636421 -0800
+@@ -2371,6 +2371,7 @@ static int kmem_cache_open(struct kmem_c
+ 		goto error;
+ 
+ 	s->refcount = 1;
++	s->defrag_ratio = 30;
+ #ifdef CONFIG_NUMA
+ 	s->remote_node_defrag_ratio = 100;
+ #endif
+@@ -4021,6 +4022,22 @@ static ssize_t free_calls_show(struct km
+ }
+ SLAB_ATTR_RO(free_calls);
+ 
++static ssize_t defrag_ratio_show(struct kmem_cache *s, char *buf)
++{
++	return sprintf(buf, "%d\n", s->defrag_ratio);
++}
++
++static ssize_t defrag_ratio_store(struct kmem_cache *s,
++				const char *buf, size_t length)
++{
++	int n = simple_strtoul(buf, NULL, 10);
++
++	if (n < 100)
++		s->defrag_ratio = n;
++	return length;
++}
++SLAB_ATTR(defrag_ratio);
++
+ #ifdef CONFIG_NUMA
+ static ssize_t remote_node_defrag_ratio_show(struct kmem_cache *s, char *buf)
+ {
+@@ -4063,6 +4080,7 @@ static struct attribute *slab_attrs[] = 
+ 	&shrink_attr.attr,
+ 	&alloc_calls_attr.attr,
+ 	&free_calls_attr.attr,
++	&defrag_ratio_attr.attr,
+ #ifdef CONFIG_ZONE_DMA
+ 	&cache_dma_attr.attr,
+ #endif
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
