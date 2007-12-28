@@ -1,56 +1,40 @@
-Message-Id: <20071228001618.285109000@sgi.com>
+Message-Id: <20071228001618.550107000@sgi.com>
 References: <20071228001617.597161000@sgi.com>
-Date: Thu, 27 Dec 2007 16:16:22 -0800
+Date: Thu, 27 Dec 2007 16:16:24 -0800
 From: travis@sgi.com
-Subject: [PATCH 05/10] x86_64: Use generic percpu
-Content-Disposition: inline; filename=x86_64_use_generic_percpu
+Subject: [PATCH 07/10] Powerpc: Use generic per cpu
+Content-Disposition: inline; filename=power_generic_percpu
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, Andi Kleen <ak@suse.de>, tglx@linutronix.de, mingo@redhat.com
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Mackerras <paulus@samba.org>
 List-ID: <linux-mm.kvack.org>
 
-x86_64 provides an optimized way to determine the local per cpu area
-offset through the pda and determines the base by accessing a remote
-pda.
+- add missing #endif
 
-Cc: Rusty Russell <rusty@rustcorp.com.au>
-Cc: Andi Kleen <ak@suse.de>
-Cc: tglx@linutronix.de
-Cc: mingo@redhat.com
+Powerpc has a way to determine the address of the per cpu area of the
+currently executing processor via the paca and the array of per cpu
+offsets is avoided by looking up the per cpu area from the remote
+paca's (copying x86_64).
+
+Cc: Paul Mackerras <paulus@samba.org>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: Mike Travis <travis@sgi.com>
 
-
 ---
- include/asm-x86/percpu_64.h |   28 +++-------------------------
- 1 file changed, 3 insertions(+), 25 deletions(-)
+ include/asm-powerpc/percpu.h |   21 ++-------------------
+ 1 file changed, 2 insertions(+), 19 deletions(-)
 
---- a/include/asm-x86/percpu_64.h
-+++ b/include/asm-x86/percpu_64.h
-@@ -8,35 +8,13 @@
-    from %gs */
- 
- #ifdef CONFIG_SMP
--
- #include <asm/pda.h>
- 
- #define __per_cpu_offset(cpu) (cpu_pda(cpu)->data_offset)
--#define __my_cpu_offset() read_pda(data_offset)
-+#define __my_cpu_offset read_pda(data_offset)
- 
+--- a/include/asm-powerpc/percpu.h
++++ b/include/asm-powerpc/percpu.h
+@@ -16,25 +16,8 @@
+ #define __my_cpu_offset() get_paca()->data_offset
  #define per_cpu_offset(x) (__per_cpu_offset(x))
  
 -/* var is in discarded region: offset to particular copy we want */
--#define per_cpu(var, cpu) (*({				\
--	extern int simple_identifier_##var(void);	\
--	RELOC_HIDE(&per_cpu__##var, __per_cpu_offset(cpu)); }))
--#define __get_cpu_var(var) (*({				\
--	extern int simple_identifier_##var(void);	\
--	RELOC_HIDE(&per_cpu__##var, __my_cpu_offset()); }))
--#define __raw_get_cpu_var(var) (*({			\
--	extern int simple_identifier_##var(void);	\
--	RELOC_HIDE(&per_cpu__##var, __my_cpu_offset()); }))
+-#define per_cpu(var, cpu) (*RELOC_HIDE(&per_cpu__##var, __per_cpu_offset(cpu)))
+-#define __get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __my_cpu_offset()))
+-#define __raw_get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, local_paca->data_offset))
 -
 -extern void setup_per_cpu_areas(void);
 -
@@ -64,9 +48,13 @@ Signed-off-by: Mike Travis <travis@sgi.com>
 -
 -#define DECLARE_PER_CPU(type, name) extern __typeof__(type) per_cpu__##name
 -
-+#endif
-+#include <asm-generic/percpu.h>
- #endif /* _ASM_X8664_PERCPU_H_ */
+-#else
++#endif /* CONFIG_SMP */
++#endif /* __powerpc64__ */
+ #include <asm-generic/percpu.h>
+-#endif
+ 
+ #endif /* _ASM_POWERPC_PERCPU_H_ */
 
 -- 
 
