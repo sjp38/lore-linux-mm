@@ -1,87 +1,40 @@
-Date: Fri, 28 Dec 2007 02:48:51 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: SLUB: Fix sysfs object handling
-Message-Id: <20071228024851.4221ae85.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0712272313370.4412@graphe.net>
-References: <Pine.LNX.4.64.0712272313370.4412@graphe.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH 05/10] x86_64: Use generic percpu
+Date: Fri, 28 Dec 2007 13:54:51 +0100
+References: <20071228001046.854702000@sgi.com> <20071228001047.556634000@sgi.com>
+In-Reply-To: <20071228001047.556634000@sgi.com>
+MIME-Version: 1.0
+Content-Disposition: inline
+Message-Id: <200712281354.52453.ak@suse.de>
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <christoph@lameter.com>
-Cc: linux-mm@kvack.org, penberg@cs.helsinki.fi, Al Viro <viro@zeniv.linux.org.uk>
+To: travis@sgi.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, tglx@linutronix.de, mingo@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 27 Dec 2007 23:17:13 -0800 (PST) Christoph Lameter <christoph@lameter.com> wrote:
+On Friday 28 December 2007 01:10:51 travis@sgi.com wrote:
+> x86_64 provides an optimized way to determine the local per cpu area
+> offset through the pda and determines the base by accessing a remote
+> pda.
 
-> If CONFIG_SYSFS is set then free the kmem_cache structure when
-> sysfs tells us its okay. Otherwise there is the danger (as pointed out by 
-> Al Viro) that sysfs thinks the kobject still exists after 
-> kmem_cache_destroy() removed it.
-> 
+And? The rationale for this patch seems to be incomplete.
 
-Thanks.  I doubt if Al reads linux-mm a lot.  cc added...
+As far as I can figure out you're replacing an optimized percpu 
+implementation which a dumber generic one. Which needs
+at least some description why.
 
-> 
-> ---
->  mm/slub.c |   15 +++++++++++++--
->  1 file changed, 13 insertions(+), 2 deletions(-)
-> 
-> Index: linux-2.6/mm/slub.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slub.c	2007-12-27 23:03:25.000000000 -0800
-> +++ linux-2.6/mm/slub.c	2007-12-27 23:03:26.000000000 -0800
-> @@ -247,7 +247,10 @@ static void sysfs_slab_remove(struct kme
->  static inline int sysfs_slab_add(struct kmem_cache *s) { return 0; }
->  static inline int sysfs_slab_alias(struct kmem_cache *s, const char *p)
->  							{ return 0; }
-> -static inline void sysfs_slab_remove(struct kmem_cache *s) {}
-> +static inline void sysfs_slab_remove(struct kmem_cache *s)
-> +{
-> +	kfree(s);
-> +}
->  #endif
->  
->  /********************************************************************
-> @@ -2322,7 +2325,6 @@ void kmem_cache_destroy(struct kmem_cach
->  		if (kmem_cache_close(s))
->  			WARN_ON(1);
->  		sysfs_slab_remove(s);
-> -		kfree(s);
->  	} else
->  		up_write(&slub_lock);
->  }
-> @@ -3940,6 +3942,13 @@ static ssize_t slab_attr_store(struct ko
->  	return err;
->  }
->  
-> +static void kmem_cache_release(struct kobject *kobj)
-> +{
-> +	struct kmem_cache *s = to_slab(kobj);
-> +
-> +	kfree(s);
-> +}
-> +
->  static struct sysfs_ops slab_sysfs_ops = {
->  	.show = slab_attr_show,
->  	.store = slab_attr_store,
-> @@ -3947,6 +3956,7 @@ static struct sysfs_ops slab_sysfs_ops =
->  
->  static struct kobj_type slab_ktype = {
->  	.sysfs_ops = &slab_sysfs_ops,
-> +	.release = kmem_cache_release
->  };
->  
->  static int uevent_filter(struct kset *kset, struct kobject *kobj)
-> @@ -4048,6 +4058,7 @@ static void sysfs_slab_remove(struct kme
->  {
->  	kobject_uevent(&s->kobj, KOBJ_REMOVE);
->  	kobject_del(&s->kobj);
-> +	kobject_put(&s->kobj);
->  }
->  
->  /*
+If the generic one is now as good or better than the 
+specific one that might be ok, but that should be somewhere
+in the description.
+
+Also for such changes .text size comparisons before/after
+are a good idea.
+
+-Andi
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
