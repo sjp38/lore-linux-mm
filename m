@@ -1,70 +1,52 @@
-Date: Fri, 28 Dec 2007 10:44:57 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] mem notifications v3
-In-Reply-To: <20071227201311.GA14995@dmt>
-References: <20071225122326.D25C.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20071227201311.GA14995@dmt>
-Message-Id: <20071228103819.7F20.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="ISO-2022-JP"
+Subject: Re: [patch 00/20] VM pageout scalability improvements
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <20071223201149.7b88888f@bree.surriel.com>
+References: <20071218211539.250334036@redhat.com>
+	 <476D7334.4010301@linux.vnet.ibm.com>
+	 <20071222192119.030f32d5@bree.surriel.com>
+	 <476EE858.202@linux.vnet.ibm.com>
+	 <20071223201149.7b88888f@bree.surriel.com>
+Content-Type: text/plain
+Date: Thu, 27 Dec 2007 21:20:41 -0600
+Message-Id: <1198812041.4406.63.camel@cinder.waste.org>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@kvack.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Daniel =?ISO-2022-JP?B?U3AbJEJpTxsoQmc=?= <daniel.spang@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: balbir@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-Hi Marcelo-san
-
-> > > +			pages_reserve += zone->lowmem_reserve[MAX_NR_ZONES-1];
-> > 
-> > Hmm...
-> > may be, don't works well.
-> > 
-> > MAX_NR_ZONES determined at compile time and determined by distribution vendor.
-> > but real highest zone is determined by box total memory.
+On Sun, 2007-12-23 at 20:11 -0500, Rik van Riel wrote:
+> On Mon, 24 Dec 2007 04:29:36 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > Rik van Riel wrote:
 > 
-> That is OK because the calculation of lowmem reserves will take into account 
-> all zones (mm/page_alloc.c::setup_per_zone_lowmem_reserve).
-
-really?
-sorry, I will check again.
-
-
-> But it might be better to use the precalculated totalreserve_pages instead.
-
-Hmm...
-unfortunately, accumulate of all zone memory is incompatible to NUMA awareness.
-please think again.
-
-
-> > > +		if (pages_free < (pages_high+pages_reserve)*2) 
-> > > +			val = POLLIN;
+> > > In the real world, users with large JVMs on their servers, which
+> > > sometimes go a little into swap, can trigger this system.  All of
+> > > the CPUs end up scanning the active list, and all pages have the
+> > > referenced bit set.  Even if the system eventually recovers, it
+> > > might as well have been dead.
+> > > 
+> > > Going into swap a little should only take a little bit of time.
 > > 
-> > why do you choice fomula of (pages_high+pages_reserve)*2 ?
+> > Very fascinating, so we need to scale better with larger memory.
+> > I suspect part of the answer will lie with using large/huge pages.
 > 
-> Just to make sure its not sending a spurious notification in the case the system
-> has enough free memory already.
-
-Can I think "*2" is your experimental rule? 
-if so, I agree your experience.
-
-
-> > > -static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
-> > > +static bool shrink_active_list(unsigned long nr_pages, struct zone *zone,
-> > >  				struct scan_control *sc, int priority)
-> > 
-> > unnecessary type change.
-> > if directly call mem_notify_userspace() in shrink_active_list, works well too.
-> > because notify rate control can implement by mem_notify_userspace() and mem_notify_poll().
+> Linus vetoed going to a larger soft page size, with good reason.
 > 
-> Yes, and doing that should also guarantee that the notification is sent
-> before swapout is performed (right now it sends the notification after
-> shrink_inactive_list(), which is performing swapout).
+> Just look at how much the 64kB page size on PPC64 sucks for most
+> workloads - it works for PPC64 because people buy PPC64 monster
+> systems for the kinds of monster workloads that work well with a
+> large page size, but it definately isn't general purpose.
 
-Agreed.
+Indeed, machines already exist with >> 1TB of RAM, so even going to 1MB
+pages leaves these machines in trouble. Going to big pages a few years
+ago would have pushed the problem back a few years, but now we need real
+fixes.
 
-
-- kosaki
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
