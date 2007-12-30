@@ -1,31 +1,48 @@
-Received: by rv-out-0910.google.com with SMTP id l15so2828828rvb.26
-        for <linux-mm@kvack.org>; Sat, 29 Dec 2007 23:32:42 -0800 (PST)
-Message-ID: <44c63dc40712292332s4a2e7e4aief37a2dbdd03fc21@mail.gmail.com>
-Date: Sun, 30 Dec 2007 16:32:42 +0900
-From: "minchan Kim" <barrioskmc@gmail.com>
-Subject: why do we call clear_active_flags in shrink_inactive_list ?
+Date: Sun, 30 Dec 2007 15:01:16 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: 2.6.22-stable causes oomkiller to be invoked
+Message-ID: <20071230140116.GC21106@elte.hu>
+References: <20071214150533.aa30efd4.akpm@linux-foundation.org> <20071215035200.GA22082@linux.vnet.ibm.com> <20071214220030.325f82b8.akpm@linux-foundation.org> <20071215104434.GA26325@linux.vnet.ibm.com> <20071217045904.GB31386@linux.vnet.ibm.com> <Pine.LNX.4.64.0712171143280.12871@schroedinger.engr.sgi.com> <20071217120720.e078194b.akpm@linux-foundation.org> <Pine.LNX.4.64.0712171222470.29500@schroedinger.engr.sgi.com> <20071221044508.GA11996@linux.vnet.ibm.com> <Pine.LNX.4.64.0712261258050.16862@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0712261258050.16862@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Dhaval Giani <dhaval@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, htejun@gmail.com, gregkh@suse.de, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Balbir Singh <balbir@in.ibm.com>, maneesh@linux.vnet.ibm.com, lkml <linux-kernel@vger.kernel.org>, stable@kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In 2.6.23's shrink_inactive_list function, why do we have to call
-clear_active_flags after isolate_lru_pages call ?
-IMHO, If it call isolate_lru_pages with "zone->inactive_list", It can
-be sure that it is not PG_active. So I think It is unnecessary calling
-clear_active_flags. Nonetheless, Why do we have to recheck PG_active
-flags wich clear_active_flags.
+* Christoph Lameter <clameter@sgi.com> wrote:
 
-If it is right, which case it happens that page is set to be PG_active ?
+> Index: linux-2.6/arch/x86/mm/pgtable_32.c
+> ===================================================================
+> --- linux-2.6.orig/arch/x86/mm/pgtable_32.c	2007-12-26 12:55:10.000000000 -0800
+> +++ linux-2.6/arch/x86/mm/pgtable_32.c	2007-12-26 12:55:54.000000000 -0800
+> @@ -366,6 +366,15 @@ void pgd_free(pgd_t *pgd)
+>  		}
+>  	/* in the non-PAE case, free_pgtables() clears user pgd entries */
+>  	quicklist_free(0, pgd_dtor, pgd);
+> +
+> +	/*
+> +	 * We must call check_pgd_cache() here because the pgd is freed after
+> +	 * tlb flushing and the call to check_pgd_cache. In some cases the VM
+> +	 * may not call tlb_flush_mmu during process termination (??).
 
--- 
-Thanks,
-barrios
+that's incorrect i think: during process termination exit_mmap() calls 
+tlb_finish_mmu() unconditionally which calls tlb_flush_mmu().
+
+> +	 * If this is repeated then we may never call check_pgd_cache.
+> +	 * The quicklist will grow and grow. So call check_pgd_cache here.
+> +	 */
+> +	check_pgt_cache();
+>  }
+
+so we still dont seem to understand the failure mode well enough. This 
+also looks like a quite dangerous change so late in the v2.6.24 cycle. 
+Does it really fix the OOM? If yes, why exactly?
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
