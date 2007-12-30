@@ -1,38 +1,30 @@
-Date: Sun, 30 Dec 2007 15:18:29 +0100
+Date: Sun, 30 Dec 2007 17:33:15 +0100
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 05/10] x86_64: Use generic percpu
-Message-ID: <20071230141829.GA28415@elte.hu>
-References: <20071228001046.854702000@sgi.com> <20071228001047.556634000@sgi.com> <200712281354.52453.ak@suse.de> <47757311.5050503@sgi.com>
+Subject: Re: [patch] mm: fix PageUptodate memory ordering bug
+Message-ID: <20071230163315.GA1384@elte.hu>
+References: <20071218012632.GA23110@wotan.suse.de> <20071222005737.2675c33b.akpm@linux-foundation.org> <20071223055730.GA29288@wotan.suse.de> <20071222223234.7f0fbd8a.akpm@linux-foundation.org> <20071223071529.GC29288@wotan.suse.de> <20071222232932.590e2b6c.akpm@linux-foundation.org> <20071223091405.GA15631@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <47757311.5050503@sgi.com>
+In-Reply-To: <20071223091405.GA15631@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Travis <travis@sgi.com>
-Cc: Andi Kleen <ak@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, tglx@linutronix.de, mingo@redhat.com, "H. Peter Anvin" <hpa@zytor.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <ak@suse.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-* Mike Travis <travis@sgi.com> wrote:
+* Nick Piggin <npiggin@suse.de> wrote:
 
-> > Also for such changes .text size comparisons before/after are a good 
-> > idea.
+> > Sounds worthwhile, if we can't do it via altinstructions.
 > 
-> x86_64-defconfig:
-> 
-> pre-percpu                          post-percpu
->       159373 .init.text                       +3 .init.text
->      1411137 .rodata                          +8 .rodata
->      3629056 .text                           +48 .text
->      7057383 Total                           +59 Total
+> Altinstructions means we still have code bloat, and sometimes extra 
+> branches etc (an extra 900 bytes of icache in mm/ alone, even before 
+> my fix). I'll let Linus or one of the x86 guys weigh in, though. It's 
+> a really sad cost for distro kernels to carry.
 
-ok, that looks like really minimal impact, so i'm in favor of merging 
-this into arch/x86 - and the unification it does later on is nice too.
-
-to get more test feedback: what would be the best way to get this tested 
-in x86.git in a standalone way? Can i just pick up these 10 patches and 
-remove all the non-x86 arch changes, and expect it to work - or are the 
-other percpu preparatory/cleanup patches in -mm needed too?
+hm, we should at minimum display a warning if the workaround is not 
+enabled and such a kernel is booted on a true PPro that is affected by 
+this.
 
 	Ingo
 
