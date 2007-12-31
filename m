@@ -1,53 +1,32 @@
-Message-ID: <47792295.8070001@sgi.com>
-Date: Mon, 31 Dec 2007 09:10:45 -0800
-From: Mike Travis <travis@sgi.com>
+Message-ID: <47793562.1000608@hp.com>
+Date: Mon, 31 Dec 2007 13:30:58 -0500
+From: Mark Seger <Mark.Seger@hp.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 05/10] x86_64: Use generic percpu
-References: <20071228001046.854702000@sgi.com> <20071228001047.556634000@sgi.com> <200712281354.52453.ak@suse.de> <47757311.5050503@sgi.com> <20071230141829.GA28415@elte.hu> <477916ED.8010602@sgi.com>
-In-Reply-To: <477916ED.8010602@sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: collectl and the new slab allocator [slub] statistics
+References: <476A850A.1080807@hp.com> <Pine.LNX.4.64.0712201138280.30648@schroedinger.engr.sgi.com> <476AFC6C.3080903@hp.com> <476B122E.7010108@hp.com> <Pine.LNX.4.64.0712211338380.3795@schroedinger.engr.sgi.com> <4773B50B.6060206@hp.com> <4773CBD2.10703@hp.com> <Pine.LNX.4.64.0712271141390.30555@schroedinger.engr.sgi.com> <477403A6.6070208@hp.com> <Pine.LNX.4.64.0712271157190.30817@schroedinger.engr.sgi.com> <47741156.4060500@hp.com> <Pine.LNX.4.64.0712271258340.533@schroedinger.engr.sgi.com> <47743A10.7080605@hp.com> <Pine.LNX.4.64.0712271551290.1144@schroedinger.engr.sgi.com> <477511F7.3010307@hp.com>
+In-Reply-To: <477511F7.3010307@hp.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andi Kleen <ak@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, tglx@linutronix.de, mingo@redhat.com, "H. Peter Anvin" <hpa@zytor.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Mark Seger <Mark.Seger@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mike Travis wrote:
-> Ingo Molnar wrote:
->> * Mike Travis <travis@sgi.com> wrote:
->>
->>>> Also for such changes .text size comparisons before/after are a good 
->>>> idea.
->>> x86_64-defconfig:
->>>
->>> pre-percpu                          post-percpu
->>>       159373 .init.text                       +3 .init.text
->>>      1411137 .rodata                          +8 .rodata
->>>      3629056 .text                           +48 .text
->>>      7057383 Total                           +59 Total
->> ok, that looks like really minimal impact, so i'm in favor of merging 
->> this into arch/x86 - and the unification it does later on is nice too.
->>
->> to get more test feedback: what would be the best way to get this tested 
->> in x86.git in a standalone way? Can i just pick up these 10 patches and 
->> remove all the non-x86 arch changes, and expect it to work - or are the 
->> other percpu preparatory/cleanup patches in -mm needed too?
->>
->> 	Ingo
-> 
-> I've tested some x86_64 configs but the UP model is currently broken so I
-> haven't been able to test that. (the "fs/nfs/super.c" build problem with
-> TASK_NORMAL and TASK_UNINTERRUPTIBLE undefined.)
-> 
-> Thanks,
-> Mike
+Even though I know you won't be around for a few days I found a few more 
+cycles to put into this and have implemented quite a lot in collectl.  
+Rather than send along a bunch of output, I started to put together a 
+web page as part of collectl web site though I haven't linked it in yet 
+as I haven't yet released the associated version.  In any event, I took 
+a shot of trying to include a few high level words about slabs in 
+general as well as show what some of the different output formats will 
+look like as I'd much rather make changes before I release it than after.
 
-Sorry, I guess I didn't exactly answer the question.  Yes, these changes
-are standalone. 
+That said if you or anyone else on this list want to have a look at what 
+I've been up to you can see it at 
+http://collectl.sourceforge.net/SlabInfo.html
 
-Thanks,
-Mike
+-mark
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
