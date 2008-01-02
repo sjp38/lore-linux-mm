@@ -1,36 +1,98 @@
-Date: Thu, 31 Jan 2008 20:43:58 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 2/3] mmu_notifier: Callbacks to invalidate address ranges
-In-Reply-To: <20080201042408.GG26420@sgi.com>
-Message-ID: <Pine.LNX.4.64.0801312042500.20675@schroedinger.engr.sgi.com>
-References: <20080131045750.855008281@sgi.com> <20080131045812.785269387@sgi.com>
- <20080201042408.GG26420@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
-List-ID: <linux-mm.kvack.org>
+From: linux-kernel@vger.kernel.org
+Subject: [patch 02/19] free swap space on swap-in/activation
+Date: Wed, 02 Jan 2008 17:41:46 -0500
+Message-ID: <20080102224153.797602685@redhat.com>
+References: <20080102224144.885671949@redhat.com>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1757961AbYABXWa@vger.kernel.org>
+Content-Disposition: inline; filename=rvr-00-linux-2.6-swapfree.patch
+Sender: linux-kernel-owner@vger.kernel.org
+Cc: linux-mm@kvack.org, lee.schermerhorn@hp.com, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+List-Id: linux-mm.kvack.org
 
-On Thu, 31 Jan 2008, Robin Holt wrote:
++ lts' convert anon_vma list lock to reader/write lock patch
++ Nick Piggin's move and rework isolate_lru_page() patch
 
-> > Index: linux-2.6/mm/memory.c
-> ...
-> > @@ -1668,6 +1678,7 @@ gotten:
-> >  		page_cache_release(old_page);
-> >  unlock:
-> >  	pte_unmap_unlock(page_table, ptl);
-> > +	mmu_notifier(invalidate_range_end, mm, 0);
-> 
-> I think we can get an _end call without the _begin call before it.
+Free swap cache entries when swapping in pages if vm_swap_full()
+[swap space > 1/2 used?].  Uses new pagevec to reduce pressure
+on locks.
 
-If that would be true then also the pte would have been left locked.
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 
-We always hit unlock. Maybe I just do not see it?
+Index: linux-2.6.24-rc6-mm1/mm/vmscan.c
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/mm/vmscan.c	2008-01-02 12:37:14.000000000 -0500
++++ linux-2.6.24-rc6-mm1/mm/vmscan.c	2008-01-02 12:37:18.000000000 -0500
+@@ -632,6 +632,9 @@ free_it:
+ 		continue;
+ 
+ activate_locked:
++		/* Not a candidate for swapping, so reclaim swap space. */
++		if (PageSwapCache(page) && vm_swap_full())
++			remove_exclusive_swap_page(page);
+ 		SetPageActive(page);
+ 		pgactivate++;
+ keep_locked:
+@@ -1214,6 +1217,8 @@ static void shrink_active_list(unsigned 
+ 			__mod_zone_page_state(zone, NR_ACTIVE, pgmoved);
+ 			pgmoved = 0;
+ 			spin_unlock_irq(&zone->lru_lock);
++			if (vm_swap_full())
++				pagevec_swap_free(&pvec);
+ 			__pagevec_release(&pvec);
+ 			spin_lock_irq(&zone->lru_lock);
+ 		}
+@@ -1223,6 +1228,8 @@ static void shrink_active_list(unsigned 
+ 	__count_zone_vm_events(PGREFILL, zone, pgscanned);
+ 	__count_vm_events(PGDEACTIVATE, pgdeactivate);
+ 	spin_unlock_irq(&zone->lru_lock);
++	if (vm_swap_full())
++		pagevec_swap_free(&pvec);
+ 
+ 	pagevec_release(&pvec);
+ }
+Index: linux-2.6.24-rc6-mm1/mm/swap.c
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/mm/swap.c	2008-01-02 12:37:12.000000000 -0500
++++ linux-2.6.24-rc6-mm1/mm/swap.c	2008-01-02 12:37:18.000000000 -0500
+@@ -465,6 +465,24 @@ void pagevec_strip(struct pagevec *pvec)
+ 	}
+ }
+ 
++/*
++ * Try to free swap space from the pages in a pagevec
++ */
++void pagevec_swap_free(struct pagevec *pvec)
++{
++	int i;
++
++	for (i = 0; i < pagevec_count(pvec); i++) {
++		struct page *page = pvec->pages[i];
++
++		if (PageSwapCache(page) && !TestSetPageLocked(page)) {
++			if (PageSwapCache(page))
++				remove_exclusive_swap_page(page);
++			unlock_page(page);
++		}
++	}
++}
++
+ /**
+  * pagevec_lookup - gang pagecache lookup
+  * @pvec:	Where the resulting pages are placed
+Index: linux-2.6.24-rc6-mm1/include/linux/pagevec.h
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/include/linux/pagevec.h	2008-01-02 12:37:12.000000000 -0500
++++ linux-2.6.24-rc6-mm1/include/linux/pagevec.h	2008-01-02 12:37:18.000000000 -0500
+@@ -26,6 +26,7 @@ void __pagevec_free(struct pagevec *pvec
+ void __pagevec_lru_add(struct pagevec *pvec);
+ void __pagevec_lru_add_active(struct pagevec *pvec);
+ void pagevec_strip(struct pagevec *pvec);
++void pagevec_swap_free(struct pagevec *pvec);
+ unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
+ 		pgoff_t start, unsigned nr_pages);
+ unsigned pagevec_lookup_tag(struct pagevec *pvec,
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
+All Rights Reversed
+
