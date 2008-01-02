@@ -1,110 +1,61 @@
-Date: Wed, 2 Jan 2008 18:50:53 +0100
-From: Andrea Arcangeli <andrea@cpushare.com>
-Subject: Re: [PATCH 01 of 24] remove nr_scan_inactive/active
-Message-ID: <20080102175050.GS19333@v2.random>
-References: <patchbomb.1187786927@v2.random> <c8ec651562ad6514753e.1187786928@v2.random> <20070912044450.cef400fa.akpm@linux-foundation.org>
+Date: Wed, 2 Jan 2008 12:45:43 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: 2.6.22-stable causes oomkiller to be invoked
+In-Reply-To: <20071228101109.GB5083@linux.vnet.ibm.com>
+Message-ID: <Pine.LNX.4.64.0801021237330.21526@schroedinger.engr.sgi.com>
+References: <20071214150533.aa30efd4.akpm@linux-foundation.org>
+ <20071215035200.GA22082@linux.vnet.ibm.com> <20071214220030.325f82b8.akpm@linux-foundation.org>
+ <20071215104434.GA26325@linux.vnet.ibm.com> <20071217045904.GB31386@linux.vnet.ibm.com>
+ <Pine.LNX.4.64.0712171143280.12871@schroedinger.engr.sgi.com>
+ <20071217120720.e078194b.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0712171222470.29500@schroedinger.engr.sgi.com>
+ <20071221044508.GA11996@linux.vnet.ibm.com>
+ <Pine.LNX.4.64.0712261258050.16862@schroedinger.engr.sgi.com>
+ <20071228101109.GB5083@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070912044450.cef400fa.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Dhaval Giani <dhaval@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, htejun@gmail.com, gregkh@suse.de, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Balbir Singh <balbir@in.ibm.com>, maneesh@linux.vnet.ibm.com, lkml <linux-kernel@vger.kernel.org>, stable@kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+On Fri, 28 Dec 2007, Dhaval Giani wrote:
 
-On Wed, Sep 12, 2007 at 04:44:50AM -0700, Andrew Morton wrote:
-> Does that above text describe something which you've observed and measured
-> in practice, or is it theoretical-from-code-inspection?
-
-it's hard to tell why oom handling takes so long while scanning the
-lrus, so I tried to cut the useless work in places that could
-generated overwork in that area. It's mostly theoretical though.
-
-> The old code took care of the situtaion where zone_page_state(zone,
-> NR_ACTIVE) is smaller than (1 << priority): do a bit of reclaim in that
-> case anyway.  This is a minor issue, as we'll at least perform some
-> scanning when priority is low.  But you should have depeted the now-wrong
-> comment.
-
-I see what you mean.
-
-> Your change breaks that logic and there is potential that a small LRU will
-> be underscanned, especially when reclaim is not under distress.
-
-When the race triggers it may be underscanned anyway, so it can't
-depend on it for correct operation, but most of the time it can help
-and removing the code like I did will surely scan less in your
-small-lru scenario.
-
-> According to the above-described logic, one would think that it would be
-> more accurate to replace the existing
+> we managed to get your required information. Last 10,000 lines are
+> attached (The uncompressed file comes to 500 kb).
 > 
-> 	if (nr_active >= sc->swap_cluster_max)
-> 		zone->nr_scan_active = 0;
-> 
-> with
-> 
-> 	if (nr_active >= sc->swap_cluster_max)
-> 		zone->nr_scan_active -= sc->swap_cluster_max;
+> Hope it helps.
 
-not sure I follow why, this will underscan if it's the only change,
-and it will make the race condition even more dangerous.
+Somehow the nr_pages field is truncated to 16 bit and it 
+seems that there are sign issues there? We are wrapping around....
 
-> Yet another alternative approach would be to remove the batching
-> altogether.  If (zone_page_state(zone, NR_ACTIVE) >> priority) evaluates to
-> "3", well, just go in and scan three pages.  That should address any
-> accuracy problems and it will address the problem which you're addressing,
-> but it will add unknown-but-probably-small computational cost.
+ q->nr_pages is 36877, min_pages is 25 ----> swapper
+ q->nr_pages is 46266, min_pages is 25 ----> bash
+ q->nr_pages is 36877, min_pages is 25 ----> swapper
+ q->nr_pages is 36877, min_pages is 25 ----> swapper
+ q->nr_pages is 46265, min_pages is 25 ----> bash
+ q->nr_pages is 46265, min_pages is 25 ----> cat
+ q->nr_pages is 36877, min_pages is 25 ----> swapper
+ q->nr_pages is 46265, min_pages is 25 ----> cat
+ q->nr_pages is 36877, min_pages is 25 ----> swapper
+ q->nr_pages is 0, min_pages is 25 ----> swapper
+ q->nr_pages is 36877, min_pages is 25 ----> swapper
+ q->nr_pages is 36877, min_pages is 25 ----> swapper
+ q->nr_pages is 46265, min_pages is 25 ----> cat
 
-It's quite simpler. All I care about is that nr_scan_*active, doesn't
-grow to insane levels without any good reason in bigsmp, like it can
-happen now.
 
-I thought this racy code didn't deserve to exist but that's not my
-priority, my priority is to avoid huge nr_*active values especially
-with priorities going down to zero during oom, and that's easy enough
-to achieve like this (mostly untested):
+An int is just a 16 bit field on i386? I thought it was 32 bits? Or is 
+the result due to the way that systemtap works?
 
-# HG changeset patch
-# User Andrea Arcangeli <andrea@suse.de>
-# Date 1199294746 -3600
-# Node ID bc803863094aaef8a03dbec584370fb2b68b17d0
-# Parent  e28e1be3fae5183e3e36e32e3feb9a59ec59c825
-limit shrink zone scanning
+Could you post the neighboring per cpu variables to quicklist (look at the 
+System.map). Maybe somehow we corrupt the nr_pages and page contents.
 
-Assume two tasks adds to nr_scan_*active at the same time (first line of the
-old buggy code), they'll effectively double their scan rate, for no good
-reason. What can happen is that instead of scanning nr_entries each, they'll
-scan nr_entries*2 each. The more CPUs the bigger the race and the higher the
-multiplication effect and the harder it will be to detect oom. This puts a cap
-on the amount of work that it makes sense to do in case the race triggers.
+Also could you do another systemtap and also print out the current 
+processor? Maybe nr_pages gets only corrupted on a specific processor. I 
+see a zero there and sometimes other sane values.
 
-Signed-off-by: Andrea Arcangeli <andrea@suse.de>
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1114,7 +1114,7 @@ static unsigned long shrink_zone(int pri
- 	 */
- 	zone->nr_scan_active +=
- 		(zone_page_state(zone, NR_ACTIVE) >> priority) + 1;
--	nr_active = zone->nr_scan_active;
-+	nr_active = min(zone->nr_scan_active, zone_page_state(zone, NR_ACTIVE));
- 	if (nr_active >= sc->swap_cluster_max)
- 		zone->nr_scan_active = 0;
- 	else
-@@ -1122,7 +1122,7 @@ static unsigned long shrink_zone(int pri
- 
- 	zone->nr_scan_inactive +=
- 		(zone_page_state(zone, NR_INACTIVE) >> priority) + 1;
--	nr_inactive = zone->nr_scan_inactive;
-+	nr_inactive = min(zone->nr_scan_inactive, zone_page_state(zone, NR_INACTIVE));
- 	if (nr_inactive >= sc->swap_cluster_max)
- 		zone->nr_scan_inactive = 0;
- 	else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
