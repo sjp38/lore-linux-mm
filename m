@@ -1,231 +1,77 @@
 From: linux-kernel@vger.kernel.org
-Subject: [patch 08/19] SEQ replacement for anonymous pages
-Date: Wed, 02 Jan 2008 17:41:52 -0500
-Message-ID: <20080102224154.398016040@redhat.com>
+Subject: [patch 04/19] debugging checks for page_file_cache()
+Date: Wed, 02 Jan 2008 17:41:48 -0500
+Message-ID: <20080102224154.006301705@redhat.com>
 References: <20080102224144.885671949@redhat.com>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1758927AbYABXYd@vger.kernel.org>
-Content-Disposition: inline; filename=rvr-03-linux-2.6-vm-anon-seq.patch
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1758698AbYABXXb@vger.kernel.org>
+Content-Disposition: inline; filename=rvr-page_file_cache-debug.patch
 Sender: linux-kernel-owner@vger.kernel.org
 Cc: linux-mm@kvack.org, lee.schermerhorn@hp.com
 List-Id: linux-mm.kvack.org
 
-We avoid evicting and scanning anonymous pages for the most part, but
-under some workloads we can end up with most of memory filled with
-anonymous pages.  At that point, we suddenly need to clear the referenced
-bits on all of memory, which can take ages on very large memory systems.
+Debug whether we end up classifying the wrong pages as
+filesystem backed.  This has not triggered in stress
+tests on my system, but who knows...
 
-We can reduce the maximum number of pages that need to be scanned by
-not taking the referenced state into account when deactivating an
-anonymous page.  After all, every anonymous page starts out referenced,
-so why check?
-
-If an anonymous page gets referenced again before it reaches the end
-of the inactive list, we move it back to the active list.
-
-To keep the maximum amount of necessary work reasonable, we scale the
-active to inactive ratio with the size of memory, using the formula
-active:inactive ratio = sqrt(memory in GB * 10).
-
-Kswapd CPU use now seems to scale by the amount of pageout bandwidth,
-instead of by the amount of memory present in the system.
+DEBUGGING ONLY: NOT FOR UPSTREAM MERGE
 
 Signed-off-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 Index: linux-2.6.24-rc6-mm1/include/linux/mm_inline.h
 ===================================================================
---- linux-2.6.24-rc6-mm1.orig/include/linux/mm_inline.h	2008-01-02 15:55:33.000000000 -0500
-+++ linux-2.6.24-rc6-mm1/include/linux/mm_inline.h	2008-01-02 16:00:39.000000000 -0500
-@@ -106,4 +106,16 @@ del_page_from_lru(struct zone *zone, str
- 	__dec_zone_state(zone, NR_INACTIVE_ANON + l);
- }
+--- linux-2.6.24-rc6-mm1.orig/include/linux/mm_inline.h	2008-01-02 12:37:22.000000000 -0500
++++ linux-2.6.24-rc6-mm1/include/linux/mm_inline.h	2008-01-02 12:37:27.000000000 -0500
+@@ -1,6 +1,8 @@
+ #ifndef LINUX_MM_INLINE_H
+ #define LINUX_MM_INLINE_H
  
-+static inline int inactive_anon_low(struct zone *zone)
-+{
-+	unsigned long active, inactive;
++#include <linux/fs.h>  /* for struct address_space */
 +
-+	active = zone_page_state(zone, NR_ACTIVE_ANON);
-+	inactive = zone_page_state(zone, NR_INACTIVE_ANON);
-+
-+	if (inactive * zone->inactive_ratio < active)
-+		return 1;
-+
-+	return 0;
-+}
- #endif
-Index: linux-2.6.24-rc6-mm1/include/linux/mmzone.h
-===================================================================
---- linux-2.6.24-rc6-mm1.orig/include/linux/mmzone.h	2008-01-02 15:55:33.000000000 -0500
-+++ linux-2.6.24-rc6-mm1/include/linux/mmzone.h	2008-01-02 16:00:39.000000000 -0500
-@@ -313,6 +313,11 @@ struct zone {
- 	 */
- 	int prev_priority;
- 
-+	/*
-+	 * The ratio of active to inactive pages.
-+	 */
-+	unsigned int inactive_ratio;
-+
- 
- 	ZONE_PADDING(_pad2_)
- 	/* Rarely used or read-mostly fields */
-Index: linux-2.6.24-rc6-mm1/mm/page_alloc.c
-===================================================================
---- linux-2.6.24-rc6-mm1.orig/mm/page_alloc.c	2008-01-02 15:55:33.000000000 -0500
-+++ linux-2.6.24-rc6-mm1/mm/page_alloc.c	2008-01-02 16:00:39.000000000 -0500
-@@ -4230,6 +4230,45 @@ void setup_per_zone_pages_min(void)
- 	calculate_totalreserve_pages();
- }
- 
-+/**
-+ * setup_per_zone_inactive_ratio - called when min_free_kbytes changes.
-+ *
-+ * The inactive anon list should be small enough that the VM never has to
-+ * do too much work, but large enough that each inactive page has a chance
-+ * to be referenced again before it is swapped out.
-+ *
-+ * The inactive_anon ratio is the ratio of active to inactive anonymous
-+ * pages.  Ie. a ratio of 3 means 3:1 or 25% of the anonymous pages are
-+ * on the inactive list.
-+ *
-+ * total     return    max
-+ * memory    value     inactive anon
-+ * -------------------------------------
-+ *   10MB       1         5MB
-+ *  100MB       1        50MB
-+ *    1GB       3       250MB
-+ *   10GB      10       0.9GB
-+ *  100GB      31         3GB
-+ *    1TB     101        10GB
-+ *   10TB     320        32GB
-+ */
-+void setup_per_zone_inactive_ratio(void)
-+{
-+	struct zone *zone;
-+
-+	for_each_zone(zone) {
-+		unsigned int gb, ratio;
-+
-+		/* Zone size in gigabytes */
-+		gb = zone->present_pages >> (30 - PAGE_SHIFT);
-+		ratio = int_sqrt(10 * gb);
-+		if (!ratio)
-+			ratio = 1;
-+
-+		zone->inactive_ratio = ratio;
-+	}
-+}
-+
- /*
-  * Initialise min_free_kbytes.
-  *
-@@ -4267,6 +4306,7 @@ static int __init init_per_zone_pages_mi
- 		min_free_kbytes = 65536;
- 	setup_per_zone_pages_min();
- 	setup_per_zone_lowmem_reserve();
-+	setup_per_zone_inactive_ratio();
- 	return 0;
- }
- module_init(init_per_zone_pages_min)
-Index: linux-2.6.24-rc6-mm1/mm/vmscan.c
-===================================================================
---- linux-2.6.24-rc6-mm1.orig/mm/vmscan.c	2008-01-02 15:56:00.000000000 -0500
-+++ linux-2.6.24-rc6-mm1/mm/vmscan.c	2008-01-02 16:00:39.000000000 -0500
-@@ -1019,7 +1019,7 @@ static inline int zone_is_near_oom(struc
- static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
- 				struct scan_control *sc, int priority, int file)
+ /**
+  * page_file_cache(@page)
+  * Returns !0 if @page is page cache page backed by a regular filesystem,
+@@ -10,11 +12,19 @@
+  * needs to survive until the page is last deleted from the LRU, which
+  * could be as far down as __page_cache_release.
+  */
++extern const struct address_space_operations shmem_aops;
+ static inline int page_file_cache(struct page *page)
  {
--	unsigned long pgmoved;
-+	unsigned long pgmoved = 0;
- 	int pgdeactivate = 0;
- 	unsigned long pgscanned;
- 	LIST_HEAD(l_hold);	/* The pages which were snipped off */
-@@ -1058,12 +1058,25 @@ static void shrink_active_list(unsigned 
- 		cond_resched();
- 		page = lru_to_page(&l_hold);
- 		list_del(&page->lru);
--		if (page_referenced(page, 0, sc->mem_cgroup))
--			lru = LRU_ACTIVE_ANON;
-+		if (page_referenced(page, 0, sc->mem_cgroup)) {
-+			if (file)
-+				/* Referenced file pages stay active. */
-+				lru = LRU_ACTIVE_ANON;
-+			else
-+				/* Anonymous pages always get deactivated. */
-+				pgmoved++;
-+		}
- 		list_add(&page->lru, &list[lru]);
- 	}
- 
- 	/*
-+	 * Count the referenced anon pages as rotated, to balance pageout
-+	 * scan pressure between file and anonymous pages in get_scan_ratio.
-+	 */
-+	if (!file)
-+		zone->recent_rotated_anon += pgmoved;
++	struct address_space * mapping = page_mapping(page);
 +
-+	/*
- 	 * Now put the pages back to the appropriate [file or anon] inactive
- 	 * and active lists.
- 	 */
-@@ -1145,7 +1158,11 @@ static unsigned long shrink_list(enum lr
- {
- 	int file = is_file_lru(lru);
- 
--	if (lru == LRU_ACTIVE_ANON || lru == LRU_ACTIVE_FILE) {
-+	if (lru == LRU_ACTIVE_FILE) {
-+		shrink_active_list(nr_to_scan, zone, sc, priority, file);
-+		return 0;
-+	}
-+	if (lru == LRU_ACTIVE_ANON && inactive_anon_low(zone)) {
- 		shrink_active_list(nr_to_scan, zone, sc, priority, file);
+ 	if (PageSwapBacked(page))
  		return 0;
- 	}
-@@ -1255,8 +1272,8 @@ static unsigned long shrink_zone(int pri
- 		}
- 	}
  
--	while (nr[LRU_ACTIVE_ANON] || nr[LRU_INACTIVE_ANON] ||
--				nr[LRU_ACTIVE_FILE] || nr[LRU_INACTIVE_FILE]) {
-+	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
-+						 nr[LRU_INACTIVE_FILE]) {
- 		for_each_lru(l) {
- 			if (nr[l]) {
- 				nr_to_scan = min(nr[l],
-@@ -1560,6 +1577,14 @@ loop_again:
- 			    priority != DEF_PRIORITY)
- 				continue;
- 
-+			/*
-+			 * Do some background aging of the anon list, to give
-+			 * pages a chance to be referenced before reclaiming.
-+			 */
-+			if (inactive_anon_low(zone))
-+				shrink_active_list(SWAP_CLUSTER_MAX, zone,
-+							&sc, priority, 0);
++	/* These pages should all be marked PG_swapbacked */
++	WARN_ON(PageAnon(page));
++	WARN_ON(PageSwapCache(page));
++	WARN_ON(mapping && mapping->a_ops && mapping->a_ops == &shmem_aops);
 +
- 			if (!zone_watermark_ok(zone, order, zone->pages_high,
- 					       0, 0)) {
- 				end_zone = i;
-Index: linux-2.6.24-rc6-mm1/mm/vmstat.c
+ 	/* The page is page cache backed by a normal filesystem. */
+ 	return 2;
+ }
+Index: linux-2.6.24-rc6-mm1/mm/shmem.c
 ===================================================================
---- linux-2.6.24-rc6-mm1.orig/mm/vmstat.c	2008-01-02 15:55:33.000000000 -0500
-+++ linux-2.6.24-rc6-mm1/mm/vmstat.c	2008-01-02 15:56:07.000000000 -0500
-@@ -800,10 +800,12 @@ static void zoneinfo_show_print(struct s
- 	seq_printf(m,
- 		   "\n  all_unreclaimable: %u"
- 		   "\n  prev_priority:     %i"
--		   "\n  start_pfn:         %lu",
-+		   "\n  start_pfn:         %lu"
-+		   "\n  inactive_ratio:    %u",
- 			   zone_is_all_unreclaimable(zone),
- 		   zone->prev_priority,
--		   zone->zone_start_pfn);
-+		   zone->zone_start_pfn,
-+		   zone->inactive_ratio);
- 	seq_putc(m, '\n');
+--- linux-2.6.24-rc6-mm1.orig/mm/shmem.c	2008-01-02 12:37:22.000000000 -0500
++++ linux-2.6.24-rc6-mm1/mm/shmem.c	2008-01-02 12:37:27.000000000 -0500
+@@ -179,7 +179,7 @@ static inline void shmem_unacct_blocks(u
  }
  
+ static const struct super_operations shmem_ops;
+-static const struct address_space_operations shmem_aops;
++const struct address_space_operations shmem_aops;
+ static const struct file_operations shmem_file_operations;
+ static const struct inode_operations shmem_inode_operations;
+ static const struct inode_operations shmem_dir_inode_operations;
+@@ -2344,7 +2344,7 @@ static void destroy_inodecache(void)
+ 	kmem_cache_destroy(shmem_inode_cachep);
+ }
+ 
+-static const struct address_space_operations shmem_aops = {
++const struct address_space_operations shmem_aops = {
+ 	.writepage	= shmem_writepage,
+ 	.set_page_dirty	= __set_page_dirty_no_writeback,
+ #ifdef CONFIG_TMPFS
 
 -- 
 All Rights Reversed
