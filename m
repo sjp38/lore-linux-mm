@@ -1,29 +1,43 @@
-Date: Thu, 3 Jan 2008 02:12:31 +0100
-From: Andrea Arcangeli <andrea@cpushare.com>
-Subject: Re: [PATCH 15 of 24] limit reclaim if enough pages have been freed
-Message-ID: <20080103011231.GM30939@v2.random>
-References: <patchbomb.1187786927@v2.random> <94686cfcd27347e83a6a.1187786942@v2.random> <20070912055723.c4f79f9a.akpm@linux-foundation.org>
+Date: Wed, 2 Jan 2008 22:23:34 -0000
+From: "Rodrigo Rubira Branco (BSDaemon)" <rodrigo@kernelhacking.com>
+Reply-to: "Rodrigo Rubira Branco (BSDaemon)" <rodrigo@kernelhacking.com>
+Subject: [ANNOUNCE] ebizzy 0.3 released
+Content-Transfer-Encoding: 7BIT
+Content-Type: text/plain; charset=US-ASCII
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070912055723.c4f79f9a.akpm@linux-foundation.org>
+Message-Id: <20080103002334.58FC78BD86@mail.fjaunet.com.br>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: tech-kern@netbsd.org, "linux-kernel@vger.kernel.org"@fjaunet.com.br, "linux-mm@kvack.org"@fjaunet.com.br
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 12, 2007 at 05:57:23AM -0700, Andrew Morton wrote:
-> whoa, that's a huge change to the scanning logic.  Suppose we've decided to
-> scan 1,000,000 active pages and 42 inactive pages.  With this change we'll
-> bale out after scanning the 42 inactive pages.  The change to the
-> inactive/active balancing logic is potentially large.
+ebizzy is designed to generate a workload resembling common web application
+server workloads.  It is especially useful for testing
+changes to memory management, and whenever a highly threaded application
+with a large working set and many vmas is needed.
 
-Could be, but I don't think it's good to do such an overwork on large
-ram systems when freeing swap-cluster-max pages is enough to guarantee
-we're not getting spurious oom. It's a latency issue only here (not RT
-at all, but still a latency issue). Anyway feel free to keep this
-out. It's mostly independent from the rest.
+This is release 0.3 of ebizzy.  It reports a rate of transactions per
+second, compiles on Linux/Solaris/FreeBSD/HPUX, and scales better.
+
+Available for download at:
+
+http://ebizzy.sf.net
+
+
+
+Rodrigo (BSDaemon).
+
+--
+http://www.kernelhacking.com/rodrigo
+
+Kernel Hacking: If i really know, i can hack
+
+GPG KeyID: 1FCEDEA1
+
+
+
+________________________________________________
+Message sent using UebiMiau 2.7.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
