@@ -1,45 +1,28 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [patch] mm: fix PageUptodate memory ordering bug
-Date: Wed, 2 Jan 2008 22:01:27 +0100
-References: <20071218012632.GA23110@wotan.suse.de> <20071230163315.GA1384@elte.hu> <20080101232634.GA29301@wotan.suse.de>
-In-Reply-To: <20080101232634.GA29301@wotan.suse.de>
+Date: Wed, 2 Jan 2008 13:04:23 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 05/10] x86_64: Use generic percpu
+In-Reply-To: <20080101191758.GA14045@elte.hu>
+Message-ID: <Pine.LNX.4.64.0801021302530.22538@schroedinger.engr.sgi.com>
+References: <20071228001046.854702000@sgi.com> <20071228001047.556634000@sgi.com>
+ <200712281354.52453.ak@suse.de> <47757311.5050503@sgi.com>
+ <20071230141829.GA28415@elte.hu> <477916ED.8010602@sgi.com> <47792295.8070001@sgi.com>
+ <20080101191758.GA14045@elte.hu>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200801022201.28025.ak@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Mike Travis <travis@sgi.com>, Andi Kleen <ak@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, tglx@linutronix.de, mingo@redhat.com, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 02 January 2008 00:26:34 Nick Piggin wrote:
-> On Sun, Dec 30, 2007 at 05:33:15PM +0100, Ingo Molnar wrote:
-> > 
-> > * Nick Piggin <npiggin@suse.de> wrote:
-> > 
-> > > > Sounds worthwhile, if we can't do it via altinstructions.
-> > > 
-> > > Altinstructions means we still have code bloat, and sometimes extra 
-> > > branches etc (an extra 900 bytes of icache in mm/ alone, even before 
-> > > my fix). I'll let Linus or one of the x86 guys weigh in, though. It's 
-> > > a really sad cost for distro kernels to carry.
-> > 
-> > hm, we should at minimum display a warning if the workaround is not 
-> > enabled and such a kernel is booted on a true PPro that is affected by 
-> > this.
-> 
-> The patch does have the warning:
->   printk(KERN_INFO "Pentium Pro with Errata#66, #92 detected. Limiting maxcpus to 1.
->          Enable CONFIG_X86_BROKEN_PPRO_SMP to run with multiple CPUs\n");
+On Tue, 1 Jan 2008, Ingo Molnar wrote:
 
-Haven't seen the full patch, but the printk suggest you're changing the max_cpus 
-variable. That is not 100% safe because user space could hot plug CPUs later
-using sysfs. The only safe way would be to limit cpu_possible_map
+> FYI, i tried your patchset on 2.6.24-rc6+x86.git, and randconfig testing 
+> found a faulty 32-bit config below - the bootup would spontaneously 
+> reboot shortly after hitting user-space. (which suggests a triple fault) 
+> No log messages on the serial console.
 
--Andi
+The triple fault does not occur without the patchset?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
