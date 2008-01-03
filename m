@@ -1,48 +1,31 @@
-Date: Thu, 3 Jan 2008 14:06:57 +0100
-From: Andrea Arcangeli <andrea@cpushare.com>
-Subject: Re: [PATCH 11 of 11] not-wait-memdie
-Message-ID: <20080103130656.GR30939@v2.random>
-References: <504e981185254a12282d.1199326157@v2.random> <alpine.DEB.0.9999.0801030152540.25018@chino.kir.corp.google.com>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [patch] mm: fix PageUptodate memory ordering bug
+Date: Thu, 3 Jan 2008 14:08:07 +0100
+References: <20071218012632.GA23110@wotan.suse.de> <200801022201.28025.ak@suse.de> <20080103033245.GA26487@wotan.suse.de>
+In-Reply-To: <20080103033245.GA26487@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.0.9999.0801030152540.25018@chino.kir.corp.google.com>
+Message-Id: <200801031408.08194.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 03, 2008 at 01:55:35AM -0800, David Rientjes wrote:
-> On Thu, 3 Jan 2008, Andrea Arcangeli wrote:
-> 
-> > Don't wait tif-memdie tasks forever because they may be stuck in some kernel
-> > lock owned by some task that requires memory to exit the critical section.
-> > 
-> 
-> This increases the possibility that tasks will be needlessly killed in OOM 
-> conditions.  While the indefinite timeout is definitely not the ideal 
+> Hmm, but I did want to allow it to be overridden via maxcpus= command line (or
+> hotplug I guess, I hadn't thought of the hotplug case but it allows runtime
+> override).
 
-Yes, and doing so it avoids the deadlock.
+In theory some user space could be set up to always boot with maxcpus=1 and then
+only hotplug CPUs later (e.g. might make sense to get faster initial booting on systems
+with a lot of CPUs) 
 
-> solution, it does have the advantage of preventing unnecessary kills.  The 
-> OOM synchronization is good, but it's not _that_ good: it doesn't ensure 
-> that the OOM killed task has fully exited before another invocation of the 
-> OOM killer happens.
-> 
-> So I think we're moving in a direction of requiring OOM killer timeouts 
-> and the only plausible way to do that is on a per-task level.  It would 
-> require another unsigned long addition to struct task_struct but would 
-> completely fix OOM killer deadlocks.
+It would be better to use a separate option for such workarounds.
 
-Yes. That can be added incrementally in a later patch, it's a new
-logic. In the meantime the deadlock is gone.
-
-In practice there's a sort of timeout already, the oom-killing task
-will schedule_timeout(1) with the zone-oom-lock hold, and all other
-tasks trying to free memory (except the TIF_MEMDIE one) will also
-schedule_timeout(1) inside the VM code. That tends to prevent spurious
-kills already but it's far from a guarantee.
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
