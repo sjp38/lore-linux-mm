@@ -1,11 +1,10 @@
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 08 of 11] stop useless vm trashing while we wait the
-	TIF_MEMDIE task to exit
-Message-Id: <59c2caaf27ab2eba9aaa.1199326154@v2.random>
+Subject: [PATCH 09 of 11] oom select should only take rss into account
+Message-Id: <03ad5aceb1e3e64d53a3.1199326155@v2.random>
 In-Reply-To: <patchbomb.1199326146@v2.random>
-Date: Thu, 03 Jan 2008 03:09:14 +0100
+Date: Thu, 03 Jan 2008 03:09:15 +0100
 From: Andrea Arcangeli <andrea@cpushare.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -15,32 +14,43 @@ List-ID: <linux-mm.kvack.org>
 
 # HG changeset patch
 # User Andrea Arcangeli <andrea@suse.de>
-# Date 1199325610 -3600
-# Node ID 59c2caaf27ab2eba9aaaab7f9a06089bf164f22f
-# Parent  686a1129469a1bad96745705ffe1567146bae222
-stop useless vm trashing while we wait the TIF_MEMDIE task to exit
+# Date 1199325618 -3600
+# Node ID 03ad5aceb1e3e64d53a3537bc86dba8c268b1954
+# Parent  59c2caaf27ab2eba9aaaab7f9a06089bf164f22f
+oom select should only take rss into account
 
-There's no point in trying to free memory if we're oom.
+Running workloads where many tasks grow their virtual memory
+simultaneously, so they all have a relatively small virtual memory when
+oom triggers (if compared to innocent longstanding tasks), the oom
+killer then selects mysql/apache and other things with very large VM but
+very small RSS. RSS is the only thing that matters, killing a task with
+huge VM but zero RSS is not useful. Many apps tend to have large VM but
+small RSS in the first place (regardless of swapping activity) and they
+shouldn't be penalized like this.
 
 Signed-off-by: Andrea Arcangeli <andrea@suse.de>
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1129,6 +1129,13 @@ static unsigned long shrink_zone(int pri
- 		nr_inactive = 0;
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -66,7 +66,7 @@ unsigned long badness(struct task_struct
+ 	/*
+ 	 * The memory size of the process is the basis for the badness.
+ 	 */
+-	points = mm->total_vm;
++	points = get_mm_rss(mm);
  
- 	while (nr_active || nr_inactive) {
-+		if (unlikely(zone_is_oom_locked(zone))) {
-+			if (!test_thread_flag(TIF_MEMDIE))
-+				/* get out of the way */
-+				schedule_timeout_interruptible(1);
-+			else
-+				break;
-+		}
- 		if (nr_active) {
- 			nr_to_scan = min(nr_active,
- 					(unsigned long)sc->swap_cluster_max);
+ 	/*
+ 	 * After this unlock we can no longer dereference local variable `mm'
+@@ -90,7 +90,7 @@ unsigned long badness(struct task_struct
+ 	list_for_each_entry(child, &p->children, sibling) {
+ 		task_lock(child);
+ 		if (child->mm != mm && child->mm)
+-			points += child->mm->total_vm/2 + 1;
++			points += get_mm_rss(child->mm)/2 + 1;
+ 		task_unlock(child);
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
