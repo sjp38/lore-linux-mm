@@ -1,72 +1,76 @@
-Subject: Re: [patch 00/19] VM pageout scalability improvements
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20080103120000.1768f220@cuia.boston.redhat.com>
-References: <20080102224144.885671949@redhat.com>
-	 <1199379128.5295.21.camel@localhost>
-	 <20080103120000.1768f220@cuia.boston.redhat.com>
-Content-Type: text/plain
-Date: Thu, 03 Jan 2008 12:13:32 -0500
-Message-Id: <1199380412.5295.29.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 3 Jan 2008 10:47:33 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 04 of 11] avoid selecting already killed tasks
+In-Reply-To: <20080103134137.GT30939@v2.random>
+Message-ID: <alpine.DEB.0.9999.0801031036110.27032@chino.kir.corp.google.com>
+References: <4cf8805b5695a8a3fb7c.1199326150@v2.random> <alpine.DEB.0.9999.0801030134130.25018@chino.kir.corp.google.com> <20080103134137.GT30939@v2.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Eric Whitney <eric.whitney@hp.com>
+To: Andrea Arcangeli <andrea@cpushare.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-01-03 at 12:00 -0500, Rik van Riel wrote:
-> On Thu, 03 Jan 2008 11:52:08 -0500
-> Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
-> 
-> > Also, I should point out that the full noreclaim series includes a
-> > couple of other patches NOT posted here by Rik:
-> > 
-> > 1) treat swap backed pages as nonreclaimable when no swap space is
-> > available.  This addresses a problem we've seen in real life, with
-> > vmscan spending a lot of time trying to reclaim anon/shmem/tmpfs/...
-> > pages only to find that there is no swap space--add_to_swap() fails.
-> > Maybe not a problem with Rik's new anon page handling.
-> 
-> If there is no swap space, my VM code will not bother scanning
-> any anon pages.  This has the same effect as moving the pages
-> to the no-reclaim list, with the extra benefit of being able to
-> resume scanning the anon lists once swap space is freed.
-> 
-> > 2) treat anon pages with "excessively long" anon_vma lists as
-> > nonreclaimable.   "excessively long" here is a sysctl tunable parameter.
-> > This also addresses problems we've seen with benchmarks and stress
-> > tests--all cpus spinning on some anon_vma lock.  In "real life", we've
-> > seen this behavior with file backed pages--spinning on the
-> > i_mmap_lock--running Oracle workloads with user counts in the few
-> > thousands.  Again, something we may not need with Rik's vmscan rework.
-> > If we did want to do this, we'd probably want to address file backed
-> > pages and add support to bring the pages back from the noreclaim list
-> > when the number of "mappers" drops below the threshold.  My current
-> > patch leaves anon pages as non-reclaimable until they're freed, or
-> > manually scanned via the mechanism introduced by patch 12.
-> 
-> I can see some issues with that patch.  Specifically, if the threshold
-> is set too high no pages will be affected, and if the threshold is too
-> low all pages will become non-reclaimable, leading to a false OOM kill.
-> 
-> Not only is it a very big hammer, it's also a rather awkward one...
+On Thu, 3 Jan 2008, Andrea Arcangeli wrote:
 
-Yes, but the problem, when it occurs, is very awkward.  The system just
-hangs for hours/days spinning on the reverse mapping locks--in both
-page_referenced() and try_to_unmap().  No pages get reclaimed and NO OOM
-kill occurs because we never get that far.  So, I'm not sure I'd call
-any OOM kills resulting from this patch as "false".  The memory is
-effectively nonreclaimable.   Now, I think that your anon pages SEQ
-patch will eliminate the contention in page_referenced[_anon](), but we
-could still hang in try_to_unmap().  And we have the issue with file
-back pages and the i_mmap_lock.  I'll see if this issue comes up in
-testings with the current series.  If not, cool!  If so, we just have
-more work to do.
-
-Later,
-Lee
+> But we got to ignore those TIF_MEMDIE tasks unfortunately, or we
+> deadlock, no matter if we're in select_bad_process, or in
+> oom_kill_process. Initially I didn't notice oom_kill_process had that
+> problem so I was then deadlocking despite select_bad_process was
+> selecting the parent that didn't have TIF_MEMDIE set (but the first
+> child already had it).
 > 
+
+Traditionally we've only allowed one thread in the entire system to have 
+TIF_MEMDIE at a time because as you give access to memory reserves to more 
+threads it becomes less of a help to exiting tasks.  So by OOM killing a 
+sibling or parent you could be taking away more memory from the exiting 
+task; hopefully it won't be noticeable and the sibling or parent will 
+quickly exit.
+
+Perhaps instead of killing additional tasks, we should only make the 
+exemption if a TIF_MEMDIE task is TASK_UNINTERRUPTIBLE during the 
+select_bad_process() scan.  I haven't personally witnessed any blocking in 
+the exit path of an OOM killed task that doesn't leave it in D state and 
+prevents it from dying.
+
+> This is the risk of suprious oom killing yes. You got to choose
+> between a deadlock and risking a suprious oom killing. Even when you
+> add your 60second timeout in the task_struct between each new TIF_MEMDIE
+> bitflag set, you're still going to risk spurious oom killing...
+> 
+
+The 60-second (or whatever time limit) timeout would almost certainly 
+always target tasks stuck in D state.  Those tasks will probably never 
+exit if the timeout expires no matter how many times it is OOM killed.  So 
+the best alternative is to then take TIF_MEMDIE away from that task, 
+reduce its timeslice, and never select it again for OOM kill.
+
+If you agree with me that an addition to struct task_struct to keep the 
+jiffies of the time it received TIF_MEMDIE is beneficial then it will 
+obsolete this patch.
+
+> The schedule_timeout in the oom killer and in the VM that I have in my
+> patchset combined with your very limited functionality of
+> zone-oom-lock (limited because it's gone by the time out_of_memory
+> returns and it currently can't take into account when the TIF_MEMDIE
+> task actually exited) in practice didn't generate suprious kills in my
+> testing. It may not be enough but it's a start...
+> 
+
+The zone-oom-lock wasn't intended to necessarily prevent subsequent OOM 
+kills of tasks, it was intended to serialize the OOM killer so that 
+multiple entrants will not be killing additional tasks when one would have 
+sufficed.
+
+It was made on a per-zone level instead of a global level, as your 
+approach did, to support cpusets and memory policy OOM killings.  With a 
+global approach these OOM kills would have taken longer because you were 
+serializing globally and the OOM killer was dealing with a zonelist that 
+wouldn't necessarily have alleviated OOM conditions in other zones.
+
+		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
