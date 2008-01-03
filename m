@@ -1,49 +1,38 @@
-Date: Thu, 3 Jan 2008 17:00:35 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [patch 00/19] VM pageout scalability improvements
-Message-ID: <20080103170035.105d22c8@cuia.boston.redhat.com>
-In-Reply-To: <1199380412.5295.29.camel@localhost>
-References: <20080102224144.885671949@redhat.com>
-	<1199379128.5295.21.camel@localhost>
-	<20080103120000.1768f220@cuia.boston.redhat.com>
-	<1199380412.5295.29.camel@localhost>
+Date: Thu, 3 Jan 2008 22:23:58 +0000
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: [patch] i386: avoid expensive ppro ordering workaround for
+ default 686 kernels
+Message-ID: <20080103222358.3632785d@lxorguk.ukuu.org.uk>
+In-Reply-To: <1199391643.7291.15.camel@pasglop>
+References: <20071218012632.GA23110@wotan.suse.de>
+	<20071222005737.2675c33b.akpm@linux-foundation.org>
+	<20071223055730.GA29288@wotan.suse.de>
+	<20071222223234.7f0fbd8a.akpm@linux-foundation.org>
+	<20071223071529.GC29288@wotan.suse.de>
+	<alpine.LFD.0.9999.0712230900310.21557@woody.linux-foundation.org>
+	<20080101234133.4a744329@the-village.bc.nu>
+	<20080102110225.GA16154@wotan.suse.de>
+	<20080102134433.6ca82011@the-village.bc.nu>
+	<20080103041708.GB26487@wotan.suse.de>
+	<20080103142330.111d4067@lxorguk.ukuu.org.uk>
+	<1199391643.7291.15.camel@pasglop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Eric Whitney <eric.whitney@hp.com>
+To: benh@kernel.crashing.org
+Cc: Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 03 Jan 2008 12:13:32 -0500
-Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+On Fri, 04 Jan 2008 07:20:43 +1100
+> > Whether that actually matters in any code we have I don't know.
+> 
+> It matters with writes to MMIO at least, I don't know if your PPro bug
+> can cause that to be re-ordered tho.
 
-> Yes, but the problem, when it occurs, is very awkward.  The system just
-> hangs for hours/days spinning on the reverse mapping locks--in both
-> page_referenced() and try_to_unmap().  No pages get reclaimed and NO OOM
-> kill occurs because we never get that far.  So, I'm not sure I'd call
-> any OOM kills resulting from this patch as "false".  The memory is
-> effectively nonreclaimable.   Now, I think that your anon pages SEQ
-> patch will eliminate the contention in page_referenced[_anon](), but we
-> could still hang in try_to_unmap().
-
-I am hoping that Nick's ticket spinlocks will fix this problem.
-
-Would you happen to have any test cases for the above problem that
-I could use to reproduce the problem and look for an automatic fix?
-
-Any fix that requires the sysadmin to tune things _just_ right seems
-too dangerous to me - especially if a change in the workload can
-result in the system doing exactly the wrong thing...
-
-The idea is valid, but it just has to work automagically.
-
-Btw, if page_referenced() is called less, the locks that try_to_unmap()
-also takes should get less contention.
-
--- 
-All Rights Reversed
+In certain cases yes - the 3Dfx Voodoo cards were particularly good at
+triggering it as they map the command registers cleverly to get bursts.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
