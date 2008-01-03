@@ -1,61 +1,68 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28esmtp04.in.ibm.com (8.13.1/8.13.1) with ESMTP id m034GBif024767
-	for <linux-mm@kvack.org>; Thu, 3 Jan 2008 09:46:11 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m034GBPs889026
-	for <linux-mm@kvack.org>; Thu, 3 Jan 2008 09:46:11 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id m034GB2R020624
-	for <linux-mm@kvack.org>; Thu, 3 Jan 2008 04:16:11 GMT
-Date: Thu, 3 Jan 2008 09:46:06 +0530
-From: Dhaval Giani <dhaval@linux.vnet.ibm.com>
-Subject: Re: 2.6.22-stable causes oomkiller to be invoked
-Message-ID: <20080103041606.GC26166@linux.vnet.ibm.com>
-Reply-To: Dhaval Giani <dhaval@linux.vnet.ibm.com>
-References: <20071217045904.GB31386@linux.vnet.ibm.com> <Pine.LNX.4.64.0712171143280.12871@schroedinger.engr.sgi.com> <20071217120720.e078194b.akpm@linux-foundation.org> <Pine.LNX.4.64.0712171222470.29500@schroedinger.engr.sgi.com> <20071221044508.GA11996@linux.vnet.ibm.com> <Pine.LNX.4.64.0712261258050.16862@schroedinger.engr.sgi.com> <20071228101109.GB5083@linux.vnet.ibm.com> <Pine.LNX.4.64.0801021237330.21526@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0801021346580.3778@schroedinger.engr.sgi.com> <20080103035942.GB26166@linux.vnet.ibm.com>
-MIME-Version: 1.0
+Date: Thu, 3 Jan 2008 05:17:08 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] i386: avoid expensive ppro ordering workaround for default 686 kernels
+Message-ID: <20080103041708.GB26487@wotan.suse.de>
+References: <20071218012632.GA23110@wotan.suse.de> <20071222005737.2675c33b.akpm@linux-foundation.org> <20071223055730.GA29288@wotan.suse.de> <20071222223234.7f0fbd8a.akpm@linux-foundation.org> <20071223071529.GC29288@wotan.suse.de> <alpine.LFD.0.9999.0712230900310.21557@woody.linux-foundation.org> <20080101234133.4a744329@the-village.bc.nu> <20080102110225.GA16154@wotan.suse.de> <20080102134433.6ca82011@the-village.bc.nu>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080103035942.GB26166@linux.vnet.ibm.com>
+In-Reply-To: <20080102134433.6ca82011@the-village.bc.nu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, htejun@gmail.com, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Balbir Singh <balbir@in.ibm.com>, maneesh@linux.vnet.ibm.com, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 03, 2008 at 09:29:42AM +0530, Dhaval Giani wrote:
-> On Wed, Jan 02, 2008 at 01:54:12PM -0800, Christoph Lameter wrote:
-> > Just traced it again on my system: It is okay for the number of pages on 
-> > the quicklist to reach the high count that we see (although the 16 bit 
-> > limits are weird. You have around 4GB of memory in the system?). Up to 
-> > 1/16th of free memory of a node can be allocated for quicklists (this 
-> > allows the effective shutting down and restarting of large amounts of 
-> > processes)
-> > 
-> > The problem may be that this is run on a HIGHMEM system and the 
-> > calculation of allowable pages on the quicklists does not take into 
-> > account that highmem pages are not usable for quicklists (not sure about 
-> > ZONE_MOVABLE on i386. Maybe we need to take that into account as well?)
-> > 
-> > Here is a patch that removes the HIGHMEM portion from the calculation. 
-> > Does this change anything:
-> > 
+On Wed, Jan 02, 2008 at 01:44:33PM +0000, Alan Cox wrote:
+> > Take a different approach: after this patch, we just disable all but one CPU on those
+> > systems, and print a warning. Also printed is a suggestion for a new CONFIG option that
+> > can be enabled for the previous behaviour.
 > 
-> Yep. This one hits it. I don't see the obvious signs of the oom
-> happening in the 5 mins I have run the script. I will let it run for
-> some more time.
+> How does that help. The processor isn't the only bus master.
+
+Hmm, I don't understand what you mean. Obviously other busmasters aren't
+participating in any locking or smp_*mb() ordering protocols.
+
+The non-smp_-prefixed barriers are retained.
+
+ 
+> Maybe this works as a SuSE specific convenience solution aligned to
+> your particular build pattern but it isn't the right solution for
+> upstream IMHO. 
+
+Actually it is nothing to do with SUSE but I was using SLES as a counterexample
+when you said nobody would care about M686 with SMP builds. The reason for the
+patch is because I noticed the suboptimal configuration (because Andrew flagged
+my patch).
+ 
+
+> We should either
 > 
+> - re-order the assumed processor generations supported to put VIA C3/C5
+> above Preventium Pro
 
-Yes, no oom even after 20 mins of running (which is double the normal
-time for the oom to occur), also no changes in free lowmem.
+Adrian Bunk's patch to make each CPU type explicitly selectable IMO is the
+best way to do this.
 
-Thanks for the fix. Feel free to add a 
 
-Tested-by: Dhaval Giani <dhaval@linux.vnet.ibm.com>
+> - fix the gcc or gcc settings not to generate invalid cmov instructions
+> on 686. cmov is slower on all the modern processors anyway.
 
--- 
-regards,
-Dhaval
+Not for unpredictable branches, but I agree gcc seems to use it too often
+(in my version, it seems to even use it for likely/unlikely branches :( ).
+
+ 
+> And you change the assumption that 586 < 686 < PPro < PII < PIII ...
+> 
+> to 586 < 686 < PPro < C3 < PII < ...
+> 
+> then selecting VIA C3 support will get you a kernel with the properties
+> all the distribution vendors want for their higher end mainstream kernel -
+> "runs on modern systems".
+
+I don't agree. If we support those options, we should support them properly.
+And if you build an SMP kernel for a 586 for example, you should not get lumped
+with those pentiumpro workarounds.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
