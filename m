@@ -1,43 +1,33 @@
-Date: Wed, 2 Jan 2008 22:23:34 -0000
-From: "Rodrigo Rubira Branco (BSDaemon)" <rodrigo@kernelhacking.com>
-Reply-to: "Rodrigo Rubira Branco (BSDaemon)" <rodrigo@kernelhacking.com>
-Subject: [ANNOUNCE] ebizzy 0.3 released
-Content-Transfer-Encoding: 7BIT
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
-Message-Id: <20080103002334.58FC78BD86@mail.fjaunet.com.br>
+Content-Transfer-Encoding: 7bit
+Subject: [PATCH 00 of 11] oom deadlock fixes
+Message-Id: <patchbomb.1199326146@v2.random>
+Date: Thu, 03 Jan 2008 03:09:06 +0100
+From: Andrea Arcangeli <andrea@cpushare.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: tech-kern@netbsd.org, "linux-kernel@vger.kernel.org"@fjaunet.com.br, "linux-mm@kvack.org"@fjaunet.com.br
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-ebizzy is designed to generate a workload resembling common web application
-server workloads.  It is especially useful for testing
-changes to memory management, and whenever a highly threaded application
-with a large working set and many vmas is needed.
+Hello,
 
-This is release 0.3 of ebizzy.  It reports a rate of transactions per
-second, compiles on Linux/Solaris/FreeBSD/HPUX, and scales better.
+I rebased the patchset that fixes certain oom deadlocks that are still
+reproducible with mainline.
 
-Available for download at:
+I removed the global VM_is_OOM to keep the fixes to the minimum required to not
+be kernel-crashing, I adapted to the introduction of the zone-oom-lock bitflag,
+so with this update I hopefully have a better chance for merging.
 
-http://ebizzy.sf.net
+Despite the lack of VM_is_OOM perfect oom-killing serialization, and the need
+to avoid waiting forever on TIF_MEMDIE to prevent deadlocks, in practice with
+swap it seem not to generate bad spurious kills and it avoids the deadlock as
+well as my older patchset. We can always perfect this later with feedback
+coming from do_exit.
 
-
-
-Rodrigo (BSDaemon).
-
---
-http://www.kernelhacking.com/rodrigo
-
-Kernel Hacking: If i really know, i can hack
-
-GPG KeyID: 1FCEDEA1
-
-
-
-________________________________________________
-Message sent using UebiMiau 2.7.2
+Thanks.
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
