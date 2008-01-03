@@ -1,68 +1,29 @@
-Date: Thu, 3 Jan 2008 02:08:31 +0100
+Date: Thu, 3 Jan 2008 02:12:31 +0100
 From: Andrea Arcangeli <andrea@cpushare.com>
-Subject: Re: [PATCH 10 of 24] stop useless vm trashing while we wait the
-	TIF_MEMDIE task to exit
-Message-ID: <20080103010831.GL30939@v2.random>
-References: <edb3af3e0d4f2c083c8d.1187786937@v2.random> <alpine.DEB.0.9999.0709211208140.11391@chino.kir.corp.google.com>
+Subject: Re: [PATCH 15 of 24] limit reclaim if enough pages have been freed
+Message-ID: <20080103011231.GM30939@v2.random>
+References: <patchbomb.1187786927@v2.random> <94686cfcd27347e83a6a.1187786942@v2.random> <20070912055723.c4f79f9a.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.0.9999.0709211208140.11391@chino.kir.corp.google.com>
+In-Reply-To: <20070912055723.c4f79f9a.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 21, 2007 at 12:10:23PM -0700, David Rientjes wrote:
-> On Wed, 22 Aug 2007, Andrea Arcangeli wrote:
-> 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -1028,6 +1028,8 @@ static unsigned long shrink_zone(int pri
-> >  		nr_inactive = 0;
-> >  
-> >  	while (nr_active || nr_inactive) {
-> > +		if (is_VM_OOM())
-> > +			break;
-> >  		if (nr_active) {
-> >  			nr_to_scan = min(nr_active,
-> >  					(unsigned long)sc->swap_cluster_max);
-> 
-> This will need to use the new OOM zone-locking interface.  shrink_zones() 
-> accepts struct zone** as one of its formals so while traversing each zone 
-> this would simply become a test of zone_is_oom_locked(*z).
+On Wed, Sep 12, 2007 at 05:57:23AM -0700, Andrew Morton wrote:
+> whoa, that's a huge change to the scanning logic.  Suppose we've decided to
+> scan 1,000,000 active pages and 42 inactive pages.  With this change we'll
+> bale out after scanning the 42 inactive pages.  The change to the
+> inactive/active balancing logic is potentially large.
 
-yes I changed this with zone_is_oom_locked. same logic as before, to
-spend the time in schedule_timeout while the system tries to solve the
-oom condition instead of trashing the whole cpu caches over the lru.
-
-> 
-> > @@ -1138,6 +1140,17 @@ unsigned long try_to_free_pages(struct z
-> >  	}
-> >  
-> >  	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
-> > +		if (is_VM_OOM()) {
-> > +			if (!test_thread_flag(TIF_MEMDIE)) {
-> > +				/* get out of the way */
-> > +				schedule_timeout_interruptible(1);
-> > +				/* don't waste cpu if we're still oom */
-> > +				if (is_VM_OOM())
-> > +					goto out;
-> > +			} else
-> > +				goto out;
-> > +		}
-> > +
-> >  		sc.nr_scanned = 0;
-> >  		if (!priority)
-> >  			disable_swap_token();
-> > 
-> 
-> Same as above, and it becomes trivial since try_to_free_pages() also 
-> accepts a struct zone** formal.
-
-yes, converted this too.
+Could be, but I don't think it's good to do such an overwork on large
+ram systems when freeing swap-cluster-max pages is enough to guarantee
+we're not getting spurious oom. It's a latency issue only here (not RT
+at all, but still a latency issue). Anyway feel free to keep this
+out. It's mostly independent from the rest.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
