@@ -1,71 +1,65 @@
-Date: Thu, 3 Jan 2008 14:41:37 +0100
-From: Andrea Arcangeli <andrea@cpushare.com>
-Subject: Re: [PATCH 04 of 11] avoid selecting already killed tasks
-Message-ID: <20080103134137.GT30939@v2.random>
-References: <4cf8805b5695a8a3fb7c.1199326150@v2.random> <alpine.DEB.0.9999.0801030134130.25018@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.0.9999.0801030134130.25018@chino.kir.corp.google.com>
+Date: Thu, 3 Jan 2008 14:23:30 +0000
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: [patch] i386: avoid expensive ppro ordering workaround for
+ default 686 kernels
+Message-ID: <20080103142330.111d4067@lxorguk.ukuu.org.uk>
+In-Reply-To: <20080103041708.GB26487@wotan.suse.de>
+References: <20071218012632.GA23110@wotan.suse.de>
+	<20071222005737.2675c33b.akpm@linux-foundation.org>
+	<20071223055730.GA29288@wotan.suse.de>
+	<20071222223234.7f0fbd8a.akpm@linux-foundation.org>
+	<20071223071529.GC29288@wotan.suse.de>
+	<alpine.LFD.0.9999.0712230900310.21557@woody.linux-foundation.org>
+	<20080101234133.4a744329@the-village.bc.nu>
+	<20080102110225.GA16154@wotan.suse.de>
+	<20080102134433.6ca82011@the-village.bc.nu>
+	<20080103041708.GB26487@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 03, 2008 at 01:40:09AM -0800, David Rientjes wrote:
-> On Thu, 3 Jan 2008, Andrea Arcangeli wrote:
+> Hmm, I don't understand what you mean. Obviously other busmasters aren't
+> participating in any locking or smp_*mb() ordering protocols.
+
+The unlock paths are visible to busmasters
+
+		write to DMA buffer
+		unlock
+can turn into
+
+		unlock
+		write to DMA buffer
+
+Whether that actually matters in any code we have I don't know.
+
+> > - re-order the assumed processor generations supported to put VIA C3/C5
+> > above Preventium Pro
 > 
-> > avoid selecting already killed tasks
+> Adrian Bunk's patch to make each CPU type explicitly selectable IMO is the
+> best way to do this.
+
+If you get to pick the combination you want then yes.
+
+> > to 586 < 686 < PPro < C3 < PII < ...
 > > 
-> > If the killed task doesn't go away because it's waiting on some other
-> > task who needs to allocate memory, to release the i_sem or some other
-> > lock, we must fallback to killing some other task in order to kill the
-> > original selected and already oomkilled task, but the logic that kills
-> > the childs first, would deadlock, if the already oom-killed task was
-> > actually the first child of the newly oom-killed task.
-> > 
+> > then selecting VIA C3 support will get you a kernel with the properties
+> > all the distribution vendors want for their higher end mainstream kernel -
+> > "runs on modern systems".
 > 
-> The problem is that this can cause the parent or one of its children to be 
-> unnecessarily killed.
+> I don't agree. If we support those options, we should support them properly.
+> And if you build an SMP kernel for a 586 for example, you should not get lumped
+> with those pentiumpro workarounds.
 
-Well, the single fact I'm skipping over the TIF_MEMDIE tasks to
-prevent deadlocks, allows for spurious oom killing again. Like you
-said we can later add a per-task timeout so we wait only X seconds for
-a certain TIF_MEMDIE task to quit before selecting another one.
+The cost on a 586 SMP box (ie pentium) is basically nil. All cross CPU
+transactions are hideously slow anyway locked or not. On a PII or later I
+agree entirely you don't want them by default.
 
-But we got to ignore those TIF_MEMDIE tasks unfortunately, or we
-deadlock, no matter if we're in select_bad_process, or in
-oom_kill_process. Initially I didn't notice oom_kill_process had that
-problem so I was then deadlocking despite select_bad_process was
-selecting the parent that didn't have TIF_MEMDIE set (but the first
-child already had it).
-
-> Regardless of any OOM killer sychronization that we do, it is still 
-> possible for the OOM killer to return after killing a task and then 
-> another OOM situation be triggered on a subsequent allocation attempt 
-> before the killed task has exited.  It's still marked as TIF_MEMDIE, so 
-> your change will exempt it from being a target again and one of its 
-> siblings or, worse, it's parent will be killed.
-
-This is the risk of suprious oom killing yes. You got to choose
-between a deadlock and risking a suprious oom killing. Even when you
-add your 60second timeout in the task_struct between each new TIF_MEMDIE
-bitflag set, you're still going to risk spurious oom killing...
-
-The schedule_timeout in the oom killer and in the VM that I have in my
-patchset combined with your very limited functionality of
-zone-oom-lock (limited because it's gone by the time out_of_memory
-returns and it currently can't take into account when the TIF_MEMDIE
-task actually exited) in practice didn't generate suprious kills in my
-testing. It may not be enough but it's a start...
-
-> You can't guarantee that this couldn't have been prevented given 
-> sufficient time for the exiting task to die, so this change introduces the 
-> possibility that tasks will unnecessarily be killed to alleviate the OOM 
-> condition.
-
-Not just to 'alleviate' the oom condition, but to prevent a system crash.
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
