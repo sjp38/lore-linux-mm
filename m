@@ -1,10 +1,11 @@
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 05 of 11] reduce the probability of an OOM livelock
-Message-Id: <fc9148f0ddd0ef11be29.1199326151@v2.random>
+Subject: [PATCH 06 of 11] balance_pgdat doesn't return the number of pages
+	freed
+Message-Id: <4ef302dd29164e19111c.1199326152@v2.random>
 In-Reply-To: <patchbomb.1199326146@v2.random>
-Date: Thu, 03 Jan 2008 03:09:11 +0100
+Date: Thu, 03 Jan 2008 03:09:12 +0100
 From: Andrea Arcangeli <andrea@cpushare.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -14,93 +15,45 @@ List-ID: <linux-mm.kvack.org>
 
 # HG changeset patch
 # User Andrea Arcangeli <andrea@suse.de>
-# Date 1199324664 -3600
-# Node ID fc9148f0ddd0ef11be29dba89e3fc96df8f0b9bf
-# Parent  4cf8805b5695a8a3fb7c1d11fa4d41d0b2650cb0
-reduce the probability of an OOM livelock
+# Date 1199324665 -3600
+# Node ID 4ef302dd29164e19111c49bb0db2ad4840eace18
+# Parent  fc9148f0ddd0ef11be29dba89e3fc96df8f0b9bf
+balance_pgdat doesn't return the number of pages freed
 
-There's no need to loop way too many times over the lrus in order to
-declare defeat and decide to kill a task. The more loops we do the more
-likely there we'll run in a livelock with a page bouncing back and
-forth between tasks. The maximum number of entries to check in a loop
-that returns less than swap-cluster-max pages freed, should be the size
-of the list (or at most twice the size of the list if you want to be
-really paranoid about the PG_referenced bit).
-
-Our objective there is to know reliably when it's time that we kill a
-task, tring to free a few more pages at that already ciritical point is
-worthless.
-
-This seems to have the effect of reducing the "hang" time during oom
-killing.
+nr_reclaimed would be the number of pages freed in the last pass.
 
 Signed-off-by: Andrea Arcangeli <andrea@suse.de>
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1211,7 +1211,6 @@ unsigned long try_to_free_pages(struct z
+@@ -1298,8 +1298,6 @@ out:
+  * For kswapd, balance_pgdat() will work across all this node's zones until
+  * they are all at pages_high.
+  *
+- * Returns the number of pages which were actually freed.
+- *
+  * There is special handling here for zones which are full of pinned pages.
+  * This can happen if the pages are all mlocked, or if they are all used by
+  * device drivers (say, ZONE_DMA).  Or if they are all in use by hugetlb.
+@@ -1315,7 +1313,7 @@ out:
+  * the page allocator fallback scheme to ensure that aging of pages is balanced
+  * across the zones.
+  */
+-static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
++static void balance_pgdat(pg_data_t *pgdat, int order)
+ {
+ 	int all_zones_ok;
  	int priority;
- 	int ret = 0;
- 	unsigned long total_scanned = 0;
--	unsigned long nr_reclaimed = 0;
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	unsigned long lru_pages = 0;
- 	int i;
-@@ -1237,15 +1236,17 @@ unsigned long try_to_free_pages(struct z
+@@ -1475,8 +1473,6 @@ out:
+ 
+ 		goto loop_again;
  	}
+-
+-	return nr_reclaimed;
+ }
  
- 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
-+		unsigned long nr_reclaimed;
-+
- 		sc.nr_scanned = 0;
- 		if (!priority)
- 			disable_swap_token();
--		nr_reclaimed += shrink_zones(priority, zones, &sc);
-+		nr_reclaimed = shrink_zones(priority, zones, &sc);
-+		if (reclaim_state)
-+			reclaim_state->reclaimed_slab = 0;
- 		shrink_slab(sc.nr_scanned, gfp_mask, lru_pages);
--		if (reclaim_state) {
-+		if (reclaim_state)
- 			nr_reclaimed += reclaim_state->reclaimed_slab;
--			reclaim_state->reclaimed_slab = 0;
--		}
- 		total_scanned += sc.nr_scanned;
- 		if (nr_reclaimed >= sc.swap_cluster_max) {
- 			ret = 1;
-@@ -1320,7 +1321,6 @@ static unsigned long balance_pgdat(pg_da
- 	int priority;
- 	int i;
- 	unsigned long total_scanned;
--	unsigned long nr_reclaimed;
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	struct scan_control sc = {
- 		.gfp_mask = GFP_KERNEL,
-@@ -1337,7 +1337,6 @@ static unsigned long balance_pgdat(pg_da
- 
- loop_again:
- 	total_scanned = 0;
--	nr_reclaimed = 0;
- 	sc.may_writepage = !laptop_mode;
- 	count_vm_event(PAGEOUTRUN);
- 
-@@ -1347,6 +1346,7 @@ loop_again:
- 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
- 		int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
- 		unsigned long lru_pages = 0;
-+		unsigned long nr_reclaimed;
- 
- 		/* The swap token gets in the way of swapout... */
- 		if (!priority)
-@@ -1393,6 +1393,7 @@ loop_again:
- 		 * pages behind kswapd's direction of progress, which would
- 		 * cause too much scanning of the lower zones.
- 		 */
-+		nr_reclaimed = 0;
- 		for (i = 0; i <= end_zone; i++) {
- 			struct zone *zone = pgdat->node_zones + i;
- 			int nr_slab;
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
