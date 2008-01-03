@@ -1,47 +1,86 @@
-Date: Thu, 3 Jan 2008 10:54:04 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 11 of 11] not-wait-memdie
-In-Reply-To: <20080103130656.GR30939@v2.random>
-Message-ID: <alpine.DEB.0.9999.0801031051260.27032@chino.kir.corp.google.com>
-References: <504e981185254a12282d.1199326157@v2.random> <alpine.DEB.0.9999.0801030152540.25018@chino.kir.corp.google.com> <20080103130656.GR30939@v2.random>
+Date: Thu, 3 Jan 2008 20:54:33 +0100
+From: Andrea Arcangeli <andrea@cpushare.com>
+Subject: Re: [PATCH 04 of 11] avoid selecting already killed tasks
+Message-ID: <20080103195433.GW30939@v2.random>
+References: <4cf8805b5695a8a3fb7c.1199326150@v2.random> <alpine.DEB.0.9999.0801030134130.25018@chino.kir.corp.google.com> <20080103134137.GT30939@v2.random> <alpine.DEB.0.9999.0801031036110.27032@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.0.9999.0801031036110.27032@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@cpushare.com>
+To: David Rientjes <rientjes@google.com>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Jan 2008, Andrea Arcangeli wrote:
+On Thu, Jan 03, 2008 at 10:47:33AM -0800, David Rientjes wrote:
+> Traditionally we've only allowed one thread in the entire system to have 
+> TIF_MEMDIE at a time because as you give access to memory reserves to more 
+> threads it becomes less of a help to exiting tasks.  So by OOM killing a 
+> sibling or parent you could be taking away more memory from the exiting 
+> task; hopefully it won't be noticeable and the sibling or parent will 
+> quickly exit.
 
-> > So I think we're moving in a direction of requiring OOM killer timeouts 
-> > and the only plausible way to do that is on a per-task level.  It would 
-> > require another unsigned long addition to struct task_struct but would 
-> > completely fix OOM killer deadlocks.
-> 
-> Yes. That can be added incrementally in a later patch, it's a new
-> logic. In the meantime the deadlock is gone.
-> 
+In theory no memory allocation should be required in do_exit.... in
+practice sometime it can happen, but the PF_MEMALLOC pool is available
+and can be emptied way before the first task has been killed, and the
+potential eaters of the PF_MEMALLOC pool are much heavier users than
+the do_exit path, so I doubt worrying about the memory reserves by the
+time TIF_MEMDIE has been set is a valid concern.
 
-In the "meantime" assumes that this patch is added before a jiffies 
-count is added to struct task_struct to detect OOM killer timeouts.  
-Since per-task OOM killer timeouts will obsolete this change, it doesn't 
-seem beneficial to add.
+> Perhaps instead of killing additional tasks, we should only make the 
+> exemption if a TIF_MEMDIE task is TASK_UNINTERRUPTIBLE during the 
+> select_bad_process() scan.  I haven't personally witnessed any blocking in 
+> the exit path of an OOM killed task that doesn't leave it in D state and 
+> prevents it from dying.
 
-> In practice there's a sort of timeout already, the oom-killing task
-> will schedule_timeout(1) with the zone-oom-lock hold, and all other
-> tasks trying to free memory (except the TIF_MEMDIE one) will also
-> schedule_timeout(1) inside the VM code. That tends to prevent spurious
-> kills already but it's far from a guarantee.
-> 
+Initially I did this. But there are places where the task is
+INTERRUPTIBLE too (like the ones I introduced). I felt it a bit weak.
 
-I agree, it's not a guarantee because of tasks that can get stuck in D 
-state and never exit after repeatedly being OOM killed.  OOM killer 
-timeouts would solve that problem and would be able to scale the offending 
-task back by removing access to memory reserves and reducing its 
-timeslice.
+> The 60-second (or whatever time limit) timeout would almost certainly 
+> always target tasks stuck in D state.  Those tasks will probably never 
 
-		David
+yes.
+
+> exit if the timeout expires no matter how many times it is OOM killed.  So 
+
+yes.
+
+> the best alternative is to then take TIF_MEMDIE away from that task, 
+> reduce its timeslice, and never select it again for OOM kill.
+
+The TIF_MEMDIE undoing isn't a big deal. Sigkilling undoing is more
+interesting.
+
+> If you agree with me that an addition to struct task_struct to keep the 
+> jiffies of the time it received TIF_MEMDIE is beneficial then it will 
+> obsolete this patch.
+
+I tried to prioritize and reduce and simplify the amount of stuff to
+push to the minimum to be stable, but certainly I'd like to take the
+more complex approach too, yet I'd keep it at the end to keep the
+priority high on preventing the crash with small changes. I was being
+more complex originally with a global timeout, still simpler than your
+per-task timeout, and yet it wasn't merged as style changes
+to such code bitrotten the patchset I guess.
+
+> The zone-oom-lock wasn't intended to necessarily prevent subsequent OOM 
+> kills of tasks, it was intended to serialize the OOM killer so that 
+> multiple entrants will not be killing additional tasks when one would have 
+> sufficed.
+
+I know. I introduced the semaphore myself for this reason. But I also
+had additional feedback coming from do_exit which is missing now...
+
+> It was made on a per-zone level instead of a global level, as your 
+> approach did, to support cpusets and memory policy OOM killings.  With a 
+> global approach these OOM kills would have taken longer because you were 
+> serializing globally and the OOM killer was dealing with a zonelist that 
+> wouldn't necessarily have alleviated OOM conditions in other zones.
+
+I know, scaling oom killing in parallel in numa is nicer but in
+practice oom is rare and should never happen... so my global approach
+wasn't that different ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
