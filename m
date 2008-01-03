@@ -1,46 +1,61 @@
-Date: Thu, 3 Jan 2008 04:32:46 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] mm: fix PageUptodate memory ordering bug
-Message-ID: <20080103033245.GA26487@wotan.suse.de>
-References: <20071218012632.GA23110@wotan.suse.de> <20071230163315.GA1384@elte.hu> <20080101232634.GA29301@wotan.suse.de> <200801022201.28025.ak@suse.de>
+Date: Wed, 2 Jan 2008 22:44:50 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [patch 00/19] VM pageout scalability improvements
+Message-ID: <20080102224450.585bf956@bree.surriel.com>
+In-Reply-To: <20080102224144.885671949@redhat.com>
+References: <20080102224144.885671949@redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200801022201.28025.ak@suse.de>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>
+To: linux-kernel@vger.kernelporg
+Cc: linux-mm@kvack.org, lee.schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 02, 2008 at 10:01:27PM +0100, Andi Kleen wrote:
-> On Wednesday 02 January 2008 00:26:34 Nick Piggin wrote:
-> > On Sun, Dec 30, 2007 at 05:33:15PM +0100, Ingo Molnar wrote:
-> > > 
-> > > * Nick Piggin <npiggin@suse.de> wrote:
-> > > 
-> > > > > Sounds worthwhile, if we can't do it via altinstructions.
-> > > > 
-> > > > Altinstructions means we still have code bloat, and sometimes extra 
-> > > > branches etc (an extra 900 bytes of icache in mm/ alone, even before 
-> > > > my fix). I'll let Linus or one of the x86 guys weigh in, though. It's 
-> > > > a really sad cost for distro kernels to carry.
-> > > 
-> > > hm, we should at minimum display a warning if the workaround is not 
-> > > enabled and such a kernel is booted on a true PPro that is affected by 
-> > > this.
-> > 
-> > The patch does have the warning:
-> >   printk(KERN_INFO "Pentium Pro with Errata#66, #92 detected. Limiting maxcpus to 1.
-> >          Enable CONFIG_X86_BROKEN_PPRO_SMP to run with multiple CPUs\n");
-> 
-> Haven't seen the full patch, but the printk suggest you're changing the max_cpus 
-> variable. That is not 100% safe because user space could hot plug CPUs later
-> using sysfs. The only safe way would be to limit cpu_possible_map
+On Wed, 02 Jan 2008 17:41:44 -0500
+linux-kernel@vger.kernelporg wrote:
 
-Hmm, but I did want to allow it to be overridden via maxcpus= command line (or
-hotplug I guess, I hadn't thought of the hotplug case but it allows runtime
-override).
+> This patch series improves VM scalability by:
+
+> 3) switching to SEQ replacement for the anonymous LRUs, so the
+>    number of pages that need to be scanned when the system
+>    starts swapping is bound to a reasonable number
+
+I have done some (minimal) testing of this tonight.
+
+Running a 16000 MB fillmem on my 16GB test box (where slub
+eats up unexplainable amounts of memory so the test gets about
+14GB RSS and 1.5GB in swap).
+
+2.6.24-rc6-mm1
+
+$ time ./fillmem 16000
+real    3m43.601s
+user    0m11.090s
+sys     0m55.274s
+
+2.6.24-rc6-mm1-vmsplit
+
+$ time ./fillmem 16000
+real    1m51.323s
+user    0m10.638s
+sys     0m42.859s
+
+This is after carefully emptying out all memory by rebooting
+the system and running fillmem a few times.  These results are
+repeatable.
+
+With vanilla 2.6.24-rc6-mm1, kswapd eats up 99% of the CPU at
+a few points in the test run.  This never seems to happen with
+the vmsplit kernel.
+
+Unfortunately the symbol file for vanilla 2.6.24-rc6-mm1 seems
+to be hosed, so readprofile is not returning anything useful on
+that kernel.  I'll try to come up with more useful data later.
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
