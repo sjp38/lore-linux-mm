@@ -1,39 +1,45 @@
-Date: Thu, 3 Jan 2008 09:55:25 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [patch 02/20] make the inode i_mmap_lock a reader/writer lock
-Message-ID: <20080103085525.GB10813@elte.hu>
-References: <20071218211539.250334036@redhat.com> <200712201859.12934.nickpiggin@yahoo.com.au> <477C1FB6.5050905@sgi.com> <200801031707.14607.nickpiggin@yahoo.com.au>
+Date: Thu, 3 Jan 2008 01:40:09 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 04 of 11] avoid selecting already killed tasks
+In-Reply-To: <4cf8805b5695a8a3fb7c.1199326150@v2.random>
+Message-ID: <alpine.DEB.0.9999.0801030134130.25018@chino.kir.corp.google.com>
+References: <4cf8805b5695a8a3fb7c.1199326150@v2.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200801031707.14607.nickpiggin@yahoo.com.au>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Mike Travis <travis@sgi.com>, Christoph Lameter <clameter@sgi.com>, Peter Zijlstra <peterz@infradead.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@cpushare.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-* Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+On Thu, 3 Jan 2008, Andrea Arcangeli wrote:
 
-> > Have you done anything more with allowing > 256 CPUS in this 
-> > spinlock patch?  We've been testing with 1k cpus and to verify with 
-> > -mm kernel, we need to "unpatch" these spinlock changes.
+> avoid selecting already killed tasks
 > 
-> Hi Mike,
+> If the killed task doesn't go away because it's waiting on some other
+> task who needs to allocate memory, to release the i_sem or some other
+> lock, we must fallback to killing some other task in order to kill the
+> original selected and already oomkilled task, but the logic that kills
+> the childs first, would deadlock, if the already oom-killed task was
+> actually the first child of the newly oom-killed task.
 > 
-> Actually I had it in my mind that 64 bit used single-byte locking like 
-> i386, so I didn't think I'd caused a regression there.
-> 
-> I'll take a look at fixing that up now.
 
-thanks - this is a serious showstopper for the ticket spinlock patch. 
+The problem is that this can cause the parent or one of its children to be 
+unnecessarily killed.
 
-( which has otherwise been performing very well in x86.git so far - it 
-  has passed a few thousand bootup tests on 64-bit and 32-bit as well, 
-  so we are close to it being in a mergable state. Would be a pity to
-  lose it due to the 256 cpus limit. )
+Regardless of any OOM killer sychronization that we do, it is still 
+possible for the OOM killer to return after killing a task and then 
+another OOM situation be triggered on a subsequent allocation attempt 
+before the killed task has exited.  It's still marked as TIF_MEMDIE, so 
+your change will exempt it from being a target again and one of its 
+siblings or, worse, it's parent will be killed.
 
-	Ingo
+You can't guarantee that this couldn't have been prevented given 
+sufficient time for the exiting task to die, so this change introduces the 
+possibility that tasks will unnecessarily be killed to alleviate the OOM 
+condition.
+
+		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
