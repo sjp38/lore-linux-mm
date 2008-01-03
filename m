@@ -1,35 +1,83 @@
-Date: Wed, 2 Jan 2008 18:53:26 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: why do we call clear_active_flags in shrink_inactive_list ?
-Message-ID: <20080102185326.66a3a883@bree.surriel.com>
-In-Reply-To: <44c63dc40712292332s4a2e7e4aief37a2dbdd03fc21@mail.gmail.com>
-References: <44c63dc40712292332s4a2e7e4aief37a2dbdd03fc21@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 3 Jan 2008 01:53:42 +0100
+From: Andrea Arcangeli <andrea@cpushare.com>
+Subject: Re: [PATCH 03 of 24] prevent oom deadlocks during read/write
+	operations
+Message-ID: <20080103005341.GG30939@v2.random>
+References: <patchbomb.1187786927@v2.random> <5566f2af006a171cd47d.1187786930@v2.random> <20070912045659.2cd1ede6.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070912045659.2cd1ede6.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: minchan Kim <barrioskmc@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 30 Dec 2007 16:32:42 +0900
-"minchan Kim" <barrioskmc@gmail.com> wrote:
+On Wed, Sep 12, 2007 at 04:56:59AM -0700, Andrew Morton wrote:
+> The patch adds sixty-odd bytes of text to some of the most-used code in the
+> kernel.  Based on the above problem description I'm doubting that this is
+> justified.  Please tell us more?
 
-> In 2.6.23's shrink_inactive_list function, why do we have to call
-> clear_active_flags after isolate_lru_pages call ?
-> IMHO, If it call isolate_lru_pages with "zone->inactive_list", It can
-> be sure that it is not PG_active. 
+It's quite simple, malloc(1g) from 100 tasks and then read(1G) from
+nfs on the same 100 tasks at the same time and they all go oom at the
+same time. Without the sigkill check the oom killer is not very useful
+and thing simply hangs for long.
 
-If we call isolate_lru_pages with mode = ISOLATE_BOTH, then it
-can return both active and inactive pages and the calling function
-has to be able to deal with both kinds of pages.
+> diff -puN mm/filemap.c~oom-handling-prevent-oom-deadlocks-during-read-write-operations mm/filemap.c
+> --- a/mm/filemap.c~oom-handling-prevent-oom-deadlocks-during-read-write-operations
+> +++ a/mm/filemap.c
+> @@ -916,6 +916,15 @@ page_ok:
+>  			goto out;
+>  		}
+>  
+> +		if (unlikely(sigismember(&current->pending.signal, SIGKILL))) {
+> +			/*
+> +			 * Must not hang almost forever in D state in presence
+> +			 * of sigkill and lots of ram/swap (think during OOM).
+> +			 */
+> +			page_cache_release(page);
+> +			goto out;
+> +		}
+> +
+>  		/* nr is the maximum number of bytes to copy from this page */
+>  		nr = PAGE_CACHE_SIZE;
+>  		if (index == end_index) {
+> @@ -2050,6 +2059,15 @@ static ssize_t generic_perform_write_2co
+>  			break;
+>  		}
+>  
+> +		if (unlikely(sigismember(&current->pending.signal, SIGKILL))) {
+> +			/*
+> +			 * Must not hang almost forever in D state in presence
+> +			 * of sigkill and lots of ram/swap (think during OOM).
+> +			 */
+> +			status = -ENOMEM;
+> +			break;
+> +		}
+> +
+>  		page = __grab_cache_page(mapping, index);
+>  		if (!page) {
+>  			status = -ENOMEM;
+> @@ -2220,6 +2238,15 @@ again:
+>  			break;
+>  		}
+>  
+> +		if (unlikely(sigismember(&current->pending.signal, SIGKILL))) {
+> +			/*
+> +			 * Must not hang almost forever in D state in presence
+> +			 * of sigkill and lots of ram/swap (think during OOM).
+> +			 */
+> +			status = -ENOMEM;
+> +			break;
+> +		}
+> +
+>  		status = a_ops->write_begin(file, mapping, pos, bytes, flags,
+>  						&page, &fsdata);
+>  		if (unlikely(status))
 
-ISOLATE_BOTH is used when the kernel is trying to defragment memory,
-for larger physically contiguous allocations.
-
--- 
-All rights reversed.
+Was there another approach for this? I merged your version anyway in
+the meantime.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
