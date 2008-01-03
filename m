@@ -1,68 +1,39 @@
-Date: Thu, 3 Jan 2008 05:17:08 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] i386: avoid expensive ppro ordering workaround for default 686 kernels
-Message-ID: <20080103041708.GB26487@wotan.suse.de>
-References: <20071218012632.GA23110@wotan.suse.de> <20071222005737.2675c33b.akpm@linux-foundation.org> <20071223055730.GA29288@wotan.suse.de> <20071222223234.7f0fbd8a.akpm@linux-foundation.org> <20071223071529.GC29288@wotan.suse.de> <alpine.LFD.0.9999.0712230900310.21557@woody.linux-foundation.org> <20080101234133.4a744329@the-village.bc.nu> <20080102110225.GA16154@wotan.suse.de> <20080102134433.6ca82011@the-village.bc.nu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch 02/20] make the inode i_mmap_lock a reader/writer lock
+Date: Thu, 3 Jan 2008 17:07:14 +1100
+References: <20071218211539.250334036@redhat.com> <200712201859.12934.nickpiggin@yahoo.com.au> <477C1FB6.5050905@sgi.com>
+In-Reply-To: <477C1FB6.5050905@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080102134433.6ca82011@the-village.bc.nu>
+Message-Id: <200801031707.14607.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Mike Travis <travis@sgi.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Peter Zijlstra <peterz@infradead.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 02, 2008 at 01:44:33PM +0000, Alan Cox wrote:
-> > Take a different approach: after this patch, we just disable all but one CPU on those
-> > systems, and print a warning. Also printed is a suggestion for a new CONFIG option that
-> > can be enabled for the previous behaviour.
-> 
-> How does that help. The processor isn't the only bus master.
+On Thursday 03 January 2008 10:35, Mike Travis wrote:
+> Hi Nick,
+>
+> Have you done anything more with allowing > 256 CPUS in this spinlock
+> patch?  We've been testing with 1k cpus and to verify with -mm kernel,
+> we need to "unpatch" these spinlock changes.
+>
+> Thanks,
+> Mike
 
-Hmm, I don't understand what you mean. Obviously other busmasters aren't
-participating in any locking or smp_*mb() ordering protocols.
+Hi Mike,
 
-The non-smp_-prefixed barriers are retained.
+Actually I had it in my mind that 64 bit used single-byte locking like
+i386, so I didn't think I'd caused a regression there.
 
- 
-> Maybe this works as a SuSE specific convenience solution aligned to
-> your particular build pattern but it isn't the right solution for
-> upstream IMHO. 
+I'll take a look at fixing that up now.
 
-Actually it is nothing to do with SUSE but I was using SLES as a counterexample
-when you said nobody would care about M686 with SMP builds. The reason for the
-patch is because I noticed the suboptimal configuration (because Andrew flagged
-my patch).
- 
-
-> We should either
-> 
-> - re-order the assumed processor generations supported to put VIA C3/C5
-> above Preventium Pro
-
-Adrian Bunk's patch to make each CPU type explicitly selectable IMO is the
-best way to do this.
-
-
-> - fix the gcc or gcc settings not to generate invalid cmov instructions
-> on 686. cmov is slower on all the modern processors anyway.
-
-Not for unpredictable branches, but I agree gcc seems to use it too often
-(in my version, it seems to even use it for likely/unlikely branches :( ).
-
- 
-> And you change the assumption that 586 < 686 < PPro < PII < PIII ...
-> 
-> to 586 < 686 < PPro < C3 < PII < ...
-> 
-> then selecting VIA C3 support will get you a kernel with the properties
-> all the distribution vendors want for their higher end mainstream kernel -
-> "runs on modern systems".
-
-I don't agree. If we support those options, we should support them properly.
-And if you build an SMP kernel for a 586 for example, you should not get lumped
-with those pentiumpro workarounds.
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
