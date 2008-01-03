@@ -1,99 +1,71 @@
-Date: Thu, 3 Jan 2008 14:29:46 +0100
+Date: Thu, 3 Jan 2008 14:41:37 +0100
 From: Andrea Arcangeli <andrea@cpushare.com>
-Subject: Re: [PATCH 07 of 11] don't depend on PF_EXITING tasks to go away
-Message-ID: <20080103132946.GS30939@v2.random>
-References: <686a1129469a1bad9674.1199326153@v2.random> <alpine.DEB.0.9999.0801030140290.25018@chino.kir.corp.google.com>
+Subject: Re: [PATCH 04 of 11] avoid selecting already killed tasks
+Message-ID: <20080103134137.GT30939@v2.random>
+References: <4cf8805b5695a8a3fb7c.1199326150@v2.random> <alpine.DEB.0.9999.0801030134130.25018@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.0.9999.0801030140290.25018@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.0.9999.0801030134130.25018@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: David Rientjes <rientjes@google.com>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 03, 2008 at 01:52:26AM -0800, David Rientjes wrote:
-> That's partially incorrect; it's possible that the PF_EXITING task does 
-> have TIF_MEMDIE since the OOM killer synchronization does not guarantee 
-> that a killed task has fully exited before a subsequent OOM killer 
-> invocation occurs.
-
-With an oom killer invocation normally PF_EXITING will be set after
-TIF_MEMDIE.
-
-Here we deal with the case of one task exiting because the C code
-invokes exit(2) but TIF_MEMDIE isn't set. And then the system goes oom.
-
-> So what's going to happen here is that either the PF_EXITING task is 
-> current (the OOM-triggering task) and is immediately going to be chosen 
-> for OOM kill or the OOM killer is going to become a no-op and wait for the 
-> OOM condition to be alleviated in some other manner.
-
-IIRC the system reached OOM after the PF_EXITING task invoked exit_mm
-but before the task was reaped from the tasklist because the parent
-couldn't yet run waitpid() (the parent is stuck in the global oom
-condition). Like you said the oom killer become a noop and the system
-crashed.
-
-> We're unconcerned about the former because it will be chosen for OOM kill 
-> and will receive the TIF_MEMDIE exemption.
-
-Yes.
-
-> The latter is more interesting and seems to be what you're targeting in 
-> your changelog: exiting tasks that have encountered an OOM condition that 
-
-Yes.
-
-> blocks them from continuing.  But if that's the case, we still need to 
-> free some memory from somewhere so the only natural thing to do is OOM 
-> kill another task.
-
-Yes we need to kill another task, the PF_EXITING task already run
-exit_mm _before_ the oom condition triggered.
-
->  That's precisely what the current code is doing:  
-
-Really the oom killer is currently doing this:
-
-       if (p->flags & PF_EXITING) {
-  	    if (p != current)
-	         return ERR_PTR(-1UL);
-	    chosen = p;
-	    *ppoints = ULONG_MAX;
-       }
-
-This means if there's a PF_EXITING task that isn't the current task
-(it can't be the current task because it's not runnable anymore by the
-scheduler by time the system is oom, do_exit already scheduled), the
-oom killer will forever try to kill that PF_EXITING task that can't
-run and can't release any further memory because it quit by itself
-_before_ the oom condition triggered. I seem to recall I reproduced
-this with my current testcase...
-
-> causing the OOM killer to become a no-op for the current case (the 
-> already exiting task) and freeing memory by waiting for another system 
-> OOM, which is guaranteed to happen.  That's sound logic since it doesn't 
-> do any good to OOM kill an already exiting task.
-
-depends if the PF_EXITING task has already run exit_mm or not. If it
-didn't it does good. If it did it doesn't good.
-
-> So my suggestion would be to allow the non-OOM-triggering candidate task 
-> to be considered as a target instead of simply returning ERR_PTR(-1UL):
+On Thu, Jan 03, 2008 at 01:40:09AM -0800, David Rientjes wrote:
+> On Thu, 3 Jan 2008, Andrea Arcangeli wrote:
 > 
-> 	if (p->flags & PF_EXITING && p == current &&
-> 	    !test_tsk_thread_flag(p, TIF_MEMDIE)) {
-> 		chosen = p;
-> 		**points = ULONG_MAX;
-> 	}
+> > avoid selecting already killed tasks
+> > 
+> > If the killed task doesn't go away because it's waiting on some other
+> > task who needs to allocate memory, to release the i_sem or some other
+> > lock, we must fallback to killing some other task in order to kill the
+> > original selected and already oomkilled task, but the logic that kills
+> > the childs first, would deadlock, if the already oom-killed task was
+> > actually the first child of the newly oom-killed task.
+> > 
+> 
+> The problem is that this can cause the parent or one of its children to be 
+> unnecessarily killed.
 
-Yes this is a workable option. In practice adding the above or not,
-won't make difference 99% of the time. Removing the "return
-ERR_PTR(-1UL)" is about not deadlocking 1% of the time. From my point
-of view as long as mainline stops deadlocking and I can close bugzilla
-I'm fine. I'm totally flexible about adding any wish like above ;).
+Well, the single fact I'm skipping over the TIF_MEMDIE tasks to
+prevent deadlocks, allows for spurious oom killing again. Like you
+said we can later add a per-task timeout so we wait only X seconds for
+a certain TIF_MEMDIE task to quit before selecting another one.
+
+But we got to ignore those TIF_MEMDIE tasks unfortunately, or we
+deadlock, no matter if we're in select_bad_process, or in
+oom_kill_process. Initially I didn't notice oom_kill_process had that
+problem so I was then deadlocking despite select_bad_process was
+selecting the parent that didn't have TIF_MEMDIE set (but the first
+child already had it).
+
+> Regardless of any OOM killer sychronization that we do, it is still 
+> possible for the OOM killer to return after killing a task and then 
+> another OOM situation be triggered on a subsequent allocation attempt 
+> before the killed task has exited.  It's still marked as TIF_MEMDIE, so 
+> your change will exempt it from being a target again and one of its 
+> siblings or, worse, it's parent will be killed.
+
+This is the risk of suprious oom killing yes. You got to choose
+between a deadlock and risking a suprious oom killing. Even when you
+add your 60second timeout in the task_struct between each new TIF_MEMDIE
+bitflag set, you're still going to risk spurious oom killing...
+
+The schedule_timeout in the oom killer and in the VM that I have in my
+patchset combined with your very limited functionality of
+zone-oom-lock (limited because it's gone by the time out_of_memory
+returns and it currently can't take into account when the TIF_MEMDIE
+task actually exited) in practice didn't generate suprious kills in my
+testing. It may not be enough but it's a start...
+
+> You can't guarantee that this couldn't have been prevented given 
+> sufficient time for the exiting task to die, so this change introduces the 
+> possibility that tasks will unnecessarily be killed to alleviate the OOM 
+> condition.
+
+Not just to 'alleviate' the oom condition, but to prevent a system crash.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
