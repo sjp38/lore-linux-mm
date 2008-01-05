@@ -1,24 +1,46 @@
-Message-ID: <477FDAA8.2030001@hp.com>
-Date: Sat, 05 Jan 2008 14:29:44 -0500
-From: Mark Seger <Mark.Seger@hp.com>
-MIME-Version: 1.0
-Subject: Supports for new slab allocator now in latest release
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Sat, 5 Jan 2008 17:39:52 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: Fwd: comparion: solaris 10 vs RHEL5 - memory
+Message-ID: <20080105173952.0b8db5f3@bree.surriel.com>
+In-Reply-To: <6101e8c40801040821i495747f2ref1a0df711c23ea@mail.gmail.com>
+References: <6101e8c40801040739i4d7f6e58rbd9b6d68e4565bc7@mail.gmail.com>
+	<6101e8c40801040821i495747f2ref1a0df711c23ea@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: util-linux-ng@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
+To: "Oliver Pinter (=?UTF-8?B?UGludMOpciBPbGl2w6ly?=)" <oliver.pntr@gmail.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I just wanted to let people know that as a result of a discussion on 
-linux-mm I've added support for the new slab allocator to my collectl 
-utility, now making it real easy to dynamically monitor allocations 
-along with all the other types of monitoring collectl does.  I've also 
-put together a webpage at http://collectl.sourceforge.net/SlabInfo.html 
-to give a taste of how this all works as well as to show a few different 
-types of output.
--mark
+On Fri, 4 Jan 2008 17:21:39 +0100
+"Oliver Pinter (PintA(C)r OlivA(C)r)"  <oliver.pntr@gmail.com> wrote:
+
+> Maximum RAM:
+> * 2 TB on current hardware  -> solaris10
+> * 256 GB on X64 -> RHEL5
+
+The amount listed for RHEL is not the theoretical maximum, but
+the largest amount that has actually been tested. The limits are 
+different per architecture.
+ 
+> from http://blogs.sun.com/BVass/resource/SolarisRHELNEWcomparison.pdf
+> 
+> the questions is:
+> 
+> this informations is correct or not?
+
+You'll also want to ask yourself the question:
+
+	"Is this information complete?"
+
+It's not hard to come up with a few checklist items where
+RHEL looks better than Solaris, but they don't seem to be
+in this particular PDF :)
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
