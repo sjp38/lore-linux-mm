@@ -1,63 +1,43 @@
-Date: Mon, 7 Jan 2008 12:04:06 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: 2.6.22-stable causes oomkiller to be invoked
-In-Reply-To: <Pine.LNX.4.64.0801031258400.30856@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0801071203070.24592@schroedinger.engr.sgi.com>
-References: <20071217045904.GB31386@linux.vnet.ibm.com>
- <Pine.LNX.4.64.0712171143280.12871@schroedinger.engr.sgi.com>
- <20071217120720.e078194b.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0712171222470.29500@schroedinger.engr.sgi.com>
- <20071221044508.GA11996@linux.vnet.ibm.com>
- <Pine.LNX.4.64.0712261258050.16862@schroedinger.engr.sgi.com>
- <20071228101109.GB5083@linux.vnet.ibm.com> <Pine.LNX.4.64.0801021237330.21526@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0801021346580.3778@schroedinger.engr.sgi.com>
- <20080103035942.GB26166@linux.vnet.ibm.com> <20080103041606.GC26166@linux.vnet.ibm.com>
- <Pine.LNX.4.64.0801031258400.30856@schroedinger.engr.sgi.com>
+Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
+	by smtp-out.google.com with ESMTP id m07KHgPR023947
+	for <linux-mm@kvack.org>; Mon, 7 Jan 2008 20:17:45 GMT
+Received: from fg-out-1718.google.com (fgae12.prod.google.com [10.86.56.12])
+	by zps75.corp.google.com with ESMTP id m07KHcbO002360
+	for <linux-mm@kvack.org>; Mon, 7 Jan 2008 12:17:41 -0800
+Received: by fg-out-1718.google.com with SMTP id e12so4520402fga.8
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2008 12:17:38 -0800 (PST)
+Message-ID: <d43160c70801071217r514fc45ai4252b907986c26de@mail.gmail.com>
+Date: Mon, 7 Jan 2008 15:17:38 -0500
+From: "Ross Biro" <rossb@google.com>
+Subject: Re: RFC/Patch Make Page Tables Relocatable Part 2/2 Page Table Migration Code
+In-Reply-To: <Pine.LNX.4.64.0801071149160.23617@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <d43160c70801040802p2a6d96c8p406eb391cbd829e4@mail.gmail.com>
+	 <Pine.LNX.4.64.0801071149160.23617@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dhaval Giani <dhaval@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, htejun@gmail.com, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Balbir Singh <balbir@in.ibm.com>, maneesh@linux.vnet.ibm.com, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Here is the cleaned version of the patch. Dhaval is testing it.
+On Jan 7, 2008 2:49 PM, Christoph Lameter <clameter@sgi.com> wrote:
+> Interesting approach. It moves all page table pages even if only a subset
+> of the address space was migrated?
 
+That's a side effect of not understanding the page migration code.  I
+couldn't figure out where to hook into the existing code, so I did it
+the easy way and migrated everything.  Passing around an address range
+or other subset representation and only migrating some of the page
+tables would be a trivial addition.  But not one that makes any sense
+until the page table migration code is integrated into the rest of the
+migration code properly.  I'm assuming someone else will point out the
+proper place to hook into the existing code, and then only migrating a
+portion of the page tables will be easy.
 
-quicklists: Only consider memory that can be used with GFP_KERNEL
-
-Quicklists calculates the size of the quicklists based on the number
-of free pages. This must be the number of free pages that can be
-allocated with GFP_KERNEL. node_page_state() includes the pages in
-ZONE_HIGHMEM and ZONE_MOVABLE which may lead the quicklists to
-become too large causing OOM.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
-Index: linux-2.6/mm/quicklist.c
-===================================================================
---- linux-2.6.orig/mm/quicklist.c	2008-01-07 10:38:13.000000000 -0800
-+++ linux-2.6/mm/quicklist.c	2008-01-07 10:38:44.000000000 -0800
-@@ -26,9 +26,17 @@ DEFINE_PER_CPU(struct quicklist, quickli
- static unsigned long max_pages(unsigned long min_pages)
- {
- 	unsigned long node_free_pages, max;
-+	struct zone *zones = NODE_DATA(numa_node_id())->node_zones;
-+
-+	node_free_pages =
-+#ifdef CONFIG_ZONE_DMA
-+		zone_page_state(&zones[ZONE_DMA], NR_FREE_PAGES) +
-+#endif
-+#ifdef CONFIG_ZONE_DMA32
-+		zone_page_state(&zones[ZONE_DMA32], NR_FREE_PAGES) +
-+#endif
-+		zone_page_state(&zones[ZONE_NORMAL], NR_FREE_PAGES);
- 
--	node_free_pages = node_page_state(numa_node_id(),
--			NR_FREE_PAGES);
- 	max = node_free_pages / FRACTION_OF_NODE_MEM;
- 	return max(max, min_pages);
- }
+    Ross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
