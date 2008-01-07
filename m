@@ -1,44 +1,33 @@
-Date: Mon, 7 Jan 2008 19:06:10 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 00/19] VM pageout scalability improvements
-Message-Id: <20080107190610.ed3be7b4.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080103120000.1768f220@cuia.boston.redhat.com>
-References: <20080102224144.885671949@redhat.com>
-	<1199379128.5295.21.camel@localhost>
-	<20080103120000.1768f220@cuia.boston.redhat.com>
+Date: Mon, 7 Jan 2008 10:30:29 +0000
+From: Russell King <rmk@arm.linux.org.uk>
+Subject: Re: [rfc][patch] mm: use a pte bit to flag normal pages
+Message-ID: <20080107103028.GA9325@flint.arm.linux.org.uk>
+References: <20071221104701.GE28484@wotan.suse.de> <OFEC52C590.33A28896-ONC12573B8.0069F07E-C12573B8.006B1A41@de.ibm.com> <20080107044355.GA11222@wotan.suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080107044355.GA11222@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Eric Whitney <eric.whitney@hp.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Martin Schwidefsky <martin.schwidefsky@de.ibm.com>, carsteno@linux.vnet.ibm.com, Heiko Carstens <h.carstens@de.ibm.com>, Jared Hulbert <jaredeh@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Jan 2008 12:00:00 -0500
-Rik van Riel <riel@redhat.com> wrote:
+On Mon, Jan 07, 2008 at 05:43:55AM +0100, Nick Piggin wrote:
+> We initially wanted to do the whole vm_normal_page thing this way, with
+> another pte bit, but we thought there were one or two archs with no spare
+> bits. BTW. I also need this bit in order to implement my lockless
+> get_user_pages, so I do hope to get it in. I'd like to know what
+> architectures cannot spare a software bit in their pte_present ptes...
 
-> On Thu, 03 Jan 2008 11:52:08 -0500
-> Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
-> 
-> > Also, I should point out that the full noreclaim series includes a
-> > couple of other patches NOT posted here by Rik:
-> > 
-> > 1) treat swap backed pages as nonreclaimable when no swap space is
-> > available.  This addresses a problem we've seen in real life, with
-> > vmscan spending a lot of time trying to reclaim anon/shmem/tmpfs/...
-> > pages only to find that there is no swap space--add_to_swap() fails.
-> > Maybe not a problem with Rik's new anon page handling.
-> 
-> If there is no swap space, my VM code will not bother scanning
-> any anon pages.  This has the same effect as moving the pages
-> to the no-reclaim list, with the extra benefit of being able to
-> resume scanning the anon lists once swap space is freed.
-> 
-Is this 'avoiding scanning anon if no swap' feature  in this set ?
+ARM is going to have to use the three remaining bits we have in the PTE
+to store the memory type to resolve bugs on later platforms.  Once they're
+used, ARM will no longer have any room for any further PTE expansion.
 
-Thanks
--Kame
+-- 
+Russell King
+ Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
+ maintainer of:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
