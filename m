@@ -1,27 +1,54 @@
-Date: Mon, 7 Jan 2008 20:26:40 +0100
-From: Andrea Arcangeli <andrea@cpushare.com>
-Subject: Re: [PATCH 03 of 11] prevent oom deadlocks during read/write
-	operations
-Message-ID: <20080107192640.GO10749@v2.random>
-References: <71f1d848763c80f336f7.1199326149@v2.random> <Pine.LNX.4.64.0801071115210.23617@schroedinger.engr.sgi.com>
+Date: Mon, 7 Jan 2008 11:32:23 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 05 of 11] reduce the probability of an OOM livelock
+In-Reply-To: <fc9148f0ddd0ef11be29.1199326151@v2.random>
+Message-ID: <Pine.LNX.4.64.0801071130090.23617@schroedinger.engr.sgi.com>
+References: <fc9148f0ddd0ef11be29.1199326151@v2.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0801071115210.23617@schroedinger.engr.sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Andrea Arcangeli <andrea@cpushare.com>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 07, 2008 at 11:15:49AM -0800, Christoph Lameter wrote:
-> This means that killing a process with SIGKILL from user land may lead to 
-> OOM handling being triggered in the VM?
+On Thu, 3 Jan 2008, Andrea Arcangeli wrote:
 
-Well, Andrew added the status=-ENOMEM in his version, but userland
-should never get to see the status. So this should only have the
-effect of being more reactive to SIGKILL. Alternatively TIF_MEMDIE
-could be checked, but checking sigkill sounded nicer there.
+> @@ -1337,7 +1337,6 @@ static unsigned long balance_pgdat(pg_da
+>  
+>  loop_again:
+>  	total_scanned = 0;
+> -	nr_reclaimed = 0;
+>  	sc.may_writepage = !laptop_mode;
+>  	count_vm_event(PAGEOUTRUN);
+>  
+> @@ -1347,6 +1346,7 @@ loop_again:
+>  	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
+>  		int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+>  		unsigned long lru_pages = 0;
+> +		unsigned long nr_reclaimed;
+>  
+>  		/* The swap token gets in the way of swapout... */
+>  		if (!priority)
+> @@ -1393,6 +1393,7 @@ loop_again:
+>  		 * pages behind kswapd's direction of progress, which would
+>  		 * cause too much scanning of the lower zones.
+>  		 */
+> +		nr_reclaimed = 0;
+>  		for (i = 0; i <= end_zone; i++) {
+>  			struct zone *zone = pgdat->node_zones + i;
+>  			int nr_slab;
+
+nr_reclaimed is now only the number reclaimed at a certain priority. Its 
+effectively lower. It seems that the only test that can be affected by 
+this is:
+
+  if (nr_reclaimed >= SWAP_CLUSTER_MAX)
+                        break;
+
+But reducing nr_reclaim makes it more likely to continue the 
+loop? I thought you wanted to stop scanning?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
