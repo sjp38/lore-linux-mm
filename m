@@ -1,43 +1,43 @@
-Date: Mon, 7 Jan 2008 19:04:55 +0900
+Date: Mon, 7 Jan 2008 19:06:10 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 07/19] split anon & file LRUs for memcontrol code
-Message-Id: <20080107190455.22412330.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080102224154.309980291@redhat.com>
+Subject: Re: [patch 00/19] VM pageout scalability improvements
+Message-Id: <20080107190610.ed3be7b4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080103120000.1768f220@cuia.boston.redhat.com>
 References: <20080102224144.885671949@redhat.com>
-	<20080102224154.309980291@redhat.com>
+	<1199379128.5295.21.camel@localhost>
+	<20080103120000.1768f220@cuia.boston.redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "riel@redhat.com" <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, lee.schermerhorn@hp.com
+To: Rik van Riel <riel@redhat.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 02 Jan 2008 17:41:51 -0500
-linux-kernel@vger.kernel.org wrote:
+On Thu, 3 Jan 2008 12:00:00 -0500
+Rik van Riel <riel@redhat.com> wrote:
 
-> Index: linux-2.6.24-rc6-mm1/mm/vmscan.c
-> ===================================================================
-> --- linux-2.6.24-rc6-mm1.orig/mm/vmscan.c	2008-01-02 15:55:55.000000000 -0500
-> +++ linux-2.6.24-rc6-mm1/mm/vmscan.c	2008-01-02 15:56:00.000000000 -0500
-> @@ -1230,13 +1230,13 @@ static unsigned long shrink_zone(int pri
->  
->  	get_scan_ratio(zone, sc, percent);
->  
+> On Thu, 03 Jan 2008 11:52:08 -0500
+> Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+> 
+> > Also, I should point out that the full noreclaim series includes a
+> > couple of other patches NOT posted here by Rik:
+> > 
+> > 1) treat swap backed pages as nonreclaimable when no swap space is
+> > available.  This addresses a problem we've seen in real life, with
+> > vmscan spending a lot of time trying to reclaim anon/shmem/tmpfs/...
+> > pages only to find that there is no swap space--add_to_swap() fails.
+> > Maybe not a problem with Rik's new anon page handling.
+> 
+> If there is no swap space, my VM code will not bother scanning
+> any anon pages.  This has the same effect as moving the pages
+> to the no-reclaim list, with the extra benefit of being able to
+> resume scanning the anon lists once swap space is freed.
+> 
+Is this 'avoiding scanning anon if no swap' feature  in this set ?
 
-I'm happy if this calclation can be following later.
-==
-if (scan_global_lru(sc)) {
-	get_scan_ratio(zone, sc, percent);
-} else {
-	get_scan_ratio_cgroup(sc->cgroup, sc, percent);
-}
-==
-To do this, 
-mem_cgroup needs to have recent_rotated_file and recent_rolated_anon ?
-
-Thanks,
+Thanks
 -Kame
 
 --
