@@ -1,37 +1,59 @@
-Date: Mon, 7 Jan 2008 12:14:45 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch] mm: use a pte bit to flag normal pages
-Message-ID: <20080107111445.GB19872@wotan.suse.de>
-References: <20071221104701.GE28484@wotan.suse.de> <OFEC52C590.33A28896-ONC12573B8.0069F07E-C12573B8.006B1A41@de.ibm.com> <20080107044355.GA11222@wotan.suse.de> <20080107103028.GA9325@flint.arm.linux.org.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080107103028.GA9325@flint.arm.linux.org.uk>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m07EAJIV013101
+	for <linux-mm@kvack.org>; Mon, 7 Jan 2008 09:10:19 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m07EAJr6163986
+	for <linux-mm@kvack.org>; Mon, 7 Jan 2008 07:10:19 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m07EAIDp012566
+	for <linux-mm@kvack.org>; Mon, 7 Jan 2008 07:10:19 -0700
+Message-ID: <478232BB.3040406@linux.vnet.ibm.com>
+Date: Mon, 07 Jan 2008 19:40:03 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [patch 07/19] split anon & file LRUs for memcontrol code
+References: <20080102224144.885671949@redhat.com> <20080102224154.309980291@redhat.com> <20080107190455.22412330.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080107190455.22412330.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Schwidefsky <martin.schwidefsky@de.ibm.com>, carsteno@linux.vnet.ibm.com, Heiko Carstens <h.carstens@de.ibm.com>, Jared Hulbert <jaredeh@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "riel@redhat.com" <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lee.schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 07, 2008 at 10:30:29AM +0000, Russell King wrote:
-> On Mon, Jan 07, 2008 at 05:43:55AM +0100, Nick Piggin wrote:
-> > We initially wanted to do the whole vm_normal_page thing this way, with
-> > another pte bit, but we thought there were one or two archs with no spare
-> > bits. BTW. I also need this bit in order to implement my lockless
-> > get_user_pages, so I do hope to get it in. I'd like to know what
-> > architectures cannot spare a software bit in their pte_present ptes...
+KAMEZAWA Hiroyuki wrote:
+> On Wed, 02 Jan 2008 17:41:51 -0500
+> linux-kernel@vger.kernel.org wrote:
 > 
-> ARM is going to have to use the three remaining bits we have in the PTE
-> to store the memory type to resolve bugs on later platforms.  Once they're
-> used, ARM will no longer have any room for any further PTE expansion.
+>> Index: linux-2.6.24-rc6-mm1/mm/vmscan.c
+>> ===================================================================
+>> --- linux-2.6.24-rc6-mm1.orig/mm/vmscan.c	2008-01-02 15:55:55.000000000 -0500
+>> +++ linux-2.6.24-rc6-mm1/mm/vmscan.c	2008-01-02 15:56:00.000000000 -0500
+>> @@ -1230,13 +1230,13 @@ static unsigned long shrink_zone(int pri
+>>  
+>>  	get_scan_ratio(zone, sc, percent);
+>>  
+> 
+> I'm happy if this calclation can be following later.
+> ==
+> if (scan_global_lru(sc)) {
+> 	get_scan_ratio(zone, sc, percent);
+> } else {
+> 	get_scan_ratio_cgroup(sc->cgroup, sc, percent);
+> }
+> ==
+> To do this, 
+> mem_cgroup needs to have recent_rotated_file and recent_rolated_anon ?
 
-OK, it is good to have a negative confirmed. So I think we should definitely
-get the non-pte-bit based mapping schemes working and tested on all platforms
-before using a pte bit mapping...
+Yes, that makes sense.
 
-FWIW, it might be possible for platforms to implement lockless get_user_pages
-in other ways too. But that's getting ahead of myself.
-
-Thanks.
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
