@@ -1,70 +1,60 @@
-Date: Mon, 7 Jan 2008 01:12:10 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] i386: avoid expensive ppro ordering workaround for default 686 kernels
-Message-ID: <20080107001210.GA21007@wotan.suse.de>
-References: <20071222223234.7f0fbd8a.akpm@linux-foundation.org> <20071223071529.GC29288@wotan.suse.de> <alpine.LFD.0.9999.0712230900310.21557@woody.linux-foundation.org> <20080101234133.4a744329@the-village.bc.nu> <20080102110225.GA16154@wotan.suse.de> <20080102134433.6ca82011@the-village.bc.nu> <20080103041708.GB26487@wotan.suse.de> <20080103142330.111d4067@lxorguk.ukuu.org.uk> <20080103231017.GA25880@wotan.suse.de> <20080104162700.3aef1806@lxorguk.ukuu.org.uk>
+Date: Mon, 7 Jan 2008 10:23:01 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUG]  at mm/slab.c:3320
+Message-Id: <20080107102301.db52ab64.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080103155046.GA7092@skywalker>
+References: <20071220100541.GA6953@skywalker>
+	<20071225140519.ef8457ff.akpm@linux-foundation.org>
+	<20071227153235.GA6443@skywalker>
+	<Pine.LNX.4.64.0712271130200.30555@schroedinger.engr.sgi.com>
+	<20071228051959.GA6385@skywalker>
+	<Pine.LNX.4.64.0801021227580.20331@schroedinger.engr.sgi.com>
+	<20080103155046.GA7092@skywalker>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080104162700.3aef1806@lxorguk.ukuu.org.uk>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, nacc@us.ibm.com, lee.schermerhorn@hp.com, bob.picco@hp.com, mel@skynet.ie
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 04, 2008 at 04:27:00PM +0000, Alan Cox wrote:
-> > > The cost on a 586 SMP box (ie pentium) is basically nil. All cross CPU
-> > > transactions are hideously slow anyway locked or not.
-> > 
-> > That's wrong. Firstly, spinlocks are very often retaken by the same CPU, and they
-> 
-> Go time it. It certainly used to be the case.
+On Thu, 3 Jan 2008 21:20:46 +0530
+"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+> Node: 0, start_pfn: 0, end_pfn: 156
+> Node: 0, start_pfn: 256, end_pfn: 917393
+> Node: 0, start_pfn: 1048576, end_pfn: 2752512
+> get_memcfg_from_srat: assigning address to rsdp
+> RSD PTR  v0 [IBM   ]
+> Begin SRAT table scan....
+> CPU 0x00 in proximity domain 0x00
+> CPU 0x02 in proximity domain 0x00
+> CPU 0x10 in proximity domain 0x00
+> CPU 0x12 in proximity domain 0x00
+> Memory range 0x0 to 0xE0000 (type 0x0) in proximity domain 0x00 enabled
+> Memory range 0x100000 to 0x120000 (type 0x0) in proximity domain 0x00 enabled
+> CPU 0x20 in proximity domain 0x01
+> CPU 0x22 in proximity domain 0x01
+> CPU 0x30 in proximity domain 0x01
+> CPU 0x32 in proximity domain 0x01
+> Memory range 0x120000 to 0x2A0000 (type 0x0) in proximity domain 0x01 enabled
+> acpi20_parse_srat: Entry length value is zero; can't parse any further!
+> pxm bitmap: 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+> Number of logical nodes in system = 2
+> Number of memory chunks in system = 3
+> chunk 0 nid 0 start_pfn 00000000 end_pfn 000e0000
+> chunk 1 nid 0 start_pfn 00100000 end_pfn 00120000
+> chunk 2 nid 1 start_pfn 00120000 end_pfn 002a0000
+> Node: 0, start_pfn: 0, end_pfn: 1179648
+> Node: 1, start_pfn: 1179648, end_pfn: 2752512
 
-I don't understand what your point is. You bring up socket-to-socket transfers,
-but we are talking about the cost of locked ops (which may or may not involve a
-cacheline transfer).
+Seems Node 1 has no NORMAL memory.
 
-For example, a spin lock + unlock (in cache) is around 40 cycles on my Core2. A
-ppro style unlock makes it 70.
+Because the patch changes 'online_node' to N_NORMAL_MEMORY, there is a change.
+I'm not sure but cachep->nodelists[] should be created against all online nodes ?
 
-And it is quite common with a lot of locks for the cacheline *not* to be bouncing
-(eg. scheduler runqueue locks).
-
- 
-> > On 586 SMP systems, didn't lock ops actually go out on the bus, and hence are much
-> > more expensive than they are today (although today they are still one or two orders
-> > of magnitude more expensive than regular memory ops).
-> 
-> All cross CPU cache stuff goes that way, not that may P5 SMP boxes are
-> running today except in Mr Bottomley's residence.
-> 
-> > And if you build a kernel which is to support 686, PII, and later, you don't want
-> > them by default either, most probably.
-> 
-> I want a kernel for VIA C3 or later which happens to include K6 (still
-> common), PII+ and maybe not PPro.
-
-I want a kernel for all those and also ppros, but I'm not willing to hammer
-everyone else to work around some rare errata. There are probably quite fewer
-SMP ppros than UP ones too.
-
-You're just skirting the whole issue by saying you don't want to support ppro
-at all. The issue is having a kernel that supports a wide range of CPUs
-including ppro. *You* may not want that. Others may.
- 
-
-> So your patch should go in the bitbucket by the sound of it and Adrian's
-> get merged.
-
-Adrian's patch IMO should get merged, sure (although last time it came up, it
-got rejected for some maybe not completely valid reasons). But Adrian's patch
-does not attack the problem which mine does. If you select PPro + PII + PIII +
-etc..., then you will still have SMP ppro errata workarounds compiled in. You
-need another option specifically asking whether you want them or not. Ie. my
-patch.
-
-What is your exact objection to making this configurable?
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
