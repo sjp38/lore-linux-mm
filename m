@@ -1,9 +1,9 @@
-Date: Mon, 7 Jan 2008 11:15:49 -0800 (PST)
+Date: Mon, 7 Jan 2008 11:17:21 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 03 of 11] prevent oom deadlocks during read/write operations
-In-Reply-To: <71f1d848763c80f336f7.1199326149@v2.random>
-Message-ID: <Pine.LNX.4.64.0801071115210.23617@schroedinger.engr.sgi.com>
-References: <71f1d848763c80f336f7.1199326149@v2.random>
+Subject: Re: [PATCH 04 of 11] avoid selecting already killed tasks
+In-Reply-To: <4cf8805b5695a8a3fb7c.1199326150@v2.random>
+Message-ID: <Pine.LNX.4.64.0801071117070.23617@schroedinger.engr.sgi.com>
+References: <4cf8805b5695a8a3fb7c.1199326150@v2.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -11,9 +11,6 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@cpushare.com>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
-
-This means that killing a process with SIGKILL from user land may lead to 
-OOM handling being triggered in the VM?
 
 
 --
