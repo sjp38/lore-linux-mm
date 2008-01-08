@@ -1,34 +1,26 @@
-Received: by wa-out-1112.google.com with SMTP id m33so12843022wag.8
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2008 10:09:53 -0800 (PST)
-Message-ID: <6934efce0801081009v793715aal217ead6749a103aa@mail.gmail.com>
-Date: Tue, 8 Jan 2008 10:09:52 -0800
-From: "Jared Hulbert" <jaredeh@gmail.com>
-Subject: Re: [rfc][patch 0/4] VM_MIXEDMAP patchset with s390 backend
-In-Reply-To: <47838E00.3090900@de.ibm.com>
+Date: Tue, 8 Jan 2008 11:04:01 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 00/10] percpu: Per cpu code simplification V3
+In-Reply-To: <20080108090702.GB27671@elte.hu>
+Message-ID: <Pine.LNX.4.64.0801081102450.2228@schroedinger.engr.sgi.com>
+References: <20080108021142.585467000@sgi.com> <20080108090702.GB27671@elte.hu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <476A73F0.4070704@de.ibm.com> <476B9000.2090707@de.ibm.com>
-	 <20071221102052.GB28484@wotan.suse.de> <476B96D6.2010302@de.ibm.com>
-	 <20071221104701.GE28484@wotan.suse.de>
-	 <1199784954.25114.27.camel@cotte.boeblingen.de.ibm.com>
-	 <20080108100803.GA24570@wotan.suse.de> <47835FBE.8080406@de.ibm.com>
-	 <20080108135614.GB13019@lazybastard.org> <47838E00.3090900@de.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: carsteno@de.ibm.com
-Cc: =?ISO-8859-1?Q?J=F6rn_Engel?= <joern@logfs.org>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <martin.schwidefsky@de.ibm.com>, Heiko Carstens <h.carstens@de.ibm.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: travis@sgi.com, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> Jorn Engel wrote:
-> > "PTE_SPECIAL" does not sound too descriptive.  Maybe PTE_MIXEDMAP?  It
-> > may not be great, but at least it give a hint in the right direction.
-> True, I've chosen a different name. PTE_SPECIAL is the name in  Nick's
-> original patch (see patch in this thread).
+On Tue, 8 Jan 2008, Ingo Molnar wrote:
 
-Nick also want's to use that bit to "implement my lockless
-get_user_page" I assume that's why the name is a little vague.
+> i had the patch below for v2, it's still needed (because i didnt apply 
+> the s390/etc. bits), right?
+
+Well the patch really should go through mm because it is a change that 
+covers multiple arches. I think testing with this is fine. I think Mike 
+has diffed this against Linus tree so this works but will now conflict 
+with the modcopy patch already in mm.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
