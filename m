@@ -1,98 +1,189 @@
-Message-Id: <20080108211025.156938000@sgi.com>
-References: <20080108211023.923047000@sgi.com>
-Date: Tue, 08 Jan 2008 13:10:32 -0800
-From: travis@sgi.com
-Subject: [PATCH 09/10] ia64: Use generic percpu
-Content-Disposition: inline; filename=ia64_generic_percpu
+Message-Id: <20080108210015.042432392@redhat.com>
+References: <20080108205939.323955454@redhat.com>
+Date: Tue, 08 Jan 2008 15:59:55 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: [patch 16/19] mlock vma pages under mmap_sem held for read
+Content-Disposition: inline; filename=noreclaim-04.1a-lock-vma-pages-under-read-lock.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, mingo@elte.hu, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>
-Cc: Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, tony.luck@intel.com
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-ia64 has a special processor specific mapping that can be used to locate the
-offset for the current per cpu area.
+V2 -> V3:
++ rebase to 23-mm1 atop RvR's split lru series [no change]
++ fix function return types [void -> int] to fix build when
+  not configured.
 
-Cc: linux-ia64@vger.kernel.org
-Cc: tony.luck@intel.com
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-Signed-off-by: Mike Travis <travis@sgi.com>
----
+New in V2.
 
-V1->V2:
-- Merge fixes
-- Remove transitional check for PER_CPU_ATTRIBUTES from linux/percpu.h
+We need to hold the mmap_sem for write to initiatate mlock()/munlock()
+because we may need to merge/split vmas.  However, this can lead to
+very long lock hold times attempting to fault in a large memory region
+to mlock it into memory.   This can hold off other faults against the
+mm [multithreaded tasks] and other scans of the mm, such as via /proc.
+To alleviate this, downgrade the mmap_sem to read mode during the 
+population of the region for locking.  This is especially the case 
+if we need to reclaim memory to lock down the region.  We [probably?]
+don't need to do this for unlocking as all of the pages should be
+resident--they're already mlocked.
 
-V2-.V3:
-- use generic percpy_modcopy()
+Now, the caller's of the mlock functions [mlock_fixup() and 
+mlock_vma_pages_range()] expect the mmap_sem to be returned in write
+mode.  Changing all callers appears to be way too much effort at this
+point.  So, restore write mode before returning.  Note that this opens
+a window where the mmap list could change in a multithreaded process.
+So, at least for mlock_fixup(), where we could be called in a loop over
+multiple vmas, we check that a vma still exists at the start address
+and that vma still covers the page range [start,end).  If not, we return
+an error, -EAGAIN, and let the caller deal with it.
 
----
- include/asm-ia64/percpu.h |   24 +++++++-----------------
- include/linux/percpu.h    |    4 ----
- 2 files changed, 7 insertions(+), 21 deletions(-)
+Return -EAGAIN from mlock_vma_pages_range() function and mlock_fixup()
+if the vma at 'start' disappears or changes so that the page range
+[start,end) is no longer contained in the vma.  Again, let the caller
+deal with it.  Looks like only sys_remap_file_pages() [via mmap_region()]
+should actually care.
 
---- a/include/asm-ia64/percpu.h
-+++ b/include/asm-ia64/percpu.h
-@@ -19,29 +19,14 @@
- # define PER_CPU_ATTRIBUTES	__attribute__((__model__ (__small__)))
- #endif
+With this patch, I no longer see processes like ps(1) blocked for seconds
+or minutes at a time waiting for a large [multiple gigabyte] region to be
+locked down.  
+
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+Signed-off-by:  Rik van Riel <riel@redhat.com>
+
+Index: linux-2.6.24-rc6-mm1/mm/mlock.c
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/mm/mlock.c	2008-01-02 14:59:18.000000000 -0500
++++ linux-2.6.24-rc6-mm1/mm/mlock.c	2008-01-02 15:06:32.000000000 -0500
+@@ -200,6 +200,37 @@ int __mlock_vma_pages_range(struct vm_ar
+ 	return ret;
+ }
  
--#define DECLARE_PER_CPU(type, name)				\
--	extern PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
--
- #ifdef CONFIG_SMP
++/**
++ * mlock_vma_pages_range
++ * @vma - vm area to mlock into memory
++ * @start - start address in @vma of range to mlock,
++ * @end   - end address in @vma of range
++ *
++ * Called with current->mm->mmap_sem held write locked.  Downgrade to read
++ * for faulting in pages.  This can take a looong time for large segments.
++ *
++ * We need to restore the mmap_sem to write locked because our callers'
++ * callers expect this.	 However, because the mmap could have changed
++ * [in a multi-threaded process], we need to recheck.
++ */
++int mlock_vma_pages_range(struct vm_area_struct *vma,
++			unsigned long start, unsigned long end)
++{
++	struct mm_struct *mm = vma->vm_mm;
++
++	downgrade_write(&mm->mmap_sem);
++	__mlock_vma_pages_range(vma, start, end, 1);
++
++	up_read(&mm->mmap_sem);
++	/* vma can change or disappear */
++	down_write(&mm->mmap_sem);
++	vma = find_vma(mm, start);
++	/* non-NULL vma must contain @start, but need to check @end */
++	if (!vma ||  end > vma->vm_end)
++		return -EAGAIN;
++	return 0;
++}
++
+ #else /* CONFIG_NORECLAIM_MLOCK */
  
--extern unsigned long __per_cpu_offset[NR_CPUS];
--#define per_cpu_offset(x) (__per_cpu_offset[x])
--
--/* Equal to __per_cpu_offset[smp_processor_id()], but faster to access: */
--DECLARE_PER_CPU(unsigned long, local_per_cpu_offset);
--
--#define per_cpu(var, cpu)  (*RELOC_HIDE(&per_cpu__##var, __per_cpu_offset[cpu]))
--#define __get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __ia64_per_cpu_var(local_per_cpu_offset)))
--#define __raw_get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __ia64_per_cpu_var(local_per_cpu_offset)))
-+#define __my_cpu_offset	__ia64_per_cpu_var(local_per_cpu_offset)
+ /*
+@@ -266,14 +297,38 @@ success:
+ 	mm->locked_vm += nr_pages;
  
--extern void setup_per_cpu_areas (void);
- extern void *per_cpu_init(void);
+ 	/*
+-	 * vm_flags is protected by the mmap_sem held in write mode.
++	 * vm_flags is protected by the mmap_sem held for write.
+ 	 * It's okay if try_to_unmap_one unmaps a page just after we
+ 	 * set VM_LOCKED, __mlock_vma_pages_range will bring it back.
+ 	 */
+ 	vma->vm_flags = newflags;
  
- #else /* ! SMP */
++	/*
++	 * mmap_sem is currently held for write.  If we're locking pages,
++	 * downgrade the write lock to a read lock so that other faults,
++	 * mmap scans, ... while we fault in all pages.
++	 */
++	if (lock)
++		downgrade_write(&mm->mmap_sem);
++
+ 	__mlock_vma_pages_range(vma, start, end, lock);
  
--#define per_cpu(var, cpu)			(*((void)(cpu), &per_cpu__##var))
--#define __get_cpu_var(var)			per_cpu__##var
--#define __raw_get_cpu_var(var)			per_cpu__##var
- #define per_cpu_init()				(__phys_per_cpu_start)
- 
- #endif	/* SMP */
-@@ -52,7 +37,12 @@ extern void *per_cpu_init(void);
-  * On the positive side, using __ia64_per_cpu_var() instead of __get_cpu_var() is slightly
-  * more efficient.
++	if (lock) {
++		/*
++		 * Need to reacquire mmap sem in write mode, as our callers
++		 * expect this.  We have no support for atomically upgrading
++		 * a sem to write, so we need to check for changes while sem
++		 * is unlocked.
++		 */
++		up_read(&mm->mmap_sem);
++		/* vma can change or disappear */
++		down_write(&mm->mmap_sem);
++		*prev = find_vma(mm, start);
++		/* non-NULL *prev must contain @start, but need to check @end */
++		if (!(*prev) || end > (*prev)->vm_end)
++			ret = -EAGAIN;
++	}
++
+ out:
+ 	if (ret == -ENOMEM)
+ 		ret = -EAGAIN;
+Index: linux-2.6.24-rc6-mm1/mm/internal.h
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/mm/internal.h	2008-01-02 14:58:22.000000000 -0500
++++ linux-2.6.24-rc6-mm1/mm/internal.h	2008-01-02 15:07:37.000000000 -0500
+@@ -61,24 +61,21 @@ extern int __mlock_vma_pages_range(struc
+ /*
+  * mlock all pages in this vma range.  For mmap()/mremap()/...
   */
--#define __ia64_per_cpu_var(var)	(per_cpu__##var)
-+#define __ia64_per_cpu_var(var)	per_cpu__##var
-+
-+#include <asm-generic/percpu.h>
-+
-+/* Equal to __per_cpu_offset[smp_processor_id()], but faster to access: */
-+DECLARE_PER_CPU(unsigned long, local_per_cpu_offset);
+-static inline void mlock_vma_pages_range(struct vm_area_struct *vma,
+-			unsigned long start, unsigned long end)
+-{
+-	__mlock_vma_pages_range(vma, start, end, 1);
+-}
++extern int mlock_vma_pages_range(struct vm_area_struct *vma,
++			unsigned long start, unsigned long end);
  
- #endif /* !__ASSEMBLY__ */
+ /*
+  * munlock range of pages.   For munmap() and exit().
+  * Always called to operate on a full vma that is being unmapped.
+  */
+-static inline void munlock_vma_pages_range(struct vm_area_struct *vma,
++static inline int munlock_vma_pages_range(struct vm_area_struct *vma,
+ 			unsigned long start, unsigned long end)
+ {
+ // TODO:  verify my assumption.  Should we just drop the start/end args?
+ 	VM_BUG_ON(start != vma->vm_start || end != vma->vm_end);
  
---- a/include/linux/percpu.h
-+++ b/include/linux/percpu.h
-@@ -9,10 +9,6 @@
+ 	vma->vm_flags &= ~VM_LOCKED;    /* try_to_unlock() needs this */
+-	__mlock_vma_pages_range(vma, start, end, 0);
++	return __mlock_vma_pages_range(vma, start, end, 0);
+ }
  
- #include <asm/percpu.h>
+ extern void clear_page_mlock(struct page *page);
+@@ -90,10 +87,10 @@ static inline int is_mlocked_vma(struct 
+ }
+ static inline void clear_page_mlock(struct page *page) { }
+ static inline void mlock_vma_page(struct page *page) { }
+-static inline void mlock_vma_pages_range(struct vm_area_struct *vma,
+-			unsigned long start, unsigned long end) { }
+-static inline void munlock_vma_pages_range(struct vm_area_struct *vma,
+-			unsigned long start, unsigned long end) { }
++static inline int mlock_vma_pages_range(struct vm_area_struct *vma,
++			unsigned long start, unsigned long end) { return 0; }
++static inline int munlock_vma_pages_range(struct vm_area_struct *vma,
++			unsigned long start, unsigned long end) { return 0; }
  
--#ifndef PER_CPU_ATTRIBUTES
--#define PER_CPU_ATTRIBUTES
--#endif
--
- #ifdef CONFIG_SMP
- #define DEFINE_PER_CPU(type, name)					\
- 	__attribute__((__section__(".data.percpu")))			\
+ #endif /* CONFIG_NORECLAIM_MLOCK */
+ 
 
 -- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
