@@ -1,50 +1,75 @@
-Date: Tue, 8 Jan 2008 04:52:20 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch] mm: use a pte bit to flag normal pages
-Message-ID: <20080108035220.GC5264@wotan.suse.de>
-References: <20071221104701.GE28484@wotan.suse.de> <OFEC52C590.33A28896-ONC12573B8.0069F07E-C12573B8.006B1A41@de.ibm.com> <20080107044355.GA11222@wotan.suse.de> <20080107103028.GA9325@flint.arm.linux.org.uk> <6934efce0801071049u546005e7t7da4311cc0611ccd@mail.gmail.com> <20080107194543.GA2788@flint.arm.linux.org.uk> <20080108023746.GC21068@bingen.suse.de> <20080108024907.GB5264@wotan.suse.de> <20080108033103.GH2998@bingen.suse.de>
-Mime-Version: 1.0
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m084XWfo003234
+	for <linux-mm@kvack.org>; Tue, 8 Jan 2008 15:33:32 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m084Xw472367668
+	for <linux-mm@kvack.org>; Tue, 8 Jan 2008 15:33:58 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m084XwA7022427
+	for <linux-mm@kvack.org>; Tue, 8 Jan 2008 15:33:58 +1100
+Date: Tue, 8 Jan 2008 10:03:48 +0530
+From: Dhaval Giani <dhaval@linux.vnet.ibm.com>
+Subject: Re: 2.6.22-stable causes oomkiller to be invoked
+Message-ID: <20080108043348.GB5393@linux.vnet.ibm.com>
+Reply-To: Dhaval Giani <dhaval@linux.vnet.ibm.com>
+References: <Pine.LNX.4.64.0712171222470.29500@schroedinger.engr.sgi.com> <20071221044508.GA11996@linux.vnet.ibm.com> <Pine.LNX.4.64.0712261258050.16862@schroedinger.engr.sgi.com> <20071228101109.GB5083@linux.vnet.ibm.com> <Pine.LNX.4.64.0801021237330.21526@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0801021346580.3778@schroedinger.engr.sgi.com> <20080103035942.GB26166@linux.vnet.ibm.com> <20080103041606.GC26166@linux.vnet.ibm.com> <Pine.LNX.4.64.0801031258400.30856@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0801071203070.24592@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080108033103.GH2998@bingen.suse.de>
+In-Reply-To: <Pine.LNX.4.64.0801071203070.24592@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Jared Hulbert <jaredeh@gmail.com>, Martin Schwidefsky <martin.schwidefsky@de.ibm.com>, carsteno@linux.vnet.ibm.com, Heiko Carstens <h.carstens@de.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, htejun@gmail.com, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Balbir Singh <balbir@in.ibm.com>, maneesh@linux.vnet.ibm.com, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 08, 2008 at 04:31:03AM +0100, Andi Kleen wrote:
-> On Tue, Jan 08, 2008 at 03:49:07AM +0100, Nick Piggin wrote:
-> > On Tue, Jan 08, 2008 at 03:37:46AM +0100, Andi Kleen wrote:
-> > > > - strongly ordered
-> > > > - bufferable only *
-> > > > - device, sharable *
-> > > > - device, unsharable
-> > > > - memory, bufferable and cacheable, write through, no write allocate
-> > > > - memory, bufferable and cacheable, write back, no write allocate
-> > > > - memory, bufferable and cacheable, write back, write allocate
-> > > > - implementation defined combinations (eg, selecting "minicache")
-> > > > - and a set of 16 states to allow the policy of inner and outer levels
-> > > >   of cache to be defined (two bits per level).
-> > > 
-> > > Do you need all of those in user space? Perhaps you could give
-> > > the bits different meanings depending on user or kernel space.
-> > > I think Nick et.al. just need the bits for user space; they won't
-> > > care about kernel mappings.
-> > 
-> > Yes correct -- they are only for userspace mappings. Though that includes mmaps
-> > of /dev/mem and device drivers etc. 
+On Mon, Jan 07, 2008 at 12:04:06PM -0800, Christoph Lameter wrote:
+> Here is the cleaned version of the patch. Dhaval is testing it.
 > 
-> /dev/mem can be always special cased by checking the VMA flags, can't it?
+> 
+> quicklists: Only consider memory that can be used with GFP_KERNEL
+> 
+> Quicklists calculates the size of the quicklists based on the number
+> of free pages. This must be the number of free pages that can be
+> allocated with GFP_KERNEL. node_page_state() includes the pages in
+> ZONE_HIGHMEM and ZONE_MOVABLE which may lead the quicklists to
+> become too large causing OOM.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-That's basically what we do today with COW support for VM_PFNMAP. Once you have
-that, I don't think there is a huge reason to _also_ use the pte bit for other
-mappings (because you need to have the VM_PFNMAP support there anyway).
+Does the job here for me.
 
-For lockless get_user_pages, I don't take mmap_sem, look up any vmas, or even
-take any page table locks, so it doesn't help there either. (though in the case
-of lockless gup, architectues that cannot support it can simply revert to the
-regular gup).
+Tested-by: Dhaval Giani <dhaval@linux.vnet.ibm.com>
+
+> 
+> Index: linux-2.6/mm/quicklist.c
+> ===================================================================
+> --- linux-2.6.orig/mm/quicklist.c	2008-01-07 10:38:13.000000000 -0800
+> +++ linux-2.6/mm/quicklist.c	2008-01-07 10:38:44.000000000 -0800
+> @@ -26,9 +26,17 @@ DEFINE_PER_CPU(struct quicklist, quickli
+>  static unsigned long max_pages(unsigned long min_pages)
+>  {
+>  	unsigned long node_free_pages, max;
+> +	struct zone *zones = NODE_DATA(numa_node_id())->node_zones;
+> +
+> +	node_free_pages =
+> +#ifdef CONFIG_ZONE_DMA
+> +		zone_page_state(&zones[ZONE_DMA], NR_FREE_PAGES) +
+> +#endif
+> +#ifdef CONFIG_ZONE_DMA32
+> +		zone_page_state(&zones[ZONE_DMA32], NR_FREE_PAGES) +
+> +#endif
+> +		zone_page_state(&zones[ZONE_NORMAL], NR_FREE_PAGES);
+> 
+> -	node_free_pages = node_page_state(numa_node_id(),
+> -			NR_FREE_PAGES);
+>  	max = node_free_pages / FRACTION_OF_NODE_MEM;
+>  	return max(max, min_pages);
+>  }
+
+-- 
+regards,
+Dhaval
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
