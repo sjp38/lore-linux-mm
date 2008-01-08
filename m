@@ -1,78 +1,101 @@
-Message-Id: <20080108021143.444476000@sgi.com>
+Message-Id: <20080108021143.721426000@sgi.com>
 References: <20080108021142.585467000@sgi.com>
-Date: Mon, 07 Jan 2008 18:11:46 -0800
+Date: Mon, 07 Jan 2008 18:11:48 -0800
 From: travis@sgi.com
-Subject: [PATCH 04/10] x86_32: Use generic percpu.h
-Content-Disposition: inline; filename=x86_32_use_generic_percpu
+Subject: [PATCH 06/10] s390: Use generic percpu
+Content-Disposition: inline; filename=s390_generic_percpu
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: mingo@elte.hu, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>
-Cc: Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com
+Cc: Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, schwidefsky@de.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-x86_32 only provides a special way to obtain the local per cpu area offset
-via x86_read_percpu. Otherwise it can fully use the generic handling.
+On Thu, 29 Nov 2007, Martin Schwidefsky wrote:
 
-Cc: tglx@linutronix.de
-Cc: mingo@redhat.com
-Cc: ak@suse.de
+> On Wed, 2007-11-28 at 13:09 -0800, Christoph Lameter wrote:
+> > s390 has a special way to determine the pointer to a per cpu area
+> > plus there is a way to access the base of the per cpu area of the
+> > currently executing processor.
+> > 
+> > Note: I had to do a minor change to ASM code. Please check that
+> > this was done right.
+> 
+> Hi Christoph,
+> 
+> after fixing the trainwreck with Gregs kset changes I've got rc3-mm2
+> compiled with your percpu patches. The new s390 percpu code works fine:
+> 
+> Acked-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+
+Cc: schwidefsky@de.ibm.com
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: Mike Travis <travis@sgi.com>
 
 ---
- include/asm-x86/percpu_32.h |   30 +++++++++---------------------
- 1 file changed, 9 insertions(+), 21 deletions(-)
+ include/asm-s390/percpu.h |   42 +++++++++---------------------------------
+ 1 file changed, 9 insertions(+), 33 deletions(-)
 
---- a/include/asm-x86/percpu_32.h
-+++ b/include/asm-x86/percpu_32.h
-@@ -42,26 +42,7 @@
+--- a/include/asm-s390/percpu.h
++++ b/include/asm-s390/percpu.h
+@@ -13,49 +13,25 @@
   */
- #ifdef CONFIG_SMP
+ #if defined(__s390x__) && defined(MODULE)
  
--/* This is used for other cpus to find our section. */
--extern unsigned long __per_cpu_offset[];
+-#define __reloc_hide(var,offset) (*({			\
++#define SHIFT_PERCPU_PTR(ptr,offset) (({			\
+ 	extern int simple_identifier_##var(void);	\
+ 	unsigned long *__ptr;				\
+-	asm ( "larl %0,per_cpu__"#var"@GOTENT"		\
+-	    : "=a" (__ptr) : "X" (per_cpu__##var) );	\
+-	(typeof(&per_cpu__##var))((*__ptr) + (offset));	}))
++	asm ( "larl %0, %1@GOTENT"		\
++	    : "=a" (__ptr) : "X" (ptr) );		\
++	(typeof(ptr))((*__ptr) + (offset));	}))
+ 
+ #else
+ 
+-#define __reloc_hide(var, offset) (*({				\
++#define SHIFT_PERCPU_PTR(ptr, offset) (({				\
+ 	extern int simple_identifier_##var(void);		\
+ 	unsigned long __ptr;					\
+-	asm ( "" : "=a" (__ptr) : "0" (&per_cpu__##var) );	\
+-	(typeof(&per_cpu__##var)) (__ptr + (offset)); }))
++	asm ( "" : "=a" (__ptr) : "0" (ptr) );			\
++	(typeof(ptr)) (__ptr + (offset)); }))
+ 
+ #endif
+ 
+-#ifdef CONFIG_SMP
++#define __my_cpu_offset S390_lowcore.percpu_offset
+ 
+-extern unsigned long __per_cpu_offset[NR_CPUS];
 -
+-#define __get_cpu_var(var) __reloc_hide(var,S390_lowcore.percpu_offset)
+-#define __raw_get_cpu_var(var) __reloc_hide(var,S390_lowcore.percpu_offset)
+-#define per_cpu(var,cpu) __reloc_hide(var,__per_cpu_offset[cpu])
 -#define per_cpu_offset(x) (__per_cpu_offset[x])
 -
+-/* A macro to avoid #include hell... */
+-#define percpu_modcopy(pcpudst, src, size)			\
+-do {								\
+-	unsigned int __i;					\
+-	for_each_possible_cpu(__i)				\
+-		memcpy((pcpudst)+__per_cpu_offset[__i],		\
+-		       (src), (size));				\
+-} while (0)
+-
+-#else /* ! SMP */
+-
+-#define __get_cpu_var(var) __reloc_hide(var,0)
+-#define __raw_get_cpu_var(var) __reloc_hide(var,0)
+-#define per_cpu(var,cpu) __reloc_hide(var,0)
+-
+-#endif /* SMP */
+-
 -#define DECLARE_PER_CPU(type, name) extern __typeof__(type) per_cpu__##name
--/* We can use this directly for local CPU (faster). */
--DECLARE_PER_CPU(unsigned long, this_cpu_off);
--
--/* var is in discarded region: offset to particular copy we want */
--#define per_cpu(var, cpu) (*({				\
--	extern int simple_indentifier_##var(void);	\
--	RELOC_HIDE(&per_cpu__##var, __per_cpu_offset[cpu]); }))
--
--#define __raw_get_cpu_var(var) (*({					\
--	extern int simple_indentifier_##var(void);			\
--	RELOC_HIDE(&per_cpu__##var, x86_read_percpu(this_cpu_off));	\
--}))
--
--#define __get_cpu_var(var) __raw_get_cpu_var(var)
-+#define __my_cpu_offset x86_read_percpu(this_cpu_off)
- 
- /* A macro to avoid #include hell... */
- #define percpu_modcopy(pcpudst, src, size)			\
-@@ -74,11 +55,18 @@ do {								\
- 
- /* fs segment starts at (positive) offset == __per_cpu_offset[cpu] */
- #define __percpu_seg "%%fs:"
-+
- #else  /* !SMP */
--#include <asm-generic/percpu.h>
-+
- #define __percpu_seg ""
-+
- #endif	/* SMP */
- 
 +#include <asm-generic/percpu.h>
-+
-+/* We can use this directly for local CPU (faster). */
-+DECLARE_PER_CPU(unsigned long, this_cpu_off);
-+
- /* For arch-specific code, we can use direct single-insn ops (they
-  * don't give an lvalue though). */
- extern void __bad_percpu_size(void);
+ 
+ #endif /* __ARCH_S390_PERCPU__ */
 
 -- 
 
