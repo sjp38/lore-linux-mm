@@ -1,80 +1,65 @@
-Message-Id: <20080108021144.012541000@sgi.com>
+Message-Id: <20080108021143.581044000@sgi.com>
 References: <20080108021142.585467000@sgi.com>
-Date: Mon, 07 Jan 2008 18:11:50 -0800
+Date: Mon, 07 Jan 2008 18:11:47 -0800
 From: travis@sgi.com
-Subject: [PATCH 08/10] Sparc64: Use generic percpu
-Content-Disposition: inline; filename=sparc64_generic_percpu
+Subject: [PATCH 05/10] x86_64: Use generic percpu
+Content-Disposition: inline; filename=x86_64_use_generic_percpu
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: mingo@elte.hu, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>
-Cc: Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Miller <davem@davemloft.net>
+Cc: Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, tglx@linutronix.de, mingo@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-- use generic percpy_modcopy()
+x86_64 provides an optimized way to determine the local per cpu area
+offset through the pda and determines the base by accessing a remote
+pda.
 
-Sparc64 has a way of providing the base address for the per cpu area of the
-currently executing processor in a global register.
-
-Sparc64 also provides a way to calculate the address of a per cpu area
-from a base address instead of performing an array lookup.
-
-Cc: David Miller <davem@davemloft.net>
+Cc: Rusty Russell <rusty@rustcorp.com.au>
+Cc: Andi Kleen <ak@suse.de>
+Cc: tglx@linutronix.de
+Cc: mingo@redhat.com
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: Mike Travis <travis@sgi.com>
 
----
- arch/sparc64/mm/init.c       |    5 +++++
- include/asm-sparc64/percpu.h |   22 +++-------------------
- 2 files changed, 8 insertions(+), 19 deletions(-)
 
---- a/arch/sparc64/mm/init.c
-+++ b/arch/sparc64/mm/init.c
-@@ -1328,6 +1328,11 @@ pgd_t swapper_pg_dir[2048];
- static void sun4u_pgprot_init(void);
- static void sun4v_pgprot_init(void);
+---
+ include/asm-x86/percpu_64.h |   23 ++---------------------
+ 1 file changed, 2 insertions(+), 21 deletions(-)
+
+--- a/include/asm-x86/percpu_64.h
++++ b/include/asm-x86/percpu_64.h
+@@ -12,21 +12,10 @@
+ #include <asm/pda.h>
  
-+/* Dummy function */
-+void __init setup_per_cpu_areas(void)
-+{
-+}
-+
- void __init paging_init(void)
- {
- 	unsigned long end_pfn, pages_avail, shift, phys_base;
---- a/include/asm-sparc64/percpu.h
-+++ b/include/asm-sparc64/percpu.h
-@@ -7,7 +7,6 @@ register unsigned long __local_per_cpu_o
+ #define __per_cpu_offset(cpu) (cpu_pda(cpu)->data_offset)
+-#define __my_cpu_offset() read_pda(data_offset)
++#define __my_cpu_offset read_pda(data_offset)
  
- #ifdef CONFIG_SMP
- 
--#define setup_per_cpu_areas()			do { } while (0)
- extern void real_setup_per_cpu_areas(void);
- 
- extern unsigned long __per_cpu_base;
-@@ -16,29 +15,14 @@ extern unsigned long __per_cpu_shift;
- 	(__per_cpu_base + ((unsigned long)(__cpu) << __per_cpu_shift))
  #define per_cpu_offset(x) (__per_cpu_offset(x))
  
 -/* var is in discarded region: offset to particular copy we want */
--#define per_cpu(var, cpu) (*RELOC_HIDE(&per_cpu__##var, __per_cpu_offset(cpu)))
--#define __get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __local_per_cpu_offset))
--#define __raw_get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __local_per_cpu_offset))
+-#define per_cpu(var, cpu) (*({				\
+-	extern int simple_identifier_##var(void);	\
+-	RELOC_HIDE(&per_cpu__##var, __per_cpu_offset(cpu)); }))
+-#define __get_cpu_var(var) (*({				\
+-	extern int simple_identifier_##var(void);	\
+-	RELOC_HIDE(&per_cpu__##var, __my_cpu_offset()); }))
+-#define __raw_get_cpu_var(var) (*({			\
+-	extern int simple_identifier_##var(void);	\
+-	RELOC_HIDE(&per_cpu__##var, __my_cpu_offset()); }))
 -
--/* A macro to avoid #include hell... */
--#define percpu_modcopy(pcpudst, src, size)			\
--do {								\
--	unsigned int __i;					\
--	for_each_possible_cpu(__i)				\
--		memcpy((pcpudst)+__per_cpu_offset(__i),		\
--		       (src), (size));				\
--} while (0)
-+#define __my_cpu_offset __local_per_cpu_offset
-+
- #else /* ! SMP */
+ /* A macro to avoid #include hell... */
+ #define percpu_modcopy(pcpudst, src, size)			\
+ do {								\
+@@ -36,16 +25,8 @@ do {								\
+ 		       (src), (size));				\
+ } while (0)
  
- #define real_setup_per_cpu_areas()		do { } while (0)
- 
--#define per_cpu(var, cpu)			(*((void)cpu, &per_cpu__##var))
+-extern void setup_per_cpu_areas(void);
+-
+-#else /* ! SMP */
+-
+-#define per_cpu(var, cpu)			(*((void)(cpu), &per_cpu__##var))
 -#define __get_cpu_var(var)			per_cpu__##var
 -#define __raw_get_cpu_var(var)			per_cpu__##var
 -
@@ -83,7 +68,7 @@ Signed-off-by: Mike Travis <travis@sgi.com>
 -#define DECLARE_PER_CPU(type, name) extern __typeof__(type) per_cpu__##name
 +#include <asm-generic/percpu.h>
  
- #endif /* __ARCH_SPARC64_PERCPU__ */
+ #endif /* _ASM_X8664_PERCPU_H_ */
 
 -- 
 
