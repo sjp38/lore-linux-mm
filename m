@@ -1,103 +1,34 @@
-Message-Id: <20080108021143.721426000@sgi.com>
-References: <20080108021142.585467000@sgi.com>
-Date: Mon, 07 Jan 2008 18:11:48 -0800
-From: travis@sgi.com
-Subject: [PATCH 06/10] s390: Use generic percpu
-Content-Disposition: inline; filename=s390_generic_percpu
+Date: Tue, 8 Jan 2008 03:37:46 +0100
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [rfc][patch] mm: use a pte bit to flag normal pages
+Message-ID: <20080108023746.GC21068@bingen.suse.de>
+References: <20071221104701.GE28484@wotan.suse.de> <OFEC52C590.33A28896-ONC12573B8.0069F07E-C12573B8.006B1A41@de.ibm.com> <20080107044355.GA11222@wotan.suse.de> <20080107103028.GA9325@flint.arm.linux.org.uk> <6934efce0801071049u546005e7t7da4311cc0611ccd@mail.gmail.com> <20080107194543.GA2788@flint.arm.linux.org.uk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080107194543.GA2788@flint.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mingo@elte.hu, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>
-Cc: Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, schwidefsky@de.ibm.com
+To: Jared Hulbert <jaredeh@gmail.com>, Nick Piggin <npiggin@suse.de>, Martin Schwidefsky <martin.schwidefsky@de.ibm.com>, carsteno@linux.vnet.ibm.com, Heiko Carstens <h.carstens@de.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Nov 2007, Martin Schwidefsky wrote:
+> - strongly ordered
+> - bufferable only *
+> - device, sharable *
+> - device, unsharable
+> - memory, bufferable and cacheable, write through, no write allocate
+> - memory, bufferable and cacheable, write back, no write allocate
+> - memory, bufferable and cacheable, write back, write allocate
+> - implementation defined combinations (eg, selecting "minicache")
+> - and a set of 16 states to allow the policy of inner and outer levels
+>   of cache to be defined (two bits per level).
 
-> On Wed, 2007-11-28 at 13:09 -0800, Christoph Lameter wrote:
-> > s390 has a special way to determine the pointer to a per cpu area
-> > plus there is a way to access the base of the per cpu area of the
-> > currently executing processor.
-> > 
-> > Note: I had to do a minor change to ASM code. Please check that
-> > this was done right.
-> 
-> Hi Christoph,
-> 
-> after fixing the trainwreck with Gregs kset changes I've got rc3-mm2
-> compiled with your percpu patches. The new s390 percpu code works fine:
-> 
-> Acked-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Do you need all of those in user space? Perhaps you could give
+the bits different meanings depending on user or kernel space.
+I think Nick et.al. just need the bits for user space; they won't
+care about kernel mappings.
 
-Cc: schwidefsky@de.ibm.com
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-Signed-off-by: Mike Travis <travis@sgi.com>
-
----
- include/asm-s390/percpu.h |   42 +++++++++---------------------------------
- 1 file changed, 9 insertions(+), 33 deletions(-)
-
---- a/include/asm-s390/percpu.h
-+++ b/include/asm-s390/percpu.h
-@@ -13,49 +13,25 @@
-  */
- #if defined(__s390x__) && defined(MODULE)
- 
--#define __reloc_hide(var,offset) (*({			\
-+#define SHIFT_PERCPU_PTR(ptr,offset) (({			\
- 	extern int simple_identifier_##var(void);	\
- 	unsigned long *__ptr;				\
--	asm ( "larl %0,per_cpu__"#var"@GOTENT"		\
--	    : "=a" (__ptr) : "X" (per_cpu__##var) );	\
--	(typeof(&per_cpu__##var))((*__ptr) + (offset));	}))
-+	asm ( "larl %0, %1@GOTENT"		\
-+	    : "=a" (__ptr) : "X" (ptr) );		\
-+	(typeof(ptr))((*__ptr) + (offset));	}))
- 
- #else
- 
--#define __reloc_hide(var, offset) (*({				\
-+#define SHIFT_PERCPU_PTR(ptr, offset) (({				\
- 	extern int simple_identifier_##var(void);		\
- 	unsigned long __ptr;					\
--	asm ( "" : "=a" (__ptr) : "0" (&per_cpu__##var) );	\
--	(typeof(&per_cpu__##var)) (__ptr + (offset)); }))
-+	asm ( "" : "=a" (__ptr) : "0" (ptr) );			\
-+	(typeof(ptr)) (__ptr + (offset)); }))
- 
- #endif
- 
--#ifdef CONFIG_SMP
-+#define __my_cpu_offset S390_lowcore.percpu_offset
- 
--extern unsigned long __per_cpu_offset[NR_CPUS];
--
--#define __get_cpu_var(var) __reloc_hide(var,S390_lowcore.percpu_offset)
--#define __raw_get_cpu_var(var) __reloc_hide(var,S390_lowcore.percpu_offset)
--#define per_cpu(var,cpu) __reloc_hide(var,__per_cpu_offset[cpu])
--#define per_cpu_offset(x) (__per_cpu_offset[x])
--
--/* A macro to avoid #include hell... */
--#define percpu_modcopy(pcpudst, src, size)			\
--do {								\
--	unsigned int __i;					\
--	for_each_possible_cpu(__i)				\
--		memcpy((pcpudst)+__per_cpu_offset[__i],		\
--		       (src), (size));				\
--} while (0)
--
--#else /* ! SMP */
--
--#define __get_cpu_var(var) __reloc_hide(var,0)
--#define __raw_get_cpu_var(var) __reloc_hide(var,0)
--#define per_cpu(var,cpu) __reloc_hide(var,0)
--
--#endif /* SMP */
--
--#define DECLARE_PER_CPU(type, name) extern __typeof__(type) per_cpu__##name
-+#include <asm-generic/percpu.h>
- 
- #endif /* __ARCH_S390_PERCPU__ */
-
--- 
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
