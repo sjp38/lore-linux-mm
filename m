@@ -1,117 +1,35 @@
-Message-Id: <20080108021144.153400000@sgi.com>
-References: <20080108021142.585467000@sgi.com>
-Date: Mon, 07 Jan 2008 18:11:51 -0800
+Message-Id: <20080108021142.585467000@sgi.com>
+Date: Mon, 07 Jan 2008 18:11:42 -0800
 From: travis@sgi.com
-Subject: [PATCH 09/10] ia64: Use generic percpu
-Content-Disposition: inline; filename=ia64_generic_percpu
+Subject: [PATCH 00/10] percpu: Per cpu code simplification V3
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: mingo@elte.hu, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>
-Cc: Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, tony.luck@intel.com
+Cc: Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-- Merge fixes
-- Remove transitional check for PER_CPU_ATTRIBUTES from linux/percpu.h
+This patchset simplifies the code that arches need to maintain to support
+per cpu functionality. Most of the code is moved into arch independent
+code. Only a minimal set of definitions is kept for each arch.
 
-V2-.V3:
-- use generic percpy_modcopy()
+The patch also unifies the x86 arch so that there is only a single
+asm-x86/percpu.h
 
-ia64 has a special processor specific mapping that can be used to locate the
-offset for the current per cpu area.
+V1->V2:
+- Add support for specifying attributes for per cpu declarations (preserves
+  IA64 model(small) attribute).
+  - Drop first patch that removes the model(small) attribute for IA64
+  - Missing #endif in powerpc generic config /  Wrong Kconfig
+  - Follow Randy's suggestions on how to do the Kconfig settings
 
-Cc: linux-ia64@vger.kernel.org
-Cc: tony.luck@intel.com
+V2->V3:
+  - fix x86_64 non-SMP case
+  - change SHIFT_PTR to SHIFT_PERCPU_PTR
+  - fix various percpu_modcopy()'s to reference correct per_cpu_offset()
+  - s390 has a special way to determine the pointer to a per cpu area
+
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: Mike Travis <travis@sgi.com>
-
----
- arch/ia64/kernel/module.c |   11 -----------
- include/asm-ia64/percpu.h |   29 +++++++----------------------
- include/linux/percpu.h    |    4 ----
- 3 files changed, 7 insertions(+), 37 deletions(-)
-
---- a/arch/ia64/kernel/module.c
-+++ b/arch/ia64/kernel/module.c
-@@ -940,14 +940,3 @@ module_arch_cleanup (struct module *mod)
- 	if (mod->arch.core_unw_table)
- 		unw_remove_unwind_table(mod->arch.core_unw_table);
- }
--
--#ifdef CONFIG_SMP
--void
--percpu_modcopy (void *pcpudst, const void *src, unsigned long size)
--{
--	unsigned int i;
--	for_each_possible_cpu(i) {
--		memcpy(pcpudst + per_cpu_offset(i), src, size);
--	}
--}
--#endif /* CONFIG_SMP */
---- a/include/asm-ia64/percpu.h
-+++ b/include/asm-ia64/percpu.h
-@@ -19,34 +19,14 @@
- # define PER_CPU_ATTRIBUTES	__attribute__((__model__ (__small__)))
- #endif
- 
--#define DECLARE_PER_CPU(type, name)				\
--	extern PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
--
--/*
-- * Pretty much a literal copy of asm-generic/percpu.h, except that percpu_modcopy() is an
-- * external routine, to avoid include-hell.
-- */
- #ifdef CONFIG_SMP
- 
--extern unsigned long __per_cpu_offset[NR_CPUS];
--#define per_cpu_offset(x) (__per_cpu_offset[x])
--
--/* Equal to __per_cpu_offset[smp_processor_id()], but faster to access: */
--DECLARE_PER_CPU(unsigned long, local_per_cpu_offset);
-+#define __my_cpu_offset	__ia64_per_cpu_var(local_per_cpu_offset)
- 
--#define per_cpu(var, cpu)  (*RELOC_HIDE(&per_cpu__##var, __per_cpu_offset[cpu]))
--#define __get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __ia64_per_cpu_var(local_per_cpu_offset)))
--#define __raw_get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __ia64_per_cpu_var(local_per_cpu_offset)))
--
--extern void percpu_modcopy(void *pcpudst, const void *src, unsigned long size);
--extern void setup_per_cpu_areas (void);
- extern void *per_cpu_init(void);
- 
- #else /* ! SMP */
- 
--#define per_cpu(var, cpu)			(*((void)(cpu), &per_cpu__##var))
--#define __get_cpu_var(var)			per_cpu__##var
--#define __raw_get_cpu_var(var)			per_cpu__##var
- #define per_cpu_init()				(__phys_per_cpu_start)
- 
- #endif	/* SMP */
-@@ -57,7 +37,12 @@ extern void *per_cpu_init(void);
-  * On the positive side, using __ia64_per_cpu_var() instead of __get_cpu_var() is slightly
-  * more efficient.
-  */
--#define __ia64_per_cpu_var(var)	(per_cpu__##var)
-+#define __ia64_per_cpu_var(var)	per_cpu__##var
-+
-+#include <asm-generic/percpu.h>
-+
-+/* Equal to __per_cpu_offset[smp_processor_id()], but faster to access: */
-+DECLARE_PER_CPU(unsigned long, local_per_cpu_offset);
- 
- #endif /* !__ASSEMBLY__ */
- 
---- a/include/linux/percpu.h
-+++ b/include/linux/percpu.h
-@@ -9,10 +9,6 @@
- 
- #include <asm/percpu.h>
- 
--#ifndef PER_CPU_ATTRIBUTES
--#define PER_CPU_ATTRIBUTES
--#endif
--
- #ifdef CONFIG_SMP
- #define DEFINE_PER_CPU(type, name)					\
- 	__attribute__((__section__(".data.percpu")))			\
 
 -- 
 
