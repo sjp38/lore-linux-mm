@@ -1,10 +1,10 @@
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 12 of 13] gfp-repeat stop with TIF_MEMDIE
-Message-Id: <74af3b1477511c7bd6a5.1199778643@v2.random>
+Subject: [PATCH 11 of 13] not-wait-memdie
+Message-Id: <ecc696d359edebbfe355.1199778642@v2.random>
 In-Reply-To: <patchbomb.1199778631@v2.random>
-Date: Tue, 08 Jan 2008 08:50:43 +0100
+Date: Tue, 08 Jan 2008 08:50:42 +0100
 From: Andrea Arcangeli <andrea@cpushare.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -12,29 +12,42 @@ To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 # HG changeset patch
-# User andrea@cpushare.com
-# Date 1199692960 -3600
-# Node ID 74af3b1477511c7bd6a526b47195ddf95a5424dc
-# Parent  ecc696d359edebbfe35566510f78a4be445c8f67
-gfp-repeat stop with TIF_MEMDIE
+# User Andrea Arcangeli <andrea@suse.de>
+# Date 1199470022 -3600
+# Node ID ecc696d359edebbfe35566510f78a4be445c8f67
+# Parent  0a13c24681cf4851555c87358fc2ec2465f9ef39
+not-wait-memdie
 
-Let the GFP_REPEAT task quit if TIF_MEMDIE is set.
+Don't wait tif-memdie tasks forever because they may be stuck in some kernel
+lock owned by some task that requires memory to exit the critical section.
 
 Signed-off-by: Andrea Arcangeli <andrea@suse.de>
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1617,7 +1617,8 @@ nofail_alloc:
- 	if (!(gfp_mask & __GFP_NORETRY)) {
- 		if ((order <= PAGE_ALLOC_COSTLY_ORDER) ||
- 						(gfp_mask & __GFP_REPEAT))
--			do_retry = 1;
-+			if (likely(!test_thread_flag(TIF_MEMDIE)))
-+				do_retry = 1;
- 		if (gfp_mask & __GFP_NOFAIL)
- 			do_retry = 1;
- 	}
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -222,12 +222,16 @@ static struct task_struct *select_bad_pr
+ 		 * being killed. Don't allow any other task access to the
+ 		 * memory reserve.
+ 		 *
+-		 * Note: this may have a chance of deadlock if it gets
+-		 * blocked waiting for another task which itself is waiting
+-		 * for memory. Is there a better alternative?
++		 * But if the TIF_MEMDIE task stays around for more than
++		 * MEMDIE_DELAY jiffies, ignore it and fallback killing
++		 * another task.
+ 		 */
+-		if (test_tsk_thread_flag(p, TIF_MEMDIE))
+-			return ERR_PTR(-1UL);
++		if (test_tsk_thread_flag(p, TIF_MEMDIE)) {
++			if (time_before(p->memdie_jiffies + MEMDIE_DELAY, jiffies))
++				continue;
++			else
++				return ERR_PTR(-1UL);
++		}
+ 
+ 		/*
+ 		 * This is in the process of releasing memory so wait for it
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
