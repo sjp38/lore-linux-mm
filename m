@@ -1,75 +1,50 @@
-Date: Mon, 7 Jan 2008 19:37:55 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 11 of 11] not-wait-memdie
-In-Reply-To: <200801081425.31515.nickpiggin@yahoo.com.au>
-Message-ID: <alpine.DEB.0.9999.0801071929300.29897@chino.kir.corp.google.com>
-References: <504e981185254a12282d.1199326157@v2.random> <Pine.LNX.4.64.0801071141130.23617@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0801071751320.13505@chino.kir.corp.google.com> <200801081425.31515.nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 8 Jan 2008 04:52:20 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [rfc][patch] mm: use a pte bit to flag normal pages
+Message-ID: <20080108035220.GC5264@wotan.suse.de>
+References: <20071221104701.GE28484@wotan.suse.de> <OFEC52C590.33A28896-ONC12573B8.0069F07E-C12573B8.006B1A41@de.ibm.com> <20080107044355.GA11222@wotan.suse.de> <20080107103028.GA9325@flint.arm.linux.org.uk> <6934efce0801071049u546005e7t7da4311cc0611ccd@mail.gmail.com> <20080107194543.GA2788@flint.arm.linux.org.uk> <20080108023746.GC21068@bingen.suse.de> <20080108024907.GB5264@wotan.suse.de> <20080108033103.GH2998@bingen.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080108033103.GH2998@bingen.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@cpushare.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Andi Kleen <ak@suse.de>
+Cc: Jared Hulbert <jaredeh@gmail.com>, Martin Schwidefsky <martin.schwidefsky@de.ibm.com>, carsteno@linux.vnet.ibm.com, Heiko Carstens <h.carstens@de.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 Jan 2008, Nick Piggin wrote:
-
-> The problem is the global reserve. Once you have a kernel that doesn't
-> need this handwavy global reserve for forward progress, a lot of little
-> problems go away.
+On Tue, Jan 08, 2008 at 04:31:03AM +0100, Andi Kleen wrote:
+> On Tue, Jan 08, 2008 at 03:49:07AM +0100, Nick Piggin wrote:
+> > On Tue, Jan 08, 2008 at 03:37:46AM +0100, Andi Kleen wrote:
+> > > > - strongly ordered
+> > > > - bufferable only *
+> > > > - device, sharable *
+> > > > - device, unsharable
+> > > > - memory, bufferable and cacheable, write through, no write allocate
+> > > > - memory, bufferable and cacheable, write back, no write allocate
+> > > > - memory, bufferable and cacheable, write back, write allocate
+> > > > - implementation defined combinations (eg, selecting "minicache")
+> > > > - and a set of 16 states to allow the policy of inner and outer levels
+> > > >   of cache to be defined (two bits per level).
+> > > 
+> > > Do you need all of those in user space? Perhaps you could give
+> > > the bits different meanings depending on user or kernel space.
+> > > I think Nick et.al. just need the bits for user space; they won't
+> > > care about kernel mappings.
+> > 
+> > Yes correct -- they are only for userspace mappings. Though that includes mmaps
+> > of /dev/mem and device drivers etc. 
 > 
+> /dev/mem can be always special cased by checking the VMA flags, can't it?
 
-I'm specifically talking about TIF_MEMDIE here which gives access to that 
-global reserve.  In OOM situations there is no easy way to guarantee that 
-a task will have enough memory to exit, but that is exactly what is needed 
-to alleviate the condition.  Additionally, it is not guaranteed that a 
-task that has been OOM killed and given access to the global reserve will 
-exit after it has exhausted that reserve in its entirety.  That's when the 
-system deadlocks.
+That's basically what we do today with COW support for VM_PFNMAP. Once you have
+that, I don't think there is a huge reason to _also_ use the pte bit for other
+mappings (because you need to have the VM_PFNMAP support there anyway).
 
-So giving access to the global reserve to multiple tasks that share memory 
-in at least one of their zones for simultaneous OOM killings is not a 
-complete solution.  There should be a timeout on tasks when they are OOM 
-killed; if they cannot exit for the duration of that period, they lose 
-access to the reserves and only then is another task selected.
-
-> > It should be given to a single 
-> > OOM-killed task that will alleviate the OOM condition for the task that
-> > called out_of_memory().
-> 
-> It should be, but that task you OOM may be blocking on another one that
-> is waiting for memory, for example.
-> 
-
-And after the timeout that I'm proposing it, or another suitable 
-candidate, will be killed instead.  The dependencies are beyond the scope 
-of the OOM killer badness scoring but without giving tasks a short but 
-reasonable period to exit and then opting to kill another task there will 
-always exist the potential for deadlock.
-
-> > That's only possible with my proposal of adding
-> >
-> > 	unsigned long oom_kill_jiffies;
-> >
-> > to struct task_struct.  We can't get away with a system-wide jiffies
-> > variable, nor can we get away with per-cgroup, per-cpuset, or
-> > per-mempolicy variable.  The only way to clear such a variable is in the
-> > exit path (by checking test_thread_flag(tsk, TIF_MEMDIE) in do_exit()) and
-> > fails miserably if there are simultaneous but zone-disjoint OOMs
-> > occurring.
-> 
-> Why not just have a global frequency limit on OOM events. Then the panic
-> has this delay factored in...
-> 
-
-Because OOM killing is going to become more and more frequent with the 
-introduction of the memory controller which uses it as a mechanism to 
-enforce its policy.  And a global frequency limit does not work well for 
-parallel cpuset, mempolicy, or memory controller OOM events.  That is why 
-it is currently serialized by the triggering task's zonelist and not 
-globally.
-
-		David
+For lockless get_user_pages, I don't take mmap_sem, look up any vmas, or even
+take any page table locks, so it doesn't help there either. (though in the case
+of lockless gup, architectues that cannot support it can simply revert to the
+regular gup).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
