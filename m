@@ -1,91 +1,46 @@
-Date: Tue, 8 Jan 2008 10:52:27 +0000
-From: Russell King <rmk@arm.linux.org.uk>
-Subject: Re: [rfc][patch] mm: use a pte bit to flag normal pages
-Message-ID: <20080108105227.GA10546@flint.arm.linux.org.uk>
-References: <20071221104701.GE28484@wotan.suse.de> <OFEC52C590.33A28896-ONC12573B8.0069F07E-C12573B8.006B1A41@de.ibm.com> <20080107044355.GA11222@wotan.suse.de> <20080107103028.GA9325@flint.arm.linux.org.uk> <6934efce0801071049u546005e7t7da4311cc0611ccd@mail.gmail.com> <20080107194543.GA2788@flint.arm.linux.org.uk> <1199787075.17809.10.camel@pc1117.cambridge.arm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1199787075.17809.10.camel@pc1117.cambridge.arm.com>
+Message-ID: <47835FBE.8080406@de.ibm.com>
+Date: Tue, 08 Jan 2008 12:34:22 +0100
+From: Carsten Otte <cotte@de.ibm.com>
+Reply-To: carsteno@de.ibm.com
+MIME-Version: 1.0
+Subject: Re: [rfc][patch 0/4] VM_MIXEDMAP patchset with s390 backend
+References: <20071214133817.GB28555@wotan.suse.de> <20071214134106.GC28555@wotan.suse.de> <476A73F0.4070704@de.ibm.com> <476A7D21.7070607@de.ibm.com> <20071221004556.GB31040@wotan.suse.de> <476B9000.2090707@de.ibm.com> <20071221102052.GB28484@wotan.suse.de> <476B96D6.2010302@de.ibm.com> <20071221104701.GE28484@wotan.suse.de> <1199784954.25114.27.camel@cotte.boeblingen.de.ibm.com> <20080108100803.GA24570@wotan.suse.de>
+In-Reply-To: <20080108100803.GA24570@wotan.suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Jared Hulbert <jaredeh@gmail.com>, Nick Piggin <npiggin@suse.de>, Martin Schwidefsky <martin.schwidefsky@de.ibm.com>, carsteno@linux.vnet.ibm.com, Heiko Carstens <h.carstens@de.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: carsteno@de.ibm.com, Jared Hulbert <jaredeh@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <martin.schwidefsky@de.ibm.com>, Heiko Carstens <h.carstens@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 08, 2008 at 10:11:15AM +0000, Catalin Marinas wrote:
-> On Mon, 2008-01-07 at 19:45 +0000, Russell King wrote:
-> > In old ARM CPUs, there were two bits that defined the characteristics of
-> > the mapping - the C and B bits (C = cacheable, B = bufferable)
-> > 
-> > Some ARMv5 (particularly Xscale-based) and all ARMv6 CPUs extend this to
-> > five bits and introduce "memory types" - 3 bits of TEX, and C and B.
-> > 
-> > Between these bits, it defines:
-> > 
-> > - strongly ordered
-> > - bufferable only *
-> > - device, sharable *
-> > - device, unsharable
-> > - memory, bufferable and cacheable, write through, no write allocate
-> > - memory, bufferable and cacheable, write back, no write allocate
-> > - memory, bufferable and cacheable, write back, write allocate
-> > - implementation defined combinations (eg, selecting "minicache")
-> > - and a set of 16 states to allow the policy of inner and outer levels
-> >   of cache to be defined (two bits per level).
-> 
-> Can we not restrict these to a maximum of 8 base types at run-time? If
-> yes, we can only use 3 bits for encoding and also benefit from the
-> automatic remapping in later ARM CPUs. For those not familiar with ARM,
-> 8 combinations of the TEX, C, B and S (shared) bits can be specified in
-> separate registers and the pte would only use 3 bits to refer to those.
-> Even older cores would benefit from this as I think it is faster to read
-> the encoding from an array in set_pte than doing all the bit comparisons
-> to calculate the hardware pte in the current implementation.
+Nick Piggin wrote:
+> I'm just curious (or forgetful) as to why s390's pfn_valid does not walk
+> your memory segments? (That would allow the s390 proof of concept to be
+> basically a noop, and mixedmap_refcount_pfn will only be required when
+> we start using another pte bit.
+Our pfn_valid uses a hardware instruction, which does check if there 
+is memory behind a pfn which we can access. And we'd like to use the 
+very same memory segment for both regular memory hotplug where the 
+memory ends up in ZONE_NORMAL (in this case the memory would be 
+read+write, and not shared with other guests), and for backing xip 
+file systems (in this case the memory would be read-only, and shared). 
+And in both cases, our instruction does consider the pfn to be valid. 
+Thus, pfn_valid is not the right indicator for us to check if we need 
+refcounting or not.
 
-So basically that gives us the following combinations:
+> I think using another bit in the pte for special mappings is reasonable.
+> As I posted in my earlier patch, we can also use it to simplify vm_normal_page,
+> and it facilitates a lock free get_user_pages.
+That patch looks very nice. I am going to define PTE_SPECIAL for s390 
+arch next...
 
-TEXCB
-00000 - /dev/mem and device uncachable mappings (strongly ordered)
-00001 - frame buffers
-00010 - write through mappings (selectable via kernel command line)
-	  and also work-around for user read-only write-back mappings
-	  on PXA2.
-00011 - normal write back mappings
-00101 - Xscale3 "shared device" work-around for strongly ordered mappings
-00110 - PXA3 mini-cache or other "implementation defined features"
-00111 - write back write allocate mappings
-01000 - non-shared device (will be required to map some devices to userspace)
-	  and also Xscale3 work-around for strongly ordered mappings
-10111 - Xscale3 L2 cache-enabled mappings
-
-It's unclear at present what circumstances you'd use each of the two
-Xscale3 work-around bit combinations - or indeed whether there's a
-printing error in the documentation concerning TEXCB=00101.
-
-It's also unclear how to squeeze these down into a bit pattern in such
-a way that we avoid picking out bits from the Linux PTE, and recombining
-them so we can look them up in a table or whatever - especially given
-that set_pte is a fast path and extra cycles there have a VERY noticable
-impact on overall system performance.
-
-However, until we get around to sorting out the implementation of the
-Xscale3 strongly ordered work-around which seems to be the highest
-priority (and hardest to resolve) I don't think there's much more to
-discuss; we don't have a clear way ahead on these issues at the moment.
-All we current have is the errata entry, and we know people are seeing
-data corruption on Xscale3 platforms.
-
-And no, I don't think we can keep it contained within the Xscale3 support
-file - the set_pte method isn't passed sufficient information for that.
-Conversely, setting the TEX bits behind set_pte's back by using set_pte_ext
-results in loss of that information when the page is aged - again resulting
-in data corruption.
-
--- 
-Russell King
- Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
- maintainer of:
+> Anyway, hmm... I guess we should probably get these patches into -mm and
+> then upstream soon. Any objections from anyone? Do you guys have performance /
+> stress testing for xip?
+I think it is mature enough to push upstream, I've booted a distro 
+with /usr on it. But I really really want to exchange patch #4 with a 
+pte-bit based one before pushing this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
