@@ -1,30 +1,58 @@
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 00 of 13] oom deadlock fixes # try 2
-Message-Id: <patchbomb.1199778631@v2.random>
-Date: Tue, 08 Jan 2008 08:50:31 +0100
+Subject: [PATCH 06 of 13] balance_pgdat doesn't return the number of pages
+	freed
+Message-Id: <dd5900d0aa4e5f1b8136.1199778637@v2.random>
+In-Reply-To: <patchbomb.1199778631@v2.random>
+Date: Tue, 08 Jan 2008 08:50:37 +0100
 From: Andrea Arcangeli <andrea@cpushare.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This introduces the memdie_jiffies and MEMDIE_DELAY plus some minor
-improvement that probably isn't really necessary (but I found tasks looping in
-fork() allocating pagetables with GFP_REPEAT and lots of tasks in
-congestion_wait so I thought to improve those two bits too). I can still
-reproduce one deadlock in a certain condition with this patchset while no
-deadlock was happening with the previous one before memdie_jiffies for
-whatever reason. I was trying to fix that last deadlock before submission but
-because of the talks on linux-mm on what I already got implemented and working
-fine, I'll submit this right now (the new deadlock is likely unrelated to
-these changes). I'm wondering if perhaps it's related to having reintroduced
-the PF_EXITING check but in theory it shouldn't because the PF_EXITING check
-should go off after 60sec when we start skipping over the TIF_MEMDIE tasks.
+# HG changeset patch
+# User Andrea Arcangeli <andrea@suse.de>
+# Date 1199470022 -3600
+# Node ID dd5900d0aa4e5f1b81364346465be53db897246f
+# Parent  351a3906181f5c0fe0137b6f066f725bd65673ba
+balance_pgdat doesn't return the number of pages freed
 
-I written the last two patches after checking stack traces while debugging the
-new deadlock.
+nr_reclaimed would be the number of pages freed in the last pass.
+
+Signed-off-by: Andrea Arcangeli <andrea@suse.de>
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1298,8 +1298,6 @@ out:
+  * For kswapd, balance_pgdat() will work across all this node's zones until
+  * they are all at pages_high.
+  *
+- * Returns the number of pages which were actually freed.
+- *
+  * There is special handling here for zones which are full of pinned pages.
+  * This can happen if the pages are all mlocked, or if they are all used by
+  * device drivers (say, ZONE_DMA).  Or if they are all in use by hugetlb.
+@@ -1315,7 +1313,7 @@ out:
+  * the page allocator fallback scheme to ensure that aging of pages is balanced
+  * across the zones.
+  */
+-static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
++static void balance_pgdat(pg_data_t *pgdat, int order)
+ {
+ 	int all_zones_ok;
+ 	int priority;
+@@ -1475,8 +1473,6 @@ out:
+ 
+ 		goto loop_again;
+ 	}
+-
+-	return nr_reclaimed;
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
