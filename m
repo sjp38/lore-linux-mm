@@ -1,251 +1,213 @@
-Message-Id: <20080108210012.301810288@redhat.com>
+Message-Id: <20080108210019.684039300@redhat.com>
 References: <20080108205939.323955454@redhat.com>
-Date: Tue, 08 Jan 2008 15:59:53 -0500
+Date: Tue, 08 Jan 2008 15:59:57 -0500
 From: Rik van Riel <riel@redhat.com>
-Subject: [patch 14/19] SHM_LOCKED pages are nonreclaimable
-Content-Disposition: inline; filename=noreclaim-03-SHM_LOCKed-pages-are-nonreclaimable.patch
+Subject: [patch 18/19] account mlocked pages
+Content-Disposition: inline; filename=noreclaim-04.3-account-mlocked-pages.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
 V2 -> V3:
-+ rebase to 23-mm1 atop RvR's split LRU series.
-+ Use scan_mapping_noreclaim_page() on unlock.  See below.
++ rebase to 23-mm1 atop RvR's split lru series
++ fix definitions of NR_MLOCK to fix build errors when not configured.
 
 V1 -> V2:
-+  modify to use reworked 'scan_all_zones_noreclaim_pages()'
-   See 'TODO' below - still pending.
++  new in V2 -- pulled in & reworked from Nick's previous series
 
-While working with Nick Piggin's mlock patches, I noticed that
-shmem segments locked via shmctl(SHM_LOCKED) were not being handled.
-SHM_LOCKed pages work like ramdisk pages--the writeback function
-just redirties the page so that it can't be reclaimed.  Deal with
-these using the same approach as for ram disk pages.
+  From: Nick Piggin <npiggin@suse.de>
+  To: Linux Memory Management <linux-mm@kvack.org>
+  Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>
+  Subject: [patch 4/4] mm: account mlocked pages
+  Date:	Mon, 12 Mar 2007 07:39:14 +0100 (CET)
 
-Use the AS_NORECLAIM flag to mark address_space of SHM_LOCKed
-shared memory regions as non-reclaimable.  Then these pages
-will be culled off the normal LRU lists during vmscan.
+Add NR_MLOCK zone page state, which provides a (conservative) count of
+mlocked pages (actually, the number of mlocked pages moved off the LRU).
 
-Add new wrapper function to clear the mapping's noreclaim state
-when/if shared memory segment is munlocked.
+Reworked by lts to fit in with the modified mlock page support in the
+Reclaim Scalability series.  I don't know whether we'll want to keep
+these stats in the long run, but during testing of this series, I find
+them useful.
 
-Add 'scan_mapping_noreclaim_page()' to mm/vmscan.c to scan all
-pages in the shmem segment's mapping [struct address_space] for
-reclaimability now that they're no longer locked.  If so, move
-them to the appropriate zone lru list.
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Signed-off-by: Rik van Riel <riel@redhat.com>
 
-Changes depend on [CONFIG_]NORECLAIM.
 
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-Signed-off-by:  Rik van Riel <riel@redhat.com>
-
-Index: linux-2.6.24-rc6-mm1/mm/shmem.c
+Index: linux-2.6.24-rc6-mm1/drivers/base/node.c
 ===================================================================
---- linux-2.6.24-rc6-mm1.orig/mm/shmem.c	2008-01-08 12:08:02.000000000 -0500
-+++ linux-2.6.24-rc6-mm1/mm/shmem.c	2008-01-08 12:17:25.000000000 -0500
-@@ -1468,10 +1468,13 @@ int shmem_lock(struct file *file, int lo
- 		if (!user_shm_lock(inode->i_size, user))
- 			goto out_nomem;
- 		info->flags |= VM_LOCKED;
-+		mapping_set_noreclaim(file->f_mapping);
- 	}
- 	if (!lock && (info->flags & VM_LOCKED) && user) {
- 		user_shm_unlock(inode->i_size, user);
- 		info->flags &= ~VM_LOCKED;
-+		mapping_clear_noreclaim(file->f_mapping);
-+		scan_mapping_noreclaim_pages(file->f_mapping);
- 	}
- 	retval = 0;
- out_nomem:
-Index: linux-2.6.24-rc6-mm1/include/linux/pagemap.h
+--- linux-2.6.24-rc6-mm1.orig/drivers/base/node.c	2008-01-02 17:08:16.000000000 -0500
++++ linux-2.6.24-rc6-mm1/drivers/base/node.c	2008-01-02 17:08:17.000000000 -0500
+@@ -55,6 +55,9 @@ static ssize_t node_read_meminfo(struct 
+ 		       "Node %d Inactive(file): %8lu kB\n"
+ #ifdef CONFIG_NORECLAIM
+ 		       "Node %d Noreclaim:    %8lu kB\n"
++#ifdef CONFIG_NORECLAIM_MLOCK
++		       "Node %d Mlocked:       %8lu kB\n"
++#endif
+ #endif
+ #ifdef CONFIG_HIGHMEM
+ 		       "Node %d HighTotal:      %8lu kB\n"
+@@ -82,6 +85,9 @@ static ssize_t node_read_meminfo(struct 
+ 		       nid, node_page_state(nid, NR_INACTIVE_FILE),
+ #ifdef CONFIG_NORECLAIM
+ 		       nid, node_page_state(nid, NR_NORECLAIM),
++#ifdef CONFIG_NORECLAIM_MLOCK
++		       nid, K(node_page_state(nid, NR_MLOCK)),
++#endif
+ #endif
+ #ifdef CONFIG_HIGHMEM
+ 		       nid, K(i.totalhigh),
+Index: linux-2.6.24-rc6-mm1/fs/proc/proc_misc.c
 ===================================================================
---- linux-2.6.24-rc6-mm1.orig/include/linux/pagemap.h	2008-01-08 12:17:21.000000000 -0500
-+++ linux-2.6.24-rc6-mm1/include/linux/pagemap.h	2008-01-08 12:17:25.000000000 -0500
-@@ -38,14 +38,20 @@ static inline void mapping_set_noreclaim
- 	set_bit(AS_NORECLAIM, &mapping->flags);
+--- linux-2.6.24-rc6-mm1.orig/fs/proc/proc_misc.c	2008-01-02 16:28:35.000000000 -0500
++++ linux-2.6.24-rc6-mm1/fs/proc/proc_misc.c	2008-01-02 17:08:17.000000000 -0500
+@@ -164,6 +164,9 @@ static int meminfo_read_proc(char *page,
+ 		"Inactive(file): %8lu kB\n"
+ #ifdef CONFIG_NORECLAIM
+ 		"Noreclaim:    %8lu kB\n"
++#ifdef CONFIG_NORECLAIM_MLOCK
++		"Mlocked:      %8lu kB\n"
++#endif
+ #endif
+ #ifdef CONFIG_HIGHMEM
+ 		"HighTotal:      %8lu kB\n"
+@@ -199,6 +202,9 @@ static int meminfo_read_proc(char *page,
+ 		K(global_page_state(NR_INACTIVE_FILE)),
+ #ifdef CONFIG_NORECLAIM
+ 		K(global_page_state(NR_NORECLAIM)),
++#ifdef CONFIG_NORECLAIM_MLOCK
++		K(global_page_state(NR_MLOCK)),
++#endif
+ #endif
+ #ifdef CONFIG_HIGHMEM
+ 		K(i.totalhigh),
+Index: linux-2.6.24-rc6-mm1/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/include/linux/mmzone.h	2008-01-02 16:28:35.000000000 -0500
++++ linux-2.6.24-rc6-mm1/include/linux/mmzone.h	2008-01-02 17:08:17.000000000 -0500
+@@ -86,8 +86,12 @@ enum zone_stat_item {
+ 	NR_ACTIVE_FILE,		/*  "     "     "   "       "           */
+ #ifdef CONFIG_NORECLAIM
+ 	NR_NORECLAIM,	/*  "     "     "   "       "         */
++#ifdef CONFIG_NORECLAIM_MLOCK
++	NR_MLOCK,		/* mlock()ed pages found and moved off LRU */
++#endif
+ #else
+-	NR_NORECLAIM=NR_ACTIVE_FILE, /* avoid compiler errors in dead code */
++	NR_NORECLAIM=NR_ACTIVE_FILE,	/* avoid compiler errors in dead code */
++	NR_MLOCK=NR_ACTIVE_FILE,	/* avoid compiler errors... */
+ #endif
+ 	NR_ANON_PAGES,	/* Mapped anonymous pages */
+ 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
+Index: linux-2.6.24-rc6-mm1/mm/mlock.c
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/mm/mlock.c	2008-01-02 17:08:17.000000000 -0500
++++ linux-2.6.24-rc6-mm1/mm/mlock.c	2008-01-02 17:08:17.000000000 -0500
+@@ -60,11 +60,11 @@ void clear_page_mlock(struct page *page)
+ {
+ 	BUG_ON(!PageLocked(page));
+ 
+-	if (likely(!PageMlocked(page)))
+-		return;
+-	ClearPageMlocked(page);
+-	if (!isolate_lru_page(page))
+-		putback_lru_page(page);
++	if (unlikely(TestClearPageMlocked(page))) {
++		dec_zone_page_state(page, NR_MLOCK);
++		if (!isolate_lru_page(page))
++			putback_lru_page(page);
++	}
  }
  
-+static inline void mapping_clear_noreclaim(struct address_space *mapping)
-+{
-+	clear_bit(AS_NORECLAIM, &mapping->flags);
-+}
-+
- static inline int mapping_non_reclaimable(struct address_space *mapping)
+ /*
+@@ -75,8 +75,11 @@ void mlock_vma_page(struct page *page)
  {
--	if (mapping && (mapping->flags & AS_NORECLAIM))
--		return 1;
-+	if (mapping)
-+		return test_bit(AS_NORECLAIM, &mapping->flags);
- 	return 0;
+ 	BUG_ON(!PageLocked(page));
+ 
+-	if (!TestSetPageMlocked(page) && !isolate_lru_page(page))
++	if (!TestSetPageMlocked(page)) {
++		inc_zone_page_state(page, NR_MLOCK);
++		if (!isolate_lru_page(page))
+ 			putback_lru_page(page);
++	}
  }
- #else
- static inline void mapping_set_noreclaim(struct address_space *mapping) { }
-+static inline void mapping_clear_noreclaim(struct address_space *mapping) { }
- static inline int mapping_non_reclaimable(struct address_space *mapping)
+ 
+ /*
+@@ -98,10 +101,22 @@ static void munlock_vma_page(struct page
  {
- 	return 0;
-Index: linux-2.6.24-rc6-mm1/mm/vmscan.c
-===================================================================
---- linux-2.6.24-rc6-mm1.orig/mm/vmscan.c	2008-01-08 12:17:21.000000000 -0500
-+++ linux-2.6.24-rc6-mm1/mm/vmscan.c	2008-01-08 12:17:25.000000000 -0500
-@@ -2276,6 +2276,30 @@ int page_reclaimable(struct page *page, 
+ 	BUG_ON(!PageLocked(page));
+ 
+-	if (TestClearPageMlocked(page) && !isolate_lru_page(page)) {
+-		if (try_to_unlock(page) == SWAP_MLOCK)
+-			SetPageMlocked(page);	/* still VM_LOCKED */
+-		putback_lru_page(page);
++	if (TestClearPageMlocked(page)) {
++		dec_zone_page_state(page, NR_MLOCK);
++		if (!isolate_lru_page(page)) {
++			if (try_to_unlock(page) == SWAP_MLOCK) {
++				SetPageMlocked(page);	/* still VM_LOCKED */
++				inc_zone_page_state(page, NR_MLOCK);
++			}
++			putback_lru_page(page);
++		}
++		/*
++		 * Else we lost the race.  let try_to_unmap() deal with it.
++		 * At least we get the page state and mlock stats right.
++		 * However, page is still on the noreclaim list.  We'll fix
++		 * that up when the page is eventually freed or we scan the
++		 * noreclaim list.
++		 */
+ 	}
+ }
+ 
+@@ -118,7 +133,8 @@ int is_mlocked_vma(struct vm_area_struct
+ 	if (likely(!(vma->vm_flags & VM_LOCKED)))
+ 		return 0;
+ 
+-	SetPageMlocked(page);
++	if (!TestSetPageMlocked(page))
++		inc_zone_page_state(page, NR_MLOCK);
  	return 1;
  }
  
-+/*
-+ * check_move_noreclaim_page() -- check @page for reclaimability and move
-+ * to appropriate @zone lru list.
-+ * @zone->lru_lock held on entry/exit.
-+ * @page is on LRU and has PageNoreclaim true
-+ */
-+static void check_move_noreclaim_page(struct page *page, struct zone* zone)
-+{
-+
-+	ClearPageNoreclaim(page); /* for page_reclaimable() */
-+	if(page_reclaimable(page, NULL)) {
-+		enum lru_list l = LRU_INACTIVE_ANON + page_file_cache(page);
-+		__dec_zone_state(zone, NR_NORECLAIM);
-+		list_move(&page->lru, &zone->list[l]);
-+		__inc_zone_state(zone, NR_INACTIVE_ANON + l);
-+	} else {
-+		/*
-+		 * rotate noreclaim list
-+		 */
-+		SetPageNoreclaim(page);
-+		list_move(&page->lru, &zone->list[LRU_NORECLAIM]);
-+	}
-+}
-+
- /**
-  * scan_zone_noreclaim_pages(@zone)
-  * @zone - zone to scan
-@@ -2290,8 +2314,6 @@ int page_reclaimable(struct page *page, 
- void scan_zone_noreclaim_pages(struct zone *zone)
- {
- 	struct list_head *l_noreclaim = &zone->list[LRU_NORECLAIM];
--	struct list_head *l_inactive_anon  = &zone->list[LRU_INACTIVE_ANON];
--	struct list_head *l_inactive_file  = &zone->list[LRU_INACTIVE_FILE];
- 	unsigned long scan;
- 	unsigned long nr_to_scan = zone_page_state(zone, NR_NORECLAIM);
- 
-@@ -2303,26 +2325,15 @@ void scan_zone_noreclaim_pages(struct zo
- 		for (scan = 0;  scan < batch_size; scan++) {
- 			struct page* page = lru_to_page(l_noreclaim);
- 
--			if (unlikely(!PageLRU(page) || !PageNoreclaim(page)))
-+			if (TestSetPageLocked(page))
- 				continue;
- 
- 			prefetchw_prev_lru_page(page, l_noreclaim, flags);
- 
--			ClearPageNoreclaim(page); /* for page_reclaimable() */
--			if(page_reclaimable(page, NULL)) {
--				__dec_zone_state(zone, NR_NORECLAIM);
--				if (page_file_cache(page)) {
--					list_move(&page->lru, l_inactive_file);
--					__inc_zone_state(zone, NR_INACTIVE_FILE);
--				} else {
--					list_move(&page->lru, l_inactive_anon);
--					__inc_zone_state(zone, NR_INACTIVE_ANON);
--				}
--			} else {
--				SetPageNoreclaim(page);
--				list_move(&page->lru, l_noreclaim);
--			}
-+			if (likely(PageLRU(page) && PageNoreclaim(page)))
-+				check_move_noreclaim_page(page, zone);
- 
-+			unlock_page(page);
- 		}
- 		spin_unlock_irq(&zone->lru_lock);
- 
-@@ -2352,6 +2363,62 @@ void scan_all_zones_noreclaim_pages(void
- 	}
- }
- 
-+/**
-+ * scan_mapping_noreclaim_pages(mapping)
-+ * @mapping - struct address_space to scan for reclaimable pages
-+ *
-+ * scan all pages in mapping.  check non-reclaimable pages for
-+ * reclaimabililty and move them to the appropriate zone lru list.
-+ */
-+void scan_mapping_noreclaim_pages(struct address_space *mapping)
-+{
-+	pgoff_t next = 0;
-+	pgoff_t end   = i_size_read(mapping->host);
-+	struct zone *zone;
-+	struct pagevec pvec;
-+
-+	if (mapping->nrpages == 0)
-+		return;
-+
-+	pagevec_init(&pvec, 0);
-+	while (next < end &&
-+		pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
-+		int i;
-+
-+		zone = NULL;
-+
-+		for (i = 0; i < pagevec_count(&pvec); i++) {
-+			struct page *page = pvec.pages[i];
-+			pgoff_t page_index = page->index;
-+			struct zone *pagezone = page_zone(page);
-+
-+			if (page_index > next)
-+				next = page_index;
-+			next++;
-+
-+			if (TestSetPageLocked(page))
-+				continue;
-+
-+			if (pagezone != zone) {
-+				if (zone)
-+					spin_unlock(&zone->lru_lock);
-+				zone = pagezone;
-+				spin_lock(&zone->lru_lock);
-+			}
-+
-+			if (PageLRU(page) && PageNoreclaim(page))
-+				check_move_noreclaim_page(page, zone);
-+
-+			unlock_page(page);
-+
-+		}
-+		if (zone)
-+			spin_unlock(&zone->lru_lock);
-+		pagevec_release(&pvec);
-+	}
-+
-+}
-+
- /*
-  * scan_noreclaim_pages [vm] sysctl handler.  On demand re-scan of
-  * all nodes' noreclaim lists for reclaimable pages
-Index: linux-2.6.24-rc6-mm1/include/linux/swap.h
+Index: linux-2.6.24-rc6-mm1/mm/migrate.c
 ===================================================================
---- linux-2.6.24-rc6-mm1.orig/include/linux/swap.h	2008-01-08 12:17:17.000000000 -0500
-+++ linux-2.6.24-rc6-mm1/include/linux/swap.h	2008-01-08 12:17:25.000000000 -0500
-@@ -218,6 +218,7 @@ static inline int zone_reclaim(struct zo
- extern int page_reclaimable(struct page *page, struct vm_area_struct *vma);
- extern void scan_zone_noreclaim_pages(struct zone *);
- extern void scan_all_zones_noreclaim_pages(void);
-+extern void scan_mapping_noreclaim_pages(struct address_space *);
- extern unsigned long scan_noreclaim_pages;
- extern int scan_noreclaim_handler(struct ctl_table *, int, struct file *,
- 					void __user *, size_t *, loff_t *);
-@@ -231,6 +232,9 @@ static inline int page_reclaimable(struc
- }
- static inline void scan_zone_noreclaim_pages(struct zone *z) { }
- static inline void scan_all_zones_noreclaim_pages(void) { }
-+static inline void scan_mapping_noreclaim_pages(struct address_space *mapping)
-+{
-+}
- static inline int scan_noreclaim_register_node(struct node *node)
- {
- 	return 0;
+--- linux-2.6.24-rc6-mm1.orig/mm/migrate.c	2008-01-02 17:08:17.000000000 -0500
++++ linux-2.6.24-rc6-mm1/mm/migrate.c	2008-01-02 17:08:17.000000000 -0500
+@@ -366,8 +366,15 @@ static void migrate_page_copy(struct pag
+ 		set_page_dirty(newpage);
+  	}
+ 
+-	if (TestClearPageMlocked(page))
++	if (TestClearPageMlocked(page)) {
++		unsigned long flags;
++
++		local_irq_save(flags);
++		__dec_zone_page_state(page, NR_MLOCK);
+ 		SetPageMlocked(newpage);
++		__inc_zone_page_state(newpage, NR_MLOCK);
++		local_irq_restore(flags);
++	}
+ 
+ #ifdef CONFIG_SWAP
+ 	ClearPageSwapCache(page);
+Index: linux-2.6.24-rc6-mm1/mm/vmstat.c
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/mm/vmstat.c	2008-01-02 16:01:21.000000000 -0500
++++ linux-2.6.24-rc6-mm1/mm/vmstat.c	2008-01-02 17:09:20.000000000 -0500
+@@ -693,6 +693,9 @@ static const char * const vmstat_text[] 
+ #ifdef CONFIG_NORECLAIM
+ 	"nr_noreclaim",
+ #endif
++#ifdef CONFIG_NORECLAIM_MLOCK
++	"nr_mlock",
++#endif
+ 	"nr_anon_pages",
+ 	"nr_mapped",
+ 	"nr_file_pages",
 
 -- 
 All Rights Reversed
