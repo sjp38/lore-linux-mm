@@ -1,50 +1,53 @@
-Date: Tue, 8 Jan 2008 08:45:02 +0100
-From: Andrea Arcangeli <andrea@cpushare.com>
-Subject: Re: [PATCH 11 of 11] not-wait-memdie
-Message-ID: <20080108074502.GF22800@v2.random>
-References: <504e981185254a12282d.1199326157@v2.random> <Pine.LNX.4.64.0801071141130.23617@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0801071751320.13505@chino.kir.corp.google.com> <200801081425.31515.nickpiggin@yahoo.com.au>
+Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200801081425.31515.nickpiggin@yahoo.com.au>
+Content-Transfer-Encoding: 7bit
+Subject: [PATCH 01 of 13] limit shrink zone scanning
+Message-Id: <31ccca6f0b3ee1b340b9.1199778632@v2.random>
+In-Reply-To: <patchbomb.1199778631@v2.random>
+Date: Tue, 08 Jan 2008 08:50:32 +0100
+From: Andrea Arcangeli <andrea@cpushare.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: David Rientjes <rientjes@google.com>, Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@cpushare.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 08, 2008 at 02:25:31PM +1100, Nick Piggin wrote:
-> We already do that today in the case of regular page reclaim.
+# HG changeset patch
+# User Andrea Arcangeli <andrea@suse.de>
+# Date 1199469588 -3600
+# Node ID 31ccca6f0b3ee1b340b9d32c0231eb1f957ee1ad
+# Parent  e28e1be3fae5183e3e36e32e3feb9a59ec59c825
+limit shrink zone scanning
 
-exactly. And we have to set TIF_MEMDIE on more than one task in case
-we have a locking dependency like the ones I can trivially reproduce.
+Assume two tasks adds to nr_scan_*active at the same time (first line of the
+old buggy code), they'll effectively double their scan rate, for no good
+reason. What can happen is that instead of scanning nr_entries each, they'll
+scan nr_entries*2 each. The more CPUs the bigger the race and the higher the
+multiplication effect and the harder it will be to detect oom. This puts a cap
+on the amount of work that it makes sense to do in case the race triggers.
 
-> The problem is the global reserve. Once you have a kernel that doesn't
-> need this handwavy global reserve for forward progress, a lot of little
-> problems go away.
+Signed-off-by: Andrea Arcangeli <andrea@suse.de>
 
-Yep.
-
-> It should be, but that task you OOM may be blocking on another one that
-> is waiting for memory, for example.
-
-Exactly.
-
-> In practice, I think a task will not need a great deal of memory in order
-> to finish what it is doing and exit; but it will be more likely to be in
-> some oom deadlock. So neither solution is perfect, but I think this patch
-> will solve more cases than it introduces.
-
-Yes. The memory reserve being accessed by more than one TIF_MEMDIE
-task is the least of the problems. Also consider the first task will
-normally not even try to use the memory reserve at all, because if we
-set TIF_MEMDIE on a second task, it's because the first task was
-normally totally stuck on a lock and sleeping in D state the whole time.
-
-> Why not just have a global frequency limit on OOM events. Then the panic
-> has this delay factored in...
-
-My current pathset uses 1min as max frequency.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1114,7 +1114,7 @@ static unsigned long shrink_zone(int pri
+ 	 */
+ 	zone->nr_scan_active +=
+ 		(zone_page_state(zone, NR_ACTIVE) >> priority) + 1;
+-	nr_active = zone->nr_scan_active;
++	nr_active = min(zone->nr_scan_active, zone_page_state(zone, NR_ACTIVE));
+ 	if (nr_active >= sc->swap_cluster_max)
+ 		zone->nr_scan_active = 0;
+ 	else
+@@ -1122,7 +1122,7 @@ static unsigned long shrink_zone(int pri
+ 
+ 	zone->nr_scan_inactive +=
+ 		(zone_page_state(zone, NR_INACTIVE) >> priority) + 1;
+-	nr_inactive = zone->nr_scan_inactive;
++	nr_inactive = min(zone->nr_scan_inactive, zone_page_state(zone, NR_INACTIVE));
+ 	if (nr_inactive >= sc->swap_cluster_max)
+ 		zone->nr_scan_inactive = 0;
+ 	else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
