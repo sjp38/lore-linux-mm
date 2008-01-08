@@ -1,56 +1,54 @@
-Date: Tue, 8 Jan 2008 11:08:03 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch 0/4] VM_MIXEDMAP patchset with s390 backend
-Message-ID: <20080108100803.GA24570@wotan.suse.de>
-References: <20071214133817.GB28555@wotan.suse.de> <20071214134106.GC28555@wotan.suse.de> <476A73F0.4070704@de.ibm.com> <476A7D21.7070607@de.ibm.com> <20071221004556.GB31040@wotan.suse.de> <476B9000.2090707@de.ibm.com> <20071221102052.GB28484@wotan.suse.de> <476B96D6.2010302@de.ibm.com> <20071221104701.GE28484@wotan.suse.de> <1199784954.25114.27.camel@cotte.boeblingen.de.ibm.com>
+Subject: Re: [rfc][patch] mm: use a pte bit to flag normal pages
+From: Catalin Marinas <catalin.marinas@arm.com>
+In-Reply-To: <20080107194543.GA2788@flint.arm.linux.org.uk>
+References: <20071221104701.GE28484@wotan.suse.de>
+	 <OFEC52C590.33A28896-ONC12573B8.0069F07E-C12573B8.006B1A41@de.ibm.com>
+	 <20080107044355.GA11222@wotan.suse.de>
+	 <20080107103028.GA9325@flint.arm.linux.org.uk>
+	 <6934efce0801071049u546005e7t7da4311cc0611ccd@mail.gmail.com>
+	 <20080107194543.GA2788@flint.arm.linux.org.uk>
+Content-Type: text/plain
+Date: Tue, 08 Jan 2008 10:11:15 +0000
+Message-Id: <1199787075.17809.10.camel@pc1117.cambridge.arm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1199784954.25114.27.camel@cotte.boeblingen.de.ibm.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Carsten Otte <cotte@de.ibm.com>
-Cc: carsteno@de.ibm.com, Jared Hulbert <jaredeh@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <martin.schwidefsky@de.ibm.com>, Heiko Carstens <h.carstens@de.ibm.com>
+To: Russell King <rmk@arm.linux.org.uk>
+Cc: Jared Hulbert <jaredeh@gmail.com>, Nick Piggin <npiggin@suse.de>, Martin Schwidefsky <martin.schwidefsky@de.ibm.com>, carsteno@linux.vnet.ibm.com, Heiko Carstens <h.carstens@de.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 08, 2008 at 10:35:54AM +0100, Carsten Otte wrote:
-> Am Freitag, den 21.12.2007, 11:47 +0100 schrieb Nick Piggin:
-> > BTW. having a per-arch function sounds reasonable for a start. I'd just give
-> > it a long name, so that people don't start using it for weird things ;)
-> > mixedmap_refcount_pfn() or something.
-> Based on our previous discussion, and based on previous patches by Jared
-> and Nick, this patch series makes XIP without struct page backing usable
-> on s390 architecture.
-> This patch set includes:
-> 1/4: mm: introduce VM_MIXEDMAP mappings from Jared Hulbert, modified to
-> use an arch-callback to identify whether or not a pfn needs refcounting
-> 2/4: xip: support non-struct page memory from Nick Piggin, modified to
-> use an arch-callback to identify whether or not a pfn needs refcounting
-> 3/4: s390: remove struct page entries for z/VM DCSS memory segments
-> 4/4: s390: proof of concept implementation of mixedmap_refcount_pfn()
-> for s390 using list-walk
+On Mon, 2008-01-07 at 19:45 +0000, Russell King wrote:
+> In old ARM CPUs, there were two bits that defined the characteristics of
+> the mapping - the C and B bits (C = cacheable, B = bufferable)
+> 
+> Some ARMv5 (particularly Xscale-based) and all ARMv6 CPUs extend this to
+> five bits and introduce "memory types" - 3 bits of TEX, and C and B.
+> 
+> Between these bits, it defines:
+> 
+> - strongly ordered
+> - bufferable only *
+> - device, sharable *
+> - device, unsharable
+> - memory, bufferable and cacheable, write through, no write allocate
+> - memory, bufferable and cacheable, write back, no write allocate
+> - memory, bufferable and cacheable, write back, write allocate
+> - implementation defined combinations (eg, selecting "minicache")
+> - and a set of 16 states to allow the policy of inner and outer levels
+>   of cache to be defined (two bits per level).
 
-Nice! I'm glad that the xip support didn't need anything further than
-the mixedmap_refcount_pfn for s390. Hopefully it proves to be stable
-under further testing.
+Can we not restrict these to a maximum of 8 base types at run-time? If
+yes, we can only use 3 bits for encoding and also benefit from the
+automatic remapping in later ARM CPUs. For those not familiar with ARM,
+8 combinations of the TEX, C, B and S (shared) bits can be specified in
+separate registers and the pte would only use 3 bits to refer to those.
+Even older cores would benefit from this as I think it is faster to read
+the encoding from an array in set_pte than doing all the bit comparisons
+to calculate the hardware pte in the current implementation.
 
-I'm just curious (or forgetful) as to why s390's pfn_valid does not walk
-your memory segments? (That would allow the s390 proof of concept to be
-basically a noop, and mixedmap_refcount_pfn will only be required when
-we start using another pte bit.
-
- 
-> Above stack seems to work well, I did some sniff-testing applied on top
-> of Linus' current git tree. We do want to spend a precious pte bit to
-> speed up this callback, therefore patch 4/4 will get replaced.
-
-I think using another bit in the pte for special mappings is reasonable.
-As I posted in my earlier patch, we can also use it to simplify vm_normal_page,
-and it facilitates a lock free get_user_pages.
-
-Anyway, hmm... I guess we should probably get these patches into -mm and
-then upstream soon. Any objections from anyone? Do you guys have performance /
-stress testing for xip?
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
