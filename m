@@ -1,55 +1,39 @@
-Date: Tue, 8 Jan 2008 08:31:34 +0100
+Date: Tue, 8 Jan 2008 08:37:36 +0100
 From: Andrea Arcangeli <andrea@cpushare.com>
 Subject: Re: [PATCH 11 of 11] not-wait-memdie
-Message-ID: <20080108073134.GB22800@v2.random>
-References: <504e981185254a12282d.1199326157@v2.random> <Pine.LNX.4.64.0801071141130.23617@schroedinger.engr.sgi.com>
+Message-ID: <20080108073736.GD22800@v2.random>
+References: <504e981185254a12282d.1199326157@v2.random> <Pine.LNX.4.64.0801071141130.23617@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0801071751320.13505@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0801071141130.23617@schroedinger.engr.sgi.com>
+In-Reply-To: <alpine.DEB.0.9999.0801071751320.13505@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 07, 2008 at 11:43:07AM -0800, Christoph Lameter wrote:
-> On Thu, 3 Jan 2008, Andrea Arcangeli wrote:
+On Mon, Jan 07, 2008 at 05:57:41PM -0800, David Rientjes wrote:
+> That's only possible with my proposal of adding
 > 
-> > +		if (unlikely(test_tsk_thread_flag(p, TIF_MEMDIE))) {
-> > +			/*
-> > +			 * Hopefully we already waited long enough,
-> > +			 * or exit_mm already run, but we must try to kill
-> > +			 * another task to avoid deadlocking.
-> > +			 */
-> > +			continue;
-> > +		}
+> 	unsigned long oom_kill_jiffies;
 > 
-> If all tasks are marked TIF_MEMDIE then we just scan through them return 
-> NULL and
-> 
-> 
-> >  		/* Found nothing?!?! Either we hang forever, or we panic. */
-> > -		if (!p) {
-> > +		if (unlikely(!p)) {
-> >  			read_unlock(&tasklist_lock);
-> >  			panic("Out of memory and no killable processes...\n");
-> 
-> panic.
-> 
-> Should we not wait awhile before panicing? The processes may need some 
-> time to terminate.
+> to struct task_struct.  We can't get away with a system-wide jiffies 
 
-I've a new patchset that would wait 60 sec for every new set
-TIF_MEMDIE before paniking. that will fix this. Thanks.
+I already added it.
 
-Problem is with the new patchset with the memdie_jiffies, I run into
-new deadlock with my testcase so I was trying to fix those new issues
-before submission. For whatever reason I could never reproduce any
-problem with the patchset I sent to linux-mm before introducing the
-memdie_iffies. However this week I've other urgent work to do too not
-in the oom area... so we'll see what I can do. If I can't fix the new
-deadlocks within a few days I'll submit a new patchset anyway.
+> variable, nor can we get away with per-cgroup, per-cpuset, or 
+> per-mempolicy variable.  The only way to clear such a variable is in the 
+> exit path (by checking test_thread_flag(tsk, TIF_MEMDIE) in do_exit()) and 
+> fails miserably if there are simultaneous but zone-disjoint OOMs 
+> occurring.
+
+I don't see much issues with zone-disjoints oom with my current
+patchset. The trouble is a new deadlock that I'm reproducing now, I
+submit you privately a preview of the memdie_jiffies, did you see any
+problem in my implementation? I guess I'll resubmit to linux-mm
+too. The new deadlock I run into after adding memdie_jiffies is likely
+unrelated to the memdie_jiffies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
