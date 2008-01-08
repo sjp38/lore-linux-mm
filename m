@@ -1,42 +1,53 @@
-Received: by wa-out-1112.google.com with SMTP id m33so12286223wag.8
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2008 14:52:04 -0800 (PST)
-Message-ID: <6934efce0801071452q9011f1cnfa16cef364c13541@mail.gmail.com>
-Date: Mon, 7 Jan 2008 14:52:04 -0800
-From: "Jared Hulbert" <jaredeh@gmail.com>
-Subject: Re: [rfc][patch] mm: use a pte bit to flag normal pages
-In-Reply-To: <20080107194543.GA2788@flint.arm.linux.org.uk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Tue, 8 Jan 2008 10:40:16 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUG]  at mm/slab.c:3320
+Message-Id: <20080108104016.4fa5a4f3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0801071008050.22642@schroedinger.engr.sgi.com>
+References: <20071220100541.GA6953@skywalker>
+	<20071225140519.ef8457ff.akpm@linux-foundation.org>
+	<20071227153235.GA6443@skywalker>
+	<Pine.LNX.4.64.0712271130200.30555@schroedinger.engr.sgi.com>
+	<20071228051959.GA6385@skywalker>
+	<Pine.LNX.4.64.0801021227580.20331@schroedinger.engr.sgi.com>
+	<20080103155046.GA7092@skywalker>
+	<20080107102301.db52ab64.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0801071008050.22642@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20071221104701.GE28484@wotan.suse.de>
-	 <OFEC52C590.33A28896-ONC12573B8.0069F07E-C12573B8.006B1A41@de.ibm.com>
-	 <20080107044355.GA11222@wotan.suse.de>
-	 <20080107103028.GA9325@flint.arm.linux.org.uk>
-	 <6934efce0801071049u546005e7t7da4311cc0611ccd@mail.gmail.com>
-	 <20080107194543.GA2788@flint.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jared Hulbert <jaredeh@gmail.com>, Nick Piggin <npiggin@suse.de>, Martin Schwidefsky <martin.schwidefsky@de.ibm.com>, carsteno@linux.vnet.ibm.com, Heiko Carstens <h.carstens@de.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, nacc@us.ibm.com, lee.schermerhorn@hp.com, bob.picco@hp.com, mel@skynet.ie
 List-ID: <linux-mm.kvack.org>
 
-> Currently, Linux is able to setup mappings in kernel space to cover
-> any combination of settings.  However, userspace is much more limited
-> because we don't carry the additional bits around in the Linux version
-> of the PTE - and as such shared mmaps on some systems can end up locking
-> the CPU.
->
-> A few attempts have been made at solving these without using the
-> additional PTE bits, but they've been less that robust.
+On Mon, 7 Jan 2008 10:10:16 -0800 (PST)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-Do these new ARM implementations use more bits than most archs?
+> On Mon, 7 Jan 2008, KAMEZAWA Hiroyuki wrote:
+> 
+> > Seems Node 1 has no NORMAL memory.
+> > 
+> > Because the patch changes 'online_node' to N_NORMAL_MEMORY, there is a change.
+> > I'm not sure but cachep->nodelists[] should be created against all online nodes ?
+> 
+> Well what is the point of creating a memory structure for a node from 
+> which no memory for the slab allocator can be allocated? I think we need a 
+> special cpu_to_node() that only takes normal memory into consideration. 
+> 
+In usual alloc_pages() allocator, this is done by zonelist fallback.
 
-Most ARM implementations can spare a PTE bit for this, right?  Is the
-use of these 3 extra bits to cover a few buggy processors or is this
-caused by consolidating the needs of widely differing architectures?
+> And we need to use that new function (cpu_to_node_normal_memory or so?) to 
+> find memory for the slab and other stuff in the kernel.
+> 
 
-I just can't get over the idea that you _have_ use up all available
-bits.  Oh well.
+It seems that cache->nodelists[nid] == NULL case should be handled even if
+nid == cpu_to_node(smp_processor_id()). 
+
+complicated ?
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
