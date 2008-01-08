@@ -1,53 +1,30 @@
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 01 of 13] limit shrink zone scanning
-Message-Id: <31ccca6f0b3ee1b340b9.1199778632@v2.random>
-In-Reply-To: <patchbomb.1199778631@v2.random>
-Date: Tue, 08 Jan 2008 08:50:32 +0100
+Subject: [PATCH 00 of 13] oom deadlock fixes # try 2
+Message-Id: <patchbomb.1199778631@v2.random>
+Date: Tue, 08 Jan 2008 08:50:31 +0100
 From: Andrea Arcangeli <andrea@cpushare.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-# HG changeset patch
-# User Andrea Arcangeli <andrea@suse.de>
-# Date 1199469588 -3600
-# Node ID 31ccca6f0b3ee1b340b9d32c0231eb1f957ee1ad
-# Parent  e28e1be3fae5183e3e36e32e3feb9a59ec59c825
-limit shrink zone scanning
+This introduces the memdie_jiffies and MEMDIE_DELAY plus some minor
+improvement that probably isn't really necessary (but I found tasks looping in
+fork() allocating pagetables with GFP_REPEAT and lots of tasks in
+congestion_wait so I thought to improve those two bits too). I can still
+reproduce one deadlock in a certain condition with this patchset while no
+deadlock was happening with the previous one before memdie_jiffies for
+whatever reason. I was trying to fix that last deadlock before submission but
+because of the talks on linux-mm on what I already got implemented and working
+fine, I'll submit this right now (the new deadlock is likely unrelated to
+these changes). I'm wondering if perhaps it's related to having reintroduced
+the PF_EXITING check but in theory it shouldn't because the PF_EXITING check
+should go off after 60sec when we start skipping over the TIF_MEMDIE tasks.
 
-Assume two tasks adds to nr_scan_*active at the same time (first line of the
-old buggy code), they'll effectively double their scan rate, for no good
-reason. What can happen is that instead of scanning nr_entries each, they'll
-scan nr_entries*2 each. The more CPUs the bigger the race and the higher the
-multiplication effect and the harder it will be to detect oom. This puts a cap
-on the amount of work that it makes sense to do in case the race triggers.
-
-Signed-off-by: Andrea Arcangeli <andrea@suse.de>
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1114,7 +1114,7 @@ static unsigned long shrink_zone(int pri
- 	 */
- 	zone->nr_scan_active +=
- 		(zone_page_state(zone, NR_ACTIVE) >> priority) + 1;
--	nr_active = zone->nr_scan_active;
-+	nr_active = min(zone->nr_scan_active, zone_page_state(zone, NR_ACTIVE));
- 	if (nr_active >= sc->swap_cluster_max)
- 		zone->nr_scan_active = 0;
- 	else
-@@ -1122,7 +1122,7 @@ static unsigned long shrink_zone(int pri
- 
- 	zone->nr_scan_inactive +=
- 		(zone_page_state(zone, NR_INACTIVE) >> priority) + 1;
--	nr_inactive = zone->nr_scan_inactive;
-+	nr_inactive = min(zone->nr_scan_inactive, zone_page_state(zone, NR_INACTIVE));
- 	if (nr_inactive >= sc->swap_cluster_max)
- 		zone->nr_scan_inactive = 0;
- 	else
+I written the last two patches after checking stack traces while debugging the
+new deadlock.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
