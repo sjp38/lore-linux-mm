@@ -1,231 +1,56 @@
-Date: Tue, 8 Jan 2008 10:41:02 +0100
+Date: Tue, 8 Jan 2008 11:08:03 +0100
 From: Nick Piggin <npiggin@suse.de>
-Subject: [patch 3/3] mm: remove nopage
-Message-ID: <20080108094102.GC14302@wotan.suse.de>
-References: <20080108093815.GA14302@wotan.suse.de>
+Subject: Re: [rfc][patch 0/4] VM_MIXEDMAP patchset with s390 backend
+Message-ID: <20080108100803.GA24570@wotan.suse.de>
+References: <20071214133817.GB28555@wotan.suse.de> <20071214134106.GC28555@wotan.suse.de> <476A73F0.4070704@de.ibm.com> <476A7D21.7070607@de.ibm.com> <20071221004556.GB31040@wotan.suse.de> <476B9000.2090707@de.ibm.com> <20071221102052.GB28484@wotan.suse.de> <476B96D6.2010302@de.ibm.com> <20071221104701.GE28484@wotan.suse.de> <1199784954.25114.27.camel@cotte.boeblingen.de.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080108093815.GA14302@wotan.suse.de>
+In-Reply-To: <1199784954.25114.27.camel@cotte.boeblingen.de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Carsten Otte <cotte@de.ibm.com>
+Cc: carsteno@de.ibm.com, Jared Hulbert <jaredeh@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <martin.schwidefsky@de.ibm.com>, Heiko Carstens <h.carstens@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Patch against 2.6.24-rc6-mm1... nothing in your tree appears to use nopage.
-This patch should transfer without rejects upstream, so it shouldn't be too
-difficult.
+On Tue, Jan 08, 2008 at 10:35:54AM +0100, Carsten Otte wrote:
+> Am Freitag, den 21.12.2007, 11:47 +0100 schrieb Nick Piggin:
+> > BTW. having a per-arch function sounds reasonable for a start. I'd just give
+> > it a long name, so that people don't start using it for weird things ;)
+> > mixedmap_refcount_pfn() or something.
+> Based on our previous discussion, and based on previous patches by Jared
+> and Nick, this patch series makes XIP without struct page backing usable
+> on s390 architecture.
+> This patch set includes:
+> 1/4: mm: introduce VM_MIXEDMAP mappings from Jared Hulbert, modified to
+> use an arch-callback to identify whether or not a pfn needs refcounting
+> 2/4: xip: support non-struct page memory from Nick Piggin, modified to
+> use an arch-callback to identify whether or not a pfn needs refcounting
+> 3/4: s390: remove struct page entries for z/VM DCSS memory segments
+> 4/4: s390: proof of concept implementation of mixedmap_refcount_pfn()
+> for s390 using list-walk
 
-Would be nice to get in 2.6.25 if we can.
+Nice! I'm glad that the xip support didn't need anything further than
+the mixedmap_refcount_pfn for s390. Hopefully it proves to be stable
+under further testing.
 
----
+I'm just curious (or forgetful) as to why s390's pfn_valid does not walk
+your memory segments? (That would allow the s390 proof of concept to be
+basically a noop, and mixedmap_refcount_pfn will only be required when
+we start using another pte bit.
 
-mm: remove nopage
+ 
+> Above stack seems to work well, I did some sniff-testing applied on top
+> of Linus' current git tree. We do want to spend a precious pte bit to
+> speed up this callback, therefore patch 4/4 will get replaced.
 
-Nothing in the tree uses nopage any more. Remove support for it in the
-core mm code and documentation (and a few stray references to it in comments).
+I think using another bit in the pte for special mappings is reasonable.
+As I posted in my earlier patch, we can also use it to simplify vm_normal_page,
+and it facilitates a lock free get_user_pages.
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
- Documentation/feature-removal-schedule.txt |    9 --------
- Documentation/filesystems/Locking          |    3 --
- drivers/media/video/vino.c                 |    2 -
- drivers/video/vermilion/vermilion.c        |    5 ++--
- include/linux/mm.h                         |    8 -------
- mm/memory.c                                |   32 ++++++++++-------------------
- mm/mincore.c                               |    2 -
- mm/mmap.c                                  |   20 +++++++++---------
- mm/rmap.c                                  |    1 
- 9 files changed, 27 insertions(+), 55 deletions(-)
-
-Index: linux-2.6/include/linux/mm.h
-===================================================================
---- linux-2.6.orig/include/linux/mm.h
-+++ linux-2.6/include/linux/mm.h
-@@ -166,8 +166,6 @@ struct vm_operations_struct {
- 	void (*open)(struct vm_area_struct * area);
- 	void (*close)(struct vm_area_struct * area);
- 	int (*fault)(struct vm_area_struct *vma, struct vm_fault *vmf);
--	struct page *(*nopage)(struct vm_area_struct *area,
--			unsigned long address, int *type);
- 	unsigned long (*nopfn)(struct vm_area_struct *area,
- 			unsigned long address);
- 
-@@ -642,12 +640,6 @@ static inline int page_mapped(struct pag
- }
- 
- /*
-- * Error return values for the *_nopage functions
-- */
--#define NOPAGE_SIGBUS	(NULL)
--#define NOPAGE_OOM	((struct page *) (-1))
--
--/*
-  * Error return values for the *_nopfn functions
-  */
- #define NOPFN_SIGBUS	((unsigned long) -1)
-Index: linux-2.6/mm/memory.c
-===================================================================
---- linux-2.6.orig/mm/memory.c
-+++ linux-2.6/mm/memory.c
-@@ -1042,8 +1042,7 @@ int get_user_pages(struct task_struct *t
- 		if (pages)
- 			foll_flags |= FOLL_GET;
- 		if (!write && !(vma->vm_flags & VM_LOCKED) &&
--		    (!vma->vm_ops || (!vma->vm_ops->nopage &&
--					!vma->vm_ops->fault)))
-+		    (!vma->vm_ops || !vma->vm_ops->fault))
- 			foll_flags |= FOLL_ANON;
- 
- 		do {
-@@ -2184,20 +2183,9 @@ static int __do_fault(struct mm_struct *
- 
- 	BUG_ON(vma->vm_flags & VM_PFNMAP);
- 
--	if (likely(vma->vm_ops->fault)) {
--		ret = vma->vm_ops->fault(vma, &vmf);
--		if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
--			return ret;
--	} else {
--		/* Legacy ->nopage path */
--		ret = 0;
--		vmf.page = vma->vm_ops->nopage(vma, address & PAGE_MASK, &ret);
--		/* no page was available -- either SIGBUS or OOM */
--		if (unlikely(vmf.page == NOPAGE_SIGBUS))
--			return VM_FAULT_SIGBUS;
--		else if (unlikely(vmf.page == NOPAGE_OOM))
--			return VM_FAULT_OOM;
--	}
-+	ret = vma->vm_ops->fault(vma, &vmf);
-+	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
-+		return ret;
- 
- 	/*
- 	 * For consistency in subsequent calls, make the faulted page always
-@@ -2443,7 +2431,7 @@ static inline int handle_pte_fault(struc
- 	if (!pte_present(entry)) {
- 		if (pte_none(entry)) {
- 			if (vma->vm_ops) {
--				if (vma->vm_ops->fault || vma->vm_ops->nopage)
-+				if (likely(vma->vm_ops->fault))
- 					return do_linear_fault(mm, vma, address,
- 						pte, pmd, write_access, entry);
- 				if (unlikely(vma->vm_ops->nopfn))
-Index: linux-2.6/mm/mincore.c
-===================================================================
---- linux-2.6.orig/mm/mincore.c
-+++ linux-2.6/mm/mincore.c
-@@ -33,7 +33,7 @@ static unsigned char mincore_page(struct
- 	 * When tmpfs swaps out a page from a file, any process mapping that
- 	 * file will not get a swp_entry_t in its pte, but rather it is like
- 	 * any other file mapping (ie. marked !present and faulted in with
--	 * tmpfs's .nopage). So swapped out tmpfs mappings are tested here.
-+	 * tmpfs's .fault). So swapped out tmpfs mappings are tested here.
- 	 *
- 	 * However when tmpfs moves the page from pagecache and into swapcache,
- 	 * it is still in core, but the find_get_page below won't find it.
-Index: linux-2.6/Documentation/feature-removal-schedule.txt
-===================================================================
---- linux-2.6.orig/Documentation/feature-removal-schedule.txt
-+++ linux-2.6/Documentation/feature-removal-schedule.txt
-@@ -155,15 +155,6 @@ Who:	Greg Kroah-Hartman <gregkh@suse.de>
- 
- ---------------------------
- 
--What:	vm_ops.nopage
--When:	Soon, provided in-kernel callers have been converted
--Why:	This interface is replaced by vm_ops.fault, but it has been around
--	forever, is used by a lot of drivers, and doesn't cost much to
--	maintain.
--Who:	Nick Piggin <npiggin@suse.de>
--
-----------------------------
--
- What:	PHYSDEVPATH, PHYSDEVBUS, PHYSDEVDRIVER in the uevent environment
- When:	October 2008
- Why:	The stacking of class devices makes these values misleading and
-Index: linux-2.6/Documentation/filesystems/Locking
-===================================================================
---- linux-2.6.orig/Documentation/filesystems/Locking
-+++ linux-2.6/Documentation/filesystems/Locking
-@@ -511,7 +511,6 @@ prototypes:
- 	void (*open)(struct vm_area_struct*);
- 	void (*close)(struct vm_area_struct*);
- 	int (*fault)(struct vm_area_struct*, struct vm_fault *);
--	struct page *(*nopage)(struct vm_area_struct*, unsigned long, int *);
- 	int (*page_mkwrite)(struct vm_area_struct *, struct page *);
- 
- locking rules:
-@@ -519,7 +518,6 @@ locking rules:
- open:		no	yes
- close:		no	yes
- fault:		no	yes
--nopage:		no	yes
- page_mkwrite:	no	yes		no
- 
- 	->page_mkwrite() is called when a previously read-only page is
-@@ -537,4 +535,3 @@ NULL.
- 
- ipc/shm.c::shm_delete() - may need BKL.
- ->read() and ->write() in many drivers are (probably) missing BKL.
--drivers/sgi/char/graphics.c::sgi_graphics_nopage() - may need BKL.
-Index: linux-2.6/mm/rmap.c
-===================================================================
---- linux-2.6.orig/mm/rmap.c
-+++ linux-2.6/mm/rmap.c
-@@ -655,7 +655,6 @@ void page_remove_rmap(struct page *page,
- 			printk (KERN_EMERG "  page->mapping = %p\n", page->mapping);
- 			print_symbol (KERN_EMERG "  vma->vm_ops = %s\n", (unsigned long)vma->vm_ops);
- 			if (vma->vm_ops) {
--				print_symbol (KERN_EMERG "  vma->vm_ops->nopage = %s\n", (unsigned long)vma->vm_ops->nopage);
- 				print_symbol (KERN_EMERG "  vma->vm_ops->fault = %s\n", (unsigned long)vma->vm_ops->fault);
- 			}
- 			if (vma->vm_file && vma->vm_file->f_op)
-Index: linux-2.6/drivers/media/video/vino.c
-===================================================================
---- linux-2.6.orig/drivers/media/video/vino.c
-+++ linux-2.6/drivers/media/video/vino.c
-@@ -13,7 +13,7 @@
- /*
-  * TODO:
-  * - remove "mark pages reserved-hacks" from memory allocation code
-- *   and implement nopage()
-+ *   and implement fault()
-  * - check decimation, calculating and reporting image size when
-  *   using decimation
-  * - implement read(), user mode buffers and overlay (?)
-Index: linux-2.6/drivers/video/vermilion/vermilion.c
-===================================================================
---- linux-2.6.orig/drivers/video/vermilion/vermilion.c
-+++ linux-2.6/drivers/video/vermilion/vermilion.c
-@@ -114,8 +114,9 @@ static int vmlfb_alloc_vram_area(struct 
- 
- 	/*
- 	 * It seems like __get_free_pages only ups the usage count
--	 * of the first page. This doesn't work with nopage mapping, so
--	 * up the usage count once more.
-+	 * of the first page. This doesn't work with fault mapping, so
-+	 * up the usage count once more (XXX: should use split_page or
-+	 * compound page).
- 	 */
- 
- 	memset((void *)va->logical, 0x00, va->size);
-Index: linux-2.6/fs/gfs2/ops_address.c
-===================================================================
---- linux-2.6.orig/fs/gfs2/ops_address.c
-+++ linux-2.6/fs/gfs2/ops_address.c
-@@ -441,7 +441,7 @@ static int stuffed_readpage(struct gfs2_
- 	int error;
- 
- 	/*
--	 * Due to the order of unstuffing files and ->nopage(), we can be
-+	 * Due to the order of unstuffing files and ->fault(), we can be
- 	 * asked for a zero page in the case of a stuffed file being extended,
- 	 * so we need to supply one here. It doesn't happen often.
- 	 */
+Anyway, hmm... I guess we should probably get these patches into -mm and
+then upstream soon. Any objections from anyone? Do you guys have performance /
+stress testing for xip?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
