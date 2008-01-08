@@ -1,61 +1,69 @@
-Message-Id: <20080108210005.558041779@redhat.com>
-References: <20080108205939.323955454@redhat.com>
-Date: Tue, 08 Jan 2008 15:59:46 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: [patch 07/19] (NEW) add some sanity checks to get_scan_ratio
-Content-Disposition: inline; filename=rvr-04-linux-2.6-scan-ratio-fixes.patch
+Message-Id: <20080108211024.635843000@sgi.com>
+References: <20080108211023.923047000@sgi.com>
+Date: Tue, 08 Jan 2008 13:10:28 -0800
+From: travis@sgi.com
+Subject: [PATCH 05/10] x86_64: Use generic percpu
+Content-Disposition: inline; filename=x86_64_use_generic_percpu
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, mingo@elte.hu, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>
+Cc: Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, tglx@linutronix.de, mingo@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-The access ratio based scan rate determination in get_scan_ratio
-works ok in most situations, but needs to be corrected in some
-corner cases:
-- if we run out of swap space, do not bother scanning the anon LRUs
-- if we have already freed all of the page cache, we need to scan
-  the anon LRUs
+x86_64 provides an optimized way to determine the local per cpu area
+offset through the pda and determines the base by accessing a remote
+pda.
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
+Cc: Rusty Russell <rusty@rustcorp.com.au>
+Cc: Andi Kleen <ak@suse.de>
+Cc: tglx@linutronix.de
+Cc: mingo@redhat.com
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Signed-off-by: Mike Travis <travis@sgi.com>
 
-Index: linux-2.6.24-rc6-mm1/mm/vmscan.c
-===================================================================
---- linux-2.6.24-rc6-mm1.orig/mm/vmscan.c	2008-01-07 17:33:50.000000000 -0500
-+++ linux-2.6.24-rc6-mm1/mm/vmscan.c	2008-01-07 17:57:49.000000000 -0500
-@@ -1182,7 +1182,7 @@ static unsigned long shrink_list(enum lr
- static void get_scan_ratio(struct zone *zone, struct scan_control * sc,
- 					unsigned long *percent)
- {
--	unsigned long anon, file;
-+	unsigned long anon, file, free;
- 	unsigned long anon_prio, file_prio;
- 	unsigned long rotate_sum;
- 	unsigned long ap, fp;
-@@ -1230,6 +1230,20 @@ static void get_scan_ratio(struct zone *
- 	else if (fp > 100)
- 		fp = 100;
- 	percent[1] = fp;
-+
-+	free = zone_page_state(zone, NR_FREE_PAGES);
-+
-+	/*
-+	 * If we have no swap space, do not bother scanning anon pages
-+	 */
-+	if (nr_swap_pages <= 0)
-+		percent[0] = 0;
-+	/*
-+	 * If we already freed most file pages, scan the anon pages
-+	 * regardless of the page access ratios or swappiness setting.
-+	 */
-+	else if (file + free <= zone->pages_high)
-+		percent[0] = 100;
- }
+
+---
+ include/asm-x86/percpu_64.h |   23 ++---------------------
+ 1 file changed, 2 insertions(+), 21 deletions(-)
+
+--- a/include/asm-x86/percpu_64.h
++++ b/include/asm-x86/percpu_64.h
+@@ -12,31 +12,12 @@
+ #include <asm/pda.h>
  
+ #define __per_cpu_offset(cpu) (cpu_pda(cpu)->data_offset)
+-#define __my_cpu_offset() read_pda(data_offset)
++#define __my_cpu_offset read_pda(data_offset)
  
+ #define per_cpu_offset(x) (__per_cpu_offset(x))
+ 
+-/* var is in discarded region: offset to particular copy we want */
+-#define per_cpu(var, cpu) (*({				\
+-	extern int simple_identifier_##var(void);	\
+-	RELOC_HIDE(&per_cpu__##var, __per_cpu_offset(cpu)); }))
+-#define __get_cpu_var(var) (*({				\
+-	extern int simple_identifier_##var(void);	\
+-	RELOC_HIDE(&per_cpu__##var, __my_cpu_offset()); }))
+-#define __raw_get_cpu_var(var) (*({			\
+-	extern int simple_identifier_##var(void);	\
+-	RELOC_HIDE(&per_cpu__##var, __my_cpu_offset()); }))
+-
+-extern void setup_per_cpu_areas(void);
+-
+-#else /* ! SMP */
+-
+-#define per_cpu(var, cpu)			(*((void)(cpu), &per_cpu__##var))
+-#define __get_cpu_var(var)			per_cpu__##var
+-#define __raw_get_cpu_var(var)			per_cpu__##var
+-
+ #endif	/* SMP */
+ 
+-#define DECLARE_PER_CPU(type, name) extern __typeof__(type) per_cpu__##name
++#include <asm-generic/percpu.h>
+ 
+ #endif /* _ASM_X8664_PERCPU_H_ */
 
 -- 
-All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
