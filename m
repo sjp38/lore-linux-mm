@@ -1,53 +1,64 @@
-Date: Tue, 8 Jan 2008 10:40:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUG]  at mm/slab.c:3320
-Message-Id: <20080108104016.4fa5a4f3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0801071008050.22642@schroedinger.engr.sgi.com>
-References: <20071220100541.GA6953@skywalker>
-	<20071225140519.ef8457ff.akpm@linux-foundation.org>
-	<20071227153235.GA6443@skywalker>
-	<Pine.LNX.4.64.0712271130200.30555@schroedinger.engr.sgi.com>
-	<20071228051959.GA6385@skywalker>
-	<Pine.LNX.4.64.0801021227580.20331@schroedinger.engr.sgi.com>
-	<20080103155046.GA7092@skywalker>
-	<20080107102301.db52ab64.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0801071008050.22642@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 7 Jan 2008 17:57:41 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 11 of 11] not-wait-memdie
+In-Reply-To: <Pine.LNX.4.64.0801071141130.23617@schroedinger.engr.sgi.com>
+Message-ID: <alpine.DEB.0.9999.0801071751320.13505@chino.kir.corp.google.com>
+References: <504e981185254a12282d.1199326157@v2.random> <Pine.LNX.4.64.0801071141130.23617@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, nacc@us.ibm.com, lee.schermerhorn@hp.com, bob.picco@hp.com, mel@skynet.ie
+Cc: Andrea Arcangeli <andrea@cpushare.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 7 Jan 2008 10:10:16 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
+On Mon, 7 Jan 2008, Christoph Lameter wrote:
 
-> On Mon, 7 Jan 2008, KAMEZAWA Hiroyuki wrote:
+> > +		if (unlikely(test_tsk_thread_flag(p, TIF_MEMDIE))) {
+> > +			/*
+> > +			 * Hopefully we already waited long enough,
+> > +			 * or exit_mm already run, but we must try to kill
+> > +			 * another task to avoid deadlocking.
+> > +			 */
+> > +			continue;
+> > +		}
 > 
-> > Seems Node 1 has no NORMAL memory.
-> > 
-> > Because the patch changes 'online_node' to N_NORMAL_MEMORY, there is a change.
-> > I'm not sure but cachep->nodelists[] should be created against all online nodes ?
-> 
-> Well what is the point of creating a memory structure for a node from 
-> which no memory for the slab allocator can be allocated? I think we need a 
-> special cpu_to_node() that only takes normal memory into consideration. 
-> 
-In usual alloc_pages() allocator, this is done by zonelist fallback.
-
-> And we need to use that new function (cpu_to_node_normal_memory or so?) to 
-> find memory for the slab and other stuff in the kernel.
+> If all tasks are marked TIF_MEMDIE then we just scan through them return 
+> NULL and
 > 
 
-It seems that cache->nodelists[nid] == NULL case should be handled even if
-nid == cpu_to_node(smp_processor_id()). 
+That's the problem that I've been mentioning: giving several tasks access 
+to memory reserves just isn't right.  It should be given to a single 
+OOM-killed task that will alleviate the OOM condition for the task that 
+called out_of_memory().  For an entire system it would still be possible 
+for several tasks to be TIF_MEMDIE (in the case of cpuset, memory 
+controller, or mempolicy OOM killing) but never more than one task that 
+shares a common zone.
 
-complicated ?
+> >  		/* Found nothing?!?! Either we hang forever, or we panic. */
+> > -		if (!p) {
+> > +		if (unlikely(!p)) {
+> >  			read_unlock(&tasklist_lock);
+> >  			panic("Out of memory and no killable processes...\n");
+> 
+> panic.
+> 
+> Should we not wait awhile before panicing? The processes may need some 
+> time to terminate.
+> 
 
-Thanks,
--Kame
+That's only possible with my proposal of adding
+
+	unsigned long oom_kill_jiffies;
+
+to struct task_struct.  We can't get away with a system-wide jiffies 
+variable, nor can we get away with per-cgroup, per-cpuset, or 
+per-mempolicy variable.  The only way to clear such a variable is in the 
+exit path (by checking test_thread_flag(tsk, TIF_MEMDIE) in do_exit()) and 
+fails miserably if there are simultaneous but zone-disjoint OOMs 
+occurring.
+
+		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
