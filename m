@@ -1,11 +1,10 @@
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 06 of 13] balance_pgdat doesn't return the number of pages
-	freed
-Message-Id: <dd5900d0aa4e5f1b8136.1199778637@v2.random>
+Subject: [PATCH 10 of 13] limit reclaim if enough pages have been freed
+Message-Id: <0a13c24681cf4851555c.1199778641@v2.random>
 In-Reply-To: <patchbomb.1199778631@v2.random>
-Date: Tue, 08 Jan 2008 08:50:37 +0100
+Date: Tue, 08 Jan 2008 08:50:41 +0100
 From: Andrea Arcangeli <andrea@cpushare.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -15,44 +14,26 @@ List-ID: <linux-mm.kvack.org>
 # HG changeset patch
 # User Andrea Arcangeli <andrea@suse.de>
 # Date 1199470022 -3600
-# Node ID dd5900d0aa4e5f1b81364346465be53db897246f
-# Parent  351a3906181f5c0fe0137b6f066f725bd65673ba
-balance_pgdat doesn't return the number of pages freed
+# Node ID 0a13c24681cf4851555c87358fc2ec2465f9ef39
+# Parent  6c433e92ef119dd39893c6b54e41154866c32ef8
+limit reclaim if enough pages have been freed
 
-nr_reclaimed would be the number of pages freed in the last pass.
+No need to wipe out an huge chunk of the cache.
 
 Signed-off-by: Andrea Arcangeli <andrea@suse.de>
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1298,8 +1298,6 @@ out:
-  * For kswapd, balance_pgdat() will work across all this node's zones until
-  * they are all at pages_high.
-  *
-- * Returns the number of pages which were actually freed.
-- *
-  * There is special handling here for zones which are full of pinned pages.
-  * This can happen if the pages are all mlocked, or if they are all used by
-  * device drivers (say, ZONE_DMA).  Or if they are all in use by hugetlb.
-@@ -1315,7 +1313,7 @@ out:
-  * the page allocator fallback scheme to ensure that aging of pages is balanced
-  * across the zones.
-  */
--static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
-+static void balance_pgdat(pg_data_t *pgdat, int order)
- {
- 	int all_zones_ok;
- 	int priority;
-@@ -1475,8 +1473,6 @@ out:
- 
- 		goto loop_again;
+@@ -1149,6 +1149,8 @@ static unsigned long shrink_zone(int pri
+ 			nr_inactive -= nr_to_scan;
+ 			nr_reclaimed += shrink_inactive_list(nr_to_scan, zone,
+ 								sc);
++			if (nr_reclaimed >= sc->swap_cluster_max)
++				break;
+ 		}
  	}
--
--	return nr_reclaimed;
- }
  
- /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
