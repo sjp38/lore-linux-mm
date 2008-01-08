@@ -1,10 +1,10 @@
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 11 of 13] not-wait-memdie
-Message-Id: <ecc696d359edebbfe355.1199778642@v2.random>
+Subject: [PATCH 09 of 13] oom select should only take rss into account
+Message-Id: <6c433e92ef119dd39893.1199778640@v2.random>
 In-Reply-To: <patchbomb.1199778631@v2.random>
-Date: Tue, 08 Jan 2008 08:50:42 +0100
+Date: Tue, 08 Jan 2008 08:50:40 +0100
 From: Andrea Arcangeli <andrea@cpushare.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -14,40 +14,42 @@ List-ID: <linux-mm.kvack.org>
 # HG changeset patch
 # User Andrea Arcangeli <andrea@suse.de>
 # Date 1199470022 -3600
-# Node ID ecc696d359edebbfe35566510f78a4be445c8f67
-# Parent  0a13c24681cf4851555c87358fc2ec2465f9ef39
-not-wait-memdie
+# Node ID 6c433e92ef119dd39893c6b54e41154866c32ef8
+# Parent  be951f4c07326327719ad105f14be41296fcf753
+oom select should only take rss into account
 
-Don't wait tif-memdie tasks forever because they may be stuck in some kernel
-lock owned by some task that requires memory to exit the critical section.
+Running workloads where many tasks grow their virtual memory
+simultaneously, so they all have a relatively small virtual memory when
+oom triggers (if compared to innocent longstanding tasks), the oom
+killer then selects mysql/apache and other things with very large VM but
+very small RSS. RSS is the only thing that matters, killing a task with
+huge VM but zero RSS is not useful. Many apps tend to have large VM but
+small RSS in the first place (regardless of swapping activity) and they
+shouldn't be penalized like this.
 
 Signed-off-by: Andrea Arcangeli <andrea@suse.de>
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -222,12 +222,16 @@ static struct task_struct *select_bad_pr
- 		 * being killed. Don't allow any other task access to the
- 		 * memory reserve.
- 		 *
--		 * Note: this may have a chance of deadlock if it gets
--		 * blocked waiting for another task which itself is waiting
--		 * for memory. Is there a better alternative?
-+		 * But if the TIF_MEMDIE task stays around for more than
-+		 * MEMDIE_DELAY jiffies, ignore it and fallback killing
-+		 * another task.
- 		 */
--		if (test_tsk_thread_flag(p, TIF_MEMDIE))
--			return ERR_PTR(-1UL);
-+		if (test_tsk_thread_flag(p, TIF_MEMDIE)) {
-+			if (time_before(p->memdie_jiffies + MEMDIE_DELAY, jiffies))
-+				continue;
-+			else
-+				return ERR_PTR(-1UL);
-+		}
+@@ -68,7 +68,7 @@ unsigned long badness(struct task_struct
+ 	/*
+ 	 * The memory size of the process is the basis for the badness.
+ 	 */
+-	points = mm->total_vm;
++	points = get_mm_rss(mm);
  
- 		/*
- 		 * This is in the process of releasing memory so wait for it
+ 	/*
+ 	 * After this unlock we can no longer dereference local variable `mm'
+@@ -92,7 +92,7 @@ unsigned long badness(struct task_struct
+ 	list_for_each_entry(child, &p->children, sibling) {
+ 		task_lock(child);
+ 		if (child->mm != mm && child->mm)
+-			points += child->mm->total_vm/2 + 1;
++			points += get_mm_rss(child->mm)/2 + 1;
+ 		task_unlock(child);
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
