@@ -1,56 +1,82 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m095leRr021732
-	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 00:47:40 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m096oH5e134814
-	for <linux-mm@kvack.org>; Tue, 8 Jan 2008 23:50:22 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m096oHcR000321
-	for <linux-mm@kvack.org>; Tue, 8 Jan 2008 23:50:17 -0700
-Date: Tue, 8 Jan 2008 22:50:15 -0800
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [BUG]  at mm/slab.c:3320
-Message-ID: <20080109065015.GG7602@us.ibm.com>
-References: <20071225140519.ef8457ff.akpm@linux-foundation.org> <20071227153235.GA6443@skywalker> <Pine.LNX.4.64.0712271130200.30555@schroedinger.engr.sgi.com> <20071228051959.GA6385@skywalker> <Pine.LNX.4.64.0801021227580.20331@schroedinger.engr.sgi.com> <20080103155046.GA7092@skywalker> <20080107102301.db52ab64.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0801071008050.22642@schroedinger.engr.sgi.com> <20080108104016.4fa5a4f3.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0801072131350.28725@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0801072131350.28725@schroedinger.engr.sgi.com>
+Subject: Re: [vm] writing to UDF DVD+RW (/dev/sr0) while under memory
+	pressure: box ==> doorstop
+From: Mike Galbraith <efault@gmx.de>
+In-Reply-To: <1199806071.4174.2.camel@homer.simson.net>
+References: <1199447212.4529.13.camel@homer.simson.net>
+	 <1199612533.4384.54.camel@homer.simson.net>
+	 <1199642470.3927.12.camel@homer.simson.net>
+	 <20080106122954.d8f04c98.akpm@linux-foundation.org>
+	 <1199790316.4094.57.camel@homer.simson.net>
+	 <20080108033801.40d0043a.akpm@linux-foundation.org>
+	 <1199805713.3571.12.camel@homer.simson.net>
+	 <1199806071.4174.2.camel@homer.simson.net>
+Content-Type: text/plain
+Date: Wed, 09 Jan 2008 12:11:20 +0100
+Message-Id: <1199877080.4340.19.camel@homer.simson.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, lee.schermerhorn@hp.com, bob.picco@hp.com, mel@skynet.ie
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 07.01.2008 [21:38:51 -0800], Christoph Lameter wrote:
-> On Tue, 8 Jan 2008, KAMEZAWA Hiroyuki wrote:
+On Tue, 2008-01-08 at 16:27 +0100, Mike Galbraith wrote:
+> On Tue, 2008-01-08 at 16:21 +0100, Mike Galbraith wrote:
+> > On Tue, 2008-01-08 at 03:38 -0800, Andrew Morton wrote:
+> > > 
+> > > Well.  From your earlier trace it appeared that something was causing
+> > > the filesystem to perform synchronous inode writes - sync_dirty_buffer() was
+> > > called.
+> > > 
+> > > This will cause many more seeks than would occur if we were doing full
+> > > delayed writing, with obvious throughput implications.
+> > 
+> > Yes, with UDF, the IO was _incredibly_ slow.  With ext2, it was better,
+> > though still very bad.  I tested with that other OS, and it gets ~same
+> > throughput with UDF as I got with ext2 (ick).
+> > 
+> > UDF does udf_clear_inode() -> write_inode_now(inode, 1)
+> > 
+> > I suppose I could try write_inode_now(inode, 0).  Might unstick the box.
 > 
-> > In usual alloc_pages() allocator, this is done by zonelist fallback.
-> 
-> Hmmm... __cache_alloc_node does:
-> 
->     if (unlikely(!cachep->nodelists[nodeid])) {
->                 /* Node not bootstrapped yet */
->                 ptr = fallback_alloc(cachep, flags);
->                 goto out;
->         }
-> 
-> So kmalloc_node does the correct fallback.
-> 
-> Kmalloc does not fall back but relies on numa_node_id() referring to a 
-> node that has ZONE_NORMAL memory. Sigh.
+> (nope, still sync, UDF still deadly)
 
-Do we (perhaps you already have done so, Christoph), want to validate
-any other users of numa_node_id() that then make assumptions about the
-characteristics of the nid? Hrm, that sounds good in theory, but seems
-hard in practice?
+write_inode_now() is a fibber.
 
-Thanks,
-Nish
+The below seems to fix it in that writes dribbling to the DVD+RW at the
+whopping 1 to 10 pages/sec I'm seeing no longer turn box into a
+doorstop.  It's probably busted as heck.
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+Think I'll cc linux-mm, and go find something safer to play with.
+
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 0fca820..f1cce24 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -657,7 +657,7 @@ int write_inode_now(struct inode *inode, int sync)
+ 	int ret;
+ 	struct writeback_control wbc = {
+ 		.nr_to_write = LONG_MAX,
+-		.sync_mode = WB_SYNC_ALL,
++		.sync_mode = sync ? WB_SYNC_ALL : WB_SYNC_NONE,
+ 		.range_start = 0,
+ 		.range_end = LLONG_MAX,
+ 	};
+diff --git a/fs/udf/inode.c b/fs/udf/inode.c
+index 6ff8151..d1fc116 100644
+--- a/fs/udf/inode.c
++++ b/fs/udf/inode.c
+@@ -117,7 +117,7 @@ void udf_clear_inode(struct inode *inode)
+ 		udf_discard_prealloc(inode);
+ 		udf_truncate_tail_extent(inode);
+ 		unlock_kernel();
+-		write_inode_now(inode, 1);
++		write_inode_now(inode, 0);
+ 	}
+ 	kfree(UDF_I_DATA(inode));
+ 	UDF_I_DATA(inode) = NULL;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
