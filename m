@@ -1,42 +1,34 @@
-Date: Wed, 9 Jan 2008 13:51:42 -0800 (PST)
+Date: Wed, 9 Jan 2008 13:54:59 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [BUG]  at mm/slab.c:3320
-In-Reply-To: <20080109214707.GA26941@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0801091349430.12505@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0801021227580.20331@schroedinger.engr.sgi.com>
- <20080103155046.GA7092@skywalker> <20080107102301.db52ab64.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0801071008050.22642@schroedinger.engr.sgi.com>
- <20080108104016.4fa5a4f3.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0801072131350.28725@schroedinger.engr.sgi.com>
- <20080109065015.GG7602@us.ibm.com> <Pine.LNX.4.64.0801090949440.10163@schroedinger.engr.sgi.com>
- <20080109185859.GD11852@skywalker> <Pine.LNX.4.64.0801091122490.11317@schroedinger.engr.sgi.com>
- <20080109214707.GA26941@us.ibm.com>
+Subject: Re: mmu notifiers
+In-Reply-To: <20080109181908.GS6958@v2.random>
+Message-ID: <Pine.LNX.4.64.0801091352320.12335@schroedinger.engr.sgi.com>
+References: <20080109181908.GS6958@v2.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, lee.schermerhorn@hp.com, bob.picco@hp.com, mel@skynet.ie
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: kvm-devel@lists.sourceforge.net, linux-mm@kvack.org, Daniel J Blueman <daniel.blueman@quadrics.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 Jan 2008, Nishanth Aravamudan wrote:
+On Wed, 9 Jan 2008, Andrea Arcangeli wrote:
 
-> And given that the original mail has bug at mm/slab.c:3320, I assume we're
-> still hitting the
+> This patch is a first basic implementation of the mmu notifiers. More
+> methods can be added in the future.
 > 
-> BUG_ON(ac->avail > 0 || !l3);
+> In short when the linux VM decides to free a page, it will unmap it
+> from the linux pagetables. However when a page is mapped not just by
+> the regular linux ptes, but also from the shadow pagetables, it's
+> currently unfreeable by the linux VM.
 
-No we are in a different function here.
+Such a patch would also address issues that SGI has with exporting 
+mappings via XPMEM. Plus a variety of other uses. Go ahead and lets do 
+more in this area.
 
-> Hrm, shouldn't we remove the !l3 bit from the BUG_ON? But even so, unless for
-> some reason the BUG_ON is being checked before the if (!l3), are we hitting
-> (ac->avail > 0)?
-
-Yes we should remove the !l3 bit. There cannot be any objects in 
-SLABs per cpu queue if there is no node structure. per cpu queues can 
-only be refilled from the local node, not from foreign nodes. And in this 
-particular case there is no memory available from the local node. So 
-ac->avail == 0.
+Are the KVM folks interested in exporting memory from one guest to 
+another? That may also become possible with some of the work that we have 
+in progress and that also requires a patch like this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
