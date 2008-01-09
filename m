@@ -1,82 +1,259 @@
-Subject: Re: [vm] writing to UDF DVD+RW (/dev/sr0) while under memory
-	pressure: box ==> doorstop
-From: Mike Galbraith <efault@gmx.de>
-In-Reply-To: <1199806071.4174.2.camel@homer.simson.net>
-References: <1199447212.4529.13.camel@homer.simson.net>
-	 <1199612533.4384.54.camel@homer.simson.net>
-	 <1199642470.3927.12.camel@homer.simson.net>
-	 <20080106122954.d8f04c98.akpm@linux-foundation.org>
-	 <1199790316.4094.57.camel@homer.simson.net>
-	 <20080108033801.40d0043a.akpm@linux-foundation.org>
-	 <1199805713.3571.12.camel@homer.simson.net>
-	 <1199806071.4174.2.camel@homer.simson.net>
-Content-Type: text/plain
-Date: Wed, 09 Jan 2008 12:11:20 +0100
-Message-Id: <1199877080.4340.19.camel@homer.simson.net>
-Mime-Version: 1.0
+Received: by wa-out-1112.google.com with SMTP id m33so386016wag.8
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2008 03:32:54 -0800 (PST)
+Message-ID: <4df4ef0c0801090332y345ccb67se98409edc65fd6bf@mail.gmail.com>
+Date: Wed, 9 Jan 2008 14:32:53 +0300
+From: "Anton Salikhmetov" <salikhmetov@gmail.com>
+Subject: Re: [PATCH][RFC][BUG] updating the ctime and mtime time stamps in msync()
+In-Reply-To: <1199728459.26463.11.camel@codedot>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <1199728459.26463.11.camel@codedot>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, joe@evalesco.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-01-08 at 16:27 +0100, Mike Galbraith wrote:
-> On Tue, 2008-01-08 at 16:21 +0100, Mike Galbraith wrote:
-> > On Tue, 2008-01-08 at 03:38 -0800, Andrew Morton wrote:
-> > > 
-> > > Well.  From your earlier trace it appeared that something was causing
-> > > the filesystem to perform synchronous inode writes - sync_dirty_buffer() was
-> > > called.
-> > > 
-> > > This will cause many more seeks than would occur if we were doing full
-> > > delayed writing, with obvious throughput implications.
-> > 
-> > Yes, with UDF, the IO was _incredibly_ slow.  With ext2, it was better,
-> > though still very bad.  I tested with that other OS, and it gets ~same
-> > throughput with UDF as I got with ext2 (ick).
-> > 
-> > UDF does udf_clear_inode() -> write_inode_now(inode, 1)
-> > 
-> > I suppose I could try write_inode_now(inode, 0).  Might unstick the box.
-> 
-> (nope, still sync, UDF still deadly)
+Since no reaction in LKML was recieved for this message it seemed
+logical to suggest closing the bug #2645 as "WONTFIX":
 
-write_inode_now() is a fibber.
+http://bugzilla.kernel.org/show_bug.cgi?id=2645#c15
 
-The below seems to fix it in that writes dribbling to the DVD+RW at the
-whopping 1 to 10 pages/sec I'm seeing no longer turn box into a
-doorstop.  It's probably busted as heck.
+However, the reporter of the bug, Jacob Oestergaard, insisted the
+solution to be resubmitted once more:
 
-Think I'll cc linux-mm, and go find something safer to play with.
+>>>
 
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 0fca820..f1cce24 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -657,7 +657,7 @@ int write_inode_now(struct inode *inode, int sync)
- 	int ret;
- 	struct writeback_control wbc = {
- 		.nr_to_write = LONG_MAX,
--		.sync_mode = WB_SYNC_ALL,
-+		.sync_mode = sync ? WB_SYNC_ALL : WB_SYNC_NONE,
- 		.range_start = 0,
- 		.range_end = LLONG_MAX,
- 	};
-diff --git a/fs/udf/inode.c b/fs/udf/inode.c
-index 6ff8151..d1fc116 100644
---- a/fs/udf/inode.c
-+++ b/fs/udf/inode.c
-@@ -117,7 +117,7 @@ void udf_clear_inode(struct inode *inode)
- 		udf_discard_prealloc(inode);
- 		udf_truncate_tail_extent(inode);
- 		unlock_kernel();
--		write_inode_now(inode, 1);
-+		write_inode_now(inode, 0);
- 	}
- 	kfree(UDF_I_DATA(inode));
- 	UDF_I_DATA(inode) = NULL;
+Please re-submit to LKML.
 
+This bug causes backup systems to *miss* changed files.
+
+This bug does cause data loss in common real-world deployments (I gave an
+example with a database when posting the bug, but this affects the data from
+all mmap using applications with common backup systems).
+
+Silent exclusion from backups is very very nasty.
+
+<<<
+
+Please comment on my solution or commit it if it's acceptable in its
+present form.
+
+2008/1/7, Anton Salikhmetov <salikhmetov@gmail.com>:
+> From: Anton Salikhmetov <salikhmetov@gmail.com>
+>
+> Due to the lack of reaction in LKML I presume the message was lost
+> in the high traffic of that list. Resending it now with the addressee changed
+> to the memory management mailing list.
+>
+> I would like to propose my solution for the bug #2645 from the kernel bug tracker:
+>
+> http://bugzilla.kernel.org/show_bug.cgi?id=2645
+>
+> The Open Group defines the behavior of the mmap() function as follows.
+>
+> The st_ctime and st_mtime fields of a file that is mapped with MAP_SHARED
+> and PROT_WRITE shall be marked for update at some point in the interval
+> between a write reference to the mapped region and the next call to msync()
+> with MS_ASYNC or MS_SYNC for that portion of the file by any process.
+> If there is no such call and if the underlying file is modified as a result
+> of a write reference, then these fields shall be marked for update at some
+> time after the write reference.
+>
+> The above citation was taken from the following link:
+>
+> http://www.opengroup.org/onlinepubs/009695399/functions/mmap.html
+>
+> Therefore, the msync() function should be called before verifying the time
+> stamps st_mtime and st_ctime in the test program Badari wrote in the context
+> of the bug #2645. Otherwise, the time stamps may be updated
+> at some unspecified moment according to the POSIX standard.
+>
+> I changed his test program a little. The changed unit test can be downloaded
+> using the following link:
+>
+> http://pygx.sourceforge.net/mmap.c
+>
+> This program showed that the msync() function had a bug:
+> it did not update the st_mtime and st_ctime fields.
+>
+> The program shows appropriate behavior of the msync()
+> function using the kernel with the proposed patch applied.
+> Specifically, the ctime and mtime time stamps do change
+> when modifying the mapped memory and do not change when
+> there have been no write references between the mmap()
+> and msync() system calls.
+>
+> Additionally, the test cases for the msync() system call from
+> the LTP test suite (msync01 - msync05, mmapstress01, mmapstress09,
+> and mmapstress10) successfully passed using the kernel
+> with the patch included into this email.
+>
+> The patch adds a call to the file_update_time() function to change
+> the file metadata before syncing. The patch also contains
+> substantial code cleanup: consolidated error check
+> for function parameters, using the PAGE_ALIGN() macro instead of
+> "manual" alignment, improved readability of the loop,
+> which traverses the process memory regions, updated comments.
+>
+> Signed-off-by: Anton Salikhmetov <salikhmetov@gmail.com>
+>
+> ---
+>
+> diff --git a/mm/msync.c b/mm/msync.c
+> index 144a757..cb973eb 100644
+> --- a/mm/msync.c
+> +++ b/mm/msync.c
+> @@ -1,26 +1,32 @@
+>  /*
+>   *     linux/mm/msync.c
+>   *
+> + * The msync() system call.
+>   * Copyright (C) 1994-1999  Linus Torvalds
+> + *
+> + * Updating the mtime and ctime stamps for mapped files
+> + * and code cleanup.
+> + * Copyright (C) 2008 Anton Salikhmetov <salikhmetov@gmail.com>
+>   */
+>
+> -/*
+> - * The msync() system call.
+> - */
+> +#include <linux/file.h>
+>  #include <linux/fs.h>
+>  #include <linux/mm.h>
+>  #include <linux/mman.h>
+> -#include <linux/file.h>
+> -#include <linux/syscalls.h>
+>  #include <linux/sched.h>
+> +#include <linux/syscalls.h>
+>
+>  /*
+>   * MS_SYNC syncs the entire file - including mappings.
+>   *
+>   * MS_ASYNC does not start I/O (it used to, up to 2.5.67).
+> - * Nor does it marks the relevant pages dirty (it used to up to 2.6.17).
+> + * Nor does it mark the relevant pages dirty (it used to up to 2.6.17).
+>   * Now it doesn't do anything, since dirty pages are properly tracked.
+>   *
+> + * The msync() system call updates the ctime and mtime fields for
+> + * the mapped file when called with the MS_SYNC or MS_ASYNC flags
+> + * according to the POSIX standard.
+> + *
+>   * The application may now run fsync() to
+>   * write out the dirty pages and wait on the writeout and check the result.
+>   * Or the application may run fadvise(FADV_DONTNEED) against the fd to start
+> @@ -33,70 +39,68 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
+>         unsigned long end;
+>         struct mm_struct *mm = current->mm;
+>         struct vm_area_struct *vma;
+> -       int unmapped_error = 0;
+> -       int error = -EINVAL;
+> +       int error = 0, unmapped_error = 0;
+>
+> -       if (flags & ~(MS_ASYNC | MS_INVALIDATE | MS_SYNC))
+> -               goto out;
+> -       if (start & ~PAGE_MASK)
+> +       if ((flags & ~(MS_ASYNC | MS_INVALIDATE | MS_SYNC)) ||
+> +                       (start & ~PAGE_MASK) ||
+> +                       ((flags & MS_ASYNC) && (flags & MS_SYNC))) {
+> +               error = -EINVAL;
+>                 goto out;
+> -       if ((flags & MS_ASYNC) && (flags & MS_SYNC))
+> -               goto out;
+> -       error = -ENOMEM;
+> -       len = (len + ~PAGE_MASK) & PAGE_MASK;
+> +       }
+> +
+> +       len = PAGE_ALIGN(len);
+>         end = start + len;
+> -       if (end < start)
+> +       if (end < start) {
+> +               error = -ENOMEM;
+>                 goto out;
+> -       error = 0;
+> +       }
+>         if (end == start)
+>                 goto out;
+> +
+>         /*
+>          * If the interval [start,end) covers some unmapped address ranges,
+>          * just ignore them, but return -ENOMEM at the end.
+>          */
+>         down_read(&mm->mmap_sem);
+>         vma = find_vma(mm, start);
+> -       for (;;) {
+> +       do {
+>                 struct file *file;
+>
+> -               /* Still start < end. */
+> -               error = -ENOMEM;
+> -               if (!vma)
+> -                       goto out_unlock;
+> -               /* Here start < vma->vm_end. */
+> +               if (!vma) {
+> +                       error = -ENOMEM;
+> +                       break;
+> +               }
+>                 if (start < vma->vm_start) {
+>                         start = vma->vm_start;
+> -                       if (start >= end)
+> -                               goto out_unlock;
+> +                       if (start >= end) {
+> +                               error = -ENOMEM;
+> +                               break;
+> +                       }
+>                         unmapped_error = -ENOMEM;
+>                 }
+> -               /* Here vma->vm_start <= start < vma->vm_end. */
+>                 if ((flags & MS_INVALIDATE) &&
+>                                 (vma->vm_flags & VM_LOCKED)) {
+>                         error = -EBUSY;
+> -                       goto out_unlock;
+> +                       break;
+>                 }
+>                 file = vma->vm_file;
+> -               start = vma->vm_end;
+> -               if ((flags & MS_SYNC) && file &&
+> -                               (vma->vm_flags & VM_SHARED)) {
+> +               if (file && (vma->vm_flags & VM_SHARED)) {
+>                         get_file(file);
+> -                       up_read(&mm->mmap_sem);
+> -                       error = do_fsync(file, 0);
+> -                       fput(file);
+> -                       if (error || start >= end)
+> -                               goto out;
+> -                       down_read(&mm->mmap_sem);
+> -                       vma = find_vma(mm, start);
+> -               } else {
+> -                       if (start >= end) {
+> -                               error = 0;
+> -                               goto out_unlock;
+> +                       if (file->f_mapping->host->i_state & I_DIRTY_PAGES)
+> +                               file_update_time(file);
+> +                       if (flags & MS_SYNC) {
+> +                               up_read(&mm->mmap_sem);
+> +                               error = do_fsync(file, 0);
+> +                               down_read(&mm->mmap_sem);
+>                         }
+> -                       vma = vma->vm_next;
+> +                       fput(file);
+> +                       if (error)
+> +                               break;
+>                 }
+> -       }
+> -out_unlock:
+> +
+> +               start = vma->vm_end;
+> +               vma = vma->vm_next;
+> +       } while (start < end);
+>         up_read(&mm->mmap_sem);
+>  out:
+>         return error ? : unmapped_error;
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
