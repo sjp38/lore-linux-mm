@@ -1,50 +1,91 @@
-Date: Wed, 9 Jan 2008 07:53:12 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [patch 07/19] (NEW) add some sanity checks to get_scan_ratio
-Message-ID: <20080109075312.2246d6bb@bree.surriel.com>
-In-Reply-To: <20080109131642.56b3fa91.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080108205939.323955454@redhat.com>
-	<20080108210005.558041779@redhat.com>
-	<20080109131642.56b3fa91.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by wa-out-1112.google.com with SMTP id m33so478074wag.8
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2008 06:41:12 -0800 (PST)
+Message-ID: <9a8748490801090641s41a06c1era3764091f135567d@mail.gmail.com>
+Date: Wed, 9 Jan 2008 15:41:11 +0100
+From: "Jesper Juhl" <jesper.juhl@gmail.com>
+Subject: Re: [PATCH][RFC][BUG] updating the ctime and mtime time stamps in msync()
+In-Reply-To: <4df4ef0c0801090332y345ccb67se98409edc65fd6bf@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <1199728459.26463.11.camel@codedot>
+	 <4df4ef0c0801090332y345ccb67se98409edc65fd6bf@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Anton Salikhmetov <salikhmetov@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, joe@evalesco.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 Jan 2008 13:16:42 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On 09/01/2008, Anton Salikhmetov <salikhmetov@gmail.com> wrote:
+> Since no reaction in LKML was recieved for this message it seemed
+> logical to suggest closing the bug #2645 as "WONTFIX":
+>
+> http://bugzilla.kernel.org/show_bug.cgi?id=2645#c15
+>
+> However, the reporter of the bug, Jacob Oestergaard, insisted the
+> solution to be resubmitted once more:
+>
 
-> > +
-> > +	free = zone_page_state(zone, NR_FREE_PAGES);
-> > +
-> > +	/*
-> > +	 * If we have no swap space, do not bother scanning anon pages
-> > +	 */
-> > +	if (nr_swap_pages <= 0)
-> > +		percent[0] = 0;
-> Doesn't this mean that swap-cache in ACTIVE_ANON_LIST is not scanned ?
-> Or swap-cache is in File-Cache list ?
+Good idea. The bug is real and should be fixed IMHO.
 
-You are right, the swap cache will not be scanned once we run
-completely out of swap space.  To compensate for that, this
-patch series has a patch that does scanning of swap cache and
-freeing of swap space used by pages on the LRU list while there
-is still space free.
 
-Scanning all of the anon LRU lists could be a lot of work for
-very little gain.  A typical large server will have 32GB or
-more of RAM, but only the default 2GB of swap.
+...
+> This bug causes backup systems to *miss* changed files.
+>
+> This bug does cause data loss in common real-world deployments (I gave an
+> example with a database when posting the bug, but this affects the data from
+> all mmap using applications with common backup systems).
+>
+Not just backup systems, but any application that relies on mtime
+being correctly updated will be bitten by this.
 
-All we accomplish by scanning the anonymous memory on a system
-like that (once swap is full) is eating up CPU time and causing
-lock contention.
+
+> Silent exclusion from backups is very very nasty.
+>
+Agreed.
+
+In fact if mtime is not reliable (which it is not) one could argue
+that we might as well not update it at all, ever. But I think we can
+all agree that just fixing it (as your patch does) is a lot better.
+
+> Please comment on my solution or commit it if it's acceptable in its
+> present form.
+>
+I've only looked briefly at your patch but it seems resonable. I'll
+try to do some testing with it later.
+
+Thank you for working on this long standing bug.
+
+...
+> > I would like to propose my solution for the bug #2645 from the kernel bug tracker:
+> >
+> > http://bugzilla.kernel.org/show_bug.cgi?id=2645
+> >
+> > The Open Group defines the behavior of the mmap() function as follows.
+> >
+> > The st_ctime and st_mtime fields of a file that is mapped with MAP_SHARED
+> > and PROT_WRITE shall be marked for update at some point in the interval
+> > between a write reference to the mapped region and the next call to msync()
+> > with MS_ASYNC or MS_SYNC for that portion of the file by any process.
+> > If there is no such call and if the underlying file is modified as a result
+> > of a write reference, then these fields shall be marked for update at some
+> > time after the write reference.
+> >
+> > The above citation was taken from the following link:
+> >
+> > http://www.opengroup.org/onlinepubs/009695399/functions/mmap.html
+> >
+...
+
+I agree that our current behaviour is certainly not what the standard
+(sensibly) requires.
+
 
 -- 
-All rights reversed.
+Jesper Juhl <jesper.juhl@gmail.com>
+Don't top-post  http://www.catb.org/~esr/jargon/html/T/top-post.html
+Plain text mails only, please      http://www.expita.com/nomime.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
