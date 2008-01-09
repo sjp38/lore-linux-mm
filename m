@@ -1,286 +1,68 @@
-Message-ID: <47853C6D.6010704@redhat.com>
-Date: Wed, 09 Jan 2008 16:28:13 -0500
-From: Peter Staubach <staubach@redhat.com>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m09LlCOg024856
+	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 16:47:12 -0500
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m09LlBY1157280
+	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 14:47:12 -0700
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m09Lkh1j029906
+	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 14:46:43 -0700
+Date: Wed, 9 Jan 2008 13:47:07 -0800
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [BUG]  at mm/slab.c:3320
+Message-ID: <20080109214707.GA26941@us.ibm.com>
+References: <Pine.LNX.4.64.0801021227580.20331@schroedinger.engr.sgi.com> <20080103155046.GA7092@skywalker> <20080107102301.db52ab64.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0801071008050.22642@schroedinger.engr.sgi.com> <20080108104016.4fa5a4f3.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0801072131350.28725@schroedinger.engr.sgi.com> <20080109065015.GG7602@us.ibm.com> <Pine.LNX.4.64.0801090949440.10163@schroedinger.engr.sgi.com> <20080109185859.GD11852@skywalker> <Pine.LNX.4.64.0801091122490.11317@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH][RFC][BUG] updating the ctime and mtime time stamps in
- msync()
-References: <1199728459.26463.11.camel@codedot> <4df4ef0c0801090332y345ccb67se98409edc65fd6bf@mail.gmail.com>
-In-Reply-To: <4df4ef0c0801090332y345ccb67se98409edc65fd6bf@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0801091122490.11317@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Anton Salikhmetov <salikhmetov@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, joe@evalesco.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, lee.schermerhorn@hp.com, bob.picco@hp.com, mel@skynet.ie
 List-ID: <linux-mm.kvack.org>
 
-Anton Salikhmetov wrote:
-> Since no reaction in LKML was recieved for this message it seemed
-> logical to suggest closing the bug #2645 as "WONTFIX":
->
-> http://bugzilla.kernel.org/show_bug.cgi?id=2645#c15
->
-> However, the reporter of the bug, Jacob Oestergaard, insisted the
-> solution to be resubmitted once more:
->
->   
->
-> Please re-submit to LKML.
->
->   
+On 09.01.2008 [11:23:59 -0800], Christoph Lameter wrote:
+> On Thu, 10 Jan 2008, Aneesh Kumar K.V wrote:
+> 
+> > kernel BUG at mm/slab.c:3323!
+> 
+> That is 
+> 
+>         l3 = cachep->nodelists[nodeid];
+>         BUG_ON(!l3);
+> 
+> retry:
+>         check_irq_off();
+>         ^^^^ this statment?
+> 
+> or the BUG_ON(!l3)?
 
-Yes, please!
+Given that Aneesh's mail had this patch-hunk:
 
-Let's have the right discussion and get this bug addressed for real.
-It is a real bug and is causing data corruption for some very large
-Red Hat customers because their applications were architected to
-use mmap, but their backups are not backing up the modified files
-due to this aspect of the system.
+@@ -2977,6 +2977,9 @@ retry:
+	}
+	l3 = cachep->nodelists[node];
 
-This is the 4'th or 5'th attempt in the last 2 years to submit a
-patch to address this situation.  None have been able to make it
-all of the way through the process and to be integrated.
++	if (!l3)
++		return NULL;
++
+	BUG_ON(ac->avail > 0 || !l3);
+	spin_lock(&l3->list_lock);
 
-I posted some comments.
+And given that the original mail has bug at mm/slab.c:3320, I assume we're
+still hitting the
 
-    Thanx...
+BUG_ON(ac->avail > 0 || !l3);
 
-       ps
+Hrm, shouldn't we remove the !l3 bit from the BUG_ON? But even so, unless for
+some reason the BUG_ON is being checked before the if (!l3), are we hitting
+(ac->avail > 0)?
 
-> This bug causes backup systems to *miss* changed files.
->
-> This bug does cause data loss in common real-world deployments (I gave an
-> example with a database when posting the bug, but this affects the data from
-> all mmap using applications with common backup systems).
->
-> Silent exclusion from backups is very very nasty.
->
-> <<<
->
-> Please comment on my solution or commit it if it's acceptable in its
-> present form.
->
-> 2008/1/7, Anton Salikhmetov <salikhmetov@gmail.com>:
->   
->> From: Anton Salikhmetov <salikhmetov@gmail.com>
->>
->> Due to the lack of reaction in LKML I presume the message was lost
->> in the high traffic of that list. Resending it now with the addressee changed
->> to the memory management mailing list.
->>
->> I would like to propose my solution for the bug #2645 from the kernel bug tracker:
->>
->> http://bugzilla.kernel.org/show_bug.cgi?id=2645
->>
->> The Open Group defines the behavior of the mmap() function as follows.
->>
->> The st_ctime and st_mtime fields of a file that is mapped with MAP_SHARED
->> and PROT_WRITE shall be marked for update at some point in the interval
->> between a write reference to the mapped region and the next call to msync()
->> with MS_ASYNC or MS_SYNC for that portion of the file by any process.
->> If there is no such call and if the underlying file is modified as a result
->> of a write reference, then these fields shall be marked for update at some
->> time after the write reference.
->>
->> The above citation was taken from the following link:
->>
->> http://www.opengroup.org/onlinepubs/009695399/functions/mmap.html
->>
->> Therefore, the msync() function should be called before verifying the time
->> stamps st_mtime and st_ctime in the test program Badari wrote in the context
->> of the bug #2645. Otherwise, the time stamps may be updated
->> at some unspecified moment according to the POSIX standard.
->>
->> I changed his test program a little. The changed unit test can be downloaded
->> using the following link:
->>
->> http://pygx.sourceforge.net/mmap.c
->>
->> This program showed that the msync() function had a bug:
->> it did not update the st_mtime and st_ctime fields.
->>
->> The program shows appropriate behavior of the msync()
->> function using the kernel with the proposed patch applied.
->> Specifically, the ctime and mtime time stamps do change
->> when modifying the mapped memory and do not change when
->> there have been no write references between the mmap()
->> and msync() system calls.
->>
->> Additionally, the test cases for the msync() system call from
->> the LTP test suite (msync01 - msync05, mmapstress01, mmapstress09,
->> and mmapstress10) successfully passed using the kernel
->> with the patch included into this email.
->>
->> The patch adds a call to the file_update_time() function to change
->> the file metadata before syncing. The patch also contains
->> substantial code cleanup: consolidated error check
->> for function parameters, using the PAGE_ALIGN() macro instead of
->> "manual" alignment, improved readability of the loop,
->> which traverses the process memory regions, updated comments.
->>
->> Signed-off-by: Anton Salikhmetov <salikhmetov@gmail.com>
->>
->> ---
->>
->> diff --git a/mm/msync.c b/mm/msync.c
->> index 144a757..cb973eb 100644
->> --- a/mm/msync.c
->> +++ b/mm/msync.c
->> @@ -1,26 +1,32 @@
->>  /*
->>   *     linux/mm/msync.c
->>   *
->> + * The msync() system call.
->>   * Copyright (C) 1994-1999  Linus Torvalds
->> + *
->> + * Updating the mtime and ctime stamps for mapped files
->> + * and code cleanup.
->> + * Copyright (C) 2008 Anton Salikhmetov <salikhmetov@gmail.com>
->>   */
->>
->> -/*
->> - * The msync() system call.
->> - */
->> +#include <linux/file.h>
->>  #include <linux/fs.h>
->>  #include <linux/mm.h>
->>  #include <linux/mman.h>
->> -#include <linux/file.h>
->> -#include <linux/syscalls.h>
->>  #include <linux/sched.h>
->> +#include <linux/syscalls.h>
->>
->>  /*
->>   * MS_SYNC syncs the entire file - including mappings.
->>   *
->>   * MS_ASYNC does not start I/O (it used to, up to 2.5.67).
->> - * Nor does it marks the relevant pages dirty (it used to up to 2.6.17).
->> + * Nor does it mark the relevant pages dirty (it used to up to 2.6.17).
->>   * Now it doesn't do anything, since dirty pages are properly tracked.
->>   *
->> + * The msync() system call updates the ctime and mtime fields for
->> + * the mapped file when called with the MS_SYNC or MS_ASYNC flags
->> + * according to the POSIX standard.
->> + *
->>   * The application may now run fsync() to
->>   * write out the dirty pages and wait on the writeout and check the result.
->>   * Or the application may run fadvise(FADV_DONTNEED) against the fd to start
->> @@ -33,70 +39,68 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
->>         unsigned long end;
->>         struct mm_struct *mm = current->mm;
->>         struct vm_area_struct *vma;
->> -       int unmapped_error = 0;
->> -       int error = -EINVAL;
->> +       int error = 0, unmapped_error = 0;
->>
->> -       if (flags & ~(MS_ASYNC | MS_INVALIDATE | MS_SYNC))
->> -               goto out;
->> -       if (start & ~PAGE_MASK)
->> +       if ((flags & ~(MS_ASYNC | MS_INVALIDATE | MS_SYNC)) ||
->> +                       (start & ~PAGE_MASK) ||
->> +                       ((flags & MS_ASYNC) && (flags & MS_SYNC))) {
->> +               error = -EINVAL;
->>                 goto out;
->> -       if ((flags & MS_ASYNC) && (flags & MS_SYNC))
->> -               goto out;
->> -       error = -ENOMEM;
->> -       len = (len + ~PAGE_MASK) & PAGE_MASK;
->> +       }
->> +
->> +       len = PAGE_ALIGN(len);
->>         end = start + len;
->> -       if (end < start)
->> +       if (end < start) {
->> +               error = -ENOMEM;
->>                 goto out;
->> -       error = 0;
->> +       }
->>         if (end == start)
->>                 goto out;
->> +
->>         /*
->>          * If the interval [start,end) covers some unmapped address ranges,
->>          * just ignore them, but return -ENOMEM at the end.
->>          */
->>         down_read(&mm->mmap_sem);
->>         vma = find_vma(mm, start);
->> -       for (;;) {
->> +       do {
->>                 struct file *file;
->>
->> -               /* Still start < end. */
->> -               error = -ENOMEM;
->> -               if (!vma)
->> -                       goto out_unlock;
->> -               /* Here start < vma->vm_end. */
->> +               if (!vma) {
->> +                       error = -ENOMEM;
->> +                       break;
->> +               }
->>                 if (start < vma->vm_start) {
->>                         start = vma->vm_start;
->> -                       if (start >= end)
->> -                               goto out_unlock;
->> +                       if (start >= end) {
->> +                               error = -ENOMEM;
->> +                               break;
->> +                       }
->>                         unmapped_error = -ENOMEM;
->>                 }
->> -               /* Here vma->vm_start <= start < vma->vm_end. */
->>                 if ((flags & MS_INVALIDATE) &&
->>                                 (vma->vm_flags & VM_LOCKED)) {
->>                         error = -EBUSY;
->> -                       goto out_unlock;
->> +                       break;
->>                 }
->>                 file = vma->vm_file;
->> -               start = vma->vm_end;
->> -               if ((flags & MS_SYNC) && file &&
->> -                               (vma->vm_flags & VM_SHARED)) {
->> +               if (file && (vma->vm_flags & VM_SHARED)) {
->>                         get_file(file);
->> -                       up_read(&mm->mmap_sem);
->> -                       error = do_fsync(file, 0);
->> -                       fput(file);
->> -                       if (error || start >= end)
->> -                               goto out;
->> -                       down_read(&mm->mmap_sem);
->> -                       vma = find_vma(mm, start);
->> -               } else {
->> -                       if (start >= end) {
->> -                               error = 0;
->> -                               goto out_unlock;
->> +                       if (file->f_mapping->host->i_state & I_DIRTY_PAGES)
->> +                               file_update_time(file);
->> +                       if (flags & MS_SYNC) {
->> +                               up_read(&mm->mmap_sem);
->> +                               error = do_fsync(file, 0);
->> +                               down_read(&mm->mmap_sem);
->>                         }
->> -                       vma = vma->vm_next;
->> +                       fput(file);
->> +                       if (error)
->> +                               break;
->>                 }
->> -       }
->> -out_unlock:
->> +
->> +               start = vma->vm_end;
->> +               vma = vma->vm_next;
->> +       } while (start < end);
->>         up_read(&mm->mmap_sem);
->>  out:
->>         return error ? : unmapped_error;
->>
->>
->>     
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
->   
+Aneesh, maybe split the conditions into two separate BUG_ON()'s to verify?
+
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
