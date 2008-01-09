@@ -1,68 +1,35 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate4.de.ibm.com (8.13.8/8.13.8) with ESMTP id m09HVdS0086562
-	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 17:31:39 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m09HVcPO2764808
-	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 18:31:39 +0100
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m09HVc1I030240
-	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 18:31:38 +0100
-Subject: Re: [rfc][patch 1/4] include: add callbacks to toggle reference
-	counting for VM_MIXEDMAP pages
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Reply-To: schwidefsky@de.ibm.com
-In-Reply-To: <1199891645.28689.22.camel@cotte.boeblingen.de.ibm.com>
-References: <20071214133817.GB28555@wotan.suse.de>
-	 <20071214134106.GC28555@wotan.suse.de> <476A73F0.4070704@de.ibm.com>
-	 <476A7D21.7070607@de.ibm.com> <20071221004556.GB31040@wotan.suse.de>
-	 <476B9000.2090707@de.ibm.com> <20071221102052.GB28484@wotan.suse.de>
-	 <476B96D6.2010302@de.ibm.com>  <20071221104701.GE28484@wotan.suse.de>
-	 <1199784954.25114.27.camel@cotte.boeblingen.de.ibm.com>
-	 <1199891032.28689.9.camel@cotte.boeblingen.de.ibm.com>
-	 <1199891645.28689.22.camel@cotte.boeblingen.de.ibm.com>
-Content-Type: text/plain
-Date: Wed, 09 Jan 2008 18:31:45 +0100
-Message-Id: <1199899905.25572.0.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 9 Jan 2008 09:50:56 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [BUG]  at mm/slab.c:3320
+In-Reply-To: <20080109065015.GG7602@us.ibm.com>
+Message-ID: <Pine.LNX.4.64.0801090949440.10163@schroedinger.engr.sgi.com>
+References: <20071225140519.ef8457ff.akpm@linux-foundation.org>
+ <20071227153235.GA6443@skywalker> <Pine.LNX.4.64.0712271130200.30555@schroedinger.engr.sgi.com>
+ <20071228051959.GA6385@skywalker> <Pine.LNX.4.64.0801021227580.20331@schroedinger.engr.sgi.com>
+ <20080103155046.GA7092@skywalker> <20080107102301.db52ab64.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0801071008050.22642@schroedinger.engr.sgi.com>
+ <20080108104016.4fa5a4f3.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0801072131350.28725@schroedinger.engr.sgi.com>
+ <20080109065015.GG7602@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Carsten Otte <cotte@de.ibm.com>
-Cc: Nick Piggin <npiggin@suse.de>, carsteno@de.ibm.com, Jared Hulbert <jaredeh@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, lee.schermerhorn@hp.com, bob.picco@hp.com, mel@skynet.ie
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-01-09 at 16:14 +0100, Carsten Otte wrote:
-> include: add callbacks to toggle reference counting for VM_MIXEDMAP pages
-> 
-> This patch introduces two arch callbacks, which may optionally be implemented
-> in case the architecutre does define __HAVE_ARCH_PTEP_NOREFCOUNT.
-> 
-> The first callback, pte_set_norefcount(__pte) is called by core-vm to indicate
-> that subject page table entry is going to be inserted into a VM_MIXEDMAP vma.
-> default implementation: 	noop
-> s390 implementation:		set sw defined bit in pte
-> proposed arm implementation:	noop
-> 
-> The second callback, mixedmap_refcount_pte(__pte) is called by core-vm to
-> figure out whether or not subject pte requires reference counting in the
-> corresponding struct page entry. A non-zero result indicates reference counting
-> is required.
-> default implementation:		(1)
-> s390 implementation:		query sw defined bit in pte
-> proposed arm implementation:	convert pte_t to pfn, use pfn_valid()
-> 
-> Signed-off-by: Carsten Otte <cotte@de.ibm.com>
+On Tue, 8 Jan 2008, Nishanth Aravamudan wrote:
 
-For the s390 pieces of this patch:
+> Do we (perhaps you already have done so, Christoph), want to validate
+> any other users of numa_node_id() that then make assumptions about the
+> characteristics of the nid? Hrm, that sounds good in theory, but seems
+> hard in practice?
 
-Acked-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
-
--- 
-blue skies,
-  Martin.
-
-"Reality continues to ruin my life." - Calvin.
-
+Hmmm... The main allocs are the slab allocations. If we fallback in 
+kmalloc etc then we are fine for the common case. SLUB falls back 
+correctly. Its just the weird nesting of functions in SLAB that has made 
+this a bit difficult for that allocator.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
