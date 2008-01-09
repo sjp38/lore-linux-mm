@@ -1,73 +1,56 @@
-Date: Wed, 9 Jan 2008 13:41:32 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 05/19] split LRU lists into anon & file sets
-Message-Id: <20080109134132.ba7bb33c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080108210002.638347207@redhat.com>
-References: <20080108205939.323955454@redhat.com>
-	<20080108210002.638347207@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m095leRr021732
+	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 00:47:40 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m096oH5e134814
+	for <linux-mm@kvack.org>; Tue, 8 Jan 2008 23:50:22 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m096oHcR000321
+	for <linux-mm@kvack.org>; Tue, 8 Jan 2008 23:50:17 -0700
+Date: Tue, 8 Jan 2008 22:50:15 -0800
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [BUG]  at mm/slab.c:3320
+Message-ID: <20080109065015.GG7602@us.ibm.com>
+References: <20071225140519.ef8457ff.akpm@linux-foundation.org> <20071227153235.GA6443@skywalker> <Pine.LNX.4.64.0712271130200.30555@schroedinger.engr.sgi.com> <20071228051959.GA6385@skywalker> <Pine.LNX.4.64.0801021227580.20331@schroedinger.engr.sgi.com> <20080103155046.GA7092@skywalker> <20080107102301.db52ab64.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0801071008050.22642@schroedinger.engr.sgi.com> <20080108104016.4fa5a4f3.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0801072131350.28725@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0801072131350.28725@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, lee.schermerhorn@hp.com, bob.picco@hp.com, mel@skynet.ie
 List-ID: <linux-mm.kvack.org>
 
-I like this patch set thank you.
-
-On Tue, 08 Jan 2008 15:59:44 -0500
-Rik van Riel <riel@redhat.com> wrote:
-> Index: linux-2.6.24-rc6-mm1/mm/memcontrol.c
-> ===================================================================
-> --- linux-2.6.24-rc6-mm1.orig/mm/memcontrol.c	2008-01-07 11:55:09.000000000 -0500
-> +++ linux-2.6.24-rc6-mm1/mm/memcontrol.c	2008-01-07 17:32:53.000000000 -0500
-<snip>
-
-> -enum mem_cgroup_zstat_index {
-> -	MEM_CGROUP_ZSTAT_ACTIVE,
-> -	MEM_CGROUP_ZSTAT_INACTIVE,
-> -
-> -	NR_MEM_CGROUP_ZSTAT,
-> -};
-> -
->  struct mem_cgroup_per_zone {
->  	/*
->  	 * spin_lock to protect the per cgroup LRU
->  	 */
->  	spinlock_t		lru_lock;
-> -	struct list_head	active_list;
-> -	struct list_head	inactive_list;
-> -	unsigned long count[NR_MEM_CGROUP_ZSTAT];
-> +	struct list_head	lists[NR_LRU_LISTS];
-> +	unsigned long		count[NR_LRU_LISTS];
->  };
->  /* Macro for accessing counter */
->  #define MEM_CGROUP_ZSTAT(mz, idx)	((mz)->count[(idx)])
-> @@ -160,6 +152,7 @@ struct page_cgroup {
->  };
->  #define PAGE_CGROUP_FLAG_CACHE	(0x1)	/* charged as cache */
->  #define PAGE_CGROUP_FLAG_ACTIVE (0x2)	/* page is active in this cgroup */
-> +#define PAGE_CGROUP_FLAG_FILE	(0x4)	/* page is file system backed */
+On 07.01.2008 [21:38:51 -0800], Christoph Lameter wrote:
+> On Tue, 8 Jan 2008, KAMEZAWA Hiroyuki wrote:
 > 
+> > In usual alloc_pages() allocator, this is done by zonelist fallback.
+> 
+> Hmmm... __cache_alloc_node does:
+> 
+>     if (unlikely(!cachep->nodelists[nodeid])) {
+>                 /* Node not bootstrapped yet */
+>                 ptr = fallback_alloc(cachep, flags);
+>                 goto out;
+>         }
+> 
+> So kmalloc_node does the correct fallback.
+> 
+> Kmalloc does not fall back but relies on numa_node_id() referring to a 
+> node that has ZONE_NORMAL memory. Sigh.
 
-Now, we don't have control_type and a feature for accounting only CACHE.
-Balbir-san, do you have some new plan ?
-
-BTW, is it better to use PageSwapBacked(pc->page) rather than adding a new flag
-PAGE_CGROUP_FLAG_FILE ?
-
-
-PAGE_CGROUP_FLAG_ACTIVE is used because global reclaim can change
-ACTIVE/INACTIVE attribute without accessing memory cgroup.
-(Then, we cannot trust PageActive(pc->page))
-
-ANON <-> FILE attribute can be changed dinamically (after added to LRU) ?
-
-If no, using page_file_cache(pc->page) will be easy.
+Do we (perhaps you already have done so, Christoph), want to validate
+any other users of numa_node_id() that then make assumptions about the
+characteristics of the nid? Hrm, that sounds good in theory, but seems
+hard in practice?
 
 Thanks,
--Kame
+Nish
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
