@@ -1,41 +1,30 @@
-Received: by wa-out-1112.google.com with SMTP id m33so502810wag.8
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2008 07:31:33 -0800 (PST)
-Message-ID: <4df4ef0c0801090731k505c9efds56fe38b7a284446@mail.gmail.com>
-Date: Wed, 9 Jan 2008 18:31:33 +0300
-From: "Anton Salikhmetov" <salikhmetov@gmail.com>
-Subject: Re: [PATCH][RFC][BUG] updating the ctime and mtime time stamps in msync()
-In-Reply-To: <9a8748490801090641s41a06c1era3764091f135567d@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [patch 0/6] lockless pagecache
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20071111084556.GC19816@wotan.suse.de>
+References: <20071111084556.GC19816@wotan.suse.de>
+Content-Type: text/plain
+Date: Wed, 09 Jan 2008 16:45:30 +0100
+Message-Id: <1199893530.7143.95.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <1199728459.26463.11.camel@codedot>
-	 <4df4ef0c0801090332y345ccb67se98409edc65fd6bf@mail.gmail.com>
-	 <9a8748490801090641s41a06c1era3764091f135567d@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jesper Juhl <jesper.juhl@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, joe@evalesco.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-2008/1/9, Jesper Juhl <jesper.juhl@gmail.com>:
-> I've only looked briefly at your patch but it seems resonable. I'll
-> try to do some testing with it later.
+On Sun, 2007-11-11 at 09:45 +0100, Nick Piggin wrote:
+> Hi,
+> 
+> I wonder what everyone thinks about getting the lockless pagecache patch
+> into -mm? This version uses Hugh's suggestion to avoid a smp_rmb and a load
+> and branch in the lockless lookup side, and avoids some atomic ops in the
+> reclaim path, and avoids using a page flag! The coolest thing about it is
+> that it speeds up single-threaded pagecache lookups...
+> 
+> Patches are against latest git for RFC.
 
-Jesper, thank you very much for your answer!
-
-In fact, I tested my change quite extensively using test cases for the
-mmap() and msync() system calls from the LTP test suite. Please note
-that I did mention that in my previous message:
-
->>>
-
-Additionally, the test cases for the msync() system call from
-the LTP test suite (msync01 - msync05, mmapstress01, mmapstress09,
-and mmapstress10) successfully passed using the kernel
-with the patch included into this email.
-
-<<<
+How are we doing with this?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
