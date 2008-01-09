@@ -1,7 +1,7 @@
-Date: Wed, 9 Jan 2008 12:47:46 +0100
+Date: Wed, 9 Jan 2008 13:22:28 +0100
 From: Jakob Oestergaard <jakob@unthought.net>
 Subject: Re: [PATCH][RFC][BUG] updating the ctime and mtime time stamps in msync()
-Message-ID: <20080109114746.GF25527@unthought.net>
+Message-ID: <20080109122228.GG25527@unthought.net>
 References: <1199728459.26463.11.camel@codedot> <4df4ef0c0801090332y345ccb67se98409edc65fd6bf@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -14,34 +14,30 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, joe@evalesco.com
 List-ID: <linux-mm.kvack.org>
 
 On Wed, Jan 09, 2008 at 02:32:53PM +0300, Anton Salikhmetov wrote:
-> Since no reaction in LKML was recieved for this message it seemed
-> logical to suggest closing the bug #2645 as "WONTFIX":
+...
 > 
-> http://bugzilla.kernel.org/show_bug.cgi?id=2645#c15
+> This bug causes backup systems to *miss* changed files.
+> 
 
-Thank you!
+This problem is seen with both Amanda and TSM (Tivoli Storage Manager).
 
-A quick run-down for those who don't know what this is about:
+A site running Amanda with, say, a full backup weekly and incremental backups
+daily, will only get weekly backups of their mmap modified databases.
 
-Some applications use mmap() to modify files. Common examples are databases.
+However, large sites running TSM will be hit even harder by this because TSM
+will always perform incremental backups from the client (managing which
+versions to keep for how long on the server side). TSM will *never* again take
+a backup of the mmap modified database.
 
-Linux does not update the mtime of files that are modified using mmap, even if
-msync() is called.
+The really nasty part is; nothing is failing. Everything *appears* to work.
+Your data is just not backed up because it appears to be untouched.
 
-This is very clearly against OpenGroup specifications.
+So, if you run TSM (or pretty much any other backup solution actually) on
+Linux, maybe you should run a
+ find / -type f -print0 | xargs -0 touch
+before starting your backup job. Sort of removes the point of using proper
+backup software, but at least you'll get your data backed up.
 
-This misfeatures causes such files to be silently *excluded* from normal backup
-runs.
-
-Solaris implements this properly.
-
-NT has the same bug as Linux, using their private bastardisation of the mmap
-interface - but since they don't care about SuS and are broken in so many other
-ways, that really doesn't matter.
-
-
-So, dear kernel developers, can we please integrate this patch to make Linux
-stop silently excluding peoples databases from their backup?
 
 -- 
 
