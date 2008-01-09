@@ -1,34 +1,54 @@
-Date: Wed, 9 Jan 2008 13:54:59 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: mmu notifiers
-In-Reply-To: <20080109181908.GS6958@v2.random>
-Message-ID: <Pine.LNX.4.64.0801091352320.12335@schroedinger.engr.sgi.com>
-References: <20080109181908.GS6958@v2.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 9 Jan 2008 17:06:33 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [PATCH][RFC][BUG] updating the ctime and mtime time stamps in
+ msync()
+Message-ID: <20080109170633.292644dc@cuia.boston.redhat.com>
+In-Reply-To: <26932.1199912777@turing-police.cc.vt.edu>
+References: <1199728459.26463.11.camel@codedot>
+	<20080109155015.4d2d4c1d@cuia.boston.redhat.com>
+	<26932.1199912777@turing-police.cc.vt.edu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: kvm-devel@lists.sourceforge.net, linux-mm@kvack.org, Daniel J Blueman <daniel.blueman@quadrics.com>
+To: Valdis.Kletnieks@vt.edu
+Cc: Anton Salikhmetov <salikhmetov@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 Jan 2008, Andrea Arcangeli wrote:
-
-> This patch is a first basic implementation of the mmu notifiers. More
-> methods can be added in the future.
+On Wed, 09 Jan 2008 16:06:17 -0500
+Valdis.Kletnieks@vt.edu wrote:
+> On Wed, 09 Jan 2008 15:50:15 EST, Rik van Riel said:
 > 
-> In short when the linux VM decides to free a page, it will unmap it
-> from the linux pagetables. However when a page is mapped not just by
-> the regular linux ptes, but also from the shadow pagetables, it's
-> currently unfreeable by the linux VM.
+> > Could you explain (using short words and simple sentences) what the
+> > exact problem is?
+> 
+> It's like this:
+> 
+> Monday  9:04AM:  System boots, database server starts up, mmaps file
+> Monday  9:06AM:  Database server writes to mmap area, updates mtime/ctime
+> Monday <many times> Database server writes to mmap area, no further update..
+> Monday 11:45PM:  Backup sees "file modified 9:06AM, let's back it up"
+> Tuesday 9:00AM-5:00PM: Database server touches it another 5,398 times, no mtime
+> Tuesday 11:45PM: Backup sees "file modified back on Monday, we backed this up..
+> Wed  9:00AM-5:00PM: More updates, more not touching the mtime
+> Wed  11:45PM: *yawn* It hasn't been touched in 2 days, no sense in backing it up..
+> 
+> Lather, rinse, repeat....
 
-Such a patch would also address issues that SGI has with exporting 
-mappings via XPMEM. Plus a variety of other uses. Go ahead and lets do 
-more in this area.
+On the other hand, updating the mtime and ctime whenever a page is dirtied
+also does not work right.  Apparently that can break mutt.
 
-Are the KVM folks interested in exporting memory from one guest to 
-another? That may also become possible with some of the work that we have 
-in progress and that also requires a patch like this.
+Calling msync() every once in a while with Anton's patch does not look like a
+fool proof method to me either, because the VM can write all the dirty pages
+to disk by itself, leaving nothing for msync() to detect.  (I think...)
+
+Can we get by with simply updating the ctime and mtime every time msync()
+is called, regardless of whether or not the mmaped pages were still dirty
+by the time we called msync() ?
+
+-- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
