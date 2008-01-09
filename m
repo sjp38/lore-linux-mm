@@ -1,270 +1,109 @@
-Date: Wed, 9 Jan 2008 19:19:08 +0100
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: mmu notifiers
-Message-ID: <20080109181908.GS6958@v2.random>
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28esmtp07.in.ibm.com (8.13.1/8.13.1) with ESMTP id m09Ix2lh012990
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2008 00:29:02 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m09Ix1ge913476
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2008 00:29:02 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id m09Ix1SW026388
+	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 18:59:01 GMT
+Date: Thu, 10 Jan 2008 00:28:59 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [BUG]  at mm/slab.c:3320
+Message-ID: <20080109185859.GD11852@skywalker>
+References: <Pine.LNX.4.64.0712271130200.30555@schroedinger.engr.sgi.com> <20071228051959.GA6385@skywalker> <Pine.LNX.4.64.0801021227580.20331@schroedinger.engr.sgi.com> <20080103155046.GA7092@skywalker> <20080107102301.db52ab64.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0801071008050.22642@schroedinger.engr.sgi.com> <20080108104016.4fa5a4f3.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0801072131350.28725@schroedinger.engr.sgi.com> <20080109065015.GG7602@us.ibm.com> <Pine.LNX.4.64.0801090949440.10163@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0801090949440.10163@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kvm-devel@lists.sourceforge.net, linux-mm@kvack.org
-Cc: Daniel J Blueman <daniel.blueman@quadrics.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, lee.schermerhorn@hp.com, bob.picco@hp.com, mel@skynet.ie
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Wed, Jan 09, 2008 at 09:50:56AM -0800, Christoph Lameter wrote:
+> On Tue, 8 Jan 2008, Nishanth Aravamudan wrote:
+> 
+> > Do we (perhaps you already have done so, Christoph), want to validate
+> > any other users of numa_node_id() that then make assumptions about the
+> > characteristics of the nid? Hrm, that sounds good in theory, but seems
+> > hard in practice?
+> 
+> Hmmm... The main allocs are the slab allocations. If we fallback in 
+> kmalloc etc then we are fine for the common case. SLUB falls back 
+> correctly. Its just the weird nesting of functions in SLAB that has made 
+> this a bit difficult for that allocator.
+> 
+This patch didn't work. I still see 
+------------[ cut here ]------------
+kernel BUG at mm/slab.c:3323!
+invalid opcode: 0000 [#1] PREEMPT SMP 
+Modules linked in:
 
-This patch is a first basic implementation of the mmu notifiers. More
-methods can be added in the future.
+Pid: 0, comm: swapper Not tainted (2.6.24-rc5-autokern1 #1)
+EIP: 0060:[<c01816fa>] EFLAGS: 00010046 CPU: 0
+EIP is at ____cache_alloc_node+0x1c/0x130
+EAX: e2c005c0 EBX: 00000000 ECX: 00000001 EDX: 000000d0
+ESI: 00000000 EDI: e2c005c0 EBP: c03fef68 ESP: c03fef48
+ DS: 007b ES: 007b FS: 00d8 GS: 0000 SS: 0068
+Process swapper (pid: 0, ti=c03fe000 task=c03cbd80 task.ti=c03fe000)
+Stack: c03cbd80 c03fef60 c017ac2a 00000001 000000d0 00000000 000000d0 e2c005c0 
+       c03fef7c c018156a 0002080c 00099800 00000000 c03fefa8 c0181a90 22222222 
+       22222222 00000246 c01395b5 000000d0 e2c005c0 0002080c 00099800 c03d2cec 
+Call Trace:
+ [<c0105e23>] show_trace_log_lvl+0x19/0x2e
+ [<c0105ee5>] show_stack_log_lvl+0x99/0xa1
+ [<c010603f>] show_registers+0xb3/0x1e9
+ [<c0106301>] die+0x11b/0x1fe
+ [<c02f2de4>] do_trap+0x8e/0xa8
+ [<c01065cd>] do_invalid_op+0x88/0x92
+ [<c02f2bb2>] error_code+0x72/0x78
+ [<c018156a>] alternate_node_alloc+0x5b/0x60
+ [<c0181a90>] kmem_cache_alloc+0x56/0x272
+ [<c01395b5>] create_pid_cachep+0x4c/0xec
+ [<c0410e65>] pidmap_init+0x2f/0x6e
+ [<c0402715>] start_kernel+0x1ca/0x23e
+ [<00000000>] 0x0
+ =======================
+Code: ff eb 02 31 ff 89 f8 83 c4 10 5b 5e 5f 5d c3 55 89 e5 57 89 c7 56 53 83 ec 14 89 55 f0 89 4d ec 8b b4 88 88 02 00 00 85 f6 75 04 <0f> 0b eb fe e8 f4 ee ff ff 8d 46 24 89 45 e4 e8 c0 0e 17 00 8b 
+EIP: [<c01816fa>] ____cache_alloc_node+0x1c/0x130 SS:ESP 0068:c03fef48
+Kernel panic - not syncing: Attempted to kill the idle task!
+-- 0:conmux-control -- time-stamp -- Jan/09/08 10:21:55 --
+-- 0:conmux-control -- time-stamp -- Jan/09/08 10:33:39 --
+(bot:conmon-payload) disconnected
 
-In short when the linux VM decides to free a page, it will unmap it
-from the linux pagetables. However when a page is mapped not just by
-the regular linux ptes, but also from the shadow pagetables, it's
-currently unfreeable by the linux VM.
-
-This patch allows the shadow pagetables to be dropped and the page to
-be freed after that, if the linux VM decides to unmap the page from
-the main ptes because it wants to swap out the page.
-
-In my basic initial patch I only track the tlb flushes which should be
-the minimum required to have a nice linux-VM controlled swapping
-behavior of the KVM gphysical memory. The shadow-ptes works much like
-a TLB, so the same way we flush the tlb after clearing the ptes, we
-should also issue the mmu_notifier invalidate_page/range/release
-methods. Quadrics needs much more than that to optimize things but
-it's easy to add more methods to the below code to fit their needs if
-the basic is ok.
-
-This follows the model of Avi's original patch, however I guess it
-would also be possible to track when the VM shrink_cache methods wants
-to free a certain host-page_t instead of tracking when the tlb is
-flushed. Not sure what's better, but the below should be enough for
-KVM to swap nicely with minimal overhead to the host kernel even if
-KVM is unused.
-
-About the locking perhaps I'm underestimating it, but by following the
-TLB flushing analogy, by simply clearing the shadow ptes (with kvm
-mmu_lock spinlock) and flushing the shadow-pte after clearing the main
-linux pte, it should be enough to serialize against shadow-pte page
-faults that would call into get_user_pages. Flushing the host TLB
-before or after the shadow-ptes shouldn't matter.
-
-Comments welcome... especially from Quadrics. Patch is mostly
-untested, tomorrow I'll try to plug KVM on top of the below and see if
-it survives swap.
-
-Signed-off-by: Andrea Arcangeli <andrea@qumranet.com>
-
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -86,6 +86,7 @@ do {									\
- 	pte_t __pte;							\
- 	__pte = ptep_get_and_clear((__vma)->vm_mm, __address, __ptep);	\
- 	flush_tlb_page(__vma, __address);				\
-+	mmu_notifier(invalidate_page, (__vma)->vm_mm, __address);	\
- 	__pte;								\
- })
- #endif
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -13,6 +13,7 @@
- #include <linux/debug_locks.h>
- #include <linux/mm_types.h>
- #include <linux/security.h>
-+#include <linux/mmu_notifier.h>
- 
- struct mempolicy;
- struct anon_vma;
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -219,6 +219,10 @@ struct mm_struct {
- 	/* aio bits */
- 	rwlock_t		ioctx_list_lock;
- 	struct kioctx		*ioctx_list;
-+
-+#ifdef CONFIG_MMU_NOTIFIER
-+	struct hlist_head mmu_notifier; /* MMU notifier list */
-+#endif
- };
- 
- #endif /* _LINUX_MM_TYPES_H */
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-new file mode 100644
---- /dev/null
-+++ b/include/linux/mmu_notifier.h
-@@ -0,0 +1,53 @@
-+#ifndef _LINUX_MMU_NOTIFIER_H
-+#define _LINUX_MMU_NOTIFIER_H
-+
-+#include <linux/list.h>
-+#include <linux/mm_types.h>
-+
-+#ifdef CONFIG_MMU_NOTIFIER
-+
-+struct mmu_notifier;
-+
-+struct mmu_notifier_ops {
-+	void (*release)(struct mmu_notifier * mn,
-+			struct mm_struct *mm);
-+	void (*invalidate_page)(struct mmu_notifier * mn,
-+				struct mm_struct *mm,
-+				unsigned long address);
-+	void (*invalidate_range)(struct mmu_notifier * mn,
-+				 struct mm_struct *mm,
-+				 unsigned long start, unsigned long end);
-+};
-+
-+struct mmu_notifier {
-+	struct hlist_node hlist;
-+	const struct mmu_notifier_ops *ops;
-+};
-+
-+extern void mmu_notifier_register(struct mmu_notifier *mn,
-+				  struct mm_struct *mm);
-+extern void mmu_notifier_unregister(struct mmu_notifier *mn);
-+extern void mmu_notifier_release(struct mm_struct *mm);
-+
-+#define mmu_notifier(function, mm, args...)				\
-+	do {								\
-+		struct mmu_notifier *__mn;				\
-+		struct hlist_node *__n;					\
-+									\
-+		hlist_for_each_entry(__mn, __n, &(mm)->mmu_notifier, hlist) \
-+			if (__mn->ops->function)			\
-+				__mn->ops->function(__mn, mm, args);	\
-+	} while (0)
-+
-+#else /* CONFIG_MMU_NOTIFIER */
-+
-+#define mmu_notifier_register(mn, mm) do {} while(0)
-+#define mmu_notifier_unregister(mn) do {} while (0)
-+#define mmu_notifier_release(mm) do {} while (0)
-+
-+#define mmu_notifier(function, mm, args...)	\
-+	do { } while (0)
-+
-+#endif /* CONFIG_MMU_NOTIFIER */
-+
-+#endif /* _LINUX_MMU_NOTIFIER_H */
-diff --git a/mm/Kconfig b/mm/Kconfig
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -193,3 +193,7 @@ config VIRT_TO_BUS
- config VIRT_TO_BUS
- 	def_bool y
- 	depends on !ARCH_NO_VIRT_TO_BUS
-+
-+config MMU_NOTIFIER
-+	def_bool y
-+	bool "MMU notifier, for paging KVM/RDMA"
-diff --git a/mm/Makefile b/mm/Makefile
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -30,4 +30,5 @@ obj-$(CONFIG_MIGRATION) += migrate.o
- obj-$(CONFIG_MIGRATION) += migrate.o
- obj-$(CONFIG_SMP) += allocpercpu.o
- obj-$(CONFIG_QUICKLIST) += quicklist.o
-+obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
- 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -753,6 +753,7 @@ void __unmap_hugepage_range(struct vm_ar
+diff --git a/mm/slab.c b/mm/slab.c
+index 2e338a5..34279d8 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2977,6 +2977,9 @@ retry:
  	}
- 	spin_unlock(&mm->page_table_lock);
- 	flush_tlb_range(vma, start, end);
-+	mmu_notifier(invalidate_range, mm, start, end);
- 	list_for_each_entry_safe(page, tmp, &page_list, lru) {
- 		list_del(&page->lru);
- 		put_page(page);
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -889,6 +889,7 @@ unsigned long zap_page_range(struct vm_a
- 	end = unmap_vmas(&tlb, vma, address, end, &nr_accounted, details);
- 	if (tlb)
- 		tlb_finish_mmu(tlb, address, end);
-+	mmu_notifier(invalidate_range, mm, address, end);
- 	return end;
- }
+ 	l3 = cachep->nodelists[node];
  
-@@ -1358,6 +1359,7 @@ int remap_pfn_range(struct vm_area_struc
- 		if (err)
- 			break;
- 	} while (pgd++, addr = next, addr != end);
-+	mmu_notifier(invalidate_range, mm, end-PAGE_ALIGN(size), end);
- 	return err;
- }
- EXPORT_SYMBOL(remap_pfn_range);
-@@ -1452,6 +1454,7 @@ int apply_to_page_range(struct mm_struct
- 		if (err)
- 			break;
- 	} while (pgd++, addr = next, addr != end);
-+	mmu_notifier(invalidate_range, mm, end-size, end);
- 	return err;
- }
- EXPORT_SYMBOL_GPL(apply_to_page_range);
-diff --git a/mm/mmap.c b/mm/mmap.c
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1747,6 +1747,7 @@ static void unmap_region(struct mm_struc
- 	free_pgtables(&tlb, vma, prev? prev->vm_end: FIRST_USER_ADDRESS,
- 				 next? next->vm_start: 0);
- 	tlb_finish_mmu(tlb, start, end);
-+	mmu_notifier(invalidate_range, mm, start, end);
- }
++	if (!l3)
++		return NULL;
++
+ 	BUG_ON(ac->avail > 0 || !l3);
+ 	spin_lock(&l3->list_lock);
  
- /*
-@@ -2043,6 +2044,7 @@ void exit_mmap(struct mm_struct *mm)
- 	vm_unacct_memory(nr_accounted);
- 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, 0);
- 	tlb_finish_mmu(tlb, 0, end);
-+	mmu_notifier_release(mm);
- 
- 	/*
- 	 * Walk the list again, actually closing and freeing it,
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-new file mode 100644
---- /dev/null
-+++ b/mm/mmu_notifier.c
-@@ -0,0 +1,35 @@
-+/*
-+ *  linux/mm/mmu_notifier.c
-+ *
-+ *  Copyright (C) 2008  Qumranet, Inc.
-+ *
-+ *  This work is licensed under the terms of the GNU GPL, version 2. See
-+ *  the COPYING file in the top-level directory.
-+ */
-+
-+#include <linux/mmu_notifier.h>
-+#include <linux/module.h>
-+
-+void mmu_notifier_release(struct mm_struct *mm)
-+{
-+	struct mmu_notifier *mn;
-+	struct hlist_node *n, *tmp;
-+
-+	hlist_for_each_entry_safe(mn, n, tmp, &mm->mmu_notifier, hlist) {
-+		if (mn->ops->release)
-+			mn->ops->release(mn, mm);
-+		hlist_del(n);
+@@ -3439,8 +3442,14 @@ __do_cache_alloc(struct kmem_cache *cache, gfp_t flags)
+ 	 * We may just have run out of memory on the local node.
+ 	 * ____cache_alloc_node() knows how to locate memory on other nodes
+ 	 */
+- 	if (!objp)
+- 		objp = ____cache_alloc_node(cache, flags, numa_node_id());
++ 	if (!objp) {
++		int node_id = numa_node_id();
++		if (likely(cache->nodelists[node_id])) /* fast path */
++ 			objp = ____cache_alloc_node(cache, flags, node_id);
++		else /* this function can do good fallback */
++			objp = __cache_alloc_node(cache, flags, node_id,
++					__builtin_return_address(0));
 +	}
-+}
-+
-+void mmu_notifier_register(struct mmu_notifier *mn, struct mm_struct *mm)
-+{
-+	hlist_add_head(&mn->hlist, &mm->mmu_notifier);
-+}
-+EXPORT_SYMBOL_GPL(mmu_notifier_register);
-+
-+void mmu_notifier_unregister(struct mmu_notifier *mn)
-+{
-+	hlist_del(&mn->hlist);
-+}
-+EXPORT_SYMBOL_GPL(mmu_notifier_unregister);
+ 
+   out:
+ 	return objp;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
