@@ -1,68 +1,116 @@
-Date: Wed, 9 Jan 2008 23:33:40 +0100
-From: Jakob Oestergaard <jakob@unthought.net>
-Subject: Re: [PATCH][RFC][BUG] updating the ctime and mtime time stamps in msync()
-Message-ID: <20080109223340.GH25527@unthought.net>
-References: <1199728459.26463.11.camel@codedot> <20080109155015.4d2d4c1d@cuia.boston.redhat.com> <26932.1199912777@turing-police.cc.vt.edu> <20080109170633.292644dc@cuia.boston.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080109170633.292644dc@cuia.boston.redhat.com>
+Date: Wed, 9 Jan 2008 15:01:39 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [vm] writing to UDF DVD+RW (/dev/sr0) while under memory
+ pressure: box ==> doorstop
+Message-Id: <20080109150139.311f68d3.akpm@linux-foundation.org>
+In-Reply-To: <1199877080.4340.19.camel@homer.simson.net>
+References: <1199447212.4529.13.camel@homer.simson.net>
+	<1199612533.4384.54.camel@homer.simson.net>
+	<1199642470.3927.12.camel@homer.simson.net>
+	<20080106122954.d8f04c98.akpm@linux-foundation.org>
+	<1199790316.4094.57.camel@homer.simson.net>
+	<20080108033801.40d0043a.akpm@linux-foundation.org>
+	<1199805713.3571.12.camel@homer.simson.net>
+	<1199806071.4174.2.camel@homer.simson.net>
+	<1199877080.4340.19.camel@homer.simson.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Valdis.Kletnieks@vt.edu, Anton Salikhmetov <salikhmetov@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mike Galbraith <efault@gmx.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 09, 2008 at 05:06:33PM -0500, Rik van Riel wrote:
-...
+On Wed, 09 Jan 2008 12:11:20 +0100
+Mike Galbraith <efault@gmx.de> wrote:
+
+> 
+> On Tue, 2008-01-08 at 16:27 +0100, Mike Galbraith wrote:
+> > On Tue, 2008-01-08 at 16:21 +0100, Mike Galbraith wrote:
+> > > On Tue, 2008-01-08 at 03:38 -0800, Andrew Morton wrote:
+> > > > 
+> > > > Well.  From your earlier trace it appeared that something was causing
+> > > > the filesystem to perform synchronous inode writes - sync_dirty_buffer() was
+> > > > called.
+> > > > 
+> > > > This will cause many more seeks than would occur if we were doing full
+> > > > delayed writing, with obvious throughput implications.
+> > > 
+> > > Yes, with UDF, the IO was _incredibly_ slow.  With ext2, it was better,
+> > > though still very bad.  I tested with that other OS, and it gets ~same
+> > > throughput with UDF as I got with ext2 (ick).
+> > > 
+> > > UDF does udf_clear_inode() -> write_inode_now(inode, 1)
+> > > 
+> > > I suppose I could try write_inode_now(inode, 0).  Might unstick the box.
 > > 
-> > Lather, rinse, repeat....
-
-Just verified this at one customer site; they had a db that was last backed up
-in 2003 :/
-
+> > (nope, still sync, UDF still deadly)
 > 
-> On the other hand, updating the mtime and ctime whenever a page is dirtied
-> also does not work right.  Apparently that can break mutt.
+> write_inode_now() is a fibber.
+
+Sure is.  Looks like it was busted by:
+
+commit fa94396d2792f5093aab7cf66e1fc1da0c9fc442
+Author: akpm <akpm>
+Date:   Tue Feb 4 17:01:43 2003 +0000
+
+    [PATCH] Remove unneeded code in fs/fs-writeback.c
+    
+    We do not need to pass the `wait' argument down to __sync_single_inode().
+    That information is now present at wbc->sync_mode.
+    
+
+> The below seems to fix it in that writes dribbling to the DVD+RW at the
+> whopping 1 to 10 pages/sec I'm seeing no longer turn box into a
+> doorstop.  It's probably busted as heck.
+
+The VFS change looks good.  Not sure about the UDF details.
+
+> Think I'll cc linux-mm, and go find something safer to play with.
+> 
+> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> index 0fca820..f1cce24 100644
+> --- a/fs/fs-writeback.c
+> +++ b/fs/fs-writeback.c
+> @@ -657,7 +657,7 @@ int write_inode_now(struct inode *inode, int sync)
+>  	int ret;
+>  	struct writeback_control wbc = {
+>  		.nr_to_write = LONG_MAX,
+> -		.sync_mode = WB_SYNC_ALL,
+> +		.sync_mode = sync ? WB_SYNC_ALL : WB_SYNC_NONE,
+>  		.range_start = 0,
+>  		.range_end = LLONG_MAX,
+>  	};
+> diff --git a/fs/udf/inode.c b/fs/udf/inode.c
+> index 6ff8151..d1fc116 100644
+> --- a/fs/udf/inode.c
+> +++ b/fs/udf/inode.c
+> @@ -117,7 +117,7 @@ void udf_clear_inode(struct inode *inode)
+>  		udf_discard_prealloc(inode);
+>  		udf_truncate_tail_extent(inode);
+>  		unlock_kernel();
+> -		write_inode_now(inode, 1);
+> +		write_inode_now(inode, 0);
+>  	}
+>  	kfree(UDF_I_DATA(inode));
+>  	UDF_I_DATA(inode) = NULL;
 > 
 
-Thinking back on the atime discussion, I bet there would be some performance
-problems in updating the ctime/mtime that often too :)
+WB_SYNC_* should die.
 
-> Calling msync() every once in a while with Anton's patch does not look like a
-> fool proof method to me either, because the VM can write all the dirty pages
-> to disk by itself, leaving nothing for msync() to detect.  (I think...)
+I wonder why UDF was doing a synchronous write in there.  In fact I wonder
+why it's writing the inode at all?  extN doesn't do that.  If for some
+reason it really does want to make the inode immediately reclaimable then
+simply shoving it down into the /dev/hda1 pagecache should be sufficient
+(ie: what you did)..
 
-Reading the man page:
-"The st_ctime and st_mtime fields of a file that is mapped with MAP_SHARED and
-PROT_WRITE will be marked for update at some point in the interval between a
-write reference to the mapped region and the next call to  msync() with
-MS_ASYNC or MS_SYNC for that portion of the file by any process. If there is no
-such call, these fields may be marked for update at any time after a write
-reference if the underlying file is modified as a result."
 
-So, whenever someone writes in the region, this must cause us to update the
-mtime/ctime no later than at the time of the next call to msync().
+hm.
 
-Could one do something like the lazy atime updates, coupled with a forced flush
-at msync()?
-
-> Can we get by with simply updating the ctime and mtime every time msync()
-> is called, regardless of whether or not the mmaped pages were still dirty
-> by the time we called msync() ?
-
-The update must still happen, eventually, after a write to the mapped region
-followed by an unmap/close even if no msync is ever called.
-
-The msync only serves as a "no later than" deadline. The write to the region
-triggers the need for the update.
-
-At least this is how I read the standard - please feel free to correct me if I
-am mistaken.
-
--- 
-
- / jakob
+So are you saying that the fs throughput is unaltered by this change,
+but that the side-effects which your workload has on the overall
+machine are lessened?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
