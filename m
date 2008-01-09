@@ -1,14 +1,14 @@
 Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate1.de.ibm.com (8.13.8/8.13.8) with ESMTP id m09FELXL160022
-	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 15:14:21 GMT
+	by mtagate7.de.ibm.com (8.13.8/8.13.8) with ESMTP id m09FE4L0448058
+	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 15:14:04 GMT
 Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m09FEKpZ2506920
-	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 16:14:20 +0100
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m09FE44x2985996
+	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 16:14:04 +0100
 Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m09FEJgx029081
-	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 16:14:20 +0100
-Subject: [rfc][patch 4/4] s390: remove struct page entries for DCSS memory
-	segments
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m09FE4f1028660
+	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 16:14:04 +0100
+Subject: [rfc][patch 1/4] include: add callbacks to toggle reference
+	counting for VM_MIXEDMAP pages
 From: Carsten Otte <cotte@de.ibm.com>
 In-Reply-To: <1199891032.28689.9.camel@cotte.boeblingen.de.ibm.com>
 References: <20071214133817.GB28555@wotan.suse.de>
@@ -19,8 +19,8 @@ References: <20071214133817.GB28555@wotan.suse.de>
 	 <1199784954.25114.27.camel@cotte.boeblingen.de.ibm.com>
 	 <1199891032.28689.9.camel@cotte.boeblingen.de.ibm.com>
 Content-Type: text/plain
-Date: Wed, 09 Jan 2008 16:14:21 +0100
-Message-Id: <1199891661.28689.25.camel@cotte.boeblingen.de.ibm.com>
+Date: Wed, 09 Jan 2008 16:14:05 +0100
+Message-Id: <1199891645.28689.22.camel@cotte.boeblingen.de.ibm.com>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -30,51 +30,70 @@ To: Nick Piggin <npiggin@suse.de>
 Cc: carsteno@de.ibm.com, Jared Hulbert <jaredeh@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-s390: remove struct page entries for DCSS memory segments
+include: add callbacks to toggle reference counting for VM_MIXEDMAP pages
 
-This patch removes struct page entries for DCSS segments that are being loaded.
+This patch introduces two arch callbacks, which may optionally be implemented
+in case the architecutre does define __HAVE_ARCH_PTEP_NOREFCOUNT.
+
+The first callback, pte_set_norefcount(__pte) is called by core-vm to indicate
+that subject page table entry is going to be inserted into a VM_MIXEDMAP vma.
+default implementation: 	noop
+s390 implementation:		set sw defined bit in pte
+proposed arm implementation:	noop
+
+The second callback, mixedmap_refcount_pte(__pte) is called by core-vm to
+figure out whether or not subject pte requires reference counting in the
+corresponding struct page entry. A non-zero result indicates reference counting
+is required.
+default implementation:		(1)
+s390 implementation:		query sw defined bit in pte
+proposed arm implementation:	convert pte_t to pfn, use pfn_valid()
 
 Signed-off-by: Carsten Otte <cotte@de.ibm.com>
 --- 
-Index: linux-2.6/arch/s390/mm/vmem.c
+Index: linux-2.6/include/asm-generic/pgtable.h
 ===================================================================
---- linux-2.6.orig/arch/s390/mm/vmem.c
-+++ linux-2.6/arch/s390/mm/vmem.c
-@@ -310,8 +310,6 @@ out:
- int add_shared_memory(unsigned long start, unsigned long size)
- {
- 	struct memory_segment *seg;
--	struct page *page;
--	unsigned long pfn, num_pfn, end_pfn;
- 	int ret;
+--- linux-2.6.orig/include/asm-generic/pgtable.h
++++ linux-2.6/include/asm-generic/pgtable.h
+@@ -99,6 +99,11 @@ static inline void ptep_set_wrprotect(st
+ }
+ #endif
  
- 	mutex_lock(&vmem_mutex);
-@@ -326,24 +324,10 @@ int add_shared_memory(unsigned long star
- 	if (ret)
- 		goto out_free;
++#ifndef __HAVE_ARCH_PTEP_NOREFCOUNT
++#define pte_set_norefcount(__pte)	(__pte)
++#define mixedmap_refcount_pte(__pte) 	(1)
++#endif
++
+ #ifndef __HAVE_ARCH_PTE_SAME
+ #define pte_same(A,B)	(pte_val(A) == pte_val(B))
+ #endif
+Index: linux-2.6/include/asm-s390/pgtable.h
+===================================================================
+--- linux-2.6.orig/include/asm-s390/pgtable.h
++++ linux-2.6/include/asm-s390/pgtable.h
+@@ -228,6 +228,7 @@ extern unsigned long vmalloc_end;
+ /* Software bits in the page table entry */
+ #define _PAGE_SWT	0x001		/* SW pte type bit t */
+ #define _PAGE_SWX	0x002		/* SW pte type bit x */
++#define _PAGE_NOREFCNT	0x004		/* SW prevent refcount for xip */
  
--	ret = vmem_add_mem(start, size);
-+	ret = vmem_add_range(start, size);
- 	if (ret)
- 		goto out_remove;
+ /* Six different types of pages. */
+ #define _PAGE_TYPE_EMPTY	0x400
+@@ -773,6 +774,14 @@ static inline pte_t ptep_get_and_clear_f
+ 	__changed;							\
+ })
  
--	pfn = PFN_DOWN(start);
--	num_pfn = PFN_DOWN(size);
--	end_pfn = pfn + num_pfn;
--
--	page = pfn_to_page(pfn);
--	memset(page, 0, num_pfn * sizeof(struct page));
--
--	for (; pfn < end_pfn; pfn++) {
--		page = pfn_to_page(pfn);
--		init_page_count(page);
--		reset_page_mapcount(page);
--		SetPageReserved(page);
--		INIT_LIST_HEAD(&page->lru);
--	}
- 	goto out;
- 
- out_remove:
++#define __HAVE_ARCH_PTEP_NOREFCOUNT
++#define pte_set_norefcount(__pte)					\
++({									\
++	pte_val(__pte) |= _PAGE_NOREFCNT;				\
++	__pte;								\
++})
++#define mixedmap_refcount_pte(__pte)	(!(pte_val(__pte) & _PAGE_NOREFCNT))
++
+ /*
+  * Test and clear dirty bit in storage key.
+  * We can't clear the changed bit atomically. This is a potential
 
 
 --
