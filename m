@@ -1,52 +1,75 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m09MDHGt027814
-	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 17:13:17 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m09MDHjB329506
-	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 17:13:17 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m09MDGtG008328
-	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 17:13:17 -0500
-Date: Wed, 9 Jan 2008 14:13:15 -0800
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [BUG]  at mm/slab.c:3320
-Message-ID: <20080109221315.GB26941@us.ibm.com>
-References: <20080107102301.db52ab64.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0801071008050.22642@schroedinger.engr.sgi.com> <20080108104016.4fa5a4f3.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0801072131350.28725@schroedinger.engr.sgi.com> <20080109065015.GG7602@us.ibm.com> <Pine.LNX.4.64.0801090949440.10163@schroedinger.engr.sgi.com> <20080109185859.GD11852@skywalker> <Pine.LNX.4.64.0801091122490.11317@schroedinger.engr.sgi.com> <20080109214707.GA26941@us.ibm.com> <Pine.LNX.4.64.0801091349430.12505@schroedinger.engr.sgi.com>
+Message-ID: <47854868.60604@redhat.com>
+Date: Wed, 09 Jan 2008 17:19:20 -0500
+From: Peter Staubach <staubach@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0801091349430.12505@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH][RFC][BUG] updating the ctime and mtime time stamps in
+ msync()
+References: <1199728459.26463.11.camel@codedot>	<20080109155015.4d2d4c1d@cuia.boston.redhat.com>	<26932.1199912777@turing-police.cc.vt.edu> <20080109170633.292644dc@cuia.boston.redhat.com>
+In-Reply-To: <20080109170633.292644dc@cuia.boston.redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, lee.schermerhorn@hp.com, bob.picco@hp.com, mel@skynet.ie
+To: Rik van Riel <riel@redhat.com>
+Cc: Valdis.Kletnieks@vt.edu, Anton Salikhmetov <salikhmetov@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 09.01.2008 [13:51:42 -0800], Christoph Lameter wrote:
-> On Wed, 9 Jan 2008, Nishanth Aravamudan wrote:
-> 
-> > And given that the original mail has bug at mm/slab.c:3320, I assume we're
-> > still hitting the
-> > 
-> > BUG_ON(ac->avail > 0 || !l3);
-> 
-> No we are in a different function here.
+Rik van Riel wrote:
+> On Wed, 09 Jan 2008 16:06:17 -0500
+> Valdis.Kletnieks@vt.edu wrote:
+>   
+>> On Wed, 09 Jan 2008 15:50:15 EST, Rik van Riel said:
+>>
+>>     
+>>> Could you explain (using short words and simple sentences) what the
+>>> exact problem is?
+>>>       
+>> It's like this:
+>>
+>> Monday  9:04AM:  System boots, database server starts up, mmaps file
+>> Monday  9:06AM:  Database server writes to mmap area, updates mtime/ctime
+>> Monday <many times> Database server writes to mmap area, no further update..
+>> Monday 11:45PM:  Backup sees "file modified 9:06AM, let's back it up"
+>> Tuesday 9:00AM-5:00PM: Database server touches it another 5,398 times, no mtime
+>> Tuesday 11:45PM: Backup sees "file modified back on Monday, we backed this up..
+>> Wed  9:00AM-5:00PM: More updates, more not touching the mtime
+>> Wed  11:45PM: *yawn* It hasn't been touched in 2 days, no sense in backing it up..
+>>
+>> Lather, rinse, repeat....
+>>     
+>
+> On the other hand, updating the mtime and ctime whenever a page is dirtied
+> also does not work right.  Apparently that can break mutt.
+>
+>   
 
-Ah you're right -- sorry for the noise.
+Could you elaborate on why that would break mutt?  I am assuming
+that the pages being modified are mmap'd, but if they are not, then
+it is very clear why mutt (and anything else) would break.
 
-> > Hrm, shouldn't we remove the !l3 bit from the BUG_ON? But even so,
-> > unless for some reason the BUG_ON is being checked before the if
-> > (!l3), are we hitting (ac->avail > 0)?
-> 
-> Yes we should remove the !l3 bit. There cannot be any objects in SLABs
-> per cpu queue if there is no node structure. per cpu queues can only
-> be refilled from the local node, not from foreign nodes. And in this
-> particular case there is no memory available from the local node. So
-> ac->avail == 0.
+> Calling msync() every once in a while with Anton's patch does not look like a
+> fool proof method to me either, because the VM can write all the dirty pages
+> to disk by itself, leaving nothing for msync() to detect.  (I think...)
+>
+> Can we get by with simply updating the ctime and mtime every time msync()
+> is called, regardless of whether or not the mmaped pages were still dirty
+> by the time we called msync() ?
 
-Makes sense, thanks for the clarification.
+As long as we can keep track of that information and then remember
+it for an munmap so that eventually the file times do get updated,
+then this should work.
 
--Nish
+It would seem that a better solution would be to update the file
+times whenever the inode gets cleaned, ie. modified pages written
+out and the inode synchronized to the disk.  That way, long running
+programs would not have to msync occasionally in order to have
+the data file properly backed up.
+
+    Thanx...
+
+       ps
+
+       ps
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
