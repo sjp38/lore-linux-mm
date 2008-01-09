@@ -1,47 +1,50 @@
-Date: Wed, 9 Jan 2008 13:22:28 +0100
-From: Jakob Oestergaard <jakob@unthought.net>
-Subject: Re: [PATCH][RFC][BUG] updating the ctime and mtime time stamps in msync()
-Message-ID: <20080109122228.GG25527@unthought.net>
-References: <1199728459.26463.11.camel@codedot> <4df4ef0c0801090332y345ccb67se98409edc65fd6bf@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4df4ef0c0801090332y345ccb67se98409edc65fd6bf@mail.gmail.com>
+Date: Wed, 9 Jan 2008 07:53:12 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [patch 07/19] (NEW) add some sanity checks to get_scan_ratio
+Message-ID: <20080109075312.2246d6bb@bree.surriel.com>
+In-Reply-To: <20080109131642.56b3fa91.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080108205939.323955454@redhat.com>
+	<20080108210005.558041779@redhat.com>
+	<20080109131642.56b3fa91.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Anton Salikhmetov <salikhmetov@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, joe@evalesco.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 09, 2008 at 02:32:53PM +0300, Anton Salikhmetov wrote:
-...
-> 
-> This bug causes backup systems to *miss* changed files.
-> 
+On Wed, 9 Jan 2008 13:16:42 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-This problem is seen with both Amanda and TSM (Tivoli Storage Manager).
+> > +
+> > +	free = zone_page_state(zone, NR_FREE_PAGES);
+> > +
+> > +	/*
+> > +	 * If we have no swap space, do not bother scanning anon pages
+> > +	 */
+> > +	if (nr_swap_pages <= 0)
+> > +		percent[0] = 0;
+> Doesn't this mean that swap-cache in ACTIVE_ANON_LIST is not scanned ?
+> Or swap-cache is in File-Cache list ?
 
-A site running Amanda with, say, a full backup weekly and incremental backups
-daily, will only get weekly backups of their mmap modified databases.
+You are right, the swap cache will not be scanned once we run
+completely out of swap space.  To compensate for that, this
+patch series has a patch that does scanning of swap cache and
+freeing of swap space used by pages on the LRU list while there
+is still space free.
 
-However, large sites running TSM will be hit even harder by this because TSM
-will always perform incremental backups from the client (managing which
-versions to keep for how long on the server side). TSM will *never* again take
-a backup of the mmap modified database.
+Scanning all of the anon LRU lists could be a lot of work for
+very little gain.  A typical large server will have 32GB or
+more of RAM, but only the default 2GB of swap.
 
-The really nasty part is; nothing is failing. Everything *appears* to work.
-Your data is just not backed up because it appears to be untouched.
-
-So, if you run TSM (or pretty much any other backup solution actually) on
-Linux, maybe you should run a
- find / -type f -print0 | xargs -0 touch
-before starting your backup job. Sort of removes the point of using proper
-backup software, but at least you'll get your data backed up.
-
+All we accomplish by scanning the anonymous memory on a system
+like that (once swap is full) is eating up CPU time and causing
+lock contention.
 
 -- 
-
- / jakob
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
