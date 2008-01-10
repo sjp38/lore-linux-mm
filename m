@@ -1,70 +1,37 @@
-Message-ID: <4785D064.1040501@de.ibm.com>
-Date: Thu, 10 Jan 2008 08:59:32 +0100
+Message-ID: <4785D208.4020804@de.ibm.com>
+Date: Thu, 10 Jan 2008 09:06:32 +0100
 From: Carsten Otte <cotte@de.ibm.com>
 Reply-To: carsteno@de.ibm.com
 MIME-Version: 1.0
 Subject: Re: [rfc][patch 1/4] include: add callbacks to toggle reference counting
  for VM_MIXEDMAP pages
-References: <20071214133817.GB28555@wotan.suse.de> <476A7D21.7070607@de.ibm.com> <20071221004556.GB31040@wotan.suse.de> <476B9000.2090707@de.ibm.com> <20071221102052.GB28484@wotan.suse.de> <476B96D6.2010302@de.ibm.com> <20071221104701.GE28484@wotan.suse.de> <1199784954.25114.27.camel@cotte.boeblingen.de.ibm.com> <1199891032.28689.9.camel@cotte.boeblingen.de.ibm.com> <1199891645.28689.22.camel@cotte.boeblingen.de.ibm.com> <6934efce0801091017t7f9041abs62904de3722cadc@mail.gmail.com>
-In-Reply-To: <6934efce0801091017t7f9041abs62904de3722cadc@mail.gmail.com>
+References: <476A73F0.4070704@de.ibm.com> <476A7D21.7070607@de.ibm.com> <20071221004556.GB31040@wotan.suse.de> <476B9000.2090707@de.ibm.com> <20071221102052.GB28484@wotan.suse.de> <476B96D6.2010302@de.ibm.com> <20071221104701.GE28484@wotan.suse.de> <1199784954.25114.27.camel@cotte.boeblingen.de.ibm.com> <1199891032.28689.9.camel@cotte.boeblingen.de.ibm.com> <1199891645.28689.22.camel@cotte.boeblingen.de.ibm.com> <20080110002021.GC19997@wotan.suse.de>
+In-Reply-To: <20080110002021.GC19997@wotan.suse.de>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jared Hulbert <jaredeh@gmail.com>
-Cc: Nick Piggin <npiggin@suse.de>, carsteno@de.ibm.com, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: carsteno@linux.vnet.ibm.com, Jared Hulbert <jaredeh@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, mschwid2@linux.vnet.ibm.com, heicars2@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Jared Hulbert wrote:
-> I think this should be:
-> 
-> default implementation:   convert pte_t to pfn, use pfn_valid()
-> 
-> Keep in mind the reason we are talking about using anything other than
-> pfn_valid() in vm_normal_page() is because s390 has a non-standard
-> pfn_valid() implementation.  It's s390 that's broken, not the rest of
-> the world.  So lets not break everything else to fix s390:)  Or am I
-> missing something?
-I think you're bending the original meaning of pfn_valid() in this 
-case: it is supposed to be true when a pfn refers to an accessable 
-mapping. In fact, I consider pfn_valid() broken on arm if it returns 
-false for a pfn that is perfectly valid for use in a pfnmap/mixedmap 
-mapping. I think you're looking for 
-pfn_has_struct_page_entry_for_it(), and that's different from the 
-original meaning described above.
-I think it would be plain wrong to assume all architectures have this 
-meaning of pfn_valid() that arm has today.
+Nick Piggin wrote:
+> Hmm, I had it in my mind that this would be entirely hidden in the s390's
+> mixedmap_refcount_pfn, but of course you actually need to set the pte too....
+I did'nt think about that upfront too.
 
->> s390 implementation:            query sw defined bit in pte
->> proposed arm implementation:    convert pte_t to pfn, use pfn_valid()
-> 
-> proposed arm implementation: default
-> 
->> Signed-off-by: Carsten Otte <cotte@de.ibm.com>
->> ---
->> Index: linux-2.6/include/asm-generic/pgtable.h
->> ===================================================================
->> --- linux-2.6.orig/include/asm-generic/pgtable.h
->> +++ linux-2.6/include/asm-generic/pgtable.h
->> @@ -99,6 +99,11 @@ static inline void ptep_set_wrprotect(st
->>  }
->>  #endif
->>
->> +#ifndef __HAVE_ARCH_PTEP_NOREFCOUNT
->> +#define pte_set_norefcount(__pte)      (__pte)
->> +#define mixedmap_refcount_pte(__pte)   (1)
-> 
-> +#define mixedmap_refcount_pte(__pte)   pfn_valid(pte_pfn(__pte))
-> 
-> Should we rename "mixedmap_refcount_pte" to "mixedmap_normal_pte" or
-> something else more neutral?  To me "mixedmap_refcount_pte" sounds
-> like it's altering the pte.
-Hmmmmh. Indeed, the wording is confusing here.
-But anyway, I do want to play with Nick's PTE_SPECIAL thing next. 
-Therefore, I'm not going to change that unless we conclude we want to 
-go down this path.
-Jared, did you try this on arm? Did it work for you with my proposed 
-callback implementation?
+> In that case, I would rather prefer to go along the lines of my pte_special
+> patch, which would replace all of vm_normal_page (on a per-arch basis), and
+> you wouldn't need this mixedmap_refcount_* stuff (it can stay pfn_valid for
+> those architectures that don't implement pte_special).
+I am going to play with PTE_SPECIAL next.  I tend to agree with you 
+that the
+PTE_SPECIAL path looks more promising than the one implemented in this 
+patch
+series because it offers a more generic meaning for our valuable pte 
+bit which
+can be used for various purposes by core-vm.
+Let's just implement them all, and figure the best one after that ;-).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
