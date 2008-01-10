@@ -1,50 +1,298 @@
-Date: Thu, 10 Jan 2008 01:20:21 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch 1/4] include: add callbacks to toggle reference counting for VM_MIXEDMAP pages
-Message-ID: <20080110002021.GC19997@wotan.suse.de>
-References: <476A73F0.4070704@de.ibm.com> <476A7D21.7070607@de.ibm.com> <20071221004556.GB31040@wotan.suse.de> <476B9000.2090707@de.ibm.com> <20071221102052.GB28484@wotan.suse.de> <476B96D6.2010302@de.ibm.com> <20071221104701.GE28484@wotan.suse.de> <1199784954.25114.27.camel@cotte.boeblingen.de.ibm.com> <1199891032.28689.9.camel@cotte.boeblingen.de.ibm.com> <1199891645.28689.22.camel@cotte.boeblingen.de.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: by wa-out-1112.google.com with SMTP id m33so774998wag.8
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2008 16:26:20 -0800 (PST)
+Message-ID: <4df4ef0c0801091626u47ad255bj5e989dcecdade56f@mail.gmail.com>
+Date: Thu, 10 Jan 2008 03:26:20 +0300
+From: "Anton Salikhmetov" <salikhmetov@gmail.com>
+Subject: Re: [PATCH] updating the ctime and mtime time stamps in msync()
+In-Reply-To: <47852E45.6000905@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1199891645.28689.22.camel@cotte.boeblingen.de.ibm.com>
+References: <1199499596.23064.50.camel@codedot> <47852E45.6000905@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Carsten Otte <cotte@de.ibm.com>
-Cc: carsteno@de.ibm.com, Jared Hulbert <jaredeh@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: Peter Staubach <staubach@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 09, 2008 at 04:14:05PM +0100, Carsten Otte wrote:
-> From: Carsten Otte <cotte@de.ibm.com>
-> 
-> include: add callbacks to toggle reference counting for VM_MIXEDMAP pages
-> 
-> This patch introduces two arch callbacks, which may optionally be implemented
-> in case the architecutre does define __HAVE_ARCH_PTEP_NOREFCOUNT.
-> 
-> The first callback, pte_set_norefcount(__pte) is called by core-vm to indicate
-> that subject page table entry is going to be inserted into a VM_MIXEDMAP vma.
-> default implementation: 	noop
-> s390 implementation:		set sw defined bit in pte
-> proposed arm implementation:	noop
-> 
-> The second callback, mixedmap_refcount_pte(__pte) is called by core-vm to
-> figure out whether or not subject pte requires reference counting in the
-> corresponding struct page entry. A non-zero result indicates reference counting
-> is required.
-> default implementation:		(1)
-> s390 implementation:		query sw defined bit in pte
-> proposed arm implementation:	convert pte_t to pfn, use pfn_valid()
-> 
-> Signed-off-by: Carsten Otte <cotte@de.ibm.com>
+2008/1/9, Peter Staubach <staubach@redhat.com>:
+> Anton Salikhmetov wrote:
+> > From: Anton Salikhmetov <salikhmetov@gmail.com>
+> >
+> > I would like to propose my solution for the bug #2645 from the kernel bug tracker:
+> >
+> > http://bugzilla.kernel.org/show_bug.cgi?id=2645
+> >
+> > The Open Group defines the behavior of the mmap() function as follows.
+> >
+> > The st_ctime and st_mtime fields of a file that is mapped with MAP_SHARED
+> > and PROT_WRITE shall be marked for update at some point in the interval
+> > between a write reference to the mapped region and the next call to msync()
+> > with MS_ASYNC or MS_SYNC for that portion of the file by any process.
+> > If there is no such call and if the underlying file is modified as a result
+> > of a write reference, then these fields shall be marked for update at some
+> > time after the write reference.
+> >
+> > The above citation was taken from the following link:
+> >
+> > http://www.opengroup.org/onlinepubs/009695399/functions/mmap.html
+> >
+> > Therefore, the msync() function should be called before verifying the time
+> > stamps st_mtime and st_ctime in the test program Badari wrote in the context
+> > of the bug #2645. Otherwise, the time stamps may be updated
+> > at some unspecified moment according to the POSIX standard.
+> >
+> > I changed his test program a little. The changed unit test can be downloaded
+> > using the following link:
+> >
+> > http://pygx.sourceforge.net/mmap.c
+> >
+> > This program showed that the msync() function had a bug:
+> > it did not update the st_mtime and st_ctime fields.
+> >
+> > The program shows the appropriate behavior of the msync()
+> > function using the kernel with the proposed patch applied.
+> > Specifically, the ctime and mtime time stamps do change
+> > when modifying the mapped memory and do not change when
+> > there have been no write references between the mmap()
+> > and msync() system calls.
+> >
+> >
+>
+> Sorry, I don't see where the test program shows that the file
+> times did not change if there had not been an intervening
+> modification to the mmap'd region.  It appears to me that it
+> just shows the file times changing or not when there has been
+> intervening modification after the mmap call and before the
+> fstat call.
+>
+> Or am I looking in the wrong place?  :-)
 
+No, you are looking at the right place, but there was one thing missing
+from my unit test: namely, that the "no write reference" case was
+tested by commenting out the "for" loop. I should have written this
+explicitly, sorry for its not having been done. The next version of
+the unit test will be cleaner, I hope.
 
-Hmm, I had it in my mind that this would be entirely hidden in the s390's
-mixedmap_refcount_pfn, but of course you actually need to set the pte too....
+>
+> > Additionally, the test cases for the msync() system call from
+> > the LTP test suite (msync01 - msync05, mmapstress01, mmapstress09,
+> > and mmapstress10) successfully passed using the kernel
+> > with the patch included into this email.
+> >
+> > The patch adds a call to the file_update_time() function to change
+> > the file metadata before syncing. The patch also contains
+> > substantial code cleanup: consolidated error check
+> > for function parameters, using the PAGE_ALIGN() macro instead of
+> > "manual" alignment check, improved readability of the loop,
+> > which traverses the process memory regions, updated comments.
+> >
+> >
+>
+> These changes catch the simple case, where the file is mmap'd,
+> modified via the mmap'd region, and then an msync is done,
+> all on a mostly quiet system.
+>
+> However, I don't see how they will work if there has been
+> something like a sync(2) done after the mmap'd region is
+> modified and the msync call.  When the inode is written out
+> as part of the sync process, I_DIRTY_PAGES will be cleared,
+> thus causing a miss in this code.
 
-In that case, I would rather prefer to go along the lines of my pte_special
-patch, which would replace all of vm_normal_page (on a per-arch basis), and
-you wouldn't need this mixedmap_refcount_* stuff (it can stay pfn_valid for
-those architectures that don't implement pte_special).
+Good catch, thanks! I totally missed the intervening sync() case.
+Now I understand why the I_DIRTY_PAGES flag is not a reliable way
+to detect whether there have been any write references in the
+mapped area.
+
+>
+> The I_DIRTY_PAGES check here is good, but I think that there
+> needs to be some code elsewhere too, to catch the case where
+> I_DIRTY_PAGES is being cleared, but the time fields still need
+> to be updated.
+>
+> --
+>
+> A better architecture would be to arrange for the file times
+> to be updated when the page makes the transition from being
+> unmodified to modified.  This is not straightforward due to
+> the current locking, but should be doable, I think.  Perhaps
+> recording the current time and then using it to update the
+> file times at a more suitable time (no pun intended) might
+> work.
+>
+>     Thanx...
+>
+>        ps
+
+OK, I'll think over it. I believe I'll make another attempt to
+fix this bug and will post a new solution for review.
+
+>
+>
+> > Signed-off-by: Anton Salikhmetov <salikhmetov@gmail.com>
+> >
+> > ---
+> >
+> > diff --git a/mm/msync.c b/mm/msync.c
+> > index 144a757..cb973eb 100644
+> > --- a/mm/msync.c
+> > +++ b/mm/msync.c
+> > @@ -1,26 +1,32 @@
+> >  /*
+> >   *   linux/mm/msync.c
+> >   *
+> > + * The msync() system call.
+> >   * Copyright (C) 1994-1999  Linus Torvalds
+> > + *
+> > + * Updating the mtime and ctime stamps for mapped files
+> > + * and code cleanup.
+> > + * Copyright (C) 2008 Anton Salikhmetov <salikhmetov@gmail.com>
+> >   */
+> >
+> > -/*
+> > - * The msync() system call.
+> > - */
+> > +#include <linux/file.h>
+> >  #include <linux/fs.h>
+> >  #include <linux/mm.h>
+> >  #include <linux/mman.h>
+> > -#include <linux/file.h>
+> > -#include <linux/syscalls.h>
+> >  #include <linux/sched.h>
+> > +#include <linux/syscalls.h>
+> >
+> >  /*
+> >   * MS_SYNC syncs the entire file - including mappings.
+> >   *
+> >   * MS_ASYNC does not start I/O (it used to, up to 2.5.67).
+> > - * Nor does it marks the relevant pages dirty (it used to up to 2.6.17).
+> > + * Nor does it mark the relevant pages dirty (it used to up to 2.6.17).
+> >   * Now it doesn't do anything, since dirty pages are properly tracked.
+> >   *
+> > + * The msync() system call updates the ctime and mtime fields for
+> > + * the mapped file when called with the MS_SYNC or MS_ASYNC flags
+> > + * according to the POSIX standard.
+> > + *
+> >   * The application may now run fsync() to
+> >   * write out the dirty pages and wait on the writeout and check the result.
+> >   * Or the application may run fadvise(FADV_DONTNEED) against the fd to start
+> > @@ -33,70 +39,68 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
+> >       unsigned long end;
+> >       struct mm_struct *mm = current->mm;
+> >       struct vm_area_struct *vma;
+> > -     int unmapped_error = 0;
+> > -     int error = -EINVAL;
+> > +     int error = 0, unmapped_error = 0;
+> >
+> > -     if (flags & ~(MS_ASYNC | MS_INVALIDATE | MS_SYNC))
+> > -             goto out;
+> > -     if (start & ~PAGE_MASK)
+> > +     if ((flags & ~(MS_ASYNC | MS_INVALIDATE | MS_SYNC)) ||
+> > +                     (start & ~PAGE_MASK) ||
+> > +                     ((flags & MS_ASYNC) && (flags & MS_SYNC))) {
+> > +             error = -EINVAL;
+> >               goto out;
+> > -     if ((flags & MS_ASYNC) && (flags & MS_SYNC))
+> > -             goto out;
+> > -     error = -ENOMEM;
+> > -     len = (len + ~PAGE_MASK) & PAGE_MASK;
+> > +     }
+> > +
+> > +     len = PAGE_ALIGN(len);
+> >       end = start + len;
+> > -     if (end < start)
+> > +     if (end < start) {
+> > +             error = -ENOMEM;
+> >               goto out;
+> > -     error = 0;
+> > +     }
+> >       if (end == start)
+> >               goto out;
+> > +
+> >       /*
+> >        * If the interval [start,end) covers some unmapped address ranges,
+> >        * just ignore them, but return -ENOMEM at the end.
+> >        */
+> >       down_read(&mm->mmap_sem);
+> >       vma = find_vma(mm, start);
+> > -     for (;;) {
+> > +     do {
+> >               struct file *file;
+> >
+> > -             /* Still start < end. */
+> > -             error = -ENOMEM;
+> > -             if (!vma)
+> > -                     goto out_unlock;
+> > -             /* Here start < vma->vm_end. */
+> > +             if (!vma) {
+> > +                     error = -ENOMEM;
+> > +                     break;
+> > +             }
+> >               if (start < vma->vm_start) {
+> >                       start = vma->vm_start;
+> > -                     if (start >= end)
+> > -                             goto out_unlock;
+> > +                     if (start >= end) {
+> > +                             error = -ENOMEM;
+> > +                             break;
+> > +                     }
+> >                       unmapped_error = -ENOMEM;
+> >               }
+> > -             /* Here vma->vm_start <= start < vma->vm_end. */
+> >               if ((flags & MS_INVALIDATE) &&
+> >                               (vma->vm_flags & VM_LOCKED)) {
+> >                       error = -EBUSY;
+> > -                     goto out_unlock;
+> > +                     break;
+> >               }
+> >               file = vma->vm_file;
+> > -             start = vma->vm_end;
+> > -             if ((flags & MS_SYNC) && file &&
+> > -                             (vma->vm_flags & VM_SHARED)) {
+> > +             if (file && (vma->vm_flags & VM_SHARED)) {
+> >                       get_file(file);
+> > -                     up_read(&mm->mmap_sem);
+> > -                     error = do_fsync(file, 0);
+> > -                     fput(file);
+> > -                     if (error || start >= end)
+> > -                             goto out;
+> > -                     down_read(&mm->mmap_sem);
+> > -                     vma = find_vma(mm, start);
+> > -             } else {
+> > -                     if (start >= end) {
+> > -                             error = 0;
+> > -                             goto out_unlock;
+> > +                     if (file->f_mapping->host->i_state & I_DIRTY_PAGES)
+> > +                             file_update_time(file);
+> > +                     if (flags & MS_SYNC) {
+> > +                             up_read(&mm->mmap_sem);
+> > +                             error = do_fsync(file, 0);
+> > +                             down_read(&mm->mmap_sem);
+> >                       }
+> > -                     vma = vma->vm_next;
+> > +                     fput(file);
+> > +                     if (error)
+> > +                             break;
+> >               }
+> > -     }
+> > -out_unlock:
+> > +
+> > +             start = vma->vm_end;
+> > +             vma = vma->vm_next;
+> > +     } while (start < end);
+> >       up_read(&mm->mmap_sem);
+> >  out:
+> >       return error ? : unmapped_error;
+> >
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > Please read the FAQ at  http://www.tux.org/lkml/
+> >
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
