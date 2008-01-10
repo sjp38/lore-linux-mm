@@ -1,47 +1,43 @@
-Date: Thu, 10 Jan 2008 13:23:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 05/19] split LRU lists into anon & file sets
-Message-Id: <20080110132316.4f604724.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080110032631.GE15547@balbir.in.ibm.com>
-References: <20080108205939.323955454@redhat.com>
-	<20080108210002.638347207@redhat.com>
-	<20080109134132.ba7bb33c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080110022133.GC15547@balbir.in.ibm.com>
-	<20080110113618.f967d215.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080110032631.GE15547@balbir.in.ibm.com>
+Subject: Re: [vm] writing to UDF DVD+RW (/dev/sr0) while under memory
+	pressure: box ==> doorstop
+From: Mike Galbraith <efault@gmx.de>
+In-Reply-To: <20080109150139.311f68d3.akpm@linux-foundation.org>
+References: <1199447212.4529.13.camel@homer.simson.net>
+	 <1199612533.4384.54.camel@homer.simson.net>
+	 <1199642470.3927.12.camel@homer.simson.net>
+	 <20080106122954.d8f04c98.akpm@linux-foundation.org>
+	 <1199790316.4094.57.camel@homer.simson.net>
+	 <20080108033801.40d0043a.akpm@linux-foundation.org>
+	 <1199805713.3571.12.camel@homer.simson.net>
+	 <1199806071.4174.2.camel@homer.simson.net>
+	 <1199877080.4340.19.camel@homer.simson.net>
+	 <20080109150139.311f68d3.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Thu, 10 Jan 2008 05:21:25 +0100
+Message-Id: <1199938885.4324.80.camel@homer.simson.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, bfennema@falcon.csc.calpoly.edu
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 10 Jan 2008 08:56:31 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Wed, 2008-01-09 at 15:01 -0800, Andrew Morton wrote:
 
-> > > The control_type feature is gone. We still have cached page
-> > > accounting, but we do not allow control of only RSS pages anymore. We
-> > > need to control both RSS+cached pages. I do not understand your
-> > > question about new plan? Is it about adding back control_type?
-> > > 
-> > Ah, just wanted to confirm that we can drop PAGE_CGROUP_FLAG_CACHE
-> > if page_file_cache() function and split-LRU is introduced.
-> > 
-> 
-> Earlier we would have had a problem, since we even accounted for swap
-> cache with PAGE_CGROUP_FLAG_CACHE and I think page_file_cache() does
-> not account swap cache pages with page_file_cache(). Our accounting
-> is based on mapped vs unmapped whereas the new code from Rik accounts
-> file vs anonymous. I suspect we could live a little while longer
-> with PAGE_CGROUP_FLAG_CACHE and then if we do not need it at all,
-> we can mark it down for removal. What do you think?
+> So are you saying that the fs throughput is unaltered by this change,
+> but that the side-effects which your workload has on the overall
+> machine are lessened?
 
-Okay, I have no objection. 
+Yes.  UDF IO is still a slow trickle, but the box is now fine under VM
+stress, vs all allocating tasks eventually getting nailed (essentially
+forever) by iprune_mutex previously.
 
-Thanks,
--Kame
+	-Mike
+
+P.S.  I would submit one-liner for VFS part, but it's useless without
+UDF part, and nobody is hitting what I ran into while testing alleged
+scsi_done regression thingy anyway.  cc added.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
