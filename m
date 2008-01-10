@@ -1,66 +1,83 @@
-Message-ID: <47864D69.40209@redhat.com>
-Date: Thu, 10 Jan 2008 11:52:57 -0500
-From: Peter Staubach <staubach@redhat.com>
+Date: Thu, 10 Jan 2008 18:16:43 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [vm] writing to UDF DVD+RW (/dev/sr0) while under memory
+	pressure: box ==> doorstop
+Message-ID: <20080110171643.GF12697@duck.suse.cz>
+References: <1199642470.3927.12.camel@homer.simson.net> <20080106122954.d8f04c98.akpm@linux-foundation.org> <1199790316.4094.57.camel@homer.simson.net> <20080108033801.40d0043a.akpm@linux-foundation.org> <1199805713.3571.12.camel@homer.simson.net> <1199806071.4174.2.camel@homer.simson.net> <1199877080.4340.19.camel@homer.simson.net> <20080109150139.311f68d3.akpm@linux-foundation.org> <20080110144123.GA12331@atrey.karlin.mff.cuni.cz> <1199978990.4196.53.camel@homer.simson.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH][RFC][BUG] updating the ctime and mtime time stamps in
- msync()
-References: <1199728459.26463.11.camel@codedot>	 <20080109170633.292644dc@cuia.boston.redhat.com>	 <20080109223340.GH25527@unthought.net>	 <20080109184141.287189b8@bree.surriel.com>	 <4df4ef0c0801091603y2bf507e1q2b99971c6028d1f3@mail.gmail.com>	 <20080110085120.GK25527@unthought.net>	 <4df4ef0c0801100253m6c08e4a3t917959c030533f80@mail.gmail.com>	 <20080110104543.398baf5c@bree.surriel.com>	 <4df4ef0c0801100756v2a536cc5xa80d9d1cfdae073a@mail.gmail.com>	 <20080110110757.09ec494a@bree.surriel.com> <4df4ef0c0801100840uf84fef6g80e456fc5681193@mail.gmail.com>
-In-Reply-To: <4df4ef0c0801100840uf84fef6g80e456fc5681193@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1199978990.4196.53.camel@homer.simson.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Anton Salikhmetov <salikhmetov@gmail.com>
-Cc: Rik van Riel <riel@redhat.com>, Jakob Oestergaard <jakob@unthought.net>, Valdis.Kletnieks@vt.edu, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mike Galbraith <efault@gmx.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bfennema@falcon.csc.calpoly.edu
 List-ID: <linux-mm.kvack.org>
 
-Anton Salikhmetov wrote:
-> 2008/1/10, Rik van Riel <riel@redhat.com>:
->   
->> On Thu, 10 Jan 2008 18:56:07 +0300
->> "Anton Salikhmetov" <salikhmetov@gmail.com> wrote:
->>
->>     
->>> However, I don't see how they will work if there has been
->>> something like a sync(2) done after the mmap'd region is
->>> modified and the msync call.  When the inode is written out
->>> as part of the sync process, I_DIRTY_PAGES will be cleared,
->>> thus causing a miss in this code.
->>>
->>> The I_DIRTY_PAGES check here is good, but I think that there
->>> needs to be some code elsewhere too, to catch the case where
->>> I_DIRTY_PAGES is being cleared, but the time fields still need
->>> to be updated.
->>>       
->> Agreed. The mtime and ctime should probably also be updated
->> when I_DIRTY_PAGES is cleared.
->>
->> The alternative would be to remember that the inode had been
->> dirty in the past, and have the mtime and ctime updated on
->> msync or close - which would be more complex.
->>     
->
-> Adding the new flag (AS_MCTIME) has been already suggested by Peter
-> Staubach in his first solution for this bug. Now I understand that the
-> AS_MCTIME flag is required for fixing the bug.
+On Thu 10-01-08 16:29:50, Mike Galbraith wrote:
+> 
+> On Thu, 2008-01-10 at 15:41 +0100, Jan Kara wrote:
+> > > On Wed, 09 Jan 2008 12:11:20 +0100
+> > > 
+> > > 
+> > > I wonder why UDF was doing a synchronous write in there.  In fact I wonder
+> > > why it's writing the inode at all?  extN doesn't do that.  If for some
+> > > reason it really does want to make the inode immediately reclaimable then
+> > > simply shoving it down into the /dev/hda1 pagecache should be sufficient
+> > > (ie: what you did)..
+> >   Looking at the code, I think UDF change is correct. UDF has to call
+> > write_inode_now() because by the time clear_inode() is called, inode is
+> > already written by VFS and prepared to be freed. But then UDF modifies
+> > it in udf_clear_inode() (removes preallocation) and for these changes to
+> > get to disk you have to write the inode explicitely. 
+> >   But there's really no need to wait on IO. We only have to copy all
+> > data from inode structure into buffers and that happens even if we don't
+> > wait on sync.
+> 
+> Perhaps I should go ahead and submit it then.  There are 5 other async
+> callers as well, so VM/UDF reclaim buglet can die, and those others can
+> get what they asked for with net diffstat of 0.
+> 
+> Fix udf_clear_inode() to request asynchronous writeout in icache reclaim
+> path, and ensure that write_inore_now() honors that request, lest
+> allocators needlessly block on iprune_mutex.
+> 
+> Signed-off-by: Mike Galbraith <efault@gmx.de>
+  Acked-by: Jan Kara <jack@suse.cz>
+  if it's worth anything ;)
+									Honza
 
-Well, that was the approach before we had I_DIRTY_PAGES.  I am
-still wondering whether we can get this approach to work, with
-a little more support and heuristics.  PeterZ's work to better
-track dirty pages should be helpful in determining when and why
-a patch was dirty.
-
-I keep thinking that by recording the time when a page was found
-to be dirty and the file is mmap'd and then updating the mtime
-and ctime fields in the inode during msync() and sync_single_inode()
-if that time is newer than the mtime and ctime fields, then we
-can solve the problem of when and when not to update those two
-time fields.
-
-I haven't had a chance to think it all through completely or do
-the appropriate analysis yet though.
-
-       ps
+> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> index 0fca820..f1cce24 100644
+> --- a/fs/fs-writeback.c
+> +++ b/fs/fs-writeback.c
+> @@ -657,7 +657,7 @@ int write_inode_now(struct inode *inode, int sync)
+>  	int ret;
+>  	struct writeback_control wbc = {
+>  		.nr_to_write = LONG_MAX,
+> -		.sync_mode = WB_SYNC_ALL,
+> +		.sync_mode = sync ? WB_SYNC_ALL : WB_SYNC_NONE,
+>  		.range_start = 0,
+>  		.range_end = LLONG_MAX,
+>  	};
+> diff --git a/fs/udf/inode.c b/fs/udf/inode.c
+> index 6ff8151..d1fc116 100644
+> --- a/fs/udf/inode.c
+> +++ b/fs/udf/inode.c
+> @@ -117,7 +117,7 @@ void udf_clear_inode(struct inode *inode)
+>  		udf_discard_prealloc(inode);
+>  		udf_truncate_tail_extent(inode);
+>  		unlock_kernel();
+> -		write_inode_now(inode, 1);
+> +		write_inode_now(inode, 0);
+>  	}
+>  	kfree(UDF_I_DATA(inode));
+>  	UDF_I_DATA(inode) = NULL;
+> 
+> 
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
