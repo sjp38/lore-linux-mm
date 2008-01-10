@@ -1,40 +1,67 @@
-Date: Wed, 9 Jan 2008 22:14:25 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [patch 00/19] VM pageout scalability improvements
-Message-ID: <20080109221425.23e200c9@bree.surriel.com>
-In-Reply-To: <Pine.LNX.4.64.0801091837310.15509@schroedinger.engr.sgi.com>
-References: <20080102224144.885671949@redhat.com>
-	<20080102224450.585bf956@bree.surriel.com>
-	<Pine.LNX.4.64.0801091837310.15509@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m0A3QkFw025257
+	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 22:26:46 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m0A3QftZ121204
+	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 20:26:46 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m0A3QeoK018894
+	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 20:26:40 -0700
+Date: Thu, 10 Jan 2008 08:56:31 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [patch 05/19] split LRU lists into anon & file sets
+Message-ID: <20080110032631.GE15547@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20080108205939.323955454@redhat.com> <20080108210002.638347207@redhat.com> <20080109134132.ba7bb33c.kamezawa.hiroyu@jp.fujitsu.com> <20080110022133.GC15547@balbir.in.ibm.com> <20080110113618.f967d215.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20080110113618.f967d215.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernelporg, linux-mm@kvack.org, lee.schermerhorn@hp.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 Jan 2008 18:39:15 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
-> On Wed, 2 Jan 2008, Rik van Riel wrote:
-> 
-> > Running a 16000 MB fillmem on my 16GB test box (where slub
-> > eats up unexplainable amounts of memory so the test gets about
-> > 14GB RSS and 1.5GB in swap).
-> 
-> SLUB eats up process memory? Slab allocations are not charged to the 
-> process. But there is new code in mm so there could be a problem 
-> somewhere. Could you give me more details?
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2008-01-10 11:36:18]:
 
-IIRC /proc/meminfo reported that there were a few hundred MB
-in slab, despite the system only running the few daemons that
-get started by default and my one fillmem process.
+> On Thu, 10 Jan 2008 07:51:33 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+> > > >  #define PAGE_CGROUP_FLAG_CACHE	(0x1)	/* charged as cache */
+> > > >  #define PAGE_CGROUP_FLAG_ACTIVE (0x2)	/* page is active in this cgroup */
+> > > > +#define PAGE_CGROUP_FLAG_FILE	(0x4)	/* page is file system backed */
+> > > > 
+> > > 
+> > > Now, we don't have control_type and a feature for accounting only CACHE.
+> > > Balbir-san, do you have some new plan ?
+> > >
+> > 
+> > Hi, KAMEZAWA-San,
+> > 
+> > The control_type feature is gone. We still have cached page
+> > accounting, but we do not allow control of only RSS pages anymore. We
+> > need to control both RSS+cached pages. I do not understand your
+> > question about new plan? Is it about adding back control_type?
+> > 
+> Ah, just wanted to confirm that we can drop PAGE_CGROUP_FLAG_CACHE
+> if page_file_cache() function and split-LRU is introduced.
+> 
 
-I'll get you more details once /proc/slabinfo works again.
+Earlier we would have had a problem, since we even accounted for swap
+cache with PAGE_CGROUP_FLAG_CACHE and I think page_file_cache() does
+not account swap cache pages with page_file_cache(). Our accounting
+is based on mapped vs unmapped whereas the new code from Rik accounts
+file vs anonymous. I suspect we could live a little while longer
+with PAGE_CGROUP_FLAG_CACHE and then if we do not need it at all,
+we can mark it down for removal. What do you think?
+
 
 -- 
-All rights reversed.
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
