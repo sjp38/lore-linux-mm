@@ -1,65 +1,84 @@
-Received: by wr-out-0506.google.com with SMTP id c8so297640wra.26
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2008 08:08:19 -0800 (PST)
-Message-ID: <170fa0d20801100808x7330589fj8f6884f56a194e76@mail.gmail.com>
-Date: Thu, 10 Jan 2008 11:08:18 -0500
-From: "Mike Snitzer" <snitzer@gmail.com>
-Subject: Re: [patch 00/19] VM pageout scalability improvements
-In-Reply-To: <20080110104155.34b5cede@bree.surriel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [vm] writing to UDF DVD+RW (/dev/sr0) while under memory
+	pressure: box ==> doorstop
+From: Mike Galbraith <efault@gmx.de>
+In-Reply-To: <20080110144123.GA12331@atrey.karlin.mff.cuni.cz>
+References: <1199447212.4529.13.camel@homer.simson.net>
+	 <1199612533.4384.54.camel@homer.simson.net>
+	 <1199642470.3927.12.camel@homer.simson.net>
+	 <20080106122954.d8f04c98.akpm@linux-foundation.org>
+	 <1199790316.4094.57.camel@homer.simson.net>
+	 <20080108033801.40d0043a.akpm@linux-foundation.org>
+	 <1199805713.3571.12.camel@homer.simson.net>
+	 <1199806071.4174.2.camel@homer.simson.net>
+	 <1199877080.4340.19.camel@homer.simson.net>
+	 <20080109150139.311f68d3.akpm@linux-foundation.org>
+	 <20080110144123.GA12331@atrey.karlin.mff.cuni.cz>
+Content-Type: text/plain
+Date: Thu, 10 Jan 2008 16:29:50 +0100
+Message-Id: <1199978990.4196.53.camel@homer.simson.net>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080108205939.323955454@redhat.com>
-	 <170fa0d20801092039w22584e2fw6821e70157f55cae@mail.gmail.com>
-	 <20080110104155.34b5cede@bree.surriel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bfennema@falcon.csc.calpoly.edu
 List-ID: <linux-mm.kvack.org>
 
-On Jan 10, 2008 10:41 AM, Rik van Riel <riel@redhat.com> wrote:
->
-> On Wed, 9 Jan 2008 23:39:02 -0500
-> "Mike Snitzer" <snitzer@gmail.com> wrote:
->
-> > How much trouble am I asking for if I were to try to get your patchset
-> > to fly on a fairly recent "stable" kernel (e.g. 2.6.22.15)?  If
-> > workable, is such an effort before it's time relative to your TODO?
->
-> Quite a bit :)
->
-> The -mm kernel has the memory controller code, which means the
-> mm/ directory is fairly different.  My patch set sits on top
-> of that.
->
-> Chances are that once the -mm kernel goes upstream (in 2.6.25-rc1),
-> I can start building on top of that.
->
-> OTOH, maybe I could get my patch series onto a recent 2.6.23.X with
-> minimal chainsaw effort.
+On Thu, 2008-01-10 at 15:41 +0100, Jan Kara wrote:
+> > On Wed, 09 Jan 2008 12:11:20 +0100
+> > 
+> > 
+> > I wonder why UDF was doing a synchronous write in there.  In fact I wonder
+> > why it's writing the inode at all?  extN doesn't do that.  If for some
+> > reason it really does want to make the inode immediately reclaimable then
+> > simply shoving it down into the /dev/hda1 pagecache should be sufficient
+> > (ie: what you did)..
+>   Looking at the code, I think UDF change is correct. UDF has to call
+> write_inode_now() because by the time clear_inode() is called, inode is
+> already written by VFS and prepared to be freed. But then UDF modifies
+> it in udf_clear_inode() (removes preallocation) and for these changes to
+> get to disk you have to write the inode explicitely. 
+>   But there's really no need to wait on IO. We only have to copy all
+> data from inode structure into buffers and that happens even if we don't
+> wait on sync.
 
-That would be great!  I can't speak for others but -mm poses a problem
-for testing your patchset because it is so bleeding.  Let me know if
-you take the plunge on a 2.6.23.x backport; I'd really appreciate it.
+Perhaps I should go ahead and submit it then.  There are 5 other async
+callers as well, so VM/UDF reclaim buglet can die, and those others can
+get what they asked for with net diffstat of 0.
 
-Is anyone else interested in consuming a 2.6.23.x backport of Rik's
-patchset?  If so please speak up.
+Fix udf_clear_inode() to request asynchronous writeout in icache reclaim
+path, and ensure that write_inore_now() honors that request, lest
+allocators needlessly block on iprune_mutex.
 
-> > I see that you have an old port to a FC7-based 2.6.21 here:
-> > http://people.redhat.com/riel/vmsplit/
-> >
-> > Also, do you have a public git repo that you regularly publish to for
-> > this patchset?  If not a git repo do you put the raw patchset on some
-> > http/ftp server?
->
-> Up to now I have only emailed out the patches. Since there is demand
-> for them to be downloadable from somewhere, I'll also start putting
-> them on http://people.redhat.com/riel/
+Signed-off-by: Mike Galbraith <efault@gmx.de>
 
-Great, thanks.
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 0fca820..f1cce24 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -657,7 +657,7 @@ int write_inode_now(struct inode *inode, int sync)
+ 	int ret;
+ 	struct writeback_control wbc = {
+ 		.nr_to_write = LONG_MAX,
+-		.sync_mode = WB_SYNC_ALL,
++		.sync_mode = sync ? WB_SYNC_ALL : WB_SYNC_NONE,
+ 		.range_start = 0,
+ 		.range_end = LLONG_MAX,
+ 	};
+diff --git a/fs/udf/inode.c b/fs/udf/inode.c
+index 6ff8151..d1fc116 100644
+--- a/fs/udf/inode.c
++++ b/fs/udf/inode.c
+@@ -117,7 +117,7 @@ void udf_clear_inode(struct inode *inode)
+ 		udf_discard_prealloc(inode);
+ 		udf_truncate_tail_extent(inode);
+ 		unlock_kernel();
+-		write_inode_now(inode, 1);
++		write_inode_now(inode, 0);
+ 	}
+ 	kfree(UDF_I_DATA(inode));
+ 	UDF_I_DATA(inode) = NULL;
 
-Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
