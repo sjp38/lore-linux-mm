@@ -1,7 +1,7 @@
-Received: by nz-out-0506.google.com with SMTP id i11so534738nzh.26
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2008 12:01:19 -0800 (PST)
-Message-ID: <6934efce0801101201t72e9b7c4ra88d6fda0f08b1b2@mail.gmail.com>
-Date: Thu, 10 Jan 2008 12:01:18 -0800
+Received: by wa-out-1112.google.com with SMTP id m33so1385594wag.8
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2008 12:23:08 -0800 (PST)
+Message-ID: <6934efce0801101223g6b022094qc201a82096994b4c@mail.gmail.com>
+Date: Thu, 10 Jan 2008 12:23:08 -0800
 From: "Jared Hulbert" <jaredeh@gmail.com>
 Subject: Re: [rfc][patch 1/4] include: add callbacks to toggle reference counting for VM_MIXEDMAP pages
 In-Reply-To: <4785D064.1040501@de.ibm.com>
@@ -23,37 +23,14 @@ To: carsteno@de.ibm.com
 Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-> I think you're looking for
-> pfn_has_struct_page_entry_for_it(), and that's different from the
-> original meaning described above.
+> In fact, I consider pfn_valid() broken on arm if it returns
+> false for a pfn that is perfectly valid for use in a pfnmap/mixedmap
+> mapping.
 
-Yes.  That's what I'm looking for.
-
-Carsten,
-
-I think I get the problem now.  You've been saying over and over, I
-just didn't hear it.  We are not using the same assumptions for what
-VM_MIXEDMAP means.
-
-Look's like today most architectures just use pfn_valid() to see if a
-pfn is in a valid RAM segment.  The assumption used in
-vm_normal_page() is that valid_RAM == has_page_struct.  That's fine by
-me for VM_MIXEDMAP because I'm only assuming 2 states a page can be
-in: (1) page struct RAM (2) pfn only Flash memory ioremap()'ed in.
-You are wanting to add a third: (3) valid RAM, pfn only mapping with
-the ability to add a page struct when needed.
-
-Is this right?
-
-> Jared, did you try this on arm?
-
-No.  I'm not sure where we stand.  Shall I bother or do I wait for the
-next patch?
-
-> Did it work for you with my proposed
-> callback implementation?
-
-I'm sure I can make a callback work kind of like I proposed above.
+Remember, my interest in creating VM_MIXEDMAP is in mapping Flash into
+these pfnmap/mixedmap regions.  I don't think it's fair to let
+pfn_valid() work for Flash pages, at least for now, because there are
+many things you can't do with them that you can do with RAM.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
