@@ -1,48 +1,40 @@
-Date: Thu, 10 Jan 2008 10:41:55 -0500
+Date: Thu, 10 Jan 2008 10:45:43 -0500
 From: Rik van Riel <riel@redhat.com>
-Subject: Re: [patch 00/19] VM pageout scalability improvements
-Message-ID: <20080110104155.34b5cede@bree.surriel.com>
-In-Reply-To: <170fa0d20801092039w22584e2fw6821e70157f55cae@mail.gmail.com>
-References: <20080108205939.323955454@redhat.com>
-	<170fa0d20801092039w22584e2fw6821e70157f55cae@mail.gmail.com>
+Subject: Re: [PATCH][RFC][BUG] updating the ctime and mtime time stamps in
+ msync()
+Message-ID: <20080110104543.398baf5c@bree.surriel.com>
+In-Reply-To: <4df4ef0c0801100253m6c08e4a3t917959c030533f80@mail.gmail.com>
+References: <1199728459.26463.11.camel@codedot>
+	<20080109155015.4d2d4c1d@cuia.boston.redhat.com>
+	<26932.1199912777@turing-police.cc.vt.edu>
+	<20080109170633.292644dc@cuia.boston.redhat.com>
+	<20080109223340.GH25527@unthought.net>
+	<20080109184141.287189b8@bree.surriel.com>
+	<4df4ef0c0801091603y2bf507e1q2b99971c6028d1f3@mail.gmail.com>
+	<20080110085120.GK25527@unthought.net>
+	<4df4ef0c0801100253m6c08e4a3t917959c030533f80@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Snitzer <snitzer@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Anton Salikhmetov <salikhmetov@gmail.com>
+Cc: Jakob Oestergaard <jakob@unthought.net>, Valdis.Kletnieks@vt.edu, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 Jan 2008 23:39:02 -0500
-"Mike Snitzer" <snitzer@gmail.com> wrote:
+On Thu, 10 Jan 2008 13:53:59 +0300
+"Anton Salikhmetov" <salikhmetov@gmail.com> wrote:
 
-> How much trouble am I asking for if I were to try to get your patchset
-> to fly on a fairly recent "stable" kernel (e.g. 2.6.22.15)?  If
-> workable, is such an effort before it's time relative to your TODO?
+> Indeed, if msync() is called with MS_SYNC an explicit sync is
+> triggered, and Rik's suggestion would work. However, the POSIX
+> standard requires a call to msync() with MS_ASYNC to update the
+> st_ctime and st_mtime stamps too. No explicit sync of the inode data
+> is triggered in the current implementation of msync(). Hence Rik's
+> suggestion would fail to satisfy POSIX in the latter case.
 
-Quite a bit :)
-
-The -mm kernel has the memory controller code, which means the
-mm/ directory is fairly different.  My patch set sits on top
-of that.
-
-Chances are that once the -mm kernel goes upstream (in 2.6.25-rc1),
-I can start building on top of that.
-
-OTOH, maybe I could get my patch series onto a recent 2.6.23.X with
-minimal chainsaw effort.
-
-> I see that you have an old port to a FC7-based 2.6.21 here:
-> http://people.redhat.com/riel/vmsplit/
-> 
-> Also, do you have a public git repo that you regularly publish to for
-> this patchset?  If not a git repo do you put the raw patchset on some
-> http/ftp server?
-
-Up to now I have only emailed out the patches. Since there is demand
-for them to be downloadable from somewhere, I'll also start putting
-them on http://people.redhat.com/riel/
+Since your patch is already changing msync(), has it occurred
+to you that your patch could change msync() to do the right
+thing?
 
 -- 
 All rights reversed.
