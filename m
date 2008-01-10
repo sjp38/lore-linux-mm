@@ -1,36 +1,58 @@
-Received: by wa-out-1112.google.com with SMTP id m33so1385594wag.8
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2008 12:23:08 -0800 (PST)
-Message-ID: <6934efce0801101223g6b022094qc201a82096994b4c@mail.gmail.com>
-Date: Thu, 10 Jan 2008 12:23:08 -0800
-From: "Jared Hulbert" <jaredeh@gmail.com>
-Subject: Re: [rfc][patch 1/4] include: add callbacks to toggle reference counting for VM_MIXEDMAP pages
-In-Reply-To: <4785D064.1040501@de.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH][RFC][BUG] updating the ctime and mtime time stamps in msync()
+In-Reply-To: Your message of "Wed, 09 Jan 2008 18:41:41 EST."
+             <20080109184141.287189b8@bree.surriel.com>
+From: Valdis.Kletnieks@vt.edu
+References: <1199728459.26463.11.camel@codedot> <20080109155015.4d2d4c1d@cuia.boston.redhat.com> <26932.1199912777@turing-police.cc.vt.edu> <20080109170633.292644dc@cuia.boston.redhat.com> <20080109223340.GH25527@unthought.net>
+            <20080109184141.287189b8@bree.surriel.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1199998102_2824P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20071214133817.GB28555@wotan.suse.de>
-	 <476B9000.2090707@de.ibm.com> <20071221102052.GB28484@wotan.suse.de>
-	 <476B96D6.2010302@de.ibm.com> <20071221104701.GE28484@wotan.suse.de>
-	 <1199784954.25114.27.camel@cotte.boeblingen.de.ibm.com>
-	 <1199891032.28689.9.camel@cotte.boeblingen.de.ibm.com>
-	 <1199891645.28689.22.camel@cotte.boeblingen.de.ibm.com>
-	 <6934efce0801091017t7f9041abs62904de3722cadc@mail.gmail.com>
-	 <4785D064.1040501@de.ibm.com>
+Date: Thu, 10 Jan 2008 15:48:22 -0500
+Message-ID: <5273.1199998102@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: carsteno@de.ibm.com
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Jakob Oestergaard <jakob@unthought.net>, Anton Salikhmetov <salikhmetov@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> In fact, I consider pfn_valid() broken on arm if it returns
-> false for a pfn that is perfectly valid for use in a pfnmap/mixedmap
-> mapping.
+--==_Exmh_1199998102_2824P
+Content-Type: text/plain; charset=us-ascii
 
-Remember, my interest in creating VM_MIXEDMAP is in mapping Flash into
-these pfnmap/mixedmap regions.  I don't think it's fair to let
-pfn_valid() work for Flash pages, at least for now, because there are
-many things you can't do with them that you can do with RAM.
+On Wed, 09 Jan 2008 18:41:41 EST, Rik van Riel said:
+
+> I guess a third possible time (if we want to minimize the number of
+> updates) would be when natural syncing of the file data to disk, by
+> other things in the VM, would be about to clear the I_DIRTY_PAGES
+> flag on the inode.  That way we do not need to remember any special
+> "we already flushed all dirty data, but we have not updated the mtime
+> and ctime yet" state.
+> 
+> Does this sound reasonable?
+
+Is it possible that a *very* large file (multi-gigabyte or even bigger database,
+for example) would never get out of I_DIRTY_PAGES, because there's always a
+few dozen just-recently dirtied pages that haven't made it out to disk yet?
+
+Of course, getting a *consistent* backup of a file like that is quite the
+challenge already, because of the high likelyhood of the file being changed
+while the backup runs - that's why big sites often do a 'quiesce/snapshot/wakeup'
+on a database and then backup the snapshot...
+
+
+--==_Exmh_1199998102_2824P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.8 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iD8DBQFHhoSWcC3lWbTT17ARAn1mAJ48AjVv7lCnK64HDWknbOZPhx4kZgCeNAAx
+1fx+ay5cVP3Trm0CcZPIZO8=
+=DyL9
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1199998102_2824P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
