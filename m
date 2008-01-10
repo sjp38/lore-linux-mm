@@ -1,70 +1,62 @@
-Date: Wed, 9 Jan 2008 16:02:18 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [BUG]  at mm/slab.c:3320
-In-Reply-To: <20080109221315.GB26941@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0801091601080.14723@schroedinger.engr.sgi.com>
-References: <20080107102301.db52ab64.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0801071008050.22642@schroedinger.engr.sgi.com>
- <20080108104016.4fa5a4f3.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0801072131350.28725@schroedinger.engr.sgi.com>
- <20080109065015.GG7602@us.ibm.com> <Pine.LNX.4.64.0801090949440.10163@schroedinger.engr.sgi.com>
- <20080109185859.GD11852@skywalker> <Pine.LNX.4.64.0801091122490.11317@schroedinger.engr.sgi.com>
- <20080109214707.GA26941@us.ibm.com> <Pine.LNX.4.64.0801091349430.12505@schroedinger.engr.sgi.com>
- <20080109221315.GB26941@us.ibm.com>
+Received: by wa-out-1112.google.com with SMTP id m33so763609wag.8
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2008 16:03:03 -0800 (PST)
+Message-ID: <4df4ef0c0801091603y2bf507e1q2b99971c6028d1f3@mail.gmail.com>
+Date: Thu, 10 Jan 2008 03:03:03 +0300
+From: "Anton Salikhmetov" <salikhmetov@gmail.com>
+Subject: Re: [PATCH][RFC][BUG] updating the ctime and mtime time stamps in msync()
+In-Reply-To: <20080109184141.287189b8@bree.surriel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <1199728459.26463.11.camel@codedot>
+	 <20080109155015.4d2d4c1d@cuia.boston.redhat.com>
+	 <26932.1199912777@turing-police.cc.vt.edu>
+	 <20080109170633.292644dc@cuia.boston.redhat.com>
+	 <20080109223340.GH25527@unthought.net>
+	 <20080109184141.287189b8@bree.surriel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Nishanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, lee.schermerhorn@hp.com, bob.picco@hp.com, mel@skynet.ie
+To: Rik van Riel <riel@redhat.com>
+Cc: Jakob Oestergaard <jakob@unthought.net>, Valdis.Kletnieks@vt.edu, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-New patch that also checks in alternate_node_alloc if the node has normal 
-memory because we cannot call ____cache_alloc_node with an invalid node.
+2008/1/10, Rik van Riel <riel@redhat.com>:
+> On Wed, 9 Jan 2008 23:33:40 +0100
+> Jakob Oestergaard <jakob@unthought.net> wrote:
+> > On Wed, Jan 09, 2008 at 05:06:33PM -0500, Rik van Riel wrote:
+>
+> > > Can we get by with simply updating the ctime and mtime every time msync()
+> > > is called, regardless of whether or not the mmaped pages were still dirty
+> > > by the time we called msync() ?
+> >
+> > The update must still happen, eventually, after a write to the mapped region
+> > followed by an unmap/close even if no msync is ever called.
+> >
+> > The msync only serves as a "no later than" deadline. The write to the region
+> > triggers the need for the update.
+> >
+> > At least this is how I read the standard - please feel free to correct me if I
+> > am mistaken.
+>
+> You are absolutely right.  If we wrote dirty pages to disk, the ctime
+> and mtime updates must happen no later than msync or close time.
+>
+> I guess a third possible time (if we want to minimize the number of
+> updates) would be when natural syncing of the file data to disk, by
+> other things in the VM, would be about to clear the I_DIRTY_PAGES
+> flag on the inode.  That way we do not need to remember any special
+> "we already flushed all dirty data, but we have not updated the mtime
+> and ctime yet" state.
+>
+> Does this sound reasonable?
 
-
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c	2008-01-03 12:26:42.000000000 -0800
-+++ linux-2.6/mm/slab.c	2008-01-09 15:59:49.000000000 -0800
-@@ -2977,7 +2977,10 @@ retry:
- 	}
- 	l3 = cachep->nodelists[node];
- 
--	BUG_ON(ac->avail > 0 || !l3);
-+	if (!l3)
-+		return NULL;
-+
-+	BUG_ON(ac->avail > 0);
- 	spin_lock(&l3->list_lock);
- 
- 	/* See if we can refill from the shared array */
-@@ -3224,7 +3227,7 @@ static void *alternate_node_alloc(struct
- 		nid_alloc = cpuset_mem_spread_node();
- 	else if (current->mempolicy)
- 		nid_alloc = slab_node(current->mempolicy);
--	if (nid_alloc != nid_here)
-+	if (nid_alloc != nid_here && node_state(nid_alloc, N_NORMAL_MEMORY))
- 		return ____cache_alloc_node(cachep, flags, nid_alloc);
- 	return NULL;
- }
-@@ -3439,8 +3442,14 @@ __do_cache_alloc(struct kmem_cache *cach
- 	 * We may just have run out of memory on the local node.
- 	 * ____cache_alloc_node() knows how to locate memory on other nodes
- 	 */
-- 	if (!objp)
-- 		objp = ____cache_alloc_node(cache, flags, numa_node_id());
-+ 	if (!objp) {
-+		int node_id = numa_node_id();
-+		if (likely(cache->nodelists[node_id])) /* fast path */
-+ 			objp = ____cache_alloc_node(cache, flags, node_id);
-+		else /* this function can do good fallback */
-+			objp = __cache_alloc_node(cache, flags, node_id,
-+					__builtin_return_address(0));
-+	}
- 
-   out:
- 	return objp;
+No, it doesn't. The msync() system call called with the MS_ASYNC flag
+should (the POSIX standard requires that) update the st_ctime and
+st_mtime stamps in the same manner as for the MS_SYNC flag. However,
+the current implementation of msync() doesn't call the do_fsync()
+function for the MS_ASYNC case. The msync() function may be called
+with the MS_ASYNC flag before "natural syncing".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
