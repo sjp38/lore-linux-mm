@@ -1,63 +1,104 @@
-Received: by wa-out-1112.google.com with SMTP id m33so786211wag.8
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2008 16:48:50 -0800 (PST)
-Message-ID: <4df4ef0c0801091648h76ef78fel5b04faafc2ed94df@mail.gmail.com>
-Date: Thu, 10 Jan 2008 03:48:49 +0300
-From: "Anton Salikhmetov" <salikhmetov@gmail.com>
-Subject: Re: [PATCH][RFC][BUG] updating the ctime and mtime time stamps in msync()
-In-Reply-To: <20080109170633.292644dc@cuia.boston.redhat.com>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m0A2Lke0014767
+	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 21:21:46 -0500
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m0A2LjxM477182
+	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 21:21:46 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m0A2Lil6002213
+	for <linux-mm@kvack.org>; Wed, 9 Jan 2008 21:21:45 -0500
+Date: Thu, 10 Jan 2008 07:51:33 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [patch 05/19] split LRU lists into anon & file sets
+Message-ID: <20080110022133.GC15547@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20080108205939.323955454@redhat.com> <20080108210002.638347207@redhat.com> <20080109134132.ba7bb33c.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-References: <1199728459.26463.11.camel@codedot>
-	 <20080109155015.4d2d4c1d@cuia.boston.redhat.com>
-	 <26932.1199912777@turing-police.cc.vt.edu>
-	 <20080109170633.292644dc@cuia.boston.redhat.com>
+In-Reply-To: <20080109134132.ba7bb33c.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Valdis.Kletnieks@vt.edu, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-2008/1/10, Rik van Riel <riel@redhat.com>:
-> On Wed, 09 Jan 2008 16:06:17 -0500
-> Valdis.Kletnieks@vt.edu wrote:
-> > On Wed, 09 Jan 2008 15:50:15 EST, Rik van Riel said:
-> >
-> > > Could you explain (using short words and simple sentences) what the
-> > > exact problem is?
-> >
-> > It's like this:
-> >
-> > Monday  9:04AM:  System boots, database server starts up, mmaps file
-> > Monday  9:06AM:  Database server writes to mmap area, updates mtime/ctime
-> > Monday <many times> Database server writes to mmap area, no further update..
-> > Monday 11:45PM:  Backup sees "file modified 9:06AM, let's back it up"
-> > Tuesday 9:00AM-5:00PM: Database server touches it another 5,398 times, no mtime
-> > Tuesday 11:45PM: Backup sees "file modified back on Monday, we backed this up..
-> > Wed  9:00AM-5:00PM: More updates, more not touching the mtime
-> > Wed  11:45PM: *yawn* It hasn't been touched in 2 days, no sense in backing it up..
-> >
-> > Lather, rinse, repeat....
->
-> On the other hand, updating the mtime and ctime whenever a page is dirtied
-> also does not work right.  Apparently that can break mutt.
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2008-01-09 13:41:32]:
 
-Please tell why you think that can break mutt? Such approach was
-suggested by Peter once and looks reasonable to me too.
+> I like this patch set thank you.
+> 
+> On Tue, 08 Jan 2008 15:59:44 -0500
+> Rik van Riel <riel@redhat.com> wrote:
+> > Index: linux-2.6.24-rc6-mm1/mm/memcontrol.c
+> > ===================================================================
+> > --- linux-2.6.24-rc6-mm1.orig/mm/memcontrol.c	2008-01-07 11:55:09.000000000 -0500
+> > +++ linux-2.6.24-rc6-mm1/mm/memcontrol.c	2008-01-07 17:32:53.000000000 -0500
+> <snip>
+> 
+> > -enum mem_cgroup_zstat_index {
+> > -	MEM_CGROUP_ZSTAT_ACTIVE,
+> > -	MEM_CGROUP_ZSTAT_INACTIVE,
+> > -
+> > -	NR_MEM_CGROUP_ZSTAT,
+> > -};
+> > -
+> >  struct mem_cgroup_per_zone {
+> >  	/*
+> >  	 * spin_lock to protect the per cgroup LRU
+> >  	 */
+> >  	spinlock_t		lru_lock;
+> > -	struct list_head	active_list;
+> > -	struct list_head	inactive_list;
+> > -	unsigned long count[NR_MEM_CGROUP_ZSTAT];
+> > +	struct list_head	lists[NR_LRU_LISTS];
+> > +	unsigned long		count[NR_LRU_LISTS];
+> >  };
+> >  /* Macro for accessing counter */
+> >  #define MEM_CGROUP_ZSTAT(mz, idx)	((mz)->count[(idx)])
+> > @@ -160,6 +152,7 @@ struct page_cgroup {
+> >  };
+> >  #define PAGE_CGROUP_FLAG_CACHE	(0x1)	/* charged as cache */
+> >  #define PAGE_CGROUP_FLAG_ACTIVE (0x2)	/* page is active in this cgroup */
+> > +#define PAGE_CGROUP_FLAG_FILE	(0x4)	/* page is file system backed */
+> > 
+> 
+> Now, we don't have control_type and a feature for accounting only CACHE.
+> Balbir-san, do you have some new plan ?
+>
 
->
-> Calling msync() every once in a while with Anton's patch does not look like a
-> fool proof method to me either, because the VM can write all the dirty pages
-> to disk by itself, leaving nothing for msync() to detect.  (I think...)
->
-> Can we get by with simply updating the ctime and mtime every time msync()
-> is called, regardless of whether or not the mmaped pages were still dirty
-> by the time we called msync() ?
->
-> --
-> All Rights Reversed
->
+Hi, KAMEZAWA-San,
+
+The control_type feature is gone. We still have cached page
+accounting, but we do not allow control of only RSS pages anymore. We
+need to control both RSS+cached pages. I do not understand your
+question about new plan? Is it about adding back control_type?
+
+ 
+> BTW, is it better to use PageSwapBacked(pc->page) rather than adding a new flag
+> PAGE_CGROUP_FLAG_FILE ?
+> 
+> 
+> PAGE_CGROUP_FLAG_ACTIVE is used because global reclaim can change
+> ACTIVE/INACTIVE attribute without accessing memory cgroup.
+> (Then, we cannot trust PageActive(pc->page))
+> 
+
+Yes, correct. A page active on the node's zone LRU need not be active
+in the memory cgroup.
+
+> ANON <-> FILE attribute can be changed dinamically (after added to LRU) ?
+> 
+> If no, using page_file_cache(pc->page) will be easy.
+> 
+> Thanks,
+> -Kame
+> 
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
