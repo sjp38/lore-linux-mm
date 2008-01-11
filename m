@@ -1,102 +1,63 @@
-Date: Thu, 10 Jan 2008 18:42:38 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: [PATCH] Remove set_migrateflags()
-Message-ID: <Pine.LNX.4.64.0801101841570.23644@schroedinger.engr.sgi.com>
+Date: Fri, 11 Jan 2008 12:59:31 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch 05/19] split LRU lists into anon & file sets
+In-Reply-To: <20080108210002.638347207@redhat.com>
+References: <20080108205939.323955454@redhat.com> <20080108210002.638347207@redhat.com>
+Message-Id: <20080111122225.FD59.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, mel@skynet.ie
+To: Rik van Riel <riel@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-set_migrateflagsi() sole purpose is to set migrate flags on slab allocations.
-However, the migrate flags must set on slab creation as agreed upon when the
-antifrag logic was reviewed. Otherwise some slabs of a slabcache will end up
-in the unmovable and others in the reclaimable section depending on what
-flags was active when a new slab was allocated.
+Hi Rik
 
-This likely slid in somehow when antifrag was merged. Remove it.
+> -static inline long mem_cgroup_calc_reclaim_inactive(struct mem_cgroup *mem,
+> -					struct zone *zone, int priority)
+> +static inline long mem_cgroup_calc_reclaim(struct mem_cgroup *mem,
+> +					struct zone *zone, int priority,
+> +					int active, int file)
+>  {
+>  	return 0;
+>  }
 
-The buffer_heads are always allocated with __GFP_RECLAIMABLE because
-the SLAB_RECLAIM_ACCOUNT option is set.
+it can't compile if memcgroup turn off.
 
-The set_migrateflags() never had any effect.
+because current mem_cgroup_calc_reclaim type is below.
 
-Radix tree allocations are not reclaimable. And thus setting __GFP_RECLAIMABLE
-is a bit strange. We could set SLAB_RECLAIM_ACCOUNT on radix tree slab
-creation if we want those to be placed in the reclaimable section.
-Then we are sure that the radix tree slabs are consistently placed in the
-reclaimable section and then the radix tree slabs will also be accounted as
-such.
+	long mem_cgroup_calc_reclaim(struct mem_cgroup *mem, struct zone *zone,
+				int priority, enum lru_list lru)
 
-The simple removal of set_migrateflags() here will place the allocations
-in the unmovable section.
+after patched below, it can compile.
+I hope you don't think unpleasant by a trivial point out.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+regard.
 
----
- fs/buffer.c         |    4 ++--
- include/linux/gfp.h |    6 ------
- lib/radix-tree.c    |    6 ++----
- 3 files changed, 4 insertions(+), 12 deletions(-)
+- kosaki
 
-Index: linux-2.6/fs/buffer.c
+
+Index: linux-2.6.24-rc6-mm1-rvr/include/linux/memcontrol.h
 ===================================================================
---- linux-2.6.orig/fs/buffer.c	2008-01-09 23:52:30.401723074 -0800
-+++ linux-2.6/fs/buffer.c	2008-01-10 18:24:08.000545183 -0800
-@@ -3169,8 +3169,8 @@ static void recalc_bh_state(void)
- 	
- struct buffer_head *alloc_buffer_head(gfp_t gfp_flags)
+--- linux-2.6.24-rc6-mm1-rvr.orig/include/linux/memcontrol.h    2008-01-11 11:10:16.000000000 +0900
++++ linux-2.6.24-rc6-mm1-rvr/include/linux/memcontrol.h 2008-01-11 12:08:29.000000000 +0900
+@@ -168,9 +168,8 @@
  {
--	struct buffer_head *ret = kmem_cache_zalloc(bh_cachep,
--				set_migrateflags(gfp_flags, __GFP_RECLAIMABLE));
-+	struct buffer_head *ret = kmem_cache_zalloc(bh_cachep, gfp_flags);
-+
- 	if (ret) {
- 		INIT_LIST_HEAD(&ret->b_assoc_buffers);
- 		get_cpu_var(bh_accounting).nr++;
-Index: linux-2.6/lib/radix-tree.c
-===================================================================
---- linux-2.6.orig/lib/radix-tree.c	2008-01-09 23:52:30.421723289 -0800
-+++ linux-2.6/lib/radix-tree.c	2008-01-10 00:18:22.913856382 -0800
-@@ -98,8 +98,7 @@ radix_tree_node_alloc(struct radix_tree_
- 	struct radix_tree_node *ret;
- 	gfp_t gfp_mask = root_gfp_mask(root);
- 
--	ret = kmem_cache_alloc(radix_tree_node_cachep,
--				set_migrateflags(gfp_mask, __GFP_RECLAIMABLE));
-+	ret = kmem_cache_alloc(radix_tree_node_cachep, gfp_mask);
- 	if (ret == NULL && !(gfp_mask & __GFP_WAIT)) {
- 		struct radix_tree_preload *rtp;
- 
-@@ -143,8 +142,7 @@ int radix_tree_preload(gfp_t gfp_mask)
- 	rtp = &__get_cpu_var(radix_tree_preloads);
- 	while (rtp->nr < ARRAY_SIZE(rtp->nodes)) {
- 		preempt_enable();
--		node = kmem_cache_alloc(radix_tree_node_cachep,
--				set_migrateflags(gfp_mask, __GFP_RECLAIMABLE));
-+		node = kmem_cache_alloc(radix_tree_node_cachep, gfp_mask);
- 		if (node == NULL)
- 			goto out;
- 		preempt_disable();
-Index: linux-2.6/include/linux/gfp.h
-===================================================================
---- linux-2.6.orig/include/linux/gfp.h	2008-01-10 18:21:19.543702140 -0800
-+++ linux-2.6/include/linux/gfp.h	2008-01-10 18:21:30.747757986 -0800
-@@ -144,12 +144,6 @@ static inline enum zone_type gfp_zone(gf
- 	return base + ZONE_NORMAL;
  }
- 
--static inline gfp_t set_migrateflags(gfp_t gfp, gfp_t migrate_flags)
--{
--	BUG_ON((gfp & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
--	return (gfp & ~(GFP_MOVABLE_MASK)) | migrate_flags;
--}
--
- /*
-  * There is only one page-allocator function, and two main namespaces to
-  * it. The alloc_page*() variants return 'struct page *' and as such
+
+-static inline long mem_cgroup_calc_reclaim(struct mem_cgroup *mem,
+-                                       struct zone *zone, int priority,
+-                                       int active, int file)
++static inline long mem_cgroup_calc_reclaim(struct mem_cgroup *mem, struct zone *zone,
++                                       int priority, enum lru_list lru)
+ {
+        return 0;
+ }
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
