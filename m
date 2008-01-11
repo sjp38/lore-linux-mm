@@ -1,63 +1,96 @@
-Message-ID: <47872CA7.40802@de.ibm.com>
-Date: Fri, 11 Jan 2008 09:45:27 +0100
-From: Carsten Otte <cotte@de.ibm.com>
-Reply-To: carsteno@de.ibm.com
-MIME-Version: 1.0
-Subject: Re: [rfc][patch 1/4] include: add callbacks to toggle reference counting
- for VM_MIXEDMAP pages
-References: <20071214133817.GB28555@wotan.suse.de> <476B9000.2090707@de.ibm.com> <20071221102052.GB28484@wotan.suse.de> <476B96D6.2010302@de.ibm.com> <20071221104701.GE28484@wotan.suse.de> <1199784954.25114.27.camel@cotte.boeblingen.de.ibm.com> <1199891032.28689.9.camel@cotte.boeblingen.de.ibm.com> <1199891645.28689.22.camel@cotte.boeblingen.de.ibm.com> <6934efce0801091017t7f9041abs62904de3722cadc@mail.gmail.com> <4785D064.1040501@de.ibm.com> <6934efce0801101201t72e9b7c4ra88d6fda0f08b1b2@mail.gmail.com>
-In-Reply-To: <6934efce0801101201t72e9b7c4ra88d6fda0f08b1b2@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Fri, 11 Jan 2008 01:44:09 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] fix hugetlbfs quota leak
+Message-Id: <20080111014409.004af347.akpm@linux-foundation.org>
+In-Reply-To: <b040c32a0801102224o54da2bfbk4a62b0cfe1d35f37@mail.gmail.com>
+References: <b040c32a0801102224o54da2bfbk4a62b0cfe1d35f37@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jared Hulbert <jaredeh@gmail.com>
-Cc: carsteno@de.ibm.com, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: Ken Chen <kenchen@google.com>
+Cc: Adam Litke <agl@us.ibm.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Jared Hulbert wrote:
->> I think you're looking for
->> pfn_has_struct_page_entry_for_it(), and that's different from the
->> original meaning described above.
-> 
-> Yes.  That's what I'm looking for.
-> 
-> Carsten,
-> 
-> I think I get the problem now.  You've been saying over and over, I
-> just didn't hear it.  We are not using the same assumptions for what
-> VM_MIXEDMAP means.
-> 
-> Look's like today most architectures just use pfn_valid() to see if a
-> pfn is in a valid RAM segment.  The assumption used in
-> vm_normal_page() is that valid_RAM == has_page_struct.  That's fine by
-> me for VM_MIXEDMAP because I'm only assuming 2 states a page can be
-> in: (1) page struct RAM (2) pfn only Flash memory ioremap()'ed in.
-> You are wanting to add a third: (3) valid RAM, pfn only mapping with
-> the ability to add a page struct when needed.
-> 
-> Is this right?
-About right. There are a few differences between "valid ram" and our 
-DCSS segments, but yes. Our segments are not present at system 
-startup, and can be "loaded" afterwards by hypercall. Thus, they're 
-not detected and initialized as regular memory.
-We have the option to add struct page entries for them. In case of 
-using the segment for xip, we don't want struct page entries and 
-rather prefer VM_MIXEDMAP, but with regular memory (with struct page) 
-being used after cow.
-The segments can either be exclusive for one Linux image, or shared 
-between multiple. And they can be read-only or read+write. A memory 
-store to a read-only segment would fail. For xip, we either use 
-"shared, read-only" or "exclusive, read+write".  I think in your 
-categories we're like
-(3) valid RAM that may be read-only, pfn only mapping, no struct page
+On Thu, 10 Jan 2008 22:24:12 -0800 "Ken Chen" <kenchen@google.com> wrote:
 
->> Jared, did you try this on arm?
+> In the error path of both shared and private hugetlb page allocation,
+> the file system quota is never undone, leading to fs quota leak.
+> Patch to fix them up.
 > 
-> No.  I'm not sure where we stand.  Shall I bother or do I wait for the
-> next patch?
-I guess we should wait for Nick's patch. He has already decided not to 
-go down this path.
+
+Thanks.
+
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 7224a4f..b2863f3 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -420,6 +420,8 @@ static struct page *alloc_huge_page_private(struct
+> vm_area_struct *vma,
+
+Your client is wordwrapping patches.
+
+
+>  	spin_unlock(&hugetlb_lock);
+>  	if (!page)
+>  		page = alloc_buddy_huge_page(vma, addr);
+> +	if (!page)
+> +		hugetlb_put_quota(vma->vm_file->f_mapping, 1);
+>  	return page ? page : ERR_PTR(-VM_FAULT_OOM);
+>  }
+
+The code was already fairly ugly and inefficient.  Let's improve that
+rather than worsening it?
+
+> @@ -1206,8 +1208,10 @@ int hugetlb_reserve_pages(struct inode *inode,
+> long from, long to)
+>  	if (hugetlb_get_quota(inode->i_mapping, chg))
+>  		return -ENOSPC;
+>  	ret = hugetlb_acct_memory(chg);
+> -	if (ret < 0)
+> +	if (ret < 0) {
+> +		hugetlb_put_quota(inode->i_mapping, chg);
+>  		return ret;
+> +	}
+>  	region_add(&inode->i_mapping->private_list, from, to);
+>  	return 0;
+>  }
+
+
+--- a/mm/hugetlb.c~hugetlbfs-fix-quota-leak
++++ a/mm/hugetlb.c
+@@ -418,9 +418,14 @@ static struct page *alloc_huge_page_priv
+ 	if (free_huge_pages > resv_huge_pages)
+ 		page = dequeue_huge_page(vma, addr);
+ 	spin_unlock(&hugetlb_lock);
+-	if (!page)
++	if (!page) {
+ 		page = alloc_buddy_huge_page(vma, addr);
+-	return page ? page : ERR_PTR(-VM_FAULT_OOM);
++		if (!page) {
++			hugetlb_put_quota(vma->vm_file->f_mapping, 1);
++			return ERR_PTR(-VM_FAULT_OOM);
++		}
++	}
++	return page;
+ }
+ 
+ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+@@ -1206,8 +1211,10 @@ int hugetlb_reserve_pages(struct inode *
+ 	if (hugetlb_get_quota(inode->i_mapping, chg))
+ 		return -ENOSPC;
+ 	ret = hugetlb_acct_memory(chg);
+-	if (ret < 0)
++	if (ret < 0) {
++		hugetlb_put_quota(inode->i_mapping, chg);
+ 		return ret;
++	}
+ 	region_add(&inode->i_mapping->private_list, from, to);
+ 	return 0;
+ }
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
