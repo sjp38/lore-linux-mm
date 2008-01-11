@@ -1,144 +1,173 @@
-Date: Thu, 10 Jan 2008 20:13:14 -0800 (PST)
+Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [150.166.1.51])
+	by relay1.corp.sgi.com (Postfix) with ESMTP id AD2B78F80F7
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2008 20:15:38 -0800 (PST)
+Received: from clameter (helo=localhost)
+	by schroedinger.engr.sgi.com with local-esmtp (Exim 3.36 #1 (Debian))
+	id 1JDBIw-0006Fa-00
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2008 20:15:38 -0800
+Date: Thu, 10 Jan 2008 20:15:38 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [PATCH] Eliminate the hot/cold distinction in the page allocator
-Message-ID: <Pine.LNX.4.64.0801102011340.23992@schroedinger.engr.sgi.com>
+Subject: [PATCH] Remove GFP_COLD
+Message-ID: <Pine.LNX.4.64.0801102015250.24029@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is on top of the patch that adds cold pages to the end of the pcp
-list. It drops all the distinctions between hot and cold pages which
-improves performance. See the discussion and the tests that Mel Gorman
-performed with this patch at
+On top of the patch that eliminates the hot/cold distinction:
 
-http://marc.info/?t=119507025400001&r=1&w=2
+There is no point in having GFP_COLD if we do not have a hot/cold distinction
+in the pcp lists. Remove __GFP_COLD and the use of page_cache_alloc_cold().
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
 ---
- include/linux/gfp.h |    3 +--
- mm/page_alloc.c     |   34 +++++++---------------------------
- mm/swap.c           |    2 +-
- 3 files changed, 9 insertions(+), 30 deletions(-)
+ fs/splice.c             |    2 +-
+ include/linux/gfp.h     |    1 -
+ include/linux/pagemap.h |    5 -----
+ include/linux/slab.h    |    3 ---
+ kernel/power/snapshot.c |    8 ++++----
+ mm/filemap.c            |    6 +++---
+ mm/readahead.c          |    2 +-
+ 7 files changed, 9 insertions(+), 18 deletions(-)
 
+Index: linux-2.6.24-rc6-mm1/fs/splice.c
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/fs/splice.c	2008-01-10 19:54:00.147655705 -0800
++++ linux-2.6.24-rc6-mm1/fs/splice.c	2008-01-10 19:54:16.483558860 -0800
+@@ -315,7 +315,7 @@ __generic_file_splice_read(struct file *
+ 			/*
+ 			 * page didn't exist, allocate one.
+ 			 */
+-			page = page_cache_alloc_cold(mapping);
++			page = page_cache_alloc(mapping);
+ 			if (!page)
+ 				break;
+ 
 Index: linux-2.6.24-rc6-mm1/include/linux/gfp.h
 ===================================================================
---- linux-2.6.24-rc6-mm1.orig/include/linux/gfp.h	2008-01-10 20:03:24.965516788 -0800
-+++ linux-2.6.24-rc6-mm1/include/linux/gfp.h	2008-01-10 20:08:12.117206294 -0800
-@@ -220,8 +220,7 @@ extern unsigned long FASTCALL(get_zeroed
- 
- extern void FASTCALL(__free_pages(struct page *page, unsigned int order));
- extern void FASTCALL(free_pages(unsigned long addr, unsigned int order));
--extern void FASTCALL(free_hot_page(struct page *page));
--extern void FASTCALL(free_cold_page(struct page *page));
-+extern void FASTCALL(free_a_page(struct page *page));
- 
- #define __free_page(page) __free_pages((page), 0)
- #define free_page(addr) free_pages((addr),0)
-Index: linux-2.6.24-rc6-mm1/mm/page_alloc.c
+--- linux-2.6.24-rc6-mm1.orig/include/linux/gfp.h	2008-01-10 19:54:00.155655612 -0800
++++ linux-2.6.24-rc6-mm1/include/linux/gfp.h	2008-01-10 19:54:16.483558860 -0800
+@@ -38,7 +38,6 @@ struct vm_area_struct;
+ #define __GFP_HIGH	((__force gfp_t)0x20u)	/* Should access emergency pools? */
+ #define __GFP_IO	((__force gfp_t)0x40u)	/* Can start physical IO? */
+ #define __GFP_FS	((__force gfp_t)0x80u)	/* Can call down to low-level FS? */
+-#define __GFP_COLD	((__force gfp_t)0x100u)	/* Cache-cold page required */
+ #define __GFP_NOWARN	((__force gfp_t)0x200u)	/* Suppress page allocation failure warning */
+ #define __GFP_REPEAT	((__force gfp_t)0x400u)	/* Retry the allocation.  Might fail */
+ #define __GFP_NOFAIL	((__force gfp_t)0x800u)	/* Retry for ever.  Cannot fail */
+Index: linux-2.6.24-rc6-mm1/include/linux/pagemap.h
 ===================================================================
---- linux-2.6.24-rc6-mm1.orig/mm/page_alloc.c	2008-01-10 20:03:24.977516887 -0800
-+++ linux-2.6.24-rc6-mm1/mm/page_alloc.c	2008-01-10 20:03:28.169508169 -0800
-@@ -993,7 +993,7 @@ void mark_free_pages(struct zone *zone)
- /*
-  * Free a 0-order page
-  */
--static void free_hot_cold_page(struct page *page, int cold)
-+void free_a_page(struct page *page)
- {
- 	struct zone *zone = page_zone(page);
- 	struct per_cpu_pages *pcp;
-@@ -1013,10 +1013,7 @@ static void free_hot_cold_page(struct pa
- 	pcp = &zone_pcp(zone, get_cpu())->pcp;
- 	local_irq_save(flags);
- 	__count_vm_event(PGFREE);
--	if (cold)
--		list_add_tail(&page->lru, &pcp->list);
--	else
--		list_add(&page->lru, &pcp->list);
-+	list_add(&page->lru, &pcp->list);
- 	set_page_private(page, get_pageblock_migratetype(page));
- 	pcp->count++;
- 	if (pcp->count >= pcp->high) {
-@@ -1027,16 +1024,6 @@ static void free_hot_cold_page(struct pa
- 	put_cpu();
+--- linux-2.6.24-rc6-mm1.orig/include/linux/pagemap.h	2008-01-10 19:54:00.167655710 -0800
++++ linux-2.6.24-rc6-mm1/include/linux/pagemap.h	2008-01-10 19:54:16.487558716 -0800
+@@ -76,11 +76,6 @@ static inline struct page *page_cache_al
+ 	return __page_cache_alloc(mapping_gfp_mask(x));
  }
  
--void free_hot_page(struct page *page)
+-static inline struct page *page_cache_alloc_cold(struct address_space *x)
 -{
--	free_hot_cold_page(page, 0);
--}
--	
--void free_cold_page(struct page *page)
--{
--	free_hot_cold_page(page, 1);
+-	return __page_cache_alloc(mapping_gfp_mask(x)|__GFP_COLD);
 -}
 -
- /*
-  * split_page takes a non-compound higher-order page, and splits it into
-  * n (1<<order) sub-pages: page[0..n]
-@@ -1065,7 +1052,6 @@ static struct page *buffered_rmqueue(str
- {
- 	unsigned long flags;
- 	struct page *page;
--	int cold = !!(gfp_flags & __GFP_COLD);
- 	int cpu;
- 	int migratetype = allocflags_to_migratetype(gfp_flags);
+ typedef int filler_t(void *, struct page *);
  
-@@ -1084,15 +1070,9 @@ again:
- 		}
- 
- 		/* Find a page of the appropriate migrate type */
--		if (cold) {
--			list_for_each_entry_reverse(page, &pcp->list, lru)
--				if (page_private(page) == migratetype)
--					break;
--		} else {
--			list_for_each_entry(page, &pcp->list, lru)
--				if (page_private(page) == migratetype)
--					break;
--		}
-+		list_for_each_entry(page, &pcp->list, lru)
-+			if (page_private(page) == migratetype)
-+				break;
- 
- 		/* Allocate more to the pcp list if necessary */
- 		if (unlikely(&page->lru == &pcp->list)) {
-@@ -1755,14 +1735,14 @@ void __pagevec_free(struct pagevec *pvec
- 	int i = pagevec_count(pvec);
- 
- 	while (--i >= 0)
--		free_hot_cold_page(pvec->pages[i], pvec->cold);
-+		free_a_page(pvec->pages[i]);
- }
- 
- void __free_pages(struct page *page, unsigned int order)
- {
- 	if (put_page_testzero(page)) {
- 		if (order == 0)
--			free_hot_page(page);
-+			free_a_page(page);
- 		else
- 			__free_pages_ok(page, order);
- 	}
-Index: linux-2.6.24-rc6-mm1/mm/swap.c
+ extern struct page * find_get_page(struct address_space *mapping,
+Index: linux-2.6.24-rc6-mm1/include/linux/slab.h
 ===================================================================
---- linux-2.6.24-rc6-mm1.orig/mm/swap.c	2008-01-10 20:07:59.497196870 -0800
-+++ linux-2.6.24-rc6-mm1/mm/swap.c	2008-01-10 20:08:12.117206294 -0800
-@@ -54,7 +54,7 @@ static void __page_cache_release(struct 
- 		del_page_from_lru(zone, page);
- 		spin_unlock_irqrestore(&zone->lru_lock, flags);
- 	}
--	free_hot_page(page);
-+	free_a_page(page);
+--- linux-2.6.24-rc6-mm1.orig/include/linux/slab.h	2008-01-10 19:54:00.179655299 -0800
++++ linux-2.6.24-rc6-mm1/include/linux/slab.h	2008-01-10 19:54:16.487558716 -0800
+@@ -154,9 +154,6 @@ size_t ksize(const void *);
+  * Also it is possible to set different flags by OR'ing
+  * in one or more of the following additional @flags:
+  *
+- * %__GFP_COLD - Request cache-cold pages instead of
+- *   trying to return cache-warm pages.
+- *
+  * %__GFP_HIGH - This allocation has high priority and may use emergency pools.
+  *
+  * %__GFP_NOFAIL - Indicate that this allocation is in no way allowed to fail
+Index: linux-2.6.24-rc6-mm1/kernel/power/snapshot.c
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/kernel/power/snapshot.c	2008-01-10 19:54:00.191655644 -0800
++++ linux-2.6.24-rc6-mm1/kernel/power/snapshot.c	2008-01-10 19:54:16.487558716 -0800
+@@ -1102,7 +1102,7 @@ static int enough_free_mem(unsigned int 
+ 
+ static inline int get_highmem_buffer(int safe_needed)
+ {
+-	buffer = get_image_page(GFP_ATOMIC | __GFP_COLD, safe_needed);
++	buffer = get_image_page(GFP_ATOMIC, safe_needed);
+ 	return buffer ? 0 : -ENOMEM;
  }
  
- static void put_compound_page(struct page *page)
+@@ -1154,11 +1154,11 @@ swsusp_alloc(struct memory_bitmap *orig_
+ {
+ 	int error;
+ 
+-	error = memory_bm_create(orig_bm, GFP_ATOMIC | __GFP_COLD, PG_ANY);
++	error = memory_bm_create(orig_bm, GFP_ATOMIC, PG_ANY);
+ 	if (error)
+ 		goto Free;
+ 
+-	error = memory_bm_create(copy_bm, GFP_ATOMIC | __GFP_COLD, PG_ANY);
++	error = memory_bm_create(copy_bm, GFP_ATOMIC, PG_ANY);
+ 	if (error)
+ 		goto Free;
+ 
+@@ -1170,7 +1170,7 @@ swsusp_alloc(struct memory_bitmap *orig_
+ 		nr_pages += alloc_highmem_image_pages(copy_bm, nr_highmem);
+ 	}
+ 	while (nr_pages-- > 0) {
+-		struct page *page = alloc_image_page(GFP_ATOMIC | __GFP_COLD);
++		struct page *page = alloc_image_page(GFP_ATOMIC);
+ 
+ 		if (!page)
+ 			goto Free;
+Index: linux-2.6.24-rc6-mm1/mm/readahead.c
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/mm/readahead.c	2008-01-10 19:54:00.203655220 -0800
++++ linux-2.6.24-rc6-mm1/mm/readahead.c	2008-01-10 19:54:16.487558716 -0800
+@@ -153,7 +153,7 @@ __do_page_cache_readahead(struct address
+ 		if (page)
+ 			continue;
+ 
+-		page = page_cache_alloc_cold(mapping);
++		page = page_cache_alloc(mapping);
+ 		if (!page)
+ 			break;
+ 		page->index = page_offset;
+Index: linux-2.6.24-rc6-mm1/mm/filemap.c
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/mm/filemap.c	2008-01-10 19:54:00.215655465 -0800
++++ linux-2.6.24-rc6-mm1/mm/filemap.c	2008-01-10 19:54:16.487558716 -0800
+@@ -1067,7 +1067,7 @@ no_cached_page:
+ 		 * Ok, it wasn't cached, so we need to create a new
+ 		 * page..
+ 		 */
+-		page = page_cache_alloc_cold(mapping);
++		page = page_cache_alloc(mapping);
+ 		if (!page) {
+ 			desc->error = -ENOMEM;
+ 			goto out;
+@@ -1295,7 +1295,7 @@ static int page_cache_read(struct file *
+ 	int ret;
+ 
+ 	do {
+-		page = page_cache_alloc_cold(mapping);
++		page = page_cache_alloc(mapping);
+ 		if (!page)
+ 			return -ENOMEM;
+ 
+@@ -1529,7 +1529,7 @@ static struct page *__read_cache_page(st
+ repeat:
+ 	page = find_get_page(mapping, index);
+ 	if (!page) {
+-		page = page_cache_alloc_cold(mapping);
++		page = page_cache_alloc(mapping);
+ 		if (!page)
+ 			return ERR_PTR(-ENOMEM);
+ 		err = add_to_page_cache_lru(page, mapping, index, GFP_KERNEL);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
