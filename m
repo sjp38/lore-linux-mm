@@ -1,58 +1,48 @@
-Received: from zps19.corp.google.com (zps19.corp.google.com [172.25.146.19])
-	by smtp-out.google.com with ESMTP id m0B6ODhD012456
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2008 06:24:14 GMT
-Received: from wa-out-1112.google.com (wahj4.prod.google.com [10.114.236.4])
-	by zps19.corp.google.com with ESMTP id m0B6Nrv1028249
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2008 22:24:12 -0800
-Received: by wa-out-1112.google.com with SMTP id j4so1714718wah.1
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2008 22:24:12 -0800 (PST)
-Message-ID: <b040c32a0801102224o54da2bfbk4a62b0cfe1d35f37@mail.gmail.com>
-Date: Thu, 10 Jan 2008 22:24:12 -0800
-From: "Ken Chen" <kenchen@google.com>
-Subject: [patch] fix hugetlbfs quota leak
+Date: Fri, 11 Jan 2008 15:24:34 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch 05/19] split LRU lists into anon & file sets
+In-Reply-To: <20080108210002.638347207@redhat.com>
+References: <20080108205939.323955454@redhat.com> <20080108210002.638347207@redhat.com>
+Message-Id: <20080111143627.FD64.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Adam Litke <agl@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-In the error path of both shared and private hugetlb page allocation,
-the file system quota is never undone, leading to fs quota leak.
-Patch to fix them up.
+Hi Rik
 
-Signed-off-by: Ken Chen <kenchen@google.com>
+> +static inline int is_file_lru(enum lru_list l)
+> +{
+> +	BUILD_BUG_ON(LRU_INACTIVE_FILE != 2 || LRU_ACTIVE_FILE != 3);
+> +	return (l/2 == 1);
+> +}
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 7224a4f..b2863f3 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -420,6 +420,8 @@ static struct page *alloc_huge_page_private(struct
-vm_area_struct *vma,
- 	spin_unlock(&hugetlb_lock);
- 	if (!page)
- 		page = alloc_buddy_huge_page(vma, addr);
-+	if (!page)
-+		hugetlb_put_quota(vma->vm_file->f_mapping, 1);
- 	return page ? page : ERR_PTR(-VM_FAULT_OOM);
+below patch is a bit cleanup proposal.
+i think LRU_FILE is more clarify than "/2".
+
+What do you think it?
+
+
+
+Index: linux-2.6.24-rc6-mm1-rvr/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.24-rc6-mm1-rvr.orig/include/linux/mmzone.h        2008-01-11 11:10:30.000000000 +0900
++++ linux-2.6.24-rc6-mm1-rvr/include/linux/mmzone.h     2008-01-11 14:40:31.000000000 +0900
+@@ -147,7 +147,7 @@
+ static inline int is_file_lru(enum lru_list l)
+ {
+        BUILD_BUG_ON(LRU_INACTIVE_FILE != 2 || LRU_ACTIVE_FILE != 3);
+-       return (l/2 == 1);
++       return !!(l & LRU_FILE);
  }
 
-@@ -1206,8 +1208,10 @@ int hugetlb_reserve_pages(struct inode *inode,
-long from, long to)
- 	if (hugetlb_get_quota(inode->i_mapping, chg))
- 		return -ENOSPC;
- 	ret = hugetlb_acct_memory(chg);
--	if (ret < 0)
-+	if (ret < 0) {
-+		hugetlb_put_quota(inode->i_mapping, chg);
- 		return ret;
-+	}
- 	region_add(&inode->i_mapping->private_list, from, to);
- 	return 0;
- }
+ struct per_cpu_pages {
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
