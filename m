@@ -1,82 +1,162 @@
-Date: Sun, 13 Jan 2008 03:44:10 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch 1/4] include: add callbacks to toggle reference counting for VM_MIXEDMAP pages
-Message-ID: <20080113024410.GA22285@wotan.suse.de>
-References: <20071221102052.GB28484@wotan.suse.de> <476B96D6.2010302@de.ibm.com> <20071221104701.GE28484@wotan.suse.de> <1199784954.25114.27.camel@cotte.boeblingen.de.ibm.com> <1199891032.28689.9.camel@cotte.boeblingen.de.ibm.com> <1199891645.28689.22.camel@cotte.boeblingen.de.ibm.com> <6934efce0801091017t7f9041abs62904de3722cadc@mail.gmail.com> <4785D064.1040501@de.ibm.com> <6934efce0801101201t72e9b7c4ra88d6fda0f08b1b2@mail.gmail.com> <47872CA7.40802@de.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <47872CA7.40802@de.ibm.com>
+From: Anton Salikhmetov <salikhmetov@gmail.com>
+Subject: [PATCH 1/2] massive code cleanup of sys_msync()
+Date: Sun, 13 Jan 2008 07:39:58 +0300
+Message-Id: <12001992013606-git-send-email-salikhmetov@gmail.com>
+In-Reply-To: <12001991991217-git-send-email-salikhmetov@gmail.com>
+References: <12001991991217-git-send-email-salikhmetov@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: carsteno@de.ibm.com
-Cc: Jared Hulbert <jaredeh@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 11, 2008 at 09:45:27AM +0100, Carsten Otte wrote:
-> Jared Hulbert wrote:
-> >>I think you're looking for
-> >>pfn_has_struct_page_entry_for_it(), and that's different from the
-> >>original meaning described above.
-> >
-> >Yes.  That's what I'm looking for.
-> >
-> >Carsten,
-> >
-> >I think I get the problem now.  You've been saying over and over, I
-> >just didn't hear it.  We are not using the same assumptions for what
-> >VM_MIXEDMAP means.
-> >
-> >Look's like today most architectures just use pfn_valid() to see if a
-> >pfn is in a valid RAM segment.  The assumption used in
-> >vm_normal_page() is that valid_RAM == has_page_struct.  That's fine by
-> >me for VM_MIXEDMAP because I'm only assuming 2 states a page can be
-> >in: (1) page struct RAM (2) pfn only Flash memory ioremap()'ed in.
-> >You are wanting to add a third: (3) valid RAM, pfn only mapping with
-> >the ability to add a page struct when needed.
-> >
-> >Is this right?
-> About right. There are a few differences between "valid ram" and our 
-> DCSS segments, but yes. Our segments are not present at system 
-> startup, and can be "loaded" afterwards by hypercall. Thus, they're 
-> not detected and initialized as regular memory.
-> We have the option to add struct page entries for them. In case of 
-> using the segment for xip, we don't want struct page entries and 
-> rather prefer VM_MIXEDMAP, but with regular memory (with struct page) 
-> being used after cow.
+Substantial code cleanup of the sys_msync() function:
 
-You know that pfn_valid() can be changed at runtime depending on what
-your intentions are for that page. It can remain false if you don't
-want struct pages for it, then you can switch a flag...
+1) using the PAGE_ALIGN() macro instead of "manual" alignment;
+2) improved readability of the loop traversing the process memory regions.
 
+Signed-off-by: Anton Salikhmetov <salikhmetov@gmail.com>
+---
+ mm/msync.c |   78 +++++++++++++++++++++++++++---------------------------------
+ 1 files changed, 35 insertions(+), 43 deletions(-)
 
-> >>Jared, did you try this on arm?
-> >
-> >No.  I'm not sure where we stand.  Shall I bother or do I wait for the
-> >next patch?
-> I guess we should wait for Nick's patch. He has already decided not to 
-> go down this path.
-
-I've just been looking at putting everything together (including the
-pte_special patch). I still hit one problem with your required modification
-to the filemap_xip patch.
-
-You need to unconditionally do a vm_insert_pfn in xip_file_fault, and rely
-on the pte bit to tell the rest of the VM that the page has not been
-refcounted. For architectures without such a bit, this breaks VM_MIXEDMAP,
-because it relies on testing pfn_valid() rather than a pte bit here.
-We can go 2 ways here: either s390 can make pfn_valid() work like we'd
-like; or we can have a vm_insert_mixedmap_pfn(), which has
-#ifdef __HAVE_ARCH_PTE_SPECIAL
-in order to do the right thing (ie. those architectures which do have pte
-special can just do vm_insert_pfn, and those that don't will either do a
-vm_insert_pfn or vm_insert_page depending on the result of pfn_valid).
-
-The latter I guess is more efficient for those that do implement pte_special,
-however if anything I would rather investigate that as an incremental patch
-after the basics are working. It would also break the dependency of the
-xip stuff on the pte_special patch, and basically make everything much
-more likely to get merged IMO.
+diff --git a/mm/msync.c b/mm/msync.c
+index 144a757..ff654c9 100644
+--- a/mm/msync.c
++++ b/mm/msync.c
+@@ -1,24 +1,25 @@
+ /*
+  *	linux/mm/msync.c
+  *
++ * The msync() system call.
+  * Copyright (C) 1994-1999  Linus Torvalds
++ *
++ * Substantial code cleanup.
++ * Copyright (C) 2008 Anton Salikhmetov <salikhmetov@gmail.com>
+  */
+ 
+-/*
+- * The msync() system call.
+- */
++#include <linux/file.h>
+ #include <linux/fs.h>
+ #include <linux/mm.h>
+ #include <linux/mman.h>
+-#include <linux/file.h>
+-#include <linux/syscalls.h>
+ #include <linux/sched.h>
++#include <linux/syscalls.h>
+ 
+ /*
+  * MS_SYNC syncs the entire file - including mappings.
+  *
+  * MS_ASYNC does not start I/O (it used to, up to 2.5.67).
+- * Nor does it marks the relevant pages dirty (it used to up to 2.6.17).
++ * Nor does it mark the relevant pages dirty (it used to up to 2.6.17).
+  * Now it doesn't do anything, since dirty pages are properly tracked.
+  *
+  * The application may now run fsync() to
+@@ -33,71 +34,62 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
+ 	unsigned long end;
+ 	struct mm_struct *mm = current->mm;
+ 	struct vm_area_struct *vma;
+-	int unmapped_error = 0;
+-	int error = -EINVAL;
++	int error = 0, unmapped_error = 0;
+ 
+ 	if (flags & ~(MS_ASYNC | MS_INVALIDATE | MS_SYNC))
+-		goto out;
++		return -EINVAL;
+ 	if (start & ~PAGE_MASK)
+-		goto out;
++		return -EINVAL;
+ 	if ((flags & MS_ASYNC) && (flags & MS_SYNC))
+-		goto out;
+-	error = -ENOMEM;
+-	len = (len + ~PAGE_MASK) & PAGE_MASK;
++		return -EINVAL;
++
++	len = PAGE_ALIGN(len);
+ 	end = start + len;
+ 	if (end < start)
+-		goto out;
+-	error = 0;
++		return -ENOMEM;
+ 	if (end == start)
+-		goto out;
++		return 0;
++
+ 	/*
+ 	 * If the interval [start,end) covers some unmapped address ranges,
+ 	 * just ignore them, but return -ENOMEM at the end.
+ 	 */
+ 	down_read(&mm->mmap_sem);
+ 	vma = find_vma(mm, start);
+-	for (;;) {
++	do {
+ 		struct file *file;
+ 
+-		/* Still start < end. */
+-		error = -ENOMEM;
+-		if (!vma)
+-			goto out_unlock;
+-		/* Here start < vma->vm_end. */
++		if (!vma) {
++			error = -ENOMEM;
++			break;
++		}
+ 		if (start < vma->vm_start) {
+ 			start = vma->vm_start;
+-			if (start >= end)
+-				goto out_unlock;
++			if (start >= end) {
++				error = -ENOMEM;
++				break;
++			}
+ 			unmapped_error = -ENOMEM;
+ 		}
+-		/* Here vma->vm_start <= start < vma->vm_end. */
+-		if ((flags & MS_INVALIDATE) &&
+-				(vma->vm_flags & VM_LOCKED)) {
++		if ((flags & MS_INVALIDATE) && (vma->vm_flags & VM_LOCKED)) {
+ 			error = -EBUSY;
+-			goto out_unlock;
++			break;
+ 		}
+ 		file = vma->vm_file;
+-		start = vma->vm_end;
+-		if ((flags & MS_SYNC) && file &&
+-				(vma->vm_flags & VM_SHARED)) {
++		if ((flags & MS_SYNC) && file && (vma->vm_flags & VM_SHARED)) {
+ 			get_file(file);
+ 			up_read(&mm->mmap_sem);
+ 			error = do_fsync(file, 0);
+ 			fput(file);
+-			if (error || start >= end)
+-				goto out;
++			if (error)
++				return error;
+ 			down_read(&mm->mmap_sem);
+-			vma = find_vma(mm, start);
+-		} else {
+-			if (start >= end) {
+-				error = 0;
+-				goto out_unlock;
+-			}
+-			vma = vma->vm_next;
+ 		}
+-	}
+-out_unlock:
++
++		start = vma->vm_end;
++		vma = vma->vm_next;
++	} while (start < end);
+ 	up_read(&mm->mmap_sem);
+-out:
++
+ 	return error ? : unmapped_error;
+ }
+-- 
+1.4.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
