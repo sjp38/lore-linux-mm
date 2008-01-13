@@ -1,192 +1,162 @@
-Message-Id: <20080113183454.551029000@sgi.com>
+Message-Id: <20080113183455.340175000@sgi.com>
 References: <20080113183453.973425000@sgi.com>
-Date: Sun, 13 Jan 2008 10:34:57 -0800
+Date: Sun, 13 Jan 2008 10:35:03 -0800
 From: travis@sgi.com
-Subject: [PATCH 04/10] x86: Change NR_CPUS arrays in intel_cacheinfo
-Content-Disposition: inline; filename=NR_CPUS-arrays-in-intel_cacheinfo
+Subject: [PATCH 10/10] x86: Change bios_cpu_apicid to percpu data variable
+Content-Disposition: inline; filename=change-bios_cpu_apicid-to-percpu
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu
 Cc: Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Change the following static arrays sized by NR_CPUS to
-per_cpu data variables:
+Change static bios_cpu_apicid array to a per_cpu data variable.
+This includes using a static array used during initialization
+similar to the way x86_cpu_to_apicid[] is handled.
 
-	_cpuid4_info *cpuid4_info[NR_CPUS];
-	_index_kobject *index_kobject[NR_CPUS];
-	kobject * cache_kobject[NR_CPUS];
+There is one early use of bios_cpu_apicid in apic_is_clustered_box().
+The other reference in cpu_present_to_apicid() is called after
+smp_set_apicids() has setup the percpu version of bios_cpu_apicid.
+
 
 Signed-off-by: Mike Travis <travis@sgi.com>
 Reviewed-by: Christoph Lameter <clameter@sgi.com>
 ---
- arch/x86/kernel/cpu/intel_cacheinfo.c |   55 +++++++++++++++++-----------------
- 1 file changed, 29 insertions(+), 26 deletions(-)
+ arch/x86/kernel/apic_64.c    |   16 ++++++++++++++--
+ arch/x86/kernel/mpparse_64.c |   17 ++++++++++++-----
+ arch/x86/kernel/setup_64.c   |    1 +
+ arch/x86/kernel/smpboot_64.c |    3 +++
+ include/asm-x86/smp_64.h     |    8 +++++---
+ 5 files changed, 35 insertions(+), 10 deletions(-)
 
---- a/arch/x86/kernel/cpu/intel_cacheinfo.c
-+++ b/arch/x86/kernel/cpu/intel_cacheinfo.c
-@@ -451,8 +451,8 @@ unsigned int __cpuinit init_intel_cachei
- }
+--- a/arch/x86/kernel/apic_64.c
++++ b/arch/x86/kernel/apic_64.c
+@@ -1155,14 +1155,26 @@ __cpuinit int apic_is_clustered_box(void
+ 	bitmap_zero(clustermap, NUM_APIC_CLUSTERS);
  
- /* pointer to _cpuid4_info array (for each cache leaf) */
--static struct _cpuid4_info *cpuid4_info[NR_CPUS];
--#define CPUID4_INFO_IDX(x,y)    (&((cpuid4_info[x])[y]))
-+static DEFINE_PER_CPU(struct _cpuid4_info *, cpuid4_info);
-+#define CPUID4_INFO_IDX(x,y)    (&((per_cpu(cpuid4_info, x))[y]))
- 
- #ifdef CONFIG_SMP
- static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
-@@ -474,7 +474,7 @@ static void __cpuinit cache_shared_cpu_m
- 			if (cpu_data(i).apicid >> index_msb ==
- 			    c->apicid >> index_msb) {
- 				cpu_set(i, this_leaf->shared_cpu_map);
--				if (i != cpu && cpuid4_info[i])  {
-+				if (i != cpu && per_cpu(cpuid4_info, i))  {
- 					sibling_leaf = CPUID4_INFO_IDX(i, index);
- 					cpu_set(cpu, sibling_leaf->shared_cpu_map);
- 				}
-@@ -505,8 +505,8 @@ static void __cpuinit free_cache_attribu
- 	for (i = 0; i < num_cache_leaves; i++)
- 		cache_remove_shared_cpu_map(cpu, i);
- 
--	kfree(cpuid4_info[cpu]);
--	cpuid4_info[cpu] = NULL;
-+	kfree(per_cpu(cpuid4_info, cpu));
-+	per_cpu(cpuid4_info, cpu) = NULL;
- }
- 
- static int __cpuinit detect_cache_attributes(unsigned int cpu)
-@@ -519,9 +519,9 @@ static int __cpuinit detect_cache_attrib
- 	if (num_cache_leaves == 0)
- 		return -ENOENT;
- 
--	cpuid4_info[cpu] = kzalloc(
-+	per_cpu(cpuid4_info, cpu) = kzalloc(
- 	    sizeof(struct _cpuid4_info) * num_cache_leaves, GFP_KERNEL);
--	if (cpuid4_info[cpu] == NULL)
-+	if (per_cpu(cpuid4_info, cpu) == NULL)
- 		return -ENOMEM;
- 
- 	oldmask = current->cpus_allowed;
-@@ -546,8 +546,8 @@ static int __cpuinit detect_cache_attrib
- 
- out:
- 	if (retval) {
--		kfree(cpuid4_info[cpu]);
--		cpuid4_info[cpu] = NULL;
-+		kfree(per_cpu(cpuid4_info, cpu));
-+		per_cpu(cpuid4_info, cpu) = NULL;
+ 	for (i = 0; i < NR_CPUS; i++) {
+-		id = bios_cpu_apicid[i];
++		/* are we being called early in kernel startup? */
++		if (x86_bios_cpu_apicid_early_ptr) {
++			id = ((u16 *)x86_bios_cpu_apicid_early_ptr)[i];
++		}
++		else if (i < nr_cpu_ids) {
++			if (cpu_present(i))
++				id = per_cpu(x86_bios_cpu_apicid, i);
++			else
++				continue;
++		}
++		else
++			break;
++
+ 		if (id != BAD_APICID)
+ 			__set_bit(APIC_CLUSTERID(id), clustermap);
  	}
  
- 	return retval;
-@@ -561,7 +561,7 @@ out:
- extern struct sysdev_class cpu_sysdev_class; /* from drivers/base/cpu.c */
+ 	/* Problem:  Partially populated chassis may not have CPUs in some of
+ 	 * the APIC clusters they have been allocated.  Only present CPUs have
+-	 * bios_cpu_apicid entries, thus causing zeroes in the bitmap.  Since
++	 * x86_bios_cpu_apicid entries, thus causing zeroes in the bitmap.  Since
+ 	 * clusters are allocated sequentially, count zeros only if they are
+ 	 * bounded by ones.
+ 	 */
+--- a/arch/x86/kernel/mpparse_64.c
++++ b/arch/x86/kernel/mpparse_64.c
+@@ -67,7 +67,11 @@ unsigned disabled_cpus __cpuinitdata;
+ /* Bitmask of physically existing CPUs */
+ physid_mask_t phys_cpu_present_map = PHYSID_MASK_NONE;
  
- /* pointer to kobject for cpuX/cache */
--static struct kobject * cache_kobject[NR_CPUS];
-+static DEFINE_PER_CPU(struct kobject *, cache_kobject);
+-u16 bios_cpu_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
++u16 x86_bios_cpu_apicid_init[NR_CPUS] __initdata
++				= { [0 ... NR_CPUS-1] = BAD_APICID };
++void *x86_bios_cpu_apicid_early_ptr;
++DEFINE_PER_CPU(u16, x86_bios_cpu_apicid) = BAD_APICID;
++EXPORT_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
  
- struct _index_kobject {
- 	struct kobject kobj;
-@@ -570,8 +570,8 @@ struct _index_kobject {
- };
  
- /* pointer to array of kobjects for cpuX/cache/indexY */
--static struct _index_kobject *index_kobject[NR_CPUS];
--#define INDEX_KOBJECT_PTR(x,y)    (&((index_kobject[x])[y]))
-+static DEFINE_PER_CPU(struct _index_kobject *, index_kobject);
-+#define INDEX_KOBJECT_PTR(x,y)    (&((per_cpu(index_kobject, x))[y]))
+ /*
+@@ -118,19 +122,22 @@ static void __cpuinit MP_processor_info(
+ 	physid_set(m->mpc_apicid, phys_cpu_present_map);
+  	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
+  		/*
+- 		 * bios_cpu_apicid is required to have processors listed
++ 		 * x86_bios_cpu_apicid is required to have processors listed
+  		 * in same order as logical cpu numbers. Hence the first
+  		 * entry is BSP, and so on.
+  		 */
+ 		cpu = 0;
+  	}
+-	bios_cpu_apicid[cpu] = m->mpc_apicid;
+ 	/* are we being called early in kernel startup? */
+ 	if (x86_cpu_to_apicid_early_ptr) {
+-		u16 *x86_cpu_to_apicid = (u16 *)x86_cpu_to_apicid_early_ptr;
+-		x86_cpu_to_apicid[cpu] = m->mpc_apicid;
++		u16 *cpu_to_apicid = (u16 *)x86_cpu_to_apicid_early_ptr;
++		u16 *bios_cpu_apicid = (u16 *)x86_bios_cpu_apicid_early_ptr;
++
++		cpu_to_apicid[cpu] = m->mpc_apicid;
++		bios_cpu_apicid[cpu] = m->mpc_apicid;
+ 	} else {
+ 		per_cpu(x86_cpu_to_apicid, cpu) = m->mpc_apicid;
++		per_cpu(x86_bios_cpu_apicid, cpu) = m->mpc_apicid;
+ 	}
  
- #define show_one_plus(file_name, object, val)				\
- static ssize_t show_##file_name						\
-@@ -684,10 +684,10 @@ static struct kobj_type ktype_percpu_ent
+ 	cpu_set(cpu, cpu_possible_map);
+--- a/arch/x86/kernel/setup_64.c
++++ b/arch/x86/kernel/setup_64.c
+@@ -376,6 +376,7 @@ void __init setup_arch(char **cmdline_p)
+ 	/* setup to use the early static init tables during kernel startup */
+ 	x86_cpu_to_apicid_early_ptr = (void *)&x86_cpu_to_apicid_init;
+ 	x86_cpu_to_node_map_early_ptr = (void *)&x86_cpu_to_node_map_init;
++	x86_bios_cpu_apicid_early_ptr = (void *)&x86_bios_cpu_apicid_init;
+ #endif
  
- static void __cpuinit cpuid4_cache_sysfs_exit(unsigned int cpu)
- {
--	kfree(cache_kobject[cpu]);
--	kfree(index_kobject[cpu]);
--	cache_kobject[cpu] = NULL;
--	index_kobject[cpu] = NULL;
-+	kfree(per_cpu(cache_kobject, cpu));
-+	kfree(per_cpu(index_kobject, cpu));
-+	per_cpu(cache_kobject, cpu) = NULL;
-+	per_cpu(index_kobject, cpu) = NULL;
- 	free_cache_attributes(cpu);
- }
- 
-@@ -703,13 +703,14 @@ static int __cpuinit cpuid4_cache_sysfs_
- 		return err;
- 
- 	/* Allocate all required memory */
--	cache_kobject[cpu] = kzalloc(sizeof(struct kobject), GFP_KERNEL);
--	if (unlikely(cache_kobject[cpu] == NULL))
-+	per_cpu(cache_kobject, cpu) =
-+		kzalloc(sizeof(struct kobject), GFP_KERNEL);
-+	if (unlikely(per_cpu(cache_kobject, cpu) == NULL))
- 		goto err_out;
- 
--	index_kobject[cpu] = kzalloc(
-+	per_cpu(index_kobject, cpu) = kzalloc(
- 	    sizeof(struct _index_kobject ) * num_cache_leaves, GFP_KERNEL);
--	if (unlikely(index_kobject[cpu] == NULL))
-+	if (unlikely(per_cpu(index_kobject, cpu) == NULL))
- 		goto err_out;
- 
- 	return 0;
-@@ -733,7 +734,8 @@ static int __cpuinit cache_add_dev(struc
- 	if (unlikely(retval < 0))
- 		return retval;
- 
--	retval = kobject_init_and_add(cache_kobject[cpu], &ktype_percpu_entry,
-+	retval = kobject_init_and_add(per_cpu(cache_kobject, cpu),
-+				      &ktype_percpu_entry,
- 				      &sys_dev->kobj, "%s", "cache");
- 	if (retval < 0) {
- 		cpuid4_cache_sysfs_exit(cpu);
-@@ -745,13 +747,14 @@ static int __cpuinit cache_add_dev(struc
- 		this_object->cpu = cpu;
- 		this_object->index = i;
- 		retval = kobject_init_and_add(&(this_object->kobj),
--					      &ktype_cache, cache_kobject[cpu],
-+					      &ktype_cache,
-+					      per_cpu(cache_kobject, cpu),
- 					      "index%1lu", i);
- 		if (unlikely(retval)) {
- 			for (j = 0; j < i; j++) {
- 				kobject_put(&(INDEX_KOBJECT_PTR(cpu,j)->kobj));
- 			}
--			kobject_put(cache_kobject[cpu]);
-+			kobject_put(per_cpu(cache_kobject, cpu));
- 			cpuid4_cache_sysfs_exit(cpu);
- 			break;
+ #ifdef CONFIG_ACPI
+--- a/arch/x86/kernel/smpboot_64.c
++++ b/arch/x86/kernel/smpboot_64.c
+@@ -866,6 +866,8 @@ void __init smp_set_apicids(void)
+ 						x86_cpu_to_apicid_init[cpu];
+ 			per_cpu(x86_cpu_to_node_map, cpu) =
+ 						x86_cpu_to_node_map_init[cpu];
++			per_cpu(x86_bios_cpu_apicid, cpu) =
++						x86_bios_cpu_apicid_init[cpu];
  		}
-@@ -760,7 +763,7 @@ static int __cpuinit cache_add_dev(struc
- 	if (!retval)
- 		cpu_set(cpu, cache_dev_map);
- 
--	kobject_uevent(cache_kobject[cpu], KOBJ_ADD);
-+	kobject_uevent(per_cpu(cache_kobject, cpu), KOBJ_ADD);
- 	return retval;
+ 		else
+ 			printk(KERN_NOTICE "per_cpu_offset zero for cpu %d\n",
+@@ -875,6 +877,7 @@ void __init smp_set_apicids(void)
+ 	/* indicate the early static arrays are gone */
+ 	x86_cpu_to_apicid_early_ptr = NULL;
+ 	x86_cpu_to_node_map_early_ptr = NULL;
++	x86_bios_cpu_apicid_early_ptr = NULL;
  }
  
-@@ -769,7 +772,7 @@ static void __cpuinit cache_remove_dev(s
- 	unsigned int cpu = sys_dev->id;
- 	unsigned long i;
+ static void __init smp_cpu_index_default(void)
+--- a/include/asm-x86/smp_64.h
++++ b/include/asm-x86/smp_64.h
+@@ -27,18 +27,20 @@ extern int smp_call_function_mask(cpumas
+ 				  void *info, int wait);
  
--	if (cpuid4_info[cpu] == NULL)
-+	if (per_cpu(cpuid4_info, cpu) == NULL)
- 		return;
- 	if (!cpu_isset(cpu, cache_dev_map))
- 		return;
-@@ -777,7 +780,7 @@ static void __cpuinit cache_remove_dev(s
+ extern u16 __initdata x86_cpu_to_apicid_init[];
++extern u16 __initdata x86_bios_cpu_apicid_init[];
+ extern void *x86_cpu_to_apicid_early_ptr;
+-extern u16 bios_cpu_apicid[];
++extern void *x86_bios_cpu_apicid_early_ptr;
  
- 	for (i = 0; i < num_cache_leaves; i++)
- 		kobject_put(&(INDEX_KOBJECT_PTR(cpu,i)->kobj));
--	kobject_put(cache_kobject[cpu]);
-+	kobject_put(per_cpu(cache_kobject, cpu));
- 	cpuid4_cache_sysfs_exit(cpu);
+ DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
+ DECLARE_PER_CPU(cpumask_t, cpu_core_map);
+ DECLARE_PER_CPU(u16, cpu_llc_id);
+ DECLARE_PER_CPU(u16, x86_cpu_to_apicid);
++DECLARE_PER_CPU(u16, x86_bios_cpu_apicid);
+ 
+ static inline int cpu_present_to_apicid(int mps_cpu)
+ {
+-	if (mps_cpu < NR_CPUS)
+-		return (int)bios_cpu_apicid[mps_cpu];
++	if (cpu_present(mps_cpu))
++		return (int)per_cpu(x86_bios_cpu_apicid, mps_cpu);
+ 	else
+ 		return BAD_APICID;
  }
- 
 
 -- 
 
