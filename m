@@ -1,9 +1,9 @@
-Message-Id: <20080113183455.207412000@sgi.com>
+Message-Id: <20080113183454.417848000@sgi.com>
 References: <20080113183453.973425000@sgi.com>
-Date: Sun, 13 Jan 2008 10:35:02 -0800
+Date: Sun, 13 Jan 2008 10:34:56 -0800
 From: travis@sgi.com
-Subject: [PATCH 09/10] x86: Change NR_CPUS arrays in acpi-cpufreq
-Content-Disposition: inline; filename=NR_CPUS-arrays-in-acpi-cpufreq
+Subject: [PATCH 03/10] x86: Change NR_CPUS arrays in powernow-k8
+Content-Disposition: inline; filename=NR_CPUS-arrays-in-powernow-k8
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu
@@ -13,121 +13,71 @@ List-ID: <linux-mm.kvack.org>
 Change the following static arrays sized by NR_CPUS to
 per_cpu data variables:
 
-	acpi_cpufreq_data *drv_data[NR_CPUS]
+	powernow_k8_data *powernow_data[NR_CPUS];
+
 
 Signed-off-by: Mike Travis <travis@sgi.com>
 Reviewed-by: Christoph Lameter <clameter@sgi.com>
 ---
- arch/x86/kernel/cpu/cpufreq/acpi-cpufreq.c |   25 +++++++++++++------------
- 1 file changed, 13 insertions(+), 12 deletions(-)
+ arch/x86/kernel/cpu/cpufreq/powernow-k8.c |   12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
---- a/arch/x86/kernel/cpu/cpufreq/acpi-cpufreq.c
-+++ b/arch/x86/kernel/cpu/cpufreq/acpi-cpufreq.c
-@@ -67,7 +67,8 @@ struct acpi_cpufreq_data {
- 	unsigned int cpu_feature;
- };
+--- a/arch/x86/kernel/cpu/cpufreq/powernow-k8.c
++++ b/arch/x86/kernel/cpu/cpufreq/powernow-k8.c
+@@ -53,7 +53,7 @@
+ /* serialize freq changes  */
+ static DEFINE_MUTEX(fidvid_mutex);
  
--static struct acpi_cpufreq_data *drv_data[NR_CPUS];
-+static DEFINE_PER_CPU(struct acpi_cpufreq_data *, drv_data);
-+
- /* acpi_perf_data is a pointer to percpu data. */
- static struct acpi_processor_performance *acpi_perf_data;
+-static struct powernow_k8_data *powernow_data[NR_CPUS];
++static DEFINE_PER_CPU(struct powernow_k8_data *, powernow_data);
  
-@@ -218,14 +219,14 @@ static u32 get_cur_val(cpumask_t mask)
- 	if (unlikely(cpus_empty(mask)))
- 		return 0;
+ static int cpu_family = CPU_OPTERON;
  
--	switch (drv_data[first_cpu(mask)]->cpu_feature) {
-+	switch (per_cpu(drv_data, first_cpu(mask))->cpu_feature) {
- 	case SYSTEM_INTEL_MSR_CAPABLE:
- 		cmd.type = SYSTEM_INTEL_MSR_CAPABLE;
- 		cmd.addr.msr.reg = MSR_IA32_PERF_STATUS;
- 		break;
- 	case SYSTEM_IO_CAPABLE:
- 		cmd.type = SYSTEM_IO_CAPABLE;
--		perf = drv_data[first_cpu(mask)]->acpi_data;
-+		perf = per_cpu(drv_data, first_cpu(mask))->acpi_data;
- 		cmd.addr.io.port = perf->control_register.address;
- 		cmd.addr.io.bit_width = perf->control_register.bit_width;
- 		break;
-@@ -325,7 +326,7 @@ static unsigned int get_measured_perf(un
- 
- #endif
- 
--	retval = drv_data[cpu]->max_freq * perf_percent / 100;
-+	retval = per_cpu(drv_data, cpu)->max_freq * perf_percent / 100;
- 
- 	put_cpu();
- 	set_cpus_allowed(current, saved_mask);
-@@ -336,7 +337,7 @@ static unsigned int get_measured_perf(un
- 
- static unsigned int get_cur_freq_on_cpu(unsigned int cpu)
+@@ -1052,7 +1052,7 @@ static int transition_frequency_pstate(s
+ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsigned relation)
  {
--	struct acpi_cpufreq_data *data = drv_data[cpu];
-+	struct acpi_cpufreq_data *data = per_cpu(drv_data, cpu);
- 	unsigned int freq;
- 
- 	dprintk("get_cur_freq_on_cpu (%d)\n", cpu);
-@@ -370,7 +371,7 @@ static unsigned int check_freqs(cpumask_
- static int acpi_cpufreq_target(struct cpufreq_policy *policy,
- 			       unsigned int target_freq, unsigned int relation)
+ 	cpumask_t oldmask = CPU_MASK_ALL;
+-	struct powernow_k8_data *data = powernow_data[pol->cpu];
++	struct powernow_k8_data *data = per_cpu(powernow_data, pol->cpu);
+ 	u32 checkfid;
+ 	u32 checkvid;
+ 	unsigned int newstate;
+@@ -1128,7 +1128,7 @@ err_out:
+ /* Driver entry point to verify the policy and range of frequencies */
+ static int powernowk8_verify(struct cpufreq_policy *pol)
  {
--	struct acpi_cpufreq_data *data = drv_data[policy->cpu];
-+	struct acpi_cpufreq_data *data = per_cpu(drv_data, policy->cpu);
- 	struct acpi_processor_performance *perf;
- 	struct cpufreq_freqs freqs;
- 	cpumask_t online_policy_cpus;
-@@ -466,7 +467,7 @@ static int acpi_cpufreq_target(struct cp
+-	struct powernow_k8_data *data = powernow_data[pol->cpu];
++	struct powernow_k8_data *data = per_cpu(powernow_data, pol->cpu);
  
- static int acpi_cpufreq_verify(struct cpufreq_policy *policy)
+ 	if (!data)
+ 		return -EINVAL;
+@@ -1233,7 +1233,7 @@ static int __cpuinit powernowk8_cpu_init
+ 		dprintk("cpu_init done, current fid 0x%x, vid 0x%x\n",
+ 			data->currfid, data->currvid);
+ 
+-	powernow_data[pol->cpu] = data;
++	per_cpu(powernow_data, pol->cpu) = data;
+ 
+ 	return 0;
+ 
+@@ -1247,7 +1247,7 @@ err_out:
+ 
+ static int __devexit powernowk8_cpu_exit (struct cpufreq_policy *pol)
  {
--	struct acpi_cpufreq_data *data = drv_data[policy->cpu];
-+	struct acpi_cpufreq_data *data = per_cpu(drv_data, policy->cpu);
+-	struct powernow_k8_data *data = powernow_data[pol->cpu];
++	struct powernow_k8_data *data = per_cpu(powernow_data, pol->cpu);
  
- 	dprintk("acpi_cpufreq_verify\n");
+ 	if (!data)
+ 		return -EINVAL;
+@@ -1268,7 +1268,7 @@ static unsigned int powernowk8_get (unsi
+ 	cpumask_t oldmask = current->cpus_allowed;
+ 	unsigned int khz = 0;
  
-@@ -570,7 +571,7 @@ static int acpi_cpufreq_cpu_init(struct 
- 		return -ENOMEM;
+-	data = powernow_data[first_cpu(per_cpu(cpu_core_map, cpu))];
++	data = per_cpu(powernow_data, first_cpu(per_cpu(cpu_core_map, cpu)));
  
- 	data->acpi_data = percpu_ptr(acpi_perf_data, cpu);
--	drv_data[cpu] = data;
-+	per_cpu(drv_data, cpu) = data;
- 
- 	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC))
- 		acpi_cpufreq_driver.flags |= CPUFREQ_CONST_LOOPS;
-@@ -714,20 +715,20 @@ err_unreg:
- 	acpi_processor_unregister_performance(perf, cpu);
- err_free:
- 	kfree(data);
--	drv_data[cpu] = NULL;
-+	per_cpu(drv_data, cpu) = NULL;
- 
- 	return result;
- }
- 
- static int acpi_cpufreq_cpu_exit(struct cpufreq_policy *policy)
- {
--	struct acpi_cpufreq_data *data = drv_data[policy->cpu];
-+	struct acpi_cpufreq_data *data = per_cpu(drv_data, policy->cpu);
- 
- 	dprintk("acpi_cpufreq_cpu_exit\n");
- 
- 	if (data) {
- 		cpufreq_frequency_table_put_attr(policy->cpu);
--		drv_data[policy->cpu] = NULL;
-+		per_cpu(drv_data, policy->cpu) = NULL;
- 		acpi_processor_unregister_performance(data->acpi_data,
- 						      policy->cpu);
- 		kfree(data);
-@@ -738,7 +739,7 @@ static int acpi_cpufreq_cpu_exit(struct 
- 
- static int acpi_cpufreq_resume(struct cpufreq_policy *policy)
- {
--	struct acpi_cpufreq_data *data = drv_data[policy->cpu];
-+	struct acpi_cpufreq_data *data = per_cpu(drv_data, policy->cpu);
- 
- 	dprintk("acpi_cpufreq_resume\n");
- 
+ 	if (!data)
+ 		return -EINVAL;
 
 -- 
 
