@@ -1,67 +1,54 @@
-Message-Id: <20080113183453.973425000@sgi.com>
-Date: Sun, 13 Jan 2008 10:34:53 -0800
+Message-Id: <20080113183454.680306000@sgi.com>
+References: <20080113183453.973425000@sgi.com>
+Date: Sun, 13 Jan 2008 10:34:58 -0800
 From: travis@sgi.com
-Subject: [PATCH 00/10] x86: Reduce memory and intra-node effects with large count NR_CPUs
+Subject: [PATCH 05/10] x86: Change NR_CPUS arrays in smpboot_64
+Content-Disposition: inline; filename=NR_CPUS-arrays-in-smpboot_64
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu
 Cc: Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This patchset addresses the kernel bloat that occurs when NR_CPUS is increased.
-The memory numbers below are with NR_CPUS = 1024 which I've been testing (4 and
-32 real processors, the rest "possible" using the additional_cpus start option.)
-These changes are all specific to the x86 architecture, non-arch specific
-changes will follow.
+Change the following static arrays sized by NR_CPUS to
+per_cpu data variables:
 
-Based on 2.6.24-rc6-mm1
+	task_struct *idle_thread_array[NR_CPUS];
+
+This is only done if CONFIG_HOTPLUG_CPU is defined
+as otherwise, the array is removed after initialization
+anyways.
 
 Signed-off-by: Mike Travis <travis@sgi.com>
 Reviewed-by: Christoph Lameter <clameter@sgi.com>
 ---
+ arch/x86/kernel/smpboot_64.c |   12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
 
-The following columns are using the default x86_64 config with no modules.
-32cpus is the default NR_CPUS, 1kcpus-before has NR_CPUS = 1024, and
-1kcpus-after is after applying this patch.
-
-As noticeable below there's still plenty of room for improvement... ;-)
-
-32cpus			  1kcpus-before		    1kcpus-after
-       228 .altinstr_repl 	  +0 .altinstr_repl 	    +0 .altinstr_repl
-      1219 .altinstructio 	  +0 .altinstructio 	    +0 .altinstructio
-    717512 .bss		    +1542784 .bss	       -147456 .bss
-     61374 .comment	  	  +0 .comment	    	    +0 .comment
-	16 .con_initcall. 	  +0 .con_initcall. 	    +0 .con_initcall.
-    425256 .data	      +20224 .data	    	 -1024 .data
-    178688 .data.cachelin  +12898304 .data.cachelin 	    +0 .data.cachelin
-      8192 .data.init_tas 	  +0 .data.init_tas 	    +0 .data.init_tas
-      4096 .data.page_ali 	  +0 .data.page_ali 	    +0 .data.page_ali
-     27008 .data.percpu	     +128768 .data.percpu   	  +128 .data.percpu
-     43904 .data.read_mos   +8707872 .data.read_mos 	 -4096 .data.read_mos
-	 4 .data_nosave	  	  +0 .data_nosave   	    +0 .data_nosave
-      5141 .exit.text	  	  +9 .exit.text	    	    -1 .exit.text
-    138480 .init.data	  	+992 .init.data	    	 +3616 .init.data
-       133 .init.ramfs	  	  +0 .init.ramfs    	    +1 .init.ramfs
-      3192 .init.setup	  	  +0 .init.setup    	    +0 .init.setup
-    159754 .init.text	  	+891 .init.text	    	   +13 .init.text
-      2288 .initcall.init 	  +0 .initcall.init 	    +0 .initcall.init
-	 8 .jiffies	  	  +0 .jiffies	    	    +0 .jiffies
-      4512 .pci_fixup	  	  +0 .pci_fixup	    	    +0 .pci_fixup
-   1314438 .rodata	       +1312 .rodata	    	  -552 .rodata
-     36552 .smp_locks	  	+256 .smp_locks	    	    +0 .smp_locks
-   3971848 .text	      +12992 .text	    	 +1781 .text
-      3368 .vdso	  	  +0 .vdso	    	    +0 .vdso
-	 4 .vgetcpu_mode  	  +0 .vgetcpu_mode  	    +0 .vgetcpu_mode
-       218 .vsyscall_0	  	  +0 .vsyscall_0    	    +0 .vsyscall_0
-	52 .vsyscall_1	  	  +0 .vsyscall_1    	    +0 .vsyscall_1
-	91 .vsyscall_2	  	  +0 .vsyscall_2    	    +0 .vsyscall_2
-	 8 .vsyscall_3	  	  +0 .vsyscall_3    	    +0 .vsyscall_3
-	54 .vsyscall_fn	  	  +0 .vsyscall_fn   	    +0 .vsyscall_fn
-	80 .vsyscall_gtod 	  +0 .vsyscall_gtod 	    +0 .vsyscall_gtod
-     39480 __bug_table	  	  +0 __bug_table    	    +0 __bug_table
-     16320 __ex_table	  	  +0 __ex_table	    	    +0 __ex_table
-      9160 __param	  	  +0 __param	    	    +0 __param
-   7172678 Total	   +23314404 Total	       -147590 Total
+--- a/arch/x86/kernel/smpboot_64.c
++++ b/arch/x86/kernel/smpboot_64.c
+@@ -111,10 +111,20 @@ DEFINE_PER_CPU(int, cpu_state) = { 0 };
+  * a new thread. Also avoids complicated thread destroy functionality
+  * for idle threads.
+  */
++#ifdef CONFIG_HOTPLUG_CPU
++/*
++ * Needed only for CONFIG_HOTPLUG_CPU because __cpuinitdata is
++ * removed after init for !CONFIG_HOTPLUG_CPU.
++ */
++static DEFINE_PER_CPU(struct task_struct *, idle_thread_array);
++#define get_idle_for_cpu(x)     (per_cpu(idle_thread_array, x))
++#define set_idle_for_cpu(x,p)   (per_cpu(idle_thread_array, x) = (p))
++#else
+ struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
+-
+ #define get_idle_for_cpu(x)     (idle_thread_array[(x)])
+ #define set_idle_for_cpu(x,p)   (idle_thread_array[(x)] = (p))
++#endif
++
+ 
+ /*
+  * Currently trivial. Write the real->protected mode
 
 -- 
 
