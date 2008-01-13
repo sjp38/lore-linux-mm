@@ -1,40 +1,35 @@
-Subject: Re: [PATCH] mmu notifiers #v2
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Reply-To: benh@kernel.crashing.org
-In-Reply-To: <20080113162418.GE8736@v2.random>
-References: <20080113162418.GE8736@v2.random>
-Content-Type: text/plain
-Date: Mon, 14 Jan 2008 08:11:44 +1100
-Message-Id: <1200258704.6896.146.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Message-ID: <478A6E36.1030309@cosmosbay.com>
+Date: Sun, 13 Jan 2008 21:01:58 +0100
+From: Eric Dumazet <dada1@cosmosbay.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 02/10] x86: Change size of node ids from u8 to u16
+References: <20080113183453.973425000@sgi.com> <20080113183454.288993000@sgi.com>
+In-Reply-To: <20080113183454.288993000@sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm-devel@lists.sourceforge.net, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, clameter@sgi.com, daniel.blueman@quadrics.com, holt@sgi.com, steiner@sgi.com, Andrew Morton <akpm@osdl.org>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Dave Airlie <airlied@gmail.com>
+To: travis@sgi.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2008-01-13 at 17:24 +0100, Andrea Arcangeli wrote:
-> Hello,
+travis@sgi.com a ecrit :
+> Change the size of node ids from 8 bits to 16 bits to
+> accomodate more than 256 nodes.
 > 
-> This patch is last version of a basic implementation of the mmu
-> notifiers.
-> 
-> In short when the linux VM decides to free a page, it will unmap it
-> from the linux pagetables. However when a page is mapped not just by
-> the regular linux ptes, but also from the shadow pagetables, it's
-> currently unfreeable by the linux VM.
-> 
-> This patch allows the shadow pagetables to be dropped and the page to
-> be freed after that, if the linux VM decides to unmap the page from
-> the main ptes because it wants to swap out the page.
+> Signed-off-by: Mike Travis <travis@sgi.com>
+> Reviewed-by: Christoph Lameter <clameter@sgi.com>
+> ---
+>  arch/x86/mm/numa_64.c      |    9 ++++++---
+>  arch/x86/mm/srat_64.c      |    2 +-
+>  include/asm-x86/numa_64.h  |    4 ++--
+>  include/asm-x86/topology.h |    2 +-
+>  4 files changed, 10 insertions(+), 7 deletions(-)
 
-Another potential user of that I can see is the DRM. Nowadays, graphic
-cards essentially have an MMU on chip, and can do paging. It would be
-nice to be able to map user objects in them without having to lock them
-down using your callback to properly mark them cast out on the card.
+So, you think some machine is going to have more than 256 nodes ?
 
-Ben.
+If so, you probably need to change 'struct memnode' too 
+(include/asm-x86/mmzone_64.h)
 
 
 --
