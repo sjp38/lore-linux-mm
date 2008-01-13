@@ -1,162 +1,34 @@
-From: Anton Salikhmetov <salikhmetov@gmail.com>
-Subject: [PATCH 1/2] massive code cleanup of sys_msync()
-Date: Sun, 13 Jan 2008 07:39:58 +0300
-Message-Id: <12001992013606-git-send-email-salikhmetov@gmail.com>
-In-Reply-To: <12001991991217-git-send-email-salikhmetov@gmail.com>
+Date: Sat, 12 Jan 2008 23:46:52 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [PATCH 1/2] massive code cleanup of sys_msync()
+Message-ID: <20080112234652.114bd8cd@bree.surriel.com>
+In-Reply-To: <12001992013606-git-send-email-salikhmetov@gmail.com>
 References: <12001991991217-git-send-email-salikhmetov@gmail.com>
+	<12001992013606-git-send-email-salikhmetov@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com
+To: Anton Salikhmetov <salikhmetov@gmail.com>
+Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Substantial code cleanup of the sys_msync() function:
+On Sun, 13 Jan 2008 07:39:58 +0300
+Anton Salikhmetov <salikhmetov@gmail.com> wrote:
 
-1) using the PAGE_ALIGN() macro instead of "manual" alignment;
-2) improved readability of the loop traversing the process memory regions.
+> Substantial code cleanup of the sys_msync() function:
+> 
+> 1) using the PAGE_ALIGN() macro instead of "manual" alignment;
+> 2) improved readability of the loop traversing the process memory regions.
+> 
+> Signed-off-by: Anton Salikhmetov <salikhmetov@gmail.com>
 
-Signed-off-by: Anton Salikhmetov <salikhmetov@gmail.com>
----
- mm/msync.c |   78 +++++++++++++++++++++++++++---------------------------------
- 1 files changed, 35 insertions(+), 43 deletions(-)
+Acked-by: Rik van Riel <riel@redhat.com>
 
-diff --git a/mm/msync.c b/mm/msync.c
-index 144a757..ff654c9 100644
---- a/mm/msync.c
-+++ b/mm/msync.c
-@@ -1,24 +1,25 @@
- /*
-  *	linux/mm/msync.c
-  *
-+ * The msync() system call.
-  * Copyright (C) 1994-1999  Linus Torvalds
-+ *
-+ * Substantial code cleanup.
-+ * Copyright (C) 2008 Anton Salikhmetov <salikhmetov@gmail.com>
-  */
- 
--/*
-- * The msync() system call.
-- */
-+#include <linux/file.h>
- #include <linux/fs.h>
- #include <linux/mm.h>
- #include <linux/mman.h>
--#include <linux/file.h>
--#include <linux/syscalls.h>
- #include <linux/sched.h>
-+#include <linux/syscalls.h>
- 
- /*
-  * MS_SYNC syncs the entire file - including mappings.
-  *
-  * MS_ASYNC does not start I/O (it used to, up to 2.5.67).
-- * Nor does it marks the relevant pages dirty (it used to up to 2.6.17).
-+ * Nor does it mark the relevant pages dirty (it used to up to 2.6.17).
-  * Now it doesn't do anything, since dirty pages are properly tracked.
-  *
-  * The application may now run fsync() to
-@@ -33,71 +34,62 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
- 	unsigned long end;
- 	struct mm_struct *mm = current->mm;
- 	struct vm_area_struct *vma;
--	int unmapped_error = 0;
--	int error = -EINVAL;
-+	int error = 0, unmapped_error = 0;
- 
- 	if (flags & ~(MS_ASYNC | MS_INVALIDATE | MS_SYNC))
--		goto out;
-+		return -EINVAL;
- 	if (start & ~PAGE_MASK)
--		goto out;
-+		return -EINVAL;
- 	if ((flags & MS_ASYNC) && (flags & MS_SYNC))
--		goto out;
--	error = -ENOMEM;
--	len = (len + ~PAGE_MASK) & PAGE_MASK;
-+		return -EINVAL;
-+
-+	len = PAGE_ALIGN(len);
- 	end = start + len;
- 	if (end < start)
--		goto out;
--	error = 0;
-+		return -ENOMEM;
- 	if (end == start)
--		goto out;
-+		return 0;
-+
- 	/*
- 	 * If the interval [start,end) covers some unmapped address ranges,
- 	 * just ignore them, but return -ENOMEM at the end.
- 	 */
- 	down_read(&mm->mmap_sem);
- 	vma = find_vma(mm, start);
--	for (;;) {
-+	do {
- 		struct file *file;
- 
--		/* Still start < end. */
--		error = -ENOMEM;
--		if (!vma)
--			goto out_unlock;
--		/* Here start < vma->vm_end. */
-+		if (!vma) {
-+			error = -ENOMEM;
-+			break;
-+		}
- 		if (start < vma->vm_start) {
- 			start = vma->vm_start;
--			if (start >= end)
--				goto out_unlock;
-+			if (start >= end) {
-+				error = -ENOMEM;
-+				break;
-+			}
- 			unmapped_error = -ENOMEM;
- 		}
--		/* Here vma->vm_start <= start < vma->vm_end. */
--		if ((flags & MS_INVALIDATE) &&
--				(vma->vm_flags & VM_LOCKED)) {
-+		if ((flags & MS_INVALIDATE) && (vma->vm_flags & VM_LOCKED)) {
- 			error = -EBUSY;
--			goto out_unlock;
-+			break;
- 		}
- 		file = vma->vm_file;
--		start = vma->vm_end;
--		if ((flags & MS_SYNC) && file &&
--				(vma->vm_flags & VM_SHARED)) {
-+		if ((flags & MS_SYNC) && file && (vma->vm_flags & VM_SHARED)) {
- 			get_file(file);
- 			up_read(&mm->mmap_sem);
- 			error = do_fsync(file, 0);
- 			fput(file);
--			if (error || start >= end)
--				goto out;
-+			if (error)
-+				return error;
- 			down_read(&mm->mmap_sem);
--			vma = find_vma(mm, start);
--		} else {
--			if (start >= end) {
--				error = 0;
--				goto out_unlock;
--			}
--			vma = vma->vm_next;
- 		}
--	}
--out_unlock:
-+
-+		start = vma->vm_end;
-+		vma = vma->vm_next;
-+	} while (start < end);
- 	up_read(&mm->mmap_sem);
--out:
-+
- 	return error ? : unmapped_error;
- }
+
 -- 
-1.4.4.4
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
