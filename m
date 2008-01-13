@@ -1,162 +1,161 @@
-Message-Id: <20080113183455.340175000@sgi.com>
+Message-Id: <20080113183454.944455000@sgi.com>
 References: <20080113183453.973425000@sgi.com>
-Date: Sun, 13 Jan 2008 10:35:03 -0800
+Date: Sun, 13 Jan 2008 10:35:00 -0800
 From: travis@sgi.com
-Subject: [PATCH 10/10] x86: Change bios_cpu_apicid to percpu data variable
-Content-Disposition: inline; filename=change-bios_cpu_apicid-to-percpu
+Subject: [PATCH 07/10] x86: Cleanup x86_cpu_to_apicid references
+Content-Disposition: inline; filename=cleanup-x86_cpu_to_apicid
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu
 Cc: Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Change static bios_cpu_apicid array to a per_cpu data variable.
-This includes using a static array used during initialization
-similar to the way x86_cpu_to_apicid[] is handled.
-
-There is one early use of bios_cpu_apicid in apic_is_clustered_box().
-The other reference in cpu_present_to_apicid() is called after
-smp_set_apicids() has setup the percpu version of bios_cpu_apicid.
-
+Clean up references to x86_cpu_to_apicid.  Removes extraneous
+comments and standardizes on "x86_*_early_ptr" for the early
+kernel init references.
 
 Signed-off-by: Mike Travis <travis@sgi.com>
 Reviewed-by: Christoph Lameter <clameter@sgi.com>
 ---
- arch/x86/kernel/apic_64.c    |   16 ++++++++++++++--
- arch/x86/kernel/mpparse_64.c |   17 ++++++++++++-----
- arch/x86/kernel/setup_64.c   |    1 +
- arch/x86/kernel/smpboot_64.c |    3 +++
- include/asm-x86/smp_64.h     |    8 +++++---
- 5 files changed, 35 insertions(+), 10 deletions(-)
+ arch/x86/kernel/genapic_64.c |   11 ++---------
+ arch/x86/kernel/mpparse_64.c |   11 +++--------
+ arch/x86/kernel/setup_64.c   |    2 +-
+ arch/x86/kernel/smpboot_32.c |    9 ++-------
+ arch/x86/kernel/smpboot_64.c |   16 +++++++++-------
+ include/asm-x86/smp_32.h     |    2 +-
+ include/asm-x86/smp_64.h     |    2 +-
+ 7 files changed, 19 insertions(+), 34 deletions(-)
 
---- a/arch/x86/kernel/apic_64.c
-+++ b/arch/x86/kernel/apic_64.c
-@@ -1155,14 +1155,26 @@ __cpuinit int apic_is_clustered_box(void
- 	bitmap_zero(clustermap, NUM_APIC_CLUSTERS);
+--- a/arch/x86/kernel/genapic_64.c
++++ b/arch/x86/kernel/genapic_64.c
+@@ -24,17 +24,10 @@
+ #include <acpi/acpi_bus.h>
+ #endif
  
- 	for (i = 0; i < NR_CPUS; i++) {
--		id = bios_cpu_apicid[i];
-+		/* are we being called early in kernel startup? */
-+		if (x86_bios_cpu_apicid_early_ptr) {
-+			id = ((u16 *)x86_bios_cpu_apicid_early_ptr)[i];
-+		}
-+		else if (i < nr_cpu_ids) {
-+			if (cpu_present(i))
-+				id = per_cpu(x86_bios_cpu_apicid, i);
-+			else
-+				continue;
-+		}
-+		else
-+			break;
-+
- 		if (id != BAD_APICID)
- 			__set_bit(APIC_CLUSTERID(id), clustermap);
- 	}
+-/*
+- * which logical CPU number maps to which CPU (physical APIC ID)
+- *
+- * The following static array is used during kernel startup
+- * and the x86_cpu_to_apicid_ptr contains the address of the
+- * array during this time.  Is it zeroed when the per_cpu
+- * data area is removed.
+- */
++/* which logical CPU number maps to which CPU (physical APIC ID) */
+ u16 x86_cpu_to_apicid_init[NR_CPUS] __initdata
+ 					= { [0 ... NR_CPUS-1] = BAD_APICID };
+-void *x86_cpu_to_apicid_ptr;
++void *x86_cpu_to_apicid_early_ptr;
+ DEFINE_PER_CPU(u16, x86_cpu_to_apicid) = BAD_APICID;
+ EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
  
- 	/* Problem:  Partially populated chassis may not have CPUs in some of
- 	 * the APIC clusters they have been allocated.  Only present CPUs have
--	 * bios_cpu_apicid entries, thus causing zeroes in the bitmap.  Since
-+	 * x86_bios_cpu_apicid entries, thus causing zeroes in the bitmap.  Since
- 	 * clusters are allocated sequentially, count zeros only if they are
- 	 * bounded by ones.
- 	 */
 --- a/arch/x86/kernel/mpparse_64.c
 +++ b/arch/x86/kernel/mpparse_64.c
-@@ -67,7 +67,11 @@ unsigned disabled_cpus __cpuinitdata;
- /* Bitmask of physically existing CPUs */
- physid_mask_t phys_cpu_present_map = PHYSID_MASK_NONE;
- 
--u16 bios_cpu_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
-+u16 x86_bios_cpu_apicid_init[NR_CPUS] __initdata
-+				= { [0 ... NR_CPUS-1] = BAD_APICID };
-+void *x86_bios_cpu_apicid_early_ptr;
-+DEFINE_PER_CPU(u16, x86_bios_cpu_apicid) = BAD_APICID;
-+EXPORT_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
- 
- 
- /*
-@@ -118,19 +122,22 @@ static void __cpuinit MP_processor_info(
- 	physid_set(m->mpc_apicid, phys_cpu_present_map);
-  	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
-  		/*
-- 		 * bios_cpu_apicid is required to have processors listed
-+ 		 * x86_bios_cpu_apicid is required to have processors listed
-  		 * in same order as logical cpu numbers. Hence the first
-  		 * entry is BSP, and so on.
-  		 */
+@@ -125,14 +125,9 @@ static void __cpuinit MP_processor_info(
  		cpu = 0;
   	}
--	bios_cpu_apicid[cpu] = m->mpc_apicid;
- 	/* are we being called early in kernel startup? */
- 	if (x86_cpu_to_apicid_early_ptr) {
--		u16 *x86_cpu_to_apicid = (u16 *)x86_cpu_to_apicid_early_ptr;
--		x86_cpu_to_apicid[cpu] = m->mpc_apicid;
-+		u16 *cpu_to_apicid = (u16 *)x86_cpu_to_apicid_early_ptr;
-+		u16 *bios_cpu_apicid = (u16 *)x86_bios_cpu_apicid_early_ptr;
-+
-+		cpu_to_apicid[cpu] = m->mpc_apicid;
-+		bios_cpu_apicid[cpu] = m->mpc_apicid;
+ 	bios_cpu_apicid[cpu] = m->mpc_apicid;
+-	/*
+-	 * We get called early in the the start_kernel initialization
+-	 * process when the per_cpu data area is not yet setup, so we
+-	 * use a static array that is removed after the per_cpu data
+-	 * area is created.
+-	 */
+-	if (x86_cpu_to_apicid_ptr) {
+-		u16 *x86_cpu_to_apicid = (u16 *)x86_cpu_to_apicid_ptr;
++	/* are we being called early in kernel startup? */
++	if (x86_cpu_to_apicid_early_ptr) {
++		u16 *x86_cpu_to_apicid = (u16 *)x86_cpu_to_apicid_early_ptr;
+ 		x86_cpu_to_apicid[cpu] = m->mpc_apicid;
  	} else {
  		per_cpu(x86_cpu_to_apicid, cpu) = m->mpc_apicid;
-+		per_cpu(x86_bios_cpu_apicid, cpu) = m->mpc_apicid;
- 	}
- 
- 	cpu_set(cpu, cpu_possible_map);
 --- a/arch/x86/kernel/setup_64.c
 +++ b/arch/x86/kernel/setup_64.c
-@@ -376,6 +376,7 @@ void __init setup_arch(char **cmdline_p)
- 	/* setup to use the early static init tables during kernel startup */
- 	x86_cpu_to_apicid_early_ptr = (void *)&x86_cpu_to_apicid_init;
- 	x86_cpu_to_node_map_early_ptr = (void *)&x86_cpu_to_node_map_init;
-+	x86_bios_cpu_apicid_early_ptr = (void *)&x86_bios_cpu_apicid_init;
+@@ -373,7 +373,7 @@ void __init setup_arch(char **cmdline_p)
+ 
+ #ifdef CONFIG_SMP
+ 	/* setup to use the static apicid table during kernel startup */
+-	x86_cpu_to_apicid_ptr = (void *)&x86_cpu_to_apicid_init;
++	x86_cpu_to_apicid_early_ptr = (void *)&x86_cpu_to_apicid_init;
  #endif
  
  #ifdef CONFIG_ACPI
+--- a/arch/x86/kernel/smpboot_32.c
++++ b/arch/x86/kernel/smpboot_32.c
+@@ -91,15 +91,10 @@ static cpumask_t smp_commenced_mask;
+ DEFINE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
+ EXPORT_PER_CPU_SYMBOL(cpu_info);
+ 
+-/*
+- * The following static array is used during kernel startup
+- * and the x86_cpu_to_apicid_ptr contains the address of the
+- * array during this time.  Is it zeroed when the per_cpu
+- * data area is removed.
+- */
++/* which logical CPU number maps to which CPU (physical APIC ID) */
+ u8 x86_cpu_to_apicid_init[NR_CPUS] __initdata =
+ 			{ [0 ... NR_CPUS-1] = BAD_APICID };
+-void *x86_cpu_to_apicid_ptr;
++void *x86_cpu_to_apicid_early_ptr;
+ DEFINE_PER_CPU(u8, x86_cpu_to_apicid) = BAD_APICID;
+ EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
+ 
 --- a/arch/x86/kernel/smpboot_64.c
 +++ b/arch/x86/kernel/smpboot_64.c
-@@ -866,6 +866,8 @@ void __init smp_set_apicids(void)
+@@ -852,23 +852,25 @@ static int __init smp_sanity_check(unsig
+ }
+ 
+ /*
+- * Copy apicid's found by MP_processor_info from initial array to the per cpu
+- * data area.  The x86_cpu_to_apicid_init array is then expendable and the
+- * x86_cpu_to_apicid_ptr is zeroed indicating that the static array is no
+- * longer available.
++ * Copy data used in early init routines from the initial arrays to the
++ * per cpu data areas.  These arrays then become expendable and the
++ * *_ptrs are zeroed indicating that the static arrays are gone.
+  */
+ void __init smp_set_apicids(void)
+ {
+ 	int cpu;
+ 
+-	for_each_cpu_mask(cpu, cpu_possible_map) {
++	for_each_possible_cpu(cpu) {
+ 		if (per_cpu_offset(cpu))
+ 			per_cpu(x86_cpu_to_apicid, cpu) =
  						x86_cpu_to_apicid_init[cpu];
- 			per_cpu(x86_cpu_to_node_map, cpu) =
- 						x86_cpu_to_node_map_init[cpu];
-+			per_cpu(x86_bios_cpu_apicid, cpu) =
-+						x86_bios_cpu_apicid_init[cpu];
- 		}
- 		else
- 			printk(KERN_NOTICE "per_cpu_offset zero for cpu %d\n",
-@@ -875,6 +877,7 @@ void __init smp_set_apicids(void)
- 	/* indicate the early static arrays are gone */
- 	x86_cpu_to_apicid_early_ptr = NULL;
- 	x86_cpu_to_node_map_early_ptr = NULL;
-+	x86_bios_cpu_apicid_early_ptr = NULL;
++		else
++			printk(KERN_NOTICE "per_cpu_offset zero for cpu %d\n",
++									cpu);
+ 	}
+ 
+-	/* indicate the static array will be going away soon */
+-	x86_cpu_to_apicid_ptr = NULL;
++	/* indicate the early static arrays are gone */
++	x86_cpu_to_apicid_early_ptr = NULL;
  }
  
  static void __init smp_cpu_index_default(void)
---- a/include/asm-x86/smp_64.h
-+++ b/include/asm-x86/smp_64.h
-@@ -27,18 +27,20 @@ extern int smp_call_function_mask(cpumas
- 				  void *info, int wait);
+--- a/include/asm-x86/smp_32.h
++++ b/include/asm-x86/smp_32.h
+@@ -30,7 +30,7 @@ extern void (*mtrr_hook) (void);
+ extern void zap_low_mappings (void);
  
- extern u16 __initdata x86_cpu_to_apicid_init[];
-+extern u16 __initdata x86_bios_cpu_apicid_init[];
- extern void *x86_cpu_to_apicid_early_ptr;
--extern u16 bios_cpu_apicid[];
-+extern void *x86_bios_cpu_apicid_early_ptr;
+ extern u8 __initdata x86_cpu_to_apicid_init[];
+-extern void *x86_cpu_to_apicid_ptr;
++extern void *x86_cpu_to_apicid_early_ptr;
  
  DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
  DECLARE_PER_CPU(cpumask_t, cpu_core_map);
- DECLARE_PER_CPU(u16, cpu_llc_id);
- DECLARE_PER_CPU(u16, x86_cpu_to_apicid);
-+DECLARE_PER_CPU(u16, x86_bios_cpu_apicid);
+--- a/include/asm-x86/smp_64.h
++++ b/include/asm-x86/smp_64.h
+@@ -27,7 +27,7 @@ extern int smp_call_function_mask(cpumas
+ 				  void *info, int wait);
  
- static inline int cpu_present_to_apicid(int mps_cpu)
- {
--	if (mps_cpu < NR_CPUS)
--		return (int)bios_cpu_apicid[mps_cpu];
-+	if (cpu_present(mps_cpu))
-+		return (int)per_cpu(x86_bios_cpu_apicid, mps_cpu);
- 	else
- 		return BAD_APICID;
- }
+ extern u16 __initdata x86_cpu_to_apicid_init[];
+-extern void *x86_cpu_to_apicid_ptr;
++extern void *x86_cpu_to_apicid_early_ptr;
+ extern u16 bios_cpu_apicid[];
+ 
+ DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
 
 -- 
 
