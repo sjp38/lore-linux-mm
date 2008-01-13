@@ -1,205 +1,192 @@
-Message-Id: <20080113183454.155968000@sgi.com>
+Message-Id: <20080113183454.551029000@sgi.com>
 References: <20080113183453.973425000@sgi.com>
-Date: Sun, 13 Jan 2008 10:34:54 -0800
+Date: Sun, 13 Jan 2008 10:34:57 -0800
 From: travis@sgi.com
-Subject: [PATCH 01/10] x86: Change size of APICIDs from u8 to u16
-Content-Disposition: inline; filename=big_apicids
+Subject: [PATCH 04/10] x86: Change NR_CPUS arrays in intel_cacheinfo
+Content-Disposition: inline; filename=NR_CPUS-arrays-in-intel_cacheinfo
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu
 Cc: Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Change the size of APICIDs from u8 to u16.  This partially
-supports the new x2apic mode that will be present on future
-processor chips. (Chips actually support 32-bit APICIDs, but that
-change is more intrusive. Supporting 16-bit is sufficient for now).
+Change the following static arrays sized by NR_CPUS to
+per_cpu data variables:
 
-Signed-off-by: Jack Steiner <steiner@sgi.com>
-
-I've included just the partial change from u8 to u16 apicids.  The
-remaining x2apic changes will be in a separate patch.
-
-In addition, the fake_node_to_pxm_map[] and fake_apicid_to_node[]
-tables have been moved from local data to the __initdata section
-reducing stack pressure when MAX_NUMNODES and MAX_LOCAL_APIC are
-increased in size.
+	_cpuid4_info *cpuid4_info[NR_CPUS];
+	_index_kobject *index_kobject[NR_CPUS];
+	kobject * cache_kobject[NR_CPUS];
 
 Signed-off-by: Mike Travis <travis@sgi.com>
 Reviewed-by: Christoph Lameter <clameter@sgi.com>
 ---
- arch/x86/kernel/genapic_64.c |    4 ++--
- arch/x86/kernel/mpparse_64.c |    4 ++--
- arch/x86/kernel/smpboot_64.c |    2 +-
- arch/x86/mm/numa_64.c        |    2 +-
- arch/x86/mm/srat_64.c        |   22 +++++++++++++---------
- include/asm-x86/processor.h  |   14 +++++++-------
- include/asm-x86/smp_64.h     |    8 ++++----
- 7 files changed, 30 insertions(+), 26 deletions(-)
+ arch/x86/kernel/cpu/intel_cacheinfo.c |   55 +++++++++++++++++-----------------
+ 1 file changed, 29 insertions(+), 26 deletions(-)
 
---- a/arch/x86/kernel/genapic_64.c
-+++ b/arch/x86/kernel/genapic_64.c
-@@ -32,10 +32,10 @@
-  * array during this time.  Is it zeroed when the per_cpu
-  * data area is removed.
-  */
--u8 x86_cpu_to_apicid_init[NR_CPUS] __initdata
-+u16 x86_cpu_to_apicid_init[NR_CPUS] __initdata
- 					= { [0 ... NR_CPUS-1] = BAD_APICID };
- void *x86_cpu_to_apicid_ptr;
--DEFINE_PER_CPU(u8, x86_cpu_to_apicid) = BAD_APICID;
-+DEFINE_PER_CPU(u16, x86_cpu_to_apicid) = BAD_APICID;
- EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
+--- a/arch/x86/kernel/cpu/intel_cacheinfo.c
++++ b/arch/x86/kernel/cpu/intel_cacheinfo.c
+@@ -451,8 +451,8 @@ unsigned int __cpuinit init_intel_cachei
+ }
  
- struct genapic __read_mostly *genapic = &apic_flat;
---- a/arch/x86/kernel/mpparse_64.c
-+++ b/arch/x86/kernel/mpparse_64.c
-@@ -67,7 +67,7 @@ unsigned disabled_cpus __cpuinitdata;
- /* Bitmask of physically existing CPUs */
- physid_mask_t phys_cpu_present_map = PHYSID_MASK_NONE;
+ /* pointer to _cpuid4_info array (for each cache leaf) */
+-static struct _cpuid4_info *cpuid4_info[NR_CPUS];
+-#define CPUID4_INFO_IDX(x,y)    (&((cpuid4_info[x])[y]))
++static DEFINE_PER_CPU(struct _cpuid4_info *, cpuid4_info);
++#define CPUID4_INFO_IDX(x,y)    (&((per_cpu(cpuid4_info, x))[y]))
  
--u8 bios_cpu_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
-+u16 bios_cpu_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
+ #ifdef CONFIG_SMP
+ static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
+@@ -474,7 +474,7 @@ static void __cpuinit cache_shared_cpu_m
+ 			if (cpu_data(i).apicid >> index_msb ==
+ 			    c->apicid >> index_msb) {
+ 				cpu_set(i, this_leaf->shared_cpu_map);
+-				if (i != cpu && cpuid4_info[i])  {
++				if (i != cpu && per_cpu(cpuid4_info, i))  {
+ 					sibling_leaf = CPUID4_INFO_IDX(i, index);
+ 					cpu_set(cpu, sibling_leaf->shared_cpu_map);
+ 				}
+@@ -505,8 +505,8 @@ static void __cpuinit free_cache_attribu
+ 	for (i = 0; i < num_cache_leaves; i++)
+ 		cache_remove_shared_cpu_map(cpu, i);
  
+-	kfree(cpuid4_info[cpu]);
+-	cpuid4_info[cpu] = NULL;
++	kfree(per_cpu(cpuid4_info, cpu));
++	per_cpu(cpuid4_info, cpu) = NULL;
+ }
  
- /*
-@@ -132,7 +132,7 @@ static void __cpuinit MP_processor_info(
- 	 * area is created.
- 	 */
- 	if (x86_cpu_to_apicid_ptr) {
--		u8 *x86_cpu_to_apicid = (u8 *)x86_cpu_to_apicid_ptr;
-+		u16 *x86_cpu_to_apicid = (u16 *)x86_cpu_to_apicid_ptr;
- 		x86_cpu_to_apicid[cpu] = m->mpc_apicid;
- 	} else {
- 		per_cpu(x86_cpu_to_apicid, cpu) = m->mpc_apicid;
---- a/arch/x86/kernel/smpboot_64.c
-+++ b/arch/x86/kernel/smpboot_64.c
-@@ -65,7 +65,7 @@ int smp_num_siblings = 1;
- EXPORT_SYMBOL(smp_num_siblings);
+ static int __cpuinit detect_cache_attributes(unsigned int cpu)
+@@ -519,9 +519,9 @@ static int __cpuinit detect_cache_attrib
+ 	if (num_cache_leaves == 0)
+ 		return -ENOENT;
  
- /* Last level cache ID of each logical CPU */
--DEFINE_PER_CPU(u8, cpu_llc_id) = BAD_APICID;
-+DEFINE_PER_CPU(u16, cpu_llc_id) = BAD_APICID;
+-	cpuid4_info[cpu] = kzalloc(
++	per_cpu(cpuid4_info, cpu) = kzalloc(
+ 	    sizeof(struct _cpuid4_info) * num_cache_leaves, GFP_KERNEL);
+-	if (cpuid4_info[cpu] == NULL)
++	if (per_cpu(cpuid4_info, cpu) == NULL)
+ 		return -ENOMEM;
  
- /* Bitmask of currently online CPUs */
- cpumask_t cpu_online_map __read_mostly;
---- a/arch/x86/mm/numa_64.c
-+++ b/arch/x86/mm/numa_64.c
-@@ -627,7 +627,7 @@ void __init init_cpu_to_node(void)
- 	int i;
+ 	oldmask = current->cpus_allowed;
+@@ -546,8 +546,8 @@ static int __cpuinit detect_cache_attrib
  
- 	for (i = 0; i < NR_CPUS; i++) {
--		u8 apicid = x86_cpu_to_apicid_init[i];
-+		u16 apicid = x86_cpu_to_apicid_init[i];
- 
- 		if (apicid == BAD_APICID)
- 			continue;
---- a/arch/x86/mm/srat_64.c
-+++ b/arch/x86/mm/srat_64.c
-@@ -130,6 +130,9 @@ void __init
- acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
- {
- 	int pxm, node;
-+	int apic_id;
-+
-+	apic_id = pa->apic_id;
- 	if (srat_disabled())
- 		return;
- 	if (pa->header.length != sizeof(struct acpi_srat_cpu_affinity)) {
-@@ -145,10 +148,10 @@ acpi_numa_processor_affinity_init(struct
- 		bad_srat();
- 		return;
+ out:
+ 	if (retval) {
+-		kfree(cpuid4_info[cpu]);
+-		cpuid4_info[cpu] = NULL;
++		kfree(per_cpu(cpuid4_info, cpu));
++		per_cpu(cpuid4_info, cpu) = NULL;
  	}
--	apicid_to_node[pa->apic_id] = node;
-+	apicid_to_node[apic_id] = node;
- 	acpi_numa = 1;
- 	printk(KERN_INFO "SRAT: PXM %u -> APIC %u -> Node %u\n",
--	       pxm, pa->apic_id, node);
-+	       pxm, apic_id, node);
+ 
+ 	return retval;
+@@ -561,7 +561,7 @@ out:
+ extern struct sysdev_class cpu_sysdev_class; /* from drivers/base/cpu.c */
+ 
+ /* pointer to kobject for cpuX/cache */
+-static struct kobject * cache_kobject[NR_CPUS];
++static DEFINE_PER_CPU(struct kobject *, cache_kobject);
+ 
+ struct _index_kobject {
+ 	struct kobject kobj;
+@@ -570,8 +570,8 @@ struct _index_kobject {
+ };
+ 
+ /* pointer to array of kobjects for cpuX/cache/indexY */
+-static struct _index_kobject *index_kobject[NR_CPUS];
+-#define INDEX_KOBJECT_PTR(x,y)    (&((index_kobject[x])[y]))
++static DEFINE_PER_CPU(struct _index_kobject *, index_kobject);
++#define INDEX_KOBJECT_PTR(x,y)    (&((per_cpu(index_kobject, x))[y]))
+ 
+ #define show_one_plus(file_name, object, val)				\
+ static ssize_t show_##file_name						\
+@@ -684,10 +684,10 @@ static struct kobj_type ktype_percpu_ent
+ 
+ static void __cpuinit cpuid4_cache_sysfs_exit(unsigned int cpu)
+ {
+-	kfree(cache_kobject[cpu]);
+-	kfree(index_kobject[cpu]);
+-	cache_kobject[cpu] = NULL;
+-	index_kobject[cpu] = NULL;
++	kfree(per_cpu(cache_kobject, cpu));
++	kfree(per_cpu(index_kobject, cpu));
++	per_cpu(cache_kobject, cpu) = NULL;
++	per_cpu(index_kobject, cpu) = NULL;
+ 	free_cache_attributes(cpu);
  }
  
- int update_end_of_memory(unsigned long end) {return -1;}
-@@ -343,7 +346,8 @@ int __init acpi_scan_nodes(unsigned long
- 	/* First clean up the node list */
- 	for (i = 0; i < MAX_NUMNODES; i++) {
- 		cutoff_node(i, start, end);
--		if ((nodes[i].end - nodes[i].start) < NODE_MIN_SIZE) {
-+		/* ZZZ why was this needed. At least add a comment */
-+		if (nodes[i].end && (nodes[i].end - nodes[i].start) < NODE_MIN_SIZE) {
- 			unparse_node(i);
- 			node_set_offline(i);
+@@ -703,13 +703,14 @@ static int __cpuinit cpuid4_cache_sysfs_
+ 		return err;
+ 
+ 	/* Allocate all required memory */
+-	cache_kobject[cpu] = kzalloc(sizeof(struct kobject), GFP_KERNEL);
+-	if (unlikely(cache_kobject[cpu] == NULL))
++	per_cpu(cache_kobject, cpu) =
++		kzalloc(sizeof(struct kobject), GFP_KERNEL);
++	if (unlikely(per_cpu(cache_kobject, cpu) == NULL))
+ 		goto err_out;
+ 
+-	index_kobject[cpu] = kzalloc(
++	per_cpu(index_kobject, cpu) = kzalloc(
+ 	    sizeof(struct _index_kobject ) * num_cache_leaves, GFP_KERNEL);
+-	if (unlikely(index_kobject[cpu] == NULL))
++	if (unlikely(per_cpu(index_kobject, cpu) == NULL))
+ 		goto err_out;
+ 
+ 	return 0;
+@@ -733,7 +734,8 @@ static int __cpuinit cache_add_dev(struc
+ 	if (unlikely(retval < 0))
+ 		return retval;
+ 
+-	retval = kobject_init_and_add(cache_kobject[cpu], &ktype_percpu_entry,
++	retval = kobject_init_and_add(per_cpu(cache_kobject, cpu),
++				      &ktype_percpu_entry,
+ 				      &sys_dev->kobj, "%s", "cache");
+ 	if (retval < 0) {
+ 		cpuid4_cache_sysfs_exit(cpu);
+@@ -745,13 +747,14 @@ static int __cpuinit cache_add_dev(struc
+ 		this_object->cpu = cpu;
+ 		this_object->index = i;
+ 		retval = kobject_init_and_add(&(this_object->kobj),
+-					      &ktype_cache, cache_kobject[cpu],
++					      &ktype_cache,
++					      per_cpu(cache_kobject, cpu),
+ 					      "index%1lu", i);
+ 		if (unlikely(retval)) {
+ 			for (j = 0; j < i; j++) {
+ 				kobject_put(&(INDEX_KOBJECT_PTR(cpu,j)->kobj));
+ 			}
+-			kobject_put(cache_kobject[cpu]);
++			kobject_put(per_cpu(cache_kobject, cpu));
+ 			cpuid4_cache_sysfs_exit(cpu);
+ 			break;
  		}
-@@ -384,6 +388,12 @@ int __init acpi_scan_nodes(unsigned long
+@@ -760,7 +763,7 @@ static int __cpuinit cache_add_dev(struc
+ 	if (!retval)
+ 		cpu_set(cpu, cache_dev_map);
+ 
+-	kobject_uevent(cache_kobject[cpu], KOBJ_ADD);
++	kobject_uevent(per_cpu(cache_kobject, cpu), KOBJ_ADD);
+ 	return retval;
  }
  
- #ifdef CONFIG_NUMA_EMU
-+static int fake_node_to_pxm_map[MAX_NUMNODES] __initdata = {
-+	[0 ... MAX_NUMNODES-1] = PXM_INVAL
-+};
-+static unsigned char fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
-+	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
-+};
- static int __init find_node_by_addr(unsigned long addr)
- {
- 	int ret = NUMA_NO_NODE;
-@@ -414,12 +424,6 @@ static int __init find_node_by_addr(unsi
- void __init acpi_fake_nodes(const struct bootnode *fake_nodes, int num_nodes)
- {
- 	int i, j;
--	int fake_node_to_pxm_map[MAX_NUMNODES] = {
--		[0 ... MAX_NUMNODES-1] = PXM_INVAL
--	};
--	unsigned char fake_apicid_to_node[MAX_LOCAL_APIC] = {
--		[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
--	};
+@@ -769,7 +772,7 @@ static void __cpuinit cache_remove_dev(s
+ 	unsigned int cpu = sys_dev->id;
+ 	unsigned long i;
  
- 	printk(KERN_INFO "Faking PXM affinity for fake nodes on real "
- 			 "topology.\n");
---- a/include/asm-x86/processor.h
-+++ b/include/asm-x86/processor.h
-@@ -86,14 +86,14 @@ struct cpuinfo_x86 {
- #ifdef CONFIG_SMP
- 	cpumask_t llc_shared_map;	/* cpus sharing the last level cache */
- #endif
--	unsigned char x86_max_cores;	/* cpuid returned max cores value */
--	unsigned char apicid;
--	unsigned short x86_clflush_size;
-+	u16 x86_max_cores;		/* cpuid returned max cores value */
-+	u16 apicid;
-+	u16 x86_clflush_size;
- #ifdef CONFIG_SMP
--	unsigned char booted_cores;	/* number of cores as seen by OS */
--	__u8 phys_proc_id; 		/* Physical processor id. */
--	__u8 cpu_core_id;  		/* Core id */
--	__u8 cpu_index;			/* index into per_cpu list */
-+	u16 booted_cores;		/* number of cores as seen by OS */
-+	u16 phys_proc_id; 		/* Physical processor id. */
-+	u16 cpu_core_id;  		/* Core id */
-+	u16 cpu_index;			/* index into per_cpu list */
- #endif
- } __attribute__((__aligned__(SMP_CACHE_BYTES)));
+-	if (cpuid4_info[cpu] == NULL)
++	if (per_cpu(cpuid4_info, cpu) == NULL)
+ 		return;
+ 	if (!cpu_isset(cpu, cache_dev_map))
+ 		return;
+@@ -777,7 +780,7 @@ static void __cpuinit cache_remove_dev(s
  
---- a/include/asm-x86/smp_64.h
-+++ b/include/asm-x86/smp_64.h
-@@ -26,14 +26,14 @@ extern void unlock_ipi_call_lock(void);
- extern int smp_call_function_mask(cpumask_t mask, void (*func)(void *),
- 				  void *info, int wait);
+ 	for (i = 0; i < num_cache_leaves; i++)
+ 		kobject_put(&(INDEX_KOBJECT_PTR(cpu,i)->kobj));
+-	kobject_put(cache_kobject[cpu]);
++	kobject_put(per_cpu(cache_kobject, cpu));
+ 	cpuid4_cache_sysfs_exit(cpu);
+ }
  
--extern u8 __initdata x86_cpu_to_apicid_init[];
-+extern u16 __initdata x86_cpu_to_apicid_init[];
- extern void *x86_cpu_to_apicid_ptr;
--extern u8 bios_cpu_apicid[];
-+extern u16 bios_cpu_apicid[];
- 
- DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
- DECLARE_PER_CPU(cpumask_t, cpu_core_map);
--DECLARE_PER_CPU(u8, cpu_llc_id);
--DECLARE_PER_CPU(u8, x86_cpu_to_apicid);
-+DECLARE_PER_CPU(u16, cpu_llc_id);
-+DECLARE_PER_CPU(u16, x86_cpu_to_apicid);
- 
- static inline int cpu_present_to_apicid(int mps_cpu)
- {
 
 -- 
 
