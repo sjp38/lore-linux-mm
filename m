@@ -1,246 +1,55 @@
-From: Anton Salikhmetov <salikhmetov@gmail.com>
-Subject: [PATCH 2/2] updating ctime and mtime at syncing
-Date: Sun, 13 Jan 2008 07:39:59 +0300
-Message-Id: <12001992023392-git-send-email-salikhmetov@gmail.com>
-In-Reply-To: <12001991991217-git-send-email-salikhmetov@gmail.com>
-References: <12001991991217-git-send-email-salikhmetov@gmail.com>
+Date: Sun, 13 Jan 2008 06:09:39 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [kvm-devel] mmu notifiers
+Message-ID: <20080113120939.GA3221@sgi.com>
+References: <20080109181908.GS6958@v2.random> <Pine.LNX.4.64.0801091352320.12335@schroedinger.engr.sgi.com> <47860512.3040607@qumranet.com> <Pine.LNX.4.64.0801101103470.20353@schroedinger.engr.sgi.com> <47891A5C.8060907@qumranet.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <47891A5C.8060907@qumranet.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com
+To: Avi Kivity <avi@qumranet.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, kvm-devel@lists.sourceforge.net, linux-mm@kvack.org, Daniel J Blueman <daniel.blueman@quadrics.com>
 List-ID: <linux-mm.kvack.org>
 
-Changes for updating the ctime and mtime fields for memory-mapped files:
+On Sat, Jan 12, 2008 at 09:51:56PM +0200, Avi Kivity wrote:
+> Christoph Lameter wrote:
+>> On Thu, 10 Jan 2008, Avi Kivity wrote:
+>>
+>>   
+>>> Actually sharing memory is possible even without this patch; one simply
+>>> mmap()s a file into the address space of both guests.  Or are you 
+>>> referring to
+>>> something else?
+>>>     
+>>
+>> A file from where? If a file is read by two guests then they will have 
+>> distinct page structs.
+>>
+>>   
+>
+> Two kvm instances mmap() the file (from anywhere) into the guest address 
+> space.  That memory is shared, and will be backed by the same page structs 
+> at the same offset.
 
-1) new flag triggering update of the inode data;
-2) new function to update ctime and mtime for block device files;
-3) new helper function to update ctime and mtime when needed;
-4) updating time stamps for mapped files in sys_msync() and do_fsync();
-5) implementing the feature of auto-updating ctime and mtime.
+That sounds nice, but...
 
-Signed-off-by: Anton Salikhmetov <salikhmetov@gmail.com>
----
- fs/buffer.c             |    1 +
- fs/fs-writeback.c       |    2 ++
- fs/inode.c              |   42 +++++++++++++++++++++++++++++++++++-------
- fs/sync.c               |    2 ++
- include/linux/fs.h      |    9 ++++++++-
- include/linux/pagemap.h |    3 ++-
- mm/msync.c              |   24 ++++++++++++++++--------
- mm/page-writeback.c     |    1 +
- 8 files changed, 67 insertions(+), 17 deletions(-)
+For larger machine configurations, we have different memory access
+capabilities.  When a partition that is located close to the home node
+of the memory accesses memory, it is normal access.  When it is further
+away, they get special access to the line.  Before the shared line is
+sent to the reading node, it is converted by the memory controller into
+an exclusive request and the reading node is handed the only copy of
+the line.  If we gave a remote kernel access to the page, we would also
+open the entire owning nodes page tables up to speculative references
+which effectively would be viewed by hardware as cache-line contention.
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 7249e01..09adf7e 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -719,6 +719,7 @@ static int __set_page_dirty(struct page *page,
- 	}
- 	write_unlock_irq(&mapping->tree_lock);
- 	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-+	set_bit(AS_MCTIME, &mapping->flags);
- 
- 	return 1;
- }
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 0fca820..c25ebd5 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -243,6 +243,8 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
- 
- 	spin_unlock(&inode_lock);
- 
-+	mapping_update_time(mapping);
-+
- 	ret = do_writepages(mapping, wbc);
- 
- 	/* Don't write the inode if only I_DIRTY_PAGES was set */
-diff --git a/fs/inode.c b/fs/inode.c
-index ed35383..c02bfab 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -1243,8 +1243,8 @@ void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
- EXPORT_SYMBOL(touch_atime);
- 
- /**
-- *	file_update_time	-	update mtime and ctime time
-- *	@file: file accessed
-+ *	inode_update_time	-	update mtime and ctime time
-+ *	@inode: inode accessed
-  *
-  *	Update the mtime and ctime members of an inode and mark the inode
-  *	for writeback.  Note that this function is meant exclusively for
-@@ -1253,10 +1253,8 @@ EXPORT_SYMBOL(touch_atime);
-  *	S_NOCTIME inode flag, e.g. for network filesystem where these
-  *	timestamps are handled by the server.
-  */
--
--void file_update_time(struct file *file)
-+void inode_update_time(struct inode *inode)
- {
--	struct inode *inode = file->f_path.dentry->d_inode;
- 	struct timespec now;
- 	int sync_it = 0;
- 
-@@ -1279,8 +1277,39 @@ void file_update_time(struct file *file)
- 	if (sync_it)
- 		mark_inode_dirty_sync(inode);
- }
-+EXPORT_SYMBOL(inode_update_time);
-+
-+/*
-+ * Update the ctime and mtime stamps for memory-mapped block device files.
-+ */
-+static void bd_inode_update_time(struct inode *inode)
-+{
-+	struct block_device *bdev = inode->i_bdev;
-+	struct list_head *p;
-+
-+	if (bdev == NULL)
-+		return;
-+
-+	mutex_lock(&bdev->bd_mutex);
-+	list_for_each(p, &bdev->bd_inodes) {
-+		inode = list_entry(p, struct inode, i_devices);
-+		inode_update_time(inode);
-+	}
-+	mutex_unlock(&bdev->bd_mutex);
-+}
- 
--EXPORT_SYMBOL(file_update_time);
-+/*
-+ * Update the ctime and mtime stamps after checking if they are to be updated.
-+ */
-+void mapping_update_time(struct address_space *mapping)
-+{
-+	if (test_and_clear_bit(AS_MCTIME, &mapping->flags)) {
-+		if (S_ISBLK(mapping->host->i_mode))
-+			bd_inode_update_time(mapping->host);
-+		else
-+			inode_update_time(mapping->host);
-+	}
-+}
- 
- int inode_needs_sync(struct inode *inode)
- {
-@@ -1290,7 +1319,6 @@ int inode_needs_sync(struct inode *inode)
- 		return 1;
- 	return 0;
- }
--
- EXPORT_SYMBOL(inode_needs_sync);
- 
- int inode_wait(void *word)
-diff --git a/fs/sync.c b/fs/sync.c
-index 7cd005e..5561464 100644
---- a/fs/sync.c
-+++ b/fs/sync.c
-@@ -87,6 +87,8 @@ long do_fsync(struct file *file, int datasync)
- 		goto out;
- 	}
- 
-+	mapping_update_time(mapping);
-+
- 	ret = filemap_fdatawrite(mapping);
- 
- 	/*
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index b3ec4a4..1dccd4b 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1977,7 +1977,14 @@ extern int buffer_migrate_page(struct address_space *,
- extern int inode_change_ok(struct inode *, struct iattr *);
- extern int __must_check inode_setattr(struct inode *, struct iattr *);
- 
--extern void file_update_time(struct file *file);
-+extern void inode_update_time(struct inode *);
-+
-+static inline void file_update_time(struct file *file)
-+{
-+	inode_update_time(file->f_path.dentry->d_inode);
-+}
-+
-+extern void mapping_update_time(struct address_space *);
- 
- static inline ino_t parent_ino(struct dentry *dentry)
- {
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index db8a410..bf0f9e7 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -17,8 +17,9 @@
-  * Bits in mapping->flags.  The lower __GFP_BITS_SHIFT bits are the page
-  * allocation mode flags.
-  */
--#define	AS_EIO		(__GFP_BITS_SHIFT + 0)	/* IO error on async write */
-+#define AS_EIO		(__GFP_BITS_SHIFT + 0)	/* IO error on async write */
- #define AS_ENOSPC	(__GFP_BITS_SHIFT + 1)	/* ENOSPC on async write */
-+#define AS_MCTIME	(__GFP_BITS_SHIFT + 2)	/* mtime and ctime to update */
- 
- static inline void mapping_set_error(struct address_space *mapping, int error)
- {
-diff --git a/mm/msync.c b/mm/msync.c
-index ff654c9..07dc8fc 100644
---- a/mm/msync.c
-+++ b/mm/msync.c
-@@ -5,6 +5,7 @@
-  * Copyright (C) 1994-1999  Linus Torvalds
-  *
-  * Substantial code cleanup.
-+ * Updating the ctime and mtime stamps for memory-mapped files.
-  * Copyright (C) 2008 Anton Salikhmetov <salikhmetov@gmail.com>
-  */
- 
-@@ -22,6 +23,10 @@
-  * Nor does it mark the relevant pages dirty (it used to up to 2.6.17).
-  * Now it doesn't do anything, since dirty pages are properly tracked.
-  *
-+ * The msync() system call updates the ctime and mtime fields for
-+ * the mapped file when called with the MS_SYNC or MS_ASYNC flags
-+ * according to the POSIX standard.
-+ *
-  * The application may now run fsync() to
-  * write out the dirty pages and wait on the writeout and check the result.
-  * Or the application may run fadvise(FADV_DONTNEED) against the fd to start
-@@ -76,14 +81,17 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
- 			break;
- 		}
- 		file = vma->vm_file;
--		if ((flags & MS_SYNC) && file && (vma->vm_flags & VM_SHARED)) {
--			get_file(file);
--			up_read(&mm->mmap_sem);
--			error = do_fsync(file, 0);
--			fput(file);
--			if (error)
--				return error;
--			down_read(&mm->mmap_sem);
-+		if (file && (vma->vm_flags & VM_SHARED)) {
-+			mapping_update_time(file->f_mapping);
-+			if (flags & MS_SYNC) {
-+				get_file(file);
-+				up_read(&mm->mmap_sem);
-+				error = do_fsync(file, 0);
-+				fput(file);
-+				if (error)
-+					return error;
-+				down_read(&mm->mmap_sem);
-+			}
- 		}
- 
- 		start = vma->vm_end;
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index d55cfca..a85df0b 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1025,6 +1025,7 @@ int __set_page_dirty_nobuffers(struct page *page)
- 		if (mapping->host) {
- 			/* !PageAnon && !swapper_space */
- 			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-+			set_bit(AS_MCTIME, &mapping->flags);
- 		}
- 		return 1;
- 	}
--- 
-1.4.4.4
+Additionally, we have needs beyond memory backed by files.  Including
+special devices which do not have struct pages at all (see mspec.c).
+
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
