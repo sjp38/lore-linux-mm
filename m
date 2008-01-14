@@ -1,41 +1,176 @@
-Date: Mon, 14 Jan 2008 11:11:33 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 00/10] x86: Reduce memory and intra-node effects with
-	large count NR_CPUs
-Message-ID: <20080114101133.GA23238@elte.hu>
-References: <20080113183453.973425000@sgi.com> <20080114081418.GB18296@elte.hu> <200801141104.18789.ak@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200801141104.18789.ak@suse.de>
+In-reply-to: <12001992013606-git-send-email-salikhmetov@gmail.com> (message
+	from Anton Salikhmetov on Sun, 13 Jan 2008 07:39:58 +0300)
+Subject: Re: [PATCH 1/2] massive code cleanup of sys_msync()
+References: <12001991991217-git-send-email-salikhmetov@gmail.com> <12001992013606-git-send-email-salikhmetov@gmail.com>
+Message-Id: <E1JEMsg-00079n-FK@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Mon, 14 Jan 2008 11:49:26 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: travis@sgi.com, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: salikhmetov@gmail.com
+Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-* Andi Kleen <ak@suse.de> wrote:
-
-> > i.e. we've got ~22K bloat per CPU - which is not bad, but because 
-> > it's a static component, it hurts smaller boxes. For distributors to 
-> > enable CONFIG_NR_CPU=1024 by default i guess that bloat has to drop 
-> > below 1-2K per CPU :-/ [that would still mean 1-2MB total bloat but 
-> > that's much more acceptable than 23MB]
+> Substantial code cleanup of the sys_msync() function:
 > 
-> Even 1-2MB overhead would be too much for distributors I think. 
-> Ideally there must be near zero overhead for possible CPUs (and I see 
-> no principle reason why this is not possible) Worst case a low few 
-> hundred KBs, but even that would be much.
+> 1) using the PAGE_ALIGN() macro instead of "manual" alignment;
+> 2) improved readability of the loop traversing the process memory regions.
 
-i think this patchset already gives a net win, by moving stuff from 
-NR_CPUS arrays into per_cpu area. (Travis please confirm that this is 
-indeed what the numbers show)
+Thanks for doing this.  See comments below.
 
-The (total-)size of the per-cpu area(s) grows linearly with the number 
-of CPUs, so we'll have the expected near-zero overhead on 4-8-16-32 CPUs 
-and the expected larger total overhead on 1024 CPUs.
+> Signed-off-by: Anton Salikhmetov <salikhmetov@gmail.com>
+> ---
+>  mm/msync.c |   78 +++++++++++++++++++++++++++---------------------------------
+>  1 files changed, 35 insertions(+), 43 deletions(-)
+> 
+> diff --git a/mm/msync.c b/mm/msync.c
+> index 144a757..ff654c9 100644
+> --- a/mm/msync.c
+> +++ b/mm/msync.c
+> @@ -1,24 +1,25 @@
+>  /*
+>   *	linux/mm/msync.c
+>   *
+> + * The msync() system call.
+>   * Copyright (C) 1994-1999  Linus Torvalds
+> + *
+> + * Substantial code cleanup.
+> + * Copyright (C) 2008 Anton Salikhmetov <salikhmetov@gmail.com>
+>   */
+>  
+> -/*
+> - * The msync() system call.
+> - */
+> +#include <linux/file.h>
+>  #include <linux/fs.h>
+>  #include <linux/mm.h>
+>  #include <linux/mman.h>
+> -#include <linux/file.h>
+> -#include <linux/syscalls.h>
+>  #include <linux/sched.h>
+> +#include <linux/syscalls.h>
+>  
+>  /*
+>   * MS_SYNC syncs the entire file - including mappings.
+>   *
+>   * MS_ASYNC does not start I/O (it used to, up to 2.5.67).
+> - * Nor does it marks the relevant pages dirty (it used to up to 2.6.17).
+> + * Nor does it mark the relevant pages dirty (it used to up to 2.6.17).
+>   * Now it doesn't do anything, since dirty pages are properly tracked.
+>   *
+>   * The application may now run fsync() to
+> @@ -33,71 +34,62 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
+>  	unsigned long end;
+>  	struct mm_struct *mm = current->mm;
+>  	struct vm_area_struct *vma;
+> -	int unmapped_error = 0;
+> -	int error = -EINVAL;
+> +	int error = 0, unmapped_error = 0;
+>  
+>  	if (flags & ~(MS_ASYNC | MS_INVALIDATE | MS_SYNC))
+> -		goto out;
+> +		return -EINVAL;
+>  	if (start & ~PAGE_MASK)
+> -		goto out;
+> +		return -EINVAL;
+>  	if ((flags & MS_ASYNC) && (flags & MS_SYNC))
+> -		goto out;
+> -	error = -ENOMEM;
+> -	len = (len + ~PAGE_MASK) & PAGE_MASK;
+> +		return -EINVAL;
+> +
+> +	len = PAGE_ALIGN(len);
+>  	end = start + len;
+>  	if (end < start)
+> -		goto out;
+> -	error = 0;
+> +		return -ENOMEM;
+>  	if (end == start)
+> -		goto out;
+> +		return 0;
+> +
+>  	/*
+>  	 * If the interval [start,end) covers some unmapped address ranges,
+>  	 * just ignore them, but return -ENOMEM at the end.
+>  	 */
+>  	down_read(&mm->mmap_sem);
+>  	vma = find_vma(mm, start);
+> -	for (;;) {
+> +	do {
+>  		struct file *file;
+>  
+> -		/* Still start < end. */
+> -		error = -ENOMEM;
+> -		if (!vma)
+> -			goto out_unlock;
+> -		/* Here start < vma->vm_end. */
+> +		if (!vma) {
+> +			error = -ENOMEM;
+> +			break;
+> +		}
+>  		if (start < vma->vm_start) {
+>  			start = vma->vm_start;
+> -			if (start >= end)
+> -				goto out_unlock;
+> +			if (start >= end) {
+> +				error = -ENOMEM;
+> +				break;
+> +			}
+>  			unmapped_error = -ENOMEM;
+>  		}
+> -		/* Here vma->vm_start <= start < vma->vm_end. */
+> -		if ((flags & MS_INVALIDATE) &&
+> -				(vma->vm_flags & VM_LOCKED)) {
+> +		if ((flags & MS_INVALIDATE) && (vma->vm_flags & VM_LOCKED)) {
+>  			error = -EBUSY;
+> -			goto out_unlock;
+> +			break;
+>  		}
+>  		file = vma->vm_file;
+> -		start = vma->vm_end;
+> -		if ((flags & MS_SYNC) && file &&
+> -				(vma->vm_flags & VM_SHARED)) {
+> +		if ((flags & MS_SYNC) && file && (vma->vm_flags & VM_SHARED)) {
+>  			get_file(file);
+>  			up_read(&mm->mmap_sem);
+>  			error = do_fsync(file, 0);
+>  			fput(file);
+> -			if (error || start >= end)
+> -				goto out;
+> +			if (error)
+> +				return error;
+>  			down_read(&mm->mmap_sem);
+> -			vma = find_vma(mm, start);
 
-	Ingo
+Where did this line go?  It's needed because after releasing and
+reacquiring the mmap sem, the old vma may have gone away.
+
+I suggest, that when doing such a massive cleanup, that you split it
+up even further into easily understandable pieces, so such bugs cannot
+creep in.
+
+> -		} else {
+> -			if (start >= end) {
+> -				error = 0;
+> -				goto out_unlock;
+> -			}
+> -			vma = vma->vm_next;
+>  		}
+> -	}
+> -out_unlock:
+> +
+> +		start = vma->vm_end;
+> +		vma = vma->vm_next;
+> +	} while (start < end);
+>  	up_read(&mm->mmap_sem);
+> -out:
+> +
+>  	return error ? : unmapped_error;
+>  }
+> -- 
+> 1.4.4.4
+
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
