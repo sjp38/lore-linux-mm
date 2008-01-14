@@ -1,44 +1,51 @@
-Message-ID: <478BB783.6050108@sgi.com>
-Date: Mon, 14 Jan 2008 11:26:59 -0800
-From: Mike Travis <travis@sgi.com>
+Date: Mon, 14 Jan 2008 11:29:12 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] Remove set_migrateflags()
+In-Reply-To: <20080114115503.GB32446@csn.ul.ie>
+Message-ID: <Pine.LNX.4.64.0801141127330.7891@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0801101841570.23644@schroedinger.engr.sgi.com>
+ <20080114115503.GB32446@csn.ul.ie>
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/10] x86: Change size of APICIDs from u8 to u16
-References: <20080113183453.973425000@sgi.com> <20080113183454.155968000@sgi.com> <20080114122310.GC32446@csn.ul.ie>
-In-Reply-To: <20080114122310.GC32446@csn.ul.ie>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman wrote:
-> On (13/01/08 10:34), travis@sgi.com didst pronounce:
-...
->>  int update_end_of_memory(unsigned long end) {return -1;}
->> @@ -343,7 +346,8 @@ int __init acpi_scan_nodes(unsigned long
->>  	/* First clean up the node list */
->>  	for (i = 0; i < MAX_NUMNODES; i++) {
->>  		cutoff_node(i, start, end);
->> -		if ((nodes[i].end - nodes[i].start) < NODE_MIN_SIZE) {
->> +		/* ZZZ why was this needed. At least add a comment */
->> +		if (nodes[i].end && (nodes[i].end - nodes[i].start) < NODE_MIN_SIZE) {
+On Mon, 14 Jan 2008, Mel Gorman wrote:
+
+> Grouping the radix nodes into the same TLB entries as the inode and dcaches
+> does appear to help performance a small amount on kernbench at least. Applying
+> this patch showed a performance difference on elapsed time between -4.45%
+> and 0.23% and between -0.36% and 0.28% on total CPU time which appears to
+> support that position.
+
+Ahh... Okay.
+
+> > And thus setting __GFP_RECLAIMABLE
+> > is a bit strange. We could set SLAB_RECLAIM_ACCOUNT on radix tree slab
+> > creation if we want those to be placed in the reclaimable section.
+> > Then we are sure that the radix tree slabs are consistently placed in the
+> > reclaimable section and then the radix tree slabs will also be accounted as
+> > such.
+> > 
 > 
-> Care to actually add a comment? This looks like a note to yourself that
-> got missed.
+> What is there right now places the pages appropriately but should they really
+> be accounted for as such too? I know that marking them like that will
+> cause SLUB to treat them differently and I don't fully understand the
+> implications of that.
 
-Oops, sorry, missed this the first time.
+Marking them makes the slab allocators set GFP_RECLAIMABLE on all page 
+allocator allocations for the radix tree and it will also cause the 
+statistics to be update correspondingly. No other differences.
 
-Actually that was a note from someone else and I didn't address it. 
-(Weirdly, I had removed it but some quilt refresh demon brought it back. ;-)
+> NAK for now. I'm still of the opinion that radix nodes should be marked
+> reclaimable because they are often cleaned up at the same time as slabs that
+> are really reclaimable.
 
-We found this error in testing with a virtual BIOS but I think we
-never figured out if it was an error in our BIOS or a valid error. 
-But in any case, I'll fix it.
-
-Thanks,
-Mike
+Do another version of this patch setting SLAB_RECLAIM_ACCOUNT for the 
+radix tree?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
