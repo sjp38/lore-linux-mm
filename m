@@ -1,10 +1,11 @@
-Message-ID: <478B991F.8060809@sgi.com>
-Date: Mon, 14 Jan 2008 09:17:19 -0800
+Message-ID: <478BA170.10806@sgi.com>
+Date: Mon, 14 Jan 2008 09:52:48 -0800
 From: Mike Travis <travis@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 08/10] x86: Change NR_CPUS arrays in numa_64
-References: <20080113183453.973425000@sgi.com> <20080113183455.077460000@sgi.com> <20080114111428.GA24237@elte.hu>
-In-Reply-To: <20080114111428.GA24237@elte.hu>
+Subject: Re: [PATCH 00/10] x86: Reduce memory and intra-node effects with
+ large count NR_CPUs
+References: <20080113183453.973425000@sgi.com> <20080114081418.GB18296@elte.hu> <20080114090010.GA5404@elte.hu>
+In-Reply-To: <20080114090010.GA5404@elte.hu>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,67 +15,92 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christop
 List-ID: <linux-mm.kvack.org>
 
 Ingo Molnar wrote:
-> * travis@sgi.com <travis@sgi.com> wrote:
+> * Ingo Molnar <mingo@elte.hu> wrote:
 > 
->> Change the following static arrays sized by NR_CPUS to
->> per_cpu data variables:
->>
->> 	char cpu_to_node_map[NR_CPUS];
+>>> 32cpus			  1kcpus-before		    1kcpus-after
+>>>    7172678 Total	   +23314404 Total	       -147590 Total
+>> 1kcpus-after means it's +23314404-147590, i.e. +23166814? (i.e. a 0.6% 
+>> reduction of the bloat?)
 > 
-> x86.git randconfig testing found the !NUMA build bugs below.
+> or if it's relative to 32cpus then that's an excellent result :)
 > 
 > 	Ingo
 
-Thanks!  I'll add this in.
+Nope, it's a cumulative thing.
 
+
+> allsizes -w 72 32cpus 1kcpus-after
+32cpus                              1kcpus-after
+       228 .altinstr_replacemen             +0 .altinstr_replacemen
+      1219 .altinstructions                 +0 .altinstructions
+    717512 .bss                       +1395328 .bss
+     61374 .comment                         +0 .comment
+        16 .con_initcall.init               +0 .con_initcall.init
+    425256 .data                        +19200 .data
+    178688 .data.cacheline_alig      +12898304 .data.cacheline_alig
+      8192 .data.init_task                  +0 .data.init_task
+      4096 .data.page_aligned               +0 .data.page_aligned
+     27008 .data.percpu                +128896 .data.percpu
+     43904 .data.read_mostly          +8703776 .data.read_mostly
+         4 .data_nosave                     +0 .data_nosave
+      5141 .exit.text                       +8 .exit.text
+    138480 .init.data                    +4608 .init.data
+       133 .init.ramfs                      +1 .init.ramfs
+      3192 .init.setup                      +0 .init.setup
+    159754 .init.text                     +904 .init.text
+      2288 .initcall.init                   +0 .initcall.init
+         8 .jiffies                         +0 .jiffies
+      4512 .pci_fixup                       +0 .pci_fixup
+   1314438 .rodata                        +760 .rodata
+     36552 .smp_locks                     +256 .smp_locks
+   3971848 .text                        +14773 .text
+      3368 .vdso                            +0 .vdso
+         4 .vgetcpu_mode                    +0 .vgetcpu_mode
+       218 .vsyscall_0                      +0 .vsyscall_0
+        52 .vsyscall_1                      +0 .vsyscall_1
+        91 .vsyscall_2                      +0 .vsyscall_2
+         8 .vsyscall_3                      +0 .vsyscall_3
+        54 .vsyscall_fn                     +0 .vsyscall_fn
+        80 .vsyscall_gtod_data              +0 .vsyscall_gtod_data
+     39480 __bug_table                      +0 __bug_table
+     16320 __ex_table                       +0 __ex_table
+      9160 __param                          +0 __param
+   7172678 Total                     +23166814 Total
+
+My goal is to move 90+% of the wasted, unused memory to either
+the percpu area or the initdata section.  The 4 fronts are:
+NR_CPUS arrays, cpumask_t usages, more efficient cpu_alloc/percpu
+area, and (relatively small) redesign of the irq system.  (The
+node and apicid arrays are related to the NR_CPUS arrays.)
+
+The irq structs are particularly bad because they use NR_CPUS**2
+arrays and the irq vars use 22588416 bytes (74%) of the total
+30339492 bytes of memory:
+
+   7172678 Total                      30339492 Total
+
+> datasizes -w 72 32cpus 1kcpus-before
+32cpus                              1kcpus-before
+      262144    BSS __log_buf           12681216 CALNDA irq_desc
+      163840 CALNDA irq_desc             8718336 RMDATA irq_cfg
+      131072    BSS entries               528384    BSS irq_lists
+       76800 INITDA early_node_map        396288    BSS irq_2_pin
+       30720 RMDATA irq_cfg               264192    BSS irq_timer_state
+       29440    BSS ide_hwifs             262144    BSS __log_buf
+       24576    BSS boot_exception_       132168 PERCPU per_cpu__kstat
+       20480    BSS irq_lists             131072    BSS entries
+       18840   DATA ioctl_start           131072    BSS boot_pageset
+       16384    BSS boot_cpu_stack        131072 CALNDA boot_cpu_pda
+       15360    BSS irq_2_pin              98304    BSS cpu_devices
+       14677   DATA bnx2_CP_b06FwTe        76800 INITDA early_node_map
+
+I'm still working on a tool to analyze runtime usage of kernel
+memory.
+
+And I'm very open to any and all suggestions... ;-)
+
+Thanks,
 Mike
-
-> 
-> --------------->
-> ---
->  arch/x86/kernel/setup_64.c   |    2 ++
->  arch/x86/kernel/smpboot_64.c |    4 ++++
->  2 files changed, 6 insertions(+)
-> 
-> Index: linux/arch/x86/kernel/setup_64.c
-> ===================================================================
-> --- linux.orig/arch/x86/kernel/setup_64.c
-> +++ linux/arch/x86/kernel/setup_64.c
-> @@ -379,7 +379,9 @@ void __init setup_arch(char **cmdline_p)
->  #ifdef CONFIG_SMP
->  	/* setup to use the early static init tables during kernel startup */
->  	x86_cpu_to_apicid_early_ptr = (void *)&x86_cpu_to_apicid_init;
-> +#ifdef CONFIG_NUMA
->  	x86_cpu_to_node_map_early_ptr = (void *)&x86_cpu_to_node_map_init;
-> +#endif
->  	x86_bios_cpu_apicid_early_ptr = (void *)&x86_bios_cpu_apicid_init;
->  #endif
->  
-> Index: linux/arch/x86/kernel/smpboot_64.c
-> ===================================================================
-> --- linux.orig/arch/x86/kernel/smpboot_64.c
-> +++ linux/arch/x86/kernel/smpboot_64.c
-> @@ -864,8 +864,10 @@ void __init smp_set_apicids(void)
->  		if (per_cpu_offset(cpu)) {
->  			per_cpu(x86_cpu_to_apicid, cpu) =
->  						x86_cpu_to_apicid_init[cpu];
-> +#ifdef CONFIG_NUMA
->  			per_cpu(x86_cpu_to_node_map, cpu) =
->  						x86_cpu_to_node_map_init[cpu];
-> +#endif
->  			per_cpu(x86_bios_cpu_apicid, cpu) =
->  						x86_bios_cpu_apicid_init[cpu];
->  		}
-> @@ -876,7 +878,9 @@ void __init smp_set_apicids(void)
->  
->  	/* indicate the early static arrays are gone */
->  	x86_cpu_to_apicid_early_ptr = NULL;
-> +#ifdef CONFIG_NUMA
->  	x86_cpu_to_node_map_early_ptr = NULL;
-> +#endif
->  	x86_bios_cpu_apicid_early_ptr = NULL;
->  }
->  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
