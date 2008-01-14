@@ -1,66 +1,57 @@
-Date: Mon, 14 Jan 2008 22:53:00 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] Remove set_migrateflags()
-Message-ID: <20080114225300.GB27460@csn.ul.ie>
-References: <Pine.LNX.4.64.0801101841570.23644@schroedinger.engr.sgi.com> <20080114115503.GB32446@csn.ul.ie> <Pine.LNX.4.64.0801141127330.7891@schroedinger.engr.sgi.com>
+Date: Tue, 15 Jan 2008 08:57:11 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch 05/19] split LRU lists into anon & file sets
+In-Reply-To: <20080111104651.3ebea5ea@bree.surriel.com>
+References: <20080111162320.FD6A.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080111104651.3ebea5ea@bree.surriel.com>
+Message-Id: <20080115084534.116A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0801141127330.7891@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On (14/01/08 11:29), Christoph Lameter didst pronounce:
-> On Mon, 14 Jan 2008, Mel Gorman wrote:
-> 
-> > Grouping the radix nodes into the same TLB entries as the inode and dcaches
-> > does appear to help performance a small amount on kernbench at least. Applying
-> > this patch showed a performance difference on elapsed time between -4.45%
-> > and 0.23% and between -0.36% and 0.28% on total CPU time which appears to
-> > support that position.
-> 
-> Ahh... Okay.
-> 
-> > > And thus setting __GFP_RECLAIMABLE
-> > > is a bit strange. We could set SLAB_RECLAIM_ACCOUNT on radix tree slab
-> > > creation if we want those to be placed in the reclaimable section.
-> > > Then we are sure that the radix tree slabs are consistently placed in the
-> > > reclaimable section and then the radix tree slabs will also be accounted as
-> > > such.
-> > > 
-> > 
-> > What is there right now places the pages appropriately but should they really
-> > be accounted for as such too? I know that marking them like that will
-> > cause SLUB to treat them differently and I don't fully understand the
-> > implications of that.
-> 
-> Marking them makes the slab allocators set GFP_RECLAIMABLE on all page 
-> allocator allocations for the radix tree and it will also cause the 
-> statistics to be update correspondingly. No other differences.
-> 
+Hi
 
-Ok, great.
-
-> > NAK for now. I'm still of the opinion that radix nodes should be marked
-> > reclaimable because they are often cleaned up at the same time as slabs that
-> > are really reclaimable.
+> > Why drop (total_swap_pages == 0 && PageAnon(page)) condition?
+> > in embedded sysmtem, 
+> > CONFIG_NORECLAIM is OFF (because almost embedded cpu is 32bit) and
+> > that anon move to inactive list is meaningless because it doesn't have swap.
 > 
-> Do another version of this patch setting SLAB_RECLAIM_ACCOUNT for the 
-> radix tree?
+> That was a mistake, kind of.  Since all swap backed pages are on their
+> own LRU lists, we should not scan those lists at all any more if we are
+> out of swap space.
 > 
+> The patch that fixes get_scan_ratio() adds that test.
+> 
+> Having said that, with the nr_swap_pages==0 test in get_scan_ratio(),
+> we no longer need to test for that condition in shrink_active_list().
 
-If you send me a version, I'll review and put it through the same tests.
-I can roll the patch as well if you'd prefer.
+Oh I see!
+thank you for your kindful lecture.
 
-Thanks.
+your implementation is very cute.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+
+> > below code is more good, may be.
+> > but I don't understand yet why ignore page_referenced() result at anon page ;-)
+> 
+> On modern systems, swapping out anonymous pages is a relatively rare
+> event.  All anonymous pages start out as active and referenced, so
+> testing for that condition does (1) not add any information and (2)
+> mean we need to scan ALL of the anonymous pages, in order to find one
+> candidate to swap out (since they are all referenced).
+> 
+> Simply deactivating a few pages and checking whether they were referenced
+> again while on the (smaller) inactive_anon_list means we can find candidates
+> to page out with a lot less CPU time used.
+
+thanks, I understand, may be.
+
+
+- kosaki
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
