@@ -1,78 +1,188 @@
-Date: Mon, 14 Jan 2008 11:55:03 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] Remove set_migrateflags()
-Message-ID: <20080114115503.GB32446@csn.ul.ie>
-References: <Pine.LNX.4.64.0801101841570.23644@schroedinger.engr.sgi.com>
+Received: by wa-out-1112.google.com with SMTP id m33so3806491wag.8
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2008 03:56:33 -0800 (PST)
+Message-ID: <4df4ef0c0801140356x2bf11e33oc8969d65ad5641a6@mail.gmail.com>
+Date: Mon, 14 Jan 2008 14:56:33 +0300
+From: "Anton Salikhmetov" <salikhmetov@gmail.com>
+Subject: Re: [PATCH 1/2] massive code cleanup of sys_msync()
+In-Reply-To: <E1JEMsg-00079n-FK@pomaz-ex.szeredi.hu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0801101841570.23644@schroedinger.engr.sgi.com>
+References: <12001991991217-git-send-email-salikhmetov@gmail.com>
+	 <12001992013606-git-send-email-salikhmetov@gmail.com>
+	 <E1JEMsg-00079n-FK@pomaz-ex.szeredi.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On (10/01/08 18:42), Christoph Lameter didst pronounce:
-> set_migrateflagsi() sole purpose is to set migrate flags on slab allocations.
-> However, the migrate flags must set on slab creation as agreed upon when the
-> antifrag logic was reviewed. Otherwise some slabs of a slabcache will end up
-> in the unmovable and others in the reclaimable section depending on what
-> flags was active when a new slab was allocated.
-> 
-> This likely slid in somehow when antifrag was merged. Remove it.
-> 
-> The buffer_heads are always allocated with __GFP_RECLAIMABLE because
-> the SLAB_RECLAIM_ACCOUNT option is set.
-> 
-> The set_migrateflags() never had any effect.
-> 
+2008/1/14, Miklos Szeredi <miklos@szeredi.hu>:
+> > Substantial code cleanup of the sys_msync() function:
+> >
+> > 1) using the PAGE_ALIGN() macro instead of "manual" alignment;
+> > 2) improved readability of the loop traversing the process memory regions.
+>
+> Thanks for doing this.  See comments below.
+>
+> > Signed-off-by: Anton Salikhmetov <salikhmetov@gmail.com>
+> > ---
+> >  mm/msync.c |   78 +++++++++++++++++++++++++++---------------------------------
+> >  1 files changed, 35 insertions(+), 43 deletions(-)
+> >
+> > diff --git a/mm/msync.c b/mm/msync.c
+> > index 144a757..ff654c9 100644
+> > --- a/mm/msync.c
+> > +++ b/mm/msync.c
+> > @@ -1,24 +1,25 @@
+> >  /*
+> >   *   linux/mm/msync.c
+> >   *
+> > + * The msync() system call.
+> >   * Copyright (C) 1994-1999  Linus Torvalds
+> > + *
+> > + * Substantial code cleanup.
+> > + * Copyright (C) 2008 Anton Salikhmetov <salikhmetov@gmail.com>
+> >   */
+> >
+> > -/*
+> > - * The msync() system call.
+> > - */
+> > +#include <linux/file.h>
+> >  #include <linux/fs.h>
+> >  #include <linux/mm.h>
+> >  #include <linux/mman.h>
+> > -#include <linux/file.h>
+> > -#include <linux/syscalls.h>
+> >  #include <linux/sched.h>
+> > +#include <linux/syscalls.h>
+> >
+> >  /*
+> >   * MS_SYNC syncs the entire file - including mappings.
+> >   *
+> >   * MS_ASYNC does not start I/O (it used to, up to 2.5.67).
+> > - * Nor does it marks the relevant pages dirty (it used to up to 2.6.17).
+> > + * Nor does it mark the relevant pages dirty (it used to up to 2.6.17).
+> >   * Now it doesn't do anything, since dirty pages are properly tracked.
+> >   *
+> >   * The application may now run fsync() to
+> > @@ -33,71 +34,62 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
+> >       unsigned long end;
+> >       struct mm_struct *mm = current->mm;
+> >       struct vm_area_struct *vma;
+> > -     int unmapped_error = 0;
+> > -     int error = -EINVAL;
+> > +     int error = 0, unmapped_error = 0;
+> >
+> >       if (flags & ~(MS_ASYNC | MS_INVALIDATE | MS_SYNC))
+> > -             goto out;
+> > +             return -EINVAL;
+> >       if (start & ~PAGE_MASK)
+> > -             goto out;
+> > +             return -EINVAL;
+> >       if ((flags & MS_ASYNC) && (flags & MS_SYNC))
+> > -             goto out;
+> > -     error = -ENOMEM;
+> > -     len = (len + ~PAGE_MASK) & PAGE_MASK;
+> > +             return -EINVAL;
+> > +
+> > +     len = PAGE_ALIGN(len);
+> >       end = start + len;
+> >       if (end < start)
+> > -             goto out;
+> > -     error = 0;
+> > +             return -ENOMEM;
+> >       if (end == start)
+> > -             goto out;
+> > +             return 0;
+> > +
+> >       /*
+> >        * If the interval [start,end) covers some unmapped address ranges,
+> >        * just ignore them, but return -ENOMEM at the end.
+> >        */
+> >       down_read(&mm->mmap_sem);
+> >       vma = find_vma(mm, start);
+> > -     for (;;) {
+> > +     do {
+> >               struct file *file;
+> >
+> > -             /* Still start < end. */
+> > -             error = -ENOMEM;
+> > -             if (!vma)
+> > -                     goto out_unlock;
+> > -             /* Here start < vma->vm_end. */
+> > +             if (!vma) {
+> > +                     error = -ENOMEM;
+> > +                     break;
+> > +             }
+> >               if (start < vma->vm_start) {
+> >                       start = vma->vm_start;
+> > -                     if (start >= end)
+> > -                             goto out_unlock;
+> > +                     if (start >= end) {
+> > +                             error = -ENOMEM;
+> > +                             break;
+> > +                     }
+> >                       unmapped_error = -ENOMEM;
+> >               }
+> > -             /* Here vma->vm_start <= start < vma->vm_end. */
+> > -             if ((flags & MS_INVALIDATE) &&
+> > -                             (vma->vm_flags & VM_LOCKED)) {
+> > +             if ((flags & MS_INVALIDATE) && (vma->vm_flags & VM_LOCKED)) {
+> >                       error = -EBUSY;
+> > -                     goto out_unlock;
+> > +                     break;
+> >               }
+> >               file = vma->vm_file;
+> > -             start = vma->vm_end;
+> > -             if ((flags & MS_SYNC) && file &&
+> > -                             (vma->vm_flags & VM_SHARED)) {
+> > +             if ((flags & MS_SYNC) && file && (vma->vm_flags & VM_SHARED)) {
+> >                       get_file(file);
+> >                       up_read(&mm->mmap_sem);
+> >                       error = do_fsync(file, 0);
+> >                       fput(file);
+> > -                     if (error || start >= end)
+> > -                             goto out;
+> > +                     if (error)
+> > +                             return error;
+> >                       down_read(&mm->mmap_sem);
+> > -                     vma = find_vma(mm, start);
+>
+> Where did this line go?  It's needed because after releasing and
+> reacquiring the mmap sem, the old vma may have gone away.
+>
+> I suggest, that when doing such a massive cleanup, that you split it
+> up even further into easily understandable pieces, so such bugs cannot
+> creep in.
 
-Ok, this part I agree with.
+Thanks for your review. I overlooked this problem. I'll redo my cleanup soon.
 
-> Radix tree allocations are not reclaimable.
-
-The thinking behind this was that radix nodes are often (but not always)
-indirectly reclaimable as they are cleaned up when related data structures
-(that are reclaimable) get taken back. This does not apply to them all of
-course but enough that this seemed fair.
-
-Grouping the radix nodes into the same TLB entries as the inode and dcaches
-does appear to help performance a small amount on kernbench at least. Applying
-this patch showed a performance difference on elapsed time between -4.45%
-and 0.23% and between -0.36% and 0.28% on total CPU time which appears to
-support that position.
-
-Applying this patch also reduces high allocation success rates although I
-will freely admit that this *could* be related to the type of workload.
-
-> And thus setting __GFP_RECLAIMABLE
-> is a bit strange. We could set SLAB_RECLAIM_ACCOUNT on radix tree slab
-> creation if we want those to be placed in the reclaimable section.
-> Then we are sure that the radix tree slabs are consistently placed in the
-> reclaimable section and then the radix tree slabs will also be accounted as
-> such.
-> 
-
-What is there right now places the pages appropriately but should they really
-be accounted for as such too? I know that marking them like that will
-cause SLUB to treat them differently and I don't fully understand the
-implications of that.
-
-> The simple removal of set_migrateflags() here will place the allocations
-> in the unmovable section.
-> 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> 
-
-NAK for now. I'm still of the opinion that radix nodes should be marked
-reclaimable because they are often cleaned up at the same time as slabs that
-are really reclaimable.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+>
+> > -             } else {
+> > -                     if (start >= end) {
+> > -                             error = 0;
+> > -                             goto out_unlock;
+> > -                     }
+> > -                     vma = vma->vm_next;
+> >               }
+> > -     }
+> > -out_unlock:
+> > +
+> > +             start = vma->vm_end;
+> > +             vma = vma->vm_next;
+> > +     } while (start < end);
+> >       up_read(&mm->mmap_sem);
+> > -out:
+> > +
+> >       return error ? : unmapped_error;
+> >  }
+> > --
+> > 1.4.4.4
+>
+> Miklos
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
