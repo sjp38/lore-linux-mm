@@ -1,269 +1,74 @@
-In-reply-to: <12001992023392-git-send-email-salikhmetov@gmail.com> (message
-	from Anton Salikhmetov on Sun, 13 Jan 2008 07:39:59 +0300)
-Subject: Re: [PATCH 2/2] updating ctime and mtime at syncing
-References: <12001991991217-git-send-email-salikhmetov@gmail.com> <12001992023392-git-send-email-salikhmetov@gmail.com>
-Message-Id: <E1JENAv-0007CM-T9@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Mon, 14 Jan 2008 12:08:17 +0100
+Date: Mon, 14 Jan 2008 12:14:28 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 08/10] x86: Change NR_CPUS arrays in numa_64
+Message-ID: <20080114111428.GA24237@elte.hu>
+References: <20080113183453.973425000@sgi.com> <20080113183455.077460000@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080113183455.077460000@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: salikhmetov@gmail.com
-Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com
+To: travis@sgi.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> http://bugzilla.kernel.org/show_bug.cgi?id=2645
+* travis@sgi.com <travis@sgi.com> wrote:
+
+> Change the following static arrays sized by NR_CPUS to
+> per_cpu data variables:
 > 
-> Changes for updating the ctime and mtime fields for memory-mapped files:
-> 
-> 1) new flag triggering update of the inode data;
-> 2) new function to update ctime and mtime for block device files;
-> 3) new helper function to update ctime and mtime when needed;
-> 4) updating time stamps for mapped files in sys_msync() and do_fsync();
-> 5) implementing the feature of auto-updating ctime and mtime.
+> 	char cpu_to_node_map[NR_CPUS];
 
-How exactly is this done?
+x86.git randconfig testing found the !NUMA build bugs below.
 
-Is this catering for this case:
+	Ingo
 
- 1 page is dirtied through mapping
- 2 app calls msync(MS_ASYNC)
- 3 page is written again through mapping
- 4 app calls msync(MS_ASYNC)
- 5 ...
- 6 page is written back
+--------------->
+---
+ arch/x86/kernel/setup_64.c   |    2 ++
+ arch/x86/kernel/smpboot_64.c |    4 ++++
+ 2 files changed, 6 insertions(+)
 
-What happens at 4?  Do we care about this one at all?
-
-More comments inline.
-
-> Signed-off-by: Anton Salikhmetov <salikhmetov@gmail.com>
-> ---
->  fs/buffer.c             |    1 +
->  fs/fs-writeback.c       |    2 ++
->  fs/inode.c              |   42 +++++++++++++++++++++++++++++++++++-------
->  fs/sync.c               |    2 ++
->  include/linux/fs.h      |    9 ++++++++-
->  include/linux/pagemap.h |    3 ++-
->  mm/msync.c              |   24 ++++++++++++++++--------
->  mm/page-writeback.c     |    1 +
->  8 files changed, 67 insertions(+), 17 deletions(-)
-> 
-> diff --git a/fs/buffer.c b/fs/buffer.c
-> index 7249e01..09adf7e 100644
-> --- a/fs/buffer.c
-> +++ b/fs/buffer.c
-> @@ -719,6 +719,7 @@ static int __set_page_dirty(struct page *page,
->  	}
->  	write_unlock_irq(&mapping->tree_lock);
->  	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-> +	set_bit(AS_MCTIME, &mapping->flags);
->  
->  	return 1;
->  }
-> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> index 0fca820..c25ebd5 100644
-> --- a/fs/fs-writeback.c
-> +++ b/fs/fs-writeback.c
-> @@ -243,6 +243,8 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
->  
->  	spin_unlock(&inode_lock);
->  
-> +	mapping_update_time(mapping);
-> +
->  	ret = do_writepages(mapping, wbc);
->  
->  	/* Don't write the inode if only I_DIRTY_PAGES was set */
-> diff --git a/fs/inode.c b/fs/inode.c
-> index ed35383..c02bfab 100644
-> --- a/fs/inode.c
-> +++ b/fs/inode.c
-> @@ -1243,8 +1243,8 @@ void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
->  EXPORT_SYMBOL(touch_atime);
->  
->  /**
-> - *	file_update_time	-	update mtime and ctime time
-> - *	@file: file accessed
-> + *	inode_update_time	-	update mtime and ctime time
-> + *	@inode: inode accessed
->   *
->   *	Update the mtime and ctime members of an inode and mark the inode
->   *	for writeback.  Note that this function is meant exclusively for
-> @@ -1253,10 +1253,8 @@ EXPORT_SYMBOL(touch_atime);
->   *	S_NOCTIME inode flag, e.g. for network filesystem where these
->   *	timestamps are handled by the server.
->   */
-> -
-> -void file_update_time(struct file *file)
-> +void inode_update_time(struct inode *inode)
->  {
-> -	struct inode *inode = file->f_path.dentry->d_inode;
->  	struct timespec now;
->  	int sync_it = 0;
->  
-> @@ -1279,8 +1277,39 @@ void file_update_time(struct file *file)
->  	if (sync_it)
->  		mark_inode_dirty_sync(inode);
->  }
-> +EXPORT_SYMBOL(inode_update_time);
-> +
-> +/*
-> + * Update the ctime and mtime stamps for memory-mapped block device files.
-> + */
-> +static void bd_inode_update_time(struct inode *inode)
-> +{
-> +	struct block_device *bdev = inode->i_bdev;
-> +	struct list_head *p;
-> +
-> +	if (bdev == NULL)
-> +		return;
-> +
-> +	mutex_lock(&bdev->bd_mutex);
-> +	list_for_each(p, &bdev->bd_inodes) {
-> +		inode = list_entry(p, struct inode, i_devices);
-> +		inode_update_time(inode);
-> +	}
-> +	mutex_unlock(&bdev->bd_mutex);
-> +}
-
-Umm, why not just call with file->f_dentry->d_inode, so that you don't
-need to do this ugly search for the physical inode?  The file pointer
-is available in both msync and fsync.
-
-> -EXPORT_SYMBOL(file_update_time);
-> +/*
-> + * Update the ctime and mtime stamps after checking if they are to be updated.
-> + */
-> +void mapping_update_time(struct address_space *mapping)
-> +{
-> +	if (test_and_clear_bit(AS_MCTIME, &mapping->flags)) {
-> +		if (S_ISBLK(mapping->host->i_mode))
-> +			bd_inode_update_time(mapping->host);
-> +		else
-> +			inode_update_time(mapping->host);
-> +	}
-> +}
->  
->  int inode_needs_sync(struct inode *inode)
->  {
-> @@ -1290,7 +1319,6 @@ int inode_needs_sync(struct inode *inode)
->  		return 1;
->  	return 0;
->  }
-> -
->  EXPORT_SYMBOL(inode_needs_sync);
->  
->  int inode_wait(void *word)
-> diff --git a/fs/sync.c b/fs/sync.c
-> index 7cd005e..5561464 100644
-> --- a/fs/sync.c
-> +++ b/fs/sync.c
-> @@ -87,6 +87,8 @@ long do_fsync(struct file *file, int datasync)
->  		goto out;
->  	}
->  
-> +	mapping_update_time(mapping);
-> +
->  	ret = filemap_fdatawrite(mapping);
->  
->  	/*
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index b3ec4a4..1dccd4b 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -1977,7 +1977,14 @@ extern int buffer_migrate_page(struct address_space *,
->  extern int inode_change_ok(struct inode *, struct iattr *);
->  extern int __must_check inode_setattr(struct inode *, struct iattr *);
->  
-> -extern void file_update_time(struct file *file);
-> +extern void inode_update_time(struct inode *);
-> +
-> +static inline void file_update_time(struct file *file)
-> +{
-> +	inode_update_time(file->f_path.dentry->d_inode);
-> +}
-> +
-> +extern void mapping_update_time(struct address_space *);
->  
->  static inline ino_t parent_ino(struct dentry *dentry)
->  {
-> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-> index db8a410..bf0f9e7 100644
-> --- a/include/linux/pagemap.h
-> +++ b/include/linux/pagemap.h
-> @@ -17,8 +17,9 @@
->   * Bits in mapping->flags.  The lower __GFP_BITS_SHIFT bits are the page
->   * allocation mode flags.
->   */
-> -#define	AS_EIO		(__GFP_BITS_SHIFT + 0)	/* IO error on async write */
-> +#define AS_EIO		(__GFP_BITS_SHIFT + 0)	/* IO error on async write */
->  #define AS_ENOSPC	(__GFP_BITS_SHIFT + 1)	/* ENOSPC on async write */
-> +#define AS_MCTIME	(__GFP_BITS_SHIFT + 2)	/* mtime and ctime to update */
->  
->  static inline void mapping_set_error(struct address_space *mapping, int error)
->  {
-> diff --git a/mm/msync.c b/mm/msync.c
-> index ff654c9..07dc8fc 100644
-> --- a/mm/msync.c
-> +++ b/mm/msync.c
-> @@ -5,6 +5,7 @@
->   * Copyright (C) 1994-1999  Linus Torvalds
->   *
->   * Substantial code cleanup.
-> + * Updating the ctime and mtime stamps for memory-mapped files.
->   * Copyright (C) 2008 Anton Salikhmetov <salikhmetov@gmail.com>
->   */
->  
-> @@ -22,6 +23,10 @@
->   * Nor does it mark the relevant pages dirty (it used to up to 2.6.17).
->   * Now it doesn't do anything, since dirty pages are properly tracked.
->   *
-> + * The msync() system call updates the ctime and mtime fields for
-> + * the mapped file when called with the MS_SYNC or MS_ASYNC flags
-> + * according to the POSIX standard.
-> + *
->   * The application may now run fsync() to
->   * write out the dirty pages and wait on the writeout and check the result.
->   * Or the application may run fadvise(FADV_DONTNEED) against the fd to start
-> @@ -76,14 +81,17 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
->  			break;
->  		}
->  		file = vma->vm_file;
-> -		if ((flags & MS_SYNC) && file && (vma->vm_flags & VM_SHARED)) {
-> -			get_file(file);
-> -			up_read(&mm->mmap_sem);
-> -			error = do_fsync(file, 0);
-> -			fput(file);
-> -			if (error)
-> -				return error;
-> -			down_read(&mm->mmap_sem);
-> +		if (file && (vma->vm_flags & VM_SHARED)) {
-> +			mapping_update_time(file->f_mapping);
-> +			if (flags & MS_SYNC) {
-> +				get_file(file);
-> +				up_read(&mm->mmap_sem);
-> +				error = do_fsync(file, 0);
-> +				fput(file);
-> +				if (error)
-> +					return error;
-> +				down_read(&mm->mmap_sem);
-> +			}
->  		}
->  
->  		start = vma->vm_end;
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index d55cfca..a85df0b 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -1025,6 +1025,7 @@ int __set_page_dirty_nobuffers(struct page *page)
->  		if (mapping->host) {
->  			/* !PageAnon && !swapper_space */
->  			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-> +			set_bit(AS_MCTIME, &mapping->flags);
->  		}
->  		return 1;
->  	}
-> -- 
-> 1.4.4.4
+Index: linux/arch/x86/kernel/setup_64.c
+===================================================================
+--- linux.orig/arch/x86/kernel/setup_64.c
++++ linux/arch/x86/kernel/setup_64.c
+@@ -379,7 +379,9 @@ void __init setup_arch(char **cmdline_p)
+ #ifdef CONFIG_SMP
+ 	/* setup to use the early static init tables during kernel startup */
+ 	x86_cpu_to_apicid_early_ptr = (void *)&x86_cpu_to_apicid_init;
++#ifdef CONFIG_NUMA
+ 	x86_cpu_to_node_map_early_ptr = (void *)&x86_cpu_to_node_map_init;
++#endif
+ 	x86_bios_cpu_apicid_early_ptr = (void *)&x86_bios_cpu_apicid_init;
+ #endif
+ 
+Index: linux/arch/x86/kernel/smpboot_64.c
+===================================================================
+--- linux.orig/arch/x86/kernel/smpboot_64.c
++++ linux/arch/x86/kernel/smpboot_64.c
+@@ -864,8 +864,10 @@ void __init smp_set_apicids(void)
+ 		if (per_cpu_offset(cpu)) {
+ 			per_cpu(x86_cpu_to_apicid, cpu) =
+ 						x86_cpu_to_apicid_init[cpu];
++#ifdef CONFIG_NUMA
+ 			per_cpu(x86_cpu_to_node_map, cpu) =
+ 						x86_cpu_to_node_map_init[cpu];
++#endif
+ 			per_cpu(x86_bios_cpu_apicid, cpu) =
+ 						x86_bios_cpu_apicid_init[cpu];
+ 		}
+@@ -876,7 +878,9 @@ void __init smp_set_apicids(void)
+ 
+ 	/* indicate the early static arrays are gone */
+ 	x86_cpu_to_apicid_early_ptr = NULL;
++#ifdef CONFIG_NUMA
+ 	x86_cpu_to_node_map_early_ptr = NULL;
++#endif
+ 	x86_bios_cpu_apicid_early_ptr = NULL;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
