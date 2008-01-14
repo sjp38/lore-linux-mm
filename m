@@ -1,40 +1,28 @@
-Date: Mon, 14 Jan 2008 09:14:18 +0100
+Date: Mon, 14 Jan 2008 10:00:10 +0100
 From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [PATCH 00/10] x86: Reduce memory and intra-node effects with
 	large count NR_CPUs
-Message-ID: <20080114081418.GB18296@elte.hu>
-References: <20080113183453.973425000@sgi.com>
+Message-ID: <20080114090010.GA5404@elte.hu>
+References: <20080113183453.973425000@sgi.com> <20080114081418.GB18296@elte.hu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080113183453.973425000@sgi.com>
+In-Reply-To: <20080114081418.GB18296@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: travis@sgi.com
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* travis@sgi.com <travis@sgi.com> wrote:
+* Ingo Molnar <mingo@elte.hu> wrote:
 
-> This patchset addresses the kernel bloat that occurs when NR_CPUS is 
-> increased. The memory numbers below are with NR_CPUS = 1024 which I've 
-> been testing (4 and 32 real processors, the rest "possible" using the 
-> additional_cpus start option.) These changes are all specific to the 
-> x86 architecture, non-arch specific changes will follow.
+> > 32cpus			  1kcpus-before		    1kcpus-after
+> >    7172678 Total	   +23314404 Total	       -147590 Total
+> 
+> 1kcpus-after means it's +23314404-147590, i.e. +23166814? (i.e. a 0.6% 
+> reduction of the bloat?)
 
-thanks, i'll try this patchset in x86.git.
-
-> 32cpus			  1kcpus-before		    1kcpus-after
->    7172678 Total	   +23314404 Total	       -147590 Total
-
-1kcpus-after means it's +23314404-147590, i.e. +23166814? (i.e. a 0.6% 
-reduction of the bloat?)
-
-i.e. we've got ~22K bloat per CPU - which is not bad, but because it's a 
-static component, it hurts smaller boxes. For distributors to enable 
-CONFIG_NR_CPU=1024 by default i guess that bloat has to drop below 1-2K 
-per CPU :-/ [that would still mean 1-2MB total bloat but that's much 
-more acceptable than 23MB]
+or if it's relative to 32cpus then that's an excellent result :)
 
 	Ingo
 
