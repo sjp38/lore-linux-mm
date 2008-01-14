@@ -1,74 +1,195 @@
-Date: Mon, 14 Jan 2008 12:14:28 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 08/10] x86: Change NR_CPUS arrays in numa_64
-Message-ID: <20080114111428.GA24237@elte.hu>
-References: <20080113183453.973425000@sgi.com> <20080113183455.077460000@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080113183455.077460000@sgi.com>
+In-reply-to: <E1JENAv-0007CM-T9@pomaz-ex.szeredi.hu> (message from Miklos
+	Szeredi on Mon, 14 Jan 2008 12:08:17 +0100)
+Subject: Re: [PATCH 2/2] updating ctime and mtime at syncing
+References: <12001991991217-git-send-email-salikhmetov@gmail.com> <12001992023392-git-send-email-salikhmetov@gmail.com> <E1JENAv-0007CM-T9@pomaz-ex.szeredi.hu>
+Message-Id: <E1JENHf-0007Dl-Q5@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Mon, 14 Jan 2008 12:15:15 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: travis@sgi.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: salikhmetov@gmail.com
+Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-* travis@sgi.com <travis@sgi.com> wrote:
-
-> Change the following static arrays sized by NR_CPUS to
-> per_cpu data variables:
+> > http://bugzilla.kernel.org/show_bug.cgi?id=2645
+> > 
+> > Changes for updating the ctime and mtime fields for memory-mapped files:
+> > 
+> > 1) new flag triggering update of the inode data;
+> > 2) new function to update ctime and mtime for block device files;
+> > 3) new helper function to update ctime and mtime when needed;
+> > 4) updating time stamps for mapped files in sys_msync() and do_fsync();
+> > 5) implementing the feature of auto-updating ctime and mtime.
 > 
-> 	char cpu_to_node_map[NR_CPUS];
+> How exactly is this done?
+> 
+> Is this catering for this case:
+> 
+>  1 page is dirtied through mapping
+>  2 app calls msync(MS_ASYNC)
+>  3 page is written again through mapping
+>  4 app calls msync(MS_ASYNC)
+>  5 ...
+>  6 page is written back
+> 
+> What happens at 4?  Do we care about this one at all?
 
-x86.git randconfig testing found the !NUMA build bugs below.
+Oh, and here's a test program I wrote, that can be used to check this
+behavior.   It has two options:
 
-	Ingo
+ -s   use MS_SYNC instead of MS_ASYNC
+ -f   fork and do the msync on a different mapping
 
---------------->
----
- arch/x86/kernel/setup_64.c   |    2 ++
- arch/x86/kernel/smpboot_64.c |    4 ++++
- 2 files changed, 6 insertions(+)
+Back then I haven't found a single OS, that fully conformed to all the
+stupid POSIX rules regarding mmaps and ctime/mtime.
 
-Index: linux/arch/x86/kernel/setup_64.c
-===================================================================
---- linux.orig/arch/x86/kernel/setup_64.c
-+++ linux/arch/x86/kernel/setup_64.c
-@@ -379,7 +379,9 @@ void __init setup_arch(char **cmdline_p)
- #ifdef CONFIG_SMP
- 	/* setup to use the early static init tables during kernel startup */
- 	x86_cpu_to_apicid_early_ptr = (void *)&x86_cpu_to_apicid_init;
-+#ifdef CONFIG_NUMA
- 	x86_cpu_to_node_map_early_ptr = (void *)&x86_cpu_to_node_map_init;
-+#endif
- 	x86_bios_cpu_apicid_early_ptr = (void *)&x86_bios_cpu_apicid_init;
- #endif
- 
-Index: linux/arch/x86/kernel/smpboot_64.c
-===================================================================
---- linux.orig/arch/x86/kernel/smpboot_64.c
-+++ linux/arch/x86/kernel/smpboot_64.c
-@@ -864,8 +864,10 @@ void __init smp_set_apicids(void)
- 		if (per_cpu_offset(cpu)) {
- 			per_cpu(x86_cpu_to_apicid, cpu) =
- 						x86_cpu_to_apicid_init[cpu];
-+#ifdef CONFIG_NUMA
- 			per_cpu(x86_cpu_to_node_map, cpu) =
- 						x86_cpu_to_node_map_init[cpu];
-+#endif
- 			per_cpu(x86_bios_cpu_apicid, cpu) =
- 						x86_bios_cpu_apicid_init[cpu];
- 		}
-@@ -876,7 +878,9 @@ void __init smp_set_apicids(void)
- 
- 	/* indicate the early static arrays are gone */
- 	x86_cpu_to_apicid_early_ptr = NULL;
-+#ifdef CONFIG_NUMA
- 	x86_cpu_to_node_map_early_ptr = NULL;
-+#endif
- 	x86_bios_cpu_apicid_early_ptr = NULL;
- }
- 
+Miklos
+----
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+
+static const char *filename;
+static int msync_flag = MS_ASYNC;
+static int msync_fork = 0;
+
+static void print_times(const char *msg)
+{
+    struct stat stbuf;
+    stat(filename, &stbuf);
+    printf("%s\t%li\t%li\t%li\n", msg, stbuf.st_ctime, stbuf.st_mtime,
+           stbuf.st_atime);
+}
+
+static void do_msync(void *addr, int len)
+{
+    int res;
+    if (!msync_fork) {
+        res = msync(addr, len, msync_flag);
+        if (res == -1) {
+            perror("msync");
+            exit(1);
+        }
+    } else {
+        int pid = fork();
+        if (pid == -1) {
+            perror("fork");
+            exit(1);
+        }
+        if (!pid) {
+            int fd = open(filename, O_RDWR);
+            if (fd == -1) {
+                perror("open");
+                exit(1);
+            }
+            addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+            if (addr == MAP_FAILED) {
+                perror("mmap");
+                exit(1);
+            }
+            res = msync(addr, len, msync_flag);
+            if (res == -1) {
+                perror("msync");
+                exit(1);
+            }
+            exit(0);
+        }
+        wait(NULL);
+    }
+}
+
+static void usage(const char *progname)
+{
+    fprintf(stderr, "usage: %s filename [-sf]\n", progname);
+    exit(1);
+}
+
+int main(int argc, char *argv[])
+{
+    int res;
+    char *addr;
+    int fd;
+
+    if (argc < 2)
+        usage(argv[0]);
+
+    filename = argv[1];
+    if (argc > 2) {
+        if (argc > 3)
+            usage(argv[0]);
+        if (strcmp(argv[2], "-s") == 0)
+            msync_flag = MS_SYNC;
+        else if (strcmp(argv[2], "-f") == 0)
+            msync_fork = 1;
+        else if (strcmp(argv[2], "-sf") == 0 || strcmp(argv[2], "-fs") == 0) {
+            msync_flag = MS_SYNC;
+            msync_fork = 1;
+        } else
+            usage(argv[0]);
+    }
+
+    fd = open(filename, O_RDWR | O_TRUNC | O_CREAT, 0666);
+    if (fd == -1) {
+        perror(filename);
+        return 1;
+    }
+    print_times("begin");
+    sleep(1);
+    write(fd, "aaaa\n", 4);
+    print_times("write");
+    sleep(1);
+    addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (addr == MAP_FAILED) {
+        perror("mmap");
+        return 1;
+    }
+    print_times("mmap");
+    sleep(1);
+
+    addr[1] = 'b';
+    print_times("b");
+    sleep(1);
+    do_msync(addr, 4);
+    print_times("msync b");
+    sleep(1);
+
+    addr[2] = 'c';
+    print_times("c");
+    sleep(1);
+    do_msync(addr, 4);
+    print_times("msync c");
+    sleep(1);
+
+    addr[3] = 'd';
+    print_times("d");
+    sleep(1);
+    res = munmap(addr, 4);
+    if (res == -1) {
+        perror("munmap");
+        return 1;
+    }
+    print_times("munmap");
+    sleep(1);
+
+    res = close(fd);
+    if (res == -1) {
+        perror("close");
+        return 1;
+    }
+    print_times("close");
+    sleep(1);
+    sync();
+    print_times("sync");
+
+    return 0;
+}
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
