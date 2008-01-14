@@ -1,230 +1,211 @@
-Date: Mon, 14 Jan 2008 12:23:10 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 01/10] x86: Change size of APICIDs from u8 to u16
-Message-ID: <20080114122310.GC32446@csn.ul.ie>
-References: <20080113183453.973425000@sgi.com> <20080113183454.155968000@sgi.com>
+Received: by wa-out-1112.google.com with SMTP id m33so3819329wag.8
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2008 04:25:44 -0800 (PST)
+Message-ID: <4df4ef0c0801140425u7d163f02l2a7a210faa468349@mail.gmail.com>
+Date: Mon, 14 Jan 2008 15:25:44 +0300
+From: "Anton Salikhmetov" <salikhmetov@gmail.com>
+Subject: Re: [PATCH 2/2] updating ctime and mtime at syncing
+In-Reply-To: <E1JENHf-0007Dl-Q5@pomaz-ex.szeredi.hu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080113183454.155968000@sgi.com>
+References: <12001991991217-git-send-email-salikhmetov@gmail.com>
+	 <12001992023392-git-send-email-salikhmetov@gmail.com>
+	 <E1JENAv-0007CM-T9@pomaz-ex.szeredi.hu>
+	 <E1JENHf-0007Dl-Q5@pomaz-ex.szeredi.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: travis@sgi.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On (13/01/08 10:34), travis@sgi.com didst pronounce:
-> Change the size of APICIDs from u8 to u16.  This partially
-> supports the new x2apic mode that will be present on future
-> processor chips. (Chips actually support 32-bit APICIDs, but that
-> change is more intrusive. Supporting 16-bit is sufficient for now).
-> 
-> Signed-off-by: Jack Steiner <steiner@sgi.com>
-> 
-> I've included just the partial change from u8 to u16 apicids.  The
-> remaining x2apic changes will be in a separate patch.
-> 
-> In addition, the fake_node_to_pxm_map[] and fake_apicid_to_node[]
-> tables have been moved from local data to the __initdata section
-> reducing stack pressure when MAX_NUMNODES and MAX_LOCAL_APIC are
-> increased in size.
-> 
+2008/1/14, Miklos Szeredi <miklos@szeredi.hu>:
+> > > http://bugzilla.kernel.org/show_bug.cgi?id=2645
+> > >
+> > > Changes for updating the ctime and mtime fields for memory-mapped files:
+> > >
+> > > 1) new flag triggering update of the inode data;
+> > > 2) new function to update ctime and mtime for block device files;
+> > > 3) new helper function to update ctime and mtime when needed;
+> > > 4) updating time stamps for mapped files in sys_msync() and do_fsync();
+> > > 5) implementing the feature of auto-updating ctime and mtime.
+> >
+> > How exactly is this done?
+> >
+> > Is this catering for this case:
+> >
+> >  1 page is dirtied through mapping
+> >  2 app calls msync(MS_ASYNC)
+> >  3 page is written again through mapping
+> >  4 app calls msync(MS_ASYNC)
+> >  5 ...
+> >  6 page is written back
+> >
+> > What happens at 4?  Do we care about this one at all?
+>
+> Oh, and here's a test program I wrote, that can be used to check this
+> behavior.   It has two options:
+>
+>  -s   use MS_SYNC instead of MS_ASYNC
+>  -f   fork and do the msync on a different mapping
+>
+> Back then I haven't found a single OS, that fully conformed to all the
+> stupid POSIX rules regarding mmaps and ctime/mtime.
 
-Does this make a different to inter-node effects?
+Thank you very much for sharing your code.
 
-> Signed-off-by: Mike Travis <travis@sgi.com>
-> Reviewed-by: Christoph Lameter <clameter@sgi.com>
-> ---
->  arch/x86/kernel/genapic_64.c |    4 ++--
->  arch/x86/kernel/mpparse_64.c |    4 ++--
->  arch/x86/kernel/smpboot_64.c |    2 +-
->  arch/x86/mm/numa_64.c        |    2 +-
->  arch/x86/mm/srat_64.c        |   22 +++++++++++++---------
->  include/asm-x86/processor.h  |   14 +++++++-------
->  include/asm-x86/smp_64.h     |    8 ++++----
->  7 files changed, 30 insertions(+), 26 deletions(-)
-> 
-> --- a/arch/x86/kernel/genapic_64.c
-> +++ b/arch/x86/kernel/genapic_64.c
-> @@ -32,10 +32,10 @@
->   * array during this time.  Is it zeroed when the per_cpu
->   * data area is removed.
->   */
-> -u8 x86_cpu_to_apicid_init[NR_CPUS] __initdata
-> +u16 x86_cpu_to_apicid_init[NR_CPUS] __initdata
->  					= { [0 ... NR_CPUS-1] = BAD_APICID };
->  void *x86_cpu_to_apicid_ptr;
-> -DEFINE_PER_CPU(u8, x86_cpu_to_apicid) = BAD_APICID;
-> +DEFINE_PER_CPU(u16, x86_cpu_to_apicid) = BAD_APICID;
->  EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
->  
->  struct genapic __read_mostly *genapic = &apic_flat;
-> --- a/arch/x86/kernel/mpparse_64.c
-> +++ b/arch/x86/kernel/mpparse_64.c
-> @@ -67,7 +67,7 @@ unsigned disabled_cpus __cpuinitdata;
->  /* Bitmask of physically existing CPUs */
->  physid_mask_t phys_cpu_present_map = PHYSID_MASK_NONE;
->  
-> -u8 bios_cpu_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
-> +u16 bios_cpu_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
->  
->  
->  /*
-> @@ -132,7 +132,7 @@ static void __cpuinit MP_processor_info(
->  	 * area is created.
->  	 */
->  	if (x86_cpu_to_apicid_ptr) {
-> -		u8 *x86_cpu_to_apicid = (u8 *)x86_cpu_to_apicid_ptr;
-> +		u16 *x86_cpu_to_apicid = (u16 *)x86_cpu_to_apicid_ptr;
->  		x86_cpu_to_apicid[cpu] = m->mpc_apicid;
->  	} else {
->  		per_cpu(x86_cpu_to_apicid, cpu) = m->mpc_apicid;
-> --- a/arch/x86/kernel/smpboot_64.c
-> +++ b/arch/x86/kernel/smpboot_64.c
-> @@ -65,7 +65,7 @@ int smp_num_siblings = 1;
->  EXPORT_SYMBOL(smp_num_siblings);
->  
->  /* Last level cache ID of each logical CPU */
-> -DEFINE_PER_CPU(u8, cpu_llc_id) = BAD_APICID;
-> +DEFINE_PER_CPU(u16, cpu_llc_id) = BAD_APICID;
->  
->  /* Bitmask of currently online CPUs */
->  cpumask_t cpu_online_map __read_mostly;
-> --- a/arch/x86/mm/numa_64.c
-> +++ b/arch/x86/mm/numa_64.c
-> @@ -627,7 +627,7 @@ void __init init_cpu_to_node(void)
->  	int i;
->  
->  	for (i = 0; i < NR_CPUS; i++) {
-> -		u8 apicid = x86_cpu_to_apicid_init[i];
-> +		u16 apicid = x86_cpu_to_apicid_init[i];
->  
->  		if (apicid == BAD_APICID)
->  			continue;
-> --- a/arch/x86/mm/srat_64.c
-> +++ b/arch/x86/mm/srat_64.c
-> @@ -130,6 +130,9 @@ void __init
->  acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
->  {
->  	int pxm, node;
-> +	int apic_id;
-> +
-> +	apic_id = pa->apic_id;
->  	if (srat_disabled())
->  		return;
->  	if (pa->header.length != sizeof(struct acpi_srat_cpu_affinity)) {
-> @@ -145,10 +148,10 @@ acpi_numa_processor_affinity_init(struct
->  		bad_srat();
->  		return;
->  	}
-> -	apicid_to_node[pa->apic_id] = node;
-> +	apicid_to_node[apic_id] = node;
->  	acpi_numa = 1;
->  	printk(KERN_INFO "SRAT: PXM %u -> APIC %u -> Node %u\n",
-> -	       pxm, pa->apic_id, node);
-> +	       pxm, apic_id, node);
->  }
->  
->  int update_end_of_memory(unsigned long end) {return -1;}
-> @@ -343,7 +346,8 @@ int __init acpi_scan_nodes(unsigned long
->  	/* First clean up the node list */
->  	for (i = 0; i < MAX_NUMNODES; i++) {
->  		cutoff_node(i, start, end);
-> -		if ((nodes[i].end - nodes[i].start) < NODE_MIN_SIZE) {
-> +		/* ZZZ why was this needed. At least add a comment */
-> +		if (nodes[i].end && (nodes[i].end - nodes[i].start) < NODE_MIN_SIZE) {
+I'll integrate the MS_ASYNC and fork() test cases into my own unit test.
 
-Care to actually add a comment? This looks like a note to yourself that
-got missed.
-
->  			unparse_node(i);
->  			node_set_offline(i);
->  		}
-> @@ -384,6 +388,12 @@ int __init acpi_scan_nodes(unsigned long
->  }
->  
->  #ifdef CONFIG_NUMA_EMU
-> +static int fake_node_to_pxm_map[MAX_NUMNODES] __initdata = {
-> +	[0 ... MAX_NUMNODES-1] = PXM_INVAL
-> +};
-> +static unsigned char fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
-> +	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
-> +};
->  static int __init find_node_by_addr(unsigned long addr)
->  {
->  	int ret = NUMA_NO_NODE;
-> @@ -414,12 +424,6 @@ static int __init find_node_by_addr(unsi
->  void __init acpi_fake_nodes(const struct bootnode *fake_nodes, int num_nodes)
->  {
->  	int i, j;
-> -	int fake_node_to_pxm_map[MAX_NUMNODES] = {
-> -		[0 ... MAX_NUMNODES-1] = PXM_INVAL
-> -	};
-> -	unsigned char fake_apicid_to_node[MAX_LOCAL_APIC] = {
-> -		[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
-> -	};
->  
->  	printk(KERN_INFO "Faking PXM affinity for fake nodes on real "
->  			 "topology.\n");
-> --- a/include/asm-x86/processor.h
-> +++ b/include/asm-x86/processor.h
-> @@ -86,14 +86,14 @@ struct cpuinfo_x86 {
->  #ifdef CONFIG_SMP
->  	cpumask_t llc_shared_map;	/* cpus sharing the last level cache */
->  #endif
-> -	unsigned char x86_max_cores;	/* cpuid returned max cores value */
-> -	unsigned char apicid;
-> -	unsigned short x86_clflush_size;
-> +	u16 x86_max_cores;		/* cpuid returned max cores value */
-> +	u16 apicid;
-> +	u16 x86_clflush_size;
->  #ifdef CONFIG_SMP
-> -	unsigned char booted_cores;	/* number of cores as seen by OS */
-> -	__u8 phys_proc_id; 		/* Physical processor id. */
-> -	__u8 cpu_core_id;  		/* Core id */
-> -	__u8 cpu_index;			/* index into per_cpu list */
-> +	u16 booted_cores;		/* number of cores as seen by OS */
-> +	u16 phys_proc_id; 		/* Physical processor id. */
-> +	u16 cpu_core_id;  		/* Core id */
-> +	u16 cpu_index;			/* index into per_cpu list */
->  #endif
->  } __attribute__((__aligned__(SMP_CACHE_BYTES)));
->  
-> --- a/include/asm-x86/smp_64.h
-> +++ b/include/asm-x86/smp_64.h
-> @@ -26,14 +26,14 @@ extern void unlock_ipi_call_lock(void);
->  extern int smp_call_function_mask(cpumask_t mask, void (*func)(void *),
->  				  void *info, int wait);
->  
-> -extern u8 __initdata x86_cpu_to_apicid_init[];
-> +extern u16 __initdata x86_cpu_to_apicid_init[];
->  extern void *x86_cpu_to_apicid_ptr;
-> -extern u8 bios_cpu_apicid[];
-> +extern u16 bios_cpu_apicid[];
->  
->  DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
->  DECLARE_PER_CPU(cpumask_t, cpu_core_map);
-> -DECLARE_PER_CPU(u8, cpu_llc_id);
-> -DECLARE_PER_CPU(u8, x86_cpu_to_apicid);
-> +DECLARE_PER_CPU(u16, cpu_llc_id);
-> +DECLARE_PER_CPU(u16, x86_cpu_to_apicid);
->  
->  static inline int cpu_present_to_apicid(int mps_cpu)
->  {
-> 
-> -- 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+>
+> Miklos
+> ----
+>
+> #include <stdio.h>
+> #include <stdlib.h>
+> #include <unistd.h>
+> #include <string.h>
+> #include <fcntl.h>
+> #include <sys/mman.h>
+> #include <sys/stat.h>
+> #include <sys/wait.h>
+>
+> static const char *filename;
+> static int msync_flag = MS_ASYNC;
+> static int msync_fork = 0;
+>
+> static void print_times(const char *msg)
+> {
+>     struct stat stbuf;
+>     stat(filename, &stbuf);
+>     printf("%s\t%li\t%li\t%li\n", msg, stbuf.st_ctime, stbuf.st_mtime,
+>            stbuf.st_atime);
+> }
+>
+> static void do_msync(void *addr, int len)
+> {
+>     int res;
+>     if (!msync_fork) {
+>         res = msync(addr, len, msync_flag);
+>         if (res == -1) {
+>             perror("msync");
+>             exit(1);
+>         }
+>     } else {
+>         int pid = fork();
+>         if (pid == -1) {
+>             perror("fork");
+>             exit(1);
+>         }
+>         if (!pid) {
+>             int fd = open(filename, O_RDWR);
+>             if (fd == -1) {
+>                 perror("open");
+>                 exit(1);
+>             }
+>             addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+>             if (addr == MAP_FAILED) {
+>                 perror("mmap");
+>                 exit(1);
+>             }
+>             res = msync(addr, len, msync_flag);
+>             if (res == -1) {
+>                 perror("msync");
+>                 exit(1);
+>             }
+>             exit(0);
+>         }
+>         wait(NULL);
+>     }
+> }
+>
+> static void usage(const char *progname)
+> {
+>     fprintf(stderr, "usage: %s filename [-sf]\n", progname);
+>     exit(1);
+> }
+>
+> int main(int argc, char *argv[])
+> {
+>     int res;
+>     char *addr;
+>     int fd;
+>
+>     if (argc < 2)
+>         usage(argv[0]);
+>
+>     filename = argv[1];
+>     if (argc > 2) {
+>         if (argc > 3)
+>             usage(argv[0]);
+>         if (strcmp(argv[2], "-s") == 0)
+>             msync_flag = MS_SYNC;
+>         else if (strcmp(argv[2], "-f") == 0)
+>             msync_fork = 1;
+>         else if (strcmp(argv[2], "-sf") == 0 || strcmp(argv[2], "-fs") == 0) {
+>             msync_flag = MS_SYNC;
+>             msync_fork = 1;
+>         } else
+>             usage(argv[0]);
+>     }
+>
+>     fd = open(filename, O_RDWR | O_TRUNC | O_CREAT, 0666);
+>     if (fd == -1) {
+>         perror(filename);
+>         return 1;
+>     }
+>     print_times("begin");
+>     sleep(1);
+>     write(fd, "aaaa\n", 4);
+>     print_times("write");
+>     sleep(1);
+>     addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+>     if (addr == MAP_FAILED) {
+>         perror("mmap");
+>         return 1;
+>     }
+>     print_times("mmap");
+>     sleep(1);
+>
+>     addr[1] = 'b';
+>     print_times("b");
+>     sleep(1);
+>     do_msync(addr, 4);
+>     print_times("msync b");
+>     sleep(1);
+>
+>     addr[2] = 'c';
+>     print_times("c");
+>     sleep(1);
+>     do_msync(addr, 4);
+>     print_times("msync c");
+>     sleep(1);
+>
+>     addr[3] = 'd';
+>     print_times("d");
+>     sleep(1);
+>     res = munmap(addr, 4);
+>     if (res == -1) {
+>         perror("munmap");
+>         return 1;
+>     }
+>     print_times("munmap");
+>     sleep(1);
+>
+>     res = close(fd);
+>     if (res == -1) {
+>         perror("close");
+>         return 1;
+>     }
+>     print_times("close");
+>     sleep(1);
+>     sync();
+>     print_times("sync");
+>
+>     return 0;
+> }
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
