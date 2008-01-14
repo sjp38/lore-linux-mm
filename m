@@ -1,36 +1,42 @@
-Message-ID: <478A6E36.1030309@cosmosbay.com>
-Date: Sun, 13 Jan 2008 21:01:58 +0100
-From: Eric Dumazet <dada1@cosmosbay.com>
+Date: Mon, 14 Jan 2008 09:14:18 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 00/10] x86: Reduce memory and intra-node effects with
+	large count NR_CPUs
+Message-ID: <20080114081418.GB18296@elte.hu>
+References: <20080113183453.973425000@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/10] x86: Change size of node ids from u8 to u16
-References: <20080113183453.973425000@sgi.com> <20080113183454.288993000@sgi.com>
-In-Reply-To: <20080113183454.288993000@sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080113183453.973425000@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: travis@sgi.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-travis@sgi.com a ecrit :
-> Change the size of node ids from 8 bits to 16 bits to
-> accomodate more than 256 nodes.
-> 
-> Signed-off-by: Mike Travis <travis@sgi.com>
-> Reviewed-by: Christoph Lameter <clameter@sgi.com>
-> ---
->  arch/x86/mm/numa_64.c      |    9 ++++++---
->  arch/x86/mm/srat_64.c      |    2 +-
->  include/asm-x86/numa_64.h  |    4 ++--
->  include/asm-x86/topology.h |    2 +-
->  4 files changed, 10 insertions(+), 7 deletions(-)
+* travis@sgi.com <travis@sgi.com> wrote:
 
-So, you think some machine is going to have more than 256 nodes ?
+> This patchset addresses the kernel bloat that occurs when NR_CPUS is 
+> increased. The memory numbers below are with NR_CPUS = 1024 which I've 
+> been testing (4 and 32 real processors, the rest "possible" using the 
+> additional_cpus start option.) These changes are all specific to the 
+> x86 architecture, non-arch specific changes will follow.
 
-If so, you probably need to change 'struct memnode' too 
-(include/asm-x86/mmzone_64.h)
+thanks, i'll try this patchset in x86.git.
 
+> 32cpus			  1kcpus-before		    1kcpus-after
+>    7172678 Total	   +23314404 Total	       -147590 Total
+
+1kcpus-after means it's +23314404-147590, i.e. +23166814? (i.e. a 0.6% 
+reduction of the bloat?)
+
+i.e. we've got ~22K bloat per CPU - which is not bad, but because it's a 
+static component, it hurts smaller boxes. For distributors to enable 
+CONFIG_NR_CPU=1024 by default i guess that bloat has to drop below 1-2K 
+per CPU :-/ [that would still mean 1-2MB total bloat but that's much 
+more acceptable than 23MB]
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
