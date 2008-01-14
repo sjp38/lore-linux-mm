@@ -1,66 +1,66 @@
-Date: Mon, 14 Jan 2008 12:02:42 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] mmu notifiers #v2
-In-Reply-To: <20080113162418.GE8736@v2.random>
-Message-ID: <Pine.LNX.4.64.0801141154240.8300@schroedinger.engr.sgi.com>
-References: <20080113162418.GE8736@v2.random>
+Date: Mon, 14 Jan 2008 22:53:00 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] Remove set_migrateflags()
+Message-ID: <20080114225300.GB27460@csn.ul.ie>
+References: <Pine.LNX.4.64.0801101841570.23644@schroedinger.engr.sgi.com> <20080114115503.GB32446@csn.ul.ie> <Pine.LNX.4.64.0801141127330.7891@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0801141127330.7891@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm-devel@lists.sourceforge.net, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, daniel.blueman@quadrics.com, holt@sgi.com, steiner@sgi.com, Andrew Morton <akpm@osdl.org>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 13 Jan 2008, Andrea Arcangeli wrote:
+On (14/01/08 11:29), Christoph Lameter didst pronounce:
+> On Mon, 14 Jan 2008, Mel Gorman wrote:
+> 
+> > Grouping the radix nodes into the same TLB entries as the inode and dcaches
+> > does appear to help performance a small amount on kernbench at least. Applying
+> > this patch showed a performance difference on elapsed time between -4.45%
+> > and 0.23% and between -0.36% and 0.28% on total CPU time which appears to
+> > support that position.
+> 
+> Ahh... Okay.
+> 
+> > > And thus setting __GFP_RECLAIMABLE
+> > > is a bit strange. We could set SLAB_RECLAIM_ACCOUNT on radix tree slab
+> > > creation if we want those to be placed in the reclaimable section.
+> > > Then we are sure that the radix tree slabs are consistently placed in the
+> > > reclaimable section and then the radix tree slabs will also be accounted as
+> > > such.
+> > > 
+> > 
+> > What is there right now places the pages appropriately but should they really
+> > be accounted for as such too? I know that marking them like that will
+> > cause SLUB to treat them differently and I don't fully understand the
+> > implications of that.
+> 
+> Marking them makes the slab allocators set GFP_RECLAIMABLE on all page 
+> allocator allocations for the radix tree and it will also cause the 
+> statistics to be update correspondingly. No other differences.
+> 
 
-> About the locking perhaps I'm underestimating it, but by following the
-> TLB flushing analogy, by simply clearing the shadow ptes (with kvm
-> mmu_lock spinlock to avoid racing with other vcpu spte accesses of
-> course) and flushing the shadow-pte after clearing the main linux pte,
-> it should be enough to serialize against shadow-pte page faults that
-> would call into get_user_pages. Flushing the host TLB before or after
-> the shadow-ptes shouldn't matter.
+Ok, great.
 
-Hmmm... In most of the callsites we hold a writelock on mmap_sem right?
+> > NAK for now. I'm still of the opinion that radix nodes should be marked
+> > reclaimable because they are often cleaned up at the same time as slabs that
+> > are really reclaimable.
+> 
+> Do another version of this patch setting SLAB_RECLAIM_ACCOUNT for the 
+> radix tree?
+> 
 
-> Comments welcome... especially from SGI/IBM/Quadrics and all other
-> potential users of this functionality.
+If you send me a version, I'll review and put it through the same tests.
+I can roll the patch as well if you'd prefer.
 
-> There are also certain details I'm uncertain about, like passing 'mm'
-> to the lowlevel methods, my KVM usage of the invalidate_page()
-> notifier for example only uses 'mm' for a BUG_ON for example:
+Thanks.
 
-Passing mm is fine as long as mmap_sem is held.
-
-> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-> --- a/include/asm-generic/pgtable.h
-> +++ b/include/asm-generic/pgtable.h
-> @@ -86,6 +86,7 @@ do {									\
->  	pte_t __pte;							\
->  	__pte = ptep_get_and_clear((__vma)->vm_mm, __address, __ptep);	\
->  	flush_tlb_page(__vma, __address);				\
-> +	mmu_notifier(invalidate_page, (__vma)->vm_mm, __address);	\
->  	__pte;								\
->  })
->  #endif
-
-Hmmm... this is ptep_clear_flush? What about the other uses of 
-flush_tlb_page in asm-generic/pgtable.h and related uses in arch code?
-(would help if your patches would mention the function name in the diff 
-headers)
-
-> +#define mmu_notifier(function, mm, args...)				\
-> +	do {								\
-> +		struct mmu_notifier *__mn;				\
-> +		struct hlist_node *__n;					\
-> +									\
-> +		hlist_for_each_entry(__mn, __n, &(mm)->mmu_notifier, hlist) \
-> +			if (__mn->ops->function)			\
-> +				__mn->ops->function(__mn, mm, args);	\
-> +	} while (0)
-
-Does this have to be inline? ptep_clear_flush will become quite big
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
