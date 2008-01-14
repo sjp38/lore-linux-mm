@@ -1,43 +1,56 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH 00/10] x86: Reduce memory and intra-node effects with large count NR_CPUs
-Date: Mon, 14 Jan 2008 12:30:56 +0100
-References: <20080113183453.973425000@sgi.com> <200801141104.18789.ak@suse.de> <20080114101133.GA23238@elte.hu>
-In-Reply-To: <20080114101133.GA23238@elte.hu>
+Message-ID: <478B4942.4030003@de.ibm.com>
+Date: Mon, 14 Jan 2008 12:36:34 +0100
+From: Carsten Otte <cotte@de.ibm.com>
+Reply-To: carsteno@de.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [rfc][patch 1/4] include: add callbacks to toggle reference counting
+ for VM_MIXEDMAP pages
+References: <20071221102052.GB28484@wotan.suse.de> <476B96D6.2010302@de.ibm.com> <20071221104701.GE28484@wotan.suse.de> <1199784954.25114.27.camel@cotte.boeblingen.de.ibm.com> <1199891032.28689.9.camel@cotte.boeblingen.de.ibm.com> <1199891645.28689.22.camel@cotte.boeblingen.de.ibm.com> <6934efce0801091017t7f9041abs62904de3722cadc@mail.gmail.com> <4785D064.1040501@de.ibm.com> <6934efce0801101201t72e9b7c4ra88d6fda0f08b1b2@mail.gmail.com> <47872CA7.40802@de.ibm.com> <20080113024410.GA22285@wotan.suse.de>
+In-Reply-To: <20080113024410.GA22285@wotan.suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200801141230.56403.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: travis@sgi.com, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: carsteno@de.ibm.com, Jared Hulbert <jaredeh@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-> i think this patchset already gives a net win, by moving stuff from 
-> NR_CPUS arrays into per_cpu area. (Travis please confirm that this is 
-> indeed what the numbers show)
+Nick Piggin wrote:
+> You know that pfn_valid() can be changed at runtime depending on what
+> your intentions are for that page. It can remain false if you don't
+> want struct pages for it, then you can switch a flag...
+We would'nt need to switch at runtime: it is sufficient to make that 
+decision when the segment gets attched.
 
-Yes that is what his patchkit does, although I'm not sure he has addressed all NR_CPUS
-pigs yet. The basic idea came out of some discussions we had at kernel summit on this 
-topic. It's definitely a step in the right direction.
+> I've just been looking at putting everything together (including the
+> pte_special patch). 
+Yippieh. I am going to try it out next :-).
 
-Another problem is that NR_IRQS currently scales with NR_CPUs which is wrong too
-(e.g. a hyperthreaded quad core/socket does not need 8 times as many 
-external interrupts as a single core/socket). And there are unfortunately a few 
-drivers that declare NR_IRQS arrays.
+> I still hit one problem with your required modification
+> to the filemap_xip patch.
+ >
+> You need to unconditionally do a vm_insert_pfn in xip_file_fault, and rely
+> on the pte bit to tell the rest of the VM that the page has not been
+> refcounted. For architectures without such a bit, this breaks VM_MIXEDMAP,
+> because it relies on testing pfn_valid() rather than a pte bit here.
+> We can go 2 ways here: either s390 can make pfn_valid() work like we'd
+> like; or we can have a vm_insert_mixedmap_pfn(), which has
+> #ifdef __HAVE_ARCH_PTE_SPECIAL
+> in order to do the right thing (ie. those architectures which do have pte
+> special can just do vm_insert_pfn, and those that don't will either do a
+> vm_insert_pfn or vm_insert_page depending on the result of pfn_valid).
+Of those two choices, I'd cleary favor vm_insert_mixedmap_pfn(). But 
+we can #ifdef __HAVE_ARCH_PTE_SPECIAL in vm_insert_pfn() too, can't 
+we? We can safely set the bit for both VM_MIXEDMAP and VM_PFNMAP. Did 
+I miss something?
 
-In general there are more scaling problems like this (e.g. it also doesn't make
-sense to scale kernel threads for each CPU thread for example).
-
-At some point we might need to separate CONFIG_NR_CPUS into a 
-CONFIG_NR_SOCKETS / CONFIG_NR_CPUS to address this, although full dynamic
-scaling without configuration is best of course.
-
-All can just be addressed step by step of course.
-
--Andi
+> The latter I guess is more efficient for those that do implement pte_special,
+> however if anything I would rather investigate that as an incremental patch
+> after the basics are working. It would also break the dependency of the
+> xip stuff on the pte_special patch, and basically make everything much
+> more likely to get merged IMO.
+I'll talk to Martin and see what he thinks. I really hate doing list 
+walk in pfn_valid(), it just does'nt feel right.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
