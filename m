@@ -1,42 +1,43 @@
-Subject: Re: [RFC] mmaped copy too slow?
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20080115180130.119A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080115115318.1191.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <1200387478.15103.21.camel@twins>
-	 <20080115180130.119A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Tue, 15 Jan 2008 10:08:27 +0100
-Message-Id: <1200388107.15103.23.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+In-reply-to: <4df4ef0c0801140617t6ca81e84w1cdfcce290ce68fe@mail.gmail.com>
+	(salikhmetov@gmail.com)
+Subject: Re: [PATCH 2/2] updating ctime and mtime at syncing
+References: <12001991991217-git-send-email-salikhmetov@gmail.com>
+	 <12001992023392-git-send-email-salikhmetov@gmail.com>
+	 <E1JENAv-0007CM-T9@pomaz-ex.szeredi.hu>
+	 <4df4ef0c0801140422l1980d507v1884ad8d8e8bf6d3@mail.gmail.com>
+	 <E1JEP9P-0007RD-PP@pomaz-ex.szeredi.hu>
+	 <1200317737.15103.8.camel@twins> <4df4ef0c0801140617t6ca81e84w1cdfcce290ce68fe@mail.gmail.com>
+Message-Id: <E1JEiUT-0000qO-MY@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 15 Jan 2008 10:53:53 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: salikhmetov@gmail.com
+Cc: a.p.zijlstra@chello.nl, miklos@szeredi.hu, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, akpm@linux-foundation.org, protasnb@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-01-15 at 18:03 +0900, KOSAKI Motohiro wrote:
-> Hi Peter,
+> Thanks for your review, Peter and Miklos!
 > 
-> > > > While being able to deal with used-once mappings in page reclaim
-> > > > could be a good idea, this would require us to be able to determine
-> > > > the difference between a page that was accessed once since it was
-> > > > faulted in and a page that got accessed several times.
-> > > 
-> > > it makes sense that read ahead hit assume used-once mapping, may be.
-> > > I will try it.
-> > 
-> > I once had a patch that made read-ahead give feedback into page reclaim,
-> > but people didn't like it.
+> I overlooked this case when AS_MCTIME flag has been turned off and the
+> page is still dirty.
 > 
-> Could you please tell me your mail subject or URL?
-> I hope know why people didn't like.
+> On the other hand, the words "shall be marked for update" may be
+> considered as just setting the AS_MCTIME flag, not updating the time
+> stamps.
+> 
+> What do you think about calling mapping_update_time() inside of "if
+> (MS_SYNC & flags)"? I suggest such change because the code for
+> analysis of the case you've mentioned above seems impossible to me.
 
-I think this is the last thread on the subject:
+I think that's a good idea.  As a first iteration, just updating the
+mtime/ctime in msync(MS_SYNC) and remove_vma() (called at munmap time)
+would be a big improvement over what we currently have.
 
-  http://lkml.org/lkml/2007/7/21/219
+I would also recommend, that you drop mapping_update_time() and the
+related functions from the patch, and just use file_update_time()
+instead.
 
-
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
