@@ -1,84 +1,143 @@
-Subject: Re: [PATCH] mmu notifiers #v2
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Reply-To: benh@kernel.crashing.org
-In-Reply-To: <Pine.LNX.4.64.0801141154240.8300@schroedinger.engr.sgi.com>
-References: <20080113162418.GE8736@v2.random>
-	 <Pine.LNX.4.64.0801141154240.8300@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Tue, 15 Jan 2008 15:28:27 +1100
-Message-Id: <1200371307.10470.15.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Message-ID: <478C4BBD.9050707@cosmosbay.com>
+Date: Tue, 15 Jan 2008 06:59:25 +0100
+From: Eric Dumazet <dada1@cosmosbay.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 02/10] x86: Change size of node ids from u8 to u16 V2
+References: <20080115021735.779102000@sgi.com> <20080115021736.236433000@sgi.com>
+In-Reply-To: <20080115021736.236433000@sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm-devel@lists.sourceforge.net, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, daniel.blueman@quadrics.com, holt@sgi.com, steiner@sgi.com, Andrew Morton <akpm@osdl.org>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>
+To: travis@sgi.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-01-14 at 12:02 -0800, Christoph Lameter wrote:
-> On Sun, 13 Jan 2008, Andrea Arcangeli wrote:
+travis@sgi.com a ecrit :
+> Change the size of node ids from 8 bits to 16 bits to
+> accomodate more than 256 nodes.
 > 
-> > About the locking perhaps I'm underestimating it, but by following the
-> > TLB flushing analogy, by simply clearing the shadow ptes (with kvm
-> > mmu_lock spinlock to avoid racing with other vcpu spte accesses of
-> > course) and flushing the shadow-pte after clearing the main linux pte,
-> > it should be enough to serialize against shadow-pte page faults that
-> > would call into get_user_pages. Flushing the host TLB before or after
-> > the shadow-ptes shouldn't matter.
+> Signed-off-by: Mike Travis <travis@sgi.com>
+> Reviewed-by: Christoph Lameter <clameter@sgi.com>
+> ---
+> V1->V2:
+>     - changed pxm_to_node_map to u16
+>     - changed memnode map entries to u16
+> ---
+>  arch/x86/mm/numa_64.c       |    9 ++++++---
+>  arch/x86/mm/srat_64.c       |    2 +-
+>  drivers/acpi/numa.c         |    2 +-
+>  include/asm-x86/mmzone_64.h |    4 ++--
+>  include/asm-x86/numa_64.h   |    4 ++--
+>  include/asm-x86/topology.h  |    2 +-
+>  6 files changed, 13 insertions(+), 10 deletions(-)
 > 
-> Hmmm... In most of the callsites we hold a writelock on mmap_sem right?
+> --- a/arch/x86/mm/numa_64.c
+> +++ b/arch/x86/mm/numa_64.c
+> @@ -11,6 +11,7 @@
+>  #include <linux/ctype.h>
+>  #include <linux/module.h>
+>  #include <linux/nodemask.h>
+> +#include <linux/sched.h>
+>  
+>  #include <asm/e820.h>
+>  #include <asm/proto.h>
+> @@ -30,12 +31,12 @@ bootmem_data_t plat_node_bdata[MAX_NUMNO
+>  
+>  struct memnode memnode;
+>  
+> -int cpu_to_node_map[NR_CPUS] __read_mostly = {
+> +u16 cpu_to_node_map[NR_CPUS] __read_mostly = {
+>  	[0 ... NR_CPUS-1] = NUMA_NO_NODE
+>  };
+>  EXPORT_SYMBOL(cpu_to_node_map);
+>  
+> -unsigned char apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
+> +u16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
+>  	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
+>  };
+>  
+> @@ -544,7 +545,9 @@ void __init numa_initmem_init(unsigned l
+>  	node_set(0, node_possible_map);
+>  	for (i = 0; i < NR_CPUS; i++)
+>  		numa_set_node(i, 0);
+> -	node_to_cpumask_map[0] = cpumask_of_cpu(0);
+> +	/* we can't use cpumask_of_cpu() yet */
+> +	memset(&node_to_cpumask_map[0], 0, sizeof(node_to_cpumask_map[0]));
+> +	cpu_set(0, node_to_cpumask_map[0]);
+>  	e820_register_active_regions(0, start_pfn, end_pfn);
+>  	setup_node_bootmem(0, start_pfn << PAGE_SHIFT, end_pfn << PAGE_SHIFT);
+>  }
+> --- a/arch/x86/mm/srat_64.c
+> +++ b/arch/x86/mm/srat_64.c
+> @@ -395,7 +395,7 @@ int __init acpi_scan_nodes(unsigned long
+>  static int fake_node_to_pxm_map[MAX_NUMNODES] __initdata = {
+>  	[0 ... MAX_NUMNODES-1] = PXM_INVAL
+>  };
+> -static unsigned char fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
+> +static u16 fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
+>  	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
+>  };
+>  static int __init find_node_by_addr(unsigned long addr)
+> --- a/drivers/acpi/numa.c
+> +++ b/drivers/acpi/numa.c
+> @@ -38,7 +38,7 @@ ACPI_MODULE_NAME("numa");
+>  static nodemask_t nodes_found_map = NODE_MASK_NONE;
+>  
+>  /* maps to convert between proximity domain and logical node ID */
+> -static int pxm_to_node_map[MAX_PXM_DOMAINS]
+> +static u16 pxm_to_node_map[MAX_PXM_DOMAINS]
+>  				= { [0 ... MAX_PXM_DOMAINS - 1] = NID_INVAL };
+>  static int node_to_pxm_map[MAX_NUMNODES]
+>  				= { [0 ... MAX_NUMNODES - 1] = PXM_INVAL };
+> --- a/include/asm-x86/mmzone_64.h
+> +++ b/include/asm-x86/mmzone_64.h
+> @@ -15,8 +15,8 @@
+>  struct memnode {
+>  	int shift;
+>  	unsigned int mapsize;
+> -	u8 *map;
+> -	u8 embedded_map[64-16];
+> +	u16 *map;
+> +	u16 embedded_map[64-16];
 
-Not in unmap_mapping_range() afaik.
+Must change to 32-8 here, or 64-8 and change the comment (total size = 128 
+bytes). If you change to 32-8, check how .map is set to embedded_map.
 
-> > Comments welcome... especially from SGI/IBM/Quadrics and all other
-> > potential users of this functionality.
+>  } ____cacheline_aligned; /* total size = 64 bytes */
+>  extern struct memnode memnode;
+>  #define memnode_shift memnode.shift
+> --- a/include/asm-x86/numa_64.h
+> +++ b/include/asm-x86/numa_64.h
+> @@ -20,7 +20,7 @@ extern void numa_set_node(int cpu, int n
+>  extern void srat_reserve_add_area(int nodeid);
+>  extern int hotadd_percent;
+>  
+> -extern unsigned char apicid_to_node[MAX_LOCAL_APIC];
+> +extern u16 apicid_to_node[MAX_LOCAL_APIC];
+>  
+>  extern void numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn);
+>  extern unsigned long numa_free_all_bootmem(void);
+> @@ -40,6 +40,6 @@ static inline void clear_node_cpumask(in
+>  #define clear_node_cpumask(cpu) do {} while (0)
+>  #endif
+>  
+> -#define NUMA_NO_NODE 0xff
+> +#define NUMA_NO_NODE 0xffff
+>  
+>  #endif
+> --- a/include/asm-x86/topology.h
+> +++ b/include/asm-x86/topology.h
+> @@ -30,7 +30,7 @@
+>  #include <asm/mpspec.h>
+>  
+>  /* Mappings between logical cpu number and node number */
+> -extern int cpu_to_node_map[];
+> +extern u16 cpu_to_node_map[];
+>  extern cpumask_t node_to_cpumask_map[];
+>  
+>  /* Returns the number of the node containing CPU 'cpu' */
 > 
-> > There are also certain details I'm uncertain about, like passing 'mm'
-> > to the lowlevel methods, my KVM usage of the invalidate_page()
-> > notifier for example only uses 'mm' for a BUG_ON for example:
-> 
-> Passing mm is fine as long as mmap_sem is held.
-
-Passing mm is always a good idea, regardless of the mmap_sem, it can be
-useful for lots of other things :-)
-
-> > diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-> > --- a/include/asm-generic/pgtable.h
-> > +++ b/include/asm-generic/pgtable.h
-> > @@ -86,6 +86,7 @@ do {									\
-> >  	pte_t __pte;							\
-> >  	__pte = ptep_get_and_clear((__vma)->vm_mm, __address, __ptep);	\
-> >  	flush_tlb_page(__vma, __address);				\
-> > +	mmu_notifier(invalidate_page, (__vma)->vm_mm, __address);	\
-> >  	__pte;								\
-> >  })
-> >  #endif
-> 
-> Hmmm... this is ptep_clear_flush? What about the other uses of 
-> flush_tlb_page in asm-generic/pgtable.h and related uses in arch code?
-> (would help if your patches would mention the function name in the diff 
-> headers)
-
-Note that last I looked, a lot of these were stale. Might be time to
-resume my spring/summer cleaning of page table accessors...
-
-> > +#define mmu_notifier(function, mm, args...)				\
-> > +	do {								\
-> > +		struct mmu_notifier *__mn;				\
-> > +		struct hlist_node *__n;					\
-> > +									\
-> > +		hlist_for_each_entry(__mn, __n, &(mm)->mmu_notifier, hlist) \
-> > +			if (__mn->ops->function)			\
-> > +				__mn->ops->function(__mn, mm, args);	\
-> > +	} while (0)
-> 
-> Does this have to be inline? ptep_clear_flush will become quite big
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
