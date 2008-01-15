@@ -1,39 +1,108 @@
-Message-ID: <478CD698.1090402@sgi.com>
-Date: Tue, 15 Jan 2008 07:51:52 -0800
-From: Mike Travis <travis@sgi.com>
+Received: by wa-out-1112.google.com with SMTP id m33so4580517wag.8
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2008 09:18:32 -0800 (PST)
+Message-ID: <4df4ef0c0801150918l71504c81s49fc8c9e427896f3@mail.gmail.com>
+Date: Tue, 15 Jan 2008 20:18:32 +0300
+From: "Anton Salikhmetov" <salikhmetov@gmail.com>
+Subject: Re: [PATCH 2/2] Updating ctime and mtime at syncing
+In-Reply-To: <1200414911.26045.32.camel@twins>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/10] x86: Change size of node ids from u8 to u16 V2
-References: <20080115021735.779102000@sgi.com> <20080115021736.236433000@sgi.com> <478C4BBD.9050707@cosmosbay.com>
-In-Reply-To: <478C4BBD.9050707@cosmosbay.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <12004129652397-git-send-email-salikhmetov@gmail.com>
+	 <1200412978699-git-send-email-salikhmetov@gmail.com>
+	 <1200414911.26045.32.camel@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu
 List-ID: <linux-mm.kvack.org>
 
-Eric Dumazet wrote:
+2008/1/15, Peter Zijlstra <a.p.zijlstra@chello.nl>:
 >
->> --- a/include/asm-x86/mmzone_64.h
->> +++ b/include/asm-x86/mmzone_64.h
->> @@ -15,8 +15,8 @@
->>  struct memnode {
->>      int shift;
->>      unsigned int mapsize;
->> -    u8 *map;
->> -    u8 embedded_map[64-16];
->> +    u16 *map;
->> +    u16 embedded_map[64-16];
-> 
-> Must change to 32-8 here, or 64-8 and change the comment (total size =
-> 128 bytes). If you change to 32-8, check how .map is set to embedded_map.
-> 
->>  } ____cacheline_aligned; /* total size = 64 bytes */
->>  extern struct memnode memnode;
->>  #define memnode_shift memnode.shift
+> On Tue, 2008-01-15 at 19:02 +0300, Anton Salikhmetov wrote:
+>
+> > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> > index 3d3848f..53d0e34 100644
+> > --- a/mm/page-writeback.c
+> > +++ b/mm/page-writeback.c
+> > @@ -997,35 +997,39 @@ int __set_page_dirty_no_writeback(struct page *page)
+> >   */
+> >  int __set_page_dirty_nobuffers(struct page *page)
+> >  {
+> > -     if (!TestSetPageDirty(page)) {
+> > -             struct address_space *mapping = page_mapping(page);
+> > -             struct address_space *mapping2;
+> > +     struct address_space *mapping = page_mapping(page);
+> > +     struct address_space *mapping2;
+> >
+> > -             if (!mapping)
+> > -                     return 1;
+> > +     if (!mapping)
+> > +             return 1;
+> >
+> > -             write_lock_irq(&mapping->tree_lock);
+> > -             mapping2 = page_mapping(page);
+> > -             if (mapping2) { /* Race with truncate? */
+> > -                     BUG_ON(mapping2 != mapping);
+> > -                     WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
+> > -                     if (mapping_cap_account_dirty(mapping)) {
+> > -                             __inc_zone_page_state(page, NR_FILE_DIRTY);
+> > -                             __inc_bdi_stat(mapping->backing_dev_info,
+> > -                                             BDI_RECLAIMABLE);
+> > -                             task_io_account_write(PAGE_CACHE_SIZE);
+> > -                     }
+> > -                     radix_tree_tag_set(&mapping->page_tree,
+> > -                             page_index(page), PAGECACHE_TAG_DIRTY);
+> > -             }
+> > -             write_unlock_irq(&mapping->tree_lock);
+> > -             if (mapping->host) {
+> > -                     /* !PageAnon && !swapper_space */
+> > -                     __mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+> > +     mapping->mtime = CURRENT_TIME;
+> > +     set_bit(AS_MCTIME, &mapping->flags);
+>
+> This seems vulnerable to the race we have against truncate, handled by
+> the mapping2 magic below. Do we care?
+>
+> > +
+> > +     if (TestSetPageDirty(page))
+> > +             return 0;
+> > +
+> > +     write_lock_irq(&mapping->tree_lock);
+> > +     mapping2 = page_mapping(page);
+> > +     if (mapping2) {
+> > +             /* Race with truncate? */
+> > +             BUG_ON(mapping2 != mapping);
+> > +             WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
+> > +             if (mapping_cap_account_dirty(mapping)) {
+> > +                     __inc_zone_page_state(page, NR_FILE_DIRTY);
+> > +                     __inc_bdi_stat(mapping->backing_dev_info,
+> > +                                     BDI_RECLAIMABLE);
+> > +                     task_io_account_write(PAGE_CACHE_SIZE);
+> >               }
+> > -             return 1;
+> > +             radix_tree_tag_set(&mapping->page_tree,
+> > +                             page_index(page), PAGECACHE_TAG_DIRTY);
+> >       }
+> > -     return 0;
+> > +     write_unlock_irq(&mapping->tree_lock);
+> > +
+> > +     if (mapping->host)
+> > +             __mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 
-Thanks! 
+The inode gets marked dirty using the same "mapping" variable
+as my code does. So, AFAIU, my change does not introduce any new
+vulnerabilities. I would nevertherless be grateful to you for a scenario
+where the race would be triggered.
+
+> > +
+> > +     return 1;
+> >  }
+> >  EXPORT_SYMBOL(__set_page_dirty_nobuffers);
+> >
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
