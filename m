@@ -1,164 +1,104 @@
-From: Anton Salikhmetov <salikhmetov@gmail.com>
-Subject: [PATCH 1/2] Massive code cleanup of sys_msync()
-Date: Tue, 15 Jan 2008 19:02:44 +0300
-Message-Id: <12004129734126-git-send-email-salikhmetov@gmail.com>
-In-Reply-To: <12004129652397-git-send-email-salikhmetov@gmail.com>
-References: <12004129652397-git-send-email-salikhmetov@gmail.com>
+Received: by hs-out-2122.google.com with SMTP id 23so40224hsn.6
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2008 15:39:56 -0800 (PST)
+Message-ID: <cfd9edbf0801151539g72ca9777h7ac43a31aadc730e@mail.gmail.com>
+Date: Wed, 16 Jan 2008 00:39:55 +0100
+From: "=?ISO-8859-1?Q?Daniel_Sp=E5ng?=" <daniel.spang@gmail.com>
+Subject: Re: [RFC][PATCH 4/5] memory_pressure_notify() caller
+In-Reply-To: <20080115175925.215471e1@bree.surriel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+References: <20080115092828.116F.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080115100124.117B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <cfd9edbf0801151455j48669850s7ea4fe589dbb9710@mail.gmail.com>
+	 <20080115175925.215471e1@bree.surriel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu
+To: Rik van Riel <riel@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Substantial code cleanup of the sys_msync() function:
+On 1/15/08, Rik van Riel <riel@redhat.com> wrote:
+>
+> On Tue, 15 Jan 2008 23:55:17 +0100
+> "Daniel Spang" <daniel.spang@gmail.com> wrote:
+>
+> > The notification fires after only ~100 MB allocated, i.e., when page
+> > reclaim is beginning to nag from page cache. Isn't this a bit early?
+> > Repeating the test with swap enabled results in a notification after
+> > ~600 MB allocated, which is more reasonable and just before the system
+> > starts to swap.
+>
+> Your issue may have more to do with the fact that the
+> highmem zone is 128MB in size and some balancing issues
+> between __alloc_pages and try_to_free_pages.
 
-1) using the PAGE_ALIGN() macro instead of "manual" alignment;
-2) improved readability of the loop traversing the process memory regions.
+I don't think so. I ran the test again without highmem and noticed the
+same behaviour:
 
-Signed-off-by: Anton Salikhmetov <salikhmetov@gmail.com>
----
- mm/msync.c |   79 ++++++++++++++++++++++++++++--------------------------------
- 1 files changed, 37 insertions(+), 42 deletions(-)
+$ cat /proc/meminfo
+MemTotal:       895876 kB
+MemFree:        111292 kB
+Buffers:           924 kB
+Cached:         768664 kB
+SwapCached:          0 kB
+Active:           9196 kB
+Inactive:       767480 kB
+HighTotal:           0 kB
+HighFree:            0 kB
+LowTotal:       895876 kB
+LowFree:        111292 kB
+SwapTotal:           0 kB
+SwapFree:            0 kB
+Dirty:              32 kB
+Writeback:           0 kB
+AnonPages:        7108 kB
+Mapped:           1224 kB
+Slab:             4288 kB
+SReclaimable:     1316 kB
+SUnreclaim:       2972 kB
+PageTables:        448 kB
+NFS_Unstable:        0 kB
+Bounce:              0 kB
+CommitLimit:    447936 kB
+Committed_AS:    19676 kB
+VmallocTotal:   122872 kB
+VmallocUsed:       904 kB
+VmallocChunk:   121864 kB
 
-diff --git a/mm/msync.c b/mm/msync.c
-index 144a757..3270caa 100644
---- a/mm/msync.c
-+++ b/mm/msync.c
-@@ -1,24 +1,25 @@
- /*
-  *	linux/mm/msync.c
-  *
-+ * The msync() system call.
-  * Copyright (C) 1994-1999  Linus Torvalds
-+ *
-+ * Massive code cleanup.
-+ * Copyright (C) 2008 Anton Salikhmetov <salikhmetov@gmail.com>
-  */
- 
--/*
-- * The msync() system call.
-- */
-+#include <linux/file.h>
- #include <linux/fs.h>
- #include <linux/mm.h>
- #include <linux/mman.h>
--#include <linux/file.h>
--#include <linux/syscalls.h>
- #include <linux/sched.h>
-+#include <linux/syscalls.h>
- 
- /*
-  * MS_SYNC syncs the entire file - including mappings.
-  *
-  * MS_ASYNC does not start I/O (it used to, up to 2.5.67).
-- * Nor does it marks the relevant pages dirty (it used to up to 2.6.17).
-+ * Nor does it mark the relevant pages dirty (it used to up to 2.6.17).
-  * Now it doesn't do anything, since dirty pages are properly tracked.
-  *
-  * The application may now run fsync() to
-@@ -33,71 +34,65 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
- 	unsigned long end;
- 	struct mm_struct *mm = current->mm;
- 	struct vm_area_struct *vma;
--	int unmapped_error = 0;
--	int error = -EINVAL;
-+	int error = 0, unmapped_error = 0;
- 
- 	if (flags & ~(MS_ASYNC | MS_INVALIDATE | MS_SYNC))
--		goto out;
-+		return -EINVAL;
- 	if (start & ~PAGE_MASK)
--		goto out;
-+		return -EINVAL;
- 	if ((flags & MS_ASYNC) && (flags & MS_SYNC))
--		goto out;
--	error = -ENOMEM;
--	len = (len + ~PAGE_MASK) & PAGE_MASK;
-+		return -EINVAL;
-+
-+	len = PAGE_ALIGN(len);
- 	end = start + len;
- 	if (end < start)
--		goto out;
--	error = 0;
-+		return -ENOMEM;
- 	if (end == start)
--		goto out;
-+		return 0;
-+
- 	/*
- 	 * If the interval [start,end) covers some unmapped address ranges,
- 	 * just ignore them, but return -ENOMEM at the end.
- 	 */
- 	down_read(&mm->mmap_sem);
- 	vma = find_vma(mm, start);
--	for (;;) {
-+	do {
- 		struct file *file;
- 
--		/* Still start < end. */
--		error = -ENOMEM;
--		if (!vma)
--			goto out_unlock;
--		/* Here start < vma->vm_end. */
-+		if (!vma) {
-+			error = -ENOMEM;
-+			break;
-+		}
- 		if (start < vma->vm_start) {
- 			start = vma->vm_start;
--			if (start >= end)
--				goto out_unlock;
-+			if (start >= end) {
-+				error = -ENOMEM;
-+				break;
-+			}
- 			unmapped_error = -ENOMEM;
- 		}
--		/* Here vma->vm_start <= start < vma->vm_end. */
--		if ((flags & MS_INVALIDATE) &&
--				(vma->vm_flags & VM_LOCKED)) {
-+		if ((flags & MS_INVALIDATE) && (vma->vm_flags & VM_LOCKED)) {
- 			error = -EBUSY;
--			goto out_unlock;
-+			break;
- 		}
--		file = vma->vm_file;
- 		start = vma->vm_end;
--		if ((flags & MS_SYNC) && file &&
--				(vma->vm_flags & VM_SHARED)) {
-+
-+		file = vma->vm_file;
-+		if ((flags & MS_SYNC) && file && (vma->vm_flags & VM_SHARED)) {
- 			get_file(file);
- 			up_read(&mm->mmap_sem);
- 			error = do_fsync(file, 0);
- 			fput(file);
--			if (error || start >= end)
--				goto out;
-+			if (error)
-+				return error;
- 			down_read(&mm->mmap_sem);
- 			vma = find_vma(mm, start);
--		} else {
--			if (start >= end) {
--				error = 0;
--				goto out_unlock;
--			}
--			vma = vma->vm_next;
-+			continue;
- 		}
--	}
--out_unlock:
-+
-+		vma = vma->vm_next;
-+	} while (start < end);
- 	up_read(&mm->mmap_sem);
--out:
-+
- 	return error ? : unmapped_error;
- }
--- 
-1.4.4.4
+Start to allocate memory, 10 MB every second, exit on notification
+which happened after 110 MB.
+
+$ cat /proc/meminfo #after
+MemTotal:       895876 kB
+MemFree:        116748 kB
+Buffers:           904 kB
+Cached:         762944 kB
+SwapCached:          0 kB
+Active:          12864 kB
+Inactive:       758064 kB
+HighTotal:           0 kB
+HighFree:            0 kB
+LowTotal:       895876 kB
+LowFree:        116748 kB
+SwapTotal:           0 kB
+SwapFree:            0 kB
+Dirty:               4 kB
+Writeback:           0 kB
+AnonPages:        7108 kB
+Mapped:           1224 kB
+Slab:             4284 kB
+SReclaimable:     1316 kB
+SUnreclaim:       2968 kB
+PageTables:        448 kB
+NFS_Unstable:        0 kB
+Bounce:              0 kB
+CommitLimit:    447936 kB
+Committed_AS:    19676 kB
+VmallocTotal:   122872 kB
+VmallocUsed:       904 kB
+VmallocChunk:   121864 kB
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
