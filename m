@@ -1,42 +1,30 @@
-Subject: Re: [PATCH 08/10] x86: Change NR_CPUS arrays in numa_64 V2
-From: Andi Kleen <andi@firstfloor.org>
-References: <20080115021735.779102000@sgi.com>
-	<20080115021737.228970000@sgi.com>
-Date: Tue, 15 Jan 2008 11:54:12 +0100
-In-Reply-To: <20080115021737.228970000@sgi.com> (travis@sgi.com's message of "Mon\, 14 Jan 2008 18\:17\:43 -0800")
-Message-ID: <p73wsqbl5pn.fsf@bingen.suse.de>
+Date: Tue, 15 Jan 2008 19:59:02 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 3/5] add /dev/mem_notify device
+In-Reply-To: <20080115104619.10dab6de@lxorguk.ukuu.org.uk>
+References: <20080115100029.1178.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080115104619.10dab6de@lxorguk.ukuu.org.uk>
+Message-Id: <20080115195022.11A3.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: travis@sgi.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo@kvack.org>, Daniel Spang <daniel.spang@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-travis@sgi.com writes:
-> +
->  /* Returns the number of the node containing CPU 'cpu' */
->  static inline int cpu_to_node(int cpu)
->  {
-> -	return cpu_to_node_map[cpu];
-> +	u16 *cpu_to_node_map = x86_cpu_to_node_map_early_ptr;
-> +
-> +	if (cpu_to_node_map)
-> +		return cpu_to_node_map[cpu];
-> +	else if(per_cpu_offset(cpu))
-> +		return per_cpu(x86_cpu_to_node_map, cpu);
-> +	else
-> +		return NUMA_NO_NODE;
+> > the core of this patch series.
+> > add /dev/mem_notify device for notification low memory to user process.
+> 
+> As you only wake one process how would you use this API from processes
+> which want to monitor and can free memory under load. Also what fairness
+> guarantees are there...
 
-Seems a little big now to be still inlined.
+Sorry, I don't make sense what you mean fairness.
+Could you tell more?
 
-Also I wonder if there are really that many early callers that it
-isn't feasible to just convert them to a early_cpu_to_node(). Also
-early_cpu_to_node() should really not be speed critical, so just
-linearly searching some other table instead of setting up an explicit
-array should be fine for that.
 
--Andi
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
