@@ -1,36 +1,40 @@
-Date: Tue, 15 Jan 2008 10:20:54 +0900
+Date: Tue, 15 Jan 2008 10:24:22 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: [RFC][PATCH 3/5] add /dev/mem_notify device
-In-Reply-To: <20080114170804.b5961aea.randy.dunlap@oracle.com>
-References: <20080115100029.1178.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080114170804.b5961aea.randy.dunlap@oracle.com>
-Message-Id: <20080115101803.1183.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20080115101803.1183.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080114170804.b5961aea.randy.dunlap@oracle.com> <20080115101803.1183.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080115102327.1186.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <randy.dunlap@oracle.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo@kvack.org>, Daniel Spang <daniel.spang@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Randy Dunlap <randy.dunlap@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo@kvack.org>, Daniel Spang <daniel.spang@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi randy
+Hi
 
-> Hi,
+> > 1/ I don't see the file below listed in the diffstat above...
 > 
-> 1/ I don't see the file below listed in the diffstat above...
+> Agghh...
+> sorry, it is mistake.
+> I repost soon. 
+> 
+> thanks.
 
-Agghh...
-sorry, it is mistake.
-I repost soon. 
+the below diffstat is correct.
+thanks!
 
-thanks.
-
-
-> 2/ Where is the userspace interface information for the syscall?
-
-No.
-userspace interface is only poll(2).
-
+------------------------------
+ Documentation/devices.txt  |    1
+ drivers/char/mem.c         |    6 ++
+ include/linux/mem_notify.h |   42 +++++++++++++++++
+ include/linux/mmzone.h     |    1
+ mm/Makefile                |    2
+ mm/mem_notify.c            |  109 +++++++++++++++++++++++++++++++++++++++++++++
+ mm/page_alloc.c            |    1
+ 7 files changed, 161 insertions(+), 1 deletion(-)
 
 
 --
