@@ -1,10 +1,10 @@
-Date: Tue, 15 Jan 2008 11:06:31 +0900
+Date: Tue, 15 Jan 2008 11:10:35 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 4/5] memory_pressure_notify() caller
-Message-Id: <20080115110631.4cab1e65.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080115100124.117B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 3/5] add /dev/mem_notify device
+Message-Id: <20080115111035.d516639a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080115100029.1178.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 References: <20080115092828.116F.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20080115100124.117B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<20080115100029.1178.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -14,27 +14,18 @@ To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo@kvack.org>, Daniel Spang <daniel.spang@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Jan 2008 10:02:30 +0900
+On Tue, 15 Jan 2008 10:01:21 +0900
 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> +
-> +	notify_threshold = (zone->pages_high +
-> +			    zone->lowmem_reserve[MAX_NR_ZONES-1]) * 2;
-> +
-Why MAX_NR_ZONES-1 ?
+> +	if (pressure) {
+> +		nr_wakeup = max_t(int, atomic_read(&nr_watcher_task)>>4, 100);
+> +		atomic_long_set(&last_mem_notify, jiffies);
+> +		wake_up_locked_nr(&mem_wait, nr_wakeup);
+> +	}
+What is this for ? and Why ?
+Are there too many waiters ?
 
-
-> +	if (unlikely((prev_free <= notify_threshold) &&
-> +		     (zone_page_state(zone, NR_FREE_PAGES) > notify_threshold)))
-> +		memory_pressure_notify(zone, 0);
->  }
-
-How about this
-==
-if (unlikely(zone->mem_notify_status && ...) 
-
-
-Thanks,
+Thanks
 -Kame
 
 --
