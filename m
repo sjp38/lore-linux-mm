@@ -1,17 +1,17 @@
-Received: by wa-out-1112.google.com with SMTP id m33so4628649wag.8
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2008 11:02:54 -0800 (PST)
-Message-ID: <4df4ef0c0801151102l4d72b6b5j702e21beb1ebe459@mail.gmail.com>
-Date: Tue, 15 Jan 2008 22:02:54 +0300
+Received: by hs-out-2122.google.com with SMTP id 23so2511763hsn.6
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2008 11:04:40 -0800 (PST)
+Message-ID: <4df4ef0c0801151104j5b2d003ep72600fd7553f5832@mail.gmail.com>
+Date: Tue, 15 Jan 2008 22:04:38 +0300
 From: "Anton Salikhmetov" <salikhmetov@gmail.com>
-Subject: Re: [PATCH 1/2] Massive code cleanup of sys_msync()
-In-Reply-To: <20080115175705.GA21557@infradead.org>
+Subject: Re: [PATCH 2/2] Updating ctime and mtime at syncing
+In-Reply-To: <20080115180455.GB21557@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 References: <12004129652397-git-send-email-salikhmetov@gmail.com>
-	 <12004129734126-git-send-email-salikhmetov@gmail.com>
-	 <20080115175705.GA21557@infradead.org>
+	 <1200412978699-git-send-email-salikhmetov@gmail.com>
+	 <20080115180455.GB21557@infradead.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Hellwig <hch@infradead.org>
@@ -19,94 +19,30 @@ Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdi
 List-ID: <linux-mm.kvack.org>
 
 2008/1/15, Christoph Hellwig <hch@infradead.org>:
-> On Tue, Jan 15, 2008 at 07:02:44PM +0300, Anton Salikhmetov wrote:
-> > +++ b/mm/msync.c
-> > @@ -1,24 +1,25 @@
-> >  /*
-> >   *   linux/mm/msync.c
-> >   *
-> > + * The msync() system call.
-> >   * Copyright (C) 1994-1999  Linus Torvalds
-> > + *
-> > + * Massive code cleanup.
-> > + * Copyright (C) 2008 Anton Salikhmetov <salikhmetov@gmail.com>
+> On Tue, Jan 15, 2008 at 07:02:45PM +0300, Anton Salikhmetov wrote:
+> > +/*
+> > + * Update the ctime and mtime stamps for memory-mapped block device files.
+> > + */
+> > +static void bd_inode_update_time(struct inode *inode, struct timespec *ts)
+> > +{
+> > +     struct block_device *bdev = inode->i_bdev;
+> > +     struct list_head *p;
+> > +
+> > +     if (bdev == NULL)
+> > +             return;
 >
-> Please don't put the changelog in here, that's what the log in the SCM
-> is for.  And while you're at it remove the confusing file name comment.
-> This should now look something like:
+> inode->i_bdev is never NULL for inodes currently beeing written to.
 >
-> /*
->  * The msync() system call.
->  *
->  * Copyright (C) 1994-1999  Linus Torvalds
->  * Copyright (C) 2008 Anton Salikhmetov <salikhmetov@gmail.com>
->  */
+> > +
+> > +     mutex_lock(&bdev->bd_mutex);
+> > +     list_for_each(p, &bdev->bd_inodes) {
+> > +             inode = list_entry(p, struct inode, i_devices);
+>
+> this should use list_for_each_entry.
+>
+>
 
-Thanks!
-
-I'll take into account your recommendation.
-
->
-> > @@ -33,71 +34,65 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
-> >       unsigned long end;
-> >       struct mm_struct *mm = current->mm;
-> >       struct vm_area_struct *vma;
-> > -     int unmapped_error = 0;
-> > -     int error = -EINVAL;
-> > +     int error = 0, unmapped_error = 0;
-> >
-> >       if (flags & ~(MS_ASYNC | MS_INVALIDATE | MS_SYNC))
-> > -             goto out;
-> > +             return -EINVAL;
-> >       if (start & ~PAGE_MASK)
-> > -             goto out;
-> > +             return -EINVAL;
->
-> The goto out for a simple return style is used quite commonly in kernel
-> code to have a single return statement which makes code maintaince, e.g.
-> adding locks or allocations simpler.  Not sure that getting rid of it
-> makes a lot of sense.
-
-Sorry, I can't agree. That's what is written in the CodingStyle document:
-
-The goto statement comes in handy when a function exits from multiple
-locations and some common work such as cleanup has to be done.
-
-The second part of requirement does not hold true for the sys_msync() routine.
-
->
-> > +             file = vma->vm_file;
-> > +             if ((flags & MS_SYNC) && file && (vma->vm_flags & VM_SHARED)) {
->
-> Given that file is assigned just above it would be more readable to test
-> it first.
-
-The second part of my solution changes this code, anyway.
-
->
-> > +                     if (error)
-> > +                             return error;
->
-> This should be an goto out, returns out of the middle of the function
-> make reading and maintaining the code not so nice.
-
-Sorry, I don't think so. No "common cleanup" is needed here.
-
->
-> >       return error ? : unmapped_error;
->
-> Care to get rid of this odd GNU extension while you're at it and use
-> the proper
-
-I do also think that this GNU extension is not readable,
-so I'll take your recommentation into account.
-
->
->         return error ? error : unmapped_error;
->
-> ?
->
->
+Thank you very much for your recommenations. I'll take them into account.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
