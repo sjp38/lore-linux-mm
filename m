@@ -1,9 +1,9 @@
-Date: Tue, 15 Jan 2008 10:00:22 +0900
+Date: Tue, 15 Jan 2008 10:02:30 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [RFC][PATCH 2/5] introduce wake_up_locked_nr() new API
+Subject: [RFC][PATCH 4/5] memory_pressure_notify() caller
 In-Reply-To: <20080115092828.116F.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 References: <20080115092828.116F.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20080115095915.1175.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080115100124.117B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -13,59 +13,129 @@ To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: kosaki.motohiro@jp.fujitsu.com, Marcelo Tosatti <marcelo@kvack.org>, Daniel Spang <daniel.spang@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-introduce new API wake_up_locked_nr() and wake_up_locked_all().
-it it similar as wake_up_nr() and wake_up_all(), but it doesn't lock.
+the notification point to happen whenever the VM moves an
+anonymous page to the inactive list - this is a pretty good indication
+that there are unused anonymous pages present which will be very likely
+swapped out soon.
+
+and, It is judged out of trouble at the fllowing situations. 
+ o memory pressure decrease and stop moves an anonymous page to the inactive list.
+ o free pages increase than (pages_high+lowmem_reserve)*2.
+
 
 Signed-off-by: Marcelo Tosatti <marcelo@kvack.org>
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 ---
- include/linux/wait.h |    7 +++++--
- kernel/sched.c       |    5 +++--
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ mm/vmscan.c |   15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
 
-Index: linux-2.6.24-rc6-mm1-memnotify/include/linux/wait.h
+Index: linux-2.6.24-rc6-mm1-memnotify/mm/vmscan.c
 ===================================================================
---- linux-2.6.24-rc6-mm1-memnotify.orig/include/linux/wait.h	2008-01-13 16:43:04.000000000 +0900
-+++ linux-2.6.24-rc6-mm1-memnotify/include/linux/wait.h	2008-01-13 16:52:21.000000000 +0900
-@@ -142,7 +142,7 @@ static inline void __remove_wait_queue(w
- }
+--- linux-2.6.24-rc6-mm1-memnotify.orig/mm/vmscan.c	2008-01-13 16:59:28.000000000 +0900
++++ linux-2.6.24-rc6-mm1-memnotify/mm/vmscan.c	2008-01-13 17:03:58.000000000 +0900
+@@ -963,6 +963,7 @@ static int calc_reclaim_mapped(struct sc
+ 	long distress;
+ 	long swap_tendency;
+ 	long imbalance;
++	int reclaim_mapped = 0;
+ 	int prev_priority;
  
- void FASTCALL(__wake_up(wait_queue_head_t *q, unsigned int mode, int nr, void *key));
--extern void FASTCALL(__wake_up_locked(wait_queue_head_t *q, unsigned int mode));
-+void FASTCALL(__wake_up_locked(wait_queue_head_t *q, unsigned int mode, int nr, void *key));
- extern void FASTCALL(__wake_up_sync(wait_queue_head_t *q, unsigned int mode, int nr));
- void FASTCALL(__wake_up_bit(wait_queue_head_t *, void *, int));
- int FASTCALL(__wait_on_bit(wait_queue_head_t *, struct wait_bit_queue *, int (*)(void *), unsigned));
-@@ -155,7 +155,10 @@ wait_queue_head_t *FASTCALL(bit_waitqueu
- #define wake_up(x)			__wake_up(x, TASK_NORMAL, 1, NULL)
- #define wake_up_nr(x, nr)		__wake_up(x, TASK_NORMAL, nr, NULL)
- #define wake_up_all(x)			__wake_up(x, TASK_NORMAL, 0, NULL)
--#define wake_up_locked(x)		__wake_up_locked((x), TASK_NORMAL)
+ 	if (scan_global_lru(sc) && zone_is_near_oom(zone))
+@@ -1089,10 +1090,14 @@ static void shrink_active_list(unsigned 
+ 	struct page *page;
+ 	struct pagevec pvec;
+ 	int reclaim_mapped = 0;
++	bool inactivated_anon = 0;
+ 
+ 	if (sc->may_swap)
+ 		reclaim_mapped = calc_reclaim_mapped(sc, zone, priority);
+ 
++	if (!reclaim_mapped)
++		memory_pressure_notify(zone, 0);
 +
-+#define wake_up_locked(x)		__wake_up_locked((x), TASK_NORMAL, 1, NULL)
-+#define wake_up_locked_nr(x, nr)	__wake_up_locked((x), TASK_NORMAL, nr, NULL)
-+#define wake_up_locked_all(x)		__wake_up_locked((x), TASK_NORMAL, 0, NULL)
+ 	lru_add_drain();
+ 	spin_lock_irq(&zone->lru_lock);
+ 	pgmoved = sc->isolate_pages(nr_pages, &l_hold, &pgscanned, sc->order,
+@@ -1116,6 +1121,13 @@ static void shrink_active_list(unsigned 
+ 			if (!reclaim_mapped ||
+ 			    (total_swap_pages == 0 && PageAnon(page)) ||
+ 			    page_referenced(page, 0, sc->mem_cgroup)) {
++				/* deal with the case where there is no
++				 * swap but an anonymous page would be
++				 * moved to the inactive list.
++				 */
++				if (!total_swap_pages && reclaim_mapped &&
++				    PageAnon(page))
++					inactivated_anon = 1;
+ 				list_add(&page->lru, &l_active);
+ 				continue;
+ 			}
+@@ -1123,8 +1135,12 @@ static void shrink_active_list(unsigned 
+ 			list_add(&page->lru, &l_active);
+ 			continue;
+ 		}
++		if (PageAnon(page))
++			inactivated_anon = 1;
+ 		list_add(&page->lru, &l_inactive);
+ 	}
++	if (inactivated_anon)
++		memory_pressure_notify(zone, 1);
  
- #define wake_up_interruptible(x)	__wake_up(x, TASK_INTERRUPTIBLE, 1, NULL)
- #define wake_up_interruptible_nr(x, nr)	__wake_up(x, TASK_INTERRUPTIBLE, nr, NULL)
-Index: linux-2.6.24-rc6-mm1-memnotify/kernel/sched.c
+ 	pagevec_init(&pvec, 1);
+ 	pgmoved = 0;
+@@ -1158,6 +1174,8 @@ static void shrink_active_list(unsigned 
+ 		pagevec_strip(&pvec);
+ 		spin_lock_irq(&zone->lru_lock);
+ 	}
++	if (!reclaim_mapped)
++		memory_pressure_notify(zone, 0);
+ 
+ 	pgmoved = 0;
+ 	while (!list_empty(&l_active)) {
+Index: linux-2.6.24-rc6-mm1-memnotify/mm/page_alloc.c
 ===================================================================
---- linux-2.6.24-rc6-mm1-memnotify.orig/kernel/sched.c	2008-01-13 16:42:22.000000000 +0900
-+++ linux-2.6.24-rc6-mm1-memnotify/kernel/sched.c	2008-01-13 16:53:28.000000000 +0900
-@@ -3837,9 +3837,10 @@ EXPORT_SYMBOL(__wake_up);
- /*
-  * Same as __wake_up but called with the spinlock in wait_queue_head_t held.
-  */
--void __wake_up_locked(wait_queue_head_t *q, unsigned int mode)
-+void __wake_up_locked(wait_queue_head_t *q, unsigned int mode,
-+		      int nr_exclusive, void *key)
- {
--	__wake_up_common(q, mode, 1, 0, NULL);
-+	__wake_up_common(q, mode, nr_exclusive, 0, key);
+--- linux-2.6.24-rc6-mm1-memnotify.orig/mm/page_alloc.c	2008-01-13 16:57:10.000000000 +0900
++++ linux-2.6.24-rc6-mm1-memnotify/mm/page_alloc.c	2008-01-13 17:04:34.000000000 +0900
+@@ -44,6 +44,7 @@
+ #include <linux/fault-inject.h>
+ #include <linux/page-isolation.h>
+ #include <linux/memcontrol.h>
++#include <linux/mem_notify.h>
+ 
+ #include <asm/tlbflush.h>
+ #include <asm/div64.h>
+@@ -435,6 +436,8 @@ static inline void __free_one_page(struc
+ 	unsigned long page_idx;
+ 	int order_size = 1 << order;
+ 	int migratetype = get_pageblock_migratetype(page);
++	unsigned long prev_free;
++	unsigned long notify_threshold;
+ 
+ 	if (unlikely(PageCompound(page)))
+ 		destroy_compound_page(page, order);
+@@ -444,6 +447,7 @@ static inline void __free_one_page(struc
+ 	VM_BUG_ON(page_idx & (order_size - 1));
+ 	VM_BUG_ON(bad_range(zone, page));
+ 
++	prev_free = zone_page_state(zone, NR_FREE_PAGES);
+ 	__mod_zone_page_state(zone, NR_FREE_PAGES, order_size);
+ 	while (order < MAX_ORDER-1) {
+ 		unsigned long combined_idx;
+@@ -465,6 +469,13 @@ static inline void __free_one_page(struc
+ 	list_add(&page->lru,
+ 		&zone->free_area[order].free_list[migratetype]);
+ 	zone->free_area[order].nr_free++;
++
++	notify_threshold = (zone->pages_high +
++			    zone->lowmem_reserve[MAX_NR_ZONES-1]) * 2;
++
++	if (unlikely((prev_free <= notify_threshold) &&
++		     (zone_page_state(zone, NR_FREE_PAGES) > notify_threshold)))
++		memory_pressure_notify(zone, 0);
  }
  
- /**
+ static inline int free_pages_check(struct page *page)
 
 
 --
