@@ -1,33 +1,36 @@
 From: Anton Salikhmetov <salikhmetov@gmail.com>
-Subject: [PATCH -v5 2/2] Updating ctime and mtime at syncing
-Date: Thu, 17 Jan 2008 03:57:46 +0300
-Message-Id: <1200531471556-git-send-email-salikhmetov@gmail.com>
-In-Reply-To: <12005314662518-git-send-email-salikhmetov@gmail.com>
-References: <12005314662518-git-send-email-salikhmetov@gmail.com>
+Subject: [PATCH 2/2] Updating ctime and mtime at syncing
+Date: Tue, 15 Jan 2008 19:02:45 +0300
+Message-Id: <1200412978699-git-send-email-salikhmetov@gmail.com>
+In-Reply-To: <12004129652397-git-send-email-salikhmetov@gmail.com>
+References: <12004129652397-git-send-email-salikhmetov@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu
 List-ID: <linux-mm.kvack.org>
 
 Changes for updating the ctime and mtime fields for memory-mapped files:
 
-1) a new flag triggering update of the inode data;
-2) a new field in the address_space structure for saving modification time;
-3) a new helper function to update ctime and mtime when needed;
-4) updating time stamps for mapped files in sys_msync() and do_fsync();
-5) implementing lazy ctime and mtime update.
+1) new flag triggering update of the inode data;
+2) new field in the address_space structure for saving modification time;
+3) new function to update ctime and mtime for block device files;
+4) new helper function to update ctime and mtime when needed;
+5) updating time stamps for mapped files in sys_msync() and do_fsync();
+6) implementing the feature of auto-updating ctime and mtime;
+7) account for the case of retouching an already-dirtied page.
 
 Signed-off-by: Anton Salikhmetov <salikhmetov@gmail.com>
 ---
  fs/buffer.c             |    3 ++
  fs/fs-writeback.c       |    2 +
- fs/inode.c              |   43 +++++++++++++++++++++++----------
+ fs/inode.c              |   53 ++++++++++++++++++++++++++++++++++-----------
  fs/sync.c               |    2 +
- include/linux/fs.h      |   13 +++++++++-
+ include/linux/fs.h      |   13 ++++++++++-
  include/linux/pagemap.h |    3 +-
- mm/msync.c              |   61 +++++++++++++++++++++++++++++++++-------------
- mm/page-writeback.c     |   54 ++++++++++++++++++++++-------------------
- 8 files changed, 124 insertions(+), 57 deletions(-)
+ mm/mmap.c               |    3 ++
+ mm/msync.c              |   29 ++++++++++++++++--------
+ mm/page-writeback.c     |   54 +++++++++++++++++++++++++---------------------
+ 9 files changed, 112 insertions(+), 50 deletions(-)
 
 diff --git a/fs/buffer.c b/fs/buffer.c
 index 7249e01..3967aa7 100644
@@ -57,10 +60,10 @@ index 300324b..affd291 100644
  
  	/* Don't write the inode if only I_DIRTY_PAGES was set */
 diff --git a/fs/inode.c b/fs/inode.c
-index ed35383..edd5bf4 100644
+index ed35383..5997046 100644
 --- a/fs/inode.c
 +++ b/fs/inode.c
-@@ -1243,8 +1243,10 @@ void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
+@@ -1243,8 +1243,9 @@ void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
  EXPORT_SYMBOL(touch_atime);
  
  /**
@@ -69,11 +72,10 @@ index ed35383..edd5bf4 100644
 + *	inode_update_time	-	update mtime and ctime time
 + *	@inode: inode accessed
 + *	@ts: time when inode was accessed
-+ *	@sync: whether to do synchronous update
   *
   *	Update the mtime and ctime members of an inode and mark the inode
   *	for writeback.  Note that this function is meant exclusively for
-@@ -1253,11 +1255,8 @@ EXPORT_SYMBOL(touch_atime);
+@@ -1253,11 +1254,8 @@ EXPORT_SYMBOL(touch_atime);
   *	S_NOCTIME inode flag, e.g. for network filesystem where these
   *	timestamps are handled by the server.
   */
@@ -86,7 +88,7 @@ index ed35383..edd5bf4 100644
  	int sync_it = 0;
  
  	if (IS_NOCMTIME(inode))
-@@ -1265,22 +1264,41 @@ void file_update_time(struct file *file)
+@@ -1265,22 +1263,52 @@ void file_update_time(struct file *file)
  	if (IS_RDONLY(inode))
  		return;
  
@@ -109,6 +111,25 @@ index ed35383..edd5bf4 100644
  		mark_inode_dirty_sync(inode);
  }
 +EXPORT_SYMBOL(inode_update_time);
++
++/*
++ * Update the ctime and mtime stamps for memory-mapped block device files.
++ */
++static void bd_inode_update_time(struct inode *inode, struct timespec *ts)
++{
++	struct block_device *bdev = inode->i_bdev;
++	struct list_head *p;
++
++	if (bdev == NULL)
++		return;
++
++	mutex_lock(&bdev->bd_mutex);
++	list_for_each(p, &bdev->bd_inodes) {
++		inode = list_entry(p, struct inode, i_devices);
++		inode_update_time(inode, ts);
++	}
++	mutex_unlock(&bdev->bd_mutex);
++}
  
 -EXPORT_SYMBOL(file_update_time);
 +/*
@@ -117,24 +138,16 @@ index ed35383..edd5bf4 100644
 +void mapping_update_time(struct address_space *mapping)
 +{
 +	if (test_and_clear_bit(AS_MCTIME, &mapping->flags)) {
-+		struct inode *inode = mapping->host;
-+		struct timespec *ts = &mapping->mtime;
-+
-+		if (S_ISBLK(inode->i_mode)) {
-+			struct block_device *bdev = inode->i_bdev;
-+
-+			mutex_lock(&bdev->bd_mutex);
-+			list_for_each_entry(inode, &bdev->bd_inodes, i_devices)
-+				inode_update_time(inode, ts);
-+			mutex_unlock(&bdev->bd_mutex);
-+		} else
-+			inode_update_time(inode, ts);
++		if (S_ISBLK(mapping->host->i_mode))
++			bd_inode_update_time(mapping->host, &mapping->mtime);
++		else
++			inode_update_time(mapping->host, &mapping->mtime);
 +	}
 +}
  
  int inode_needs_sync(struct inode *inode)
  {
-@@ -1290,7 +1308,6 @@ int inode_needs_sync(struct inode *inode)
+@@ -1290,7 +1318,6 @@ int inode_needs_sync(struct inode *inode)
  		return 1;
  	return 0;
  }
@@ -201,81 +214,70 @@ index db8a410..bf0f9e7 100644
  
  static inline void mapping_set_error(struct address_space *mapping, int error)
  {
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 15678aa..f659733 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -210,9 +210,12 @@ void unlink_file_vma(struct vm_area_struct *vma)
+ 
+ 	if (file) {
+ 		struct address_space *mapping = file->f_mapping;
++
+ 		spin_lock(&mapping->i_mmap_lock);
+ 		__remove_shared_vm_struct(vma, file, mapping);
+ 		spin_unlock(&mapping->i_mmap_lock);
++
++		mapping_update_time(mapping);
+ 	}
+ }
+ 
 diff --git a/mm/msync.c b/mm/msync.c
-index 44997bf..7657776 100644
+index 3270caa..80ca1cc 100644
 --- a/mm/msync.c
 +++ b/mm/msync.c
-@@ -13,16 +13,37 @@
- #include <linux/syscalls.h>
- 
- /*
-+ * Scan the PTEs for pages belonging to the VMA and mark them read-only.
-+ * It will force a pagefault on the next write access.
-+ */
-+static void vma_wrprotect(struct vm_area_struct *vma)
-+{
-+	unsigned long addr;
-+
-+	for (addr = vma->vm_start; addr < vma->vm_end; addr += PAGE_SIZE) {
-+		spinlock_t *ptl;
-+		pgd_t *pgd = pgd_offset(vma->vm_mm, addr);
-+		pud_t *pud = pud_offset(pgd, addr);
-+		pmd_t *pmd = pmd_offset(pud, addr);
-+		pte_t *pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-+
-+		if (pte_dirty(*pte) && pte_write(*pte))
-+			*pte = pte_wrprotect(*pte);
-+		pte_unmap_unlock(pte, ptl);
-+	}
-+}
-+
-+/*
-  * MS_SYNC syncs the entire file - including mappings.
+@@ -5,6 +5,7 @@
+  * Copyright (C) 1994-1999  Linus Torvalds
   *
-- * MS_ASYNC does not start I/O (it used to, up to 2.5.67).
-- * Nor does it mark the relevant pages dirty (it used to up to 2.6.17).
-- * Now it doesn't do anything, since dirty pages are properly tracked.
-+ * MS_ASYNC does not start I/O. Instead, it marks the relevant pages
-+ * read-only by calling vma_wrprotect(). This is needed to catch the next
-+ * write reference to the mapped region and update the file times
-+ * accordingly.
-  *
-- * The application may now run fsync() to
-- * write out the dirty pages and wait on the writeout and check the result.
-- * Or the application may run fadvise(FADV_DONTNEED) against the fd to start
-- * async writeout immediately.
-+ * The application may now run fsync() to write out the dirty pages and
-+ * wait on the writeout and check the result. Or the application may run
-+ * fadvise(FADV_DONTNEED) against the fd to start async writeout immediately.
-  * So by _not_ starting I/O in MS_ASYNC we provide complete flexibility to
-  * applications.
+  * Massive code cleanup.
++ * Updating the ctime and mtime stamps for memory-mapped files.
+  * Copyright (C) 2008 Anton Salikhmetov <salikhmetov@gmail.com>
   */
-@@ -80,16 +101,22 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
+ 
+@@ -22,6 +23,10 @@
+  * Nor does it mark the relevant pages dirty (it used to up to 2.6.17).
+  * Now it doesn't do anything, since dirty pages are properly tracked.
+  *
++ * The msync() system call updates the ctime and mtime fields for
++ * the mapped file when called with the MS_SYNC or MS_ASYNC flags
++ * according to the POSIX standard.
++ *
+  * The application may now run fsync() to
+  * write out the dirty pages and wait on the writeout and check the result.
+  * Or the application may run fadvise(FADV_DONTNEED) against the fd to start
+@@ -78,16 +83,20 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
  		start = vma->vm_end;
  
  		file = vma->vm_file;
--		if (file && (vma->vm_flags & VM_SHARED) && (flags & MS_SYNC)) {
+-		if ((flags & MS_SYNC) && file && (vma->vm_flags & VM_SHARED)) {
 -			get_file(file);
 -			up_read(&mm->mmap_sem);
 -			error = do_fsync(file, 0);
 -			fput(file);
 -			if (error)
--				goto out;
+-				return error;
 -			down_read(&mm->mmap_sem);
 -			vma = find_vma(mm, start);
 -			continue;
 +		if (file && (vma->vm_flags & VM_SHARED)) {
-+			if (flags & MS_ASYNC) {
-+				vma_wrprotect(vma);
++			if (flags & MS_ASYNC)
 +				mapping_update_time(file->f_mapping);
-+			}
 +			if (flags & MS_SYNC) {
 +				get_file(file);
 +				up_read(&mm->mmap_sem);
 +				error = do_fsync(file, 0);
 +				fput(file);
 +				if (error)
-+					goto out;
++					return error;
 +				down_read(&mm->mmap_sem);
 +				vma = find_vma(mm, start);
 +				continue;
