@@ -1,57 +1,48 @@
-Date: Tue, 15 Jan 2008 08:57:11 +0900
+Date: Tue, 15 Jan 2008 09:06:20 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch 05/19] split LRU lists into anon & file sets
-In-Reply-To: <20080111104651.3ebea5ea@bree.surriel.com>
-References: <20080111162320.FD6A.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080111104651.3ebea5ea@bree.surriel.com>
-Message-Id: <20080115084534.116A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [patch 10/19] No Reclaim LRU Infrastructure
+In-Reply-To: <1200066224.5304.6.camel@localhost>
+References: <20080111133048.FD5C.KOSAKI.MOTOHIRO@jp.fujitsu.com> <1200066224.5304.6.camel@localhost>
+Message-Id: <20080115085931.116D.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
+Hi Lee-san
 
-> > Why drop (total_swap_pages == 0 && PageAnon(page)) condition?
-> > in embedded sysmtem, 
-> > CONFIG_NORECLAIM is OFF (because almost embedded cpu is 32bit) and
-> > that anon move to inactive list is meaningless because it doesn't have swap.
+> > > +config NORECLAIM
+> > > +	bool "Track non-reclaimable pages (EXPERIMENTAL; 64BIT only)"
+> > > +	depends on EXPERIMENTAL && 64BIT
+> > > +	help
+> > > +	  Supports tracking of non-reclaimable pages off the [in]active lists
+> > > +	  to avoid excessive reclaim overhead on large memory systems.  Pages
+> > > +	  may be non-reclaimable because:  they are locked into memory, they
+> > > +	  are anonymous pages for which no swap space exists, or they are anon
+> > > +	  pages that are expensive to unmap [long anon_vma "related vma" list.]
+> > 
+> > Why do you select to default is NO ?
+> > I think this is really improvement and no one of 64bit user
+> > hope turn off without NORECLAIM developer :)
 > 
-> That was a mistake, kind of.  Since all swap backed pages are on their
-> own LRU lists, we should not scan those lists at all any more if we are
-> out of swap space.
-> 
-> The patch that fixes get_scan_ratio() adds that test.
-> 
-> Having said that, with the nr_swap_pages==0 test in get_scan_ratio(),
-> we no longer need to test for that condition in shrink_active_list().
+> This was my doing.  I left the default == NO during
+> development/experimemental stage so that one would have to take explicit
+> action to enable this function.  If the feature makes it into mainline
+> and we decide that the default should be 'yes', that will be an easy
+> change.
 
-Oh I see!
-thank you for your kindful lecture.
+Oh I see.
+I will help testing too for it merges to mainline early. 
 
-your implementation is very cute.
-
-
-> > below code is more good, may be.
-> > but I don't understand yet why ignore page_referenced() result at anon page ;-)
-> 
-> On modern systems, swapping out anonymous pages is a relatively rare
-> event.  All anonymous pages start out as active and referenced, so
-> testing for that condition does (1) not add any information and (2)
-> mean we need to scan ALL of the anonymous pages, in order to find one
-> candidate to swap out (since they are all referenced).
-> 
-> Simply deactivating a few pages and checking whether they were referenced
-> again while on the (smaller) inactive_anon_list means we can find candidates
-> to page out with a lot less CPU time used.
-
-thanks, I understand, may be.
+thanks.
 
 
 - kosaki
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
