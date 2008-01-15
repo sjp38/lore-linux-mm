@@ -1,361 +1,175 @@
 From: Anton Salikhmetov <salikhmetov@gmail.com>
-Subject: [PATCH 2/2] Updating ctime and mtime at syncing
-Date: Tue, 15 Jan 2008 19:02:45 +0300
-Message-Id: <1200412978699-git-send-email-salikhmetov@gmail.com>
-In-Reply-To: <12004129652397-git-send-email-salikhmetov@gmail.com>
-References: <12004129652397-git-send-email-salikhmetov@gmail.com>
+Subject: [PATCH 0/2] Updating ctime and mtime for memory-mapped files [try #4]
+Date: Tue, 15 Jan 2008 19:02:43 +0300
+Message-Id: <12004129652397-git-send-email-salikhmetov@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu
 List-ID: <linux-mm.kvack.org>
 
-Changes for updating the ctime and mtime fields for memory-mapped files:
+1. Introduction
 
-1) new flag triggering update of the inode data;
-2) new field in the address_space structure for saving modification time;
-3) new function to update ctime and mtime for block device files;
-4) new helper function to update ctime and mtime when needed;
-5) updating time stamps for mapped files in sys_msync() and do_fsync();
-6) implementing the feature of auto-updating ctime and mtime;
-7) account for the case of retouching an already-dirtied page.
+This is the fourth version of my solution for the bug #2645:
 
-Signed-off-by: Anton Salikhmetov <salikhmetov@gmail.com>
----
- fs/buffer.c             |    3 ++
- fs/fs-writeback.c       |    2 +
- fs/inode.c              |   53 ++++++++++++++++++++++++++++++++++-----------
- fs/sync.c               |    2 +
- include/linux/fs.h      |   13 ++++++++++-
- include/linux/pagemap.h |    3 +-
- mm/mmap.c               |    3 ++
- mm/msync.c              |   29 ++++++++++++++++--------
- mm/page-writeback.c     |   54 +++++++++++++++++++++++++---------------------
- 9 files changed, 112 insertions(+), 50 deletions(-)
+http://bugzilla.kernel.org/show_bug.cgi?id=2645
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 7249e01..3967aa7 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -701,6 +701,9 @@ static int __set_page_dirty(struct page *page,
- 	if (unlikely(!mapping))
- 		return !TestSetPageDirty(page);
- 
-+	mapping->mtime = CURRENT_TIME;
-+	set_bit(AS_MCTIME, &mapping->flags);
-+
- 	if (TestSetPageDirty(page))
- 		return 0;
- 
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 300324b..affd291 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -243,6 +243,8 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
- 
- 	spin_unlock(&inode_lock);
- 
-+	mapping_update_time(mapping);
-+
- 	ret = do_writepages(mapping, wbc);
- 
- 	/* Don't write the inode if only I_DIRTY_PAGES was set */
-diff --git a/fs/inode.c b/fs/inode.c
-index ed35383..5997046 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -1243,8 +1243,9 @@ void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
- EXPORT_SYMBOL(touch_atime);
- 
- /**
-- *	file_update_time	-	update mtime and ctime time
-- *	@file: file accessed
-+ *	inode_update_time	-	update mtime and ctime time
-+ *	@inode: inode accessed
-+ *	@ts: time when inode was accessed
-  *
-  *	Update the mtime and ctime members of an inode and mark the inode
-  *	for writeback.  Note that this function is meant exclusively for
-@@ -1253,11 +1254,8 @@ EXPORT_SYMBOL(touch_atime);
-  *	S_NOCTIME inode flag, e.g. for network filesystem where these
-  *	timestamps are handled by the server.
-  */
--
--void file_update_time(struct file *file)
-+void inode_update_time(struct inode *inode, struct timespec *ts)
- {
--	struct inode *inode = file->f_path.dentry->d_inode;
--	struct timespec now;
- 	int sync_it = 0;
- 
- 	if (IS_NOCMTIME(inode))
-@@ -1265,22 +1263,52 @@ void file_update_time(struct file *file)
- 	if (IS_RDONLY(inode))
- 		return;
- 
--	now = current_fs_time(inode->i_sb);
--	if (!timespec_equal(&inode->i_mtime, &now)) {
--		inode->i_mtime = now;
-+	if (timespec_compare(&inode->i_mtime, ts) < 0) {
-+		inode->i_mtime = *ts;
- 		sync_it = 1;
- 	}
- 
--	if (!timespec_equal(&inode->i_ctime, &now)) {
--		inode->i_ctime = now;
-+	if (timespec_compare(&inode->i_ctime, ts) < 0) {
-+		inode->i_ctime = *ts;
- 		sync_it = 1;
- 	}
- 
- 	if (sync_it)
- 		mark_inode_dirty_sync(inode);
- }
-+EXPORT_SYMBOL(inode_update_time);
-+
-+/*
-+ * Update the ctime and mtime stamps for memory-mapped block device files.
-+ */
-+static void bd_inode_update_time(struct inode *inode, struct timespec *ts)
-+{
-+	struct block_device *bdev = inode->i_bdev;
-+	struct list_head *p;
-+
-+	if (bdev == NULL)
-+		return;
-+
-+	mutex_lock(&bdev->bd_mutex);
-+	list_for_each(p, &bdev->bd_inodes) {
-+		inode = list_entry(p, struct inode, i_devices);
-+		inode_update_time(inode, ts);
-+	}
-+	mutex_unlock(&bdev->bd_mutex);
-+}
- 
--EXPORT_SYMBOL(file_update_time);
-+/*
-+ * Update the ctime and mtime stamps after checking if they are to be updated.
-+ */
-+void mapping_update_time(struct address_space *mapping)
-+{
-+	if (test_and_clear_bit(AS_MCTIME, &mapping->flags)) {
-+		if (S_ISBLK(mapping->host->i_mode))
-+			bd_inode_update_time(mapping->host, &mapping->mtime);
-+		else
-+			inode_update_time(mapping->host, &mapping->mtime);
-+	}
-+}
- 
- int inode_needs_sync(struct inode *inode)
- {
-@@ -1290,7 +1318,6 @@ int inode_needs_sync(struct inode *inode)
- 		return 1;
- 	return 0;
- }
--
- EXPORT_SYMBOL(inode_needs_sync);
- 
- int inode_wait(void *word)
-diff --git a/fs/sync.c b/fs/sync.c
-index 7cd005e..5561464 100644
---- a/fs/sync.c
-+++ b/fs/sync.c
-@@ -87,6 +87,8 @@ long do_fsync(struct file *file, int datasync)
- 		goto out;
- 	}
- 
-+	mapping_update_time(mapping);
-+
- 	ret = filemap_fdatawrite(mapping);
- 
- 	/*
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index b3ec4a4..f0d3ced 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -511,6 +511,7 @@ struct address_space {
- 	spinlock_t		private_lock;	/* for use by the address_space */
- 	struct list_head	private_list;	/* ditto */
- 	struct address_space	*assoc_mapping;	/* ditto */
-+	struct timespec		mtime;		/* modification time */
- } __attribute__((aligned(sizeof(long))));
- 	/*
- 	 * On most architectures that alignment is already the case; but
-@@ -1977,7 +1978,17 @@ extern int buffer_migrate_page(struct address_space *,
- extern int inode_change_ok(struct inode *, struct iattr *);
- extern int __must_check inode_setattr(struct inode *, struct iattr *);
- 
--extern void file_update_time(struct file *file);
-+extern void inode_update_time(struct inode *, struct timespec *);
-+
-+static inline void file_update_time(struct file *file)
-+{
-+	struct inode *inode = file->f_dentry->d_inode;
-+	struct timespec ts = current_fs_time(inode->i_sb);
-+
-+	inode_update_time(inode, &ts);
-+}
-+
-+extern void mapping_update_time(struct address_space *);
- 
- static inline ino_t parent_ino(struct dentry *dentry)
- {
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index db8a410..bf0f9e7 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -17,8 +17,9 @@
-  * Bits in mapping->flags.  The lower __GFP_BITS_SHIFT bits are the page
-  * allocation mode flags.
-  */
--#define	AS_EIO		(__GFP_BITS_SHIFT + 0)	/* IO error on async write */
-+#define AS_EIO		(__GFP_BITS_SHIFT + 0)	/* IO error on async write */
- #define AS_ENOSPC	(__GFP_BITS_SHIFT + 1)	/* ENOSPC on async write */
-+#define AS_MCTIME	(__GFP_BITS_SHIFT + 2)	/* mtime and ctime to update */
- 
- static inline void mapping_set_error(struct address_space *mapping, int error)
- {
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 15678aa..f659733 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -210,9 +210,12 @@ void unlink_file_vma(struct vm_area_struct *vma)
- 
- 	if (file) {
- 		struct address_space *mapping = file->f_mapping;
-+
- 		spin_lock(&mapping->i_mmap_lock);
- 		__remove_shared_vm_struct(vma, file, mapping);
- 		spin_unlock(&mapping->i_mmap_lock);
-+
-+		mapping_update_time(mapping);
- 	}
- }
- 
-diff --git a/mm/msync.c b/mm/msync.c
-index 3270caa..80ca1cc 100644
---- a/mm/msync.c
-+++ b/mm/msync.c
-@@ -5,6 +5,7 @@
-  * Copyright (C) 1994-1999  Linus Torvalds
-  *
-  * Massive code cleanup.
-+ * Updating the ctime and mtime stamps for memory-mapped files.
-  * Copyright (C) 2008 Anton Salikhmetov <salikhmetov@gmail.com>
-  */
- 
-@@ -22,6 +23,10 @@
-  * Nor does it mark the relevant pages dirty (it used to up to 2.6.17).
-  * Now it doesn't do anything, since dirty pages are properly tracked.
-  *
-+ * The msync() system call updates the ctime and mtime fields for
-+ * the mapped file when called with the MS_SYNC or MS_ASYNC flags
-+ * according to the POSIX standard.
-+ *
-  * The application may now run fsync() to
-  * write out the dirty pages and wait on the writeout and check the result.
-  * Or the application may run fadvise(FADV_DONTNEED) against the fd to start
-@@ -78,16 +83,20 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
- 		start = vma->vm_end;
- 
- 		file = vma->vm_file;
--		if ((flags & MS_SYNC) && file && (vma->vm_flags & VM_SHARED)) {
--			get_file(file);
--			up_read(&mm->mmap_sem);
--			error = do_fsync(file, 0);
--			fput(file);
--			if (error)
--				return error;
--			down_read(&mm->mmap_sem);
--			vma = find_vma(mm, start);
--			continue;
-+		if (file && (vma->vm_flags & VM_SHARED)) {
-+			if (flags & MS_ASYNC)
-+				mapping_update_time(file->f_mapping);
-+			if (flags & MS_SYNC) {
-+				get_file(file);
-+				up_read(&mm->mmap_sem);
-+				error = do_fsync(file, 0);
-+				fput(file);
-+				if (error)
-+					return error;
-+				down_read(&mm->mmap_sem);
-+				vma = find_vma(mm, start);
-+				continue;
-+			}
- 		}
- 
- 		vma = vma->vm_next;
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 3d3848f..53d0e34 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -997,35 +997,39 @@ int __set_page_dirty_no_writeback(struct page *page)
-  */
- int __set_page_dirty_nobuffers(struct page *page)
- {
--	if (!TestSetPageDirty(page)) {
--		struct address_space *mapping = page_mapping(page);
--		struct address_space *mapping2;
-+	struct address_space *mapping = page_mapping(page);
-+	struct address_space *mapping2;
- 
--		if (!mapping)
--			return 1;
-+	if (!mapping)
-+		return 1;
- 
--		write_lock_irq(&mapping->tree_lock);
--		mapping2 = page_mapping(page);
--		if (mapping2) { /* Race with truncate? */
--			BUG_ON(mapping2 != mapping);
--			WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
--			if (mapping_cap_account_dirty(mapping)) {
--				__inc_zone_page_state(page, NR_FILE_DIRTY);
--				__inc_bdi_stat(mapping->backing_dev_info,
--						BDI_RECLAIMABLE);
--				task_io_account_write(PAGE_CACHE_SIZE);
--			}
--			radix_tree_tag_set(&mapping->page_tree,
--				page_index(page), PAGECACHE_TAG_DIRTY);
--		}
--		write_unlock_irq(&mapping->tree_lock);
--		if (mapping->host) {
--			/* !PageAnon && !swapper_space */
--			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-+	mapping->mtime = CURRENT_TIME;
-+	set_bit(AS_MCTIME, &mapping->flags);
-+
-+	if (TestSetPageDirty(page))
-+		return 0;
-+
-+	write_lock_irq(&mapping->tree_lock);
-+	mapping2 = page_mapping(page);
-+	if (mapping2) {
-+		/* Race with truncate? */
-+		BUG_ON(mapping2 != mapping);
-+		WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
-+		if (mapping_cap_account_dirty(mapping)) {
-+			__inc_zone_page_state(page, NR_FILE_DIRTY);
-+			__inc_bdi_stat(mapping->backing_dev_info,
-+					BDI_RECLAIMABLE);
-+			task_io_account_write(PAGE_CACHE_SIZE);
- 		}
--		return 1;
-+		radix_tree_tag_set(&mapping->page_tree,
-+				page_index(page), PAGECACHE_TAG_DIRTY);
- 	}
--	return 0;
-+	write_unlock_irq(&mapping->tree_lock);
-+
-+	if (mapping->host)
-+		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-+
-+	return 1;
- }
- EXPORT_SYMBOL(__set_page_dirty_nobuffers);
- 
--- 
-1.4.4.4
+Changes since the previous version:
+
+1) the case of retouching an already-dirty page pointed out
+  by Miklos Szeredi has been addressed;
+
+2) the file metadata are updated using the page modification time
+  instead of the time of syncing data;
+
+3) a few small corrections according to the latest feedback.
+
+Brief explanation of these changes as well as some design considerations
+are given below.
+
+2. The case of retouching an already-dirtied page
+
+Miklos Szeredi gave the following feedback on the previous version:
+
+> I suspect your patch is ignoring writes after the first msync, but
+> then why care about msync at all?  What's so special about the _first_
+> msync?  Is it just that most test programs only check this, and not
+> what happens if msync is called more than once?  That would be a bug
+> in the test cases.
+
+This version adds handling of the case of multiple msync() calls. Before
+going on with the explanaion, I'll quote a remark by Peter Zijlstra:
+
+> I must agree, doing the mmap dirty, MS_ASYNC, mmap retouch, MS_ASYNC
+> case correctly would need a lot more code which I doubt is worth the
+> effort.
+>
+> It would require scanning the PTEs and marking them read-only again on
+> MS_ASYNC, and some more logic in set_page_dirty() because that currently
+> bails out early if the page in question is already dirty.
+
+Indeed, the following logic of the __set_pages_dirty_nobuffers() function:
+
+if (!TestSetPageDirty(page)) {
+       mapping = page_mapping(page);
+
+       if (!mapping)
+               return 1;
+
+       /* critical section */
+
+       if (mapping->host) {
+               __mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+               set_bit(AS_MCTIME, &mapping->flags);
+       }
+       return 1;
+}
+return 0;
+
+made it difficult to account for the case of the already-dirty page
+retouch after the call to msync(MS_ASYNC).
+
+In this version of my solution, I redesigned the logic of the same
+function as follows:
+
+mapping = page_mapping(page);
+
+if (!mapping)
+       return 1;
+
+set_bit(AS_MCTIME, &mapping->flags);
+
+if (TestSetPageDirty(page))
+       return 0;
+
+/* critical section */
+
+if (mapping->host) {
+       __mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+
+return 1;
+
+This allows us to set the AS_MCTIME bit independently of whether the page
+had already been dirtied or not. Besides, such change makes the logic of
+the topmost "if" in this function straight thus improving readability.
+Finally, we already have the __set_page_dirty() routine with almost
+identical functionality. My redesign of __set_pages_dirty_nobuffers()
+is based on how the __set_page_dirty() routine is implemented.
+
+Miklos gave an example of a scenario, where the previous version of
+my solution would fail:
+
+http://lkml.org/lkml/2008/1/14/100
+
+Here is how it looks in the version I am sending now:
+
+ 1 page is dirtied through mapping
+       => the AS_MCTIME bit turned on
+ 2 app calls msync(MS_ASYNC)
+       => inode's times updated, the AS_MCTIME bit turned off
+ 3 page is written again through mapping
+       => the AS_MCTIME bit turned on again
+ 4 app calls msync(MS_ASYNC)
+       => inode's times updated, the AS_MCTIME bit turned off
+ 5 ...
+ 6 page is written back
+       => ... by this moment, the either the msync(MS_ASYNC) has
+          taken care of updating the file times, or the AS_MCTIME
+          bit is on.
+
+I think that the feedback about writes after the first msync(MS_ASYNC)
+has thereby been addressed.
+
+3. Updating the time stamps of the block device special files
+
+As for the block device case, let's start from the following assumption:
+
+if the block device data changes, we should do our best to tell the world
+that this has happened.
+
+This is how I approach this requirement:
+
+1) if the block device is active, this is done at next *sync() through
+  calling the bd_inode_update_time() helper function.
+
+2) if the block device is not active, this is done during the block
+  device file deactivation in the unlink_file_vma() routine.
+
+Removing either of these actions would leave a possibility of losing
+information about the block device data update. That is why I am keeping
+both.
+
+4. Recording the time was the file data changed
+
+Finally, I noticed yet another issue with the previous version of my patch.
+Specifically, the time stamps were set to the current time of the moment
+when syncing but not the write reference was being done. This led to the
+following adverse effect on my development system:
+
+1) a text file A was updated by process B;
+2) process B exits without calling any of the *sync() functions;
+3) vi editor opens the file A;
+4) file data synced, file times updated;
+5) vi is confused by "thinking" that the file was changed after 3).
+
+This version overcomes this problem by introducing another field into the
+address_space structure. This field is used to "remember" the time of
+dirtying, and then this time value is propagated to the file metadata.
+
+This approach is based upon the following suggestion given by Peter
+Staubach during one of our previous discussions:
+
+http://lkml.org/lkml/2008/1/9/267
+
+> A better architecture would be to arrange for the file times
+> to be updated when the page makes the transition from being
+> unmodified to modified.  This is not straightforward due to
+> the current locking, but should be doable, I think.  Perhaps
+> recording the current time and then using it to update the
+> file times at a more suitable time (no pun intended) might
+> work.
+
+The solution I propose now proves the viability of the latter
+approach.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
