@@ -1,47 +1,57 @@
-Date: Tue, 15 Jan 2008 09:06:20 +0900
+Date: Tue, 15 Jan 2008 09:52:14 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch 10/19] No Reclaim LRU Infrastructure
-In-Reply-To: <1200066224.5304.6.camel@localhost>
-References: <20080111133048.FD5C.KOSAKI.MOTOHIRO@jp.fujitsu.com> <1200066224.5304.6.camel@localhost>
-Message-Id: <20080115085931.116D.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: [RFC][PATCH 0/5] mem notifications v4
+Message-Id: <20080115092828.116F.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: kosaki.motohiro@jp.fujitsu.com, Marcelo Tosatti <marcelo@kvack.org>, Daniel Spang <daniel.spang@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Lee-san
+Hi!
 
-> > > +config NORECLAIM
-> > > +	bool "Track non-reclaimable pages (EXPERIMENTAL; 64BIT only)"
-> > > +	depends on EXPERIMENTAL && 64BIT
-> > > +	help
-> > > +	  Supports tracking of non-reclaimable pages off the [in]active lists
-> > > +	  to avoid excessive reclaim overhead on large memory systems.  Pages
-> > > +	  may be non-reclaimable because:  they are locked into memory, they
-> > > +	  are anonymous pages for which no swap space exists, or they are anon
-> > > +	  pages that are expensive to unmap [long anon_vma "related vma" list.]
-> > 
-> > Why do you select to default is NO ?
-> > I think this is really improvement and no one of 64bit user
-> > hope turn off without NORECLAIM developer :)
-> 
-> This was my doing.  I left the default == NO during
-> development/experimemental stage so that one would have to take explicit
-> action to enable this function.  If the feature makes it into mainline
-> and we decide that the default should be 'yes', that will be an easy
-> change.
+The /dev/mem_notify is low memory notification device.
+it can avoid swappness and oom by cooperationg with the user process.
 
-Oh I see.
-I will help testing too for it merges to mainline early. 
-
-thanks.
+You need not be annoyed by OOM any longer :)
+please any comments!
 
 
-- kosaki
+related discussion:
+--------------------------------------------------------------
+  LKML OOM notifications requirement discussion
+     http://www.gossamer-threads.com/lists/linux/kernel/832802?nohighlight=1#832802
+  OOM notifications patch [Marcelo Tosatti]
+     http://marc.info/?l=linux-kernel&m=119273914027743&w=2
+  mem notifications v3 [Marcelo Tosatti]
+     http://marc.info/?l=linux-mm&m=119852828327044&w=2
+  Thrashing notification patch  [Daniel Spang]
+     http://marc.info/?l=linux-mm&m=119427416315676&w=2
+
+
+Changelog
+-------------------------------------------------
+  v3 -> v4 (by KOSAKI Motohiro)
+    o rebase to 2.6.24-rc6-mm1
+    o avoid wake up all.
+    o add judgement point to __free_one_page().
+    o add zone awareness.
+
+  v2 -> v3 (by Marcelo Tosatti)
+    o changes the notification point to happen whenever
+      the VM moves an anonymous page to the inactive list.
+    o implement notification rate limit.
+
+  v1(oom notify) -> v2 (by Marcelo Tosatti)
+    o name change
+    o notify timing change from just swap thrashing to
+      just before thrashing.
+    o also works with swapless device.
+
+
 
 
 --
