@@ -1,9 +1,9 @@
-Date: Tue, 15 Jan 2008 09:59:12 +0900
+Date: Tue, 15 Jan 2008 10:00:22 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [RFC][PATCH 1/5] introduce poll_wait_exclusive() new API 
+Subject: [RFC][PATCH 2/5] introduce wake_up_locked_nr() new API
 In-Reply-To: <20080115092828.116F.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 References: <20080115092828.116F.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20080115095755.1172.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080115095915.1175.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -13,128 +13,59 @@ To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: kosaki.motohiro@jp.fujitsu.com, Marcelo Tosatti <marcelo@kvack.org>, Daniel Spang <daniel.spang@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-There are 2 way of adding item to wait_queue,
-  1. add_wait_queue()
-  2. add_wait_queue_exclusive()
-and add_wait_queue_exclusive() is very useful API.
-
-unforunately, poll_wait_exclusive() against poll_wait() doesn't exist. 
-it means there is no way that wake up only 1 process where polled.
-wake_up() is wake up all sleeping process by poll_wait(), not 1 process.
-
-this patch introduce poll_wait_exclusive() new API for allow wake up only 1 process.
-
-<example of usage>
-unsigned int kosaki_poll(struct file *file,
-		         struct poll_table_struct *wait)
-{
-	poll_wait_exclusive(file, &kosaki_wait_queue, wait);
-	if (data_exist)
-		return POLLIN | POLLRDNORM;
-	return 0;
-}
-
+introduce new API wake_up_locked_nr() and wake_up_locked_all().
+it it similar as wake_up_nr() and wake_up_all(), but it doesn't lock.
 
 Signed-off-by: Marcelo Tosatti <marcelo@kvack.org>
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 ---
- fs/eventpoll.c       |    7 +++++--
- fs/select.c          |    9 ++++++---
- include/linux/poll.h |   11 +++++++++--
- 3 files changed, 20 insertions(+), 7 deletions(-)
+ include/linux/wait.h |    7 +++++--
+ kernel/sched.c       |    5 +++--
+ 2 files changed, 8 insertions(+), 4 deletions(-)
 
-
-
-Index: linux-2.6.24-rc6-memnotify/fs/eventpoll.c
+Index: linux-2.6.24-rc6-mm1-memnotify/include/linux/wait.h
 ===================================================================
---- linux-2.6.24-rc6-memnotify.orig/fs/eventpoll.c	2007-12-30 02:08:58.000000000 +0900
-+++ linux-2.6.24-rc6-memnotify/fs/eventpoll.c	2007-12-30 07:10:46.000000000 +0900
-@@ -676,7 +676,7 @@ out_unlock:
-  * target file wakeup lists.
-  */
- static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
--				 poll_table *pt)
-+				 poll_table *pt, int exclusive)
- {
- 	struct epitem *epi = ep_item_from_epqueue(pt);
- 	struct eppoll_entry *pwq;
-@@ -685,7 +685,10 @@ static void ep_ptable_queue_proc(struct 
- 		init_waitqueue_func_entry(&pwq->wait, ep_poll_callback);
- 		pwq->whead = whead;
- 		pwq->base = epi;
--		add_wait_queue(whead, &pwq->wait);
-+		if (exclusive)
-+			add_wait_queue_exclusive(whead, &pwq->wait);
-+		else
-+			add_wait_queue(whead, &pwq->wait);
- 		list_add_tail(&pwq->llink, &epi->pwqlist);
- 		epi->nwait++;
- 	} else {
-Index: linux-2.6.24-rc6-memnotify/fs/select.c
-===================================================================
---- linux-2.6.24-rc6-memnotify.orig/fs/select.c	2007-12-30 02:09:00.000000000 +0900
-+++ linux-2.6.24-rc6-memnotify/fs/select.c	2007-12-30 02:34:05.000000000 +0900
-@@ -48,7 +48,7 @@ struct poll_table_page {
-  * poll table.
-  */
- static void __pollwait(struct file *filp, wait_queue_head_t *wait_address,
--		       poll_table *p);
-+		       poll_table *p, int exclusive);
- 
- void poll_initwait(struct poll_wqueues *pwq)
- {
-@@ -117,7 +117,7 @@ static struct poll_table_entry *poll_get
- 
- /* Add a new entry */
- static void __pollwait(struct file *filp, wait_queue_head_t *wait_address,
--				poll_table *p)
-+		       poll_table *p, int exclusive)
- {
- 	struct poll_table_entry *entry = poll_get_entry(p);
- 	if (!entry)
-@@ -126,7 +126,10 @@ static void __pollwait(struct file *filp
- 	entry->filp = filp;
- 	entry->wait_address = wait_address;
- 	init_waitqueue_entry(&entry->wait, current);
--	add_wait_queue(wait_address, &entry->wait);
-+	if (exclusive)
-+		add_wait_queue_exclusive(wait_address, &entry->wait);
-+	else
-+		add_wait_queue(wait_address, &entry->wait);
+--- linux-2.6.24-rc6-mm1-memnotify.orig/include/linux/wait.h	2008-01-13 16:43:04.000000000 +0900
++++ linux-2.6.24-rc6-mm1-memnotify/include/linux/wait.h	2008-01-13 16:52:21.000000000 +0900
+@@ -142,7 +142,7 @@ static inline void __remove_wait_queue(w
  }
  
- #define FDS_IN(fds, n)		(fds->in + n)
-Index: linux-2.6.24-rc6-memnotify/include/linux/poll.h
-===================================================================
---- linux-2.6.24-rc6-memnotify.orig/include/linux/poll.h	2007-12-30 02:09:16.000000000 +0900
-+++ linux-2.6.24-rc6-memnotify/include/linux/poll.h	2007-12-30 02:41:35.000000000 +0900
-@@ -28,7 +28,8 @@ struct poll_table_struct;
- /* 
-  * structures and helpers for f_op->poll implementations
-  */
--typedef void (*poll_queue_proc)(struct file *, wait_queue_head_t *, struct poll_table_struct *);
-+typedef void (*poll_queue_proc)(struct file *, wait_queue_head_t *,
-+				struct poll_table_struct *, int);
- 
- typedef struct poll_table_struct {
- 	poll_queue_proc qproc;
-@@ -37,7 +38,13 @@ typedef struct poll_table_struct {
- static inline void poll_wait(struct file * filp, wait_queue_head_t * wait_address, poll_table *p)
- {
- 	if (p && wait_address)
--		p->qproc(filp, wait_address, p);
-+		p->qproc(filp, wait_address, p, 0);
-+}
+ void FASTCALL(__wake_up(wait_queue_head_t *q, unsigned int mode, int nr, void *key));
+-extern void FASTCALL(__wake_up_locked(wait_queue_head_t *q, unsigned int mode));
++void FASTCALL(__wake_up_locked(wait_queue_head_t *q, unsigned int mode, int nr, void *key));
+ extern void FASTCALL(__wake_up_sync(wait_queue_head_t *q, unsigned int mode, int nr));
+ void FASTCALL(__wake_up_bit(wait_queue_head_t *, void *, int));
+ int FASTCALL(__wait_on_bit(wait_queue_head_t *, struct wait_bit_queue *, int (*)(void *), unsigned));
+@@ -155,7 +155,10 @@ wait_queue_head_t *FASTCALL(bit_waitqueu
+ #define wake_up(x)			__wake_up(x, TASK_NORMAL, 1, NULL)
+ #define wake_up_nr(x, nr)		__wake_up(x, TASK_NORMAL, nr, NULL)
+ #define wake_up_all(x)			__wake_up(x, TASK_NORMAL, 0, NULL)
+-#define wake_up_locked(x)		__wake_up_locked((x), TASK_NORMAL)
 +
-+static inline void poll_wait_exclusive(struct file *filp, wait_queue_head_t *wait_address, poll_table *p)
-+{
-+	if (p && wait_address)
-+		p->qproc(filp, wait_address, p, 1);
++#define wake_up_locked(x)		__wake_up_locked((x), TASK_NORMAL, 1, NULL)
++#define wake_up_locked_nr(x, nr)	__wake_up_locked((x), TASK_NORMAL, nr, NULL)
++#define wake_up_locked_all(x)		__wake_up_locked((x), TASK_NORMAL, 0, NULL)
+ 
+ #define wake_up_interruptible(x)	__wake_up(x, TASK_INTERRUPTIBLE, 1, NULL)
+ #define wake_up_interruptible_nr(x, nr)	__wake_up(x, TASK_INTERRUPTIBLE, nr, NULL)
+Index: linux-2.6.24-rc6-mm1-memnotify/kernel/sched.c
+===================================================================
+--- linux-2.6.24-rc6-mm1-memnotify.orig/kernel/sched.c	2008-01-13 16:42:22.000000000 +0900
++++ linux-2.6.24-rc6-mm1-memnotify/kernel/sched.c	2008-01-13 16:53:28.000000000 +0900
+@@ -3837,9 +3837,10 @@ EXPORT_SYMBOL(__wake_up);
+ /*
+  * Same as __wake_up but called with the spinlock in wait_queue_head_t held.
+  */
+-void __wake_up_locked(wait_queue_head_t *q, unsigned int mode)
++void __wake_up_locked(wait_queue_head_t *q, unsigned int mode,
++		      int nr_exclusive, void *key)
+ {
+-	__wake_up_common(q, mode, 1, 0, NULL);
++	__wake_up_common(q, mode, nr_exclusive, 0, key);
  }
  
- static inline void init_poll_funcptr(poll_table *pt, poll_queue_proc qproc)
-
+ /**
 
 
 --
