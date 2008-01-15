@@ -1,72 +1,39 @@
-Message-ID: <478CF30F.1010100@qumranet.com>
-Date: Tue, 15 Jan 2008 19:53:19 +0200
-From: Avi Kivity <avi@qumranet.com>
+Received: from zps78.corp.google.com (zps78.corp.google.com [172.25.146.78])
+	by smtp-out.google.com with ESMTP id m0FHrhtf010511
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2008 09:53:43 -0800
+Received: from py-out-1112.google.com (pygy77.prod.google.com [10.34.226.77])
+	by zps78.corp.google.com with ESMTP id m0FHrP1S029952
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2008 09:53:43 -0800
+Received: by py-out-1112.google.com with SMTP id y77so2837409pyg.28
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2008 09:53:43 -0800 (PST)
+Message-ID: <532480950801150953g5a25f041ge1ad4eeb1b9bc04b@mail.gmail.com>
+Date: Tue, 15 Jan 2008 09:53:42 -0800
+From: "Michael Rubin" <mrubin@google.com>
+Subject: Re: [patch] Converting writeback linked lists to a tree based data structure
+In-Reply-To: <1200386774.15103.20.camel@twins>
 MIME-Version: 1.0
-Subject: Re: [kvm-devel] mmu notifiers
-References: <20080109181908.GS6958@v2.random>	<Pine.LNX.4.64.0801091352320.12335@schroedinger.engr.sgi.com>	<47860512.3040607@qumranet.com>	<Pine.LNX.4.64.0801101103470.20353@schroedinger.engr.sgi.com>	<47891A5C.8060907@qumranet.com>	<Pine.LNX.4.64.0801141148540.8300@schroedinger.engr.sgi.com>	<478C62F8.2070702@qumranet.com> <Pine.LNX.4.64.0801150938260.9893@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0801150938260.9893@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080115080921.70E3810653@localhost>
+	 <1200386774.15103.20.camel@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: kvm-devel@lists.sourceforge.net, linux-mm@kvack.org, Daniel J Blueman <daniel.blueman@quadrics.com>, Andrea Arcangeli <andrea@qumranet.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wfg@mail.ustc.edu.cn
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Tue, 15 Jan 2008, Avi Kivity wrote:
->
->   
->>> Duh. Impossible. Two instances of Linux cannot share page structs. So how
->>> are you doing this? Or is this just an idea?
->>>       
->> I was describing one Linux host running two guest instances.  The page structs
->> are in the host, so they are shared by mmap().
->>     
->
-> Ahh.. Okay I was talking about a guest exporting its memory to another 
-> guest.
->   
+On Jan 15, 2008 12:46 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> Just a quick question, how does this interact/depend-uppon etc.. with
+> Fengguangs patches I still have in my mailbox? (Those from Dec 28th)
 
-That's not very different, if they are on the same host?
+They don't. They apply to a 2.6.24rc7 tree. This is a candidte for 2.6.25.
 
->  
->   
->> kvm userspace is just an ordinary host process, it can mmap() any file it
->> likes and then assign that virtual memory range to the guest (as guest
->> physical memory).
->>     
->
-> But then the guest does not have its own page struct to manage the memory.
->
->   
+This work was done before Fengguang's patches. I am trying to test
+Fengguang's for comparison but am having problems with getting mm1 to
+boot on my systems.
 
-Why not?  It's just a block of memory as far as the guest is concerned.  
-It's entirely up to it whether to create page structs or not.
-
-Example:
-
-qemu 1:
-
-   p = mmap("/dev/shm/blah", size, ... );
-   ioctl(vm_fd, KVM_CREATE_MEMORY_REGION_USER, { p, size, 0x10000000, 
-... });
-
-qemu 2:
-
-   p = mmap("/dev/shm/blah", size, ... );
-   ioctl(vm_fd, KVM_CREATE_MEMORY_REGION_USER, { p, size, 0x10000000, 
-... });
-
-Physical address 0x10000000, of both guests, would map to the same page.
-
-Of course, ordinary Linux kernels can't do much with memory that is 
-shared with another guest.
-
-I've a feeling we need a whiteboard.
-
--- 
-error compiling committee.c: too many arguments to function
+mrubin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
