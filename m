@@ -1,95 +1,114 @@
-Message-Id: <20080116170902.006151000@sgi.com>
-Date: Wed, 16 Jan 2008 09:09:02 -0800
-From: travis@sgi.com
-Subject: [PATCH 00/10] x86: Reduce memory and intra-node effects with large count NR_CPUs V3
+Received: from int-mx1.corp.redhat.com (int-mx1.corp.redhat.com [172.16.52.254])
+	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id m0GHROqL005670
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2008 12:27:24 -0500
+Received: from mail.boston.redhat.com (mail.boston.redhat.com [172.16.76.12])
+	by int-mx1.corp.redhat.com (8.13.1/8.13.1) with ESMTP id m0GHRNUA014920
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2008 12:27:24 -0500
+Received: from redhat.com (lwoodman.boston.redhat.com [172.16.80.79])
+	by mail.boston.redhat.com (8.13.1/8.13.1) with ESMTP id m0GHRNva014053
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2008 12:27:23 -0500
+Message-ID: <478E3DFA.9050900@redhat.com>
+Date: Wed, 16 Jan 2008 12:25:14 -0500
+From: Larry Woodman <lwoodman@redhat.com>
+MIME-Version: 1.0
+Subject: [RFC] shared page table for hugetlbpage memory causing leak.
+Content-Type: multipart/mixed;
+ boundary="------------040903090809070209060208"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu
-Cc: Eric Dumazet <dada1@cosmosbay.com>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patchset addresses the kernel bloat that occurs when NR_CPUS is increased.
-The memory numbers below are with NR_CPUS = 1024 which I've been testing (4 and
-32 real processors, the rest "possible" using the additional_cpus start option.)
-These changes are all specific to the x86 architecture, non-arch specific
-changes will follow.
+This is a multi-part message in MIME format.
+--------------040903090809070209060208
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Based on 2.6.24-rc6-mm1
+I think the shared page table code for hugetlb memory on x86 and x86_64
+is causing a leak.  When a user of hugepages exits using this code the 
+system
+leaks some of the hugepages.
 
-Signed-off-by: Mike Travis <travis@sgi.com>
-Reviewed-by: Christoph Lameter <clameter@sgi.com>
----
-V1->V2:
-    - Remove extraneous casts
-    - Add comment about node memory < NODE_MIN_SIZE
-    - changed pxm_to_node_map to u16
-    - changed memnode map entries to u16
-    - Fix !NUMA builds with '#ifdef CONFIG_NUMA"
-    - Add slight optimization to apic_is_clustered_box()
+-------------------------------------------------------
+Part of /proc/meminfo just before database startup:
+HugePages_Total:  5500
+HugePages_Free:   5500
+HugePages_Rsvd:      0
+Hugepagesize:     2048 kB
 
-V2->V3:
-    - add early_cpu_to_node function to keep cpu_to_node efficient
-    - move and rename smp_set_apicids() to setup_percpu_maps()
-    - call setup_percpu_maps() as early as possible
-    - changed memnode.embedded_map from [64-16] to [64-8]
-      (and size comment to 128 bytes)
----
+Just before shutdown:
+HugePages_Total:  5500
+HugePages_Free:   4475
+HugePages_Rsvd:      0
+Hugepagesize:     2048 kB
 
-[Updated memory usage table.]
+After shutdown:
+HugePages_Total:  5500 
+HugePages_Free:   4988 
+HugePages_Rsvd:      0 
+Hugepagesize:     2048 kB
+----------------------------------------------------------
 
-The following columns are using the SuSE default x86_64 config
-[which has NR_CPUS=128] and NR_CPUS=1024.  There are no modules
-in either.  Each column's percentage is relative to the first.
+I think the problem occurs durring a fork, in copy_hugetlb_page_range(). 
+It locates the dst_pte using huge_pte_alloc().  Since huge_pte_alloc() 
+calls huge_pmd_share() it will share the pmd page if can yet the main 
+loop in copy_hugetlb_page_range() does a get_page() on every hugepage.  
+This is a violation of the shared hugepmd pagetable protocol and creates 
+additional referenced to the hugepages.  
 
-128cpus			1kcpus-before		1kcpus-after
-       228 .altinstr_re        228 +0%		       228 +0%
-      1219 .altinstruct       1219 +0%		      1219 +0%
-    866632 .bss		   2260296 +160%	   2112968 +143%
-     61374 .comment	     61374 +0%		     61374 +0%
-	16 .con_initcal 	16 +0%			16 +0%
-    427560 .data	    445480 +4%		    444200 +3%
-   1165824 .data.cachel   13076992 +1021%	  13076992 +1021%
-      8192 .data.init_t       8192 +0%		      8192 +0%
-      4096 .data.page_a       4096 +0%		      4096 +0%
-     39296 .data.percpu     155776 +296%	    155904 +296%
-    188992 .data.read_m    8751776 +4530%	   8747680 +4528%
-	 4 .data_nosave 	 4 +0%			 4 +0%
-      5141 .exit.text	      5150 +0%		      5149 +0%
-    138576 .init.data	    139472 +0%		    145424 +4%
-       134 .init.ramfs	       134 +0%		       134 +0%
-      3192 .init.setup	      3192 +0%		      3192 +0%
-    160143 .init.text	    160643 +0%		    160914 +0%
-      2288 .initcall.in       2288 +0%		      2288 +0%
-	 8 .jiffies		 8 +0%			 8 +0%
-      4512 .pci_fixup	      4512 +0%		      4512 +0%
-   1314318 .rodata	   1315630 +0%		   1315305 +0%
-     36856 .smp_locks	     36808 +0%		     36800 +0%
-   3975021 .text	   3984829 +0%		   3987389 +0%
-      3368 .vdso	      3368 +0%		      3368 +0%
-	 4 .vgetcpu_mod 	 4 +0%			 4 +0%
-       218 .vsyscall_0	       218 +0%		       218 +0%
-	52 .vsyscall_1		52 +0%			52 +0%
-	91 .vsyscall_2		91 +0%			91 +0%
-	 8 .vsyscall_3		 8 +0%			 8 +0%
-	54 .vsyscall_fn 	54 +0%			54 +0%
-	80 .vsyscall_gt 	80 +0%			80 +0%
-     39480 __bug_table	     39480 +0%		     39480 +0%
-     16320 __ex_table	     16320 +0%		     16320 +0%
-      9160 __param	      9160 +0%		      9160 +0%
-						
-   1818299 Text		   1834603 +0%		   1834859 +0%
-   3975021 Data		   3984829 +0%		   3987389 +0%
-    866632 Bss		   2260296 +160%	   2112968 +143%
-    360448 InitData	    483328 +34%		    487424 +35%
-   1415640 OtherData	  21885912 +1446%	  21883096 +1445%
-     39296 PerCpu	    155776 +0%		    155904 +0%
-   8472457 Total	  30486950 +259%	  30342823 +258%
+I think we can skip the entire replication of the ptes when the hugepage
+pagetables are shared.  This patch skips copying the ptes and the get_page()
+calls if the hugetlbpage pagetable is shared.
 
 
-[Note that the sum of the last 6 lines may not equal "Total" as some
-sections may contain others (eg., InitData contains PerCpu data.)]
 
--- 
+
+
+--------------040903090809070209060208
+Content-Type: text/plain;
+ name="linux-shared.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="linux-shared.patch"
+
+--- linux-2.6.23/mm/hugetlb.c.orig	2008-01-16 12:05:41.496448000 -0500
++++ linux-2.6.23/mm/hugetlb.c	2008-01-16 12:09:57.184746000 -0500
+@@ -377,18 +377,22 @@ int copy_hugetlb_page_range(struct mm_st
+ 		dst_pte = huge_pte_alloc(dst, addr);
+ 		if (!dst_pte)
+ 			goto nomem;
+-		spin_lock(&dst->page_table_lock);
+-		spin_lock(&src->page_table_lock);
+-		if (!pte_none(*src_pte)) {
+-			if (cow)
+-				ptep_set_wrprotect(src, addr, src_pte);
+-			entry = *src_pte;
+-			ptepage = pte_page(entry);
+-			get_page(ptepage);
+-			set_huge_pte_at(dst, addr, dst_pte, entry);
++
++		/* if hugetlbpage pagetables are shared dont take additional references */
++		if(!(is_vm_hugtlb_page(vma) && dst_pte == src_pte)) {
++			spin_lock(&dst->page_table_lock);
++			spin_lock(&src->page_table_lock);
++			if (!pte_none(*src_pte)) {
++				if (cow)
++					ptep_set_wrprotect(src, addr, src_pte);
++				entry = *src_pte;
++				ptepage = pte_page(entry);
++				get_page(ptepage);
++				set_huge_pte_at(dst, addr, dst_pte, entry);
++			}
++			spin_unlock(&src->page_table_lock);
++			spin_unlock(&dst->page_table_lock);
+ 		}
+-		spin_unlock(&src->page_table_lock);
+-		spin_unlock(&dst->page_table_lock);
+ 	}
+ 	return 0;
+ 
+
+--------------040903090809070209060208--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
