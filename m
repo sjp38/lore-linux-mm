@@ -1,43 +1,71 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH 00/10] x86: Reduce memory and intra-node effects with large count NR_CPUs
-Date: Wed, 16 Jan 2008 18:34:39 +1100
-References: <20080113183453.973425000@sgi.com> <20080114101133.GA23238@elte.hu> <200801141230.56403.ak@suse.de>
-In-Reply-To: <200801141230.56403.ak@suse.de>
+Message-ID: <478DB4B3.2000505@qumranet.com>
+Date: Wed, 16 Jan 2008 09:39:31 +0200
+From: Avi Kivity <avi@qumranet.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [kvm-devel] mmu notifiers
+References: <20080109181908.GS6958@v2.random> <Pine.LNX.4.64.0801091352320.12335@schroedinger.engr.sgi.com> <47860512.3040607@qumranet.com> <Pine.LNX.4.64.0801101103470.20353@schroedinger.engr.sgi.com> <47891A5C.8060907@qumranet.com> <Pine.LNX.4.64.0801141148540.8300@schroedinger.engr.sgi.com> <478C62F8.2070702@qumranet.com> <Pine.LNX.4.64.0801150938260.9893@schroedinger.engr.sgi.com> <478CF30F.1010100@qumranet.com> <Pine.LNX.4.64.0801150956040.10089@schroedinger.engr.sgi.com> <478CF609.3090304@qumranet.com> <Pine.LNX.4.64.0801151011380.10265@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0801151011380.10265@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200801161834.39746.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Ingo Molnar <mingo@elte.hu>, travis@sgi.com, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: kvm-devel@lists.sourceforge.net, linux-mm@kvack.org, Daniel J Blueman <daniel.blueman@quadrics.com>, Andrea Arcangeli <andrea@qumranet.com>
 List-ID: <linux-mm.kvack.org>
 
-On Monday 14 January 2008 22:30, Andi Kleen wrote:
+Christoph Lameter wrote:
+> On Tue, 15 Jan 2008, Avi Kivity wrote:
+>
+>   
+>>> But each guest has its own page structs. They cannot share page structs.
+>>> Concurrent access of two independent kernel instances for synchronization
+>>> and status maintenance to a single page struct?
+>>>   
+>>>       
+>> There's a host page struct (that the guest know nothing about and cannot
+>> touch), and optionally a guest page struct for each guest (that the host and
+>> the other guest know nothing about).
+>>     
+>
+> Ok so if two linux guests want to share memory three page structs are 
+> involved:
+>
+> 1. Host page struct
+> 2. Guest #1 page struct
+> 3. Guest #2 page struct
+>
+> I can understand that 1 and 2 point to the same physical page. Even all 
+> three could point to the same page if the page is readonly. 
+>
+> However, lets say that Guest #1 allocates some anonymous memory and wants
+> to share it with Guest #2. In that case something like PFNMAP is likely
+> going to be used? Or are you remapping the physical page so that #1 and #2 
+> share it? In that case two page struct describe state of the same physical
+> page and we have no effective synchronization for writeback etc.
+>
+>   
 
-> In general there are more scaling problems like this (e.g. it also doesn't
-> make sense to scale kernel threads for each CPU thread for example).
+Like I said, out of the box Linux doesn't support using memory that is 
+shared with other instances as main memory.  One usage  (by the s390 
+folk) was to put a read-only filesystem with execute-in-place support on 
+this memory, and so reduce the memory usage of guests.
 
-I think in a lot of ways, per-CPU kernel threads scale OK. At least
-they should mostly be dynamic, so they don't require overhead on
-smaller systems. On larger systems, I don't know if there are too
-many kernel problems with all those threads (except for userspace
-tools sometimes don't report well).
+>> The host page struct may disappear if the host decides to swap the page into
+>> its backing store and free the page.  The guest page structs (if any) would
+>> remain.
+>>     
+>
+> Page structs never disappear. The pte's may disappear and the page may be 
+> unmapped from an address space of a process but the page struct stays. 
+> Page struct can only disappear if memory hotplug is activated and memory 
+> is taken out of the system.
+>   
 
-And I think making them per-CPU can be much easier than tuning some
-arbitrary algorithm to get a mix between parallelism and footprint.
+Yes, that was poorly phrased.  The page and its page struct may be 
+reallocated for other purposes.
 
-For example, I'm finding that it might actually be worthwhile to move
-some per-node and dynamically-controlled thread creation over to the
-basic per-CPU scheme because of differences in topologies...
-
-Anyway, that's just an aside.
-
-Oh, just while I remember it also, something funny is that MAX_NUMNODES
-can be bigger than NR_CPUS on x86. I guess one can have CPUless nodes,
-but wouldn't it make sense to have an upper bound of NR_CPUS by default?
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
