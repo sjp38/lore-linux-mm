@@ -1,24 +1,42 @@
-Date: Wed, 16 Jan 2008 02:06:01 +0100
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [PATCH] mmu notifiers #v2
-Message-ID: <20080116010601.GF7059@v2.random>
-References: <20080113162418.GE8736@v2.random> <Pine.LNX.4.64.0801141154240.8300@schroedinger.engr.sgi.com> <20080115124449.GK30812@v2.random> <1200428333.6755.0.camel@pasglop>
+Date: Wed, 16 Jan 2008 10:48:55 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 4/5] memory_pressure_notify() caller
+In-Reply-To: <cfd9edbf0801151539g72ca9777h7ac43a31aadc730e@mail.gmail.com>
+References: <20080115175925.215471e1@bree.surriel.com> <cfd9edbf0801151539g72ca9777h7ac43a31aadc730e@mail.gmail.com>
+Message-Id: <20080116104536.11AE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1200428333.6755.0.camel@pasglop>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm-devel@lists.sourceforge.net, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, daniel.blueman@quadrics.com, holt@sgi.com, steiner@sgi.com, Andrew Morton <akpm@osdl.org>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>
+To: =?ISO-2022-JP?B?IkRhbmllbCBTcBskQmlPGyhCZyI=?= <daniel.spang@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 16, 2008 at 07:18:53AM +1100, Benjamin Herrenschmidt wrote:
-> Do you have cases where it's -not- called with the PTE lock held ?
+Hi Daniel
 
-For invalidate_page no because currently it's only called next to the
-ptep_get_and_clear that modifies the pte and requires the pte
-lock. invalidate_range/release are called w/o pte lock held.
+> > > The notification fires after only ~100 MB allocated, i.e., when page
+> > > reclaim is beginning to nag from page cache. Isn't this a bit early?
+> > > Repeating the test with swap enabled results in a notification after
+> > > ~600 MB allocated, which is more reasonable and just before the system
+> > > starts to swap.
+> >
+> > Your issue may have more to do with the fact that the
+> > highmem zone is 128MB in size and some balancing issues
+> > between __alloc_pages and try_to_free_pages.
+> 
+> I don't think so. I ran the test again without highmem and noticed the
+> same behaviour:
+
+Thank you for good point out!
+Could you please post your test program and reproduced method?
+
+unfortunately,
+my simple test is so good works in swapless system ;-)
+
+thanks.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
