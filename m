@@ -1,46 +1,52 @@
-Message-ID: <478E5306.5030709@redhat.com>
-Date: Wed, 16 Jan 2008 13:55:02 -0500
-From: Larry Woodman <lwoodman@redhat.com>
+Message-ID: <478E57F2.8010206@sgi.com>
+Date: Wed, 16 Jan 2008 11:16:02 -0800
+From: Mike Travis <travis@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] shared page table for hugetlbpage memory causing leak.
-References: <478E3DFA.9050900@redhat.com> <1200509668.3296.204.camel@localhost.localdomain>
-In-Reply-To: <1200509668.3296.204.camel@localhost.localdomain>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [PATCH 02/10] x86: Change size of node ids from u8 to u16 V3
+References: <20080116170902.006151000@sgi.com>	<20080116170902.328187000@sgi.com> <20080116185356.e8d02344.dada1@cosmosbay.com>
+In-Reply-To: <20080116185356.e8d02344.dada1@cosmosbay.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: linux-mm@kvack.org
+To: Eric Dumazet <dada1@cosmosbay.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Adam Litke wrote:
+>
+> Another point: you want this change, sorry if my previous mail was not detailed enough :
+>
+> --- a/arch/x86/mm/numa_64.c
+> +++ b/arch/x86/mm/numa_64.c
+> @@ -78,7 +78,7 @@ static int __init allocate_cachealigned_memnodemap(void)
+>         unsigned long pad, pad_addr;
+>
+>         memnodemap = memnode.embedded_map;
+> -       if (memnodemapsize <= 48)
+> +       if (memnodemapsize <= ARRAY_SIZE(memnode.embedded_map))
+>                 return 0;
+>
+>         pad = L1_CACHE_BYTES - 1;
+>
 
->Since we know we are dealing with a hugetlb VMA, how about the
->following, simpler, _untested_ patch:
->
->Signed-off-by: Adam Litke <agl@us.ibm.com>
->
->diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->index 6f97821..75b0e4f 100644
->--- a/mm/hugetlb.c
->+++ b/mm/hugetlb.c
->@@ -644,6 +644,11 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
-> 		dst_pte = huge_pte_alloc(dst, addr);
-> 		if (!dst_pte)
-> 			goto nomem;
->+
->+		/* If page table is shared do not copy or take references */
->+		if (src_pte == dst_pte)
->+			continue;
->+
-> 		spin_lock(&dst->page_table_lock);
-> 		spin_lock(&src->page_table_lock);
-> 		if (!pte_none(*src_pte)) {
->
->
->  
->
-Agreed.
+Hi Eric,
+
+I'm still getting this message with the numa=fake=4 start option:
+
+Faking node 0 at 0000000000000000-0000000028000000 (640MB)
+Faking node 1 at 0000000028000000-0000000050000000 (640MB)
+Faking node 2 at 0000000050000000-0000000078000000 (640MB)
+Faking node 3 at 0000000078000000-000000009ff00000 (639MB)
+
+NUMA: Using 27 for the hash shift.
+Your memory is not aligned you need to rebuild your kernel
+with a bigger NODEMAPSIZE shift=27 No NUMA hash function found.
+NUMA emulation disabled.
+
+Is there something else I need to change?  (This is on an AMD box.)
+
+Thanks!
+Mike
 
 
 --
