@@ -1,28 +1,32 @@
-Date: Wed, 16 Jan 2008 10:07:36 -0800 (PST)
+Date: Wed, 16 Jan 2008 10:08:52 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 00/10] x86: Reduce memory and intra-node effects with
- large count NR_CPUs
-In-Reply-To: <200801161834.39746.nickpiggin@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0801161006000.9061@schroedinger.engr.sgi.com>
-References: <20080113183453.973425000@sgi.com> <20080114101133.GA23238@elte.hu>
- <200801141230.56403.ak@suse.de> <200801161834.39746.nickpiggin@yahoo.com.au>
+Subject: Re: [kvm-devel] mmu notifiers
+In-Reply-To: <478DB4B3.2000505@qumranet.com>
+Message-ID: <Pine.LNX.4.64.0801161008010.9061@schroedinger.engr.sgi.com>
+References: <20080109181908.GS6958@v2.random>
+ <Pine.LNX.4.64.0801091352320.12335@schroedinger.engr.sgi.com>
+ <47860512.3040607@qumranet.com> <Pine.LNX.4.64.0801101103470.20353@schroedinger.engr.sgi.com>
+ <47891A5C.8060907@qumranet.com> <Pine.LNX.4.64.0801141148540.8300@schroedinger.engr.sgi.com>
+ <478C62F8.2070702@qumranet.com> <Pine.LNX.4.64.0801150938260.9893@schroedinger.engr.sgi.com>
+ <478CF30F.1010100@qumranet.com> <Pine.LNX.4.64.0801150956040.10089@schroedinger.engr.sgi.com>
+ <478CF609.3090304@qumranet.com> <Pine.LNX.4.64.0801151011380.10265@schroedinger.engr.sgi.com>
+ <478DB4B3.2000505@qumranet.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, travis@sgi.com, Andrew Morton <akpm@linux-foundation.org>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Avi Kivity <avi@qumranet.com>
+Cc: kvm-devel@lists.sourceforge.net, linux-mm@kvack.org, Daniel J Blueman <daniel.blueman@quadrics.com>, Andrea Arcangeli <andrea@qumranet.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Jan 2008, Nick Piggin wrote:
+On Wed, 16 Jan 2008, Avi Kivity wrote:
 
-> Oh, just while I remember it also, something funny is that MAX_NUMNODES
-> can be bigger than NR_CPUS on x86. I guess one can have CPUless nodes,
-> but wouldn't it make sense to have an upper bound of NR_CPUS by default?
+> Yes, that was poorly phrased.  The page and its page struct may
+be reallocated
+> for other purposes.
 
-There are special configurations that some customers want which involves 
-huge amounts of memory and just a few processors. In that case the number 
-of nodes becomes larger than the number of processors.
+Its better to say "reused". Otherwise one may think that an allocation of 
+page structs is needed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
