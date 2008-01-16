@@ -1,62 +1,63 @@
-Date: Wed, 16 Jan 2008 00:13:43 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] Converting writeback linked lists to a tree based data
- structure
-Message-Id: <20080116001343.06e4ddab.akpm@linux-foundation.org>
-In-Reply-To: <20080116075538.GW155407@sgi.com>
-References: <20080115080921.70E3810653@localhost>
-	<1200386774.15103.20.camel@twins>
-	<532480950801150953g5a25f041ge1ad4eeb1b9bc04b@mail.gmail.com>
-	<400452490.28636@ustc.edu.cn>
-	<20080115194415.64ba95f2.akpm@linux-foundation.org>
-	<20080116075538.GW155407@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <478DC7EC.1040101@inria.fr>
+Date: Wed, 16 Jan 2008 10:01:32 +0100
+From: Brice Goglin <Brice.Goglin@inria.fr>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mmu notifiers #v2
+References: <20080113162418.GE8736@v2.random>
+In-Reply-To: <20080113162418.GE8736@v2.random>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Chinner <dgc@sgi.com>
-Cc: Fengguang Wu <wfg@mail.ustc.edu.cn>, Michael Rubin <mrubin@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Jan 2008 18:55:38 +1100 David Chinner <dgc@sgi.com> wrote:
+Andrea Arcangeli wrote:
+> This patch is last version of a basic implementation of the mmu
+> notifiers.
+>
+> In short when the linux VM decides to free a page, it will unmap it
+> from the linux pagetables. However when a page is mapped not just by
+> the regular linux ptes, but also from the shadow pagetables, it's
+> currently unfreeable by the linux VM.
+>
+> This patch allows the shadow pagetables to be dropped and the page to
+> be freed after that, if the linux VM decides to unmap the page from
+> the main ptes because it wants to swap out the page.
+>
+> [...]
+>
+> Comments welcome... especially from SGI/IBM/Quadrics and all other
+> potential users of this functionality.
+>   
 
-> On Tue, Jan 15, 2008 at 07:44:15PM -0800, Andrew Morton wrote:
-> > On Wed, 16 Jan 2008 11:01:08 +0800 Fengguang Wu <wfg@mail.ustc.edu.cn> wrote:
-> > 
-> > > On Tue, Jan 15, 2008 at 09:53:42AM -0800, Michael Rubin wrote:
-> > > > On Jan 15, 2008 12:46 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> > > > > Just a quick question, how does this interact/depend-uppon etc.. with
-> > > > > Fengguangs patches I still have in my mailbox? (Those from Dec 28th)
-> > > > 
-> > > > They don't. They apply to a 2.6.24rc7 tree. This is a candidte for 2.6.25.
-> > > > 
-> > > > This work was done before Fengguang's patches. I am trying to test
-> > > > Fengguang's for comparison but am having problems with getting mm1 to
-> > > > boot on my systems.
-> > > 
-> > > Yeah, they are independent ones. The initial motivation is to fix the
-> > > bug "sluggish writeback on small+large files". Michael introduced
-> > > a new rbtree, and me introduced a new list(s_more_io_wait).
-> > > 
-> > > Basically I think rbtree is an overkill to do time based ordering.
-> > > Sorry, Michael. But s_dirty would be enough for that. Plus, s_more_io
-> > > provides fair queuing between small/large files, and s_more_io_wait
-> > > provides waiting mechanism for blocked inodes.
-> > > 
-> > > The time ordered rbtree may delay io for a blocked inode simply by
-> > > modifying its dirtied_when and reinsert it. But it would no longer be
-> > > that easy if it is to be ordered by location.
-> > 
-> > What does the term "ordered by location" mean?  Attemting to sort inodes by
-> > physical disk address?  By using their i_ino as a key?
-> > 
-> > That sounds optimistic.
-> 
-> In XFS, inode number is an encoding of it's location on disk, so
-> ordering inode writeback by inode number *does* make sense.
+For HPC, this should be very interesting. Managing the registration 
+cache of high-speed networks from user-space is a huge mess. This 
+approach should help a lot. In fact, back in 2004, I implemented 
+something similar called vmaspy to update the regcache of Myrinet 
+drivers. I never submitted any patch because Infiniband would have been 
+the only user in the mainline kernel and they were reluctant to these 
+ideas [1]. In the meantime, some of them apparently changed their mind 
+since they implemented some vmops-overriding hack to do something 
+similar [2]. This patch should simplify all this.
 
-This code is mainly concerned with writing pagecache data, not inodes.
+One of the difference with my patch is that you attach the notifier list 
+to the mm_struct while my code attached it to vmas. But I now don't 
+think it was such a good idea since it probably didn't reduce the number 
+of notifier calls a lot.
+
+Also, one thing that I looked at in vmaspy was notifying fork. I am not 
+sure what happens on Copy-on-write with your code, but for sure C-o-w is 
+problematic for shadow page tables. I thought shadow pages should just 
+be invalidated when a fork happens and the caller would refill them 
+after forcing C-o-w or so. So adding a notifier call there too might be 
+nice.
+
+Brice
+
+[1] http://lkml.org/lkml/2005/4/29/175
+[2] http://www.osc.edu/~pw/papers/wyckoff-memreg-ccgrid05.pdf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
