@@ -1,195 +1,93 @@
-Message-Id: <20080116170902.589152000@sgi.com>
-References: <20080116170902.006151000@sgi.com>
-Date: Wed, 16 Jan 2008 09:09:06 -0800
+Message-Id: <20080116170902.006151000@sgi.com>
+Date: Wed, 16 Jan 2008 09:09:02 -0800
 From: travis@sgi.com
-Subject: [PATCH 04/10] x86: Change NR_CPUS arrays in intel_cacheinfo V3
-Content-Disposition: inline; filename=NR_CPUS-arrays-in-intel_cacheinfo
+Subject: [PATCH 00/10] x86: Reduce memory and intra-node effects with large count NR_CPUs V3
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu
 Cc: Eric Dumazet <dada1@cosmosbay.com>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Change the following static arrays sized by NR_CPUS to
-per_cpu data variables:
+This patchset addresses the kernel bloat that occurs when NR_CPUS is increased.
+The memory numbers below are with NR_CPUS = 1024 which I've been testing (4 and
+32 real processors, the rest "possible" using the additional_cpus start option.)
+These changes are all specific to the x86 architecture, non-arch specific
+changes will follow.
 
-	_cpuid4_info *cpuid4_info[NR_CPUS];
-	_index_kobject *index_kobject[NR_CPUS];
-	kobject * cache_kobject[NR_CPUS];
+Based on 2.6.24-rc6-mm1
 
 Signed-off-by: Mike Travis <travis@sgi.com>
 Reviewed-by: Christoph Lameter <clameter@sgi.com>
 ---
 V1->V2:
-    - (none)
----
- arch/x86/kernel/cpu/intel_cacheinfo.c |   55 +++++++++++++++++-----------------
- 1 file changed, 29 insertions(+), 26 deletions(-)
+    - Remove extraneous casts
+    - Add comment about node memory < NODE_MIN_SIZE
+    - changed pxm_to_node_map to u16
+    - changed memnode map entries to u16
+    - Fix !NUMA builds with '#ifdef CONFIG_NUMA"
+    - Add slight optimization to apic_is_clustered_box()
 
---- a/arch/x86/kernel/cpu/intel_cacheinfo.c
-+++ b/arch/x86/kernel/cpu/intel_cacheinfo.c
-@@ -451,8 +451,8 @@ unsigned int __cpuinit init_intel_cachei
- }
- 
- /* pointer to _cpuid4_info array (for each cache leaf) */
--static struct _cpuid4_info *cpuid4_info[NR_CPUS];
--#define CPUID4_INFO_IDX(x,y)    (&((cpuid4_info[x])[y]))
-+static DEFINE_PER_CPU(struct _cpuid4_info *, cpuid4_info);
-+#define CPUID4_INFO_IDX(x,y)    (&((per_cpu(cpuid4_info, x))[y]))
- 
- #ifdef CONFIG_SMP
- static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
-@@ -474,7 +474,7 @@ static void __cpuinit cache_shared_cpu_m
- 			if (cpu_data(i).apicid >> index_msb ==
- 			    c->apicid >> index_msb) {
- 				cpu_set(i, this_leaf->shared_cpu_map);
--				if (i != cpu && cpuid4_info[i])  {
-+				if (i != cpu && per_cpu(cpuid4_info, i))  {
- 					sibling_leaf = CPUID4_INFO_IDX(i, index);
- 					cpu_set(cpu, sibling_leaf->shared_cpu_map);
- 				}
-@@ -505,8 +505,8 @@ static void __cpuinit free_cache_attribu
- 	for (i = 0; i < num_cache_leaves; i++)
- 		cache_remove_shared_cpu_map(cpu, i);
- 
--	kfree(cpuid4_info[cpu]);
--	cpuid4_info[cpu] = NULL;
-+	kfree(per_cpu(cpuid4_info, cpu));
-+	per_cpu(cpuid4_info, cpu) = NULL;
- }
- 
- static int __cpuinit detect_cache_attributes(unsigned int cpu)
-@@ -519,9 +519,9 @@ static int __cpuinit detect_cache_attrib
- 	if (num_cache_leaves == 0)
- 		return -ENOENT;
- 
--	cpuid4_info[cpu] = kzalloc(
-+	per_cpu(cpuid4_info, cpu) = kzalloc(
- 	    sizeof(struct _cpuid4_info) * num_cache_leaves, GFP_KERNEL);
--	if (cpuid4_info[cpu] == NULL)
-+	if (per_cpu(cpuid4_info, cpu) == NULL)
- 		return -ENOMEM;
- 
- 	oldmask = current->cpus_allowed;
-@@ -546,8 +546,8 @@ static int __cpuinit detect_cache_attrib
- 
- out:
- 	if (retval) {
--		kfree(cpuid4_info[cpu]);
--		cpuid4_info[cpu] = NULL;
-+		kfree(per_cpu(cpuid4_info, cpu));
-+		per_cpu(cpuid4_info, cpu) = NULL;
- 	}
- 
- 	return retval;
-@@ -561,7 +561,7 @@ out:
- extern struct sysdev_class cpu_sysdev_class; /* from drivers/base/cpu.c */
- 
- /* pointer to kobject for cpuX/cache */
--static struct kobject * cache_kobject[NR_CPUS];
-+static DEFINE_PER_CPU(struct kobject *, cache_kobject);
- 
- struct _index_kobject {
- 	struct kobject kobj;
-@@ -570,8 +570,8 @@ struct _index_kobject {
- };
- 
- /* pointer to array of kobjects for cpuX/cache/indexY */
--static struct _index_kobject *index_kobject[NR_CPUS];
--#define INDEX_KOBJECT_PTR(x,y)    (&((index_kobject[x])[y]))
-+static DEFINE_PER_CPU(struct _index_kobject *, index_kobject);
-+#define INDEX_KOBJECT_PTR(x,y)    (&((per_cpu(index_kobject, x))[y]))
- 
- #define show_one_plus(file_name, object, val)				\
- static ssize_t show_##file_name						\
-@@ -684,10 +684,10 @@ static struct kobj_type ktype_percpu_ent
- 
- static void __cpuinit cpuid4_cache_sysfs_exit(unsigned int cpu)
- {
--	kfree(cache_kobject[cpu]);
--	kfree(index_kobject[cpu]);
--	cache_kobject[cpu] = NULL;
--	index_kobject[cpu] = NULL;
-+	kfree(per_cpu(cache_kobject, cpu));
-+	kfree(per_cpu(index_kobject, cpu));
-+	per_cpu(cache_kobject, cpu) = NULL;
-+	per_cpu(index_kobject, cpu) = NULL;
- 	free_cache_attributes(cpu);
- }
- 
-@@ -703,13 +703,14 @@ static int __cpuinit cpuid4_cache_sysfs_
- 		return err;
- 
- 	/* Allocate all required memory */
--	cache_kobject[cpu] = kzalloc(sizeof(struct kobject), GFP_KERNEL);
--	if (unlikely(cache_kobject[cpu] == NULL))
-+	per_cpu(cache_kobject, cpu) =
-+		kzalloc(sizeof(struct kobject), GFP_KERNEL);
-+	if (unlikely(per_cpu(cache_kobject, cpu) == NULL))
- 		goto err_out;
- 
--	index_kobject[cpu] = kzalloc(
-+	per_cpu(index_kobject, cpu) = kzalloc(
- 	    sizeof(struct _index_kobject ) * num_cache_leaves, GFP_KERNEL);
--	if (unlikely(index_kobject[cpu] == NULL))
-+	if (unlikely(per_cpu(index_kobject, cpu) == NULL))
- 		goto err_out;
- 
- 	return 0;
-@@ -733,7 +734,8 @@ static int __cpuinit cache_add_dev(struc
- 	if (unlikely(retval < 0))
- 		return retval;
- 
--	retval = kobject_init_and_add(cache_kobject[cpu], &ktype_percpu_entry,
-+	retval = kobject_init_and_add(per_cpu(cache_kobject, cpu),
-+				      &ktype_percpu_entry,
- 				      &sys_dev->kobj, "%s", "cache");
- 	if (retval < 0) {
- 		cpuid4_cache_sysfs_exit(cpu);
-@@ -745,13 +747,14 @@ static int __cpuinit cache_add_dev(struc
- 		this_object->cpu = cpu;
- 		this_object->index = i;
- 		retval = kobject_init_and_add(&(this_object->kobj),
--					      &ktype_cache, cache_kobject[cpu],
-+					      &ktype_cache,
-+					      per_cpu(cache_kobject, cpu),
- 					      "index%1lu", i);
- 		if (unlikely(retval)) {
- 			for (j = 0; j < i; j++) {
- 				kobject_put(&(INDEX_KOBJECT_PTR(cpu,j)->kobj));
- 			}
--			kobject_put(cache_kobject[cpu]);
-+			kobject_put(per_cpu(cache_kobject, cpu));
- 			cpuid4_cache_sysfs_exit(cpu);
- 			break;
- 		}
-@@ -760,7 +763,7 @@ static int __cpuinit cache_add_dev(struc
- 	if (!retval)
- 		cpu_set(cpu, cache_dev_map);
- 
--	kobject_uevent(cache_kobject[cpu], KOBJ_ADD);
-+	kobject_uevent(per_cpu(cache_kobject, cpu), KOBJ_ADD);
- 	return retval;
- }
- 
-@@ -769,7 +772,7 @@ static void __cpuinit cache_remove_dev(s
- 	unsigned int cpu = sys_dev->id;
- 	unsigned long i;
- 
--	if (cpuid4_info[cpu] == NULL)
-+	if (per_cpu(cpuid4_info, cpu) == NULL)
- 		return;
- 	if (!cpu_isset(cpu, cache_dev_map))
- 		return;
-@@ -777,7 +780,7 @@ static void __cpuinit cache_remove_dev(s
- 
- 	for (i = 0; i < num_cache_leaves; i++)
- 		kobject_put(&(INDEX_KOBJECT_PTR(cpu,i)->kobj));
--	kobject_put(cache_kobject[cpu]);
-+	kobject_put(per_cpu(cache_kobject, cpu));
- 	cpuid4_cache_sysfs_exit(cpu);
- }
- 
+V2->V3:
+    - add early_cpu_to_node function to keep cpu_to_node efficient
+    - move and rename smp_set_apicids() to setup_percpu_maps()
+    - call setup_percpu_maps() as early as possible
+    - changed memnode.embedded_map from [64-16] to [64-8]
+      (and size comment to 128 bytes)
+---
+
+[Updated memory usage table.]
+
+The following columns are using the SuSE default x86_64 config
+[which has NR_CPUS=128] and NR_CPUS=1024.  There are no modules
+in either.  Each column's percentage is relative to the first.
+
+128cpus			1kcpus-before		1kcpus-after
+       228 .altinstr_re        228 +0%		       228 +0%
+      1219 .altinstruct       1219 +0%		      1219 +0%
+    866632 .bss		   2260296 +160%	   2112968 +143%
+     61374 .comment	     61374 +0%		     61374 +0%
+	16 .con_initcal 	16 +0%			16 +0%
+    427560 .data	    445480 +4%		    444200 +3%
+   1165824 .data.cachel   13076992 +1021%	  13076992 +1021%
+      8192 .data.init_t       8192 +0%		      8192 +0%
+      4096 .data.page_a       4096 +0%		      4096 +0%
+     39296 .data.percpu     155776 +296%	    155904 +296%
+    188992 .data.read_m    8751776 +4530%	   8747680 +4528%
+	 4 .data_nosave 	 4 +0%			 4 +0%
+      5141 .exit.text	      5150 +0%		      5149 +0%
+    138576 .init.data	    139472 +0%		    145424 +4%
+       134 .init.ramfs	       134 +0%		       134 +0%
+      3192 .init.setup	      3192 +0%		      3192 +0%
+    160143 .init.text	    160643 +0%		    160914 +0%
+      2288 .initcall.in       2288 +0%		      2288 +0%
+	 8 .jiffies		 8 +0%			 8 +0%
+      4512 .pci_fixup	      4512 +0%		      4512 +0%
+   1314318 .rodata	   1315630 +0%		   1315305 +0%
+     36856 .smp_locks	     36808 +0%		     36800 +0%
+   3975021 .text	   3984829 +0%		   3987389 +0%
+      3368 .vdso	      3368 +0%		      3368 +0%
+	 4 .vgetcpu_mod 	 4 +0%			 4 +0%
+       218 .vsyscall_0	       218 +0%		       218 +0%
+	52 .vsyscall_1		52 +0%			52 +0%
+	91 .vsyscall_2		91 +0%			91 +0%
+	 8 .vsyscall_3		 8 +0%			 8 +0%
+	54 .vsyscall_fn 	54 +0%			54 +0%
+	80 .vsyscall_gt 	80 +0%			80 +0%
+     39480 __bug_table	     39480 +0%		     39480 +0%
+     16320 __ex_table	     16320 +0%		     16320 +0%
+      9160 __param	      9160 +0%		      9160 +0%
+						
+   1818299 Text		   1834603 +0%		   1834859 +0%
+   3975021 Data		   3984829 +0%		   3987389 +0%
+    866632 Bss		   2260296 +160%	   2112968 +143%
+    360448 InitData	    483328 +34%		    487424 +35%
+   1415640 OtherData	  21885912 +1446%	  21883096 +1445%
+     39296 PerCpu	    155776 +0%		    155904 +0%
+   8472457 Total	  30486950 +259%	  30342823 +258%
+
+
+[Note that the sum of the last 6 lines may not equal "Total" as some
+sections may contain others (eg., InitData contains PerCpu data.)]
 
 -- 
 
