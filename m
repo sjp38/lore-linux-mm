@@ -1,71 +1,60 @@
-Message-ID: <478DB4B3.2000505@qumranet.com>
-Date: Wed, 16 Jan 2008 09:39:31 +0200
-From: Avi Kivity <avi@qumranet.com>
-MIME-Version: 1.0
-Subject: Re: [kvm-devel] mmu notifiers
-References: <20080109181908.GS6958@v2.random> <Pine.LNX.4.64.0801091352320.12335@schroedinger.engr.sgi.com> <47860512.3040607@qumranet.com> <Pine.LNX.4.64.0801101103470.20353@schroedinger.engr.sgi.com> <47891A5C.8060907@qumranet.com> <Pine.LNX.4.64.0801141148540.8300@schroedinger.engr.sgi.com> <478C62F8.2070702@qumranet.com> <Pine.LNX.4.64.0801150938260.9893@schroedinger.engr.sgi.com> <478CF30F.1010100@qumranet.com> <Pine.LNX.4.64.0801150956040.10089@schroedinger.engr.sgi.com> <478CF609.3090304@qumranet.com> <Pine.LNX.4.64.0801151011380.10265@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0801151011380.10265@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Wed, 16 Jan 2008 18:55:38 +1100
+From: David Chinner <dgc@sgi.com>
+Subject: Re: [patch] Converting writeback linked lists to a tree based data structure
+Message-ID: <20080116075538.GW155407@sgi.com>
+References: <20080115080921.70E3810653@localhost> <1200386774.15103.20.camel@twins> <532480950801150953g5a25f041ge1ad4eeb1b9bc04b@mail.gmail.com> <400452490.28636@ustc.edu.cn> <20080115194415.64ba95f2.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080115194415.64ba95f2.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: kvm-devel@lists.sourceforge.net, linux-mm@kvack.org, Daniel J Blueman <daniel.blueman@quadrics.com>, Andrea Arcangeli <andrea@qumranet.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Fengguang Wu <wfg@mail.ustc.edu.cn>, Michael Rubin <mrubin@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Tue, 15 Jan 2008, Avi Kivity wrote:
->
->   
->>> But each guest has its own page structs. They cannot share page structs.
->>> Concurrent access of two independent kernel instances for synchronization
->>> and status maintenance to a single page struct?
->>>   
->>>       
->> There's a host page struct (that the guest know nothing about and cannot
->> touch), and optionally a guest page struct for each guest (that the host and
->> the other guest know nothing about).
->>     
->
-> Ok so if two linux guests want to share memory three page structs are 
-> involved:
->
-> 1. Host page struct
-> 2. Guest #1 page struct
-> 3. Guest #2 page struct
->
-> I can understand that 1 and 2 point to the same physical page. Even all 
-> three could point to the same page if the page is readonly. 
->
-> However, lets say that Guest #1 allocates some anonymous memory and wants
-> to share it with Guest #2. In that case something like PFNMAP is likely
-> going to be used? Or are you remapping the physical page so that #1 and #2 
-> share it? In that case two page struct describe state of the same physical
-> page and we have no effective synchronization for writeback etc.
->
->   
+On Tue, Jan 15, 2008 at 07:44:15PM -0800, Andrew Morton wrote:
+> On Wed, 16 Jan 2008 11:01:08 +0800 Fengguang Wu <wfg@mail.ustc.edu.cn> wrote:
+> 
+> > On Tue, Jan 15, 2008 at 09:53:42AM -0800, Michael Rubin wrote:
+> > > On Jan 15, 2008 12:46 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> > > > Just a quick question, how does this interact/depend-uppon etc.. with
+> > > > Fengguangs patches I still have in my mailbox? (Those from Dec 28th)
+> > > 
+> > > They don't. They apply to a 2.6.24rc7 tree. This is a candidte for 2.6.25.
+> > > 
+> > > This work was done before Fengguang's patches. I am trying to test
+> > > Fengguang's for comparison but am having problems with getting mm1 to
+> > > boot on my systems.
+> > 
+> > Yeah, they are independent ones. The initial motivation is to fix the
+> > bug "sluggish writeback on small+large files". Michael introduced
+> > a new rbtree, and me introduced a new list(s_more_io_wait).
+> > 
+> > Basically I think rbtree is an overkill to do time based ordering.
+> > Sorry, Michael. But s_dirty would be enough for that. Plus, s_more_io
+> > provides fair queuing between small/large files, and s_more_io_wait
+> > provides waiting mechanism for blocked inodes.
+> > 
+> > The time ordered rbtree may delay io for a blocked inode simply by
+> > modifying its dirtied_when and reinsert it. But it would no longer be
+> > that easy if it is to be ordered by location.
+> 
+> What does the term "ordered by location" mean?  Attemting to sort inodes by
+> physical disk address?  By using their i_ino as a key?
+> 
+> That sounds optimistic.
 
-Like I said, out of the box Linux doesn't support using memory that is 
-shared with other instances as main memory.  One usage  (by the s390 
-folk) was to put a read-only filesystem with execute-in-place support on 
-this memory, and so reduce the memory usage of guests.
+In XFS, inode number is an encoding of it's location on disk, so
+ordering inode writeback by inode number *does* make sense.
 
->> The host page struct may disappear if the host decides to swap the page into
->> its backing store and free the page.  The guest page structs (if any) would
->> remain.
->>     
->
-> Page structs never disappear. The pte's may disappear and the page may be 
-> unmapped from an address space of a process but the page struct stays. 
-> Page struct can only disappear if memory hotplug is activated and memory 
-> is taken out of the system.
->   
+Cheers,
 
-Yes, that was poorly phrased.  The page and its page struct may be 
-reallocated for other purposes.
-
+Dave.
 -- 
-error compiling committee.c: too many arguments to function
+Dave Chinner
+Principal Engineer
+SGI Australian Software Group
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
