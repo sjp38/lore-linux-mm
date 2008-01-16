@@ -1,76 +1,44 @@
-Message-ID: <478E6AFD.1020302@cosmosbay.com>
-Date: Wed, 16 Jan 2008 21:37:17 +0100
-From: Eric Dumazet <dada1@cosmosbay.com>
+Date: Wed, 16 Jan 2008 12:39:31 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: SLUB: Increasing partial pages
+In-Reply-To: <20080116195949.GO18741@parisc-linux.org>
+Message-ID: <Pine.LNX.4.64.0801161219050.9694@schroedinger.engr.sgi.com>
+References: <20080116195949.GO18741@parisc-linux.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/10] x86: Change size of node ids from u8 to u16 V3
-References: <20080116170902.006151000@sgi.com>	<20080116170902.328187000@sgi.com> <20080116185356.e8d02344.dada1@cosmosbay.com> <478E57F2.8010206@sgi.com>
-In-Reply-To: <478E57F2.8010206@sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Travis <travis@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <matthew@wil.cx>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Mike Travis a ecrit :
->> Another point: you want this change, sorry if my previous mail was not detailed enough :
->>
->> --- a/arch/x86/mm/numa_64.c
->> +++ b/arch/x86/mm/numa_64.c
->> @@ -78,7 +78,7 @@ static int __init allocate_cachealigned_memnodemap(void)
->>         unsigned long pad, pad_addr;
->>
->>         memnodemap = memnode.embedded_map;
->> -       if (memnodemapsize <= 48)
->> +       if (memnodemapsize <= ARRAY_SIZE(memnode.embedded_map))
->>                 return 0;
->>
->>         pad = L1_CACHE_BYTES - 1;
->>
-> 
-> Hi Eric,
-> 
-> I'm still getting this message with the numa=fake=4 start option:
-> 
-> Faking node 0 at 0000000000000000-0000000028000000 (640MB)
-> Faking node 1 at 0000000028000000-0000000050000000 (640MB)
-> Faking node 2 at 0000000050000000-0000000078000000 (640MB)
-> Faking node 3 at 0000000078000000-000000009ff00000 (639MB)
-> 
-> NUMA: Using 27 for the hash shift.
-> Your memory is not aligned you need to rebuild your kernel
-> with a bigger NODEMAPSIZE shift=27 No NUMA hash function found.
-> NUMA emulation disabled.
-> 
-> Is there something else I need to change?  (This is on an AMD box.)
-> 
+On Wed, 16 Jan 2008, Matthew Wilcox wrote:
 
-Sure, check populate_memnodemap() in arch/x86/mm/numa_64.c
+> We tested 2.6.24-rc5 + 76be895001f2b0bee42a7685e942d3e08d5dd46c
+> 
+> For 2.6.24-rc5 before that patch, slub had a performance penalty of
+> 6.19%.  With the patch, slub's performance penalty was reduced to 4.38%.
+> This is great progress.  Can you think of anything else worth trying?
 
+Ahhh.. Good to hear that the issue on x86_64 gets better. I am still 
+waiting for a test with the patchset that I did specifically to address 
+your regression: http://lkml.org/lkml/2007/10/27/245 (where I tried to 
+come up with an in kernel benchmark that exposes the issue even more)? It 
+is much more likely now that this patchset in mm addresses your regression 
+since the hackbench performance improvement fix already reduce it 
+partially.
 
---- a/arch/x86/mm/numa_64.c
-+++ b/arch/x86/mm/numa_64.c
-@@ -54,7 +54,7 @@ populate_memnodemap(const struct bootnode *nodes, int 
-numnodes, int shift)
-         int res = -1;
-         unsigned long addr, end;
+2.6.25 will add the performance enhancements for the free patch that I 
+hope will address your issues. In addition the fastpath was reworked. See 
+the patch mentioned above.
 
--       memset(memnodemap, 0xff, memnodemapsize);
-+       memset(memnodemap, 0xff, sizeof(u16)*memnodemapsize);
-         for (i = 0; i < numnodes; i++) {
-                 addr = nodes[i].start;
-                 end = nodes[i].end;
-@@ -63,7 +63,7 @@ populate_memnodemap(const struct bootnode *nodes, int 
-numnodes, int shift)
-                 if ((end >> shift) >= memnodemapsize)
-                         return 0;
-                 do {
--                       if (memnodemap[addr >> shift] != 0xff)
-+                       if (memnodemap[addr >> shift] != NUMA_NO_NODE)
-                                 return -1;
-                         memnodemap[addr >> shift] = i;
-                         addr += (1UL << shift);
+2.6.26 (hopefully) will remove the per cpu array lookups that are 
+currently necessary on x86 and other platforms through improvements to 
+the way that percpu data is handled. That leads to further fastpath 
+improvements.
+
+There are also ways to optimize the partial block handling further by f.e.
+switching the percpu slab on free in order to have a higher fastpath rate.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
