@@ -1,63 +1,65 @@
-Received: by nz-out-0506.google.com with SMTP id i11so181634nzh.26
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2008 03:51:27 -0800 (PST)
-Message-ID: <cfd9edbf0801160351i2b819f31j65cc16b1e694168f@mail.gmail.com>
-Date: Wed, 16 Jan 2008 12:51:26 +0100
-From: "=?ISO-8859-1?Q?Daniel_Sp=E5ng?=" <daniel.spang@gmail.com>
-Subject: Re: [RFC][PATCH 3/5] add /dev/mem_notify device
-In-Reply-To: <20080116114234.GA22460@elf.ucw.cz>
+Message-ID: <400488821.15609@ustc.edu.cn>
+Date: Wed, 16 Jan 2008 21:06:55 +0800
+From: Fengguang Wu <wfg@mail.ustc.edu.cn>
+Subject: Re: [patch] Converting writeback linked lists to a tree based data structure
+References: <20080115080921.70E3810653@localhost> <1200386774.15103.20.camel@twins> <532480950801150953g5a25f041ge1ad4eeb1b9bc04b@mail.gmail.com> <400452490.28636@ustc.edu.cn> <20080115194415.64ba95f2.akpm@linux-foundation.org> <20080116075538.GW155407@sgi.com> <20080116001343.06e4ddab.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <20080115100029.1178.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080115221627.GC1565@elf.ucw.cz>
-	 <20080116105102.11B1.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080116041332.GA30877@dmt> <20080116114234.GA22460@elf.ucw.cz>
+In-Reply-To: <20080116001343.06e4ddab.akpm@linux-foundation.org>
+Message-Id: <E1JF7yp-0006l8-5P@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Marcelo Tosatti <marcelo@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Chinner <dgc@sgi.com>, Michael Rubin <mrubin@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 1/16/08, Pavel Machek <pavel@ucw.cz> wrote:
-> On Wed 2008-01-16 02:13:32, Marcelo Tosatti wrote:
-> > On Wed, Jan 16, 2008 at 10:57:16AM +0900, KOSAKI Motohiro wrote:
-> > > Hi Pavel
-> > >
-> > > > >         err = poll(&pollfds, 1, -1); // wake up at low memory
-> > > > >
-> > > > >         ...
-> > > > > </usage example>
-> > > >
-> > > > Nice, this is really needed for openmoko, zaurus, etc....
-> > > >
-> > > > But this changelog needs to go into Documentation/...
-> > > >
-> > > > ...and /dev/mem_notify is really a bad name. /dev/memory_low?
-> > > > /dev/oom?
-> > >
-> > > thank you for your kindful advise.
-> > >
-> > > but..
-> > >
-> > > to be honest, my english is very limited.
-> > > I can't make judgments name is good or not.
-> > >
-> > > Marcelo, What do you think his idea?
-> >
-> > "mem_notify" sounds alright, but I don't really care.
-> >
-> > Notify:
-> >
-> > To give notice to; inform: notified the citizens of the curfew by
-> > posting signs.
->
-> I'd read mem_notify as "tell me when new memory is unplugged" or
-> something. /dev/oom_notify? Plus, /dev/ names usually do not have "_"
-> in them.
+On Wed, Jan 16, 2008 at 12:13:43AM -0800, Andrew Morton wrote:
+> On Wed, 16 Jan 2008 18:55:38 +1100 David Chinner <dgc@sgi.com> wrote:
+> 
+> > On Tue, Jan 15, 2008 at 07:44:15PM -0800, Andrew Morton wrote:
+> > > On Wed, 16 Jan 2008 11:01:08 +0800 Fengguang Wu <wfg@mail.ustc.edu.cn> wrote:
+> > > 
+> > > > On Tue, Jan 15, 2008 at 09:53:42AM -0800, Michael Rubin wrote:
+> > > > > On Jan 15, 2008 12:46 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> > > > > > Just a quick question, how does this interact/depend-uppon etc.. with
+> > > > > > Fengguangs patches I still have in my mailbox? (Those from Dec 28th)
+> > > > > 
+> > > > > They don't. They apply to a 2.6.24rc7 tree. This is a candidte for 2.6.25.
+> > > > > 
+> > > > > This work was done before Fengguang's patches. I am trying to test
+> > > > > Fengguang's for comparison but am having problems with getting mm1 to
+> > > > > boot on my systems.
+> > > > 
+> > > > Yeah, they are independent ones. The initial motivation is to fix the
+> > > > bug "sluggish writeback on small+large files". Michael introduced
+> > > > a new rbtree, and me introduced a new list(s_more_io_wait).
+> > > > 
+> > > > Basically I think rbtree is an overkill to do time based ordering.
+> > > > Sorry, Michael. But s_dirty would be enough for that. Plus, s_more_io
+> > > > provides fair queuing between small/large files, and s_more_io_wait
+> > > > provides waiting mechanism for blocked inodes.
+> > > > 
+> > > > The time ordered rbtree may delay io for a blocked inode simply by
+> > > > modifying its dirtied_when and reinsert it. But it would no longer be
+> > > > that easy if it is to be ordered by location.
+> > > 
+> > > What does the term "ordered by location" mean?  Attemting to sort inodes by
+> > > physical disk address?  By using their i_ino as a key?
+> > > 
+> > > That sounds optimistic.
+> > 
+> > In XFS, inode number is an encoding of it's location on disk, so
+> > ordering inode writeback by inode number *does* make sense.
+> 
+> This code is mainly concerned with writing pagecache data, not inodes.
 
-I don't think we should use oom in the name, since the notification is
-sent long before oom.
+Now I tend to agree with you. It is not easy to sort writeback pages
+by disk location. There are three main obstacles:
+- there can be multiple filesystems on the same disk
+- ext3/reiserfs/... make use of blockdev inode, which spans the whole
+  partition;
+- xfs may store inode metadata/data separately;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
