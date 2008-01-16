@@ -1,62 +1,78 @@
-Message-ID: <400474447.19383@ustc.edu.cn>
-Date: Wed, 16 Jan 2008 17:07:20 +0800
-From: Fengguang Wu <wfg@mail.ustc.edu.cn>
-Subject: Re: [patch] Converting writeback linked lists to a tree based data structure
-References: <20080115080921.70E3810653@localhost> <1200386774.15103.20.camel@twins> <532480950801150953g5a25f041ge1ad4eeb1b9bc04b@mail.gmail.com> <400452490.28636@ustc.edu.cn> <20080115194415.64ba95f2.akpm@linux-foundation.org> <400457571.32162@ustc.edu.cn> <20080115204236.6349ac48.akpm@linux-foundation.org> <400459376.04290@ustc.edu.cn> <20080115215149.a881efff.akpm@linux-foundation.org>
+Date: Wed, 16 Jan 2008 11:19:40 +0100
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [PATCH] mmu notifiers #v2
+Message-ID: <20080116101939.GH7059@v2.random>
+References: <20080113162418.GE8736@v2.random> <478DC7EC.1040101@inria.fr>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080115215149.a881efff.akpm@linux-foundation.org>
-Message-Id: <E1JF4Ey-0000x4-5p@localhost.localdomain>
+In-Reply-To: <478DC7EC.1040101@inria.fr>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michael Rubin <mrubin@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Brice Goglin <Brice.Goglin@inria.fr>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 15, 2008 at 09:51:49PM -0800, Andrew Morton wrote:
-> On Wed, 16 Jan 2008 12:55:07 +0800 Fengguang Wu <wfg@mail.ustc.edu.cn> wrote:
-> 
-> > On Tue, Jan 15, 2008 at 08:42:36PM -0800, Andrew Morton wrote:
-> > > On Wed, 16 Jan 2008 12:25:53 +0800 Fengguang Wu <wfg@mail.ustc.edu.cn> wrote:
-> > > 
-> > > > list_heads are OK if we use them for one and only function.
-> > > 
-> > > Not really.  They're inappropriate when you wish to remember your
-> > > position in the list while you dropped the lock (as we must do in
-> > > writeback).
-> > > 
-> > > A data structure which permits us to interate across the search key rather
-> > > than across the actual storage locations is more appropriate.
-> > 
-> > I totally agree with you. What I mean is to first do the split of
-> > functions - into three: ordering, starvation prevention, and blockade
-> > waiting.
-> 
-> Does "ordering" here refer to ordering bt time-of-first-dirty?
+On Wed, Jan 16, 2008 at 10:01:32AM +0100, Brice Goglin wrote:
+> One of the difference with my patch is that you attach the notifier list to 
+> the mm_struct while my code attached it to vmas. But I now don't think it 
+> was such a good idea since it probably didn't reduce the number of notifier 
+> calls a lot.
 
-Ordering by dirtied_when or i_ino, either is OK.
+Thanks for raising this topic.
 
-> What is "blockade waiting"?
+Notably KVM also would be a bit more optimal with the notifier in the
+vma and that was the original implementation too. It's not a sure
+thing that it has to be in the mm.
 
-Some inodes/pages cannot be synced now for some reason and should be
-retried after a while.
+The quadrics patch does a mixture, it attaches it to the mm but then
+it pretends to pass the vma down to the method, and it's broken doing
+so, like during munmap where it passes the first vma being unmapped
+but not all the later ones in the munmap range.
 
-> > Then to do better ordering by adopting radix tree(or rbtree
-> > if radix tree is not enough),
-> 
-> ordering of what?
+If we want to attach it to the vma, I think the vma should be passed
+as parameter instead of the mm. In some places like
+apply_to_page_range the vma isn't even available and I found a little
+dirty to run a find_vma inside a #ifdef CONFIG_MMU_NOTIFIER.
 
-Switch from time to location.
+The only thing the vma could be interesting about are the protection
+bits for things like update_range in the quadrics patch where they
+prefetch their secondary tlb. But again if we want to do that, we need
+to hook inside unmap_vmas and to pass all the different vmas and not
+just the first one touched by unmap_vmas. unmap_vmas is _plural_ not
+singular ;).
 
-> > and lastly get rid of the list_heads to
-> > avoid locking. Does it sound like a good path?
-> 
-> I'd have thaought that replacing list_heads with another data structure
-> would be a simgle commit.
+In the end attaching to mm avoided solving all the above troubles and
+provided a strightforward implementation where I would need a single
+call to mmu_notifier_register and other minor advantages like that and
+not much downside.
 
-That would be easy. s_more_io and s_more_io_wait can all be converted
-to radix trees.
+But certainly the mm vs vma decision wasn't trivial (I switched back
+and forth a few times from vma to mm and back) and if people thinks
+this shall be in the vma I can try again but it won't be as a
+strightforward patch as for the mm.
+
+One benefit is for example is that it could go in the memslot and
+effectively the notifier->memslot conversion would be just a
+containerof instead of a "search" over the memslots. Locking aside.
+
+> Also, one thing that I looked at in vmaspy was notifying fork. I am not 
+> sure what happens on Copy-on-write with your code, but for sure C-o-w is 
+> problematic for shadow page tables. I thought shadow pages should just be 
+> invalidated when a fork happens and the caller would refill them after 
+> forcing C-o-w or so. So adding a notifier call there too might be nice.
+
+There can't be any cows right now in KVM VM backing store, that's why
+it's enough to get full swapping working fine. For example I think
+we'll need to add more notifiers to handle swapping of MAP_PRIVATE non
+linear tmpfs shared pages properly (and it won't be an issue with
+fork() but with after the fact sharing).
+
+Right now I'm more interested in the interface, for the invalidates,
+things like mm vs vma, the places where we hook under pte spinlock,
+things like that, then the patch can hopefully be merged and extended
+with more methods like ->change_protection_page/range and added to cow
+etc...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
