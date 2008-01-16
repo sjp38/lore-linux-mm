@@ -1,70 +1,64 @@
-Date: Tue, 15 Jan 2008 19:44:15 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] Converting writeback linked lists to a tree based data
- structure
-Message-Id: <20080115194415.64ba95f2.akpm@linux-foundation.org>
-In-Reply-To: <400452490.28636@ustc.edu.cn>
-References: <20080115080921.70E3810653@localhost>
-	<1200386774.15103.20.camel@twins>
-	<532480950801150953g5a25f041ge1ad4eeb1b9bc04b@mail.gmail.com>
-	<400452490.28636@ustc.edu.cn>
+Date: Wed, 16 Jan 2008 05:04:24 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [rfc][patch 1/4] include: add callbacks to toggle reference counting for VM_MIXEDMAP pages
+Message-ID: <20080116040424.GA29681@wotan.suse.de>
+References: <20071221104701.GE28484@wotan.suse.de> <1199784954.25114.27.camel@cotte.boeblingen.de.ibm.com> <1199891032.28689.9.camel@cotte.boeblingen.de.ibm.com> <1199891645.28689.22.camel@cotte.boeblingen.de.ibm.com> <6934efce0801091017t7f9041abs62904de3722cadc@mail.gmail.com> <4785D064.1040501@de.ibm.com> <6934efce0801101201t72e9b7c4ra88d6fda0f08b1b2@mail.gmail.com> <47872CA7.40802@de.ibm.com> <20080113024410.GA22285@wotan.suse.de> <478B4942.4030003@de.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <478B4942.4030003@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Fengguang Wu <wfg@mail.ustc.edu.cn>
-Cc: Michael Rubin <mrubin@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: carsteno@de.ibm.com
+Cc: Jared Hulbert <jaredeh@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Jan 2008 11:01:08 +0800 Fengguang Wu <wfg@mail.ustc.edu.cn> wrote:
+On Mon, Jan 14, 2008 at 12:36:34PM +0100, Carsten Otte wrote:
+> Nick Piggin wrote:
+> >You know that pfn_valid() can be changed at runtime depending on what
+> >your intentions are for that page. It can remain false if you don't
+> >want struct pages for it, then you can switch a flag...
+> We would'nt need to switch at runtime: it is sufficient to make that 
+> decision when the segment gets attched.
+> 
+> >I've just been looking at putting everything together (including the
+> >pte_special patch). 
+> Yippieh. I am going to try it out next :-).
 
-> On Tue, Jan 15, 2008 at 09:53:42AM -0800, Michael Rubin wrote:
-> > On Jan 15, 2008 12:46 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> > > Just a quick question, how does this interact/depend-uppon etc.. with
-> > > Fengguangs patches I still have in my mailbox? (Those from Dec 28th)
-> > 
-> > They don't. They apply to a 2.6.24rc7 tree. This is a candidte for 2.6.25.
-> > 
-> > This work was done before Fengguang's patches. I am trying to test
-> > Fengguang's for comparison but am having problems with getting mm1 to
-> > boot on my systems.
-> 
-> Yeah, they are independent ones. The initial motivation is to fix the
-> bug "sluggish writeback on small+large files". Michael introduced
-> a new rbtree, and me introduced a new list(s_more_io_wait).
-> 
-> Basically I think rbtree is an overkill to do time based ordering.
-> Sorry, Michael. But s_dirty would be enough for that. Plus, s_more_io
-> provides fair queuing between small/large files, and s_more_io_wait
-> provides waiting mechanism for blocked inodes.
-> 
-> The time ordered rbtree may delay io for a blocked inode simply by
-> modifying its dirtied_when and reinsert it. But it would no longer be
-> that easy if it is to be ordered by location.
+Just had a few things come up so I've been unable to finish this off
+earlier, but I'll have a look again tonight if I manage to make some
+progress on one more bug I'm working on.
 
-What does the term "ordered by location" mean?  Attemting to sort inodes by
-physical disk address?  By using their i_ino as a key?
 
-That sounds optimistic.
+> >I still hit one problem with your required modification
+> >to the filemap_xip patch.
+> >
+> >You need to unconditionally do a vm_insert_pfn in xip_file_fault, and rely
+> >on the pte bit to tell the rest of the VM that the page has not been
+> >refcounted. For architectures without such a bit, this breaks VM_MIXEDMAP,
+> >because it relies on testing pfn_valid() rather than a pte bit here.
+> >We can go 2 ways here: either s390 can make pfn_valid() work like we'd
+> >like; or we can have a vm_insert_mixedmap_pfn(), which has
+> >#ifdef __HAVE_ARCH_PTE_SPECIAL
+> >in order to do the right thing (ie. those architectures which do have pte
+> >special can just do vm_insert_pfn, and those that don't will either do a
+> >vm_insert_pfn or vm_insert_page depending on the result of pfn_valid).
+> Of those two choices, I'd cleary favor vm_insert_mixedmap_pfn(). But 
+> we can #ifdef __HAVE_ARCH_PTE_SPECIAL in vm_insert_pfn() too, can't 
+> we? We can safely set the bit for both VM_MIXEDMAP and VM_PFNMAP. Did 
+> I miss something?
 
-> If we are going to do location based ordering in the future, the lists
-> will continue to be useful. It would simply be a matter of switching
-> from the s_dirty(order by time) to some rbtree or radix tree(order by
-> location).
-> 
-> We can even provide both ordering at the same time to different
-> fs/inodes which is configurable by the user. Because the s_dirty
-> and/or rbtree would provide _only_ ordering(not faireness or waiting)
-> and hence is interchangeable.
-> 
-> This patchset could be a good reference. It does location based
-> ordering with radix tree:
-> 
-> [RFC][PATCH] clustered writeback <http://lkml.org/lkml/2007/8/27/45>
+I guess we could, but we have some good debug checking in vm_insert_pfn,
+and I'd like to make it clear that using it will not result in the
+struct page being touched.
 
-list_heads are just the wrong data structure for this function.  Especially
-list_heads which are protected by a non-sleeping lock.
+vm_insert_mixedmap_pfn (maybe we could rename it to vm_insert_mixed)
+would be quite a specialised thing which is easier to audit if it is
+on its own IMO.
+
+But you're right in that there is nothing technical preventing it.
+
+Anyway, I'll post some patches soon.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
