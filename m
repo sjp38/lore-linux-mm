@@ -1,63 +1,62 @@
-Message-ID: <478DC7EC.1040101@inria.fr>
-Date: Wed, 16 Jan 2008 10:01:32 +0100
-From: Brice Goglin <Brice.Goglin@inria.fr>
+Message-ID: <400474447.19383@ustc.edu.cn>
+Date: Wed, 16 Jan 2008 17:07:20 +0800
+From: Fengguang Wu <wfg@mail.ustc.edu.cn>
+Subject: Re: [patch] Converting writeback linked lists to a tree based data structure
+References: <20080115080921.70E3810653@localhost> <1200386774.15103.20.camel@twins> <532480950801150953g5a25f041ge1ad4eeb1b9bc04b@mail.gmail.com> <400452490.28636@ustc.edu.cn> <20080115194415.64ba95f2.akpm@linux-foundation.org> <400457571.32162@ustc.edu.cn> <20080115204236.6349ac48.akpm@linux-foundation.org> <400459376.04290@ustc.edu.cn> <20080115215149.a881efff.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mmu notifiers #v2
-References: <20080113162418.GE8736@v2.random>
-In-Reply-To: <20080113162418.GE8736@v2.random>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080115215149.a881efff.akpm@linux-foundation.org>
+Message-Id: <E1JF4Ey-0000x4-5p@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michael Rubin <mrubin@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
-> This patch is last version of a basic implementation of the mmu
-> notifiers.
->
-> In short when the linux VM decides to free a page, it will unmap it
-> from the linux pagetables. However when a page is mapped not just by
-> the regular linux ptes, but also from the shadow pagetables, it's
-> currently unfreeable by the linux VM.
->
-> This patch allows the shadow pagetables to be dropped and the page to
-> be freed after that, if the linux VM decides to unmap the page from
-> the main ptes because it wants to swap out the page.
->
-> [...]
->
-> Comments welcome... especially from SGI/IBM/Quadrics and all other
-> potential users of this functionality.
->   
+On Tue, Jan 15, 2008 at 09:51:49PM -0800, Andrew Morton wrote:
+> On Wed, 16 Jan 2008 12:55:07 +0800 Fengguang Wu <wfg@mail.ustc.edu.cn> wrote:
+> 
+> > On Tue, Jan 15, 2008 at 08:42:36PM -0800, Andrew Morton wrote:
+> > > On Wed, 16 Jan 2008 12:25:53 +0800 Fengguang Wu <wfg@mail.ustc.edu.cn> wrote:
+> > > 
+> > > > list_heads are OK if we use them for one and only function.
+> > > 
+> > > Not really.  They're inappropriate when you wish to remember your
+> > > position in the list while you dropped the lock (as we must do in
+> > > writeback).
+> > > 
+> > > A data structure which permits us to interate across the search key rather
+> > > than across the actual storage locations is more appropriate.
+> > 
+> > I totally agree with you. What I mean is to first do the split of
+> > functions - into three: ordering, starvation prevention, and blockade
+> > waiting.
+> 
+> Does "ordering" here refer to ordering bt time-of-first-dirty?
 
-For HPC, this should be very interesting. Managing the registration 
-cache of high-speed networks from user-space is a huge mess. This 
-approach should help a lot. In fact, back in 2004, I implemented 
-something similar called vmaspy to update the regcache of Myrinet 
-drivers. I never submitted any patch because Infiniband would have been 
-the only user in the mainline kernel and they were reluctant to these 
-ideas [1]. In the meantime, some of them apparently changed their mind 
-since they implemented some vmops-overriding hack to do something 
-similar [2]. This patch should simplify all this.
+Ordering by dirtied_when or i_ino, either is OK.
 
-One of the difference with my patch is that you attach the notifier list 
-to the mm_struct while my code attached it to vmas. But I now don't 
-think it was such a good idea since it probably didn't reduce the number 
-of notifier calls a lot.
+> What is "blockade waiting"?
 
-Also, one thing that I looked at in vmaspy was notifying fork. I am not 
-sure what happens on Copy-on-write with your code, but for sure C-o-w is 
-problematic for shadow page tables. I thought shadow pages should just 
-be invalidated when a fork happens and the caller would refill them 
-after forcing C-o-w or so. So adding a notifier call there too might be 
-nice.
+Some inodes/pages cannot be synced now for some reason and should be
+retried after a while.
 
-Brice
+> > Then to do better ordering by adopting radix tree(or rbtree
+> > if radix tree is not enough),
+> 
+> ordering of what?
 
-[1] http://lkml.org/lkml/2005/4/29/175
-[2] http://www.osc.edu/~pw/papers/wyckoff-memreg-ccgrid05.pdf
+Switch from time to location.
+
+> > and lastly get rid of the list_heads to
+> > avoid locking. Does it sound like a good path?
+> 
+> I'd have thaought that replacing list_heads with another data structure
+> would be a simgle commit.
+
+That would be easy. s_more_io and s_more_io_wait can all be converted
+to radix trees.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
