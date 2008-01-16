@@ -1,103 +1,86 @@
-Message-ID: <478E4889.5030208@sgi.com>
-Date: Wed, 16 Jan 2008 10:10:17 -0800
+Message-ID: <478E4972.5050705@sgi.com>
+Date: Wed, 16 Jan 2008 10:14:10 -0800
 From: Mike Travis <travis@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/10] x86: Change size of node ids from u8 to u16 V3
-References: <20080116170902.006151000@sgi.com>	<20080116170902.328187000@sgi.com> <20080116185356.e8d02344.dada1@cosmosbay.com>
-In-Reply-To: <20080116185356.e8d02344.dada1@cosmosbay.com>
+Subject: Re: [PATCH 00/10] x86: Reduce memory and intra-node effects with
+ large count NR_CPUs V3
+References: <20080116170902.006151000@sgi.com> <E1JFCZo-000618-8r@faramir.fjphome.nl>
+In-Reply-To: <E1JFCZo-000618-8r@faramir.fjphome.nl>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Frans Pop <elendil@planet.nl>
+Cc: ak@suse.de, akpm@linux-foundation.org, clameter@sgi.com, dada1@cosmosbay.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, steiner@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Eric Dumazet wrote:
-> On Wed, 16 Jan 2008 09:09:04 -0800
+Frans Pop wrote:
 > travis@sgi.com wrote:
+>>    8472457 Total          30486950 +259%          30342823 +258%
 > 
->> Change the size of node ids from 8 bits to 16 bits to
->> accomodate more than 256 nodes.
->>
->> Signed-off-by: Mike Travis <travis@sgi.com>
->> Reviewed-by: Christoph Lameter <clameter@sgi.com>
->> ---
->> V1->V2:
->>     - changed pxm_to_node_map to u16
->>     - changed memnode map entries to u16
->> V2->V3:
->>     - changed memnode.embedded_map from [64-16] to [64-8]
->>       (and size comment to 128 bytes)
->> ---
->>  arch/x86/mm/numa_64.c       |    9 ++++++---
->>  arch/x86/mm/srat_64.c       |    2 +-
->>  drivers/acpi/numa.c         |    2 +-
->>  include/asm-x86/mmzone_64.h |    6 +++---
->>  include/asm-x86/numa_64.h   |    4 ++--
->>  include/asm-x86/topology.h  |    2 +-
->>  6 files changed, 14 insertions(+), 11 deletions(-)
+> Hmmm. The table for previous versions looked a lot more impressive.
 > 
-> I know new typedefs are not welcome, but in this case, it could be nice
-> to define a fundamental type node_t (like pte_t, pmd_t, pgd_t, ...).
+> now:    8472457 Total	 +22014493 +259%	 +21870366 +258%
+> V2 :    7172678 Total    +23314404 +325%           -147590   -2%
+> (recalculated for comparison)
 > 
-> Clean NUMA code deserves it. 
-> 
-> #if MAX_NUMNODES > 256
-> typedef u16 node_t;
-> #else
-> typedef u8 node_t;
-> #endif
-> 
+> Did something go wrong with the "after" data?
 
-Funny, I had this in originally and someone suggested that it was
-superfluous. ;-)  But I agree, though I had called it numanode_t.
-Even a cpu_t for size of the cpu index could be useful.
+The previous version had each column's difference from the
+previous.  The new one had eacho column's difference from the
+first column.  (Also, there are differences in what "after"
+means. ;-)
 
-I'll wait for other opinions.
-
-> In 2016, we can add u32 for MAX_NUMNODES > 65536
-
-Probably 2010 is closer... ;-)
-
-> 
-> Another point: you want this change, sorry if my previous mail was not detailed enough :
-> 
-> --- a/arch/x86/mm/numa_64.c
-> +++ b/arch/x86/mm/numa_64.c
-> @@ -78,7 +78,7 @@ static int __init allocate_cachealigned_memnodemap(void)
->         unsigned long pad, pad_addr;
->  
->         memnodemap = memnode.embedded_map;
-> -       if (memnodemapsize <= 48)
-> +       if (memnodemapsize <= ARRAY_SIZE(memnode.embedded_map))
->                 return 0;
->  
->         pad = L1_CACHE_BYTES - 1;
-> 
-> 
-> Thanks
-
-Thanks!  This hash lookup is still a bit of a mystery to me.
-
-I'll submit a 'fixup' patch momentarily, also removing:
-
---- linux.orig/arch/x86/mm/numa_64.c    2008-01-16 08:21:00.000000000 -0800
-+++ linux/arch/x86/mm/numa_64.c 2008-01-16 09:57:27.168691249 -0800
-@@ -35,8 +35,6 @@ u16 x86_cpu_to_node_map_init[NR_CPUS] __
-        [0 ... NR_CPUS-1] = NUMA_NO_NODE
- };
- void *x86_cpu_to_node_map_early_ptr;
--EXPORT_SYMBOL(x86_cpu_to_node_map_init);
--EXPORT_SYMBOL(x86_cpu_to_node_map_early_ptr);
- DEFINE_PER_CPU(u16, x86_cpu_to_node_map) = NUMA_NO_NODE;
- EXPORT_PER_CPU_SYMBOL(x86_cpu_to_node_map);
-
-... to avoid section mismatches.
+Here's the "each-relative" version.  It sort of depends on if
+you want to see each incremental change or the net overall change.
 
 Thanks,
 Mike
+--- 
 
+128cpus                 1kcpus-before           1kcpus-after
+       228 .altinstr_re         +0 +0%                  +0 +0%
+      1219 .altinstruct         +0 +0%                  +0 +0%
+    866632 .bss           +1393664 +160%           -147328 -6%
+     61374 .comment             +0 +0%                  +0 +0%
+        16 .con_initcal         +0 +0%                  +0 +0%
+    427560 .data            +17920 +4%               -1280 +0%
+   1165824 .data.cachel  +11911168 +1021%               +0 +0%
+      8192 .data.init_t         +0 +0%                  +0 +0%
+      4096 .data.page_a         +0 +0%                  +0 +0%
+     39296 .data.percpu    +116480 +296%              +128 +0%
+    188992 .data.read_m   +8562784 +4530%            -4096 +0%
+         4 .data_nosave         +0 +0%                  +0 +0%
+      5141 .exit.text           +9 +0%                  -1 +0%
+    138576 .init.data         +896 +0%               +5952 +4%
+       134 .init.ramfs          +0 +0%                  +0 +0%
+      3192 .init.setup          +0 +0%                  +0 +0%
+    160143 .init.text         +500 +0%                +271 +0%
+      2288 .initcall.in         +0 +0%                  +0 +0%
+         8 .jiffies             +0 +0%                  +0 +0%
+      4512 .pci_fixup           +0 +0%                  +0 +0%
+   1314318 .rodata           +1312 +0%                -325 +0%
+     36856 .smp_locks          -48 +0%                  -8 +0%
+   3975021 .text             +9808 +0%               +2560 +0%
+      3368 .vdso                +0 +0%                  +0 +0%
+         4 .vgetcpu_mod         +0 +0%                  +0 +0%
+       218 .vsyscall_0          +0 +0%                  +0 +0%
+        52 .vsyscall_1          +0 +0%                  +0 +0%
+        91 .vsyscall_2          +0 +0%                  +0 +0%
+         8 .vsyscall_3          +0 +0%                  +0 +0%
+        54 .vsyscall_fn         +0 +0%                  +0 +0%
+        80 .vsyscall_gt         +0 +0%                  +0 +0%
+     39480 __bug_table          +0 +0%                  +0 +0%
+     16320 __ex_table           +0 +0%                  +0 +0%
+      9160 __param              +0 +0%                  +0 +0%
+
+   1818299 Text             +16304 +0%                +256 +0%
+   3975021 Data              +9808 +0%               +2560 +0%
+    866632 Bss            +1393664 +160%           -147328 -6%
+    360448 InitData        +122880 +34%              +4096 +0%
+   1415640 OtherData     +20470272 +1446%            -2816 +0%
+     39296 PerCpu          +116480 +0%                +128 +0%
+   8472457 Total         +22014493 +259%           -144127 +0%
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
