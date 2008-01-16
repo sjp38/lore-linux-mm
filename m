@@ -1,42 +1,37 @@
-Date: Wed, 16 Jan 2008 10:57:16 +0900
+Date: Wed, 16 Jan 2008 11:05:09 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 3/5] add /dev/mem_notify device
-In-Reply-To: <20080115221627.GC1565@elf.ucw.cz>
-References: <20080115100029.1178.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080115221627.GC1565@elf.ucw.cz>
-Message-Id: <20080116105102.11B1.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [RFC] mmaped copy too slow?
+In-Reply-To: <478CAB25.30300@grupopie.com>
+References: <20080115100450.1180.KOSAKI.MOTOHIRO@jp.fujitsu.com> <478CAB25.30300@grupopie.com>
+Message-Id: <20080116110200.11B4.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@ucw.cz>, Marcelo Tosatti <marcelo@kvack.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Daniel Spang <daniel.spang@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Paulo Marques <pmarques@grupopie.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Pavel
+Hi Paulo
 
-> > 	err = poll(&pollfds, 1, -1); // wake up at low memory
-> > 
-> >         ...
-> > </usage example>
+> One thing you could also try is to pass MAP_POPULATE to mmap so that the 
+> page tables are filled in at the time of the mmap, avoiding a lot of 
+> page faults later.
 > 
-> Nice, this is really needed for openmoko, zaurus, etc....
-> 
-> But this changelog needs to go into Documentation/...
-> 
-> ...and /dev/mem_notify is really a bad name. /dev/memory_low?
-> /dev/oom?
+> Just my 2 cents,
 
-thank you for your kindful advise.
+OK, I will test your idea and report about tomorrow.
+but I don't think page fault is major performance impact.
 
-but..
+may be, below 2 things too big
+  - stupid page reclaim
+  - large cache pollution by memcpy.
 
-to be honest, my english is very limited.
-I can't make judgments name is good or not.
-
-Marcelo, What do you think his idea?
+Just my 2 cents :-p
 
 
+- kosaki
 
 
 --
