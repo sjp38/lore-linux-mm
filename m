@@ -1,94 +1,25 @@
-Received: by wa-out-1112.google.com with SMTP id m33so1076818wag.8
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2008 05:40:35 -0800 (PST)
-Message-ID: <4df4ef0c0801170540p36d3c566w973251527fc3bca1@mail.gmail.com>
-Date: Thu, 17 Jan 2008 16:40:35 +0300
-From: "Anton Salikhmetov" <salikhmetov@gmail.com>
-Subject: Re: [PATCH -v5 2/2] Updating ctime and mtime at syncing
-In-Reply-To: <E1JFUrm-0006XG-SB@pomaz-ex.szeredi.hu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <12005314662518-git-send-email-salikhmetov@gmail.com>
-	 <1200531471556-git-send-email-salikhmetov@gmail.com>
-	 <E1JFSgG-0006G1-6V@pomaz-ex.szeredi.hu>
-	 <4df4ef0c0801170416s5581ae28h90d91578baa77738@mail.gmail.com>
-	 <E1JFU7r-0006PK-So@pomaz-ex.szeredi.hu>
-	 <4df4ef0c0801170516k3f82dc69ieee836b5633378a@mail.gmail.com>
-	 <E1JFUrm-0006XG-SB@pomaz-ex.szeredi.hu>
+Subject: Re: [PATCH 00/10] x86: Reduce memory and intra-node effects with large count NR_CPUs V3
+In-reply-To: <20080116170902.006151000@sgi.com>
+References: <20080116170902.006151000@sgi.com>
+Message-Id: <E1JFCZo-000618-8r@faramir.fjphome.nl>
+From: Frans Pop <elendil@planet.nl>
+Date: Wed, 16 Jan 2008 19:01:24 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: travis@sgi.com
+Cc: ak@suse.de, akpm@linux-foundation.org, clameter@sgi.com, dada1@cosmosbay.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, steiner@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-2008/1/17, Miklos Szeredi <miklos@szeredi.hu>:
-> > 2008/1/17, Miklos Szeredi <miklos@szeredi.hu>:
-> > > > > 4. Recording the time was the file data changed
-> > > > >
-> > > > > Finally, I noticed yet another issue with the previous version of my patch.
-> > > > > Specifically, the time stamps were set to the current time of the moment
-> > > > > when syncing but not the write reference was being done. This led to the
-> > > > > following adverse effect on my development system:
-> > > > >
-> > > > > 1) a text file A was updated by process B;
-> > > > > 2) process B exits without calling any of the *sync() functions;
-> > > > > 3) vi editor opens the file A;
-> > > > > 4) file data synced, file times updated;
-> > > > > 5) vi is confused by "thinking" that the file was changed after 3).
-> > >
-> > > Updating the time in remove_vma() would fix this, no?
-> >
-> > We need to save modification time. Otherwise, updating time stamps
-> > will be confusing the vi editor.
->
-> remove_vma() will be called when process B exits, so if the times are
-> updated there, and the flag is cleared, the times won't be updated
-> later.
->
-> > >
-> > > > > All these changes to inode.c are unnecessary, I think.
-> > > >
-> > > > The first part is necessary to account for "remembering" the modification time.
-> > > >
-> > > > The second part is for handling block device files. I cannot see any other
-> > > > sane way to update file times for them.
-> > >
-> > > Use file_update_time(), which will do the right thing.  It will in
-> > > fact do the same thing as write(2) on the device, which is really what
-> > > we want.
-> > >
-> > > Block devices being mapped for write through different device
-> > > nodes..., well, I don't think we really need to handle such weird
-> > > corner cases 100% acurately.
-> >
-> > The file_update_time() cannot be used for implementing
-> > the "auto-update" feature, because the sync() system call
-> > doesn't "know" about the file which was memory-mapped.
->
-> I'm not sure this auto-updating is really needed (POSIX doesn't
-> mandate it).
+travis@sgi.com wrote:
+>    8472457 Total          30486950 +259%          30342823 +258%
 
-Peter Shtaubach, author of the first solution for this bug,
-and Jacob Ostergaard, the reporter of this bug, insist the "auto-update"
-feature to be implemented.
+Hmmm. The table for previous versions looked a lot more impressive.
 
->
-> At least split it out into a separate patch, so it can be considered
-> separately on it's own merit.
->
-> I think doing the same with the page-table reprotecting in MS_ASYNC is
-> also a good idea.  That will leave us with
->
->  1) a base patch: update time just from fsync() and remove_vma()
->  2) update time on sync(2) as well
->  3) update time on MS_ASYNC as well
->
-> I'd happily ack the first one, which would solve the most serious
-> issues, but have some reservations about the other two.
->
-> Miklos
->
+now:    8472457 Total	 +22014493 +259%	 +21870366 +258%
+V2 :    7172678 Total    +23314404 +325%           -147590   -2%
+(recalculated for comparison)
+
+Did something go wrong with the "after" data?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
