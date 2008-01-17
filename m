@@ -1,105 +1,39 @@
-Message-ID: <478F9C9C.7070500@qumranet.com>
-Date: Thu, 17 Jan 2008 20:21:16 +0200
-From: Izik Eidus <izike@qumranet.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mmu notifiers #v2
-References: <20080113162418.GE8736@v2.random> <20080116124256.44033d48@bree.surriel.com> <478E4356.7030303@qumranet.com> <20080117162302.GI7170@v2.random>
-In-Reply-To: <20080117162302.GI7170@v2.random>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Thu, 17 Jan 2008 10:30:00 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/1] x86: Fixup NR-CPUS patch for numa
+Message-Id: <20080117103000.5e97dcd2.akpm@linux-foundation.org>
+In-Reply-To: <20080116183438.636758000@sgi.com>
+References: <20080116183438.506737000@sgi.com>
+	<20080116183438.636758000@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@cpushare.com>
-Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm-devel@lists.sourceforge.net, Avi Kivity <avi@qumranet.com>, clameter@sgi.com, daniel.blueman@quadrics.com, holt@sgi.com, steiner@sgi.com, Andrew Morton <akpm@osdl.org>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, andrea@qumranet.com
+To: travis@sgi.com
+Cc: Andi Kleen <ak@suse.de>, mingo@elte.hu, Eric Dumazet <dada1@cosmosbay.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
-> On Wed, Jan 16, 2008 at 07:48:06PM +0200, Izik Eidus wrote:
->   
->> Rik van Riel wrote:
->>     
->>> On Sun, 13 Jan 2008 17:24:18 +0100
->>> Andrea Arcangeli <andrea@qumranet.com> wrote:
->>>
->>>   
->>>       
->>>> In my basic initial patch I only track the tlb flushes which should be
->>>> the minimum required to have a nice linux-VM controlled swapping
->>>> behavior of the KVM gphysical memory.     
->>>>         
->>> I have a vaguely related question on KVM swapping.
->>>
->>> Do page accesses inside KVM guests get propagated to the host
->>> OS, so Linux can choose a reasonable page for eviction, or is
->>> the pageout of KVM guest pages essentially random?
->>>       
->
-> Right, selection of the guest OS pages to swap is partly random but
-> wait: _only_ for the long-cached and hot spte entries. It's certainly
-> not entirely random.
->   
-> As the shadow-cache is a bit dynamic, every new instantiated spte will
-> refresh the PG_referenced bit in follow_page already (through minor
-> faults). not-present fault of swapped non-present sptes, can trigger
-> minor faults from swapcache too and they'll refresh young regular
-> ptes.
->
->   
->> right now when kvm remove pte from the shadow cache, it mark as access the 
->> page that this pte pointed to.
->>     
->
-> Yes: the referenced bit in the mmu-notifier invalidate case isn't
-> useful because it's set right before freeing the page.
->
->   
->> it was a good solution untill the mmut notifiers beacuse the pages were 
->> pinned and couldnt be swapped to disk
->>     
->
-> It probably still makes sense for sptes removed because of other
-> reasons (not mmu notifier invalidates).
->   
-agree
->   
->> so now it will have to do something more sophisticated or at least mark as 
->> access every page pointed by pte
->> that get insrted to the shadow cache....
->>     
->
-> I think that should already be the case, see the mark_page_accessed in
-> follow_page, isn't FOLL_TOUCH set, isn't it?
->   
-yes you are right FOLL_TOUCH is set.
-> The only thing we clearly miss is a logic that refreshes the
-> PG_referenced bitflag for "hot" sptes that remains instantiated and
-> cached for a long time. For regular linux ptes this is done by the cpu
-> through the young bitflag. But note that not all architectures have
-> the young bitflag support in hardware! So I suppose the swapping of
-> the KVM task, is like the swapping any other task but on an alpha
-> CPU. It works good enough in practice even if we clearly have room for
-> further optimizations in this area (like there would be on archs w/o
-> young bit updated in hardware too).
->
-> To refresh the PG_referenced bit for long lived hot sptes, I think the
-> easiest solution is to chain the sptes in a lru, and to start dropping
-> them when memory pressure start. We could drop one spte every X pages
-> collected by the VM. So the "age" time factor depends on the VM
-> velocity and we totally avoid useless shadow page faults when there's
-> no VM pressure. When VM pressure increases, the kvm non-present fault
-> will then take care to refresh the PG_referenced bit. This should
-> solve the aging-issue for long lived and hot sptes. This should
-> improve the responsiveness of the guest OS during "initial" swap
-> pressure (after the initial swap pressure, the working set finds
-> itself in ram again). So it should avoid some swapout/swapin not
-> required jitter during the initial swap. I see this mostly as a kvm
-> internal optimization, not strictly related to the mmu notifiers
-> though.
->   
-ohh i like it, this is cleaver solution, and i guess the cost of the 
-vmexits wont be too high if it will
-be not too much aggressive....
+On Wed, 16 Jan 2008 10:34:39 -0800 travis@sgi.com wrote:
 
+> This patch removes the EXPORT_SYMBOL for:
+> 
+> 	x86_cpu_to_node_map_init
+> 	x86_cpu_to_node_map_early_ptr
+> 
+> ... thus fixing the section mismatch problem.
+
+Which section mismatch problem?  Please always quote the error message when
+fixing things like this.
+
+> Also, the mem -> node hash lookup is fixed.
+> 
+> Based on 2.6.24-rc6-mm1 + change-NR_CPUS-V3 patchset
+> 
+
+hm, I've been hiding from those patches.
+
+Are they ready?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
