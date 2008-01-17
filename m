@@ -1,142 +1,144 @@
-Message-Id: <20080117223505.380465000@sgi.com>
+Message-Id: <20080117223505.513183000@sgi.com>
 References: <20080117223505.203884000@sgi.com>
-Date: Thu, 17 Jan 2008 14:35:06 -0800
+Date: Thu, 17 Jan 2008 14:35:07 -0800
 From: travis@sgi.com
-Subject: [PATCH 1/6] Modules: Fold percpu_modcopy into module.c
-Content-Disposition: inline; filename=fold-percpu_modcopy
+Subject: [PATCH 2/6] percpu: Change Kconfig ARCH_SETS_UP_PER_CPU_AREA to HAVE_SETUP_PER_CPU_AREA
+Content-Disposition: inline; filename=config-to-select
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, Sam Ravnborg <sam@ravnborg.org>
 List-ID: <linux-mm.kvack.org>
 
-percpu_modcopy() is defined multiple times in arch files. However, the only
-user is module.c. Put a static definition into module.c and remove
-the definitions from the arch files.
-
+Change "config ARCH_SETS_UP_PER_CPU_AREA" to "select
+HAVE_SETUP_PER_CPU_AREA" as suggested by Sam.
 
 Cc: Rusty Russell <rusty@rustcorp.com.au>
 Cc: Andi Kleen <ak@suse.de>
+Cc: Sam Ravnborg <sam@ravnborg.org>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: Mike Travis <travis@sgi.com>
 
 ---
- arch/ia64/kernel/module.c    |   11 -----------
- include/asm-generic/percpu.h |    8 --------
- include/asm-ia64/percpu.h    |    5 -----
- include/asm-powerpc/percpu.h |    9 ---------
- include/asm-s390/percpu.h    |    9 ---------
- kernel/module.c              |    8 ++++++++
- 6 files changed, 8 insertions(+), 42 deletions(-)
+ arch/ia64/Kconfig            |    4 +---
+ arch/powerpc/Kconfig         |    4 +---
+ arch/sparc64/Kconfig         |    4 +---
+ arch/x86/Kconfig             |    4 +---
+ include/asm-generic/percpu.h |    2 +-
+ init/main.c                  |    4 ++--
+ 6 files changed, 7 insertions(+), 15 deletions(-)
 
---- a/arch/ia64/kernel/module.c
-+++ b/arch/ia64/kernel/module.c
-@@ -940,14 +940,3 @@ module_arch_cleanup (struct module *mod)
- 	if (mod->arch.core_unw_table)
- 		unw_remove_unwind_table(mod->arch.core_unw_table);
- }
+--- a/arch/ia64/Kconfig
++++ b/arch/ia64/Kconfig
+@@ -17,6 +17,7 @@ config IA64
+ 	select ARCH_SUPPORTS_MSI
+ 	select HAVE_OPROFILE
+ 	select HAVE_KPROBES
++	select HAVE_SETUP_PER_CPU_AREA
+ 	default y
+ 	help
+ 	  The Itanium Processor Family is Intel's 64-bit successor to
+@@ -82,9 +83,6 @@ config GENERIC_TIME_VSYSCALL
+ 	bool
+ 	default y
+ 
+-config ARCH_SETS_UP_PER_CPU_AREA
+-	def_bool y
 -
--#ifdef CONFIG_SMP
--void
--percpu_modcopy (void *pcpudst, const void *src, unsigned long size)
--{
--	unsigned int i;
--	for_each_possible_cpu(i) {
--		memcpy(pcpudst + per_cpu_offset(i), src, size);
--	}
--}
--#endif /* CONFIG_SMP */
+ config DMI
+ 	bool
+ 	default y
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -42,9 +42,6 @@ config GENERIC_HARDIRQS
+ 	bool
+ 	default y
+ 
+-config ARCH_SETS_UP_PER_CPU_AREA
+-	def_bool PPC64
+-
+ config IRQ_PER_CPU
+ 	bool
+ 	default y
+@@ -89,6 +86,7 @@ config PPC
+ 	default y
+ 	select HAVE_OPROFILE
+ 	select HAVE_KPROBES
++	select HAVE_SETUP_PER_CPU_AREA if PPC64
+ 
+ config EARLY_PRINTK
+ 	bool
+--- a/arch/sparc64/Kconfig
++++ b/arch/sparc64/Kconfig
+@@ -10,6 +10,7 @@ config SPARC
+ 	default y
+ 	select HAVE_OPROFILE
+ 	select HAVE_KPROBES
++	select HAVE_SETUP_PER_CPU_AREA
+ 
+ config SPARC64
+ 	bool
+@@ -68,9 +69,6 @@ config AUDIT_ARCH
+ 	bool
+ 	default y
+ 
+-config ARCH_SETS_UP_PER_CPU_AREA
+-	def_bool y
+-
+ config ARCH_NO_VIRT_TO_BUS
+ 	def_bool y
+ 
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -20,6 +20,7 @@ config X86
+ 	def_bool y
+ 	select HAVE_OPROFILE
+ 	select HAVE_KPROBES
++	select HAVE_SETUP_PER_CPU_AREA if ARCH = "x86_64"
+ 
+ config GENERIC_LOCKBREAK
+ 	def_bool n
+@@ -106,9 +107,6 @@ config GENERIC_TIME_VSYSCALL
+ 	bool
+ 	default X86_64
+ 
+-config ARCH_SETS_UP_PER_CPU_AREA
+-	def_bool X86_64
+-
+ config ARCH_SUPPORTS_OPROFILE
+ 	bool
+ 	default y
 --- a/include/asm-generic/percpu.h
 +++ b/include/asm-generic/percpu.h
-@@ -63,14 +63,6 @@ extern unsigned long __per_cpu_offset[NR
+@@ -59,7 +59,7 @@ extern unsigned long __per_cpu_offset[NR
+ 	(*SHIFT_PERCPU_PTR(&per_cpu_var(var), __my_cpu_offset))
+ 
+ 
+-#ifdef CONFIG_ARCH_SETS_UP_PER_CPU_AREA
++#ifdef CONFIG_HAVE_SETUP_PER_CPU_AREA
  extern void setup_per_cpu_areas(void);
  #endif
  
--/* A macro to avoid #include hell... */
--#define percpu_modcopy(pcpudst, src, size)			\
--do {								\
--	unsigned int __i;					\
--	for_each_possible_cpu(__i)				\
--		memcpy((pcpudst)+per_cpu_offset(__i),		\
--		       (src), (size));				\
--} while (0)
- #else /* ! SMP */
+--- a/init/main.c
++++ b/init/main.c
+@@ -363,7 +363,7 @@ static inline void smp_prepare_cpus(unsi
  
- #define per_cpu(var, cpu)			(*((void)(cpu), &per_cpu_var(var)))
---- a/include/asm-ia64/percpu.h
-+++ b/include/asm-ia64/percpu.h
-@@ -22,10 +22,6 @@
- #define DECLARE_PER_CPU(type, name)				\
- 	extern PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
+ #else
  
--/*
-- * Pretty much a literal copy of asm-generic/percpu.h, except that percpu_modcopy() is an
-- * external routine, to avoid include-hell.
-- */
- #ifdef CONFIG_SMP
+-#ifndef CONFIG_ARCH_SETS_UP_PER_CPU_AREA
++#ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
+ unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
  
- extern unsigned long __per_cpu_offset[NR_CPUS];
-@@ -38,7 +34,6 @@ DECLARE_PER_CPU(unsigned long, local_per
- #define __get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __ia64_per_cpu_var(local_per_cpu_offset)))
- #define __raw_get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __ia64_per_cpu_var(local_per_cpu_offset)))
- 
--extern void percpu_modcopy(void *pcpudst, const void *src, unsigned long size);
- extern void setup_per_cpu_areas (void);
- extern void *per_cpu_init(void);
- 
---- a/include/asm-powerpc/percpu.h
-+++ b/include/asm-powerpc/percpu.h
-@@ -21,15 +21,6 @@
- #define __get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __my_cpu_offset()))
- #define __raw_get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, local_paca->data_offset))
- 
--/* A macro to avoid #include hell... */
--#define percpu_modcopy(pcpudst, src, size)			\
--do {								\
--	unsigned int __i;					\
--	for_each_possible_cpu(__i)				\
--		memcpy((pcpudst)+__per_cpu_offset(__i),		\
--		       (src), (size));				\
--} while (0)
--
- extern void setup_per_cpu_areas(void);
- 
- #else /* ! SMP */
---- a/include/asm-s390/percpu.h
-+++ b/include/asm-s390/percpu.h
-@@ -39,15 +39,6 @@ extern unsigned long __per_cpu_offset[NR
- #define per_cpu(var,cpu) __reloc_hide(var,__per_cpu_offset[cpu])
- #define per_cpu_offset(x) (__per_cpu_offset[x])
- 
--/* A macro to avoid #include hell... */
--#define percpu_modcopy(pcpudst, src, size)			\
--do {								\
--	unsigned int __i;					\
--	for_each_possible_cpu(__i)				\
--		memcpy((pcpudst)+__per_cpu_offset[__i],		\
--		       (src), (size));				\
--} while (0)
--
- #else /* ! SMP */
- 
- #define __get_cpu_var(var) __reloc_hide(var,0)
---- a/kernel/module.c
-+++ b/kernel/module.c
-@@ -422,6 +422,14 @@ static unsigned int find_pcpusec(Elf_Ehd
- 	return find_sec(hdr, sechdrs, secstrings, ".data.percpu");
+ EXPORT_SYMBOL(__per_cpu_offset);
+@@ -384,7 +384,7 @@ static void __init setup_per_cpu_areas(v
+ 		ptr += size;
+ 	}
  }
+-#endif /* CONFIG_ARCH_SETS_UP_CPU_AREA */
++#endif /* CONFIG_HAVE_SETUP_PER_CPU_AREA */
  
-+static void percpu_modcopy(void *pcpudest, const void *from, unsigned long size)
-+{
-+	int cpu;
-+
-+	for_each_possible_cpu(cpu)
-+		memcpy(pcpudest + per_cpu_offset(cpu), from, size);
-+}
-+
- static int percpu_modinit(void)
- {
- 	pcpu_num_used = 2;
+ /* Called by boot processor to activate the rest. */
+ static void __init smp_init(void)
 
 -- 
 
