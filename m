@@ -1,91 +1,41 @@
-Date: Thu, 17 Jan 2008 12:26:58 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 4/5] memory_pressure_notify() caller
-In-Reply-To: <cfd9edbf0801160303s53237b81yb9d5e374c16cd006@mail.gmail.com>
-References: <20080116104536.11AE.KOSAKI.MOTOHIRO@jp.fujitsu.com> <cfd9edbf0801160303s53237b81yb9d5e374c16cd006@mail.gmail.com>
-Message-Id: <20080117120112.11CE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <400540692.29046@ustc.edu.cn>
+Date: Thu, 17 Jan 2008 11:31:25 +0800
+From: Fengguang Wu <wfg@mail.ustc.edu.cn>
+Subject: Re: [patch] Converting writeback linked lists to a tree based data structure
+References: <20080115080921.70E3810653@localhost> <1200386774.15103.20.camel@twins> <532480950801150953g5a25f041ge1ad4eeb1b9bc04b@mail.gmail.com> <400452490.28636@ustc.edu.cn> <532480950801161055u4191ef1ak644dd4528ab60f8@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <532480950801161055u4191ef1ak644dd4528ab60f8@mail.gmail.com>
+Message-Id: <E1JFLTR-0002pn-4Y@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?ISO-2022-JP?B?IkRhbmllbCBTcBskQmlPGyhCZyI=?= <daniel.spang@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Michael Rubin <mrubin@google.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Daniel
-
-> > Thank you for good point out!
-> > Could you please post your test program and reproduced method?
+On Wed, Jan 16, 2008 at 10:55:28AM -0800, Michael Rubin wrote:
+> On Jan 15, 2008 7:01 PM, Fengguang Wu <wfg@mail.ustc.edu.cn> wrote:
+> > Basically I think rbtree is an overkill to do time based ordering.
+> > Sorry, Michael. But s_dirty would be enough for that. Plus, s_more_io
+> > provides fair queuing between small/large files, and s_more_io_wait
+> > provides waiting mechanism for blocked inodes.
 > 
-> Sure:
+> I think the flush_tree (which is a little more than just an rbtree)
+> provides the same queuing mechanisms that the three or four lists
+> heads do and manages to do it in one structure. The i_flushed_when
+> provides the ability to have blocked inodes wait their turn so to
+> speak.
 > 
-> 1. Fill almost all available memory with page cache in a system without swap.
-> 2. Run attached alloc-test program.
-> 3. Notification fires when page cache is reclaimed.
+> Another motivation behind the rbtree patch is to unify the data
+> structure that handles the priority and mechanism of how we write out
+> the pages of the inodes. There are some ideas about introducing
+> priority schemes for QOS and such in the future. I am not saying this
+> patch is about making that happen, but the idea is to if possible
+> unify the four stages of lists into a single structure to facilitate
+> efforts like that.
 
-Unfortunately, I can't reproduce it.
-
-my machine
-	CPU:    Pentium4 2.8GHz with HT
-	memory: 512M
-
-
-1. I doubt ZONE_DMA, please shipment ignore zone_dma patch(below).
-2. Could you please send your .config and /etc/sysctl.conf?
-   I hope more reproduce challenge.
-
-thanks.
-
-- kosaki
-
-
-
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
----
- include/linux/mem_notify.h |    3 +++
- mm/page_alloc.c            |    6 +++++-
- 2 files changed, 8 insertions(+), 1 deletion(-)
-
-Index: linux-2.6.24-rc6-mm1-memnotify/include/linux/mem_notify.h
-===================================================================
---- linux-2.6.24-rc6-mm1-memnotify.orig/include/linux/mem_notify.h
- 2008-01-16 21:31:09.000000000 +0900
-+++ linux-2.6.24-rc6-mm1-memnotify/include/linux/mem_notify.h
-2008-01-16 21:34:24.000000000 +0900
-@@ -22,6 +22,9 @@ static inline void memory_pressure_notif
-        unsigned long target;
-        unsigned long pages_high, pages_free, pages_reserve;
-
-+       if (unlikely(zone->mem_notify_status == -1))
-+               return;
-+
-        if (pressure) {
-                target = atomic_long_read(&last_mem_notify) + MEM_NOTIFY_FREQ;
-                if (likely(time_before(jiffies, target)))
-Index: linux-2.6.24-rc6-mm1-memnotify/mm/page_alloc.c
-===================================================================
---- linux-2.6.24-rc6-mm1-memnotify.orig/mm/page_alloc.c 2008-01-13
-19:50:27.000000000 +0900
-+++ linux-2.6.24-rc6-mm1-memnotify/mm/page_alloc.c      2008-01-16
-21:41:58.000000000 +0900
-@@ -3467,7 +3467,11 @@ static void __meminit free_area_init_cor
-                zone->zone_pgdat = pgdat;
-
-                zone->prev_priority = DEF_PRIORITY;
--               zone->mem_notify_status = 0;
-+
-+               if (zone->present_pages < (pgdat->node_present_pages / 10))
-+                       zone->mem_notify_status = -1;
-+               else
-+                       zone->mem_notify_status = 0;
-
-                zone_pcp_init(zone);
-                INIT_LIST_HEAD(&zone->active_list);
-
-
+Yeah, rbtree is better than list_heads after all. Let's make it happen.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
