@@ -1,85 +1,92 @@
-Message-ID: <478F74A2.9090406@redhat.com>
-Date: Thu, 17 Jan 2008 10:30:42 -0500
-From: Larry Woodman <lwoodman@redhat.com>
-MIME-Version: 1.0
-Subject: [PATCH] fix hugepages leak due to pagetable page sharing.
-Content-Type: multipart/mixed;
- boundary="------------080803000409090203020307"
+In-reply-to: <4df4ef0c0801170540p36d3c566w973251527fc3bca1@mail.gmail.com>
+	(salikhmetov@gmail.com)
+Subject: Re: [PATCH -v5 2/2] Updating ctime and mtime at syncing
+References: <12005314662518-git-send-email-salikhmetov@gmail.com>
+	 <1200531471556-git-send-email-salikhmetov@gmail.com>
+	 <E1JFSgG-0006G1-6V@pomaz-ex.szeredi.hu>
+	 <4df4ef0c0801170416s5581ae28h90d91578baa77738@mail.gmail.com>
+	 <E1JFU7r-0006PK-So@pomaz-ex.szeredi.hu>
+	 <4df4ef0c0801170516k3f82dc69ieee836b5633378a@mail.gmail.com>
+	 <E1JFUrm-0006XG-SB@pomaz-ex.szeredi.hu> <4df4ef0c0801170540p36d3c566w973251527fc3bca1@mail.gmail.com>
+Message-Id: <E1JFWvy-0006kJ-I2@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Thu, 17 Jan 2008 16:45:38 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: salikhmetov@gmail.com
+Cc: miklos@szeredi.hu, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------080803000409090203020307
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+> > I'm not sure this auto-updating is really needed (POSIX doesn't
+> > mandate it).
+> 
+> Peter Shtaubach, author of the first solution for this bug,
+> and Jacob Ostergaard, the reporter of this bug, insist the "auto-update"
+> feature to be implemented.
 
-The shared page table code for hugetlb memory on x86 and x86_64
-is causing a leak.  When a user of hugepages exits using this code
-the system leaks some of the hugepages.
+Can they state their reasons for the insistence?
 
--------------------------------------------------------
-Part of /proc/meminfo just before database startup:
-HugePages_Total:  5500
-HugePages_Free:   5500
-HugePages_Rsvd:      0
-Hugepagesize:     2048 kB
+>  1) a base patch: update time just from fsync() and remove_vma()
+>  2) update time on sync(2) as well
+>  3) update time on MS_ASYNC as well
 
-Just before shutdown:
-HugePages_Total:  5500
-HugePages_Free:   4475
-HugePages_Rsvd:      0
-Hugepagesize:     2048 kB
+Oh, and the four-liner I posted the other day will give you 1) + 2) +
+even more at a small fraction of the complexity.  And tacking on the
+reprotect code will solve the MS_ASYNC issue just the same.
 
-After shutdown:
-HugePages_Total:  5500
-HugePages_Free:   4988
-HugePages_Rsvd:     
-0 Hugepagesize:     2048 kB
-----------------------------------------------------------
+I agree, that having the timestamp updated on sync() is nice, and that
+trivial patch will give you that, and will also update the timestamp
+at least each 30 seconds if the file is being constantly modified,
+even if no explicit syncing is done.
 
-The problem occurs durring a fork, in copy_hugetlb_page_range(). It 
-locates the dst_pte using
-huge_pte_alloc().  Since huge_pte_alloc() calls huge_pmd_share() it will 
-share the pmd page
-if can, yet the main loop in copy_hugetlb_page_range() does a get_page() 
-on every hugepage.
-This is a violation of the shared hugepmd pagetable protocol and creates 
-additional referenced
-to the hugepages causing a leak when the unmap of the VMA occurs.   We 
-can skip the entire
-replication of the ptes when the hugepage pagetables are shared.
-The attached patch skips copying the ptes and the get_page() calls if 
-the hugetlbpage pagetable
-is shared.
+So maybe it's worth a little effort benchmarking how much that patch
+affects the cost of writing to a page.
 
-Signed-off-by: Larry Woodman <lwoodman@redhat.com>
+You could write a little test program like this (if somebody hasn't
+yet done so):
 
---------------080803000409090203020307
-Content-Type: text/plain;
- name="linux-shared.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="linux-shared.patch"
+ - do some preparation:
 
---- linux-2.6.23/mm/hugetlb.c.orig	2008-01-16 12:05:41.496448000 -0500
-+++ linux-2.6.23/mm/hugetlb.c	2008-01-17 10:27:21.740353000 -0500
-@@ -377,6 +377,11 @@ int copy_hugetlb_page_range(struct mm_st
- 		dst_pte = huge_pte_alloc(dst, addr);
- 		if (!dst_pte)
- 			goto nomem;
-+
-+		/* if the pagetables are shared dont copy or take references */
-+		if(dst_pte == src_pte)
-+			continue;
-+
- 		spin_lock(&dst->page_table_lock);
- 		spin_lock(&src->page_table_lock);
- 		if (!pte_none(*src_pte)) {
+   echo 80 > dirty_ratio
+   echo 80 > dirty_background_ratio
+   echo 30000 > dirty_expire_centisecs
+   sync
 
---------------080803000409090203020307--
+ - map a large file, one that fits comfortably into free memory
+ - bring the whole file in, by reading a byte from each page
+ - start the timer
+ - write a byte to each page
+ - stop the timer
+
+It would be most interesting to try this on a filesystem supporting
+nanosecond timestamps.  Anyone know which these are?
+
+Miklos
+----
+
+Index: linux/mm/memory.c
+===================================================================
+--- linux.orig/mm/memory.c	2008-01-09 21:16:30.000000000 +0100
++++ linux/mm/memory.c	2008-01-15 21:16:14.000000000 +0100
+@@ -1680,6 +1680,8 @@ gotten:
+ unlock:
+ 	pte_unmap_unlock(page_table, ptl);
+ 	if (dirty_page) {
++		if (vma->vm_file)
++			file_update_time(vma->vm_file);
+ 		/*
+ 		 * Yes, Virginia, this is actually required to prevent a race
+ 		 * with clear_page_dirty_for_io() from clearing the page dirty
+@@ -2313,6 +2315,8 @@ out_unlocked:
+ 	if (anon)
+ 		page_cache_release(vmf.page);
+ 	else if (dirty_page) {
++		if (vma->vm_file)
++			file_update_time(vma->vm_file);
+ 		set_page_dirty_balance(dirty_page, page_mkwrite);
+ 		put_page(dirty_page);
+ 	}
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
