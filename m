@@ -1,52 +1,34 @@
-From: Anton Salikhmetov <salikhmetov@gmail.com>
-Subject: [PATCH -v5 0/2] Updating ctime and mtime for memory-mapped files
-Date: Thu, 17 Jan 2008 03:57:44 +0300
-Message-Id: <12005314662518-git-send-email-salikhmetov@gmail.com>
+Date: Thu, 17 Jan 2008 12:04:46 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 3/5] add /dev/mem_notify device
+In-Reply-To: <cfd9edbf0801160351i2b819f31j65cc16b1e694168f@mail.gmail.com>
+References: <20080116114234.GA22460@elf.ucw.cz> <cfd9edbf0801160351i2b819f31j65cc16b1e694168f@mail.gmail.com>
+Message-Id: <20080117120243.11D1.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: =?ISO-2022-JP?B?IkRhbmllbCBTcBskQmlPGyhCZyI=?= <daniel.spang@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Pavel Machek <pavel@ucw.cz>, Marcelo Tosatti <marcelo@kvack.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-This is the fifth version of my solution for the bug #2645:
+Hi
 
-http://bugzilla.kernel.org/show_bug.cgi?id=2645
+> > I'd read mem_notify as "tell me when new memory is unplugged" or
+> > something. /dev/oom_notify? Plus, /dev/ names usually do not have "_"
+> > in them.
+> 
+> I don't think we should use oom in the name, since the notification is
+> sent long before oom.
 
-New since the previous version:
+OK, I don't change name.
+Of cource, I will change soon if anyone propose more good name.
 
-1) the case of retouching an already-dirty page pointed out
-   by Miklos Szeredi has been correctly addressed;
+thanks
 
-2) a few cosmetic changes according to the latest feedback;
+- kosaki
 
-3) fixed the error of calling a possibly sleeping function
-   from an atomic context.
-
-The design for the first item above was suggested by Peter Zijlstra:
-
-> It would require scanning the PTEs and marking them read-only again on
-> MS_ASYNC, and some more logic in set_page_dirty() because that currently
-> bails out early if the page in question is already dirty.
-
-Miklos' test program now produces the following output for
-the repeated calls to msync() with the MS_ASYNC flag:
-
-debian:~/miklos# ./miklos_test file
-begin   1200529196      1200529196      1200528798
-write   1200529197      1200529197      1200528798
-mmap    1200529197      1200529197      1200529198
-b       1200529197      1200529197      1200529198
-msync b 1200529199      1200529199      1200529198
-c       1200529199      1200529199      1200529198
-msync c 1200529201      1200529201      1200529198
-d       1200529201      1200529201      1200529198
-munmap  1200529201      1200529201      1200529198
-close   1200529201      1200529201      1200529198
-sync    1200529204      1200529204      1200529198
-debian:~/miklos#
-
-Miklos' test program can be found using the following link:
-
-http://lkml.org/lkml/2008/1/14/104
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
