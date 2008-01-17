@@ -1,10 +1,10 @@
-Received: by wa-out-1112.google.com with SMTP id m33so1073843wag.8
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2008 05:34:23 -0800 (PST)
-Message-ID: <4df4ef0c0801170534w3b019a07g1e1f493d76350e3d@mail.gmail.com>
-Date: Thu, 17 Jan 2008 16:34:22 +0300
+Received: by wa-out-1112.google.com with SMTP id m33so1076818wag.8
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2008 05:40:35 -0800 (PST)
+Message-ID: <4df4ef0c0801170540p36d3c566w973251527fc3bca1@mail.gmail.com>
+Date: Thu, 17 Jan 2008 16:40:35 +0300
 From: "Anton Salikhmetov" <salikhmetov@gmail.com>
 Subject: Re: [PATCH -v5 2/2] Updating ctime and mtime at syncing
-In-Reply-To: <20080117132429.GB14692@bitwizard.nl>
+In-Reply-To: <E1JFUrm-0006XG-SB@pomaz-ex.szeredi.hu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
@@ -15,15 +15,14 @@ References: <12005314662518-git-send-email-salikhmetov@gmail.com>
 	 <4df4ef0c0801170416s5581ae28h90d91578baa77738@mail.gmail.com>
 	 <E1JFU7r-0006PK-So@pomaz-ex.szeredi.hu>
 	 <4df4ef0c0801170516k3f82dc69ieee836b5633378a@mail.gmail.com>
-	 <20080117132429.GB14692@bitwizard.nl>
+	 <E1JFUrm-0006XG-SB@pomaz-ex.szeredi.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rogier Wolff <R.E.Wolff@bitwizard.nl>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, hidave.darkstar@gmail.com, hch@infradead.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-2008/1/17, Rogier Wolff <R.E.Wolff@bitwizard.nl>:
-> On Thu, Jan 17, 2008 at 04:16:47PM +0300, Anton Salikhmetov wrote:
+2008/1/17, Miklos Szeredi <miklos@szeredi.hu>:
 > > 2008/1/17, Miklos Szeredi <miklos@szeredi.hu>:
 > > > > > 4. Recording the time was the file data changed
 > > > > >
@@ -43,31 +42,52 @@ List-ID: <linux-mm.kvack.org>
 > > We need to save modification time. Otherwise, updating time stamps
 > > will be confusing the vi editor.
 >
-> If process B exits before vi opens the file, the timestamp should at
-> the latest be the time that process B exits. There is no excuse for
-> setting the timestamp later than the time that B exits.
+> remove_vma() will be called when process B exits, so if the times are
+> updated there, and the flag is cleared, the times won't be updated
+> later.
 >
-> If process B no longer modifies the file, but still keeps it mapped
-> until after vi starts, then the system can't help the
-> situation. Wether or not B acesses those pages is unknown to the
-> system. So you get what you deserve.
+> > >
+> > > > > All these changes to inode.c are unnecessary, I think.
+> > > >
+> > > > The first part is necessary to account for "remembering" the modification time.
+> > > >
+> > > > The second part is for handling block device files. I cannot see any other
+> > > > sane way to update file times for them.
+> > >
+> > > Use file_update_time(), which will do the right thing.  It will in
+> > > fact do the same thing as write(2) on the device, which is really what
+> > > we want.
+> > >
+> > > Block devices being mapped for write through different device
+> > > nodes..., well, I don't think we really need to handle such weird
+> > > corner cases 100% acurately.
+> >
+> > The file_update_time() cannot be used for implementing
+> > the "auto-update" feature, because the sync() system call
+> > doesn't "know" about the file which was memory-mapped.
+>
+> I'm not sure this auto-updating is really needed (POSIX doesn't
+> mandate it).
 
-The exit() system call closes the file memory-mapped file. Therefore,
-it's better to catch the close() system call. However, the close() system call
-does not trigger unmapping the file. The mapped area for the file may be
-used after closing the file. So, we should catch only the unmap() call,
-not close() or exit().
+Peter Shtaubach, author of the first solution for this bug,
+and Jacob Ostergaard, the reporter of this bug, insist the "auto-update"
+feature to be implemented.
 
 >
->         Roger.
+> At least split it out into a separate patch, so it can be considered
+> separately on it's own merit.
 >
-> --
-> ** R.E.Wolff@BitWizard.nl ** http://www.BitWizard.nl/ ** +31-15-2600998 **
-> **    Delftechpark 26 2628 XH  Delft, The Netherlands. KVK: 27239233    **
-> *-- BitWizard writes Linux device drivers for any device you may have! --*
-> Q: It doesn't work. A: Look buddy, doesn't work is an ambiguous statement.
-> Does it sit on the couch all day? Is it unemployed? Please be specific!
-> Define 'it' and what it isn't doing. --------- Adapted from lxrbot FAQ
+> I think doing the same with the page-table reprotecting in MS_ASYNC is
+> also a good idea.  That will leave us with
+>
+>  1) a base patch: update time just from fsync() and remove_vma()
+>  2) update time on sync(2) as well
+>  3) update time on MS_ASYNC as well
+>
+> I'd happily ack the first one, which would solve the most serious
+> issues, but have some reservations about the other two.
+>
+> Miklos
 >
 
 --
