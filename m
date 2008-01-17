@@ -1,57 +1,105 @@
-Date: Thu, 17 Jan 2008 19:12:22 +0100
-From: Olaf Hering <olaf@aepfle.de>
-Subject: Re: crash in kmem_cache_init
-Message-ID: <20080117181222.GA24411@aepfle.de>
-References: <20080115150949.GA14089@aepfle.de> <84144f020801170414q7d408a74uf47a84b777c36a4a@mail.gmail.com> <Pine.LNX.4.64.0801170628580.19208@schroedinger.engr.sgi.com>
+Message-ID: <478F9C9C.7070500@qumranet.com>
+Date: Thu, 17 Jan 2008 20:21:16 +0200
+From: Izik Eidus <izike@qumranet.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0801170628580.19208@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH] mmu notifiers #v2
+References: <20080113162418.GE8736@v2.random> <20080116124256.44033d48@bree.surriel.com> <478E4356.7030303@qumranet.com> <20080117162302.GI7170@v2.random>
+In-Reply-To: <20080117162302.GI7170@v2.random>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Linux MM <linux-mm@kvack.org>
+To: Andrea Arcangeli <andrea@cpushare.com>
+Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm-devel@lists.sourceforge.net, Avi Kivity <avi@qumranet.com>, clameter@sgi.com, daniel.blueman@quadrics.com, holt@sgi.com, steiner@sgi.com, Andrew Morton <akpm@osdl.org>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, andrea@qumranet.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 17, Christoph Lameter wrote:
+Andrea Arcangeli wrote:
+> On Wed, Jan 16, 2008 at 07:48:06PM +0200, Izik Eidus wrote:
+>   
+>> Rik van Riel wrote:
+>>     
+>>> On Sun, 13 Jan 2008 17:24:18 +0100
+>>> Andrea Arcangeli <andrea@qumranet.com> wrote:
+>>>
+>>>   
+>>>       
+>>>> In my basic initial patch I only track the tlb flushes which should be
+>>>> the minimum required to have a nice linux-VM controlled swapping
+>>>> behavior of the KVM gphysical memory.     
+>>>>         
+>>> I have a vaguely related question on KVM swapping.
+>>>
+>>> Do page accesses inside KVM guests get propagated to the host
+>>> OS, so Linux can choose a reasonable page for eviction, or is
+>>> the pageout of KVM guest pages essentially random?
+>>>       
+>
+> Right, selection of the guest OS pages to swap is partly random but
+> wait: _only_ for the long-cached and hot spte entries. It's certainly
+> not entirely random.
+>   
+> As the shadow-cache is a bit dynamic, every new instantiated spte will
+> refresh the PG_referenced bit in follow_page already (through minor
+> faults). not-present fault of swapped non-present sptes, can trigger
+> minor faults from swapcache too and they'll refresh young regular
+> ptes.
+>
+>   
+>> right now when kvm remove pte from the shadow cache, it mark as access the 
+>> page that this pte pointed to.
+>>     
+>
+> Yes: the referenced bit in the mmu-notifier invalidate case isn't
+> useful because it's set right before freeing the page.
+>
+>   
+>> it was a good solution untill the mmut notifiers beacuse the pages were 
+>> pinned and couldnt be swapped to disk
+>>     
+>
+> It probably still makes sense for sptes removed because of other
+> reasons (not mmu notifier invalidates).
+>   
+agree
+>   
+>> so now it will have to do something more sophisticated or at least mark as 
+>> access every page pointed by pte
+>> that get insrted to the shadow cache....
+>>     
+>
+> I think that should already be the case, see the mark_page_accessed in
+> follow_page, isn't FOLL_TOUCH set, isn't it?
+>   
+yes you are right FOLL_TOUCH is set.
+> The only thing we clearly miss is a logic that refreshes the
+> PG_referenced bitflag for "hot" sptes that remains instantiated and
+> cached for a long time. For regular linux ptes this is done by the cpu
+> through the young bitflag. But note that not all architectures have
+> the young bitflag support in hardware! So I suppose the swapping of
+> the KVM task, is like the swapping any other task but on an alpha
+> CPU. It works good enough in practice even if we clearly have room for
+> further optimizations in this area (like there would be on archs w/o
+> young bit updated in hardware too).
+>
+> To refresh the PG_referenced bit for long lived hot sptes, I think the
+> easiest solution is to chain the sptes in a lru, and to start dropping
+> them when memory pressure start. We could drop one spte every X pages
+> collected by the VM. So the "age" time factor depends on the VM
+> velocity and we totally avoid useless shadow page faults when there's
+> no VM pressure. When VM pressure increases, the kvm non-present fault
+> will then take care to refresh the PG_referenced bit. This should
+> solve the aging-issue for long lived and hot sptes. This should
+> improve the responsiveness of the guest OS during "initial" swap
+> pressure (after the initial swap pressure, the working set finds
+> itself in ram again). So it should avoid some swapout/swapin not
+> required jitter during the initial swap. I see this mostly as a kvm
+> internal optimization, not strictly related to the mmu notifiers
+> though.
+>   
+ohh i like it, this is cleaver solution, and i guess the cost of the 
+vmexits wont be too high if it will
+be not too much aggressive....
 
-> On Thu, 17 Jan 2008, Pekka Enberg wrote:
-> 
-> > Looks similar to the one discussed on linux-mm ("[BUG] at
-> > mm/slab.c:3320" thread). Christoph?
-> 
-> Right. Try the latest version of the patch to fix it:
-
-The patch does not help.
- 
-> Index: linux-2.6/mm/slab.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slab.c	2008-01-03 12:26:42.000000000 -0800
-> +++ linux-2.6/mm/slab.c	2008-01-09 15:59:49.000000000 -0800
-> @@ -2977,7 +2977,10 @@ retry:
->  	}
->  	l3 = cachep->nodelists[node];
->  
-> -	BUG_ON(ac->avail > 0 || !l3);
-> +	if (!l3)
-> +		return NULL;
-> +
-> +	BUG_ON(ac->avail > 0);
->  	spin_lock(&l3->list_lock);
->  
->  	/* See if we can refill from the shared array */
-
-Is this hunk supposed to go into cache_grow()? There is no NULL check
-for l3.
-
-But if I do that, it does not help:
-
-freeing bootmem node 1
-Memory: 3496632k/3571712k available (6188k kernel code, 75080k reserved, 1324k data, 1220k bss, 304k init)
-cache_grow(2781) swapper(0):c0,j4294937299 cp c0000000006a4fb8 !l3
-Kernel panic - not syncing: kmem_cache_create(): failed to create slab `size-32'
-
-Rebooting in 1 seconds..    
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
