@@ -1,119 +1,74 @@
-Message-Id: <20080118183011.917801000@sgi.com>
+Message-Id: <20080118183012.050317000@sgi.com>
 References: <20080118183011.354965000@sgi.com>
-Date: Fri, 18 Jan 2008 10:30:15 -0800
+Date: Fri, 18 Jan 2008 10:30:16 -0800
 From: travis@sgi.com
-Subject: [PATCH 4/5] x86: Add config variables for SMP_MAX
-Content-Disposition: inline; filename=config-smp-max
+Subject: [PATCH 5/5] x86: Add debug of invalid per_cpu map accesses
+Content-Disposition: inline; filename=debug-cpu_to_node
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu
 Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Adds and increases some config variables to accomodate larger SMP
-configurations:
-
-	NR_CPUS:      max limit now 4096
-	NODES_SHIFT:  max limit now 9
-	THREAD_ORDER: max limit now 3
-	X86_SMP_MAX:  say Y to enable possible cpus == NR_CPUS
+Provide a means to trap usages of per_cpu map variables before
+they are setup.  Define CONFIG_DEBUG_PER_CPU_MAPS to activate.
 
 Signed-off-by: Mike Travis <travis@sgi.com>
 ---
- arch/x86/Kconfig             |   17 ++++++++++++++---
- arch/x86/Kconfig.debug       |    9 +++++++++
- arch/x86/kernel/smpboot_64.c |    4 ++++
- include/asm-x86/page_64.h    |    4 ++++
- 4 files changed, 31 insertions(+), 3 deletions(-)
+ arch/x86/Kconfig.debug     |   12 ++++++++++++
+ arch/x86/mm/numa_64.c      |    3 +++
+ include/asm-x86/topology.h |    7 +++++++
+ 3 files changed, 22 insertions(+)
 
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -487,19 +487,29 @@ config ARCH_SUPPORTS_KVM
- 
- 
- config NR_CPUS
--	int "Maximum number of CPUs (2-255)"
--	range 2 255
-+	int "Maximum number of CPUs (2-4096)"
-+	range 2 4096
- 	depends on SMP
-+	default "1024" if X86_SMP_MAX
- 	default "32" if X86_NUMAQ || X86_SUMMIT || X86_BIGSMP || X86_ES7000
- 	default "8"
- 	help
- 	  This allows you to specify the maximum number of CPUs which this
--	  kernel will support.  The maximum supported value is 255 and the
-+	  kernel will support.  The maximum supported value is 4096 and the
- 	  minimum value which makes sense is 2.
- 
- 	  This is purely to save memory - each supported CPU adds
- 	  approximately eight kilobytes to the kernel image.
- 
-+config THREAD_ORDER
-+	int "Kernel stack size (in page order)"
-+	range 1 3
-+	depends on X86_64_SMP
-+	default "3" if X86_SMP_MAX
-+	default "1"
-+	help
-+	  Increases kernel stack size.
-+
- config SCHED_SMT
- 	bool "SMT (Hyperthreading) scheduler support"
- 	depends on (X86_64 && SMP) || (X86_32 && X86_HT)
-@@ -882,6 +892,7 @@ config NUMA_EMU
- 
- config NODES_SHIFT
- 	int
-+	default "9" if X86_SMP_MAX
- 	default "6" if X86_64
- 	default "4" if X86_NUMAQ
- 	default "3"
 --- a/arch/x86/Kconfig.debug
 +++ b/arch/x86/Kconfig.debug
-@@ -73,6 +73,15 @@ config X86_FIND_SMP_CONFIG
- 	depends on X86_LOCAL_APIC || X86_VOYAGER
- 	depends on X86_32
+@@ -47,6 +47,18 @@ config DEBUG_PAGEALLOC
+ 	  This results in a large slowdown, but helps to find certain types
+ 	  of memory corruptions.
  
-+config X86_SMP_MAX
-+	bool "Enable Maximum SMP configuration"
-+	def_bool n
++config DEBUG_PER_CPU_MAPS
++	bool "Debug access to per_cpu maps"
++	depends on DEBUG_KERNEL
 +	depends on X86_64_SMP
++	default n
 +	help
-+	  Say Y here to enable a "large" SMP configuration for testing
-+	  purposes.  It does this by increasing the number of possible
-+	  cpus to the NR_CPUS count. 
++	  Say Y to verify that the per_cpu map being accessed has
++	  been setup.  Adds a fair amount of code to kernel memory
++	  and decreases performance.
 +
- config X86_MPPARSE
- 	def_bool y
- 	depends on (X86_32 && (X86_LOCAL_APIC && !X86_VISWS)) || X86_64
---- a/arch/x86/kernel/smpboot_64.c
-+++ b/arch/x86/kernel/smpboot_64.c
-@@ -784,6 +784,10 @@ __init void prefill_possible_map(void)
- 	possible = num_processors + additional_cpus;
- 	if (possible > NR_CPUS) 
- 		possible = NR_CPUS;
-+#ifdef	CONFIG_SMP_MAX
-+	if (possible < NR_CPUS)
-+		possible = NR_CPUS;
++	  Say N if unsure.
++
+ config DEBUG_RODATA
+ 	bool "Write protect kernel read-only data structures"
+ 	depends on DEBUG_KERNEL
+--- a/arch/x86/mm/numa_64.c
++++ b/arch/x86/mm/numa_64.c
+@@ -37,6 +37,9 @@ u16 x86_cpu_to_node_map_init[NR_CPUS] = 
+ void *x86_cpu_to_node_map_early_ptr;
+ DEFINE_PER_CPU(u16, x86_cpu_to_node_map) = NUMA_NO_NODE;
+ EXPORT_PER_CPU_SYMBOL(x86_cpu_to_node_map);
++#ifdef	CONFIG_DEBUG_PER_CPU_MAPS
++EXPORT_SYMBOL(x86_cpu_to_node_map_early_ptr);
 +#endif
  
- 	printk(KERN_INFO "SMP: Allowing %d CPUs, %d hotplug CPUs\n",
- 		possible,
---- a/include/asm-x86/page_64.h
-+++ b/include/asm-x86/page_64.h
-@@ -3,7 +3,11 @@
+ u16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
+ 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
+--- a/include/asm-x86/topology.h
++++ b/include/asm-x86/topology.h
+@@ -66,6 +66,13 @@ static inline int early_cpu_to_node(int 
  
- #define PAGETABLE_LEVELS	4
- 
-+#ifdef	CONFIG_THREAD_ORDER
-+#define THREAD_ORDER	CONFIG_THREAD_ORDER
-+#else
- #define THREAD_ORDER	1
+ static inline int cpu_to_node(int cpu)
+ {
++#ifdef	CONFIG_DEBUG_PER_CPU_MAPS
++	if(x86_cpu_to_node_map_early_ptr) {
++		printk("KERN_NOTICE cpu_to_node(%d): usage too early!\n",
++			(int)cpu);
++		BUG();
++	}
 +#endif
- #define THREAD_SIZE  (PAGE_SIZE << THREAD_ORDER)
- #define CURRENT_MASK (~(THREAD_SIZE-1))
- 
+ 	if(per_cpu_offset(cpu))
+ 		return per_cpu(x86_cpu_to_node_map, cpu);
+ 	else
 
 -- 
 
