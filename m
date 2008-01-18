@@ -1,47 +1,72 @@
-Date: Fri, 18 Jan 2008 13:28:50 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH -v6 2/2] Updating ctime and mtime for memory-mapped
- files
-Message-ID: <20080118132850.044537e5@bree.surriel.com>
-In-Reply-To: <E1JFvgx-0000zz-2C@pomaz-ex.szeredi.hu>
-References: <12006091182260-git-send-email-salikhmetov@gmail.com>
-	<12006091211208-git-send-email-salikhmetov@gmail.com>
-	<E1JFnsg-0008UU-LU@pomaz-ex.szeredi.hu>
-	<1200651337.5920.9.camel@twins>
-	<1200651958.5920.12.camel@twins>
-	<alpine.LFD.1.00.0801180949040.2957@woody.linux-foundation.org>
-	<E1JFvgx-0000zz-2C@pomaz-ex.szeredi.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-Id: <20080118182954.718110000@sgi.com>
+References: <20080118182953.748071000@sgi.com>
+Date: Fri, 18 Jan 2008 10:30:00 -0800
+From: travis@sgi.com
+Subject: [PATCH 7/7] percpu: Add debug detection of uninitialized usage of per_cpu variable
+Content-Disposition: inline; filename=debug-percpu
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: torvalds@linux-foundation.org, peterz@infradead.org, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 Jan 2008 19:11:47 +0100
-Miklos Szeredi <miklos@szeredi.hu> wrote:
+Provide a means to trap usages of per_cpu variables before
+the per_cpu_areas are setup.  Define CONFIG_DEBUG_PER_CPU to activate.
 
-> > And even in that four-liner, I suspect that the *last* two lines are 
-> > actually incorrect: there's no point in updating the file time when the 
-> > page *becomes* dirty,
-> 
-> Actually all four lines do that.  The first two for a write access on
-> a present, read-only pte, the other two for a write on a non-present
-> pte.
-> 
-> > we should update the file time when it is marked 
-> > clean, and "msync(MS_SYNC)" should update it as part of *that*.
-> 
-> That would need a new page flag (PG_mmap_dirty?).  Do we have one
-> available?
+Signed-off-by: Mike Travis <travis@sgi.com>
+---
+ include/asm-generic/percpu.h |   11 ++++++++++-
+ lib/Kconfig.debug            |   12 ++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)
 
-I thought the page writing stuff looked at (and cleared) the pte
-dirty bit, too?
+--- a/include/asm-generic/percpu.h
++++ b/include/asm-generic/percpu.h
+@@ -47,12 +47,21 @@ extern unsigned long __per_cpu_offset[NR
+ #endif
+ 
+ /*
+- * A percpu variable may point to a discarded reghions. The following are
++ * A percpu variable may point to a discarded regions. The following are
+  * established ways to produce a usable pointer from the percpu variable
+  * offset.
+  */
++#ifdef	CONFIG_DEBUG_PER_CPU
++#define per_cpu(var, cpu) (*({		\
++	if(!per_cpu_offset(cpu)) {	\
++		printk("KERN_NOTICE per_cpu(%s,%d): not available!\n", #var, (int)cpu); \
++		BUG();			\
++	}				\
++	SHIFT_PERCPU_PTR(&per_cpu_var(var), per_cpu_offset(cpu));}))
++#else
+ #define per_cpu(var, cpu) \
+ 	(*SHIFT_PERCPU_PTR(&per_cpu_var(var), per_cpu_offset(cpu)))
++#endif
+ #define __get_cpu_var(var) \
+ 	(*SHIFT_PERCPU_PTR(&per_cpu_var(var), my_cpu_offset))
+ #define __raw_get_cpu_var(var) \
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -610,6 +610,18 @@ config PROVIDE_OHCI1394_DMA_INIT
+ 
+ 	  See Documentation/debugging-via-ohci1394.txt for more information.
+ 
++config DEBUG_PER_CPU
++	bool "Debug per_cpu usage"
++	depends on DEBUG_KERNEL
++	depends on SMP
++	default n
++	help
++	  Say Y here to add code that verifies the per_cpu area is
++	  setup before accessing a per_cpu variable.  It does add a
++	  significant amount of code to kernel memory.
++
++	  If unsure, say N.
++
+ source "samples/Kconfig"
+ 
+ source "lib/Kconfig.kgdb"
 
 -- 
-All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
