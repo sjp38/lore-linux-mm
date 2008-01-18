@@ -1,86 +1,81 @@
-Message-Id: <20080118182954.187208000@sgi.com>
-References: <20080118182953.748071000@sgi.com>
-Date: Fri, 18 Jan 2008 10:29:56 -0800
+Message-Id: <20080118183011.788732000@sgi.com>
+References: <20080118183011.354965000@sgi.com>
+Date: Fri, 18 Jan 2008 10:30:14 -0800
 From: travis@sgi.com
-Subject: [PATCH 3/7] Sparc64: Use generic percpu
-Content-Disposition: inline; filename=sparc64_generic_percpu
+Subject: [PATCH 3/5] x86: Change bios_cpu_apicid to percpu data variable fixup
+Content-Disposition: inline; filename=change-bios_cpu_apicid-to-percpu-fixup
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Miller <davem@davemloft.net>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Sparc64 has a way of providing the base address for the per cpu area of the
-currently executing processor in a global register.
+Change static bios_cpu_apicid array to a per_cpu data variable.
+This includes using a static array used during initialization
+similar to the way x86_cpu_to_apicid[] is handled.
 
-Sparc64 also provides a way to calculate the address of a per cpu area
-from a base address instead of performing an array lookup.
+There is one early use of bios_cpu_apicid in apic_is_clustered_box().
+The other reference in cpu_present_to_apicid() is called after
+smp_set_apicids() has setup the percpu version of bios_cpu_apicid.
 
-Cc: David Miller <davem@davemloft.net>
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
 Signed-off-by: Mike Travis <travis@sgi.com>
+Reviewed-by: Christoph Lameter <clameter@sgi.com>
 ---
- arch/sparc64/mm/init.c       |    5 +++++
- include/asm-sparc64/percpu.h |   22 +++-------------------
- 2 files changed, 8 insertions(+), 19 deletions(-)
+V1->V2:
+    - Removed extraneous casts
+    - Add slight optimization to apic_is_clustered_box()
+      [don't reference x86_bios_cpu_apicid_early_ptr each pass.]
+---
+ arch/x86/kernel/apic_64.c  |    6 +++---
+ arch/x86/kernel/setup64.c  |    3 +++
+ arch/x86/kernel/setup_64.c |    1 +
+ 3 files changed, 7 insertions(+), 3 deletions(-)
 
---- a/arch/sparc64/mm/init.c
-+++ b/arch/sparc64/mm/init.c
-@@ -1328,6 +1328,11 @@ pgd_t swapper_pg_dir[2048];
- static void sun4u_pgprot_init(void);
- static void sun4v_pgprot_init(void);
+--- a/arch/x86/kernel/apic_64.c
++++ b/arch/x86/kernel/apic_64.c
+@@ -1191,9 +1191,9 @@ __cpuinit int apic_is_clustered_box(void
  
-+/* Dummy function */
-+void __init setup_per_cpu_areas(void)
-+{
-+}
-+
- void __init paging_init(void)
- {
- 	unsigned long end_pfn, pages_avail, shift, phys_base;
---- a/include/asm-sparc64/percpu.h
-+++ b/include/asm-sparc64/percpu.h
-@@ -7,7 +7,6 @@ register unsigned long __local_per_cpu_o
+ 	/* Problem:  Partially populated chassis may not have CPUs in some of
+ 	 * the APIC clusters they have been allocated.  Only present CPUs have
+-	 * x86_bios_cpu_apicid entries, thus causing zeroes in the bitmap.  Since
+-	 * clusters are allocated sequentially, count zeros only if they are
+-	 * bounded by ones.
++	 * x86_bios_cpu_apicid entries, thus causing zeroes in the bitmap.
++	 * Since clusters are allocated sequentially, count zeros only if
++	 * they are bounded by ones.
+ 	 */
+ 	clusters = 0;
+ 	zeros = 0;
+--- a/arch/x86/kernel/setup64.c
++++ b/arch/x86/kernel/setup64.c
+@@ -98,6 +98,8 @@ void __init setup_percpu_maps(void)
+ #endif
+ 			per_cpu(x86_cpu_to_apicid, cpu) =
+ 						x86_cpu_to_apicid_init[cpu];
++			per_cpu(x86_bios_cpu_apicid, cpu) =
++						x86_bios_cpu_apicid_init[cpu];
+ #ifdef CONFIG_NUMA
+ 			per_cpu(x86_cpu_to_node_map, cpu) =
+ 						x86_cpu_to_node_map_init[cpu];
+@@ -112,6 +114,7 @@ void __init setup_percpu_maps(void)
  
+ 	/* indicate the early static arrays are gone */
+ 	x86_cpu_to_apicid_early_ptr = NULL;
++	x86_bios_cpu_apicid_early_ptr = NULL;
+ #ifdef CONFIG_NUMA
+ 	x86_cpu_to_node_map_early_ptr = NULL;
+ #endif
+--- a/arch/x86/kernel/setup_64.c
++++ b/arch/x86/kernel/setup_64.c
+@@ -390,6 +390,7 @@ void __init setup_arch(char **cmdline_p)
  #ifdef CONFIG_SMP
- 
--#define setup_per_cpu_areas()			do { } while (0)
- extern void real_setup_per_cpu_areas(void);
- 
- extern unsigned long __per_cpu_base;
-@@ -16,29 +15,14 @@ extern unsigned long __per_cpu_shift;
- 	(__per_cpu_base + ((unsigned long)(__cpu) << __per_cpu_shift))
- #define per_cpu_offset(x) (__per_cpu_offset(x))
- 
--/* var is in discarded region: offset to particular copy we want */
--#define per_cpu(var, cpu) (*RELOC_HIDE(&per_cpu__##var, __per_cpu_offset(cpu)))
--#define __get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __local_per_cpu_offset))
--#define __raw_get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __local_per_cpu_offset))
--
--/* A macro to avoid #include hell... */
--#define percpu_modcopy(pcpudst, src, size)			\
--do {								\
--	unsigned int __i;					\
--	for_each_possible_cpu(__i)				\
--		memcpy((pcpudst)+__per_cpu_offset(__i),		\
--		       (src), (size));				\
--} while (0)
-+#define __my_cpu_offset __local_per_cpu_offset
-+
- #else /* ! SMP */
- 
- #define real_setup_per_cpu_areas()		do { } while (0)
- 
--#define per_cpu(var, cpu)			(*((void)cpu, &per_cpu__##var))
--#define __get_cpu_var(var)			per_cpu__##var
--#define __raw_get_cpu_var(var)			per_cpu__##var
--
- #endif	/* SMP */
- 
--#define DECLARE_PER_CPU(type, name) extern __typeof__(type) per_cpu__##name
-+#include <asm-generic/percpu.h>
- 
- #endif /* __ARCH_SPARC64_PERCPU__ */
+ 	/* setup to use the early static init tables during kernel startup */
+ 	x86_cpu_to_apicid_early_ptr = (void *)&x86_cpu_to_apicid_init;
++	x86_bios_cpu_apicid_early_ptr = (void *)&x86_bios_cpu_apicid_init;
+ #ifdef CONFIG_NUMA
+ 	x86_cpu_to_node_map_early_ptr = (void *)&x86_cpu_to_node_map_init;
+ #endif
 
 -- 
 
