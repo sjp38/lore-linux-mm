@@ -1,50 +1,42 @@
-Message-ID: <47909FA4.1020205@sgi.com>
-Date: Fri, 18 Jan 2008 04:46:28 -0800
+Message-ID: <4790A29F.9000006@sgi.com>
+Date: Fri, 18 Jan 2008 04:59:11 -0800
 From: Mike Travis <travis@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/6] percpu: Change Kconfig ARCH_SETS_UP_PER_CPU_AREA
- to HAVE_SETUP_PER_CPU_AREA
-References: <20080117223505.203884000@sgi.com> <20080117223505.513183000@sgi.com> <20080118051118.GA14882@uranus.ravnborg.org>
-In-Reply-To: <20080118051118.GA14882@uranus.ravnborg.org>
+Subject: Re: [PATCH 0/3] x86: Reduce memory and intra-node effects with	large
+ count NR_CPUs fixup
+References: <20080117223546.419383000@sgi.com> <478FD9D9.7030009@sgi.com> <20080118092352.GH24337@elte.hu>
+In-Reply-To: <20080118092352.GH24337@elte.hu>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Sam Ravnborg <sam@ravnborg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Sam Ravnborg wrote:
-> Hi Mike.
+Ingo Molnar wrote:
+> * Mike Travis <travis@sgi.com> wrote:
 > 
->> --- a/arch/x86/Kconfig
->> +++ b/arch/x86/Kconfig
->> @@ -20,6 +20,7 @@ config X86
->>  	def_bool y
->>  	select HAVE_OPROFILE
->>  	select HAVE_KPROBES
->> +	select HAVE_SETUP_PER_CPU_AREA if ARCH = "x86_64"
+>> Hi Andrew,
+>>
+>> My automatic scripts accidentally sent this mail prematurely.  Please 
+>> hold off applying yet.
 > 
-> It is simpler to just say:
->> +	select HAVE_SETUP_PER_CPU_AREA if X86_64
+> I've picked it up for x86.git and i'll keep testing it (the patches seem 
+> straightforward) and will report any problems with the bite-head-off 
+> option unset.
 > 
-> And this is the way we do it in the rest of the
-> x86 Kconfig files.
+> [ The 32-bit NUMA compile issue is orthogonal to these patches - it's 
+>   due to the lack of 32-bit NUMA support in your changes :) That needs 
+>   fixing before this could go into v2.6.25. ]
 > 
-> 	Sam
+> 	Ingo
 
+I hadn't considered doing 32-bit NUMA changes as I didn't know if the
+NR_CPUS count would really be increased for the 32-bit architecture.
+I have been trying though not to break it. ;-)
 
-Thanks.  Done. :-)
-
-And sorry about the premature mailing.  I have a set of scripts that
-package everything up to send to test machines and it wasn't supposed
-to trigger the "sendmail" phase to the distro list.  There are a few
-build errors (as Ingo has noted) and I'm debugging an X86_64 !NUMA
-problem that dies at network startup time.
-
-But I'll add in all the suggestions from the "premature" reviews... :-)
-
-Thanks again,
+Thanks,
 Mike
 
 --
