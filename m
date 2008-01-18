@@ -1,72 +1,29 @@
-Date: Fri, 18 Jan 2008 21:48:45 +0100
+Date: Fri, 18 Jan 2008 21:49:56 +0100
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 4/5] x86: Add config variables for SMP_MAX
-Message-ID: <20080118204845.GD3079@elte.hu>
-References: <20080118183011.354965000@sgi.com> <20080118183011.917801000@sgi.com> <200801182104.22486.ioe-lkml@rameria.de> <479108C3.1010800@sgi.com>
+Subject: Re: [PATCH 5/5] x86: Add debug of invalid per_cpu map accesses
+Message-ID: <20080118204956.GE3079@elte.hu>
+References: <20080118183011.354965000@sgi.com> <20080118183012.050317000@sgi.com> <200801181933.05662.ak@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <479108C3.1010800@sgi.com>
+In-Reply-To: <200801181933.05662.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Travis <travis@sgi.com>
-Cc: Ingo Oeser <ioe-lkml@rameria.de>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <ak@suse.de>
+Cc: travis@sgi.com, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* Mike Travis <travis@sgi.com> wrote:
+* Andi Kleen <ak@suse.de> wrote:
 
-> >> +config THREAD_ORDER
-> >> +	int "Kernel stack size (in page order)"
-> >> +	range 1 3
-> >> +	depends on X86_64_SMP
-> >> +	default "3" if X86_SMP_MAX
-> >> +	default "1"
-> >> +	help
-> >> +	  Increases kernel stack size.
-> >> +
-> > 
-> > Could you please elaborate, why this is needed and put more info 
-> > about this requirement into this patch description?
-> > 
-> > People worked hard to push data allocation from stack to heap to 
-> > make THREAD_ORDER of 0 and 1 possible. So why increase it again and 
-> > why does this help scalability?
-> > 
-> > Many thanks and Best Regards
-> > 
-> > Ingo Oeser, puzzled a bit :-)
+> On Friday 18 January 2008 19:30:16 travis@sgi.com wrote:
+> > Provide a means to trap usages of per_cpu map variables before they 
+> > are setup.  Define CONFIG_DEBUG_PER_CPU_MAPS to activate.
 > 
-> 
-> The primary problem arises because of cpumask_t local variables.  
-> Until I can deal with these, increasing NR_CPUS to a really large 
-> value increases stack size dramatically.
+> Are you sure that debug option is generally useful enough to merge? It 
+> seems very specific to your patchkit, but I'm not sure it would be 
+> worth carrying forever in the kernel.
 
-those should be fixed:
-
-> Here are the top stack consumers with NR_CPUS = 4k.
-> 
->                          16392 isolated_cpu_setup
->                          10328 build_sched_domains
->                           8248 numa_initmem_init
->                           4664 cpu_attach_domain
->                           4104 show_shared_cpu_map
->                           3656 centrino_target
->                           3608 powernowk8_cpu_init
->                           3192 sched_domain_node_span
->                           3144 acpi_cpufreq_target
->                           2584 __svc_create_thread
->                           2568 cpu_idle_wait
->                           2136 netxen_nic_flash_print
->                           2104 powernowk8_target
->                           2088 _cpu_down
->                           2072 cache_add_dev
->                           2056 get_cur_freq
->                              0 acpi_processor_ffh_cstate_probe
->                           2056 microcode_write
->                              0 acpi_processor_get_throttling
->                           2048 check_supported_cpu
-
-(and most of that is performance-uncritical.)
+yeah, i think it's simple enough.
 
 	Ingo
 
