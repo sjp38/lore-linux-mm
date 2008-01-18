@@ -1,37 +1,51 @@
-Date: Fri, 18 Jan 2008 13:08:40 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 1/1] x86: Fixup NR-CPUS patch for numa
-Message-ID: <20080118120840.GE11044@elte.hu>
-References: <20080116183438.506737000@sgi.com> <20080116183438.636758000@sgi.com> <20080117103000.5e97dcd2.akpm@linux-foundation.org>
+Message-ID: <47909FA4.1020205@sgi.com>
+Date: Fri, 18 Jan 2008 04:46:28 -0800
+From: Mike Travis <travis@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080117103000.5e97dcd2.akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/6] percpu: Change Kconfig ARCH_SETS_UP_PER_CPU_AREA
+ to HAVE_SETUP_PER_CPU_AREA
+References: <20080117223505.203884000@sgi.com> <20080117223505.513183000@sgi.com> <20080118051118.GA14882@uranus.ravnborg.org>
+In-Reply-To: <20080118051118.GA14882@uranus.ravnborg.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: travis@sgi.com, Andi Kleen <ak@suse.de>, Eric Dumazet <dada1@cosmosbay.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sam Ravnborg <sam@ravnborg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>
 List-ID: <linux-mm.kvack.org>
 
-* Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> > Also, the mem -> node hash lookup is fixed.
-> > 
-> > Based on 2.6.24-rc6-mm1 + change-NR_CPUS-V3 patchset
+Sam Ravnborg wrote:
+> Hi Mike.
 > 
-> hm, I've been hiding from those patches.
+>> --- a/arch/x86/Kconfig
+>> +++ b/arch/x86/Kconfig
+>> @@ -20,6 +20,7 @@ config X86
+>>  	def_bool y
+>>  	select HAVE_OPROFILE
+>>  	select HAVE_KPROBES
+>> +	select HAVE_SETUP_PER_CPU_AREA if ARCH = "x86_64"
 > 
-> Are they ready?
+> It is simpler to just say:
+>> +	select HAVE_SETUP_PER_CPU_AREA if X86_64
+> 
+> And this is the way we do it in the rest of the
+> x86 Kconfig files.
+> 
+> 	Sam
 
-i'm carrying them in x86.git, and they are pretty robust, with one 
-outstanding build failure.
 
-( and i've asked Mike for a CONFIG_SMP_MAX debug option that selects the
-  baddest high-end features we have with 1024 or 4096 CPUs, etc. - this 
-  way allyesconfig bootups will show us any problems on that scale of 
-  the spectrum. )
+Thanks.  Done. :-)
 
-	Ingo
+And sorry about the premature mailing.  I have a set of scripts that
+package everything up to send to test machines and it wasn't supposed
+to trigger the "sendmail" phase to the distro list.  There are a few
+build errors (as Ingo has noted) and I'm debugging an X86_64 !NUMA
+problem that dies at network startup time.
+
+But I'll add in all the suggestions from the "premature" reviews... :-)
+
+Thanks again,
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
