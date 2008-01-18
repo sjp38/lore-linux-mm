@@ -1,63 +1,107 @@
-From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20080118153609.12646.97784.sendpatchset@skynet.skynet.ie>
-In-Reply-To: <20080118153529.12646.5260.sendpatchset@skynet.skynet.ie>
-References: <20080118153529.12646.5260.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 2/2] Allow any x86 sub-architecture type to set CONFIG_NUMA
-Date: Fri, 18 Jan 2008 15:36:09 +0000 (GMT)
+Message-ID: <4790C9D4.4040705@sgi.com>
+Date: Fri, 18 Jan 2008 07:46:28 -0800
+From: Mike Travis <travis@sgi.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/6] percpu: Change Kconfig ARCH_SETS_UP_PER_CPU_AREA
+ to HAVE_SETUP_PER_CPU_AREA
+References: <20080117223505.203884000@sgi.com> <20080117223505.513183000@sgi.com> <20080118051118.GA14882@uranus.ravnborg.org>
+In-Reply-To: <20080118051118.GA14882@uranus.ravnborg.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mingo@elte.hu
-Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, apw@shadowen.org
+To: Sam Ravnborg <sam@ravnborg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>
 List-ID: <linux-mm.kvack.org>
 
-While there are a limited number of x86 sub-architecture types that can
-really support NUMA, there is nothing stopping other machines booting that
-type of kernel. The fact that X86_GENERICARCH can set NUMA currently is an
-indicator of that. This restriction only limits potential testing coverage.
-This patch allows any sub-architecture to set CONFIG_NUMA if they wish.
+Sam Ravnborg wrote:
+> Hi Mike.
+> 
+>> --- a/arch/x86/Kconfig
+>> +++ b/arch/x86/Kconfig
+>> @@ -20,6 +20,7 @@ config X86
+>>  	def_bool y
+>>  	select HAVE_OPROFILE
+>>  	select HAVE_KPROBES
+>> +	select HAVE_SETUP_PER_CPU_AREA if ARCH = "x86_64"
+> 
+> It is simpler to just say:
+>> +	select HAVE_SETUP_PER_CPU_AREA if X86_64
+> 
+> And this is the way we do it in the rest of the
+> x86 Kconfig files.
+> 
+> 	Sam
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
 
- arch/x86/Kconfig          |    2 +-
- include/asm-x86/acpi_32.h |    1 +
- include/linux/acpi.h      |    1 -
- 3 files changed, 2 insertions(+), 2 deletions(-)
+I'm trying to trigger an increase in NR_CPUS if SMP_MAX
+is set.  But it doesn't seem to "take".  Of the changes
+below only NODES_SHIFT is changed.  Is there something else
+I need to change?
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc8-005_non64GB/arch/x86/Kconfig linux-2.6.24-rc8-010_any32bit_x86/arch/x86/Kconfig
---- linux-2.6.24-rc8-005_non64GB/arch/x86/Kconfig	2008-01-17 18:22:26.000000000 +0000
-+++ linux-2.6.24-rc8-010_any32bit_x86/arch/x86/Kconfig	2008-01-17 18:22:37.000000000 +0000
-@@ -817,7 +817,7 @@ config X86_PAE
- config NUMA
- 	bool "Numa Memory Allocation and Scheduler Support (EXPERIMENTAL)"
- 	depends on SMP
--	depends on X86_64 || (X86_32 && (X86_NUMAQ || (X86_SUMMIT || X86_GENERICARCH) && ACPI) && EXPERIMENTAL)
-+	depends on X86_64 || (X86_32 && ACPI && EXPERIMENTAL)
- 	default n if X86_PC
- 	default y if (X86_NUMAQ || X86_SUMMIT)
- 	help
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc8-005_non64GB/include/asm-x86/acpi_32.h linux-2.6.24-rc8-010_any32bit_x86/include/asm-x86/acpi_32.h
---- linux-2.6.24-rc8-005_non64GB/include/asm-x86/acpi_32.h	2008-01-16 04:22:48.000000000 +0000
-+++ linux-2.6.24-rc8-010_any32bit_x86/include/asm-x86/acpi_32.h	2008-01-17 18:22:37.000000000 +0000
-@@ -84,6 +84,7 @@ int __acpi_release_global_lock(unsigned 
- extern void early_quirks(void);
- 
- #ifdef CONFIG_ACPI
-+#define NR_NODE_MEMBLKS MAX_NUMNODES
- extern int acpi_lapic;
- extern int acpi_ioapic;
- extern int acpi_noirq;
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc8-005_non64GB/include/linux/acpi.h linux-2.6.24-rc8-010_any32bit_x86/include/linux/acpi.h
---- linux-2.6.24-rc8-005_non64GB/include/linux/acpi.h	2008-01-16 04:22:48.000000000 +0000
-+++ linux-2.6.24-rc8-010_any32bit_x86/include/linux/acpi.h	2008-01-17 18:22:37.000000000 +0000
-@@ -94,7 +94,6 @@ void acpi_table_print_madt_entry (struct
- 
- /* the following four functions are architecture-dependent */
- #ifdef CONFIG_HAVE_ARCH_PARSE_SRAT
--#define NR_NODE_MEMBLKS MAX_NUMNODES
- #define acpi_numa_slit_init(slit) do {} while (0)
- #define acpi_numa_processor_affinity_init(pa) do {} while (0)
- #define acpi_numa_memory_affinity_init(ma) do {} while (0)
+Thanks,
+Mike
+
+
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -487,19 +487,29 @@ config ARCH_SUPPORTS_KVM
+
+
+ config NR_CPUS
+-       int "Maximum number of CPUs (2-255)"
+-       range 2 255
++       int "Maximum number of CPUs (2-4096)"
++       range 2 4096
+        depends on SMP
++       default "1024" if X86_SMP_MAX
+        default "32" if X86_NUMAQ || X86_SUMMIT || X86_BIGSMP || X86_ES7000
+        default "8"
+        help
+          This allows you to specify the maximum number of CPUs which this
+-         kernel will support.  The maximum supported value is 255 and the
++         kernel will support.  The maximum supported value is 4096 and the
+          minimum value which makes sense is 2.
+
+          This is purely to save memory - each supported CPU adds
+          approximately eight kilobytes to the kernel image.
+
++config THREAD_ORDER
++       int "Kernel stack size (in page order)"
++       range 1 3
++       depends on X86_64_SMP
++       default "3" if X86_SMP_MAX
++       default "1"
++       help
++         Increases kernel stack size.
++
+ config SCHED_SMT
+        bool "SMT (Hyperthreading) scheduler support"
+        depends on (X86_64 && SMP) || (X86_32 && X86_HT)
+@@ -882,6 +892,7 @@ config NUMA_EMU
+
+ config NODES_SHIFT
+        int
++       default "9" if X86_SMP_MAX
+        default "6" if X86_64
+        default "4" if X86_NUMAQ
+        default "3"
+--- a/arch/x86/Kconfig.debug
++++ b/arch/x86/Kconfig.debug
+@@ -73,6 +73,16 @@ config X86_FIND_SMP_CONFIG
+        depends on X86_LOCAL_APIC || X86_VOYAGER
+        depends on X86_32
+
++config X86_SMP_MAX
++       bool "Enable Maximum SMP configuration"
++       def_bool n
++       depends on X86_64_SMP
++       help
++         Say Y here to enable a "large" SMP configuration for testing
++         purposes.  It does this by increasing the number of possible
++         cpus to the NR_CPUS count.  It also triggers an increase in
++         NR_CPUS, NODES_SHIFT and THREAD_ORDER.
++
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
