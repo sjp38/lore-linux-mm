@@ -1,46 +1,39 @@
-In-reply-to: <20080118132850.044537e5@bree.surriel.com> (message from Rik van
-	Riel on Fri, 18 Jan 2008 13:28:50 -0500)
-Subject: Re: [PATCH -v6 2/2] Updating ctime and mtime for memory-mapped
- files
-References: <12006091182260-git-send-email-salikhmetov@gmail.com>
-	<12006091211208-git-send-email-salikhmetov@gmail.com>
-	<E1JFnsg-0008UU-LU@pomaz-ex.szeredi.hu>
-	<1200651337.5920.9.camel@twins>
-	<1200651958.5920.12.camel@twins>
-	<alpine.LFD.1.00.0801180949040.2957@woody.linux-foundation.org>
-	<E1JFvgx-0000zz-2C@pomaz-ex.szeredi.hu> <20080118132850.044537e5@bree.surriel.com>
-Message-Id: <E1JFwJb-00018k-I1@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Fri, 18 Jan 2008 19:51:43 +0100
+Date: Fri, 18 Jan 2008 19:53:20 +0100
+From: Sam Ravnborg <sam@ravnborg.org>
+Subject: Re: [patch 2/6] mm: introduce pte_special pte bit
+Message-ID: <20080118185320.GB20020@uranus.ravnborg.org>
+References: <20080118045649.334391000@suse.de> <20080118045755.516986000@suse.de> <alpine.LFD.1.00.0801180816120.2957@woody.linux-foundation.org> <20080118180431.GA19591@uranus.ravnborg.org> <alpine.LFD.1.00.0801181026530.2957@woody.linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.1.00.0801181026530.2957@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@redhat.com
-Cc: miklos@szeredi.hu, torvalds@linux-foundation.org, peterz@infradead.orgmiklos@szeredi.hu, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: npiggin@suse.de, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Jared Hulbert <jaredeh@gmail.com>, Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > > And even in that four-liner, I suspect that the *last* two lines are 
-> > > actually incorrect: there's no point in updating the file time when the 
-> > > page *becomes* dirty,
-> > 
-> > Actually all four lines do that.  The first two for a write access on
-> > a present, read-only pte, the other two for a write on a non-present
-> > pte.
-> > 
-> > > we should update the file time when it is marked 
-> > > clean, and "msync(MS_SYNC)" should update it as part of *that*.
-> > 
-> > That would need a new page flag (PG_mmap_dirty?).  Do we have one
-> > available?
+On Fri, Jan 18, 2008 at 10:28:39AM -0800, Linus Torvalds wrote:
 > 
-> I thought the page writing stuff looked at (and cleared) the pte
-> dirty bit, too?
+> 
+> On Fri, 18 Jan 2008, Sam Ravnborg wrote:
+> > 
+> > One fundamental difference is that with the above syntax we always
+> > compile both versions of the code - so we do not end up with one
+> > version that builds and another version that dont.
+> 
+> Yes, in that sense it tends to be better to use C language constructs over 
+> preprocessor constructs, since error diagnostics and syntax checking is 
+> improved.
+> 
+> So yeah, I'll give you that it can be an improvement. It's just not what I 
+> was really hoping for.
 
-Yeah, it does.  Hmm...
+Just to clarify - my comment was solely related to the usage
+of if (HAVE_*) versus #ifdef.
+I had nothing to do with the actual discussion which I do not try to follw .
 
-What happens on munmap?  The times _could_ get updated from there as
-well, but it's getting complicated.
-
-Miklos
+	Sam
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
