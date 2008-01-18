@@ -1,43 +1,49 @@
-Date: Fri, 18 Jan 2008 12:14:30 -0700
-From: Matthew Wilcox <matthew@wil.cx>
-Subject: Re: SLUB: Increasing partial pages
-Message-ID: <20080118191430.GD20490@parisc-linux.org>
-References: <20080116195949.GO18741@parisc-linux.org> <Pine.LNX.4.64.0801161219050.9694@schroedinger.engr.sgi.com> <20080116214127.GA11559@parisc-linux.org> <Pine.LNX.4.64.0801161347160.11353@schroedinger.engr.sgi.com> <20080116221618.GB11559@parisc-linux.org> <Pine.LNX.4.64.0801161421240.12024@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0801161421240.12024@schroedinger.engr.sgi.com>
+In-reply-to: <alpine.LFD.1.00.0801181106340.2957@woody.linux-foundation.org>
+	(message from Linus Torvalds on Fri, 18 Jan 2008 11:08:57 -0800 (PST))
+Subject: Re: [PATCH -v6 2/2] Updating ctime and mtime for memory-mapped
+ files
+References: <12006091182260-git-send-email-salikhmetov@gmail.com>  <12006091211208-git-send-email-salikhmetov@gmail.com>  <E1JFnsg-0008UU-LU@pomaz-ex.szeredi.hu>  <1200651337.5920.9.camel@twins> <1200651958.5920.12.camel@twins>
+ <alpine.LFD.1.00.0801180949040.2957@woody.linux-foundation.org> <E1JFvgx-0000zz-2C@pomaz-ex.szeredi.hu> <alpine.LFD.1.00.0801181033580.2957@woody.linux-foundation.org> <E1JFwOz-00019k-Uo@pomaz-ex.szeredi.hu> <alpine.LFD.1.00.0801181106340.2957@woody.linux-foundation.org>
+Message-Id: <E1JFwnQ-0001FB-2c@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Fri, 18 Jan 2008 20:22:32 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: torvalds@linux-foundation.org
+Cc: miklos@szeredi.hu, peterz@infradead.org, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 16, 2008 at 02:28:44PM -0800, Christoph Lameter wrote:
-> On Wed, 16 Jan 2008, Matthew Wilcox wrote:
-> > About 0.1-0.2%  0.3% is considered significant.
+> > 
+> > But then background writeout, sync(2), etc, wouldn't update the times.
 > 
-> The results are that stable? A kernel compilation which slightly 
-> rearranges cachelines due to code and data changes typically leads to a 
-> larger variance on my 8 way box (gets even larger under NUMA). I would 
-> expect that the variations on a database load would be more significant.
+> Sure it would, but only when doing the final unmap.
+> 
+> Did you miss the "on unmap and msync" part?
 
-The load runs for a long time.  You can reduce variance by increasing
-your sample size (ok, it's twelve years since I've done a stats course ...)
+No :)
 
-> I repeatedly saw patches from Intel to do minor changes to SLAB that 
-> increase performance by 0.5% or so (like the recent removal of a BUG_ON 
-> for performance reasons). These do not regress again when you build a 
-> newer kernel release?
+What I'm saying is that the times could be left un-updated for a long
+time if program doesn't do munmap() or msync(MS_SYNC) for a long time.
 
-No, they don't.  Unless someone's broken something (eg putting pages on
-the LRU in the wrong order so we don't get merges any more ;-)
+If program has this pattern:
 
--- 
-Intel are signing my paycheques ... these opinions are still mine
-"Bill, look, we understand that you're interested in selling us this
-operating system, but compare it to ours.  We can't possibly take such
-a retrograde step."
+mmap()
+write to map
+msync(MS_ASYNC)
+sleep(long)
+write to map
+msync(MS_ASYNC)
+sleep(long)
+...
+
+Then we'd never see time updates (until the program exits, but that
+could be years).
+
+Maybe this doesn't matter, I'm just saying this is a disadvantage
+compared to the "update on first dirtying" approach, which would
+ensure, that times are updated at least once per 30s.
+
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
