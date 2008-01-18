@@ -1,43 +1,40 @@
-Message-ID: <4790A29F.9000006@sgi.com>
-Date: Fri, 18 Jan 2008 04:59:11 -0800
-From: Mike Travis <travis@sgi.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/3] x86: Reduce memory and intra-node effects with	large
- count NR_CPUs fixup
-References: <20080117223546.419383000@sgi.com> <478FD9D9.7030009@sgi.com> <20080118092352.GH24337@elte.hu>
-In-Reply-To: <20080118092352.GH24337@elte.hu>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20080118153529.12646.5260.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 0/2] Relax restrictions on setting CONFIG_NUMA on x86
+Date: Fri, 18 Jan 2008 15:35:29 +0000 (GMT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: mingo@elte.hu
+Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
-> * Mike Travis <travis@sgi.com> wrote:
-> 
->> Hi Andrew,
->>
->> My automatic scripts accidentally sent this mail prematurely.  Please 
->> hold off applying yet.
-> 
-> I've picked it up for x86.git and i'll keep testing it (the patches seem 
-> straightforward) and will report any problems with the bite-head-off 
-> option unset.
-> 
-> [ The 32-bit NUMA compile issue is orthogonal to these patches - it's 
->   due to the lack of 32-bit NUMA support in your changes :) That needs 
->   fixing before this could go into v2.6.25. ]
-> 
-> 	Ingo
+A fix[1] was merged to the x86.git tree that allowed NUMA kernels to boot
+on normal x86 machines (and not just NUMA-Q, Summit etc.). I took a look
+at the restrictions on setting NUMA on x86 to see if they could be lifted.
 
-I hadn't considered doing 32-bit NUMA changes as I didn't know if the
-NR_CPUS count would really be increased for the 32-bit architecture.
-I have been trying though not to break it. ;-)
+The following two patches remove the restrictions on pagetable layout and
+architecture type when setting NUMA on x86. This is aimed at improving
+the testing coverage of NUMA code paths by allowing it to be set in more
+situations. The dependency on CONFIG_ACPI is left due to possible SRAT
+parsing (although this could also be lifted) and on EXPERIMENTAL as the
+testing coverage for NUMA on x86 is so weak. The one potential gotcha is
+that a definition of NR_NODE_MEMBLKS is moved to an arch-specific file. From
+what I can see, this value was expected to be defined on a per-arch basis
+and the definition in include/linux/acpi.h was an anomaly.
 
-Thanks,
-Mike
+The patches in combination with the boot-numa-x86 fix have been boot-tested
+on a bog-standard laptop with 512MB RAM, QEMU-i386 with 1324MB in a variety
+of different configuarations and a NUMA-Q with its standard .config.
+
+[1] For others watching, this fix was considered controversial as a
+    potentially better solution existed as discussed in
+    http://lkml.org/lkml/2007/8/24/220. However, this better alternative was
+    never investigated properly and booting NUMA remained broken. The merged
+    fix is a variation and while it does waste memory, it is considered better
+    than crashing. Wider testing coverage may help motivate fixing this paths.
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
