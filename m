@@ -1,38 +1,43 @@
-Message-ID: <4791052C.3090507@sgi.com>
-Date: Fri, 18 Jan 2008 11:59:40 -0800
-From: Mike Travis <travis@sgi.com>
+From: Ingo Oeser <ioe-lkml@rameria.de>
+Subject: Re: [PATCH 4/5] x86: Add config variables for SMP_MAX
+Date: Fri, 18 Jan 2008 21:04:21 +0100
+References: <20080118183011.354965000@sgi.com> <20080118183011.917801000@sgi.com>
+In-Reply-To: <20080118183011.917801000@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/5] x86: Change size of node ids from u8 to u16 fixup
-References: <20080118183011.354965000@sgi.com> <20080118183011.527888000@sgi.com> <Pine.LNX.4.64.0801182055190.15604@fbirervta.pbzchgretzou.qr>
-In-Reply-To: <Pine.LNX.4.64.0801182055190.15604@fbirervta.pbzchgretzou.qr>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain;
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200801182104.22486.ioe-lkml@rameria.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jan Engelhardt <jengelh@computergmbh.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Eric Dumazet <dada1@cosmosbay.com>
+To: travis@sgi.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Jan Engelhardt wrote:
-> On Jan 18 2008 10:30, travis@sgi.com wrote:
->> --- a/include/linux/numa.h
->> +++ b/include/linux/numa.h
->> @@ -10,4 +10,10 @@
->>
->> #define MAX_NUMNODES    (1 << NODES_SHIFT)
->>
->> +#if MAX_NUMNODES > 256
->> +typedef u16 numanode_t;
->> +#else
->> +typedef u8 numanode_t;
->> +#endif
->> +
-> 
-> Do we really need numanode_t in userspace? I'd rather not, especially
-> when its type is dependent on MAX_NUMNODES. Wrap with #ifdef __KERNEL__.
+Hi Mike,
 
+On Friday 18 January 2008, travis@sgi.com wrote:
+> +config THREAD_ORDER
+> +	int "Kernel stack size (in page order)"
+> +	range 1 3
+> +	depends on X86_64_SMP
+> +	default "3" if X86_SMP_MAX
+> +	default "1"
+> +	help
+> +	  Increases kernel stack size.
+> +
 
-Will do, thanks.
+Could you please elaborate, why this is needed and put more info about
+this requirement into this patch description?
+
+People worked hard to push data allocation from stack to heap to make 
+THREAD_ORDER of 0 and 1 possible. So why increase it again and why does this
+help scalability?
+
+Many thanks and Best Regards
+
+Ingo Oeser, puzzled a bit :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
