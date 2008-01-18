@@ -1,45 +1,83 @@
-Received: by wa-out-1112.google.com with SMTP id m33so1638409wag.8
-        for <linux-mm@kvack.org>; Fri, 18 Jan 2008 02:31:30 -0800 (PST)
-Message-ID: <4df4ef0c0801180231j46391b2byc38be709b3cbf2c8@mail.gmail.com>
-Date: Fri, 18 Jan 2008 13:31:29 +0300
-From: "Anton Salikhmetov" <salikhmetov@gmail.com>
-Subject: Re: [PATCH -v6 0/2] Fixing the issue with memory-mapped file times
-In-Reply-To: <E1JFnho-0008TH-5G@pomaz-ex.szeredi.hu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+In-reply-to: <1200651337.5920.9.camel@twins> (message from Peter Zijlstra on
+	Fri, 18 Jan 2008 11:15:36 +0100)
+Subject: Re: [PATCH -v6 2/2] Updating ctime and mtime for memory-mapped
+	files
 References: <12006091182260-git-send-email-salikhmetov@gmail.com>
-	 <E1JFnho-0008TH-5G@pomaz-ex.szeredi.hu>
+	 <12006091211208-git-send-email-salikhmetov@gmail.com>
+	 <E1JFnsg-0008UU-LU@pomaz-ex.szeredi.hu> <1200651337.5920.9.camel@twins>
+Message-Id: <E1JFobo-00009i-Dk@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Fri, 18 Jan 2008 11:38:00 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: a.p.zijlstra@chello.nl
+Cc: miklos@szeredi.hu, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-2008/1/18, Miklos Szeredi <miklos@szeredi.hu>:
-> > 4. Performance test was done using the program available from the
-> > following link:
-> >
-> > http://bugzilla.kernel.org/attachment.cgi?id=14493
-> >
-> > Result: the impact of the changes was negligible for files of a few
-> > hundred megabytes.
->
-> Could you also test with ext4 and post some numbers?  Afaik, ext4 uses
-> nanosecond timestamps, so the time updating code would be exercised
-> more during the page faults.
->
-> What about performance impact on msync(MS_ASYNC)?  Could you please do
-> some measurment of that as well?
+> On Fri, 2008-01-18 at 10:51 +0100, Miklos Szeredi wrote:
+> 
+> > > diff --git a/mm/msync.c b/mm/msync.c
+> > > index a4de868..a49af28 100644
+> > > --- a/mm/msync.c
+> > > +++ b/mm/msync.c
+> > > @@ -13,11 +13,33 @@
+> > >  #include <linux/syscalls.h>
+> > >  
+> > >  /*
+> > > + * Scan the PTEs for pages belonging to the VMA and mark them read-only.
+> > > + * It will force a pagefault on the next write access.
+> > > + */
+> > > +static void vma_wrprotect(struct vm_area_struct *vma)
+> > > +{
+> > > +	unsigned long addr;
+> > > +
+> > > +	for (addr = vma->vm_start; addr < vma->vm_end; addr += PAGE_SIZE) {
+> > > +		spinlock_t *ptl;
+> > > +		pgd_t *pgd = pgd_offset(vma->vm_mm, addr);
+> > > +		pud_t *pud = pud_offset(pgd, addr);
+> > > +		pmd_t *pmd = pmd_offset(pud, addr);
+> > > +		pte_t *pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+> > > +
+> > > +		if (pte_dirty(*pte) && pte_write(*pte))
+> > > +			*pte = pte_wrprotect(*pte);
+> > > +		pte_unmap_unlock(pte, ptl);
+> > > +	}
+> > > +}
+> > 
+> > What about ram based filesystems?  They don't start out with read-only
+> > pte's, so I think they don't want them read-protected now either.
+> > Unless this is essential for correct mtime/ctime accounting on these
+> > filesystems (I don't think it really is).  But then the mapping should
+> > start out read-only as well, otherwise the time update will only work
+> > after an msync(MS_ASYNC).
+> 
+> page_mkclean() has all the needed logic for this, it also walks the rmap
+> and cleans out all other users, which I think is needed too for
+> consistencies sake:
+> 
+> Process A			Process B
+> 
+> mmap(foo.txt)			mmap(foo.txt)
+> 
+> dirty page
+> 				dirty page
+> 
+> msync(MS_ASYNC)
+> 
+> 				dirty page
+> 
+> msync(MS_ASYNC) <--- now what?!
 
-I'll do the measurements for the MS_ASYNC case and for the Ext4 filesystem.
+Nothing.  I think it's perfectly acceptable behavior, if msync in
+process A doesn't care about any dirtying in process B.
 
->
-> Thanks,
-> Miklos
->
->
+> All in all, that sounds rather expensive..
+
+Right.  The advantage of Anton's current approach, is that it's at
+least simple, and possibly not so expensive, while providing same
+quite sane semantics for MS_ASYNC vs. mtime updates.
+
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
