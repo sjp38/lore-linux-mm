@@ -1,39 +1,28 @@
-Date: Fri, 18 Jan 2008 19:53:20 +0100
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: [patch 2/6] mm: introduce pte_special pte bit
-Message-ID: <20080118185320.GB20020@uranus.ravnborg.org>
-References: <20080118045649.334391000@suse.de> <20080118045755.516986000@suse.de> <alpine.LFD.1.00.0801180816120.2957@woody.linux-foundation.org> <20080118180431.GA19591@uranus.ravnborg.org> <alpine.LFD.1.00.0801181026530.2957@woody.linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.1.00.0801181026530.2957@woody.linux-foundation.org>
+Date: Fri, 18 Jan 2008 10:54:59 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 0/3] x86: Reduce memory and intra-node effects with large
+ count NR_CPUs fixup
+In-Reply-To: <4790A29F.9000006@sgi.com>
+Message-ID: <Pine.LNX.4.64.0801181054180.30775@schroedinger.engr.sgi.com>
+References: <20080117223546.419383000@sgi.com> <478FD9D9.7030009@sgi.com>
+ <20080118092352.GH24337@elte.hu> <4790A29F.9000006@sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: npiggin@suse.de, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Jared Hulbert <jaredeh@gmail.com>, Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: Mike Travis <travis@sgi.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 18, 2008 at 10:28:39AM -0800, Linus Torvalds wrote:
-> 
-> 
-> On Fri, 18 Jan 2008, Sam Ravnborg wrote:
-> > 
-> > One fundamental difference is that with the above syntax we always
-> > compile both versions of the code - so we do not end up with one
-> > version that builds and another version that dont.
-> 
-> Yes, in that sense it tends to be better to use C language constructs over 
-> preprocessor constructs, since error diagnostics and syntax checking is 
-> improved.
-> 
-> So yeah, I'll give you that it can be an improvement. It's just not what I 
-> was really hoping for.
+On Fri, 18 Jan 2008, Mike Travis wrote:
 
-Just to clarify - my comment was solely related to the usage
-of if (HAVE_*) versus #ifdef.
-I had nothing to do with the actual discussion which I do not try to follw .
+ > I hadn't considered doing 32-bit NUMA changes as I didn't know if the
+> NR_CPUS count would really be increased for the 32-bit architecture.
+> I have been trying though not to break it. ;-)
 
-	Sam
+32bit NUMA is tricky because ZONE_NORMAL memory is only available on node 
+0. There have been thorny difficult to debug issues in the past...
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
