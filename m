@@ -1,76 +1,47 @@
-Message-ID: <479108C3.1010800@sgi.com>
-Date: Fri, 18 Jan 2008 12:14:59 -0800
-From: Mike Travis <travis@sgi.com>
+Date: Fri, 18 Jan 2008 12:22:25 -0800 (PST)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [PATCH -v6 2/2] Updating ctime and mtime for memory-mapped
+ files
+In-Reply-To: <4df4ef0c0801181158s3f783beaqead3d7049d4d3fa7@mail.gmail.com>
+Message-ID: <alpine.LFD.1.00.0801181214440.2957@woody.linux-foundation.org>
+References: <12006091182260-git-send-email-salikhmetov@gmail.com>  <1200651337.5920.9.camel@twins> <1200651958.5920.12.camel@twins>  <alpine.LFD.1.00.0801180949040.2957@woody.linux-foundation.org>  <E1JFvgx-0000zz-2C@pomaz-ex.szeredi.hu>
+ <alpine.LFD.1.00.0801181033580.2957@woody.linux-foundation.org>  <E1JFwOz-00019k-Uo@pomaz-ex.szeredi.hu>  <alpine.LFD.1.00.0801181106340.2957@woody.linux-foundation.org>  <E1JFwnQ-0001FB-2c@pomaz-ex.szeredi.hu>  <alpine.LFD.1.00.0801181127000.2957@woody.linux-foundation.org>
+ <4df4ef0c0801181158s3f783beaqead3d7049d4d3fa7@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/5] x86: Add config variables for SMP_MAX
-References: <20080118183011.354965000@sgi.com> <20080118183011.917801000@sgi.com> <200801182104.22486.ioe-lkml@rameria.de>
-In-Reply-To: <200801182104.22486.ioe-lkml@rameria.de>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Oeser <ioe-lkml@rameria.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Anton Salikhmetov <salikhmetov@gmail.com>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, peterz@infradead.org, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-Ingo Oeser wrote:
-> Hi Mike,
+
+On Fri, 18 Jan 2008, Anton Salikhmetov wrote:
 > 
-> On Friday 18 January 2008, travis@sgi.com wrote:
->> +config THREAD_ORDER
->> +	int "Kernel stack size (in page order)"
->> +	range 1 3
->> +	depends on X86_64_SMP
->> +	default "3" if X86_SMP_MAX
->> +	default "1"
->> +	help
->> +	  Increases kernel stack size.
->> +
-> 
-> Could you please elaborate, why this is needed and put more info about
-> this requirement into this patch description?
-> 
-> People worked hard to push data allocation from stack to heap to make 
-> THREAD_ORDER of 0 and 1 possible. So why increase it again and why does this
-> help scalability?
-> 
-> Many thanks and Best Regards
-> 
-> Ingo Oeser, puzzled a bit :-)
+> The current solution doesn't hit the performance at all when compared to
+> the competitor POSIX-compliant systems. It is faster and does even more
+> than the POSIX standard requires.
 
+Your current patches have two problems:
+ - they are simply unnecessarily invasive for a relatively simple issue
+ - all versions I've looked at closer are buggy too
 
-The primary problem arises because of cpumask_t local variables.  Until I
-can deal with these, increasing NR_CPUS to a really large value increases
-stack size dramatically.
+Example:
 
-Here are the top stack consumers with NR_CPUS = 4k.
+	+               if (pte_dirty(*pte) && pte_write(*pte))
+	+                       *pte = pte_wrprotect(*pte);
 
-                         16392 isolated_cpu_setup
-                         10328 build_sched_domains
-                          8248 numa_initmem_init
-                          4664 cpu_attach_domain
-                          4104 show_shared_cpu_map
-                          3656 centrino_target
-                          3608 powernowk8_cpu_init
-                          3192 sched_domain_node_span
-                          3144 acpi_cpufreq_target
-                          2584 __svc_create_thread
-                          2568 cpu_idle_wait
-                          2136 netxen_nic_flash_print
-                          2104 powernowk8_target
-                          2088 _cpu_down
-                          2072 cache_add_dev
-                          2056 get_cur_freq
-                             0 acpi_processor_ffh_cstate_probe
-                          2056 microcode_write
-                             0 acpi_processor_get_throttling
-                          2048 check_supported_cpu
+Uhhuh. Looks simple enough. Except it does a non-atomic pte access while 
+other CPU's may be accessing it and updating it from their hw page table 
+walkers. What will happen? Who knows? I can see lost access bits at a 
+minimum.
 
-And I've yet to figure out how to accumulate stack sizes using
-call threads.
+IOW, this isn't simple code. It's code that it is simple to screw up. In 
+this case, you really need to use ptep_set_wrprotect(), for example.
 
-Thanks,
-Mike
+So why not do it in many fewer lines with that simpler vma->dirty flag?
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
