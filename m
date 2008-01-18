@@ -1,49 +1,66 @@
-In-reply-to: <alpine.LFD.1.00.0801181106340.2957@woody.linux-foundation.org>
-	(message from Linus Torvalds on Fri, 18 Jan 2008 11:08:57 -0800 (PST))
+Date: Fri, 18 Jan 2008 11:35:51 -0800 (PST)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [PATCH -v6 2/2] Updating ctime and mtime for memory-mapped
  files
+In-Reply-To: <E1JFwnQ-0001FB-2c@pomaz-ex.szeredi.hu>
+Message-ID: <alpine.LFD.1.00.0801181127000.2957@woody.linux-foundation.org>
 References: <12006091182260-git-send-email-salikhmetov@gmail.com>  <12006091211208-git-send-email-salikhmetov@gmail.com>  <E1JFnsg-0008UU-LU@pomaz-ex.szeredi.hu>  <1200651337.5920.9.camel@twins> <1200651958.5920.12.camel@twins>
  <alpine.LFD.1.00.0801180949040.2957@woody.linux-foundation.org> <E1JFvgx-0000zz-2C@pomaz-ex.szeredi.hu> <alpine.LFD.1.00.0801181033580.2957@woody.linux-foundation.org> <E1JFwOz-00019k-Uo@pomaz-ex.szeredi.hu> <alpine.LFD.1.00.0801181106340.2957@woody.linux-foundation.org>
-Message-Id: <E1JFwnQ-0001FB-2c@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Fri, 18 Jan 2008 20:22:32 +0100
+ <E1JFwnQ-0001FB-2c@pomaz-ex.szeredi.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: torvalds@linux-foundation.org
-Cc: miklos@szeredi.hu, peterz@infradead.org, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: peterz@infradead.org, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-> > 
-> > But then background writeout, sync(2), etc, wouldn't update the times.
+
+On Fri, 18 Jan 2008, Miklos Szeredi wrote:
 > 
-> Sure it would, but only when doing the final unmap.
-> 
-> Did you miss the "on unmap and msync" part?
+> What I'm saying is that the times could be left un-updated for a long
+> time if program doesn't do munmap() or msync(MS_SYNC) for a long time.
 
-No :)
+Sure.
 
-What I'm saying is that the times could be left un-updated for a long
-time if program doesn't do munmap() or msync(MS_SYNC) for a long time.
+But in those circumstances, the programmer cannot depend on the mtime 
+*anyway* (because there is no synchronization), so what's the downside?
 
-If program has this pattern:
+Let's face it, there's exactly three possible solutions:
 
-mmap()
-write to map
-msync(MS_ASYNC)
-sleep(long)
-write to map
-msync(MS_ASYNC)
-sleep(long)
-...
+ - the insane one: trap EVERY SINGLE instruction that does a write to the 
+   page, and update mtime each and every time.
 
-Then we'd never see time updates (until the program exits, but that
-could be years).
+   This one is so obviously STUPID that it's not even worth discussing 
+   further, except to say that "yes, there is an 'exact' algorithm, but 
+   no, we are never EVER going to use it".
 
-Maybe this doesn't matter, I'm just saying this is a disadvantage
-compared to the "update on first dirtying" approach, which would
-ensure, that times are updated at least once per 30s.
+ - the non-exact solutions that don't give you mtime updates every time 
+   a write to the page happens, but give *some* guarantees for things that 
+   will update it.
 
-Miklos
+   This is the one I think we can do, and the only things a programmer can 
+   impact using it is "msync()" and "munmap()", since no other operations 
+   really have any thing to do with it in a programmer-visible way (ie a 
+   normal "sync" operation may happen in the background and has no 
+   progam-relevant timing information)
+
+   Other things *may* or may not update mtime (some filesystems - take
+   most networked one as an example - will *always* update mtime on the 
+   server on writeback, so we cannot ever guarantee that nothing but 
+   msync/munmap does so), but at least we'll have a minimum set of things 
+   that people can depend on.
+
+ - the "we don't care at all solutions".
+
+   mmap(MAP_WRITE) doesn't really update times reliably after the write 
+   has happened (but might do it *before* - maybe the mmap() itself does).
+
+Those are the three choices, I think. We currently approximate #3. We 
+*can* do #2 (and there are various flavors of it). And even *aiming* for 
+#1 is totally insane and stupid.
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
