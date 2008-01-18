@@ -1,32 +1,33 @@
-Date: Fri, 18 Jan 2008 21:39:29 +0100
+Date: Fri, 18 Jan 2008 21:46:05 +0100
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 0/7] percpu: Per cpu code simplification fixup
-Message-ID: <20080118203928.GB3079@elte.hu>
-References: <20080118182953.748071000@sgi.com>
+Subject: Re: [PATCH 4/5] x86: Add config variables for SMP_MAX
+Message-ID: <20080118204605.GC3079@elte.hu>
+References: <20080118183011.354965000@sgi.com> <20080118183011.917801000@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080118182953.748071000@sgi.com>
+In-Reply-To: <20080118183011.917801000@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: travis@sgi.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Arjan van de Ven <arjan@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
 * travis@sgi.com <travis@sgi.com> wrote:
 
-> This patchset simplifies the code that arches need to maintain to 
-> support per cpu functionality. Most of the code is moved into arch 
-> independent code. Only a minimal set of definitions is kept for each 
-> arch.
-> 
-> The patch also unifies the x86 arch so that there is only a single 
-> asm-x86/percpu.h
-> 
-> Based on: 2.6.24-rc8-mm1
+> +config THREAD_ORDER
+> +	int "Kernel stack size (in page order)"
+> +	range 1 3
+> +	depends on X86_64_SMP
+> +	default "3" if X86_SMP_MAX
+> +	default "1"
+> +	help
+> +	  Increases kernel stack size.
 
-just to make sure i got it right: due to the multi-arch scope of this 
-patchset, this is for -mm, right?
+nack on kernel stack bloat. We worked hard to get the kernel stack 
+footprint down to 4K on x86. (and it is 4K on most distros, despite 
+there still being a legacy 8K stack size) No way are we going to throw 
+away all that now ...
 
 	Ingo
 
