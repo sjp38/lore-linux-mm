@@ -1,126 +1,178 @@
-Date: Fri, 18 Jan 2008 16:01:07 +1100
-From: David Chinner <dgc@sgi.com>
-Subject: Re: [patch] Converting writeback linked lists to a tree based data structure
-Message-ID: <20080118050107.GS155259@sgi.com>
-References: <20080115080921.70E3810653@localhost> <400562938.07583@ustc.edu.cn> <532480950801171307q4b540ewa3acb6bfbea5dbc8@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <532480950801171307q4b540ewa3acb6bfbea5dbc8@mail.gmail.com>
+Message-Id: <20080118045755.409030000@suse.de>
+References: <20080118045649.334391000@suse.de>
+Date: Fri, 18 Jan 2008 15:56:50 +1100
+From: npiggin@suse.de
+Subject: [patch 1/6] mm: introduce VM_MIXEDMAP
+Content-Disposition: inline; filename=vm-mixedmap.patch
 Sender: owner-linux-mm@kvack.org
+From: Jared Hulbert <jaredeh@gmail.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Michael Rubin <mrubin@google.com>
-Cc: Fengguang Wu <wfg@mail.ustc.edu.cn>, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hugh@veritas.com>, Jared Hulbert <jaredeh@gmail.com>, Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 17, 2008 at 01:07:05PM -0800, Michael Rubin wrote:
-> > Michael, could you sort out and document the new starvation prevention schemes?
-> 
-> The basic idea behind the writeback algorithm to handle starvation.
-> The over arching idea is that we want to preserve order of writeback
-> based on when an inode was dirtied and also preserve the dirtied_when
-> contents until the inode has been written back (partially or fully)
-> 
-> Every sync_sb_inodes we find the least recent inodes dirtied. To deal
-> with large or small starvation we have a s_flush_gen for each
-> iteration of sync_sb_inodes every time we issue a writeback we mark
-> that the inode cannot be processed until the next s_flush_gen. This
-> way we don't process one get to the rest since we keep pushing them
-> into subsequent s_fush_gen's.
+Introduce a new type of mapping, VM_MIXEDMAP. This is unlike VM_PFNMAP in
+that it can support COW mappings of arbitrary ranges including ranges without
+struct page (PFNMAP can only support COW in those cases where the un-COW-ed
+translations are mapped linearly in the virtual address).
 
-This seems suboptimal for large files. If you keep feeding in
-new least recently dirtied files, the large files will never
-get an unimpeded go at the disk and hence we'll struggle to
-get decent bandwidth under anything but pure large file
-write loads.
+VM_MIXEDMAP achieves this by refcounting all pfn_valid pages, and not
+refcounting !pfn_valid pages (which is not an option for VM_PFNMAP, because
+it needs to avoid refcounting pfn_valid pages eg. for /dev/mem mappings).
 
-Fairness is a tradeoff between seeks and bandwidth.  Ideally, we
-want to spend 50% of the *disk* time servicing sequential writes and
-50% of the time servicing seeky writes - that way neither get
-penalised unfairly by the other type of workload.
+(Needs Jared's SOB)
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Hugh Dickins <hugh@veritas.com>
+Cc: Jared Hulbert <jaredeh@gmail.com>
+Cc: Carsten Otte <cotte@de.ibm.com>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: linux-mm@kvack.org
+---
+ include/linux/mm.h |    1 
+ mm/memory.c        |   79 ++++++++++++++++++++++++++++++++++++++---------------
+ 2 files changed, 59 insertions(+), 21 deletions(-)
 
-Switching inodes during writeback implies a seek to the new write
-location, while continuing to write the same inode has no seek
-penalty because the writeback is sequential.  It follows from this
-that allowing larges file a disproportionate amount of data
-writeback is desirable.
+Index: linux-2.6/include/linux/mm.h
+===================================================================
+--- linux-2.6.orig/include/linux/mm.h
++++ linux-2.6/include/linux/mm.h
+@@ -106,6 +106,7 @@ extern unsigned int kobjsize(const void 
+ #define VM_ALWAYSDUMP	0x04000000	/* Always include in core dumps */
+ 
+ #define VM_CAN_NONLINEAR 0x08000000	/* Has ->fault & does nonlinear pages */
++#define VM_MIXEDMAP	0x10000000	/* Can contain "struct page" and pure PFN pages */
+ 
+ #ifndef VM_STACK_DEFAULT_FLAGS		/* arch can override this */
+ #define VM_STACK_DEFAULT_FLAGS VM_DATA_DEFAULT_FLAGS
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c
++++ linux-2.6/mm/memory.c
+@@ -361,35 +361,65 @@ static inline int is_cow_mapping(unsigne
+ }
+ 
+ /*
+- * This function gets the "struct page" associated with a pte.
++ * This function gets the "struct page" associated with a pte or returns
++ * NULL if no "struct page" is associated with the pte.
+  *
+- * NOTE! Some mappings do not have "struct pages". A raw PFN mapping
+- * will have each page table entry just pointing to a raw page frame
+- * number, and as far as the VM layer is concerned, those do not have
+- * pages associated with them - even if the PFN might point to memory
++ * A raw VM_PFNMAP mapping (ie. one that is not COWed) may not have any "struct
++ * page" backing, and even if they do, they are not refcounted. COWed pages of
++ * a VM_PFNMAP do always have a struct page, and they are normally refcounted
++ * (they are _normal_ pages).
++ *
++ * So a raw PFNMAP mapping will have each page table entry just pointing
++ * to a page frame number, and as far as the VM layer is concerned, those do
++ * not have pages associated with them - even if the PFN might point to memory
+  * that otherwise is perfectly fine and has a "struct page".
+  *
+- * The way we recognize those mappings is through the rules set up
+- * by "remap_pfn_range()": the vma will have the VM_PFNMAP bit set,
+- * and the vm_pgoff will point to the first PFN mapped: thus every
++ * The way we recognize COWed pages within VM_PFNMAP mappings is through the
++ * rules set up by "remap_pfn_range()": the vma will have the VM_PFNMAP bit
++ * set, and the vm_pgoff will point to the first PFN mapped: thus every
+  * page that is a raw mapping will always honor the rule
+  *
+  *	pfn_of_page == vma->vm_pgoff + ((addr - vma->vm_start) >> PAGE_SHIFT)
+  *
+- * and if that isn't true, the page has been COW'ed (in which case it
+- * _does_ have a "struct page" associated with it even if it is in a
+- * VM_PFNMAP range).
++ * A call to vm_normal_page() will return NULL for such a page.
++ *
++ * If the page doesn't follow the "remap_pfn_range()" rule in a VM_PFNMAP
++ * then the page has been COW'ed.  A COW'ed page _does_ have a "struct page"
++ * associated with it even if it is in a VM_PFNMAP range.  Calling
++ * vm_normal_page() on such a page will therefore return the "struct page".
++ *
++ *
++ * VM_MIXEDMAP mappings can likewise contain memory with or without "struct
++ * page" backing, however the difference is that _all_ pages with a struct
++ * page (that is, those where pfn_valid is true) are refcounted and considered
++ * normal pages by the VM. The disadvantage is that pages are refcounted
++ * (which can be slower and simply not an option for some PFNMAP users). The
++ * advantage is that we don't have to follow the strict linearity rule of
++ * PFNMAP mappings in order to support COWable mappings.
++ *
++ * A call to vm_normal_page() with a VM_MIXEDMAP mapping will return the
++ * associated "struct page" or NULL for memory not backed by a "struct page".
++ *
++ *
++ * All other mappings should have a valid struct page, which will be
++ * returned by a call to vm_normal_page().
+  */
+ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
+ {
+ 	unsigned long pfn = pte_pfn(pte);
+ 
+-	if (unlikely(vma->vm_flags & VM_PFNMAP)) {
+-		unsigned long off = (addr - vma->vm_start) >> PAGE_SHIFT;
+-		if (pfn == vma->vm_pgoff + off)
+-			return NULL;
+-		if (!is_cow_mapping(vma->vm_flags))
+-			return NULL;
++	if (unlikely(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP))) {
++		if (vma->vm_flags & VM_MIXEDMAP) {
++			if (!pfn_valid(pfn))
++				return NULL;
++			goto out;
++		} else {
++			unsigned long off = (addr-vma->vm_start) >> PAGE_SHIFT;
++			if (pfn == vma->vm_pgoff + off)
++				return NULL;
++			if (!is_cow_mapping(vma->vm_flags))
++				return NULL;
++		}
+ 	}
+ 
+ #ifdef CONFIG_DEBUG_VM
+@@ -412,6 +442,7 @@ struct page *vm_normal_page(struct vm_ar
+ 	 * The PAGE_ZERO() pages and various VDSO mappings can
+ 	 * cause them to exist.
+ 	 */
++out:
+ 	return pfn_to_page(pfn);
+ }
+ 
+@@ -1213,8 +1244,11 @@ int vm_insert_pfn(struct vm_area_struct 
+ 	pte_t *pte, entry;
+ 	spinlock_t *ptl;
+ 
+-	BUG_ON(!(vma->vm_flags & VM_PFNMAP));
+-	BUG_ON(is_cow_mapping(vma->vm_flags));
++	BUG_ON(!(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)));
++	BUG_ON((vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)) ==
++						(VM_PFNMAP|VM_MIXEDMAP));
++	BUG_ON((vma->vm_flags & VM_PFNMAP) && is_cow_mapping(vma->vm_flags));
++	BUG_ON((vma->vm_flags & VM_MIXEDMAP) && pfn_valid(pfn));
+ 
+ 	retval = -ENOMEM;
+ 	pte = get_locked_pte(mm, addr, &ptl);
+@@ -2388,10 +2422,13 @@ static noinline int do_no_pfn(struct mm_
+ 	unsigned long pfn;
+ 
+ 	pte_unmap(page_table);
+-	BUG_ON(!(vma->vm_flags & VM_PFNMAP));
+-	BUG_ON(is_cow_mapping(vma->vm_flags));
++	BUG_ON(!(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)));
++	BUG_ON((vma->vm_flags & VM_PFNMAP) && is_cow_mapping(vma->vm_flags));
+ 
+ 	pfn = vma->vm_ops->nopfn(vma, address & PAGE_MASK);
++
++	BUG_ON((vma->vm_flags & VM_MIXEDMAP) && pfn_valid(pfn));
++
+ 	if (unlikely(pfn == NOPFN_OOM))
+ 		return VM_FAULT_OOM;
+ 	else if (unlikely(pfn == NOPFN_SIGBUS))
 
-Also, cycling rapidly through all the large files to write 4MB to each is
-going to cause us to spend time seeking rather than writing compared
-to cycling slower and writing 40MB from each large file at a time.
-
-i.e. servicing one large file for 100ms is going to result in higher
-writeback throughput than servicing 10 large files for 10ms each
-because there's going to be less seeking and more writing done by
-the disks.
-
-That is, think of large file writes like process scheduler batch
-jobs - bulk throughput is what matters, so the larger the time slice
-you give them the higher the throughput.
-
-IMO, the sort of result we should be looking at is a
-writeback design that results in cycling somewhat like:
-
-	slice 1: iterate over small files
-	slice 2: flush large file 1
-	slice 3: iterate over small files
-	slice 4: flush large file 2
-	......
-	slice n-1: flush large file N
-	slice n: iterate over small files
-	slice n+1: flush large file N+1
-
-So that we keep the disk busy with a relatively fair mix of
-small and large I/Os while both are necessary.
-
-Furthermore, as disk bandwidth goes up, the relationship
-between large file and small file writes changes if we want
-to maintain writeback at a significant percentage of the
-maximum bandwidth of the drive (which is extremely desirable).
-So if we take a 4k page machine and a 1024page writeback slice,
-for different disks, we get a bandwidth slice in terms of disk
-seeks like:
-
-slow disk: 20MB/s, 10ms seek (say a laptop drive)
-	- 4MB write takes 200ms, or equivalent of 10 seeks
-
-normal disk: 60MB/s, 8ms seek (desktop)
-	- 4MB write takes 66ms, or equivalent of 8 seeks
-
-fast disk: 120MB/s, 5ms seek (15krpm SAS)
-	- 4MB write takes 33ms,  or equivalent of 6 seeks
-
-small RAID5 lun: 200MB/s, 4ms seek
-	- 4MB write takes 20ms, or equivalent of 5 seeks
-
-Large RAID5 lun: 1GB/s, 2ms seek
-	- 4MB write takes 4ms, or equivalent of 2 seeks
-
-Put simply:
-
-	The higher the bandwidth of the device, the more frequently
-	we need to be servicing the inodes with large amounts of
-	dirty data to be written to maintain write throughput at a
-	significant percentage of the device capability.
-
-The writeback algorithm needs to take this into account for it
-to be able to scale effectively for high throughput devices.
-
-BTW, it needs to be recognised that if we are under memory pressure
-we can clean much more memory in a short period of time by writing
-out all the large files first. This would clearly benefit the system
-as a whole as we'd get the most pages available for reclaim as
-possible in a short a time as possible. The writeback algorithm
-should really have a mode that allows this sort of flush ordering to
-occur....
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-Principal Engineer
-SGI Australian Software Group
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
