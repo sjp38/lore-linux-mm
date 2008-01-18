@@ -1,100 +1,85 @@
-Received: by nz-out-0506.google.com with SMTP id i11so869195nzh.26
-        for <linux-mm@kvack.org>; Fri, 18 Jan 2008 02:24:28 -0800 (PST)
-Message-ID: <cfd9edbf0801180224r3ddf1940h4245e2feff488486@mail.gmail.com>
-Date: Fri, 18 Jan 2008 11:24:27 +0100
-From: "=?ISO-8859-1?Q?Daniel_Sp=E5ng?=" <daniel.spang@gmail.com>
-Subject: Re: [RFC][PATCH 4/5] memory_pressure_notify() caller
-In-Reply-To: <20080117120112.11CE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH -v6 2/2] Updating ctime and mtime for memory-mapped
+	files
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <1200651337.5920.9.camel@twins>
+References: <12006091182260-git-send-email-salikhmetov@gmail.com>
+	 <12006091211208-git-send-email-salikhmetov@gmail.com>
+	 <E1JFnsg-0008UU-LU@pomaz-ex.szeredi.hu>  <1200651337.5920.9.camel@twins>
+Content-Type: text/plain
+Date: Fri, 18 Jan 2008 11:25:58 +0100
+Message-Id: <1200651958.5920.12.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080116104536.11AE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <cfd9edbf0801160303s53237b81yb9d5e374c16cd006@mail.gmail.com>
-	 <20080117120112.11CE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On 1/17/08, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> Hi Daniel
->
-> > > Thank you for good point out!
-> > > Could you please post your test program and reproduced method?
-> >
-> > Sure:
-> >
-> > 1. Fill almost all available memory with page cache in a system without swap.
-> > 2. Run attached alloc-test program.
-> > 3. Notification fires when page cache is reclaimed.
->
-> Unfortunately, I can't reproduce it.
->
-> my machine
->         CPU:    Pentium4 2.8GHz with HT
->         memory: 512M
->
->
-> 1. I doubt ZONE_DMA, please shipment ignore zone_dma patch(below).
-> 2. Could you please send your .config and /etc/sysctl.conf?
->    I hope more reproduce challenge.
->
-> thanks.
->
-> - kosaki
->
->
->
->
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->
-> ---
->  include/linux/mem_notify.h |    3 +++
->  mm/page_alloc.c            |    6 +++++-
->  2 files changed, 8 insertions(+), 1 deletion(-)
->
-> Index: linux-2.6.24-rc6-mm1-memnotify/include/linux/mem_notify.h
-> ===================================================================
-> --- linux-2.6.24-rc6-mm1-memnotify.orig/include/linux/mem_notify.h
->  2008-01-16 21:31:09.000000000 +0900
-> +++ linux-2.6.24-rc6-mm1-memnotify/include/linux/mem_notify.h
-> 2008-01-16 21:34:24.000000000 +0900
-> @@ -22,6 +22,9 @@ static inline void memory_pressure_notif
->         unsigned long target;
->         unsigned long pages_high, pages_free, pages_reserve;
->
-> +       if (unlikely(zone->mem_notify_status == -1))
-> +               return;
-> +
->         if (pressure) {
->                 target = atomic_long_read(&last_mem_notify) + MEM_NOTIFY_FREQ;
->                 if (likely(time_before(jiffies, target)))
-> Index: linux-2.6.24-rc6-mm1-memnotify/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.24-rc6-mm1-memnotify.orig/mm/page_alloc.c 2008-01-13
-> 19:50:27.000000000 +0900
-> +++ linux-2.6.24-rc6-mm1-memnotify/mm/page_alloc.c      2008-01-16
-> 21:41:58.000000000 +0900
-> @@ -3467,7 +3467,11 @@ static void __meminit free_area_init_cor
->                 zone->zone_pgdat = pgdat;
->
->                 zone->prev_priority = DEF_PRIORITY;
-> -               zone->mem_notify_status = 0;
-> +
-> +               if (zone->present_pages < (pgdat->node_present_pages / 10))
-> +                       zone->mem_notify_status = -1;
-> +               else
-> +                       zone->mem_notify_status = 0;
->
->                 zone_pcp_init(zone);
->                 INIT_LIST_HEAD(&zone->active_list);
+On Fri, 2008-01-18 at 11:15 +0100, Peter Zijlstra wrote:
+> On Fri, 2008-01-18 at 10:51 +0100, Miklos Szeredi wrote:
+> 
+> > > diff --git a/mm/msync.c b/mm/msync.c
+> > > index a4de868..a49af28 100644
+> > > --- a/mm/msync.c
+> > > +++ b/mm/msync.c
+> > > @@ -13,11 +13,33 @@
+> > >  #include <linux/syscalls.h>
+> > >  
+> > >  /*
+> > > + * Scan the PTEs for pages belonging to the VMA and mark them read-only.
+> > > + * It will force a pagefault on the next write access.
+> > > + */
+> > > +static void vma_wrprotect(struct vm_area_struct *vma)
+> > > +{
+> > > +	unsigned long addr;
+> > > +
+> > > +	for (addr = vma->vm_start; addr < vma->vm_end; addr += PAGE_SIZE) {
+> > > +		spinlock_t *ptl;
+> > > +		pgd_t *pgd = pgd_offset(vma->vm_mm, addr);
+> > > +		pud_t *pud = pud_offset(pgd, addr);
+> > > +		pmd_t *pmd = pmd_offset(pud, addr);
+> > > +		pte_t *pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+> > > +
+> > > +		if (pte_dirty(*pte) && pte_write(*pte))
+> > > +			*pte = pte_wrprotect(*pte);
+> > > +		pte_unmap_unlock(pte, ptl);
+> > > +	}
+> > > +}
+> > 
+> > What about ram based filesystems?  They don't start out with read-only
+> > pte's, so I think they don't want them read-protected now either.
+> > Unless this is essential for correct mtime/ctime accounting on these
+> > filesystems (I don't think it really is).  But then the mapping should
+> > start out read-only as well, otherwise the time update will only work
+> > after an msync(MS_ASYNC).
+> 
+> page_mkclean() has all the needed logic for this, it also walks the rmap
+> and cleans out all other users, which I think is needed too for
+> consistencies sake:
+> 
+> Process A			Process B
+> 
+> mmap(foo.txt)			mmap(foo.txt)
+> 
+> dirty page
+> 				dirty page
+> 
+> msync(MS_ASYNC)
+> 
+> 				dirty page
+> 
+> msync(MS_ASYNC) <--- now what?!
+> 
+> 
+> So what I would suggest is using the page table walkers from mm, and
+> walks the page range, obtain the page using vm_normal_page() and call
+> page_mkclean(). (Oh, and ensure you don't nest the pte lock :-)
+> 
+> All in all, that sounds rather expensive..
 
-Your patch above solves the problem I had with early notification.
-
-Cheers,
-Daniel
+Bah, and will break on s390... so we'd need a page_mkclean() variant
+that doesn't actually clear dirty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
