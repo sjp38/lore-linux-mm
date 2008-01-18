@@ -1,78 +1,65 @@
-Message-ID: <4791122E.8070205@sgi.com>
-Date: Fri, 18 Jan 2008 12:55:10 -0800
-From: Mike Travis <travis@sgi.com>
+Date: Fri, 18 Jan 2008 20:56:32 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch] #ifdef very expensive debug check in page fault path
+In-Reply-To: <20080116161021.c9a52c0f.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0801182023350.5249@blonde.site>
+References: <1200506488.32116.11.camel@cotte.boeblingen.de.ibm.com>
+ <20080116234540.GB29823@wotan.suse.de> <20080116161021.c9a52c0f.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/5] x86: Add config variables for SMP_MAX
-References: <20080118183011.354965000@sgi.com> <20080118183011.917801000@sgi.com> <200801182104.22486.ioe-lkml@rameria.de> <479108C3.1010800@sgi.com> <20080118204845.GD3079@elte.hu>
-In-Reply-To: <20080118204845.GD3079@elte.hu>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Ingo Oeser <ioe-lkml@rameria.de>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, Carsten Otte <cotte@de.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, schwidefsky@de.ibm.com, holger.wolf@de.ibm.com, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
-> * Mike Travis <travis@sgi.com> wrote:
-> 
->>>> +config THREAD_ORDER
->>>> +	int "Kernel stack size (in page order)"
->>>> +	range 1 3
->>>> +	depends on X86_64_SMP
->>>> +	default "3" if X86_SMP_MAX
->>>> +	default "1"
->>>> +	help
->>>> +	  Increases kernel stack size.
->>>> +
->>> Could you please elaborate, why this is needed and put more info 
->>> about this requirement into this patch description?
->>>
->>> People worked hard to push data allocation from stack to heap to 
->>> make THREAD_ORDER of 0 and 1 possible. So why increase it again and 
->>> why does this help scalability?
->>>
->>> Many thanks and Best Regards
->>>
->>> Ingo Oeser, puzzled a bit :-)
->>
->> The primary problem arises because of cpumask_t local variables.  
->> Until I can deal with these, increasing NR_CPUS to a really large 
->> value increases stack size dramatically.
-> 
-> those should be fixed:
-> 
->> Here are the top stack consumers with NR_CPUS = 4k.
->>
->>                          16392 isolated_cpu_setup
->>                          10328 build_sched_domains
->>                           8248 numa_initmem_init
->>                           4664 cpu_attach_domain
->>                           4104 show_shared_cpu_map
->>                           3656 centrino_target
->>                           3608 powernowk8_cpu_init
->>                           3192 sched_domain_node_span
->>                           3144 acpi_cpufreq_target
->>                           2584 __svc_create_thread
->>                           2568 cpu_idle_wait
->>                           2136 netxen_nic_flash_print
->>                           2104 powernowk8_target
->>                           2088 _cpu_down
->>                           2072 cache_add_dev
->>                           2056 get_cur_freq
->>                              0 acpi_processor_ffh_cstate_probe
->>                           2056 microcode_write
->>                              0 acpi_processor_get_throttling
->>                           2048 check_supported_cpu
-> 
-> (and most of that is performance-uncritical.)
-> 
-> 	Ingo
+On Wed, 16 Jan 2008, Andrew Morton wrote:
+> On Thu, 17 Jan 2008 00:45:40 +0100 Nick Piggin <npiggin@suse.de> wrote:
+> > 
+> > The one actual upside of this code is that if there is pte corruption
+> > detected, the failure should be a little more graceful... but there
+> > is also lots of pte corruption that could go undetected and cause much
+> > worse problems anyway so I don't feel it is something that needs to
+> > be turned on in production kernels. It could be a good debugging aid
+> > to mm/ or device driver writers though.
+> > 
+> > Anyway, again I've cc'ed Hugh, because he nacked this same patch a
+> > while back. So let's try to get him on board before merging anything.
 
-How big is the stack during early startup?
+Thanks, Nick.
 
-Thanks,
-Mike
+> > 
+> > If we get an ack, why not send this upstream for 2.6.24? Those s390
+> > numbers are pretty insane.
+> 
+> I intend to merge this into 2.6.24.
+
+And so you have already, commit 9723198c219f3546982cb469e5aed26e68399055
+
+I'm very surprised that's considered suitable material for post-rc8.
+
+We know very well that page tables are almost honeytraps for random
+corruption, and we've long adhered to the practice of preceding any
+pfn_to_page by a pfn_valid check, to make sure we don't veer off the
+end of the mem_map (or whatever), causing our page manipulations to
+corrupt unrelated memory with less foreseeable consequences.  That
+good practice dates from long before some of the checking got
+separated out into vm_normal_page.
+
+That said, perhaps I'm over-reacting: I can remember countless rmap.c
+BUGs or Eeeks, and countless Bad page states, and quite a number of
+swap_free errors, all usually symptoms of similar corruption; yet
+not a single instance of that Bad pte message which Nick was good
+enough to add a couple of years back.
+
+Hmm, it's my own memory that's bad: a grep through old mailboxes
+does show them; though I've not stopped to look, to see whether
+perhaps they can all be argued away on some good grounds.
+
+Well: that patch still gets my Nack, but I guess I'm too late.  If
+s390 pagetables are better protected than x86 ones, add an s390 ifdef?
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
