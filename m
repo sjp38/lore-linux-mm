@@ -1,61 +1,129 @@
-Date: Fri, 18 Jan 2008 05:09:56 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] #ifdef very expensive debug check in page fault path
-Message-ID: <20080118040956.GA14043@wotan.suse.de>
-References: <1200506488.32116.11.camel@cotte.boeblingen.de.ibm.com> <20080116234540.GB29823@wotan.suse.de> <1200563614.22385.9.camel@localhost>
-Mime-Version: 1.0
+Message-ID: <400632190.14601@ustc.edu.cn>
+Date: Fri, 18 Jan 2008 12:56:09 +0800
+From: Fengguang Wu <wfg@mail.ustc.edu.cn>
+Subject: Re: [patch] Converting writeback linked lists to a tree based data structure
+References: <20080115080921.70E3810653@localhost> <400562938.07583@ustc.edu.cn> <532480950801171307q4b540ewa3acb6bfbea5dbc8@mail.gmail.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1200563614.22385.9.camel@localhost>
+In-Reply-To: <532480950801171307q4b540ewa3acb6bfbea5dbc8@mail.gmail.com>
+Message-Id: <E1JFjGz-0001eU-3O@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Carsten Otte <cotte@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, holger.wolf@de.ibm.com, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Michael Rubin <mrubin@google.com>
+Cc: a.p.zijlstra@chello.nl, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 17, 2008 at 10:53:34AM +0100, Martin Schwidefsky wrote:
-> On Thu, 2008-01-17 at 00:45 +0100, Nick Piggin wrote:
-> > On Wed, Jan 16, 2008 at 07:01:28PM +0100, Carsten Otte wrote:
-> > > This patch puts #ifdef CONFIG_DEBUG_VM around a check in vm_normal_page
-> > > that verifies that a pfn is valid. This patch increases performance of
-> > > the page fault microbenchmark in lmbench by 13% and overall dbench
-> > > performance by 7% on s390x.  pfn_valid() is an expensive operation on
-> > > s390 that needs a high double digit amount of CPU cycles.
-> > > Nick Piggin suggested that pfn_valid() involves an array lookup on
-> > > systems with sparsemem, and therefore is an expensive operation there
-> > > too.
-> > > The check looks like a clear debug thing to me, it should never trigger
-> > > on regular kernels. And if a pte is created for an invalid pfn, we'll
-> > > find out once the memory gets accessed later on anyway. Please consider
-> > > inclusion of this patch into mm.
-> > > 
-> > > Signed-off-by: Carsten Otte <cotte@de.ibm.com>
-> > 
-> > Wow, that's a big performance hit for a few instructions ;)
-> > I haven't seen it to be quite so expensive on x86, but it definitely is
-> > not zero cost, especially with NUMA kernels. Thanks for getting those
-> > numbers.
+On Thu, Jan 17, 2008 at 01:07:05PM -0800, Michael Rubin wrote:
+> On Jan 17, 2008 1:41 AM, Fengguang Wu <wfg@mail.ustc.edu.cn> wrote:
+> > On Tue, Jan 15, 2008 at 12:09:21AM -0800, Michael Rubin wrote:
+> > The main benefit of rbtree is possibly better support of future policies.
+> > Can you demonstrate an example?
 > 
-> These number have been a surprise. We knew that the LRA instruction we
-> use in pfn_valid has a cost, but from the cycle count we did not expect
-> that the difference in the minor fault benchmark would be 13%. Most
-> probably a cache effect.
-> 
-> I shortly discussed with Carsten what we should do with pfn_valid. One
-> idea was to make it a nop - always return 1. The current implementation
-> of pfn_valid uses the kernel address space mapping to decide if a page
-> frame is valid. All available memory areas that fit into the 4TB kernel
-> address space get mapped. If a page is mapped pfn_valid returns true.
-> But what is the background of pfn_valid, what does it protect against?
-> What is the exact semantics if pfn_valid returns true? From the name
-> page-frame-number-valid you could argue that it should always return
-> true if the number is smaller than 2**52. The number is valid, if there
-> is accessible memory is another question.
+> These are ill-formed thoughts as of now on my end but the idea was
+> that keeping one tree sorted via a scheme might be simpler than
+> multiple list_heads.
 
-It is supposed to return true if there is a valid struct page for the
-pfn AFAIK.  s390 can probably get around without implementing it like
-that because it is mostly only used in memory mapping setup code
-(once we have removed it from vm_normal_page).
+Suppose we want to grant longer expiration window for temp files,
+adding a new list named s_dirty_tmpfile would be a handy solution.
+
+So the question is: should we need more than 3 QoS classes?
+
+> > The most tricky writeback issues could be starvation prevention
+> > between
+> 
+> 
+> >         - small/large files
+> >         - new/old files
+> >         - superblocks
+> 
+> So I have written tests and believe I have covered these issues. If
+> you are concerned in specific on any and have a test case please let
+> me know.
+
+OK.
+
+> > Some kind of limit should be applied for each. They used to be:
+> >         - requeue to s_more_io whenever MAX_WRITEBACK_PAGES is reached
+> >           this preempts big files
+> 
+> The patch uses th same limit.
+> 
+> >         - refill s_io iif it is drained
+> >           this prevents promotion of big/old files
+> 
+> Once a big file gets its first do_writepages it is moved behind the
+> other smaller files via i_flushed_when. And the same in reverse for
+> big vs old.
+
+You mean i_flush_gen? No, sync_sb_inodes() will abort on every
+MAX_WRITEBACK_PAGES, and s_flush_gen will be updated accordingly.
+Hence the sync will restart from big/old files.
+
+> 
+> >         - return from sync_sb_inodes() after one go of s_io
+> 
+> I am not sure how this limit helps things out. Is this for superblock
+> starvation? Can you elaborate?
+
+We should have a way to go to next superblock even if new dirty inodes
+or pages are emerging fast in this superblock. Fill and drain s_io
+only once and then abort helps.
+
+s_io is a stable and bounded working set in one go of superblock.
+
+> > Michael, could you sort out and document the new starvation prevention schemes?
+> 
+> The basic idea behind the writeback algorithm to handle starvation.
+> The over arching idea is that we want to preserve order of writeback
+> based on when an inode was dirtied and also preserve the dirtied_when
+> contents until the inode has been written back (partially or fully)
+> 
+> Every sync_sb_inodes we find the least recent inodes dirtied. To deal
+> with large or small starvation we have a s_flush_gen for each
+> iteration of sync_sb_inodes every time we issue a writeback we mark
+> that the inode cannot be processed until the next s_flush_gen. This
+> way we don't process one get to the rest since we keep pushing them
+> into subsequent s_fush_gen's.
+> 
+> Let me know if you want more detail or structured responses.
+> 
+> > Introduce i_flush_gen to help restarting from the last inode?
+> > Well, it's not as simple as list_heads.
+
+Basically you make one list_head in each rbtree node.
+That list_head is recycled cyclic, and is an analog to the old
+fashioned s_dirty. We need to know 'where we are' and 'where it ends'.
+So an extra indicator must be introduced - i_flush_gen. It's awkward.
+
+We are simply repeating the aged list_heads' problem.
+
+> > > 2) Added an inode flag to allow inodes to be marked so that they
+> > >    are never written back to disk.
+> > >
+> > >    The motivation behind this change is several fold. The first is
+> > >    to insure fairness in the writeback algorithm. The second is to
+> >
+> > What do you mean by fairness?
+> 
+> So originally this comment was written when I was trying to fix a bug
+> in 2.6.23. The one where we were starving large files from being
+> flushed. There was a fairness issue where small files were being
+> flushed but the large ones were just ballooning in memory.
+
+In fact the bug is turned-around rather than fixed - now the small
+files could be starved.
+
+> > Why cannot I_WRITEBACK_NEVER be in a decoupled standalone patch?
+> 
+> The WRITEBACK_NEVER could be in a previous patch to the rbtree. But
+> not a subsequent patch to the rbtree. The rbtree depends on the
+> WRITEBACK_NEVER patch otherwise we run in to problems in
+> generic_delete_inode. Now that you point it out I think I can split
+> this patch into two patches and make the WRITEBACK_NEVER in the first
+> one.
+
+OK.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
