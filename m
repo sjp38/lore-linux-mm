@@ -1,38 +1,45 @@
-Received: from zps77.corp.google.com (zps77.corp.google.com [172.25.146.77])
-	by smtp-out.google.com with ESMTP id m0I9Q8lL019065
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2008 09:26:09 GMT
-Received: from wa-out-1112.google.com (wahj4.prod.google.com [10.114.236.4])
-	by zps77.corp.google.com with ESMTP id m0I9Q7vD018186
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2008 01:26:08 -0800
-Received: by wa-out-1112.google.com with SMTP id j4so1911765wah.21
-        for <linux-mm@kvack.org>; Fri, 18 Jan 2008 01:26:07 -0800 (PST)
-Message-ID: <532480950801180126q3088e47dx1ac07dbd8390ca71@mail.gmail.com>
-Date: Fri, 18 Jan 2008 01:26:07 -0800
-From: "Michael Rubin" <mrubin@google.com>
-Subject: Re: [patch] Converting writeback linked lists to a tree based data structure
-In-Reply-To: <20080118085407.GV155259@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080115080921.70E3810653@localhost> <400562938.07583@ustc.edu.cn>
-	 <532480950801171307q4b540ewa3acb6bfbea5dbc8@mail.gmail.com>
-	 <20080118050107.GS155259@sgi.com>
-	 <532480950801172138x44e06780w2b15464845b626fc@mail.gmail.com>
-	 <20080118085407.GV155259@sgi.com>
+In-reply-to: <12006091213248-git-send-email-salikhmetov@gmail.com> (message
+	from Anton Salikhmetov on Fri, 18 Jan 2008 01:31:57 +0300)
+Subject: Re: [PATCH -v6 1/2] Massive code cleanup of sys_msync()
+References: <12006091182260-git-send-email-salikhmetov@gmail.com> <12006091213248-git-send-email-salikhmetov@gmail.com>
+Message-Id: <E1JFnbj-0008SD-57@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Fri, 18 Jan 2008 10:33:51 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Chinner <dgc@sgi.com>
-Cc: Fengguang Wu <wfg@mail.ustc.edu.cn>, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: salikhmetov@gmail.com
+Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Jan 18, 2008 12:54 AM, David Chinner <dgc@sgi.com> wrote:
-> At this point, I'd say it is best to leave it to the filesystem and
-> the elevator to do their jobs properly.
+>  	unsigned long end;
+> -	struct mm_struct *mm = current->mm;
+> +	int error, unmapped_error;
+>  	struct vm_area_struct *vma;
+> -	int unmapped_error = 0;
+> -	int error = -EINVAL;
+> +	struct mm_struct *mm;
+>  
+> +	error = -EINVAL;
 
-Amen.
+I think you may have misunderstood my last comment.  These are OK:
 
-mrubin
+	struct mm_struct *mm = current->mm;
+	int unmapped_error = 0;
+	int error = -EINVAL;
+
+This is not so good:
+
+	int error, unmapped_error;
+
+This is the worst:
+
+	int error = -EINVAL, unmapped_error = 0;
+
+So I think the original code is fine as it is.
+
+Othewise patch looks OK now.
+
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
