@@ -1,118 +1,52 @@
-Received: by wa-out-1112.google.com with SMTP id m33so1952590wag.8
-        for <linux-mm@kvack.org>; Fri, 18 Jan 2008 14:04:52 -0800 (PST)
-Message-ID: <4df4ef0c0801181404m186bb847sd556e031e908b0b6@mail.gmail.com>
-Date: Sat, 19 Jan 2008 01:04:50 +0300
-From: "Anton Salikhmetov" <salikhmetov@gmail.com>
-Subject: Re: [PATCH -v6 2/2] Updating ctime and mtime for memory-mapped files
-In-Reply-To: <alpine.LFD.1.00.0801181325510.2957@woody.linux-foundation.org>
+Date: Fri, 18 Jan 2008 14:16:29 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: crash in kmem_cache_init
+In-Reply-To: <20080118213011.GC10491@csn.ul.ie>
+Message-ID: <Pine.LNX.4.64.0801181414200.8924@schroedinger.engr.sgi.com>
+References: <20080115150949.GA14089@aepfle.de>
+ <84144f020801170414q7d408a74uf47a84b777c36a4a@mail.gmail.com>
+ <Pine.LNX.4.64.0801170628580.19208@schroedinger.engr.sgi.com>
+ <20080117181222.GA24411@aepfle.de> <Pine.LNX.4.64.0801171049190.21058@schroedinger.engr.sgi.com>
+ <20080117211511.GA25320@aepfle.de> <Pine.LNX.4.64.0801181043290.30348@schroedinger.engr.sgi.com>
+ <20080118213011.GC10491@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <12006091182260-git-send-email-salikhmetov@gmail.com>
-	 <alpine.LFD.1.00.0801181033580.2957@woody.linux-foundation.org>
-	 <E1JFwOz-00019k-Uo@pomaz-ex.szeredi.hu>
-	 <alpine.LFD.1.00.0801181106340.2957@woody.linux-foundation.org>
-	 <E1JFwnQ-0001FB-2c@pomaz-ex.szeredi.hu>
-	 <alpine.LFD.1.00.0801181127000.2957@woody.linux-foundation.org>
-	 <4df4ef0c0801181158s3f783beaqead3d7049d4d3fa7@mail.gmail.com>
-	 <alpine.LFD.1.00.0801181214440.2957@woody.linux-foundation.org>
-	 <4df4ef0c0801181303o6656832g8b63d2a119a86a9c@mail.gmail.com>
-	 <alpine.LFD.1.00.0801181325510.2957@woody.linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, peterz@infradead.org, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: Olaf Hering <olaf@aepfle.de>
+Cc: Mel Gorman <mel@csn.ul.ie>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, hanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lee.schermerhorn@hp.com, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-2008/1/19, Linus Torvalds <torvalds@linux-foundation.org>:
->
->
-> On Sat, 19 Jan 2008, Anton Salikhmetov wrote:
-> >
-> > Before using pte_wrprotect() the vma_wrprotect() routine uses the
-> > pte_offset_map_lock() macro to get the PTE and to acquire the ptl
-> > spinlock. Why did you say that this code was not SMP-safe? It should
-> > be atomic, I think.
->
-> It's atomic WITH RESPECT TO OTHER PEOPLE WHO GET THE LOCK.
->
-> Guess how much another x86 CPU cares when it sets the accessed bit in
-> hardware?
+Could you try this patch?
 
-Thank you very much for taking part in this discussion. Personally,
-it's very important to me.  But I'm not sure that I understand which
-bit can be lost.
+Memoryless nodes: Set N_NORMAL_MEMORY for a node if we do not support HIGHMEM
 
-Please let me explain.
+It seems that we only scan through zones to set N_NORMAL_MEMORY only if
+CONFIG_HIGHMEM and CONFIG_NUMA are set. We need to set N_NORMAL_MEMORY
+in the !CONFIG_HIGHMEM case.
 
-The logic for my vma_wrprotect() routine was taken from the
-page_check_address() function in mm/rmap.c. Here is a code snippet of
-the latter function:
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-        pgd = pgd_offset(mm, address);
-        if (!pgd_present(*pgd))
-                return NULL;
-
-        pud = pud_offset(pgd, address);
-        if (!pud_present(*pud))
-                return NULL;
-
-        pmd = pmd_offset(pud, address);
-        if (!pmd_present(*pmd))
-                return NULL;
-
-        pte = pte_offset_map(pmd, address);
-        /* Make a quick check before getting the lock */
-        if (!pte_present(*pte)) {
-                pte_unmap(pte);
-                return NULL;
-        }
-
-        ptl = pte_lockptr(mm, pmd);
-        spin_lock(ptl);
-        if (pte_present(*pte) && page_to_pfn(page) == pte_pfn(*pte)) {
-                *ptlp = ptl;
-                return pte;
-        }
-        pte_unmap_unlock(pte, ptl);
-
-The page_check_address() function is called from the
-page_mkclean_one() routine as follows:
-
-        pte = page_check_address(page, mm, address, &ptl);
-        if (!pte)
-                goto out;
-
-        if (pte_dirty(*pte) || pte_write(*pte)) {
-                pte_t entry;
-
-                flush_cache_page(vma, address, pte_pfn(*pte));
-                entry = ptep_clear_flush(vma, address, pte);
-                entry = pte_wrprotect(entry);
-                entry = pte_mkclean(entry);
-                set_pte_at(mm, address, pte, entry);
-                ret = 1;
-        }
-
-        pte_unmap_unlock(pte, ptl);
-
-The write-protection of the PTE is done using the pte_wrprotect()
-entity. I intended to do the same during msync() with MS_ASYNC. I
-understand that I'm taking a risk of looking a complete idiot now,
-however I don't see any difference between the two situations.
-
-I presumed that the code in mm/rmap.c was absolutely correct, that's
-why I basically reused the design.
-
->
-> > The POSIX standard requires the ctime and mtime stamps to be updated
-> > not later than at the second call to msync() with the MS_ASYNC flag.
->
-> .. and that is no excuse for bad code.
->
->                         Linus
->
+Index: linux-2.6/mm/page_alloc.c
+===================================================================
+--- linux-2.6.orig/mm/page_alloc.c	2008-01-18 14:08:41.000000000 -0800
++++ linux-2.6/mm/page_alloc.c	2008-01-18 14:13:34.000000000 -0800
+@@ -3812,7 +3812,6 @@ restart:
+ /* Any regular memory on that node ? */
+ static void check_for_regular_memory(pg_data_t *pgdat)
+ {
+-#ifdef CONFIG_HIGHMEM
+ 	enum zone_type zone_type;
+ 
+ 	for (zone_type = 0; zone_type <= ZONE_NORMAL; zone_type++) {
+@@ -3820,7 +3819,6 @@ static void check_for_regular_memory(pg_
+ 		if (zone->present_pages)
+ 			node_set_state(zone_to_nid(zone), N_NORMAL_MEMORY);
+ 	}
+-#endif
+ }
+ 
+ /**
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
