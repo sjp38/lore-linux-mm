@@ -1,97 +1,50 @@
-Message-Id: <20080118182954.589001000@sgi.com>
-References: <20080118182953.748071000@sgi.com>
-Date: Fri, 18 Jan 2008 10:29:59 -0800
+Message-Id: <20080118182953.748071000@sgi.com>
+Date: Fri, 18 Jan 2008 10:29:53 -0800
 From: travis@sgi.com
-Subject: [PATCH 6/7] s390: Use generic percpu
-Content-Disposition: inline; filename=s390_generic_percpu
+Subject: [PATCH 0/7] percpu: Per cpu code simplification fixup
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, schwidefsky@de.ibm.com
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Change s390 percpu.h to use asm-generic/percpu.h
+This patchset simplifies the code that arches need to maintain to support
+per cpu functionality. Most of the code is moved into arch independent
+code. Only a minimal set of definitions is kept for each arch.
 
-Cc: schwidefsky@de.ibm.com
+The patch also unifies the x86 arch so that there is only a single
+asm-x86/percpu.h
+
+Based on: 2.6.24-rc8-mm1
+
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: Mike Travis <travis@sgi.com>
 ---
 
+fixup:
+
+  - rebased from 2.6.24-rc6-mm1 to 2.6.24-rc8-mm1
+    (removed changes that are in the git-x86.patch)
+  - added back in missing fold-percpu_modcopy pieces
+
+V3->V4:
+  - rebased patchset on 2.6.24-rc6-mm1
+    (removes the percpu_modcopy changes that are already in.)
+  - change config ARCH_SETS_UP_PER_CPU_AREA to a global var
+    and use select HAVE_SETUP_PER_CPU_AREA to specify.
+
 V2->V3:
+  - fix x86_64 non-SMP case
+  - change SHIFT_PTR to SHIFT_PERCPU_PTR
+  - fix various percpu_modcopy()'s to reference correct per_cpu_offset()
+  - s390 has a special way to determine the pointer to a per cpu area
 
-On Thu, 29 Nov 2007, Martin Schwidefsky wrote:
-
-> On Wed, 2007-11-28 at 13:09 -0800, Christoph Lameter wrote:
-> > s390 has a special way to determine the pointer to a per cpu area
-> > plus there is a way to access the base of the per cpu area of the
-> > currently executing processor.
-> > 
-> > Note: I had to do a minor change to ASM code. Please check that
-> > this was done right.
-> 
-> Hi Christoph,
-> 
-> after fixing the trainwreck with Gregs kset changes I've got rc3-mm2
-> compiled with your percpu patches. The new s390 percpu code works fine:
-> 
-> Acked-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
-
----
- include/asm-s390/percpu.h |   33 +++++++++------------------------
- 1 file changed, 9 insertions(+), 24 deletions(-)
-
---- a/include/asm-s390/percpu.h
-+++ b/include/asm-s390/percpu.h
-@@ -13,40 +13,25 @@
-  */
- #if defined(__s390x__) && defined(MODULE)
- 
--#define __reloc_hide(var,offset) (*({			\
-+#define SHIFT_PERCPU_PTR(ptr,offset) (({			\
- 	extern int simple_identifier_##var(void);	\
- 	unsigned long *__ptr;				\
--	asm ( "larl %0,per_cpu__"#var"@GOTENT"		\
--	    : "=a" (__ptr) : "X" (per_cpu__##var) );	\
--	(typeof(&per_cpu__##var))((*__ptr) + (offset));	}))
-+	asm ( "larl %0, %1@GOTENT"		\
-+	    : "=a" (__ptr) : "X" (ptr) );		\
-+	(typeof(ptr))((*__ptr) + (offset));	}))
- 
- #else
- 
--#define __reloc_hide(var, offset) (*({				\
-+#define SHIFT_PERCPU_PTR(ptr, offset) (({				\
- 	extern int simple_identifier_##var(void);		\
- 	unsigned long __ptr;					\
--	asm ( "" : "=a" (__ptr) : "0" (&per_cpu__##var) );	\
--	(typeof(&per_cpu__##var)) (__ptr + (offset)); }))
-+	asm ( "" : "=a" (__ptr) : "0" (ptr) );			\
-+	(typeof(ptr)) (__ptr + (offset)); }))
- 
- #endif
- 
--#ifdef CONFIG_SMP
-+#define __my_cpu_offset S390_lowcore.percpu_offset
- 
--extern unsigned long __per_cpu_offset[NR_CPUS];
--
--#define __get_cpu_var(var) __reloc_hide(var,S390_lowcore.percpu_offset)
--#define __raw_get_cpu_var(var) __reloc_hide(var,S390_lowcore.percpu_offset)
--#define per_cpu(var,cpu) __reloc_hide(var,__per_cpu_offset[cpu])
--#define per_cpu_offset(x) (__per_cpu_offset[x])
--
--#else /* ! SMP */
--
--#define __get_cpu_var(var) __reloc_hide(var,0)
--#define __raw_get_cpu_var(var) __reloc_hide(var,0)
--#define per_cpu(var,cpu) __reloc_hide(var,0)
--
--#endif /* SMP */
--
--#define DECLARE_PER_CPU(type, name) extern __typeof__(type) per_cpu__##name
-+#include <asm-generic/percpu.h>
- 
- #endif /* __ARCH_S390_PERCPU__ */
+V1->V2:
+- Add support for specifying attributes for per cpu declarations (preserves
+  IA64 model(small) attribute).
+  - Drop first patch that removes the model(small) attribute for IA64
+  - Missing #endif in powerpc generic config /  Wrong Kconfig
+  - Follow Randy's suggestions on how to do the Kconfig settings
 
 -- 
 
