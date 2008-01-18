@@ -1,43 +1,29 @@
-From: Ingo Oeser <ioe-lkml@rameria.de>
+Date: Fri, 18 Jan 2008 12:10:00 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH 4/5] x86: Add config variables for SMP_MAX
-Date: Fri, 18 Jan 2008 21:04:21 +0100
+In-Reply-To: <200801182104.22486.ioe-lkml@rameria.de>
+Message-ID: <Pine.LNX.4.64.0801181208520.31319@schroedinger.engr.sgi.com>
 References: <20080118183011.354965000@sgi.com> <20080118183011.917801000@sgi.com>
-In-Reply-To: <20080118183011.917801000@sgi.com>
+ <200801182104.22486.ioe-lkml@rameria.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200801182104.22486.ioe-lkml@rameria.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: travis@sgi.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Oeser <ioe-lkml@rameria.de>
+Cc: travis@sgi.com, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Mike,
+On Fri, 18 Jan 2008, Ingo Oeser wrote:
 
-On Friday 18 January 2008, travis@sgi.com wrote:
-> +config THREAD_ORDER
-> +	int "Kernel stack size (in page order)"
-> +	range 1 3
-> +	depends on X86_64_SMP
-> +	default "3" if X86_SMP_MAX
-> +	default "1"
-> +	help
-> +	  Increases kernel stack size.
-> +
+> Hi Mike,
+> 
+> On Friday 18 January 2008, travis@sgi.com wrote:
+> > +config THREAD_ORDER
+> > +	int "Kernel stack size (in page order)"
+> > +	range 1 3
 
-Could you please elaborate, why this is needed and put more info about
-this requirement into this patch description?
-
-People worked hard to push data allocation from stack to heap to make 
-THREAD_ORDER of 0 and 1 possible. So why increase it again and why does this
-help scalability?
-
-Many thanks and Best Regards
-
-Ingo Oeser, puzzled a bit :-)
+THREAD_ORDER can also be used to consolidate the stack size with the 
+choices available for i386. In that cases the choices are 0 and 1.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
