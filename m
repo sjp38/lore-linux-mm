@@ -1,66 +1,29 @@
-Date: Fri, 18 Jan 2008 11:35:51 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH -v6 2/2] Updating ctime and mtime for memory-mapped
- files
-In-Reply-To: <E1JFwnQ-0001FB-2c@pomaz-ex.szeredi.hu>
-Message-ID: <alpine.LFD.1.00.0801181127000.2957@woody.linux-foundation.org>
-References: <12006091182260-git-send-email-salikhmetov@gmail.com>  <12006091211208-git-send-email-salikhmetov@gmail.com>  <E1JFnsg-0008UU-LU@pomaz-ex.szeredi.hu>  <1200651337.5920.9.camel@twins> <1200651958.5920.12.camel@twins>
- <alpine.LFD.1.00.0801180949040.2957@woody.linux-foundation.org> <E1JFvgx-0000zz-2C@pomaz-ex.szeredi.hu> <alpine.LFD.1.00.0801181033580.2957@woody.linux-foundation.org> <E1JFwOz-00019k-Uo@pomaz-ex.szeredi.hu> <alpine.LFD.1.00.0801181106340.2957@woody.linux-foundation.org>
- <E1JFwnQ-0001FB-2c@pomaz-ex.szeredi.hu>
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [PATCH 1/7] Modules: Fold percpu_modcopy into module.c
+Date: Sat, 19 Jan 2008 06:46:25 +1100
+References: <20080118182953.748071000@sgi.com> <20080118182953.922370000@sgi.com>
+In-Reply-To: <20080118182953.922370000@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200801190646.25817.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: peterz@infradead.org, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: travis@sgi.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+On Saturday 19 January 2008 05:29:54 travis@sgi.com wrote:
+> percpu_modcopy() is defined multiple times in arch files. However, the only
+> user is module.c. Put a static definition into module.c and remove
+> the definitions from the arch files.
 
-On Fri, 18 Jan 2008, Miklos Szeredi wrote:
-> 
-> What I'm saying is that the times could be left un-updated for a long
-> time if program doesn't do munmap() or msync(MS_SYNC) for a long time.
+Acked-by: Rusty Russell <rusty@rustcorp.com.au>
 
-Sure.
-
-But in those circumstances, the programmer cannot depend on the mtime 
-*anyway* (because there is no synchronization), so what's the downside?
-
-Let's face it, there's exactly three possible solutions:
-
- - the insane one: trap EVERY SINGLE instruction that does a write to the 
-   page, and update mtime each and every time.
-
-   This one is so obviously STUPID that it's not even worth discussing 
-   further, except to say that "yes, there is an 'exact' algorithm, but 
-   no, we are never EVER going to use it".
-
- - the non-exact solutions that don't give you mtime updates every time 
-   a write to the page happens, but give *some* guarantees for things that 
-   will update it.
-
-   This is the one I think we can do, and the only things a programmer can 
-   impact using it is "msync()" and "munmap()", since no other operations 
-   really have any thing to do with it in a programmer-visible way (ie a 
-   normal "sync" operation may happen in the background and has no 
-   progam-relevant timing information)
-
-   Other things *may* or may not update mtime (some filesystems - take
-   most networked one as an example - will *always* update mtime on the 
-   server on writeback, so we cannot ever guarantee that nothing but 
-   msync/munmap does so), but at least we'll have a minimum set of things 
-   that people can depend on.
-
- - the "we don't care at all solutions".
-
-   mmap(MAP_WRITE) doesn't really update times reliably after the write 
-   has happened (but might do it *before* - maybe the mmap() itself does).
-
-Those are the three choices, I think. We currently approximate #3. We 
-*can* do #2 (and there are various flavors of it). And even *aiming* for 
-#1 is totally insane and stupid.
-
-			Linus
+Thanks!
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
