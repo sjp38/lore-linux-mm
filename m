@@ -1,32 +1,42 @@
-Date: Fri, 18 Jan 2008 10:42:38 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: crash in kmem_cache_init
-In-Reply-To: <20080118065621.GA27495@aepfle.de>
-Message-ID: <Pine.LNX.4.64.0801181042060.30348@schroedinger.engr.sgi.com>
-References: <20080115150949.GA14089@aepfle.de>
- <84144f020801170414q7d408a74uf47a84b777c36a4a@mail.gmail.com>
- <Pine.LNX.4.64.0801170628580.19208@schroedinger.engr.sgi.com>
- <20080117181222.GA24411@aepfle.de> <Pine.LNX.4.64.0801171049190.21058@schroedinger.engr.sgi.com>
- <20080117211511.GA25320@aepfle.de> <20080118065621.GA27495@aepfle.de>
+Date: Fri, 18 Jan 2008 10:43:35 -0800 (PST)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [PATCH -v6 2/2] Updating ctime and mtime for memory-mapped
+ files
+In-Reply-To: <E1JFvgx-0000zz-2C@pomaz-ex.szeredi.hu>
+Message-ID: <alpine.LFD.1.00.0801181033580.2957@woody.linux-foundation.org>
+References: <12006091182260-git-send-email-salikhmetov@gmail.com>  <12006091211208-git-send-email-salikhmetov@gmail.com>  <E1JFnsg-0008UU-LU@pomaz-ex.szeredi.hu>  <1200651337.5920.9.camel@twins> <1200651958.5920.12.camel@twins>
+ <alpine.LFD.1.00.0801180949040.2957@woody.linux-foundation.org> <E1JFvgx-0000zz-2C@pomaz-ex.szeredi.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Olaf Hering <olaf@aepfle.de>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Linux MM <linux-mm@kvack.org>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: peterz@infradead.org, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 Jan 2008, Olaf Hering wrote:
 
-> calls cache_grow with nodeid 0
-> > [c00000000075bbd0] [c0000000000f82d0] .cache_alloc_refill+0x234/0x2c0
-> calls cache_grow with nodeid 0
-> > [c00000000075bbe0] [c0000000000f7f38] .____cache_alloc_node+0x17c/0x1e8
+On Fri, 18 Jan 2008, Miklos Szeredi wrote:
 > 
-> calls cache_grow with nodeid 1
-> > [c00000000075bbe0] [c0000000000f7d68] .fallback_alloc+0x1a0/0x1f4
+> That would need a new page flag (PG_mmap_dirty?).  Do we have one
+> available?
 
-Hmmm... fallback_alloc should not be called during bootstrap.
+Yeah, that would be bad. We probably have flags free, but those page flags 
+are always a pain. Scratch that.
+
+How about just setting a per-vma dirty flag, and then instead of updating 
+the mtime when taking the dirty-page fault, we just set that flag?
+
+Then, on unmap and msync, we just do
+
+	if (vma->dirty-flag) {
+		vma->dirty_flag = 0;
+		update_file_times(vma->vm_file);
+	}
+
+and be done with it? 
+		
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
