@@ -1,151 +1,95 @@
-Date: Fri, 18 Jan 2008 14:47:22 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [RFC] Document about lowmem_reserve_ratio
-In-Reply-To: <20080118142244.04EF.Y-GOTO@jp.fujitsu.com>
-References: <20080118142244.04EF.Y-GOTO@jp.fujitsu.com>
-Message-Id: <20080118144308.04F1.Y-GOTO@jp.fujitsu.com>
+Date: Fri, 18 Jan 2008 15:34:33 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [RFC][PATCH] a bit improvement of ZONE_DMA page reclaim 
+Message-Id: <20080118151822.8FAE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <andrea@cpushare.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <marcelo@kvack.org>, Rik van Riel <riel@redhat.com>, Daniel Spang <daniel.spang@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Oops. I sent to Andrea's old mail address.
-Sorry for repost.
+Hi
+
+on X86, ZONE_DMA is very very small.
+It is often no used at all. 
+
+Unfortunately, 
+when NR_ACTIVE==0, NR_INACTIVE==0, shrink_zone() try to reclaim 1 page.
+because
+
+    zone->nr_scan_active +=
+        (zone_page_state(zone, NR_ACTIVE) >> priority) + 1;
+                                                        ^^^^^
+
+it cause unnecessary spent cpu time.
+
+In addition, to a bad thing
+when NR_ACTIVE==0 and NR_INACTIVE==0, zone_is_near_oom always true.
+bacause 0 >= 0+0 is true.
+
+the effect of this strange behavior is very small.
+but it confuse to the VM newbie developer (= me) ;-)
 
 
+
+this patch against: 2.6.24-rc6-mm1
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
+ mm/vmscan.c |   21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)
 
-Hello.
-
-I found the documentation about lowmem_reserve_ratio is not written, and
-the lower_zone_protection's description remains yet. I fixed it.
-
-I may be something wrong due to misunderstanding. And probably, sentence
-is not natural. (I'm not native English speaker.)
-
-So, please review it.
-
-Thanks.
-
----
-
-Though the lower_zone_protection was changed to lowmem_reserve_ratio,
-the document has been not changed.
-The lowmem_reserve_ratio seems quite hard to estimate, but there is
-no guidance. This patch is to change document for it.
-
-Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-
----
- Documentation/filesystems/proc.txt |   76 +++++++++++++++++++++++++++++--------
- 1 file changed, 61 insertions(+), 15 deletions(-)
-
-Index: current/Documentation/filesystems/proc.txt
+Index: b/mm/vmscan.c
 ===================================================================
---- current.orig/Documentation/filesystems/proc.txt	2008-01-17 20:01:37.000000000 +0900
-+++ current/Documentation/filesystems/proc.txt	2008-01-18 12:22:10.000000000 +0900
-@@ -1311,7 +1311,7 @@
- If non-zero, this sysctl disables the new 32-bit mmap mmap layout - the kernel
- will use the legacy (2.4) layout for all processes.
- 
--lower_zone_protection
-+lowmem_reserve_ratio
- ---------------------
- 
- For some specialised workloads on highmem machines it is dangerous for
-@@ -1331,25 +1331,71 @@
- mechanism will also defend that region from allocations which could use
- highmem or lowmem).
- 
--The `lower_zone_protection' tunable determines how aggressive the kernel is
--in defending these lower zones.  The default value is zero - no
--protection at all.
-+The `lowmem_reserve_ratio' tunable determines how aggressive the kernel is
-+in defending these lower zones.
- 
- If you have a machine which uses highmem or ISA DMA and your
- applications are using mlock(), or if you are running with no swap then
--you probably should increase the lower_zone_protection setting.
-+you probably should change the lowmem_reserve_ratio setting.
- 
--The units of this tunable are fairly vague.  It is approximately equal
--to "megabytes," so setting lower_zone_protection=100 will protect around 100
--megabytes of the lowmem zone from user allocations.  It will also make
--those 100 megabytes unavailable for use by applications and by
--pagecache, so there is a cost.
--
--The effects of this tunable may be observed by monitoring
--/proc/meminfo:LowFree.  Write a single huge file and observe the point
--at which LowFree ceases to fall.
-+The lowmem_reserve_ratio is an array. You can see them by reading this file.
-+-
-+% cat /proc/sys/vm/lowmem_reserve_ratio
-+256     256     32
-+-
-+Note: # of this elements is one fewer than number of zones. Because the highest
-+      zone's value is not necessary for following calculation.
-+
-+But, these values are not used directly. The kernel calculates # of protection
-+pages for each zones from them. These are shown as array of protection pages
-+in /proc/zoneinfo like followings. (This is an example of x86-64 box).
-+Each zone has an array of protection pages like this.
-+
-+-
-+Node 0, zone      DMA
-+  pages free     1355
-+        min      3
-+        low      3
-+        high     4
-+	:
-+	:
-+    numa_other   0
-+        protection: (0, 2004, 2004, 2004)
-+	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-+  pagesets
-+    cpu: 0 pcp: 0
-+        :
-+-
-+These protections are added to score to judge whether this zone should be used
-+for page allocation or should be reclaimed.
-+
-+In this example, if normal pages (index=2) are required to this DMA zone and
-+pages_high is used for watermark, the kernel judges this zone should not be
-+used because pages_free(1355) is smaller than watermark + protection[2]
-+(4 + 2004 = 2008). If this protection value is 0, this zone would be used for
-+normal page requirement. If requirement is DMA zone(index=0), protection[0]
-+(=0) is used.
-+
-+zone[i]'s protection[j] is calculated by following exprssion.
-+
-+(i < j):
-+  zone[i]->protection[j]
-+  = (total sums of present_pages from zone[i+1] to zone[j] on the node)
-+    / lowmem_reserve_ratio[i];
-+(i = j):
-+   (should not be protected. = 0;
-+(i > j):
-+   (not necessary, but looks 0)
-+
-+The default values of lowmem_reserve_ratio[i] are
-+    256 (if zone[i] means DMA or DMA32 zone)
-+    32  (others).
-+As above expression, they are reciprocal number of ratio.
-+256 means 1/256. # of protection pages becomes about "0.39%" of total present
-+pages of higher zones on the node.
- 
--A reasonable value for lower_zone_protection is 100.
-+If you would like to protect more pages, smaller values are effective.
-+The minimum value is 1 (1/1 -> 100%).
- 
- page-cluster
- ------------
+--- a/mm/vmscan.c       2008-01-18 14:18:27.000000000 +0900
++++ b/mm/vmscan.c       2008-01-18 14:49:06.000000000 +0900
+@@ -948,7 +948,7 @@ static inline void note_zone_scanning_pr
 
--- 
-Yasunori Goto 
+ static inline int zone_is_near_oom(struct zone *zone)
+ {
+-       return zone->pages_scanned >= (zone_page_state(zone, NR_ACTIVE)
++       return zone->pages_scanned > (zone_page_state(zone, NR_ACTIVE)
+                                + zone_page_state(zone, NR_INACTIVE))*3;
+ }
+
+@@ -1214,18 +1214,29 @@ static unsigned long shrink_zone(int pri
+        unsigned long nr_inactive;
+        unsigned long nr_to_scan;
+        unsigned long nr_reclaimed = 0;
++       unsigned long tmp;
++       unsigned long zone_active;
++       unsigned long zone_inactive;
+
+        if (scan_global_lru(sc)) {
+                /*
+                 * Add one to nr_to_scan just to make sure that the kernel
+                 * will slowly sift through the active list.
+                 */
+-               zone->nr_scan_active +=
+-                       (zone_page_state(zone, NR_ACTIVE) >> priority) + 1;
++               zone_active = zone_page_state(zone, NR_ACTIVE);
++               tmp = (zone_active >> priority) + 1;
++               if (unlikely(tmp > zone_active))
++                       tmp = zone_active;
++               zone->nr_scan_active += tmp;
+                nr_active = zone->nr_scan_active;
+-               zone->nr_scan_inactive +=
+-                       (zone_page_state(zone, NR_INACTIVE) >> priority) + 1;
++
++               zone_inactive = zone_page_state(zone, NR_INACTIVE);
++               tmp = (zone_inactive >> priority) + 1;
++               if (unlikely(tmp > zone_inactive))
++                       tmp = zone_inactive;
++               zone->nr_scan_inactive += tmp;
+                nr_inactive = zone->nr_scan_inactive;
++
+                if (nr_inactive >= sc->swap_cluster_max)
+                        zone->nr_scan_inactive = 0;
+                else
+
 
 
 --
