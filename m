@@ -1,77 +1,73 @@
-Date: Fri, 18 Jan 2008 15:03:03 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [patch 2/6] mm: introduce pte_special pte bit
-In-Reply-To: <20080118224622.GA11563@wotan.suse.de>
-Message-ID: <alpine.LFD.1.00.0801181448280.2957@woody.linux-foundation.org>
-References: <20080118045649.334391000@suse.de> <20080118045755.516986000@suse.de> <alpine.LFD.1.00.0801180816120.2957@woody.linux-foundation.org> <20080118224622.GA11563@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH -v6 2/2] Updating ctime and mtime for memory-mapped
+	files
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <20080118175450.715ded60@bree.surriel.com>
+References: <12006091182260-git-send-email-salikhmetov@gmail.com>
+	 <E1JFwnQ-0001FB-2c@pomaz-ex.szeredi.hu>
+	 <alpine.LFD.1.00.0801181127000.2957@woody.linux-foundation.org>
+	 <200801182332.02945.ioe-lkml@rameria.de>
+	 <alpine.LFD.1.00.0801181439330.2957@woody.linux-foundation.org>
+	 <20080118175450.715ded60@bree.surriel.com>
+Content-Type: text/plain
+Date: Fri, 18 Jan 2008 18:50:03 -0600
+Message-Id: <1200703803.25782.45.camel@cinder.waste.org>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Jared Hulbert <jaredeh@gmail.com>, Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Oeser <ioe-lkml@rameria.de>, Miklos Szeredi <miklos@szeredi.hu>, peterz@infradead.org, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Fri, 18 Jan 2008, Nick Piggin wrote:
+On Fri, 2008-01-18 at 17:54 -0500, Rik van Riel wrote:
+> On Fri, 18 Jan 2008 14:47:33 -0800 (PST)
+> Linus Torvalds <torvalds@linux-foundation.org> wrote:
 > 
-> I thought in your last mail on the subject, that you had conceded the
-> vma-based scheme should stay, so I might have misunderstood that to mean
-> you would, reluctantly, go with the scheme. I guess I need to try a bit
-> harder ;)
+> >  - keep it simple. Let's face it, Linux has never ever given those 
+> >    guarantees before, and it's not is if anybody has really cared. Even 
+> >    now, the issue seems to be more about paper standards conformance than 
+> >    anything else.
+> 
+> There is one issue which is way more than just standards conformance.
+> 
+> When a program changes file data through mmap(), at some point the
+> mtime needs to be update so that backup programs know to back up the
+> new version of the file.
+> 
+> Backup programs not seeing an updated mtime is a really big deal.
 
-Yes, I did concede that apparently we cannot just mandate "let's just use 
-a bit in the pte".
+And that's fixed with the 4-line approach.
 
-So I do agree that we seem to be forced to have two different 
-implementations: one for architectures where we can make use of a marker 
-on the PTE itself (or perhaps some *other* way to distinguish things 
-automatically), and one for the ones where we need to just be able 
-to distinguish purely based on our own data structures.
+Reminds me, I've got a patch here for addressing that problem with loop mounts:
 
-I just then didn't like the lack of abstraction.
+Writes to loop should update the mtime of the underlying file.
 
-> How about taking a different approach. How about also having a pte_normal()
-> function.
+Signed-off-by: Matt Mackall <mpm@selenic.com>
 
-Well, one reason I'd prefer not to, is that I can well imagine an 
-architecture that doesn't actually put the "normal" bit in the PTE itself, 
-but in a separate data structure.
+Index: l/drivers/block/loop.c
+===================================================================
+--- l.orig/drivers/block/loop.c	2007-11-05 17:50:07.000000000 -0600
++++ l/drivers/block/loop.c	2007-11-05 19:03:51.000000000 -0600
+@@ -221,6 +221,7 @@ static int do_lo_send_aops(struct loop_d
+ 	offset = pos & ((pgoff_t)PAGE_CACHE_SIZE - 1);
+ 	bv_offs = bvec->bv_offset;
+ 	len = bvec->bv_len;
++	file_update_time(file);
+ 	while (len > 0) {
+ 		sector_t IV;
+ 		unsigned size;
+@@ -299,6 +300,7 @@ static int __do_lo_send_write(struct fil
+ 
+ 	set_fs(get_ds());
+ 	bw = file->f_op->write(file, buf, len, &pos);
++	file_update_time(file);
+ 	set_fs(old_fs);
+ 	if (likely(bw == len))
+ 		return 0;
 
-In particular, let's say that you decide that
 
- - the architecture really doesn't have any space in the hw page tables
- - but for various reasons you *really* don't want to use the tricky 
-   "page->offset" logic etc
- - ..and you realize that PFNMAP and FIXMAP are actually very rare
-
-so..
-
- - you just associate each PFNMAP/FIXMAP vma with a simple bitmap that 
-   contains the "special" bit.
-
-It's actually not that hard to do. If you have an architecture-specific 
-interface like
-
-	struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_t pte);
-
-then it wouldn't be too hard at all to create a hash lookup on the VMA (or 
-perhaps on a "vma, 256-page-aligned(addr)" tuple) to look up a bitmap, and 
-then use the address to see if it was marked special or not.
-
-But yes, then you'd also need to have that extended
-
-	set_special_pte_at(vma, addr, pfn, prot);
-
-interface to set that bit in that bitmap.
-
-See? 
-
-Is it better than what we already have for the generic case? Possibly not. 
-But I like abstractions that aren't tied to *one* particular 
-implementation.
-
-			Linus
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
