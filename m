@@ -1,77 +1,112 @@
-Date: Sat, 19 Jan 2008 13:50:24 +1100
-From: David Chinner <dgc@sgi.com>
-Subject: Re: [patch] Converting writeback linked lists to a tree based data structure
-Message-ID: <20080119025024.GW155259@sgi.com>
-References: <20080115080921.70E3810653@localhost> <400562938.07583@ustc.edu.cn> <532480950801171307q4b540ewa3acb6bfbea5dbc8@mail.gmail.com> <20080118050107.GS155259@sgi.com> <E1JFjyv-0001hU-FA@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: by rv-out-0910.google.com with SMTP id l15so917994rvb.26
+        for <linux-mm@kvack.org>; Fri, 18 Jan 2008 20:03:54 -0800 (PST)
+Message-ID: <86802c440801182003vd94044ex7fb13e61e5f79c81@mail.gmail.com>
+Date: Fri, 18 Jan 2008 20:03:54 -0800
+From: "Yinghai Lu" <yhlu.kernel@gmail.com>
+Subject: Re: [PATCH 1/5] x86: Change size of node ids from u8 to u16 fixup
+In-Reply-To: <20080118183011.527888000@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <E1JFjyv-0001hU-FA@localhost.localdomain>
+References: <20080118183011.354965000@sgi.com>
+	 <20080118183011.527888000@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Fengguang Wu <wfg@mail.ustc.edu.cn>
-Cc: David Chinner <dgc@sgi.com>, Michael Rubin <mrubin@google.com>, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: travis@sgi.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Eric Dumazet <dada1@cosmosbay.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 18, 2008 at 01:41:33PM +0800, Fengguang Wu wrote:
-> > That is, think of large file writes like process scheduler batch
-> > jobs - bulk throughput is what matters, so the larger the time slice
-> > you give them the higher the throughput.
-> > 
-> > IMO, the sort of result we should be looking at is a
-> > writeback design that results in cycling somewhat like:
-> > 
-> > 	slice 1: iterate over small files
-> > 	slice 2: flush large file 1
-> > 	slice 3: iterate over small files
-> > 	slice 4: flush large file 2
-> > 	......
-> > 	slice n-1: flush large file N
-> > 	slice n: iterate over small files
-> > 	slice n+1: flush large file N+1
-> > 
-> > So that we keep the disk busy with a relatively fair mix of
-> > small and large I/Os while both are necessary.
-> 
-> If we can sync fast enough, the lower layer would be able to merge
-> those 4MB requests.
+On Jan 18, 2008 10:30 AM,  <travis@sgi.com> wrote:
+> Change the size of node ids for X86_64 from 8 bits to 16 bits
+> to accomodate more than 256 nodes.
+>
+> Introduce a "numanode_t" type for x86-generic usage.
+>
+> Cc: Eric Dumazet <dada1@cosmosbay.com>
+> Signed-off-by: Mike Travis <travis@sgi.com>
+> Reviewed-by: Christoph Lameter <clameter@sgi.com>
+> ---
+> Fixup:
+>
+> Size of memnode.embedded_map needs to be changed to
+> accomodate 16-bit node ids as suggested by Eric.
+>
+> V2->V3:
+>     - changed memnode.embedded_map from [64-16] to [64-8]
+>       (and size comment to 128 bytes)
+>
+> V1->V2:
+>     - changed pxm_to_node_map to u16
+>     - changed memnode map entries to u16
+> ---
+>  arch/x86/mm/numa_64.c       |    2 +-
+>  drivers/acpi/numa.c         |    2 +-
+>  include/asm-x86/mmzone_64.h |    6 +++---
+>  include/linux/numa.h        |    6 ++++++
+>  4 files changed, 11 insertions(+), 5 deletions(-)
+>
+> --- a/arch/x86/mm/numa_64.c
+> +++ b/arch/x86/mm/numa_64.c
+> @@ -88,7 +88,7 @@ static int __init allocate_cachealigned_
+>         unsigned long pad, pad_addr;
+>
+>         memnodemap = memnode.embedded_map;
+> -       if (memnodemapsize <= 48)
+> +       if (memnodemapsize <= ARRAY_SIZE(memnode.embedded_map))
+>                 return 0;
+>
+>         pad = L1_CACHE_BYTES - 1;
+> --- a/drivers/acpi/numa.c
+> +++ b/drivers/acpi/numa.c
+> @@ -38,7 +38,7 @@ ACPI_MODULE_NAME("numa");
+>  static nodemask_t nodes_found_map = NODE_MASK_NONE;
+>
+>  /* maps to convert between proximity domain and logical node ID */
+> -static int pxm_to_node_map[MAX_PXM_DOMAINS]
+> +static numanode_t pxm_to_node_map[MAX_PXM_DOMAINS]
+>                                 = { [0 ... MAX_PXM_DOMAINS - 1] = NID_INVAL };
+>  static int node_to_pxm_map[MAX_NUMNODES]
+>                                 = { [0 ... MAX_NUMNODES - 1] = PXM_INVAL };
+...>
+>  #define MAX_NUMNODES    (1 << NODES_SHIFT)
+>
+> +#if MAX_NUMNODES > 256
+> +typedef u16 numanode_t;
+> +#else
+> +typedef u8 numanode_t;
+> +#endif
+> +
+>  #endif /* _LINUX_NUMA_H */
 
-No, not necessarily - think of a stripe with a chunk size of 512k.
-That 4MB will be split into 8x512k chunks and sent to different
-devices (and hence elevator queues). The only way you get elevator
-merging in this sort of config is that if you send multiple stripe
-*width* sized amounts to the device in a very short time period.
-I see quite a few filesystems with stripe widths in the tens of MB
-range.....
+that is wrong, you can not change pxm_to_node_map from int to u8 or u16.
 
-> > Put simply:
-> > 
-> > 	The higher the bandwidth of the device, the more frequently
-> > 	we need to be servicing the inodes with large amounts of
-> > 	dirty data to be written to maintain write throughput at a
-> > 	significant percentage of the device capability.
-> > 
-> > The writeback algorithm needs to take this into account for it
-> > to be able to scale effectively for high throughput devices.
-> 
-> Slow queues go full first. Currently the writeback code will skip
-> _and_ congestion_wait() for congested filesystems. The better policy
-> is to congestion_wait() _after_ all other writable pages have been
-> synced.
+int acpi_map_pxm_to_node(int pxm)
+{
+        int node = pxm_to_node_map[pxm];
 
-Agreed.
+        if (node < 0){
+                if (nodes_weight(nodes_found_map) >= MAX_NUMNODES)
+                        return NID_INVAL;
+                node = first_unset_node(nodes_found_map);
+                __acpi_map_pxm_to_node(pxm, node);
+                node_set(node, nodes_found_map);
+        }
 
-The comments I've made are mainly concerned with getting efficient
-flushing of a single device occuring. Interactions between multiple
-devices are a separable issue....
+        return node;
+}
 
-Cheers,
+node will will be always 255 or 65535
 
-Dave.
--- 
-Dave Chinner
-Principal Engineer
-SGI Australian Software Group
+please keep that to int.
+
+I got
+SART: PXM 0 -> APIC 0 -> Node 255
+SART: PXM 0 -> APIC 1 -> Node 255
+SART: PXM 1 -> APIC 2 -> Node 255
+SART: PXM 1 -> APIC 3 -> Node 255
+
+YH
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
