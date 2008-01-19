@@ -1,53 +1,73 @@
-In-reply-to: <1200703803.25782.45.camel@cinder.waste.org> (message from Matt
-	Mackall on Fri, 18 Jan 2008 18:50:03 -0600)
-Subject: Re: [PATCH -v6 2/2] Updating ctime and mtime for memory-mapped
-	files
+In-reply-to: <4df4ef0c0801181148y8d446c7ifb23677dbf4ea0c9@mail.gmail.com>
+	(salikhmetov@gmail.com)
+Subject: Re: [PATCH -v6 0/2] Fixing the issue with memory-mapped file times
 References: <12006091182260-git-send-email-salikhmetov@gmail.com>
-	 <E1JFwnQ-0001FB-2c@pomaz-ex.szeredi.hu>
-	 <alpine.LFD.1.00.0801181127000.2957@woody.linux-foundation.org>
-	 <200801182332.02945.ioe-lkml@rameria.de>
-	 <alpine.LFD.1.00.0801181439330.2957@woody.linux-foundation.org>
-	 <20080118175450.715ded60@bree.surriel.com> <1200703803.25782.45.camel@cinder.waste.org>
-Message-Id: <E1JGAqW-0002Ia-UD@pomaz-ex.szeredi.hu>
+	 <E1JFnho-0008TH-5G@pomaz-ex.szeredi.hu> <4df4ef0c0801181148y8d446c7ifb23677dbf4ea0c9@mail.gmail.com>
+Message-Id: <E1JGBCh-0002Li-Ug@pomaz-ex.szeredi.hu>
 From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Sat, 19 Jan 2008 11:22:40 +0100
+Date: Sat, 19 Jan 2008 11:45:35 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mpm@selenic.com
-Cc: riel@redhat.com, torvalds@linux-foundation.org, ioe-lkml@rameria.de, miklos@szeredi.hu, peterz@infradead.org, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: salikhmetov@gmail.com
+Cc: miklos@szeredi.hu, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-> Reminds me, I've got a patch here for addressing that problem with loop mounts:
+> 2008/1/18, Miklos Szeredi <miklos@szeredi.hu>:
+> > > 4. Performance test was done using the program available from the
+> > > following link:
+> > >
+> > > http://bugzilla.kernel.org/attachment.cgi?id=14493
+> > >
+> > > Result: the impact of the changes was negligible for files of a few
+> > > hundred megabytes.
+> >
+> > Could you also test with ext4 and post some numbers?  Afaik, ext4 uses
+> > nanosecond timestamps, so the time updating code would be exercised
+> > more during the page faults.
+> >
+> > What about performance impact on msync(MS_ASYNC)?  Could you please do
+> > some measurment of that as well?
 > 
-> Writes to loop should update the mtime of the underlying file.
-> 
-> Signed-off-by: Matt Mackall <mpm@selenic.com>
-> 
-> Index: l/drivers/block/loop.c
-> ===================================================================
-> --- l.orig/drivers/block/loop.c	2007-11-05 17:50:07.000000000 -0600
-> +++ l/drivers/block/loop.c	2007-11-05 19:03:51.000000000 -0600
-> @@ -221,6 +221,7 @@ static int do_lo_send_aops(struct loop_d
->  	offset = pos & ((pgoff_t)PAGE_CACHE_SIZE - 1);
->  	bv_offs = bvec->bv_offset;
->  	len = bvec->bv_len;
-> +	file_update_time(file);
->  	while (len > 0) {
->  		sector_t IV;
->  		unsigned size;
-> @@ -299,6 +300,7 @@ static int __do_lo_send_write(struct fil
->  
->  	set_fs(get_ds());
->  	bw = file->f_op->write(file, buf, len, &pos);
-> +	file_update_time(file);
+> Did a quick test on an ext4 partition. This is how it looks like:
 
-->write should have already updated the times, no?
+Thanks for running these tests.
 
->  	set_fs(old_fs);
->  	if (likely(bw == len))
->  		return 0;
+I was more interested in the slowdown on ext4 (checked with the above
+mentioned program).  Can you do such a test as well, and post
+resulting times with and without the patch?
+
+> Table 1. Reference platforms.
 > 
+> ------------------------------------------------------------
+> |             | HP-UX/PA-RISC | HP-UX/Itanium | FreeBSD    |
+> ------------------------------------------------------------
+> | First run   | 263405 usec   | 202283 usec   | 90 SECONDS |
+> ------------------------------------------------------------
+> | Second run  | 262253 usec   | 172837 usec   | 90 SECONDS |
+> ------------------------------------------------------------
+> | Third run   | 238465 usec   | 238465 usec   | 90 SECONDS |
+> ------------------------------------------------------------
 > 
+> It looks like FreeBSD is a clear outsider here. Note that FreeBSD
+> showed an almost liner depencence of the time spent in the
+> msync(MS_ASYNC) call on the file size.
+> 
+> Table 2. The Qemu system. File size is 512M.
+> 
+> ---------------------------------------------------
+> |            | Before the patch | After the patch |
+> ---------------------------------------------------
+> | First run  |     35 usec      |   5852 usec     |
+> ---------------------------------------------------
+> | Second run |     35 usec      |   4444 usec     |
+> ---------------------------------------------------
+> | Third run  |     35 usec      |   6330 usec     |
+> ---------------------------------------------------
+
+Interesting.
+
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
