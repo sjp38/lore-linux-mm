@@ -1,34 +1,91 @@
-Date: Fri, 18 Jan 2008 20:56:02 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: crash in kmem_cache_init
-In-Reply-To: <20080117202024.GA25090@aepfle.de>
-Message-ID: <Pine.LNX.4.64.0801182048090.12079@schroedinger.engr.sgi.com>
-References: <20080115150949.GA14089@aepfle.de>
- <84144f020801170414q7d408a74uf47a84b777c36a4a@mail.gmail.com>
- <Pine.LNX.4.64.0801170628580.19208@schroedinger.engr.sgi.com>
- <20080117181222.GA24411@aepfle.de> <Pine.LNX.4.64.0801171049190.21058@schroedinger.engr.sgi.com>
- <20080117195456.GA24901@aepfle.de> <20080117202024.GA25090@aepfle.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sat, 19 Jan 2008 06:07:55 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 2/6] mm: introduce pte_special pte bit
+Message-ID: <20080119050755.GA19722@wotan.suse.de>
+References: <20080118045649.334391000@suse.de> <20080118045755.516986000@suse.de> <alpine.LFD.1.00.0801180816120.2957@woody.linux-foundation.org> <20080118224622.GA11563@wotan.suse.de> <alpine.LFD.1.00.0801181448280.2957@woody.linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.1.00.0801181448280.2957@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Olaf Hering <olaf@aepfle.de>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Linux MM <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Jared Hulbert <jaredeh@gmail.com>, Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 17 Jan 2008, Olaf Hering wrote:
-
-> On Thu, Jan 17, Olaf Hering wrote:
+On Fri, Jan 18, 2008 at 03:03:03PM -0800, Linus Torvalds wrote:
 > 
-> > Since -mm boots further, what patch should I try?
 > 
-> rc8-mm1 crashes as well, l3 passed to reap_alien() is NULL.
+> On Fri, 18 Jan 2008, Nick Piggin wrote:
+> > 
+> > I thought in your last mail on the subject, that you had conceded the
+> > vma-based scheme should stay, so I might have misunderstood that to mean
+> > you would, reluctantly, go with the scheme. I guess I need to try a bit
+> > harder ;)
+> 
+> Yes, I did concede that apparently we cannot just mandate "let's just use 
+> a bit in the pte".
+> 
+> So I do agree that we seem to be forced to have two different 
+> implementations: one for architectures where we can make use of a marker 
+> on the PTE itself (or perhaps some *other* way to distinguish things 
+> automatically), and one for the ones where we need to just be able 
+> to distinguish purely based on our own data structures.
 
-Sigh. It looks like we need alien cache structures in some cases for nodes 
-that have no memory. We must allocate structures for all nodes regardless 
-if they have allocatable memory or not.
+Yep, thanks for the clarification.
 
- 
+
+> I just then didn't like the lack of abstraction.
+> 
+> > How about taking a different approach. How about also having a pte_normal()
+> > function.
+> 
+> Well, one reason I'd prefer not to, is that I can well imagine an 
+> architecture that doesn't actually put the "normal" bit in the PTE itself, 
+> but in a separate data structure.
+> 
+> In particular, let's say that you decide that
+> 
+>  - the architecture really doesn't have any space in the hw page tables
+>  - but for various reasons you *really* don't want to use the tricky 
+>    "page->offset" logic etc
+>  - ..and you realize that PFNMAP and FIXMAP are actually very rare
+> 
+> so..
+> 
+>  - you just associate each PFNMAP/FIXMAP vma with a simple bitmap that 
+>    contains the "special" bit.
+> 
+> It's actually not that hard to do. If you have an architecture-specific 
+> interface like
+> 
+> 	struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_t pte);
+> 
+> then it wouldn't be too hard at all to create a hash lookup on the VMA (or 
+> perhaps on a "vma, 256-page-aligned(addr)" tuple) to look up a bitmap, and 
+> then use the address to see if it was marked special or not.
+> 
+> But yes, then you'd also need to have that extended
+> 
+> 	set_special_pte_at(vma, addr, pfn, prot);
+> 
+> interface to set that bit in that bitmap.
+> 
+> See? 
+> 
+> Is it better than what we already have for the generic case? Possibly not. 
+> But I like abstractions that aren't tied to *one* particular 
+> implementation.
+
+Well that's all true, but I would be a bit worried about architectures
+inventing their own ways of doin gthings. I mean, _every_ implementation
+needs to be understood by core mm/ developers; and conversely, none of
+the architecture maintainers need to care a single bit about any of the
+implementations if they provide some basic low level things to us.
+
+So I'd argue that if someone really needed to invent another scheme, then
+that should also be somehow folded into mm/ code if possible rather than
+let the arch do it...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
