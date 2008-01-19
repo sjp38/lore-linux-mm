@@ -1,81 +1,46 @@
-Message-ID: <47926ACC.4060707@sgi.com>
-Date: Sat, 19 Jan 2008 13:25:32 -0800
+Message-ID: <47926DFA.5020601@sgi.com>
+Date: Sat, 19 Jan 2008 13:39:06 -0800
 From: Mike Travis <travis@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/5] x86: Change size of node ids from u8 to u16 fixup
-References: <20080118183011.354965000@sgi.com>  <20080118183011.527888000@sgi.com> <86802c440801182003vd94044ex7fb13e61e5f79c81@mail.gmail.com> <alpine.DEB.0.9999.0801182026130.32726@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.0.9999.0801182026130.32726@chino.kir.corp.google.com>
+Subject: Re: [PATCH 4/5] x86: Add config variables for SMP_MAX
+References: <20080118183011.354965000@sgi.com> <20080118183011.917801000@sgi.com> <20080119145243.GA27974@elte.hu>
+In-Reply-To: <20080119145243.GA27974@elte.hu>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Yinghai Lu <yhlu.kernel@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Eric Dumazet <dada1@cosmosbay.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-David Rientjes wrote:
-> On Fri, 18 Jan 2008, Yinghai Lu wrote:
+Ingo Molnar wrote:
+> * travis@sgi.com <travis@sgi.com> wrote:
 > 
->>> +#if MAX_NUMNODES > 256
->>> +typedef u16 numanode_t;
->>> +#else
->>> +typedef u8 numanode_t;
->>> +#endif
->>> +
->>>  #endif /* _LINUX_NUMA_H */
->> that is wrong, you can not change pxm_to_node_map from int to u8 or u16.
+>> Adds and increases some config variables to accomodate larger SMP
+>> configurations:
 >>
-
-Thanks for finding this!
-
-> 
-> Yeah, NID_INVAL is negative so no unsigned type will work here, 
-> unfortunately.  And that reduces the intended savings of your change since 
-> the smaller type can only be used with a smaller CONFIG_NODES_SHIFT.
-> 
-
-Excuse my ignorance but why wouldn't this work:
-
-static numanode_t pxm_to_node_map[MAX_PXM_DOMAINS]
-                                = { [0 ... MAX_PXM_DOMAINS - 1] = NUMA_NO_NODE };
-...
->> int acpi_map_pxm_to_node(int pxm)
->> {
->         int node = pxm_to_node_map[pxm];
-> 
->         if (node < 0)
-
-	   numanode_t node = pxm_to_node_map[pxm];
-
-	   if (node != NUMA_NO_NODE) {
->>                 if (nodes_weight(nodes_found_map) >= MAX_NUMNODES)
->>                         return NID_INVAL;
->>                 node = first_unset_node(nodes_found_map);
->>                 __acpi_map_pxm_to_node(pxm, node);
->>                 node_set(node, nodes_found_map);
->>         }
-
-or change:
-	#define NID_INVAL       (-1)
-to
-	#define NID_INVAL       ((numanode_t)(-1))
-...
-	   if (node != NID_INVAL) {
->>                 if (nodes_weight(nodes_found_map) >= MAX_NUMNODES)
->>                         return NID_INVAL;
->>                 node = first_unset_node(nodes_found_map);
->>                 __acpi_map_pxm_to_node(pxm, node);
->>                 node_set(node, nodes_found_map);
->>         }
-
-Though why there two "node invalid" values I'm not sure... ?
-
+>> 	NR_CPUS:      max limit now 4096
+>> 	NODES_SHIFT:  max limit now 9
+>> 	THREAD_ORDER: max limit now 3
+>> 	X86_SMP_MAX:  say Y to enable possible cpus == NR_CPUS
 >>
->>         return node;
->> }
+>> Signed-off-by: Mike Travis <travis@sgi.com>
+> 
+> i've bisected a boot failure down to this patch (sans the THREAD_ORDER 
+> bits): it causes an instant reboot of the 64-bit kernel upon bootup. 
+> Failing config attached.
+> 
+> 	Ingo
+> 
 
-And btw, shouldn't the pxm value be sized to numanode_t size as well?
-Will it ever be larger than the largest node id?
+Thanks Ingo! 
+
+I've pulled the THREAD_ORDER change from my next version of the patch.
+Seems SMP_MAX is just not ready for prime time yet.
+
+One problem that I'm having appears to be that the !NUMA config of the
+current -mm version also doesn't boot so I haven't been able to verify
+that.  (At least it doesn't seem to make it worse... ;-)
 
 Thanks,
 Mike
