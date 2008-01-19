@@ -1,43 +1,67 @@
-Date: Fri, 18 Jan 2008 23:25:19 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH -v6 2/2] Updating ctime and mtime for memory-mapped
- files
-Message-ID: <20080118232519.4cc65df2@bree.surriel.com>
-In-Reply-To: <1200703803.25782.45.camel@cinder.waste.org>
-References: <12006091182260-git-send-email-salikhmetov@gmail.com>
-	<E1JFwnQ-0001FB-2c@pomaz-ex.szeredi.hu>
-	<alpine.LFD.1.00.0801181127000.2957@woody.linux-foundation.org>
-	<200801182332.02945.ioe-lkml@rameria.de>
-	<alpine.LFD.1.00.0801181439330.2957@woody.linux-foundation.org>
-	<20080118175450.715ded60@bree.surriel.com>
-	<1200703803.25782.45.camel@cinder.waste.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 18 Jan 2008 20:36:58 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/5] x86: Change size of node ids from u8 to u16 fixup
+In-Reply-To: <86802c440801182003vd94044ex7fb13e61e5f79c81@mail.gmail.com>
+Message-ID: <alpine.DEB.0.9999.0801182026130.32726@chino.kir.corp.google.com>
+References: <20080118183011.354965000@sgi.com>  <20080118183011.527888000@sgi.com> <86802c440801182003vd94044ex7fb13e61e5f79c81@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Oeser <ioe-lkml@rameria.de>, Miklos Szeredi <miklos@szeredi.hu>, peterz@infradead.org, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: Yinghai Lu <yhlu.kernel@gmail.com>
+Cc: travis@sgi.com, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Eric Dumazet <dada1@cosmosbay.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 Jan 2008 18:50:03 -0600
-Matt Mackall <mpm@selenic.com> wrote:
-> On Fri, 2008-01-18 at 17:54 -0500, Rik van Riel wrote:
+On Fri, 18 Jan 2008, Yinghai Lu wrote:
 
-> > Backup programs not seeing an updated mtime is a really big deal.
+> > +#if MAX_NUMNODES > 256
+> > +typedef u16 numanode_t;
+> > +#else
+> > +typedef u8 numanode_t;
+> > +#endif
+> > +
+> >  #endif /* _LINUX_NUMA_H */
 > 
-> And that's fixed with the 4-line approach.
+> that is wrong, you can not change pxm_to_node_map from int to u8 or u16.
 > 
-> Reminds me, I've got a patch here for addressing that problem with loop mounts:
-> 
-> Writes to loop should update the mtime of the underlying file.
-> 
-> Signed-off-by: Matt Mackall <mpm@selenic.com>
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Yeah, NID_INVAL is negative so no unsigned type will work here, 
+unfortunately.  And that reduces the intended savings of your change since 
+the smaller type can only be used with a smaller CONFIG_NODES_SHIFT.
 
--- 
-All rights reversed.
+> int acpi_map_pxm_to_node(int pxm)
+> {
+>         int node = pxm_to_node_map[pxm];
+> 
+>         if (node < 0){
+>                 if (nodes_weight(nodes_found_map) >= MAX_NUMNODES)
+>                         return NID_INVAL;
+>                 node = first_unset_node(nodes_found_map);
+>                 __acpi_map_pxm_to_node(pxm, node);
+>                 node_set(node, nodes_found_map);
+>         }
+> 
+>         return node;
+> }
+> 
+> node will will be always 255 or 65535
+> 
+
+Right.
+
+> please keep that to int.
+> 
+> I got
+> SART: PXM 0 -> APIC 0 -> Node 255
+> SART: PXM 0 -> APIC 1 -> Node 255
+> SART: PXM 1 -> APIC 2 -> Node 255
+> SART: PXM 1 -> APIC 3 -> Node 255
+> 
+
+I assume this is a typo and those proximity mappings are actually from the 
+SRAT.
+
+		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
