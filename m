@@ -1,133 +1,115 @@
-Message-ID: <479298AF.8040806@sgi.com>
-Date: Sat, 19 Jan 2008 16:41:19 -0800
-From: Mike Travis <travis@sgi.com>
+Date: Sun, 20 Jan 2008 00:58:06 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [BUG] at mm/slab.c:3320
+Message-ID: <20080120005806.GA25669@csn.ul.ie>
+References: <Pine.LNX.4.64.0801072131350.28725@schroedinger.engr.sgi.com> <20080109065015.GG7602@us.ibm.com> <Pine.LNX.4.64.0801090949440.10163@schroedinger.engr.sgi.com> <20080109185859.GD11852@skywalker> <Pine.LNX.4.64.0801091122490.11317@schroedinger.engr.sgi.com> <20080109214707.GA26941@us.ibm.com> <Pine.LNX.4.64.0801091349430.12505@schroedinger.engr.sgi.com> <20080109221315.GB26941@us.ibm.com> <Pine.LNX.4.64.0801091601080.14723@schroedinger.engr.sgi.com> <84144f020801170431l2d6d0d63i1fb7ebc5145539f4@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/5] x86: Change size of node ids from u8 to u16 fixup
-References: <20080118183011.354965000@sgi.com>  <20080118183011.527888000@sgi.com> <86802c440801182003vd94044ex7fb13e61e5f79c81@mail.gmail.com> <alpine.DEB.0.9999.0801182026130.32726@chino.kir.corp.google.com> <47926ACC.4060707@sgi.com> <alpine.DEB.0.9999.0801191415360.28596@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.0.9999.0801191415360.28596@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <84144f020801170431l2d6d0d63i1fb7ebc5145539f4@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Yinghai Lu <yhlu.kernel@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Eric Dumazet <dada1@cosmosbay.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Christoph Lameter <clameter@sgi.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Nishanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, lee.schermerhorn@hp.com, bob.picco@hp.com, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-David Rientjes wrote:
-> On Sat, 19 Jan 2008, Mike Travis wrote:
+On (17/01/08 14:31), Pekka Enberg didst pronounce:
+> Hi Christoph,
 > 
->>> Yeah, NID_INVAL is negative so no unsigned type will work here, 
->>> unfortunately.  And that reduces the intended savings of your change since 
->>> the smaller type can only be used with a smaller CONFIG_NODES_SHIFT.
->>>
->> Excuse my ignorance but why wouldn't this work:
->>
->> static numanode_t pxm_to_node_map[MAX_PXM_DOMAINS]
->>                                 = { [0 ... MAX_PXM_DOMAINS - 1] = NUMA_NO_NODE };
->> ...
->>>> int acpi_map_pxm_to_node(int pxm)
->>>> {
->>>         int node = pxm_to_node_map[pxm];
->>>
->>>         if (node < 0)
->> 	   numanode_t node = pxm_to_node_map[pxm];
->>
+> On Jan 10, 2008 2:02 AM, Christoph Lameter <clameter@sgi.com> wrote:
+> > New patch that also checks in alternate_node_alloc if the node has normal
+> > memory because we cannot call ____cache_alloc_node with an invalid node.
 > 
-> Because NUMA_NO_NODE is 0xff on x86.  That's a valid node id for 
-> configurations with CONFIG_NODES_SHIFT equal to or greater than 8.
+> [snip]
+> 
+> > @@ -3439,8 +3442,14 @@ __do_cache_alloc(struct kmem_cache *cach
+> >          * We may just have run out of memory on the local node.
+> >          * ____cache_alloc_node() knows how to locate memory on other nodes
+> >          */
+> > -       if (!objp)
+> > -               objp = ____cache_alloc_node(cache, flags, numa_node_id());
+> > +       if (!objp) {
+> > +               int node_id = numa_node_id();
+> > +               if (likely(cache->nodelists[node_id])) /* fast path */
+> > +                       objp = ____cache_alloc_node(cache, flags, node_id);
+> > +               else /* this function can do good fallback */
+> > +                       objp = __cache_alloc_node(cache, flags, node_id,
+> > +                                       __builtin_return_address(0));
+> > +       }
+> 
+> But __cache_alloc_node() will call fallback_alloc() that does
+> cache_grow() for the node that doesn't have N_NORMAL_MEMORY, no?
+> 
+> Shouldn't we just revert 04231b3002ac53f8a64a7bd142fde3fa4b6808c6 for
+> 2.6.24 as this is a clear regression from 2.6.23?
+> 
 
-Perhaps numanode_t should be set to u16 if MAX_NUMNODES > 255 to
-allow for an invalid value of 255? 
+I tried this patch and it didn't work out. Oops occured all in relation to
+l3. I did see the obvious flaw and getting this close to 2.6.24 and the
+other boot-problem on PPC64, I don't think we have the luxury of messing
+around and maybe this should be tried again later? The minimum revert is
+the following patch. I have verified it boots the machine in question.
 
-#if MAX_NUMNODES > 255
-typedef u16 numanode_t;
-#else
-typedef u8 numanode_t;
-#endif
+===
 
-> 
->> 	   if (node != NUMA_NO_NODE) {
-> 
-> Wrong, this should be
-> 
-> 	node == NUMA_NO_NODE
+Partial revert the changes made by 04231b3002ac53f8a64a7bd142fde3fa4b6808c6
+to the kmem_list3 management. On a machine with a memoryless node, this
+BUG_ON was triggering
 
-Oops, yes you're right.
+static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t
+flags,
+                                int nodeid)
+{
+        struct list_head *entry;
+        struct slab *slabp;
+        struct kmem_list3 *l3;
+        void *obj;
+        int x;
 
->>>>                 if (nodes_weight(nodes_found_map) >= MAX_NUMNODES)
->>>>                         return NID_INVAL;
->>>>                 node = first_unset_node(nodes_found_map);
->>>>                 __acpi_map_pxm_to_node(pxm, node);
->>>>                 node_set(node, nodes_found_map);
->>>>         }
-> 
-> The net result of this is that if a proximity domain is looked up through 
-> acpi_map_pxm_to_node() and already has a mapping to node 255 (legal with 
-> CONFIG_NODES_SHIFT == 8), this function will return NID_INVAL since the 
-> weight of nodes_found_map is equal to MAX_NUMNODES.
+        l3 = cachep->nodelists[nodeid];
+        BUG_ON(!l3);
 
-> 
-> You simply can't use valid node id's to signify invalid or unused node 
-> ids.
-> 
->> or change:
->> 	#define NID_INVAL       (-1)
->> to
->> 	#define NID_INVAL       ((numanode_t)(-1))
->> ...
->> 	   if (node != NID_INVAL) {
-> 
-> You mean
-> 
-> 	node == NID_INVAL
-> 
->>>>                 if (nodes_weight(nodes_found_map) >= MAX_NUMNODES)
->>>>                         return NID_INVAL;
->>>>                 node = first_unset_node(nodes_found_map);
->>>>                 __acpi_map_pxm_to_node(pxm, node);
->>>>                 node_set(node, nodes_found_map);
->>>>         }
-> 
-> That's the equivalent of your NUMA_NO_NODE code above.  The fact remains 
-> that (numanode_t)-1 is still a valid node id for MAX_NUMNODES >= 256.
-> 
-> So, as I said in my initial reply, the only way to get the savings you're 
-> looking for is to use u8 for CONFIG_NODES_SHIFT <= 7 and then convert all 
-> NID_INVAL users to use NUMA_NO_NODE.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-Yes, I agree.  I'll do the changes you're suggesting.
+--- 
+ mm/slab.c |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-> Additionally, Linux has always discouraged typedefs when they do not 
-> define an architecture-specific size.  The savings from your patch for 
-> CONFIG_NODES_SHIFT == 7 would be 256 bytes for this mapping.
-> 
-> It's simply not worth it.
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc8-015_remap_discontigmem/mm/slab.c linux-2.6.24-rc8-020_init_kmem3lists_nodes/mm/slab.c
+--- linux-2.6.24-rc8-015_remap_discontigmem/mm/slab.c	2008-01-16 04:22:48.000000000 +0000
++++ linux-2.6.24-rc8-020_init_kmem3lists_nodes/mm/slab.c	2008-01-20 00:06:35.000000000 +0000
+@@ -1590,7 +1590,7 @@ void __init kmem_cache_init(void)
+ 		/* Replace the static kmem_list3 structures for the boot cpu */
+ 		init_list(&cache_cache, &initkmem_list3[CACHE_CACHE], node);
+ 
+-		for_each_node_state(nid, N_NORMAL_MEMORY) {
++		for_each_online_node(nid) {
+ 			init_list(malloc_sizes[INDEX_AC].cs_cachep,
+ 				  &initkmem_list3[SIZE_AC + nid], nid);
+ 
+@@ -1968,7 +1968,7 @@ static void __init set_up_list3s(struct 
+ {
+ 	int node;
+ 
+-	for_each_node_state(node, N_NORMAL_MEMORY) {
++	for_each_online_node(node) {
+ 		cachep->nodelists[node] = &initkmem_list3[index + node];
+ 		cachep->nodelists[node]->next_reap = jiffies +
+ 		    REAPTIMEOUT_LIST3 +
+@@ -3815,7 +3815,7 @@ static int alloc_kmemlist(struct kmem_ca
+ 	struct array_cache *new_shared;
+ 	struct array_cache **new_alien = NULL;
+ 
+-	for_each_node_state(node, N_NORMAL_MEMORY) {
++	for_each_online_node(node) {
+ 
+                 if (use_alien_caches) {
+                         new_alien = alloc_alien_cache(node, cachep->limit);
 
-So are you saying that I should just use u16 for all node ids whether
-CONFIG_NODES_SHIFT > 7 or not?  Othersise, I would think that defining a
-typedef is a fairly clean solution.
-
-A quick grep shows that there are 35 arrays defined by MAX_NUMNODES in
-x86_64, 38 in X86_32 (not verified.)  So it's not exactly a trivial
-amount of memory.
-
-> 
->> And btw, shouldn't the pxm value be sized to numanode_t size as well?
->> Will it ever be larger than the largest node id?
->>
-> 
-> Section 6.2.9 of ACPI 2.0 states that PXM's return an integer, so that 
-> would be non-conforming to the standard.
-> 
-> Additionally, PXM's are not nodes, so casting them to anything called 
-> numanode_t shows the semantic flaw in your patch.
-
-Thanks for the info.  I wasn't sure exactly what the PXM value represents.
-> 
-> 		David
-
-Thanks again,
-Mike
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
