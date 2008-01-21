@@ -1,70 +1,69 @@
-Date: Mon, 21 Jan 2008 16:27:02 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/2] Relax restrictions on setting CONFIG_NUMA on x86
-Message-ID: <20080121162702.GB8485@csn.ul.ie>
-References: <20080118153529.12646.5260.sendpatchset@skynet.skynet.ie> <20080121093702.8FC2.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080121143508.GA8485@csn.ul.ie> <20080121144923.GA8959@elte.hu>
+Message-ID: <4794C4EB.8090309@qumranet.com>
+Date: Mon, 21 Jan 2008 18:14:35 +0200
+From: Izik Eidus <izike@qumranet.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20080121144923.GA8959@elte.hu>
+Subject: [RFC][PATCH 4/5] example for userspace scanner
+Content-Type: multipart/mixed;
+ boundary="------------010408090705060407070309"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
+To: kvm-devel <kvm-devel@lists.sourceforge.net>, andrea@qumranet.com, avi@qumranet.com, dor.laor@qumranet.com, linux-mm@kvack.org, yaniv@qumranet.com
 List-ID: <linux-mm.kvack.org>
 
-On (21/01/08 15:49), Ingo Molnar didst pronounce:
-> 
-> * Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > > I think this patch become easy to the porting of fakenuma.
-> > 
-> > It would be great if that was available, particularly if it could fake 
-> > memoryless nodes as that is a place where we've found a few 
-> > difficult-to-reproduce bugs.
-> 
-> yeah. Your previous patch (see below) had build problems - are those 
-> resolved meanwhile?
-> 
+This is a multi-part message in MIME format.
+--------------010408090705060407070309
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Odd, I couldn't reproduce it Friday and could today. Clearly I was not
-firing on all cylinders. The problem was because NUMA && FLATMEM are
-incompatible. Thanks for nudging a second time.
 
-However in the patch below addressing the problem below, would it make more
-sense to replace X86_PC with !NUMA instead of having X86_PC && !NUMA?
-
-===
-
-Subject: Do not allow FLATMEM && NUMA to be set on x86 at the same time
-
-The FLATMEM memory model references a global mem_map and max_mapnr. This
-is incompatible with how memory models used for NUMA view the world.
-Builds fail if FLATMEM && NUMA are set on x86. This patch forbids that
-combination of config items. This is consistent with x86_64
-enforcements.
-
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
---- 
- arch/x86/Kconfig |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc8-020_init_kmem3lists_nodes/arch/x86/Kconfig linux-2.6.24-rc8-025_memmap_reffix/arch/x86/Kconfig
---- linux-2.6.24-rc8-020_init_kmem3lists_nodes/arch/x86/Kconfig	2008-01-19 15:26:00.000000000 +0000
-+++ linux-2.6.24-rc8-025_memmap_reffix/arch/x86/Kconfig	2008-01-21 15:51:03.000000000 +0000
-@@ -891,7 +891,7 @@ config HAVE_ARCH_ALLOC_REMAP
- 
- config ARCH_FLATMEM_ENABLE
- 	def_bool y
--	depends on (X86_32 && ARCH_SELECT_MEMORY_MODEL && X86_PC) || (X86_64 && !NUMA)
-+	depends on (X86_32 && ARCH_SELECT_MEMORY_MODEL && X86_PC && !NUMA) || (X86_64 && !NUMA)
- 
- config ARCH_DISCONTIGMEM_ENABLE
- 	def_bool y
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+woof.
+
+
+--------------010408090705060407070309
+Content-Type: text/x-csrc;
+ name="ksmscan.c"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="ksmscan.c"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include "linux/ksm.h"
+
+int main()
+{
+	int fd;
+	int fd_scan;
+	int r;
+
+	fd = open("/dev/ksm", O_RDWR | O_TRUNC, (mode_t)0600);
+	if (fd == -1) {
+		fprintf(stderr, "couldnt even open it\n");
+		exit(1);
+	}
+
+	fd_scan = ioctl(fd, KSM_CREATE_SCAN);
+	if (fd_scan == -1) {
+		printf("KSM_CREATE_SCAN failed\n");
+		exit(1);
+	}
+	printf("created scanner!\n");
+
+	while(1) {
+		r = ioctl(fd_scan, KSM_SCAN, 100);
+		usleep(1000);
+	}
+	return 0;
+}
+
+--------------010408090705060407070309--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
