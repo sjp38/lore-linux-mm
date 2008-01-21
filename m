@@ -1,125 +1,174 @@
-Message-Id: <20080121211618.912440000@sgi.com>
+Message-Id: <20080121211618.777638000@sgi.com>
 References: <20080121211618.599818000@sgi.com>
-Date: Mon, 21 Jan 2008 13:16:20 -0800
+Date: Mon, 21 Jan 2008 13:16:19 -0800
 From: travis@sgi.com
-Subject: [PATCH 2/3] x86: Change NR_CPUS arrays in numa_64 fixup V2 with git-x86
-Content-Disposition: inline; filename=NR_CPUS-arrays-in-numa_64-fixup
+Subject: [PATCH 1/3] x86: Change size of node ids from u8 to s16 fixup V2 with git-x86
+Content-Disposition: inline; filename=big_nodeids-fixup
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Yinghai Lu <yhlu.kernel@gmail.com>, Eric Dumazet <dada1@cosmosbay.com>
 List-ID: <linux-mm.kvack.org>
 
-Change the following static arrays sized by NR_CPUS to
-per_cpu data variables:
-
-	char cpu_to_node_map[NR_CPUS];
+Change the size of node ids for X86_64 from u8 to s16 to
+accomodate more than 32k nodes and allow for NUMA_NO_NODE
+(-1) to be sign extended to int.
 
 Based on 2.6.24-rc8-mm1 + latest (08/1/21) git-x86
 
+Cc: David Rientjes <rientjes@google.com>
+Cc: Yinghai Lu <yhlu.kernel@gmail.com>
+Cc: Eric Dumazet <dada1@cosmosbay.com>
 Signed-off-by: Mike Travis <travis@sgi.com>
 Reviewed-by: Christoph Lameter <clameter@sgi.com>
 ---
+fixup-V2:
+
+    - Fixed populate_memnodemap as suggested by Eric.
+    - Change to using s16 for static node id arrays and
+      int for node id's in per_cpu variables and __initdata
+      arrays as suggested by David and Yinghai.
+    - NUMA_NO_NODE is now (-1)
+
 fixup:
 
-  - Split cpu_to_node function into "early" and "late" versions
-    so that x86_cpu_to_node_map_early_ptr is not EXPORT'ed and
-    the cpu_to_node inline function is more streamlined.
-
-  - This also involves setting up the percpu maps as early as possible.
-
-  - Fix X86_32 NUMA build errors that previous version of this
-    patch caused.
+    - Size of memnode.embedded_map needs to be changed to
+      accomodate 16-bit node ids as suggested by Eric.
 
 V2->V3:
-    - add early_cpu_to_node function to keep cpu_to_node efficient
-    - move and rename smp_set_apicids() to setup_percpu_maps()
-    - call setup_percpu_maps() as early as possible
+    - changed memnode.embedded_map from [64-16] to [64-8]
+      (and size comment to 128 bytes)
 
 V1->V2:
-    - Removed extraneous casts
-    - Fix !NUMA builds with '#ifdef CONFIG_NUMA"
+    - changed pxm_to_node_map to u16
+    - changed memnode map entries to u16
 ---
- arch/x86/kernel/setup64.c    |   10 +++++-----
- arch/x86/kernel/smpboot_32.c |    2 +-
- arch/x86/mm/srat_64.c        |    2 +-
- include/asm-x86/topology.h   |    9 +++++++++
- 4 files changed, 16 insertions(+), 7 deletions(-)
+ arch/x86/Kconfig            |    1 +
+ arch/x86/mm/numa_64.c       |   12 ++++++------
+ include/asm-x86/mmzone_64.h |    6 +++---
+ include/asm-x86/numa_64.h   |    2 +-
+ include/asm-x86/topology.h  |   10 +++++-----
+ 5 files changed, 16 insertions(+), 15 deletions(-)
 
---- a/arch/x86/kernel/setup64.c
-+++ b/arch/x86/kernel/setup64.c
-@@ -87,10 +87,10 @@ __setup("noexec32=", nonx32_setup);
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -863,6 +863,7 @@ config NUMA_EMU
  
- /*
-  * Copy data used in early init routines from the initial arrays to the
-- * per cpu data areas.  These arrays then become expendable and the *_ptrs
-- * are zeroed indicating that the static arrays are gone.
-+ * per cpu data areas.  These arrays then become expendable and the
-+ * *_early_ptr's are zeroed indicating that the static arrays are gone.
-  */
--void __init setup_percpu_maps(void)
-+static void __init setup_per_cpu_maps(void)
- {
- 	int cpu;
+ config NODES_SHIFT
+ 	int
++	range 1 15  if X86_64
+ 	default "6" if X86_64
+ 	default "4" if X86_NUMAQ
+ 	default "3"
+--- a/arch/x86/mm/numa_64.c
++++ b/arch/x86/mm/numa_64.c
+@@ -31,17 +31,17 @@ bootmem_data_t plat_node_bdata[MAX_NUMNO
  
-@@ -114,7 +114,7 @@ void __init setup_percpu_maps(void)
- #endif
- 	}
+ struct memnode memnode;
  
--	/* indicate the early static arrays are gone */
-+	/* indicate the early static arrays will soon be gone */
- 	x86_cpu_to_apicid_early_ptr = NULL;
- 	x86_bios_cpu_apicid_early_ptr = NULL;
- #ifdef CONFIG_NUMA
-@@ -157,7 +157,7 @@ void __init setup_per_cpu_areas(void)
- 	}
- 
- 	/* setup percpu data maps early */
--	setup_percpu_maps();
-+	setup_per_cpu_maps();
- } 
- 
- void pda_init(int cpu)
---- a/arch/x86/kernel/smpboot_32.c
-+++ b/arch/x86/kernel/smpboot_32.c
-@@ -460,7 +460,7 @@ cpumask_t node_to_cpumask_map[MAX_NUMNOD
- 				{ [0 ... MAX_NUMNODES-1] = CPU_MASK_NONE };
- EXPORT_SYMBOL(node_to_cpumask_map);
- /* which node each logical CPU is on */
--u8 cpu_to_node_map[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = 0 };
-+int cpu_to_node_map[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = 0 };
- EXPORT_SYMBOL(cpu_to_node_map);
- 
- /* set up a mapping between cpu and node. */
---- a/arch/x86/mm/srat_64.c
-+++ b/arch/x86/mm/srat_64.c
-@@ -408,7 +408,7 @@ int __init acpi_scan_nodes(unsigned long
- static int fake_node_to_pxm_map[MAX_NUMNODES] __initdata = {
- 	[0 ... MAX_NUMNODES-1] = PXM_INVAL
+-u16 x86_cpu_to_node_map_init[NR_CPUS] = {
++int x86_cpu_to_node_map_init[NR_CPUS] = {
+ 	[0 ... NR_CPUS-1] = NUMA_NO_NODE
  };
--static u16 fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
-+static s16 fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
+ void *x86_cpu_to_node_map_early_ptr;
+-DEFINE_PER_CPU(u16, x86_cpu_to_node_map) = NUMA_NO_NODE;
++DEFINE_PER_CPU(int, x86_cpu_to_node_map) = NUMA_NO_NODE;
+ EXPORT_PER_CPU_SYMBOL(x86_cpu_to_node_map);
+ #ifdef	CONFIG_DEBUG_PER_CPU_MAPS
+ EXPORT_SYMBOL(x86_cpu_to_node_map_early_ptr);
+ #endif
+ 
+-u16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
++s16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
  	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
  };
- static int __init find_node_by_addr(unsigned long addr)
+ 
+@@ -65,7 +65,7 @@ static int __init populate_memnodemap(co
+ 	unsigned long addr, end;
+ 	int i, res = -1;
+ 
+-	memset(memnodemap, 0xff, memnodemapsize);
++	memset(memnodemap, 0xff, sizeof(s16)*memnodemapsize);
+ 	for (i = 0; i < numnodes; i++) {
+ 		addr = nodes[i].start;
+ 		end = nodes[i].end;
+@@ -74,7 +74,7 @@ static int __init populate_memnodemap(co
+ 		if ((end >> shift) >= memnodemapsize)
+ 			return 0;
+ 		do {
+-			if (memnodemap[addr >> shift] != 0xff)
++			if (memnodemap[addr >> shift] != NUMA_NO_NODE)
+ 				return -1;
+ 			memnodemap[addr >> shift] = i;
+ 			addr += (1UL << shift);
+@@ -535,7 +535,7 @@ __cpuinit void numa_add_cpu(int cpu)
+ 
+ void __cpuinit numa_set_node(int cpu, int node)
+ {
+-	u16 *cpu_to_node_map = x86_cpu_to_node_map_early_ptr;
++	int *cpu_to_node_map = x86_cpu_to_node_map_early_ptr;
+ 
+ 	cpu_pda(cpu)->nodenumber = node;
+ 
+--- a/include/asm-x86/mmzone_64.h
++++ b/include/asm-x86/mmzone_64.h
+@@ -15,9 +15,9 @@
+ struct memnode {
+ 	int shift;
+ 	unsigned int mapsize;
+-	u8 *map;
+-	u8 embedded_map[64-16];
+-} ____cacheline_aligned; /* total size = 64 bytes */
++	s16 *map;
++	s16 embedded_map[64-8];
++} ____cacheline_aligned; /* total size = 128 bytes */
+ extern struct memnode memnode;
+ #define memnode_shift memnode.shift
+ #define memnodemap memnode.map
+--- a/include/asm-x86/numa_64.h
++++ b/include/asm-x86/numa_64.h
+@@ -20,7 +20,7 @@ extern void numa_set_node(int cpu, int n
+ extern void srat_reserve_add_area(int nodeid);
+ extern int hotadd_percent;
+ 
+-extern u16 apicid_to_node[MAX_LOCAL_APIC];
++extern s16 apicid_to_node[MAX_LOCAL_APIC];
+ 
+ extern void numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn);
+ extern unsigned long numa_free_all_bootmem(void);
 --- a/include/asm-x86/topology.h
 +++ b/include/asm-x86/topology.h
-@@ -81,6 +81,15 @@ static inline int cpu_to_node(int cpu)
- }
- #endif /* CONFIG_X86_64 */
+@@ -31,17 +31,17 @@
  
-+static inline int cpu_to_node(int cpu)
-+{
-+	if(per_cpu_offset(cpu))
-+		return per_cpu(x86_cpu_to_node_map, cpu);
-+	else
-+		return NUMA_NO_NODE;
-+}
-+#endif /* CONFIG_X86_64 */
-+
- /*
-  * Returns the number of the node containing Node 'node'. This
-  * architecture is flat, so it is a pretty simple function!
+ /* Mappings between logical cpu number and node number */
+ #ifdef CONFIG_X86_32
+-extern u8 cpu_to_node_map[];
++extern int cpu_to_node_map[];
+ 
+ #else
+-DECLARE_PER_CPU(u16, x86_cpu_to_node_map);
+-extern u16 x86_cpu_to_node_map_init[];
++DECLARE_PER_CPU(int, x86_cpu_to_node_map);
++extern int x86_cpu_to_node_map_init[];
+ extern void *x86_cpu_to_node_map_early_ptr;
+ #endif
+ 
+ extern cpumask_t node_to_cpumask_map[];
+ 
+-#define NUMA_NO_NODE	((u16)(~0))
++#define NUMA_NO_NODE	(-1)
+ 
+ /* Returns the number of the node containing CPU 'cpu' */
+ #ifdef CONFIG_X86_32
+@@ -54,7 +54,7 @@ static inline int cpu_to_node(int cpu)
+ #else /* CONFIG_X86_64 */
+ static inline int early_cpu_to_node(int cpu)
+ {
+-	u16 *cpu_to_node_map = x86_cpu_to_node_map_early_ptr;
++	int *cpu_to_node_map = x86_cpu_to_node_map_early_ptr;
+ 
+ 	if (cpu_to_node_map)
+ 		return cpu_to_node_map[cpu];
 
 -- 
 
