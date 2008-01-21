@@ -1,48 +1,70 @@
-Message-ID: <4794BD0F.3050701@sgi.com>
-Date: Mon, 21 Jan 2008 07:41:03 -0800
-From: Mike Travis <travis@sgi.com>
+Date: Mon, 21 Jan 2008 16:27:02 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 0/2] Relax restrictions on setting CONFIG_NUMA on x86
+Message-ID: <20080121162702.GB8485@csn.ul.ie>
+References: <20080118153529.12646.5260.sendpatchset@skynet.skynet.ie> <20080121093702.8FC2.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080121143508.GA8485@csn.ul.ie> <20080121144923.GA8959@elte.hu>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/7] Modules: Fold percpu_modcopy into module.c
-References: <20080118182953.748071000@sgi.com>	<20080118182953.922370000@sgi.com> <20080121.000820.194841023.davem@davemloft.net>
-In-Reply-To: <20080121.000820.194841023.davem@davemloft.net>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20080121144923.GA8959@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: akpm@linux-foundation.org, ak@suse.de, mingo@elte.hu, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rusty@rustcorp.com.au
+To: Ingo Molnar <mingo@elte.hu>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-David Miller wrote:
-> From: travis@sgi.com
-> Date: Fri, 18 Jan 2008 10:29:54 -0800
+On (21/01/08 15:49), Ingo Molnar didst pronounce:
 > 
->> percpu_modcopy() is defined multiple times in arch files. However, the only
->> user is module.c. Put a static definition into module.c and remove
->> the definitions from the arch files.
->>
->> Cc: Rusty Russell <rusty@rustcorp.com.au>
->> Cc: Andi Kleen <ak@suse.de>
->> Signed-off-by: Christoph Lameter <clameter@sgi.com>
->> Signed-off-by: Mike Travis <travis@sgi.com>
+> * Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> This doesn't build on sparc64.
+> > > I think this patch become easy to the porting of fakenuma.
+> > 
+> > It would be great if that was available, particularly if it could fake 
+> > memoryless nodes as that is a place where we've found a few 
+> > difficult-to-reproduce bugs.
 > 
-> The percpu_modcopy() removal from include/asm-sparc64/percpu.h
-> leaked into patch #3 instead of being done here in patch #1
-> where it belongs (so that this series is properly bisectable).
+> yeah. Your previous patch (see below) had build problems - are those 
+> resolved meanwhile?
 > 
-> It also seems that the include/asm-x86/percpu_{32,64}.h defines
-> aren't removed in this patch either.
 
-Hi,
+Odd, I couldn't reproduce it Friday and could today. Clearly I was not
+firing on all cylinders. The problem was because NUMA && FLATMEM are
+incompatible. Thanks for nudging a second time.
 
-I think I have this fixed in the newest version.  Yes, it's been
-a hat dance with some changes coming through the git-x86 patch
-and others not.  I'll submit the new one shortly.
+However in the patch below addressing the problem below, would it make more
+sense to replace X86_PC with !NUMA instead of having X86_PC && !NUMA?
 
-Thanks,
-Mike
+===
+
+Subject: Do not allow FLATMEM && NUMA to be set on x86 at the same time
+
+The FLATMEM memory model references a global mem_map and max_mapnr. This
+is incompatible with how memory models used for NUMA view the world.
+Builds fail if FLATMEM && NUMA are set on x86. This patch forbids that
+combination of config items. This is consistent with x86_64
+enforcements.
+
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+--- 
+ arch/x86/Kconfig |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc8-020_init_kmem3lists_nodes/arch/x86/Kconfig linux-2.6.24-rc8-025_memmap_reffix/arch/x86/Kconfig
+--- linux-2.6.24-rc8-020_init_kmem3lists_nodes/arch/x86/Kconfig	2008-01-19 15:26:00.000000000 +0000
++++ linux-2.6.24-rc8-025_memmap_reffix/arch/x86/Kconfig	2008-01-21 15:51:03.000000000 +0000
+@@ -891,7 +891,7 @@ config HAVE_ARCH_ALLOC_REMAP
+ 
+ config ARCH_FLATMEM_ENABLE
+ 	def_bool y
+-	depends on (X86_32 && ARCH_SELECT_MEMORY_MODEL && X86_PC) || (X86_64 && !NUMA)
++	depends on (X86_32 && ARCH_SELECT_MEMORY_MODEL && X86_PC && !NUMA) || (X86_64 && !NUMA)
+ 
+ config ARCH_DISCONTIGMEM_ENABLE
+ 	def_bool y
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
