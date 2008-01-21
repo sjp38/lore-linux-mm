@@ -1,42 +1,81 @@
-Date: Mon, 21 Jan 2008 14:35:09 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/2] Relax restrictions on setting CONFIG_NUMA on x86
-Message-ID: <20080121143508.GA8485@csn.ul.ie>
-References: <20080118153529.12646.5260.sendpatchset@skynet.skynet.ie> <20080121093702.8FC2.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: by nz-out-0506.google.com with SMTP id i11so1243179nzh.26
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2008 06:36:35 -0800 (PST)
+Message-ID: <4df4ef0c0801210636l5a68b4c1t8a2f687dcdbcf4e5@mail.gmail.com>
+Date: Mon, 21 Jan 2008 17:36:34 +0300
+From: "Anton Salikhmetov" <salikhmetov@gmail.com>
+Subject: Re: [PATCH -v6 2/2] Updating ctime and mtime for memory-mapped files
+In-Reply-To: <4794AB56.60904@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080121093702.8FC2.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <12006091182260-git-send-email-salikhmetov@gmail.com>
+	 <E1JFwnQ-0001FB-2c@pomaz-ex.szeredi.hu>
+	 <alpine.LFD.1.00.0801181127000.2957@woody.linux-foundation.org>
+	 <200801182332.02945.ioe-lkml@rameria.de>
+	 <alpine.LFD.1.00.0801181439330.2957@woody.linux-foundation.org>
+	 <4794AB56.60904@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
+To: Peter Staubach <staubach@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Oeser <ioe-lkml@rameria.de>, Miklos Szeredi <miklos@szeredi.hu>, peterz@infradead.org, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On (21/01/08 09:38), KOSAKI Motohiro didst pronounce:
-> Hi 
-> 
-> > A fix[1] was merged to the x86.git tree that allowed NUMA kernels to boot
-> > on normal x86 machines (and not just NUMA-Q, Summit etc.). I took a look
-> > at the restrictions on setting NUMA on x86 to see if they could be lifted.
-> 
-> Interesting!
-> 
-> I will test tomorrow.
+2008/1/21, Peter Staubach <staubach@redhat.com>:
+> Linus Torvalds wrote:
+> > On Fri, 18 Jan 2008, Ingo Oeser wrote:
+> >
+> >> Can we get "if the write to the page hits the disk, the mtime has hit the disk
+> >> already no less than SOME_GRANULARITY before"?
+> >>
+> >> That is very important for computer forensics. Esp. in saving your ass!
+> >>
+> >> Ok, now back again to making that fast :-)
+> >>
+> >
+> > I certainly don't mind it if we have some tighter guarantees, but what I'd
+> > want is:
+> >
+> >  - keep it simple. Let's face it, Linux has never ever given those
+> >    guarantees before, and it's not is if anybody has really cared. Even
+> >    now, the issue seems to be more about paper standards conformance than
+> >    anything else.
+> >
+> >
+>
+> I have been working on getting something supported here for
+> because I have some very large Wall Street customers who do
+> care about getting the mtime updated because their backups
+> are getting corrupted.  They are incomplete because although
+> their applications update files, they don't get backed up
+> because the mtime never changes.
+>
+> >  - I get worried about people playing around with the dirty bit in
+> >    particular. We have had some really rather nasty bugs here. Most of
+> >    which are totally impossible to trigger under normal loads (for
+> >    example the old random-access utorrent writable mmap issue from about
+> >    a year ago).
+> >
+> > So these two issues - the big red danger signs flashing in my brain,
+> > coupled with the fact that no application has apparently ever really
+> > noticed in the last 15 years - just makes it a case where I'd like each
+> > step of the way to be obvious and simple and no larger than really
+> > absolutely necessary.
+>
+> Simple is good.  However, too simple is not good.  I would suggest
+> that we implement file time updates which make sense and if they
+> happen to follow POSIX, then nifty, otherwise, oh well.
 
-Thanks.
+Thank you very much for your support, Peter!
 
-> I think this patch become easy to the porting of fakenuma.
-> 
+I'm going to submit the design document, the next version of the patch
+series, and the performance tests results soon.
 
-It would be great if that was available, particularly if it could fake
-memoryless nodes as that is a place where we've found a few
-difficult-to-reproduce bugs.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+>
+>     Thanx...
+>
+>        ps
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
