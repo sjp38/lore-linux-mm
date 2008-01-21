@@ -1,37 +1,53 @@
-Message-Id: <20080121202748.047065000@sgi.com>
-References: <20080121202747.593568000@sgi.com>
-Date: Mon, 21 Jan 2008 12:27:50 -0800
+Message-Id: <20080121202747.593568000@sgi.com>
+Date: Mon, 21 Jan 2008 12:27:47 -0800
 From: travis@sgi.com
-Subject: [PATCH 3/8] pecpu: Fix size of percpu_data.ptrs array rc8-mm1-fixup
-Content-Disposition: inline; filename=generic-percpu-fix
+Subject: [PATCH 0/8] percpu: Per cpu code simplification rc8-mm1-fixup
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu
 Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Define the size of the generic percpu pointers array to be NR_CPUS
+This patchset simplifies the code that arches need to maintain to support
+per cpu functionality. Most of the code is moved into arch independent
+code. Only a minimal set of definitions is kept for each arch.
 
-Based on: 2.6.24-rc8-mm1
+The patch also unifies the x86 arch so that there is only a single
+asm-x86/percpu.h
+
+Based on 2.6.24-rc8-mm1
+
+Note there are two versions of this patchset:
+	- 2.6.24-rc8-mm1
+	- 2.6.24-rc8-mm1 + latest (08/1/21) git-x86
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: Mike Travis <travis@sgi.com>
-
 ---
- include/linux/percpu.h |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+rc8-mm1-fixup:
 
---- a/include/linux/percpu.h
-+++ b/include/linux/percpu.h
-@@ -58,7 +58,7 @@
- #ifdef CONFIG_SMP
- 
- struct percpu_data {
--	void *ptrs[1];
-+	void *ptrs[NR_CPUS];
- };
- 
- #define __percpu_disguise(pdata) (struct percpu_data *)~(unsigned long)(pdata)
+  - rebased from 2.6.24-rc6-mm1 to 2.6.24-rc8-mm1
+    (removed changes that are in the git-x86.patch)
+  - added back in missing fold-percpu_modcopy pieces
+
+V3->V4:
+  - rebased patchset on 2.6.24-rc6-mm1
+    (removes the percpu_modcopy changes that are already in.)
+  - change config ARCH_SETS_UP_PER_CPU_AREA to a global var
+    and use select HAVE_SETUP_PER_CPU_AREA to specify.
+
+V2->V3:
+  - fix x86_64 non-SMP case
+  - change SHIFT_PTR to SHIFT_PERCPU_PTR
+  - fix various percpu_modcopy()'s to reference correct per_cpu_offset()
+  - s390 has a special way to determine the pointer to a per cpu area
+
+V1->V2:
+- Add support for specifying attributes for per cpu declarations (preserves
+  IA64 model(small) attribute).
+  - Drop first patch that removes the model(small) attribute for IA64
+  - Missing #endif in powerpc generic config /  Wrong Kconfig
+  - Follow Randy's suggestions on how to do the Kconfig settings
 
 -- 
 
