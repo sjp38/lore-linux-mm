@@ -1,82 +1,92 @@
-Message-Id: <20080121211600.536296000@sgi.com>
+Message-Id: <20080121211600.671953000@sgi.com>
 References: <20080121211600.079162000@sgi.com>
-Date: Mon, 21 Jan 2008 13:16:03 -0800
+Date: Mon, 21 Jan 2008 13:16:04 -0800
 From: travis@sgi.com
-Subject: [PATCH 3/4] x86: Change bios_cpu_apicid to percpu data variable fixup V2
-Content-Disposition: inline; filename=change-bios_cpu_apicid-to-percpu-fixup
+Subject: [PATCH 4/4] x86: Add debug of invalid per_cpu map accesses fixup V2
+Content-Disposition: inline; filename=debug-cpu_to_node
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu
 Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Change static bios_cpu_apicid array to a per_cpu data variable.
-This includes using a static array used during initialization
-similar to the way x86_cpu_to_apicid[] is handled.
-
-There is one early use of bios_cpu_apicid in apic_is_clustered_box().
-The other reference in cpu_present_to_apicid() is called after
-setup_per_cpu_maps() has setup the percpu version of bios_cpu_apicid.
+Provide a means to discover usages of per_cpu map variables before
+they are setup.  Define CONFIG_DEBUG_PER_CPU_MAPS to activate.
 
 Based on 2.6.24-rc8-mm1
 
 Signed-off-by: Mike Travis <travis@sgi.com>
-Reviewed-by: Christoph Lameter <clameter@sgi.com>
 ---
-V1->V2:
-    - Removed extraneous casts
-    - Add slight optimization to apic_is_clustered_box()
-      [don't reference x86_bios_cpu_apicid_early_ptr each pass.]
+Fixup:
+    - for cpu_to_node() instead of panic'ing with BUG() use
+      dump_stack and return valid node id.
 ---
- arch/x86/kernel/apic_64.c  |    6 +++---
- arch/x86/kernel/setup64.c  |    3 +++
- arch/x86/kernel/setup_64.c |    1 +
- 3 files changed, 7 insertions(+), 3 deletions(-)
+ arch/x86/Kconfig.debug     |   12 ++++++++++++
+ arch/x86/mm/numa_64.c      |    3 +++
+ include/asm-x86/topology.h |   12 ++++++++++--
+ 3 files changed, 25 insertions(+), 2 deletions(-)
 
---- a/arch/x86/kernel/apic_64.c
-+++ b/arch/x86/kernel/apic_64.c
-@@ -1191,9 +1191,9 @@ __cpuinit int apic_is_clustered_box(void
+--- a/arch/x86/Kconfig.debug
++++ b/arch/x86/Kconfig.debug
+@@ -47,6 +47,18 @@ config DEBUG_PAGEALLOC
+ 	  This results in a large slowdown, but helps to find certain types
+ 	  of memory corruptions.
  
- 	/* Problem:  Partially populated chassis may not have CPUs in some of
- 	 * the APIC clusters they have been allocated.  Only present CPUs have
--	 * x86_bios_cpu_apicid entries, thus causing zeroes in the bitmap.  Since
--	 * clusters are allocated sequentially, count zeros only if they are
--	 * bounded by ones.
-+	 * x86_bios_cpu_apicid entries, thus causing zeroes in the bitmap.
-+	 * Since clusters are allocated sequentially, count zeros only if
-+	 * they are bounded by ones.
- 	 */
- 	clusters = 0;
- 	zeros = 0;
---- a/arch/x86/kernel/setup64.c
-+++ b/arch/x86/kernel/setup64.c
-@@ -98,6 +98,8 @@ static void __init setup_per_cpu_maps(vo
- #endif
- 			per_cpu(x86_cpu_to_apicid, cpu) =
- 						x86_cpu_to_apicid_init[cpu];
-+			per_cpu(x86_bios_cpu_apicid, cpu) =
-+						x86_bios_cpu_apicid_init[cpu];
- #ifdef CONFIG_NUMA
- 			per_cpu(x86_cpu_to_node_map, cpu) =
- 						x86_cpu_to_node_map_init[cpu];
-@@ -112,6 +114,7 @@ static void __init setup_per_cpu_maps(vo
++config DEBUG_PER_CPU_MAPS
++	bool "Debug access to per_cpu maps"
++	depends on DEBUG_KERNEL
++	depends on X86_64_SMP
++	default n
++	help
++	  Say Y to verify that the per_cpu map being accessed has
++	  been setup.  Adds a fair amount of code to kernel memory
++	  and decreases performance.
++
++	  Say N if unsure.
++
+ config DEBUG_RODATA
+ 	bool "Write protect kernel read-only data structures"
+ 	depends on DEBUG_KERNEL
+--- a/arch/x86/mm/numa_64.c
++++ b/arch/x86/mm/numa_64.c
+@@ -37,6 +37,9 @@ int x86_cpu_to_node_map_init[NR_CPUS] = 
+ void *x86_cpu_to_node_map_early_ptr;
+ DEFINE_PER_CPU(int, x86_cpu_to_node_map) = NUMA_NO_NODE;
+ EXPORT_PER_CPU_SYMBOL(x86_cpu_to_node_map);
++#ifdef	CONFIG_DEBUG_PER_CPU_MAPS
++EXPORT_SYMBOL(x86_cpu_to_node_map_early_ptr);
++#endif
  
- 	/* indicate the early static arrays will soon be gone */
- 	x86_cpu_to_apicid_early_ptr = NULL;
-+	x86_bios_cpu_apicid_early_ptr = NULL;
- #ifdef CONFIG_NUMA
- 	x86_cpu_to_node_map_early_ptr = NULL;
- #endif
---- a/arch/x86/kernel/setup_64.c
-+++ b/arch/x86/kernel/setup_64.c
-@@ -390,6 +390,7 @@ void __init setup_arch(char **cmdline_p)
- #ifdef CONFIG_SMP
- 	/* setup to use the early static init tables during kernel startup */
- 	x86_cpu_to_apicid_early_ptr = (void *)&x86_cpu_to_apicid_init;
-+	x86_bios_cpu_apicid_early_ptr = (void *)&x86_bios_cpu_apicid_init;
- #ifdef CONFIG_NUMA
- 	x86_cpu_to_node_map_early_ptr = (void *)&x86_cpu_to_node_map_init;
- #endif
+ s16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
+ 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
+--- a/include/asm-x86/topology.h
++++ b/include/asm-x86/topology.h
+@@ -58,7 +58,7 @@ static inline int early_cpu_to_node(int 
+ 
+ 	if (cpu_to_node_map)
+ 		return cpu_to_node_map[cpu];
+-	else if(per_cpu_offset(cpu))
++	else if (per_cpu_offset(cpu))
+ 		return per_cpu(x86_cpu_to_node_map, cpu);
+ 	else
+ 		return NUMA_NO_NODE;
+@@ -66,7 +66,15 @@ static inline int early_cpu_to_node(int 
+ 
+ static inline int cpu_to_node(int cpu)
+ {
+-	if(per_cpu_offset(cpu))
++#ifdef CONFIG_DEBUG_PER_CPU_MAPS
++	if (x86_cpu_to_node_map_early_ptr) {
++		printk("KERN_NOTICE cpu_to_node(%d): usage too early!\n",
++			(int)cpu);
++		dump_stack();
++		return ((int *)x86_cpu_to_node_map_early_ptr)[cpu];
++	}
++#endif
++	if (per_cpu_offset(cpu))
+ 		return per_cpu(x86_cpu_to_node_map, cpu);
+ 	else
+ 		return NUMA_NO_NODE;
 
 -- 
 
