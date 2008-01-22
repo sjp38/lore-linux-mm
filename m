@@ -1,33 +1,42 @@
-Date: Tue, 22 Jan 2008 15:18:52 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: crash in kmem_cache_init
-In-Reply-To: <Pine.LNX.4.64.0801221501240.2565@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0801221517260.2871@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0801171049190.21058@schroedinger.engr.sgi.com>
- <20080117211511.GA25320@aepfle.de> <Pine.LNX.4.64.0801181043290.30348@schroedinger.engr.sgi.com>
- <20080118213011.GC10491@csn.ul.ie> <Pine.LNX.4.64.0801181414200.8924@schroedinger.engr.sgi.com>
- <20080118225713.GA31128@aepfle.de> <20080122195448.GA15567@csn.ul.ie>
- <Pine.LNX.4.64.0801221203340.27950@schroedinger.engr.sgi.com>
- <20080122212654.GB15567@csn.ul.ie> <Pine.LNX.4.64.0801221330390.1652@schroedinger.engr.sgi.com>
- <20080122225046.GA866@csn.ul.ie> <47967560.8080101@cs.helsinki.fi>
- <Pine.LNX.4.64.0801221501240.2565@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [kvm-devel] [PATCH] export notifier #1
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Reply-To: benh@kernel.crashing.org
+In-Reply-To: <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com>
+References: <20080113162418.GE8736@v2.random>
+	 <20080116124256.44033d48@bree.surriel.com> <478E4356.7030303@qumranet.com>
+	 <20080117162302.GI7170@v2.random> <478F9C9C.7070500@qumranet.com>
+	 <20080117193252.GC24131@v2.random> <20080121125204.GJ6970@v2.random>
+	 <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random>
+	 <20080122200858.GB15848@v2.random>
+	 <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Wed, 23 Jan 2008 10:36:29 +1100
+Message-Id: <1201044989.6807.46.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Mel Gorman <mel@csn.ul.ie>, Olaf Hering <olaf@aepfle.de>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, hanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lee.schermerhorn@hp.com, Linux MM <linux-mm@kvack.org>, akpm@linux-foundation.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, holt@sgi.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Jan 2008, Christoph Lameter wrote:
+On Tue, 2008-01-22 at 12:34 -0800, Christoph Lameter wrote:
+> 
+> - Notifiers are called *after* we tore down ptes. At that point pages
+>   may already have been freed and reused. This means that there can
+>   still be uses of the page by the user of mmu_ops after the OS has
+>   dropped its mapping. IMHO the foreign entity needs to drop its
+>   mappings first. That also ensures that the entities operated
+>   upon continue to exist.
 
-> But I doubt that this is it. The fallback logic was added later and it 
-> worked fine.
+That's definitely an issue. Maybe having the foreign entity get a
+reference to the page and drop it when it unmaps would help ?
 
-My patch is useless (fascinating history of the changelog there through). 
-fallback_alloc calls kmem_getpages without GFP_THISNODE. This means that 
-alloc_pages_node() will try to allocate on the current node but fallback 
-to neighboring node if nothing is there....
+> - anon_vma/inode and pte locks are held during callbacks.
+
+So how does that fix the problem of sleeping then ?
+
+Ben.
 
 
 --
