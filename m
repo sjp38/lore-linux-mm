@@ -1,83 +1,39 @@
-Date: Tue, 22 Jan 2008 15:35:41 -0700
-From: Matthew Wilcox <matthew@wil.cx>
-Subject: Re: SLUB: Increasing partial pages
-Message-ID: <20080122223541.GR27250@parisc-linux.org>
-References: <20080116195949.GO18741@parisc-linux.org> <Pine.LNX.4.64.0801161219050.9694@schroedinger.engr.sgi.com> <20080116214127.GA11559@parisc-linux.org> <Pine.LNX.4.64.0801161347160.11353@schroedinger.engr.sgi.com> <20080116221618.GB11559@parisc-linux.org> <Pine.LNX.4.64.0801161421240.12024@schroedinger.engr.sgi.com> <20080118191430.GD20490@parisc-linux.org> <Pine.LNX.4.64.0801221142330.27692@schroedinger.engr.sgi.com>
+Date: Tue, 22 Jan 2008 22:35:17 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch] #ifdef very expensive debug check in page fault path
+In-Reply-To: <479469A4.6090607@de.ibm.com>
+Message-ID: <Pine.LNX.4.64.0801222226350.28823@blonde.site>
+References: <1200506488.32116.11.camel@cotte.boeblingen.de.ibm.com>
+ <20080116234540.GB29823@wotan.suse.de> <20080116161021.c9a52c0f.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0801182023350.5249@blonde.site> <479469A4.6090607@de.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0801221142330.27692@schroedinger.engr.sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: carsteno@de.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, mschwid2@linux.vnet.ibm.com, Holger Wolf <holger.wolf@de.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 22, 2008 at 12:00:00PM -0800, Christoph Lameter wrote:
-> It would be great if you could get stable results on these (with multiple 
-> differently compiled kernels! Apply some patch that should have no 
-> performance impact but adds some code to verify). I saw an overall slight 
-> performance decrease on tbench (still doubting how much I can trust those 
-> numbers) so lets not merge the series upstream until we have more data).
+On Mon, 21 Jan 2008, Carsten Otte wrote:
+> Hugh Dickins wrote:
+> > 
+> > Well: that patch still gets my Nack, but I guess I'm too late.  If
+> > s390 pagetables are better protected than x86 ones, add an s390 ifdef?
 > 
-> Patches that I would recommend to test individually if you could do it 
-> (get the series via git pull 
-> git://git.kernel.org/pub/scm/linux/kernel/git/christoph/vm.git performance):
+> The alternative would be to just make
+> #define pfn_valid(pfn) (1)
+> on s390. That would also get _us_ rid of the check while others do benefit. We
+> would trap access to mem_map beyond its limits because we don't have a kernel
+> mapping there. For us, it would not silently corrupt things but crash proper.
 
-The thing is that each run takes approximately 4 hours on a machine
-which has other patches to try too.  I'm not comfortable with asking my
-colleagues to try various combinations on a whim.  What I've asked for
-is:
+Whilst I quite like the sound of that, I wonder whether it's safe to
+change s390's pfn_valid (rather surprisingly) for all its users.  And
+note that nobody but me has voiced any regret at the loss of the check.
+My guess is we let it rest for now, and reconsider if a case comes up
+later which would have got caught by the check (but the problem is that
+such a case is much harder to identify than it was).
 
-2.6.24-rc8 w/ SLAB
-2.6.24-rc8 w/ SLUB
-2.6.24-rc8 w/ SLUB and your 22 patches applied.
-
-So that should be done in about 12 hours time.
-
-Obviously, if we see problems with all 22 patches, we'll try bisection
-search ... and I think you've identified some good points to split at
-below, but testing all possible combinations of these 22 patches with
-and without some other random changes isn't feasible.
-
-I also don't understand the dependency tree -- you seem to be saying
-that we could apply patch 6 without patches 1-5 and test that.
-
-> 0006-Use-non-atomic-unlock.patch
-> 
-> 	Surprisingly this one caused a 1% regression in some of my tests. 
->         Maybe the cacheline is held longer if no atomic op is used during 
->         unlock?
-> 
-> 0005-Add-parameter-to-add_partial-to-avoid-having-two-fun.patch
-> 
-> 	I mostly saw performance increases (1-2%) on this one.
-> 
-> 
-> 0009-SLUB-Avoid-folding-functions-into-__slab_alloc-and.patch
-> 
-> 0010-Move-kmem_cache_node-determination-into-add_full-par.patch
-> 
-> 
-> The cmpxchg stuff is a group of 3 patches. The first two should cause a 
-> slight performance decrease which needs at least to be offset by the third
-> one.
-> 
-> 0014-SLUB-Use-unique-end-pointer-for-each-slab-page.patch
-> 0015-slub-provide-unique-end-marker-for-each-slab-fix.patch
-> 0017-SLUB-Alternate-fast-paths-using-cmpxchg_local.patch
-> 
-> 
-> 0018-SLUB-Do-our-own-locking-to-avoid-extraneous-memory.patch
-> 0019-SLUB-Own-locking-checkpatch-fixes.patch
-> 
-> 0021-SLUB-Restructure-slab_alloc-to-flow-in-execution-se.patch
-
--- 
-Intel are signing my paycheques ... these opinions are still mine
-"Bill, look, we understand that you're interested in selling us this
-operating system, but compare it to ours.  We can't possibly take such
-a retrograde step."
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
