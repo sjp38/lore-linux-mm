@@ -1,67 +1,57 @@
-Date: Tue, 22 Jan 2008 12:29:54 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/2] Relax restrictions on setting CONFIG_NUMA on x86
-Message-ID: <20080122122954.GC10987@csn.ul.ie>
-References: <20080118153529.12646.5260.sendpatchset@skynet.skynet.ie> <p73hcha9vc5.fsf@bingen.suse.de> <20080119160743.GA8352@csn.ul.ie> <20080122121400.GB31253@elte.hu>
+Date: Tue, 22 Jan 2008 13:48:11 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 0/3] x86: Reduce memory usage for large count NR_CPUs
+	fixup V2 with git-x86
+Message-ID: <20080122124811.GD7304@elte.hu>
+References: <20080121211618.599818000@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080122121400.GB31253@elte.hu>
+In-Reply-To: <20080121211618.599818000@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
+To: travis@sgi.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On (22/01/08 13:14), Ingo Molnar didst pronounce:
-> 
-> * Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > [...] I tested this situation on a 4-node NUMA Opteron box. It didn't 
-> > work very well based on a few problems.
-> > 
-> > - alloc_remap() and SPARSEMEM on HIGHMEM4G explodes [1]
-> > - Without SRAT, there is a build failure 
-> > - Enabling SRAT requires BOOT_IOREMAP and it explodes early in boot
-> > 
-> > I have one fix for items 1 and 2 with the patch below. It probably 
-> > should be split in two but lets see if we want to pursue alternative 
-> > fixes to this problem first. In particular, this patch stops SPARSEMEM 
-> > using alloc_remap() because not enough memory is set aside. An 
-> > alternative solution may be to reserve more for alloc_remap() when 
-> > SPARSEMEM is in use.
-> > 
-> > With the patch applied, an x86-64 capable NUMA Opteron box will boot a 
-> > 32 bit NUMA enabled kernel with DISCONTIGMEM or SPARSEMEM. Due to the 
-> > lack of SRAT parsing, there is only node 0 of course.
-> > 
-> > Based on this, I have no doubt there is going to be a series of broken 
-> > boots while stuff like this gets rattled out. For the moment, NUMA on 
-> > x86 32-bit should remain CONFIG_EXPERIMENTAL.
-> 
-> thanks, applied.
-> 
+* travis@sgi.com <travis@sgi.com> wrote:
 
-Sorry, there was a screwup on my behalf. The version I sent still had a
-stray static inline in it.  It will fail to compile without this.
+> Fixup change NR_CPUS patchset by rebasing on 2.6.24-rc8-mm1
+> from 2.6.24-rc6-mm1) and adding changes suggested by reviews.
+> 
+> Based on 2.6.24-rc8-mm1 + latest (08/1/21) git-x86
+> 
+> Note there are two versions of this patchset:
+> 	- 2.6.24-rc8-mm1
+> 	- 2.6.24-rc8-mm1 + latest (08/1/21) git-x86
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc8-015_remap_discontigmem/arch/x86/mm/discontig_32.c linux-2.6.24-rc8-015_remap_discontigmem-fix/arch/x86/mm/discontig_32.c
---- linux-2.6.24-rc8-015_remap_discontigmem/arch/x86/mm/discontig_32.c	2008-01-22 12:27:52.000000000 +0000
-+++ linux-2.6.24-rc8-015_remap_discontigmem-fix/arch/x86/mm/discontig_32.c	2008-01-22 12:28:39.000000000 +0000
-@@ -485,7 +485,7 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to
-  * not set. There are functions in srat_64.c for parsing this table
-  * and it may be possible to make them common functions.
-  */
--static inline void acpi_numa_slit_init (struct acpi_table_slit *slit)
-+void acpi_numa_slit_init (struct acpi_table_slit *slit)
- {
- 	printk(KERN_INFO "ACPI: No support for parsing SLIT table\n");
- }
+thanks, applied.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> Signed-off-by: Mike Travis <travis@sgi.com>
+> ---
+> Fixup-V2:
+>     - pulled the SMP_MAX patch as it's not strictly needed and some
+>       more work on local cpumask_t variables needs to be done before
+>       NR_CPUS is allowed to increase.
+
+i'd still love to see CONFIG_SMP_MAX, so that we can have continuous 
+randconfig testing of the large-SMP aspects of the x86 architecture, 
+even on smaller systems.
+
+What's the maximum that should work right now? 256 or perhaps even 512 
+CPU ought to work fine i think?
+
+and then once the on-stack usage problems are fixed, the NR_CPUS value 
+in CONFIG_SMP_MAX can be increased. So SMP_MAX would also act as "this 
+is how far we can go in the upstream kernel" documentation.
+
+[ btw., the crash i remember was rather related to the NODES_SHIFT
+  increase to 9, not from the NR_CPUSs increase. (the config i sent 
+  still has NR_CPUS==8, because Kconfig did not pick up the right 
+  NR_CPUs value dicatated by SMP_MAX.) If you resend the SMP_MAX patch 
+  against latest x86.git i can retest this. ]
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
