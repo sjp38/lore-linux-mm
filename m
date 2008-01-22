@@ -1,43 +1,49 @@
-Subject: Re: [kvm-devel] [PATCH] export notifier #1
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Reply-To: benh@kernel.crashing.org
-In-Reply-To: <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com>
-References: <20080113162418.GE8736@v2.random>
-	 <20080116124256.44033d48@bree.surriel.com> <478E4356.7030303@qumranet.com>
-	 <20080117162302.GI7170@v2.random> <478F9C9C.7070500@qumranet.com>
-	 <20080117193252.GC24131@v2.random> <20080121125204.GJ6970@v2.random>
-	 <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random>
-	 <20080122200858.GB15848@v2.random>
-	 <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Wed, 23 Jan 2008 10:36:29 +1100
-Message-Id: <1201044989.6807.46.camel@pasglop>
+Date: Wed, 23 Jan 2008 00:39:50 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] #ifdef very expensive debug check in page fault path
+Message-ID: <20080122233950.GA29901@wotan.suse.de>
+References: <1200506488.32116.11.camel@cotte.boeblingen.de.ibm.com> <20080116234540.GB29823@wotan.suse.de> <20080116161021.c9a52c0f.akpm@linux-foundation.org> <Pine.LNX.4.64.0801182023350.5249@blonde.site> <479469A4.6090607@de.ibm.com> <Pine.LNX.4.64.0801222226350.28823@blonde.site>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0801222226350.28823@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, holt@sgi.com, Hugh Dickins <hugh@veritas.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: carsteno@de.ibm.com, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, mschwid2@linux.vnet.ibm.com, Holger Wolf <holger.wolf@de.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-01-22 at 12:34 -0800, Christoph Lameter wrote:
+On Tue, Jan 22, 2008 at 10:35:17PM +0000, Hugh Dickins wrote:
+> On Mon, 21 Jan 2008, Carsten Otte wrote:
+> > Hugh Dickins wrote:
+> > > 
+> > > Well: that patch still gets my Nack, but I guess I'm too late.  If
+> > > s390 pagetables are better protected than x86 ones, add an s390 ifdef?
+> > 
+> > The alternative would be to just make
+> > #define pfn_valid(pfn) (1)
+> > on s390. That would also get _us_ rid of the check while others do benefit. We
+> > would trap access to mem_map beyond its limits because we don't have a kernel
+> > mapping there. For us, it would not silently corrupt things but crash proper.
 > 
-> - Notifiers are called *after* we tore down ptes. At that point pages
->   may already have been freed and reused. This means that there can
->   still be uses of the page by the user of mmu_ops after the OS has
->   dropped its mapping. IMHO the foreign entity needs to drop its
->   mappings first. That also ensures that the entities operated
->   upon continue to exist.
+> Whilst I quite like the sound of that, I wonder whether it's safe to
+> change s390's pfn_valid (rather surprisingly) for all its users.  And
+> note that nobody but me has voiced any regret at the loss of the check.
 
-That's definitely an issue. Maybe having the foreign entity get a
-reference to the page and drop it when it unmaps would help ?
+I did want to get rid of the test, but not in a "sneak it in before he
+notices" way. So I am disappointed it was merged before you replied.
 
-> - anon_vma/inode and pte locks are held during callbacks.
 
-So how does that fix the problem of sleeping then ?
+> My guess is we let it rest for now, and reconsider if a case comes up
+> later which would have got caught by the check (but the problem is that
+> such a case is much harder to identify than it was).
 
-Ben.
+The only cases I had imagined were repeatable things like a bug in pte
+manipulation somewhere, which will hopefully be caught with
+CONFIG_DEBUG_VM turned on. 
 
+Are there many other cases where the test is useful? For hardware
+failures, I'd say not -- those just tend to waste developers time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
