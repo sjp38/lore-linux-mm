@@ -1,57 +1,64 @@
-Date: Mon, 21 Jan 2008 18:16:46 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
+Received: by ro-out-1112.google.com with SMTP id o32so2483988rog.11
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2008 18:18:59 -0800 (PST)
+Message-ID: <9a8748490801211818p6a7c48a2q580bd4aebbdcbe7e@mail.gmail.com>
+Date: Tue, 22 Jan 2008 03:18:59 +0100
+From: "Jesper Juhl" <jesper.juhl@gmail.com>
 Subject: Re: [PATCH -v7 2/2] Update ctime and mtime for memory-mapped files
-In-Reply-To: <12009619584168-git-send-email-salikhmetov@gmail.com>
-Message-ID: <alpine.LFD.1.00.0801211805220.2957@woody.linux-foundation.org>
-References: <12009619562023-git-send-email-salikhmetov@gmail.com> <12009619584168-git-send-email-salikhmetov@gmail.com>
+In-Reply-To: <4df4ef0c0801211757y1f751bbbv4ce4bbf7455a68c@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <12009619562023-git-send-email-salikhmetov@gmail.com>
+	 <12009619584168-git-send-email-salikhmetov@gmail.com>
+	 <9a8748490801211740r5c764f6ev9c331479f63ef362@mail.gmail.com>
+	 <4df4ef0c0801211751w39d7b9e5ne2e8b788051d3e3a@mail.gmail.com>
+	 <9a8748490801211754t51cbc65bg20dea2f8cf6d4516@mail.gmail.com>
+	 <4df4ef0c0801211757y1f751bbbv4ce4bbf7455a68c@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Anton Salikhmetov <salikhmetov@gmail.com>
-Cc: linux-mm@kvack.org, jakob@unthought.net, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, a.p.zijlstra@chello.nl, Andrew Morton <akpm@linux-foundation.org>, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
+On 22/01/2008, Anton Salikhmetov <salikhmetov@gmail.com> wrote:
+> 2008/1/22, Jesper Juhl <jesper.juhl@gmail.com>:
+> > On 22/01/2008, Anton Salikhmetov <salikhmetov@gmail.com> wrote:
+> > > 2008/1/22, Jesper Juhl <jesper.juhl@gmail.com>:
+> > > > Some very pedantic nitpicking below;
+> > > >
+> > > > On 22/01/2008, Anton Salikhmetov <salikhmetov@gmail.com> wrote:
+> > ...
+> > > > > +               if (file && (vma->vm_flags & VM_SHARED)) {
+> > > > > +                       if (flags & MS_ASYNC)
+> > > > > +                               vma_wrprotect(vma);
+> > > > > +                       if (flags & MS_SYNC) {
+> > > >
+> > > > "else if" ??
+> > >
+> > > The MS_ASYNC and MS_SYNC flags are mutually exclusive, that is why I
+> > > did not use the "else-if" here. Moreover, this function itself checks
+> > > that they never come together.
+> > >
+> >
+> > I would say that them being mutually exclusive would be a reason *for*
+> > using "else-if" here.
+>
+> This check is performed by the sys_msync() function itself in its very
+> beginning.
+>
+> We don't need to check it later.
+>
 
-On Tue, 22 Jan 2008, Anton Salikhmetov wrote:
->  
->  /*
-> + * Scan the PTEs for pages belonging to the VMA and mark them read-only.
-> + * It will force a pagefault on the next write access.
-> + */
-> +static void vma_wrprotect(struct vm_area_struct *vma)
-> +{
-> +	unsigned long addr;
-> +
-> +	for (addr = vma->vm_start; addr < vma->vm_end; addr += PAGE_SIZE) {
-> +		spinlock_t *ptl;
-> +		pgd_t *pgd = pgd_offset(vma->vm_mm, addr);
-> +		pud_t *pud = pud_offset(pgd, addr);
-> +		pmd_t *pmd = pmd_offset(pud, addr);
-> +		pte_t *pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+Sure, it's just that, to me, using 'else-if' makes it explicit that
+the two are mutually exclusive. Using "if (...), if (...)" doesn't.
+Maybe it's just me, but I feel that 'else-if' here better shows the
+intention...  No big deal.
 
-This is extremely expensive over bigger areas, especially sparsely mapped 
-ones (it does all the lookups for all four levels over and over and over 
-again for eachg page).
-
-I think Peter Zijlstra posted a version that uses the regular kind of 
-nested loop (with inline functions to keep the thing nice and clean), 
-which gets rid of that.
-
-[ The sad/funny part is that this is all how we *used* to do msync(), back 
-  in the days: we're literally going back to the "pre-cleanup" logic. See 
-  commit 204ec841fbea3e5138168edbc3a76d46747cc987: "mm: msync() cleanup" 
-  for details ]
-
-Quite frankly, I really think you might be better off just doing a
-
-	git revert 204ec841fbea3e5138168edbc3a76d46747cc987
-
-and working from there! I just checked, and it still reverts cleanly, and 
-you'd end up with a nice code-base that (a) has gotten years of testing 
-and (b) already has the looping-over-the-pagetables code.
-
-			Linus
+-- 
+Jesper Juhl <jesper.juhl@gmail.com>
+Don't top-post  http://www.catb.org/~esr/jargon/html/T/top-post.html
+Plain text mails only, please      http://www.expita.com/nomime.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
