@@ -1,41 +1,25 @@
-Date: Thu, 24 Jan 2008 12:19:39 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 0/2] Relax restrictions on setting CONFIG_NUMA on x86
-In-Reply-To: <20080123102222.GA21455@csn.ul.ie>
-References: <20080123105810.F295.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080123102222.GA21455@csn.ul.ie>
-Message-Id: <20080124121310.175B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+From: Anton Salikhmetov <salikhmetov@gmail.com>
+Subject: [PATCH -v8 0/4] Fixing the issue with memory-mapped file times
+Date: Wed, 23 Jan 2008 02:21:16 +0300
+Message-Id: <12010440803930-git-send-email-salikhmetov@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
+To: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
+This is the eighth version of my solution for the bug #2645:
 
-> To rule it out, can you also try with the patch below applied please? It
-> should only make a difference on sparsemem so if discontigmem is still
-> crashing, there is likely another problem. Assuming it crashes, 
+http://bugzilla.kernel.org/show_bug.cgi?id=2645
 
-Aaah, sorry.
-I can't test again until next week.
+Since the previous version, the following has changed:
 
-I repost at that time...
+1) based on Linus' comment, a more efficient PTE walker implemented;
 
+2) the design document added to the kernel documentation.
 
-> please
-> post the full dmesg output with loglevel=8 on the command line. Thanks
+Functional tests successfully passed.
 
-You are right..
-I omitted it at previous mail, sorry.
-
-because piking up dmesg is very difficult when boot time crash. ;-)
-
-
-- kosaki
-
+Please comment.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
