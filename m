@@ -1,50 +1,36 @@
-Date: Tue, 22 Jan 2008 12:11:14 -0800 (PST)
+Date: Tue, 22 Jan 2008 12:20:20 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: crash in kmem_cache_init
-In-Reply-To: <20080122195448.GA15567@csn.ul.ie>
-Message-ID: <Pine.LNX.4.64.0801221203340.27950@schroedinger.engr.sgi.com>
-References: <20080115150949.GA14089@aepfle.de>
- <84144f020801170414q7d408a74uf47a84b777c36a4a@mail.gmail.com>
- <Pine.LNX.4.64.0801170628580.19208@schroedinger.engr.sgi.com>
- <20080117181222.GA24411@aepfle.de> <Pine.LNX.4.64.0801171049190.21058@schroedinger.engr.sgi.com>
- <20080117211511.GA25320@aepfle.de> <Pine.LNX.4.64.0801181043290.30348@schroedinger.engr.sgi.com>
- <20080118213011.GC10491@csn.ul.ie> <Pine.LNX.4.64.0801181414200.8924@schroedinger.engr.sgi.com>
- <20080118225713.GA31128@aepfle.de> <20080122195448.GA15567@csn.ul.ie>
+Subject: Re: [BUG] at mm/slab.c:3320
+In-Reply-To: <20080120005806.GA25669@csn.ul.ie>
+Message-ID: <Pine.LNX.4.64.0801221217320.27950@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0801072131350.28725@schroedinger.engr.sgi.com>
+ <20080109065015.GG7602@us.ibm.com> <Pine.LNX.4.64.0801090949440.10163@schroedinger.engr.sgi.com>
+ <20080109185859.GD11852@skywalker> <Pine.LNX.4.64.0801091122490.11317@schroedinger.engr.sgi.com>
+ <20080109214707.GA26941@us.ibm.com> <Pine.LNX.4.64.0801091349430.12505@schroedinger.engr.sgi.com>
+ <20080109221315.GB26941@us.ibm.com> <Pine.LNX.4.64.0801091601080.14723@schroedinger.engr.sgi.com>
+ <84144f020801170431l2d6d0d63i1fb7ebc5145539f4@mail.gmail.com>
+ <20080120005806.GA25669@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: Olaf Hering <olaf@aepfle.de>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, hanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lee.schermerhorn@hp.com, Linux MM <linux-mm@kvack.org>, akpm@linux-foundation.org
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Nishanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, lee.schermerhorn@hp.com, bob.picco@hp.com, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Jan 2008, Mel Gorman wrote:
+On Sun, 20 Jan 2008, Mel Gorman wrote:
 
-> Christoph/Pekka, this patch is papering over the problem and something
-> more fundamental may be going wrong. The crash occurs because l3 is NULL
-> and the cache is kmem_cache so this is early in the boot process. It is
-> selecting l3 based on node 2 which is correct in terms of available memory
-> but it initialises the lists on node 0 because that is the node the CPUs are
-> located. Hence later it uses an uninitialised nodelists and BLAM. Relevant
-> parts of the log for seeing the memoryless nodes in relation to CPUs is;
+> I tried this patch and it didn't work out. Oops occured all in relation to
+> l3. I did see the obvious flaw and getting this close to 2.6.24 and the
+> other boot-problem on PPC64, I don't think we have the luxury of messing
+> around and maybe this should be tried again later? The minimum revert is
+> the following patch. I have verified it boots the machine in question.
 
-Would it be possible to run the bootstrap on a cpu that has a 
-node with memory associated to it? I believe we had the same situation 
-last year when GFP_THISNODE was introduced?
-
-After you reverted the slab memoryless node patch there should be per node 
-structures created for node 0 unless the node is marked offline. Is it? If 
-so then you are booting a cpu that is associated with an offline node. 
-
-> Can you see a better solution than this?
-
-Well this means that bootstrap will work by introducing foreign objects 
-into the per cpu queue (should only hold per cpu objects). They will 
-later be consumed and then the queues will contain the right objects so 
-the effect of the patch is minimal.
-
-I thought we fixed the similar situation last year by dropping 
-GFP_THISNODE for some allocations?
+Ack. It seems that my patch in upstream cannot work since alien caches can 
+be used on memoryless nodes (they are actually the only thing used on slab 
+free since all frees are remote). The alien caches are hanging off the per 
+node structures. So we must create mostly useless per node structures (l3) 
+in SLAB.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
