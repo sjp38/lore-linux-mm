@@ -1,238 +1,56 @@
-Date: Tue, 22 Jan 2008 05:01:14 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: [patch] mm: fix PageUptodate data race
-Message-ID: <20080122040114.GA18450@wotan.suse.de>
-Mime-Version: 1.0
+Subject: Re: [PATCH -v7 2/2] Update ctime and mtime for memory-mapped files
+References: <12009619562023-git-send-email-salikhmetov@gmail.com>
+	<12009619584168-git-send-email-salikhmetov@gmail.com>
+From: Andi Kleen <andi@firstfloor.org>
+Date: 22 Jan 2008 05:39:43 +0100
+In-Reply-To: <12009619584168-git-send-email-salikhmetov@gmail.com>
+Message-ID: <p737ii2o4mo.fsf@crumb.suse.de>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Anton Salikhmetov <salikhmetov@gmail.com>
+Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-After running SetPageUptodate, preceeding stores to the page contents to
-actually bring it uptodate may not be ordered with the store to set the page
-uptodate.
+Anton Salikhmetov <salikhmetov@gmail.com> writes:
 
-Therefore, another CPU which checks PageUptodate is true, then reads the
-page contents can get stale data.
+You should probably put your design document somewhere in Documentation
+with a patch.
 
-Fix this by having an smp_wmb before SetPageUptodate, and smp_rmb after
-PageUptodate.
+> + * Scan the PTEs for pages belonging to the VMA and mark them read-only.
+> + * It will force a pagefault on the next write access.
+> + */
+> +static void vma_wrprotect(struct vm_area_struct *vma)
+> +{
+> +	unsigned long addr;
+> +
+> +	for (addr = vma->vm_start; addr < vma->vm_end; addr += PAGE_SIZE) {
+> +		spinlock_t *ptl;
+> +		pgd_t *pgd = pgd_offset(vma->vm_mm, addr);
+> +		pud_t *pud = pud_offset(pgd, addr);
+> +		pmd_t *pmd = pmd_offset(pud, addr);
+> +		pte_t *pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 
-Many places that test PageUptodate, do so with the page locked, and this
-would be enough to ensure memory ordering in those places if SetPageUptodate
-were only called while the page is locked. Unfortunately that is not always
-the case for some filesystems, but it could be an idea for the future.
+This means on i386 with highmem ptes you will map/flush tlb/unmap each
+PTE individually. You will do 512 times as much work as really needed
+per PTE leaf page.
 
-Also bring the handling of anonymous page uptodateness in line with that of
-file backed page management, by marking anon pages as uptodate when they _are_
-uptodate, rather than when our implementation requires that they be marked as
-such. Doing allows us to get rid of the smp_wmb's in the page copying
-functions, which were especially added for anonymous pages for an analogous
-memory ordering problem. Both file and anonymous pages are handled with the
-same barriers.
+The performance critical address space walkers use a different design
+pattern that avoids this.
 
-FAQ:
-Q. Why not do this in flush_dcache_page?
-A. Firstly, flush_dcache_page handles only one side (the smb side) of the
-ordering protocol; we'd still need smp_rmb somewhere. Secondly, hiding away
-memory barriers in a completely unrelated function is nasty; at least in the
-PageUptodate macros, they are located together with (half) the operations
-involved in the ordering. Thirdly, the smp_wmb is only required when first
-bringing the page uptodate, wheras flush_dcache_page should be called each time
-it is written to through the kernel mapping. It is logically the wrong place to
-put it.
+> +		if (pte_dirty(*pte) && pte_write(*pte)) {
+> +			pte_t entry = ptep_clear_flush(vma, addr, pte);
 
-Q. Why does this increase my text size / reduce my performance / etc.
-A. Because it is adding the necessary instructions to eliminate the data-race.
+Flushing TLBs unbatched can also be very expensive because if the MM is
+shared by several CPUs you'll have a inter-processor interrupt for 
+each iteration. They are quite costly even on smaller systems.
 
-Q. Can it be improved?
-A. Yes, eg. if you were to create a rule that all SetPageUptodate operations
-run under the page lock, we could avoid the smp_rmb places where PageUptodate
-is queried under the page lock. Requires audit of all filesystems and at least
-some would need reworking. That's great you're interested, I'm eagerly awaiting
-your patches.
+It would be better if you did a single flush_tlb_range() at the end.
+This means on x86 this will currently always do a full flush, but that's
+still better than really slowing down in the heavily multithreaded case.
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
----
-Index: linux-2.6/include/linux/highmem.h
-===================================================================
---- linux-2.6.orig/include/linux/highmem.h
-+++ linux-2.6/include/linux/highmem.h
-@@ -68,8 +68,6 @@ static inline void clear_user_highpage(s
- 	void *addr = kmap_atomic(page, KM_USER0);
- 	clear_user_page(addr, vaddr, page);
- 	kunmap_atomic(addr, KM_USER0);
--	/* Make sure this page is cleared on other CPU's too before using it */
--	smp_wmb();
- }
- 
- #ifndef __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
-@@ -160,8 +158,6 @@ static inline void copy_user_highpage(st
- 	copy_user_page(vto, vfrom, vaddr, to);
- 	kunmap_atomic(vfrom, KM_USER0);
- 	kunmap_atomic(vto, KM_USER1);
--	/* Make sure this page is cleared on other CPU's too before using it */
--	smp_wmb();
- }
- 
- #endif
-Index: linux-2.6/include/linux/page-flags.h
-===================================================================
---- linux-2.6.orig/include/linux/page-flags.h
-+++ linux-2.6/include/linux/page-flags.h
-@@ -131,16 +131,52 @@
- #define ClearPageReferenced(page)	clear_bit(PG_referenced, &(page)->flags)
- #define TestClearPageReferenced(page) test_and_clear_bit(PG_referenced, &(page)->flags)
- 
--#define PageUptodate(page)	test_bit(PG_uptodate, &(page)->flags)
-+static inline int PageUptodate(struct page *page)
-+{
-+	int ret = test_bit(PG_uptodate, &(page)->flags);
-+
-+	/*
-+	 * Must ensure that the data we read out of the page is loaded
-+	 * _after_ we've loaded page->flags to check for PageUptodate.
-+	 * We can skip the barrier if the page is not uptodate, because
-+	 * we wouldn't be reading anything from it.
-+	 *
-+	 * See SetPageUptodate() for the other side of the story.
-+	 */
-+	if (ret)
-+		smp_rmb();
-+
-+	return ret;
-+}
-+
-+static inline void __SetPageUptodate(struct page *page)
-+{
-+	smp_wmb();
-+	__set_bit(PG_uptodate, &(page)->flags);
- #ifdef CONFIG_S390
-+	page_clear_dirty(page);
-+#endif
-+}
-+
- static inline void SetPageUptodate(struct page *page)
- {
-+#ifdef CONFIG_S390
- 	if (!test_and_set_bit(PG_uptodate, &page->flags))
- 		page_clear_dirty(page);
--}
- #else
--#define SetPageUptodate(page)	set_bit(PG_uptodate, &(page)->flags)
-+	/*
-+	 * Memory barrier must be issued before setting the PG_uptodate bit,
-+	 * so that all previous stores issued in order to bring the page
-+	 * uptodate are actually visible before PageUptodate becomes true.
-+	 *
-+	 * s390 doesn't need an explicit smp_wmb here because the test and
-+	 * set bit already provides full barriers.
-+	 */
-+	smp_wmb();
-+	set_bit(PG_uptodate, &(page)->flags);
- #endif
-+}
-+
- #define ClearPageUptodate(page)	clear_bit(PG_uptodate, &(page)->flags)
- 
- #define PageDirty(page)		test_bit(PG_dirty, &(page)->flags)
-Index: linux-2.6/mm/hugetlb.c
-===================================================================
---- linux-2.6.orig/mm/hugetlb.c
-+++ linux-2.6/mm/hugetlb.c
-@@ -808,6 +808,7 @@ static int hugetlb_cow(struct mm_struct 
- 
- 	spin_unlock(&mm->page_table_lock);
- 	copy_huge_page(new_page, old_page, address, vma);
-+	__SetPageUptodate(new_page);
- 	spin_lock(&mm->page_table_lock);
- 
- 	ptep = huge_pte_offset(mm, address & HPAGE_MASK);
-@@ -853,6 +854,7 @@ retry:
- 			goto out;
- 		}
- 		clear_huge_page(page, address);
-+		__SetPageUptodate(page);
- 
- 		if (vma->vm_flags & VM_SHARED) {
- 			int err;
-Index: linux-2.6/mm/memory.c
-===================================================================
---- linux-2.6.orig/mm/memory.c
-+++ linux-2.6/mm/memory.c
-@@ -1518,10 +1518,8 @@ static inline void cow_user_page(struct 
- 			memset(kaddr, 0, PAGE_SIZE);
- 		kunmap_atomic(kaddr, KM_USER0);
- 		flush_dcache_page(dst);
--		return;
--
--	}
--	copy_user_highpage(dst, src, va, vma);
-+	} else
-+		copy_user_highpage(dst, src, va, vma);
- }
- 
- /*
-@@ -1630,6 +1628,7 @@ gotten:
- 	if (!new_page)
- 		goto oom;
- 	cow_user_page(new_page, old_page, address, vma);
-+	__SetPageUptodate(new_page);
- 
- 	/*
- 	 * Re-check the pte - we dropped the lock
-@@ -2162,6 +2161,7 @@ static int do_anonymous_page(struct mm_s
- 	page = alloc_zeroed_user_highpage_movable(vma, address);
- 	if (!page)
- 		goto oom;
-+	__SetPageUptodate(page);
- 
- 	entry = mk_pte(page, vma->vm_page_prot);
- 	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-@@ -2262,6 +2262,7 @@ static int __do_fault(struct mm_struct *
- 				goto out;
- 			}
- 			copy_user_highpage(page, vmf.page, address, vma);
-+			__SetPageUptodate(page);
- 		} else {
- 			/*
- 			 * If the page will be shareable, see if the backing
-Index: linux-2.6/mm/page_io.c
-===================================================================
---- linux-2.6.orig/mm/page_io.c
-+++ linux-2.6/mm/page_io.c
-@@ -126,7 +126,7 @@ int swap_readpage(struct file *file, str
- 	int ret = 0;
- 
- 	BUG_ON(!PageLocked(page));
--	ClearPageUptodate(page);
-+	BUG_ON(PageUptodate(page));
- 	bio = get_swap_bio(GFP_KERNEL, page_private(page), page,
- 				end_swap_bio_read);
- 	if (bio == NULL) {
-Index: linux-2.6/mm/swap_state.c
-===================================================================
---- linux-2.6.orig/mm/swap_state.c
-+++ linux-2.6/mm/swap_state.c
-@@ -152,6 +152,7 @@ int add_to_swap(struct page * page, gfp_
- 	int err;
- 
- 	BUG_ON(!PageLocked(page));
-+	BUG_ON(!PageUptodate(page));
- 
- 	for (;;) {
- 		entry = get_swap_page();
-@@ -174,7 +175,6 @@ int add_to_swap(struct page * page, gfp_
- 
- 		switch (err) {
- 		case 0:				/* Success */
--			SetPageUptodate(page);
- 			SetPageDirty(page);
- 			INC_CACHE_INFO(add_total);
- 			return 1;
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
