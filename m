@@ -1,291 +1,84 @@
-Message-Id: <20080122230409.650460000@sgi.com>
-References: <20080122230409.198261000@sgi.com>
-Date: Tue, 22 Jan 2008 15:04:12 -0800
-From: travis@sgi.com
-Subject: [PATCH 3/3] generic: fixup percpu Kconfig options, fold percpu_modcopy into module.c
-Content-Disposition: inline; filename=03-fix-x86.git-non-x86-changes
+Date: Tue, 22 Jan 2008 23:10:58 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: crash in kmem_cache_init
+Message-ID: <20080122231058.GB866@csn.ul.ie>
+References: <Pine.LNX.4.64.0801181043290.30348@schroedinger.engr.sgi.com> <20080118213011.GC10491@csn.ul.ie> <Pine.LNX.4.64.0801181414200.8924@schroedinger.engr.sgi.com> <20080118225713.GA31128@aepfle.de> <20080122195448.GA15567@csn.ul.ie> <Pine.LNX.4.64.0801221203340.27950@schroedinger.engr.sgi.com> <20080122212654.GB15567@csn.ul.ie> <Pine.LNX.4.64.0801221330390.1652@schroedinger.engr.sgi.com> <20080122225046.GA866@csn.ul.ie> <Pine.LNX.4.64.0801221453480.2271@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0801221453480.2271@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mingo@elte.hu
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Miller <davem@davemloft.net>, linux-ia64@vger.kernel.org, Paul Mackerras <paulus@samba.org>, schwidefsky@de.ibm.com, tony.luck@intel.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Olaf Hering <olaf@aepfle.de>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, hanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lee.schermerhorn@hp.com, Linux MM <linux-mm@kvack.org>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-[ patches for x86.git ]
+On (22/01/08 14:57), Christoph Lameter didst pronounce:
+> On Tue, 22 Jan 2008, Mel Gorman wrote:
+> 
+> > > > Whatever this was a problem fixed in the past or not, it's broken again now
+> > > > :( . It's possible that there is a __GFP_THISNODE that can be dropped early
+> > > > at boot-time that would also fix this problem in a way that doesn't
+> > > > affect runtime (like altering cache_grow in my patch does).
+> > > 
+> > > The dropping of GFP_THISNODE has the same effect as your patch. 
+> > 
+> > The dropping of it totally? If so, this patch might fix a boot but it'll
+> > potentially be a performance regression on NUMA machines that only have
+> > nodes with memory, right?
+> 
+> No the dropping during early allocations.,
+> 
 
-    03-fix-x86.git-non-x86-changes
-	- non-x86 changes that should fix build errors when x86.git
-	  is merged into -mm.  [necessary for -mm merge]
-	  [percpu_modcopy() being the primary problem but also the
-	  config option name for "HAVE_PER_CPU_SETUP" is different.]
+We can live with that if the machine otherwise survives during tests.
+They are kicked off at the moment with CONFIG_SLAB_DEBUG set but the point
+is moot if the patch doesn't work for Olaf. Am still waiting to hear if
+the two patches in combination work for him.
 
-Cc: David Miller <davem@davemloft.net>
-Cc: linux-ia64@vger.kernel.org
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: schwidefsky@de.ibm.com
-Cc: tony.luck@intel.com
+> > o 0
+> > o 2
+> > Nodes with regular memory
+> > o 2
+> > Current running CPU 0 is associated with node 0
+> > Current node is 0
+> > 
+> > So node 2 has regular memory but it's trying to use node 0 at a glance.
+> > I've attached the patch I used against 2.6.24-rc8. It includes the revert.
+> 
+> We need the current processor to be attached to a node that has 
+> memory. We cannot fall back that early because the structures for the 
+> other nodes do not exist yet.
+> 
 
-Signed-off-by: Mike Travis <travis@sgi.com>
----
- arch/ia64/Kconfig            |    2 +-
- arch/ia64/kernel/module.c    |   11 -----------
- arch/powerpc/Kconfig         |    2 +-
- arch/sparc64/mm/init.c       |    5 +++++
- include/asm-ia64/percpu.h    |   29 +++++++----------------------
- include/asm-powerpc/percpu.h |   29 ++---------------------------
- include/asm-s390/percpu.h    |   42 +++++++++---------------------------------
- include/asm-sparc64/percpu.h |   22 +++-------------------
- 8 files changed, 28 insertions(+), 114 deletions(-)
+Or bodge it early in the boot process so that a node with memory is
+always used.
 
---- a/arch/ia64/Kconfig
-+++ b/arch/ia64/Kconfig
-@@ -80,7 +80,7 @@ config GENERIC_TIME_VSYSCALL
- 	bool
- 	default y
- 
--config ARCH_SETS_UP_PER_CPU_AREA
-+config HAVE_SETUP_PER_CPU_AREA
- 	def_bool y
- 
- config DMI
---- a/arch/ia64/kernel/module.c
-+++ b/arch/ia64/kernel/module.c
-@@ -940,14 +940,3 @@ module_arch_cleanup (struct module *mod)
- 	if (mod->arch.core_unw_table)
- 		unw_remove_unwind_table(mod->arch.core_unw_table);
- }
--
--#ifdef CONFIG_SMP
--void
--percpu_modcopy (void *pcpudst, const void *src, unsigned long size)
--{
--	unsigned int i;
--	for_each_possible_cpu(i) {
--		memcpy(pcpudst + per_cpu_offset(i), src, size);
--	}
--}
--#endif /* CONFIG_SMP */
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -42,7 +42,7 @@ config GENERIC_HARDIRQS
- 	bool
- 	default y
- 
--config ARCH_SETS_UP_PER_CPU_AREA
-+config HAVE_SETUP_PER_CPU_AREA
- 	def_bool PPC64
- 
- config IRQ_PER_CPU
---- a/arch/sparc64/mm/init.c
-+++ b/arch/sparc64/mm/init.c
-@@ -1328,6 +1328,11 @@ pgd_t swapper_pg_dir[2048];
- static void sun4u_pgprot_init(void);
- static void sun4v_pgprot_init(void);
- 
-+/* Dummy function */
-+void __init setup_per_cpu_areas(void)
-+{
-+}
-+
- void __init paging_init(void)
- {
- 	unsigned long end_pfn, pages_avail, shift, phys_base;
---- a/include/asm-ia64/percpu.h
-+++ b/include/asm-ia64/percpu.h
-@@ -19,34 +19,14 @@
- # define PER_CPU_ATTRIBUTES	__attribute__((__model__ (__small__)))
- #endif
- 
--#define DECLARE_PER_CPU(type, name)				\
--	extern PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
--
--/*
-- * Pretty much a literal copy of asm-generic/percpu.h, except that percpu_modcopy() is an
-- * external routine, to avoid include-hell.
-- */
- #ifdef CONFIG_SMP
- 
--extern unsigned long __per_cpu_offset[NR_CPUS];
--#define per_cpu_offset(x) (__per_cpu_offset[x])
--
--/* Equal to __per_cpu_offset[smp_processor_id()], but faster to access: */
--DECLARE_PER_CPU(unsigned long, local_per_cpu_offset);
-+#define __my_cpu_offset	__ia64_per_cpu_var(local_per_cpu_offset)
- 
--#define per_cpu(var, cpu)  (*RELOC_HIDE(&per_cpu__##var, __per_cpu_offset[cpu]))
--#define __get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __ia64_per_cpu_var(local_per_cpu_offset)))
--#define __raw_get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __ia64_per_cpu_var(local_per_cpu_offset)))
--
--extern void percpu_modcopy(void *pcpudst, const void *src, unsigned long size);
--extern void setup_per_cpu_areas (void);
- extern void *per_cpu_init(void);
- 
- #else /* ! SMP */
- 
--#define per_cpu(var, cpu)			(*((void)(cpu), &per_cpu__##var))
--#define __get_cpu_var(var)			per_cpu__##var
--#define __raw_get_cpu_var(var)			per_cpu__##var
- #define per_cpu_init()				(__phys_per_cpu_start)
- 
- #endif	/* SMP */
-@@ -57,7 +37,12 @@ extern void *per_cpu_init(void);
-  * On the positive side, using __ia64_per_cpu_var() instead of __get_cpu_var() is slightly
-  * more efficient.
-  */
--#define __ia64_per_cpu_var(var)	(per_cpu__##var)
-+#define __ia64_per_cpu_var(var)	per_cpu__##var
-+
-+#include <asm-generic/percpu.h>
-+
-+/* Equal to __per_cpu_offset[smp_processor_id()], but faster to access: */
-+DECLARE_PER_CPU(unsigned long, local_per_cpu_offset);
- 
- #endif /* !__ASSEMBLY__ */
- 
---- a/include/asm-powerpc/percpu.h
-+++ b/include/asm-powerpc/percpu.h
-@@ -16,34 +16,9 @@
- #define __my_cpu_offset() get_paca()->data_offset
- #define per_cpu_offset(x) (__per_cpu_offset(x))
- 
--/* var is in discarded region: offset to particular copy we want */
--#define per_cpu(var, cpu) (*RELOC_HIDE(&per_cpu__##var, __per_cpu_offset(cpu)))
--#define __get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __my_cpu_offset()))
--#define __raw_get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, local_paca->data_offset))
-+#endif /* CONFIG_SMP */
-+#endif /* __powerpc64__ */
- 
--/* A macro to avoid #include hell... */
--#define percpu_modcopy(pcpudst, src, size)			\
--do {								\
--	unsigned int __i;					\
--	for_each_possible_cpu(__i)				\
--		memcpy((pcpudst)+__per_cpu_offset(__i),		\
--		       (src), (size));				\
--} while (0)
--
--extern void setup_per_cpu_areas(void);
--
--#else /* ! SMP */
--
--#define per_cpu(var, cpu)			(*((void)(cpu), &per_cpu__##var))
--#define __get_cpu_var(var)			per_cpu__##var
--#define __raw_get_cpu_var(var)			per_cpu__##var
--
--#endif	/* SMP */
--
--#define DECLARE_PER_CPU(type, name) extern __typeof__(type) per_cpu__##name
--
--#else
- #include <asm-generic/percpu.h>
--#endif
- 
- #endif /* _ASM_POWERPC_PERCPU_H_ */
---- a/include/asm-s390/percpu.h
-+++ b/include/asm-s390/percpu.h
-@@ -13,49 +13,25 @@
-  */
- #if defined(__s390x__) && defined(MODULE)
- 
--#define __reloc_hide(var,offset) (*({			\
-+#define SHIFT_PERCPU_PTR(ptr,offset) (({			\
- 	extern int simple_identifier_##var(void);	\
- 	unsigned long *__ptr;				\
--	asm ( "larl %0,per_cpu__"#var"@GOTENT"		\
--	    : "=a" (__ptr) : "X" (per_cpu__##var) );	\
--	(typeof(&per_cpu__##var))((*__ptr) + (offset));	}))
-+	asm ( "larl %0, %1@GOTENT"		\
-+	    : "=a" (__ptr) : "X" (ptr) );		\
-+	(typeof(ptr))((*__ptr) + (offset));	}))
- 
- #else
- 
--#define __reloc_hide(var, offset) (*({				\
-+#define SHIFT_PERCPU_PTR(ptr, offset) (({				\
- 	extern int simple_identifier_##var(void);		\
- 	unsigned long __ptr;					\
--	asm ( "" : "=a" (__ptr) : "0" (&per_cpu__##var) );	\
--	(typeof(&per_cpu__##var)) (__ptr + (offset)); }))
-+	asm ( "" : "=a" (__ptr) : "0" (ptr) );			\
-+	(typeof(ptr)) (__ptr + (offset)); }))
- 
- #endif
- 
--#ifdef CONFIG_SMP
-+#define __my_cpu_offset S390_lowcore.percpu_offset
- 
--extern unsigned long __per_cpu_offset[NR_CPUS];
--
--#define __get_cpu_var(var) __reloc_hide(var,S390_lowcore.percpu_offset)
--#define __raw_get_cpu_var(var) __reloc_hide(var,S390_lowcore.percpu_offset)
--#define per_cpu(var,cpu) __reloc_hide(var,__per_cpu_offset[cpu])
--#define per_cpu_offset(x) (__per_cpu_offset[x])
--
--/* A macro to avoid #include hell... */
--#define percpu_modcopy(pcpudst, src, size)			\
--do {								\
--	unsigned int __i;					\
--	for_each_possible_cpu(__i)				\
--		memcpy((pcpudst)+__per_cpu_offset[__i],		\
--		       (src), (size));				\
--} while (0)
--
--#else /* ! SMP */
--
--#define __get_cpu_var(var) __reloc_hide(var,0)
--#define __raw_get_cpu_var(var) __reloc_hide(var,0)
--#define per_cpu(var,cpu) __reloc_hide(var,0)
--
--#endif /* SMP */
--
--#define DECLARE_PER_CPU(type, name) extern __typeof__(type) per_cpu__##name
-+#include <asm-generic/percpu.h>
- 
- #endif /* __ARCH_S390_PERCPU__ */
---- a/include/asm-sparc64/percpu.h
-+++ b/include/asm-sparc64/percpu.h
-@@ -7,7 +7,6 @@ register unsigned long __local_per_cpu_o
- 
- #ifdef CONFIG_SMP
- 
--#define setup_per_cpu_areas()			do { } while (0)
- extern void real_setup_per_cpu_areas(void);
- 
- extern unsigned long __per_cpu_base;
-@@ -16,29 +15,14 @@ extern unsigned long __per_cpu_shift;
- 	(__per_cpu_base + ((unsigned long)(__cpu) << __per_cpu_shift))
- #define per_cpu_offset(x) (__per_cpu_offset(x))
- 
--/* var is in discarded region: offset to particular copy we want */
--#define per_cpu(var, cpu) (*RELOC_HIDE(&per_cpu__##var, __per_cpu_offset(cpu)))
--#define __get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __local_per_cpu_offset))
--#define __raw_get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __local_per_cpu_offset))
--
--/* A macro to avoid #include hell... */
--#define percpu_modcopy(pcpudst, src, size)			\
--do {								\
--	unsigned int __i;					\
--	for_each_possible_cpu(__i)				\
--		memcpy((pcpudst)+__per_cpu_offset(__i),		\
--		       (src), (size));				\
--} while (0)
-+#define __my_cpu_offset __local_per_cpu_offset
-+
- #else /* ! SMP */
- 
- #define real_setup_per_cpu_areas()		do { } while (0)
- 
--#define per_cpu(var, cpu)			(*((void)cpu, &per_cpu__##var))
--#define __get_cpu_var(var)			per_cpu__##var
--#define __raw_get_cpu_var(var)			per_cpu__##var
--
- #endif	/* SMP */
- 
--#define DECLARE_PER_CPU(type, name) extern __typeof__(type) per_cpu__##name
-+#include <asm-generic/percpu.h>
- 
- #endif /* __ARCH_SPARC64_PERCPU__ */
+> > Online nodes
+> > o 0
+> > o 2
+> > Nodes with regular memory
+> > o 2
+> > Current running CPU 0 is associated with node 0
+> > Current node is 0
+> >  o kmem_list3_init
+> 
+> This needs to be node 2.
+> 
+
+Rather it should be 2. I'll admit the physical setup of this machine is
+.... less than ideal but clearly it's something that can happen even if
+it's a bad idea.
+
+> > [c0000000005c3b40] c0000000000dadec .cache_grow+0x7c/0x338
+> > [c0000000005c3c00] c0000000000db54c .fallback_alloc+0x1c0/0x224
+> 
+> Fallback during bootstrap.
+> 
 
 -- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
