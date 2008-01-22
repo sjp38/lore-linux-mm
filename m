@@ -1,33 +1,72 @@
-Date: Mon, 21 Jan 2008 21:21:26 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH] mmu notifiers #v3
-Message-ID: <20080121212126.4c31a95c@bree.surriel.com>
-In-Reply-To: <20080121125204.GJ6970@v2.random>
-References: <20080113162418.GE8736@v2.random>
-	<20080116124256.44033d48@bree.surriel.com>
-	<478E4356.7030303@qumranet.com>
-	<20080117162302.GI7170@v2.random>
-	<478F9C9C.7070500@qumranet.com>
-	<20080117193252.GC24131@v2.random>
-	<20080121125204.GJ6970@v2.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by ro-out-1112.google.com with SMTP id o32so2488370rog.11
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2008 18:39:24 -0800 (PST)
+Message-ID: <4df4ef0c0801211839p73b6b203q47549fba2be8438b@mail.gmail.com>
+Date: Tue, 22 Jan 2008 05:39:23 +0300
+From: "Anton Salikhmetov" <salikhmetov@gmail.com>
+Subject: Re: [PATCH -v7 2/2] Update ctime and mtime for memory-mapped files
+In-Reply-To: <alpine.LFD.1.00.0801211805220.2957@woody.linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <12009619562023-git-send-email-salikhmetov@gmail.com>
+	 <12009619584168-git-send-email-salikhmetov@gmail.com>
+	 <alpine.LFD.1.00.0801211805220.2957@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Izik Eidus <izike@qumranet.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm-devel@lists.sourceforge.net, Avi Kivity <avi@qumranet.com>, clameter@sgi.com, daniel.blueman@quadrics.com, holt@sgi.com, steiner@sgi.com, Andrew Morton <akpm@osdl.org>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-mm@kvack.org, jakob@unthought.net, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, a.p.zijlstra@chello.nl, Andrew Morton <akpm@linux-foundation.org>, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 21 Jan 2008 13:52:04 +0100
-Andrea Arcangeli <andrea@qumranet.com> wrote:
+2008/1/22, Linus Torvalds <torvalds@linux-foundation.org>:
+>
+>
+> On Tue, 22 Jan 2008, Anton Salikhmetov wrote:
+> >
+> >  /*
+> > + * Scan the PTEs for pages belonging to the VMA and mark them read-only.
+> > + * It will force a pagefault on the next write access.
+> > + */
+> > +static void vma_wrprotect(struct vm_area_struct *vma)
+> > +{
+> > +     unsigned long addr;
+> > +
+> > +     for (addr = vma->vm_start; addr < vma->vm_end; addr += PAGE_SIZE) {
+> > +             spinlock_t *ptl;
+> > +             pgd_t *pgd = pgd_offset(vma->vm_mm, addr);
+> > +             pud_t *pud = pud_offset(pgd, addr);
+> > +             pmd_t *pmd = pmd_offset(pud, addr);
+> > +             pte_t *pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+>
+> This is extremely expensive over bigger areas, especially sparsely mapped
+> ones (it does all the lookups for all four levels over and over and over
+> again for eachg page).
+>
+> I think Peter Zijlstra posted a version that uses the regular kind of
+> nested loop (with inline functions to keep the thing nice and clean),
+> which gets rid of that.
 
-> Signed-off-by: Andrea Arcangeli <andrea@qumranet.com>
+Thanks for your feedback, Linus!
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+I will use Peter Zijlstra's version of such an operation in my next
+patch series.
 
--- 
-All rights reversed.
+>
+> [ The sad/funny part is that this is all how we *used* to do msync(), back
+>   in the days: we're literally going back to the "pre-cleanup" logic. See
+>   commit 204ec841fbea3e5138168edbc3a76d46747cc987: "mm: msync() cleanup"
+>   for details ]
+>
+> Quite frankly, I really think you might be better off just doing a
+>
+>         git revert 204ec841fbea3e5138168edbc3a76d46747cc987
+>
+> and working from there! I just checked, and it still reverts cleanly, and
+> you'd end up with a nice code-base that (a) has gotten years of testing
+> and (b) already has the looping-over-the-pagetables code.
+>
+>                         Linus
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
