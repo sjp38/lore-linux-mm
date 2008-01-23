@@ -1,32 +1,97 @@
-Date: Wed, 23 Jan 2008 09:40:16 +0100
-From: Olaf Hering <olaf@aepfle.de>
-Subject: Re: crash in kmem_cache_init
-Message-ID: <20080123084016.GA17911@aepfle.de>
-References: <20080118225713.GA31128@aepfle.de> <20080122195448.GA15567@csn.ul.ie> <Pine.LNX.4.64.0801221203340.27950@schroedinger.engr.sgi.com> <20080122212654.GB15567@csn.ul.ie> <Pine.LNX.4.64.0801221330390.1652@schroedinger.engr.sgi.com> <20080122225046.GA866@csn.ul.ie> <47967560.8080101@cs.helsinki.fi> <Pine.LNX.4.64.0801221501240.2565@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0801221517260.2871@schroedinger.engr.sgi.com> <84144f020801230019i5ac6c8b1lfa5364672988b0c4@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <84144f020801230019i5ac6c8b1lfa5364672988b0c4@mail.gmail.com>
+Subject: Re: [PATCH -v8 3/4] Enable the MS_ASYNC functionality in
+	sys_msync()
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <1201044083504-git-send-email-salikhmetov@gmail.com>
+References: <12010440803930-git-send-email-salikhmetov@gmail.com>
+	 <1201044083504-git-send-email-salikhmetov@gmail.com>
+Content-Type: text/plain
+Date: Wed, 23 Jan 2008 09:47:15 +0100
+Message-Id: <1201078035.6341.45.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, hanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lee.schermerhorn@hp.com, Linux MM <linux-mm@kvack.org>, akpm@linux-foundation.org
+To: Anton Salikhmetov <salikhmetov@gmail.com>
+Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 23, Pekka Enberg wrote:
+On Wed, 2008-01-23 at 02:21 +0300, Anton Salikhmetov wrote:
 
-> Hi Christoph,
-> 
-> On Jan 23, 2008 1:18 AM, Christoph Lameter <clameter@sgi.com> wrote:
-> > My patch is useless (fascinating history of the changelog there through).
-> > fallback_alloc calls kmem_getpages without GFP_THISNODE. This means that
-> > alloc_pages_node() will try to allocate on the current node but fallback
-> > to neighboring node if nothing is there....
-> 
-> Sure, but I was referring to the scenario where current node _has_
-> pages available but no ->nodelists. Olaf, did you try it?
+> +static void vma_wrprotect_pmd_range(struct vm_area_struct *vma, pmd_t *pmd,
+> +		unsigned long start, unsigned long end)
+> +{
+> +	while (start < end) {
+> +		spinlock_t *ptl;
+> +		pte_t *pte = pte_offset_map_lock(vma->vm_mm, pmd, start, &ptl);
+> +
+> +		if (pte_dirty(*pte) && pte_write(*pte)) {
+> +			pte_t entry = ptep_clear_flush(vma, start, pte);
+> +
+> +			entry = pte_wrprotect(entry);
+> +			set_pte_at(vma->vm_mm, start, pte, entry);
+> +		}
+> +
+> +		pte_unmap_unlock(pte, ptl);
+> +		start += PAGE_SIZE;
+> +	}
+> +}
 
-Does not help.
+You've had two examples on how to write this loop, one from git commit
+204ec841fbea3e5138168edbc3a76d46747cc987, and one from my draft, but
+this one looks like neither and is much less efficient. Take the lock
+only once per pmd, not once per pte please.
+
+> +static void vma_wrprotect_pud_range(struct vm_area_struct *vma, pud_t *pud,
+> +		unsigned long start, unsigned long end)
+> +{
+> +	pmd_t *pmd = pmd_offset(pud, start);
+> +
+> +	while (start < end) {
+> +		unsigned long next = pmd_addr_end(start, end);
+> +
+> +		if (!pmd_none_or_clear_bad(pmd))
+> +			vma_wrprotect_pmd_range(vma, pmd, start, next);
+> +
+> +		++pmd;
+> +		start = next;
+> +	}
+> +}
+> +
+> +static void vma_wrprotect_pgd_range(struct vm_area_struct *vma, pgd_t *pgd,
+> +		unsigned long start, unsigned long end)
+> +{
+> +	pud_t *pud = pud_offset(pgd, start);
+> +
+> +	while (start < end) {
+> +		unsigned long next = pud_addr_end(start, end);
+> +
+> +		if (!pud_none_or_clear_bad(pud))
+> +			vma_wrprotect_pud_range(vma, pud, start, next);
+> +
+> +		++pud;
+> +		start = next;
+> +	}
+> +}
+> +
+> +static void vma_wrprotect(struct vm_area_struct *vma)
+> +{
+> +	unsigned long addr = vma->vm_start;
+> +	pgd_t *pgd = pgd_offset(vma->vm_mm, addr);
+> +
+> +	while (addr < vma->vm_end) {
+> +		unsigned long next = pgd_addr_end(addr, vma->vm_end);
+> +
+> +		if (!pgd_none_or_clear_bad(pgd))
+> +			vma_wrprotect_pgd_range(vma, pgd, addr, next);
+> +
+> +		++pgd;
+> +		addr = next;
+> +	}
+> +}
+
+I think you want to pass start, end here too, you might not need to
+sweep the whole vma.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
