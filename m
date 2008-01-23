@@ -1,50 +1,98 @@
-Message-ID: <4797384B.7080200@redhat.com>
-Date: Wed, 23 Jan 2008 13:51:23 +0100
-From: Gerd Hoffmann <kraxel@redhat.com>
+Date: Wed, 23 Jan 2008 13:52:36 +0100
+From: Olaf Hering <olaf@aepfle.de>
+Subject: Re: crash in kmem_cache_init
+Message-ID: <20080123125236.GA18876@aepfle.de>
+References: <Pine.LNX.4.64.0801181043290.30348@schroedinger.engr.sgi.com> <20080118213011.GC10491@csn.ul.ie> <Pine.LNX.4.64.0801181414200.8924@schroedinger.engr.sgi.com> <20080118225713.GA31128@aepfle.de> <20080122195448.GA15567@csn.ul.ie> <20080122214505.GA15674@aepfle.de> <Pine.LNX.4.64.0801221417480.1912@schroedinger.engr.sgi.com> <20080123075821.GA17713@aepfle.de> <20080123105044.GD21455@csn.ul.ie> <20080123121459.GA18631@aepfle.de>
 MIME-Version: 1.0
-Subject: Re: [kvm-devel] [PATCH] export notifier #1
-References: <20080113162418.GE8736@v2.random>	<20080116124256.44033d48@bree.surriel.com>	<478E4356.7030303@qumranet.com> <20080117162302.GI7170@v2.random>	<478F9C9C.7070500@qumranet.com> <20080117193252.GC24131@v2.random>	<20080121125204.GJ6970@v2.random> <4795F9D2.1050503@qumranet.com>	<20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20080123121459.GA18631@aepfle.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, holt@sgi.com, Hugh Dickins <hugh@veritas.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Christoph Lameter <clameter@sgi.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, hanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lee.schermerhorn@hp.com, Linux MM <linux-mm@kvack.org>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Jumping in here, looks like this could develop into a direction useful
-for Xen.
+On Wed, Jan 23, Olaf Hering wrote:
 
-Background:  Xen has a mechanism called "grant tables" for page sharing.
- Guest #1 can issue a "grant" for another guest #2, which in turn then
-can use that grant to map the page owned by guest #1 into its address
-space.  This is used by the virtual network/disk drivers, i.e. typically
-Domain-0 (which has access to the real hardware) maps pages of other
-guests to fill in disk/network data.
-
-Establishing and tearing down mappings for those grants must happen
-through a special grant table hypercall, and especially for the tear
-down part of the problem mmu/export/whatever-we-call-them-in-the-end
-notifies could help.
-
-> Issues with mmu_ops #2
+> On Wed, Jan 23, Mel Gorman wrote:
 > 
-> - Notifiers are called *after* we tore down ptes.
+> > Sorry this is dragging out. Can you post the full dmesg with loglevel=8 of the
+> > following patch against 2.6.24-rc8 please? It contains the debug information
+> > that helped me figure out what was going wrong on the PPC64 machine here,
+> > the revert and the !l3 checks (i.e. the two patches that made machines I
+> > have access to work). Thanks
+> 
+> It boots with your change.
 
-That would render the notifies useless for Xen too.  Xen needs to
-intercept the actual pte clear and instead of just zapping it use the
-hypercall to do the unmap and release the grant.
+This version of the patch boots ok for me:
+Maybe I made a mistake with earlier patches, no idea.
 
-Current implementation uses a new vm_ops operation which is called if
-present instead of doing a ptep_get_and_clear_full().  It is in the
-XenSource tree only, mainline hasn't this yet due to implementing only
-the DomU bits so far.  When adding Dom0 support to mainline we'll need
-some way to handle it, and I'd like to see the notifies be designed in a
-way that Xen can simply use them.
+---
+ mm/slab.c |   17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)
 
-cheers,
-  Gerd
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1590,7 +1590,7 @@ void __init kmem_cache_init(void)
+ 		/* Replace the static kmem_list3 structures for the boot cpu */
+ 		init_list(&cache_cache, &initkmem_list3[CACHE_CACHE], node);
+ 
+-		for_each_node_state(nid, N_NORMAL_MEMORY) {
++		for_each_online_node(nid) {
+ 			init_list(malloc_sizes[INDEX_AC].cs_cachep,
+ 				  &initkmem_list3[SIZE_AC + nid], nid);
+ 
+@@ -1968,7 +1968,7 @@ static void __init set_up_list3s(struct 
+ {
+ 	int node;
+ 
+-	for_each_node_state(node, N_NORMAL_MEMORY) {
++	for_each_online_node(node) {
+ 		cachep->nodelists[node] = &initkmem_list3[index + node];
+ 		cachep->nodelists[node]->next_reap = jiffies +
+ 		    REAPTIMEOUT_LIST3 +
+@@ -2099,7 +2099,7 @@ static int __init_refok setup_cpu_cache(
+ 			g_cpucache_up = PARTIAL_L3;
+ 		} else {
+ 			int node;
+-			for_each_node_state(node, N_NORMAL_MEMORY) {
++			for_each_online_node(node) {
+ 				cachep->nodelists[node] =
+ 				    kmalloc_node(sizeof(struct kmem_list3),
+ 						GFP_KERNEL, node);
+@@ -2775,6 +2775,11 @@ static int cache_grow(struct kmem_cache 
+ 	/* Take the l3 list lock to change the colour_next on this node */
+ 	check_irq_off();
+ 	l3 = cachep->nodelists[nodeid];
++	if (!l3) {
++		nodeid = numa_node_id();
++		l3 = cachep->nodelists[nodeid];
++	}
++	BUG_ON(!l3);
+ 	spin_lock(&l3->list_lock);
+ 
+ 	/* Get colour for the slab, and cal the next value. */
+@@ -3317,6 +3322,10 @@ static void *____cache_alloc_node(struct
+ 	int x;
+ 
+ 	l3 = cachep->nodelists[nodeid];
++	if (!l3) {
++		nodeid = numa_node_id();
++		l3 = cachep->nodelists[nodeid];
++	}
+ 	BUG_ON(!l3);
+ 
+ retry:
+@@ -3815,7 +3824,7 @@ static int alloc_kmemlist(struct kmem_ca
+ 	struct array_cache *new_shared;
+ 	struct array_cache **new_alien = NULL;
+ 
+-	for_each_node_state(node, N_NORMAL_MEMORY) {
++	for_each_online_node(node) {
+ 
+                 if (use_alien_caches) {
+                         new_alien = alloc_alien_cache(node, cachep->limit);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
