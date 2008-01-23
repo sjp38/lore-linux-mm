@@ -1,113 +1,55 @@
-Date: Wed, 23 Jan 2008 19:42:11 +0200 (EET)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [PATCH] Fix boot problem in situations where the boot CPU is
- running on a memoryless node
-In-Reply-To: <Pine.LNX.4.64.0801231906520.1028@sbz-30.cs.Helsinki.FI>
-Message-ID: <Pine.LNX.4.64.0801231941220.3647@sbz-30.cs.Helsinki.FI>
-References: <20080122214505.GA15674@aepfle.de>
- <Pine.LNX.4.64.0801221417480.1912@schroedinger.engr.sgi.com>
- <20080123075821.GA17713@aepfle.de> <20080123105044.GD21455@csn.ul.ie>
- <20080123121459.GA18631@aepfle.de> <20080123125236.GA18876@aepfle.de>
- <20080123135513.GA14175@csn.ul.ie> <Pine.LNX.4.64.0801231611160.20050@sbz-30.cs.Helsinki.FI>
- <Pine.LNX.4.64.0801231626320.21475@sbz-30.cs.Helsinki.FI>
- <Pine.LNX.4.64.0801231648140.23343@sbz-30.cs.Helsinki.FI>
- <20080123155655.GB20156@csn.ul.ie> <Pine.LNX.4.64.0801231906520.1028@sbz-30.cs.Helsinki.FI>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Message-ID: <47977DCA.3040904@redhat.com>
+Date: Wed, 23 Jan 2008 18:47:54 +0100
+From: Gerd Hoffmann <kraxel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [kvm-devel] [PATCH] export notifier #1
+References: <478E4356.7030303@qumranet.com> <20080117162302.GI7170@v2.random> <478F9C9C.7070500@qumranet.com> <20080117193252.GC24131@v2.random> <20080121125204.GJ6970@v2.random> <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com> <4797384B.7080200@redhat.com> <20080123154130.GC7141@v2.random>
+In-Reply-To: <20080123154130.GC7141@v2.random>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: akpm@linux-foundation.org, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, hanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lee.schermerhorn@hp.com, Linux MM <linux-mm@kvack.org>, Olaf Hering <olaf@aepfle.de>
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, daniel.blueman@quadrics.com, holt@sgi.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 23 Jan 2008, Pekka J Enberg wrote:
-> As far as I can tell, there are two ways to fix this:
+Andrea Arcangeli wrote:
+> Like Avi said, Xen is dealing with the linux pte only, so there's no
+> racy smp page fault to serialize against. Perhaps we can add another
+> notifier for Xen though.
+> 
+> But I think it's still not enough for Xen to have a method called
+> before the ptep_clear_flush: rmap.c would get confused in
+> page_mkclean_one for example.
 
-[snip]
- 
->   (2) initialize cache_cache.nodelists with initmem_list3 equivalents
->       for *each node hat has normal memory*
+The current code sets a bunch of vma flags (VM_RESERVED, VM_DONTCOPY,
+VM_FOREIGN) so the VM doesn't try to handle those special mapping.  IIRC
+one of them was needed to not make rmap unhappy.
 
-An untested patch follows:
+> Nevertheless if you've any idea on how to use the notifiers for Xen
+> I'd be glad to help. Perhaps one workable way to change my patch to
+> work for you could be to pass the retval of ptep_clear_flush to the
+> notifiers themself. something like:
+> 
+> #define ptep_clear_flush(__vma, __address, __ptep)			\
+> ({									\
+> 	pte_t __pte;							\
+> 	__pte = ptep_get_and_clear((__vma)->vm_mm, __address, __ptep);	\
+> 	flush_tlb_page(__vma, __address);				\
+> 	__pte = mmu_notifier(invalidate_page, (__vma)->vm_mm, __address, __pte, __ptep);	\
+> 	__pte;								\
+> })
 
----
- mm/slab.c |   39 ++++++++++++++++++++-------------------
- 1 file changed, 20 insertions(+), 19 deletions(-)
+Would not work.  Need to pass a pointer to the pte so the xen hypervisor
+can do unmap (aka pte_clear) and grant release as atomic operation.
+Thus passing the value of the pte entry isn't good enougth.
 
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c
-+++ linux-2.6/mm/slab.c
-@@ -304,11 +304,11 @@ struct kmem_list3 {
- /*
-  * Need this for bootstrapping a per node allocator.
-  */
--#define NUM_INIT_LISTS (2 * MAX_NUMNODES + 1)
-+#define NUM_INIT_LISTS (3 * MAX_NUMNODES)
- struct kmem_list3 __initdata initkmem_list3[NUM_INIT_LISTS];
- #define	CACHE_CACHE 0
--#define	SIZE_AC 1
--#define	SIZE_L3 (1 + MAX_NUMNODES)
-+#define	SIZE_AC MAX_NUMNODES
-+#define	SIZE_L3 (2 * MAX_NUMNODES)
- 
- static int drain_freelist(struct kmem_cache *cache,
- 			struct kmem_list3 *l3, int tofree);
-@@ -1410,6 +1410,22 @@ static void init_list(struct kmem_cache 
- }
- 
- /*
-+ * For setting up all the kmem_list3s for cache whose buffer_size is same as
-+ * size of kmem_list3.
-+ */
-+static void __init set_up_list3s(struct kmem_cache *cachep, int index)
-+{
-+	int node;
-+
-+	for_each_node_state(node, N_NORMAL_MEMORY) {
-+		cachep->nodelists[node] = &initkmem_list3[index + node];
-+		cachep->nodelists[node]->next_reap = jiffies +
-+		    REAPTIMEOUT_LIST3 +
-+		    ((unsigned long)cachep) % REAPTIMEOUT_LIST3;
-+	}
-+}
-+
-+/*
-  * Initialisation.  Called after the page allocator have been initialised and
-  * before smp_init().
-  */
-@@ -1432,6 +1448,7 @@ void __init kmem_cache_init(void)
- 		if (i < MAX_NUMNODES)
- 			cache_cache.nodelists[i] = NULL;
- 	}
-+	set_up_list3s(&cache_cache, CACHE_CACHE);
- 
- 	/*
- 	 * Fragmentation resistance on low memory - only use bigger
-@@ -1964,22 +1981,6 @@ static void slab_destroy(struct kmem_cac
- 	}
- }
- 
--/*
-- * For setting up all the kmem_list3s for cache whose buffer_size is same as
-- * size of kmem_list3.
-- */
--static void __init set_up_list3s(struct kmem_cache *cachep, int index)
--{
--	int node;
--
--	for_each_node_state(node, N_NORMAL_MEMORY) {
--		cachep->nodelists[node] = &initkmem_list3[index + node];
--		cachep->nodelists[node]->next_reap = jiffies +
--		    REAPTIMEOUT_LIST3 +
--		    ((unsigned long)cachep) % REAPTIMEOUT_LIST3;
--	}
--}
--
- static void __kmem_cache_destroy(struct kmem_cache *cachep)
- {
- 	int i;
+Another maybe workable approach for Xen is to go through pv_ops
+(although pte_clear doesn't go through pv_ops right now, so this would
+be an additional hook too ...).
+
+cheers,
+  Gerd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
