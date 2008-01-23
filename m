@@ -1,55 +1,31 @@
-Date: Wed, 23 Jan 2008 00:02:45 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch] #ifdef very expensive debug check in page fault path
-In-Reply-To: <20080122233950.GA29901@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0801222347430.7451@blonde.site>
-References: <1200506488.32116.11.camel@cotte.boeblingen.de.ibm.com>
- <20080116234540.GB29823@wotan.suse.de> <20080116161021.c9a52c0f.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0801182023350.5249@blonde.site> <479469A4.6090607@de.ibm.com>
- <Pine.LNX.4.64.0801222226350.28823@blonde.site> <20080122233950.GA29901@wotan.suse.de>
+Date: Tue, 22 Jan 2008 16:40:50 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [kvm-devel] [PATCH] export notifier #1
+In-Reply-To: <1201044989.6807.46.camel@pasglop>
+Message-ID: <Pine.LNX.4.64.0801221640010.3329@schroedinger.engr.sgi.com>
+References: <20080113162418.GE8736@v2.random>  <20080116124256.44033d48@bree.surriel.com>
+ <478E4356.7030303@qumranet.com>  <20080117162302.GI7170@v2.random>
+ <478F9C9C.7070500@qumranet.com>  <20080117193252.GC24131@v2.random>
+ <20080121125204.GJ6970@v2.random>  <4795F9D2.1050503@qumranet.com>
+ <20080122144332.GE7331@v2.random>  <20080122200858.GB15848@v2.random>
+ <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com>
+ <1201044989.6807.46.camel@pasglop>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: carsteno@de.ibm.com, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, mschwid2@linux.vnet.ibm.com, Holger Wolf <holger.wolf@de.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, holt@sgi.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 23 Jan 2008, Nick Piggin wrote:
+On Wed, 23 Jan 2008, Benjamin Herrenschmidt wrote:
+
+> > - anon_vma/inode and pte locks are held during callbacks.
 > 
-> I did want to get rid of the test, but not in a "sneak it in before he
-> notices" way. So I am disappointed it was merged before you replied.
+> So how does that fix the problem of sleeping then ?
 
-Not everybody can wait that indefinite interval for a response from me!
-
-(And, by the by, I'm not ignoring the many mails you've addressed
-to me or Cc'ed me in the last week or more; but some things are
-easier to think about and come to conclusion on than others.
-Take it as a compliment that your patches deserve consideration ;)
-
-> > My guess is we let it rest for now, and reconsider if a case comes up
-> > later which would have got caught by the check (but the problem is that
-> > such a case is much harder to identify than it was).
-> 
-> The only cases I had imagined were repeatable things like a bug in pte
-> manipulation somewhere, which will hopefully be caught with
-> CONFIG_DEBUG_VM turned on. 
-
-For things like that, repeatable occurrences from coding bugs,
-which should get caught before release: yes I agree, the
-CONFIG_DEBUG_VM would be entirely appropriate.
-
-> Are there many other cases where the test is useful? For hardware
-> failures, I'd say not -- those just tend to waste developers time.
-
-Bad RAM bitflips etc., or some subsystem corrupting random memory:
-those kind of things which so often end up as rmap.c Eeeks or Bad
-page states.  Yes, a fair amount of developers time is wasted on
-these: which is precisely why they're better caught sooner (by
-a pfn_valid test in vm_normal_page) than later (by going on to
-corrupt other memory in fictitious "struct page" manipulations).
-
-Hugh
+The locks are taken in the mmu_ops patch. This patch does not hold them 
+while performing the callbacks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
