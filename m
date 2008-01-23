@@ -1,69 +1,84 @@
-Date: Wed, 23 Jan 2008 13:36:45 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH -v8 3/4] Enable the MS_ASYNC functionality in
- sys_msync()
-In-Reply-To: <E1JHmxa-0004BK-6X@pomaz-ex.szeredi.hu>
-Message-ID: <alpine.LFD.1.00.0801231329120.2803@woody.linux-foundation.org>
-References: <12010440803930-git-send-email-salikhmetov@gmail.com>  <1201044083504-git-send-email-salikhmetov@gmail.com>  <alpine.LFD.1.00.0801230836250.1741@woody.linux-foundation.org> <1201110066.6341.65.camel@lappy> <alpine.LFD.1.00.0801231107520.1741@woody.linux-foundation.org>
- <E1JHlh8-0003s8-Bb@pomaz-ex.szeredi.hu> <alpine.LFD.1.00.0801231248060.2803@woody.linux-foundation.org> <E1JHmxa-0004BK-6X@pomaz-ex.szeredi.hu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from toip5.srvr.bell.ca ([209.226.175.88])
+          by tomts16-srv.bellnexxia.net
+          (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
+          id <20080123215537.ONKS574.tomts16-srv.bellnexxia.net@toip5.srvr.bell.ca>
+          for <linux-mm@kvack.org>; Wed, 23 Jan 2008 16:55:37 -0500
+Date: Wed, 23 Jan 2008 16:55:37 -0500
+From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Subject: Re: [RFC] Userspace tracing memory mappings
+Message-ID: <20080123215537.GC2282@Krystal>
+References: <20080123160454.GA15405@Krystal> <y0m3aso9xj3.fsf@ton.toronto.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <y0m3aso9xj3.fsf@ton.toronto.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: a.p.zijlstra@chello.nl, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: "Frank Ch. Eigler" <fche@redhat.com>
+Cc: Dave Hansen <haveblue@us.ibm.com>, mbligh@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Wed, 23 Jan 2008, Miklos Szeredi wrote:
+* Frank Ch. Eigler (fche@redhat.com) wrote:
+> Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca> writes:
 > 
-> Yeah, nasty.
+> > [...]  Since memory management is not my speciality, I would like to
+> > know if there are some implementation details I should be aware of
+> > for my LTTng userspace tracing buffers. Here is what I want to do
+> > [...]
 > 
-> How about doing it in a separate pass, similarly to
-> wait_on_page_writeback()?  Just instead of waiting, clean the page
-> tables for writeback pages.
+> Would you mind offering some justification for requiring a kernel
+> extension for user-space tracing?  What can the kernel enable in this
+> context that a user-space library (which you already assume will be
+> linked in) can't?
+> 
+> - FChE
 
-That sounds like a good idea, but it doesn't work.
+The kernel would provide :
 
-The thing is, we need to hold the page-table lock over the whole sequence 
-of
+- System-wide activation of markers located in userspace code
+  example use : libc, NPTL tracing.
+- Ability to extract buffers of a crashed process
+- Ability to extract userspace tracing buffers upon kernel crash
+- Activation of userspace tracing at the same time as the kernel tracing
+  activation is done, without requiring messing up with signals.
+- Potentially filtering on events coming from userspace, without messing
+  up with signals.
 
-	if (page_mkclean(page))
-		set_page_dirty(page);
-	if (TestClearPageDirty(page))
-		..
+Another point is early boot tracing : tracing processes such as init
+requires to use syscalls rather than relying on debugfs/dev/proc file
+operations. And we can't dump the information to the disk yet, so we
+cannot expect the process itself to deal with file opening or socket
+opening that soon. Therefore, we have to divide tracing in two distinct
+actions : writing to the buffers and dumping the buffers (to disk or
+though the network).
 
-and there's a big comment about why in clear_page_dirty_for_io().
+Another reason why we don't want to do everything is a single library is
+that it would account the disk write time to the traced process. If we
+do this from the kernel, we can know how many time it took because we
+trace it. Another, better yet, reason for this is that if we want to
+extract the data to disk or through the network, and want to get the
+last trace bits of a segfaulted process, we have to share the buffers
+with another process somehow. However, creating one extra process per
+traced process is kind of awkward.
 
-So if you split it up, so that the first phase is that
+So the code itself would be a library in userspace. However, it would
+interact both with the kernel for trace activation and with a daemon to
+extract the information to disk or to the network. I start to think that
+a userspace library would be sufficient for the userspace part of this
+design (no need to modify vDSO).
 
-	if (page_mkclean(page))
-		set_page_dirty(page);
+And system V shared memory has a limit on the number of such memory
+mapping one can have in the system that is way too low.
 
-and the second phase is the one that just does a
+Does it explain the purpose of the kernel interaction better ?
 
-	if (TestClearPageDirty(page))
-		writeback(..)
+Mathieu
 
-and having dropped the page lock in between, then you lose: because 
-another thread migth have faulted in and re-dirtied the page table entry, 
-and you MUST NOT do that "TestClearPageDirty()" in that case!
-
-That dirty bit handling is really really important, and it's sadly also 
-really really easy to get wrong (usually in ways that are hard to even 
-notice: things still work 99% of the time, and you might just be leaking 
-memory slowly, and fsync/msync() might not write back memory mapped data 
-to disk at all etc).
-
-> Sure, I would have though all of this stuff is 2.6.25, but it's your
-> kernel... :)
-
-Well, the plain added "file_update_time()" call addition looked like a 
-trivial fix, and if there are actually *customers* that have bad backups 
-due to this, then I think that part was worth doing. At least a "sync" 
-will then sync the file times...
-
-			Linus
+-- 
+Mathieu Desnoyers
+Computer Engineering Ph.D. Student, Ecole Polytechnique de Montreal
+OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
