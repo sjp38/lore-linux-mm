@@ -1,47 +1,62 @@
-Date: Tue, 22 Jan 2008 19:21:48 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [kvm-devel] [PATCH] export notifier #1
-Message-ID: <20080123012148.GF26420@sgi.com>
-References: <20080117162302.GI7170@v2.random> <478F9C9C.7070500@qumranet.com> <20080117193252.GC24131@v2.random> <20080121125204.GJ6970@v2.random> <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com> <1201044989.6807.46.camel@pasglop> <Pine.LNX.4.64.0801221640010.3329@schroedinger.engr.sgi.com>
+Date: Wed, 23 Jan 2008 11:04:13 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 0/2] Relax restrictions on setting CONFIG_NUMA on x86
+In-Reply-To: <20080121093702.8FC2.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080118153529.12646.5260.sendpatchset@skynet.skynet.ie> <20080121093702.8FC2.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080123105810.F295.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0801221640010.3329@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, holt@sgi.com, Hugh Dickins <hugh@veritas.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 22, 2008 at 04:40:50PM -0800, Christoph Lameter wrote:
-> On Wed, 23 Jan 2008, Benjamin Herrenschmidt wrote:
+Hi mel
+
+> Hi 
 > 
-> > > - anon_vma/inode and pte locks are held during callbacks.
-> > 
-> > So how does that fix the problem of sleeping then ?
+> > A fix[1] was merged to the x86.git tree that allowed NUMA kernels to boot
+> > on normal x86 machines (and not just NUMA-Q, Summit etc.). I took a look
+> > at the restrictions on setting NUMA on x86 to see if they could be lifted.
 > 
-> The locks are taken in the mmu_ops patch. This patch does not hold them 
-> while performing the callbacks.
+> Interesting!
+> 
+> I will test tomorrow.
 
-Let me start by clarifying, the page is referenced prior to exporting
-and that reference is not removed until after recall is complete and
-memory protections are back to normal.
+Hmm...
+It doesn't works on my machine.
 
-As Christoph pointed out, the mmu_ops callouts do not allow sleeping.
-This is a problem for us as our recall path includes a message to one or
-more other hosts and a wait until we receive a response.  That message
-sequence can take seconds or more to complete.  It includes an operation
-to ensure the memory is in a cross-partition clean state and then changes
-memory protection.  When that is complete we remove our page reference
-and return.
+panic at booting at __free_pages_ok() with blow call trace.
 
-Christoph's patch allows that long slow activity to happen prior to the
-mmu_ops callout.  By the time the mmu_ops callout is made, we no longer
-are exporting the page so the cleanup is equivalent to the cleanup of
-a page we have never used.
+[<hex number>] free_all_bootmem_core
+[<hex number>] mem_init
+[<hex number>] alloc_large_system_hash
+[<hex number>] inode_init_early
+[<hex number>] start_kernel
+[<hex number>] unknown_bootoption
 
-Thanks,
-Robin Holt
+my machine spec
+	CPU:   Pentium4 with HT
+	MEM:   512M
+
+I will try more investigate.
+but I have no time for a while, sorry ;-)
+
+
+BTW:
+when config sparse mem turn on instead discontig mem.
+panic at booting at get_pageblock_flags_group() with below call stack.
+
+free_initrd
+	free_init_pages
+		free_hot_cold_page
+
+
+
+- kosaki
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
