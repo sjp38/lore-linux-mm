@@ -1,117 +1,75 @@
-Date: Wed, 23 Jan 2008 12:27:47 -0800 (PST)
+Date: Wed, 23 Jan 2008 12:40:09 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [kvm-devel] [PATCH] export notifier #1
-In-Reply-To: <20080123173325.GG7141@v2.random>
-Message-ID: <Pine.LNX.4.64.0801231220590.13547@schroedinger.engr.sgi.com>
-References: <20080117193252.GC24131@v2.random> <20080121125204.GJ6970@v2.random>
- <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random>
- <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com>
- <20080122223139.GD15848@v2.random> <Pine.LNX.4.64.0801221433080.2271@schroedinger.engr.sgi.com>
- <20080123114136.GE15848@v2.random> <20080123123230.GH26420@sgi.com>
- <20080123173325.GG7141@v2.random>
+In-Reply-To: <20080123154130.GC7141@v2.random>
+Message-ID: <Pine.LNX.4.64.0801231231400.13547@schroedinger.engr.sgi.com>
+References: <478E4356.7030303@qumranet.com> <20080117162302.GI7170@v2.random>
+ <478F9C9C.7070500@qumranet.com> <20080117193252.GC24131@v2.random>
+ <20080121125204.GJ6970@v2.random> <4795F9D2.1050503@qumranet.com>
+ <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random>
+ <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com>
+ <4797384B.7080200@redhat.com> <20080123154130.GC7141@v2.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
+Cc: Gerd Hoffmann <kraxel@redhat.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, daniel.blueman@quadrics.com, holt@sgi.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
 On Wed, 23 Jan 2008, Andrea Arcangeli wrote:
 
-> You want to be able to tell the mmu_notifier that you want the flush
-> repeated without locks later? Sorry but then if you're always going to
-> set the bitflag unconditionally, why don't you simply implement a
-> second notifier in addition of my current ->invalidate_page (like
-> ->after_invalidate_page).
+> I think it has yet to be demonstrated that doing the invalidate
+> _before_ clearing the linux pte is workable at all for
+> shadow-pte/RDMA. Infact even doing it _after_ still requires some form
+> of serialization but it's less obviously broken and perhaps more
+> fixable unlike doing it before that seems hardly fixable given the
+> refill event running in the remote node is supposed to wait on a
+> bitflag of a page in the master node to return ON. What Christoph
+> didn't specify after hinting you have to wait for the PageExported
+> bitflag to return on, is that such page may be back in the freelist by
 
-Because there is no mm_struct available at that point. So we cannot do a 
-callback based on the mmu_ops in that fasion. We would have to build a 
-list of notifiers while scanning the reverse maps.
+Why would you wait for the PageExported flag to return on? You remove the 
+remote mappings, the page lock is being held so no new mappings can occur. 
+Then you remove the local mappings. A concurrent remote fault would be 
+prevented by the subsystem which could involve waiting on the page lock.
 
-> We can then implement a method in rmap.c for you to call to do the
-> final freeing of the page (pagecache/swapcache won't be collected
-> unless it's a truncate, as long as you keep it pinned and you
-> certainly don't want to wait a second round of lru scan before freeing
-> the page after you release the external reference, so you may need to
-> call this method before returning from the
+> Until there's some more reasonable theory of how invalidating the
+> remote tlbs/ptes _before_ the main linux pte can remotely work, I'm
+> "quite" skeptical it's the way to go for the invalidate_page callback.
 
-The page count is elevated because of the remote pte so the page is 
-effectively pinned.
+Not sure that I see the problem if the subsystem prevents new references 
+from being established.
+ 
+> Like Avi said, Xen is dealing with the linux pte only, so there's no
+> racy smp page fault to serialize against. Perhaps we can add another
+> notifier for Xen though.
 
-> ->after_invalidate_page). Infact I can call that method for you in the
-> notifier implementation itself after all ->after_invalidate_pages have
-> been called. (of course only if at least one of them was implemented
-> and not-null)
+Well I think we need to come up with a set of notifiers that can cover all 
+cases. And so far the export notifiers seem to be the most general. But 
+they also require more intelligence in the notifiers to do proper 
+serialization and reverse mapping.
+ 
+> But I think it's still not enough for Xen to have a method called
+> before the ptep_clear_flush: rmap.c would get confused in
+> page_mkclean_one for example. It might be possible that vm_ops is the
 
-Ok.
+Why would it get confused? When we get to the operations in rmap.c we 
+just need to be sure that remote references do no longer exist. If the 
+operations in rmap.c fail then we can reestablish references on demand.
 
-> > As an example of thousands, we currently have one customer job that
-> > has 16880 processors all with the same physical page faulted into their
-> > address space.  The way XPMEM is currently structured, there is fan-out of
-> > that PFN information so we would not need to queue up that many messages,
-> > but it would still be considerable.  Our upcoming version of the hardware
-> > will potentially make this fanout worse because we are going to allow
-> > even more fine-grained divisions of the machine to help with memory
-> > error containment.
-> 
-> Well as long as you send these messages somewhat serially and you
-> don't pretend to allocate all packets at once it should be ok. Perhaps
-> you should preallocate all packets statically and serialize the access
-> to the pool with a lock.
-> 
-> What I'd like to stress to be sure it's crystal clear, is that in the
-> mm/rmap.c path GFP_KERNEL==GFP_ATOMIC, infact both are = PF_MEMALLOC =
-> TIF_MEMDIE = if mempool is empty it will crash. The argument that you
-> need to sleep to allocate memory with GFP_KERNEL is totally bogus. If
-> that's the only reason, you don't need to sleep at all. alloc_pages
-> will not invoke the VM when called inside the VM, it will grab ram
-> from PF_MEMALLOC instead. At most it will schedule so the only benefit
-> would be lower -rt latency in the end.
+> right way for you even if it further clutters the VM. Like Avi pointed
+> me out once, with our current mmu_notifiers we can export the KVM
+> address space with remote dma and keep swapping the whole KVM asset
+> just fine despite the triple MMU running the system (qemu using linux
+> pte, KVM using spte, quadrics using pcimmu). And the core Linux VM
+> code (not some obscure hypervisor) will deal with all aging and VM
+> issues like a normal task (especially with my last patch that reflects
+> the accessed bitflag in the spte the same way the accessed bitflag is
+> reflected for the regular ptes).
 
-If you are holding a lock then you have to use GFP_ATOMIC and the number 
-of GFP_ATOMIC allocs is limited. PF_MEMALLOC does not do reclaim so we are 
-in trouble if too many allocs occur.
-
-
-> > We have a counter associated with a pfn that indicates when the pfn is no
-> > longer referenced by other partitions.  This counter triggers changing of
-> > memory protections so any subsequent access to this page will result in
-> > a memory error on the remote partition (this should be an illegal case).
-> 
-> As long as you keep a reference on the page too, you don't risk
-> any corruption by flushing after.
-
-There are still dirty bit issues.
-
-> The window that you must close with that bitflag is the request coming
-> from the remote node to map the page after the linux pte has been
-> cleared. If you map the page in a remote node after the linux pte has
-> been cleared ->invalidate_page won't be called again because the page
-> will look unmapped in the linux VM. Now invalidate_page will clear the
-> bitflag, so the map requests will block. But where exactly you know
-> that the linux pte has been cleared so you can "unblock" the map
-> requests? If a page is not mapped by some linux pte, mm/rmap.c will
-> never be called and this is why any notification in mm/rmap.c should
-> track the "address space" and not the "physical page".
-
-The subsystem needs to establish proper locking for that case.
-
-> In effect you don't care less about the address space of the task in
-> the master node, so IMHO you're hooking your ->invalidate_page(page)
-> (instead of my ->invalidate_page(mm, address)) in the very wrong
-> place. You should hook it in mm/vmscan.c shrink-list so it will be
-> invoked regardless if the pte is mapped or not. Then your model that
-
-Then page migration and other uses of try_to_unmap wont get there. Also 
-the page lock is an item that helps with serialization of new faults.
-
-> If you work the "pages" you should stick to pages and to stay away
-> from mm/rmap.c and ignore whatever is mapped in the master address
-> space of the task. mm/rmap.c only deals with ptes/sptes and other
-> _virtual-tracked_ mappings.
-
-It also deals f.e. with page dirty status.
+The problem for us there is that multiple references may exist remotely. 
+So the actual remote reference count needs to be calculated?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
