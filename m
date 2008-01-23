@@ -1,100 +1,131 @@
-Message-Id: <20080123044925.061066000@sgi.com>
-References: <20080123044924.508382000@sgi.com>
-Date: Tue, 22 Jan 2008 20:49:27 -0800
-From: travis@sgi.com
-Subject: [PATCH 3/3] x86_64: Rebase per cpu variables to zero
-Content-Disposition: inline; filename=x86_64_rebase_compat
+Date: Wed, 23 Jan 2008 08:58:21 +0100
+From: Olaf Hering <olaf@aepfle.de>
+Subject: Re: crash in kmem_cache_init
+Message-ID: <20080123075821.GA17713@aepfle.de>
+References: <20080117181222.GA24411@aepfle.de> <Pine.LNX.4.64.0801171049190.21058@schroedinger.engr.sgi.com> <20080117211511.GA25320@aepfle.de> <Pine.LNX.4.64.0801181043290.30348@schroedinger.engr.sgi.com> <20080118213011.GC10491@csn.ul.ie> <Pine.LNX.4.64.0801181414200.8924@schroedinger.engr.sgi.com> <20080118225713.GA31128@aepfle.de> <20080122195448.GA15567@csn.ul.ie> <20080122214505.GA15674@aepfle.de> <Pine.LNX.4.64.0801221417480.1912@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0801221417480.1912@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu
-Cc: Christoph Lameter <clameter@sgi.com>, jeremy@goop.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, hanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lee.schermerhorn@hp.com, Linux MM <linux-mm@kvack.org>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-  * This also supports further integration of x86_32/64.
+On Tue, Jan 22, Christoph Lameter wrote:
 
-Based on 2.6.24-rc8-mm1
+> > 0xc0000000000fe018 is in setup_cpu_cache (/home/olaf/kernel/git/linux-2.6-numa/mm/slab.c:2111).
+> > 2106                                    BUG_ON(!cachep->nodelists[node]);
+> > 2107                                    kmem_list3_init(cachep->nodelists[node]);
+> > 2108                            }
+> > 2109                    }
+> > 2110            }
+> 
+> if (cachep->nodelists[numa_node_id()])
+> 	return;
 
-Signed-off-by: Mike Travis <travis@sgi.com>
-Reviewed-by: Christoph Lameter <clameter@sgi.com>
+Does not help.
+
+
+Linux version 2.6.24-rc8-ppc64 (olaf@lingonberry) (gcc version 4.1.2 20070115 (prerelease) (SUSE Linux)) #48 SMP Wed Jan 23 08:54:23 CET 2008
+[boot]0012 Setup Arch
+EEH: PCI Enhanced I/O Error Handling Enabled
+PPC64 nvram contains 8192 bytes
+Zone PFN ranges:
+  DMA             0 ->   892928
+  Normal     892928 ->   892928
+Movable zone start PFN for each node
+early_node_map[1] active PFN ranges
+    1:        0 ->   892928
+Could not find start_pfn for node 0
+[boot]0015 Setup Done
+Built 2 zonelists in Node order, mobility grouping on.  Total pages: 880720
+Policy zone: DMA
+Kernel command line: debug xmon=on panic=1  
+[boot]0020 XICS Init
+xics: no ISA interrupt controller
+[boot]0021 XICS Done
+PID hash table entries: 4096 (order: 12, 32768 bytes)
+time_init: decrementer frequency = 275.070000 MHz
+time_init: processor frequency   = 2197.800000 MHz
+clocksource: timebase mult[e8ab05] shift[22] registered
+clockevent: decrementer mult[466a] shift[16] cpu[0]
+Console: colour dummy device 80x25
+console handover: boot [udbg-1] -> real [hvc0]
+Dentry cache hash table entries: 524288 (order: 10, 4194304 bytes)
+Inode-cache hash table entries: 262144 (order: 9, 2097152 bytes)
+freeing bootmem node 1
+Memory: 3496632k/3571712k available (6188k kernel code, 75080k reserved, 1324k data, 1220k bss, 304k init)
+Kernel panic - not syncing: kmem_cache_create(): failed to create slab `size-32(DMA)'
+
+Rebooting in 1 seconds..
+
 ---
- arch/x86/Kconfig                 |    3 +++
- arch/x86/kernel/setup64.c        |    2 +-
- arch/x86/kernel/vmlinux_64.lds.S |    1 +
- kernel/module.c                  |    7 ++++---
- 4 files changed, 9 insertions(+), 4 deletions(-)
+ mm/slab.c |   17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)
 
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -107,6 +107,9 @@ config GENERIC_TIME_VSYSCALL
- 	bool
- 	default X86_64
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1590,7 +1590,7 @@ void __init kmem_cache_init(void)
+ 		/* Replace the static kmem_list3 structures for the boot cpu */
+ 		init_list(&cache_cache, &initkmem_list3[CACHE_CACHE], node);
  
-+config HAVE_ZERO_BASED_PER_CPU
-+	def_bool X86_64
-+
- config ARCH_SUPPORTS_OPROFILE
- 	bool
- 	default y
---- a/arch/x86/kernel/setup64.c
-+++ b/arch/x86/kernel/setup64.c
-@@ -152,7 +152,7 @@ void __init setup_per_cpu_areas(void)
- 		}
- 		if (!ptr)
- 			panic("Cannot allocate cpu data for CPU %d\n", i);
--		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
-+		memcpy(ptr, __per_cpu_load, __per_cpu_size);
- 		/* Relocate the pda */
- 		memcpy(ptr, cpu_pda(i), sizeof(struct x8664_pda));
- 		cpu_pda(i) = (struct x8664_pda *)ptr;
---- a/arch/x86/kernel/vmlinux_64.lds.S
-+++ b/arch/x86/kernel/vmlinux_64.lds.S
-@@ -16,6 +16,7 @@ jiffies_64 = jiffies;
- _proxy_pda = 1;
- PHDRS {
- 	text PT_LOAD FLAGS(5);	/* R_E */
-+	percpu PT_LOAD FLAGS(4);	/* R__ */
- 	data PT_LOAD FLAGS(7);	/* RWE */
- 	user PT_LOAD FLAGS(7);	/* RWE */
- 	data.init PT_LOAD FLAGS(7);	/* RWE */
---- a/kernel/module.c
-+++ b/kernel/module.c
-@@ -45,6 +45,7 @@
- #include <asm/uaccess.h>
- #include <asm/semaphore.h>
- #include <asm/cacheflush.h>
-+#include <asm/sections.h>
- #include <linux/license.h>
- #include <asm/sections.h>
+-		for_each_node_state(nid, N_NORMAL_MEMORY) {
++		for_each_online_node(nid) {
+ 			init_list(malloc_sizes[INDEX_AC].cs_cachep,
+ 				  &initkmem_list3[SIZE_AC + nid], nid);
  
-@@ -351,7 +352,7 @@ static void *percpu_modalloc(unsigned lo
- 		align = PAGE_SIZE;
- 	}
- 
--	ptr = __per_cpu_start;
-+	ptr = __per_cpu_load;
- 	for (i = 0; i < pcpu_num_used; ptr += block_size(pcpu_size[i]), i++) {
- 		/* Extra for alignment requirement. */
- 		extra = ALIGN((unsigned long)ptr, align) - (unsigned long)ptr;
-@@ -386,7 +387,7 @@ static void *percpu_modalloc(unsigned lo
- static void percpu_modfree(void *freeme)
+@@ -1968,7 +1968,7 @@ static void __init set_up_list3s(struct 
  {
- 	unsigned int i;
--	void *ptr = __per_cpu_start + block_size(pcpu_size[0]);
-+	void *ptr = __per_cpu_load + block_size(pcpu_size[0]);
+ 	int node;
  
- 	/* First entry is core kernel percpu data. */
- 	for (i = 1; i < pcpu_num_used; ptr += block_size(pcpu_size[i]), i++) {
-@@ -437,7 +438,7 @@ static int percpu_modinit(void)
- 	pcpu_size = kmalloc(sizeof(pcpu_size[0]) * pcpu_num_allocated,
- 			    GFP_KERNEL);
- 	/* Static in-kernel percpu data (used). */
--	pcpu_size[0] = -(__per_cpu_end-__per_cpu_start);
-+	pcpu_size[0] = -__per_cpu_size;
- 	/* Free room. */
- 	pcpu_size[1] = PERCPU_ENOUGH_ROOM + pcpu_size[0];
- 	if (pcpu_size[1] < 0) {
-
--- 
+-	for_each_node_state(node, N_NORMAL_MEMORY) {
++	for_each_online_node(node) {
+ 		cachep->nodelists[node] = &initkmem_list3[index + node];
+ 		cachep->nodelists[node]->next_reap = jiffies +
+ 		    REAPTIMEOUT_LIST3 +
+@@ -2108,6 +2108,8 @@ static int __init_refok setup_cpu_cache(
+ 			}
+ 		}
+ 	}
++	if (!cachep->nodelists[numa_node_id()])
++		return -ENODEV;
+ 	cachep->nodelists[numa_node_id()]->next_reap =
+ 			jiffies + REAPTIMEOUT_LIST3 +
+ 			((unsigned long)cachep) % REAPTIMEOUT_LIST3;
+@@ -2775,6 +2777,11 @@ static int cache_grow(struct kmem_cache 
+ 	/* Take the l3 list lock to change the colour_next on this node */
+ 	check_irq_off();
+ 	l3 = cachep->nodelists[nodeid];
++	if (!l3) {
++		nodeid = numa_node_id();
++		l3 = cachep->nodelists[nodeid];
++	}
++	BUG_ON(!l3);
+ 	spin_lock(&l3->list_lock);
+ 
+ 	/* Get colour for the slab, and cal the next value. */
+@@ -3317,6 +3324,10 @@ static void *____cache_alloc_node(struct
+ 	int x;
+ 
+ 	l3 = cachep->nodelists[nodeid];
++	if (!l3) {
++		nodeid = numa_node_id();
++		l3 = cachep->nodelists[nodeid];
++	}
+ 	BUG_ON(!l3);
+ 
+ retry:
+@@ -3815,7 +3826,7 @@ static int alloc_kmemlist(struct kmem_ca
+ 	struct array_cache *new_shared;
+ 	struct array_cache **new_alien = NULL;
+ 
+-	for_each_node_state(node, N_NORMAL_MEMORY) {
++	for_each_online_node(node) {
+ 
+                 if (use_alien_caches) {
+                         new_alien = alloc_alien_cache(node, cachep->limit);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
