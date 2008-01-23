@@ -1,77 +1,69 @@
-Received: from toip5.srvr.bell.ca ([209.226.175.88])
-          by tomts16-srv.bellnexxia.net
+Received: from toip4.srvr.bell.ca ([209.226.175.87])
+          by tomts22-srv.bellnexxia.net
           (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
-          id <20080123215537.ONKS574.tomts16-srv.bellnexxia.net@toip5.srvr.bell.ca>
-          for <linux-mm@kvack.org>; Wed, 23 Jan 2008 16:55:37 -0500
-Date: Wed, 23 Jan 2008 16:55:37 -0500
+          id <20080123220609.RQGO18413.tomts22-srv.bellnexxia.net@toip4.srvr.bell.ca>
+          for <linux-mm@kvack.org>; Wed, 23 Jan 2008 17:06:09 -0500
+Date: Wed, 23 Jan 2008 17:06:08 -0500
 From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
 Subject: Re: [RFC] Userspace tracing memory mappings
-Message-ID: <20080123215537.GC2282@Krystal>
-References: <20080123160454.GA15405@Krystal> <y0m3aso9xj3.fsf@ton.toronto.redhat.com>
+Message-ID: <20080123220608.GD2282@Krystal>
+References: <20080123160454.GA15405@Krystal> <1201117112.8329.9.camel@nimitz.home.sr71.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <y0m3aso9xj3.fsf@ton.toronto.redhat.com>
+In-Reply-To: <1201117112.8329.9.camel@nimitz.home.sr71.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Frank Ch. Eigler" <fche@redhat.com>
-Cc: Dave Hansen <haveblue@us.ibm.com>, mbligh@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: mbligh@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* Frank Ch. Eigler (fche@redhat.com) wrote:
-> Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca> writes:
+* Dave Hansen (haveblue@us.ibm.com) wrote:
+> On Wed, 2008-01-23 at 11:04 -0500, Mathieu Desnoyers wrote:
+> > Since memory management is not my speciality, I would like to know if
+> > there are some implementation details I should be aware of for my
+> > LTTng userspace tracing buffers. Here is what I want to do :
 > 
-> > [...]  Since memory management is not my speciality, I would like to
-> > know if there are some implementation details I should be aware of
-> > for my LTTng userspace tracing buffers. Here is what I want to do
-> > [...]
+> Can you start with a little background by telling us what a userspace
+> tracing buffer _is_?  Maybe a few requirements about what you need it to
+> do and why, as well?
 > 
-> Would you mind offering some justification for requiring a kernel
-> extension for user-space tracing?  What can the kernel enable in this
-> context that a user-space library (which you already assume will be
-> linked in) can't?
+> -- Dave
 > 
-> - FChE
 
-The kernel would provide :
+Sure,
 
-- System-wide activation of markers located in userspace code
-  example use : libc, NPTL tracing.
-- Ability to extract buffers of a crashed process
-- Ability to extract userspace tracing buffers upon kernel crash
-- Activation of userspace tracing at the same time as the kernel tracing
-  activation is done, without requiring messing up with signals.
-- Potentially filtering on events coming from userspace, without messing
-  up with signals.
+Userspace tracing is :
 
-Another point is early boot tracing : tracing processes such as init
-requires to use syscalls rather than relying on debugfs/dev/proc file
-operations. And we can't dump the information to the disk yet, so we
-cannot expect the process itself to deal with file opening or socket
-opening that soon. Therefore, we have to divide tracing in two distinct
-actions : writing to the buffers and dumping the buffers (to disk or
-though the network).
+- A userspace process wants to record information to a circular ring
+  buffer. This information has a timestamp. It should disrupt the
+  timings minimally. The timestamps must be synchronized with the
+  timestamps given to the kernel trace events so we can analyze all the
+  information together.
 
-Another reason why we don't want to do everything is a single library is
-that it would account the disk write time to the traced process. If we
-do this from the kernel, we can know how many time it took because we
-trace it. Another, better yet, reason for this is that if we want to
-extract the data to disk or through the network, and want to get the
-last trace bits of a segfaulted process, we have to share the buffers
-with another process somehow. However, creating one extra process per
-traced process is kind of awkward.
+- When one subbuffer of the ring buffer is filled, the information is
+  ready to be read by a "trace dumping" process and sent to disk or to
+  the network. At this point, the traced process raises a flag that will
+  be checked periodically by the OS to wake up the disk/network dumper
+  daemon. (for future reference, I use the term "buffer writer" when I
+  talk about the traced process and the term "buffer reader" when
+  talking about the disk/network dumper daemon).
 
-So the code itself would be a library in userspace. However, it would
-interact both with the kernel for trace activation and with a daemon to
-extract the information to disk or to the network. I start to think that
-a userspace library would be sufficient for the userspace part of this
-design (no need to modify vDSO).
+There is more information in the email I sent to Frank Eigler. Please
+feel free to ask for more if I am not clear about specific points.
 
-And system V shared memory has a limit on the number of such memory
-mapping one can have in the system that is way too low.
+A lot of the background information is already explained in the kernel
+tracing paper I presented at OLS2006, it might be a good start :
 
-Does it explain the purpose of the kernel interaction better ?
+http://ltt.polymtl.ca/papers/desnoyers-ols2006.pdf
+
+Another requirement I am trying to meet is protection of tracing buffers
+against corruption coming from other userspace process. K42 implemented
+their tracing buffers shared system-wide : with the OS too. The
+processes have full access to the kernel buffers and can therefore
+corrupt the whole system's trace. This is something I would like not to
+allow.
 
 Mathieu
 
