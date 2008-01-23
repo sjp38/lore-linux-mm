@@ -1,51 +1,55 @@
-Subject: Re: [PATCH -v8 3/4] Enable the MS_ASYNC functionality in
-	sys_msync()
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <alpine.LFD.1.00.0801230836250.1741@woody.linux-foundation.org>
-References: <12010440803930-git-send-email-salikhmetov@gmail.com>
-	 <1201044083504-git-send-email-salikhmetov@gmail.com>
-	 <alpine.LFD.1.00.0801230836250.1741@woody.linux-foundation.org>
-Content-Type: text/plain
-Date: Wed, 23 Jan 2008 18:41:06 +0100
-Message-Id: <1201110066.6341.65.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 23 Jan 2008 18:54:44 +0100
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [kvm-devel] [RFC][PATCH 0/5] Memory merging driver for Linux
+Message-ID: <20080123175444.GH7141@v2.random>
+References: <4794C2E1.8040607@qumranet.com> <20080123120510.4014e382@bree.surriel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080123120510.4014e382@bree.surriel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Anton Salikhmetov <salikhmetov@gmail.com>, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Izik Eidus <izike@qumranet.com>, kvm-devel <kvm-devel@lists.sourceforge.net>, avi@qumranet.com, dor.laor@qumranet.com, linux-mm@kvack.org, yaniv@qumranet.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-01-23 at 09:05 -0800, Linus Torvalds wrote:
+On Wed, Jan 23, 2008 at 12:05:10PM -0500, Rik van Riel wrote:
+> On Mon, 21 Jan 2008 18:05:53 +0200
+> Izik Eidus <izike@qumranet.com> wrote:
+> 
+> > i added 2 new functions to the kernel
+> > one:
+> > page_wrprotect() make the page as read only by setting the ptes point to
+> > it as read only.
+> > second:
+> > replace_page() - replace the pte mapping related to vm area between two 
+> > pages
+> 
+> How will this work on CPUs with nested paging support, where the
+> CPU does the guest -> physical address translation?  (opposed to
+> having shadow page tables)
 
-> So here's even a patch to get you started. Do this:
-> 
-> 	git revert 204ec841fbea3e5138168edbc3a76d46747cc987
-> 
-> and then use this appended patch on top of that as a starting point for 
-> something that compiles and *possibly* works.
-> 
-> And no, I do *not* guarantee that this is right either! I have not tested 
-> it or thought about it a lot, and S390 tends to be odd about some of these 
-> things. In particular, I actually suspect that we should possibly do this 
-> the same way we do
-> 
-> 	ptep_clear_flush_young()
-> 
-> except we would do "ptep_clear_flush_wrprotect()". So even though this is 
-> a revert plus a simple patch to make it compile again (we've changed how 
-> we do dirty bits), I think a patch like this needs testing and other 
-> people like Nick and Peter to ack it.
-> 
-> Nick? Peter? Testing? Other comments?
+sptes resolve guest addresses to host physical addresses (what is
+different is only which kind of guest address is being translated).
 
-It would need some addition piece to not call msync_interval() for
-MS_SYNC, and remove the balance_dirty_pages_ratelimited_nr() stuff.
+sptes are faster than nptes for non pte-mangling non-context-switching
+memory intensive number crunching workloads infact. (DBMS will
+appreciate ntpes instead ;)
 
-But yeah, this pte walker is much better. 
+> Is it sufficient to mark the page read-only in the guest->physical
+> translation page table?
 
-As for s390, I think they only differ on the dirty bit, and we should
-not be touching that.
+Yes, just like with sptes too. I guess ntpes will also be managed as a
+tlb even if they won't require many changes, but the mmu notifier
+already firing in those two calls is what will keep both sptes and
+nptes in sync with the main linux VM. The serialization against
+get_user_pages that refills the spte/npte layer with
+nonpresent-nofault case of course happens through the PT lock, just
+like for the regular linux page fault against the pte that is pte_none
+for a little while but with the lock held (and set to write protect or
+new value before releasing it). This infact shows how the mmu
+notifiers that connects the linux pte to the spte/npte works for more
+than swapping.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
