@@ -1,109 +1,91 @@
-Date: Wed, 23 Jan 2008 16:49:41 +0200 (EET)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [PATCH] Fix boot problem in situations where the boot CPU is
- running on a memoryless node
-In-Reply-To: <Pine.LNX.4.64.0801231626320.21475@sbz-30.cs.Helsinki.FI>
-Message-ID: <Pine.LNX.4.64.0801231648140.23343@sbz-30.cs.Helsinki.FI>
-References: <20080118213011.GC10491@csn.ul.ie>
- <Pine.LNX.4.64.0801181414200.8924@schroedinger.engr.sgi.com>
- <20080118225713.GA31128@aepfle.de> <20080122195448.GA15567@csn.ul.ie>
- <20080122214505.GA15674@aepfle.de> <Pine.LNX.4.64.0801221417480.1912@schroedinger.engr.sgi.com>
- <20080123075821.GA17713@aepfle.de> <20080123105044.GD21455@csn.ul.ie>
- <20080123121459.GA18631@aepfle.de> <20080123125236.GA18876@aepfle.de>
- <20080123135513.GA14175@csn.ul.ie> <Pine.LNX.4.64.0801231611160.20050@sbz-30.cs.Helsinki.FI>
- <Pine.LNX.4.64.0801231626320.21475@sbz-30.cs.Helsinki.FI>
-Mime-Version: 1.0
+Date: Wed, 23 Jan 2008 16:41:30 +0100
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [kvm-devel] [PATCH] export notifier #1
+Message-ID: <20080123154130.GC7141@v2.random>
+References: <478E4356.7030303@qumranet.com> <20080117162302.GI7170@v2.random> <478F9C9C.7070500@qumranet.com> <20080117193252.GC24131@v2.random> <20080121125204.GJ6970@v2.random> <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com> <4797384B.7080200@redhat.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <4797384B.7080200@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: akpm@linux-foundation.org, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, hanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lee.schermerhorn@hp.com, Linux MM <linux-mm@kvack.org>, Olaf Hering <olaf@aepfle.de>
+To: Gerd Hoffmann <kraxel@redhat.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, daniel.blueman@quadrics.com, holt@sgi.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi Kraxel,
 
-On Wed, 23 Jan 2008, Pekka J Enberg wrote:
-> > I still think Christoph's kmem_getpages() patch is correct (to fix 
-> > cache_grow() oops) but I overlooked the fact that none the callers of 
-> > ____cache_alloc_node() deal with bootstrapping (with the exception of 
-> > __cache_alloc_node() that even has a comment about it).
-> 
-> So something like this (totally untested) patch on top of current git:
+On Wed, Jan 23, 2008 at 01:51:23PM +0100, Gerd Hoffmann wrote:
+> That would render the notifies useless for Xen too.  Xen needs to
+> intercept the actual pte clear and instead of just zapping it use the
+> hypercall to do the unmap and release the grant.
 
-Sorry, removed a BUG_ON() from cache_alloc_refill() by mistake, here's a 
-better one:
+I think it has yet to be demonstrated that doing the invalidate
+_before_ clearing the linux pte is workable at all for
+shadow-pte/RDMA. Infact even doing it _after_ still requires some form
+of serialization but it's less obviously broken and perhaps more
+fixable unlike doing it before that seems hardly fixable given the
+refill event running in the remote node is supposed to wait on a
+bitflag of a page in the master node to return ON. What Christoph
+didn't specify after hinting you have to wait for the PageExported
+bitflag to return on, is that such page may be back in the freelist by
+the time the secondary-tlb page fault starts checking that bit. And
+nobody is setting that bit anyway in the VM so good luck waiting that
+bit to return on in a page in the freelist (nothing keeps that page
+pinned anymore by the time the ->invalidate_page returns: the whole
+point of the invalidate is so the VM code can finally free it and put
+it in the freelist).
 
-[PATCH] slab: fix allocation on memoryless nodes
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Until there's some more reasonable theory of how invalidating the
+remote tlbs/ptes _before_ the main linux pte can remotely work, I'm
+"quite" skeptical it's the way to go for the invalidate_page callback.
 
-As memoryless nodes do not have a nodelist, change cache_alloc_refill() to bail
-out for those and let ____cache_alloc_node() always deal with that by resorting
-to fallback_alloc().
+Like Avi said, Xen is dealing with the linux pte only, so there's no
+racy smp page fault to serialize against. Perhaps we can add another
+notifier for Xen though.
 
-Furthermore, don't let kmem_getpages() call alloc_pages_node() if nodeid passed
-to it is -1 as the latter will always translate that to numa_node_id() which
-might not have ->nodelist that caused the invocation of fallback_alloc() in the
-first place (for example, during bootstrap).
+But I think it's still not enough for Xen to have a method called
+before the ptep_clear_flush: rmap.c would get confused in
+page_mkclean_one for example. It might be possible that vm_ops is the
+right way for you even if it further clutters the VM. Like Avi pointed
+me out once, with our current mmu_notifiers we can export the KVM
+address space with remote dma and keep swapping the whole KVM asset
+just fine despite the triple MMU running the system (qemu using linux
+pte, KVM using spte, quadrics using pcimmu). And the core Linux VM
+code (not some obscure hypervisor) will deal with all aging and VM
+issues like a normal task (especially with my last patch that reflects
+the accessed bitflag in the spte the same way the accessed bitflag is
+reflected for the regular ptes).
 
-Signed-off-by: Pekka Enberg <penberg@cs.helsinki.fi>
----
- mm/slab.c |   19 ++++++++++---------
- 1 file changed, 10 insertions(+), 9 deletions(-)
+Nevertheless if you've any idea on how to use the notifiers for Xen
+I'd be glad to help. Perhaps one workable way to change my patch to
+work for you could be to pass the retval of ptep_clear_flush to the
+notifiers themself. something like:
 
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c
-+++ linux-2.6/mm/slab.c
-@@ -1668,7 +1668,11 @@ static void *kmem_getpages(struct kmem_c
- 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
- 		flags |= __GFP_RECLAIMABLE;
- 
--	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
-+	if (nodeid == -1)
-+		page = alloc_pages(flags, cachep->gfporder);
-+	else
-+		page = alloc_pages_node(nodeid, flags, cachep->gfporder);
-+
- 	if (!page)
- 		return NULL;
- 
-@@ -2975,9 +2979,11 @@ retry:
- 		 */
- 		batchcount = BATCHREFILL_LIMIT;
- 	}
-+	BUG_ON(ac->avail > 0);
- 	l3 = cachep->nodelists[node];
-+	if (!l3)
-+		return NULL;
- 
--	BUG_ON(ac->avail > 0 || !l3);
- 	spin_lock(&l3->list_lock);
- 
- 	/* See if we can refill from the shared array */
-@@ -3317,7 +3323,8 @@ static void *____cache_alloc_node(struct
- 	int x;
- 
- 	l3 = cachep->nodelists[nodeid];
--	BUG_ON(!l3);
-+	if (!l3)
-+		return fallback_alloc(cachep, flags);
- 
- retry:
- 	check_irq_off();
-@@ -3394,12 +3401,6 @@ __cache_alloc_node(struct kmem_cache *ca
- 	if (unlikely(nodeid == -1))
- 		nodeid = numa_node_id();
- 
--	if (unlikely(!cachep->nodelists[nodeid])) {
--		/* Node not bootstrapped yet */
--		ptr = fallback_alloc(cachep, flags);
--		goto out;
--	}
--
- 	if (nodeid == numa_node_id()) {
- 		/*
- 		 * Use the locally cached objects if possible.
+#define ptep_clear_flush(__vma, __address, __ptep)			\
+({									\
+	pte_t __pte;							\
+	__pte = ptep_get_and_clear((__vma)->vm_mm, __address, __ptep);	\
+	flush_tlb_page(__vma, __address);				\
+	__pte = mmu_notifier(invalidate_page, (__vma)->vm_mm, __address, __pte, __ptep);	\
+	__pte;								\
+})
+
+But this would kind of need an exclusive registration or this loop
+wouldn't work well if everyone pretends to overwrite the memory
+pointed by __ptep with its own value calculated in function of __pte.
+
+    for_each_notifier(mn,mm)
+        mn->invalidate_page(mm, __address, __pte, __ptep);
+
+You could get a pte_none page fault in between the old value and the
+new value though. (but you wouldn't need to flush the tlb inside
+invalidate_pte, only us need to flush the secondary tlb for the spte
+inside the invalidate_page obviously)
+
+Let me know if you're interested in the above.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
