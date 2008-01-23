@@ -1,258 +1,100 @@
-Received: by wa-out-1112.google.com with SMTP id m33so4920451wag.8
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2008 04:25:37 -0800 (PST)
-Message-ID: <4df4ef0c0801230425o13a1f3a6p87298c6767eb62ce@mail.gmail.com>
-Date: Wed, 23 Jan 2008 15:25:37 +0300
-From: "Anton Salikhmetov" <salikhmetov@gmail.com>
-Subject: Re: [PATCH -v8 4/4] The design document for memory-mapped file times update
-In-Reply-To: <E1JHdav-0002MW-GH@pomaz-ex.szeredi.hu>
+Date: Wed, 23 Jan 2008 06:32:30 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [kvm-devel] [PATCH] export notifier #1
+Message-ID: <20080123123230.GH26420@sgi.com>
+References: <478F9C9C.7070500@qumranet.com> <20080117193252.GC24131@v2.random> <20080121125204.GJ6970@v2.random> <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com> <20080122223139.GD15848@v2.random> <Pine.LNX.4.64.0801221433080.2271@schroedinger.engr.sgi.com> <20080123114136.GE15848@v2.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <12010440803930-git-send-email-salikhmetov@gmail.com>
-	 <1201044083554-git-send-email-salikhmetov@gmail.com>
-	 <E1JHbs1-00025n-Ac@pomaz-ex.szeredi.hu>
-	 <4df4ef0c0801230237g2f26f0d1j2d2ada2ce62ba284@mail.gmail.com>
-	 <E1JHdE4-0002Jk-QG@pomaz-ex.szeredi.hu>
-	 <E1JHdav-0002MW-GH@pomaz-ex.szeredi.hu>
+In-Reply-To: <20080123114136.GE15848@v2.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, holt@sgi.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-2008/1/23, Miklos Szeredi <miklos@szeredi.hu>:
-> > Ah, OK, this is becuase mmap doesn't actually set up the page tables
-> > by default.   Try adding MAP_POPULATE to the flags.
->
-> Here's an updated version of the program, with an added a '-r' option,
-> that performs a read access on the mapping before doing the write
-> (basically equivalent to MAP_POPULATE, but portable).
->
-> Please try this on a tmpfs file.
->
-> Thanks,
-> Miklos
->
-> ---
-> #include <stdio.h>
-> #include <stdlib.h>
-> #include <unistd.h>
-> #include <string.h>
-> #include <fcntl.h>
-> #include <sys/mman.h>
-> #include <sys/stat.h>
-> #include <sys/wait.h>
->
-> static const char *filename;
-> static int msync_flag = MS_ASYNC;
-> static int msync_fork = 0;
-> static int msync_read = 0;
->
-> static void print_times(const char *msg)
-> {
->         struct stat stbuf;
->         stat(filename, &stbuf);
->         printf("%s\t%li\t%li\t%li\n", msg, stbuf.st_ctime, stbuf.st_mtime,
->                stbuf.st_atime);
-> }
->
-> static void do_msync(void *addr, int len)
-> {
->         int res;
->         if (!msync_fork) {
->                 res = msync(addr, len, msync_flag);
->                 if (res == -1) {
->                         perror("msync");
->                         exit(1);
->                 }
->         } else {
->                 int pid = fork();
->                 if (pid == -1) {
->                         perror("fork");
->                         exit(1);
->                 }
->                 if (!pid) {
->                         int fd = open(filename, O_RDWR);
->                         if (fd == -1) {
->                                 perror("open");
->                                 exit(1);
->                         }
->                         addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
->                         if (addr == MAP_FAILED) {
->                                 perror("mmap");
->                                 exit(1);
->                         }
->                         res = msync(addr, len, msync_flag);
->                         if (res == -1) {
->                                 perror("msync");
->                                 exit(1);
->                         }
->                         exit(0);
->                 }
->                 wait(NULL);
->         }
-> }
->
-> static void usage(const char *progname)
-> {
->         fprintf(stderr, "usage: %s filename [-sfr]\n", progname);
->         fprintf(stderr, " -s: use MS_SYNC instead of MS_ASYNC\n");
->         fprintf(stderr, " -f: fork and perform msync in a different process\n");
->         fprintf(stderr, " -r: do a read access before each write access\n");
->         exit(1);
-> }
->
-> int main(int argc, char *argv[])
-> {
->         int res;
->         char *addr;
->         char tmp[32];
->         int fd;
->
->         if (argc < 2)
->                 usage(argv[0]);
->
->         filename = argv[1];
->         if (argc > 2) {
->                 char *s;
->                 if (argc > 3)
->                         usage(argv[0]);
->                 s = argv[2];
->                 if (s[0] != '-' || !s[1])
->                         usage(argv[0]);
->                 for (s++; *s; s++) {
->                         switch (*s) {
->                         case 's':
->                                 msync_flag = MS_SYNC;
->                                 break;
->                         case 'f':
->                                 msync_fork = 1;
->                                 break;
->                         case 'r':
->                                 msync_read = 1;
->                                 break;
->                         default:
->                                 usage(argv[0]);
->                         }
->                 }
->         }
->
->         fd = open(filename, O_RDWR | O_TRUNC | O_CREAT, 0666);
->         if (fd == -1) {
->                 perror(filename);
->                 return 1;
->         }
->         print_times("begin");
->         sleep(1);
->         write(fd, "wxyz\n", 4);
->         print_times("write");
->         sleep(1);
->         addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
->         if (addr == MAP_FAILED) {
->                 perror("mmap");
->                 return 1;
->         }
->         print_times("mmap");
->         sleep(1);
->
->         if (msync_read) {
->                 sprintf(tmp, "fetch %c", addr[1]);
->                 print_times(tmp);
->                 sleep(1);
->         }
->         addr[1] = 'b';
->         print_times("store b");
->         sleep(1);
->         do_msync(addr, 4);
->         print_times("msync");
->         sleep(1);
->
->         if (msync_read) {
->                 sprintf(tmp, "fetch %c", addr[2]);
->                 print_times(tmp);
->                 sleep(1);
->         }
->         addr[2] = 'c';
->         print_times("store c");
->         sleep(1);
->         do_msync(addr, 4);
->         print_times("msync");
->         sleep(1);
->
->         if (msync_read) {
->                 sprintf(tmp, "fetch %c", addr[3]);
->                 print_times(tmp);
->                 sleep(1);
->         }
->         addr[3] = 'd';
->         print_times("store d");
->         sleep(1);
->         res = munmap(addr, 4);
->         if (res == -1) {
->                 perror("munmap");
->                 return 1;
->         }
->         print_times("munmap");
->         sleep(1);
->
->         res = close(fd);
->         if (res == -1) {
->                 perror("close");
->                 return 1;
->         }
->         print_times("close");
->         sleep(1);
->         sync();
->         print_times("sync");
->
->         return 0;
-> }
->
+Christoph, Maybe you can clear one thing up.  Was this proposal an
+addition to or replacement of Andrea's?  I assumed an addition.  I am
+going to try to restrict my responses to ones appropriate for that
+assumption.
 
-Miklos, thanks for your program. Its output is given below.
+> The remote instance is like a secondary TLB what you're doing in your
+> code is as backwards as flushing the TLB _before_ clearing the PTE! If
+> you want to call the secondary tlb flush outside locks we can argue
+> about that, but I think you should do that _after_ clearing the linux
+> pte IMHO. Otherwise you can as well move the tlb_flush_page before
+> clearing the pte and you'll run in the same amount of smp races for
+> the master MMU too.
 
-debian:~/miklos# mount | grep mnt
-tmpfs on /mnt type tmpfs (rw)
-debian:~/miklos# ./miklos /mnt/file
-begin   1201089989      1201089989      1201085868
-write   1201089990      1201089990      1201085868
-mmap    1201089990      1201089990      1201089991
-store b 1201089992      1201089992      1201089991
-msync   1201089992      1201089992      1201089991
-store c 1201089994      1201089994      1201089991
-msync   1201089994      1201089994      1201089991
-store d 1201089996      1201089996      1201089991
-munmap  1201089996      1201089996      1201089991
-close   1201089996      1201089996      1201089991
-sync    1201089996      1201089996      1201089991
-debian:~/miklos# ./miklos /mnt/file -r
-begin   1201090025      1201090025      1201089991
-write   1201090026      1201090026      1201089991
-mmap    1201090026      1201090026      1201090027
-fetch x 1201090026      1201090026      1201090027
-store b 1201090026      1201090026      1201090027
-msync   1201090026      1201090026      1201090027
-fetch y 1201090026      1201090026      1201090027
-store c 1201090032      1201090032      1201090027
-msync   1201090032      1201090032      1201090027
-fetch z 1201090032      1201090032      1201090027
-store d 1201090036      1201090036      1201090027
-munmap  1201090036      1201090036      1201090027
-close   1201090036      1201090036      1201090027
-sync    1201090036      1201090036      1201090027
-debian:~/miklos#
+I can agree to doing the flush after as long as I get a flag from the
+mmu notifier saying this flush will be repeated later without locks
+held.  That would be fine with me.  If we don't have that then the
+export_notifiers would need to be expanded to cover all cases of pte
+clearing.  Baring one of the two, I would argue we have an unworkable
+solution for XPMEM.  This is because of allocations which is touched
+upon later.
 
-I think that after the patches applied the msync() system call does
-everything, which it is expected to do. The issue you're now talking
-about is one belonging to do_fsync() and the design of the tmpfs
-driver itself, I believe. Indeed, when the first write in the "-r"
-version of the test did not update the stamps, this is obviously not
-an msync() guilt.
+> The ordering you're implementing is backwards and unnatural, you can
+> try to serialize it with explicit locking to block the "remote-tlb
+> refills" through page bitflags (something not doable with the core
+> master tlb because the refills are done by the hardware with the
+> master tlb), but it'll remain unnatural and backwards IMHO.
 
-By the way, I would not like to move the "4/4" patch to the earlier
-place, because then it would describe the functionality, which had not
-been introduced yet.
+Given one of the two compromises above, I believe this will then work
+for XPMEM.  The callouts were placed as they are now to prevent the
+mmu_notifier callouts from having to do work.
+
+> > > > - anon_vma/inode and pte locks are held during callbacks.
+> > > 
+> > > In a previous email I asked what's wrong in offloading the event, and
+> > 
+> > We have internally discussed the possibility of offloading the event but 
+> > that wont work with the existing callback since we would have to 
+> > perform atomic allocation and there may be thousands of external 
+> > references to a page.
+
+As an example of thousands, we currently have one customer job that
+has 16880 processors all with the same physical page faulted into their
+address space.  The way XPMEM is currently structured, there is fan-out of
+that PFN information so we would not need to queue up that many messages,
+but it would still be considerable.  Our upcoming version of the hardware
+will potentially make this fanout worse because we are going to allow
+even more fine-grained divisions of the machine to help with memory
+error containment.
+
+> With KVM it doesn't work that way. Anyway you must be keeping a
+> "secondary" count if you know when it's time to call
+> __free_page/put_page, so why don't you use the main page_count instead?
+
+We have a counter associated with a pfn that indicates when the pfn is no
+longer referenced by other partitions.  This counter triggers changing of
+memory protections so any subsequent access to this page will result in
+a memory error on the remote partition (this should be an illegal case).
+
+> And how do they know when they can restart adding references if infact
+> the VM _never_ calls into SetPageExported? (perhaps you forgot
+> something in your patch to set PageExported again to notify the
+> external reference that it can "de-freeze" and to restart adding
+> references ;)
+
+I assumed Christoph intended this to be part of our memory protection
+changing phase.  Once we have raised memory protections for the page,
+clear the bit.  When we lower memory protections, set the bit.
+
+> The thing is, we can add notifiers to my patch to fit your needs, but
+> those will be _different_ notifiers and they really should be after
+> the linux pte updates... I think fixing your code so it'll work with
+> the sleeping-notifiers getting the "page" instead of a virtual address
+> called _after_ clearing the main linux pte, is the way to go. Then
+> hopefully won't have to find a way to enable the PageExported bitflag
+> anymore in the linux VM and it may remain always-on for the exported
+> pages etc.... it makes life a whole lot easier for you too IMHO.
+
+As I said before, I was under the assumption that Christoph was proposing
+this as an addition to your notifiers, not a replacement.
+
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
