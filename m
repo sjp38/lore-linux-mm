@@ -1,39 +1,26 @@
-Date: Wed, 23 Jan 2008 14:41:53 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH -v8 3/4] Enable the MS_ASYNC functionality in
- sys_msync()
-In-Reply-To: <Pine.LNX.4.64.0801232216460.5465@blonde.site>
-Message-ID: <alpine.LFD.1.00.0801231438530.2803@woody.linux-foundation.org>
-References: <12010440803930-git-send-email-salikhmetov@gmail.com>  <1201044083504-git-send-email-salikhmetov@gmail.com>  <alpine.LFD.1.00.0801230836250.1741@woody.linux-foundation.org> <1201110066.6341.65.camel@lappy> <alpine.LFD.1.00.0801231107520.1741@woody.linux-foundation.org>
- <E1JHlh8-0003s8-Bb@pomaz-ex.szeredi.hu> <alpine.LFD.1.00.0801231248060.2803@woody.linux-foundation.org> <E1JHmxa-0004BK-6X@pomaz-ex.szeredi.hu> <alpine.LFD.1.00.0801231329120.2803@woody.linux-foundation.org> <Pine.LNX.4.64.0801232216460.5465@blonde.site>
+Date: Wed, 23 Jan 2008 15:10:41 -0800
+From: Chris Wright <chrisw@sous-sol.org>
+Subject: Re: [kvm-devel] [RFC][PATCH 0/5] Memory merging driver for Linux
+Message-ID: <20080123231037.GA3629@sequoia.sous-sol.org>
+References: <4794C2E1.8040607@qumranet.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4794C2E1.8040607@qumranet.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, a.p.zijlstra@chello.nl, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: Izik Eidus <izike@qumranet.com>
+Cc: kvm-devel <kvm-devel@lists.sourceforge.net>, andrea@qumranet.com, avi@qumranet.com, dor.laor@qumranet.com, linux-mm@kvack.org, yaniv@qumranet.com
 List-ID: <linux-mm.kvack.org>
 
+* Izik Eidus (izike@qumranet.com) wrote:
+> this module find this identical data (pages) and merge them into one 
+> single page
+> this new page is write protected so in any case the guest will try to 
+> write to it do_wp_page will duplicate the page
 
-On Wed, 23 Jan 2008, Hugh Dickins wrote:
-> 
-> Something I dislike about it, though, is that it leaves the RAM-backed
-> filesystems (ramfs, tmpfs, whatever) behaving visibly differently from
-> the others.
-
-I hear you. 
-
-But I'm not seeing many alternatives, unless we start taking write faults 
-on them unnecessarily. Do we care? Probably not really. 
-
-So we certainly *could* make ramfs/tmpfs claim they do dirty accounting, 
-but just having a no-op writeback. Without that, they'd need something 
-really special in the file time updates.
-
-Personally, I don't really see anybody really caring one way or the other, 
-but who knows..
-
-		Linus
+What happens if you've merged more pages than you can recover on write
+faults?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
