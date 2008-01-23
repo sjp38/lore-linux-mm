@@ -1,27 +1,30 @@
-Date: Wed, 23 Jan 2008 20:01:05 +0100 (CET)
-From: Jan Engelhardt <jengelh@computergmbh.de>
-Subject: Re: [PATCH] Fix procfs task exe symlink
-In-Reply-To: <1201112977.5443.29.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0801231945530.12676@fbirervta.pbzchgretzou.qr>
-References: <1201112977.5443.29.camel@localhost.localdomain>
+Subject: Re: [RFC] Userspace tracing memory mappings
+References: <20080123160454.GA15405@Krystal>
+From: fche@redhat.com (Frank Ch. Eigler)
+Date: Wed, 23 Jan 2008 14:01:20 -0500
+In-Reply-To: <20080123160454.GA15405@Krystal> (Mathieu Desnoyers's message of "Wed, 23 Jan 2008 11:04:54 -0500")
+Message-ID: <y0m3aso9xj3.fsf@ton.toronto.redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Helsley <matthltc@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Al Viro <viro@ftp.linux.org.uk>, David Howells <dhowells@redhat.com>, William H Taber <wtaber@us.ibm.com>, William Cesar de Oliveira <owilliam@br.ibm.com>, Richard Kissel <rkissel@us.ibm.com>, Christoph Hellwig <hch@lst.de>
+To: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Cc: Dave Hansen <haveblue@us.ibm.com>, mbligh@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Jan 23 2008 10:29, Matt Helsley wrote:
->
->For executables on the stackable MVFS filesystem the current procfs
->methods for implementing a task's exe symlink do not point to the
->correct file and applications relying on the symlink fail (see the
->java example below).
+Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca> writes:
 
-This reminds me of unoionfs - it also had this issue, but IIRC,
-it eventually got solved. (Should now display /union/exe rather
-than /lowerlevel/exe.) Unionfs developers should know more.
+> [...]  Since memory management is not my speciality, I would like to
+> know if there are some implementation details I should be aware of
+> for my LTTng userspace tracing buffers. Here is what I want to do
+> [...]
+
+Would you mind offering some justification for requiring a kernel
+extension for user-space tracing?  What can the kernel enable in this
+context that a user-space library (which you already assume will be
+linked in) can't?
+
+- FChE
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
