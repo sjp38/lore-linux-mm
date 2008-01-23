@@ -1,57 +1,41 @@
-Date: Wed, 23 Jan 2008 14:15:01 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/2] Relax restrictions on setting CONFIG_NUMA on x86 II
-Message-ID: <20080123141500.GB14175@csn.ul.ie>
-References: <20080118153529.12646.5260.sendpatchset@skynet.skynet.ie> <200801231215.56741.andi@firstfloor.org> <20080123112436.GF21455@csn.ul.ie> <200801231448.09514.andi@firstfloor.org>
+Message-ID: <47974C78.7050509@qumranet.com>
+Date: Wed, 23 Jan 2008 16:17:28 +0200
+From: Avi Kivity <avi@qumranet.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <200801231448.09514.andi@firstfloor.org>
+Subject: Re: [kvm-devel] [PATCH] export notifier #1
+References: <478E4356.7030303@qumranet.com> <20080117162302.GI7170@v2.random> <478F9C9C.7070500@qumranet.com> <20080117193252.GC24131@v2.random> <20080121125204.GJ6970@v2.random> <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com> <4797384B.7080200@redhat.com> <20080123131939.GJ26420@sgi.com>
+In-Reply-To: <20080123131939.GJ26420@sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
+To: Robin Holt <holt@sgi.com>
+Cc: Gerd Hoffmann <kraxel@redhat.com>, Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On (23/01/08 14:48), Andi Kleen didst pronounce:
-> On Wednesday 23 January 2008 12:24:36 Mel Gorman wrote:
-> > On (23/01/08 12:15), Andi Kleen didst pronounce:
-> > > Anyways from your earlier comments it sounds like you're trying to add
-> > > SRAT parsing to CONFIG_NUMAQ. Since that's redundant with the old
-> > > implementation it doesn't sound like a very useful thing to do.
-> >
-> > No, that would not be useful at all as it's redundant as you point out. The
-> > only reason to add it is if the Opteron box can figure out the CPU-to-node
-> > affinity. 
-> 
-> Assuming srat_32.c was fixed to not crash on Opteron it would likely
-> do that already without further changes.
-> 
+Robin Holt wrote:
+> On Wed, Jan 23, 2008 at 01:51:23PM +0100, Gerd Hoffmann wrote:
+>   
+>> Jumping in here, looks like this could develop into a direction useful
+>> for Xen.
+>>
+>> Background:  Xen has a mechanism called "grant tables" for page sharing.
+>>  Guest #1 can issue a "grant" for another guest #2, which in turn then
+>> can use that grant to map the page owned by guest #1 into its address
+>> space.  This is used by the virtual network/disk drivers, i.e. typically
+>> Domain-0 (which has access to the real hardware) maps pages of other
+>> guests to fill in disk/network data.
+>>     
+>
+> This is extremely similar to what XPMEM is providing.
+>
+>   
 
-Understood.
-
-> > :| The patches applied so far are about increasing test coverage, not SRAT
-> > messing. 
-> 
-> Test coverage of the NUMAQ kernel?
-> 
-
-NUMA in general. I don't really care about NUMAQ as such except that it
-continues to shake out the occasional bug that can be difficult to reproduce
-elsewhere.
-
-> If you wanted to increase test coverage of 32bit NUMA kernels the right
-> strategy would be to fix srat_32.
-> 
-
-I will try and do that then instead of trying to merge the SRAT parsers.
-Based on this thread, my understanding is that an attempted merge would only
-open up a can of hurt, probably causing regressions in the process.
+I think that in Xen's case the page tables are the normal cpu page 
+tables, not an external mmu (like RDMA, kvm, and XPMEM).
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
