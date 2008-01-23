@@ -1,48 +1,38 @@
-In-reply-to: <alpine.LFD.1.00.0801231107520.1741@woody.linux-foundation.org>
-	(message from Linus Torvalds on Wed, 23 Jan 2008 11:35:21 -0800 (PST))
-Subject: Re: [PATCH -v8 3/4] Enable the MS_ASYNC functionality in
- sys_msync()
-References: <12010440803930-git-send-email-salikhmetov@gmail.com>  <1201044083504-git-send-email-salikhmetov@gmail.com>  <alpine.LFD.1.00.0801230836250.1741@woody.linux-foundation.org> <1201110066.6341.65.camel@lappy> <alpine.LFD.1.00.0801231107520.1741@woody.linux-foundation.org>
-Message-Id: <E1JHlh8-0003s8-Bb@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Wed, 23 Jan 2008 20:55:34 +0100
+Date: Wed, 23 Jan 2008 13:58:39 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [kvm-devel] [PATCH] export notifier #1
+Message-ID: <20080123195839.GK26420@sgi.com>
+References: <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com> <20080122223139.GD15848@v2.random> <Pine.LNX.4.64.0801221433080.2271@schroedinger.engr.sgi.com> <479716AD.5070708@qumranet.com> <20080123105246.GG26420@sgi.com> <20080123120446.GF15848@v2.random> <Pine.LNX.4.64.0801231147370.13547@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0801231147370.13547@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: torvalds@linux-foundation.org
-Cc: a.p.zijlstra@chello.nl, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, Jan 23, 2008 at 11:48:43AM -0800, Christoph Lameter wrote:
+> On Wed, 23 Jan 2008, Andrea Arcangeli wrote:
+> 
+> > On Wed, Jan 23, 2008 at 04:52:47AM -0600, Robin Holt wrote:
+> > > But 100 callouts holding spinlocks will not work for our implementation
+> > > and even if the callouts are made with spinlocks released, we would very
+> > > strongly prefer a single callout which messages the range to the other
+> > > side.
 > > 
-> > It would need some addition piece to not call msync_interval() for
-> > MS_SYNC, and remove the balance_dirty_pages_ratelimited_nr() stuff.
-> > 
-> > But yeah, this pte walker is much better. 
+> > But you take the physical address and turn into mm+va with your rmap...
 > 
-> Actually, I think this patch is much better. 
-> 
-> Anyway, it's better because:
->  - it actually honors the range
->  - it uses the same code for MS_ASYNC and MS_SYNC
->  - it just avoids doing the "wait for" for MS_ASYNC.
-> 
-> However, it's totally untested, of course. What did you expect? Clean code 
-> _and_ testing? 
-> 
-> [ Side note: it is quite possible that we should not do the 
->   SYNC_FILE_RANGE_WAIT_BEFORE on MS_ASYNC, and just skip over pages that 
->   are busily under writeback already.
+> The remote mm+va or a local mm+va?
 
-MS_ASYNC is not supposed to wait, so SYNC_FILE_RANGE_WAIT_BEFORE
-probably should not be used in that case.
+To be more complete, the phys is pointing to a xpmem_segment+va and the
+xpmem_segment points to the mm.  The seg describes a window into the
+source processes virtual address space.  Seems somewhat analogous to the
+Xen grant, but I do not know.
 
-What would be perfect, is if we had a sync mode, that on encountering
-a page currently under writeback, would just do a page_mkclean() on
-it, so we still receive a page fault next time one of the mappings is
-dirtied, so the times can be updated.
-
-Would there be any difficulties with that?
-
-Miklos
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
