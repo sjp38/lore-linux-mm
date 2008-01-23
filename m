@@ -1,73 +1,52 @@
-Received: by wa-out-1112.google.com with SMTP id m33so4940279wag.8
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2008 05:09:12 -0800 (PST)
-Message-ID: <4df4ef0c0801230509w5c6cd1a5m35fb30b51462da4d@mail.gmail.com>
-Date: Wed, 23 Jan 2008 16:09:11 +0300
-From: "Anton Salikhmetov" <salikhmetov@gmail.com>
-Subject: Re: [PATCH -v8 3/4] Enable the MS_ASYNC functionality in sys_msync()
-In-Reply-To: <E1JHcG4-0002A9-46@pomaz-ex.szeredi.hu>
+Date: Wed, 23 Jan 2008 07:19:39 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [kvm-devel] [PATCH] export notifier #1
+Message-ID: <20080123131939.GJ26420@sgi.com>
+References: <478E4356.7030303@qumranet.com> <20080117162302.GI7170@v2.random> <478F9C9C.7070500@qumranet.com> <20080117193252.GC24131@v2.random> <20080121125204.GJ6970@v2.random> <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com> <4797384B.7080200@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <12010440803930-git-send-email-salikhmetov@gmail.com>
-	 <1201044083504-git-send-email-salikhmetov@gmail.com>
-	 <1201078035.6341.45.camel@lappy> <1201078278.6341.47.camel@lappy>
-	 <E1JHc0S-00027S-8D@pomaz-ex.szeredi.hu>
-	 <E1JHcG4-0002A9-46@pomaz-ex.szeredi.hu>
+In-Reply-To: <4797384B.7080200@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: a.p.zijlstra@chello.nl, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: Gerd Hoffmann <kraxel@redhat.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, holt@sgi.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-2008/1/23, Miklos Szeredi <miklos@szeredi.hu>:
-> > > Also, it still doesn't make sense to me why we'd not need to walk the
-> > > rmap, it is all the same file after all.
-> >
-> > It's the same file, but not the same memory map.  It basically depends
-> > on how you define msync:
-> >
-> >  a) sync _file_ on region defined by this mmap/start/end-address
-> >  b) sync _memory_region_ defined by start/end-address
->
-> My mmap/msync tester program can acually check this as well, with the
-> '-f' flag.  Anton, can you try that on the reference platforms?
+On Wed, Jan 23, 2008 at 01:51:23PM +0100, Gerd Hoffmann wrote:
+> Jumping in here, looks like this could develop into a direction useful
+> for Xen.
+> 
+> Background:  Xen has a mechanism called "grant tables" for page sharing.
+>  Guest #1 can issue a "grant" for another guest #2, which in turn then
+> can use that grant to map the page owned by guest #1 into its address
+> space.  This is used by the virtual network/disk drivers, i.e. typically
+> Domain-0 (which has access to the real hardware) maps pages of other
+> guests to fill in disk/network data.
 
-Here it is:
+This is extremely similar to what XPMEM is providing.
 
-$ ./a.out file -f
-begin   1201085546      1201085546      1200956936
-write   1201085546      1201085546      1200956936
-mmap    1201085546      1201085546      1200956936
-b       1201085546      1201085546      1200956936
-msync b 1201085550      1201085550      1200956936
-c       1201085550      1201085550      1200956936
-msync c 1201085552      1201085552      1200956936
-d       1201085552      1201085552      1200956936
-munmap  1201085552      1201085552      1200956936
-close   1201085555      1201085555      1200956936
-sync    1201085555      1201085555      1200956936
-$ ./a.out file -sf
-begin   1201085572      1201085572      1200956936
-write   1201085572      1201085572      1200956936
-mmap    1201085572      1201085572      1200956936
-b       1201085572      1201085572      1200956936
-msync b 1201085576      1201085576      1200956936
-c       1201085576      1201085576      1200956936
-msync c 1201085578      1201085578      1200956936
-d       1201085578      1201085578      1200956936
-munmap  1201085578      1201085578      1200956936
-close   1201085581      1201085581      1200956936
-sync    1201085581      1201085581      1200956936
-$ uname -a
-FreeBSD td152.testdrive.hp.com 6.2-RELEASE FreeBSD 6.2-RELEASE #0: Fri
-Jan 12 11:05:30 UTC 2007
-root@dessler.cse.buffalo.edu:/usr/obj/usr/src/sys/SMP  i386
-$
+> That would render the notifies useless for Xen too.  Xen needs to
+> intercept the actual pte clear and instead of just zapping it use the
+> hypercall to do the unmap and release the grant.
 
->
-> Miklos
->
+We are tackling that by having our own page table hanging off the
+structure representing our seg (thing created when we do the equiv of
+your grant call).
+
+> Current implementation uses a new vm_ops operation which is called if
+> present instead of doing a ptep_get_and_clear_full().  It is in the
+> XenSource tree only, mainline hasn't this yet due to implementing only
+> the DomU bits so far.  When adding Dom0 support to mainline we'll need
+> some way to handle it, and I'd like to see the notifies be designed in a
+> way that Xen can simply use them.
+
+Would the callouts Christoph proposed work for you if you maintained
+your own page table and moved them after the callouts the mmu_notifiers
+are using.
+
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
