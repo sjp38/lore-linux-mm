@@ -1,32 +1,39 @@
-Message-ID: <479750CA.4070101@redhat.com>
-Date: Wed, 23 Jan 2008 15:35:54 +0100
-From: Gerd Hoffmann <kraxel@redhat.com>
+Date: Wed, 23 Jan 2008 14:42:23 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] Fix boot problem in situations where the boot CPU is running on a memoryless node
+Message-ID: <20080123144222.GA20156@csn.ul.ie>
+References: <20080118225713.GA31128@aepfle.de> <20080122195448.GA15567@csn.ul.ie> <20080122214505.GA15674@aepfle.de> <Pine.LNX.4.64.0801221417480.1912@schroedinger.engr.sgi.com> <20080123075821.GA17713@aepfle.de> <20080123105044.GD21455@csn.ul.ie> <20080123121459.GA18631@aepfle.de> <20080123125236.GA18876@aepfle.de> <20080123135513.GA14175@csn.ul.ie> <20080123142759.GB19161@aepfle.de>
 MIME-Version: 1.0
-Subject: Re: [kvm-devel] [PATCH] export notifier #1
-References: <478F9C9C.7070500@qumranet.com> <20080117193252.GC24131@v2.random> <20080121125204.GJ6970@v2.random> <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com> <4797384B.7080200@redhat.com> <20080123131939.GJ26420@sgi.com> <47974B54.30407@redhat.com> <20080123141814.GE3058@sgi.com>
-In-Reply-To: <20080123141814.GE3058@sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20080123142759.GB19161@aepfle.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
+To: Olaf Hering <olaf@aepfle.de>
+Cc: akpm@linux-foundation.org, Christoph Lameter <clameter@sgi.com>, Pekka Enberg <penberg@cs.helsinki.fi>, lee.schermerhorn@hp.com, Linux MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, hanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Robin Holt wrote:
-> We have a seg structure which is similar to some structure you probably
-> have which describes the grant.  One of the things hanging off that
-> seg structure is essentially a page table containing PFNs with their
-> respective flags (XPMEM specific and not the same as the pfn flags in
-> the processor page tables).
+On (23/01/08 15:27), Olaf Hering didst pronounce:
+> On Wed, Jan 23, Mel Gorman wrote:
+> 
+> > This patch in combination with a partial revert of commit
+> > 04231b3002ac53f8a64a7bd142fde3fa4b6808c6 fixes a regression between 2.6.23
+> > and 2.6.24-rc8 where a PPC64 machine with all CPUS on a memoryless node fails
+> > to boot. If approved by the SLAB maintainers, it should be merged for 2.6.24.
+> 
+> This change alone does not help, its not the version I tested.
+> Will all the changes below go into 2.6.24 as well, in a seperate patch?
+> 
+> -       for_each_node_state(node, N_NORMAL_MEMORY) {
+> +       for_each_online_node(node) {
 
-i.e. page tables used by hardware != cpu, right?
+Those changes are already in a separate patch and have been sent. I don't
+see it in git yet but it should be on the way.
 
-In the Xen guest case the normal processor page tables are modified, but
-in a special way to make the Xen hypervisor also release the grant.
-
-cheers,
-  Gerd
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
