@@ -1,73 +1,49 @@
-In-reply-to: <4df4ef0c0801230425o13a1f3a6p87298c6767eb62ce@mail.gmail.com>
-	(salikhmetov@gmail.com)
-Subject: Re: [PATCH -v8 4/4] The design document for memory-mapped file times update
-References: <12010440803930-git-send-email-salikhmetov@gmail.com>
-	 <1201044083554-git-send-email-salikhmetov@gmail.com>
-	 <E1JHbs1-00025n-Ac@pomaz-ex.szeredi.hu>
-	 <4df4ef0c0801230237g2f26f0d1j2d2ada2ce62ba284@mail.gmail.com>
-	 <E1JHdE4-0002Jk-QG@pomaz-ex.szeredi.hu>
-	 <E1JHdav-0002MW-GH@pomaz-ex.szeredi.hu> <4df4ef0c0801230425o13a1f3a6p87298c6767eb62ce@mail.gmail.com>
-Message-Id: <E1JHg4a-0002ep-Et@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Wed, 23 Jan 2008 14:55:24 +0100
+Message-ID: <47974B54.30407@redhat.com>
+Date: Wed, 23 Jan 2008 15:12:36 +0100
+From: Gerd Hoffmann <kraxel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [kvm-devel] [PATCH] export notifier #1
+References: <478E4356.7030303@qumranet.com> <20080117162302.GI7170@v2.random> <478F9C9C.7070500@qumranet.com> <20080117193252.GC24131@v2.random> <20080121125204.GJ6970@v2.random> <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com> <4797384B.7080200@redhat.com> <20080123131939.GJ26420@sgi.com>
+In-Reply-To: <20080123131939.GJ26420@sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: salikhmetov@gmail.com
-Cc: miklos@szeredi.hu, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: Robin Holt <holt@sgi.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
+>> That would render the notifies useless for Xen too.  Xen needs to
+>> intercept the actual pte clear and instead of just zapping it use the
+>> hypercall to do the unmap and release the grant.
 > 
-> Miklos, thanks for your program. Its output is given below.
+> We are tackling that by having our own page table hanging off the
+> structure representing our seg (thing created when we do the equiv of
+> your grant call).
+
+--verbose please.  I don't understand that "own page table" trick.  Is
+that page table actually used by the processor or is it just used to
+maintain some sort of page list?
+
+>> Current implementation uses a new vm_ops operation which is called if
+>> present instead of doing a ptep_get_and_clear_full().  It is in the
+>> XenSource tree only, mainline hasn't this yet due to implementing only
+>> the DomU bits so far.  When adding Dom0 support to mainline we'll need
+>> some way to handle it, and I'd like to see the notifies be designed in a
+>> way that Xen can simply use them.
 > 
-> debian:~/miklos# mount | grep mnt
-> tmpfs on /mnt type tmpfs (rw)
-> debian:~/miklos# ./miklos /mnt/file
-> begin   1201089989      1201089989      1201085868
-> write   1201089990      1201089990      1201085868
-> mmap    1201089990      1201089990      1201089991
-> store b 1201089992      1201089992      1201089991
-> msync   1201089992      1201089992      1201089991
-> store c 1201089994      1201089994      1201089991
-> msync   1201089994      1201089994      1201089991
-> store d 1201089996      1201089996      1201089991
-> munmap  1201089996      1201089996      1201089991
-> close   1201089996      1201089996      1201089991
-> sync    1201089996      1201089996      1201089991
-> debian:~/miklos# ./miklos /mnt/file -r
-> begin   1201090025      1201090025      1201089991
-> write   1201090026      1201090026      1201089991
-> mmap    1201090026      1201090026      1201090027
-> fetch x 1201090026      1201090026      1201090027
-> store b 1201090026      1201090026      1201090027
-> msync   1201090026      1201090026      1201090027
-> fetch y 1201090026      1201090026      1201090027
-> store c 1201090032      1201090032      1201090027
-> msync   1201090032      1201090032      1201090027
-> fetch z 1201090032      1201090032      1201090027
-> store d 1201090036      1201090036      1201090027
-> munmap  1201090036      1201090036      1201090027
-> close   1201090036      1201090036      1201090027
-> sync    1201090036      1201090036      1201090027
-> debian:~/miklos#
-> 
-> I think that after the patches applied the msync() system call does
-> everything, which it is expected to do. The issue you're now talking
-> about is one belonging to do_fsync() and the design of the tmpfs
-> driver itself, I believe.
+> Would the callouts Christoph proposed work for you if you maintained
+> your own page table and moved them after the callouts the mmu_notifiers
+> are using.
 
-Right.  My problem is that msync() does _too_much_ for ram-backed
-mappings.  It shouldn't write protect pages in this case, because it
-has a high cost and dubious value.
+I *think* it would.  I'm not that deep in the VM details to be sure
+though.  One possible problem I see is that the hypercall does also tear
+down the mapping, so this isn't just a notify but also changes the page
+tables, which could confuse the VM later on when it comes to the actual
+pte clearing.
 
-Similar argument probably holds for file_update_time() from the fault
-handlers.  They should examine, if it's a ram-backed fs (with
-mapping_cap_account_dirty()) and not update the times for those.
-
-It's better to consistently not update the times, than to randomly do
-so, which could lead to false expectations, and hard to track down
-bugs.
-
-Miklos
+cheers,
+  Gerd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
