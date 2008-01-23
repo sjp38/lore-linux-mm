@@ -1,52 +1,74 @@
-Date: Wed, 23 Jan 2008 07:19:39 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [kvm-devel] [PATCH] export notifier #1
-Message-ID: <20080123131939.GJ26420@sgi.com>
-References: <478E4356.7030303@qumranet.com> <20080117162302.GI7170@v2.random> <478F9C9C.7070500@qumranet.com> <20080117193252.GC24131@v2.random> <20080121125204.GJ6970@v2.random> <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com> <4797384B.7080200@redhat.com>
+Date: Wed, 23 Jan 2008 13:41:48 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: crash in kmem_cache_init
+Message-ID: <20080123134147.GA12503@csn.ul.ie>
+References: <Pine.LNX.4.64.0801181043290.30348@schroedinger.engr.sgi.com> <20080118213011.GC10491@csn.ul.ie> <Pine.LNX.4.64.0801181414200.8924@schroedinger.engr.sgi.com> <20080118225713.GA31128@aepfle.de> <20080122195448.GA15567@csn.ul.ie> <20080122214505.GA15674@aepfle.de> <Pine.LNX.4.64.0801221417480.1912@schroedinger.engr.sgi.com> <20080123075821.GA17713@aepfle.de> <20080123105044.GD21455@csn.ul.ie> <20080123121459.GA18631@aepfle.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <4797384B.7080200@redhat.com>
+In-Reply-To: <20080123121459.GA18631@aepfle.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gerd Hoffmann <kraxel@redhat.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, holt@sgi.com, Hugh Dickins <hugh@veritas.com>
+To: Olaf Hering <olaf@aepfle.de>
+Cc: Christoph Lameter <clameter@sgi.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, hanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lee.schermerhorn@hp.com, Linux MM <linux-mm@kvack.org>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 23, 2008 at 01:51:23PM +0100, Gerd Hoffmann wrote:
-> Jumping in here, looks like this could develop into a direction useful
-> for Xen.
+On (23/01/08 13:14), Olaf Hering didst pronounce:
+> On Wed, Jan 23, Mel Gorman wrote:
 > 
-> Background:  Xen has a mechanism called "grant tables" for page sharing.
->  Guest #1 can issue a "grant" for another guest #2, which in turn then
-> can use that grant to map the page owned by guest #1 into its address
-> space.  This is used by the virtual network/disk drivers, i.e. typically
-> Domain-0 (which has access to the real hardware) maps pages of other
-> guests to fill in disk/network data.
+> > Sorry this is dragging out. Can you post the full dmesg with loglevel=8 of the
+> > following patch against 2.6.24-rc8 please? It contains the debug information
+> > that helped me figure out what was going wrong on the PPC64 machine here,
+> > the revert and the !l3 checks (i.e. the two patches that made machines I
+> > have access to work). Thanks
+> 
+> It boots with your change.
+> 
 
-This is extremely similar to what XPMEM is providing.
+....... Nice one! As the only addition here is debugging output, I can
+only assume that the two patches were being booted in isolation instead
+of combination earlier. The two threads have been a little confused with
+hand waving so that can easily happen.
 
-> That would render the notifies useless for Xen too.  Xen needs to
-> intercept the actual pte clear and instead of just zapping it use the
-> hypercall to do the unmap and release the grant.
+Looking at your log;
 
-We are tackling that by having our own page table hanging off the
-structure representing our seg (thing created when we do the equiv of
-your grant call).
+> early_node_map[1] active PFN ranges
+>     1:        0 ->   892928
 
-> Current implementation uses a new vm_ops operation which is called if
-> present instead of doing a ptep_get_and_clear_full().  It is in the
-> XenSource tree only, mainline hasn't this yet due to implementing only
-> the DomU bits so far.  When adding Dom0 support to mainline we'll need
-> some way to handle it, and I'd like to see the notifies be designed in a
-> way that Xen can simply use them.
+All memory on node 1
 
-Would the callouts Christoph proposed work for you if you maintained
-your own page table and moved them after the callouts the mmu_notifiers
-are using.
+> Online nodes
+> o 0
+> o 1
+> Nodes with regular memory
+> o 1
+> Current running CPU 0 is associated with node 0
+> Current node is 0
 
-Thanks,
-Robin
+Running CPU associated with node 0 so other than being node 1 instead of
+node 2, your machine is similar to the one I had the problem on in terms
+of memoryless nodes and CPU configuration.
+
+> VFS: Cannot open root device "<NULL>" or unknown-block(0,0)
+> Please append a correct "root=" boot option; here are the available partitions:
+> Kernel panic - not syncing: VFS: Unable to mount root fs on unknown-block(0,0)
+> Rebooting in 1 seconds..    
+> 
+
+I see it failed to complete boot but I'm going to assume this is a relatively
+normal commane-line, .config or initrd problem and not a regression of
+some type.
+
+I'll post a patch suitable for pick-up shortly. The two patches ran in
+combination with CONFIG_DEBUG_SLAB a compile-based stress tests without
+difficulty so hopefully there is not new surprises hiding in the corners.
+
+Thanks Olaf.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
