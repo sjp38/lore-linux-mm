@@ -1,209 +1,92 @@
-Date: Wed, 23 Jan 2008 10:23:32 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/2] Relax restrictions on setting CONFIG_NUMA on x86
-Message-ID: <20080123102332.GB21455@csn.ul.ie>
-References: <20080118153529.12646.5260.sendpatchset@skynet.skynet.ie> <20080121093702.8FC2.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080123105810.F295.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <479716AD.5070708@qumranet.com>
+Date: Wed, 23 Jan 2008 12:27:57 +0200
+From: Avi Kivity <avi@qumranet.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20080123105810.F295.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [kvm-devel] [PATCH] export notifier #1
+References: <20080116124256.44033d48@bree.surriel.com> <478E4356.7030303@qumranet.com> <20080117162302.GI7170@v2.random> <478F9C9C.7070500@qumranet.com> <20080117193252.GC24131@v2.random> <20080121125204.GJ6970@v2.random> <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com> <20080122223139.GD15848@v2.random> <Pine.LNX.4.64.0801221433080.2271@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0801221433080.2271@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Izik Eidus <izike@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, holt@sgi.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On (23/01/08 11:04), KOSAKI Motohiro didst pronounce:
-> Hi mel
-> 
-> > Hi 
-> > 
-> > > A fix[1] was merged to the x86.git tree that allowed NUMA kernels to boot
-> > > on normal x86 machines (and not just NUMA-Q, Summit etc.). I took a look
-> > > at the restrictions on setting NUMA on x86 to see if they could be lifted.
-> > 
-> > Interesting!
-> > 
-> > I will test tomorrow.
-> 
-> Hmm...
-> It doesn't works on my machine.
-> 
-> panic at booting at __free_pages_ok() with blow call trace.
-> 
-> [<hex number>] free_all_bootmem_core
-> [<hex number>] mem_init
-> [<hex number>] alloc_large_system_hash
-> [<hex number>] inode_init_early
-> [<hex number>] start_kernel
-> [<hex number>] unknown_bootoption
-> 
-> my machine spec
-> 	CPU:   Pentium4 with HT
-> 	MEM:   512M
-> 
-> I will try more investigate.
-> but I have no time for a while, sorry ;-)
-> 
-> 
-> BTW:
-> when config sparse mem turn on instead discontig mem.
-> panic at booting at get_pageblock_flags_group() with below call stack.
-> 
-> free_initrd
-> 	free_init_pages
-> 		free_hot_cold_page
-> 
-> 
+Christoph Lameter wrote:
+> Ahhh. Good to hear. But we will still end in a situation where only
+> the remote ptes point to the page. Maybe the remote instance will dirty
+> the page at that point?
+>
+>   
 
-And the actual patch :/
+When the spte is dropped, its dirty bit is transferred to the page.
+>   
+>> sharing code, and for you missing a single notifier means memory
+>> corruption because you don't bump the page count to represent the
+>> external reference).
+>>     
+>
+> The approach with the export notifier is page based not based on the 
+> mm_struct. We only need a single page count for a page that is exported to 
+> a number of remote instances of linux. The page count is dropped when all 
+> the remote instances have unmapped the page.
+>   
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc8-010_any32bit_x86/arch/x86/mm/discontig_32.c linux-2.6.24-rc8-015_remap_discontigmem/arch/x86/mm/discontig_32.c
---- linux-2.6.24-rc8-010_any32bit_x86/arch/x86/mm/discontig_32.c	2008-01-17 15:40:21.000000000 +0000
-+++ linux-2.6.24-rc8-015_remap_discontigmem/arch/x86/mm/discontig_32.c	2008-01-19 15:50:47.000000000 +0000
-@@ -32,6 +32,7 @@
- #include <linux/kexec.h>
- #include <linux/pfn.h>
- #include <linux/swap.h>
-+#include <linux/acpi.h>
- 
- #include <asm/e820.h>
- #include <asm/setup.h>
-@@ -103,14 +104,10 @@ extern unsigned long highend_pfn, highst
- 
- #define LARGE_PAGE_BYTES (PTRS_PER_PTE * PAGE_SIZE)
- 
--static unsigned long node_remap_start_pfn[MAX_NUMNODES];
- unsigned long node_remap_size[MAX_NUMNODES];
--static unsigned long node_remap_offset[MAX_NUMNODES];
- static void *node_remap_start_vaddr[MAX_NUMNODES];
- void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
- 
--static void *node_remap_end_vaddr[MAX_NUMNODES];
--static void *node_remap_alloc_vaddr[MAX_NUMNODES];
- static unsigned long kva_start_pfn;
- static unsigned long kva_pages;
- /*
-@@ -167,6 +164,22 @@ static void __init allocate_pgdat(int ni
- 	}
- }
- 
-+#ifdef CONFIG_DISCONTIGMEM
-+/*
-+ * In the discontig memory model, a portion of the kernel virtual area (KVA)
-+ * is reserved and portions of nodes are mapped using it. This is to allow
-+ * node-local memory to be allocated for structures that would normally require
-+ * ZONE_NORMAL. The memory is allocated with alloc_remap() and callers
-+ * should be prepared to allocate from the bootmem allocator instead. This KVA
-+ * mechanism is incompatible with SPARSEMEM as it makes assumptions about the
-+ * layout of memory that are broken if alloc_remap() succeeds for some of the
-+ * map and fails for others
-+ */
-+static unsigned long node_remap_start_pfn[MAX_NUMNODES];
-+static void *node_remap_end_vaddr[MAX_NUMNODES];
-+static void *node_remap_alloc_vaddr[MAX_NUMNODES];
-+static unsigned long node_remap_offset[MAX_NUMNODES];
-+
- void *alloc_remap(int nid, unsigned long size)
- {
- 	void *allocation = node_remap_alloc_vaddr[nid];
-@@ -263,6 +276,40 @@ static unsigned long calculate_numa_rema
- 	return reserve_pages;
- }
- 
-+static void init_remap_allocator(int nid)
-+{
-+	node_remap_start_vaddr[nid] = pfn_to_kaddr(
-+			kva_start_pfn + node_remap_offset[nid]);
-+	node_remap_end_vaddr[nid] = node_remap_start_vaddr[nid] +
-+		(node_remap_size[nid] * PAGE_SIZE);
-+	node_remap_alloc_vaddr[nid] = node_remap_start_vaddr[nid] +
-+		ALIGN(sizeof(pg_data_t), PAGE_SIZE);
-+
-+	printk ("node %d will remap to vaddr %08lx - %08lx\n", nid,
-+		(ulong) node_remap_start_vaddr[nid],
-+		(ulong) pfn_to_kaddr(highstart_pfn
-+		   + node_remap_offset[nid] + node_remap_size[nid]));
-+}
-+#else
-+void *alloc_remap(int nid, unsigned long size)
-+{
-+	return NULL;
-+}
-+
-+static unsigned long calculate_numa_remap_pages(void)
-+{
-+	return 0;
-+}
-+
-+static void init_remap_allocator(int nid)
-+{
-+}
-+
-+void __init remap_numa_kva(void)
-+{
-+}
-+#endif /* CONFIG_DISCONTIGMEM */
-+
- extern void setup_bootmem_allocator(void);
- unsigned long __init setup_memory(void)
- {
-@@ -326,19 +373,9 @@ unsigned long __init setup_memory(void)
- 	printk("Low memory ends at vaddr %08lx\n",
- 			(ulong) pfn_to_kaddr(max_low_pfn));
- 	for_each_online_node(nid) {
--		node_remap_start_vaddr[nid] = pfn_to_kaddr(
--				kva_start_pfn + node_remap_offset[nid]);
--		/* Init the node remap allocator */
--		node_remap_end_vaddr[nid] = node_remap_start_vaddr[nid] +
--			(node_remap_size[nid] * PAGE_SIZE);
--		node_remap_alloc_vaddr[nid] = node_remap_start_vaddr[nid] +
--			ALIGN(sizeof(pg_data_t), PAGE_SIZE);
-+		init_remap_allocator(nid);
- 
- 		allocate_pgdat(nid);
--		printk ("node %d will remap to vaddr %08lx - %08lx\n", nid,
--			(ulong) node_remap_start_vaddr[nid],
--			(ulong) pfn_to_kaddr(highstart_pfn
--			   + node_remap_offset[nid] + node_remap_size[nid]));
- 	}
- 	printk("High memory starts at vaddr %08lx\n",
- 			(ulong) pfn_to_kaddr(highstart_pfn));
-@@ -439,3 +476,29 @@ int memory_add_physaddr_to_nid(u64 addr)
- 
- EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
- #endif
-+
-+#ifndef CONFIG_HAVE_ARCH_PARSE_SRAT
-+/*
-+ * XXX FIXME: Make SLIT table parsing available to 32-bit NUMA
-+ *
-+ * These stub functions are needed to compile 32-bit NUMA when SRAT is
-+ * not set. There are functions in srat_64.c for parsing this table
-+ * and it may be possible to make them common functions.
-+ */
-+void acpi_numa_slit_init (struct acpi_table_slit *slit)
-+{
-+	printk(KERN_INFO "ACPI: No support for parsing SLIT table\n");
-+}
-+
-+void acpi_numa_processor_affinity_init (struct acpi_srat_cpu_affinity *pa)
-+{
-+}
-+
-+void acpi_numa_memory_affinity_init (struct acpi_srat_mem_affinity *ma)
-+{
-+}
-+
-+void acpi_numa_arch_fixup(void)
-+{
-+}
-+#endif /* CONFIG_HAVE_ARCH_PARSE_SRAT */
+That won't work for kvm.  If we have a hundred virtual machines, that 
+means 99 no-op notifications.
+
+Also, our rmap key for finding the spte is keyed on (mm, va).  I imagine 
+most RDMA cards are similar.
+>  
+>   
+>>> @@ -966,6 +973,9 @@ int try_to_unmap(struct page *page, int 
+>>>  
+>>>  	BUG_ON(!PageLocked(page));
+>>>  
+>>> +	if (unlikely(PageExported(page)))
+>>> +		export_notifier(invalidate_page, page);
+>>> +
+>>>       
+>> Passing the page here will complicate things especially for shared
+>> pages across different VM that are already working in KVM. For non
+>>     
+>
+> How?
+>
+>   
+>> shared pages we could cache the userland mapping address in
+>> page->private but it's a kludge only working for non-shared
+>> pages. Walking twice the anon_vma lists when only a single walk is
+>>     
+>
+> There is only the need to walk twice for pages that are marked Exported. 
+> And the double walk is only necessary if the exporter does not have its 
+> own rmap. The cross partition thing that we are doing has such an rmap and 
+> its a matter of walking the exporters rmap to clear out the external 
+> references and then we walk the local rmaps. All once.
+>   
+
+The problem is that external mmus need a reverse mapping structure to 
+locate their ptes.  We can't expand struct page so we need to base it on 
+mm + va.
+
+>   
+>> Besides the pinned pages ram leak by having the zero locking window
+>> above I'm curious how you are going to take care of the finegrined
+>> aging that I'm doing with the accessed bit set by hardware in the spte
+>>     
+>
+> I think I explained that above. Remote users effectively are forbidden to 
+> establish new references to the page by the clearing of the exported bit.
+>
+>   
+
+Can they wait on that bit?
+
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
