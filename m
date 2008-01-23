@@ -1,62 +1,49 @@
-Date: Wed, 23 Jan 2008 11:04:13 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 0/2] Relax restrictions on setting CONFIG_NUMA on x86
-In-Reply-To: <20080121093702.8FC2.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080118153529.12646.5260.sendpatchset@skynet.skynet.ie> <20080121093702.8FC2.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20080123105810.F295.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Message-Id: <20080123044924.508382000@sgi.com>
+Date: Tue, 22 Jan 2008 20:49:24 -0800
+From: travis@sgi.com
+Subject: [PATCH 0/3] percpu: Optimize percpu accesses
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
+To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, mingo@elte.hu
+Cc: Christoph Lameter <clameter@sgi.com>, jeremy@goop.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi mel
+This patchset provides the following:
 
-> Hi 
-> 
-> > A fix[1] was merged to the x86.git tree that allowed NUMA kernels to boot
-> > on normal x86 machines (and not just NUMA-Q, Summit etc.). I took a look
-> > at the restrictions on setting NUMA on x86 to see if they could be lifted.
-> 
-> Interesting!
-> 
-> I will test tomorrow.
+  * Generic: Percpu infrastructure to rebase the per cpu area to zero
 
-Hmm...
-It doesn't works on my machine.
+    This provides for the capability of accessing the percpu variables
+    using a local register instead of having to go through a table
+    on node 0 to find the cpu-specific offsets.  It also would allow
+    atomic operations on percpu variables to reduce required locking.
 
-panic at booting at __free_pages_ok() with blow call trace.
+  * x86_64: Fold pda into per cpu area
 
-[<hex number>] free_all_bootmem_core
-[<hex number>] mem_init
-[<hex number>] alloc_large_system_hash
-[<hex number>] inode_init_early
-[<hex number>] start_kernel
-[<hex number>] unknown_bootoption
+    Declare the pda as a per cpu variable. This will move the pda
+    area to an address accessible by the x86_64 per cpu macros.
+    Subtraction of __per_cpu_start will make the offset based from
+    the beginning of the per cpu area.  Since %gs is pointing to the
+    pda, it will then also point to the per cpu variables and can be
+    accessed thusly:
 
-my machine spec
-	CPU:   Pentium4 with HT
-	MEM:   512M
+	%gs:[&per_cpu_xxxx - __per_cpu_start]
 
-I will try more investigate.
-but I have no time for a while, sorry ;-)
+  * x86_64: Rebase per cpu variables to zero
 
+    Take advantage of the zero-based per cpu area provided above.
+    Then we can directly use the x86_32 percpu operations. x86_32
+    offsets %fs by __per_cpu_start. x86_64 has %gs pointing directly
+    to the pda and the per cpu area thereby allowing access to the
+    pda with the x86_64 pda operations and access to the per cpu
+    variables using x86_32 percpu operations.
 
-BTW:
-when config sparse mem turn on instead discontig mem.
-panic at booting at get_pageblock_flags_group() with below call stack.
+Based on 2.6.24-rc8-mm1
 
-free_initrd
-	free_init_pages
-		free_hot_cold_page
+Signed-off-by: Mike Travis <travis@sgi.com>
+Reviewed-by: Christoph Lameter <clameter@sgi.com>
+---
 
-
-
-- kosaki
-
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
