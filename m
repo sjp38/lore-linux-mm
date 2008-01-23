@@ -1,76 +1,47 @@
-Received: from toip4.srvr.bell.ca ([209.226.175.87])
-          by tomts22-srv.bellnexxia.net
-          (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
-          id <20080123220609.RQGO18413.tomts22-srv.bellnexxia.net@toip4.srvr.bell.ca>
-          for <linux-mm@kvack.org>; Wed, 23 Jan 2008 17:06:09 -0500
-Date: Wed, 23 Jan 2008 17:06:08 -0500
-From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: Re: [RFC] Userspace tracing memory mappings
-Message-ID: <20080123220608.GD2282@Krystal>
-References: <20080123160454.GA15405@Krystal> <1201117112.8329.9.camel@nimitz.home.sr71.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-In-Reply-To: <1201117112.8329.9.camel@nimitz.home.sr71.net>
+Date: Wed, 23 Jan 2008 22:29:49 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH -v8 3/4] Enable the MS_ASYNC functionality in sys_msync()
+In-Reply-To: <alpine.LFD.1.00.0801231329120.2803@woody.linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0801232216460.5465@blonde.site>
+References: <12010440803930-git-send-email-salikhmetov@gmail.com>
+ <1201044083504-git-send-email-salikhmetov@gmail.com>
+ <alpine.LFD.1.00.0801230836250.1741@woody.linux-foundation.org>
+ <1201110066.6341.65.camel@lappy> <alpine.LFD.1.00.0801231107520.1741@woody.linux-foundation.org>
+ <E1JHlh8-0003s8-Bb@pomaz-ex.szeredi.hu> <alpine.LFD.1.00.0801231248060.2803@woody.linux-foundation.org>
+ <E1JHmxa-0004BK-6X@pomaz-ex.szeredi.hu> <alpine.LFD.1.00.0801231329120.2803@woody.linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: mbligh@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, a.p.zijlstra@chello.nl, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-* Dave Hansen (haveblue@us.ibm.com) wrote:
-> On Wed, 2008-01-23 at 11:04 -0500, Mathieu Desnoyers wrote:
-> > Since memory management is not my speciality, I would like to know if
-> > there are some implementation details I should be aware of for my
-> > LTTng userspace tracing buffers. Here is what I want to do :
+On Wed, 23 Jan 2008, Linus Torvalds wrote:
+> On Wed, 23 Jan 2008, Miklos Szeredi wrote:
 > 
-> Can you start with a little background by telling us what a userspace
-> tracing buffer _is_?  Maybe a few requirements about what you need it to
-> do and why, as well?
+> > Sure, I would have though all of this stuff is 2.6.25, but it's your
+> > kernel... :)
 > 
-> -- Dave
-> 
+> Well, the plain added "file_update_time()" call addition looked like a 
+> trivial fix, and if there are actually *customers* that have bad backups 
+> due to this, then I think that part was worth doing. At least a "sync" 
+> will then sync the file times...
 
-Sure,
+Fair enough.
 
-Userspace tracing is :
+Something I dislike about it, though, is that it leaves the RAM-backed
+filesystems (ramfs, tmpfs, whatever) behaving visibly differently from
+the others.  Until now we've intentionally left them out of syncing and
+dirty accounting, because it's useless overhead for them (one can argue
+whether that's quite true of tmpfs overflowing out to swap, but that's
+a different debate).  So they won't be getting these faults on shared
+writable, so their file times won't get updated in the same way.
 
-- A userspace process wants to record information to a circular ring
-  buffer. This information has a timestamp. It should disrupt the
-  timings minimally. The timestamps must be synchronized with the
-  timestamps given to the kernel trace events so we can analyze all the
-  information together.
+But I guess that's an aesthetic consideration, of less significance
+than bad backups - assuming not many people use backups of tmpfs.
 
-- When one subbuffer of the ring buffer is filled, the information is
-  ready to be read by a "trace dumping" process and sent to disk or to
-  the network. At this point, the traced process raises a flag that will
-  be checked periodically by the OS to wake up the disk/network dumper
-  daemon. (for future reference, I use the term "buffer writer" when I
-  talk about the traced process and the term "buffer reader" when
-  talking about the disk/network dumper daemon).
-
-There is more information in the email I sent to Frank Eigler. Please
-feel free to ask for more if I am not clear about specific points.
-
-A lot of the background information is already explained in the kernel
-tracing paper I presented at OLS2006, it might be a good start :
-
-http://ltt.polymtl.ca/papers/desnoyers-ols2006.pdf
-
-Another requirement I am trying to meet is protection of tracing buffers
-against corruption coming from other userspace process. K42 implemented
-their tracing buffers shared system-wide : with the OS too. The
-processes have full access to the kernel buffers and can therefore
-corrupt the whole system's trace. This is something I would like not to
-allow.
-
-Mathieu
-
--- 
-Mathieu Desnoyers
-Computer Engineering Ph.D. Student, Ecole Polytechnique de Montreal
-OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
