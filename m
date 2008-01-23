@@ -1,32 +1,69 @@
-In-reply-to: <E1JHc0S-00027S-8D@pomaz-ex.szeredi.hu> (message from Miklos
-	Szeredi on Wed, 23 Jan 2008 10:34:52 +0100)
-Subject: Re: [PATCH -v8 3/4] Enable the MS_ASYNC functionality in
-	sys_msync()
-References: <12010440803930-git-send-email-salikhmetov@gmail.com>
-	 <1201044083504-git-send-email-salikhmetov@gmail.com>
-	 <1201078035.6341.45.camel@lappy> <1201078278.6341.47.camel@lappy> <E1JHc0S-00027S-8D@pomaz-ex.szeredi.hu>
-Message-Id: <E1JHcG4-0002A9-46@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Wed, 23 Jan 2008 10:51:00 +0100
+Date: Wed, 23 Jan 2008 10:22:23 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 0/2] Relax restrictions on setting CONFIG_NUMA on x86
+Message-ID: <20080123102222.GA21455@csn.ul.ie>
+References: <20080118153529.12646.5260.sendpatchset@skynet.skynet.ie> <20080121093702.8FC2.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080123105810.F295.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20080123105810.F295.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: miklos@szeredi.hu
-Cc: a.p.zijlstra@chello.nl, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-> > Also, it still doesn't make sense to me why we'd not need to walk the
-> > rmap, it is all the same file after all.
+On (23/01/08 11:04), KOSAKI Motohiro didst pronounce:
+> Hi mel
 > 
-> It's the same file, but not the same memory map.  It basically depends
-> on how you define msync:
+> > Hi 
+> > 
+> > > A fix[1] was merged to the x86.git tree that allowed NUMA kernels to boot
+> > > on normal x86 machines (and not just NUMA-Q, Summit etc.). I took a look
+> > > at the restrictions on setting NUMA on x86 to see if they could be lifted.
+> > 
+> > Interesting!
+> > 
+> > I will test tomorrow.
 > 
->  a) sync _file_ on region defined by this mmap/start/end-address
->  b) sync _memory_region_ defined by start/end-address
+> Hmm...
+> It doesn't works on my machine.
+> 
+> panic at booting at __free_pages_ok() with blow call trace.
+> 
+> [<hex number>] free_all_bootmem_core
+> [<hex number>] mem_init
+> [<hex number>] alloc_large_system_hash
+> [<hex number>] inode_init_early
+> [<hex number>] start_kernel
+> [<hex number>] unknown_bootoption
+> 
+> my machine spec
+> 	CPU:   Pentium4 with HT
+> 	MEM:   512M
+> 
+> I will try more investigate.
+> but I have no time for a while, sorry ;-)
+> 
+> 
+> BTW:
+> when config sparse mem turn on instead discontig mem.
+> panic at booting at get_pageblock_flags_group() with below call stack.
+> 
+> free_initrd
+> 	free_init_pages
+> 		free_hot_cold_page
+> 
 
-My mmap/msync tester program can acually check this as well, with the
-'-f' flag.  Anton, can you try that on the reference platforms?
+To rule it out, can you also try with the patch below applied please? It
+should only make a difference on sparsemem so if discontigmem is still
+crashing, there is likely another problem. Assuming it crashes, please
+post the full dmesg output with loglevel=8 on the command line. Thanks
 
-Miklos
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
