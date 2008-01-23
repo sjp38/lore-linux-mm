@@ -1,77 +1,183 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate1.de.ibm.com (8.13.8/8.13.8) with ESMTP id m0N9EeJ8035132
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2008 09:14:40 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m0N9Eewk958678
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2008 10:14:40 +0100
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m0N9EdqH025744
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2008 10:14:40 +0100
-Subject: Re: [patch] #ifdef very expensive debug check in page fault path
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Reply-To: schwidefsky@de.ibm.com
-In-Reply-To: <Pine.LNX.4.64.0801222226350.28823@blonde.site>
-References: <1200506488.32116.11.camel@cotte.boeblingen.de.ibm.com>
-	 <20080116234540.GB29823@wotan.suse.de>
-	 <20080116161021.c9a52c0f.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0801182023350.5249@blonde.site>
-	 <479469A4.6090607@de.ibm.com>
-	 <Pine.LNX.4.64.0801222226350.28823@blonde.site>
-Content-Type: text/plain
-Date: Wed, 23 Jan 2008 10:14:39 +0100
-Message-Id: <1201079679.7084.8.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+In-reply-to: <1201044083554-git-send-email-salikhmetov@gmail.com> (message
+	from Anton Salikhmetov on Wed, 23 Jan 2008 02:21:20 +0300)
+Subject: Re: [PATCH -v8 4/4] The design document for memory-mapped file times update
+References: <12010440803930-git-send-email-salikhmetov@gmail.com> <1201044083554-git-send-email-salikhmetov@gmail.com>
+Message-Id: <E1JHbs1-00025n-Ac@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Wed, 23 Jan 2008 10:26:09 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: carsteno@de.ibm.com, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, mschwid2@linux.vnet.ibm.com, Holger Wolf <holger.wolf@de.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: salikhmetov@gmail.com
+Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-01-22 at 22:35 +0000, Hugh Dickins wrote:
-> On Mon, 21 Jan 2008, Carsten Otte wrote:
-> > Hugh Dickins wrote:
-> > > 
-> > > Well: that patch still gets my Nack, but I guess I'm too late.  If
-> > > s390 pagetables are better protected than x86 ones, add an s390 ifdef?
-> > 
-> > The alternative would be to just make
-> > #define pfn_valid(pfn) (1)
-> > on s390. That would also get _us_ rid of the check while others do benefit. We
-> > would trap access to mem_map beyond its limits because we don't have a kernel
-> > mapping there. For us, it would not silently corrupt things but crash proper.
+I think it would be more logical to move this patch forward, before
+the two patches which this document is actually describing.
+
+> Add a document, which describes how the POSIX requirements on updating
+> memory-mapped file times are addressed in Linux.
 > 
-> Whilst I quite like the sound of that, I wonder whether it's safe to
-> change s390's pfn_valid (rather surprisingly) for all its users.  And
-> note that nobody but me has voiced any regret at the loss of the check.
-> My guess is we let it rest for now, and reconsider if a case comes up
-> later which would have got caught by the check (but the problem is that
-> such a case is much harder to identify than it was).
+> Signed-off-by: Anton Salikhmetov <salikhmetov@gmail.com>
+> ---
+>  Documentation/vm/00-INDEX  |    2 +
+>  Documentation/vm/msync.txt |  117 ++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 119 insertions(+), 0 deletions(-)
+> 
+> diff --git a/Documentation/vm/00-INDEX b/Documentation/vm/00-INDEX
+> index 2131b00..2726c8d 100644
+> --- a/Documentation/vm/00-INDEX
+> +++ b/Documentation/vm/00-INDEX
+> @@ -6,6 +6,8 @@ hugetlbpage.txt
+>  	- a brief summary of hugetlbpage support in the Linux kernel.
+>  locking
+>  	- info on how locking and synchronization is done in the Linux vm code.
+> +msync.txt
+> +	- the design document for memory-mapped file times update
+>  numa
+>  	- information about NUMA specific code in the Linux vm.
+>  numa_memory_policy.txt
+> diff --git a/Documentation/vm/msync.txt b/Documentation/vm/msync.txt
+> new file mode 100644
+> index 0000000..571a766
+> --- /dev/null
+> +++ b/Documentation/vm/msync.txt
+> @@ -0,0 +1,117 @@
+> +
+> +	The msync() system call and memory-mapped file times
+> +
+> +	Copyright (C) 2008 Anton Salikhmetov
+> +
+> +The POSIX standard requires that any write reference to memory-mapped file
+> +data should result in updating the ctime and mtime for that file. Moreover,
+> +the standard mandates that updated file times should become visible to the
+> +world no later than at the next call to msync().
+> +
+> +Failure to meet this requirement creates difficulties for certain classes
+> +of important applications. For instance, database backup systems fail to
+> +pick up the files modified via the mmap() interface. Also, this is a
+> +security hole, which allows forging file data in such a manner that proving
+> +the fact that file data was modified is not possible.
+> +
+> +Briefly put, this requirement can be stated as follows:
+> +
+> +	once the file data has changed, the operating system
+> +	should acknowledge this fact by updating file metadata.
+> +
+> +This document describes how this POSIX requirement is addressed in Linux.
+> +
+> +1. Requirements
+> +
+> +1.1) the POSIX standard requires updating ctime and mtime not later
+> +than at the call to msync() with MS_SYNC or MS_ASYNC flags;
+> +
+> +1.2) in existing POSIX implementations, ctime and mtime
+> +get updated not later than at the call to fsync();
+> +
+> +1.3) in existing POSIX implementation, ctime and mtime
+> +get updated not later than at the call to sync(), the "auto-update" feature;
+> +
+> +1.4) the customers require and the common sense suggests that
+> +ctime and mtime should be updated not later than at the call to munmap()
+> +or exit(), the latter function implying an implicit call to munmap();
+> +
+> +1.5) the (1.1) item should be satisfied if the file is a block device
+> +special file;
+> +
+> +1.6) the (1.1) item should be satisfied for files residing on
+> +memory-backed filesystems such as tmpfs, too.
+> +
+> +The following operating systems were used as the reference platforms
+> +and are referred to as the "existing implementations" above:
+> +HP-UX B.11.31 and FreeBSD 6.2-RELEASE.
+> +
+> +2. Lazy update
+> +
+> +Many attempts before the current version implemented the "lazy update" approach
+> +to satisfying the requirements given above. Within the latter approach, ctime
+> +and mtime get updated at last moment allowable.
+> +
+> +Since we don't update the file times immediately, some Flag has to be
+> +used. When up, this Flag means that the file data was modified and
+> +the file times need to be updated as soon as possible.
+> +
+> +Any existing "dirty" flag which, when up, mean that a page has been written to,
+> +is not suitable for this purpose. Indeed, msync() called with MS_ASYNC
+> +would have to reset this "dirty" flag after updating ctime and mtime.
+> +The sys_msync() function itself is basically a no-op in the MS_ASYNC case.
+> +Thereby, the synchronization routines relying upon this "dirty" flag
+> +would lose data. Therefore, a new Flag has to be introduced.
+> +
+> +The (1.5) item coupled with (1.3) requirement leads to hard work with
+> +the block device inodes. Specifically, during writeback it is impossible to
+> +tell which block device file was originally mapped. Therefore, we need to
+> +traverse the list of "active" devices associated with the block device inode.
+> +This would lead to updating file times for block device files, which were not
+> +taking part in the data transfer.
+> +
+> +Also all versions prior to version 6 failed to correctly process ctime and
+> +mtime for files on the memory-backed filesystems such as tmpfs. So the (1.6)
+> +requirement was not satisfied.
 
-Nick has said that pfn_valid as a primitive is supposed to return
-whether a pfn has a struct page behind it or not. If you follow the
-principle of least surprise it is not really an option to define
-pfn_valid as (1).
+Version -8 also fails: for ram backed filesystems page tables are not
+write protected initially, nor after a sync.  This patch does write
+protect them after an MS_ASYNC, but that's a bug in the current
+context.
 
-So far the s390 method of using the kernel address space mapping to
-implement pfn_valid has been correct. The new code that allows to have
-memory areas without struct page changes things. All memory has to be
-added to the kernel address space to be able to do user copy. pfn_valid
-returns incorrect results for struct page less memory now. We are
-searching for a fast way to implement a correct pfn_valid, it should not
-use lists, it should not required a lock and it should not waste vast
-amounts of memory. To make things worse there is not really a limit to
-the maximum address, the full 64 bit address space can be used. That
-makes 2**52 pages.
-The best I could come up so far is a page table like scheme that uses 3
-indirection levels and a bitfield at the end. Ugly, ugly..
+> +
+> +If a write reference has occurred between two consecutive calls to msync()
+> +with MS_ASYNC, the second call to the latter function should take into
+> +account the last write reference. The last write reference can not be caught
+> +if no pagefault occurs. Hence a pagefault needs to be forced. This can be done
+> +using two different approaches. The first one is to synchronize data even when
+> +msync() was called with MS_ASYNC. This is not acceptable because the current
+> +design of the sys_msync() routine forbids starting I/O for the MS_ASYNC case.
 
--- 
-blue skies,
-  Martin.
+I don't think anyone forbids starting I/O, it's just too expensive,
+especially if it means, waiting for previous writeback on page to
+finish first.
 
-"Reality continues to ruin my life." - Calvin.
+> +The second approach is to write protect the page for triggering a pagefault
+> +at the next write reference. Note that the dirty flag for the page should not
+> +be cleared thereby.
+> +
+> +In the "lazy update" approach, the requirements (1.1), (1.2), (1.3), and (1.4)
+> +taken together result in adding code at least to the following kernel routines:
+> +sys_msync(), do_fsync(), some routine in the unmap() call path, some routine
+> +in the sync() call path.
+> +
+> +Finally, a file_update_time()-like function would have to be created for
+> +processing the inode objects, not file objects. This is due to the fact that
+> +during the sync() operation, the file object may not exist any more, only
+> +the inode is known.
+> +
+> +To sum up: this "lazy" approach leads to massive changes, incurs overhead in
+> +the block device case, and requires complicated design decisions.
+> +
+> +3. Immediate update
+> +
+> +OK, still reading? There's a better way.
+> +
+> +In a fashion analogous to what happens at write(2), react to the fact
+> +that the page gets dirtied by updating the file times immediately.
+> +Thereby any page writeback happens when the write reference has already
+> +been accounted for from the view point of file times.
+> +
+> +The only problem which remains is to force refreshing file times at the write
+> +reference following a call to msync() with MS_ASYNC. As mentioned above, all
+> +that is needed here is to force a pagefault.
+> +
+> +The vma_wrprotect() routine introduced in this patch series is called
+> +from sys_msync() in the MS_ASYNC case. The former routine is essentially
+> +a version of existing page_mkclean_one() function from mm/rmap.c. Unlike
+> +the latter function, the vma_wrprotect() does not touch the dirty bit.
 
+Benchmark results should be also added to the relevant sections, I
+think.  There is a very definite cost to all this, and a 10x slowdown
+is usually not taken lightly...
+
+Great document, btw :)
+
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
