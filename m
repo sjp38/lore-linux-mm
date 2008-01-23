@@ -1,26 +1,50 @@
-Date: Wed, 23 Jan 2008 15:10:41 -0800
-From: Chris Wright <chrisw@sous-sol.org>
-Subject: Re: [kvm-devel] [RFC][PATCH 0/5] Memory merging driver for Linux
-Message-ID: <20080123231037.GA3629@sequoia.sous-sol.org>
-References: <4794C2E1.8040607@qumranet.com>
+Received: by wa-out-1112.google.com with SMTP id m33so5221147wag.8
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2008 15:14:17 -0800 (PST)
+Message-ID: <4df4ef0c0801231514ga32b513g4917d715f9888ac6@mail.gmail.com>
+Date: Thu, 24 Jan 2008 02:14:16 +0300
+From: "Anton Salikhmetov" <salikhmetov@gmail.com>
+Subject: Re: [PATCH -v8 2/4] Update ctime and mtime for memory-mapped files
+In-Reply-To: <alpine.LFD.1.00.0801230959500.1741@woody.linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <4794C2E1.8040607@qumranet.com>
+References: <12010440803930-git-send-email-salikhmetov@gmail.com>
+	 <12010440822957-git-send-email-salikhmetov@gmail.com>
+	 <alpine.LFD.1.00.0801230959500.1741@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Izik Eidus <izike@qumranet.com>
-Cc: kvm-devel <kvm-devel@lists.sourceforge.net>, andrea@qumranet.com, avi@qumranet.com, dor.laor@qumranet.com, linux-mm@kvack.org, yaniv@qumranet.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-* Izik Eidus (izike@qumranet.com) wrote:
-> this module find this identical data (pages) and merge them into one 
-> single page
-> this new page is write protected so in any case the guest will try to 
-> write to it do_wp_page will duplicate the page
+2008/1/23, Linus Torvalds <torvalds@linux-foundation.org>:
+>
+>
+> On Wed, 23 Jan 2008, Anton Salikhmetov wrote:
+> >
+> > Update ctime and mtime for memory-mapped files at a write access on
+> > a present, read-only PTE, as well as at a write on a non-present PTE.
+>
+> Ok, this one I'm applying. I agree that it leaves MS_ASYNC not updating
+> the file until the next sync actually happens, but I can't really bring
+> myself to care at least for an imminent 2.6.24 thing. The file times are
+> actually "correct" in the sense that they will now match when the IO is
+> done, and my man-page says that MS_ASYNC "schedules the io to be done".
+>
+> And I think this is better than we have now, and I don't think this part
+> is somethign that anybody really disagrees with.
+>
+> We can (and should) keep the MS_ASYNC issue open.
 
-What happens if you've merged more pages than you can recover on write
-faults?
+Thank you!
+
+I have closed the bug #2645, because this patch solves the issue
+originally reported.
+
+>
+>                 Linus
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
