@@ -1,98 +1,111 @@
-Date: Wed, 23 Jan 2008 13:52:36 +0100
-From: Olaf Hering <olaf@aepfle.de>
-Subject: Re: crash in kmem_cache_init
-Message-ID: <20080123125236.GA18876@aepfle.de>
-References: <Pine.LNX.4.64.0801181043290.30348@schroedinger.engr.sgi.com> <20080118213011.GC10491@csn.ul.ie> <Pine.LNX.4.64.0801181414200.8924@schroedinger.engr.sgi.com> <20080118225713.GA31128@aepfle.de> <20080122195448.GA15567@csn.ul.ie> <20080122214505.GA15674@aepfle.de> <Pine.LNX.4.64.0801221417480.1912@schroedinger.engr.sgi.com> <20080123075821.GA17713@aepfle.de> <20080123105044.GD21455@csn.ul.ie> <20080123121459.GA18631@aepfle.de>
+Received: by wa-out-1112.google.com with SMTP id m33so4933101wag.8
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2008 04:53:40 -0800 (PST)
+Message-ID: <4df4ef0c0801230453n9c2946ei537881118d367b75@mail.gmail.com>
+Date: Wed, 23 Jan 2008 15:53:40 +0300
+From: "Anton Salikhmetov" <salikhmetov@gmail.com>
+Subject: Re: [PATCH -v8 3/4] Enable the MS_ASYNC functionality in sys_msync()
+In-Reply-To: <1201078035.6341.45.camel@lappy>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080123121459.GA18631@aepfle.de>
+References: <12010440803930-git-send-email-salikhmetov@gmail.com>
+	 <1201044083504-git-send-email-salikhmetov@gmail.com>
+	 <1201078035.6341.45.camel@lappy>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Christoph Lameter <clameter@sgi.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, hanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lee.schermerhorn@hp.com, Linux MM <linux-mm@kvack.org>, akpm@linux-foundation.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 23, Olaf Hering wrote:
+2008/1/23, Peter Zijlstra <a.p.zijlstra@chello.nl>:
+>
+> On Wed, 2008-01-23 at 02:21 +0300, Anton Salikhmetov wrote:
+>
+> > +static void vma_wrprotect_pmd_range(struct vm_area_struct *vma, pmd_t *pmd,
+> > +             unsigned long start, unsigned long end)
+> > +{
+> > +     while (start < end) {
+> > +             spinlock_t *ptl;
+> > +             pte_t *pte = pte_offset_map_lock(vma->vm_mm, pmd, start, &ptl);
+> > +
+> > +             if (pte_dirty(*pte) && pte_write(*pte)) {
+> > +                     pte_t entry = ptep_clear_flush(vma, start, pte);
+> > +
+> > +                     entry = pte_wrprotect(entry);
+> > +                     set_pte_at(vma->vm_mm, start, pte, entry);
+> > +             }
+> > +
+> > +             pte_unmap_unlock(pte, ptl);
+> > +             start += PAGE_SIZE;
+> > +     }
+> > +}
+>
+> You've had two examples on how to write this loop, one from git commit
+> 204ec841fbea3e5138168edbc3a76d46747cc987, and one from my draft, but
+> this one looks like neither and is much less efficient. Take the lock
+> only once per pmd, not once per pte please.
+>
+> > +static void vma_wrprotect_pud_range(struct vm_area_struct *vma, pud_t *pud,
+> > +             unsigned long start, unsigned long end)
+> > +{
+> > +     pmd_t *pmd = pmd_offset(pud, start);
+> > +
+> > +     while (start < end) {
+> > +             unsigned long next = pmd_addr_end(start, end);
+> > +
+> > +             if (!pmd_none_or_clear_bad(pmd))
+> > +                     vma_wrprotect_pmd_range(vma, pmd, start, next);
+> > +
+> > +             ++pmd;
+> > +             start = next;
+> > +     }
+> > +}
+> > +
+> > +static void vma_wrprotect_pgd_range(struct vm_area_struct *vma, pgd_t *pgd,
+> > +             unsigned long start, unsigned long end)
+> > +{
+> > +     pud_t *pud = pud_offset(pgd, start);
+> > +
+> > +     while (start < end) {
+> > +             unsigned long next = pud_addr_end(start, end);
+> > +
+> > +             if (!pud_none_or_clear_bad(pud))
+> > +                     vma_wrprotect_pud_range(vma, pud, start, next);
+> > +
+> > +             ++pud;
+> > +             start = next;
+> > +     }
+> > +}
+> > +
+> > +static void vma_wrprotect(struct vm_area_struct *vma)
+> > +{
+> > +     unsigned long addr = vma->vm_start;
+> > +     pgd_t *pgd = pgd_offset(vma->vm_mm, addr);
+> > +
+> > +     while (addr < vma->vm_end) {
+> > +             unsigned long next = pgd_addr_end(addr, vma->vm_end);
+> > +
+> > +             if (!pgd_none_or_clear_bad(pgd))
+> > +                     vma_wrprotect_pgd_range(vma, pgd, addr, next);
+> > +
+> > +             ++pgd;
+> > +             addr = next;
+> > +     }
+> > +}
+>
+> I think you want to pass start, end here too, you might not need to
+> sweep the whole vma.
 
-> On Wed, Jan 23, Mel Gorman wrote:
-> 
-> > Sorry this is dragging out. Can you post the full dmesg with loglevel=8 of the
-> > following patch against 2.6.24-rc8 please? It contains the debug information
-> > that helped me figure out what was going wrong on the PPC64 machine here,
-> > the revert and the !l3 checks (i.e. the two patches that made machines I
-> > have access to work). Thanks
-> 
-> It boots with your change.
+Thanks for you feedback, Peter!
 
-This version of the patch boots ok for me:
-Maybe I made a mistake with earlier patches, no idea.
+I will redesign the vma_wrprotect_pmd_range() routine the way it
+acquires the spinlock outside of the loop. I will also rewrite the
+vma_wrprotect() function to process only the specified range.
 
----
- mm/slab.c |   17 +++++++++++++----
- 1 file changed, 13 insertions(+), 4 deletions(-)
-
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1590,7 +1590,7 @@ void __init kmem_cache_init(void)
- 		/* Replace the static kmem_list3 structures for the boot cpu */
- 		init_list(&cache_cache, &initkmem_list3[CACHE_CACHE], node);
- 
--		for_each_node_state(nid, N_NORMAL_MEMORY) {
-+		for_each_online_node(nid) {
- 			init_list(malloc_sizes[INDEX_AC].cs_cachep,
- 				  &initkmem_list3[SIZE_AC + nid], nid);
- 
-@@ -1968,7 +1968,7 @@ static void __init set_up_list3s(struct 
- {
- 	int node;
- 
--	for_each_node_state(node, N_NORMAL_MEMORY) {
-+	for_each_online_node(node) {
- 		cachep->nodelists[node] = &initkmem_list3[index + node];
- 		cachep->nodelists[node]->next_reap = jiffies +
- 		    REAPTIMEOUT_LIST3 +
-@@ -2099,7 +2099,7 @@ static int __init_refok setup_cpu_cache(
- 			g_cpucache_up = PARTIAL_L3;
- 		} else {
- 			int node;
--			for_each_node_state(node, N_NORMAL_MEMORY) {
-+			for_each_online_node(node) {
- 				cachep->nodelists[node] =
- 				    kmalloc_node(sizeof(struct kmem_list3),
- 						GFP_KERNEL, node);
-@@ -2775,6 +2775,11 @@ static int cache_grow(struct kmem_cache 
- 	/* Take the l3 list lock to change the colour_next on this node */
- 	check_irq_off();
- 	l3 = cachep->nodelists[nodeid];
-+	if (!l3) {
-+		nodeid = numa_node_id();
-+		l3 = cachep->nodelists[nodeid];
-+	}
-+	BUG_ON(!l3);
- 	spin_lock(&l3->list_lock);
- 
- 	/* Get colour for the slab, and cal the next value. */
-@@ -3317,6 +3322,10 @@ static void *____cache_alloc_node(struct
- 	int x;
- 
- 	l3 = cachep->nodelists[nodeid];
-+	if (!l3) {
-+		nodeid = numa_node_id();
-+		l3 = cachep->nodelists[nodeid];
-+	}
- 	BUG_ON(!l3);
- 
- retry:
-@@ -3815,7 +3824,7 @@ static int alloc_kmemlist(struct kmem_ca
- 	struct array_cache *new_shared;
- 	struct array_cache **new_alien = NULL;
- 
--	for_each_node_state(node, N_NORMAL_MEMORY) {
-+	for_each_online_node(node) {
- 
-                 if (use_alien_caches) {
-                         new_alien = alloc_alien_cache(node, cachep->limit);
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
