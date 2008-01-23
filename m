@@ -1,103 +1,48 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m0NJqUC6009819
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2008 14:52:30 -0500
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m0NJqMC4023288
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2008 12:52:22 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m0NJqLAg016582
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2008 12:52:22 -0700
-Date: Wed, 23 Jan 2008 11:52:20 -0800
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH] Fix boot problem in situations where the boot CPU is
-	running on a memoryless node
-Message-ID: <20080123195220.GB3848@us.ibm.com>
-References: <20080123075821.GA17713@aepfle.de> <20080123105044.GD21455@csn.ul.ie> <20080123121459.GA18631@aepfle.de> <20080123125236.GA18876@aepfle.de> <20080123135513.GA14175@csn.ul.ie> <Pine.LNX.4.64.0801231611160.20050@sbz-30.cs.Helsinki.FI> <Pine.LNX.4.64.0801231626320.21475@sbz-30.cs.Helsinki.FI> <Pine.LNX.4.64.0801231648140.23343@sbz-30.cs.Helsinki.FI> <20080123155655.GB20156@csn.ul.ie> <Pine.LNX.4.64.0801231906520.1028@sbz-30.cs.Helsinki.FI>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0801231906520.1028@sbz-30.cs.Helsinki.FI>
+In-reply-to: <alpine.LFD.1.00.0801231107520.1741@woody.linux-foundation.org>
+	(message from Linus Torvalds on Wed, 23 Jan 2008 11:35:21 -0800 (PST))
+Subject: Re: [PATCH -v8 3/4] Enable the MS_ASYNC functionality in
+ sys_msync()
+References: <12010440803930-git-send-email-salikhmetov@gmail.com>  <1201044083504-git-send-email-salikhmetov@gmail.com>  <alpine.LFD.1.00.0801230836250.1741@woody.linux-foundation.org> <1201110066.6341.65.camel@lappy> <alpine.LFD.1.00.0801231107520.1741@woody.linux-foundation.org>
+Message-Id: <E1JHlh8-0003s8-Bb@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Wed, 23 Jan 2008 20:55:34 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka J Enberg <penberg@cs.helsinki.fi>
-Cc: Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lee.schermerhorn@hp.com, Linux MM <linux-mm@kvack.org>, Olaf Hering <olaf@aepfle.de>
+To: torvalds@linux-foundation.org
+Cc: a.p.zijlstra@chello.nl, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On 23.01.2008 [19:29:15 +0200], Pekka J Enberg wrote:
-> Hi,
-> 
-> On Wed, 23 Jan 2008, Mel Gorman wrote:
-> > Applied in combination with the N_NORMAL_MEMORY revert and it fails to
-> > boot. Console is as follows;
-> 
-> Thanks for testing!
-> 
-> On Wed, 23 Jan 2008, Mel Gorman wrote:
-> > [c0000000005c3b40] c0000000000dadb4 .cache_grow+0x7c/0x338
-> > [c0000000005c3c00] c0000000000db518 .fallback_alloc+0x1c0/0x224
-> > [c0000000005c3cb0] c0000000000db920 .kmem_cache_alloc+0xe0/0x14c
-> > [c0000000005c3d50] c0000000000dcbd0 .kmem_cache_create+0x230/0x4cc
-> > [c0000000005c3e30] c0000000004c049c .kmem_cache_init+0x1ec/0x51c
-> > [c0000000005c3ee0] c00000000049f8d8 .start_kernel+0x304/0x3fc
-> > [c0000000005c3f90] c000000000008594 .start_here_common+0x54/0xc0
 > > 
-> > 0xc0000000000dadb4 is in cache_grow (mm/slab.c:2782).
-> > 2777            local_flags = flags & (GFP_CONSTRAINT_MASK|GFP_RECLAIM_MASK);
-> > 2778    
-> > 2779            /* Take the l3 list lock to change the colour_next on this node */
-> > 2780            check_irq_off();
-> > 2781            l3 = cachep->nodelists[nodeid];
-> > 2782            spin_lock(&l3->list_lock);
-> > 2783    
-> > 2784            /* Get colour for the slab, and cal the next value. */
-> > 2785            offset = l3->colour_next;
-> > 2786            l3->colour_next++;
+> > It would need some addition piece to not call msync_interval() for
+> > MS_SYNC, and remove the balance_dirty_pages_ratelimited_nr() stuff.
+> > 
+> > But yeah, this pte walker is much better. 
 > 
-> Ok, so it's too early to fallback_alloc() because in kmem_cache_init() we 
-> do:
+> Actually, I think this patch is much better. 
 > 
->         for (i = 0; i < NUM_INIT_LISTS; i++) {
->                 kmem_list3_init(&initkmem_list3[i]);
->                 if (i < MAX_NUMNODES)
->                         cache_cache.nodelists[i] = NULL;
->         }
+> Anyway, it's better because:
+>  - it actually honors the range
+>  - it uses the same code for MS_ASYNC and MS_SYNC
+>  - it just avoids doing the "wait for" for MS_ASYNC.
 > 
-> Fine. But, why are we hitting fallback_alloc() in the first place? It's 
-> definitely not because of missing ->nodelists as we do:
+> However, it's totally untested, of course. What did you expect? Clean code 
+> _and_ testing? 
 > 
->         cache_cache.nodelists[node] = &initkmem_list3[CACHE_CACHE];
-> 
-> before attempting to set up kmalloc caches. Now, if I understood 
-> correctly, we're booting off a memoryless node so kmem_getpages() will 
-> return NULL thus forcing us to fallback_alloc() which is unavailable at 
-> this point.
-> 
-> As far as I can tell, there are two ways to fix this:
-> 
->   (1) don't boot off a memoryless node (why are we doing this in the first 
->       place?)
+> [ Side note: it is quite possible that we should not do the 
+>   SYNC_FILE_RANGE_WAIT_BEFORE on MS_ASYNC, and just skip over pages that 
+>   are busily under writeback already.
 
-On at least one of the machines in question, wasn't it the case that
-node 0 had all the memory and node 1 had all the CPUs? In that case, you
-would have to boot off a memoryless node? And as long as that is a
-physically valid configuration, the kernel should handle it.
+MS_ASYNC is not supposed to wait, so SYNC_FILE_RANGE_WAIT_BEFORE
+probably should not be used in that case.
 
->   (2) initialize cache_cache.nodelists with initmem_list3 equivalents
->       for *each node hat has normal memory*
-> 
-> I am still wondering why this worked before, though.
+What would be perfect, is if we had a sync mode, that on encountering
+a page currently under writeback, would just do a page_mkclean() on
+it, so we still receive a page fault next time one of the mappings is
+dirtied, so the times can be updated.
 
-I bet we didn't notice this breaking because SLUB became the default and
-SLAB isn't on in the test.kernel.org testing, for instance. Perhaps we
-should add a second set of runs for some of the boxes there to run with
-CONFIG_SLAB on?
+Would there be any difficulties with that?
 
-I'm curious if we know, for sure, of a kernel with CONFIG_SLAB=y that
-has booted all of the boxes reporting issues? That is, did they all work
-with 2.6.23?
-
-Thanks,
-Nish
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
