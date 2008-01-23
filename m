@@ -1,92 +1,58 @@
-Message-ID: <479716AD.5070708@qumranet.com>
-Date: Wed, 23 Jan 2008 12:27:57 +0200
-From: Avi Kivity <avi@qumranet.com>
+Date: Wed, 23 Jan 2008 10:28:34 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 0/2] Relax restrictions on setting CONFIG_NUMA on x86
+Message-ID: <20080123102834.GC21455@csn.ul.ie>
+References: <20080118153529.12646.5260.sendpatchset@skynet.skynet.ie> <p73hcha9vc5.fsf@bingen.suse.de> <20080119160743.GA8352@csn.ul.ie> <200801221433.29771.andi@firstfloor.org>
 MIME-Version: 1.0
-Subject: Re: [kvm-devel] [PATCH] export notifier #1
-References: <20080116124256.44033d48@bree.surriel.com> <478E4356.7030303@qumranet.com> <20080117162302.GI7170@v2.random> <478F9C9C.7070500@qumranet.com> <20080117193252.GC24131@v2.random> <20080121125204.GJ6970@v2.random> <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com> <20080122223139.GD15848@v2.random> <Pine.LNX.4.64.0801221433080.2271@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0801221433080.2271@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <200801221433.29771.andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Izik Eidus <izike@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, holt@sgi.com, Hugh Dickins <hugh@veritas.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> Ahhh. Good to hear. But we will still end in a situation where only
-> the remote ptes point to the page. Maybe the remote instance will dirty
-> the page at that point?
->
->   
+On (22/01/08 14:33), Andi Kleen didst pronounce:
+> 
+> > Without SRAT support, a compile-error occurs because ACPI table parsing
+> > functions are only available in x86-64. This patch also adds no-op stubs
+> > and prints a warning message. What likely needs to be done is sharing
+> > the table parsing functions between 32 and 64 bit if they are
+> > compatible.
+> 
+> I'm a little confused by your patch.
+> 
+> i386 already has srat parsing code (just written in a horrible hackish way); 
+> but it exists arch/x86/kernel/srat_32.c
+> 
 
-When the spte is dropped, its dirty bit is transferred to the page.
->   
->> sharing code, and for you missing a single notifier means memory
->> corruption because you don't bump the page count to represent the
->> external reference).
->>     
->
-> The approach with the export notifier is page based not based on the 
-> mm_struct. We only need a single page count for a page that is exported to 
-> a number of remote instances of linux. The page count is dropped when all 
-> the remote instances have unmapped the page.
->   
+Yes, I spotted that. Enabling it required a Kconfig change or two and
+enabling BOOT_IOREMAP. It then crashes early in boot on a call to strlen()
+so I went with the stubs and SRAT disabled for the moment.
 
-That won't work for kvm.  If we have a hundred virtual machines, that 
-means 99 no-op notifications.
+> That one tended to explode on Opteron, but apparently worked on some 
+> Summit boxes.
+> 
+> You're saying you want to remove that code and replace it based on something
+> based on the drivers/acpi/numa.c parsing code?
 
-Also, our rmap key for finding the spte is keyed on (mm, va).  I imagine 
-most RDMA cards are similar.
->  
->   
->>> @@ -966,6 +973,9 @@ int try_to_unmap(struct page *page, int 
->>>  
->>>  	BUG_ON(!PageLocked(page));
->>>  
->>> +	if (unlikely(PageExported(page)))
->>> +		export_notifier(invalidate_page, page);
->>> +
->>>       
->> Passing the page here will complicate things especially for shared
->> pages across different VM that are already working in KVM. For non
->>     
->
-> How?
->
->   
->> shared pages we could cache the userland mapping address in
->> page->private but it's a kludge only working for non-shared
->> pages. Walking twice the anon_vma lists when only a single walk is
->>     
->
-> There is only the need to walk twice for pages that are marked Exported. 
-> And the double walk is only necessary if the exporter does not have its 
-> own rmap. The cross partition thing that we are doing has such an rmap and 
-> its a matter of walking the exporters rmap to clear out the external 
-> references and then we walk the local rmaps. All once.
->   
+I made the assumption that they were basically the same. That is obviously
+wrong from what you say below.
 
-The problem is that external mmus need a reverse mapping structure to 
-locate their ptes.  We can't expand struct page so we need to base it on 
-mm + va.
+> While that's in theory
+> a worthy goal it will not actually help all that much because numa.c only
+> does some high level parsing, but nothing of the actual low level work
+> of setting things up.
+> 
 
->   
->> Besides the pinned pages ram leak by having the zero locking window
->> above I'm curious how you are going to take care of the finegrined
->> aging that I'm doing with the accessed bit set by hardware in the spte
->>     
->
-> I think I explained that above. Remote users effectively are forbidden to 
-> establish new references to the page by the clearing of the exported bit.
->
->   
-
-Can they wait on that bit?
-
+Ok, understood. When I next revisit this, I'll look at making ACPI_SRAT
+and BOOT_IOREMAP work on normal machines and see what happens. Thanks.
 
 -- 
-error compiling committee.c: too many arguments to function
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
