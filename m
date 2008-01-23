@@ -1,213 +1,46 @@
-Received: by wa-out-1112.google.com with SMTP id m33so4872946wag.8
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2008 02:37:03 -0800 (PST)
-Message-ID: <4df4ef0c0801230237g2f26f0d1j2d2ada2ce62ba284@mail.gmail.com>
-Date: Wed, 23 Jan 2008 13:37:03 +0300
-From: "Anton Salikhmetov" <salikhmetov@gmail.com>
-Subject: Re: [PATCH -v8 4/4] The design document for memory-mapped file times update
-In-Reply-To: <E1JHbs1-00025n-Ac@pomaz-ex.szeredi.hu>
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 0/2] Relax restrictions on setting CONFIG_NUMA on x86
+Date: Wed, 23 Jan 2008 11:45:14 +0100
+References: <20080118153529.12646.5260.sendpatchset@skynet.skynet.ie> <200801221433.29771.andi@firstfloor.org> <20080123102834.GC21455@csn.ul.ie>
+In-Reply-To: <20080123102834.GC21455@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain;
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <12010440803930-git-send-email-salikhmetov@gmail.com>
-	 <1201044083554-git-send-email-salikhmetov@gmail.com>
-	 <E1JHbs1-00025n-Ac@pomaz-ex.szeredi.hu>
+Message-Id: <200801231145.14915.andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-2008/1/23, Miklos Szeredi <miklos@szeredi.hu>:
-> I think it would be more logical to move this patch forward, before
-> the two patches which this document is actually describing.
+> > i386 already has srat parsing code (just written in a horrible hackish
+> > way); but it exists arch/x86/kernel/srat_32.c
 >
-> > Add a document, which describes how the POSIX requirements on updating
-> > memory-mapped file times are addressed in Linux.
-> >
-> > Signed-off-by: Anton Salikhmetov <salikhmetov@gmail.com>
-> > ---
-> >  Documentation/vm/00-INDEX  |    2 +
-> >  Documentation/vm/msync.txt |  117 ++++++++++++++++++++++++++++++++++++++++++++
-> >  2 files changed, 119 insertions(+), 0 deletions(-)
-> >
-> > diff --git a/Documentation/vm/00-INDEX b/Documentation/vm/00-INDEX
-> > index 2131b00..2726c8d 100644
-> > --- a/Documentation/vm/00-INDEX
-> > +++ b/Documentation/vm/00-INDEX
-> > @@ -6,6 +6,8 @@ hugetlbpage.txt
-> >       - a brief summary of hugetlbpage support in the Linux kernel.
-> >  locking
-> >       - info on how locking and synchronization is done in the Linux vm code.
-> > +msync.txt
-> > +     - the design document for memory-mapped file times update
-> >  numa
-> >       - information about NUMA specific code in the Linux vm.
-> >  numa_memory_policy.txt
-> > diff --git a/Documentation/vm/msync.txt b/Documentation/vm/msync.txt
-> > new file mode 100644
-> > index 0000000..571a766
-> > --- /dev/null
-> > +++ b/Documentation/vm/msync.txt
-> > @@ -0,0 +1,117 @@
-> > +
-> > +     The msync() system call and memory-mapped file times
-> > +
-> > +     Copyright (C) 2008 Anton Salikhmetov
-> > +
-> > +The POSIX standard requires that any write reference to memory-mapped file
-> > +data should result in updating the ctime and mtime for that file. Moreover,
-> > +the standard mandates that updated file times should become visible to the
-> > +world no later than at the next call to msync().
-> > +
-> > +Failure to meet this requirement creates difficulties for certain classes
-> > +of important applications. For instance, database backup systems fail to
-> > +pick up the files modified via the mmap() interface. Also, this is a
-> > +security hole, which allows forging file data in such a manner that proving
-> > +the fact that file data was modified is not possible.
-> > +
-> > +Briefly put, this requirement can be stated as follows:
-> > +
-> > +     once the file data has changed, the operating system
-> > +     should acknowledge this fact by updating file metadata.
-> > +
-> > +This document describes how this POSIX requirement is addressed in Linux.
-> > +
-> > +1. Requirements
-> > +
-> > +1.1) the POSIX standard requires updating ctime and mtime not later
-> > +than at the call to msync() with MS_SYNC or MS_ASYNC flags;
-> > +
-> > +1.2) in existing POSIX implementations, ctime and mtime
-> > +get updated not later than at the call to fsync();
-> > +
-> > +1.3) in existing POSIX implementation, ctime and mtime
-> > +get updated not later than at the call to sync(), the "auto-update" feature;
-> > +
-> > +1.4) the customers require and the common sense suggests that
-> > +ctime and mtime should be updated not later than at the call to munmap()
-> > +or exit(), the latter function implying an implicit call to munmap();
-> > +
-> > +1.5) the (1.1) item should be satisfied if the file is a block device
-> > +special file;
-> > +
-> > +1.6) the (1.1) item should be satisfied for files residing on
-> > +memory-backed filesystems such as tmpfs, too.
-> > +
-> > +The following operating systems were used as the reference platforms
-> > +and are referred to as the "existing implementations" above:
-> > +HP-UX B.11.31 and FreeBSD 6.2-RELEASE.
-> > +
-> > +2. Lazy update
-> > +
-> > +Many attempts before the current version implemented the "lazy update" approach
-> > +to satisfying the requirements given above. Within the latter approach, ctime
-> > +and mtime get updated at last moment allowable.
-> > +
-> > +Since we don't update the file times immediately, some Flag has to be
-> > +used. When up, this Flag means that the file data was modified and
-> > +the file times need to be updated as soon as possible.
-> > +
-> > +Any existing "dirty" flag which, when up, mean that a page has been written to,
-> > +is not suitable for this purpose. Indeed, msync() called with MS_ASYNC
-> > +would have to reset this "dirty" flag after updating ctime and mtime.
-> > +The sys_msync() function itself is basically a no-op in the MS_ASYNC case.
-> > +Thereby, the synchronization routines relying upon this "dirty" flag
-> > +would lose data. Therefore, a new Flag has to be introduced.
-> > +
-> > +The (1.5) item coupled with (1.3) requirement leads to hard work with
-> > +the block device inodes. Specifically, during writeback it is impossible to
-> > +tell which block device file was originally mapped. Therefore, we need to
-> > +traverse the list of "active" devices associated with the block device inode.
-> > +This would lead to updating file times for block device files, which were not
-> > +taking part in the data transfer.
-> > +
-> > +Also all versions prior to version 6 failed to correctly process ctime and
-> > +mtime for files on the memory-backed filesystems such as tmpfs. So the (1.6)
-> > +requirement was not satisfied.
->
-> Version -8 also fails: for ram backed filesystems page tables are not
-> write protected initially, nor after a sync.  This patch does write
-> protect them after an MS_ASYNC, but that's a bug in the current
-> context.
+> Yes, I spotted that. Enabling it required a Kconfig change 
 
-I've already written in the cover letter that functional tests passed
-successfully.
-In particular, this means that everything is OK with tmpfs too:
+does it? I was pretty sure that a !NUMAQ i386 CONFIG_NUMA build
+already used that. At least that was the case when I last looked. If that
+has changed it must have bitrotted recently.
 
-debian:~/times# ./times /mnt/file
-begin   1201084493      1201084493      1201084281
-write   1201084494      1201084494      1201084281
-mmap    1201084494      1201084494      1201084495
-b       1201084496      1201084496      1201084495
-msync b 1201084496      1201084496      1201084495
-c       1201084498      1201084498      1201084495
-msync c 1201084498      1201084498      1201084495
-d       1201084500      1201084500      1201084495
-munmap  1201084500      1201084500      1201084495
-close   1201084500      1201084500      1201084495
-sync    1201084500      1201084500      1201084495
-debian:~/times# mount | grep mnt
-tmpfs on /mnt type tmpfs (rw)
-debian:~/times#
+> or two and 
+> enabling BOOT_IOREMAP. It then crashes early in boot on a call to strlen()
+> so I went with the stubs and SRAT disabled for the moment.
 
->
-> > +
-> > +If a write reference has occurred between two consecutive calls to msync()
-> > +with MS_ASYNC, the second call to the latter function should take into
-> > +account the last write reference. The last write reference can not be caught
-> > +if no pagefault occurs. Hence a pagefault needs to be forced. This can be done
-> > +using two different approaches. The first one is to synchronize data even when
-> > +msync() was called with MS_ASYNC. This is not acceptable because the current
-> > +design of the sys_msync() routine forbids starting I/O for the MS_ASYNC case.
->
-> I don't think anyone forbids starting I/O, it's just too expensive,
-> especially if it means, waiting for previous writeback on page to
-> finish first.
->
-> > +The second approach is to write protect the page for triggering a pagefault
-> > +at the next write reference. Note that the dirty flag for the page should not
-> > +be cleared thereby.
-> > +
-> > +In the "lazy update" approach, the requirements (1.1), (1.2), (1.3), and (1.4)
-> > +taken together result in adding code at least to the following kernel routines:
-> > +sys_msync(), do_fsync(), some routine in the unmap() call path, some routine
-> > +in the sync() call path.
-> > +
-> > +Finally, a file_update_time()-like function would have to be created for
-> > +processing the inode objects, not file objects. This is due to the fact that
-> > +during the sync() operation, the file object may not exist any more, only
-> > +the inode is known.
-> > +
-> > +To sum up: this "lazy" approach leads to massive changes, incurs overhead in
-> > +the block device case, and requires complicated design decisions.
-> > +
-> > +3. Immediate update
-> > +
-> > +OK, still reading? There's a better way.
-> > +
-> > +In a fashion analogous to what happens at write(2), react to the fact
-> > +that the page gets dirtied by updating the file times immediately.
-> > +Thereby any page writeback happens when the write reference has already
-> > +been accounted for from the view point of file times.
-> > +
-> > +The only problem which remains is to force refreshing file times at the write
-> > +reference following a call to msync() with MS_ASYNC. As mentioned above, all
-> > +that is needed here is to force a pagefault.
-> > +
-> > +The vma_wrprotect() routine introduced in this patch series is called
-> > +from sys_msync() in the MS_ASYNC case. The former routine is essentially
-> > +a version of existing page_mkclean_one() function from mm/rmap.c. Unlike
-> > +the latter function, the vma_wrprotect() does not touch the dirty bit.
->
-> Benchmark results should be also added to the relevant sections, I
-> think.  There is a very definite cost to all this, and a 10x slowdown
-> is usually not taken lightly...
->
-> Great document, btw :)
->
-> Miklos
->
+Crashed on a Opteron box? That was always the case
+
+If it crashed on a (older) Summit then it likely bitrotted, because that 
+worked at some point. The code was originally written by Pat G. for Summit1
+and I believe was at least used by some people (no distributions) for S2,
+possible 3 too.
+
+> Ok, understood. When I next revisit this, I'll look at making ACPI_SRAT
+> and BOOT_IOREMAP work on normal machines and see what happens. Thanks.
+
+Again the problem shouldn't be normal machines, but non Summit NUMA systems.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
