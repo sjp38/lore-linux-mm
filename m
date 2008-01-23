@@ -1,55 +1,51 @@
-Message-ID: <47977DCA.3040904@redhat.com>
-Date: Wed, 23 Jan 2008 18:47:54 +0100
-From: Gerd Hoffmann <kraxel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [kvm-devel] [PATCH] export notifier #1
-References: <478E4356.7030303@qumranet.com> <20080117162302.GI7170@v2.random> <478F9C9C.7070500@qumranet.com> <20080117193252.GC24131@v2.random> <20080121125204.GJ6970@v2.random> <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com> <4797384B.7080200@redhat.com> <20080123154130.GC7141@v2.random>
-In-Reply-To: <20080123154130.GC7141@v2.random>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH -v8 3/4] Enable the MS_ASYNC functionality in
+	sys_msync()
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <alpine.LFD.1.00.0801230836250.1741@woody.linux-foundation.org>
+References: <12010440803930-git-send-email-salikhmetov@gmail.com>
+	 <1201044083504-git-send-email-salikhmetov@gmail.com>
+	 <alpine.LFD.1.00.0801230836250.1741@woody.linux-foundation.org>
+Content-Type: text/plain
+Date: Wed, 23 Jan 2008 18:41:06 +0100
+Message-Id: <1201110066.6341.65.camel@lappy>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, daniel.blueman@quadrics.com, holt@sgi.com, Hugh Dickins <hugh@veritas.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Anton Salikhmetov <salikhmetov@gmail.com>, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
-> Like Avi said, Xen is dealing with the linux pte only, so there's no
-> racy smp page fault to serialize against. Perhaps we can add another
-> notifier for Xen though.
+On Wed, 2008-01-23 at 09:05 -0800, Linus Torvalds wrote:
+
+> So here's even a patch to get you started. Do this:
 > 
-> But I think it's still not enough for Xen to have a method called
-> before the ptep_clear_flush: rmap.c would get confused in
-> page_mkclean_one for example.
-
-The current code sets a bunch of vma flags (VM_RESERVED, VM_DONTCOPY,
-VM_FOREIGN) so the VM doesn't try to handle those special mapping.  IIRC
-one of them was needed to not make rmap unhappy.
-
-> Nevertheless if you've any idea on how to use the notifiers for Xen
-> I'd be glad to help. Perhaps one workable way to change my patch to
-> work for you could be to pass the retval of ptep_clear_flush to the
-> notifiers themself. something like:
+> 	git revert 204ec841fbea3e5138168edbc3a76d46747cc987
 > 
-> #define ptep_clear_flush(__vma, __address, __ptep)			\
-> ({									\
-> 	pte_t __pte;							\
-> 	__pte = ptep_get_and_clear((__vma)->vm_mm, __address, __ptep);	\
-> 	flush_tlb_page(__vma, __address);				\
-> 	__pte = mmu_notifier(invalidate_page, (__vma)->vm_mm, __address, __pte, __ptep);	\
-> 	__pte;								\
-> })
+> and then use this appended patch on top of that as a starting point for 
+> something that compiles and *possibly* works.
+> 
+> And no, I do *not* guarantee that this is right either! I have not tested 
+> it or thought about it a lot, and S390 tends to be odd about some of these 
+> things. In particular, I actually suspect that we should possibly do this 
+> the same way we do
+> 
+> 	ptep_clear_flush_young()
+> 
+> except we would do "ptep_clear_flush_wrprotect()". So even though this is 
+> a revert plus a simple patch to make it compile again (we've changed how 
+> we do dirty bits), I think a patch like this needs testing and other 
+> people like Nick and Peter to ack it.
+> 
+> Nick? Peter? Testing? Other comments?
 
-Would not work.  Need to pass a pointer to the pte so the xen hypervisor
-can do unmap (aka pte_clear) and grant release as atomic operation.
-Thus passing the value of the pte entry isn't good enougth.
+It would need some addition piece to not call msync_interval() for
+MS_SYNC, and remove the balance_dirty_pages_ratelimited_nr() stuff.
 
-Another maybe workable approach for Xen is to go through pv_ops
-(although pte_clear doesn't go through pv_ops right now, so this would
-be an additional hook too ...).
+But yeah, this pte walker is much better. 
 
-cheers,
-  Gerd
+As for s390, I think they only differ on the dirty bit, and we should
+not be touching that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
