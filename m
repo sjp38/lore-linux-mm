@@ -1,42 +1,70 @@
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 0/2] Relax restrictions on setting CONFIG_NUMA on x86 II
-Date: Wed, 23 Jan 2008 14:48:09 +0100
-References: <20080118153529.12646.5260.sendpatchset@skynet.skynet.ie> <200801231215.56741.andi@firstfloor.org> <20080123112436.GF21455@csn.ul.ie>
-In-Reply-To: <20080123112436.GF21455@csn.ul.ie>
+Date: Wed, 23 Jan 2008 13:55:14 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH] Fix boot problem in situations where the boot CPU is running on a memoryless node
+Message-ID: <20080123135513.GA14175@csn.ul.ie>
+References: <20080118213011.GC10491@csn.ul.ie> <Pine.LNX.4.64.0801181414200.8924@schroedinger.engr.sgi.com> <20080118225713.GA31128@aepfle.de> <20080122195448.GA15567@csn.ul.ie> <20080122214505.GA15674@aepfle.de> <Pine.LNX.4.64.0801221417480.1912@schroedinger.engr.sgi.com> <20080123075821.GA17713@aepfle.de> <20080123105044.GD21455@csn.ul.ie> <20080123121459.GA18631@aepfle.de> <20080123125236.GA18876@aepfle.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Message-Id: <200801231448.09514.andi@firstfloor.org>
+In-Reply-To: <20080123125236.GA18876@aepfle.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
+To: akpm@linux-foundation.org, Christoph Lameter <clameter@sgi.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, hanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lee.schermerhorn@hp.com, Linux MM <linux-mm@kvack.org>, Olaf Hering <olaf@aepfle.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 23 January 2008 12:24:36 Mel Gorman wrote:
-> On (23/01/08 12:15), Andi Kleen didst pronounce:
-> > Anyways from your earlier comments it sounds like you're trying to add
-> > SRAT parsing to CONFIG_NUMAQ. Since that's redundant with the old
-> > implementation it doesn't sound like a very useful thing to do.
->
-> No, that would not be useful at all as it's redundant as you point out. The
-> only reason to add it is if the Opteron box can figure out the CPU-to-node
-> affinity. 
+This patch in combination with a partial revert of commit
+04231b3002ac53f8a64a7bd142fde3fa4b6808c6 fixes a regression between 2.6.23
+and 2.6.24-rc8 where a PPC64 machine with all CPUS on a memoryless node fails
+to boot. If approved by the SLAB maintainers, it should be merged for 2.6.24.
 
-Assuming srat_32.c was fixed to not crash on Opteron it would likely
-do that already without further changes.
+With memoryless-node configurations, it is possible that all the CPUs are
+associated with a node with no memory. Early in the boot process, nodelists
+are not setup that allow fallback_alloc to work, an Oops occurs and the
+machine fails to boot.
 
-> :| The patches applied so far are about increasing test coverage, not SRAT
-> messing. 
+This patch adds the necessary checks to make sure a kmem_list3 exists for
+the preferred node used when growing the cache. If the preferred node has
+no nodelist then the currently running node is used instead. This
+problem only affects the SLAB allocator, SLUB appears to work fine.
 
-Test coverage of the NUMAQ kernel?
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-If you wanted to increase test coverage of 32bit NUMA kernels the right
-strategy would be to fix srat_32.
+---
+ mm/slab.c |    9 +++++++++
+ 1 file changed, 9 insertions(+)
 
--Andi
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc8-005-revert-memoryless-slab/mm/slab.c linux-2.6.24-rc8-010_handle_missing_l3/mm/slab.c
+--- linux-2.6.24-rc8-005-revert-memoryless-slab/mm/slab.c	2008-01-22 17:46:32.000000000 +0000
++++ linux-2.6.24-rc8-010_handle_missing_l3/mm/slab.c	2008-01-22 18:42:53.000000000 +0000
+@@ -2775,6 +2775,11 @@ static int cache_grow(struct kmem_cache 
+ 	/* Take the l3 list lock to change the colour_next on this node */
+ 	check_irq_off();
+ 	l3 = cachep->nodelists[nodeid];
++	if (!l3) {
++		nodeid = numa_node_id();
++		l3 = cachep->nodelists[nodeid];
++	}
++	BUG_ON(!l3);
+ 	spin_lock(&l3->list_lock);
+ 
+ 	/* Get colour for the slab, and cal the next value. */
+@@ -3317,6 +3322,10 @@ static void *____cache_alloc_node(struct
+ 	int x;
+ 
+ 	l3 = cachep->nodelists[nodeid];
++	if (!l3) {
++		nodeid = numa_node_id();
++		l3 = cachep->nodelists[nodeid];
++	}
+ 	BUG_ON(!l3);
+ 
+ retry:
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
