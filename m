@@ -1,41 +1,64 @@
-Date: Wed, 23 Jan 2008 08:18:14 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [kvm-devel] [PATCH] export notifier #1
-Message-ID: <20080123141814.GE3058@sgi.com>
-References: <478F9C9C.7070500@qumranet.com> <20080117193252.GC24131@v2.random> <20080121125204.GJ6970@v2.random> <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com> <4797384B.7080200@redhat.com> <20080123131939.GJ26420@sgi.com> <47974B54.30407@redhat.com>
-MIME-Version: 1.0
+Date: Wed, 23 Jan 2008 16:18:19 +0200 (EET)
+From: Pekka J Enberg <penberg@cs.helsinki.fi>
+Subject: Re: [PATCH] Fix boot problem in situations where the boot CPU is
+ running on a memoryless node
+In-Reply-To: <20080123135513.GA14175@csn.ul.ie>
+Message-ID: <Pine.LNX.4.64.0801231611160.20050@sbz-30.cs.Helsinki.FI>
+References: <20080118213011.GC10491@csn.ul.ie>
+ <Pine.LNX.4.64.0801181414200.8924@schroedinger.engr.sgi.com>
+ <20080118225713.GA31128@aepfle.de> <20080122195448.GA15567@csn.ul.ie>
+ <20080122214505.GA15674@aepfle.de> <Pine.LNX.4.64.0801221417480.1912@schroedinger.engr.sgi.com>
+ <20080123075821.GA17713@aepfle.de> <20080123105044.GD21455@csn.ul.ie>
+ <20080123121459.GA18631@aepfle.de> <20080123125236.GA18876@aepfle.de>
+ <20080123135513.GA14175@csn.ul.ie>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <47974B54.30407@redhat.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gerd Hoffmann <kraxel@redhat.com>
-Cc: Robin Holt <holt@sgi.com>, Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: akpm@linux-foundation.org, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, hanth Aravamudan <nacc@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lee.schermerhorn@hp.com, Linux MM <linux-mm@kvack.org>, Olaf Hering <olaf@aepfle.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 23, 2008 at 03:12:36PM +0100, Gerd Hoffmann wrote:
->   Hi,
-> 
-> >> That would render the notifies useless for Xen too.  Xen needs to
-> >> intercept the actual pte clear and instead of just zapping it use the
-> >> hypercall to do the unmap and release the grant.
-> > 
-> > We are tackling that by having our own page table hanging off the
-> > structure representing our seg (thing created when we do the equiv of
-> > your grant call).
-> 
-> --verbose please.  I don't understand that "own page table" trick.  Is
-> that page table actually used by the processor or is it just used to
-> maintain some sort of page list?
+Hi Mel,
 
-We have a seg structure which is similar to some structure you probably
-have which describes the grant.  One of the things hanging off that
-seg structure is essentially a page table containing PFNs with their
-respective flags (XPMEM specific and not the same as the pfn flags in
-the processor page tables).
+On Wed, 23 Jan 2008, Mel Gorman wrote:
+> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc8-005-revert-memoryless-slab/mm/slab.c linux-2.6.24-rc8-010_handle_missing_l3/mm/slab.c
+> --- linux-2.6.24-rc8-005-revert-memoryless-slab/mm/slab.c	2008-01-22 17:46:32.000000000 +0000
+> +++ linux-2.6.24-rc8-010_handle_missing_l3/mm/slab.c	2008-01-22 18:42:53.000000000 +0000
+> @@ -2775,6 +2775,11 @@ static int cache_grow(struct kmem_cache 
+>  	/* Take the l3 list lock to change the colour_next on this node */
+>  	check_irq_off();
+>  	l3 = cachep->nodelists[nodeid];
+> +	if (!l3) {
+> +		nodeid = numa_node_id();
+> +		l3 = cachep->nodelists[nodeid];
+> +	}
+> +	BUG_ON(!l3);
+>  	spin_lock(&l3->list_lock);
+>  
+>  	/* Get colour for the slab, and cal the next value. */
+> @@ -3317,6 +3322,10 @@ static void *____cache_alloc_node(struct
+>  	int x;
+>  
+>  	l3 = cachep->nodelists[nodeid];
+> +	if (!l3) {
+> +		nodeid = numa_node_id();
+> +		l3 = cachep->nodelists[nodeid];
+> +	}
 
-Thanks,
-Robin
+What guarantees that current node ->nodelists is never NULL?
+
+I still think Christoph's kmem_getpages() patch is correct (to fix 
+cache_grow() oops) but I overlooked the fact that none the callers of 
+____cache_alloc_node() deal with bootstrapping (with the exception of 
+__cache_alloc_node() that even has a comment about it).
+
+But what I am really wondering about is, why wasn't the 
+N_NORMAL_MEMORY revert enough? I assume this used to work before so what 
+more do we need to revert for 2.6.24?
+
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
