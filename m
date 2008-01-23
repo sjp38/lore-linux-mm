@@ -1,85 +1,61 @@
-Date: Wed, 23 Jan 2008 13:00:57 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH -v8 3/4] Enable the MS_ASYNC functionality in
- sys_msync()
-In-Reply-To: <E1JHlh8-0003s8-Bb@pomaz-ex.szeredi.hu>
-Message-ID: <alpine.LFD.1.00.0801231248060.2803@woody.linux-foundation.org>
-References: <12010440803930-git-send-email-salikhmetov@gmail.com>  <1201044083504-git-send-email-salikhmetov@gmail.com>  <alpine.LFD.1.00.0801230836250.1741@woody.linux-foundation.org> <1201110066.6341.65.camel@lappy> <alpine.LFD.1.00.0801231107520.1741@woody.linux-foundation.org>
- <E1JHlh8-0003s8-Bb@pomaz-ex.szeredi.hu>
+Received: by rv-out-0910.google.com with SMTP id l15so2268676rvb.26
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2008 13:02:52 -0800 (PST)
+Message-ID: <84144f020801231302g2cafdda9kf7f916121dc56aa5@mail.gmail.com>
+Date: Wed, 23 Jan 2008 23:02:51 +0200
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [PATCH] Fix boot problem in situations where the boot CPU is running on a memoryless node
+In-Reply-To: <20080123195220.GB3848@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080123075821.GA17713@aepfle.de>
+	 <20080123121459.GA18631@aepfle.de> <20080123125236.GA18876@aepfle.de>
+	 <20080123135513.GA14175@csn.ul.ie>
+	 <Pine.LNX.4.64.0801231611160.20050@sbz-30.cs.Helsinki.FI>
+	 <Pine.LNX.4.64.0801231626320.21475@sbz-30.cs.Helsinki.FI>
+	 <Pine.LNX.4.64.0801231648140.23343@sbz-30.cs.Helsinki.FI>
+	 <20080123155655.GB20156@csn.ul.ie>
+	 <Pine.LNX.4.64.0801231906520.1028@sbz-30.cs.Helsinki.FI>
+	 <20080123195220.GB3848@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: a.p.zijlstra@chello.nl, salikhmetov@gmail.com, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, akpm@linux-foundation.org, protasnb@gmail.com, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lee.schermerhorn@hp.com, Linux MM <linux-mm@kvack.org>, Olaf Hering <olaf@aepfle.de>
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-On Wed, 23 Jan 2008, Miklos Szeredi wrote:
->
-> > [ Side note: it is quite possible that we should not do the 
-> >   SYNC_FILE_RANGE_WAIT_BEFORE on MS_ASYNC, and just skip over pages that 
-> >   are busily under writeback already.
-> 
-> MS_ASYNC is not supposed to wait, so SYNC_FILE_RANGE_WAIT_BEFORE
-> probably should not be used in that case.
+On Jan 23, 2008 9:52 PM, Nishanth Aravamudan <nacc@us.ibm.com> wrote:
+> On at least one of the machines in question, wasn't it the case that
+> node 0 had all the memory and node 1 had all the CPUs? In that case, you
+> would have to boot off a memoryless node? And as long as that is a
+> physically valid configuration, the kernel should handle it.
 
-Well, that would leave the page dirty (including in the page tables) if it 
-was under page writeback when the MS_ASYNC happened.
+Agreed. Here's the patch that should fix it:
 
-So I agree, we shouldn't necessarily wait, but if we want the page tables 
-to be cleaned, right now we need to.
+http://lkml.org/lkml/2008/1/23/332
 
-> What would be perfect, is if we had a sync mode, that on encountering
-> a page currently under writeback, would just do a page_mkclean() on
-> it, so we still receive a page fault next time one of the mappings is
-> dirtied, so the times can be updated.
-> 
-> Would there be any difficulties with that?
+On Jan 23, 2008 9:52 PM, Nishanth Aravamudan <nacc@us.ibm.com> wrote:
+> I bet we didn't notice this breaking because SLUB became the default and
+> SLAB isn't on in the test.kernel.org testing, for instance. Perhaps we
+> should add a second set of runs for some of the boxes there to run with
+> CONFIG_SLAB on?
 
-It would require fairly invasive changes. Right now the actual page 
-writeback does effectively:
+Sure.
 
-			...
-                        if (wbc->sync_mode != WB_SYNC_NONE)
-                                wait_on_page_writeback(page);
+On Jan 23, 2008 9:52 PM, Nishanth Aravamudan <nacc@us.ibm.com> wrote:
+> I'm curious if we know, for sure, of a kernel with CONFIG_SLAB=y that
+> has booted all of the boxes reporting issues? That is, did they all work
+> with 2.6.23?
 
-                        if (PageWriteback(page) ||
-                            !clear_page_dirty_for_io(page)) {
-                                unlock_page(page);
-                                continue;
-                        }
+I think Mel said that their configuration did work with 2.6.23
+although I also wonder how that's possible. AFAIK there has been some
+changes in the page allocator that might explain this. That is, if
+kmem_getpages() returned pages for memoryless node before, bootstrap
+would have worked.
 
-                        ret = (*writepage)(page, wbc, data);
-			...
-
-and that "clear_page_dirty_for_io()" really does clear *all* the dirty 
-bits, so we absolutely must start writepage() when we have done that. And 
-that, in turn, requires that we're not already under writeback.
-
-Is it possible to fix? Sure. We'd have to split up 
-clear_page_dirty_for_io() to do it, and do the
-
-	if (mapping && mapping_cap_account_dirty(mapping))
-			..
-
-part first (before the PageWriteback() tests), and then doing the
-
-	if (TestClearPageDirty(page))
-			...
-
-parts later (after checking that that we're not under page-writeback).
-
-So it's not horribly hard, but it's kind of a separate issue right now. 
-And while the *generic* page-writeback is easy enough to fix, I worry 
-about low-level filesystems that have their own "writepages()" 
-implementation. They could easily get that wrong.
-
-So right now it seems that waiting for writeback to finish is the right 
-and safe thing to do (and even so, I'm not actually willing to commit my 
-suggested patch in 2.6.24, I think this needs more thinking about)
-
-			Linus
+                           Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
