@@ -1,51 +1,45 @@
-Subject: [PATCH] reject '\n' in a cgroup name
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20080124052049.A2A8A1E3C0D@siro.lan>
-Date: Thu, 24 Jan 2008 14:20:49 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+Date: Thu, 24 Jan 2008 14:20:05 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 1/2]: MM: Make Paget Tables Relocatable--Conditional  TLB Flush
+In-Reply-To: <20080123161340.A1AAEDCA00@localhost>
+References: <20080123161340.A1AAEDCA00@localhost>
+Message-Id: <20080124140913.5FFE.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: containers@lists.osdl.org
-Cc: linux-mm@kvack.org
+To: Ross Biro <rossb@google.com>rossb@google.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-hi,
+Hello.
 
-the following patch rejects '\n' in a cgroup name.
-otherwise /proc/$$/cgroup is not parsable.
+This is a nitpick, but all of archtectures code except generic use
+MMF_NNED_FLUSH at clear_bit()...
+     ^
+Please fix misspell.
 
-example:
-	imawoto% cat /proc/$$/cgroup
-	memory:/
-	imawoto% mkdir -p "
-	memory:/foo"
-	imawoto% echo $$ >| "
-	memory:/foo/tasks"
-	imawoto% cat /proc/$$/cgroup
-	memory:/
-	memory:/foo
-	imawoto% 
+Bye.
 
-YAMAMOTO Takashi
+> 
+> diff -uprwNbB -X 2.6.23/Documentation/dontdiff 2.6.23/arch/alpha/kernel/smp.c 2.6.23a/arch/alpha/kernel/smp.c
+> --- 2.6.23/arch/alpha/kernel/smp.c	2007-10-09 13:31:38.000000000 -0700
+> +++ 2.6.23a/arch/alpha/kernel/smp.c	2007-10-29 13:50:06.000000000 -0700
+> @@ -850,6 +850,8 @@ flush_tlb_mm(struct mm_struct *mm)
+>  {
+>  	preempt_disable();
+>  
+> +	clear_bit(MMF_NNED_FLUSH, mm->flags);
+> +
+>  	if (mm == current->active_mm) {
+>  		flush_tlb_current(mm);
+>  		if (atomic_read(&mm->mm_users) <= 1) {
 
 
-Signed-off-by: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
----
+-- 
+Yasunori Goto 
 
---- linux-2.6.24-rc8-mm1/kernel/cgroup.c.BACKUP	2008-01-23 14:43:29.000000000 +0900
-+++ linux-2.6.24-rc8-mm1/kernel/cgroup.c	2008-01-24 13:56:28.000000000 +0900
-@@ -2216,6 +2216,10 @@ static long cgroup_create(struct cgroup 
- 	struct cgroup_subsys *ss;
- 	struct super_block *sb = root->sb;
- 
-+	/* reject a newline.  otherwise /proc/$$/cgroup is not parsable. */
-+	if (strchr(dentry->d_name.name, '\n'))
-+		return -EINVAL;
-+
- 	cgrp = kzalloc(sizeof(*cgrp), GFP_KERNEL);
- 	if (!cgrp)
- 		return -ENOMEM;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
