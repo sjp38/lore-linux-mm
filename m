@@ -1,238 +1,78 @@
-Date: Wed, 23 Jan 2008 22:05:25 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: Enhance mmu notifiers to accomplish a lockless implementation
-	(incomplete).
-Message-ID: <20080124040525.GM26420@sgi.com>
-References: <20080116124256.44033d48@bree.surriel.com> <478E4356.7030303@qumranet.com> <20080117162302.GI7170@v2.random> <478F9C9C.7070500@qumranet.com> <20080117193252.GC24131@v2.random> <20080121125204.GJ6970@v2.random> <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <20080124020007.GL26420@sgi.com>
+Date: Thu, 24 Jan 2008 13:18:01 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [RFC][PATCH 0/8] mem_notify v5
+Message-Id: <20080124130348.1760.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080124020007.GL26420@sgi.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, holt@sgi.com, Hugh Dickins <hugh@veritas.com>, clameter@sgi.com, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: kosaki.motohiro@jp.fujitsu.com, Marcelo Tosatti <marcelo@kvack.org>, Daniel Spang <daniel.spang@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-Expand the mmu_notifiers to allow for lockless callers.  To accomplish
-this, the function receiving notifications needs to implement an rmap
-equivalent.  The notification function is also responsible for tracking
-page dirty state.
+Hi
 
-Version 2 brings with it __xip_unmap and do_wp_page so this is getting
-to the point where we can start testing.  It does compile now.
+The /dev/mem_notify is low memory notification device.
+it can avoid swappness and oom by cooperationg with the user process.
 
-I am traveling tomorrow but should be able to get back to this tomorrow
-evening or early Friday.
+You need not be annoyed by OOM any longer :)
+please any comments!
 
-Thank you for your attention,
-Robin Holt
+patch list
+	[1/8] introduce poll_wait_exclusive() new API
+	[2/8] introduce wake_up_locked_nr() new API
+	[3/8] introduce /dev/mem_notify new device (the core of this patch series)
+	[4/8] memory_pressure_notify() caller
+	[5/8] add new mem_notify field to /proc/zoneinfo
+	[6/8] (optional) fixed incorrect shrink_zone
+	[7/8] ignore very small zone for prevent incorrect low mem notify.
+	[8/8] support fasync feature
 
-Index: mmu_notifiers/include/linux/export_notifier.h
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ mmu_notifiers/include/linux/export_notifier.h	2008-01-23 21:24:33.000000000 -0600
-@@ -0,0 +1,50 @@
-+#ifndef _LINUX_EXPORT_NOTIFIER_H
-+#define _LINUX_EXPORT_NOTIFIER_H
-+
-+#include <linux/list.h>
-+#include <linux/mm_types.h>
-+
-+struct export_notifier {
-+	struct hlist_node hlist;
-+	const struct export_notifier_ops *ops;
-+};
-+
-+struct export_notifier_ops {
-+	/*
-+	 * Called with the page lock held after ptes are modified or removed.
-+	 *
-+	 * Must clear PageExported()
-+	 */
-+	void (*invalidate_page)(struct export_notifier *em, struct page *page);
-+};
-+
-+#ifdef CONFIG_EXPORT_NOTIFIER
-+
-+extern void export_notifier_register(struct export_notifier *em);
-+extern void export_notifier_unregister(struct export_notifier *em);
-+
-+extern struct hlist_head export_notifier_list;
-+
-+#define export_notifier(function, args...)					\
-+	do {									\
-+		struct export_notifier *__em;					\
-+		struct hlist_node *__n;						\
-+										\
-+		rcu_read_lock();						\
-+		hlist_for_each_entry_rcu(__em, __n, &export_notifier_list, 	\
-+						hlist)				\
-+			if (__em->ops->function)				\
-+				__em->ops->function(__em, args);		\
-+		rcu_read_unlock();						\
-+	} while (0);
-+
-+#else
-+
-+#define export_notifier(function, args...)
-+
-+static inline void export_notifier_register(struct export_notifier *em) {}
-+static inline void export_notifier_unregister(struct export_notifier *em) {}
-+
-+#endif
-+
-+#endif /* _LINUX_EXPORT_NOTIFIER_H */
-Index: mmu_notifiers/include/linux/page-flags.h
-===================================================================
---- mmu_notifiers.orig/include/linux/page-flags.h	2008-01-23 21:24:27.000000000 -0600
-+++ mmu_notifiers/include/linux/page-flags.h	2008-01-23 21:57:58.000000000 -0600
-@@ -105,6 +105,7 @@
-  * 64 bit  |           FIELDS             | ??????         FLAGS         |
-  *         63                            32                              0
-  */
-+#define PG_exported		30	/* Page is referenced by something not in the rmaps */
- #define PG_uncached		31	/* Page has been mapped as uncached */
- #endif
- 
-@@ -260,6 +261,14 @@ static inline void __ClearPageTail(struc
- #define SetPageUncached(page)	set_bit(PG_uncached, &(page)->flags)
- #define ClearPageUncached(page)	clear_bit(PG_uncached, &(page)->flags)
- 
-+#ifdef CONFIG_EXPORT_NOTIFIER
-+#define PageExported(page)	test_bit(PG_exported, &(page)->flags)
-+#define SetPageExported(page)	set_bit(PG_exported, &(page)->flags)
-+#define ClearPageExported(page)	clear_bit(PG_exported, &(page)->flags)
-+#else
-+#define PageExported(page)	0
-+#endif
-+
- struct page;	/* forward declaration */
- 
- extern void cancel_dirty_page(struct page *page, unsigned int account_size);
-Index: mmu_notifiers/mm/Kconfig
-===================================================================
---- mmu_notifiers.orig/mm/Kconfig	2008-01-23 21:24:27.000000000 -0600
-+++ mmu_notifiers/mm/Kconfig	2008-01-23 21:57:58.000000000 -0600
-@@ -197,3 +197,8 @@ config VIRT_TO_BUS
- config MMU_NOTIFIER
- 	def_bool y
- 	bool "MMU notifier, for paging KVM/RDMA"
-+
-+config EXPORT_NOTIFIER
-+	def_bool y
-+	depends on 64BIT
-+	bool "Export Notifier for notifying subsystems about changes to page mappings"
-Index: mmu_notifiers/mm/Makefile
-===================================================================
---- mmu_notifiers.orig/mm/Makefile	2008-01-23 21:24:27.000000000 -0600
-+++ mmu_notifiers/mm/Makefile	2008-01-23 21:24:33.000000000 -0600
-@@ -31,4 +31,4 @@ obj-$(CONFIG_MIGRATION) += migrate.o
- obj-$(CONFIG_SMP) += allocpercpu.o
- obj-$(CONFIG_QUICKLIST) += quicklist.o
- obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
--
-+obj-$(CONFIG_EXPORT_NOTIFIER) += export_notifier.o
-Index: mmu_notifiers/mm/export_notifier.c
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ mmu_notifiers/mm/export_notifier.c	2008-01-23 21:57:27.000000000 -0600
-@@ -0,0 +1,20 @@
-+#include <linux/export_notifier.h>
-+
-+HLIST_HEAD(export_notifier_list);
-+DEFINE_SPINLOCK(export_notifier_list_lock);
-+
-+void export_notifier_register(struct export_notifier *en)
-+{
-+	spin_lock(&export_notifier_list_lock);
-+	hlist_add_head_rcu(&en->hlist, &export_notifier_list);
-+	spin_unlock(&export_notifier_list_lock);
-+}
-+
-+void export_notifier_unregister(struct export_notifier *en)
-+{
-+	spin_lock(&export_notifier_list_lock);
-+	hlist_del_rcu(&en->hlist);
-+	spin_unlock(&export_notifier_list_lock);
-+}
-+
-+
-Index: mmu_notifiers/mm/rmap.c
-===================================================================
---- mmu_notifiers.orig/mm/rmap.c	2008-01-23 21:24:27.000000000 -0600
-+++ mmu_notifiers/mm/rmap.c	2008-01-23 21:57:27.000000000 -0600
-@@ -49,6 +49,7 @@
- #include <linux/rcupdate.h>
- #include <linux/module.h>
- #include <linux/kallsyms.h>
-+#include <linux/export_notifier.h>
- 
- #include <asm/tlbflush.h>
- 
-@@ -473,6 +474,8 @@ int page_mkclean(struct page *page)
- 		struct address_space *mapping = page_mapping(page);
- 		if (mapping) {
- 			ret = page_mkclean_file(mapping, page);
-+			if (unlikely(PageExported(page)))
-+				export_notifier(invalidate_page, page);
- 			if (page_test_dirty(page)) {
- 				page_clear_dirty(page);
- 				ret = 1;
-@@ -971,6 +974,9 @@ int try_to_unmap(struct page *page, int 
- 	else
- 		ret = try_to_unmap_file(page, migration);
- 
-+	if (unlikely(PageExported(page)))
-+		export_notifier(invalidate_page, page);
-+
- 	if (!page_mapped(page))
- 		ret = SWAP_SUCCESS;
- 	return ret;
-Index: mmu_notifiers/mm/fremap.c
-===================================================================
---- mmu_notifiers.orig/mm/fremap.c	2008-01-23 21:24:27.000000000 -0600
-+++ mmu_notifiers/mm/fremap.c	2008-01-23 21:57:27.000000000 -0600
-@@ -211,6 +211,7 @@ asmlinkage long sys_remap_file_pages(uns
- 		spin_unlock(&mapping->i_mmap_lock);
- 	}
- 
-+	mmu_notifier(invalidate_range, mm, start, start + size);
- 	err = populate_range(mm, vma, start, size, pgoff);
- 	if (!err && !(flags & MAP_NONBLOCK)) {
- 		if (unlikely(has_write_lock)) {
-Index: mmu_notifiers/mm/memory.c
-===================================================================
---- mmu_notifiers.orig/mm/memory.c	2008-01-23 21:24:27.000000000 -0600
-+++ mmu_notifiers/mm/memory.c	2008-01-23 21:57:27.000000000 -0600
-@@ -1637,6 +1637,7 @@ gotten:
- 	/*
- 	 * Re-check the pte - we dropped the lock
- 	 */
-+	mmu_notifier(invalidate_range, mm, address, address + PAGE_SIZE - 1);
- 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
- 	if (likely(pte_same(*page_table, orig_pte))) {
- 		if (old_page) {
-Index: mmu_notifiers/mm/filemap_xip.c
-===================================================================
---- mmu_notifiers.orig/mm/filemap_xip.c	2008-01-23 21:33:21.000000000 -0600
-+++ mmu_notifiers/mm/filemap_xip.c	2008-01-23 21:57:27.000000000 -0600
-@@ -13,6 +13,7 @@
- #include <linux/module.h>
- #include <linux/uio.h>
- #include <linux/rmap.h>
-+#include <linux/export_notifier.h>
- #include <linux/sched.h>
- #include <asm/tlbflush.h>
- 
-@@ -183,6 +184,7 @@ __xip_unmap (struct address_space * mapp
- 	if (!page)
- 		return;
- 
-+	export_notifier(invalidate_page, page);
- 	spin_lock(&mapping->i_mmap_lock);
- 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
- 		mm = vma->vm_mm;
+
+related discussion:
+--------------------------------------------------------------
+  LKML OOM notifications requirement discussion
+     http://www.gossamer-threads.com/lists/linux/kernel/832802?nohighlight=1#832802
+  OOM notifications patch [Marcelo Tosatti]
+     http://marc.info/?l=linux-kernel&m=119273914027743&w=2
+  mem notifications v3 [Marcelo Tosatti]
+     http://marc.info/?l=linux-mm&m=119852828327044&w=2
+  Thrashing notification patch  [Daniel Spang]
+     http://marc.info/?l=linux-mm&m=119427416315676&w=2
+  mem notification v4 [kosaki]
+     http://marc.info/?l=linux-mm&m=120035840523718&w=2
+
+
+Changelog
+-------------------------------------------------
+  v4 -> v5 (by KOSAKI Motohiro)
+    o rebase to 2.6.24-rc8-mm1
+    o change display order of /proc/zoneinfo
+    o ignore very small zone
+    o support fcntl(F_SETFL, FASYNC)
+    o fix some trivial bugs.
+
+  v3 -> v4 (by KOSAKI Motohiro)
+    o rebase to 2.6.24-rc6-mm1
+    o avoid wake up all.
+    o add judgement point to __free_one_page().
+    o add zone awareness.
+
+  v2 -> v3 (by Marcelo Tosatti)
+    o changes the notification point to happen whenever
+      the VM moves an anonymous page to the inactive list.
+    o implement notification rate limit.
+
+  v1(oom notify) -> v2 (by Marcelo Tosatti)
+    o name change
+    o notify timing change from just swap thrashing to
+      just before thrashing.
+    o also works with swapless device.
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
