@@ -1,38 +1,39 @@
-Received: by nz-out-0506.google.com with SMTP id i11so166451nzh.26
-        for <linux-mm@kvack.org>; Thu, 24 Jan 2008 04:19:46 -0800 (PST)
-Message-ID: <cfd9edbf0801240419t669c9d9cl4cf0f821599fc7ad@mail.gmail.com>
-Date: Thu, 24 Jan 2008 13:19:45 +0100
-From: "=?ISO-8859-1?Q?Daniel_Sp=E5ng?=" <daniel.spang@gmail.com>
-Subject: Re: [RFC][PATCH 3/8] mem_notify v5: introduce /dev/mem_notify new device (the core of this patch series)
-In-Reply-To: <20080124132014.1769.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Thu, 24 Jan 2008 13:26:23 +0100
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [kvm-devel] [PATCH] export notifier #1
+Message-ID: <20080124122623.GK7141@v2.random>
+References: <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com> <20080122223139.GD15848@v2.random> <Pine.LNX.4.64.0801221433080.2271@schroedinger.engr.sgi.com> <479716AD.5070708@qumranet.com> <20080123105246.GG26420@sgi.com> <Pine.LNX.4.64.0801231145210.13547@schroedinger.engr.sgi.com> <4798289B.1000007@qumranet.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <20080124130348.1760.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080124132014.1769.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <4798289B.1000007@qumranet.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo@kvack.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>
+To: Avi Kivity <avi@qumranet.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Robin Holt <holt@sgi.com>, Izik Eidus <izike@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi KOSAKI,
+On Thu, Jan 24, 2008 at 07:56:43AM +0200, Avi Kivity wrote:
+> What I need is a list of (mm, va) that map the page.  kvm doesn't have 
+> access to that, export notifiers do.  It seems reasonable that export 
+> notifier do that rmap walk since they are part of core mm, not kvm.
 
-On 1/24/08, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> +#define PROC_WAKEUP_GUARD  (10*HZ)
-[...]
-> +       timeout = info->last_proc_notify + PROC_WAKEUP_GUARD;
+Yes. Like said in earlier email we could ignore the slowdown and
+duplicate the mm/rmap.c code inside kvm, but that looks a bad layering
+violation and it's unnecessary, dirty and suboptimal IMHO.
 
-If only one or a few processes are using the system I think 10 seconds
-is a little long time to wait before they get the notification again.
-Can we decrease this value? Or make it configurable under /proc? Or
-make it lower with fewer users? Something like:
+> Alternatively, kvm can change its internal rmap structure to be page based 
+> instead of (mm, hva) based.  The problem here is to size this thing, as we 
+> don't know in advance (when the kvm module is loaded) whether 0% or 100% 
+> (or some value in between) of system memory will be used for kvm.
 
-timeout = info->last_proc_notify + min(mem_notify_users, PROC_WAKEUP_GUARD);
-
-Cheers,
-Daniel
+Another issue is that for things like the page sharing driver, it's
+more convenient to be able to know exactly which "sptes" belongs to a
+certain userland mapping, and only that userland mapping (not all
+others mappings of the physical page). So if the rmap becomes page
+based, it'd be nice to still be able to find the "mm" associated with
+that certain spte pointer to skip all sptes in the other "mm" during
+the invalidate.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
