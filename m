@@ -1,44 +1,37 @@
-Message-ID: <4798243A.5010708@qumranet.com>
-Date: Thu, 24 Jan 2008 07:38:02 +0200
+Message-ID: <479824EA.7070603@qumranet.com>
+Date: Thu, 24 Jan 2008 07:40:58 +0200
 From: Avi Kivity <avi@qumranet.com>
 MIME-Version: 1.0
 Subject: Re: [kvm-devel] [RFC][PATCH 0/5] Memory merging driver for Linux
-References: <4794C2E1.8040607@qumranet.com> <20080123120510.4014e382@bree.surriel.com>
-In-Reply-To: <20080123120510.4014e382@bree.surriel.com>
+References: <4794C2E1.8040607@qumranet.com> <20080123231037.GA3629@sequoia.sous-sol.org>
+In-Reply-To: <20080123231037.GA3629@sequoia.sous-sol.org>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
+To: Chris Wright <chrisw@sous-sol.org>
 Cc: Izik Eidus <izike@qumranet.com>, kvm-devel <kvm-devel@lists.sourceforge.net>, andrea@qumranet.com, dor.laor@qumranet.com, linux-mm@kvack.org, yaniv@qumranet.com
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> On Mon, 21 Jan 2008 18:05:53 +0200
-> Izik Eidus <izike@qumranet.com> wrote:
->
+Chris Wright wrote:
+> * Izik Eidus (izike@qumranet.com) wrote:
 >   
->> i added 2 new functions to the kernel
->> one:
->> page_wrprotect() make the page as read only by setting the ptes point to
->> it as read only.
->> second:
->> replace_page() - replace the pte mapping related to vm area between two 
->> pages
+>> this module find this identical data (pages) and merge them into one 
+>> single page
+>> this new page is write protected so in any case the guest will try to 
+>> write to it do_wp_page will duplicate the page
 >>     
 >
-> How will this work on CPUs with nested paging support, where the
-> CPU does the guest -> physical address translation?  (opposed to
-> having shadow page tables)
->
+> What happens if you've merged more pages than you can recover on write
+> faults?
 >   
 
-Nested page tables are very similar to real-mode shadow paging: both 
-translate guest physical addresses to host physical addreses.
+You start to swap.  Just like Linux when you start to write on fork()ed 
+memory.
 
-In any case, the merge driver is oblivious to the paging method used, it 
-works at the Linux pte level and relies on mmu notifiers to keep 
-everything in sync.
+A management application may start taking measures, like inflating 
+balloons and migrating to other hosts, but swapping is needed as a last 
+resort measure.
 
 -- 
 Any sufficiently difficult bug is indistinguishable from a feature.
