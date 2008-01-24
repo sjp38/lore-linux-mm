@@ -1,35 +1,38 @@
-Message-ID: <479858CE.3060704@qumranet.com>
-Date: Thu, 24 Jan 2008 11:22:22 +0200
-From: Avi Kivity <avi@qumranet.com>
+Message-ID: <47985ED3.2070000@qumranet.com>
+Date: Thu, 24 Jan 2008 11:48:03 +0200
+From: Izik Eidus <izike@qumranet.com>
 MIME-Version: 1.0
 Subject: Re: [kvm-devel] [RFC][PATCH 3/5] ksm source code
-References: <4794C477.3090708@qumranet.com> <20080124072432.GQ3627@sequoia.sous-sol.org> <4798554D.1010300@qumranet.com>
-In-Reply-To: <4798554D.1010300@qumranet.com>
+References: <4794C477.3090708@qumranet.com> <20080124072432.GQ3627@sequoia.sous-sol.org> <4798554D.1010300@qumranet.com> <479858CE.3060704@qumranet.com>
+In-Reply-To: <479858CE.3060704@qumranet.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Izik Eidus <izike@qumranet.com>
+To: Avi Kivity <avi@qumranet.com>
 Cc: Chris Wright <chrisw@sous-sol.org>, kvm-devel <kvm-devel@lists.sourceforge.net>, andrea@qumranet.com, dor.laor@qumranet.com, linux-mm@kvack.org, yaniv@qumranet.com
 List-ID: <linux-mm.kvack.org>
 
-Izik Eidus wrote:
->>  
->>> struct ksm *ksm;
->>>     
+Avi Kivity wrote:
+> Izik Eidus wrote:
+>>>  
+>>>> struct ksm *ksm;
+>>>>     
+>>>
+>>> static
+>>>
+>>>   
 >>
->> static
->>
->>   
+>> yes
 >
-> yes
-
-
-Actually the entire contents of 'struct ksm' should be module static 
-variables.
+>
+> Actually the entire contents of 'struct ksm' should be module static 
+> variables.
+>
+i agree with you, i will fix this as well
 
 -- 
-Any sufficiently difficult bug is indistinguishable from a feature.
+woof.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
