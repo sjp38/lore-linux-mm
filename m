@@ -1,33 +1,39 @@
-Date: Thu, 24 Jan 2008 12:07:52 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [kvm-devel] [PATCH] export notifier #1
-In-Reply-To: <20080124154239.GP7141@v2.random>
-Message-ID: <Pine.LNX.4.64.0801241205510.22285@schroedinger.engr.sgi.com>
-References: <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random>
- <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com>
- <20080122223139.GD15848@v2.random> <Pine.LNX.4.64.0801221433080.2271@schroedinger.engr.sgi.com>
- <20080123114136.GE15848@v2.random> <20080123123230.GH26420@sgi.com>
- <20080123173325.GG7141@v2.random> <Pine.LNX.4.64.0801231220590.13547@schroedinger.engr.sgi.com>
- <20080124154239.GP7141@v2.random>
+Date: Thu, 24 Jan 2008 12:34:52 -0800
+From: Chris Wright <chrisw@sous-sol.org>
+Subject: Re: [kvm-devel] [RFC][PATCH 3/5] ksm source code
+Message-ID: <20080124203452.GB3627@sequoia.sous-sol.org>
+References: <4794C477.3090708@qumranet.com> <20080124072432.GQ3627@sequoia.sous-sol.org> <4798554D.1010300@qumranet.com> <20080124175132.GR3627@sequoia.sous-sol.org> <4798E9D2.8030503@qumranet.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4798E9D2.8030503@qumranet.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
+To: Avi Kivity <avi@qumranet.com>
+Cc: Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izike@qumranet.com>, andrea@qumranet.com, yaniv@qumranet.com, kvm-devel <kvm-devel@lists.sourceforge.net>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 24 Jan 2008, Andrea Arcangeli wrote:
+* Avi Kivity (avi@qumranet.com) wrote:
+> Chris Wright wrote:
+>>>>  struct ksm_memory_region {
+>>>>  	__u32 npages; /* number of pages to share */
+>>>>  	__u64 addr; /* the begining of the virtual address */
+>>>>  };
+>>>>       
+>>> why isnt it compat safe?
+>>
+>> 32-bit has more relaxed alignment requirement for __u64 (4 bytes)
+>> than 64-bit (8 bytes).  choices are reverse the order or add padding
+>> (can test by compiling structure in 32 and 64 bit).
+>
+> Reversing the order isn't good enough, since the structure size would be 
+> different, and that is embedded in the ioctl number.
 
-> I think you should consider if you can also build a rmap per-MM like
-> KVM does and index it by the virtual address like KVM does.
+good point.
 
-Yes we have that.
-
-If we have that then we do not need the mmu_notifier. 
-We could call it with a page parameter and then walk the KVM or XPmem 
-reverse map to directly find all the ptes we need to clear. There is no 
-need then to add a new field to the mm_struct.
+> Padding is necessary.
+>
+> [wishlist: struct { ... } __attribute__((abi_x86_64));]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
