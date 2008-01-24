@@ -1,48 +1,39 @@
-Subject: Re: [PATCH -v8 3/4] Enable the MS_ASYNC functionality in
-	sys_msync()
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <200801241236.01114.nickpiggin@yahoo.com.au>
-References: <12010440803930-git-send-email-salikhmetov@gmail.com>
-	 <1201044083504-git-send-email-salikhmetov@gmail.com>
-	 <alpine.LFD.1.00.0801230836250.1741@woody.linux-foundation.org>
-	 <200801241236.01114.nickpiggin@yahoo.com.au>
-Content-Type: text/plain
-Date: Thu, 24 Jan 2008 12:56:13 -0600
-Message-Id: <1201200973.3897.31.camel@cinder.waste.org>
-Mime-Version: 1.0
+Message-ID: <4798E9D2.8030503@qumranet.com>
+Date: Thu, 24 Jan 2008 21:41:06 +0200
+From: Avi Kivity <avi@qumranet.com>
+MIME-Version: 1.0
+Subject: Re: [kvm-devel] [RFC][PATCH 3/5] ksm source code
+References: <4794C477.3090708@qumranet.com>	<20080124072432.GQ3627@sequoia.sous-sol.org>	<4798554D.1010300@qumranet.com> <20080124175132.GR3627@sequoia.sous-sol.org>
+In-Reply-To: <20080124175132.GR3627@sequoia.sous-sol.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Anton Salikhmetov <salikhmetov@gmail.com>, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: Chris Wright <chrisw@sous-sol.org>
+Cc: Izik Eidus <izike@qumranet.com>, andrea@qumranet.com, yaniv@qumranet.com, kvm-devel <kvm-devel@lists.sourceforge.net>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-01-24 at 12:36 +1100, Nick Piggin wrote:
-> On Thursday 24 January 2008 04:05, Linus Torvalds wrote:
-> > On Wed, 23 Jan 2008, Anton Salikhmetov wrote:
-> > > +
-> > > +		if (pte_dirty(*pte) && pte_write(*pte)) {
-> >
-> > Not correct.
-> >
-> > You still need to check "pte_present()" before you can test any other
-> > bits. For a non-present pte, none of the other bits are defined, and for
-> > all we know there might be architectures out there that require them to
-> > be non-dirty.
-> >
-> > As it is, you just possibly randomly corrupted the pte.
-> >
-> > Yeah, on all architectures I know of, it the pte is clear, neither of
-> > those tests will trigger, so it just happens to work, but it's still
-> > wrong.
-> 
-> Probably it can fail for !present nonlinear mappings on many
-> architectures.
+Chris Wright wrote:
+>>>  struct ksm_memory_region {
+>>>  	__u32 npages; /* number of pages to share */
+>>>  	__u64 addr; /* the begining of the virtual address */
+>>>  };
+>>>       
+>> why isnt it compat safe?
+>>     
+>
+> 32-bit has more relaxed alignment requirement for __u64 (4 bytes)
+> than 64-bit (8 bytes).  choices are reverse the order or add padding
+> (can test by compiling structure in 32 and 64 bit).
+>   
 
-Definitely.
+Reversing the order isn't good enough, since the structure size would be 
+different, and that is embedded in the ioctl number.  Padding is necessary.
+
+[wishlist: struct { ... } __attribute__((abi_x86_64));]
 
 -- 
-Mathematics is the supreme nostalgia of our time.
+Any sufficiently difficult bug is indistinguishable from a feature.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
