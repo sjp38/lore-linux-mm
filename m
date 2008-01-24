@@ -1,47 +1,40 @@
-Message-Id: <20080124011204.614765000@sgi.com>
-References: <20080124011204.470412000@sgi.com>
-Date: Wed, 23 Jan 2008 17:12:05 -0800
-From: travis@sgi.com
-Subject: [PATCH 1/1] x86: early cpu_to_node fix in numa_64.c
-Content-Disposition: inline; filename=cpu_to_node-fix-2
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [PATCH -v8 3/4] Enable the MS_ASYNC functionality in sys_msync()
+Date: Thu, 24 Jan 2008 12:36:00 +1100
+References: <12010440803930-git-send-email-salikhmetov@gmail.com> <1201044083504-git-send-email-salikhmetov@gmail.com> <alpine.LFD.1.00.0801230836250.1741@woody.linux-foundation.org>
+In-Reply-To: <alpine.LFD.1.00.0801230836250.1741@woody.linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200801241236.01114.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mingo@elte.hu
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Anton Salikhmetov <salikhmetov@gmail.com>, linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-Both of these references to cpu_to_node() can potentially occur
-before the "late" cpu_to_node map is setup.  Therefore, they
-should be changed to use early_cpu_to_node().
+On Thursday 24 January 2008 04:05, Linus Torvalds wrote:
+> On Wed, 23 Jan 2008, Anton Salikhmetov wrote:
+> > +
+> > +		if (pte_dirty(*pte) && pte_write(*pte)) {
+>
+> Not correct.
+>
+> You still need to check "pte_present()" before you can test any other
+> bits. For a non-present pte, none of the other bits are defined, and for
+> all we know there might be architectures out there that require them to
+> be non-dirty.
+>
+> As it is, you just possibly randomly corrupted the pte.
+>
+> Yeah, on all architectures I know of, it the pte is clear, neither of
+> those tests will trigger, so it just happens to work, but it's still
+> wrong.
 
-Signed-off-by: Mike Travis <travis@sgi.com>
----
- arch/x86/mm/numa_64.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
---- a/arch/x86/mm/numa_64.c
-+++ b/arch/x86/mm/numa_64.c
-@@ -251,7 +251,7 @@ void __init numa_init_array(void)
- 
- 	rr = first_node(node_online_map);
- 	for (i = 0; i < NR_CPUS; i++) {
--		if (cpu_to_node(i) != NUMA_NO_NODE)
-+		if (early_cpu_to_node(i) != NUMA_NO_NODE)
- 			continue;
- 		numa_set_node(i, rr);
- 		rr = next_node(rr, node_online_map);
-@@ -528,7 +528,8 @@ void __init numa_initmem_init(unsigned l
- 
- __cpuinit void numa_add_cpu(int cpu)
- {
--	set_bit(cpu, (unsigned long *)&node_to_cpumask_map[cpu_to_node(cpu)]);
-+	set_bit(cpu,
-+		(unsigned long *)&node_to_cpumask_map[early_cpu_to_node(cpu)]);
- }
- 
- void __cpuinit numa_set_node(int cpu, int node)
-
--- 
+Probably it can fail for !present nonlinear mappings on many
+architectures.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
