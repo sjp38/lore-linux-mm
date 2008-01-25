@@ -1,5 +1,5 @@
-Message-ID: <479938ED.3070401@goop.org>
-Date: Thu, 24 Jan 2008 17:18:37 -0800
+Message-ID: <47993F60.2000001@goop.org>
+Date: Thu, 24 Jan 2008 17:46:08 -0800
 From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
 Subject: Re: [PATCH 0/3] percpu: Optimize percpu accesses
@@ -17,9 +17,10 @@ Mike Travis wrote:
 > The hang though, I'm getting as well and am debugging it now (alibi
 > slowly since it's happening so early.  Too bad grub doesn't have kdb
 > in it... ;-)
+>   
 
-I can reproduce under qemu, which means you can attach gdb to it.  I'll 
-see if it happens to a Xen guest too.
+Hm, on the other hand, maybe I'm not reproducing this - looks more like 
+a problem with mtrr trimming...
 
     J
 
