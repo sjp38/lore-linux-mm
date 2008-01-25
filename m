@@ -1,68 +1,41 @@
-Date: Fri, 25 Jan 2008 12:33:14 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 3/8] mem_notify v5: introduce /dev/mem_notify new device (the core of this patch series)
-In-Reply-To: <cfd9edbf0801240419t669c9d9cl4cf0f821599fc7ad@mail.gmail.com>
-References: <20080124132014.1769.KOSAKI.MOTOHIRO@jp.fujitsu.com> <cfd9edbf0801240419t669c9d9cl4cf0f821599fc7ad@mail.gmail.com>
-Message-Id: <20080125121032.1AAE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <4799834C.8050608@qumranet.com>
+Date: Fri, 25 Jan 2008 08:35:56 +0200
+From: Avi Kivity <avi@qumranet.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="ISO-2022-JP"
+Subject: Re: [kvm-devel] [PATCH] export notifier #1
+References: <4795F9D2.1050503@qumranet.com> <20080122144332.GE7331@v2.random> <20080122200858.GB15848@v2.random> <Pine.LNX.4.64.0801221232040.28197@schroedinger.engr.sgi.com> <20080122223139.GD15848@v2.random> <Pine.LNX.4.64.0801221433080.2271@schroedinger.engr.sgi.com> <20080123114136.GE15848@v2.random> <20080123123230.GH26420@sgi.com> <20080123173325.GG7141@v2.random> <Pine.LNX.4.64.0801231220590.13547@schroedinger.engr.sgi.com> <20080124154239.GP7141@v2.random> <Pine.LNX.4.64.0801241205510.22285@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0801241205510.22285@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?ISO-2022-JP?B?IkRhbmllbCBTcBskQmlPGyhCZyI=?= <daniel.spang@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo@kvack.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Izik Eidus <izike@qumranet.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Daniel
+Christoph Lameter wrote:
+> On Thu, 24 Jan 2008, Andrea Arcangeli wrote:
+>
+>   
+>> I think you should consider if you can also build a rmap per-MM like
+>> KVM does and index it by the virtual address like KVM does.
+>>     
+>
+> Yes we have that.
+>
+> If we have that then we do not need the mmu_notifier. 
+> We could call it with a page parameter and then walk the KVM or XPmem 
+> reverse map to directly find all the ptes we need to clear. There is no 
+> need then to add a new field to the mm_struct.
+>   
 
-> > +#define PROC_WAKEUP_GUARD  (10*HZ)
-> [...]
-> > +       timeout = info->last_proc_notify + PROC_WAKEUP_GUARD;
-> 
-> If only one or a few processes are using the system I think 10 seconds
-> is a little long time to wait before they get the notification again.
-> Can we decrease this value? Or make it configurable under /proc? Or
-> make it lower with fewer users? Something like:
-
-Oh, that is very interesting issue.
-tank you good point out.
-
-after deep thinking, I understand my current implementation is fully stupid.
-current, worst case is below.
-
-  1. low end
-     - many process of used only a bit memory(sh, cp etc..) exist.
-     - 1 memory eater process exist(may be, it is fat browser)
-       and it watching /dev/mem_notify.
-
-  2. high end
-     - many process of used only a bit memory(sh, cp etc..) exist.
-     - 1 memory eater process exist(may be, it is DB)
-       and it watching /dev/mem_notify.
-
-the point is "only 1 process watch /dev/mem_notify", but not a few processor.
-I fix it with pleasure. 
+The reason the new field is needed is because the Linux mm does not 
+understand the secondary pte format and zapping protocol.  Locating the 
+secondary ptes is just a part of the problem.
 
 
-> timeout = info->last_proc_notify + min(mem_notify_users, PROC_WAKEUP_GUARD);
-
-I like this formula.
-the rest problem is decide to default value when only 1 process watch /dev/mem_notify.
-
-What do you think it?
-and if my low end worst case situation doesn't match yours, 
-Could you please explain your usage more?
-
-
-BTW: 
-end up, We will add /proc configuration the future.
-but I think it is too early.
-sometimes configrable parameter prevent the discussion of nicer default value.
-Instead, I hope the default value changed by adjust your usage.
-
-
-- kosaki
-
+-- 
+Any sufficiently difficult bug is indistinguishable from a feature.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
