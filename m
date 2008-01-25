@@ -1,169 +1,83 @@
-From: Anton Salikhmetov <salikhmetov@gmail.com>
-Subject: [PATCH -v8 1/4] Massive code cleanup of sys_msync()
-Date: Wed, 23 Jan 2008 02:21:17 +0300
-Message-Id: <12010440823808-git-send-email-salikhmetov@gmail.com>
-In-Reply-To: <12010440803930-git-send-email-salikhmetov@gmail.com>
-References: <12010440803930-git-send-email-salikhmetov@gmail.com>
+Date: Fri, 25 Jan 2008 12:42:29 +0100
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [patch 0/4] [RFC] MMU Notifiers V1
+Message-ID: <20080125114229.GA7454@v2.random>
+References: <20080125055606.102986685@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080125055606.102986685@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, jakob@unthought.net, linux-kernel@vger.kernel.org, valdis.kletnieks@vt.edu, riel@redhat.com, ksm@42.dk, staubach@redhat.com, jesper.juhl@gmail.com, torvalds@linux-foundation.org, a.p.zijlstra@chello.nl, akpm@linux-foundation.org, protasnb@gmail.com, miklos@szeredi.hu, r.e.wolff@bitwizard.nl, hidave.darkstar@gmail.com, hch@infradead.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Use the PAGE_ALIGN() macro instead of "manual" alignment.
-Improve readability of the loop, which traverses the process
-memory regions. Make code more symmetric and possibly boost
-performance on some RISC CPUs by moving variable assignments.
+On Thu, Jan 24, 2008 at 09:56:06PM -0800, Christoph Lameter wrote:
+> Andrea's mmu_notifier #4 -> RFC V1
+> 
+> - Merge subsystem rmap based with Linux rmap based approach
+> - Move Linux rmap based notifiers out of macro
+> - Try to account for what locks are held while the notifiers are
+>   called.
+> - Develop a patch sequence that separates out the different types of
+>   hooks so that it is easier to review their use.
+> - Avoid adding #include to linux/mm_types.h
+> - Integrate RCU logic suggested by Peter.
 
-Signed-off-by: Anton Salikhmetov <salikhmetov@gmail.com>
----
- mm/msync.c |   76 ++++++++++++++++++++++++++++-------------------------------
- 1 files changed, 36 insertions(+), 40 deletions(-)
+I'm glad you're converging on something a bit saner and much much
+closer to my code, plus perfectly usable by KVM optimal rmap design
+too. It would have preferred if you would have sent me patches like
+Peter did for review and merging etc... that would have made review
+especially easier. Anyway I'm used to that on lkml so it's ok, I just
+need this patch to be included in mainline, everything else is
+irrelevant to me.
 
-diff --git a/mm/msync.c b/mm/msync.c
-index 144a757..60efa36 100644
---- a/mm/msync.c
-+++ b/mm/msync.c
-@@ -1,85 +1,84 @@
- /*
-- *	linux/mm/msync.c
-+ * The msync() system call.
-  *
-- * Copyright (C) 1994-1999  Linus Torvalds
-+ * Copyright (C) 1994-1999 Linus Torvalds
-+ * Copyright (C) 2008 Anton Salikhmetov <salikhmetov@gmail.com>
-  */
- 
--/*
-- * The msync() system call.
-- */
-+#include <linux/file.h>
- #include <linux/fs.h>
- #include <linux/mm.h>
- #include <linux/mman.h>
--#include <linux/file.h>
--#include <linux/syscalls.h>
- #include <linux/sched.h>
-+#include <linux/syscalls.h>
- 
- /*
-  * MS_SYNC syncs the entire file - including mappings.
-  *
-  * MS_ASYNC does not start I/O (it used to, up to 2.5.67).
-- * Nor does it marks the relevant pages dirty (it used to up to 2.6.17).
-+ * Nor does it mark the relevant pages dirty (it used to up to 2.6.17).
-  * Now it doesn't do anything, since dirty pages are properly tracked.
-  *
-- * The application may now run fsync() to
-- * write out the dirty pages and wait on the writeout and check the result.
-- * Or the application may run fadvise(FADV_DONTNEED) against the fd to start
-- * async writeout immediately.
-+ * The application may now run fsync() to write out the dirty pages and
-+ * wait on the writeout and check the result. Or the application may run
-+ * fadvise(FADV_DONTNEED) against the fd to start async writeout immediately.
-  * So by _not_ starting I/O in MS_ASYNC we provide complete flexibility to
-  * applications.
-  */
- asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
- {
- 	unsigned long end;
--	struct mm_struct *mm = current->mm;
-+	int error, unmapped_error;
- 	struct vm_area_struct *vma;
--	int unmapped_error = 0;
--	int error = -EINVAL;
-+	struct mm_struct *mm;
- 
-+	error = -EINVAL;
- 	if (flags & ~(MS_ASYNC | MS_INVALIDATE | MS_SYNC))
- 		goto out;
- 	if (start & ~PAGE_MASK)
- 		goto out;
- 	if ((flags & MS_ASYNC) && (flags & MS_SYNC))
- 		goto out;
+On a technical merit this still partially makes me sick and I think
+it's the last issue to debate.
+
+@@ -971,6 +974,9 @@ int try_to_unmap(struct page *page, int 
+        else
+                ret = try_to_unmap_file(page, migration);
+
++       if (unlikely(PageExternalRmap(page)))
++               mmu_rmap_notifier(invalidate_page, page);
 +
- 	error = -ENOMEM;
--	len = (len + ~PAGE_MASK) & PAGE_MASK;
-+	len = PAGE_ALIGN(len);
- 	end = start + len;
- 	if (end < start)
- 		goto out;
-+
- 	error = 0;
-+	unmapped_error = 0;
- 	if (end == start)
- 		goto out;
-+
- 	/*
- 	 * If the interval [start,end) covers some unmapped address ranges,
- 	 * just ignore them, but return -ENOMEM at the end.
- 	 */
-+	mm = current->mm;
- 	down_read(&mm->mmap_sem);
- 	vma = find_vma(mm, start);
--	for (;;) {
-+	do {
- 		struct file *file;
- 
--		/* Still start < end. */
- 		error = -ENOMEM;
- 		if (!vma)
--			goto out_unlock;
--		/* Here start < vma->vm_end. */
-+			break;
- 		if (start < vma->vm_start) {
- 			start = vma->vm_start;
- 			if (start >= end)
--				goto out_unlock;
--			unmapped_error = -ENOMEM;
--		}
--		/* Here vma->vm_start <= start < vma->vm_end. */
--		if ((flags & MS_INVALIDATE) &&
--				(vma->vm_flags & VM_LOCKED)) {
--			error = -EBUSY;
--			goto out_unlock;
-+				break;
-+			unmapped_error = error;
- 		}
--		file = vma->vm_file;
-+
-+		error = -EBUSY;
-+		if ((flags & MS_INVALIDATE) && (vma->vm_flags & VM_LOCKED))
-+			break;
-+
-+		error = 0;
- 		start = vma->vm_end;
--		if ((flags & MS_SYNC) && file &&
--				(vma->vm_flags & VM_SHARED)) {
-+		file = vma->vm_file;
-+		if (file && (vma->vm_flags & VM_SHARED) && (flags & MS_SYNC)) {
- 			get_file(file);
- 			up_read(&mm->mmap_sem);
- 			error = do_fsync(file, 0);
-@@ -88,16 +87,13 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
- 				goto out;
- 			down_read(&mm->mmap_sem);
- 			vma = find_vma(mm, start);
--		} else {
--			if (start >= end) {
--				error = 0;
--				goto out_unlock;
--			}
--			vma = vma->vm_next;
-+			continue;
- 		}
--	}
--out_unlock:
-+
-+		vma = vma->vm_next;
-+	} while (start < end);
- 	up_read(&mm->mmap_sem);
-+
- out:
--	return error ? : unmapped_error;
-+	return error ? error : unmapped_error;
- }
--- 
-1.4.4.4
+        if (!page_mapped(page))
+                ret = SWAP_SUCCESS;
+        return ret;
+
+I find the above hard to accept, because the moment you work with
+physical pages and not "mm+address" I think you couldn't possibly care
+if page_mapped is true or false, and I think the above notifier should
+be called _outside_ try_to_unmap. Infact I'd call
+mmu_rmap_notifier(invalidate_page, page); only if page_unmapped is
+false and the linux pte is gone already (practically just before the
+page_count == 2 check and after try_to_unmap).
+
+I also think it's still worth to debate the rmap based on virtual or
+physical index. By supporting both secondary-rmap designs at the same
+time you seem to agree current KVM lightweight rmap implementation is
+a superior design at least for KVM. But by insisting on your rmap
+based on physical for your usage, you're implicitly telling us that is
+a superior design for you. But we know very little of why you can't
+exactly build rmap on virtual like KVM does! (especially now that you
+implicitly admitted KVM rmap design is superior at least for KVM it'd
+be interesting to know why you can't do the same exactly) You said
+something on that, but I certainly don't have a clear picture of why
+it can't work or why it would be less efficient.
+
+Like you said by PM I'd also like comments from Hugh, Nick and others
+about this issue.
+
+Nevertheless I'm very glad we already fully converged on the
+set_page_dirty, invalidate-page after ptep_clear_flush/young,
+etc... and furthermore that you only made very minor modification to
+my code to add a pair of hooks for the page-based rmap notifiers on
+top of my patch. So from a functionality POV this is 100% workable
+already from KVM side!
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
