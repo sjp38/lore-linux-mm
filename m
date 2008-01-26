@@ -1,62 +1,62 @@
-Received: by an-out-0708.google.com with SMTP id d33so273662and.105
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2008 23:29:23 -0800 (PST)
-Message-ID: <28c262360801252329q7232edc2l2d0e4ed17c054832@mail.gmail.com>
-Date: Sat, 26 Jan 2008 02:29:23 -0500
-From: "minchan kim" <minchan.kim@gmail.com>
-Subject: [PATCH] remove duplicating priority setting in try_to_free_p
+Date: Sat, 26 Jan 2008 05:56:39 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [patch 1/4] mmu_notifier: Core code
+Message-ID: <20080126115639.GQ26420@sgi.com>
+References: <20080125055606.102986685@sgi.com> <20080125055801.212744875@sgi.com> <20080125183934.GO26420@sgi.com> <Pine.LNX.4.64.0801251041040.672@schroedinger.engr.sgi.com> <20080125185646.GQ3058@sgi.com> <Pine.LNX.4.64.0801251058170.3198@schroedinger.engr.sgi.com> <20080125193554.GP26420@sgi.com> <Pine.LNX.4.64.0801251206390.7856@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0801251206390.7856@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Robin Holt <holt@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-shrink_zones in try_to_free_pages already set zone through
-note_zone_scanning_priority.
-So, setting prev_priority in try_to_free_pages is needless.
+> > > 1. invalidate_all()
+> > 
+> > That will be fine as long as we can unregister the ops notifier and free
+> > the structure.  Otherwise, we end up being called needlessly.
+> 
+> No you cannot do that because there are still callbacks that come later. 
+> The invalidate_all may lead to invalidate_range() doing nothing for this 
+> mm. The ops notifier and the freeing of the structure has to wait until 
+> release().
 
-This patch is made by 2.6.24-rc8.
+Could you be a little more clear here?  If you are saying that the other
+callbacks will need to do work?  I can assure you we will clean up those
+pages and raise memory protections.  It will also be done in a much more
+efficient fashion than the individual callouts.
 
-Signed-off-by: barrios <minchan.kim@gmail.com>
----
- mm/vmscan.c |   17 -----------------
- 1 files changed, 0 insertions(+), 17 deletions(-)
+If, on the other hand, you are saying we can not because of the way
+we traverse the list, can we return a result indicating to the caller
+we would like to be unregistered and then the mmu_notifier code do the
+remove followed by a call to the release notifier?
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e5a9597..fc55c23 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1273,23 +1273,6 @@ unsigned long try_to_free_pages(struct z
-    if (!sc.all_unreclaimable)
-        ret = 1;
- out:
--   /*
--    * Now that we've scanned all the zones at this priority level, note
--    * that level within the zone so that the next thread which performs
--    * scanning of this zone will immediately start out at this priority
--    * level.  This affects only the decision whether or not to bring
--    * mapped pages onto the inactive list.
--    */
--   if (priority < 0)
--       priority = 0;
--   for (i = 0; zones[i] != NULL; i++) {
--       struct zone *zone = zones[i];
--
--       if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
--           continue;
--
--       zone->prev_priority = priority;
--   }
-    return ret;
- }
+> 
+> > > 2. invalidate_range() for each vma
+> > > 
+> > > 3. release()
+> > > 
+> > > We cannot simply move the call up because there will be future range 
+> > > callbacks on vma invalidation.
+> > 
+> > I am not sure what this means.  Right now, if you were to notify XPMEM
+> > the process is exiting, we would take care of all the recalling of pages
+> > exported by this process, clearing those pages cache lines from cache,
+> > and raising memory protections.  I would assume that moving the callout
+> > earlier would expect the same of every driver.
+> 
+> That does not sync with the current scheme of the invalidate_range() 
+> hooks. We would have to do a global invalidate early and then place the 
+> other invalidate_range hooks in such a way that none is called in later in 
+> process exit handling.
 
+But if the notifier is removed from the list following the invalidate_all
+callout, there would be no additional callouts.
 
--- 
-Kinds regards,
-barrios
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
