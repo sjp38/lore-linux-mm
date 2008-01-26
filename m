@@ -1,49 +1,62 @@
+Received: by an-out-0708.google.com with SMTP id d33so273662and.105
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2008 23:29:23 -0800 (PST)
+Message-ID: <28c262360801252329q7232edc2l2d0e4ed17c054832@mail.gmail.com>
+Date: Sat, 26 Jan 2008 02:29:23 -0500
+From: "minchan kim" <minchan.kim@gmail.com>
+Subject: [PATCH] remove duplicating priority setting in try_to_free_p
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
-Message-ID: <18330.35819.738293.742989@cargo.ozlabs.ibm.com>
-Date: Sat, 26 Jan 2008 12:24:59 +1100
-From: Paul Mackerras <paulus@samba.org>
-Subject: Re: [RFC][PATCH] remove section mappinng
-In-Reply-To: <1201277105.26929.36.camel@dyn9047017100.beaverton.ibm.com>
-References: <1201277105.26929.36.camel@dyn9047017100.beaverton.ibm.com>
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: linuxppc-dev@ozlabs.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, anton@au1.ibm.com, linux-mm <linux-mm@kvack.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Badari Pulavarty writes:
+shrink_zones in try_to_free_pages already set zone through
+note_zone_scanning_priority.
+So, setting prev_priority in try_to_free_pages is needless.
 
-> Here is the code I cooked up, it seems to be working fine.
-> But I have concerns where I need your help.
-> 
-> In order to invalidate htab entries, we need to find the "slot".
-> But I can only find the hpte group. Is it okay to invalidate the
-> first entry in the group ? Do I need to invalidate the entire group ?
+This patch is made by 2.6.24-rc8.
 
-You do need to find the correct slot.  (I suppose you could invalidate
-the entire group, but that would be pretty gross.)
+Signed-off-by: barrios <minchan.kim@gmail.com>
+---
+ mm/vmscan.c |   17 -----------------
+ 1 files changed, 0 insertions(+), 17 deletions(-)
 
-Note that in the CONFIG_DEBUG_PAGEALLOC case we use 4k pages and keep
-a map of the slot numbers in linear_map_hash_slots[].  But in that
-case I assume that the generic code would have already unmapped all
-the pages of the LMB that you're trying to hot-unplug.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index e5a9597..fc55c23 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1273,23 +1273,6 @@ unsigned long try_to_free_pages(struct z
+    if (!sc.all_unreclaimable)
+        ret = 1;
+ out:
+-   /*
+-    * Now that we've scanned all the zones at this priority level, note
+-    * that level within the zone so that the next thread which performs
+-    * scanning of this zone will immediately start out at this priority
+-    * level.  This affects only the decision whether or not to bring
+-    * mapped pages onto the inactive list.
+-    */
+-   if (priority < 0)
+-       priority = 0;
+-   for (i = 0; zones[i] != NULL; i++) {
+-       struct zone *zone = zones[i];
+-
+-       if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+-           continue;
+-
+-       zone->prev_priority = priority;
+-   }
+    return ret;
+ }
 
-In the non-DEBUG_PAGEALLOC case on a System p machine, the hash table
-will be big enough that the linear mapping entries should always be in
-slot 0.  So just invalidating slot 0 would probably work in practice,
-but it seems pretty fragile.  We might want to use your new
-htab_remove_mapping() function on a bare-metal system with a smaller
-hash table in future, for instance.
 
-Have a look at pSeries_lpar_hpte_updateboltedpp.  It calls
-pSeries_lpar_hpte_find to find the slot for a bolted HPTE.  You could
-do something similar.  In fact maybe the best approach is to do a
-pSeries_lpar_hpte_remove_bolted() and not try to solve the more
-general problem.
-
-Paul.
+-- 
+Kinds regards,
+barrios
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
