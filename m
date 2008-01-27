@@ -1,47 +1,49 @@
-Date: Sat, 26 Jan 2008 22:03:36 -0800
+Date: Sat, 26 Jan 2008 22:03:56 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Fix procfs task exe symlink
-Message-Id: <20080126220336.a2a3caf7.akpm@linux-foundation.org>
-In-Reply-To: <1201112977.5443.29.camel@localhost.localdomain>
-References: <1201112977.5443.29.camel@localhost.localdomain>
+Subject: Re: [patch] mm: fix PageUptodate data race
+Message-Id: <20080126220356.0b77f0e9.akpm@linux-foundation.org>
+In-Reply-To: <20080122040114.GA18450@wotan.suse.de>
+References: <20080122040114.GA18450@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Helsley <matthltc@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@ftp.linux.org.uk, dhowells@redhat.com, wtaber@us.ibm.com, owilliam@br.ibm.com, rkissel@us.ibm.com, hch@lst.de
+To: Nick Piggin <npiggin@suse.de>
+Cc: hugh@veritas.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, 23 Jan 2008 10:29:37 -0800 Matt Helsley <matthltc@us.ibm.com> wrote:
+> On Tue, 22 Jan 2008 05:01:14 +0100 Nick Piggin <npiggin@suse.de> wrote:
 > 
-> Andrew, please consider this patch for inclusion in -mm.
+> After running SetPageUptodate, preceeding stores to the page contents to
+> actually bring it uptodate may not be ordered with the store to set the page
+> uptodate.
 > 
-> ...
->
-
-Can't say that we're particularly exercised about mvfs's problems, but the
-current way of doing /proc/pid/exe is indeed a nasty hack.
-
+> Therefore, another CPU which checks PageUptodate is true, then reads the
+> page contents can get stale data.
 > 
->  fs/binfmt_flat.c          |    3 +
->  fs/exec.c                 |    2 +
->  fs/proc/base.c            |   77 ++++++++++++++++++++++++++++++++++++++++++++++
->  fs/proc/internal.h        |    1 
->  fs/proc/task_mmu.c        |   34 --------------------
->  fs/proc/task_nommu.c      |   34 --------------------
->  include/linux/init_task.h |    8 ++++
->  include/linux/mm.h        |   22 +++++++++++++
->  include/linux/mm_types.h  |    7 ++++
->  include/linux/proc_fs.h   |   14 +++++++-
->  kernel/fork.c             |    3 +
->  mm/mmap.c                 |   22 ++++++++++---
->  mm/nommu.c                |   15 +++++++-
->  13 files changed, 164 insertions(+), 78 deletions(-)
+> Fix this by having an smp_wmb before SetPageUptodate, and smp_rmb after
+> PageUptodate.
+> 
+> Many places that test PageUptodate, do so with the page locked, and this
+> would be enough to ensure memory ordering in those places if SetPageUptodate
+> were only called while the page is locked. Unfortunately that is not always
+> the case for some filesystems, but it could be an idea for the future.
+> 
+> Also bring the handling of anonymous page uptodateness in line with that of
+> file backed page management, by marking anon pages as uptodate when they _are_
+> uptodate, rather than when our implementation requires that they be marked as
+> such. Doing allows us to get rid of the smp_wmb's in the page copying
+> functions, which were especially added for anonymous pages for an analogous
+> memory ordering problem. Both file and anonymous pages are handled with the
+> same barriers.
+> 
 
-It's a fairly expensive fix though.  Can't we just do a strcpy() somewhere
-at exec time?
+So...  it's two patches in one.
 
+
+What kernel is this against?  Looks like mainline.  Is it complete and
+correct when applied against the large number of pending MM changes?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
