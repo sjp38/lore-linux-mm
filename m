@@ -1,36 +1,30 @@
-In-reply-to: <1201626379.28547.142.camel@lappy> (message from Peter Zijlstra
-	on Tue, 29 Jan 2008 18:06:19 +0100)
-Subject: Re: [patch 0/6] mm: bdi: updates
-References: <20080129154900.145303789@szeredi.hu> <1201626379.28547.142.camel@lappy>
-Message-Id: <E1JJvGA-00060l-Ja@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Tue, 29 Jan 2008 19:32:38 +0100
+Received: by fg-out-1718.google.com with SMTP id e12so1535939fga.4
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2008 00:31:43 -0800 (PST)
+Message-ID: <6101e8c40801280031v1a860e90gfb3992ae5db37047@mail.gmail.com>
+Date: Mon, 28 Jan 2008 09:31:43 +0100
+From: "=?ISO-8859-1?Q?Oliver_Pinter_(Pint=E9r_Oliv=E9r)?="
+	<oliver.pntr@gmail.com>
+Subject: [2.6.24 REGRESSION] BUG: Soft lockup - with VFS
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: a.p.zijlstra@chello.nl
-Cc: miklos@szeredi.hu, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 2008-01-29 at 16:49 +0100, Miklos Szeredi wrote:
-> > This is a series from Peter Zijlstra, with various updates by me.  The
-> > patchset mostly deals with exporting BDI attributes in sysfs.
-> > 
-> > Should be in a mergeable state, at least into -mm.
-> 
-> Thanks for picking these up Miklos!
-> 
-> While they do not strictly depend upon the /proc/<pid>/mountinfo patch I
-> think its good to mention they go hand in hand. The mountinfo file gives
-> the information needed to associate a mount with a given bdi for non
-> block devices.
+hi all!
 
-More precisely /proc/<pid>/mountinfo is only needed to find mounts for
-a given BDI (which might not be a very common scenario), and not the
-other way round.
+in the 2.6.24 become i some soft lockups with usb-phone, when i pluged
+in the mobile, then the vfs-layer crashed. am afternoon can i the
+.config send, and i bisected the kernel, when i have time.
 
-But both patches are useful, and they are even more useful together ;)
-
-Miklos
+pictures from crash:
+http://students.zipernowsky.hu/~oliverp/kernel/regression_2624/
+-- 
+Thanks,
+Oliver
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
