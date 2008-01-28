@@ -1,75 +1,99 @@
-Received: from zps19.corp.google.com (zps19.corp.google.com [172.25.146.19])
-	by smtp-out.google.com with ESMTP id m0S7n6p9005200
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2008 07:49:06 GMT
-Received: from py-out-1112.google.com (pyia25.prod.google.com [10.34.253.25])
-	by zps19.corp.google.com with ESMTP id m0S7n4EW023495
-	for <linux-mm@kvack.org>; Sun, 27 Jan 2008 23:49:05 -0800
-Received: by py-out-1112.google.com with SMTP id a25so1857303pyi.13
-        for <linux-mm@kvack.org>; Sun, 27 Jan 2008 23:49:04 -0800 (PST)
-Message-ID: <6599ad830801272349p4b076ba5u8c491a92128fb1a9@mail.gmail.com>
-Date: Sun, 27 Jan 2008 23:49:04 -0800
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [PATCH] reject '\n' in a cgroup name
-In-Reply-To: <20080124052049.A2A8A1E3C0D@siro.lan>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Mon, 28 Jan 2008 00:56:57 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Only print kernel debug information for OOMs caused by
+ kernel allocations
+Message-Id: <20080128005657.24236df5.akpm@linux-foundation.org>
+In-Reply-To: <200801280710.08204.ak@suse.de>
+References: <20080116222421.GA7953@wotan.suse.de>
+	<20080127215249.94db142b.akpm@linux-foundation.org>
+	<200801280710.08204.ak@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080124052049.A2A8A1E3C0D@siro.lan>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: containers@lists.osdl.org, linux-mm@kvack.org
+To: Andi Kleen <ak@suse.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Looks sensible - maybe we should ban all characters not in [a-zA-Z0-9._-] ?
+On Mon, 28 Jan 2008 07:10:07 +0100 Andi Kleen <ak@suse.de> wrote:
 
-Paul
+> On Monday 28 January 2008 06:52, Andrew Morton wrote:
+> > On Wed, 16 Jan 2008 23:24:21 +0100 Andi Kleen <ak@suse.de> wrote:
+> > > I recently suffered an 20+ minutes oom thrash disk to death and computer
+> > > completely unresponsive situation on my desktop when some user program
+> > > decided to grab all memory. It eventually recovered, but left lots
+> > > of ugly and imho misleading messages in the kernel log. here's a minor
+> > > improvement
+> 
+> As a followup this was with swap over dm crypt. I've recently heard
+> about other people having trouble with this too so this setup seems to trigger
+> something bad in the VM.
 
-On Jan 23, 2008 9:20 PM, YAMAMOTO Takashi <yamamoto@valinux.co.jp> wrote:
-> hi,
->
-> the following patch rejects '\n' in a cgroup name.
-> otherwise /proc/$$/cgroup is not parsable.
->
-> example:
->         imawoto% cat /proc/$$/cgroup
->         memory:/
->         imawoto% mkdir -p "
->         memory:/foo"
->         imawoto% echo $$ >| "
->         memory:/foo/tasks"
->         imawoto% cat /proc/$$/cgroup
->         memory:/
->         memory:/foo
->         imawoto%
->
-> YAMAMOTO Takashi
->
->
-> Signed-off-by: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-> ---
->
-> --- linux-2.6.24-rc8-mm1/kernel/cgroup.c.BACKUP 2008-01-23 14:43:29.000000000 +0900
-> +++ linux-2.6.24-rc8-mm1/kernel/cgroup.c        2008-01-24 13:56:28.000000000 +0900
-> @@ -2216,6 +2216,10 @@ static long cgroup_create(struct cgroup
->         struct cgroup_subsys *ss;
->         struct super_block *sb = root->sb;
->
-> +       /* reject a newline.  otherwise /proc/$$/cgroup is not parsable. */
-> +       if (strchr(dentry->d_name.name, '\n'))
-> +               return -EINVAL;
-> +
->         cgrp = kzalloc(sizeof(*cgrp), GFP_KERNEL);
->         if (!cgrp)
->                 return -ENOMEM;
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+Where's the backtrace and show_mem() output? :)
+
+> > That information is useful for working out why a userspace allocation
+> > attempt failed.  If we don't print it, and the application gets killed and
+> > thus frees a lot of memory, we will just never know why the allocation
+> > failed.
+> 
+> But it's basically only either page fault (direct or indirect) or write et.al.
+> who do these page cache allocations. Do you really think it is that important
+> to distingush these cases individually? In 95+% of all cases it should
+> be a standard user page fault which always has the same backtrace.
+
+Sure, the backtrace isn't very important.  The show_mem() output is vital.
+
+> To figure out why the application really oom'ed for those you would
+> need a user level backtrace, but the message doesn't supply that one anyways. 
+> 
+> All other cases will still print the full backtrace so if some kernel 
+> subsystem runs amok it should be still possible to diagnose it.
+> 
+
+We need the show_mem() output to see where all the memory went, and to see
+what state page reclaim is in.
+
+> 
+> >
+> > >  struct page *__page_cache_alloc(gfp_t gfp)
+> > >  {
+> > > +	struct task_struct *me = current;
+> > > +	unsigned old = (~me->flags) & PF_USER_ALLOC;
+> > > +	struct page *p;
+> > > +
+> > > +	me->flags |= PF_USER_ALLOC;
+> > >  	if (cpuset_do_page_mem_spread()) {
+> > >  		int n = cpuset_mem_spread_node();
+> > > -		return alloc_pages_node(n, gfp, 0);
+> > > -	}
+> > > -	return alloc_pages(gfp, 0);
+> > > +		p = alloc_pages_node(n, gfp, 0);
+> > > +	} else
+> > > +		p = alloc_pages(gfp, 0);
+> > > +	/* Clear USER_ALLOC if it wasn't set originally */
+> > > +	me->flags ^= old;
+> > > +	return p;
+> > >  }
+> >
+> > That's appreciable amount of new overhead for at best a fairly marginal
+> > benefit.  Perhaps __GFP_USER could be [re|ab]used.
+> 
+> It's a few non atomic bit operations. You really think that is considerable
+> overhead? Also all should be cache hot already. My guess is that even with the 
+> additional function call it's < 10 cycles more.
+
+Plus an additional function call.  On the already-deep page allocation
+path, I might add.
+
+> > Alternatively: if we've printed the diagnostic on behalf of this process
+> > and then decided to kill it, set some flag to prevent us from printing it
+> > again.
+> 
+> Do you really think that would help?  I thought these messages came usually
+> from different processes.
+
+Dunno.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
