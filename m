@@ -1,76 +1,75 @@
-Date: Sun, 27 Jan 2008 21:33:12 -0800
+Date: Sun, 27 Jan 2008 21:52:49 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] remove duplicating priority setting in try_to_free_p
-Message-Id: <20080127213312.517b8014.akpm@linux-foundation.org>
-In-Reply-To: <28c262360801252329q7232edc2l2d0e4ed17c054832@mail.gmail.com>
-References: <28c262360801252329q7232edc2l2d0e4ed17c054832@mail.gmail.com>
+Subject: Re: [PATCH] Only print kernel debug information for OOMs caused by
+ kernel allocations
+Message-Id: <20080127215249.94db142b.akpm@linux-foundation.org>
+In-Reply-To: <20080116222421.GA7953@wotan.suse.de>
+References: <20080116222421.GA7953@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: minchan kim <minchan.kim@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Bligh <mbligh@mbligh.org>, Nick Piggin <nickpiggin@yahoo.com.au>
+To: Andi Kleen <ak@suse.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 26 Jan 2008 02:29:23 -0500 "minchan kim" <minchan.kim@gmail.com> wrote:
+On Wed, 16 Jan 2008 23:24:21 +0100 Andi Kleen <ak@suse.de> wrote:
 
-> shrink_zones in try_to_free_pages already set zone through
-> note_zone_scanning_priority.
-> So, setting prev_priority in try_to_free_pages is needless.
 > 
-> This patch is made by 2.6.24-rc8.
+> I recently suffered an 20+ minutes oom thrash disk to death and computer
+> completely unresponsive situation on my desktop when some user program
+> decided to grab all memory. It eventually recovered, but left lots
+> of ugly and imho misleading messages in the kernel log. here's a minor
+> improvement
 > 
-> Signed-off-by: barrios <minchan.kim@gmail.com>
+> -Andi
+> 
 > ---
->  mm/vmscan.c |   17 -----------------
->  1 files changed, 0 insertions(+), 17 deletions(-)
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index e5a9597..fc55c23 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1273,23 +1273,6 @@ unsigned long try_to_free_pages(struct z
->     if (!sc.all_unreclaimable)
->         ret = 1;
->  out:
-> -   /*
-> -    * Now that we've scanned all the zones at this priority level, note
-> -    * that level within the zone so that the next thread which performs
-> -    * scanning of this zone will immediately start out at this priority
-> -    * level.  This affects only the decision whether or not to bring
-> -    * mapped pages onto the inactive list.
-> -    */
-> -   if (priority < 0)
-> -       priority = 0;
-> -   for (i = 0; zones[i] != NULL; i++) {
-> -       struct zone *zone = zones[i];
-> -
-> -       if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
-> -           continue;
-> -
-> -       zone->prev_priority = priority;
-> -   }
->     return ret;
+> Only print kernel debug information for OOMs caused by kernel allocations
+> 
+> For any page cache allocation don't print the backtrace and the detailed
+> zone debugging information. This makes the problem look less like 
+> a kernel bug because it typically isn't.
+> 
+> I needed a new task flag for that. Since the bits are running low
+> I reused an unused one (PF_STARTING) 
+> 
+> Also clarify the error message (OOM means nothing to a normal user) 
+> 
+
+That information is useful for working out why a userspace allocation
+attempt failed.  If we don't print it, and the application gets killed and
+thus frees a lot of memory, we will just never know why the allocation
+failed.
+
+>  struct page *__page_cache_alloc(gfp_t gfp)
+>  {
+> +	struct task_struct *me = current;
+> +	unsigned old = (~me->flags) & PF_USER_ALLOC;
+> +	struct page *p;
+> +
+> +	me->flags |= PF_USER_ALLOC;
+>  	if (cpuset_do_page_mem_spread()) {
+>  		int n = cpuset_mem_spread_node();
+> -		return alloc_pages_node(n, gfp, 0);
+> -	}
+> -	return alloc_pages(gfp, 0);
+> +		p = alloc_pages_node(n, gfp, 0);
+> +	} else
+> +		p = alloc_pages(gfp, 0);
+> +	/* Clear USER_ALLOC if it wasn't set originally */
+> +	me->flags ^= old;
+> +	return p;
 >  }
 
-(your mail client is replacing tabs with spaces)
+That's appreciable amount of new overhead for at best a fairly marginal
+benefit.  Perhaps __GFP_USER could be [re|ab]used.
 
-I think this is actually a bugfix.  The code you're removing doesn't do the 
-
-	if (priority < zone->prev_priority)
-
-thing.
-
-otoh with this change, the only thing which will cause prev_priority to
-increase (ie: lower priority) is kswapd, which seems odd.
-
-So:
-
-a) this is a functional change and needs more thought and lots of runtime
-   testing.  I'll duck it for now.
-
-b) the prev_priority stuff is still screwed up.
+Alternatively: if we've printed the diagnostic on behalf of this process
+and then decided to kill it, set some flag to prevent us from printing it
+again.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
