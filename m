@@ -1,99 +1,37 @@
-Date: Mon, 28 Jan 2008 00:56:57 -0800
+Date: Mon, 28 Jan 2008 01:01:02 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Only print kernel debug information for OOMs caused by
- kernel allocations
-Message-Id: <20080128005657.24236df5.akpm@linux-foundation.org>
-In-Reply-To: <200801280710.08204.ak@suse.de>
-References: <20080116222421.GA7953@wotan.suse.de>
-	<20080127215249.94db142b.akpm@linux-foundation.org>
-	<200801280710.08204.ak@suse.de>
+Subject: Re: [PATCH] remove duplicating priority setting in try_to_free_p
+Message-Id: <20080128010102.8cbcbdda.akpm@linux-foundation.org>
+In-Reply-To: <28c262360801272243h71bf4464s431d1377051c756b@mail.gmail.com>
+References: <28c262360801252329q7232edc2l2d0e4ed17c054832@mail.gmail.com>
+	<20080127213312.517b8014.akpm@linux-foundation.org>
+	<28c262360801272243h71bf4464s431d1377051c756b@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: minchan kim <minchan.kim@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Bligh <mbligh@mbligh.org>, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Jan 2008 07:10:07 +0100 Andi Kleen <ak@suse.de> wrote:
+On Mon, 28 Jan 2008 15:43:56 +0900 "minchan kim" <minchan.kim@gmail.com> wrote:
 
-> On Monday 28 January 2008 06:52, Andrew Morton wrote:
-> > On Wed, 16 Jan 2008 23:24:21 +0100 Andi Kleen <ak@suse.de> wrote:
-> > > I recently suffered an 20+ minutes oom thrash disk to death and computer
-> > > completely unresponsive situation on my desktop when some user program
-> > > decided to grab all memory. It eventually recovered, but left lots
-> > > of ugly and imho misleading messages in the kernel log. here's a minor
-> > > improvement
-> 
-> As a followup this was with swap over dm crypt. I've recently heard
-> about other people having trouble with this too so this setup seems to trigger
-> something bad in the VM.
-
-Where's the backtrace and show_mem() output? :)
-
-> > That information is useful for working out why a userspace allocation
-> > attempt failed.  If we don't print it, and the application gets killed and
-> > thus frees a lot of memory, we will just never know why the allocation
-> > failed.
-> 
-> But it's basically only either page fault (direct or indirect) or write et.al.
-> who do these page cache allocations. Do you really think it is that important
-> to distingush these cases individually? In 95+% of all cases it should
-> be a standard user page fault which always has the same backtrace.
-
-Sure, the backtrace isn't very important.  The show_mem() output is vital.
-
-> To figure out why the application really oom'ed for those you would
-> need a user level backtrace, but the message doesn't supply that one anyways. 
-> 
-> All other cases will still print the full backtrace so if some kernel 
-> subsystem runs amok it should be still possible to diagnose it.
-> 
-
-We need the show_mem() output to see where all the memory went, and to see
-what state page reclaim is in.
-
-> 
+> > I think this is actually a bugfix.  The code you're removing doesn't do the
 > >
-> > >  struct page *__page_cache_alloc(gfp_t gfp)
-> > >  {
-> > > +	struct task_struct *me = current;
-> > > +	unsigned old = (~me->flags) & PF_USER_ALLOC;
-> > > +	struct page *p;
-> > > +
-> > > +	me->flags |= PF_USER_ALLOC;
-> > >  	if (cpuset_do_page_mem_spread()) {
-> > >  		int n = cpuset_mem_spread_node();
-> > > -		return alloc_pages_node(n, gfp, 0);
-> > > -	}
-> > > -	return alloc_pages(gfp, 0);
-> > > +		p = alloc_pages_node(n, gfp, 0);
-> > > +	} else
-> > > +		p = alloc_pages(gfp, 0);
-> > > +	/* Clear USER_ALLOC if it wasn't set originally */
-> > > +	me->flags ^= old;
-> > > +	return p;
-> > >  }
+> >         if (priority < zone->prev_priority)
 > >
-> > That's appreciable amount of new overhead for at best a fairly marginal
-> > benefit.  Perhaps __GFP_USER could be [re|ab]used.
+> > thing.
+> >
 > 
-> It's a few non atomic bit operations. You really think that is considerable
-> overhead? Also all should be cache hot already. My guess is that even with the 
-> additional function call it's < 10 cycles more.
+> shrink_zones() in try_to_free_pages() already called
+> note_zone_scanning_priority().
+> So, it have done it.
 
-Plus an additional function call.  On the already-deep page allocation
-path, I might add.
-
-> > Alternatively: if we've printed the diagnostic on behalf of this process
-> > and then decided to kill it, set some flag to prevent us from printing it
-> > again.
-> 
-> Do you really think that would help?  I thought these messages came usually
-> from different processes.
-
-Dunno.
+note_zone_scanning_priority() will only permit ->prev_priority to logically
+increase, whereas the code which you've removed will also permit
+->prev_priority to logically decrease.  So I don't see that they are
+equivalent?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
