@@ -1,95 +1,62 @@
-Message-ID: <479D9C78.50202@sannes.org>
-Date: Mon, 28 Jan 2008 10:12:24 +0100
-From: =?ISO-8859-1?Q?Asbj=F8rn_Sannes?= <ace@sannes.org>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH] Only print kernel debug information for OOMs caused by kernel allocations
+Date: Mon, 28 Jan 2008 10:11:57 +0100
+References: <20080116222421.GA7953@wotan.suse.de> <200801280710.08204.ak@suse.de> <20080128005657.24236df5.akpm@linux-foundation.org>
+In-Reply-To: <20080128005657.24236df5.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: Unpredictable performance
-References: <4799C8E8.9060501@ifi.uio.no> <4799F2D7.5060504@sannes.org> <4799FA3C.6040700@sannes.org> <200801261138.30963.nickpiggin@yahoo.com.au>
-In-Reply-To: <200801261138.30963.nickpiggin@yahoo.com.au>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200801281011.57839.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> On Saturday 26 January 2008 02:03, Asbjorn Sannes wrote:
->   
->> Asbjorn Sannes wrote:
->>     
->>> Nick Piggin wrote:
->>>       
->>>> On Friday 25 January 2008 22:32, Asbjorn Sannes wrote:
->>>>         
->>>>> Hi,
->>>>>
->>>>> I am experiencing unpredictable results with the following test
->>>>> without other processes running (exception is udev, I believe):
->>>>> cd /usr/src/test
->>>>> tar -jxf ../linux-2.6.22.12
->>>>> cp ../working-config linux-2.6.22.12/.config
->>>>> cd linux-2.6.22.12
->>>>> make oldconfig
->>>>> time make -j3 > /dev/null # This is what I note down as a "test" result
->>>>> cd /usr/src ; umount /usr/src/test ; mkfs.ext3 /dev/cc/test
->>>>> and then reboot
->>>>>
->>>>> The kernel is booted with the parameter mem=81920000
->>>>>
->>>>> For 2.6.23.14 the results vary from (real time) 33m30.551s to
->>>>> 45m32.703s (30 runs)
->>>>> For 2.6.23.14 with nop i/o scheduler from 29m8.827s to 55m36.744s (24
->>>>> runs) For 2.6.22.14 also varied a lot.. but, lost results :(
->>>>> For 2.6.20.21 only vary from 34m32.054s to 38m1.928s (10 runs)
->>>>>
->>>>> Any idea of what can cause this? I have tried to make the runs as equal
->>>>> as possible, rebooting between each run.. i/o scheduler is cfq as
->>>>> default.
->>>>>
->>>>> sys and user time only varies a couple of seconds.. and the order of
->>>>> when it is "fast" and when it is "slow" is completly random, but it
->>>>> seems that the results are mostly concentrated around the mean.
->>>>>           
->>>> Hmm, lots of things could cause it. With such big variations in
->>>> elapsed time, and small variations on CPU time, I guess the fs/IO
->>>> layers are the prime suspects, although it could also involve the
->>>> VM if you are doing a fair amount of page reclaim.
->>>>
->>>> Can you boot with enough memory such that it never enters page
->>>> reclaim? `grep scan /proc/vmstat` to check.
->>>>
->>>> Otherwise you could mount the working directory as tmpfs to
->>>> eliminate IO.
->>>>
->>>> bisecting it down to a single patch would be really helpful if you
->>>> can spare the time.
->>>>         
->>> I'm going to run some tests without limiting the memory to 80 megabytes
->>> (so that it is 2 gigabyte) and see how much it varies then, but iff I
->>> recall correctly it did not vary much. I'll reply to this e-mail with
->>> the results.
->>>       
->> 5 runs gives me:
->> real    5m58.626s
->> real    5m57.280s
->> real    5m56.584s
->> real    5m57.565s
->> real    5m56.613s
->>
->> Should I test with tmpfs aswell?
->>     
+On Monday 28 January 2008 09:56, Andrew Morton wrote:
+> On Mon, 28 Jan 2008 07:10:07 +0100 Andi Kleen <ak@suse.de> wrote:
+> > On Monday 28 January 2008 06:52, Andrew Morton wrote:
+> > > On Wed, 16 Jan 2008 23:24:21 +0100 Andi Kleen <ak@suse.de> wrote:
+> > > > I recently suffered an 20+ minutes oom thrash disk to death and
+> > > > computer completely unresponsive situation on my desktop when some
+> > > > user program decided to grab all memory. It eventually recovered, but
+> > > > left lots of ugly and imho misleading messages in the kernel log.
+> > > > here's a minor improvement
+> >
+> > As a followup this was with swap over dm crypt. I've recently heard
+> > about other people having trouble with this too so this setup seems to
+> > trigger something bad in the VM.
 >
-> I wouldn't worry about it. It seems like it might be due to page reclaim
-> (fs / IO can't be ruled out completely though). Hmm, I haven't been following
-> reclaim so closely lately; you say it started going bad around 2.6.22? It
-> may be lumpy reclaim patches?
->   
-Going to bisect it soon, but I suspect it will take some time
-(considering how many runs I need to make any sense of the results).
+> Where's the backtrace and show_mem() output? :)
 
---
-Asbjorn Sannes
+I don't have it anymore. You want me to reproduce it? I don't think
+I saw messages from the other people either; just heard complaints.
+
+> > > That information is useful for working out why a userspace allocation
+> > > attempt failed.  If we don't print it, and the application gets killed
+> > > and thus frees a lot of memory, we will just never know why the
+> > > allocation failed.
+> >
+> > But it's basically only either page fault (direct or indirect) or write
+> > et.al. who do these page cache allocations. Do you really think it is
+> > that important to distingush these cases individually? In 95+% of all
+> > cases it should be a standard user page fault which always has the same
+> > backtrace.
+>
+> Sure, the backtrace isn't very important.  The show_mem() output is vital.
+
+I see. So would the patch be acceptable if it only disabled the backtrace? 
+
+> Plus an additional function call.  On the already-deep page allocation
+> path, I might add.
+
+The function call is already there if the kernel has CPUSETs enabled.
+And that is what distribution kernels usually do. And most users
+use distribution kernels or distribution .config.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
