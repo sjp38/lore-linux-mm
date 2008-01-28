@@ -1,78 +1,53 @@
-Date: Mon, 28 Jan 2008 01:27:18 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Only print kernel debug information for OOMs caused by
- kernel allocations
-Message-Id: <20080128012718.65b7889a.akpm@linux-foundation.org>
-In-Reply-To: <200801281011.57839.ak@suse.de>
-References: <20080116222421.GA7953@wotan.suse.de>
-	<200801280710.08204.ak@suse.de>
-	<20080128005657.24236df5.akpm@linux-foundation.org>
-	<200801281011.57839.ak@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by an-out-0708.google.com with SMTP id d33so453566and.105
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2008 04:38:59 -0800 (PST)
+Message-ID: <28c262360801280438s59b6957bnffa5f3cf75f93014@mail.gmail.com>
+Date: Mon, 28 Jan 2008 21:38:57 +0900
+From: "minchan kim" <minchan.kim@gmail.com>
+Subject: Re: [PATCH] remove duplicating priority setting in try_to_free_p
+In-Reply-To: <20080128010102.8cbcbdda.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <28c262360801252329q7232edc2l2d0e4ed17c054832@mail.gmail.com>
+	 <20080127213312.517b8014.akpm@linux-foundation.org>
+	 <28c262360801272243h71bf4464s431d1377051c756b@mail.gmail.com>
+	 <20080128010102.8cbcbdda.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Bligh <mbligh@mbligh.org>, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Jan 2008 10:11:57 +0100 Andi Kleen <ak@suse.de> wrote:
+I agree with you.
+If you will have a test result, Let me know it.
 
-> On Monday 28 January 2008 09:56, Andrew Morton wrote:
-> > On Mon, 28 Jan 2008 07:10:07 +0100 Andi Kleen <ak@suse.de> wrote:
-> > > On Monday 28 January 2008 06:52, Andrew Morton wrote:
-> > > > On Wed, 16 Jan 2008 23:24:21 +0100 Andi Kleen <ak@suse.de> wrote:
-> > > > > I recently suffered an 20+ minutes oom thrash disk to death and
-> > > > > computer completely unresponsive situation on my desktop when some
-> > > > > user program decided to grab all memory. It eventually recovered, but
-> > > > > left lots of ugly and imho misleading messages in the kernel log.
-> > > > > here's a minor improvement
+On Jan 28, 2008 6:01 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Mon, 28 Jan 2008 15:43:56 +0900 "minchan kim" <minchan.kim@gmail.com> wrote:
+>
+> > > I think this is actually a bugfix.  The code you're removing doesn't do the
 > > >
-> > > As a followup this was with swap over dm crypt. I've recently heard
-> > > about other people having trouble with this too so this setup seems to
-> > > trigger something bad in the VM.
-> >
-> > Where's the backtrace and show_mem() output? :)
-> 
-> I don't have it anymore. You want me to reproduce it? I don't think
-> I saw messages from the other people either; just heard complaints.
-
-May as well - it doesn't sound like it'll fix itself...
-
-> > > > That information is useful for working out why a userspace allocation
-> > > > attempt failed.  If we don't print it, and the application gets killed
-> > > > and thus frees a lot of memory, we will just never know why the
-> > > > allocation failed.
+> > >         if (priority < zone->prev_priority)
 > > >
-> > > But it's basically only either page fault (direct or indirect) or write
-> > > et.al. who do these page cache allocations. Do you really think it is
-> > > that important to distingush these cases individually? In 95+% of all
-> > > cases it should be a standard user page fault which always has the same
-> > > backtrace.
+> > > thing.
+> > >
 > >
-> > Sure, the backtrace isn't very important.  The show_mem() output is vital.
-> 
-> I see. So would the patch be acceptable if it only disabled the backtrace? 
+> > shrink_zones() in try_to_free_pages() already called
+> > note_zone_scanning_priority().
+> > So, it have done it.
+>
+> note_zone_scanning_priority() will only permit ->prev_priority to logically
+> increase, whereas the code which you've removed will also permit
+> ->prev_priority to logically decrease.  So I don't see that they are
+> equivalent?
+>
+>
 
-Spose so.  The show_mem() spew is probably larger than the backtrace
-though.
 
-Are you sure we aren't doing dump_stack()/show_mem() mutiple times for a
-single process?  If we are, that would mena the TIF_MEMDIE thing broke.
 
-It must have been one heck of an oomkilling slaughter.
-
-> > Plus an additional function call.  On the already-deep page allocation
-> > path, I might add.
-> 
-> The function call is already there if the kernel has CPUSETs enabled.
-
-s/CPUSETS/NUMA/, which makes rather a difference.
-
-> And that is what distribution kernels usually do. And most users
-> use distribution kernels or distribution .config.
-
+-- 
+Kinds regards,
+barrios
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
