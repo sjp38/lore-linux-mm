@@ -1,73 +1,53 @@
-Message-ID: <479DFE7F.9030305@qumranet.com>
-Date: Mon, 28 Jan 2008 18:10:39 +0200
-From: Izik Eidus <izike@qumranet.com>
-MIME-Version: 1.0
-Subject: Re: [patch 0/4] [RFC] MMU Notifiers V1
-References: <20080125055606.102986685@sgi.com> <20080125114229.GA7454@v2.random>
-In-Reply-To: <20080125114229.GA7454@v2.random>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Mon, 28 Jan 2008 10:45:20 -0600
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH 4/5] x86: Add config variables for SMP_MAX
+Message-Id: <20080128104520.e1e6c878.pj@sgi.com>
+In-Reply-To: <479108C3.1010800@sgi.com>
+References: <20080118183011.354965000@sgi.com>
+	<20080118183011.917801000@sgi.com>
+	<200801182104.22486.ioe-lkml@rameria.de>
+	<479108C3.1010800@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
+To: Mike Travis <travis@sgi.com>
+Cc: ioe-lkml@rameria.de, akpm@linux-foundation.org, ak@suse.de, mingo@elte.hu, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
-> On Thu, Jan 24, 2008 at 09:56:06PM -0800, Christoph Lameter wrote:
->   
->> Andrea's mmu_notifier #4 -> RFC V1
->>
->> - Merge subsystem rmap based with Linux rmap based approach
->> - Move Linux rmap based notifiers out of macro
->> - Try to account for what locks are held while the notifiers are
->>   called.
->> - Develop a patch sequence that separates out the different types of
->>   hooks so that it is easier to review their use.
->> - Avoid adding #include to linux/mm_types.h
->> - Integrate RCU logic suggested by Peter.
->>     
->
-> I'm glad you're converging on something a bit saner and much much
-> closer to my code, plus perfectly usable by KVM optimal rmap design
-> too. It would have preferred if you would have sent me patches like
-> Peter did for review and merging etc... that would have made review
-> especially easier. Anyway I'm used to that on lkml so it's ok, I just
-> need this patch to be included in mainline, everything else is
-> irrelevant to me.
->
-> On a technical merit this still partially makes me sick and I think
-> it's the last issue to debate.
->
-> @@ -971,6 +974,9 @@ int try_to_unmap(struct page *page, int 
->         else
->                 ret = try_to_unmap_file(page, migration);
->
-> +       if (unlikely(PageExternalRmap(page)))
-> +               mmu_rmap_notifier(invalidate_page, page);
-> +
->         if (!page_mapped(page))
->                 ret = SWAP_SUCCESS;
->         return ret;
->
-> I find the above hard to accept, because the moment you work with
-> physical pages and not "mm+address" I think you couldn't possibly care
-> if page_mapped is true or false, and I think the above notifier should
-> be called _outside_ try_to_unmap. Infact I'd call
-> mmu_rmap_notifier(invalidate_page, page); only if page_unmapped is
-> false and the linux pte is gone already (practically just before the
-> page_count == 2 check and after try_to_unmap).
->   
+Ten days ago, Mike wrote:
+> The primary problem arises because of cpumask_t local variables.  Until I
+> can deal with these, increasing NR_CPUS to a really large value increases
+> stack size dramatically.
+> 
+> Here are the top stack consumers with NR_CPUS = 4k.
+> 
+>                          16392 isolated_cpu_setup
+>                          10328 build_sched_domains
 
-i dont understand how is that better than notification on tlb flush?
-i mean cpus have very smiler problem as we do,
-so why not deal with the notification at the same place as they do (tlb 
-flush) ?
+The problem in kernel/sched.c:isolated_cpu_setup() is an array of
+NR_CPUS integers:
 
-moreover notification on tlb flush allow unmodified applications to work 
-with us
-for example the memory merging driver that i wrote was able to work with kvm
-without any change to its source code.
+    static int __init isolated_cpu_setup(char *str)
+    {
+	    int ints[NR_CPUS], i;
+
+	    str = get_options(str, ARRAY_SIZE(ints), ints);
+
+Since isolated_cpu_setup() is an __init routine, perhaps we could
+make that ints[] array static __initdata?
+
+The build_sched_domains() may require more thought and code rework.
+See also the lkml discussion of my patches that reworked the cpuset
+code implementing 'sched_load_balance' calling into build_sched_domains
+() via kernel/sched.c:partition_sched_domains().  This is not performance
+critical code, fortunately.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.940.382.4214
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
