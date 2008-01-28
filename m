@@ -1,61 +1,76 @@
-Received: from [172.20.26.62]([172.20.26.62]) (2179 bytes) by megami.veritas.com
-	via sendmail with P:esmtp/R:smart_host/T:smtp
-	(sender: <hugh@veritas.com>)
-	id <m1JJMaq-0000DiC@megami.veritas.com>
-	for <linux-mm@kvack.org>; Sun, 27 Jan 2008 21:31:40 -0800 (PST)
-	(Smail-3.2.0.101 1997-Dec-17 #15 built 2001-Aug-30)
-Date: Mon, 28 Jan 2008 05:31:48 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH] change comment in read_swap_cache_async
-In-Reply-To: <479D5CDE.6060201@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0801280526240.13717@sister.site>
-References: <479D5CDE.6060201@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sun, 27 Jan 2008 21:33:12 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] remove duplicating priority setting in try_to_free_p
+Message-Id: <20080127213312.517b8014.akpm@linux-foundation.org>
+In-Reply-To: <28c262360801252329q7232edc2l2d0e4ed17c054832@mail.gmail.com>
+References: <28c262360801252329q7232edc2l2d0e4ed17c054832@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tomohiro Kusumi <kusumi.tomohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org
+To: minchan kim <minchan.kim@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Bligh <mbligh@mbligh.org>, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Jan 2008, Tomohiro Kusumi wrote:
-> 
-> The function try_to_swap_out seems to have been removed in 2.5 era.
-> So shouldn't the following comment get changed ?
+On Sat, 26 Jan 2008 02:29:23 -0500 "minchan kim" <minchan.kim@gmail.com> wrote:
 
-You're right, that's wrong, it should be referring to add_to_swap
-instead - thank you.  But by coincidence there's already a patch
-in Andrew's -mm tree which corrects that comment: should get into
-2.6.25-rc in a couple of weeks.
+> shrink_zones in try_to_free_pages already set zone through
+> note_zone_scanning_priority.
+> So, setting prev_priority in try_to_free_pages is needless.
+> 
+> This patch is made by 2.6.24-rc8.
+> 
+> Signed-off-by: barrios <minchan.kim@gmail.com>
+> ---
+>  mm/vmscan.c |   17 -----------------
+>  1 files changed, 0 insertions(+), 17 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index e5a9597..fc55c23 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1273,23 +1273,6 @@ unsigned long try_to_free_pages(struct z
+>     if (!sc.all_unreclaimable)
+>         ret = 1;
+>  out:
+> -   /*
+> -    * Now that we've scanned all the zones at this priority level, note
+> -    * that level within the zone so that the next thread which performs
+> -    * scanning of this zone will immediately start out at this priority
+> -    * level.  This affects only the decision whether or not to bring
+> -    * mapped pages onto the inactive list.
+> -    */
+> -   if (priority < 0)
+> -       priority = 0;
+> -   for (i = 0; zones[i] != NULL; i++) {
+> -       struct zone *zone = zones[i];
+> -
+> -       if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+> -           continue;
+> -
+> -       zone->prev_priority = priority;
+> -   }
+>     return ret;
+>  }
 
-Hugh
+(your mail client is replacing tabs with spaces)
 
-> 
-> Tomohiro Kusumi
-> Signed-off-by: Tomohiro Kusumi <kusumi.tomohiro@jp.fujitsu.com>
-> 
-> diff -Nurp linux-2.6.24.org/mm/swap_state.c linux-2.6.24/mm/swap_state.c
-> --- linux-2.6.24.org/mm/swap_state.c	2008-01-28 13:22:41.000000000 +0900
-> +++ linux-2.6.24/mm/swap_state.c	2008-01-28 13:26:07.000000000 +0900
-> @@ -349,8 +349,8 @@ struct page *read_swap_cache_async(swp_e
->  		 * our caller observed it.  May fail (-EEXIST) if there
->  		 * is already a page associated with this entry in the
->  		 * swap cache: added by a racing read_swap_cache_async,
-> -		 * or by try_to_swap_out (or shmem_writepage) re-using
-> -		 * the just freed swap entry for an existing page.
-> +		 * or by shmem_writepage re-using the just freed swap
-> +		 * entry for an existing page.
->  		 * May fail (-ENOMEM) if radix-tree node allocation failed.
->  		 */
->  		err = add_to_swap_cache(new_page, entry);
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+I think this is actually a bugfix.  The code you're removing doesn't do the 
+
+	if (priority < zone->prev_priority)
+
+thing.
+
+otoh with this change, the only thing which will cause prev_priority to
+increase (ie: lower priority) is kswapd, which seems odd.
+
+So:
+
+a) this is a functional change and needs more thought and lots of runtime
+   testing.  I'll duck it for now.
+
+b) the prev_priority stuff is still screwed up.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
