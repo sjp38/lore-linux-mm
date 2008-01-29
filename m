@@ -1,53 +1,25 @@
-Date: Mon, 28 Jan 2008 17:19:41 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 1/6] mmu_notifier: Core code
-In-Reply-To: <20080129000534.GT3058@sgi.com>
-Message-ID: <Pine.LNX.4.64.0801281718160.19533@schroedinger.engr.sgi.com>
-References: <20080128202840.974253868@sgi.com> <20080128202923.609249585@sgi.com>
- <20080129000534.GT3058@sgi.com>
+Date: Tue, 29 Jan 2008 11:57:50 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 0/2] Relax restrictions on setting CONFIG_NUMA on x86
+In-Reply-To: <20080128150233.GA12021@elte.hu>
+References: <2f11576a0801262254i55cb2c96q40023aa0e53bffce@mail.gmail.com> <20080128150233.GA12021@elte.hu>
+Message-Id: <20080129115734.1ADB.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Jan 2008, Robin Holt wrote:
+> here's a QuickStart:
+> 
+>    http://redhat.com/~mingo/x86.git/README
 
-> USE_AFTER_FREE!!!  I made this same comment as well as other relavent
-> comments last week.
-
-Must have slipped somehow. Patch needs to be applied after the rcu fix.
-
-Please repeat the other relevant comments if they are still relevant.... I 
-thought I had worked through them.
+Thanks!
 
 
-
-mmu_notifier_release: remove mmu_notifier struct from list before calling ->release
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
----
- mm/mmu_notifier.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-Index: linux-2.6/mm/mmu_notifier.c
-===================================================================
---- linux-2.6.orig/mm/mmu_notifier.c	2008-01-28 17:17:05.000000000 -0800
-+++ linux-2.6/mm/mmu_notifier.c	2008-01-28 17:17:10.000000000 -0800
-@@ -21,9 +21,9 @@ void mmu_notifier_release(struct mm_stru
- 		rcu_read_lock();
- 		hlist_for_each_entry_safe_rcu(mn, n, t,
- 					  &mm->mmu_notifier.head, hlist) {
-+			hlist_del_rcu(&mn->hlist);
- 			if (mn->ops->release)
- 				mn->ops->release(mn, mm);
--			hlist_del_rcu(&mn->hlist);
- 		}
- 		rcu_read_unlock();
- 		synchronize_rcu();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
