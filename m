@@ -1,53 +1,53 @@
-Date: Mon, 28 Jan 2008 17:07:34 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Pull request: DMA pool updates
-Message-Id: <20080128170734.3101b6aa.akpm@linux-foundation.org>
-In-Reply-To: <20080129001147.GD31101@parisc-linux.org>
-References: <20080129001147.GD31101@parisc-linux.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 28 Jan 2008 17:19:41 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 1/6] mmu_notifier: Core code
+In-Reply-To: <20080129000534.GT3058@sgi.com>
+Message-ID: <Pine.LNX.4.64.0801281718160.19533@schroedinger.engr.sgi.com>
+References: <20080128202840.974253868@sgi.com> <20080128202923.609249585@sgi.com>
+ <20080129000534.GT3058@sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Wilcox <matthew@wil.cx>
-Cc: torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Robin Holt <holt@sgi.com>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Jan 2008 17:11:47 -0700
-Matthew Wilcox <matthew@wil.cx> wrote:
+On Mon, 28 Jan 2008, Robin Holt wrote:
 
-> 
-> G'day Linus, mate
-> 
-> Could you pull the dmapool branch of
-> git://git.kernel.org/pub/scm/linux/kernel/git/willy/misc.git please?
+> USE_AFTER_FREE!!!  I made this same comment as well as other relavent
+> comments last week.
 
-The usual form is, I believe,
+Must have slipped somehow. Patch needs to be applied after the rcu fix.
 
-	git://git.kernel.org/pub/scm/linux/kernel/git/willy/misc.git dmapool
+Please repeat the other relevant comments if they are still relevant.... I 
+thought I had worked through them.
 
-Otherwise people get all confused and think it's an empty tree (like I just
-did).
 
-> All the patches have been posted to linux-kernel before, and various
-> comments (and acks) have been taken into account.
-> 
-> It's a fairly nice performance improvement, so would be good to get in.
-> It's survived a few hours of *mumble* high-stress database benchmark,
-> so I have high confidence in its stability.
 
-Could we please at least have a shortlog so we can find out what the patch
-titles are so we can google them so we can find out what the heck you're
-proposing we add to the kernel?
+mmu_notifier_release: remove mmu_notifier struct from list before calling ->release
 
-<does a pull, goes on an archive hunt>
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-It shouldn't be this hard!
+---
+ mm/mmu_notifier.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-There were no replies to v2 of the patch series.  It all looks reasonable
-from a quick scan (assuming the patches are unchanged since then).
-
-afaik these patches have been tested by nobody except thyself?
+Index: linux-2.6/mm/mmu_notifier.c
+===================================================================
+--- linux-2.6.orig/mm/mmu_notifier.c	2008-01-28 17:17:05.000000000 -0800
++++ linux-2.6/mm/mmu_notifier.c	2008-01-28 17:17:10.000000000 -0800
+@@ -21,9 +21,9 @@ void mmu_notifier_release(struct mm_stru
+ 		rcu_read_lock();
+ 		hlist_for_each_entry_safe_rcu(mn, n, t,
+ 					  &mm->mmu_notifier.head, hlist) {
++			hlist_del_rcu(&mn->hlist);
+ 			if (mn->ops->release)
+ 				mn->ops->release(mn, mm);
+-			hlist_del_rcu(&mn->hlist);
+ 		}
+ 		rcu_read_unlock();
+ 		synchronize_rcu();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
