@@ -1,30 +1,35 @@
-Received: by fg-out-1718.google.com with SMTP id e12so1535939fga.4
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2008 00:31:43 -0800 (PST)
-Message-ID: <6101e8c40801280031v1a860e90gfb3992ae5db37047@mail.gmail.com>
-Date: Mon, 28 Jan 2008 09:31:43 +0100
-From: "=?ISO-8859-1?Q?Oliver_Pinter_(Pint=E9r_Oliv=E9r)?="
-	<oliver.pntr@gmail.com>
-Subject: [2.6.24 REGRESSION] BUG: Soft lockup - with VFS
+Date: Tue, 29 Jan 2008 11:49:07 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 1/6] mmu_notifier: Core code
+In-Reply-To: <20080129135914.GF7233@v2.random>
+Message-ID: <Pine.LNX.4.64.0801291148080.24807@schroedinger.engr.sgi.com>
+References: <20080128202840.974253868@sgi.com> <20080128202923.609249585@sgi.com>
+ <20080129135914.GF7233@v2.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-hi all!
+On Tue, 29 Jan 2008, Andrea Arcangeli wrote:
 
-in the 2.6.24 become i some soft lockups with usb-phone, when i pluged
-in the mobile, then the vfs-layer crashed. am afternoon can i the
-.config send, and i bisected the kernel, when i have time.
+> > +	struct mmu_notifier_head mmu_notifier; /* MMU notifier list */
+> >  };
+> 
+> Not sure why you prefer to waste ram when MMU_NOTIFIER=n, this is a
+> regression (a minor one though).
 
-pictures from crash:
-http://students.zipernowsky.hu/~oliverp/kernel/regression_2624/
--- 
-Thanks,
-Oliver
+Andrew does not like #ifdefs and it makes it possible to verify calling 
+conventions if !CONFIG_MMU_NOTIFIER.
+
+> It's out of my reach how can you be ok with lock=1. You said you have
+> to block, if you can deal with lock=1 once, why can't you deal with
+> lock=1 _always_?
+
+Not sure yet. We may have to do more in that area. Need to have feedback 
+from Robin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
