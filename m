@@ -1,35 +1,41 @@
-Date: Tue, 29 Jan 2008 11:55:10 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address ranges
-In-Reply-To: <20080129162004.GL7233@v2.random>
-Message-ID: <Pine.LNX.4.64.0801291153520.25300@schroedinger.engr.sgi.com>
-References: <20080128202840.974253868@sgi.com> <20080128202923.849058104@sgi.com>
- <20080129162004.GL7233@v2.random>
+Message-ID: <479F85F9.3040104@sgi.com>
+Date: Tue, 29 Jan 2008 12:00:57 -0800
+From: Mike Travis <travis@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 0/3] percpu: Optimize percpu accesses
+References: <20080123044924.508382000@sgi.com> <20080124224613.GA24855@elte.hu>
+In-Reply-To: <20080124224613.GA24855@elte.hu>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, jeremy@goop.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 29 Jan 2008, Andrea Arcangeli wrote:
-
-> > +	mmu_notifier(invalidate_range, mm, address,
-> > +				address + PAGE_SIZE - 1, 0);
-> >  	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
-> >  	if (likely(pte_same(*page_table, orig_pte))) {
-> >  		if (old_page) {
+Ingo Molnar wrote:
+...
 > 
-> What's the point of invalidate_range when the size is PAGE_SIZE? And
-> how can it be right to invalidate_range _before_ ptep_clear_flush?
+> tried it on x86.git and 1/3 did not build and 2/3 causes a boot hang 
+> with the attached .config.
+> 
+> 	Ingo
+> 
 
-I am not sure. AFAICT you wrote that code.
+I've tracked down the failure to an early printk that when CONFIG_PRINTK_TIME
+is enabled, any early printks cause cpu_clock to be called, which accesses
+cpu_rq which is defined as:
 
-It seems to be okay to invalidate range if you hold mmap_sem writably. In 
-that case no additional faults can happen that would create new ptes.
+ 595 #define cpu_rq(cpu)             (&per_cpu(runqueues, (cpu)))
 
+Since the zero-based patch is changing the offset from one based on
+__per_cpu_start to zero, it's causing the function to access a
+different area.
 
+I'm working on a fix now.
+
+Thanks,
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
