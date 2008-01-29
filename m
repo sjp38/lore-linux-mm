@@ -1,25 +1,46 @@
-Date: Tue, 29 Jan 2008 11:57:50 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 0/2] Relax restrictions on setting CONFIG_NUMA on x86
-In-Reply-To: <20080128150233.GA12021@elte.hu>
-References: <2f11576a0801262254i55cb2c96q40023aa0e53bffce@mail.gmail.com> <20080128150233.GA12021@elte.hu>
-Message-Id: <20080129115734.1ADB.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Mon, 28 Jan 2008 19:45:25 -0700
+From: Matthew Wilcox <matthew@wil.cx>
+Subject: Re: Pull request: DMA pool updates
+Message-ID: <20080129024524.GA20198@parisc-linux.org>
+References: <20080129001147.GD31101@parisc-linux.org> <20080128170734.3101b6aa.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080128170734.3101b6aa.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> here's a QuickStart:
+On Mon, Jan 28, 2008 at 05:07:34PM -0800, Andrew Morton wrote:
+> The usual form is, I believe,
 > 
->    http://redhat.com/~mingo/x86.git/README
+> 	git://git.kernel.org/pub/scm/linux/kernel/git/willy/misc.git dmapool
+> 
+> Otherwise people get all confused and think it's an empty tree (like I just
+> did).
 
-Thanks!
+Sorry!
 
+> There were no replies to v2 of the patch series.  It all looks reasonable
+> from a quick scan (assuming the patches are unchanged since then).
 
+I haven't changed them, correct.
+
+> afaik these patches have been tested by nobody except thyself?
+
+I've tested them myself, then I sent them to the perf team who ran the
+(4 hour long) benchmark, and they reported success.  As with many patches
+these days, they sank into a pit of indifference.  Perhaps I need to
+take a leaf from my former government's book and sex up my patch
+descriptions a bit.
+
+-- 
+Intel are signing my paycheques ... these opinions are still mine
+"Bill, look, we understand that you're interested in selling us this
+operating system, but compare it to ours.  We can't possibly take such
+a retrograde step."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
