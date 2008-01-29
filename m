@@ -1,41 +1,26 @@
-Message-ID: <479F85F9.3040104@sgi.com>
-Date: Tue, 29 Jan 2008 12:00:57 -0800
-From: Mike Travis <travis@sgi.com>
+Date: Tue, 29 Jan 2008 12:02:01 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 6/6] mmu_notifier: Add invalidate_all()
+In-Reply-To: <20080129163158.GX3058@sgi.com>
+Message-ID: <Pine.LNX.4.64.0801291200550.25300@schroedinger.engr.sgi.com>
+References: <20080128202840.974253868@sgi.com> <20080128202924.810792591@sgi.com>
+ <20080129163158.GX3058@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/3] percpu: Optimize percpu accesses
-References: <20080123044924.508382000@sgi.com> <20080124224613.GA24855@elte.hu>
-In-Reply-To: <20080124224613.GA24855@elte.hu>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, jeremy@goop.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Robin Holt <holt@sgi.com>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
-...
-> 
-> tried it on x86.git and 1/3 did not build and 2/3 causes a boot hang 
-> with the attached .config.
-> 
-> 	Ingo
-> 
+On Tue, 29 Jan 2008, Robin Holt wrote:
 
-I've tracked down the failure to an early printk that when CONFIG_PRINTK_TIME
-is enabled, any early printks cause cpu_clock to be called, which accesses
-cpu_rq which is defined as:
+> What is the status of getting invalidate_all adjusted to indicate a need
+> to also call _release?
 
- 595 #define cpu_rq(cpu)             (&per_cpu(runqueues, (cpu)))
-
-Since the zero-based patch is changing the offset from one based on
-__per_cpu_start to zero, it's causing the function to access a
-different area.
-
-I'm working on a fix now.
-
-Thanks,
-Mike
+Release is only called if the mmu_notifier is still registered. If you 
+take it out on invalidate_all then there will be no call to release 
+(provided you deal with the RCU issues).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
