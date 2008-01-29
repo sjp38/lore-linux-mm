@@ -1,26 +1,26 @@
-Date: Tue, 29 Jan 2008 12:02:01 -0800 (PST)
+Date: Tue, 29 Jan 2008 12:13:51 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 6/6] mmu_notifier: Add invalidate_all()
-In-Reply-To: <20080129163158.GX3058@sgi.com>
-Message-ID: <Pine.LNX.4.64.0801291200550.25300@schroedinger.engr.sgi.com>
-References: <20080128202840.974253868@sgi.com> <20080128202924.810792591@sgi.com>
- <20080129163158.GX3058@sgi.com>
+Subject: Re: [PATCH 0/3] percpu: Optimize percpu accesses
+In-Reply-To: <479F85F9.3040104@sgi.com>
+Message-ID: <Pine.LNX.4.64.0801291213190.25468@schroedinger.engr.sgi.com>
+References: <20080123044924.508382000@sgi.com> <20080124224613.GA24855@elte.hu>
+ <479F85F9.3040104@sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
+To: Mike Travis <travis@sgi.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, jeremy@goop.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 29 Jan 2008, Robin Holt wrote:
+On Tue, 29 Jan 2008, Mike Travis wrote:
 
-> What is the status of getting invalidate_all adjusted to indicate a need
-> to also call _release?
+> Since the zero-based patch is changing the offset from one based on
+> __per_cpu_start to zero, it's causing the function to access a
+> different area.
 
-Release is only called if the mmu_notifier is still registered. If you 
-take it out on invalidate_all then there will be no call to release 
-(provided you deal with the RCU issues).
+Looks like we just need to set the offset used for 0 to 
+__per_cpu_start during early boot.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
