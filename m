@@ -1,128 +1,70 @@
-Date: Tue, 29 Jan 2008 23:35:03 +0100
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address
-	ranges
-Message-ID: <20080129223503.GY7233@v2.random>
-References: <20080128202840.974253868@sgi.com> <20080128202923.849058104@sgi.com> <20080129162004.GL7233@v2.random> <20080129182831.GS7233@v2.random> <Pine.LNX.4.64.0801291219030.25629@schroedinger.engr.sgi.com> <20080129213604.GW7233@v2.random> <Pine.LNX.4.64.0801291343530.26824@schroedinger.engr.sgi.com>
+Date: Tue, 29 Jan 2008 14:39:00 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address ranges
+In-Reply-To: <20080129220212.GX7233@v2.random>
+Message-ID: <Pine.LNX.4.64.0801291407380.27104@schroedinger.engr.sgi.com>
+References: <20080128202840.974253868@sgi.com> <20080128202923.849058104@sgi.com>
+ <20080129162004.GL7233@v2.random> <Pine.LNX.4.64.0801291153520.25300@schroedinger.engr.sgi.com>
+ <20080129211759.GV7233@v2.random> <Pine.LNX.4.64.0801291327330.26649@schroedinger.engr.sgi.com>
+ <20080129220212.GX7233@v2.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0801291343530.26824@schroedinger.engr.sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Andrea Arcangeli <andrea@qumranet.com>
 Cc: Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 29, 2008 at 01:53:05PM -0800, Christoph Lameter wrote:
-> On Tue, 29 Jan 2008, Andrea Arcangeli wrote:
+n Tue, 29 Jan 2008, Andrea Arcangeli wrote:
+
+> hmm, "there" where? When I said it was taken in readonly mode I meant
+> for the quoted code (it would be at the top if it wasn't cut), so I
+> quote below again:
 > 
-> > > We invalidate the range *after* populating it? Isnt it okay to establish 
-> > > references while populate_range() runs?
-> > 
-> > It's not ok because that function can very well overwrite existing and
-> > present ptes (it's actually the nonlinear common case fast path for
-> > db). With your code the sptes created between invalidate_range and
-> > populate_range, will keep pointing forever to the old physical page
-> > instead of the newly populated one.
+> > > +   mmu_notifier(invalidate_range, mm, address,
+> > > +                           address + PAGE_SIZE - 1, 0);
+> > >     page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
+> > >     if (likely(pte_same(*page_table, orig_pte))) {
+> > >             if (old_page) {
 > 
-> Seems though that the mmap_sem is taken for regular vmas writably and will 
-> hold off new mappings.
+> The "there" for me was do_wp_page.
 
-It's taken writable due to the code being inefficient the first time,
-all later times remap_populate_range overwrites ptes with the mmap_sem
-in readonly mode (finally rightfully so). The first remap_file_pages I
-guess it's irrelevant to optimize, the whole point of nonlinear is to
-call remap_file_pages zillon of times on the same vma, overwriting
-present ptes the whole time, so if the first time the mutex is not
-readonly it probably doesn't make a difference.
+Maybe we better focus on one call at a time?
 
-get_user_pages invoked by the kvm spte-fault, can happen between
-invalidate_range and populate_range. If it can't happen, for sure
-nobody pointed out a good reason why it can't happen. The kvm page
-faults as well rightfully only takes the mmap_sem in readonly mode, so
-get_user_pages is only called internally to gfn_to_page with the
-readonly semaphore.
-
-With my approach ptep_clear_flush was not only invalidating sptes
-after ptep_clear_flush, but it was also invalidating them inside the
-PT lock, so it was totally obvious there could be no race vs
-get_user_pages.
-
-> > I'm also asking myself if it's a smp race not to call
-> > mmu_notifier(invalidate_page) between ptep_clear_flush and set_pte_at
-> > in install_file_pte. Probably not because the guest VM running in a
-> > different thread would need to serialize outside the install_file_pte
-> > code with the task running install_file_pte, if it wants to be sure to
-> > write either all its data to the old or the new page. Certainly doing
-> > the invalidate_page inside the PT lock was obviously safe but I hope
-> > this is safe and this can accommodate your needs too.
+> Even for the code you quoted in freemap.c, the has_write_lock is set
+> to 1 _only_ for the very first time you call sys_remap_file_pages on a
+> VMA. Only the transition of the VMA between linear to nonlinear
+> requires the mmap in write mode. So you can be sure all freemap code
+> 99% of the time is populating (overwriting) already present ptes with
+> only the mmap_sem in readonly mode like do_wp_page. It would be
+> unnecessary to populate the nonlinear range with the mmap in write
+> mode. Only the "vma" mangling requires the mmap_sem in write mode, the
+> pte modifications only requires the PT_lock + mmap_sem in read mode.
 > 
-> But that would be doing two invalidates on one pte. One range and one page 
-> invalidate.
+> Effectively the first invocation of populate_range runs with the
+> mmap_sem in write mode, I wonder why, there seem to be no good reason
+> for that. I guess it's a bit that should be optimized, by calling
+> downgrade_write before calling populate_range even for the first time
+> the vma switches from linear to nonlinear (after the vma has been
+> fully updated to the new status). But for sure all later invocations
+> runs populate_range with the semaphore readonly like the rest of the
+> VM does when instantiating ptes in the page faults.
 
-Yes, but it would have been micro-optimized later if you really cared,
-by simply changing ptep_clear_flush to __ptep_clear_flush, no big
-deal. Definitely all methods must be robust about them being called
-multiple times, even if the rmap finds no spte mapping such host
-virtual address.
+If it does not run in write mode then concurrent faults are permissible 
+while we remap pages. Weird. Maybe we better handle this like individual
+page operations? Put the invalidate_page back into zap_pte. But then there 
+would be no callback w/o lock as required by Robin. Doing the 
+invalidate_range after populate allows access to memory for which ptes 
+were zapped and the refcount was released.
 
-> Hmmm... So we could only do an invalidate_page here? Drop the strange 
-> invalidate_range()?
+> All pins are gone by the time invalidate_page/range returns. But there
+> is no critical section between invalidate_page and the _later_
+> ptep_clear_flush. So get_user_pages is free to run and take the PT
+> lock before the ptep_clear_flush, find the linux pte still
+> instantiated, and to create a new spte, before ptep_clear_flush runs.
 
-That's a question you should answer.
-
-> > > > @@ -1676,6 +1674,8 @@ gotten:
-> > > >  		page_cache_release(old_page);
-> > > >  unlock:
-> > > >  	pte_unmap_unlock(page_table, ptl);
-> > > > +	mmu_notifier(invalidate_range, mm, address,
-> > > > +				address + PAGE_SIZE - 1, 0);
-> > > >  	if (dirty_page) {
-> > > >  		if (vma->vm_file)
-> > > >  			file_update_time(vma->vm_file);
-> > > 
-> > > Now we invalidate the page after the transaction is complete. This means 
-> > > external pte can persist while we change the pte? Possibly even dirty the 
-> > > page?
-> > 
-> > Yes, and the only reason this can be safe is for the reason explained
-> > at the top of the email, if the other cpu wants to serialize to be
-> > sure to write in the "new" page, it has to serialize with the
-> > page-fault but to serialize it has to wait the page fault to return
-> > (example: we're not going to call futex code until the page fault
-> > returns).
-> 
-> Serialize how? mmap_sem?
-
-No, that's a different angle.
-
-But now I think there may be an issue with a third thread that may
-show unsafe the removal of invalidate_page from ptep_clear_flush.
-
-A third thread writing to a page through the linux-pte and the guest
-VM writing to the same page through the sptes, will be writing on the
-same physical page concurrently and using an userspace spinlock w/o
-ever entering the kernel. With your patch that invalidate_range after
-dropping the PT lock, the third thread may start writing on the new
-page, when the guest is still writing to the old page through the
-sptes. While this couldn't happen with my patch.
-
-So really at the light of the third thread, it seems your approach is
-smp racey and ptep_clear_flush should invalidate_page as last thing
-before returning. My patch was enforcing that ptep_clear_flush would
-stop the third thread in a linux page fault, and to drop the spte,
-before the new mapping could be instantiated in both the linux pte and
-in the sptes. The PT lock provided the needed serialization. This
-ensured the third thread and the guest VM would always write on the
-same physical page even if the first thread runs a flood of
-remap_file_pages on that same page moving it around the pagecache. So
-it seems I found a unfixable smp race in pretending to invalidate in a
-sleeping place.
-
-Perhaps you want to change the PT lock to a mutex instead of a
-spinlock, that may be your only chance to sleep while maintaining 100%
-memory coherency with threads.
+Hmmm... Right. Did not consider get_user_pages. A write to the page that 
+is not marked dirty would typically require a fault that will serialize.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
