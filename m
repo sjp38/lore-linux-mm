@@ -1,31 +1,44 @@
-Subject: Re: [patch 0/6] mm: bdi: updates
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20080129154900.145303789@szeredi.hu>
-References: <20080129154900.145303789@szeredi.hu>
-Content-Type: text/plain
-Date: Tue, 29 Jan 2008 18:06:19 +0100
-Message-Id: <1201626379.28547.142.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 29 Jan 2008 09:39:48 -0800
+From: Greg KH <greg@kroah.com>
+Subject: Re: [patch 2/6] mm: bdi: export BDI attributes in sysfs
+Message-ID: <20080129173948.GA14450@kroah.com>
+References: <20080129154900.145303789@szeredi.hu> <20080129154948.823761079@szeredi.hu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080129154948.823761079@szeredi.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Kay Sievers <kay.sievers@vrfy.org>, Trond Myklebust <trond.myklebust@fys.uio.no>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-01-29 at 16:49 +0100, Miklos Szeredi wrote:
-> This is a series from Peter Zijlstra, with various updates by me.  The
-> patchset mostly deals with exporting BDI attributes in sysfs.
+On Tue, Jan 29, 2008 at 04:49:02PM +0100, Miklos Szeredi wrote:
+> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 > 
-> Should be in a mergeable state, at least into -mm.
+> Provide a place in sysfs (/sys/class/bdi) for the backing_dev_info
+> object.  This allows us to see and set the various BDI specific
+> variables.
+> 
+> In particular this properly exposes the read-ahead window for all
+> relevant users and /sys/block/<block>/queue/read_ahead_kb should be
+> deprecated.
+> 
+> With patient help from Kay Sievers and Greg KH
+> 
+> [mszeredi@suse.cz]
+> 
+>  - split off NFS and FUSE changes into separate patches
+>  - document new sysfs attributes under Documentation/ABI
+>  - do bdi_class_init as a core_initcall, otherwise the "default" BDI
+>    won't be initialized
+>  - remove bdi_init_fmt macro, it's not used very much
+> 
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> CC: Kay Sievers <kay.sievers@vrfy.org>
+> CC: Greg KH <greg@kroah.com>
 
-Thanks for picking these up Miklos!
-
-While they do not strictly depend upon the /proc/<pid>/mountinfo patch I
-think its good to mention they go hand in hand. The mountinfo file gives
-the information needed to associate a mount with a given bdi for non
-block devices.
-
+Acked-by: Greg Kroah-Hartman <gregkh@suse.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
