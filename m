@@ -1,133 +1,164 @@
-Message-Id: <20080129154951.479862245@szeredi.hu>
+Message-Id: <20080129154953.171741595@szeredi.hu>
 References: <20080129154900.145303789@szeredi.hu>
-Date: Tue, 29 Jan 2008 16:49:04 +0100
+Date: Tue, 29 Jan 2008 16:49:05 +0100
 From: Miklos Szeredi <miklos@szeredi.hu>
-Subject: [patch 4/6] mm: bdi: expose the BDI object in sysfs for FUSE
-Content-Disposition: inline; filename=bdi-sysfs-fuse.patch
+Subject: [patch 5/6] mm: bdi: allow setting a minimum for the bdi dirty limit
+Content-Disposition: inline; filename=bdi-min.patch
 Sender: owner-linux-mm@kvack.org
-From: Miklos Szeredi <mszeredi@suse.cz>
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Register FUSE's backing_dev_info under sysfs with the name
-"fuse-MAJOR:MINOR"
+Add "min_ratio" to /sys/class/bdi.  This indicates the minimum
+percentage of the global dirty threshold allocated to this bdi.
 
-Make the fuse control filesystem use s_dev instead of a fuse specific
-ID.  This makes it easier to match directories under
-/sys/fs/fuse/connections/ with directories under /sys/class/bdi, and
-with actual mounts.
+[mszeredi@suse.cz]
 
+ - fix parsing in min_ratio_store()
+ - document new sysfs attribute
+
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
-CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
 
-Index: linux/fs/fuse/control.c
+Index: linux/include/linux/backing-dev.h
 ===================================================================
---- linux.orig/fs/fuse/control.c	2008-01-29 10:26:47.000000000 +0100
-+++ linux/fs/fuse/control.c	2008-01-29 12:16:06.000000000 +0100
-@@ -117,7 +117,7 @@ int fuse_ctl_add_conn(struct fuse_conn *
+--- linux.orig/include/linux/backing-dev.h	2008-01-29 14:40:35.000000000 +0100
++++ linux/include/linux/backing-dev.h	2008-01-29 15:35:34.000000000 +0100
+@@ -51,6 +51,8 @@ struct backing_dev_info {
+ 	struct prop_local_percpu completions;
+ 	int dirty_exceeded;
  
- 	parent = fuse_control_sb->s_root;
- 	inc_nlink(parent->d_inode);
--	sprintf(name, "%llu", (unsigned long long) fc->id);
-+	sprintf(name, "%u", fc->dev);
- 	parent = fuse_ctl_add_dentry(parent, fc, name, S_IFDIR | 0500, 2,
- 				     &simple_dir_inode_operations,
- 				     &simple_dir_operations);
-Index: linux/fs/fuse/fuse_i.h
-===================================================================
---- linux.orig/fs/fuse/fuse_i.h	2008-01-29 10:26:47.000000000 +0100
-+++ linux/fs/fuse/fuse_i.h	2008-01-29 12:16:06.000000000 +0100
-@@ -384,8 +384,8 @@ struct fuse_conn {
- 	/** Entry on the fuse_conn_list */
- 	struct list_head entry;
- 
--	/** Unique ID */
--	u64 id;
-+	/** Device ID from super block */
-+	dev_t dev;
- 
- 	/** Dentries in the control filesystem */
- 	struct dentry *ctl_dentry[FUSE_CTL_NUM_DENTRIES];
-Index: linux/fs/fuse/inode.c
-===================================================================
---- linux.orig/fs/fuse/inode.c	2008-01-29 10:26:47.000000000 +0100
-+++ linux/fs/fuse/inode.c	2008-01-29 12:57:26.000000000 +0100
-@@ -448,7 +448,7 @@ static int fuse_show_options(struct seq_
- 	return 0;
- }
- 
--static struct fuse_conn *new_conn(void)
-+static struct fuse_conn *new_conn(struct super_block *sb)
- {
- 	struct fuse_conn *fc;
- 	int err;
-@@ -468,19 +468,27 @@ static struct fuse_conn *new_conn(void)
- 		atomic_set(&fc->num_waiting, 0);
- 		fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
- 		fc->bdi.unplug_io_fn = default_unplug_io_fn;
-+		fc->dev = sb->s_dev;
- 		err = bdi_init(&fc->bdi);
--		if (err) {
--			kfree(fc);
--			fc = NULL;
--			goto out;
--		}
-+		if (err)
-+			goto error_kfree;
-+		err = bdi_register(&fc->bdi, NULL, "fuse-%u:%u",
-+				   MAJOR(fc->dev), MINOR(fc->dev));
-+		if (err)
-+			goto error_bdi_destroy;
- 		fc->reqctr = 0;
- 		fc->blocked = 1;
- 		fc->attr_version = 1;
- 		get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
- 	}
--out:
- 	return fc;
++	unsigned int min_ratio;
 +
-+error_bdi_destroy:
-+	bdi_destroy(&fc->bdi);
-+error_kfree:
-+	mutex_destroy(&fc->inst_mutex);
-+	kfree(fc);
-+	return NULL;
+ 	struct device *dev;
+ };
+ 
+@@ -136,6 +138,8 @@ static inline unsigned long bdi_stat_err
+ #endif
  }
  
- void fuse_conn_put(struct fuse_conn *fc)
-@@ -578,12 +586,6 @@ static void fuse_send_init(struct fuse_c
- 	request_send_background(fc, req);
++int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio);
++
+ /*
+  * Flags in backing_dev_info::capability
+  * - The first two flags control whether dirty pages will contribute to the
+Index: linux/mm/backing-dev.c
+===================================================================
+--- linux.orig/mm/backing-dev.c	2008-01-29 14:40:35.000000000 +0100
++++ linux/mm/backing-dev.c	2008-01-29 15:36:35.000000000 +0100
+@@ -50,6 +50,24 @@ static inline unsigned long get_dirty(st
+ BDI_SHOW(dirty_kb, K(get_dirty(bdi, 1)))
+ BDI_SHOW(bdi_dirty_kb, K(get_dirty(bdi, 2)))
+ 
++static ssize_t min_ratio_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t count)
++{
++	struct backing_dev_info *bdi = dev_get_drvdata(dev);
++	char *end;
++	unsigned int ratio;
++	ssize_t ret = -EINVAL;
++
++	ratio = simple_strtoul(buf, &end, 10);
++	if (*buf && (end[0] == '\0' || (end[0] == '\n' && end[1] == '\0'))) {
++		ret = bdi_set_min_ratio(bdi, ratio);
++		if (!ret)
++			ret = count;
++	}
++	return ret;
++}
++BDI_SHOW(min_ratio, bdi->min_ratio)
++
+ #define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
+ 
+ static struct device_attribute bdi_dev_attrs[] = {
+@@ -58,6 +76,7 @@ static struct device_attribute bdi_dev_a
+ 	__ATTR_RO(writeback_kb),
+ 	__ATTR_RO(dirty_kb),
+ 	__ATTR_RO(bdi_dirty_kb),
++	__ATTR_RW(min_ratio),
+ 	__ATTR_NULL,
+ };
+ 
+@@ -116,6 +135,8 @@ int bdi_init(struct backing_dev_info *bd
+ 
+ 	bdi->dev = NULL;
+ 
++	bdi->min_ratio = 0;
++
+ 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++) {
+ 		err = percpu_counter_init_irq(&bdi->bdi_stat[i], 0);
+ 		if (err)
+Index: linux/mm/page-writeback.c
+===================================================================
+--- linux.orig/mm/page-writeback.c	2008-01-29 14:40:35.000000000 +0100
++++ linux/mm/page-writeback.c	2008-01-29 15:35:34.000000000 +0100
+@@ -247,6 +247,29 @@ static void task_dirty_limit(struct task
  }
  
--static u64 conn_id(void)
--{
--	static u64 ctr = 1;
--	return ctr++;
--}
--
- static int fuse_fill_super(struct super_block *sb, void *data, int silent)
- {
- 	struct fuse_conn *fc;
-@@ -621,7 +623,7 @@ static int fuse_fill_super(struct super_
- 	if (file->f_op != &fuse_dev_operations)
- 		return -EINVAL;
+ /*
++ *
++ */
++static DEFINE_SPINLOCK(bdi_lock);
++static unsigned int bdi_min_ratio;
++
++int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio)
++{
++	int ret = 0;
++	unsigned long flags;
++
++	spin_lock_irqsave(&bdi_lock, flags);
++	min_ratio -= bdi->min_ratio;
++	if (bdi_min_ratio + min_ratio < 100) {
++		bdi_min_ratio += min_ratio;
++		bdi->min_ratio += min_ratio;
++	} else
++		ret = -EINVAL;
++	spin_unlock_irqrestore(&bdi_lock, flags);
++
++	return ret;
++}
++
++/*
+  * Work out the current dirty-memory clamping and background writeout
+  * thresholds.
+  *
+@@ -334,7 +357,7 @@ get_dirty_limits(long *pbackground, long
+ 	*pdirty = dirty;
  
--	fc = new_conn();
-+	fc = new_conn(sb);
- 	if (!fc)
- 		return -ENOMEM;
+ 	if (bdi) {
+-		u64 bdi_dirty = dirty;
++		u64 bdi_dirty;
+ 		long numerator, denominator;
  
-@@ -659,7 +661,6 @@ static int fuse_fill_super(struct super_
- 	if (file->private_data)
- 		goto err_unlock;
+ 		/*
+@@ -342,8 +365,10 @@ get_dirty_limits(long *pbackground, long
+ 		 */
+ 		bdi_writeout_fraction(bdi, &numerator, &denominator);
  
--	fc->id = conn_id();
- 	err = fuse_ctl_add_conn(fc);
- 	if (err)
- 		goto err_unlock;
++		bdi_dirty = (dirty * (100 - bdi_min_ratio)) / 100;
+ 		bdi_dirty *= numerator;
+ 		do_div(bdi_dirty, denominator);
++		bdi_dirty += (dirty * bdi->min_ratio) / 100;
+ 
+ 		*pbdi_dirty = bdi_dirty;
+ 		clip_bdi_dirty_limit(bdi, dirty, pbdi_dirty);
+Index: linux/Documentation/ABI/testing/sysfs-class-bdi
+===================================================================
+--- linux.orig/Documentation/ABI/testing/sysfs-class-bdi	2008-01-29 14:40:35.000000000 +0100
++++ linux/Documentation/ABI/testing/sysfs-class-bdi	2008-01-29 15:37:24.000000000 +0100
+@@ -48,3 +48,9 @@ bdi_dirty_kb (read-only)
+ 	Current threshold on this BDI for reclaimable + writeback
+ 	memory
+ 
++min_ratio (read-write)
++
++	Minimal percentage of global dirty threshold allocated to this
++	bdi.  If the value written to this file would make the the sum
++	of all min_ratio values exceed 100, then EINVAL is returned.
++	The default is zero
 
 --
 
