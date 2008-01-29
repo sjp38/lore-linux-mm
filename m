@@ -1,46 +1,40 @@
-Date: Mon, 28 Jan 2008 19:45:25 -0700
-From: Matthew Wilcox <matthew@wil.cx>
+Date: Mon, 28 Jan 2008 18:57:01 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: Pull request: DMA pool updates
-Message-ID: <20080129024524.GA20198@parisc-linux.org>
-References: <20080129001147.GD31101@parisc-linux.org> <20080128170734.3101b6aa.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080128170734.3101b6aa.akpm@linux-foundation.org>
+Message-Id: <20080128185701.752fe2c8.akpm@linux-foundation.org>
+In-Reply-To: <20080129024524.GA20198@parisc-linux.org>
+References: <20080129001147.GD31101@parisc-linux.org>
+	<20080128170734.3101b6aa.akpm@linux-foundation.org>
+	<20080129024524.GA20198@parisc-linux.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
+To: Matthew Wilcox <matthew@wil.cx>
 Cc: torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 28, 2008 at 05:07:34PM -0800, Andrew Morton wrote:
-> The usual form is, I believe,
+On Mon, 28 Jan 2008 19:45:25 -0700 Matthew Wilcox <matthew@wil.cx> wrote:
+
+> > afaik these patches have been tested by nobody except thyself?
 > 
-> 	git://git.kernel.org/pub/scm/linux/kernel/git/willy/misc.git dmapool
-> 
-> Otherwise people get all confused and think it's an empty tree (like I just
-> did).
+> I've tested them myself, then I sent them to the perf team who ran the
+> (4 hour long) benchmark, and they reported success.  As with many patches
+> these days, they sank into a pit of indifference.
 
-Sorry!
+I like to think that's because everyone is all fired up about bugfixes and
+the regression reports.  heh.
 
-> There were no replies to v2 of the patch series.  It all looks reasonable
-> from a quick scan (assuming the patches are unchanged since then).
+It's a simple matter for me to add another git tree, which gets things a
+bit more exposure.
 
-I haven't changed them, correct.
+>  Perhaps I need to
+> take a leaf from my former government's book and sex up my patch
+> descriptions a bit.
 
-> afaik these patches have been tested by nobody except thyself?
-
-I've tested them myself, then I sent them to the perf team who ran the
-(4 hour long) benchmark, and they reported success.  As with many patches
-these days, they sank into a pit of indifference.  Perhaps I need to
-take a leaf from my former government's book and sex up my patch
-descriptions a bit.
-
--- 
-Intel are signing my paycheques ... these opinions are still mine
-"Bill, look, we understand that you're interested in selling us this
-operating system, but compare it to ours.  We can't possibly take such
-a retrograde step."
+Well these two pulls came with effectively no description at all.  Put
+yourself in Linus's position...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
