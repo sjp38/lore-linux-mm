@@ -1,97 +1,72 @@
-Subject: Re: [PATCH] mm: MADV_WILLNEED implementation for anonymous memory
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <1201714139.28547.237.camel@lappy>
-References: <1201714139.28547.237.camel@lappy>
-Content-Type: text/plain
-Date: Wed, 30 Jan 2008 12:15:59 -0600
-Message-Id: <1201716959.4037.17.camel@cinder.waste.org>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 30 Jan 2008 19:25:06 +0100
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address
+	ranges
+Message-ID: <20080130182506.GQ7233@v2.random>
+References: <20080129162004.GL7233@v2.random> <Pine.LNX.4.64.0801291153520.25300@schroedinger.engr.sgi.com> <20080129211759.GV7233@v2.random> <Pine.LNX.4.64.0801291327330.26649@schroedinger.engr.sgi.com> <20080129220212.GX7233@v2.random> <Pine.LNX.4.64.0801291407380.27104@schroedinger.engr.sgi.com> <20080130000039.GA7233@v2.random> <20080130161123.GS26420@sgi.com> <20080130170451.GP7233@v2.random> <20080130173009.GT26420@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080130173009.GT26420@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, riel <riel@redhat.com>, Lennart Poettering <mztabzr@0pointer.de>
+To: Robin Holt <holt@sgi.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-01-30 at 18:28 +0100, Peter Zijlstra wrote:
-> Subject: mm: MADV_WILLNEED implementation for anonymous memory
-> 
-> Implement MADV_WILLNEED for anonymous pages by walking the page tables and
-> starting asynchonous swap cache reads for all encountered swap pages.
-> 
-> Doing so required a modification to the page table walking library functions.
-> Previously ->pte_entry() could be called while holding a kmap_atomic, to
-> overcome this problem the pte walker is changed to copy batches of the pmd
-> and iterate them.
+On Wed, Jan 30, 2008 at 11:30:09AM -0600, Robin Holt wrote:
+> I don't think I saw the answer to my original question.  I assume your
+> original patch, extended in a way similar to what Christoph has done,
+> can be made to work to cover both the KVM and GRU (Jack's) case.
 
-That's a pretty reasonable approach. My original approach was to buffer
-a page worth of PTEs with all the attendant malloc annoyances. Then
-Andrew and I came up with another fix a bit ago by effectively doing a
-batch of size 1: mapping and immediately unmapping per PTE. That's
-basically a no-op on !HIGHPTE but could potentially be expensive in the
-HIGHPTE case. Your approach might be a good complexity/performance
-middle ground.
+Yes, I think so.
 
-Unfortunately, I think we only implemented our fix in one of the
-relevant places: the /proc/pid/pagemap code hooks a callback at the pte
-table level and then does its own walk across the table. Perhaps I
-should refactor this so that it hooks in at the pte entry level of the
-walker instead.
+> XPMEM, however, does not look to be solvable due to the three simultaneous
+> issues above.  To address that, I think I am coming to the conclusion
+> that we need an accompanying but seperate pair of callouts.  The first
 
-> +/*
-> + * Much of the complication here is to work around CONFIG_HIGHPTE which needs
-> + * to kmap the pmd. So copy batches of ptes from the pmd and iterate over
-> + * those.
-> + */
-> +#define WALK_BATCH_SIZE	32
-> +
->  static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->  			  const struct mm_walk *walk, void *private)
->  {
->  	pte_t *pte;
-> +	pte_t ptes[WALK_BATCH_SIZE];
-> +	unsigned long start;
-> +	unsigned int i;
->  	int err = 0;
->  
-> -	pte = pte_offset_map(pmd, addr);
->  	do {
-> -		err = walk->pte_entry(pte, addr, addr + PAGE_SIZE, private);
-> -		if (err)
-> -		       break;
-> -	} while (pte++, addr += PAGE_SIZE, addr != end);
-> +		start = addr;
->  
-> -	pte_unmap(pte);
-> +		pte = pte_offset_map(pmd, addr);
-> +		for (i = 0; i < WALK_BATCH_SIZE && addr != end;
-> +				i++, pte++, addr += PAGE_SIZE)
-> +			ptes[i] = *pte;
+The mmu_rmap_notifiers are already one separate pair of callouts and
+we can add more of them of course.
 
-Looks like this could be:
+> will ensure the remote page tables and TLBs are cleared and all page
+> information is returned back to the process that is granting access to
+> its address space.  That will include an implicit block on the address
+> range so no further faults will be satisfied by the remote accessor
+> (forgot the KVM name for this, sorry).  Any faults will be held off
+> and only the processes page tables/TLBs are in play.  Once the normal
 
-		for (i = 0; i < WALK_BATCH_SIZE && addr + i * PAGE_SIZE != end; i++)
-			ptes[i] = pte[i];
+Good, this "block" is how you close the race condition, and you need
+the second callout to "unblock" (this is why it could hardly work well
+before with a single invalidate_range).
 
-> +		pte_unmap(pte);
-> +
-> +		for (i = 0, pte = ptes, addr = start;
-> +				i < WALK_BATCH_SIZE && addr != end;
-> +				i++, pte++, addr += PAGE_SIZE) {
-> +			err = walk->pte_entry(pte, addr, addr + PAGE_SIZE,
-> +					private);
-		for (i = 0; i < WALK_BATCH_SIZE && addr != end;
-			i++, addr+= PAGE_SIZE) {
-			err = walk->pte_entry(ptes[i], addr, addr + PAGE_SIZE,
-				private);
+> processing of the kernel is complete, an unlock callout would be made
+> for the range and then faulting may occur on behalf of the process again.
 
-And we can ditch start.
+This sounds good.
 
-Also, one wonders if setting batch size to 1 will then convince the
-compiler to collapse this into a more trivial loop in the !HIGHPTE case.
+> Currently, this is the only direct solution that I can see as a
+> possibility.  My question is two fold.  Does this seem like a reasonable
+> means to solve the three simultaneous issues above and if so, does it
+> seem like the most reasonable means?
 
--- 
-Mathematics is the supreme nostalgia of our time.
+Yes.
+
+KVM can deal with both invalidate_page (atomic) and invalidate_range (sleepy)
+
+GRU can only deal with invalidate_page (atomic)
+
+XPMEM requires with invalidate_range (sleepy) +
+before_invalidate_range (sleepy). invalidate_all should also be called
+before_release (both sleepy).
+
+It sounds we need full overlap of information provided by
+invalidate_page and invalidate_range to fit all three models (the
+opposite of the zero objective that current V3 is taking). And the
+swap will be handled only by invalidate_page either through linux rmap
+or external rmap (with the latter that can sleep so it's ok for you,
+the former not). GRU can safely use the either the linux rmap notifier
+or the external rmap notifier equally well, because when try_to_unmap
+is called the page is locked and obviously pinned by the VM itself.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
