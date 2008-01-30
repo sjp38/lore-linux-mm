@@ -1,13 +1,13 @@
-Date: Tue, 29 Jan 2008 16:20:50 -0800 (PST)
+Date: Tue, 29 Jan 2008 16:22:46 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address ranges
-In-Reply-To: <20080130000039.GA7233@v2.random>
-Message-ID: <Pine.LNX.4.64.0801291620170.28027@schroedinger.engr.sgi.com>
+In-Reply-To: <20080130000559.GB7233@v2.random>
+Message-ID: <Pine.LNX.4.64.0801291621380.28027@schroedinger.engr.sgi.com>
 References: <20080128202840.974253868@sgi.com> <20080128202923.849058104@sgi.com>
  <20080129162004.GL7233@v2.random> <Pine.LNX.4.64.0801291153520.25300@schroedinger.engr.sgi.com>
  <20080129211759.GV7233@v2.random> <Pine.LNX.4.64.0801291327330.26649@schroedinger.engr.sgi.com>
  <20080129220212.GX7233@v2.random> <Pine.LNX.4.64.0801291407380.27104@schroedinger.engr.sgi.com>
- <20080130000039.GA7233@v2.random>
+ <20080130000039.GA7233@v2.random> <20080130000559.GB7233@v2.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,13 +18,23 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 30 Jan 2008, Andrea Arcangeli wrote:
 
-> > invalidate_range after populate allows access to memory for which ptes 
-> > were zapped and the refcount was released.
+> On Wed, Jan 30, 2008 at 01:00:39AM +0100, Andrea Arcangeli wrote:
+> > get_user_pages, regular linux writes don't fault unless it's
+> > explicitly writeprotect, which is mandatory in a few archs, x86 not).
 > 
-> The last refcount is released by the invalidate_range itself.
+> actually get_user_pages doesn't fault either but it calls into
+> set_page_dirty, however get_user_pages (unlike a userland-write) at
+> least requires mmap_sem in read mode and the PT lock as serialization,
+> userland writes don't, they just go ahead and mark the pte in hardware
+> w/o faults. Anyway anonymous memory these days always mapped with
+> dirty bit set regardless, even for read-faults, after Nick finally
+> rightfully cleaned up the zero-page trick.
 
-That is true for your implementation and to address Robin's issues. Jack: 
-Is that true for the GRU?
+That is only partially true. pte are created wronly in order to track 
+dirty state these days. The first write will lead to a fault that switches 
+the pte to writable. When the page undergoes writeback the page again 
+becomes write protected. Thus our need to effectively deal with 
+page_mkclean.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
