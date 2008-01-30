@@ -1,58 +1,42 @@
-Date: Wed, 30 Jan 2008 12:55:36 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address ranges
-In-Reply-To: <20080130202918.GB11324@sgi.com>
-Message-ID: <Pine.LNX.4.64.0801301251160.32559@schroedinger.engr.sgi.com>
-References: <20080129211759.GV7233@v2.random>
- <Pine.LNX.4.64.0801291327330.26649@schroedinger.engr.sgi.com>
- <20080129220212.GX7233@v2.random> <Pine.LNX.4.64.0801291407380.27104@schroedinger.engr.sgi.com>
- <20080130000039.GA7233@v2.random> <Pine.LNX.4.64.0801291620170.28027@schroedinger.engr.sgi.com>
- <20080130002804.GA13840@sgi.com> <20080130133720.GM7233@v2.random>
- <20080130144305.GA25193@sgi.com> <Pine.LNX.4.64.0801301140320.30568@schroedinger.engr.sgi.com>
- <20080130202918.GB11324@sgi.com>
+Date: Wed, 30 Jan 2008 22:50:15 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 2/6] percpu: Change Kconfig to HAVE_SETUP_PER_CPU_AREA
+	linux-2.6.git
+Message-ID: <20080130215015.GA28242@elte.hu>
+References: <20080130180940.022172000@sgi.com> <20080130180940.369732000@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080130180940.369732000@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
+To: travis@sgi.com
+Cc: Geert Uytterhoeven <Geert.Uytterhoeven@sonycom.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Tony Luck <tony.luck@intel.com>, David Miller <davem@davemloft.net>, Sam Ravnborg <sam@ravnborg.org>, Rusty Russell <rusty@rustcorp.com.au>, linuxppc-dev@ozlabs.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 30 Jan 2008, Jack Steiner wrote:
+* travis@sgi.com <travis@sgi.com> wrote:
 
-> > Seems that we cannot rely on the invalidate_ranges for correctness at all?
-> > We need to have invalidate_page() always. invalidate_range() is only an 
-> > optimization.
-> > 
-> 
-> I don't understand your point "an optimization". How would invalidate_range
-> as currently defined be correctly used?
+> Change:
+> 	config ARCH_SETS_UP_PER_CPU_AREA
+> to:
+> 	config HAVE_SETUP_PER_CPU_AREA
 
-We are changing definitions. The original patch by Andrea calls 
-invalidate_page for each pte that is cleared. So strictly you would not 
-need an invalidate_range.
+undocumented change:
 
-> It _looks_ like it would work only if xpmem/gru/etc takes a refcnt on
-> the page & drops it when invalidate_range is called. That may work (not sure)
-> for xpmem but not for the GRU.
+>  config ARCH_NO_VIRT_TO_BUS
+> --- a/init/main.c
+> +++ b/init/main.c
+> @@ -380,6 +380,8 @@ static void __init setup_per_cpu_areas(v
+>  
+>  	/* Copy section for each CPU (we discard the original) */
+>  	size = ALIGN(PERCPU_ENOUGH_ROOM, PAGE_SIZE);
+> +	printk(KERN_INFO
+> +	    "PERCPU: Allocating %lu bytes of per cpu data (main)\n", size);
+>  	ptr = alloc_bootmem_pages(size * nr_possible_cpus);
 
-The refcount is not necessary if we adopt Andrea's approach of a callback 
-on the clearing of each pte. At that point the page is still guaranteed to 
-exist. If we do the range_invalidate later (as in V3) then the page may 
-have been released (see sys_remap_file_pages() f.e.) before we zap the GRU 
-ptes. So there will be a time when the GRU may write to a page that has 
-been freed and used for another purpose.
+but looks fine to me.
 
-Taking a refcount on the page defers the free until the range_invalidate 
-runs.
-
-I would prefer a solution that does not require taking refcounts (pins) 
-for establishing an external pte and for release (like what the GRU does).
-
-If we could effectively determine that there are no external ptes in a 
-range then the invalidate_page() call may return immediately. Maybe it is 
-then effective to do these gazillions of invalidate_page() calls when a 
-process terminates or an remap is performed.
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
