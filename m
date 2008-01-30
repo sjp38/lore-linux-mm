@@ -1,34 +1,221 @@
-Date: Tue, 29 Jan 2008 18:28:05 -0600
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address ranges
-Message-ID: <20080130002804.GA13840@sgi.com>
-References: <20080128202840.974253868@sgi.com> <20080128202923.849058104@sgi.com> <20080129162004.GL7233@v2.random> <Pine.LNX.4.64.0801291153520.25300@schroedinger.engr.sgi.com> <20080129211759.GV7233@v2.random> <Pine.LNX.4.64.0801291327330.26649@schroedinger.engr.sgi.com> <20080129220212.GX7233@v2.random> <Pine.LNX.4.64.0801291407380.27104@schroedinger.engr.sgi.com> <20080130000039.GA7233@v2.random> <Pine.LNX.4.64.0801291620170.28027@schroedinger.engr.sgi.com>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m0U0SuTO012473
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2008 19:28:56 -0500
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m0U0StNW214492
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2008 17:28:56 -0700
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m0U0StG8005917
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2008 17:28:55 -0700
+Subject: Re: [-mm PATCH] updates for hotplug memory remove
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <20080129120318.5BDF.Y-GOTO@jp.fujitsu.com>
+References: <1201566682.29357.15.camel@dyn9047017100.beaverton.ibm.com>
+	 <1201566946.29357.18.camel@dyn9047017100.beaverton.ibm.com>
+	 <20080129120318.5BDF.Y-GOTO@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Tue, 29 Jan 2008 16:31:40 -0800
+Message-Id: <1201653101.19684.6.camel@dyn9047017100.beaverton.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0801291620170.28027@schroedinger.engr.sgi.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 29, 2008 at 04:20:50PM -0800, Christoph Lameter wrote:
-> On Wed, 30 Jan 2008, Andrea Arcangeli wrote:
+On Tue, 2008-01-29 at 14:18 +0900, Yasunori Goto wrote:
+> Hello. Badari-san.
 > 
-> > > invalidate_range after populate allows access to memory for which ptes 
-> > > were zapped and the refcount was released.
+> Is your patch for notification the event of removing to firmware, right?
+
+Correct. 
+
+> 
+> Have you ever tested hotadd(probe) of the removed memory?
+
+Yes. I did. In my touch testing, I was able to remove memory and add
+it back to the system without any issues. But again, I didn't force
+the system to use that memory :(
+
+> I'm afraid there are some differences of the status between pre hot-add
+> section and the removed section by this patch. I think the mem_section of
+> removed memory should be invalidated at least.
+
+I think its a generic issue. Nothing specific for ppc64. Isn't it ? 
+
+Thanks,
+Badari
+
+> 
+> But anyway, this is a great first step for physical memory remove.
+> 
+> Thanks.
+> 
+> 
+> > On Mon, 2008-01-28 at 16:31 -0800, Badari Pulavarty wrote:
 > > 
-> > The last refcount is released by the invalidate_range itself.
+> > 
+> > > 2) Can you replace the following patch with this ?
+> > > 
+> > > add-remove_memory-for-ppc64-2.patch
+> > > 
+> > > I found that, I do need arch-specific hooks to get the memory remove
+> > > working on ppc64 LPAR. Earlier, I tried to make remove_memory() arch
+> > > neutral, but we do need arch specific hooks.
+> > > 
+> > > Thanks,
+> > > Badari
+> > 
+> > Andrew,
+> > 
+> > Here is the patch which provides arch-specific code to complete memory
+> > remove on ppc64 LPAR. So far, it works fine in my testing - but waiting
+> > for ppc-experts for review and completeness. 
+> > 
+> > FYI.
+> > 
+> > Thanks,
+> > Badari
+> > 
+> > For memory remove, we need to clean up htab mappings for the
+> > section of the memory we are removing.
+> > 
+> > This patch implements support for removing htab bolted mappings
+> > for ppc64 lpar. Other sub-archs, may need to implement similar
+> > functionality for the hotplug memory remove to work. 
+> > 
+> > Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
+> > ---
+> >  arch/powerpc/mm/hash_utils_64.c       |   23 +++++++++++++++++++++++
+> >  arch/powerpc/mm/mem.c                 |    4 +++-
+> >  arch/powerpc/platforms/pseries/lpar.c |   15 +++++++++++++++
+> >  include/asm-powerpc/machdep.h         |    2 ++
+> >  include/asm-powerpc/sparsemem.h       |    1 +
+> >  5 files changed, 44 insertions(+), 1 deletion(-)
+> > 
+> > Index: linux-2.6.24-rc8/arch/powerpc/mm/hash_utils_64.c
+> > ===================================================================
+> > --- linux-2.6.24-rc8.orig/arch/powerpc/mm/hash_utils_64.c	2008-01-25 08:04:32.000000000 -0800
+> > +++ linux-2.6.24-rc8/arch/powerpc/mm/hash_utils_64.c	2008-01-28 11:45:40.000000000 -0800
+> > @@ -191,6 +191,24 @@ int htab_bolt_mapping(unsigned long vsta
+> >  	return ret < 0 ? ret : 0;
+> >  }
+> >  
+> > +static void htab_remove_mapping(unsigned long vstart, unsigned long vend,
+> > +		      int psize, int ssize)
+> > +{
+> > +	unsigned long vaddr;
+> > +	unsigned int step, shift;
+> > +
+> > +	shift = mmu_psize_defs[psize].shift;
+> > +	step = 1 << shift;
+> > +
+> > +	if (!ppc_md.hpte_removebolted) {
+> > +		printk("Sub-arch doesn't implement hpte_removebolted\n");
+> > +		return;
+> > +	}
+> > +
+> > +	for (vaddr = vstart; vaddr < vend; vaddr += step)
+> > +		ppc_md.hpte_removebolted(vaddr, psize, ssize);
+> > +}
+> > +
+> >  static int __init htab_dt_scan_seg_sizes(unsigned long node,
+> >  					 const char *uname, int depth,
+> >  					 void *data)
+> > @@ -436,6 +454,11 @@ void create_section_mapping(unsigned lon
+> >  			_PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_COHERENT | PP_RWXX,
+> >  			mmu_linear_psize, mmu_kernel_ssize));
+> >  }
+> > +
+> > +void remove_section_mapping(unsigned long start, unsigned long end)
+> > +{
+> > +	htab_remove_mapping(start, end, mmu_linear_psize, mmu_kernel_ssize);
+> > +}
+> >  #endif /* CONFIG_MEMORY_HOTPLUG */
+> >  
+> >  static inline void make_bl(unsigned int *insn_addr, void *func)
+> > Index: linux-2.6.24-rc8/include/asm-powerpc/sparsemem.h
+> > ===================================================================
+> > --- linux-2.6.24-rc8.orig/include/asm-powerpc/sparsemem.h	2008-01-15 20:22:48.000000000 -0800
+> > +++ linux-2.6.24-rc8/include/asm-powerpc/sparsemem.h	2008-01-25 08:18:11.000000000 -0800
+> > @@ -20,6 +20,7 @@
+> >  
+> >  #ifdef CONFIG_MEMORY_HOTPLUG
+> >  extern void create_section_mapping(unsigned long start, unsigned long end);
+> > +extern void remove_section_mapping(unsigned long start, unsigned long end);
+> >  #ifdef CONFIG_NUMA
+> >  extern int hot_add_scn_to_nid(unsigned long scn_addr);
+> >  #else
+> > Index: linux-2.6.24-rc8/arch/powerpc/mm/mem.c
+> > ===================================================================
+> > --- linux-2.6.24-rc8.orig/arch/powerpc/mm/mem.c	2008-01-25 08:16:37.000000000 -0800
+> > +++ linux-2.6.24-rc8/arch/powerpc/mm/mem.c	2008-01-25 08:20:33.000000000 -0800
+> > @@ -156,7 +156,9 @@ int remove_memory(u64 start, u64 size)
+> >  	ret = offline_pages(start_pfn, end_pfn, 120 * HZ);
+> >  	if (ret)
+> >  		goto out;
+> > -	/* Arch-specific calls go here - next patch */
+> > +
+> > +	start = (unsigned long)__va(start);
+> > +	remove_section_mapping(start, start + size);
+> >  out:
+> >  	return ret;
+> >  }
+> > Index: linux-2.6.24-rc8/arch/powerpc/platforms/pseries/lpar.c
+> > ===================================================================
+> > --- linux-2.6.24-rc8.orig/arch/powerpc/platforms/pseries/lpar.c	2008-01-15 20:22:48.000000000 -0800
+> > +++ linux-2.6.24-rc8/arch/powerpc/platforms/pseries/lpar.c	2008-01-28 14:10:58.000000000 -0800
+> > @@ -520,6 +520,20 @@ static void pSeries_lpar_hpte_invalidate
+> >  	BUG_ON(lpar_rc != H_SUCCESS);
+> >  }
+> >  
+> > +static void pSeries_lpar_hpte_removebolted(unsigned long ea,
+> > +					   int psize, int ssize)
+> > +{
+> > +	unsigned long slot, vsid, va;
+> > +
+> > +	vsid = get_kernel_vsid(ea, ssize);
+> > +	va = hpt_va(ea, vsid, ssize);
+> > +
+> > +	slot = pSeries_lpar_hpte_find(va, psize, ssize);
+> > +	BUG_ON(slot == -1);
+> > +
+> > +	pSeries_lpar_hpte_invalidate(slot, va, psize, ssize, 0);
+> > +}
+> > +
+> >  /* Flag bits for H_BULK_REMOVE */
+> >  #define HBR_REQUEST	0x4000000000000000UL
+> >  #define HBR_RESPONSE	0x8000000000000000UL
+> > @@ -597,6 +611,7 @@ void __init hpte_init_lpar(void)
+> >  	ppc_md.hpte_updateboltedpp = pSeries_lpar_hpte_updateboltedpp;
+> >  	ppc_md.hpte_insert	= pSeries_lpar_hpte_insert;
+> >  	ppc_md.hpte_remove	= pSeries_lpar_hpte_remove;
+> > +	ppc_md.hpte_removebolted = pSeries_lpar_hpte_removebolted;
+> >  	ppc_md.flush_hash_range	= pSeries_lpar_flush_hash_range;
+> >  	ppc_md.hpte_clear_all   = pSeries_lpar_hptab_clear;
+> >  }
+> > Index: linux-2.6.24-rc8/include/asm-powerpc/machdep.h
+> > ===================================================================
+> > --- linux-2.6.24-rc8.orig/include/asm-powerpc/machdep.h	2008-01-25 08:04:41.000000000 -0800
+> > +++ linux-2.6.24-rc8/include/asm-powerpc/machdep.h	2008-01-28 11:45:17.000000000 -0800
+> > @@ -68,6 +68,8 @@ struct machdep_calls {
+> >  				       unsigned long vflags,
+> >  				       int psize, int ssize);
+> >  	long		(*hpte_remove)(unsigned long hpte_group);
+> > +	void            (*hpte_removebolted)(unsigned long ea,
+> > +					     int psize, int ssize);
+> >  	void		(*flush_hash_range)(unsigned long number, int local);
+> >  
+> >  	/* special for kexec, to be called in real mode, linar mapping is
+> > 
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
-> That is true for your implementation and to address Robin's issues. Jack: 
-> Is that true for the GRU?
-
-I'm not sure I understand the question. The GRU never (currently) takes
-a reference on a page. It has no mechanism for tracking pages that
-were exported to the external TLBs.
-
---- jack
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
