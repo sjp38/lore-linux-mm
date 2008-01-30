@@ -1,50 +1,88 @@
-Date: Wed, 30 Jan 2008 12:03:12 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [patch 3/6] mmu_notifier: invalidate_page callbacks for
-	subsystems with rmap
-Message-ID: <20080130180312.GV26420@sgi.com>
-References: <20080130022909.677301714@sgi.com> <20080130022944.699753910@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080130022944.699753910@sgi.com>
+Message-Id: <20080130180940.369732000@sgi.com>
+References: <20080130180940.022172000@sgi.com>
+Date: Wed, 30 Jan 2008 10:09:42 -0800
+From: travis@sgi.com
+Subject: [PATCH 2/6] percpu: Change Kconfig to HAVE_SETUP_PER_CPU_AREA linux-2.6.git
+Content-Disposition: inline; filename=change-configs
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
+To: Geert Uytterhoeven <Geert.Uytterhoeven@sonycom.com>, Linus Torvalds <torvalds@linux-foundation.org>, mingo@elte.hu, Thomas Gleixner <tglx@linutronix.de>, config@kvack.org, HAVE_SETUP_PER_CPU_AREA@kvack.org
+Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Tony Luck <tony.luck@intel.com>, David Miller <davem@davemloft.net>, Sam Ravnborg <sam@ravnborg.org>, Rusty Russell <rusty@rustcorp.com.au>, linuxppc-dev@ozlabs.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This is the second part of a patch posted to patch 1/6.
+Based on latest linux-2.6.git
 
+Cc: Andi Kleen <ak@suse.de>
+Cc: Tony Luck <tony.luck@intel.com>
+Cc: David Miller <davem@davemloft.net>
+Cc: Sam Ravnborg <sam@ravnborg.org>
+Cc: Rusty Russell <rusty@rustcorp.com.au>
+Cc: Geert Uytterhoeven <Geert.Uytterhoeven@sonycom.com>
+Cc: linuxppc-dev@ozlabs.org
+Cc: linux-ia64@vger.kernel.org
 
-Index: git-linus/mm/rmap.c
-===================================================================
---- git-linus.orig/mm/rmap.c	2008-01-30 11:55:56.000000000 -0600
-+++ git-linus/mm/rmap.c	2008-01-30 12:01:28.000000000 -0600
-@@ -476,8 +476,10 @@ int page_mkclean(struct page *page)
- 		struct address_space *mapping = page_mapping(page);
- 		if (mapping) {
- 			ret = page_mkclean_file(mapping, page);
--			if (unlikely(PageExternalRmap(page)))
-+			if (unlikely(PageExternalRmap(page))) {
- 				mmu_rmap_notifier(invalidate_page, page);
-+				ClearPageExported(page);
-+			}
- 			if (page_test_dirty(page)) {
- 				page_clear_dirty(page);
- 				ret = 1;
-@@ -980,8 +982,10 @@ int try_to_unmap(struct page *page, int 
- 	else
- 		ret = try_to_unmap_file(page, migration);
+Signed-off-by: Mike Travis <travis@sgi.com>
+---
+linux-2.6.git:
+  - added back in missing pieces from x86.git merge
+
+The change to using "select xxx" as suggested by Sam
+requires an addition to a non-existant file (arch/Kconfig)
+so I went back to using "config xxx" to introduce the flag.
+
+---
+ arch/ia64/Kconfig    |    2 +-
+ arch/powerpc/Kconfig |    2 +-
+ arch/sparc64/Kconfig |    2 +-
+ init/main.c          |    2 ++
+ 4 files changed, 5 insertions(+), 3 deletions(-)
+
+--- a/arch/ia64/Kconfig
++++ b/arch/ia64/Kconfig
+@@ -80,7 +80,7 @@ config GENERIC_TIME_VSYSCALL
+ 	bool
+ 	default y
  
--	if (unlikely(PageExternalRmap(page)))
-+	if (unlikely(PageExternalRmap(page))) {
- 		mmu_rmap_notifier(invalidate_page, page);
-+		ClearPageExported(page);
-+	}
+-config ARCH_SETS_UP_PER_CPU_AREA
++config HAVE_SETUP_PER_CPU_AREA
+ 	def_bool y
  
- 	if (!page_mapped(page))
- 		ret = SWAP_SUCCESS;
+ config DMI
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -42,7 +42,7 @@ config GENERIC_HARDIRQS
+ 	bool
+ 	default y
+ 
+-config ARCH_SETS_UP_PER_CPU_AREA
++config HAVE_SETUP_PER_CPU_AREA
+ 	def_bool PPC64
+ 
+ config IRQ_PER_CPU
+--- a/arch/sparc64/Kconfig
++++ b/arch/sparc64/Kconfig
+@@ -66,7 +66,7 @@ config AUDIT_ARCH
+ 	bool
+ 	default y
+ 
+-config ARCH_SETS_UP_PER_CPU_AREA
++config HAVE_SETUP_PER_CPU_AREA
+ 	def_bool y
+ 
+ config ARCH_NO_VIRT_TO_BUS
+--- a/init/main.c
++++ b/init/main.c
+@@ -380,6 +380,8 @@ static void __init setup_per_cpu_areas(v
+ 
+ 	/* Copy section for each CPU (we discard the original) */
+ 	size = ALIGN(PERCPU_ENOUGH_ROOM, PAGE_SIZE);
++	printk(KERN_INFO
++	    "PERCPU: Allocating %lu bytes of per cpu data (main)\n", size);
+ 	ptr = alloc_bootmem_pages(size * nr_possible_cpus);
+ 
+ 	for_each_possible_cpu(i) {
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
