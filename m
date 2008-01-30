@@ -1,29 +1,42 @@
-Date: Wed, 30 Jan 2008 11:19:28 -0800 (PST)
+Date: Wed, 30 Jan 2008 11:28:15 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [patch 1/6] mmu_notifier: Core code
-In-Reply-To: <20080130155306.GA13746@sgi.com>
-Message-ID: <Pine.LNX.4.64.0801301116510.27491@schroedinger.engr.sgi.com>
-References: <20080130022909.677301714@sgi.com> <20080130022944.236370194@sgi.com>
- <20080130153749.GN7233@v2.random> <20080130155306.GA13746@sgi.com>
+In-Reply-To: <1201713032.28547.234.camel@lappy>
+Message-ID: <Pine.LNX.4.64.0801301125390.27491@schroedinger.engr.sgi.com>
+References: <20080130022909.677301714@sgi.com>  <20080130022944.236370194@sgi.com>
+  <20080130153749.GN7233@v2.random> <1201713032.28547.234.camel@lappy>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 30 Jan 2008, Jack Steiner wrote:
+How about just taking the mmap_sem writelock in release? We have only a 
+single caller of mmu_notifier_release() in mm/mmap.c and we know that we 
+are not holding mmap_sem at that point. So just acquire it when needed?
 
-> Moving to a different lock solves the problem.
-
-Well it gets us back to the issue why we removed the lock. As Robin said 
-before: If its global then we can have a huge number of tasks contending 
-for the lock on startup of a process with a large number of ranks. The 
-reason to go to mmap_sem was that it was placed in the mm_struct and so we 
-would just have a couple of contentions per mm_struct.
-
-I'll be looking for some other way to do this.
+Index: linux-2.6/mm/mmu_notifier.c
+===================================================================
+--- linux-2.6.orig/mm/mmu_notifier.c	2008-01-30 11:21:57.000000000 -0800
++++ linux-2.6/mm/mmu_notifier.c	2008-01-30 11:24:59.000000000 -0800
+@@ -18,6 +19,7 @@ void mmu_notifier_release(struct mm_stru
+ 	struct hlist_node *n, *t;
+ 
+ 	if (unlikely(!hlist_empty(&mm->mmu_notifier.head))) {
++		down_write(&mm->mmap_sem);
+ 		rcu_read_lock();
+ 		hlist_for_each_entry_safe_rcu(mn, n, t,
+ 					  &mm->mmu_notifier.head, hlist) {
+@@ -26,6 +28,7 @@ void mmu_notifier_release(struct mm_stru
+ 				mn->ops->release(mn, mm);
+ 		}
+ 		rcu_read_unlock();
++		up_write(&mm->mmap_sem);
+ 		synchronize_rcu();
+ 	}
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
