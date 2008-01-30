@@ -1,86 +1,92 @@
-Message-Id: <20080130180940.369732000@sgi.com>
+Message-Id: <20080130180940.648082000@sgi.com>
 References: <20080130180940.022172000@sgi.com>
-Date: Wed, 30 Jan 2008 10:09:42 -0800
+Date: Wed, 30 Jan 2008 10:09:44 -0800
 From: travis@sgi.com
-Subject: [PATCH 2/6] percpu: Change Kconfig to HAVE_SETUP_PER_CPU_AREA linux-2.6.git
-Content-Disposition: inline; filename=change-configs
+Subject: [PATCH 4/6] ia64: Use generic percpu linux-2.6.git
+Content-Disposition: inline; filename=ia64_generic_percpu
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Geert Uytterhoeven <Geert.Uytterhoeven@sonycom.com>, Linus Torvalds <torvalds@linux-foundation.org>, mingo@elte.hu, Thomas Gleixner <tglx@linutronix.de>, config@kvack.org, HAVE_SETUP_PER_CPU_AREA@kvack.org
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Tony Luck <tony.luck@intel.com>, David Miller <davem@davemloft.net>, Sam Ravnborg <sam@ravnborg.org>, Rusty Russell <rusty@rustcorp.com.au>, linuxppc-dev@ozlabs.org, linux-ia64@vger.kernel.org
+To: Geert Uytterhoeven <Geert.Uytterhoeven@sonycom.com>, Linus Torvalds <torvalds@linux-foundation.org>, mingo@elte.hu, Thomas Gleixner <tglx@linutronix.de>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tony Luck <tony.luck@intel.com>, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
+
+ia64 has a special processor specific mapping that can be used to locate the
+offset for the current per cpu area.
 
 Based on latest linux-2.6.git
 
-Cc: Andi Kleen <ak@suse.de>
 Cc: Tony Luck <tony.luck@intel.com>
-Cc: David Miller <davem@davemloft.net>
-Cc: Sam Ravnborg <sam@ravnborg.org>
-Cc: Rusty Russell <rusty@rustcorp.com.au>
-Cc: Geert Uytterhoeven <Geert.Uytterhoeven@sonycom.com>
-Cc: linuxppc-dev@ozlabs.org
 Cc: linux-ia64@vger.kernel.org
 
 Signed-off-by: Mike Travis <travis@sgi.com>
 ---
 linux-2.6.git:
   - added back in missing pieces from x86.git merge
-
-The change to using "select xxx" as suggested by Sam
-requires an addition to a non-existant file (arch/Kconfig)
-so I went back to using "config xxx" to introduce the flag.
-
 ---
- arch/ia64/Kconfig    |    2 +-
- arch/powerpc/Kconfig |    2 +-
- arch/sparc64/Kconfig |    2 +-
- init/main.c          |    2 ++
- 4 files changed, 5 insertions(+), 3 deletions(-)
+ include/asm-ia64/percpu.h |   24 +++++++-----------------
+ include/linux/percpu.h    |    4 ----
+ 2 files changed, 7 insertions(+), 21 deletions(-)
 
---- a/arch/ia64/Kconfig
-+++ b/arch/ia64/Kconfig
-@@ -80,7 +80,7 @@ config GENERIC_TIME_VSYSCALL
- 	bool
- 	default y
+--- a/include/asm-ia64/percpu.h
++++ b/include/asm-ia64/percpu.h
+@@ -19,29 +19,14 @@
+ # define PER_CPU_ATTRIBUTES	__attribute__((__model__ (__small__)))
+ #endif
  
--config ARCH_SETS_UP_PER_CPU_AREA
-+config HAVE_SETUP_PER_CPU_AREA
- 	def_bool y
+-#define DECLARE_PER_CPU(type, name)				\
+-	extern PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
+-
+ #ifdef CONFIG_SMP
  
- config DMI
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -42,7 +42,7 @@ config GENERIC_HARDIRQS
- 	bool
- 	default y
+-extern unsigned long __per_cpu_offset[NR_CPUS];
+-#define per_cpu_offset(x) (__per_cpu_offset[x])
+-
+-/* Equal to __per_cpu_offset[smp_processor_id()], but faster to access: */
+-DECLARE_PER_CPU(unsigned long, local_per_cpu_offset);
+-
+-#define per_cpu(var, cpu)  (*RELOC_HIDE(&per_cpu__##var, __per_cpu_offset[cpu]))
+-#define __get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __ia64_per_cpu_var(local_per_cpu_offset)))
+-#define __raw_get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __ia64_per_cpu_var(local_per_cpu_offset)))
++#define __my_cpu_offset	__ia64_per_cpu_var(local_per_cpu_offset)
  
--config ARCH_SETS_UP_PER_CPU_AREA
-+config HAVE_SETUP_PER_CPU_AREA
- 	def_bool PPC64
+-extern void setup_per_cpu_areas (void);
+ extern void *per_cpu_init(void);
  
- config IRQ_PER_CPU
---- a/arch/sparc64/Kconfig
-+++ b/arch/sparc64/Kconfig
-@@ -66,7 +66,7 @@ config AUDIT_ARCH
- 	bool
- 	default y
+ #else /* ! SMP */
  
--config ARCH_SETS_UP_PER_CPU_AREA
-+config HAVE_SETUP_PER_CPU_AREA
- 	def_bool y
+-#define per_cpu(var, cpu)			(*((void)(cpu), &per_cpu__##var))
+-#define __get_cpu_var(var)			per_cpu__##var
+-#define __raw_get_cpu_var(var)			per_cpu__##var
+ #define per_cpu_init()				(__phys_per_cpu_start)
  
- config ARCH_NO_VIRT_TO_BUS
---- a/init/main.c
-+++ b/init/main.c
-@@ -380,6 +380,8 @@ static void __init setup_per_cpu_areas(v
+ #endif	/* SMP */
+@@ -52,7 +37,12 @@ extern void *per_cpu_init(void);
+  * On the positive side, using __ia64_per_cpu_var() instead of __get_cpu_var() is slightly
+  * more efficient.
+  */
+-#define __ia64_per_cpu_var(var)	(per_cpu__##var)
++#define __ia64_per_cpu_var(var)	per_cpu__##var
++
++#include <asm-generic/percpu.h>
++
++/* Equal to __per_cpu_offset[smp_processor_id()], but faster to access: */
++DECLARE_PER_CPU(unsigned long, local_per_cpu_offset);
  
- 	/* Copy section for each CPU (we discard the original) */
- 	size = ALIGN(PERCPU_ENOUGH_ROOM, PAGE_SIZE);
-+	printk(KERN_INFO
-+	    "PERCPU: Allocating %lu bytes of per cpu data (main)\n", size);
- 	ptr = alloc_bootmem_pages(size * nr_possible_cpus);
+ #endif /* !__ASSEMBLY__ */
  
- 	for_each_possible_cpu(i) {
+--- a/include/linux/percpu.h
++++ b/include/linux/percpu.h
+@@ -9,10 +9,6 @@
+ 
+ #include <asm/percpu.h>
+ 
+-#ifndef PER_CPU_ATTRIBUTES
+-#define PER_CPU_ATTRIBUTES
+-#endif
+-
+ #ifdef CONFIG_SMP
+ #define DEFINE_PER_CPU(type, name)					\
+ 	__attribute__((__section__(".data.percpu")))			\
 
 -- 
 
