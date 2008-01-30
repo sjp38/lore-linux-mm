@@ -1,99 +1,103 @@
-Date: Wed, 30 Jan 2008 17:38:45 +0100
+Date: Wed, 30 Jan 2008 18:04:52 +0100
 From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [patch 1/6] mmu_notifier: Core code
-Message-ID: <20080130163845.GO7233@v2.random>
-References: <20080130022909.677301714@sgi.com> <20080130022944.236370194@sgi.com> <20080130153749.GN7233@v2.random> <20080130155306.GA13746@sgi.com>
+Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address
+	ranges
+Message-ID: <20080130170451.GP7233@v2.random>
+References: <20080128202840.974253868@sgi.com> <20080128202923.849058104@sgi.com> <20080129162004.GL7233@v2.random> <Pine.LNX.4.64.0801291153520.25300@schroedinger.engr.sgi.com> <20080129211759.GV7233@v2.random> <Pine.LNX.4.64.0801291327330.26649@schroedinger.engr.sgi.com> <20080129220212.GX7233@v2.random> <Pine.LNX.4.64.0801291407380.27104@schroedinger.engr.sgi.com> <20080130000039.GA7233@v2.random> <20080130161123.GS26420@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080130155306.GA13746@sgi.com>
+In-Reply-To: <20080130161123.GS26420@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
+To: Robin Holt <holt@sgi.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 30, 2008 at 09:53:06AM -0600, Jack Steiner wrote:
-> That will also resolve the problem we discussed yesterday. 
-> I want to unregister my mmu_notifier when a GRU segment is
-> unmapped. This would not necessarily be at task termination.
-
-My proof that there is something wrong in the smp locking of the
-current code is very simple: it can't be right to use
-hlist_for_each_entry_safe_rcu and rcu_read_lock inside
-mmu_notifier_release, and then to call hlist_del_rcu without any
-spinlock or semaphore. If we walk the list with
-hlist_for_each_entry_safe_rcu (and not with
-hlist_for_each_entry_safe), it means the list _can_ change from under
-us, and in turn the hlist_del_rcu must be surrounded by a spinlock or
-sempahore too!
-
-If by design the list _can't_ change from under us and calling
-hlist_del_rcu was safe w/o locks, then hlist_for_each_entry_safe is
-_sure_ enough for mmu_notifier_release, and rcu_read_lock most
-certainly can be removed too.
-
-To make an usage case where the race could trigger, I was thinking at
-somebody bumping the mm_count (not mm_users) and registering a
-notifier while mmu_notifier_release runs and relaying on ->release to
-know if it has to run mmu_notifier_unregister. However I now started
-wondering how it can relay on ->release to know that if ->release is
-called after hlist_del_rcu because with the latest changes ->release
-will also allow the mn to release itself ;). It's unsafe to call
-list_del_rcu twice (the second will crash on a poisoned entry).
-
-This starts to make me think we should remove the auto-disarming
-feature and require the notifier-user to have the ->release call
-mmu_notifier_unregister first and to free the "mn" inside ->release
-too if needed. Or alternatively the notifier-user can bump mm_count
-and to call a mmu_notifier_unregister before calling mmdrop (like kvm
-could do).
-
-Another approach is to simply define mmu_notifier_release as
-implicitly serialized by other code design, with a real lock (not rcu)
-against the whole register/unregister operations. So to guarantee the
-notifier list can't change from under us while mmu_notifier_release
-runs. If we go this route, yes, the auto-disarming hlist_del can be
-kept, the current code would have been safe, but to avoid confusion
-the mmu_notifier_release shall become this:
-
-void mmu_notifier_release(struct mm_struct *mm)
-{
-	struct mmu_notifier *mn;
-	struct hlist_node *n, *t;
-
-	if (unlikely(!hlist_empty(&mm->mmu_notifier.head))) {
-		hlist_for_each_entry_safe(mn, n, t,
-					  &mm->mmu_notifier.head, hlist) {
-			hlist_del(&mn->hlist);
-			if (mn->ops->release)
-				mn->ops->release(mn, mm);
-		}
-	}
-}
-
-> However, the mmap_sem is already held for write by the core
-> VM at the point I would call the unregister function.
-> Currently, there is no __mmu_notifier_unregister() defined.
+On Wed, Jan 30, 2008 at 10:11:24AM -0600, Robin Holt wrote:
+> > Robin, if you don't mind, could you please post or upload somewhere
+> > your GPLv2 code that registers itself in Christoph's V2 notifiers? Or
+> > is it top secret? I wouldn't mind to have a look so I can better
+> > understand what's the exact reason you're sleeping besides attempting
+> > GFP_KERNEL allocations. Thanks!
 > 
-> Moving to a different lock solves the problem.
+> Dean is still actively working on updating the xpmem patch posted
+> here a few months ago reworked for the mmu_notifiers.  I am sure
+> we can give you a early look, but it is in a really rough state.
+> 
+> http://marc.info/?l=linux-mm&w=2&r=1&s=xpmem&q=t
+> 
+> The need to sleep comes from the fact that these PFNs are sent to other
+> hosts on the same NUMA fabric which have direct access to the pages
+> and then placed into remote process's page tables and then filled into
+> their TLBs.  Our only means of communicating the recall is async.
+> 
+> I think I need to straighten this discussion out in my head a little bit.
+> Am I correct in assuming Andrea's original patch set did not have any SMP
+> race conditions for KVM?  If so, then we need to start looking at how to
 
-Unless the mmu_notifier_release becomes like above and we rely on the
-user of the mmu notifiers to implement a highlevel external lock that
-will we definitely forbid to bump the mm_count of the mm, and to call
-register/unregister while mmu_notifier_release could run, 1) moving to a
-different lock and 2) removing the auto-disarming hlist_del_rcu from
-mmu_notifier_release sounds the only possible smp safe way.
+Yes my last patch was SMP safe, stable and feature complete for KVM. I
+tested it for 1 week on my smp workstation with real desktop load and
+everything loaded, with 3G non-linux guest running on 2G of ram.
 
-As far as KVM is concerned mmu_notifier_released could be changed to
-the version I written above and everything should be ok. For KVM the
-mm_count bump is done by the task that also holds a mm_user, so when
-exit_mmap runs I don't think the list could possible change anymore.
+Now for whatever reason I adapted the KVM side to Christoph's V2/V3
+and it hangs the moment it hits swap. However in the meantime I
+changed test hardware, upgraded host to 2.6.24-hg, and upgraded kvm
+kernel and userland. all patches applied cleanly (with a minor nit in
+a .h include in V2 on top of current git). Swapping of regular tasks
+on the test system is 100% solid or I wouldn't even wasting time
+mentioning this. By code inspection I didn't expect a stability
+regression or I wouldn't have chanced all variables at the same time
+(taking the opportunity to move everything to bleeding edge while
+moving to V2 turned out to be a bad idea). I already audited the mmu
+notifiers a few times, infact I already went back to call
+invalidate_page and age_page inside ptep_clear_flush/young in case the
+page-pin wasn't enough to prevent the page to change under the sptes,
+as I thought yesterday.
 
-Anyway those are details that can be perfected after mainline merging,
-so this isn't something to worry about too much right now. My idea is
-to keep working to perfect it while I hope progress is being made by
-Christoph to merge the mmu notifiers V3 patchset in mainline ;).
+Christoph's V3 notably still misses the needed range flushes in mremap
+for example, but that's not my problem.  (Jack instead will certainly
+kernel crash due to the missing invalidate_page after ptep_clear_flush
+in mremap, such an invalidate_page wasn't missing with my last patch)
+
+I'm now going to run the same binaries that still are stable on my
+workstation on the test system too, to rule out timings and hardware
+differences.
+
+> implement Christoph's and my changes in a safe fashion.  Andrea, I agree
+> complete that our introduction of the range callouts have introduced
+> SMP races.
+
+I think for KVM basic swapping both V2 and V3 should be safe. V2 had
+race conditions that would later break KSM yes, I fixed it and V3
+should be already ok and I'm not testing KSM. This is all thanks to the
+pin of the page in get_user_page that KVM does for every page mapped
+in any spte.
+
+> The three issues we need to simultaneously solve is revoking the remote
+> page table/tlb information while still in a sleepable context and not
+> having the remote faulters become out of sync with the granting process.
+> Currently, I don't see a way to do that cleanly with a single callout.
+
+Agreed.
+
+> Could we consider doing a range-based recall and lock callout before
+> clearing the processes page tables/TLBs, then use the _page or _range
+> callouts from Andrea's patch to clear the mappings,  finally make a
+> range-based unlock callout.  The mmu_notifier user would usually use ops
+> for either the recall+lock/unlock family of callouts or the _page/_range
+> family of callouts.
+
+invalidate_page/age_page can return inside ptep_clear_flush/young and
+Jack will need that too. Infact Jack will need an invalidate_page also
+inside ptep_get_and_clear. And the range callout will be done always
+in a sleeping context and it'll relay on the page-pin to be safe (when
+details->i_mmap_lock != NULL invalidate_range it shouldn't be called
+inside zap_page_range but before returning from
+unmap_mapping_range_vma before cond_resched). This will make
+everything a bit simpler and less prone to breakage IMHO, plus it'll
+have a chance to work for Jack w/o page-pin without additional
+cluttering of mm/*.c.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
