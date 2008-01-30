@@ -1,27 +1,51 @@
-Date: Wed, 30 Jan 2008 01:59:12 +0100
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address
-	ranges
-Message-ID: <20080130005912.GC7233@v2.random>
-References: <20080128202923.849058104@sgi.com> <20080129162004.GL7233@v2.random> <Pine.LNX.4.64.0801291153520.25300@schroedinger.engr.sgi.com> <20080129211759.GV7233@v2.random> <Pine.LNX.4.64.0801291327330.26649@schroedinger.engr.sgi.com> <20080129220212.GX7233@v2.random> <Pine.LNX.4.64.0801291407380.27104@schroedinger.engr.sgi.com> <20080130000039.GA7233@v2.random> <20080130000559.GB7233@v2.random> <Pine.LNX.4.64.0801291621380.28027@schroedinger.engr.sgi.com>
+Date: Wed, 30 Jan 2008 10:13:05 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [-mm PATCH] updates for hotplug memory remove
+In-Reply-To: <1201653101.19684.6.camel@dyn9047017100.beaverton.ibm.com>
+References: <20080129120318.5BDF.Y-GOTO@jp.fujitsu.com> <1201653101.19684.6.camel@dyn9047017100.beaverton.ibm.com>
+Message-Id: <20080130095002.4CCC.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0801291621380.28027@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 29, 2008 at 04:22:46PM -0800, Christoph Lameter wrote:
-> That is only partially true. pte are created wronly in order to track 
-> dirty state these days. The first write will lead to a fault that switches 
-> the pte to writable. When the page undergoes writeback the page again 
-> becomes write protected. Thus our need to effectively deal with 
-> page_mkclean.
+> > Have you ever tested hotadd(probe) of the removed memory?
+> 
+> Yes. I did. In my touch testing, I was able to remove memory and add
+> it back to the system without any issues.
 
-Well I was talking about anonymous memory.
+Oh, really!?
+
+> But again, I didn't force
+> the system to use that memory :(
+
+Ah..OK.
+
+> 
+> > I'm afraid there are some differences of the status between pre hot-add
+> > section and the removed section by this patch. I think the mem_section of
+> > removed memory should be invalidated at least.
+> 
+> I think its a generic issue. Nothing specific for ppc64. Isn't it ? 
+
+Right.
+Currently, our machine doesn't have real physical remove feature yet.
+(only add).
+So, I think testing is not enough around physical removing.
+Probably, your box will be first one which can remove physical memory
+with Linux. It is good for testing. 
+If you notice anything, please let me know. :-)
+
+
+Bye.
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
