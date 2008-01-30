@@ -1,65 +1,97 @@
-Message-Id: <20080130180940.788340000@sgi.com>
-References: <20080130180940.022172000@sgi.com>
-Date: Wed, 30 Jan 2008 10:09:45 -0800
-From: travis@sgi.com
-Subject: [PATCH 5/6] powerpc: Use generic per cpu linux-2.6.git
-Content-Disposition: inline; filename=power_generic_percpu
+Subject: Re: [PATCH] mm: MADV_WILLNEED implementation for anonymous memory
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <1201714139.28547.237.camel@lappy>
+References: <1201714139.28547.237.camel@lappy>
+Content-Type: text/plain
+Date: Wed, 30 Jan 2008 12:15:59 -0600
+Message-Id: <1201716959.4037.17.camel@cinder.waste.org>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Geert Uytterhoeven <Geert.Uytterhoeven@sonycom.com>, Linus Torvalds <torvalds@linux-foundation.org>, mingo@elte.hu, Thomas Gleixner <tglx@linutronix.de>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Mackerras <paulus@samba.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, riel <riel@redhat.com>, Lennart Poettering <mztabzr@0pointer.de>
 List-ID: <linux-mm.kvack.org>
 
-Powerpc has a way to determine the address of the per cpu area of the
-currently executing processor via the paca and the array of per cpu
-offsets is avoided by looking up the per cpu area from the remote
-paca's (copying x86_64).
+On Wed, 2008-01-30 at 18:28 +0100, Peter Zijlstra wrote:
+> Subject: mm: MADV_WILLNEED implementation for anonymous memory
+> 
+> Implement MADV_WILLNEED for anonymous pages by walking the page tables and
+> starting asynchonous swap cache reads for all encountered swap pages.
+> 
+> Doing so required a modification to the page table walking library functions.
+> Previously ->pte_entry() could be called while holding a kmap_atomic, to
+> overcome this problem the pte walker is changed to copy batches of the pmd
+> and iterate them.
 
-Based on latest linux-2.6.git
+That's a pretty reasonable approach. My original approach was to buffer
+a page worth of PTEs with all the attendant malloc annoyances. Then
+Andrew and I came up with another fix a bit ago by effectively doing a
+batch of size 1: mapping and immediately unmapping per PTE. That's
+basically a no-op on !HIGHPTE but could potentially be expensive in the
+HIGHPTE case. Your approach might be a good complexity/performance
+middle ground.
 
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Geert Uytterhoeven <Geert.Uytterhoeven@sonycom.com>
+Unfortunately, I think we only implemented our fix in one of the
+relevant places: the /proc/pid/pagemap code hooks a callback at the pte
+table level and then does its own walk across the table. Perhaps I
+should refactor this so that it hooks in at the pte entry level of the
+walker instead.
 
-Signed-off-by: Mike Travis <travis@sgi.com>
----
-linux-2.6.git:
-  - added back in missing pieces from x86.git merge
----
- include/asm-powerpc/percpu.h |   20 ++------------------
- 1 file changed, 2 insertions(+), 18 deletions(-)
+> +/*
+> + * Much of the complication here is to work around CONFIG_HIGHPTE which needs
+> + * to kmap the pmd. So copy batches of ptes from the pmd and iterate over
+> + * those.
+> + */
+> +#define WALK_BATCH_SIZE	32
+> +
+>  static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+>  			  const struct mm_walk *walk, void *private)
+>  {
+>  	pte_t *pte;
+> +	pte_t ptes[WALK_BATCH_SIZE];
+> +	unsigned long start;
+> +	unsigned int i;
+>  	int err = 0;
+>  
+> -	pte = pte_offset_map(pmd, addr);
+>  	do {
+> -		err = walk->pte_entry(pte, addr, addr + PAGE_SIZE, private);
+> -		if (err)
+> -		       break;
+> -	} while (pte++, addr += PAGE_SIZE, addr != end);
+> +		start = addr;
+>  
+> -	pte_unmap(pte);
+> +		pte = pte_offset_map(pmd, addr);
+> +		for (i = 0; i < WALK_BATCH_SIZE && addr != end;
+> +				i++, pte++, addr += PAGE_SIZE)
+> +			ptes[i] = *pte;
 
---- a/include/asm-powerpc/percpu.h
-+++ b/include/asm-powerpc/percpu.h
-@@ -16,25 +16,9 @@
- #define __my_cpu_offset() get_paca()->data_offset
- #define per_cpu_offset(x) (__per_cpu_offset(x))
- 
--/* var is in discarded region: offset to particular copy we want */
--#define per_cpu(var, cpu) (*RELOC_HIDE(&per_cpu__##var, __per_cpu_offset(cpu)))
--#define __get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __my_cpu_offset()))
--#define __raw_get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, local_paca->data_offset))
-+#endif /* CONFIG_SMP */
-+#endif /* __powerpc64__ */
- 
--extern void setup_per_cpu_areas(void);
--
--#else /* ! SMP */
--
--#define per_cpu(var, cpu)			(*((void)(cpu), &per_cpu__##var))
--#define __get_cpu_var(var)			per_cpu__##var
--#define __raw_get_cpu_var(var)			per_cpu__##var
--
--#endif	/* SMP */
--
--#define DECLARE_PER_CPU(type, name) extern __typeof__(type) per_cpu__##name
--
--#else
- #include <asm-generic/percpu.h>
--#endif
- 
- #endif /* _ASM_POWERPC_PERCPU_H_ */
+Looks like this could be:
+
+		for (i = 0; i < WALK_BATCH_SIZE && addr + i * PAGE_SIZE != end; i++)
+			ptes[i] = pte[i];
+
+> +		pte_unmap(pte);
+> +
+> +		for (i = 0, pte = ptes, addr = start;
+> +				i < WALK_BATCH_SIZE && addr != end;
+> +				i++, pte++, addr += PAGE_SIZE) {
+> +			err = walk->pte_entry(pte, addr, addr + PAGE_SIZE,
+> +					private);
+		for (i = 0; i < WALK_BATCH_SIZE && addr != end;
+			i++, addr+= PAGE_SIZE) {
+			err = walk->pte_entry(ptes[i], addr, addr + PAGE_SIZE,
+				private);
+
+And we can ditch start.
+
+Also, one wonders if setting batch size to 1 will then convince the
+compiler to collapse this into a more trivial loop in the !HIGHPTE case.
 
 -- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
