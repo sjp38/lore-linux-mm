@@ -1,49 +1,33 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate1.de.ibm.com (8.13.8/8.13.8) with ESMTP id m0V8WPRC056376
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2008 08:32:25 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m0V8WPmx2252902
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2008 09:32:25 +0100
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m0V8WOMx028357
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2008 09:32:24 +0100
-Subject: Re: [PATCH 6/6] s390: Use generic percpu linux-2.6.git
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Reply-To: schwidefsky@de.ibm.com
-In-Reply-To: <20080130215339.GC28242@elte.hu>
-References: <20080130180940.022172000@sgi.com>
-	 <20080130180940.921597000@sgi.com>  <20080130215339.GC28242@elte.hu>
+Subject: Re: [PATCH] mm: MADV_WILLNEED implementation for anonymous memory
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20080130144049.73596898.akpm@linux-foundation.org>
+References: <1201714139.28547.237.camel@lappy>
+	 <20080130144049.73596898.akpm@linux-foundation.org>
 Content-Type: text/plain
-Date: Thu, 31 Jan 2008 09:32:26 +0100
-Message-Id: <1201768346.18221.5.camel@localhost>
+Date: Thu, 31 Jan 2008 09:44:00 +0100
+Message-Id: <1201769040.28547.245.camel@lappy>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: travis@sgi.com, Geert Uytterhoeven <Geert.Uytterhoeven@sonycom.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de, riel@redhat.com, mztabzr@0pointer.de, mpm@selenic.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-01-30 at 22:53 +0100, Ingo Molnar wrote:
-> * travis@sgi.com <travis@sgi.com> wrote:
+On Wed, 2008-01-30 at 14:40 -0800, Andrew Morton wrote:
+> On Wed, 30 Jan 2008 18:28:59 +0100
+> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 > 
-> > Change s390 percpu.h to use asm-generic/percpu.h
+> > Implement MADV_WILLNEED for anonymous pages by walking the page tables and
+> > starting asynchonous swap cache reads for all encountered swap pages.
 > 
-> do the s390 maintainer agree with this change (Acks please), and has it 
-> been tested on s390?
+> Why cannot this use (a perhaps suitably-modified) make_pages_present()?
 
-Now I'm confused. The patch has been acked a few weeks ago and the last
-5+ version of the patch had the acked line. The lastest version dropped
-it for a reason I don't know. And more, the patch is already upstream
-with the (correct) acked line, see git commit
-f034347470e486835ccdcd7a5bb2ceb417be11c4.
-So, what is the problem ?
+Because make_pages_present() relies on page faults to bring data in and
+will thus wait for all data to be present before returning.
 
--- 
-blue skies,
-  Martin.
-
-"Reality continues to ruin my life." - Calvin.
+This solution is async; it will just issue a read for the requested
+pages and moves on.
 
 
 --
