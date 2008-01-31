@@ -1,38 +1,39 @@
-Date: Wed, 30 Jan 2008 17:03:06 -0800 (PST)
-Message-Id: <20080130.170306.174974383.davem@davemloft.net>
-Subject: Re: [PATCH 3/6] sparc64: Use generic percpu linux-2.6.git
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20080130215223.GB28242@elte.hu>
-References: <20080130180940.022172000@sgi.com>
-	<20080130180940.506256000@sgi.com>
-	<20080130215223.GB28242@elte.hu>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Date: Thu, 31 Jan 2008 10:17:48 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch 05/19] split LRU lists into anon & file sets
+In-Reply-To: <1201703382.5459.3.camel@localhost>
+References: <20080130175439.1AFD.KOSAKI.MOTOHIRO@jp.fujitsu.com> <1201703382.5459.3.camel@localhost>
+Message-Id: <20080131100838.1F3B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Ingo Molnar <mingo@elte.hu>
-Date: Wed, 30 Jan 2008 22:52:23 +0100
 Return-Path: <owner-linux-mm@kvack.org>
-To: mingo@elte.hu
-Cc: travis@sgi.com, Geert.Uytterhoeven@sonycom.com, torvalds@linux-foundation.org, tglx@linutronix.de, clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 
-> * travis@sgi.com <travis@sgi.com> wrote:
-> 
-> > Sparc64 has a way of providing the base address for the per cpu area 
-> > of the currently executing processor in a global register.
-> > 
-> > Sparc64 also provides a way to calculate the address of a per cpu area 
-> > from a base address instead of performing an array lookup.
-> 
-> has this been booted on SPARC64 and does David ACK this conversion?
+Hi Lee-san
 
-Conceptually I'm fine with the changes.
+> Rik is currently out on holiday and I've been traveling.  Just getting
+> back to rebasing to 24-rc8-mm1.  Thank you for your efforts in testing
+> and tracking down the regressions.  I will add your fixes into my tree
+> and try them out and let you know.  Rik mentioned to me that he has a
+> fix for the "get_scan_ratio()" calculation that is causing us to OOM
+> kill prematurely--i.e., when we still have lots of swap space to evict
+> swappable anon.  I don't know if it's similar to what you have posted.
+> Have to wait and see what he says.  Meantime, we'll try your patches.
 
-I had these for testing in my backlog right before I came to
-LCA08 and I won't be able to do any real testing until I get back
-home on Feb 4th.
+thank you for your quick response.
+
+on my test environment, my patch solve incorrect OOM.
+because, too small reclaim cause OOM.
+
+Please confirm.
+
+
+- kosaki
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
