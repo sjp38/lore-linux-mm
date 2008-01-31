@@ -1,128 +1,56 @@
-Date: Thu, 31 Jan 2008 01:54:53 -0800
+Date: Thu, 31 Jan 2008 02:05:16 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 2/6] mm: bdi: export BDI attributes in sysfs
-Message-Id: <20080131015453.d5c98955.akpm@linux-foundation.org>
-In-Reply-To: <E1JKVss-0001yr-7A@pomaz-ex.szeredi.hu>
-References: <20080129154900.145303789@szeredi.hu>
-	<20080129154948.823761079@szeredi.hu>
-	<20080130162839.977d1e63.akpm@linux-foundation.org>
-	<E1JKVss-0001yr-7A@pomaz-ex.szeredi.hu>
+Subject: Re: [PATCH] mm: MADV_WILLNEED implementation for anonymous memory
+Message-Id: <20080131020516.be42c495.akpm@linux-foundation.org>
+In-Reply-To: <1201773206.28547.259.camel@lappy>
+References: <1201714139.28547.237.camel@lappy>
+	<20080130144049.73596898.akpm@linux-foundation.org>
+	<1201769040.28547.245.camel@lappy>
+	<20080131011227.257b9437.akpm@linux-foundation.org>
+	<1201772118.28547.254.camel@lappy>
+	<20080131014702.705f1040.akpm@linux-foundation.org>
+	<1201773206.28547.259.camel@lappy>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, kay.sievers@vrfy.org, greg@kroah.com, trond.myklebust@fys.uio.no
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de, riel@redhat.com, mztabzr@0pointer.de, mpm@selenic.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 31 Jan 2008 10:39:02 +0100 Miklos Szeredi <miklos@szeredi.hu> wrote:
+On Thu, 31 Jan 2008 10:53:26 +0100 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-> > On Tue, 29 Jan 2008 16:49:02 +0100
-> > Miklos Szeredi <miklos@szeredi.hu> wrote:
+> 
+> On Thu, 2008-01-31 at 01:47 -0800, Andrew Morton wrote:
+> > On Thu, 31 Jan 2008 10:35:18 +0100 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 > > 
-> > > From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 > > > 
-> > > Provide a place in sysfs (/sys/class/bdi) for the backing_dev_info
-> > > object.  This allows us to see and set the various BDI specific
-> > > variables.
+> > > On Thu, 2008-01-31 at 01:12 -0800, Andrew Morton wrote:
 > > > 
-> > > In particular this properly exposes the read-ahead window for all
-> > > relevant users and /sys/block/<block>/queue/read_ahead_kb should be
-> > > deprecated.
+> > > > Implementation-wise: make_pages_present() _can_ be converted to do this. 
+> > > > But it's a lot of patching, and the result will be a cleaner, faster and
+> > > > smaller core MM.  Whereas your approach is easy, but adds more code and
+> > > > leaves the old stuff slow-and-dirty.
+> > > > 
+> > > > Guess which approach is preferred? ;)
+> > > 
+> > > Ok, I'll look at using make_pages_present().
 > > 
-> > This description is not complete.  It implies that the readahead window is
-> > not "properly" exposed for some "relevant" users.  The reader is left
-> > wondering what on earth this is referring to.  I certainly don't know.
-> > Perhaps when this information is revealed, we can work out what was
-> > wrong with per-queue readahead tuning.
+> > Am still curious to know what inspired this change.  What are the use
+> > cases?  Performance testing results, etc?
 > 
-> I think Peter meant, that the readahead window was only exposed for
-> block devices, and not things like NFS or FUSE.
-
-OK.
-
+> Ah, that is Lennarts Pulse Audio thing, he has samples in memory which
+> might not have been used for a while, and he wants to be able to
+> pre-fetch those when he suspects they might need to be played. So that
+> once the audio thread comes along and stuffs them down /dev/dsp its all
+> nice in memory.
 > 
-> > > +blk-NAME
-> > > +
-> > > +	Block devices, NAME is 'sda', 'loop0', etc...
-> > 
-> > But if I've done `mknod /dev/pizza-party 8 0', I'm looking for
-> > blk-pizza-party, not blk-sda.
-> > 
-> > But I might still have /dev/sda, too.
-> 
-> An alternative would be to uniformly use MAJOR:MINOR in there.  It
-> would work for block devices and anonymous devices (NFS/FUSE) as well.
-> 
-> Would that be any better?
+> Since its all soft real-time at best he feels its better to do a best
+> effort at not hitting swap than it is to strain the system with mlock
+> usage.
 
-I suppose so.  sysfs likes to use symlinks to point over at related
-things in different directories...
-
-> > 
-> > > +FSTYPE-MAJOR:MINOR
-> > > +
-> > > +	Non-block device backed filesystems which provide their own
-> > > +	BDI, such as NFS and FUSE.  MAJOR:MINOR is the value of st_dev
-> > > +	for files on this filesystem.
-> > > +
-> > > +default
-> > > +
-> > > +	The default backing dev, used for non-block device backed
-> > > +	filesystems which do not provide their own BDI.
-> > > +
-> > > +Files under /sys/class/bdi/<bdi>/
-> > > +---------------------------------
-> > > +
-> > > +read_ahead_kb (read-write)
-> > > +
-> > > +	Size of the read-ahead window in kilobytes
-> > > +
-> > > +reclaimable_kb (read-only)
-> > > +
-> > > +	Reclaimable (dirty or unstable) memory destined for writeback
-> > > +	to this device
-> > > +
-> > > +writeback_kb (read-only)
-> > > +
-> > > +	Memory currently under writeback to this device
-> > > +
-> > > +dirty_kb (read-only)
-> > > +
-> > > +	Global threshold for reclaimable + writeback memory
-> > > +
-> > > +bdi_dirty_kb (read-only)
-> > > +
-> > > +	Current threshold on this BDI for reclaimable + writeback
-> > > +	memory
-> > > +
-> > 
-> > I dunno.  A number of the things which you're exposing are closely tied to
-> > present-day kernel implementation and may be irrelevant or even
-> > unimplementable in a few years' time.
-> 
-> Which ones?
-
-I don't know - I misplaced my copy of linux-2.6.44 :)
-
-The whole concept of a BDI might go away, who knows?  Progress in
-non-volatile semiconductor storage might make the whole
-rotating-platter-with-a-seek-head thing obsolete.
-
-read_ahead_kb is likely to be stable.  writeback_kb is a stable concept
-too, although we might lose the ability to keep track of it some time in
-the future.
-
-Suppose that /dev/sda and /dev/sdb share the same queue - we lose the ability
-to track some of these things?
-
->  They could possibly be moved to debugfs, or something.
-> 
-> I agree, that sysfs should be relatively stable.
-
-This does look more like a debugging feature than a permanently-offered,
-support-it-forever part of the kernel ABI.
+hrm.  Does he know about pthread_create()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
