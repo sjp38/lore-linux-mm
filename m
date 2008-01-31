@@ -1,48 +1,50 @@
-In-reply-to: <20080130163927.760e94cc.akpm@linux-foundation.org> (message from
-	Andrew Morton on Wed, 30 Jan 2008 16:39:27 -0800)
-Subject: Re: [patch 6/6] mm: bdi: allow setting a maximum for the bdi dirty
- limit
-References: <20080129154900.145303789@szeredi.hu>
-	<20080129154954.275142755@szeredi.hu> <20080130163927.760e94cc.akpm@linux-foundation.org>
-Message-Id: <E1JKW0Q-000200-An@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Thu, 31 Jan 2008 10:46:50 +0100
+Subject: Re: [PATCH] mm: MADV_WILLNEED implementation for anonymous memory
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20080131014702.705f1040.akpm@linux-foundation.org>
+References: <1201714139.28547.237.camel@lappy>
+	 <20080130144049.73596898.akpm@linux-foundation.org>
+	 <1201769040.28547.245.camel@lappy>
+	 <20080131011227.257b9437.akpm@linux-foundation.org>
+	 <1201772118.28547.254.camel@lappy>
+	 <20080131014702.705f1040.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Thu, 31 Jan 2008 10:53:26 +0100
+Message-Id: <1201773206.28547.259.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: miklos@szeredi.hu, a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de, riel@redhat.com, mztabzr@0pointer.de, mpm@selenic.com
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 29 Jan 2008 16:49:06 +0100
-> Miklos Szeredi <miklos@szeredi.hu> wrote:
+On Thu, 2008-01-31 at 01:47 -0800, Andrew Morton wrote:
+> On Thu, 31 Jan 2008 10:35:18 +0100 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 > 
-> > Add "max_ratio" to /sys/class/bdi.  This indicates the maximum
-> > percentage of the global dirty threshold allocated to this bdi.
+> > 
+> > On Thu, 2008-01-31 at 01:12 -0800, Andrew Morton wrote:
+> > 
+> > > Implementation-wise: make_pages_present() _can_ be converted to do this. 
+> > > But it's a lot of patching, and the result will be a cleaner, faster and
+> > > smaller core MM.  Whereas your approach is easy, but adds more code and
+> > > leaves the old stuff slow-and-dirty.
+> > > 
+> > > Guess which approach is preferred? ;)
+> > 
+> > Ok, I'll look at using make_pages_present().
 > 
-> Maybe I'm having a stupid day, but I don't understand the semantics of this
-> min and max at all.  I've read the code, and I've read the comments (well,
-> I've hunted for some) and I've read the docs.
-> 
-> I really don't know how anyone could use this in its current state without
-> doing a lot of code-reading and complex experimentation.  All of which
-> would be unneeded if this tunable was properly documented.
-> 
-> So.  Please provide adequate documentation for this tunable.  I'd suggest
-> that it be pitched at the level of a reasonably competent system operator. 
-> It should help them understand why the tunable exists, why they might
-> choose to alter it, and what effects they can expect to see.  Hopefully a
-> reaonably competent kernel developer can then understand it too.
+> Am still curious to know what inspired this change.  What are the use
+> cases?  Performance testing results, etc?
 
-OK.  I think what's missing from some docs, is a high level
-description of the per-bdi throttling algorithm, and how it affects
-writeback.  Because with info, I think the min and max ratios are
-trivially understandable: they just override the result of the
-algorithm, in case it would mean too high or too low threshold.
+Ah, that is Lennarts Pulse Audio thing, he has samples in memory which
+might not have been used for a while, and he wants to be able to
+pre-fetch those when he suspects they might need to be played. So that
+once the audio thread comes along and stuffs them down /dev/dsp its all
+nice in memory.
 
-Peter, could you write something about that?
-
-Thanks,
-Miklos
+Since its all soft real-time at best he feels its better to do a best
+effort at not hitting swap than it is to strain the system with mlock
+usage.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
