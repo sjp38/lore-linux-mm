@@ -1,87 +1,47 @@
-Date: Thu, 31 Jan 2008 17:54:26 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch] mm: fix PageUptodate data race
-In-Reply-To: <20080131125817.GD10469@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0801311713530.13636@blonde.site>
-References: <20080122040114.GA18450@wotan.suse.de>
- <20080126220356.0b77f0e9.akpm@linux-foundation.org> <20080131125817.GD10469@wotan.suse.de>
+Date: Thu, 31 Jan 2008 12:07:00 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 2/3] mmu_notifier: Callbacks to invalidate address ranges
+In-Reply-To: <20080131123118.GK7185@v2.random>
+Message-ID: <Pine.LNX.4.64.0801311200250.25299@schroedinger.engr.sgi.com>
+References: <20080131045750.855008281@sgi.com> <20080131045812.785269387@sgi.com>
+ <20080131123118.GK7185@v2.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 31 Jan 2008, Nick Piggin wrote:
+On Thu, 31 Jan 2008, Andrea Arcangeli wrote:
 
-> Sorry, way behind on email here. I'll get through it slowly...
-
-You're certainly not the only one, and certainly not the worst offender.
-
-> On Sat, Jan 26, 2008 at 10:03:56PM -0800, Andrew Morton wrote:
-> > 
-> > So...  it's two patches in one.
+> On Wed, Jan 30, 2008 at 08:57:52PM -0800, Christoph Lameter wrote:
+> > @@ -211,7 +212,9 @@ asmlinkage long sys_remap_file_pages(uns
+> >  		spin_unlock(&mapping->i_mmap_lock);
+> >  	}
+> >  
+> > +	mmu_notifier(invalidate_range_begin, mm, start, start + size, 0);
+> >  	err = populate_range(mm, vma, start, size, pgoff);
+> > +	mmu_notifier(invalidate_range_end, mm, 0);
+> >  	if (!err && !(flags & MAP_NONBLOCK)) {
+> >  		if (unlikely(has_write_lock)) {
+> >  			downgrade_write(&mm->mmap_sem);
 > 
-> I guess so. Hmm, at least I appreciate it (them) getting testing in -mm
-> for now. I guess I should break it in two, do you agree Hugh?
+> This can't be enough for GRU, infact it can't work for KVM either. You
+> got 1) to have some invalidate_page for GRU before freeing the page,
+> and 2) to pass start, end to range_end (if you want kvm to use it
+> instead of invalidate_page).
 
-I do agree: I recommended that same split on a previous occasion.
-Actually, it's three patches: you seem to prefer one style over
-another in cow_user_page, I don't care either way, go ahead and
-make the change, but it's nothing to do with the rest of it.
+The external references are dropped when calling invalidate_range_begin. 
+This would work both for the KVM and the GRU. Why would KVM not be able to 
+invalidate the range before? Locking conventions is that no additional 
+external reference can be added between invalidate_range_begin and 
+invalidate_range_end. So KVM is fine too.
 
-> Do you like/dislike the anonymous page change?
+> mremap still missing as a whole.
 
-Like would be a little strong, but I certainly don't dislike:
-you're right that the current old-established way is somewhat
-contingent, do go ahead and make these Uptodates more consistent.
-
-> > What kernel is this against?  Looks like mainline.  Is it complete and
-> > correct when applied against the large number of pending MM changes?
-> 
-> Uh, I forget. But luckily this one should be quite correct reglardless
-> of pending mm changes... unless something there has fundamentally changed
-> the semantics or locking of PG_uptodate... which wouldn't be too surprising
-> actually ;)
-
-So far as I could tell, it's correct on top of -rc8-mm1 despite the
-fuzz - unless we've added more places where a mod is needed, but I
-don't think so.
-
-I'm testing with that now, mainly because an earlier version hit a
-BUG or WARNing with shmem: I wanted to check that no longer happens.
-It doesn't, but then I got curious why not: I believe the problem
-line was shmem_getpage's
-	(!PageUptodate(filepage) || TestSetPageLocked(filepage)))
-which gave trouble when you had a PageLocked check inside PageUptodate.
-You don't have that now because you're not at this point trying to push
-the PageLocked shortcuts; but worth noting if you resurrect those later.
-
-I do like this version _so_ much more than your earlier attempts to
-avoid the overhead wherever you could argue it.  Those might become
-more acceptable once we've grown accustomed to this initial set.
-
-Thanks for doing the FAQs: I think in the meantime I'd already
-persuaded myself that you're right that PageUptodate is the
-proper place for this stuff, even if I regret the complication.
-
-Four little points.  In the comments, "preceding" not "preceeding"
-and I presume "wmb" not "smb".  You've carried over several "(page)"s
-from the macros which would better be "page"s in inline functions.
-
-And do we really need that smp_wmb in __SetPageUptodate?  It seems
-to me that when you're in a position to use __SetPageUptodate, the
-page cannot yet be visible, and the necessary barrier will be
-provided later when the page is made visible.
-
-I suspect the answer is that I'm confusing two different kinds of
-visibility; and that although it's true that we don't actually need
-that smp_wmb in the places where __SetPageUptodate is being used,
-it'd be hard to write and remember the rules to justify its removal.
-But mention it because you may well see this more clearly.
-
-Hugh
+mremap uses do_munmap which calls into unmap_region() that already has 
+callbacks. So what is wrong there?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
