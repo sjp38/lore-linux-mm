@@ -1,118 +1,81 @@
-Date: Wed, 30 Jan 2008 16:28:39 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 2/6] mm: bdi: export BDI attributes in sysfs
-Message-Id: <20080130162839.977d1e63.akpm@linux-foundation.org>
-In-Reply-To: <20080129154948.823761079@szeredi.hu>
-References: <20080129154900.145303789@szeredi.hu>
-	<20080129154948.823761079@szeredi.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 31 Jan 2008 01:34:34 +0100
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [kvm-devel] [patch 2/6] mmu_notifier: Callbacks to invalidate
+	address ranges
+Message-ID: <20080131003434.GE7185@v2.random>
+References: <20080129220212.GX7233@v2.random> <Pine.LNX.4.64.0801291407380.27104@schroedinger.engr.sgi.com> <20080130000039.GA7233@v2.random> <20080130161123.GS26420@sgi.com> <20080130170451.GP7233@v2.random> <20080130173009.GT26420@sgi.com> <20080130182506.GQ7233@v2.random> <Pine.LNX.4.64.0801301147330.30568@schroedinger.engr.sgi.com> <20080130235214.GC7185@v2.random> <Pine.LNX.4.64.0801301555550.1722@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0801301555550.1722@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, kay.sievers@vrfy.org, greg@kroah.com, trond.myklebust@fys.uio.no
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 29 Jan 2008 16:49:02 +0100
-Miklos Szeredi <miklos@szeredi.hu> wrote:
+On Wed, Jan 30, 2008 at 04:01:31PM -0800, Christoph Lameter wrote:
+> How we offload that? Before the scan of the rmaps we do not have the 
+> mmstruct. So we'd need another notifier_rmap_callback.
 
-> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> 
-> Provide a place in sysfs (/sys/class/bdi) for the backing_dev_info
-> object.  This allows us to see and set the various BDI specific
-> variables.
-> 
-> In particular this properly exposes the read-ahead window for all
-> relevant users and /sys/block/<block>/queue/read_ahead_kb should be
-> deprecated.
+My assumption is that that "int lock" exists just because
+unmap_mapping_range_vma exists. If I'm right then my suggestion was to
+move the invalidate_range after dropping the i_mmap_lock and not to
+invoke it inside zap_page_range.
 
-This description is not complete.  It implies that the readahead window is
-not "properly" exposed for some "relevant" users.  The reader is left
-wondering what on earth this is referring to.  I certainly don't know.
-Perhaps when this information is revealed, we can work out what was
-wrong with per-queue readahead tuning.
+> The obvious solution does not scale. You will have a callback for every 
 
-> --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-> +++ linux/Documentation/ABI/testing/sysfs-class-bdi	2008-01-29 13:02:46.000000000 +0100
-> @@ -0,0 +1,50 @@
-> +What:		/sys/class/bdi/<bdi>/
-> +Date:		January 2008
-> +Contact:	Peter Zijlstra <a.p.zijlstra@chello.nl>
-> +Description:
-> +
-> +Provide a place in sysfs for the backing_dev_info object.
-> +This allows us to see and set the various BDI specific variables.
-> +
-> +The <bdi> identifyer can take the following forms:
+Scale is the wrong word. The PT lock will prevent any other cpu to
+trash on the mmu_lock, so it's a fixed cost for each pte_clear with no
+scalability risk, nor any complexity issue. Certainly we could average
+certain fixed costs over more than one pte_clear to boost performance,
+and that's good idea. Not really a short term concern, we need to swap
+reliably first ;).
 
-"identifier"
+> page and there may be a million of those if you have a 4GB process.
 
-> +blk-NAME
-> +
-> +	Block devices, NAME is 'sda', 'loop0', etc...
+That can be optimized adding a __ptep_clear_flush and an
+invalidate_pages (let's call it pages to better show it's an
+'clustered' version of invalidate_page, to avoid the confusion with
+_range_before/after that does an entirely different thing). Also for
+_range I tend to like before/after, as a means to say before the
+pte_clear and after the pte_clear but any other meaning is ok with me.
 
-But if I've done `mknod /dev/pizza-party 8 0', I'm looking for
-blk-pizza-party, not blk-sda.
+We add invalidate_page and invalidate_pages
+immediately. invalidate_pages may never be called initially by the
+linux VM, we can start calling it later as we replace ptep_clear_flush
+with __ptep_clear_flush (or local_ptep_clear_flush).
 
-But I might still have /dev/sda, too.
+I don't see any problem with this approach and it looks quite clean to
+me and it leaves you full room for experimenting in practice with
+range_before/after while knowing those range_before/after won't
+require many changes.
 
-> +FSTYPE-MAJOR:MINOR
-> +
-> +	Non-block device backed filesystems which provide their own
-> +	BDI, such as NFS and FUSE.  MAJOR:MINOR is the value of st_dev
-> +	for files on this filesystem.
-> +
-> +default
-> +
-> +	The default backing dev, used for non-block device backed
-> +	filesystems which do not provide their own BDI.
-> +
-> +Files under /sys/class/bdi/<bdi>/
-> +---------------------------------
-> +
-> +read_ahead_kb (read-write)
-> +
-> +	Size of the read-ahead window in kilobytes
-> +
-> +reclaimable_kb (read-only)
-> +
-> +	Reclaimable (dirty or unstable) memory destined for writeback
-> +	to this device
-> +
-> +writeback_kb (read-only)
-> +
-> +	Memory currently under writeback to this device
-> +
-> +dirty_kb (read-only)
-> +
-> +	Global threshold for reclaimable + writeback memory
-> +
-> +bdi_dirty_kb (read-only)
-> +
-> +	Current threshold on this BDI for reclaimable + writeback
-> +	memory
-> +
+And for things like the age_page it will never happen that you could
+call the respective ptep_clear_flush_young w/o mmu notifier age_page
+after it, so you won't ever risk having to add an age_pages or a
+__ptep_clear_flush_young.
 
-I dunno.  A number of the things which you're exposing are closely tied to
-present-day kernel implementation and may be irrelevant or even
-unimplementable in a few years' time.
+> We need to have a coherent notifier solution that works for multiple 
+> scenarios. I think a working invalidate_range would also be required for 
+> KVM. KVM and GRUB are very similar so they should be able to use the same 
+> mechanisms and we need to properly document how that mechanism is safe. 
+> Either both take a page refcount or none.
 
-At the very least you should put a HUGE warning in here telling everyone
-that these files may disappear or be renamed with new semantics in the
-future, and that they should design their userspace code with this in mind.
+There's no reason why KVM should take any risk of corrupting memory
+due to a single missing mmu notifier, with not taking the
+refcount. get_user_pages will take it for us, so we have to pay the
+atomic-op anyway. It sure worth doing the atomic_dec inside the mmu
+notifier, and not immediately like this:
 
-But that will only prevent userspace from outright crashing.  Once we
-expose functionality of this nature, people will come to depend upon it.
-We can't stop this.
+	  get_user_pages(pages)
+	  __free_page(pages[0])
 
-Suppose $CLUELESS_CORP modifies $LARGE_DATABASE so that it uses these new
-fields to optimise its cache population and cache flushout strategies. 
-Later, we are forced to remove these fields.  The database now runs all
-slowly.
-
-It's just a bad idea to expose deep kernelguts in this way.  We need really
-good reasons for doing so, and those reasons should be in the changelog.
+The idea is that what works for GRU, works for KVM too. So we do a
+single invalidate_page and clustered invalidate_pages, we add that,
+and then we make sure all places are covered so GRU will not
+kernel-crash, and KVM won't risk to run oom or to generate _userland_
+corruption.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
