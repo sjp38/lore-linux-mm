@@ -1,40 +1,54 @@
-Date: Thu, 31 Jan 2008 09:50:13 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 6/6] s390: Use generic percpu linux-2.6.git
-Message-ID: <20080131085013.GB1585@elte.hu>
-References: <20080130180940.022172000@sgi.com> <20080130180940.921597000@sgi.com> <20080130215339.GC28242@elte.hu> <1201768346.18221.5.camel@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1201768346.18221.5.camel@localhost>
+Date: Thu, 31 Jan 2008 01:12:27 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: MADV_WILLNEED implementation for anonymous memory
+Message-Id: <20080131011227.257b9437.akpm@linux-foundation.org>
+In-Reply-To: <1201769040.28547.245.camel@lappy>
+References: <1201714139.28547.237.camel@lappy>
+	<20080130144049.73596898.akpm@linux-foundation.org>
+	<1201769040.28547.245.camel@lappy>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: travis@sgi.com, Geert Uytterhoeven <Geert.Uytterhoeven@sonycom.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de, riel@redhat.com, mztabzr@0pointer.de, mpm@selenic.com
 List-ID: <linux-mm.kvack.org>
 
-* Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
+On Thu, 31 Jan 2008 09:44:00 +0100 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-> On Wed, 2008-01-30 at 22:53 +0100, Ingo Molnar wrote:
-> > * travis@sgi.com <travis@sgi.com> wrote:
-> > 
-> > > Change s390 percpu.h to use asm-generic/percpu.h
-> > 
-> > do the s390 maintainer agree with this change (Acks please), and has it 
-> > been tested on s390?
 > 
-> Now I'm confused. The patch has been acked a few weeks ago and the 
-> last 5+ version of the patch had the acked line. The lastest version 
-> dropped it for a reason I don't know. And more, the patch is already 
-> upstream with the (correct) acked line, see git commit 
-> f034347470e486835ccdcd7a5bb2ceb417be11c4. So, what is the problem ?
+> On Wed, 2008-01-30 at 14:40 -0800, Andrew Morton wrote:
+> > On Wed, 30 Jan 2008 18:28:59 +0100
+> > Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> > 
+> > > Implement MADV_WILLNEED for anonymous pages by walking the page tables and
+> > > starting asynchonous swap cache reads for all encountered swap pages.
+> > 
+> > Why cannot this use (a perhaps suitably-modified) make_pages_present()?
+> 
+> Because make_pages_present() relies on page faults to bring data in and
+> will thus wait for all data to be present before returning.
+> 
+> This solution is async; it will just issue a read for the requested
+> pages and moves on.
+> 
 
-the latest patch was sent without your acked line and i asked about 
-that. But later on Mike told me that you acked it - so i restored the 
-ack and the patch, Linus pulled the fixes and it now all is upstream and 
-all architectures should be fine again now.
+I of course realise that.  I also realise that swapin_readahead() is
+_supposed_ to make the difference moot.
 
-	Ingo
+There's something you guys aren't telling us.  Several things, actually. 
+Please don't do that.
+
+
+
+Implementation-wise: make_pages_present() _can_ be converted to do this. 
+But it's a lot of patching, and the result will be a cleaner, faster and
+smaller core MM.  Whereas your approach is easy, but adds more code and
+leaves the old stuff slow-and-dirty.
+
+Guess which approach is preferred? ;)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
