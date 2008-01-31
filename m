@@ -1,27 +1,40 @@
-Date: Thu, 31 Jan 2008 12:06:10 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] mm: MADV_WILLNEED implementation for anonymous memory
-Message-ID: <20080131110610.GA31090@one.firstfloor.org>
-References: <1201714139.28547.237.camel@lappy> <20080130144049.73596898.akpm@linux-foundation.org> <1201769040.28547.245.camel@lappy> <20080131011227.257b9437.akpm@linux-foundation.org> <1201772118.28547.254.camel@lappy> <20080131014702.705f1040.akpm@linux-foundation.org> <1201773206.28547.259.camel@lappy> <p73ve5a47yr.fsf@bingen.suse.de> <20080131021949.92715ba4.akpm@linux-foundation.org>
+Date: Thu, 31 Jan 2008 05:48:19 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [patch 05/19] split LRU lists into anon & file sets
+Message-ID: <20080131054819.6be037f8@riellaptop.surriel.com>
+In-Reply-To: <20080131100838.1F3B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080130175439.1AFD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<1201703382.5459.3.camel@localhost>
+	<20080131100838.1F3B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080131021949.92715ba4.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, hugh@veritas.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de, riel@redhat.com, mztabzr@0pointer.de, mpm@selenic.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Yeah, the 2.5 switch to physical scanning killed us there.
-> 
-> I still don't know why my allocate-swapspace-according-to-virtual-address
-> change didn't help.  Much.  Marcelo played with that a bit too.
+On Thu, 31 Jan 2008 10:17:48 +0900
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-I've been thinking about just always doing swap on > page clusters. 
-Any reason swapping couldn't be done on e.g. 1MB chunks? 
+> on my test environment, my patch solve incorrect OOM.
+> because, too small reclaim cause OOM.
 
--Andi
+That makes sense.
+
+The version you two are looking at can return
+"percentages" way larger than 100 in get_scan_ratio.
+
+A fixed version of get_scan_ratio, where the
+percentages always add up to 100%, makes the
+system go OOM before it seriously starts
+swapping.
+
+I will integrate your fixes with my code when I
+get back from holidays.  Then things should work :)
+
+Thank you for your analysis of the problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
