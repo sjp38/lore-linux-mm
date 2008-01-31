@@ -1,70 +1,75 @@
-Subject: Re: [patch 6/6] mm: bdi: allow setting a maximum for the bdi dirty
-	limit
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <E1JKW0Q-000200-An@pomaz-ex.szeredi.hu>
-References: <20080129154900.145303789@szeredi.hu>
-	 <20080129154954.275142755@szeredi.hu>
-	 <20080130163927.760e94cc.akpm@linux-foundation.org>
-	 <E1JKW0Q-000200-An@pomaz-ex.szeredi.hu>
-Content-Type: text/plain
-Date: Thu, 31 Jan 2008 11:17:47 +0100
-Message-Id: <1201774667.28547.286.camel@lappy>
+Date: Thu, 31 Jan 2008 02:18:02 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: MADV_WILLNEED implementation for anonymous memory
+Message-Id: <20080131021802.b591bee8.akpm@linux-foundation.org>
+In-Reply-To: <1201774213.28547.277.camel@lappy>
+References: <1201714139.28547.237.camel@lappy>
+	<20080130144049.73596898.akpm@linux-foundation.org>
+	<1201769040.28547.245.camel@lappy>
+	<20080131011227.257b9437.akpm@linux-foundation.org>
+	<1201772118.28547.254.camel@lappy>
+	<20080131014702.705f1040.akpm@linux-foundation.org>
+	<1201773206.28547.259.camel@lappy>
+	<20080131020516.be42c495.akpm@linux-foundation.org>
+	<1201774213.28547.277.camel@lappy>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de, riel@redhat.com, mztabzr@0pointer.de, mpm@selenic.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-01-31 at 10:46 +0100, Miklos Szeredi wrote:
-> > On Tue, 29 Jan 2008 16:49:06 +0100
-> > Miklos Szeredi <miklos@szeredi.hu> wrote:
-> > 
-> > > Add "max_ratio" to /sys/class/bdi.  This indicates the maximum
-> > > percentage of the global dirty threshold allocated to this bdi.
-> > 
-> > Maybe I'm having a stupid day, but I don't understand the semantics of this
-> > min and max at all.  I've read the code, and I've read the comments (well,
-> > I've hunted for some) and I've read the docs.
-> > 
-> > I really don't know how anyone could use this in its current state without
-> > doing a lot of code-reading and complex experimentation.  All of which
-> > would be unneeded if this tunable was properly documented.
-> > 
-> > So.  Please provide adequate documentation for this tunable.  I'd suggest
-> > that it be pitched at the level of a reasonably competent system operator. 
-> > It should help them understand why the tunable exists, why they might
-> > choose to alter it, and what effects they can expect to see.  Hopefully a
-> > reaonably competent kernel developer can then understand it too.
+On Thu, 31 Jan 2008 11:10:13 +0100 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+
 > 
-> OK.  I think what's missing from some docs, is a high level
-> description of the per-bdi throttling algorithm, and how it affects
-> writeback.  Because with info, I think the min and max ratios are
-> trivially understandable: they just override the result of the
-> algorithm, in case it would mean too high or too low threshold.
+> On Thu, 2008-01-31 at 02:05 -0800, Andrew Morton wrote:
+> > On Thu, 31 Jan 2008 10:53:26 +0100 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> > 
+> > > 
+> > > On Thu, 2008-01-31 at 01:47 -0800, Andrew Morton wrote:
+> > > > On Thu, 31 Jan 2008 10:35:18 +0100 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> > > > 
+> > > > > 
+> > > > > On Thu, 2008-01-31 at 01:12 -0800, Andrew Morton wrote:
+> > > > > 
+> > > > > > Implementation-wise: make_pages_present() _can_ be converted to do this. 
+> > > > > > But it's a lot of patching, and the result will be a cleaner, faster and
+> > > > > > smaller core MM.  Whereas your approach is easy, but adds more code and
+> > > > > > leaves the old stuff slow-and-dirty.
+> > > > > > 
+> > > > > > Guess which approach is preferred? ;)
+> > > > > 
+> > > > > Ok, I'll look at using make_pages_present().
+> > > > 
+> > > > Am still curious to know what inspired this change.  What are the use
+> > > > cases?  Performance testing results, etc?
+> > > 
+> > > Ah, that is Lennarts Pulse Audio thing, he has samples in memory which
+> > > might not have been used for a while, and he wants to be able to
+> > > pre-fetch those when he suspects they might need to be played. So that
+> > > once the audio thread comes along and stuffs them down /dev/dsp its all
+> > > nice in memory.
+> > > 
+> > > Since its all soft real-time at best he feels its better to do a best
+> > > effort at not hitting swap than it is to strain the system with mlock
+> > > usage.
+> > 
+> > hrm.  Does he know about pthread_create()?
 > 
-> Peter, could you write something about that?
+> I'm very sure he does. So you're suggesting to just create a thread and
+> touch that memory and be done with it?
+> 
+> Lennart?
 
-Sure.
+That would get him out of trouble.  But it certainly makes _sense_ for the
+kernel to implement MADV_WILLNEED for anon memory.  From a consistency POV.
 
-How about something like:
+But I don't know that the usefulness of the feature is worth actually
+expending code on.  Heck, after five-odd years I'm still asking every
+second person I meet "why don't you use fadvise()?"  (Reponse: ooooh!)
 
-Under normal circumstances each device is given a part of the total
-write-back cache that relates to its current avg writeout speed in
-relation to the other devices.
-
-min_ratio - allows one to assign a minimum portion of the write-back
-cache to a particular device. This is useful in situations where you
-might want to provide a minimum QoS. (One request for this feature came
-from flash based storage people who wanted to avoid writing out at all
-costs - they of course needed some pdflush hacks as well)
-
-max_ratio - allows one to assign a maximum portion of the dirty limit to
-a particular device. This is useful in situations where you want to
-avoid one device taking all or most of the write-back cache. Eg. an NFS
-mount that is prone to get stuck, or a FUSE mount which you don't trust
-to play fair.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
