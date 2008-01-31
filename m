@@ -1,38 +1,49 @@
-Date: Wed, 30 Jan 2008 18:56:38 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [kvm-devel] mmu_notifier: invalidate_range_start with lock=1
-In-Reply-To: <20080131023401.GY26420@sgi.com>
-Message-ID: <Pine.LNX.4.64.0801301851310.14263@schroedinger.engr.sgi.com>
-References: <20080130000039.GA7233@v2.random> <20080130161123.GS26420@sgi.com>
- <20080130170451.GP7233@v2.random> <20080130173009.GT26420@sgi.com>
- <20080130182506.GQ7233@v2.random> <Pine.LNX.4.64.0801301147330.30568@schroedinger.engr.sgi.com>
- <20080130235214.GC7185@v2.random> <Pine.LNX.4.64.0801301555550.1722@schroedinger.engr.sgi.com>
- <20080131003434.GE7185@v2.random> <Pine.LNX.4.64.0801301728110.2454@schroedinger.engr.sgi.com>
- <20080131023401.GY26420@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate1.de.ibm.com (8.13.8/8.13.8) with ESMTP id m0V8WPRC056376
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2008 08:32:25 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m0V8WPmx2252902
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2008 09:32:25 +0100
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m0V8WOMx028357
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2008 09:32:24 +0100
+Subject: Re: [PATCH 6/6] s390: Use generic percpu linux-2.6.git
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Reply-To: schwidefsky@de.ibm.com
+In-Reply-To: <20080130215339.GC28242@elte.hu>
+References: <20080130180940.022172000@sgi.com>
+	 <20080130180940.921597000@sgi.com>  <20080130215339.GC28242@elte.hu>
+Content-Type: text/plain
+Date: Thu, 31 Jan 2008 09:32:26 +0100
+Message-Id: <1201768346.18221.5.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, steiner@sgi.com, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: travis@sgi.com, Geert Uytterhoeven <Geert.Uytterhoeven@sonycom.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-One possible way that XPmem could deal with a call of 
-invalidate_range_start with the lock flag set:
+On Wed, 2008-01-30 at 22:53 +0100, Ingo Molnar wrote:
+> * travis@sgi.com <travis@sgi.com> wrote:
+> 
+> > Change s390 percpu.h to use asm-generic/percpu.h
+> 
+> do the s390 maintainer agree with this change (Acks please), and has it 
+> been tested on s390?
 
-Scan through the rmaps you have for ptes. If you find one then elevate the 
-refcount of the corresponding page and mark in the maps that you have done 
-so. Also make them readonly. The increased refcount will prevent the 
-freeing of the page. The page will be unmapped from the process and XPmem 
-will retain the only reference.
+Now I'm confused. The patch has been acked a few weeks ago and the last
+5+ version of the patch had the acked line. The lastest version dropped
+it for a reason I don't know. And more, the patch is already upstream
+with the (correct) acked line, see git commit
+f034347470e486835ccdcd7a5bb2ceb417be11c4.
+So, what is the problem ?
 
-Then some shepherding process that you have anyways with XPmem can 
-sometime later zap the remote ptes and free the pages. Would leave stale 
-data visible on the remote side for awhile. Would that be okay?
+-- 
+blue skies,
+  Martin.
 
-This would only be used for truncate that uses the unmap_mapping_range 
-call. So we are not in reclaim or other distress.
-
+"Reality continues to ruin my life." - Calvin.
 
 
 --
