@@ -1,42 +1,35 @@
-Date: Thu, 31 Jan 2008 18:41:57 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: mmu_notifier: invalidate_range for move_page_tables
-In-Reply-To: <20080201023815.GC26420@sgi.com>
-Message-ID: <Pine.LNX.4.64.0801311840100.26594@schroedinger.engr.sgi.com>
-References: <20080131045750.855008281@sgi.com> <20080131045812.785269387@sgi.com>
- <20080131123118.GK7185@v2.random> <Pine.LNX.4.64.0801311355260.27804@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0801311421110.22290@schroedinger.engr.sgi.com>
- <20080201001355.GU7185@v2.random> <Pine.LNX.4.64.0801311752200.24427@schroedinger.engr.sgi.com>
- <20080201023815.GC26420@sgi.com>
+Date: Thu, 31 Jan 2008 20:47:42 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [patch 1/3] mmu_notifier: Core code
+Message-ID: <20080201024742.GD26420@sgi.com>
+References: <20080131045750.855008281@sgi.com> <20080131045812.553249048@sgi.com> <20080201023113.GB26420@sgi.com> <Pine.LNX.4.64.0801311838070.26594@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0801311838070.26594@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Robin Holt <holt@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 31 Jan 2008, Robin Holt wrote:
-
-> On Thu, Jan 31, 2008 at 05:57:25PM -0800, Christoph Lameter wrote:
-> > Move page tables also needs to invalidate the external references
-> > and hold new references off while moving page table entries.
+On Thu, Jan 31, 2008 at 06:39:19PM -0800, Christoph Lameter wrote:
+> On Thu, 31 Jan 2008, Robin Holt wrote:
 > 
-> I must admit to not having spent any time thinking about this, but aren't
-> we moving the entries from one set of page tables to the other, leaving
-> the pte_t entries unchanged.  I guess I should go look, but could you
-> provide a quick pointer in the proper direction as to why we need to
-> recall externals when the before and after look of these page tables
-> will have the same information for the TLBs.
+> > Jack has repeatedly pointed out needing an unregister outside the
+> > mmap_sem.  I still don't see the benefit to not having the lock in the mm.
+> 
+> I never understood why this would be needed. ->release removes the 
+> mmu_notifier right now.
 
-remap changes the address of pages in a process. The pages appear at 
-another address. Thus the external pte will have the wrong information if 
-not invalidated.
+Both xpmem and GRU have means of removing their context seperate from
+process termination.  XPMEMs is by closing the fd, I believe GRU is
+the same.  In the case of XPMEM, we are able to acquire the mmap_sem.
+For GRU, I don't think it is possible, but I do not remember the exact
+reason.
 
-Do a
-
-man mremap
-
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
