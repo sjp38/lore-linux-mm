@@ -1,37 +1,28 @@
-Date: Thu, 31 Jan 2008 22:15:13 -0600
+Date: Thu, 31 Jan 2008 22:24:09 -0600
 From: Robin Holt <holt@sgi.com>
-Subject: Re: [patch 1/3] mmu_notifier: Core code
-Message-ID: <20080201041512.GF26420@sgi.com>
-References: <20080131045750.855008281@sgi.com> <20080131045812.553249048@sgi.com> <20080201035249.GE26420@sgi.com> <Pine.LNX.4.64.0801311957250.17649@schroedinger.engr.sgi.com>
+Subject: Re: [patch 2/3] mmu_notifier: Callbacks to invalidate address
+	ranges
+Message-ID: <20080201042408.GG26420@sgi.com>
+References: <20080131045750.855008281@sgi.com> <20080131045812.785269387@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0801311957250.17649@schroedinger.engr.sgi.com>
+In-Reply-To: <20080131045812.785269387@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Robin Holt <holt@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 31, 2008 at 07:58:40PM -0800, Christoph Lameter wrote:
-> On Thu, 31 Jan 2008, Robin Holt wrote:
-> 
-> > > +	void (*invalidate_range_end)(struct mmu_notifier *mn,
-> > > +				 struct mm_struct *mm, int atomic);
-> > 
-> > I think we need to pass in the same start-end here as well.  Without it,
-> > the first invalidate_range would have to block faulting for all addresses
-> > and would need to remain blocked until the last invalidate_range has
-> > completed.  While this would work, (and will probably be how we implement
-> > it for the short term), it is far from ideal.
-> 
-> Ok. Andrea wanted the same because then he can void the begin callouts.
-> 
-> The problem is that you would have to track the start-end addres right?
+> Index: linux-2.6/mm/memory.c
+...
+> @@ -1668,6 +1678,7 @@ gotten:
+>  		page_cache_release(old_page);
+>  unlock:
+>  	pte_unmap_unlock(page_table, ptl);
+> +	mmu_notifier(invalidate_range_end, mm, 0);
 
-Yep.  We will probably no do that in the next week, but I would expect
-we have that working before we submit xpmem again.  We will probably
-just chain them up in a regular linked list.
+I think we can get an _end call without the _begin call before it.
 
 Thanks,
 Robin
