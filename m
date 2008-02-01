@@ -1,71 +1,35 @@
-Date: Thu, 31 Jan 2008 21:01:05 -0600
-From: Jack Steiner <steiner@sgi.com>
+Date: Thu, 31 Jan 2008 19:01:44 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [patch 1/3] mmu_notifier: Core code
-Message-ID: <20080201030104.GA29417@sgi.com>
-References: <20080131045750.855008281@sgi.com> <20080131045812.553249048@sgi.com> <20080201023113.GB26420@sgi.com> <Pine.LNX.4.64.0801311838070.26594@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0801311838070.26594@schroedinger.engr.sgi.com>
+In-Reply-To: <20080201024742.GD26420@sgi.com>
+Message-ID: <Pine.LNX.4.64.0801311852140.6272@schroedinger.engr.sgi.com>
+References: <20080131045750.855008281@sgi.com> <20080131045812.553249048@sgi.com>
+ <20080201023113.GB26420@sgi.com> <Pine.LNX.4.64.0801311838070.26594@schroedinger.engr.sgi.com>
+ <20080201024742.GD26420@sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Robin Holt <holt@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Robin Holt <holt@sgi.com>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 31, 2008 at 06:39:19PM -0800, Christoph Lameter wrote:
-> On Thu, 31 Jan 2008, Robin Holt wrote:
-> 
-> > Jack has repeatedly pointed out needing an unregister outside the
-> > mmap_sem.  I still don't see the benefit to not having the lock in the mm.
-> 
-> I never understood why this would be needed. ->release removes the 
-> mmu_notifier right now.
+On Thu, 31 Jan 2008, Robin Holt wrote:
 
-Christoph -
+> Both xpmem and GRU have means of removing their context seperate from
+> process termination.  XPMEMs is by closing the fd, I believe GRU is
+> the same.  In the case of XPMEM, we are able to acquire the mmap_sem.
+> For GRU, I don't think it is possible, but I do not remember the exact
+> reason.
 
-We discussed this earlier this week. Here is part of the mail:
+For any action initiated from user space you will not hold mmap sem. So 
+you can call the unregister function. Then you need to do a 
+synchronize_rcu before freeing the structures.
 
-------------
+It is also possible to shut this down outside via f.e. a control thread. 
+The control thread can acquire mmap_sem and then unregister the notifier.
 
-> > There currently is no __mmu_notifier_unregister(). Oversite???
->
-> No need. mmu_notifier_release implies an unregister and I think that is
-> the most favored way to release resources since it deals with the RCU
-> quiescent period.
-
-
-I currently unlink the mmu_notifier when the last GRU mapping is closed. For
-example, if a user does a:
-
-        gru_create_context();
-        ...
-        gru_destroy_context();
-
-the mmu_notifier is unlinked and all task tables allocated
-by the driver are freed. Are you suggesting that I leave tables
-allocated until the task terminates??
-
-Why is that better? What problem do I cause by trying
-to free tables as soon as they are not needed?
-
-
------------------------------------------------
-
-> Christoph responded:
-> > the mmu_notifier is unlinked and all task tables allocated
-> > by the driver are freed. Are you suggesting that I leave tables
-> > allocated until the task terminates??
->
-> You need to leave the mmu_notifier structure allocated until the next
-> quiescent rcu period unless you use the release notifier.
-
-I assumed that I would need to use call_rcu() or synchronize_rcu()
-before the table is actually freed. That's still on my TODO list.
-
-
-
---- jack
+Am I missing something?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
