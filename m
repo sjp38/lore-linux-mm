@@ -1,70 +1,77 @@
-Received: by wx-out-0506.google.com with SMTP id h31so1255702wxd.11
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2008 09:39:23 -0800 (PST)
-Message-ID: <3fd7d7a70802010939q67770628r47ca8a23fb26ca1d@mail.gmail.com>
-Date: Sat, 2 Feb 2008 02:39:23 +0900
-From: "Kenichi Okuyama" <kenichi.okuyama@gmail.com>
-Subject: Re: [patch] NULL pointer check for vma->vm_mm
-In-Reply-To: <20080201021917.5db3448d.akpm@linux-foundation.org>
+Date: Fri, 1 Feb 2008 11:13:07 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 2/3] mmu_notifier: Callbacks to invalidate address ranges
+In-Reply-To: <20080201103221.GH26420@sgi.com>
+Message-ID: <Pine.LNX.4.64.0802011105030.18163@schroedinger.engr.sgi.com>
+References: <20080131045750.855008281@sgi.com> <20080131045812.785269387@sgi.com>
+ <20080201042408.GG26420@sgi.com> <Pine.LNX.4.64.0801312042500.20675@schroedinger.engr.sgi.com>
+ <20080201103221.GH26420@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <3fd7d7a70801312339p2a142096p83ed286c81379728@mail.gmail.com>
-	 <20080131235544.346b938a.akpm@linux-foundation.org>
-	 <3fd7d7a70802010024q22b4d179mf56e6d4b60e4f574@mail.gmail.com>
-	 <20080201021917.5db3448d.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Robin Holt <holt@sgi.com>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-Dear Andrew,
-Sorry that it took very long before I could reply.
+On Fri, 1 Feb 2008, Robin Holt wrote:
 
-2008/2/1, Andrew Morton <akpm@linux-foundation.org>:
-> On Fri, 1 Feb 2008 17:24:17 +0900 "Kenichi Okuyama" <kenichi.okuyama@gmail.com> wrote:
->
-> > First of all, thank you for looking at the patch.
-> >
-> > I do agree that if mm is NULL, system will call Oops anyway.
-> However, since it's oops, it does not stop the system, nor call kdump.
->
-> That would be a huge bug in kdump?  Surely it dumps when the kernel oopses?
+> Maybe I haven't looked closely enough, but let's start with some common
+> assumptions.  Looking at do_wp_page from 2.6.24 (I believe that is what
+> my work area is based upon).  On line 1559, the function begins being
+> declared.
 
-I'm sorry.
-Oops did dump on my home pc. But it didn't on my office pc.
-I'll take back the patch, and check what I've done wrong at office.
+Aah I looked at the wrong file.
 
+> On lines 1614 and 1630, we do "goto unlock" where the _end callout is
+> soon made.  The _begin callout does not come until after those branches
+> have been taken (occurs on line 1648).
 
-> But there are probably a million potential NULL-pointer dereferences in the
-> kernel.  Why single out this one?
+There are actually two cases...
 
-I was interested in "Bad swap file entry" problem.
+---
+ mm/memory.c |   11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
 
-I expereiced this myself. After (quite a lot of ) "Bad swap file
-entry" error log from kernel, it Oopsed three times, then kernel was
-dead ( It's almost three years from now, so this was without kdump ).
-
-I did find that three Oops happened inside page_referenced() function,
-and that it was due to NULL pointer. In 2.6.24, it was only this "mm"
-and one more in page_referenced_file() that did not have NULL pointer
-check.
-
-So I was really thinking about two more patches. One for "mappers"
-NULL pointer check, and other one is to add msr printout when Oops or
-Pank happens , to make sure that when Oops or Paniced, still my PC is
-not broken.
-
-
-I needed the evidence so that I don't have to worry about
-broken Memory, nor broken Cache.
-and I think we still do not have MSRs dumped out as
-part of kdump..
-# Am I wrong again??
--- 
-Kenichi Okuyama
-URL: http://www.dd.iij4u.or.jp/~okuyamak/
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c	2008-02-01 11:04:21.000000000 -0800
++++ linux-2.6/mm/memory.c	2008-02-01 11:12:12.000000000 -0800
+@@ -1611,8 +1611,10 @@ static int do_wp_page(struct mm_struct *
+ 			page_table = pte_offset_map_lock(mm, pmd, address,
+ 							 &ptl);
+ 			page_cache_release(old_page);
+-			if (!pte_same(*page_table, orig_pte))
+-				goto unlock;
++			if (!pte_same(*page_table, orig_pte)) {
++				pte_unmap_unlock(page_table, ptl);
++				goto check_dirty;
++			}
+ 
+ 			page_mkwrite = 1;
+ 		}
+@@ -1628,7 +1630,8 @@ static int do_wp_page(struct mm_struct *
+ 		if (ptep_set_access_flags(vma, address, page_table, entry,1))
+ 			update_mmu_cache(vma, address, entry);
+ 		ret |= VM_FAULT_WRITE;
+-		goto unlock;
++		pte_unmap_unlock(page_table, ptl);
++		goto check_dirty;
+ 	}
+ 
+ 	/*
+@@ -1684,10 +1687,10 @@ gotten:
+ 		page_cache_release(new_page);
+ 	if (old_page)
+ 		page_cache_release(old_page);
+-unlock:
+ 	pte_unmap_unlock(page_table, ptl);
+ 	mmu_notifier(invalidate_range_end, mm,
+ 				address, address + PAGE_SIZE, 0);
++check_dirty:
+ 	if (dirty_page) {
+ 		if (vma->vm_file)
+ 			file_update_time(vma->vm_file);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
