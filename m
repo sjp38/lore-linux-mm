@@ -1,40 +1,47 @@
-Date: Fri, 1 Feb 2008 02:19:17 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] NULL pointer check for vma->vm_mm
-Message-Id: <20080201021917.5db3448d.akpm@linux-foundation.org>
-In-Reply-To: <3fd7d7a70802010024q22b4d179mf56e6d4b60e4f574@mail.gmail.com>
-References: <3fd7d7a70801312339p2a142096p83ed286c81379728@mail.gmail.com>
-	<20080131235544.346b938a.akpm@linux-foundation.org>
-	<3fd7d7a70802010024q22b4d179mf56e6d4b60e4f574@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 1 Feb 2008 04:32:21 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [patch 2/3] mmu_notifier: Callbacks to invalidate address
+	ranges
+Message-ID: <20080201103221.GH26420@sgi.com>
+References: <20080131045750.855008281@sgi.com> <20080131045812.785269387@sgi.com> <20080201042408.GG26420@sgi.com> <Pine.LNX.4.64.0801312042500.20675@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0801312042500.20675@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kenichi Okuyama <kenichi.okuyama@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Robin Holt <holt@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 1 Feb 2008 17:24:17 +0900 "Kenichi Okuyama" <kenichi.okuyama@gmail.com> wrote:
-
-> First of all, thank you for looking at the patch.
+On Thu, Jan 31, 2008 at 08:43:58PM -0800, Christoph Lameter wrote:
+> On Thu, 31 Jan 2008, Robin Holt wrote:
 > 
-> I do agree that if mm is NULL, system will call Oops anyway.
-> However, since it's oops, it does not stop the system, nor call kdump.
-
-That would be a huge bug in kdump?  Surely it dumps when the kernel oopses?
-
-> By calling BUG_ON(), it'll gives us chance of calling kdump at the first chance.
+> > > Index: linux-2.6/mm/memory.c
+> > ...
+> > > @@ -1668,6 +1678,7 @@ gotten:
+> > >  		page_cache_release(old_page);
+> > >  unlock:
+> > >  	pte_unmap_unlock(page_table, ptl);
+> > > +	mmu_notifier(invalidate_range_end, mm, 0);
+> > 
+> > I think we can get an _end call without the _begin call before it.
 > 
-> Since this is very rare to happen, I thought we should capture the incident
-> whenever possible. On other hand, because BUG_ON macro is very light,
-> I thought this will not harm any performance...
+> If that would be true then also the pte would have been left locked.
 > 
-> Forgive me in advance if I was wrong.
-> I still think checking mm with BUG_ON here is better than counting on Oops.
+> We always hit unlock. Maybe I just do not see it?
 
-But there are probably a million potential NULL-pointer dereferences in the 
-kernel.  Why single out this one?
+Maybe I haven't looked closely enough, but let's start with some common
+assumptions.  Looking at do_wp_page from 2.6.24 (I believe that is what
+my work area is based upon).  On line 1559, the function begins being
+declared.
+
+On lines 1614 and 1630, we do "goto unlock" where the _end callout is
+soon made.  The _begin callout does not come until after those branches
+have been taken (occurs on line 1648).
+
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
