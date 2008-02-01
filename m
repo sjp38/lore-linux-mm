@@ -1,145 +1,57 @@
-From: Christoph Lameter <clameter-sJ/iWh9BUns@public.gmane.org>
-Subject: [patch 3/3] mmu_notifier: invalidate_page callbacks
-Date: Wed, 30 Jan 2008 20:57:53 -0800
-Message-ID: <20080131045813.016961450@sgi.com>
-References: <20080131045750.855008281@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Received: by py-out-1112.google.com with SMTP id f47so1102187pye.20
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2008 23:39:07 -0800 (PST)
+Message-ID: <3fd7d7a70801312339p2a142096p83ed286c81379728@mail.gmail.com>
+Date: Fri, 1 Feb 2008 16:39:07 +0900
+From: "Kenichi Okuyama" <kenichi.okuyama@gmail.com>
+Subject: [patch] NULL pointer check for vma->vm_mm
+MIME-Version: 1.0
+Content-Type: multipart/mixed;
+	boundary="----=_Part_4980_21923991.1201851547127"
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+List-ID: <linux-mm.kvack.org>
+
+------=_Part_4980_21923991.1201851547127
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Return-path: <kvm-devel-bounces-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org>
-Content-Disposition: inline; filename=mmu_invalidate_page_rmap_callbacks
-List-Unsubscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
-	<mailto:kvm-devel-request-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org?subject=unsubscribe>
-List-Archive: <http://sourceforge.net/mailarchive/forum.php?forum_name=kvm-devel>
-List-Post: <mailto:kvm-devel-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org>
-List-Help: <mailto:kvm-devel-request-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org?subject=help>
-List-Subscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
-	<mailto:kvm-devel-request-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org?subject=subscribe>
-Sender: kvm-devel-bounces-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org
-Errors-To: kvm-devel-bounces-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org
-To: Andrea Arcangeli <andrea-atKUWr5tajBWk0Htik3J/w@public.gmane.org>
-Cc: Peter Zijlstra <a.p.zijlstra-/NLkJaSkS4VmR6Xm/wNWPw@public.gmane.org>, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, steiner-sJ/iWh9BUns@public.gmane.org, linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Avi Kivity <avi-atKUWr5tajBWk0Htik3J/w@public.gmane.org>, kvm-devel-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org, daniel.blueman-xqY44rlHlBpWk0Htik3J/w@public.gmane.org, Robin Holt <holt-sJ/iWh9BUns@public.gmane.org>
-List-Id: linux-mm.kvack.org
+Content-Disposition: inline
 
-Callbacks to remove individual pages as done in rmap code
+Dear all,
 
-3 types of callbacks are used:
+I was looking at the ./mm/rmap.c .. I found that, in function
+"page_referenced_one()",
+   struct mm_struct *mm = vma->vm_mm;
+was being refererred without NULL check.
 
-1. invalidate_page mmu_notifier
-	Called from the inner loop of rmap walks to invalidate
-	pages.
+Though I do agree that this works for most of the cases, I thought it
+is better to add
+BUG_ON() for case of mm being NULL.
 
-2. invalidate_page mmu_rmap_notifier
-	Called after the Linux rmap loop under PageLock to allow
-	a device to scan its own rmaps and remove mappings.
+attached is the patch for this
 
-3. mmu_notifier_age_page
-	Called for the determination of the page referenced
-	status.
-
-The callbacks occur after the Linux rmaps have been walked. A device
-driver does not have to support type 1 and 2 callbacks. One is sufficient.
-If we do not care about page referenced status then callback #3 can also
-be omitted.
-
-Signed-off-by: Christoph Lameter <clameter-sJ/iWh9BUns@public.gmane.org>
-Signed-off-by: Robin Holt <holt-sJ/iWh9BUns@public.gmane.org>
-
----
- mm/rmap.c |   22 +++++++++++++++++++---
- 1 file changed, 19 insertions(+), 3 deletions(-)
-
-Index: linux-2.6/mm/rmap.c
-===================================================================
---- linux-2.6.orig/mm/rmap.c	2008-01-30 20:03:03.000000000 -0800
-+++ linux-2.6/mm/rmap.c	2008-01-30 20:17:22.000000000 -0800
-@@ -49,6 +49,7 @@
- #include <linux/rcupdate.h>
- #include <linux/module.h>
- #include <linux/kallsyms.h>
-+#include <linux/mmu_notifier.h>
- 
- #include <asm/tlbflush.h>
- 
-@@ -284,7 +285,8 @@ static int page_referenced_one(struct pa
- 	if (!pte)
- 		goto out;
- 
--	if (ptep_clear_flush_young(vma, address, pte))
-+	if (ptep_clear_flush_young(vma, address, pte) |
-+	    mmu_notifier_age_page(mm, address))
- 		referenced++;
- 
- 	/* Pretend the page is referenced if the task has the
-@@ -434,6 +436,7 @@ static int page_mkclean_one(struct page 
- 
- 		flush_cache_page(vma, address, pte_pfn(*pte));
- 		entry = ptep_clear_flush(vma, address, pte);
-+		mmu_notifier(invalidate_page, mm, address);
- 		entry = pte_wrprotect(entry);
- 		entry = pte_mkclean(entry);
- 		set_pte_at(mm, address, pte, entry);
-@@ -473,6 +476,10 @@ int page_mkclean(struct page *page)
- 		struct address_space *mapping = page_mapping(page);
- 		if (mapping) {
- 			ret = page_mkclean_file(mapping, page);
-+			if (unlikely(PageExternalRmap(page))) {
-+				mmu_rmap_notifier(invalidate_page, page);
-+				ClearPageExternalRmap(page);
-+			}
- 			if (page_test_dirty(page)) {
- 				page_clear_dirty(page);
- 				ret = 1;
-@@ -677,7 +684,8 @@ static int try_to_unmap_one(struct page 
- 	 * skipped over this mm) then we should reactivate it.
- 	 */
- 	if (!migration && ((vma->vm_flags & VM_LOCKED) ||
--			(ptep_clear_flush_young(vma, address, pte)))) {
-+			(ptep_clear_flush_young(vma, address, pte) |
-+				mmu_notifier_age_page(mm, address)))) {
- 		ret = SWAP_FAIL;
- 		goto out_unmap;
- 	}
-@@ -685,6 +693,7 @@ static int try_to_unmap_one(struct page 
- 	/* Nuke the page table entry. */
- 	flush_cache_page(vma, address, page_to_pfn(page));
- 	pteval = ptep_clear_flush(vma, address, pte);
-+	mmu_notifier(invalidate_page, mm, address);
- 
- 	/* Move the dirty bit to the physical page now the pte is gone. */
- 	if (pte_dirty(pteval))
-@@ -809,12 +818,14 @@ static void try_to_unmap_cluster(unsigne
- 		page = vm_normal_page(vma, address, *pte);
- 		BUG_ON(!page || PageAnon(page));
- 
--		if (ptep_clear_flush_young(vma, address, pte))
-+		if (ptep_clear_flush_young(vma, address, pte) |
-+		    mmu_notifier_age_page(mm, address))
- 			continue;
- 
- 		/* Nuke the page table entry. */
- 		flush_cache_page(vma, address, pte_pfn(*pte));
- 		pteval = ptep_clear_flush(vma, address, pte);
-+		mmu_notifier(invalidate_page, mm, address);
- 
- 		/* If nonlinear, store the file page offset in the pte. */
- 		if (page->index != linear_page_index(vma, address))
-@@ -971,6 +982,11 @@ int try_to_unmap(struct page *page, int 
- 	else
- 		ret = try_to_unmap_file(page, migration);
- 
-+	if (unlikely(PageExternalRmap(page))) {
-+		mmu_rmap_notifier(invalidate_page, page);
-+		ClearPageExternalRmap(page);
-+	}
-+
- 	if (!page_mapped(page))
- 		ret = SWAP_SUCCESS;
- 	return ret;
-
+thank you in advance for taking your time.
+best regards,
 -- 
+(Kenichi Okuyama)
+URL: http://www.dd.iij4u.or.jp/~okuyamak/
 
--------------------------------------------------------------------------
-This SF.net email is sponsored by: Microsoft
-Defy all challenges. Microsoft(R) Visual Studio 2008.
-http://clk.atdmt.com/MRT/go/vse0120000070mrt/direct/01/
+------=_Part_4980_21923991.1201851547127
+Content-Type: application/octet-stream; name=patch.mm
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_fc4ezkog
+Content-Disposition: attachment; filename=patch.mm
+
+LS0tIC4vbW0vcm1hcC5jLm9yaWcJMjAwOC0wMi0wMSAxNTozNjo1MC4wMDAwMDAwMDAgKzA5MDAK
+KysrIC4vbW0vcm1hcC5jCTIwMDgtMDItMDEgMTU6NDI6NDMuMDAwMDAwMDAwICswOTAwCkBAIC0y
+NzYsNiArMjc2LDggQEAgc3RhdGljIGludCBwYWdlX3JlZmVyZW5jZWRfb25lKHN0cnVjdCBwYQog
+CXNwaW5sb2NrX3QgKnB0bDsKIAlpbnQgcmVmZXJlbmNlZCA9IDA7CiAKKwlCVUdfT04oKCBtbSA9
+PSBOVUxMICkpOworCiAJYWRkcmVzcyA9IHZtYV9hZGRyZXNzKHBhZ2UsIHZtYSk7CiAJaWYgKGFk
+ZHJlc3MgPT0gLUVGQVVMVCkKIAkJZ290byBvdXQ7Cg==
+------=_Part_4980_21923991.1201851547127--
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
