@@ -1,62 +1,37 @@
-Date: Thu, 31 Jan 2008 17:57:25 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: mmu_notifier: invalidate_range for move_page_tables 
-In-Reply-To: <20080201001355.GU7185@v2.random>
-Message-ID: <Pine.LNX.4.64.0801311752200.24427@schroedinger.engr.sgi.com>
-References: <20080131045750.855008281@sgi.com> <20080131045812.785269387@sgi.com>
- <20080131123118.GK7185@v2.random> <Pine.LNX.4.64.0801311355260.27804@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0801311421110.22290@schroedinger.engr.sgi.com>
- <20080201001355.GU7185@v2.random>
+Date: Thu, 31 Jan 2008 20:23:22 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH] mmu notifiers #v5
+Message-ID: <20080201022321.GZ26420@sgi.com>
+References: <20080131045750.855008281@sgi.com> <20080131171806.GN7185@v2.random> <Pine.LNX.4.64.0801311207540.25477@schroedinger.engr.sgi.com> <20080131232842.GQ7185@v2.random> <Pine.LNX.4.64.0801311733140.24297@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0801311733140.24297@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-Move page tables also needs to invalidate the external references
-and hold new references off while moving page table entries.
+On Thu, Jan 31, 2008 at 05:37:21PM -0800, Christoph Lameter wrote:
+> On Fri, 1 Feb 2008, Andrea Arcangeli wrote:
+> 
+> > I appreciate the review! I hope my entirely bug free and
+> > strightforward #v5 will strongly increase the probability of getting
+> > this in sooner than later. If something else it shows the approach I
+> > prefer to cover GRU/KVM 100%, leaving the overkill mutex locking
+> > requirements only to the mmu notifier users that can't deal with the
+> > scalar and finegrined and already-taken/trashed PT lock.
+> 
+> Mutex locking? Could you be more specific?
 
-This is already guaranteed by holding a writelock
-on mmap_sem for get_user_pages() but follow_page() is not subject to
-the mmap_sem locking.
+I think he is talking about the external locking that xpmem will need
+to do to ensure we are not able to refault pages inside of regions that
+are undergoing recall/page table clearing.  At least that has been my
+understanding to this point.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
----
- mm/mremap.c |    4 ++++
- 1 file changed, 4 insertions(+)
-
-Index: linux-2.6/mm/mremap.c
-===================================================================
---- linux-2.6.orig/mm/mremap.c	2008-01-25 14:25:31.000000000 -0800
-+++ linux-2.6/mm/mremap.c	2008-01-31 17:54:19.000000000 -0800
-@@ -18,6 +18,7 @@
- #include <linux/highmem.h>
- #include <linux/security.h>
- #include <linux/syscalls.h>
-+#include <linux/mmu_notifier.h>
- 
- #include <asm/uaccess.h>
- #include <asm/cacheflush.h>
-@@ -130,6 +131,8 @@ unsigned long move_page_tables(struct vm
- 	old_end = old_addr + len;
- 	flush_cache_range(vma, old_addr, old_end);
- 
-+	mmu_notifier(invalidate_range_begin, vma->vm_mm,
-+					old_addr, old_addr + len, 0);
- 	for (; old_addr < old_end; old_addr += extent, new_addr += extent) {
- 		cond_resched();
- 		next = (old_addr + PMD_SIZE) & PMD_MASK;
-@@ -150,6 +153,7 @@ unsigned long move_page_tables(struct vm
- 		move_ptes(vma, old_pmd, old_addr, old_addr + extent,
- 				new_vma, new_pmd, new_addr);
- 	}
-+	mmu_notifier(invalidate_range_end, vma->vm_mm, 0);
- 
- 	return len + old_addr - old_end;	/* how much done */
- }
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
