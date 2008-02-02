@@ -1,39 +1,104 @@
-Received: by an-out-0708.google.com with SMTP id d33so403257and.105
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2008 22:36:54 -0800 (PST)
-Message-ID: <28c262360802012236w3a1b4253h2a6ad96570d4a634@mail.gmail.com>
-Date: Sat, 2 Feb 2008 15:36:54 +0900
-From: "minchan kim" <minchan.kim@gmail.com>
-Subject: [PATCH] modify incorrected word in comment of clear_active_flags
+Date: Sat, 02 Feb 2008 17:12:30 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [2.6.24-rc8-mm1][regression?] numactl --interleave=all doesn't works on memoryless node.
+Message-Id: <20080202165054.F491.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andy Whitcroft <apw@shadowen.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Andi Kleen <andi@firstfloor.org>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-I think is was a mistake.
-clear_active_flags is just called by shrink_inactive_list.
+Hi
 
---- mm/vmscan.c.orig  2008-02-02 15:21:52.000000000 +0900
-+++ mm/vmscan.c 2008-02-02 15:20:46.000000000 +0900
-@@ -761,7 +761,7 @@ static unsigned long isolate_lru_pages(u
- }
+I tested numactl on 2.6.24-rc8-mm1.
+and I found strange behavior.
 
- /*
-- * clear_active_flags() is a helper for shrink_active_list(), clearing
-+ * clear_active_flags() is a helper for shrink_inactive_list(), clearing
-  * any active bits from the pages in the list.
-  */
- static unsigned long clear_active_flags(struct list_head *page_list)
+test method and result.
+
+	$ numactl --interleave=all ls
+	set_mempolicy: Invalid argument
+	setting interleave mask: Invalid argument
+
+numactl command download from
+	ftp://ftp.suse.com/pub/people/ak/numa/
+	(I choice numactl-1.0.2)
+
+
+Of course, older kernel(RHEL5.1) works good.
 
 
 
--- 
-Kinds regards,
-barrios
+more detail:
+
+1. my machine node and memory.
+
+$ numactl --hardware
+available: 16 nodes (0-15)
+node 0 size: 0 MB
+node 0 free: 0 MB
+node 1 size: 0 MB
+node 1 free: 0 MB
+node 2 size: 3872 MB
+node 2 free: 1487 MB
+node 3 size: 4032 MB
+node 3 free: 3671 MB
+node 4 size: 0 MB
+node 4 free: 0 MB
+node 5 size: 0 MB
+node 5 free: 0 MB
+node 6 size: 0 MB
+node 6 free: 0 MB
+node 7 size: 0 MB
+node 7 free: 0 MB
+node 8 size: 0 MB
+node 8 free: 0 MB
+node 9 size: 0 MB
+node 9 free: 0 MB
+node 10 size: 0 MB
+node 10 free: 0 MB
+node 11 size: 0 MB
+node 11 free: 0 MB
+node 12 size: 0 MB
+node 12 free: 0 MB
+node 13 size: 0 MB
+node 13 free: 0 MB
+node 14 size: 0 MB
+node 14 free: 0 MB
+node 15 size: 0 MB
+node 15 free: 0 MB
+
+
+2. numactl behavior of --interleave=all
+   2.1  scan "/sys/devices/system/node" dir
+   2.2  calculate max node number
+   2.3  all bit turn on of existing node.
+        (i.e. 0xFF generated on my environment.)
+   2.4  call set_mempolicy()
+
+3. 2.6.24-rc8-mm1 set_mempolicy(2) behavior
+   3.1 check nodesubset(nodemask argument, node_states[N_HIGH_MEMORY])
+       in mpol_check_policy()
+
+	-> check failed when memmoryless node exist.
+           (i.e. node_states[N_HIGH_MEMORY] of my machine is 0xc)
+
+4. RHEL5.1 set_mempolicy(2) behavior
+   4.1 check nodesubset(nodemask argument, node_online_map)
+       in mpol_check_policy().
+
+	-> check success.
+
+
+I don't know wrong either kernel or libnuma.
+Please any comments!
+
+
+- kosaki
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
