@@ -1,43 +1,61 @@
-Date: Sat, 2 Feb 2008 12:30:45 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [2.6.24-rc8-mm1][regression?] numactl --interleave=all doesn't works on memoryless node.
-Message-ID: <20080202113045.GA29441@one.firstfloor.org>
-References: <20080202165054.F491.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080202090914.GA27723@one.firstfloor.org> <20080202180536.F494.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m12LIHA1026488
+	for <linux-mm@kvack.org>; Sat, 2 Feb 2008 16:18:17 -0500
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m12LHttg207656
+	for <linux-mm@kvack.org>; Sat, 2 Feb 2008 16:18:17 -0500
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m12LHtf5017991
+	for <linux-mm@kvack.org>; Sat, 2 Feb 2008 16:17:55 -0500
+Subject: Re: [PATCH] sys_remap_file_pages: fix ->vm_file accounting
+From: Matt Helsley <matthltc@us.ibm.com>
+In-Reply-To: <20080130172646.GA2355@tv-sign.ru>
+References: <20080130142014.GA2164@tv-sign.ru>
+	 <1201712101.31222.22.camel@tucsk.pomaz.szeredi.hu>
+	 <20080130172646.GA2355@tv-sign.ru>
+Content-Type: text/plain
+Date: Sat, 02 Feb 2008 12:52:38 -0800
+Message-Id: <1201985558.22896.12.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080202180536.F494.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Lee.Schermerhorn@hp.com
+To: Oleg Nesterov <oleg@tv-sign.ru>
+Cc: Miklos Szeredi <mszeredi@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, William Lee Irwin III <wli@holomorphy.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, stable@kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> I have 1 simple question. 
-> Why do libnuma generate bitpattern of all bit on instead
-> check /sys/devices/system/node/has_high_memory nor 
-> check /sys/devices/system/node/online?
+On Wed, 2008-01-30 at 20:26 +0300, Oleg Nesterov wrote:
+> On 01/30, Miklos Szeredi wrote:
+> > 
+> > On Wed, 2008-01-30 at 17:20 +0300, Oleg Nesterov wrote:
+> > > Fix ->vm_file accounting, mmap_region() may do do_munmap().
+> > 
+> > There's a small problem with the patch: the vma itself is freed at
+> > unmap, so the fput(vma->vm_file) may crash.  Here's an updated patch.
 > 
-> Do you know it?
-
-It's far simpler and cheaper (sysfs is expensive) to do this in the kernel 
-and besides the kernel can do more easily keep up with dynamic topology
-changes.
-
+> Ah, indeed, thanks!
 > 
-> and I made simple patch that has_high_memory exposed however CONFIG_HIGHMEM disabled.
-> if CONFIG_HIGHMEM disabled, the has_high_memory file show 
-> the same as the has_normal_memory.
 > 
-> may be, userland process should check has_high_memory file.
+> Offtopic. I noticed this problem while looking at this patch:
+> 
+> 	http://marc.info/?l=linux-mm-commits&m=120141116911711
+> 
+> So this (the old vma could be removed before we create the new mapping)
+> means that the patch above has another problem: if we are remapping the
+> whole VM_EXECUTABLE vma, removed_exe_file_vma() can clear ->exe_file
+> while it shouldn't (Matt Helsley cc'ed).
+> 
+> Oleg.
 
-To be honest I've never tried seriously to make 32bit NUMA policy
-(with highmem) work well; just kept it at a "should not break"
-level. That is because with highmem the kernel's choices at 
-placing memory are seriously limited anyways so I doubt 32bit
-NUMA will ever work very well.
+Only shared VMAs can be remapped by sys_remap_file_pages but all
+executable mappings are MAP_PRIVATE and hence lack the shared flag. I
+don't know of a way for userspace to change that flag so I think there's
+nothing that needs to be done here.
 
--Andi
+Cc'ing linux-mm.
+
+Cheers,
+	-Matt Helsley
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
