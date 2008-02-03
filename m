@@ -1,42 +1,52 @@
-Date: Sun, 3 Feb 2008 07:41:58 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [patch 0/4] [RFC] EMMU Notifiers V5
-Message-ID: <20080203134158.GB3875@sgi.com>
-References: <20080201050439.009441434@sgi.com>
-MIME-Version: 1.0
+Date: Sun, 3 Feb 2008 21:21:35 +0300
+From: Oleg Nesterov <oleg@tv-sign.ru>
+Subject: Re: [PATCH] sys_remap_file_pages: fix ->vm_file accounting
+Message-ID: <20080203182135.GA5827@tv-sign.ru>
+References: <20080130142014.GA2164@tv-sign.ru> <1201712101.31222.22.camel@tucsk.pomaz.szeredi.hu> <20080130172646.GA2355@tv-sign.ru> <1201987065.9062.6.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080201050439.009441434@sgi.com>
+In-Reply-To: <1201987065.9062.6.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Matt Helsley <matthltc@us.ibm.com>
+Cc: Miklos Szeredi <mszeredi@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, William Lee Irwin III <wli@holomorphy.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Great news!  I have taken over Dean's xpmem patch set while he is on
-sabbatical.  Before he left, he had his patch mostly working on top of
-this patch set.  We had one deadlock.  I have coded for that specific
-deadlock and xpmem now passes a simple grant/attach/fault/fork/unmap/map
-test.
+(remove stable@kernel.org from CC)
 
-After analyzing it, I believe we still have a nearly related deadlock
-which will require some refactoring of code.  I am certain that the
-same mechanism I used for this deadlock break will work in that case,
-but it will require too many changes for me to finish this weekend.
+On 02/02, Matt Helsley wrote:
+> 
+> On Wed, 2008-01-30 at 20:26 +0300, Oleg Nesterov wrote:
+> > 
+> > Offtopic. I noticed this problem while looking at this patch:
+> > 
+> > 	http://marc.info/?l=linux-mm-commits&m=120141116911711
+> > 
+> > So this (the old vma could be removed before we create the new mapping)
+> > means that the patch above has another problem: if we are remapping the
+> > whole VM_EXECUTABLE vma, removed_exe_file_vma() can clear ->exe_file
+> > while it shouldn't (Matt Helsley cc'ed).
+> > 
+> > Oleg.
+> 
+> 	Looking at sys_remap_file_pages() it appears that the shared flag must
+> be set in order to remap. Executable mappings are always MAP_PRIVATE and
+> hence lack the shared flag so that any modifications to those areas
+> don't get written back to the executable. I don't think userspace can
+> change this flag
 
-For our customer base, this case, in the past, has resulted in termination
-of the application and our MPI library specifically states that this
-mode of operation is not permitted, so I think we will be able to pass
-their regression tests.  I will need to coordinate that early next week.
+Yes, userspace can't change it. But if MVFS changes ->vm_file it could also
+change vm_flags... But I think you are right anyway, we shouldn't care.
 
-The good news, at this point, Christoph's version 5 of the mmu_notifiers
-appears to work for xpmem.  The mmu_notifier call-outs where the
-in_atomic flag is set still result in a BUG_ON.  That is not an issue
-for our normal customer as our MPI already states this is not a valid
-mode of operation and provides means to avoid those types of mappings.
 
-Thanks,
-Robin
+So I have to try to find another bug ;) Suppose that ->load_binary() does
+a series of do_mmap(MAP_EXECUTABLE). It is possible that mmap_region() can
+merge 2 vmas. In that case we "leak" ->num_exe_file_vmas. Unless I missed
+something, mmap_region() should do removed_exe_file_vma() when vma_merge()
+succeds (near fput(file)).
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
