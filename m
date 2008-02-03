@@ -1,66 +1,29 @@
-Message-Id: <20080202230226.241445883@szeredi.hu>
-References: <20080202230111.346847183@szeredi.hu>
-Date: Sun, 03 Feb 2008 00:01:12 +0100
-From: Miklos Szeredi <miklos@szeredi.hu>
-Subject: [patch 1/3] mm: bdi: fix read_ahead_kb_store()
-Content-Disposition: inline; filename=mm-bdi-fix-read_ahead_kb_store.patch
+Date: Sun, 3 Feb 2008 02:33:23 +0100
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [patch 1/3] mmu_notifier: Core code
+Message-ID: <20080203013323.GA7185@v2.random>
+References: <20080131045750.855008281@sgi.com> <20080131045812.553249048@sgi.com> <20080201035249.GE26420@sgi.com> <Pine.LNX.4.64.0801311957250.17649@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0801311957250.17649@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
-From: Miklos Szeredi <mszeredi@suse.cz>
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-This managed to completely evade testing :(
+On Thu, Jan 31, 2008 at 07:58:40PM -0800, Christoph Lameter wrote:
+> Ok. Andrea wanted the same because then he can void the begin callouts.
 
-Fix return value to be count or -errno.  Also bring the function in
-line with the other store functions on this object, which have more
-strict input checking.
+Exactly. I hope the page-pin will avoid me having to serialize the KVM
+page fault against the start/end critical section.
 
-Also fix bdi_set_max_ratio() to actually return an error, instead of
-always zero.
-
-Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
----
-
-Index: linux/mm/backing-dev.c
-===================================================================
---- linux.orig/mm/backing-dev.c	2008-02-02 23:21:50.000000000 +0100
-+++ linux/mm/backing-dev.c	2008-02-02 23:26:01.000000000 +0100
-@@ -16,10 +16,15 @@ static ssize_t read_ahead_kb_store(struc
- {
- 	struct backing_dev_info *bdi = dev_get_drvdata(dev);
- 	char *end;
-+	unsigned long read_ahead_kb;
-+	ssize_t ret = -EINVAL;
- 
--	bdi->ra_pages = simple_strtoul(buf, &end, 10) >> (PAGE_SHIFT - 10);
--
--	return end - buf;
-+	read_ahead_kb = simple_strtoul(buf, &end, 10);
-+	if (*buf && (end[0] == '\0' || (end[0] == '\n' && end[1] == '\0'))) {
-+		bdi->ra_pages = read_ahead_kb >> (PAGE_SHIFT - 10);
-+		ret = count;
-+	}
-+	return ret;
- }
- 
- #define K(pages) ((pages) << (PAGE_SHIFT - 10))
-Index: linux/mm/page-writeback.c
-===================================================================
---- linux.orig/mm/page-writeback.c	2008-02-02 20:51:26.000000000 +0100
-+++ linux/mm/page-writeback.c	2008-02-02 23:26:15.000000000 +0100
-@@ -288,7 +288,7 @@ int bdi_set_max_ratio(struct backing_dev
- 	}
- 	spin_unlock_irqrestore(&bdi_lock, flags);
- 
--	return 0;
-+	return ret;
- }
- EXPORT_SYMBOL(bdi_set_max_ratio);
- 
-
---
+BTW, I wonder if the start/end critical section API is intended to
+forbid scheduling inside it. In short I wonder if GRU can is allowed
+to take a spinlock in _range_start as last thing before returning, and
+to release that same spinlock in _range_end as first thing, and not to
+be forced to use a mutex.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
