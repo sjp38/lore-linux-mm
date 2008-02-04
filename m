@@ -1,56 +1,64 @@
-Date: Mon, 4 Feb 2008 15:59:52 -0500
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [patch 0/3] add perform_write to a_ops
-Message-ID: <20080204205950.GB14084@lst.de>
-References: <20080204170409.991123259@szeredi.hu> <20080204193939.GA19236@lst.de> <E1JM8IQ-0003pP-Dw@pomaz-ex.szeredi.hu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <E1JM8IQ-0003pP-Dw@pomaz-ex.szeredi.hu>
+Date: Mon, 4 Feb 2008 14:28:45 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [git pull] SLUB updates for 2.6.25
+Message-Id: <20080204142845.4c734f94.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0802041206190.3241@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0802041206190.3241@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: hch@lst.de, npiggin@suse.de, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 04, 2008 at 09:52:06PM +0100, Miklos Szeredi wrote:
-> Moving up to higher layers might not be possible, due to lock/unlock
-> of i_mutex being inside generic_file_aio_write().
+On Mon, 4 Feb 2008 12:08:34 -0800 (PST)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-Well some bits can be moved up.  Here's my grand plan which I plan
-to implement once I get some time for it (or let someone else do
-if they beat me):
-
- - generic_segment_checks goes to fs/read_write.c before caling into
-   the filesystem
- - dito for vfs_check_frozen
- - generic_write_checks is a suitable helper already
- - dito for remove_suid
- - dito for file_update_time
- - after that there's not a whole lot left in generic_file_aio_write,
-   except for direct I/O handling which will probably be very fs-specific
-   if you have your own buffered I/O code
-
-generic_file_buffered_write is an almost trivial wrapper around what's
-->perform_write in Nick's earlier patches and a helper for the syncing
-activity.
-
-
-
+> Updates for slub are available in the git repository at:
 > 
-> But with fuse being the only user, it's not a huge issue duplicating
-> some code.
+>   git://git.kernel.org/pub/scm/linux/kernel/git/christoph/vm.git slub-linus
 > 
-> Nick, were there any other candidates, that would want to use such an
-> interface in the future?
+> Christoph Lameter (5):
+>       SLUB: Fix sysfs refcounting
+>       Move count_partial before kmem_cache_shrink
+>       SLUB: rename defrag to remote_node_defrag_ratio
+>       Add parameter to add_partial to avoid having two functions
+>       Explain kmem_cache_cpu fields
 > 
-> Thanks,
-> Miklos
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
----end quoted text---
+> Harvey Harrison (1):
+>       slub: fix shadowed variable sparse warnings
+> 
+> Pekka Enberg (1):
+>       SLUB: Fix coding style violations
+> 
+> root (1):
+>       SLUB: Do not upset lockdep
+> 
+
+err, what?  I though I was going to merge these:
+
+slub-move-count_partial.patch
+slub-rename-numa-defrag_ratio-to-remote_node_defrag_ratio.patch
+slub-consolidate-add_partial-and-add_partial_tail-to-one-function.patch
+slub-use-non-atomic-bit-unlock.patch
+slub-fix-coding-style-violations.patch
+slub-noinline-some-functions-to-avoid-them-being-folded-into-alloc-free.patch
+slub-move-kmem_cache_node-determination-into-add_full-and-add_partial.patch
+slub-avoid-checking-for-a-valid-object-before-zeroing-on-the-fast-path.patch
+slub-__slab_alloc-exit-path-consolidation.patch
+slub-provide-unique-end-marker-for-each-slab.patch
+slub-avoid-referencing-kmem_cache-structure-in-__slab_alloc.patch
+slub-optional-fast-path-using-cmpxchg_local.patch
+slub-do-our-own-locking-via-slab_lock-and-slab_unlock.patch
+slub-restructure-slab-alloc.patch
+slub-comment-kmem_cache_cpu-structure.patch
+slub-fix-sysfs-refcounting.patch
+
+before you went and changed things under my feet.
+
+Please clarify.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
