@@ -1,45 +1,56 @@
-In-reply-to: <20080204193939.GA19236@lst.de> (message from Christoph Hellwig
-	on Mon, 4 Feb 2008 14:39:39 -0500)
+Date: Mon, 4 Feb 2008 15:59:52 -0500
+From: Christoph Hellwig <hch@lst.de>
 Subject: Re: [patch 0/3] add perform_write to a_ops
-References: <20080204170409.991123259@szeredi.hu> <20080204193939.GA19236@lst.de>
-Message-Id: <E1JM8IQ-0003pP-Dw@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Mon, 04 Feb 2008 21:52:06 +0100
+Message-ID: <20080204205950.GB14084@lst.de>
+References: <20080204170409.991123259@szeredi.hu> <20080204193939.GA19236@lst.de> <E1JM8IQ-0003pP-Dw@pomaz-ex.szeredi.hu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <E1JM8IQ-0003pP-Dw@pomaz-ex.szeredi.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: hch@lst.de
-Cc: npiggin@suse.de, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: hch@lst.de, npiggin@suse.de, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > a_ops->perform_write() was left out from Nick Piggin's new a_ops
-> > patchset, as it was non-essential, and postponed for later inclusion.
-> > 
-> > This short series reintroduces it, but only adds the fuse
-> > implementation and not simple_perform_write(), which I'm not sure
-> > would be a significant improvement.
-> > 
-> > This allows larger than 4k buffered writes for fuse, which is one of
-> > the most requested features.
-> > 
-> > This goes on top of the "fuse: writable mmap" patches.
+On Mon, Feb 04, 2008 at 09:52:06PM +0100, Miklos Szeredi wrote:
+> Moving up to higher layers might not be possible, due to lock/unlock
+> of i_mutex being inside generic_file_aio_write().
+
+Well some bits can be moved up.  Here's my grand plan which I plan
+to implement once I get some time for it (or let someone else do
+if they beat me):
+
+ - generic_segment_checks goes to fs/read_write.c before caling into
+   the filesystem
+ - dito for vfs_check_frozen
+ - generic_write_checks is a suitable helper already
+ - dito for remove_suid
+ - dito for file_update_time
+ - after that there's not a whole lot left in generic_file_aio_write,
+   except for direct I/O handling which will probably be very fs-specific
+   if you have your own buffered I/O code
+
+generic_file_buffered_write is an almost trivial wrapper around what's
+->perform_write in Nick's earlier patches and a helper for the syncing
+activity.
+
+
+
 > 
-> Please don't do this, but rather implement your own .aio_write.  There's
-> very little in generic_file_aio_write that wouldn't be handle by
-> ->perform_write and we should rather factor those up or move to higher
-> layers than adding this ill-defined abstraction.
+> But with fuse being the only user, it's not a huge issue duplicating
+> some code.
 > 
-
-Moving up to higher layers might not be possible, due to lock/unlock
-of i_mutex being inside generic_file_aio_write().
-
-But with fuse being the only user, it's not a huge issue duplicating
-some code.
-
-Nick, were there any other candidates, that would want to use such an
-interface in the future?
-
-Thanks,
-Miklos
+> Nick, were there any other candidates, that would want to use such an
+> interface in the future?
+> 
+> Thanks,
+> Miklos
+> -
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+---end quoted text---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
