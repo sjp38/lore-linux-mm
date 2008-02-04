@@ -1,35 +1,35 @@
-Date: Mon, 4 Feb 2008 11:03:32 -0800 (PST)
+Date: Mon, 4 Feb 2008 11:09:01 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [2.6.24-rc8-mm1][regression?] numactl --interleave=all doesn't
- works on memoryless node.
-In-Reply-To: <20080202113045.GA29441@one.firstfloor.org>
-Message-ID: <Pine.LNX.4.64.0802041101290.9656@schroedinger.engr.sgi.com>
-References: <20080202165054.F491.KOSAKI.MOTOHIRO@jp.fujitsu.com>
- <20080202090914.GA27723@one.firstfloor.org> <20080202180536.F494.KOSAKI.MOTOHIRO@jp.fujitsu.com>
- <20080202113045.GA29441@one.firstfloor.org>
+Subject: Re: [PATCH] mmu notifiers #v5
+In-Reply-To: <20080203021704.GC7185@v2.random>
+Message-ID: <Pine.LNX.4.64.0802041106370.9656@schroedinger.engr.sgi.com>
+References: <20080131045750.855008281@sgi.com> <20080131171806.GN7185@v2.random>
+ <Pine.LNX.4.64.0801311207540.25477@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0801311508080.23624@schroedinger.engr.sgi.com>
+ <20080131234101.GS7185@v2.random> <Pine.LNX.4.64.0801311738570.24297@schroedinger.engr.sgi.com>
+ <20080201120955.GX7185@v2.random> <Pine.LNX.4.64.0802011118060.18163@schroedinger.engr.sgi.com>
+ <20080203021704.GC7185@v2.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Lee.Schermerhorn@hp.com
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2 Feb 2008, Andi Kleen wrote:
+On Sun, 3 Feb 2008, Andrea Arcangeli wrote:
 
-> To be honest I've never tried seriously to make 32bit NUMA policy
-> (with highmem) work well; just kept it at a "should not break"
-> level. That is because with highmem the kernel's choices at 
-> placing memory are seriously limited anyways so I doubt 32bit
-> NUMA will ever work very well.
+> > Right but that pin requires taking a refcount which we cannot do.
+> 
+> GRU can use my patch without the pin. XPMEM obviously can't use my
+> patch as my invalidate_page[s] are under the PT lock (a feature to fit
+> GRU/KVM in the simplest way), this is why an incremental patch adding
+> invalidate_range_start/end would be required to support XPMEM too.
 
-Memory policies do not work reliably with config highmem (I have never 
-seen such usage because large memory systems are typically 64 bit 
-which have no highmem, but there are some 32bit numa uses of HIGHMEM) ....
+Doesnt the kernel in some situations release the page before releasing the 
+pte lock? Then there will be an external pte pointing to a page that may 
+now have a different use. Its really bad if that pte does allow writes.
 
-Memory policies are only applied to the highest zone. So if a system has 
-highmem on some nodes and not on the others then policies will only be 
-applied if allocations happen to occur on the highmem nodes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
