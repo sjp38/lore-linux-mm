@@ -1,35 +1,38 @@
-Date: Mon, 4 Feb 2008 14:39:39 -0500
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [patch 0/3] add perform_write to a_ops
-Message-ID: <20080204193939.GA19236@lst.de>
-References: <20080204170409.991123259@szeredi.hu>
+Date: Mon, 4 Feb 2008 12:08:34 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [git pull] SLUB updates for 2.6.25
+Message-ID: <Pine.LNX.4.64.0802041206190.3241@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080204170409.991123259@szeredi.hu>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 04, 2008 at 06:04:10PM +0100, Miklos Szeredi wrote:
-> a_ops->perform_write() was left out from Nick Piggin's new a_ops
-> patchset, as it was non-essential, and postponed for later inclusion.
-> 
-> This short series reintroduces it, but only adds the fuse
-> implementation and not simple_perform_write(), which I'm not sure
-> would be a significant improvement.
-> 
-> This allows larger than 4k buffered writes for fuse, which is one of
-> the most requested features.
-> 
-> This goes on top of the "fuse: writable mmap" patches.
+Updates for slub are available in the git repository at:
 
-Please don't do this, but rather implement your own .aio_write.  There's
-very little in generic_file_aio_write that wouldn't be handle by
-->perform_write and we should rather factor those up or move to higher
-layers than adding this ill-defined abstraction.
+  git://git.kernel.org/pub/scm/linux/kernel/git/christoph/vm.git slub-linus
+
+Christoph Lameter (5):
+      SLUB: Fix sysfs refcounting
+      Move count_partial before kmem_cache_shrink
+      SLUB: rename defrag to remote_node_defrag_ratio
+      Add parameter to add_partial to avoid having two functions
+      Explain kmem_cache_cpu fields
+
+Harvey Harrison (1):
+      slub: fix shadowed variable sparse warnings
+
+Pekka Enberg (1):
+      SLUB: Fix coding style violations
+
+root (1):
+      SLUB: Do not upset lockdep
+
+ include/linux/slub_def.h |   15 ++--
+ mm/slub.c                |  182 +++++++++++++++++++++++++---------------------
+ 2 files changed, 108 insertions(+), 89 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
