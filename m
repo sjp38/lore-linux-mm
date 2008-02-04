@@ -1,39 +1,26 @@
-Date: Mon, 4 Feb 2008 09:33:51 +0000
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: Re: [PATCH] modify incorrected word in comment of clear_active_flags
-Message-ID: <20080204093351.GD14362@shadowen.org>
-References: <28c262360802012236w3a1b4253h2a6ad96570d4a634@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <28c262360802012236w3a1b4253h2a6ad96570d4a634@mail.gmail.com>
+Message-Id: <20080204144142.002127391@szeredi.hu>
+Date: Mon, 04 Feb 2008 15:41:42 +0100
+From: Miklos Szeredi <miklos@szeredi.hu>
+Subject: [patch 0/3] fuse: writable mmap
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: minchan kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Feb 02, 2008 at 03:36:54PM +0900, minchan kim wrote:
-> I think is was a mistake.
-> clear_active_flags is just called by shrink_inactive_list.
-> 
-> --- mm/vmscan.c.orig  2008-02-02 15:21:52.000000000 +0900
-> +++ mm/vmscan.c 2008-02-02 15:20:46.000000000 +0900
-> @@ -761,7 +761,7 @@ static unsigned long isolate_lru_pages(u
->  }
-> 
->  /*
-> - * clear_active_flags() is a helper for shrink_active_list(), clearing
-> + * clear_active_flags() is a helper for shrink_inactive_list(), clearing
->   * any active bits from the pages in the list.
->   */
->  static unsigned long clear_active_flags(struct list_head *page_list)
+This is short series for fuse writable mmap support.
 
-Yeah that is a silly typo.
+The first two patches are small additions to mm infrastructure.  The
+third is a large patch for fuse.  It also depends on the "mm: bdi:
+export BDI attributes in sysfs" series.
 
-Acked-by: Andy Whitcroft <apw@shadowen.org>
+I don't mind if this goes into 2.6.25 (guess, that depends on whether
+the bdi things go).
 
--apw
+Thanks,
+Miklos
+
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
