@@ -1,52 +1,92 @@
-Date: Sun, 3 Feb 2008 21:21:35 +0300
-From: Oleg Nesterov <oleg@tv-sign.ru>
-Subject: Re: [PATCH] sys_remap_file_pages: fix ->vm_file accounting
-Message-ID: <20080203182135.GA5827@tv-sign.ru>
-References: <20080130142014.GA2164@tv-sign.ru> <1201712101.31222.22.camel@tucsk.pomaz.szeredi.hu> <20080130172646.GA2355@tv-sign.ru> <1201987065.9062.6.camel@localhost.localdomain>
-Mime-Version: 1.0
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id m143tOPk002091
+	for <linux-mm@kvack.org>; Mon, 4 Feb 2008 14:55:24 +1100
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m143tgpR3576046
+	for <linux-mm@kvack.org>; Mon, 4 Feb 2008 14:55:43 +1100
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m143tgmq029227
+	for <linux-mm@kvack.org>; Mon, 4 Feb 2008 14:55:42 +1100
+Date: Mon, 4 Feb 2008 09:25:43 +0530
+From: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+Subject: Re: 2.6.24-mm1 Build Faliure on pgtable_32.c
+Message-ID: <20080204035543.GA8186@linux.vnet.ibm.com>
+Reply-To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+References: <20080203171634.58ab668b.akpm@linux-foundation.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1201987065.9062.6.camel@localhost.localdomain>
+In-Reply-To: <20080203171634.58ab668b.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Helsley <matthltc@us.ibm.com>
-Cc: Miklos Szeredi <mszeredi@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, William Lee Irwin III <wli@holomorphy.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, apw@shadowen.org, balbir@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-(remove stable@kernel.org from CC)
+Hi Andrew,
 
-On 02/02, Matt Helsley wrote:
-> 
-> On Wed, 2008-01-30 at 20:26 +0300, Oleg Nesterov wrote:
-> > 
-> > Offtopic. I noticed this problem while looking at this patch:
-> > 
-> > 	http://marc.info/?l=linux-mm-commits&m=120141116911711
-> > 
-> > So this (the old vma could be removed before we create the new mapping)
-> > means that the patch above has another problem: if we are remapping the
-> > whole VM_EXECUTABLE vma, removed_exe_file_vma() can clear ->exe_file
-> > while it shouldn't (Matt Helsley cc'ed).
-> > 
-> > Oleg.
-> 
-> 	Looking at sys_remap_file_pages() it appears that the shared flag must
-> be set in order to remap. Executable mappings are always MAP_PRIVATE and
-> hence lack the shared flag so that any modifications to those areas
-> don't get written back to the executable. I don't think userspace can
-> change this flag
+The 2.6.24-mm1 kernel build fails with 
 
-Yes, userspace can't change it. But if MVFS changes ->vm_file it could also
-change vm_flags... But I think you are right anyway, we shouldn't care.
+arch/x86/mm/pgtable_32.c: In function `pgd_mop_up_pmds':
+arch/x86/mm/pgtable_32.c:302: warning: passing arg 1 of `pmd_free' from incompatible pointer type
+arch/x86/mm/pgtable_32.c:302: error: too few arguments to function `pmd_free'
 
+I have tested the patch for the build failure only.
 
-So I have to try to find another bug ;) Suppose that ->load_binary() does
-a series of do_mmap(MAP_EXECUTABLE). It is possible that mmap_region() can
-merge 2 vmas. In that case we "leak" ->num_exe_file_vmas. Unless I missed
-something, mmap_region() should do removed_exe_file_vma() when vma_merge()
-succeds (near fput(file)).
-
-Oleg.
+Signed-off-by: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+--
+--- linux-2.6.24/arch/x86/mm/pgtable_32.c	2008-02-04 07:36:36.000000000 +0000
++++ linux-2.6.24/arch/x86/mm/~pgtable_32.c	2008-02-04 07:38:02.000000000 +0000
+@@ -286,7 +286,7 @@ static void pgd_dtor(void *pgd)
+  * preallocate which never got a corresponding vma will need to be
+  * freed manually.
+  */
+-static void pgd_mop_up_pmds(pgd_t *pgdp)
++static void pgd_mop_up_pmds(struct mm_struct *mm, pgd_t *pgdp)
+ {
+ 	int i;
+ 
+@@ -299,7 +299,7 @@ static void pgd_mop_up_pmds(pgd_t *pgdp)
+ 			pgdp[i] = native_make_pgd(0);
+ 
+ 			paravirt_release_pd(pgd_val(pgd) >> PAGE_SHIFT);
+-			pmd_free(pmd);
++			pmd_free(mm, pmd);
+ 		}
+ 	}
+ }
+@@ -327,7 +327,7 @@ static int pgd_prepopulate_pmd(struct mm
+ 		pmd_t *pmd = pmd_alloc_one(mm, addr);
+ 
+ 		if (!pmd) {
+-			pgd_mop_up_pmds(pgd);
++			pgd_mop_up_pmds(mm, pgd);
+ 			return 0;
+ 		}
+ 
+@@ -347,7 +347,7 @@ static int pgd_prepopulate_pmd(struct mm
+ 	return 1;
+ }
+ 
+-static void pgd_mop_up_pmds(pgd_t *pgd)
++static void pgd_mop_up_pmds(struct mm_struct *mm, pgd_t *pgdp)
+ {
+ }
+ #endif	/* CONFIG_X86_PAE */
+@@ -368,7 +368,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
+ 
+ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+ {
+-	pgd_mop_up_pmds(pgd);
++	pgd_mop_up_pmds(mm,pgd);
+ 	quicklist_free(0, pgd_dtor, pgd);
+ }
+ 
+-- 
+Thanks & Regards,
+Kamalesh Babulal,
+Linux Technology Center,
+IBM, ISTL.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
