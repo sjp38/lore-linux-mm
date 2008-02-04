@@ -1,9 +1,9 @@
-Message-Id: <20080204170526.922820156@szeredi.hu>
+Message-Id: <20080204170529.622970833@szeredi.hu>
 References: <20080204170409.991123259@szeredi.hu>
-Date: Mon, 04 Feb 2008 18:04:11 +0100
+Date: Mon, 04 Feb 2008 18:04:13 +0100
 From: Miklos Szeredi <miklos@szeredi.hu>
-Subject: [patch 1/3] vfs: introduce perform_write in a_ops
-Content-Disposition: inline; filename=perform_write.patch
+Subject: [patch 3/3] fuse: implement perform_write
+Content-Disposition: inline; filename=fuse_perform_write.patch
 Sender: owner-linux-mm@kvack.org
 From: Nick Piggin <npiggin@suse.de>
 Return-Path: <owner-linux-mm@kvack.org>
@@ -11,79 +11,180 @@ To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Introduce a new perform_write() address space operation.
+Introduce fuse_perform_write. With fusexmp (a passthrough filesystem), large
+(1MB) writes into a backing tmpfs filesystem are sped up by almost 4 times
+(256MB/s vs 71MB/s).
 
-This is a single-call, bulk version of write_begin/write_end
-operations.  It is only used in the buffered write path (write_begin
-must still be implemented), and not for in-kernel writes to pagecache.
+[mszeredi@suse.cz]:
 
-For some filesystems, using this can provide significant speedups.
+ - split into smaller functions
+ - testing
 
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
 ---
 
-Index: linux/include/linux/fs.h
+Index: linux/fs/fuse/file.c
 ===================================================================
---- linux.orig/include/linux/fs.h	2008-02-04 15:24:03.000000000 +0100
-+++ linux/include/linux/fs.h	2008-02-04 16:24:19.000000000 +0100
-@@ -469,6 +469,9 @@ struct address_space_operations {
- 				loff_t pos, unsigned len, unsigned copied,
- 				struct page *page, void *fsdata);
+--- linux.orig/fs/fuse/file.c	2008-02-04 17:11:18.000000000 +0100
++++ linux/fs/fuse/file.c	2008-02-04 17:11:59.000000000 +0100
+@@ -677,6 +677,148 @@ static int fuse_write_end(struct file *f
+ 	return res;
+ }
  
-+	ssize_t (*perform_write)(struct file *, struct address_space *mapping,
-+				struct iov_iter *i, loff_t pos);
++static size_t fuse_send_write_pages(struct fuse_req *req, struct file *file,
++				    struct inode *inode, loff_t pos,
++				    size_t count)
++{
++	size_t res;
++	unsigned offset;
++	unsigned i;
 +
- 	/* Unfortunately this kludge is needed for FIBMAP. Don't use it */
- 	sector_t (*bmap)(struct address_space *, sector_t);
- 	void (*invalidatepage) (struct page *, unsigned long);
-Index: linux/mm/filemap.c
-===================================================================
---- linux.orig/mm/filemap.c	2008-02-04 15:24:03.000000000 +0100
-+++ linux/mm/filemap.c	2008-02-04 16:22:55.000000000 +0100
-@@ -2312,7 +2312,9 @@ generic_file_buffered_write(struct kiocb
- 	struct iov_iter i;
- 
- 	iov_iter_init(&i, iov, nr_segs, count, written);
--	if (a_ops->write_begin)
-+	if (a_ops->perform_write)
-+		status = a_ops->perform_write(file, mapping, &i, pos);
-+	else if (a_ops->write_begin)
- 		status = generic_perform_write(file, &i, pos);
- 	else
- 		status = generic_perform_write_2copy(file, &i, pos);
-Index: linux/Documentation/filesystems/vfs.txt
-===================================================================
---- linux.orig/Documentation/filesystems/vfs.txt	2008-02-04 12:28:50.000000000 +0100
-+++ linux/Documentation/filesystems/vfs.txt	2008-02-04 16:23:44.000000000 +0100
-@@ -533,6 +533,9 @@ struct address_space_operations {
- 	int (*write_end)(struct file *, struct address_space *mapping,
- 				loff_t pos, unsigned len, unsigned copied,
- 				struct page *page, void *fsdata);
-+	ssize_t (*perform_write)(struct file *, struct address_space *mapping,
-+				struct iov_iter *i, loff_t pos);
++	for (i = 0; i < req->num_pages; i++)
++		fuse_wait_on_page_writeback(inode, req->pages[i]->index);
 +
- 	sector_t (*bmap)(struct address_space *, sector_t);
- 	int (*invalidatepage) (struct page *, unsigned long);
- 	int (*releasepage) (struct page *, int);
-@@ -664,6 +667,17 @@ struct address_space_operations {
-         Returns < 0 on failure, otherwise the number of bytes (<= 'copied')
-         that were able to be copied into pagecache.
- 
-+  perform_write: This is a single-call, bulk version of write_begin/write_end
-+        operations. It is only used in the buffered write path (write_begin
-+        must still be implemented), and not for in-kernel writes to pagecache.
-+        It takes an iov_iter structure, which provides a descriptor for the
-+        source data (and has associated iov_iter_xxx helpers to operate on
-+        that data). There are also file, mapping, and pos arguments, which
-+        specify the destination of the data.
++	res = fuse_send_write(req, file, inode, pos, count, NULL);
 +
-+        Returns < 0 on failure if nothing was written out, otherwise returns
-+        the number of bytes copied into pagecache.
++	offset = req->page_offset;
++	count = res;
++	for (i = 0; i < req->num_pages; i++) {
++		struct page *page = req->pages[i];
 +
-   bmap: called by the VFS to map a logical block offset within object to
-   	physical block number. This method is used by the FIBMAP
-   	ioctl and for working with swap-files.  To be able to swap to
++		if (!req->out.h.error && !offset && count >= PAGE_CACHE_SIZE)
++			SetPageUptodate(page);
++
++		/* Just ignore count underflow on last page */
++		count -= PAGE_CACHE_SIZE - offset;
++		offset = 0;
++
++		unlock_page(page);
++		page_cache_release(page);
++	}
++
++	return res;
++}
++
++static ssize_t fuse_fill_write_pages(struct fuse_req *req,
++			       struct address_space *mapping,
++			       struct iov_iter *ii, loff_t pos)
++{
++	struct fuse_conn *fc = get_fuse_conn(mapping->host);
++	unsigned offset = pos & (PAGE_CACHE_SIZE - 1);
++	size_t count = 0;
++	int err;
++
++	req->page_offset = offset;
++
++	do {
++		size_t tmp;
++		struct page *page;
++		pgoff_t index = pos >> PAGE_CACHE_SHIFT;
++		size_t bytes = min_t(size_t, PAGE_CACHE_SIZE - offset,
++				     iov_iter_count(ii));
++
++		bytes = min_t(size_t, bytes, fc->max_write - count);
++
++ again:
++		err = -EFAULT;
++		if (iov_iter_fault_in_readable(ii, bytes))
++			break;
++
++		err = -ENOMEM;
++		page = __grab_cache_page(mapping, index);
++		if (!page)
++			break;
++
++		pagefault_disable();
++		tmp = iov_iter_copy_from_user_atomic(page, ii, offset, bytes);
++		pagefault_enable();
++		flush_dcache_page(page);
++
++		if (!tmp) {
++			unlock_page(page);
++			page_cache_release(page);
++			bytes = min(bytes, iov_iter_single_seg_count(ii));
++			goto again;
++		}
++
++		err = 0;
++		req->pages[req->num_pages] = page;
++		req->num_pages++;
++
++		iov_iter_advance(ii, tmp);
++		count += tmp;
++		pos += tmp;
++		offset += tmp;
++		if (offset == PAGE_CACHE_SIZE)
++			offset = 0;
++
++	} while (iov_iter_count(ii) && count < fc->max_write &&
++		 req->num_pages < FUSE_MAX_PAGES_PER_REQ && offset == 0);
++
++	return count > 0 ? count : err;
++}
++
++static ssize_t fuse_perform_write(struct file *file,
++				  struct address_space *mapping,
++				  struct iov_iter *ii, loff_t pos)
++{
++	struct inode *inode = mapping->host;
++	struct fuse_conn *fc = get_fuse_conn(inode);
++	int err = 0;
++	ssize_t res = 0;
++
++	if (is_bad_inode(inode))
++		return -EIO;
++
++	do {
++		struct fuse_req *req;
++		ssize_t count;
++
++		req = fuse_get_req(fc);
++		if (IS_ERR(req)) {
++			err = PTR_ERR(req);
++			break;
++		}
++
++		count = fuse_fill_write_pages(req, mapping, ii, pos);
++		if (count <= 0) {
++			err = count;
++		} else {
++			size_t num_written;
++
++			num_written = fuse_send_write_pages(req, file, inode,
++							    pos, count);
++			err = req->out.h.error;
++			if (!err) {
++				res += num_written;
++				pos += num_written;
++
++				/* break out of the loop on short write */
++				if (num_written != count)
++					err = -EIO;
++			}
++		}
++		fuse_put_request(fc, req);
++	} while (!err && iov_iter_count(ii));
++
++	if (res > 0)
++		fuse_write_update_size(inode, pos);
++
++	fuse_invalidate_attr(inode);
++
++	return res > 0 ? res : err;
++}
++
+ static void fuse_release_user_pages(struct fuse_req *req, int write)
+ {
+ 	unsigned i;
+@@ -1247,6 +1389,7 @@ static const struct address_space_operat
+ 	.launder_page	= fuse_launder_page,
+ 	.write_begin	= fuse_write_begin,
+ 	.write_end	= fuse_write_end,
++	.perform_write	= fuse_perform_write,
+ 	.readpages	= fuse_readpages,
+ 	.set_page_dirty	= __set_page_dirty_nobuffers,
+ 	.bmap		= fuse_bmap,
 
 --
 
