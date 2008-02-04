@@ -1,50 +1,21 @@
-Date: Mon, 4 Feb 2008 14:30:53 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Date: Mon, 4 Feb 2008 15:04:11 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [git pull] SLUB updates for 2.6.25
-Message-Id: <20080204143053.9fac9eac.akpm@linux-foundation.org>
-In-Reply-To: <20080204142845.4c734f94.akpm@linux-foundation.org>
+In-Reply-To: <20080204143053.9fac9eac.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0802041459140.4432@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0802041206190.3241@schroedinger.engr.sgi.com>
-	<20080204142845.4c734f94.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20080204142845.4c734f94.akpm@linux-foundation.org>
+ <20080204143053.9fac9eac.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com, torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 4 Feb 2008 14:28:45 -0800
-Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> > root (1):
-> >       SLUB: Do not upset lockdep
-> > 
-> 
-> err, what?  I though I was going to merge these:
-> 
-> slub-move-count_partial.patch
-> slub-rename-numa-defrag_ratio-to-remote_node_defrag_ratio.patch
-> slub-consolidate-add_partial-and-add_partial_tail-to-one-function.patch
-> slub-use-non-atomic-bit-unlock.patch
-> slub-fix-coding-style-violations.patch
-> slub-noinline-some-functions-to-avoid-them-being-folded-into-alloc-free.patch
-> slub-move-kmem_cache_node-determination-into-add_full-and-add_partial.patch
-> slub-avoid-checking-for-a-valid-object-before-zeroing-on-the-fast-path.patch
-> slub-__slab_alloc-exit-path-consolidation.patch
-> slub-provide-unique-end-marker-for-each-slab.patch
-> slub-avoid-referencing-kmem_cache-structure-in-__slab_alloc.patch
-> slub-optional-fast-path-using-cmpxchg_local.patch
-> slub-do-our-own-locking-via-slab_lock-and-slab_unlock.patch
-> slub-restructure-slab-alloc.patch
-> slub-comment-kmem_cache_cpu-structure.patch
-> slub-fix-sysfs-refcounting.patch
-> 
-> before you went and changed things under my feet.
-
-erk, sorry, I misremembered.   I was about to merge all the patches we
-weren't going to merge.  oops.
-
-Linus, please proceed with this merge.
+Hope to have the slub-mm repository setup tonight which will simplify 
+things for the future. Hope you still remember ....
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
