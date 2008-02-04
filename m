@@ -1,9 +1,9 @@
-Message-Id: <20080204144204.739740888@szeredi.hu>
+Message-Id: <20080204144206.120192887@szeredi.hu>
 References: <20080204144142.002127391@szeredi.hu>
-Date: Mon, 04 Feb 2008 15:41:43 +0100
+Date: Mon, 04 Feb 2008 15:41:44 +0100
 From: Miklos Szeredi <miklos@szeredi.hu>
-Subject: [patch 1/3] mm: bdi: export bdi_writeout_inc()
-Content-Disposition: inline; filename=export_bdi_writeout_inc.patch
+Subject: [patch 2/3] mm: Add NR_WRITEBACK_TEMP counter
+Content-Disposition: inline; filename=add_nr_writeback_temp_stat.patch
 Sender: owner-linux-mm@kvack.org
 From: Miklos Szeredi <mszeredi@suse.cz>
 Return-Path: <owner-linux-mm@kvack.org>
@@ -11,45 +11,87 @@ To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Fuse needs this for writable mmap support.
+Fuse will use temporary buffers to write back dirty data from memory
+mappings (normal writes are done synchronously).  This is needed,
+because there cannot be any guarantee about the time in which a write
+will complete.
+
+By using temporary buffers, from the MM's point if view the page is
+written back immediately.  If the writeout was due to memory pressure,
+this effectively migrates data from a full zone to a less full zone.
+
+This patch adds a new counter (NR_WRITEBACK_TEMP) for the number of
+pages used as temporary buffers.
 
 Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
 ---
 
-Index: linux/include/linux/backing-dev.h
+Index: linux/fs/proc/proc_misc.c
 ===================================================================
---- linux.orig/include/linux/backing-dev.h	2008-02-04 12:29:01.000000000 +0100
-+++ linux/include/linux/backing-dev.h	2008-02-04 13:01:23.000000000 +0100
-@@ -149,6 +149,8 @@ static inline unsigned long bdi_stat_err
- int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio);
- int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
- 
-+extern void bdi_writeout_inc(struct backing_dev_info *bdi);
-+
- /*
-  * Flags in backing_dev_info::capability
-  * - The first two flags control whether dirty pages will contribute to the
+--- linux.orig/fs/proc/proc_misc.c	2008-02-04 12:29:00.000000000 +0100
++++ linux/fs/proc/proc_misc.c	2008-02-04 13:01:35.000000000 +0100
+@@ -178,6 +178,7 @@ static int meminfo_read_proc(char *page,
+ 		"PageTables:   %8lu kB\n"
+ 		"NFS_Unstable: %8lu kB\n"
+ 		"Bounce:       %8lu kB\n"
++		"WritebackTmp: %8lu kB\n"
+ 		"CommitLimit:  %8lu kB\n"
+ 		"Committed_AS: %8lu kB\n"
+ 		"VmallocTotal: %8lu kB\n"
+@@ -209,6 +210,7 @@ static int meminfo_read_proc(char *page,
+ 		K(global_page_state(NR_PAGETABLE)),
+ 		K(global_page_state(NR_UNSTABLE_NFS)),
+ 		K(global_page_state(NR_BOUNCE)),
++		K(global_page_state(NR_WRITEBACK_TEMP)),
+ 		K(allowed),
+ 		K(committed),
+ 		(unsigned long)VMALLOC_TOTAL >> 10,
+Index: linux/include/linux/mmzone.h
+===================================================================
+--- linux.orig/include/linux/mmzone.h	2008-02-04 12:29:01.000000000 +0100
++++ linux/include/linux/mmzone.h	2008-02-04 13:01:35.000000000 +0100
+@@ -95,6 +95,7 @@ enum zone_stat_item {
+ 	NR_UNSTABLE_NFS,	/* NFS unstable pages */
+ 	NR_BOUNCE,
+ 	NR_VMSCAN_WRITE,
++	NR_WRITEBACK_TEMP,	/* Writeback using temporary buffers */
+ #ifdef CONFIG_NUMA
+ 	NUMA_HIT,		/* allocated in intended node */
+ 	NUMA_MISS,		/* allocated in non intended node */
+Index: linux/drivers/base/node.c
+===================================================================
+--- linux.orig/drivers/base/node.c	2008-02-04 12:28:53.000000000 +0100
++++ linux/drivers/base/node.c	2008-02-04 13:01:35.000000000 +0100
+@@ -64,6 +64,7 @@ static ssize_t node_read_meminfo(struct 
+ 		       "Node %d PageTables:   %8lu kB\n"
+ 		       "Node %d NFS_Unstable: %8lu kB\n"
+ 		       "Node %d Bounce:       %8lu kB\n"
++		       "Node %d WritebackTmp: %8lu kB\n"
+ 		       "Node %d Slab:         %8lu kB\n"
+ 		       "Node %d SReclaimable: %8lu kB\n"
+ 		       "Node %d SUnreclaim:   %8lu kB\n",
+@@ -86,6 +87,7 @@ static ssize_t node_read_meminfo(struct 
+ 		       nid, K(node_page_state(nid, NR_PAGETABLE)),
+ 		       nid, K(node_page_state(nid, NR_UNSTABLE_NFS)),
+ 		       nid, K(node_page_state(nid, NR_BOUNCE)),
++		       nid, K(node_page_state(nid, NR_WRITEBACK_TEMP)),
+ 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE) +
+ 				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
+ 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
 Index: linux/mm/page-writeback.c
 ===================================================================
---- linux.orig/mm/page-writeback.c	2008-02-04 12:29:01.000000000 +0100
-+++ linux/mm/page-writeback.c	2008-02-04 13:01:23.000000000 +0100
-@@ -168,6 +168,16 @@ static inline void __bdi_writeout_inc(st
- 			      bdi->max_prop_frac);
- }
+--- linux.orig/mm/page-writeback.c	2008-02-04 13:01:23.000000000 +0100
++++ linux/mm/page-writeback.c	2008-02-04 13:01:35.000000000 +0100
+@@ -211,7 +211,8 @@ clip_bdi_dirty_limit(struct backing_dev_
+ 	avail_dirty = dirty -
+ 		(global_page_state(NR_FILE_DIRTY) +
+ 		 global_page_state(NR_WRITEBACK) +
+-		 global_page_state(NR_UNSTABLE_NFS));
++		 global_page_state(NR_UNSTABLE_NFS) +
++		 global_page_state(NR_WRITEBACK_TEMP));
  
-+void bdi_writeout_inc(struct backing_dev_info *bdi)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	__bdi_writeout_inc(bdi);
-+	local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL(bdi_writeout_inc);
-+
- static inline void task_dirty_inc(struct task_struct *tsk)
- {
- 	prop_inc_single(&vm_dirties, &tsk->dirties);
+ 	if (avail_dirty < 0)
+ 		avail_dirty = 0;
 
 --
 
