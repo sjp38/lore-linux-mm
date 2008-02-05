@@ -1,70 +1,41 @@
-Date: Tue, 05 Feb 2008 22:38:39 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH v2 7/7] Do not recompute msgmni anymore if explicitely set by user
-In-Reply-To: <20080131135357.082657000@bull.net>
-References: <20080131134018.273154000@bull.net> <20080131135357.082657000@bull.net>
-Message-Id: <20080205222005.67FE.Y-GOTO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Subject: Re: [2.6.24 REGRESSION] BUG: Soft lockup - with VFS
+From: Stephen Smalley <sds@tycho.nsa.gov>
+In-Reply-To: <20080204213911.1bcbaf66.akpm@linux-foundation.org>
+References: <6101e8c40801280031v1a860e90gfb3992ae5db37047@mail.gmail.com>
+	 <20080204213911.1bcbaf66.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Date: Tue, 05 Feb 2008 08:46:56 -0500
+Message-Id: <1202219216.27371.24.camel@moss-spartans.epoch.ncsc.mil>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nadia.Derbey@bull.net
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, containers@lists.linux-foundation.org, matthltc@us.ibm.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "\"Oliver Pinter =?ISO-8859-1?Q?=28Pint=E9r_Oliv=E9r=29=22?=" <oliver.pntr@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, James Morris <jmorris@namei.org>
 List-ID: <linux-mm.kvack.org>
 
-Thanks Nadia-san.
-
-I tested this patch set on my box. It works well.
-I have only one comment.
-
-
-> ---
->  ipc/ipc_sysctl.c |   43 +++++++++++++++++++++++++++++++++++++++++--
->  1 file changed, 41 insertions(+), 2 deletions(-)
+On Mon, 2008-02-04 at 21:39 -0800, Andrew Morton wrote:
+> On Mon, 28 Jan 2008 09:31:43 +0100 "Oliver Pinter (PintA(C)r OlivA(C)r)"  <oliver.pntr@gmail.com> wrote:
 > 
-> Index: linux-2.6.24/ipc/ipc_sysctl.c
-> ===================================================================
-> --- linux-2.6.24.orig/ipc/ipc_sysctl.c	2008-01-29 16:55:04.000000000 +0100
-> +++ linux-2.6.24/ipc/ipc_sysctl.c	2008-01-31 13:13:14.000000000 +0100
-> @@ -34,6 +34,24 @@ static int proc_ipc_dointvec(ctl_table *
->  	return proc_dointvec(&ipc_table, write, filp, buffer, lenp, ppos);
->  }
->  
-> +static int proc_ipc_callback_dointvec(ctl_table *table, int write,
-> +	struct file *filp, void __user *buffer, size_t *lenp, loff_t *ppos)
-> +{
-> +	size_t lenp_bef = *lenp;
-> +	int rc;
-> +
-> +	rc = proc_ipc_dointvec(table, write, filp, buffer, lenp, ppos);
-> +
-> +	if (write && !rc && lenp_bef == *lenp)
-> +		/*
-> +		 * Tunable has successfully been changed from userland:
-> +		 * disable its automatic recomputing.
-> +		 */
-> +		unregister_ipcns_notifier(current->nsproxy->ipc_ns);
-> +
-> +	return rc;
-> +}
-> +
+> > hi all!
+> > 
+> > in the 2.6.24 become i some soft lockups with usb-phone, when i pluged
+> > in the mobile, then the vfs-layer crashed. am afternoon can i the
+> > .config send, and i bisected the kernel, when i have time.
+> > 
+> > pictures from crash:
+> > http://students.zipernowsky.hu/~oliverp/kernel/regression_2624/
+> 
+> It looks like selinux's file_has_perm() is doing spin_lock() on an
+> uninitialised (or already locked) spinlock.
 
-
-Hmmm. I suppose this may be side effect which user does not wish.
-
-I would like to recommend there should be a switch which can turn on/off
-automatic recomputing.
-If user would like to change this value, it should be turned off.
-Otherwise, his requrest will be rejected with some messages.
-
-Probably, user can understand easier than this side effect.
-
-Bye.
+The trace looks bogus to me - I don't see how file_has_perm() could have
+been called there, and file_has_perm() doesn't directly take any spin
+locks.
 
 -- 
-Yasunori Goto 
-
+Stephen Smalley
+National Security Agency
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
