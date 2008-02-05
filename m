@@ -1,50 +1,32 @@
-Subject: Re: [2.6.24-rc8-mm1][regression?] numactl --interleave=all doesn't
-	works on memoryless node.
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20080205143149.GA4207@csn.ul.ie>
-References: <20080202165054.F491.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080202090914.GA27723@one.firstfloor.org>
-	 <20080202180536.F494.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <1202149243.5028.61.camel@localhost>  <20080205143149.GA4207@csn.ul.ie>
-Content-Type: text/plain
-Date: Tue, 05 Feb 2008 10:23:37 -0500
-Message-Id: <1202225017.5332.1.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 5 Feb 2008 10:05:52 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: SLUB: Support for statistics to help analyze allocator behavior
+In-Reply-To: <Pine.LNX.4.64.0802050923220.14675@sbz-30.cs.Helsinki.FI>
+Message-ID: <Pine.LNX.4.64.0802051005010.11705@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0802042217460.6801@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0802050923220.14675@sbz-30.cs.Helsinki.FI>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Paul Jackson <pj@sgi.com>, David Rientjes <rientjes@google.com>
+To: Pekka J Enberg <penberg@cs.helsinki.fi>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-02-05 at 14:31 +0000, Mel Gorman wrote:
-> On (04/02/08 13:20), Lee Schermerhorn didst pronounce:
-> > > > When the kernel behaviour changes and breaks user space then the kernel
-> > > > is usually wrong. Cc'ed Lee S. who maintains the kernel code now.
-> > 
-> > The memoryless nodes patch series changed a lot of things, so just
-> > reverting this one area [mpol_check_policy()] probably won't restore the
-> > prior behavior.  A fully populated node mask is not necessarily a proper
-> > subset of node_online_map().  And contextualize_policy() also requires
-> > the mask to be a subset of mems_allowed which also defaults to nodes
-> > with memory.
-> > 
-> > I don't know how Mel Gorman's "two zonelist" series, which is still
-> > awaiting a window into the -mm tree, affects this behavior.  Those
-> > patches will certainly be affected by whatever we decide here.
-> > 
+On Tue, 5 Feb 2008, Pekka J Enberg wrote:
+
+> Hi Christoph,
 > 
-> I doubt they'd make a difference to this particular problem.
-
-I didn't really think so, but I wanted to give you a heads up regarding
-this, as I think it will affect your patches.  I'm hoping we'll see them
-in -mm soon after the .25 merge window closes.  If you get there before
-a fix to this issue, so much the better, IMO :-).
-
-Lee
-
-
+> On Mon, 4 Feb 2008, Christoph Lameter wrote:
+> > The statistics provided here allow the monitoring of allocator behavior
+> > at the cost of some (minimal) loss of performance. Counters are placed in
+> > SLUB's per cpu data structure that is already written to by other code.
 > 
+> Looks good but I am wondering if we want to make the statistics per-CPU so 
+> that we can see the kmalloc/kfree ping-pong of, for example, hackbench 
+
+We could do that.... Any idea how to display that kind of information 
+in a meaningful way. Parameter conventions for slabinfo?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
