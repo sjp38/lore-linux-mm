@@ -1,51 +1,39 @@
-Date: Wed, 6 Feb 2008 00:19:14 +0200 (EET)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: Re: SLUB: Support for statistics to help analyze allocator behavior
-In-Reply-To: <Pine.LNX.4.64.0802051355270.14665@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0802060015420.20750@sbz-30.cs.Helsinki.FI>
-References: <Pine.LNX.4.64.0802042217460.6801@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0802050923220.14675@sbz-30.cs.Helsinki.FI>
- <Pine.LNX.4.64.0802051005010.11705@schroedinger.engr.sgi.com>
- <47A8C508.6010305@cs.helsinki.fi> <Pine.LNX.4.64.0802051355270.14665@schroedinger.engr.sgi.com>
+Date: Tue, 5 Feb 2008 14:19:44 -0800
+From: Pete Zaitcev <zaitcev@redhat.com>
+Subject: Re: [2.6.24 REGRESSION] BUG: Soft lockup - with VFS
+Message-Id: <20080205141944.773140a1.zaitcev@redhat.com>
+In-Reply-To: <20080205140506.c6354490.akpm@linux-foundation.org>
+References: <6101e8c40801280031v1a860e90gfb3992ae5db37047@mail.gmail.com>
+	<20080204213911.1bcbaf66.akpm@linux-foundation.org>
+	<1202219216.27371.24.camel@moss-spartans.epoch.ncsc.mil>
+	<20080205104028.190192b1.akpm@linux-foundation.org>
+	<6101e8c40802051115v12d3c02br24873ef1014dbea9@mail.gmail.com>
+	<6101e8c40802051321l13268239m913fd90f56891054@mail.gmail.com>
+	<6101e8c40802051348w2250e593x54f777bb771bd903@mail.gmail.com>
+	<20080205140506.c6354490.akpm@linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Oliver Pinter <oliver.pntr@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, James Morris <jmorris@namei.org>, linux-usb@vger.kernel.org, zaitcev@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Hi Christoph,
+On Tue, 5 Feb 2008 14:05:06 -0800, Andrew Morton <akpm@linux-foundation.org> wrote:
 
-On Tue, 5 Feb 2008, Pekka Enberg wrote:
-> > > We could do that.... Any idea how to display that kind of information in a
-> > > meaningful way. Parameter conventions for slabinfo?
-> > 
-> > We could just print out one total summary and one summary for each CPU (and
-> > maybe show % of total allocations/fees. That way you can immediately spot if
-> > some CPUs are doing more allocations/freeing than others.
- 
-On Tue, 5 Feb 2008, Christoph Lameter wrote:
-> Ok that would work for small amounts of cpus. Note that we are moving 
-> to quad core, many standard enterprise servers already have 8 and will 
-> likely have 16 next year. Our machine can have thousands of processors 
-> (new "practical" limit is 4k cpus although we could reach 16k cpus 
-> easily). I was a bit scared to open that can of worms.
+> Looks like you deadlocked in ub_request_fn().  I assume that you were using
+> ub.c in 2.6.23 and that it worked OK?  If so, we broke it, possibly via
+> changes to the core block layer.
+> 
+> I think ub.c is basically abandoned in favour of usb-storage.  If so,
+> perhaps we should remove or disble ub.c?
 
-I can see why. I think we can change the format summary a bit and have one 
-line per CPU only:
+Actually I think it may be an argument for keeping ub, if ub exposes
+a bug in the __blk_end_request. I'll look at the head of the thread
+and see if Mr. Pinter has hit anything related to Mr. Ueda's work.
 
-      Allocation                                           Deallocation
-                        Page    Add     Remove  RemoveObj/                   Page    Add     Remove  RemoveObj/
-CPU   Fast      Slow    Alloc   Partial Partial SlabFrozen Fast      Slow    Alloc   Partial Partial SlabFrozen
-16000 111953360 1044    272     25      86      350        111946981 7423    264     325     264     4832
-
-In addition, we can probably add some sort of option for determining how 
-many CPUs you're interested in seeing (sorted by CPUs that have most the 
-activity first).
-
-			Pekka
+-- Pete
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
