@@ -1,49 +1,48 @@
-Received: by wr-out-0506.google.com with SMTP id 60so1893810wri.8
-        for <linux-mm@kvack.org>; Tue, 05 Feb 2008 01:48:10 -0800 (PST)
-Message-ID: <804dabb00802050148l3b379016we5fc54f326121276@mail.gmail.com>
-Date: Tue, 5 Feb 2008 17:48:08 +0800
-From: "Peter Teoh" <htmldeveloper@gmail.com>
-Subject: git-pull conflict - how to solve it?
+Date: Tue, 5 Feb 2008 21:02:36 +1100 (EST)
+From: James Morris <jmorris@namei.org>
+Subject: Re: [2.6.24 REGRESSION] BUG: Soft lockup - with VFS
+In-Reply-To: <20080204213911.1bcbaf66.akpm@linux-foundation.org>
+Message-ID: <Xine.LNX.4.64.0802052100510.2122@us.intercode.com.au>
+References: <6101e8c40801280031v1a860e90gfb3992ae5db37047@mail.gmail.com>
+ <20080204213911.1bcbaf66.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: MULTIPART/MIXED; BOUNDARY="927316971-996416682-1202205756=:2122"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, "kernelnewbies@nl.linux.org" <kernelnewbies@nl.linux.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: =?ISO-8859-1?Q?Oliver_Pinter_=28Pint=E9r_Oliv=E9r=29?= <oliver.pntr@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Stephen Smalley <sds@tycho.nsa.gov>, Eric Paris <eparis@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-After I issued "git pull" I got the following conflicts:
+--927316971-996416682-1202205756=:2122
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
 
-remote: Counting objects: 3463, done.
-remote: Compressing objects: 100% (459/459), done.
-Indexing 2612 objects...
-remote: Total 2612 (delta 2236), reused 2528 (delta 2152)
- 100% (2612/2612) done
-Resolving 2236 deltas...
- 100% (2236/2236) done
-718 objects were added to complete this thin pack.
-* refs/remotes/origin/master: fast forward to branch 'master' of
-git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86
-  old..new: 795d45b..5329cf8
-* refs/remotes/origin/mm: forcing update to non-fast forward branch
-'mm' of git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86
-  old...new: b7e245f...1c207e8
-Removed Documentation/smp.txt
-Removed arch/arm/Kconfig.instrumentation
-Removed arch/arm/mach-ixp4xx/dsmg600-power.c
-Removed arch/arm/mach-ixp4xx/nas100d-power.c
-Removed arch/arm/mach-ixp4xx/nslu2-power.c
-Auto-merged arch/x86/Kconfig
-Auto-merged arch/x86/mm/ioremap.c
-CONFLICT (content): Merge conflict in arch/x86/mm/ioremap.c
-Removed drivers/net/mipsnet.h
-Removed drivers/pci/pcie/aspm.c
-Removed include/linux/aspm.h
-Removed kernel/Kconfig.instrumentation
-Automatic merge failed; fix conflicts and then commit the result.
+On Mon, 4 Feb 2008, Andrew Morton wrote:
 
-I really don't know what happens?   Please help me, thanks.
+> On Mon, 28 Jan 2008 09:31:43 +0100 "Oliver Pinter (Pinter Oliver)"  <oliver.pntr@gmail.com> wrote:
+> 
+> > hi all!
+> > 
+> > in the 2.6.24 become i some soft lockups with usb-phone, when i pluged
+> > in the mobile, then the vfs-layer crashed. am afternoon can i the
+> > .config send, and i bisected the kernel, when i have time.
+> > 
+> > pictures from crash:
+> > http://students.zipernowsky.hu/~oliverp/kernel/regression_2624/
+> 
+> It looks like selinux's file_has_perm() is doing spin_lock() on an
+> uninitialised (or already locked) spinlock.
+
+Perplexing.
+
+Do you have all of the lock debugging enabled?
+
+
+- James
+-- 
+James Morris
+<jmorris@namei.org>
+--927316971-996416682-1202205756=:2122--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
