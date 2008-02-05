@@ -1,46 +1,56 @@
-Date: Mon, 4 Feb 2008 17:15:05 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [git pull] SLUB updates for 2.6.25
-In-Reply-To: <200802051142.20413.nickpiggin@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0802041700170.5438@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0802041206190.3241@schroedinger.engr.sgi.com>
- <200802051105.12194.nickpiggin@yahoo.com.au>
- <Pine.LNX.4.64.0802041629290.5057@schroedinger.engr.sgi.com>
- <200802051142.20413.nickpiggin@yahoo.com.au>
+Received: by wx-out-0506.google.com with SMTP id h31so2212555wxd.11
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2008 18:59:39 -0800 (PST)
+Message-ID: <804dabb00802041859p3e253b71w7978599101639761@mail.gmail.com>
+Date: Tue, 5 Feb 2008 10:59:34 +0800
+From: "Peter Teoh" <htmldeveloper@gmail.com>
+Subject: Compilation errors
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: willy@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: "kernelnewbies@nl.linux.org" <kernelnewbies@nl.linux.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 5 Feb 2008, Nick Piggin wrote:
+I pulled the git from linux-mm today, and compiled with the following errors:
 
-> Anyway, not saying the operations are useless, but they should be
-> made available to core kernel and implemented per-arch. (if they are
-> found to be useful)
+  CC      arch/x86/kernel/apm_32.o
+arch/x86/kernel/apm_32.c: In function 'suspend':
+arch/x86/kernel/apm_32.c:1192: warning: 'pm_send_all' is deprecated
+(declared at include/linux/pm_legacy.h:16)
+arch/x86/kernel/apm_32.c:1227: warning: 'pm_send_all' is deprecated
+(declared at include/linux/pm_legacy.h:16)
+arch/x86/kernel/apm_32.c: In function 'check_events':
+arch/x86/kernel/apm_32.c:1340: warning: 'pm_send_all' is deprecated
+(declared at include/linux/pm_legacy.h:16)
+  LD      arch/x86/kernel/apm.o
+  CC      arch/x86/kernel/smp_32.o
 
-The problem is to establish the usefulness. These measures may bring 1-2% 
-in a pretty unstable operation mode assuming that the system is doing 
-repetitive work. The micro optimizations seem to be often drowned out 
-by small other changes to the system.
+And the following errors:
 
-There is the danger that a gain is seen that is not due to the patch but 
-due to other changes coming about because code is moved since patches 
-change execution paths.
+  CC      arch/x86/mm/ioremap.o
+arch/x86/mm/ioremap.c: In function '__ioremap':
+arch/x86/mm/ioremap.c:106: error: expected expression before '<<' token
+arch/x86/mm/ioremap.c:108: error: expected expression before '==' token
+arch/x86/mm/ioremap.c:109:9: error: invalid suffix
+"d45b22c079946332bf3825afefe5a981a97b6" on integer constant
+arch/x86/mm/ioremap.c:128: error: expected expression before '<<' token
+arch/x86/mm/ioremap.c:133:9: error: invalid suffix
+"d45b22c079946332bf3825afefe5a981a97b6" on integer constant
+arch/x86/mm/ioremap.c:140: error: 'prot' undeclared (first use in this function)
+arch/x86/mm/ioremap.c:140: error: (Each undeclared identifier is
+reported only once
+arch/x86/mm/ioremap.c:140: error: for each function it appears in.)
+make[1]: *** [arch/x86/mm/ioremap.o] Error 1
 
-Plus they may be only possible on a specific architecture. I know that our 
-IA64 hardware has special measures ensuring certain behavior of atomic ops 
-etc, I guess Intel has similar tricks up their sleeve. At 8p there are 
-likely increasing problems with lock starvation where your ticketlock 
-helps. That is why I thought we better defer the stuff until there is some 
-more evidence that these are useful.
+And issuing another "git pull" I got: the following message:
 
-I got particularly nervous about these changes after I saw small 
-performance drops due to the __unlock patch on the dual quad. That should 
-have been a consistent gain.
+You are in the middle of a conflicted merge.
 
+
+Please enlighten me here...thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
