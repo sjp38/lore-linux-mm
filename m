@@ -1,93 +1,50 @@
-Message-ID: <47A878CE.1060304@bull.net>
-Date: Tue, 05 Feb 2008 15:55:10 +0100
-From: Nadia Derbey <Nadia.Derbey@bull.net>
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH v2 7/7] Do not recompute msgmni anymore if explicitely
- set by user
-References: <20080131134018.273154000@bull.net> <20080131135357.082657000@bull.net> <20080205222005.67FE.Y-GOTO@jp.fujitsu.com>
-In-Reply-To: <20080205222005.67FE.Y-GOTO@jp.fujitsu.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [2.6.24-rc8-mm1][regression?] numactl --interleave=all doesn't
+	works on memoryless node.
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20080205143149.GA4207@csn.ul.ie>
+References: <20080202165054.F491.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080202090914.GA27723@one.firstfloor.org>
+	 <20080202180536.F494.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <1202149243.5028.61.camel@localhost>  <20080205143149.GA4207@csn.ul.ie>
+Content-Type: text/plain
+Date: Tue, 05 Feb 2008 10:23:37 -0500
+Message-Id: <1202225017.5332.1.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, containers@lists.linux-foundation.org, matthltc@us.ibm.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Paul Jackson <pj@sgi.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Yasunori Goto wrote:
-> Thanks Nadia-san.
+On Tue, 2008-02-05 at 14:31 +0000, Mel Gorman wrote:
+> On (04/02/08 13:20), Lee Schermerhorn didst pronounce:
+> > > > When the kernel behaviour changes and breaks user space then the kernel
+> > > > is usually wrong. Cc'ed Lee S. who maintains the kernel code now.
+> > 
+> > The memoryless nodes patch series changed a lot of things, so just
+> > reverting this one area [mpol_check_policy()] probably won't restore the
+> > prior behavior.  A fully populated node mask is not necessarily a proper
+> > subset of node_online_map().  And contextualize_policy() also requires
+> > the mask to be a subset of mems_allowed which also defaults to nodes
+> > with memory.
+> > 
+> > I don't know how Mel Gorman's "two zonelist" series, which is still
+> > awaiting a window into the -mm tree, affects this behavior.  Those
+> > patches will certainly be affected by whatever we decide here.
+> > 
 > 
-> I tested this patch set on my box. It works well.
-> I have only one comment.
-> 
-> 
-> 
->>---
->> ipc/ipc_sysctl.c |   43 +++++++++++++++++++++++++++++++++++++++++--
->> 1 file changed, 41 insertions(+), 2 deletions(-)
->>
->>Index: linux-2.6.24/ipc/ipc_sysctl.c
->>===================================================================
->>--- linux-2.6.24.orig/ipc/ipc_sysctl.c	2008-01-29 16:55:04.000000000 +0100
->>+++ linux-2.6.24/ipc/ipc_sysctl.c	2008-01-31 13:13:14.000000000 +0100
->>@@ -34,6 +34,24 @@ static int proc_ipc_dointvec(ctl_table *
->> 	return proc_dointvec(&ipc_table, write, filp, buffer, lenp, ppos);
->> }
->> 
->>+static int proc_ipc_callback_dointvec(ctl_table *table, int write,
->>+	struct file *filp, void __user *buffer, size_t *lenp, loff_t *ppos)
->>+{
->>+	size_t lenp_bef = *lenp;
->>+	int rc;
->>+
->>+	rc = proc_ipc_dointvec(table, write, filp, buffer, lenp, ppos);
->>+
->>+	if (write && !rc && lenp_bef == *lenp)
->>+		/*
->>+		 * Tunable has successfully been changed from userland:
->>+		 * disable its automatic recomputing.
->>+		 */
->>+		unregister_ipcns_notifier(current->nsproxy->ipc_ns);
->>+
->>+	return rc;
->>+}
->>+
-> 
-> 
-> 
-> Hmmm. I suppose this may be side effect which user does not wish.
-> 
-> I would like to recommend there should be a switch which can turn on/off
-> automatic recomputing.
-> If user would like to change this value, it should be turned off.
-> Otherwise, his requrest will be rejected with some messages.
-> 
-> Probably, user can understand easier than this side effect.
-> 
+> I doubt they'd make a difference to this particular problem.
 
-Hi Yasunori,
+I didn't really think so, but I wanted to give you a heads up regarding
+this, as I think it will affect your patches.  I'm hoping we'll see them
+in -mm soon after the .25 merge window closes.  If you get there before
+a fix to this issue, so much the better, IMO :-).
 
-Hope you're feeling better!
-
-Well the idea behind this was the following: if msgmni is changed say 
-via procfs it is usually to increase it, in order for applications that 
-need more msg queues to be able to run.
-So even if a new ipc namespace is created or memory is removed, the 
-application that has set that new value doesn't care: it wants msgmni to 
-be unchanged. I agree with you that unconditionally turning the 
-recomputing off may appear coarse, but I'm afraid that adding the 
-functionality of turning that recomputing on/off will make things more 
-complicated:
-1) manage the tunable recomputing state: it shouldn't be turned on twice
-2) adds more things to do at the user level.
-
-I'll try to think about it more deeply and may be come up with an 
-intermediate solution.
-
-Regards,
-Nadia
+Lee
 
 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
