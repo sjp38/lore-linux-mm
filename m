@@ -1,59 +1,48 @@
-Subject: Re: [2.6.24-rc8-mm1][regression?] numactl --interleave=all doesn't
-	works on memoryless node.
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20080205153326.5c820dbc.pj@sgi.com>
-References: <20080202165054.F491.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080202090914.GA27723@one.firstfloor.org>
-	 <20080202180536.F494.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <1202149243.5028.61.camel@localhost> <20080205041755.3411b5cc.pj@sgi.com>
-	 <alpine.DEB.0.9999.0802051146300.5854@chino.kir.corp.google.com>
-	 <20080205145141.ae658c12.pj@sgi.com>
-	 <alpine.DEB.1.00.0802051259090.26206@chino.kir.corp.google.com>
-	 <20080205153326.5c820dbc.pj@sgi.com>
-Content-Type: text/plain
-Date: Tue, 05 Feb 2008 17:04:30 -0500
-Message-Id: <1202249070.5332.58.camel@localhost>
+Date: Tue, 5 Feb 2008 14:05:06 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [2.6.24 REGRESSION] BUG: Soft lockup - with VFS
+Message-Id: <20080205140506.c6354490.akpm@linux-foundation.org>
+In-Reply-To: <6101e8c40802051348w2250e593x54f777bb771bd903@mail.gmail.com>
+References: <6101e8c40801280031v1a860e90gfb3992ae5db37047@mail.gmail.com>
+	<20080204213911.1bcbaf66.akpm@linux-foundation.org>
+	<1202219216.27371.24.camel@moss-spartans.epoch.ncsc.mil>
+	<20080205104028.190192b1.akpm@linux-foundation.org>
+	<6101e8c40802051115v12d3c02br24873ef1014dbea9@mail.gmail.com>
+	<6101e8c40802051321l13268239m913fd90f56891054@mail.gmail.com>
+	<6101e8c40802051348w2250e593x54f777bb771bd903@mail.gmail.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: David Rientjes <rientjes@google.com>, kosaki.motohiro@jp.fujitsu.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, clameter@sgi.com, mel@csn.ul.ie
+To: Oliver Pinter <oliver.pntr@gmail.com>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, James Morris <jmorris@namei.org>, linux-usb@vger.kernel.org, Pete Zaitcev <zaitcev@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-02-05 at 15:33 -0600, Paul Jackson wrote:
-> David wrote:
-> > It would be disappointing to see a lot of work done to fix
-> 
-> The suggested patch of KOSAKI Motohiro didn't look like a lot of work to me.
-> 
-> I continue to prefer not to hijack this thread for that other discussion.
-> Just presenting your position and calling it "simple" is misleading.
-> The discussion so far has involved over a hundred messages over months,
-> and certainly your position, nor mine for that matter, obtained concensus.
-> 
-> How does the patch of KOSAKI Motohiro, earlier in this thread, look to you?
-> 
+On Tue, 5 Feb 2008 22:48:29 +0100
+"Oliver Pinter" <oliver.pntr@gmail.com> wrote:
 
-Paul,
+> On 2/5/08, Oliver Pinter <oliver.pntr@gmail.com> wrote:
+> > http://students.zipernowsky.hu/~oliverp/kernel/regression_2624/
+> >
+> > uploaded:
+> > kernel image
+> > .config
+> > new pictures
+> > lspci
+> > lsusb
+> >
+> > -----
+> >
+> > when read for /dev/uba then crashed the kernel, the read is egal, thet
+> > dd or mount is ...
 
-It wasn't clear to me whether Kosaki-san's patch required a modified
-numactl/libnuma or not.   I think so, because that patch doesn't change
-the error return in contextualize_policy() and in mpol_check_policy().
-My modified numactl/libnuma avoids this by only passing in allowed mems
-fetch via get_mempolicy() with the new MEMS_ALLOWED flags.
+Looks like you deadlocked in ub_request_fn().  I assume that you were using
+ub.c in 2.6.23 and that it worked OK?  If so, we broke it, possibly via
+changes to the core block layer.
 
-The patch I just posted doesn't depend on the numactl changes and seems
-quite minimal to me.  I think it cleans up the differences between
-set_mempolicy() and mbind(), as well.  However, some may take exception
-to the change in behavior--silently ignoring dis-allowed nodes in
-set_mempolicy().
-
-Also, your cpuset/mempolicy work will probably need to undo the
-unconditional masking in contextualize_policy() and/or save the original
-node mask somewhere...
-
-Lee
+I think ub.c is basically abandoned in favour of usb-storage.  If so,
+perhaps we should remove or disble ub.c?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
