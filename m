@@ -1,75 +1,54 @@
-Date: Tue, 5 Feb 2008 05:15:34 -0500 (EST)
-From: "Robert P. J. Day" <rpjday@crashcourse.ca>
+Received: by wx-out-0506.google.com with SMTP id h31so2351914wxd.11
+        for <linux-mm@kvack.org>; Tue, 05 Feb 2008 02:16:55 -0800 (PST)
+Message-ID: <804dabb00802050216y50d1dfcasf8d5cdcf466ea58d@mail.gmail.com>
+Date: Tue, 5 Feb 2008 18:16:54 +0800
+From: "Peter Teoh" <htmldeveloper@gmail.com>
 Subject: Re: git-pull conflict - how to solve it?
 In-Reply-To: <804dabb00802050148l3b379016we5fc54f326121276@mail.gmail.com>
-Message-ID: <alpine.LFD.1.00.0802050513260.10438@localhost.localdomain>
-References: <804dabb00802050148l3b379016we5fc54f326121276@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <804dabb00802050148l3b379016we5fc54f326121276@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Teoh <htmldeveloper@gmail.com>
-Cc: linux-mm@kvack.org, "kernelnewbies@nl.linux.org" <kernelnewbies@nl.linux.org>
+To: linux-mm@kvack.org, "kernelnewbies@nl.linux.org" <kernelnewbies@nl.linux.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 5 Feb 2008, Peter Teoh wrote:
+I suspect the git source is having some problem.   Because after I
+deleted the file, did a git checkout -f again, the ioremap.c comes
+back with the corrupted contents.
 
-> After I issued "git pull" I got the following conflicts:
->
-> remote: Counting objects: 3463, done.
-> remote: Compressing objects: 100% (459/459), done.
-> Indexing 2612 objects...
-> remote: Total 2612 (delta 2236), reused 2528 (delta 2152)
->  100% (2612/2612) done
-> Resolving 2236 deltas...
->  100% (2236/2236) done
-> 718 objects were added to complete this thin pack.
-> * refs/remotes/origin/master: fast forward to branch 'master' of
-> git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86
->   old..new: 795d45b..5329cf8
-> * refs/remotes/origin/mm: forcing update to non-fast forward branch
-> 'mm' of git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86
->   old...new: b7e245f...1c207e8
-> Removed Documentation/smp.txt
-> Removed arch/arm/Kconfig.instrumentation
-> Removed arch/arm/mach-ixp4xx/dsmg600-power.c
-> Removed arch/arm/mach-ixp4xx/nas100d-power.c
-> Removed arch/arm/mach-ixp4xx/nslu2-power.c
-> Auto-merged arch/x86/Kconfig
-> Auto-merged arch/x86/mm/ioremap.c
-> CONFLICT (content): Merge conflict in arch/x86/mm/ioremap.c
-> Removed drivers/net/mipsnet.h
-> Removed drivers/pci/pcie/aspm.c
-> Removed include/linux/aspm.h
-> Removed kernel/Kconfig.instrumentation
-> Automatic merge failed; fix conflicts and then commit the result.
->
-> I really don't know what happens?   Please help me, thanks.
+--- ioremap.c   2008-02-05 11:01:45.000000000 +0800
++++ /tmp/ioremap.c      2008-02-05 17:37:12.000000000 +0800
+@@ -103,6 +103,10 @@ static void __iomem *__ioremap(unsigned
+ {
+        unsigned long pfn, offset, last_addr, vaddr;
+        struct vm_struct *area;
++<<<<<<< HEAD:arch/x86/mm/ioremap.c
++       unsigned long pfn, offset, last_addr;
++=======
++>>>>>>> 5329cf8e19bd83f8d9e0b6b2a3cdcfbd288eb68e:arch/x86/mm/ioremap.c
+        pgprot_t prot;
 
-i'm currently up to date WRT git and i haven't seen that kind of
-merge conflict.  if all else fails, just remove your entire working
-copy (leaving the .git directory where it is) with:
+        /* Don't allow wraparound or zero size */
+@@ -121,8 +125,12 @@ static void __iomem *__ioremap(unsigned
+         */
+        for (pfn = phys_addr >> PAGE_SHIFT; pfn < max_pfn_mapped &&
+             (pfn << PAGE_SHIFT) < last_addr; pfn++) {
++<<<<<<< HEAD:arch/x86/mm/ioremap.c
++               if (pfn_valid(pfn) && !PageReserved(pfn_to_page(pfn)))
++=======
+                if (page_is_ram(pfn) && pfn_valid(pfn) &&
+                    !PageReserved(pfn_to_page(pfn)))
++>>>>>>> 5329cf8e19bd83f8d9e0b6b2a3cdcfbd288eb68e:arch/x86/mm/ioremap.c
+                        return NULL;
+        }
 
-$ rm -rf *
+where is diff is wrt to linus-tree.
 
-do the pull, then recheck everything out with:
-
-$ git checkout -f
-
-that might be brute force, but it should work.  if you *still* have a
-conflict, then you must have made some changes and committed them or
-something similar.
-
-rday
---
-========================================================================
-Robert P. J. Day
-Linux Consulting, Training and Annoying Kernel Pedantry
-Waterloo, Ontario, CANADA
-
-Home page:                                         http://crashcourse.ca
-Fedora Cookbook:    http://crashcourse.ca/wiki/index.php/Fedora_Cookbook
-========================================================================
+Therefore, I copied over the ioremap.c from linus tree and continued
+my compilation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
