@@ -1,39 +1,39 @@
-Message-ID: <47A8C508.6010305@cs.helsinki.fi>
-Date: Tue, 05 Feb 2008 22:20:24 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-MIME-Version: 1.0
-Subject: Re: SLUB: Support for statistics to help analyze allocator behavior
-References: <Pine.LNX.4.64.0802042217460.6801@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0802050923220.14675@sbz-30.cs.Helsinki.FI> <Pine.LNX.4.64.0802051005010.11705@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0802051005010.11705@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Tue, 5 Feb 2008 14:51:41 -0600
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [2.6.24-rc8-mm1][regression?] numactl --interleave=all doesn't
+ works on memoryless node.
+Message-Id: <20080205145141.ae658c12.pj@sgi.com>
+In-Reply-To: <alpine.DEB.0.9999.0802051146300.5854@chino.kir.corp.google.com>
+References: <20080202165054.F491.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<20080202090914.GA27723@one.firstfloor.org>
+	<20080202180536.F494.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<1202149243.5028.61.camel@localhost>
+	<20080205041755.3411b5cc.pj@sgi.com>
+	<alpine.DEB.0.9999.0802051146300.5854@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Lee.Schermerhorn@hp.com, kosaki.motohiro@jp.fujitsu.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, clameter@sgi.com, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Tue, 5 Feb 2008, Pekka J Enberg wrote:
-> 
->> Hi Christoph,
->>
->> On Mon, 4 Feb 2008, Christoph Lameter wrote:
->>> The statistics provided here allow the monitoring of allocator behavior
->>> at the cost of some (minimal) loss of performance. Counters are placed in
->>> SLUB's per cpu data structure that is already written to by other code.
->> Looks good but I am wondering if we want to make the statistics per-CPU so 
->> that we can see the kmalloc/kfree ping-pong of, for example, hackbench 
-> 
-> We could do that.... Any idea how to display that kind of information 
-> in a meaningful way. Parameter conventions for slabinfo?
+David wrote:
+> The more alarming result of these remaps is in the MPOL_BIND case, as 
+> we've talked about before.  The language in set_mempolicy(2):
 
-We could just print out one total summary and one summary for each CPU 
-(and maybe show % of total allocations/fees. That way you can 
-immediately spot if some CPUs are doing more allocations/freeing than 
-others.
+You're diving into the middle of a rather involved discussion
+we had on the other various patches proposed to extend the
+interaction of mempolicy's with cpusets and hotplug.
 
-			Pekka
+I choose not to hijack this current thread with my rebuttal,
+which you've seen before, of your points here.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.940.382.4214
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
