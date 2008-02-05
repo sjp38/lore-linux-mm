@@ -1,58 +1,55 @@
-Date: Tue, 5 Feb 2008 23:26:58 +0100
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [PATCH] mmu notifiers #v5
-Message-ID: <20080205222657.GG7441@v2.random>
-References: <20080201120955.GX7185@v2.random> <Pine.LNX.4.64.0802011118060.18163@schroedinger.engr.sgi.com> <20080203021704.GC7185@v2.random> <Pine.LNX.4.64.0802041106370.9656@schroedinger.engr.sgi.com> <20080205052525.GD7441@v2.random> <Pine.LNX.4.64.0802042206200.6739@schroedinger.engr.sgi.com> <20080205180802.GE7441@v2.random> <Pine.LNX.4.64.0802051013440.11705@schroedinger.engr.sgi.com> <20080205205519.GF7441@v2.random> <Pine.LNX.4.64.0802051400200.14665@schroedinger.engr.sgi.com>
+Received: by fg-out-1718.google.com with SMTP id e12so2091510fga.4
+        for <linux-mm@kvack.org>; Tue, 05 Feb 2008 14:29:35 -0800 (PST)
+Message-ID: <6101e8c40802051429r2942f8a7g5aa28b147603b669@mail.gmail.com>
+Date: Tue, 5 Feb 2008 23:29:35 +0100
+From: "Oliver Pinter" <oliver.pntr@gmail.com>
+Subject: Re: [2.6.24 REGRESSION] BUG: Soft lockup - with VFS
+In-Reply-To: <20080205141944.773140a1.zaitcev@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0802051400200.14665@schroedinger.engr.sgi.com>
+References: <6101e8c40801280031v1a860e90gfb3992ae5db37047@mail.gmail.com>
+	 <20080204213911.1bcbaf66.akpm@linux-foundation.org>
+	 <1202219216.27371.24.camel@moss-spartans.epoch.ncsc.mil>
+	 <20080205104028.190192b1.akpm@linux-foundation.org>
+	 <6101e8c40802051115v12d3c02br24873ef1014dbea9@mail.gmail.com>
+	 <6101e8c40802051321l13268239m913fd90f56891054@mail.gmail.com>
+	 <6101e8c40802051348w2250e593x54f777bb771bd903@mail.gmail.com>
+	 <20080205140506.c6354490.akpm@linux-foundation.org>
+	 <20080205141944.773140a1.zaitcev@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Pete Zaitcev <zaitcev@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, James Morris <jmorris@namei.org>, linux-usb@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 05, 2008 at 02:06:23PM -0800, Christoph Lameter wrote:
-> On Tue, 5 Feb 2008, Andrea Arcangeli wrote:
-> 
-> > On Tue, Feb 05, 2008 at 10:17:41AM -0800, Christoph Lameter wrote:
-> > > The other approach will not have any remote ptes at that point. Why would 
-> > > there be a coherency issue?
-> > 
-> > It never happens that two threads writes to two different physical
-> > pages by working on the same process virtual address. This is an issue
-> > only for KVM which is probably ok with it but certainly you can't
-> > consider the dependency on the page-pin less fragile or less complex
-> > than my PT lock approach.
-> 
-> You can avoid the page-pin and the pt lock completely by zapping the 
-> mappings at _start and then holding off new references until _end.
+i reverted this commit 7d699bafe258ebd8f9b4ec182c554200b369a504 , and
+now compile ...
 
-Avoid the PT lock? The PT lock has to be taken anyway by the linux
-VM.
+On 2/5/08, Pete Zaitcev <zaitcev@redhat.com> wrote:
+> On Tue, 5 Feb 2008 14:05:06 -0800, Andrew Morton <akpm@linux-foundation.org>
+> wrote:
+>
+> > Looks like you deadlocked in ub_request_fn().  I assume that you were
+> using
+> > ub.c in 2.6.23 and that it worked OK?  If so, we broke it, possibly via
+> > changes to the core block layer.
+> >
+> > I think ub.c is basically abandoned in favour of usb-storage.  If so,
+> > perhaps we should remove or disble ub.c?
+>
+> Actually I think it may be an argument for keeping ub, if ub exposes
+> a bug in the __blk_end_request. I'll look at the head of the thread
+> and see if Mr. Pinter has hit anything related to Mr. Ueda's work.
+>
+> -- Pete
+>
 
-"holding off new references until _end" = per-range mutex less scalar
-and more expensive than the PT lock that has to be taken anyway.
 
-> As I said the implementation is up to the caller. Not sure what 
-> XPmem is using there but then XPmem is not using follow_page. The GRU 
-> would be using a lightway way of locking not rbtrees.
-
-"lightway way of locking" = mm-wide-mutex (not necessary at all if we
-take advantage of the per-pte-scalar PT lock that has to be taken
-anyway like in my patch)
-
-> Maybe that is true for KVM but certainly not true for the GRU. The GRU is 
-> designed to manage several petabytes of memory that may be mapped by a 
-> series of Linux instances. If a process only maps a small chunk of 4 
-> Gigabytes then we already have to deal with 1 mio callbacks.
-
-KVM is also going to map a lot of stuff, but mapping involves mmap,
-munmap/mremap/mprotect not. The size of mmap is irrelevant in both
-approaches. optimizing do_exit by making the tlb-miss runtime slower
-doesn't sound great to me and that's your patch does if you force GRU
-to use it.
+-- 
+Thanks,
+Oliver
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
