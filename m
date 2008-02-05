@@ -1,50 +1,42 @@
-Date: Tue, 5 Feb 2008 11:07:36 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: SLUB: Support for statistics to help analyze allocator behavior
-In-Reply-To: <20080205195511.b396ea4b.dada1@cosmosbay.com>
-Message-ID: <Pine.LNX.4.64.0802051104520.12425@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0802042217460.6801@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0802050923220.14675@sbz-30.cs.Helsinki.FI> <47A81513.4010301@cosmosbay.com>
- <Pine.LNX.4.64.0802050952300.16488@sbz-30.cs.Helsinki.FI>
- <Pine.LNX.4.64.0802051007270.11705@schroedinger.engr.sgi.com>
- <20080205195511.b396ea4b.dada1@cosmosbay.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 5 Feb 2008 13:15:17 -0600
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [2.6.24-rc8-mm1][regression?] numactl --interleave=all doesn't
+ works on memoryless node.
+Message-Id: <20080205131517.1189104f.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0802051050300.12425@schroedinger.engr.sgi.com>
+References: <20080202165054.F491.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<20080202090914.GA27723@one.firstfloor.org>
+	<20080202180536.F494.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<1202149243.5028.61.camel@localhost>
+	<20080205143149.GA4207@csn.ul.ie>
+	<1202225017.5332.1.camel@localhost>
+	<Pine.LNX.4.64.0802051011400.11705@schroedinger.engr.sgi.com>
+	<1202236056.5332.17.camel@localhost>
+	<Pine.LNX.4.64.0802051050300.12425@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: Pekka J Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Lee.Schermerhorn@hp.com, mel@csn.ul.ie, kosaki.motohiro@jp.fujitsu.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, rientjes@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 5 Feb 2008, Eric Dumazet wrote:
+Christoph wrote:
+> Can we fix up his patch to address the immediate issue?
 
-> > Well we could do the same as for numa stats. Output the global count and 
-> > then add
-> > 
-> > c<proc>=count
-> > 
-> 
-> Yes, or the reverse, to avoid two loops and possible sum errors (Sum of 
-> c<proc>=count different than the global count)
+Since any of those future patches only add optional modes
+with new flags, while preserving current behaviour if you
+don't use one of the new flags, therefore the current behavior
+has to work as best it can.
 
-The numa output uses only one loop and so I think we could do the same 
-here. Its good to have the global number first that way existing tools can 
-simply read a number and get what they intuitively expect.
+Therefore fixes such as this to address immediate issues
+are probably needed.  Yup.
 
-> Since text##_show is going to be too big, you could use one function 
-> instead of several ones ?
-
-Sure.
-
-> (and char *buf is PAGE_SIZE, so you should add a limit ?)
-
-Yes we must do so because support for 4k processors etc is on the horizon.
-
-> Note I used for_each_possible_cpu() here instead of 'online' variant, or 
-> stats might be corrupted when a cpu goes offline.
-
-Hmmm.. We are thinking about freeing percpu areas when a cpu goes offline. 
-So we would need to fold statistics into another cpu if this is a cocnern. 
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.940.382.4214
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
