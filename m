@@ -1,56 +1,70 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id m15CWNNo010123
-	for <linux-mm@kvack.org>; Tue, 5 Feb 2008 23:32:23 +1100
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m15CW7CT3858644
-	for <linux-mm@kvack.org>; Tue, 5 Feb 2008 23:32:07 +1100
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m15CW6x1000934
-	for <linux-mm@kvack.org>; Tue, 5 Feb 2008 23:32:07 +1100
-Message-ID: <47A856E1.4040703@linux.vnet.ibm.com>
-Date: Tue, 05 Feb 2008 18:00:25 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Date: Tue, 05 Feb 2008 22:38:39 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH v2 7/7] Do not recompute msgmni anymore if explicitely set by user
+In-Reply-To: <20080131135357.082657000@bull.net>
+References: <20080131134018.273154000@bull.net> <20080131135357.082657000@bull.net>
+Message-Id: <20080205222005.67FE.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [BUG] regression from 2.6.24-rc8-mm1 and 2.6.24-mm1 kernel panic
- while bootup
-References: <47A81BC9.5060600@linux.vnet.ibm.com> <20080205002544.264a9484.akpm@linux-foundation.org>
-In-Reply-To: <20080205002544.264a9484.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, mingo@elte.hu, tglx@linutronix.de, apw@shadowen.org, randy.dunlap@oracle.com, linux-mm@kvack.org
+To: Nadia.Derbey@bull.net
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, containers@lists.linux-foundation.org, matthltc@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Tue, 05 Feb 2008 13:48:17 +0530 Kamalesh Babulal <kamalesh@linux.vnet.ibm.com> wrote:
->
-[snip]
+Thanks Nadia-san.
 
-> argh, I'd forgotten about that.  You bisected it down to a clearly-innocent
-> patch and none of the mm developers appeared interested.
+I tested this patch set on my box. It works well.
+I have only one comment.
+
+
+> ---
+>  ipc/ipc_sysctl.c |   43 +++++++++++++++++++++++++++++++++++++++++--
+>  1 file changed, 41 insertions(+), 2 deletions(-)
 > 
-> Oh well, it'll probably be in mainline tomorrow.  That should get it
-> fixed.
+> Index: linux-2.6.24/ipc/ipc_sysctl.c
+> ===================================================================
+> --- linux-2.6.24.orig/ipc/ipc_sysctl.c	2008-01-29 16:55:04.000000000 +0100
+> +++ linux-2.6.24/ipc/ipc_sysctl.c	2008-01-31 13:13:14.000000000 +0100
+> @@ -34,6 +34,24 @@ static int proc_ipc_dointvec(ctl_table *
+>  	return proc_dointvec(&ipc_table, write, filp, buffer, lenp, ppos);
+>  }
+>  
+> +static int proc_ipc_callback_dointvec(ctl_table *table, int write,
+> +	struct file *filp, void __user *buffer, size_t *lenp, loff_t *ppos)
+> +{
+> +	size_t lenp_bef = *lenp;
+> +	int rc;
+> +
+> +	rc = proc_ipc_dointvec(table, write, filp, buffer, lenp, ppos);
+> +
+> +	if (write && !rc && lenp_bef == *lenp)
+> +		/*
+> +		 * Tunable has successfully been changed from userland:
+> +		 * disable its automatic recomputing.
+> +		 */
+> +		unregister_ipcns_notifier(current->nsproxy->ipc_ns);
+> +
+> +	return rc;
+> +}
+> +
 
-We've tracked this down to a problem where the nodeid might be invalid. Kamalesh
-is investigating problem. We suspect we are doing a kmalloc_node with an invalid
-nodeid.
 
-We see
+Hmmm. I suppose this may be side effect which user does not wish.
 
-cpu with no node 2, num_online_nodes 1
-cpu with no node 3, num_online_nodes 1
+I would like to recommend there should be a switch which can turn on/off
+automatic recomputing.
+If user would like to change this value, it should be turned off.
+Otherwise, his requrest will be rejected with some messages.
 
-in the bootlog. Kamalesh verified that the problem exists with both slub and slab.
+Probably, user can understand easier than this side effect.
+
+Bye.
 
 -- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
