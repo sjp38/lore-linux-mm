@@ -1,72 +1,57 @@
-Date: Tue, 5 Feb 2008 11:56:57 -0800 (PST)
+Date: Tue, 5 Feb 2008 12:06:50 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
 Subject: Re: [2.6.24-rc8-mm1][regression?] numactl --interleave=all doesn't
  works on memoryless node.
-In-Reply-To: <20080205041755.3411b5cc.pj@sgi.com>
-Message-ID: <alpine.DEB.0.9999.0802051146300.5854@chino.kir.corp.google.com>
-References: <20080202165054.F491.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080202090914.GA27723@one.firstfloor.org> <20080202180536.F494.KOSAKI.MOTOHIRO@jp.fujitsu.com> <1202149243.5028.61.camel@localhost> <20080205041755.3411b5cc.pj@sgi.com>
+In-Reply-To: <20080205131517.1189104f.pj@sgi.com>
+Message-ID: <alpine.DEB.0.9999.0802051159310.5854@chino.kir.corp.google.com>
+References: <20080202165054.F491.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080202090914.GA27723@one.firstfloor.org> <20080202180536.F494.KOSAKI.MOTOHIRO@jp.fujitsu.com> <1202149243.5028.61.camel@localhost> <20080205143149.GA4207@csn.ul.ie> <1202225017.5332.1.camel@localhost>
+ <Pine.LNX.4.64.0802051011400.11705@schroedinger.engr.sgi.com> <1202236056.5332.17.camel@localhost> <Pine.LNX.4.64.0802051050300.12425@schroedinger.engr.sgi.com> <20080205131517.1189104f.pj@sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Paul Jackson <pj@sgi.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, kosaki.motohiro@jp.fujitsu.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, clameter@sgi.com, mel@csn.ul.ie
+Cc: Christoph Lameter <clameter@sgi.com>, Lee.Schermerhorn@hp.com, mel@csn.ul.ie, kosaki.motohiro@jp.fujitsu.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 5 Feb 2008, Paul Jackson wrote:
 
-> But that discussion touched on some other long standing deficiencies
-> in the way that I had originally glued cpusets and memory policies
-> together.  The current mechanism doesn't handle changing cpusets very
-> well, especially if the number of nodes in the cpuset increases.
+> Since any of those future patches only add optional modes
+> with new flags, while preserving current behaviour if you
+> don't use one of the new flags, therefore the current behavior
+> has to work as best it can.
 > 
 
-That's because of the nodemask remaps that are done for the various 
-mempolicy cases when rebinding the policy.  I agree we cannot change that 
-implementation now even though it is undocumented.
+There's a subtlety to this issue that allows it to be fixed and easily 
+extended for two upcoming changes:
 
-The more alarming result of these remaps is in the MPOL_BIND case, as 
-we've talked about before.  The language in set_mempolicy(2):
+ - Paul Jackson's mempolicy and cpuset interactions change that will
+   probably allow set_mempolicy() callers to specify with a MPOL_*
+   flag whether they are referring to "dynamic" or "static" nodemasks[*],
+   and
 
-	The MPOL_BIND policy is a strict policy that restricts memory
-	allocation to the nodes specified in nodemask. There won't be
-	allocations on other nodes.
+ - node hotplug (both add and remove) that will change the state of a
+   node with an identical id.
 
-makes it pretty clear that allocations will not be done on other nodes not 
-provided in the set_mempolicy() nodemask if the task is not swapped out.  
+Paul, with his patch, will need to preserve the "intent" of the mempolicy 
+as the nodemask that was passed by the user and attempt on all successive 
+rebinds to accomodate that intent as much as possible.
 
-But the current implementation allows that if the task is either moved to 
-a different cpuset or its cpuset's mems change.  For example, consider a 
-task that is allowed nodes 1-3 by its cpuset and asks for a MPOL_BIND 
-mempolicy of node 2.  If that cpuset's mems change to 4-6, the mempolicy 
-is now effectively a bind on node 5.
+So at the time of rebind it is quite simple to intersect the set of system 
+nodes that have memory with the intent of the mempolicy to yield the 
+effected nodemask.  This nodemask is saved in the mempolicy (pol->v.nodes 
+in this case for interleave) and only steps through the set of nodes that 
+can allow interleaved allocations.
 
-> The next two steps I need to take are:
->  1) propose this patch, with careful explanation (it's easy to lose
->     one's bearings in the mappings and remappings of node numberings)
->     to a wider audience, such as linux-mm or linux-kernel, and
-
-Thanks.
-
->  2) carefully test this, especially on each code path I touched in
->     mm/mempolicy.c, where the changes were delicate, to ensure I
->     didn't break any existing code.
-> 
-> There were also some other, smaller patches proposed, by myself and
-> others.  I was preferring to address a wider set of the long standing
-> issues in this area, but the others above mostly preferred the smaller
-> patches.  This needs to be discussed in a wider forum, and a concensus
-> reached.
-> 
-
-I think if these MPOL_* flags that you're proposing are made as generic as 
-possible for all possible mempolicies (current and future), it would be 
-the optimal change.  It would prevent us from having to add new flags for 
-corner-cases in the future and would allow us to keep the flag set as 
-small as possible.  My suggestion of MPOL_F_STATIC_NODEMASK goes a long 
-way to solve these issues both for MPOL_INTERLEAVE (in conjunction with 
-storing the set_mempolicy() intent) and the MPOL_BIND discrepency I 
-mentioned above.
+When the available nodes changes, either by cpuset change or node hotplug, 
+the rebind is quite simple when the intent is preserved.  So we're going 
+to need an additional nodemask_t added to struct mempolicy that saves this 
+intent and modify contextualize_policy() to allow it.  This will basically 
+make any set_mempolicy() call succeed even if the application does not 
+have access to any of the mempolicy nodes because it is possible that they 
+will become accessible in the future.  In that case the mempolicy is 
+effectively MPOL_DEFAULT until the desired nodes become available and it 
+is effected.
 
 		David
 
