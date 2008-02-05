@@ -1,71 +1,122 @@
-Date: Tue, 5 Feb 2008 00:25:44 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [BUG] regression from 2.6.24-rc8-mm1 and 2.6.24-mm1 kernel
- panic while bootup
-Message-Id: <20080205002544.264a9484.akpm@linux-foundation.org>
-In-Reply-To: <47A81BC9.5060600@linux.vnet.ibm.com>
-References: <47A81BC9.5060600@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Tue, 05 Feb 2008 18:26:59 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [2.6.24 regression][BUGFIX] numactl --interleave=all doesn't works on memoryless node.
+In-Reply-To: <1202149243.5028.61.camel@localhost>
+References: <20080202180536.F494.KOSAKI.MOTOHIRO@jp.fujitsu.com> <1202149243.5028.61.camel@localhost>
+Message-Id: <20080205163406.270B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, mingo@elte.hu, tglx@linutronix.de, apw@shadowen.org, balbir@linux.vnet.ibm.com, randy.dunlap@oracle.com, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Paul Jackson <pj@sgi.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 05 Feb 2008 13:48:17 +0530 Kamalesh Babulal <kamalesh@linux.vnet.ibm.com> wrote:
+Hi Lee-san
 
-> The 2.6.24-mm1 kernel panics while bootup on the x86_64 (Dual Core AMD Opteron)
-> box. This was seen in 2.6.24-rc8-mm1 either (http://lkml.org/lkml/2008/1/17/129).
+I change subject because 2.6.24 reproduce too.
+
+
+> I have a patch that takes a different approach to "interleave=all" that
+> doesn't solve Paul's and David's requirements.  I also have patches to
+> libnuma and numactl that work with my patches, but I saw no sense in
+> posting them unless my kernel patches got some traction.  If interested,
+> you can find them at:
 > 
-> BUG: unable to handle kernel paging request at 0000000000004a78
-> IP: [<ffffffff8026c9e4>] __alloc_pages+0x47/0x337
-> PGD 0 
-> Oops: 0000 [1] SMP 
-> last sysfs file: 
-> CPU 0 
-> Modules linked in:
-> Pid: 1, comm: swapper Not tainted 2.6.24-mm1-autotest #1
-> RIP: 0010:[<ffffffff8026c9e4>]  [<ffffffff8026c9e4>] __alloc_pages+0x47/0x337
-> RSP: 0000:ffff81003f9b9c20  EFLAGS: 00010246
-> RAX: 0000000000000000 RBX: 0000000000000000 RCX: 0000000000000002
-> RDX: 0000000000000010 RSI: 0000000000000605 RDI: ffffffff805bf425
-> RBP: ffff81003f9b9c80 R08: 00380800000000c0 R09: 000000000003db8d
-> R10: ffff81003f9b9d50 R11: 0000000000000001 R12: 00000000000000d0
-> R13: 0000000000004a70 R14: 0000000000000000 R15: 0000000000000286
-> FS:  0000000000000000(0000) GS:ffffffff8067f000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0018 ES: 0018 CR0: 000000008005003b
-> CR2: 0000000000004a78 CR3: 0000000000201000 CR4: 00000000000006e0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> Process swapper (pid: 1, threadinfo ffff81003f9b8000, task ffff81003f9b6000)
-> Stack:  0000001000000002 ffff81000000fa78 ffff81003f9b6000 0000000000000000
->  0000000000000303 ffffffff00000000 0000000400000000 0000000000000000
->  0000000000000000 ffffffff80815c90 ffffffff80815c90 0000000000000286
-> Call Trace:
->  [<ffffffff8028be79>] new_slab+0x117/0x26c
->  [<ffffffff8028bfef>] get_new_slab+0x21/0xab
->  [<ffffffff8028c194>] __slab_alloc+0x11b/0x175
->  [<ffffffff805070b2>] process_zones+0x6c/0x152
->  [<ffffffff8028c22c>] kmem_cache_alloc_node+0x3e/0x74
->  [<ffffffff805070b2>] process_zones+0x6c/0x152
->  [<ffffffff805071cc>] pageset_cpuup_callback+0x34/0x92
->  [<ffffffff8050c520>] notifier_call_chain+0x33/0x65
->  [<ffffffff80249fa5>] __raw_notifier_call_chain+0x9/0xb
->  [<ffffffff80506cb4>] _cpu_up+0x6c/0x103
->  [<ffffffff80506da2>] cpu_up+0x57/0x67
->  [<ffffffff808be689>] kernel_init+0xc5/0x2fe
->  [<ffffffff8020cd88>] child_rip+0xa/0x12
->  [<ffffffff8036caa8>] acpi_ds_init_one_object+0x0/0x88
->  [<ffffffff808be5c4>] kernel_init+0x0/0x2fe
->  [<ffffffff8020cd7e>] child_rip+0x0/0x12
+>  http://free.linux.hp.com/~lts/Patches/Numactl/
 
-argh, I'd forgotten about that.  You bisected it down to a clearly-innocent
-patch and none of the mm developers appeared interested.
+unfortunately it doesn't works on my test environment ;-)
 
-Oh well, it'll probably be in mainline tomorrow.  That should get it
-fixed.
+				numactl-orig		numactl-with-lee-patch
+	2.6.24			  failed		  failed
+	2.6.24-rc8-mm1		  failed		  failed
+
+
+I got below error messages by all case.
+
+	$ numactl --interleave=all ls
+	set_mempolicy: Invalid argument
+	setting interleave mask: Invalid argument
+
+
+I think kernel is need changed too.
+I attached bellow.
+kernel2.6.24-rc8-mm1 + mypatch + numactl-1.0.2 + leepatch works good.
+
+> > and I made simple patch that has_high_memory exposed however CONFIG_HIGHMEM disabled.
+> > if CONFIG_HIGHMEM disabled, the has_high_memory file show 
+> > the same as the has_normal_memory.
+> > may be, userland process should check has_high_memory file.
+> 
+> Regarding the patch itself:  If others have no problems with displaying
+> a "has_high_memory" node mask for systems w/o HIGH_MEM configured, I can
+> live with it.  
+> 
+> The current upstream kernel [2.6.24] supports a MPOL_MEMS_ALLOWED flag
+> to get_mempolicy() to return the nodes allowed in the caller's cpuset.
+> My numactl patches, mentioned above, support this.
+
+OK, I cancel my previous has_high_memory patch.
+and, I understood anyone doesn't use 32bit numa.
+
+
+> However, as Andi says, we really can't break application behavior.  All
+> applications that use mempolicy don't necessarily use libnuma APIs.  So,
+> a fully populated interleave node mask should be allowed and should
+> probably mean "all allowed nodes with memory". 
+
+Agreed.
+
+> I think we'd still need to reduce the interleave policy mask to nodes
+> with memory when it's installed or find another way to skip memoryless
+> nodes when interleaving, else we don't get even distribution of
+> interleaved pages over the nodes that do have memory.  This is one of
+> the memoryless nodes fixes.  I THINK this is one of the areas that Paul
+> and David are investigating.
+
+this is good news for me :)
+I'll wait his patch post.
+
+
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+---
+ mm/mempolicy.c |   11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+Index: b/mm/mempolicy.c
+===================================================================
+--- a/mm/mempolicy.c    2008-02-02 17:54:33.000000000 +0900
++++ b/mm/mempolicy.c    2008-02-05 17:49:47.000000000 +0900
+@@ -187,9 +187,12 @@ static struct mempolicy *mpol_new(int mo
+        atomic_set(&policy->refcnt, 1);
+        switch (mode) {
+        case MPOL_INTERLEAVE:
+-               policy->v.nodes = *nodes;
+-               nodes_and(policy->v.nodes, policy->v.nodes,
+-                                       node_states[N_HIGH_MEMORY]);
++               if (nodes) {
++                       policy->v.nodes = *nodes;
++                       nodes_and(policy->v.nodes, policy->v.nodes,
++                                 node_states[N_HIGH_MEMORY]);
++               } else
++                       policy->v.nodes = node_states[N_HIGH_MEMORY];
+                if (nodes_weight(policy->v.nodes) == 0) {
+                        kmem_cache_free(policy_cache, policy);
+                        return ERR_PTR(-EINVAL);
+@@ -934,7 +937,7 @@ asmlinkage long sys_set_mempolicy(int mo
+        err = get_nodes(&nodes, nmask, maxnode);
+        if (err)
+                return err;
+-       return do_set_mempolicy(mode, &nodes);
++       return do_set_mempolicy(mode, nodes_empty(nodes) ? NULL : &nodes);
+ }
+
+ asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
