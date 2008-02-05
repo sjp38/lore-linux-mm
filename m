@@ -1,38 +1,36 @@
-Date: Tue, 5 Feb 2008 10:19:29 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 1/6] mmu_notifier: Core code
-In-Reply-To: <20080205180557.GC29502@shadowen.org>
-Message-ID: <Pine.LNX.4.64.0802051017520.11705@schroedinger.engr.sgi.com>
-References: <20080128202840.974253868@sgi.com> <20080128202923.609249585@sgi.com>
- <20080205180557.GC29502@shadowen.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [2.6.24-rc8-mm1][regression?] numactl --interleave=all doesn't
+	works on memoryless node.
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0802051011400.11705@schroedinger.engr.sgi.com>
+References: <20080202165054.F491.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080202090914.GA27723@one.firstfloor.org>
+	 <20080202180536.F494.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <1202149243.5028.61.camel@localhost>  <20080205143149.GA4207@csn.ul.ie>
+	 <1202225017.5332.1.camel@localhost>
+	 <Pine.LNX.4.64.0802051011400.11705@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Tue, 05 Feb 2008 13:27:35 -0500
+Message-Id: <1202236056.5332.17.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, Nick Piggin <npiggin@suse.de>, kvm-devel@lists.sourceforge.net, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Hugh Dickins <hugh@veritas.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Paul Jackson <pj@sgi.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 5 Feb 2008, Andy Whitcroft wrote:
+On Tue, 2008-02-05 at 10:12 -0800, Christoph Lameter wrote:
+> Could we focus on the problem instead of discussion of new patches under 
+> development? 
 
-> > +	if (unlikely(!hlist_empty(&mm->mmu_notifier.head))) {
-> > +		rcu_read_lock();
-> > +		hlist_for_each_entry_safe_rcu(mn, n, t,
-> > +					  &mm->mmu_notifier.head, hlist) {
-> > +			if (mn->ops->release)
-> > +				mn->ops->release(mn, mm);
-> 
-> Does this ->release actually release the 'nm' and its associated hlist?
-> I see in this thread that this ordering is deemed "use after free" which
-> implies so.
+Christoph:  you are free to ignore any part of this discussion that you
+wish...
 
-Right that was fixed in a later release and discussed extensively later. 
-See V5.
+> Can we confirm that what Kosaki sees is a bug?
 
-> I am not sure it makes sense to add a _safe_rcu variant.  As I understand
-> things an _safe variant is used where we are going to remove the current
+by definition, right?  we broke user space.  
 
-It was dropped in V5.
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
