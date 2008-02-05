@@ -1,66 +1,37 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id m154GO7Z014091
-	for <linux-mm@kvack.org>; Tue, 5 Feb 2008 15:16:24 +1100
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m154JASb243194
-	for <linux-mm@kvack.org>; Tue, 5 Feb 2008 15:19:10 +1100
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m154FWo3012037
-	for <linux-mm@kvack.org>; Tue, 5 Feb 2008 15:15:32 +1100
-Message-ID: <47A7E282.1080902@linux.vnet.ibm.com>
-Date: Tue, 05 Feb 2008 09:43:54 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Date: Tue, 5 Feb 2008 06:25:25 +0100
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [PATCH] mmu notifiers #v5
+Message-ID: <20080205052525.GD7441@v2.random>
+References: <20080131045750.855008281@sgi.com> <20080131171806.GN7185@v2.random> <Pine.LNX.4.64.0801311207540.25477@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0801311508080.23624@schroedinger.engr.sgi.com> <20080131234101.GS7185@v2.random> <Pine.LNX.4.64.0801311738570.24297@schroedinger.engr.sgi.com> <20080201120955.GX7185@v2.random> <Pine.LNX.4.64.0802011118060.18163@schroedinger.engr.sgi.com> <20080203021704.GC7185@v2.random> <Pine.LNX.4.64.0802041106370.9656@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] badness() dramatically overcounts memory
-References: <1202182480.24634.22.camel@dogma.ljc.laika.com>
-In-Reply-To: <1202182480.24634.22.camel@dogma.ljc.laika.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0802041106370.9656@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Davis <linux@j-davis.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-Jeff Davis wrote:
-> In oom_kill.c, one of the badness calculations is wildly inaccurate. If
-> memory is shared among child processes, that same memory will be counted
-> for each child, effectively multiplying the memory penalty by N, where N
-> is the number of children.
+On Mon, Feb 04, 2008 at 11:09:01AM -0800, Christoph Lameter wrote:
+> On Sun, 3 Feb 2008, Andrea Arcangeli wrote:
 > 
-> This makes it almost certain that the parent will always be chosen as
-> the victim of the OOM killer (assuming any substantial amount memory
-> shared among the children), even if the parent and children are well
-> behaved and have a reasonable and unchanging VM size.
+> > > Right but that pin requires taking a refcount which we cannot do.
+> > 
+> > GRU can use my patch without the pin. XPMEM obviously can't use my
+> > patch as my invalidate_page[s] are under the PT lock (a feature to fit
+> > GRU/KVM in the simplest way), this is why an incremental patch adding
+> > invalidate_range_start/end would be required to support XPMEM too.
 > 
-> Usually this does not actually alleviate the memory pressure because the
-> truly bad process is completely unrelated; and the OOM killer must later
-> kill the truly bad process.
-> 
-> This trivial patch corrects the calculation so that it does not count a
-> child's shared memory against the parent.
-> 
+> Doesnt the kernel in some situations release the page before releasing the 
+> pte lock? Then there will be an external pte pointing to a page that may 
+> now have a different use. Its really bad if that pte does allow writes.
 
-Hi, Jeff,
-
-1. grep on the kernel source tells me that shared_vm is incremented only in
-   vm_stat_account(), which is a NO-OP if CONFIG_PROC_FS is not defined.
-2. How have you tested these patches? One way to do it would be to use the
-   memory controller and set a small limit on the control group. A memory
-   intensive application will soon see an OOM.
-
-I do need to look at OOM kill sanity, my colleagues using the memory controller
-have reported wrong actions taken by the OOM killer, but I am yet to analyze them.
-
-The interesting thing is the use of total_vm and not the RSS which is used as
-the basis by the OOM killer. I need to read/understand the code a bit more.
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Sure the kernel does that most of the time, which is for example why I
+had to use invalidate_page instead of invalidate_pages inside
+zap_pte_range. Zero problems with that (this is also the exact reason
+why I mentioned the tlb flushing code would need changes to convert
+some page in pages).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
