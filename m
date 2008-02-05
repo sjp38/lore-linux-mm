@@ -1,46 +1,51 @@
-Date: Tue, 5 Feb 2008 16:12:22 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH] mmu notifiers #v5
-Message-ID: <20080205221221.GP17211@sgi.com>
-References: <20080201120955.GX7185@v2.random> <Pine.LNX.4.64.0802011118060.18163@schroedinger.engr.sgi.com> <20080203021704.GC7185@v2.random> <Pine.LNX.4.64.0802041106370.9656@schroedinger.engr.sgi.com> <20080205052525.GD7441@v2.random> <Pine.LNX.4.64.0802042206200.6739@schroedinger.engr.sgi.com> <20080205180802.GE7441@v2.random> <Pine.LNX.4.64.0802051013440.11705@schroedinger.engr.sgi.com> <20080205205519.GF7441@v2.random> <Pine.LNX.4.64.0802051400200.14665@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
+Date: Wed, 6 Feb 2008 00:19:14 +0200 (EET)
+From: Pekka J Enberg <penberg@cs.helsinki.fi>
+Subject: Re: SLUB: Support for statistics to help analyze allocator behavior
+In-Reply-To: <Pine.LNX.4.64.0802051355270.14665@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0802060015420.20750@sbz-30.cs.Helsinki.FI>
+References: <Pine.LNX.4.64.0802042217460.6801@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0802050923220.14675@sbz-30.cs.Helsinki.FI>
+ <Pine.LNX.4.64.0802051005010.11705@schroedinger.engr.sgi.com>
+ <47A8C508.6010305@cs.helsinki.fi> <Pine.LNX.4.64.0802051355270.14665@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0802051400200.14665@schroedinger.engr.sgi.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 05, 2008 at 02:06:23PM -0800, Christoph Lameter wrote:
-> On Tue, 5 Feb 2008, Andrea Arcangeli wrote:
-> 
-> > On Tue, Feb 05, 2008 at 10:17:41AM -0800, Christoph Lameter wrote:
-> > > The other approach will not have any remote ptes at that point. Why would 
-> > > there be a coherency issue?
+Hi Christoph,
+
+On Tue, 5 Feb 2008, Pekka Enberg wrote:
+> > > We could do that.... Any idea how to display that kind of information in a
+> > > meaningful way. Parameter conventions for slabinfo?
 > > 
-> > It never happens that two threads writes to two different physical
-> > pages by working on the same process virtual address. This is an issue
-> > only for KVM which is probably ok with it but certainly you can't
-> > consider the dependency on the page-pin less fragile or less complex
-> > than my PT lock approach.
-> 
-> You can avoid the page-pin and the pt lock completely by zapping the 
-> mappings at _start and then holding off new references until _end.
+> > We could just print out one total summary and one summary for each CPU (and
+> > maybe show % of total allocations/fees. That way you can immediately spot if
+> > some CPUs are doing more allocations/freeing than others.
+ 
+On Tue, 5 Feb 2008, Christoph Lameter wrote:
+> Ok that would work for small amounts of cpus. Note that we are moving 
+> to quad core, many standard enterprise servers already have 8 and will 
+> likely have 16 next year. Our machine can have thousands of processors 
+> (new "practical" limit is 4k cpus although we could reach 16k cpus 
+> easily). I was a bit scared to open that can of worms.
 
-XPMEM is doing this by putting our equivalent structure of the mm into a
-recalling state which will cause all future faulters to back off, it then
-marks any currently active faults in the range as invalid (we have a very
-small number of possible concurrent faulters for a different reason),
-proceeds to start remote shoot-downs, waits for those shoot-downs to
-complete, then returns from the _begin callout with the mm-equiv still in
-the recalling state.  Additional recalls may occur, but no new faults can.
-The _end callout reduces the number of active recalls until there are
-none left at which point the faulters are allowed to proceed again.
+I can see why. I think we can change the format summary a bit and have one 
+line per CPU only:
 
-Thanks,
-Robin
+      Allocation                                           Deallocation
+                        Page    Add     Remove  RemoveObj/                   Page    Add     Remove  RemoveObj/
+CPU   Fast      Slow    Alloc   Partial Partial SlabFrozen Fast      Slow    Alloc   Partial Partial SlabFrozen
+16000 111953360 1044    272     25      86      350        111946981 7423    264     325     264     4832
+
+In addition, we can probably add some sort of option for determining how 
+many CPUs you're interested in seeing (sorted by CPUs that have most the 
+activity first).
+
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
