@@ -1,95 +1,54 @@
-Date: Tue, 5 Feb 2008 19:22:26 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Pull request: DMA pool updates
-Message-Id: <20080205192226.79ba9982.akpm@linux-foundation.org>
-In-Reply-To: <20080206025247.GA7705@parisc-linux.org>
-References: <20080206025247.GA7705@parisc-linux.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m1642Qrj024145
+	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 15:02:26 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1646Cdj280194
+	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 15:06:13 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1642YJo010395
+	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 15:02:34 +1100
+Message-ID: <47A930EC.9070009@linux.vnet.ibm.com>
+Date: Wed, 06 Feb 2008 09:30:44 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH] badness() dramatically overcounts memory
+References: <1202252561.24634.64.camel@dogma.ljc.laika.com> <alpine.DEB.1.00.0802051507460.18347@chino.kir.corp.google.com> <20080206105041.2717.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20080206105041.2717.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Wilcox <matthew@wil.cx>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Jeff Davis <linux@j-davis.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@qumranet.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 5 Feb 2008 19:52:47 -0700 Matthew Wilcox <matthew@wil.cx> wrote:
-
-> Could I ask you to pull the DMA Pool changes detailed below?
+KOSAKI Motohiro wrote:
+> Hi
 > 
-> All the patches have been posted to linux-kernel before, and various
-> comments (and acks) have been taken into account.  (see
-> http://thread.gmane.org/gmane.linux.kernel/609943)
+>>>> The interesting thing is the use of total_vm and not the RSS which is used as
+>>>> the basis by the OOM killer. I need to read/understand the code a bit more.
+>>> RSS makes more sense to me as well.
+>> Andrea Arcangeli has patches pending which change this to the RSS.  
+>> Specifically:
+>>
+>> 	http://marc.info/?l=linux-mm&m=119977937126925
 > 
-> It's a fairly nice performance improvement, so would be good to get in.
-> It's survived a few hours of *mumble* high-stress database benchmark,
-> so I have high confidence in its stability.
+> I agreed with you that RSS is better :)
 > 
-> The following changes since commit 21511abd0a248a3f225d3b611cfabb93124605a7:
->   Linus Torvalds (1):
->         Merge branch 'release' of git://git.kernel.org/.../aegl/linux-2.6
 > 
-> are available in the git repository at:
 > 
->   git://git.kernel.org/pub/scm/linux/kernel/git/willy/misc.git dmapool
+> but..
+> on many node numa, per zone rss is more better..
 
-Looks OK to me - I think I reviewed these a while back?  We really should
-have had this tree in -mm for general tyre-kicking.
-
-
-What's with the #ifdef CONFIG_SLAB stuff in the dmapool code?  Are we just
-overloading a convenient Kconfig label here, or is it required for some
-reason?  Why not CONFIG_SLUB_DEBUG too?
+Do we have a per zone RSS per task? I don't remember seeing it.
 
 
-For the future:
-
-This code:
-
-+struct dma_pool *dma_pool_create(const char *name, struct device *dev,
-+				 size_t size, size_t align, size_t boundary)
-+{
-+	struct dma_pool *retval;
-+	size_t allocation;
-+
-+	if (align == 0) {
-+		align = 1;
-+	} else if (align & (align - 1)) {
-+		return NULL;
-+	}
-+
-+	if (size == 0) {
-+		return NULL;
-+	} else if (size < 4) {
-+		size = 4;
-+	}
-+
-+	if ((size % align) != 0)
-+		size = ALIGN(size, align);
-+
-+	allocation = max_t(size_t, size, PAGE_SIZE);
-+
-+	if (!boundary) {
-+		boundary = allocation;
-+	} else if ((boundary < size) || (boundary & (boundary - 1))) {
-+		return NULL;
-+	}
-
-could do with some relief from its brace fetish and some education about
-is_power_of_2().  And the `if ((size % align) != 0)' can just go away,
-which will save code and is likely faster.
-
-It's a separate thing I guess, but I don't see any reason why
-dma_pool_alloc() _has_ to use GFP_ATOMIC.  Looks like it can do the
-allocation outside spin_lock_irqsave() and use mem_flags instead.  If that
-has __GFP_WAIT then we're in much better shape.
-
-I wish all this code wouldn't do
-
-	struct dma_page *page;
-
-because one very much expects a local variable called "page" to be of type
-`struct page *'.  
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
