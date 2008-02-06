@@ -1,203 +1,261 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m16NG0qg025143
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 18:16:00 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m16NG04p224414
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 18:16:00 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m16NFxhj028369
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 18:16:00 -0500
-Date: Wed, 6 Feb 2008 15:15:58 -0800
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m16NIlrA005672
+	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 18:18:47 -0500
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m16NIlF9224774
+	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 18:18:47 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m16NIl0M008488
+	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 18:18:47 -0500
+Date: Wed, 6 Feb 2008 15:18:45 -0800
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [PATCH 1/3] hugetlb: numafy several functions
-Message-ID: <20080206231558.GI3477@us.ibm.com>
+Subject: [PATCH 2/3] hugetlb: add per-node nr_hugepages sysfs attribute
+Message-ID: <20080206231845.GJ3477@us.ibm.com>
+References: <20080206231558.GI3477@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20080206231558.GI3477@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: wli@holomorphy.com
-Cc: agl@us.ibm.com, lee.schermerhorn@hp.com, linux-mm@kvack.org
+Cc: agl@us.ibm.com, lee.schermerhorn@hp.com, linux-mm@kvack.org, greg@kroah.com
 List-ID: <linux-mm.kvack.org>
 
-Add node-parameterized helpers for dequeue_huge_page,
-alloc_fresh_huge_page, adjust_pool_surplus and try_to_free_low. Also
-have update_and_free_page() take a nid parameter. These changes are
-necessary to add sysfs attributes to specify the number of hugepages on
-NUMA nodes.
+Allow specifying the number of hugepages to allocate on a particular
+node. Our current global sysctl will try its best to put hugepages
+equally on each node, but htat may not always be desired. This allows
+the admin to control the layout of hugepage allocation at a finer level
+(while not breaking the existing interface).  Add callbacks in the sysfs
+node registration and unregistration functions into hugetlb to add the
+nr_hugepages attribute, which is a no-op if !NUMA or !HUGETLB.
 
 Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
+---
+Greg, do I need to add documentation for this sysfs attribute to
+Documentation/ABI? I'm not sure if I should just add a file in testing/
+for just this attribute or should defer and create documentation for all
+of the /sys/devices/system/node information?
+
+I was hoping to have the per-node nr_overcommit_hugepages done by this
+point, however it's a bit trickier. Do folks (Lee?) think it would
+actually be needed for their platforms? It adds quite a bit of locking
+overhead to the dynamic pool path to keep the counters sane, which might
+obviate the relatively high performance of the dynamic path.
+
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index e59861f..daf5b2b 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -152,6 +152,7 @@ int register_node(struct node *node, int num, struct node *parent)
+ 		sysdev_create_file(&node->sysdev, &attr_meminfo);
+ 		sysdev_create_file(&node->sysdev, &attr_numastat);
+ 		sysdev_create_file(&node->sysdev, &attr_distance);
++		hugetlb_register_node(node);
+ 	}
+ 	return error;
+ }
+@@ -169,6 +170,7 @@ void unregister_node(struct node *node)
+ 	sysdev_remove_file(&node->sysdev, &attr_meminfo);
+ 	sysdev_remove_file(&node->sysdev, &attr_numastat);
+ 	sysdev_remove_file(&node->sysdev, &attr_distance);
++	hugetlb_unregister_node(node);
+ 
+ 	sysdev_unregister(&node->sysdev);
+ }
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 7ca198b..c85796c 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -6,7 +6,9 @@
+ #ifdef CONFIG_HUGETLB_PAGE
+ 
+ #include <linux/mempolicy.h>
++#include <linux/node.h>
+ #include <linux/shm.h>
++#include <linux/sysdev.h>
+ #include <asm/tlbflush.h>
+ 
+ struct ctl_table;
+@@ -26,6 +28,13 @@ void __unmap_hugepage_range(struct vm_area_struct *, unsigned long, unsigned lon
+ int hugetlb_prefault(struct address_space *, struct vm_area_struct *);
+ int hugetlb_report_meminfo(char *);
+ int hugetlb_report_node_meminfo(int, char *);
++#ifdef CONFIG_NUMA
++int hugetlb_register_node(struct node *);
++void hugetlb_unregister_node(struct node *);
++#else
++#define hugetlb_register_node(node)		do {} while(0)
++#define hugetlb_unregister_node(node)		do {} while(0)
++#endif
+ unsigned long hugetlb_total_pages(void);
+ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			unsigned long address, int write_access);
+@@ -114,6 +123,8 @@ static inline unsigned long hugetlb_total_pages(void)
+ #define unmap_hugepage_range(vma, start, end)	BUG()
+ #define hugetlb_report_meminfo(buf)		0
+ #define hugetlb_report_node_meminfo(n, buf)	0
++#define hugetlb_register_node(node)		do {} while(0)
++#define hugetlb_unregister_node(node)		do {} while(0)
+ #define follow_huge_pmd(mm, addr, pmd, write)	NULL
+ #define prepare_hugepage_range(addr,len)	(-EINVAL)
+ #define pmd_huge(x)	0
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index d9a3803..d1f6c5a 100644
+index d1f6c5a..05dac46 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -70,6 +70,20 @@ static void enqueue_huge_page(struct page *page)
- 	free_huge_pages_node[nid]++;
+@@ -497,7 +497,6 @@ static unsigned int cpuset_mems_nr(unsigned int *array)
+ 	return nr;
  }
  
-+static struct page *dequeue_huge_page_node(struct vm_area_struct *vma,
-+								int nid)
-+{
-+	struct page *page;
-+
-+	page = list_entry(hugepage_freelists[nid].next, struct page, lru);
-+	list_del(&page->lru);
-+	free_huge_pages--;
-+	free_huge_pages_node[nid]--;
-+	if (vma && vma->vm_flags & VM_MAYSHARE)
-+		resv_huge_pages--;
-+	return page;
-+}
-+
- static struct page *dequeue_huge_page(struct vm_area_struct *vma,
- 				unsigned long address)
- {
-@@ -84,13 +98,7 @@ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
- 		nid = zone_to_nid(*z);
- 		if (cpuset_zone_allowed_softwall(*z, htlb_alloc_mask) &&
- 		    !list_empty(&hugepage_freelists[nid])) {
--			page = list_entry(hugepage_freelists[nid].next,
--					  struct page, lru);
--			list_del(&page->lru);
--			free_huge_pages--;
--			free_huge_pages_node[nid]--;
--			if (vma && vma->vm_flags & VM_MAYSHARE)
--				resv_huge_pages--;
-+			page = dequeue_huge_page_node(vma, nid);
- 			break;
- 		}
- 	}
-@@ -98,11 +106,11 @@ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
- 	return page;
- }
- 
--static void update_and_free_page(struct page *page)
-+static void update_and_free_page(int nid, struct page *page)
- {
- 	int i;
- 	nr_huge_pages--;
--	nr_huge_pages_node[page_to_nid(page)]--;
-+	nr_huge_pages_node[nid]--;
- 	for (i = 0; i < (HPAGE_SIZE / PAGE_SIZE); i++) {
- 		page[i].flags &= ~(1 << PG_locked | 1 << PG_error | 1 << PG_referenced |
- 				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
-@@ -124,7 +132,7 @@ static void free_huge_page(struct page *page)
- 
- 	spin_lock(&hugetlb_lock);
- 	if (surplus_huge_pages_node[nid]) {
--		update_and_free_page(page);
-+		update_and_free_page(nid, page);
- 		surplus_huge_pages--;
- 		surplus_huge_pages_node[nid]--;
- 	} else {
-@@ -141,6 +149,18 @@ static void free_huge_page(struct page *page)
-  * balanced by operating on them in a round-robin fashion.
-  * Returns 1 if an adjustment was made.
-  */
-+static int adjust_pool_surplus_node(int delta, int nid)
-+{
-+	if (delta < 0 && !surplus_huge_pages_node[nid])
-+		return 0;
-+	if (delta > 0 && surplus_huge_pages_node[nid] >=
-+					nr_huge_pages_node[nid])
-+		return 0;
-+	surplus_huge_pages += delta;
-+	surplus_huge_pages_node[nid] += delta;
-+	return 1;
-+}
-+
- static int adjust_pool_surplus(int delta)
- {
- 	static int prev_nid;
-@@ -152,19 +172,9 @@ static int adjust_pool_surplus(int delta)
- 		nid = next_node(nid, node_online_map);
- 		if (nid == MAX_NUMNODES)
- 			nid = first_node(node_online_map);
--
--		/* To shrink on this node, there must be a surplus page */
--		if (delta < 0 && !surplus_huge_pages_node[nid])
--			continue;
--		/* Surplus cannot exceed the total number of pages */
--		if (delta > 0 && surplus_huge_pages_node[nid] >=
--						nr_huge_pages_node[nid])
--			continue;
--
--		surplus_huge_pages += delta;
--		surplus_huge_pages_node[nid] += delta;
--		ret = 1;
--		break;
-+		ret = adjust_pool_surplus_node(delta, nid);
-+		if (ret == 1)
-+			break;
- 	} while (nid != prev_nid);
- 
- 	prev_nid = nid;
-@@ -384,7 +394,7 @@ static void return_unused_surplus_pages(unsigned long unused_resv_pages)
- 			page = list_entry(hugepage_freelists[nid].next,
- 					  struct page, lru);
- 			list_del(&page->lru);
--			update_and_free_page(page);
-+			update_and_free_page(nid, page);
- 			free_huge_pages--;
- 			free_huge_pages_node[nid]--;
- 			surplus_huge_pages--;
-@@ -489,25 +499,35 @@ static unsigned int cpuset_mems_nr(unsigned int *array)
- 
- #ifdef CONFIG_SYSCTL
+-#ifdef CONFIG_SYSCTL
  #ifdef CONFIG_HIGHMEM
-+static void try_to_free_low_node(unsigned long count, int nid)
-+{
-+	struct page *page, *next;
-+	list_for_each_entry_safe(page, next, &hugepage_freelists[nid], lru) {
-+		if (PageHighMem(page))
-+			continue;
-+		list_del(&page->lru);
-+		update_and_free_page(nid, page);
-+		free_huge_pages--;
-+		free_huge_pages_node[nid]--;
-+		if (count >= nr_huge_pages_node[nid])
-+			return;
-+	}
-+}
-+
- static void try_to_free_low(unsigned long count)
+ static void try_to_free_low_node(unsigned long count, int nid)
  {
- 	int i;
- 
- 	for (i = 0; i < MAX_NUMNODES; ++i) {
--		struct page *page, *next;
--		list_for_each_entry_safe(page, next, &hugepage_freelists[i], lru) {
--			if (count >= nr_huge_pages)
--				return;
--			if (PageHighMem(page))
--				continue;
--			list_del(&page->lru);
--			update_and_free_page(page);
--			free_huge_pages--;
--			free_huge_pages_node[page_to_nid(page)]--;
--		}
-+		try_to_free_low_node(count, i);
-+		if (count >= nr_huge_pages)
-+			return;
+@@ -513,7 +512,14 @@ static void try_to_free_low_node(unsigned long count, int nid)
+ 			return;
  	}
  }
- #else
++#else
 +static inline void try_to_free_low_node(unsigned long count, int nid)
 +{
 +}
++#endif
+ 
++#ifdef CONFIG_SYSCTL
++#ifdef CONFIG_HIGHMEM
+ static void try_to_free_low(unsigned long count)
+ {
+ 	int i;
+@@ -525,9 +531,6 @@ static void try_to_free_low(unsigned long count)
+ 	}
+ }
+ #else
+-static inline void try_to_free_low_node(unsigned long count, int nid)
+-{
+-}
  static inline void try_to_free_low(unsigned long count)
  {
  }
-@@ -572,7 +592,7 @@ static unsigned long set_max_huge_pages(unsigned long count)
- 		struct page *page = dequeue_huge_page(NULL, 0);
- 		if (!page)
- 			break;
--		update_and_free_page(page);
-+		update_and_free_page(page_to_nid(page), page);
- 	}
- 	while (count < persistent_huge_pages) {
- 		if (!adjust_pool_surplus(1))
+@@ -661,6 +664,117 @@ int hugetlb_report_node_meminfo(int nid, char *buf)
+ 		nid, free_huge_pages_node[nid]);
+ }
+ 
++#ifdef CONFIG_NUMA
++static ssize_t hugetlb_read_nr_hugepages_node(struct sys_device *dev,
++							char *buf)
++{
++	return sprintf(buf, "%u\n", nr_huge_pages_node[dev->id]);
++}
++
++#define persistent_huge_pages_node(nid)	\
++		(nr_huge_pages_node[nid] - surplus_huge_pages_node[nid])
++static ssize_t hugetlb_write_nr_hugepages_node(struct sys_device *dev,
++					const char *buf, size_t count)
++{
++	int nid = dev->id;
++	unsigned long target;
++	unsigned long free_on_other_nodes;
++	unsigned long nr_huge_pages_req = simple_strtoul(buf, NULL, 10);
++	ssize_t ret;
++
++	/*
++	 * Increase the pool size on the node
++	 * First take pages out of surplus state.  Then make up the
++	 * remaining difference by allocating fresh huge pages.
++	 *
++	 * We might race with alloc_buddy_huge_page() here and be unable
++	 * to convert a surplus huge page to a normal huge page. That is
++	 * not critical, though, it just means the overall size of the
++	 * pool might be one hugepage larger than it needs to be, but
++	 * within all the constraints specified by the sysctls.
++	 */
++	spin_lock(&hugetlb_lock);
++	while (surplus_huge_pages_node[nid] &&
++		nr_huge_pages_req > persistent_huge_pages_node(nid)) {
++		if (!adjust_pool_surplus_node(-1, nid))
++			break;
++	}
++
++	while (nr_huge_pages_req > persistent_huge_pages_node(nid)) {
++		struct page *ret;
++		/*
++		 * If this allocation races such that we no longer need the
++		 * page, free_huge_page will handle it by freeing the page
++		 * and reducing the surplus.
++		 */
++		spin_unlock(&hugetlb_lock);
++		ret = alloc_fresh_huge_page_node(nid);
++		spin_lock(&hugetlb_lock);
++		if (!ret)
++			goto out;
++
++	}
++
++	if (nr_huge_pages_req >= nr_huge_pages_node[nid])
++		goto out;
++
++	/*
++	 * Decrease the pool size
++	 * First return free pages to the buddy allocator (being careful
++	 * to keep enough around to satisfy reservations).  Then place
++	 * pages into surplus state as needed so the pool will shrink
++	 * to the desired size as pages become free.
++	 *
++	 * By placing pages into the surplus state independent of the
++	 * overcommit value, we are allowing the surplus pool size to
++	 * exceed overcommit. There are few sane options here. Since
++	 * alloc_buddy_huge_page() is checking the global counter,
++	 * though, we'll note that we're not allowed to exceed surplus
++	 * and won't grow the pool anywhere else. Not until one of the
++	 * sysctls are changed, or the surplus pages go out of use.
++	 */
++	free_on_other_nodes = free_huge_pages - free_huge_pages_node[nid];
++	if (free_on_other_nodes >= resv_huge_pages) {
++		/* other nodes can satisfy reserve */
++		target = nr_huge_pages_req;
++	} else {
++		/* this node needs some free to satisfy reserve */
++		target = max((resv_huge_pages - free_on_other_nodes),
++						nr_huge_pages_req);
++	}
++	try_to_free_low_node(nid, target);
++	while (target < persistent_huge_pages_node(nid)) {
++		struct page *page = dequeue_huge_page_node(NULL, nid);
++		if (!page)
++			break;
++		update_and_free_page(nid, page);
++	}
++
++	while (target < persistent_huge_pages_node(nid)) {
++		if (!adjust_pool_surplus_node(1, nid))
++			break;
++	}
++out:
++	ret = persistent_huge_pages_node(nid);
++	spin_unlock(&hugetlb_lock);
++	return ret;
++}
++
++static SYSDEV_ATTR(nr_hugepages, S_IRUGO | S_IWUSR,
++			hugetlb_read_nr_hugepages_node,
++			hugetlb_write_nr_hugepages_node);
++
++int hugetlb_register_node(struct node *node)
++{
++	return sysdev_create_file(&node->sysdev, &attr_nr_hugepages);
++}
++
++void hugetlb_unregister_node(struct node *node)
++{
++	sysdev_remove_file(&node->sysdev, &attr_nr_hugepages);
++}
++#endif
++
+ /* Return the number pages of memory we physically have, in PAGE_SIZE units. */
+ unsigned long hugetlb_total_pages(void)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
