@@ -1,87 +1,79 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m16N36Pe007801
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 18:03:06 -0500
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m16N31gw041300
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 16:03:01 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m16N3012022576
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 16:03:01 -0700
-Date: Wed, 6 Feb 2008 15:02:59 -0800
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m16N5DEq003667
+	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 18:05:13 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m16N5DjI235264
+	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 18:05:13 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m16N5D4m000750
+	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 18:05:13 -0500
+Date: Wed, 6 Feb 2008 15:05:12 -0800
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [PATCH] hugetlb: add locking for overcommit sysctl
-Message-ID: <20080206230259.GD3477@us.ibm.com>
+Subject: [RFC][PATCH] mm: fix misleading __GFP_REPEAT related comments
+Message-ID: <20080206230512.GE3477@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: agl@us.ibm.com
-Cc: wli@holomorphy.com, linux-mm@kvack.org
+To: melgor@ie.ibm.com
+Cc: clameter@sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When I replaced hugetlb_dynamic_pool with nr_overcommit_hugepages I used
-proc_doulongvec_minmax() directly. However, hugetlb.c's locking rules
-require that all counter modifications occur under the hugetlb_lock. Add
-a callback into the hugetlb code similar to the one for nr_hugepages.
-Grab the lock around the manipulation of nr_overcommit_hugepages in
-proc_doulongvec_minmax().
+The definition and use of __GFP_REPEAT, __GFP_NOFAIL and __GFP_NORETRY
+in the core VM have somewhat differing comments as to their actual
+semantics. Annoyingly, the flags definition has inline and header
+comments, which might be interpreted as not being equivalent. Just add
+references to the header comments in the inline ones so they don't go
+out of sync in the future. In their use in __alloc_pages() clarify that
+the current implementation treats low-order allocations and __GFP_REPEAT
+allocations as distinct cases.
+
+To clarify, the flags' semantics are:
+
+    __GFP_NORETRY means try no harder than one run through __alloc_pages
+
+    __GFP_REPEAT means __GFP_NOFAIL
+
+    __GFP_NOFAIL means repeat forever
+
+    order <= PAGE_ALLOC_COSTLY_ORDER means __GFP_NOFAIL
 
 Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
----
-I noticed that the nr_hugepages sysctl uses a helper variable,
-max_huge_pages to do the same thing. Is that because of locking
-requirements (undocmented) for proc_doulongvec_minmax() or because of
-the more complicated manipulation of the pool state for that sysctl? If
-the former, I will need to modify this patch.
-
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 30d606a..7ca198b 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -17,6 +17,7 @@ static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
- }
- 
- int hugetlb_sysctl_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
-+int hugetlb_overcommit_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
- int hugetlb_treat_movable_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
- int copy_hugetlb_page_range(struct mm_struct *, struct mm_struct *, struct vm_area_struct *);
- int follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *, struct page **, struct vm_area_struct **, unsigned long *, int *, int, int);
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 5e2ad5b..92fef8d 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -973,7 +973,7 @@ static struct ctl_table vm_table[] = {
- 		.data		= &nr_overcommit_huge_pages,
- 		.maxlen		= sizeof(nr_overcommit_huge_pages),
- 		.mode		= 0644,
--		.proc_handler	= &proc_doulongvec_minmax,
-+		.proc_handler	= &hugetlb_overcommit_handler,
- 	},
- #endif
- 	{
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 1a56420..d9a3803 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -605,6 +605,16 @@ int hugetlb_treat_movable_handler(struct ctl_table *table, int write,
- 	return 0;
- }
- 
-+int hugetlb_overcommit_handler(struct ctl_table *table, int write,
-+			struct file *file, void __user *buffer,
-+			size_t *length, loff_t *ppos)
-+{
-+	spin_lock(&hugetlb_lock);
-+	proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
-+	spin_unlock(&hugetlb_lock);
-+	return 0;
-+}
-+
- #endif /* CONFIG_SYSCTL */
- 
- int hugetlb_report_meminfo(char *buf)
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 0c6ce51..c42fd47 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -40,9 +40,9 @@ struct vm_area_struct;
+ #define __GFP_FS	((__force gfp_t)0x80u)	/* Can call down to low-level FS? */
+ #define __GFP_COLD	((__force gfp_t)0x100u)	/* Cache-cold page required */
+ #define __GFP_NOWARN	((__force gfp_t)0x200u)	/* Suppress page allocation failure warning */
+-#define __GFP_REPEAT	((__force gfp_t)0x400u)	/* Retry the allocation.  Might fail */
+-#define __GFP_NOFAIL	((__force gfp_t)0x800u)	/* Retry for ever.  Cannot fail */
+-#define __GFP_NORETRY	((__force gfp_t)0x1000u)/* Do not retry.  Might fail */
++#define __GFP_REPEAT	((__force gfp_t)0x400u)	/* See above */
++#define __GFP_NOFAIL	((__force gfp_t)0x800u)	/* See above */
++#define __GFP_NORETRY	((__force gfp_t)0x1000u)/* See above */
+ #define __GFP_COMP	((__force gfp_t)0x4000u)/* Add compound page metadata */
+ #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
+ #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 37576b8..9153cb8 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1608,8 +1608,9 @@ nofail_alloc:
+ 	 * Don't let big-order allocations loop unless the caller explicitly
+ 	 * requests that.  Wait for some write requests to complete then retry.
+ 	 *
+-	 * In this implementation, __GFP_REPEAT means __GFP_NOFAIL for order
+-	 * <= 3, but that may not be true in other implementations.
++	 * In this implementation, either order <= PAGE_ALLOC_COSTLY_ORDER or
++	 * __GFP_REPEAT mean __GFP_NOFAIL, but that may not be true in other
++	 * implementations.
+ 	 */
+ 	do_retry = 0;
+ 	if (!(gfp_mask & __GFP_NORETRY)) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
