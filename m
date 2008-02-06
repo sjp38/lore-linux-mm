@@ -1,42 +1,58 @@
-Date: Tue, 5 Feb 2008 18:05:46 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] badness() dramatically overcounts memory
-In-Reply-To: <20080206105041.2717.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-ID: <alpine.DEB.1.00.0802051802460.18339@chino.kir.corp.google.com>
-References: <1202252561.24634.64.camel@dogma.ljc.laika.com> <alpine.DEB.1.00.0802051507460.18347@chino.kir.corp.google.com> <20080206105041.2717.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Tue, 5 Feb 2008 19:52:47 -0700
+From: Matthew Wilcox <matthew@wil.cx>
+Subject: Pull request: DMA pool updates
+Message-ID: <20080206025247.GA7705@parisc-linux.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Jeff Davis <linux@j-davis.com>, balbir@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@qumranet.com>
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 Feb 2008, KOSAKI Motohiro wrote:
+Hi Linus,
 
-> > Andrea Arcangeli has patches pending which change this to the RSS.  
-> > Specifically:
-> > 
-> > 	http://marc.info/?l=linux-mm&m=119977937126925
-> 
-> I agreed with you that RSS is better :)
-> 
-> 
-> 
-> but..
-> on many node numa, per zone rss is more better..
-> 
+Could I ask you to pull the DMA Pool changes detailed below?
 
-It depends on how your applications are taking advantage of NUMA 
-optimizations.  If they're constrained by mempolicies to a subset of nodes 
-then the badness scoring isn't even used: the task that triggered the OOM 
-condition is the one that is automatically killed.
+All the patches have been posted to linux-kernel before, and various
+comments (and acks) have been taken into account.  (see
+http://thread.gmane.org/gmane.linux.kernel/609943)
 
-At this point, I think you're going to need to present an actual case 
-study where Andrea's patch isn't sufficient for selecting the appropriate 
-task on large NUMA machines.
+It's a fairly nice performance improvement, so would be good to get in.
+It's survived a few hours of *mumble* high-stress database benchmark,
+so I have high confidence in its stability.
 
-		David
+The following changes since commit 21511abd0a248a3f225d3b611cfabb93124605a7:
+  Linus Torvalds (1):
+        Merge branch 'release' of git://git.kernel.org/.../aegl/linux-2.6
+
+are available in the git repository at:
+
+  git://git.kernel.org/pub/scm/linux/kernel/git/willy/misc.git dmapool
+
+Matthew Wilcox (7):
+      Move dmapool.c to mm/ directory
+      dmapool: Fix style problems
+      Avoid taking waitqueue lock in dmapool
+      dmapool: Validate parameters to dma_pool_create
+      dmapool: Tidy up includes and add comments
+      Change dmapool free block management
+      pool: Improve memory usage for devices which can't cross boundaries
+
+ drivers/base/Makefile  |    2 +-
+ drivers/base/dmapool.c |  481 ----------------------------------------------
+ mm/Makefile            |    1 +
+ mm/dmapool.c           |  500 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 502 insertions(+), 482 deletions(-)
+ delete mode 100644 drivers/base/dmapool.c
+ create mode 100644 mm/dmapool.c
+
+-- 
+Intel are signing my paycheques ... these opinions are still mine
+"Bill, look, we understand that you're interested in selling us this
+operating system, but compare it to ours.  We can't possibly take such
+a retrograde step."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
