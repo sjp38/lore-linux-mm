@@ -1,40 +1,42 @@
-Date: Wed, 06 Feb 2008 10:54:11 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Tue, 5 Feb 2008 18:05:46 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [PATCH] badness() dramatically overcounts memory
-In-Reply-To: <alpine.DEB.1.00.0802051507460.18347@chino.kir.corp.google.com>
-References: <1202252561.24634.64.camel@dogma.ljc.laika.com> <alpine.DEB.1.00.0802051507460.18347@chino.kir.corp.google.com>
-Message-Id: <20080206105041.2717.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20080206105041.2717.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.00.0802051802460.18339@chino.kir.corp.google.com>
+References: <1202252561.24634.64.camel@dogma.ljc.laika.com> <alpine.DEB.1.00.0802051507460.18347@chino.kir.corp.google.com> <20080206105041.2717.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Jeff Davis <linux@j-davis.com>, balbir@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@qumranet.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Jeff Davis <linux@j-davis.com>, balbir@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@qumranet.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi
+On Wed, 6 Feb 2008, KOSAKI Motohiro wrote:
 
-> > > The interesting thing is the use of total_vm and not the RSS which is used as
-> > > the basis by the OOM killer. I need to read/understand the code a bit more.
+> > Andrea Arcangeli has patches pending which change this to the RSS.  
+> > Specifically:
 > > 
-> > RSS makes more sense to me as well.
+> > 	http://marc.info/?l=linux-mm&m=119977937126925
 > 
-> Andrea Arcangeli has patches pending which change this to the RSS.  
-> Specifically:
+> I agreed with you that RSS is better :)
 > 
-> 	http://marc.info/?l=linux-mm&m=119977937126925
+> 
+> 
+> but..
+> on many node numa, per zone rss is more better..
+> 
 
-I agreed with you that RSS is better :)
+It depends on how your applications are taking advantage of NUMA 
+optimizations.  If they're constrained by mempolicies to a subset of nodes 
+then the badness scoring isn't even used: the task that triggered the OOM 
+condition is the one that is automatically killed.
 
+At this point, I think you're going to need to present an actual case 
+study where Andrea's patch isn't sufficient for selecting the appropriate 
+task on large NUMA machines.
 
-
-but..
-on many node numa, per zone rss is more better..
-
-
-- kosaki
-
+		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
