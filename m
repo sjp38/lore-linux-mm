@@ -1,36 +1,46 @@
-Date: Wed, 6 Feb 2008 15:30:53 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC][PATCH 2/2] Explicitly retry hugepage allocations
-In-Reply-To: <20080206231243.GG3477@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0802061529480.22648@schroedinger.engr.sgi.com>
-References: <20080206230726.GF3477@us.ibm.com> <20080206231243.GG3477@us.ibm.com>
+Date: Wed, 6 Feb 2008 16:03:28 -0800
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH 2/3] hugetlb: add per-node nr_hugepages sysfs attribute
+Message-ID: <20080207000328.GD16116@kroah.com>
+References: <20080206231558.GI3477@us.ibm.com> <20080206231845.GJ3477@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080206231845.GJ3477@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: melgor@ie.ibm.com, apw@shadowen.org, agl@us.ibm.com, wli@holomorphy.com, linux-mm@kvack.org
+Cc: wli@holomorphy.com, agl@us.ibm.com, lee.schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 Feb 2008, Nishanth Aravamudan wrote:
-
-> Add __GFP_REPEAT to hugepage allocations. Do so to not necessitate
-> userspace putting pressure on the VM by repeated echo's into
-> /proc/sys/vm/nr_hugepages to grow the pool. With the previous patch to
-> allow for large-order __GFP_REPEAT attempts to loop for a bit (as
-> opposed to indefinitely), this increases the likelihood of getting
-> hugepages when the system experiences (or recently experienced) load.
+On Wed, Feb 06, 2008 at 03:18:45PM -0800, Nishanth Aravamudan wrote:
+> hugetlb: add per-node nr_hugepages sysfs attribute
 > 
-> On a 2-way x86_64, this doubles the number of hugepages (from 10 to 20)
-> obtained while compiling a kernel at the same time. On a 4-way ppc64,
-> a similar scale increase is seen (from 3 to 5 hugepages). Finally, on a
-> 2-way x86, this leads to a 5-fold increase in the hugepages allocatable
-> under load (90 to 554).
+> Allow specifying the number of hugepages to allocate on a particular
+> node. Our current global sysctl will try its best to put hugepages
+> equally on each node, but htat may not always be desired. This allows
+> the admin to control the layout of hugepage allocation at a finer level
+> (while not breaking the existing interface).  Add callbacks in the sysfs
+> node registration and unregistration functions into hugetlb to add the
+> nr_hugepages attribute, which is a no-op if !NUMA or !HUGETLB.
+> 
+> Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+> 
+> ---
+> Greg, do I need to add documentation for this sysfs attribute to
+> Documentation/ABI?
 
-Hmmm... How about defaulting to __GFP_REPEAT by default for larger page 
-allocations? There are other users of larger allocs that would also 
-benefit from the same measure. I think it would be fine as long as we are 
-sure to fail at some point.
+Yes, please.
+
+> I'm not sure if I should just add a file in testing/ for just this
+> attribute or should defer and create documentation for all of the
+> /sys/devices/system/node information?
+
+How about both for this one, and the existing ones?  That would be best.
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
