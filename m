@@ -1,99 +1,108 @@
-Date: Thu, 7 Feb 2008 16:40:54 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH] sys_remap_file_pages: fix ->vm_file accounting
-In-Reply-To: <1202343398.9062.253.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0802071546580.29324@blonde.site>
-References: <20080130142014.GA2164@tv-sign.ru>  <1201712101.31222.22.camel@tucsk.pomaz.szeredi.hu>
-  <20080130172646.GA2355@tv-sign.ru>  <1201987065.9062.6.camel@localhost.localdomain>
-  <20080203182135.GA5827@tv-sign.ru>  <Pine.LNX.4.64.0802062023100.32204@blonde.site>
- <1202343398.9062.253.camel@localhost.localdomain>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m17GpScM032341
+	for <linux-mm@kvack.org>; Thu, 7 Feb 2008 11:51:28 -0500
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m17GpRei184374
+	for <linux-mm@kvack.org>; Thu, 7 Feb 2008 09:51:27 -0700
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m17GpQ1o026080
+	for <linux-mm@kvack.org>; Thu, 7 Feb 2008 09:51:27 -0700
+Date: Thu, 7 Feb 2008 08:51:25 -0800
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [PATCH] hugetlb: add locking for overcommit sysctl
+Message-ID: <20080207165125.GC18302@us.ibm.com>
+References: <20080206230259.GD3477@us.ibm.com> <1202397584.11987.0.camel@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1202397584.11987.0.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Helsley <matthltc@us.ibm.com>
-Cc: Oleg Nesterov <oleg@tv-sign.ru>, Miklos Szeredi <mszeredi@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, William Lee Irwin III <wli@holomorphy.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Adam Litke <agl@us.ibm.com>
+Cc: wli@holomorphy.com, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 Feb 2008, Matt Helsley wrote:
-> On Wed, 2008-02-06 at 20:33 +0000, Hugh Dickins wrote:
+On 07.02.2008 [09:19:44 -0600], Adam Litke wrote:
+> 
+> On Wed, 2008-02-06 at 15:02 -0800, Nishanth Aravamudan wrote:
+> > When I replaced hugetlb_dynamic_pool with nr_overcommit_hugepages I used
+> > proc_doulongvec_minmax() directly. However, hugetlb.c's locking rules
+> > require that all counter modifications occur under the hugetlb_lock. Add
+> > a callback into the hugetlb code similar to the one for nr_hugepages.
+> > Grab the lock around the manipulation of nr_overcommit_hugepages in
+> > proc_doulongvec_minmax().
 > > 
-> > Sorry, Matt, I don't like your patch at all.  It seems to add a fair
-> > amount of ugliness and unmaintainablity, all for a peculiar MVFS case
+> > Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+> Acked-by: Adam Litke <agl@us.ibm.com>
+
+Thanks, Adam.
+
+Andrew, this is a bugfix for 2.6.25 and presumably should be backported
+to -stable once upstream (I'll keep my eye out for the commit message if
+it goes there).
+
+> > ---
+> > I noticed that the nr_hugepages sysctl uses a helper variable,
+> > max_huge_pages to do the same thing. Is that because of locking
+> > requirements (undocmented) for proc_doulongvec_minmax() or because of
+> > the more complicated manipulation of the pool state for that sysctl? If
+> > the former, I will need to modify this patch.
+> > 
+> > diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> > index 30d606a..7ca198b 100644
+> > --- a/include/linux/hugetlb.h
+> > +++ b/include/linux/hugetlb.h
+> > @@ -17,6 +17,7 @@ static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
+> >  }
+> > 
+> >  int hugetlb_sysctl_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
+> > +int hugetlb_overcommit_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
+> >  int hugetlb_treat_movable_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
+> >  int copy_hugetlb_page_range(struct mm_struct *, struct mm_struct *, struct vm_area_struct *);
+> >  int follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *, struct page **, struct vm_area_struct **, unsigned long *, int *, int, int);
+> > diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+> > index 5e2ad5b..92fef8d 100644
+> > --- a/kernel/sysctl.c
+> > +++ b/kernel/sysctl.c
+> > @@ -973,7 +973,7 @@ static struct ctl_table vm_table[] = {
+> >  		.data		= &nr_overcommit_huge_pages,
+> >  		.maxlen		= sizeof(nr_overcommit_huge_pages),
+> >  		.mode		= 0644,
+> > -		.proc_handler	= &proc_doulongvec_minmax,
+> > +		.proc_handler	= &hugetlb_overcommit_handler,
+> >  	},
+> >  #endif
+> >  	{
+> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > index 1a56420..d9a3803 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -605,6 +605,16 @@ int hugetlb_treat_movable_handler(struct ctl_table *table, int write,
+> >  	return 0;
+> >  }
+> > 
+> > +int hugetlb_overcommit_handler(struct ctl_table *table, int write,
+> > +			struct file *file, void __user *buffer,
+> > +			size_t *length, loff_t *ppos)
+> > +{
+> > +	spin_lock(&hugetlb_lock);
+> > +	proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
+> > +	spin_unlock(&hugetlb_lock);
+> > +	return 0;
+> > +}
+> > +
+> >  #endif /* CONFIG_SYSCTL */
+> > 
+> >  int hugetlb_report_meminfo(char *buf)
+> > 
+> -- 
+> Adam Litke - (agl at us.ibm.com)
+> IBM Linux Technology Center
 > 
-> I thought that getting rid of the separate versions of proc_exe_link()
-> improved maintainability.
 
-That's a plus, but I don't see it balances the minus.
-
-> Do you have any specific details on what you
-> think makes the code introduced by the patch unmaintainable?
-
-The fact that you now have to shadow operations on vm_file by
-operations on your exe_file, easy to get out of step; and that
-we'll tend not to notice when it goes wrong, because the common
-case will have them both in the root mount (that will hide busy
-errors, won't it? or am I mistaken?).
-
-Though I should concede that your latest patch looks like it catches
-all the places it needs to, and that they don't really stretch beyond
-mm/mmap.c.  If you provided functions to do the get_file/fput/VM_EXE-
-CUTABLE stuff, most of the ugliness would be confined to fs/proc/base.c.
-
-I much preferred Andrew's take-a-copy-of-the-pathname approach, but
-admit I'm not one to appreciate the namespace arguments against it.
-I wish I had a more constructive solution.
-
-> I still think it would help any stacking filesystems that can't use the
-> solution adopted by unionfs.
-
-If you think it's going to help lots of others, please get them to
-speak up in support.  But we're rather short of stacking filesystems
-in the kernel at present, so it can be hard to argue.
-
-> > And I found it quite hard to see where the crucial difference comes.
-> > I guess it's that MVFS changes vma->vm_file in its ->mmap?  Well, if
-> 
-> Yup.
-> 
-> > MVFS does that, maybe something else does that too, but precisely to
-> > rely on the present behaviour of /proc/pid/exe - so in fixing for
-> > MVFS, we'd be breaking that hypothetical other?
-> 
-> 	I'm not completely certain that I understand your point. Are you
-> suggesting that some hypothetical code would want to use this "quirk"
-> of /proc/pid/exe for a legitimate purpose?
-
-Yes, but our different viewpoints give us a different idea of what's
-a quirk.  The quirk I see is that MVFS is fiddling with vma->vm_file
-in its ->mmap, which is rather unusual (though not unique); and then
-complaining when this doesn't work as it wants.  But you see it as a
-quirk that the VM_EXECUTABLE's vm_file gets used for /proc/pid/exe?
-
-> 	Assuming that is your point, I thought my non-hypothetical java example
-> clearly demonstrated that at least one non-hypothetical program doesn't
-> expect the "quirk" and breaks because of it.
-
-Yes, and I'm suggesting that if we change the behaviour to suit you,
-we might be causing a regression in something else.  No evidence for
-that, but it's a possibility (though probably not one I'd be arguing,
-if I actually liked the patch involved).
-
-When and if the VFS provides integrated support for stacking filesystems,
-it would make sense to do something about this.  But as things stand, it's
-for the stacking filesystem to manage its stack.  Why uglify the kernel
-code (which doesn't include any user for this), instead of managing that
-stacking yourself i.e. why not leave vm_file as is (or if necessary
-point it to a proxy), and use its private_data for your optimizations?
-
-> Frankly,
-> given /proc/pid/exe's output in the non-stacking case, I can't see how
-> its output in the stacking case we're discussing could be considered
-> anything but buggy.
-
-But whose bug?
-
-Hugh
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
