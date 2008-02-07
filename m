@@ -1,82 +1,95 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m170Ge4g002541
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 19:16:40 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m170Geqj137284
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 19:16:40 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m170Gesl009988
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 19:16:40 -0500
-Subject: Re: [PATCH] sys_remap_file_pages: fix ->vm_file accounting
-From: Matt Helsley <matthltc@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.64.0802062023100.32204@blonde.site>
-References: <20080130142014.GA2164@tv-sign.ru>
-	 <1201712101.31222.22.camel@tucsk.pomaz.szeredi.hu>
-	 <20080130172646.GA2355@tv-sign.ru>
-	 <1201987065.9062.6.camel@localhost.localdomain>
-	 <20080203182135.GA5827@tv-sign.ru>
-	 <Pine.LNX.4.64.0802062023100.32204@blonde.site>
-Content-Type: text/plain
-Date: Wed, 06 Feb 2008 16:16:38 -0800
-Message-Id: <1202343398.9062.253.camel@localhost.localdomain>
+Date: Wed, 6 Feb 2008 19:35:12 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [patch 05/19] split LRU lists into anon & file sets
+Message-ID: <20080206193512.77b5f21f@bree.surriel.com>
+In-Reply-To: <20080130175439.1AFD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080108210002.638347207@redhat.com>
+	<20080130121152.1AF1.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<20080130175439.1AFD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Oleg Nesterov <oleg@tv-sign.ru>, Miklos Szeredi <mszeredi@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, William Lee Irwin III <wli@holomorphy.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-02-06 at 20:33 +0000, Hugh Dickins wrote:
-> On Sun, 3 Feb 2008, Oleg Nesterov wrote:
-> > 
-> > So I have to try to find another bug ;) Suppose that ->load_binary() does
-> > a series of do_mmap(MAP_EXECUTABLE). It is possible that mmap_region() can
-> > merge 2 vmas. In that case we "leak" ->num_exe_file_vmas. Unless I missed
-> > something, mmap_region() should do removed_exe_file_vma() when vma_merge()
-> > succeds (near fput(file)).
+On Wed, 30 Jan 2008 17:57:54 +0900
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+
+> I found number of scan pages calculation bug.
+
+My latest version of get_scan_ratio() works differently, with the
+percentages always adding up to 100.  However, your patch gave me
+the inspiration to (hopefully) find the bug in my version of the
+code.
+ 
+> 1. wrong calculation order
+
+I do not believe my new code has this problem.  Of course, this
+is purely due to luck :)
+
+> 2. wrong fraction omission
 > 
-> Or there's the complementary case of a VM_EXECUTABLE vma being
-> split in two, for example by an mprotect of a part of it.
+> 	nr[l] = zone->nr_scan[l] * percent[file] / 100;
 > 
-> Sorry, Matt, I don't like your patch at all.  It seems to add a fair
-> amount of ugliness and unmaintainablity, all for a peculiar MVFS case
+> 	when percent is very small,
+> 	nr[l] become 0.
 
-I thought that getting rid of the separate versions of proc_exe_link()
-improved maintainability. Do you have any specific details on what you
-think makes the code introduced by the patch unmaintainable?
+This is probably where the problem is.  Kind of.
 
-> (you've tried to argue other advantages, but not always convinced!).
+I believe that the problem is that we scale nr[l] by the percentage,
+instead of scaling the amount we add to zone->nr_scan[l] by the
+percentage!
 
-Yup -- looking at how the VM_EXECUTABLE flag affects the vma walk it's
-clear one of my arguments was wrong. So I can't blame you for being
-unconvinced by that. :)
+> @@ -1409,7 +1410,11 @@ static unsigned long shrink_zone(int pri
+>  			 */
+>  			zone->nr_scan[l] += (zone_page_state(zone,
+>  				NR_INACTIVE_ANON + l) >> priority) + 1;
+> -			nr[l] = zone->nr_scan[l] * percent[file] / 100;
+> +			nr[l] = (zone->nr_scan[l] * percent[file] / 100) + 1;
+> +			nr_max_scan = zone_page_state(zone, NR_INACTIVE_ANON+l);
+> +			if (nr[l] > nr_max_scan)
+> +				nr[l] = nr_max_scan;
+> +
+>  			if (nr[l] >= sc->swap_cluster_max)
+>  				zone->nr_scan[l] = 0;
+>  			else
 
-I still think it would help any stacking filesystems that can't use the
-solution adopted by unionfs.
+With the fix below (against my latest tree), we always add at least one
+to zone->nr_scan[l] and always make that increment count later on!
 
-> And I found it quite hard to see where the crucial difference comes.
-> I guess it's that MVFS changes vma->vm_file in its ->mmap?  Well, if
+I am still recovering from my trip home (thanks to the airline companies
+I spent 25 hours travelling, from door to door), so I may not get around
+to actually testing this today:
 
-Yup.
-
-> MVFS does that, maybe something else does that too, but precisely to
-> rely on the present behaviour of /proc/pid/exe - so in fixing for
-> MVFS, we'd be breaking that hypothetical other?
-
-	I'm not completely certain that I understand your point. Are you
-suggesting that some hypothetical code would want to use this "quirk"
-of /proc/pid/exe for a legitimate purpose?
-
-	Assuming that is your point, I thought my non-hypothetical java example
-clearly demonstrated that at least one non-hypothetical program doesn't
-expect the "quirk" and breaks because of it. Frankly,
-given /proc/pid/exe's output in the non-stacking case, I can't see how
-its output in the stacking case we're discussing could be considered
-anything but buggy.
-
-Cheers,
-	-Matt Helsley
+Index: linux-2.6.24-rc6-mm1/mm/vmscan.c
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/mm/vmscan.c	2008-02-06 19:23:16.000000000 -0500
++++ linux-2.6.24-rc6-mm1/mm/vmscan.c	2008-02-06 19:22:55.000000000 -0500
+@@ -1275,13 +1275,17 @@ static unsigned long shrink_zone(int pri
+ 	for_each_lru(l) {
+ 		if (scan_global_lru(sc)) {
+ 			int file = is_file_lru(l);
++			int scan;
+ 			/*
+ 			 * Add one to nr_to_scan just to make sure that the
+-			 * kernel will slowly sift through the active list.
++			 * kernel will slowly sift through each list.
+ 			 */
+-			zone->nr_scan[l] += (zone_page_state(zone,
+-				NR_INACTIVE_ANON + l) >> priority) + 1;
+-			nr[l] = zone->nr_scan[l] * percent[file] / 100;
++			scan = zone_page_state(zone, NR_INACTIVE_ANON + l);
++			scan >>= priority;
++			scan = (scan * percent[file]) / 100;
++
++			zone->nr_scan[l] += scan + 1;
++			nr[l] = zone->nr_scan[l];
+ 			if (nr[l] >= sc->swap_cluster_max)
+ 				zone->nr_scan[l] = 0;
+ 			else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
