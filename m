@@ -1,83 +1,82 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1714Y8T010166
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 20:04:34 -0500
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1714YmL195276
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 18:04:34 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1714XjE025308
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 18:04:34 -0700
-Date: Wed, 6 Feb 2008 17:04:32 -0800
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [RFC][PATCH 2/2] Explicitly retry hugepage allocations
-Message-ID: <20080207010432.GC14137@us.ibm.com>
-References: <20080206230726.GF3477@us.ibm.com> <20080206231243.GG3477@us.ibm.com> <Pine.LNX.4.64.0802061529480.22648@schroedinger.engr.sgi.com>
+Date: Thu, 07 Feb 2008 10:20:39 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch 05/19] split LRU lists into anon & file sets
+In-Reply-To: <20080206193512.77b5f21f@bree.surriel.com>
+References: <20080130175439.1AFD.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080206193512.77b5f21f@bree.surriel.com>
+Message-Id: <20080207101634.4AC7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0802061529480.22648@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: melgor@ie.ibm.com, apw@shadowen.org, agl@us.ibm.com, wli@holomorphy.com, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 06.02.2008 [15:30:53 -0800], Christoph Lameter wrote:
-> On Wed, 6 Feb 2008, Nishanth Aravamudan wrote:
+Hi Rik
+
+Welcome back :)
+
+> > I found number of scan pages calculation bug.
 > 
-> > Add __GFP_REPEAT to hugepage allocations. Do so to not necessitate
-> > userspace putting pressure on the VM by repeated echo's into
-> > /proc/sys/vm/nr_hugepages to grow the pool. With the previous patch to
-> > allow for large-order __GFP_REPEAT attempts to loop for a bit (as
-> > opposed to indefinitely), this increases the likelihood of getting
-> > hugepages when the system experiences (or recently experienced) load.
+> My latest version of get_scan_ratio() works differently, with the
+> percentages always adding up to 100.  However, your patch gave me
+> the inspiration to (hopefully) find the bug in my version of the
+> code.
+
+OK.
+
+
+> > 2. wrong fraction omission
 > > 
-> > On a 2-way x86_64, this doubles the number of hugepages (from 10 to 20)
-> > obtained while compiling a kernel at the same time. On a 4-way ppc64,
-> > a similar scale increase is seen (from 3 to 5 hugepages). Finally, on a
-> > 2-way x86, this leads to a 5-fold increase in the hugepages allocatable
-> > under load (90 to 554).
+> > 	nr[l] = zone->nr_scan[l] * percent[file] / 100;
+> > 
+> > 	when percent is very small,
+> > 	nr[l] become 0.
 > 
-> Hmmm... How about defaulting to __GFP_REPEAT by default for larger
-> page allocations? There are other users of larger allocs that would
-> also benefit from the same measure. I think it would be fine as long
-> as we are sure to fail at some point.
+> This is probably where the problem is.  Kind of.
+> 
+> I believe that the problem is that we scale nr[l] by the percentage,
+> instead of scaling the amount we add to zone->nr_scan[l] by the
+> percentage!
 
-We could do that. That would essentially mean that we don't really ever
-need __GFP_REPEAT in the current implementation.
+Aahh,
+you are right.
 
-if (order <= PAGE_ALLOC_COSTLY_ORDER)
-  __GFP_REPEAT is implicitly __GFP_NOFAIL
-if (order > PAGE_ALLOC_COSTLY_ORDER)
-  __GFP_REPEAT is implicitly applied
 
-So I guess we'd have the following semantic cases in the VM if we did
-that:
+> Index: linux-2.6.24-rc6-mm1/mm/vmscan.c
+> ===================================================================
+> --- linux-2.6.24-rc6-mm1.orig/mm/vmscan.c	2008-02-06 19:23:16.000000000 -0500
+> +++ linux-2.6.24-rc6-mm1/mm/vmscan.c	2008-02-06 19:22:55.000000000 -0500
+> @@ -1275,13 +1275,17 @@ static unsigned long shrink_zone(int pri
+>  	for_each_lru(l) {
+>  		if (scan_global_lru(sc)) {
+>  			int file = is_file_lru(l);
+> +			int scan;
+>  			/*
+>  			 * Add one to nr_to_scan just to make sure that the
+> -			 * kernel will slowly sift through the active list.
+> +			 * kernel will slowly sift through each list.
+>  			 */
+> -			zone->nr_scan[l] += (zone_page_state(zone,
+> -				NR_INACTIVE_ANON + l) >> priority) + 1;
+> -			nr[l] = zone->nr_scan[l] * percent[file] / 100;
+> +			scan = zone_page_state(zone, NR_INACTIVE_ANON + l);
+> +			scan >>= priority;
+> +			scan = (scan * percent[file]) / 100;
+> +
+> +			zone->nr_scan[l] += scan + 1;
+> +			nr[l] = zone->nr_scan[l];
+>  			if (nr[l] >= sc->swap_cluster_max)
+>  				zone->nr_scan[l] = 0;
+>  			else
 
-if (order <= PAGE_ALLOC_COSTLY_ORDER)
-  if (flags & __GFP_NORETRY)
-    don't retry, might succeed
-  else
-    __GFP_NOFAIL, must succeed
-else
-  if (flags & __GPF_NORETRY)
-    don't retry, might succeed
-  if (flags & __GFP_NOFAIL)
-    don't fail, must succeed
-  else
-    __GFP_REPEAT, might succeed
+looks good.
+thank you clean up code.
 
-We *could* make the low-order __GFP_REPEAT case the same as the
-high-order one (if we reclaim a certain order, then we should be able to
-succeed the original allocation), however that change seemed more
-invasive & aggressive, so I left it alone.
 
-Thanks,
-Nish
+- kosaki
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
