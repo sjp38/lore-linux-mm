@@ -1,58 +1,76 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1711Pm3012917
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 20:01:25 -0500
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m170xVmn238138
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 19:59:31 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m170xVaO007804
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 19:59:31 -0500
-Date: Wed, 6 Feb 2008 16:59:24 -0800
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1714Y8T010166
+	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 20:04:34 -0500
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1714YmL195276
+	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 18:04:34 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1714XjE025308
+	for <linux-mm@kvack.org>; Wed, 6 Feb 2008 18:04:34 -0700
+Date: Wed, 6 Feb 2008 17:04:32 -0800
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH 2/3] hugetlb: add per-node nr_hugepages sysfs attribute
-Message-ID: <20080207005924.GB14137@us.ibm.com>
-References: <20080206231558.GI3477@us.ibm.com> <20080206231845.GJ3477@us.ibm.com> <20080207000328.GD16116@kroah.com>
+Subject: Re: [RFC][PATCH 2/2] Explicitly retry hugepage allocations
+Message-ID: <20080207010432.GC14137@us.ibm.com>
+References: <20080206230726.GF3477@us.ibm.com> <20080206231243.GG3477@us.ibm.com> <Pine.LNX.4.64.0802061529480.22648@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080207000328.GD16116@kroah.com>
+In-Reply-To: <Pine.LNX.4.64.0802061529480.22648@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Greg KH <greg@kroah.com>
-Cc: wli@holomorphy.com, agl@us.ibm.com, lee.schermerhorn@hp.com, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: melgor@ie.ibm.com, apw@shadowen.org, agl@us.ibm.com, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 06.02.2008 [16:03:28 -0800], Greg KH wrote:
-> On Wed, Feb 06, 2008 at 03:18:45PM -0800, Nishanth Aravamudan wrote:
-> > hugetlb: add per-node nr_hugepages sysfs attribute
-> > 
-> > Allow specifying the number of hugepages to allocate on a particular
-> > node. Our current global sysctl will try its best to put hugepages
-> > equally on each node, but htat may not always be desired. This allows
-> > the admin to control the layout of hugepage allocation at a finer level
-> > (while not breaking the existing interface).  Add callbacks in the sysfs
-> > node registration and unregistration functions into hugetlb to add the
-> > nr_hugepages attribute, which is a no-op if !NUMA or !HUGETLB.
-> > 
-> > Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
-> > 
-> > ---
-> > Greg, do I need to add documentation for this sysfs attribute to
-> > Documentation/ABI?
+On 06.02.2008 [15:30:53 -0800], Christoph Lameter wrote:
+> On Wed, 6 Feb 2008, Nishanth Aravamudan wrote:
 > 
-> Yes, please.
-
-Ok, thanks. I'll submit a follow-on patch.
-
-> > I'm not sure if I should just add a file in testing/ for just this
-> > attribute or should defer and create documentation for all of the
-> > /sys/devices/system/node information?
+> > Add __GFP_REPEAT to hugepage allocations. Do so to not necessitate
+> > userspace putting pressure on the VM by repeated echo's into
+> > /proc/sys/vm/nr_hugepages to grow the pool. With the previous patch to
+> > allow for large-order __GFP_REPEAT attempts to loop for a bit (as
+> > opposed to indefinitely), this increases the likelihood of getting
+> > hugepages when the system experiences (or recently experienced) load.
+> > 
+> > On a 2-way x86_64, this doubles the number of hugepages (from 10 to 20)
+> > obtained while compiling a kernel at the same time. On a 4-way ppc64,
+> > a similar scale increase is seen (from 3 to 5 hugepages). Finally, on a
+> > 2-way x86, this leads to a 5-fold increase in the hugepages allocatable
+> > under load (90 to 554).
 > 
-> How about both for this one, and the existing ones?  That would be
-> best.
+> Hmmm... How about defaulting to __GFP_REPEAT by default for larger
+> page allocations? There are other users of larger allocs that would
+> also benefit from the same measure. I think it would be fine as long
+> as we are sure to fail at some point.
 
-Sorry, that's what I meant (documenting existing interface and adding
-this to that documentation). I'll probably do it in a separate series.
+We could do that. That would essentially mean that we don't really ever
+need __GFP_REPEAT in the current implementation.
+
+if (order <= PAGE_ALLOC_COSTLY_ORDER)
+  __GFP_REPEAT is implicitly __GFP_NOFAIL
+if (order > PAGE_ALLOC_COSTLY_ORDER)
+  __GFP_REPEAT is implicitly applied
+
+So I guess we'd have the following semantic cases in the VM if we did
+that:
+
+if (order <= PAGE_ALLOC_COSTLY_ORDER)
+  if (flags & __GFP_NORETRY)
+    don't retry, might succeed
+  else
+    __GFP_NOFAIL, must succeed
+else
+  if (flags & __GPF_NORETRY)
+    don't retry, might succeed
+  if (flags & __GFP_NOFAIL)
+    don't fail, must succeed
+  else
+    __GFP_REPEAT, might succeed
+
+We *could* make the low-order __GFP_REPEAT case the same as the
+high-order one (if we reclaim a certain order, then we should be able to
+succeed the original allocation), however that change seemed more
+invasive & aggressive, so I left it alone.
 
 Thanks,
 Nish
