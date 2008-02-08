@@ -1,47 +1,40 @@
-Date: Thu, 7 Feb 2008 18:13:22 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: [git pull] more SLUB updates for 2.6.25
-Message-ID: <Pine.LNX.4.64.0802071755580.7473@schroedinger.engr.sgi.com>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [git pull] more SLUB updates for 2.6.25
+Date: Fri, 8 Feb 2008 18:12:21 +1100
+References: <Pine.LNX.4.64.0802071755580.7473@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0802071755580.7473@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200802081812.22513.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-are available in the git repository at:
+On Friday 08 February 2008 13:13, Christoph Lameter wrote:
+> are available in the git repository at:
+>
+>   git://git.kernel.org/pub/scm/linux/kernel/git/christoph/vm.git slub-linus
+>
+> (includes the cmpxchg_local fastpath since the cmpxchg_local work
+> by Matheiu is in now, and the non atomic unlock by Nick. Verified that
+> this is not doing any harm after some other patches had been removed.
 
-  git://git.kernel.org/pub/scm/linux/kernel/git/christoph/vm.git slub-linus
+Ah, good. I think it is always a good thing to be able to remove atomics.
+They place quite a bit of burden on the CPU, especially x86 where it also
+has implicit memory ordering semantics (although x86 can speculatively
+get around much of the problem, it's obviously worse than no restriction)
 
-(includes the cmpxchg_local fastpath since the cmpxchg_local work
-by Matheiu is in now, and the non atomic unlock by Nick. Verified that 
-this is not doing any harm after some other patches had been removed. 
-cmpxchg_local fastpath was stripped of support for CONFIG_PREEMPT since
-that uglified the code and did not seem to work right. We will be 
-able to handle preempt much better in the future with some upcoming 
-patches)
+Even if perhaps some cache coherency or timing quirk makes the non-atomic
+version slower (all else being equal), then I'd still say that the non
+atomic version should be preferred.
 
-Christoph Lameter (4):
-      SLUB: Deal with annoying gcc warning on kfree()
-      SLUB: Use unique end pointer for each slab page.
-      SLUB: Alternate fast paths using cmpxchg_local
-      SLUB: Support for performance statistics
-
-Ingo Molnar (1):
-      SLUB: fix checkpatch warnings
-
-Nick Piggin (1):
-      Use non atomic unlock
-
- Documentation/vm/slabinfo.c |  149 ++++++++++++++++++--
- arch/x86/Kconfig            |    4 +
- include/linux/mm_types.h    |    5 +-
- include/linux/slub_def.h    |   23 +++
- lib/Kconfig.debug           |   13 ++
- mm/slub.c                   |  326 
-++++++++++++++++++++++++++++++++++++-------
- 6 files changed, 457 insertions(+), 63 deletions(-)
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
