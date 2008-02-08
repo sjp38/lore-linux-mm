@@ -1,70 +1,66 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m18H864W022099
-	for <linux-mm@kvack.org>; Fri, 8 Feb 2008 12:08:06 -0500
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m18H863K130026
-	for <linux-mm@kvack.org>; Fri, 8 Feb 2008 12:08:06 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m18H85ho002155
-	for <linux-mm@kvack.org>; Fri, 8 Feb 2008 12:08:06 -0500
-Date: Fri, 8 Feb 2008 09:08:05 -0800
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m18HBXhm014617
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2008 12:11:33 -0500
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m18HBXna086792
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2008 10:11:33 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m18HBWif008805
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2008 10:11:33 -0700
+Date: Fri, 8 Feb 2008 09:11:32 -0800
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH 1/3] hugetlb: numafy several functions
-Message-ID: <20080208170805.GD15903@us.ibm.com>
-References: <20080206231558.GI3477@us.ibm.com> <1202409315.5298.65.camel@localhost> <20080207185205.GD18302@us.ibm.com> <1202489237.5346.26.camel@localhost>
+Subject: Re: [RFC][PATCH 2/2] Explicitly retry hugepage allocations
+Message-ID: <20080208171132.GE15903@us.ibm.com>
+References: <20080206230726.GF3477@us.ibm.com> <20080206231243.GG3477@us.ibm.com> <Pine.LNX.4.64.0802061529480.22648@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1202489237.5346.26.camel@localhost>
+In-Reply-To: <Pine.LNX.4.64.0802061529480.22648@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: wli@holomorphy.com, agl@us.ibm.com, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: melgor@ie.ibm.com, apw@shadowen.org, agl@us.ibm.com, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 08.02.2008 [11:47:17 -0500], Lee Schermerhorn wrote:
-> On Thu, 2008-02-07 at 10:52 -0800, Nishanth Aravamudan wrote:
-> > On 07.02.2008 [13:35:15 -0500], Lee Schermerhorn wrote:
-> > > On Wed, 2008-02-06 at 15:15 -0800, Nishanth Aravamudan wrote:
-> > > > hugetlb: numafy several functions
-> > > > 
-> > > 
-> > > <snip>
-> > > 
-> > > Nish:  glad to see these surface again.  I'll add them [back] into my
-> > > tree for testing.  I'm at 24-mm1.  Can't tell from the messages what
-> > > release they're against, but I'll sort that out.
-> > 
-> > They were against -git tip when I rebased ... hrm that would be
-> > 551e4fb2465b87de9d4aa1669b27d624435443bb, I believe.
-> > 
-> > > Another thing:  I've tended to test these atop Mel Gorman's zonelist
-> > > rework and a set of mempolicy cleanups that I'm holding pending
-> > > acceptance of Mel's patches.  I'll probably do that with these.  At
-> > > some point we need to sort out with Andrew when or whether Mel's
-> > > patches will hit -mm.  If so, what order vs yours...
-> > 
-> > I think Mel's patches may be more generally useful than mine (as mine
-> > are all keyed on hugepage support). So I would like to see his go first
-> > then I can rework mine on top, if that is the order that it ends up
-> > happening in.
+On 06.02.2008 [15:30:53 -0800], Christoph Lameter wrote:
+> On Wed, 6 Feb 2008, Nishanth Aravamudan wrote:
 > 
-> Nish:
+> > Add __GFP_REPEAT to hugepage allocations. Do so to not necessitate
+> > userspace putting pressure on the VM by repeated echo's into
+> > /proc/sys/vm/nr_hugepages to grow the pool. With the previous patch
+> > to allow for large-order __GFP_REPEAT attempts to loop for a bit (as
+> > opposed to indefinitely), this increases the likelihood of getting
+> > hugepages when the system experiences (or recently experienced)
+> > load.
+> > 
+> > On a 2-way x86_64, this doubles the number of hugepages (from 10 to
+> > 20) obtained while compiling a kernel at the same time. On a 4-way
+> > ppc64, a similar scale increase is seen (from 3 to 5 hugepages).
+> > Finally, on a 2-way x86, this leads to a 5-fold increase in the
+> > hugepages allocatable under load (90 to 554).
 > 
-> Heads up:  Your "smarter retry" patch will need some rework in vmscan.c
-> because of the memory controller changes [currently in 24-mm1].  I have
-> rebased you patches against 24-mm1, atop Mel's two-zonelist patches and
-> my mempolicy cleanup series.  I can send you the entire stack or place
-> the tarball on a web site, if you're interested.
+> Hmmm... How about defaulting to __GFP_REPEAT by default for larger
+> page allocations? There are other users of larger allocs that would
+> also benefit from the same measure. I think it would be fine as long
+> as we are sure to fail at some point.
 
-I can refresh the patchset for -mm, I was just posting based upon
-mainline as that was traditionally how I sent patches to Andrew. But in
-this case you're right, there are enough collisions with existing -mm
-bits that I should rebase.
+In thinking about this more, one of the harder parts for me to get my
+head around was the implicit promotion of small-order allocations to
+__GFP_REPEAT (and thus to __GFP_NOFAIL). I would prefer keeping the
+large-order allocations explicit as to when they want the VM to try
+harder to succeed. As far as I understand it, only hugepages really will
+leverage this from code in in the kernel currently? I also feel like,
+even if __GFP_REPEAT becomes a default behavior, it's better to use it
+as a documentation of intent from the caller -- and perhaps indicate to
+us sites that are over-stressing the VM unnecessarily by regularly
+forcing reclaim?
 
-Thanks for the heads up.
+I also am not 100% positive on how I would test the result of such a
+change, since there are not that many large-order allocations in the
+kernel... Did you have any thoughts on that?
 
--Nish
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
