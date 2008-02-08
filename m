@@ -1,85 +1,69 @@
-Message-Id: <20080208233738.108449000@polaris-admin.engr.sgi.com>
-Date: Fri, 08 Feb 2008 15:37:38 -0800
-From: Mike Travis <travis@sgi.com>
-Subject: [PATCH 0/4] NR_CPUS: non-x86 arch specific reduction of NR_CPUS usage
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m18NeXkV023647
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2008 18:40:33 -0500
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m18NeX0e212244
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2008 16:40:33 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m18NeWEM026958
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2008 16:40:33 -0700
+Date: Fri, 8 Feb 2008 15:40:31 -0800
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [RFC][PATCH 2/2] Explicitly retry hugepage allocations
+Message-ID: <20080208234031.GE27150@us.ibm.com>
+References: <20080206230726.GF3477@us.ibm.com> <20080206231243.GG3477@us.ibm.com> <Pine.LNX.4.64.0802061529480.22648@schroedinger.engr.sgi.com> <20080208171132.GE15903@us.ibm.com> <Pine.LNX.4.64.0802081117340.1654@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0802081117340.1654@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <ak@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: melgor@ie.ibm.com, apw@shadowen.org, agl@us.ibm.com, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Here's another round of removing static allocations of arrays
-using NR_CPUS to size the length.  The change is to use PER_CPU
-variables in place of the static tables.
+On 08.02.2008 [11:19:54 -0800], Christoph Lameter wrote:
+> On Fri, 8 Feb 2008, Nishanth Aravamudan wrote:
+> 
+> > I also am not 100% positive on how I would test the result of such a
+> > change, since there are not that many large-order allocations in the
+> > kernel... Did you have any thoughts on that?
+> 
+> Boot the kernel with
+> 
+> 	slub_min_order=<whatever order you wish>
+> 
+> to get lots of allocations of a higher order.
+> 
+> You can run slub with huge pages by booting with
+> 
+> 	slub_min_order=9
+> 
+> this causes some benchmarks to run much faster...
+> 
+> In general the use of higher order pages is discouraged right now due
+> to the page allocators flaky behavior when allocating pages but there
+> are several projects that would benefit from that. Amoung them large
+> bufferer support for the I/O layer and larger page support for the VM
+> to reduce 4k page scanning overhead.
 
-Based on linux-2.6.git + x86.git
+That all makes sense. However, for now, if it would be ok with you, just
+make higher order allocations coming from hugetlb.c use the __REPEAT
+logic I'm trying to add. If the method seems good in general, then we
+just need to mark other locations (SLUB allocation paths?) with
+__GFP_REPEAT. When slub_min_order <= PAGE_ALLOC_COSTLY_ORDER, then we
+shouldn't see any difference and when it is greater, we should hit the
+logic I added. Does that seem reasonable to you? I think it's a separate
+idea, though, and I'd prefer keeping it in a separate patch, if that's
+ok with you.
 
-Cc: Dave Jones <davej@codemonkey.org.uk>
-Cc: cpufreq@lists.linux.org.uk
-Cc: Len Brown <len.brown@intel.com>
-Cc: linux-acpi@vger.kernel.org
-Cc: Philippe Elie <phil.el@wanadoo.fr>
-Cc: oprofile-list@lists.sf.net
+Thanks,
+Nish
 
-Signed-off-by: Mike Travis <travis@sgi.com>
----
-(1 - if modules enabled, does not complete boot even
-     without this patch)
-
-x86_64 configs built and booted:
-
-    ingo-stress-test(1)
-    defconfi
-    nonuma
-    nosmp
-    bigsmp (NR_CPUS=1024, 1024 possible, 8 real)
-
-Other configs built:
-
-    arm-default
-    i386-default
-    i386-single
-    i386-smp
-    ppc-pmac32
-    ppc-smp
-    sparc64-default
-    sparc64-smp
-    x86_64-8psmp
-    x86_64-debug
-    x86_64-default
-    x86_64-numa
-    x86_64-single
-    x86_64-allmodconfig
-    x86_64-allyesconfig
-    x86_64-maxsmp (NR_CPUS=4096 MAXNODES=512)
-
-Configs not built due to prior errors:
-
-    ia64-sn2
-    ia64-default
-    ia64-nosmp
-    ia64-zx1
-    s390-default
-    sparc-default
-
-Memory effects using x86_64-maxsmp
-
-    Removes 1MB from permanant data adding 440 bytes to percpu area.
-
-4k-cpus-before                      4k-cpus-after
-   3463036 .bss                         -98304 -2%
-   6067456 .data.cacheline_alig       -1048576 -17%
-     48712 .data.percpu                   +440 +0%
-  14275505 .text                          +336 +0%
-
-  14275505 Text                           +336 +0%
-   8521495 Data                           -336 +0%
-   3463036 Bss                          -98304 -2%
-  10974520 OtherData                  -1048576 -9%
-     48712 PerCpu                         +440 +0%
-  39275796 Total                      -1146104 -2%
 
 -- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
