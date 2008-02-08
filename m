@@ -1,57 +1,32 @@
-Date: Fri, 8 Feb 2008 14:23:15 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Date: Fri, 8 Feb 2008 15:32:19 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [patch 0/6] MMU Notifiers V6
-Message-Id: <20080208142315.7fe4b95e.akpm@linux-foundation.org>
-In-Reply-To: <20080208220616.089936205@sgi.com>
-References: <20080208220616.089936205@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20080208142315.7fe4b95e.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0802081528070.4036@schroedinger.engr.sgi.com>
+References: <20080208220616.089936205@sgi.com> <20080208142315.7fe4b95e.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: andrea@qumranet.com, holt@sgi.com, avi@qumranet.com, izike@qumranet.com, kvm-devel@lists.sourceforge.net, a.p.zijlstra@chello.nl, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, general@lists.openfabrics.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 08 Feb 2008 14:06:16 -0800
-Christoph Lameter <clameter@sgi.com> wrote:
+On Fri, 8 Feb 2008, Andrew Morton wrote:
 
-> This is a patchset implementing MMU notifier callbacks based on Andrea's
-> earlier work. These are needed if Linux pages are referenced from something
-> else than tracked by the rmaps of the kernel (an external MMU). MMU
-> notifiers allow us to get rid of the page pinning for RDMA and various
-> other purposes. It gets rid of the broken use of mlock for page pinning.
-> (mlock really does *not* pin pages....)
-> 
-> More information on the rationale and the technical details can be found in
-> the first patch and the README provided by that patch in
-> Documentation/mmu_notifiers.
-> 
-> The known immediate users are
-> 
-> KVM
-> - Establishes a refcount to the page via get_user_pages().
-> - External references are called spte.
-> - Has page tables to track pages whose refcount was elevated but
->   no reverse maps.
-> 
-> GRU
-> - Simple additional hardware TLB (possibly covering multiple instances of
->   Linux)
-> - Needs TLB shootdown when the VM unmaps pages.
-> - Determines page address via follow_page (from interrupt context) but can
->   fall back to get_user_pages().
-> - No page reference possible since no page status is kept..
-> 
-> XPmem
-> - Allows use of a processes memory by remote instances of Linux.
-> - Provides its own reverse mappings to track remote pte.
-> - Established refcounts on the exported pages.
-> - Must sleep in order to wait for remote acks of ptes that are being
->   cleared.
-> 
+> What about ib_umem_get()?
 
-What about ib_umem_get()?
+Ok. It pins using an elevated refcount. Same as XPmem right now. With that 
+we effectively pin a page (page migration will fail) but we will 
+continually be reclaiming the page and may repeatedly try to move it. We 
+have issues with XPmem causing too many pages to be pinned and thus the 
+OOM getting into weird behavior modes (OOM or stop lru scanning due to 
+all_reclaimable set).
+
+An elevated refcount will also not be noticed by any of the schemes under 
+consideration to improve LRU scanning performance.
+
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
