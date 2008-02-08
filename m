@@ -1,164 +1,152 @@
-Message-Id: <20080208233738.292421000@polaris-admin.engr.sgi.com>
+Message-Id: <20080208233738.566954000@polaris-admin.engr.sgi.com>
 References: <20080208233738.108449000@polaris-admin.engr.sgi.com>
-Date: Fri, 08 Feb 2008 15:37:39 -0800
+Date: Fri, 08 Feb 2008 15:37:41 -0800
 From: Mike Travis <travis@sgi.com>
-Subject: [PATCH 1/4] cpufreq: change cpu freq tables to per_cpu variables
-Content-Disposition: inline; filename=nr_cpus-in-cpufreq
+Subject: [PATCH 3/4] oprofile: change cpu_buffer from array to per_cpu variable
+Content-Disposition: inline; filename=nr_cpus-in-cpu_buffer
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <ak@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Jones <davej@codemonkey.org.uk>, cpufreq@lists.linux.org.uk
+Cc: Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Philippe Elie <phil.el@wanadoo.fr>, oprofile-list@lists.sf.net
 List-ID: <linux-mm.kvack.org>
 
-Change cpu frequency tables from arrays to per_cpu variables.
+Change cpu_buffer from array to per_cpu variable in
+oprofile functions.
 
 Based on linux-2.6.git + x86.git
 
-Cc: Dave Jones <davej@codemonkey.org.uk>
-Cc: cpufreq@lists.linux.org.uk
+Cc: Philippe Elie <phil.el@wanadoo.fr>
+Cc: oprofile-list@lists.sf.net
 Signed-off-by: Mike Travis <travis@sgi.com>
 ---
- drivers/cpufreq/cpufreq_userspace.c |   71 +++++++++++++++++++-----------------
- 1 file changed, 39 insertions(+), 32 deletions(-)
+ drivers/oprofile/buffer_sync.c    |    2 +-
+ drivers/oprofile/cpu_buffer.c     |   16 ++++++++--------
+ drivers/oprofile/cpu_buffer.h     |    3 ++-
+ drivers/oprofile/oprofile_stats.c |    4 ++--
+ 4 files changed, 13 insertions(+), 12 deletions(-)
 
---- a/drivers/cpufreq/cpufreq_userspace.c
-+++ b/drivers/cpufreq/cpufreq_userspace.c
-@@ -30,11 +30,11 @@
- /**
-  * A few values needed by the userspace governor
+--- a/drivers/oprofile/buffer_sync.c
++++ b/drivers/oprofile/buffer_sync.c
+@@ -494,7 +494,7 @@ typedef enum {
   */
--static unsigned int	cpu_max_freq[NR_CPUS];
--static unsigned int	cpu_min_freq[NR_CPUS];
--static unsigned int	cpu_cur_freq[NR_CPUS]; /* current CPU freq */
--static unsigned int	cpu_set_freq[NR_CPUS]; /* CPU freq desired by userspace */
--static unsigned int	cpu_is_managed[NR_CPUS];
-+DEFINE_PER_CPU(int, cpu_max_freq);
-+DEFINE_PER_CPU(int, cpu_min_freq);
-+DEFINE_PER_CPU(int, cpu_cur_freq); /* current CPU freq */
-+DEFINE_PER_CPU(int, cpu_set_freq); /* CPU freq desired by userspace */
-+DEFINE_PER_CPU(int, cpu_is_managed);
- 
- static DEFINE_MUTEX	(userspace_mutex);
- static int cpus_using_userspace_governor;
-@@ -48,12 +48,12 @@ userspace_cpufreq_notifier(struct notifi
+ void sync_buffer(int cpu)
  {
-         struct cpufreq_freqs *freq = data;
+-	struct oprofile_cpu_buffer * cpu_buf = &cpu_buffer[cpu];
++	struct oprofile_cpu_buffer * cpu_buf = &per_cpu(cpu_buffer, cpu);
+ 	struct mm_struct *mm = NULL;
+ 	struct task_struct * new;
+ 	unsigned long cookie = 0;
+--- a/drivers/oprofile/cpu_buffer.c
++++ b/drivers/oprofile/cpu_buffer.c
+@@ -27,7 +27,7 @@
+ #include "buffer_sync.h"
+ #include "oprof.h"
  
--	if (!cpu_is_managed[freq->cpu])
-+	if (!per_cpu(cpu_is_managed, freq->cpu))
- 		return 0;
+-struct oprofile_cpu_buffer cpu_buffer[NR_CPUS] __cacheline_aligned;
++DEFINE_PER_CPU_SHARED_ALIGNED(struct oprofile_cpu_buffer, cpu_buffer);
  
- 	dprintk("saving cpu_cur_freq of cpu %u to be %u kHz\n",
- 			freq->cpu, freq->new);
--	cpu_cur_freq[freq->cpu] = freq->new;
-+	per_cpu(cpu_cur_freq, freq->cpu) = freq->new;
+ static void wq_sync_buffer(struct work_struct *work);
  
-         return 0;
- }
-@@ -77,15 +77,15 @@ static int cpufreq_set(unsigned int freq
- 	dprintk("cpufreq_set for cpu %u, freq %u kHz\n", policy->cpu, freq);
- 
- 	mutex_lock(&userspace_mutex);
--	if (!cpu_is_managed[policy->cpu])
-+	if (!per_cpu(cpu_is_managed, policy->cpu))
- 		goto err;
- 
--	cpu_set_freq[policy->cpu] = freq;
-+	per_cpu(cpu_set_freq, policy->cpu) = freq;
- 
--	if (freq < cpu_min_freq[policy->cpu])
--		freq = cpu_min_freq[policy->cpu];
--	if (freq > cpu_max_freq[policy->cpu])
--		freq = cpu_max_freq[policy->cpu];
-+	if (freq < per_cpu(cpu_min_freq, policy->cpu))
-+		freq = per_cpu(cpu_min_freq, policy->cpu);
-+	if (freq > per_cpu(cpu_max_freq, policy->cpu))
-+		freq = per_cpu(cpu_max_freq, policy->cpu);
- 
- 	/*
- 	 * We're safe from concurrent calls to ->target() here
-@@ -105,7 +105,7 @@ static int cpufreq_set(unsigned int freq
- /************************** sysfs interface ************************/
- static ssize_t show_speed (struct cpufreq_policy *policy, char *buf)
- {
--	return sprintf (buf, "%u\n", cpu_cur_freq[policy->cpu]);
-+	return sprintf (buf, "%u\n", per_cpu(cpu_cur_freq, policy->cpu));
+@@ -39,7 +39,7 @@ void free_cpu_buffers(void)
+ 	int i;
+  
+ 	for_each_online_cpu(i)
+-		vfree(cpu_buffer[i].buffer);
++		vfree(per_cpu(cpu_buffer, i).buffer);
  }
  
- static ssize_t
-@@ -154,12 +154,16 @@ static int cpufreq_governor_userspace(st
- 		}
- 		cpus_using_userspace_governor++;
+ int alloc_cpu_buffers(void)
+@@ -49,7 +49,7 @@ int alloc_cpu_buffers(void)
+ 	unsigned long buffer_size = fs_cpu_buffer_size;
+  
+ 	for_each_online_cpu(i) {
+-		struct oprofile_cpu_buffer * b = &cpu_buffer[i];
++		struct oprofile_cpu_buffer * b = &per_cpu(cpu_buffer, i);
+  
+ 		b->buffer = vmalloc_node(sizeof(struct op_sample) * buffer_size,
+ 			cpu_to_node(i));
+@@ -83,7 +83,7 @@ void start_cpu_work(void)
+ 	work_enabled = 1;
  
--		cpu_is_managed[cpu] = 1;
--		cpu_min_freq[cpu] = policy->min;
--		cpu_max_freq[cpu] = policy->max;
--		cpu_cur_freq[cpu] = policy->cur;
--		cpu_set_freq[cpu] = policy->cur;
--		dprintk("managing cpu %u started (%u - %u kHz, currently %u kHz)\n", cpu, cpu_min_freq[cpu], cpu_max_freq[cpu], cpu_cur_freq[cpu]);
-+		per_cpu(cpu_is_managed, cpu) = 1;
-+		per_cpu(cpu_min_freq, cpu) = policy->min;
-+		per_cpu(cpu_max_freq, cpu) = policy->max;
-+		per_cpu(cpu_cur_freq, cpu) = policy->cur;
-+		per_cpu(cpu_set_freq, cpu) = policy->cur;
-+		dprintk("managing cpu %u started "
-+			"(%u - %u kHz, currently %u kHz)\n", cpu,
-+				per_cpu(cpu_min_freq, cpu),
-+				per_cpu(cpu_max_freq, cpu),
-+				per_cpu(cpu_cur_freq, cpu));
- start_out:
- 		mutex_unlock(&userspace_mutex);
- 		break;
-@@ -172,11 +176,12 @@ start_out:
- 					CPUFREQ_TRANSITION_NOTIFIER);
- 		}
+ 	for_each_online_cpu(i) {
+-		struct oprofile_cpu_buffer * b = &cpu_buffer[i];
++		struct oprofile_cpu_buffer * b = &per_cpu(cpu_buffer, i);
  
--		cpu_is_managed[cpu] = 0;
--		cpu_min_freq[cpu] = 0;
--		cpu_max_freq[cpu] = 0;
--		cpu_set_freq[cpu] = 0;
--		sysfs_remove_file (&policy->kobj, &freq_attr_scaling_setspeed.attr);
-+		per_cpu(cpu_is_managed, cpu) = 0;
-+		per_cpu(cpu_min_freq, cpu) = 0;
-+		per_cpu(cpu_max_freq, cpu) = 0;
-+		per_cpu(cpu_set_freq, cpu) = 0;
-+		sysfs_remove_file (&policy->kobj,
-+					&freq_attr_scaling_setspeed.attr);
- 		dprintk("managing cpu %u stopped\n", cpu);
- 		mutex_unlock(&userspace_mutex);
- 		break;
-@@ -185,22 +190,24 @@ start_out:
- 		dprintk("limit event for cpu %u: %u - %u kHz,"
- 			"currently %u kHz, last set to %u kHz\n",
- 			cpu, policy->min, policy->max,
--			cpu_cur_freq[cpu], cpu_set_freq[cpu]);
--		if (policy->max < cpu_set_freq[cpu]) {
-+			per_cpu(cpu_cur_freq, cpu),
-+			per_cpu(cpu_set_freq, cpu));
-+		if (policy->max < per_cpu(cpu_set_freq, cpu)) {
- 			__cpufreq_driver_target(policy, policy->max,
- 						CPUFREQ_RELATION_H);
- 		}
--		else if (policy->min > cpu_set_freq[cpu]) {
-+		else if (policy->min > per_cpu(cpu_set_freq, cpu)) {
- 			__cpufreq_driver_target(policy, policy->min,
- 						CPUFREQ_RELATION_L);
- 		}
- 		else {
--			__cpufreq_driver_target(policy, cpu_set_freq[cpu],
-+			__cpufreq_driver_target(policy,
-+						per_cpu(cpu_set_freq, cpu),
- 						CPUFREQ_RELATION_L);
- 		}
--		cpu_min_freq[cpu] = policy->min;
--		cpu_max_freq[cpu] = policy->max;
--		cpu_cur_freq[cpu] = policy->cur;
-+		per_cpu(cpu_min_freq, cpu) = policy->min;
-+		per_cpu(cpu_max_freq, cpu) = policy->max;
-+		per_cpu(cpu_cur_freq, cpu) = policy->cur;
- 		mutex_unlock(&userspace_mutex);
- 		break;
+ 		/*
+ 		 * Spread the work by 1 jiffy per cpu so they dont all
+@@ -100,7 +100,7 @@ void end_cpu_work(void)
+ 	work_enabled = 0;
+ 
+ 	for_each_online_cpu(i) {
+-		struct oprofile_cpu_buffer * b = &cpu_buffer[i];
++		struct oprofile_cpu_buffer * b = &per_cpu(cpu_buffer, i);
+ 
+ 		cancel_delayed_work(&b->work);
  	}
+@@ -227,7 +227,7 @@ static void oprofile_end_trace(struct op
+ void oprofile_add_ext_sample(unsigned long pc, struct pt_regs * const regs,
+ 				unsigned long event, int is_kernel)
+ {
+-	struct oprofile_cpu_buffer * cpu_buf = &cpu_buffer[smp_processor_id()];
++	struct oprofile_cpu_buffer * cpu_buf = &__get_cpu_var(cpu_buffer);
+ 
+ 	if (!backtrace_depth) {
+ 		log_sample(cpu_buf, pc, is_kernel, event);
+@@ -254,13 +254,13 @@ void oprofile_add_sample(struct pt_regs 
+ 
+ void oprofile_add_pc(unsigned long pc, int is_kernel, unsigned long event)
+ {
+-	struct oprofile_cpu_buffer * cpu_buf = &cpu_buffer[smp_processor_id()];
++	struct oprofile_cpu_buffer * cpu_buf = &__get_cpu_var(cpu_buffer);
+ 	log_sample(cpu_buf, pc, is_kernel, event);
+ }
+ 
+ void oprofile_add_trace(unsigned long pc)
+ {
+-	struct oprofile_cpu_buffer * cpu_buf = &cpu_buffer[smp_processor_id()];
++	struct oprofile_cpu_buffer * cpu_buf = &__get_cpu_var(cpu_buffer);
+ 
+ 	if (!cpu_buf->tracing)
+ 		return;
+--- a/drivers/oprofile/cpu_buffer.h
++++ b/drivers/oprofile/cpu_buffer.h
+@@ -14,6 +14,7 @@
+ #include <linux/spinlock.h>
+ #include <linux/workqueue.h>
+ #include <linux/cache.h>
++#include <linux/sched.h>
+  
+ struct task_struct;
+  
+@@ -47,7 +48,7 @@ struct oprofile_cpu_buffer {
+ 	struct delayed_work work;
+ } ____cacheline_aligned;
+ 
+-extern struct oprofile_cpu_buffer cpu_buffer[];
++DECLARE_PER_CPU(struct oprofile_cpu_buffer, cpu_buffer);
+ 
+ void cpu_buffer_reset(struct oprofile_cpu_buffer * cpu_buf);
+ 
+--- a/drivers/oprofile/oprofile_stats.c
++++ b/drivers/oprofile/oprofile_stats.c
+@@ -23,7 +23,7 @@ void oprofile_reset_stats(void)
+ 	int i;
+  
+ 	for_each_possible_cpu(i) {
+-		cpu_buf = &cpu_buffer[i]; 
++		cpu_buf = &per_cpu(cpu_buffer, i);
+ 		cpu_buf->sample_received = 0;
+ 		cpu_buf->sample_lost_overflow = 0;
+ 		cpu_buf->backtrace_aborted = 0;
+@@ -49,7 +49,7 @@ void oprofile_create_stats_files(struct 
+ 		return;
+ 
+ 	for_each_possible_cpu(i) {
+-		cpu_buf = &cpu_buffer[i]; 
++		cpu_buf = &per_cpu(cpu_buffer, i);
+ 		snprintf(buf, 10, "cpu%d", i);
+ 		cpudir = oprofilefs_mkdir(sb, dir, buf);
+  
 
 -- 
 
