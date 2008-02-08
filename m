@@ -1,45 +1,32 @@
-Date: Fri, 8 Feb 2008 15:41:24 -0800 (PST)
+Date: Fri, 8 Feb 2008 15:42:40 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 0/6] MMU Notifiers V6
-In-Reply-To: <20080208233636.GG26564@sgi.com>
-Message-ID: <Pine.LNX.4.64.0802081540180.4291@schroedinger.engr.sgi.com>
-References: <20080208220616.089936205@sgi.com> <20080208142315.7fe4b95e.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0802081528070.4036@schroedinger.engr.sgi.com>
- <20080208233636.GG26564@sgi.com>
+Subject: Re: [RFC][PATCH 2/2] Explicitly retry hugepage allocations
+In-Reply-To: <20080208234031.GE27150@us.ibm.com>
+Message-ID: <Pine.LNX.4.64.0802081542300.4291@schroedinger.engr.sgi.com>
+References: <20080206230726.GF3477@us.ibm.com> <20080206231243.GG3477@us.ibm.com>
+ <Pine.LNX.4.64.0802061529480.22648@schroedinger.engr.sgi.com>
+ <20080208171132.GE15903@us.ibm.com> <Pine.LNX.4.64.0802081117340.1654@schroedinger.engr.sgi.com>
+ <20080208234031.GE27150@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, andrea@qumranet.com, avi@qumranet.com, izike@qumranet.com, kvm-devel@lists.sourceforge.net, a.p.zijlstra@chello.nl, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, general@lists.openfabrics.org
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: melgor@ie.ibm.com, apw@shadowen.org, agl@us.ibm.com, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 8 Feb 2008, Robin Holt wrote:
+On Fri, 8 Feb 2008, Nishanth Aravamudan wrote:
 
-> > > What about ib_umem_get()?
-> > 
-> > Ok. It pins using an elevated refcount. Same as XPmem right now. With that 
-> > we effectively pin a page (page migration will fail) but we will 
-> > continually be reclaiming the page and may repeatedly try to move it. We 
-> > have issues with XPmem causing too many pages to be pinned and thus the 
-> > OOM getting into weird behavior modes (OOM or stop lru scanning due to 
-> > all_reclaimable set).
-> > 
-> > An elevated refcount will also not be noticed by any of the schemes under 
-> > consideration to improve LRU scanning performance.
-> 
-> Christoph, I am not sure what you are saying here.  With v4 and later,
-> I thought we were able to use the rmap invalidation to remove the ref
-> count that XPMEM was holding and therefore be able to swapout.  Did I miss
-> something?  I agree the existing XPMEM does pin.  I hope we are not saying
-> the XPMEM based upon these patches will not be able to swap/migrate.
+> make higher order allocations coming from hugetlb.c use the __REPEAT
+> logic I'm trying to add. If the method seems good in general, then we
+> just need to mark other locations (SLUB allocation paths?) with
+> __GFP_REPEAT. When slub_min_order <= PAGE_ALLOC_COSTLY_ORDER, then we
+> shouldn't see any difference and when it is greater, we should hit the
+> logic I added. Does that seem reasonable to you? I think it's a separate
+> idea, though, and I'd prefer keeping it in a separate patch, if that's
+> ok with you.
 
-Correct.
-
-You missed the turn of the conversation to how ib_umem_get() works. 
-Currently it seems to pin the same way that the SLES10 XPmem works.
-
-
+Fine with me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
