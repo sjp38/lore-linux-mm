@@ -1,39 +1,67 @@
-Subject: Re: [git pull] more SLUB updates for 2.6.25
-References: <Pine.LNX.4.64.0802071755580.7473@schroedinger.engr.sgi.com>
-	<200802081812.22513.nickpiggin@yahoo.com.au>
-	<47AC04CD.9090407@cosmosbay.com>
-From: Andi Kleen <andi@firstfloor.org>
-Date: 08 Feb 2008 15:58:05 +0100
-In-Reply-To: <47AC04CD.9090407@cosmosbay.com>
-Message-ID: <87ve4z1on6.fsf@basil.nowhere.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m18GVZaA019239
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2008 11:31:35 -0500
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m18GVYAh230020
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2008 11:31:34 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m18GVY9B003911
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2008 11:31:34 -0500
+Subject: Re: [PATCH 1/3] hugetlb: numafy several functions
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <20080206231558.GI3477@us.ibm.com>
+References: <20080206231558.GI3477@us.ibm.com>
+Content-Type: text/plain
+Date: Fri, 08 Feb 2008 10:37:24 -0600
+Message-Id: <1202488644.11987.5.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@sgi.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: wli@holomorphy.com, lee.schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Eric Dumazet <dada1@cosmosbay.com> writes:
-> 
-> What about IRQ masking then ?
-> 
-> Many CPU pay high cost for cli/sti pair...
+On Wed, 2008-02-06 at 15:15 -0800, Nishanth Aravamudan wrote:
+> @@ -141,6 +149,18 @@ static void free_huge_page(struct page *page)
+>   * balanced by operating on them in a round-robin fashion.
+>   * Returns 1 if an adjustment was made.
+>   */
+> +static int adjust_pool_surplus_node(int delta, int nid)
+> +{
+> +	if (delta < 0 && !surplus_huge_pages_node[nid])
+> +		return 0;
+> +	if (delta > 0 && surplus_huge_pages_node[nid] >=
+> +					nr_huge_pages_node[nid])
+> +		return 0;
+> +	surplus_huge_pages += delta;
+> +	surplus_huge_pages_node[nid] += delta;
+> +	return 1;
+> +}
+> +
+>  static int adjust_pool_surplus(int delta)
+>  {
+>  	static int prev_nid;
+> @@ -152,19 +172,9 @@ static int adjust_pool_surplus(int delta)
+>  		nid = next_node(nid, node_online_map);
+>  		if (nid == MAX_NUMNODES)
+>  			nid = first_node(node_online_map);
+> -
+> -		/* To shrink on this node, there must be a surplus page */
+> -		if (delta < 0 && !surplus_huge_pages_node[nid])
+> -			continue;
+> -		/* Surplus cannot exceed the total number of pages */
+> -		if (delta > 0 && surplus_huge_pages_node[nid] >=
+> -						nr_huge_pages_node[nid])
+> -			continue;
 
-Many? In the x86 world only P4. On the other cores cli/sti (and even
-pushf ; cli ; popf) is reasonably fast.
+Unless I am misreading the diff, it seems the above comments were lost
+in translation.  I vote for preserving them :)  Otherwise this looks
+pretty good to me.
 
-> 
-> And SLAB/SLUB allocators, even if only used from process context, want
-> to disable/re-enable interrupts...
-> 
-> I understand kmalloc() want generic pools, but dedicated pools could
-> avoid this cli/sti
-
-While there are a lot of P4s around they are obsolete by now and I would
-advise against major redesigns for tuning obsolete CPUs.
-
--Andi
+-- 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
