@@ -1,123 +1,126 @@
-From: Christoph Lameter <clameter-sJ/iWh9BUns@public.gmane.org>
-Subject: [patch 0/6] MMU Notifiers V6
-Date: Fri, 08 Feb 2008 14:06:16 -0800
-Message-ID: <20080208220616.089936205@sgi.com>
+From: R S <srssum1ne@hotmail.com>
+Subject: [ofa-general] trying to get of all lists
+Date: Fri, 8 Feb 2008 16:21:37 -0800
+Message-ID: <BAY104-W10A5647720759A7DFC8EBFEC280@phx.gbl>
+References: <20080208220616.089936205@sgi.com>
+	<20080208142315.7fe4b95e.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0802081528070.4036@schroedinger.engr.sgi.com>
+	<20080208233636.GG26564@sgi.com>
+	<Pine.LNX.4.64.0802081540180.4291@schroedinger.engr.sgi.com>
+	<20080208234302.GH26564@sgi.com>
+	<20080208155641.2258ad2c.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0802081603430.4543@schroedinger.engr.sgi.com>
+	<adaprv70yyt.fsf@cisco.com>
+	<Pine.LNX.4.64.0802081614030.5115@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Return-path: <kvm-devel-bounces-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org>
-List-Unsubscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
-	<mailto:kvm-devel-request-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org?subject=unsubscribe>
-List-Archive: <http://sourceforge.net/mailarchive/forum.php?forum_name=kvm-devel>
-List-Post: <mailto:kvm-devel-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org>
-List-Help: <mailto:kvm-devel-request-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org?subject=help>
-List-Subscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
-	<mailto:kvm-devel-request-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org?subject=subscribe>
-Sender: kvm-devel-bounces-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org
-Errors-To: kvm-devel-bounces-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org
-To: akpm-de/tnXTf+JLsfHDXvbKv3WD2FQJk+8+b@public.gmane.org
-Cc: Andrea Arcangeli <andrea-atKUWr5tajBWk0Htik3J/w@public.gmane.org>, Peter Zijlstra <a.p.zijlstra-/NLkJaSkS4VmR6Xm/wNWPw@public.gmane.org>, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, steiner-sJ/iWh9BUns@public.gmane.org, linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Avi Kivity <avi-atKUWr5tajBWk0Htik3J/w@public.gmane.org>, kvm-devel-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org, daniel.blueman-xqY44rlHlBpWk0Htik3J/w@public.gmane.org, Robin Holt <holt-sJ/iWh9BUns@public.gmane.org>
+Content-Type: multipart/mixed; boundary="===============1910716770=="
+Return-path: <general-bounces@lists.openfabrics.org>
+In-Reply-To: <Pine.LNX.4.64.0802081614030.5115@schroedinger.engr.sgi.com>
+List-Unsubscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
+	<mailto:general-request@lists.openfabrics.org?subject=unsubscribe>
+List-Archive: <http://lists.openfabrics.org/pipermail/general>
+List-Post: <mailto:general@lists.openfabrics.org>
+List-Help: <mailto:general-request@lists.openfabrics.org?subject=help>
+List-Subscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
+	<mailto:general-request@lists.openfabrics.org?subject=subscribe>
+Mime-version: 1.0
+Sender: general-bounces@lists.openfabrics.org
+Errors-To: general-bounces@lists.openfabrics.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: andrea@qumranet.com, a.p.zijlstra@chello.nl, izike@qumranet.com, steiner@sgi.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, daniel.blueman@quadrics.com, holt@sgi.com, general@lists.openfabrics.org, akpm@linux-foundation.org, kvm-devel@lists.sourceforge.net
 List-Id: linux-mm.kvack.org
 
-This is a patchset implementing MMU notifier callbacks based on Andrea's
-earlier work. These are needed if Linux pages are referenced from something
-else than tracked by the rmaps of the kernel (an external MMU). MMU
-notifiers allow us to get rid of the page pinning for RDMA and various
-other purposes. It gets rid of the broken use of mlock for page pinning.
-(mlock really does *not* pin pages....)
+--===============1910716770==
+Content-Type: multipart/alternative;
+	boundary="_c649f4e0-ed06-4289-a4d7-018c07f30fe1_"
 
-More information on the rationale and the technical details can be found in
-the first patch and the README provided by that patch in
-Documentation/mmu_notifiers.
+--_c649f4e0-ed06-4289-a4d7-018c07f30fe1_
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-The known immediate users are
+unsubscribe
 
-KVM
-- Establishes a refcount to the page via get_user_pages().
-- External references are called spte.
-- Has page tables to track pages whose refcount was elevated but
-  no reverse maps.
+> Date: Fri, 8 Feb 2008 16:16:34 -0800> From: clameter@sgi.com> To: rdreier=
+@cisco.com> CC: akpm@linux-foundation.org; andrea@qumranet.com; a.p.zijlstr=
+a@chello.nl; linux-mm@kvack.org; izike@qumranet.com; steiner@sgi.com; linux=
+-kernel@vger.kernel.org; avi@qumranet.com; kvm-devel@lists.sourceforge.net;=
+ daniel.blueman@quadrics.com; holt@sgi.com; general@lists.openfabrics.org> =
+Subject: Re: [ofa-general] Re: [patch 0/6] MMU Notifiers V6> > On Fri, 8 Fe=
+b 2008, Roland Dreier wrote:> > > In general, this MMU notifier stuff will =
+only be useful to a subset of> > InfiniBand/RDMA hardware. Some adapters ar=
+e smart enough to handle> > changing the IO virtual -> bus/physical mapping=
+ on the fly, but some> > aren't. For the dumb adapters, I think the current=
+ ib_umem_get() is> > pretty close to as good as we can get: we have to keep=
+ the physical> > pages pinned for as long as the adapter is allowed to DMA =
+into the> > memory region.> > I thought the adaptor can always remove the m=
+apping by renegotiating > with the remote side? Even if its dumb then a cal=
+lback could notify the > driver that it may be required to tear down the ma=
+pping. We then hold the > pages until we get okay by the driver that the ma=
+pping has been removed.> > We could also let the unmapping fail if the driv=
+er indicates that the > mapping must stay.> --> To unsubscribe from this li=
+st: send the line "unsubscribe linux-kernel" in> the body of a message to m=
+ajordomo@vger.kernel.org> More majordomo info at http://vger.kernel.org/maj=
+ordomo-info.html> Please read the FAQ at http://www.tux.org/lkml/
+_________________________________________________________________
+Shed those extra pounds with MSN and The Biggest Loser!
+http://biggestloser.msn.com/=
 
-GRU
-- Simple additional hardware TLB (possibly covering multiple instances of
-  Linux)
-- Needs TLB shootdown when the VM unmaps pages.
-- Determines page address via follow_page (from interrupt context) but can
-  fall back to get_user_pages().
-- No page reference possible since no page status is kept..
+--_c649f4e0-ed06-4289-a4d7-018c07f30fe1_
+Content-Type: text/html; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-XPmem
-- Allows use of a processes memory by remote instances of Linux.
-- Provides its own reverse mappings to track remote pte.
-- Established refcounts on the exported pages.
-- Must sleep in order to wait for remote acks of ptes that are being
-  cleared.
+<html>
+<head>
+<style>
+.hmmessage P
+{
+margin:0px;
+padding:0px
+}
+body.hmmessage
+{
+FONT-SIZE: 10pt;
+FONT-FAMILY:Tahoma
+}
+</style>
+</head>
+<body class=3D'hmmessage'><BR><BR>unsubscribe<BR><BR>
+<HR id=3DstopSpelling>
+&gt; Date: Fri, 8 Feb 2008 16:16:34 -0800<BR>&gt; From: clameter@sgi.com<BR=
+>&gt; To: rdreier@cisco.com<BR>&gt; CC: akpm@linux-foundation.org; andrea@q=
+umranet.com; a.p.zijlstra@chello.nl; linux-mm@kvack.org; izike@qumranet.com=
+; steiner@sgi.com; linux-kernel@vger.kernel.org; avi@qumranet.com; kvm-deve=
+l@lists.sourceforge.net; daniel.blueman@quadrics.com; holt@sgi.com; general=
+@lists.openfabrics.org<BR>&gt; Subject: Re: [ofa-general] Re: [patch 0/6] M=
+MU Notifiers V6<BR>&gt; <BR>&gt; On Fri, 8 Feb 2008, Roland Dreier wrote:<B=
+R>&gt; <BR>&gt; &gt; In general, this MMU notifier stuff will only be usefu=
+l to a subset of<BR>&gt; &gt; InfiniBand/RDMA hardware. Some adapters are s=
+mart enough to handle<BR>&gt; &gt; changing the IO virtual -&gt; bus/physic=
+al mapping on the fly, but some<BR>&gt; &gt; aren't. For the dumb adapters,=
+ I think the current ib_umem_get() is<BR>&gt; &gt; pretty close to as good =
+as we can get: we have to keep the physical<BR>&gt; &gt; pages pinned for a=
+s long as the adapter is allowed to DMA into the<BR>&gt; &gt; memory region=
+.<BR>&gt; <BR>&gt; I thought the adaptor can always remove the mapping by r=
+enegotiating <BR>&gt; with the remote side? Even if its dumb then a callbac=
+k could notify the <BR>&gt; driver that it may be required to tear down the=
+ mapping. We then hold the <BR>&gt; pages until we get okay by the driver t=
+hat the mapping has been removed.<BR>&gt; <BR>&gt; We could also let the un=
+mapping fail if the driver indicates that the <BR>&gt; mapping must stay.<B=
+R>&gt; --<BR>&gt; To unsubscribe from this list: send the line "unsubscribe=
+ linux-kernel" in<BR>&gt; the body of a message to majordomo@vger.kernel.or=
+g<BR>&gt; More majordomo info at http://vger.kernel.org/majordomo-info.html=
+<BR>&gt; Please read the FAQ at http://www.tux.org/lkml/<BR><br /><hr />She=
+d those extra pounds with MSN and The Biggest Loser! <a href=3D'http://bigg=
+estloser.msn.com/' target=3D'_new'>Learn more.</a></body>
+</html>=
 
-Andrea's mmu_notifier #4 -> RFC V1
+--_c649f4e0-ed06-4289-a4d7-018c07f30fe1_--
 
-- Merge subsystem rmap based with Linux rmap based approach
-- Move Linux rmap based notifiers out of macro
-- Try to account for what locks are held while the notifiers are
-  called.
-- Develop a patch sequence that separates out the different types of
-  hooks so that we can review their use.
-- Avoid adding include to linux/mm_types.h
-- Integrate RCU logic suggested by Peter.
+--===============1910716770==
+Content-Type: text/plain; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-V1->V2:
-- Improve RCU support
-- Use mmap_sem for mmu_notifier register / unregister
-- Drop invalidate_page from COW, mm/fremap.c and mm/rmap.c since we
-  already have invalidate_range() callbacks there.
-- Clean compile for !MMU_NOTIFIER
-- Isolate filemap_xip strangeness into its own diff
-- Pass a the flag to invalidate_range to indicate if a spinlock
-  is held.
-- Add invalidate_all()
 
-V2->V3:
-- Further RCU fixes
-- Fixes from Andrea to fixup aging and move invalidate_range() in do_wp_page
-  and sys_remap_file_pages() after the pte clearing.
-
-V3->V4:
-- Drop locking and synchronize_rcu() on ->release since we know on release that
-  we are the only executing thread. This is also true for invalidate_all() so
-  we could drop off the mmu_notifier there early. Use hlist_del_init instead
-  of hlist_del_rcu.
-- Do the invalidation as begin/end pairs with the requirement that the driver
-  holds off new references in between.
-- Fixup filemap_xip.c
-- Figure out a potential way in which XPmem can deal with locks that are held.
-- Robin's patches to make the mmu_notifier logic manage the PageRmapExported bit.
-- Strip cc list down a bit.
-- Drop Peters new rcu list macro
-- Add description to the core patch
-
-V4->V5:
-- Provide missing callouts for mremap.
-- Provide missing callouts for copy_page_range.
-- Reduce mm_struct space to zero if !MMU_NOTIFIER by #ifdeffing out
-  structure contents.
-- Get rid of the invalidate_all() callback by moving ->release in place
-  of invalidate_all.
-- Require holding mmap_sem on register/unregister instead of acquiring it
-  ourselves. In some contexts where we want to register/unregister we are
-  already holding mmap_sem.
-- Split out the rmap support patch so that there is no need to apply
-  all patches for KVM and GRU.
-
-V5->V6:
-- Provide missing range callouts for mprotect
-- Fix do_wp_page control path sequencing
-- Clarify locking conventions
-- GRU and XPmem confirmed to work with this patchset.
-- Provide skeleton code for GRU/KVM type callback and for XPmem type.
-- Rework documentation and put it into Documentation/mmu_notifier.
-
--- 
-
--------------------------------------------------------------------------
-This SF.net email is sponsored by: Microsoft
-Defy all challenges. Microsoft(R) Visual Studio 2008.
-http://clk.atdmt.com/MRT/go/vse0120000070mrt/direct/01/
+--===============1910716770==--
