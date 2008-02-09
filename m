@@ -1,27 +1,31 @@
-Received: by wa-out-1112.google.com with SMTP id m33so925648wag.8
-        for <linux-mm@kvack.org>; Sat, 09 Feb 2008 02:48:26 -0800 (PST)
-Message-ID: <ce9e96720802090248j724e3abdkf6a2788cb1354626@mail.gmail.com>
-Date: Sat, 9 Feb 2008 16:18:26 +0530
-From: "Vedang - 1337 u|33r h4x0r" <ved.manerikar@gmail.com>
-Subject: reserving virtual addresses
+Message-ID: <47AD8DC6.30506@cosmosbay.com>
+Date: Sat, 09 Feb 2008 12:25:58 +0100
+From: Eric Dumazet <dada1@cosmosbay.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Subject: Re: [git pull] more SLUB updates for 2.6.25
+References: <Pine.LNX.4.64.0802071755580.7473@schroedinger.engr.sgi.com> <200802081812.22513.nickpiggin@yahoo.com.au> <47AC04CD.9090407@cosmosbay.com> <Pine.LNX.4.64.0802080008560.22689@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0802080008560.22689@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I have hardcoded virtual addresses in my code. Is there any way that I
-can insure that allocation of physical pages occurs only to this
-particular set of addreses?
+Christoph Lameter a ecrit :
+> On Fri, 8 Feb 2008, Eric Dumazet wrote:
+> 
+>> And SLAB/SLUB allocators, even if only used from process context, want to
+>> disable/re-enable interrupts...
+> 
+> Not any more..... The new fastpath does allow avoiding interrupt 
+> enable/disable and we will be hopefully able to increase the scope of that 
+> over time.
+> 
+> 
 
-get_vm_area() returns virtual area dynamically. This is not the
-scenario I desire.
-
-I have heard about reserving virtual addresses (at boot time, possibly
-modifying the kernel code) but I couldn't find any method to do this.
+Oh, I missed this new SLUB_FASTPATH stuff (not yet in net-2.6), thanks Christoph !
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
