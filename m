@@ -1,176 +1,59 @@
-References: <2f11576a0802090755n123c9b7dh26e0af6a2fef28af@mail.gmail.com>
-Message-Id: <CE520A17-98F2-4A08-82AB-C3D5061616A1@jonmasters.org>
-From: Jon Masters <jonathan@jonmasters.org>
-In-Reply-To: <2f11576a0802090755n123c9b7dh26e0af6a2fef28af@mail.gmail.com>
-Content-Type: text/plain;
-	charset=US-ASCII;
-	format=flowed;
-	delsp=yes
-Mime-Version: 1.0 (iPhone Mail 4A93)
-Subject: Re: [sample] mem_notify v6: usage example
+Received: by qb-out-0506.google.com with SMTP id e21so6828406qba.0
+        for <linux-mm@kvack.org>; Sat, 09 Feb 2008 08:33:50 -0800 (PST)
+Message-ID: <2f11576a0802090833h7a600ee8x87edb423cbbb5d79@mail.gmail.com>
+Date: Sun, 10 Feb 2008 01:33:49 +0900
+From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 0/8][for -mm] mem_notify v6
+In-Reply-To: <B846E82A-D513-40CD-A19C-B60653569269@jonmasters.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Date: Sat, 9 Feb 2008 11:07:09 -0500
+Content-Disposition: inline
+References: <2f11576a0802090719i3c08a41aj38504e854edbfeac@mail.gmail.com>
+	 <B846E82A-D513-40CD-A19C-B60653569269@jonmasters.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Jon Masters <jonathan@jonmasters.org>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Marcelo Tosatti <marcelo@kvack.org>, Daniel Spang <daniel.spang@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Pavel Machek <pavel@ucw.cz>, Al Boldi <a1426z@gawab.com>, Zan Lynx <zlynx@acm.org>
 List-ID: <linux-mm.kvack.org>
 
-This really needs to be triggered via a generic kernel event in the  
-final version - I picture glibc having a reservation API and having  
-generic support for freeing such reservations.
+Hi
 
-Jon
+> Interesting patch series (I am being yuppie and reading this thread
+> from my iPhone on a treadmill at the gym - so further comments later).
+> I think that this is broadly along the lines that I was thinking, but
+> this should be an RFC only patch series for now.
+
+sorry, I fixed at next post.
 
 
+> Some initial questions:
 
-On Feb 9, 2008, at 10:55, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com 
- > wrote:
+Thank you.
+welcome to any discussion.
 
-> this is usage example of /dev/mem_notify.
->
-> Daniel Spang create original version.
-> kosaki add fasync related code.
->
->
-> Signed-off-by: Daniel Spang <daniel.spang@gmail.com>
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->
-> ---
-> Documentation/mem_notify.c |  120 +++++++++++++++++++++++++++++++++++ 
-> ++++++++++
-> 1 file changed, 120 insertions(+)
->
-> Index: b/Documentation/mem_notify.c
-> ===================================================================
-> --- /dev/null    1970-01-01 00:00:00.000000000 +0000
-> +++ b/Documentation/mem_notify.c    2008-02-10 00:44:00.000000000  
-> +0900
-> @@ -0,0 +1,120 @@
-> +/*
-> + * Allocate 10 MB each second. Exit on notification.
-> + */
-> +
-> +#define _GNU_SOURCE
-> +
-> +#include <sys/mman.h>
-> +#include <fcntl.h>
-> +#include <stdio.h>
-> +#include <stdlib.h>
-> +#include <unistd.h>
-> +#include <string.h>
-> +#include <poll.h>
-> +#include <pthread.h>
-> +#include <errno.h>
-> +#include <signal.h>
-> +
-> +int count = 0;
-> +int size = 10;
-> +
-> +void *do_alloc()
-> +{
-> +        for(;;) {
-> +                int *buffer;
-> +                buffer = mmap(NULL,  size*1024*1024,
-> +                              PROT_READ | PROT_WRITE,
-> +                              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-> +                if (buffer == MAP_FAILED) {
-> +                        perror("mmap");
-> +                        exit(EXIT_FAILURE);
-> +                }
-> +                memset(buffer, 1 , size*1024*1024);
-> +
-> +                printf("-");
-> +                fflush(stdout);
-> +
-> +                count++;
-> +                sleep(1);
-> +        }
-> +}
-> +
-> +int wait_for_notification(struct pollfd *pfd)
-> +{
-> +        int ret;
-> +        read(pfd->fd, 0, 0);
-> +        ret = poll(pfd, 1, -1);              /* wake up when low  
-> memory */
-> +        if (ret == -1 && errno != EINTR) {
-> +                perror("poll");
-> +                exit(EXIT_FAILURE);
-> +        }
-> +        return ret;
-> +}
-> +
-> +void do_free()
-> +{
-> +    int fd;
-> +    struct pollfd pfd;
-> +
-> +        fd = open("/dev/mem_notify", O_RDONLY);
-> +        if (fd == -1) {
-> +                perror("open");
-> +                exit(EXIT_FAILURE);
-> +        }
-> +
-> +    pfd.fd = fd;
-> +        pfd.events = POLLIN;
-> +        for(;;)
-> +                if (wait_for_notification(&pfd) > 0) {
-> +                        printf("\nGot notification, allocated %d MB 
-> \n",
-> +                               size * count);
-> +                        exit(EXIT_SUCCESS);
-> +                }
-> +}
-> +
-> +void do_free_signal()
-> +{
-> +    int fd;
-> +    int flags;
-> +
-> +        fd = open("/dev/mem_notify", O_RDONLY);
-> +        if (fd == -1) {
-> +                perror("open");
-> +                exit(EXIT_FAILURE);
-> +        }
-> +
-> +    fcntl(fd, F_SETOWN, getpid());
-> +    fcntl(fd, F_SETSIG, SIGUSR1);
-> +
-> +    flags = fcntl(fd, F_GETFL);
-> +    fcntl(fd, F_SETFL, flags|FASYNC); /* when low memory, receive  
-> SIGUSR1 */
-> +
-> +    for(;;)
-> +        sleep(1);
-> +}
-> +
-> +
-> +void daniel_exit(int signo)
-> +{
-> +    printf("\nGot notification %d, allocated %d MB\n",
-> +           signo, size * count);
-> +    exit(EXIT_SUCCESS);
-> +
-> +}
-> +
-> +int main(int argc, char *argv[])
-> +{
-> +        pthread_t allocator;
-> +
-> +    if(argc == 2 && (strcmp(argv[1], "-sig") == 0)) {
-> +        printf("run signal mode\n");
-> +        signal(SIGUSR1, daniel_exit);
-> +        pthread_create(&allocator, NULL, do_alloc, NULL);
-> +        do_free_signal();
-> +    } else {
-> +        printf("run poll mode\n");
-> +        pthread_create(&allocator, NULL, do_alloc, NULL);
-> +        do_free();
-> +    }
-> +    return 0;
-> +}
->
+> Where is the netlink interface? Polling an FD is so last century :)
+
+to be honest, I don't know anyone use netlink and why hope receive
+low memory notify by netlink.
+
+poll() is old way, but it works good enough.
+
+and, netlink have a bit weak point.
+end up, netlink philosophy is read/write model.
+
+I afraid to many low-mem message queued in netlink buffer
+at under heavy pressure.
+it cause degrade memory pressure.
+
+
+> Still, it is good to start with some code - eventually we might just
+> have a full reservation API created. Rik and I and others have bounced
+> ideas around for a while and I hope we can pitch in. I will play with
+> these patches later.
+
+Great.
+Welcome to any idea and any discussion.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
