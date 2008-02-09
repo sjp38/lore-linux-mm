@@ -1,28 +1,39 @@
-Date: Fri, 8 Feb 2008 16:18:38 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 0/6] MMU Notifiers V6
-In-Reply-To: <20080208161248.506556b0.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0802081616530.5115@schroedinger.engr.sgi.com>
-References: <20080208220616.089936205@sgi.com> <20080208142315.7fe4b95e.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0802081528070.4036@schroedinger.engr.sgi.com>
- <20080208233636.GG26564@sgi.com> <Pine.LNX.4.64.0802081540180.4291@schroedinger.engr.sgi.com>
- <20080208234302.GH26564@sgi.com> <20080208155641.2258ad2c.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0802081603430.4543@schroedinger.engr.sgi.com>
- <20080208161248.506556b0.akpm@linux-foundation.org>
+Subject: Re: [ofa-general] Re: [patch 0/6] MMU Notifiers V6
+References: <20080208220616.089936205@sgi.com>
+	<20080208142315.7fe4b95e.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0802081528070.4036@schroedinger.engr.sgi.com>
+	<20080208233636.GG26564@sgi.com>
+	<Pine.LNX.4.64.0802081540180.4291@schroedinger.engr.sgi.com>
+	<20080208234302.GH26564@sgi.com>
+	<20080208155641.2258ad2c.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0802081603430.4543@schroedinger.engr.sgi.com>
+	<adaprv70yyt.fsf@cisco.com>
+	<Pine.LNX.4.64.0802081614030.5115@schroedinger.engr.sgi.com>
+From: Roland Dreier <rdreier@cisco.com>
+Date: Fri, 08 Feb 2008 16:22:41 -0800
+In-Reply-To: <Pine.LNX.4.64.0802081614030.5115@schroedinger.engr.sgi.com> (Christoph Lameter's message of "Fri, 8 Feb 2008 16:16:34 -0800 (PST)")
+Message-ID: <adalk5v0yi6.fsf@cisco.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Robin Holt <holt@sgi.com>, andrea@qumranet.com, avi@qumranet.com, izike@qumranet.com, kvm-devel@lists.sourceforge.net, a.p.zijlstra@chello.nl, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, general@lists.openfabrics.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: andrea@qumranet.com, a.p.zijlstra@chello.nl, izike@qumranet.com, steiner@sgi.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Andrew Morton <akpm@linux-foundation.org>, kvm-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 8 Feb 2008, Andrew Morton wrote:
+Of course we can always destroy the memory region but that would break
+the semantics that applications expect.  Basically an application can
+register some chunk of its memory and get a key that it can pass to a
+remote peer to let the remote peer operate on its memory via RDMA.
+And that memory region/key is expected to stay valid until there is an
+application-level operation to destroy it (or until the app crashes or
+gets killed, etc).
 
-> Quite possibly none of the infiniband developers even know about it..
+ > We could also let the unmapping fail if the driver indicates that the 
+ > mapping must stay.
 
-Well Andrea's initial approach was even featured on LWN a couple of 
-weeks back.
+That would of course work -- dumb adapters would just always fail,
+which might be inefficient.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
