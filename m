@@ -1,30 +1,42 @@
-Received: by qb-out-0506.google.com with SMTP id e21so6835328qba.0
-        for <linux-mm@kvack.org>; Sat, 09 Feb 2008 08:49:42 -0800 (PST)
-Message-ID: <2f11576a0802090849h1599c4a9jc21bf21c9e7cd947@mail.gmail.com>
-Date: Sun, 10 Feb 2008 01:49:41 +0900
+Received: by qb-out-0506.google.com with SMTP id e21so6871505qba.0
+        for <linux-mm@kvack.org>; Sat, 09 Feb 2008 10:11:23 -0800 (PST)
+Message-ID: <2f11576a0802091011r61da1d67q3b7b114f495d780a@mail.gmail.com>
+Date: Sun, 10 Feb 2008 03:11:22 +0900
 From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 0/8][for -mm] mem_notify v6
-In-Reply-To: <20080209114329.68820224@bree.surriel.com>
+Subject: Re: [PATCH 2.6.24-mm1] Mempolicy: silently restrict nodemask to allowed nodes V3
+In-Reply-To: <1202499913.5346.60.camel@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <2f11576a0802090719i3c08a41aj38504e854edbfeac@mail.gmail.com>
-	 <B846E82A-D513-40CD-A19C-B60653569269@jonmasters.org>
-	 <2f11576a0802090833h7a600ee8x87edb423cbbb5d79@mail.gmail.com>
-	 <20080209114329.68820224@bree.surriel.com>
+References: <20080202180536.F494.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <1202149243.5028.61.camel@localhost>
+	 <20080205163406.270B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <1202499913.5346.60.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Jon Masters <jonathan@jonmasters.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Marcelo Tosatti <marcelo@kvack.org>, Daniel Spang <daniel.spang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Pavel Machek <pavel@ucw.cz>, Al Boldi <a1426z@gawab.com>, Zan Lynx <zlynx@acm.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Paul Jackson <pj@sgi.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm <linux-mm@kvack.org>, torvalds@linux-foundation.org, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Rik
+Hi Lee-san
 
-> More importantly, all gtk+ programs, as well as most databases and other
-> system daemons have a poll() loop as their main loop.
+looks good for me.
+I'll test about the head of week and report it by another mail.
 
-not only gtk+, may be all modern GUI program :)
+Thanks!
+
+> Was "Re: [2.6.24 regression][BUGFIX] numactl --interleave=all doesn't
+> works on memoryless node."
+>
+> [Aside:  I noticed there were two slightly different distributions for
+> this topic.  I've unified the distribution lists w/o dropping anyone, I
+> think.  Apologies if you'd rather have been dropped...]
+>
+> Here's V3 of the patch, accomodating Kosaki Motohiro's suggestion for
+> folding contextualize_policy() into mpol_check_policy() [because my
+> "was_empty" argument "was ugly" ;-)].  It does seem to clean up the
+> code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
