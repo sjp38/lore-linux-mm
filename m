@@ -1,37 +1,40 @@
-Date: Sat, 9 Feb 2008 11:43:29 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH 0/8][for -mm] mem_notify v6
-Message-ID: <20080209114329.68820224@bree.surriel.com>
-In-Reply-To: <2f11576a0802090833h7a600ee8x87edb423cbbb5d79@mail.gmail.com>
-References: <2f11576a0802090719i3c08a41aj38504e854edbfeac@mail.gmail.com>
-	<B846E82A-D513-40CD-A19C-B60653569269@jonmasters.org>
-	<2f11576a0802090833h7a600ee8x87edb423cbbb5d79@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by qb-out-0506.google.com with SMTP id e21so6833962qba.0
+        for <linux-mm@kvack.org>; Sat, 09 Feb 2008 08:46:11 -0800 (PST)
+Message-ID: <2f11576a0802090846t7655e988pb1b712696cad1098@mail.gmail.com>
+Date: Sun, 10 Feb 2008 01:46:06 +0900
+From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [sample] mem_notify v6: usage example
+In-Reply-To: <CE520A17-98F2-4A08-82AB-C3D5061616A1@jonmasters.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <2f11576a0802090755n123c9b7dh26e0af6a2fef28af@mail.gmail.com>
+	 <CE520A17-98F2-4A08-82AB-C3D5061616A1@jonmasters.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Jon Masters <jonathan@jonmasters.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Marcelo Tosatti <marcelo@kvack.org>, Daniel Spang <daniel.spang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Pavel Machek <pavel@ucw.cz>, Al Boldi <a1426z@gawab.com>, Zan Lynx <zlynx@acm.org>
+To: Jon Masters <jonathan@jonmasters.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Marcelo Tosatti <marcelo@kvack.org>, Daniel Spang <daniel.spang@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Pavel Machek <pavel@ucw.cz>, Al Boldi <a1426z@gawab.com>, Zan Lynx <zlynx@acm.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 10 Feb 2008 01:33:49 +0900
-"KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com> wrote:
+Hi Jon
 
-> > Where is the netlink interface? Polling an FD is so last century :)
-> 
-> to be honest, I don't know anyone use netlink and why hope receive
-> low memory notify by netlink.
-> 
-> poll() is old way, but it works good enough.
+> This really needs to be triggered via a generic kernel event in the
+> final version - I picture glibc having a reservation API and having
+> generic support for freeing such reservations.
 
-More importantly, all gtk+ programs, as well as most databases and other
-system daemons have a poll() loop as their main loop.
+to be honest, I doubt idea of generic reservation framework.
 
-A file descriptor fits that main loop perfectly.
+end up, we hope drop the application cache, not also dataless memory.
+but, automatically drop mechanism only able to drop dataless memory.
 
--- 
-All rights reversed.
+and, many application have own memory management subsystem.
+I afraid to nobody use too complex framework.
+
+What do you think it?
+I hope see your API. please post it.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
