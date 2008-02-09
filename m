@@ -1,9 +1,9 @@
-Received: by py-out-1112.google.com with SMTP id f47so4291771pye.20
-        for <linux-mm@kvack.org>; Sat, 09 Feb 2008 07:28:12 -0800 (PST)
-Message-ID: <2f11576a0802090728x3e4e429dgcdceefd12213a987@mail.gmail.com>
-Date: Sun, 10 Feb 2008 00:28:11 +0900
+Received: by qb-out-0506.google.com with SMTP id e21so6811247qba.0
+        for <linux-mm@kvack.org>; Sat, 09 Feb 2008 07:55:54 -0800 (PST)
+Message-ID: <2f11576a0802090755n123c9b7dh26e0af6a2fef28af@mail.gmail.com>
+Date: Sun, 10 Feb 2008 00:55:54 +0900
 From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 8/8][for -mm] mem_notify v6: support fasync feature
+Subject: [sample] mem_notify v6: usage example
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
@@ -14,202 +14,144 @@ To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: kosaki.motohiro@jp.fujitsu.com, Marcelo Tosatti <marcelo@kvack.org>, Daniel Spang <daniel.spang@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-fsdevel@vger.kernel.org, Pavel Machek <pavel@ucw.cz>, Al Boldi <a1426z@gawab.com>, Jon Masters <jonathan@jonmasters.org>, Zan Lynx <zlynx@acm.org>
 List-ID: <linux-mm.kvack.org>
 
-implement FASYNC capability to /dev/mem_notify.
+this is usage example of /dev/mem_notify.
 
-<usage example>
-        fd = open("/dev/mem_notify", O_RDONLY);
-
-	fcntl(fd, F_SETOWN, getpid());
-	fcntl(fd, F_SETSIG, SIGUSR1);
-
-	flags = fcntl(fd, F_GETFL);
-	fcntl(fd, F_SETFL, flags|FASYNC);  /* when low memory, receive SIGUSR1 */
-</usage example>
+Daniel Spang create original version.
+kosaki add fasync related code.
 
 
-ChangeLog
-	v5 -> v6:
-	   o rewrite usage example
-	   o cleanups number of wakeup tasks calculation.	
-
-	v5:  new
-
+Signed-off-by: Daniel Spang <daniel.spang@gmail.com>
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 ---
- mm/mem_notify.c |  109 +++++++++++++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 104 insertions(+), 5 deletions(-)
+ Documentation/mem_notify.c |  120 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 120 insertions(+)
 
-Index: b/mm/mem_notify.c
+Index: b/Documentation/mem_notify.c
 ===================================================================
---- a/mm/mem_notify.c	2008-02-03 20:37:25.000000000 +0900
-+++ b/mm/mem_notify.c	2008-02-03 20:48:04.000000000 +0900
-@@ -24,18 +24,58 @@
- #define MAX_WAKEUP_TASKS (100)
-
- struct mem_notify_file_info {
--	unsigned long last_proc_notify;
-+	unsigned long     last_proc_notify;
-+	struct file      *file;
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/Documentation/mem_notify.c	2008-02-10 00:44:00.000000000 +0900
+@@ -0,0 +1,120 @@
++/*
++ * Allocate 10 MB each second. Exit on notification.
++ */
 +
-+	/* for fasync */
-+	struct list_head  fa_list;
-+	int	          fa_fd;
- };
-
- static DECLARE_WAIT_QUEUE_HEAD(mem_wait);
- static atomic_long_t nr_under_memory_pressure_zones = ATOMIC_LONG_INIT(0);
- static atomic_t nr_watcher_task = ATOMIC_INIT(0);
-+static LIST_HEAD(mem_notify_fasync_list);
-+static DEFINE_SPINLOCK(mem_notify_fasync_lock);
-+static atomic_t nr_fasync_task = ATOMIC_INIT(0);
-
- atomic_long_t last_mem_notify = ATOMIC_LONG_INIT(INITIAL_JIFFIES);
-
-+static void mem_notify_kill_fasync_nr(int nr)
++#define _GNU_SOURCE
++
++#include <sys/mman.h>
++#include <fcntl.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <unistd.h>
++#include <string.h>
++#include <poll.h>
++#include <pthread.h>
++#include <errno.h>
++#include <signal.h>
++
++int count = 0;
++int size = 10;
++
++void *do_alloc()
 +{
-+	struct mem_notify_file_info *iter, *saved_iter;
-+	LIST_HEAD(l_fired);
++        for(;;) {
++                int *buffer;
++                buffer = mmap(NULL,  size*1024*1024,
++                              PROT_READ | PROT_WRITE,
++                              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++                if (buffer == MAP_FAILED) {
++                        perror("mmap");
++                        exit(EXIT_FAILURE);
++                }
++                memset(buffer, 1 , size*1024*1024);
 +
-+	if (!nr)
-+		return;
++                printf("-");
++                fflush(stdout);
 +
-+	spin_lock(&mem_notify_fasync_lock);
-+
-+	list_for_each_entry_safe_reverse(iter, saved_iter,
-+					 &mem_notify_fasync_list,
-+					 fa_list) {
-+		struct fown_struct *fown;
-+
-+		fown = &iter->file->f_owner;
-+		send_sigio(fown, iter->fa_fd, POLL_IN);
-+
-+		list_del(&iter->fa_list);
-+		list_add(&iter->fa_list, &l_fired);
-+		if (!--nr)
-+			break;
-+	}
-+
-+	/* rotate moving for FIFO wakeup */
-+	list_splice(&l_fired, &mem_notify_fasync_list);
-+
-+	spin_unlock(&mem_notify_fasync_lock);
++                count++;
++                sleep(1);
++        }
 +}
 +
- void __memory_pressure_notify(struct zone *zone, int pressure)
- {
- 	int nr_wakeup;
-+	int nr_poll_wakeup = 0;
-+	int nr_fasync_wakeup = 0;
- 	int flags;
-
- 	spin_lock_irqsave(&mem_wait.lock, flags);
-@@ -48,6 +88,8 @@ void __memory_pressure_notify(struct zon
-
- 	if (pressure) {
- 		int nr_watcher = atomic_read(&nr_watcher_task);
-+		int nr_fasync_wait_tasks = atomic_read(&nr_fasync_task);
-+		int nr_poll_wait_tasks = nr_watcher - nr_fasync_wait_tasks;
-
- 		atomic_long_set(&last_mem_notify, jiffies);
- 		if (!nr_watcher)
-@@ -57,10 +99,27 @@ void __memory_pressure_notify(struct zon
- 		if (unlikely(nr_wakeup > MAX_WAKEUP_TASKS))
- 			nr_wakeup = MAX_WAKEUP_TASKS;
-
--		wake_up_locked_nr(&mem_wait, nr_wakeup);
-+		/*                                               nr_wakeup
-+		       nr_fasync_wakeup = nr_fasync_wait_taks x ------------
-+								 nr_watcher
-+		*/
-+		nr_fasync_wakeup = DIV_ROUND_UP(nr_fasync_wait_tasks *
-+						nr_wakeup, nr_watcher);
-+		if (unlikely(nr_fasync_wakeup > nr_fasync_wait_tasks))
-+			nr_fasync_wakeup = nr_fasync_wait_tasks;
-+
-+		nr_poll_wakeup = DIV_ROUND_UP(nr_poll_wait_tasks *
-+					      nr_wakeup, nr_watcher);
-+		if (unlikely(nr_poll_wakeup > nr_poll_wait_tasks))
-+			nr_poll_wakeup = nr_poll_wait_tasks;
-+
-+		wake_up_locked_nr(&mem_wait, nr_poll_wakeup);
- 	}
- out:
- 	spin_unlock_irqrestore(&mem_wait.lock, flags);
-+
-+	if (nr_fasync_wakeup)
-+		mem_notify_kill_fasync_nr(nr_fasync_wakeup);
- }
-
- static int mem_notify_open(struct inode *inode, struct file *file)
-@@ -75,6 +134,9 @@ static int mem_notify_open(struct inode
- 	}
-
- 	info->last_proc_notify = INITIAL_JIFFIES;
-+	INIT_LIST_HEAD(&info->fa_list);
-+	info->file = file;
-+	info->fa_fd = -1;
- 	file->private_data = info;
- 	atomic_inc(&nr_watcher_task);
- out:
-@@ -83,7 +145,16 @@ out:
-
- static int mem_notify_release(struct inode *inode, struct file *file)
- {
--	kfree(file->private_data);
-+	struct mem_notify_file_info *info = file->private_data;
-+
-+	spin_lock(&mem_notify_fasync_lock);
-+	if (!list_empty(&info->fa_list)) {
-+		list_del(&info->fa_list);
-+		atomic_dec(&nr_fasync_task);
-+	}
-+	spin_unlock(&mem_notify_fasync_lock);
-+
-+	kfree(info);
- 	atomic_dec(&nr_watcher_task);
- 	return 0;
- }
-@@ -114,9 +185,37 @@ out:
- 	return retval;
- }
-
-+static int mem_notify_fasync(int fd, struct file *filp, int on)
++int wait_for_notification(struct pollfd *pfd)
 +{
-+	struct mem_notify_file_info *info = filp->private_data;
-+	int result = 0;
++        int ret;
++        read(pfd->fd, 0, 0);
++        ret = poll(pfd, 1, -1);              /* wake up when low memory */
++        if (ret == -1 && errno != EINTR) {
++                perror("poll");
++                exit(EXIT_FAILURE);
++        }
++        return ret;
++}
 +
-+	spin_lock(&mem_notify_fasync_lock);
-+	if (on) {
-+		if (list_empty(&info->fa_list)) {
-+			info->fa_fd = fd;
-+			list_add(&info->fa_list, &mem_notify_fasync_list);
-+			result = 1;
-+		} else {
-+			info->fa_fd = fd;
-+		}
++void do_free()
++{
++	int fd;
++	struct pollfd pfd;
++
++        fd = open("/dev/mem_notify", O_RDONLY);
++        if (fd == -1) {
++                perror("open");
++                exit(EXIT_FAILURE);
++        }
++
++	pfd.fd = fd;
++        pfd.events = POLLIN;
++        for(;;)
++                if (wait_for_notification(&pfd) > 0) {
++                        printf("\nGot notification, allocated %d MB\n",
++                               size * count);
++                        exit(EXIT_SUCCESS);
++                }
++}
++
++void do_free_signal()
++{
++	int fd;
++	int flags;
++
++        fd = open("/dev/mem_notify", O_RDONLY);
++        if (fd == -1) {
++                perror("open");
++                exit(EXIT_FAILURE);
++        }
++
++	fcntl(fd, F_SETOWN, getpid());
++	fcntl(fd, F_SETSIG, SIGUSR1);
++
++	flags = fcntl(fd, F_GETFL);
++	fcntl(fd, F_SETFL, flags|FASYNC); /* when low memory, receive SIGUSR1 */
++
++	for(;;)
++		sleep(1);
++}
++
++
++void daniel_exit(int signo)
++{
++	printf("\nGot notification %d, allocated %d MB\n",
++	       signo, size * count);
++	exit(EXIT_SUCCESS);
++
++}
++
++int main(int argc, char *argv[])
++{
++        pthread_t allocator;
++
++	if(argc == 2 && (strcmp(argv[1], "-sig") == 0)) {
++		printf("run signal mode\n");
++		signal(SIGUSR1, daniel_exit);
++		pthread_create(&allocator, NULL, do_alloc, NULL);
++		do_free_signal();
 +	} else {
-+		if (!list_empty(&info->fa_list)) {
-+			list_del_init(&info->fa_list);
-+			info->fa_fd = -1;
-+			result = -1;
-+		}
++		printf("run poll mode\n");
++		pthread_create(&allocator, NULL, do_alloc, NULL);
++		do_free();
 +	}
-+	if (result != 0)
-+		atomic_add(result, &nr_fasync_task);
-+	spin_unlock(&mem_notify_fasync_lock);
-+	return abs(result);
++	return 0;
 +}
-+
- struct file_operations mem_notify_fops = {
--	.open = mem_notify_open,
-+	.open    = mem_notify_open,
- 	.release = mem_notify_release,
--	.poll = mem_notify_poll,
-+	.poll    = mem_notify_poll,
-+	.fasync  = mem_notify_fasync,
- };
- EXPORT_SYMBOL(mem_notify_fops);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
