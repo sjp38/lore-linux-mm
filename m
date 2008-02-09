@@ -1,9 +1,9 @@
-Received: by py-out-1112.google.com with SMTP id f47so4290535pye.20
-        for <linux-mm@kvack.org>; Sat, 09 Feb 2008 07:23:37 -0800 (PST)
-Message-ID: <2f11576a0802090723k42c5b383p76cee418c8d921b6@mail.gmail.com>
-Date: Sun, 10 Feb 2008 00:23:36 +0900
+Received: by py-out-1112.google.com with SMTP id f47so4290795pye.20
+        for <linux-mm@kvack.org>; Sat, 09 Feb 2008 07:24:29 -0800 (PST)
+Message-ID: <2f11576a0802090724s679258c4g7414e0a6983f4706@mail.gmail.com>
+Date: Sun, 10 Feb 2008 00:24:28 +0900
 From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 3/8][for -mm] mem_notify v6: introduce /dev/mem_notify new device (the core of this patch series)
+Subject: [PATCH 4/8][for -mm] mem_notify v6: memory_pressure_notify() caller
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
@@ -14,296 +14,151 @@ To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: kosaki.motohiro@jp.fujitsu.com, Marcelo Tosatti <marcelo@kvack.org>, Daniel Spang <daniel.spang@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-fsdevel@vger.kernel.org, Pavel Machek <pavel@ucw.cz>, Al Boldi <a1426z@gawab.com>, Jon Masters <jonathan@jonmasters.org>, Zan Lynx <zlynx@acm.org>
 List-ID: <linux-mm.kvack.org>
 
-the core of this patch series.
-add /dev/mem_notify device for notification low memory to user process.
+the notification point to happen whenever the VM moves an
+anonymous page to the inactive list - this is a pretty good indication
+that there are unused anonymous pages present which will be very likely
+swapped out soon.
 
-<usage examle>
+and, It is judged out of trouble at the fllowing situations.
+ o memory pressure decrease and stop moves an anonymous page to the
+inactive list.
+ o free pages increase than (pages_high+lowmem_reserve)*2.
 
-        fd = open("/dev/mem_notify", O_RDONLY);
-        if (fd < 0) {
-                exit(1);
-        }
-        pollfds.fd = fd;
-        pollfds.events = POLLIN;
-        pollfds.revents = 0;
-	err = poll(&pollfds, 1, -1); // wake up at low memory
 
-        ...
-</usage example>
-
-ChangeLog
-     v5 -> v6:
-         o improve number of wakeup tasks fomula when task is a few.
-
+ChangeLog:
+	v5: add out of trouble notify to exit of balance_pgdat().
 
 
 Signed-off-by: Marcelo Tosatti <marcelo@kvack.org>
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 ---
- Documentation/devices.txt  |    1
- drivers/char/mem.c         |    5 +
- include/linux/mem_notify.h |   42 +++++++++++++++
- include/linux/mmzone.h     |    1
- mm/Makefile                |    2
- mm/mem_notify.c            |  123 +++++++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c            |    1
- 7 files changed, 174 insertions(+), 1 deletion(-)
+ mm/page_alloc.c |   12 ++++++++++++
+ mm/vmscan.c     |   26 ++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+)
 
-Index: b/drivers/char/mem.c
+Index: b/mm/vmscan.c
 ===================================================================
---- a/drivers/char/mem.c	2008-02-03 20:59:43.000000000 +0900
-+++ b/drivers/char/mem.c	2008-02-03 21:00:24.000000000 +0900
-@@ -26,6 +26,7 @@
- #include <linux/bootmem.h>
- #include <linux/splice.h>
- #include <linux/pfn.h>
+--- a/mm/vmscan.c	2008-01-23 22:06:08.000000000 +0900
++++ b/mm/vmscan.c	2008-01-23 22:07:57.000000000 +0900
+@@ -39,6 +39,7 @@
+ #include <linux/kthread.h>
+ #include <linux/freezer.h>
+ #include <linux/memcontrol.h>
 +#include <linux/mem_notify.h>
 
- #include <asm/uaccess.h>
- #include <asm/io.h>
-@@ -869,6 +870,9 @@ static int memory_open(struct inode * in
- 			filp->f_op = &oldmem_fops;
- 			break;
- #endif
-+		case 13:
-+			filp->f_op = &mem_notify_fops;
-+			break;
- 		default:
- 			return -ENXIO;
+ #include <asm/tlbflush.h>
+ #include <asm/div64.h>
+@@ -1089,10 +1090,14 @@ static void shrink_active_list(unsigned
+ 	struct page *page;
+ 	struct pagevec pvec;
+ 	int reclaim_mapped = 0;
++	bool inactivated_anon = 0;
+
+ 	if (sc->may_swap)
+ 		reclaim_mapped = calc_reclaim_mapped(sc, zone, priority);
+
++	if (!reclaim_mapped)
++		memory_pressure_notify(zone, 0);
++
+ 	lru_add_drain();
+ 	spin_lock_irq(&zone->lru_lock);
+ 	pgmoved = sc->isolate_pages(nr_pages, &l_hold, &pgscanned, sc->order,
+@@ -1116,6 +1121,13 @@ static void shrink_active_list(unsigned
+ 			if (!reclaim_mapped ||
+ 			    (total_swap_pages == 0 && PageAnon(page)) ||
+ 			    page_referenced(page, 0, sc->mem_cgroup)) {
++				/* deal with the case where there is no
++				 * swap but an anonymous page would be
++				 * moved to the inactive list.
++				 */
++				if (!total_swap_pages && reclaim_mapped &&
++				    PageAnon(page))
++					inactivated_anon = 1;
+ 				list_add(&page->lru, &l_active);
+ 				continue;
+ 			}
+@@ -1123,8 +1135,12 @@ static void shrink_active_list(unsigned
+ 			list_add(&page->lru, &l_active);
+ 			continue;
+ 		}
++		if (PageAnon(page))
++			inactivated_anon = 1;
+ 		list_add(&page->lru, &l_inactive);
  	}
-@@ -901,6 +905,7 @@ static const struct {
- #ifdef CONFIG_CRASH_DUMP
- 	{12,"oldmem",    S_IRUSR | S_IWUSR | S_IRGRP, &oldmem_fops},
- #endif
-+	{13, "mem_notify", S_IRUGO, &mem_notify_fops},
- };
++	if (inactivated_anon)
++		memory_pressure_notify(zone, 1);
 
- static struct class *mem_class;
-Index: b/include/linux/mem_notify.h
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/include/linux/mem_notify.h	2008-02-03 21:01:41.000000000 +0900
-@@ -0,0 +1,42 @@
-+/*
-+ * Notify applications of memory pressure via /dev/mem_notify
-+ *
-+ * Copyright (C) 2008 Marcelo Tosatti <marcelo@kvack.org>,
-+ *                    KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-+ *
-+ * Released under the GPL, see the file COPYING for details.
-+ */
-+
-+#ifndef _LINUX_MEM_NOTIFY_H
-+#define _LINUX_MEM_NOTIFY_H
-+
-+#define MEM_NOTIFY_FREQ (HZ/5)
-+
-+extern atomic_long_t last_mem_notify;
-+extern struct file_operations mem_notify_fops;
-+
-+extern void __memory_pressure_notify(struct zone *zone, int pressure);
-+
-+static inline void memory_pressure_notify(struct zone *zone, int pressure)
-+{
-+	unsigned long target;
-+	unsigned long pages_high, pages_free, pages_reserve;
-+
-+	if (pressure) {
-+		target = atomic_long_read(&last_mem_notify) + MEM_NOTIFY_FREQ;
-+		if (likely(time_before(jiffies, target)))
-+			return;
-+
-+		pages_high = zone->pages_high;
-+		pages_free = zone_page_state(zone, NR_FREE_PAGES);
-+		pages_reserve = zone->lowmem_reserve[MAX_NR_ZONES-1];
-+		if (unlikely(pages_free > (pages_high+pages_reserve)*2))
-+			return;
-+
-+	} else if (likely(!zone->mem_notify_status))
-+		return;
-+
-+	__memory_pressure_notify(zone, pressure);
-+}
-+
-+#endif /* _LINUX_MEM_NOTIFY_H */
-Index: b/include/linux/mmzone.h
-===================================================================
---- a/include/linux/mmzone.h	2008-02-03 20:59:43.000000000 +0900
-+++ b/include/linux/mmzone.h	2008-02-03 20:59:46.000000000 +0900
-@@ -283,6 +283,7 @@ struct zone {
- 	 */
- 	int prev_priority;
+ 	pagevec_init(&pvec, 1);
+ 	pgmoved = 0;
+@@ -1158,6 +1174,8 @@ static void shrink_active_list(unsigned
+ 		pagevec_strip(&pvec);
+ 		spin_lock_irq(&zone->lru_lock);
+ 	}
++	if (!reclaim_mapped)
++		memory_pressure_notify(zone, 0);
 
-+	int mem_notify_status;
+ 	pgmoved = 0;
+ 	while (!list_empty(&l_active)) {
+@@ -1659,6 +1677,14 @@ out:
+ 		goto loop_again;
+ 	}
 
- 	ZONE_PADDING(_pad2_)
- 	/* Rarely used or read-mostly fields */
-Index: b/mm/Makefile
-===================================================================
---- a/mm/Makefile	2008-02-03 20:59:43.000000000 +0900
-+++ b/mm/Makefile	2008-02-03 20:59:46.000000000 +0900
-@@ -11,7 +11,7 @@ obj-y			:= bootmem.o filemap.o mempool.o
- 			   page_alloc.o page-writeback.o pdflush.o \
- 			   readahead.o swap.o truncate.o vmscan.o \
- 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
--			   page_isolation.o $(mmu-y)
-+			   page_isolation.o mem_notify.o $(mmu-y)
-
- obj-$(CONFIG_PROC_PAGE_MONITOR) += pagewalk.o
- obj-$(CONFIG_BOUNCE)	+= bounce.o
-Index: b/mm/mem_notify.c
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/mm/mem_notify.c	2008-02-03 21:02:30.000000000 +0900
-@@ -0,0 +1,123 @@
-+/*
-+ * Notify applications of memory pressure via /dev/mem_notify
-+ *
-+ * Copyright (C) 2008 Marcelo Tosatti <marcelo@kvack.org>,
-+ *                    KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-+ *
-+ * Released under the GPL, see the file COPYING for details.
-+ */
++	for (i = pgdat->nr_zones - 1; i >= 0; i--) {
++		struct zone *zone = pgdat->node_zones + i;
 +
-+#include <linux/module.h>
-+#include <linux/fs.h>
-+#include <linux/wait.h>
-+#include <linux/poll.h>
-+#include <linux/timer.h>
-+#include <linux/spinlock.h>
-+#include <linux/mm.h>
-+#include <linux/vmstat.h>
-+#include <linux/percpu.h>
-+#include <linux/timer.h>
-+#include <linux/mem_notify.h>
-+
-+#include <asm/atomic.h>
-+
-+#define MAX_PROC_WAKEUP_GUARD  (10*HZ)
-+#define MAX_WAKEUP_TASKS (100)
-+
-+struct mem_notify_file_info {
-+	unsigned long last_proc_notify;
-+};
-+
-+static DECLARE_WAIT_QUEUE_HEAD(mem_wait);
-+static atomic_long_t nr_under_memory_pressure_zones = ATOMIC_LONG_INIT(0);
-+static atomic_t nr_watcher_task = ATOMIC_INIT(0);
-+
-+atomic_long_t last_mem_notify = ATOMIC_LONG_INIT(INITIAL_JIFFIES);
-+
-+void __memory_pressure_notify(struct zone *zone, int pressure)
-+{
-+	int nr_wakeup;
-+	int flags;
-+
-+	spin_lock_irqsave(&mem_wait.lock, flags);
-+
-+	if (pressure != zone->mem_notify_status) {
-+		long val = pressure ? 1 : -1;
-+		atomic_long_add(val, &nr_under_memory_pressure_zones);
-+		zone->mem_notify_status = pressure;
++		if (!populated_zone(zone))
++			continue;
++		memory_pressure_notify(zone, 0);
 +	}
 +
-+	if (pressure) {
-+		int nr_watcher = atomic_read(&nr_watcher_task);
-+
-+		atomic_long_set(&last_mem_notify, jiffies);
-+		if (!nr_watcher)
-+			goto out;
-+
-+		nr_wakeup = (nr_watcher >> 4) + 1;
-+		if (unlikely(nr_wakeup > MAX_WAKEUP_TASKS))
-+			nr_wakeup = MAX_WAKEUP_TASKS;
-+
-+		wake_up_locked_nr(&mem_wait, nr_wakeup);
-+	}
-+out:
-+	spin_unlock_irqrestore(&mem_wait.lock, flags);
-+}
-+
-+static int mem_notify_open(struct inode *inode, struct file *file)
-+{
-+	struct mem_notify_file_info *info;
-+	int    err = 0;
-+
-+	info = kmalloc(sizeof(*info), GFP_KERNEL);
-+	if (!info) {
-+		err = -ENOMEM;
-+		goto out;
-+	}
-+
-+	info->last_proc_notify = INITIAL_JIFFIES;
-+	file->private_data = info;
-+	atomic_inc(&nr_watcher_task);
-+out:
-+	return err;
-+}
-+
-+static int mem_notify_release(struct inode *inode, struct file *file)
-+{
-+	kfree(file->private_data);
-+	atomic_dec(&nr_watcher_task);
-+	return 0;
-+}
-+
-+static unsigned int mem_notify_poll(struct file *file, poll_table *wait)
-+{
-+	struct mem_notify_file_info *info = file->private_data;
-+	unsigned long now = jiffies;
-+	unsigned long timeout;
-+	unsigned int retval = 0;
-+	unsigned long guard_time;
-+
-+	poll_wait_exclusive(file, &mem_wait, wait);
-+
-+	guard_time = min_t(unsigned long,
-+			   MEM_NOTIFY_FREQ * atomic_read(&nr_watcher_task),
-+			   MAX_PROC_WAKEUP_GUARD);
-+	timeout = info->last_proc_notify + guard_time;
-+	if (time_before(now, timeout))
-+		goto out;
-+
-+	if (atomic_long_read(&nr_under_memory_pressure_zones) != 0) {
-+		info->last_proc_notify = now;
-+		retval = POLLIN;
-+	}
-+
-+out:
-+	return retval;
-+}
-+
-+struct file_operations mem_notify_fops = {
-+	.open = mem_notify_open,
-+	.release = mem_notify_release,
-+	.poll = mem_notify_poll,
-+};
-+EXPORT_SYMBOL(mem_notify_fops);
+ 	return nr_reclaimed;
+ }
+
 Index: b/mm/page_alloc.c
 ===================================================================
---- a/mm/page_alloc.c	2008-02-03 20:59:43.000000000 +0900
-+++ b/mm/page_alloc.c	2008-02-03 21:01:43.000000000 +0900
-@@ -3458,6 +3458,7 @@ static void __meminit free_area_init_cor
- 		zone->zone_pgdat = pgdat;
+--- a/mm/page_alloc.c	2008-01-23 22:06:08.000000000 +0900
++++ b/mm/page_alloc.c	2008-01-23 23:09:32.000000000 +0900
+@@ -44,6 +44,7 @@
+ #include <linux/fault-inject.h>
+ #include <linux/page-isolation.h>
+ #include <linux/memcontrol.h>
++#include <linux/mem_notify.h>
 
- 		zone->prev_priority = DEF_PRIORITY;
-+		zone->mem_notify_status = 0;
+ #include <asm/tlbflush.h>
+ #include <asm/div64.h>
+@@ -435,6 +436,8 @@ static inline void __free_one_page(struc
+ 	unsigned long page_idx;
+ 	int order_size = 1 << order;
+ 	int migratetype = get_pageblock_migratetype(page);
++	unsigned long prev_free;
++	unsigned long notify_threshold;
 
- 		zone_pcp_init(zone);
- 		INIT_LIST_HEAD(&zone->active_list);
-Index: b/Documentation/devices.txt
-===================================================================
---- a/Documentation/devices.txt	2008-02-03 20:59:43.000000000 +0900
-+++ b/Documentation/devices.txt	2008-02-03 20:59:46.000000000 +0900
-@@ -96,6 +96,7 @@ Your cooperation is appreciated.
- 		 11 = /dev/kmsg		Writes to this come out as printk's
- 		 12 = /dev/oldmem	Used by crashdump kernels to access
- 					the memory of the kernel that crashed.
-+		 13 = /dev/mem_notify   Low memory notification.
+ 	if (unlikely(PageCompound(page)))
+ 		destroy_compound_page(page, order);
+@@ -444,6 +447,7 @@ static inline void __free_one_page(struc
+ 	VM_BUG_ON(page_idx & (order_size - 1));
+ 	VM_BUG_ON(bad_range(zone, page));
 
-   1 block	RAM disk
- 		  0 = /dev/ram0		First RAM disk
++	prev_free = zone_page_state(zone, NR_FREE_PAGES);
+ 	__mod_zone_page_state(zone, NR_FREE_PAGES, order_size);
+ 	while (order < MAX_ORDER-1) {
+ 		unsigned long combined_idx;
+@@ -465,6 +469,14 @@ static inline void __free_one_page(struc
+ 	list_add(&page->lru,
+ 		&zone->free_area[order].free_list[migratetype]);
+ 	zone->free_area[order].nr_free++;
++
++	notify_threshold = (zone->pages_high +
++			    zone->lowmem_reserve[MAX_NR_ZONES-1]) * 2;
++
++	if (unlikely((zone->mem_notify_status == 1) &&
++		     (prev_free <= notify_threshold) &&
++		     (zone_page_state(zone, NR_FREE_PAGES) > notify_threshold)))
++		memory_pressure_notify(zone, 0);
+ }
+
+ static inline int free_pages_check(struct page *page)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
