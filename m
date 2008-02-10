@@ -1,45 +1,33 @@
-Date: Sun, 10 Feb 2008 02:31:42 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2.6.24-mm1]  Mempolicy:  silently restrict nodemask to
- allowed nodes V3
-Message-Id: <20080210023142.a217cfbe.akpm@linux-foundation.org>
-In-Reply-To: <alpine.LFD.1.00.0802092340400.2896@woody.linux-foundation.org>
-References: <20080205163406.270B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<1202499913.5346.60.camel@localhost>
-	<20080210141154.25E7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20080210054953.GA10371@kroah.com>
-	<alpine.LFD.1.00.0802092340400.2896@woody.linux-foundation.org>
+Date: Mon, 11 Feb 2008 00:24:01 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: SLUB tbench regression due to page allocator deficiency
+Message-ID: <20080210232401.GA5621@wotan.suse.de>
+References: <Pine.LNX.4.64.0802091332450.12965@schroedinger.engr.sgi.com> <20080209143518.ced71a48.akpm@linux-foundation.org> <Pine.LNX.4.64.0802091549120.13328@schroedinger.engr.sgi.com> <20080210024517.GA32721@wotan.suse.de> <Pine.LNX.4.64.0802091938160.14089@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0802091938160.14089@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Greg KH <greg@kroah.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-kernel@vger.kernel.org, Christoph Lameter <clameter@sgi.com>, Paul Jackson <pj@sgi.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Pekka J Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 9 Feb 2008 23:42:21 -0800 (PST) Linus Torvalds <torvalds@linux-foundation.org> wrote:
+On Sat, Feb 09, 2008 at 07:39:17PM -0800, Christoph Lameter wrote:
+> On Sun, 10 Feb 2008, Nick Piggin wrote:
+> 
+> > What kind of allocating and freeing of pages are you talking about? Are
+> > you just measuring single threaded performance?
+> 
+> What I did was (on an 8p, may want to tune this to the # procs you have):
+> 
+> 1. Run tbench_srv on console
+> 
+> 2. run tbench 8 from an ssh session
 
-> 
-> 
-> On Sat, 9 Feb 2008, Greg KH wrote:
-> > 
-> > Once the patch goes into Linus's tree, feel free to send it to the
-> > stable@kernel.org address so that we can include it in the 2.6.24.x
-> > tree.
-> 
-> I've been ignoring the patches because they say "PATCH 2.6.24-mm1", and so 
-> I simply don't know whether it's supposed to go into *my* kernel or just 
-> -mm.
-> 
-> There's also been several versions and discussions, so I'd really like to 
-> have somebody send me a final patch with all the acks etc.. One that is 
-> clearly for me, not for -mm.
-> 
-
-fyi, I won't be able to do much patch-wrangling until Tuesday or Wednesday.
-All the big machines are disconnected and mothballed due to domestic
-s/carpet/hardwood/g.
+OK, that's easy... You did it with an SMP kernel, right? (I only have a
+8p NUMA, but I should be able to turn on cacheline interleaving and
+run an SMP kernel on it).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
