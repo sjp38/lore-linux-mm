@@ -1,175 +1,65 @@
-Date: Mon, 11 Feb 2008 15:27:16 -0800
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: [PATCH]intel-iommu batched iotlb flushes
-Message-Id: <20080211152716.65f5a753.randy.dunlap@oracle.com>
-In-Reply-To: <20080211224105.GB24412@linux.intel.com>
-References: <20080211224105.GB24412@linux.intel.com>
+Date: Tue, 12 Feb 2008 00:40:29 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: SLUB tbench regression due to page allocator deficiency
+Message-ID: <20080211234029.GB14980@wotan.suse.de>
+References: <Pine.LNX.4.64.0802091332450.12965@schroedinger.engr.sgi.com> <20080209143518.ced71a48.akpm@linux-foundation.org> <Pine.LNX.4.64.0802091549120.13328@schroedinger.engr.sgi.com> <20080210024517.GA32721@wotan.suse.de> <Pine.LNX.4.64.0802091938160.14089@schroedinger.engr.sgi.com> <20080211071828.GD8717@wotan.suse.de> <Pine.LNX.4.64.0802111117440.24379@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0802111117440.24379@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mgross@linux.intel.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Pekka J Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Feb 2008 14:41:05 -0800 mark gross wrote:
-
-> The hole is the following scenarios: 
-> do many map_signal operations, do some unmap_signals, reuse a recently
-> unmapped page, <errant DMA hardware sneaks through and steps on reused
-> memory>
+On Mon, Feb 11, 2008 at 11:21:59AM -0800, Christoph Lameter wrote:
+> On Mon, 11 Feb 2008, Nick Piggin wrote:
 > 
-> Or: you have rouge hardware using DMA's to look at pages: do many
-
-  or rogue hardware?
-
-> map_signal's, do many unmap_singles, reuse some unmapped pages : 
-
-  signal .................... single
-
-> <rouge hardware looks at reused page>
-
-   why rouge?
-
-> Note : these holes are very hard to get too, as the IOTLB is small and
-> only the PTE's still in the IOTLB can be accessed through this
-> mechanism.
+> > OK, it's a bit variable, so I used 20 10 second runs and took the average.
+> > With this patch, I got a 1% increase of that average (with 2.6.25-rc1 and
+> > slub).
+> > 
+> > It avoids some branches and tests; doesn't check the watermarks if there
+> > are pcp pages; avoids atomic refcounting operations in the caller requests
+> > it (this is really annoying because it adds another branch -- I don't think
+> > we should be funneling all these options through flags, rather provide a
+> > few helpers or something for it).
 > 
-> Its recommended that strict is used when developing drivers that do DMA
-> operations to catch bugs early.  For production code where performance
-> is desired running with the batched IOTLB flushing is a good way to
-> go.
+> Hmmm... That is a bit weak. The slub patch gets you around 3-5%. I thought 
+> maybe we could do something like the slub cmpxchg_local fastpath for the 
+> page allocator?
+
+It might be possible but would take quite a bit of rework (eg. have a
+look at pcp->count and the horrible anti fragmentation loops).
+
+
+> > I don't know if this will get back all the regression, but it should help
+> > (although I guess we should do the same refcounting for slab, so that
+> > might speed up a bit too).
+> > 
+> > BTW. could you please make kmalloc-2048 just use order-0 allocations by
+> > default, like kmalloc-1024 and kmalloc-4096, and kmalloc-2048 with slub.
 > 
-> 
-> --mgross
-> 
-> 
-> Signed-off-by: <mgross@linux.intel.com>
-> 
-> 
-> 
-> Index: linux-2.6.24-mm1/drivers/pci/intel-iommu.c
-> ===================================================================
-> --- linux-2.6.24-mm1.orig/drivers/pci/intel-iommu.c	2008-02-07 13:03:10.000000000 -0800
-> +++ linux-2.6.24-mm1/drivers/pci/intel-iommu.c	2008-02-11 10:38:49.000000000 -0800
+> The mininum number of objects per slab is currently 4 that means that 1k 
+> slabs can use order 0 allocs but 2k slabs must use order 2 in order to get 
+> 4 objects. If I reduce that then the performance for 2k slabs may become 
+> a problem.
 
-> @@ -50,11 +52,39 @@
->  
->  #define DOMAIN_MAX_ADDR(gaw) ((((u64)1) << gaw) - 1)
->  
-> +
-> +static void flush_unmaps_timeout(unsigned long data);
-> +
-> +static struct timer_list unmap_timer =
-> +	TIMER_INITIALIZER(flush_unmaps_timeout, 0, 0);
-> +
-> +struct unmap_list {
-> +	struct list_head list;
-> +	struct dmar_domain *domain;
-> +	struct iova *iova;
-> +};
-> +
-> +static struct intel_iommu *g_iommus;
-> +/* bitmap for indexing intel_iommus */
-> +static unsigned long 	*g_iommus_to_flush;
-> +static int g_num_of_iommus;
-> +
-> +static DEFINE_SPINLOCK(async_umap_flush_lock);
-> +static LIST_HEAD(unmaps_to_do);
-> +
-> +static int timer_on;
-> +static long list_size;
-> +static int high_watermark;
-> +
-> +static struct dentry *intel_iommu_debug, *debug;
-> +
-> +
->  static void domain_remove_dev_info(struct dmar_domain *domain);
->  
->  static int dmar_disabled;
->  static int __initdata dmar_map_gfx = 1;
->  static int dmar_forcedac;
-> +static int intel_iommu_strict;
->  
->  #define DUMMY_DEVICE_DOMAIN_INFO ((struct device_domain_info *)(-1))
->  static DEFINE_SPINLOCK(device_domain_lock);
-> @@ -73,9 +103,13 @@
->  			printk(KERN_INFO
->  				"Intel-IOMMU: disable GFX device mapping\n");
->  		} else if (!strncmp(str, "forcedac", 8)) {
-> -			printk (KERN_INFO
-> +			printk(KERN_INFO
->  				"Intel-IOMMU: Forcing DAC for PCI devices\n");
->  			dmar_forcedac = 1;
-> +		} else if (!strncmp(str, "strict", 8)) {
-> +			printk(KERN_INFO
-> +				"Intel-IOMMU: disable bached IOTLB flush\n");
-
-                                                      batched
-
-> +			intel_iommu_strict = 1;
->  		}
->  
->  		str += strcspn(str, ",");
-
-> @@ -1672,7 +1702,29 @@
->  	for_each_drhd_unit(drhd) {
->  		if (drhd->ignored)
->  			continue;
-> -		iommu = alloc_iommu(drhd);
-> +		g_num_of_iommus++;
-> +	}
-> +
-> +	nlongs = BITS_TO_LONGS(g_num_of_iommus);
-> +	g_iommus_to_flush = kzalloc(nlongs * sizeof(unsigned long), GFP_KERNEL);
-> +	if (!g_iommus_to_flush) {
-> +		printk(KERN_ERR "Allocating bitmap array failed\n");
-
-                identify:       "IOMMU:
-
-> +		return -ENOMEM;
-> +	}
-> +
-> +	g_iommus = kzalloc(g_num_of_iommus * sizeof(*iommu), GFP_KERNEL);
-> +	if (!g_iommus) {
-> +		kfree(g_iommus_to_flush);
-> +		ret = -ENOMEM;
-> +		goto error;
-> +	}
-> +
-> +	i = 0;
-> +	for_each_drhd_unit(drhd) {
-> +		if (drhd->ignored)
-> +			continue;
-> +		iommu = alloc_iommu(&g_iommus[i], drhd);
-> +		i++;
->  		if (!iommu) {
->  			ret = -ENOMEM;
->  			goto error;
-
-> Index: linux-2.6.24-mm1/Documentation/kernel-parameters.txt
-> ===================================================================
-> --- linux-2.6.24-mm1.orig/Documentation/kernel-parameters.txt	2008-02-11 13:44:23.000000000 -0800
-> +++ linux-2.6.24-mm1/Documentation/kernel-parameters.txt	2008-02-11 14:23:37.000000000 -0800
-> @@ -822,6 +822,10 @@
->  			than 32 bit addressing. The default is to look
->  			for translation below 32 bit and if not available
->  			then look in the higher range.
-> +		strict [Default Off]
-> +			With this option on every umap_signle will
-
-                                         on, every unmap_si{ngle,gnal} ??
-
-> +			result in a hardware IOTLB flush opperation as
-> +			opposed to batching them for performance.
->  
->  	io_delay=	[X86-32,X86-64] I/O delay method
->  		0x80
+It doesn't make sense that 4K allocations use order-0 but 2K do not. And
+it is a regression because slab uses order-0 for 2K.
 
 
----
-~Randy
+> The fastpath use will be reduced to 50% since every other 
+> allocation will have to go to the page allocator. Maybe we can do that 
+> if the page allocator performance is up to snuff.
+
+The page allocator has to do quite a lot more than the slab allocator
+does. It has to check watermarks and all the NUMA and zone and anti
+fragmentation stuff, and does quite a lot of branches and stores to
+tes tand set up the struct page.
+
+So it's never going to be as fast as a simple slab allocation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
