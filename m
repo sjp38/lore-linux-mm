@@ -1,19 +1,29 @@
-Date: Mon, 11 Feb 2008 12:35:08 -0800
-From: Greg KH <greg@kroah.com>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1BLTZrc012619
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2008 16:29:35 -0500
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1BLTZ2T158674
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2008 14:29:35 -0700
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1BLTZrq026236
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2008 14:29:35 -0700
 Subject: Re: [-mm PATCH] register_memory/unregister_memory clean ups
-Message-ID: <20080211203508.GA6159@kroah.com>
-References: <1202750598.25604.3.camel@dyn9047017100.beaverton.ibm.com> <20080211114818.74c9dcc7.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+From: Badari Pulavarty <pbadari@us.ibm.com>
 In-Reply-To: <20080211114818.74c9dcc7.akpm@linux-foundation.org>
+References: <1202750598.25604.3.camel@dyn9047017100.beaverton.ibm.com>
+	 <20080211114818.74c9dcc7.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Mon, 11 Feb 2008 13:32:32 -0800
+Message-Id: <1202765553.25604.12.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, linux-kernel@vger.kernel.org, haveblue@us.ibm.com, linux-mm@kvack.org
+Cc: lkml <linux-kernel@vger.kernel.org>, greg@kroah.com, haveblue@us.ibm.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 11, 2008 at 11:48:18AM -0800, Andrew Morton wrote:
+On Mon, 2008-02-11 at 11:48 -0800, Andrew Morton wrote:
 > On Mon, 11 Feb 2008 09:23:18 -0800
 > Badari Pulavarty <pbadari@us.ibm.com> wrote:
 > 
@@ -48,14 +58,15 @@ On Mon, Feb 11, 2008 at 11:48:18AM -0800, Andrew Morton wrote:
 > machine-crashing bugs.  Do they crash machines?  How come nobody noticed
 > it?
 > 
-> All very strange...
 
-No one has ever run the 'remove memory' codepath before, that's why they
-were never seen before :)
+No they don't crash machine - mainly because, they never get called
+with "root" argument (where we have the bug). They were never tested
+before, since we don't have memory remove work yet. All it does
+is, it leave /sysfs directory laying around and causing next
+memory add failure. 
 
-thanks,
-
-greg k-h
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
