@@ -1,116 +1,36 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1BHKNdx001570
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2008 12:20:23 -0500
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1BHKLVI110080
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2008 10:20:22 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1BHKKC3011951
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2008 10:20:20 -0700
-Subject: [-mm PATCH] register_memory/unregister_memory clean ups
-From: Badari Pulavarty <pbadari@us.ibm.com>
-Content-Type: text/plain
-Date: Mon, 11 Feb 2008 09:23:18 -0800
-Message-Id: <1202750598.25604.3.camel@dyn9047017100.beaverton.ibm.com>
-Mime-Version: 1.0
+Message-ID: <47B086A3.9040508@sgi.com>
+Date: Mon, 11 Feb 2008 09:32:19 -0800
+From: Mike Travis <travis@sgi.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/4] cpufreq: change cpu freq tables to per_cpu	variables
+References: <20080208233738.108449000@polaris-admin.engr.sgi.com> <20080208233738.292421000@polaris-admin.engr.sgi.com> <20080211024835.GD26696@codemonkey.org.uk>
+In-Reply-To: <20080211024835.GD26696@codemonkey.org.uk>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>
-Cc: Greg KH <greg@kroah.com>, haveblue@us.ibm.com, linux-mm <linux-mm@kvack.org>
+To: Dave Jones <davej@codemonkey.org.uk>, Mike Travis <travis@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cpufreq@lists.linux.org.uk
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+Dave Jones wrote:
+> On Fri, Feb 08, 2008 at 03:37:39PM -0800, Mike Travis wrote:
+>  > Change cpu frequency tables from arrays to per_cpu variables.
+>  > 
+>  > Based on linux-2.6.git + x86.git
+> 
+> Looks ok to me.   Would you like me to push this though cpufreq.git,
+> or do you want the series to go through all in one?
+> 
+> 	Dave
+> 
 
-While testing hotplug memory remove against -mm, I noticed
-that unregister_memory() is not cleaning up /sysfs entries
-correctly. It also de-references structures after destroying
-them (luckily in the code which never gets used). So, I cleaned
-up the code and fixed the extra reference issue.
+Thanks Dave.  The patches are pretty much independent but it is
+easier to keep track of them if they go in together.  Btw, I have
+another set coming shortly that I'm testing now.  It should remove
+most of the remaining references to NR_CPUS.
 
-Could you please include it in -mm ?
-
-Thanks,
-Badari
-
-register_memory()/unregister_memory() never gets called with
-"root". unregister_memory() is accessing kobject_name of
-the object just freed up. Since no one uses the code,
-lets take the code out. And also, make register_memory() static.  
-
-Another bug fix - before calling unregister_memory()
-remove_memory_block() gets a ref on kobject. unregister_memory()
-need to drop that ref before calling sysdev_unregister().
-
-Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
----
- drivers/base/memory.c |   22 +++++++---------------
- 1 file changed, 7 insertions(+), 15 deletions(-)
-
-Index: linux-2.6.24/drivers/base/memory.c
-===================================================================
---- linux-2.6.24.orig/drivers/base/memory.c	2008-02-07 16:59:52.000000000 -0800
-+++ linux-2.6.24/drivers/base/memory.c	2008-02-08 15:54:45.000000000 -0800
-@@ -62,8 +62,8 @@ void unregister_memory_notifier(struct n
- /*
-  * register_memory - Setup a sysfs device for a memory block
-  */
--int register_memory(struct memory_block *memory, struct mem_section *section,
--		struct node *root)
-+static
-+int register_memory(struct memory_block *memory, struct mem_section *section)
- {
- 	int error;
- 
-@@ -71,26 +71,18 @@ int register_memory(struct memory_block 
- 	memory->sysdev.id = __section_nr(section);
- 
- 	error = sysdev_register(&memory->sysdev);
--
--	if (root && !error)
--		error = sysfs_create_link(&root->sysdev.kobj,
--					  &memory->sysdev.kobj,
--					  kobject_name(&memory->sysdev.kobj));
--
- 	return error;
- }
- 
- static void
--unregister_memory(struct memory_block *memory, struct mem_section *section,
--		struct node *root)
-+unregister_memory(struct memory_block *memory, struct mem_section *section)
- {
- 	BUG_ON(memory->sysdev.cls != &memory_sysdev_class);
- 	BUG_ON(memory->sysdev.id != __section_nr(section));
- 
-+	/* drop the ref. we got in remove_memory_block() */
-+	kobject_put(&memory->sysdev.kobj);
- 	sysdev_unregister(&memory->sysdev);
--	if (root)
--		sysfs_remove_link(&root->sysdev.kobj,
--				  kobject_name(&memory->sysdev.kobj));
- }
- 
- /*
-@@ -361,7 +353,7 @@ static int add_memory_block(unsigned lon
- 	mutex_init(&mem->state_mutex);
- 	mem->phys_device = phys_device;
- 
--	ret = register_memory(mem, section, NULL);
-+	ret = register_memory(mem, section);
- 	if (!ret)
- 		ret = mem_create_simple_file(mem, phys_index);
- 	if (!ret)
-@@ -415,7 +407,7 @@ int remove_memory_block(unsigned long no
- 	mem_remove_simple_file(mem, state);
- 	mem_remove_simple_file(mem, phys_device);
- 	mem_remove_simple_file(mem, removable);
--	unregister_memory(mem, section, NULL);
-+	unregister_memory(mem, section);
- 
- 	return 0;
- }
-
+Thanks again,
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
