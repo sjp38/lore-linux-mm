@@ -1,36 +1,52 @@
-Received: by py-out-1112.google.com with SMTP id f47so4994570pye.20
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2008 07:46:07 -0800 (PST)
-Message-ID: <2f11576a0802110746o289eef04mf1a60c0afef7f86c@mail.gmail.com>
-Date: Tue, 12 Feb 2008 00:46:07 +0900
-From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 0/8][for -mm] mem_notify v6
-In-Reply-To: <32072.1202744162@vena.lwn.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 2.6.24-mm1]  Mempolicy:  silently restrict nodemask to
+	allowed nodes V3
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <alpine.LFD.1.00.0802092340400.2896@woody.linux-foundation.org>
+References: <20080205163406.270B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <1202499913.5346.60.camel@localhost>
+	 <20080210141154.25E7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080210054953.GA10371@kroah.com>
+	 <alpine.LFD.1.00.0802092340400.2896@woody.linux-foundation.org>
+Content-Type: text/plain
+Date: Mon, 11 Feb 2008 11:47:39 -0500
+Message-Id: <1202748459.5014.50.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <2f11576a0802090719i3c08a41aj38504e854edbfeac@mail.gmail.com>
-	 <32072.1202744162@vena.lwn.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: Marcelo Tosatti <marcelo@kvack.org>, Daniel Spang <daniel.spang@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-fsdevel@vger.kernel.org, Pavel Machek <pavel@ucw.cz>, Al Boldi <a1426z@gawab.com>, Jon Masters <jonathan@jonmasters.org>, Zan Lynx <zlynx@acm.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Greg KH <greg@kroah.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Paul Jackson <pj@sgi.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-> > the Linux Today article is very nice description. (great works by Jake Edge)
-> > http://www.linuxworld.com/news/2008/020508-kernel.html
->
-> Just for future reference...the above-mentioned article is from LWN,
-> syndicated onto LinuxWorld.  It has, so far as I know, never been near
-> Linux Today.
->
-> Glad you liked it, though :)
+On Sat, 2008-02-09 at 23:42 -0800, Linus Torvalds wrote:
+> 
+> On Sat, 9 Feb 2008, Greg KH wrote:
+> > 
+> > Once the patch goes into Linus's tree, feel free to send it to the
+> > stable@kernel.org address so that we can include it in the 2.6.24.x
+> > tree.
+> 
+> I've been ignoring the patches because they say "PATCH 2.6.24-mm1", and so 
+> I simply don't know whether it's supposed to go into *my* kernel or just 
+> -mm.
+> 
+> There's also been several versions and discussions, so I'd really like to 
+> have somebody send me a final patch with all the acks etc.. One that is 
+> clearly for me, not for -mm.
+> 
 
-Oops, sorry.
-I had serious misunderstand ;-)
+Kosaki-san:  You've tested V3 on '.24.  Do you want to repost the patch
+refreshed against .24, adding your "Tested-by:"  [and "Signed-off-by:",
+as the folding of the contextualization into mpol_check_policy() is
+based on your code--apologies for not adding it myself]?  I'm tied up
+with something else for most of this week and won't get to it until
+Friday, earliest.
 
-sorry, again.
-and thank you for your helpful message.
+Regards,
+Lee
+
+P.S., As Andrew pointed out, I forgot to run checkpatch and the patch
+does include a violation thereof.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
