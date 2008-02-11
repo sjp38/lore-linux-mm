@@ -1,124 +1,107 @@
-Message-Id: <20080211141813.354484000@bull.net>
+Message-Id: <20080211141816.094061000@bull.net>
 References: <20080211141646.948191000@bull.net>
-Date: Mon, 11 Feb 2008 15:16:47 +0100
+Date: Mon, 11 Feb 2008 15:16:53 +0100
 From: Nadia.Derbey@bull.net
-Subject: [PATCH 1/8] Scaling msgmni to the amount of lowmem
-Content-Disposition: inline; filename=ipc_scale_msgmni_with_lowmem.patch
+Subject: [PATCH 7/8] Do not recompute msgmni anymore if explicitely set by user
+Content-Disposition: inline; filename=ipc_unregister_callback_on_msgmni_manual_change.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, containers@lists.linux-foundation.org, matthltc@us.ibm.com, cmm@us.ibm.com, Nadia Derbey <Nadia.Derbey@bull.net>
 List-ID: <linux-mm.kvack.org>
 
-[PATCH 01/08]
+[PATCH 07/08]
 
-This patch computes msg_ctlmni to make it scale with the amount of lowmem.
-msg_ctlmni is now set to make the message queues occupy 1/32 of the available
-lowmem.
+This patch makes msgmni not recomputed anymore upon ipc namespace creation /
+removal or memory add/remove, as soon as it has been set from userland.
 
-Some cleaning has also been done for the MSGPOOL constant: the msgctl man page
-says it's not used, but it also defines it as a size in bytes (the code
-expresses it in Kbytes).
+As soon as msgmni is explicitely set via procfs or sysctl(), the associated
+callback routine is unregistered from the ipc namespace notifier chain.
+
 
 Signed-off-by: Nadia Derbey <Nadia.Derbey@bull.net>
 
 ---
- include/linux/msg.h |   14 ++++++++++++--
- ipc/msg.c           |   37 ++++++++++++++++++++++++++++++++++++-
- 2 files changed, 48 insertions(+), 3 deletions(-)
+ ipc/ipc_sysctl.c |   43 +++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 41 insertions(+), 2 deletions(-)
 
-Index: linux-2.6.24-mm1/include/linux/msg.h
+Index: linux-2.6.24-mm1/ipc/ipc_sysctl.c
 ===================================================================
---- linux-2.6.24-mm1.orig/include/linux/msg.h	2008-02-07 15:01:38.000000000 +0100
-+++ linux-2.6.24-mm1/include/linux/msg.h	2008-02-07 15:23:17.000000000 +0100
-@@ -49,16 +49,26 @@ struct msginfo {
- 	unsigned short  msgseg; 
- };
+--- linux-2.6.24-mm1.orig/ipc/ipc_sysctl.c	2008-02-08 16:07:15.000000000 +0100
++++ linux-2.6.24-mm1/ipc/ipc_sysctl.c	2008-02-08 16:08:32.000000000 +0100
+@@ -35,6 +35,24 @@ static int proc_ipc_dointvec(ctl_table *
+ 	return proc_dointvec(&ipc_table, write, filp, buffer, lenp, ppos);
+ }
  
-+/*
-+ * Scaling factor to compute msgmni:
-+ * the memory dedicated to msg queues (msgmni * msgmnb) should occupy
-+ * at most 1/MSG_MEM_SCALE of the lowmem (see the formula in ipc/msg.c):
-+ * up to 8MB       : msgmni = 16 (MSGMNI)
-+ * 4 GB            : msgmni = 8K
-+ * more than 16 GB : msgmni = 32K (IPCMNI)
-+ */
-+#define MSG_MEM_SCALE 32
-+
- #define MSGMNI    16   /* <= IPCMNI */     /* max # of msg queue identifiers */
- #define MSGMAX  8192   /* <= INT_MAX */   /* max size of message (bytes) */
- #define MSGMNB 16384   /* <= INT_MAX */   /* default max size of a message queue */
- 
- /* unused */
--#define MSGPOOL (MSGMNI*MSGMNB/1024)  /* size in kilobytes of message pool */
-+#define MSGPOOL (MSGMNI * MSGMNB) /* size in bytes of message pool */
- #define MSGTQL  MSGMNB            /* number of system message headers */
- #define MSGMAP  MSGMNB            /* number of entries in message map */
- #define MSGSSZ  16                /* message segment size */
--#define __MSGSEG ((MSGPOOL*1024)/ MSGSSZ) /* max no. of segments */
-+#define __MSGSEG (MSGPOOL / MSGSSZ) /* max no. of segments */
- #define MSGSEG (__MSGSEG <= 0xffff ? __MSGSEG : 0xffff)
- 
- #ifdef __KERNEL__
-Index: linux-2.6.24-mm1/ipc/msg.c
-===================================================================
---- linux-2.6.24-mm1.orig/ipc/msg.c	2008-02-07 15:02:29.000000000 +0100
-+++ linux-2.6.24-mm1/ipc/msg.c	2008-02-07 15:24:19.000000000 +0100
-@@ -27,6 +27,7 @@
- #include <linux/msg.h>
- #include <linux/spinlock.h>
- #include <linux/init.h>
-+#include <linux/mm.h>
- #include <linux/proc_fs.h>
- #include <linux/list.h>
- #include <linux/security.h>
-@@ -78,11 +79,45 @@ static int newque(struct ipc_namespace *
- static int sysvipc_msg_proc_show(struct seq_file *s, void *it);
- #endif
- 
-+/*
-+ * Scale msgmni with the available lowmem size: the memory dedicated to msg
-+ * queues should occupy at most 1/MSG_MEM_SCALE of lowmem.
-+ * This should be done staying within the (MSGMNI , IPCMNI) range.
-+ */
-+static void recompute_msgmni(struct ipc_namespace *ns)
++static int proc_ipc_callback_dointvec(ctl_table *table, int write,
++	struct file *filp, void __user *buffer, size_t *lenp, loff_t *ppos)
 +{
-+	struct sysinfo i;
-+	unsigned long allowed;
++	size_t lenp_bef = *lenp;
++	int rc;
 +
-+	si_meminfo(&i);
-+	allowed = (((i.totalram - i.totalhigh) / MSG_MEM_SCALE) * i.mem_unit)
-+		/ MSGMNB;
++	rc = proc_ipc_dointvec(table, write, filp, buffer, lenp, ppos);
 +
-+	if (allowed < MSGMNI) {
-+		ns->msg_ctlmni = MSGMNI;
-+		goto out_callback;
-+	}
++	if (write && !rc && lenp_bef == *lenp)
++		/*
++		 * Tunable has successfully been changed from userland:
++		 * disable its automatic recomputing.
++		 */
++		unregister_ipcns_notifier(current->nsproxy->ipc_ns);
 +
-+	if (allowed > IPCMNI) {
-+		ns->msg_ctlmni = IPCMNI;
-+		goto out_callback;
-+	}
-+
-+	ns->msg_ctlmni = allowed;
-+
-+out_callback:
-+
-+	printk(KERN_INFO "msgmni has been set to %d for ipc namespace %p\n",
-+		ns->msg_ctlmni, ns);
++	return rc;
 +}
 +
- void msg_init_ns(struct ipc_namespace *ns)
+ static int proc_ipc_doulongvec_minmax(ctl_table *table, int write,
+ 	struct file *filp, void __user *buffer, size_t *lenp, loff_t *ppos)
  {
- 	ns->msg_ctlmax = MSGMAX;
- 	ns->msg_ctlmnb = MSGMNB;
--	ns->msg_ctlmni = MSGMNI;
+@@ -49,6 +67,7 @@ static int proc_ipc_doulongvec_minmax(ct
+ #else
+ #define proc_ipc_doulongvec_minmax NULL
+ #define proc_ipc_dointvec	   NULL
++#define proc_ipc_callback_dointvec NULL
+ #endif
+ 
+ #ifdef CONFIG_SYSCTL_SYSCALL
+@@ -90,8 +109,28 @@ static int sysctl_ipc_data(ctl_table *ta
+ 	}
+ 	return 1;
+ }
 +
-+	recompute_msgmni(ns);
++static int sysctl_ipc_registered_data(ctl_table *table, int __user *name,
++		int nlen, void __user *oldval, size_t __user *oldlenp,
++		void __user *newval, size_t newlen)
++{
++	int rc;
 +
- 	atomic_set(&ns->msg_bytes, 0);
- 	atomic_set(&ns->msg_hdrs, 0);
- 	ipc_init_ids(&ns->ids[IPC_MSG_IDS]);
++	rc = sysctl_ipc_data(table, name, nlen, oldval, oldlenp, newval,
++		newlen);
++
++	if (newval && newlen && rc > 0)
++		/*
++		 * Tunable has successfully been changed from userland:
++		 * disable its automatic recomputing.
++		 */
++		unregister_ipcns_notifier(current->nsproxy->ipc_ns);
++
++	return rc;
++}
+ #else
+ #define sysctl_ipc_data NULL
++#define sysctl_ipc_registered_data NULL
+ #endif
+ 
+ static struct ctl_table ipc_kern_table[] = {
+@@ -137,8 +176,8 @@ static struct ctl_table ipc_kern_table[]
+ 		.data		= &init_ipc_ns.msg_ctlmni,
+ 		.maxlen		= sizeof (init_ipc_ns.msg_ctlmni),
+ 		.mode		= 0644,
+-		.proc_handler	= proc_ipc_dointvec,
+-		.strategy	= sysctl_ipc_data,
++		.proc_handler	= proc_ipc_callback_dointvec,
++		.strategy	= sysctl_ipc_registered_data,
+ 	},
+ 	{
+ 		.ctl_name	= KERN_MSGMNB,
 
 --
 
