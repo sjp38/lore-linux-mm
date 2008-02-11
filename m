@@ -1,36 +1,37 @@
-Message-ID: <47B086A3.9040508@sgi.com>
-Date: Mon, 11 Feb 2008 09:32:19 -0800
-From: Mike Travis <travis@sgi.com>
+Date: Mon, 11 Feb 2008 09:54:25 -0800
+From: Greg KH <greg@kroah.com>
+Subject: Re: [-mm PATCH] register_memory/unregister_memory clean ups
+Message-ID: <20080211175425.GA28300@kroah.com>
+References: <1202750598.25604.3.camel@dyn9047017100.beaverton.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/4] cpufreq: change cpu freq tables to per_cpu	variables
-References: <20080208233738.108449000@polaris-admin.engr.sgi.com> <20080208233738.292421000@polaris-admin.engr.sgi.com> <20080211024835.GD26696@codemonkey.org.uk>
-In-Reply-To: <20080211024835.GD26696@codemonkey.org.uk>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1202750598.25604.3.camel@dyn9047017100.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Jones <davej@codemonkey.org.uk>, Mike Travis <travis@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cpufreq@lists.linux.org.uk
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, haveblue@us.ibm.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Dave Jones wrote:
-> On Fri, Feb 08, 2008 at 03:37:39PM -0800, Mike Travis wrote:
->  > Change cpu frequency tables from arrays to per_cpu variables.
->  > 
->  > Based on linux-2.6.git + x86.git
+On Mon, Feb 11, 2008 at 09:23:18AM -0800, Badari Pulavarty wrote:
+> Hi Andrew,
 > 
-> Looks ok to me.   Would you like me to push this though cpufreq.git,
-> or do you want the series to go through all in one?
+> While testing hotplug memory remove against -mm, I noticed
+> that unregister_memory() is not cleaning up /sysfs entries
+> correctly. It also de-references structures after destroying
+> them (luckily in the code which never gets used). So, I cleaned
+> up the code and fixed the extra reference issue.
 > 
-> 	Dave
-> 
+> Could you please include it in -mm ?
 
-Thanks Dave.  The patches are pretty much independent but it is
-easier to keep track of them if they go in together.  Btw, I have
-another set coming shortly that I'm testing now.  It should remove
-most of the remaining references to NR_CPUS.
+Want me to add this to my tree and send it in my next update for the
+driver core to Linus?
 
-Thanks again,
-Mike
+I'll be glad to do that.
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
