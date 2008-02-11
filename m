@@ -1,72 +1,131 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1BLTZrc012619
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2008 16:29:35 -0500
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1BLTZ2T158674
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2008 14:29:35 -0700
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1BLTZrq026236
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2008 14:29:35 -0700
-Subject: Re: [-mm PATCH] register_memory/unregister_memory clean ups
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <20080211114818.74c9dcc7.akpm@linux-foundation.org>
-References: <1202750598.25604.3.camel@dyn9047017100.beaverton.ibm.com>
-	 <20080211114818.74c9dcc7.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Mon, 11 Feb 2008 13:32:32 -0800
-Message-Id: <1202765553.25604.12.camel@dyn9047017100.beaverton.ibm.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 11 Feb 2008 13:56:51 -0800
+From: mark gross <mgross@linux.intel.com>
+Subject: iova RB tree setup tweak.
+Message-ID: <20080211215651.GA24412@linux.intel.com>
+Reply-To: mgross@linux.intel.com
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: lkml <linux-kernel@vger.kernel.org>, greg@kroah.com, haveblue@us.ibm.com, linux-mm <linux-mm@kvack.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-02-11 at 11:48 -0800, Andrew Morton wrote:
-> On Mon, 11 Feb 2008 09:23:18 -0800
-> Badari Pulavarty <pbadari@us.ibm.com> wrote:
-> 
-> > Hi Andrew,
-> > 
-> > While testing hotplug memory remove against -mm, I noticed
-> > that unregister_memory() is not cleaning up /sysfs entries
-> > correctly. It also de-references structures after destroying
-> > them (luckily in the code which never gets used). So, I cleaned
-> > up the code and fixed the extra reference issue.
-> > 
-> > Could you please include it in -mm ?
-> > 
-> > Thanks,
-> > Badari
-> > 
-> > register_memory()/unregister_memory() never gets called with
-> > "root". unregister_memory() is accessing kobject_name of
-> > the object just freed up. Since no one uses the code,
-> > lets take the code out. And also, make register_memory() static.  
-> > 
-> > Another bug fix - before calling unregister_memory()
-> > remove_memory_block() gets a ref on kobject. unregister_memory()
-> > need to drop that ref before calling sysdev_unregister().
-> > 
-> 
-> I'd say this:
-> 
-> > Subject: [-mm PATCH] register_memory/unregister_memory clean ups
-> 
-> is rather tame.  These are more than cleanups!  These sound like
-> machine-crashing bugs.  Do they crash machines?  How come nobody noticed
-> it?
-> 
+The following patch merges two functions into one allowing for a 3%
+reduction in overhead in locating, allocating and inserting pages for
+use in IOMMU operations.
 
-No they don't crash machine - mainly because, they never get called
-with "root" argument (where we have the bug). They were never tested
-before, since we don't have memory remove work yet. All it does
-is, it leave /sysfs directory laying around and causing next
-memory add failure. 
+Its a bit of a eye-crosser so I welcome any RB-tree / MM experts to take
+a look.  It works by re-using some of the information gathered in the
+search for the pages to use in setting up the IOTLB's in the insertion
+of the iova structure into the RB tree.
 
-Thanks,
-Badari
+--mgross
+
+Singed-off-by: <mgross@linux.intel.com>
+
+
+Index: linux-2.6.24-mm1/drivers/pci/iova.c
+===================================================================
+--- linux-2.6.24-mm1.orig/drivers/pci/iova.c	2008-02-07 11:05:44.000000000 -0800
++++ linux-2.6.24-mm1/drivers/pci/iova.c	2008-02-07 13:05:03.000000000 -0800
+@@ -72,20 +72,25 @@
+ 	return pad_size;
+ }
+ 
+-static int __alloc_iova_range(struct iova_domain *iovad, unsigned long size,
+-		unsigned long limit_pfn, struct iova *new, bool size_aligned)
++static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
++		unsigned long size, unsigned long limit_pfn,
++			struct iova *new, bool size_aligned)
+ {
+-	struct rb_node *curr = NULL;
++	struct rb_node *prev, *curr = NULL;
+ 	unsigned long flags;
+ 	unsigned long saved_pfn;
+ 	unsigned int pad_size = 0;
+ 
+ 	/* Walk the tree backwards */
+ 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
+ 	saved_pfn = limit_pfn;
+ 	curr = __get_cached_rbnode(iovad, &limit_pfn);
++	prev = curr;
+ 	while (curr) {
+ 		struct iova *curr_iova = container_of(curr, struct iova, node);
++
+ 		if (limit_pfn < curr_iova->pfn_lo)
+ 			goto move_left;
+ 		else if (limit_pfn < curr_iova->pfn_hi)
+@@ -99,6 +104,7 @@
+ adjust_limit_pfn:
+ 		limit_pfn = curr_iova->pfn_lo - 1;
+ move_left:
++		prev = curr;
+ 		curr = rb_prev(curr);
+ 	}
+ 
+@@ -115,7 +121,33 @@
+ 	new->pfn_lo = limit_pfn - (size + pad_size) + 1;
+ 	new->pfn_hi = new->pfn_lo + size - 1;
+ 
++	/* Insert the new_iova into domain rbtree by holding writer lock */
++	/* Add new node and rebalance tree. */
++	{
++		struct rb_node **entry = &((prev)), *parent = NULL;
++		/* Figure out where to put new node */
++		while (*entry) {
++			struct iova *this = container_of(*entry,
++							struct iova, node);
++			parent = *entry;
++
++			if (new->pfn_lo < this->pfn_lo)
++				entry = &((*entry)->rb_left);
++			else if (new->pfn_lo > this->pfn_lo)
++				entry = &((*entry)->rb_right);
++			else
++				BUG(); /* this should not happen */
++		}
++
++		/* Add new node and rebalance tree. */
++		rb_link_node(&new->node, parent, entry);
++		rb_insert_color(&new->node, &iovad->rbroot);
++	}
++	__cached_rbnode_insert_update(iovad, saved_pfn, new);
++
+ 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
++
++
+ 	return 0;
+ }
+ 
+@@ -171,23 +203,15 @@
+ 		size = __roundup_pow_of_two(size);
+ 
+ 	spin_lock_irqsave(&iovad->iova_alloc_lock, flags);
+-	ret = __alloc_iova_range(iovad, size, limit_pfn, new_iova,
+-			size_aligned);
++	ret = __alloc_and_insert_iova_range(iovad, size, limit_pfn,
++			new_iova, size_aligned);
+ 
++	spin_unlock_irqrestore(&iovad->iova_alloc_lock, flags);
+ 	if (ret) {
+-		spin_unlock_irqrestore(&iovad->iova_alloc_lock, flags);
+ 		free_iova_mem(new_iova);
+ 		return NULL;
+ 	}
+ 
+-	/* Insert the new_iova into domain rbtree by holding writer lock */
+-	spin_lock(&iovad->iova_rbtree_lock);
+-	iova_insert_rbtree(&iovad->rbroot, new_iova);
+-	__cached_rbnode_insert_update(iovad, limit_pfn, new_iova);
+-	spin_unlock(&iovad->iova_rbtree_lock);
+-
+-	spin_unlock_irqrestore(&iovad->iova_alloc_lock, flags);
+-
+ 	return new_iova;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
