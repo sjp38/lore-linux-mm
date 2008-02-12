@@ -1,46 +1,78 @@
-Date: Mon, 11 Feb 2008 18:12:54 -0800
-From: Pete Zaitcev <zaitcev@redhat.com>
-Subject: Re: [2.6.24 REGRESSION] BUG: Soft lockup - with VFS
-Message-Id: <20080211181254.5029b8b4.zaitcev@redhat.com>
-In-Reply-To: <20080212104612S.fujita.tomonori@lab.ntt.co.jp>
-References: <6101e8c40802051348w2250e593x54f777bb771bd903@mail.gmail.com>
-	<20080205140506.c6354490.akpm@linux-foundation.org>
-	<20080208234619.385bcab9.zaitcev@redhat.com>
-	<20080212104612S.fujita.tomonori@lab.ntt.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Tue, 12 Feb 2008 12:05:17 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 2.6.24-mm1]  Mempolicy:  silently restrict nodemask to allowed nodes V3
+In-Reply-To: <alpine.DEB.1.00.0802111757470.19213@chino.kir.corp.google.com>
+References: <20080212103944.29A9.KOSAKI.MOTOHIRO@jp.fujitsu.com> <alpine.DEB.1.00.0802111757470.19213@chino.kir.corp.google.com>
+Message-Id: <20080212115952.29B2.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-Cc: akpm@linux-foundation.org, oliver.pntr@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, jmorris@namei.org, linux-usb@vger.kernel.org, zaitcev@redhat.com
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Feb 2008 10:46:12 +0900, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp> wrote:
+Hi
 
-> On a serious note, it seems that two scatter lists per request leaded
-> to this bug. Can the scatter list in struct ub_request be removed?
+> I'm talking about the disclaimer that I quoted above in the changelog of 
+> this patch.  Lee was stating that he deferred my suggestion to move the 
+> logic into mpol_new(), which I did in my patchset, but I don't think that 
+> needs to be included in this patch's changelog.
+> 
+> I'm all for the merging of this patch (once my concern below is addressed) 
+> but the section of the changelog that is quoted above is unnecessary.
 
-Good question. It's an eyesore to be sure. The duplication exists
-for the sake of retries combined with the separation of requests
-from commands.
+OK. I obey you.
 
-Please bear with me, if you're curious: commands can be launched
-without requests (at probe time, for instance, or when sense is
-requested). So, they need an s/g table. But then, the lifetime of
-a request is greater than than of a command, in case of a retry
-especially. Therefore a request needs the s/g table too.
+> So my question is why we consider this invalid:
+> 
+> 	nodemask_t nodes;
+> 
+> 	nodes_clear(&nodes);
+> 	node_set(1, &nodes);
+> 	set_mempolicy(MPOL_DEFAULT, nodes, 1 << CONFIG_NODES_SHIFT);
+> 
+> The nodemask doesn't matter at all with a MPOL_DEFAULT policy.
 
-So, one way to kill this duplication is to mandate that a
-request existed for every command. It seemed like way more code
-than just one memcpy() when I wrote it.
+Hmmmmmm
+sorry, I don't understand yet.
 
-Another way would be to make commands flexible, e.g. sometimes with
-just a virtual address and size, sometimes with an s/g table.
-If you guys make struct scatterlist illegal to copy with memcpy
-one day, this is probably what I'll do.
+My test result was
 
--- Pete
+RHEL5(initrd-2.6.18 + rhel patch)	EINVAL
+2.6.24					EINVAL
+2.6.24 + lee-patch			EINVAL
+
+
+I don't know current behavior good or wrong.
+but I think it is not regression.
+
+
+-------------------------------------------------------
+#include <numaif.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+#include <numa.h>
+
+main(){
+        int err;
+        nodemask_t nodes;
+
+        nodemask_zero(&nodes);
+        nodemask_set(&nodes, 1);
+        err = set_mempolicy(MPOL_DEFAULT, &nodes.n[0], 2048);
+        if (err < 0) {
+                perror("set_mempolicy");
+        }
+
+        return 0;
+}
+
+
+- kosaki
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
