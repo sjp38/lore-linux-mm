@@ -1,37 +1,94 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: Fastpath prototype?
-Date: Tue, 12 Feb 2008 11:40:11 +0100
-References: <Pine.LNX.4.64.0802091332450.12965@schroedinger.engr.sgi.com> <20080211235607.GA27320@wotan.suse.de> <Pine.LNX.4.64.0802112205150.26977@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0802112205150.26977@schroedinger.engr.sgi.com>
+Message-ID: <47B1853E.2070103@bull.net>
+Date: Tue, 12 Feb 2008 12:38:38 +0100
+From: Nadia Derbey <Nadia.Derbey@bull.net>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [PATCH 8/8] Re-enable msgmni automatic recomputing msgmni if
+ set to negative
+References: <20080211141646.948191000@bull.net>	<20080211141816.520049000@bull.net> <20080211122748.64e7bc36.akpm@linux-foundation.org>
+In-Reply-To: <20080211122748.64e7bc36.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200802121140.12040.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Pekka J Enberg <penberg@cs.helsinki.fi>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, linux-mm@kvack.org, containers@lists.linux-foundation.org, matthltc@us.ibm.com, cmm@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 12 February 2008 07:06:48 Christoph Lameter wrote:
-> This patch preserves the performance while only needing order 0 allocs. 
-> Pretty primitive.
+Andrew Morton wrote:
+> On Mon, 11 Feb 2008 15:16:54 +0100
+> Nadia.Derbey@bull.net wrote:
+> 
+> 
+>>[PATCH 08/08]
+>>
+>>This patch is the enhancement as asked for by Yasunori: if msgmni is set to
+>>a negative value, register it back into the ipcns notifier chain.
+>>
+>>A new interface has been added to the notification mechanism:
+>>notifier_chain_cond_register() registers a notifier block only if not already
+>>registered. With that new interface we avoid taking care of the states changes
+>>in procfs.
+>>
+>>...
+>>
+>> static int proc_ipc_callback_dointvec(ctl_table *table, int write,
+>> 	struct file *filp, void __user *buffer, size_t *lenp, loff_t *ppos)
+>> {
+>>+	struct ctl_table ipc_table;
+>> 	size_t lenp_bef = *lenp;
+>> 	int rc;
+>> 
+>>-	rc = proc_ipc_dointvec(table, write, filp, buffer, lenp, ppos);
+>>+	memcpy(&ipc_table, table, sizeof(ipc_table));
+>>+	ipc_table.data = get_ipc(table);
+>>+
+>>+	rc = proc_dointvec(&ipc_table, write, filp, buffer, lenp, ppos);
+>> 
+>> 	if (write && !rc && lenp_bef == *lenp)
+>>-		/*
+>>-		 * Tunable has successfully been changed from userland:
+>>-		 * disable its automatic recomputing.
+>>-		 */
+>>-		unregister_ipcns_notifier(current->nsproxy->ipc_ns);
+>>+		tunable_set_callback(*((int *)(ipc_table.data)));
+>> 
+>> 	return rc;
+>> }
+>>@@ -119,12 +142,14 @@ static int sysctl_ipc_registered_data(ct
+>> 	rc = sysctl_ipc_data(table, name, nlen, oldval, oldlenp, newval,
+>> 		newlen);
+>> 
+>>-	if (newval && newlen && rc > 0)
+>>+	if (newval && newlen && rc > 0) {
+>> 		/*
+>>-		 * Tunable has successfully been changed from userland:
+>>-		 * disable its automatic recomputing.
+>>+		 * Tunable has successfully been changed from userland
+>> 		 */
+>>-		unregister_ipcns_notifier(current->nsproxy->ipc_ns);
+>>+		int *data = get_ipc(table);
+>>+
+>>+		tunable_set_callback(*data);
+>>+	}
+>> 
+>> 	return rc;
+>> }
+> 
+> 
+> hm, what's happening here?  We take a local copy of the caller's ctl_table
+> and then pass that into proc_dointvec().  Is that as hacky as it seems??
+> 
+> 
 
-The per CPU caches in the zone were originally intended to be exactly
-such a fast path.
+Well, the caller's ctl_table contains the tunables addresses for the 
+init namspeace in its .data fields. While what needs to be passed in to 
+proc_dointvec() is the tunable address in the caller's namespace.
+Since all the fields in ipc_kern_table[] are ok but the .data one, imho 
+it's correct to store it in a local copy and change the data field to 
+the appropirate one, before passing it to proc_dointvec().
 
-That is why I find your patch pretty ironic. 
-
-I can understand it because a lot of the page_alloc.c code is frankly
-bizarre now (the file could probably really need a rewrite) and it doesn't
-surprise me that the old fast path is not very fast anymore.
-
-But if you add another fast path you should first remove the old one 
-at least.
-
--Andi
+Regards,
+Nadia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
