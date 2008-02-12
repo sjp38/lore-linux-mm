@@ -1,97 +1,75 @@
-Date: Tue, 12 Feb 2008 17:06:30 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [-mm PATCH] register_memory/unregister_memory clean ups
-In-Reply-To: <1202765553.25604.12.camel@dyn9047017100.beaverton.ibm.com>
-References: <20080211114818.74c9dcc7.akpm@linux-foundation.org> <1202765553.25604.12.camel@dyn9047017100.beaverton.ibm.com>
-Message-Id: <20080212154309.F9DA.Y-GOTO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate8.uk.ibm.com (8.13.8/8.13.8) with ESMTP id m1C8r1bN262076
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2008 08:53:01 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1C8r1Mg1183922
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2008 08:53:01 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av04.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1C8qw5j015153
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2008 08:52:58 GMT
+Date: Tue, 12 Feb 2008 10:52:56 +0200
+From: Muli Ben-Yehuda <muli@il.ibm.com>
+Subject: Re: [PATCH]intel-iommu batched iotlb flushes
+Message-ID: <20080212085256.GF5750@rhun.haifa.ibm.com>
+References: <20080211224105.GB24412@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080211224105.GB24412@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, greg@kroah.com, haveblue@us.ibm.com, linux-mm <linux-mm@kvack.org>
+To: mark gross <mgross@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Mon, 2008-02-11 at 11:48 -0800, Andrew Morton wrote:
-> > On Mon, 11 Feb 2008 09:23:18 -0800
-> > Badari Pulavarty <pbadari@us.ibm.com> wrote:
-> > 
-> > > Hi Andrew,
-> > > 
-> > > While testing hotplug memory remove against -mm, I noticed
-> > > that unregister_memory() is not cleaning up /sysfs entries
-> > > correctly. It also de-references structures after destroying
-> > > them (luckily in the code which never gets used). So, I cleaned
-> > > up the code and fixed the extra reference issue.
-> > > 
-> > > Could you please include it in -mm ?
-> > > 
-> > > Thanks,
-> > > Badari
-> > > 
-> > > register_memory()/unregister_memory() never gets called with
-> > > "root". unregister_memory() is accessing kobject_name of
-> > > the object just freed up. Since no one uses the code,
-> > > lets take the code out. And also, make register_memory() static.  
-> > > 
-> > > Another bug fix - before calling unregister_memory()
-> > > remove_memory_block() gets a ref on kobject. unregister_memory()
-> > > need to drop that ref before calling sysdev_unregister().
-> > > 
-> > 
-> > I'd say this:
-> > 
-> > > Subject: [-mm PATCH] register_memory/unregister_memory clean ups
-> > 
-> > is rather tame.  These are more than cleanups!  These sound like
-> > machine-crashing bugs.  Do they crash machines?  How come nobody noticed
-> > it?
-> > 
+On Mon, Feb 11, 2008 at 02:41:05PM -0800, mark gross wrote:
+
+> The intel-iommu hardware requires a polling operation to flush IOTLB
+> PTE's after an unmap operation.  Through some TSC instrumentation of
+> a netperf UDP stream with small packets test case it was seen that
+> the flush operations where sucking up to 16% of the CPU time doing
+> iommu_flush_iotlb's
 > 
-> No they don't crash machine - mainly because, they never get called
-> with "root" argument (where we have the bug). They were never tested
-> before, since we don't have memory remove work yet. All it does
-> is, it leave /sysfs directory laying around and causing next
-> memory add failure. 
+> The following patch batches the IOTLB flushes removing most of the
+> overhead in flushing the IOTLB's.  It works by building a list of to
+> be released IOVA's that is iterated over when a timer goes off or
+> when a high water mark is reached.
+> 
+> The wrinkle this has is that the memory protection and page fault
+> warnings from errant DMA operations is somewhat reduced, hence a kernel
+> parameter is added to revert back to the "strict" page flush / unmap
+> behavior. 
+> 
+> The hole is the following scenarios: 
+> do many map_signal operations, do some unmap_signals, reuse a recently
+> unmapped page, <errant DMA hardware sneaks through and steps on reused
+> memory>
+> 
+> Or: you have rouge hardware using DMA's to look at pages: do many
+> map_signal's, do many unmap_singles, reuse some unmapped pages : 
+> <rouge hardware looks at reused page>
+> 
+> Note : these holes are very hard to get too, as the IOTLB is small
+> and only the PTE's still in the IOTLB can be accessed through this
+> mechanism.
+> 
+> Its recommended that strict is used when developing drivers that do
+> DMA operations to catch bugs early.  For production code where
+> performance is desired running with the batched IOTLB flushing is a
+> good way to go.
 
-Badari-san.
+While I don't disagree with this patch in principle (Calgary does the
+same thing due to expensive IOTLB flushes) the right way to fix it
+IMHO is to fix the drivers to batch mapping and unmapping operations
+or map up-front and unmap when done. The streaming DMA-API was
+designed to conserve IOMMU mappings for machines where IOMMU mappings
+are a scarce resource, and is a poor fit for a modern IOMMU such as
+VT-d with a 64-bit IO address space (or even an IOMMU with a 32-bit
+address space such as Calgary) where there are plenty of IOMMU
+mappings available.
 
-Which function does call unregister_memory() or unregister_memory_section()?
-I can't find its caller in current 2.6.24-mm1.
-
-
-???????()
-  |
-  |nothing calls?
-  |
-  +-->unregister_memory_section()
-       |
-       |call
-       |
-       +---> remove_memory_block()
-              |
-              |call
-              |
-              +----> unregister_memory()
-
-unregister_memory_section() is only externed in linux/memory.h.
-
-Do you have any another patch to call it?
-I think it is necessary for physical memory removing.
-
-If you have not posted it or it is not merged to -mm,
-I can understand why this bug remains.
-If you posted it, could you point it to me?
-
-Or do I misunderstand something?
-
-
-Thanks.
-
--- 
-Yasunori Goto 
-
+Cheers,
+Muli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
