@@ -1,78 +1,56 @@
-Date: Tue, 12 Feb 2008 12:05:17 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2.6.24-mm1]  Mempolicy:  silently restrict nodemask to allowed nodes V3
-In-Reply-To: <alpine.DEB.1.00.0802111757470.19213@chino.kir.corp.google.com>
-References: <20080212103944.29A9.KOSAKI.MOTOHIRO@jp.fujitsu.com> <alpine.DEB.1.00.0802111757470.19213@chino.kir.corp.google.com>
-Message-Id: <20080212115952.29B2.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Mon, 11 Feb 2008 19:17:03 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 2.6.24-mm1]  Mempolicy:  silently restrict nodemask to
+ allowed nodes V3
+In-Reply-To: <20080212115952.29B2.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.00.0802111912080.32542@chino.kir.corp.google.com>
+References: <20080212103944.29A9.KOSAKI.MOTOHIRO@jp.fujitsu.com> <alpine.DEB.1.00.0802111757470.19213@chino.kir.corp.google.com> <20080212115952.29B2.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi
+On Tue, 12 Feb 2008, KOSAKI Motohiro wrote:
 
-> I'm talking about the disclaimer that I quoted above in the changelog of 
-> this patch.  Lee was stating that he deferred my suggestion to move the 
-> logic into mpol_new(), which I did in my patchset, but I don't think that 
-> needs to be included in this patch's changelog.
+> Hmmmmmm
+> sorry, I don't understand yet.
 > 
-> I'm all for the merging of this patch (once my concern below is addressed) 
-> but the section of the changelog that is quoted above is unnecessary.
-
-OK. I obey you.
-
-> So my question is why we consider this invalid:
+> My test result was
 > 
-> 	nodemask_t nodes;
+> RHEL5(initrd-2.6.18 + rhel patch)	EINVAL
+> 2.6.24					EINVAL
+> 2.6.24 + lee-patch			EINVAL
 > 
-> 	nodes_clear(&nodes);
-> 	node_set(1, &nodes);
-> 	set_mempolicy(MPOL_DEFAULT, nodes, 1 << CONFIG_NODES_SHIFT);
 > 
-> The nodemask doesn't matter at all with a MPOL_DEFAULT policy.
+> I don't know current behavior good or wrong.
+> but I think it is not regression.
+> 
 
-Hmmmmmm
-sorry, I don't understand yet.
+Yes, it's not a regression, but I'm asking why we can't allow this:
 
-My test result was
+	nodemask_t nodes = NODE_MASK_NONE;
 
-RHEL5(initrd-2.6.18 + rhel patch)	EINVAL
-2.6.24					EINVAL
-2.6.24 + lee-patch			EINVAL
+	node_set(1, &nodes);
+	set_mempolicy(MPOL_DEFAULT, &nodes, MAX_NUMNODES);
 
+It seems like that should not return -EINVAL and that it should just 
+effect the system default of a MPOL_DEFAULT policy.
 
-I don't know current behavior good or wrong.
-but I think it is not regression.
+It's not a problem that I'm complaining about specifically in this patch, 
+I'm just raising the concern that returning -EINVAL here is really 
+unnecessary since mpol_new() will readily accept it.
 
+So you can add my
 
--------------------------------------------------------
-#include <numaif.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
-#include <numa.h>
+	Acked-by: David Rientjes <rientjes@google.com>
 
-main(){
-        int err;
-        nodemask_t nodes;
+to this patch, but I would like some counter-arguments presented that show 
+why we shouldn't allow the above code to work later on.
 
-        nodemask_zero(&nodes);
-        nodemask_set(&nodes, 1);
-        err = set_mempolicy(MPOL_DEFAULT, &nodes.n[0], 2048);
-        if (err < 0) {
-                perror("set_mempolicy");
-        }
-
-        return 0;
-}
-
-
-- kosaki
-
+		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
