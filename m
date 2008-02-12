@@ -1,65 +1,46 @@
-Date: Tue, 12 Feb 2008 10:06:23 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 9941] New: Zone "Normal" missing in /proc/zoneinfo
-Message-Id: <20080212100623.4fd6cf85.akpm@linux-foundation.org>
-In-Reply-To: <bug-9941-27@http.bugzilla.kernel.org/>
-References: <bug-9941-27@http.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 12 Feb 2008 11:06:43 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 2.6.24-mm1]  Mempolicy:  silently restrict nodemask to
+ allowed nodes V3
+In-Reply-To: <1202828903.4974.8.camel@localhost>
+Message-ID: <alpine.DEB.1.00.0802121100211.9649@chino.kir.corp.google.com>
+References: <alpine.LFD.1.00.0802092340400.2896@woody.linux-foundation.org>  <1202748459.5014.50.camel@localhost>  <20080212091910.29A0.KOSAKI.MOTOHIRO@jp.fujitsu.com>  <alpine.DEB.1.00.0802111649330.6119@chino.kir.corp.google.com>
+ <1202828903.4974.8.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: bart.vanassche@gmail.com
-Cc: bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Feb 2008 02:39:40 -0800 (PST) bugme-daemon@bugzilla.kernel.org wrote:
+On Tue, 12 Feb 2008, Lee Schermerhorn wrote:
 
-> http://bugzilla.kernel.org/show_bug.cgi?id=9941
+> Firstly, because this was the original API. 
 > 
->            Summary: Zone "Normal" missing in /proc/zoneinfo
->            Product: Memory Management
->            Version: 2.5
->      KernelVersion: 2.6.24.2
->           Platform: All
->         OS/Version: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: Other
->         AssignedTo: akpm@osdl.org
->         ReportedBy: bart.vanassche@gmail.com
-> 
-> 
-> Latest working kernel version: 2.6.24
-> Earliest failing kernel version: 2.6.24.2
-> Distribution: Ubuntu 7.10 server
-> Hardware Environment: Intel S5000PAL
-> Software Environment:
-> Problem Description:
-> 
-> There is only information about the zones "DMA" and "DMA32" in /proc/zoneinfo,
-> not about zone "Normal".
-> 
-> Steps to reproduce:
-> 
-> Run the following command in a shell:
-> $ grep zone /proc/zoneinfo
-> 
-> Output with 2.6.24:
-> Node 0, zone      DMA
-> Node 0, zone    DMA32
-> Node 0, zone   Normal
-> 
-> Output with 2.6.24.2:
-> Node 0, zone      DMA
-> Node 0, zone    DMA32
+> Secondly, I consider this key to extensible API design.  Perhaps,
+> someday, we might want to assign some semantic to certain non-empty
+> nodemasks to MPOL_DEFAULT.  If we're allowing applications to pass
+> arbitrary nodemask now, and just ignoring them, that becomes difficult.
+> Just like dis-allowing unassigned flag values.
 > 
 
-hm, I don't think that was expected.   Please send the full kernel boot log
-(the dmesg -s 1000000 output).  Please send it via emailed reply-to-all, not
-via the bugzilla web interface, thanks.
+I allow it with my patchset because there's simply no reason not to.
+
+MPOL_DEFAULT is the default system-wide policy that does not require a 
+nodemask as a parameter.  Both the man page (set_mempolicy(2)) and the 
+documentation (Documentation/vm/numa_memory_policy.txt) state that.
+
+It makes no sense in the future to assign a meaning to a nodemask passed 
+along with MPOL_DEFAULT.  None at all.  The policy is simply the 
+equivalent of default_policy and, as the system default, a nodemask 
+parameter to the system default policy is wrong be definition.
+
+So, logically, we can either allow all nodemasks to be passed with a 
+MPOL_DEFAULT policy or none at all (it must be NULL).  Empty nodemasks 
+don't have any logical relationship with MPOL_DEFAULT.
+
+		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
