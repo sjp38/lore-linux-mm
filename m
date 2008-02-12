@@ -1,45 +1,56 @@
-Message-ID: <47B2174E.5000708@opengridcomputing.com>
-Date: Tue, 12 Feb 2008 16:01:50 -0600
-From: Steve Wise <swise@opengridcomputing.com>
-MIME-Version: 1.0
-Subject: Re: Demand paging for memory regions (was Re: MMU Notifiers V6)
-References: <Pine.LNX.4.64.0802081540180.4291@schroedinger.engr.sgi.com>	<20080208234302.GH26564@sgi.com>	<20080208155641.2258ad2c.akpm@linux-foundation.org>	<Pine.LNX.4.64.0802081603430.4543@schroedinger.engr.sgi.com>	<adaprv70yyt.fsf@cisco.com>	<Pine.LNX.4.64.0802081614030.5115@schroedinger.engr.sgi.com>	<adalk5v0yi6.fsf@cisco.com>	<Pine.LNX.4.64.0802081634070.5298@schroedinger.engr.sgi.com>	<20080209012446.GB7051@v2.random>	<Pine.LNX.4.64.0802081725200.5445@schroedinger.engr.sgi.com>	<20080209015659.GC7051@v2.random>	<Pine.LNX.4.64.0802081813300.5602@schroedinger.engr.sgi.com>	<20080209075556.63062452@bree.surriel.com>	<Pine.LNX.4.64.0802091345490.12965@schroedinger.engr.sgi.com> <ada3arzxgkz.fsf_-_@cisco.com>
-In-Reply-To: <ada3arzxgkz.fsf_-_@cisco.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1CM4NNf014165
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2008 17:04:23 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1CM4DB9205260
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2008 15:04:19 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1CM4Caa000942
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2008 15:04:12 -0700
+Subject: Re: [-mm PATCH] register_memory/unregister_memory clean ups
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <1202853434.11188.76.camel@nimitz.home.sr71.net>
+References: <20080211114818.74c9dcc7.akpm@linux-foundation.org>
+	 <1202765553.25604.12.camel@dyn9047017100.beaverton.ibm.com>
+	 <20080212154309.F9DA.Y-GOTO@jp.fujitsu.com>
+	 <1202836953.25604.42.camel@dyn9047017100.beaverton.ibm.com>
+	 <1202849972.11188.71.camel@nimitz.home.sr71.net>
+	 <1202853415.25604.59.camel@dyn9047017100.beaverton.ibm.com>
+	 <1202853434.11188.76.camel@nimitz.home.sr71.net>
+Content-Type: text/plain
+Date: Tue, 12 Feb 2008 14:07:11 -0800
+Message-Id: <1202854031.25604.62.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roland Dreier <rdreier@cisco.com>
-Cc: general@lists.openfabrics.org, Christoph Lameter <clameter@sgi.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <andrea@qumranet.com>, a.p.zijlstra@chello.nl, izike@qumranet.com, steiner@sgi.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, kvm-devel@lists.sourceforge.net
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, greg@kroah.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Roland Dreier wrote:
-> [Adding general@lists.openfabrics.org to get the IB/RDMA people involved]
+On Tue, 2008-02-12 at 13:57 -0800, Dave Hansen wrote:
+> On Tue, 2008-02-12 at 13:56 -0800, Badari Pulavarty wrote:
+> > 
+> > +static void __remove_section(struct zone *zone, unsigned long
+> > section_nr)
+> > +{
+> > +       if (!valid_section_nr(section_nr))
+> > +               return;
+> > +
+> > +       unregister_memory_section(__nr_to_section(section_nr));
+> > +       sparse_remove_one_section(zone, section_nr);
+> > +}
 > 
-> This thread has patches that add support for notifying drivers when a
-> process's memory map changes.  The hope is that this is useful for
-> letting RDMA devices handle registered memory without pinning the
-> underlying pages, by updating the RDMA device's translation tables
-> whenever the host kernel's tables change.
+> I do think passing in a mem_section* here is highly superior.  It makes
+> it impossible to pass a pfn in and not get a warning.
 > 
-> Is anyone interested in working on using this for drivers/infiniband?
-> I am interested in participating, but I don't think I have enough time
-> to do this by myself.
 
-I don't have time, although it would be interesting work!
+Only problem is, I need to hold pgdat_resize_lock() if pass *ms. 
+If I don't hold the resize_lock, I have to re-evaluate. And also,
+I need to pass section_nr for decoding the mem_map anyway :(
 
-> 
-> Also, at least naively it seems that this is only useful for hardware
-> that has support for this type of demand paging, and can handle
-> not-present pages, generating interrupts for page faults, etc.  I know
-> that Mellanox HCAs should have this support; are there any other
-> devices that can do this?
->
-
-Chelsio's T3 HW doesn't support this.
-
-
-Steve.
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
