@@ -1,118 +1,59 @@
-Subject: Re: [PATCH 2.6.24-mm1]  Mempolicy:  silently restrict nodemask to
-	allowed nodes V3
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <alpine.DEB.1.00.0802111649330.6119@chino.kir.corp.google.com>
-References: <alpine.LFD.1.00.0802092340400.2896@woody.linux-foundation.org>
-	 <1202748459.5014.50.camel@localhost>
-	 <20080212091910.29A0.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <alpine.DEB.1.00.0802111649330.6119@chino.kir.corp.google.com>
-Content-Type: text/plain
-Date: Tue, 12 Feb 2008 08:08:23 -0700
-Message-Id: <1202828903.4974.8.camel@localhost>
-Mime-Version: 1.0
+Message-ID: <47B1B7F4.8080009@bull.net>
+Date: Tue, 12 Feb 2008 16:15:00 +0100
+From: Nadia Derbey <Nadia.Derbey@bull.net>
+MIME-Version: 1.0
+Subject: Re: [PATCH 7/8] Do not recompute msgmni anymore if explicitely set
+ by user
+References: <20080211141646.948191000@bull.net>	<20080211141816.094061000@bull.net>	<20080211122408.5008902f.akpm@linux-foundation.org>	<47B167AF.6010008@bull.net> <20080212014444.8bc3791b.akpm@linux-foundation.org>
+In-Reply-To: <20080212014444.8bc3791b.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, linux-mm@kvack.org, containers@lists.linux-foundation.org, matthltc@us.ibm.com, cmm@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-02-11 at 17:00 -0800, David Rientjes wrote:
-> On Tue, 12 Feb 2008, KOSAKI Motohiro wrote:
+Andrew Morton wrote:
+> On Tue, 12 Feb 2008 10:32:31 +0100 Nadia Derbey <Nadia.Derbey@bull.net> wrote:
 > 
-> > Hi Andrew Lee-san
-> > 
-> > # remove almost CC'd
-> > 
 > 
-> Please don't remove cc's that were included on the original posting if 
-> you're passing the patch along.
+>>it builds fine, modulo some changes in ipv4 and ipv6 (see attached patch 
+>>- didn't find it in the hot fixes).
 > 
-> > OK.
-> > I append my Tested-by.(but not Singed-off-by because my work is very little).
-> > 
-> > and, I attached .24 adjusted patch.
-> > my change is only line number change and remove extra space.
-> > 
 > 
-> Andrew may clarify this, but I believe you need to include a sign-off line 
-> even if you alter just that one whitespace.
+> OK, thanks for checking.  Did you confirm that we don't have unneeded code
+> in vmlinux when CONFIG_PROCFS=n?  I guess before-and-after comparison of
+> the size(1) output would tell us.
 > 
->  [ I edited that whitespace in my own copy of this patch when I applied it 
->    to my tree because git complained about it (and my patchset removes the 
->    same line with the whitespace removed). ]
+> Those networking build problems appear to have already been fixed.
 > 
-> > -------------------------------------------------------------------
-> > Was "Re: [2.6.24 regression][BUGFIX] numactl --interleave=all doesn't
-> > works on memoryless node."
-> > 
-> > [Aside:  I noticed there were two slightly different distributions for
-> > this topic.  I've unified the distribution lists w/o dropping anyone, I
-> > think.  Apologies if you'd rather have been dropped...]
-> > 
-> > Here's V3 of the patch, accomodating Kosaki Motohiro's suggestion for
-> > folding contextualize_policy() into mpol_check_policy() [because my
-> > "was_empty" argument "was ugly" ;-)].  It does seem to clean up the
-> > code.
-> > 
-> > I'm still deferring David Rientjes' suggestion to fold
-> > mpol_check_policy() into mpol_new().  We need to sort out whether
-> > mempolicies specified for tmpfs and hugetlbfs mounts always need the
-> > same "contextualization" as user/application installed policies.  I
-> > don't want to hold up this bug fix for that discussion.  This is
-> > something Paul J will need to address with his cpuset/mempolicy rework,
-> > so we can sort it out in that context.
-> > 
+> In future, please quote the compiler error output in the changelog when
+> sending build fixes or warning fixes, thanks.
 > 
-> I took care of this in my patchset from this morning, so I think we can 
-> drop this disclaimer now.
+> 
+> 
 
-David: 
+BEFORE:
 
-I'm fine with removing this.  I didn't consider it part of the patch
-description anyway.  
+lkernel@akt$ size vmlinux
+    text    data     bss     dec     hex filename
+4318525  454484  462848 5235857  4fe491 vmlinux
 
-> > 2) In existing mpol_check_policy() logic, after "contextualization":
-> >    a) MPOL_DEFAULT:  require that in coming mask "was_empty"
-> 
-> While my patchset effectively obsoletes this patch (but is nonetheless 
-> based on top of it), I don't understand why you require that MPOL_DEFAULT 
-> nodemasks are empty.
 
-Firstly, because this was the original API. 
+AFTER:
 
-Secondly, I consider this key to extensible API design.  Perhaps,
-someday, we might want to assign some semantic to certain non-empty
-nodemasks to MPOL_DEFAULT.  If we're allowing applications to pass
-arbitrary nodemask now, and just ignoring them, that becomes difficult.
-Just like dis-allowing unassigned flag values.
+lkernel@akt$ size vmlinux
+    text    data     bss     dec     hex filename
+4323161  454484  462848 5240493  4ff6ad vmlinux
 
-> 
-> mpol_new() will not dynamically allocate a new mempolicy in that case 
-> anyway since it is the system default so the only reason why 
-> set_mempolicy(MPOL_DEFAULT, numa_no_nodes, ...) won't work is because of 
-> this addition to mpol_check_policy().
+which makes it +4636 = +0.11%
 
-??? Isn't numa_no_nodes an empty node mask?  If this worked before the
-memoryless nodes patch set went in [I believe it did], it should still
-work.
+I've got the details for */built-in.o if needed.
 
-> 
-> In other words, what is the influence to dismiss a MPOL_DEFAULT mempolicy 
-> request from a user as invalid simply because it includes set nodes in the 
-> nodemask?
-> 
-> The warning in the man page that nodemask should be NULL is irrelevant 
-> here because the user did pass a nodemask, it just happened not to be 
-> empty.  There seems to be no compelling reason to consider this as invalid 
-> since MPOL_DEFAULT explicitly does not require a nodemask.
 
-See above.  If you have some use--i.e., as defined semantic--for a
-non-empty node mask, then by all means remove the check.  But, until we
-do, best not to let correct applications do this.  That way, they won't
-break when/if someone DOES assign meaning to non-empty masks.
-
-Lee
+Regards,
+Nadia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
