@@ -1,188 +1,72 @@
-Date: Tue, 12 Feb 2008 07:33:54 -0800
+Date: Tue, 12 Feb 2008 07:37:00 -0800
 From: mark gross <mgross@linux.intel.com>
-Subject: Re: iova RB tree setup tweak.
-Message-ID: <20080212153354.GA27490@linux.intel.com>
+Subject: Re: [PATCH]intel-iommu batched iotlb flushes
+Message-ID: <20080212153700.GB27490@linux.intel.com>
 Reply-To: mgross@linux.intel.com
-References: <20080211215651.GA24412@linux.intel.com> <20080211142946.379455af.akpm@linux-foundation.org>
+References: <20080211224105.GB24412@linux.intel.com> <20080212085256.GF5750@rhun.haifa.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080211142946.379455af.akpm@linux-foundation.org>
+In-Reply-To: <20080212085256.GF5750@rhun.haifa.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Greg KH <greg@kroah.com>
+To: Muli Ben-Yehuda <muli@il.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 11, 2008 at 02:29:46PM -0800, Andrew Morton wrote:
-> On Mon, 11 Feb 2008 13:56:51 -0800
-> mark gross <mgross@linux.intel.com> wrote:
+On Tue, Feb 12, 2008 at 10:52:56AM +0200, Muli Ben-Yehuda wrote:
+> On Mon, Feb 11, 2008 at 02:41:05PM -0800, mark gross wrote:
 > 
-> > The following patch merges two functions into one allowing for a 3%
-> > reduction in overhead in locating, allocating and inserting pages for
-> > use in IOMMU operations.
+> > The intel-iommu hardware requires a polling operation to flush IOTLB
+> > PTE's after an unmap operation.  Through some TSC instrumentation of
+> > a netperf UDP stream with small packets test case it was seen that
+> > the flush operations where sucking up to 16% of the CPU time doing
+> > iommu_flush_iotlb's
 > > 
-> > Its a bit of a eye-crosser so I welcome any RB-tree / MM experts to take
-> > a look.  It works by re-using some of the information gathered in the
-> > search for the pages to use in setting up the IOTLB's in the insertion
-> > of the iova structure into the RB tree.
+> > The following patch batches the IOTLB flushes removing most of the
+> > overhead in flushing the IOTLB's.  It works by building a list of to
+> > be released IOVA's that is iterated over when a timer goes off or
+> > when a high water mark is reached.
 > > 
+> > The wrinkle this has is that the memory protection and page fault
+> > warnings from errant DMA operations is somewhat reduced, hence a kernel
+> > parameter is added to revert back to the "strict" page flush / unmap
+> > behavior. 
+> > 
+> > The hole is the following scenarios: 
+> > do many map_signal operations, do some unmap_signals, reuse a recently
+> > unmapped page, <errant DMA hardware sneaks through and steps on reused
+> > memory>
+> > 
+> > Or: you have rouge hardware using DMA's to look at pages: do many
+> > map_signal's, do many unmap_singles, reuse some unmapped pages : 
+> > <rouge hardware looks at reused page>
+> > 
+> > Note : these holes are very hard to get too, as the IOTLB is small
+> > and only the PTE's still in the IOTLB can be accessed through this
+> > mechanism.
+> > 
+> > Its recommended that strict is used when developing drivers that do
+> > DMA operations to catch bugs early.  For production code where
+> > performance is desired running with the batched IOTLB flushing is a
+> > good way to go.
 > 
-> I guess this is a PCI patch hence I'd be tagging is as
-> to-be-merged-via-greg's-pci-tree.
-> 
-> > 
-> > Singed-off-by: <mgross@linux.intel.com>
-> > 
-> 
-> ow, that musta hurt.
+> While I don't disagree with this patch in principle (Calgary does the
+> same thing due to expensive IOTLB flushes) the right way to fix it
+> IMHO is to fix the drivers to batch mapping and unmapping operations
+> or map up-front and unmap when done. The streaming DMA-API was
+> designed to conserve IOMMU mappings for machines where IOMMU mappings
+> are a scarce resource, and is a poor fit for a modern IOMMU such as
+> VT-d with a 64-bit IO address space (or even an IOMMU with a 32-bit
+> address space such as Calgary) where there are plenty of IOMMU
+> mappings available.
 
-Not at first but ever since I posted the patch its been a bit.  
-
-> 
-> > 
-> > Index: linux-2.6.24-mm1/drivers/pci/iova.c
-> > ===================================================================
-> > --- linux-2.6.24-mm1.orig/drivers/pci/iova.c	2008-02-07 11:05:44.000000000 -0800
-> > +++ linux-2.6.24-mm1/drivers/pci/iova.c	2008-02-07 13:05:03.000000000 -0800
-> > @@ -72,20 +72,25 @@
-> >  	return pad_size;
-> >  }
-> >  
-> > -static int __alloc_iova_range(struct iova_domain *iovad, unsigned long size,
-> > -		unsigned long limit_pfn, struct iova *new, bool size_aligned)
-> > +static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
-> > +		unsigned long size, unsigned long limit_pfn,
-> > +			struct iova *new, bool size_aligned)
-> >  {
-> > -	struct rb_node *curr = NULL;
-> > +	struct rb_node *prev, *curr = NULL;
-> >  	unsigned long flags;
-> >  	unsigned long saved_pfn;
-> >  	unsigned int pad_size = 0;
-> >  
-> >  	/* Walk the tree backwards */
-> >  	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
-> >  	saved_pfn = limit_pfn;
-> >  	curr = __get_cached_rbnode(iovad, &limit_pfn);
-> > +	prev = curr;
-> >  	while (curr) {
-> >  		struct iova *curr_iova = container_of(curr, struct iova, node);
-> > +
-> >  		if (limit_pfn < curr_iova->pfn_lo)
-> >  			goto move_left;
-> >  		else if (limit_pfn < curr_iova->pfn_hi)
-> > @@ -99,6 +104,7 @@
-> 
-> For some reason patch(1) claims that the patch is corrupted at this line.
-> 
-
-My bad.  Try the following:
+Yes, have a DMA pool of DMA addresses to use and re-use in the stack
+instead of setting up and tearing down the PTE's is something we need to
+look at closely for network and other high DMA traffic stacks. 
 
 --mgross
 
-Signed-off-by : <mgross@linux.intel.com> fa-la-la
-
-
-Index: linux-2.6.24-mm1/drivers/pci/iova.c
-===================================================================
---- linux-2.6.24-mm1.orig/drivers/pci/iova.c	2008-02-07 11:05:44.000000000 -0800
-+++ linux-2.6.24-mm1/drivers/pci/iova.c	2008-02-12 07:12:47.000000000 -0800
-@@ -72,10 +72,11 @@
- 	return pad_size;
- }
- 
--static int __alloc_iova_range(struct iova_domain *iovad, unsigned long size,
--		unsigned long limit_pfn, struct iova *new, bool size_aligned)
-+static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
-+		unsigned long size, unsigned long limit_pfn,
-+			struct iova *new, bool size_aligned)
- {
--	struct rb_node *curr = NULL;
-+	struct rb_node *prev, *curr = NULL;
- 	unsigned long flags;
- 	unsigned long saved_pfn;
- 	unsigned int pad_size = 0;
-@@ -84,8 +85,10 @@
- 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
- 	saved_pfn = limit_pfn;
- 	curr = __get_cached_rbnode(iovad, &limit_pfn);
-+	prev = curr;
- 	while (curr) {
- 		struct iova *curr_iova = container_of(curr, struct iova, node);
-+
- 		if (limit_pfn < curr_iova->pfn_lo)
- 			goto move_left;
- 		else if (limit_pfn < curr_iova->pfn_hi)
-@@ -99,6 +102,7 @@
- adjust_limit_pfn:
- 		limit_pfn = curr_iova->pfn_lo - 1;
- move_left:
-+		prev = curr;
- 		curr = rb_prev(curr);
- 	}
- 
-@@ -115,7 +119,33 @@
- 	new->pfn_lo = limit_pfn - (size + pad_size) + 1;
- 	new->pfn_hi = new->pfn_lo + size - 1;
- 
-+	/* Insert the new_iova into domain rbtree by holding writer lock */
-+	/* Add new node and rebalance tree. */
-+	{
-+		struct rb_node **entry = &((prev)), *parent = NULL;
-+		/* Figure out where to put new node */
-+		while (*entry) {
-+			struct iova *this = container_of(*entry,
-+							struct iova, node);
-+			parent = *entry;
-+
-+			if (new->pfn_lo < this->pfn_lo)
-+				entry = &((*entry)->rb_left);
-+			else if (new->pfn_lo > this->pfn_lo)
-+				entry = &((*entry)->rb_right);
-+			else
-+				BUG(); /* this should not happen */
-+		}
-+
-+		/* Add new node and rebalance tree. */
-+		rb_link_node(&new->node, parent, entry);
-+		rb_insert_color(&new->node, &iovad->rbroot);
-+	}
-+	__cached_rbnode_insert_update(iovad, saved_pfn, new);
-+
- 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
-+
-+
- 	return 0;
- }
- 
-@@ -171,23 +201,15 @@
- 		size = __roundup_pow_of_two(size);
- 
- 	spin_lock_irqsave(&iovad->iova_alloc_lock, flags);
--	ret = __alloc_iova_range(iovad, size, limit_pfn, new_iova,
--			size_aligned);
-+	ret = __alloc_and_insert_iova_range(iovad, size, limit_pfn,
-+			new_iova, size_aligned);
- 
-+	spin_unlock_irqrestore(&iovad->iova_alloc_lock, flags);
- 	if (ret) {
--		spin_unlock_irqrestore(&iovad->iova_alloc_lock, flags);
- 		free_iova_mem(new_iova);
- 		return NULL;
- 	}
- 
--	/* Insert the new_iova into domain rbtree by holding writer lock */
--	spin_lock(&iovad->iova_rbtree_lock);
--	iova_insert_rbtree(&iovad->rbroot, new_iova);
--	__cached_rbnode_insert_update(iovad, limit_pfn, new_iova);
--	spin_unlock(&iovad->iova_rbtree_lock);
--
--	spin_unlock_irqrestore(&iovad->iova_alloc_lock, flags);
--
- 	return new_iova;
- }
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
