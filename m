@@ -1,60 +1,150 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate2.de.ibm.com (8.13.8/8.13.8) with ESMTP id m1C97ljK127130
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2008 09:07:47 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1C97luN2199778
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2008 10:07:47 +0100
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1C97lWg028150
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2008 10:07:47 +0100
-Date: Tue, 12 Feb 2008 11:07:45 +0200
-From: Muli Ben-Yehuda <muli@il.ibm.com>
-Subject: Re: [PATCH]intel-iommu batched iotlb flushes
-Message-ID: <20080212090745.GH5750@rhun.haifa.ibm.com>
-References: <20080211224105.GB24412@linux.intel.com> <20080212085256.GF5750@rhun.haifa.ibm.com> <20080212.010006.255202479.davem@davemloft.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080212.010006.255202479.davem@davemloft.net>
+Message-ID: <47B167AF.6010008@bull.net>
+Date: Tue, 12 Feb 2008 10:32:31 +0100
+From: Nadia Derbey <Nadia.Derbey@bull.net>
+MIME-Version: 1.0
+Subject: Re: [PATCH 7/8] Do not recompute msgmni anymore if explicitely set
+ by user
+References: <20080211141646.948191000@bull.net>	<20080211141816.094061000@bull.net> <20080211122408.5008902f.akpm@linux-foundation.org>
+In-Reply-To: <20080211122408.5008902f.akpm@linux-foundation.org>
+Content-Type: multipart/mixed;
+ boundary="------------050706030605010501050008"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: mgross@linux.intel.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, linux-mm@kvack.org, containers@lists.linux-foundation.org, matthltc@us.ibm.com, cmm@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 12, 2008 at 01:00:06AM -0800, David Miller wrote:
-> From: Muli Ben-Yehuda <muli@il.ibm.com>
-> Date: Tue, 12 Feb 2008 10:52:56 +0200
-> 
-> > The streaming DMA-API was designed to conserve IOMMU mappings for
-> > machines where IOMMU mappings are a scarce resource, and is a poor
-> > fit for a modern IOMMU such as VT-d with a 64-bit IO address space
-> > (or even an IOMMU with a 32-bit address space such as Calgary)
-> > where there are plenty of IOMMU mappings available.
-> 
-> For the 64-bit case what you are suggesting eventually amounts to
-> mapping all available RAM in the IOMMU.
-> 
-> Although an extreme version of your suggestion, it would be the most
-> efficient as it would require zero IOMMU flush operations.
->
-> But we'd lose things like protection and other benefits.
+This is a multi-part message in MIME format.
+--------------050706030605010501050008
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
-For the extreme case you are correct. There's an inherent trade-off
-between IOMMU performance and protection guarantees, where one end of
-the spectrum is represented by the streaming DMA-API and the other end
-is represented by simply mapping all available memory. It's an open
-question what is the right point in between. I think that an optimal
-strategy might be "keep the mapping around for as long as it is safe",
-i.e., keep a mapping to a frame for as long as the frame is owned by
-whoever requested the mapping in the first place. Once ownership of
-the frame is passed to another entity (e.g., from the driver to the
-stack), revoke the original mapping. This implies a way for the kernel
-to track frame ownership and communicate frame ownership changes to
-the DMA-API layer, which we don't currently have.
+Andrew Morton wrote:
+> On Mon, 11 Feb 2008 15:16:53 +0100
+> Nadia.Derbey@bull.net wrote:
+> 
+> 
+>>[PATCH 07/08]
+>>
+>>This patch makes msgmni not recomputed anymore upon ipc namespace creation /
+>>removal or memory add/remove, as soon as it has been set from userland.
+>>
+>>As soon as msgmni is explicitely set via procfs or sysctl(), the associated
+>>callback routine is unregistered from the ipc namespace notifier chain.
+>>
+> 
+> 
+> The patch series looks pretty good.
+> 
+> 
+>>===================================================================
+>>--- linux-2.6.24-mm1.orig/ipc/ipc_sysctl.c	2008-02-08 16:07:15.000000000 +0100
+>>+++ linux-2.6.24-mm1/ipc/ipc_sysctl.c	2008-02-08 16:08:32.000000000 +0100
+>>@@ -35,6 +35,24 @@ static int proc_ipc_dointvec(ctl_table *
+>> 	return proc_dointvec(&ipc_table, write, filp, buffer, lenp, ppos);
+>> }
+>> 
+>>+static int proc_ipc_callback_dointvec(ctl_table *table, int write,
+>>+	struct file *filp, void __user *buffer, size_t *lenp, loff_t *ppos)
+>>+{
+>>+	size_t lenp_bef = *lenp;
+>>+	int rc;
+>>+
+>>+	rc = proc_ipc_dointvec(table, write, filp, buffer, lenp, ppos);
+>>+
+>>+	if (write && !rc && lenp_bef == *lenp)
+>>+		/*
+>>+		 * Tunable has successfully been changed from userland:
+>>+		 * disable its automatic recomputing.
+>>+		 */
+>>+		unregister_ipcns_notifier(current->nsproxy->ipc_ns);
+>>+
+>>+	return rc;
+>>+}
+> 
+> 
+> If you haven't done so, could you please check that it all builds cleanly
+> with CONFIG_PROCFS=n, and that all code which isn't needed if procfs is
+> disabled is not present in the final binary?
+> 
+> 
+> 
+> 
 
-Cheers,
-Muli
+Andrew,
+
+it builds fine, modulo some changes in ipv4 and ipv6 (see attached patch 
+- didn't find it in the hot fixes).
+
+Regards,
+Nadia
+
+
+--------------050706030605010501050008
+Content-Type: text/x-patch;
+ name="ip_v4_v6_procfs.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="ip_v4_v6_procfs.patch"
+
+Fix header files to let IPV4 and IPV6 build if CONFIG_PROC_FS=n
+
+Signed-off-by: Nadia Derbey <Nadia.Derbey@bull.net>
+
+---
+ include/net/ip_fib.h |   13 ++++++++++++-
+ include/net/ipv6.h   |    6 +++---
+ 2 files changed, 15 insertions(+), 4 deletions(-)
+
+Index: linux-2.6.24-mm1/include/net/ip_fib.h
+===================================================================
+--- linux-2.6.24-mm1.orig/include/net/ip_fib.h	2008-02-12 11:03:40.000000000 +0100
++++ linux-2.6.24-mm1/include/net/ip_fib.h	2008-02-12 11:09:40.000000000 +0100
+@@ -266,6 +266,17 @@ static inline void fib_res_put(struct fi
+ #ifdef CONFIG_PROC_FS
+ extern int __net_init  fib_proc_init(struct net *net);
+ extern void __net_exit fib_proc_exit(struct net *net);
+-#endif
++#else /* CONFIG_PROC_FS */
++static inline int fib_proc_init(struct net *net)
++{
++	return 0;
++}
++
++static inline int fib_proc_exit(struct net *net)
++{
++	return 0;
++}
++
++#endif /* CONFIG_PROC_FS */
+ 
+ #endif  /* _NET_FIB_H */
+Index: linux-2.6.24-mm1/include/net/ipv6.h
+===================================================================
+--- linux-2.6.24-mm1.orig/include/net/ipv6.h	2008-02-07 13:40:38.000000000 +0100
++++ linux-2.6.24-mm1/include/net/ipv6.h	2008-02-12 11:16:27.000000000 +0100
+@@ -586,9 +586,6 @@ extern int ip6_mc_msfget(struct sock *sk
+ 			 int __user *optlen);
+ 
+ #ifdef CONFIG_PROC_FS
+-extern struct ctl_table *ipv6_icmp_sysctl_init(struct net *net);
+-extern struct ctl_table *ipv6_route_sysctl_init(struct net *net);
+-
+ extern int  ac6_proc_init(void);
+ extern void ac6_proc_exit(void);
+ extern int  raw6_proc_init(void);
+@@ -621,6 +618,9 @@ static inline int snmp6_unregister_dev(s
+ extern ctl_table ipv6_route_table_template[];
+ extern ctl_table ipv6_icmp_table_template[];
+ 
++extern struct ctl_table *ipv6_icmp_sysctl_init(struct net *net);
++extern struct ctl_table *ipv6_route_sysctl_init(struct net *net);
++
+ extern int ipv6_sysctl_register(void);
+ extern void ipv6_sysctl_unregister(void);
+ #endif
+
+--------------050706030605010501050008--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
