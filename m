@@ -1,59 +1,188 @@
-Message-ID: <47B1B7F4.8080009@bull.net>
-Date: Tue, 12 Feb 2008 16:15:00 +0100
-From: Nadia Derbey <Nadia.Derbey@bull.net>
+Date: Tue, 12 Feb 2008 07:33:54 -0800
+From: mark gross <mgross@linux.intel.com>
+Subject: Re: iova RB tree setup tweak.
+Message-ID: <20080212153354.GA27490@linux.intel.com>
+Reply-To: mgross@linux.intel.com
+References: <20080211215651.GA24412@linux.intel.com> <20080211142946.379455af.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 7/8] Do not recompute msgmni anymore if explicitely set
- by user
-References: <20080211141646.948191000@bull.net>	<20080211141816.094061000@bull.net>	<20080211122408.5008902f.akpm@linux-foundation.org>	<47B167AF.6010008@bull.net> <20080212014444.8bc3791b.akpm@linux-foundation.org>
-In-Reply-To: <20080212014444.8bc3791b.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080211142946.379455af.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, linux-mm@kvack.org, containers@lists.linux-foundation.org, matthltc@us.ibm.com, cmm@us.ibm.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Greg KH <greg@kroah.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Tue, 12 Feb 2008 10:32:31 +0100 Nadia Derbey <Nadia.Derbey@bull.net> wrote:
+On Mon, Feb 11, 2008 at 02:29:46PM -0800, Andrew Morton wrote:
+> On Mon, 11 Feb 2008 13:56:51 -0800
+> mark gross <mgross@linux.intel.com> wrote:
 > 
+> > The following patch merges two functions into one allowing for a 3%
+> > reduction in overhead in locating, allocating and inserting pages for
+> > use in IOMMU operations.
+> > 
+> > Its a bit of a eye-crosser so I welcome any RB-tree / MM experts to take
+> > a look.  It works by re-using some of the information gathered in the
+> > search for the pages to use in setting up the IOTLB's in the insertion
+> > of the iova structure into the RB tree.
+> > 
 > 
->>it builds fine, modulo some changes in ipv4 and ipv6 (see attached patch 
->>- didn't find it in the hot fixes).
+> I guess this is a PCI patch hence I'd be tagging is as
+> to-be-merged-via-greg's-pci-tree.
 > 
+> > 
+> > Singed-off-by: <mgross@linux.intel.com>
+> > 
 > 
-> OK, thanks for checking.  Did you confirm that we don't have unneeded code
-> in vmlinux when CONFIG_PROCFS=n?  I guess before-and-after comparison of
-> the size(1) output would tell us.
+> ow, that musta hurt.
+
+Not at first but ever since I posted the patch its been a bit.  
+
 > 
-> Those networking build problems appear to have already been fixed.
+> > 
+> > Index: linux-2.6.24-mm1/drivers/pci/iova.c
+> > ===================================================================
+> > --- linux-2.6.24-mm1.orig/drivers/pci/iova.c	2008-02-07 11:05:44.000000000 -0800
+> > +++ linux-2.6.24-mm1/drivers/pci/iova.c	2008-02-07 13:05:03.000000000 -0800
+> > @@ -72,20 +72,25 @@
+> >  	return pad_size;
+> >  }
+> >  
+> > -static int __alloc_iova_range(struct iova_domain *iovad, unsigned long size,
+> > -		unsigned long limit_pfn, struct iova *new, bool size_aligned)
+> > +static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
+> > +		unsigned long size, unsigned long limit_pfn,
+> > +			struct iova *new, bool size_aligned)
+> >  {
+> > -	struct rb_node *curr = NULL;
+> > +	struct rb_node *prev, *curr = NULL;
+> >  	unsigned long flags;
+> >  	unsigned long saved_pfn;
+> >  	unsigned int pad_size = 0;
+> >  
+> >  	/* Walk the tree backwards */
+> >  	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
+> >  	saved_pfn = limit_pfn;
+> >  	curr = __get_cached_rbnode(iovad, &limit_pfn);
+> > +	prev = curr;
+> >  	while (curr) {
+> >  		struct iova *curr_iova = container_of(curr, struct iova, node);
+> > +
+> >  		if (limit_pfn < curr_iova->pfn_lo)
+> >  			goto move_left;
+> >  		else if (limit_pfn < curr_iova->pfn_hi)
+> > @@ -99,6 +104,7 @@
 > 
-> In future, please quote the compiler error output in the changelog when
-> sending build fixes or warning fixes, thanks.
-> 
-> 
+> For some reason patch(1) claims that the patch is corrupted at this line.
 > 
 
-BEFORE:
+My bad.  Try the following:
 
-lkernel@akt$ size vmlinux
-    text    data     bss     dec     hex filename
-4318525  454484  462848 5235857  4fe491 vmlinux
+--mgross
 
-
-AFTER:
-
-lkernel@akt$ size vmlinux
-    text    data     bss     dec     hex filename
-4323161  454484  462848 5240493  4ff6ad vmlinux
-
-which makes it +4636 = +0.11%
-
-I've got the details for */built-in.o if needed.
+Signed-off-by : <mgross@linux.intel.com> fa-la-la
 
 
-Regards,
-Nadia
+Index: linux-2.6.24-mm1/drivers/pci/iova.c
+===================================================================
+--- linux-2.6.24-mm1.orig/drivers/pci/iova.c	2008-02-07 11:05:44.000000000 -0800
++++ linux-2.6.24-mm1/drivers/pci/iova.c	2008-02-12 07:12:47.000000000 -0800
+@@ -72,10 +72,11 @@
+ 	return pad_size;
+ }
+ 
+-static int __alloc_iova_range(struct iova_domain *iovad, unsigned long size,
+-		unsigned long limit_pfn, struct iova *new, bool size_aligned)
++static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
++		unsigned long size, unsigned long limit_pfn,
++			struct iova *new, bool size_aligned)
+ {
+-	struct rb_node *curr = NULL;
++	struct rb_node *prev, *curr = NULL;
+ 	unsigned long flags;
+ 	unsigned long saved_pfn;
+ 	unsigned int pad_size = 0;
+@@ -84,8 +85,10 @@
+ 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
+ 	saved_pfn = limit_pfn;
+ 	curr = __get_cached_rbnode(iovad, &limit_pfn);
++	prev = curr;
+ 	while (curr) {
+ 		struct iova *curr_iova = container_of(curr, struct iova, node);
++
+ 		if (limit_pfn < curr_iova->pfn_lo)
+ 			goto move_left;
+ 		else if (limit_pfn < curr_iova->pfn_hi)
+@@ -99,6 +102,7 @@
+ adjust_limit_pfn:
+ 		limit_pfn = curr_iova->pfn_lo - 1;
+ move_left:
++		prev = curr;
+ 		curr = rb_prev(curr);
+ 	}
+ 
+@@ -115,7 +119,33 @@
+ 	new->pfn_lo = limit_pfn - (size + pad_size) + 1;
+ 	new->pfn_hi = new->pfn_lo + size - 1;
+ 
++	/* Insert the new_iova into domain rbtree by holding writer lock */
++	/* Add new node and rebalance tree. */
++	{
++		struct rb_node **entry = &((prev)), *parent = NULL;
++		/* Figure out where to put new node */
++		while (*entry) {
++			struct iova *this = container_of(*entry,
++							struct iova, node);
++			parent = *entry;
++
++			if (new->pfn_lo < this->pfn_lo)
++				entry = &((*entry)->rb_left);
++			else if (new->pfn_lo > this->pfn_lo)
++				entry = &((*entry)->rb_right);
++			else
++				BUG(); /* this should not happen */
++		}
++
++		/* Add new node and rebalance tree. */
++		rb_link_node(&new->node, parent, entry);
++		rb_insert_color(&new->node, &iovad->rbroot);
++	}
++	__cached_rbnode_insert_update(iovad, saved_pfn, new);
++
+ 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
++
++
+ 	return 0;
+ }
+ 
+@@ -171,23 +201,15 @@
+ 		size = __roundup_pow_of_two(size);
+ 
+ 	spin_lock_irqsave(&iovad->iova_alloc_lock, flags);
+-	ret = __alloc_iova_range(iovad, size, limit_pfn, new_iova,
+-			size_aligned);
++	ret = __alloc_and_insert_iova_range(iovad, size, limit_pfn,
++			new_iova, size_aligned);
+ 
++	spin_unlock_irqrestore(&iovad->iova_alloc_lock, flags);
+ 	if (ret) {
+-		spin_unlock_irqrestore(&iovad->iova_alloc_lock, flags);
+ 		free_iova_mem(new_iova);
+ 		return NULL;
+ 	}
+ 
+-	/* Insert the new_iova into domain rbtree by holding writer lock */
+-	spin_lock(&iovad->iova_rbtree_lock);
+-	iova_insert_rbtree(&iovad->rbroot, new_iova);
+-	__cached_rbnode_insert_update(iovad, limit_pfn, new_iova);
+-	spin_unlock(&iovad->iova_rbtree_lock);
+-
+-	spin_unlock_irqrestore(&iovad->iova_alloc_lock, flags);
+-
+ 	return new_iova;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
