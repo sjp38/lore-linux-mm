@@ -1,72 +1,57 @@
-Date: Tue, 12 Feb 2008 07:37:00 -0800
+Date: Tue, 12 Feb 2008 07:54:48 -0800
 From: mark gross <mgross@linux.intel.com>
 Subject: Re: [PATCH]intel-iommu batched iotlb flushes
-Message-ID: <20080212153700.GB27490@linux.intel.com>
+Message-ID: <20080212155448.GC27490@linux.intel.com>
 Reply-To: mgross@linux.intel.com
-References: <20080211224105.GB24412@linux.intel.com> <20080212085256.GF5750@rhun.haifa.ibm.com>
+References: <20080211224105.GB24412@linux.intel.com> <20080212085256.GF5750@rhun.haifa.ibm.com> <20080212.010006.255202479.davem@davemloft.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080212085256.GF5750@rhun.haifa.ibm.com>
+In-Reply-To: <20080212.010006.255202479.davem@davemloft.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Muli Ben-Yehuda <muli@il.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Miller <davem@davemloft.net>
+Cc: muli@il.ibm.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 12, 2008 at 10:52:56AM +0200, Muli Ben-Yehuda wrote:
-> On Mon, Feb 11, 2008 at 02:41:05PM -0800, mark gross wrote:
+On Tue, Feb 12, 2008 at 01:00:06AM -0800, David Miller wrote:
+> From: Muli Ben-Yehuda <muli@il.ibm.com>
+> Date: Tue, 12 Feb 2008 10:52:56 +0200
 > 
-> > The intel-iommu hardware requires a polling operation to flush IOTLB
-> > PTE's after an unmap operation.  Through some TSC instrumentation of
-> > a netperf UDP stream with small packets test case it was seen that
-> > the flush operations where sucking up to 16% of the CPU time doing
-> > iommu_flush_iotlb's
-> > 
-> > The following patch batches the IOTLB flushes removing most of the
-> > overhead in flushing the IOTLB's.  It works by building a list of to
-> > be released IOVA's that is iterated over when a timer goes off or
-> > when a high water mark is reached.
-> > 
-> > The wrinkle this has is that the memory protection and page fault
-> > warnings from errant DMA operations is somewhat reduced, hence a kernel
-> > parameter is added to revert back to the "strict" page flush / unmap
-> > behavior. 
-> > 
-> > The hole is the following scenarios: 
-> > do many map_signal operations, do some unmap_signals, reuse a recently
-> > unmapped page, <errant DMA hardware sneaks through and steps on reused
-> > memory>
-> > 
-> > Or: you have rouge hardware using DMA's to look at pages: do many
-> > map_signal's, do many unmap_singles, reuse some unmapped pages : 
-> > <rouge hardware looks at reused page>
-> > 
-> > Note : these holes are very hard to get too, as the IOTLB is small
-> > and only the PTE's still in the IOTLB can be accessed through this
-> > mechanism.
-> > 
-> > Its recommended that strict is used when developing drivers that do
-> > DMA operations to catch bugs early.  For production code where
-> > performance is desired running with the batched IOTLB flushing is a
-> > good way to go.
+> > The streaming DMA-API was designed to conserve IOMMU mappings for
+> > machines where IOMMU mappings are a scarce resource, and is a poor
+> > fit for a modern IOMMU such as VT-d with a 64-bit IO address space
+> > (or even an IOMMU with a 32-bit address space such as Calgary) where
+> > there are plenty of IOMMU mappings available.
 > 
-> While I don't disagree with this patch in principle (Calgary does the
-> same thing due to expensive IOTLB flushes) the right way to fix it
-> IMHO is to fix the drivers to batch mapping and unmapping operations
-> or map up-front and unmap when done. The streaming DMA-API was
-> designed to conserve IOMMU mappings for machines where IOMMU mappings
-> are a scarce resource, and is a poor fit for a modern IOMMU such as
-> VT-d with a 64-bit IO address space (or even an IOMMU with a 32-bit
-> address space such as Calgary) where there are plenty of IOMMU
-> mappings available.
+> For the 64-bit case what you are suggesting eventually amounts
+> to mapping all available RAM in the IOMMU.
 
-Yes, have a DMA pool of DMA addresses to use and re-use in the stack
-instead of setting up and tearing down the PTE's is something we need to
-look at closely for network and other high DMA traffic stacks. 
+Something could be done:
+we could enable drivers to have DMA-pools they manage that get mapped
+and are re-used.
+
+I would rather the DMA-pools be tied to PID's that way any bad behavior
+would be limited to the address space of the process using the device.
+I haven't thought about how hard this would be to do but it would be
+nice.  I think this could be tricky.
+
+Application sets up ring buffer of device DMA memory, passes this to
+driver/stack.  Need to handle hitting high water marks and application
+exit clean up sanely... 
 
 --mgross
 
+> 
+> Although an extreme version of your suggestion, it would be the
+> most efficient as it would require zero IOMMU flush operations.
+> 
+> But we'd lose things like protection and other benefits.
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
