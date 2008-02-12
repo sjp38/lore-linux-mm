@@ -1,94 +1,46 @@
-Message-ID: <47B1853E.2070103@bull.net>
-Date: Tue, 12 Feb 2008 12:38:38 +0100
-From: Nadia Derbey <Nadia.Derbey@bull.net>
+Date: Tue, 12 Feb 2008 22:18:57 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH for 2.6.24][regression fix] Mempolicy: silently restrict nodemask to allowed nodes V3
+In-Reply-To: <20080211210724.eec5421d.akpm@linux-foundation.org>
+References: <20080212122637.29B7.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080211210724.eec5421d.akpm@linux-foundation.org>
+Message-Id: <20080212220916.B1EC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 8/8] Re-enable msgmni automatic recomputing msgmni if
- set to negative
-References: <20080211141646.948191000@bull.net>	<20080211141816.520049000@bull.net> <20080211122748.64e7bc36.akpm@linux-foundation.org>
-In-Reply-To: <20080211122748.64e7bc36.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, linux-mm@kvack.org, containers@lists.linux-foundation.org, matthltc@us.ibm.com, cmm@us.ibm.com
+Cc: kosaki.motohiro@jp.fujitsu.com, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Linus Torvalds <torvalds@linux-foundation.org>, Greg KH <greg@kroah.com>, linux-kernel@vger.kernel.org, Christoph Lameter <clameter@sgi.com>, Paul Jackson <pj@sgi.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Mon, 11 Feb 2008 15:16:54 +0100
-> Nadia.Derbey@bull.net wrote:
-> 
-> 
->>[PATCH 08/08]
->>
->>This patch is the enhancement as asked for by Yasunori: if msgmni is set to
->>a negative value, register it back into the ipcns notifier chain.
->>
->>A new interface has been added to the notification mechanism:
->>notifier_chain_cond_register() registers a notifier block only if not already
->>registered. With that new interface we avoid taking care of the states changes
->>in procfs.
->>
->>...
->>
->> static int proc_ipc_callback_dointvec(ctl_table *table, int write,
->> 	struct file *filp, void __user *buffer, size_t *lenp, loff_t *ppos)
->> {
->>+	struct ctl_table ipc_table;
->> 	size_t lenp_bef = *lenp;
->> 	int rc;
->> 
->>-	rc = proc_ipc_dointvec(table, write, filp, buffer, lenp, ppos);
->>+	memcpy(&ipc_table, table, sizeof(ipc_table));
->>+	ipc_table.data = get_ipc(table);
->>+
->>+	rc = proc_dointvec(&ipc_table, write, filp, buffer, lenp, ppos);
->> 
->> 	if (write && !rc && lenp_bef == *lenp)
->>-		/*
->>-		 * Tunable has successfully been changed from userland:
->>-		 * disable its automatic recomputing.
->>-		 */
->>-		unregister_ipcns_notifier(current->nsproxy->ipc_ns);
->>+		tunable_set_callback(*((int *)(ipc_table.data)));
->> 
->> 	return rc;
->> }
->>@@ -119,12 +142,14 @@ static int sysctl_ipc_registered_data(ct
->> 	rc = sysctl_ipc_data(table, name, nlen, oldval, oldlenp, newval,
->> 		newlen);
->> 
->>-	if (newval && newlen && rc > 0)
->>+	if (newval && newlen && rc > 0) {
->> 		/*
->>-		 * Tunable has successfully been changed from userland:
->>-		 * disable its automatic recomputing.
->>+		 * Tunable has successfully been changed from userland
->> 		 */
->>-		unregister_ipcns_notifier(current->nsproxy->ipc_ns);
->>+		int *data = get_ipc(table);
->>+
->>+		tunable_set_callback(*data);
->>+	}
->> 
->> 	return rc;
->> }
-> 
-> 
-> hm, what's happening here?  We take a local copy of the caller's ctl_table
-> and then pass that into proc_dointvec().  Is that as hacky as it seems??
-> 
-> 
+Hi
 
-Well, the caller's ctl_table contains the tunables addresses for the 
-init namspeace in its .data fields. While what needs to be passed in to 
-proc_dointvec() is the tunable address in the caller's namespace.
-Since all the fields in ipc_kern_table[] are ok but the .data one, imho 
-it's correct to store it in a local copy and change the data field to 
-the appropirate one, before passing it to proc_dointvec().
+> > please ack.
+> 
+> As it's now post -rc1 and not a 100% obvious thing, I tend to hang onto
+> such patches for a week or so before sending up to Linus
 
-Regards,
-Nadia
+Thanks, really thanks.
+
+
+> Should this be backported to 2.6.24.x?  If so, the reasons for such a
+> relatively stern step should be spelled out in the changelog for the
+> -stable maintiners to evaluate.
+
+Oh,
+you think below reason is not enough, really?
+
+1. it is regression.
+2. it is very easy reprodusable on memoryless node machine.
+
+
+if so, i back down on my backport reclaim.
+I don't hope increase your headache ;-)
+
+thanks.
+
+-kosaki
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
