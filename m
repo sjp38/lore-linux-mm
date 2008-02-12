@@ -1,70 +1,101 @@
-Subject: Re: [2.6.24 REGRESSION] BUG: Soft lockup - with VFS
-From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-In-Reply-To: <20080208234619.385bcab9.zaitcev@redhat.com>
-References: <6101e8c40802051348w2250e593x54f777bb771bd903@mail.gmail.com>
-	<20080205140506.c6354490.akpm@linux-foundation.org>
-	<20080208234619.385bcab9.zaitcev@redhat.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Date: Tue, 12 Feb 2008 10:56:56 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 2.6.24-mm1]  Mempolicy:  silently restrict nodemask to allowed nodes V3
+In-Reply-To: <alpine.DEB.1.00.0802111649330.6119@chino.kir.corp.google.com>
+References: <20080212091910.29A0.KOSAKI.MOTOHIRO@jp.fujitsu.com> <alpine.DEB.1.00.0802111649330.6119@chino.kir.corp.google.com>
+Message-Id: <20080212103944.29A9.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Message-Id: <20080212104612S.fujita.tomonori@lab.ntt.co.jp>
-Date: Tue, 12 Feb 2008 10:46:12 +0900
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: zaitcev@redhat.com
-Cc: akpm@linux-foundation.org, oliver.pntr@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, jmorris@namei.org, linux-usb@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 8 Feb 2008 23:46:19 -0800
-Pete Zaitcev <zaitcev@redhat.com> wrote:
+Hi
 
-> On Tue, 5 Feb 2008 14:05:06 -0800, Andrew Morton <akpm@linux-foundation.org> wrote:
+> > # remove almost CC'd
 > 
-> > > > http://students.zipernowsky.hu/~oliverp/kernel/regression_2624/
-> 
-> > I think ub.c is basically abandoned in favour of usb-storage.
-> > If so, perhaps we should remove or disble ub.c?
-> 
-> Looks like it's just Tomo or Jens made a mistake when converting to
-> the new s/g API. Nothing to be too concerned about. I know I should've
-> reviewed their patch closer, but it seemed too simple...
+> Please don't remove cc's that were included on the original posting if 
+> you're passing the patch along.
 
-I guess I can put the blame for this on Jens' commit (45711f1a) ;)
+Oops, sorry.
+I was not worth of solicitude. 
 
-On a serious note, it seems that two scatter lists per request leaded
-to this bug. Can the scatter list in struct ub_request be removed?
 
-Thanks,
+> > OK.
+> > I append my Tested-by.(but not Singed-off-by because my work is very little).
+> > 
+> > and, I attached .24 adjusted patch.
+> > my change is only line number change and remove extra space.
+> 
+> Andrew may clarify this, but I believe you need to include a sign-off line 
+> even if you alter just that one whitespace.
+> 
+>  [ I edited that whitespace in my own copy of this patch when I applied it 
+>    to my tree because git complained about it (and my patchset removes the 
+>    same line with the whitespace removed). ]
 
-> -- Pete
+Hmm..
+OK
+
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+
+> > I'm still deferring David Rientjes' suggestion to fold
+> > mpol_check_policy() into mpol_new().  We need to sort out whether
+> > mempolicies specified for tmpfs and hugetlbfs mounts always need the
+> > same "contextualization" as user/application installed policies.  I
+> > don't want to hold up this bug fix for that discussion.  This is
+> > something Paul J will need to address with his cpuset/mempolicy rework,
+> > so we can sort it out in that context.
+> > 
 > 
-> Fix up the conversion to sg_init_table().
+> I took care of this in my patchset from this morning, so I think we can 
+> drop this disclaimer now.
+
+Disagreed.
+
+this patch is regression fixed patch.
+regression should fixed ASAP.
+
+your patch is very nice patch.
+but it is feature enhancement.
+the feature enhancement should tested by many people in -mm tree for a while.
+
+end up, timing of mainline merge is large different.
+
+
+> > 2) In existing mpol_check_policy() logic, after "contextualization":
+> >    a) MPOL_DEFAULT:  require that in coming mask "was_empty"
 > 
-> Signed-off-by: Pete Zaitcev <zaitcev@redhat.com>
+> While my patchset effectively obsoletes this patch (but is nonetheless 
+> based on top of it), I don't understand why you require that MPOL_DEFAULT 
+> nodemasks are empty.
 > 
-> --- a/drivers/block/ub.c
-> +++ b/drivers/block/ub.c
-> @@ -657,7 +657,6 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
->  	if ((cmd = ub_get_cmd(lun)) == NULL)
->  		return -1;
->  	memset(cmd, 0, sizeof(struct ub_scsi_cmd));
-> -	sg_init_table(cmd->sgv, UB_MAX_REQ_SG);
->  
->  	blkdev_dequeue_request(rq);
->  
-> @@ -668,6 +667,7 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
->  	/*
->  	 * get scatterlist from block layer
->  	 */
-> +	sg_init_table(&urq->sgv[0], UB_MAX_REQ_SG);
->  	n_elem = blk_rq_map_sg(lun->disk->queue, rq, &urq->sgv[0]);
->  	if (n_elem < 0) {
->  		/* Impossible, because blk_rq_map_sg should not hit ENOMEM. */
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> mpol_new() will not dynamically allocate a new mempolicy in that case 
+> anyway since it is the system default so the only reason why 
+> set_mempolicy(MPOL_DEFAULT, numa_no_nodes, ...) won't work is because of 
+> this addition to mpol_check_policy().
+> 
+> In other words, what is the influence to dismiss a MPOL_DEFAULT mempolicy 
+> request from a user as invalid simply because it includes set nodes in the 
+> nodemask?
+
+Hmm..
+By which version are you testing?
+
+
+my testing result was
+
+                       set_mempolicy(MPOL_DEFAULT,NULL)  set_mempolicy(MPOL_DEFAULT,numa_no_nodes)
+                      ------------------------------------------------------------------------------
+2.6.24                      success                                   success
+2.6.24 + lee-patch          success                                   success
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
