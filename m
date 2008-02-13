@@ -1,19 +1,19 @@
-Message-ID: <47B3626C.2080604@cs.helsinki.fi>
-Date: Wed, 13 Feb 2008 23:34:36 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-MIME-Version: 1.0
+Date: Wed, 13 Feb 2008 14:21:19 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [2.6 patch] make slub.c:slab_address() static
-References: <20080213213032.GH3383@cs181133002.pp.htv.fi>
 In-Reply-To: <20080213213032.GH3383@cs181133002.pp.htv.fi>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <Pine.LNX.4.64.0802131420590.21486@schroedinger.engr.sgi.com>
+References: <20080213213032.GH3383@cs181133002.pp.htv.fi>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Adrian Bunk <bunk@kernel.org>
-Cc: clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: penberg@cs.helsinki.fi, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Adrian Bunk wrote:
+On Wed, 13 Feb 2008, Adrian Bunk wrote:
+
 > slab_address() can become static.
 > 
 > Signed-off-by: Adrian Bunk <bunk@kernel.org>
@@ -33,8 +33,7 @@ Adrian Bunk wrote:
 >  	return page->end - PAGE_MAPPING_ANON;
 >  }
 > 
-
-Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
