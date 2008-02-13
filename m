@@ -1,36 +1,53 @@
-Date: Wed, 13 Feb 2008 10:32:02 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2.6.24-mm1]  Mempolicy:  silently restrict nodemask to
- allowed nodes V3
-In-Reply-To: <1202920363.4978.69.camel@localhost>
-Message-ID: <alpine.DEB.1.00.0802131030560.9186@chino.kir.corp.google.com>
-References: <alpine.LFD.1.00.0802092340400.2896@woody.linux-foundation.org>  <1202748459.5014.50.camel@localhost>  <20080212091910.29A0.KOSAKI.MOTOHIRO@jp.fujitsu.com>  <alpine.DEB.1.00.0802111649330.6119@chino.kir.corp.google.com>  <1202828903.4974.8.camel@localhost>
-  <alpine.DEB.1.00.0802121100211.9649@chino.kir.corp.google.com>  <1202861240.4974.25.camel@localhost>  <alpine.DEB.1.00.0802121632170.3291@chino.kir.corp.google.com> <1202920363.4978.69.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 13 Feb 2008 12:33:22 -0600
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: SLUB tbench regression due to page allocator deficiency
+Message-Id: <20080213123322.e1c202e6.pj@sgi.com>
+In-Reply-To: <20080211235607.GA27320@wotan.suse.de>
+References: <Pine.LNX.4.64.0802091332450.12965@schroedinger.engr.sgi.com>
+	<20080209143518.ced71a48.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0802091549120.13328@schroedinger.engr.sgi.com>
+	<20080210024517.GA32721@wotan.suse.de>
+	<Pine.LNX.4.64.0802091938160.14089@schroedinger.engr.sgi.com>
+	<20080211071828.GD8717@wotan.suse.de>
+	<Pine.LNX.4.64.0802111117440.24379@schroedinger.engr.sgi.com>
+	<20080211234029.GB14980@wotan.suse.de>
+	<Pine.LNX.4.64.0802111540550.28729@schroedinger.engr.sgi.com>
+	<20080211235607.GA27320@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: clameter@sgi.com, akpm@linux-foundation.org, mel@csn.ul.ie, linux-mm@kvack.org, penberg@cs.helsinki.fi
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 13 Feb 2008, Lee Schermerhorn wrote:
+Nick, listing things __alloc_pages() does:
+> cpuset -- zone softwall stuff
 
-> I'm not sure why you don't want to require the nodemask to be NULL/empty
-> in the case of MPOL_DEFAULT.  Perhaps it's from a code complexity
-> viewpoint.  Or maybe you think we're being kind to the programmer by
-> cutting them some slack.  Vis a vis the latter, I would argue that we're
-> not doing a programmer any favor by letting this slide by.  MPOL_DEFAULT
-> takes no nodemask.  So, if a non-empty nodemask is passed, the
-> programmer has done something wrong. 
-> 
+That should be off the fast path.  So long as there is enough memory
+(above watermarks on some node in current->mems_allowed) then there
+should be no need to consider the cpuset softwall details.  Notice
+that the first invocation of get_page_from_freelist() in __alloc_pages()
+has the __GFP_HARDWALL included, bypassing the cpuset software code.
 
-I mentioned on LKML that I've currently folded all the current logic of 
-mpol_check_policy() as it stands this minute in Linus' tree into 
-mpol_new() so that non-empty nodemasks are no longer accepted for 
-MPOL_DEFAULT.
+==
 
-		David
+Is there someway to get profiling data from __alloc_pages() and
+get_page_from_freelist(), for Christoph's test case.  I am imagining
+publishing a listing of that code, with a column to the right
+indicating how many times each line of code was executed, during the
+interesting portion of running such a test case.
+
+That would shine a bright light on any line(s) of code that get
+executed way more often than seem necessary for such a load, and enable
+the cast of dozens of us who have hacked this code at sometime to
+notice opportunities for sucking less.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.940.382.4214
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
