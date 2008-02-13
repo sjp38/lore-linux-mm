@@ -1,41 +1,36 @@
-Message-ID: <47B335A6.3080806@oracle.com>
-Date: Wed, 13 Feb 2008 10:23:34 -0800
-From: Randy Dunlap <randy.dunlap@oracle.com>
+Date: Wed, 13 Feb 2008 10:32:02 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 2.6.24-mm1]  Mempolicy:  silently restrict nodemask to
+ allowed nodes V3
+In-Reply-To: <1202920363.4978.69.camel@localhost>
+Message-ID: <alpine.DEB.1.00.0802131030560.9186@chino.kir.corp.google.com>
+References: <alpine.LFD.1.00.0802092340400.2896@woody.linux-foundation.org>  <1202748459.5014.50.camel@localhost>  <20080212091910.29A0.KOSAKI.MOTOHIRO@jp.fujitsu.com>  <alpine.DEB.1.00.0802111649330.6119@chino.kir.corp.google.com>  <1202828903.4974.8.camel@localhost>
+  <alpine.DEB.1.00.0802121100211.9649@chino.kir.corp.google.com>  <1202861240.4974.25.camel@localhost>  <alpine.DEB.1.00.0802121632170.3291@chino.kir.corp.google.com> <1202920363.4978.69.camel@localhost>
 MIME-Version: 1.0
-Subject: Re: [PATCH]intel-iommu batched iotlb flushes
-References: <20080211224105.GB24412@linux.intel.com> <20080211152716.65f5a753.randy.dunlap@oracle.com> <20080212160553.GD27490@linux.intel.com> <47B1CA9F.80004@oracle.com> <20080212195532.GA29132@linux.intel.com> <47B1FFB4.7010904@oracle.com> <20080213181029.GA1162@linux.intel.com>
-In-Reply-To: <20080213181029.GA1162@linux.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mgross@linux.intel.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> Index: linux-2.6.24-mm1/Documentation/kernel-parameters.txt
-> ===================================================================
-> --- linux-2.6.24-mm1.orig/Documentation/kernel-parameters.txt	2008-02-12 07:12:06.000000000 -0800
-> +++ linux-2.6.24-mm1/Documentation/kernel-parameters.txt	2008-02-12 11:36:07.000000000 -0800
-> @@ -822,6 +822,10 @@
->  			than 32 bit addressing. The default is to look
->  			for translation below 32 bit and if not available
->  			then look in the higher range.
-> +		strict [Default Off]
-> +			With this option on every umap_single operation will
+On Wed, 13 Feb 2008, Lee Schermerhorn wrote:
 
-so I'll ask one more time :(
-Shouldn't this be "unmap_single" ?
+> I'm not sure why you don't want to require the nodemask to be NULL/empty
+> in the case of MPOL_DEFAULT.  Perhaps it's from a code complexity
+> viewpoint.  Or maybe you think we're being kind to the programmer by
+> cutting them some slack.  Vis a vis the latter, I would argue that we're
+> not doing a programmer any favor by letting this slide by.  MPOL_DEFAULT
+> takes no nodemask.  So, if a non-empty nodemask is passed, the
+> programmer has done something wrong. 
+> 
 
-> +			result in a hardware IOTLB flush operation as opposed
-> +			to batching them for performance.
->  
->  	io_delay=	[X86-32,X86-64] I/O delay method
->  		0x80
+I mentioned on LKML that I've currently folded all the current logic of 
+mpol_check_policy() as it stands this minute in Linus' tree into 
+mpol_new() so that non-empty nodemasks are no longer accepted for 
+MPOL_DEFAULT.
 
-
--- 
-~Randy
+		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
