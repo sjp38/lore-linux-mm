@@ -1,56 +1,65 @@
-Message-ID: <47B24BCB.8030003@opengridcomputing.com>
-Date: Tue, 12 Feb 2008 19:45:47 -0600
-From: Steve Wise <swise@opengridcomputing.com>
-MIME-Version: 1.0
+Date: Tue, 12 Feb 2008 17:55:33 -0800
+From: Christian Bell <christian.bell@qlogic.com>
 Subject: Re: [ofa-general] Re: Demand paging for memory regions
-References: <20080209015659.GC7051@v2.random> <Pine.LNX.4.64.0802081813300.5602@schroedinger.engr.sgi.com> <20080209075556.63062452@bree.surriel.com> <Pine.LNX.4.64.0802091345490.12965@schroedinger.engr.sgi.com> <ada3arzxgkz.fsf_-_@cisco.com> <47B2174E.5000708@opengridcomputing.com> <Pine.LNX.4.64.0802121408150.9591@schroedinger.engr.sgi.com> <adazlu5vlub.fsf@cisco.com> <20080212232329.GC31435@obsidianresearch.com> <Pine.LNX.4.64.0802121657430.11628@schroedinger.engr.sgi.com> <20080213012638.GD31435@obsidianresearch.com>
-In-Reply-To: <20080213012638.GD31435@obsidianresearch.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20080213015533.GP29340@mv.qlogic.com>
+References: <20080209015659.GC7051@v2.random> <Pine.LNX.4.64.0802081813300.5602@schroedinger.engr.sgi.com> <20080209075556.63062452@bree.surriel.com> <Pine.LNX.4.64.0802091345490.12965@schroedinger.engr.sgi.com> <ada3arzxgkz.fsf_-_@cisco.com> <47B2174E.5000708@opengridcomputing.com> <Pine.LNX.4.64.0802121408150.9591@schroedinger.engr.sgi.com> <adazlu5vlub.fsf@cisco.com> <20080212232329.GC31435@obsidianresearch.com> <Pine.LNX.4.64.0802121657430.11628@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0802121657430.11628@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Roland Dreier <rdreier@cisco.com>, Rik van Riel <riel@redhat.com>, steiner@sgi.com, Andrea Arcangeli <andrea@qumranet.com>, a.p.zijlstra@chello.nl, izike@qumranet.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Andrew Morton <akpm@linux-foundation.org>, kvm-devel@lists.sourceforge.net
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <andrea@qumranet.com>, a.p.zijlstra@chello.nl, izike@qumranet.com, Roland Dreier <rdreier@cisco.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Andrew Morton <akpm@linux-foundation.org>, kvm-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Jason Gunthorpe wrote:
-> On Tue, Feb 12, 2008 at 05:01:17PM -0800, Christoph Lameter wrote:
->> On Tue, 12 Feb 2008, Jason Gunthorpe wrote:
->>
->>> Well, certainly today the memfree IB devices store the page tables in
->>> host memory so they are already designed to hang onto packets during
->>> the page lookup over PCIE, adding in faulting makes this time
->>> larger.
->> You really do not need a page table to use it. What needs to be maintained 
->> is knowledge on both side about what pages are currently shared across 
->> RDMA. If the VM decides to reclaim a page then the notification is used to 
->> remove the remote entry. If the remote side then tries to access the page 
->> again then the page fault on the remote side will stall until the local 
->> page has been brought back. RDMA can proceed after both sides again agree 
->> on that page now being sharable.
+On Tue, 12 Feb 2008, Christoph Lameter wrote:
+
+> On Tue, 12 Feb 2008, Jason Gunthorpe wrote:
 > 
-> The problem is that the existing wire protocols do not have a
-> provision for doing an 'are you ready' or 'I am not ready' exchange
-> and they are not designed to store page tables on both sides as you
-> propose. The remote side can send RDMA WRITE traffic at any time after
-> the RDMA region is established. The local side must be able to handle
-> it. There is no way to signal that a page is not ready and the remote
-> should not send.
+> > Well, certainly today the memfree IB devices store the page tables in
+> > host memory so they are already designed to hang onto packets during
+> > the page lookup over PCIE, adding in faulting makes this time
+> > larger.
 > 
-> This means the only possible implementation is to stall/discard at the
-> local adaptor when a RDMA WRITE is recieved for a page that has been
-> reclaimed. This is what leads to deadlock/poor performance..
->
+> You really do not need a page table to use it. What needs to be maintained 
+> is knowledge on both side about what pages are currently shared across 
+> RDMA. If the VM decides to reclaim a page then the notification is used to 
+> remove the remote entry. If the remote side then tries to access the page 
+> again then the page fault on the remote side will stall until the local 
+> page has been brought back. RDMA can proceed after both sides again agree 
+> on that page now being sharable.
 
-If the events are few and far between then this model is probably ok. 
-For iWARP, it means TCP retransmit and slow start and all that, but if 
-its an infrequent event, then its ok if it helps the host better manage 
-memory.
+HPC environments won't be amenable to a pessimistic approach of
+synchronizing before every data transfer.  RDMA is assumed to be a
+low-level data movement mechanism that has no implied
+synchronization.  In some parallel programming models, it's not
+uncommon to use RDMA to send 8-byte messages.  It can be difficult to
+make and hold guarantees about in-memory pages when many concurrent
+RDMA operations are in flight (not uncommon in reasonably large
+machines).  Some of the in-memory page information could be shared
+with some form of remote caching strategy but then it's a different
+problem with its own scalability challenges.
 
-Maybe... ;-)
+I think there are very potential clients of the interface when an
+optimistic approach is used.  Part of the trick, however, has to do
+with being able to re-start transfers instead of buffering the data
+or making guarantees about delivery that could cause deadlock (as was
+alluded to earlier in this thread).  InfiniBand is constrained in
+this regard since it requires message-ordering between endpoints (or
+queue pairs).  One could argue that this is still possible with IB,
+at the cost of throwing more packets away when a referenced page is
+not in memory.  With this approach, the worse case demand paging
+scenario is met when the active working set of referenced pages is
+larger than the amount physical memory -- but HPC applications are
+already bound by this anyway.
 
+You'll find that Quadrics has the most experience in this area and
+that their entire architecture is adapted to being optimistic about
+demand paging in RDMA transfers -- they've been maintaining a patchset
+to do this for years.
 
-Steve.
+    . . christian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
