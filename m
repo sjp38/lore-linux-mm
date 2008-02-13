@@ -1,107 +1,54 @@
-Date: Wed, 13 Feb 2008 10:51:58 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [ofa-general] Re: Demand paging for memory regions
-In-Reply-To: <20080213032533.GC32047@obsidianresearch.com>
-Message-ID: <Pine.LNX.4.64.0802131039160.18472@schroedinger.engr.sgi.com>
-References: <20080209075556.63062452@bree.surriel.com>
- <Pine.LNX.4.64.0802091345490.12965@schroedinger.engr.sgi.com>
- <ada3arzxgkz.fsf_-_@cisco.com> <47B2174E.5000708@opengridcomputing.com>
- <Pine.LNX.4.64.0802121408150.9591@schroedinger.engr.sgi.com>
- <adazlu5vlub.fsf@cisco.com> <20080212232329.GC31435@obsidianresearch.com>
- <Pine.LNX.4.64.0802121657430.11628@schroedinger.engr.sgi.com>
- <20080213012638.GD31435@obsidianresearch.com>
- <Pine.LNX.4.64.0802121819530.12328@schroedinger.engr.sgi.com>
- <20080213032533.GC32047@obsidianresearch.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 2.6.24-mm1]  Mempolicy:  silently restrict nodemask to
+	allowed nodes V3
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <alpine.DEB.1.00.0802131030560.9186@chino.kir.corp.google.com>
+References: <alpine.LFD.1.00.0802092340400.2896@woody.linux-foundation.org>
+	 <1202748459.5014.50.camel@localhost>
+	 <20080212091910.29A0.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <alpine.DEB.1.00.0802111649330.6119@chino.kir.corp.google.com>
+	 <1202828903.4974.8.camel@localhost>
+	 <alpine.DEB.1.00.0802121100211.9649@chino.kir.corp.google.com>
+	 <1202861240.4974.25.camel@localhost>
+	 <alpine.DEB.1.00.0802121632170.3291@chino.kir.corp.google.com>
+	 <1202920363.4978.69.camel@localhost>
+	 <alpine.DEB.1.00.0802131030560.9186@chino.kir.corp.google.com>
+Content-Type: text/plain
+Date: Wed, 13 Feb 2008 11:56:18 -0700
+Message-Id: <1202928979.4978.80.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
-Cc: Roland Dreier <rdreier@cisco.com>, Rik van Riel <riel@redhat.com>, steiner@sgi.com, Andrea Arcangeli <andrea@qumranet.com>, a.p.zijlstra@chello.nl, izike@qumranet.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Andrew Morton <akpm@linux-foundation.org>, kvm-devel@lists.sourceforge.net
+To: David Rientjes <rientjes@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Feb 2008, Jason Gunthorpe wrote:
+On Wed, 2008-02-13 at 10:32 -0800, David Rientjes wrote:
+> On Wed, 13 Feb 2008, Lee Schermerhorn wrote:
+> 
+> > I'm not sure why you don't want to require the nodemask to be NULL/empty
+> > in the case of MPOL_DEFAULT.  Perhaps it's from a code complexity
+> > viewpoint.  Or maybe you think we're being kind to the programmer by
+> > cutting them some slack.  Vis a vis the latter, I would argue that we're
+> > not doing a programmer any favor by letting this slide by.  MPOL_DEFAULT
+> > takes no nodemask.  So, if a non-empty nodemask is passed, the
+> > programmer has done something wrong. 
+> > 
+> 
+> I mentioned on LKML that I've currently folded all the current logic of 
+> mpol_check_policy() as it stands this minute in Linus' tree into 
+> mpol_new() so that non-empty nodemasks are no longer accepted for 
+> MPOL_DEFAULT.
+> 
 
-> But this isn't how IB or iwarp work at all. What you describe is a
-> significant change to the general RDMA operation and requires changes to
-> both sides of the connection and the wire protocol.
+Right.  That's why I mentioned "beating a dead horse".  I was answering
+mail this morning in the order I read them.  This seemed to me to
+warrant a response, independent of the lkml stream.  Again, just to get
+on the same page.  Honest.  Not just to be a <insert whatever you might
+be thinking here>... :-)
 
-Yes it may require a separate connection between both sides where a 
-kind of VM notification protocol is established to tear these things down and 
-set them up again. That is if there is nothing in the RDMA protocol that
-allows a notification to the other side that the mapping is being down 
-down.
-
->  - In RDMA (iwarp and IB versions) the hardware page tables exist to
->    linearize the local memory so the remote does not need to be aware
->    of non-linearities in the physical address space. The main
->    motivation for this is kernel bypass where the user space app wants
->    to instruct the remote side to DMA into memory using user space
->    addresses. Hardware provides the page tables to switch from
->    incoming user space virtual addresses to physical addresess.
-
-s/switch/translate I guess. That is good and those page tables could be 
-used for the notification scheme to enable reclaim. But they are optional 
-and are maintaining the driver state. The linearization could be 
-reconstructed from the kernel page tables on demand.
-
->    Many kernel RDMA drivers (SCSI, NFS) only use the HW page tables
->    for access control and enforcing the liftime of the mapping.
-
-Well the mapping would have to be on demand to avoid the issues that we 
-currently have with pinning. The user API could stay the same. If the 
-driver tracks the mappings using the notifier then the VM can make sure 
-that the right things happen on exit etc etc.
-
->    The page tables in the RDMA hardware exist primarily to support
->    this, and not for other reasons. The pinning of pages is one part
->    to support the HW page tables and one part to support the RDMA
->    lifetime rules, the liftime rules are what cause problems for
->    the VM.
-
-So the driver software can tear down and establish page tables 
-entries at will? I do not see the problem. The RDMA hardware is one thing, 
-the way things are visible to the user another. If the driver can 
-establish and remove mappings as needed via RDMA then the user can have 
-the illusion of persistent RDMA memory. This is the same as virtual memory 
-providing the illusion of a process having lots of memory all for itself.
-
-
->  - The wire protocol consists of packets that say 'Write XXX bytes to
->    offset YY in Region RRR'. Creating a region produces the RRR label
->    and currently pins the pages. So long as the RRR label is valid the
->    remote side can issue write packets at any time without any
->    further synchronization. There is no wire level events associated
->    with creating RRR. You can pass RRR to the other machine in any
->    fashion, even using carrier pigeons :)
->  - The RDMA layer is very general (ala TCP), useful protocols (like SCSI)
->    are built on top of it and they specify the lifetime rules and
->    protocol for exchanging RRR.
-
-Well yes of course. What is proposed here is an additional notification 
-mechanism (could even be via tcp/udp to simplify things) that would manage 
-the mappings at a higher level. The writes would not occur if the mapping 
-has not been established.
- 
->    This is your step 'A will then send a message to B notifying..'.
->    It simply does not exist in the protocol specifications
-
-Of course. You need to create an additional communication layer to get 
-that.
-
-> What it boils down to is that to implement true removal of pages in a
-> general way the kernel and HCA must either drop packets or stall
-> incoming packets, both are big performance problems - and I can't see
-> many users wanting this. Enterprise style people using SCSI, NFS, etc
-> already have short pin periods and HPC MPI users probably won't care
-> about the VM issues enough to warrent the performance overhead.
-
-True maybe you cannot do this by simply staying within the protocol bounds 
-of RDMA that is based on page pinning if the RDMA protocol does not 
-support a notification to the other side that the mapping is going away. 
-
-If RDMA cannot do this then you would need additional ways of notifying 
-the remote side that pages/mappings are invalidated.
+Thanks,
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
