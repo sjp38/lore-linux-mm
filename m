@@ -1,133 +1,184 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1DFFMdH022908
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2008 10:15:22 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1DFFLfH096924
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2008 10:15:22 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1DFFLIZ014798
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2008 10:15:21 -0500
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1DFFKuS005457
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2008 10:15:20 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1DFFJwY137142
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2008 08:15:19 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1DFFGrh014615
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2008 08:15:19 -0700
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Wed, 13 Feb 2008 20:42:29 +0530
-Message-Id: <20080213151229.7529.17894.sendpatchset@localhost.localdomain>
+Date: Wed, 13 Feb 2008 20:42:14 +0530
+Message-Id: <20080213151214.7529.3954.sendpatchset@localhost.localdomain>
 In-Reply-To: <20080213151201.7529.53642.sendpatchset@localhost.localdomain>
 References: <20080213151201.7529.53642.sendpatchset@localhost.localdomain>
-Subject: [RFC] [PATCH 2/4] Add the soft limit interface
+Subject: [RFC] [PATCH 1/4] Modify resource counters to add soft limit support
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: Hugh Dickins <hugh@veritas.com>, Paul Menage <menage@google.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Herbert Poetzl <herbert@13thfloor.at>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik Van Riel <riel@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <nickpiggin@yahoo.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik Van Riel <riel@redhat.com>, Herbert Poetzl <herbert@13thfloor.at>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
 
-A new configuration file called soft_limit_in_bytes is added. The parsing
-and configuration rules remain the same as for the limit_in_bytes user
-interface.
-
-A global list of all memory cgroups over their soft limit is maintained.
-This list is then used to reclaim memory on global pressure. A cgroup is
-removed from the list when the cgroup is deleted.
-
-The global list is protected with a read-write spinlock.
+The resource counter member limit is split into soft and hard limits.
+The same locking rule apply for both limits.
 
 Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
 
- mm/memcontrol.c |   33 ++++++++++++++++++++++++++++++++-
- 1 file changed, 32 insertions(+), 1 deletion(-)
+ include/linux/res_counter.h |   34 ++++++++++++++++++++++++++--------
+ kernel/res_counter.c        |   11 +++++++----
+ mm/memcontrol.c             |   10 +++++-----
+ 3 files changed, 38 insertions(+), 17 deletions(-)
 
-diff -puN mm/memcontrol.c~memory-controller-add-soft-limit-interface mm/memcontrol.c
---- linux-2.6.24/mm/memcontrol.c~memory-controller-add-soft-limit-interface	2008-02-13 19:50:27.000000000 +0530
-+++ linux-2.6.24-balbir/mm/memcontrol.c	2008-02-13 19:50:27.000000000 +0530
-@@ -35,6 +35,10 @@
+diff -puN mm/vmscan.c~memory-controller-res_counters-soft-limit-setup mm/vmscan.c
+diff -puN mm/memcontrol.c~memory-controller-res_counters-soft-limit-setup mm/memcontrol.c
+--- linux-2.6.24/mm/memcontrol.c~memory-controller-res_counters-soft-limit-setup	2008-02-13 19:50:24.000000000 +0530
++++ linux-2.6.24-balbir/mm/memcontrol.c	2008-02-13 19:50:24.000000000 +0530
+@@ -568,7 +568,7 @@ unsigned long mem_cgroup_isolate_pages(u
+  * Charge the memory controller for page usage.
+  * Return
+  * 0 if the charge was successful
+- * < 0 if the cgroup is over its limit
++ * < 0 if the cgroup is over its hard limit
+  */
+ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
+ 				gfp_t gfp_mask, enum charge_type ctype)
+@@ -632,7 +632,7 @@ retry:
  
- struct cgroup_subsys mem_cgroup_subsys;
- static const int MEM_CGROUP_RECLAIM_RETRIES = 5;
-+static spinlock_t mem_cgroup_sl_list_lock;	/* spin lock that protects */
-+						/* the list of cgroups over*/
-+						/* their soft limit */
-+static struct list_head mem_cgroup_sl_exceeded_list;
- 
- /*
-  * Statistics for memory cgroup.
-@@ -136,6 +140,10 @@ struct mem_cgroup {
- 	 * statistics.
+ 	/*
+ 	 * If we created the page_cgroup, we should free it on exceeding
+-	 * the cgroup limit.
++	 * the cgroup hard limit.
  	 */
- 	struct mem_cgroup_stat stat;
-+	/*
-+	 * List of all mem_cgroup's that exceed their soft limit
-+	 */
-+	struct list_head sl_exceeded_list;
- };
+ 	while (res_counter_charge(&mem->res, PAGE_SIZE)) {
+ 		if (!(gfp_mask & __GFP_WAIT))
+@@ -645,10 +645,10 @@ retry:
+  		 * try_to_free_mem_cgroup_pages() might not give us a full
+  		 * picture of reclaim. Some pages are reclaimed and might be
+  		 * moved to swap cache or just unmapped from the cgroup.
+- 		 * Check the limit again to see if the reclaim reduced the
++ 		 * Check the hard limit again to see if the reclaim reduced the
+  		 * current usage of the cgroup before giving up
+  		 */
+-		if (res_counter_check_under_limit(&mem->res))
++		if (res_counter_check_under_limit(&mem->res, RES_HARD_LIMIT))
+ 			continue;
  
- /*
-@@ -679,6 +687,18 @@ retry:
- 		goto retry;
- 	}
- 
-+	/*
-+	 * If we exceed our soft limit, we get added to the list of
-+	 * cgroups over their soft limit
-+	 */
-+	if (!res_counter_check_under_limit(&mem->res, RES_SOFT_LIMIT)) {
-+		spin_lock_irqsave(&mem_cgroup_sl_list_lock, flags);
-+		if (list_empty(&mem->sl_exceeded_list))
-+			list_add_tail(&mem->sl_exceeded_list,
-+						&mem_cgroup_sl_exceeded_list);
-+		spin_unlock_irqrestore(&mem_cgroup_sl_list_lock, flags);
-+	}
-+
- 	mz = page_cgroup_zoneinfo(pc);
- 	spin_lock_irqsave(&mz->lru_lock, flags);
- 	/* Update statistics vector */
-@@ -736,13 +756,14 @@ void mem_cgroup_uncharge(struct page_cgr
- 	if (atomic_dec_and_test(&pc->ref_cnt)) {
- 		page = pc->page;
- 		mz = page_cgroup_zoneinfo(pc);
-+		mem = pc->mem_cgroup;
- 		/*
- 		 * get page->cgroup and clear it under lock.
- 		 * force_empty can drop page->cgroup without checking refcnt.
- 		 */
- 		unlock_page_cgroup(page);
-+
- 		if (clear_page_cgroup(page, pc) == pc) {
--			mem = pc->mem_cgroup;
- 			css_put(&mem->css);
- 			res_counter_uncharge(&mem->res, PAGE_SIZE);
- 			spin_lock_irqsave(&mz->lru_lock, flags);
-@@ -1046,6 +1067,12 @@ static struct cftype mem_cgroup_files[] 
- 		.name = "stat",
- 		.open = mem_control_stat_open,
+ 		if (!nr_retries--) {
+@@ -1028,7 +1028,7 @@ static struct cftype mem_cgroup_files[] 
  	},
-+	{
-+		.name = "soft_limit_in_bytes",
-+		.private = RES_SOFT_LIMIT,
-+		.write = mem_cgroup_write,
-+		.read = mem_cgroup_read,
-+	},
+ 	{
+ 		.name = "limit_in_bytes",
+-		.private = RES_LIMIT,
++		.private = RES_HARD_LIMIT,
+ 		.write = mem_cgroup_write,
+ 		.read = mem_cgroup_read,
+ 	},
+diff -puN kernel/res_counter.c~memory-controller-res_counters-soft-limit-setup kernel/res_counter.c
+--- linux-2.6.24/kernel/res_counter.c~memory-controller-res_counters-soft-limit-setup	2008-02-13 19:50:24.000000000 +0530
++++ linux-2.6.24-balbir/kernel/res_counter.c	2008-02-13 19:50:24.000000000 +0530
+@@ -16,12 +16,13 @@
+ void res_counter_init(struct res_counter *counter)
+ {
+ 	spin_lock_init(&counter->lock);
+-	counter->limit = (unsigned long long)LLONG_MAX;
++	counter->soft_limit = (unsigned long long)LLONG_MAX;
++	counter->hard_limit = (unsigned long long)LLONG_MAX;
+ }
+ 
+ int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
+ {
+-	if (counter->usage + val > counter->limit) {
++	if (counter->usage + val > counter->hard_limit) {
+ 		counter->failcnt++;
+ 		return -ENOMEM;
+ 	}
+@@ -65,8 +66,10 @@ res_counter_member(struct res_counter *c
+ 	switch (member) {
+ 	case RES_USAGE:
+ 		return &counter->usage;
+-	case RES_LIMIT:
+-		return &counter->limit;
++	case RES_SOFT_LIMIT:
++		return &counter->soft_limit;
++	case RES_HARD_LIMIT:
++		return &counter->hard_limit;
+ 	case RES_FAILCNT:
+ 		return &counter->failcnt;
+ 	};
+diff -puN include/linux/res_counter.h~memory-controller-res_counters-soft-limit-setup include/linux/res_counter.h
+--- linux-2.6.24/include/linux/res_counter.h~memory-controller-res_counters-soft-limit-setup	2008-02-13 19:50:24.000000000 +0530
++++ linux-2.6.24-balbir/include/linux/res_counter.h	2008-02-13 19:50:24.000000000 +0530
+@@ -27,7 +27,13 @@ struct res_counter {
+ 	/*
+ 	 * the limit that usage cannot exceed
+ 	 */
+-	unsigned long long limit;
++	unsigned long long hard_limit;
++	/*
++	 * the limit that usage can exceed, but under memory
++	 * pressure, we will reclaim back memory above the
++	 * soft limit mark
++	 */
++	unsigned long long soft_limit;
+ 	/*
+ 	 * the number of unsuccessful attempts to consume the resource
+ 	 */
+@@ -64,7 +70,8 @@ ssize_t res_counter_write(struct res_cou
+ 
+ enum {
+ 	RES_USAGE,
+-	RES_LIMIT,
++	RES_SOFT_LIMIT,
++	RES_HARD_LIMIT,
+ 	RES_FAILCNT,
  };
  
- static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
-@@ -1097,6 +1124,9 @@ mem_cgroup_create(struct cgroup_subsys *
- 	if (unlikely((cont->parent) == NULL)) {
- 		mem = &init_mem_cgroup;
- 		init_mm.mem_cgroup = mem;
-+		INIT_LIST_HEAD(&mem->sl_exceeded_list);
-+		spin_lock_init(&mem_cgroup_sl_list_lock);
-+		INIT_LIST_HEAD(&mem_cgroup_sl_exceeded_list);
- 	} else
- 		mem = kzalloc(sizeof(struct mem_cgroup), GFP_KERNEL);
+@@ -101,11 +108,21 @@ int res_counter_charge(struct res_counte
+ void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
+ void res_counter_uncharge(struct res_counter *counter, unsigned long val);
  
-@@ -1104,6 +1134,7 @@ mem_cgroup_create(struct cgroup_subsys *
- 		return NULL;
+-static inline bool res_counter_limit_check_locked(struct res_counter *cnt)
++static inline bool res_counter_limit_check_locked(struct res_counter *cnt,
++							int member)
+ {
+-	if (cnt->usage < cnt->limit)
+-		return true;
+-
++	switch (member) {
++	case RES_HARD_LIMIT:
++		if (cnt->usage < cnt->hard_limit)
++			return true;
++		break;
++	case RES_SOFT_LIMIT:
++		if (cnt->usage < cnt->soft_limit)
++			return true;
++		break;
++	default:
++		BUG_ON(1);
++	}
+ 	return false;
+ }
  
- 	res_counter_init(&mem->res);
-+	INIT_LIST_HEAD(&mem->sl_exceeded_list);
+@@ -113,13 +130,14 @@ static inline bool res_counter_limit_che
+  * Helper function to detect if the cgroup is within it's limit or
+  * not. It's currently called from cgroup_rss_prepare()
+  */
+-static inline bool res_counter_check_under_limit(struct res_counter *cnt)
++static inline bool res_counter_check_under_limit(struct res_counter *cnt,
++							int member)
+ {
+ 	bool ret;
+ 	unsigned long flags;
  
- 	memset(&mem->info, 0, sizeof(mem->info));
- 
-diff -puN include/linux/memcontrol.h~memory-controller-add-soft-limit-interface include/linux/memcontrol.h
+ 	spin_lock_irqsave(&cnt->lock, flags);
+-	ret = res_counter_limit_check_locked(cnt);
++	ret = res_counter_limit_check_locked(cnt, member);
+ 	spin_unlock_irqrestore(&cnt->lock, flags);
+ 	return ret;
+ }
+diff -puN include/linux/memcontrol.h~memory-controller-res_counters-soft-limit-setup include/linux/memcontrol.h
 _
 
 -- 
