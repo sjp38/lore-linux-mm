@@ -1,104 +1,151 @@
-Date: Wed, 13 Feb 2008 18:23:08 -0500
-From: Pete Wyckoff <pw@osc.edu>
+Date: Wed, 13 Feb 2008 15:43:17 -0800 (PST)
+From: Kanoj Sarcar <kanojsarcar@yahoo.com>
 Subject: Re: [ofa-general] Re: Demand paging for memory regions
-Message-ID: <20080213232308.GB7597@osc.edu>
-References: <Pine.LNX.4.64.0802091345490.12965@schroedinger.engr.sgi.com> <ada3arzxgkz.fsf_-_@cisco.com> <47B2174E.5000708@opengridcomputing.com> <Pine.LNX.4.64.0802121408150.9591@schroedinger.engr.sgi.com> <adazlu5vlub.fsf@cisco.com> <20080212232329.GC31435@obsidianresearch.com> <Pine.LNX.4.64.0802121657430.11628@schroedinger.engr.sgi.com> <20080213012638.GD31435@obsidianresearch.com> <Pine.LNX.4.64.0802121819530.12328@schroedinger.engr.sgi.com> <20080213040905.GQ29340@mv.qlogic.com>
+In-Reply-To: <Pine.LNX.4.64.0802131452410.22542@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080213040905.GQ29340@mv.qlogic.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7BIT
+Message-ID: <866658.37093.qm@web32510.mail.mud.yahoo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Christian Bell <christian.bell@qlogic.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <andrea@qumranet.com>, a.p.zijlstra@chello.nl, izike@qumranet.com, Roland Dreier <rdreier@cisco.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Andrew Morton <akpm@linux-foundation.org>, kvm-devel@lists.sourceforge.net
+Cc: Christian Bell <christian.bell@qlogic.com>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <andrea@qumranet.com>, a.p.zijlstra@chello.nl, izike@qumranet.com, Roland Dreier <rdreier@cisco.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Andrew Morton <akpm@linux-foundation.org>, kvm-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-christian.bell@qlogic.com wrote on Tue, 12 Feb 2008 20:09 -0800:
-> One other area that has not been brought up yet (I think) is the
-> applicability of notifiers in letting users know when pinned memory
-> is reclaimed by the kernel.  This is useful when a lower-level
-> library employs lazy deregistration strategies on memory regions that
-> are subsequently released to the kernel via the application's use of
-> munmap or sbrk.  Ohio Supercomputing Center has work in this area but
-> a generalized approach in the kernel would certainly be welcome.
+--- Christoph Lameter <clameter@sgi.com> wrote:
 
-The whole need for memory registration is a giant pain.  There is no
-motivating application need for it---it is simply a hack around
-virtual memory and the lack of full VM support in current hardware.
-There are real hardware issues that interact poorly with virtual
-memory, as discussed previously in this thread.
+> On Wed, 13 Feb 2008, Kanoj Sarcar wrote:
+> 
+> > It seems that the need is to solve potential
+> memory
+> > shortage and overcommit issues by being able to
+> > reclaim pages pinned by rdma driver/hardware. Is
+> my
+> > understanding correct?
+> 
+> Correct.
+> 
+> > If I do understand correctly, then why is rdma
+> page
+> > pinning any different than eg mlock pinning? I
+> imagine
+> > Oracle pins lots of memory (using mlock), how come
+> > they do not run into vm overcommit issues?
+> 
+> Mlocked pages are not pinned. They are movable by
+> f.e. page migration and 
+> will be potentially be moved by future memory defrag
+> approaches. Currently 
+> we have the same issues with mlocked pages as with
+> pinned pages. There is 
+> work in progress to put mlocked pages onto a
+> different lru so that reclaim 
+> exempts these pages and more work on limiting the
+> percentage of memory 
+> that can be mlocked.
+> 
+> > Are we up against some kind of breaking c-o-w
+> issue
+> > here that is different between mlock and rdma
+> pinning?
+> 
+> Not that I know.
+> 
+> > Asked another way, why should effort be spent on a
+> > notifier scheme, and rather not on fixing any
+> memory
+> > accounting problems and unifying how pin pages are
+> > accounted for that get pinned via mlock() or rdma
+> > drivers?
+> 
+> There are efforts underway to account for and limit
+> mlocked pages as 
+> described above. Page pinning the way it is done by
+> Infiniband through
+> increasing the page refcount is treated by the VM as
+> a temporary 
+> condition not as a permanent pin. The VM will
+> continually try to reclaim 
+> these pages thinking that the temporary usage of the
+> page must cease 
+> soon. This is why the use of large amounts of pinned
+> pages can lead to 
+> livelock situations.
 
-The way a messaging cycle goes in IB is:
+Oh ok, yes, I did see the discussion on this; sorry I
+missed it. I do see what notifiers bring to the table
+now (without endorsing it :-)).
 
-    register buf
-    post send from buf
-    wait for completion
-    deregister buf
+An orthogonal question is this: is IB/rdma the only
+"culprit" that elevates page refcounts? Are there no
+other subsystems which do a similar thing?
 
-This tends to get hidden via userspace software libraries into
-a single call:
+The example I am thinking about is rawio (Oracle's
+mlock'ed SHM regions are handed to rawio, isn't it?).
+My understanding of how rawio works in Linux is quite
+dated though ...
 
-    MPI_send(buf)
+Kanoj
 
-Now if you actually do the reg/dereg every time, things are very
-slow.  So userspace library writers came up with the idea of caching
-registrations:
+> 
+> If we want to have pinning behavior then we could
+> mark pinned pages 
+> specially so that the VM will not continually try to
+> evict these pages. We 
+> could manage them similar to mlocked pages but just
+> not allow page 
+> migration, memory unplug and defrag to occur on
+> pinned memory. All of 
+> theses would have to fail. With the notifier scheme
+> the device driver 
+> could be told to get rid of the pinned memory. This
+> would make these 3 
+> techniques work despite having an RDMA memory
+> section.
+> 
+> > Startup benefits are well understood with the
+> notifier
+> > scheme (ie, not all pages need to be faulted in at
+> > memory region creation time), specially when most
+> of
+> > the memory region is not accessed at all. I would
+> > imagine most of HPC does not work this way though.
+> 
+> No for optimal performance  you would want to
+> prefault all pages like 
+> it is now. The notifier scheme would only become
+> relevant in memory 
+> shortage situations.
+> 
+> > Then again, as rdma hardware is applied
+> (increasingly?) towards apps 
+> > with short lived connections, the notifier scheme
+> will help with startup 
+> > times.
+> 
+> The main use of the notifier scheme is for stability
+> and reliability. The 
+> "pinned" pages become unpinnable on request by the
+> VM. So the VM can work 
+> itself out of memory shortage situations in
+> cooperation with the 
+> RDMA logic instead of simply failing.
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe
+> linux-mm' in
+> the body to majordomo@kvack.org.  For more info on
+> Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org">
+> email@kvack.org </a>
+> 
 
-    if buf is not registered:
-	register buf
-    post send from buf
-    wait for completion
 
-The second time that the app happens to do a send from the same
-buffer, it proceeds much faster.  Spatial locality applies here, and
-this caching is generally worth it.  Some libraries have schemes to
-limit the size of the registration cache too.
 
-But there are plenty of ways to hurt yourself with such a scheme.
-The first being a huge pool of unused but registered memory, as the
-library doesn't know the app patterns, and it doesn't know the VM
-pressure level in the kernel.
-
-There are plenty of subtle ways that this breaks too.  If the
-registered buf is removed from the address space via munmap() or
-sbrk() or other ways, the mapping and registration are gone, but the
-library has no way of knowing that the app just did this.  Sure the
-physical page is still there and pinned, but the app cannot get at
-it.  Later if new address space arrives at the same virtual address
-but a different physical page, the library will mistakenly think it
-already has it registered properly, and data is transferred from
-this old now-unmapped physical page.
-
-The whole situation is rather ridiculuous, but we are quite stuck
-with it for current generation IB and iWarp hardware.  If we can't
-have the kernel interact with the device directly, we could at least
-manage state in these multiple userspace registration caches.  The
-VM could ask for certain (or any) pages to be released, and the
-library would respond if they are indeed not in use by the device.
-The app itself does not know about pinned regions, and the library
-is aware of exactly which regions are potentially in use.
-
-Since the great majority of userspace messaging over IB goes through
-middleware like MPI or PGAS languages, and they all have the same
-approach to registration caching, this approach could fix the
-problem for a big segment of use cases.
-
-More text on the registration caching problem is here:
-
-    http://www.osc.edu/~pw/papers/wyckoff-memreg-ccgrid05.pdf
-
-with an approach using vm_ops open and close operations in a kernel
-module here:
-
-    http://www.osc.edu/~pw/dreg/
-
-There is a place for VM notifiers in RDMA messaging, but not in
-talking to devices, at least not the current set.  If you can define
-a reasonable userspace interface for VM notifiers, libraries can
-manage registration caches more efficiently, letting the kernel
-unmap pinned pages as it likes.
-
-		-- Pete
+      ____________________________________________________________________________________
+Looking for last minute shopping deals?  
+Find them fast with Yahoo! Search.  http://tools.search.yahoo.com/newsearch/category.php?category=shopping
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
