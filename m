@@ -1,92 +1,63 @@
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28smtp01.in.ibm.com (8.13.1/8.13.1) with ESMTP id m1DGBiHr002673
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2008 21:41:44 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1DGBiwI839738
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2008 21:41:44 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id m1DGBhxw028415
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2008 16:11:44 GMT
-Message-ID: <47B3161A.9090504@linux.vnet.ibm.com>
-Date: Wed, 13 Feb 2008 21:38:58 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [RFC] [PATCH 4/4] Add soft limit documentation
-References: <20080213151201.7529.53642.sendpatchset@localhost.localdomain> <20080213151256.7529.59791.sendpatchset@localhost.localdomain> <20080213075929.52a3ae05.randy.dunlap@oracle.com>
-In-Reply-To: <20080213075929.52a3ae05.randy.dunlap@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from int-mx1.corp.redhat.com (int-mx1.corp.redhat.com [172.16.52.254])
+	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id m1DGHGu1028315
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2008 11:17:28 -0500
+Received: from mail.boston.redhat.com (mail.boston.redhat.com [172.16.76.12])
+	by int-mx1.corp.redhat.com (8.13.1/8.13.1) with ESMTP id m1DGHFli000745
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2008 11:17:15 -0500
+Received: from 192.168.1.105 (IDENT:U2FsdGVkX19Sns0kDo6u5gSX7bft1tnGEmoe8PT9JA4@vpn-248-145.boston.redhat.com [10.13.248.145])
+	by mail.boston.redhat.com (8.13.1/8.13.1) with ESMTP id m1DGHBEa028046
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2008 11:17:12 -0500
+Subject: Problem with /proc/sys/vm/lowmem_reserve_ratio
+From: Larry Woodman <lwoodman@redhat.com>
+Content-Type: text/plain
+Date: Wed, 13 Feb 2008 11:09:34 -0500
+Message-Id: <1202918974.4838.41.camel@dhcp83-56.boston.redhat.com>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <randy.dunlap@oracle.com>
-Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Paul Menage <menage@google.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Herbert Poetzl <herbert@13thfloor.at>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Rik Van Riel <riel@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Randy Dunlap wrote:
-> On Wed, 13 Feb 2008 20:42:56 +0530 Balbir Singh wrote:
-> 
->> Add documentation for the soft limit feature.
->>
->> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
->> ---
->>
->>  Documentation/controllers/memory.txt |   16 ++++++++++++++++
->>  1 file changed, 16 insertions(+)
->>
->> diff -puN Documentation/controllers/memory.txt~memory-controller-add-soft-limit-documentation Documentation/controllers/memory.txt
->> --- linux-2.6.24/Documentation/controllers/memory.txt~memory-controller-add-soft-limit-documentation	2008-02-13 18:45:40.000000000 +0530
->> +++ linux-2.6.24-balbir/Documentation/controllers/memory.txt	2008-02-13 18:49:58.000000000 +0530
->> @@ -201,6 +201,22 @@ The memory.force_empty gives an interfac
->>  
->>  will drop all charges in cgroup. Currently, this is maintained for test.
->>  
->> +The file memory.soft_limit_in_bytes allows users to set soft limits. A soft
->> +limit is set in a manner similar to limit. The limit feature described
->> +earlier is a hard limit, a group can never exceed it's hard limit. A soft
-> 
->                           ;  [or: ". A group ..."]
+balance_pgdat() calls zone_watermark_ok() three times, the first call
+passes a zero(0) in as the 4th argument.  This 4th argument is the
+classzone_idx which is used as the index into the 
+zone->lowmem_reserve[] array.  Since setup_per_zone_lowmem_reserve()
+always sets the zone->lowmem_reserve[0] = 0(because there is nothing
+below the DMA zone), zone_watermark_ok() will not consider the
+lowmem_reserve pages when zero is passed as the 4th arg.  Shouldnt this
+4th argument be either "i" or "nr_zones - 1" ???
 
+-------------------------------------------------------------------------
+--- linux-2.6.24.noarch/mm/vmscan.c.orig        2008-02-13
+11:14:55.000000000 -0500
++++ linux-2.6.24.noarch/mm/vmscan.c     2008-02-13 11:15:02.000000000
+-0500
+@@ -1375,7 +1375,7 @@ loop_again:
+                                continue;
 
-Will do
+                        if (!zone_watermark_ok(zone, order, zone-
+>pages_high,
+-                                              0, 0)) {
++                                              i, 0)) {
+                                end_zone = i;
+                                break;
+-------------------------------------------------------------------------
+--- linux-2.6.24.noarch/mm/vmscan.c.orig        2008-02-13
+11:14:55.000000000 -0500
++++ linux-2.6.24.noarch/mm/vmscan.c     2008-02-13 11:16:35.000000000
+-0500
+@@ -1375,7 +1375,7 @@ loop_again:
+                                continue;
 
-> and s/it's/its/
-> 
-
-Thanks, I seem to use it's instead of its at times. I'll double check next time
-
->> +limit on the other hand can be exceeded. A group will be shrunk back
->> +to it's soft limit, when there is memory pressure/contention.
-> 
->       its  [it's == it is]
-> 
->> +
->> +Ideally the soft limit should always be set to a value smaller than the
->> +hard limit. However, the code does not force the user to do so. The soft
->> +limit can be greater than the hard limit; then the soft limit has
->> +no meaning in that setup, since the group will alwasy be restrained to its
-> 
->                                                   always
-> 
-
-Will fix
-
->> +hard limit.
->> +
->> +Example setting of soft limit
->> +
->> +# echo -n 100M > memory.soft_limit_in_bytes
->> +
->>  4. Testing
-> 
-
-Thanks for helping us keep the documentation readable.
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+                        if (!zone_watermark_ok(zone, order, zone-
+>pages_high,
+-                                              0, 0)) {
++                                              nr_zones - 1, 0)) {
+                                end_zone = i;
+                                break;
+                        }
+-------------------------------------------------------------------------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
