@@ -1,132 +1,190 @@
-Subject: Re: [PATCH 2.6.24-mm1]  Mempolicy:  silently restrict nodemask to
-	allowed nodes V3
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <alpine.DEB.1.00.0802121632170.3291@chino.kir.corp.google.com>
-References: <alpine.LFD.1.00.0802092340400.2896@woody.linux-foundation.org>
-	 <1202748459.5014.50.camel@localhost>
-	 <20080212091910.29A0.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <alpine.DEB.1.00.0802111649330.6119@chino.kir.corp.google.com>
-	 <1202828903.4974.8.camel@localhost>
-	 <alpine.DEB.1.00.0802121100211.9649@chino.kir.corp.google.com>
-	 <1202861240.4974.25.camel@localhost>
-	 <alpine.DEB.1.00.0802121632170.3291@chino.kir.corp.google.com>
-Content-Type: text/plain
-Date: Wed, 13 Feb 2008 09:32:43 -0700
-Message-Id: <1202920363.4978.69.camel@localhost>
-Mime-Version: 1.0
+Message-ID: <47B324F4.1050102@openvz.org>
+Date: Wed, 13 Feb 2008 20:12:20 +0300
+From: Pavel Emelyanov <xemul@openvz.org>
+MIME-Version: 1.0
+Subject: Re: [RFC] [PATCH 1/4] Modify resource counters to add soft limit
+ support
+References: <20080213151201.7529.53642.sendpatchset@localhost.localdomain> <20080213151214.7529.3954.sendpatchset@localhost.localdomain>
+In-Reply-To: <20080213151214.7529.3954.sendpatchset@localhost.localdomain>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <nickpiggin@yahoo.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik Van Riel <riel@redhat.com>, Herbert Poetzl <herbert@13thfloor.at>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-02-12 at 16:42 -0800, David Rientjes wrote:
-> On Tue, 12 Feb 2008, Lee Schermerhorn wrote:
+Balbir Singh wrote:
+> The resource counter member limit is split into soft and hard limits.
+> The same locking rule apply for both limits.
 > 
-> > > MPOL_DEFAULT is the default system-wide policy that does not require a 
-> > > nodemask as a parameter.  Both the man page (set_mempolicy(2)) and the 
-> > > documentation (Documentation/vm/numa_memory_policy.txt) state that.
-> > > 
-> > > It makes no sense in the future to assign a meaning to a nodemask passed 
-> > > along with MPOL_DEFAULT.  None at all.  
-> > 
-> > Again, you're stating an opinion, to which you're entitled, or
-> > expressing a limitation to your clairvoyance, for which I can't fault
-> > you.  Indeed, I tend to agree with you on this particular point--my own
-> > opinion and/or lack of vision.  However, I've been burned in the past by
-> > just this scenario--wanting to assign meaning to something that was
-> > ignored--because it could break existing applications.  So, on general
-> > principle, I like to be fairly strict with argument checking [despite my
-> > natural libertarian tendencies].
-> > 
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
 > 
-> It's currently undefined behavior.  Neither the Linux documentation 
-> (Documentation/vm/numa_memory_policy.txt) nor the man page 
-> (set_mempolicy(2)) state the meaning of a nodemask passed with 
-> MPOL_DEFAULT.
+>  include/linux/res_counter.h |   34 ++++++++++++++++++++++++++--------
+>  kernel/res_counter.c        |   11 +++++++----
+>  mm/memcontrol.c             |   10 +++++-----
+>  3 files changed, 38 insertions(+), 17 deletions(-)
 > 
-> The man page simply says the nodemask should be passed as NULL and the 
-> documentation state that MPOL_DEFAULT "does not use the optional set of 
-> nodes."
+> diff -puN mm/vmscan.c~memory-controller-res_counters-soft-limit-setup mm/vmscan.c
+> diff -puN mm/memcontrol.c~memory-controller-res_counters-soft-limit-setup mm/memcontrol.c
+> --- linux-2.6.24/mm/memcontrol.c~memory-controller-res_counters-soft-limit-setup	2008-02-13 19:50:24.000000000 +0530
+> +++ linux-2.6.24-balbir/mm/memcontrol.c	2008-02-13 19:50:24.000000000 +0530
+> @@ -568,7 +568,7 @@ unsigned long mem_cgroup_isolate_pages(u
+>   * Charge the memory controller for page usage.
+>   * Return
+>   * 0 if the charge was successful
+> - * < 0 if the cgroup is over its limit
+> + * < 0 if the cgroup is over its hard limit
+>   */
+>  static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
+>  				gfp_t gfp_mask, enum charge_type ctype)
+> @@ -632,7 +632,7 @@ retry:
+>  
+>  	/*
+>  	 * If we created the page_cgroup, we should free it on exceeding
+> -	 * the cgroup limit.
+> +	 * the cgroup hard limit.
+>  	 */
+>  	while (res_counter_charge(&mem->res, PAGE_SIZE)) {
+>  		if (!(gfp_mask & __GFP_WAIT))
+> @@ -645,10 +645,10 @@ retry:
+>   		 * try_to_free_mem_cgroup_pages() might not give us a full
+>   		 * picture of reclaim. Some pages are reclaimed and might be
+>   		 * moved to swap cache or just unmapped from the cgroup.
+> - 		 * Check the limit again to see if the reclaim reduced the
+> + 		 * Check the hard limit again to see if the reclaim reduced the
+>   		 * current usage of the cgroup before giving up
+>   		 */
+> -		if (res_counter_check_under_limit(&mem->res))
+> +		if (res_counter_check_under_limit(&mem->res, RES_HARD_LIMIT))
+>  			continue;
+>  
+>  		if (!nr_retries--) {
+> @@ -1028,7 +1028,7 @@ static struct cftype mem_cgroup_files[] 
+>  	},
+>  	{
+>  		.name = "limit_in_bytes",
+> -		.private = RES_LIMIT,
+> +		.private = RES_HARD_LIMIT,
+>  		.write = mem_cgroup_write,
+>  		.read = mem_cgroup_read,
+>  	},
+> diff -puN kernel/res_counter.c~memory-controller-res_counters-soft-limit-setup kernel/res_counter.c
+> --- linux-2.6.24/kernel/res_counter.c~memory-controller-res_counters-soft-limit-setup	2008-02-13 19:50:24.000000000 +0530
+> +++ linux-2.6.24-balbir/kernel/res_counter.c	2008-02-13 19:50:24.000000000 +0530
+> @@ -16,12 +16,13 @@
+>  void res_counter_init(struct res_counter *counter)
+>  {
+>  	spin_lock_init(&counter->lock);
+> -	counter->limit = (unsigned long long)LLONG_MAX;
+> +	counter->soft_limit = (unsigned long long)LLONG_MAX;
+> +	counter->hard_limit = (unsigned long long)LLONG_MAX;
+>  }
+>  
+>  int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
+>  {
+> -	if (counter->usage + val > counter->limit) {
+> +	if (counter->usage + val > counter->hard_limit) {
+>  		counter->failcnt++;
+>  		return -ENOMEM;
+>  	}
+> @@ -65,8 +66,10 @@ res_counter_member(struct res_counter *c
+>  	switch (member) {
+>  	case RES_USAGE:
+>  		return &counter->usage;
+> -	case RES_LIMIT:
+> -		return &counter->limit;
+> +	case RES_SOFT_LIMIT:
+> +		return &counter->soft_limit;
+> +	case RES_HARD_LIMIT:
+> +		return &counter->hard_limit;
+>  	case RES_FAILCNT:
+>  		return &counter->failcnt;
+>  	};
+> diff -puN include/linux/res_counter.h~memory-controller-res_counters-soft-limit-setup include/linux/res_counter.h
+> --- linux-2.6.24/include/linux/res_counter.h~memory-controller-res_counters-soft-limit-setup	2008-02-13 19:50:24.000000000 +0530
+> +++ linux-2.6.24-balbir/include/linux/res_counter.h	2008-02-13 19:50:24.000000000 +0530
+> @@ -27,7 +27,13 @@ struct res_counter {
+>  	/*
+>  	 * the limit that usage cannot exceed
+>  	 */
+> -	unsigned long long limit;
+> +	unsigned long long hard_limit;
+> +	/*
+> +	 * the limit that usage can exceed, but under memory
+> +	 * pressure, we will reclaim back memory above the
+> +	 * soft limit mark
+> +	 */
+
+Resource counter accounts for arbitrary resource. Memory pressure
+and memory reclamation both only make sense in case we're dealing
+with memory controller. Please, remove this comment or move it to
+memcontrol.c.
+
+> +	unsigned long long soft_limit;
+>  	/*
+>  	 * the number of unsuccessful attempts to consume the resource
+>  	 */
+> @@ -64,7 +70,8 @@ ssize_t res_counter_write(struct res_cou
+>  
+>  enum {
+>  	RES_USAGE,
+> -	RES_LIMIT,
+> +	RES_SOFT_LIMIT,
+> +	RES_HARD_LIMIT,
+>  	RES_FAILCNT,
+>  };
+>  
+> @@ -101,11 +108,21 @@ int res_counter_charge(struct res_counte
+>  void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
+>  void res_counter_uncharge(struct res_counter *counter, unsigned long val);
+>  
+> -static inline bool res_counter_limit_check_locked(struct res_counter *cnt)
+> +static inline bool res_counter_limit_check_locked(struct res_counter *cnt,
+> +							int member)
+>  {
+> -	if (cnt->usage < cnt->limit)
+> -		return true;
+> -
+> +	switch (member) {
+> +	case RES_HARD_LIMIT:
+> +		if (cnt->usage < cnt->hard_limit)
+> +			return true;
+> +		break;
+> +	case RES_SOFT_LIMIT:
+> +		if (cnt->usage < cnt->soft_limit)
+> +			return true;
+> +		break;
+> +	default:
+> +		BUG_ON(1);
+> +	}
+
+Does the compiler optimize this when the member is a built in const?
+
+>  	return false;
+>  }
+>  
+> @@ -113,13 +130,14 @@ static inline bool res_counter_limit_che
+>   * Helper function to detect if the cgroup is within it's limit or
+>   * not. It's currently called from cgroup_rss_prepare()
+>   */
+> -static inline bool res_counter_check_under_limit(struct res_counter *cnt)
+> +static inline bool res_counter_check_under_limit(struct res_counter *cnt,
+> +							int member)
+>  {
+>  	bool ret;
+>  	unsigned long flags;
+>  
+>  	spin_lock_irqsave(&cnt->lock, flags);
+> -	ret = res_counter_limit_check_locked(cnt);
+> +	ret = res_counter_limit_check_locked(cnt, member);
+>  	spin_unlock_irqrestore(&cnt->lock, flags);
+>  	return ret;
+>  }
+> diff -puN include/linux/memcontrol.h~memory-controller-res_counters-soft-limit-setup include/linux/memcontrol.h
+> _
 > 
-> So what we do with that nodemask is an implementation detail that does not 
-> need to conform to any pre-defined API or even the possibility that one 
-> day it will become useful.  In the context of the documentation, it is 
-> logical that any nodemask that is passed with MPOL_DEFAULT is valid since 
-> it's not used at all.
-> 
-> As you know, mempolicies can already morph into being effected over a 
-> subset of nodes that was passed with set_mempolicy() or mbind() without 
-> knowledge to the user.  That requires get_mempolicy() to determine.  
-> Changing a non-empty nodemask passed with MPOL_DEFAULT to an empty 
-> nodemask because it has no logical meaning is nothing new.
-
-I think we're beating a dead horse here.  However, one more
-consideration:
-
-I'm not sure why you don't want to require the nodemask to be NULL/empty
-in the case of MPOL_DEFAULT.  Perhaps it's from a code complexity
-viewpoint.  Or maybe you think we're being kind to the programmer by
-cutting them some slack.  Vis a vis the latter, I would argue that we're
-not doing a programmer any favor by letting this slide by.  MPOL_DEFAULT
-takes no nodemask.  So, if a non-empty nodemask is passed, the
-programmer has done something wrong. 
-
-Perhaps this was intentional:  Say, they did a cut and paste of another
-set_mempolicy() call, changed the policy to DEFAULT and left the
-nodemask args refering to a non-empty node mask.   In that case,
-allowing it does no harm.
-
-But, perhaps they intended a different policy and forgot to change the
-MPOL_DEFAULT to that policy.  If we didn't complain about the non-empty
-node mask, this could be a very tricky bug to diagnose.  
-
-Since it's easy [and, IMO, advisable] for the kernel to be strict about
-argument checking, I say do it.  I understand if you or other don't
-agree.  I just want us to understand where each other is coming from
-[and own up to our opinions as such].  I think this will be useful in
-future interactions, of which I hope there are many.
-
-> 
-> > > The policy is simply the 
-> > > equivalent of default_policy and, as the system default, a nodemask 
-> > > parameter to the system default policy is wrong be definition.  
-> > > 
-> > > So, logically, we can either allow all nodemasks to be passed with a 
-> > > MPOL_DEFAULT policy or none at all (it must be NULL).  Empty nodemasks 
-> > > don't have any logical relationship with MPOL_DEFAULT.
-> > 
-> > Ah, maybe this explains our disconnect.  Internally, a NULL nodemask
-> > pointer specified by the application is equivalent to an empty nodemask
-> > is equivalent to maxnode == 0.  See get_nodes().  By the time
-> > mpol_check_policy() or mpol_new() get called, all they have is a pointer
-> > to the cleared nodemask in the stack frame of sys_set_mempolicy() or
-> > sys_mbind().  So, the existing code's error checking doesn't require one
-> > to specify a non-NULL, but empty nodemask.  It just requires that one
-> > does not specify any nodes with MPOL_DEFAULT.  
-> > 
-> 
-> You were previously arguing from an API or "reserved for future-use" 
-> standpoint and now you're arguing from an implementation standpoint.  Both 
-> of which are very different from each other.
-> 
-> The implementation can change to deal with this however we want (as I did 
-> in my patchset), so arguing in support of what mpol_new() or 
-> mpol_check_policy() currently do is irrelevant.  
-
-
-Sorry.  I wasn't "arguing" here.  I interpreted your last couple of
-paragraphs as indicating that you thought I was advocating a non-NULL,
-but empty nodemask.  Based on that interpretation, I was pointing out
-that the implementation hands mpol_check_policy() [now in mpol_new()]
-and empty nodemask in all three equivalent cases mentioned above.  So,
-by testing that, we can determine whether or not the user specified a
-non-NULL, non-empty nodemask with MPOL_DEFAULT.  That's all I meant.
-
-Lee
-> 
-> 		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
