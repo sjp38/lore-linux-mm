@@ -1,72 +1,67 @@
-Date: Wed, 13 Feb 2008 15:38:29 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Bug 9941] New: Zone "Normal" missing in /proc/zoneinfo
-Message-ID: <20080213153829.GB1328@csn.ul.ie>
-References: <bug-9941-27@http.bugzilla.kernel.org/> <20080212100623.4fd6cf85.akpm@linux-foundation.org> <e2e108260802122339j3b861e74vf7b72a34747dcade@mail.gmail.com> <20080212234522.24bed8c1.akpm@linux-foundation.org> <20080213115225.GB4007@csn.ul.ie> <20080213152302.GA32416@shadowen.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20080213152302.GA32416@shadowen.org>
+Date: Wed, 13 Feb 2008 07:59:29 -0800
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: [RFC] [PATCH 4/4] Add soft limit documentation
+Message-Id: <20080213075929.52a3ae05.randy.dunlap@oracle.com>
+In-Reply-To: <20080213151256.7529.59791.sendpatchset@localhost.localdomain>
+References: <20080213151201.7529.53642.sendpatchset@localhost.localdomain>
+	<20080213151256.7529.59791.sendpatchset@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Bart Van Assche <bart.vanassche@gmail.com>, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Paul Menage <menage@google.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Herbert Poetzl <herbert@13thfloor.at>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Rik Van Riel <riel@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On (13/02/08 15:23), Andy Whitcroft didst pronounce:
-> On Wed, Feb 13, 2008 at 11:52:25AM +0000, Mel Gorman wrote:
-> 
-> > > > > > $ grep zone /proc/zoneinfo
-> > > > > >
-> > > > > > Output with 2.6.24:
-> > > > > > Node 0, zone      DMA
-> > > > > > Node 0, zone    DMA32
-> > > > > > Node 0, zone   Normal
-> > > > > >
-> > > > > > Output with 2.6.24.2:
-> > > > > > Node 0, zone      DMA
-> > > > > > Node 0, zone    DMA32
-> > > > > >
-> > 
-> > The greater surprise to me is that "Normal" ever appeared. The zone is empty,
-> > why is information appearing about it? I checked the dmesg for an x86_64
-> > machine with 1GB of RAM that was running 2.6.24 here and there is no sign
-> > of Normal.
-> > 
-> > mel@arnold:/tmp$ grep zone zoneinfo.before 
-> > Node 0, zone      DMA
-> > Node 0, zone    DMA32
-> > 
-> > The loop looks like
-> > 
-> >         for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
-> >                 if (!populated_zone(zone))
-> >                         continue;
-> > 
-> > It makes no sense for it to show up *unless* 2.6.24 was compiled as a 32
-> > bit kernel by accident. Could this be the case?
-> 
-> Interestingly I would not expect to see DMA32 at all if the kernel was
-> compiled 32 bit as CONFIG_DMA32 defaults to X86_64.
-> 
+On Wed, 13 Feb 2008 20:42:56 +0530 Balbir Singh wrote:
 
-D'oh, of course. This couldn't have been a 32 bit kernel.
-
-> Could we simply have less ram detected/present in this boot.  That would
-> make the zone dissappear if it became empty.
 > 
-> The e820 output as reported by the old and new kernels would confirm the
-> memory size is detected the same.  Also some idea of how much memory is
-> supposed be in the machine might shed some light.  If the overall is near
-> to 4GB it may be remapping for the AGP apature or something similar which
-> is shifting memory up above the boundary.
+> Add documentation for the soft limit feature.
 > 
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
+> 
+>  Documentation/controllers/memory.txt |   16 ++++++++++++++++
+>  1 file changed, 16 insertions(+)
+> 
+> diff -puN Documentation/controllers/memory.txt~memory-controller-add-soft-limit-documentation Documentation/controllers/memory.txt
+> --- linux-2.6.24/Documentation/controllers/memory.txt~memory-controller-add-soft-limit-documentation	2008-02-13 18:45:40.000000000 +0530
+> +++ linux-2.6.24-balbir/Documentation/controllers/memory.txt	2008-02-13 18:49:58.000000000 +0530
+> @@ -201,6 +201,22 @@ The memory.force_empty gives an interfac
+>  
+>  will drop all charges in cgroup. Currently, this is maintained for test.
+>  
+> +The file memory.soft_limit_in_bytes allows users to set soft limits. A soft
+> +limit is set in a manner similar to limit. The limit feature described
+> +earlier is a hard limit, a group can never exceed it's hard limit. A soft
 
+                          ;  [or: ". A group ..."]
+and s/it's/its/
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> +limit on the other hand can be exceeded. A group will be shrunk back
+> +to it's soft limit, when there is memory pressure/contention.
+
+      its  [it's == it is]
+
+> +
+> +Ideally the soft limit should always be set to a value smaller than the
+> +hard limit. However, the code does not force the user to do so. The soft
+> +limit can be greater than the hard limit; then the soft limit has
+> +no meaning in that setup, since the group will alwasy be restrained to its
+
+                                                  always
+
+> +hard limit.
+> +
+> +Example setting of soft limit
+> +
+> +# echo -n 100M > memory.soft_limit_in_bytes
+> +
+>  4. Testing
+
+---
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
