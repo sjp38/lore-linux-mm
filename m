@@ -1,50 +1,32 @@
-Date: Wed, 13 Feb 2008 12:51:44 -0700
-From: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
-Subject: Re: [ofa-general] Re: Demand paging for memory regions
-Message-ID: <20080213195144.GE31435@obsidianresearch.com>
-References: <ada3arzxgkz.fsf_-_@cisco.com> <47B2174E.5000708@opengridcomputing.com> <Pine.LNX.4.64.0802121408150.9591@schroedinger.engr.sgi.com> <adazlu5vlub.fsf@cisco.com> <20080212232329.GC31435@obsidianresearch.com> <Pine.LNX.4.64.0802121657430.11628@schroedinger.engr.sgi.com> <20080213012638.GD31435@obsidianresearch.com> <Pine.LNX.4.64.0802121819530.12328@schroedinger.engr.sgi.com> <20080213032533.GC32047@obsidianresearch.com> <Pine.LNX.4.64.0802131039160.18472@schroedinger.engr.sgi.com>
+Date: Wed, 13 Feb 2008 12:09:18 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Fastpath prototype?
+In-Reply-To: <47B2D6AB.1020408@suse.de>
+Message-ID: <Pine.LNX.4.64.0802131208470.19775@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0802091332450.12965@schroedinger.engr.sgi.com>
+ <20080211235607.GA27320@wotan.suse.de> <Pine.LNX.4.64.0802112205150.26977@schroedinger.engr.sgi.com>
+ <200802121140.12040.ak@suse.de> <Pine.LNX.4.64.0802121208150.2120@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0802121426060.9829@schroedinger.engr.sgi.com> <47B2D6AB.1020408@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0802131039160.18472@schroedinger.engr.sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Roland Dreier <rdreier@cisco.com>, Rik van Riel <riel@redhat.com>, steiner@sgi.com, Andrea Arcangeli <andrea@qumranet.com>, a.p.zijlstra@chello.nl, izike@qumranet.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Andrew Morton <akpm@linux-foundation.org>, kvm-devel@lists.sourceforge.net
+To: Andi Kleen <ak@suse.de>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Pekka J Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 13, 2008 at 10:51:58AM -0800, Christoph Lameter wrote:
-> On Tue, 12 Feb 2008, Jason Gunthorpe wrote:
+On Wed, 13 Feb 2008, Andi Kleen wrote:
+
+> > tbench/SLUB:  726.25 MB/sec
+> > 
+> > Even adding the fast path prototype (covers only slab allocs >=4K 
+> > allocs) yields only 1825.68 MB/sec
 > 
-> > But this isn't how IB or iwarp work at all. What you describe is a
-> > significant change to the general RDMA operation and requires changes to
-> > both sides of the connection and the wire protocol.
-> 
-> Yes it may require a separate connection between both sides where a 
-> kind of VM notification protocol is established to tear these things down and 
-> set them up again. That is if there is nothing in the RDMA protocol that
-> allows a notification to the other side that the mapping is being down 
-> down.
+> So why is the new fast path slower than the old one? Because it is not
+> NUMA aware?
 
-Well, yes, you could build this thing you are describing on top of the
-RDMA protocol and get some support from some of the hardware - but it
-is a new set of protocols and they would need to be implemented in
-several places. It is not transparent to userspace and it is not
-compatible with existing implementations.
-
-Unfortunately it really has little to do with the drivers - changes,
-for instance, need to be made to support this in the user space MPI
-libraries. The RDMA ops do not pass through the kernel, userspace
-talks directly to the hardware which complicates building any sort of
-abstraction.
-
-That is where I think you run into trouble, if you ask the MPI people
-to add code to their critical path to support swapping they probably
-will not be too interested. At a minimum to support your idea you need
-to check on every RDMA if the remote page is mapped... Plus the
-overheads Christian was talking about in the OOB channel(s).
-
-Jason
+No because it only covers kmalloc-4096 and nothing else. All other 
+allocations go to the now queueless page allocator.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
