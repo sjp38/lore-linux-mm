@@ -1,47 +1,88 @@
-Message-ID: <47B2765A.2070901@myri.com>
-Date: Tue, 12 Feb 2008 23:47:22 -0500
-From: Patrick Geoffray <patrick@myri.com>
+Date: Wed, 13 Feb 2008 14:09:55 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [-mm PATCH] register_memory/unregister_memory clean ups
+In-Reply-To: <1202853976.11188.86.camel@nimitz.home.sr71.net>
+References: <1202853415.25604.59.camel@dyn9047017100.beaverton.ibm.com> <1202853976.11188.86.camel@nimitz.home.sr71.net>
+Message-Id: <20080213120746.FB76.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [ofa-general] Re: Demand paging for memory regions
-References: <20080209075556.63062452@bree.surriel.com> <Pine.LNX.4.64.0802091345490.12965@schroedinger.engr.sgi.com> <ada3arzxgkz.fsf_-_@cisco.com> <47B2174E.5000708@opengridcomputing.com> <Pine.LNX.4.64.0802121408150.9591@schroedinger.engr.sgi.com> <20080213032533.GC32047@obsidianresearch.com> <47B26A6A.4000209@myri.com> <20080213042600.GA32449@obsidianresearch.com>
-In-Reply-To: <20080213042600.GA32449@obsidianresearch.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Roland Dreier <rdreier@cisco.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, general@lists.openfabrics.org
+To: Dave Hansen <haveblue@us.ibm.com>, Badari Pulavarty <pbadari@us.ibm.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, greg@kroah.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Jason Gunthorpe wrote:
-> [mangled CC list trimmed]
-Thanks, noticed that afterwards.
+Thanks Badari-san.
 
-> This wasn't ment as a slight against Quadrics, only to point out that
-> the specific wire protcols used by IB and iwarp are what cause this
-> limitation, it would be easy to imagine that Quadrics has some
-> additional twist that can make this easier..
+I understand what was occured. :-)
 
-The wire protocols are similar, nothing fancy. The specificity of 
-Quadrics (and many others) is that they can change the behavior of the 
-NIC in firmware, so they adapt to what the OS offers. They had the VM 
-notifier support in Tru64 back in the days, they just ported the 
-functionality to Linux.
+> On Tue, 2008-02-12 at 13:56 -0800, Badari Pulavarty wrote:
+> > > > +   /*
+> > > > +    * Its ugly, but this is the best I can do - HELP !!
+> > > > +    * We don't know where the allocations for section memmap and usemap
+> > > > +    * came from. If they are allocated at the boot time, they would come
+> > > > +    * from bootmem. If they are added through hot-memory-add they could be
+> > > > +    * from sla or vmalloc. If they are allocated as part of hot-mem-add
+> > > > +    * free them up properly. If they are allocated at boot, no easy way
+> > > > +    * to correctly free them :(
+> > > > +    */
+> > > > +   if (usemap) {
+> > > > +           if (PageSlab(virt_to_page(usemap))) {
+> > > > +                   kfree(usemap);
+> > > > +                   if (memmap)
+> > > > +                           __kfree_section_memmap(memmap, nr_pages);
+> > > > +           }
+> > > > +   }
+> > > > +}
+> > > 
+> > > Do what we did with the memmap and store some of its origination
+> > > information in the low bits.
+> > 
+> > Hmm. my understand of memmap is limited. Can you help me out here ?
+> 
+> Never mind.  That was a bad suggestion.  I do think it would be a good
+> idea to mark the 'struct page' of ever page we use as bootmem in some
+> way.  Perhaps page->private? 
 
-> I ment that HPC users are unlikely to want to swap active RDMA pages
-> if this causes a performance cost on normal operations. None of my
+I agree. page->private is not used by bootmem allocator.
 
-Swapping to disk is not a normal operations in HPC, it's going to be 
-slow anyway. The main problem for HPC users is not swapping, it's that 
-they do not know when a registered page is released to the OS through 
-free(), sbrk() or munmap(). Like swapping, they don't expect that it 
-will happen often, but they have to handle it gracefully.
+I would like to mark not only memmap but also pgdat (and so on)
+for next step. It will be necessary for removing whole node. :-)
 
-Patrick
+
+>  Otherwise, you can simply try all of the
+> possibilities and consider the remainder bootmem.  Did you ever find out
+> if we properly initialize the bootmem 'struct page's?
+> 
+> Please have mercy and put this in a helper, first of all.
+> 
+> static void free_usemap(unsigned long *usemap)
+> {
+> 	if (!usemap_
+> 		return;
+> 
+> 	if (PageSlab(virt_to_page(usemap))) {
+> 		kfree(usemap)
+> 	} else if (is_vmalloc_addr(usemap)) {
+> 		vfree(usemap);
+> 	} else {
+> 		int nid = page_to_nid(virt_to_page(usemap));
+> 		bootmem_fun_here(NODE_DATA(nid), usemap);
+> 	}
+> }
+> 
+> right?
+
+It may work. But, to be honest, I feel there are TOO MANY allocation/free
+way for memmap (usemap and so on). If possible, I would like to
+unify some of them. I would like to try it.
+
+Bye.
+
 -- 
-Patrick Geoffray
-Myricom, Inc.
-http://www.myri.com
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
