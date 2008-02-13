@@ -1,47 +1,72 @@
-Received: by rn-out-0910.google.com with SMTP id v46so84765rnb.14
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2008 07:32:24 -0800 (PST)
-Message-ID: <e2e108260802130732k2fdb69dckf60dd64353fb9dc7@mail.gmail.com>
-Date: Wed, 13 Feb 2008 16:32:23 +0100
-From: "Bart Van Assche" <bart.vanassche@gmail.com>
+Date: Wed, 13 Feb 2008 15:38:29 +0000
+From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [Bug 9941] New: Zone "Normal" missing in /proc/zoneinfo
-In-Reply-To: <20080213143406.GA1328@csn.ul.ie>
+Message-ID: <20080213153829.GB1328@csn.ul.ie>
+References: <bug-9941-27@http.bugzilla.kernel.org/> <20080212100623.4fd6cf85.akpm@linux-foundation.org> <e2e108260802122339j3b861e74vf7b72a34747dcade@mail.gmail.com> <20080212234522.24bed8c1.akpm@linux-foundation.org> <20080213115225.GB4007@csn.ul.ie> <20080213152302.GA32416@shadowen.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-References: <bug-9941-27@http.bugzilla.kernel.org/>
-	 <20080212100623.4fd6cf85.akpm@linux-foundation.org>
-	 <e2e108260802122339j3b861e74vf7b72a34747dcade@mail.gmail.com>
-	 <20080212234522.24bed8c1.akpm@linux-foundation.org>
-	 <20080213115225.GB4007@csn.ul.ie>
-	 <e2e108260802130545u3086fbecn2793aab64b895a74@mail.gmail.com>
-	 <20080213143406.GA1328@csn.ul.ie>
+In-Reply-To: <20080213152302.GA32416@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Bart Van Assche <bart.vanassche@gmail.com>, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Feb 13, 2008 3:34 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> Yes. You should not be seeing a Normal zone unless you have > 4GB of
-> RAM unless for some really strange reason your physical memory was
-> placed above the 4GB mark which is possibly but unlikely. Could you post
-> the dmesg -s 1000000 of 2.6.24 and its .config just in case please?
+On (13/02/08 15:23), Andy Whitcroft didst pronounce:
+> On Wed, Feb 13, 2008 at 11:52:25AM +0000, Mel Gorman wrote:
+> 
+> > > > > > $ grep zone /proc/zoneinfo
+> > > > > >
+> > > > > > Output with 2.6.24:
+> > > > > > Node 0, zone      DMA
+> > > > > > Node 0, zone    DMA32
+> > > > > > Node 0, zone   Normal
+> > > > > >
+> > > > > > Output with 2.6.24.2:
+> > > > > > Node 0, zone      DMA
+> > > > > > Node 0, zone    DMA32
+> > > > > >
+> > 
+> > The greater surprise to me is that "Normal" ever appeared. The zone is empty,
+> > why is information appearing about it? I checked the dmesg for an x86_64
+> > machine with 1GB of RAM that was running 2.6.24 here and there is no sign
+> > of Normal.
+> > 
+> > mel@arnold:/tmp$ grep zone zoneinfo.before 
+> > Node 0, zone      DMA
+> > Node 0, zone    DMA32
+> > 
+> > The loop looks like
+> > 
+> >         for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
+> >                 if (!populated_zone(zone))
+> >                         continue;
+> > 
+> > It makes no sense for it to show up *unless* 2.6.24 was compiled as a 32
+> > bit kernel by accident. Could this be the case?
+> 
+> Interestingly I would not expect to see DMA32 at all if the kernel was
+> compiled 32 bit as CONFIG_DMA32 defaults to X86_64.
+> 
 
-Update: after rebooting into 2.6.24 I get now the same results with
-2.6.24 and 2.6.24.2:
+D'oh, of course. This couldn't have been a 32 bit kernel.
 
-$ uname -a
-Linux INF012 2.6.24 #1 SMP Wed Feb 13 16:16:07 CET 2008 x86_64 GNU/Linux
-$ grep zone /proc/zoneinfo
-Node 0, zone      DMA
-Node 0, zone    DMA32
+> Could we simply have less ram detected/present in this boot.  That would
+> make the zone dissappear if it became empty.
+> 
+> The e820 output as reported by the old and new kernels would confirm the
+> memory size is detected the same.  Also some idea of how much memory is
+> supposed be in the machine might shed some light.  If the overall is near
+> to 4GB it may be remapping for the AGP apature or something similar which
+> is shifting memory up above the boundary.
+> 
 
-The output I included in the original bug report was probably from
-another system with 2.6.24 that is running here, a system with 4 GB
-memory instead of 2 GB. Sorry for the confusion I created.
 
-Bart Van Assche.
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
