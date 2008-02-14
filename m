@@ -1,16 +1,16 @@
-Received: by wx-out-0506.google.com with SMTP id h31so288672wxd.11
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2008 00:55:01 -0800 (PST)
-Message-ID: <84144f020802140055v62b89602p66aebeb65ab85c35@mail.gmail.com>
-Date: Thu, 14 Feb 2008 10:55:00 +0200
+Received: by wr-out-0506.google.com with SMTP id 60so518796wri.8
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2008 00:56:13 -0800 (PST)
+Message-ID: <84144f020802140056i6706f135s77473534e0b6fc0b@mail.gmail.com>
+Date: Thu, 14 Feb 2008 10:56:12 +0200
 From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [patch 5/5] slub: Large allocs for other slab sizes that do not fit in order 0
-In-Reply-To: <20080214040314.388752493@sgi.com>
+Subject: Re: [patch 2/5] slub: Fallback to kmalloc_large for failing higher order allocs
+In-Reply-To: <20080214040313.616551392@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 References: <20080214040245.915842795@sgi.com>
-	 <20080214040314.388752493@sgi.com>
+	 <20080214040313.616551392@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
@@ -20,13 +20,20 @@ List-ID: <linux-mm.kvack.org>
 [Sorry for the duplicate. My email client started trimming cc's...]
 
 On Thu, Feb 14, 2008 at 6:02 AM, Christoph Lameter <clameter@sgi.com> wrote:
-> Expand the scheme used for kmalloc-2048 and kmalloc-4096 to all slab
->  caches. That means that kmem_cache_free() must now be able to handle
->  a fallback object that was allocated from the page allocator. This is
->  touching the fastpath costing us 1/2 % of performance (pretty small
->  so within variance). Kind of hacky though.
+> Slub already has two ways of allocating an object. One is via its own
+>  logic and the other is via the call to kmalloc_large to hand of object
+>  allocation to the page allocator. kmalloc_large is typically used
+>  for objects >= PAGE_SIZE.
+>
+>  We can use that handoff to avoid failing if a higher order kmalloc slab
+>  allocation cannot be satisfied by the page allocator. If we reach the
+>  out of memory path then simply try a kmalloc_large(). kfree() can
+>  already handle the case of an object that was allocated via the page
+>  allocator and so this will work just fine (apart from object
+>  accounting...).
 
-Looks good but are there any numbers that indicate this is an overall win?
+Sorry, I didn't follow the discussion close enough. Why are we doing
+this? Is it fixing some real bug I am not aware of?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
