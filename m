@@ -1,132 +1,722 @@
-Received: by wa-out-1112.google.com with SMTP id m33so823438wag.8
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2008 09:48:53 -0800 (PST)
-Message-ID: <469958e00802140948j162cc8baqae0b55cd6fb1cd22@mail.gmail.com>
-Date: Thu, 14 Feb 2008 09:48:52 -0800
-From: "Caitlin Bestler" <caitlin.bestler@gmail.com>
-Subject: Re: [ofa-general] Re: Demand paging for memory regions
-In-Reply-To: <47B46AFB.9070009@opengridcomputing.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1EIr8Yi018530
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2008 13:53:08 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1EIqtxx206152
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2008 11:53:02 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1EIqsOb015056
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2008 11:52:55 -0700
+Subject: Re: [patch 3/8] mm: introduce pte_special pte bit
+From: Badari Pulavarty <pbadari@gmail.com>
+In-Reply-To: <20080214062531.489767000@suse.de>
+References: <20080214061657.700804000@suse.de>
+	 <20080214062531.489767000@suse.de>
+Content-Type: text/plain
+Date: Thu, 14 Feb 2008 10:55:53 -0800
+Message-Id: <1203015354.12312.14.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <adazlu5vlub.fsf@cisco.com>
-	 <8A71B368A89016469F72CD08050AD334026D5C23@maui.asicdesigners.com>
-	 <47B45994.7010805@opengridcomputing.com>
-	 <20080214155333.GA1029@sgi.com>
-	 <47B46AFB.9070009@opengridcomputing.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Steve Wise <swise@opengridcomputing.com>
-Cc: Robin Holt <holt@sgi.com>, Rik van Riel <riel@redhat.com>, steiner@sgi.com, Andrea Arcangeli <andrea@qumranet.com>, a.p.zijlstra@chello.nl, izike@qumranet.com, Roland Dreier <rdreier@cisco.com>, linux-kernel@vger.kernel.org, avi@qumranet.com, kvm-devel@lists.sourceforge.net, linux-mm@kvack.org, daniel.blueman@quadrics.com, general@lists.openfabrics.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>
+To: npiggin@suse.de
+Cc: Dave Kleikamp <shaggy@linux.vnet.ibm.com>, anton@au1.ibm.com, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Carsten Otte <cotte@de.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Jared Hulbert <jaredeh@gmail.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-arch@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 14, 2008 at 8:23 AM, Steve Wise <swise@opengridcomputing.com> wrote:
-> Robin Holt wrote:
->  > On Thu, Feb 14, 2008 at 09:09:08AM -0600, Steve Wise wrote:
->  >> Note that for T3, this involves suspending _all_ rdma connections that are
->  >> in the same PD as the MR being remapped.  This is because the driver
->  >> doesn't know who the application advertised the rkey/stag to.  So without
->  >
->  > Is there a reason the driver can not track these.
->  >
->
->  Because advertising of a MR (ie telling the peer about your rkey/stag,
->  offset and length) is application-specific and can be done out of band,
->  or in band as simple SEND/RECV payload. Either way, the driver has no
->  way of tracking this because the protocol used is application-specific.
->
->
+On Thu, 2008-02-14 at 17:17 +1100, npiggin@suse.de wrote:
+> plain text document attachment (mm-normal-pte-bit.patch)
 
-I fully agree. If there is one important thing about RDMA and other fastpath
-solutions that must be understood is that the driver does not see the
-payload. This is a fundamental strength, but it means that you have
-to identify what if any intercept points there are in advance.
+updated version.
 
-You also raise a good point on the scope of any suspend/resume API.
-Device reporting of this capability would not be a simple boolean, but
-more of a suspend/resume scope. A minimal scope would be any
-connection that actually attempts to use the suspended MR. Slightly
-wider would be any connection *allowed* to use the MR, which could
-expand all the way to any connection under the same PD. Convievably
-I could imagine an RDMA device reporting that it could support suspend/
-resume, but only at the scope of the entire device.
+Thanks,
+Badari
+s390 for one, cannot implement VM_MIXEDMAP with pfn_valid, due to their
+memory model (which is more dynamic than most). Instead, they had proposed
+to implement it with an additional path through vm_normal_page(), using a
+bit in the pte to determine whether or not the page should be refcounted:
 
-But even at such a wide scope, suspend/resume could be useful to
-a Memory Manager. The pages could be fully migrated to the new
-location, and the only work that was still required during the critical
-suspend/resume region was to actually shift to the new map. That
-might be short enough that not accepting *any* incoming RDMA
-packet would be acceptable.
+vm_normal_page()
+{
+	...
+        if (unlikely(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP))) {
+                if (vma->vm_flags & VM_MIXEDMAP) {
+#ifdef s390
+			if (!mixedmap_refcount_pte(pte))
+				return NULL;
+#else
+                        if (!pfn_valid(pfn))
+                                return NULL;
+#endif
+                        goto out;
+                }
+	...
+}
 
-And if the goal is to replace a memory card the alternative might
-be migrating the applications to other physical servers, which would
-mean a much longer period of not accepting incoming RDMA packets.
+This is fine, however if we are allowed to use a bit in the pte to
+determine refcountedness, we can use that to _completely_ replace all the
+vma based schemes. So instead of adding more cases to the already complex
+vma-based scheme, we can have a clearly seperate and simple pte-based scheme
+(and get slightly better code generation in the process):
 
-But the broader question is what the goal is here. Allowing memory to
-be shuffled is valuable, and perhaps even ultimately a requirement for
-high availability systems. RDMA and other direct-access APIs should
-be evolving their interfaces to accommodate these needs.
+vm_normal_page()
+{
+#ifdef s390
+	if (!mixedmap_refcount_pte(pte))
+		return NULL;
+	return pte_page(pte);
+#else
+	...
+#endif
+}
 
-Oversubscribing memory is a totally different matter. If an application
-is working with memory that is oversubscribed by a factor of 2 or more
-can it really benefit from zero-copy direct placement? At first glance I
-can't see what RDMA could be bringing of value when the overhead of
-swapping is going to be that large.
+And finally, we may rather make this concept usable by any architecture
+rather than making it s390 only, so implement a new type of pte state
+for this. Unfortunately the old vma based code must stay, because some
+architectures may not be able to spare pte bits. This makes vm_normal_page
+a little bit more ugly than we would like, but the 2 cases are clearly
+seperate.
 
-If it really does make sense, then explicitly registering the portion of
-memory that should be enabled to receive incoming traffic while the
-application is swapped out actually makes sense.
+So introduce a pte_special pte state, and use it in mm/memory.c. It is
+currently a noop for all architectures, so this doesn't actually result
+in any compiled code changes to mm/memory.o.
 
-Current Memory Registration methods force applications to either
-register too much or too often. They register too much when the cost
-of registration is high, and the application responds by registering its
-entire buffer pool permanently. This is a problem when it overstates
-the amount of memory that the application needs to have resident,
-or when the device imposes limits on the size of memory maps that
-it can know. The alternative is to register too often, that is on a
-per-operation basis.
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+Acked-by: Carsten Otte <cotte@de.ibm.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Hugh Dickins <hugh@veritas.com>
+Cc: Jared Hulbert <jaredeh@gmail.com>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: linux-arch@vger.kernel.org
+Cc: linux-mm@kvack.org
+---
+ include/asm-alpha/pgtable.h         |    2 
+ include/asm-avr32/pgtable.h         |    8 ++
+ include/asm-cris/pgtable.h          |    2 
+ include/asm-frv/pgtable.h           |    2 
+ include/asm-ia64/pgtable.h          |    3 +
+ include/asm-m32r/pgtable.h          |   10 +++
+ include/asm-m68k/motorola_pgtable.h |    2 
+ include/asm-m68k/sun3_pgtable.h     |    2 
+ include/asm-mips/pgtable.h          |    2 
+ include/asm-parisc/pgtable.h        |    2 
+ include/asm-powerpc/pgtable-ppc32.h |    3 +
+ include/asm-powerpc/pgtable-ppc64.h |    3 +
+ include/asm-ppc/pgtable.h           |    3 +
+ include/asm-s390/pgtable.h          |   10 +++
+ include/asm-sparc/pgtable.h         |    7 ++
+ include/asm-sparc64/pgtable.h       |   10 +++
+ include/asm-um/pgtable.h            |   10 +++
+ include/asm-x86/pgtable.h           |    2 
+ include/asm-xtensa/pgtable.h        |    4 +
+ include/linux/mm.h                  |    3 -
+ mm/memory.c                         |   98 +++++++++++++++++++-----------------
+ 21 files changed, 143 insertions(+), 45 deletions(-)
 
-To me that suggests the solutions lie in making it more reasonable
-to register more memory, or in making it practical to register memory
-on-the-fly on a per-operation basis with low enough overhead that
-applications don't feel the need to build elaborate registration caching
-schemes.
+Index: linux-2.6.25-rc1/include/asm-um/pgtable.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-um/pgtable.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-um/pgtable.h	2008-02-14 08:46:04.000000000 -0800
+@@ -173,6 +173,11 @@ static inline int pte_newprot(pte_t pte)
+ 	return(pte_present(pte) && (pte_get_bits(pte, _PAGE_NEWPROT)));
+ }
+ 
++static inline int pte_special(pte_t pte)
++{
++	return 0;
++}
++
+ /*
+  * =================================
+  * Flags setting section.
+@@ -241,6 +246,11 @@ static inline pte_t pte_mknewpage(pte_t 
+ 	return(pte);
+ }
+ 
++static inline pte_t pte_mkspecial(pte_t pte)
++{
++	return(pte);
++}
++
+ static inline void set_pte(pte_t *pteptr, pte_t pteval)
+ {
+ 	pte_copy(*pteptr, pteval);
+Index: linux-2.6.25-rc1/include/linux/mm.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/linux/mm.h	2008-02-14 08:46:03.000000000 -0800
++++ linux-2.6.25-rc1/include/linux/mm.h	2008-02-14 08:46:04.000000000 -0800
+@@ -712,7 +712,8 @@ struct zap_details {
+ 	unsigned long truncate_count;		/* Compare vm_truncate_count */
+ };
+ 
+-struct page *vm_normal_page(struct vm_area_struct *, unsigned long, pte_t);
++struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_t pte);
++
+ unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
+ 		unsigned long size, struct zap_details *);
+ unsigned long unmap_vmas(struct mmu_gather **tlb,
+Index: linux-2.6.25-rc1/mm/memory.c
+===================================================================
+--- linux-2.6.25-rc1.orig/mm/memory.c	2008-02-14 08:46:03.000000000 -0800
++++ linux-2.6.25-rc1/mm/memory.c	2008-02-14 08:46:04.000000000 -0800
+@@ -371,34 +371,38 @@ static inline int is_cow_mapping(unsigne
+ }
+ 
+ /*
+- * This function gets the "struct page" associated with a pte or returns
+- * NULL if no "struct page" is associated with the pte.
++ * vm_normal_page -- This function gets the "struct page" associated with a pte.
+  *
+- * A raw VM_PFNMAP mapping (ie. one that is not COWed) may not have any "struct
+- * page" backing, and even if they do, they are not refcounted. COWed pages of
+- * a VM_PFNMAP do always have a struct page, and they are normally refcounted
+- * (they are _normal_ pages).
+- *
+- * So a raw PFNMAP mapping will have each page table entry just pointing
+- * to a page frame number, and as far as the VM layer is concerned, those do
+- * not have pages associated with them - even if the PFN might point to memory
+- * that otherwise is perfectly fine and has a "struct page".
++ * "Special" mappings do not wish to be associated with a "struct page" (either
++ * it doesn't exist, or it exists but they don't want to touch it). In this
++ * case, NULL is returned here. "Normal" mappings do have a struct page.
++ *
++ * There are 2 broad cases. Firstly, an architecture may define a pte_special()
++ * pte bit, in which case this function is trivial. Secondly, an architecture
++ * may not have a spare pte bit, which requires a more complicated scheme,
++ * described below.
++ *
++ * A raw VM_PFNMAP mapping (ie. one that is not COWed) is always considered a
++ * special mapping (even if there are underlying and valid "struct pages").
++ * COWed pages of a VM_PFNMAP are always normal.
+  *
+  * The way we recognize COWed pages within VM_PFNMAP mappings is through the
+  * rules set up by "remap_pfn_range()": the vma will have the VM_PFNMAP bit
+- * set, and the vm_pgoff will point to the first PFN mapped: thus every
+- * page that is a raw mapping will always honor the rule
++ * set, and the vm_pgoff will point to the first PFN mapped: thus every special
++ * mapping will always honor the rule
+  *
+  *	pfn_of_page == vma->vm_pgoff + ((addr - vma->vm_start) >> PAGE_SHIFT)
+  *
+- * A call to vm_normal_page() will return NULL for such a page.
++ * And for normal mappings this is false.
+  *
+- * If the page doesn't follow the "remap_pfn_range()" rule in a VM_PFNMAP
+- * then the page has been COW'ed.  A COW'ed page _does_ have a "struct page"
+- * associated with it even if it is in a VM_PFNMAP range.  Calling
+- * vm_normal_page() on such a page will therefore return the "struct page".
++ * This restricts such mappings to be a linear translation from virtual address
++ * to pfn. To get around this restriction, we allow arbitrary mappings so long
++ * as the vma is not a COW mapping; in that case, we know that all ptes are
++ * special (because none can have been COWed).
+  *
+  *
++ * In order to support COW of arbitrary special mappings, we have VM_MIXEDMAP.
++ *
+  * VM_MIXEDMAP mappings can likewise contain memory with or without "struct
+  * page" backing, however the difference is that _all_ pages with a struct
+  * page (that is, those where pfn_valid is true) are refcounted and considered
+@@ -407,16 +411,28 @@ static inline int is_cow_mapping(unsigne
+  * advantage is that we don't have to follow the strict linearity rule of
+  * PFNMAP mappings in order to support COWable mappings.
+  *
+- * A call to vm_normal_page() with a VM_MIXEDMAP mapping will return the
+- * associated "struct page" or NULL for memory not backed by a "struct page".
+- *
+- *
+- * All other mappings should have a valid struct page, which will be
+- * returned by a call to vm_normal_page().
+  */
++#ifdef __HAVE_ARCH_PTE_SPECIAL
++# define HAVE_PTE_SPECIAL 1
++#else
++# define HAVE_PTE_SPECIAL 0
++#endif
+ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
+ {
+-	unsigned long pfn = pte_pfn(pte);
++	unsigned long pfn;
++
++	if (HAVE_PTE_SPECIAL) {
++		if (likely(!pte_special(pte))) {
++			VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
++			return pte_page(pte);
++		}
++		VM_BUG_ON(!(vma->vm_flags & (VM_PFNMAP | VM_MIXEDMAP)));
++		return NULL;
++	}
++
++	/* !HAVE_PTE_SPECIAL case follows: */
++
++	pfn = pte_pfn(pte);
+ 
+ 	if (unlikely(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP))) {
+ 		if (vma->vm_flags & VM_MIXEDMAP) {
+@@ -424,7 +440,8 @@ struct page *vm_normal_page(struct vm_ar
+ 				return NULL;
+ 			goto out;
+ 		} else {
+-			unsigned long off = (addr-vma->vm_start) >> PAGE_SHIFT;
++			unsigned long off;
++			off = (addr - vma->vm_start) >> PAGE_SHIFT;
+ 			if (pfn == vma->vm_pgoff + off)
+ 				return NULL;
+ 			if (!is_cow_mapping(vma->vm_flags))
+@@ -432,25 +449,12 @@ struct page *vm_normal_page(struct vm_ar
+ 		}
+ 	}
+ 
+-#ifdef CONFIG_DEBUG_VM
+-	/*
+-	 * Add some anal sanity checks for now. Eventually,
+-	 * we should just do "return pfn_to_page(pfn)", but
+-	 * in the meantime we check that we get a valid pfn,
+-	 * and that the resulting page looks ok.
+-	 */
+-	if (unlikely(!pfn_valid(pfn))) {
+-		print_bad_pte(vma, pte, addr);
+-		return NULL;
+-	}
+-#endif
++	VM_BUG_ON(!pfn_valid(pfn));
+ 
+ 	/*
+-	 * NOTE! We still have PageReserved() pages in the page 
+-	 * tables. 
++	 * NOTE! We still have PageReserved() pages in the page tables.
+ 	 *
+-	 * The PAGE_ZERO() pages and various VDSO mappings can
+-	 * cause them to exist.
++	 * eg. VDSO mappings can cause them to exist.
+ 	 */
+ out:
+ 	return pfn_to_page(pfn);
+@@ -1262,6 +1266,12 @@ int vm_insert_pfn(struct vm_area_struct 
+ 	pte_t *pte, entry;
+ 	spinlock_t *ptl;
+ 
++	/*
++	 * Technically, architectures with pte_special can avoid all these
++	 * restrictions (same for remap_pfn_range).  However we would like
++	 * consistency in testing and feature parity among all, so we should
++	 * try to keep these invariants in place for everybody.
++	 */
+ 	BUG_ON(!(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)));
+ 	BUG_ON((vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)) ==
+ 						(VM_PFNMAP|VM_MIXEDMAP));
+@@ -1277,7 +1287,7 @@ int vm_insert_pfn(struct vm_area_struct 
+ 		goto out_unlock;
+ 
+ 	/* Ok, finally just insert the thing.. */
+-	entry = pfn_pte(pfn, vma->vm_page_prot);
++	entry = pte_mkspecial(pfn_pte(pfn, vma->vm_page_prot));
+ 	set_pte_at(mm, addr, pte, entry);
+ 	update_mmu_cache(vma, addr, entry);
+ 
+@@ -1308,7 +1318,7 @@ static int remap_pte_range(struct mm_str
+ 	arch_enter_lazy_mmu_mode();
+ 	do {
+ 		BUG_ON(!pte_none(*pte));
+-		set_pte_at(mm, addr, pte, pfn_pte(pfn, prot));
++		set_pte_at(mm, addr, pte, pte_mkspecial(pfn_pte(pfn, prot)));
+ 		pfn++;
+ 	} while (pte++, addr += PAGE_SIZE, addr != end);
+ 	arch_leave_lazy_mmu_mode();
+Index: linux-2.6.25-rc1/include/asm-alpha/pgtable.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-alpha/pgtable.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-alpha/pgtable.h	2008-02-14 08:46:04.000000000 -0800
+@@ -268,6 +268,7 @@ extern inline int pte_write(pte_t pte)		
+ extern inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
+ extern inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
+ extern inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
++extern inline int pte_special(pte_t pte)	{ return 0; }
+ 
+ extern inline pte_t pte_wrprotect(pte_t pte)	{ pte_val(pte) |= _PAGE_FOW; return pte; }
+ extern inline pte_t pte_mkclean(pte_t pte)	{ pte_val(pte) &= ~(__DIRTY_BITS); return pte; }
+@@ -275,6 +276,7 @@ extern inline pte_t pte_mkold(pte_t pte)
+ extern inline pte_t pte_mkwrite(pte_t pte)	{ pte_val(pte) &= ~_PAGE_FOW; return pte; }
+ extern inline pte_t pte_mkdirty(pte_t pte)	{ pte_val(pte) |= __DIRTY_BITS; return pte; }
+ extern inline pte_t pte_mkyoung(pte_t pte)	{ pte_val(pte) |= __ACCESS_BITS; return pte; }
++extern inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
+ 
+ #define PAGE_DIR_OFFSET(tsk,address) pgd_offset((tsk),(address))
+ 
+Index: linux-2.6.25-rc1/include/asm-avr32/pgtable.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-avr32/pgtable.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-avr32/pgtable.h	2008-02-14 08:46:04.000000000 -0800
+@@ -211,6 +211,10 @@ static inline int pte_young(pte_t pte)
+ {
+ 	return pte_val(pte) & _PAGE_ACCESSED;
+ }
++static inline int pte_special(pte_t pte)
++{
++	return 0;
++}
+ 
+ /*
+  * The following only work if pte_present() is not true.
+@@ -251,6 +255,10 @@ static inline pte_t pte_mkyoung(pte_t pt
+ 	set_pte(&pte, __pte(pte_val(pte) | _PAGE_ACCESSED));
+ 	return pte;
+ }
++static inline pte_t pte_mkspecial(pte_t pte)
++{
++	return pte;
++}
+ 
+ #define pmd_none(x)	(!pmd_val(x))
+ #define pmd_present(x)	(pmd_val(x) & _PAGE_PRESENT)
+Index: linux-2.6.25-rc1/include/asm-cris/pgtable.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-cris/pgtable.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-cris/pgtable.h	2008-02-14 08:46:04.000000000 -0800
+@@ -115,6 +115,7 @@ static inline int pte_write(pte_t pte)  
+ static inline int pte_dirty(pte_t pte)          { return pte_val(pte) & _PAGE_MODIFIED; }
+ static inline int pte_young(pte_t pte)          { return pte_val(pte) & _PAGE_ACCESSED; }
+ static inline int pte_file(pte_t pte)           { return pte_val(pte) & _PAGE_FILE; }
++static inline int pte_special(pte_t pte)	{ return 0; }
+ 
+ static inline pte_t pte_wrprotect(pte_t pte)
+ {
+@@ -162,6 +163,7 @@ static inline pte_t pte_mkyoung(pte_t pt
+         }
+         return pte;
+ }
++static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
+ 
+ /*
+  * Conversion functions: convert a page and protection to a page entry,
+Index: linux-2.6.25-rc1/include/asm-frv/pgtable.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-frv/pgtable.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-frv/pgtable.h	2008-02-14 08:46:04.000000000 -0800
+@@ -380,6 +380,7 @@ static inline pmd_t *pmd_offset(pud_t *d
+ static inline int pte_dirty(pte_t pte)		{ return (pte).pte & _PAGE_DIRTY; }
+ static inline int pte_young(pte_t pte)		{ return (pte).pte & _PAGE_ACCESSED; }
+ static inline int pte_write(pte_t pte)		{ return !((pte).pte & _PAGE_WP); }
++static inline int pte_special(pte_t pte)	{ return 0; }
+ 
+ static inline pte_t pte_mkclean(pte_t pte)	{ (pte).pte &= ~_PAGE_DIRTY; return pte; }
+ static inline pte_t pte_mkold(pte_t pte)	{ (pte).pte &= ~_PAGE_ACCESSED; return pte; }
+@@ -387,6 +388,7 @@ static inline pte_t pte_wrprotect(pte_t 
+ static inline pte_t pte_mkdirty(pte_t pte)	{ (pte).pte |= _PAGE_DIRTY; return pte; }
+ static inline pte_t pte_mkyoung(pte_t pte)	{ (pte).pte |= _PAGE_ACCESSED; return pte; }
+ static inline pte_t pte_mkwrite(pte_t pte)	{ (pte).pte &= ~_PAGE_WP; return pte; }
++static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
+ 
+ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
+ {
+Index: linux-2.6.25-rc1/include/asm-ia64/pgtable.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-ia64/pgtable.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-ia64/pgtable.h	2008-02-14 08:46:04.000000000 -0800
+@@ -302,6 +302,8 @@ ia64_phys_addr_valid (unsigned long addr
+ #define pte_dirty(pte)		((pte_val(pte) & _PAGE_D) != 0)
+ #define pte_young(pte)		((pte_val(pte) & _PAGE_A) != 0)
+ #define pte_file(pte)		((pte_val(pte) & _PAGE_FILE) != 0)
++#define pte_special(pte)	0
++
+ /*
+  * Note: we convert AR_RWX to AR_RX and AR_RW to AR_R by clearing the 2nd bit in the
+  * access rights:
+@@ -313,6 +315,7 @@ ia64_phys_addr_valid (unsigned long addr
+ #define pte_mkclean(pte)	(__pte(pte_val(pte) & ~_PAGE_D))
+ #define pte_mkdirty(pte)	(__pte(pte_val(pte) | _PAGE_D))
+ #define pte_mkhuge(pte)		(__pte(pte_val(pte)))
++#define pte_mkspecial(pte)	(pte)
+ 
+ /*
+  * Because ia64's Icache and Dcache is not coherent (on a cpu), we need to
+Index: linux-2.6.25-rc1/include/asm-m32r/pgtable.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-m32r/pgtable.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-m32r/pgtable.h	2008-02-14 08:46:04.000000000 -0800
+@@ -214,6 +214,11 @@ static inline int pte_file(pte_t pte)
+ 	return pte_val(pte) & _PAGE_FILE;
+ }
+ 
++static inline int pte_special(pte_t pte)
++{
++	return 0;
++}
++
+ static inline pte_t pte_mkclean(pte_t pte)
+ {
+ 	pte_val(pte) &= ~_PAGE_DIRTY;
+@@ -250,6 +255,11 @@ static inline pte_t pte_mkwrite(pte_t pt
+ 	return pte;
+ }
+ 
++static inline pte_t pte_mkspecial(pte_t pte)
++{
++	return pte;
++}
++
+ static inline  int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
+ {
+ 	return test_and_clear_bit(_PAGE_BIT_ACCESSED, ptep);
+Index: linux-2.6.25-rc1/include/asm-m68k/motorola_pgtable.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-m68k/motorola_pgtable.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-m68k/motorola_pgtable.h	2008-02-14 08:46:04.000000000 -0800
+@@ -168,6 +168,7 @@ static inline int pte_write(pte_t pte)		
+ static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
+ static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
+ static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
++static inline int pte_special(pte_t pte)	{ return 0; }
+ 
+ static inline pte_t pte_wrprotect(pte_t pte)	{ pte_val(pte) |= _PAGE_RONLY; return pte; }
+ static inline pte_t pte_mkclean(pte_t pte)	{ pte_val(pte) &= ~_PAGE_DIRTY; return pte; }
+@@ -185,6 +186,7 @@ static inline pte_t pte_mkcache(pte_t pt
+ 	pte_val(pte) = (pte_val(pte) & _CACHEMASK040) | m68k_supervisor_cachemode;
+ 	return pte;
+ }
++static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
+ 
+ #define PAGE_DIR_OFFSET(tsk,address) pgd_offset((tsk),(address))
+ 
+Index: linux-2.6.25-rc1/include/asm-m68k/sun3_pgtable.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-m68k/sun3_pgtable.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-m68k/sun3_pgtable.h	2008-02-14 08:46:04.000000000 -0800
+@@ -169,6 +169,7 @@ static inline int pte_write(pte_t pte)		
+ static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & SUN3_PAGE_MODIFIED; }
+ static inline int pte_young(pte_t pte)		{ return pte_val(pte) & SUN3_PAGE_ACCESSED; }
+ static inline int pte_file(pte_t pte)		{ return pte_val(pte) & SUN3_PAGE_ACCESSED; }
++static inline int pte_special(pte_t pte)	{ return 0; }
+ 
+ static inline pte_t pte_wrprotect(pte_t pte)	{ pte_val(pte) &= ~SUN3_PAGE_WRITEABLE; return pte; }
+ static inline pte_t pte_mkclean(pte_t pte)	{ pte_val(pte) &= ~SUN3_PAGE_MODIFIED; return pte; }
+@@ -181,6 +182,7 @@ static inline pte_t pte_mknocache(pte_t 
+ //static inline pte_t pte_mkcache(pte_t pte)	{ pte_val(pte) &= SUN3_PAGE_NOCACHE; return pte; }
+ // until then, use:
+ static inline pte_t pte_mkcache(pte_t pte)	{ return pte; }
++static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
+ 
+ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
+ extern pgd_t kernel_pg_dir[PTRS_PER_PGD];
+Index: linux-2.6.25-rc1/include/asm-mips/pgtable.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-mips/pgtable.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-mips/pgtable.h	2008-02-14 08:46:04.000000000 -0800
+@@ -285,6 +285,8 @@ static inline pte_t pte_mkyoung(pte_t pt
+ 	return pte;
+ }
+ #endif
++static inline int pte_special(pte_t pte)	{ return 0; }
++static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
+ 
+ /*
+  * Macro to make mark a page protection value as "uncacheable".  Note
+Index: linux-2.6.25-rc1/include/asm-parisc/pgtable.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-parisc/pgtable.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-parisc/pgtable.h	2008-02-14 08:46:04.000000000 -0800
+@@ -331,6 +331,7 @@ static inline int pte_dirty(pte_t pte)		
+ static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
+ static inline int pte_write(pte_t pte)		{ return pte_val(pte) & _PAGE_WRITE; }
+ static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
++static inline int pte_special(pte_t pte)	{ return 0; }
+ 
+ static inline pte_t pte_mkclean(pte_t pte)	{ pte_val(pte) &= ~_PAGE_DIRTY; return pte; }
+ static inline pte_t pte_mkold(pte_t pte)	{ pte_val(pte) &= ~_PAGE_ACCESSED; return pte; }
+@@ -338,6 +339,7 @@ static inline pte_t pte_wrprotect(pte_t 
+ static inline pte_t pte_mkdirty(pte_t pte)	{ pte_val(pte) |= _PAGE_DIRTY; return pte; }
+ static inline pte_t pte_mkyoung(pte_t pte)	{ pte_val(pte) |= _PAGE_ACCESSED; return pte; }
+ static inline pte_t pte_mkwrite(pte_t pte)	{ pte_val(pte) |= _PAGE_WRITE; return pte; }
++static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
+ 
+ /*
+  * Conversion functions: convert a page and protection to a page entry,
+Index: linux-2.6.25-rc1/include/asm-powerpc/pgtable-ppc32.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-powerpc/pgtable-ppc32.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-powerpc/pgtable-ppc32.h	2008-02-14 08:46:04.000000000 -0800
+@@ -514,6 +514,7 @@ static inline int pte_write(pte_t pte)		
+ static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
+ static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
+ static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
++static inline int pte_special(pte_t pte)	{ return 0; }
+ 
+ static inline void pte_uncache(pte_t pte)       { pte_val(pte) |= _PAGE_NO_CACHE; }
+ static inline void pte_cache(pte_t pte)         { pte_val(pte) &= ~_PAGE_NO_CACHE; }
+@@ -531,6 +532,8 @@ static inline pte_t pte_mkdirty(pte_t pt
+ 	pte_val(pte) |= _PAGE_DIRTY; return pte; }
+ static inline pte_t pte_mkyoung(pte_t pte) {
+ 	pte_val(pte) |= _PAGE_ACCESSED; return pte; }
++static inline pte_t pte_mkspecial(pte_t pte) {
++	return pte; }
+ 
+ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
+ {
+Index: linux-2.6.25-rc1/include/asm-powerpc/pgtable-ppc64.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-powerpc/pgtable-ppc64.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-powerpc/pgtable-ppc64.h	2008-02-14 08:46:04.000000000 -0800
+@@ -239,6 +239,7 @@ static inline int pte_write(pte_t pte) {
+ static inline int pte_dirty(pte_t pte) { return pte_val(pte) & _PAGE_DIRTY;}
+ static inline int pte_young(pte_t pte) { return pte_val(pte) & _PAGE_ACCESSED;}
+ static inline int pte_file(pte_t pte) { return pte_val(pte) & _PAGE_FILE;}
++static inline int pte_special(pte_t pte) { return 0; }
+ 
+ static inline void pte_uncache(pte_t pte) { pte_val(pte) |= _PAGE_NO_CACHE; }
+ static inline void pte_cache(pte_t pte)   { pte_val(pte) &= ~_PAGE_NO_CACHE; }
+@@ -257,6 +258,8 @@ static inline pte_t pte_mkyoung(pte_t pt
+ 	pte_val(pte) |= _PAGE_ACCESSED; return pte; }
+ static inline pte_t pte_mkhuge(pte_t pte) {
+ 	return pte; }
++static inline pte_t pte_mkspecial(pte_t pte) {
++	return pte; }
+ 
+ /* Atomic PTE updates */
+ static inline unsigned long pte_update(struct mm_struct *mm,
+Index: linux-2.6.25-rc1/include/asm-ppc/pgtable.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-ppc/pgtable.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-ppc/pgtable.h	2008-02-14 08:46:04.000000000 -0800
+@@ -491,6 +491,7 @@ static inline int pte_write(pte_t pte)		
+ static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
+ static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
+ static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
++static inline int pte_special(pte_t pte)	{ return 0; }
+ 
+ static inline void pte_uncache(pte_t pte)       { pte_val(pte) |= _PAGE_NO_CACHE; }
+ static inline void pte_cache(pte_t pte)         { pte_val(pte) &= ~_PAGE_NO_CACHE; }
+@@ -508,6 +509,8 @@ static inline pte_t pte_mkdirty(pte_t pt
+ 	pte_val(pte) |= _PAGE_DIRTY; return pte; }
+ static inline pte_t pte_mkyoung(pte_t pte) {
+ 	pte_val(pte) |= _PAGE_ACCESSED; return pte; }
++static inline pte_t pte_mkspecial(pte_t pte) {
++	return pte; }
+ 
+ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
+ {
+Index: linux-2.6.25-rc1/include/asm-s390/pgtable.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-s390/pgtable.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-s390/pgtable.h	2008-02-14 08:46:04.000000000 -0800
+@@ -510,6 +510,11 @@ static inline int pte_file(pte_t pte)
+ 	return (pte_val(pte) & mask) == _PAGE_TYPE_FILE;
+ }
+ 
++static inline int pte_special(pte_t pte)
++{
++	return 0;
++}
++
+ #define __HAVE_ARCH_PTE_SAME
+ #define pte_same(a,b)  (pte_val(a) == pte_val(b))
+ 
+@@ -663,6 +668,11 @@ static inline pte_t pte_mkyoung(pte_t pt
+ 	return pte;
+ }
+ 
++static inline pte_t pte_mkspecial(pte_t pte)
++{
++	return pte;
++}
++
+ #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
+ 					    unsigned long addr, pte_t *ptep)
+Index: linux-2.6.25-rc1/include/asm-sparc/pgtable.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-sparc/pgtable.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-sparc/pgtable.h	2008-02-14 08:46:04.000000000 -0800
+@@ -219,6 +219,11 @@ static inline int pte_file(pte_t pte)
+ 	return pte_val(pte) & BTFIXUP_HALF(pte_filei);
+ }
+ 
++static inline int pte_special(pte_t pte)
++{
++	return 0;
++}
++
+ /*
+  */
+ BTFIXUPDEF_HALF(pte_wrprotecti)
+@@ -251,6 +256,8 @@ BTFIXUPDEF_CALL_CONST(pte_t, pte_mkyoung
+ #define pte_mkdirty(pte) BTFIXUP_CALL(pte_mkdirty)(pte)
+ #define pte_mkyoung(pte) BTFIXUP_CALL(pte_mkyoung)(pte)
+ 
++#define pte_mkspecial(pte_t pte)    (pte)
++
+ #define pfn_pte(pfn, prot)		mk_pte(pfn_to_page(pfn), prot)
+ 
+ BTFIXUPDEF_CALL(unsigned long,	 pte_pfn, pte_t)
+Index: linux-2.6.25-rc1/include/asm-sparc64/pgtable.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-sparc64/pgtable.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-sparc64/pgtable.h	2008-02-14 08:46:04.000000000 -0800
+@@ -506,6 +506,11 @@ static inline pte_t pte_mkyoung(pte_t pt
+ 	return __pte(pte_val(pte) | mask);
+ }
+ 
++static inline pte_t pte_mkspecial(pte_t pte)
++{
++	return pte;
++}
++
+ static inline unsigned long pte_young(pte_t pte)
+ {
+ 	unsigned long mask;
+@@ -608,6 +613,11 @@ static inline unsigned long pte_present(
+ 	return val;
+ }
+ 
++static inline int pte_special(pte_t pte)
++{
++	return 0;
++}
++
+ #define pmd_set(pmdp, ptep)	\
+ 	(pmd_val(*(pmdp)) = (__pa((unsigned long) (ptep)) >> 11UL))
+ #define pud_set(pudp, pmdp)	\
+Index: linux-2.6.25-rc1/include/asm-xtensa/pgtable.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-xtensa/pgtable.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-xtensa/pgtable.h	2008-02-14 08:46:04.000000000 -0800
+@@ -212,6 +212,8 @@ static inline int pte_write(pte_t pte) {
+ static inline int pte_dirty(pte_t pte) { return pte_val(pte) & _PAGE_DIRTY; }
+ static inline int pte_young(pte_t pte) { return pte_val(pte) & _PAGE_ACCESSED; }
+ static inline int pte_file(pte_t pte)  { return pte_val(pte) & _PAGE_FILE; }
++static inline int pte_special(pte_t pte) { return 0; }
++
+ static inline pte_t pte_wrprotect(pte_t pte)	
+ 	{ pte_val(pte) &= ~(_PAGE_WRITABLE | _PAGE_HW_WRITE); return pte; }
+ static inline pte_t pte_mkclean(pte_t pte)
+@@ -224,6 +226,8 @@ static inline pte_t pte_mkyoung(pte_t pt
+ 	{ pte_val(pte) |= _PAGE_ACCESSED; return pte; }
+ static inline pte_t pte_mkwrite(pte_t pte)
+ 	{ pte_val(pte) |= _PAGE_WRITABLE; return pte; }
++static inline pte_t pte_mkspecial(pte_t pte)
++	{ return pte; }
+ 
+ /*
+  * Conversion functions: convert a page and protection to a page entry,
+Index: linux-2.6.25-rc1/include/asm-x86/pgtable.h
+===================================================================
+--- linux-2.6.25-rc1.orig/include/asm-x86/pgtable.h	2008-02-10 14:18:14.000000000 -0800
++++ linux-2.6.25-rc1/include/asm-x86/pgtable.h	2008-02-14 08:50:18.000000000 -0800
+@@ -149,6 +149,7 @@ static inline int pte_file(pte_t pte)		{
+ static inline int pte_huge(pte_t pte)		{ return pte_val(pte) & _PAGE_PSE; }
+ static inline int pte_global(pte_t pte) 	{ return pte_val(pte) & _PAGE_GLOBAL; }
+ static inline int pte_exec(pte_t pte)		{ return !(pte_val(pte) & _PAGE_NX); }
++static inline int pte_special(pte_t pte)	{ return 0; }
+ 
+ static inline int pmd_large(pmd_t pte) {
+ 	return (pmd_val(pte) & (_PAGE_PSE|_PAGE_PRESENT)) ==
+@@ -166,6 +167,7 @@ static inline pte_t pte_mkhuge(pte_t pte
+ static inline pte_t pte_clrhuge(pte_t pte)	{ return __pte(pte_val(pte) & ~(pteval_t)_PAGE_PSE); }
+ static inline pte_t pte_mkglobal(pte_t pte)	{ return __pte(pte_val(pte) | _PAGE_GLOBAL); }
+ static inline pte_t pte_clrglobal(pte_t pte)	{ return __pte(pte_val(pte) & ~(pteval_t)_PAGE_GLOBAL); }
++static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
+ 
+ extern pteval_t __supported_pte_mask;
+ 
 
-As has been pointed out a few times in this thread, the RDMA and
-transport layers simply do not have enough information to know which
-portion of registered memory *really* had to be registered. So any
-back-pressure scheme where the Memory Manager is asking for
-pinned memory to be "given back" would have to go all the way to
-the application. Only the application knows what it is "really" using.
-
-I also suspect that most applications that are interested in using
-RDMA would rather be told they can allocate 200M indefinitely
-(and with real memory backing it) than be given 1GB of virtual
-memory that is backed by 200-300M of physical memory,
-especially if it meant dealing with memory pressure upcalls.
-
->  >> Point being, it will stop probably all connections that an application is
->  >> using (assuming the application uses a single PD).
->  >
->  > It seems like the need to not stop all would be a compelling enough reason
->  > to modify the driver to track which processes have received the rkey/stag.
->  >
->
->  Yes, _if_ the driver could track this.
->
->  And _if_ the rdma API and paradigm was such that the kernel/driver could
->  keep track, then remote revokations of MR tags could be supported.
->
->  Stevo
->
->
-> _______________________________________________
->  general mailing list
->  general@lists.openfabrics.org
->  http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general
->
->  To unsubscribe, please visit http://openib.org/mailman/listinfo/openib-general
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
