@@ -1,27 +1,25 @@
-Subject: Re: [patch 5/5] slub: Large allocs for other slab sizes that do not fit in order 0
-In-Reply-To: <20080214040314.388752493@sgi.com>
-Message-ID: <x46V2RJW.1202973265.1848000.penberg@cs.helsinki.fi>
+Subject: Re: [patch 1/5] slub: Determine gfpflags once and not every time a slab is allocated
+In-Reply-To: <20080214040313.318658830@sgi.com>
+Message-ID: <Kua3E9iW.1202973819.2315200.penberg@cs.helsinki.fi>
 From: "Pekka Enberg" <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 8BIT
-Date: Thu, 14 Feb 2008 09:14:25 +0200 (EET)
+Date: Thu, 14 Feb 2008 09:23:39 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: clameter@sgi.com
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
 On 2/14/2008, "Christoph Lameter" <clameter@sgi.com> wrote:
-> Expand the scheme used for kmalloc-2048 and kmalloc-4096 to all slab
-> caches. That means that kmem_cache_free() must now be able to 
-> handle a fallback object that was allocated from the page allocator. This is
-> touching the fastpath costing us 1/2 % of performance (pretty small
-> so within variance). Kind of hacky though.
+> Currently we determine the gfp flags to pass to the page allocator
+> each time a slab is being allocated.
+> 
+> Determine the bits to be set at the time the slab is created. Store
+> in a new allocflags field and add the flags in allocate_slab().
 
-Looks good but are there any numbers that indicate this is an overall win?
+Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
