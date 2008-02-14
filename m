@@ -1,38 +1,39 @@
-Message-ID: <47B49ADD.9010001@cs.helsinki.fi>
-Date: Thu, 14 Feb 2008 21:47:41 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-MIME-Version: 1.0
+Date: Thu, 14 Feb 2008 11:57:13 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [patch 2/5] slub: Fallback to kmalloc_large for failing higher
  order allocs
-References: <20080214040245.915842795@sgi.com> <20080214040313.616551392@sgi.com> <20080214140614.GE17641@csn.ul.ie> <Pine.LNX.4.64.0802141108530.32613@schroedinger.engr.sgi.com> <47B49520.4070201@cs.helsinki.fi> <Pine.LNX.4.64.0802141128430.375@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0802141128430.375@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <47B49ADD.9010001@cs.helsinki.fi>
+Message-ID: <Pine.LNX.4.64.0802141153300.809@schroedinger.engr.sgi.com>
+References: <20080214040245.915842795@sgi.com> <20080214040313.616551392@sgi.com>
+ <20080214140614.GE17641@csn.ul.ie> <Pine.LNX.4.64.0802141108530.32613@schroedinger.engr.sgi.com>
+ <47B49520.4070201@cs.helsinki.fi> <Pine.LNX.4.64.0802141128430.375@schroedinger.engr.sgi.com>
+ <47B49ADD.9010001@cs.helsinki.fi>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> That would mean reducing the number of objects that can be allocated from 
-> the fastpath before we have to go to the page allocator again. Increasing 
-> the number of fastpath uses vs slowpath increases the overall performance 
-> of a slab.
-> 
-> If we would use order 0 slab allocs for 4k slabs then every call to 
-> slab_alloc would lead to a corresponding call to the page allocator. The 
-> regression would not be fixed. We just add slab_alloc overhead to an 
-> already bad page allocator call.
+On Thu, 14 Feb 2008, Pekka Enberg wrote:
 
-Aah, I see. I wonder if we can fix up allocate_slab() to try with a 
-smaller order as long as the size allows that? The only problem I can 
-see is s->objects but I think we can just move that to be a per-slab 
-variable. So sort of variable-order slabs kind of a thing.
+> Aah, I see. I wonder if we can fix up allocate_slab() to try with a smaller
+> order as long as the size allows that? The only problem I can see is
+> s->objects but I think we can just move that to be a per-slab variable. So
+> sort of variable-order slabs kind of a thing.
 
-What do you think?
+Urgh. This is going to require a count of the maximum number of objects 
+per individual slab page. Adds more overhead to the fast path and means 
+that not all the slabs may have the same order. Which may in turn result 
+in a mix of order 3 2 1 pages. Not good for fragmentation. I think the 
+do order 3 always and then order 0 if we are in a bad fragmentation 
+state the best compromise. In particular because these bad fragmented 
+memory scenarios seems to be very difficult to produce and occur only in 
+specialized situations (f.e. minimal ram with lots of page pinned by I/O, 
+stuff like that).
 
-			Pekka
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
