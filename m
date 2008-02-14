@@ -1,41 +1,82 @@
-Message-ID: <47B45994.7010805@opengridcomputing.com>
-Date: Thu, 14 Feb 2008 09:09:08 -0600
-From: Steve Wise <swise@opengridcomputing.com>
+From: =?utf-8?q?S=2E=C3=87a=C4=9Flar=20Onur?= <caglar@pardus.org.tr>
+Subject: [PATCH 08/14] mm/: Use time_* macros
+Date: Thu, 14 Feb 2008 17:36:46 +0200
+Message-Id: <1203003412-11594-9-git-send-email-caglar@pardus.org.tr>
+In-Reply-To: y
+References: y
 MIME-Version: 1.0
-Subject: Re: [ofa-general] Re: Demand paging for memory regions
-References: <Pine.LNX.4.64.0802081540180.4291@schroedinger.engr.sgi.com><20080208234302.GH26564@sgi.com><20080208155641.2258ad2c.akpm@linux-foundation.org><Pine.LNX.4.64.0802081603430.4543@schroedinger.engr.sgi.com><adaprv70yyt.fsf@cisco.com><Pine.LNX.4.64.0802081614030.5115@schroedinger.engr.sgi.com><adalk5v0yi6.fsf@cisco.com><Pine.LNX.4.64.0802081634070.5298@schroedinger.engr.sgi.com><20080209012446.GB7051@v2.random><Pine.LNX.4.64.0802081725200.5445@schroedinger.engr.sgi.com><20080209015659.GC7051@v2.random><Pine.LNX.4.64.0802081813300.5602@schroedinger.engr.sgi.com><20080209075556.63062452@bree.surriel.com><Pine.LNX.4.64.0802091345490.12965@schroedinger.engr.sgi.com><ada3arzxgkz.fsf_-_@cisco.com><47B2174E.5000708@opengridcomputing.com><Pine.LNX.4.64.0802121408150.9591@schroedinger.engr.sgi.com> <adazlu5vlub.fsf@cisco.com> <8A71B368A89016469F72CD08050AD334026D5C23@maui.asicdesigners.com>
-In-Reply-To: <8A71B368A89016469F72CD08050AD334026D5C23@maui.asicdesigners.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Felix Marti <felix@chelsio.com>
-Cc: Roland Dreier <rdreier@cisco.com>, Christoph Lameter <clameter@sgi.com>, Rik van Riel <riel@redhat.com>, steiner@sgi.com, Andrea Arcangeli <andrea@qumranet.com>, a.p.zijlstra@chello.nl, izike@qumranet.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Andrew Morton <akpm@linux-foundation.org>, kvm-devel@lists.sourceforge.net
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, =?utf-8?q?S=2E=C3=87a=C4=9Flar=20Onur?= <caglar@pardus.org.tr>
 List-ID: <linux-mm.kvack.org>
 
-Felix Marti wrote:
+The functions time_before, time_before_eq, time_after, and time_after_eq are more robust for comparing jiffies against other values.
 
-> 
-> That is correct, not a change we can make for T3. We could, in theory,
-> deal with changing mappings though. The change would need to be
-> synchronized though: the VM would need to tell us which mapping were
-> about to change and the driver would then need to disable DMA to/from
-> it, do the change and resume DMA.
-> 
+So following patch implements usage of the time_after() macro, defined at linux/jiffies.h, which deals with wrapping correctly
 
-Note that for T3, this involves suspending _all_ rdma connections that 
-are in the same PD as the MR being remapped.  This is because the driver 
-doesn't know who the application advertised the rkey/stag to.  So 
-without that knowledge, all connections that _might_ rdma into the MR 
-must be suspended.  If the MR was only setup for local access, then the 
-driver could track the connections with references to the MR and only 
-quiesce those connections.
+Cc: linux-mm@kvack.org
+Signed-off-by: S.A?aA?lar Onur <caglar@pardus.org.tr>
+---
+ mm/page_alloc.c |    3 ++-
+ mm/pdflush.c    |    5 +++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)
 
-Point being, it will stop probably all connections that an application 
-is using (assuming the application uses a single PD).
-
-
-Steve.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 75b9793..1a0c9cc 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -14,6 +14,7 @@
+  *          (lots of bits borrowed from Ingo Molnar & Andrew Morton)
+  */
+ 
++#include <linux/jiffies.h>
+ #include <linux/stddef.h>
+ #include <linux/mm.h>
+ #include <linux/swap.h>
+@@ -1276,7 +1277,7 @@ static nodemask_t *zlc_setup(struct zonelist *zonelist, int alloc_flags)
+ 	if (!zlc)
+ 		return NULL;
+ 
+-	if (jiffies - zlc->last_full_zap > 1 * HZ) {
++	if (time_after(jiffies, zlc->last_full_zap + HZ)) {
+ 		bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
+ 		zlc->last_full_zap = jiffies;
+ 	}
+diff --git a/mm/pdflush.c b/mm/pdflush.c
+index 8f6ee07..5d736d5 100644
+--- a/mm/pdflush.c
++++ b/mm/pdflush.c
+@@ -10,6 +10,7 @@
+  *		up stack space with nested calls to kernel_thread.
+  */
+ 
++#include <linux/jiffies.h>
+ #include <linux/sched.h>
+ #include <linux/list.h>
+ #include <linux/signal.h>
+@@ -130,7 +131,7 @@ static int __pdflush(struct pdflush_work *my_work)
+ 		 * Thread creation: For how long have there been zero
+ 		 * available threads?
+ 		 */
+-		if (jiffies - last_empty_jifs > 1 * HZ) {
++		if (time_after(jiffies, last_empty_jifs + HZ)) {
+ 			/* unlocked list_empty() test is OK here */
+ 			if (list_empty(&pdflush_list)) {
+ 				/* unlocked test is OK here */
+@@ -151,7 +152,7 @@ static int __pdflush(struct pdflush_work *my_work)
+ 		if (nr_pdflush_threads <= MIN_PDFLUSH_THREADS)
+ 			continue;
+ 		pdf = list_entry(pdflush_list.prev, struct pdflush_work, list);
+-		if (jiffies - pdf->when_i_went_to_sleep > 1 * HZ) {
++		if (time_after(jiffies, pdf->when_i_went_to_sleep + HZ)) {
+ 			/* Limit exit rate */
+ 			pdf->when_i_went_to_sleep = jiffies;
+ 			break;					/* exeunt */
+-- 
+1.5.3.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
