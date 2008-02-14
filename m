@@ -1,29 +1,37 @@
-Subject: Re: [patch 2/5] slub: Fallback to kmalloc_large for failing higher order allocs
-In-Reply-To: <20080214040313.616551392@sgi.com>
-Message-ID: <pCfVfDKg.1202972648.0235790.penberg@cs.helsinki.fi>
+Subject: Re: [patch 4/5] slub: Use __GFP_MOVABLE for slabs of HPAGE_SIZE
+In-Reply-To: <20080214040314.118141086@sgi.com>
+Message-ID: <pPfYnrlM.1202972824.1894450.penberg@cs.helsinki.fi>
 From: "Pekka Enberg" <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 8BIT
-Date: Thu, 14 Feb 2008 09:04:08 +0200 (EET)
+Date: Thu, 14 Feb 2008 09:07:04 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: clameter@sgi.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, npiggin@suse.de
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
 Hi Christoph,
 
 On 2/14/2008, "Christoph Lameter" <clameter@sgi.com> wrote:
-> We can use that handoff to avoid failing if a higher order kmalloc slab
-> allocation cannot be satisfied by the page allocator. If we reach the
-> out of memory path then simply try a kmalloc_large(). kfree() can
-> already handle the case of an object that was allocated via the page
-> allocator and so this will work just fine (apart from object
-> accounting...).
+> This is the same trick as done by the hugetlb support in the kernel.
+> If we allocate a huge page use __GFP_MOVABLE because an allocation
+> of a HUGE_PAGE size is the large allocation unit that cannot cause
+> fragmentation.
+> 
+> This will make a system that was booted with
+> 
+> 	slub_min_order = 9
+> 
+> not have any reclaimable slab allocations anymore. All slab allocations
+> will be of type MOVABLE (although they are not movable like huge pages
+> are also not movable). This means that we only have MOVABLE and 
+> UNMOVABLE sections of memory which reduces the types of sections 
+> and therefore the danger of fragmenting memory.
 
-Sorry, I didn't follow the discussion close enough. Why are we doing
-this? Is it fixing some real bug I am not aware of?
+Why does slub_min_order=9 matter? I suppose this is fixing some other
+real bug?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
