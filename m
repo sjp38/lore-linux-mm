@@ -1,82 +1,33 @@
-From: =?utf-8?q?S=2E=C3=87a=C4=9Flar=20Onur?= <caglar@pardus.org.tr>
-Subject: [PATCH 08/14] mm/: Use time_* macros
-Date: Thu, 14 Feb 2008 17:36:46 +0200
-Message-Id: <1203003412-11594-9-git-send-email-caglar@pardus.org.tr>
-In-Reply-To: y
-References: y
+Date: Thu, 14 Feb 2008 09:53:33 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [ofa-general] Re: Demand paging for memory regions
+Message-ID: <20080214155333.GA1029@sgi.com>
+References: <adazlu5vlub.fsf@cisco.com> <8A71B368A89016469F72CD08050AD334026D5C23@maui.asicdesigners.com> <47B45994.7010805@opengridcomputing.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <47B45994.7010805@opengridcomputing.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, =?utf-8?q?S=2E=C3=87a=C4=9Flar=20Onur?= <caglar@pardus.org.tr>
+To: Steve Wise <swise@opengridcomputing.com>
+Cc: Felix Marti <felix@chelsio.com>, Roland Dreier <rdreier@cisco.com>, Christoph Lameter <clameter@sgi.com>, Rik van Riel <riel@redhat.com>, steiner@sgi.com, Andrea Arcangeli <andrea@qumranet.com>, a.p.zijlstra@chello.nl, izike@qumranet.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Andrew Morton <akpm@linux-foundation.org>, kvm-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-The functions time_before, time_before_eq, time_after, and time_after_eq are more robust for comparing jiffies against other values.
+On Thu, Feb 14, 2008 at 09:09:08AM -0600, Steve Wise wrote:
+> Note that for T3, this involves suspending _all_ rdma connections that are 
+> in the same PD as the MR being remapped.  This is because the driver 
+> doesn't know who the application advertised the rkey/stag to.  So without 
 
-So following patch implements usage of the time_after() macro, defined at linux/jiffies.h, which deals with wrapping correctly
+Is there a reason the driver can not track these.
 
-Cc: linux-mm@kvack.org
-Signed-off-by: S.A?aA?lar Onur <caglar@pardus.org.tr>
----
- mm/page_alloc.c |    3 ++-
- mm/pdflush.c    |    5 +++--
- 2 files changed, 5 insertions(+), 3 deletions(-)
+> Point being, it will stop probably all connections that an application is 
+> using (assuming the application uses a single PD).
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 75b9793..1a0c9cc 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -14,6 +14,7 @@
-  *          (lots of bits borrowed from Ingo Molnar & Andrew Morton)
-  */
- 
-+#include <linux/jiffies.h>
- #include <linux/stddef.h>
- #include <linux/mm.h>
- #include <linux/swap.h>
-@@ -1276,7 +1277,7 @@ static nodemask_t *zlc_setup(struct zonelist *zonelist, int alloc_flags)
- 	if (!zlc)
- 		return NULL;
- 
--	if (jiffies - zlc->last_full_zap > 1 * HZ) {
-+	if (time_after(jiffies, zlc->last_full_zap + HZ)) {
- 		bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
- 		zlc->last_full_zap = jiffies;
- 	}
-diff --git a/mm/pdflush.c b/mm/pdflush.c
-index 8f6ee07..5d736d5 100644
---- a/mm/pdflush.c
-+++ b/mm/pdflush.c
-@@ -10,6 +10,7 @@
-  *		up stack space with nested calls to kernel_thread.
-  */
- 
-+#include <linux/jiffies.h>
- #include <linux/sched.h>
- #include <linux/list.h>
- #include <linux/signal.h>
-@@ -130,7 +131,7 @@ static int __pdflush(struct pdflush_work *my_work)
- 		 * Thread creation: For how long have there been zero
- 		 * available threads?
- 		 */
--		if (jiffies - last_empty_jifs > 1 * HZ) {
-+		if (time_after(jiffies, last_empty_jifs + HZ)) {
- 			/* unlocked list_empty() test is OK here */
- 			if (list_empty(&pdflush_list)) {
- 				/* unlocked test is OK here */
-@@ -151,7 +152,7 @@ static int __pdflush(struct pdflush_work *my_work)
- 		if (nr_pdflush_threads <= MIN_PDFLUSH_THREADS)
- 			continue;
- 		pdf = list_entry(pdflush_list.prev, struct pdflush_work, list);
--		if (jiffies - pdf->when_i_went_to_sleep > 1 * HZ) {
-+		if (time_after(jiffies, pdf->when_i_went_to_sleep + HZ)) {
- 			/* Limit exit rate */
- 			pdf->when_i_went_to_sleep = jiffies;
- 			break;					/* exeunt */
--- 
-1.5.3.7
+It seems like the need to not stop all would be a compelling enough reason
+to modify the driver to track which processes have received the rkey/stag.
+
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
