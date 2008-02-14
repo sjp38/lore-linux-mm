@@ -1,37 +1,51 @@
-Date: Thu, 14 Feb 2008 12:32:07 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 4/5] slub: Use __GFP_MOVABLE for slabs of HPAGE_SIZE
-In-Reply-To: <20080214202530.GD30841@csn.ul.ie>
-Message-ID: <Pine.LNX.4.64.0802141231180.1507@schroedinger.engr.sgi.com>
-References: <20080214040245.915842795@sgi.com> <20080214040314.118141086@sgi.com>
- <20080214141442.GF17641@csn.ul.ie> <Pine.LNX.4.64.0802141110280.32613@schroedinger.engr.sgi.com>
- <20080214200849.GB30841@csn.ul.ie> <Pine.LNX.4.64.0802141209470.1041@schroedinger.engr.sgi.com>
- <20080214202530.GD30841@csn.ul.ie>
+Message-ID: <47B4A8CA.30306@anu.edu.au>
+Date: Fri, 15 Feb 2008 07:47:06 +1100
+From: David Singleton <David.Singleton@anu.edu.au>
+Reply-To: David.Singleton@anu.edu.au
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [ofa-general] Re: Demand paging for memory regions
+References: <adazlu5vlub.fsf@cisco.com>	 <8A71B368A89016469F72CD08050AD334026D5C23@maui.asicdesigners.com>	 <47B45994.7010805@opengridcomputing.com>	 <20080214155333.GA1029@sgi.com>	 <47B46AFB.9070009@opengridcomputing.com> <469958e00802140948j162cc8baqae0b55cd6fb1cd22@mail.gmail.com>
+In-Reply-To: <469958e00802140948j162cc8baqae0b55cd6fb1cd22@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Caitlin Bestler <caitlin.bestler@gmail.com>
+Cc: Steve Wise <swise@opengridcomputing.com>, Robin Holt <holt@sgi.com>, Rik van Riel <riel@redhat.com>, steiner@sgi.com, a.p.zijlstra@chello.nl, Roland Dreier <rdreier@cisco.com>, linux-mm@kvack.org, daniel.blueman@quadrics.com, general@lists.openfabrics.org, Christoph Lameter <clameter@sgi.com>, pw@osc.edu
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Feb 2008, Mel Gorman wrote:
-
-> > Hmmmm... Okay if pages are managed in pageblock_size chunks that are of 
-> > HUGE_PAGE_SIZE then this patch makes no difference whatsoever.
-> > 
+Caitlin Bestler wrote:
 > 
-> Yes it does - it means that slub pages can be allocated from the movablecore=
-> partition if slub_min_order is set to a magic value. What it does not do at
-> all is help SLUB in a meaningful fashion.
+> But the broader question is what the goal is here. Allowing memory to
+> be shuffled is valuable, and perhaps even ultimately a requirement for
+> high availability systems. RDMA and other direct-access APIs should
+> be evolving their interfaces to accommodate these needs.
+> 
+> Oversubscribing memory is a totally different matter. If an application
+> is working with memory that is oversubscribed by a factor of 2 or more
+> can it really benefit from zero-copy direct placement? At first glance I
+> can't see what RDMA could be bringing of value when the overhead of
+> swapping is going to be that large.
+> 
 
-No one that I know of is using this esoteric option. Did not even think 
-about it when writing the patch.
+A related use case from HPC.  Some of us have batch scheduling
+systems based on suspend/resume of jobs (which is really just
+SIGSTOP and SIGCONT of all job processes).  The value of this
+system is enhanced greatly by being able to page out the suspended
+job (just normal Linux demand paging caused by the incoming job is
+OK).  Apart from this (relatively) brief period of paging, both
+jobs benefit from RDMA.
 
-> Still NACK.
+SGI kindly implemented a /proc mechanism for unpinning of XPMEM
+pages to allow suspended jobs to be paged on their Altix system.
 
-Well its useless then. I will drop it then.
+Note that this use case would not benefit from Pete Wyckoff's
+approach of notifying user applications/libraries of VM changes.
 
+And one of the grand goal of HPC developers has always been to have
+checkpoint/restart of jobs ....
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
