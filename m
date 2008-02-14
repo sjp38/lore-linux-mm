@@ -1,24 +1,29 @@
-Date: Thu, 14 Feb 2008 11:07:56 -0800 (PST)
+Date: Thu, 14 Feb 2008 11:10:06 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 4/5] slub: Use __GFP_MOVABLE for slabs of HPAGE_SIZE
-In-Reply-To: <84144f020802140057m5dcf479fjd71911ff573055f2@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0802141107310.32613@schroedinger.engr.sgi.com>
-References: <20080214040245.915842795@sgi.com>  <20080214040314.118141086@sgi.com>
- <84144f020802140057m5dcf479fjd71911ff573055f2@mail.gmail.com>
+Subject: Re: [patch 2/5] slub: Fallback to kmalloc_large for failing higher
+ order allocs
+In-Reply-To: <20080214140614.GE17641@csn.ul.ie>
+Message-ID: <Pine.LNX.4.64.0802141108530.32613@schroedinger.engr.sgi.com>
+References: <20080214040245.915842795@sgi.com> <20080214040313.616551392@sgi.com>
+ <20080214140614.GE17641@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Feb 2008, Pekka Enberg wrote:
+On Thu, 14 Feb 2008, Mel Gorman wrote:
 
-> Why does slub_min_order=9 matter? I suppose this is fixing some other
-> real bug?
+> comments with a grain of salt. But, if a kmalloc slab allocation fails and
+> it ultimately uses the page allocator, I do not see how calling the page
+> allocator directly makes a difference.
 
-No its just making the behavior of slub running with huge pages better.
+The kmalloc slab allocation will use order 3. The allocation for an 
+individual object via the page allocator only uses order 0. The order 0 
+alloc will succeed even if memory is extremely fragmented. Its a safety 
+valve that Nick probably finds important.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
