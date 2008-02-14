@@ -1,40 +1,32 @@
-Date: Thu, 14 Feb 2008 11:32:00 -0800 (PST)
+Date: Thu, 14 Feb 2008 11:35:37 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 2/5] slub: Fallback to kmalloc_large for failing higher
- order allocs
-In-Reply-To: <47B49520.4070201@cs.helsinki.fi>
-Message-ID: <Pine.LNX.4.64.0802141128430.375@schroedinger.engr.sgi.com>
-References: <20080214040245.915842795@sgi.com> <20080214040313.616551392@sgi.com>
- <20080214140614.GE17641@csn.ul.ie> <Pine.LNX.4.64.0802141108530.32613@schroedinger.engr.sgi.com>
- <47B49520.4070201@cs.helsinki.fi>
+Subject: Re: [ofa-general] Re: Demand paging for memory regions
+In-Reply-To: <866658.37093.qm@web32510.mail.mud.yahoo.com>
+Message-ID: <Pine.LNX.4.64.0802141133430.477@schroedinger.engr.sgi.com>
+References: <866658.37093.qm@web32510.mail.mud.yahoo.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Kanoj Sarcar <kanojsarcar@yahoo.com>
+Cc: Christian Bell <christian.bell@qlogic.com>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <andrea@qumranet.com>, a.p.zijlstra@chello.nl, izike@qumranet.com, Roland Dreier <rdreier@cisco.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Andrew Morton <akpm@linux-foundation.org>, kvm-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Feb 2008, Pekka Enberg wrote:
+On Wed, 13 Feb 2008, Kanoj Sarcar wrote:
 
-> Christoph Lameter wrote:
-> > The kmalloc slab allocation will use order 3. The allocation for an
-> > individual object via the page allocator only uses order 0. The order 0
-> > alloc will succeed even if memory is extremely fragmented. Its a safety
-> > valve that Nick probably finds important.
+> Oh ok, yes, I did see the discussion on this; sorry I
+> missed it. I do see what notifiers bring to the table
+> now (without endorsing it :-)).
 > 
-> Hmm, shouldn't we then fix just fix calculate_order() to not try so hard to
-> find better fitting higher orders?
+> An orthogonal question is this: is IB/rdma the only
+> "culprit" that elevates page refcounts? Are there no
+> other subsystems which do a similar thing?
 
-That would mean reducing the number of objects that can be allocated from 
-the fastpath before we have to go to the page allocator again. Increasing 
-the number of fastpath uses vs slowpath increases the overall performance 
-of a slab.
-
-If we would use order 0 slab allocs for 4k slabs then every call to 
-slab_alloc would lead to a corresponding call to the page allocator. The 
-regression would not be fixed. We just add slab_alloc overhead to an 
-already bad page allocator call.
+Yes there are actually two projects by SGI that also ran into the same 
+issue that motivated the work on this. One is XPmem which allows 
+sharing of process memory between different Linux instances and then 
+there is the GRU which is a kind of DMA engine. Then there is KVM and 
+probably multiple other drivers.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
