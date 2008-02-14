@@ -1,86 +1,41 @@
-Date: Thu, 14 Feb 2008 14:14:42 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [patch 4/5] slub: Use __GFP_MOVABLE for slabs of HPAGE_SIZE
-Message-ID: <20080214141442.GF17641@csn.ul.ie>
-References: <20080214040245.915842795@sgi.com> <20080214040314.118141086@sgi.com>
+Message-ID: <47B45994.7010805@opengridcomputing.com>
+Date: Thu, 14 Feb 2008 09:09:08 -0600
+From: Steve Wise <swise@opengridcomputing.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20080214040314.118141086@sgi.com>
+Subject: Re: [ofa-general] Re: Demand paging for memory regions
+References: <Pine.LNX.4.64.0802081540180.4291@schroedinger.engr.sgi.com><20080208234302.GH26564@sgi.com><20080208155641.2258ad2c.akpm@linux-foundation.org><Pine.LNX.4.64.0802081603430.4543@schroedinger.engr.sgi.com><adaprv70yyt.fsf@cisco.com><Pine.LNX.4.64.0802081614030.5115@schroedinger.engr.sgi.com><adalk5v0yi6.fsf@cisco.com><Pine.LNX.4.64.0802081634070.5298@schroedinger.engr.sgi.com><20080209012446.GB7051@v2.random><Pine.LNX.4.64.0802081725200.5445@schroedinger.engr.sgi.com><20080209015659.GC7051@v2.random><Pine.LNX.4.64.0802081813300.5602@schroedinger.engr.sgi.com><20080209075556.63062452@bree.surriel.com><Pine.LNX.4.64.0802091345490.12965@schroedinger.engr.sgi.com><ada3arzxgkz.fsf_-_@cisco.com><47B2174E.5000708@opengridcomputing.com><Pine.LNX.4.64.0802121408150.9591@schroedinger.engr.sgi.com> <adazlu5vlub.fsf@cisco.com> <8A71B368A89016469F72CD08050AD334026D5C23@maui.asicdesigners.com>
+In-Reply-To: <8A71B368A89016469F72CD08050AD334026D5C23@maui.asicdesigners.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Felix Marti <felix@chelsio.com>
+Cc: Roland Dreier <rdreier@cisco.com>, Christoph Lameter <clameter@sgi.com>, Rik van Riel <riel@redhat.com>, steiner@sgi.com, Andrea Arcangeli <andrea@qumranet.com>, a.p.zijlstra@chello.nl, izike@qumranet.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Andrew Morton <akpm@linux-foundation.org>, kvm-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On (13/02/08 20:02), Christoph Lameter didst pronounce:
-> This is the same trick as done by the hugetlb support in the kernel.
-> If we allocate a huge page use __GFP_MOVABLE because an allocation
-> of a HUGE_PAGE size is the large allocation unit that cannot cause
-> fragmentation.
-> 
-> This will make a system that was booted with
-> 
-> 	slub_min_order = 9
-> 
-> not have any reclaimable slab allocations anymore. All slab allocations
-> will be of type MOVABLE (although they are not movable like huge pages
-> are also not movable). This means that we only have MOVABLE and UNMOVABLE
-> sections of memory which reduces the types of sections and therefore the
-> danger of fragmenting memory.
-
-hmmm.
-
-The only reason to have an allocation like this set as MOVABLE is so it can
-make use of the partition created by movablecore= which has a few specific
-purposes. One of them is that on a shared system, a partition can be created
-that is of the same size as the largest hugepage pool required for any job. As
-jobs run, they can grow or shrink the pool as desired.  When the jobs complete,
-the hugepages are no longer in use and the partition becomes essentially free.
-
-SLAB pages do not have the same property. Even with all processes exited,
-there will be slab allocations lying around, probably in this partition
-preventing the hugepage pool being resized (or memory hot-remove for that
-matter which can work on a section-boundary on POWER).
-
-If the administrator has created a partition for memory hot-remove or
-for having a known quantity when resizing the hugepage pool, it is
-unlikely they want SLAB pages to be allocated from the same place
-putting a spanner in the works. Without the partition and
-slub_min_order==hugepage_size, this patch does nothing so;
-
-NACK.
+Felix Marti wrote:
 
 > 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> 
-> ---
->  mm/slub.c |    4 ++++
->  1 file changed, 4 insertions(+)
-> 
-> Index: linux-2.6/mm/slub.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slub.c	2008-02-13 18:57:16.036710088 -0800
-> +++ linux-2.6/mm/slub.c	2008-02-13 18:59:08.561004851 -0800
-> @@ -2363,6 +2363,10 @@ static int calculate_sizes(struct kmem_c
->  	if (s->flags & SLAB_CACHE_DMA)
->  		s->allocflags |= SLUB_DMA;
->  
-> +	if (s->order && s->order == get_order(HPAGE_SIZE))
-> +		/* Huge pages are always allocated as movable */
-> +		s->allocflags |= __GFP_MOVABLE;
-> +	else
->  	if (s->flags & SLAB_RECLAIM_ACCOUNT)
->  		s->allocflags |= __GFP_RECLAIMABLE;
->  
-> 
-> -- 
+> That is correct, not a change we can make for T3. We could, in theory,
+> deal with changing mappings though. The change would need to be
+> synchronized though: the VM would need to tell us which mapping were
+> about to change and the driver would then need to disable DMA to/from
+> it, do the change and resume DMA.
 > 
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Note that for T3, this involves suspending _all_ rdma connections that 
+are in the same PD as the MR being remapped.  This is because the driver 
+doesn't know who the application advertised the rkey/stag to.  So 
+without that knowledge, all connections that _might_ rdma into the MR 
+must be suspended.  If the MR was only setup for local access, then the 
+driver could track the connections with references to the MR and only 
+quiesce those connections.
+
+Point being, it will stop probably all connections that an application 
+is using (assuming the application uses a single PD).
+
+
+Steve.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
