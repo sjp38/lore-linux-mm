@@ -1,43 +1,50 @@
-From: Jesse Barnes <jbarnes@virtuousgeek.org>
-Subject: Re: Demand paging for memory regions
-Date: Wed, 13 Feb 2008 15:48:49 -0800
-References: <866658.37093.qm@web32510.mail.mud.yahoo.com>
-In-Reply-To: <866658.37093.qm@web32510.mail.mud.yahoo.com>
+Date: Thu, 14 Feb 2008 09:25:26 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 4/8][for -mm] mem_notify v6: memory_pressure_notify() caller
+In-Reply-To: <p73y79o290h.fsf@bingen.suse.de>
+References: <20080213152204.D894.KOSAKI.MOTOHIRO@jp.fujitsu.com> <p73y79o290h.fsf@bingen.suse.de>
+Message-Id: <20080214090740.C1B0.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200802131548.50016.jbarnes@virtuousgeek.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanojsarcar@yahoo.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Christian Bell <christian.bell@qlogic.com>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <andrea@qumranet.com>, a.p.zijlstra@chello.nl, izike@qumranet.com, Roland Dreier <rdreier@cisco.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Andrew Morton <akpm@linux-foundation.org>, kvm-devel@lists.sourceforge.net, Dave Airlie <airlied@linux.ie>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, marcelo@kvack.org, daniel.spang@gmail.com, riel@redhat.com, alan@lxorguk.ukuu.org.uk, linux-fsdevel@vger.kernel.org, pavel@ucw.cz, a1426z@gawab.com, jonathan@jonmasters.org, zlynx@acm.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday, February 13, 2008 3:43 pm Kanoj Sarcar wrote:
-> Oh ok, yes, I did see the discussion on this; sorry I
-> missed it. I do see what notifiers bring to the table
-> now (without endorsing it :-)).
->
-> An orthogonal question is this: is IB/rdma the only
-> "culprit" that elevates page refcounts? Are there no
-> other subsystems which do a similar thing?
->
-> The example I am thinking about is rawio (Oracle's
-> mlock'ed SHM regions are handed to rawio, isn't it?).
-> My understanding of how rawio works in Linux is quite
-> dated though ...
+Hi Andi,
 
-We're doing something similar in the DRM these days...  We need big chunks of 
-memory to be pinned so that the GPU can operate on them, but when the 
-operation completes we can allow them to be swappable again.  I think with 
-the current implementation, allocations are always pinned, but we'll 
-definitely want to change that soon.
+> > to be honest, I don't think at mem-cgroup until now.
+> 
+> There is not only mem-cgroup BTW, but also NUMA node restrictons from
+> NUMA memory policy. So this means a process might not be able to access
+> all memory.
 
-Dave?
+you are right.
+good point out.
 
-Jesse
+current implementation may cause wake up the no relate process of
+memory shortage zone ;-)
+
+but unfortunately, we can't know per zone rss.
+(/proc/[pid]/numa_maps is very slow, we can't use it
+ at memory shortage emergency)
+
+I think we need develop per zone rss.
+it become not only improve mem_notify, but also improve
+oom killer of more intelligent process choice.
+
+but it is a bit difficult. (at least for me ;-)
+may be, I will implement it a bit later...
+
+
+Thanks again!
+your good opnion may improve my patch.
+
+
+- kosaki
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
