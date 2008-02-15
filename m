@@ -1,9 +1,9 @@
-Date: Fri, 15 Feb 2008 14:29:58 +0900
+Date: Fri, 15 Feb 2008 14:33:09 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC] [PATCH 3/4] Reclaim from groups over their soft limit
  under memory pressure
-Message-Id: <20080215142958.511a2732.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <6599ad830802142116r1c942d78y7002d90c2690a498@mail.gmail.com>
+Message-Id: <20080215143309.d8375918.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <47B520B6.2020101@linux.vnet.ibm.com>
 References: <20080213151201.7529.53642.sendpatchset@localhost.localdomain>
 	<20080213151242.7529.79924.sendpatchset@localhost.localdomain>
 	<20080214163054.81deaf27.kamezawa.hiroyu@jp.fujitsu.com>
@@ -14,35 +14,43 @@ References: <20080213151201.7529.53642.sendpatchset@localhost.localdomain>
 	<47B51430.4090009@linux.vnet.ibm.com>
 	<20080215140732.8b2dc04e.kamezawa.hiroyu@jp.fujitsu.com>
 	<6599ad830802142116r1c942d78y7002d90c2690a498@mail.gmail.com>
+	<47B520B6.2020101@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: balbir@linux.vnet.ibm.com, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Herbert Poetzl <herbert@13thfloor.at>, "Eric W. Biederman" <ebiederm@xmission.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Rik Van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: balbir@linux.vnet.ibm.com
+Cc: Paul Menage <menage@google.com>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Herbert Poetzl <herbert@13thfloor.at>, "Eric W. Biederman" <ebiederm@xmission.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Rik Van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Feb 2008 21:16:48 -0800
-"Paul Menage" <menage@google.com> wrote:
+On Fri, 15 Feb 2008 10:48:46 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> On Thu, Feb 14, 2008 at 9:07 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> >  We can free memory by just making memory.limit to smaller number.
-> >  (This may cause OOM. If we added high-low watermark, making memory.high smaller
-> >   can works well for memory freeing to some extent.)
-> >
+> Paul Menage wrote:
+> > On Thu, Feb 14, 2008 at 9:07 PM, KAMEZAWA Hiroyuki
+> > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> >>  We can free memory by just making memory.limit to smaller number.
+> >>  (This may cause OOM. If we added high-low watermark, making memory.high smaller
+> >>   can works well for memory freeing to some extent.)
+> >>
+> > 
+> > What about if we want to apply memory pressure to a cgroup to push out
+> > unused memory, but not push out memory that it's actively using?
 > 
-> What about if we want to apply memory pressure to a cgroup to push out
-> unused memory, but not push out memory that it's actively using?
+> Both watermarks and reducing the limit will reclaim from the inactive list
+> first. The reclaim logic is the same as that of the per zone LRU. It would be
+> right to assume that both would push out unused memory first. Am I missing
+> something?
 > 
-Generally, only way to avoid pageout is mlock() because actively-used is just
-determeined by reference-bit and heavy pressure can do page-scanning too much.
-I hope that RvR's LRU improvement may change things better.
-
+You are right to some extent.  If memory.limit is very small and there is
+heavy memory pressure, we have no chance.
+(For example, some text/program for shell-scirpt can be pageout easily
+ because it's not mapped always.)
 
 Thanks,
 -Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
