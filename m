@@ -1,53 +1,74 @@
-Date: Fri, 15 Feb 2008 03:55:48 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [ofa-general] Re: Demand paging for memory regions
-Message-ID: <20080215095548.GC1029@sgi.com>
-References: <adazlu5vlub.fsf@cisco.com> <8A71B368A89016469F72CD08050AD334026D5C23@maui.asicdesigners.com> <47B45994.7010805@opengridcomputing.com> <20080214155333.GA1029@sgi.com> <47B46AFB.9070009@opengridcomputing.com> <469958e00802140948j162cc8baqae0b55cd6fb1cd22@mail.gmail.com> <47B4A8CA.30306@anu.edu.au>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <47B4A8CA.30306@anu.edu.au>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 8BIT
+Subject: RE: [ofa-general] Re: Demand paging for memory regions
+Date: Fri, 15 Feb 2008 13:09:39 -0500
+Message-ID: <78C9135A3D2ECE4B8162EBDCE82CAD77030E25BA@nekter>
+In-Reply-To: <Pine.LNX.4.64.0802141836070.4898@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0802081540180.4291@schroedinger.engr.sgi.com>  <ada3arzxgkz.fsf_-_@cisco.com>  <47B2174E.5000708@opengridcomputing.com>  <Pine.LNX.4.64.0802121408150.9591@schroedinger.engr.sgi.com>  <adazlu5vlub.fsf@cisco.com>  <8A71B368A89016469F72CD08050AD334026D5C23@maui.asicdesigners.com>  <47B45994.7010805@opengridcomputing.com>  <Pine.LNX.4.64.0802141137140.500@schroedinger.engr.sgi.com>  <469958e00802141217i3a3d16a1k1232d69b8ba54471@mail.gmail.com>  <Pine.LNX.4.64.0802141219110.1041@schroedinger.engr.sgi.com> <469958e00802141443g33448abcs3efa6d6c4aec2b56@mail.gmail.com> <Pine.LNX.4.64.0802141445570.3298@schroedinger.engr.sgi.com> <78C9135A3D2ECE4B8162EBDCE82CAD77030E2456@nekter> <Pine.LNX.4.64.0802141836070.4898@schroedinger.engr.sgi.com>
+From: "Caitlin Bestler" <Caitlin.Bestler@neterion.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Singleton <David.Singleton@anu.edu.au>
-Cc: Caitlin Bestler <caitlin.bestler@gmail.com>, Steve Wise <swise@opengridcomputing.com>, Robin Holt <holt@sgi.com>, Rik van Riel <riel@redhat.com>, steiner@sgi.com, a.p.zijlstra@chello.nl, Roland Dreier <rdreier@cisco.com>, linux-mm@kvack.org, daniel.blueman@quadrics.com, general@lists.openfabrics.org, Christoph Lameter <clameter@sgi.com>, pw@osc.edu
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, kvm-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 15, 2008 at 07:47:06AM +1100, David Singleton wrote:
-> Caitlin Bestler wrote:
->> But the broader question is what the goal is here. Allowing memory to
->> be shuffled is valuable, and perhaps even ultimately a requirement for
->> high availability systems. RDMA and other direct-access APIs should
->> be evolving their interfaces to accommodate these needs.
->> Oversubscribing memory is a totally different matter. If an application
->> is working with memory that is oversubscribed by a factor of 2 or more
->> can it really benefit from zero-copy direct placement? At first glance I
->> can't see what RDMA could be bringing of value when the overhead of
->> swapping is going to be that large.
->
-> A related use case from HPC.  Some of us have batch scheduling
-> systems based on suspend/resume of jobs (which is really just
-> SIGSTOP and SIGCONT of all job processes).  The value of this
-> system is enhanced greatly by being able to page out the suspended
-> job (just normal Linux demand paging caused by the incoming job is
-> OK).  Apart from this (relatively) brief period of paging, both
-> jobs benefit from RDMA.
->
-> SGI kindly implemented a /proc mechanism for unpinning of XPMEM
-> pages to allow suspended jobs to be paged on their Altix system.
->
-> Note that this use case would not benefit from Pete Wyckoff's
-> approach of notifying user applications/libraries of VM changes.
+Christoph Lameter asked:
+> 
+> What does it mean that the "application layer has to be determine what
+> pages are registered"? The application does not know which of its
+pages
+> are currently in memory. It can only force these pages to stay in
+> memory if their are mlocked.
+> 
 
-We will be implementing xpmem on top of mmu_notifiers (actively working
-on that now) so in that case, you would no longer need to use the
-/proc/xpmem/<pid> mechanism for unpinning.  Hopefully, we will have xpmem
-in before 2.6.26 and get it into the base OS now instead of an add-on.
-Oh yeah, and memory migration will not need the unpin thing either so
-you can move smaller jobs around more easily.
+An application that advertises an RDMA accessible buffer
+to a remote peer *does* have to know that its pages *are*
+currently in memory.
 
-Thanks,
-Robin
+The application does *not* need for the virtual-to-physical
+mapping of those pages to be frozen for the lifespan of the
+Memory Region. But it is issuing an invitation to its peer
+to perform direct writes to the advertised buffer. When the
+peer decides to exercise that invitation the pages have to
+be there.
+
+An analogy: when you write a check for $100 you do not have
+to identify the serial numbers of ten $10 bills, but you are
+expected to have the funds in your account.
+
+Issuing a buffer advertisement for memory you do not have
+is the network equivalent of writing a check that you do
+not have funds for.
+
+Now, just as your bank may offer overdraft protection, an
+RDMA device could merely report a page fault rather than
+tearing down the connection itself. But that does not grant
+permission for applications to advertise buffer space that
+they do not have committed, it  merely helps recovery from
+a programming fault.
+
+A suspend/resume interface between the Virtual Memory Manager
+and the RDMA layer allows pages to be re-arranged at the 
+convenience of the Virtual Memory Manager without breaking
+the application layer peer-to-peer contract. The current
+interfaces that pin exact pages are really the equivalent
+of having to tell the bank that when Joe cashes this $100
+check that you should give him *these* ten $10 bills. It
+works, but it adds too much overhead and is very inflexible.
+So there are a lot of good reasons to evolve this interface
+to better deal with these issues. Other areas of possible
+evolution include allowing growing or trimming of Memory
+Regions without invalidating their advertised handles.
+
+But the more fundamental issue is recognizing that applications
+that use direct interfaces need to know that buffers that they
+enable truly have committed resources. They need a way to
+ask for twenty *real* pages, not twenty pages of address
+space. And they need to do it in a way that allows memory
+to be rearranged or even migrated with them to a new host.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
