@@ -1,76 +1,47 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m1F3M4ai021295
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2008 14:22:04 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1F3PqqB188924
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2008 14:25:52 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1F3ME2B008430
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2008 14:22:14 +1100
-Message-ID: <47B504AF.90001@linux.vnet.ibm.com>
-Date: Fri, 15 Feb 2008 08:49:11 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Received: from zps18.corp.google.com (zps18.corp.google.com [172.25.146.18])
+	by smtp-out.google.com with ESMTP id m1F4HRaD032410
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2008 04:17:27 GMT
+Received: from py-out-1112.google.com (pyha78.prod.google.com [10.34.228.78])
+	by zps18.corp.google.com with ESMTP id m1F4HQcV004879
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2008 20:17:26 -0800
+Received: by py-out-1112.google.com with SMTP id a78so687822pyh.32
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2008 20:17:26 -0800 (PST)
+Message-ID: <6599ad830802142017g7cdb1b9cid8bbc8cb97e2df68@mail.gmail.com>
+Date: Thu, 14 Feb 2008 20:17:25 -0800
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [RFC] [PATCH 3/4] Reclaim from groups over their soft limit under memory pressure
+In-Reply-To: <47B406E4.9060109@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] [PATCH 3/4] Reclaim from groups over their soft limit under
- memory pressure
-References: <20080213151242.7529.79924.sendpatchset@localhost.localdomain> <20080214102758.D2CD91E3C58@siro.lan>
-In-Reply-To: <20080214102758.D2CD91E3C58@siro.lan>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080213151201.7529.53642.sendpatchset@localhost.localdomain>
+	 <20080213151242.7529.79924.sendpatchset@localhost.localdomain>
+	 <20080214163054.81deaf27.kamezawa.hiroyu@jp.fujitsu.com>
+	 <47B3F073.1070804@linux.vnet.ibm.com>
+	 <20080214174236.aa2aae9b.kamezawa.hiroyu@jp.fujitsu.com>
+	 <47B406E4.9060109@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: linux-mm@kvack.org, hugh@veritas.com, a.p.zijlstra@chello.nl, menage@google.com, Lee.Schermerhorn@hp.com, herbert@13thfloor.at, ebiederm@xmission.com, rientjes@google.com, xemul@openvz.org, nickpiggin@yahoo.com.au, riel@redhat.com, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Herbert Poetzl <herbert@13thfloor.at>, "Eric W. Biederman" <ebiederm@xmission.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Rik Van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-YAMAMOTO Takashi wrote:
->> +/*
->> + * Free all control groups, which are over their soft limit
->> + */
->> +unsigned long mem_cgroup_pushback_groups_over_soft_limit(struct zone **zones,
->> +								gfp_t gfp_mask)
->> +{
->> +	struct mem_cgroup *mem;
->> +	unsigned long nr_pages;
->> +	long long nr_bytes_over_sl;
->> +	unsigned long ret = 0;
->> +	unsigned long flags;
->> +	struct list_head reclaimed_groups;
->>  
->> +	INIT_LIST_HEAD(&reclaimed_groups);
->> +	read_lock_irqsave(&mem_cgroup_sl_list_lock, flags);
->> +	while (!list_empty(&mem_cgroup_sl_exceeded_list)) {
->> +		mem = list_first_entry(&mem_cgroup_sl_exceeded_list,
->> +				struct mem_cgroup, sl_exceeded_list);
->> +		list_move(&mem->sl_exceeded_list, &reclaimed_groups);
->> +		read_unlock_irqrestore(&mem_cgroup_sl_list_lock, flags);
->> +
->> +		nr_bytes_over_sl = res_counter_sl_excess(&mem->res);
->> +		if (nr_bytes_over_sl <= 0)
->> +			goto next;
->> +		nr_pages = (nr_bytes_over_sl >> PAGE_SHIFT);
->> +		ret += try_to_free_mem_cgroup_pages(mem, gfp_mask, nr_pages,
->> +							zones);
->> +next:
->> +		read_lock_irqsave(&mem_cgroup_sl_list_lock, flags);
->> +	}
-> 
-> what prevents the cgroup 'mem' from disappearing while we are dropping
-> mem_cgroup_sl_list_lock?
-> 
+On Thu, Feb 14, 2008 at 1:16 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>  > Probably backgound-reclaim patch will be able to help this soft-limit situation,
+>  > if a daemon can know it should reclaim or not.
+>  >
+>
+>  Yes, I agree. I might just need to schedule the daemon under memory pressure.
+>
 
-I thought I had a css_get/put around it, but I don't. Thanks for catching the
-problem.
+Can we also have a way to trigger a one-off reclaim (of a configurable
+magnitude) from userspace? Having a background daemon doing it may be
+fine as a default, but there will be cases when a userspace machine
+manager knows better than the kernel how frequently/hard to try to
+reclaim on a given cgroup.
 
-> YAMAMOTO Takashi
-
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
