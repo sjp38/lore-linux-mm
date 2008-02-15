@@ -1,12 +1,12 @@
-Date: Fri, 15 Feb 2008 21:16:40 +0100
+Date: Fri, 15 Feb 2008 21:17:30 +0100
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 3/4] x86_64: Fold pda into per cpu area
-Message-ID: <20080215201640.GA6200@elte.hu>
-References: <20080201191414.961558000@sgi.com> <20080201191415.450555000@sgi.com>
+Subject: Re: [PATCH 4/4] x86_64: Cleanup non-smp usage of cpu maps
+Message-ID: <20080215201730.GA7496@elte.hu>
+References: <20080201191414.961558000@sgi.com> <20080201191415.572662000@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080201191415.450555000@sgi.com>
+In-Reply-To: <20080201191415.572662000@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: travis@sgi.com
@@ -15,12 +15,10 @@ List-ID: <linux-mm.kvack.org>
 
 * travis@sgi.com <travis@sgi.com> wrote:
 
->  include/asm-generic/vmlinux.lds.h |    2 +
->  include/linux/percpu.h            |    9 ++++-
+> Cleanup references to the early cpu maps for the non-SMP configuration 
+> and remove some functions called for SMP configurations only.
 
-couldnt these two generic bits be done separately (perhaps a preparatory 
-but otherwise NOP patch pushed upstream straight away) to make 
-subsequent patches only touch x86 architecture files?
+thanks, applied.
 
 	Ingo
 
