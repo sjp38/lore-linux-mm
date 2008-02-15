@@ -1,51 +1,76 @@
-Date: Thu, 14 Feb 2008 18:37:55 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: RE: [ofa-general] Re: Demand paging for memory regions
-In-Reply-To: <78C9135A3D2ECE4B8162EBDCE82CAD77030E2456@nekter>
-Message-ID: <Pine.LNX.4.64.0802141836070.4898@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0802081540180.4291@schroedinger.engr.sgi.com>
- <ada3arzxgkz.fsf_-_@cisco.com>  <47B2174E.5000708@opengridcomputing.com>
- <Pine.LNX.4.64.0802121408150.9591@schroedinger.engr.sgi.com>
- <adazlu5vlub.fsf@cisco.com>  <8A71B368A89016469F72CD08050AD334026D5C23@maui.asicdesigners.com>
-  <47B45994.7010805@opengridcomputing.com>  <Pine.LNX.4.64.0802141137140.500@schroedinger.engr.sgi.com>
-  <469958e00802141217i3a3d16a1k1232d69b8ba54471@mail.gmail.com>
- <Pine.LNX.4.64.0802141219110.1041@schroedinger.engr.sgi.com>
- <469958e00802141443g33448abcs3efa6d6c4aec2b56@mail.gmail.com>
- <Pine.LNX.4.64.0802141445570.3298@schroedinger.engr.sgi.com>
- <78C9135A3D2ECE4B8162EBDCE82CAD77030E2456@nekter>
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m1F3M4ai021295
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2008 14:22:04 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1F3PqqB188924
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2008 14:25:52 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1F3ME2B008430
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2008 14:22:14 +1100
+Message-ID: <47B504AF.90001@linux.vnet.ibm.com>
+Date: Fri, 15 Feb 2008 08:49:11 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC] [PATCH 3/4] Reclaim from groups over their soft limit under
+ memory pressure
+References: <20080213151242.7529.79924.sendpatchset@localhost.localdomain> <20080214102758.D2CD91E3C58@siro.lan>
+In-Reply-To: <20080214102758.D2CD91E3C58@siro.lan>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Caitlin Bestler <Caitlin.Bestler@neterion.com>
-Cc: linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, kvm-devel@lists.sourceforge.net
+To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+Cc: linux-mm@kvack.org, hugh@veritas.com, a.p.zijlstra@chello.nl, menage@google.com, Lee.Schermerhorn@hp.com, herbert@13thfloor.at, ebiederm@xmission.com, rientjes@google.com, xemul@openvz.org, nickpiggin@yahoo.com.au, riel@redhat.com, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Feb 2008, Caitlin Bestler wrote:
+YAMAMOTO Takashi wrote:
+>> +/*
+>> + * Free all control groups, which are over their soft limit
+>> + */
+>> +unsigned long mem_cgroup_pushback_groups_over_soft_limit(struct zone **zones,
+>> +								gfp_t gfp_mask)
+>> +{
+>> +	struct mem_cgroup *mem;
+>> +	unsigned long nr_pages;
+>> +	long long nr_bytes_over_sl;
+>> +	unsigned long ret = 0;
+>> +	unsigned long flags;
+>> +	struct list_head reclaimed_groups;
+>>  
+>> +	INIT_LIST_HEAD(&reclaimed_groups);
+>> +	read_lock_irqsave(&mem_cgroup_sl_list_lock, flags);
+>> +	while (!list_empty(&mem_cgroup_sl_exceeded_list)) {
+>> +		mem = list_first_entry(&mem_cgroup_sl_exceeded_list,
+>> +				struct mem_cgroup, sl_exceeded_list);
+>> +		list_move(&mem->sl_exceeded_list, &reclaimed_groups);
+>> +		read_unlock_irqrestore(&mem_cgroup_sl_list_lock, flags);
+>> +
+>> +		nr_bytes_over_sl = res_counter_sl_excess(&mem->res);
+>> +		if (nr_bytes_over_sl <= 0)
+>> +			goto next;
+>> +		nr_pages = (nr_bytes_over_sl >> PAGE_SHIFT);
+>> +		ret += try_to_free_mem_cgroup_pages(mem, gfp_mask, nr_pages,
+>> +							zones);
+>> +next:
+>> +		read_lock_irqsave(&mem_cgroup_sl_list_lock, flags);
+>> +	}
+> 
+> what prevents the cgroup 'mem' from disappearing while we are dropping
+> mem_cgroup_sl_list_lock?
+> 
 
-> So any solution that requires the upper layers to suspend operations
-> for a brief bit will require explicit interaction with those layers.
-> No RDMA layer can perform the sleight of hand tricks that you seem
-> to want it to perform.
+I thought I had a css_get/put around it, but I don't. Thanks for catching the
+problem.
 
-Looks like it has to be up there right.
- 
-> AT the RDMA layer the best you could get is very brief suspensions for 
-> the purpose of *re-arranging* memory, not of reducing the amount of 
-> registered memory. If you need to reduce the amount of registered memory 
-> then you have to talk to the application. Discussions on making it 
-> easier for the application to trim a memory region dynamically might be 
-> in order, but you will not work around the fact that the application 
-> layer needs to determine what pages are registered. And they would 
-> really prefer just to be told how much memory they can have up front, 
-> they can figure out how to deal with that amount of memory on their own.
+> YAMAMOTO Takashi
 
-What does it mean that the "application layer has to be determine what 
-pages are registered"? The application does not know which of its pages 
-are currently in memory. It can only force these pages to stay in memory 
-if their are mlocked.
- 
- 
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
