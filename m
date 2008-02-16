@@ -1,49 +1,63 @@
-Message-Id: <20080216004635.167873441@sgi.com>
+Message-Id: <20080216004632.324567564@sgi.com>
 References: <20080216004526.763643520@sgi.com>
-Date: Fri, 15 Feb 2008 16:45:41 -0800
+Date: Fri, 15 Feb 2008 16:45:29 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 15/17] FS: Socket inode defragmentation
-Content-Disposition: inline; filename=0060-FS-Socket-inode-defragmentation.patch
+Subject: [patch 03/17] SLUB: Replace ctor field with ops field in /sys/slab/*
+Content-Disposition: inline; filename=0049-SLUB-Replace-ctor-field-with-ops-field-in-sys-slab.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org
 List-ID: <linux-mm.kvack.org>
 
-Support inode defragmentation for sockets
+Create an ops field in /sys/slab/*/ops to contain all the operations defined
+on a slab. This will be used to display the additional operations that will
+be defined soon.
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- net/socket.c |    8 ++++++++
- 1 file changed, 8 insertions(+)
+ mm/slub.c |   16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)
 
-Index: mm/net/socket.c
+Index: linux-2.6/mm/slub.c
 ===================================================================
---- mm.orig/net/socket.c	2007-11-28 12:28:01.311962427 -0800
-+++ mm/net/socket.c	2007-11-28 12:31:46.383962876 -0800
-@@ -269,6 +269,12 @@ static void init_once(struct kmem_cache 
- 	inode_init_once(&ei->vfs_inode);
+--- linux-2.6.orig/mm/slub.c	2008-02-15 15:31:53.958427919 -0800
++++ linux-2.6/mm/slub.c	2008-02-15 15:32:00.654444198 -0800
+@@ -3862,16 +3862,18 @@ static ssize_t order_show(struct kmem_ca
  }
+ SLAB_ATTR(order);
  
-+static void *sock_get_inodes(struct kmem_cache *s, int nr, void **v)
-+{
-+	return fs_get_inodes(s, nr, v,
-+		offsetof(struct socket_alloc, vfs_inode));
-+}
-+
- static int init_inodecache(void)
+-static ssize_t ctor_show(struct kmem_cache *s, char *buf)
++static ssize_t ops_show(struct kmem_cache *s, char *buf)
  {
- 	sock_inode_cachep = kmem_cache_create("sock_inode_cache",
-@@ -280,6 +286,8 @@ static int init_inodecache(void)
- 					      init_once);
- 	if (sock_inode_cachep == NULL)
- 		return -ENOMEM;
-+	kmem_cache_setup_defrag(sock_inode_cachep,
-+			sock_get_inodes, kick_inodes);
- 	return 0;
- }
+-	if (s->ctor) {
+-		int n = sprint_symbol(buf, (unsigned long)s->ctor);
++	int x = 0;
  
+-		return n + sprintf(buf + n, "\n");
++	if (s->ctor) {
++		x += sprintf(buf + x, "ctor : ");
++		x += sprint_symbol(buf + x, (unsigned long)s->ops->ctor);
++		x += sprintf(buf + x, "\n");
+ 	}
+-	return 0;
++	return x;
+ }
+-SLAB_ATTR_RO(ctor);
++SLAB_ATTR_RO(ops);
+ 
+ static ssize_t aliases_show(struct kmem_cache *s, char *buf)
+ {
+@@ -4186,7 +4188,7 @@ static struct attribute *slab_attrs[] = 
+ 	&slabs_attr.attr,
+ 	&partial_attr.attr,
+ 	&cpu_slabs_attr.attr,
+-	&ctor_attr.attr,
++	&ops_attr.attr,
+ 	&aliases_attr.attr,
+ 	&align_attr.attr,
+ 	&sanity_checks_attr.attr,
 
 -- 
 
