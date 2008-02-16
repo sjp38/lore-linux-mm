@@ -1,30 +1,35 @@
-Message-ID: <47B6AE5F.4060700@cs.helsinki.fi>
-Date: Sat, 16 Feb 2008 11:35:27 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Message-ID: <47B6BDDF.90502@inria.fr>
+Date: Sat, 16 Feb 2008 11:41:35 +0100
+From: Brice Goglin <Brice.Goglin@inria.fr>
 MIME-Version: 1.0
-Subject: Re: [patch 0/8] [RFC] SLUB: Variable order slab support
-References: <20080215230811.635628223@sgi.com>
-In-Reply-To: <20080215230811.635628223@sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [patch 1/6] mmu_notifier: Core code
+References: <20080215064859.384203497@sgi.com>	<20080215064932.371510599@sgi.com> <20080215193719.262c03a1.akpm@linux-foundation.org>
+In-Reply-To: <20080215193719.262c03a1.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> It would be nice if the page allocator would support something like: I want a
-> page sized Y but I am going to take anything smaller too. Then we could get where
-> Pekka wanted to go.
+Andrew Morton wrote:
+> What is the status of getting infiniband to use this facility?
+>
+> How important is this feature to KVM?
+>
+> To xpmem?
+>
+> Which other potential clients have been identified and how important it it
+> to those?
+>   
 
-Perhaps it doesn't matter as much. If the higher order allocation fails, 
-we're probably badly fragmented or running out of memory, so dropping to 
-order 0 sounds reasonable. The only shortcoming of that is that we might 
-cause a lot of internal fragmentation within the slab for objects that 
-don't fit into a page nicely.
+As I said when Andrea posted the first patch series, I used something
+very similar for non-RDMA-based HPC about 4 years ago. I haven't had
+time yet to look in depth and try the latest proposed API but my feeling
+is that it looks good.
 
-			Pekka
+Brice
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
