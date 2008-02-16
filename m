@@ -1,26 +1,30 @@
-Message-ID: <47B69B01.6020003@cs.helsinki.fi>
-Date: Sat, 16 Feb 2008 10:12:49 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Message-ID: <47B6A2BE.6080201@qumranet.com>
+Date: Sat, 16 Feb 2008 10:45:50 +0200
+From: Avi Kivity <avi@qumranet.com>
 MIME-Version: 1.0
-Subject: Re: [patch 1/8] slub: rename slab_objects to show_slab_objects
-References: <20080215230811.635628223@sgi.com> <20080215230853.165783772@sgi.com>
-In-Reply-To: <20080215230853.165783772@sgi.com>
+Subject: Re: [patch 1/6] mmu_notifier: Core code
+References: <20080215064859.384203497@sgi.com>	<20080215064932.371510599@sgi.com> <20080215193719.262c03a1.akpm@linux-foundation.org>
+In-Reply-To: <20080215193719.262c03a1.akpm@linux-foundation.org>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> The sysfs callback is better named show_slab_objects since it is always
-> called from the xxx_show callbacks. We need the name for other purposes
-> later.
-> 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Andrew Morton wrote:
+> How important is this feature to KVM?
+>   
 
-Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
+Very.  kvm pins pages that are referenced by the guest; a 64-bit guest 
+will easily pin its entire memory with the kernel map.  So this is 
+critical for guest swapping to actually work.
+
+Other nice features like page migration are also enabled by this patch.
+
+-- 
+Any sufficiently difficult bug is indistinguishable from a feature.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
