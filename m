@@ -1,47 +1,110 @@
-Message-Id: <20080216004806.176458814@sgi.com>
+Message-Id: <20080216004806.855676466@sgi.com>
 References: <20080216004718.047808297@sgi.com>
-Date: Fri, 15 Feb 2008 16:47:21 -0800
+Date: Fri, 15 Feb 2008 16:47:24 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 03/18] Use page_cache_xxx in mm/page-writeback.c
-Content-Disposition: inline; filename=0004-Use-page_cache_xxx-in-mm-page-writeback.c.patch
+Subject: [patch 06/18] Use page_cache_xxx in mm/filemap_xip.c
+Content-Disposition: inline; filename=0007-Use-page_cache_xxx-in-mm-filemap_xip.c.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, David Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Use page_cache_xxx in mm/page-writeback.c
+Use page_cache_xxx in mm/filemap_xip.c
 
 Reviewed-by: Dave Chinner <dgc@sgi.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- mm/page-writeback.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ mm/filemap_xip.c |   28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)
 
-Index: mm/mm/page-writeback.c
+Index: linux-2.6/mm/filemap_xip.c
 ===================================================================
---- mm.orig/mm/page-writeback.c	2007-11-28 12:27:32.211962401 -0800
-+++ mm/mm/page-writeback.c	2007-11-28 14:10:34.338227137 -0800
-@@ -818,8 +818,8 @@ int write_cache_pages(struct address_spa
- 		index = mapping->writeback_index; /* Start from prev offset */
- 		end = -1;
- 	} else {
--		index = wbc->range_start >> PAGE_CACHE_SHIFT;
--		end = wbc->range_end >> PAGE_CACHE_SHIFT;
-+		index = page_cache_index(mapping, wbc->range_start);
-+		end = page_cache_index(mapping, wbc->range_end);
- 		if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
- 			range_whole = 1;
- 		scanned = 1;
-@@ -1025,7 +1025,7 @@ int __set_page_dirty_nobuffers(struct pa
- 				__inc_zone_page_state(page, NR_FILE_DIRTY);
- 				__inc_bdi_stat(mapping->backing_dev_info,
- 						BDI_RECLAIMABLE);
--				task_io_account_write(PAGE_CACHE_SIZE);
-+				task_io_account_write(page_cache_size(mapping));
+--- linux-2.6.orig/mm/filemap_xip.c	2008-02-14 15:20:25.570017244 -0800
++++ linux-2.6/mm/filemap_xip.c	2008-02-15 16:14:43.296931634 -0800
+@@ -62,24 +62,24 @@ do_xip_mapping_read(struct address_space
+ 
+ 	BUG_ON(!mapping->a_ops->get_xip_page);
+ 
+-	index = *ppos >> PAGE_CACHE_SHIFT;
+-	offset = *ppos & ~PAGE_CACHE_MASK;
++	index = page_cache_index(mapping, *ppos);
++	offset = page_cache_offset(mapping, *ppos);
+ 
+ 	isize = i_size_read(inode);
+ 	if (!isize)
+ 		goto out;
+ 
+-	end_index = (isize - 1) >> PAGE_CACHE_SHIFT;
++	end_index = page_cache_index(mapping, isize - 1);
+ 	for (;;) {
+ 		struct page *page;
+ 		unsigned long nr, ret;
+ 
+ 		/* nr is the maximum number of bytes to copy from this page */
+-		nr = PAGE_CACHE_SIZE;
++		nr = page_cache_size(mapping);
+ 		if (index >= end_index) {
+ 			if (index > end_index)
+ 				goto out;
+-			nr = ((isize - 1) & ~PAGE_CACHE_MASK) + 1;
++			nr = page_cache_next(mapping, isize);
+ 			if (nr <= offset) {
+ 				goto out;
  			}
- 			radix_tree_tag_set(&mapping->page_tree,
- 				page_index(page), PAGECACHE_TAG_DIRTY);
+@@ -118,8 +118,8 @@ do_xip_mapping_read(struct address_space
+ 		 */
+ 		ret = actor(desc, page, offset, nr);
+ 		offset += ret;
+-		index += offset >> PAGE_CACHE_SHIFT;
+-		offset &= ~PAGE_CACHE_MASK;
++		index += page_cache_index(mapping, offset);
++		offset = page_cache_offset(mapping, offset);
+ 
+ 		if (ret == nr && desc->count)
+ 			continue;
+@@ -132,7 +132,7 @@ no_xip_page:
+ 	}
+ 
+ out:
+-	*ppos = ((loff_t) index << PAGE_CACHE_SHIFT) + offset;
++	*ppos = page_cache_pos(mapping, index, offset);
+ 	if (filp)
+ 		file_accessed(filp);
+ }
+@@ -221,7 +221,7 @@ static int xip_file_fault(struct vm_area
+ 
+ 	/* XXX: are VM_FAULT_ codes OK? */
+ 
+-	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
++	size = page_cache_next(mapping, i_size_read(inode));
+ 	if (vmf->pgoff >= size)
+ 		return VM_FAULT_SIGBUS;
+ 
+@@ -291,9 +291,9 @@ __xip_file_write(struct file *filp, cons
+ 		size_t copied;
+ 		char *kaddr;
+ 
+-		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
+-		index = pos >> PAGE_CACHE_SHIFT;
+-		bytes = PAGE_CACHE_SIZE - offset;
++		offset = page_cache_offset(mapping, pos); /* Within page */
++		index = page_cache_index(mapping, pos);
++		bytes = page_cache_size(mapping) - offset;
+ 		if (bytes > count)
+ 			bytes = count;
+ 
+@@ -404,8 +404,8 @@ EXPORT_SYMBOL_GPL(xip_file_write);
+ int
+ xip_truncate_page(struct address_space *mapping, loff_t from)
+ {
+-	pgoff_t index = from >> PAGE_CACHE_SHIFT;
+-	unsigned offset = from & (PAGE_CACHE_SIZE-1);
++	pgoff_t index = page_cache_index(mapping, from);
++	unsigned offset = page_cache_offset(mapping, from);
+ 	unsigned blocksize;
+ 	unsigned length;
+ 	struct page *page;
 
 -- 
 
