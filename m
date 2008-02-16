@@ -1,10 +1,11 @@
-Message-ID: <47B6A2D3.8020703@cs.helsinki.fi>
-Date: Sat, 16 Feb 2008 10:46:11 +0200
+Message-ID: <47B6A4EB.2030206@cs.helsinki.fi>
+Date: Sat, 16 Feb 2008 10:55:07 +0200
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [patch 8/8] slub: Make the order configurable for each slab cache
-References: <20080215230811.635628223@sgi.com> <20080215230854.890557911@sgi.com>
-In-Reply-To: <20080215230854.890557911@sgi.com>
+Subject: Re: [patch 2/8] slub: Add function to determine the amount of objects
+ that can reside in a given slab
+References: <20080215230811.635628223@sgi.com> <20080215230853.397873101@sgi.com>
+In-Reply-To: <20080215230853.397873101@sgi.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -13,36 +14,14 @@ To: Christoph Lameter <clameter@sgi.com>
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Christoph,
-
 Christoph Lameter wrote:
-> Makes /sys/kernel/slab/<slabname>/order writable. The allocation
-> order can then be changed dynamically during runtime.
+> Add a new function that determines the maximum number of objects that a given slab
+> can accomodate. At this stage the function always returns the maximum number of objects
+> since fallback is not available yet.
 > 
 > Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> 
-> ---
->  mm/slub.c |   17 +++++++++++++++--
->  1 file changed, 15 insertions(+), 2 deletions(-)
-> 
-> +static ssize_t order_store(struct kmem_cache *s,
-> +				const char *buf, size_t length)
-> +{
-> +	int order = simple_strtoul(buf, NULL, 10);
-> +
-> +	if (order > slub_max_order)
-> +		return -EINVAL;
-> +
-> +	s->order = order;
-> +	calculate_sizes(s);
-> +	return length;
 
-I think we need to respect slub_min_order here as well and most 
-importantly, check whether cache size allows the given order; otherwise 
-calculate_sizes can end up with -1 set to s->order which makes the cache 
-useless (and probably makes SLUB oops).
-
-			Pekka
+Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
