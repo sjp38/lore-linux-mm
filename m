@@ -1,70 +1,114 @@
-Content-class: urn:content-classes:message
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 8BIT
-Subject: RE: [ofa-general] Re: Demand paging for memory regions
-Date: Fri, 15 Feb 2008 18:50:08 -0500
-Message-ID: <78C9135A3D2ECE4B8162EBDCE82CAD77030E2702@nekter>
-In-Reply-To: <Pine.LNX.4.64.0802151445100.16270@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0802081540180.4291@schroedinger.engr.sgi.com>  <ada3arzxgkz.fsf_-_@cisco.com>  <47B2174E.5000708@opengridcomputing.com>  <Pine.LNX.4.64.0802121408150.9591@schroedinger.engr.sgi.com>  <adazlu5vlub.fsf@cisco.com>  <8A71B368A89016469F72CD08050AD334026D5C23@maui.asicdesigners.com>  <47B45994.7010805@opengridcomputing.com>  <Pine.LNX.4.64.0802141137140.500@schroedinger.engr.sgi.com>  <469958e00802141217i3a3d16a1k1232d69b8ba54471@mail.gmail.com>  <Pine.LNX.4.64.0802141219110.1041@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0802141445570.3298@schroedinger.engr.sgi.com> <78C9135A3D2ECE4B8162EBDCE82CAD77030E2456@nekter> <Pine.LNX.4.64.0802141836070.4898@schroedinger.engr.sgi.com> <78C9135A3D2ECE4B8162EBDCE82CAD77030E25BA@nekter> <Pine.LNX.4.64.0802151044310.12890@schroedinger.engr.sgi.com> <78C9135A3D2ECE4B8162EBDCE82CAD77030E25F1@nekter> <Pine.LNX.4.64.0802151158560.14517@schroedinger.engr.sgi.com> <78C9135A3D2ECE4B8162EBDCE82CAD77030E2657@nekter> <Pine.LNX.4.64.0802
-	151445100.16270@schroedinger.engr.sgi.com>
-From: "Caitlin Bestler" <Caitlin.Bestler@neterion.com>
+Message-Id: <20080216004526.763643520@sgi.com>
+Date: Fri, 15 Feb 2008 16:45:26 -0800
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [patch 00/17] Slab Fragmentation Reduction V10
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, kvm-devel@lists.sourceforge.net
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org
 List-ID: <linux-mm.kvack.org>
 
+Slab fragmentation is mainly an issue if Linux is used as a fileserver
+and large amounts of dentries, inodes and buffer heads accumulate. In some
+load situations the slabs become very sparsely populated so that a lot of
+memory is wasted by slabs that only contain one or a few objects. In
+extreme cases the performance of a machine will become sluggish since
+we are continually running reclaim. Slab defragmentation adds the
+capability to recover the memory that is wasted.
 
-> -----Original Message-----
-> From: Christoph Lameter [mailto:clameter@sgi.com]
-> Sent: Friday, February 15, 2008 2:50 PM
-> To: Caitlin Bestler
-> Cc: linux-kernel@vger.kernel.org; avi@qumranet.com;
-linux-mm@kvack.org;
-> general@lists.openfabrics.org; kvm-devel@lists.sourceforge.net
-> Subject: RE: [ofa-general] Re: Demand paging for memory regions
-> 
-> On Fri, 15 Feb 2008, Caitlin Bestler wrote:
-> 
-> > There isn't much point in the RDMA layer subscribing to mmu
-> > notifications
-> > if the specific RDMA device will not be able to react appropriately
-> when
-> > the notification occurs. I don't see how you get around needing to
-> know
-> > which devices are capable of supporting page migration (via
-> > suspend/resume
-> > or other mechanisms) and which can only respond to a page migration
-> by
-> > aborting connections.
-> 
-> You either register callbacks if the device can react properly or you
-> dont. If you dont then the device will continue to have the problem
-> with
-> page pinning etc until someone comes around and implements the
-> mmu callbacks to fix these issues.
-> 
-> I have doubts regarding the claim that some devices just cannot be
-made
-> to
-> suspend and resume appropriately. They obviously can be shutdown and
-so
-> its a matter of sequencing the things the right way. I.e. stop the app
-> wait for a quiet period then release resources etc.
-> 
-> 
+The patchset can be pulled from and will be kept up to date at:
 
-That is true. What some devices will be unable to do is suspend
-and resume in a manner that is transparent to the application.
-However, for the duration required to re-arrange pages it is 
-definitely feasible to do so transparently to the application.
+git://git.kernel.org/pub/scm/linux/kernel/git/christoph/vm.git slub-defrag
 
-Presumably the Virtual Memory Manager would be more willing to
-take an action that is transparent to the user than one that is
-disruptive, although obviously as the owner of the physical memory
-it has the right to do either.
+(Note that I will be on vacation till Feb 27th....)
+
+Memory reclaim from the following slab caches is possible:
+
+1. dentry cache
+2. inode cache (with a generic interface to allow easy setup of more
+   filesystems than the currently supported ext2/3/4 reiserfs, XFS
+   and proc)
+3. buffer_heads
+
+One typical mechanism that triggers slab defragmentation on my systems
+is the daily run of
+
+	updatedb
+
+Updatedb scans all files on the system which causes a high inode and dentry
+use. After updatedb is complete we need to go back to the regular use
+patterns (typical on my machine: kernel compiles). Those need the memory now
+for different purposes. The inodes and dentries used for updatedb will
+gradually be aged by the dentry/inode reclaim algorithm which will free
+up the dentries and inode entries randomly through the slabs that were
+allocated. As a result the slabs will become sparsely populated. If they
+become empty then they can be freed but a lot of them will remain sparsely
+populated. That is where slab defrag comes in: It removes the objects from
+the slabs with just a few entries reclaiming more memory for other uses.
+In the simplest case (as provided here) this is done by simply reclaiming
+the objects.
+
+However, if the logic in the kick() function is made more
+sophisticated then we will be able to move the objects out of the slabs.
+Allocations of objects is possible if a slab is fragmented without the use of
+the page allocator because a large number of free slots are available. Moving
+an object will reduce fragmentation in the slab the object is moved to.
+
+V9->V10
+- Rediff against upstream
+
+V8->V9
+- Rediff against 2.6.24-rc6-mm1
+
+V7->V8
+- Rediff against 2.6.24-rc3-mm2
+
+V6->V7
+- Rediff against 2.6.24-rc2-mm1
+- Remove lumpy reclaim support. No point anymore given that the antifrag
+  handling in 2.6.24-rc2 puts reclaimable slabs into different sections.
+  Targeted reclaim never triggers. This has to wait until we make
+  slabs movable or we need to perform a special version of lumpy reclaim
+  in SLUB while we scan the partial lists for slabs to kick out.
+  Removal simplifies handling significantly since we
+  get to slabs in a more controlled way via the partial lists.
+  The patchset now provides pure reduction of fragmentation levels.
+- SLAB/SLOB: Provide inlines that do nothing
+- Fix various smaller issues that were brought up during review of V6.
+
+V5->V6
+- Rediff against 2.6.24-rc2 + mm slub patches.
+- Add reviewed by lines.
+- Take out the experimental code to make slab pages movable. That
+  has to wait until this has been considered by Mel.
+
+V4->V5:
+- Support lumpy reclaim for slabs
+- Support reclaim via slab_shrink()
+- Add constructors to insure a consistent object state at all times.
+
+V3->V4:
+- Optimize scan for slabs that need defragmentation
+- Add /sys/slab/*/defrag_ratio to allow setting defrag limits
+  per slab.
+- Add support for buffer heads.
+- Describe how the cleanup after the daily updatedb can be
+  improved by slab defragmentation.
+
+V2->V3
+- Support directory reclaim
+- Add infrastructure to trigger defragmentation after slab shrinking if we
+  have slabs with a high degree of fragmentation.
+
+V1->V2
+- Clean up control flow using a state variable. Simplify API. Back to 2
+  functions that now take arrays of objects.
+- Inode defrag support for a set of filesystems
+- Fix up dentry defrag support to work on negative dentries by adding
+  a new dentry flag that indicates that a dentry is not in the process
+  of being freed or allocated.
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
