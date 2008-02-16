@@ -1,37 +1,48 @@
-Date: Sat, 16 Feb 2008 11:34:03 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: SLUB: Increasing partial pages
-In-Reply-To: <20080216190727.GH7657@parisc-linux.org>
-Message-ID: <Pine.LNX.4.64.0802161133000.25573@schroedinger.engr.sgi.com>
-References: <20080116195949.GO18741@parisc-linux.org>
- <Pine.LNX.4.64.0801161219050.9694@schroedinger.engr.sgi.com>
- <20080116214127.GA11559@parisc-linux.org> <Pine.LNX.4.64.0801161347160.11353@schroedinger.engr.sgi.com>
- <20080116221618.GB11559@parisc-linux.org> <Pine.LNX.4.64.0801161421240.12024@schroedinger.engr.sgi.com>
- <20080118191430.GD20490@parisc-linux.org> <Pine.LNX.4.64.0801221142330.27692@schroedinger.engr.sgi.com>
- <20080216190727.GH7657@parisc-linux.org>
+Message-ID: <47B73F81.7090907@qumranet.com>
+Date: Sat, 16 Feb 2008 21:54:41 +0200
+From: Avi Kivity <avi@qumranet.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch 3/6] mmu_notifier: invalidate_page callbacks
+References: <20080215064859.384203497@sgi.com> <20080215064932.918191502@sgi.com> <20080215193736.9d6e7da3.akpm@linux-foundation.org> <Pine.LNX.4.64.0802161121130.25573@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0802161121130.25573@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Wilcox <matthew@wil.cx>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 16 Feb 2008, Matthew Wilcox wrote:
+Christoph Lameter wrote:
+> On Fri, 15 Feb 2008, Andrew Morton wrote:
+>
+>   
+>>> @@ -287,7 +288,8 @@ static int page_referenced_one(struct pa
+>>>  	if (vma->vm_flags & VM_LOCKED) {
+>>>  		referenced++;
+>>>  		*mapcount = 1;	/* break early from loop */
+>>> -	} else if (ptep_clear_flush_young(vma, address, pte))
+>>> +	} else if (ptep_clear_flush_young(vma, address, pte) |
+>>> +		   mmu_notifier_age_page(mm, address))
+>>>  		referenced++;
+>>>       
+>> The "|" is obviously deliberate.  But no explanation is provided telling us
+>> why we still call the callback if ptep_clear_flush_young() said the page
+>> was recently referenced.  People who read your code will want to understand
+>> this.
+>>     
+>
+> Andrea?
+>
+>   
 
-> On Tue, Jan 22, 2008 at 12:00:00PM -0800, Christoph Lameter wrote:
-> > Patches that I would recommend to test individually if you could do it 
-> > (get the series via git pull 
-> > git://git.kernel.org/pub/scm/linux/kernel/git/christoph/vm.git performance):
-> 
-> With these patches applied to 2.6.24-rc8, the perf team are seeing
-> oopses while running the benchmark.  They're currently trying to narrow
-> down which of the patches it is.  I'll get an oops for you to study when
-> they've figured that out.
+I'm not Andrea, but the way I read it, ptep_clear_flush_young() and 
+->age_page() each have two effects: check whether the page has been 
+referenced and clear the referenced bit.  || would retain the semantics 
+of the check but lose the clearing.  | does the right thing.
 
-There is also new code upstream now with significant changes that 
-affect performance. It may not be worthwhile to continue with 2.6.24-rc8 
-+ patches.
+-- 
+Any sufficiently difficult bug is indistinguishable from a feature.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
