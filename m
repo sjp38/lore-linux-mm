@@ -1,110 +1,62 @@
-Message-Id: <20080216004806.855676466@sgi.com>
+Message-Id: <20080216004807.334528627@sgi.com>
 References: <20080216004718.047808297@sgi.com>
-Date: Fri, 15 Feb 2008 16:47:24 -0800
+Date: Fri, 15 Feb 2008 16:47:26 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 06/18] Use page_cache_xxx in mm/filemap_xip.c
-Content-Disposition: inline; filename=0007-Use-page_cache_xxx-in-mm-filemap_xip.c.patch
+Subject: [patch 08/18] Use page_cache_xxx in fs/libfs.c
+Content-Disposition: inline; filename=0009-Use-page_cache_xxx-in-fs-libfs.c.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, David Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Use page_cache_xxx in mm/filemap_xip.c
+Use page_cache_xxx in fs/libfs.c
 
 Reviewed-by: Dave Chinner <dgc@sgi.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- mm/filemap_xip.c |   28 ++++++++++++++--------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
+ fs/libfs.c |   12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
 
-Index: linux-2.6/mm/filemap_xip.c
+Index: linux-2.6/fs/libfs.c
 ===================================================================
---- linux-2.6.orig/mm/filemap_xip.c	2008-02-14 15:20:25.570017244 -0800
-+++ linux-2.6/mm/filemap_xip.c	2008-02-15 16:14:43.296931634 -0800
-@@ -62,24 +62,24 @@ do_xip_mapping_read(struct address_space
- 
- 	BUG_ON(!mapping->a_ops->get_xip_page);
- 
--	index = *ppos >> PAGE_CACHE_SHIFT;
--	offset = *ppos & ~PAGE_CACHE_MASK;
-+	index = page_cache_index(mapping, *ppos);
-+	offset = page_cache_offset(mapping, *ppos);
- 
- 	isize = i_size_read(inode);
- 	if (!isize)
- 		goto out;
- 
--	end_index = (isize - 1) >> PAGE_CACHE_SHIFT;
-+	end_index = page_cache_index(mapping, isize - 1);
- 	for (;;) {
- 		struct page *page;
- 		unsigned long nr, ret;
- 
- 		/* nr is the maximum number of bytes to copy from this page */
--		nr = PAGE_CACHE_SIZE;
-+		nr = page_cache_size(mapping);
- 		if (index >= end_index) {
- 			if (index > end_index)
- 				goto out;
--			nr = ((isize - 1) & ~PAGE_CACHE_MASK) + 1;
-+			nr = page_cache_next(mapping, isize);
- 			if (nr <= offset) {
- 				goto out;
- 			}
-@@ -118,8 +118,8 @@ do_xip_mapping_read(struct address_space
- 		 */
- 		ret = actor(desc, page, offset, nr);
- 		offset += ret;
--		index += offset >> PAGE_CACHE_SHIFT;
--		offset &= ~PAGE_CACHE_MASK;
-+		index += page_cache_index(mapping, offset);
-+		offset = page_cache_offset(mapping, offset);
- 
- 		if (ret == nr && desc->count)
- 			continue;
-@@ -132,7 +132,7 @@ no_xip_page:
- 	}
- 
- out:
--	*ppos = ((loff_t) index << PAGE_CACHE_SHIFT) + offset;
-+	*ppos = page_cache_pos(mapping, index, offset);
- 	if (filp)
- 		file_accessed(filp);
- }
-@@ -221,7 +221,7 @@ static int xip_file_fault(struct vm_area
- 
- 	/* XXX: are VM_FAULT_ codes OK? */
- 
--	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-+	size = page_cache_next(mapping, i_size_read(inode));
- 	if (vmf->pgoff >= size)
- 		return VM_FAULT_SIGBUS;
- 
-@@ -291,9 +291,9 @@ __xip_file_write(struct file *filp, cons
- 		size_t copied;
- 		char *kaddr;
- 
--		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
--		index = pos >> PAGE_CACHE_SHIFT;
--		bytes = PAGE_CACHE_SIZE - offset;
-+		offset = page_cache_offset(mapping, pos); /* Within page */
-+		index = page_cache_index(mapping, pos);
-+		bytes = page_cache_size(mapping) - offset;
- 		if (bytes > count)
- 			bytes = count;
- 
-@@ -404,8 +404,8 @@ EXPORT_SYMBOL_GPL(xip_file_write);
- int
- xip_truncate_page(struct address_space *mapping, loff_t from)
+--- linux-2.6.orig/fs/libfs.c	2008-02-14 15:19:12.777509805 -0800
++++ linux-2.6/fs/libfs.c	2008-02-15 16:14:49.160975533 -0800
+@@ -17,7 +17,8 @@ int simple_getattr(struct vfsmount *mnt,
  {
--	pgoff_t index = from >> PAGE_CACHE_SHIFT;
--	unsigned offset = from & (PAGE_CACHE_SIZE-1);
-+	pgoff_t index = page_cache_index(mapping, from);
-+	unsigned offset = page_cache_offset(mapping, from);
- 	unsigned blocksize;
- 	unsigned length;
- 	struct page *page;
+ 	struct inode *inode = dentry->d_inode;
+ 	generic_fillattr(inode, stat);
+-	stat->blocks = inode->i_mapping->nrpages << (PAGE_CACHE_SHIFT - 9);
++	stat->blocks = inode->i_mapping->nrpages <<
++				(page_cache_shift(inode->i_mapping) - 9);
+ 	return 0;
+ }
+ 
+@@ -341,10 +342,10 @@ int simple_prepare_write(struct file *fi
+ 			unsigned from, unsigned to)
+ {
+ 	if (!PageUptodate(page)) {
+-		if (to - from != PAGE_CACHE_SIZE)
++		if (to - from != page_cache_size(file->f_mapping))
+ 			zero_user_segments(page,
+ 				0, from,
+-				to, PAGE_CACHE_SIZE);
++				to, page_cache_size(file->f_mapping));
+ 	}
+ 	return 0;
+ }
+@@ -372,8 +373,9 @@ int simple_write_begin(struct file *file
+ static int simple_commit_write(struct file *file, struct page *page,
+ 			       unsigned from, unsigned to)
+ {
+-	struct inode *inode = page->mapping->host;
+-	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
++	struct address_space *mapping = page->mapping;
++	struct inode *inode = mapping->host;
++	loff_t pos = page_cache_pos(mapping, page->index, to);
+ 
+ 	if (!PageUptodate(page))
+ 		SetPageUptodate(page);
 
 -- 
 
