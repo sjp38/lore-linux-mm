@@ -1,35 +1,44 @@
-Message-ID: <47B6A7EB.8060005@cs.helsinki.fi>
-Date: Sat, 16 Feb 2008 11:07:55 +0200
+Message-ID: <47B6A928.7000309@cs.helsinki.fi>
+Date: Sat, 16 Feb 2008 11:13:12 +0200
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [patch 6/8] slub: Drop fallback to page allocator method
-References: <20080215230811.635628223@sgi.com> <20080215230854.391263372@sgi.com>
-In-Reply-To: <20080215230854.391263372@sgi.com>
+Subject: Re: [patch 7/8] slub: Adjust order boundaries and minimum objects
+ per slab.
+References: <20080215230811.635628223@sgi.com> <20080215230854.643455255@sgi.com>
+In-Reply-To: <20080215230854.643455255@sgi.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
+Hi Christoph,
+
 Christoph Lameter wrote:
-> Since there is now a in slub method of falling back to an order 0 slab we no
-> longer need the fallback to the page allocator.
+> Since there is now no worry anymore about higher order allocs (hopefully)
+> increase the minimum of objects per slab to 60 so that slub can reach a
+> similar fastpath/slowpath ratio as slab. Set the max order to default to
+> 6 (256k).
 > 
 > Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> 
+> ---
+>  mm/slub.c |   24 ++++--------------------
+>  1 file changed, 4 insertions(+), 20 deletions(-)
+> 
+> Index: linux-2.6/mm/slub.c
+> ===================================================================
+> --- linux-2.6.orig/mm/slub.c	2008-02-15 14:16:15.383080863 -0800
+> +++ linux-2.6/mm/slub.c	2008-02-15 14:16:20.947052929 -0800
+> @@ -156,24 +156,8 @@ static inline void ClearSlabDebug(struct
+> +#define DEFAULT_MAX_ORDER 6
+> +#define DEFAULT_MIN_OBJECTS 60
 
-> @@ -2614,7 +2585,7 @@ static struct kmem_cache *create_kmalloc
->  
->  	down_write(&slub_lock);
->  	if (!kmem_cache_open(s, gfp_flags, name, size, ARCH_KMALLOC_MINALIGN,
-> -			flags | __KMALLOC_CACHE, NULL))
-> +								flags, NULL))
-
-Did you fell asleep on the tab key? The indentation looks pretty crazy 
-right here ;-)-
-
-Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
+These look quite excessive from memory usage point of view. I saw you 
+dropping DEFAULT_MAX_ORDER to 4 but it seems a lot for embedded guys, at 
+least?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
