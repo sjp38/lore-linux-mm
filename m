@@ -1,63 +1,104 @@
-Message-Id: <20080216004632.324567564@sgi.com>
+Message-Id: <20080216004634.211349378@sgi.com>
 References: <20080216004526.763643520@sgi.com>
-Date: Fri, 15 Feb 2008 16:45:29 -0800
+Date: Fri, 15 Feb 2008 16:45:37 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 03/17] SLUB: Replace ctor field with ops field in /sys/slab/*
-Content-Disposition: inline; filename=0049-SLUB-Replace-ctor-field-with-ops-field-in-sys-slab.patch
+Subject: [patch 11/17] FS: ExtX filesystem defrag
+Content-Disposition: inline; filename=0056-FS-ExtX-filesystem-defrag.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org
 List-ID: <linux-mm.kvack.org>
 
-Create an ops field in /sys/slab/*/ops to contain all the operations defined
-on a slab. This will be used to display the additional operations that will
-be defined soon.
+Support defragmentation for extX filesystem inodes
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- mm/slub.c |   16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+ fs/ext2/super.c |    9 +++++++++
+ fs/ext3/super.c |    8 ++++++++
+ fs/ext4/super.c |    8 ++++++++
+ 3 files changed, 25 insertions(+)
 
-Index: linux-2.6/mm/slub.c
+Index: linux-2.6.24-rc6-mm1/fs/ext2/super.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2008-02-15 15:31:53.958427919 -0800
-+++ linux-2.6/mm/slub.c	2008-02-15 15:32:00.654444198 -0800
-@@ -3862,16 +3862,18 @@ static ssize_t order_show(struct kmem_ca
+--- linux-2.6.24-rc6-mm1.orig/fs/ext2/super.c	2007-12-26 17:47:01.987405542 -0800
++++ linux-2.6.24-rc6-mm1/fs/ext2/super.c	2007-12-27 12:04:37.798315149 -0800
+@@ -171,6 +171,12 @@ static void init_once(struct kmem_cache 
+ 	inode_init_once(&ei->vfs_inode);
  }
- SLAB_ATTR(order);
  
--static ssize_t ctor_show(struct kmem_cache *s, char *buf)
-+static ssize_t ops_show(struct kmem_cache *s, char *buf)
++static void *ext2_get_inodes(struct kmem_cache *s, int nr, void **v)
++{
++	return fs_get_inodes(s, nr, v,
++		offsetof(struct ext2_inode_info, vfs_inode));
++}
++
+ static int init_inodecache(void)
  {
--	if (s->ctor) {
--		int n = sprint_symbol(buf, (unsigned long)s->ctor);
-+	int x = 0;
- 
--		return n + sprintf(buf + n, "\n");
-+	if (s->ctor) {
-+		x += sprintf(buf + x, "ctor : ");
-+		x += sprint_symbol(buf + x, (unsigned long)s->ops->ctor);
-+		x += sprintf(buf + x, "\n");
- 	}
--	return 0;
-+	return x;
+ 	ext2_inode_cachep = kmem_cache_create("ext2_inode_cache",
+@@ -180,6 +186,9 @@ static int init_inodecache(void)
+ 					     init_once);
+ 	if (ext2_inode_cachep == NULL)
+ 		return -ENOMEM;
++
++	kmem_cache_setup_defrag(ext2_inode_cachep,
++			ext2_get_inodes, kick_inodes);
+ 	return 0;
  }
--SLAB_ATTR_RO(ctor);
-+SLAB_ATTR_RO(ops);
  
- static ssize_t aliases_show(struct kmem_cache *s, char *buf)
+Index: linux-2.6.24-rc6-mm1/fs/ext3/super.c
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/fs/ext3/super.c	2007-12-26 17:47:01.995405564 -0800
++++ linux-2.6.24-rc6-mm1/fs/ext3/super.c	2007-12-27 12:04:37.802315408 -0800
+@@ -484,6 +484,12 @@ static void init_once(struct kmem_cache 
+ 	inode_init_once(&ei->vfs_inode);
+ }
+ 
++static void *ext3_get_inodes(struct kmem_cache *s, int nr, void **v)
++{
++	return fs_get_inodes(s, nr, v,
++		offsetof(struct ext3_inode_info, vfs_inode));
++}
++
+ static int init_inodecache(void)
  {
-@@ -4186,7 +4188,7 @@ static struct attribute *slab_attrs[] = 
- 	&slabs_attr.attr,
- 	&partial_attr.attr,
- 	&cpu_slabs_attr.attr,
--	&ctor_attr.attr,
-+	&ops_attr.attr,
- 	&aliases_attr.attr,
- 	&align_attr.attr,
- 	&sanity_checks_attr.attr,
+ 	ext3_inode_cachep = kmem_cache_create("ext3_inode_cache",
+@@ -493,6 +499,8 @@ static int init_inodecache(void)
+ 					     init_once);
+ 	if (ext3_inode_cachep == NULL)
+ 		return -ENOMEM;
++	kmem_cache_setup_defrag(ext3_inode_cachep,
++			ext3_get_inodes, kick_inodes);
+ 	return 0;
+ }
+ 
+Index: linux-2.6.24-rc6-mm1/fs/ext4/super.c
+===================================================================
+--- linux-2.6.24-rc6-mm1.orig/fs/ext4/super.c	2007-12-26 17:47:02.011405842 -0800
++++ linux-2.6.24-rc6-mm1/fs/ext4/super.c	2007-12-27 12:04:37.814315317 -0800
+@@ -600,6 +600,12 @@ static void init_once(struct kmem_cache 
+ 	inode_init_once(&ei->vfs_inode);
+ }
+ 
++static void *ext4_get_inodes(struct kmem_cache *s, int nr, void **v)
++{
++	return fs_get_inodes(s, nr, v,
++		offsetof(struct ext4_inode_info, vfs_inode));
++}
++
+ static int init_inodecache(void)
+ {
+ 	ext4_inode_cachep = kmem_cache_create("ext4_inode_cache",
+@@ -609,6 +615,8 @@ static int init_inodecache(void)
+ 					     init_once);
+ 	if (ext4_inode_cachep == NULL)
+ 		return -ENOMEM;
++	kmem_cache_setup_defrag(ext4_inode_cachep,
++			ext4_get_inodes, kick_inodes);
+ 	return 0;
+ }
+ 
 
 -- 
 
