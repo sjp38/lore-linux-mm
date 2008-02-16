@@ -1,11 +1,10 @@
-Message-ID: <47B6A680.9040307@cs.helsinki.fi>
-Date: Sat, 16 Feb 2008 11:01:52 +0200
+Message-ID: <47B6A787.6020502@cs.helsinki.fi>
+Date: Sat, 16 Feb 2008 11:06:15 +0200
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [patch 4/8] slub: Update statistics handling for variable order
- slabs
-References: <20080215230811.635628223@sgi.com> <20080215230853.942719945@sgi.com>
-In-Reply-To: <20080215230853.942719945@sgi.com>
+Subject: Re: [patch 5/8] slub: Fallback to order 0 during slab page allocation
+References: <20080215230811.635628223@sgi.com> <20080215230854.132617990@sgi.com>
+In-Reply-To: <20080215230854.132617990@sgi.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -15,32 +14,38 @@ Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Christoph Lameter wrote:
-> Change the statistics to consider that slabs of the same slabcache
-> can have different number of objects in them since they may be of
-> different order.
-> 
-> Provide a new sysfs field
-> 
-> 	total_objects
-> 
-> which shows the total objects that the allocated slabs of a slabcache
-> could hold.
-> 
-> Update the description of the objects field in the kmem_cache structure.
-> Its role is now to be the limit of the maximum number of objects per slab
-> if a slab is allocated with the largest possible order.
+> If any higher order allocation fails then fall back to an order 0 allocation
+> if the object is smaller than PAGE_SIZE.
 > 
 > Signed-off-by: Christoph Lameter <clameter@sgi.com>
 > 
-> @@ -70,7 +71,7 @@ struct kmem_cache {
->  	struct kmem_cache_node local_node;
+> ---
+>  include/linux/slub_def.h |    2 +
+>  mm/slub.c                |   54 ++++++++++++++++++++++++++++++++++++++---------
+>  2 files changed, 46 insertions(+), 10 deletions(-)
+> 
+> Index: linux-2.6/include/linux/slub_def.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/slub_def.h	2008-02-15 13:58:28.705371769 -0800
+> +++ linux-2.6/include/linux/slub_def.h	2008-02-15 13:59:48.918454617 -0800
+> @@ -29,6 +29,7 @@ enum stat_item {
+>  	DEACTIVATE_TO_HEAD,	/* Cpu slab was moved to the head of partials */
+>  	DEACTIVATE_TO_TAIL,	/* Cpu slab was moved to the tail of partials */
+>  	DEACTIVATE_REMOTE_FREES,/* Slab contained remotely freed objects */
+> +	ORDER_FALLBACK,	/* Allocation that fell back to order 0 */
+>  	NR_SLUB_STAT_ITEMS };
+>  
+>  struct kmem_cache_cpu {
+> @@ -72,6 +73,7 @@ struct kmem_cache {
 >  
 >  	/* Allocation and freeing of slabs */
-> -	int objects;		/* Number of objects in slab */
-> +	int objects;		/* Number of objects in a slab of maximum size */
+>  	int objects;		/* Number of objects in a slab of maximum size */
+> +	int objects0;		/* Number of object in an order 0 size slab */
 
-So why not rename this to max_objects then so we can reuse objects for 
-objects0? Rest of the patch looks good to me.
+As I mentioned in a previous mail, I think the should be "max_objects" 
+and "objects", respectively. Other than that, looks good.
+
+Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
