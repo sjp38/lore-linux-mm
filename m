@@ -1,30 +1,48 @@
-Message-ID: <47B6A2BE.6080201@qumranet.com>
-Date: Sat, 16 Feb 2008 10:45:50 +0200
-From: Avi Kivity <avi@qumranet.com>
+Message-ID: <47B6A2D3.8020703@cs.helsinki.fi>
+Date: Sat, 16 Feb 2008 10:46:11 +0200
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [patch 1/6] mmu_notifier: Core code
-References: <20080215064859.384203497@sgi.com>	<20080215064932.371510599@sgi.com> <20080215193719.262c03a1.akpm@linux-foundation.org>
-In-Reply-To: <20080215193719.262c03a1.akpm@linux-foundation.org>
+Subject: Re: [patch 8/8] slub: Make the order configurable for each slab cache
+References: <20080215230811.635628223@sgi.com> <20080215230854.890557911@sgi.com>
+In-Reply-To: <20080215230854.890557911@sgi.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> How important is this feature to KVM?
->   
+Hi Christoph,
 
-Very.  kvm pins pages that are referenced by the guest; a 64-bit guest 
-will easily pin its entire memory with the kernel map.  So this is 
-critical for guest swapping to actually work.
+Christoph Lameter wrote:
+> Makes /sys/kernel/slab/<slabname>/order writable. The allocation
+> order can then be changed dynamically during runtime.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> 
+> ---
+>  mm/slub.c |   17 +++++++++++++++--
+>  1 file changed, 15 insertions(+), 2 deletions(-)
+> 
+> +static ssize_t order_store(struct kmem_cache *s,
+> +				const char *buf, size_t length)
+> +{
+> +	int order = simple_strtoul(buf, NULL, 10);
+> +
+> +	if (order > slub_max_order)
+> +		return -EINVAL;
+> +
+> +	s->order = order;
+> +	calculate_sizes(s);
+> +	return length;
 
-Other nice features like page migration are also enabled by this patch.
+I think we need to respect slub_min_order here as well and most 
+importantly, check whether cache size allows the given order; otherwise 
+calculate_sizes can end up with -1 set to s->order which makes the cache 
+useless (and probably makes SLUB oops).
 
--- 
-Any sufficiently difficult bug is indistinguishable from a feature.
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
