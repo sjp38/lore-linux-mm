@@ -1,26 +1,33 @@
-Date: Sat, 16 Feb 2008 11:00:40 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 7/8] slub: Adjust order boundaries and minimum objects
- per slab.
-In-Reply-To: <47B6A928.7000309@cs.helsinki.fi>
-Message-ID: <Pine.LNX.4.64.0802161059420.25573@schroedinger.engr.sgi.com>
-References: <20080215230811.635628223@sgi.com> <20080215230854.643455255@sgi.com>
- <47B6A928.7000309@cs.helsinki.fi>
+Date: Sat, 16 Feb 2008 12:07:28 -0700
+From: Matthew Wilcox <matthew@wil.cx>
+Subject: Re: SLUB: Increasing partial pages
+Message-ID: <20080216190727.GH7657@parisc-linux.org>
+References: <20080116195949.GO18741@parisc-linux.org> <Pine.LNX.4.64.0801161219050.9694@schroedinger.engr.sgi.com> <20080116214127.GA11559@parisc-linux.org> <Pine.LNX.4.64.0801161347160.11353@schroedinger.engr.sgi.com> <20080116221618.GB11559@parisc-linux.org> <Pine.LNX.4.64.0801161421240.12024@schroedinger.engr.sgi.com> <20080118191430.GD20490@parisc-linux.org> <Pine.LNX.4.64.0801221142330.27692@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0801221142330.27692@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 16 Feb 2008, Pekka Enberg wrote:
+On Tue, Jan 22, 2008 at 12:00:00PM -0800, Christoph Lameter wrote:
+> Patches that I would recommend to test individually if you could do it 
+> (get the series via git pull 
+> git://git.kernel.org/pub/scm/linux/kernel/git/christoph/vm.git performance):
 
-> These look quite excessive from memory usage point of view. I saw you dropping
-> DEFAULT_MAX_ORDER to 4 but it seems a lot for embedded guys, at least?
+With these patches applied to 2.6.24-rc8, the perf team are seeing
+oopses while running the benchmark.  They're currently trying to narrow
+down which of the patches it is.  I'll get an oops for you to study when
+they've figured that out.
 
-What would be a good max order then? 4 means we can allocate a 64k segment 
-for 16 4k objects.
+-- 
+Intel are signing my paycheques ... these opinions are still mine
+"Bill, look, we understand that you're interested in selling us this
+operating system, but compare it to ours.  We can't possibly take such
+a retrograde step."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
