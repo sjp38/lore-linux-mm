@@ -1,51 +1,37 @@
-Date: Sat, 16 Feb 2008 11:31:09 -0800 (PST)
+Date: Sat, 16 Feb 2008 11:34:03 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 1/6] mmu_notifier: Core code
-In-Reply-To: <20080216025803.40d8ccbc.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0802161129020.25573@schroedinger.engr.sgi.com>
-References: <20080215064859.384203497@sgi.com> <20080215064932.371510599@sgi.com>
- <20080215193719.262c03a1.akpm@linux-foundation.org> <47B6BDDF.90502@inria.fr>
- <20080216025803.40d8ccbc.akpm@linux-foundation.org>
+Subject: Re: SLUB: Increasing partial pages
+In-Reply-To: <20080216190727.GH7657@parisc-linux.org>
+Message-ID: <Pine.LNX.4.64.0802161133000.25573@schroedinger.engr.sgi.com>
+References: <20080116195949.GO18741@parisc-linux.org>
+ <Pine.LNX.4.64.0801161219050.9694@schroedinger.engr.sgi.com>
+ <20080116214127.GA11559@parisc-linux.org> <Pine.LNX.4.64.0801161347160.11353@schroedinger.engr.sgi.com>
+ <20080116221618.GB11559@parisc-linux.org> <Pine.LNX.4.64.0801161421240.12024@schroedinger.engr.sgi.com>
+ <20080118191430.GD20490@parisc-linux.org> <Pine.LNX.4.64.0801221142330.27692@schroedinger.engr.sgi.com>
+ <20080216190727.GH7657@parisc-linux.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Brice Goglin <Brice.Goglin@inria.fr>, Andrea Arcangeli <andrea@qumranet.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <matthew@wil.cx>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 16 Feb 2008, Andrew Morton wrote:
+On Sat, 16 Feb 2008, Matthew Wilcox wrote:
 
-> "looks good" maybe.  But it's in the details where I fear this will come
-> unstuck.  The likelihood that some callbacks really will want to be able to
-> block in places where this interface doesn't permit that - either to wait
-> for IO to complete or to wait for other threads to clear critical regions.
-
-We can get the invalidate_range to always be called without spinlocks if 
-we deal with the case of the inode_mmap_lock being held in truncate case.
-
-If you always want to be able to sleep then we could drop the 
-invalidate_page() that is called while pte locks held and require the use 
-of a device driver rmap?
-
-> >From that POV it doesn't look like a sufficiently general and useful
-> design.  Looks like it was grafted onto the current VM implementation in a
-> way which just about suits two particular clients if they try hard enough.
-
-You missed KVM. We did the best we could being as least invasive as 
-possible.
-
-> Which is all perfectly understandable - it would be hard to rework core MM
-> to be able to make this interface more general.  But I do think it's
-> half-baked and there is a decent risk that future (or present) code which
-> _could_ use something like this won't be able to use this one, and will
-> continue to futz with mlock, page-pinning, etc.
+> On Tue, Jan 22, 2008 at 12:00:00PM -0800, Christoph Lameter wrote:
+> > Patches that I would recommend to test individually if you could do it 
+> > (get the series via git pull 
+> > git://git.kernel.org/pub/scm/linux/kernel/git/christoph/vm.git performance):
 > 
-> Not that I know what the fix to that is..
+> With these patches applied to 2.6.24-rc8, the perf team are seeing
+> oopses while running the benchmark.  They're currently trying to narrow
+> down which of the patches it is.  I'll get an oops for you to study when
+> they've figured that out.
 
-You do not see a chance of this being okay if we adopt the two measures 
-that I mentioned above?
- 
+There is also new code upstream now with significant changes that 
+affect performance. It may not be worthwhile to continue with 2.6.24-rc8 
++ patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
