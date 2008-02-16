@@ -1,43 +1,26 @@
-Date: Fri, 15 Feb 2008 21:59:16 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/8] Scaling msgmni to the amount of lowmem
-Message-Id: <20080215215916.8566d337.akpm@linux-foundation.org>
-In-Reply-To: <20080211141813.354484000@bull.net>
-References: <20080211141646.948191000@bull.net>
-	<20080211141813.354484000@bull.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <47B69B01.6020003@cs.helsinki.fi>
+Date: Sat, 16 Feb 2008 10:12:49 +0200
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+MIME-Version: 1.0
+Subject: Re: [patch 1/8] slub: rename slab_objects to show_slab_objects
+References: <20080215230811.635628223@sgi.com> <20080215230853.165783772@sgi.com>
+In-Reply-To: <20080215230853.165783772@sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nadia.Derbey@bull.net
-Cc: linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, linux-mm@kvack.org, containers@lists.linux-foundation.org, matthltc@us.ibm.com, cmm@us.ibm.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Feb 2008 15:16:47 +0100 Nadia.Derbey@bull.net wrote:
-
-> [PATCH 01/08]
+Christoph Lameter wrote:
+> The sysfs callback is better named show_slab_objects since it is always
+> called from the xxx_show callbacks. We need the name for other purposes
+> later.
 > 
-> This patch computes msg_ctlmni to make it scale with the amount of lowmem.
-> msg_ctlmni is now set to make the message queues occupy 1/32 of the available
-> lowmem.
-> 
-> Some cleaning has also been done for the MSGPOOL constant: the msgctl man page
-> says it's not used, but it also defines it as a size in bytes (the code
-> expresses it in Kbytes).
-> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Something's wrong here.  Running LTP's msgctl08 (specifically:
-ltp-full-20070228) cripples the machine.  It's a 4-way 4GB x86_64.
-
-http://userweb.kernel.org/~akpm/config-x.txt
-http://userweb.kernel.org/~akpm/dmesg-x.txt
-
-Normally msgctl08 will complete in a second or two.  With this patch I
-don't know how long it will take to complete, and the machine is horridly
-bogged down.  It does recover if you manage to kill msgctl08.  Feels like
-a terrible memory shortage, but there's plenty of memory free and it isn't
-swapping.
+Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
