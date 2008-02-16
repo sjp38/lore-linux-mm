@@ -1,52 +1,42 @@
-Date: Sat, 16 Feb 2008 03:08:17 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Date: Sat, 16 Feb 2008 05:51:38 -0600
+From: Robin Holt <holt@sgi.com>
 Subject: Re: [PATCH] KVM swapping with MMU Notifiers V7
-Message-Id: <20080216030817.965ff1f7.akpm@linux-foundation.org>
+Message-ID: <20080216115138.GA11391@sgi.com>
+References: <20080215064859.384203497@sgi.com> <20080216104827.GI11732@v2.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <20080216104827.GI11732@v2.random>
-References: <20080215064859.384203497@sgi.com>
-	<20080216104827.GI11732@v2.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 16 Feb 2008 11:48:27 +0100 Andrea Arcangeli <andrea@qumranet.com> wrote:
+On Sat, Feb 16, 2008 at 11:48:27AM +0100, Andrea Arcangeli wrote:
+> Those below two patches enable KVM to swap the guest physical memory
+> through Christoph's V7.
+> 
+> There's one last _purely_theoretical_ race condition I figured out and
+> that I'm wondering how to best fix. The race condition worst case is
+> that a few guest physical pages could remain pinned by sptes. The race
+> can materialize if the linux pte is zapped after get_user_pages
+> returns but before the page is mapped by the spte and tracked by
+> rmap. The invalidate_ calls can also likely be optimized further but
+> it's not a fast path so it's not urgent.
 
-> +void kvm_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
-> +					   struct mm_struct *mm,
-> +					   unsigned long start, unsigned long end,
-> +					   int lock)
-> +{
-> +	for (; start < end; start += PAGE_SIZE)
-> +		kvm_mmu_notifier_invalidate_page(mn, mm, start);
-> +}
-> +
-> +static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
-> +	.invalidate_page	= kvm_mmu_notifier_invalidate_page,
-> +	.age_page		= kvm_mmu_notifier_age_page,
-> +	.invalidate_range_end	= kvm_mmu_notifier_invalidate_range_end,
-> +};
+I am doing this in xpmem with a stack-based structure in the function
+calling get_user_pages.  That structure describes the start and
+end address of the range we are doing the get_user_pages on.  If an
+invalidate_range_begin comes in while we are off to the kernel doing
+the get_user_pages, the invalidate_range_begin marks that structure
+indicating an invalidate came in.  When the get_user_pages gets the
+structures relocked, it checks that flag (really a generation counter)
+and if it is set, retries the get_user_pages.  After 3 retries, it
+returns -EAGAIN and the fault is started over from the remote side.
 
-So this doesn't implement ->invalidate_range_start().
-
-By what means does it prevent new mappings from being established in the
-range after core mm has tried to call ->invalidate_rande_start()?
-mmap_sem, I assume?
-
-
-> +			/* set userspace_addr atomically for kvm_hva_to_rmapp */
-> +			spin_lock(&kvm->mmu_lock);
-> +			memslot->userspace_addr = userspace_addr;
-> +			spin_unlock(&kvm->mmu_lock);
-
-are you sure?  kvm_unmap_hva() and kvm_age_hva() read ->userspace_addr a
-single time and it doesn't immediately look like there's a need to take the
-lock here?
-
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
