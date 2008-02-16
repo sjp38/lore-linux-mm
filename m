@@ -1,42 +1,69 @@
-Date: Sat, 16 Feb 2008 05:51:38 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH] KVM swapping with MMU Notifiers V7
-Message-ID: <20080216115138.GA11391@sgi.com>
-References: <20080215064859.384203497@sgi.com> <20080216104827.GI11732@v2.random>
+Received: by py-out-1112.google.com with SMTP id f47so1042388pye.20
+        for <linux-mm@kvack.org>; Sat, 16 Feb 2008 04:12:01 -0800 (PST)
+Message-ID: <8bd0f97a0802160412ve49103cya446b89d8560458b@mail.gmail.com>
+Date: Sat, 16 Feb 2008 07:12:01 -0500
+From: "Mike Frysinger" <vapier.adi@gmail.com>
+Subject: Re: [PATCH] procfs task exe symlink
+In-Reply-To: <1202348669.9062.271.camel@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080216104827.GI11732@v2.random>
+References: <1202348669.9062.271.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Matt Helsley <matthltc@us.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@tv-sign.ru>, David Howells <dhowells@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Christoph Hellwig <chellwig@de.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hugh@veritas.com>, Bryan Wu <Bryan.Wu@analog.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Feb 16, 2008 at 11:48:27AM +0100, Andrea Arcangeli wrote:
-> Those below two patches enable KVM to swap the guest physical memory
-> through Christoph's V7.
-> 
-> There's one last _purely_theoretical_ race condition I figured out and
-> that I'm wondering how to best fix. The race condition worst case is
-> that a few guest physical pages could remain pinned by sptes. The race
-> can materialize if the linux pte is zapped after get_user_pages
-> returns but before the page is mapped by the spte and tracked by
-> rmap. The invalidate_ calls can also likely be optimized further but
-> it's not a fast path so it's not urgent.
+On Feb 6, 2008 8:44 PM, Matt Helsley <matthltc@us.ibm.com> wrote:
+> The kernel implements readlink of /proc/pid/exe by getting the file from the
+> first executable VMA. Then the path to the file is reconstructed and reported as
+> the result.
+>
+> Because of the VMA walk the code is slightly different on nommu systems. This
+> patch avoids separate /proc/pid/exe code on nommu systems. Instead of walking
+> the VMAs to find the first executable file-backed VMA we store a reference to
+> the exec'd file in the mm_struct.
+>
+> That reference would prevent the filesystem holding the executable file from
+> being unmounted even after unmapping the VMAs. So we track the number of
+> VM_EXECUTABLE VMAs and drop the new reference when the last one is unmapped.
+> This avoids pinning the mounted filesystem.
+>
+> Andrew, these are the updates I promised. Please consider this patch for
+> inclusion in -mm.
 
-I am doing this in xpmem with a stack-based structure in the function
-calling get_user_pages.  That structure describes the start and
-end address of the range we are doing the get_user_pages on.  If an
-invalidate_range_begin comes in while we are off to the kernel doing
-the get_user_pages, the invalidate_range_begin marks that structure
-indicating an invalidate came in.  When the get_user_pages gets the
-structures relocked, it checks that flag (really a generation counter)
-and if it is set, retries the get_user_pages.  After 3 retries, it
-returns -EAGAIN and the fault is started over from the remote side.
+mm/nommu.c wasnt compiled tested, it's trivially broken:
 
-Thanks,
-Robin
+> --- linux-2.6.24.orig/mm/nommu.c
+> +++ linux-2.6.24/mm/nommu.c
+> @@ -960,12 +960,15 @@ unsigned long do_mmap_pgoff(struct file
+>         if (!vma)
+>                 goto error_getting_vma;
+>
+>         INIT_LIST_HEAD(&vma->anon_vma_node);
+>         atomic_set(&vma->vm_usage, 1);
+> -       if (file)
+> +       if (file) {
+>                 get_file(file);
+> +               if (vm_flags & VM_EXECUTABLE)
+> +                       added_exe_file_vma(mm);
+> +       }
+>         vma->vm_file    = file;
+>         vma->vm_flags   = vm_flags;
+>         vma->vm_start   = addr;
+>         vma->vm_end     = addr + len;
+>         vma->vm_pgoff   = pgoff;
+
+this function has no variable named "mm"
+
+mm/nommu.c: In function 'do_mmap_pgoff':
+mm/nommu.c:968: error: 'mm' undeclared (first use in this function)
+mm/nommu.c:968: error: (Each undeclared identifier is reported only once
+mm/nommu.c:968: error: for each function it appears in.)
+make[1]: *** [mm/nommu.o] Error 1
+-mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
