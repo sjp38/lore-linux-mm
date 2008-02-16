@@ -1,48 +1,42 @@
-Message-ID: <47B73F81.7090907@qumranet.com>
-Date: Sat, 16 Feb 2008 21:54:41 +0200
-From: Avi Kivity <avi@qumranet.com>
-MIME-Version: 1.0
-Subject: Re: [patch 3/6] mmu_notifier: invalidate_page callbacks
-References: <20080215064859.384203497@sgi.com> <20080215064932.918191502@sgi.com> <20080215193736.9d6e7da3.akpm@linux-foundation.org> <Pine.LNX.4.64.0802161121130.25573@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0802161121130.25573@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [patch 7/8] slub: Adjust order boundaries and minimum objects
+	per slab.
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <Pine.LNX.4.64.0802161059420.25573@schroedinger.engr.sgi.com>
+References: <20080215230811.635628223@sgi.com>
+	 <20080215230854.643455255@sgi.com> <47B6A928.7000309@cs.helsinki.fi>
+	 <Pine.LNX.4.64.0802161059420.25573@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Sat, 16 Feb 2008 14:20:59 -0600
+Message-Id: <1203193259.6324.12.camel@cinder.waste.org>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Fri, 15 Feb 2008, Andrew Morton wrote:
->
->   
->>> @@ -287,7 +288,8 @@ static int page_referenced_one(struct pa
->>>  	if (vma->vm_flags & VM_LOCKED) {
->>>  		referenced++;
->>>  		*mapcount = 1;	/* break early from loop */
->>> -	} else if (ptep_clear_flush_young(vma, address, pte))
->>> +	} else if (ptep_clear_flush_young(vma, address, pte) |
->>> +		   mmu_notifier_age_page(mm, address))
->>>  		referenced++;
->>>       
->> The "|" is obviously deliberate.  But no explanation is provided telling us
->> why we still call the callback if ptep_clear_flush_young() said the page
->> was recently referenced.  People who read your code will want to understand
->> this.
->>     
->
-> Andrea?
->
->   
+On Sat, 2008-02-16 at 11:00 -0800, Christoph Lameter wrote:
+> On Sat, 16 Feb 2008, Pekka Enberg wrote:
+> 
+> > These look quite excessive from memory usage point of view. I saw you dropping
+> > DEFAULT_MAX_ORDER to 4 but it seems a lot for embedded guys, at least?
+> 
+> What would be a good max order then? 4 means we can allocate a 64k segment 
+> for 16 4k objects.
 
-I'm not Andrea, but the way I read it, ptep_clear_flush_young() and 
-->age_page() each have two effects: check whether the page has been 
-referenced and clear the referenced bit.  || would retain the semantics 
-of the check but lose the clearing.  | does the right thing.
+Why are 4k objects even going through SLUB?
+
+What happens if we have 8k free and try to allocate one 4k object
+through SLUB?
+
+Using an order greater than 0 is generally frowned upon. Kernels can and
+do get into situations where they can't find two contiguous pages, which
+is why we've gone to so much trouble on x86 to fit into a single page of
+stack.
 
 -- 
-Any sufficiently difficult bug is indistinguishable from a feature.
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
