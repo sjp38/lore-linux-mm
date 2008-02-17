@@ -1,72 +1,78 @@
-Received: by rv-out-0910.google.com with SMTP id f1so839675rvb.26
-        for <linux-mm@kvack.org>; Sat, 16 Feb 2008 23:36:38 -0800 (PST)
-Message-ID: <86802c440802162336he3cdef1y38ed3fcae89f3cc7@mail.gmail.com>
-Date: Sat, 16 Feb 2008 23:36:38 -0800
-From: "Yinghai Lu" <yhlu.kernel@gmail.com>
-Subject: Re: [PATCH 3/4] x86_64: Fold pda into per cpu area
-In-Reply-To: <86802c440802162222k47f5bebbhf42fef0f11ce3243@mail.gmail.com>
+Date: Sun, 17 Feb 2008 06:24:38 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [patch 1/6] mmu_notifier: Core code
+Message-ID: <20080217122438.GB11391@sgi.com>
+References: <20080215064859.384203497@sgi.com> <20080215064932.371510599@sgi.com> <20080215193719.262c03a1.akpm@linux-foundation.org> <Pine.LNX.4.64.0802161103101.25573@schroedinger.engr.sgi.com> <20080217030120.GO11732@v2.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <20080201191414.961558000@sgi.com>
-	 <20080201191415.450555000@sgi.com> <20080215201640.GA6200@elte.hu>
-	 <86802c440802162222k47f5bebbhf42fef0f11ce3243@mail.gmail.com>
+In-Reply-To: <20080217030120.GO11732@v2.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: travis@sgi.com, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Thomas Gleixner <tglx@linutronix.de>, Jeremy Fitzhardinge <jeremy@goop.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Feb 16, 2008 10:22 PM, Yinghai Lu <yhlu.kernel@gmail.com> wrote:
-> On Feb 15, 2008 12:16 PM, Ingo Molnar <mingo@elte.hu> wrote:
-> >
-> > * travis@sgi.com <travis@sgi.com> wrote:
-> >
-> > >  include/asm-generic/vmlinux.lds.h |    2 +
-> > >  include/linux/percpu.h            |    9 ++++-
-> >
-> > couldnt these two generic bits be done separately (perhaps a preparatory
-> > but otherwise NOP patch pushed upstream straight away) to make
-> > subsequent patches only touch x86 architecture files?
->
-> this patch need to apply to mainline asap.
->
-> or you need revert to the patch about include/asm-x86/percpu.h
->
-> +#ifdef CONFIG_X86_64
-> +#include <linux/compiler.h>
-> +
-> +/* Same as asm-generic/percpu.h, except that we store the per cpu offset
-> +   in the PDA. Longer term the PDA and every per cpu variable
-> +   should be just put into a single section and referenced directly
-> +   from %gs */
-> +
-> +#ifdef CONFIG_SMP
-> +#include <asm/pda.h>
-> +
-> +#define __per_cpu_offset(cpu) (cpu_pda(cpu)->data_offset)
-> +#define __my_cpu_offset read_pda(data_offset)
-> +
-> +#define per_cpu_offset(x) (__per_cpu_offset(x))
-> +
->  #endif
-> +#include <asm-generic/percpu.h>
-> +
-> +DECLARE_PER_CPU(struct x8664_pda, pda);
-> +
-> +#else /* CONFIG_X86_64 */
->
-> because current tree
-> in setup_per_cpu_areas will have
->      cpu_pda(i)->data_offset = ptr - __per_cpu_start;
->
-> but at that time all APs will use cpu_pda for boot cpu...,and APs will
-> get their pda in do_boot_cpu()
+On Sun, Feb 17, 2008 at 04:01:20AM +0100, Andrea Arcangeli wrote:
+> On Sat, Feb 16, 2008 at 11:21:07AM -0800, Christoph Lameter wrote:
+> > On Fri, 15 Feb 2008, Andrew Morton wrote:
+> > 
+> > > What is the status of getting infiniband to use this facility?
+> > 
+> > Well we are talking about this it seems.
+> 
+> It seems the IB folks think allowing RDMA over virtual memory is not
+> interesting, their argument seem to be that RDMA is only interesting
+> on RAM (and they seem not interested in allowing RDMA over a ram+swap
+> backed _virtual_ memory allocation). They've just to decide if
+> ram+swap allocation for RDMA is useful or not.
 
-sorry, boot_cpu_pda is array... so that is safe.
+I don't think that is a completely fair characterization.  It would be
+more fair to say that the changes required to their library/user api
+would be too significant to allow an adaptation to any scheme which
+allowed removal of physical memory below a virtual mapping.
 
-YH
+I agree with the IB folks when they say it is impossible with their
+current scheme.  The fact that any consumer of their endpoint identifier
+can use any identifier without notifying the kernel prior to its use
+certainly makes any implementation under any scheme impossible.
+
+I guess we could possibly make things work for IB if we did some heavy
+work.  Let's assume, instead of passing around the physical endpoint
+identifiers, they passed around a handle.  In order for any IB endpoint
+to commuicate, it would need to request the kernel translate a handle
+into an endpoint identifier.  In order for the kernel to put a TLB
+entry into the processes address space allowing the process access to
+the _CARD_, it would need to ensure all the current endpoint identifiers
+for this process were "active" meaning we have verified with the other
+endpoint that all pages are faulted and TLB/PFN information is in the
+owning card's TLB/PFN tables.  Once all of a processes endoints are
+"active" we would drop in the PFN for the adapter into the pages tables.
+Any time pages are being revoked from under an active handle, we would
+shoot-down the IB adapter card TLB entries for all the remote users of
+this handle and quiesce the cards state to ensure transfers are either
+complete or terminated.  When their are no active transfers, we would
+respond back to the owner and they could complete the source process
+page table cleaning.  Any time all of the pages for a handle can not be
+mapped from virtual to physical, the remote process would be SIGBUS'd
+instead of having it IB adapter TLB installed.
+
+This is essentially how XPMEM does it except we have the benefit of
+working on individual pages.
+
+Again, not knowing what I am talking about, but under the assumption that
+MPI IB use is contained to a library, I would hope the changes could be
+contained under the MPI-to-IB library interface and would not need any
+changes at the MPI-user library interface.
+
+We do keep track of the virtual address ranges within a handle that
+are being used.  I assume the IB folks will find that helpful as well.
+Otherwise, I think they could make things operate this way.  XPMEM has
+the advantage of not needing to have virtual-to-physical at all times,
+but otherwise it is essentially the same.
+
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
