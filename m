@@ -1,64 +1,56 @@
-Message-ID: <47B94D8C.8040605@bull.net>
-Date: Mon, 18 Feb 2008 10:19:08 +0100
-From: Nadia Derbey <Nadia.Derbey@bull.net>
+Message-ID: <47B94FF7.3030200@goop.org>
+Date: Mon, 18 Feb 2008 20:29:27 +1100
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/8] Scaling msgmni to the amount of lowmem
-References: <20080211141646.948191000@bull.net>	<20080211141813.354484000@bull.net> <20080215215916.8566d337.akpm@linux-foundation.org>
-In-Reply-To: <20080215215916.8566d337.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [rfc][patch] mm: scalable vmaps
+References: <20080218082219.GA2018@wotan.suse.de>
+In-Reply-To: <20080218082219.GA2018@wotan.suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, linux-mm@kvack.org, containers@lists.linux-foundation.org, matthltc@us.ibm.com, cmm@us.ibm.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <ak@suse.de>, David Chinner <dgc@sgi.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Mon, 11 Feb 2008 15:16:47 +0100 Nadia.Derbey@bull.net wrote:
-> 
-> 
->>[PATCH 01/08]
->>
->>This patch computes msg_ctlmni to make it scale with the amount of lowmem.
->>msg_ctlmni is now set to make the message queues occupy 1/32 of the available
->>lowmem.
->>
->>Some cleaning has also been done for the MSGPOOL constant: the msgctl man page
->>says it's not used, but it also defines it as a size in bytes (the code
->>expresses it in Kbytes).
->>
-> 
-> 
-> Something's wrong here.  Running LTP's msgctl08 (specifically:
-> ltp-full-20070228) cripples the machine.  It's a 4-way 4GB x86_64.
-> 
-> http://userweb.kernel.org/~akpm/config-x.txt
-> http://userweb.kernel.org/~akpm/dmesg-x.txt
-> 
-> Normally msgctl08 will complete in a second or two.  With this patch I
-> don't know how long it will take to complete, and the machine is horridly
-> bogged down.  It does recover if you manage to kill msgctl08.  Feels like
-> a terrible memory shortage, but there's plenty of memory free and it isn't
-> swapping.
-> 
-> 
-> 
+Nick Piggin wrote:
+> One thing that will be common to any high performance vmap implementation,
+> however, will be the use of lazy TLB flushing. So I'm mainly interested
+> in comments about this. AFAIK, Xen must be able to eliminate these aliases
+> on demand,
 
-Before the patchset, msgctl08 used to be run with the old msgmni value: 
-16. Now it is run with a much higher msgmni value (1746 in my case), 
-since it scales to the memory size.
-When I call "msgctl08 100000 16" it completes fast.
+Yep.
 
-Doing the follwing on the ref kernel:
-echo 1746 > /proc/sys/kernel/msgmni
-msgctl08 100000 1746
+>  and CPA also doesn't want aliases around even if they don't
+> get explicitly referenced by software (because the hardware may do a
+> random speculative operation through the TLB).
+>   
 
-makes th test block too :-(
+Yes, but presumably the page is in a "normal" state before CPA changes 
+its cache attributes; it can shoot down aliases before doing that.
 
-Will check to see where the problem comes from.
+> So I just wonder if it is enough to provide a (quite heavyweight) function
+> to flush aliases? (vm_unmap_aliases)
+>   
 
-Rgards,
-Nadia
+Assuming that aliased pages are relatively rare, then its OK for this 
+function to be heavyweight if it can exit quickly in the non-aliased 
+case (or there's some other cheap way to tell if a page has aliases).  
+Hm, even then, Xen would only need to call this on pages being turned 
+into parts of a pagetable, so probably not all that often.  So, if its 
+easy to avoid vm_unmap_aliases we would do so, but it's probably worth 
+profiling before going to heroic efforts.
+
+> Also, what consequences will this have for non-paravirtualized Xen? If
+> any, do we care? (IMO no) I'm not going to take references on these
+> lazy flush pages, because that will increase VM pressure by a great deal.
+>   
+
+Not sure what you mean here.  Unparavirtualized Xen would just use 
+shadow pagetables, and be effectively the same as kvm as far as the 
+kernel is concerned (unless there's some subtle difference I'm missing).
+
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
