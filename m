@@ -1,70 +1,39 @@
-Date: Mon, 18 Feb 2008 13:17:15 +0100
+Date: Mon, 18 Feb 2008 13:35:51 +0100
 From: Andrea Arcangeli <andrea@qumranet.com>
 Subject: Re: [PATCH] KVM swapping with MMU Notifiers V7
-Message-ID: <20080218121715.GR11732@v2.random>
-References: <20080215064859.384203497@sgi.com> <20080216104827.GI11732@v2.random> <20080216030817.965ff1f7.akpm@linux-foundation.org>
+Message-ID: <20080218123551.GS11732@v2.random>
+References: <20080215064859.384203497@sgi.com> <20080216104827.GI11732@v2.random> <20080216115138.GA11391@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080216030817.965ff1f7.akpm@linux-foundation.org>
+In-Reply-To: <20080216115138.GA11391@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <clameter@sgi.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Robin Holt <holt@sgi.com>
+Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Feb 16, 2008 at 03:08:17AM -0800, Andrew Morton wrote:
-> On Sat, 16 Feb 2008 11:48:27 +0100 Andrea Arcangeli <andrea@qumranet.com> wrote:
-> 
-> > +void kvm_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
-> > +					   struct mm_struct *mm,
-> > +					   unsigned long start, unsigned long end,
-> > +					   int lock)
-> > +{
-> > +	for (; start < end; start += PAGE_SIZE)
-> > +		kvm_mmu_notifier_invalidate_page(mn, mm, start);
-> > +}
-> > +
-> > +static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
-> > +	.invalidate_page	= kvm_mmu_notifier_invalidate_page,
-> > +	.age_page		= kvm_mmu_notifier_age_page,
-> > +	.invalidate_range_end	= kvm_mmu_notifier_invalidate_range_end,
-> > +};
-> 
-> So this doesn't implement ->invalidate_range_start().
+On Sat, Feb 16, 2008 at 05:51:38AM -0600, Robin Holt wrote:
+> I am doing this in xpmem with a stack-based structure in the function
+> calling get_user_pages.  That structure describes the start and
+> end address of the range we are doing the get_user_pages on.  If an
+> invalidate_range_begin comes in while we are off to the kernel doing
+> the get_user_pages, the invalidate_range_begin marks that structure
+> indicating an invalidate came in.  When the get_user_pages gets the
+> structures relocked, it checks that flag (really a generation counter)
+> and if it is set, retries the get_user_pages.  After 3 retries, it
+> returns -EAGAIN and the fault is started over from the remote side.
 
-Correct. range_start is needed by subsystems that don't pin the pages
-(so they've to drop the secondary mmu mappings on the physical page
-before the page is released by the linux VM).
-
-> By what means does it prevent new mappings from being established in the
-> range after core mm has tried to call ->invalidate_rande_start()?
-> mmap_sem, I assume?
-
-No, populate range only takes the mmap_sem in read mode and the kvm page
-fault also is of course taking it only in read mode.
-
-What makes it safe, is that invalidate_range_end is called _after_ the
-linux pte is clear. The kvm page fault, if it triggers, it will call
-into get_user_pages again to re-establish the linux pte _before_
-establishing the spte.
-
-It's the same reason why it's safe to flush the tlb after clearing the
-linux pte. sptes are like a secondary tlb.
-
-> > +			/* set userspace_addr atomically for kvm_hva_to_rmapp */
-> > +			spin_lock(&kvm->mmu_lock);
-> > +			memslot->userspace_addr = userspace_addr;
-> > +			spin_unlock(&kvm->mmu_lock);
-> 
-> are you sure?  kvm_unmap_hva() and kvm_age_hva() read ->userspace_addr a
-> single time and it doesn't immediately look like there's a need to take the
-> lock here?
-
-gcc will always write it with a movq but this is to be
-C-specs-compliant and because this is by far not a performance
-critical path I thought it was simpler than some other atomic move in
-a single insn.
+A seqlock sounds a good optimization for the non-swapping fast path, a
+per-VM-guest seqlock number can allow us to know when we need to worry
+to call get_user_pages a second time, but won't be really a retry like
+in 99% of seqlock usages for the reader side, but just a second
+get_user_pages to trigger a minor fault. Then if the page is different
+in the second run, we'll really retry (so not in function of the
+seqlock but in function of the get_user_pages page array), and there's
+no risk of livelocks because get_user_pages returning a different page
+won't be the common case. The seqlock should be increased first before
+the invalidate and a second time once the invalidate is over.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
