@@ -1,52 +1,61 @@
-Received: by wa-out-1112.google.com with SMTP id m33so3336268wag.8
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2008 13:39:55 -0800 (PST)
-Message-ID: <4cefeab80802181339ia9609d3oeb238a9f549fc6e5@mail.gmail.com>
-Date: Tue, 19 Feb 2008 03:09:54 +0530
-From: "Nitin Gupta" <nitingupta910@gmail.com>
-Subject: Announce: ccache release 0.1
+Subject: Re: [patch 1/6] mmu_notifier: Core code
+References: <20080215064859.384203497@sgi.com>
+	<20080215064932.371510599@sgi.com>
+From: Roland Dreier <rdreier@cisco.com>
+Date: Mon, 18 Feb 2008 14:33:32 -0800
+In-Reply-To: <20080215064932.371510599@sgi.com> (Christoph Lameter's message of "Thu, 14 Feb 2008 22:49:00 -0800")
+Message-ID: <adawsp1hp37.fsf@cisco.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm-cc@laptop.org
-Cc: linuxcompressed-devel@lists.sourceforge.net, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-Hi All,
+It seems that we've come up with two reasonable cases where it makes
+sense to use these notifiers for InfiniBand/RDMA:
 
-I am excited to announce first release of ccache - Compressed RAM
-based swap device for Linux (2.6.x kernel).
-  - Project home: http://code.google.com/p/ccache/
-  - ccache-0.1: http://ccache.googlecode.com/files/ccache-0.1.tar.bz2
+First, the ability to safely to DMA to/from userspace memory with the
+memory regions mlock()ed but the pages not pinned.  In this case the
+notifiers here would seem to suit us well:
 
-This is RAM based block device which acts as swap disk. Pages swapped
-to this device are compressed and stored in memory itself. This is
-especially useful for swapless embedded devices. Also, flash storage
-typically used in embedded devices suffer from wear-leveling issues -
-so, its very useful if we can avoid using them as swap device.
-And yes, its useful for desktops too :)
+ > +	void (*invalidate_range_begin)(struct mmu_notifier *mn,
+ > +				 struct mm_struct *mm,
+ > +				 unsigned long start, unsigned long end,
+ > +				 int atomic);
+ > +
+ > +	void (*invalidate_range_end)(struct mmu_notifier *mn,
+ > +				 struct mm_struct *mm,
+ > +				 unsigned long start, unsigned long end,
+ > +				 int atomic);
 
-It does not require any kernel patching. All components are separate
-kernel modules:
-- Memory allocator (tlsf.ko)
-- Compressor (lzo1x_compress.ko)
-- Decompressor (lzo1x_decompress.ko)
-- Main ccache module (ccache.ko)
-(LZO de/compressor is already in mainline but I have included it here
-since distros don't ship it by default).
-README (or project home) explains compilation and usage in detail.
+If I understand correctly, the IB stack would have to get the hardware
+driver to shoot down translation entries and suspend access to the
+region when an invalidate_range_begin notifier is called, and wait for
+the invalidate_range_end notifier to repopulate the adapter
+translation tables.  This will probably work OK as long as the
+interval between the invalidate_range_begin and invalidate_range_end
+calls is not "too long."
 
-Some performance numbers for allocator and de/compressor can be found
-on project home. Currently it is tested on Linux kernel 2.6.23.x and
-2.6.25-rc2 (x86 only). Please mail me/mailing-list any
-issues/suggestions you have.
+Also, using this effectively requires us to figure out how we want to
+mlock() regions that are going to be used for RDMA.  We could require
+userspace to do it, but it's not clear to me that we're safe in the
+case where userspace decides not to... what happens if some pages get
+swapped out after the invalidate_range_begin notifier?
 
-Code reviews will be really helpful! :)
+The second case where some form of notifiers are useful is for
+userspace to know when a memory registration is still valid, ie Pete
+Wyckoff's work:
 
-Thanks,
-- Nitin
+    http://www.osc.edu/~pw/papers/wyckoff-memreg-ccgrid05.pdf
+    http://www.osc.edu/~pw/dreg/
+
+however these MMU notifiers seem orthogonal to that: the registration
+cache is concerned with address spaces, not page mapping, and hence
+the existing vma operations seem to be a better fit.
+
+ - R.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
