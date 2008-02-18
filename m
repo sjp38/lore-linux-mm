@@ -1,59 +1,112 @@
-Date: Mon, 18 Feb 2008 04:59:54 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [BUG] Linux 2.6.25-rc2 - Kernel Ooops while running dbench
-Message-Id: <20080218045954.50503fb1.akpm@linux-foundation.org>
-In-Reply-To: <47B6784E.2090401@linux.vnet.ibm.com>
-References: <alpine.LFD.1.00.0802151302210.9496@woody.linux-foundation.org>
-	<47B6784E.2090401@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <47B9835A.3060507@bull.net>
+Date: Mon, 18 Feb 2008 14:08:42 +0100
+From: Nadia Derbey <Nadia.Derbey@bull.net>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/8] Scaling msgmni to the amount of lowmem
+References: <20080211141646.948191000@bull.net>	<20080211141813.354484000@bull.net> <20080215215916.8566d337.akpm@linux-foundation.org> <47B94D8C.8040605@bull.net>
+In-Reply-To: <47B94D8C.8040605@bull.net>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-ext4@vger.kernel.org, Andy Whitcroft <apw@shadowen.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, linux-mm@kvack.org, containers@lists.linux-foundation.org, matthltc@us.ibm.com, cmm@us.ibm.com, ltp-list@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 16 Feb 2008 11:14:46 +0530 Kamalesh Babulal <kamalesh@linux.vnet.ibm.com> wrote:
-
-> The 2.6.25-rc2 kernel oopses while running dbench on ext3 filesystem
-> mounted with mount -o data=writeback,nobh option on the x86_64 box
+Nadia Derbey wrote:
+> Andrew Morton wrote:
 > 
-> BUG: unable to handle kernel NULL pointer dereference at 0000000000000000
-> IP: [<ffffffff80274972>] kmem_cache_alloc+0x3a/0x6c
-> PGD 1f6860067 PUD 1f5d64067 PMD 0 
-> Oops: 0000 [1] SMP 
-> CPU 3 
-> Modules linked in:
-> Pid: 4271, comm: dbench Not tainted 2.6.25-rc2-autotest #1
-> RIP: 0010:[<ffffffff80274972>]  [<ffffffff80274972>] kmem_cache_alloc+0x3a/0x6c
-> RSP: 0000:ffff8101fb041dc8  EFLAGS: 00010246
-> RAX: 0000000000000000 RBX: ffff810180033c00 RCX: ffffffff8027b269
-> RDX: 0000000000000000 RSI: 00000000000080d0 RDI: ffffffff80632d70
-> RBP: 00000000000080d0 R08: 0000000000000001 R09: 0000000000000000
-> R10: ffff8101feb36e50 R11: 0000000000000190 R12: 0000000000000001
-> R13: 0000000000000000 R14: ffff8101f8f38000 R15: 00000000ffffff9c
-> FS:  0000000000000000(0000) GS:ffff8101fff0f000(0063) knlGS:00000000f7e41460
-> CS:  0010 DS: 002b ES: 002b CR0: 0000000080050033
-> CR2: 0000000000000000 CR3: 00000001f5620000 CR4: 00000000000006e0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> Process dbench (pid: 4271, threadinfo ffff8101fb040000, task ffff8101fb180000)
-> Stack:  0000000000000001 ffff8101fb041ea8 0000000000000001 ffffffff8027b269
->  ffff8101fb041ea8 ffffffff80281fe8 0000000000000001 0000000000000000
->  ffff8101fb041ea8 00000000ffffff9c 000000000000000b 0000000000000001
-> Call Trace:
->  [<ffffffff8027b269>] get_empty_filp+0x55/0xf9
->  [<ffffffff80281fe8>] __path_lookup_intent_open+0x22/0x8f
->  [<ffffffff80282853>] open_namei+0x86/0x5a7
->  [<ffffffff8027d019>] vfs_stat_fd+0x3c/0x4a
->  [<ffffffff80279ab1>] do_filp_open+0x1c/0x3d
->  [<ffffffff80279c2c>] get_unused_fd_flags+0x79/0x111
->  [<ffffffff80279dce>] do_sys_open+0x46/0xca
->  [<ffffffff80221c82>] ia32_sysret+0x0/0xa
+>> On Mon, 11 Feb 2008 15:16:47 +0100 Nadia.Derbey@bull.net wrote:
+>>
+>>
+>>> [PATCH 01/08]
+>>>
+>>> This patch computes msg_ctlmni to make it scale with the amount of 
+>>> lowmem.
+>>> msg_ctlmni is now set to make the message queues occupy 1/32 of the 
+>>> available
+>>> lowmem.
+>>>
+>>> Some cleaning has also been done for the MSGPOOL constant: the msgctl 
+>>> man page
+>>> says it's not used, but it also defines it as a size in bytes (the code
+>>> expresses it in Kbytes).
+>>>
+>>
+>>
+>> Something's wrong here.  Running LTP's msgctl08 (specifically:
+>> ltp-full-20070228) cripples the machine.  It's a 4-way 4GB x86_64.
+>>
+>> http://userweb.kernel.org/~akpm/config-x.txt
+>> http://userweb.kernel.org/~akpm/dmesg-x.txt
+>>
+>> Normally msgctl08 will complete in a second or two.  With this patch I
+>> don't know how long it will take to complete, and the machine is horridly
+>> bogged down.  It does recover if you manage to kill msgctl08.  Feels like
+>> a terrible memory shortage, but there's plenty of memory free and it 
+>> isn't
+>> swapping.
+>>
+>>
+>>
+> 
+> Before the patchset, msgctl08 used to be run with the old msgmni value: 
+> 16. Now it is run with a much higher msgmni value (1746 in my case), 
+> since it scales to the memory size.
+> When I call "msgctl08 100000 16" it completes fast.
+> 
+> Doing the follwing on the ref kernel:
+> echo 1746 > /proc/sys/kernel/msgmni
+> msgctl08 100000 1746
+> 
+> makes th test block too :-(
+> 
+> Will check to see where the problem comes from.
 > 
 
-Looks to me like we broke slab.  Christoph is offline until the 27th..
+Well, actually, the test does not block, it only takes much much more 
+time to be executed:
+
+doing this:
+date; ./msgctl08 100000 XXX; date
+
+
+gives us the following results:
+XXX           16   32   64   128   256   512   1024   1746
+time(secs)     2    4    8    16    32    64    132    241
+
+XXX is the # of msg queues to be created = # of processes to be forked 
+as readers = # of processes to be created as writers
+time is approximative since it is obtained by a "date" before and after.
+
+XXX used to be 16 before the patchset  ---> 1st column
+     --> 16 processes forked as reader
+     --> + 16 processes forked as writers
+     --> + 16 msg queues
+XXX = 1746 (on my victim) after the patchset ---> last column
+     --> 1746 reader processes forked
+     --> + 1746 writers forked
+     --> + 1746 msg queues created
+
+The same tests on the ref kernel give approximatly the same results.
+
+So if we don't want this longer time to appear as a regression, the LTP 
+should be changed:
+1) either by setting the result of get_max_msgqueues() as the MSGMNI 
+constant (16) (that would be the best solution in my mind)
+2) or by warning the tester that it may take a long time to finish.
+
+There would be 3 tests impacted:
+
+kernel/syscalls/ipc/msgctl/msgctl08.c
+kernel/syscalls/ipc/msgctl/msgctl09.c
+kernel/syscalls/ipc/msgget/msgget03.c
+
+Cc-ing ltp mailing list ...
+
+Regards,
+Nadia
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
