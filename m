@@ -1,9 +1,9 @@
 From: David Howells <dhowells@redhat.com>
-In-Reply-To: <84144f020802180918h6fb4d52fw4c592407a16b19c0@mail.gmail.com>
-References: <84144f020802180918h6fb4d52fw4c592407a16b19c0@mail.gmail.com> <16085.1203350863@redhat.com>
+In-Reply-To: <84144f020802180937p6bea0a25t93b8f9c7202b06e2@mail.gmail.com>
+References: <84144f020802180937p6bea0a25t93b8f9c7202b06e2@mail.gmail.com> <16085.1203350863@redhat.com> <84144f020802180918h6fb4d52fw4c592407a16b19c0@mail.gmail.com>
 Subject: Re: Slab initialisation problems on MN10300
-Date: Mon, 18 Feb 2008 20:38:31 +0000
-Message-ID: <24841.1203367111@redhat.com>
+Date: Mon, 18 Feb 2008 20:39:08 +0000
+Message-ID: <24867.1203367148@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Pekka Enberg <penberg@cs.helsinki.fi>
@@ -12,31 +12,11 @@ List-ID: <linux-mm.kvack.org>
 
 Pekka Enberg <penberg@cs.helsinki.fi> wrote:
 
-> would put struct arraycache_init to kmalloc-32 and struct kmem_list3
-> to kmalloc-64. So are INDEX_AC and INDEX_L3 really equivalent? To
-> which cache do they refer to?
+> One thing that I thought of was ARCH_KMALLOC_MINALIGN
+> which is set to some fairly big values on some MIPS architectures
+> (MN10300 is one, right?)
 
-(gdb) p sizeof(struct arraycache_init)
-$1 = 20
-(gdb) p sizeof(struct kmem_list3)
-$2 = 52
-
-However, the compiler has eliminated the test:
-
-		if (INDEX_AC == INDEX_L3)
-
-even though it's compiled with -O0.
-
-This is odd.  I'll have to investigate the preprocessor output.
-
-> And if this broke recently, you might want to try and see if commit
-> 556a169dab38b5100df6f4a45b655dddd3db94c1 ("slab: fix bootstrap on
-> memoryless node") is at fault here by reverting it.
-
-Well, the MN10300 arch worked in -mm, but no longer works now that the patches
-have been merged into Linus's tree.  Bisecting is probably not an option.
-
-Thanks, anyway.  I've got something to investigate.
+No.  MN10300 is not MIPS.
 
 David
 
