@@ -1,9 +1,9 @@
 From: David Howells <dhowells@redhat.com>
-In-Reply-To: <47B9F128.50500@cs.helsinki.fi>
-References: <47B9F128.50500@cs.helsinki.fi> <84144f020802180918h6fb4d52fw4c592407a16b19c0@mail.gmail.com> <16085.1203350863@redhat.com> <24841.1203367111@redhat.com>
+In-Reply-To: <84144f020802180918h6fb4d52fw4c592407a16b19c0@mail.gmail.com>
+References: <84144f020802180918h6fb4d52fw4c592407a16b19c0@mail.gmail.com> <16085.1203350863@redhat.com>
 Subject: Re: Slab initialisation problems on MN10300
-Date: Mon, 18 Feb 2008 22:41:21 +0000
-Message-ID: <25150.1203374481@redhat.com>
+Date: Mon, 18 Feb 2008 23:02:28 +0000
+Message-ID: <31300.1203375748@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Pekka Enberg <penberg@cs.helsinki.fi>
@@ -12,11 +12,19 @@ List-ID: <linux-mm.kvack.org>
 
 Pekka Enberg <penberg@cs.helsinki.fi> wrote:
 
-> What's PAGE_SIZE for the architecture? If it's something other than 4KB, the
-> size 32 cache is not there which makes both use the 64 one. However, that
-> should work too, so maybe there's some GCC bug here for your architecture?
+> If you didn't see PARTIAL_AC state at all, SLAB thinks INDEX_AC and
+> INDEX_L3 are equal. However,
 
-It's 4K.
+Ah...  The problem is that index_of() behaves differently under -O0 rather
+than -O1, -O2 or -Os.
+
+I was using -O0 so that I could debug another problem using GDB on the kernel.
+However, this appears to mean that __builtin_constant_p() inside an inline
+function is always false, even if the function is actually inlined because of
+__always_inline.
+
+I'd commented out the __bad_size() calls because they went to places that
+don't exist, and so the -O0 kernel wouldn't link.
 
 David
 
