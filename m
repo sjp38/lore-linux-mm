@@ -1,92 +1,49 @@
-Received: by wr-out-0506.google.com with SMTP id 60so2156559wri.8
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2008 06:05:00 -0800 (PST)
-Message-ID: <4cefeab80802190604g1c9fea72ge1052cb3bd597e0a@mail.gmail.com>
-Date: Tue, 19 Feb 2008 19:34:59 +0530
-From: "Nitin Gupta" <nitingupta910@gmail.com>
-Subject: Re: [linux-mm-cc] Announce: ccache release 0.1
-In-Reply-To: <fd87b6160802190507g74e64866pdbbda84826e0e5b8@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Tue, 19 Feb 2008 08:27:25 -0600
+From: Jack Steiner <steiner@sgi.com>
+Subject: Re: [patch] my mmu notifiers
+Message-ID: <20080219142725.GA23200@sgi.com>
+References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <4cefeab80802181339ia9609d3oeb238a9f549fc6e5@mail.gmail.com>
-	 <fd87b6160802190233q7a6b95ecrff29ca70a9927e3b@mail.gmail.com>
-	 <4cefeab80802190406w5dfcb257p1abff260c63522bc@mail.gmail.com>
-	 <fd87b6160802190507g74e64866pdbbda84826e0e5b8@mail.gmail.com>
+In-Reply-To: <20080219135851.GI7128@v2.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: John McCabe-Dansted <gmatht@gmail.com>
-Cc: linux-mm-cc@laptop.org, linux-mm@kvack.org, linuxcompressed-devel@lists.sourceforge.net
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Feb 19, 2008 6:37 PM, John McCabe-Dansted <gmatht@gmail.com> wrote:
-> On Feb 19, 2008 9:06 PM, Nitin Gupta <nitingupta910@gmail.com> wrote:
-> > On Feb 19, 2008 4:03 PM, John McCabe-Dansted <gmatht@gmail.com> wrote:
-> > > On Feb 19, 2008 6:39 AM, Nitin Gupta <nitingupta910@gmail.com> wrote:
-> > > > Some performance numbers for allocator and de/compressor can be found
-> > > > on project home. Currently it is tested on Linux kernel 2.6.23.x and
-> > > > 2.6.25-rc2 (x86 only). Please mail me/mailing-list any
-> > > > issues/suggestions you have.
-> > >
-> > > It caused Gutsy (2.6.22-14-generic) to crash when I did a swap off of
-> > > my hdd swap. I have a GB of ram, so I would have been fine without
-> > > ccache.
-> >
-> > These days "desktops with small memory" probably means virtual
-> > machines with, say, <512M RAM :-)
->
-> The Hardy liveCD is really snappy with a 192MB VM and and a 128MB
-> ccache swap. :)
->
+> On Tue, Feb 19, 2008 at 02:58:51PM +0100, Andrea Arcangeli wrote:
+> > understand the need for invalidate_begin/invalidate_end pairs at all.
+> 
+> The need of the pairs is crystal clear to me: range_begin is needed
+> for GRU _but_only_if_ range_end is called after releasing the
+> reference that the VM holds on the page. _begin will flush the GRU tlb
+> and at the same time it will take a mutex that will block further GRU
+> tlb-miss-interrupts (no idea how they manange those nightmare locking,
+> I didn't even try to add more locking to KVM and I get away with the
+> fact KVM takes the pin on the page itself).
 
-Good to know :)
+As it turns out, no actual mutex is required. _begin_ simply increments a
+count of active range invalidates, _end_ decrements the count. New TLB
+dropins are deferred while range callouts are active.
 
-> > > I had swapped on a 400MB ccache swap.
-> > >
-> >
-> > I need /var/log/messages (or whatever file kernel logs to in Gutsy) to
-> > debug this.
-> > Please send it to me offline if its too big.
->
-> This seems to be the bit you want:
->
-
-Unfortunately none of these messages suggest why crash happened.
-If you can send entire log, that will probably be more useful.
+This would appear to be racy but the GRU has special hardware that
+simplifies locking. When the GRU sees a TLB invalidate, all outstanding
+misses & potentially inflight TLB dropins are marked by the GRU with a
+"kill" bit. When the dropin finally occurs, the dropin is ignored & the
+instruction is simply restarted. The instruction will fault again & the TLB
+dropin will be repeated.  This is optimized for the case where invalidates
+are rare - true for users of the GRU.
 
 
-> ubuntu-xp syslogd 1.4.1#21ubuntu3: restart.
-> Feb 19 08:07:31 ubuntu-xp -- MARK --
-> ...
-> Feb 19 18:47:31 ubuntu-xp -- MARK --
-> Feb 19 18:59:51 ubuntu-xp kernel: [377208.185464] ccache: Unknown
-> symbol lzo1x_decompress_safe
-<snip>
+In general, though, I agree. Most users of mmu_notifiers would likely
+required a mutex or something equivalent.
 
-All these 'Unknown symbol' messages are because you tried loading
-ccache.ko module before tlsf.ko and lzo*.ko modules.
 
->
-> > > BTW, why is the default 10% of mem?
-> >
-> > I have no great justification for "10%".
->
-> Perhaps 100% (or maybe 50%) would be a more sensible default? For me
-> 66% makes a huge difference to the Hardy liveCD performance. 10% makes
-> a difference but 50%+ goes from "ls /" taking 10s to snappy
-> performance even on large applications like Firefox.
->
+--- jack
 
-I think this depends a lot on kind of workload and system. For e.g:
-- On desktops, retaining too many anonymous pages at cost of
-continuously losing page-cache (filesystem-backed) pages can hurt
-performance for workload that repeatedly access same file(s).
-- On embedded systems, too much de/compression will drain all battery.
-and so on...
 
-Also, I don't know which of  these use cases is more "common".
-
-- Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
