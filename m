@@ -1,37 +1,39 @@
-Date: Wed, 20 Feb 2008 00:11:57 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] my mmu notifiers
-Message-ID: <20080219231157.GC18912@wotan.suse.de>
-References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random>
+Date: Tue, 19 Feb 2008 15:30:37 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] hugetlb: ensure we do not reference a surplus page
+ after handing it to buddy
+Message-Id: <20080219153037.ec336fd2.akpm@linux-foundation.org>
+In-Reply-To: <1203446512.11987.36.camel@localhost.localdomain>
+References: <1203445688.0@pinky>
+	<1203446512.11987.36.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080219135851.GI7128@v2.random>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+To: Adam Litke <agl@us.ibm.com>
+Cc: Andy Whitcroft <apw@shadowen.org>, Nishanth Aravamudan <nacc@us.ibm.com>, William Irwin <wli@holomorphy.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 19, 2008 at 02:58:51PM +0100, Andrea Arcangeli wrote:
-> On Tue, Feb 19, 2008 at 09:43:57AM +0100, Nick Piggin wrote:
-> > anything when changing the pte to be _more_ permissive, and I don't
+On Tue, 19 Feb 2008 12:41:51 -0600 Adam Litke <agl@us.ibm.com> wrote:
+
+> Indeed.  I'll take credit for this thinko...
 > 
-> Note that in my patch the invalidate_pages in mprotect can be
-> trivially switched to a mprotect_pages with proper params. This will
-> prevent page faults completely in the secondary MMU (there will only
-> be tlb misses after the tlb flush just like for the core linux pte),
-> and it'll allow all the secondary MMU pte blocks (512/1024 at time
-> with my PT lock design) to be updated to have proper permissions
-> matching the core linux pte.
+> On Tue, 2008-02-19 at 18:28 +0000, Andy Whitcroft wrote:
+> > When we free a page via free_huge_page and we detect that we are in
+> > surplus the page will be returned to the buddy.  After this we no longer
+> > own the page.  However at the end free_huge_page we clear out our mapping
+> > pointer from page private.  Even where the page is not a surplus we
+> > free the page to the hugepage pool, drop the pool locks and then clear
+> > page private.  In either case the page may have been reallocated.  BAD.
+> > 
+> > Make sure we clear out page private before we free the page.
+> > 
+> > Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+> 
+> Acked-by: Adam Litke <agl@us.ibm.com>
 
-Sorry, I realise I still didn't get this through my head yet (and also
-have not seen your patch recently). So I don't know exactly what you
-are doing...
-
-But why does _anybody_ (why does Christoph's patches) need to invalidate
-when they are going to be more permissive? This should be done lazily by
-the driver, I would have thought.
+Was I right to assume that this is also needed in 2.6.24.x?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
