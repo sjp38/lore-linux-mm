@@ -1,63 +1,41 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address ranges
-Date: Tue, 19 Feb 2008 19:54:14 +1100
-References: <20080215064859.384203497@sgi.com> <20080215064932.620773824@sgi.com>
-In-Reply-To: <20080215064932.620773824@sgi.com>
+Received: by wx-out-0506.google.com with SMTP id h31so1867601wxd.11
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2008 02:33:27 -0800 (PST)
+Message-ID: <fd87b6160802190233q7a6b95ecrff29ca70a9927e3b@mail.gmail.com>
+Date: Tue, 19 Feb 2008 19:33:27 +0900
+From: "John McCabe-Dansted" <gmatht@gmail.com>
+Subject: Re: [linux-mm-cc] Announce: ccache release 0.1
+In-Reply-To: <4cefeab80802181339ia9609d3oeb238a9f549fc6e5@mail.gmail.com>
 MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  charset="utf-8"
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Message-Id: <200802191954.14874.nickpiggin@yahoo.com.au>
+Content-Disposition: inline
+References: <4cefeab80802181339ia9609d3oeb238a9f549fc6e5@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Nitin Gupta <nitingupta910@gmail.com>
+Cc: linux-mm-cc@laptop.org, linux-mm@kvack.org, linuxcompressed-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Friday 15 February 2008 17:49, Christoph Lameter wrote:
-> The invalidation of address ranges in a mm_struct needs to be
-> performed when pages are removed or permissions etc change.
->
-> If invalidate_range_begin() is called with locks held then we
-> pass a flag into invalidate_range() to indicate that no sleeping is
-> possible. Locks are only held for truncate and huge pages.
->
-> In two cases we use invalidate_range_begin/end to invalidate
-> single pages because the pair allows holding off new references
-> (idea by Robin Holt).
->
-> do_wp_page(): We hold off new references while we update the pte.
->
-> xip_unmap: We are not taking the PageLock so we cannot
-> use the invalidate_page mmu_rmap_notifier. invalidate_range_begin/end
-> stands in.
+On Feb 19, 2008 6:39 AM, Nitin Gupta <nitingupta910@gmail.com> wrote:
+> Some performance numbers for allocator and de/compressor can be found
+> on project home. Currently it is tested on Linux kernel 2.6.23.x and
+> 2.6.25-rc2 (x86 only). Please mail me/mailing-list any
+> issues/suggestions you have.
 
-This whole thing would be much better if you didn't rely on the page
-lock at all, but either a) used the same locking as Linux does for its
-ptes/tlbs, or b) have some locking that is private to the mmu notifier
-code. Then there is not all this new stuff that has to be understood in
-the core VM.
+It caused Gutsy (2.6.22-14-generic) to crash when I did a swap off of
+my hdd swap. I have a GB of ram, so I would have been fine without
+ccache.
 
-Also, why do you have to "invalidate" ranges when switching to a
-_more_ permissive state? This stuff should basically be the same as
-(a subset of) the TLB flushing API AFAIKS. Anything more is a pretty
-big burden to put in the core VM.
+I had swapped on a 400MB ccache swap.
 
-See my alternative patch I posted -- I can't see why it won't work
-just like a TLB.
+BTW, why is the default 10% of mem? This refers to the size of the
+block device right? So even 100% would probably only use 50% of
+physical memory for swap, assuming a 2:1 compression ratio.
 
-As far as sleeping inside callbacks goes... I think there are big
-problems with the patch (the sleeping patch and the external rmap
-patch). I don't think it is workable in its current state. Either
-we have to make some big changes to the core VM, or we have to turn
-some locks into sleeping locks to do it properly AFAIKS. Neither
-one is good.
-
-But anyway, I don't really think the two approaches (Andrea's
-notifiers vs sleeping/xrmap) should be tangled up too much. I
-think Andrea's can possibly be quite unintrusive and useful very
-soon.
+-- 
+John C. McCabe-Dansted
+PhD Student
+University of Western Australia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
