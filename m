@@ -1,79 +1,58 @@
-Date: Tue, 19 Feb 2008 02:42:03 +0100
+Date: Tue, 19 Feb 2008 02:46:00 +0100
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [rfc][patch] mm: scalable vmaps
-Message-ID: <20080219014203.GB21165@wotan.suse.de>
-References: <20080218082219.GA2018@wotan.suse.de> <47B94FF7.3030200@goop.org>
+Message-ID: <20080219014600.GC21165@wotan.suse.de>
+References: <20080218082219.GA2018@wotan.suse.de> <200802181104.45898.ak@suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <47B94FF7.3030200@goop.org>
+In-Reply-To: <200802181104.45898.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Andi Kleen <ak@suse.de>, David Chinner <dgc@sgi.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andi Kleen <ak@suse.de>
+Cc: Jeremy Fitzhardinge <jeremy@goop.org>, David Chinner <dgc@sgi.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 18, 2008 at 08:29:27PM +1100, Jeremy Fitzhardinge wrote:
-> Nick Piggin wrote:
-> >One thing that will be common to any high performance vmap implementation,
-> >however, will be the use of lazy TLB flushing. So I'm mainly interested
-> >in comments about this. AFAIK, Xen must be able to eliminate these aliases
-> >on demand,
+On Mon, Feb 18, 2008 at 11:04:45AM +0100, Andi Kleen wrote:
 > 
-> Yep.
+> > One thing that will be common to any high performance vmap implementation,
+> > however, will be the use of lazy TLB flushing. So I'm mainly interested
+> > in comments about this. AFAIK, Xen must be able to eliminate these aliases
+> > on demand, and CPA also doesn't want aliases around even if they don't
+> > get explicitly referenced by software 
 > 
-> > and CPA also doesn't want aliases around even if they don't
-> >get explicitly referenced by software (because the hardware may do a
-> >random speculative operation through the TLB).
-> >  
-> 
-> Yes, but presumably the page is in a "normal" state before CPA changes 
-> its cache attributes; it can shoot down aliases before doing that.
+> It's not really a requirement by CPA, but one by the hardware. Alias
+> mappings always need to have the same caching attributes.
 
-Oh yeah sure, it is easy to do, but it just can seem a little strange,
-because we _never_ subsequently access the page through its alias anyway.
-But yeah it is no problem to shoot it down before changing attributes.
+Right, yes.
 
  
-> >So I just wonder if it is enough to provide a (quite heavyweight) function
-> >to flush aliases? (vm_unmap_aliases)
-> >  
+> > (because the hardware may do a 
+> > random speculative operation through the TLB).
+> > 
+> > So I just wonder if it is enough to provide a (quite heavyweight) function
+> > to flush aliases? (vm_unmap_aliases)
 > 
-> Assuming that aliased pages are relatively rare, then its OK for this 
-> function to be heavyweight if it can exit quickly in the non-aliased 
-> case (or there's some other cheap way to tell if a page has aliases).  
-> Hm, even then, Xen would only need to call this on pages being turned 
-> into parts of a pagetable, so probably not all that often.  So, if its 
-> easy to avoid vm_unmap_aliases we would do so, but it's probably worth 
-> profiling before going to heroic efforts.
+> For CPA that would work currently (calling that function there
+> if the caching attributes are changed),  although when CPA use is more wide 
+> spread than it currently is it might be a problem at some point if it is very slow.
 
-There is no easy way to tell if a page is aliased. We can't really use a
-page bit, because we don't own the page, so we can't manipulate flags.
-We could store an rmap somehow, but I'd really prefer not to add such
-overhead if it is at all possible to minimise vm_unmap_aliases to the
-point where it doesn't matter.
-
-Are we using quicklists in x86? Then we'd only have to call this when
-new pages are allocated to the quicklist, presumably? Anyway let's wait
-and see if it hurts. (at the worst case, it is not going to be much
-more expensive than the existing vmalloc, but I guess you might start
-noticing if we start using vmaps more).
+I guess CPA is pretty slow anyway because it does a global tlb flush.
+vm_unmap_aliases is not going to be terribly slow by comparison (the
+global TLB flush is one of its more expensive aspects).
 
  
-> >Also, what consequences will this have for non-paravirtualized Xen? If
-> >any, do we care? (IMO no) I'm not going to take references on these
-> >lazy flush pages, because that will increase VM pressure by a great deal.
-> >  
+> > I ripped the not-very-good vunmap batching code out of XFS, and implemented
+> > the large buffer mapping with vm_map_ram and vm_unmap_ram... along with
+> > a couple of other tricks, I was able to speed up a large directory workload
+> > by 20x on a 64 CPU system. Basically I believe vmap/vunmap is actually
+> > sped up a lot more than 20x on such a system, but I'm running into other
+> > locks now. vmap is pretty well blown off the profiles.
 > 
-> Not sure what you mean here.  Unparavirtualized Xen would just use 
-> shadow pagetables, and be effectively the same as kvm as far as the 
-> kernel is concerned (unless there's some subtle difference I'm missing).
+> Cool. Gratulations.
 
-Oh, that's fine then (I don't know much about this topic). I had just
-assumed that the hypervisor would try the same trick so long as the
-guest did not try to insert pagetables with aliases.
-
-Thanks for the input.
+Thanks! I'm not sure how "interesting" the workload is ;) but at least it
+shows the new vmap is scalable and working properly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
