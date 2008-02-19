@@ -1,304 +1,142 @@
-Date: Tue, 19 Feb 2008 09:44:50 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: [patch] my mmu notifier sample driver
-Message-ID: <20080219084450.GB22249@wotan.suse.de>
-References: <20080219084357.GA22249@wotan.suse.de>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1J8oTUf008147
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 03:50:29 -0500
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1J8ogYf201470
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 01:50:42 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1J8ogsa029335
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 01:50:42 -0700
+Subject: Re: [LTP] [PATCH 1/8] Scaling msgmni to the amount of lowmem
+From: Subrata Modak <subrata@linux.vnet.ibm.com>
+Reply-To: subrata@linux.vnet.ibm.com
+In-Reply-To: <47B9835A.3060507@bull.net>
+References: <20080211141646.948191000@bull.net>
+	 <20080211141813.354484000@bull.net>
+	 <20080215215916.8566d337.akpm@linux-foundation.org>
+	 <47B94D8C.8040605@bull.net>  <47B9835A.3060507@bull.net>
+Content-Type: text/plain
+Date: Tue, 19 Feb 2008 14:20:55 +0530
+Message-Id: <1203411055.4612.5.camel@subratamodak.linux.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080219084357.GA22249@wotan.suse.de>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org, Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+To: Nadia Derbey <Nadia.Derbey@bull.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, ltp-list@lists.sourceforge.net, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cmm@us.ibm.com, matthltc@us.ibm.com, y-goto@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Index: linux-2.6/drivers/char/mmu_notifier_skel.c
-===================================================================
---- /dev/null
-+++ linux-2.6/drivers/char/mmu_notifier_skel.c
-@@ -0,0 +1,255 @@
-+#include <linux/types.h>
-+#include <linux/kernel.h>
-+#include <linux/module.h>
-+#include <linux/init.h>
-+#include <linux/miscdevice.h>
-+#include <linux/slab.h>
-+#include <linux/sched.h>
-+#include <linux/mm.h>
-+#include <linux/fs.h>
-+#include <linux/mmu_notifier.h>
-+#include <linux/radix-tree.h>
-+#include <linux/seqlock.h>
-+#include <asm/tlbflush.h>
-+
-+static DEFINE_SPINLOCK(mmn_lock);
-+static RADIX_TREE(rmap_tree, GFP_ATOMIC);
-+static seqcount_t rmap_seq = SEQCNT_ZERO;
-+
-+static int __rmap_add(unsigned long mem, unsigned long vaddr)
-+{
-+	int err;
-+
-+	err = radix_tree_insert(&rmap_tree, mem >> PAGE_SHIFT, (void *)vaddr);
-+
-+	return err;
-+}
-+
-+static void __rmap_del(unsigned long mem)
-+{
-+	void *ret;
-+
-+	ret = radix_tree_delete(&rmap_tree, mem >> PAGE_SHIFT);
-+	BUG_ON(!ret);
-+}
-+
-+static unsigned long rmap_find(unsigned long mem)
-+{
-+	unsigned long vaddr;
-+
-+	rcu_read_lock();
-+	vaddr = (unsigned long)radix_tree_lookup(&rmap_tree, mem >> PAGE_SHIFT);
-+	rcu_read_unlock();
-+
-+	return vaddr;
-+}
-+
-+static struct page *follow_page_atomic(struct mm_struct *mm, unsigned long address, int write)
-+{
-+	struct vm_area_struct *vma;
-+
-+	vma = find_vma(mm, address);
-+        if (!vma || (vma->vm_start > address))
-+                return NULL;
-+
-+	if (vma->vm_flags & (VM_IO | VM_PFNMAP))
-+		return NULL;
-+
-+	return follow_page(vma, address, FOLL_GET|(write ? FOLL_WRITE : 0));
-+}
-+
-+static int mmn_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
-+{
-+	struct mm_struct *mm = vma->vm_mm;
-+	unsigned long source_vaddr = (unsigned long)vmf->pgoff << PAGE_SHIFT;
-+	unsigned long dest_vaddr = (unsigned long)vmf->virtual_address;
-+	unsigned long pfn;
-+	struct page *page;
-+	pgprot_t prot;
-+	int write = vmf->flags & FAULT_FLAG_WRITE;
-+	int ret;
-+
-+	printk("mmn_vm_fault %s@vaddr=%lx sourcing from %lx\n", write ? "write" : "read", dest_vaddr, source_vaddr);
-+
-+	BUG_ON(mm != current->mm); /* disallow get_user_pages */
-+
-+again:
-+	spin_lock(&mmn_lock);
-+	write_seqcount_begin(&rmap_seq);
-+	page = follow_page_atomic(mm, source_vaddr, write);
-+	if (unlikely(!page)) {
-+		write_seqcount_end(&rmap_seq);
-+		spin_unlock(&mmn_lock);
-+		ret = get_user_pages(current, mm, source_vaddr,
-+					1, write, 0, &page, NULL);
-+		if (ret != 1)
-+			goto out_err;
-+		put_page(page);
-+		goto again;
-+	}
-+
-+	ret = __rmap_add(source_vaddr, dest_vaddr);
-+	if (ret)
-+		goto out_lock;
-+
-+	pfn = page_to_pfn(page);
-+	prot = vma->vm_page_prot;
-+	if (!write)
-+		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags & ~(VM_WRITE|VM_MAYWRITE));
-+	ret = vm_insert_pfn(vma, dest_vaddr, pfn);
-+	vma->vm_page_prot = prot;
-+	if (ret) {
-+		if (ret == -EBUSY)
-+			WARN_ON(1);
-+		goto out_rmap;
-+	}
-+	write_seqcount_end(&rmap_seq);
-+	spin_unlock(&mmn_lock);
-+	put_page(page);
-+
-+        return VM_FAULT_NOPAGE;
-+
-+out_rmap:
-+	__rmap_del(source_vaddr);
-+out_lock:
-+	write_seqcount_end(&rmap_seq);
-+	spin_unlock(&mmn_lock);
-+	put_page(page);
-+out_err:
-+	switch (ret) {
-+	case -EFAULT:
-+	case -EEXIST:
-+	case -EBUSY:
-+		return VM_FAULT_SIGBUS;
-+	case -ENOMEM:
-+		return VM_FAULT_OOM;
-+	default:
-+		BUG();
-+	}
-+}
-+
-+struct vm_operations_struct mmn_vm_ops = {
-+        .fault = mmn_vm_fault,
-+};
-+
-+static int mmu_notifier_busy;
-+static struct mmu_notifier mmu_notifier;
-+
-+static int mmn_clear_young(struct mmu_notifier *mn, unsigned long address)
-+{
-+	unsigned long vaddr;
-+	unsigned seq;
-+	struct mm_struct *mm = mn->mm;
-+	pgd_t *pgd;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+	pte_t *ptep, pte;
-+
-+	do {
-+		seq = read_seqcount_begin(&rmap_seq);
-+		vaddr = rmap_find(address);
-+	} while (read_seqcount_retry(&rmap_seq, seq));
-+
-+	if (vaddr == 0)
-+		return 0;
-+
-+	printk("mmn_clear_young@vaddr=%lx sourced from %lx\n", vaddr, address);
-+
-+	spin_lock(&mmn_lock);
-+        pgd = pgd_offset(mm, vaddr);
-+        pud = pud_offset(pgd, vaddr);
-+	if (pud) {
-+		pmd = pmd_offset(pud, vaddr);
-+		if (pmd) {
-+			ptep = pte_offset_map(pmd, vaddr);
-+			if (ptep) {
-+				pte = *ptep;
-+				if (!pte_present(pte)) {
-+					/* x86 specific, don't have a vma */
-+					ptep_get_and_clear(mm, vaddr, ptep);
-+					__flush_tlb_one(vaddr);
-+				}
-+				pte_unmap(ptep);
-+			}
-+		}
-+	}
-+	__rmap_del(address);
-+	spin_unlock(&mmn_lock);
-+
-+        return 1;
-+}
-+
-+static void mmn_unmap(struct mmu_notifier *mn, unsigned long address)
-+{
-+	mmn_clear_young(mn, address);
-+}
-+
-+static void mmn_release(struct mmu_notifier *mn)
-+{
-+	mmu_notifier_busy = 0;
-+}
-+
-+static struct mmu_notifier_operations mmn_ops = {
-+	.clear_young = mmn_clear_young,
-+	.unmap = mmn_unmap,
-+	.release = mmn_release,
-+};
-+
-+static int mmn_mmap(struct file *file, struct vm_area_struct *vma)
-+{
-+	int busy;
-+
-+	if ((vma->vm_flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE)
-+		return -EINVAL;
-+
-+	spin_lock(&mmn_lock);
-+	busy = mmu_notifier_busy;
-+	if (!busy)
-+		mmu_notifier_busy = 1;
-+	spin_unlock(&mmn_lock);
-+	if (busy)
-+		return -EBUSY;
-+
-+	vma->vm_flags |= VM_PFNMAP;
-+	vma->vm_ops = &mmn_vm_ops;
-+
-+	mmu_notifier_init(&mmu_notifier, &mmn_ops, current->mm);
-+	mmu_notifier_register(&mmu_notifier);
-+
-+	return 0;
-+}
-+
-+static const struct file_operations mmn_fops =
-+{
-+	.owner		= THIS_MODULE,
-+	.llseek		= no_llseek,
-+	.mmap		= mmn_mmap,
-+};
-+
-+static struct miscdevice mmn_miscdev =
-+{
-+	.minor	= MISC_DYNAMIC_MINOR,
-+	.name	= "mmn",
-+	.fops	= &mmn_fops
-+};
-+
-+static int __init mmn_init(void)
-+{
-+	if (misc_register(&mmn_miscdev)) {
-+		printk(KERN_ERR "mmn: unable to register device\n");
-+		return -EIO;
-+	}
-+	return 0;
-+}
-+
-+static void __exit mmn_exit(void)
-+{
-+	misc_deregister(&mmn_miscdev);
-+}
-+
-+MODULE_DESCRIPTION("mmu_notifier skeleton driver");
-+MODULE_LICENSE("GPL");
-+
-+module_init(mmn_init);
-+module_exit(mmn_exit);
-+
-Index: linux-2.6/drivers/char/Kconfig
-===================================================================
---- linux-2.6.orig/drivers/char/Kconfig
-+++ linux-2.6/drivers/char/Kconfig
-@@ -4,6 +4,10 @@
- 
- menu "Character devices"
- 
-+config MMU_NOTIFIER_SKEL
-+	tristate "MMU Notifier skeleton driver"
-+	default n
-+
- config VT
- 	bool "Virtual terminal" if EMBEDDED
- 	depends on !S390
-Index: linux-2.6/drivers/char/Makefile
-===================================================================
---- linux-2.6.orig/drivers/char/Makefile
-+++ linux-2.6/drivers/char/Makefile
-@@ -97,6 +97,7 @@ obj-$(CONFIG_CS5535_GPIO)	+= cs5535_gpio
- obj-$(CONFIG_GPIO_VR41XX)	+= vr41xx_giu.o
- obj-$(CONFIG_GPIO_TB0219)	+= tb0219.o
- obj-$(CONFIG_TELCLOCK)		+= tlclk.o
-+obj-$(CONFIG_MMU_NOTIFIER_SKEL) += mmu_notifier_skel.o
- 
- obj-$(CONFIG_MWAVE)		+= mwave/
- obj-$(CONFIG_AGP)		+= agp/
+> Nadia Derbey wrote:
+> > Andrew Morton wrote:
+> > 
+> >> On Mon, 11 Feb 2008 15:16:47 +0100 Nadia.Derbey@bull.net wrote:
+> >>
+> >>
+> >>> [PATCH 01/08]
+> >>>
+> >>> This patch computes msg_ctlmni to make it scale with the amount of 
+> >>> lowmem.
+> >>> msg_ctlmni is now set to make the message queues occupy 1/32 of the 
+> >>> available
+> >>> lowmem.
+> >>>
+> >>> Some cleaning has also been done for the MSGPOOL constant: the msgctl 
+> >>> man page
+> >>> says it's not used, but it also defines it as a size in bytes (the code
+> >>> expresses it in Kbytes).
+> >>>
+> >>
+> >>
+> >> Something's wrong here.  Running LTP's msgctl08 (specifically:
+> >> ltp-full-20070228) cripples the machine.  It's a 4-way 4GB x86_64.
+> >>
+> >> http://userweb.kernel.org/~akpm/config-x.txt
+> >> http://userweb.kernel.org/~akpm/dmesg-x.txt
+> >>
+> >> Normally msgctl08 will complete in a second or two.  With this patch I
+> >> don't know how long it will take to complete, and the machine is horridly
+> >> bogged down.  It does recover if you manage to kill msgctl08.  Feels like
+> >> a terrible memory shortage, but there's plenty of memory free and it 
+> >> isn't
+> >> swapping.
+> >>
+> >>
+> >>
+> > 
+> > Before the patchset, msgctl08 used to be run with the old msgmni value: 
+> > 16. Now it is run with a much higher msgmni value (1746 in my case), 
+> > since it scales to the memory size.
+> > When I call "msgctl08 100000 16" it completes fast.
+> > 
+> > Doing the follwing on the ref kernel:
+> > echo 1746 > /proc/sys/kernel/msgmni
+> > msgctl08 100000 1746
+> > 
+> > makes th test block too :-(
+> > 
+> > Will check to see where the problem comes from.
+> > 
+> 
+> Well, actually, the test does not block, it only takes much much more 
+> time to be executed:
+> 
+> doing this:
+> date; ./msgctl08 100000 XXX; date
+> 
+> 
+> gives us the following results:
+> XXX           16   32   64   128   256   512   1024   1746
+> time(secs)     2    4    8    16    32    64    132    241
+> 
+> XXX is the # of msg queues to be created = # of processes to be forked 
+> as readers = # of processes to be created as writers
+> time is approximative since it is obtained by a "date" before and after.
+> 
+> XXX used to be 16 before the patchset  ---> 1st column
+>      --> 16 processes forked as reader
+>      --> + 16 processes forked as writers
+>      --> + 16 msg queues
+> XXX = 1746 (on my victim) after the patchset ---> last column
+>      --> 1746 reader processes forked
+>      --> + 1746 writers forked
+>      --> + 1746 msg queues created
+> 
+> The same tests on the ref kernel give approximatly the same results.
+> 
+> So if we don't want this longer time to appear as a regression, the LTP 
+> should be changed:
+> 1) either by setting the result of get_max_msgqueues() as the MSGMNI 
+> constant (16) (that would be the best solution in my mind)
+> 2) or by warning the tester that it may take a long time to finish.
+> 
+> There would be 3 tests impacted:
+> 
+> kernel/syscalls/ipc/msgctl/msgctl08.c
+> kernel/syscalls/ipc/msgctl/msgctl09.c
+> kernel/syscalls/ipc/msgget/msgget03.c
+
+We will change the test case if need that be. Nadia, kindly send us the
+patch set which will do the necessary changes.
+
+Regards--
+Subrata
+
+> 
+> Cc-ing ltp mailing list ...
+> 
+> Regards,
+> Nadia
+> 
+> 
+> 
+> -------------------------------------------------------------------------
+> This SF.net email is sponsored by: Microsoft
+> Defy all challenges. Microsoft(R) Visual Studio 2008.
+> http://clk.atdmt.com/MRT/go/vse0120000070mrt/direct/01/
+> _______________________________________________
+> Ltp-list mailing list
+> Ltp-list@lists.sourceforge.net
+> https://lists.sourceforge.net/lists/listinfo/ltp-list
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
