@@ -1,41 +1,46 @@
-Received: by wx-out-0506.google.com with SMTP id h31so1867601wxd.11
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2008 02:33:27 -0800 (PST)
-Message-ID: <fd87b6160802190233q7a6b95ecrff29ca70a9927e3b@mail.gmail.com>
-Date: Tue, 19 Feb 2008 19:33:27 +0900
-From: "John McCabe-Dansted" <gmatht@gmail.com>
-Subject: Re: [linux-mm-cc] Announce: ccache release 0.1
-In-Reply-To: <4cefeab80802181339ia9609d3oeb238a9f549fc6e5@mail.gmail.com>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch 3/6] mmu_notifier: invalidate_page callbacks
+Date: Tue, 19 Feb 2008 19:46:10 +1100
+References: <20080215064859.384203497@sgi.com> <20080215193736.9d6e7da3.akpm@linux-foundation.org> <Pine.LNX.4.64.0802161121130.25573@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0802161121130.25573@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <4cefeab80802181339ia9609d3oeb238a9f549fc6e5@mail.gmail.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200802191946.10695.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nitin Gupta <nitingupta910@gmail.com>
-Cc: linux-mm-cc@laptop.org, linux-mm@kvack.org, linuxcompressed-devel@lists.sourceforge.net
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Feb 19, 2008 6:39 AM, Nitin Gupta <nitingupta910@gmail.com> wrote:
-> Some performance numbers for allocator and de/compressor can be found
-> on project home. Currently it is tested on Linux kernel 2.6.23.x and
-> 2.6.25-rc2 (x86 only). Please mail me/mailing-list any
-> issues/suggestions you have.
+On Sunday 17 February 2008 06:22, Christoph Lameter wrote:
+> On Fri, 15 Feb 2008, Andrew Morton wrote:
 
-It caused Gutsy (2.6.22-14-generic) to crash when I did a swap off of
-my hdd swap. I have a GB of ram, so I would have been fine without
-ccache.
+> > >  		flush_cache_page(vma, address, pte_pfn(*pte));
+> > >  		entry = ptep_clear_flush(vma, address, pte);
+> > > +		mmu_notifier(invalidate_page, mm, address);
+> >
+> > I just don't see how ths can be done if the callee has another thread in
+> > the middle of establishing IO against this region of memory.
+> > ->invalidate_page() _has_ to be able to block.  Confused.
+>
+> The page lock is held and that holds off I/O?
 
-I had swapped on a 400MB ccache swap.
+I think the actual answer is that "it doesn't matter".
 
-BTW, why is the default 10% of mem? This refers to the size of the
-block device right? So even 100% would probably only use 50% of
-physical memory for swap, assuming a 2:1 compression ratio.
+ptes are not exactly the entity via which IO gets established, so
+all we really care about here is that after the callback finishes,
+we will not get any more reads or writes to the page via the
+external mapping.
 
--- 
-John C. McCabe-Dansted
-PhD Student
-University of Western Australia
+As far as holding off local IO goes, that is the job of the core
+VM. (And no, page lock does not necessarily hold it off FYI -- it
+can be writeback IO or even IO directly via buffers).
+
+Holding off IO via the external references I guess is a job for
+the notifier driver.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
