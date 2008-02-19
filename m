@@ -1,42 +1,62 @@
-Date: Tue, 19 Feb 2008 23:28:28 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH 0/8][for -mm] mem_notify v6
-Message-ID: <20080219222828.GB28786@elf.ucw.cz>
-References: <2f11576a0802090719i3c08a41aj38504e854edbfeac@mail.gmail.com> <20080217084906.e1990b11.pj@sgi.com> <20080219145108.7E96.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080219090008.bb6cbe2f.pj@sgi.com>
+Date: Wed, 20 Feb 2008 00:49:22 +0200
+From: Adrian Bunk <bunk@kernel.org>
+Subject: mm/slub.c: inconsequent NULL checking
+Message-ID: <20080219224922.GO31955@cs181133002.pp.htv.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20080219090008.bb6cbe2f.pj@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, marcelo@kvack.org, daniel.spang@gmail.com, riel@redhat.com, akpm@linux-foundation.org, alan@lxorguk.ukuu.org.uk, linux-fsdevel@vger.kernel.org, a1426z@gawab.com, jonathan@jonmasters.org, zlynx@acm.org
+To: Christoph Lameter <clameter@sgi.com>, penberg@cs.helsinki.fi, mpm@selenic.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 2008-02-19 09:00:08, Paul Jackson wrote:
-> Kosaki-san wrote:
-> > Thank you for wonderful interestings comment.
-> 
-> You're most welcome.  The pleasure is all mine.
-> 
-> > you think kill the process just after swap, right?
-> > but unfortunately, almost user hope receive notification before swap ;-)
-> > because avoid swap.
-> 
-> There is not much my customers HPC jobs can do with notification before
-> swap.  Their jobs either have the main memory they need to perform the
-> requested calculations with the desired performance, or their job is
-> useless and should be killed.  Unlike the applications you describe,
-> my customers jobs have no way, once running, to adapt to less
-> memory.
+The Coverity checker spotted the following inconsequent NULL checking 
+introduced by commit 8ff12cfc009a2a38d87fa7058226fe197bb2696f:
 
-Sounds like a job for memory limits (ulimit?), not for OOM
-notification, right?
-								Pavel
+<--  snip  -->
+
+...
+static inline int is_end(void *addr)
+{
+        return (unsigned long)addr & PAGE_MAPPING_ANON;
+}
+...
+static void deactivate_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
+{
+...
+        if (c->freelist)    <----------------------------------------
+                stat(c, DEACTIVATE_REMOTE_FREES);
+        /*
+         * Merge cpu freelist into freelist. Typically we get here
+         * because both freelists are empty. So this is unlikely
+         * to occur.
+         *
+         * We need to use _is_end here because deactivate slab may
+         * be called for a debug slab. Then c->freelist may contain
+         * a dummy pointer.
+         */
+        while (unlikely(!is_end(c->freelist))) {
+                void **object;
+
+                tail = 0;       /* Hot objects. Put the slab first */
+
+                /* Retrieve object from cpu_freelist */
+                object = c->freelist;
+                c->freelist = c->freelist[c->offset];
+...                           ^^^^^^^^^^^^^^^^^^^^^^
+
+<--  snip  -->
+
+cu
+Adrian
 
 -- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+
+       "Is there not promise of rain?" Ling Tan asked suddenly out
+        of the darkness. There had been need of rain for many days.
+       "Only a promise," Lao Er said.
+                                       Pearl S. Buck - Dragon Seed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
