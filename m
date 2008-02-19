@@ -1,49 +1,87 @@
-Date: Tue, 19 Feb 2008 08:27:25 -0600
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [patch] my mmu notifiers
-Message-ID: <20080219142725.GA23200@sgi.com>
-References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random>
+Date: Tue, 19 Feb 2008 09:00:08 -0600
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH 0/8][for -mm] mem_notify v6
+Message-Id: <20080219090008.bb6cbe2f.pj@sgi.com>
+In-Reply-To: <20080219145108.7E96.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <2f11576a0802090719i3c08a41aj38504e854edbfeac@mail.gmail.com>
+	<20080217084906.e1990b11.pj@sgi.com>
+	<20080219145108.7E96.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080219135851.GI7128@v2.random>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, marcelo@kvack.org, daniel.spang@gmail.com, riel@redhat.com, akpm@linux-foundation.org, alan@lxorguk.ukuu.org.uk, linux-fsdevel@vger.kernel.org, pavel@ucw.cz, a1426z@gawab.com, jonathan@jonmasters.org, zlynx@acm.org
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, Feb 19, 2008 at 02:58:51PM +0100, Andrea Arcangeli wrote:
-> > understand the need for invalidate_begin/invalidate_end pairs at all.
+Kosaki-san wrote:
+> Thank you for wonderful interestings comment.
+
+You're most welcome.  The pleasure is all mine.
+
+> you think kill the process just after swap, right?
+> but unfortunately, almost user hope receive notification before swap ;-)
+> because avoid swap.
+
+There is not much my customers HPC jobs can do with notification before
+swap.  Their jobs either have the main memory they need to perform the
+requested calculations with the desired performance, or their job is
+useless and should be killed.  Unlike the applications you describe,
+my customers jobs have no way, once running, to adapt to less memory.
+They can only adapt to less memory by being restarted with a different
+set of resource requests to the job scheduler (the application that
+manages job requests, assigns them CPU, memory and other resources,
+and monitors, starts, stops and pauses jobs.)
+
+The primary difficulty my HPC customers have is killing such jobs fast
+enough, before a bad job (one that attempts to use more memory than it
+signed up for) can harm the performance of other users and the rest of
+the system.
+
+I don't mind if a pages are slowly or occassionally written to swap;
+but as soon as the task wants to reclaim big chunks of memory by
+writing thousands of pages at once to swap, it must die, and die
+before it can queue more than a handful of those pages to the swapper.
+
+> but embedded people strongly dislike bloat code size.
+> I think they never turn on CPUSET.
 > 
-> The need of the pairs is crystal clear to me: range_begin is needed
-> for GRU _but_only_if_ range_end is called after releasing the
-> reference that the VM holds on the page. _begin will flush the GRU tlb
-> and at the same time it will take a mutex that will block further GRU
-> tlb-miss-interrupts (no idea how they manange those nightmare locking,
-> I didn't even try to add more locking to KVM and I get away with the
-> fact KVM takes the pin on the page itself).
+> I hope mem_notify works fine without CPUSET.
 
-As it turns out, no actual mutex is required. _begin_ simply increments a
-count of active range invalidates, _end_ decrements the count. New TLB
-dropins are deferred while range callouts are active.
+Yes - understood and agreed - as I guessed, cpusets are not configured
+in embedded systems.
 
-This would appear to be racy but the GRU has special hardware that
-simplifies locking. When the GRU sees a TLB invalidate, all outstanding
-misses & potentially inflight TLB dropins are marked by the GRU with a
-"kill" bit. When the dropin finally occurs, the dropin is ignored & the
-instruction is simply restarted. The instruction will fault again & the TLB
-dropin will be repeated.  This is optimized for the case where invalidates
-are rare - true for users of the GRU.
+> Please don't think I reject your idea.
+> your proposal is large different of past our discussion
 
+Yes - I agree that my ideas were quite different.  Please don't
+hesitate to reject every one of them, like a Samurai slicing through
+air with his favorite sword <grin>.
 
-In general, though, I agree. Most users of mmu_notifiers would likely
-required a mutex or something equivalent.
+> Disagreed. that [my direct reclaim hook at mapping->a_ops->writepage()]
+> is too late.
 
+For your work, yes that hook is too late.  Agreed.
 
---- jack
+Depending on what we're trying to do:
+ 1) warn applications of swap coming soon (your case),
+ 2) show how close we are to swapping,
+ 3) show how much swap has happened already,
+ 4) kill instantly if try to swap (my hpc case),
+ 5) measure file i/o caused by memory pressure, or
+ 6) perhaps other goals,
+we will need to hook different places in the kernel.
 
+It may well be that your hooks for embedded are simply in different
+places than my hooks for HPC.  If so, that's fine.
 
+I look forward to your further thoughts.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.940.382.4214
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
