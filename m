@@ -1,132 +1,71 @@
 Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1J77140012530
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 02:07:01 -0500
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1J77Rh0015760
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 02:07:27 -0500
 Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1J7718T251582
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 02:07:01 -0500
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1J77Sp4272514
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 02:07:28 -0500
 Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1J771oR015731
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 02:07:01 -0500
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1J77RT2016254
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 02:07:27 -0500
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Tue, 19 Feb 2008 12:32:58 +0530
-Message-Id: <20080219070258.25349.25994.sendpatchset@localhost.localdomain>
+Date: Tue, 19 Feb 2008 12:33:25 +0530
+Message-Id: <20080219070325.25349.13889.sendpatchset@localhost.localdomain>
 In-Reply-To: <20080219070232.25349.21196.sendpatchset@localhost.localdomain>
 References: <20080219070232.25349.21196.sendpatchset@localhost.localdomain>
-Subject: [mm] [PATCH 2/4] Add the soft limit interface v2
+Subject: [mm] [PATCH 4/4] Add soft limit documentation v2
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Herbert Poetzl <herbert@13thfloor.at>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik Van Riel <riel@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Herbert Poetzl <herbert@13thfloor.at>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik Van Riel <riel@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-A new configuration file called soft_limit_in_bytes is added. The parsing
-and configuration rules remain the same as for the limit_in_bytes user
-interface.
+Add documentation for the soft limit feature.
 
-A global list of all memory cgroups over their soft limit is maintained.
-This list is then used to reclaim memory on global pressure. A cgroup is
-removed from the list when the cgroup is deleted.
-
-The global list is protected with a read-write spinlock.
-
+Changelog v2 (Thanks to the review by Randy Dunlap)
+1. Change several misuses of it's to its
+2. Fix spelling errors and punctuation
 
 Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
 
- mm/memcontrol.c |   33 ++++++++++++++++++++++++++++++++-
- 1 file changed, 32 insertions(+), 1 deletion(-)
+ Documentation/controllers/memory.txt |   18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)
 
-diff -puN mm/memcontrol.c~memory-controller-add-soft-limit-interface mm/memcontrol.c
---- linux-2.6.25-rc2/mm/memcontrol.c~memory-controller-add-soft-limit-interface	2008-02-19 12:31:49.000000000 +0530
-+++ linux-2.6.25-rc2-balbir/mm/memcontrol.c	2008-02-19 12:31:49.000000000 +0530
-@@ -35,6 +35,10 @@
+diff -puN Documentation/controllers/memory.txt~memory-controller-add-soft-limit-documentation Documentation/controllers/memory.txt
+--- linux-2.6.25-rc2/Documentation/controllers/memory.txt~memory-controller-add-soft-limit-documentation	2008-02-19 12:31:53.000000000 +0530
++++ linux-2.6.25-rc2-balbir/Documentation/controllers/memory.txt	2008-02-19 12:31:53.000000000 +0530
+@@ -201,6 +201,22 @@ The memory.force_empty gives an interfac
  
- struct cgroup_subsys mem_cgroup_subsys;
- static const int MEM_CGROUP_RECLAIM_RETRIES = 5;
-+static spinlock_t mem_cgroup_sl_list_lock;	/* spin lock that protects */
-+						/* the list of cgroups over*/
-+						/* their soft limit */
-+static struct list_head mem_cgroup_sl_exceeded_list;
+ will drop all charges in cgroup. Currently, this is maintained for test.
  
- /*
-  * Statistics for memory cgroup.
-@@ -136,6 +140,10 @@ struct mem_cgroup {
- 	 * statistics.
- 	 */
- 	struct mem_cgroup_stat stat;
-+	/*
-+	 * List of all mem_cgroup's that exceed their soft limit
-+	 */
-+	struct list_head sl_exceeded_list;
- };
- 
- /*
-@@ -679,6 +687,18 @@ retry:
- 		goto retry;
- 	}
- 
-+	/*
-+	 * If we exceed our soft limit, we get added to the list of
-+	 * cgroups over their soft limit
-+	 */
-+	if (!res_counter_check_under_limit(&mem->res, RES_SOFT_LIMIT)) {
-+		spin_lock_irqsave(&mem_cgroup_sl_list_lock, flags);
-+		if (list_empty(&mem->sl_exceeded_list))
-+			list_add_tail(&mem->sl_exceeded_list,
-+						&mem_cgroup_sl_exceeded_list);
-+		spin_unlock_irqrestore(&mem_cgroup_sl_list_lock, flags);
-+	}
++The file memory.soft_limit_in_bytes allows users to set soft limits. A soft
++limit is set in a manner similar to limit. The limit feature described
++earlier is a hard limit. A group can never exceed its hard limit. A soft
++limit on the other hand can be exceeded. A group will be shrunk back
++to its soft limit, when there is memory pressure/contention.
 +
- 	mz = page_cgroup_zoneinfo(pc);
- 	spin_lock_irqsave(&mz->lru_lock, flags);
- 	/* Update statistics vector */
-@@ -736,13 +756,14 @@ void mem_cgroup_uncharge(struct page_cgr
- 	if (atomic_dec_and_test(&pc->ref_cnt)) {
- 		page = pc->page;
- 		mz = page_cgroup_zoneinfo(pc);
-+		mem = pc->mem_cgroup;
- 		/*
- 		 * get page->cgroup and clear it under lock.
- 		 * force_empty can drop page->cgroup without checking refcnt.
- 		 */
- 		unlock_page_cgroup(page);
++Ideally the soft limit should always be set to a value smaller than the
++hard limit. However, the code does not force the user to do so. The soft
++limit can be greater than the hard limit; then the soft limit has
++no meaning in that setup, since the group will always be restrained to its
++hard limit.
 +
- 		if (clear_page_cgroup(page, pc) == pc) {
--			mem = pc->mem_cgroup;
- 			css_put(&mem->css);
- 			res_counter_uncharge(&mem->res, PAGE_SIZE);
- 			spin_lock_irqsave(&mz->lru_lock, flags);
-@@ -1046,6 +1067,12 @@ static struct cftype mem_cgroup_files[] 
- 		.name = "stat",
- 		.open = mem_control_stat_open,
- 	},
-+	{
-+		.name = "soft_limit_in_bytes",
-+		.private = RES_SOFT_LIMIT,
-+		.write = mem_cgroup_write,
-+		.read = mem_cgroup_read,
-+	},
- };
++Example setting of soft limit
++
++# echo -n 100M > memory.soft_limit_in_bytes
++
+ 4. Testing
  
- static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
-@@ -1097,6 +1124,9 @@ mem_cgroup_create(struct cgroup_subsys *
- 	if (unlikely((cont->parent) == NULL)) {
- 		mem = &init_mem_cgroup;
- 		init_mm.mem_cgroup = mem;
-+		INIT_LIST_HEAD(&mem->sl_exceeded_list);
-+		spin_lock_init(&mem_cgroup_sl_list_lock);
-+		INIT_LIST_HEAD(&mem_cgroup_sl_exceeded_list);
- 	} else
- 		mem = kzalloc(sizeof(struct mem_cgroup), GFP_KERNEL);
+ Balbir posted lmbench, AIM9, LTP and vmmstress results [10] and [11].
+@@ -221,7 +237,7 @@ some of the pages cached in the cgroup (
  
-@@ -1104,6 +1134,7 @@ mem_cgroup_create(struct cgroup_subsys *
- 		return NULL;
+ 4.2 Task migration
  
- 	res_counter_init(&mem->res);
-+	INIT_LIST_HEAD(&mem->sl_exceeded_list);
- 
- 	memset(&mem->info, 0, sizeof(mem->info));
- 
+-When a task migrates from one cgroup to another, it's charge is not
++When a task migrates from one cgroup to another, its charge is not
+ carried forward. The pages allocated from the original cgroup still
+ remain charged to it, the charge is dropped when the page is freed or
+ reclaimed.
 _
 
 -- 
