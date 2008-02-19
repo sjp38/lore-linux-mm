@@ -1,44 +1,135 @@
-Date: Tue, 19 Feb 2008 16:09:07 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] the proposal of improve page reclaim by throttle
-In-Reply-To: <200802191735.00222.nickpiggin@yahoo.com.au>
-References: <20080219134715.7E90.KOSAKI.MOTOHIRO@jp.fujitsu.com> <200802191735.00222.nickpiggin@yahoo.com.au>
-Message-Id: <20080219160711.7E99.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <47BA8665.3080302@cn.fujitsu.com>
+Date: Tue, 19 Feb 2008 15:33:57 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [mm] [PATCH 2/4] Add the soft limit interface v2
+References: <20080219070232.25349.21196.sendpatchset@localhost.localdomain> <20080219070258.25349.25994.sendpatchset@localhost.localdomain>
+In-Reply-To: <20080219070258.25349.25994.sendpatchset@localhost.localdomain>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Herbert Poetzl <herbert@13thfloor.at>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik Van Riel <riel@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Nick,
-
-> Yeah this is definitely needed and a nice result.
+Balbir Singh wrote:
+> A new configuration file called soft_limit_in_bytes is added. The parsing
+> and configuration rules remain the same as for the limit_in_bytes user
+> interface.
 > 
-> I'm worried about a) placing a global limit on parallelism, and b)
-> placing a limit on parallelism at all.
+> A global list of all memory cgroups over their soft limit is maintained.
+> This list is then used to reclaim memory on global pressure. A cgroup is
+> removed from the list when the cgroup is deleted.
+> 
+> The global list is protected with a read-write spinlock.
+> 
 
-sorry, i don't understand yet.
-a) and b) have any relation?
+You are not using read-write spinlock..
 
 > 
-> I think it should maybe be a per-zone thing...
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
 > 
-> What happens if you make it a per-zone mutex, and allow just a single
-> process to reclaim pages from a given zone at a time? I guess that is
-> going to slow down throughput a little bit in some cases though...
+>  mm/memcontrol.c |   33 ++++++++++++++++++++++++++++++++-
+>  1 file changed, 32 insertions(+), 1 deletion(-)
+> 
+> diff -puN mm/memcontrol.c~memory-controller-add-soft-limit-interface mm/memcontrol.c
+> --- linux-2.6.25-rc2/mm/memcontrol.c~memory-controller-add-soft-limit-interface	2008-02-19 12:31:49.000000000 +0530
+> +++ linux-2.6.25-rc2-balbir/mm/memcontrol.c	2008-02-19 12:31:49.000000000 +0530
+> @@ -35,6 +35,10 @@
+>  
+>  struct cgroup_subsys mem_cgroup_subsys;
+>  static const int MEM_CGROUP_RECLAIM_RETRIES = 5;
+> +static spinlock_t mem_cgroup_sl_list_lock;	/* spin lock that protects */
+> +						/* the list of cgroups over*/
+> +						/* their soft limit */
+> +static struct list_head mem_cgroup_sl_exceeded_list;
+>  
+>  /*
+>   * Statistics for memory cgroup.
+> @@ -136,6 +140,10 @@ struct mem_cgroup {
+>  	 * statistics.
+>  	 */
+>  	struct mem_cgroup_stat stat;
+> +	/*
+> +	 * List of all mem_cgroup's that exceed their soft limit
+> +	 */
+> +	struct list_head sl_exceeded_list;
+>  };
+>  
+>  /*
+> @@ -679,6 +687,18 @@ retry:
+>  		goto retry;
+>  	}
+>  
+> +	/*
+> +	 * If we exceed our soft limit, we get added to the list of
+> +	 * cgroups over their soft limit
+> +	 */
+> +	if (!res_counter_check_under_limit(&mem->res, RES_SOFT_LIMIT)) {
+> +		spin_lock_irqsave(&mem_cgroup_sl_list_lock, flags);
+> +		if (list_empty(&mem->sl_exceeded_list))
+> +			list_add_tail(&mem->sl_exceeded_list,
+> +						&mem_cgroup_sl_exceeded_list);
+> +		spin_unlock_irqrestore(&mem_cgroup_sl_list_lock, flags);
+> +	}
+> +
+>  	mz = page_cgroup_zoneinfo(pc);
+>  	spin_lock_irqsave(&mz->lru_lock, flags);
+>  	/* Update statistics vector */
+> @@ -736,13 +756,14 @@ void mem_cgroup_uncharge(struct page_cgr
+>  	if (atomic_dec_and_test(&pc->ref_cnt)) {
+>  		page = pc->page;
+>  		mz = page_cgroup_zoneinfo(pc);
+> +		mem = pc->mem_cgroup;
+>  		/*
+>  		 * get page->cgroup and clear it under lock.
+>  		 * force_empty can drop page->cgroup without checking refcnt.
+>  		 */
+>  		unlock_page_cgroup(page);
+> +
+>  		if (clear_page_cgroup(page, pc) == pc) {
+> -			mem = pc->mem_cgroup;
+>  			css_put(&mem->css);
+>  			res_counter_uncharge(&mem->res, PAGE_SIZE);
+>  			spin_lock_irqsave(&mz->lru_lock, flags);
+> @@ -1046,6 +1067,12 @@ static struct cftype mem_cgroup_files[] 
+>  		.name = "stat",
+>  		.open = mem_control_stat_open,
+>  	},
+> +	{
+> +		.name = "soft_limit_in_bytes",
+> +		.private = RES_SOFT_LIMIT,
+> +		.write = mem_cgroup_write,
+> +		.read = mem_cgroup_read,
+> +	},
+>  };
+>  
+>  static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+> @@ -1097,6 +1124,9 @@ mem_cgroup_create(struct cgroup_subsys *
+>  	if (unlikely((cont->parent) == NULL)) {
+>  		mem = &init_mem_cgroup;
+>  		init_mm.mem_cgroup = mem;
+> +		INIT_LIST_HEAD(&mem->sl_exceeded_list);
+> +		spin_lock_init(&mem_cgroup_sl_list_lock);
+> +		INIT_LIST_HEAD(&mem_cgroup_sl_exceeded_list);
+>  	} else
+>  		mem = kzalloc(sizeof(struct mem_cgroup), GFP_KERNEL);
+>  
+> @@ -1104,6 +1134,7 @@ mem_cgroup_create(struct cgroup_subsys *
+>  		return NULL;
+>  
+>  	res_counter_init(&mem->res);
+> +	INIT_LIST_HEAD(&mem->sl_exceeded_list);
+>  
 
-That makes sense.
+mem->sl_exceeded_list initialized twice ?
 
-OK.
-I'll repost after 2-3 days.
-
-Thanks.
-
-- kosaki
-
+>  	memset(&mem->info, 0, sizeof(mem->info));
+>  
+> _
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
