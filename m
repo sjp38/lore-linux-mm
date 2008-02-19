@@ -1,87 +1,35 @@
-Date: Tue, 19 Feb 2008 09:00:08 -0600
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH 0/8][for -mm] mem_notify v6
-Message-Id: <20080219090008.bb6cbe2f.pj@sgi.com>
-In-Reply-To: <20080219145108.7E96.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <2f11576a0802090719i3c08a41aj38504e854edbfeac@mail.gmail.com>
-	<20080217084906.e1990b11.pj@sgi.com>
-	<20080219145108.7E96.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+From: kamezawa.hiroyu@jp.fujitsu.com
+Message-ID: <17878602.1203436460680.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 20 Feb 2008 00:54:20 +0900 (JST)
+Subject: Re: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
+In-Reply-To: <Pine.LNX.4.64.0802191449490.6254@blonde.site>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
+References: <Pine.LNX.4.64.0802191449490.6254@blonde.site>
+ <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, marcelo@kvack.org, daniel.spang@gmail.com, riel@redhat.com, akpm@linux-foundation.org, alan@lxorguk.ukuu.org.uk, linux-fsdevel@vger.kernel.org, pavel@ucw.cz, a1426z@gawab.com, jonathan@jonmasters.org, zlynx@acm.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, yamamoto@valinux.co.jp, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Kosaki-san wrote:
-> Thank you for wonderful interestings comment.
+>How should I proceed now?  I think it's best if I press ahead with
+>my patchset, to get that out on to the list; and only then come
+>back to look at yours, while you can be looking at mine.  Then
+>we take the best out of both and push that forward - this does
+>need to be fixed for 2.6.25.
+>
+I'm very glad to hear that you have been working on this already.
 
-You're most welcome.  The pleasure is all mine.
+I think it's better to test your one at first because it sounds
+you've already seem the BUG much more than I've seen and
+I think my patch will need more work to be simple.
 
-> you think kill the process just after swap, right?
-> but unfortunately, almost user hope receive notification before swap ;-)
-> because avoid swap.
+Could you post your one ? I'll try it on my box.
 
-There is not much my customers HPC jobs can do with notification before
-swap.  Their jobs either have the main memory they need to perform the
-requested calculations with the desired performance, or their job is
-useless and should be killed.  Unlike the applications you describe,
-my customers jobs have no way, once running, to adapt to less memory.
-They can only adapt to less memory by being restarted with a different
-set of resource requests to the job scheduler (the application that
-manages job requests, assigns them CPU, memory and other resources,
-and monitors, starts, stops and pauses jobs.)
-
-The primary difficulty my HPC customers have is killing such jobs fast
-enough, before a bad job (one that attempts to use more memory than it
-signed up for) can harm the performance of other users and the rest of
-the system.
-
-I don't mind if a pages are slowly or occassionally written to swap;
-but as soon as the task wants to reclaim big chunks of memory by
-writing thousands of pages at once to swap, it must die, and die
-before it can queue more than a handful of those pages to the swapper.
-
-> but embedded people strongly dislike bloat code size.
-> I think they never turn on CPUSET.
-> 
-> I hope mem_notify works fine without CPUSET.
-
-Yes - understood and agreed - as I guessed, cpusets are not configured
-in embedded systems.
-
-> Please don't think I reject your idea.
-> your proposal is large different of past our discussion
-
-Yes - I agree that my ideas were quite different.  Please don't
-hesitate to reject every one of them, like a Samurai slicing through
-air with his favorite sword <grin>.
-
-> Disagreed. that [my direct reclaim hook at mapping->a_ops->writepage()]
-> is too late.
-
-For your work, yes that hook is too late.  Agreed.
-
-Depending on what we're trying to do:
- 1) warn applications of swap coming soon (your case),
- 2) show how close we are to swapping,
- 3) show how much swap has happened already,
- 4) kill instantly if try to swap (my hpc case),
- 5) measure file i/o caused by memory pressure, or
- 6) perhaps other goals,
-we will need to hook different places in the kernel.
-
-It may well be that your hooks for embedded are simply in different
-places than my hooks for HPC.  If so, that's fine.
-
-I look forward to your further thoughts.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.940.382.4214
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
