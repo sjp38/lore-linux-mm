@@ -1,184 +1,289 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1J76m1M017884
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 02:06:48 -0500
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1J79B1g005502
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 02:09:11 -0500
 Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1J76mPr250566
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 02:06:48 -0500
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1J77FfB1089910
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 02:07:15 -0500
 Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1J76leP015543
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 02:06:48 -0500
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1J77E0e015990
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 02:07:15 -0500
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Tue, 19 Feb 2008 12:32:45 +0530
-Message-Id: <20080219070245.25349.35082.sendpatchset@localhost.localdomain>
+Date: Tue, 19 Feb 2008 12:33:12 +0530
+Message-Id: <20080219070312.25349.24201.sendpatchset@localhost.localdomain>
 In-Reply-To: <20080219070232.25349.21196.sendpatchset@localhost.localdomain>
 References: <20080219070232.25349.21196.sendpatchset@localhost.localdomain>
-Subject: [mm] [PATCH 1/4] Modify resource counters to add soft limit support v2
+Subject: [mm] [PATCH 3/4] Reclaim from groups over their soft limit under memory pressure v2
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: Hugh Dickins <hugh@veritas.com>, Paul Menage <menage@google.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <nickpiggin@yahoo.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik Van Riel <riel@redhat.com>, Herbert Poetzl <herbert@13thfloor.at>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Paul Menage <menage@google.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Herbert Poetzl <herbert@13thfloor.at>, "Eric W. Biederman" <ebiederm@xmission.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik Van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
 
 Changelog v2
-1. Remove memory controller specific comments from resource counters
 
-The resource counter member limit is split into soft and hard limits.
-The same locking rule apply for both limits.
+1. Take reference on mem->css in pushback (YAMAMOTO Takshi)
+2. Move away from trying to reclaim nr_pages over soft limit to swap
+   cluster at a time (KAMEZAWA Hiroyuki)
+
+The global list of all cgroups over their soft limit is scanned under
+memory pressure. We call mem_cgroup_pushback_groups_over_soft_limit
+from __alloc_pages() prior to calling try_to_free_pages(), in an attempt
+to rescue memory from groups that are using memory above their soft limit.
+If this attempt is unsuccessfull, we call try_to_free_pages() and take
+the normal global reclaim path.
 
 
 Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
 
- include/linux/res_counter.h |   32 ++++++++++++++++++++++++--------
- kernel/res_counter.c        |   11 +++++++----
- mm/memcontrol.c             |   10 +++++-----
- 3 files changed, 36 insertions(+), 17 deletions(-)
+ include/linux/memcontrol.h  |    9 +++++
+ include/linux/res_counter.h |   11 ++++++
+ include/linux/swap.h        |    4 +-
+ mm/memcontrol.c             |   76 ++++++++++++++++++++++++++++++++++++++++----
+ mm/page_alloc.c             |   10 +++++
+ mm/vmscan.c                 |   12 ++++--
+ 6 files changed, 110 insertions(+), 12 deletions(-)
 
-diff -puN include/linux/res_counter.h~memory-controller-res_counters-soft-limit-setup include/linux/res_counter.h
---- linux-2.6.25-rc2/include/linux/res_counter.h~memory-controller-res_counters-soft-limit-setup	2008-02-19 12:31:47.000000000 +0530
-+++ linux-2.6.25-rc2-balbir/include/linux/res_counter.h	2008-02-19 12:31:47.000000000 +0530
-@@ -27,7 +27,11 @@ struct res_counter {
- 	/*
- 	 * the limit that usage cannot exceed
- 	 */
--	unsigned long long limit;
-+	unsigned long long hard_limit;
-+	/*
-+	 * the limit that usage can exceed
-+	 */
-+	unsigned long long soft_limit;
- 	/*
- 	 * the number of unsuccessful attempts to consume the resource
- 	 */
-@@ -64,7 +68,8 @@ ssize_t res_counter_write(struct res_cou
+diff -puN include/linux/memcontrol.h~memory-controller-reclaim-on-contention include/linux/memcontrol.h
+--- linux-2.6.25-rc2/include/linux/memcontrol.h~memory-controller-reclaim-on-contention	2008-02-19 12:31:51.000000000 +0530
++++ linux-2.6.25-rc2-balbir/include/linux/memcontrol.h	2008-02-19 12:31:51.000000000 +0530
+@@ -71,6 +71,8 @@ extern long mem_cgroup_calc_reclaim_acti
+ 				struct zone *zone, int priority);
+ extern long mem_cgroup_calc_reclaim_inactive(struct mem_cgroup *mem,
+ 				struct zone *zone, int priority);
++extern unsigned long
++mem_cgroup_pushback_groups_over_soft_limit(struct zone **zones, gfp_t gfp_mask);
  
- enum {
- 	RES_USAGE,
--	RES_LIMIT,
-+	RES_SOFT_LIMIT,
-+	RES_HARD_LIMIT,
- 	RES_FAILCNT,
- };
- 
-@@ -101,11 +106,21 @@ int res_counter_charge(struct res_counte
- void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
- void res_counter_uncharge(struct res_counter *counter, unsigned long val);
- 
--static inline bool res_counter_limit_check_locked(struct res_counter *cnt)
-+static inline bool res_counter_limit_check_locked(struct res_counter *cnt,
-+							int member)
+ #else /* CONFIG_CGROUP_MEM_CONT */
+ static inline void mm_init_cgroup(struct mm_struct *mm,
+@@ -179,6 +181,13 @@ static inline long mem_cgroup_calc_recla
  {
--	if (cnt->usage < cnt->limit)
--		return true;
--
-+	switch (member) {
-+	case RES_HARD_LIMIT:
-+		if (cnt->usage < cnt->hard_limit)
-+			return true;
-+		break;
-+	case RES_SOFT_LIMIT:
-+		if (cnt->usage < cnt->soft_limit)
-+			return true;
-+		break;
-+	default:
-+		BUG_ON(1);
-+	}
- 	return false;
+ 	return 0;
  }
++
++static inline unsigned long
++mem_cgroup_pushback_groups_over_soft_limit(struct zone **zones, gfp_t gfp_mask)
++{
++	return 0;
++}
++
+ #endif /* CONFIG_CGROUP_MEM_CONT */
  
-@@ -113,13 +128,14 @@ static inline bool res_counter_limit_che
-  * Helper function to detect if the cgroup is within it's limit or
-  * not. It's currently called from cgroup_rss_prepare()
-  */
--static inline bool res_counter_check_under_limit(struct res_counter *cnt)
-+static inline bool res_counter_check_under_limit(struct res_counter *cnt,
-+							int member)
- {
- 	bool ret;
- 	unsigned long flags;
- 
- 	spin_lock_irqsave(&cnt->lock, flags);
--	ret = res_counter_limit_check_locked(cnt);
-+	ret = res_counter_limit_check_locked(cnt, member);
- 	spin_unlock_irqrestore(&cnt->lock, flags);
+ #endif /* _LINUX_MEMCONTROL_H */
+diff -puN include/linux/res_counter.h~memory-controller-reclaim-on-contention include/linux/res_counter.h
+--- linux-2.6.25-rc2/include/linux/res_counter.h~memory-controller-reclaim-on-contention	2008-02-19 12:31:51.000000000 +0530
++++ linux-2.6.25-rc2-balbir/include/linux/res_counter.h	2008-02-19 12:31:51.000000000 +0530
+@@ -140,4 +140,15 @@ static inline bool res_counter_check_und
  	return ret;
  }
-diff -puN kernel/res_counter.c~memory-controller-res_counters-soft-limit-setup kernel/res_counter.c
---- linux-2.6.25-rc2/kernel/res_counter.c~memory-controller-res_counters-soft-limit-setup	2008-02-19 12:31:47.000000000 +0530
-+++ linux-2.6.25-rc2-balbir/kernel/res_counter.c	2008-02-19 12:31:47.000000000 +0530
-@@ -16,12 +16,13 @@
- void res_counter_init(struct res_counter *counter)
- {
- 	spin_lock_init(&counter->lock);
--	counter->limit = (unsigned long long)LLONG_MAX;
-+	counter->soft_limit = (unsigned long long)LLONG_MAX;
-+	counter->hard_limit = (unsigned long long)LLONG_MAX;
- }
  
- int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
- {
--	if (counter->usage + val > counter->limit) {
-+	if (counter->usage + val > counter->hard_limit) {
- 		counter->failcnt++;
- 		return -ENOMEM;
- 	}
-@@ -65,8 +66,10 @@ res_counter_member(struct res_counter *c
- 	switch (member) {
- 	case RES_USAGE:
- 		return &counter->usage;
--	case RES_LIMIT:
--		return &counter->limit;
-+	case RES_SOFT_LIMIT:
-+		return &counter->soft_limit;
-+	case RES_HARD_LIMIT:
-+		return &counter->hard_limit;
- 	case RES_FAILCNT:
- 		return &counter->failcnt;
- 	};
-diff -puN mm/memcontrol.c~memory-controller-res_counters-soft-limit-setup mm/memcontrol.c
---- linux-2.6.25-rc2/mm/memcontrol.c~memory-controller-res_counters-soft-limit-setup	2008-02-19 12:31:47.000000000 +0530
-+++ linux-2.6.25-rc2-balbir/mm/memcontrol.c	2008-02-19 12:31:47.000000000 +0530
-@@ -568,7 +568,7 @@ unsigned long mem_cgroup_isolate_pages(u
-  * Charge the memory controller for page usage.
-  * Return
-  * 0 if the charge was successful
-- * < 0 if the cgroup is over its limit
-+ * < 0 if the cgroup is over its hard limit
-  */
- static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
- 				gfp_t gfp_mask, enum charge_type ctype)
-@@ -632,7 +632,7 @@ retry:
++static inline long long res_counter_sl_excess(struct res_counter *cnt)
++{
++	unsigned long flags;
++	long long ret;
++
++	spin_lock_irqsave(&cnt->lock, flags);
++	ret = cnt->usage - cnt->soft_limit;
++	spin_unlock_irqrestore(&cnt->lock, flags);
++	return ret;
++}
++
+ #endif
+diff -puN include/linux/swap.h~memory-controller-reclaim-on-contention include/linux/swap.h
+--- linux-2.6.25-rc2/include/linux/swap.h~memory-controller-reclaim-on-contention	2008-02-19 12:31:51.000000000 +0530
++++ linux-2.6.25-rc2-balbir/include/linux/swap.h	2008-02-19 12:31:51.000000000 +0530
+@@ -184,7 +184,9 @@ extern void swap_setup(void);
+ extern unsigned long try_to_free_pages(struct zone **zones, int order,
+ 					gfp_t gfp_mask);
+ extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
+-							gfp_t gfp_mask);
++							gfp_t gfp_mask,
++							unsigned long nr_pages,
++							struct zone **zones);
+ extern int __isolate_lru_page(struct page *page, int mode);
+ extern unsigned long shrink_all_memory(unsigned long nr_pages);
+ extern int vm_swappiness;
+diff -puN mm/memcontrol.c~memory-controller-reclaim-on-contention mm/memcontrol.c
+--- linux-2.6.25-rc2/mm/memcontrol.c~memory-controller-reclaim-on-contention	2008-02-19 12:31:51.000000000 +0530
++++ linux-2.6.25-rc2-balbir/mm/memcontrol.c	2008-02-19 12:31:51.000000000 +0530
+@@ -35,7 +35,7 @@
  
- 	/*
- 	 * If we created the page_cgroup, we should free it on exceeding
--	 * the cgroup limit.
-+	 * the cgroup hard limit.
- 	 */
- 	while (res_counter_charge(&mem->res, PAGE_SIZE)) {
+ struct cgroup_subsys mem_cgroup_subsys;
+ static const int MEM_CGROUP_RECLAIM_RETRIES = 5;
+-static spinlock_t mem_cgroup_sl_list_lock;	/* spin lock that protects */
++static rwlock_t mem_cgroup_sl_list_lock;	/* spin lock that protects */
+ 						/* the list of cgroups over*/
+ 						/* their soft limit */
+ static struct list_head mem_cgroup_sl_exceeded_list;
+@@ -646,7 +646,8 @@ retry:
  		if (!(gfp_mask & __GFP_WAIT))
-@@ -645,10 +645,10 @@ retry:
-  		 * try_to_free_mem_cgroup_pages() might not give us a full
-  		 * picture of reclaim. Some pages are reclaimed and might be
-  		 * moved to swap cache or just unmapped from the cgroup.
-- 		 * Check the limit again to see if the reclaim reduced the
-+ 		 * Check the hard limit again to see if the reclaim reduced the
-  		 * current usage of the cgroup before giving up
-  		 */
--		if (res_counter_check_under_limit(&mem->res))
-+		if (res_counter_check_under_limit(&mem->res, RES_HARD_LIMIT))
+ 			goto out;
+ 
+-		if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
++		if (try_to_free_mem_cgroup_pages(mem, gfp_mask,
++							SWAP_CLUSTER_MAX, NULL))
  			continue;
  
- 		if (!nr_retries--) {
-@@ -1028,7 +1028,7 @@ static struct cftype mem_cgroup_files[] 
- 	},
- 	{
- 		.name = "limit_in_bytes",
--		.private = RES_LIMIT,
-+		.private = RES_HARD_LIMIT,
- 		.write = mem_cgroup_write,
- 		.read = mem_cgroup_read,
- 	},
+ 		/*
+@@ -692,11 +693,11 @@ retry:
+ 	 * cgroups over their soft limit
+ 	 */
+ 	if (!res_counter_check_under_limit(&mem->res, RES_SOFT_LIMIT)) {
+-		spin_lock_irqsave(&mem_cgroup_sl_list_lock, flags);
++		write_lock_irqsave(&mem_cgroup_sl_list_lock, flags);
+ 		if (list_empty(&mem->sl_exceeded_list))
+ 			list_add_tail(&mem->sl_exceeded_list,
+ 						&mem_cgroup_sl_exceeded_list);
+-		spin_unlock_irqrestore(&mem_cgroup_sl_list_lock, flags);
++		write_unlock_irqrestore(&mem_cgroup_sl_list_lock, flags);
+ 	}
+ 
+ 	mz = page_cgroup_zoneinfo(pc);
+@@ -928,7 +929,64 @@ out:
+ 	return ret;
+ }
+ 
++/*
++ * Free all control groups, which are over their soft limit
++ */
++unsigned long mem_cgroup_pushback_groups_over_soft_limit(struct zone **zones,
++								gfp_t gfp_mask)
++{
++	struct mem_cgroup *mem;
++	long long nr_bytes_over_sl;
++	unsigned long ret = 0;
++	unsigned long flags;
++	struct list_head reclaimed_groups;
++
++	INIT_LIST_HEAD(&reclaimed_groups);
++	read_lock_irqsave(&mem_cgroup_sl_list_lock, flags);
++	while (!list_empty(&mem_cgroup_sl_exceeded_list)) {
++		mem = list_first_entry(&mem_cgroup_sl_exceeded_list,
++				struct mem_cgroup, sl_exceeded_list);
++		css_get(&mem->css);
++		list_move(&mem->sl_exceeded_list, &reclaimed_groups);
++		read_unlock_irqrestore(&mem_cgroup_sl_list_lock, flags);
++
++		nr_bytes_over_sl = res_counter_sl_excess(&mem->res);
++		if (nr_bytes_over_sl <= 0)
++			goto next;
++		/*
++		 * Even though we can try and reclaim all memory over limit
++		 * it makes sense to go at it SWAP_CLUSTER_MAX at a time
++		 */
++		ret += try_to_free_mem_cgroup_pages(mem, gfp_mask,
++							SWAP_CLUSTER_MAX,
++							zones);
++next:
++		css_put(&mem->css);
++		read_lock_irqsave(&mem_cgroup_sl_list_lock, flags);
++	}
+ 
++	while (!list_empty(&reclaimed_groups)) {
++		/*
++		 * Check again to see if we've gone below the soft
++		 * limit. XXX: Consider giving up the &mem_cgroup_sl_list_lock
++		 * before calling res_counter_sl_excess.
++		 */
++		mem = list_first_entry(&reclaimed_groups, struct mem_cgroup,
++					sl_exceeded_list);
++		/*
++		 * NOTE: we don't need to take a css reference under
++		 * the mem_cgroup_sl_list lock
++		 */
++		nr_bytes_over_sl = res_counter_sl_excess(&mem->res);
++		if (nr_bytes_over_sl <= 0)
++			list_del_init(&mem->sl_exceeded_list);
++		else
++			list_move(&mem->sl_exceeded_list,
++				&mem_cgroup_sl_exceeded_list);
++	}
++	read_unlock_irqrestore(&mem_cgroup_sl_list_lock, flags);
++	return ret;
++}
+ 
+ int mem_cgroup_write_strategy(char *buf, unsigned long long *tmp)
+ {
+@@ -1124,8 +1182,7 @@ mem_cgroup_create(struct cgroup_subsys *
+ 	if (unlikely((cont->parent) == NULL)) {
+ 		mem = &init_mem_cgroup;
+ 		init_mm.mem_cgroup = mem;
+-		INIT_LIST_HEAD(&mem->sl_exceeded_list);
+-		spin_lock_init(&mem_cgroup_sl_list_lock);
++		rwlock_init(&mem_cgroup_sl_list_lock);
+ 		INIT_LIST_HEAD(&mem_cgroup_sl_exceeded_list);
+ 	} else
+ 		mem = kzalloc(sizeof(struct mem_cgroup), GFP_KERNEL);
+@@ -1155,7 +1212,14 @@ static void mem_cgroup_pre_destroy(struc
+ 					struct cgroup *cont)
+ {
+ 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
++	unsigned long flags;
++
+ 	mem_cgroup_force_empty(mem);
++
++	write_lock_irqsave(&mem_cgroup_sl_list_lock, flags);
++	if (!list_empty(&mem->sl_exceeded_list))
++		list_del_init(&mem->sl_exceeded_list);
++	write_unlock_irqrestore(&mem_cgroup_sl_list_lock, flags);
+ }
+ 
+ static void mem_cgroup_destroy(struct cgroup_subsys *ss,
+diff -puN mm/page_alloc.c~memory-controller-reclaim-on-contention mm/page_alloc.c
+--- linux-2.6.25-rc2/mm/page_alloc.c~memory-controller-reclaim-on-contention	2008-02-19 12:31:51.000000000 +0530
++++ linux-2.6.25-rc2-balbir/mm/page_alloc.c	2008-02-19 12:31:51.000000000 +0530
+@@ -1635,7 +1635,15 @@ nofail_alloc:
+ 	reclaim_state.reclaimed_slab = 0;
+ 	p->reclaim_state = &reclaim_state;
+ 
+-	did_some_progress = try_to_free_pages(zonelist->zones, order, gfp_mask);
++	/*
++	 * First reclaim from all memory control groups over their
++	 * soft limit
++	 */
++	did_some_progress = mem_cgroup_pushback_groups_over_soft_limit(
++						zonelist->zones, gfp_mask);
++	if (!did_some_progress)
++		did_some_progress =
++			try_to_free_pages(zonelist->zones, order, gfp_mask);
+ 
+ 	p->reclaim_state = NULL;
+ 	p->flags &= ~PF_MEMALLOC;
+diff -puN mm/vmscan.c~memory-controller-reclaim-on-contention mm/vmscan.c
+--- linux-2.6.25-rc2/mm/vmscan.c~memory-controller-reclaim-on-contention	2008-02-19 12:31:51.000000000 +0530
++++ linux-2.6.25-rc2-balbir/mm/vmscan.c	2008-02-19 12:31:51.000000000 +0530
+@@ -1440,22 +1440,26 @@ unsigned long try_to_free_pages(struct z
+ #ifdef CONFIG_CGROUP_MEM_CONT
+ 
+ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+-						gfp_t gfp_mask)
++						gfp_t gfp_mask,
++						unsigned long nr_pages,
++						struct zone **zones)
+ {
+ 	struct scan_control sc = {
+ 		.gfp_mask = gfp_mask,
+ 		.may_writepage = !laptop_mode,
+ 		.may_swap = 1,
+-		.swap_cluster_max = SWAP_CLUSTER_MAX,
++		.swap_cluster_max = nr_pages,
+ 		.swappiness = vm_swappiness,
+ 		.order = 0,
+ 		.mem_cgroup = mem_cont,
+ 		.isolate_pages = mem_cgroup_isolate_pages,
+ 	};
+-	struct zone **zones;
+ 	int target_zone = gfp_zone(GFP_HIGHUSER_MOVABLE);
+ 
+-	zones = NODE_DATA(numa_node_id())->node_zonelists[target_zone].zones;
++	if (!zones)
++		zones =
++		NODE_DATA(numa_node_id())->node_zonelists[target_zone].zones;
++
+ 	if (do_try_to_free_pages(zones, sc.gfp_mask, &sc))
+ 		return 1;
+ 	return 0;
 _
 
 -- 
