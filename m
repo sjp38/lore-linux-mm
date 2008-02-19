@@ -1,198 +1,139 @@
-Date: Tue, 19 Feb 2008 16:36:23 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 0/8][for -mm] mem_notify v6
-In-Reply-To: <20080217084906.e1990b11.pj@sgi.com>
-References: <2f11576a0802090719i3c08a41aj38504e854edbfeac@mail.gmail.com> <20080217084906.e1990b11.pj@sgi.com>
-Message-Id: <20080219145108.7E96.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <47BA8864.7080803@cn.fujitsu.com>
+Date: Tue, 19 Feb 2008 15:42:28 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Subject: Re: [mm] [PATCH 2/4] Add the soft limit interface v2
+References: <20080219070232.25349.21196.sendpatchset@localhost.localdomain> <20080219070258.25349.25994.sendpatchset@localhost.localdomain> <47BA8665.3080302@cn.fujitsu.com>
+In-Reply-To: <47BA8665.3080302@cn.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, marcelo@kvack.org, daniel.spang@gmail.com, riel@redhat.com, akpm@linux-foundation.org, alan@lxorguk.ukuu.org.uk, linux-fsdevel@vger.kernel.org, pavel@ucw.cz, a1426z@gawab.com, jonathan@jonmasters.org, zlynx@acm.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Herbert Poetzl <herbert@13thfloor.at>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik Van Riel <riel@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Paul,
-
-Thank you for wonderful interestings comment.
-your comment is really nice.
-
-I was HPC guy with large NUMA box at past. 
-I promise i don't ignroe hpc user.
-but unfortunately I didn't have experience of use CPUSET
-because at that point, it was under development yet.
-
-I hope discuss you that CPUSET usage case and mem_notify requirement.
-to be honest, I thought hpc user doesn't use mem_notify, sorry.
-
-
-> I have what seems, intuitively, a similar problem at the opposite
-> end of the world, on big-honkin NUMA boxes (hundreds or thousands of
-> CPUs, terabytes of main memory.)  The problem there is often best
-> resolved if we can kill the offending task, rather than shrink its
-> memory footprint.  The situation is that several compute intensive
-> multi-threaded jobs are running, each in their own dedicated cpuset.
-
-agreed.
-
-> So we like to identify such jobs as soon as they begin to swap,
-> and kill them very very quickly (before the direct reclaim code
-> in mm/vmscan.c can push more than a few pages to the swap device.)
-
-you think kill the process just after swap, right?
-but unfortunately, almost user hope receive notification before swap ;-)
-because avoid swap.
-
-I think we need discuss this point more.
-
-
-> For a much earlier, unsuccessful, attempt to accomplish this, see:
+Li Zefan a??e??:
+> Balbir Singh wrote:
+>> A new configuration file called soft_limit_in_bytes is added. The parsing
+>> and configuration rules remain the same as for the limit_in_bytes user
+>> interface.
+>>
+>> A global list of all memory cgroups over their soft limit is maintained.
+>> This list is then used to reclaim memory on global pressure. A cgroup is
+>> removed from the list when the cgroup is deleted.
+>>
+>> The global list is protected with a read-write spinlock.
+>>
 > 
-> 	[Patch] cpusets policy kill no swap
-> 	http://lkml.org/lkml/2005/3/19/148
+> You are not using read-write spinlock..
 > 
-> Now, it may well be that we are too far apart to share any part of
-> a solution; one seldom uses the same technology to build a Tour de
-> France bicycle as one uses to build a Lockheed C-5A Galaxy heavy
-> cargo transport.
+
+Ah, the spinlock is changed to r/w spinlock in [PATCH 3/4].
+
+>> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+>> ---
+>>
+>>  mm/memcontrol.c |   33 ++++++++++++++++++++++++++++++++-
+>>  1 file changed, 32 insertions(+), 1 deletion(-)
+>>
+>> diff -puN mm/memcontrol.c~memory-controller-add-soft-limit-interface mm/memcontrol.c
+>> --- linux-2.6.25-rc2/mm/memcontrol.c~memory-controller-add-soft-limit-interface	2008-02-19 12:31:49.000000000 +0530
+>> +++ linux-2.6.25-rc2-balbir/mm/memcontrol.c	2008-02-19 12:31:49.000000000 +0530
+>> @@ -35,6 +35,10 @@
+>>  
+>>  struct cgroup_subsys mem_cgroup_subsys;
+>>  static const int MEM_CGROUP_RECLAIM_RETRIES = 5;
+>> +static spinlock_t mem_cgroup_sl_list_lock;	/* spin lock that protects */
+>> +						/* the list of cgroups over*/
+>> +						/* their soft limit */
+>> +static struct list_head mem_cgroup_sl_exceeded_list;
+>>  
+>>  /*
+>>   * Statistics for memory cgroup.
+>> @@ -136,6 +140,10 @@ struct mem_cgroup {
+>>  	 * statistics.
+>>  	 */
+>>  	struct mem_cgroup_stat stat;
+>> +	/*
+>> +	 * List of all mem_cgroup's that exceed their soft limit
+>> +	 */
+>> +	struct list_head sl_exceeded_list;
+>>  };
+>>  
+>>  /*
+>> @@ -679,6 +687,18 @@ retry:
+>>  		goto retry;
+>>  	}
+>>  
+>> +	/*
+>> +	 * If we exceed our soft limit, we get added to the list of
+>> +	 * cgroups over their soft limit
+>> +	 */
+>> +	if (!res_counter_check_under_limit(&mem->res, RES_SOFT_LIMIT)) {
+>> +		spin_lock_irqsave(&mem_cgroup_sl_list_lock, flags);
+>> +		if (list_empty(&mem->sl_exceeded_list))
+>> +			list_add_tail(&mem->sl_exceeded_list,
+>> +						&mem_cgroup_sl_exceeded_list);
+>> +		spin_unlock_irqrestore(&mem_cgroup_sl_list_lock, flags);
+>> +	}
+>> +
+>>  	mz = page_cgroup_zoneinfo(pc);
+>>  	spin_lock_irqsave(&mz->lru_lock, flags);
+>>  	/* Update statistics vector */
+>> @@ -736,13 +756,14 @@ void mem_cgroup_uncharge(struct page_cgr
+>>  	if (atomic_dec_and_test(&pc->ref_cnt)) {
+>>  		page = pc->page;
+>>  		mz = page_cgroup_zoneinfo(pc);
+>> +		mem = pc->mem_cgroup;
+>>  		/*
+>>  		 * get page->cgroup and clear it under lock.
+>>  		 * force_empty can drop page->cgroup without checking refcnt.
+>>  		 */
+>>  		unlock_page_cgroup(page);
+>> +
+>>  		if (clear_page_cgroup(page, pc) == pc) {
+>> -			mem = pc->mem_cgroup;
+>>  			css_put(&mem->css);
+>>  			res_counter_uncharge(&mem->res, PAGE_SIZE);
+>>  			spin_lock_irqsave(&mz->lru_lock, flags);
+>> @@ -1046,6 +1067,12 @@ static struct cftype mem_cgroup_files[] 
+>>  		.name = "stat",
+>>  		.open = mem_control_stat_open,
+>>  	},
+>> +	{
+>> +		.name = "soft_limit_in_bytes",
+>> +		.private = RES_SOFT_LIMIT,
+>> +		.write = mem_cgroup_write,
+>> +		.read = mem_cgroup_read,
+>> +	},
+>>  };
+>>  
+>>  static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+>> @@ -1097,6 +1124,9 @@ mem_cgroup_create(struct cgroup_subsys *
+>>  	if (unlikely((cont->parent) == NULL)) {
+>>  		mem = &init_mem_cgroup;
+>>  		init_mm.mem_cgroup = mem;
+>> +		INIT_LIST_HEAD(&mem->sl_exceeded_list);
+>> +		spin_lock_init(&mem_cgroup_sl_list_lock);
+>> +		INIT_LIST_HEAD(&mem_cgroup_sl_exceeded_list);
+>>  	} else
+>>  		mem = kzalloc(sizeof(struct mem_cgroup), GFP_KERNEL);
+>>  
+>> @@ -1104,6 +1134,7 @@ mem_cgroup_create(struct cgroup_subsys *
+>>  		return NULL;
+>>  
+>>  	res_counter_init(&mem->res);
+>> +	INIT_LIST_HEAD(&mem->sl_exceeded_list);
+>>  
 > 
-> One clear difference is the policy of what action we desire to take
-> when under memory pressure: do we invite user space to free memory so
-> as to avoid the wrath of the oom killer, or do we go to the opposite
-> extreme, seeking a nearly instantant killing, faster than the oom
-> killer can even begin its search for a victim.
-
-Hmm, sorry
-I understand your patch yet, because I don't know CPUSET so much.
-
-I learn CPUSET more, about this week and I'll reply again about next week ;-)
-
-
-> Another clear difference is the use of cpusets, which are a major and
-> vital part of administering the big NUMA boxes, and I presume are not
-> even compiled into embedded kernels (correct?).  This difference maybe
-> unbridgeable ... these big NUMA systems require per-cpuset mechanisms,
-> whereas embedded may require builds without cpusets.
-
-Yes, some embedded distribution(i.e. monta vista) distribute as source.
-but embedded people strongly dislike bloat code size.
-I think they never turn on CPUSET.
-
-I hope mem_notify works fine without CPUSET.
-
-
-> 1) You have a little bit of code in the kernel to throttle the
->    thundering herd problem.  Perhaps this could be moved to user space
->    ... one user daemon that is always notified of such memory pressure
->    alarms, and in turn notifies interested applications.  This might
->    avoid the need to add poll_wait_exclusive() to the kernel.  And it
->    moves any fussy details of how to tame the thundering herd out of
->    the kernel.
-
-I think you talk about user space oom manager.
-it and many user process are obviously different.
-
-I doubt memory manager daemon model doesn't works on desktop and
-typical server.
-thus, current implementaion optimize to no manager environment.
-
-of course, it doesn't mean i refuse add to code for oom manager.
-it is very interesting idea.
-
-i hope discussion it more.
-
-
-> 2) Another possible mechanism for communicating events from
->    the kernel to user space is inotify.  For example, I added
->    the line:
+> mem->sl_exceeded_list initialized twice ?
 > 
->    	fsnotify_modify(dentry);   # dentry is current tasks cpuset
-
-Excellent!
-that is really good idea.
-
-thaks.
-
-
-> 3) Perhaps, instead of sending simple events, one could update
->    a meter of the rate of recent such events, such as the per-cpuset
->    'memory_pressure' mechanism does.  This might lead to addressing
->    Andrew Morton's comment:
-> 
-> 	If this feature is useful then I'd expect that some
-> 	applications would want notification at different times, or at
-> 	different levels of VM distress.  So this semi-randomly-chosen
-> 	notification point just won't be strong enough in real-world
-> 	use.
-
-Hmmm, I don't think so.
-I think timing of memmory_pressure_notify(1) is already best.
-
-the page move active list to inactive list indicate swap I/O happen
-a bit after.
-
-but memmory_pressure_notify(0) is a bit messy.
-I'll try to improve more simplify.
-
-
-> 4) A place that I found well suited for my purposes (watching for
->    swapping from direct reclaim) was just before the lines in the
->    pageout() routine in mm/vmscan.c:
-> 
->    	if (clear_page_dirty_for_io(page)) {
-> 		...
-> 		res = mapping->a_ops->writepage(page, &wbc);
-> 
->    It seemed that testing "PageAnon(page)" here allowed me to easily
->    distinguish between dirty pages going back to the file system, and
->    pages going to swap (this detail is from work on a 2.6.16 kernel;
->    things might have changed.)
-> 
->    One possible advantage of the above hook in the direct reclaim
->    code path in vmscan.c is that pressure in one cpuset did not cause
->    any false alarms in other cpusets.  However even this hook does
->    not take into account the constraints of mm/mempolicy (the NUMA
->    memory policy that Andi mentioned) nor of cgroup memory controllers.
-
-Disagreed.
-that is too late.
-
-after writepage notifify mean can't avoid swap I/O.
-
-
-> 5) I'd be keen to find an agreeable way that you could have the
->    system-wide, no cpuset, mechanism you need, while at the same
->    time, I have a cpuset interface that is similar and depends on the
->    same set of hooks.  This might involve a single set of hooks in
->    the key places in the memory and swapping code, that (1) updated
->    the system wide state you need, and (2) if cpusets were present,
->    updated similar state for the tasks current cpuset.  The user
->    visible API would present both the system-wide connector you need
->    (the special file or whatever) and if cpusets are present, similar
->    per-cpuset connectors.
-
-that makes sense.
-I will learn cpuset and think integrate mem_notify and cpuset.
-
-
-and,
-
-Please don't think I reject your idea.
-your proposal is large different of past our discussion and
-i don't know cpuset.
-
-I think we can't drop all current design and accept your idea all, may be.
-but we may be able to accept partial until hpc guys content enough.
-
-I will learn to CPUSET more in a few days.
-after it, we can discussion more.
-
-please wait for a while.
-
-Thanks!
-
-
+>>  	memset(&mem->info, 0, sizeof(mem->info));
+>>  
+>> _
+>>
+> --
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
