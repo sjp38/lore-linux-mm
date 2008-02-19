@@ -1,111 +1,57 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [RFC][PATCH] the proposal of improve page reclaim by throttle
-Date: Tue, 19 Feb 2008 17:34:59 +1100
-References: <20080219134715.7E90.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-In-Reply-To: <20080219134715.7E90.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200802191735.00222.nickpiggin@yahoo.com.au>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1J76ZJH017654
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 02:06:35 -0500
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1J76Zst247642
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 02:06:35 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1J76Yn2015316
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 02:06:35 -0500
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Tue, 19 Feb 2008 12:32:32 +0530
+Message-Id: <20080219070232.25349.21196.sendpatchset@localhost.localdomain>
+Subject: [mm][PATCH 0/4] Add soft limits to the memory controller v2
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, Hugh Dickins <hugh@veritas.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Herbert Poetzl <herbert@13thfloor.at>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, "Eric W. Biederman" <ebiederm@xmission.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik Van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 19 February 2008 16:44, KOSAKI Motohiro wrote:
-> background
-> ========================================
-> current VM implementation doesn't has limit of # of parallel reclaim.
-> when heavy workload, it bring to 2 bad things
->   - heavy lock contention
->   - unnecessary swap out
->
-> abount 2 month ago, KAMEZA Hiroyuki proposed the patch of page
-> reclaim throttle and explain it improve reclaim time.
-> 	http://marc.info/?l=linux-mm&m=119667465917215&w=2
->
-> but unfortunately it works only memcgroup reclaim.
-> Today, I implement it again for support global reclaim and mesure it.
->
->
-> test machine, method and result
-> ==================================================
-> <test machine>
-> 	CPU:  IA64 x8
-> 	MEM:  8GB
-> 	SWAP: 2GB
->
-> <test method>
-> 	got hackbench from
-> 		http://people.redhat.com/mingo/cfs-scheduler/tools/hackbench.c
->
-> 	$ /usr/bin/time hackbench 120 process 1000
->
-> 	this parameter mean consume all physical memory and
-> 	1GB swap space on my test environment.
->
-> <test result (average of 3 times measurement)>
->
-> before:
-> 	hackbench result:		282.30
-> 	/usr/bin/time result
-> 		user:			14.16
-> 		sys:			1248.47
-> 		elapse:			432.93
-> 		major fault:		29026
-> 	max parallel reclaim tasks:	1298
-> 	max consumption time of
-> 	 try_to_free_pages():		70394
->
-> after:
-> 	hackbench result:		30.36
-> 	/usr/bin/time result
-> 		user:			14.26
-> 		sys:			294.44
-> 		elapse:			118.01
-> 		major fault:		3064
-> 	max parallel reclaim tasks:	4
-> 	max consumption time of
-> 	 try_to_free_pages():		12234
->
->
-> conclusion
-> =========================================
-> this patch improve 3 things.
-> 1. reduce unnecessary swap
->    (see above major fault. about 90% reduced)
-> 2. improve throughput performance
->    (see above hackbench result. about 90% reduced)
-> 3. improve interactive performance.
->    (see above max consumption of try_to_free_pages.
->     about 80% reduced)
-> 4. reduce lock contention.
->    (see above sys time. about 80% reduced)
->
->
-> Now, we got about 1000% performance improvement of hackbench :)
->
->
->
-> foture works
-> ==========================================================
->  - more discussion with memory controller guys.
+This patchset implements the basic changes required to implement soft limits
+in the memory controller. A soft limit is a variation of the currently
+supported hard limit feature. A memory cgroup can exceed it's soft limit
+provided there is no contention for memory.
 
-Hi,
+These patches were tested on a PowerPC box, by running a programs in parallel,
+and checking their behaviour for various soft limit values.
 
-Yeah this is definitely needed and a nice result.
+These patches were developed on top of 2.6.25-rc2-mm1. Comments, suggestions,
+criticism are all welcome!
 
-I'm worried about a) placing a global limit on parallelism, and b)
-placing a limit on parallelism at all.
+TODOs:
 
-I think it should maybe be a per-zone thing...
+1. Currently there is no ordering of memory cgroups over their limit.
+   We use a simple linked list to maintain a list of groups over their
+   limit. In the future, we might want to create a heap of objects ordered
+   by the amount by which they exceed soft limit.
+2. Distribute the excessive (non-contended) resources between groups
+   in the ratio of their soft limits
+3. Merge with KAMEZAWA's and YAMAMOTO's water mark and background reclaim
+   patches in the long-term
 
-What happens if you make it a per-zone mutex, and allow just a single
-process to reclaim pages from a given zone at a time? I guess that is
-going to slow down throughput a little bit in some cases though...
+
+series
+------
+memory-controller-res_counters-soft-limit-setup.patch
+memory-controller-add-soft-limit-interface.patch
+memory-controller-reclaim-on-contention.patch
+memory-controller-add-soft-limit-documentation.patch
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
