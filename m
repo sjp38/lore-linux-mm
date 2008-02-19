@@ -1,123 +1,36 @@
-Received: by el-out-1112.google.com with SMTP id z25so1025877ele.8
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2008 05:07:09 -0800 (PST)
-Message-ID: <fd87b6160802190507g74e64866pdbbda84826e0e5b8@mail.gmail.com>
-Date: Tue, 19 Feb 2008 22:07:09 +0900
-From: "John McCabe-Dansted" <gmatht@gmail.com>
-Subject: Re: [linux-mm-cc] Announce: ccache release 0.1
-In-Reply-To: <4cefeab80802190406w5dfcb257p1abff260c63522bc@mail.gmail.com>
+Date: Tue, 19 Feb 2008 14:30:09 +0100
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [patch 3/6] mmu_notifier: invalidate_page callbacks
+Message-ID: <20080219133009.GG7128@v2.random>
+References: <20080215064859.384203497@sgi.com> <20080215193736.9d6e7da3.akpm@linux-foundation.org> <Pine.LNX.4.64.0802161121130.25573@schroedinger.engr.sgi.com> <200802191946.10695.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <4cefeab80802181339ia9609d3oeb238a9f549fc6e5@mail.gmail.com>
-	 <fd87b6160802190233q7a6b95ecrff29ca70a9927e3b@mail.gmail.com>
-	 <4cefeab80802190406w5dfcb257p1abff260c63522bc@mail.gmail.com>
+In-Reply-To: <200802191946.10695.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nitin Gupta <nitingupta910@gmail.com>
-Cc: linux-mm-cc@laptop.org, linux-mm@kvack.org, linuxcompressed-devel@lists.sourceforge.net
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Feb 19, 2008 9:06 PM, Nitin Gupta <nitingupta910@gmail.com> wrote:
-> On Feb 19, 2008 4:03 PM, John McCabe-Dansted <gmatht@gmail.com> wrote:
-> > On Feb 19, 2008 6:39 AM, Nitin Gupta <nitingupta910@gmail.com> wrote:
-> > > Some performance numbers for allocator and de/compressor can be found
-> > > on project home. Currently it is tested on Linux kernel 2.6.23.x and
-> > > 2.6.25-rc2 (x86 only). Please mail me/mailing-list any
-> > > issues/suggestions you have.
+On Tue, Feb 19, 2008 at 07:46:10PM +1100, Nick Piggin wrote:
+> On Sunday 17 February 2008 06:22, Christoph Lameter wrote:
+> > On Fri, 15 Feb 2008, Andrew Morton wrote:
+> 
+> > > >  		flush_cache_page(vma, address, pte_pfn(*pte));
+> > > >  		entry = ptep_clear_flush(vma, address, pte);
+> > > > +		mmu_notifier(invalidate_page, mm, address);
+> > >
+> > > I just don't see how ths can be done if the callee has another thread in
+> > > the middle of establishing IO against this region of memory.
+> > > ->invalidate_page() _has_ to be able to block.  Confused.
 > >
-> > It caused Gutsy (2.6.22-14-generic) to crash when I did a swap off of
-> > my hdd swap. I have a GB of ram, so I would have been fine without
-> > ccache.
->
-> These days "desktops with small memory" probably means virtual
-> machines with, say, <512M RAM :-)
+> > The page lock is held and that holds off I/O?
+> 
+> I think the actual answer is that "it doesn't matter".
 
-The Hardy liveCD is really snappy with a 192MB VM and and a 128MB
-ccache swap. :)
-
-> > I had swapped on a 400MB ccache swap.
-> >
->
-> I need /var/log/messages (or whatever file kernel logs to in Gutsy) to
-> debug this.
-> Please send it to me offline if its too big.
-
-This seems to be the bit you want:
-
-ubuntu-xp syslogd 1.4.1#21ubuntu3: restart.
-Feb 19 08:07:31 ubuntu-xp -- MARK --
-...
-Feb 19 18:47:31 ubuntu-xp -- MARK --
-Feb 19 18:59:51 ubuntu-xp kernel: [377208.185464] ccache: Unknown
-symbol lzo1x_decompress_safe
-Feb 19 18:59:51 ubuntu-xp kernel: [377208.185518] ccache: Unknown
-symbol lzo1x_1_compress
-Feb 19 18:59:51 ubuntu-xp kernel: [377208.185660] ccache: Unknown
-symbol tlsf_free
-Feb 19 18:59:51 ubuntu-xp kernel: [377208.185759] ccache: Unknown
-symbol tlsf_malloc
-Feb 19 18:59:51 ubuntu-xp kernel: [377208.185836] ccache: Unknown
-symbol tlsf_destroy_memory_pool
-Feb 19 18:59:51 ubuntu-xp kernel: [377208.185903] ccache: Unknown
-symbol tlsf_create_memory_pool
-Feb 19 19:00:10 ubuntu-xp kernel: [377227.049613] ccache: Unknown
-symbol lzo1x_decompress_safe
-Feb 19 19:00:10 ubuntu-xp kernel: [377227.049667] ccache: Unknown
-symbol lzo1x_1_compress
-Feb 19 19:00:10 ubuntu-xp kernel: [377227.049815] ccache: Unknown
-symbol tlsf_free
-Feb 19 19:00:10 ubuntu-xp kernel: [377227.049913] ccache: Unknown
-symbol tlsf_malloc
-Feb 19 19:00:10 ubuntu-xp kernel: [377227.049989] ccache: Unknown
-symbol tlsf_destroy_memory_pool
-Feb 19 19:00:10 ubuntu-xp kernel: [377227.050055] ccache: Unknown
-symbol tlsf_create_memory_pool
-Feb 19 19:01:07 ubuntu-xp kernel: [377283.369080] ccache: Compressed
-swap size set to: 409600 KB
-Feb 19 19:01:07 ubuntu-xp kernel: [377283.370015] TLSF: pool:
-f8c11000, init_size=16384, max_size=0, grow_size=16384
-Feb 19 19:02:21 ubuntu-xp kernel: [377358.145969] Adding 409596k swap
-on /dev/ccache.  Priority:1 extents:1 across:409596k
-Feb 19 19:02:57 ubuntu-xp kernel: [377393.198473] f8c0003c
-Feb 19 19:02:57 ubuntu-xp kernel: [377393.198486] Modules linked in: ccache tlsf
- lzo1x_decompress lzo1x_compress atl2 af_packet binfmt_misc rfcomm l2cap bluetoo
-th vboxdrv ppdev ipv6 i915 drm acpi_cpufreq cpufreq_conservative cpufreq_userspa
-ce cpufreq_powersave cpufreq_ondemand cpufreq_stats freq_table video container s
-bs button dock ac battery reiserfs nls_iso8859_1 nls_cp437 vfat fat w83627ehf i2
-c_isa i2c_core lp snd_hda_intel snd_pcm_oss snd_mixer_oss snd_pcm snd_seq_dummy
-snd_seq_oss snd_seq_midi snd_rawmidi snd_seq_midi_event snd_seq pcspkr serio_raw
- snd_timer snd_seq_device parport_pc parport psmouse xpad intel_agp usblp iTCO_w
-dt iTCO_vendor_support agpgart snd soundcore snd_page_alloc shpchp pci_hotplug e
-vdev usb_storage ide_core ext3 jbd mbcache usbhid hid sg sr_mod cdrom sd_mod ata
-_generic libusual ata_piix floppy ohci1394 ieee1394 ehci_hcd libata scsi_mod uhc
-i_hcd usbcore thermal processor fan fuse apparmor commoncap fbcon tileblit font
-bitblit softcursor
-Feb 19 19:05:25 ubuntu-xp syslogd 1.4.1#21ubuntu3: restart.
-...
-
-> > BTW, why is the default 10% of mem?
->
-> I have no great justification for "10%".
-
-Perhaps 100% (or maybe 50%) would be a more sensible default? For me
-66% makes a huge difference to the Hardy liveCD performance. 10% makes
-a difference but 50%+ goes from "ls /" taking 10s to snappy
-performance even on large applications like Firefox.
-
-> > This refers to the size of the
-> > block device right? So even 100% would probably only use 50% of
-> > physical memory for swap, assuming a 2:1 compression ratio.
->
-> Yes, this is correct.
->
-> Thanks,
-> - Nitin
-
--- 
-John C. McCabe-Dansted
-PhD Student
-University of Western Australia
+Agreed. The PG_lock itself taken when invalidate_page is called, is
+used to serialized the VM against the VM, not the VM against I/O.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
