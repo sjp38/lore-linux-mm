@@ -1,53 +1,41 @@
-Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
-In-Reply-To: Your message of "Wed, 20 Feb 2008 10:55:38 +0900"
-	<20080220105538.6e7bbaba.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080220105538.6e7bbaba.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 19 Feb 2008 21:07:39 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [PATCH 0/8][for -mm] mem_notify v6
+Message-ID: <20080219210739.27325078@bree.surriel.com>
+In-Reply-To: <20080219222828.GB28786@elf.ucw.cz>
+References: <2f11576a0802090719i3c08a41aj38504e854edbfeac@mail.gmail.com>
+	<20080217084906.e1990b11.pj@sgi.com>
+	<20080219145108.7E96.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<20080219090008.bb6cbe2f.pj@sgi.com>
+	<20080219222828.GB28786@elf.ucw.cz>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20080220020512.E0BF91E3C5B@siro.lan>
-Date: Wed, 20 Feb 2008 11:05:12 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: balbir@linux.vnet.ibm.com, linux-mm@kvack.org, riel@redhat.com, hugh@veritas.com
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Paul Jackson <pj@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, marcelo@kvack.org, daniel.spang@gmail.com, akpm@linux-foundation.org, alan@lxorguk.ukuu.org.uk, linux-fsdevel@vger.kernel.org, a1426z@gawab.com, jonathan@jonmasters.org, zlynx@acm.org
 List-ID: <linux-mm.kvack.org>
 
-> Balbir-san,
-> 
-> On Tue, 19 Feb 2008 16:26:10 +0000 (GMT)
-> Hugh Dickins <hugh@veritas.com> wrote:
-> > @@ -575,9 +532,11 @@ static int mem_cgroup_charge_common(stru
-> >  {
-> >  	struct mem_cgroup *mem;
-> >  	struct page_cgroup *pc;
-> > +	struct page_cgroup *new_pc = NULL;
-> >  	unsigned long flags;
-> >  	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-> >  	struct mem_cgroup_per_zone *mz;
-> > +	int error;
-> >  
-> >  	/*
-> >  	 * Should page_cgroup's go to their own slab?
-> > @@ -586,31 +545,20 @@ static int mem_cgroup_charge_common(stru
-> >  	 * to see if the cgroup page already has a page_cgroup associated
-> >  	 * with it
-> >  	 */
-> > -retry:
-> > +
-> >  	if (page) {
-> > +		error = 0;
-> >  		lock_page_cgroup(page);
-> 
-> What is !page case in mem_cgroup_charge_xxx() ?
+On Tue, 19 Feb 2008 23:28:28 +0100
+Pavel Machek <pavel@ucw.cz> wrote:
 
-see a hack in shmem_getpage.
+> Sounds like a job for memory limits (ulimit?), not for OOM
+> notification, right?
 
-YAMAMOTO Takashi
+I suspect one problem could be that an HPC job scheduling program
+does not know exactly how much memory each job can take, so it can
+sometimes end up making a mistake and overcommitting the memory on
+one HPC node.
 
-> 
-> Thanks
-> -Kame
+In that case the user is better off having that job killed and
+restarted elsewhere, than having all of the jobs on that node
+crawl to a halt due to swapping.
+
+Paul, is this guess correct? :)
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
