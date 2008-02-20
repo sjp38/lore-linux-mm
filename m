@@ -1,51 +1,51 @@
-Date: Wed, 20 Feb 2008 19:51:04 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH] Document huge memory/cache overhead of memory
-	controller in Kconfig
-Message-ID: <20080220185104.GA30416@elf.ucw.cz>
-References: <20080220122338.GA4352@basil.nowhere.org> <47BC2275.4060900@linux.vnet.ibm.com> <18364.16552.455371.242369@stoffel.org> <47BC4554.10304@linux.vnet.ibm.com> <Pine.LNX.4.64.0802201647060.26109@fbirervta.pbzchgretzou.qr> <20080220181911.GA4760@ucw.cz> <Pine.LNX.4.64.0802201927440.26109@fbirervta.pbzchgretzou.qr>
+Message-ID: <47BC7816.2030008@sgi.com>
+Date: Wed, 20 Feb 2008 10:57:26 -0800
+From: Mike Travis <travis@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0802201927440.26109@fbirervta.pbzchgretzou.qr>
+Subject: Re: [PATCH 1/2] x86_64: Fold pda into per cpu area v3
+References: <20080219203335.866324000@polaris-admin.engr.sgi.com> <20080219203336.046039000@polaris-admin.engr.sgi.com> <20080220120747.GA13695@elte.hu>
+In-Reply-To: <20080220120747.GA13695@elte.hu>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jan Engelhardt <jengelh@computergmbh.de>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, John Stoffel <john@stoffel.org>, Andi Kleen <andi@firstfloor.org>, akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>, Randy Dunlap <rdunlap@xenotime.net>, Joel Schopp <jschopp@austin.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed 2008-02-20 19:28:03, Jan Engelhardt wrote:
+Ingo Molnar wrote:
+> * Mike Travis <travis@sgi.com> wrote:
 > 
-> On Feb 20 2008 18:19, Pavel Machek wrote:
-> >> 
-> >> For ordinary desktop people, memory controller is what developers
-> >> know as MMU or sometimes even some other mysterious piece of silicon
-> >> inside the heavy box.
-> >
-> >Actually I'd guess 'memory controller' == 'DRAM controller' == part of
-> >northbridge that talks to DRAM.
+>>   * Declare the pda as a per cpu variable. This will move the pda area
+>>     to an address accessible by the x86_64 per cpu macros.  
+>>     Subtraction of __per_cpu_start will make the offset based from the 
+>>     beginning of the per cpu area.  Since %gs is pointing to the pda, 
+>>     it will then also point to the per cpu variables and can be 
+>>     accessed thusly:
+>>
+>> 	%gs:[&per_cpu_xxxx - __per_cpu_start]
 > 
-> Yeah that must have been it when Windows says it found a new controller
-> after changing the mainboard underneath.
+> randconfig QA on x86.git found a crash on x86.git#testing with 
+> nmi_watchdog=2 (config attached) - and i bisected it down to this patch.
+> 
+> config and crashlog attached. You can pick up x86.git#testing via:
+> 
+>   http://people.redhat.com/mingo/x86.git/README
+> 
+> (since i had to hand-merge the patch when integrating it, i've attached 
+> the merged version below.)
+> 
+> 	Ingo
+> 
 
-Just for fun... this option really has to be renamed:
+I must need some different test machines as my AMD box does not fail with
+either yours or Thomas's configs, and the Intel box complains about the
+PCI-e e1000 driver and dies.  I'll see about configuring a new box.
 
-Memory controller
-~~~~~~~~~~~~~~~~~
->From Wikipedia, the free encyclopedia
+Did you try Eric's patch to see if that fixed the failure?
 
-The memory controller is a chip on a computer's motherboard or CPU die
-which manages the flow of data going to and from the memory.
-
-Most computers based on an Intel processor have a memory controller
-implemented on their motherboard's north bridge, though some modern
-microprocessors, such as AMD's Athlon 64 and Opteron processors, IBM's
-POWER5, and Sun Microsystems UltraSPARC T1 have a memory controller on
-the CPU die to reduce the memory latency. 
-
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+Thanks,
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
