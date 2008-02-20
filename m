@@ -1,85 +1,50 @@
-Message-Id: <20080220150305.905314000@chello.nl>
-References: <20080220144610.548202000@chello.nl>
-Date: Wed, 20 Feb 2008 15:46:15 +0100
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 05/28] mm: allow PF_MEMALLOC from softirq context
-Content-Disposition: inline; filename=mm-PF_MEMALLOC-softirq.patch
+Date: Wed, 20 Feb 2008 16:49:04 +0100 (CET)
+From: Jan Engelhardt <jengelh@computergmbh.de>
+Subject: Re: [PATCH] Document huge memory/cache overhead of memory controller
+ in Kconfig
+In-Reply-To: <47BC4554.10304@linux.vnet.ibm.com>
+Message-ID: <Pine.LNX.4.64.0802201647060.26109@fbirervta.pbzchgretzou.qr>
+References: <20080220122338.GA4352@basil.nowhere.org> <47BC2275.4060900@linux.vnet.ibm.com>
+ <18364.16552.455371.242369@stoffel.org> <47BC4554.10304@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: John Stoffel <john@stoffel.org>, Andi Kleen <andi@firstfloor.org>, akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Allow PF_MEMALLOC to be set in softirq context. When running softirqs from
-a borrowed context save current->flags, ksoftirqd will have its own 
-task_struct.
+On Feb 20 2008 20:50, Balbir Singh wrote:
+>John Stoffel wrote:
+>> I know this is a pedantic comment, but why the heck is it called such
+>> a generic term as "Memory Controller" which doesn't give any
+>> indication of what it does.
+>> 
+>> Shouldn't it be something like "Memory Quota Controller", or "Memory
+>> Limits Controller"?
+>
+>It's called the memory controller since it controls the amount of
+>memory that a user can allocate (via limits). The generic term for
+>any resource manager plugged into cgroups is a controller.
 
-This is needed to allow network softirq packet processing to make use of
-PF_MEMALLOC.
+For ordinary desktop people, memory controller is what developers
+know as MMU or sometimes even some other mysterious piece of silicon
+inside the heavy box.
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- include/linux/sched.h |    4 ++++
- kernel/softirq.c      |    3 +++
- mm/page_alloc.c       |    7 ++++---
- 3 files changed, 11 insertions(+), 3 deletions(-)
+>If you look through some of the references in the document, we've
+>listed our plans to support other categories of memory as well.
+>Hence it's called a memory controller
+>
+>> Also, the Kconfig name "CGROUP_MEM_CONT" is just wrong, it should
+>> be "CGROUP_MEM_CONTROLLER", just spell it out so it's clear what's
+>> up.
+>
+>This has some history as well. Control groups was called containers
+>earlier. That way a name like CGROUP_MEM_CONT could stand for cgroup
+>memory container or cgroup memory controller.
 
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c
-+++ linux-2.6/mm/page_alloc.c
-@@ -1471,9 +1471,10 @@ int gfp_to_alloc_flags(gfp_t gfp_mask)
- 		alloc_flags |= ALLOC_HARDER;
- 
- 	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
--		if (!in_interrupt() &&
--		    ((p->flags & PF_MEMALLOC) ||
--		     unlikely(test_thread_flag(TIF_MEMDIE))))
-+		if (!in_irq() && (p->flags & PF_MEMALLOC))
-+			alloc_flags |= ALLOC_NO_WATERMARKS;
-+		else if (!in_interrupt() &&
-+				unlikely(test_thread_flag(TIF_MEMDIE)))
- 			alloc_flags |= ALLOC_NO_WATERMARKS;
- 	}
- 
-Index: linux-2.6/kernel/softirq.c
-===================================================================
---- linux-2.6.orig/kernel/softirq.c
-+++ linux-2.6/kernel/softirq.c
-@@ -213,6 +213,8 @@ asmlinkage void __do_softirq(void)
- 	__u32 pending;
- 	int max_restart = MAX_SOFTIRQ_RESTART;
- 	int cpu;
-+	unsigned long pflags = current->flags;
-+	current->flags &= ~PF_MEMALLOC;
- 
- 	pending = local_softirq_pending();
- 	account_system_vtime(current);
-@@ -251,6 +253,7 @@ restart:
- 
- 	account_system_vtime(current);
- 	_local_bh_enable();
-+	tsk_restore_flags(current, pflags, PF_MEMALLOC);
- }
- 
- #ifndef __ARCH_HAS_DO_SOFTIRQ
-Index: linux-2.6/include/linux/sched.h
-===================================================================
---- linux-2.6.orig/include/linux/sched.h
-+++ linux-2.6/include/linux/sched.h
-@@ -1497,6 +1497,10 @@ static inline void put_task_struct(struc
- #define tsk_used_math(p) ((p)->flags & PF_USED_MATH)
- #define used_math() tsk_used_math(current)
- 
-+#define tsk_restore_flags(p, pflags, mask) \
-+	do {	(p)->flags &= ~(mask); \
-+		(p)->flags |= ((pflags) & (mask)); } while (0)
-+
- #ifdef CONFIG_SMP
- extern int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask);
- #else
-
---
+CONT is shorthand for "continue" ;-) (SIGCONT, f.ex.), ctrl or ctrlr
+it is for controllers (comes from Solaris iirc.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
