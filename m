@@ -1,12 +1,12 @@
-Date: Wed, 20 Feb 2008 10:14:34 +0100
+Date: Wed, 20 Feb 2008 10:15:29 +0100
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 0/2] percpu: Optimize percpu accesses v3
-Message-ID: <20080220091434.GC31424@elte.hu>
-References: <20080219203226.746641000@polaris-admin.engr.sgi.com>
+Subject: Re: [PATCH 0/2] x86: Optimize percpu accesses v3
+Message-ID: <20080220091529.GD31424@elte.hu>
+References: <20080219203335.866324000@polaris-admin.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080219203226.746641000@polaris-admin.engr.sgi.com>
+In-Reply-To: <20080219203335.866324000@polaris-admin.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mike Travis <travis@sgi.com>
@@ -15,11 +15,11 @@ List-ID: <linux-mm.kvack.org>
 
 * Mike Travis <travis@sgi.com> wrote:
 
-> This is the generic (non-x86) changes for zero-based per cpu 
-> variables.
+> This patchset is the x86-specific part split from the generic part of 
+> the zero-based patchset.
 
-thanks Mike. I've put this into the -testing branch of x86.git. (so that 
-we can see and test the impact of these patches, but they wont leak into 
+thanks Mike, applied them to x86.git. Do these depend on the generic 
+bits? (for now we'll keep these in -testing, so that they do not reach 
 -mm)
 
 	Ingo
