@@ -1,48 +1,47 @@
-Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
-In-Reply-To: Your message of "Wed, 20 Feb 2008 12:14:55 +0900"
-	<20080220121455.d4e4daf6.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080220121455.d4e4daf6.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20080220033724.A76CB1E3C58@siro.lan>
-Date: Wed, 20 Feb 2008 12:37:24 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch 5/6] mmu_notifier: Support for drivers with revers maps (f.e. for XPmem)
+Date: Wed, 20 Feb 2008 14:51:45 +1100
+References: <20080215064859.384203497@sgi.com> <200802201055.21343.nickpiggin@yahoo.com.au> <20080220031221.GE11391@sgi.com>
+In-Reply-To: <20080220031221.GE11391@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200802201451.46069.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: hugh@veritas.com, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, riel@redhat.com
+To: Robin Holt <holt@sgi.com>
+Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 19 Feb 2008 15:40:45 +0000 (GMT)
-> Hugh Dickins <hugh@veritas.com> wrote:
-> 
-> > I haven't completed my solution in mem_cgroup_move_lists yet: but
-> > the way it wants a lock in a structure which isn't stabilized until
-> > it's got that lock, reminds me very much of my page_lock_anon_vma,
-> > so I'm expecting to use a SLAB_DESTROY_BY_RCU cache there.
-> > 
-> Could I make a question about anon_vma's RCU ?
-> 
-> I think SLAB_DESTROY_BY_RCU guarantees that slab's page is not freed back
-> to buddy allocator while some holds rcu_read_lock().
-> 
-> Why it's safe against reusing freed one by slab fast path (array_cache) ?
+On Wednesday 20 February 2008 14:12, Robin Holt wrote:
+> For XPMEM, we do not currently allow file backed
+> mapping pages from being exported so we should never reach this condition.
+> It has been an issue since day 1.  We have operated with that assumption
+> for 6 years and have not had issues with that assumption.  The user of
+> xpmem is MPT and it controls the communication buffers so it is reasonable
+> to expect this type of behavior.
 
-reuse for another anon_vma is ok.
-page_check_address checks if it was really for this page.
+OK, that makes things simpler.
 
-YAMAMOTO Takashi
+So why can't you export a device from your xpmem driver, which
+can be mmap()ed to give out "anonymous" memory pages to be used
+for these communication buffers?
 
-> 
-> Thanks,
-> -Kame
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+I guess you may also want an "munmap/mprotect" callback, which
+we don't have in the kernel right now... but at least you could
+prototype it easily by having an ioctl to be called before
+munmapping or mprotecting (eg. the ioctl could prevent new TLB
+setup for the region, and shoot down existing ones).
+
+This is actually going to be much faster for you if you use any
+threaded applications, because you will be able to do all the
+shootdown round trips outside mmap_sem, and so you will be able
+to have other threads faulting and even mmap()ing / munmaping
+at the same time as the shootdown is happening.
+
+I guess there is some catch...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
