@@ -1,50 +1,36 @@
-Date: Tue, 19 Feb 2008 22:36:25 -0600
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH 0/8][for -mm] mem_notify v6
-Message-Id: <20080219223625.a2717138.pj@sgi.com>
-In-Reply-To: <20080219210739.27325078@bree.surriel.com>
-References: <2f11576a0802090719i3c08a41aj38504e854edbfeac@mail.gmail.com>
-	<20080217084906.e1990b11.pj@sgi.com>
-	<20080219145108.7E96.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20080219090008.bb6cbe2f.pj@sgi.com>
-	<20080219222828.GB28786@elf.ucw.cz>
-	<20080219210739.27325078@bree.surriel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 20 Feb 2008 04:39:47 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
+In-Reply-To: <20080220133742.94a0b1b6.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0802200436380.7234@blonde.site>
+References: <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0802191449490.6254@blonde.site>
+ <20080220100333.a014083c.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0802200355220.3569@blonde.site>
+ <20080220133742.94a0b1b6.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: pavel@ucw.cz, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, marcelo@kvack.org, daniel.spang@gmail.com, akpm@linux-foundation.org, alan@lxorguk.ukuu.org.uk, linux-fsdevel@vger.kernel.org, a1426z@gawab.com, jonathan@jonmasters.org, zlynx@acm.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "riel@redhat.com" <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Rik wrote:
-> In that case the user is better off having that job killed and
-> restarted elsewhere, than having all of the jobs on that node
-> crawl to a halt due to swapping.
+On Wed, 20 Feb 2008, KAMEZAWA Hiroyuki wrote:
+> On Wed, 20 Feb 2008 04:14:58 +0000 (GMT)
+> Hugh Dickins <hugh@veritas.com> wrote:
 > 
-> Paul, is this guess correct? :)
+> > What's needed, I think, is something in struct mm, a flag or a reserved value
+> > in mm->mem_cgroup, to say don't do any of this mem_cgroup stuff on me; and a cgroup
+> > fs interface to set that, in the same way as force_empty is done.
+> 
+> I agree here. I believe we need "no charge" flag at least to the root group.
+> For root group, it's better to have boot option if not complicated.
 
-Not for the loads I focus on.  Each job gets exclusive use of its own
-dedicated set of nodes, for the duration of the job.  With that comes a
-quite specific upper limit on how much memory, in total, including node
-local kernel data, that job is allowed to use.
+I expect we'll end up wanting both the cgroupfs interface and the boot
+option for the root; but yes, for now, the boot option would be enough.
 
-One problem with swapping is that nodes aren't entirely isolated.
-They share buses, i/o channels, disk arms, kernel data cache lines and
-kernel locks with other nodes, running other jobs.   A job thrashing
-its swap is a drag on the rest of the system.
-
-Another problem with swapping is that it's a waste of resources.  Once
-a pure compute bound job goes into swapping when it shouldn't, that job
-has near zero hope of continuing with the intended performance, as it
-has just slowed from main memory speeds to disk speeds, which are
-thousands of times slower.  Best to get it out of there, immediately.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.940.382.4214
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
