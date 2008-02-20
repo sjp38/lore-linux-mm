@@ -1,36 +1,40 @@
-Date: Wed, 20 Feb 2008 12:14:55 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
-Message-Id: <20080220121455.d4e4daf6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0802191449490.6254@blonde.site>
-References: <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0802191449490.6254@blonde.site>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address ranges
+Date: Wed, 20 Feb 2008 14:11:41 +1100
+References: <20080215064859.384203497@sgi.com> <20080220010038.GQ7128@v2.random> <20080220030031.GC11364@sgi.com>
+In-Reply-To: <20080220030031.GC11364@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200802201411.42360.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "riel@redhat.com" <riel@redhat.com>
+To: Robin Holt <holt@sgi.com>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 19 Feb 2008 15:40:45 +0000 (GMT)
-Hugh Dickins <hugh@veritas.com> wrote:
+On Wednesday 20 February 2008 14:00, Robin Holt wrote:
+> On Wed, Feb 20, 2008 at 02:00:38AM +0100, Andrea Arcangeli wrote:
+> > On Wed, Feb 20, 2008 at 10:08:49AM +1100, Nick Piggin wrote:
 
-> I haven't completed my solution in mem_cgroup_move_lists yet: but
-> the way it wants a lock in a structure which isn't stabilized until
-> it's got that lock, reminds me very much of my page_lock_anon_vma,
-> so I'm expecting to use a SLAB_DESTROY_BY_RCU cache there.
-> 
-Could I make a question about anon_vma's RCU ?
+> > > Also, how to you resolve the case where you are not allowed to sleep?
+> > > I would have thought either you have to handle it, in which case nobody
+> > > needs to sleep; or you can't handle it, in which case the code is
+> > > broken.
+> >
+> > I also asked exactly this, glad you reasked this too.
+>
+> Currently, we BUG_ON having a PFN in our tables and not being able
+> to sleep.  These are mappings which MPT has never supported in the past
+> and XPMEM was already not allowing page faults for VMAs which are not
+> anonymous so it should never happen.  If the file-backed operations can
+> ever get changed to allow for sleeping and a customer has a need for it,
+> we would need to change XPMEM to allow those types of faults to succeed.
 
-I think SLAB_DESTROY_BY_RCU guarantees that slab's page is not freed back
-to buddy allocator while some holds rcu_read_lock().
-
-Why it's safe against reusing freed one by slab fast path (array_cache) ?
-
-Thanks,
--Kame
+Do you really want to be able to swap, or are you just interested
+in keeping track of unmaps / prot changes?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
