@@ -1,38 +1,51 @@
-Date: Wed, 20 Feb 2008 02:09:41 +0100
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [patch] my mmu notifiers
-Message-ID: <20080220010941.GR7128@v2.random>
-References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080219231157.GC18912@wotan.suse.de>
+Date: Wed, 20 Feb 2008 10:55:38 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
+Message-Id: <20080220105538.6e7bbaba.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0802191605500.16579@blonde.site>
+References: <Pine.LNX.4.64.0802191449490.6254@blonde.site>
+	<20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com>
+	<17878602.1203436460680.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0802191605500.16579@blonde.site>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+To: balbir@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, yamamoto@valinux.co.jp, riel@redhat.com, "hugh@veritas.com" <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 20, 2008 at 12:11:57AM +0100, Nick Piggin wrote:
-> Sorry, I realise I still didn't get this through my head yet (and also
-> have not seen your patch recently). So I don't know exactly what you
-> are doing...
+Balbir-san,
 
-The last version was posted here:
+On Tue, 19 Feb 2008 16:26:10 +0000 (GMT)
+Hugh Dickins <hugh@veritas.com> wrote:
+> @@ -575,9 +532,11 @@ static int mem_cgroup_charge_common(stru
+>  {
+>  	struct mem_cgroup *mem;
+>  	struct page_cgroup *pc;
+> +	struct page_cgroup *new_pc = NULL;
+>  	unsigned long flags;
+>  	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+>  	struct mem_cgroup_per_zone *mz;
+> +	int error;
+>  
+>  	/*
+>  	 * Should page_cgroup's go to their own slab?
+> @@ -586,31 +545,20 @@ static int mem_cgroup_charge_common(stru
+>  	 * to see if the cgroup page already has a page_cgroup associated
+>  	 * with it
+>  	 */
+> -retry:
+> +
+>  	if (page) {
+> +		error = 0;
+>  		lock_page_cgroup(page);
 
-http://marc.info/?l=kvm-devel&m=120321732521533&w=2
+What is !page case in mem_cgroup_charge_xxx() ?
 
-> But why does _anybody_ (why does Christoph's patches) need to invalidate
-> when they are going to be more permissive? This should be done lazily by
-> the driver, I would have thought.
-
-This can be done lazily by the driver yes. The place where I've an
-invalidate_pages in mprotect however can also become less permissive.
-It's simpler to invalidate always and it's not guaranteed the
-secondary mmu page fault is capable of refreshing the spte across a
-writeprotect fault. In the future this can be changed to
-mprotect_pages though, so no page fault will happen in the secondary
-mmu.
+Thanks
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
