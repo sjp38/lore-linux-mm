@@ -1,51 +1,54 @@
-Message-ID: <47BC7816.2030008@sgi.com>
-Date: Wed, 20 Feb 2008 10:57:26 -0800
-From: Mike Travis <travis@sgi.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] x86_64: Fold pda into per cpu area v3
-References: <20080219203335.866324000@polaris-admin.engr.sgi.com> <20080219203336.046039000@polaris-admin.engr.sgi.com> <20080220120747.GA13695@elte.hu>
-In-Reply-To: <20080220120747.GA13695@elte.hu>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Wed, 20 Feb 2008 15:03:39 -0600
+From: Jack Steiner <steiner@sgi.com>
+Subject: Re: [PATCH] mmu notifiers #v6
+Message-ID: <20080220210339.GA25659@sgi.com>
+References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080220103942.GU7128@v2.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>, Randy Dunlap <rdunlap@xenotime.net>, Joel Schopp <jschopp@austin.ibm.com>
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
-> * Mike Travis <travis@sgi.com> wrote:
-> 
->>   * Declare the pda as a per cpu variable. This will move the pda area
->>     to an address accessible by the x86_64 per cpu macros.  
->>     Subtraction of __per_cpu_start will make the offset based from the 
->>     beginning of the per cpu area.  Since %gs is pointing to the pda, 
->>     it will then also point to the per cpu variables and can be 
->>     accessed thusly:
->>
->> 	%gs:[&per_cpu_xxxx - __per_cpu_start]
-> 
-> randconfig QA on x86.git found a crash on x86.git#testing with 
-> nmi_watchdog=2 (config attached) - and i bisected it down to this patch.
-> 
-> config and crashlog attached. You can pick up x86.git#testing via:
-> 
->   http://people.redhat.com/mingo/x86.git/README
-> 
-> (since i had to hand-merge the patch when integrating it, i've attached 
-> the merged version below.)
-> 
-> 	Ingo
-> 
+On Wed, Feb 20, 2008 at 11:39:42AM +0100, Andrea Arcangeli wrote:
+> Given Nick's comments I ported my version of the mmu notifiers to
+> latest mainline. There are no known bugs AFIK and it's obviously safe
+> (nothing is allowed to schedule inside rcu_read_lock taken by
+> mmu_notifier() with my patch).
+> ....
 
-I must need some different test machines as my AMD box does not fail with
-either yours or Thomas's configs, and the Intel box complains about the
-PCI-e e1000 driver and dies.  I'll see about configuring a new box.
+I ported the GRU driver to use the latest #v6 patch and ran a series of
+tests on it using our system simulator. The simulator is slow so true
+stress or swapping is not possible - at least within a finite amount of
+time.
 
-Did you try Eric's patch to see if that fixed the failure?
+Functionally, the #v6 patch seems to work for the GRU. However, I did
+notice two significant differences that make the #v6 performance worse for
+the GRU than Christoph's patch.  I think one difference is easily fixable
+but the other is more difficult:
 
-Thanks,
-Mike
+	- the location of the mmu_notifier_release() callout is at a
+	  different place in the 2 patches. Christoph has the callout
+	  BEFORE the call to unmap_vmas() whereas you have it AFTER. The
+	  net result is that the GRU does a LOT of 1-page TLB flushes
+	  during process teardown.  These flushes are not done with
+	  Christops's patch.
+
+	- the range callouts in Christoph's patch benefit the GRU because
+	  multiple TLB entries can be flushed with a single GRU
+	  instruction (the GRU hardware supports a range flush using a
+	  vaddr & length).  The #v6 patch does a TLB flush for each page in
+	  the range.  Flushing on the GRU is slow so being able to flush
+	  multiple pages with a single request is a benefit.
+
+Seems like the latter difference could be significant for other users
+of mmu notifiers.
+
+
+--- jack
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
