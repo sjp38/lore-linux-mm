@@ -1,46 +1,107 @@
-Received: from zps19.corp.google.com (zps19.corp.google.com [172.25.146.19])
-	by smtp-out.google.com with ESMTP id m1K621Zj032298
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 22:02:01 -0800
-Received: from py-out-1112.google.com (pyhf31.prod.google.com [10.34.233.31])
-	by zps19.corp.google.com with ESMTP id m1K61muj018100
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 22:02:00 -0800
-Received: by py-out-1112.google.com with SMTP id f31so2872783pyh.17
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2008 22:02:00 -0800 (PST)
-Message-ID: <6599ad830802192202t19c1f597jb7927e975eb80aa6@mail.gmail.com>
-Date: Tue, 19 Feb 2008 22:02:00 -0800
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [PATCH 0/2] cgroup map files: Add a key/value map file type to cgroups
-In-Reply-To: <20080220054809.86BFC1E3C58@siro.lan>
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp01.in.ibm.com (8.13.1/8.13.1) with ESMTP id m1K621RJ004234
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 11:32:01 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1K620Zc946204
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 11:32:01 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id m1K620qg022658
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 06:02:00 GMT
+Message-ID: <47BBC15E.5070405@linux.vnet.ibm.com>
+Date: Wed, 20 Feb 2008 11:27:50 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
+Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
+References: <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0802191449490.6254@blonde.site>
+In-Reply-To: <Pine.LNX.4.64.0802191449490.6254@blonde.site>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080220051544.018684000@menage.corp.google.com>
-	 <20080220054809.86BFC1E3C58@siro.lan>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, balbir@in.ibm.com, xemul@openvz.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "riel@redhat.com" <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Feb 19, 2008 9:48 PM, YAMAMOTO Takashi <yamamoto@valinux.co.jp> wrote:
->
-> it changes the format from "%s %lld" to "%s: %llu", right?
-> why?
->
+Hugh Dickins wrote:
+> On Tue, 19 Feb 2008, KAMEZAWA Hiroyuki wrote:
+>> I'd like to start from RFC.
+>>
+>> In following code
+>> ==
+>>   lock_page_cgroup(page);
+>>   pc = page_get_page_cgroup(page);
+>>   unlock_page_cgroup(page);
+>>
+>>   access 'pc' later..
+>> == (See, page_cgroup_move_lists())
+>>
+>> There is a race because 'pc' is not a stable value without lock_page_cgroup().
+>> (mem_cgroup_uncharge can free this 'pc').
+>>
+>> For example, page_cgroup_move_lists() access pc without lock.
+>> There is a small race window, between page_cgroup_move_lists()
+>> and mem_cgroup_uncharge(). At uncharge, page_cgroup struct is immedieately
+>> freed but move_list can access it after taking lru_lock.
+>> (*) mem_cgroup_uncharge_page() can be called without zone->lru lock.
+>>
+>> This is not good manner.
+>> .....
+>> There is no quick fix (maybe). Moreover, I hear some people around me said
+>> current memcontrol.c codes are very complicated.
+>> I agree ;( ..it's caued by my work.
+>>
+>> I'd like to fix problems in clean way.
+>> (Note: current -rc2 codes works well under heavy pressure. but there
+>>  is possibility of race, I think.)
+> 
+> Yes, yes, indeed, I've been working away on this too.
+> 
+> Ever since the VM_BUG_ON(page_get_page_cgroup(page)) went into
+> free_hot_cold_page (at my own prompting), I've been hitting it
+> just very occasionally in my kernel build testing.  Was unable
+> to reproduce it over the New Year, but a week or two ago found
+> one machine and config on which it is relatively reproducible,
+> pretty sure to happen within 12 hours.
+> 
+> And on Saturday evening at last identified the cause, exactly
+> where you have: that unsafety in mem_cgroup_move_lists - which
+> has the nice property of putting pages from the lru on to SLUB's
+> freelist!
+> 
+> Unlike the unsafeties of force_empty, this is liable to hit anyone
+> running with MEM_CONT compiled in, they don't have to be consciously
+> using mem_cgroups at all.
+> 
+> (I consider that, by the way, quite a serious defect in the current
+> mem_cgroup work: that a distro compiling it in for 1% of customers
+> is then subjecting all to the mem_cgroup overhead - effectively
+> doubled struct page size and unnecessary accounting overhead.  I
+> believe there needs to be a way to opt out, a force_empty which
+> sticks.  Yes, I know the page_cgroup which does that doubling of
+> size is only allocated on demand, but every page cache page and
+> every anonymous page is going to have one.  A kmem_cache for them
+> will reduce the extra, but there still needs to be a way to opt
+> out completely.)
+> 
 
-The colon for consistency with maps in /proc. I think it also makes it
-slightly more readable.
+I've been thinking along these lines as well
 
-For %lld versus %llu - I think that cgroup resource APIs are much more
-likely to need to report unsigned rather than signed values. In the
-case of the memory.stat file, that's certainly the case.
+1. Have a boot option to turn on/off the memory controller
+2. Have a separate cache for the page_cgroup structure. I sent this suggestion
+   out just yesterday or so.
 
-But I guess there's an argument to be made that nothing's likely to
-need the final 64th bit of an unsigned value, whereas the ability to
-report negative numbers could potentially be useful for some cgroups.
+I agree that these are necessary enhancements/changes.
 
-Paul
+[snip]
+
+
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
