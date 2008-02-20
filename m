@@ -1,48 +1,30 @@
-Date: Wed, 20 Feb 2008 14:19:13 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
-In-Reply-To: <47BC0FB9.8090404@linux.vnet.ibm.com>
-Message-ID: <Pine.LNX.4.64.0802201406230.23645@blonde.site>
-References: <Pine.LNX.4.64.0802191449490.6254@blonde.site>
- <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com>
- <17878602.1203436460680.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0802191605500.16579@blonde.site> <47BBCAFB.4080302@linux.vnet.ibm.com>
- <Pine.LNX.4.64.0802201023510.30466@blonde.site> <47BC0FB9.8090404@linux.vnet.ibm.com>
+Date: Wed, 20 Feb 2008 08:41:55 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH] mmu notifiers #v6
+Message-ID: <20080220144155.GI11391@sgi.com>
+References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080220103942.GU7128@v2.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, yamamoto@valinux.co.jp, riel@redhat.com
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 20 Feb 2008, Balbir Singh wrote:
-> Hugh Dickins wrote:
-> > On Wed, 20 Feb 2008, Balbir Singh wrote:
-> >>> -	if (pc)
-> >>> -		VM_BUG_ON(!page_cgroup_locked(page));
-> >>> -	locked = (page->page_cgroup & PAGE_CGROUP_LOCK);
-> >>> -	page->page_cgroup = ((unsigned long)pc | locked);
-> >>> +	page->page_cgroup = ((unsigned long)pc | PAGE_CGROUP_LOCK);
-> >> We are explicitly setting the PAGE_CGROUP_LOCK bit, shouldn't we keep the
-> >> VM_BUG_ON(!page_cgroup_locked(page))?
-> > 
-> > Could do, but it seemed quite unnecessary to me now that it's a static
-> > function with the obvious rule everywhere that you call it holding lock,
-> > no matter whether pc is or isn't NULL.  If somewhere in memcontrol.c
-> > did call it without holding the lock, it'd also have to bizarrely
-> > remember to unlock while forgetting to lock, for it to escape notice.
-> 
-> Yes, you are as always of-course right. I was thinking of future uses of the
-> function. Some one could use it, a VM_BUG_ON will help.
+On Wed, Feb 20, 2008 at 11:39:42AM +0100, Andrea Arcangeli wrote:
+> XPMEM simply can't use RCU for the registration locking if it wants to
+> schedule inside the mmu notifier calls. So I guess it's better to add
 
-In looking to reinstate that VM_BUG_ON, I notice that actually I'm
-strictly wrong to be forcing the lock bit on there - because on UP
-without DEBUG_SPINLOCK, the bit_spin_lock/unlock wouldn't use it,
-so it'd be rather untidy to put it there and leave it in the assign.
-I think the answer will be to #define PAGE_CGROUP_LOCK 0 for that case.
+Whoa there.  In Christoph's patch, we did not use rcu for the list.  It
+was a simple hlist_head.  The list manipulations were done under
+down_write(&current->mm->mmap_sem) and would therefore not be racy.  All
+the callout locations are already acquiring the mmap_sem at least
+readably, so we should be safe.  Maybe I missed a race somewhere.
 
-Hugh
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
