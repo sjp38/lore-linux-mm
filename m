@@ -1,50 +1,51 @@
-Received: from zps36.corp.google.com (zps36.corp.google.com [172.25.146.36])
-	by smtp-out.google.com with ESMTP id m1KBiEbs026065
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 03:44:14 -0800
-Received: from py-out-1112.google.com (pyhf31.prod.google.com [10.34.233.31])
-	by zps36.corp.google.com with ESMTP id m1KBi93E014237
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 03:44:13 -0800
-Received: by py-out-1112.google.com with SMTP id f31so2983483pyh.17
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2008 03:44:12 -0800 (PST)
-Message-ID: <6599ad830802200344j55d493b2i36a4a962d50282f8@mail.gmail.com>
-Date: Wed, 20 Feb 2008 03:44:12 -0800
+Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
+	by smtp-out.google.com with ESMTP id m1KBtJ5h003617
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 03:55:19 -0800
+Received: from py-out-1112.google.com (pygw53.prod.google.com [10.34.224.53])
+	by zps75.corp.google.com with ESMTP id m1KBtI8o011244
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 03:55:19 -0800
+Received: by py-out-1112.google.com with SMTP id w53so3205926pyg.25
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2008 03:55:18 -0800 (PST)
+Message-ID: <6599ad830802200355v40bf8b81re32c24cefad0b279@mail.gmail.com>
+Date: Wed, 20 Feb 2008 03:55:18 -0800
 From: "Paul Menage" <menage@google.com>
 Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
-In-Reply-To: <47BC1055.3000304@linux.vnet.ibm.com>
+In-Reply-To: <47BC10A8.4020508@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 References: <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com>
+	 <Pine.LNX.4.64.0802191449490.6254@blonde.site>
+	 <47BBC15E.5070405@linux.vnet.ibm.com>
 	 <20080220.185821.61784723.taka@valinux.co.jp>
-	 <6599ad830802200206w23955c9cn26bf768e790a6161@mail.gmail.com>
-	 <47BBFCC2.5020408@linux.vnet.ibm.com>
-	 <6599ad830802200218t41c70455u5d008c605e8b9762@mail.gmail.com>
-	 <47BC0704.9010603@linux.vnet.ibm.com>
-	 <20080220202143.4cc2fc05.kamezawa.hiroyu@jp.fujitsu.com>
-	 <47BC0C72.4080004@linux.vnet.ibm.com>
-	 <20080220203208.f7b876ef.kamezawa.hiroyu@jp.fujitsu.com>
-	 <47BC1055.3000304@linux.vnet.ibm.com>
+	 <47BC10A8.4020508@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hirokazu Takahashi <taka@valinux.co.jp>, hugh@veritas.com, linux-mm@kvack.org, yamamoto@valinux.co.jp, riel@redhat.com
+Cc: Hirokazu Takahashi <taka@valinux.co.jp>, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, yamamoto@valinux.co.jp, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Feb 20, 2008 3:34 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > like..
-> >    cgroup_subsys_disable_mask = ...
+On Feb 20, 2008 3:36 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> >
+> > And you may possibly have a chance to remove page->page_cgroup member
+> > if you allocate array of page_cgroups and attach them to the zone which
+> > the pages belong to.
+> >
 >
-> I like this very much. This way, we get control over all controllers.
+> We thought of this as well. We dropped it, because we need to track only user
+> pages at the moment. Doing it for all pages means having the overhead for each
+> page on the system.
 >
 
-We'd want to do it by name, rather than by mask, since the ids depend
-on what's compiled in to the kernel.
+While having an array of page_cgroup objects may or may not be a good
+idea, I'm not sure that the overhead argument against them is a very
+good one.
 
-We could have a (possibly repeated) boot option such as
-cgroup_disable=memory (or other subsystem). This would set a flag in
-the appropriate subsystem indicating that it was disabled, and make
-the subsystem not mountable, etc.
+I suspect that on most systems that want to use the cgroup memory
+controller, user-allocated pages will fill the vast majority of
+memory. So using the arrays and eliminating the extra pointer in
+struct page would actually reduce overhead.
 
 Paul
 
