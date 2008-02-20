@@ -1,47 +1,39 @@
-Date: Wed, 20 Feb 2008 20:32:08 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
-Message-Id: <20080220203208.f7b876ef.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <47BC0C72.4080004@linux.vnet.ibm.com>
-References: <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0802191449490.6254@blonde.site>
-	<47BBC15E.5070405@linux.vnet.ibm.com>
-	<20080220.185821.61784723.taka@valinux.co.jp>
-	<6599ad830802200206w23955c9cn26bf768e790a6161@mail.gmail.com>
-	<47BBFCC2.5020408@linux.vnet.ibm.com>
-	<6599ad830802200218t41c70455u5d008c605e8b9762@mail.gmail.com>
-	<47BC0704.9010603@linux.vnet.ibm.com>
-	<20080220202143.4cc2fc05.kamezawa.hiroyu@jp.fujitsu.com>
-	<47BC0C72.4080004@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 20 Feb 2008 05:33:13 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH] mmu notifiers #v6
+Message-ID: <20080220113313.GD11364@sgi.com>
+References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080220103942.GU7128@v2.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Paul Menage <menage@google.com>, Hirokazu Takahashi <taka@valinux.co.jp>, hugh@veritas.com, linux-mm@kvack.org, yamamoto@valinux.co.jp, riel@redhat.com
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 20 Feb 2008 16:48:10 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Wed, Feb 20, 2008 at 11:39:42AM +0100, Andrea Arcangeli wrote:
+> Given Nick's comments I ported my version of the mmu notifiers to
+> latest mainline. There are no known bugs AFIK and it's obviously safe
+> (nothing is allowed to schedule inside rcu_read_lock taken by
+> mmu_notifier() with my patch).
 > 
-> Kame, unbind->force_empty can work, but we can't force_empty the root cgroup.
-> Even if we could, the code to deal with turning on/off the entire memory
-> controller and accounting is likely to be very complex and probably racy.
-> 
-Ok, just put it on my far-future-to-do-list.
-(we have another things to do now ;)
+> XPMEM simply can't use RCU for the registration locking if it wants to
+> schedule inside the mmu notifier calls. So I guess it's better to add
+> the XPMEM invalidate_range_end/begin/external-rmap as a whole
+> different subsystem that will have to use a mutex (not RCU) to
+> serialize, and at the same time that CONFIG_XPMEM will also have to
+> switch the i_mmap_lock to a mutex. I doubt xpmem fits inside a
+> CONFIG_MMU_NOTIFIER anymore, or we'll all run a bit slower because of
+> it. It's really a call of how much we want to optimize the MMU
+> notifier, by keeping things like RCU for the registration.
 
-But a boot option for turning off entire (memory) controller even if it is
-configured will be a good thing.
+But won't that other "subsystem" cause us to have two seperate callouts
+that do equivalent things and therefore force a removal of this and go
+back to what Christoph has currently proposed?
 
-like..
-   cgroup_subsys_disable_mask = ...
-or
-   memory_controller=off|on
-
-Thanks,
--Kame
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
