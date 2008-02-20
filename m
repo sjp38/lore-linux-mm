@@ -1,56 +1,82 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1KEsdTB012647
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 09:54:39 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1KEqgv6234012
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 09:52:42 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1KEqgiD015177
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 09:52:42 -0500
-Subject: Re: [PATCH] hugetlb: ensure we do not reference a surplus page
-	after handing it to buddy
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <20080219153037.ec336fd2.akpm@linux-foundation.org>
-References: <1203445688.0@pinky>
-	 <1203446512.11987.36.camel@localhost.localdomain>
-	 <20080219153037.ec336fd2.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Wed, 20 Feb 2008 08:59:34 -0600
-Message-Id: <1203519574.11987.67.camel@localhost.localdomain>
-Mime-Version: 1.0
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <18364.16552.455371.242369@stoffel.org>
+Date: Wed, 20 Feb 2008 10:00:56 -0500
+From: "John Stoffel" <john@stoffel.org>
+Subject: Re: [PATCH] Document huge memory/cache overhead of memory controller
+ in Kconfig
+In-Reply-To: <47BC2275.4060900@linux.vnet.ibm.com>
+References: <20080220122338.GA4352@basil.nowhere.org>
+	<47BC2275.4060900@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Whitcroft <apw@shadowen.org>, Nishanth Aravamudan <nacc@us.ibm.com>, William Irwin <wli@holomorphy.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: balbir@linux.vnet.ibm.com
+Cc: Andi Kleen <andi@firstfloor.org>, akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-02-19 at 15:30 -0800, Andrew Morton wrote:
-> On Tue, 19 Feb 2008 12:41:51 -0600 Adam Litke <agl@us.ibm.com> wrote:
-> 
-> > Indeed.  I'll take credit for this thinko...
-> > 
-> > On Tue, 2008-02-19 at 18:28 +0000, Andy Whitcroft wrote:
-> > > When we free a page via free_huge_page and we detect that we are in
-> > > surplus the page will be returned to the buddy.  After this we no longer
-> > > own the page.  However at the end free_huge_page we clear out our mapping
-> > > pointer from page private.  Even where the page is not a surplus we
-> > > free the page to the hugepage pool, drop the pool locks and then clear
-> > > page private.  In either case the page may have been reallocated.  BAD.
-> > > 
-> > > Make sure we clear out page private before we free the page.
-> > > 
-> > > Signed-off-by: Andy Whitcroft <apw@shadowen.org>
-> > 
-> > Acked-by: Adam Litke <agl@us.ibm.com>
-> 
-> Was I right to assume that this is also needed in 2.6.24.x?
+>>>>> "Balbir" == Balbir Singh <balbir@linux.vnet.ibm.com> writes:
 
-Yep.  Thanks Andrew.
+Balbir> Andi Kleen wrote:
+>> Document huge memory/cache overhead of memory controller in Kconfig
+>> 
+>> I was a little surprised that 2.6.25-rc* increased struct page for the memory
+>> controller.  At least on many x86-64 machines it will not fit into a single
+>> cache line now anymore and also costs considerable amounts of RAM. 
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+Balbir> The size of struct page earlier was 56 bytes on x86_64 and with 64 bytes it
+Balbir> won't fit into the cacheline anymore? Please also look at
+Balbir> http://lwn.net/Articles/234974/
+
+>> At earlier review I remembered asking for a external data structure for this.
+>> 
+>> It's also quite unobvious that a innocent looking Kconfig option with a 
+>> single line Kconfig description has such a negative effect.
+>> 
+>> This patch attempts to document these disadvantages at least so that users
+>> configuring their kernel can make a informed decision.
+>> 
+>> Cc: balbir@linux.vnet.ibm.com
+>> 
+>> Signed-off-by: Andi Kleen <ak@suse.de>
+>> 
+>> Index: linux/init/Kconfig
+>> ===================================================================
+>> --- linux.orig/init/Kconfig
+>> +++ linux/init/Kconfig
+>> @@ -394,6 +394,14 @@ config CGROUP_MEM_CONT
+>> Provides a memory controller that manages both page cache and
+>> RSS memory.
+>> 
+>> +	  Note that setting this option increases fixed memory overhead
+>> +	  associated with each page of memory in the system by 4/8 bytes
+>> +	  and also increases cache misses because struct page on many 64bit
+>> +	  systems will not fit into a single cache line anymore.
+>> +
+>> +	  Only enable when you're ok with these trade offs and really
+>> +	  sure you need the memory controller.
+>> +
+
+I know this is a pedantic comment, but why the heck is it called such
+a generic term as "Memory Controller" which doesn't give any
+indication of what it does.
+
+Shouldn't it be something like "Memory Quota Controller", or "Memory
+Limits Controller"?
+
+Also, the Kconfig name "CGROUP_MEM_CONT" is just wrong, it should be
+"CGROUP_MEM_CONTROLLER", just spell it out so it's clear what's up.
+
+It took me a bunch of reading of Documentation/controllers/memory.txt
+to even start to understand what the purpose of this was.  The
+document could also use a re-writing to include a clear introduction
+at the top to explain "what" a memory controller is.  
+
+Something which talks about limits, resource management, quotas, etc
+would be nice.  
+
+Thanks,
+John
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
