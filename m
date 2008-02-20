@@ -1,83 +1,55 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id m1KCu1hc015038
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 23:56:01 +1100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1KD01gZ216898
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2008 00:00:01 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1KCuNxu016645
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 23:56:23 +1100
-Message-ID: <47BC2275.4060900@linux.vnet.ibm.com>
-Date: Wed, 20 Feb 2008 18:22:05 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Date: Wed, 20 Feb 2008 07:15:15 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH] mmu notifiers #v6
+Message-ID: <20080220131515.GF11364@sgi.com>
+References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random> <20080220113313.GD11364@sgi.com> <20080220120324.GW7128@v2.random> <20080220122424.GE11364@sgi.com> <20080220123235.GX7128@v2.random>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Document huge memory/cache overhead of memory controller
- in Kconfig
-References: <20080220122338.GA4352@basil.nowhere.org>
-In-Reply-To: <20080220122338.GA4352@basil.nowhere.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080220123235.GX7128@v2.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> Document huge memory/cache overhead of memory controller in Kconfig
+On Wed, Feb 20, 2008 at 01:32:36PM +0100, Andrea Arcangeli wrote:
+> On Wed, Feb 20, 2008 at 06:24:24AM -0600, Robin Holt wrote:
+> > We do not need to do any allocation in the messaging layer, all
+> > structures used for messaging are allocated at module load time.
+> > The allocation discussions we had early on were about trying to
+> > rearrange you notifiers to allow a seperate worker thread to do the
+> > invalidate and then the main thread would spin waiting for the worker to
+> > complete.  That was canned by the moving your notifier to before the
+> > lock was grabbed which led us to the point of needing a _begin and _end.
 > 
-> I was a little surprised that 2.6.25-rc* increased struct page for the memory
-> controller.  At least on many x86-64 machines it will not fit into a single
-> cache line now anymore and also costs considerable amounts of RAM. 
+> I thought you called some net/* function inside the mmu notifier
+> methods. Those always require several ram allocations internally.
 
-The size of struct page earlier was 56 bytes on x86_64 and with 64 bytes it
-won't fit into the cacheline anymore? Please also look at
-http://lwn.net/Articles/234974/
+Nope, that was the discussions with the IB folks.  We only use XPC and
+both the messages we send and the XPC internals do not need to allocate.
 
-> At earlier review I remembered asking for a external data structure for this.
+> > So, fundamentally, how would they be different?  Would we be required to
+> > add another notifier list to the mm and have two seperate callout
+> > points?  Reduction would end up with the same half-registered
+> > half-not-registered situation you point out above.  Then further
+> > reduction would lead to the elimination of the callouts you have just
+> > proposed and using the _begin/_end callouts and we are back to
+> > Christoph's current patch.
 > 
-> It's also quite unobvious that a innocent looking Kconfig option with a 
-> single line Kconfig description has such a negative effect.
-> 
-> This patch attempts to document these disadvantages at least so that users
-> configuring their kernel can make a informed decision.
-> 
-> Cc: balbir@linux.vnet.ibm.com
-> 
-> Signed-off-by: Andi Kleen <ak@suse.de>
-> 
-> Index: linux/init/Kconfig
-> ===================================================================
-> --- linux.orig/init/Kconfig
-> +++ linux/init/Kconfig
-> @@ -394,6 +394,14 @@ config CGROUP_MEM_CONT
->  	  Provides a memory controller that manages both page cache and
->  	  RSS memory.
-> 
-> +	  Note that setting this option increases fixed memory overhead
-> +	  associated with each page of memory in the system by 4/8 bytes
-> +	  and also increases cache misses because struct page on many 64bit
-> +	  systems will not fit into a single cache line anymore.
-> +
-> +	  Only enable when you're ok with these trade offs and really
-> +	  sure you need the memory controller.
-> +
+> Did you miss Nick's argument that we'd need to change some VM lock to
+> mutex and solve lock issues first? Are you implying mutex are more
+> efficient for the VM? (you may seek support from preempt-rt folks at
+> least) or are you implying the VM would better run slower with mutex
+> in order to have a single config option?
 
-Looks good
+That would be if we needed to support file backed mappings and hugetlbfs
+mappings.  Currently (and for the last 6 years), XPMEM has not supported
+either of those.  I don't view either as being a realistic possibility,
+but it is certainly something we would need to address before either
+could be supported.
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-
->  config PROC_PID_CPUSET
->  	bool "Include legacy /proc/<pid>/cpuset file"
->  	depends on CPUSETS
-
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
