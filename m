@@ -1,34 +1,70 @@
-Date: Wed, 20 Feb 2008 13:13:56 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 20 Feb 2008 04:14:58 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
-Message-Id: <20080220131356.51db25c9.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080220033724.A76CB1E3C58@siro.lan>
-References: <20080220121455.d4e4daf6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080220033724.A76CB1E3C58@siro.lan>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20080220100333.a014083c.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0802200355220.3569@blonde.site>
+References: <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0802191449490.6254@blonde.site>
+ <20080220100333.a014083c.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: hugh@veritas.com, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, riel@redhat.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "riel@redhat.com" <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 20 Feb 2008 12:37:24 +0900 (JST)
-yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
-
-> > Why it's safe against reusing freed one by slab fast path (array_cache) ?
+On Wed, 20 Feb 2008, KAMEZAWA Hiroyuki wrote:
+> On Tue, 19 Feb 2008 15:40:45 +0000 (GMT)
+> Hugh Dickins <hugh@veritas.com> wrote:
 > 
-> reuse for another anon_vma is ok.
-> page_check_address checks if it was really for this page.
+> > A lot in common with yours, a lot not.  (And none of it addressing
+> > that issue of opt-out I raise in the last paragraph: haven't begun
+> > to go into that one, hoped you and Balbir would look into it.)
+> > 
+> I have some trial patches for reducing atomic_ops by do_it_lazy method.
+> Now, I'm afraid that performence is too bad when there is *no* memory
+> pressure.
+
+But it isn't just the atomic ops, it's the whole business of
+mem_cgroup_charge_common plus mem_cgroup_uncharge_page per page.
+
+The existence of force_empty indicates that the system can get along
+without the charge on the page.  What's needed, I think, is something
+in struct mm, a flag or a reserved value in mm->mem_cgroup, to say
+don't do any of this mem_cgroup stuff on me; and a cgroup fs interface
+to set that, in the same way as force_empty is done.
+
+> > I haven't completed my solution in mem_cgroup_move_lists yet: but
+> > the way it wants a lock in a structure which isn't stabilized until
+> > it's got that lock, reminds me very much of my page_lock_anon_vma,
+> > so I'm expecting to use a SLAB_DESTROY_BY_RCU cache there.
+> > 
 > 
-i.c. (and I checked migration code again and it does check.)
+> IMHO, because tons of page_cgroup can be freed at once, we need some good
+> idea for reducing RCU's GC work to do that.
 
-Then, page_cgroup should have some check code for using RCU or
-use call_rcu() by itself.
+That's a good point that hadn't yet crossed my mind, but it may not
+be relevant.  It's not the struct page_cgroups that would need to go
+into a SLAB_DESTROY_BY_RCU slab, but the struct mem_cgroups.
 
-Thanks,
--Kame
+> 
+> > Ha, you have lock_page_cgroup in your mem_cgroup_move_lists: yes,
+> > tried that too, and it deadlocks: someone holding lock_page_cgroup
+> > can be interrupted by an end of I/O interrupt which does
+> > rotate_reclaimable_page and wants the main lru_lock, but that
+> > main lru_lock is held across mem_cgroup_move_lists.  There are
+> > several different ways to address that, but for this release I
+> > think we just go for a try_lock_page_cgroup there.
+> > 
+> Hm, I'd like to remove mem_cgroup_move_lists if possible ;(
+> (But its result will be bad LRU ordering.)
+
+I'm not sure if you're actually proposing to revert all that, or just
+expressing regret at the difficulty it introduces.  I'll assume the
+latter: certainly I'm not arguing for such a large reversion.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
