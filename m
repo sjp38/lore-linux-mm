@@ -1,173 +1,73 @@
-Message-Id: <20080220150307.122541000@chello.nl>
-References: <20080220144610.548202000@chello.nl>
-Date: Wed, 20 Feb 2008 15:46:24 +0100
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 14/28] net: sk_allocation() - concentrate socket related allocations
-Content-Disposition: inline; filename=net-sk_allocation.patch
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28esmtp03.in.ibm.com (8.13.1/8.13.1) with ESMTP id m1KFPAie013410
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 20:55:10 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1KFPA8d897052
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 20:55:10 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id m1KFP9PY031743
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 15:25:09 GMT
+Message-ID: <47BC4554.10304@linux.vnet.ibm.com>
+Date: Wed, 20 Feb 2008 20:50:52 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH] Document huge memory/cache overhead of memory controller
+ in Kconfig
+References: <20080220122338.GA4352@basil.nowhere.org> <47BC2275.4060900@linux.vnet.ibm.com> <18364.16552.455371.242369@stoffel.org>
+In-Reply-To: <18364.16552.455371.242369@stoffel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: John Stoffel <john@stoffel.org>
+Cc: Andi Kleen <andi@firstfloor.org>, akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Introduce sk_allocation(), this function allows to inject sock specific
-flags to each sock related allocation.
+John Stoffel wrote:
+> I know this is a pedantic comment, but why the heck is it called such
+> a generic term as "Memory Controller" which doesn't give any
+> indication of what it does.
+> 
+> Shouldn't it be something like "Memory Quota Controller", or "Memory
+> Limits Controller"?
+> 
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- include/net/sock.h    |    5 +++++
- net/ipv4/tcp.c        |    3 ++-
- net/ipv4/tcp_output.c |   12 +++++++-----
- net/ipv6/tcp_ipv6.c   |   14 +++++++++-----
- 4 files changed, 23 insertions(+), 11 deletions(-)
+It's called the memory controller since it controls the amount of memory that a
+user can allocate (via limits). The generic term for any resource manager
+plugged into cgroups is a controller. If you look through some of the references
+in the document, we've listed our plans to support other categories of memory as
+well. Hence it's called a memory controller
 
-Index: linux-2.6/net/ipv4/tcp_output.c
-===================================================================
---- linux-2.6.orig/net/ipv4/tcp_output.c
-+++ linux-2.6/net/ipv4/tcp_output.c
-@@ -2078,7 +2078,8 @@ void tcp_send_fin(struct sock *sk)
- 	} else {
- 		/* Socket is locked, keep trying until memory is available. */
- 		for (;;) {
--			skb = alloc_skb_fclone(MAX_TCP_HEADER, GFP_KERNEL);
-+			skb = alloc_skb_fclone(MAX_TCP_HEADER,
-+					       sk->sk_allocation);
- 			if (skb)
- 				break;
- 			yield();
-@@ -2104,7 +2105,7 @@ void tcp_send_active_reset(struct sock *
- 	struct sk_buff *skb;
- 
- 	/* NOTE: No TCP options attached and we never retransmit this. */
--	skb = alloc_skb(MAX_TCP_HEADER, priority);
-+	skb = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, priority));
- 	if (!skb) {
- 		NET_INC_STATS(LINUX_MIB_TCPABORTFAILED);
- 		return;
-@@ -2171,7 +2172,8 @@ struct sk_buff *tcp_make_synack(struct s
- 	__u8 *md5_hash_location;
- #endif
- 
--	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15, 1, GFP_ATOMIC);
-+	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15, 1,
-+			sk_allocation(sk, GFP_ATOMIC));
- 	if (skb == NULL)
- 		return NULL;
- 
-@@ -2425,7 +2427,7 @@ void tcp_send_ack(struct sock *sk)
- 	 * tcp_transmit_skb() will set the ownership to this
- 	 * sock.
- 	 */
--	buff = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
-+	buff = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, GFP_ATOMIC));
- 	if (buff == NULL) {
- 		inet_csk_schedule_ack(sk);
- 		inet_csk(sk)->icsk_ack.ato = TCP_ATO_MIN;
-@@ -2460,7 +2462,7 @@ static int tcp_xmit_probe_skb(struct soc
- 	struct sk_buff *skb;
- 
- 	/* We don't queue it, tcp_transmit_skb() sets ownership. */
--	skb = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
-+	skb = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, GFP_ATOMIC));
- 	if (skb == NULL)
- 		return -1;
- 
-Index: linux-2.6/include/net/sock.h
-===================================================================
---- linux-2.6.orig/include/net/sock.h
-+++ linux-2.6/include/net/sock.h
-@@ -427,6 +427,11 @@ static inline int sock_flag(struct sock 
- 	return test_bit(flag, &sk->sk_flags);
- }
- 
-+static inline gfp_t sk_allocation(struct sock *sk, gfp_t gfp_mask)
-+{
-+	return gfp_mask;
-+}
-+
- static inline void sk_acceptq_removed(struct sock *sk)
- {
- 	sk->sk_ack_backlog--;
-Index: linux-2.6/net/ipv6/tcp_ipv6.c
-===================================================================
---- linux-2.6.orig/net/ipv6/tcp_ipv6.c
-+++ linux-2.6/net/ipv6/tcp_ipv6.c
-@@ -568,7 +568,8 @@ static int tcp_v6_md5_do_add(struct sock
- 	} else {
- 		/* reallocate new list if current one is full. */
- 		if (!tp->md5sig_info) {
--			tp->md5sig_info = kzalloc(sizeof(*tp->md5sig_info), GFP_ATOMIC);
-+			tp->md5sig_info = kzalloc(sizeof(*tp->md5sig_info),
-+					sk_allocation(sk, GFP_ATOMIC));
- 			if (!tp->md5sig_info) {
- 				kfree(newkey);
- 				return -ENOMEM;
-@@ -581,7 +582,8 @@ static int tcp_v6_md5_do_add(struct sock
- 		}
- 		if (tp->md5sig_info->alloced6 == tp->md5sig_info->entries6) {
- 			keys = kmalloc((sizeof (tp->md5sig_info->keys6[0]) *
--				       (tp->md5sig_info->entries6 + 1)), GFP_ATOMIC);
-+				       (tp->md5sig_info->entries6 + 1)),
-+				       sk_allocation(sk, GFP_ATOMIC));
- 
- 			if (!keys) {
- 				tcp_free_md5sig_pool();
-@@ -705,7 +707,7 @@ static int tcp_v6_parse_md5_keys (struct
- 		struct tcp_sock *tp = tcp_sk(sk);
- 		struct tcp_md5sig_info *p;
- 
--		p = kzalloc(sizeof(struct tcp_md5sig_info), GFP_KERNEL);
-+		p = kzalloc(sizeof(struct tcp_md5sig_info), sk->sk_allocation);
- 		if (!p)
- 			return -ENOMEM;
- 
-@@ -1006,7 +1008,7 @@ static void tcp_v6_send_reset(struct soc
- 	 */
- 
- 	buff = alloc_skb(MAX_HEADER + sizeof(struct ipv6hdr) + tot_len,
--			 GFP_ATOMIC);
-+			 sk_allocation(sk, GFP_ATOMIC));
- 	if (buff == NULL)
- 		return;
- 
-@@ -1085,10 +1087,12 @@ static void tcp_v6_send_ack(struct tcp_t
- 	struct tcp_md5sig_key *key;
- 	struct tcp_md5sig_key tw_key;
- #endif
-+	gfp_t gfp_mask = GFP_ATOMIC;
- 
- #ifdef CONFIG_TCP_MD5SIG
- 	if (!tw && skb->sk) {
- 		key = tcp_v6_md5_do_lookup(skb->sk, &ipv6_hdr(skb)->daddr);
-+		gfp_mask = sk_allocation(skb->sk, gfp_mask);
- 	} else if (tw && tw->tw_md5_keylen) {
- 		tw_key.key = tw->tw_md5_key;
- 		tw_key.keylen = tw->tw_md5_keylen;
-@@ -1106,7 +1110,7 @@ static void tcp_v6_send_ack(struct tcp_t
- #endif
- 
- 	buff = alloc_skb(MAX_HEADER + sizeof(struct ipv6hdr) + tot_len,
--			 GFP_ATOMIC);
-+			 gfp_mask);
- 	if (buff == NULL)
- 		return;
- 
-Index: linux-2.6/net/ipv4/tcp.c
-===================================================================
---- linux-2.6.orig/net/ipv4/tcp.c
-+++ linux-2.6/net/ipv4/tcp.c
-@@ -636,7 +636,8 @@ struct sk_buff *sk_stream_alloc_skb(stru
- 	/* The TCP header must be at least 32-bit aligned.  */
- 	size = ALIGN(size, 4);
- 
--	skb = alloc_skb_fclone(size + sk->sk_prot->max_header, gfp);
-+	skb = alloc_skb_fclone(size + sk->sk_prot->max_header,
-+			       sk_allocation(sk, gfp));
- 	if (skb) {
- 		if (sk_wmem_schedule(sk, skb->truesize)) {
- 			/*
+> Also, the Kconfig name "CGROUP_MEM_CONT" is just wrong, it should be
+> "CGROUP_MEM_CONTROLLER", just spell it out so it's clear what's up.
+> 
 
---
+This has some history as well. Control groups was called containers earlier.
+That way a name like CGROUP_MEM_CONT could stand for cgroup memory container or
+cgroup memory controller.
+
+> It took me a bunch of reading of Documentation/controllers/memory.txt
+> to even start to understand what the purpose of this was.  The
+> document could also use a re-writing to include a clear introduction
+> at the top to explain "what" a memory controller is.  
+> 
+> Something which talks about limits, resource management, quotas, etc
+> would be nice.  
+> 
+
+
+The references, specially reference [1] contains a lot of details on limits,
+guarantees, etc.  Since they've been documented in the past on lkml, I decided
+to keep them out of the documentation and mention them as references. If it's
+going to help to add that terminology; I can create another document describing
+what resource management means and what the commonly used terms mean.
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
