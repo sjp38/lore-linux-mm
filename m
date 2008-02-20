@@ -1,43 +1,85 @@
-Date: Wed, 20 Feb 2008 13:32:36 +0100
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [PATCH] mmu notifiers #v6
-Message-ID: <20080220123235.GX7128@v2.random>
-References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random> <20080220113313.GD11364@sgi.com> <20080220120324.GW7128@v2.random> <20080220122424.GE11364@sgi.com>
+Received: by wa-out-1112.google.com with SMTP id m33so4197260wag.8
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2008 04:40:32 -0800 (PST)
+Message-ID: <4cefeab80802200440u693cf9d0w5c56b29bf3d5bd81@mail.gmail.com>
+Date: Wed, 20 Feb 2008 18:10:32 +0530
+From: "Nitin Gupta" <nitingupta910@gmail.com>
+Subject: Re: [linux-mm-cc] Announce: ccache release 0.1
+In-Reply-To: <fd87b6160802200029q6b94311eq78fc4f2d7ab147d4@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080220122424.GE11364@sgi.com>
+References: <4cefeab80802181339ia9609d3oeb238a9f549fc6e5@mail.gmail.com>
+	 <4cefeab80802200012r39b00beera521935d141b966a@mail.gmail.com>
+	 <fd87b6160802200029q6b94311eq78fc4f2d7ab147d4@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+To: John McCabe-Dansted <gmatht@gmail.com>
+Cc: linux-mm-cc@laptop.org, linux-mm@kvack.org, linuxcompressed-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 20, 2008 at 06:24:24AM -0600, Robin Holt wrote:
-> We do not need to do any allocation in the messaging layer, all
-> structures used for messaging are allocated at module load time.
-> The allocation discussions we had early on were about trying to
-> rearrange you notifiers to allow a seperate worker thread to do the
-> invalidate and then the main thread would spin waiting for the worker to
-> complete.  That was canned by the moving your notifier to before the
-> lock was grabbed which led us to the point of needing a _begin and _end.
+On Feb 20, 2008 1:59 PM, John McCabe-Dansted <gmatht@gmail.com> wrote:
+> On Wed, Feb 20, 2008 at 5:12 PM, Nitin Gupta <nitingupta910@gmail.com> wrote:
+> >  This project has now moved to: http://code.google.com/p/compcache/
+> >
+> >  This was done to avoid confusion with http://ccache.samba.org/ which
+> >
+> > has nothing to do with this project.
+> >
+> >  PS: only user visible change done is that virtual swap device is now
+> >  called /dev/compcache
+>
+> You haven't updated the README file, fortunately
+>    sed s/ccache/compcache/g < README > README.new
+>  seems to do exactly what you want.
+>
 
-I thought you called some net/* function inside the mmu notifier
-methods. Those always require several ram allocations internally.
+Now compcache download has updated README.
 
-> So, fundamentally, how would they be different?  Would we be required to
-> add another notifier list to the mm and have two seperate callout
-> points?  Reduction would end up with the same half-registered
-> half-not-registered situation you point out above.  Then further
-> reduction would lead to the elimination of the callouts you have just
-> proposed and using the _begin/_end callouts and we are back to
-> Christoph's current patch.
+> Perhaps for the convenience of your users you could also include
+> swapon_compcache.sh:
+>
+> #!/bin/sh
+> #Ubuntu Hardy does include lzo_compress and lzo_decompress
 
-Did you miss Nick's argument that we'd need to change some VM lock to
-mutex and solve lock issues first? Are you implying mutex are more
-efficient for the VM? (you may seek support from preempt-rt folks at
-least) or are you implying the VM would better run slower with mutex
-in order to have a single config option?
+
+I wonder why ubuntu renamed lzo1x_compress module to lzo_compress and
+likewise for decompressor. Anyway, I will add these scripts to
+download.
+
+
+> (modprobe lzo_compress || insmod
+> ./sub-projects/compression/lzo-kmod/lzo1x_compress.ko) &&
+> (modprobe lzo_decompress || insmod
+> ./sub-projects/compression/lzo-kmod/lzo1x_decompress.ko) &&
+> insmod ./sub-projects/allocators/tlsf-kmod/tlsf.ko &&
+> insmod ./compcache.ko &&
+> #insmod ./compcache.ko compcache_size_kbytes=128000 &&
+> sleep 1 &&
+> swapon /dev/compcache
+> lsmod | grep lzo
+> lsmod | grep tlsf
+> lsmod | grep cache
+>
+> And swapoff_compcache.sh:
+>
+> #!/bin/sh
+> swapoff /dev/ccache
+> swapoff /dev/compcache
+> rmmod ccache
+> rmmod compcache
+> rmmod tlsf
+> rmmod lzo1x_compress
+> rmmod lzo_compress
+> rmmod lzo1x_decompress
+> rmmod lzo_decompress
+>
+>
+> --
+> John C. McCabe-Dansted
+> PhD Student
+> University of Western Australia
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
