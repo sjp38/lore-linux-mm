@@ -1,39 +1,116 @@
-Date: Wed, 20 Feb 2008 05:33:13 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH] mmu notifiers #v6
-Message-ID: <20080220113313.GD11364@sgi.com>
-References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random>
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28esmtp05.in.ibm.com (8.13.1/8.13.1) with ESMTP id m1KBaOoq001404
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 17:06:24 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1KBaNj91048702
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 17:06:23 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id m1KBaSmL006022
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 11:36:28 GMT
+Message-ID: <47BC0FB9.8090404@linux.vnet.ibm.com>
+Date: Wed, 20 Feb 2008 17:02:09 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080220103942.GU7128@v2.random>
+Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
+References: <Pine.LNX.4.64.0802191449490.6254@blonde.site> <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com> <17878602.1203436460680.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0802191605500.16579@blonde.site> <47BBCAFB.4080302@linux.vnet.ibm.com> <Pine.LNX.4.64.0802201023510.30466@blonde.site>
+In-Reply-To: <Pine.LNX.4.64.0802201023510.30466@blonde.site>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, yamamoto@valinux.co.jp, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 20, 2008 at 11:39:42AM +0100, Andrea Arcangeli wrote:
-> Given Nick's comments I ported my version of the mmu notifiers to
-> latest mainline. There are no known bugs AFIK and it's obviously safe
-> (nothing is allowed to schedule inside rcu_read_lock taken by
-> mmu_notifier() with my patch).
+Hugh Dickins wrote:
+> On Wed, 20 Feb 2008, Balbir Singh wrote:
+>> The changes look good and clean overall. I'll apply the patch, test it.
 > 
-> XPMEM simply can't use RCU for the registration locking if it wants to
-> schedule inside the mmu notifier calls. So I guess it's better to add
-> the XPMEM invalidate_range_end/begin/external-rmap as a whole
-> different subsystem that will have to use a mutex (not RCU) to
-> serialize, and at the same time that CONFIG_XPMEM will also have to
-> switch the i_mmap_lock to a mutex. I doubt xpmem fits inside a
-> CONFIG_MMU_NOTIFIER anymore, or we'll all run a bit slower because of
-> it. It's really a call of how much we want to optimize the MMU
-> notifier, by keeping things like RCU for the registration.
+> Thanks, yes, it's fine for applying as a patch for testing;
+> just don't send it up the line until I've split and commented it.
+> 
 
-But won't that other "subsystem" cause us to have two seperate callouts
-that do equivalent things and therefore force a removal of this and go
-back to what Christoph has currently proposed?
+Absolutely! It's too big and does too many things to be sent upstream as one patch.
 
-Robin
+>> I have
+>> some review comments below. I'll review it again to check for locking issues
+> ...
+>>> -void page_assign_page_cgroup(struct page *page, struct page_cgroup *pc)
+>>> +static void page_assign_page_cgroup(struct page *page, struct page_cgroup *pc)
+>>>  {
+>>> -	int locked;
+>>> -
+>>> -	/*
+>>> -	 * While resetting the page_cgroup we might not hold the
+>>> -	 * page_cgroup lock. free_hot_cold_page() is an example
+>>> -	 * of such a scenario
+>>> -	 */
+>>> -	if (pc)
+>>> -		VM_BUG_ON(!page_cgroup_locked(page));
+>>> -	locked = (page->page_cgroup & PAGE_CGROUP_LOCK);
+>>> -	page->page_cgroup = ((unsigned long)pc | locked);
+>>> +	page->page_cgroup = ((unsigned long)pc | PAGE_CGROUP_LOCK);
+>> We are explicitly setting the PAGE_CGROUP_LOCK bit, shouldn't we keep the
+>> VM_BUG_ON(!page_cgroup_locked(page))?
+> 
+> Could do, but it seemed quite unnecessary to me now that it's a static
+> function with the obvious rule everywhere that you call it holding lock,
+> no matter whether pc is or isn't NULL.  If somewhere in memcontrol.c
+> did call it without holding the lock, it'd also have to bizarrely
+> remember to unlock while forgetting to lock, for it to escape notice.
+> 
+
+Yes, you are as always of-course right. I was thinking of future uses of the
+function. Some one could use it, a VM_BUG_ON will help.
+
+> (I did say earlier that I was reversing making it static, but that
+> didn't work out so well: ended up adding a specific page_reset_bad_cgroup
+> inline in memcontrol.h, just for the bad_page case.)
+> 
+>>> @@ -2093,12 +2093,9 @@ static int do_swap_page(struct mm_struct
+>>>  	unlock_page(page);
+>>>
+>>>  	if (write_access) {
+>>> -		/* XXX: We could OR the do_wp_page code with this one? */
+>>> -		if (do_wp_page(mm, vma, address,
+>>> -				page_table, pmd, ptl, pte) & VM_FAULT_OOM) {
+>>> -			mem_cgroup_uncharge_page(page);
+>>> -			ret = VM_FAULT_OOM;
+>>> -		}
+>>> +		ret |= do_wp_page(mm, vma, address, page_table, pmd, ptl, pte);
+>>> +		if (ret & VM_FAULT_ERROR)
+>>> +			ret &= VM_FAULT_ERROR;
+>> I am afraid, I do not understand this change (may be I need to look at the final
+>> code and not the diff). We no longer uncharge the charged page here.
+> 
+> The page that was charged is there in the pagetable, and will be
+> uncharged as usual when that area is unmapped.  What has failed here
+> is just the COWing of that page.  You could argue that we should ignore
+> the retval from do_wp_page and return our own retval: I hesitated over
+> that, but since we skip do_swap_page's update_mmu_cache here, it seems
+> conceivable that some architecture might loop endlessly if we claimed
+> success when do_wp_page has skipped it too.
+> 
+
+That sounds very reasonable
+
+> This is of course an example of why I didn't post the patch originally,
+> just when Kame asked for a copy for testing: it badly needs the split
+> and comments.  You're brave to be reviewing it at all - thanks!
+> 
+
+I think posting out the patch is helpful, we can test it at more locations.
+Thanks for posting your patch.
+
+> Hugh
+
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
