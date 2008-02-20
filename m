@@ -1,97 +1,124 @@
-Received: by py-out-1112.google.com with SMTP id f47so2430168pye.20
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2008 01:49:03 -0800 (PST)
-Message-ID: <44c63dc40802200149r6b03d970g2fbde74b85ad5443@mail.gmail.com>
-Date: Wed, 20 Feb 2008 18:49:03 +0900
-From: "minchan Kim" <barrioskmc@gmail.com>
-Subject: Re: [RFC][PATCH] the proposal of improve page reclaim by throttle
-In-Reply-To: <20080220181447.6444.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Date: Wed, 20 Feb 2008 18:58:21 +0900 (JST)
+Message-Id: <20080220.185821.61784723.taka@valinux.co.jp>
+Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
+From: Hirokazu Takahashi <taka@valinux.co.jp>
+In-Reply-To: <47BBC15E.5070405@linux.vnet.ibm.com>
+References: <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0802191449490.6254@blonde.site>
+	<47BBC15E.5070405@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080219134715.7E90.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <44c63dc40802200056va847417v1cfc847341bb8cc0@mail.gmail.com>
-	 <20080220181447.6444.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: balbir@linux.vnet.ibm.com
+Cc: hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, yamamoto@valinux.co.jp, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Feb 20, 2008 6:24 PM, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> Hi Kim-san
->
-> Do you adjust hackbench parameter?
-> my parameter adjust my test machine(8GB mem),
-> if unchanged, maybe doesn't works it because lack memory.
+Hi,
 
-I already adjusted it. :-)
-But, In my desktop, I couldn't make to consune my swap device above
-half. (My swap device is 512M size)
-Because my kernel almost was hang before happening many swapping.
-Perhaps, it might be a not hang.  However, Although I wait a very long
-time, My box don't have a any response.
-I will try do it more.
+> >> I'd like to start from RFC.
+> >>
+> >> In following code
+> >> ==
+> >>   lock_page_cgroup(page);
+> >>   pc = page_get_page_cgroup(page);
+> >>   unlock_page_cgroup(page);
+> >>
+> >>   access 'pc' later..
+> >> == (See, page_cgroup_move_lists())
+> >>
+> >> There is a race because 'pc' is not a stable value without lock_page_cgroup().
+> >> (mem_cgroup_uncharge can free this 'pc').
+> >>
+> >> For example, page_cgroup_move_lists() access pc without lock.
+> >> There is a small race window, between page_cgroup_move_lists()
+> >> and mem_cgroup_uncharge(). At uncharge, page_cgroup struct is immedieately
+> >> freed but move_list can access it after taking lru_lock.
+> >> (*) mem_cgroup_uncharge_page() can be called without zone->lru lock.
+> >>
+> >> This is not good manner.
+> >> .....
+> >> There is no quick fix (maybe). Moreover, I hear some people around me said
+> >> current memcontrol.c codes are very complicated.
+> >> I agree ;( ..it's caued by my work.
+> >>
+> >> I'd like to fix problems in clean way.
+> >> (Note: current -rc2 codes works well under heavy pressure. but there
+> >>  is possibility of race, I think.)
+> > 
+> > Yes, yes, indeed, I've been working away on this too.
+> > 
+> > Ever since the VM_BUG_ON(page_get_page_cgroup(page)) went into
+> > free_hot_cold_page (at my own prompting), I've been hitting it
+> > just very occasionally in my kernel build testing.  Was unable
+> > to reproduce it over the New Year, but a week or two ago found
+> > one machine and config on which it is relatively reproducible,
+> > pretty sure to happen within 12 hours.
+> > 
+> > And on Saturday evening at last identified the cause, exactly
+> > where you have: that unsafety in mem_cgroup_move_lists - which
+> > has the nice property of putting pages from the lru on to SLUB's
+> > freelist!
+> > 
+> > Unlike the unsafeties of force_empty, this is liable to hit anyone
+> > running with MEM_CONT compiled in, they don't have to be consciously
+> > using mem_cgroups at all.
+> > 
+> > (I consider that, by the way, quite a serious defect in the current
+> > mem_cgroup work: that a distro compiling it in for 1% of customers
+> > is then subjecting all to the mem_cgroup overhead - effectively
+> > doubled struct page size and unnecessary accounting overhead.  I
+> > believe there needs to be a way to opt out, a force_empty which
+> > sticks.  Yes, I know the page_cgroup which does that doubling of
+> > size is only allocated on demand, but every page cache page and
+> > every anonymous page is going to have one.  A kmem_cache for them
+> > will reduce the extra, but there still needs to be a way to opt
+> > out completely.)
+> > 
+> 
+> I've been thinking along these lines as well
+> 
+> 1. Have a boot option to turn on/off the memory controller
 
-> > I am a many interested in your patch. so I want to test it with exact
-> > same method as you did.
-> > I will test it in embedded environment(ARM 920T, 32M ram) and my
-> > desktop machine.(Core2Duo 2.2G, 2G ram)
->
-> Hm
-> I don't have embedded test machine.
-> but I can desktop.
-> I will test it about weekend.
-> if you don't mind, could you please send me .config file
-> and tell me your test kernel version?
+It will be much convenient if the memory controller can be turned on/off on
+demand. I think you can turn it off if there aren't any mem_cgroups except
+the root mem_cgroup, 
 
-I mean I will test your patch by myself.
-Because I already have a embedded board and Desktop.
+> 2. Have a separate cache for the page_cgroup structure. I sent this suggestion
+>    out just yesterday or so.
 
-> Thanks, interesting report.
->
->
-> > I guess this patch won't be efficient in embedded environment.
-> > Since many embedded board just have one processor and don't have any
-> > swap device.
->
-> reclaim conflict rarely happened on UP.
-> thus, my patch expect no improvement.
+I think the policy that every mem_cgroup should be dynamically allocated and
+assigned to the proper page every time is causing some overheads and spinlock
+contentions.
 
-I agree with you.
+What do you think if you allocate all page_cgroups and assign to all the pages
+when the memory controller gets turned on, which will allow you to remove
+most of the spinlocks.
 
-> but (of course) I will fix regression.
+And you may possibly have a chance to remove page->page_cgroup member
+if you allocate array of page_cgroups and attach them to the zone which
+the pages belong to.
 
-I didn't say your patch had a regression.
-What I mean is just that I am concern about it.
-Actually, Many VM guys is working on server environment.
-They didn't try to do performance test in embedde system.
-and that patch was submitted in mainline.
+               zone
+    page[]    +----+    page_cgroup[]
+    +----+<----    ---->+----+
+    |    |    |    |    |    |
+    +----+    |    |    +----+
+    |    |    +----+    |    |
+    +----+              +----+
+    |    |              |    |
+    +----+              +----+
+    |    |              |    |
+    +----+              +----+
+    |    |              |    |
+    +----+              +----+
 
-Actually, I am concern about it.
 
-> > So, How do I evaluate following field as you did ?
-> >
-> >  * elapse (what do you mean it ??)
-> >  * major fault
->
-> /usr/bin/time command output that.
->
->
-> >  * max parallel reclaim tasks:
-> >  *  max consumption time of
-> >         try_to_free_pages():
->
-> sorry, I inserted debug code to my patch at that time.
->
+> I agree that these are necessary enhancements/changes.
 
-Could you send me that debug code ?
-If you will send it to me, I will test it my environment (ARM-920T, Core2Duo).
-And I will report test result.
-
--- 
-Thanks,
-barrios
+Thank you,
+Hirokazu Takahashi.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
