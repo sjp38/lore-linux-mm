@@ -1,77 +1,58 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [patch 5/6] mmu_notifier: Support for drivers with revers maps (f.e. for XPmem)
-Date: Wed, 20 Feb 2008 10:55:20 +1100
-References: <20080215064859.384203497@sgi.com> <20080215064933.376635032@sgi.com>
-In-Reply-To: <20080215064933.376635032@sgi.com>
+Date: Wed, 20 Feb 2008 01:46:35 +0100
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [patch] my mmu notifiers
+Message-ID: <20080220004635.GO7128@v2.random>
+References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219225923.GA18912@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200802201055.21343.nickpiggin@yahoo.com.au>
+In-Reply-To: <20080219225923.GA18912@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 15 February 2008 17:49, Christoph Lameter wrote:
-> These special additional callbacks are required because XPmem (and likely
-> other mechanisms) do use their own rmap (multiple processes on a series
-> of remote Linux instances may be accessing the memory of a process).
-> F.e. XPmem may have to send out notifications to remote Linux instances
-> and receive confirmation before a page can be freed.
->
-> So we handle this like an additional Linux reverse map that is walked after
-> the existing rmaps have been walked. We leave the walking to the driver
-> that is then able to use something else than a spinlock to walk its reverse
-> maps. So we can actually call the driver without holding spinlocks while we
-> hold the Pagelock.
+On Tue, Feb 19, 2008 at 11:59:23PM +0100, Nick Piggin wrote:
+> That's why I don't understand the need for the pairs: it should be
+> done like this.
 
-I don't know how this is supposed to solve anything. The sleeping
-problem happens I guess mostly in truncate. And all you are doing
-is putting these rmap callbacks in page_mkclean and try_to_unmap.
+Yes, except it can't be done like this for xpmem.
 
+> OK, I didn't see the invalidate_pages call...
 
-> However, we cannot determine the mm_struct that a page belongs to at
-> that point. The mm_struct can only be determined from the rmaps by the
-> device driver.
->
-> We add another pageflag (PageExternalRmap) that is set if a page has
-> been remotely mapped (f.e. by a process from another Linux instance).
-> We can then only perform the callbacks for pages that are actually in
-> remote use.
->
-> Rmap notifiers need an extra page bit and are only available
-> on 64 bit platforms. This functionality is not available on 32 bit!
->
-> A notifier that uses the reverse maps callbacks does not need to provide
-> the invalidate_page() method that is called when locks are held.
+See the last patch I posted to Andrew, you've probably looked at the
+old patches, the old patches didn't work for GRU and didn't work for
+xpmem and they weren't optimized to cluster the invalidates for each
+4k-large-pte.
 
-That doesn't seem right. To start with, the new callbacks aren't
-even called in the places where invalidate_page isn't allowed to
-sleep.
+> I thought that could be used by a non-sleeping user (not intending
+> to try supporting sleeping users). If it is useless then it should
+> go away (BTW. I didn't see your recent patch, some of my confusion
+> I think stems from Christoph's novel way of merging and splitting
+> patches).
 
-The problem is unmap_mapping_range, right? And unmap_mapping_range
-must walk the rmaps with the mmap lock held, which is why it can't
-sleep. And it can't hold any mmap_sem so it cannot prevent address
-space modifications of the processes in question between the time
-you unmap them from the linux ptes with unmap_mapping_range, and the
-time that you unmap them from your driver.
+I kept improving my patch in case the VM maintainers would consider
+xpmem requirements not workable from a linux-VM point of view, and
+they preferred to have something obviously safe, strightforward and
+non intrusive, despite it doesn't support the only sleeping user out
+there I know of (xpmem). My patch supports KVM and GRU (and any other
+not sleeping user).
 
-So in the meantime, you could have eg. a fault come in and set up a
-new page for one of the processes, and that page might even get
-exported via the same external driver. And now you have a totally
-inconsistent view.
+> > No idea why xpmem needs range_begin, I perfectly understand why GRU
+> > needs _begin with Chrisotph's patch (gru lacks the page pin) but I
+> > dunno why xpmem needs range_begin (xpmem has the page pin so I also
+> > think it could avoid using range_begin). Still to support GRU you need
+> > both to call invalidate_range in places that can sleep and you need
+> > the external rmap notifier. The moment you add xpmem into the equation
+> > your and my clean patches become Christoph's one...
+> 
+> Sorry, I kind of didn't have time to follow the conversation so well
+> before; are there patches posted for gru and/or xpmem?
 
-Preventing new mappings from being set up until the old mapping is
-completely flushed is basically what we need to ensure for any sane
-TLB as far as I can tell. To do that, you'll need to make the mmap
-lock sleep, and either take mmap_sem inside it (which is a
-deadlock condition at the moment), or make ptl sleep as well. These
-are simply the locks we use to prevent that from happening, so I
-can't see how you can possibly hope to have a coherent TLB without
-invalidating inside those locks.
+There's some xpmem code posted but the posted one isn't using the mmu
+notifiers yet. GRU code may be available from Jack. I only know for
+sure their requirements in terms of mmu notifiers.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
