@@ -1,26 +1,28 @@
-Message-ID: <47BC5C17.3070507@firstfloor.org>
-Date: Wed, 20 Feb 2008 17:57:59 +0100
+Message-ID: <47BC5C99.3010008@firstfloor.org>
+Date: Wed, 20 Feb 2008 18:00:09 +0100
 From: Andi Kleen <andi@firstfloor.org>
 MIME-Version: 1.0
 Subject: Re: [PATCH] Document huge memory/cache overhead of memory controller
  in Kconfig
-References: <20080220122338.GA4352@basil.nowhere.org>	<47BC2275.4060900@linux.vnet.ibm.com> <18364.16552.455371.242369@stoffel.org>
-In-Reply-To: <18364.16552.455371.242369@stoffel.org>
+References: <20080220122338.GA4352@basil.nowhere.org> <47BC2275.4060900@linux.vnet.ibm.com> <18364.16552.455371.242369@stoffel.org> <47BC4554.10304@linux.vnet.ibm.com> <Pine.LNX.4.64.0802201647060.26109@fbirervta.pbzchgretzou.qr> <18364.20755.798295.881259@stoffel.org> <47BC5211.6030102@linux.vnet.ibm.com>
+In-Reply-To: <47BC5211.6030102@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: John Stoffel <john@stoffel.org>
-Cc: balbir@linux.vnet.ibm.com, akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: John Stoffel <john@stoffel.org>, Jan Engelhardt <jengelh@computergmbh.de>, akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> I know this is a pedantic comment, but why the heck is it called such
-> a generic term as "Memory Controller" which doesn't give any
-> indication of what it does.
+> OK, I'll queue a patch and try to explain various terms used by resource management.
 
-I don't think it's pedantic. I would agree with you in fact
-that the Kconfig description is not very helpful, even with
-my warning added.
+Don't make it too verbose or nobody will read it. It should
+be more like a one paragraph abstract on a scientific paper
+about the linux memory controller.
+
+But I think it should include some variant of the warning that
+was in the original patch in this thread (that could be the
+second paragraph)
 
 -Andi
 
