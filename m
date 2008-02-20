@@ -1,53 +1,69 @@
-Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
-	by smtp-out.google.com with ESMTP id m1KBtJ5h003617
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 03:55:19 -0800
-Received: from py-out-1112.google.com (pygw53.prod.google.com [10.34.224.53])
-	by zps75.corp.google.com with ESMTP id m1KBtI8o011244
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 03:55:19 -0800
-Received: by py-out-1112.google.com with SMTP id w53so3205926pyg.25
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2008 03:55:18 -0800 (PST)
-Message-ID: <6599ad830802200355v40bf8b81re32c24cefad0b279@mail.gmail.com>
-Date: Wed, 20 Feb 2008 03:55:18 -0800
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
-In-Reply-To: <47BC10A8.4020508@linux.vnet.ibm.com>
+Date: Wed, 20 Feb 2008 13:03:24 +0100
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [PATCH] mmu notifiers #v6
+Message-ID: <20080220120324.GW7128@v2.random>
+References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random> <20080220113313.GD11364@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com>
-	 <Pine.LNX.4.64.0802191449490.6254@blonde.site>
-	 <47BBC15E.5070405@linux.vnet.ibm.com>
-	 <20080220.185821.61784723.taka@valinux.co.jp>
-	 <47BC10A8.4020508@linux.vnet.ibm.com>
+In-Reply-To: <20080220113313.GD11364@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Hirokazu Takahashi <taka@valinux.co.jp>, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, yamamoto@valinux.co.jp, riel@redhat.com
+To: Robin Holt <holt@sgi.com>
+Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Feb 20, 2008 3:36 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> >
-> > And you may possibly have a chance to remove page->page_cgroup member
-> > if you allocate array of page_cgroups and attach them to the zone which
-> > the pages belong to.
-> >
->
-> We thought of this as well. We dropped it, because we need to track only user
-> pages at the moment. Doing it for all pages means having the overhead for each
-> page on the system.
->
+On Wed, Feb 20, 2008 at 05:33:13AM -0600, Robin Holt wrote:
+> But won't that other "subsystem" cause us to have two seperate callouts
+> that do equivalent things and therefore force a removal of this and go
+> back to what Christoph has currently proposed?
 
-While having an array of page_cgroup objects may or may not be a good
-idea, I'm not sure that the overhead argument against them is a very
-good one.
+The point is that a new kind of notifier that only supports sleeping
+users will allow to keep optimizing the mmu notifier patch for the
+non-sleeping users. If we keep going Christoph's way of having a
+single notifier that fits all he will have to:
 
-I suspect that on most systems that want to use the cgroup memory
-controller, user-allocated pages will fill the vast majority of
-memory. So using the arrays and eliminating the extra pointer in
-struct page would actually reduce overhead.
+1) drop the entire RCU locking from its patches (making all previous
+   rcu discussions and fixes void) those discussions only made sense
+   if applied to _my_ patch, not Christoph's patches as long as you
+   pretend to sleep in any of his mmu notifier methods like invalidate_range_*.
 
-Paul
+2) probably modify the linux VM to replace the i_mmap_lock and perhaps
+   PT lock with a mutex (see Nick's comments for details)
+
+I'm unconvinced both the main linux VM and the mmu notifier should be
+changed like this just to support xpmem. All non-sleeping users don't
+need that. Nevertheless I'm fully welcome to support xpmem (and it's
+not my call nor my interest to comment if allocating skbs in
+try_to_unmap in order to unpin pages is workable, let's assume it's
+workable for the sake of this discussion) with a new config option
+that will also alter how the core VM works, in order to fully support
+the sleeping users for filebacked mappings.
+
+This will also create less confusion in the registration. With
+Christoph's one-config-option-fits-all you had to half register into
+the mmu notifier (the sleeping calls, so not invalidate_page) and full
+register in the external rmap notifier, and I had to only half
+register into the mmu notifier (not range_begin) and not register in
+the rmap external notifier.
+
+With two separate config options for sleeping and non sleeping users,
+I'll 100% register in the mmu notifier methods, and the non-sleeping
+users will 100% register the xpmem methods. You won't have to have
+designed the mmu notifier patches to understand how to use it.
+
+In theory both KVM and GRU are free to use the xpmem methods too (the
+invalidate_page will be page_t based instead of [mm,addr] based, but
+that's possible to handle with KVM changes if one wants to), but if a
+distro only wants to support the sleeping users in their binary kernel
+images, they won't be forced to alter how the VM works to do
+that.
+
+If there's agreement that the VM should alter its locking from
+spinlock to mutex for its own good, then Christoph's
+one-config-option-fits-all becomes a lot more appealing (replacing RCU
+with a mutex in the mmu notifier list registration locking isn't my
+main worry and the non-sleeping-users may be ok to live with it).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
