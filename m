@@ -1,85 +1,83 @@
-Received: by wa-out-1112.google.com with SMTP id m33so4197260wag.8
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2008 04:40:32 -0800 (PST)
-Message-ID: <4cefeab80802200440u693cf9d0w5c56b29bf3d5bd81@mail.gmail.com>
-Date: Wed, 20 Feb 2008 18:10:32 +0530
-From: "Nitin Gupta" <nitingupta910@gmail.com>
-Subject: Re: [linux-mm-cc] Announce: ccache release 0.1
-In-Reply-To: <fd87b6160802200029q6b94311eq78fc4f2d7ab147d4@mail.gmail.com>
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id m1KCu1hc015038
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 23:56:01 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1KD01gZ216898
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2008 00:00:01 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1KCuNxu016645
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 23:56:23 +1100
+Message-ID: <47BC2275.4060900@linux.vnet.ibm.com>
+Date: Wed, 20 Feb 2008 18:22:05 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
+Subject: Re: [PATCH] Document huge memory/cache overhead of memory controller
+ in Kconfig
+References: <20080220122338.GA4352@basil.nowhere.org>
+In-Reply-To: <20080220122338.GA4352@basil.nowhere.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <4cefeab80802181339ia9609d3oeb238a9f549fc6e5@mail.gmail.com>
-	 <4cefeab80802200012r39b00beera521935d141b966a@mail.gmail.com>
-	 <fd87b6160802200029q6b94311eq78fc4f2d7ab147d4@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: John McCabe-Dansted <gmatht@gmail.com>
-Cc: linux-mm-cc@laptop.org, linux-mm@kvack.org, linuxcompressed-devel@lists.sourceforge.net
+To: Andi Kleen <andi@firstfloor.org>
+Cc: akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Feb 20, 2008 1:59 PM, John McCabe-Dansted <gmatht@gmail.com> wrote:
-> On Wed, Feb 20, 2008 at 5:12 PM, Nitin Gupta <nitingupta910@gmail.com> wrote:
-> >  This project has now moved to: http://code.google.com/p/compcache/
-> >
-> >  This was done to avoid confusion with http://ccache.samba.org/ which
-> >
-> > has nothing to do with this project.
-> >
-> >  PS: only user visible change done is that virtual swap device is now
-> >  called /dev/compcache
->
-> You haven't updated the README file, fortunately
->    sed s/ccache/compcache/g < README > README.new
->  seems to do exactly what you want.
->
+Andi Kleen wrote:
+> Document huge memory/cache overhead of memory controller in Kconfig
+> 
+> I was a little surprised that 2.6.25-rc* increased struct page for the memory
+> controller.  At least on many x86-64 machines it will not fit into a single
+> cache line now anymore and also costs considerable amounts of RAM. 
 
-Now compcache download has updated README.
+The size of struct page earlier was 56 bytes on x86_64 and with 64 bytes it
+won't fit into the cacheline anymore? Please also look at
+http://lwn.net/Articles/234974/
 
-> Perhaps for the convenience of your users you could also include
-> swapon_compcache.sh:
->
-> #!/bin/sh
-> #Ubuntu Hardy does include lzo_compress and lzo_decompress
+> At earlier review I remembered asking for a external data structure for this.
+> 
+> It's also quite unobvious that a innocent looking Kconfig option with a 
+> single line Kconfig description has such a negative effect.
+> 
+> This patch attempts to document these disadvantages at least so that users
+> configuring their kernel can make a informed decision.
+> 
+> Cc: balbir@linux.vnet.ibm.com
+> 
+> Signed-off-by: Andi Kleen <ak@suse.de>
+> 
+> Index: linux/init/Kconfig
+> ===================================================================
+> --- linux.orig/init/Kconfig
+> +++ linux/init/Kconfig
+> @@ -394,6 +394,14 @@ config CGROUP_MEM_CONT
+>  	  Provides a memory controller that manages both page cache and
+>  	  RSS memory.
+> 
+> +	  Note that setting this option increases fixed memory overhead
+> +	  associated with each page of memory in the system by 4/8 bytes
+> +	  and also increases cache misses because struct page on many 64bit
+> +	  systems will not fit into a single cache line anymore.
+> +
+> +	  Only enable when you're ok with these trade offs and really
+> +	  sure you need the memory controller.
+> +
+
+Looks good
+
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+
+>  config PROC_PID_CPUSET
+>  	bool "Include legacy /proc/<pid>/cpuset file"
+>  	depends on CPUSETS
 
 
-I wonder why ubuntu renamed lzo1x_compress module to lzo_compress and
-likewise for decompressor. Anyway, I will add these scripts to
-download.
-
-
-> (modprobe lzo_compress || insmod
-> ./sub-projects/compression/lzo-kmod/lzo1x_compress.ko) &&
-> (modprobe lzo_decompress || insmod
-> ./sub-projects/compression/lzo-kmod/lzo1x_decompress.ko) &&
-> insmod ./sub-projects/allocators/tlsf-kmod/tlsf.ko &&
-> insmod ./compcache.ko &&
-> #insmod ./compcache.ko compcache_size_kbytes=128000 &&
-> sleep 1 &&
-> swapon /dev/compcache
-> lsmod | grep lzo
-> lsmod | grep tlsf
-> lsmod | grep cache
->
-> And swapoff_compcache.sh:
->
-> #!/bin/sh
-> swapoff /dev/ccache
-> swapoff /dev/compcache
-> rmmod ccache
-> rmmod compcache
-> rmmod tlsf
-> rmmod lzo1x_compress
-> rmmod lzo_compress
-> rmmod lzo1x_decompress
-> rmmod lzo_decompress
->
->
-> --
-> John C. McCabe-Dansted
-> PhD Student
-> University of Western Australia
->
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
