@@ -1,62 +1,59 @@
-Date: Wed, 20 Feb 2008 10:03:33 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
-Message-Id: <20080220100333.a014083c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0802191449490.6254@blonde.site>
-References: <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0802191449490.6254@blonde.site>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 20 Feb 2008 02:00:38 +0100
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address
+	ranges
+Message-ID: <20080220010038.GQ7128@v2.random>
+References: <20080215064859.384203497@sgi.com> <20080215064932.620773824@sgi.com> <200802201008.49933.nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200802201008.49933.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "riel@redhat.com" <riel@redhat.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-Good morning ;)
-
-On Tue, 19 Feb 2008 15:40:45 +0000 (GMT)
-Hugh Dickins <hugh@veritas.com> wrote:
-
-> Since then I've been working on patches too, testing, currently
-> breaking up my one big patch into pieces while running more tests.
-> A lot in common with yours, a lot not.  (And none of it addressing
-> that issue of opt-out I raise in the last paragraph: haven't begun
-> to go into that one, hoped you and Balbir would look into it.)
+On Wed, Feb 20, 2008 at 10:08:49AM +1100, Nick Piggin wrote:
+> You can't sleep inside rcu_read_lock()!
 > 
-I have some trial patches for reducing atomic_ops by do_it_lazy method.
-Now, I'm afraid that performence is too bad when there is *no* memory pressure.
+> I must say that for a patch that is up to v8 or whatever and is
+> posted twice a week to such a big cc list, it is kind of slack to
+> not even test it and expect other people to review it.
 
-> I've not had time to study yours yet, but a first impression is
-> that you're adding extra complexity (usage in addition to ref_cnt)
-> where I'm more taking it away (it's pointless for ref_cnt to be an
-> atomic: the one place which isn't already using lock_page_cgroup
-> around it needs to).  But that could easily turn out to be because
-> I'm skirting issues which you're addressing properly: we'll see.
-> 
-> I haven't completed my solution in mem_cgroup_move_lists yet: but
-> the way it wants a lock in a structure which isn't stabilized until
-> it's got that lock, reminds me very much of my page_lock_anon_vma,
-> so I'm expecting to use a SLAB_DESTROY_BY_RCU cache there.
-> 
+Well, xpmem requirements are complex. As as side effect of the
+simplicity of my approach, my patch is 100% safe since #v1. Now it
+also works for GRU and it cluster invalidates.
 
-IMHO, because tons of page_cgroup can be freed at once, we need some good
-idea for reducing RCU's GC work to do that.
+> Also, what we are going to need here are not skeleton drivers
+> that just do all the *easy* bits (of registering their callbacks),
+> but actual fully working examples that do everything that any
+> real driver will need to do. If not for the sanity of the driver
 
-> Ha, you have lock_page_cgroup in your mem_cgroup_move_lists: yes,
-> tried that too, and it deadlocks: someone holding lock_page_cgroup
-> can be interrupted by an end of I/O interrupt which does
-> rotate_reclaimable_page and wants the main lru_lock, but that
-> main lru_lock is held across mem_cgroup_move_lists.  There are
-> several different ways to address that, but for this release I
-> think we just go for a try_lock_page_cgroup there.
-> 
-Hm, I'd like to remove mem_cgroup_move_lists if possible ;(
-(But its result will be bad LRU ordering.)
+I've a fully working scenario for my patch, infact I didn't post the
+mmu notifier patch until I got KVM to swap 100% reliably to be sure I
+would post something that works well. mmu notifiers are already used
+in KVM for:
 
-Regards,
--Kame
+1) 100% reliable and efficient swapping of guest physical memory
+2) copy-on-writes of writeprotect faults after ksm page sharing of guest
+   physical memory
+3) ballooning using madvise to give the guest memory back to the host
+
+My implementation is the most handy because it requires zero changes
+to the ksm code too (no explicit mmu notifier calls after
+ptep_clear_flush) and it's also 100% safe (no mess with schedules over
+rcu_read_lock), no "atomic" parameters, and it doesn't open a window
+where sptes have a view on older pages and linux pte has view on newer
+pages (this can happen with remap_file_pages with my KVM swapping
+patch to use V8 Christoph's patch).
+
+> Also, how to you resolve the case where you are not allowed to sleep?
+> I would have thought either you have to handle it, in which case nobody
+> needs to sleep; or you can't handle it, in which case the code is
+> broken.
+
+I also asked exactly this, glad you reasked this too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
