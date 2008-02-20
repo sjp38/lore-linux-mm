@@ -1,69 +1,34 @@
-Message-Id: <20080220150308.890418000@chello.nl>
-References: <20080220144610.548202000@chello.nl>
-Date: Wed, 20 Feb 2008 15:46:38 +0100
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 28/28] nfs: fix various memory recursions possible with swap over NFS.
-Content-Disposition: inline; filename=nfs-alloc-recursions.patch
+Message-ID: <47BC4702.5090407@sgi.com>
+Date: Wed, 20 Feb 2008 07:28:02 -0800
+From: Mike Travis <travis@sgi.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/2] x86: Optimize percpu accesses v3
+References: <20080219203335.866324000@polaris-admin.engr.sgi.com> <20080220091529.GD31424@elte.hu>
+In-Reply-To: <20080220091529.GD31424@elte.hu>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-GFP_NOFS is not enough, since swap traffic is IO, hence fall back to GFP_NOIO.
+Ingo Molnar wrote:
+> * Mike Travis <travis@sgi.com> wrote:
+> 
+>> This patchset is the x86-specific part split from the generic part of 
+>> the zero-based patchset.
+> 
+> thanks Mike, applied them to x86.git. Do these depend on the generic 
+> bits? (for now we'll keep these in -testing, so that they do not reach 
+> -mm)
+> 
+> 	Ingo
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- fs/nfs/pagelist.c |    2 +-
- fs/nfs/write.c    |    6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+Umm, yes, the generic part provides the groundwork for the x86 part.
 
-Index: linux-2.6/fs/nfs/write.c
-===================================================================
---- linux-2.6.orig/fs/nfs/write.c
-+++ linux-2.6/fs/nfs/write.c
-@@ -44,7 +44,7 @@ static struct kmem_cache *nfs_wdata_cach
- 
- struct nfs_write_data *nfs_commit_alloc(void)
- {
--	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
-+	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOIO);
- 
- 	if (p) {
- 		memset(p, 0, sizeof(*p));
-@@ -68,7 +68,7 @@ void nfs_commit_free(struct nfs_write_da
- 
- struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
- {
--	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
-+	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOIO);
- 
- 	if (p) {
- 		memset(p, 0, sizeof(*p));
-@@ -77,7 +77,7 @@ struct nfs_write_data *nfs_writedata_all
- 		if (pagecount <= ARRAY_SIZE(p->page_array))
- 			p->pagevec = p->page_array;
- 		else {
--			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
-+			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOIO);
- 			if (!p->pagevec) {
- 				kmem_cache_free(nfs_wdata_cachep, p);
- 				p = NULL;
-Index: linux-2.6/fs/nfs/pagelist.c
-===================================================================
---- linux-2.6.orig/fs/nfs/pagelist.c
-+++ linux-2.6/fs/nfs/pagelist.c
-@@ -27,7 +27,7 @@ static inline struct nfs_page *
- nfs_page_alloc(void)
- {
- 	struct nfs_page	*p;
--	p = kmem_cache_alloc(nfs_page_cachep, GFP_KERNEL);
-+	p = kmem_cache_alloc(nfs_page_cachep, GFP_NOIO);
- 	if (p) {
- 		memset(p, 0, sizeof(*p));
- 		INIT_LIST_HEAD(&p->wb_list);
-
---
+Thanks,
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
