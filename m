@@ -1,140 +1,74 @@
-Date: Wed, 20 Feb 2008 15:27:53 +0900 (JST)
-Message-Id: <20080220.152753.98212356.taka@valinux.co.jp>
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28esmtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id m1K6j5xr026325
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 12:15:05 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1K6j5WU610398
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 12:15:05 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id m1K6j4ww010071
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 06:45:04 GMT
+Message-ID: <47BBCB75.201@linux.vnet.ibm.com>
+Date: Wed, 20 Feb 2008 12:10:53 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
 Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <Pine.LNX.4.64.0802191449490.6254@blonde.site>
-References: <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0802191449490.6254@blonde.site>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+References: <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0802191449490.6254@blonde.site> <20080220100333.a014083c.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0802200355220.3569@blonde.site> <20080220133742.94a0b1b6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080220133742.94a0b1b6.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com, hugh@veritas.com
-Cc: linux-mm@kvack.org, balbir@linux.vnet.ibm.com, yamamoto@valinux.co.jp, riel@redhat.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Hugh Dickins <hugh@veritas.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "riel@redhat.com" <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-> On Tue, 19 Feb 2008, KAMEZAWA Hiroyuki wrote:
-> > I'd like to start from RFC.
-> > 
-> > In following code
-> > ==
-> >   lock_page_cgroup(page);
-> >   pc = page_get_page_cgroup(page);
-> >   unlock_page_cgroup(page);
-> > 
-> >   access 'pc' later..
-> > == (See, page_cgroup_move_lists())
-> > 
-> > There is a race because 'pc' is not a stable value without lock_page_cgroup().
-> > (mem_cgroup_uncharge can free this 'pc').
-> > 
-> > For example, page_cgroup_move_lists() access pc without lock.
-> > There is a small race window, between page_cgroup_move_lists()
-> > and mem_cgroup_uncharge(). At uncharge, page_cgroup struct is immedieately
-> > freed but move_list can access it after taking lru_lock.
-> > (*) mem_cgroup_uncharge_page() can be called without zone->lru lock.
-> > 
-> > This is not good manner.
-> > .....
-> > There is no quick fix (maybe). Moreover, I hear some people around me said
-> > current memcontrol.c codes are very complicated.
-> > I agree ;( ..it's caued by my work.
-> > 
-> > I'd like to fix problems in clean way.
-> > (Note: current -rc2 codes works well under heavy pressure. but there
-> >  is possibility of race, I think.)
+KAMEZAWA Hiroyuki wrote:
+> On Wed, 20 Feb 2008 04:14:58 +0000 (GMT)
+> Hugh Dickins <hugh@veritas.com> wrote:
 > 
-> Yes, yes, indeed, I've been working away on this too.
+>> On Wed, 20 Feb 2008, KAMEZAWA Hiroyuki wrote:
+>>> On Tue, 19 Feb 2008 15:40:45 +0000 (GMT)
+>>> Hugh Dickins <hugh@veritas.com> wrote:
+>>>
+>>>> A lot in common with yours, a lot not.  (And none of it addressing
+>>>> that issue of opt-out I raise in the last paragraph: haven't begun
+>>>> to go into that one, hoped you and Balbir would look into it.)
+>>>>
+>>> I have some trial patches for reducing atomic_ops by do_it_lazy method.
+>>> Now, I'm afraid that performence is too bad when there is *no* memory
+>>> pressure.
+>> But it isn't just the atomic ops, it's the whole business of
+>> mem_cgroup_charge_common plus mem_cgroup_uncharge_page per page.
+>>
+>> The existence of force_empty indicates that the system can get along
+>> without the charge on the page. 
+> Yes.
 > 
-> Ever since the VM_BUG_ON(page_get_page_cgroup(page)) went into
-> free_hot_cold_page (at my own prompting), I've been hitting it
-> just very occasionally in my kernel build testing.  Was unable
-> to reproduce it over the New Year, but a week or two ago found
-> one machine and config on which it is relatively reproducible,
-> pretty sure to happen within 12 hours.
+>> What's needed, I think, is something in struct mm, a flag or a reserved value
+>> in mm->mem_cgroup, to say don't do any of this mem_cgroup stuff on me; and a cgroup
+>> fs interface to set that, in the same way as force_empty is done.
 > 
-> And on Saturday evening at last identified the cause, exactly
-> where you have: that unsafety in mem_cgroup_move_lists - which
-> has the nice property of putting pages from the lru on to SLUB's
-> freelist!
-> 
-> Unlike the unsafeties of force_empty, this is liable to hit anyone
-> running with MEM_CONT compiled in, they don't have to be consciously
-> using mem_cgroups at all.
+> I agree here. I believe we need "no charge" flag at least to the root group.
+> For root group, it's better to have boot option if not complicated.
 
-As for force_empty, though this may not be the main topic here,
-mem_cgroup_force_empty_list() can be implemented simpler.
-It is possible to make the function just call mem_cgroup_uncharge_page()
-instead of releasing page_cgroups by itself. The tips is to call get_page()
-before invoking mem_cgroup_uncharge_page() so the page won't be released
-during this function.
+I don't think that would work very well. A boot option to turn off everything
+makes more sense. The reason why I say it would not work very well is
 
-Kamezawa-san, you may want look into the attached patch.
-I think you will be free from the weired complexity here.
+1. You might want to control the memory used the root cgroup. Consider a system
+where all tasks are distributed across sub-cgroups and only a few and default
+tasks will be left in the root cgroup. The administrator might want to control
+how much memory can be used
+2. We need to account for root's usage. This will become very important once we
+implement a hierarchy and build in support for shares.
+3. The interface remains consistent that way, treating the root as special would
+make our interface inconsistent (since we cannot apply/enforce limits at root).
 
-This code can be optimized but it will be enough since this function
-isn't critical.
-
-Thanks.
-
-
-Signed-off-by: Hirokazu Takahashi <taka@vallinux.co.jp>
-
---- mm/memcontrol.c.ORG	2008-02-12 18:44:45.000000000 +0900
-+++ mm/memcontrol.c 2008-02-20 14:23:38.000000000 +0900
-@@ -837,7 +837,7 @@ mem_cgroup_force_empty_list(struct mem_c
- {
- 	struct page_cgroup *pc;
- 	struct page *page;
--	int count;
-+	int count = FORCE_UNCHARGE_BATCH;
- 	unsigned long flags;
- 	struct list_head *list;
- 
-@@ -846,30 +846,21 @@ mem_cgroup_force_empty_list(struct mem_c
- 	else
- 		list = &mz->inactive_list;
- 
--	if (list_empty(list))
--		return;
--retry:
--	count = FORCE_UNCHARGE_BATCH;
- 	spin_lock_irqsave(&mz->lru_lock, flags);
--
--	while (--count && !list_empty(list)) {
-+	while (!list_empty(list)) {
- 		pc = list_entry(list->prev, struct page_cgroup, lru);
- 		page = pc->page;
--		/* Avoid race with charge */
--		atomic_set(&pc->ref_cnt, 0);
--		if (clear_page_cgroup(page, pc) == pc) {
--			css_put(&mem->css);
--			res_counter_uncharge(&mem->res, PAGE_SIZE);
--			__mem_cgroup_remove_list(pc);
--			kfree(pc);
--		} else 	/* being uncharged ? ...do relax */
--			break;
-+		get_page(page);
-+		spin_unlock_irqrestore(&mz->lru_lock, flags);
-+		mem_cgroup_uncharge_page(page);
-+		put_page(page);
-+		if (--count <= 0) {
-+			count = FORCE_UNCHARGE_BATCH;
-+			cond_resched();
-+		}
-+		spin_lock_irqsave(&mz->lru_lock, flags);
- 	}
- 	spin_unlock_irqrestore(&mz->lru_lock, flags);
--	if (!list_empty(list)) {
--		cond_resched();
--		goto retry;
--	}
- 	return;
- }
- 
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
