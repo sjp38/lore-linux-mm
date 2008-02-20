@@ -1,30 +1,56 @@
-Date: Wed, 20 Feb 2008 08:41:55 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH] mmu notifiers #v6
-Message-ID: <20080220144155.GI11391@sgi.com>
-References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080220103942.GU7128@v2.random>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1KEsdTB012647
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 09:54:39 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1KEqgv6234012
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 09:52:42 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1KEqgiD015177
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2008 09:52:42 -0500
+Subject: Re: [PATCH] hugetlb: ensure we do not reference a surplus page
+	after handing it to buddy
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <20080219153037.ec336fd2.akpm@linux-foundation.org>
+References: <1203445688.0@pinky>
+	 <1203446512.11987.36.camel@localhost.localdomain>
+	 <20080219153037.ec336fd2.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Wed, 20 Feb 2008 08:59:34 -0600
+Message-Id: <1203519574.11987.67.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Whitcroft <apw@shadowen.org>, Nishanth Aravamudan <nacc@us.ibm.com>, William Irwin <wli@holomorphy.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 20, 2008 at 11:39:42AM +0100, Andrea Arcangeli wrote:
-> XPMEM simply can't use RCU for the registration locking if it wants to
-> schedule inside the mmu notifier calls. So I guess it's better to add
+On Tue, 2008-02-19 at 15:30 -0800, Andrew Morton wrote:
+> On Tue, 19 Feb 2008 12:41:51 -0600 Adam Litke <agl@us.ibm.com> wrote:
+> 
+> > Indeed.  I'll take credit for this thinko...
+> > 
+> > On Tue, 2008-02-19 at 18:28 +0000, Andy Whitcroft wrote:
+> > > When we free a page via free_huge_page and we detect that we are in
+> > > surplus the page will be returned to the buddy.  After this we no longer
+> > > own the page.  However at the end free_huge_page we clear out our mapping
+> > > pointer from page private.  Even where the page is not a surplus we
+> > > free the page to the hugepage pool, drop the pool locks and then clear
+> > > page private.  In either case the page may have been reallocated.  BAD.
+> > > 
+> > > Make sure we clear out page private before we free the page.
+> > > 
+> > > Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+> > 
+> > Acked-by: Adam Litke <agl@us.ibm.com>
+> 
+> Was I right to assume that this is also needed in 2.6.24.x?
 
-Whoa there.  In Christoph's patch, we did not use rcu for the list.  It
-was a simple hlist_head.  The list manipulations were done under
-down_write(&current->mm->mmap_sem) and would therefore not be racy.  All
-the callout locations are already acquiring the mmap_sem at least
-readably, so we should be safe.  Maybe I missed a race somewhere.
+Yep.  Thanks Andrew.
 
-Thanks,
-Robin
+-- 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
