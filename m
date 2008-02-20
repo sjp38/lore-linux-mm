@@ -1,49 +1,54 @@
-Subject: Re: [PATCH 0/2] cgroup map files: Add a key/value map file type to
- cgroups
-In-Reply-To: Your message of "Tue, 19 Feb 2008 22:02:00 -0800"
-	<6599ad830802192202t19c1f597jb7927e975eb80aa6@mail.gmail.com>
+Received: from zps37.corp.google.com (zps37.corp.google.com [172.25.146.37])
+	by smtp-out.google.com with ESMTP id m1K6PatT007126
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 22:25:36 -0800
+Received: from py-out-1112.google.com (pyhn39.prod.google.com [10.34.240.39])
+	by zps37.corp.google.com with ESMTP id m1K6PZGs002310
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2008 22:25:35 -0800
+Received: by py-out-1112.google.com with SMTP id n39so2595336pyh.31
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2008 22:25:35 -0800 (PST)
+Message-ID: <6599ad830802192225t5eb31cb5q9fca5b6ef2e03d71@mail.gmail.com>
+Date: Tue, 19 Feb 2008 22:25:34 -0800
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [PATCH 0/2] cgroup map files: Add a key/value map file type to cgroups
+In-Reply-To: <20080220061444.D65BD1E3C11@siro.lan>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 References: <6599ad830802192202t19c1f597jb7927e975eb80aa6@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20080220061444.D65BD1E3C11@siro.lan>
-Date: Wed, 20 Feb 2008 15:14:44 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+	 <20080220061444.D65BD1E3C11@siro.lan>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: menage@google.com
+To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
 Cc: kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, balbir@in.ibm.com, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-> On Feb 19, 2008 9:48 PM, YAMAMOTO Takashi <yamamoto@valinux.co.jp> wrote:
+On Feb 19, 2008 10:14 PM, YAMAMOTO Takashi <yamamoto@valinux.co.jp> wrote:
+> > On Feb 19, 2008 9:48 PM, YAMAMOTO Takashi <yamamoto@valinux.co.jp> wrote:
+> > >
+> > > it changes the format from "%s %lld" to "%s: %llu", right?
+> > > why?
+> > >
 > >
-> > it changes the format from "%s %lld" to "%s: %llu", right?
-> > why?
-> >
-> 
-> The colon for consistency with maps in /proc. I think it also makes it
-> slightly more readable.
+> > The colon for consistency with maps in /proc. I think it also makes it
+> > slightly more readable.
+>
+> can you be a little more specific?
+>
+> i object against the colon because i want to use the same parser for
+> /proc/vmstat, which doesn't have colons.
 
-can you be a little more specific?
+Ah. This /proc behaviour of having multiple formats for reporting the
+same kind of data (compare with /proc/meminfo, which does use colons)
+is the kind of thing that I want to avoid with cgroups. i.e. if two
+cgroup subsystems are both reporting the same kind of structured data,
+then they should both use the same output format.
 
-i object against the colon because i want to use the same parser for
-/proc/vmstat, which doesn't have colons.
+I guess since /proc has both styles, and memory.stat is the first file
+reporting key/value pairs in cgroups, you get to call the format. OK,
+I'll zap the colon.
 
-btw, when making ABI changes like this, can you please mention it
-explicitly in the patch descriptions?
-
-> For %lld versus %llu - I think that cgroup resource APIs are much more
-> likely to need to report unsigned rather than signed values. In the
-> case of the memory.stat file, that's certainly the case.
-> 
-> But I guess there's an argument to be made that nothing's likely to
-> need the final 64th bit of an unsigned value, whereas the ability to
-> report negative numbers could potentially be useful for some cgroups.
-> 
-> Paul
-
-i don't have any strong opinions about signedness.
-
-YAMAMOTO Takashi
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
