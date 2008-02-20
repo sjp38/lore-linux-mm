@@ -1,237 +1,171 @@
-Message-Id: <20080220150305.774294000@chello.nl>
+Message-Id: <20080220150307.122541000@chello.nl>
 References: <20080220144610.548202000@chello.nl>
-Date: Wed, 20 Feb 2008 15:46:14 +0100
+Date: Wed, 20 Feb 2008 15:46:24 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 04/28] mm: kmem_estimate_pages()
-Content-Disposition: inline; filename=mm-kmem_estimate_pages.patch
+Subject: [PATCH 14/28] net: sk_allocation() - concentrate socket related allocations
+Content-Disposition: inline; filename=net-sk_allocation.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Provide a method to get the upper bound on the pages needed to allocate
-a given number of objects from a given kmem_cache.
-
-This lays the foundation for a generic reserve framework as presented in
-a later patch in this series. This framework needs to convert object demand
-(kmalloc() bytes, kmem_cache_alloc() objects) to pages.
+Introduce sk_allocation(), this function allows to inject sock specific
+flags to each sock related allocation.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/slab.h |    4 ++
- mm/slab.c            |   75 ++++++++++++++++++++++++++++++++++++++++++++++
- mm/slub.c            |   82 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 161 insertions(+)
+ include/net/sock.h    |    5 +++++
+ net/ipv4/tcp.c        |    3 ++-
+ net/ipv4/tcp_output.c |   12 +++++++-----
+ net/ipv6/tcp_ipv6.c   |   14 +++++++++-----
+ 4 files changed, 23 insertions(+), 11 deletions(-)
 
-Index: linux-2.6/include/linux/slab.h
+Index: linux-2.6/net/ipv4/tcp_output.c
 ===================================================================
---- linux-2.6.orig/include/linux/slab.h
-+++ linux-2.6/include/linux/slab.h
-@@ -60,6 +60,8 @@ void kmem_cache_free(struct kmem_cache *
- unsigned int kmem_cache_size(struct kmem_cache *);
- const char *kmem_cache_name(struct kmem_cache *);
- int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
-+unsigned kmem_estimate_pages(struct kmem_cache *cachep,
-+			gfp_t flags, int objects);
+--- linux-2.6.orig/net/ipv4/tcp_output.c
++++ linux-2.6/net/ipv4/tcp_output.c
+@@ -2078,7 +2078,8 @@ void tcp_send_fin(struct sock *sk)
+ 	} else {
+ 		/* Socket is locked, keep trying until memory is available. */
+ 		for (;;) {
+-			skb = alloc_skb_fclone(MAX_TCP_HEADER, GFP_KERNEL);
++			skb = alloc_skb_fclone(MAX_TCP_HEADER,
++					       sk->sk_allocation);
+ 			if (skb)
+ 				break;
+ 			yield();
+@@ -2104,7 +2105,7 @@ void tcp_send_active_reset(struct sock *
+ 	struct sk_buff *skb;
  
- /*
-  * Please use this macro to create slab caches. Simply specify the
-@@ -94,6 +96,8 @@ int kmem_ptr_validate(struct kmem_cache 
- void * __must_check krealloc(const void *, size_t, gfp_t);
- void kfree(const void *);
- size_t ksize(const void *);
-+unsigned kestimate_single(size_t, gfp_t, int);
-+unsigned kestimate(gfp_t, size_t);
+ 	/* NOTE: No TCP options attached and we never retransmit this. */
+-	skb = alloc_skb(MAX_TCP_HEADER, priority);
++	skb = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, priority));
+ 	if (!skb) {
+ 		NET_INC_STATS(LINUX_MIB_TCPABORTFAILED);
+ 		return;
+@@ -2171,7 +2172,8 @@ struct sk_buff *tcp_make_synack(struct s
+ 	__u8 *md5_hash_location;
+ #endif
  
- /*
-  * Allocator specific definitions. These are mainly used to establish optimized
-Index: linux-2.6/mm/slub.c
+-	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15, 1, GFP_ATOMIC);
++	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15, 1,
++			sk_allocation(sk, GFP_ATOMIC));
+ 	if (skb == NULL)
+ 		return NULL;
+ 
+@@ -2425,7 +2427,7 @@ void tcp_send_ack(struct sock *sk)
+ 	 * tcp_transmit_skb() will set the ownership to this
+ 	 * sock.
+ 	 */
+-	buff = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
++	buff = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, GFP_ATOMIC));
+ 	if (buff == NULL) {
+ 		inet_csk_schedule_ack(sk);
+ 		inet_csk(sk)->icsk_ack.ato = TCP_ATO_MIN;
+@@ -2460,7 +2462,7 @@ static int tcp_xmit_probe_skb(struct soc
+ 	struct sk_buff *skb;
+ 
+ 	/* We don't queue it, tcp_transmit_skb() sets ownership. */
+-	skb = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
++	skb = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, GFP_ATOMIC));
+ 	if (skb == NULL)
+ 		return -1;
+ 
+Index: linux-2.6/include/net/sock.h
 ===================================================================
---- linux-2.6.orig/mm/slub.c
-+++ linux-2.6/mm/slub.c
-@@ -2465,6 +2465,37 @@ const char *kmem_cache_name(struct kmem_
- EXPORT_SYMBOL(kmem_cache_name);
- 
- /*
-+ * return the max number of pages required to allocated count
-+ * objects from the given cache
-+ */
-+unsigned kmem_estimate_pages(struct kmem_cache *s, gfp_t flags, int objects)
-+{
-+	unsigned long slabs;
-+
-+	if (WARN_ON(!s) || WARN_ON(!s->objects))
-+		return 0;
-+
-+	slabs = DIV_ROUND_UP(objects, s->objects);
-+
-+	/*
-+	 * Account the possible additional overhead if the slab holds more that
-+	 * one object.
-+	 */
-+	if (s->objects > 1) {
-+		/*
-+		 * Account the possible additional overhead if per cpu slabs
-+		 * are currently empty and have to be allocated. This is very
-+		 * unlikely but a possible scenario immediately after
-+		 * kmem_cache_shrink.
-+		 */
-+		slabs += num_online_cpus();
-+	}
-+
-+	return slabs << s->order;
-+}
-+EXPORT_SYMBOL_GPL(kmem_estimate_pages);
-+
-+/*
-  * Attempt to free all slabs on a node. Return the number of slabs we
-  * were unable to free.
-  */
-@@ -2818,6 +2849,57 @@ static unsigned long count_partial(struc
+--- linux-2.6.orig/include/net/sock.h
++++ linux-2.6/include/net/sock.h
+@@ -427,6 +427,11 @@ static inline int sock_flag(struct sock 
+ 	return test_bit(flag, &sk->sk_flags);
  }
  
- /*
-+ * return the max number of pages required to allocate @count objects
-+ * of @size bytes from kmalloc given @flags.
-+ */
-+unsigned kestimate_single(size_t size, gfp_t flags, int count)
++static inline gfp_t sk_allocation(struct sock *sk, gfp_t gfp_mask)
 +{
-+	struct kmem_cache *s = get_slab(size, flags);
-+	if (!s)
-+		return 0;
-+
-+	return kmem_estimate_pages(s, flags, count);
-+
++	return gfp_mask;
 +}
-+EXPORT_SYMBOL_GPL(kestimate_single);
 +
-+/*
-+ * return the max number of pages required to allocate @bytes from kmalloc
-+ * in an unspecified number of allocation of heterogeneous size.
-+ */
-+unsigned kestimate(gfp_t flags, size_t bytes)
-+{
-+	int i;
-+	unsigned long pages;
-+
-+	/*
-+	 * multiply by two, in order to account the worst case slack space
-+	 * due to the power-of-two allocation sizes.
-+	 */
-+	pages = DIV_ROUND_UP(2 * bytes, PAGE_SIZE);
-+
-+	/*
-+	 * add the kmem_cache overhead of each possible kmalloc cache
-+	 */
-+	for (i = 1; i < PAGE_SHIFT; i++) {
-+		struct kmem_cache *s;
-+
-+#ifdef CONFIG_ZONE_DMA
-+		if (unlikely(flags & SLUB_DMA))
-+			s = dma_kmalloc_cache(i, flags);
-+		else
-+#endif
-+			s = &kmalloc_caches[i];
-+
-+		if (s)
-+			pages += kmem_estimate_pages(s, flags, 0);
-+	}
-+
-+	return pages;
-+}
-+EXPORT_SYMBOL_GPL(kestimate);
-+
-+/*
-  * kmem_cache_shrink removes empty slabs from the partial lists and sorts
-  * the remaining slabs by the number of items in use. The slabs with the
-  * most items in use come first. New allocations will then fill those up
-Index: linux-2.6/mm/slab.c
+ static inline void sk_acceptq_removed(struct sock *sk)
+ {
+ 	sk->sk_ack_backlog--;
+Index: linux-2.6/net/ipv6/tcp_ipv6.c
 ===================================================================
---- linux-2.6.orig/mm/slab.c
-+++ linux-2.6/mm/slab.c
-@@ -3851,6 +3851,81 @@ const char *kmem_cache_name(struct kmem_
- EXPORT_SYMBOL_GPL(kmem_cache_name);
+--- linux-2.6.orig/net/ipv6/tcp_ipv6.c
++++ linux-2.6/net/ipv6/tcp_ipv6.c
+@@ -568,7 +568,8 @@ static int tcp_v6_md5_do_add(struct sock
+ 	} else {
+ 		/* reallocate new list if current one is full. */
+ 		if (!tp->md5sig_info) {
+-			tp->md5sig_info = kzalloc(sizeof(*tp->md5sig_info), GFP_ATOMIC);
++			tp->md5sig_info = kzalloc(sizeof(*tp->md5sig_info),
++					sk_allocation(sk, GFP_ATOMIC));
+ 			if (!tp->md5sig_info) {
+ 				kfree(newkey);
+ 				return -ENOMEM;
+@@ -581,7 +582,8 @@ static int tcp_v6_md5_do_add(struct sock
+ 		}
+ 		if (tp->md5sig_info->alloced6 == tp->md5sig_info->entries6) {
+ 			keys = kmalloc((sizeof (tp->md5sig_info->keys6[0]) *
+-				       (tp->md5sig_info->entries6 + 1)), GFP_ATOMIC);
++				       (tp->md5sig_info->entries6 + 1)),
++				       sk_allocation(sk, GFP_ATOMIC));
  
- /*
-+ * return the max number of pages required to allocated count
-+ * objects from the given cache
-+ */
-+unsigned kmem_estimate_pages(struct kmem_cache *cachep,
-+		gfp_t flags, int objects)
-+{
-+	/*
-+	 * (1) memory for objects,
-+	 */
-+	unsigned nr_slabs = DIV_ROUND_UP(objects, cachep->num);
-+	unsigned nr_pages = nr_slabs << cachep->gfporder;
-+
-+	/*
-+	 * (2) memory for each per-cpu queue (nr_cpu_ids),
-+	 * (3) memory for each per-node alien queues (nr_cpu_ids), and
-+	 * (4) some amount of memory for the slab management structures
-+	 *
-+	 * XXX: truely account these
-+	 */
-+	nr_pages += 1 + ilog2(nr_pages);
-+
-+	return nr_pages;
-+}
-+
-+/*
-+ * return the max number of pages required to allocate @count objects
-+ * of @size bytes from kmalloc given @flags.
-+ */
-+unsigned kestimate_single(size_t size, gfp_t flags, int count)
-+{
-+	struct kmem_cache *s = kmem_find_general_cachep(size, flags);
-+	if (!s)
-+		return 0;
-+
-+	return kmem_estimate_pages(s, flags, count);
-+}
-+EXPORT_SYMBOL_GPL(kestimate_single);
-+
-+/*
-+ * return the max number of pages required to allocate @bytes from kmalloc
-+ * in an unspecified number of allocation of heterogeneous size.
-+ */
-+unsigned kestimate(gfp_t flags, size_t bytes)
-+{
-+	unsigned long pages;
-+	struct cache_sizes *csizep = malloc_sizes;
-+
-+	/*
-+	 * multiply by two, in order to account the worst case slack space
-+	 * due to the power-of-two allocation sizes.
-+	 */
-+	pages = DIV_ROUND_UP(2 * bytes, PAGE_SIZE);
-+
-+	/*
-+	 * add the kmem_cache overhead of each possible kmalloc cache
-+	 */
-+	for (csizep = malloc_sizes; csizep->cs_cachep; csizep++) {
-+		struct kmem_cache *s;
-+
-+#ifdef CONFIG_ZONE_DMA
-+		if (unlikely(flags & __GFP_DMA))
-+			s = csizep->cs_dmacachep;
-+		else
-+#endif
-+			s = csizep->cs_cachep;
-+
-+		if (s)
-+			pages += kmem_estimate_pages(s, flags, 0);
-+	}
-+
-+	return pages;
-+}
-+EXPORT_SYMBOL_GPL(kestimate);
-+
-+/*
-  * This initializes kmem_list3 or resizes various caches for all nodes.
-  */
- static int alloc_kmemlist(struct kmem_cache *cachep)
+ 			if (!keys) {
+ 				tcp_free_md5sig_pool();
+@@ -705,7 +707,7 @@ static int tcp_v6_parse_md5_keys (struct
+ 		struct tcp_sock *tp = tcp_sk(sk);
+ 		struct tcp_md5sig_info *p;
+ 
+-		p = kzalloc(sizeof(struct tcp_md5sig_info), GFP_KERNEL);
++		p = kzalloc(sizeof(struct tcp_md5sig_info), sk->sk_allocation);
+ 		if (!p)
+ 			return -ENOMEM;
+ 
+@@ -1006,7 +1008,7 @@ static void tcp_v6_send_reset(struct soc
+ 	 */
+ 
+ 	buff = alloc_skb(MAX_HEADER + sizeof(struct ipv6hdr) + tot_len,
+-			 GFP_ATOMIC);
++			 sk_allocation(sk, GFP_ATOMIC));
+ 	if (buff == NULL)
+ 		return;
+ 
+@@ -1085,10 +1087,12 @@ static void tcp_v6_send_ack(struct tcp_t
+ 	struct tcp_md5sig_key *key;
+ 	struct tcp_md5sig_key tw_key;
+ #endif
++	gfp_t gfp_mask = GFP_ATOMIC;
+ 
+ #ifdef CONFIG_TCP_MD5SIG
+ 	if (!tw && skb->sk) {
+ 		key = tcp_v6_md5_do_lookup(skb->sk, &ipv6_hdr(skb)->daddr);
++		gfp_mask = sk_allocation(skb->sk, gfp_mask);
+ 	} else if (tw && tw->tw_md5_keylen) {
+ 		tw_key.key = tw->tw_md5_key;
+ 		tw_key.keylen = tw->tw_md5_keylen;
+@@ -1106,7 +1110,7 @@ static void tcp_v6_send_ack(struct tcp_t
+ #endif
+ 
+ 	buff = alloc_skb(MAX_HEADER + sizeof(struct ipv6hdr) + tot_len,
+-			 GFP_ATOMIC);
++			 gfp_mask);
+ 	if (buff == NULL)
+ 		return;
+ 
+Index: linux-2.6/net/ipv4/tcp.c
+===================================================================
+--- linux-2.6.orig/net/ipv4/tcp.c
++++ linux-2.6/net/ipv4/tcp.c
+@@ -636,7 +636,8 @@ struct sk_buff *sk_stream_alloc_skb(stru
+ 	/* The TCP header must be at least 32-bit aligned.  */
+ 	size = ALIGN(size, 4);
+ 
+-	skb = alloc_skb_fclone(size + sk->sk_prot->max_header, gfp);
++	skb = alloc_skb_fclone(size + sk->sk_prot->max_header,
++			       sk_allocation(sk, gfp));
+ 	if (skb) {
+ 		if (sk_wmem_schedule(sk, skb->truesize)) {
+ 			/*
 
 --
 
