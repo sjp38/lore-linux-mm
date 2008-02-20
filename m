@@ -1,39 +1,104 @@
-Received: by wa-out-1112.google.com with SMTP id m33so4117301wag.8
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2008 00:12:46 -0800 (PST)
-Message-ID: <4cefeab80802200012r39b00beera521935d141b966a@mail.gmail.com>
-Date: Wed, 20 Feb 2008 13:42:45 +0530
-From: "Nitin Gupta" <nitingupta910@gmail.com>
-Subject: Re: Announce: ccache release 0.1
-In-Reply-To: <4cefeab80802181339ia9609d3oeb238a9f549fc6e5@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Wed, 20 Feb 2008 17:32:22 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Clean up force_empty (Was Re: [RFC][PATCH] Clarify mem_cgroup lock
+ handling and avoid races.)
+Message-Id: <20080220173222.3d376a0b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080220155049.094056ac.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0802191449490.6254@blonde.site>
+	<20080220.152753.98212356.taka@valinux.co.jp>
+	<20080220155049.094056ac.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <4cefeab80802181339ia9609d3oeb238a9f549fc6e5@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm-cc@laptop.org
-Cc: linuxcompressed-devel@lists.sourceforge.net, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Hirokazu Takahashi <taka@valinux.co.jp>, hugh@veritas.com, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, yamamoto@valinux.co.jp, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Feb 19, 2008 3:09 AM, Nitin Gupta <nitingupta910@gmail.com> wrote:
-> Hi All,
->
-> I am excited to announce first release of ccache - Compressed RAM
-> based swap device for Linux (2.6.x kernel).
->   - Project home: http://code.google.com/p/ccache/
->   - ccache-0.1: http://ccache.googlecode.com/files/ccache-0.1.tar.bz2
+How about this ?
+I tested Takahashi's one and added comments.
+I like this but it's okay just to wait and revisit this later.
+-Kame
+=
+
+Clean up force_empty.
+
+This patch makes force_empty to be not a special function.
+
+Old one used customized freeing loop. This one uses mem_cgroup_uncharge()
+one by one. 
+
+Signed-off-by: Hirokazu Takahashi <taka@vallinux.co.jp>
+Tested-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 
-This project has now moved to: http://code.google.com/p/compcache/
+ mm/memcontrol.c |   39 +++++++++++++++++++--------------------
+ 1 file changed, 19 insertions(+), 20 deletions(-)
 
-This was done to avoid confusion with http://ccache.samba.org/ which
-has nothing to do with this project.
-
-PS: only user visible change done is that virtual swap device is now
-called /dev/compcache
-
-- Nitin
+Index: linux-2.6.25-rc2/mm/memcontrol.c
+===================================================================
+--- linux-2.6.25-rc2.orig/mm/memcontrol.c
++++ linux-2.6.25-rc2/mm/memcontrol.c
+@@ -837,7 +837,7 @@ mem_cgroup_force_empty_list(struct mem_c
+ {
+ 	struct page_cgroup *pc;
+ 	struct page *page;
+-	int count;
++	int count = FORCE_UNCHARGE_BATCH;
+ 	unsigned long flags;
+ 	struct list_head *list;
+ 
+@@ -846,30 +846,29 @@ mem_cgroup_force_empty_list(struct mem_c
+ 	else
+ 		list = &mz->inactive_list;
+ 
+-	if (list_empty(list))
+-		return;
+-retry:
+-	count = FORCE_UNCHARGE_BATCH;
+ 	spin_lock_irqsave(&mz->lru_lock, flags);
+-
+-	while (--count && !list_empty(list)) {
++	while (!list_empty(list)) {
+ 		pc = list_entry(list->prev, struct page_cgroup, lru);
+ 		page = pc->page;
+-		/* Avoid race with charge */
+-		atomic_set(&pc->ref_cnt, 0);
+-		if (clear_page_cgroup(page, pc) == pc) {
+-			css_put(&mem->css);
+-			res_counter_uncharge(&mem->res, PAGE_SIZE);
+-			__mem_cgroup_remove_list(pc);
+-			kfree(pc);
+-		} else 	/* being uncharged ? ...do relax */
+-			break;
++		get_page(page);
++		spin_unlock_irqrestore(&mz->lru_lock, flags);
++
++		lock_page_cgroup(page);
++		/* Because we released lock, we have to chack the page still
++		   points this pc. */
++		if (page_get_page_cgroup(page) == pc)
++			mem_cgroup_uncharge(pc);
++		unlock_page_cgroup(page);
++
++		put_page(page);
++
++		if (--count == 0) {
++			count = FORCE_UNCHARGE_BATCH;
++			cond_resched();
++		}
++		spin_lock_irqsave(&mz->lru_lock, flags);
+ 	}
+ 	spin_unlock_irqrestore(&mz->lru_lock, flags);
+-	if (!list_empty(list)) {
+-		cond_resched();
+-		goto retry;
+-	}
+ 	return;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
