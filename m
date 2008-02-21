@@ -1,54 +1,37 @@
-Date: Thu, 21 Feb 2008 05:54:30 +0100
+Date: Thu, 21 Feb 2008 06:02:23 +0100
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [PATCH] mmu notifiers #v6
-Message-ID: <20080221045430.GC15215@wotan.suse.de>
-References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random>
+Message-ID: <20080221050223.GD15215@wotan.suse.de>
+References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random> <20080220113313.GD11364@sgi.com> <20080220120324.GW7128@v2.random>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080220103942.GU7128@v2.random>
+In-Reply-To: <20080220120324.GW7128@v2.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+Cc: Robin Holt <holt@sgi.com>, akpm@linux-foundation.org, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 20, 2008 at 11:39:42AM +0100, Andrea Arcangeli wrote:
-> Given Nick's comments I ported my version of the mmu notifiers to
-> latest mainline. There are no known bugs AFIK and it's obviously safe
-> (nothing is allowed to schedule inside rcu_read_lock taken by
-> mmu_notifier() with my patch).
+On Wed, Feb 20, 2008 at 01:03:24PM +0100, Andrea Arcangeli wrote:
+> If there's agreement that the VM should alter its locking from
+> spinlock to mutex for its own good, then Christoph's
+> one-config-option-fits-all becomes a lot more appealing (replacing RCU
+> with a mutex in the mmu notifier list registration locking isn't my
+> main worry and the non-sleeping-users may be ok to live with it).
 
-Thanks! Yes the seqlock you are using now ends up looking similar
-to what I did and I couldn't find a hole in that either. So I
-think this is going to work.
+Just from a high level view, in some cases we can just say that no we
+aren't going to support this. And this may well be one of those cases.
 
-I do prefer some parts of my patch, however for everyone's sanity,
-I think you should be the maintainer of the mmu notifiers, and I
-will send you incremental changes that can be discussed more easily
-that way (nothing major, mainly style and minor things).
+The more constraints placed on the VM, the harder it becomes to
+improve and adapt in future. And this seems like a pretty big restriction.
+(especially if we can eg. work around it completely by having a special
+purpose driver to get_user_pages on comm buffers as I suggested in the
+other mail).
 
-
-> XPMEM simply can't use RCU for the registration locking if it wants to
-> schedule inside the mmu notifier calls. So I guess it's better to add
-> the XPMEM invalidate_range_end/begin/external-rmap as a whole
-> different subsystem that will have to use a mutex (not RCU) to
-> serialize, and at the same time that CONFIG_XPMEM will also have to
-> switch the i_mmap_lock to a mutex. I doubt xpmem fits inside a
-> CONFIG_MMU_NOTIFIER anymore, or we'll all run a bit slower because of
-> it. It's really a call of how much we want to optimize the MMU
-> notifier, by keeping things like RCU for the registration.
-
-I agree: your coherent, non-sleeping mmu notifiers are pretty simple
-and unintrusive. The sleeping version is fundamentally going to either
-need to change VM locks, or be non-coherent, so I don't think there is
-a question of making one solution fit everybody. So the sleeping /
-xrmap patch should be kept either completely independent, or as an
-add-on to this one.
-
-I will post some suggestions to you when I get a chance.
-
- 
+At any rate, I believe Andrea's patch really places minimal or no further
+constraints than a regular CPU TLB (or the hash tables that some archs
+implement). So we're kind of in 2 different leagues here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
