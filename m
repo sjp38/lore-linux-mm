@@ -1,50 +1,40 @@
 From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [patch 5/6] mmu_notifier: Support for drivers with revers maps (f.e. for XPmem)
-Date: Thu, 21 Feb 2008 15:20:02 +1100
-References: <20080215064859.384203497@sgi.com> <200802201451.46069.nickpiggin@yahoo.com.au> <20080220090035.GG11391@sgi.com>
-In-Reply-To: <20080220090035.GG11391@sgi.com>
+Subject: Re: [PATCH] Document huge memory/cache overhead of memory controller in Kconfig
+Date: Thu, 21 Feb 2008 15:35:38 +1100
+References: <20080220122338.GA4352@basil.nowhere.org> <47BC2275.4060900@linux.vnet.ibm.com>
+In-Reply-To: <47BC2275.4060900@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200802211520.03529.nickpiggin@yahoo.com.au>
+Message-Id: <200802211535.38932.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: balbir@linux.vnet.ibm.com
+Cc: Andi Kleen <andi@firstfloor.org>, akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 20 February 2008 20:00, Robin Holt wrote:
-> On Wed, Feb 20, 2008 at 02:51:45PM +1100, Nick Piggin wrote:
-> > On Wednesday 20 February 2008 14:12, Robin Holt wrote:
-> > > For XPMEM, we do not currently allow file backed
-> > > mapping pages from being exported so we should never reach this
-> > > condition. It has been an issue since day 1.  We have operated with
-> > > that assumption for 6 years and have not had issues with that
-> > > assumption.  The user of xpmem is MPT and it controls the communication
-> > > buffers so it is reasonable to expect this type of behavior.
+On Wednesday 20 February 2008 23:52, Balbir Singh wrote:
+> Andi Kleen wrote:
+> > Document huge memory/cache overhead of memory controller in Kconfig
 > >
-> > OK, that makes things simpler.
-> >
-> > So why can't you export a device from your xpmem driver, which
-> > can be mmap()ed to give out "anonymous" memory pages to be used
-> > for these communication buffers?
+> > I was a little surprised that 2.6.25-rc* increased struct page for the
+> > memory controller.  At least on many x86-64 machines it will not fit into
+> > a single cache line now anymore and also costs considerable amounts of
+> > RAM.
 >
-> Because we need to have heap and stack available as well.  MPT does
-> not control all the communication buffer areas.  I haven't checked, but
-> this is the same problem that IB will have.  I believe they are actually
-> allowing any memory region be accessible, but I am not sure of that.
+> The size of struct page earlier was 56 bytes on x86_64 and with 64 bytes it
+> won't fit into the cacheline anymore? Please also look at
+> http://lwn.net/Articles/234974/
 
-Then you should create a driver that the user program can register
-and unregister regions of their memory with. The driver can do a
-get_user_pages to get the pages, and then you'd just need to set up
-some kind of mapping so that userspace can unmap pages / won't leak
-memory (and an exit_mm notifier I guess).
+BTW. We'll probably want to increase the width of some counters
+in struct page at some point for 64-bit, so then it really will
+go over with the memory controller!
 
-Because you don't need to swap, you don't need coherency, and you
-are in control of the areas, then this seems like the best choice.
-It would allow you to use heap, stack, file-backed, anything.
+Actually, an external data structure is a pretty good idea. We
+could probably do it easily with a radix tree (pfn->memory
+controller). And that might be a better option for distros.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
