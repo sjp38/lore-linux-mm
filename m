@@ -1,37 +1,70 @@
-Date: Thu, 21 Feb 2008 06:02:23 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] mmu notifiers #v6
-Message-ID: <20080221050223.GD15215@wotan.suse.de>
-References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random> <20080220113313.GD11364@sgi.com> <20080220120324.GW7128@v2.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080220120324.GW7128@v2.random>
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28esmtp04.in.ibm.com (8.13.1/8.13.1) with ESMTP id m1L5AZPI000377
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2008 10:40:35 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1L5AZ1j1134654
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2008 10:40:35 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.13.1/8.13.3) with ESMTP id m1L5AZHl020752
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2008 05:10:35 GMT
+Message-ID: <47BD06C2.5030602@linux.vnet.ibm.com>
+Date: Thu, 21 Feb 2008 10:36:10 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH] Document huge memory/cache overhead of memory controller
+ in Kconfig
+References: <20080220122338.GA4352@basil.nowhere.org> <47BC2275.4060900@linux.vnet.ibm.com> <200802211535.38932.nickpiggin@yahoo.com.au>
+In-Reply-To: <200802211535.38932.nickpiggin@yahoo.com.au>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Robin Holt <holt@sgi.com>, akpm@linux-foundation.org, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andi Kleen <andi@firstfloor.org>, akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 20, 2008 at 01:03:24PM +0100, Andrea Arcangeli wrote:
-> If there's agreement that the VM should alter its locking from
-> spinlock to mutex for its own good, then Christoph's
-> one-config-option-fits-all becomes a lot more appealing (replacing RCU
-> with a mutex in the mmu notifier list registration locking isn't my
-> main worry and the non-sleeping-users may be ok to live with it).
+Nick Piggin wrote:
+> On Wednesday 20 February 2008 23:52, Balbir Singh wrote:
+>> Andi Kleen wrote:
+>>> Document huge memory/cache overhead of memory controller in Kconfig
+>>>
+>>> I was a little surprised that 2.6.25-rc* increased struct page for the
+>>> memory controller.  At least on many x86-64 machines it will not fit into
+>>> a single cache line now anymore and also costs considerable amounts of
+>>> RAM.
+>> The size of struct page earlier was 56 bytes on x86_64 and with 64 bytes it
+>> won't fit into the cacheline anymore? Please also look at
+>> http://lwn.net/Articles/234974/
+> 
+> BTW. We'll probably want to increase the width of some counters
+> in struct page at some point for 64-bit, so then it really will
+> go over with the memory controller!
+> 
 
-Just from a high level view, in some cases we can just say that no we
-aren't going to support this. And this may well be one of those cases.
+Hmm...
 
-The more constraints placed on the VM, the harder it becomes to
-improve and adapt in future. And this seems like a pretty big restriction.
-(especially if we can eg. work around it completely by having a special
-purpose driver to get_user_pages on comm buffers as I suggested in the
-other mail).
+> Actually, an external data structure is a pretty good idea. We
+> could probably do it easily with a radix tree (pfn->memory
+> controller). And that might be a better option for distros.
+> 
 
-At any rate, I believe Andrea's patch really places minimal or no further
-constraints than a regular CPU TLB (or the hash tables that some archs
-implement). So we're kind of in 2 different leagues here.
+I'll put in my long list of TODOs. I started looking at it yesterday again and
+here are my early thoughts
+
+1. We could create something similar to mem_map, we would need to handle 4
+different ways of creating mem_map.
+2. On x86 with 64 GB ram, if we decided to use vmalloc space, we would need 64
+MB of vmalloc'ed memory
+
+I have not explored your latest suggestion of pfn <-> memory controller mapping
+yet. I'll explore it and see how that goes.
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
