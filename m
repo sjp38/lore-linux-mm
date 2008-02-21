@@ -1,150 +1,46 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id m1LEua90004255
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2008 01:56:36 +1100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1LEuxuF4476980
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2008 01:56:59 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1LEuw1w016872
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2008 01:56:58 +1100
-Message-ID: <47BD9028.3080103@linux.vnet.ibm.com>
-Date: Thu, 21 Feb 2008 20:22:24 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH] Document huge memory/cache overhead of memory controller
- in Kconfig
-References: <20080220122338.GA4352@basil.nowhere.org> <47BC2275.4060900@linux.vnet.ibm.com> <18364.16552.455371.242369@stoffel.org> <47BC4554.10304@linux.vnet.ibm.com> <Pine.LNX.4.64.0802201647060.26109@fbirervta.pbzchgretzou.qr> <20080220181911.GA4760@ucw.cz> <Pine.LNX.4.64.0802201927440.26109@fbirervta.pbzchgretzou.qr> <20080220185104.GA30416@elf.ucw.cz> <2f11576a0802210646u77409690me940717fac746315@mail.gmail.com>
-In-Reply-To: <2f11576a0802210646u77409690me940717fac746315@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Thu, 21 Feb 2008 10:10:28 -0600
+From: Jack Steiner <steiner@sgi.com>
+Subject: Re: [PATCH] mmu notifiers #v6
+Message-ID: <20080221161028.GA14220@sgi.com>
+References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de> <20080221144023.GC9427@v2.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080221144023.GC9427@v2.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <m-kosaki@ceres.dti.ne.jp>
-Cc: Pavel Machek <pavel@ucw.cz>, Jan Engelhardt <jengelh@computergmbh.de>, John Stoffel <john@stoffel.org>, Andi Kleen <andi@firstfloor.org>, akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-KOSAKI Motohiro wrote:
-> Hi
-> 
->>  > >> For ordinary desktop people, memory controller is what developers
->>  > >> know as MMU or sometimes even some other mysterious piece of silicon
->>  > >> inside the heavy box.
->>  > >
->>  > >Actually I'd guess 'memory controller' == 'DRAM controller' == part of
->>  > >northbridge that talks to DRAM.
->>  >
->>  > Yeah that must have been it when Windows says it found a new controller
->>  > after changing the mainboard underneath.
->>
->>  Just for fun... this option really has to be renamed:
-> 
-> I think one reason of many people easy confusion is caused by bad menu
-> hierarchy.
-> I popose mem-cgroup move to child of cgroup and resource counter
-> (= obey denend on).
-> 
-> if you don't mind, please try to following patch.
-> may be, looks good than before.
-> 
+> I really want suggestions on Jack's concern about issuing an
+> invalidate per pte entry or per-pte instead of per-range. I'll answer
+> that in a separate email. For KVM my patch is already close to optimal
+> because each single spte invalidate requires a fixed amount of work,
+> but for GRU a large invalidate-range would be more efficient.
+>
+> To address the GRU _valid_ concern, I can create a second version of
+> my patch with range_begin/end instead of invalidate_pages, that still
 
-Sure makes sense
+I don't know how much significance to place on this data, but it is
+a real data point.
 
-> ---
->  init/Kconfig |   52 ++++++++++++++++++++++++++--------------------------
->  1 file changed, 26 insertions(+), 26 deletions(-)
-> 
-> Index: b/init/Kconfig
-> ===================================================================
-> --- a/init/Kconfig	2008-02-17 16:44:46.000000000 +0900
-> +++ b/init/Kconfig	2008-02-21 23:33:51.000000000 +0900
-> @@ -311,6 +311,32 @@ config CPUSETS
-> 
->  	  Say N if unsure.
-> 
-> +config PROC_PID_CPUSET
-> +	bool "Include legacy /proc/<pid>/cpuset file"
-> +	depends on CPUSETS
-> +	default y
-> +
-> +config CGROUP_CPUACCT
-> +	bool "Simple CPU accounting cgroup subsystem"
-> +	depends on CGROUPS
-> +	help
-> +	  Provides a simple Resource Controller for monitoring the
-> +	  total CPU consumed by the tasks in a cgroup
-> +
-> +config RESOURCE_COUNTERS
-> +	bool "Resource counters"
-> +	help
-> +	  This option enables controller independent resource accounting
-> +          infrastructure that works with cgroups
-> +	depends on CGROUPS
-> +
-> +config CGROUP_MEM_CONT
-> +	bool "Memory controller for cgroups"
-> +	depends on CGROUPS && RESOURCE_COUNTERS
-> +	help
-> +	  Provides a memory controller that manages both page cache and
-> +	  RSS memory.
-> +
+I ran the GRU regression test suite on kernels with both types of
+mmu_notifiers. The kernel/driver using Christoph's patch had
+1/7 the number of TLB invalidates as Andrea's patch.
 
-We have some more changes planned for the text and renames planned, including
-calling the component as a memory resource controller. The menu changes make
-sense, so feel free to push them
+This reduction is due to both differences I mentioned yesterday:
+	- different location of callout for address space teardown
+	- range callouts
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Unfortunately, the current driver does not allow me to quantify
+which of the differences is most significant.
 
->  config GROUP_SCHED
->  	bool "Group CPU scheduler"
->  	default y
-> @@ -352,20 +378,6 @@ config CGROUP_SCHED
-> 
->  endchoice
-> 
-> -config CGROUP_CPUACCT
-> -	bool "Simple CPU accounting cgroup subsystem"
-> -	depends on CGROUPS
-> -	help
-> -	  Provides a simple Resource Controller for monitoring the
-> -	  total CPU consumed by the tasks in a cgroup
-> -
-> -config RESOURCE_COUNTERS
-> -	bool "Resource counters"
-> -	help
-> -	  This option enables controller independent resource accounting
-> -          infrastructure that works with cgroups
-> -	depends on CGROUPS
-> -
->  config SYSFS_DEPRECATED
->  	bool "Create deprecated sysfs files"
->  	depends on SYSFS
-> @@ -387,18 +399,6 @@ config SYSFS_DEPRECATED
->  	  If you are using a distro that was released in 2006 or later,
->  	  it should be safe to say N here.
-> 
-> -config CGROUP_MEM_CONT
-> -	bool "Memory controller for cgroups"
-> -	depends on CGROUPS && RESOURCE_COUNTERS
-> -	help
-> -	  Provides a memory controller that manages both page cache and
-> -	  RSS memory.
-> -
-> -config PROC_PID_CPUSET
-> -	bool "Include legacy /proc/<pid>/cpuset file"
-> -	depends on CPUSETS
-> -	default y
-> -
->  config RELAY
->  	bool "Kernel->user space relay support (formerly relayfs)"
->  	help
+Also, I'll try to post the driver within the next few days. It is
+still in development but it compiles and can successfully run most
+workloads on a system simulator.
 
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+--- jack
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
