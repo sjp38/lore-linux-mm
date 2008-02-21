@@ -1,79 +1,50 @@
-Date: Thu, 21 Feb 2008 11:49:29 +0900 (JST)
-Message-Id: <20080221.114929.42336527.taka@valinux.co.jp>
-Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <47BC10A8.4020508@linux.vnet.ibm.com>
-References: <47BBC15E.5070405@linux.vnet.ibm.com>
-	<20080220.185821.61784723.taka@valinux.co.jp>
-	<47BC10A8.4020508@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch 5/6] mmu_notifier: Support for drivers with revers maps (f.e. for XPmem)
+Date: Thu, 21 Feb 2008 15:20:02 +1100
+References: <20080215064859.384203497@sgi.com> <200802201451.46069.nickpiggin@yahoo.com.au> <20080220090035.GG11391@sgi.com>
+In-Reply-To: <20080220090035.GG11391@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200802211520.03529.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, yamamoto@valinux.co.jp, riel@redhat.com
+To: Robin Holt <holt@sgi.com>
+Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wednesday 20 February 2008 20:00, Robin Holt wrote:
+> On Wed, Feb 20, 2008 at 02:51:45PM +1100, Nick Piggin wrote:
+> > On Wednesday 20 February 2008 14:12, Robin Holt wrote:
+> > > For XPMEM, we do not currently allow file backed
+> > > mapping pages from being exported so we should never reach this
+> > > condition. It has been an issue since day 1.  We have operated with
+> > > that assumption for 6 years and have not had issues with that
+> > > assumption.  The user of xpmem is MPT and it controls the communication
+> > > buffers so it is reasonable to expect this type of behavior.
+> >
+> > OK, that makes things simpler.
+> >
+> > So why can't you export a device from your xpmem driver, which
+> > can be mmap()ed to give out "anonymous" memory pages to be used
+> > for these communication buffers?
+>
+> Because we need to have heap and stack available as well.  MPT does
+> not control all the communication buffer areas.  I haven't checked, but
+> this is the same problem that IB will have.  I believe they are actually
+> allowing any memory region be accessible, but I am not sure of that.
 
-> >> I've been thinking along these lines as well
-> >>
-> >> 1. Have a boot option to turn on/off the memory controller
-> > 
-> > It will be much convenient if the memory controller can be turned on/off on
-> > demand. I think you can turn it off if there aren't any mem_cgroups except
-> > the root mem_cgroup, 
-> > 
-> >> 2. Have a separate cache for the page_cgroup structure. I sent this suggestion
-> >>    out just yesterday or so.
-> > 
-> > I think the policy that every mem_cgroup should be dynamically allocated and
-> > assigned to the proper page every time is causing some overheads and spinlock
-> > contentions.
-> > 
-> > What do you think if you allocate all page_cgroups and assign to all the pages
-> > when the memory controller gets turned on, which will allow you to remove
-> > most of the spinlocks.
-> > 
-> > And you may possibly have a chance to remove page->page_cgroup member
-> > if you allocate array of page_cgroups and attach them to the zone which
-> > the pages belong to.
-> > 
-> 
-> We thought of this as well. We dropped it, because we need to track only user
-> pages at the moment. Doing it for all pages means having the overhead for each
-> page on the system.
+Then you should create a driver that the user program can register
+and unregister regions of their memory with. The driver can do a
+get_user_pages to get the pages, and then you'd just need to set up
+some kind of mapping so that userspace can unmap pages / won't leak
+memory (and an exit_mm notifier I guess).
 
-Let me clarify that the overhead you said is you'll waste some memory
-whose pages are assigned for the kernel internal use, right?
-If so, it wouldn't be a big problem since most of the pages are assigned to
-process anonymous memory or to the page cache as Paul said.
-
-Paul> I suspect that on most systems that want to use the cgroup memory
-Paul> controller, user-allocated pages will fill the vast majority of
-Paul> memory. So using the arrays and eliminating the extra pointer in
-Paul> struct page would actually reduce overhead.
-
-> >                zone
-> >     page[]    +----+    page_cgroup[]
-> >     +----+<----    ---->+----+
-> >     |    |    |    |    |    |
-> >     +----+    |    |    +----+
-> >     |    |    +----+    |    |
-> >     +----+              +----+
-> >     |    |              |    |
-> >     +----+              +----+
-> >     |    |              |    |
-> >     +----+              +----+
-> >     |    |              |    |
-> >     +----+              +----+
-> > 
-> > 
-> >> I agree that these are necessary enhancements/changes.
-
-Thank you,
-Hirokazu Takahashi.
+Because you don't need to swap, you don't need coherency, and you
+are in control of the areas, then this seems like the best choice.
+It would allow you to use heap, stack, file-backed, anything.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
