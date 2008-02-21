@@ -1,74 +1,131 @@
-Date: Thu, 21 Feb 2008 15:40:23 +0100
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [PATCH] mmu notifiers #v6
-Message-ID: <20080221144023.GC9427@v2.random>
-References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de>
+Received: by gv-out-0910.google.com with SMTP id n8so11049gve.19
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2008 06:46:26 -0800 (PST)
+Message-ID: <2f11576a0802210646u77409690me940717fac746315@mail.gmail.com>
+Date: Thu, 21 Feb 2008 23:46:25 +0900
+From: "KOSAKI Motohiro" <m-kosaki@ceres.dti.ne.jp>
+Subject: Re: [PATCH] Document huge memory/cache overhead of memory controller in Kconfig
+In-Reply-To: <20080220185104.GA30416@elf.ucw.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080221045430.GC15215@wotan.suse.de>
+References: <20080220122338.GA4352@basil.nowhere.org>
+	 <47BC2275.4060900@linux.vnet.ibm.com>
+	 <18364.16552.455371.242369@stoffel.org>
+	 <47BC4554.10304@linux.vnet.ibm.com>
+	 <Pine.LNX.4.64.0802201647060.26109@fbirervta.pbzchgretzou.qr>
+	 <20080220181911.GA4760@ucw.cz>
+	 <Pine.LNX.4.64.0802201927440.26109@fbirervta.pbzchgretzou.qr>
+	 <20080220185104.GA30416@elf.ucw.cz>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Jan Engelhardt <jengelh@computergmbh.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, John Stoffel <john@stoffel.org>, Andi Kleen <andi@firstfloor.org>, akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 21, 2008 at 05:54:30AM +0100, Nick Piggin wrote:
-> will send you incremental changes that can be discussed more easily
-> that way (nothing major, mainly style and minor things).
+Hi
 
-I don't need to say you're very welcome ;).
+>  > >> For ordinary desktop people, memory controller is what developers
+>  > >> know as MMU or sometimes even some other mysterious piece of silicon
+>  > >> inside the heavy box.
+>  > >
+>  > >Actually I'd guess 'memory controller' == 'DRAM controller' == part of
+>  > >northbridge that talks to DRAM.
+>  >
+>  > Yeah that must have been it when Windows says it found a new controller
+>  > after changing the mainboard underneath.
+>
+>  Just for fun... this option really has to be renamed:
 
-> I agree: your coherent, non-sleeping mmu notifiers are pretty simple
-> and unintrusive. The sleeping version is fundamentally going to either
-> need to change VM locks, or be non-coherent, so I don't think there is
-> a question of making one solution fit everybody. So the sleeping /
-> xrmap patch should be kept either completely independent, or as an
-> add-on to this one.
+I think one reason of many people easy confusion is caused by bad menu
+hierarchy.
+I popose mem-cgroup move to child of cgroup and resource counter
+(= obey denend on).
 
-The need to change the VM locks to fit the sleepable "mmu notifier"
-needs, I think is the major reason why the sleeping patch should be a
-separate config option unless you think the i_mmap_lock will benefit
-the VM for its own good regardless of the sleepable mmu
-notifiers. Otherwise we'll end up merging in mainline an API that can
-only satisfy the needs of the "sleeping users" that are only
-interested about anonymous memory. While the basic concept of the mmu
-notifiers is to cover the whole user visible address space, not just
-anonymous memory! Furthermore XPMEM users already asked to work on
-tmpfs/MAP_SHARED too...
+if you don't mind, please try to following patch.
+may be, looks good than before.
 
-Originally the trick that I was trying to remove the "atomic" param,
-was to defer the invalidate_range after dropping the i_mmap_lock. But
-clearly in truncate we'll have no more guarantees that nor the vma nor
-the MM still exists after spin_unlock(i_mmap_lock) is called... So
-it's simply impossible to call the mmu notifier out of the i_mmap_lock
-for truncate, and Christoph's patch looks unfixable without altering
-the VM core locking. Christoph's API one-config-fits-all can't really
-fit-all, but only the anonymous memory.
+---
+ init/Kconfig |   52 ++++++++++++++++++++++++++--------------------------
+ 1 file changed, 26 insertions(+), 26 deletions(-)
 
-However if I wear a KVM hat, I cannot care less what is merged as long
-as .25 will be able to fully swap reliably a virtualized guest OS ;).
-This is why I'm totally willing to support any decision in favor of
-anything (including your own patch that would only work for KVM) that
-can be merged.
+Index: b/init/Kconfig
+===================================================================
+--- a/init/Kconfig	2008-02-17 16:44:46.000000000 +0900
++++ b/init/Kconfig	2008-02-21 23:33:51.000000000 +0900
+@@ -311,6 +311,32 @@ config CPUSETS
 
-> I will post some suggestions to you when I get a chance.
+ 	  Say N if unsure.
 
-I really want suggestions on Jack's concern about issuing an
-invalidate per pte entry or per-pte instead of per-range. I'll answer
-that in a separate email. For KVM my patch is already close to optimal
-because each single spte invalidate requires a fixed amount of work,
-but for GRU a large invalidate-range would be more efficient.
++config PROC_PID_CPUSET
++	bool "Include legacy /proc/<pid>/cpuset file"
++	depends on CPUSETS
++	default y
++
++config CGROUP_CPUACCT
++	bool "Simple CPU accounting cgroup subsystem"
++	depends on CGROUPS
++	help
++	  Provides a simple Resource Controller for monitoring the
++	  total CPU consumed by the tasks in a cgroup
++
++config RESOURCE_COUNTERS
++	bool "Resource counters"
++	help
++	  This option enables controller independent resource accounting
++          infrastructure that works with cgroups
++	depends on CGROUPS
++
++config CGROUP_MEM_CONT
++	bool "Memory controller for cgroups"
++	depends on CGROUPS && RESOURCE_COUNTERS
++	help
++	  Provides a memory controller that manages both page cache and
++	  RSS memory.
++
+ config GROUP_SCHED
+ 	bool "Group CPU scheduler"
+ 	default y
+@@ -352,20 +378,6 @@ config CGROUP_SCHED
 
-To address the GRU _valid_ concern, I can create a second version of
-my patch with range_begin/end instead of invalidate_pages, that still
-won't support sleeping users like XPMEM but only KVM and GRU. Then
-it's up to Christoph when he comes back to alter the vm locking so
-that those calls can sleep too... But that will require a much bigger
-change and then perhaps xpmem can share the same mmu notifiers when
-the config option to make the mmu notifier sleepable is enabled. But
-that part would better be incremental as it's not so obviously safe to
-merge as the mmu notifier themself.
+ endchoice
+
+-config CGROUP_CPUACCT
+-	bool "Simple CPU accounting cgroup subsystem"
+-	depends on CGROUPS
+-	help
+-	  Provides a simple Resource Controller for monitoring the
+-	  total CPU consumed by the tasks in a cgroup
+-
+-config RESOURCE_COUNTERS
+-	bool "Resource counters"
+-	help
+-	  This option enables controller independent resource accounting
+-          infrastructure that works with cgroups
+-	depends on CGROUPS
+-
+ config SYSFS_DEPRECATED
+ 	bool "Create deprecated sysfs files"
+ 	depends on SYSFS
+@@ -387,18 +399,6 @@ config SYSFS_DEPRECATED
+ 	  If you are using a distro that was released in 2006 or later,
+ 	  it should be safe to say N here.
+
+-config CGROUP_MEM_CONT
+-	bool "Memory controller for cgroups"
+-	depends on CGROUPS && RESOURCE_COUNTERS
+-	help
+-	  Provides a memory controller that manages both page cache and
+-	  RSS memory.
+-
+-config PROC_PID_CPUSET
+-	bool "Include legacy /proc/<pid>/cpuset file"
+-	depends on CPUSETS
+-	default y
+-
+ config RELAY
+ 	bool "Kernel->user space relay support (formerly relayfs)"
+ 	help
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
