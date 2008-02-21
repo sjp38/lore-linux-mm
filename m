@@ -1,77 +1,74 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1LDdY1G018530
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2008 08:39:34 -0500
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1LDdS2g210298
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2008 06:39:33 -0700
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1LDdS6I026929
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2008 06:39:28 -0700
-Subject: Re: [LTP] [PATCH 1/8] Scaling msgmni to the amount of lowmem
-From: Subrata Modak <subrata@linux.vnet.ibm.com>
-Reply-To: subrata@linux.vnet.ibm.com
-In-Reply-To: <47BD7648.5010309@bull.net>
-References: <20080211141646.948191000@bull.net>
-	 <20080211141813.354484000@bull.net>
-	 <20080215215916.8566d337.akpm@linux-foundation.org>
-	 <47B94D8C.8040605@bull.net>  <47B9835A.3060507@bull.net>
-	 <1203411055.4612.5.camel@subratamodak.linux.ibm.com>
-	 <47BB0EDC.5000002@bull.net>
-	 <1203459418.7408.39.camel@localhost.localdomain>
-	 <47BD705A.9020309@bull.net>  <47BD7648.5010309@bull.net>
-Content-Type: text/plain
-Date: Thu, 21 Feb 2008 19:09:38 +0530
-Message-Id: <1203601178.4604.18.camel@subratamodak.linux.ibm.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 21 Feb 2008 15:40:23 +0100
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [PATCH] mmu notifiers #v6
+Message-ID: <20080221144023.GC9427@v2.random>
+References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080221045430.GC15215@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nadia Derbey <Nadia.Derbey@bull.net>
-Cc: Matt Helsley <matthltc@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, ltp-list@lists.sourceforge.net, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cmm@us.ibm.com, y-goto@jp.fujitsu.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-> Nadia Derbey wrote:
-> > Matt Helsley wrote:
-> > 
-> >> On Tue, 2008-02-19 at 18:16 +0100, Nadia Derbey wrote:
-> >>
-> >> <snip>
-> >>
-> >>> +#define MAX_MSGQUEUES  16      /* MSGMNI as defined in linux/msg.h */
-> >>> +
-> >>
-> >>
-> >>
-> >> It's not quite the maximum anymore, is it? More like the minumum
-> >> maximum ;). A better name might better document what the test is
-> >> actually trying to do.
-> >>
-> >> One question I have is whether the unpatched test is still valuable.
-> >> Based on my limited knowledge of the test I suspect it's still a correct
-> >> test of message queues. If so, perhaps renaming the old test (so it's
-> >> not confused with a performance regression) and adding your patched
-> >> version is best?
-> >>
-> > 
-> > So, here's the new patch based on Matt's points.
-> > 
-> > Subrata, it has to be applied on top of the original ltp-full-20080131. 
-> > Please tell me if you'd prefer one based on the merged version you've 
-> > got (i.e. with my Tuesday patch applied).
+On Thu, Feb 21, 2008 at 05:54:30AM +0100, Nick Piggin wrote:
+> will send you incremental changes that can be discussed more easily
+> that way (nothing major, mainly style and minor things).
 
-Nadia, I would prefer Patch on the top of the already merged version (on
-top of latest CVS snapshot as of today). Anyways, thanks for all these
-effort :-)
+I don't need to say you're very welcome ;).
 
---Subrata
+> I agree: your coherent, non-sleeping mmu notifiers are pretty simple
+> and unintrusive. The sleeping version is fundamentally going to either
+> need to change VM locks, or be non-coherent, so I don't think there is
+> a question of making one solution fit everybody. So the sleeping /
+> xrmap patch should be kept either completely independent, or as an
+> add-on to this one.
 
-> > 
-> 
-> Forgot the patch, sorry for that (thx Andrew).
-> 
-> Regards,
-> Nadia
-> 
+The need to change the VM locks to fit the sleepable "mmu notifier"
+needs, I think is the major reason why the sleeping patch should be a
+separate config option unless you think the i_mmap_lock will benefit
+the VM for its own good regardless of the sleepable mmu
+notifiers. Otherwise we'll end up merging in mainline an API that can
+only satisfy the needs of the "sleeping users" that are only
+interested about anonymous memory. While the basic concept of the mmu
+notifiers is to cover the whole user visible address space, not just
+anonymous memory! Furthermore XPMEM users already asked to work on
+tmpfs/MAP_SHARED too...
+
+Originally the trick that I was trying to remove the "atomic" param,
+was to defer the invalidate_range after dropping the i_mmap_lock. But
+clearly in truncate we'll have no more guarantees that nor the vma nor
+the MM still exists after spin_unlock(i_mmap_lock) is called... So
+it's simply impossible to call the mmu notifier out of the i_mmap_lock
+for truncate, and Christoph's patch looks unfixable without altering
+the VM core locking. Christoph's API one-config-fits-all can't really
+fit-all, but only the anonymous memory.
+
+However if I wear a KVM hat, I cannot care less what is merged as long
+as .25 will be able to fully swap reliably a virtualized guest OS ;).
+This is why I'm totally willing to support any decision in favor of
+anything (including your own patch that would only work for KVM) that
+can be merged.
+
+> I will post some suggestions to you when I get a chance.
+
+I really want suggestions on Jack's concern about issuing an
+invalidate per pte entry or per-pte instead of per-range. I'll answer
+that in a separate email. For KVM my patch is already close to optimal
+because each single spte invalidate requires a fixed amount of work,
+but for GRU a large invalidate-range would be more efficient.
+
+To address the GRU _valid_ concern, I can create a second version of
+my patch with range_begin/end instead of invalidate_pages, that still
+won't support sleeping users like XPMEM but only KVM and GRU. Then
+it's up to Christoph when he comes back to alter the vm locking so
+that those calls can sleep too... But that will require a much bigger
+change and then perhaps xpmem can share the same mmu notifiers when
+the config option to make the mmu notifier sleepable is enabled. But
+that part would better be incremental as it's not so obviously safe to
+merge as the mmu notifier themself.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
