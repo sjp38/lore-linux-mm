@@ -1,53 +1,44 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp01.in.ibm.com (8.13.1/8.13.1) with ESMTP id m1L6uZbC023316
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2008 12:26:35 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1L6uZRX897034
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2008 12:26:35 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id m1L6uYLC023642
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2008 06:56:34 GMT
-Message-ID: <47BD1F97.8030202@linux.vnet.ibm.com>
-Date: Thu, 21 Feb 2008 12:22:07 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Message-ID: <47BD38AB.80408@bull.net>
+Date: Thu, 21 Feb 2008 09:39:07 +0100
+From: Nadia Derbey <Nadia.Derbey@bull.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Document huge memory/cache overhead of memory controller
- in Kconfig
-References: <20080220122338.GA4352@basil.nowhere.org> <47BC2275.4060900@linux.vnet.ibm.com> <18364.16552.455371.242369@stoffel.org> <47BC4554.10304@linux.vnet.ibm.com> <Pine.LNX.4.64.0802201647060.26109@fbirervta.pbzchgretzou.qr> <18364.20755.798295.881259@stoffel.org> <47BC5211.6030102@linux.vnet.ibm.com> <20080221154916.723fed49.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080221154916.723fed49.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [LTP] [PATCH 1/8] Scaling msgmni to the amount of lowmem
+References: <20080211141646.948191000@bull.net>	 <20080211141813.354484000@bull.net>	 <20080215215916.8566d337.akpm@linux-foundation.org>	 <47B94D8C.8040605@bull.net>  <47B9835A.3060507@bull.net>	 <1203411055.4612.5.camel@subratamodak.linux.ibm.com>	 <47BB0EDC.5000002@bull.net> <1203459418.7408.39.camel@localhost.localdomain>
+In-Reply-To: <1203459418.7408.39.camel@localhost.localdomain>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: John Stoffel <john@stoffel.org>, Jan Engelhardt <jengelh@computergmbh.de>, Andi Kleen <andi@firstfloor.org>, akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matt Helsley <matthltc@us.ibm.com>
+Cc: subrata@linux.vnet.ibm.com, Andrew Morton <akpm@linux-foundation.org>, ltp-list@lists.sourceforge.net, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cmm@us.ibm.com, y-goto@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Wed, 20 Feb 2008 21:45:13 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+Matt Helsley wrote:
+> On Tue, 2008-02-19 at 18:16 +0100, Nadia Derbey wrote:
 > 
->>> But for computers, limits is an expected and understood term, and for
->>> filesystems it's quotas.  So in this case, I *still* think you should
->>> be using the term "Memory Quota Controller" instead.  It just makes it
->>> clearer to a larger audience what you mean.
->>>
->> Memory Quota sounds very confusing to me. Usually a quota implies limits, but in
->> a true framework, one can also implement guarantees and shares.
->>
-> This "cgroup memory contoller" is called as "Memory Resource Contoller"
-> in my office ;)
+> <snip>
 > 
-> How about Memory Resouce Contoller ?
+>>+#define MAX_MSGQUEUES  16      /* MSGMNI as defined in linux/msg.h */
+>>+
+> 
+> 
+> It's not quite the maximum anymore, is it? More like the minumum
+> maximum ;). A better name might better document what the test is
+> actually trying to do.
+> 
+> One question I have is whether the unpatched test is still valuable.
+> Based on my limited knowledge of the test I suspect it's still a correct
+> test of message queues. If so, perhaps renaming the old test (so it's
+> not confused with a performance regression) and adding your patched
+> version is best?
+> 
 
-That is a good name and believe me or not I was thinking of the same name.
+Yes, you're completely right.
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+I'll resend a patch today.
+
+Regards,
+Nadia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
