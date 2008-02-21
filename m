@@ -1,94 +1,37 @@
-Message-Id: <20080221213445.074889000@menage.corp.google.com>
-References: <20080221212854.408662000@menage.corp.google.com>
-Date: Thu, 21 Feb 2008 13:28:56 -0800
-From: menage@google.com
-Subject: [PATCH 2/2] cgroup map files: Use cgroup map for memcontrol stats file
-Content-Disposition: inline; filename=memcontrol_use_cgroup_map.patch
+Message-ID: <47BDEFB4.1010106@zytor.com>
+Date: Thu, 21 Feb 2008 13:40:04 -0800
+From: "H. Peter Anvin" <hpa@zytor.com>
+MIME-Version: 1.0
+Subject: Re: SMP-related kernel memory leak
+References: <e2e108260802190300k5b0f60f6tbb4f54997caf4c4e@mail.gmail.com>	 <6101e8c40802191018t668faf3avba9beeff34f7f853@mail.gmail.com>	 <e2e108260802192327v124a841dnc7d9b1c7e9057545@mail.gmail.com>	 <6101e8c40802201342y7e792e70lbd398f84a58a38bd@mail.gmail.com>	 <e2e108260802210048y653031f3r3104399f126336c5@mail.gmail.com>	 <e2e108260802210800x5f55fee7ve6e768607d73ceb0@mail.gmail.com>	 <6101e8c40802210821w626bc831uaf4c3f66fb097094@mail.gmail.com> <6101e8c40802210825v534f0ce3wf80a18ebd6dee925@mail.gmail.com>
+In-Reply-To: <6101e8c40802210825v534f0ce3wf80a18ebd6dee925@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com, yamamoto@valinux.co.jp, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, balbir@in.ibm.com, xemul@openvz.org
+To: Oliver Pinter <oliver.pntr@gmail.com>
+Cc: Bart Van Assche <bart.vanassche@gmail.com>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, linux-mm@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Remove the seq_file boilerplate used to construct the memcontrol stats
-map, and instead use the new map representation for cgroup control
-files
+Oliver Pinter wrote:
+>>> I have added a new graph to
+>>> http://bugzilla.kernel.org/show_bug.cgi?id=9991, namely a graph
+>>> showing memory usage for a PAE-kernel booted with mem=1G and with a
+>>> minimized kernel config. The graph shows that memory usage increases
+>>> to a certain limit. Other tests have shown that this limit is
+>>> proportional to the amount of memory specified in mem=... This is not
+>>> a SLAB leak: as the numbers show, slab usage remains constant during
+>>> all tests.
+>>>
+>>> I'm puzzled by these results ...
+>>>
 
-Signed-off-by: Paul Menage <menage@google.com>
+This sounds to me a lot like the quicklist PUD leak we had, which I 
+thought had been fixed in recent kernels...
 
----
- mm/memcontrol.c |   30 ++++++------------------------
- 1 file changed, 6 insertions(+), 24 deletions(-)
+It would be useful to know: does this happen with UP at all?
 
-Index: cgroupmap-2.6.25-rc2-mm1/mm/memcontrol.c
-===================================================================
---- cgroupmap-2.6.25-rc2-mm1.orig/mm/memcontrol.c
-+++ cgroupmap-2.6.25-rc2-mm1/mm/memcontrol.c
-@@ -974,9 +974,9 @@ static const struct mem_cgroup_stat_desc
- 	[MEM_CGROUP_STAT_RSS] = { "rss", PAGE_SIZE, },
- };
- 
--static int mem_control_stat_show(struct seq_file *m, void *arg)
-+static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
-+				 struct cgroup_map_cb *cb)
- {
--	struct cgroup *cont = m->private;
- 	struct mem_cgroup *mem_cont = mem_cgroup_from_cont(cont);
- 	struct mem_cgroup_stat *stat = &mem_cont->stat;
- 	int i;
-@@ -986,8 +986,7 @@ static int mem_control_stat_show(struct 
- 
- 		val = mem_cgroup_read_stat(stat, i);
- 		val *= mem_cgroup_stat_desc[i].unit;
--		seq_printf(m, "%s %lld\n", mem_cgroup_stat_desc[i].msg,
--				(long long)val);
-+		cb->fill(cb, mem_cgroup_stat_desc[i].msg, val);
- 	}
- 	/* showing # of active pages */
- 	{
-@@ -997,29 +996,12 @@ static int mem_control_stat_show(struct 
- 						MEM_CGROUP_ZSTAT_INACTIVE);
- 		active = mem_cgroup_get_all_zonestat(mem_cont,
- 						MEM_CGROUP_ZSTAT_ACTIVE);
--		seq_printf(m, "active %ld\n", (active) * PAGE_SIZE);
--		seq_printf(m, "inactive %ld\n", (inactive) * PAGE_SIZE);
-+		cb->fill(cb, "active", (active) * PAGE_SIZE);
-+		cb->fill(cb, "inactive", (inactive) * PAGE_SIZE);
- 	}
- 	return 0;
- }
- 
--static const struct file_operations mem_control_stat_file_operations = {
--	.read = seq_read,
--	.llseek = seq_lseek,
--	.release = single_release,
--};
--
--static int mem_control_stat_open(struct inode *unused, struct file *file)
--{
--	/* XXX __d_cont */
--	struct cgroup *cont = file->f_dentry->d_parent->d_fsdata;
--
--	file->f_op = &mem_control_stat_file_operations;
--	return single_open(file, mem_control_stat_show, cont);
--}
--
--
--
- static struct cftype mem_cgroup_files[] = {
- 	{
- 		.name = "usage_in_bytes",
-@@ -1044,7 +1026,7 @@ static struct cftype mem_cgroup_files[] 
- 	},
- 	{
- 		.name = "stat",
--		.open = mem_control_stat_open,
-+		.read_map = mem_control_stat_show,
- 	},
- };
- 
-
---
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
