@@ -1,37 +1,52 @@
-Message-ID: <47BDEFB4.1010106@zytor.com>
-Date: Thu, 21 Feb 2008 13:40:04 -0800
-From: "H. Peter Anvin" <hpa@zytor.com>
+Date: Fri, 22 Feb 2008 00:55:27 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH] Document huge memory/cache overhead of memory
+	controller in Kconfig
+Message-ID: <20080221235527.GD25977@elf.ucw.cz>
+References: <20080220122338.GA4352@basil.nowhere.org> <47BC2275.4060900@linux.vnet.ibm.com> <18364.16552.455371.242369@stoffel.org> <47BC4554.10304@linux.vnet.ibm.com> <Pine.LNX.4.64.0802201647060.26109@fbirervta.pbzchgretzou.qr> <20080220181911.GA4760@ucw.cz> <Pine.LNX.4.64.0802201927440.26109@fbirervta.pbzchgretzou.qr> <20080220185104.GA30416@elf.ucw.cz> <2f11576a0802210646u77409690me940717fac746315@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: SMP-related kernel memory leak
-References: <e2e108260802190300k5b0f60f6tbb4f54997caf4c4e@mail.gmail.com>	 <6101e8c40802191018t668faf3avba9beeff34f7f853@mail.gmail.com>	 <e2e108260802192327v124a841dnc7d9b1c7e9057545@mail.gmail.com>	 <6101e8c40802201342y7e792e70lbd398f84a58a38bd@mail.gmail.com>	 <e2e108260802210048y653031f3r3104399f126336c5@mail.gmail.com>	 <e2e108260802210800x5f55fee7ve6e768607d73ceb0@mail.gmail.com>	 <6101e8c40802210821w626bc831uaf4c3f66fb097094@mail.gmail.com> <6101e8c40802210825v534f0ce3wf80a18ebd6dee925@mail.gmail.com>
-In-Reply-To: <6101e8c40802210825v534f0ce3wf80a18ebd6dee925@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2f11576a0802210646u77409690me940717fac746315@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Oliver Pinter <oliver.pntr@gmail.com>
-Cc: Bart Van Assche <bart.vanassche@gmail.com>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, linux-mm@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: KOSAKI Motohiro <m-kosaki@ceres.dti.ne.jp>
+Cc: Jan Engelhardt <jengelh@computergmbh.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, John Stoffel <john@stoffel.org>, Andi Kleen <andi@firstfloor.org>, akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Oliver Pinter wrote:
->>> I have added a new graph to
->>> http://bugzilla.kernel.org/show_bug.cgi?id=9991, namely a graph
->>> showing memory usage for a PAE-kernel booted with mem=1G and with a
->>> minimized kernel config. The graph shows that memory usage increases
->>> to a certain limit. Other tests have shown that this limit is
->>> proportional to the amount of memory specified in mem=... This is not
->>> a SLAB leak: as the numbers show, slab usage remains constant during
->>> all tests.
->>>
->>> I'm puzzled by these results ...
->>>
+Hi!
 
-This sounds to me a lot like the quicklist PUD leak we had, which I 
-thought had been fixed in recent kernels...
+> >  > >> For ordinary desktop people, memory controller is what developers
+> >  > >> know as MMU or sometimes even some other mysterious piece of silicon
+> >  > >> inside the heavy box.
+> >  > >
+> >  > >Actually I'd guess 'memory controller' == 'DRAM controller' == part of
+> >  > >northbridge that talks to DRAM.
+> >  >
+> >  > Yeah that must have been it when Windows says it found a new controller
+> >  > after changing the mainboard underneath.
+> >
+> >  Just for fun... this option really has to be renamed:
+> 
+> I think one reason of many people easy confusion is caused by bad menu
+> hierarchy.
+> I popose mem-cgroup move to child of cgroup and resource counter
+> (= obey denend on).
 
-It would be useful to know: does this happen with UP at all?
+> +config CGROUP_MEM_CONT
+> +	bool "Memory controller for cgroups"
 
-	-hpa
+Memory _resource_ controller for cgroups?
+
+> +	depends on CGROUPS && RESOURCE_COUNTERS
+> +	help
+> +	  Provides a memory controller that manages both page cache and
+
+Same here.
+
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
