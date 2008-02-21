@@ -1,45 +1,45 @@
-Message-ID: <47BD55F6.5030203@firstfloor.org>
-Date: Thu, 21 Feb 2008 11:44:06 +0100
-From: Andi Kleen <andi@firstfloor.org>
+Received: by py-out-1112.google.com with SMTP id f47so2830723pye.20
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2008 02:55:39 -0800 (PST)
+Message-ID: <2f11576a0802210255k1e3acad7n87814e916fd24509@mail.gmail.com>
+Date: Thu, 21 Feb 2008 19:55:39 +0900
+From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] the proposal of improve page reclaim by throttle
+In-Reply-To: <44c63dc40802210138s100e921ekde01b30bae13beb1@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Document huge memory/cache overhead of memory controller
- in Kconfig
-References: <20080220122338.GA4352@basil.nowhere.org> <47BC2275.4060900@linux.vnet.ibm.com> <200802211535.38932.nickpiggin@yahoo.com.au> <47BD06C2.5030602@linux.vnet.ibm.com>
-In-Reply-To: <47BD06C2.5030602@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080220181447.6444.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <44c63dc40802200149r6b03d970g2fbde74b85ad5443@mail.gmail.com>
+	 <20080220185648.6447.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <44c63dc40802210138s100e921ekde01b30bae13beb1@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: minchan Kim <barrioskmc@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> 1. We could create something similar to mem_map, we would need to handle 4
+Hi Kim-san,
 
-4? At least x86 mainline only has two ways now. flatmem and vmemmap.
+Thank you very much.
+btw, what different between <test 1> and <test 2>?
 
-> different ways of creating mem_map.
+>  It was a very interesting result.
+>  In embedded system, your patch improve performance a little in case
+>  without noswap(normal case in embedded system).
+>  But, more important thing is OOM occured when I made 240 process
+>  without swap device and vanilla kernel.
+>  Then, I applied your patch, it worked very well without OOM.
 
-Well it would be only a single way to create the "aux memory controller
-map" (or however it will be called). Basically just a call to single
-function from a few different places.
+Wow, it is very interesting result!
+I am very happy.
 
-> 2. On x86 with 64 GB ram, 
+>  I think that's why zone's page_scanned was six times greater than
+>  number of lru pages.
+>  At result, OOM happened.
 
-First i386 with 64GB just doesn't work, at least not with default 3:1
-split. Just calculate it yourself how much of the lowmem area is left
-after the 64GB mem_map is allocated. Typical rule of thumb is that 16GB
-is the realistic limit for 32bit x86 kernels. Worrying about
-anything more does not make much sense.
-
-> if we decided to use vmalloc space, we would need 64
-> MB of vmalloc'ed memory
-
-Yes and if you increase mem_map you need exactly the same space
-in lowmem too. So increasing the vmalloc reservation for this is
-equivalent. Just make sure you use highmem backed vmalloc.
-
--Andi
+please repost question with change subject.
+i don't know reason of vanilla kernel behavior, sorry.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
