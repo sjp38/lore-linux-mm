@@ -1,46 +1,73 @@
-Date: Thu, 21 Feb 2008 10:10:28 -0600
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [PATCH] mmu notifiers #v6
-Message-ID: <20080221161028.GA14220@sgi.com>
-References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de> <20080221144023.GC9427@v2.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: by fg-out-1718.google.com with SMTP id e12so68932fga.4
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2008 08:25:30 -0800 (PST)
+Message-ID: <6101e8c40802210825v534f0ce3wf80a18ebd6dee925@mail.gmail.com>
+Date: Thu, 21 Feb 2008 17:25:29 +0100
+From: "Oliver Pinter" <oliver.pntr@gmail.com>
+Subject: Re: SMP-related kernel memory leak
+In-Reply-To: <6101e8c40802210821w626bc831uaf4c3f66fb097094@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080221144023.GC9427@v2.random>
+References: <e2e108260802190300k5b0f60f6tbb4f54997caf4c4e@mail.gmail.com>
+	 <6101e8c40802191018t668faf3avba9beeff34f7f853@mail.gmail.com>
+	 <e2e108260802192327v124a841dnc7d9b1c7e9057545@mail.gmail.com>
+	 <6101e8c40802201342y7e792e70lbd398f84a58a38bd@mail.gmail.com>
+	 <e2e108260802210048y653031f3r3104399f126336c5@mail.gmail.com>
+	 <e2e108260802210800x5f55fee7ve6e768607d73ceb0@mail.gmail.com>
+	 <6101e8c40802210821w626bc831uaf4c3f66fb097094@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+To: Bart Van Assche <bart.vanassche@gmail.com>
+Cc: linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, linux-mm@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-> I really want suggestions on Jack's concern about issuing an
-> invalidate per pte entry or per-pte instead of per-range. I'll answer
-> that in a separate email. For KVM my patch is already close to optimal
-> because each single spte invalidate requires a fixed amount of work,
-> but for GRU a large invalidate-range would be more efficient.
+and add plus CC's
+On 2/21/08, Oliver Pinter <oliver.pntr@gmail.com> wrote:
+> it is reproductable with SLUB?
+> /* sorry for the bad english, but i not learned it .. */
+> On 2/21/08, Bart Van Assche <bart.vanassche@gmail.com> wrote:
+> > On Thu, Feb 21, 2008 at 9:48 AM, Bart Van Assche
+> > <bart.vanassche@gmail.com> wrote:
+> > > On Wed, Feb 20, 2008 at 10:42 PM, Oliver Pinter <oliver.pntr@gmail.com>
+> > wrote:
+> > > >
+> > > > hmm it is with slub or slab?
+> > >
+> > > All tests were performed with SLAB. Please note that it's not yet
+> > > clear to me whether this is an issue with the SLAB allocator or
+> > > another memory allocation mechanism. In the meantime I also noticed
+> > > different behavior between the 2.6.22.18 and 2.6.24.2 kernel: with
+> > > 2.6.22.18 I see unbounded growth of the memory used, while with
+> > > 2.6.24.2 memory usage increases from about 30 MB to about 70 MB and
+> > > then keeps at the same level. I am still performing more tests (a.o.
+> > > minimizing the kernel config). I will add the results of these tests
+> > > to the kernel bugzilla entry.
+> >
+> > I have added a new graph to
+> > http://bugzilla.kernel.org/show_bug.cgi?id=9991, namely a graph
+> > showing memory usage for a PAE-kernel booted with mem=1G and with a
+> > minimized kernel config. The graph shows that memory usage increases
+> > to a certain limit. Other tests have shown that this limit is
+> > proportional to the amount of memory specified in mem=... This is not
+> > a SLAB leak: as the numbers show, slab usage remains constant during
+> > all tests.
+> >
+> > I'm puzzled by these results ...
+> >
+> > Bart.
+> > --
+> > Met vriendelijke groeten,
+> >
+> > Bart Van Assche.
+> >
+> --
+> Thanks,
+> Oliver
 >
-> To address the GRU _valid_ concern, I can create a second version of
-> my patch with range_begin/end instead of invalidate_pages, that still
-
-I don't know how much significance to place on this data, but it is
-a real data point.
-
-I ran the GRU regression test suite on kernels with both types of
-mmu_notifiers. The kernel/driver using Christoph's patch had
-1/7 the number of TLB invalidates as Andrea's patch.
-
-This reduction is due to both differences I mentioned yesterday:
-	- different location of callout for address space teardown
-	- range callouts
-
-Unfortunately, the current driver does not allow me to quantify
-which of the differences is most significant.
-
-Also, I'll try to post the driver within the next few days. It is
-still in development but it compiles and can successfully run most
-workloads on a system simulator.
-
---- jack
+--
+Thanks,
+Oliver
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
