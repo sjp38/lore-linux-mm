@@ -1,54 +1,79 @@
-Date: Wed, 20 Feb 2008 15:03:39 -0600
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [PATCH] mmu notifiers #v6
-Message-ID: <20080220210339.GA25659@sgi.com>
-References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random>
+Date: Thu, 21 Feb 2008 11:49:29 +0900 (JST)
+Message-Id: <20080221.114929.42336527.taka@valinux.co.jp>
+Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
+From: Hirokazu Takahashi <taka@valinux.co.jp>
+In-Reply-To: <47BC10A8.4020508@linux.vnet.ibm.com>
+References: <47BBC15E.5070405@linux.vnet.ibm.com>
+	<20080220.185821.61784723.taka@valinux.co.jp>
+	<47BC10A8.4020508@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080220103942.GU7128@v2.random>
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+To: balbir@linux.vnet.ibm.com
+Cc: hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, yamamoto@valinux.co.jp, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 20, 2008 at 11:39:42AM +0100, Andrea Arcangeli wrote:
-> Given Nick's comments I ported my version of the mmu notifiers to
-> latest mainline. There are no known bugs AFIK and it's obviously safe
-> (nothing is allowed to schedule inside rcu_read_lock taken by
-> mmu_notifier() with my patch).
-> ....
+Hi,
 
-I ported the GRU driver to use the latest #v6 patch and ran a series of
-tests on it using our system simulator. The simulator is slow so true
-stress or swapping is not possible - at least within a finite amount of
-time.
+> >> I've been thinking along these lines as well
+> >>
+> >> 1. Have a boot option to turn on/off the memory controller
+> > 
+> > It will be much convenient if the memory controller can be turned on/off on
+> > demand. I think you can turn it off if there aren't any mem_cgroups except
+> > the root mem_cgroup, 
+> > 
+> >> 2. Have a separate cache for the page_cgroup structure. I sent this suggestion
+> >>    out just yesterday or so.
+> > 
+> > I think the policy that every mem_cgroup should be dynamically allocated and
+> > assigned to the proper page every time is causing some overheads and spinlock
+> > contentions.
+> > 
+> > What do you think if you allocate all page_cgroups and assign to all the pages
+> > when the memory controller gets turned on, which will allow you to remove
+> > most of the spinlocks.
+> > 
+> > And you may possibly have a chance to remove page->page_cgroup member
+> > if you allocate array of page_cgroups and attach them to the zone which
+> > the pages belong to.
+> > 
+> 
+> We thought of this as well. We dropped it, because we need to track only user
+> pages at the moment. Doing it for all pages means having the overhead for each
+> page on the system.
 
-Functionally, the #v6 patch seems to work for the GRU. However, I did
-notice two significant differences that make the #v6 performance worse for
-the GRU than Christoph's patch.  I think one difference is easily fixable
-but the other is more difficult:
+Let me clarify that the overhead you said is you'll waste some memory
+whose pages are assigned for the kernel internal use, right?
+If so, it wouldn't be a big problem since most of the pages are assigned to
+process anonymous memory or to the page cache as Paul said.
 
-	- the location of the mmu_notifier_release() callout is at a
-	  different place in the 2 patches. Christoph has the callout
-	  BEFORE the call to unmap_vmas() whereas you have it AFTER. The
-	  net result is that the GRU does a LOT of 1-page TLB flushes
-	  during process teardown.  These flushes are not done with
-	  Christops's patch.
+Paul> I suspect that on most systems that want to use the cgroup memory
+Paul> controller, user-allocated pages will fill the vast majority of
+Paul> memory. So using the arrays and eliminating the extra pointer in
+Paul> struct page would actually reduce overhead.
 
-	- the range callouts in Christoph's patch benefit the GRU because
-	  multiple TLB entries can be flushed with a single GRU
-	  instruction (the GRU hardware supports a range flush using a
-	  vaddr & length).  The #v6 patch does a TLB flush for each page in
-	  the range.  Flushing on the GRU is slow so being able to flush
-	  multiple pages with a single request is a benefit.
+> >                zone
+> >     page[]    +----+    page_cgroup[]
+> >     +----+<----    ---->+----+
+> >     |    |    |    |    |    |
+> >     +----+    |    |    +----+
+> >     |    |    +----+    |    |
+> >     +----+              +----+
+> >     |    |              |    |
+> >     +----+              +----+
+> >     |    |              |    |
+> >     +----+              +----+
+> >     |    |              |    |
+> >     +----+              +----+
+> > 
+> > 
+> >> I agree that these are necessary enhancements/changes.
 
-Seems like the latter difference could be significant for other users
-of mmu notifiers.
-
-
---- jack
+Thank you,
+Hirokazu Takahashi.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
