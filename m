@@ -1,68 +1,53 @@
-Message-Id: <20080221205525.349180000@menage.corp.google.com>
+Message-Id: <20080221205525.165641000@menage.corp.google.com>
 References: <20080221203518.544461000@menage.corp.google.com>
-Date: Thu, 21 Feb 2008 12:35:20 -0800
+Date: Thu, 21 Feb 2008 12:35:19 -0800
 From: menage@google.com
-Subject: [PATCH 2/2] ResCounter: Use read_uint in memory controller
-Content-Disposition: inline; filename=memcontrol_use_res_counter_read_uint.patch
+Subject: [PATCH 1/2] ResCounter: Add res_counter_read_uint()
+Content-Disposition: inline; filename=resource_counter_read_uint.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org, xemul@openvz.org, balbir@in.ibm.com
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Update the memory controller to use read_uint for its
-limit/usage/failcnt control files, calling the new
-res_counter_read_uint() function.
+Adds a function for returning the value of a resource counter member,
+in a form suitable for use in a cgroup read_uint control file method.
 
 Signed-off-by: Paul Menage <menage@google.com>
 
 ---
- mm/memcontrol.c |   15 ++++++---------
- 1 file changed, 6 insertions(+), 9 deletions(-)
+ include/linux/res_counter.h |    1 +
+ kernel/res_counter.c        |    5 +++++
+ 2 files changed, 6 insertions(+)
 
-Index: rescounter-2.6.25-rc2-mm1/mm/memcontrol.c
+Index: rescounter-2.6.25-rc2-mm1/include/linux/res_counter.h
 ===================================================================
---- rescounter-2.6.25-rc2-mm1.orig/mm/memcontrol.c
-+++ rescounter-2.6.25-rc2-mm1/mm/memcontrol.c
-@@ -922,13 +922,10 @@ int mem_cgroup_write_strategy(char *buf,
- 	return 0;
+--- rescounter-2.6.25-rc2-mm1.orig/include/linux/res_counter.h
++++ rescounter-2.6.25-rc2-mm1/include/linux/res_counter.h
+@@ -54,6 +54,7 @@ struct res_counter {
+ ssize_t res_counter_read(struct res_counter *counter, int member,
+ 		const char __user *buf, size_t nbytes, loff_t *pos,
+ 		int (*read_strategy)(unsigned long long val, char *s));
++u64 res_counter_read_uint(struct res_counter *counter, int member);
+ ssize_t res_counter_write(struct res_counter *counter, int member,
+ 		const char __user *buf, size_t nbytes, loff_t *pos,
+ 		int (*write_strategy)(char *buf, unsigned long long *val));
+Index: rescounter-2.6.25-rc2-mm1/kernel/res_counter.c
+===================================================================
+--- rescounter-2.6.25-rc2-mm1.orig/kernel/res_counter.c
++++ rescounter-2.6.25-rc2-mm1/kernel/res_counter.c
+@@ -92,6 +92,11 @@ ssize_t res_counter_read(struct res_coun
+ 			pos, buf, s - buf);
  }
  
--static ssize_t mem_cgroup_read(struct cgroup *cont,
--			struct cftype *cft, struct file *file,
--			char __user *userbuf, size_t nbytes, loff_t *ppos)
-+static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
- {
--	return res_counter_read(&mem_cgroup_from_cont(cont)->res,
--				cft->private, userbuf, nbytes, ppos,
--				NULL);
-+	return res_counter_read_uint(&mem_cgroup_from_cont(cont)->res,
-+				     cft->private);
- }
- 
- static ssize_t mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
-@@ -1024,18 +1021,18 @@ static struct cftype mem_cgroup_files[] 
- 	{
- 		.name = "usage_in_bytes",
- 		.private = RES_USAGE,
--		.read = mem_cgroup_read,
-+		.read_uint = mem_cgroup_read,
- 	},
- 	{
- 		.name = "limit_in_bytes",
- 		.private = RES_LIMIT,
- 		.write = mem_cgroup_write,
--		.read = mem_cgroup_read,
-+		.read_uint = mem_cgroup_read,
- 	},
- 	{
- 		.name = "failcnt",
- 		.private = RES_FAILCNT,
--		.read = mem_cgroup_read,
-+		.read_uint = mem_cgroup_read,
- 	},
- 	{
- 		.name = "force_empty",
++u64 res_counter_read_uint(struct res_counter *counter, int member)
++{
++	return *res_counter_member(counter, member);
++}
++
+ ssize_t res_counter_write(struct res_counter *counter, int member,
+ 		const char __user *userbuf, size_t nbytes, loff_t *pos,
+ 		int (*write_strategy)(char *st_buf, unsigned long long *val))
 
 --
 
