@@ -1,40 +1,52 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH] Document huge memory/cache overhead of memory controller in Kconfig
-Date: Thu, 21 Feb 2008 15:35:38 +1100
-References: <20080220122338.GA4352@basil.nowhere.org> <47BC2275.4060900@linux.vnet.ibm.com>
-In-Reply-To: <47BC2275.4060900@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Date: Thu, 21 Feb 2008 05:42:56 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] my mmu notifiers
+Message-ID: <20080221044256.GA15215@wotan.suse.de>
+References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080219234049.GA27856@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200802211535.38932.nickpiggin@yahoo.com.au>
+In-Reply-To: <20080219234049.GA27856@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Andi Kleen <andi@firstfloor.org>, akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jack Steiner <steiner@sgi.com>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 20 February 2008 23:52, Balbir Singh wrote:
-> Andi Kleen wrote:
-> > Document huge memory/cache overhead of memory controller in Kconfig
-> >
-> > I was a little surprised that 2.6.25-rc* increased struct page for the
-> > memory controller.  At least on many x86-64 machines it will not fit into
-> > a single cache line now anymore and also costs considerable amounts of
-> > RAM.
->
-> The size of struct page earlier was 56 bytes on x86_64 and with 64 bytes it
-> won't fit into the cacheline anymore? Please also look at
-> http://lwn.net/Articles/234974/
+On Tue, Feb 19, 2008 at 05:40:50PM -0600, Jack Steiner wrote:
+> On Wed, Feb 20, 2008 at 12:11:57AM +0100, Nick Piggin wrote:
+> > On Tue, Feb 19, 2008 at 02:58:51PM +0100, Andrea Arcangeli wrote:
+> > > On Tue, Feb 19, 2008 at 09:43:57AM +0100, Nick Piggin wrote:
+> > > > anything when changing the pte to be _more_ permissive, and I don't
+> > > 
+> > > Note that in my patch the invalidate_pages in mprotect can be
+> > > trivially switched to a mprotect_pages with proper params. This will
+> > > prevent page faults completely in the secondary MMU (there will only
+> > > be tlb misses after the tlb flush just like for the core linux pte),
+> > > and it'll allow all the secondary MMU pte blocks (512/1024 at time
+> > > with my PT lock design) to be updated to have proper permissions
+> > > matching the core linux pte.
+> > 
+> > Sorry, I realise I still didn't get this through my head yet (and also
+> > have not seen your patch recently). So I don't know exactly what you
+> > are doing...
+> > 
+> > But why does _anybody_ (why does Christoph's patches) need to invalidate
+> > when they are going to be more permissive? This should be done lazily by
+> > the driver, I would have thought.
+> 
+> 
+> Agree. Although for most real applications, the performance difference
+> is probably negligible.
 
-BTW. We'll probably want to increase the width of some counters
-in struct page at some point for 64-bit, so then it really will
-go over with the memory controller!
+But importantly, doing it that way means you share test coverage with
+the CPU TLB flushing code, and you don't introduce a new concept to the
+VM.
 
-Actually, an external data structure is a pretty good idea. We
-could probably do it easily with a radix tree (pfn->memory
-controller). And that might be a better option for distros.
+So, it _has_ to be lazy flushing, IMO (as there doesn't seem to be a
+good reason otherwise). mprotect shouldn't really be a special case,
+because it still has to flush the CPU tlbs as well when restricting
+access.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
