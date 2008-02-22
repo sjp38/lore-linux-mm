@@ -1,54 +1,37 @@
-Date: Fri, 22 Feb 2008 12:00:03 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
-In-Reply-To: <47BEAEA9.10801@linux.vnet.ibm.com>
-Message-ID: <Pine.LNX.4.64.0802221144210.379@blonde.site>
-References: <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0802191449490.6254@blonde.site> <20080220.152753.98212356.taka@valinux.co.jp>
- <20080220155049.094056ac.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0802220916290.18145@blonde.site> <47BEAEA9.10801@linux.vnet.ibm.com>
+Received: by el-out-1112.google.com with SMTP id z25so341382ele.8
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2008 04:06:29 -0800 (PST)
+Message-ID: <e2e108260802220406t78edf453g7e611d3fe4e644e1@mail.gmail.com>
+Date: Fri, 22 Feb 2008 13:06:28 +0100
+From: "Bart Van Assche" <bart.vanassche@gmail.com>
+Subject: Re: SMP-related kernel memory leak
+In-Reply-To: <6101e8c40802210821w626bc831uaf4c3f66fb097094@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <e2e108260802190300k5b0f60f6tbb4f54997caf4c4e@mail.gmail.com>
+	 <6101e8c40802191018t668faf3avba9beeff34f7f853@mail.gmail.com>
+	 <e2e108260802192327v124a841dnc7d9b1c7e9057545@mail.gmail.com>
+	 <6101e8c40802201342y7e792e70lbd398f84a58a38bd@mail.gmail.com>
+	 <e2e108260802210048y653031f3r3104399f126336c5@mail.gmail.com>
+	 <e2e108260802210800x5f55fee7ve6e768607d73ceb0@mail.gmail.com>
+	 <6101e8c40802210821w626bc831uaf4c3f66fb097094@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hirokazu Takahashi <taka@valinux.co.jp>, linux-mm@kvack.org, yamamoto@valinux.co.jp, riel@redhat.com
+To: Oliver Pinter <oliver.pntr@gmail.com>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 22 Feb 2008, Balbir Singh wrote:
-> 
-> I've been looking through the code time and again, looking for races. I will try
+On Thu, Feb 21, 2008 at 5:21 PM, Oliver Pinter <oliver.pntr@gmail.com> wrote:
+> it is reproductable with SLUB?
+>  /* sorry for the bad english, but i not learned it .. */
 
-Well worth doing.
+The behavior with SLUB is similar but slightly different than the SLAB
+behavior: with SLUB I see that memory usage increases faster and the
+upper limit is a little bit lower. I will add the updated graph to the
+bugzilla entry.
 
-> and build a sketch of all the functions and dependencies tonight. One thing that
-> struck me was that making page_get_page_cgroup() call lock_page_cgroup()
-> internally might potentially fix a lot of racy call sites. I was thinking of
-> splitting page_get_page_cgroup into __page_get_page_cgroup() <--> just get the
-> pc without lock and page_get_page_cgroup(), that holds the lock and then returns pc.
-
-I don't think that would help.  One of the problems with what's there
-(before my patches) is how, for example, clear_page_cgroup takes the
-lock itself - forcing you into dropping the lock before calling it
-(you contemplate keeping an __ which doesn't take the lock, but then
-I cannot see the point).
-
-What's there after the patches looks fairly tidy and straightforward
-to me, but emphasize "fairly".  (Often I think there's a race against
-page->page_cgroup going NULL, but then realize that pc->page remains
-stable and there's no such race.)
-
-> 
-> Of course, this is just a thought process. I am yet to write the code and look
-> at the results.
-
-I'd hoped to send out my series last night, but was unable to get
-quite that far, sorry, and haven't tested the page migration paths yet.
-The total is not unlike what I already showed, but plus Hirokazu-san's
-patch and minus shmem's NULL page and minus my rearrangement of
-mem_cgroup_charge_common.
-
-Hugh
+Bart Van Assche.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
