@@ -1,52 +1,91 @@
-Received: by wf-out-1314.google.com with SMTP id 25so274147wfc.11
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2008 23:52:06 -0800 (PST)
-Message-ID: <e2e108260802212352y6df6dab8y26d6292b3b8cd813@mail.gmail.com>
-Date: Fri, 22 Feb 2008 08:52:06 +0100
-From: "Bart Van Assche" <bart.vanassche@gmail.com>
-Subject: Re: SMP-related kernel memory leak
-In-Reply-To: <47BDEFB4.1010106@zytor.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1M8gQd1002301
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2008 03:42:26 -0500
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1M8gQYW1080546
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2008 03:42:26 -0500
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1M8gPKg030279
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2008 03:42:25 -0500
+Subject: Re: [LTP] [PATCH 1/8] Scaling msgmni to the amount of lowmem
+From: Subrata Modak <subrata@linux.vnet.ibm.com>
+Reply-To: subrata@linux.vnet.ibm.com
+In-Reply-To: <47BE6AD0.6070309@bull.net>
+References: <20080211141646.948191000@bull.net>
+	 <20080211141813.354484000@bull.net>
+	 <20080215215916.8566d337.akpm@linux-foundation.org>
+	 <47B94D8C.8040605@bull.net>  <47B9835A.3060507@bull.net>
+	 <1203411055.4612.5.camel@subratamodak.linux.ibm.com>
+	 <47BB0EDC.5000002@bull.net>
+	 <1203459418.7408.39.camel@localhost.localdomain>
+	 <47BD705A.9020309@bull.net> <47BD7648.5010309@bull.net>
+	 <1203601178.4604.18.camel@subratamodak.linux.ibm.com>
+	 <47BE6AD0.6070309@bull.net>
+Content-Type: text/plain
+Date: Fri, 22 Feb 2008 14:11:26 +0530
+Message-Id: <1203669686.4567.0.camel@subratamodak.linux.ibm.com>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <e2e108260802190300k5b0f60f6tbb4f54997caf4c4e@mail.gmail.com>
-	 <6101e8c40802191018t668faf3avba9beeff34f7f853@mail.gmail.com>
-	 <e2e108260802192327v124a841dnc7d9b1c7e9057545@mail.gmail.com>
-	 <6101e8c40802201342y7e792e70lbd398f84a58a38bd@mail.gmail.com>
-	 <e2e108260802210048y653031f3r3104399f126336c5@mail.gmail.com>
-	 <e2e108260802210800x5f55fee7ve6e768607d73ceb0@mail.gmail.com>
-	 <6101e8c40802210821w626bc831uaf4c3f66fb097094@mail.gmail.com>
-	 <6101e8c40802210825v534f0ce3wf80a18ebd6dee925@mail.gmail.com>
-	 <47BDEFB4.1010106@zytor.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Oliver Pinter <oliver.pntr@gmail.com>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, linux-mm@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Nadia Derbey <Nadia.Derbey@bull.net>
+Cc: Matt Helsley <matthltc@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, ltp-list@lists.sourceforge.net, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cmm@us.ibm.com, y-goto@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 21, 2008 at 10:40 PM, H. Peter Anvin <hpa@zytor.com> wrote:
-> Oliver Pinter wrote:
->  >>> I have added a new graph to
->  >>> http://bugzilla.kernel.org/show_bug.cgi?id=9991, namely a graph
->  >>> showing memory usage for a PAE-kernel booted with mem=1G and with a
->  >>> minimized kernel config. The graph shows that memory usage increases
->  >>> to a certain limit. Other tests have shown that this limit is
->  >>> proportional to the amount of memory specified in mem=... This is not
->  >>> a SLAB leak: as the numbers show, slab usage remains constant during
->  >>> all tests.
->  >>>
->  >>> I'm puzzled by these results ...
->
->  This sounds to me a lot like the quicklist PUD leak we had, which I
->  thought had been fixed in recent kernels...
->
->  It would be useful to know: does this happen with UP at all?
+On Fri, 2008-02-22 at 07:25 +0100, Nadia Derbey wrote:
+> Subrata Modak wrote:
+> >>Nadia Derbey wrote:
+> >>
+> >>>Matt Helsley wrote:
+> >>>
+> >>>
+> >>>>On Tue, 2008-02-19 at 18:16 +0100, Nadia Derbey wrote:
+> >>>>
+> >>>><snip>
+> >>>>
+> >>>>>+#define MAX_MSGQUEUES  16      /* MSGMNI as defined in linux/msg.h */
+> >>>>>+
+> >>>>
+> >>>>
+> >>>>
+> >>>>It's not quite the maximum anymore, is it? More like the minumum
+> >>>>maximum ;). A better name might better document what the test is
+> >>>>actually trying to do.
+> >>>>
+> >>>>One question I have is whether the unpatched test is still valuable.
+> >>>>Based on my limited knowledge of the test I suspect it's still a correct
+> >>>>test of message queues. If so, perhaps renaming the old test (so it's
+> >>>>not confused with a performance regression) and adding your patched
+> >>>>version is best?
+> >>>>
+> >>>
+> >>>So, here's the new patch based on Matt's points.
+> >>>
+> >>>Subrata, it has to be applied on top of the original ltp-full-20080131. 
+> >>>Please tell me if you'd prefer one based on the merged version you've 
+> >>>got (i.e. with my Tuesday patch applied).
+> > 
+> > 
+> > Nadia, I would prefer Patch on the top of the already merged version (on
+> > top of latest CVS snapshot as of today). Anyways, thanks for all these
+> > effort :-)
+> > 
+> > --Subrata
+> > 
+> 
+> In attachment, you'll find a patch to apply on top of the patches I sent 
+> you on Tuesday.
 
-The behavior I see is consistent for both the 2.6.22.18 and the
-2.6.24.2 kernels. The problem does not occur when I boot with
-maxcpus=1 added to the kernel command line.
+Nadia,
 
-Bart Van Assche.
+Thanks a ton for that. The same has been merged.
+
+Regards--
+Subrata
+
+> 
+> Regards,
+> Nadia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
