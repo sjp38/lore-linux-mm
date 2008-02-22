@@ -1,62 +1,30 @@
-Date: Fri, 22 Feb 2008 12:31:00 +0900 (JST)
-Message-Id: <20080222.123100.54101482.taka@valinux.co.jp>
-Subject: [RFC] Block I/O Cgroup
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <20080221184450.c30f24d6.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080221182156.63e5fc25.kamezawa.hiroyu@jp.fujitsu.com>
-	<47BD4438.4030203@linux.vnet.ibm.com>
-	<20080221184450.c30f24d6.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/2] cgroup map files: Add cgroup map data type
+In-Reply-To: Your message of "Thu, 21 Feb 2008 13:28:55 -0800"
+	<20080221213444.898896000@menage.corp.google.com>
+References: <20080221213444.898896000@menage.corp.google.com>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Message-Id: <20080222035158.89C4F1E3C58@siro.lan>
+Date: Fri, 22 Feb 2008 12:51:58 +0900 (JST)
+From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: balbir@linux.vnet.ibm.com, hugh@veritas.com, linux-mm@kvack.org, yamamoto@valinux.co.jp, riel@redhat.com
+To: menage@google.com
+Cc: kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, balbir@in.ibm.com, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+> The map type is printed in a similar format to /proc/meminfo or
+> /proc/<pid>/status, i.e. "$key: $value\n"
 
-It'll be great if you make the feature --- page to mem_cgroup mapping
-mechanism --- generic, which will make it easy to implement a Block I/O
-controller. With this feature, you can easily determine the origin cgroup
-from the page which is going to start I/O.
+this description doesn't seem to match with the code.
 
- mem_cgroup        block_io_cgroup
-     ^                 ^       |
-     |                 |       |
-     |                 |       |
-     +------->page<----+       V
-                ^          io_context
-                |            ^
-                |            |
-               bio ----------+
+YAMAMOTO Takashi
 
-Every page should be associated with the proper block_io_cgroup when
-the need arises. The simplest way is to make it at the same point as
-mem_cgroups does. It's also possible to do this when the pages get dirtied.
-
-> > > But yes. I'm afraid of lock contention very much. I'll find another lock-less way
-> > > if necessary. One idea is map each area like sparsemem_vmemmap for 64bit systems.
-> > > Now, I'm convinced that it will be complicated ;)
-> > > 
-> > 
-> > The radix tree base is lockless (it uses RCU), so we might have a partial
-> > solution to the locking problem. But it's unchartered territory, so no one knows.
-> > 
-> > > I'd like to start from easy way and see performance.
-> > > 
-> > 
-> > Sure, please keep me in the loop as well.
-> > 
-> Okay, I'll do my best.
-> 
-> Thanks,
-> -Kame
-
-
-Thank you,
-Hirokazu Takahashi.
+> +static int cgroup_map_add(struct cgroup_map_cb *cb, const char *key, u64 value)
+> +{
+> +	struct seq_file *sf = cb->state;
+> +	return seq_printf(sf, "%s %llu\n", key, value);
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
