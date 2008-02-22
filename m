@@ -1,91 +1,99 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1M8gQd1002301
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2008 03:42:26 -0500
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1M8gQYW1080546
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2008 03:42:26 -0500
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1M8gPKg030279
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2008 03:42:25 -0500
-Subject: Re: [LTP] [PATCH 1/8] Scaling msgmni to the amount of lowmem
-From: Subrata Modak <subrata@linux.vnet.ibm.com>
-Reply-To: subrata@linux.vnet.ibm.com
-In-Reply-To: <47BE6AD0.6070309@bull.net>
-References: <20080211141646.948191000@bull.net>
-	 <20080211141813.354484000@bull.net>
-	 <20080215215916.8566d337.akpm@linux-foundation.org>
-	 <47B94D8C.8040605@bull.net>  <47B9835A.3060507@bull.net>
-	 <1203411055.4612.5.camel@subratamodak.linux.ibm.com>
-	 <47BB0EDC.5000002@bull.net>
-	 <1203459418.7408.39.camel@localhost.localdomain>
-	 <47BD705A.9020309@bull.net> <47BD7648.5010309@bull.net>
-	 <1203601178.4604.18.camel@subratamodak.linux.ibm.com>
-	 <47BE6AD0.6070309@bull.net>
-Content-Type: text/plain
-Date: Fri, 22 Feb 2008 14:11:26 +0530
-Message-Id: <1203669686.4567.0.camel@subratamodak.linux.ibm.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 22 Feb 2008 09:24:36 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
+In-Reply-To: <20080220155049.094056ac.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0802220916290.18145@blonde.site>
+References: <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0802191449490.6254@blonde.site> <20080220.152753.98212356.taka@valinux.co.jp>
+ <20080220155049.094056ac.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nadia Derbey <Nadia.Derbey@bull.net>
-Cc: Matt Helsley <matthltc@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, ltp-list@lists.sourceforge.net, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cmm@us.ibm.com, y-goto@jp.fujitsu.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Hirokazu Takahashi <taka@valinux.co.jp>, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, yamamoto@valinux.co.jp, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-02-22 at 07:25 +0100, Nadia Derbey wrote:
-> Subrata Modak wrote:
-> >>Nadia Derbey wrote:
-> >>
-> >>>Matt Helsley wrote:
-> >>>
-> >>>
-> >>>>On Tue, 2008-02-19 at 18:16 +0100, Nadia Derbey wrote:
-> >>>>
-> >>>><snip>
-> >>>>
-> >>>>>+#define MAX_MSGQUEUES  16      /* MSGMNI as defined in linux/msg.h */
-> >>>>>+
-> >>>>
-> >>>>
-> >>>>
-> >>>>It's not quite the maximum anymore, is it? More like the minumum
-> >>>>maximum ;). A better name might better document what the test is
-> >>>>actually trying to do.
-> >>>>
-> >>>>One question I have is whether the unpatched test is still valuable.
-> >>>>Based on my limited knowledge of the test I suspect it's still a correct
-> >>>>test of message queues. If so, perhaps renaming the old test (so it's
-> >>>>not confused with a performance regression) and adding your patched
-> >>>>version is best?
-> >>>>
-> >>>
-> >>>So, here's the new patch based on Matt's points.
-> >>>
-> >>>Subrata, it has to be applied on top of the original ltp-full-20080131. 
-> >>>Please tell me if you'd prefer one based on the merged version you've 
-> >>>got (i.e. with my Tuesday patch applied).
-> > 
-> > 
-> > Nadia, I would prefer Patch on the top of the already merged version (on
-> > top of latest CVS snapshot as of today). Anyways, thanks for all these
-> > effort :-)
-> > 
-> > --Subrata
-> > 
+On Wed, 20 Feb 2008, KAMEZAWA Hiroyuki wrote:
+> On Wed, 20 Feb 2008 15:27:53 +0900 (JST)
+> Hirokazu Takahashi <taka@valinux.co.jp> wrote:
 > 
-> In attachment, you'll find a patch to apply on top of the patches I sent 
-> you on Tuesday.
+> > > Unlike the unsafeties of force_empty, this is liable to hit anyone
+> > > running with MEM_CONT compiled in, they don't have to be consciously
+> > > using mem_cgroups at all.
+> > 
+> > As for force_empty, though this may not be the main topic here,
+> > mem_cgroup_force_empty_list() can be implemented simpler.
+> > It is possible to make the function just call mem_cgroup_uncharge_page()
+> > instead of releasing page_cgroups by itself. The tips is to call get_page()
+> > before invoking mem_cgroup_uncharge_page() so the page won't be released
+> > during this function.
+> > 
+> > Kamezawa-san, you may want look into the attached patch.
+> > I think you will be free from the weired complexity here.
+> > 
+> > This code can be optimized but it will be enough since this function
+> > isn't critical.
+> > 
+> > Thanks.
+> > 
+> > 
+> > Signed-off-by: Hirokazu Takahashi <taka@vallinux.co.jp>
 
-Nadia,
+Hirokazu-san, may I change that to <taka@valinux.co.jp>?
 
-Thanks a ton for that. The same has been merged.
-
-Regards--
-Subrata
-
+>...
+>
+> Seems simple. But isn't there following case ?
 > 
-> Regards,
-> Nadia
+> ==in force_empty==
+> 
+> pc1 = list_entry(list->prev, struct page_cgroup, lru);
+> page = pc1->page;
+> get_page(page)
+> spin_unlock_irqrestore(&mz->lru_lock, flags)
+> mem_cgroup_uncharge_page(page);
+> 	=> lock_page_cgroup(page);
+> 		=> pc2 = page_get_page_cgroup(page);
+> 
+> Here, pc2 != pc1 and pc2->mem_cgroup != pc1->mem_cgroup.
+> maybe need some check.
+> 
+> But maybe yours is good direction.
+
+I like Hirokazu-san's approach very much.
+
+Although I eventually completed the locking for my mem_cgroup_move_lists
+(SLAB_DESTROY_BY_RCU didn't help there, actually, because it left a
+possibility that the same page_cgroup got reused for the same page
+but a different mem_cgroup: in which case we got the wrong spinlock),
+his reversal in force_empty lets us use straightforward locking in
+mem_cgroup_move_lists (though it still has to try_lock_page_cgroup).
+So I want to take Hirokazu-san's patch into my bugfix and cleanup
+series, where it's testing out fine so far.
+
+Regarding your point above, Kamezawa-san: you're surely right that can
+happen, but is it a case that we actually need to avoid?  Aren't we
+entitled to take the page out of pc2->mem_cgroup there, because if any
+such race occurs, it could easily have happened the other way around,
+removing the page from pc1->mem_cgroup just after pc2->mem_cgroup
+touched it, so ending up with that page in neither?
+
+I'd just prefer not to handle it as you did in your patch, because
+earlier in my series I'd removed the mem_cgroup_uncharge level (which
+just gets in the way, requiring a silly lock_page_cgroup at the end
+just to match the unlock_page_cgroup at the mem_cgroup_uncharge_page
+level), and don't much want to add it back in.
+
+While we're thinking of races...
+
+It seemed to me that mem_cgroup_uncharge should be doing its css_put
+after its __mem_cgroup_remove_list: doesn't doing it before leave open
+a slight danger that the struct mem_cgroup could be freed before the
+remove_list?  Perhaps there's some other refcounting that makes that
+impossible, but I've felt safer shifting those around.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
