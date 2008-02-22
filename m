@@ -1,108 +1,77 @@
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28esmtp05.in.ibm.com (8.13.1/8.13.1) with ESMTP id m1MCJM4q024718
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2008 17:49:22 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1MCJMSB1134844
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2008 17:49:22 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id m1MCJR9r012305
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2008 12:19:27 GMT
-Message-ID: <47BEBCB7.8000607@linux.vnet.ibm.com>
-Date: Fri, 22 Feb 2008 17:44:47 +0530
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id m1MCZ5gK009285
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2008 23:35:05 +1100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1MCX1lB2990254
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2008 23:33:01 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1MCX5Ac006600
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2008 23:33:05 +1100
+Message-ID: <47BEBFE5.9000905@linux.vnet.ibm.com>
+Date: Fri, 22 Feb 2008 17:58:21 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [PATCH] Document huge memory/cache overhead of memory controller
- in Kconfig
-References: <20080220122338.GA4352@basil.nowhere.org> <47BC2275.4060900@linux.vnet.ibm.com> <200802211535.38932.nickpiggin@yahoo.com.au> <47BD06C2.5030602@linux.vnet.ibm.com> <47BD55F6.5030203@firstfloor.org> <47BE527D.2070109@linux.vnet.ibm.com> <47BE9B11.7090809@firstfloor.org>
-In-Reply-To: <47BE9B11.7090809@firstfloor.org>
+Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
+References: <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0802191449490.6254@blonde.site> <20080220.152753.98212356.taka@valinux.co.jp> <20080220155049.094056ac.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0802220916290.18145@blonde.site> <47BEAEA9.10801@linux.vnet.ibm.com> <Pine.LNX.4.64.0802221144210.379@blonde.site>
+In-Reply-To: <Pine.LNX.4.64.0802221144210.379@blonde.site>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hirokazu Takahashi <taka@valinux.co.jp>, linux-mm@kvack.org, yamamoto@valinux.co.jp, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> Balbir Singh wrote:
->> Andi Kleen wrote:
->>>> 1. We could create something similar to mem_map, we would need to handle 4
->>> 4? At least x86 mainline only has two ways now. flatmem and vmemmap.
->>>
->>>> different ways of creating mem_map.
->>> Well it would be only a single way to create the "aux memory controller
->>> map" (or however it will be called). Basically just a call to single
->>> function from a few different places.
->>>
->>>> 2. On x86 with 64 GB ram, 
->>> First i386 with 64GB just doesn't work, at least not with default 3:1
->>> split. Just calculate it yourself how much of the lowmem area is left
->>> after the 64GB mem_map is allocated. Typical rule of thumb is that 16GB
->>> is the realistic limit for 32bit x86 kernels. Worrying about
->>> anything more does not make much sense.
->>>
->> I understand what you say Andi, but nothing in the kernel stops us from
->> supporting 64GB.
+Hugh Dickins wrote:
+> On Fri, 22 Feb 2008, Balbir Singh wrote:
+>> I've been looking through the code time and again, looking for races. I will try
 > 
-> Well in practice it just won't work at least at default page offset.
-> 
->> Should a framework like memory controller make an assumption
->> that not more than 16GB will be configured on an x86 box?
-> 
-> It doesn't need to. Just increase __VMALLOC_RESERVE by the
-> respective amount (end_pfn * sizeof(unsigned long))
-> 
-> Then 64GB still won't work in practice, but at least you made no such
-> assumption in theory @)
-> 
-> Also there is the issue of memory hotplug. In theory later
-> memory hotplugs could fill up vmalloc. Luckily x86 BIOS
-> are supposed to declare how much they plan to hot add memory later
-> using the SRAT memory hotplug area (in fact the old non sparsemem
-> hotadd implementation even relied on that). It would
-> be possible to adjust __VMALLOC_RESERVE at boot even for that. I suspect
-> this issue could be also just ignored at first; it is unlikely
-> to be serious.
+> Well worth doing.
 > 
 
-My concern with all the points you mentioned is that this solution might need to
-change again, depending on the factors you've mentioned. vmalloc() is good and
-straightforward, but it has these dependencies which could call for another
-rewrite of the code.
+Yes. I agree 100%. Unfortunately I am not a spin expert and modeling it that way
+takes longer than reviewing it a few times.
 
+>> and build a sketch of all the functions and dependencies tonight. One thing that
+>> struck me was that making page_get_page_cgroup() call lock_page_cgroup()
+>> internally might potentially fix a lot of racy call sites. I was thinking of
+>> splitting page_get_page_cgroup into __page_get_page_cgroup() <--> just get the
+>> pc without lock and page_get_page_cgroup(), that holds the lock and then returns pc.
 > 
->>>> if we decided to use vmalloc space, we would need 64
->>>> MB of vmalloc'ed memory
->>> Yes and if you increase mem_map you need exactly the same space
->>> in lowmem too. So increasing the vmalloc reservation for this is
->>> equivalent. Just make sure you use highmem backed vmalloc.
->>>
->> I see two problems with using vmalloc. One, the reservation needs to be done
->> across architectures. 
-> 
-> Only on 32bit. Ok hacking it into all 32bit architectures might be
-> difficult, but I assume it would be ok to rely on the architecture
-> maintainers for that and only enable it on some selected architectures
-> using Kconfig for now.
+> I don't think that would help.  One of the problems with what's there
+> (before my patches) is how, for example, clear_page_cgroup takes the
+> lock itself - forcing you into dropping the lock before calling it
+> (you contemplate keeping an __ which doesn't take the lock, but then
+> I cannot see the point).
 > 
 
-Yes, but that's not such a good idea
+I just proposed the __ version in case there was a reason. If we can get away
+from it, I'll not add __page_get_page_cgroup at all.
 
-> On 64bit vmalloc should be by default large enough so it could
-> be enabled for all 64bit architectures.
+> What's there after the patches looks fairly tidy and straightforward
+> to me, but emphasize "fairly".  (Often I think there's a race against
+> page->page_cgroup going NULL, but then realize that pc->page remains
+> stable and there's no such race.)
 > 
->> Two, a big vmalloc chunk is not node aware, 
+
+I agree, I find some of the refactoring very welcome! I did a quick code check
+and found that almost instances of cases, where we were worried about pc, called
+page_get_page_cgroup() at some point. I thought this might be a good common
+place to attack and fix.
+
+>> Of course, this is just a thought process. I am yet to write the code and look
+>> at the results.
 > 
-> vmalloc_node()
+> I'd hoped to send out my series last night, but was unable to get
+> quite that far, sorry, and haven't tested the page migration paths yet.
+> The total is not unlike what I already showed, but plus Hirokazu-san's
+> patch and minus shmem's NULL page and minus my rearrangement of
+> mem_cgroup_charge_common.
 > 
 
-vmalloc_node() would need to work much the same way as mem_map does. I am
-tempted to try the mem_map and radix tree approaches. I think KAMEZAWA is
-already working and has a first draft of the radix tree changes ready.
-
-> -Andi
-
+Do let me know when you'll have a version to test, I can run LTP, LTP stress and
+other tests overnight.
 
 -- 
 	Warm Regards,
