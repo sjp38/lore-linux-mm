@@ -1,50 +1,47 @@
-Date: Fri, 22 Feb 2008 19:34:40 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Date: Fri, 22 Feb 2008 19:50:33 +0900 (JST)
+Message-Id: <20080222.195033.49823053.taka@valinux.co.jp>
 Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
-Message-Id: <20080222193440.0bda7bde.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0802221018210.25455@blonde.site>
-References: <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0802191449490.6254@blonde.site>
-	<20080220.152753.98212356.taka@valinux.co.jp>
+From: Hirokazu Takahashi <taka@valinux.co.jp>
+In-Reply-To: <Pine.LNX.4.64.0802220916290.18145@blonde.site>
+References: <20080220.152753.98212356.taka@valinux.co.jp>
 	<20080220155049.094056ac.kamezawa.hiroyu@jp.fujitsu.com>
 	<Pine.LNX.4.64.0802220916290.18145@blonde.site>
-	<20080222190742.e8c03763.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0802221018210.25455@blonde.site>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Hirokazu Takahashi <taka@valinux.co.jp>, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, yamamoto@valinux.co.jp, riel@redhat.com
+To: hugh@veritas.com
+Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, yamamoto@valinux.co.jp, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 22 Feb 2008 10:25:56 +0000 (GMT)
-Hugh Dickins <hugh@veritas.com> wrote:
-> > Sigh, it's very complicated. An idea which comes to me now is disallowing
-> > uncharge while force_empty is running and use Takahashi-san's method.
-> > It will be not so complicated.
-> 
-> Really?  I'd expect disallowing something to add to the complication.
-> I agree it's all rather subtle, but I'd rather it worked naturally
-> with itself than we bolt on extra prohibitions.  (I was frustrated
-> by the EBUSY failure of force_empty, so doing my testing with that
-> commented out, forcing empty with concurrent activity.)
-> 
-> And I'm not clear whether you're saying I'm wrong to move down that
-> css_put, for complicated reasons that you've not explained; or that
-> I'm right, and this is another example of how easy it is to get it
-> slightly wrong.  Please clarify!
-> 
-Sorry, All messy things "I added" by force_empty is complicated ;(
-(sorry for noise)
+Hi,
 
-And you're right that css_put() if remove_list is succeeded is good idea, 
-I think.
+> > > > Unlike the unsafeties of force_empty, this is liable to hit anyone
+> > > > running with MEM_CONT compiled in, they don't have to be consciously
+> > > > using mem_cgroups at all.
+> > > 
+> > > As for force_empty, though this may not be the main topic here,
+> > > mem_cgroup_force_empty_list() can be implemented simpler.
+> > > It is possible to make the function just call mem_cgroup_uncharge_page()
+> > > instead of releasing page_cgroups by itself. The tips is to call get_page()
+> > > before invoking mem_cgroup_uncharge_page() so the page won't be released
+> > > during this function.
+> > > 
+> > > Kamezawa-san, you may want look into the attached patch.
+> > > I think you will be free from the weired complexity here.
+> > > 
+> > > This code can be optimized but it will be enough since this function
+> > > isn't critical.
+> > > 
+> > > Thanks.
+> > > 
+> > > 
+> > > Signed-off-by: Hirokazu Takahashi <taka@vallinux.co.jp>
+> 
+> Hirokazu-san, may I change that to <taka@valinux.co.jp>?
 
-
-Thanks,
--Kame
+Oops! You can change it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
