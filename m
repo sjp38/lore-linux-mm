@@ -1,99 +1,84 @@
-Date: Fri, 22 Feb 2008 09:24:36 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC][PATCH] Clarify mem_cgroup lock handling and avoid races.
-In-Reply-To: <20080220155049.094056ac.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0802220916290.18145@blonde.site>
-References: <20080219215431.1aa9fa8a.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0802191449490.6254@blonde.site> <20080220.152753.98212356.taka@valinux.co.jp>
- <20080220155049.094056ac.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <47BE9B11.7090809@firstfloor.org>
+Date: Fri, 22 Feb 2008 10:51:13 +0100
+From: Andi Kleen <andi@firstfloor.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] Document huge memory/cache overhead of memory controller
+ in Kconfig
+References: <20080220122338.GA4352@basil.nowhere.org> <47BC2275.4060900@linux.vnet.ibm.com> <200802211535.38932.nickpiggin@yahoo.com.au> <47BD06C2.5030602@linux.vnet.ibm.com> <47BD55F6.5030203@firstfloor.org> <47BE527D.2070109@linux.vnet.ibm.com>
+In-Reply-To: <47BE527D.2070109@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Hirokazu Takahashi <taka@valinux.co.jp>, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, yamamoto@valinux.co.jp, riel@redhat.com
+To: balbir@linux.vnet.ibm.com
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, akpm@osdl.org, torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 20 Feb 2008, KAMEZAWA Hiroyuki wrote:
-> On Wed, 20 Feb 2008 15:27:53 +0900 (JST)
-> Hirokazu Takahashi <taka@valinux.co.jp> wrote:
+Balbir Singh wrote:
+> Andi Kleen wrote:
+>>> 1. We could create something similar to mem_map, we would need to handle 4
+>> 4? At least x86 mainline only has two ways now. flatmem and vmemmap.
+>>
+>>> different ways of creating mem_map.
+>> Well it would be only a single way to create the "aux memory controller
+>> map" (or however it will be called). Basically just a call to single
+>> function from a few different places.
+>>
+>>> 2. On x86 with 64 GB ram, 
+>> First i386 with 64GB just doesn't work, at least not with default 3:1
+>> split. Just calculate it yourself how much of the lowmem area is left
+>> after the 64GB mem_map is allocated. Typical rule of thumb is that 16GB
+>> is the realistic limit for 32bit x86 kernels. Worrying about
+>> anything more does not make much sense.
+>>
 > 
-> > > Unlike the unsafeties of force_empty, this is liable to hit anyone
-> > > running with MEM_CONT compiled in, they don't have to be consciously
-> > > using mem_cgroups at all.
-> > 
-> > As for force_empty, though this may not be the main topic here,
-> > mem_cgroup_force_empty_list() can be implemented simpler.
-> > It is possible to make the function just call mem_cgroup_uncharge_page()
-> > instead of releasing page_cgroups by itself. The tips is to call get_page()
-> > before invoking mem_cgroup_uncharge_page() so the page won't be released
-> > during this function.
-> > 
-> > Kamezawa-san, you may want look into the attached patch.
-> > I think you will be free from the weired complexity here.
-> > 
-> > This code can be optimized but it will be enough since this function
-> > isn't critical.
-> > 
-> > Thanks.
-> > 
-> > 
-> > Signed-off-by: Hirokazu Takahashi <taka@vallinux.co.jp>
+> I understand what you say Andi, but nothing in the kernel stops us from
+> supporting 64GB.
 
-Hirokazu-san, may I change that to <taka@valinux.co.jp>?
+Well in practice it just won't work at least at default page offset.
 
->...
->
-> Seems simple. But isn't there following case ?
+> Should a framework like memory controller make an assumption
+> that not more than 16GB will be configured on an x86 box?
+
+It doesn't need to. Just increase __VMALLOC_RESERVE by the
+respective amount (end_pfn * sizeof(unsigned long))
+
+Then 64GB still won't work in practice, but at least you made no such
+assumption in theory @)
+
+Also there is the issue of memory hotplug. In theory later
+memory hotplugs could fill up vmalloc. Luckily x86 BIOS
+are supposed to declare how much they plan to hot add memory later
+using the SRAT memory hotplug area (in fact the old non sparsemem
+hotadd implementation even relied on that). It would
+be possible to adjust __VMALLOC_RESERVE at boot even for that. I suspect
+this issue could be also just ignored at first; it is unlikely
+to be serious.
+
+
+>>> if we decided to use vmalloc space, we would need 64
+>>> MB of vmalloc'ed memory
+>> Yes and if you increase mem_map you need exactly the same space
+>> in lowmem too. So increasing the vmalloc reservation for this is
+>> equivalent. Just make sure you use highmem backed vmalloc.
+>>
 > 
-> ==in force_empty==
-> 
-> pc1 = list_entry(list->prev, struct page_cgroup, lru);
-> page = pc1->page;
-> get_page(page)
-> spin_unlock_irqrestore(&mz->lru_lock, flags)
-> mem_cgroup_uncharge_page(page);
-> 	=> lock_page_cgroup(page);
-> 		=> pc2 = page_get_page_cgroup(page);
-> 
-> Here, pc2 != pc1 and pc2->mem_cgroup != pc1->mem_cgroup.
-> maybe need some check.
-> 
-> But maybe yours is good direction.
+> I see two problems with using vmalloc. One, the reservation needs to be done
+> across architectures. 
 
-I like Hirokazu-san's approach very much.
+Only on 32bit. Ok hacking it into all 32bit architectures might be
+difficult, but I assume it would be ok to rely on the architecture
+maintainers for that and only enable it on some selected architectures
+using Kconfig for now.
 
-Although I eventually completed the locking for my mem_cgroup_move_lists
-(SLAB_DESTROY_BY_RCU didn't help there, actually, because it left a
-possibility that the same page_cgroup got reused for the same page
-but a different mem_cgroup: in which case we got the wrong spinlock),
-his reversal in force_empty lets us use straightforward locking in
-mem_cgroup_move_lists (though it still has to try_lock_page_cgroup).
-So I want to take Hirokazu-san's patch into my bugfix and cleanup
-series, where it's testing out fine so far.
+On 64bit vmalloc should be by default large enough so it could
+be enabled for all 64bit architectures.
 
-Regarding your point above, Kamezawa-san: you're surely right that can
-happen, but is it a case that we actually need to avoid?  Aren't we
-entitled to take the page out of pc2->mem_cgroup there, because if any
-such race occurs, it could easily have happened the other way around,
-removing the page from pc1->mem_cgroup just after pc2->mem_cgroup
-touched it, so ending up with that page in neither?
+>Two, a big vmalloc chunk is not node aware, 
 
-I'd just prefer not to handle it as you did in your patch, because
-earlier in my series I'd removed the mem_cgroup_uncharge level (which
-just gets in the way, requiring a silly lock_page_cgroup at the end
-just to match the unlock_page_cgroup at the mem_cgroup_uncharge_page
-level), and don't much want to add it back in.
+vmalloc_node()
 
-While we're thinking of races...
-
-It seemed to me that mem_cgroup_uncharge should be doing its css_put
-after its __mem_cgroup_remove_list: doesn't doing it before leave open
-a slight danger that the struct mem_cgroup could be freed before the
-remove_list?  Perhaps there's some other refcounting that makes that
-impossible, but I've felt safer shifting those around.
-
-Hugh
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
