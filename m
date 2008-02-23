@@ -1,53 +1,37 @@
-Date: Sat, 23 Feb 2008 00:07:22 -0800
+Date: Sat, 23 Feb 2008 00:04:26 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 00/17] Slab Fragmentation Reduction V10
-Message-Id: <20080223000722.a37983eb.akpm@linux-foundation.org>
-In-Reply-To: <20080216004526.763643520@sgi.com>
-References: <20080216004526.763643520@sgi.com>
+Subject: Re: [PATCH 2/2] ResCounter: Use read_uint in memory controller
+Message-Id: <20080223000426.adf5c75a.akpm@linux-foundation.org>
+In-Reply-To: <47BE4FB5.5040902@linux.vnet.ibm.com>
+References: <20080221203518.544461000@menage.corp.google.com>
+	<20080221205525.349180000@menage.corp.google.com>
+	<47BE4FB5.5040902@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org
+To: balbir@linux.vnet.ibm.com
+Cc: menage@google.com, xemul@openvz.org, balbir@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 15 Feb 2008 16:45:26 -0800 Christoph Lameter <clameter@sgi.com> wrote:
+On Fri, 22 Feb 2008 09:59:41 +0530 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> Slab fragmentation is mainly an issue if Linux is used as a fileserver
-> and large amounts of dentries, inodes and buffer heads accumulate. In some
-> load situations the slabs become very sparsely populated so that a lot of
-> memory is wasted by slabs that only contain one or a few objects. In
-> extreme cases the performance of a machine will become sluggish since
-> we are continually running reclaim. Slab defragmentation adds the
-> capability to recover the memory that is wasted.
+> menage@google.com wrote:
+> > Update the memory controller to use read_uint for its
+> > limit/usage/failcnt control files, calling the new
+> > res_counter_read_uint() function.
+> > 
+> > Signed-off-by: Paul Menage <menage@google.com>
+> > 
+> 
+> Hi, Paul,
+> 
+> Looks good, except for the name uint(), can we make it u64(). Integers are 32
+> bit on both ILP32 and LP64, but we really read/write 64 bit values.
+> 
 
-I'm somewhat reluctant to consider this because it is slub-only, and slub
-doesn't appear to be doing so well on the performance front wrt slab.
-
-We do need to make one of those implementations go away, and if it's slub
-that goes, we have a lump of defrag code hanging around in core VFS which
-isn't used by anything.
-
-So I think the first thing we need to do is to establish that slub is
-viable as our only slab allocator (ignoring slob here).  And if that means
-tweaking the heck out of slub until it's competitive, we would be
-duty-bound to ask "how fast will slab be if we do that much tweaking to
-it as well".
-
-Another basis for comparison is "which one uses the lowest-order
-allocations to achieve its performance".
-
-Of course, current performance isn't the only thing - it could be that slub
-enables features such as defrag which wouldn't be possible with slab.  We
-can discuss that.
-
-But one of these implementations needs to go away, and that decision
-shouldn't be driven by the fact that we happen to have already implemented
-some additional features on top of one of them.
-
-hm?
+yup, I agree.  Even though I don't know what ILP32 and LP64 are ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
