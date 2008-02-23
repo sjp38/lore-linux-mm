@@ -1,94 +1,36 @@
-Received: from zps19.corp.google.com (zps19.corp.google.com [172.25.146.19])
-	by smtp-out.google.com with ESMTP id m1NFMcAo017445
-	for <linux-mm@kvack.org>; Sat, 23 Feb 2008 07:22:38 -0800
-Received: from py-out-1112.google.com (pyhf31.prod.google.com [10.34.233.31])
-	by zps19.corp.google.com with ESMTP id m1NFMbOM021331
-	for <linux-mm@kvack.org>; Sat, 23 Feb 2008 07:22:38 -0800
-Received: by py-out-1112.google.com with SMTP id f31so862740pyh.19
-        for <linux-mm@kvack.org>; Sat, 23 Feb 2008 07:22:37 -0800 (PST)
-Message-ID: <6599ad830802230722u573ca4d6n46c4fce3cdcc149d@mail.gmail.com>
-Date: Sat, 23 Feb 2008 07:22:37 -0800
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [PATCH 1/2] cgroup map files: Add cgroup map data type
-In-Reply-To: <20080223000419.d446ac74.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Sat, 23 Feb 2008 10:59:33 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/2] ResCounter: Use read_uint in memory controller
+Message-Id: <20080223105933.e6884808.akpm@linux-foundation.org>
+In-Reply-To: <6599ad830802230633i483c8dd1q5b541be1a92a5795@mail.gmail.com>
+References: <20080221203518.544461000@menage.corp.google.com>
+	<20080221205525.349180000@menage.corp.google.com>
+	<47BE4FB5.5040902@linux.vnet.ibm.com>
+	<6599ad830802230633i483c8dd1q5b541be1a92a5795@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080221212854.408662000@menage.corp.google.com>
-	 <20080221213444.898896000@menage.corp.google.com>
-	 <20080223000419.d446ac74.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kamezawa.hiroyu@jp.fujitsu.com, yamamoto@valinux.co.jp, linux-kernel@vger.kernel.org, linux-mm@kvack.org, balbir@in.ibm.com, xemul@openvz.org
+To: Paul Menage <menage@google.com>
+Cc: balbir@linux.vnet.ibm.com, xemul@openvz.org, balbir@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Feb 23, 2008 at 12:04 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
->  > +static int cgroup_map_add(struct cgroup_map_cb *cb, const char *key, u64 value)
->  > +{
->  > +     struct seq_file *sf = cb->state;
->  > +     return seq_printf(sf, "%s %llu\n", key, value);
->  > +}
->
->  We don't know what type the architecture uses to implement u64.  This will
->  warn on powerpc, sparc64, maybe others.
+On Sat, 23 Feb 2008 06:33:34 -0800 "Paul Menage" <menage@google.com> wrote:
 
-OK, I'll add an (unsigned long long) cast.
+> On Thu, Feb 21, 2008 at 8:29 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> >
+> >  Looks good, except for the name uint(), can we make it u64(). Integers are 32
+> >  bit on both ILP32 and LP64, but we really read/write 64 bit values.
+> 
+> Yes, that's true. But read_uint() is more consistent with all the
+> other instances in cgroups and subsystems. So if we were to call it
+> res_counter_read_u64() I'd also want to rename all the other
+> *read_uint functions/fields to *read_u64 too. Can I do that in a
+> separate patch?
+> 
 
->
->
->  > +static int cgroup_seqfile_show(struct seq_file *m, void *arg)
->  > +{
->  > +     struct cgroup_seqfile_state *state = m->private;
->  > +     struct cftype *cft = state->cft;
->  > +     if (cft->read_map) {
->  > +             struct cgroup_map_cb cb = {
->  > +                     .fill = cgroup_map_add,
->  > +                     .state = m,
->  > +             };
->  > +             return cft->read_map(state->cgroup, cft, &cb);
->  > +     } else {
->  > +             BUG();
->
->  That's not really needed.  Just call cft->read_map unconditionally.  if
->  it's zero we'll get a null-pointer deref which will have just the same
->  effect as a BUG.
-
-OK. The long-term plan is to have other kinds of files also handled by
-this function, so eventually it would look something like:
-
-if (cft->read_map) {
-...
-} else if (cft->read_something_else) {
-...
-}
-...
-} else {
-  BUG();
-}
-
-But I guess I can save that for the future.
-
->  >  static int cgroup_file_open(struct inode *inode, struct file *file)
->  >  {
->  >       int err;
->  > @@ -1499,7 +1539,18 @@ static int cgroup_file_open(struct inode
->  >       cft = __d_cft(file->f_dentry);
->  >       if (!cft)
->  >               return -ENODEV;
->  > -     if (cft->open)
->  > +     if (cft->read_map) {
->
->  But above a NULL value is illegal.  Why are we testing it here?
->
->
-
-The existence of cft->read_map causes us to open a seq_file. Otherwise
-we do nothing special and carry on down the normal open path.
-
-Paul
+Sounds sensible to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
