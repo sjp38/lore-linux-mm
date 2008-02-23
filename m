@@ -1,27 +1,51 @@
-Date: Sat, 23 Feb 2008 00:04:13 -0800
+Date: Sat, 23 Feb 2008 00:05:57 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/2] cgroup map files: Add a key/value map file type to
- cgroups
-Message-Id: <20080223000413.4b10db88.akpm@linux-foundation.org>
-In-Reply-To: <20080221212854.408662000@menage.corp.google.com>
-References: <20080221212854.408662000@menage.corp.google.com>
+Subject: Re: [PATCH 08/28] mm: system wide ALLOC_NO_WATERMARK
+Message-Id: <20080223000557.82125b3c.akpm@linux-foundation.org>
+In-Reply-To: <20080220150306.297640000@chello.nl>
+References: <20080220144610.548202000@chello.nl>
+	<20080220150306.297640000@chello.nl>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: menage@google.com
-Cc: kamezawa.hiroyu@jp.fujitsu.com, yamamoto@valinux.co.jp, linux-kernel@vger.kernel.org, linux-mm@kvack.org, balbir@in.ibm.com, xemul@openvz.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 Feb 2008 13:28:54 -0800 menage@google.com wrote:
+On Wed, 20 Feb 2008 15:46:18 +0100 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-> These patches add a new cgroup control file output type - a map from
-> strings to u64 values - and make use of it for the memory controller
-> "stat" file.
+> Change ALLOC_NO_WATERMARK page allocation such that the reserves are system
+> wide - which they are per setup_per_zone_pages_min(), when we scrape the
+> barrel, do it properly.
+> 
 
-Can we document the moderately obscure kernel->userspace interface
-somewhere please?
+The changelog is fairly incomprehensible.
+
+>  mm/page_alloc.c |    6 ++++++
+>  1 file changed, 6 insertions(+)
+> 
+> Index: linux-2.6/mm/page_alloc.c
+> ===================================================================
+> --- linux-2.6.orig/mm/page_alloc.c
+> +++ linux-2.6/mm/page_alloc.c
+> @@ -1552,6 +1552,12 @@ restart:
+>  rebalance:
+>  	if (alloc_flags & ALLOC_NO_WATERMARKS) {
+>  nofail_alloc:
+> +		/*
+> +		 * break out of mempolicy boundaries
+> +		 */
+> +		zonelist = NODE_DATA(numa_node_id())->node_zonelists +
+> +			gfp_zone(gfp_mask);
+> +
+>  		/* go through the zonelist yet again, ignoring mins */
+>  		page = get_page_from_freelist(gfp_mask, order, zonelist,
+>  				ALLOC_NO_WATERMARKS);
+
+As is the patch.  People who care about mempolicies will want a better
+explanation, please, so they can check that we're not busting their stuff.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
