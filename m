@@ -1,36 +1,57 @@
-Date: Sat, 23 Feb 2008 10:59:33 -0800
+Date: Sat, 23 Feb 2008 15:27:16 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] ResCounter: Use read_uint in memory controller
-Message-Id: <20080223105933.e6884808.akpm@linux-foundation.org>
-In-Reply-To: <6599ad830802230633i483c8dd1q5b541be1a92a5795@mail.gmail.com>
-References: <20080221203518.544461000@menage.corp.google.com>
-	<20080221205525.349180000@menage.corp.google.com>
-	<47BE4FB5.5040902@linux.vnet.ibm.com>
-	<6599ad830802230633i483c8dd1q5b541be1a92a5795@mail.gmail.com>
+Subject: Re: [patch 01/18] Define functions for page cache handling
+Message-Id: <20080223152716.51cc3875.akpm@linux-foundation.org>
+In-Reply-To: <20080216004805.610589231@sgi.com>
+References: <20080216004718.047808297@sgi.com>
+	<20080216004805.610589231@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: balbir@linux.vnet.ibm.com, xemul@openvz.org, balbir@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, David Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 23 Feb 2008 06:33:34 -0800 "Paul Menage" <menage@google.com> wrote:
+On Fri, 15 Feb 2008 16:47:19 -0800 Christoph Lameter <clameter@sgi.com> wrote:
 
-> On Thu, Feb 21, 2008 at 8:29 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> >
-> >  Looks good, except for the name uint(), can we make it u64(). Integers are 32
-> >  bit on both ILP32 and LP64, but we really read/write 64 bit values.
+> V2->V3:
+> - Use "mapping" instead of "a" as the address space parameter
 > 
-> Yes, that's true. But read_uint() is more consistent with all the
-> other instances in cgroups and subsystems. So if we were to call it
-> res_counter_read_u64() I'd also want to rename all the other
-> *read_uint functions/fields to *read_u64 too. Can I do that in a
-> separate patch?
+> We use the macros PAGE_CACHE_SIZE PAGE_CACHE_SHIFT PAGE_CACHE_MASK
+> and PAGE_CACHE_ALIGN in various places in the kernel. Many times
+> common operations like calculating the offset or the index are coded
+> using shifts and adds. This patch provides inline functions to
+> get the calculations accomplished without having to explicitly
+> shift and add constants.
 > 
+> All functions take an address_space pointer. The address space pointer
+> will be used in the future to eventually support a variable size
+> page cache. Information reachable via the mapping may then determine
+> page size.
+> 
+> New function                    Related base page constant
+> ====================================================================
+> page_cache_shift(a)             PAGE_CACHE_SHIFT
+> page_cache_size(a)              PAGE_CACHE_SIZE
+> page_cache_mask(a)              PAGE_CACHE_MASK
+> page_cache_index(a, pos)        Calculate page number from position
+> page_cache_next(addr, pos)      Page number of next page
+> page_cache_offset(a, pos)       Calculate offset into a page
+> page_cache_pos(a, index, offset)
+>                                 Form position based on page number
+>                                 and an offset.
 
-Sounds sensible to me.
+These sort-of look OK as cleanups and avoidance of accidents.
+
+But the interfaces which they use (passing and address_space) are quite
+pointless unless we implement variable page size per address_space.  And as
+the chances of that ever happening seem pretty damn small, these changes
+are just obfuscation which make the code harder to read and which
+pointlessly churn the codebase.
+
+So I'm inclined to drop these patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
