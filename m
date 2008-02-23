@@ -1,55 +1,55 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp01.in.ibm.com (8.13.1/8.13.1) with ESMTP id m1N9LCHw023140
-	for <linux-mm@kvack.org>; Sat, 23 Feb 2008 14:51:12 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1N9LB1c934022
-	for <linux-mm@kvack.org>; Sat, 23 Feb 2008 14:51:12 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id m1N9LGoB001469
-	for <linux-mm@kvack.org>; Sat, 23 Feb 2008 09:21:16 GMT
-Message-ID: <47BFE468.70104@linux.vnet.ibm.com>
-Date: Sat, 23 Feb 2008 14:46:24 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] ResCounter: Use read_uint in memory controller
-References: <20080221203518.544461000@menage.corp.google.com> <20080221205525.349180000@menage.corp.google.com> <47BE4FB5.5040902@linux.vnet.ibm.com> <20080223000426.adf5c75a.akpm@linux-foundation.org>
-In-Reply-To: <20080223000426.adf5c75a.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Sat, 23 Feb 2008 15:20:55 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [patch 00/17] Slab Fragmentation Reduction V10
+Message-ID: <20080223142055.GA6745@one.firstfloor.org>
+References: <20080216004526.763643520@sgi.com> <20080223000722.a37983eb.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080223000722.a37983eb.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: menage@google.com, xemul@openvz.org, balbir@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Fri, 22 Feb 2008 09:59:41 +0530 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
->> menage@google.com wrote:
->>> Update the memory controller to use read_uint for its
->>> limit/usage/failcnt control files, calling the new
->>> res_counter_read_uint() function.
->>>
->>> Signed-off-by: Paul Menage <menage@google.com>
->>>
->> Hi, Paul,
->>
->> Looks good, except for the name uint(), can we make it u64(). Integers are 32
->> bit on both ILP32 and LP64, but we really read/write 64 bit values.
->>
-> 
-> yup, I agree.  Even though I don't know what ILP32 and LP64 are ;)
+I personally would really like to see d/icache fragmentation in
+one form or another. It's a serious long standing Linux issue
+that would be really good to solve finally.
 
-ILP32 and LP64 are programming models. They stand for Integer, Long, Pointer 32
-bit for 32 bit systems and Long, Pointer 64 bit for 64 bit systems (which
-implies integers are 32 bit).
+> So I think the first thing we need to do is to establish that slub is
+> viable as our only slab allocator (ignoring slob here).  And if that means
+> tweaking the heck out of slub until it's competitive, we would be
+> duty-bound to ask "how fast will slab be if we do that much tweaking to
+> it as well".
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+There's another aspect: slab is quite unreadable and very hairy code.
+slub is much cleaner. On the maintainability front slub wins easily. 
+
+> Another basis for comparison is "which one uses the lowest-order
+> allocations to achieve its performance".
+
+That's an important point I agree. It directly translates into
+reliability under load and that is very important.
+
+> But one of these implementations needs to go away, and that decision
+
+I don't think slab is a good candidate to keep because it's so hard 
+to hack on. Especially since the slab NUMA changes the code flow and
+data structures are really really hairy and I doubt there are many people 
+left who understand it. e.g. I tracked down an RT bug in slab some
+time ago and it was a really unpleasant experience.
+
+In the end even if it is slightly slower today the code
+that is easiest to improve will be faster/better longer term.
+
+I'm a little sceptical about the high order allocations in slub too 
+though. Christoph seems to think they're not a big deal, but that is 
+against a lot of conventional Linux wisdom at least.
+
+That is one area that probably needs to be explored more.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
