@@ -1,55 +1,41 @@
-Date: Sat, 23 Feb 2008 15:20:55 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [patch 00/17] Slab Fragmentation Reduction V10
-Message-ID: <20080223142055.GA6745@one.firstfloor.org>
-References: <20080216004526.763643520@sgi.com> <20080223000722.a37983eb.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
+	by smtp-out.google.com with ESMTP id m1NEXZsj016729
+	for <linux-mm@kvack.org>; Sat, 23 Feb 2008 06:33:35 -0800
+Received: from py-out-1112.google.com (pyed32.prod.google.com [10.34.156.32])
+	by zps75.corp.google.com with ESMTP id m1NEXU8X020593
+	for <linux-mm@kvack.org>; Sat, 23 Feb 2008 06:33:34 -0800
+Received: by py-out-1112.google.com with SMTP id d32so1107589pye.12
+        for <linux-mm@kvack.org>; Sat, 23 Feb 2008 06:33:34 -0800 (PST)
+Message-ID: <6599ad830802230633i483c8dd1q5b541be1a92a5795@mail.gmail.com>
+Date: Sat, 23 Feb 2008 06:33:34 -0800
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [PATCH 2/2] ResCounter: Use read_uint in memory controller
+In-Reply-To: <47BE4FB5.5040902@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080223000722.a37983eb.akpm@linux-foundation.org>
+References: <20080221203518.544461000@menage.corp.google.com>
+	 <20080221205525.349180000@menage.corp.google.com>
+	 <47BE4FB5.5040902@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org
+To: balbir@linux.vnet.ibm.com
+Cc: akpm@linux-foundation.org, xemul@openvz.org, balbir@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I personally would really like to see d/icache fragmentation in
-one form or another. It's a serious long standing Linux issue
-that would be really good to solve finally.
+On Thu, Feb 21, 2008 at 8:29 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>
+>  Looks good, except for the name uint(), can we make it u64(). Integers are 32
+>  bit on both ILP32 and LP64, but we really read/write 64 bit values.
 
-> So I think the first thing we need to do is to establish that slub is
-> viable as our only slab allocator (ignoring slob here).  And if that means
-> tweaking the heck out of slub until it's competitive, we would be
-> duty-bound to ask "how fast will slab be if we do that much tweaking to
-> it as well".
+Yes, that's true. But read_uint() is more consistent with all the
+other instances in cgroups and subsystems. So if we were to call it
+res_counter_read_u64() I'd also want to rename all the other
+*read_uint functions/fields to *read_u64 too. Can I do that in a
+separate patch?
 
-There's another aspect: slab is quite unreadable and very hairy code.
-slub is much cleaner. On the maintainability front slub wins easily. 
-
-> Another basis for comparison is "which one uses the lowest-order
-> allocations to achieve its performance".
-
-That's an important point I agree. It directly translates into
-reliability under load and that is very important.
-
-> But one of these implementations needs to go away, and that decision
-
-I don't think slab is a good candidate to keep because it's so hard 
-to hack on. Especially since the slab NUMA changes the code flow and
-data structures are really really hairy and I doubt there are many people 
-left who understand it. e.g. I tracked down an RT bug in slab some
-time ago and it was a really unpleasant experience.
-
-In the end even if it is slightly slower today the code
-that is easiest to improve will be faster/better longer term.
-
-I'm a little sceptical about the high order allocations in slub too 
-though. Christoph seems to think they're not a big deal, but that is 
-against a lot of conventional Linux wisdom at least.
-
-That is one area that probably needs to be explored more.
-
--Andi
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
