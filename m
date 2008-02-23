@@ -1,46 +1,53 @@
-Date: Sat, 23 Feb 2008 00:05:47 -0800
+Date: Sat, 23 Feb 2008 00:07:22 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 04/28] mm: kmem_estimate_pages()
-Message-Id: <20080223000547.25c7ba92.akpm@linux-foundation.org>
-In-Reply-To: <20080220150305.774294000@chello.nl>
-References: <20080220144610.548202000@chello.nl>
-	<20080220150305.774294000@chello.nl>
+Subject: Re: [patch 00/17] Slab Fragmentation Reduction V10
+Message-Id: <20080223000722.a37983eb.akpm@linux-foundation.org>
+In-Reply-To: <20080216004526.763643520@sgi.com>
+References: <20080216004526.763643520@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 20 Feb 2008 15:46:14 +0100 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+On Fri, 15 Feb 2008 16:45:26 -0800 Christoph Lameter <clameter@sgi.com> wrote:
 
-> Provide a method to get the upper bound on the pages needed to allocate
-> a given number of objects from a given kmem_cache.
-> 
-> This lays the foundation for a generic reserve framework as presented in
-> a later patch in this series. This framework needs to convert object demand
-> (kmalloc() bytes, kmem_cache_alloc() objects) to pages.
-> 
-> ...
->
->  /*
-> + * return the max number of pages required to allocated count
-> + * objects from the given cache
-> + */
-> +unsigned kmem_estimate_pages(struct kmem_cache *s, gfp_t flags, int objects)
+> Slab fragmentation is mainly an issue if Linux is used as a fileserver
+> and large amounts of dentries, inodes and buffer heads accumulate. In some
+> load situations the slabs become very sparsely populated so that a lot of
+> memory is wasted by slabs that only contain one or a few objects. In
+> extreme cases the performance of a machine will become sluggish since
+> we are continually running reclaim. Slab defragmentation adds the
+> capability to recover the memory that is wasted.
 
-You might want to have another go at that comment.
+I'm somewhat reluctant to consider this because it is slub-only, and slub
+doesn't appear to be doing so well on the performance front wrt slab.
 
-> +/*
-> + * return the max number of pages required to allocate @bytes from kmalloc
-> + * in an unspecified number of allocation of heterogeneous size.
-> + */
-> +unsigned kestimate(gfp_t flags, size_t bytes)
+We do need to make one of those implementations go away, and if it's slub
+that goes, we have a lump of defrag code hanging around in core VFS which
+isn't used by anything.
 
-And its pal.
+So I think the first thing we need to do is to establish that slub is
+viable as our only slab allocator (ignoring slob here).  And if that means
+tweaking the heck out of slub until it's competitive, we would be
+duty-bound to ask "how fast will slab be if we do that much tweaking to
+it as well".
 
+Another basis for comparison is "which one uses the lowest-order
+allocations to achieve its performance".
+
+Of course, current performance isn't the only thing - it could be that slub
+enables features such as defrag which wouldn't be possible with slab.  We
+can discuss that.
+
+But one of these implementations needs to go away, and that decision
+shouldn't be driven by the fact that we happen to have already implemented
+some additional features on top of one of them.
+
+hm?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
