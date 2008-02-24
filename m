@@ -1,49 +1,69 @@
-Received: from zps35.corp.google.com (zps35.corp.google.com [172.25.146.35])
-	by smtp-out.google.com with ESMTP id m1O36lmj001459
-	for <linux-mm@kvack.org>; Sun, 24 Feb 2008 03:06:48 GMT
-Received: from py-out-1112.google.com (pyed37.prod.google.com [10.34.156.37])
-	by zps35.corp.google.com with ESMTP id m1O36k1q014071
-	for <linux-mm@kvack.org>; Sat, 23 Feb 2008 19:06:46 -0800
-Received: by py-out-1112.google.com with SMTP id d37so1898888pye.29
-        for <linux-mm@kvack.org>; Sat, 23 Feb 2008 19:06:46 -0800 (PST)
-Message-ID: <6599ad830802231906k3ae0e30fvcda453d7afc4d907@mail.gmail.com>
-Date: Sat, 23 Feb 2008 19:06:45 -0800
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [PATCH 2/2] ResCounter: Use read_uint in memory controller
-In-Reply-To: <47C0DAD8.8050401@linux.vnet.ibm.com>
+Received: by wx-out-0506.google.com with SMTP id h31so6224440wxd.11
+        for <linux-mm@kvack.org>; Sat, 23 Feb 2008 22:52:03 -0800 (PST)
+Message-ID: <170fa0d20802232252x7e52c5ebga726dcd7736261ba@mail.gmail.com>
+Date: Sun, 24 Feb 2008 01:52:02 -0500
+From: "Mike Snitzer" <snitzer@gmail.com>
+Subject: Re: [PATCH 15/28] netvm: network reserve infrastructure
+In-Reply-To: <20080220150307.208040000@chello.nl>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <20080221203518.544461000@menage.corp.google.com>
-	 <20080221205525.349180000@menage.corp.google.com>
-	 <47BE4FB5.5040902@linux.vnet.ibm.com>
-	 <6599ad830802230633i483c8dd1q5b541be1a92a5795@mail.gmail.com>
-	 <20080223105933.e6884808.akpm@linux-foundation.org>
-	 <47C0DAD8.8050401@linux.vnet.ibm.com>
+References: <20080220144610.548202000@chello.nl>
+	 <20080220150307.208040000@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, xemul@openvz.org, balbir@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Feb 23, 2008 at 6:47 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->  >> res_counter_read_u64() I'd also want to rename all the other
->  >> *read_uint functions/fields to *read_u64 too. Can I do that in a
->  >> separate patch?
->  >>
->  >
->  > Sounds sensible to me.
->  >
->
->  Sure, fair enough.
->
+On Wed, Feb 20, 2008 at 9:46 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> Provide the basic infrastructure to reserve and charge/account network memory.
+...
 
-Actually, since multiple people were asking for this change I did the
-search/replace and sent it out already (as a precursor of the other
-patches in the series that I sent today).
+>  Index: linux-2.6/net/core/sock.c
+>  ===================================================================
+>  --- linux-2.6.orig/net/core/sock.c
+>  +++ linux-2.6/net/core/sock.c
+...
+>  +/**
+>  + *     sk_adjust_memalloc - adjust the global memalloc reserve for critical RX
+>  + *     @socks: number of new %SOCK_MEMALLOC sockets
+>  + *     @tx_resserve_pages: number of pages to (un)reserve for TX
+>  + *
+>  + *     This function adjusts the memalloc reserve based on system demand.
+>  + *     The RX reserve is a limit, and only added once, not for each socket.
+>  + *
+>  + *     NOTE:
+>  + *        @tx_reserve_pages is an upper-bound of memory used for TX hence
+>  + *        we need not account the pages like we do for RX pages.
+>  + */
+>  +int sk_adjust_memalloc(int socks, long tx_reserve_pages)
+>  +{
+>  +       int nr_socks;
+>  +       int err;
+>  +
+>  +       err = mem_reserve_pages_add(&net_tx_pages, tx_reserve_pages);
+>  +       if (err)
+>  +               return err;
+>  +
+>  +       nr_socks = atomic_read(&memalloc_socks);
+>  +       if (!nr_socks && socks > 0)
+>  +               err = mem_reserve_connect(&net_reserve, &mem_reserve_root);
+>  +       nr_socks = atomic_add_return(socks, &memalloc_socks);
+>  +       if (!nr_socks && socks)
+>  +               err = mem_reserve_disconnect(&net_reserve);
+>  +
+>  +       if (err)
+>  +               mem_reserve_pages_add(&net_tx_pages, -tx_reserve_pages);
+>  +
+>  +       return err;
+>  +}
 
-Paul
+EXPORT_SYMBOL_GPL(sk_adjust_memalloc); is needed here to build sunrpc
+as a module.
+
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
