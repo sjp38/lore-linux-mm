@@ -1,69 +1,44 @@
-Received: by wx-out-0506.google.com with SMTP id h31so6224440wxd.11
-        for <linux-mm@kvack.org>; Sat, 23 Feb 2008 22:52:03 -0800 (PST)
-Message-ID: <170fa0d20802232252x7e52c5ebga726dcd7736261ba@mail.gmail.com>
-Date: Sun, 24 Feb 2008 01:52:02 -0500
-From: "Mike Snitzer" <snitzer@gmail.com>
-Subject: Re: [PATCH 15/28] netvm: network reserve infrastructure
-In-Reply-To: <20080220150307.208040000@chello.nl>
+Received: from deneb.vpn.enyo.de ([212.9.189.177] helo=deneb.enyo.de)
+	by mail.enyo.de with esmtp id 1JTFbr-0007cE-A8
+	for linux-mm@kvack.org; Sun, 24 Feb 2008 13:05:35 +0100
+Received: from fw by deneb.enyo.de with local (Exim 4.69)
+	(envelope-from <fw@deneb.enyo.de>)
+	id 1JTFbq-0002q2-Og
+	for linux-mm@kvack.org; Sun, 24 Feb 2008 13:05:34 +0100
+From: Florian Weimer <fw@deneb.enyo.de>
+Subject: How to reserve address space without actual backing store
+Date: Sun, 24 Feb 2008 13:05:34 +0100
+Message-ID: <87k5kublv5.fsf@mid.deneb.enyo.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080220144610.548202000@chello.nl>
-	 <20080220150307.208040000@chello.nl>
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 20, 2008 at 9:46 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> Provide the basic infrastructure to reserve and charge/account network memory.
-...
+This is more or less a userspace API question, but the documentation
+I've found in manpages does not match actual kernel behavior, so I'm
+asking here.
 
->  Index: linux-2.6/net/core/sock.c
->  ===================================================================
->  --- linux-2.6.orig/net/core/sock.c
->  +++ linux-2.6/net/core/sock.c
-...
->  +/**
->  + *     sk_adjust_memalloc - adjust the global memalloc reserve for critical RX
->  + *     @socks: number of new %SOCK_MEMALLOC sockets
->  + *     @tx_resserve_pages: number of pages to (un)reserve for TX
->  + *
->  + *     This function adjusts the memalloc reserve based on system demand.
->  + *     The RX reserve is a limit, and only added once, not for each socket.
->  + *
->  + *     NOTE:
->  + *        @tx_reserve_pages is an upper-bound of memory used for TX hence
->  + *        we need not account the pages like we do for RX pages.
->  + */
->  +int sk_adjust_memalloc(int socks, long tx_reserve_pages)
->  +{
->  +       int nr_socks;
->  +       int err;
->  +
->  +       err = mem_reserve_pages_add(&net_tx_pages, tx_reserve_pages);
->  +       if (err)
->  +               return err;
->  +
->  +       nr_socks = atomic_read(&memalloc_socks);
->  +       if (!nr_socks && socks > 0)
->  +               err = mem_reserve_connect(&net_reserve, &mem_reserve_root);
->  +       nr_socks = atomic_add_return(socks, &memalloc_socks);
->  +       if (!nr_socks && socks)
->  +               err = mem_reserve_disconnect(&net_reserve);
->  +
->  +       if (err)
->  +               mem_reserve_pages_add(&net_tx_pages, -tx_reserve_pages);
->  +
->  +       return err;
->  +}
+With vm.overcommit_memory and address space randomization, a lot of
+applications (particularly those who use certain types of garbage
+collectors) need a way to reserve a chunk of the address space, without
+actually counting towards the vm.overcommit_memory limit.  Typically,
+you want to allocate all the heap in a single, continuous range.  As the
+heap usage increases, you gradually allocate backing store from the
+kernel.  (Without address space randomization, you can use some
+heuristics to avoid DSO space etc. and use MAP_FIXED to grow the heap as
+needed, I suppose.)
 
-EXPORT_SYMBOL_GPL(sk_adjust_memalloc); is needed here to build sunrpc
-as a module.
+MAP_NORESERVE does not work for this purpose because memory allocated
+that way still counts as comitted.  What seems to work is to reserve
+address space with PROT_NONE, and later use mprotected to get backing
+store.  My question is if this is an accident, or if this approach is
+guaranteed to work in the future.
 
-Mike
+(mprotect to subsequently add PROT_EXEC has been broken on some
+architectures unless you take special measures, so I guess that this is
+genuine concern.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
