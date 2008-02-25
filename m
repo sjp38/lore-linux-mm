@@ -1,48 +1,60 @@
-Date: Mon, 25 Feb 2008 16:15:36 +0100
-From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
-Subject: Re: Page scan keeps touching kernel text pages
-Message-ID: <20080225151536.GA13358@lazybastard.org>
-References: <20080224144710.GD31293@lazybastard.org> <20080225150724.GF2604@shadowen.org>
+Received: from zps35.corp.google.com (zps35.corp.google.com [172.25.146.35])
+	by smtp-out.google.com with ESMTP id m1PGGqCF009318
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 16:16:52 GMT
+Received: from wx-out-0506.google.com (wxcs11.prod.google.com [10.70.120.11])
+	by zps35.corp.google.com with ESMTP id m1PGGnJT010706
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 08:16:51 -0800
+Received: by wx-out-0506.google.com with SMTP id s11so1691892wxc.17
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2008 08:16:51 -0800 (PST)
+Message-ID: <6599ad830802250816m1f83dbeekbe919a60d4b51157@mail.gmail.com>
+Date: Mon, 25 Feb 2008 08:16:40 -0800
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [PATCH] Memory Resource Controller Add Boot Option
+In-Reply-To: <20080225115550.23920.43199.sendpatchset@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20080225150724.GF2604@shadowen.org>
+References: <20080225115509.23920.66231.sendpatchset@localhost.localdomain>
+	 <20080225115550.23920.43199.sendpatchset@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 February 2008 15:07:24 +0000, Andy Whitcroft wrote:
-> On Sun, Feb 24, 2008 at 03:47:11PM +0100, JA?rn Engel wrote:
-> > While tracking down some unrelated bug I noticed that shrink_page_list()
-> > keeps testing very low page numbers (aka kernel text) until deciding
-> > that the page lacks a mapping and cannot get freed.  Looks like a waste
-> > of cpu and cachelines to me.
-> > 
-> > Is there a better reason for this behaviour than lack of a patch?
-> 
-> shrink_page_list() would be expected to be passed pages pulled from
-> the active or inactive lists via isolate_lru_pages()?  I would not have
-> expected to find the kernel text on the LRU and therefore not expect to
-> see it passed to shrink_page_list()?
+On Mon, Feb 25, 2008 at 3:55 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>
+>
+>  A boot option for the memory controller was discussed on lkml. It is a good
+>  idea to add it, since it saves memory for people who want to turn off the
+>  memory controller.
+>
+>  By default the option is on for the following two reasons
+>
+>  1. It provides compatibility with the current scheme where the memory
+>    controller turns on if the config option is enabled
+>  2. It allows for wider testing of the memory controller, once the config
+>    option is enabled
+>
+>  We still allow the create, destroy callbacks to succeed, since they are
+>  not aware of boot options. We do not populate the directory will
+>  memory resource controller specific files.
 
-Your expectations match mine.  At least someone shares my dilusions. :)
+Would it make more sense to have a generic cgroups boot option for this?
 
-> I would expect to find pages below the kernel text as real pages, and
-> potentially on the LRU on some architectures.  Which architecture are
-> you seeing this?  Which zones do the pages belong?
+Something like cgroup_disable=xxx, which would be parsed by cgroups
+and would cause:
 
-32bit x86 (run in qemu, shouldn't make a difference).
+- a "disabled" flag to be set to true in the subsys object (you could
+use this in place of the mem_cgroup_on flag)
 
-Not sure about the zones.  Let me rerun to check that.
+- prevent the disabled cgroup from being bound to any mounted
+hierarchy (so it would be ignored in a mount with no subsystem
+options, and a mount with options that specifically pick that
+subsystem would give an error)
 
-JA?rn
-
--- 
-Ninety percent of everything is crap.
--- Sturgeon's Law
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
