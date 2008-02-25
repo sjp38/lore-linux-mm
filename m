@@ -1,82 +1,52 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1PM1tpc005503
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 17:01:55 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1PM1sMr189590
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 15:01:54 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1PM1sma031202
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 15:01:54 -0700
-From: Adam Litke <agl@us.ibm.com>
-Subject: [PATCH 3/3] hugetlb: Decrease hugetlb_lock cycling in gather_surplus_huge_pages
-Date: Mon, 25 Feb 2008 14:01:52 -0800
-Message-Id: <20080225220152.23627.25591.stgit@kernel>
-In-Reply-To: <20080225220119.23627.33676.stgit@kernel>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1PMQ7f2012035
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 17:26:07 -0500
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1PMQ680281934
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 17:26:06 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1PMQ67H024297
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 17:26:06 -0500
+Subject: Re: [PATCH 1/3] hugetlb: Correct page count for surplus huge pages
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20080225220129.23627.5152.stgit@kernel>
 References: <20080225220119.23627.33676.stgit@kernel>
-Content-Type: text/plain; charset=utf-8; format=fixed
-Content-Transfer-Encoding: 8bit
+	 <20080225220129.23627.5152.stgit@kernel>
+Content-Type: text/plain
+Date: Mon, 25 Feb 2008 14:26:03 -0800
+Message-Id: <1203978363.11846.10.camel@nimitz.home.sr71.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: mel@csn.ul.ie, apw@shadowen.org, nacc@linux.vnet.ibm.com, agl@linux.vnet.ibm.com
+To: Adam Litke <agl@us.ibm.com>
+Cc: linux-mm@kvack.org, mel@csn.ul.ie, apw@shadowen.org, nacc@linux.vnet.ibm.com, agl@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-To reduce the number of times we acquire and release hugetlb_lock when
-freeing excess huge pages, loop through the page list twice: once to siphon
-pages into the hugetlb pool, and again to free the excess pages back to the
-buddy allocator.  This removes the lock/unlock around free_huge_page().
+Mon, 2008-02-25 at 14:01 -0800, Adam Litke wrote:
+> 
+>         spin_lock(&hugetlb_lock);
+>         if (page) {
+> +               /*
+> +                * This page is now managed by the hugetlb allocator and has
+> +                * no current users -- reset its reference count.
+> +                */
+> +               set_page_count(page, 0);
 
-Note that we still visit each page only once since a page is always removed
-from the list when it is visited.
+So, they come out of the allocator and have a refcount of 1, and you
+want them to be consistent with the other huge pages that have a count
+of 0?
 
-Thanks Mel Gorman for this improvement.
+I'd feel a lot better about this if you did a __put_page() then a
+atomic_read() or equivalent to double-check what's going on.  (I
+basically suggested the same thing to Jon Tollefson on the ginormous
+page stuff).  It just forces the thing to be more consistent.
 
-Signed-off-by: Adam Litke <agl@us.ibm.com>
-Cc: Mel Gorman <mel@csn.ul.ie>
----
+It also seems a bit goofy to me to zero the refcount here, then reset it
+to one later on in update_and_free_page().
 
- mm/hugetlb.c |   17 ++++++++++++-----
- 1 files changed, 12 insertions(+), 5 deletions(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 8296431..306d762 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -349,11 +349,19 @@ retry:
- 	resv_huge_pages += delta;
- 	ret = 0;
- free:
-+	/* Free the needed pages to the hugetlb pool */
- 	list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
-+		if ((--needed) < 0)
-+			break;
- 		list_del(&page->lru);
--		if ((--needed) >= 0)
--			enqueue_huge_page(page);
--		else {
-+		enqueue_huge_page(page);
-+	}
-+
-+	/* Free unnecessary surplus pages to the buddy allocator */
-+	if (!list_empty(&surplus_list)) {
-+		spin_unlock(&hugetlb_lock);
-+		list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
-+			list_del(&page->lru);
- 			/*
- 			 * The page has a reference count of zero already, so
- 			 * call free_huge_page directly instead of using
-@@ -361,10 +369,9 @@ free:
- 			 * unlocked which is safe because free_huge_page takes
- 			 * hugetlb_lock before deciding how to free the page.
- 			 */
--			spin_unlock(&hugetlb_lock);
- 			free_huge_page(page);
--			spin_lock(&hugetlb_lock);
- 		}
-+		spin_lock(&hugetlb_lock);
- 	}
- 
- 	return ret;
+I dunno.  It just seems like every time something in here gets touched,
+three other things break.  Makes me nervous. :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
