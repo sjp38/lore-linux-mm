@@ -1,7 +1,8 @@
-Date: Mon, 25 Feb 2008 12:16:19 +0900
+Date: Mon, 25 Feb 2008 12:17:44 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH] radix-tree based page_cgroup. [5/7] force_empty
-Message-Id: <20080225121619.03d3f9a0.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH] radix-tree based page_cgroup. [6/7] radix-tree based
+ page cgroup
+Message-Id: <20080225121744.a90704fb.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20080225120758.27648297.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080225120758.27648297.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -13,78 +14,205 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh@veritas.com" <hugh@veritas.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, taka@valinux.co.jp, Andi Kleen <ak@suse.de>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Lock page and uncharge it.
-This *Lock* ensures we have no race with migration.
+A lookup routine for page_cgroup struct.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Now, page_cgroup is pointed by struct page's page_cgroup entry
 
- mm/memcontrol.c |   34 +++++++++++++++++-----------------
- 1 file changed, 17 insertions(+), 17 deletions(-)
+struct page {
+	...
+	struct page_cgroup *page_cgroup;
+	..
+}
 
-Index: linux-2.6.25-rc2/mm/memcontrol.c
+But people dislike this because this increases sizeof(struct page).
+
+For avoiding that, we'll have to add a lookup routine for
+	pfn <-> page_cgroup.
+by radix-tree.
+
+New function is
+
+struct page *get_page_cgroup(struct page *page, gfp_mask mask);
+
+if (mask != 0), look up and allocate new one if necessary.
+if (mask == 0), just do look up and return NULL if not exist.
+
+Each radix-tree entry contains base address of array of page_cgroup.
+As sparsemem does, this registered base address is subtracted by base_pfn
+for that entry. See sparsemem's logic if unsure.
+
+Signed-off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+ mm/Makefile      |    2 
+ mm/page_cgroup.c |  151 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 152 insertions(+), 1 deletion(-)
+
+Index: linux-2.6.25-rc2/mm/page_cgroup.c
 ===================================================================
---- linux-2.6.25-rc2.orig/mm/memcontrol.c
-+++ linux-2.6.25-rc2/mm/memcontrol.c
-@@ -31,6 +31,7 @@
- #include <linux/fs.h>
- #include <linux/seq_file.h>
- #include <linux/page_cgroup.h>
-+#include <linux/pagemap.h>
- 
- #include <asm/uaccess.h>
- 
-@@ -730,7 +731,7 @@ mem_cgroup_force_empty_list(struct mem_c
- {
- 	struct page_cgroup *pc;
- 	struct page *page;
--	int count;
-+	int count = FORCE_UNCHARGE_BATCH;
- 	unsigned long flags;
- 	struct list_head *list;
- 
-@@ -741,28 +742,27 @@ mem_cgroup_force_empty_list(struct mem_c
- 
- 	if (list_empty(list))
- 		return;
--retry:
--	count = FORCE_UNCHARGE_BATCH;
+--- /dev/null
++++ linux-2.6.25-rc2/mm/page_cgroup.c
+@@ -0,0 +1,151 @@
++/*
++ * page_cgroup mamagement codes.
++ * page_cgroup is yet another mem_map when cgroup's memory resoruce controller
++ * is activated. It containes information which cannot be stored in usual
++ * mem_map. (it's too big.)
++ * This allows us to keep 'struct page' small when a user doesn't activate
++ * memory resource controller.
++ *
++ * Note: all things are allocated on demand.
++ *
++ * We can translate : struct page <-> pfn -> page_cgroup -> struct page.
++ */
 +
- 	spin_lock_irqsave(&mz->lru_lock, flags);
- 
--	while (--count && !list_empty(list)) {
-+	while (!list_empty(list)) {
- 		pc = list_entry(list->prev, struct page_cgroup, lru);
- 		page = pc->page;
--		/* Avoid race with charge */
--		atomic_set(&pc->ref_cnt, 0);
--		if (clear_page_cgroup(page, pc) == pc) {
--			css_put(&mem->css);
--			res_counter_uncharge(&mem->res, PAGE_SIZE);
--			__mem_cgroup_remove_list(pc);
--			kfree(pc);
--		} else 	/* being uncharged ? ...do relax */
--			break;
-+		get_page(page);
-+		spin_unlock_irqrestore(&mz->lru_lock, flags);
-+		/* check against page migration */
-+		if (TestSetPageLocked(page)) {
-+			mem_cgroup_uncharge_page(page);
-+			unlock_page(page);
-+		}
-+		put_page(page);
-+		if (--count == 0) {
-+			count = FORCE_UNCHARGE_BATCH;
-+			cond_resched();
-+		}
-+		spin_lock_irqsave(&mz->lru_lock, flags);
- 	}
- 	spin_unlock_irqrestore(&mz->lru_lock, flags);
--	if (!list_empty(list)) {
--		cond_resched();
--		goto retry;
--	}
- 	return;
- }
++#include <linux/mm.h>
++#include <linux/slab.h>
++#include <linux/radix-tree.h>
++#include <linux/memcontrol.h>
++#include <linux/page_cgroup.h>
++#include <linux/err.h>
++
++#define PCGRP_SHIFT	(8)
++#define PCGRP_SIZE	(1 << PCGRP_SHIFT)
++
++struct page_cgroup_root {
++	spinlock_t	       tree_lock;
++	struct radix_tree_root root_node;
++};
++
++static struct page_cgroup_root *root_dir[MAX_NUMNODES];
++
++static void init_page_cgroup(struct page_cgroup *base, unsigned long pfn)
++{
++	int i;
++	int size = PCGRP_SIZE * sizeof (struct page_cgroup);
++	struct page_cgroup *pc;
++
++	memset(base, 0, size);
++	for (i = 0; i < PCGRP_SIZE; ++i) {
++		pc = base + i;
++		pc->page = pfn_to_page(pfn + i);
++		spin_lock_init(&pc->lock);
++		INIT_LIST_HEAD(&pc->lru);
++	}
++}
++
++
++
++static struct page_cgroup *alloc_init_page_cgroup(unsigned long pfn, int nid,
++					gfp_t mask)
++{
++	int size, order;
++	struct page *page;
++
++	size = PCGRP_SIZE * sizeof(struct page_cgroup);
++	order = get_order(PAGE_ALIGN(size));
++	page = alloc_pages_node(nid, mask, order);
++	if (!page)
++		return NULL;
++
++	init_page_cgroup(page_address(page), pfn);
++
++	return page_address(page);
++}
++
++void free_page_cgroup(struct page_cgroup *pc)
++{
++	int size = PCGRP_SIZE * sizeof(struct page_cgroup);
++	int order = get_order(PAGE_ALIGN(size));
++	__free_pages(virt_to_page(pc), order);
++}
++
++
++/*
++ * Look up page_cgroup struct for struct page (page's pfn)
++ * if (gfp_mask != 0), look up and allocate new one if necessary.
++ * if (gfp_mask == 0), look up and return NULL if it cannot be found.
++ */
++
++struct page_cgroup *get_page_cgroup(struct page *page, gfp_t gfpmask)
++{
++	struct page_cgroup_root *root;
++	struct page_cgroup *pc, *base_addr;
++	unsigned long pfn = page_to_pfn(page);
++	unsigned long idx = pfn >> PCGRP_SHIFT;
++	int nid	= page_to_nid(page);
++	unsigned long base_pfn, flags;
++	int error;
++
++	root = root_dir[nid];
++	/* Before Init ? */
++	if (unlikely(!root))
++		return NULL;
++
++	base_pfn = idx << PCGRP_SHIFT;
++retry:
++	error = 0;
++	rcu_read_lock();
++	pc = radix_tree_lookup(&root->root_node, idx);
++	rcu_read_unlock();
++
++	if (likely(pc))
++		return pc + (pfn - base_pfn);
++	if (!gfpmask)
++		return NULL;
++
++	/* Very Slow Path. On demand allocation. */
++	gfpmask = gfpmask & ~(__GFP_HIGHMEM | __GFP_MOVABLE);
++
++	base_addr = alloc_init_page_cgroup(base_pfn, nid, gfpmask);
++	if (!base_addr)
++		return ERR_PTR(-ENOMEM);
++
++	error = radix_tree_preload(gfpmask);
++	if (error)
++		goto out;
++	spin_lock_irqsave(&root->tree_lock, flags);
++	error = radix_tree_insert(&root->root_node, idx, base_addr);
++
++	if (error)
++		pc  = NULL;
++	else
++		pc = base_addr + (pfn - base_pfn);
++	spin_unlock_irqrestore(&root->tree_lock, flags);
++	radix_tree_preload_end();
++out:
++	if (!pc) {
++		free_page_cgroup(base_addr);
++		if (error == -EEXIST)
++			goto retry;
++	}
++	if (error)
++		pc = ERR_PTR(error);
++	return pc;
++}
++
++__init int page_cgroup_init(void)
++{
++	int nid;
++	struct page_cgroup_root *root;
++	for_each_node(nid) {
++		root = kmalloc_node(sizeof(struct page_cgroup_root),
++					GFP_KERNEL, nid);
++		INIT_RADIX_TREE(&root->root_node, GFP_ATOMIC);
++		spin_lock_init(&root->tree_lock);
++		smp_wmb();
++		root_dir[nid] = root;
++	}
++	printk(KERN_INFO "Page Accouintg is activated\n");
++	return 0;
++}
++late_initcall(page_cgroup_init);
+Index: linux-2.6.25-rc2/mm/Makefile
+===================================================================
+--- linux-2.6.25-rc2.orig/mm/Makefile
++++ linux-2.6.25-rc2/mm/Makefile
+@@ -32,5 +32,5 @@ obj-$(CONFIG_FS_XIP) += filemap_xip.o
+ obj-$(CONFIG_MIGRATION) += migrate.o
+ obj-$(CONFIG_SMP) += allocpercpu.o
+ obj-$(CONFIG_QUICKLIST) += quicklist.o
+-obj-$(CONFIG_CGROUP_MEM_CONT) += memcontrol.o
++obj-$(CONFIG_CGROUP_MEM_CONT) += memcontrol.o page_cgroup.o
  
 
 --
