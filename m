@@ -1,50 +1,54 @@
-Date: Mon, 25 Feb 2008 13:02:19 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] radix-tree based page_cgroup. [0/7] introduction
-Message-Id: <20080225130219.d0d8f212.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <47C234E9.3060303@linux.vnet.ibm.com>
-References: <20080225120758.27648297.kamezawa.hiroyu@jp.fujitsu.com>
-	<47C234E9.3060303@linux.vnet.ibm.com>
+Subject: Re: [RFC][PATCH] radix-tree based page_cgroup. [7/7] per cpu fast
+ lookup
+In-Reply-To: Your message of "Mon, 25 Feb 2008 12:18:49 +0900"
+	<20080225121849.191ac900.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080225121849.191ac900.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: Text/Plain; charset=us-ascii
+Message-Id: <20080225053640.8C1131E3C63@siro.lan>
+Date: Mon, 25 Feb 2008 14:36:40 +0900 (JST)
+From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: "hugh@veritas.com" <hugh@veritas.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, taka@valinux.co.jp, Andi Kleen <ak@suse.de>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: kamezawa.hiroyu@jp.fujitsu.com
+Cc: balbir@linux.vnet.ibm.com, hugh@veritas.com, taka@valinux.co.jp, ak@suse.de, nickpiggin@yahoo.com.au, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Feb 2008 08:54:25 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > TODO
-> >  - Move to -rc3 or -mm ?
-> 
-> I think -mm is better, since we have been pushing all the patches through -mm
-> and that way we'll get some testing before the patches go in as well.
-> 
-Okay,
+> +
+> +static void save_result(struct page_cgroup  *base, unsigned long idx)
+> +{
+> +	int hash = idx & (PAGE_CGROUP_NR_CACHE - 1);
+> +	struct page_cgroup_cache *pcp = &__get_cpu_var(pcpu_page_cgroup_cache);
+> +	preempt_disable();
+> +	pcp->ents[hash].idx = idx;
+> +	pcp->ents[hash].base = base;
+> +	preempt_enable();
 
-> >  - This patch series doesn't implement page_cgroup removal.
-> >    I consider it's worth tring to remove page_cgroup when the page is used for
-> >    HugePage or the page is offlined. But this will incease complexity. So, do later.
-> 
-> Why don't we remove the page_cgroup, what is the increased complexity? I'll take
-> a look into the patches.
-> 
-> >  - More perfomance measurement and brush codes up.
-> >  - Check lock dependency...Do more test.
-> 
-> I think we should work this out as well. Hugh is working on cleanup for locking
-> right now. I suspect that with the radix tree changes, there might a conflict
-> between your and hugh's work. I think for the moment, while we stabilize and get
-> the radix tree patches ready, we should get Hugh's cleanup in.
-> 
-I agree here.
-I think Hugh-san's patch should go fast path, because it's bugfix.
-This set should be tested under -mm or private tree  until enough test.
+preempt_disable after __get_cpu_var doesn't make much sense.
+it should be get_cpu_var and put_cpu_var.
 
-Thanks,
--Kame
+> -struct page_cgroup *get_page_cgroup(struct page *page, gfp_t gfpmask);
+> +struct page_cgroup *__get_page_cgroup(struct page *page, gfp_t gfpmask);
+> +
+> +static inline struct page_cgroup *
+> +get_page_cgroup(struct page *page, gfp_t gfpmask)
+> +{
+> +	unsigned long pfn = page_to_pfn(page);
+> +	struct page_cgroup_cache *pcp = &__get_cpu_var(pcpu_page_cgroup_cache);
+> +	struct page_cgroup *ret;
+> +	unsigned long idx = pfn >> PCGRP_SHIFT;
+> +	int hnum = (idx) & (PAGE_CGROUP_NR_CACHE - 1);
+> +
+> +	preempt_disable();
+> +	if (pcp->ents[hnum].idx == idx && pcp->ents[hnum].base)
+> +		ret = pcp->ents[hnum].base + (pfn - (idx << PCGRP_SHIFT));
+> +	else
+> +		ret = NULL;
+> +	preempt_enable();
+
+ditto.
+
+YAMAMOTO Takashi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
