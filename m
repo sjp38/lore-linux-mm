@@ -1,34 +1,79 @@
-Date: Mon, 25 Feb 2008 23:34:04 +0000 (GMT)
+Date: Mon, 25 Feb 2008 23:35:33 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH 00/15] memcg: fixes and cleanups
-Message-ID: <Pine.LNX.4.64.0802252327490.27067@blonde.site>
+Subject: [PATCH 01/15] memcg: mm_match_cgroup not vm_match_cgroup
+In-Reply-To: <Pine.LNX.4.64.0802252327490.27067@blonde.site>
+Message-ID: <Pine.LNX.4.64.0802252334190.27067@blonde.site>
+References: <Pine.LNX.4.64.0802252327490.27067@blonde.site>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Here's my series of fifteen mem_cgroup patches against 2.6.25-rc3:
-fixes to bugs I've found and cleanups made on the way to those fixes.
-I believe we'll want these in 2.6.25-rc4.  Mostly they're what was
-included in the rollup I posted on Friday, but 05/15 and 15/15 fix
-(pre-existing) page migration and force_empty bugs I found after that.
-I'm not at all happy with force_empty, 15/15 discusses it a little.
+vm_match_cgroup is a perverse name for a macro to match mm with cgroup:
+rename it mm_match_cgroup, matching mm_init_cgroup and mm_free_cgroup.
 
- include/linux/memcontrol.h |   37 +--
- mm/memcontrol.c            |  365 +++++++++++++----------------------
- mm/memory.c                |   13 -
- mm/migrate.c               |   19 +
- mm/page_alloc.c            |   18 +
- mm/rmap.c                  |    4 
- mm/shmem.c                 |    9 
- mm/swap.c                  |    2 
- mm/vmscan.c                |    5 
- 9 files changed, 196 insertions(+), 276 deletions(-)
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+---
 
-Hugh
+ include/linux/memcontrol.h |    4 ++--
+ mm/memcontrol.c            |    2 +-
+ mm/rmap.c                  |    4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)
+
+--- 2.6.25-rc3/include/linux/memcontrol.h	2008-02-24 22:39:48.000000000 +0000
++++ memcg01/include/linux/memcontrol.h	2008-02-25 14:05:35.000000000 +0000
+@@ -48,7 +48,7 @@ extern int mem_cgroup_cache_charge(struc
+ 					gfp_t gfp_mask);
+ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
+ 
+-#define vm_match_cgroup(mm, cgroup)	\
++#define mm_match_cgroup(mm, cgroup)	\
+ 	((cgroup) == rcu_dereference((mm)->mem_cgroup))
+ 
+ extern int mem_cgroup_prepare_migration(struct page *page);
+@@ -118,7 +118,7 @@ static inline int mem_cgroup_cache_charg
+ 	return 0;
+ }
+ 
+-static inline int vm_match_cgroup(struct mm_struct *mm, struct mem_cgroup *mem)
++static inline int mm_match_cgroup(struct mm_struct *mm, struct mem_cgroup *mem)
+ {
+ 	return 1;
+ }
+--- 2.6.25-rc3/mm/memcontrol.c	2008-02-24 22:39:48.000000000 +0000
++++ memcg01/mm/memcontrol.c	2008-02-25 14:05:35.000000000 +0000
+@@ -399,7 +399,7 @@ int task_in_mem_cgroup(struct task_struc
+ 	int ret;
+ 
+ 	task_lock(task);
+-	ret = task->mm && vm_match_cgroup(task->mm, mem);
++	ret = task->mm && mm_match_cgroup(task->mm, mem);
+ 	task_unlock(task);
+ 	return ret;
+ }
+--- 2.6.25-rc3/mm/rmap.c	2008-02-11 07:18:12.000000000 +0000
++++ memcg01/mm/rmap.c	2008-02-25 14:05:35.000000000 +0000
+@@ -321,7 +321,7 @@ static int page_referenced_anon(struct p
+ 		 * counting on behalf of references from different
+ 		 * cgroups
+ 		 */
+-		if (mem_cont && !vm_match_cgroup(vma->vm_mm, mem_cont))
++		if (mem_cont && !mm_match_cgroup(vma->vm_mm, mem_cont))
+ 			continue;
+ 		referenced += page_referenced_one(page, vma, &mapcount);
+ 		if (!mapcount)
+@@ -382,7 +382,7 @@ static int page_referenced_file(struct p
+ 		 * counting on behalf of references from different
+ 		 * cgroups
+ 		 */
+-		if (mem_cont && !vm_match_cgroup(vma->vm_mm, mem_cont))
++		if (mem_cont && !mm_match_cgroup(vma->vm_mm, mem_cont))
+ 			continue;
+ 		if ((vma->vm_flags & (VM_LOCKED|VM_MAYSHARE))
+ 				  == (VM_LOCKED|VM_MAYSHARE)) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
