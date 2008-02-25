@@ -1,72 +1,61 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1PMvcDp022157
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 17:57:38 -0500
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1PMtfh0247414
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 17:55:41 -0500
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1PMte4q001735
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 17:55:41 -0500
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1PNBpmt015239
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 18:11:51 -0500
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1PNBpH6286654
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 18:11:51 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1PNBp2t002587
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 18:11:51 -0500
 Subject: Re: [PATCH 1/3] hugetlb: Correct page count for surplus huge pages
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <1203978363.11846.10.camel@nimitz.home.sr71.net>
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <1203980580.3837.30.camel@localhost.localdomain>
 References: <20080225220119.23627.33676.stgit@kernel>
 	 <20080225220129.23627.5152.stgit@kernel>
 	 <1203978363.11846.10.camel@nimitz.home.sr71.net>
+	 <1203980580.3837.30.camel@localhost.localdomain>
 Content-Type: text/plain
-Date: Mon, 25 Feb 2008 17:03:00 -0600
-Message-Id: <1203980580.3837.30.camel@localhost.localdomain>
+Date: Mon, 25 Feb 2008 15:11:49 -0800
+Message-Id: <1203981109.11846.22.camel@nimitz.home.sr71.net>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
+To: Adam Litke <agl@us.ibm.com>
 Cc: linux-mm@kvack.org, mel@csn.ul.ie, apw@shadowen.org, nacc@linux.vnet.ibm.com, agl@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-02-25 at 14:26 -0800, Dave Hansen wrote:
-> Mon, 2008-02-25 at 14:01 -0800, Adam Litke wrote:
-> > 
-> >         spin_lock(&hugetlb_lock);
-> >         if (page) {
-> > +               /*
-> > +                * This page is now managed by the hugetlb allocator and has
-> > +                * no current users -- reset its reference count.
-> > +                */
-> > +               set_page_count(page, 0);
+On Mon, 2008-02-25 at 17:03 -0600, Adam Litke wrote:
+> > It also seems a bit goofy to me to zero the refcount here, then reset it
+> > to one later on in update_and_free_page().
 > 
-> So, they come out of the allocator and have a refcount of 1, and you
-> want them to be consistent with the other huge pages that have a count
-> of 0?
+> Yeah, it is a special case -- and commented accordingly.  Do you have
+> any ideas how to avoid it without the wasted time of an
+> enqueue_huge_page()/dequeue_huge_page() cycle?
 
-Yep all pages come out of the buddy allocator in this state.  What is
-different in this case is that we are choosing not to enqueue it into
-the hugetlb pool right away since it might be immediately needed by the
-caller.
+There are a couple of steps here, right?
 
-> I'd feel a lot better about this if you did a __put_page() then a
-> atomic_read() or equivalent to double-check what's going on.  (I
-> basically suggested the same thing to Jon Tollefson on the ginormous
-> page stuff).  It just forces the thing to be more consistent.
+1. alloc from the buddy list
+2. initialize to set ->dtor, page->_count, etc...
+3. enqueue_huge_page()
+4. somebody does dequeue_huge_page() and gets it
 
-I could agree to this.
+I wonder if it might get simpler if you just make the pages on the
+freelists "virgin buddy pages".  Basically don't touch pages much until
+after they're dequeued.  Flip flop (a la John Kerry) the order around a
+bit:
 
-> It also seems a bit goofy to me to zero the refcount here, then reset it
-> to one later on in update_and_free_page().
+1. alloc from the buddy list
+2. enqueue_huge_page()
+3. somebody does dequeue_huge_page() and before it returns, we:
+4. initialize to set ->dtor, page->_count, etc...
 
-Yeah, it is a special case -- and commented accordingly.  Do you have
-any ideas how to avoid it without the wasted time of an
-enqueue_huge_page()/dequeue_huge_page() cycle?
+This has the disadvantage of shifting some work from a "once per alloc
+from the buddy list" to "once per en/dequeue".  Basically, just try and
+re-think when you turn pages from plain buddy pages into
+hugetlb-flavored pages.  
 
-> I dunno.  It just seems like every time something in here gets touched,
-> three other things break.  Makes me nervous. :(
-
-Now c'mon, that's not fair.  I'd expect that sort of statement from the
-Hillary Clinton campaign, not you Dave :)
-
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
