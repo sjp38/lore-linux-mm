@@ -1,47 +1,58 @@
-Received: from zps19.corp.google.com (zps19.corp.google.com [172.25.146.19])
-	by smtp-out.google.com with ESMTP id m1PHW1hr026299
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 09:32:01 -0800
-Received: from nf-out-0910.google.com (nfcd3.prod.google.com [10.48.105.3])
-	by zps19.corp.google.com with ESMTP id m1PHVZmJ001755
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 09:32:00 -0800
-Received: by nf-out-0910.google.com with SMTP id d3so976892nfc.0
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2008 09:32:00 -0800 (PST)
-Message-ID: <6599ad830802250932s5eaa3bcchbfc49fe0e76d3f7d@mail.gmail.com>
-Date: Mon, 25 Feb 2008 09:32:00 -0800
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [PATCH] Memory Resource Controller Add Boot Option
-In-Reply-To: <47C2F86A.9010709@linux.vnet.ibm.com>
+Date: Mon, 25 Feb 2008 18:35:52 +0100
+From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
+Subject: Re: Page scan keeps touching kernel text pages
+Message-ID: <20080225173551.GA13911@lazybastard.org>
+References: <20080224144710.GD31293@lazybastard.org> <20080225150724.GF2604@shadowen.org> <20080225151536.GA13358@lazybastard.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-References: <20080225115509.23920.66231.sendpatchset@localhost.localdomain>
-	 <20080225115550.23920.43199.sendpatchset@localhost.localdomain>
-	 <6599ad830802250816m1f83dbeekbe919a60d4b51157@mail.gmail.com>
-	 <47C2F86A.9010709@linux.vnet.ibm.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20080225151536.GA13358@lazybastard.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
+Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 25, 2008 at 9:18 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->
->  I thought about it, but it did not work out all that well. The reason being,
->  that the memory controller is called in from places besides cgroup.
->  mem_cgroup_charge_common() for example is called from several places in mm.
->  Calling into cgroups to check, enabled/disabled did not seem right.
+On Mon, 25 February 2008 16:15:36 +0100, JA?rn Engel wrote:
+> On Mon, 25 February 2008 15:07:24 +0000, Andy Whitcroft wrote:
+> 
+> > I would expect to find pages below the kernel text as real pages, and
+> > potentially on the LRU on some architectures.  Which architecture are
+> > you seeing this?  Which zones do the pages belong?
+> 
+> 32bit x86 (run in qemu, shouldn't make a difference).
+> 
+> Not sure about the zones.  Let me rerun to check that.
 
-You wouldn't need to call into cgroups - if it's a flag in the subsys
-object (which is defined in memcontrol.c) you'd just say
+Example output:
+scanning zone DMA
+page      3fa        3 00000000 628
+page      2bf        2 00000000 628
+page       97        3 00000000 628
+page       98        2 00000000 628
+scanning zone DMA
+page      2c0        3 00000000 628
+page      2c3        2 00000000 628
+page       44        3 00000000 628
+page       46        2 00000000 628
+scanning zone DMA
+page       37        3 00000000 628
+page       35        2 00000000 628
+page       32        3 00000000 628
+page       38        2 00000000 628
 
-if (mem_cgroup_subsys.disabled) {
-...
-}
+Looks like all kernel text is in zone DMA.  Second column holds the page
+number, third is refcount, fourth is the flags, fifth is the line, which
+corresponds to this one after my debugging changes:
+		if (!mapping || !remove_mapping(mapping, page))
+			goto keep_locked;
 
-I'll send out a prototype for comment.
+JA?rn
 
-Paul
+-- 
+Joern's library part 4:
+http://www.paulgraham.com/spam.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
