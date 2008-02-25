@@ -1,38 +1,35 @@
-Date: Mon, 25 Feb 2008 21:38:53 +0100
-From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
-Subject: Re: Page scan keeps touching kernel text pages
-Message-ID: <20080225203852.GA15904@lazybastard.org>
-References: <20080224144710.GD31293@lazybastard.org> <20080225185319.GA14699@lazybastard.org> <20080225192127.GA20322@shadowen.org> <200802251346.32289.dave.mccracken@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m1PM0tuv031601
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 17:00:55 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1PM1KGI178326
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 15:01:20 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1PM1Kjb028880
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2008 15:01:20 -0700
+From: Adam Litke <agl@us.ibm.com>
+Subject: [PATCH 0/3] hugetlb: Dynamic pool resize improvements
+Date: Mon, 25 Feb 2008 14:01:19 -0800
+Message-Id: <20080225220119.23627.33676.stgit@kernel>
+Content-Type: text/plain; charset=utf-8; format=fixed
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <200802251346.32289.dave.mccracken@oracle.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dave.mccracken@oracle.com>
-Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: mel@csn.ul.ie, apw@shadowen.org, nacc@linux.vnet.ibm.com, agl@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 February 2008 13:46:32 -0600, Dave McCracken wrote:
-> On Monday 25 February 2008, Andy Whitcroft wrote:
-> > I thought that init sections were deliberatly pushed to the end of the
-> > kernel when linked, cirtainly on my laptop here that seems to be so.
-> > That would make the first two "after" the kernel. A The other two appear
-> > to be before the traditional kernel load address, which is 0x100000, so
-> > those pages are before not in the kernel?
-> 
-> I believe the memory below the kernel load address on x86 is returned to the 
-> free memory pool at some point during boot, which would explain those 
-> addresses.
 
-It does explain all pages.  Sorry about the noise from an mm-newbie.
+This series of patches contains fixes for a few issues found with the new
+dynamically resizing hugetlb pool while stress testing.  The first patch
+corrects the page count for surplus huge pages when they are first allocated.
+This avoids a BUG when CONFIG_DEBUG_VM is enabled.  The second patch closes a
+difficult to trigger race when setting up a reservation involving surplus pages
+which could lead to reservations not being honored.  The third patch is a minor
+performance optimization in gather_surplus_huge_pages().  Patches 1 and 2 are
+candidates for -stable.
 
-JA?rn
-
--- 
-Joern's library part 14:
-http://www.sandpile.org/
+These patches were generated against 2.6.24
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
