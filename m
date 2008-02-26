@@ -1,79 +1,58 @@
-Date: Tue, 26 Feb 2008 16:46:41 +0900 (JST)
-Message-Id: <20080226.164641.117922308.taka@valinux.co.jp>
-Subject: Re: [RFC][PATCH] radix-tree based page_cgroup. [1/7] definitions
- for page_cgroup
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <20080225170352.2415dc58.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080225121034.bd74be07.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080225.164745.47821156.taka@valinux.co.jp>
-	<20080225170352.2415dc58.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Received: from zps19.corp.google.com (zps19.corp.google.com [172.25.146.19])
+	by smtp-out.google.com with ESMTP id m1Q8w7QH005303
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2008 00:58:07 -0800
+Received: from py-out-1112.google.com (pyef47.prod.google.com [10.34.157.47])
+	by zps19.corp.google.com with ESMTP id m1Q8w6p5011326
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2008 00:58:07 -0800
+Received: by py-out-1112.google.com with SMTP id f47so2790693pye.8
+        for <linux-mm@kvack.org>; Tue, 26 Feb 2008 00:58:06 -0800 (PST)
+Message-ID: <6599ad830802260058m28d8f46djc83f47e19e2946a7@mail.gmail.com>
+Date: Tue, 26 Feb 2008 00:58:06 -0800
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [PATCH] Memory Resource Controller Add Boot Option
+In-Reply-To: <47C38127.2000109@cn.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080225115509.23920.66231.sendpatchset@localhost.localdomain>
+	 <20080225115550.23920.43199.sendpatchset@localhost.localdomain>
+	 <6599ad830802250816m1f83dbeekbe919a60d4b51157@mail.gmail.com>
+	 <47C2F86A.9010709@linux.vnet.ibm.com>
+	 <6599ad830802250932s5eaa3bcchbfc49fe0e76d3f7d@mail.gmail.com>
+	 <47C2FCC1.7090203@linux.vnet.ibm.com> <47C30EDC.4060005@google.com>
+	 <47C38127.2000109@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: balbir@linux.vnet.ibm.com, hugh@veritas.com, yamamoto@valinux.co.jp, ak@suse.de, nickpiggin@yahoo.com.au, linux-mm@kvack.org
+To: Li Zefan <lizf@cn.fujitsu.com>
+Cc: balbir@linux.vnet.ibm.com, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Mon, Feb 25, 2008 at 7:01 PM, Li Zefan <lizf@cn.fujitsu.com> wrote:
+>  >
+>  > - foo doesn't show up in /proc/cgroups
+>
+>  Or we can print out the disable flag, maybe this will be better?
+>  Because we can distinguish from disabled and not compiled in from
+>
+> /proc/cgroups.
 
-> > > +struct mem_cgroup;
-> > > +
-> > > +struct page_cgroup {
-> > > +	struct page 		*page;       /* the page this accounts for*/
-> > > +	struct mem_cgroup 	*mem_cgroup; /* current cgroup subsys */
-> > > +	int    			flags;	     /* See below */
-> > > +	int    			refcnt;      /* reference count */
-> > > +	spinlock_t		lock;        /* lock for all above members */
-> > > +	struct list_head 	lru;         /* for per cgroup LRU */
-> > > +};
-> > 
-> > You can possible reduce the size of page_cgroup structure not to consume
-> > a lot of memory. I think this is important.
-> > 
-> > I have some ideas:
-> > (1) I don't think every struct page_cgroup needs to have a "lock" member.
-> >     I think one "lock" variable for several page_cgroup will be also enough
-> >     from a performance viewpoint. In addition, it will become low-impact for
-> >     cache memory. I guess it may be okay if each array of page_cgroup --
-> >     which you just introduced now -- has one lock variable.
-> 
-> I think it will increase cache-bouncing, but I have no data.
+Certainly possible, if people felt it was useful.
 
-Yes, that's the point. There will be some tradeoff between the cache-bouncing
-and the memory usage. 
+>
+>  > - foo isn't auto-mounted if you mount all cgroups in a single hierarchy
+>  > - foo isn't visible as an individually mountable subsystem
+>
+>  You mentioned in a previous mail if we mount a disabled subsystem we
+>  will get an error. Here we just ignore the mount option. Which makes
+>  more sense ?
+>
 
-> (I notices that lock bit can be moved to flags and use bit_spin_lock.
->  But I wouldn't like to do it at this stage.)
+No, we don't ignore the mount option - we give an error since it
+doesn't refer to a valid subsystem. (And in the first case there is no
+mount option).
 
-Yep.
-
-> > (2) The "flags" member and the "refcnt" member can be encoded into
-> >     one member.
-> 
-> I don't like this idea.
-> Because some people discuss about enlarging 32bit countes in struct 'page'
-> to be 64bit, I wonder refcnt should be "unsigned long", now.
-
-I don't think the refcnt member of page_cgroup will need such a large
-counter. I think you can make it small.
-
-> > (3) The page member can be replaced with the page frame number and it will be
-> >     also possible to use some kind of ID instead of the mem_cgroup member.
-> >     This means these members can be encoded to one members with other members
-> >     such as "flags" and "refcnt"
->  
-> I think there is a case that "pfn" doesn't fit in 32bit.
-> (64bit system tend to have sparse address space.)
-> We need unsigned long anyway.
-
-It will be a 64bit variable on a 64bit machine, where the pointers are
-also 64bit long. I think you can encode "pfn" and other stuff into one
-64bit variable.
-
-Thank you,
-Hirokazu Takahashi.
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
