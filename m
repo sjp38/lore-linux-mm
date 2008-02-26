@@ -1,47 +1,42 @@
-In-reply-to: <1204040629.6242.326.camel@lappy> (message from Peter Zijlstra on
-	Tue, 26 Feb 2008 16:43:49 +0100)
-Subject: Re: [PATCH 00/28] Swap over NFS -v16
-References: <20080220144610.548202000@chello.nl>
-	 <20080223000620.7fee8ff8.akpm@linux-foundation.org>
-	 <18371.43950.150842.429997@notabene.brown>
-	 <1204023042.6242.271.camel@lappy>  <E1JU1kk-0001t9-25@pomaz-ex.szeredi.hu> <1204040629.6242.326.camel@lappy>
-Message-Id: <E1JU21m-0001wp-ET@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Tue, 26 Feb 2008 16:47:34 +0100
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28esmtp07.in.ibm.com (8.13.1/8.13.1) with ESMTP id m1QFwM6n023730
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2008 21:28:22 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1QFwMQO1007846
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2008 21:28:22 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id m1QFwMe9026260
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2008 15:58:22 GMT
+Date: Tue, 26 Feb 2008 21:22:52 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 02/15] memcg: move_lists on page not page_cgroup
+Message-ID: <20080226155252.GA25074@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <Pine.LNX.4.64.0802252327490.27067@blonde.site> <Pine.LNX.4.64.0802252335400.27067@blonde.site>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0802252335400.27067@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: a.p.zijlstra@chello.nl
-Cc: miklos@szeredi.hu, neilb@suse.de, akpm@linux-foundation.org, torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > > > mm-page_file_methods.patch
-> > > > 
-> > > >     This makes page_offset and others more expensive by adding a
-> > > >     conditional jump to a function call that is not usually made.
-> > > > 
-> > > >     Why do swap pages have a different index to everyone else?
-> > > 
-> > > Because the page->index of an anonymous page is related to its (anon)vma
-> > > so that it satisfies the constraints for vm_normal_page().
-> > > 
-> > > The index in the swap file it totally unrelated and quite random. Hence
-> > > the swap-cache uses page->private to store it in.
-> > 
-> > Yeah, and putting the condition into page_offset() will confuse code
-> > which uses it for finding the offset in the VMA or in a tmpfs file.
-> > 
-> > So why not just have a separate page_swap_offset() function, used
-> > exclusively by swap_in/out()?
-> 
-> Ah, we can do the page_file_offset() to match page_file_index() and
-> page_file_mapping(). And convert NFS to use page_file_offset() where
-> appropriate, as I already did for these others.
-> 
-> That would sort out the mess, right?
+* Hugh Dickins <hugh@veritas.com> [2008-02-25 23:36:20]:
 
-Yes, that sounds perfect.
+> Each caller of mem_cgroup_move_lists is having to use page_get_page_cgroup:
+> it's more convenient if it acts upon the page itself not the page_cgroup;
+> and in a later patch this becomes important to handle within memcontrol.c.
+> 
+> Signed-off-by: Hugh Dickins <hugh@veritas.com>
 
-Miklos
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
