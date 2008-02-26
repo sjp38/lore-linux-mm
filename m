@@ -1,85 +1,187 @@
-Date: Tue, 26 Feb 2008 06:29:08 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [patch 5/6] mmu_notifier: Support for drivers with revers maps
-	(f.e. for XPmem)
-Message-ID: <20080226122908.GQ11391@sgi.com>
-References: <20080215064859.384203497@sgi.com> <200802211520.03529.nickpiggin@yahoo.com.au> <20080221105838.GJ11391@sgi.com> <200802261711.33213.nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200802261711.33213.nickpiggin@yahoo.com.au>
+In-reply-to: <20080220150308.142619000@chello.nl> (message from Peter Zijlstra
+	on Wed, 20 Feb 2008 15:46:32 +0100)
+Subject: Re: [PATCH 22/28] mm: add support for non block device backed swap files
+References: <20080220144610.548202000@chello.nl> <20080220150308.142619000@chello.nl>
+Message-Id: <E1JTzBV-0001aO-R3@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 26 Feb 2008 13:45:25 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Robin Holt <holt@sgi.com>, Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Andrea Arcangeli <andrea@qumranet.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: a.p.zijlstra@chello.nl
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> > That is it.  That is all our allowed interaction with the users process.
-> 
-> OK, when you said something along the lines of "the MPT library has
-> control of the comm buffer", then I assumed it was an area of virtual
-> memory which is set up as part of initialization, rather than during
-> runtime. I guess I jumped to conclusions.
+Starting review in the middle, because this is the part I'm most
+familiar with.
 
-There are six regions the MPT library typically makes.  The most basic
-one is a fixed size.  It describes the MPT internal buffers, the stack,
-the heap, the application text, and finally the entire address space.
-That last region is seldom used.  MPT only has control over the first
-two.
+> New addres_space_operations methods are added:
+>   int swapfile(struct address_space *, int);
 
-> > That doesn't seem too unreasonable, except when you compare it to how the
-> > driver currently works.  Remember, this is done from a library which has
-> > no insight into what the user has done to its own virtual address space.
-> > As a result, each MPI_Send() would result in a system call (or we would
-> > need to have a set of callouts for changes to a processes VMAs) which
-> > would be a significant increase in communication overhead.
-> >
-> > Maybe I am missing what you intend to do, but what we need is a means of
-> > tracking one processes virtual address space changes so other processes
-> > can do direct memory accesses without the need for a system call on each
-> > communication event.
-> 
-> Yeah it's tricky. BTW. what is the performance difference between
-> having a system call or no?
+Separate ->swapon() and ->swapoff() methods would be so much cleaner IMO.
 
-The system call takes many microseconds and still requires the same
-latency of the communication.  Without it, our latency is
-usually below two microseconds.
+Also is there a reason why 'struct file *' cannot be supplied to these
+functions?
 
-> > > Because you don't need to swap, you don't need coherency, and you
-> > > are in control of the areas, then this seems like the best choice.
-> > > It would allow you to use heap, stack, file-backed, anything.
-> >
-> > You are missing one point here.  The MPI specifications that have
-> > been out there for decades do not require the process use a library
-> > for allocating the buffer.  I realize that is a horrible shortcoming,
-> > but that is the world we live in.  Even if we could change that spec,
-> 
-> Can you change the spec? Are you working on it?
+[snip]
 
-Even if we changed the spec, the old specs will continue to be
-supported.  I personally am not involved.  Not sure if anybody else is
-working this issue.
+> +int swap_set_page_dirty(struct page *page)
+> +{
+> +	struct swap_info_struct *sis = page_swap_info(page);
+> +
+> +	if (sis->flags & SWP_FILE) {
+> +		const struct address_space_operations *a_ops =
+> +			sis->swap_file->f_mapping->a_ops;
+> +		int (*spd)(struct page *) = a_ops->set_page_dirty;
+> +#ifdef CONFIG_BLOCK
+> +		if (!spd)
+> +			spd = __set_page_dirty_buffers;
+> +#endif
 
-> > we would still need to support the existing specs.  As a result, the
-> > user can change their virtual address space as they need and still expect
-> > communications be cheap.
-> 
-> That's true. How has it been supported up to now? Are you using
-> these kind of notifiers in patched kernels?
+This ifdef is not really needed.  Just require ->set_page_dirty() be
+filled in by filesystems which want swapfiles (and others too, in the
+longer term, the fallback is just historical crud).
 
-At fault time, we check to see if it is an anon or mspec vma.  We pin
-the page an insert them.  The remote OS then losses synchronicity with
-the owning processes page tables.  If an unmap, madvise, etc occurs the
-page tables are updated without regard to our references.  Fork or exit
-(fork is caught using an LD_PRELOAD library) cause the user pages to be
-recalled from the remote side and put_page returns them to the kernel.
-We have documented that this loss of synchronicity is due to their
-action and not supported.  Essentially, we rely upon the application
-being well behaved.  To this point, that has remainded true.
+Here's an incremental patch addressing these issues and beautifying
+the new code.
 
-Thanks,
-Robin
+Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
+
+Index: linux/mm/page_io.c
+===================================================================
+--- linux.orig/mm/page_io.c	2008-02-26 11:15:58.000000000 +0100
++++ linux/mm/page_io.c	2008-02-26 13:40:55.000000000 +0100
+@@ -106,8 +106,10 @@ int swap_writepage(struct page *page, st
+ 	}
+ 
+ 	if (sis->flags & SWP_FILE) {
+-		ret = sis->swap_file->f_mapping->
+-			a_ops->swap_out(sis->swap_file, page, wbc);
++		struct file *swap_file = sis->swap_file;
++		struct address_space *mapping = swap_file->f_mapping;
++
++		ret = mapping->a_ops->swap_out(swap_file, page, wbc);
+ 		if (!ret)
+ 			count_vm_event(PSWPOUT);
+ 		return ret;
+@@ -136,12 +138,13 @@ void swap_sync_page(struct page *page)
+ 	struct swap_info_struct *sis = page_swap_info(page);
+ 
+ 	if (sis->flags & SWP_FILE) {
+-		const struct address_space_operations *a_ops =
+-			sis->swap_file->f_mapping->a_ops;
+-		if (a_ops->sync_page)
+-			a_ops->sync_page(page);
+-	} else
++		struct address_space *mapping = sis->swap_file->f_mapping;
++
++		if (mapping->a_ops->sync_page)
++			mapping->a_ops->sync_page(page);
++	} else {
+ 		block_sync_page(page);
++	}
+ }
+ 
+ int swap_set_page_dirty(struct page *page)
+@@ -149,17 +152,12 @@ int swap_set_page_dirty(struct page *pag
+ 	struct swap_info_struct *sis = page_swap_info(page);
+ 
+ 	if (sis->flags & SWP_FILE) {
+-		const struct address_space_operations *a_ops =
+-			sis->swap_file->f_mapping->a_ops;
+-		int (*spd)(struct page *) = a_ops->set_page_dirty;
+-#ifdef CONFIG_BLOCK
+-		if (!spd)
+-			spd = __set_page_dirty_buffers;
+-#endif
+-		return (*spd)(page);
+-	}
++		struct address_space *mapping = sis->swap_file->f_mapping;
+ 
+-	return __set_page_dirty_nobuffers(page);
++		return mapping->a_ops->set_page_dirty(page);
++	} else {
++		return __set_page_dirty_nobuffers(page);
++	}
+ }
+ 
+ int swap_readpage(struct file *file, struct page *page)
+@@ -172,8 +170,10 @@ int swap_readpage(struct file *file, str
+ 	BUG_ON(PageUptodate(page));
+ 
+ 	if (sis->flags & SWP_FILE) {
+-		ret = sis->swap_file->f_mapping->
+-			a_ops->swap_in(sis->swap_file, page);
++		struct file *swap_file = sis->swap_file;
++		struct address_space *mapping = swap_file->f_mapping;
++
++		ret = mapping->a_ops->swap_in(swap_file, page);
+ 		if (!ret)
+ 			count_vm_event(PSWPIN);
+ 		return ret;
+Index: linux/include/linux/fs.h
+===================================================================
+--- linux.orig/include/linux/fs.h	2008-02-26 11:15:58.000000000 +0100
++++ linux/include/linux/fs.h	2008-02-26 13:29:40.000000000 +0100
+@@ -485,7 +485,8 @@ struct address_space_operations {
+ 	/*
+ 	 * swapfile support
+ 	 */
+-	int (*swapfile)(struct address_space *, int);
++	int (*swapon)(struct file *file);
++	int (*swapoff)(struct file *file);
+ 	int (*swap_out)(struct file *file, struct page *page,
+ 			struct writeback_control *wbc);
+ 	int (*swap_in)(struct file *file, struct page *page);
+Index: linux/mm/swapfile.c
+===================================================================
+--- linux.orig/mm/swapfile.c	2008-02-26 12:43:57.000000000 +0100
++++ linux/mm/swapfile.c	2008-02-26 13:34:57.000000000 +0100
+@@ -1014,9 +1014,11 @@ static void destroy_swap_extents(struct 
+ 	}
+ 
+ 	if (sis->flags & SWP_FILE) {
++		struct file *swap_file = sis->swap_file;
++		struct address_space *mapping = swap_file->f_mapping;
++
+ 		sis->flags &= ~SWP_FILE;
+-		sis->swap_file->f_mapping->a_ops->
+-			swapfile(sis->swap_file->f_mapping, 0);
++		mapping->a_ops->swapoff(swap_file);
+ 	}
+ }
+ 
+@@ -1092,7 +1094,9 @@ add_swap_extent(struct swap_info_struct 
+  */
+ static int setup_swap_extents(struct swap_info_struct *sis, sector_t *span)
+ {
+-	struct inode *inode;
++	struct file *swap_file = sis->swap_file;
++	struct address_space *mapping = swap_file->f_mapping;
++	struct inode *inode = mapping->host;
+ 	unsigned blocks_per_page;
+ 	unsigned long page_no;
+ 	unsigned blkbits;
+@@ -1103,16 +1107,14 @@ static int setup_swap_extents(struct swa
+ 	int nr_extents = 0;
+ 	int ret;
+ 
+-	inode = sis->swap_file->f_mapping->host;
+ 	if (S_ISBLK(inode->i_mode)) {
+ 		ret = add_swap_extent(sis, 0, sis->max, 0);
+ 		*span = sis->pages;
+ 		goto done;
+ 	}
+ 
+-	if (sis->swap_file->f_mapping->a_ops->swapfile) {
+-		ret = sis->swap_file->f_mapping->a_ops->
+-			swapfile(sis->swap_file->f_mapping, 1);
++	if (mapping->a_ops->swapon) {
++		ret = mapping->a_ops->swapon(swap_file);
+ 		if (!ret) {
+ 			sis->flags |= SWP_FILE;
+ 			ret = add_swap_extent(sis, 0, sis->max, 0);
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
