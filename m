@@ -1,43 +1,36 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m1Q2l9jx001566
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2008 13:47:09 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1Q2lK0j3641402
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2008 13:47:21 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1Q2lKdN022431
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2008 13:47:20 +1100
-Message-ID: <47C37C74.4020909@linux.vnet.ibm.com>
-Date: Tue, 26 Feb 2008 08:11:56 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Date: Tue, 26 Feb 2008 02:56:14 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH 13/15] memcg: fix mem_cgroup_move_lists locking
+In-Reply-To: <20080226104303.5db0df8e.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0802260254290.14896@blonde.site>
+References: <Pine.LNX.4.64.0802252327490.27067@blonde.site>
+ <Pine.LNX.4.64.0802252347160.27067@blonde.site>
+ <20080226104303.5db0df8e.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/15] memcg: mm_match_cgroup not vm_match_cgroup
-References: <Pine.LNX.4.64.0802252327490.27067@blonde.site> <Pine.LNX.4.64.0802252334190.27067@blonde.site>
-In-Reply-To: <Pine.LNX.4.64.0802252334190.27067@blonde.site>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> vm_match_cgroup is a perverse name for a macro to match mm with cgroup:
-> rename it mm_match_cgroup, matching mm_init_cgroup and mm_free_cgroup.
+On Tue, 26 Feb 2008, KAMEZAWA Hiroyuki wrote:
+> On Mon, 25 Feb 2008 23:49:04 +0000 (GMT)
+> Hugh Dickins <hugh@veritas.com> wrote:
+> > 
+> > This patch immediately gets replaced by a simpler one from Hirokazu-san;
+> > but is it just foolish pride that tells me to put this one on record,
+> > in case we need to come back to it later?
+> > 
+> > Signed-off-by: Hugh Dickins <hugh@veritas.com>
+> > ---
+> yes, we need this patch.
 > 
-> Signed-off-by: Hugh Dickins <hugh@veritas.com>
+> BTW, what is "a simpler one from Hirokazu-san" ? 
 
-Agreed
+14/15: most of the complexity of this 13/15 is immediately removed in 14/15.
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
