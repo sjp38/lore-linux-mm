@@ -1,34 +1,79 @@
-Date: Tue, 26 Feb 2008 09:21:37 +0200
-Subject: Re: [ofa-general] Re: [patch 5/6] mmu_notifier: Support for
-	drivers with revers maps (f.e. for XPmem)
-Message-ID: <20080226072137.GD26611@minantech.com>
-References: <20080215064859.384203497@sgi.com> <200802211520.03529.nickpiggin@yahoo.com.au> <20080221105838.GJ11391@sgi.com> <200802261711.33213.nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200802261711.33213.nickpiggin@yahoo.com.au>
-From: glebn@voltaire.com (Gleb Natapov)
+Date: Tue, 26 Feb 2008 16:46:41 +0900 (JST)
+Message-Id: <20080226.164641.117922308.taka@valinux.co.jp>
+Subject: Re: [RFC][PATCH] radix-tree based page_cgroup. [1/7] definitions
+ for page_cgroup
+From: Hirokazu Takahashi <taka@valinux.co.jp>
+In-Reply-To: <20080225170352.2415dc58.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080225121034.bd74be07.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080225.164745.47821156.taka@valinux.co.jp>
+	<20080225170352.2415dc58.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Robin Holt <holt@sgi.com>, steiner@sgi.com, Andrea Arcangeli <andrea@qumranet.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Izik Eidus <izike@qumranet.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, general@lists.openfabrics.org, akpm@linux-foundation.org, Christoph Lameter <clameter@sgi.com>
+To: kamezawa.hiroyu@jp.fujitsu.com
+Cc: balbir@linux.vnet.ibm.com, hugh@veritas.com, yamamoto@valinux.co.jp, ak@suse.de, nickpiggin@yahoo.com.au, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 26, 2008 at 05:11:32PM +1100, Nick Piggin wrote:
-> > You are missing one point here.  The MPI specifications that have
-> > been out there for decades do not require the process use a library
-> > for allocating the buffer.  I realize that is a horrible shortcoming,
-> > but that is the world we live in.  Even if we could change that spec,
-> 
-> Can you change the spec?
-Not really. It will break all existing codes. MPI-2 provides a call for
-memory allocation (and it's beneficial to use this call for some interconnects),
-but many (most?) applications are still written for MPI-1 and those that
-are written for MPI-2 mostly uses the old habit of allocating memory by malloc(),
-or even use stack or BSS memory for communication buffer purposes.
+Hi,
 
---
-			Gleb.
+> > > +struct mem_cgroup;
+> > > +
+> > > +struct page_cgroup {
+> > > +	struct page 		*page;       /* the page this accounts for*/
+> > > +	struct mem_cgroup 	*mem_cgroup; /* current cgroup subsys */
+> > > +	int    			flags;	     /* See below */
+> > > +	int    			refcnt;      /* reference count */
+> > > +	spinlock_t		lock;        /* lock for all above members */
+> > > +	struct list_head 	lru;         /* for per cgroup LRU */
+> > > +};
+> > 
+> > You can possible reduce the size of page_cgroup structure not to consume
+> > a lot of memory. I think this is important.
+> > 
+> > I have some ideas:
+> > (1) I don't think every struct page_cgroup needs to have a "lock" member.
+> >     I think one "lock" variable for several page_cgroup will be also enough
+> >     from a performance viewpoint. In addition, it will become low-impact for
+> >     cache memory. I guess it may be okay if each array of page_cgroup --
+> >     which you just introduced now -- has one lock variable.
+> 
+> I think it will increase cache-bouncing, but I have no data.
+
+Yes, that's the point. There will be some tradeoff between the cache-bouncing
+and the memory usage. 
+
+> (I notices that lock bit can be moved to flags and use bit_spin_lock.
+>  But I wouldn't like to do it at this stage.)
+
+Yep.
+
+> > (2) The "flags" member and the "refcnt" member can be encoded into
+> >     one member.
+> 
+> I don't like this idea.
+> Because some people discuss about enlarging 32bit countes in struct 'page'
+> to be 64bit, I wonder refcnt should be "unsigned long", now.
+
+I don't think the refcnt member of page_cgroup will need such a large
+counter. I think you can make it small.
+
+> > (3) The page member can be replaced with the page frame number and it will be
+> >     also possible to use some kind of ID instead of the mem_cgroup member.
+> >     This means these members can be encoded to one members with other members
+> >     such as "flags" and "refcnt"
+>  
+> I think there is a case that "pfn" doesn't fit in 32bit.
+> (64bit system tend to have sparse address space.)
+> We need unsigned long anyway.
+
+It will be a 64bit variable on a 64bit machine, where the pointers are
+also 64bit long. I think you can encode "pfn" and other stuff into one
+64bit variable.
+
+Thank you,
+Hirokazu Takahashi.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
