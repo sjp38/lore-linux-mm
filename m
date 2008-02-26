@@ -1,10 +1,10 @@
-Date: Tue, 26 Feb 2008 10:30:49 +0900
+Date: Tue, 26 Feb 2008 10:32:35 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 05/15] memcg: fix VM_BUG_ON from page migration
-Message-Id: <20080226103049.71aefbbe.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0802252338080.27067@blonde.site>
+Subject: Re: [PATCH 07/15] memcg: mem_cgroup_charge never NULL
+Message-Id: <20080226103235.afe4d2f8.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0802252340210.27067@blonde.site>
 References: <Pine.LNX.4.64.0802252327490.27067@blonde.site>
-	<Pine.LNX.4.64.0802252338080.27067@blonde.site>
+	<Pine.LNX.4.64.0802252340210.27067@blonde.site>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -14,27 +14,22 @@ To: Hugh Dickins <hugh@veritas.com>
 Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Feb 2008 23:39:23 +0000 (GMT)
+On Mon, 25 Feb 2008 23:41:17 +0000 (GMT)
 Hugh Dickins <hugh@veritas.com> wrote:
 
-> Page migration gave me free_hot_cold_page's VM_BUG_ON page->page_cgroup.
-> remove_migration_pte was calling mem_cgroup_charge on the new page whenever
-> it found a swap pte, before it had determined it to be a migration entry.
-> That left a surplus reference count on the page_cgroup, so it was still
-> attached when the page was later freed.
+> My memcgroup patch to fix hang with shmem/tmpfs added NULL page handling
+> to mem_cgroup_charge_common.  It seemed convenient at the time, but hard
+> to justify now: there's a perfectly appropriate swappage to charge and
+> uncharge instead, this is not on any hot path through shmem_getpage,
+> and no performance hit was observed from the slight extra overhead.
 > 
-> Move that mem_cgroup_charge down to where we're sure it's a migration entry.
-> We were already under i_mmap_lock or anon_vma->lock, so its GFP_KERNEL was
-> already inappropriate: change that to GFP_ATOMIC.
-> 
-> It's essential that remove_migration_pte removes all the migration entries,
-> other crashes follow if not.  So proceed even when the charge fails: normally
-> it cannot, but after a mem_cgroup_force_empty it might - comment in the code.
+> So revert that NULL page handling from mem_cgroup_charge_common; and
+> make it clearer by bringing page_cgroup_assign_new_page_cgroup into its
+> body - that was a helper I found more of a hindrance to understanding.
 > 
 > Signed-off-by: Hugh Dickins <hugh@veritas.com>
 > ---
-
-make sense
+This is welcome.
 
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
