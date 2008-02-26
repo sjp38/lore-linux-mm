@@ -1,49 +1,79 @@
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28esmtp04.in.ibm.com (8.13.1/8.13.1) with ESMTP id m1Q3aF1Z004721
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2008 09:06:15 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1Q3aFFx991318
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2008 09:06:15 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id m1Q3aFRB010125
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2008 03:36:15 GMT
-Message-ID: <47C387EC.4070900@linux.vnet.ibm.com>
-Date: Tue, 26 Feb 2008 09:00:52 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH] Memory Resource Controller use strstrip while parsing
- arguments
-References: <20080225182746.9512.21582.sendpatchset@localhost.localdomain> <20080225105606.bcab215e.akpm@linux-foundation.org>
-In-Reply-To: <20080225105606.bcab215e.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Tue, 26 Feb 2008 13:09:44 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 14/15] memcg: simplify force_empty and move_lists
+Message-Id: <20080226130944.78eefdc7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0802260256320.14896@blonde.site>
+References: <Pine.LNX.4.64.0802252327490.27067@blonde.site>
+	<Pine.LNX.4.64.0802252349100.27067@blonde.site>
+	<20080226104834.5bbd7f20.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0802260256320.14896@blonde.site>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Mon, 25 Feb 2008 23:57:46 +0530 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Tue, 26 Feb 2008 03:23:17 +0000 (GMT)
+Hugh Dickins <hugh@veritas.com> wrote:
+
+> On Tue, 26 Feb 2008, KAMEZAWA Hiroyuki wrote:
+> > > +		get_page(page);
+> > How about this?
+> > > +		spin_unlock_irqrestore(&mz->lru_lock, flags);
+> > 		local_irq_save(flags):
+> > 		if (TestSetPageLocked(page)) {
 > 
->> The memory controller has a requirement that while writing values, we need
->> to use echo -n. This patch fixes the problem and makes the UI more consistent.
+> I think you meant !TestSetPageLocked ;)
 > 
-> that's a decent improvement ;)
+> > 	> +		mem_cgroup_uncharge_page(page);
+> > 	> +		put_page(page);
+> > 	> +		if (--count <= 0) {
+> > 	> +			count = FORCE_UNCHARGE_BATCH;
+> > 	> +			cond_resched();
+> > 	>  		}
+> > 	> +		spin_lock_irqsave(&mz->lru_lock, flags);
+> > 			unlock_page(page);
+> > 		}
+> > 		local_irq_restore(flags);
+> > 
+> > page's lock bit guarantees 100% safe against page migration.
+> > (And most of other charging/uncharging callers.)
 > 
-> btw, could I ask that you, Paul and others who work on this and cgroups
-> have a think about a ./MAINTAINERS update?
+> That simply doesn't solve any problem I've observed yet.  It appears
+> (so far!) that I can safely run for hours with 1-15/15, doing random
+> page migrations and force_empties concurrently (commenting out the
+> EBUSY check on mem->css.cgroup->count).
+> 
+> The problem with force_empty is that it leaves the pages it touched
+> in a state inconsistent with normality, not that it's racy while it's
+> touching them.
+> 
+> If your TestSetPageLocked actually solves some problem, we could add
+> that; though it'd be the first reference to PageLocked in that source
+> file, and you're adding a long busy loop there while a page is locked
+> (broken by cond_resched, but still burning cpu).  Hmm, on top of that,
+> add_to_page_cache puts the page on the mem_cgroup lru a few instants
+> before it does its SetPageLocked.  So I'd certainly want you to show
+> what you're solving with this before we should add it.
+> 
+unlock place was bad ;(
+But ok, PageLock is no help here.
 
-Aah.. yes.. we should do that.
+BTW, I'm now removing page->page_cgroup and adding spinlock into
+page_cgroup and changing all rules. And probably, add new races and
+break something. I'm now rebasing them on to your fix.
+
+I hope your help again.
+
+
+Thanks,
+-Kame
 
 
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
