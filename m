@@ -1,10 +1,10 @@
-Date: Tue, 26 Feb 2008 10:32:35 +0900
+Date: Tue, 26 Feb 2008 10:34:43 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 07/15] memcg: mem_cgroup_charge never NULL
-Message-Id: <20080226103235.afe4d2f8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0802252340210.27067@blonde.site>
+Subject: Re: [PATCH 08/15] memcg: remove mem_cgroup_uncharge
+Message-Id: <20080226103443.f0c022c2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0802252341250.27067@blonde.site>
 References: <Pine.LNX.4.64.0802252327490.27067@blonde.site>
-	<Pine.LNX.4.64.0802252340210.27067@blonde.site>
+	<Pine.LNX.4.64.0802252341250.27067@blonde.site>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -14,22 +14,20 @@ To: Hugh Dickins <hugh@veritas.com>
 Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Feb 2008 23:41:17 +0000 (GMT)
+On Mon, 25 Feb 2008 23:42:05 +0000 (GMT)
 Hugh Dickins <hugh@veritas.com> wrote:
 
-> My memcgroup patch to fix hang with shmem/tmpfs added NULL page handling
-> to mem_cgroup_charge_common.  It seemed convenient at the time, but hard
-> to justify now: there's a perfectly appropriate swappage to charge and
-> uncharge instead, this is not on any hot path through shmem_getpage,
-> and no performance hit was observed from the slight extra overhead.
+> Nothing uses mem_cgroup_uncharge apart from mem_cgroup_uncharge_page,
+> (a trivial wrapper around it) and mem_cgroup_end_migration (which does
+> the same as mem_cgroup_uncharge_page).  And it often ends up having to
+> lock just to let its caller unlock.  Remove it (but leave the silly
+> locking until a later patch).
 > 
-> So revert that NULL page handling from mem_cgroup_charge_common; and
-> make it clearer by bringing page_cgroup_assign_new_page_cgroup into its
-> body - that was a helper I found more of a hindrance to understanding.
+> Moved mem_cgroup_cache_charge next to mem_cgroup_charge in memcontrol.h.
 > 
 > Signed-off-by: Hugh Dickins <hugh@veritas.com>
-> ---
-This is welcome.
+
+Hmm, ok.
 
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
