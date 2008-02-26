@@ -1,59 +1,38 @@
-Received: by rv-out-0910.google.com with SMTP id f1so1434509rvb.26
-        for <linux-mm@kvack.org>; Tue, 26 Feb 2008 05:31:51 -0800 (PST)
-Message-ID: <44c63dc40802260531o2102759l4463e62fa9b78e1b@mail.gmail.com>
-Date: Tue, 26 Feb 2008 22:31:51 +0900
-From: "minchan Kim" <barrioskmc@gmail.com>
-Subject: Re: [RFC][PATCH] radix-tree based page_cgroup. [7/7] per cpu fast lookup
-In-Reply-To: <44c63dc40802260526x3283baf2tb4ab71b384a4ab58@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080225120758.27648297.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20080225121849.191ac900.kamezawa.hiroyu@jp.fujitsu.com>
-	 <44c63dc40802260526x3283baf2tb4ab71b384a4ab58@mail.gmail.com>
+In-reply-to: <1204023042.6242.271.camel@lappy> (message from Peter Zijlstra on
+	Tue, 26 Feb 2008 11:50:42 +0100)
+Subject: Re: [PATCH 00/28] Swap over NFS -v16
+References: <20080220144610.548202000@chello.nl>
+	 <20080223000620.7fee8ff8.akpm@linux-foundation.org>
+	 <18371.43950.150842.429997@notabene.brown> <1204023042.6242.271.camel@lappy>
+Message-Id: <E1JU1kk-0001t9-25@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 26 Feb 2008 16:29:58 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh@veritas.com" <hugh@veritas.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, taka@valinux.co.jp, Andi Kleen <ak@suse.de>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: a.p.zijlstra@chello.nl
+Cc: neilb@suse.de, akpm@linux-foundation.org, torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 List-ID: <linux-mm.kvack.org>
 
-I knew you purpose with following patch <radix-tree based page_cgroup.
-[8/7] vmalloc for large machines>
-I am afraid your patch list isn't arranged well. :-<
+> > mm-page_file_methods.patch
+> > 
+> >     This makes page_offset and others more expensive by adding a
+> >     conditional jump to a function call that is not usually made.
+> > 
+> >     Why do swap pages have a different index to everyone else?
+> 
+> Because the page->index of an anonymous page is related to its (anon)vma
+> so that it satisfies the constraints for vm_normal_page().
+> 
+> The index in the swap file it totally unrelated and quite random. Hence
+> the swap-cache uses page->private to store it in.
 
-On Tue, Feb 26, 2008 at 10:26 PM, minchan Kim <barrioskmc@gmail.com> wrote:
-> >  -struct page_cgroup *get_page_cgroup(struct page *page, gfp_t gfpmask)
->  >  +struct page_cgroup *__get_page_cgroup(struct page *page, gfp_t gfpmask)
->  >   {
->  >         struct page_cgroup_root *root;
->  >         struct page_cgroup *pc, *base_addr;
->  >  @@ -96,8 +110,14 @@ retry:
->  >         pc = radix_tree_lookup(&root->root_node, idx);
->  >         rcu_read_unlock();
->  >
->  >  +       if (pc) {
->  >  +               if (!in_interrupt())
->  >  +                       save_result(pc, idx);
->  >  +       }
->  >  +
->
->  I didn't look through mem_control's patches yet.
->  Please understand me if my question might be foolish.
->
->  why do you prevent when it happen in interrupt context ?
->  Do you have any reason ?
->
->  --
->  Thanks,
->  barrios
->
+Yeah, and putting the condition into page_offset() will confuse code
+which uses it for finding the offset in the VMA or in a tmpfs file.
 
+So why not just have a separate page_swap_offset() function, used
+exclusively by swap_in/out()?
 
-
--- 
-Thanks,
-barrios
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
