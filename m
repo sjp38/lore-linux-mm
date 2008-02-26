@@ -6,8 +6,8 @@ References: <20080220144610.548202000@chello.nl>
 	 <18371.43950.150842.429997@notabene.brown>
 	 <1204023042.6242.271.camel@lappy>  <E1JU1kk-0001t9-25@pomaz-ex.szeredi.hu>
 Content-Type: text/plain
-Date: Tue, 26 Feb 2008 16:41:57 +0100
-Message-Id: <1204040517.6242.324.camel@lappy>
+Date: Tue, 26 Feb 2008 16:43:49 +0100
+Message-Id: <1204040629.6242.326.camel@lappy>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -31,20 +31,16 @@ On Tue, 2008-02-26 at 16:29 +0100, Miklos Szeredi wrote:
 > > the swap-cache uses page->private to store it in.
 > 
 > Yeah, and putting the condition into page_offset() will confuse code
-> which uses it for finding the offset in the VMA 
-
-Right, do we do that anywhere?
-
-> or in a tmpfs file.
-
-Good point. I really should go read tmpfs some day, its really a blind
-spot for me.
-
+> which uses it for finding the offset in the VMA or in a tmpfs file.
+> 
 > So why not just have a separate page_swap_offset() function, used
 > exclusively by swap_in/out()?
 
-That would require duplicating quite a lot of NFS code from what I can
-see.
+Ah, we can do the page_file_offset() to match page_file_index() and
+page_file_mapping(). And convert NFS to use page_file_offset() where
+appropriate, as I already did for these others.
+
+That would sort out the mess, right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
