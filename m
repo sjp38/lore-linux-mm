@@ -1,27 +1,28 @@
-Date: Wed, 27 Feb 2008 08:45:05 +0900
+Date: Wed, 27 Feb 2008 08:46:10 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 02/15] memcg: move_lists on page not page_cgroup
-Message-Id: <20080227084505.84f3cfb8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0802252335400.27067@blonde.site>
+Subject: Re: [PATCH 01/15] memcg: mm_match_cgroup not vm_match_cgroup
+Message-Id: <20080227084610.f6f8a0f6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0802252334190.27067@blonde.site>
 References: <Pine.LNX.4.64.0802252327490.27067@blonde.site>
-	<Pine.LNX.4.64.0802252335400.27067@blonde.site>
+	<Pine.LNX.4.64.0802252334190.27067@blonde.site>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-mm@kvack.org
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Feb 2008 23:36:20 +0000 (GMT)
+On Mon, 25 Feb 2008 23:35:33 +0000 (GMT)
 Hugh Dickins <hugh@veritas.com> wrote:
 
-> Each caller of mem_cgroup_move_lists is having to use page_get_page_cgroup:
-> it's more convenient if it acts upon the page itself not the page_cgroup;
-> and in a later patch this becomes important to handle within memcontrol.c.
+> vm_match_cgroup is a perverse name for a macro to match mm with cgroup:
+> rename it mm_match_cgroup, matching mm_init_cgroup and mm_free_cgroup.
 > 
 > Signed-off-by: Hugh Dickins <hugh@veritas.com>
+> ---
+make sense
 
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
