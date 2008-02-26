@@ -1,58 +1,31 @@
-Date: Tue, 26 Feb 2008 03:23:17 +0000 (GMT)
+Date: Tue, 26 Feb 2008 03:27:10 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 14/15] memcg: simplify force_empty and move_lists
-In-Reply-To: <20080226104834.5bbd7f20.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0802260256320.14896@blonde.site>
+Subject: Re: [PATCH 01/15] memcg: mm_match_cgroup not vm_match_cgroup
+In-Reply-To: <alpine.DEB.1.00.0802251638470.7785@chino.kir.corp.google.com>
+Message-ID: <Pine.LNX.4.64.0802260324550.17576@blonde.site>
 References: <Pine.LNX.4.64.0802252327490.27067@blonde.site>
- <Pine.LNX.4.64.0802252349100.27067@blonde.site>
- <20080226104834.5bbd7f20.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0802252334190.27067@blonde.site>
+ <alpine.DEB.1.00.0802251638470.7785@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Feb 2008, KAMEZAWA Hiroyuki wrote:
-> > +		get_page(page);
-> How about this?
-> > +		spin_unlock_irqrestore(&mz->lru_lock, flags);
-> 		local_irq_save(flags):
-> 		if (TestSetPageLocked(page)) {
-
-I think you meant !TestSetPageLocked ;)
-
-> 	> +		mem_cgroup_uncharge_page(page);
-> 	> +		put_page(page);
-> 	> +		if (--count <= 0) {
-> 	> +			count = FORCE_UNCHARGE_BATCH;
-> 	> +			cond_resched();
-> 	>  		}
-> 	> +		spin_lock_irqsave(&mz->lru_lock, flags);
-> 			unlock_page(page);
-> 		}
-> 		local_irq_restore(flags);
+On Mon, 25 Feb 2008, David Rientjes wrote:
+> On Mon, 25 Feb 2008, Hugh Dickins wrote:
 > 
-> page's lock bit guarantees 100% safe against page migration.
-> (And most of other charging/uncharging callers.)
+> > vm_match_cgroup is a perverse name for a macro to match mm with cgroup:
+> > rename it mm_match_cgroup, matching mm_init_cgroup and mm_free_cgroup.
+> > 
+> > Signed-off-by: Hugh Dickins <hugh@veritas.com>
+> 
+> +torvalds, who suggested the vm_match_cgroup name.
 
-That simply doesn't solve any problem I've observed yet.  It appears
-(so far!) that I can safely run for hours with 1-15/15, doing random
-page migrations and force_empties concurrently (commenting out the
-EBUSY check on mem->css.cgroup->count).
-
-The problem with force_empty is that it leaves the pages it touched
-in a state inconsistent with normality, not that it's racy while it's
-touching them.
-
-If your TestSetPageLocked actually solves some problem, we could add
-that; though it'd be the first reference to PageLocked in that source
-file, and you're adding a long busy loop there while a page is locked
-(broken by cond_resched, but still burning cpu).  Hmm, on top of that,
-add_to_page_cache puts the page on the mem_cgroup lru a few instants
-before it does its SetPageLocked.  So I'd certainly want you to show
-what you're solving with this before we should add it.
+Ah, then I apologize for implying that you're a pervert, David:
+Linus, well, we all know about him ... ;)
 
 Hugh
 
