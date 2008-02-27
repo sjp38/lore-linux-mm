@@ -1,46 +1,25 @@
-Date: Wed, 27 Feb 2008 14:43:41 -0800 (PST)
+Date: Wed, 27 Feb 2008 14:50:50 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 5/6] mmu_notifier: Support for drivers with revers maps
- (f.e. for XPmem)
-In-Reply-To: <200802201055.21343.nickpiggin@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0802271440530.13186@schroedinger.engr.sgi.com>
-References: <20080215064859.384203497@sgi.com> <20080215064933.376635032@sgi.com>
- <200802201055.21343.nickpiggin@yahoo.com.au>
+Subject: Re: [patch] my mmu notifiers
+In-Reply-To: <20080219142725.GA23200@sgi.com>
+Message-ID: <Pine.LNX.4.64.0802271450030.13186@schroedinger.engr.sgi.com>
+References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random>
+ <20080219142725.GA23200@sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: akpm@linux-foundation.org, Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Jack Steiner <steiner@sgi.com>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 20 Feb 2008, Nick Piggin wrote:
+On Tue, 19 Feb 2008, Jack Steiner wrote:
 
-> I don't know how this is supposed to solve anything. The sleeping
-> problem happens I guess mostly in truncate. And all you are doing
-> is putting these rmap callbacks in page_mkclean and try_to_unmap.
+> In general, though, I agree. Most users of mmu_notifiers would likely
+> required a mutex or something equivalent.
 
-truncate is handled by the range invalidates. This is special code to deal 
-with the unnap/clean of an individual page.
-
-> That doesn't seem right. To start with, the new callbacks aren't
-> even called in the places where invalidate_page isn't allowed to
-> sleep.
-> 
-> The problem is unmap_mapping_range, right? And unmap_mapping_range
-> must walk the rmaps with the mmap lock held, which is why it can't
-> sleep. And it can't hold any mmap_sem so it cannot prevent address
-
-Nope. unmap_mapping_range is already handled by the range callbacks.
-
-> So in the meantime, you could have eg. a fault come in and set up a
-> new page for one of the processes, and that page might even get
-> exported via the same external driver. And now you have a totally
-> inconsistent view.
-
-The situation that you are imagining has already been dealt with by the 
-earlier patches. This is only to allow sleeping while unmapping individual 
-pages.
+The skeletons shows how to do most of it using a spinlock and a 
+counter.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
