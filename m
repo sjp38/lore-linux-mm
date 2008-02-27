@@ -1,101 +1,69 @@
-From: Neil Brown <neilb@suse.de>
-Date: Wed, 27 Feb 2008 16:51:13 +1100
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28esmtp02.in.ibm.com (8.13.1/8.13.1) with ESMTP id m1R5sR1h030049
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 11:24:27 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1R5sRTu925792
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 11:24:27 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id m1R5sWbq029790
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 05:54:32 GMT
+Message-ID: <47C4F9C0.5010607@linux.vnet.ibm.com>
+Date: Wed, 27 Feb 2008 11:18:48 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [RFC][PATCH] page reclaim throttle take2
+References: <47C4EF2D.90508@linux.vnet.ibm.com> <alpine.DEB.1.00.0802262115270.1799@chino.kir.corp.google.com> <20080227143301.4252.KOSAKI.MOTOHIRO@jp.fujitsu.com> <alpine.DEB.1.00.0802262145410.31356@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.1.00.0802262145410.31356@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Message-ID: <18372.64081.995262.986841@notabene.brown>
-Subject: Re: [PATCH 00/28] Swap over NFS -v16
-In-Reply-To: message from Peter Zijlstra on Tuesday February 26
-References: <20080220144610.548202000@chello.nl>
-	<20080223000620.7fee8ff8.akpm@linux-foundation.org>
-	<18371.43950.150842.429997@notabene.brown>
-	<1204023042.6242.271.camel@lappy>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
+To: David Rientjes <rientjes@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Hi Peter,
-
-On Tuesday February 26, a.p.zijlstra@chello.nl wrote:
-> Hi Neil,
+David Rientjes wrote:
+> On Wed, 27 Feb 2008, KOSAKI Motohiro wrote:
 > 
-> Thanks for taking a look, and giving such elaborate feedback. I'll try
-> and address these issues asap, but first let me reply to a few points
-> here.
-
-Thanks... the tree thing is starting to make sense, and I'm not
-confused my __mem_reserve_add any more :-)
-
-I've been having a closer read of some of the code that I skimmed over
-before and I have some more questions.
-
-1/ I note there is no way to tell if memory returned by kmalloc is
-  from the emergency reserve - which contrasts with alloc_page
-  which does make that information available through page->reserve.
-  This seems a slightly unfortunate aspect of the interface.
-
-  It seems to me that __alloc_skb could be simpler if this
-  information was available.  It currently tries the allocation
-  normally, then if that fails it retries with __GFP_MEMALLOC set and
-  if that works it assume it was from the emergency pool ... which it
-  might not be, though the assumption is safe enough.
-
-  It would seem to be nicer if you could just make the one alloc call,
-  setting GFP_MEMALLOC if that might be appropriate.  Then if the
-  memory came from the emergency reserve, flag it as an emergency skb.
-
-  However doing that would have issues with reservations.... the
-  mem_reserve would need to be passed to kmalloc :-(
-
-2/ It doesn't appear to be possible to wait on a reservation. i.e. if
-   mem_reserve_*_charge fails, we might sometimes want to wait until
-   it will succeed.  This feature is an integral part of how mempools
-   work and are used.  If you want reservations to (be able to)
-   replace mempools, then waiting really is needed.
-
-   It seems that waiting would work best if it was done quite low down
-   inside kmalloc.  That would require kmalloc to know which
-   'mem_reserve' you are using which it currently doesn't.
-
-   If it did, then it could choose to use emergency pages if the
-   mem_reserve allowed it more space, otherwise require a regular page.
-   And if __GFP_WAIT is set then each time around the loop it could
-   revise whether to use an emergency page or not, based on whether it
-   can successfully charge the reservation.
-
-   Of course, having a mem_reserve available for PF_MEMALLOC
-   allocations would require changing every kmalloc call in the
-   protected region, which might not be ideal, but might not be a
-   major hassle, and would ensure that you find all kmalloc calls that
-   might be made while in PF_MALLOC state.
-
-3/ Thinking about the tree structure a bit more:  Your motivation
-   seems to be that it allows you to make two separate reservations,
-   and then charge some memory usage again either-one-of-the-other.
-   This seems to go against a key attribute of reservations.  I would
-   have thought that an important rule about reservations is that
-   no-one else can use memory reserved for a particular purpose.
-   So if IPv6 reserves some memory, and the IPv4 uses it, that doesn't
-   seem like something we want to encourage...
+>>> I disagree, the config option is indeed static but so is the NUMA topology 
+>>> of the machine.  It represents the maximum number of page reclaim threads 
+>>> that should be allowed for that specific topology; a maximum should not 
+>>> need to be redefined with yet another sysctl and should remain independent 
+>>> of various workloads.
+>> ok.
+>>
+>>> However, I would recommend adding the word "MAX" to the config option.
+>> MAX_PARALLEL_RECLAIM_TASK is good word?
+>>
+> 
+> I'd use _THREAD instead of _TASK, but I'd also wait for Balbir's input 
+> because perhaps I missed something in my original analysis that this 
+> config option represents only the maximum number of concurrent reclaim 
+> threads and other heuristics are used in addition to this that determine 
+> the exact number of threads depending on VM strain.
+> 
 
 
-4/ __netdev_alloc_page is bothering me a bit.
-   This is used to allocate memory for incoming fragments in a
-   (potentially multi-fragment) packet.  But we only rx_emergency_get
-   for each page as it arrives rather than all at once at the start.
-   So you could have a situation where two very large packets are
-   arriving at the same time and there is enough reserve to hold
-   either of them but not both.  The current code will hand out that
-   reservation a little (well, one page) at a time to each packet and
-   will run out before either packet has been fully received.  This
-   seems like a bad thing.  Is it?
+Things are changing, with memory hot-add remove, CPU hotplug , the topology can
+change and is no longer static. One can create fake NUMA nodes on the fly using
+a boot option as well.
 
-   Is it possible to do the rx_emergency_get just once of the whole
-   packet I wonder?
+Since we're talking of parallel reclaims, I think it's a function of CPUs and
+Nodes. I'd rather keep it as a sysctl with a good default value based on the
+topology. If we end up getting it wrong, the system administrator has a choice.
+That is better than expecting him/her to recompile the kernel and boot that. A
+sysctl does not create problems either w.r.t changing the number of threads, no
+hard to solve race-conditions - it is fairly straight forward
 
-NeilBrown
+
+
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
