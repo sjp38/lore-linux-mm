@@ -1,52 +1,40 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28esmtp05.in.ibm.com (8.13.1/8.13.1) with ESMTP id m1R8hsOC020247
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 14:13:54 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1R8hsT4962808
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 14:13:54 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id m1R8hrFw008969
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 08:43:53 GMT
-Date: Wed, 27 Feb 2008 14:08:21 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 06/15] memcg: bad page if page_cgroup when free
-Message-ID: <20080227083646.GC2317@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <Pine.LNX.4.64.0802252327490.27067@blonde.site> <Pine.LNX.4.64.0802252339310.27067@blonde.site>
+Date: Wed, 27 Feb 2008 00:47:17 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC][PATCH] page reclaim throttle take2
+In-Reply-To: <47C51856.7060408@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.1.00.0802270045400.31372@chino.kir.corp.google.com>
+References: <47C4EF2D.90508@linux.vnet.ibm.com> <alpine.DEB.1.00.0802262115270.1799@chino.kir.corp.google.com> <20080227143301.4252.KOSAKI.MOTOHIRO@jp.fujitsu.com> <alpine.DEB.1.00.0802262145410.31356@chino.kir.corp.google.com> <47C4F9C0.5010607@linux.vnet.ibm.com>
+ <alpine.DEB.1.00.0802262201390.1613@chino.kir.corp.google.com> <47C51856.7060408@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0802252339310.27067@blonde.site>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-mm@kvack.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-* Hugh Dickins <hugh@veritas.com> [2008-02-25 23:40:14]:
+On Wed, 27 Feb 2008, Balbir Singh wrote:
 
-> Replace free_hot_cold_page's VM_BUG_ON(page_get_page_cgroup(page)) by a
-> "Bad page state" and clear: most users don't have CONFIG_DEBUG_VM on, and
-> if it were set here, it'd likely cause corruption when the page is reused.
+> Let's forget node hotplug for the moment, but what if someone
 > 
-> Don't use page_assign_page_cgroup to clear it: that should be private to
-> memcontrol.c, and always called with the lock taken; and memmap_init_zone
-> doesn't need it either - like page->mapping and other pointers throughout
-> the kernel, Linux assumes pointers in zeroed structures are NULL pointers.
+> 1. Changes the machine configuration and adds more nodes, do we expect the
+> kernel to be recompiled? Or is it easier to update /etc/sysctl.conf?
+> 2. Uses fake NUMA nodes and increases/decreases the number of nodes across
+> reboots. Should the kernel be recompiled?
 > 
-> Instead use page_reset_bad_cgroup, added to memcontrol.h for this only.
+
+That is why the proposal was made to make this a static configuration 
+option, such as CONFIG_NUM_RECLAIM_THREADS_PER_NODE, that will handle both 
+situations.
+
+> I am afraid it doesn't. Consider as you scale number of CPU's with the same
+> amount of memory, we'll end up making the reclaim problem worse.
 > 
-> Signed-off-by: Hugh Dickins <hugh@veritas.com>
 
-Looks good to me
+The benchmark that have been posted suggest that memory locality is more 
+important than lock contention, as I've already mentioned.
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
