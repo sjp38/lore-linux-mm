@@ -1,52 +1,42 @@
-Date: Wed, 27 Feb 2008 17:38:24 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Add Pavel as the co-maintainer for memory resource controller
-Message-Id: <20080227173824.03c47508.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <47C51D4B.6080501@linux.vnet.ibm.com>
-References: <20080227040246.GA27018@balbir.in.ibm.com>
-	<47C51331.8060700@openvz.org>
-	<47C51D4B.6080501@linux.vnet.ibm.com>
+Date: Wed, 27 Feb 2008 10:43:32 +0200 (EET)
+From: Pekka J Enberg <penberg@cs.helsinki.fi>
+Subject: Re: [PATCH 00/28] Swap over NFS -v16
+In-Reply-To: <1204101239.6242.372.camel@lappy>
+Message-ID: <Pine.LNX.4.64.0802271041140.20599@sbz-30.cs.Helsinki.FI>
+References: <20080220144610.548202000@chello.nl>
+ <20080223000620.7fee8ff8.akpm@linux-foundation.org>  <18371.43950.150842.429997@notabene.brown>
+  <1204023042.6242.271.camel@lappy>  <18372.64081.995262.986841@notabene.brown>
+  <1204099113.6242.353.camel@lappy>  <84144f020802270005p3bfbd04ar9da2875218ef98c4@mail.gmail.com>
+  <1204100059.6242.360.camel@lappy> <1204101239.6242.372.camel@lappy>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Neil Brown <neilb@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Feb 2008 13:50:27 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > diff --git a/MAINTAINERS b/MAINTAINERS
-> > index 4623c24..85bfcd4 100644
-> > --- a/MAINTAINERS
-> > +++ b/MAINTAINERS
-> > @@ -2642,6 +2642,8 @@ S:	Maintained
-> >  MEMORY RESOURCE CONTROLLER
-> >  P:	Balbir Singh
-> >  M:	balbir@linux.vnet.ibm.com
-> > +P:	Pavel Emelyanov
-> > +M:	xemul@openvz.org
-> >  L:	linux-mm@kvack.org
-> >  L:	linux-kernel@vger.kernel.org
-> >  S:	Maintained
-> > 
+On Wed, 27 Feb 2008, Peter Zijlstra wrote:
+> Humm, and here I sit staring at the screen. Perhaps I should go get my
+> morning juice, but...
 > 
-> Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+>   if (mem_reserve_kmalloc_charge(my_res, sizeof(*foo), 0)) {
+>     foo = kmalloc(sizeof(*foo), gfp|__GFP_MEMALLOC)
+>     if (!kmem_is_emergency(foo))
+>       mem_reserve_kmalloc_charge(my_res, -sizeof(*foo), 0)
+>   } else
+>     foo = kmalloc(sizeof(*foo), gfp);
 > 
-> KAMEZAWA and others are you interested in adding your names as well?
+> Just doesn't look too pretty..
 > 
-Just because how long I can guarantee to be active on this, I'm hesitating. 
-But, at least for this year, I'll be stable and adding my name here causes
-no problem. Okay, please add 
+> And needing to always account the allocation seems wrong.. but I'll take
+> poison and see if that wakes up my mind.
 
-P: KAMEZAWA Hiroyuki
-M: kamezawa.hiroyu@jp.fujitsu.com
+Hmm, perhaps this is just hand-waving but why don't you have a 
+kmalloc_reserve() function in SLUB that does the accounting properly?
 
-Let's make memory resource controller better!
-
-Thanks,
--Kame
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
