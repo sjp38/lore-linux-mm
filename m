@@ -1,29 +1,33 @@
-Date: Wed, 27 Feb 2008 12:43:39 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: Add Pavel as the co-maintainer for memory resource controller
-In-Reply-To: <47C51D4B.6080501@linux.vnet.ibm.com>
-Message-ID: <Pine.LNX.4.64.0802271242240.8683@blonde.site>
-References: <20080227040246.GA27018@balbir.in.ibm.com> <47C51331.8060700@openvz.org>
- <47C51D4B.6080501@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 27 Feb 2008 10:30:55 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [RFC][PATCH] page reclaim throttle take2
+Message-ID: <20080227103055.2267b50c@bree.surriel.com>
+In-Reply-To: <alpine.DEB.1.00.0802262315030.11433@chino.kir.corp.google.com>
+References: <47C4F9C0.5010607@linux.vnet.ibm.com>
+	<alpine.DEB.1.00.0802262201390.1613@chino.kir.corp.google.com>
+	<20080227160746.425E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<alpine.DEB.1.00.0802262315030.11433@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+To: David Rientjes <rientjes@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Feb 2008, Balbir Singh wrote:
-> Pavel Emelyanov wrote:
-> > Please, add me as the co-maintainer of a memory controller.
-> 
-> Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> 
-> KAMEZAWA and others are you interested in adding your names as well?
+On Tue, 26 Feb 2008 23:19:08 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-Certainly not me, thanks!
+> My suggestion is merely to make the number of concurrent page reclaim 
+> threads be a function of how many online cpus there are.
 
-Hugh
+The more CPUs there are, the more lock contention you want?
+
+Somehow that seems backwards :)
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
