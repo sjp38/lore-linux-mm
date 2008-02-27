@@ -1,40 +1,49 @@
-Date: Wed, 27 Feb 2008 00:47:17 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC][PATCH] page reclaim throttle take2
-In-Reply-To: <47C51856.7060408@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.1.00.0802270045400.31372@chino.kir.corp.google.com>
-References: <47C4EF2D.90508@linux.vnet.ibm.com> <alpine.DEB.1.00.0802262115270.1799@chino.kir.corp.google.com> <20080227143301.4252.KOSAKI.MOTOHIRO@jp.fujitsu.com> <alpine.DEB.1.00.0802262145410.31356@chino.kir.corp.google.com> <47C4F9C0.5010607@linux.vnet.ibm.com>
- <alpine.DEB.1.00.0802262201390.1613@chino.kir.corp.google.com> <47C51856.7060408@linux.vnet.ibm.com>
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28esmtp07.in.ibm.com (8.13.1/8.13.1) with ESMTP id m1R8mNbH011128
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 14:18:23 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1R8mNR6950370
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 14:18:23 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.13.1/8.13.3) with ESMTP id m1R8mNcB008766
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 08:48:23 GMT
+Date: Wed, 27 Feb 2008 14:12:50 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 07/15] memcg: mem_cgroup_charge never NULL
+Message-ID: <20080227084250.GD2317@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <Pine.LNX.4.64.0802252327490.27067@blonde.site> <Pine.LNX.4.64.0802252340210.27067@blonde.site>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0802252340210.27067@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Feb 2008, Balbir Singh wrote:
+* Hugh Dickins <hugh@veritas.com> [2008-02-25 23:41:17]:
 
-> Let's forget node hotplug for the moment, but what if someone
+> My memcgroup patch to fix hang with shmem/tmpfs added NULL page handling
+> to mem_cgroup_charge_common.  It seemed convenient at the time, but hard
+> to justify now: there's a perfectly appropriate swappage to charge and
+> uncharge instead, this is not on any hot path through shmem_getpage,
+> and no performance hit was observed from the slight extra overhead.
 > 
-> 1. Changes the machine configuration and adds more nodes, do we expect the
-> kernel to be recompiled? Or is it easier to update /etc/sysctl.conf?
-> 2. Uses fake NUMA nodes and increases/decreases the number of nodes across
-> reboots. Should the kernel be recompiled?
+> So revert that NULL page handling from mem_cgroup_charge_common; and
+> make it clearer by bringing page_cgroup_assign_new_page_cgroup into its
+> body - that was a helper I found more of a hindrance to understanding.
 > 
+> Signed-off-by: Hugh Dickins <hugh@veritas.com>
 
-That is why the proposal was made to make this a static configuration 
-option, such as CONFIG_NUM_RECLAIM_THREADS_PER_NODE, that will handle both 
-situations.
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-> I am afraid it doesn't. Consider as you scale number of CPU's with the same
-> amount of memory, we'll end up making the reclaim problem worse.
-> 
-
-The benchmark that have been posted suggest that memory locality is more 
-important than lock contention, as I've already mentioned.
-
-		David
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
