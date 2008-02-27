@@ -1,69 +1,31 @@
-Date: Wed, 27 Feb 2008 11:55:09 -0800 (PST)
+Date: Wed, 27 Feb 2008 11:57:21 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [2.6 patch] mm/slub.c: remove unneeded NULL check
-In-Reply-To: <20080222195905.GM1409@cs181133002.pp.htv.fi>
-Message-ID: <Pine.LNX.4.64.0802271150130.1790@schroedinger.engr.sgi.com>
-References: <20080219224922.GO31955@cs181133002.pp.htv.fi>
- <6f8gTuy3.1203515564.2078250.penberg@cs.helsinki.fi>
- <20080222195905.GM1409@cs181133002.pp.htv.fi>
+Subject: Re: SMP-related kernel memory leak
+In-Reply-To: <47BDEFB4.1010106@zytor.com>
+Message-ID: <Pine.LNX.4.64.0802271156510.1790@schroedinger.engr.sgi.com>
+References: <e2e108260802190300k5b0f60f6tbb4f54997caf4c4e@mail.gmail.com>
+ <6101e8c40802191018t668faf3avba9beeff34f7f853@mail.gmail.com>
+ <e2e108260802192327v124a841dnc7d9b1c7e9057545@mail.gmail.com>
+ <6101e8c40802201342y7e792e70lbd398f84a58a38bd@mail.gmail.com>
+ <e2e108260802210048y653031f3r3104399f126336c5@mail.gmail.com>
+ <e2e108260802210800x5f55fee7ve6e768607d73ceb0@mail.gmail.com>
+ <6101e8c40802210821w626bc831uaf4c3f66fb097094@mail.gmail.com>
+ <6101e8c40802210825v534f0ce3wf80a18ebd6dee925@mail.gmail.com>
+ <47BDEFB4.1010106@zytor.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adrian Bunk <bunk@kernel.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, mpm@selenic.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Oliver Pinter <oliver.pntr@gmail.com>, Bart Van Assche <bart.vanassche@gmail.com>, linux-mm@kvack.org, linux-mm@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 22 Feb 2008, Adrian Bunk wrote:
+On Thu, 21 Feb 2008, H. Peter Anvin wrote:
 
-> There's no reason for checking c->freelist for being NULL here (and we'd 
-> anyway Oops below if it was).
+> This sounds to me a lot like the quicklist PUD leak we had, which I thought
+> had been fixed in recent kernels...
 
-Well we still need to check for the freelist being empty otherwise the 
-counter for remote frees does not work as intended. The check was 
-introduced at the time when page->end did not yet exist. At that time the 
-NULL check made sense.
-
-
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Fix check for remote frees
-
-The check for remote frees must check is_end() instead of != NULL.
-
-We execute the !is_end() section rarely so move the check in there. Just do it
-once by relying on tail being 1 only the first time we enter the loop.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
----
-dae2a3c60f258f3ad2522b85d79b735a89d702f0 diff --git a/mm/slub.c b/mm/slub.c
-index 74c65af..072e0a6 100644
----
- mm/slub.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2008-02-27 11:48:11.000000000 -0800
-+++ linux-2.6/mm/slub.c	2008-02-27 11:51:07.000000000 -0800
-@@ -1404,8 +1404,6 @@ static void deactivate_slab(struct kmem_
- 	struct page *page = c->page;
- 	int tail = 1;
- 
--	if (c->freelist)
--		stat(c, DEACTIVATE_REMOTE_FREES);
- 	/*
- 	 * Merge cpu freelist into freelist. Typically we get here
- 	 * because both freelists are empty. So this is unlikely
-@@ -1418,6 +1416,8 @@ static void deactivate_slab(struct kmem_
- 	while (unlikely(!is_end(c->freelist))) {
- 		void **object;
- 
-+		if (unlikely(tail))
-+			stat(c, DEACTIVATE_REMOTE_FREES);
- 		tail = 0;	/* Hot objects. Put the slab first */
- 
- 		/* Retrieve object from cpu_freelist */
+This was a pgd leak only AFAICT.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
