@@ -1,132 +1,78 @@
-Subject: Re: [PATCH 00/28] Swap over NFS -v16
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <18372.64081.995262.986841@notabene.brown>
-References: <20080220144610.548202000@chello.nl>
-	 <20080223000620.7fee8ff8.akpm@linux-foundation.org>
-	 <18371.43950.150842.429997@notabene.brown>
-	 <1204023042.6242.271.camel@lappy>
-	 <18372.64081.995262.986841@notabene.brown>
-Content-Type: text/plain
-Date: Wed, 27 Feb 2008 08:58:32 +0100
-Message-Id: <1204099113.6242.353.camel@lappy>
-Mime-Version: 1.0
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28esmtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id m1R84q1Q003033
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 13:34:52 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1R84qsW868362
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 13:34:52 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id m1R84p56018954
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 08:04:52 GMT
+Message-ID: <47C51856.7060408@linux.vnet.ibm.com>
+Date: Wed, 27 Feb 2008 13:29:18 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH] page reclaim throttle take2
+References: <47C4EF2D.90508@linux.vnet.ibm.com> <alpine.DEB.1.00.0802262115270.1799@chino.kir.corp.google.com> <20080227143301.4252.KOSAKI.MOTOHIRO@jp.fujitsu.com> <alpine.DEB.1.00.0802262145410.31356@chino.kir.corp.google.com> <47C4F9C0.5010607@linux.vnet.ibm.com> <alpine.DEB.1.00.0802262201390.1613@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.1.00.0802262201390.1613@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Neil Brown <neilb@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
+To: David Rientjes <rientjes@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-02-27 at 16:51 +1100, Neil Brown wrote:
-> Hi Peter,
+David Rientjes wrote:
+> On Wed, 27 Feb 2008, Balbir Singh wrote:
 > 
-> On Tuesday February 26, a.p.zijlstra@chello.nl wrote:
-> > Hi Neil,
-> > 
-> > Thanks for taking a look, and giving such elaborate feedback. I'll try
-> > and address these issues asap, but first let me reply to a few points
-> > here.
+>> Since we're talking of parallel reclaims, I think it's a function of CPUs and
+>> Nodes. I'd rather keep it as a sysctl with a good default value based on the
+>> topology. If we end up getting it wrong, the system administrator has a choice.
+>> That is better than expecting him/her to recompile the kernel and boot that. A
+>> sysctl does not create problems either w.r.t changing the number of threads, no
+>> hard to solve race-conditions - it is fairly straight forward
+>>
 > 
-> Thanks... the tree thing is starting to make sense, and I'm not
-> confused my __mem_reserve_add any more :-)
+> We lack node hotplug, so the dependence on the number of system nodes in 
+> the equation is static and can easily be defined at compile-time.
 > 
-> I've been having a closer read of some of the code that I skimmed over
-> before and I have some more questions.
+
+Let's forget node hotplug for the moment, but what if someone
+
+1. Changes the machine configuration and adds more nodes, do we expect the
+kernel to be recompiled? Or is it easier to update /etc/sysctl.conf?
+2. Uses fake NUMA nodes and increases/decreases the number of nodes across
+reboots. Should the kernel be recompiled?
+
+> I agree that the maximum number of parallel reclaim threads should be a 
+> function of cpus, so you can easily make it that by adding callback 
+> functions for cpu hotplug events.
 > 
-> 1/ I note there is no way to tell if memory returned by kmalloc is
->   from the emergency reserve - which contrasts with alloc_page
->   which does make that information available through page->reserve.
->   This seems a slightly unfortunate aspect of the interface.
-
-Yes, but alas there is no room to store such information in kmalloc().
-That is, in a sane way. I think it was Daniel Phillips who suggested
-encoding it in the return pointer by flipping the low bit - but that is
-just too ugly and breaks all current kmalloc sites to boot.
-
->   It seems to me that __alloc_skb could be simpler if this
->   information was available.  It currently tries the allocation
->   normally, then if that fails it retries with __GFP_MEMALLOC set and
->   if that works it assume it was from the emergency pool ... which it
->   might not be, though the assumption is safe enough.
+> Perhaps a better alternative than creating a set of heuristics and setting 
+> a user-defined maximum on the number of concurrent reclaim threads is to 
+> configure the number of threads to be used for each online cpu called 
+> CONFIG_NUM_RECLAIM_THREADS_PER_CPU.  This solves the lock contention 
+> problem if configured properly that was mentioned earlier.
 > 
->   It would seem to be nicer if you could just make the one alloc call,
->   setting GFP_MEMALLOC if that might be appropriate.  Then if the
->   memory came from the emergency reserve, flag it as an emergency skb.
-> 
->   However doing that would have issues with reservations.... the
->   mem_reserve would need to be passed to kmalloc :-(
 
-Yes, it would require a massive overhaul of quite a few things. I agree,
-it would all be nicer, but I think you see why I didn't do it.
+I am afraid it doesn't. Consider as you scale number of CPU's with the same
+amount of memory, we'll end up making the reclaim problem worse.
 
-> 2/ It doesn't appear to be possible to wait on a reservation. i.e. if
->    mem_reserve_*_charge fails, we might sometimes want to wait until
->    it will succeed.  This feature is an integral part of how mempools
->    work and are used.  If you want reservations to (be able to)
->    replace mempools, then waiting really is needed.
-> 
->    It seems that waiting would work best if it was done quite low down
->    inside kmalloc.  That would require kmalloc to know which
->    'mem_reserve' you are using which it currently doesn't.
-> 
->    If it did, then it could choose to use emergency pages if the
->    mem_reserve allowed it more space, otherwise require a regular page.
->    And if __GFP_WAIT is set then each time around the loop it could
->    revise whether to use an emergency page or not, based on whether it
->    can successfully charge the reservation.
+> Adding yet another sysctl for this functionality seems unnecessary, unless 
+> it is attempting to address other VM problems where page reclaim needs to 
+> be throttled when it is being stressed.  Those issues need to be addressed 
+> directly, in my opinion, instead of attempting to workaround it by 
+> limiting the number of concurrent reclaim threads.
 
-Like mempools, we could add a wrapper with a mem_reserve and waitqueue
-inside, strip __GFP_WAIT, try, see if the reservation allows, and wait
-if not.
+We are providing a solution with a good default value, allowing the
+administrator to change them when our defaults don't work well.
 
-I haven't yet done such a wrapper because it wasn't needed. But it could
-be done.
-
->    Of course, having a mem_reserve available for PF_MEMALLOC
->    allocations would require changing every kmalloc call in the
->    protected region, which might not be ideal, but might not be a
->    major hassle, and would ensure that you find all kmalloc calls that
->    might be made while in PF_MALLOC state.
-
-I assumed the current PF_MEMALLOC usage was good enough for the current
-reserves - not quite true as its potentially unlimited, but it seems to
-work in practise.
-
-I did try to find all allocation sites in the paths I enabled
-PF_MEMALLOC over.
-
-> 3/ Thinking about the tree structure a bit more:  Your motivation
->    seems to be that it allows you to make two separate reservations,
->    and then charge some memory usage again either-one-of-the-other.
->    This seems to go against a key attribute of reservations.  I would
->    have thought that an important rule about reservations is that
->    no-one else can use memory reserved for a particular purpose.
->    So if IPv6 reserves some memory, and the IPv4 uses it, that doesn't
->    seem like something we want to encourage...
-
-Well, we only have one kind of skb, a network packet doesn't know if it
-belongs to IPv4 or IPv6 (or yet a whole different address familiy) when
-it comes in. So we grow the skb pool to overflow both defragment caches.
-
-But yeah, its something where you need to know what you're doing - as
-with so many other things in the kernel, hence I didn't worry too much.
-
-> 4/ __netdev_alloc_page is bothering me a bit.
->    This is used to allocate memory for incoming fragments in a
->    (potentially multi-fragment) packet.  But we only rx_emergency_get
->    for each page as it arrives rather than all at once at the start.
->    So you could have a situation where two very large packets are
->    arriving at the same time and there is enough reserve to hold
->    either of them but not both.  The current code will hand out that
->    reservation a little (well, one page) at a time to each packet and
->    will run out before either packet has been fully received.  This
->    seems like a bad thing.  Is it?
-> 
->    Is it possible to do the rx_emergency_get just once of the whole
->    packet I wonder?
-
-I honestly don't know enough about network cards and drivers to answer
-this. It was a great feat I managed this much :-)
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
