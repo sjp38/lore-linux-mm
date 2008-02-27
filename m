@@ -1,46 +1,69 @@
-Date: Wed, 27 Feb 2008 09:50:05 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] page reclaim throttle take2
-Message-Id: <20080227095005.4058e109.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1204060718.6242.333.camel@lappy>
-References: <20080226104647.FF26.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<1204060718.6242.333.camel@lappy>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by el-out-1112.google.com with SMTP id z25so2010352ele.8
+        for <linux-mm@kvack.org>; Tue, 26 Feb 2008 16:57:50 -0800 (PST)
+Message-ID: <44c63dc40802261657m2930f166mb6eb2378ee843988@mail.gmail.com>
+Date: Wed, 27 Feb 2008 09:57:49 +0900
+From: "minchan Kim" <barrioskmc@gmail.com>
+Subject: Re: [RFC][PATCH] radix-tree based page_cgroup. [7/7] per cpu fast lookup
+In-Reply-To: <20080227083714.fbe34483.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080225120758.27648297.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20080225121849.191ac900.kamezawa.hiroyu@jp.fujitsu.com>
+	 <44c63dc40802260526x3283baf2tb4ab71b384a4ab58@mail.gmail.com>
+	 <20080227083714.fbe34483.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh@veritas.com" <hugh@veritas.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, taka@valinux.co.jp, Andi Kleen <ak@suse.de>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Feb 2008 22:18:38 +0100
-Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+On Wed, Feb 27, 2008 at 8:37 AM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Tue, 26 Feb 2008 22:26:40 +0900
+>
+> "minchan Kim" <barrioskmc@gmail.com> wrote:
+>
+>
+>
+> > >  -struct page_cgroup *get_page_cgroup(struct page *page, gfp_t gfpmask)
+>  > >  +struct page_cgroup *__get_page_cgroup(struct page *page, gfp_t gfpmask)
+>  > >   {
+>  > >         struct page_cgroup_root *root;
+>  > >         struct page_cgroup *pc, *base_addr;
+>  > >  @@ -96,8 +110,14 @@ retry:
+>  > >         pc = radix_tree_lookup(&root->root_node, idx);
+>  > >         rcu_read_unlock();
+>  > >
+>  > >  +       if (pc) {
+>  > >  +               if (!in_interrupt())
+>  > >  +                       save_result(pc, idx);
+>  > >  +       }
+>  > >  +
+>  >
+>  > I didn't look through mem_control's patches yet.
+>  > Please understand me if my question might be foolish.
+>  >
+>  > why do you prevent when it happen in interrupt context ?
+>  > Do you have any reason ?
+>  >
+>  looking up isn't done under irq disable but under preempt disable.
 
-> > +out:
-> > +	atomic_dec(&zone->nr_reclaimers);
-> > +	wake_up_all(&zone->reclaim_throttle_waitq);
-> > +
-> > +	return ret;
-> > +}
-> 
-> Would it be possible - and worthwhile - to make this FIFO fair?
-> 
-I think it doesn't make sense for fairness.
+I can't understand your point.
+Is that check is really necessary if save_result function use
+get_cpu_var and put_cpu_var in save_result ?
 
-IMHO, this functionality is an unfair one in nature. While someone is
-reclaiming pages, other processes can get a newly reclaimed page without
-calling try_to_free_page.
+>  Thanks,
+>  -Kame
+>
+>
 
-For high-priority processes, 
 
-1. avoiding diving into try_to_free_pages if it's congested.
-2. just waiting for that someone relcaim pages and grab it ASAP
 
-maybe good for quick work. 
-
+-- 
 Thanks,
--Kame
+barrios
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
