@@ -1,30 +1,27 @@
-Date: Wed, 27 Feb 2008 08:46:10 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 01/15] memcg: mm_match_cgroup not vm_match_cgroup
-Message-Id: <20080227084610.f6f8a0f6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0802252334190.27067@blonde.site>
-References: <Pine.LNX.4.64.0802252327490.27067@blonde.site>
-	<Pine.LNX.4.64.0802252334190.27067@blonde.site>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Subject: Auto-response for your message to the "Linux-megaraid-devel"
+ mailing list
+From: linux-megaraid-devel-bounces@lists.us.dell.com
+Message-ID: <mailman.305241.1204072914.16677.linux-megaraid-devel@lists.us.dell.com>
+Date: Tue, 26 Feb 2008 18:41:54 -0600
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Feb 2008 23:35:33 +0000 (GMT)
-Hugh Dickins <hugh@veritas.com> wrote:
+The linux-megaraid-devel@dell.com mailing list has been discontinued.
+Please redirect your message to either:
 
-> vm_match_cgroup is a perverse name for a macro to match mm with cgroup:
-> rename it mm_match_cgroup, matching mm_init_cgroup and mm_free_cgroup.
-> 
-> Signed-off-by: Hugh Dickins <hugh@veritas.com>
-> ---
-make sense
+  linux-scsi@vger.kernel.org  for all megaraid-specific issues
+(subscribe at 
+http://vger.kernel.org/vger-lists.html#linux-scsi)
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+or 
+  
+  linux-poweredge@dell.com  for all Dell PowerEdge-specific issues
+(subscribe at http://lists.us.dell.com)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
