@@ -1,33 +1,38 @@
-Date: Wed, 27 Feb 2008 10:30:55 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [RFC][PATCH] page reclaim throttle take2
-Message-ID: <20080227103055.2267b50c@bree.surriel.com>
-In-Reply-To: <alpine.DEB.1.00.0802262315030.11433@chino.kir.corp.google.com>
-References: <47C4F9C0.5010607@linux.vnet.ibm.com>
-	<alpine.DEB.1.00.0802262201390.1613@chino.kir.corp.google.com>
-	<20080227160746.425E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<alpine.DEB.1.00.0802262315030.11433@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 27 Feb 2008 11:20:36 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 01/18] Define functions for page cache handling
+In-Reply-To: <20080223152716.51cc3875.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0802271118020.32462@schroedinger.engr.sgi.com>
+References: <20080216004718.047808297@sgi.com> <20080216004805.610589231@sgi.com>
+ <20080223152716.51cc3875.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, David Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Feb 2008 23:19:08 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
+On Sat, 23 Feb 2008, Andrew Morton wrote:
 
-> My suggestion is merely to make the number of concurrent page reclaim 
-> threads be a function of how many online cpus there are.
+> But the interfaces which they use (passing and address_space) are quite
+> pointless unless we implement variable page size per address_space.  And as
+> the chances of that ever happening seem pretty damn small, these changes
+> are just obfuscation which make the code harder to read and which
+> pointlessly churn the codebase.
+> 
+> So I'm inclined to drop these patches.
 
-The more CPUs there are, the more lock contention you want?
+Ummm.. I can submit the rest of the code to make this work? The rest is 
+available at git://git.kernel.org/pub/scm/linux/kernel/git/christoph/vm.git
 
-Somehow that seems backwards :)
+Branches
 
--- 
-All rights reversed.
+vcompound	Fallback for compound pages to order 0 allocs
+largeblock	Based on vcompound, large block support for devices and FS.
+
+
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
