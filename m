@@ -1,38 +1,28 @@
-Date: Wed, 27 Feb 2008 11:20:36 -0800 (PST)
+Date: Wed, 27 Feb 2008 11:22:40 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 01/18] Define functions for page cache handling
-In-Reply-To: <20080223152716.51cc3875.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0802271118020.32462@schroedinger.engr.sgi.com>
-References: <20080216004718.047808297@sgi.com> <20080216004805.610589231@sgi.com>
- <20080223152716.51cc3875.akpm@linux-foundation.org>
+Subject: Re: [patch 00/17] Slab Fragmentation Reduction V10
+In-Reply-To: <20080223142055.GA6745@one.firstfloor.org>
+Message-ID: <Pine.LNX.4.64.0802271122090.32462@schroedinger.engr.sgi.com>
+References: <20080216004526.763643520@sgi.com> <20080223000722.a37983eb.akpm@linux-foundation.org>
+ <20080223142055.GA6745@one.firstfloor.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, David Chinner <dgc@sgi.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 23 Feb 2008, Andrew Morton wrote:
+On Sat, 23 Feb 2008, Andi Kleen wrote:
 
-> But the interfaces which they use (passing and address_space) are quite
-> pointless unless we implement variable page size per address_space.  And as
-> the chances of that ever happening seem pretty damn small, these changes
-> are just obfuscation which make the code harder to read and which
-> pointlessly churn the codebase.
+> I'm a little sceptical about the high order allocations in slub too 
+> though. Christoph seems to think they're not a big deal, but that is 
+> against a lot of conventional Linux wisdom at least.
 > 
-> So I'm inclined to drop these patches.
+> That is one area that probably needs to be explored more.
 
-Ummm.. I can submit the rest of the code to make this work? The rest is 
-available at git://git.kernel.org/pub/scm/linux/kernel/git/christoph/vm.git
-
-Branches
-
-vcompound	Fallback for compound pages to order 0 allocs
-largeblock	Based on vcompound, large block support for devices and FS.
-
-
- 
+Well there is a patchset that I posted recently that allows any slub alloc 
+to fallback to an order 0 alloc. That is something slab cannot do.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
