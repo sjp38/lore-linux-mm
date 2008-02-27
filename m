@@ -1,36 +1,32 @@
-Date: Wed, 27 Feb 2008 14:11:19 -0800 (PST)
+Date: Wed, 27 Feb 2008 14:23:29 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [ofa-general] Re: Demand paging for memory regions
-In-Reply-To: <20080214000103.GG31435@obsidianresearch.com>
-Message-ID: <Pine.LNX.4.64.0802271409480.13186@schroedinger.engr.sgi.com>
-References: <ada3arzxgkz.fsf_-_@cisco.com> <47B2174E.5000708@opengridcomputing.com>
- <Pine.LNX.4.64.0802121408150.9591@schroedinger.engr.sgi.com>
- <adazlu5vlub.fsf@cisco.com> <20080212232329.GC31435@obsidianresearch.com>
- <Pine.LNX.4.64.0802121657430.11628@schroedinger.engr.sgi.com>
- <20080213012638.GD31435@obsidianresearch.com>
- <Pine.LNX.4.64.0802121819530.12328@schroedinger.engr.sgi.com>
- <20080213040905.GQ29340@mv.qlogic.com> <20080213232308.GB7597@osc.edu>
- <20080214000103.GG31435@obsidianresearch.com>
+Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address ranges
+In-Reply-To: <20080219133405.GH7128@v2.random>
+Message-ID: <Pine.LNX.4.64.0802271421480.13186@schroedinger.engr.sgi.com>
+References: <20080215064859.384203497@sgi.com> <20080215064932.620773824@sgi.com>
+ <200802191954.14874.nickpiggin@yahoo.com.au> <20080219133405.GH7128@v2.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
-Cc: Pete Wyckoff <pw@osc.edu>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <andrea@qumranet.com>, a.p.zijlstra@chello.nl, izike@qumranet.com, Roland Dreier <rdreier@cisco.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Andrew Morton <akpm@linux-foundation.org>, kvm-devel@lists.sourceforge.net
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 13 Feb 2008, Jason Gunthorpe wrote:
+On Tue, 19 Feb 2008, Andrea Arcangeli wrote:
 
-> Christoph: It seemed to me you were first talking about
-> freeing/swapping/faulting RDMA'able pages - but would pure migration
-> as a special hardware supported case be useful like Catilan suggested?
+> Yes, that's why I kept maintaining my patch and I posted the last
+> revision to Andrew. I use pte/tlb locking of the core VM, it's
+> unintrusive and obviously safe. Furthermore it can be extended with
+> Christoph's stuff in a 100% backwards compatible fashion later if needed.
 
-That is a special case of the proposed solution. You could mlock the 
-regions of interest. Those can then only be migrated but not swapped out.
+How would that work? You rely on the pte locking. Thus calls are all in an 
+atomic context. I think we need a general scheme that allows sleeping when 
+references are invalidates. Even the GRU has performance issues when using 
+the KVM patch.
 
-However, I think we need some limit on the number of pages one can mlock. 
-Otherwise the VM can get into a situation where reclaim is not possible 
-because the majority of memory is either mlocked or pinned by I/O etc.
+
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
