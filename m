@@ -1,27 +1,46 @@
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Date: Wed, 27 Feb 2008 09:50:05 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] page reclaim throttle take2
+Message-Id: <20080227095005.4058e109.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1204060718.6242.333.camel@lappy>
+References: <20080226104647.FF26.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<1204060718.6242.333.camel@lappy>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Subject: Auto-response for your message to the "Linux-megaraid-devel"
- mailing list
-From: linux-megaraid-devel-bounces@lists.us.dell.com
-Message-ID: <mailman.305241.1204072914.16677.linux-megaraid-devel@lists.us.dell.com>
-Date: Tue, 26 Feb 2008 18:41:54 -0600
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-The linux-megaraid-devel@dell.com mailing list has been discontinued.
-Please redirect your message to either:
+On Tue, 26 Feb 2008 22:18:38 +0100
+Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-  linux-scsi@vger.kernel.org  for all megaraid-specific issues
-(subscribe at 
-http://vger.kernel.org/vger-lists.html#linux-scsi)
+> > +out:
+> > +	atomic_dec(&zone->nr_reclaimers);
+> > +	wake_up_all(&zone->reclaim_throttle_waitq);
+> > +
+> > +	return ret;
+> > +}
+> 
+> Would it be possible - and worthwhile - to make this FIFO fair?
+> 
+I think it doesn't make sense for fairness.
 
-or 
-  
-  linux-poweredge@dell.com  for all Dell PowerEdge-specific issues
-(subscribe at http://lists.us.dell.com)
+IMHO, this functionality is an unfair one in nature. While someone is
+reclaiming pages, other processes can get a newly reclaimed page without
+calling try_to_free_page.
+
+For high-priority processes, 
+
+1. avoiding diving into try_to_free_pages if it's congested.
+2. just waiting for that someone relcaim pages and grab it ASAP
+
+maybe good for quick work. 
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
