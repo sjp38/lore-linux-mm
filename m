@@ -1,48 +1,37 @@
-Date: Wed, 27 Feb 2008 14:39:46 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
+Date: Wed, 27 Feb 2008 16:42:32 -0600
+From: Jack Steiner <steiner@sgi.com>
 Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address ranges
-In-Reply-To: <20080220010038.GQ7128@v2.random>
-Message-ID: <Pine.LNX.4.64.0802271436260.13186@schroedinger.engr.sgi.com>
-References: <20080215064859.384203497@sgi.com> <20080215064932.620773824@sgi.com>
- <200802201008.49933.nickpiggin@yahoo.com.au> <20080220010038.GQ7128@v2.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20080227224232.GA18581@sgi.com>
+References: <20080215064859.384203497@sgi.com> <20080215064932.620773824@sgi.com> <200802201008.49933.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0802271424390.13186@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0802271424390.13186@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, akpm@linux-foundation.org, Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 20 Feb 2008, Andrea Arcangeli wrote:
-
-> Well, xpmem requirements are complex. As as side effect of the
-> simplicity of my approach, my patch is 100% safe since #v1. Now it
-> also works for GRU and it cluster invalidates.
-
-The patch has to satisfy RDMA, XPMEM, GRU and KVM. I keep hearing that we 
-have a KVM only solution that works 100% (which makes me just switch 
-ignore the rest of the argument because 100% solutions usually do not 
-exist).
-
-
-> rcu_read_lock), no "atomic" parameters, and it doesn't open a window
-> where sptes have a view on older pages and linux pte has view on newer
-> pages (this can happen with remap_file_pages with my KVM swapping
-> patch to use V8 Christoph's patch).
-
-Ok so you are now getting away from keeping the refcount elevated? That 
-was your design decision....
-
-
-> > Also, how to you resolve the case where you are not allowed to sleep?
-> > I would have thought either you have to handle it, in which case nobody
-> > needs to sleep; or you can't handle it, in which case the code is
-> > broken.
+>  
+> > Also, what we are going to need here are not skeleton drivers
+> > that just do all the *easy* bits (of registering their callbacks),
+> > but actual fully working examples that do everything that any
+> > real driver will need to do. If not for the sanity of the driver
+> > writer, then for the sanity of the VM developers (I don't want
+> > to have to understand xpmem or infiniband in order to understand
+> > how the VM works).
 > 
-> I also asked exactly this, glad you reasked this too.
+> There are 3 different drivers that can already use it but the code is 
+> complex and not easy to review. Skeletons are easy to allow people to get 
+> started with it.
 
-It would have helped if you would have repeated my answers that you had 
-already gotten before. You knew I was on vacation....
+
+I posted the full GRU driver late last week. It is a lot of
+code & somewhat difficult to understand w/o access to full chip
+specs (sorry). The code is fairly well commented &  the
+parts related to TLB management should be understandable.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
