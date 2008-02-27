@@ -1,54 +1,46 @@
-Date: Wed, 27 Feb 2008 16:51:39 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 26 Feb 2008 23:56:39 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [RFC][PATCH] page reclaim throttle take2
-Message-Id: <20080227165139.18e5933e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.1.00.0802262315030.11433@chino.kir.corp.google.com>
-References: <47C4F9C0.5010607@linux.vnet.ibm.com>
-	<alpine.DEB.1.00.0802262201390.1613@chino.kir.corp.google.com>
-	<20080227160746.425E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<alpine.DEB.1.00.0802262315030.11433@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20080227165139.18e5933e.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.00.0802262349090.21857@chino.kir.corp.google.com>
+References: <47C4F9C0.5010607@linux.vnet.ibm.com> <alpine.DEB.1.00.0802262201390.1613@chino.kir.corp.google.com> <20080227160746.425E.KOSAKI.MOTOHIRO@jp.fujitsu.com> <alpine.DEB.1.00.0802262315030.11433@chino.kir.corp.google.com>
+ <20080227165139.18e5933e.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Feb 2008 23:19:08 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
-> My suggestion is merely to make the number of concurrent page reclaim 
-> threads be a function of how many online cpus there are.  Threads can 
-> easily be added or removed for cpu hotplug events by callback functions.
-> 
-> That's different than allowing users to change the number of threads with 
-> yet another sysctl.  Unless there are situations that can be presented 
-> where tuning the number of threads is advantageous to reduce lock 
-> contention, for example, and not simply working around other VM problems, 
-> then I see no point for an additional sysctl.
-> 
-> So my suggestion is to implement this in terms of 
-> CONFIG_NUM_RECLAIM_THREADS_PER_CPU and add callback functions for cpu 
-> hotplug events that add or remove this number of threads.
+On Wed, 27 Feb 2008, KAMEZAWA Hiroyuki wrote:
+
+> Hmm, but kswapd, which is main worker of page reclaiming, is per-node.
+> And reclaim is done based on zone.
+> per-zone/per-node throttling seems to make sense.
 > 
 
-Hmm, but kswapd, which is main worker of page reclaiming, is per-node.
-And reclaim is done based on zone.
-per-zone/per-node throttling seems to make sense.
+That's another argument for not introducing the sysctl; the number of 
+nodes and zones are a static property of the machine that cannot change 
+without a reboot (numa=fake, mem=, introducing movable zones, etc).  We 
+don't have node hotplug that can suddenly introduce additional zones from 
+which to reclaim.
 
-I know his environment has 4cpus per node but throttle to 3 was the best
-number in his measurement. Then it seems num-per-cpu is excessive.
-(At least, ratio(%) is better.)
-When zone-reclaiming is improved to be scale well, we'll have to change
-this throttle.
+My point was that there doesn't appear to be any use case for tuning this 
+via a sysctl that isn't simply attempting to workaround some other reclaim 
+problem when the VM is stressed.  If that's agreed upon, then deciding 
+between a config option that is either per-cpu or per-node should be based 
+on the benchmarks that you've run.  At this time, it appears that per-node 
+is the more advantageous.
 
-BTW, could someone try his patch on x86_64/ppc ? 
-I'd like to see how contention is heavy on other machines.
+> I know his environment has 4cpus per node but throttle to 3 was the best
+> number in his measurement. Then it seems num-per-cpu is excessive.
+> (At least, ratio(%) is better.)
 
-Thanks,
--kame
- 
+That seems to indicate that the NUMA topology is more important than lock 
+contention for the reclaim throttle.
+
+		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
