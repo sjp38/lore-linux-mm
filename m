@@ -1,7 +1,9 @@
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Wed, 27 Feb 2008 16:47:08 -0500
-Message-Id: <20080227214708.6858.53458.sendpatchset@localhost>
-Subject: [PATCH 0/6] Use two zonelists per node instead of multiple zonelists v11r3
+Date: Wed, 27 Feb 2008 16:47:21 -0500
+Message-Id: <20080227214721.6858.48401.sendpatchset@localhost>
+In-Reply-To: <20080227214708.6858.53458.sendpatchset@localhost>
+References: <20080227214708.6858.53458.sendpatchset@localhost>
+Subject: [PATCH 2/6] Introduce node_zonelist() for accessing the zonelist for a GFP mask
 Sender: owner-linux-mm@kvack.org
 From: Mel Gorman <mel@csn.ul.ie>
 Return-Path: <owner-linux-mm@kvack.org>
@@ -9,138 +11,182 @@ To: akpm@linux-foundation.org
 Cc: mel@csn.ul.ie, ak@suse.de, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, rientjes@google.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-[PATCH 0/6] Use two zonelists per node instead of multiple zonelists v11r3
+[PATCH 2/6] Introduce node_zonelist() for accessing the zonelist for a GFP mask
 
-This is a rebase of the two-zonelist patchset to 2.6.25-rc2-mm1.
+V11r3 against 2.6.25-rc2-mm1
 
-Mel, still on vacation last I checked,  asked me to repost these
-as I'd already rebased them and I've been testing them continually
-on each -mm tree for months, hoping to see them in -mm for wider
-testing.
+This patch introduces a node_zonelist() helper function. It is used to lookup
+the appropriate zonelist given a node and a GFP mask. The patch on its own is
+a cleanup but it helps clarify parts of the two-zonelist-per-node patchset. If
+necessary, it can be merged with the next patch in this set without problems.
 
-I have a series of mempolicy cleanup patches, including a rework of the
-reference counting that depend on this series.  David R. has a series
-of mempolicy enhancements out for review that, IMO, will benefit from
-this series.  In both cases, the removal of the custom zonelist for
-MPOL_BIND is the important feature.
+Reviewed-by: Christoph Lameter <clameter@sgi.com>
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Tested-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-Lee
+ drivers/char/sysrq.c      |    3 +--
+ fs/buffer.c               |    6 +++---
+ include/linux/gfp.h       |    8 ++++++--
+ include/linux/mempolicy.h |    2 +-
+ mm/mempolicy.c            |    6 +++---
+ mm/page_alloc.c           |    3 +--
+ mm/slab.c                 |    3 +--
+ mm/slub.c                 |    3 +--
+ 8 files changed, 17 insertions(+), 17 deletions(-)
 
----
-
-Changelog since V11r2
-  o Rebase to 2.6.25-rc2-mm1
-
-Changelog since V10
-  o Rebase to 2.6.24-rc4-mm1
-  o Clear up warnings in fs/buffer.c early in the patchset
-
-Changelog since V9
-  o Rebase to 2.6.24-rc2-mm1
-  o Lookup the nodemask for each allocator callsite in mempolicy.c
-  o Update NUMA statistics based on preferred zone, not first zonelist entry
-  o When __GFP_THISNODE is specified with MPOL_BIND and the current node is
-    not in the allowed nodemask, the first node in the mask will be used
-  o Stick with using two zonelists instead of one because of excessive
-    complexity with corner cases
-
-Changelog since V8
-  o Rebase to 2.6.24-rc2
-  o Added ack for the OOM changes
-  o Behave correctly when GFP_THISNODE and a node ID are specified
-  o Clear up warning over type of nodes_intersects() function
-
-Changelog since V7
-  o Rebase to 2.6.23-rc8-mm2
-
-Changelog since V6
-  o Fix build bug in relation to memory controller combined with one-zonelist
-  o Use while() instead of a stupid looking for()
-  o Instead of encoding zone index information in a pointer, this version
-    introduces a structure that stores a zone pointer and its index 
-
-Changelog since V5
-  o Rebase to 2.6.23-rc4-mm1
-  o Drop patch that replaces inline functions with macros
-
-Changelog since V4
-  o Rebase to -mm kernel. Host of memoryless patches collisions dealt with
-  o Do not call wakeup_kswapd() for every zone in a zonelist
-  o Dropped the FASTCALL removal
-  o Have cursor in iterator advance earlier
-  o Use nodes_and in cpuset_nodes_valid_mems_allowed()
-  o Use defines instead of inlines, noticably better performance on gcc-3.4
-    No difference on later compilers such as gcc 4.1
-  o Dropped gfp_skip patch until it is proven to be of benefit. Tests are
-    currently inconclusive but it definitly consumes at least one cache
-    line
-
-Changelog since V3
-  o Fix compile error in the parisc change
-  o Calculate gfp_zone only once in __alloc_pages
-  o Calculate classzone_idx properly in get_page_from_freelist
-  o Alter check so that zone id embedded may still be used on UP
-  o Use Kamezawa-sans suggestion for skipping zones in zonelist
-  o Add __alloc_pages_nodemask() to filter zonelist based on a nodemask. This
-    removes the need for MPOL_BIND to have a custom zonelist
-  o Move zonelist iterators and helpers to mm.h
-  o Change _zones from struct zone * to unsigned long
-  
-Changelog since V2
-  o shrink_zones() uses zonelist instead of zonelist->zones
-  o hugetlb uses zonelist iterator
-  o zone_idx information is embedded in zonelist pointers
-  o replace NODE_DATA(nid)->node_zonelist with node_zonelist(nid)
-
-Changelog since V1
-  o Break up the patch into 3 patches
-  o Introduce iterators for zonelists
-  o Performance regression test
-
-The following patches replace multiple zonelists per node with two zonelists
-that are filtered based on the GFP flags. The patches as a set fix a bug
-with regard to the use of MPOL_BIND and ZONE_MOVABLE. With this patchset,
-the MPOL_BIND will apply to the two highest zones when the highest zone
-is ZONE_MOVABLE. This should be considered as an alternative fix for the
-MPOL_BIND+ZONE_MOVABLE in 2.6.23 to the previously discussed hack that
-filters only custom zonelists.
-
-The first patch cleans up an inconsistency where direct reclaim uses
-zonelist->zones where other places use zonelist.
-
-The second patch introduces a helper function node_zonelist() for looking
-up the appropriate zonelist for a GFP mask which simplifies patches later
-in the set.
-
-The third patch defines/remembers the "preferred zone" for numa statistics,
-as it is no longer always the first zone in a zonelist.
-
-The forth patch replaces multiple zonelists with two zonelists that are
-filtered. The two zonelists are due to the fact that the memoryless patchset
-introduces a second set of zonelists for __GFP_THISNODE.
-
-The fifth patch introduces helper macros for retrieving the zone and node
-indices of entries in a zonelist.
-
-The final patch introduces filtering of the zonelists based on a nodemask. Two
-zonelists exist per node, one for normal allocations and one for __GFP_THISNODE.
-
-Performance results varied depending on the machine configuration. In real
-workloads the gain/loss will depend on how much the userspace portion of
-the benchmark benefits from having more cache available due to reduced
-referencing of zonelists.
-
-These are the range of performance losses/gains when running against
-2.6.24-rc4-mm1. The set and these machines are a mix of i386, x86_64 and
-ppc64 both NUMA and non-NUMA.
-
-			     loss   to  gain
-Total CPU time on Kernbench: -0.86% to  1.13%
-Elapsed   time on Kernbench: -0.79% to  0.76%
-page_test from aim9:         -4.37% to  0.79%
-brk_test  from aim9:         -0.71% to  4.07%
-fork_test from aim9:         -1.84% to  4.60%
-exec_test from aim9:         -0.71% to  1.08%
+Index: linux-2.6.25-rc2-mm1/drivers/char/sysrq.c
+===================================================================
+--- linux-2.6.25-rc2-mm1.orig/drivers/char/sysrq.c	2008-02-27 16:28:05.000000000 -0500
++++ linux-2.6.25-rc2-mm1/drivers/char/sysrq.c	2008-02-27 16:28:11.000000000 -0500
+@@ -271,8 +271,7 @@ static struct sysrq_key_op sysrq_term_op
+ 
+ static void moom_callback(struct work_struct *ignored)
+ {
+-	out_of_memory(&NODE_DATA(0)->node_zonelists[ZONE_NORMAL],
+-			GFP_KERNEL, 0);
++	out_of_memory(node_zonelist(0, GFP_KERNEL), GFP_KERNEL, 0);
+ }
+ 
+ static DECLARE_WORK(moom_work, moom_callback);
+Index: linux-2.6.25-rc2-mm1/fs/buffer.c
+===================================================================
+--- linux-2.6.25-rc2-mm1.orig/fs/buffer.c	2008-02-27 16:28:09.000000000 -0500
++++ linux-2.6.25-rc2-mm1/fs/buffer.c	2008-02-27 16:28:11.000000000 -0500
+@@ -369,13 +369,13 @@ void invalidate_bdev(struct block_device
+ static void free_more_memory(void)
+ {
+ 	struct zonelist *zonelist;
+-	pg_data_t *pgdat;
++	int nid;
+ 
+ 	wakeup_pdflush(1024);
+ 	yield();
+ 
+-	for_each_online_pgdat(pgdat) {
+-		zonelist = &pgdat->node_zonelists[gfp_zone(GFP_NOFS)];
++	for_each_online_node(nid) {
++		zonelist = node_zonelist(nid, GFP_NOFS);
+ 		if (zonelist->zones[0])
+ 			try_to_free_pages(zonelist, 0, GFP_NOFS);
+ 	}
+Index: linux-2.6.25-rc2-mm1/include/linux/gfp.h
+===================================================================
+--- linux-2.6.25-rc2-mm1.orig/include/linux/gfp.h	2008-02-27 16:28:05.000000000 -0500
++++ linux-2.6.25-rc2-mm1/include/linux/gfp.h	2008-02-27 16:28:11.000000000 -0500
+@@ -154,10 +154,15 @@ static inline enum zone_type gfp_zone(gf
+ /*
+  * We get the zone list from the current node and the gfp_mask.
+  * This zone list contains a maximum of MAXNODES*MAX_NR_ZONES zones.
++ * There are many zonelists per node, two for each active zone.
+  *
+  * For the normal case of non-DISCONTIGMEM systems the NODE_DATA() gets
+  * optimized to &contig_page_data at compile-time.
+  */
++static inline struct zonelist *node_zonelist(int nid, gfp_t flags)
++{
++	return NODE_DATA(nid)->node_zonelists + gfp_zone(flags);
++}
+ 
+ #ifndef HAVE_ARCH_FREE_PAGE
+ static inline void arch_free_page(struct page *page, int order) { }
+@@ -178,8 +183,7 @@ static inline struct page *alloc_pages_n
+ 	if (nid < 0)
+ 		nid = numa_node_id();
+ 
+-	return __alloc_pages(gfp_mask, order,
+-		NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_mask));
++	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+ }
+ 
+ #ifdef CONFIG_NUMA
+Index: linux-2.6.25-rc2-mm1/include/linux/mempolicy.h
+===================================================================
+--- linux-2.6.25-rc2-mm1.orig/include/linux/mempolicy.h	2008-02-27 16:28:05.000000000 -0500
++++ linux-2.6.25-rc2-mm1/include/linux/mempolicy.h	2008-02-27 16:28:11.000000000 -0500
+@@ -241,7 +241,7 @@ static inline void mpol_fix_fork_child_f
+ static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
+  		unsigned long addr, gfp_t gfp_flags, struct mempolicy **mpol)
+ {
+-	return NODE_DATA(0)->node_zonelists + gfp_zone(gfp_flags);
++	return node_zonelist(0, gfp_flags);
+ }
+ 
+ static inline int do_migrate_pages(struct mm_struct *mm,
+Index: linux-2.6.25-rc2-mm1/mm/mempolicy.c
+===================================================================
+--- linux-2.6.25-rc2-mm1.orig/mm/mempolicy.c	2008-02-27 16:28:05.000000000 -0500
++++ linux-2.6.25-rc2-mm1/mm/mempolicy.c	2008-02-27 16:28:11.000000000 -0500
+@@ -1183,7 +1183,7 @@ static struct zonelist *zonelist_policy(
+ 		nd = 0;
+ 		BUG();
+ 	}
+-	return NODE_DATA(nd)->node_zonelists + gfp_zone(gfp);
++	return node_zonelist(nd, gfp);
+ }
+ 
+ /* Do dynamic interleaving for a process */
+@@ -1297,7 +1297,7 @@ struct zonelist *huge_zonelist(struct vm
+ 
+ 		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
+ 		__mpol_free(pol);		/* finished with pol */
+-		return NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_flags);
++		return node_zonelist(nid, gfp_flags);
+ 	}
+ 
+ 	zl = zonelist_policy(GFP_HIGHUSER, pol);
+@@ -1319,7 +1319,7 @@ static struct page *alloc_page_interleav
+ 	struct zonelist *zl;
+ 	struct page *page;
+ 
+-	zl = NODE_DATA(nid)->node_zonelists + gfp_zone(gfp);
++	zl = node_zonelist(nid, gfp);
+ 	page = __alloc_pages(gfp, order, zl);
+ 	if (page && page_zone(page) == zl->zones[0])
+ 		inc_zone_page_state(page, NUMA_INTERLEAVE_HIT);
+Index: linux-2.6.25-rc2-mm1/mm/page_alloc.c
+===================================================================
+--- linux-2.6.25-rc2-mm1.orig/mm/page_alloc.c	2008-02-27 16:28:09.000000000 -0500
++++ linux-2.6.25-rc2-mm1/mm/page_alloc.c	2008-02-27 16:28:11.000000000 -0500
+@@ -1783,10 +1783,9 @@ EXPORT_SYMBOL(free_pages);
+ static unsigned int nr_free_zone_pages(int offset)
+ {
+ 	/* Just pick one node, since fallback list is circular */
+-	pg_data_t *pgdat = NODE_DATA(numa_node_id());
+ 	unsigned int sum = 0;
+ 
+-	struct zonelist *zonelist = pgdat->node_zonelists + offset;
++	struct zonelist *zonelist = node_zonelist(numa_node_id(), GFP_KERNEL);
+ 	struct zone **zonep = zonelist->zones;
+ 	struct zone *zone;
+ 
+Index: linux-2.6.25-rc2-mm1/mm/slab.c
+===================================================================
+--- linux-2.6.25-rc2-mm1.orig/mm/slab.c	2008-02-27 16:28:05.000000000 -0500
++++ linux-2.6.25-rc2-mm1/mm/slab.c	2008-02-27 16:28:11.000000000 -0500
+@@ -3251,8 +3251,7 @@ static void *fallback_alloc(struct kmem_
+ 	if (flags & __GFP_THISNODE)
+ 		return NULL;
+ 
+-	zonelist = &NODE_DATA(slab_node(current->mempolicy))
+-			->node_zonelists[gfp_zone(flags)];
++	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
+ 	local_flags = flags & (GFP_CONSTRAINT_MASK|GFP_RECLAIM_MASK);
+ 
+ retry:
+Index: linux-2.6.25-rc2-mm1/mm/slub.c
+===================================================================
+--- linux-2.6.25-rc2-mm1.orig/mm/slub.c	2008-02-27 16:28:05.000000000 -0500
++++ linux-2.6.25-rc2-mm1/mm/slub.c	2008-02-27 16:28:11.000000000 -0500
+@@ -1324,8 +1324,7 @@ static struct page *get_any_partial(stru
+ 			get_cycles() % 1024 > s->remote_node_defrag_ratio)
+ 		return NULL;
+ 
+-	zonelist = &NODE_DATA(
+-		slab_node(current->mempolicy))->node_zonelists[gfp_zone(flags)];
++	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
+ 	for (z = zonelist->zones; *z; z++) {
+ 		struct kmem_cache_node *n;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
