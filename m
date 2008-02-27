@@ -1,42 +1,52 @@
-Date: Wed, 27 Feb 2008 10:43:32 +0200 (EET)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [PATCH 00/28] Swap over NFS -v16
-In-Reply-To: <1204101239.6242.372.camel@lappy>
-Message-ID: <Pine.LNX.4.64.0802271041140.20599@sbz-30.cs.Helsinki.FI>
-References: <20080220144610.548202000@chello.nl>
- <20080223000620.7fee8ff8.akpm@linux-foundation.org>  <18371.43950.150842.429997@notabene.brown>
-  <1204023042.6242.271.camel@lappy>  <18372.64081.995262.986841@notabene.brown>
-  <1204099113.6242.353.camel@lappy>  <84144f020802270005p3bfbd04ar9da2875218ef98c4@mail.gmail.com>
-  <1204100059.6242.360.camel@lappy> <1204101239.6242.372.camel@lappy>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28esmtp05.in.ibm.com (8.13.1/8.13.1) with ESMTP id m1R8hsOC020247
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 14:13:54 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1R8hsT4962808
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 14:13:54 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id m1R8hrFw008969
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 08:43:53 GMT
+Date: Wed, 27 Feb 2008 14:08:21 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 06/15] memcg: bad page if page_cgroup when free
+Message-ID: <20080227083646.GC2317@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <Pine.LNX.4.64.0802252327490.27067@blonde.site> <Pine.LNX.4.64.0802252339310.27067@blonde.site>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0802252339310.27067@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Neil Brown <neilb@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Feb 2008, Peter Zijlstra wrote:
-> Humm, and here I sit staring at the screen. Perhaps I should go get my
-> morning juice, but...
-> 
->   if (mem_reserve_kmalloc_charge(my_res, sizeof(*foo), 0)) {
->     foo = kmalloc(sizeof(*foo), gfp|__GFP_MEMALLOC)
->     if (!kmem_is_emergency(foo))
->       mem_reserve_kmalloc_charge(my_res, -sizeof(*foo), 0)
->   } else
->     foo = kmalloc(sizeof(*foo), gfp);
-> 
-> Just doesn't look too pretty..
-> 
-> And needing to always account the allocation seems wrong.. but I'll take
-> poison and see if that wakes up my mind.
+* Hugh Dickins <hugh@veritas.com> [2008-02-25 23:40:14]:
 
-Hmm, perhaps this is just hand-waving but why don't you have a 
-kmalloc_reserve() function in SLUB that does the accounting properly?
+> Replace free_hot_cold_page's VM_BUG_ON(page_get_page_cgroup(page)) by a
+> "Bad page state" and clear: most users don't have CONFIG_DEBUG_VM on, and
+> if it were set here, it'd likely cause corruption when the page is reused.
+> 
+> Don't use page_assign_page_cgroup to clear it: that should be private to
+> memcontrol.c, and always called with the lock taken; and memmap_init_zone
+> doesn't need it either - like page->mapping and other pointers throughout
+> the kernel, Linux assumes pointers in zeroed structures are NULL pointers.
+> 
+> Instead use page_reset_bad_cgroup, added to memcontrol.h for this only.
+> 
+> Signed-off-by: Hugh Dickins <hugh@veritas.com>
 
-			Pekka
+Looks good to me
+
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
