@@ -1,63 +1,66 @@
-Received: by wr-out-0506.google.com with SMTP id 60so3483552wri.8
-        for <linux-mm@kvack.org>; Tue, 26 Feb 2008 17:21:45 -0800 (PST)
-Message-ID: <44c63dc40802261721j5889e963j7924052a439d1de0@mail.gmail.com>
-Date: Wed, 27 Feb 2008 10:21:42 +0900
-From: "minchan Kim" <barrioskmc@gmail.com>
-Subject: Re: [RFC][PATCH] radix-tree based page_cgroup. [7/7] per cpu fast lookup
-In-Reply-To: <20080227100953.980ba34d.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id m1R48WRT028200
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 15:08:32 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1R48JVr4595788
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 15:08:19 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1R48JlB029172
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 15:08:19 +1100
+Date: Wed, 27 Feb 2008 09:32:46 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Add Balbir as the maintainer for memory resource controller
+Message-ID: <20080227040246.GA27018@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-References: <20080225120758.27648297.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20080225121849.191ac900.kamezawa.hiroyu@jp.fujitsu.com>
-	 <44c63dc40802260526x3283baf2tb4ab71b384a4ab58@mail.gmail.com>
-	 <20080227083714.fbe34483.kamezawa.hiroyu@jp.fujitsu.com>
-	 <44c63dc40802261657m2930f166mb6eb2378ee843988@mail.gmail.com>
-	 <20080227100953.980ba34d.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh@veritas.com" <hugh@veritas.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, taka@valinux.co.jp, Andi Kleen <ak@suse.de>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, xemul@openvz.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
->  > >  > why do you prevent when it happen in interrupt context ?
->  > >  > Do you have any reason ?
->  > >  >
->  > >  looking up isn't done under irq disable but under preempt disable.
->  >
->  > I can't understand your point.
->  > Is that check is really necessary if save_result function use
->  > get_cpu_var and put_cpu_var in save_result ?
->  >
->  looku up is done by this routine.
->  ==
->
-> +       if (pcp->ents[hnum].idx == idx && pcp->ents[hnum].base)
->  +               ret = pcp->ents[hnum].base + (pfn - (idx << PCGRP_SHIFT));
->  ==
->  Then,
->
->   check pcp->ents[hnum].idx == idx, match.
->   <interrupt>
->               ---------------------------> some codes.
->                                            get_page_cgroup()
->                                                cache_miss--> __get_page_cgroup()
->                                                               --> save_result()
->                                            .............
->   <ret_from_IRQ> <--------------------------
->
->  What will I see ?
+Hi, Andrew,
 
-I see. Thanks for your good explanation.  :-)
-I hope you insert above explanation with comment.
+As per your request I am updating the maintainers file and adding
+myself as the maintainer for the memory resource controller. KAMEZAWA,
+Pavel and many others have helped out the memory resource controller.
+I would request them to add themsevles as maintainers if they are
+interested in doing so.
 
->  Thanks,
->  -Kame
->
+Add Balbir Singh as the memory resource controller maintainer.
+
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
+
+ MAINTAINERS |    7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff -puN MAINTAINERS~add-balbir-as-memcontrol-maintainer MAINTAINERS
+--- linux-2.6.25-rc3/MAINTAINERS~add-balbir-as-memcontrol-maintainer	2008-02-27 08:49:33.000000000 +0530
++++ linux-2.6.25-rc3-balbir/MAINTAINERS	2008-02-27 08:58:35.000000000 +0530
+@@ -2620,6 +2620,13 @@ L:	linux-kernel@vger.kernel.org
+ W:	http://www.linux-mm.org
+ S:	Maintained
+ 
++MEMORY RESOURCE CONTROLLER
++P:	Balbir Singh
++M:	balbir@linux.vnet.ibm.com
++L:	linux-mm@kvack.org
++L:	linux-kernel@vger.kernel.org
++S:	Maintained
++
+ MEI MN10300/AM33 PORT
+ P:	David Howells
+ M:	dhowells@redhat.com
+_
+
 -- 
-Thanks,
-barrios
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
