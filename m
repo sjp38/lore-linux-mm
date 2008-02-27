@@ -1,57 +1,38 @@
-Date: Thu, 28 Feb 2008 00:43:17 +0100
+Date: Thu, 28 Feb 2008 00:57:24 +0100
 From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [kvm-devel] [PATCH] mmu notifiers #v7
-Message-ID: <20080227234317.GM28483@v2.random>
-References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de> <20080221144023.GC9427@v2.random> <20080221161028.GA14220@sgi.com> <20080227192610.GF28483@v2.random> <Pine.LNX.4.64.0802271503050.13186@schroedinger.engr.sgi.com>
+Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address
+	ranges
+Message-ID: <20080227235724.GA8091@v2.random>
+References: <20080215064859.384203497@sgi.com> <20080215064932.620773824@sgi.com> <200802191954.14874.nickpiggin@yahoo.com.au> <20080219133405.GH7128@v2.random> <Pine.LNX.4.64.0802271421480.13186@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0802271503050.13186@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0802271421480.13186@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <npiggin@suse.de>, Steve Wise <swise@opengridcomputing.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, akpm@linux-foundation.org
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 27, 2008 at 03:06:10PM -0800, Christoph Lameter wrote:
-> Ok so it somehow works slowly with GRU and you are happy with it. What 
+On Wed, Feb 27, 2008 at 02:23:29PM -0800, Christoph Lameter wrote:
+> How would that work? You rely on the pte locking. Thus calls are all in an 
 
-As far as GRU is concerned, performance is the same as with your patch
-(Jack can confirm).
+I don't rely on the pte locking in #v7, exactly to satisfy GRU
+(so far purely theoretical) performance complains.
 
-> about the RDMA folks etc etc?
+> atomic context. I think we need a general scheme that allows sleeping when 
 
-If RDMA/IB folks needed to block in invalidate_range, I guess they
-need to do so on top of tmpfs too, and that never worked with your
-patch anyway.
+Calls are still in atomic context until we change the i_mmap_lock to a
+mutex under a CONFIG_XPMEM, or unless we boost mm_users, drop the lock
+and restart the loop at every different mm. In any case those changes
+should be under CONFIG_XPMEM IMHO given desktop users definitely don't
+need this (regular non-blocking mmu notifiers in my patch are all what
+a desktop user need as far as I can tell).
 
-> Would it not be better to have a solution that fits all instead of hacking 
-> something in now and then having to modify it later?
+> references are invalidates. Even the GRU has performance issues when using 
+> the KVM patch.
 
-The whole point is that your solution fits only GRU and KVM too.
-
-XPMEM in your patch works in a hacked mode limited to anonymous memory
-only, Robin already received incoming mail asking to allow xpmem to
-work on more than anonymous memory, so your solution-that-fits-all
-doesn't actually fit some of Robin's customer needs. So if it doesn't
-even entirely satisfy xpmem users, imagine the other potential
-blocking-users of this code.
-
-> Hmmm.. There were earlier discussions of changing the anon vma lock to a 
-> rw lock because of contention issues in large systems. Maybe we can just 
-> generally switch the locks taken while walking rmaps to semaphores? That 
-> would still require to put the invalidate outside of the pte lock.
-
-anon_vma lock can remain a spinlock unless you also want to schedule
-inside try_to_unmap.
-
-If converting the i_mmap_lock to a mutex is a big trouble, another way
-that might work to allow invalidate_range to block, would be to try to
-boost the mm_users to prevent the mmu_notifier_release to run in
-another cpu the moment after i_mmap_lock spinlock is unlocked. But
-even if that works, it'll run slower and the mmu notifiers RCU locking
-should be switched to a mutex, so it'd be nice to have it as a
-separate option.
+GRU will perform the same with #v7 or V8.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
