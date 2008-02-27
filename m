@@ -1,76 +1,52 @@
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28esmtp05.in.ibm.com (8.13.1/8.13.1) with ESMTP id m1R5EXZF017809
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 10:44:33 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1R5EX7O1134776
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 10:44:33 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id m1R5EWK7016255
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2008 05:14:33 GMT
-Date: Wed, 27 Feb 2008 10:38:55 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 04/15] memcg: when do_swap's do_wp_page fails
-Message-ID: <20080227050854.GA2317@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <Pine.LNX.4.64.0802252327490.27067@blonde.site> <Pine.LNX.4.64.0802252337110.27067@blonde.site>
+Date: Tue, 26 Feb 2008 21:19:12 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC][PATCH] page reclaim throttle take2
+In-Reply-To: <47C4EF2D.90508@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.1.00.0802262115270.1799@chino.kir.corp.google.com>
+References: <20080227133850.4249.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080227140042.66abb805.kamezawa.hiroyu@jp.fujitsu.com> <20080227140221.424C.KOSAKI.MOTOHIRO@jp.fujitsu.com> <47C4EF2D.90508@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0802252337110.27067@blonde.site>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-* Hugh Dickins <hugh@veritas.com> [2008-02-25 23:38:02]:
+On Wed, 27 Feb 2008, Balbir Singh wrote:
 
-> Don't uncharge when do_swap_page's call to do_wp_page fails: the page which
-> was charged for is there in the pagetable, and will be correctly uncharged
-> when that area is unmapped - it was only its COWing which failed.
+> >> CONFIG_SIMULTANEOUS_PAGE_RECLAIMERS 
+> >> int
+> >> default 3
+> >> depends on DEBUG
+> >> help
+> >>   This value determines the number of threads which can do page reclaim
+> >>   in a zone simultaneously. If this is too big, performance under heavy memory
+> >>   pressure will decrease.
+> >>   If unsure, use default.
+> >> ==
+> >>
+> >> Then, you can get performance reports from people interested in this
+> >> feature in test cycle.
+> > 
+> > hm, intersting.
+> > but sysctl parameter is more better, i think.
+> > 
+> > OK, I'll add it at next post.
 > 
-> And while we're here, remove earlier XXX comment: yes, OR in do_wp_page's
-> return value (maybe VM_FAULT_WRITE) with do_swap_page's there; but if it
-> fails, mask out success bits, which might confuse some arches e.g. sparc.
+> I think sysctl should be interesting. The config option provides good
+> documentation, but it is static in nature (requires reboot to change). I wish we
+> could have the best of both worlds.
 > 
-> Signed-off-by: Hugh Dickins <hugh@veritas.com>
-> ---
-> 
->  mm/memory.c |    9 +++------
->  1 file changed, 3 insertions(+), 6 deletions(-)
-> 
-> --- memcg03/mm/memory.c	2008-02-25 14:05:43.000000000 +0000
-> +++ memcg04/mm/memory.c	2008-02-25 14:05:47.000000000 +0000
-> @@ -2093,12 +2093,9 @@ static int do_swap_page(struct mm_struct
->  	unlock_page(page);
-> 
->  	if (write_access) {
-> -		/* XXX: We could OR the do_wp_page code with this one? */
-> -		if (do_wp_page(mm, vma, address,
-> -				page_table, pmd, ptl, pte) & VM_FAULT_OOM) {
-> -			mem_cgroup_uncharge_page(page);
-> -			ret = VM_FAULT_OOM;
-> -		}
-> +		ret |= do_wp_page(mm, vma, address, page_table, pmd, ptl, pte);
-> +		if (ret & VM_FAULT_ERROR)
-> +			ret &= VM_FAULT_ERROR;
->  		goto out;
->  	}
->
 
-Looks good to me. Do you think we could add some of the description
-from above as a comment in the code? People would not have to look at
-the git log to understand why we did not uncharge.
+I disagree, the config option is indeed static but so is the NUMA topology 
+of the machine.  It represents the maximum number of page reclaim threads 
+that should be allowed for that specific topology; a maximum should not 
+need to be redefined with yet another sysctl and should remain independent 
+of various workloads.
 
-Otherwise, it looks very good
+However, I would recommend adding the word "MAX" to the config option.
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
- 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
