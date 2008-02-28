@@ -1,13 +1,13 @@
-Date: Wed, 27 Feb 2008 17:03:21 -0800 (PST)
+Date: Wed, 27 Feb 2008 17:01:50 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address ranges
-In-Reply-To: <20080228005249.GF8091@v2.random>
-Message-ID: <Pine.LNX.4.64.0802271702490.16510@schroedinger.engr.sgi.com>
-References: <20080215064859.384203497@sgi.com> <20080215064932.620773824@sgi.com>
- <200802201008.49933.nickpiggin@yahoo.com.au>
- <Pine.LNX.4.64.0802271424390.13186@schroedinger.engr.sgi.com>
- <20080228001104.GB8091@v2.random> <Pine.LNX.4.64.0802271613080.15791@schroedinger.engr.sgi.com>
- <20080228005249.GF8091@v2.random>
+Subject: Re: [patch 5/6] mmu_notifier: Support for drivers with revers maps
+ (f.e. for XPmem)
+In-Reply-To: <20080228004226.GE8091@v2.random>
+Message-ID: <Pine.LNX.4.64.0802271701250.16510@schroedinger.engr.sgi.com>
+References: <20080215064859.384203497@sgi.com> <20080215064933.376635032@sgi.com>
+ <200802201055.21343.nickpiggin@yahoo.com.au>
+ <Pine.LNX.4.64.0802271440530.13186@schroedinger.engr.sgi.com>
+ <20080228004226.GE8091@v2.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,17 +18,15 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 28 Feb 2008, Andrea Arcangeli wrote:
 
-> On Wed, Feb 27, 2008 at 04:14:08PM -0800, Christoph Lameter wrote:
-> > Erm. This would also be needed by RDMA etc.
+> On Wed, Feb 27, 2008 at 02:43:41PM -0800, Christoph Lameter wrote:
+> > Nope. unmap_mapping_range is already handled by the range callbacks.
 > 
-> The only RDMA I know is Quadrics, and Quadrics apparently doesn't need
-> to schedule inside the invalidate methods AFIK, so I doubt the above
-> is true. It'd be interesting to know if IB is like Quadrics and it
-> also doesn't require blocking to invalidate certain remote mappings.
+> But they're called with atomic=1 on anything but anonymous memory. I
+> understood Andrew asked to remove the atomic param and to allow
+> sleeping for all kind of vmas. I also understood certain XPMEM
+> customers asked to use XPMEM on something more than anonymous memory.
 
-RDMA works across a network and I would assume that it needs confirmation 
-that a connection has been torn down before pages can be unmapped.
- 
+Yes but the patch that is discussed here does not handle that situation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
