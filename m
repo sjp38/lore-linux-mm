@@ -1,213 +1,110 @@
-Message-Id: <20080228192929.707593903@redhat.com>
+Message-Id: <20080228192929.793021800@redhat.com>
 References: <20080228192908.126720629@redhat.com>
-Date: Thu, 28 Feb 2008 14:29:28 -0500
+Date: Thu, 28 Feb 2008 14:29:29 -0500
 From: Rik van Riel <riel@redhat.com>
-Subject: [patch 20/21] account mlocked pages
-Content-Disposition: inline; filename=noreclaim-04.3-account-mlocked-pages.patch
+Subject: [patch 21/21] cull non-reclaimable anon pages from the LRU at fault time
+Content-Disposition: inline; filename=noreclaim-07-cull-nonreclaimable-anon-pages-in-fault-path.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
 V2 -> V3:
-+ rebase to 23-mm1 atop RvR's split lru series
-+ fix definitions of NR_MLOCK to fix build errors when not configured.
++ rebase to 23-mm1 atop RvR's split lru series.
 
 V1 -> V2:
-+  new in V2 -- pulled in & reworked from Nick's previous series
++  no changes
 
-  From: Nick Piggin <npiggin@suse.de>
-  To: Linux Memory Management <linux-mm@kvack.org>
-  Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>
-  Subject: [patch 4/4] mm: account mlocked pages
-  Date:	Mon, 12 Mar 2007 07:39:14 +0100 (CET)
+Optional part of "noreclaim infrastructure"
 
-Add NR_MLOCK zone page state, which provides a (conservative) count of
-mlocked pages (actually, the number of mlocked pages moved off the LRU).
+In the fault paths that install new anonymous pages, check whether
+the page is reclaimable or not using lru_cache_add_active_or_noreclaim().
+If the page is reclaimable, just add it to the active lru list [via
+the pagevec cache], else add it to the noreclaim list.  
 
-Reworked by lts to fit in with the modified mlock page support in the
-Reclaim Scalability series.  I don't know whether we'll want to keep
-these stats in the long run, but during testing of this series, I find
-them useful.
+This "proactive" culling in the fault path mimics the handling of
+mlocked pages in Nick Piggin's series to keep mlocked pages off
+the lru lists.
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Signed-off-by: Rik van Riel <riel@redhat.com>
+Notes:
 
+1) This patch is optional--e.g., if one is concerned about the
+   additional test in the fault path.  We can defer the moving of
+   nonreclaimable pages until when vmscan [shrink_*_list()]
+   encounters them.  Vmscan will only need to handle such pages
+   once.
 
-Index: linux-2.6.25-rc2-mm1/drivers/base/node.c
+2) I moved the call to page_add_new_anon_rmap() to before the test
+   for page_reclaimable() and thus before the calls to
+   lru_cache_add_{active|noreclaim}(), so that page_reclaimable()
+   could recognize the page as anon, thus obviating, I think, the
+   vma arg to page_reclaimable() for this purpose.  Still needed for
+   culling mlocked pages in fault path [later patch].
+   TBD:   I think this reordering is OK, but the previous order may
+   have existed to close some obscure race?
+
+3) With this and other patches above installed, any anon pages
+   created before swap is added--e.g., init's anonymous memory--
+   will be declared non-reclaimable and placed on the noreclaim
+   LRU list.  Need to add mechanism to bring such pages back when
+   swap becomes available.
+
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+Signed-off-by:  Rik van Riel <riel@redhat.com>
+
+Index: linux-2.6.25-rc2-mm1/mm/memory.c
 ===================================================================
---- linux-2.6.25-rc2-mm1.orig/drivers/base/node.c	2008-02-28 12:48:01.000000000 -0500
-+++ linux-2.6.25-rc2-mm1/drivers/base/node.c	2008-02-28 12:49:19.000000000 -0500
-@@ -55,6 +55,9 @@ static ssize_t node_read_meminfo(struct 
- 		       "Node %d Inactive(file): %8lu kB\n"
- #ifdef CONFIG_NORECLAIM
- 		       "Node %d Noreclaim:    %8lu kB\n"
-+#ifdef CONFIG_NORECLAIM_MLOCK
-+		       "Node %d Mlocked:       %8lu kB\n"
-+#endif
- #endif
- #ifdef CONFIG_HIGHMEM
- 		       "Node %d HighTotal:      %8lu kB\n"
-@@ -82,6 +85,9 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, node_page_state(nid, NR_INACTIVE_FILE),
- #ifdef CONFIG_NORECLAIM
- 		       nid, node_page_state(nid, NR_NORECLAIM),
-+#ifdef CONFIG_NORECLAIM_MLOCK
-+		       nid, K(node_page_state(nid, NR_MLOCK)),
-+#endif
- #endif
- #ifdef CONFIG_HIGHMEM
- 		       nid, K(i.totalhigh),
-Index: linux-2.6.25-rc2-mm1/fs/proc/proc_misc.c
+--- linux-2.6.25-rc2-mm1.orig/mm/memory.c	2008-02-28 00:27:06.000000000 -0500
++++ linux-2.6.25-rc2-mm1/mm/memory.c	2008-02-28 12:49:23.000000000 -0500
+@@ -1678,7 +1678,7 @@ gotten:
+ 		set_pte_at(mm, address, page_table, entry);
+ 		update_mmu_cache(vma, address, entry);
+ 		SetPageSwapBacked(new_page);
+-		lru_cache_add_active_anon(new_page);
++		lru_cache_add_active_or_noreclaim(new_page, vma);
+ 		page_add_new_anon_rmap(new_page, vma, address);
+ 
+ 		/* Free the old page.. */
+@@ -2150,7 +2150,7 @@ static int do_anonymous_page(struct mm_s
+ 		goto release;
+ 	inc_mm_counter(mm, anon_rss);
+ 	SetPageSwapBacked(page);
+-	lru_cache_add_active_anon(page);
++	lru_cache_add_active_or_noreclaim(page, vma);
+ 	page_add_new_anon_rmap(page, vma, address);
+ 	set_pte_at(mm, address, page_table, entry);
+ 
+@@ -2292,10 +2292,10 @@ static int __do_fault(struct mm_struct *
+ 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+ 		set_pte_at(mm, address, page_table, entry);
+ 		if (anon) {
+-                        inc_mm_counter(mm, anon_rss);
++			inc_mm_counter(mm, anon_rss);
+ 			SetPageSwapBacked(page);
+-                        lru_cache_add_active_anon(page);
+-                        page_add_new_anon_rmap(page, vma, address);
++			lru_cache_add_active_or_noreclaim(page, vma);
++			page_add_new_anon_rmap(page, vma, address);
+ 		} else {
+ 			inc_mm_counter(mm, file_rss);
+ 			page_add_file_rmap(page);
+Index: linux-2.6.25-rc2-mm1/mm/swap_state.c
 ===================================================================
---- linux-2.6.25-rc2-mm1.orig/fs/proc/proc_misc.c	2008-02-28 12:47:36.000000000 -0500
-+++ linux-2.6.25-rc2-mm1/fs/proc/proc_misc.c	2008-02-28 12:49:19.000000000 -0500
-@@ -164,6 +164,9 @@ static int meminfo_read_proc(char *page,
- 		"Inactive(file): %8lu kB\n"
- #ifdef CONFIG_NORECLAIM
- 		"Noreclaim:    %8lu kB\n"
-+#ifdef CONFIG_NORECLAIM_MLOCK
-+		"Mlocked:      %8lu kB\n"
-+#endif
- #endif
- #ifdef CONFIG_HIGHMEM
- 		"HighTotal:      %8lu kB\n"
-@@ -199,6 +202,9 @@ static int meminfo_read_proc(char *page,
- 		K(global_page_state(NR_INACTIVE_FILE)),
- #ifdef CONFIG_NORECLAIM
- 		K(global_page_state(NR_NORECLAIM)),
-+#ifdef CONFIG_NORECLAIM_MLOCK
-+		K(global_page_state(NR_MLOCK)),
-+#endif
- #endif
- #ifdef CONFIG_HIGHMEM
- 		K(i.totalhigh),
-Index: linux-2.6.25-rc2-mm1/include/linux/mmzone.h
-===================================================================
---- linux-2.6.25-rc2-mm1.orig/include/linux/mmzone.h	2008-02-28 11:45:14.000000000 -0500
-+++ linux-2.6.25-rc2-mm1/include/linux/mmzone.h	2008-02-28 12:49:19.000000000 -0500
-@@ -87,7 +87,12 @@ enum zone_stat_item {
- #ifdef CONFIG_NORECLAIM
- 	NR_NORECLAIM,	/*  "     "     "   "       "         */
- #else
--	NR_NORECLAIM=NR_ACTIVE_FILE, /* avoid compiler errors in dead code */
-+	NR_NORECLAIM=NR_ACTIVE_FILE,	/* avoid compiler errors in dead code */
-+#endif
-+#ifdef CONFIG_NORECLAIM_MLOCK
-+	NR_MLOCK,		/* mlock()ed pages found and moved off LRU */
-+#else
-+	NR_MLOCK=NR_ACTIVE_FILE,	/* avoid compiler errors... */
- #endif
- 	NR_ANON_PAGES,	/* Mapped anonymous pages */
- 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
-Index: linux-2.6.25-rc2-mm1/mm/mlock.c
-===================================================================
---- linux-2.6.25-rc2-mm1.orig/mm/mlock.c	2008-02-28 12:49:09.000000000 -0500
-+++ linux-2.6.25-rc2-mm1/mm/mlock.c	2008-02-28 12:49:19.000000000 -0500
-@@ -60,11 +60,11 @@ void clear_page_mlock(struct page *page)
- {
- 	BUG_ON(!PageLocked(page));
- 
--	if (likely(!PageMlocked(page)))
--		return;
--	ClearPageMlocked(page);
--	if (!isolate_lru_page(page))
--		putback_lru_page(page);
-+	if (unlikely(TestClearPageMlocked(page))) {
-+		dec_zone_page_state(page, NR_MLOCK);
-+		if (!isolate_lru_page(page))
-+			putback_lru_page(page);
-+	}
- }
- 
- /*
-@@ -75,8 +75,11 @@ void mlock_vma_page(struct page *page)
- {
- 	BUG_ON(!PageLocked(page));
- 
--	if (!TestSetPageMlocked(page) && !isolate_lru_page(page))
-+	if (!TestSetPageMlocked(page)) {
-+		inc_zone_page_state(page, NR_MLOCK);
-+		if (!isolate_lru_page(page))
- 			putback_lru_page(page);
-+	}
- }
- 
- /*
-@@ -98,10 +101,22 @@ static void munlock_vma_page(struct page
- {
- 	BUG_ON(!PageLocked(page));
- 
--	if (TestClearPageMlocked(page) && !isolate_lru_page(page)) {
--		if (try_to_unlock(page) == SWAP_MLOCK)
--			SetPageMlocked(page);	/* still VM_LOCKED */
--		putback_lru_page(page);
-+	if (TestClearPageMlocked(page)) {
-+		dec_zone_page_state(page, NR_MLOCK);
-+		if (!isolate_lru_page(page)) {
-+			if (try_to_unlock(page) == SWAP_MLOCK) {
-+				SetPageMlocked(page);	/* still VM_LOCKED */
-+				inc_zone_page_state(page, NR_MLOCK);
-+			}
-+			putback_lru_page(page);
-+		}
-+		/*
-+		 * Else we lost the race.  let try_to_unmap() deal with it.
-+		 * At least we get the page state and mlock stats right.
-+		 * However, page is still on the noreclaim list.  We'll fix
-+		 * that up when the page is eventually freed or we scan the
-+		 * noreclaim list.
-+		 */
- 	}
- }
- 
-@@ -118,7 +133,8 @@ int is_mlocked_vma(struct vm_area_struct
- 	if (likely(!(vma->vm_flags & VM_LOCKED)))
- 		return 0;
- 
--	SetPageMlocked(page);
-+	if (!TestSetPageMlocked(page))
-+		inc_zone_page_state(page, NR_MLOCK);
- 	return 1;
- }
- 
-Index: linux-2.6.25-rc2-mm1/mm/migrate.c
-===================================================================
---- linux-2.6.25-rc2-mm1.orig/mm/migrate.c	2008-02-28 12:49:02.000000000 -0500
-+++ linux-2.6.25-rc2-mm1/mm/migrate.c	2008-02-28 12:49:19.000000000 -0500
-@@ -341,8 +341,15 @@ static void migrate_page_copy(struct pag
- 		set_page_dirty(newpage);
-  	}
- 
--	if (TestClearPageMlocked(page))
-+	if (TestClearPageMlocked(page)) {
-+		unsigned long flags;
-+
-+		local_irq_save(flags);
-+		__dec_zone_page_state(page, NR_MLOCK);
- 		SetPageMlocked(newpage);
-+		__inc_zone_page_state(newpage, NR_MLOCK);
-+		local_irq_restore(flags);
-+	}
- 
- #ifdef CONFIG_SWAP
- 	ClearPageSwapCache(page);
-Index: linux-2.6.25-rc2-mm1/mm/vmstat.c
-===================================================================
---- linux-2.6.25-rc2-mm1.orig/mm/vmstat.c	2008-02-28 12:47:36.000000000 -0500
-+++ linux-2.6.25-rc2-mm1/mm/vmstat.c	2008-02-28 12:49:19.000000000 -0500
-@@ -693,6 +693,9 @@ static const char * const vmstat_text[] 
- #ifdef CONFIG_NORECLAIM
- 	"nr_noreclaim",
- #endif
-+#ifdef CONFIG_NORECLAIM_MLOCK
-+	"nr_mlock",
-+#endif
- 	"nr_anon_pages",
- 	"nr_mapped",
- 	"nr_file_pages",
+--- linux-2.6.25-rc2-mm1.orig/mm/swap_state.c	2008-02-28 00:29:51.000000000 -0500
++++ linux-2.6.25-rc2-mm1/mm/swap_state.c	2008-02-28 12:49:23.000000000 -0500
+@@ -300,7 +300,10 @@ struct page *read_swap_cache_async(swp_e
+ 			/*
+ 			 * Initiate read into locked page and return.
+ 			 */
+-			lru_cache_add_anon(new_page);
++			if (!page_reclaimable(new_page, vma))
++				lru_cache_add_noreclaim(new_page);
++			else
++				lru_cache_add_anon(new_page);
+ 			swap_readpage(NULL, new_page);
+ 			return new_page;
+ 		}
 
 -- 
 All Rights Reversed
