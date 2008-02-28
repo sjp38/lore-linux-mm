@@ -1,9 +1,9 @@
-Message-Id: <20080228192929.623371886@redhat.com>
+Message-Id: <20080228192929.537996441@redhat.com>
 References: <20080228192908.126720629@redhat.com>
-Date: Thu, 28 Feb 2008 14:29:27 -0500
+Date: Thu, 28 Feb 2008 14:29:26 -0500
 From: Rik van Riel <riel@redhat.com>
-Subject: [patch 19/21] handle mlocked pages during map/unmap and truncate
-Content-Disposition: inline; filename=noreclaim-04.2-move-mlocked-pages-off-the-LRU.patch
+Subject: [patch 18/21] mlock vma pages under mmap_sem held for read
+Content-Disposition: inline; filename=noreclaim-04.1a-lock-vma-pages-under-read-lock.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -11,220 +11,176 @@ Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Sche
 List-ID: <linux-mm.kvack.org>
 
 V2 -> V3:
-+ rebase to 23-mm1 atop RvR's split lru series [no changes]
++ rebase to 23-mm1 atop RvR's split lru series [no change]
++ fix function return types [void -> int] to fix build when
+  not configured.
 
-V1 -> V2:
-+  modified mmap.c:mmap_region() to return error if mlock_vma_pages_range()
-   does.  This can only occur if the vma gets removed/changed while
-   we're switching mmap_sem lock modes.   Most callers don't care, but
-   sys_remap_file_pages() appears to.
+New in V2.
 
-Rework of Nick Piggins's "mm: move mlocked pages off the LRU" patch
--- part 2 0f 2.
+We need to hold the mmap_sem for write to initiatate mlock()/munlock()
+because we may need to merge/split vmas.  However, this can lead to
+very long lock hold times attempting to fault in a large memory region
+to mlock it into memory.   This can hold off other faults against the
+mm [multithreaded tasks] and other scans of the mm, such as via /proc.
+To alleviate this, downgrade the mmap_sem to read mode during the 
+population of the region for locking.  This is especially the case 
+if we need to reclaim memory to lock down the region.  We [probably?]
+don't need to do this for unlocking as all of the pages should be
+resident--they're already mlocked.
 
-Remove mlocked pages from the LRU using "NoReclaim infrastructure"
-during mmap()/mremap().  Try to move back to normal LRU lists on
-munmap() when last locked mapping removed.  Removed PageMlocked()
-status when page truncated from file.
+Now, the caller's of the mlock functions [mlock_fixup() and 
+mlock_vma_pages_range()] expect the mmap_sem to be returned in write
+mode.  Changing all callers appears to be way too much effort at this
+point.  So, restore write mode before returning.  Note that this opens
+a window where the mmap list could change in a multithreaded process.
+So, at least for mlock_fixup(), where we could be called in a loop over
+multiple vmas, we check that a vma still exists at the start address
+and that vma still covers the page range [start,end).  If not, we return
+an error, -EAGAIN, and let the caller deal with it.
 
+Return -EAGAIN from mlock_vma_pages_range() function and mlock_fixup()
+if the vma at 'start' disappears or changes so that the page range
+[start,end) is no longer contained in the vma.  Again, let the caller
+deal with it.  Looks like only sys_remap_file_pages() [via mmap_region()]
+should actually care.
 
-Originally Signed-off-by: Nick Piggin <npiggin@suse.de>
+With this patch, I no longer see processes like ps(1) blocked for seconds
+or minutes at a time waiting for a large [multiple gigabyte] region to be
+locked down.  
+
 Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 Signed-off-by:  Rik van Riel <riel@redhat.com>
 
-Index: linux-2.6.25-rc2-mm1/mm/mmap.c
+Index: linux-2.6.25-rc2-mm1/mm/mlock.c
 ===================================================================
---- linux-2.6.25-rc2-mm1.orig/mm/mmap.c	2008-02-19 16:23:16.000000000 -0500
-+++ linux-2.6.25-rc2-mm1/mm/mmap.c	2008-02-28 12:49:14.000000000 -0500
-@@ -32,6 +32,8 @@
- #include <asm/tlb.h>
- #include <asm/mmu_context.h>
+--- linux-2.6.25-rc2-mm1.orig/mm/mlock.c	2008-02-28 12:49:02.000000000 -0500
++++ linux-2.6.25-rc2-mm1/mm/mlock.c	2008-02-28 12:49:09.000000000 -0500
+@@ -200,6 +200,37 @@ int __mlock_vma_pages_range(struct vm_ar
+ 	return ret;
+ }
  
-+#include "internal.h"
++/**
++ * mlock_vma_pages_range
++ * @vma - vm area to mlock into memory
++ * @start - start address in @vma of range to mlock,
++ * @end   - end address in @vma of range
++ *
++ * Called with current->mm->mmap_sem held write locked.  Downgrade to read
++ * for faulting in pages.  This can take a looong time for large segments.
++ *
++ * We need to restore the mmap_sem to write locked because our callers'
++ * callers expect this.	 However, because the mmap could have changed
++ * [in a multi-threaded process], we need to recheck.
++ */
++int mlock_vma_pages_range(struct vm_area_struct *vma,
++			unsigned long start, unsigned long end)
++{
++	struct mm_struct *mm = vma->vm_mm;
 +
- #ifndef arch_mmap_check
- #define arch_mmap_check(addr, len, flags)	(0)
- #endif
-@@ -1208,9 +1210,13 @@ out:
- 	vm_stat_account(mm, vm_flags, file, len >> PAGE_SHIFT);
- 	if (vm_flags & VM_LOCKED) {
- 		mm->locked_vm += len >> PAGE_SHIFT;
--		make_pages_present(addr, addr + len);
--	}
--	if ((flags & MAP_POPULATE) && !(flags & MAP_NONBLOCK))
-+		/*
-+		 * makes pages present; downgrades, drops, requires mmap_sem
-+		 */
-+		error = mlock_vma_pages_range(vma, addr, addr + len);
-+		if (error)
-+			return error;	/* vma gone! */
-+	} else if ((flags & MAP_POPULATE) && !(flags & MAP_NONBLOCK))
- 		make_pages_present(addr, addr + len);
- 	return addr;
++	downgrade_write(&mm->mmap_sem);
++	__mlock_vma_pages_range(vma, start, end, 1);
++
++	up_read(&mm->mmap_sem);
++	/* vma can change or disappear */
++	down_write(&mm->mmap_sem);
++	vma = find_vma(mm, start);
++	/* non-NULL vma must contain @start, but need to check @end */
++	if (!vma ||  end > vma->vm_end)
++		return -EAGAIN;
++	return 0;
++}
++
+ #else /* CONFIG_NORECLAIM_MLOCK */
  
-@@ -1896,6 +1902,19 @@ int do_munmap(struct mm_struct *mm, unsi
- 	vma = prev? prev->vm_next: mm->mmap;
+ /*
+@@ -266,14 +297,38 @@ success:
+ 	mm->locked_vm += nr_pages;
  
  	/*
-+	 * unlock any mlock()ed ranges before detaching vmas
-+	 */
-+	if (mm->locked_vm) {
-+		struct vm_area_struct *tmp = vma;
-+		while (tmp && tmp->vm_start < end) {
-+			if (tmp->vm_flags & VM_LOCKED)
-+				munlock_vma_pages_range(tmp,
-+						 tmp->vm_start, tmp->vm_end);
-+			tmp = tmp->vm_next;
-+		}
-+	}
-+
-+	/*
- 	 * Remove the vma's, and unmap the actual pages
+-	 * vm_flags is protected by the mmap_sem held in write mode.
++	 * vm_flags is protected by the mmap_sem held for write.
+ 	 * It's okay if try_to_unmap_one unmaps a page just after we
+ 	 * set VM_LOCKED, __mlock_vma_pages_range will bring it back.
  	 */
- 	detach_vmas_to_be_unmapped(mm, vma, prev, end);
-@@ -2031,7 +2050,7 @@ out:
- 	mm->total_vm += len >> PAGE_SHIFT;
- 	if (flags & VM_LOCKED) {
- 		mm->locked_vm += len >> PAGE_SHIFT;
--		make_pages_present(addr, addr + len);
-+		mlock_vma_pages_range(vma, addr, addr + len);
- 	}
- 	return addr;
- }
-@@ -2042,13 +2061,26 @@ EXPORT_SYMBOL(do_brk);
- void exit_mmap(struct mm_struct *mm)
- {
- 	struct mmu_gather *tlb;
--	struct vm_area_struct *vma = mm->mmap;
-+	struct vm_area_struct *vma;
- 	unsigned long nr_accounted = 0;
- 	unsigned long end;
+ 	vma->vm_flags = newflags;
  
- 	/* mm's last user has gone, and its about to be pulled down */
- 	arch_exit_mmap(mm);
++	/*
++	 * mmap_sem is currently held for write.  If we're locking pages,
++	 * downgrade the write lock to a read lock so that other faults,
++	 * mmap scans, ... while we fault in all pages.
++	 */
++	if (lock)
++		downgrade_write(&mm->mmap_sem);
++
+ 	__mlock_vma_pages_range(vma, start, end, lock);
  
-+	if (mm->locked_vm) {
-+		vma = mm->mmap;
-+		while (vma) {
-+			if (vma->vm_flags & VM_LOCKED)
-+				munlock_vma_pages_range(vma,
-+						vma->vm_start, vma->vm_end);
-+			vma = vma->vm_next;
-+		}
++	if (lock) {
++		/*
++		 * Need to reacquire mmap sem in write mode, as our callers
++		 * expect this.  We have no support for atomically upgrading
++		 * a sem to write, so we need to check for changes while sem
++		 * is unlocked.
++		 */
++		up_read(&mm->mmap_sem);
++		/* vma can change or disappear */
++		down_write(&mm->mmap_sem);
++		*prev = find_vma(mm, start);
++		/* non-NULL *prev must contain @start, but need to check @end */
++		if (!(*prev) || end > (*prev)->vm_end)
++			ret = -EAGAIN;
 +	}
 +
-+	vma = mm->mmap;
-+
-+
- 	lru_add_drain();
- 	flush_cache_mm(mm);
- 	tlb = tlb_gather_mmu(mm, 1);
-Index: linux-2.6.25-rc2-mm1/mm/mremap.c
+ out:
+ 	if (ret == -ENOMEM)
+ 		ret = -EAGAIN;
+Index: linux-2.6.25-rc2-mm1/mm/internal.h
 ===================================================================
---- linux-2.6.25-rc2-mm1.orig/mm/mremap.c	2008-02-19 16:22:45.000000000 -0500
-+++ linux-2.6.25-rc2-mm1/mm/mremap.c	2008-02-28 12:49:14.000000000 -0500
-@@ -23,6 +23,8 @@
- #include <asm/cacheflush.h>
- #include <asm/tlbflush.h>
+--- linux-2.6.25-rc2-mm1.orig/mm/internal.h	2008-02-28 12:49:02.000000000 -0500
++++ linux-2.6.25-rc2-mm1/mm/internal.h	2008-02-28 12:49:09.000000000 -0500
+@@ -61,24 +61,21 @@ extern int __mlock_vma_pages_range(struc
+ /*
+  * mlock all pages in this vma range.  For mmap()/mremap()/...
+  */
+-static inline void mlock_vma_pages_range(struct vm_area_struct *vma,
+-			unsigned long start, unsigned long end)
+-{
+-	__mlock_vma_pages_range(vma, start, end, 1);
+-}
++extern int mlock_vma_pages_range(struct vm_area_struct *vma,
++			unsigned long start, unsigned long end);
  
-+#include "internal.h"
-+
- static pmd_t *get_old_pmd(struct mm_struct *mm, unsigned long addr)
+ /*
+  * munlock range of pages.   For munmap() and exit().
+  * Always called to operate on a full vma that is being unmapped.
+  */
+-static inline void munlock_vma_pages_range(struct vm_area_struct *vma,
++static inline int munlock_vma_pages_range(struct vm_area_struct *vma,
+ 			unsigned long start, unsigned long end)
  {
- 	pgd_t *pgd;
-@@ -232,8 +234,8 @@ static unsigned long move_vma(struct vm_
- 	if (vm_flags & VM_LOCKED) {
- 		mm->locked_vm += new_len >> PAGE_SHIFT;
- 		if (new_len > old_len)
--			make_pages_present(new_addr + old_len,
--					   new_addr + new_len);
-+			mlock_vma_pages_range(vma, new_addr + old_len,
-+						   new_addr + new_len);
- 	}
+ // TODO:  verify my assumption.  Should we just drop the start/end args?
+ 	VM_BUG_ON(start != vma->vm_start || end != vma->vm_end);
  
- 	return new_addr;
-@@ -373,7 +375,7 @@ unsigned long do_mremap(unsigned long ad
- 			vm_stat_account(mm, vma->vm_flags, vma->vm_file, pages);
- 			if (vma->vm_flags & VM_LOCKED) {
- 				mm->locked_vm += pages;
--				make_pages_present(addr + old_len,
-+				mlock_vma_pages_range(vma, addr + old_len,
- 						   addr + new_len);
- 			}
- 			ret = addr;
-Index: linux-2.6.25-rc2-mm1/mm/vmscan.c
-===================================================================
---- linux-2.6.25-rc2-mm1.orig/mm/vmscan.c	2008-02-28 12:49:02.000000000 -0500
-+++ linux-2.6.25-rc2-mm1/mm/vmscan.c	2008-02-28 12:49:14.000000000 -0500
-@@ -540,6 +540,10 @@ static unsigned long shrink_page_list(st
- 				goto activate_locked;
- 			case SWAP_AGAIN:
- 				goto keep_locked;
-+			case SWAP_MLOCK:
-+				ClearPageActive(page);
-+				SetPageNoreclaim(page);
-+				goto keep_locked;	/* to noreclaim list */
- 			case SWAP_SUCCESS:
- 				; /* try to free the page below */
- 			}
-Index: linux-2.6.25-rc2-mm1/mm/filemap.c
-===================================================================
---- linux-2.6.25-rc2-mm1.orig/mm/filemap.c	2008-02-28 00:27:06.000000000 -0500
-+++ linux-2.6.25-rc2-mm1/mm/filemap.c	2008-02-28 12:49:14.000000000 -0500
-@@ -2521,8 +2521,16 @@ generic_file_direct_IO(int rw, struct ki
- 	if (rw == WRITE) {
- 		write_len = iov_length(iov, nr_segs);
- 		end = (offset + write_len - 1) >> PAGE_CACHE_SHIFT;
--	       	if (mapping_mapped(mapping))
-+		if (mapping_mapped(mapping)) {
-+			/*
-+			 * Calling unmap_mapping_range like this is wrong,
-+			 * because it can lead to mlocked pages being
-+			 * discarded (this is true even before the Noreclaim
-+			 * mlock work). direct-IO vs pagecache is a load of
-+			 * junk anyway, so who cares.
-+			 */
- 			unmap_mapping_range(mapping, offset, write_len, 0);
-+		}
- 	}
+ 	vma->vm_flags &= ~VM_LOCKED;    /* try_to_unlock() needs this */
+-	__mlock_vma_pages_range(vma, start, end, 0);
++	return __mlock_vma_pages_range(vma, start, end, 0);
+ }
  
- 	retval = filemap_write_and_wait(mapping);
-Index: linux-2.6.25-rc2-mm1/mm/truncate.c
-===================================================================
---- linux-2.6.25-rc2-mm1.orig/mm/truncate.c	2008-02-19 16:23:16.000000000 -0500
-+++ linux-2.6.25-rc2-mm1/mm/truncate.c	2008-02-28 12:49:14.000000000 -0500
-@@ -18,6 +18,7 @@
- #include <linux/task_io_accounting_ops.h>
- #include <linux/buffer_head.h>	/* grr. try_to_release_page,
- 				   do_invalidatepage */
-+#include "internal.h"
+ extern void clear_page_mlock(struct page *page);
+@@ -90,10 +87,10 @@ static inline int is_mlocked_vma(struct 
+ }
+ static inline void clear_page_mlock(struct page *page) { }
+ static inline void mlock_vma_page(struct page *page) { }
+-static inline void mlock_vma_pages_range(struct vm_area_struct *vma,
+-			unsigned long start, unsigned long end) { }
+-static inline void munlock_vma_pages_range(struct vm_area_struct *vma,
+-			unsigned long start, unsigned long end) { }
++static inline int mlock_vma_pages_range(struct vm_area_struct *vma,
++			unsigned long start, unsigned long end) { return 0; }
++static inline int munlock_vma_pages_range(struct vm_area_struct *vma,
++			unsigned long start, unsigned long end) { return 0; }
  
+ #endif /* CONFIG_NORECLAIM_MLOCK */
  
- /**
-@@ -104,6 +105,7 @@ truncate_complete_page(struct address_sp
- 	cancel_dirty_page(page, PAGE_CACHE_SIZE);
- 
- 	remove_from_page_cache(page);
-+	clear_page_mlock(page);
- 	ClearPageUptodate(page);
- 	ClearPageMappedToDisk(page);
- 	page_cache_release(page);	/* pagecache ref */
-@@ -128,6 +130,7 @@ invalidate_complete_page(struct address_
- 	if (PagePrivate(page) && !try_to_release_page(page, 0))
- 		return 0;
- 
-+	clear_page_mlock(page);
- 	ret = remove_mapping(mapping, page);
- 
- 	return ret;
-@@ -354,6 +357,7 @@ invalidate_complete_page2(struct address
- 	if (PageDirty(page))
- 		goto failed;
- 
-+	clear_page_mlock(page);
- 	BUG_ON(PagePrivate(page));
- 	__remove_from_page_cache(page);
- 	write_unlock_irq(&mapping->tree_lock);
 
 -- 
 All Rights Reversed
