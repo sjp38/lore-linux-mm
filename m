@@ -1,48 +1,44 @@
-Date: Wed, 27 Feb 2008 23:26:25 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Date: Thu, 28 Feb 2008 08:08:17 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [PATCH 01/15] memcg: mm_match_cgroup not vm_match_cgroup
-Message-Id: <20080227232625.26f736f8.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.1.00.0802272317380.24391@chino.kir.corp.google.com>
+In-Reply-To: <20080227232625.26f736f8.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0802280801290.27005@blonde.site>
 References: <Pine.LNX.4.64.0802252327490.27067@blonde.site>
-	<Pine.LNX.4.64.0802252334190.27067@blonde.site>
-	<20080227194744.4de606e3.akpm@linux-foundation.org>
-	<alpine.DEB.1.00.0802272317380.24391@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <Pine.LNX.4.64.0802252334190.27067@blonde.site> <20080227194744.4de606e3.akpm@linux-foundation.org>
+ <alpine.DEB.1.00.0802272317380.24391@chino.kir.corp.google.com>
+ <20080227232625.26f736f8.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Feb 2008 23:19:08 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
-
-> On Wed, 27 Feb 2008, Andrew Morton wrote:
+On Wed, 27 Feb 2008, Andrew Morton wrote:
+> On Wed, 27 Feb 2008 23:19:08 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
+> > 
+> > Writing vm_match_cgroup() as a static inline function in 
+> > include/linux/memcontrol.h created all the sparc build errors about two 
+> > weeks ago because of the dependency on linux/mm.h and linux/rcupdate.h.
 > 
-> > > -#define vm_match_cgroup(mm, cgroup)	\
-> > > +#define mm_match_cgroup(mm, cgroup)	\
-> > >  	((cgroup) == rcu_dereference((mm)->mem_cgroup))
-> > 
-> > Could be written in C, methinks.
-> > 
-> > Unless we really want to be able to pass a `struct page_cgroup *' in place
-> > of arg `mm' here.  If we don't want to be able to do that (prays fervently)
-> > then let's sleep happily in the knowledge that the C type system prevents
-> > us from doing it accidentally?
-> > 
+> It's become an faq already?  Should have put a comment in there..
 > 
-> Writing vm_match_cgroup() as a static inline function in 
-> include/linux/memcontrol.h created all the sparc build errors about two 
-> weeks ago because of the dependency on linux/mm.h and linux/rcupdate.h.
+> That's the second ugly hack in that file because of missing includes.  It's
+> preferable to add the needed includes, or just temper our little
+> inline-everything fetish.  
+> 
+> Oh well.
 
-It's become an faq already?  Should have put a comment in there..
+Temper our inline-everything fetish and say "Oh well".  We prefer
+inline functions to macros, we prefer to avoid include hell, macros
+are the key to avoiding include hell.
 
-That's the second ugly hack in that file because of missing includes.  It's
-preferable to add the needed includes, or just temper our little
-inline-everything fetish.  
+Oh well: it really doesn't matter much, both David and I left our
+!CONFIG_CGROUP_MEM_CONT versions as static inlines, so those without
+MEM_CONT will be doing that part of build testing for those with it.
 
-Oh well.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
