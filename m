@@ -1,58 +1,41 @@
-Received: by wf-out-1314.google.com with SMTP id 25so7806100wfc.11
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2008 01:50:36 -0800 (PST)
-Message-ID: <e2e108260802280150j62c8269ere4aafca76970a259@mail.gmail.com>
-Date: Thu, 28 Feb 2008 10:50:36 +0100
-From: "Bart Van Assche" <bart.vanassche@gmail.com>
-Subject: Re: SMP-related kernel memory leak
-In-Reply-To: <Pine.LNX.4.64.0802271139090.1790@schroedinger.engr.sgi.com>
+Date: Thu, 28 Feb 2008 04:53:18 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address
+	ranges
+Message-ID: <20080228105317.GS11391@sgi.com>
+References: <20080215064859.384203497@sgi.com> <20080215064932.620773824@sgi.com> <200802201008.49933.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0802271424390.13186@schroedinger.engr.sgi.com> <20080228001104.GB8091@v2.random> <Pine.LNX.4.64.0802271613080.15791@schroedinger.engr.sgi.com> <20080228005249.GF8091@v2.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <e2e108260802190300k5b0f60f6tbb4f54997caf4c4e@mail.gmail.com>
-	 <6101e8c40802210821w626bc831uaf4c3f66fb097094@mail.gmail.com>
-	 <6101e8c40802210825v534f0ce3wf80a18ebd6dee925@mail.gmail.com>
-	 <47BDEFB4.1010106@zytor.com>
-	 <6101e8c40802220844h2553051bw38154dbad91de1e3@mail.gmail.com>
-	 <47BEFD5D.402@zytor.com>
-	 <6101e8c40802221512t295566bey5a8f1c21b8751480@mail.gmail.com>
-	 <47BF5932.9040200@zytor.com>
-	 <e2e108260802230008y4179970dw6581c1a361eac280@mail.gmail.com>
-	 <Pine.LNX.4.64.0802271139090.1790@schroedinger.engr.sgi.com>
+In-Reply-To: <20080228005249.GF8091@v2.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Oliver Pinter <oliver.pntr@gmail.com>, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 27, 2008 at 8:40 PM, Christoph Lameter <clameter@sgi.com> wrote:
-> On Sat, 23 Feb 2008, Bart Van Assche wrote:
->
->  > The patch referenced above modifies a single file:
->  > include/asm-generic/tlb.h. I had a look at the git history of Linus'
->  > 2.6.24 tree, and noticed that the cited patch was applied on December
->  > 18, 2007 to Linus' tree by Christoph Lameter. Two weeks later, on
->  > December 27, the change was reverted by Christoph. Christoph, can you
->  > provide us some more background information about why the patch was
->  > reverted ?
->
->  It did not fix the problem that was reported. Commit
->  96990a4ae979df9e235d01097d6175759331e88c took its place.
+On Thu, Feb 28, 2008 at 01:52:50AM +0100, Andrea Arcangeli wrote:
+> On Wed, Feb 27, 2008 at 04:14:08PM -0800, Christoph Lameter wrote:
+> > Erm. This would also be needed by RDMA etc.
+> 
+> The only RDMA I know is Quadrics, and Quadrics apparently doesn't need
+> to schedule inside the invalidate methods AFIK, so I doubt the above
+> is true. It'd be interesting to know if IB is like Quadrics and it
+> also doesn't require blocking to invalidate certain remote mappings.
 
-I did a grep through the kernel changelogs for this commit:
+We got an answer from the IB guys already.  They do not track which of
+their handles are being used by remote processes so neither approach
+will work for their purposes with the exception of straight unmaps.  In
+that case, they could use the callout to remove TLB information and rely
+on the lack of page table information to kill the users process.
+Without changes to their library spec, I don't believe anything further
+is possible.  If they did change their library spec, I believe they
+could get things to work the same way that XPMEM has gotten things to
+work, where a message is sent to the remote side for TLB clearing and
+that will require sleeping.
 
-$ grep 96990a4ae979df9e235d01097d6175759331e88c *
-ChangeLog-2.6.22.19:    patch 96990a4ae979df9e235d01097d6175759331e88c
-in mainline.
-ChangeLog-2.6.23.15:    patch 96990a4ae979df9e235d01097d6175759331e88c
-in mainline.
-ChangeLog-2.6.24:commit 96990a4ae979df9e235d01097d6175759331e88c
-
-Or: this commit should have been included in kernel 2.6.24. But the
-PAE memory leak I observed still occurs with 2.6.24.2. So the question
-remains: is there already a fix available for the problem I observed ?
-
-Bart Van Assche.
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
