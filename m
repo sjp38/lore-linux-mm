@@ -1,99 +1,43 @@
-Subject: Re: [PATCH 4/6] Use two zonelist that are filtered by GFP mask
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20080228133247.6a7b626f.akpm@linux-foundation.org>
-References: <20080227214708.6858.53458.sendpatchset@localhost>
-	 <20080227214734.6858.9968.sendpatchset@localhost>
-	 <20080228133247.6a7b626f.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Thu, 28 Feb 2008 16:53:58 -0500
-Message-Id: <1204235638.5301.49.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 28 Feb 2008 14:00:24 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] mmu notifiers #v7
+In-Reply-To: <20080228215257.GJ8091@v2.random>
+Message-ID: <Pine.LNX.4.64.0802281354200.436@schroedinger.engr.sgi.com>
+References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random>
+ <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random>
+ <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de>
+ <20080221144023.GC9427@v2.random> <20080221161028.GA14220@sgi.com>
+ <20080227192610.GF28483@v2.random> <Pine.LNX.4.64.0802281139250.30865@schroedinger.engr.sgi.com>
+ <20080228215257.GJ8091@v2.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: mel@csn.ul.ie, ak@suse.de, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, rientjes@google.com, eric.whitney@hp.com
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-02-28 at 13:32 -0800, Andrew Morton wrote:
-> On Wed, 27 Feb 2008 16:47:34 -0500
-> Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
-> 
-> > +/* Returns the first zone at or below highest_zoneidx in a zonelist */
-> > +static inline struct zone **first_zones_zonelist(struct zonelist *zonelist,
-> > +					enum zone_type highest_zoneidx)
-> > +{
-> > +	struct zone **z;
-> > +
-> > +	/* Find the first suitable zone to use for the allocation */
-> > +	z = zonelist->zones;
-> > +	while (*z && zone_idx(*z) > highest_zoneidx)
-> > +		z++;
-> > +
-> > +	return z;
-> > +}
-> > +
-> > +/* Returns the next zone at or below highest_zoneidx in a zonelist */
-> > +static inline struct zone **next_zones_zonelist(struct zone **z,
-> > +					enum zone_type highest_zoneidx)
-> > +{
-> > +	/* Find the next suitable zone to use for the allocation */
-> > +	while (*z && zone_idx(*z) > highest_zoneidx)
-> > +		z++;
-> > +
-> > +	return z;
-> > +}
-> > +
-> > +/**
-> > + * for_each_zone_zonelist - helper macro to iterate over valid zones in a zonelist at or below a given zone index
-> > + * @zone - The current zone in the iterator
-> > + * @z - The current pointer within zonelist->zones being iterated
-> > + * @zlist - The zonelist being iterated
-> > + * @highidx - The zone index of the highest zone to return
-> > + *
-> > + * This iterator iterates though all zones at or below a given zone index.
-> > + */
-> > +#define for_each_zone_zonelist(zone, z, zlist, highidx) \
-> > +	for (z = first_zones_zonelist(zlist, highidx), zone = *z++;	\
-> > +		zone;							\
-> > +		z = next_zones_zonelist(z, highidx), zone = *z++)
-> > +
-> 
-> omygawd will that thing generate a lot of code!
-> 
-> It has four call sites in mm/oom_kill.c and the overall patchset increases
-> mm/oom_kill.o's text section (x86_64 allmodconfig) from 3268 bytes to 3845.
-> 
-> vmscan.o and page_alloc.o also grew a lot.  otoh total vmlinux bloat from
-> the patchset is only around 700 bytes, so I expect that with a little less
-> insanity we could actually get an aggregate improvement here.
-> 
-> Some of the inlining in mmzone.h is just comical.  Some of it is obvious
-> (first_zones_zonelist) and some of it is less obvious (pfn_present).
+On Thu, 28 Feb 2008, Andrea Arcangeli wrote:
 
-Yeah, Mel said he was really reaching to avoid performance regression in
-this set.   
-
+> > This is not going to work even if the mutex would work as easily as you 
+> > think since the patch here still does an rcu_lock/unlock around a callback.
 > 
-> I applied these for testing but I really don't think we should be merging
-> such easily-fixed regressions into mainline.  Could someone please take a
-> look at de-porking core MM?
+> See underlined.
 
-OK, Mel should be back real soon now, and I'll take a look as well.  At
-this point, we just wanted to get some more testing in -mm.
+Mutex is not acceptable for performance reasons. I think we can just drop 
+the RCU lock if we simply unregister the mmu notifier in release and 
+forbid the drivers from removing themselves from the notification 
+chain. They can simply do nothing until release. At that time there is no 
+concurrency and thus its safe to remove even without rcu locking.
 
-> 
-> 
-> Also, I switched all your Tested-by:s to Signed-off-by:s.  You were on the
-> delivery path, so s-o-b is the appropriate tag.  I would like to believe
-> that Signed-off-by: implies Tested-by: anyway (rofl).
+> Good point, it has to be called earlier for GRU, but it's not a
+> performance issue. GRU doesn't pin the pages so it should make the
+> global invalidate in ->release _before_ unmap_vmas. Linux can't fault
+> in the ptes anymore because mm_users is zero so there's no need of a
+> ->release_begin/end, the _begin is enough.
 
-
-Well, this is not the first time I've been tagged with 's-o-b' and
-probably not the last :-).
-
-Lee
-> 
+I do not follow you about the _begin without end but the following fix 
+seems okay.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
