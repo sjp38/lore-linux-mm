@@ -1,113 +1,92 @@
-Message-Id: <20080228192929.793021800@redhat.com>
-References: <20080228192908.126720629@redhat.com>
-Date: Thu, 28 Feb 2008 14:29:29 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: [patch 21/21] cull non-reclaimable anon pages from the LRU at fault time
-Content-Disposition: inline; filename=noreclaim-07-cull-nonreclaimable-anon-pages-in-fault-path.patch
+Date: Thu, 28 Feb 2008 11:48:10 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] mmu notifiers #v7
+In-Reply-To: <20080227192610.GF28483@v2.random>
+Message-ID: <Pine.LNX.4.64.0802281139250.30865@schroedinger.engr.sgi.com>
+References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random>
+ <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random>
+ <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de>
+ <20080221144023.GC9427@v2.random> <20080221161028.GA14220@sgi.com>
+ <20080227192610.GF28483@v2.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Lee Schermerhorn <lee.schermerhorn@hp.com>
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-V2 -> V3:
-+ rebase to 23-mm1 atop RvR's split lru series.
+On Wed, 27 Feb 2008, Andrea Arcangeli wrote:
 
-V1 -> V2:
-+  no changes
+> What Christoph need to do when he's back from vacations to support
+> sleepable mmu notifiers is to add a CONFIG_XPMEM config option that
+> will switch the i_mmap_lock from a semaphore to a mutex (any other
+> change to this patch will be minor compared to that) so XPMEM hardware
+> will have kernels compiled that way. I don't see other sane ways to
+> remove the "atomic" parameter from the API (apparently required by
+> Andrew for merging something not restricted to the xpmem current usage
+> with only anonymous memory) and I don't want to have such a
+> locking-change intrusive dependency for all other non-blocking users
+> that are fine without having to alter how the VM works (for example
+> KVM and GRU). Very minor changes will be required to this patch to
+> make it work after the VM locking will be altered (for example the
+> CONFIG_XPMEM should also switch the mmu_register/unregister locking
+> from RCU to mutex as well). XPMEM then will only compile if
+> CONFIG_XPMEM=y and in turn the invalidate_range_* will support
+> scheduling inside.
 
-Optional part of "noreclaim infrastructure"
+This is not going to work even if the mutex would work as easily as you 
+think since the patch here still does an rcu_lock/unlock around a callback.
 
-In the fault paths that install new anonymous pages, check whether
-the page is reclaimable or not using lru_cache_add_active_or_noreclaim().
-If the page is reclaimable, just add it to the active lru list [via
-the pagevec cache], else add it to the noreclaim list.  
+> I don't think pretending to merge all in one block (I mean including
+> xpmem support that requires blocking methods) is good idea anymore as
+> long as we agree the "atomic" parameter shouldn't be merged. But we
+> can quite easily agree on the below to be optimal for GRU/KVM and
+> trivially extendible once a CONFIG_XPMEM will be added. So this first
+> part can go in now I think.
 
-This "proactive" culling in the fault path mimics the handling of
-mlocked pages in Nick Piggin's series to keep mlocked pages off
-the lru lists.
+Changing the locking for the callouts for users of the mmu notivier that 
+f.e. require a response via the network (RDMA, XPMEM etc) is not trivial 
+at all. RCU lock cannot be used. So we are looking at totally disjunct 
+methods for those users who have to sleep.
 
-Notes:
+> +struct mmu_notifier_ops {
+> +	/*
+> +	 * Called when nobody can register any more notifier in the mm
+> +	 * and after the "mn" notifier has been disarmed already.
+> +	 */
+> +	void (*release)(struct mmu_notifier *mn,
+> +			struct mm_struct *mm);
 
-1) This patch is optional--e.g., if one is concerned about the
-   additional test in the fault path.  We can defer the moving of
-   nonreclaimable pages until when vmscan [shrink_*_list()]
-   encounters them.  Vmscan will only need to handle such pages
-   once.
+Who disarms the notifier? Why is the method not called to disarm the 
+notifier on exit?
 
-2) I moved the call to page_add_new_anon_rmap() to before the test
-   for page_reclaimable() and thus before the calls to
-   lru_cache_add_{active|noreclaim}(), so that page_reclaimable()
-   could recognize the page as anon, thus obviating, I think, the
-   vma arg to page_reclaimable() for this purpose.  Still needed for
-   culling mlocked pages in fault path [later patch].
-   TBD:   I think this reordering is OK, but the previous order may
-   have existed to close some obscure race?
+> +obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
+> diff --git a/mm/filemap_xip.c b/mm/filemap_xip.c
+> --- a/mm/filemap_xip.c
+> +++ b/mm/filemap_xip.c
+> @@ -194,7 +194,7 @@ __xip_unmap (struct address_space * mapp
+>  		if (pte) {
+>  			/* Nuke the page table entry. */
+>  			flush_cache_page(vma, address, pte_pfn(*pte));
+> -			pteval = ptep_clear_flush(vma, address, pte);
+> +			pteval = ptep_clear_flush_notify(vma, address, pte);
+>  			page_remove_rmap(page, vma);
+>  			dec_mm_counter(mm, file_rss);
+>  			BUG_ON(pte_dirty(pteval));
 
-3) With this and other patches above installed, any anon pages
-   created before swap is added--e.g., init's anonymous memory--
-   will be declared non-reclaimable and placed on the noreclaim
-   LRU list.  Need to add mechanism to bring such pages back when
-   swap becomes available.
+Well a bit better but now we have to modify both the macro and the code 
+in teh VM. It would be easier to put the notify call in here.
 
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-Signed-off-by:  Rik van Riel <riel@redhat.com>
+> @@ -2048,6 +2050,7 @@ void exit_mmap(struct mm_struct *mm)
+>  	vm_unacct_memory(nr_accounted);
+>  	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, 0);
+>  	tlb_finish_mmu(tlb, 0, end);
+> +	mmu_notifier_release(mm);
 
-Index: linux-2.6.25-rc2-mm1/mm/memory.c
-===================================================================
---- linux-2.6.25-rc2-mm1.orig/mm/memory.c	2008-02-28 00:27:06.000000000 -0500
-+++ linux-2.6.25-rc2-mm1/mm/memory.c	2008-02-28 12:49:23.000000000 -0500
-@@ -1678,7 +1678,7 @@ gotten:
- 		set_pte_at(mm, address, page_table, entry);
- 		update_mmu_cache(vma, address, entry);
- 		SetPageSwapBacked(new_page);
--		lru_cache_add_active_anon(new_page);
-+		lru_cache_add_active_or_noreclaim(new_page, vma);
- 		page_add_new_anon_rmap(new_page, vma, address);
- 
- 		/* Free the old page.. */
-@@ -2150,7 +2150,7 @@ static int do_anonymous_page(struct mm_s
- 		goto release;
- 	inc_mm_counter(mm, anon_rss);
- 	SetPageSwapBacked(page);
--	lru_cache_add_active_anon(page);
-+	lru_cache_add_active_or_noreclaim(page, vma);
- 	page_add_new_anon_rmap(page, vma, address);
- 	set_pte_at(mm, address, page_table, entry);
- 
-@@ -2292,10 +2292,10 @@ static int __do_fault(struct mm_struct *
- 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
- 		set_pte_at(mm, address, page_table, entry);
- 		if (anon) {
--                        inc_mm_counter(mm, anon_rss);
-+			inc_mm_counter(mm, anon_rss);
- 			SetPageSwapBacked(page);
--                        lru_cache_add_active_anon(page);
--                        page_add_new_anon_rmap(page, vma, address);
-+			lru_cache_add_active_or_noreclaim(page, vma);
-+			page_add_new_anon_rmap(page, vma, address);
- 		} else {
- 			inc_mm_counter(mm, file_rss);
- 			page_add_file_rmap(page);
-Index: linux-2.6.25-rc2-mm1/mm/swap_state.c
-===================================================================
---- linux-2.6.25-rc2-mm1.orig/mm/swap_state.c	2008-02-28 00:29:51.000000000 -0500
-+++ linux-2.6.25-rc2-mm1/mm/swap_state.c	2008-02-28 12:49:23.000000000 -0500
-@@ -300,7 +300,10 @@ struct page *read_swap_cache_async(swp_e
- 			/*
- 			 * Initiate read into locked page and return.
- 			 */
--			lru_cache_add_anon(new_page);
-+			if (!page_reclaimable(new_page, vma))
-+				lru_cache_add_noreclaim(new_page);
-+			else
-+				lru_cache_add_anon(new_page);
- 			swap_readpage(NULL, new_page);
- 			return new_page;
- 		}
-
--- 
-All Rights Reversed
+The release should be called much earlier to allow the driver to release 
+all resources in one go. This way each vma must be processed individually. 
+For our gobs of memory this method may create a scaling problem on exit().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
