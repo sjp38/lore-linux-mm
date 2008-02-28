@@ -1,47 +1,34 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id m1SIMhkR006325
-	for <linux-mm@kvack.org>; Fri, 29 Feb 2008 05:22:43 +1100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m1SIQ8ar163072
-	for <linux-mm@kvack.org>; Fri, 29 Feb 2008 05:26:09 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m1SIMZad005280
-	for <linux-mm@kvack.org>; Fri, 29 Feb 2008 05:22:35 +1100
-Date: Thu, 28 Feb 2008 23:52:26 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 08/15] memcg: remove mem_cgroup_uncharge
-Message-ID: <20080228181853.GE2317@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <Pine.LNX.4.64.0802252327490.27067@blonde.site> <Pine.LNX.4.64.0802252341250.27067@blonde.site>
+Date: Thu, 28 Feb 2008 10:43:54 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address ranges
+In-Reply-To: <20080228011020.GG8091@v2.random>
+Message-ID: <Pine.LNX.4.64.0802281043430.29191@schroedinger.engr.sgi.com>
+References: <20080215064859.384203497@sgi.com> <20080215064932.620773824@sgi.com>
+ <200802201008.49933.nickpiggin@yahoo.com.au>
+ <Pine.LNX.4.64.0802271424390.13186@schroedinger.engr.sgi.com>
+ <20080228001104.GB8091@v2.random> <Pine.LNX.4.64.0802271613080.15791@schroedinger.engr.sgi.com>
+ <20080228005249.GF8091@v2.random> <Pine.LNX.4.64.0802271702490.16510@schroedinger.engr.sgi.com>
+ <20080228011020.GG8091@v2.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0802252341250.27067@blonde.site>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hirokazu Takahashi <taka@valinux.co.jp>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-* Hugh Dickins <hugh@veritas.com> [2008-02-25 23:42:05]:
+On Thu, 28 Feb 2008, Andrea Arcangeli wrote:
 
-> Nothing uses mem_cgroup_uncharge apart from mem_cgroup_uncharge_page,
-> (a trivial wrapper around it) and mem_cgroup_end_migration (which does
-> the same as mem_cgroup_uncharge_page).  And it often ends up having to
-> lock just to let its caller unlock.  Remove it (but leave the silly
-> locking until a later patch).
+> On Wed, Feb 27, 2008 at 05:03:21PM -0800, Christoph Lameter wrote:
+> > RDMA works across a network and I would assume that it needs confirmation 
+> > that a connection has been torn down before pages can be unmapped.
 > 
-> Moved mem_cgroup_cache_charge next to mem_cgroup_charge in memcontrol.h.
-> 
-> Signed-off-by: Hugh Dickins <hugh@veritas.com>
+> Depends on the latency of the network, for example with page pinning
+> it can even try to reduce the wait time, by tearing down the mapping
+> in range_begin and spin waiting the ack only later in range_end.
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+What about invalidate_page()?
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
