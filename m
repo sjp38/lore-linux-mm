@@ -1,43 +1,32 @@
-Date: Thu, 28 Feb 2008 14:00:24 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] mmu notifiers #v7
-In-Reply-To: <20080228215257.GJ8091@v2.random>
-Message-ID: <Pine.LNX.4.64.0802281354200.436@schroedinger.engr.sgi.com>
-References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random>
- <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random>
- <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de>
- <20080221144023.GC9427@v2.random> <20080221161028.GA14220@sgi.com>
- <20080227192610.GF28483@v2.random> <Pine.LNX.4.64.0802281139250.30865@schroedinger.engr.sgi.com>
- <20080228215257.GJ8091@v2.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 28 Feb 2008 17:27:39 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [patch 21/21] cull non-reclaimable anon pages from the LRU at
+ fault time
+Message-ID: <20080228172739.61fc3780@bree.surriel.com>
+In-Reply-To: <1204229973.5301.34.camel@localhost>
+References: <20080228192908.126720629@redhat.com>
+	<20080228192929.793021800@redhat.com>
+	<1204229973.5301.34.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Feb 2008, Andrea Arcangeli wrote:
+On Thu, 28 Feb 2008 15:19:33 -0500
+Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
 
-> > This is not going to work even if the mutex would work as easily as you 
-> > think since the patch here still does an rcu_lock/unlock around a callback.
+> On Thu, 2008-02-28 at 14:29 -0500, Rik van Riel wrote:
 > 
-> See underlined.
+> corrections to description in case we decide to keep this patch.
 
-Mutex is not acceptable for performance reasons. I think we can just drop 
-the RCU lock if we simply unregister the mmu notifier in release and 
-forbid the drivers from removing themselves from the notification 
-chain. They can simply do nothing until release. At that time there is no 
-concurrency and thus its safe to remove even without rcu locking.
+Thanks.  I have merged your new description.
 
-> Good point, it has to be called earlier for GRU, but it's not a
-> performance issue. GRU doesn't pin the pages so it should make the
-> global invalidate in ->release _before_ unmap_vmas. Linux can't fault
-> in the ptes anymore because mm_users is zero so there's no need of a
-> ->release_begin/end, the _begin is enough.
-
-I do not follow you about the _begin without end but the following fix 
-seems okay.
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
