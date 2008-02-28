@@ -1,116 +1,110 @@
-Subject: Re: [patch 04/21] free swap space on swap-in/activation
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20080228192928.251195952@redhat.com>
-References: <20080228192908.126720629@redhat.com>
-	 <20080228192928.251195952@redhat.com>
-Content-Type: text/plain
-Date: Thu, 28 Feb 2008 15:05:53 -0500
-Message-Id: <1204229154.5301.22.camel@localhost>
-Mime-Version: 1.0
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <18375.5642.424239.215806@stoffel.org>
+Date: Thu, 28 Feb 2008 15:14:02 -0500
+From: "John Stoffel" <john@stoffel.org>
+Subject: Re: [patch 00/21] VM pageout scalability improvements
+In-Reply-To: <20080228192908.126720629@redhat.com>
+References: <20080228192908.126720629@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-02-28 at 14:29 -0500, Rik van Riel wrote:
-> plain text document attachment (rvr-00-linux-2.6-swapfree.patch)
-> + lts' convert anon_vma list lock to reader/write lock patch
-> + Nick Piggin's move and rework isolate_lru_page() patch
+Rik> On large memory systems, the VM can spend way too much time
+Rik> scanning through pages that it cannot (or should not) evict from
+Rik> memory. Not only does it use up CPU time, but it also provokes
+Rik> lock contention and can leave large systems under memory presure
+Rik> in a catatonic state.
 
-Hi, Rik:
+Nitpicky, but what is a large memory system?  I read your web page and
+you talk about large memory being greater than several Gb, and about
+huge systems (> 128gb).  So which is this patch addressing?  
 
-We no long depend on the anon_vma rwlock patch, right?   And, since
-they're now all part of the same series, we can probably loose the note
-about depending on Nick's move/rework patch.  These are hold overs from
-my overly paranoid dependency annotations.  We can fix the description
-on next posting.  [Or am I being too pessimistic?]
+I ask because I've got a new system with 4Gb of RAM and my motherboard
+can goto 8Gb.  Should this be a large memory system or not?  I've also
+only got a single dual core CPU, how does that affect things?
 
-Lee
+You talk about the Inactive list in the Anonymous memory section, and
+about limiting it.  You say 30% on a 1Gb system, but 1% on a 1Tb
+system, which is interesting numbers but it's not clear where they
+come from.
 
-> 
-> Free swap cache entries when swapping in pages if vm_swap_full()
-> [swap space > 1/2 used?].  Uses new pagevec to reduce pressure
-> on locks.
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-> Signed-off-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-> 
-> Index: linux-2.6.25-rc2-mm1/mm/vmscan.c
-> ===================================================================
-> --- linux-2.6.25-rc2-mm1.orig/mm/vmscan.c	2008-02-27 14:19:47.000000000 -0500
-> +++ linux-2.6.25-rc2-mm1/mm/vmscan.c	2008-02-27 14:35:47.000000000 -0500
-> @@ -632,6 +632,9 @@ free_it:
->  		continue;
->  
->  activate_locked:
-> +		/* Not a candidate for swapping, so reclaim swap space. */
-> +		if (PageSwapCache(page) && vm_swap_full())
-> +			remove_exclusive_swap_page(page);
->  		SetPageActive(page);
->  		pgactivate++;
->  keep_locked:
-> @@ -1214,6 +1217,8 @@ static void shrink_active_list(unsigned 
->  			__mod_zone_page_state(zone, NR_ACTIVE, pgmoved);
->  			pgmoved = 0;
->  			spin_unlock_irq(&zone->lru_lock);
-> +			if (vm_swap_full())
-> +				pagevec_swap_free(&pvec);
->  			__pagevec_release(&pvec);
->  			spin_lock_irq(&zone->lru_lock);
->  		}
-> @@ -1223,6 +1228,8 @@ static void shrink_active_list(unsigned 
->  	__count_zone_vm_events(PGREFILL, zone, pgscanned);
->  	__count_vm_events(PGDEACTIVATE, pgdeactivate);
->  	spin_unlock_irq(&zone->lru_lock);
-> +	if (vm_swap_full())
-> +		pagevec_swap_free(&pvec);
->  
->  	pagevec_release(&pvec);
->  }
-> Index: linux-2.6.25-rc2-mm1/mm/swap.c
-> ===================================================================
-> --- linux-2.6.25-rc2-mm1.orig/mm/swap.c	2008-02-27 14:31:35.000000000 -0500
-> +++ linux-2.6.25-rc2-mm1/mm/swap.c	2008-02-27 14:35:47.000000000 -0500
-> @@ -448,6 +448,24 @@ void pagevec_strip(struct pagevec *pvec)
->  	}
->  }
->  
-> +/*
-> + * Try to free swap space from the pages in a pagevec
-> + */
-> +void pagevec_swap_free(struct pagevec *pvec)
-> +{
-> +	int i;
-> +
-> +	for (i = 0; i < pagevec_count(pvec); i++) {
-> +		struct page *page = pvec->pages[i];
-> +
-> +		if (PageSwapCache(page) && !TestSetPageLocked(page)) {
-> +			if (PageSwapCache(page))
-> +				remove_exclusive_swap_page(page);
-> +			unlock_page(page);
-> +		}
-> +	}
-> +}
-> +
->  /**
->   * pagevec_lookup - gang pagecache lookup
->   * @pvec:	Where the resulting pages are placed
-> Index: linux-2.6.25-rc2-mm1/include/linux/pagevec.h
-> ===================================================================
-> --- linux-2.6.25-rc2-mm1.orig/include/linux/pagevec.h	2008-02-27 13:41:27.000000000 -0500
-> +++ linux-2.6.25-rc2-mm1/include/linux/pagevec.h	2008-02-27 14:35:47.000000000 -0500
-> @@ -25,6 +25,7 @@ void __pagevec_release_nonlru(struct pag
->  void __pagevec_free(struct pagevec *pvec);
->  void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru);
->  void pagevec_strip(struct pagevec *pvec);
-> +void pagevec_swap_free(struct pagevec *pvec);
->  unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
->  		pgoff_t start, unsigned nr_pages);
->  unsigned pagevec_lookup_tag(struct pagevec *pvec,
-> 
+Should the IO limits (raised lower down in the document) be a more
+core feature?  I.e. if you only have 20MBytes/sec bandwidth to disk
+for swap, should you be limiting the inactive list to 5seconds of
+bandwidth in terms of size?  Or 10s, or 60s?  
+
+Should we be more aggresive in pre-swapping Anonymous memory to swap,
+but keeping it cached in memory for use?  If there's pressure, it
+seems like it would be easy to just dump pre-swapped pages from the
+inactive list, without having to spend time writing them out.
+
+Also, how does having more CPUs/IO bandwidth change things?  Do we
+need an exponential backoff algorithm in terms of how much memory is
+allocated to the various lists?  As memory gets bigger and bigger, do
+we allocated fewer and fewer pages since we can't swap them out fast
+enough?  
+
+I dunno... I honestly don't have the time or the knowledge to do more
+than poke sticks into things and see what happens.  And to ask
+annoying questions.  
+
+I do appreciate your work on this.
+
+John
+
+
+Rik> Against 2.6.24-rc6-mm1
+
+Rik> This patch series improves VM scalability by:
+
+Rik> 1) making the locking a little more scalable
+
+Rik> 2) putting filesystem backed, swap backed and non-reclaimable pages
+Rik>    onto their own LRUs, so the system only scans the pages that it
+Rik>    can/should evict from memory
+
+Rik> 3) switching to SEQ replacement for the anonymous LRUs, so the
+Rik>    number of pages that need to be scanned when the system
+Rik>    starts swapping is bound to a reasonable number
+
+Rik> More info on the overall design can be found at:
+
+Rik> 	http://linux-mm.org/PageReplacementDesign
+
+
+Rik> Changelog:
+Rik> - pull the memcontrol lru arrayification earlier into the patch series
+Rik> - use a pagevec array similar to the lru array
+Rik> - clean up the code in various places
+Rik> - improved pageout balancing and reduced pageout cpu use
+
+Rik> - fix compilation on PPC and without memcontrol
+Rik> - make page_is_pagecache more readable
+Rik> - replace get_scan_ratio with correct version
+
+Rik> - merge memcontroller split LRU code into the main split LRU patch,
+Rik>   since it is not functionally different (it was split up only to help
+Rik>   people who had seen the last version of the patch series review it)
+Rik> - drop the page_file_cache debugging patch, since it never triggered
+Rik> - reintroduce code to not scan anon list if swap is full
+Rik> - add code to scan anon list if page cache is very small already
+Rik> - use lumpy reclaim more aggressively for smaller order > 1 allocations
+
+Rik> -- 
+Rik> All Rights Reversed
+
+Rik> --
+Rik> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+Rik> the body of a message to majordomo@vger.kernel.org
+Rik> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Rik> Please read the FAQ at  http://www.tux.org/lkml/
+
+
+Rik> !DSPAM:47c70f4e50261498712856!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
