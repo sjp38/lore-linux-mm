@@ -1,41 +1,41 @@
-Date: Thu, 28 Feb 2008 04:53:18 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address
-	ranges
-Message-ID: <20080228105317.GS11391@sgi.com>
-References: <20080215064859.384203497@sgi.com> <20080215064932.620773824@sgi.com> <200802201008.49933.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0802271424390.13186@schroedinger.engr.sgi.com> <20080228001104.GB8091@v2.random> <Pine.LNX.4.64.0802271613080.15791@schroedinger.engr.sgi.com> <20080228005249.GF8091@v2.random>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080228005249.GF8091@v2.random>
+Subject: Re: [PATCH 3/6] Remember what the preferred zone is for
+	zone_statistics
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0802271400110.12963@schroedinger.engr.sgi.com>
+References: <20080227214708.6858.53458.sendpatchset@localhost>
+	 <20080227214728.6858.79000.sendpatchset@localhost>
+	 <Pine.LNX.4.64.0802271400110.12963@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Thu, 28 Feb 2008 12:45:54 -0500
+Message-Id: <1204220754.5301.17.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, mel@csn.ul.ie, ak@suse.de, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, rientjes@google.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 28, 2008 at 01:52:50AM +0100, Andrea Arcangeli wrote:
-> On Wed, Feb 27, 2008 at 04:14:08PM -0800, Christoph Lameter wrote:
-> > Erm. This would also be needed by RDMA etc.
+On Wed, 2008-02-27 at 14:00 -0800, Christoph Lameter wrote:
+> > This patch records what the preferred zone is rather than assuming the
+> > first zone in the zonelist is it. This simplifies the reading of later
+> > patches in this set.
 > 
-> The only RDMA I know is Quadrics, and Quadrics apparently doesn't need
-> to schedule inside the invalidate methods AFIK, so I doubt the above
-> is true. It'd be interesting to know if IB is like Quadrics and it
-> also doesn't require blocking to invalidate certain remote mappings.
+> And is needed for correctness if GFP_THISNODE is used?
 
-We got an answer from the IB guys already.  They do not track which of
-their handles are being used by remote processes so neither approach
-will work for their purposes with the exception of straight unmaps.  In
-that case, they could use the callout to remove TLB information and rely
-on the lack of page table information to kill the users process.
-Without changes to their library spec, I don't believe anything further
-is possible.  If they did change their library spec, I believe they
-could get things to work the same way that XPMEM has gotten things to
-work, where a message is sent to the remote side for TLB clearing and
-that will require sleeping.
+Mel can correct me.  
 
-Thanks,
-Robin
+I believe this is needed for MPOL_BIND allocations because we now use
+the zonelist for the local node--i.e., the node from which the
+allocation takes place--and search for the nearest node in the policy
+nodemask that satisfies the allocation.  For the purpose of numa stats,
+a "numa_hit" occurs if the allocation succeeds on the first node in the
+zone list that is also in the policy nodemask--this is the "preferred
+node".
+
+Lee
+> 
+> Reviewed-by: Christoph Lameter <clameter@sgi.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
