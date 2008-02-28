@@ -1,58 +1,82 @@
-Date: Thu, 28 Feb 2008 15:23:56 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [patch 00/21] VM pageout scalability improvements
-Message-ID: <20080228152356.0fc8178f@bree.surriel.com>
-In-Reply-To: <18375.5642.424239.215806@stoffel.org>
-References: <20080228192908.126720629@redhat.com>
-	<18375.5642.424239.215806@stoffel.org>
+Date: Thu, 28 Feb 2008 13:32:47 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 4/6] Use two zonelist that are filtered by GFP mask
+Message-Id: <20080228133247.6a7b626f.akpm@linux-foundation.org>
+In-Reply-To: <20080227214734.6858.9968.sendpatchset@localhost>
+References: <20080227214708.6858.53458.sendpatchset@localhost>
+	<20080227214734.6858.9968.sendpatchset@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: John Stoffel <john@stoffel.org>
-Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: mel@csn.ul.ie, ak@suse.de, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, rientjes@google.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Feb 2008 15:14:02 -0500
-"John Stoffel" <john@stoffel.org> wrote:
+On Wed, 27 Feb 2008 16:47:34 -0500
+Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
 
-> Nitpicky, but what is a large memory system?  I read your web page and
-> you talk about large memory being greater than several Gb, and about
-> huge systems (> 128gb).  So which is this patch addressing?  
-> 
-> I ask because I've got a new system with 4Gb of RAM and my motherboard
-> can goto 8Gb.  Should this be a large memory system or not?  I've also
-> only got a single dual core CPU, how does that affect things?
+> +/* Returns the first zone at or below highest_zoneidx in a zonelist */
+> +static inline struct zone **first_zones_zonelist(struct zonelist *zonelist,
+> +					enum zone_type highest_zoneidx)
+> +{
+> +	struct zone **z;
+> +
+> +	/* Find the first suitable zone to use for the allocation */
+> +	z = zonelist->zones;
+> +	while (*z && zone_idx(*z) > highest_zoneidx)
+> +		z++;
+> +
+> +	return z;
+> +}
+> +
+> +/* Returns the next zone at or below highest_zoneidx in a zonelist */
+> +static inline struct zone **next_zones_zonelist(struct zone **z,
+> +					enum zone_type highest_zoneidx)
+> +{
+> +	/* Find the next suitable zone to use for the allocation */
+> +	while (*z && zone_idx(*z) > highest_zoneidx)
+> +		z++;
+> +
+> +	return z;
+> +}
+> +
+> +/**
+> + * for_each_zone_zonelist - helper macro to iterate over valid zones in a zonelist at or below a given zone index
+> + * @zone - The current zone in the iterator
+> + * @z - The current pointer within zonelist->zones being iterated
+> + * @zlist - The zonelist being iterated
+> + * @highidx - The zone index of the highest zone to return
+> + *
+> + * This iterator iterates though all zones at or below a given zone index.
+> + */
+> +#define for_each_zone_zonelist(zone, z, zlist, highidx) \
+> +	for (z = first_zones_zonelist(zlist, highidx), zone = *z++;	\
+> +		zone;							\
+> +		z = next_zones_zonelist(z, highidx), zone = *z++)
+> +
 
-It depends a lot on the workload.
+omygawd will that thing generate a lot of code!
 
-On a few workloads, the current VM explodes with as little as
-16GB of RAM, while a few other workloads the current VM works
-fine with 128GB of RAM.
+It has four call sites in mm/oom_kill.c and the overall patchset increases
+mm/oom_kill.o's text section (x86_64 allmodconfig) from 3268 bytes to 3845.
 
-This patch tries to address the behaviour of the kernel when
-faced with workloads that trip up the current VM.
+vmscan.o and page_alloc.o also grew a lot.  otoh total vmlinux bloat from
+the patchset is only around 700 bytes, so I expect that with a little less
+insanity we could actually get an aggregate improvement here.
 
-> You talk about the Inactive list in the Anonymous memory section, and
-> about limiting it.  You say 30% on a 1Gb system, but 1% on a 1Tb
-> system, which is interesting numbers but it's not clear where they
-> come from.
+Some of the inlining in mmzone.h is just comical.  Some of it is obvious
+(first_zones_zonelist) and some of it is less obvious (pfn_present).
 
-They seemed a reasonable balance between limiting the maximum amount
-of work the VM needs to do and allowing pages the time to get referenced
-again.  If benchmarks suggest that the ratio should be tweaked, we can 
-do so quite easily.
+I applied these for testing but I really don't think we should be merging
+such easily-fixed regressions into mainline.  Could someone please take a
+look at de-porking core MM?
 
-> I dunno... I honestly don't have the time or the knowledge to do more
-> than poke sticks into things and see what happens.  And to ask
-> annoying questions.  
 
-Patch series like this can always use a good poking.  Especially by
-people who run all kinds of nasty programs to trip up the VM :)
-
--- 
-All rights reversed.
+Also, I switched all your Tested-by:s to Signed-off-by:s.  You were on the
+delivery path, so s-o-b is the appropriate tag.  I would like to believe
+that Signed-off-by: implies Tested-by: anyway (rofl).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
