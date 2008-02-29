@@ -1,64 +1,66 @@
-Date: Fri, 29 Feb 2008 14:32:54 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/6] Remember what the preferred zone is for zone_statistics
-Message-ID: <20080229143254.GC6045@csn.ul.ie>
-References: <20080227214708.6858.53458.sendpatchset@localhost> <20080227214728.6858.79000.sendpatchset@localhost> <20080229113016.346f9cc5.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20080229113016.346f9cc5.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 14/21] scan noreclaim list for reclaimable pages
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20080228154152.9648b7b8.randy.dunlap@oracle.com>
+References: <20080228192908.126720629@redhat.com>
+	 <20080228192929.203173998@redhat.com>
+	 <20080228154152.9648b7b8.randy.dunlap@oracle.com>
+Content-Type: text/plain
+Date: Fri, 29 Feb 2008 09:38:54 -0500
+Message-Id: <1204295934.5311.3.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, akpm@linux-foundation.org, ak@suse.de, clameter@sgi.com, linux-mm@kvack.org, rientjes@google.com, eric.whitney@hp.com
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (29/02/08 11:30), KAMEZAWA Hiroyuki didst pronounce:
-> On Wed, 27 Feb 2008 16:47:28 -0500
-> Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
+On Thu, 2008-02-28 at 15:41 -0800, Randy Dunlap wrote:
+> On Thu, 28 Feb 2008 14:29:22 -0500 Rik van Riel wrote:
 > 
-> > From: Mel Gorman <mel@csn.ul.ie>
-> > [PATCH 3/6] Remember what the preferred zone is for zone_statistics
+> > V2 -> V3:
+> > + rebase to 23-mm1 atop RvR's split LRU series
 > > 
-> > V11r3 against 2.6.25-rc2-mm1
+> > New in V2
 > > 
-> > On NUMA, zone_statistics() is used to record events like numa hit, miss
-> > and foreign. It assumes that the first zone in a zonelist is the preferred
-> > zone. When multiple zonelists are replaced by one that is filtered, this
-> > is no longer the case.
+> > This patch adds a function to scan individual or all zones' noreclaim
+> > lists and move any pages that have become reclaimable onto the respective
+> > zone's inactive list, where shrink_inactive_list() will deal with them.
 > > 
-> > This patch records what the preferred zone is rather than assuming the
-> > first zone in the zonelist is it. This simplifies the reading of later
-> > patches in this set.
+> > This replaces the function to splice the entire noreclaim list onto the
+> > active list for rescan by shrink_active_list().  That method had problems
+> > with vmstat accounting and complicated '[__]isolate_lru_pages()'.  Now,
+> > __isolate_lru_page() will never isolate a non-reclaimable page.  The
+> > only time it should see one is when scanning nearby pages for lumpy
+> > reclaim.
 > > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > Tested-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+> >   TODO:  This approach may still need some refinement.
+> >          E.g., put back to active list?
 > > 
+> > DEBUGGING ONLY: NOT FOR UPSTREAM MERGE
+> > 
+> > Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+> > Signed-off-by:  Rik van Riel <riel@redhat.com>
 > 
-> I have no objection to the direction but
 > 
+> Hi,
 > 
-> > +static struct page *buffered_rmqueue(struct zone *preferred_zone,
-> >  			struct zone *zone, int order, gfp_t gfp_flags)
-> >  {
-> 
-> Can't this be written like this ?
-> 
-> struct page *
-> buffered_rmqueue(struct zone *zone, int order, gfp_t gfp_flags, bool numa_hit)
-> 
-> Can't caller itself  set this bool value ?
-> 
+> I haven't looked at all 21 patches, but please use kernel-doc
+> notation as it's defined.  See Documentation/kernel-doc-nano-HOWTO.txt
+> for details, or ask.
 
-Going that direction, the caller could call zone_statistics() instead of
-buffered_rmqueue() and it would be one less parameter to pass. However,
-as buffered_rmqueue() is probably inlined, I'm not sure a change would
-be beneficial.
+Hi, Randy:
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+I'll make a pass thru the noreclaim patches and fix up the comment
+blocks that are not quite kernel-doc.  I have to update some of the
+patch descriptions as well, as some have become stale thanks to
+additional work by Kosaki-san [e.g., the page vec cleanup].
+
+I'll discuss with Rik, off-list, how to coordinate for the next
+reposting.
+
+Thanks,
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
