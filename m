@@ -1,50 +1,72 @@
-Date: Fri, 29 Feb 2008 14:13:02 +0100
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address
-	ranges
-Message-ID: <20080229131302.GT8091@v2.random>
-References: <200802201008.49933.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0802271424390.13186@schroedinger.engr.sgi.com> <20080228001104.GB8091@v2.random> <Pine.LNX.4.64.0802271613080.15791@schroedinger.engr.sgi.com> <20080228005249.GF8091@v2.random> <Pine.LNX.4.64.0802271702490.16510@schroedinger.engr.sgi.com> <20080228011020.GG8091@v2.random> <Pine.LNX.4.64.0802281043430.29191@schroedinger.engr.sgi.com> <20080229005530.GO8091@v2.random> <Pine.LNX.4.64.0802281658560.1954@schroedinger.engr.sgi.com>
+From: "=?utf-8?q?S=2E=C3=87a=C4=9Flar?= Onur" <caglar@pardus.org.tr>
+Reply-To: caglar@pardus.org.tr
+Subject: Re: trivial clean up to zlc_setup
+Date: Fri, 29 Feb 2008 15:31:34 +0200
+References: <20080229151057.66ED.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080229000544.5cf2667e.akpm@linux-foundation.org> <20080229171136.66F6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20080229171136.66F6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0802281658560.1954@schroedinger.engr.sgi.com>
+Content-Type: multipart/signed;
+  boundary="nextPart7846280.53EjfgUmJ3";
+  protocol="application/pgp-signature";
+  micalg=pgp-sha1
+Content-Transfer-Encoding: 7bit
+Message-Id: <200802291531.36498.caglar@pardus.org.tr>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 28, 2008 at 04:59:59PM -0800, Christoph Lameter wrote:
-> And thus the device driver may stop receiving data on a UP system? It will 
-> never get the ack.
+--nextPart7846280.53EjfgUmJ3
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 
-Not sure to follow, sorry.
+Hi;
 
-My idea was:
+29 =C5=9Eub 2008 Cum tarihinde, KOSAKI Motohiro =C5=9Funlar=C4=B1 yazm=C4=
+=B1=C5=9Ft=C4=B1:=20
+> > > -       if (jiffies - zlc->last_full_zap > 1 * HZ) {
+> > > +       if (time_after(jiffies, zlc->last_full_zap + HZ)) {
+> > >                 bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
+> > >                 zlc->last_full_zap =3D jiffies;
+> > >         }
+> >=20
+> > That's a mainline bug.  Also present in 2.6.24, maybe earlier.
+> > But it's a minor one - we'll fix it up one second later (yes?)
+>=20
+> I think so, may be.
 
-   post the invalidate in the mmio region of the device
-   smp_call_function()
-   while (mmio device wait-bitflag is on);
+Andrew "Use time_* macros" series i sent to LKML on 14 Feb [1] has this chu=
+nk also (and by the way this version not includes linux/jiffies.h for time_=
+after macro). Some part of this series already gone into Linus's tree with =
+different subsystems but others not received any review/ack or nack. Will y=
+ou grab others for -mm or will i resend them?
 
-Instead of the current:
+[1] http://lkml.org/lkml/2008/2/14/195
 
-   smp_call_function()
-   post the invalidate in the mmio region of the device
-   while (mmio device wait-bitflag is on);
+Cheers
+=2D-=20
+S.=C3=87a=C4=9Flar Onur <caglar@pardus.org.tr>
+http://cekirdek.pardus.org.tr/~caglar/
 
-To decrease the wait loop time.
+Linux is like living in a teepee. No Windows, no Gates and an Apache in hou=
+se!
 
-> invalidate_page_before/end could be realized as an 
-> invalidate_range_begin/end on a page sized range?
+--nextPart7846280.53EjfgUmJ3
+Content-Type: application/pgp-signature; name=signature.asc 
+Content-Description: This is a digitally signed message part.
 
-If we go this route, once you add support to xpmem, you'll have to
-make the anon_vma lock a mutex too, that would be fine with me
-though. The main reason invalidate_page exists, is to allow you to
-leave it as non-sleep-capable even after you make invalidate_range
-sleep capable, and to implement the mmu_rmap_notifiers sleep capable
-in all the paths that invalidate_page would be called. That was the
-strategy you had in your patch. I'll try to drop invalidate_page. I
-wonder if then you won't need the mmu_rmap_notifiers anymore.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.4 (GNU/Linux)
+
+iD8DBQBHyAk4y7E6i0LKo6YRAkedAJ0bV2dspLjQsgMFMaaRDnirS3SotACfTWRO
+nOAUG5qHfNizTv8y5xyYW2M=
+=D4sN
+-----END PGP SIGNATURE-----
+
+--nextPart7846280.53EjfgUmJ3--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
