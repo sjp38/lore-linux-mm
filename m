@@ -1,43 +1,51 @@
-Date: Thu, 28 Feb 2008 23:01:40 -0600
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH 5/6] Filter based on a nodemask as well as a gfp_mask
-Message-Id: <20080228230140.321581a4.pj@sgi.com>
-In-Reply-To: <20071109143406.23540.41284.sendpatchset@skynet.skynet.ie>
-References: <20071109143226.23540.12907.sendpatchset@skynet.skynet.ie>
-	<20071109143406.23540.41284.sendpatchset@skynet.skynet.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Fri, 29 Feb 2008 15:19:39 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: trivial clean up to zlc_setup
+Message-Id: <20080229151057.66ED.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: akpm@linux-foundation.org, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, nacc@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Mel wrote:
-> A positive benefit of
-> this is that allocations using MPOL_BIND now use the local-node-ordered
-> zonelist instead of a custom node-id-ordered zonelist.
+Hi
 
-Could you update the now obsolete documentation (perhaps just delete
-the no longer correct remark):
+I found very small bug during review mel's 2 zonelist patch series.
 
-Documentation/vm/numa_memory_policy.txt:
+this patch is trivial clean up.
+jiffies subtraction may cause overflow problem.
+it shold be used time_after().
 
-        MPOL_BIND:  This mode specifies that memory must come from the
-        set of nodes specified by the policy.
+Thanks.
 
-            The memory policy APIs do not specify an order in which the nodes
-            will be searched.  However, unlike "local allocation", the Bind
-            policy does not consider the distance between the nodes.  Rather,
-            allocations will fallback to the nodes specified by the policy in
-            order of numeric node id.  Like everything in Linux, this is subject
-            to change.
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.940.382.4214
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+CC: Paul Jackson <pj@sgi.com>
+---
+ mm/page_alloc.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: b/mm/page_alloc.c
+===================================================================
+--- a/mm/page_alloc.c   2008-02-18 17:17:25.000000000 +0900
++++ b/mm/page_alloc.c   2008-02-29 15:17:03.000000000 +0900
+@@ -1294,7 +1294,7 @@ static nodemask_t *zlc_setup(struct zone
+        if (!zlc)
+                return NULL;
+
+-       if (jiffies - zlc->last_full_zap > 1 * HZ) {
++       if (time_after(jiffies, zlc->last_full_zap + HZ)) {
+                bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
+                zlc->last_full_zap = jiffies;
+        }
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
