@@ -1,43 +1,49 @@
-Date: Thu, 28 Feb 2008 16:59:59 -0800 (PST)
+Date: Thu, 28 Feb 2008 17:03:01 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address ranges
-In-Reply-To: <20080229005530.GO8091@v2.random>
-Message-ID: <Pine.LNX.4.64.0802281658560.1954@schroedinger.engr.sgi.com>
-References: <20080215064859.384203497@sgi.com> <20080215064932.620773824@sgi.com>
- <200802201008.49933.nickpiggin@yahoo.com.au>
- <Pine.LNX.4.64.0802271424390.13186@schroedinger.engr.sgi.com>
- <20080228001104.GB8091@v2.random> <Pine.LNX.4.64.0802271613080.15791@schroedinger.engr.sgi.com>
- <20080228005249.GF8091@v2.random> <Pine.LNX.4.64.0802271702490.16510@schroedinger.engr.sgi.com>
- <20080228011020.GG8091@v2.random> <Pine.LNX.4.64.0802281043430.29191@schroedinger.engr.sgi.com>
- <20080229005530.GO8091@v2.random>
+Subject: Re: [PATCH] mmu notifiers #v7
+In-Reply-To: <20080229004001.GN8091@v2.random>
+Message-ID: <Pine.LNX.4.64.0802281700060.1954@schroedinger.engr.sgi.com>
+References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random>
+ <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random>
+ <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de>
+ <20080221144023.GC9427@v2.random> <20080221161028.GA14220@sgi.com>
+ <20080227192610.GF28483@v2.random> <Pine.LNX.4.64.0802281456200.1152@schroedinger.engr.sgi.com>
+ <20080229004001.GN8091@v2.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+Cc: Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
 On Fri, 29 Feb 2008, Andrea Arcangeli wrote:
 
-> On Thu, Feb 28, 2008 at 10:43:54AM -0800, Christoph Lameter wrote:
-> > What about invalidate_page()?
+> > Also re the _notify variants: The binding to pte_clear_flush_young etc 
+> > will become a problem for notifiers that want to sleep because 
+> > pte_clear_flush is usually called with the pte lock held. See f.e. 
+> > try_to_unmap_one, page_mkclean_one etc.
 > 
-> That would just spin waiting an ack (just like the smp-tlb-flushing
-> invalidates in numa already does).
+> Calling __free_page out of the PT lock is much bigger
+> change. do_wp_page will require changes anyway when the sleepable
+> notifiers are merged.
 
-And thus the device driver may stop receiving data on a UP system? It will 
-never get the ack.
- 
-> Thinking more about this, we could also parallelize it with an
-> invalidate_page_before/end. If it takes 1usec to flush remotely,
-> scheduling would be overkill, but spending 1usec in a while loop isn't
-> nice if we can parallelize that 1usec with the ipi-tlb-flush. Not sure
-> if it makes sense... it certainly would be quick to add it (especially
-> thanks to _notify ;).
+I thought you wanted to get rid of the sync via pte lock?
+What changes to do_wp_page do you envision?
 
-invalidate_page_before/end could be realized as an 
-invalidate_range_begin/end on a page sized range?
+> > It would be better if the notifier calls could be moved outside of the 
+> > pte lock.
+> 
+> The point is that it can't make a difference right now, and my
+> objective was to avoid unnecessary source code duplication (later it
+> will be necessary, right now it isn't). By the time you rework
+> do_wp_page, removing _notify will be a very minor detail compared to
+> the rest of the changes to do_wp_page IMHO. Expanding it now won't
+> provide a real advantage later.
+
+What is the trouble with the current do_wp_page modifications? There is 
+no need for invalidate_page() there so far. invalidate_range() does the 
+trick there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
