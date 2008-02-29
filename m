@@ -1,53 +1,38 @@
-Date: Fri, 29 Feb 2008 17:48:15 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 6/6] Filter based on a nodemask as well as a gfp_mask
-In-Reply-To: <20080227214747.6858.46514.sendpatchset@localhost>
-References: <20080227214708.6858.53458.sendpatchset@localhost> <20080227214747.6858.46514.sendpatchset@localhost>
-Message-Id: <20080229174540.66FC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <47C7C972.9010408@cs.helsinki.fi>
+Date: Fri, 29 Feb 2008 10:59:30 +0200
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [patch 3/8] slub: Update statistics handling for variable order
+ slabs
+References: <20080229044803.482012397@sgi.com> <20080229044818.999367120@sgi.com>
+In-Reply-To: <20080229044818.999367120@sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>, Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, ak@suse.de, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, rientjes@google.com, eric.whitney@hp.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi 
-
-> The MPOL_BIND policy creates a zonelist that is used for allocations
-> controlled by that mempolicy. As the per-node zonelist is already being
-> filtered based on a zone id, this patch adds a version of __alloc_pages()
-> that takes a nodemask for further filtering. This eliminates the need
-> for MPOL_BIND to create a custom zonelist.
+Christoph Lameter wrote:
+> Change the statistics to consider that slabs of the same slabcache
+> can have different number of objects in them since they may be of
+> different order.
 > 
-> A positive benefit of this is that allocations using MPOL_BIND now use the
-> local node's distance-ordered zonelist instead of a custom node-id-ordered
-> zonelist.  I.e., pages will be allocated from the closest allowed node with
-> available memory.
+> Provide a new sysfs field
+> 
+> 	total_objects
+> 
+> which shows the total objects that the allocated slabs of a slabcache
+> could hold.
+> 
+> Update the description of the objects field in the kmem_cache structure.
+> Its role is now to be the limit of the maximum number of objects per slab
+> if a slab is allocated with the largest possible order.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Great.
-this is not only clean up, but also great mempolicy improvement.
-
-
-> -/* Generate a custom zonelist for the BIND policy. */
-> -static struct zonelist *bind_zonelist(nodemask_t *nodes)
-> +/* Check that the nodemask contains at least one populated zone */
-> +static int is_valid_nodemask(nodemask_t *nodemask)
->  {
-(snip)
-> +	for_each_node_mask(nd, *nodemask) {
-> +		struct zone *z;
-> +
-> +		for (k = 0; k <= policy_zone; k++) {
-> +			z = &NODE_DATA(nd)->node_zones[k];
-> +			if (z->present_pages > 0)
-> +				return 1;
-
-could we use populated_zone()?
-
-
--kosaki
+Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
