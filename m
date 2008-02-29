@@ -1,11 +1,11 @@
-Date: Fri, 29 Feb 2008 11:41:30 -0800 (PST)
+Date: Fri, 29 Feb 2008 11:43:00 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 6/8] slub: Adjust order boundaries and minimum objects
- per slab.
-In-Reply-To: <47C7BFFA.9010402@cs.helsinki.fi>
-Message-ID: <Pine.LNX.4.64.0802291139560.11084@schroedinger.engr.sgi.com>
-References: <20080229044803.482012397@sgi.com> <20080229044819.800974712@sgi.com>
- <47C7BFFA.9010402@cs.helsinki.fi>
+Subject: Re: [patch 3/8] slub: Update statistics handling for variable order
+ slabs
+In-Reply-To: <47C7C972.9010408@cs.helsinki.fi>
+Message-ID: <Pine.LNX.4.64.0802291141440.11084@schroedinger.engr.sgi.com>
+References: <20080229044803.482012397@sgi.com> <20080229044818.999367120@sgi.com>
+ <47C7C972.9010408@cs.helsinki.fi>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -16,18 +16,12 @@ List-ID: <linux-mm.kvack.org>
 
 On Fri, 29 Feb 2008, Pekka Enberg wrote:
 
-> I can see why you want to change the defaults for big iron but why not keep
-> the existing PAGE_SHIFT check which leaves embedded and regular desktop
-> unchanged?
+> Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
-The defaults for slab are also 60 objects per slab. The PAGE_SHIFT says 
-nothing about the big iron. Our new big irons have a page shift of 12 and 
-are x86_64.
-
-We could drop the limit if CONFIG_EMBEDDED is set but then this may waste 
-space. A higher order allows slub to reach a higher object density (in 
-particular for objects 500-2000 bytes size).
-
+Hmmm... I get some weird numbers when I use slabinfo but cannot spot the 
+issue. Could you look a bit closer at this? In particular at the slabinfo 
+emulation?
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
