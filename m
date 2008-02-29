@@ -1,10 +1,11 @@
-Message-ID: <47C7BEC4.6040803@cs.helsinki.fi>
-Date: Fri, 29 Feb 2008 10:13:56 +0200
+Message-ID: <47C7BFFA.9010402@cs.helsinki.fi>
+Date: Fri, 29 Feb 2008 10:19:06 +0200
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [patch 8/8] slub: Simplify any_slab_object checks
-References: <20080229044803.482012397@sgi.com> <20080229044820.298792748@sgi.com>
-In-Reply-To: <20080229044820.298792748@sgi.com>
+Subject: Re: [patch 6/8] slub: Adjust order boundaries and minimum objects
+ per slab.
+References: <20080229044803.482012397@sgi.com> <20080229044819.800974712@sgi.com>
+In-Reply-To: <20080229044819.800974712@sgi.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,12 +15,19 @@ Cc: Mel Gorman <mel@csn.ul.ie>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.o
 List-ID: <linux-mm.kvack.org>
 
 Christoph Lameter wrote:
-> Since we now have total_objects counter per node use that to
-> check for the presence of any objects.
+> Since there is now no worry anymore about higher order allocs (hopefully)
+> increase the minimum of objects per slab to 60 so that slub can reach a
+> similar fastpath/slowpath ratio as slab. Set the max order to default to
+> 4 (64k) and require slub to use a higher order if a certain object density
+> cannot be reached.
 > 
 > Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
+I can see why you want to change the defaults for big iron but why not 
+keep the existing PAGE_SHIFT check which leaves embedded and regular 
+desktop unchanged?
+
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
