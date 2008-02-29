@@ -1,10 +1,10 @@
-Message-ID: <47C7B463.8050208@cs.helsinki.fi>
-Date: Fri, 29 Feb 2008 09:29:39 +0200
+Message-ID: <47C7B61C.9050808@cs.helsinki.fi>
+Date: Fri, 29 Feb 2008 09:37:00 +0200
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [patch 09/10] slub: Rearrange #ifdef CONFIG_SLUB_DEBUG in calculate_sizes()
-References: <20080229043401.900481416@sgi.com> <20080229043553.284904576@sgi.com>
-In-Reply-To: <20080229043553.284904576@sgi.com>
+Subject: Re: [patch 06/10] slub: Use the objsize from the kmem_cache_cpu structure
+References: <20080229043401.900481416@sgi.com> <20080229043552.523817079@sgi.com>
+In-Reply-To: <20080229043552.523817079@sgi.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,13 +14,10 @@ Cc: Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Christoph Lameter wrote:
-> Group SLUB_DEBUG code together to reduce the number of #ifdefs.
+> No need to access the kmem_cache structure. We have the same value
+> in kmem_cache_cpu.
 > 
 > Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
-This doesn't just rearrange #ifdefs, it moves the poisoning checks under 
-#ifdef too (which is safe). You might want to mention that in the 
-changelogs.
 
 Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
