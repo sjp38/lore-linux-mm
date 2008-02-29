@@ -1,51 +1,25 @@
-Date: Fri, 29 Feb 2008 15:19:39 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: trivial clean up to zlc_setup
-Message-Id: <20080229151057.66ED.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <47C7B25D.5090301@cs.helsinki.fi>
+Date: Fri, 29 Feb 2008 09:21:01 +0200
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [patch 05/10] slub: Remove slub_nomerge
+References: <20080229043401.900481416@sgi.com> <20080229043552.282285411@sgi.com>
+In-Reply-To: <20080229043552.282285411@sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
+Christoph Lameter wrote:
+> No one has used that option for a long time and AFAICT its currently utterly
+> useless.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-I found very small bug during review mel's 2 zonelist patch series.
-
-this patch is trivial clean up.
-jiffies subtraction may cause overflow problem.
-it shold be used time_after().
-
-Thanks.
-
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-CC: Paul Jackson <pj@sgi.com>
----
- mm/page_alloc.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-Index: b/mm/page_alloc.c
-===================================================================
---- a/mm/page_alloc.c   2008-02-18 17:17:25.000000000 +0900
-+++ b/mm/page_alloc.c   2008-02-29 15:17:03.000000000 +0900
-@@ -1294,7 +1294,7 @@ static nodemask_t *zlc_setup(struct zone
-        if (!zlc)
-                return NULL;
-
--       if (jiffies - zlc->last_full_zap > 1 * HZ) {
-+       if (time_after(jiffies, zlc->last_full_zap + HZ)) {
-                bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
-                zlc->last_full_zap = jiffies;
-        }
-
-
-
-
+Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
