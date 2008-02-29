@@ -1,43 +1,67 @@
-Date: Fri, 29 Feb 2008 14:01:20 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch 05/10] slub: Remove slub_nomerge
-In-Reply-To: <20080229043552.282285411@sgi.com>
-Message-ID: <Pine.LNX.4.64.0802291327490.11617@blonde.site>
-References: <20080229043401.900481416@sgi.com> <20080229043552.282285411@sgi.com>
+Date: Fri, 29 Feb 2008 14:12:51 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 0/6] Use two zonelists per node instead of multiple zonelists v11r3
+Message-ID: <20080229141250.GA6045@csn.ul.ie>
+References: <20080227214708.6858.53458.sendpatchset@localhost>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20080227214708.6858.53458.sendpatchset@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: akpm@linux-foundation.org, ak@suse.de, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, rientjes@google.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Feb 2008, Christoph Lameter wrote:
-> No one has used that option for a long time and AFAICT its currently utterly
-> useless.
+On (27/02/08 16:47), Lee Schermerhorn didst pronounce:
+> From: Mel Gorman <mel@csn.ul.ie>
+> [PATCH 0/6] Use two zonelists per node instead of multiple zonelists v11r3
+> 
+> This is a rebase of the two-zonelist patchset to 2.6.25-rc2-mm1.
+> 
+> Mel, still on vacation last I checked,  asked me to repost these
+> as I'd already rebased them and I've been testing them continually
+> on each -mm tree for months, hoping to see them in -mm for wider
+> testing.
+> 
 
-Not so at all.  I certainly use it: not often, but from time to time,
-in debugging.  If you're narrowing down on something, it's a worthwhile
-tool to separate the different uses of a particular size.
+Thanks a lot, Lee. I tested this patchset against a slightly patched
+2.6.25-rc2-mm1 (compile-failure fix and a memoryless-related bug that is
+fixed in git-x86#testing).
 
-And when studying slabinfo numbers, perhaps for a leak e.g. why doesn't
-slabinfo doesn't show vm_area_struct, oh, it's sharing :0000088 with
-cfq_queue, so we need slub_nomerge to see their actual numbers.
-Perhaps I'm missing something: how does everyone else get the
-right numbers without slub_nomerge?
+> These are the range of performance losses/gains when running against
+> 2.6.24-rc4-mm1. The set and these machines are a mix of i386, x86_64 and
+> ppc64 both NUMA and non-NUMA.
+> 
 
-Admittedly it's often too blunt an instrument for debugging: I'd be
-happier with a debug flag which has no other side-effect than nomerge
-(all the other SLUB_NEVER_MERGE flags seemed to have side-effects that
-I wanted to avoid when trying to reproduce an elusive corruption),
-that can be applied to a single cache as well as to the whole lot.
+Against 2.6.25-rc5-mm1, the results are
+				loss	to	gain
+Total CPU time on Kernbench:	-0.23%		 1.04%
+Elapsed time on Kernbench:	-0.69%		 3.86%
+page_test from aim9:		-3.74%		 5.72%
+brk_test from aim9:		-7.37%		10.98%
+fork_test from aim9:		-3.52%		 3.17%
+exec_test from aim9:		-2.78%		 2.34%
+TBench:				-1.93%		 2.96%
 
-I could add that if you don't (or I could hack my mm/slub.c when
-I need to, that's always an option: but I do think nomerge can be
-useful out in the field).  If you go ahead and remove slub_nomerge,
-please also remove it from Documentation/kernel-parameters.txt.
+Hackbench was similarly variable but most machines showed little or no
+difference. As before, whether the changes are a performance win/loss
+depends on the machine but the majority of results showed little
+difference.
 
-Hugh
+> 			     loss   to  gain
+> Total CPU time on Kernbench: -0.86% to  1.13%
+> Elapsed   time on Kernbench: -0.79% to  0.76%
+> page_test from aim9:         -4.37% to  0.79%
+> brk_test  from aim9:         -0.71% to  4.07%
+> fork_test from aim9:         -1.84% to  4.60%
+> exec_test from aim9:         -0.71% to  1.08%
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
