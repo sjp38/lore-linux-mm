@@ -1,33 +1,33 @@
-Message-ID: <47C7BFFA.9010402@cs.helsinki.fi>
-Date: Fri, 29 Feb 2008 10:19:06 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Date: Fri, 29 Feb 2008 17:30:51 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: trivial clean up to zlc_setup
+In-Reply-To: <20080229000544.5cf2667e.akpm@linux-foundation.org>
+References: <20080229151057.66ED.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080229000544.5cf2667e.akpm@linux-foundation.org>
+Message-Id: <20080229171136.66F6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [patch 6/8] slub: Adjust order boundaries and minimum objects
- per slab.
-References: <20080229044803.482012397@sgi.com> <20080229044819.800974712@sgi.com>
-In-Reply-To: <20080229044819.800974712@sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> Since there is now no worry anymore about higher order allocs (hopefully)
-> increase the minimum of objects per slab to 60 so that slub can reach a
-> similar fastpath/slowpath ratio as slab. Set the max order to default to
-> 4 (64k) and require slub to use a higher order if a certain object density
-> cannot be reached.
+> > -       if (jiffies - zlc->last_full_zap > 1 * HZ) {
+> > +       if (time_after(jiffies, zlc->last_full_zap + HZ)) {
+> >                 bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
+> >                 zlc->last_full_zap = jiffies;
+> >         }
 > 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> That's a mainline bug.  Also present in 2.6.24, maybe earlier.
+> But it's a minor one - we'll fix it up one second later (yes?)
 
-I can see why you want to change the defaults for big iron but why not 
-keep the existing PAGE_SHIFT check which leaves embedded and regular 
-desktop unchanged?
+I think so, may be.
 
-			Pekka
+Thanks.
+
+-kosaki
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
