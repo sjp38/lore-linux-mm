@@ -1,10 +1,10 @@
-Message-ID: <47C7BA38.7050704@cs.helsinki.fi>
-Date: Fri, 29 Feb 2008 09:54:32 +0200
+Message-ID: <47C7BB9E.5020406@cs.helsinki.fi>
+Date: Fri, 29 Feb 2008 10:00:30 +0200
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [patch 04/10] slub: Remove useless checks in alloc_debug_processing
-References: <20080229043401.900481416@sgi.com> <20080229043552.047548372@sgi.com>
-In-Reply-To: <20080229043552.047548372@sgi.com>
+Subject: Re: [patch 03/10] slub: Remove objsize check in kmem_cache_flags()
+References: <20080229043401.900481416@sgi.com> <20080229043551.868567605@sgi.com>
+In-Reply-To: <20080229043551.868567605@sgi.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,10 +14,12 @@ Cc: Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Christoph Lameter wrote:
-> Alloc debug processing is never called with a NULL object pointer.
-> No reason to check for NULL.
+> There is no page->offset anymore and also no associated limit on the number
+> of objects. The page->offset field was removed for 2.6.24. So the check
+> in kmem_cache_flags() is now also obsolete (should have been dropped
+> earlier, somehow a hunk vanished).
 > 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> Signed-by: Christoph Lameter <clameter@sgi.com>
 
 Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
