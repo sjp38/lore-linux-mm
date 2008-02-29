@@ -1,45 +1,94 @@
-Subject: Re: [PATCH 5/6] Filter based on a nodemask as well as a gfp_mask
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20080228230140.321581a4.pj@sgi.com>
-References: <20071109143226.23540.12907.sendpatchset@skynet.skynet.ie>
-	 <20071109143406.23540.41284.sendpatchset@skynet.skynet.ie>
-	 <20080228230140.321581a4.pj@sgi.com>
-Content-Type: text/plain
-Date: Fri, 29 Feb 2008 09:49:24 -0500
-Message-Id: <1204296564.5311.10.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 29 Feb 2008 14:50:30 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 4/6] Use two zonelist that are filtered by GFP mask
+Message-ID: <20080229145030.GD6045@csn.ul.ie>
+References: <20080227214708.6858.53458.sendpatchset@localhost> <20080227214734.6858.9968.sendpatchset@localhost> <20080228133247.6a7b626f.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20080228133247.6a7b626f.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, nacc@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, ak@suse.de, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, rientjes@google.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-02-28 at 23:01 -0600, Paul Jackson wrote:
-> Mel wrote:
-> > A positive benefit of
-> > this is that allocations using MPOL_BIND now use the local-node-ordered
-> > zonelist instead of a custom node-id-ordered zonelist.
+On (28/02/08 13:32), Andrew Morton didst pronounce:
+> On Wed, 27 Feb 2008 16:47:34 -0500
+> Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
 > 
-> Could you update the now obsolete documentation (perhaps just delete
-> the no longer correct remark):
+> > +/* Returns the first zone at or below highest_zoneidx in a zonelist */
+> > +static inline struct zone **first_zones_zonelist(struct zonelist *zonelist,
+> > +					enum zone_type highest_zoneidx)
+> > +{
+> > +	struct zone **z;
+> > +
+> > +	/* Find the first suitable zone to use for the allocation */
+> > +	z = zonelist->zones;
+> > +	while (*z && zone_idx(*z) > highest_zoneidx)
+> > +		z++;
+> > +
+> > +	return z;
+> > +}
+> > +
+> > +/* Returns the next zone at or below highest_zoneidx in a zonelist */
+> > +static inline struct zone **next_zones_zonelist(struct zone **z,
+> > +					enum zone_type highest_zoneidx)
+> > +{
+> > +	/* Find the next suitable zone to use for the allocation */
+> > +	while (*z && zone_idx(*z) > highest_zoneidx)
+> > +		z++;
+> > +
+> > +	return z;
+> > +}
+> > +
+> > +/**
+> > + * for_each_zone_zonelist - helper macro to iterate over valid zones in a zonelist at or below a given zone index
+> > + * @zone - The current zone in the iterator
+> > + * @z - The current pointer within zonelist->zones being iterated
+> > + * @zlist - The zonelist being iterated
+> > + * @highidx - The zone index of the highest zone to return
+> > + *
+> > + * This iterator iterates though all zones at or below a given zone index.
+> > + */
+> > +#define for_each_zone_zonelist(zone, z, zlist, highidx) \
+> > +	for (z = first_zones_zonelist(zlist, highidx), zone = *z++;	\
+> > +		zone;							\
+> > +		z = next_zones_zonelist(z, highidx), zone = *z++)
+> > +
 > 
-> Documentation/vm/numa_memory_policy.txt:
+> omygawd will that thing generate a lot of code!
 > 
->         MPOL_BIND:  This mode specifies that memory must come from the
->         set of nodes specified by the policy.
-> 
->             The memory policy APIs do not specify an order in which the nodes
->             will be searched.  However, unlike "local allocation", the Bind
->             policy does not consider the distance between the nodes.  Rather,
->             allocations will fallback to the nodes specified by the policy in
->             order of numeric node id.  Like everything in Linux, this is subject
->             to change.
+> It has four call sites in mm/oom_kill.c and the overall patchset increases
+> mm/oom_kill.o's text section (x86_64 allmodconfig) from 3268 bytes to 3845.
 > 
 
-Yes, will do.  
+Yeah... that's pretty bad. They were inlined to avoid function call overhead
+when trying to avoid any additional performance overhead but the text overhead
+is not helping either. I'll start looking at things to uninline and see what
+can be gained text-reduction wise without mucking performance.
 
-Thanks, Lee
+> vmscan.o and page_alloc.o also grew a lot.  otoh total vmlinux bloat from
+> the patchset is only around 700 bytes, so I expect that with a little less
+> insanity we could actually get an aggregate improvement here.
+> 
+> Some of the inlining in mmzone.h is just comical.  Some of it is obvious
+> (first_zones_zonelist) and some of it is less obvious (pfn_present).
+> 
+> I applied these for testing but I really don't think we should be merging
+> such easily-fixed regressions into mainline.  Could someone please take a
+> look at de-porking core MM?
+> 
+> 
+> Also, I switched all your Tested-by:s to Signed-off-by:s.  You were on the
+> delivery path, so s-o-b is the appropriate tag.  I would like to believe
+> that Signed-off-by: implies Tested-by: anyway (rofl).
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
