@@ -1,72 +1,43 @@
-From: "=?utf-8?q?S=2E=C3=87a=C4=9Flar?= Onur" <caglar@pardus.org.tr>
-Reply-To: caglar@pardus.org.tr
-Subject: Re: trivial clean up to zlc_setup
-Date: Fri, 29 Feb 2008 15:31:34 +0200
-References: <20080229151057.66ED.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080229000544.5cf2667e.akpm@linux-foundation.org> <20080229171136.66F6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-In-Reply-To: <20080229171136.66F6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Fri, 29 Feb 2008 14:01:20 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch 05/10] slub: Remove slub_nomerge
+In-Reply-To: <20080229043552.282285411@sgi.com>
+Message-ID: <Pine.LNX.4.64.0802291327490.11617@blonde.site>
+References: <20080229043401.900481416@sgi.com> <20080229043552.282285411@sgi.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
-  boundary="nextPart7846280.53EjfgUmJ3";
-  protocol="application/pgp-signature";
-  micalg=pgp-sha1
-Content-Transfer-Encoding: 7bit
-Message-Id: <200802291531.36498.caglar@pardus.org.tr>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---nextPart7846280.53EjfgUmJ3
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+On Thu, 28 Feb 2008, Christoph Lameter wrote:
+> No one has used that option for a long time and AFAICT its currently utterly
+> useless.
 
-Hi;
+Not so at all.  I certainly use it: not often, but from time to time,
+in debugging.  If you're narrowing down on something, it's a worthwhile
+tool to separate the different uses of a particular size.
 
-29 =C5=9Eub 2008 Cum tarihinde, KOSAKI Motohiro =C5=9Funlar=C4=B1 yazm=C4=
-=B1=C5=9Ft=C4=B1:=20
-> > > -       if (jiffies - zlc->last_full_zap > 1 * HZ) {
-> > > +       if (time_after(jiffies, zlc->last_full_zap + HZ)) {
-> > >                 bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
-> > >                 zlc->last_full_zap =3D jiffies;
-> > >         }
-> >=20
-> > That's a mainline bug.  Also present in 2.6.24, maybe earlier.
-> > But it's a minor one - we'll fix it up one second later (yes?)
->=20
-> I think so, may be.
+And when studying slabinfo numbers, perhaps for a leak e.g. why doesn't
+slabinfo doesn't show vm_area_struct, oh, it's sharing :0000088 with
+cfq_queue, so we need slub_nomerge to see their actual numbers.
+Perhaps I'm missing something: how does everyone else get the
+right numbers without slub_nomerge?
 
-Andrew "Use time_* macros" series i sent to LKML on 14 Feb [1] has this chu=
-nk also (and by the way this version not includes linux/jiffies.h for time_=
-after macro). Some part of this series already gone into Linus's tree with =
-different subsystems but others not received any review/ack or nack. Will y=
-ou grab others for -mm or will i resend them?
+Admittedly it's often too blunt an instrument for debugging: I'd be
+happier with a debug flag which has no other side-effect than nomerge
+(all the other SLUB_NEVER_MERGE flags seemed to have side-effects that
+I wanted to avoid when trying to reproduce an elusive corruption),
+that can be applied to a single cache as well as to the whole lot.
 
-[1] http://lkml.org/lkml/2008/2/14/195
+I could add that if you don't (or I could hack my mm/slub.c when
+I need to, that's always an option: but I do think nomerge can be
+useful out in the field).  If you go ahead and remove slub_nomerge,
+please also remove it from Documentation/kernel-parameters.txt.
 
-Cheers
-=2D-=20
-S.=C3=87a=C4=9Flar Onur <caglar@pardus.org.tr>
-http://cekirdek.pardus.org.tr/~caglar/
-
-Linux is like living in a teepee. No Windows, no Gates and an Apache in hou=
-se!
-
---nextPart7846280.53EjfgUmJ3
-Content-Type: application/pgp-signature; name=signature.asc 
-Content-Description: This is a digitally signed message part.
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.4 (GNU/Linux)
-
-iD8DBQBHyAk4y7E6i0LKo6YRAkedAJ0bV2dspLjQsgMFMaaRDnirS3SotACfTWRO
-nOAUG5qHfNizTv8y5xyYW2M=
-=D4sN
------END PGP SIGNATURE-----
-
---nextPart7846280.53EjfgUmJ3--
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
