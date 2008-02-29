@@ -1,33 +1,42 @@
-Date: Fri, 29 Feb 2008 11:46:44 -0800 (PST)
+Date: Fri, 29 Feb 2008 11:48:32 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] mmu notifiers #v7
-In-Reply-To: <20080229130905.GS8091@v2.random>
-Message-ID: <Pine.LNX.4.64.0802291145390.11292@schroedinger.engr.sgi.com>
-References: <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random>
- <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de>
- <20080221144023.GC9427@v2.random> <20080221161028.GA14220@sgi.com>
- <20080227192610.GF28483@v2.random> <Pine.LNX.4.64.0802281456200.1152@schroedinger.engr.sgi.com>
- <20080229004001.GN8091@v2.random> <Pine.LNX.4.64.0802281700060.1954@schroedinger.engr.sgi.com>
- <20080229130905.GS8091@v2.random>
+Subject: Re: [patch 05/10] slub: Remove slub_nomerge
+In-Reply-To: <Pine.LNX.4.64.0802291327490.11617@blonde.site>
+Message-ID: <Pine.LNX.4.64.0802291147070.11292@schroedinger.engr.sgi.com>
+References: <20080229043401.900481416@sgi.com> <20080229043552.282285411@sgi.com>
+ <Pine.LNX.4.64.0802291327490.11617@blonde.site>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 29 Feb 2008, Andrea Arcangeli wrote:
+On Fri, 29 Feb 2008, Hugh Dickins wrote:
 
-> On Thu, Feb 28, 2008 at 05:03:01PM -0800, Christoph Lameter wrote:
-> > I thought you wanted to get rid of the sync via pte lock?
-> 
-> Sure. _notify is happening inside the pt lock by coincidence, to
-> reduce the changes to mm/* as long as the mmu notifiers aren't
-> sleep capable.
+> And when studying slabinfo numbers, perhaps for a leak e.g. why doesn't
+> slabinfo doesn't show vm_area_struct, oh, it's sharing :0000088 with
+> cfq_queue, so we need slub_nomerge to see their actual numbers.
+> Perhaps I'm missing something: how does everyone else get the
+> right numbers without slub_nomerge?
 
-Ok if this is a coincidence then it would be better to separate the 
-notifier callouts from the pte macro calls.
+I typically enable debugging in those cases.
+
+> Admittedly it's often too blunt an instrument for debugging: I'd be
+> happier with a debug flag which has no other side-effect than nomerge
+> (all the other SLUB_NEVER_MERGE flags seemed to have side-effects that
+> I wanted to avoid when trying to reproduce an elusive corruption),
+> that can be applied to a single cache as well as to the whole lot.
+
+Ohh..
+
+> I could add that if you don't (or I could hack my mm/slub.c when
+> I need to, that's always an option: but I do think nomerge can be
+> useful out in the field).  If you go ahead and remove slub_nomerge,
+> please also remove it from Documentation/kernel-parameters.txt.
+
+Well then lets keep it. Patch dropped.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
