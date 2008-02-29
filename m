@@ -1,57 +1,70 @@
-Date: Fri, 29 Feb 2008 11:30:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/6] Remember what the preferred zone is for
- zone_statistics
-Message-Id: <20080229113016.346f9cc5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080227214728.6858.79000.sendpatchset@localhost>
-References: <20080227214708.6858.53458.sendpatchset@localhost>
-	<20080227214728.6858.79000.sendpatchset@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Fri, 29 Feb 2008 11:29:18 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch 01/21] move isolate_lru_page() to vmscan.c
+In-Reply-To: <20080228192928.004828816@redhat.com>
+References: <20080228192908.126720629@redhat.com> <20080228192928.004828816@redhat.com>
+Message-Id: <20080229112120.66E1.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: akpm@linux-foundation.org, mel@csn.ul.ie, ak@suse.de, clameter@sgi.com, linux-mm@kvack.org, rientjes@google.com, eric.whitney@hp.com
+To: Rik van Riel <riel@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Feb 2008 16:47:28 -0500
-Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
+Hi Rik
 
-> From: Mel Gorman <mel@csn.ul.ie>
-> [PATCH 3/6] Remember what the preferred zone is for zone_statistics
-> 
-> V11r3 against 2.6.25-rc2-mm1
-> 
-> On NUMA, zone_statistics() is used to record events like numa hit, miss
-> and foreign. It assumes that the first zone in a zonelist is the preferred
-> zone. When multiple zonelists are replaced by one that is filtered, this
-> is no longer the case.
-> 
-> This patch records what the preferred zone is rather than assuming the
-> first zone in the zonelist is it. This simplifies the reading of later
-> patches in this set.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> Tested-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-> 
+> @@ -870,14 +840,17 @@ static int do_move_pages(struct mm_struc
+>  				!migrate_all)
+>  			goto put_and_set;
+>  
+> -		err = isolate_lru_page(page, &pagelist);
+> +		err = isolate_lru_page(page);
+> +		if (err) {
+>  put_and_set:
+> -		/*
+> -		 * Either remove the duplicate refcount from
+> -		 * isolate_lru_page() or drop the page ref if it was
+> -		 * not isolated.
+> -		 */
+> -		put_page(page);
+> +			/*
+> +			 * Either remove the duplicate refcount from
+> +			 * isolate_lru_page() or drop the page ref if it was
+> +			 * not isolated.
+> +			 */
+> +			put_page(page);
+> +		} else
+> +			list_add_tail(&page->lru, &pagelist);
 
-I have no objection to the direction but
+We think this portion change to following code.
+
+---------------------------------------------
+	err = isolate_lru_page(page);
+	if (!err)
+		list_add_tail(&page->lru, &pagelist);
+put_and_set:
+	put_page(page);	/* drop follow_page() reference */
+---------------------------------------------
+
+because nobody hope change page_count.
 
 
-> +static struct page *buffered_rmqueue(struct zone *preferred_zone,
->  			struct zone *zone, int order, gfp_t gfp_flags)
->  {
+original do_move_pages: 
+		follow_page:      page_count +1
+		isolate_lru_page: page_count +1
+		put_page:         page_count -1
+                ----------------------------------
+                total                        +1
+this patch:
+		follow_page:      page_count +1
+		isolate_lru_page: page_count +1
+                ----------------------------------
+                total                        +2
 
-Can't this be written like this ?
 
-struct page *
-buffered_rmqueue(struct zone *zone, int order, gfp_t gfp_flags, bool numa_hit)
-
-Can't caller itself  set this bool value ?
-
-Thanks,
--Kame
+- kosaki
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
