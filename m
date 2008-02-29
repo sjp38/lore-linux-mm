@@ -1,27 +1,55 @@
-Message-ID: <47C7BB9E.5020406@cs.helsinki.fi>
-Date: Fri, 29 Feb 2008 10:00:30 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-MIME-Version: 1.0
-Subject: Re: [patch 03/10] slub: Remove objsize check in kmem_cache_flags()
-References: <20080229043401.900481416@sgi.com> <20080229043551.868567605@sgi.com>
-In-Reply-To: <20080229043551.868567605@sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Fri, 29 Feb 2008 00:05:44 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: trivial clean up to zlc_setup
+Message-Id: <20080229000544.5cf2667e.akpm@linux-foundation.org>
+In-Reply-To: <20080229151057.66ED.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080229151057.66ED.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> There is no page->offset anymore and also no associated limit on the number
-> of objects. The page->offset field was removed for 2.6.24. So the check
-> in kmem_cache_flags() is now also obsolete (should have been dropped
-> earlier, somehow a hunk vanished).
-> 
-> Signed-by: Christoph Lameter <clameter@sgi.com>
+On Fri, 29 Feb 2008 15:19:39 +0900 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
+> Hi
+> 
+> I found very small bug during review mel's 2 zonelist patch series.
+> 
+> this patch is trivial clean up.
+> jiffies subtraction may cause overflow problem.
+> it shold be used time_after().
+> 
+> Thanks.
+> 
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> CC: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+> CC: Paul Jackson <pj@sgi.com>
+> ---
+>  mm/page_alloc.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> Index: b/mm/page_alloc.c
+> ===================================================================
+> --- a/mm/page_alloc.c   2008-02-18 17:17:25.000000000 +0900
+> +++ b/mm/page_alloc.c   2008-02-29 15:17:03.000000000 +0900
+> @@ -1294,7 +1294,7 @@ static nodemask_t *zlc_setup(struct zone
+>         if (!zlc)
+>                 return NULL;
+> 
+> -       if (jiffies - zlc->last_full_zap > 1 * HZ) {
+> +       if (time_after(jiffies, zlc->last_full_zap + HZ)) {
+>                 bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
+>                 zlc->last_full_zap = jiffies;
+>         }
+
+That's a mainline bug.  Also present in 2.6.24, maybe earlier.
+
+But it's a minor one - we'll fix it up one second later (yes?)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
