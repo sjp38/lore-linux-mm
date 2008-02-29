@@ -1,355 +1,138 @@
-Date: Fri, 29 Feb 2008 15:40:56 +0000
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: Re: [patch 03/21] use an array for the LRU pagevecs
-Message-ID: <20080229154056.GF28849@shadowen.org>
-References: <20080228192908.126720629@redhat.com> <20080228192928.165393706@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080228192928.165393706@redhat.com>
+Subject: Re: [PATCH 4/6] Use two zonelist that are filtered by GFP mask
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20080229145030.GD6045@csn.ul.ie>
+References: <20080227214708.6858.53458.sendpatchset@localhost>
+	 <20080227214734.6858.9968.sendpatchset@localhost>
+	 <20080228133247.6a7b626f.akpm@linux-foundation.org>
+	 <20080229145030.GD6045@csn.ul.ie>
+Content-Type: text/plain
+Date: Fri, 29 Feb 2008 10:48:14 -0500
+Message-Id: <1204300094.5311.50.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, ak@suse.de, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, rientjes@google.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 28, 2008 at 02:29:11PM -0500, Rik van Riel wrote:
-> Turn the pagevecs into an array just like the LRUs.  This significantly
-> cleans up the source code and reduces the size of the kernel by about
-> 13kB after all the LRU lists have been created further down in the split
-> VM patch series.
+On Fri, 2008-02-29 at 14:50 +0000, Mel Gorman wrote:
+> On (28/02/08 13:32), Andrew Morton didst pronounce:
+> > On Wed, 27 Feb 2008 16:47:34 -0500
+> > Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
+> > 
+> > > +/* Returns the first zone at or below highest_zoneidx in a zonelist */
+> > > +static inline struct zone **first_zones_zonelist(struct zonelist *zonelist,
+> > > +					enum zone_type highest_zoneidx)
+> > > +{
+> > > +	struct zone **z;
+> > > +
+> > > +	/* Find the first suitable zone to use for the allocation */
+> > > +	z = zonelist->zones;
+> > > +	while (*z && zone_idx(*z) > highest_zoneidx)
+> > > +		z++;
+> > > +
+> > > +	return z;
+> > > +}
+> > > +
+> > > +/* Returns the next zone at or below highest_zoneidx in a zonelist */
+> > > +static inline struct zone **next_zones_zonelist(struct zone **z,
+> > > +					enum zone_type highest_zoneidx)
+> > > +{
+> > > +	/* Find the next suitable zone to use for the allocation */
+> > > +	while (*z && zone_idx(*z) > highest_zoneidx)
+> > > +		z++;
+> > > +
+> > > +	return z;
+> > > +}
+> > > +
+> > > +/**
+> > > + * for_each_zone_zonelist - helper macro to iterate over valid zones in a zonelist at or below a given zone index
+> > > + * @zone - The current zone in the iterator
+> > > + * @z - The current pointer within zonelist->zones being iterated
+> > > + * @zlist - The zonelist being iterated
+> > > + * @highidx - The zone index of the highest zone to return
+> > > + *
+> > > + * This iterator iterates though all zones at or below a given zone index.
+> > > + */
+> > > +#define for_each_zone_zonelist(zone, z, zlist, highidx) \
+> > > +	for (z = first_zones_zonelist(zlist, highidx), zone = *z++;	\
+> > > +		zone;							\
+> > > +		z = next_zones_zonelist(z, highidx), zone = *z++)
+> > > +
+> > 
+> > omygawd will that thing generate a lot of code!
+> > 
+> > It has four call sites in mm/oom_kill.c and the overall patchset increases
+> > mm/oom_kill.o's text section (x86_64 allmodconfig) from 3268 bytes to 3845.
+> > 
 > 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Yeah... that's pretty bad. They were inlined to avoid function call overhead
+> when trying to avoid any additional performance overhead but the text overhead
+> is not helping either. I'll start looking at things to uninline and see what
+> can be gained text-reduction wise without mucking performance.
 > 
->  include/linux/mmzone.h  |   15 +++++-
->  include/linux/pagevec.h |   13 ++++-
->  include/linux/swap.h    |   18 ++++++-
->  mm/migrate.c            |   11 ----
->  mm/swap.c               |   87 +++++++++++++++-----------------------
->  5 files changed, 76 insertions(+), 68 deletions(-)
+> > vmscan.o and page_alloc.o also grew a lot.  otoh total vmlinux bloat from
+> > the patchset is only around 700 bytes, so I expect that with a little less
+> > insanity we could actually get an aggregate improvement here.
+
+Mel:
+
+Thinking about this:
+
+for_each_zone_zonelist():
+
+Seems like the call sites to this macro are not hot paths, so maybe
+these can call out to a zonelist iterator func in page_alloc.c or, as
+Kame-san suggested, mmzone.c.
+
++ oom_kill and vmscan call sites:  if these are hot, we're already in,
+uh..., slow mode. 
+
++ usage in slab.c and slub.c appears to be the fallback/slow path.
+Christoph can chime in, here, if he disagrees.
+
++ in page_alloc.c:  waking up of kswapd and counting free zone pages
+[mostly for init code] don't appear to be fast paths.  
+
++ The call site in hugetlb.c is in the huge-page allocation path, which
+is under a global spinlock.  So, any slowdown here could result in
+longer lock hold time and higher contention.  But, I have to believe
+that in the grand scheme of things, huge-page allocation is not that
+hot.  [Someone faulting in terabytes of hugepages might contest that.]
+
+That leaves the call to for_each_zone_zonelist_nodemask() in
+get_page_from_freelist().  This might be deserving of inlining?
+
+If this works out, we could end up with these macros being inlined in
+only 2 places:  get_page_from_freelist() and a to-be-designed zonelist
+iterator function.  [In fact, I believe that such an iterator need not
+expose the details of zonelists outside of page_alloc/mmzone, but that
+would require more rework of the call sites, and additional helper
+functions.  Maybe someday...]
+
+Comments?
+
+Right now, I've got to build/test the latest reclaim scalability patches
+that Rik posted, and clean up the issues already pointed out.  If you
+don't get to this, I can look at it further next week.
+
+Lee
+
+> > 
+> > Some of the inlining in mmzone.h is just comical.  Some of it is obvious
+> > (first_zones_zonelist) and some of it is less obvious (pfn_present).
+> > 
+> > I applied these for testing but I really don't think we should be merging
+> > such easily-fixed regressions into mainline.  Could someone please take a
+> > look at de-porking core MM?
+> > 
+> > 
+> > Also, I switched all your Tested-by:s to Signed-off-by:s.  You were on the
+> > delivery path, so s-o-b is the appropriate tag.  I would like to believe
+> > that Signed-off-by: implies Tested-by: anyway (rofl).
+> > 
 > 
-> Index: linux-2.6.25-rc2-mm1/include/linux/mmzone.h
-> ===================================================================
-> --- linux-2.6.25-rc2-mm1.orig/include/linux/mmzone.h	2008-02-26 21:24:23.000000000 -0500
-> +++ linux-2.6.25-rc2-mm1/include/linux/mmzone.h	2008-02-27 14:19:08.000000000 -0500
-> @@ -105,13 +105,24 @@ enum zone_stat_item {
->  #endif
->  	NR_VM_ZONE_STAT_ITEMS };
->  
-> +#define LRU_BASE 0
-> +
->  enum lru_list {
-> -	LRU_INACTIVE,	/* must match order of NR_[IN]ACTIVE */
-> -	LRU_ACTIVE,	/*  "     "     "   "       "        */
-> +	LRU_INACTIVE = LRU_BASE,	/* must match order of NR_[IN]ACTIVE */
-> +	LRU_ACTIVE,			/*  "     "     "   "       "        */
->  	NR_LRU_LISTS };
-
-Can this not be:
-
-	enum lru_list {
-		LRU_BASE = 0,
-		LRU_INACTIVE = LRU_BASE,
-		LRU_ACTIVE,
-		NR_LRU_LISTS
-	};
-
-Also, can we not rely on enum's being based at 0 anyhow?  We assume
-often that it will be, as we did here with NR_LRU_LISTS being meaningful
-should it be.  Could it not then be:
-
-	enum lru_list {
-		LRU_BASE,
-		LRU_INACTIVE = LRU_BASE,
-		LRU_ACTIVE,
-		NR_LRU_LISTS
-	};
-
->  #define for_each_lru(l) for (l = 0; l < NR_LRU_LISTS; l++)
->  
-> +static inline int is_active_lru(enum lru_list l)
-> +{
-> +	if (l == LRU_ACTIVE)
-> +		return 1;
-> +	return 0;
-
-Can this not be:
-
-	return (l == LRU_ACTIVE);
-
-> +}
-> +
-> +enum lru_list page_lru(struct page *page);
-> +
->  struct per_cpu_pages {
->  	int count;		/* number of pages in the list */
->  	int high;		/* high watermark, emptying needed */
-> Index: linux-2.6.25-rc2-mm1/mm/swap.c
-> ===================================================================
-> --- linux-2.6.25-rc2-mm1.orig/mm/swap.c	2008-02-26 21:24:23.000000000 -0500
-> +++ linux-2.6.25-rc2-mm1/mm/swap.c	2008-02-27 14:31:35.000000000 -0500
-> @@ -34,8 +34,7 @@
->  /* How many pages do we try to swap or page in/out together? */
->  int page_cluster;
->  
-> -static DEFINE_PER_CPU(struct pagevec, lru_add_pvecs) = { 0, };
-> -static DEFINE_PER_CPU(struct pagevec, lru_add_active_pvecs) = { 0, };
-> +static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs) = { {0,}, };
->  static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs) = { 0, };
->  
->  /*
-> @@ -98,6 +97,19 @@ void put_pages_list(struct list_head *pa
->  EXPORT_SYMBOL(put_pages_list);
->  
->  /*
-> + * Returns the LRU list a page should be on.
-> + */
-> +enum lru_list page_lru(struct page *page)
-> +{
-> +	enum lru_list lru = LRU_BASE;
-> +
-> +	if (PageActive(page))
-> +		lru += LRU_ACTIVE;
-
-This is introducing an assumption that LRU_BASE and LRU_INACTIVE are
-synonymous?  Would it not be better to explicitly use LRU_INACTIVE:
-
-So either:
-
-	if (PageActive(page))
-		lru = LRU_ACTIVE;
-	else
-		lru = LRU_INACTIVE;
-
-Or if (as I assume) this is later going to have other mappings added in
-you could do it more like the following.  This should produce identicle
-asm, but removes any possiblity of LRU_BASE/INACTIVE slippage breaking
-things:
-
-	enum lru_list lru = LRU_INACTIVE;
-
-	if (PageActive(page))
-		lru += (LRU_ACTIVE - LRU_INACTIVE);
-	
-> +
-> +	return lru;
-> +}
-> +
-> +/*
->   * pagevec_move_tail() must be called with IRQ disabled.
->   * Otherwise this may cause nasty races.
->   */
-> @@ -200,28 +212,24 @@ void mark_page_accessed(struct page *pag
->  
->  EXPORT_SYMBOL(mark_page_accessed);
->  
-> -/**
-> - * lru_cache_add: add a page to the page lists
-> - * @page: the page to add
-> - */
-> -void lru_cache_add(struct page *page)
-> +void __lru_cache_add(struct page *page, enum lru_list lru)
->  {
-> -	struct pagevec *pvec = &get_cpu_var(lru_add_pvecs);
-> +	struct pagevec *pvec = &get_cpu_var(lru_add_pvecs)[lru];
->  
->  	page_cache_get(page);
->  	if (!pagevec_add(pvec, page))
-> -		__pagevec_lru_add(pvec);
-> +		____pagevec_lru_add(pvec, lru);
->  	put_cpu_var(lru_add_pvecs);
->  }
->  
-> -void lru_cache_add_active(struct page *page)
-> +void lru_cache_add_lru(struct page *page, enum lru_list lru)
->  {
-> -	struct pagevec *pvec = &get_cpu_var(lru_add_active_pvecs);
-> +	if (PageActive(page)) {
-> +		ClearPageActive(page);
-> +	}
-
-{}'s are not needed here.
-
->  
-> -	page_cache_get(page);
-> -	if (!pagevec_add(pvec, page))
-> -		__pagevec_lru_add_active(pvec);
-> -	put_cpu_var(lru_add_active_pvecs);
-> +	VM_BUG_ON(PageLRU(page) || PageActive(page));
-> +	__lru_cache_add(page, lru);
->  }
->  
->  /*
-> @@ -231,15 +239,15 @@ void lru_cache_add_active(struct page *p
->   */
->  static void drain_cpu_pagevecs(int cpu)
->  {
-> +	struct pagevec *pvecs = per_cpu(lru_add_pvecs, cpu);
->  	struct pagevec *pvec;
-> +	int lru;
->  
-> -	pvec = &per_cpu(lru_add_pvecs, cpu);
-> -	if (pagevec_count(pvec))
-> -		__pagevec_lru_add(pvec);
-> -
-> -	pvec = &per_cpu(lru_add_active_pvecs, cpu);
-> -	if (pagevec_count(pvec))
-> -		__pagevec_lru_add_active(pvec);
-> +	for_each_lru(lru) {
-> +		pvec = &pvecs[lru - LRU_BASE];
-> +		if (pagevec_count(pvec))
-> +			____pagevec_lru_add(pvec, lru);
-> +	}
->  
->  	pvec = &per_cpu(lru_rotate_pvecs, cpu);
->  	if (pagevec_count(pvec)) {
-> @@ -393,7 +401,7 @@ void __pagevec_release_nonlru(struct pag
->   * Add the passed pages to the LRU, then drop the caller's refcount
->   * on them.  Reinitialises the caller's pagevec.
->   */
-> -void __pagevec_lru_add(struct pagevec *pvec)
-> +void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
->  {
->  	int i;
->  	struct zone *zone = NULL;
-> @@ -410,7 +418,9 @@ void __pagevec_lru_add(struct pagevec *p
->  		}
->  		VM_BUG_ON(PageLRU(page));
->  		SetPageLRU(page);
-> -		add_page_to_inactive_list(zone, page);
-> +		if (is_active_lru(lru))
-> +			SetPageActive(page);
-> +		add_page_to_lru_list(zone, page, lru);
->  	}
->  	if (zone)
->  		spin_unlock_irq(&zone->lru_lock);
-> @@ -418,34 +428,7 @@ void __pagevec_lru_add(struct pagevec *p
->  	pagevec_reinit(pvec);
->  }
->  
-> -EXPORT_SYMBOL(__pagevec_lru_add);
-> -
-> -void __pagevec_lru_add_active(struct pagevec *pvec)
-> -{
-> -	int i;
-> -	struct zone *zone = NULL;
-> -
-> -	for (i = 0; i < pagevec_count(pvec); i++) {
-> -		struct page *page = pvec->pages[i];
-> -		struct zone *pagezone = page_zone(page);
-> -
-> -		if (pagezone != zone) {
-> -			if (zone)
-> -				spin_unlock_irq(&zone->lru_lock);
-> -			zone = pagezone;
-> -			spin_lock_irq(&zone->lru_lock);
-> -		}
-> -		VM_BUG_ON(PageLRU(page));
-> -		SetPageLRU(page);
-> -		VM_BUG_ON(PageActive(page));
-> -		SetPageActive(page);
-> -		add_page_to_active_list(zone, page);
-> -	}
-> -	if (zone)
-> -		spin_unlock_irq(&zone->lru_lock);
-> -	release_pages(pvec->pages, pvec->nr, pvec->cold);
-> -	pagevec_reinit(pvec);
-> -}
-> +EXPORT_SYMBOL(____pagevec_lru_add);
->  
->  /*
->   * Try to drop buffers from the pages in a pagevec
-> Index: linux-2.6.25-rc2-mm1/include/linux/pagevec.h
-> ===================================================================
-> --- linux-2.6.25-rc2-mm1.orig/include/linux/pagevec.h	2007-07-08 19:32:17.000000000 -0400
-> +++ linux-2.6.25-rc2-mm1/include/linux/pagevec.h	2008-02-27 13:41:27.000000000 -0500
-> @@ -23,8 +23,7 @@ struct pagevec {
->  void __pagevec_release(struct pagevec *pvec);
->  void __pagevec_release_nonlru(struct pagevec *pvec);
->  void __pagevec_free(struct pagevec *pvec);
-> -void __pagevec_lru_add(struct pagevec *pvec);
-> -void __pagevec_lru_add_active(struct pagevec *pvec);
-> +void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru);
->  void pagevec_strip(struct pagevec *pvec);
->  unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
->  		pgoff_t start, unsigned nr_pages);
-> @@ -81,6 +80,16 @@ static inline void pagevec_free(struct p
->  		__pagevec_free(pvec);
->  }
->  
-> +static inline void __pagevec_lru_add(struct pagevec *pvec)
-> +{
-> +	____pagevec_lru_add(pvec, LRU_INACTIVE);
-> +}
-> +
-> +static inline void __pagevec_lru_add_active(struct pagevec *pvec)
-> +{
-> +	____pagevec_lru_add(pvec, LRU_ACTIVE);
-> +}
-> +
->  static inline void pagevec_lru_add(struct pagevec *pvec)
->  {
->  	if (pagevec_count(pvec))
-> Index: linux-2.6.25-rc2-mm1/include/linux/swap.h
-> ===================================================================
-> --- linux-2.6.25-rc2-mm1.orig/include/linux/swap.h	2008-02-19 16:23:08.000000000 -0500
-> +++ linux-2.6.25-rc2-mm1/include/linux/swap.h	2008-02-27 14:31:21.000000000 -0500
-> @@ -171,8 +171,8 @@ extern unsigned int nr_free_pagecache_pa
->  
->  
->  /* linux/mm/swap.c */
-> -extern void lru_cache_add(struct page *);
-> -extern void lru_cache_add_active(struct page *);
-> +extern void __lru_cache_add(struct page *, enum lru_list lru);
-> +extern void lru_cache_add_lru(struct page *, enum lru_list lru);
->  extern void activate_page(struct page *);
->  extern void mark_page_accessed(struct page *);
->  extern void lru_add_drain(void);
-> @@ -180,6 +180,20 @@ extern int lru_add_drain_all(void);
->  extern int rotate_reclaimable_page(struct page *page);
->  extern void swap_setup(void);
->  
-> +/**
-> + * lru_cache_add: add a page to the page lists
-> + * @page: the page to add
-> + */
-> +static inline void lru_cache_add(struct page *page)
-> +{
-> +	__lru_cache_add(page, LRU_INACTIVE);
-> +}
-> +
-> +static inline void lru_cache_add_active(struct page *page)
-> +{
-> +	__lru_cache_add(page, LRU_ACTIVE);
-> +}
-> +
->  /* linux/mm/vmscan.c */
->  extern unsigned long try_to_free_pages(struct zone **zones, int order,
->  					gfp_t gfp_mask);
-> Index: linux-2.6.25-rc2-mm1/mm/migrate.c
-> ===================================================================
-> --- linux-2.6.25-rc2-mm1.orig/mm/migrate.c	2008-02-25 17:10:54.000000000 -0500
-> +++ linux-2.6.25-rc2-mm1/mm/migrate.c	2008-02-27 14:24:23.000000000 -0500
-> @@ -54,16 +54,7 @@ int migrate_prep(void)
->  
->  static inline void move_to_lru(struct page *page)
->  {
-> -	if (PageActive(page)) {
-> -		/*
-> -		 * lru_cache_add_active checks that
-> -		 * the PG_active bit is off.
-> -		 */
-> -		ClearPageActive(page);
-> -		lru_cache_add_active(page);
-> -	} else {
-> -		lru_cache_add(page);
-> -	}
-> +	lru_cache_add_lru(page, page_lru(page));
->  	put_page(page);
->  }
-
--apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
