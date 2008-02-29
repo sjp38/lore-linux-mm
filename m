@@ -1,11 +1,11 @@
-Date: Fri, 29 Feb 2008 11:37:35 -0800 (PST)
+Date: Fri, 29 Feb 2008 11:41:30 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 7/8] slub: Make the order configurable for each slab
- cache
-In-Reply-To: <47C7BEA8.4040906@cs.helsinki.fi>
-Message-ID: <Pine.LNX.4.64.0802291137140.11084@schroedinger.engr.sgi.com>
-References: <20080229044803.482012397@sgi.com> <20080229044820.044485187@sgi.com>
- <47C7BEA8.4040906@cs.helsinki.fi>
+Subject: Re: [patch 6/8] slub: Adjust order boundaries and minimum objects
+ per slab.
+In-Reply-To: <47C7BFFA.9010402@cs.helsinki.fi>
+Message-ID: <Pine.LNX.4.64.0802291139560.11084@schroedinger.engr.sgi.com>
+References: <20080229044803.482012397@sgi.com> <20080229044819.800974712@sgi.com>
+ <47C7BFFA.9010402@cs.helsinki.fi>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -16,11 +16,18 @@ List-ID: <linux-mm.kvack.org>
 
 On Fri, 29 Feb 2008, Pekka Enberg wrote:
 
-> I think we either want to check that the order is big enough to hold one
-> object for the given cache or add a comment explaining why it can never happen
-> (page allocator pass-through).
+> I can see why you want to change the defaults for big iron but why not keep
+> the existing PAGE_SHIFT check which leaves embedded and regular desktop
+> unchanged?
 
-Calculate_sizes() will violate max_order if the object does not fit.
+The defaults for slab are also 60 objects per slab. The PAGE_SHIFT says 
+nothing about the big iron. Our new big irons have a page shift of 12 and 
+are x86_64.
+
+We could drop the limit if CONFIG_EMBEDDED is set but then this may waste 
+space. A higher order allows slub to reach a higher object density (in 
+particular for objects 500-2000 bytes size).
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
