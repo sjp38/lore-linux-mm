@@ -1,55 +1,28 @@
-Date: Fri, 29 Feb 2008 00:05:44 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: trivial clean up to zlc_setup
-Message-Id: <20080229000544.5cf2667e.akpm@linux-foundation.org>
-In-Reply-To: <20080229151057.66ED.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080229151057.66ED.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <47C7BCBB.5030509@cs.helsinki.fi>
+Date: Fri, 29 Feb 2008 10:05:15 +0200
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+MIME-Version: 1.0
+Subject: Re: [patch 01/10] Revert "unique end pointer" patch
+References: <20080229043401.900481416@sgi.com> <20080229043551.357047304@sgi.com>
+In-Reply-To: <20080229043551.357047304@sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 29 Feb 2008 15:19:39 +0900 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+Christoph Lameter wrote:
+> This only made sense for the alternate fastpath which was reverted last week.
+> 
+> Mathieu is working on a new version that addresses the fastpath issues but that
+> new code first needs to go through mm and it is not clear if we need the
+> unique end pointers with his new scheme.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-> Hi
-> 
-> I found very small bug during review mel's 2 zonelist patch series.
-> 
-> this patch is trivial clean up.
-> jiffies subtraction may cause overflow problem.
-> it shold be used time_after().
-> 
-> Thanks.
-> 
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-> CC: Paul Jackson <pj@sgi.com>
-> ---
->  mm/page_alloc.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> Index: b/mm/page_alloc.c
-> ===================================================================
-> --- a/mm/page_alloc.c   2008-02-18 17:17:25.000000000 +0900
-> +++ b/mm/page_alloc.c   2008-02-29 15:17:03.000000000 +0900
-> @@ -1294,7 +1294,7 @@ static nodemask_t *zlc_setup(struct zone
->         if (!zlc)
->                 return NULL;
-> 
-> -       if (jiffies - zlc->last_full_zap > 1 * HZ) {
-> +       if (time_after(jiffies, zlc->last_full_zap + HZ)) {
->                 bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
->                 zlc->last_full_zap = jiffies;
->         }
-
-That's a mainline bug.  Also present in 2.6.24, maybe earlier.
-
-But it's a minor one - we'll fix it up one second later (yes?)
+Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
