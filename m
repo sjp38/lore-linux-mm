@@ -1,51 +1,66 @@
-Date: Fri, 29 Feb 2008 11:37:14 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 4/6] Use two zonelist that are filtered by GFP mask
-Message-Id: <20080229113714.e9ff22b1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1204235638.5301.49.camel@localhost>
-References: <20080227214708.6858.53458.sendpatchset@localhost>
-	<20080227214734.6858.9968.sendpatchset@localhost>
-	<20080228133247.6a7b626f.akpm@linux-foundation.org>
-	<1204235638.5301.49.camel@localhost>
+Date: Thu, 28 Feb 2008 21:41:41 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [patch 01/21] move isolate_lru_page() to vmscan.c
+Message-ID: <20080228214141.296335a0@bree.surriel.com>
+In-Reply-To: <20080229112120.66E1.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080228192908.126720629@redhat.com>
+	<20080228192928.004828816@redhat.com>
+	<20080229112120.66E1.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mel@csn.ul.ie, ak@suse.de, clameter@sgi.com, linux-mm@kvack.org, rientjes@google.com, eric.whitney@hp.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Feb 2008 16:53:58 -0500
-Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+On Fri, 29 Feb 2008 11:29:18 +0900
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> > omygawd will that thing generate a lot of code!
-> > 
-> > It has four call sites in mm/oom_kill.c and the overall patchset increases
-> > mm/oom_kill.o's text section (x86_64 allmodconfig) from 3268 bytes to 3845.
-> > 
-> > vmscan.o and page_alloc.o also grew a lot.  otoh total vmlinux bloat from
-> > the patchset is only around 700 bytes, so I expect that with a little less
-> > insanity we could actually get an aggregate improvement here.
-> > 
-> > Some of the inlining in mmzone.h is just comical.  Some of it is obvious
-> > (first_zones_zonelist) and some of it is less obvious (pfn_present).
+> We think this portion change to following code.
 > 
-> Yeah, Mel said he was really reaching to avoid performance regression in
-> this set.   
-> 
-> > 
-> > I applied these for testing but I really don't think we should be merging
-> > such easily-fixed regressions into mainline.  Could someone please take a
-> > look at de-porking core MM?
-> 
-> OK, Mel should be back real soon now, and I'll take a look as well.  At
-> this point, we just wanted to get some more testing in -mm.
-> 
-maybe mm/mmzone.c can be candidate to put these into.
+> ---------------------------------------------
+> 	err = isolate_lru_page(page);
+> 	if (!err)
+> 		list_add_tail(&page->lru, &pagelist);
+> put_and_set:
+> 	put_page(page);	/* drop follow_page() reference */
+> ---------------------------------------------
 
-Thanks,
--Kame
+If I understand you right, this is what the incremental patch looks like:
+
+Index: linux-2.6.25-rc2-mm1/mm/migrate.c
+===================================================================
+--- linux-2.6.25-rc2-mm1.orig/mm/migrate.c	2008-02-28 21:32:20.000000000 -0500
++++ linux-2.6.25-rc2-mm1/mm/migrate.c	2008-02-28 21:32:14.000000000 -0500
+@@ -841,16 +841,10 @@ static int do_move_pages(struct mm_struc
+ 			goto put_and_set;
+ 
+ 		err = isolate_lru_page(page);
+-		if (err) {
+-put_and_set:
+-			/*
+-			 * Either remove the duplicate refcount from
+-			 * isolate_lru_page() or drop the page ref if it was
+-			 * not isolated.
+-			 */
+-			put_page(page);
+-		} else
++		if (!err)
+ 			list_add_tail(&page->lru, &pagelist);
++put_and_set:
++		put_page(page);
+ set_status:
+ 		pp->status = err;
+ 	}
+
+Is this OK for me to commit to my tree?
+
+(folding it into patch 01/21)
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
