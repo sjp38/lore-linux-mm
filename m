@@ -1,42 +1,45 @@
-Subject: Re: [patch 12/21] No Reclaim LRU Infrastructure
+Subject: Re: [PATCH 5/6] Filter based on a nodemask as well as a gfp_mask
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <44c63dc40802282058h67f7597bvb614575f06c62e2c@mail.gmail.com>
-References: <20080228192908.126720629@redhat.com>
-	 <20080228192929.031646681@redhat.com>
-	 <44c63dc40802282058h67f7597bvb614575f06c62e2c@mail.gmail.com>
+In-Reply-To: <20080228230140.321581a4.pj@sgi.com>
+References: <20071109143226.23540.12907.sendpatchset@skynet.skynet.ie>
+	 <20071109143406.23540.41284.sendpatchset@skynet.skynet.ie>
+	 <20080228230140.321581a4.pj@sgi.com>
 Content-Type: text/plain
-Date: Fri, 29 Feb 2008 09:48:54 -0500
-Message-Id: <1204296534.5311.8.camel@localhost>
+Date: Fri, 29 Feb 2008 09:49:24 -0500
+Message-Id: <1204296564.5311.10.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: minchan Kim <barrioskmc@gmail.com>
-Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Paul Jackson <pj@sgi.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, nacc@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-02-29 at 13:58 +0900, minchan Kim wrote:
->         
->         +#ifdef CONFIG_NORECLAIM
->         +static inline void lru_cache_add_noreclaim(struct page *page)
->         +{
->         +       __lru_cache_add(page, LRU_NORECLAIM);
->         +}
->         +#else
->         +static inline void lru_cache_add_noreclaim(struct page *page)
->         +{
->         +       BUG("Noreclaim not configured, but page added
->         anyway?!");
->         +}
->         +#endif
->         +
+On Thu, 2008-02-28 at 23:01 -0600, Paul Jackson wrote:
+> Mel wrote:
+> > A positive benefit of
+> > this is that allocations using MPOL_BIND now use the local-node-ordered
+> > zonelist instead of a custom node-id-ordered zonelist.
 > 
-> BUG() can't take a argument. 
+> Could you update the now obsolete documentation (perhaps just delete
+> the no longer correct remark):
+> 
+> Documentation/vm/numa_memory_policy.txt:
+> 
+>         MPOL_BIND:  This mode specifies that memory must come from the
+>         set of nodes specified by the policy.
+> 
+>             The memory policy APIs do not specify an order in which the nodes
+>             will be searched.  However, unlike "local allocation", the Bind
+>             policy does not consider the distance between the nodes.  Rather,
+>             allocations will fallback to the nodes specified by the policy in
+>             order of numeric node id.  Like everything in Linux, this is subject
+>             to change.
+> 
 
-Right.  I don't have a clue how that got there :-(.
+Yes, will do.  
 
-Thanks,
-Lee
+Thanks, Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
