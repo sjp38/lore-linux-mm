@@ -1,65 +1,70 @@
-Date: Fri, 29 Feb 2008 23:41:44 +0100
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address
-	ranges
-Message-ID: <20080229224144.GE8091@v2.random>
-References: <20080229005530.GO8091@v2.random> <Pine.LNX.4.64.0802281658560.1954@schroedinger.engr.sgi.com> <20080229131302.GT8091@v2.random> <Pine.LNX.4.64.0802291149290.11292@schroedinger.engr.sgi.com> <20080229201744.GB8091@v2.random> <Pine.LNX.4.64.0802291301530.11889@schroedinger.engr.sgi.com> <20080229212327.GC8091@v2.random> <Pine.LNX.4.64.0802291329250.13402@schroedinger.engr.sgi.com> <20080229214800.GD8091@v2.random> <Pine.LNX.4.64.0802291408520.14224@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0802291408520.14224@schroedinger.engr.sgi.com>
+Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [150.166.1.51])
+	by relay1.corp.sgi.com (Postfix) with ESMTP id 2F98C8F80A9
+	for <linux-mm@kvack.org>; Fri, 29 Feb 2008 20:08:16 -0800 (PST)
+Received: from clameter by schroedinger.engr.sgi.com with local (Exim 3.36 #1 (Debian))
+	id 1JVJ1E-0004YT-00
+	for <linux-mm@kvack.org>; Fri, 29 Feb 2008 20:08:16 -0800
+Message-Id: <20080301040815.842764035@sgi.com>
+References: <20080301040755.268426038@sgi.com>
+Date: Fri, 29 Feb 2008 20:08:03 -0800
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [rfc 08/10] Export NR_MAX_ZONES to the preprocessor
+Content-Disposition: inline; filename=bounds_nr_max_zones
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 29, 2008 at 02:12:57PM -0800, Christoph Lameter wrote:
-> On Fri, 29 Feb 2008, Andrea Arcangeli wrote:
-> 
-> > > AFAICT The rw semaphore fastpath is similar in performance to a rw 
-> > > spinlock. 
-> > 
-> > read side is taken in the slow path.
-> 
-> Slowpath meaning VM slowpath or lock slow path? Its seems that the rwsem 
+---
+ include/linux/bounds.h |    1 +
+ include/linux/mmzone.h |    3 ++-
+ kernel/bounds.c        |    1 +
+ 3 files changed, 4 insertions(+), 1 deletion(-)
 
-With slow path I meant the VM. Sorry if that was confusing given locks
-also have fast paths (no contention) and slow paths (contention).
+Index: linux-2.6/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.orig/include/linux/mmzone.h	2008-02-29 18:18:19.000000000 -0800
++++ linux-2.6/include/linux/mmzone.h	2008-02-29 18:20:30.000000000 -0800
+@@ -17,6 +17,7 @@
+ #include <linux/pageblock-flags.h>
+ #include <asm/atomic.h>
+ #include <asm/page.h>
++#include <linux/bounds.h>
+ 
+ /* Free memory management - zoned buddy allocator.  */
+ #ifndef CONFIG_FORCE_MAX_ZONEORDER
+@@ -177,7 +178,7 @@ enum zone_type {
+ 	ZONE_HIGHMEM,
+ #endif
+ 	ZONE_MOVABLE,
+-	MAX_NR_ZONES
++	__MAX_NR_ZONES
+ };
+ 
+ /*
+Index: linux-2.6/kernel/bounds.c
+===================================================================
+--- linux-2.6.orig/kernel/bounds.c	2008-02-29 18:18:19.000000000 -0800
++++ linux-2.6/kernel/bounds.c	2008-02-29 18:18:53.000000000 -0800
+@@ -14,4 +14,5 @@
+ void foo(void)
+ {
+ 	DEFINE(NR_PAGEFLAGS, __NR_PAGEFLAGS);
++	DEFINE(MAX_NR_ZONES, __MAX_NR_ZONES);
+ }
+Index: linux-2.6/include/linux/bounds.h
+===================================================================
+--- linux-2.6.orig/include/linux/bounds.h	2008-02-29 18:18:19.000000000 -0800
++++ linux-2.6/include/linux/bounds.h	2008-02-29 18:20:32.000000000 -0800
+@@ -8,5 +8,6 @@
+  */
+ 
+ #define NR_PAGEFLAGS 32 /* __NR_PAGEFLAGS	# */
++#define MAX_NR_ZONES 4 /* __MAX_NR_ZONES	# */
+ 
+ #endif
 
-> read side path is pretty efficient:
-
-Yes. The assembly doesn't worry me at all.
-
-> > pagefault is fast path, VM during swapping is slow path.
-> 
-> Not sure what you are saying here. A pagefault should be considered as a 
-> fast path and swapping is not performance critical?
-
-Yes, swapping is I/O bound and it rarely becomes CPU hog in the common
-case.
-
-There are corner case workloads (including OOM) where swapping can
-become cpu bound (that's also where rwlock helps). But certainly the
-speed of fork() and a page fault, is critical for _everyone_, not just
-a few workloads and setups.
-
-> Ok too many calls to schedule() because the slow path (of the semaphore) 
-> is taken?
-
-Yes, that's the only possible worry when converting a spinlock to
-mutex.
-
-> But that is only happening for the contended case. Certainly a spinlock is 
-> better for 2p system but the more processors content for the lock (and 
-> the longer the hold off is, typical for the processors with 4p or 8p or 
-> more) the better a semaphore will work.
-
-Sure. That's also why the PT lock switches for >4way compiles. Config
-option helps to keep the VM optimal for everyone. Here it is possible
-it won't be necessary but I can't be sure given both i_mmap_lock and
-anon-vma lock are used in some many places. Some TPC comparison would
-be nice before making a default switch IMHO.
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
