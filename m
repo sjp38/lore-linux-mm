@@ -1,74 +1,112 @@
-Received: by rv-out-0910.google.com with SMTP id f1so3353853rvb.26
-        for <linux-mm@kvack.org>; Sat, 01 Mar 2008 02:29:44 -0800 (PST)
-Message-ID: <84144f020803010229l7ad52a82o42a06d4de2bf6035@mail.gmail.com>
-Date: Sat, 1 Mar 2008 12:29:44 +0200
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [patch 3/8] slub: Update statistics handling for variable order slabs
-In-Reply-To: <20080229044818.999367120@sgi.com>
+Date: Sat, 01 Mar 2008 21:13:44 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch 06/21] split LRU lists into anon & file sets
+In-Reply-To: <20080228192928.412991306@redhat.com>
+References: <20080228192908.126720629@redhat.com> <20080228192928.412991306@redhat.com>
+Message-Id: <20080301205902.5295.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080229044803.482012397@sgi.com>
-	 <20080229044818.999367120@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Christoph,
+Hi
 
-On Fri, Feb 29, 2008 at 9:43 PM, Christoph Lameter <clameter@sgi.com> wrote:
->  Hmmm... I get some weird numbers when I use slabinfo but cannot spot the
->  issue. Could you look a bit closer at this? In particular at the slabinfo
->  emulation?
+>@@ -1128,64 +1026,65 @@ static void shrink_active_list(unsigned 
+(snip)
+> +	/*
+> +	 * For sorting active vs inactive pages, we'll use the 'anon'
+> +	 * elements of the local list[] array and sort out the file vs
+> +	 * anon pages below.
+> +	 */
 
-What kind of weird numbers? Unfortunately the patch still looks
-correct to me so it might be an integer overflow issue...
+IMHO this comment implies code is not so good...
 
-On Fri, Feb 29, 2008 at 6:48 AM, Christoph Lameter <clameter@sgi.com> wrote:
->  @@ -4331,7 +4367,9 @@ static int s_show(struct seq_file *m, vo
->         unsigned long nr_partials = 0;
+I think shrink_active_list should not change to indexed array. 
+because this function almost use no indexed array operation.
 
-nr_partials is no longer read so you can remove it.
 
->         unsigned long nr_slabs = 0;
->         unsigned long nr_inuse = 0;
+the following is only explain my intention patch.
 
-No need to initialize nr_inuse to zero here.
+---
+ mm/vmscan.c |   29 +++++++++++------------------
+ 1 file changed, 11 insertions(+), 18 deletions(-)
 
->  -       unsigned long nr_objs;
->  +       unsigned long nr_objs = 0;
->  +       unsigned long nr_partial_inuse = 0;
->  +       unsigned long nr_partial_total = 0;
->         struct kmem_cache *s;
->         int node;
->
->  @@ -4345,14 +4383,15 @@ static int s_show(struct seq_file *m, vo
->
->                 nr_partials += n->nr_partial;
->                 nr_slabs += atomic_long_read(&n->nr_slabs);
->  -               nr_inuse += count_partial(n);
->  +               nr_objs += atomic_long_read(&n->total_objects);
+Index: b/mm/vmscan.c
+===================================================================
+--- a/mm/vmscan.c	2008-03-01 21:11:03.000000000 +0900
++++ b/mm/vmscan.c	2008-03-01 21:13:13.000000000 +0900
+@@ -1023,14 +1023,12 @@ static void shrink_active_list(unsigned 
+ 	int pgdeactivate = 0;
+ 	unsigned long pgscanned;
+ 	LIST_HEAD(l_hold);	/* The pages which were snipped off */
+-	struct list_head list[NR_LRU_LISTS];
++	LIST_HEAD(l_active);
++	LIST_HEAD(l_inactive);
+ 	struct page *page;
+ 	struct pagevec pvec;
+ 	enum lru_list lru;
+ 
+-	for_each_lru(lru)
+-		INIT_LIST_HEAD(&list[lru]);
+-
+ 	lru_add_drain();
+ 	spin_lock_irq(&zone->lru_lock);
+ 	pgmoved = sc->isolate_pages(nr_pages, &l_hold, &pgscanned, sc->order,
+@@ -1048,19 +1046,14 @@ static void shrink_active_list(unsigned 
+ 		__mod_zone_page_state(zone, NR_ACTIVE_ANON, -pgmoved);
+ 	spin_unlock_irq(&zone->lru_lock);
+ 
+-	/*
+-	 * For sorting active vs inactive pages, we'll use the 'anon'
+-	 * elements of the local list[] array and sort out the file vs
+-	 * anon pages below.
+-	 */
+ 	while (!list_empty(&l_hold)) {
+-		lru = LRU_INACTIVE_ANON;
+ 		cond_resched();
+ 		page = lru_to_page(&l_hold);
+ 		list_del(&page->lru);
+ 		if (page_referenced(page, 0, sc->mem_cgroup))
+-			lru = LRU_ACTIVE_ANON;
+-		list_add(&page->lru, &list[lru]);
++			list_add(&page->lru, &l_active);
++		else
++			list_add(&page->lru, &l_inactive);
+ 	}
+ 
+ 	/*
+@@ -1071,9 +1064,9 @@ static void shrink_active_list(unsigned 
+ 	pgmoved = 0;
+ 	lru = LRU_BASE + file * LRU_FILE;
+ 	spin_lock_irq(&zone->lru_lock);
+-	while (!list_empty(&list[LRU_INACTIVE_ANON])) {
+-		page = lru_to_page(&list[LRU_INACTIVE_ANON]);
+-		prefetchw_prev_lru_page(page, &list[LRU_INACTIVE_ANON], flags);
++	while (!list_empty(&l_inactive)) {
++		page = lru_to_page(&l_inactive);
++		prefetchw_prev_lru_page(page, &l_inactive, flags);
+ 		VM_BUG_ON(PageLRU(page));
+ 		SetPageLRU(page);
+ 		VM_BUG_ON(!PageActive(page));
+@@ -1104,9 +1097,9 @@ static void shrink_active_list(unsigned 
+ 
+ 	pgmoved = 0;
+ 	lru = LRU_ACTIVE + file * LRU_FILE;
+-	while (!list_empty(&list[LRU_ACTIVE_ANON])) {
+-		page = lru_to_page(&list[LRU_ACTIVE_ANON]);
+-		prefetchw_prev_lru_page(page, &list[LRU_ACTIVE_ANON], flags);
++	while (!list_empty(&l_active)) {
++		page = lru_to_page(&l_active);
++		prefetchw_prev_lru_page(page, &l_active, flags);
+ 		VM_BUG_ON(PageLRU(page));
+ 		SetPageLRU(page);
+ 		VM_BUG_ON(!PageActive(page));
 
-So does ->total_objects contain the total amount of objects (not
-necessarily in use) including the partial list or not? AFAICT it
-_does_ include slabs in the partial list too so nr_objs is correct
-here.
 
->  +               nr_partial_inuse += count_partial_inuse(n);
->  +               nr_partial_total += count_partial_total(s, n);
->         }
->
->  -       nr_objs = nr_slabs * s->objects;
->  -       nr_inuse += (nr_slabs - nr_partials) * s->objects;
->  +       nr_inuse = nr_objs - (nr_partial_total - nr_partial_inuse);
-
-So if nr_objs contains the total number of objects in all slabs
-including those that are in the partial list, this looks correct also.
-
-                             Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
