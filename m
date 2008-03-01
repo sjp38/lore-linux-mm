@@ -1,66 +1,104 @@
 Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [150.166.1.51])
-	by relay2.corp.sgi.com (Postfix) with ESMTP id AE76130406F
+	by relay2.corp.sgi.com (Postfix) with ESMTP id 2F3A430406A
 	for <linux-mm@kvack.org>; Fri, 29 Feb 2008 20:08:14 -0800 (PST)
 Received: from clameter by schroedinger.engr.sgi.com with local (Exim 3.36 #1 (Debian))
-	id 1JVJ1C-0004WP-00
+	id 1JVJ1C-0004VN-00
 	for <linux-mm@kvack.org>; Fri, 29 Feb 2008 20:08:14 -0800
-Message-Id: <20080301040814.438625436@sgi.com>
+Message-Id: <20080301040813.835000741@sgi.com>
 References: <20080301040755.268426038@sgi.com>
-Date: Fri, 29 Feb 2008 20:07:59 -0800
+Date: Fri, 29 Feb 2008 20:07:57 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [rfc 04/10] Pageflags: Eliminate PG_readahead
-Content-Disposition: inline; filename=pageflags-elimiate_pg_readahead
+Subject: [rfc 02/10] Pageflags: Introduce macros to generate page flag functions
+Content-Disposition: inline; filename=pageflags-add-macros
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-PG_readahead is an alias of PG_reclaim. We can easily drop that now and
-alias by specifying PG_reclaim in the macro that generates the functions
-for PageReadahead().
+Introduce a set of macros that generate functions to handle page flags.
+
+
+A page flag function group typically starts with either
+
+	SETPAGEFLAG(<part of function name>,<part of PG_ flagname>)
+
+to create a set of page flag operations that are atomic. Or
+
+	__SETPAGEFLAG(<part of function name>,<part of PG_ flagname)
+
+to create a set of page flag operations that are not atomic.
+
+
+Then additional operations can be added using the following macros
+
+TESTSCFLAG		Create additional atomic test-and-set and
+			test-and-clear functions
+
+TESTSETFLAG		Create additional test and set function
+TESTCLEARFLAG		Create additional test and clear function
+TESTPAGEFLAG		Create additional atomic set function
+SETPAGEFLAG		Create additional atomic clear function
+__TESTPAGEFLAG		Create additional atomic set function
+__SETPAGEFLAG		Create additional atomic clear function
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- include/linux/page-flags.h |    4 +---
- mm/page_alloc.c            |    2 +-
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ include/linux/page-flags.h |   41 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)
 
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c	2008-02-29 19:13:56.000000000 -0800
-+++ linux-2.6/mm/page_alloc.c	2008-02-29 19:20:11.000000000 -0800
-@@ -623,7 +623,7 @@ static int prep_new_page(struct page *pa
- 	if (PageReserved(page))
- 		return 1;
- 
--	page->flags &= ~(1 << PG_uptodate | 1 << PG_error | 1 << PG_readahead |
-+	page->flags &= ~(1 << PG_uptodate | 1 << PG_error | 1 << PG_reclaim |
- 			1 << PG_referenced | 1 << PG_arch_1 |
- 			1 << PG_owner_priv_1 | 1 << PG_mappedtodisk);
- 	set_page_private(page, 0);
 Index: linux-2.6/include/linux/page-flags.h
 ===================================================================
---- linux-2.6.orig/include/linux/page-flags.h	2008-02-29 19:20:03.000000000 -0800
-+++ linux-2.6/include/linux/page-flags.h	2008-02-29 19:20:11.000000000 -0800
-@@ -85,8 +85,6 @@ enum pageflags {
- 	PG_swapcache,		/* Swap page: swp_entry_t in private */
- 	PG_mappedtodisk,	/* Has blocks allocated on-disk */
- 	PG_reclaim,		/* To be reclaimed asap */
--	/* PG_readahead is only used for file reads; PG_reclaim is only for writes */
--	PG_readahead = PG_reclaim, /* Reminder to do async read-ahead */
- 	PG_buddy,		/* Page is free, on buddy lists */
- 	NR_PAGEFLAGS,		/* For verification purposes */
+--- linux-2.6.orig/include/linux/page-flags.h	2008-02-29 19:14:30.000000000 -0800
++++ linux-2.6/include/linux/page-flags.h	2008-02-29 19:15:28.000000000 -0800
+@@ -103,6 +103,47 @@ enum pageflags {
+ };
  
-@@ -168,7 +166,7 @@ PAGEFLAG(MappedToDisk, mappedtodisk)
- 
- /* PG_readahead is only used for file reads; PG_reclaim is only for writes */
- PAGEFLAG(Reclaim, reclaim) TESTCLEARFLAG(Reclaim, reclaim)
--PAGEFLAG(Readahead, readahead)		/* Reminder to do async read-ahead */
-+PAGEFLAG(Readahead, reclaim)		/* Reminder to do async read-ahead */
- 
- #ifdef CONFIG_HIGHMEM
- #define PageHighMem(page)	is_highmem(page_zone(page))
+ /*
++ * Macros to create function definitions for page flags
++ */
++#define TESTPAGEFLAG(uname, lname)					\
++static inline int Page##uname(struct page *page) 			\
++			{ return test_bit(PG_##lname, page); }
++
++#define SETPAGEFLAG(uname, lname)					\
++static inline void SetPage##uname(struct page *page)			\
++			{ set_bit(PG_##lname, page); }
++
++#define CLEARPAGEFLAG(uname, lname)					\
++static inline void ClearPage##uname(struct page *page)			\
++			{ clear_bit(PG_##lname, page); }
++
++#define __SETPAGEFLAG(uname, lname)					\
++static inline void __SetPage##uname(struct page *page)			\
++			{ __set_bit(PG_##lname, page); }
++
++#define __CLEARPAGEFLAG(uname, lname)					\
++static inline void __ClearPage##uname(struct page *page)		\
++			{ __clear_bit(PG_##lname, page); }
++
++#define TESTSETFLAG(uname, lname)					\
++static inline int TestSetPage##uname(struct page *page)			\
++		{ return test_and_set_bit(PG_##lname, &page->flags); }
++
++#define TESTCLEARFLAG(uname, lname)					\
++static inline int TestClearPage##uname(struct page *page)		\
++		{ return test_and_clear_bit(PG_##lname, &page->flags); }
++
++
++#define PAGEFLAG(uname, lname) TESTPAGEFLAG(uname, lname)		\
++	SETPAGEFLAG(uname, lname) CLEARPAGEFLAG(uname, lname)
++
++#define __PAGEFLAG(uname, lname) TESTPAGEFLAG(uname, lname)		\
++	__SETPAGEFLAG(uname, lname)  __CLEARPAGEFLAG(uname, lname)
++
++#define TESTSCFLAG(uname, lname)					\
++			TESTSETFLAG(uname, lname) TESTCLEARFLAG(uname, lname)
++
++/*
+  * Manipulation of page state flags
+  */
+ #define PageLocked(page)		\
 
 -- 
 
