@@ -1,116 +1,101 @@
-From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 3/6] mmu_notifier: invalidate_page callbacks
-Date: Thu, 14 Feb 2008 22:49:02 -0800
-Message-ID: <20080215064932.918191502@sgi.com>
-References: <20080215064859.384203497@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Date: Sat, 01 Mar 2008 16:02:04 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch 03/21] use an array for the LRU pagevecs
+In-Reply-To: <20080229154056.GF28849@shadowen.org>
+References: <20080228192928.165393706@redhat.com> <20080229154056.GF28849@shadowen.org>
+Message-Id: <20080301153941.528A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Return-path: <kvm-devel-bounces@lists.sourceforge.net>
-Content-Disposition: inline; filename=mmu_invalidate_page
-List-Unsubscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
-	<mailto:kvm-devel-request@lists.sourceforge.net?subject=unsubscribe>
-List-Archive: <http://sourceforge.net/mailarchive/forum.php?forum_name=kvm-devel>
-List-Post: <mailto:kvm-devel@lists.sourceforge.net>
-List-Help: <mailto:kvm-devel-request@lists.sourceforge.net?subject=help>
-List-Subscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
-	<mailto:kvm-devel-request@lists.sourceforge.net?subject=subscribe>
-Sender: kvm-devel-bounces@lists.sourceforge.net
-Errors-To: kvm-devel-bounces@lists.sourceforge.net
-To: akpm@linux-foundation.org
-Cc: steiner@sgi.com, Andrea Arcangeli <andrea@qumranet.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org
-List-Id: linux-mm.kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
 
-Two callbacks to remove individual pages as done in rmap code
+Hi Andy
 
-	invalidate_page()
+sorry, almost mistake maked by me. 
 
-Called from the inner loop of rmap walks to invalidate pages.
+> >  #define for_each_lru(l) for (l = 0; l < NR_LRU_LISTS; l++)
+> >  
+> > +static inline int is_active_lru(enum lru_list l)
+> > +{
+> > +	if (l == LRU_ACTIVE)
+> > +		return 1;
+> > +	return 0;
+> 
+> Can this not be:
+> 
+> 	return (l == LRU_ACTIVE);
 
-	age_page()
+yes, your code is more better.
 
-Called for the determination of the page referenced status.
+Thanks.
 
-If we do not care about page referenced status then an age_page callback
-may be be omitted. PageLock and pte lock are held when either of the
-functions is called.
 
-Signed-off-by: Andrea Arcangeli <andrea@qumranet.com>
-Signed-off-by: Robin Holt <holt@sgi.com>
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> > @@ -98,6 +97,19 @@ void put_pages_list(struct list_head *pa
+> >  EXPORT_SYMBOL(put_pages_list);
+> >  
+> >  /*
+> > + * Returns the LRU list a page should be on.
+> > + */
+> > +enum lru_list page_lru(struct page *page)
+> > +{
+> > +	enum lru_list lru = LRU_BASE;
+> > +
+> > +	if (PageActive(page))
+> > +		lru += LRU_ACTIVE;
+> 
+> This is introducing an assumption that LRU_BASE and LRU_INACTIVE are
+> synonymous?  Would it not be better to explicitly use LRU_INACTIVE:
 
----
- mm/rmap.c |   13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+Yes.
+this patch series assume LRU_BASE == LRU_INACTIVE.
 
-Index: linux-2.6/mm/rmap.c
-===================================================================
---- linux-2.6.orig/mm/rmap.c	2008-02-07 16:49:32.000000000 -0800
-+++ linux-2.6/mm/rmap.c	2008-02-07 17:25:25.000000000 -0800
-@@ -49,6 +49,7 @@
- #include <linux/module.h>
- #include <linux/kallsyms.h>
- #include <linux/memcontrol.h>
-+#include <linux/mmu_notifier.h>
- 
- #include <asm/tlbflush.h>
- 
-@@ -287,7 +288,8 @@ static int page_referenced_one(struct pa
- 	if (vma->vm_flags & VM_LOCKED) {
- 		referenced++;
- 		*mapcount = 1;	/* break early from loop */
--	} else if (ptep_clear_flush_young(vma, address, pte))
-+	} else if (ptep_clear_flush_young(vma, address, pte) |
-+		   mmu_notifier_age_page(mm, address))
- 		referenced++;
- 
- 	/* Pretend the page is referenced if the task has the
-@@ -455,6 +457,7 @@ static int page_mkclean_one(struct page 
- 
- 		flush_cache_page(vma, address, pte_pfn(*pte));
- 		entry = ptep_clear_flush(vma, address, pte);
-+		mmu_notifier(invalidate_page, mm, address);
- 		entry = pte_wrprotect(entry);
- 		entry = pte_mkclean(entry);
- 		set_pte_at(mm, address, pte, entry);
-@@ -712,7 +715,8 @@ static int try_to_unmap_one(struct page 
- 	 * skipped over this mm) then we should reactivate it.
- 	 */
- 	if (!migration && ((vma->vm_flags & VM_LOCKED) ||
--			(ptep_clear_flush_young(vma, address, pte)))) {
-+			(ptep_clear_flush_young(vma, address, pte) |
-+				mmu_notifier_age_page(mm, address)))) {
- 		ret = SWAP_FAIL;
- 		goto out_unmap;
- 	}
-@@ -720,6 +724,7 @@ static int try_to_unmap_one(struct page 
- 	/* Nuke the page table entry. */
- 	flush_cache_page(vma, address, page_to_pfn(page));
- 	pteval = ptep_clear_flush(vma, address, pte);
-+	mmu_notifier(invalidate_page, mm, address);
- 
- 	/* Move the dirty bit to the physical page now the pte is gone. */
- 	if (pte_dirty(pteval))
-@@ -844,12 +849,14 @@ static void try_to_unmap_cluster(unsigne
- 		page = vm_normal_page(vma, address, *pte);
- 		BUG_ON(!page || PageAnon(page));
- 
--		if (ptep_clear_flush_young(vma, address, pte))
-+		if (ptep_clear_flush_young(vma, address, pte) |
-+		    mmu_notifier_age_page(mm, address))
- 			continue;
- 
- 		/* Nuke the page table entry. */
- 		flush_cache_page(vma, address, pte_pfn(*pte));
- 		pteval = ptep_clear_flush(vma, address, pte);
-+		mmu_notifier(invalidate_page, mm, address);
- 
- 		/* If nonlinear, store the file page offset in the pte. */
- 		if (page->index != linear_page_index(vma, address))
+> So either:
+> 
+> 	if (PageActive(page))
+> 		lru = LRU_ACTIVE;
+> 	else
+> 		lru = LRU_INACTIVE;
 
--- 
+if add LRU_FILE, this statement makes messy.
+key point of indexed arraynize is able to arithmetic calculationed.
 
--------------------------------------------------------------------------
-This SF.net email is sponsored by: Microsoft
-Defy all challenges. Microsoft(R) Visual Studio 2008.
-http://clk.atdmt.com/MRT/go/vse0120000070mrt/direct/01/
+
+> Or if (as I assume) this is later going to have other mappings added in
+> you could do it more like the following.  This should produce identicle
+> asm, but removes any possiblity of LRU_BASE/INACTIVE slippage breaking
+> things:
+> 
+> 	enum lru_list lru = LRU_INACTIVE;
+> 
+> 	if (PageActive(page))
+> 		lru += (LRU_ACTIVE - LRU_INACTIVE);
+
+I think your code is more descriptive, but not best simply.
+I think LRU_BASE == LRU_INACTIVE assumption make simply code.
+
+> > -	struct pagevec *pvec = &get_cpu_var(lru_add_active_pvecs);
+> > +	if (PageActive(page)) {
+> > +		ClearPageActive(page);
+> > +	}
+> 
+> {}'s are not needed here.
+
+agghh
+thank you good catch ;)
+
+
+Thank you again for your very careful reviews.
+
+
+- kosaki
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
