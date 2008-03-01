@@ -1,43 +1,41 @@
-Date: Sat, 01 Mar 2008 17:22:03 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [rfc 02/10] Pageflags: Introduce macros to generate page flag functions
-In-Reply-To: <20080301040813.835000741@sgi.com>
-References: <20080301040755.268426038@sgi.com> <20080301040813.835000741@sgi.com>
-Message-Id: <20080301171834.5292.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: by rv-out-0910.google.com with SMTP id f1so3339230rvb.26
+        for <linux-mm@kvack.org>; Sat, 01 Mar 2008 01:47:07 -0800 (PST)
+Message-ID: <84144f020803010147y489b06fdx479ed0af931de08b@mail.gmail.com>
+Date: Sat, 1 Mar 2008 11:47:07 +0200
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [patch 7/8] slub: Make the order configurable for each slab cache
+In-Reply-To: <Pine.LNX.4.64.0802291137140.11084@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080229044803.482012397@sgi.com>
+	 <20080229044820.044485187@sgi.com> <47C7BEA8.4040906@cs.helsinki.fi>
+	 <Pine.LNX.4.64.0802291137140.11084@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
+Cc: Mel Gorman <mel@csn.ul.ie>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
+Hi Christoph,
 
-> TESTSETFLAG		Create additional test and set function
-> TESTCLEARFLAG		Create additional test and clear function
-> TESTPAGEFLAG		Create additional atomic set function
-> SETPAGEFLAG		Create additional atomic clear function
-> __TESTPAGEFLAG		Create additional atomic set function
-> __SETPAGEFLAG		Create additional atomic clear function
+On Fri, 29 Feb 2008, Pekka Enberg wrote:
+>  > I think we either want to check that the order is big enough to hold one
+>  > object for the given cache or add a comment explaining why it can never happen
+>  > (page allocator pass-through).
 
-your intention was
+On Fri, Feb 29, 2008 at 9:37 PM, Christoph Lameter <clameter@sgi.com> wrote:
+>  Calculate_sizes() will violate max_order if the object does not fit.
 
-TESTSETFLAG		Create additional test and set function
-TESTCLEARFLAG		Create additional test and clear function
-TESTPAGEFLAG		Create additional atomic test function
-SETPAGEFLAG		Create additional atomic set function
-CLEARPAGEFLAG		Create additional atomic clear function
-__TESTPAGEFLAG		Create additional non-atomic test function
-__SETPAGEFLAG		Create additional non-atomic set function
-__CLEARPAGEFLAG		Create additional non-atomic clear function
+I am not sure I understand what you mean here. For example, for a
+cache that requires minimum order of 1 to fit any objects (which
+doesn't happen now because of page allocator pass-through), the
+order_store() function can call calculate_sizes() with forced_order
+set to zero after which the cache becomes useless. That deserves a
+code comment, I think.
 
-right?
-
-
-- kosaki
-
+                         Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
