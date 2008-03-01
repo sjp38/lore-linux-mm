@@ -1,17 +1,14 @@
-Received: by rv-out-0910.google.com with SMTP id f1so3339230rvb.26
-        for <linux-mm@kvack.org>; Sat, 01 Mar 2008 01:47:07 -0800 (PST)
-Message-ID: <84144f020803010147y489b06fdx479ed0af931de08b@mail.gmail.com>
-Date: Sat, 1 Mar 2008 11:47:07 +0200
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [patch 7/8] slub: Make the order configurable for each slab cache
-In-Reply-To: <Pine.LNX.4.64.0802291137140.11084@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Sat, 1 Mar 2008 11:58:46 +0200 (EET)
+From: Pekka J Enberg <penberg@cs.helsinki.fi>
+Subject: Re: [patch 6/8] slub: Adjust order boundaries and minimum objects
+ per slab.
+In-Reply-To: <Pine.LNX.4.64.0802291139560.11084@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0803011148320.19118@sbz-30.cs.Helsinki.FI>
+References: <20080229044803.482012397@sgi.com> <20080229044819.800974712@sgi.com>
+ <47C7BFFA.9010402@cs.helsinki.fi> <Pine.LNX.4.64.0802291139560.11084@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080229044803.482012397@sgi.com>
-	 <20080229044820.044485187@sgi.com> <47C7BEA8.4040906@cs.helsinki.fi>
-	 <Pine.LNX.4.64.0802291137140.11084@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
@@ -21,21 +18,34 @@ List-ID: <linux-mm.kvack.org>
 Hi Christoph,
 
 On Fri, 29 Feb 2008, Pekka Enberg wrote:
->  > I think we either want to check that the order is big enough to hold one
->  > object for the given cache or add a comment explaining why it can never happen
->  > (page allocator pass-through).
+> > I can see why you want to change the defaults for big iron but why not keep
+> > the existing PAGE_SHIFT check which leaves embedded and regular desktop
+> > unchanged?
+ 
+On Fri, 29 Feb 2008, Christoph Lameter wrote:
+> The defaults for slab are also 60 objects per slab. The PAGE_SHIFT says 
+> nothing about the big iron. Our new big irons have a page shift of 12 and 
+> are x86_64.
 
-On Fri, Feb 29, 2008 at 9:37 PM, Christoph Lameter <clameter@sgi.com> wrote:
->  Calculate_sizes() will violate max_order if the object does not fit.
+Where is that objects per slab limit? I only see calculate_slab_order() 
+trying out bunch of page orders until we hit "acceptable" internal 
+fragmentation. Also keep in mind how badly SLAB compares to SLUB and SLOB 
+in terms of memory efficiency.
 
-I am not sure I understand what you mean here. For example, for a
-cache that requires minimum order of 1 to fit any objects (which
-doesn't happen now because of page allocator pass-through), the
-order_store() function can call calculate_sizes() with forced_order
-set to zero after which the cache becomes useless. That deserves a
-code comment, I think.
+Maybe we can use total amount of memory as some sort of heuristic to 
+determine the defaults? That way boxes with lots of memory get to use 
+larger orders for better performance whereas smaller boxes are more 
+memory efficient.
 
-                         Pekka
+On Fri, 29 Feb 2008, Christoph Lameter wrote:
+> We could drop the limit if CONFIG_EMBEDDED is set but then this may waste 
+> space. A higher order allows slub to reach a higher object density (in 
+> particular for objects 500-2000 bytes size).
+
+I am more worried about memory allocated for objects that are not used 
+rather than memory wasted due to bad fitting.
+
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
