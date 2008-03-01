@@ -1,104 +1,130 @@
 Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [150.166.1.51])
-	by relay2.corp.sgi.com (Postfix) with ESMTP id 2F3A430406A
-	for <linux-mm@kvack.org>; Fri, 29 Feb 2008 20:08:14 -0800 (PST)
+	by relay2.corp.sgi.com (Postfix) with ESMTP id B21DC30406A
+	for <linux-mm@kvack.org>; Fri, 29 Feb 2008 20:08:16 -0800 (PST)
 Received: from clameter by schroedinger.engr.sgi.com with local (Exim 3.36 #1 (Debian))
-	id 1JVJ1C-0004VN-00
-	for <linux-mm@kvack.org>; Fri, 29 Feb 2008 20:08:14 -0800
-Message-Id: <20080301040813.835000741@sgi.com>
+	id 1JVJ1E-0004ZV-00
+	for <linux-mm@kvack.org>; Fri, 29 Feb 2008 20:08:16 -0800
+Message-Id: <20080301040816.424249490@sgi.com>
 References: <20080301040755.268426038@sgi.com>
-Date: Fri, 29 Feb 2008 20:07:57 -0800
+Date: Fri, 29 Feb 2008 20:08:05 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [rfc 02/10] Pageflags: Introduce macros to generate page flag functions
-Content-Disposition: inline; filename=pageflags-add-macros
+Subject: [rfc 10/10] Pageflags land grab
+Content-Disposition: inline; filename=pageflags_land_grab
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Introduce a set of macros that generate functions to handle page flags.
+We have enough page flags after vmemmap no longer uses section ids.
 
+Reserve 5 of the 6 saved flags for functionality that is currently
+under development in the VM.
 
-A page flag function group typically starts with either
+The new flags are only available if either of these conditions are met:
 
-	SETPAGEFLAG(<part of function name>,<part of PG_ flagname>)
+1. 64 Bit system. (then we have 8 more free of the 32)
 
-to create a set of page flag operations that are atomic. Or
+2. !NUMA. In that case 2 bits are needed for the zone
+   id which leaves 30 page flag bits. Of those we use 24. 6 left.
 
-	__SETPAGEFLAG(<part of function name>,<part of PG_ flagname)
+3. !SPARSEMEM. In that case we use 5 bits of the 30 available
+   for the node. 1 leftover.
 
-to create a set of page flag operations that are not atomic.
+4. SPARSEMEM_VMEMMAP. Case 3 applies.
 
+The remaining case is classic sparsemem with NUMA on a 32 bit platform.
+In that case we need to use additional bits from the remaining 25 which
+does not allow the use of all 5 extended page flags.
 
-Then additional operations can be added using the following macros
-
-TESTSCFLAG		Create additional atomic test-and-set and
-			test-and-clear functions
-
-TESTSETFLAG		Create additional test and set function
-TESTCLEARFLAG		Create additional test and clear function
-TESTPAGEFLAG		Create additional atomic set function
-SETPAGEFLAG		Create additional atomic clear function
-__TESTPAGEFLAG		Create additional atomic set function
-__SETPAGEFLAG		Create additional atomic clear function
+We could deal with that case by only allowing sparsemem vmemmap (if
+sparsemem is selected as a model) on 32 bit NUMA platforms.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- include/linux/page-flags.h |   41 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 41 insertions(+)
+ include/linux/page-flags.h |   32 +++++++++++++++++++++++++++++---
+ mm/Kconfig                 |   11 +++++++++++
+ 2 files changed, 40 insertions(+), 3 deletions(-)
 
 Index: linux-2.6/include/linux/page-flags.h
 ===================================================================
---- linux-2.6.orig/include/linux/page-flags.h	2008-02-29 19:14:30.000000000 -0800
-+++ linux-2.6/include/linux/page-flags.h	2008-02-29 19:15:28.000000000 -0800
-@@ -103,6 +103,47 @@ enum pageflags {
- };
+--- linux-2.6.orig/include/linux/page-flags.h	2008-02-29 19:33:01.000000000 -0800
++++ linux-2.6/include/linux/page-flags.h	2008-02-29 19:37:31.000000000 -0800
+@@ -81,11 +81,24 @@ enum pageflags {
+ 	PG_reserved,
+ 	PG_private,		/* If pagecache, has fs-private data */
+ 	PG_writeback,		/* Page is under writeback */
+-	PG_compound,		/* A compound page */
+ 	PG_swapcache,		/* Swap page: swp_entry_t in private */
+ 	PG_mappedtodisk,	/* Has blocks allocated on-disk */
+ 	PG_reclaim,		/* To be reclaimed asap */
+ 	PG_buddy,		/* Page is free, on buddy lists */
++#ifdef CONFIG_EXTENDED_PAGEFLAGS
++	/*
++	 * Page flags that are only available without sparsemem on 32 bit
++	 * (sparsemem vmemmap is ok. Flags are always available on 64 bit.
++	 */
++	PG_mlock,		/* Page cannot be swapped out */
++	PG_pin,			/* Page cannot be moved in memory */
++	PG_tail,		/* Tail of a compound page */
++	PG_head,		/* Head of a compound page */
++	PG_vcompound,		/* Compound page is virtually mapped */
++	PG_filebacked,		/* Page is backed by an actual disk (not RAM) */
++#else
++	PG_compound,		/* A compound page */
++#endif
+ 
+ #if (BITS_PER_LONG > 32)
+ /*
+@@ -245,8 +258,20 @@ static inline void set_page_writeback(st
+ 	test_set_page_writeback(page);
+ }
+ 
+-TESTPAGEFLAG(Compound, compound)
+-__PAGEFLAG(Head, compound)
++#ifdef CONFIG_EXTENDED_PAGEFLAGS
++__PAGEFLAG(Head, head)
++__PAGEFLAG(Tail, tail)
++__PAGEFLAG(Vcompound, vcompound)
++__PAGEFLAG(Mlock, mlock)
++__PAGEFLAG(Pin, pin)
++__PAGEFLAG(FileBacked, filebacked)
++
++static inline int PageCompound(struct page *page)
++{
++	return (page->flags & ((1 << PG_tail) | (1 << PG_head))) != 0;
++}
++
++#else
  
  /*
-+ * Macros to create function definitions for page flags
-+ */
-+#define TESTPAGEFLAG(uname, lname)					\
-+static inline int Page##uname(struct page *page) 			\
-+			{ return test_bit(PG_##lname, page); }
+  * PG_reclaim is used in combination with PG_compound to mark the
+@@ -274,5 +299,6 @@ static inline void __ClearPageTail(struc
+ {
+ 	page->flags &= ~PG_head_tail_mask;
+ }
++#endif
+ 
+ #endif	/* PAGE_FLAGS_H */
+Index: linux-2.6/mm/Kconfig
+===================================================================
+--- linux-2.6.orig/mm/Kconfig	2008-02-29 19:13:55.000000000 -0800
++++ linux-2.6/mm/Kconfig	2008-02-29 19:37:31.000000000 -0800
+@@ -193,3 +193,14 @@ config NR_QUICK
+ config VIRT_TO_BUS
+ 	def_bool y
+ 	depends on !ARCH_NO_VIRT_TO_BUS
 +
-+#define SETPAGEFLAG(uname, lname)					\
-+static inline void SetPage##uname(struct page *page)			\
-+			{ set_bit(PG_##lname, page); }
-+
-+#define CLEARPAGEFLAG(uname, lname)					\
-+static inline void ClearPage##uname(struct page *page)			\
-+			{ clear_bit(PG_##lname, page); }
-+
-+#define __SETPAGEFLAG(uname, lname)					\
-+static inline void __SetPage##uname(struct page *page)			\
-+			{ __set_bit(PG_##lname, page); }
-+
-+#define __CLEARPAGEFLAG(uname, lname)					\
-+static inline void __ClearPage##uname(struct page *page)		\
-+			{ __clear_bit(PG_##lname, page); }
-+
-+#define TESTSETFLAG(uname, lname)					\
-+static inline int TestSetPage##uname(struct page *page)			\
-+		{ return test_and_set_bit(PG_##lname, &page->flags); }
-+
-+#define TESTCLEARFLAG(uname, lname)					\
-+static inline int TestClearPage##uname(struct page *page)		\
-+		{ return test_and_clear_bit(PG_##lname, &page->flags); }
-+
-+
-+#define PAGEFLAG(uname, lname) TESTPAGEFLAG(uname, lname)		\
-+	SETPAGEFLAG(uname, lname) CLEARPAGEFLAG(uname, lname)
-+
-+#define __PAGEFLAG(uname, lname) TESTPAGEFLAG(uname, lname)		\
-+	__SETPAGEFLAG(uname, lname)  __CLEARPAGEFLAG(uname, lname)
-+
-+#define TESTSCFLAG(uname, lname)					\
-+			TESTSETFLAG(uname, lname) TESTCLEARFLAG(uname, lname)
-+
-+/*
-  * Manipulation of page state flags
-  */
- #define PageLocked(page)		\
++#
++# I wish we could get rid of this...... The main problem is the page
++# flag use on 32 bit system with NUMA and SPARSEMEM (no sparsemem_vmemmap).
++# Does not really make any sense to use sparsemem there since 32 bit spaces
++# will typically be backed by contiguous RAM these days. So there is nothing
++# sparse there anymore.
++#
++config EXTENDED_PAGEFLAGS
++	def_bool y
++	depends on 64BIT || !SPARSEMEM || !NUMA || SPARSEMEM_VMEMMAP
 
 -- 
 
