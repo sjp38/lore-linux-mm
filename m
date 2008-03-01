@@ -1,68 +1,66 @@
 Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [150.166.1.51])
-	by relay1.corp.sgi.com (Postfix) with ESMTP id 2F98C8F80A9
-	for <linux-mm@kvack.org>; Fri, 29 Feb 2008 20:08:16 -0800 (PST)
+	by relay2.corp.sgi.com (Postfix) with ESMTP id AE76130406F
+	for <linux-mm@kvack.org>; Fri, 29 Feb 2008 20:08:14 -0800 (PST)
 Received: from clameter by schroedinger.engr.sgi.com with local (Exim 3.36 #1 (Debian))
-	id 1JVJ1E-0004YT-00
-	for <linux-mm@kvack.org>; Fri, 29 Feb 2008 20:08:16 -0800
-Message-Id: <20080301040815.842764035@sgi.com>
+	id 1JVJ1C-0004WP-00
+	for <linux-mm@kvack.org>; Fri, 29 Feb 2008 20:08:14 -0800
+Message-Id: <20080301040814.438625436@sgi.com>
 References: <20080301040755.268426038@sgi.com>
-Date: Fri, 29 Feb 2008 20:08:03 -0800
+Date: Fri, 29 Feb 2008 20:07:59 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [rfc 08/10] Export NR_MAX_ZONES to the preprocessor
-Content-Disposition: inline; filename=bounds_nr_max_zones
+Subject: [rfc 04/10] Pageflags: Eliminate PG_readahead
+Content-Disposition: inline; filename=pageflags-elimiate_pg_readahead
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
----
- include/linux/bounds.h |    1 +
- include/linux/mmzone.h |    3 ++-
- kernel/bounds.c        |    1 +
- 3 files changed, 4 insertions(+), 1 deletion(-)
+PG_readahead is an alias of PG_reclaim. We can easily drop that now and
+alias by specifying PG_reclaim in the macro that generates the functions
+for PageReadahead().
 
-Index: linux-2.6/include/linux/mmzone.h
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+---
+ include/linux/page-flags.h |    4 +---
+ mm/page_alloc.c            |    2 +-
+ 2 files changed, 2 insertions(+), 4 deletions(-)
+
+Index: linux-2.6/mm/page_alloc.c
 ===================================================================
---- linux-2.6.orig/include/linux/mmzone.h	2008-02-29 18:18:19.000000000 -0800
-+++ linux-2.6/include/linux/mmzone.h	2008-02-29 18:20:30.000000000 -0800
-@@ -17,6 +17,7 @@
- #include <linux/pageblock-flags.h>
- #include <asm/atomic.h>
- #include <asm/page.h>
-+#include <linux/bounds.h>
+--- linux-2.6.orig/mm/page_alloc.c	2008-02-29 19:13:56.000000000 -0800
++++ linux-2.6/mm/page_alloc.c	2008-02-29 19:20:11.000000000 -0800
+@@ -623,7 +623,7 @@ static int prep_new_page(struct page *pa
+ 	if (PageReserved(page))
+ 		return 1;
  
- /* Free memory management - zoned buddy allocator.  */
- #ifndef CONFIG_FORCE_MAX_ZONEORDER
-@@ -177,7 +178,7 @@ enum zone_type {
- 	ZONE_HIGHMEM,
- #endif
- 	ZONE_MOVABLE,
--	MAX_NR_ZONES
-+	__MAX_NR_ZONES
- };
- 
- /*
-Index: linux-2.6/kernel/bounds.c
+-	page->flags &= ~(1 << PG_uptodate | 1 << PG_error | 1 << PG_readahead |
++	page->flags &= ~(1 << PG_uptodate | 1 << PG_error | 1 << PG_reclaim |
+ 			1 << PG_referenced | 1 << PG_arch_1 |
+ 			1 << PG_owner_priv_1 | 1 << PG_mappedtodisk);
+ 	set_page_private(page, 0);
+Index: linux-2.6/include/linux/page-flags.h
 ===================================================================
---- linux-2.6.orig/kernel/bounds.c	2008-02-29 18:18:19.000000000 -0800
-+++ linux-2.6/kernel/bounds.c	2008-02-29 18:18:53.000000000 -0800
-@@ -14,4 +14,5 @@
- void foo(void)
- {
- 	DEFINE(NR_PAGEFLAGS, __NR_PAGEFLAGS);
-+	DEFINE(MAX_NR_ZONES, __MAX_NR_ZONES);
- }
-Index: linux-2.6/include/linux/bounds.h
-===================================================================
---- linux-2.6.orig/include/linux/bounds.h	2008-02-29 18:18:19.000000000 -0800
-+++ linux-2.6/include/linux/bounds.h	2008-02-29 18:20:32.000000000 -0800
-@@ -8,5 +8,6 @@
-  */
+--- linux-2.6.orig/include/linux/page-flags.h	2008-02-29 19:20:03.000000000 -0800
++++ linux-2.6/include/linux/page-flags.h	2008-02-29 19:20:11.000000000 -0800
+@@ -85,8 +85,6 @@ enum pageflags {
+ 	PG_swapcache,		/* Swap page: swp_entry_t in private */
+ 	PG_mappedtodisk,	/* Has blocks allocated on-disk */
+ 	PG_reclaim,		/* To be reclaimed asap */
+-	/* PG_readahead is only used for file reads; PG_reclaim is only for writes */
+-	PG_readahead = PG_reclaim, /* Reminder to do async read-ahead */
+ 	PG_buddy,		/* Page is free, on buddy lists */
+ 	NR_PAGEFLAGS,		/* For verification purposes */
  
- #define NR_PAGEFLAGS 32 /* __NR_PAGEFLAGS	# */
-+#define MAX_NR_ZONES 4 /* __MAX_NR_ZONES	# */
+@@ -168,7 +166,7 @@ PAGEFLAG(MappedToDisk, mappedtodisk)
  
- #endif
+ /* PG_readahead is only used for file reads; PG_reclaim is only for writes */
+ PAGEFLAG(Reclaim, reclaim) TESTCLEARFLAG(Reclaim, reclaim)
+-PAGEFLAG(Readahead, readahead)		/* Reminder to do async read-ahead */
++PAGEFLAG(Readahead, reclaim)		/* Reminder to do async read-ahead */
+ 
+ #ifdef CONFIG_HIGHMEM
+ #define PageHighMem(page)	is_highmem(page_zone(page))
 
 -- 
 
