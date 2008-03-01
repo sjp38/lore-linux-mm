@@ -1,98 +1,94 @@
-Date: Sat, 01 Mar 2008 16:02:04 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch 03/21] use an array for the LRU pagevecs
-In-Reply-To: <20080229154056.GF28849@shadowen.org>
-References: <20080228192928.165393706@redhat.com> <20080229154056.GF28849@shadowen.org>
-Message-Id: <20080301153941.528A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: by ug-out-1314.google.com with SMTP id u40so673731ugc.29
+        for <linux-mm@kvack.org>; Sat, 01 Mar 2008 00:14:37 -0800 (PST)
+Message-ID: <6934efce0803010014p2cc9a5edu5fee2029c0104a07@mail.gmail.com>
+Date: Sat, 1 Mar 2008 00:14:35 -0800
+From: "Jared Hulbert" <jaredeh@gmail.com>
+Subject: Re: [patch 4/6] xip: support non-struct page backed memory
+In-Reply-To: <20080118045755.735923000@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080118045649.334391000@suse.de>
+	 <20080118045755.735923000@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
+To: npiggin@suse.de
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andy
+>  (The kaddr->pfn conversion may not be quite right for all architectures or XIP
+>  memory mappings, and the cacheflushing may need to be added for some archs).
+>
+>  This scheme has been tested and works for Jared's work-in-progress filesystem,
 
-sorry, almost mistake maked by me. 
+Opps.  I screwed up testing this.  It doesn't work with MTD devices and ARM....
 
-> >  #define for_each_lru(l) for (l = 0; l < NR_LRU_LISTS; l++)
-> >  
-> > +static inline int is_active_lru(enum lru_list l)
-> > +{
-> > +	if (l == LRU_ACTIVE)
-> > +		return 1;
-> > +	return 0;
-> 
-> Can this not be:
-> 
-> 	return (l == LRU_ACTIVE);
+The problem is that virt_to_phys() gives bogus answer for a
+mtd->point()'ed address.  It's a ioremap()'ed address which doesn't
+work with the ARM virt_to_phys().  I can get a physical address from
+mtd->point() with a patch I dropped a little while back.
 
-yes, your code is more better.
+So I was thinking how about instead of:
 
-Thanks.
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+void * get_xip_address(struct address_space *mapping, pgoff_t pgoff,
+int create);
 
+xip_mem = mapping->a_ops->get_xip_address(mapping, vmf->pgoff, 0);
+pfn = virt_to_phys((void *)xip_mem) >> PAGE_SHIFT;
+err = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address, pfn);
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-> > @@ -98,6 +97,19 @@ void put_pages_list(struct list_head *pa
-> >  EXPORT_SYMBOL(put_pages_list);
-> >  
-> >  /*
-> > + * Returns the LRU list a page should be on.
-> > + */
-> > +enum lru_list page_lru(struct page *page)
-> > +{
-> > +	enum lru_list lru = LRU_BASE;
-> > +
-> > +	if (PageActive(page))
-> > +		lru += LRU_ACTIVE;
-> 
-> This is introducing an assumption that LRU_BASE and LRU_INACTIVE are
-> synonymous?  Would it not be better to explicitly use LRU_INACTIVE:
+Could we do?
 
-Yes.
-this patch series assume LRU_BASE == LRU_INACTIVE.
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+int get_xip_address(struct address_space *mapping, pgoff_t pgoff, int
+create, unsigned long *address);
 
-> So either:
-> 
-> 	if (PageActive(page))
-> 		lru = LRU_ACTIVE;
-> 	else
-> 		lru = LRU_INACTIVE;
+if(mapping->a_ops->get_xip_address(mapping, vmf->pgoff, 0, &xip_mem)){
+     /* virtual address */
+     pfn = virt_to_phys((void *)xip_mem) >> PAGE_SHIFT;
+} else {
+     /* physical address */
+     pfn = xip_mem >> PAGE_SHIFT;
+}
+err = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address, pfn);
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-if add LRU_FILE, this statement makes messy.
-key point of indexed arraynize is able to arithmetic calculationed.
+Or maybe like...
 
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+unsigned long get_xip_address(struct address_space *mapping, pgoff_t
+pgoff, int create, int *switch);
 
-> Or if (as I assume) this is later going to have other mappings added in
-> you could do it more like the following.  This should produce identicle
-> asm, but removes any possiblity of LRU_BASE/INACTIVE slippage breaking
-> things:
-> 
-> 	enum lru_list lru = LRU_INACTIVE;
-> 
-> 	if (PageActive(page))
-> 		lru += (LRU_ACTIVE - LRU_INACTIVE);
+xip_mem = mapping->a_ops->get_xip_address(mapping, vmf->pgoff, 0, &switch);
+if(switch){
+     /* virtual address */
+     pfn = virt_to_phys((void *)xip_mem) >> PAGE_SHIFT;
+} else {
+     /* physical address */
+     pfn = xip_mem >> PAGE_SHIFT;
+}
+err = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address, pfn);
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-I think your code is more descriptive, but not best simply.
-I think LRU_BASE == LRU_INACTIVE assumption make simply code.
+Or...
 
-> > -	struct pagevec *pvec = &get_cpu_var(lru_add_active_pvecs);
-> > +	if (PageActive(page)) {
-> > +		ClearPageActive(page);
-> > +	}
-> 
-> {}'s are not needed here.
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+void get_xip_address(struct address_space *mapping, pgoff_t pgoff, int
+create, unsigned long *phys, void **virt);
 
-agghh
-thank you good catch ;)
-
-
-Thank you again for your very careful reviews.
-
-
-- kosaki
-
+mapping->a_ops->get_xip_address(mapping, vmf->pgoff, 0, &phys, &virt);
+if(phys){
+     /* physical address */
+     pfn = phys >> PAGE_SHIFT;
+} else {
+     /* physical address */
+     pfn = virt_to_phys(virt) >> PAGE_SHIFT;
+}
+err = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address, pfn);
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
