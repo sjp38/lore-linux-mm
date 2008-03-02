@@ -1,9 +1,9 @@
-Date: Sat, 01 Mar 2008 22:35:44 +0900
+Date: Sun, 02 Mar 2008 19:35:44 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch 09/21] (NEW) improve reclaim balancing
-In-Reply-To: <20080228192928.648701083@redhat.com>
-References: <20080228192908.126720629@redhat.com> <20080228192928.648701083@redhat.com>
-Message-Id: <20080301221216.529E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [patch 11/21] (NEW) more aggressively use lumpy reclaim
+In-Reply-To: <20080228192928.954667833@redhat.com>
+References: <20080228192908.126720629@redhat.com> <20080228192928.954667833@redhat.com>
+Message-Id: <20080302193024.1E72.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -13,42 +13,27 @@ To: Rik van Riel <riel@redhat.com>
 Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-hi
+Hi
 
-> +	/*
-> +	 * Even if we did not try to evict anon pages at all, we want to
-> +	 * rebalance the anon lru active/inactive ratio.
-> +	 */
-> +	if (inactive_anon_low(zone))
-> +		shrink_list(NR_ACTIVE_ANON, SWAP_CLUSTER_MAX, zone, sc,
-> +								priority);
-> +
+I think this patch is very good improvement.
+but it is not related to split lru.
 
-you want check global zone status, right?
-if so, this statement only do that at global scan.
+Why don't you separate this patch?
+IMHO treat as independent patch is better.
 
+Thanks.
 
-- kosaki
-
----
- mm/vmscan.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-Index: b/mm/vmscan.c
-===================================================================
---- a/mm/vmscan.c       2008-03-01 22:18:42.000000000 +0900
-+++ b/mm/vmscan.c       2008-03-01 22:42:42.000000000 +0900
-@@ -1319,9 +1319,9 @@ static unsigned long shrink_zone(int pri
-         * Even if we did not try to evict anon pages at all, we want to
-         * rebalance the anon lru active/inactive ratio.
-         */
--       if (inactive_anon_low(zone))
-+       if (scan_global_lru(sc) && inactive_anon_low(zone))
-                shrink_list(NR_ACTIVE_ANON, SWAP_CLUSTER_MAX, zone, sc,
-                                                               priority);
-
-        throttle_vm_writeout(sc->gfp_mask);
-        return nr_reclaimed;
+> During an AIM7 run on a 16GB system, fork started failing around
+> 32000 threads, despite the system having plenty of free swap and
+> 15GB of pageable memory.
+> 
+> If normal pageout does not result in contiguous free pages for
+> kernel stacks, fall back to lumpy reclaim instead of failing fork
+> or doing excessive pageout IO.
+> 
+> I do not know whether this change is needed due to the extreme
+> stress test or because the inactive list is a smaller fraction
+> of system memory on huge systems.
 
 
 --
