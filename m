@@ -1,29 +1,31 @@
-Subject: Re: [PATCH] mmu notifiers #v8 + xpmem
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20080302160351.GL8091@v2.random>
-References: <20080219084357.GA22249@wotan.suse.de>
-	 <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de>
-	 <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random>
-	 <20080221045430.GC15215@wotan.suse.de> <20080221144023.GC9427@v2.random>
-	 <20080221161028.GA14220@sgi.com> <20080227192610.GF28483@v2.random>
-	 <20080302155457.GK8091@v2.random>  <20080302160351.GL8091@v2.random>
-Content-Type: text/plain
-Date: Sun, 02 Mar 2008 17:23:58 +0100
-Message-Id: <1204475038.6240.47.camel@lappy>
-Mime-Version: 1.0
+Received: by wr-out-0506.google.com with SMTP id 70so1589275wra.26
+        for <linux-mm@kvack.org>; Sun, 02 Mar 2008 09:01:43 -0800 (PST)
+Message-ID: <2f11576a0803020901n715fda8esbfc0172f5a15ae3c@mail.gmail.com>
+Date: Mon, 3 Mar 2008 02:01:40 +0900
+From: "KOSAKI Motohiro" <m-kosaki@ceres.dti.ne.jp>
+Subject: Re: [PATCH 2.6.24] mm: BadRAM support for broken memory
+In-Reply-To: <20080302134221.GA25196@phantom.vanrein.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080302134221.GA25196@phantom.vanrein.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+To: Rick van Rein <rick@vanrein.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2008-03-02 at 17:03 +0100, Andrea Arcangeli wrote:
+Hi
 
-> 4) Then finally the mmu_notifier_unregister must be dropped to make the
-> mmu notifier sleep capable with RCU in the mmu_notifier() fast path.
+in general,
+Agreed with we need bad memory treatness.
 
-Or require PREEMPTIBLE_RCU, that can handle sleeps..
+>  +#define PG_badram              20      /* BadRam page */
+
+some architecture use PG_reserved for treat bad memory.
+Why do you want introduce new page flag?
+for show_mem() improvement?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
