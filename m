@@ -1,36 +1,37 @@
-Message-ID: <47CBB725.7040108@de.ibm.com>
-Date: Mon, 03 Mar 2008 09:30:29 +0100
-From: Carsten Otte <cotte@de.ibm.com>
-Reply-To: carsteno@de.ibm.com
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [PATCH 2.6.24] mm: BadRAM support for broken memory
+Date: Mon, 3 Mar 2008 18:35:02 +1100
+References: <2f11576a0803020901n715fda8esbfc0172f5a15ae3c@mail.gmail.com> <200803031632.47888.nickpiggin@yahoo.com.au> <20080303161025.1E7E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20080303161025.1E7E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [patch 4/6] xip: support non-struct page backed memory
-References: <20080118045649.334391000@suse.de> <20080118045755.735923000@suse.de> <6934efce0803010014p2cc9a5edu5fee2029c0104a07@mail.gmail.com> <20080303052959.GB32555@wotan.suse.de>
-In-Reply-To: <20080303052959.GB32555@wotan.suse.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200803031835.03082.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Jared Hulbert <jaredeh@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, mschwid2@linux.vnet.ibm.com, heicars2@linux.vnet.ibm.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KOSAKI Motohiro <m-kosaki@ceres.dti.ne.jp>, Rick van Rein <rick@vanrein.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> What about 
-> int get_xip_mem(mapping, pgoff, create, void **kaddr, unsigned long *pfn)
-> 
-> get_xip_mem(mapping, pgoff, create, &addr, &pfn);
-> if (pagefault)
->     vm_insert_mixed(vma, vaddr, pfn);
-> else if (read/write) {
->     memcpy(kaddr, blah, sizeof);
-> 
-> My simple brd driver can easily do
->  *kaddr = page_address(page);
->  *pfn = page_to_pfn(page);
-> 
-> This should work for you too?
-Looks good to me. Otoh, if there is an easy way to fix virt_to_phys() 
-I would like that better.
+On Monday 03 March 2008 18:14, KOSAKI Motohiro wrote:
+> > > some architecture use PG_reserved for treat bad memory.
+> > > Why do you want introduce new page flag?
+> > > for show_mem() improvement?
+> >
+> > I'd like to get rid of PG_reserved at some point. So I'd
+> > rather not overload it with more meanings ;)
+>
+> really?
+>
+> as far as I know, IA64 already use PG_reserved for bad memory.
+> please see arch/ia64/kernel/mcs_drv.c#mca_page_isolate.
+>
+> Doesn't it works on ia64 if your patch introduce?
+
+It doesn't really need to use PG_reserved there, no. It could
+use PG_bad for that instead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
