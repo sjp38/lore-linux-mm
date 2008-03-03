@@ -1,47 +1,43 @@
-Date: Mon, 3 Mar 2008 12:23:08 -0600
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [PATCH] mmu notifiers #v8
-Message-ID: <20080303182308.GC3552@sgi.com>
-References: <20080221161028.GA14220@sgi.com> <20080227192610.GF28483@v2.random> <20080302155457.GK8091@v2.random> <20080303032934.GA3301@wotan.suse.de> <20080303125152.GS8091@v2.random> <20080303131017.GC13138@wotan.suse.de> <20080303151859.GA19374@sgi.com> <20080303165910.GA23998@wotan.suse.de> <20080303180605.GA3552@sgi.com> <47CC3EED.7090507@qumranet.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <47CC3EED.7090507@qumranet.com>
+Date: Mon, 3 Mar 2008 10:40:04 -0800 (PST)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [patch 4/6] xip: support non-struct page backed memory
+In-Reply-To: <47CBB44D.7040203@de.ibm.com>
+Message-ID: <alpine.LFD.1.00.0803031037560.17889@woody.linux-foundation.org>
+References: <20080118045649.334391000@suse.de> <20080118045755.735923000@suse.de> <6934efce0803010014p2cc9a5edu5fee2029c0104a07@mail.gmail.com> <47CBB44D.7040203@de.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Avi Kivity <avi@qumranet.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <andrea@qumranet.com>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+To: carsteno@de.ibm.com
+Cc: Jared Hulbert <jaredeh@gmail.com>, npiggin@suse.de, Andrew Morton <akpm@linux-foundation.org>, mschwid2@linux.vnet.ibm.com, heicars2@linux.vnet.ibm.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 03, 2008 at 08:09:49PM +0200, Avi Kivity wrote:
-> Jack Steiner wrote:
-> >The range invalidates have a performance advantage for the GRU. TLB 
-> >invalidates
-> >on the GRU are relatively slow (usec) and interfere somewhat with the 
-> >performance
-> >of other active GRU instructions. Invalidating a large chunk of addresses 
-> >with
-> >a single GRU TLBINVAL operation is must faster than issuing a stream of 
-> >single
-> >page TLBINVALs.
-> >
-> >I expect this performance advantage will also apply to other users of 
-> >mmuops.
-> >  
-> 
-> In theory this would apply to kvm as well (coalesce tlb flush IPIs, 
-> lookup shadow page table once), but is it really a fast path?  What 
-> triggers range operations for your use cases?
- 
 
-Although not frequent, an unmap of a multiple TB object could be quite painful
-if each page was invalidated individually instead of 1 invalidate for the entire range.
-This is even worse if the application is threaded and the object has been reference by
-many GRUs (there are 16 GRU ports per node - each potentially has to be invalidated).
+On Mon, 3 Mar 2008, Carsten Otte wrote:
+>
+> Jared Hulbert wrote:
+> > The problem is that virt_to_phys() gives bogus answer for a
+> > mtd->point()'ed address.  It's a ioremap()'ed address which doesn't
+> > work with the ARM virt_to_phys().  I can get a physical address from
+> > mtd->point() with a patch I dropped a little while back.
+>
+> Is there a chance virt_to_phys() can be fixed on arm?
 
-Forks (again, not frequent) would be another case.
+NO!
 
+"virt_to_phys()" is about kernel 1:1-mapped virtual addresses, and 
+"fixing" it would be totally wrong. We don't do crap like following page 
+tables, and we shouldn't encourage anybody to even think that we do.
 
+If somebody needs to follow page table pointers, they had better do it 
+themselves and open-code the fact that they are doing something stupid and 
+expensive, not make it easy for everybody else to do that mistake without 
+even realising.
+
+A lot of the kernel architecture is all about making it really hard to do 
+stupid things by mistake.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
