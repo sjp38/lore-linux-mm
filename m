@@ -1,87 +1,41 @@
-Date: Mon, 3 Mar 2008 13:15:40 -0600
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [PATCH] mmu notifiers #v8
-Message-ID: <20080303191540.GB11156@sgi.com>
-References: <20080221161028.GA14220@sgi.com> <20080227192610.GF28483@v2.random> <20080302155457.GK8091@v2.random> <20080303032934.GA3301@wotan.suse.de> <20080303125152.GS8091@v2.random> <20080303131017.GC13138@wotan.suse.de> <20080303151859.GA19374@sgi.com> <20080303165910.GA23998@wotan.suse.de> <20080303180605.GA3552@sgi.com> <20080303184517.GA4951@wotan.suse.de>
+Date: Mon, 3 Mar 2008 14:26:34 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [patch 09/21] (NEW) improve reclaim balancing
+Message-ID: <20080303142634.041d3c66@cuia.boston.redhat.com>
+In-Reply-To: <20080301221216.529E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080228192908.126720629@redhat.com>
+	<20080228192928.648701083@redhat.com>
+	<20080301221216.529E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080303184517.GA4951@wotan.suse.de>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 03, 2008 at 07:45:17PM +0100, Nick Piggin wrote:
-> On Mon, Mar 03, 2008 at 12:06:05PM -0600, Jack Steiner wrote:
-> > On Mon, Mar 03, 2008 at 05:59:10PM +0100, Nick Piggin wrote:
-> > > > Maintaining a long-term reference on a page is a problem. The GRU does not
-> > > > currently maintain tables to track the pages for which dropins have been done.
-> > > > 
-> > > > The GRU has a large internal TLB and is designed to reference up to 8PB of
-> > > > memory. The size of the tables to track this many referenced pages would be
-> > > > a problem (at best).
-> > > 
-> > > Is it any worse a problem than the pagetables of the processes which have
-> > > their virtual memory exported to GRU? AFAIKS, no; it is on the same
-> > > magnitude of difficulty. So you could do it without introducing any
-> > > fundamental problem (memory usage might be increased by some constant
-> > > factor, but I think we can cope with that in order to make the core patch
-> > > really nice and simple).
-> > 
-> > Functionally, the GRU is very close to what I would consider to be the
-> > "standard TLB" model. Dropins and flushs map closely to processor dropins
-> > and flushes for cpus.  The internal structure of the GRU TLB is identical to
-> > the TLB of existing cpus.  Requiring the GRU driver to track dropins with
-> > long term page references seems to me a deviation from having the basic
-> > mmuops support a "standard TLB" model. AFAIK, no other processor requires
-> > this.
-> 
-> That is because the CPU TLBs have the mmu_gather batching APIs which
-> avoid the problem. It would be possible to do something similar for
-> GRU which would involve taking a reference for each page-to-be-invalidated
-> in invalidate_page, and release them when you invalidate_range. Or else
-> do some other scheme which makes mmu notifiers work similarly to the
-> mmu gather API. But not just go an invent something completely different
-> in the form of this invalidate_begin,clear linux pte,invalidate_end API.
+On Sat, 01 Mar 2008 22:35:44 +0900
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-Correct. If the mmu_gather were passed on the mmuops callout and the callout were
-done at the same point as the tlb_finish_mmu(), the GRU could
-efficiently work w/o the range invalidates. A range invalidate might still
-be slightly more efficient but not measureable so. The net difference is
-not worth the extra complexity of range callouts.
+> hi
+> 
+> > +	/*
+> > +	 * Even if we did not try to evict anon pages at all, we want to
+> > +	 * rebalance the anon lru active/inactive ratio.
+> > +	 */
+> > +	if (inactive_anon_low(zone))
+> > +		shrink_list(NR_ACTIVE_ANON, SWAP_CLUSTER_MAX, zone, sc,
+> > +								priority);
+> > +
+> 
+> you want check global zone status, right?
+> if so, this statement only do that at global scan.
 
+Good catch.  I have merged your suggestions.
 
-> 
-> 
-> > Tracking TLB dropins (and long term page references) could be done but it
-> > adds significant complexity and scaling issues. The size of the tables to
-> > track many TB (to PB) of memory can get large. If the memory is being
-> > referenced by highly threaded applications, then the problem becomes even
-> > more complex. Either tables must be replicated per-thread (and require even
-> > more memory), or the table structure becomes even more complex to deal with
-> > node locality, cacheline bouncing, etc.
-> 
-> I don't think it would be that significant in terms of complexity or
-> scaling.
-> 
-> For a quick solution, you could stick a radix tree in each of your mmu
-> notifiers registered (ie. one per mm), which is indexed on virtual address
-> >> PAGE_SHIFT, and returns the struct page *. Size is no different than
-> page tables, and locking is pretty scalable.
-> 
-> After that, I would really like to see whether the numbers justify
-> larger changes.
-
-I'm still concerned about performance. Each dropin would first have to access
-an additional data structure that would most likely be non-node-local and
-non-cache-resident. The net effect would be measurable but not a killer.
-
-I haven't thought about locking requirements for the radix tree. Most accesses
-would be read-only & updates infrequent. Any chance of an RCU-based radix
-implementation?  Otherwise, don't we add the potential for hot locks/cachelines
-for threaded applications ???
+-- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
