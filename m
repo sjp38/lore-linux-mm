@@ -1,41 +1,61 @@
-Date: Mon, 3 Mar 2008 14:26:34 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [patch 09/21] (NEW) improve reclaim balancing
-Message-ID: <20080303142634.041d3c66@cuia.boston.redhat.com>
-In-Reply-To: <20080301221216.529E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080228192908.126720629@redhat.com>
-	<20080228192928.648701083@redhat.com>
-	<20080301221216.529E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 3 Mar 2008 11:28:21 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address ranges
+In-Reply-To: <200803031611.10275.nickpiggin@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0803031124001.7275@schroedinger.engr.sgi.com>
+References: <20080215064859.384203497@sgi.com> <200802201008.49933.nickpiggin@yahoo.com.au>
+ <Pine.LNX.4.64.0802271424390.13186@schroedinger.engr.sgi.com>
+ <200803031611.10275.nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: akpm@linux-foundation.org, Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 01 Mar 2008 22:35:44 +0900
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Mon, 3 Mar 2008, Nick Piggin wrote:
 
-> hi
+> Your skeleton is just registering notifiers and saying
 > 
-> > +	/*
-> > +	 * Even if we did not try to evict anon pages at all, we want to
-> > +	 * rebalance the anon lru active/inactive ratio.
-> > +	 */
-> > +	if (inactive_anon_low(zone))
-> > +		shrink_list(NR_ACTIVE_ANON, SWAP_CLUSTER_MAX, zone, sc,
-> > +								priority);
-> > +
+> /* you fill the hard part in */
 > 
-> you want check global zone status, right?
-> if so, this statement only do that at global scan.
+> If somebody needs a skeleton in order just to register the notifiers,
+> then almost by definition they are unqualified to write the hard
+> part ;)
 
-Good catch.  I have merged your suggestions.
+Its also providing a locking scheme.
 
--- 
-All Rights Reversed
+> OK, there are ways to solve it or hack around it. But this is exactly
+> why I think the implementations should be kept seperate. Andrea's
+> notifiers are coherent, work on all types of mappings, and will
+> hopefully match closely the regular TLB invalidation sequence in the
+> Linux VM (at the moment it is quite close, but I hope to make it a
+> bit closer) so that it requires almost no changes to the mm.
+
+Then put it into the arch code for TLB invalidation. Paravirt ops gives 
+good examples on how to do that.
+
+> What about a completely different approach... XPmem runs over NUMAlink,
+> right? Why not provide some non-sleeping way to basically IPI remote
+> nodes over the NUMAlink where they can process the invalidation? If you
+> intra-node cache coherency has to run over this link anyway, then
+> presumably it is capable.
+
+There is another Linux instance at the remote end that first has to 
+remove its own ptes. Also would not work for Inifiniband and other 
+solutions. All the approaches that require evictions in an atomic context 
+are limiting the approach and do not allow the generic functionality that 
+we want in order to not add alternate APIs for this.
+
+> Or another idea, why don't you LD_PRELOAD in the MPT library to also
+> intercept munmap, mprotect, mremap etc as well as just fork()? That
+> would give you similarly "good enough" coherency as the mmu notifier
+> patches except that you can't swap (which Robin said was not a big
+> problem).
+
+The good enough solution right now is to pin pages by elevating 
+refcounts.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
