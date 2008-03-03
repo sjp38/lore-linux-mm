@@ -1,73 +1,53 @@
-Received: by rv-out-0910.google.com with SMTP id f1so4531905rvb.26
-        for <linux-mm@kvack.org>; Mon, 03 Mar 2008 03:51:19 -0800 (PST)
-Message-ID: <84144f020803030351l2042e9aaqe656ad1610e5efc5@mail.gmail.com>
-Date: Mon, 3 Mar 2008 13:51:19 +0200
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [BUG] Linux 2.6.25-rc2 - Kernel Ooops while running dbench
-In-Reply-To: <20080218045954.50503fb1.akpm@linux-foundation.org>
+Date: Mon, 3 Mar 2008 13:51:53 +0100
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [PATCH] mmu notifiers #v8
+Message-ID: <20080303125152.GS8091@v2.random>
+References: <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de> <20080221144023.GC9427@v2.random> <20080221161028.GA14220@sgi.com> <20080227192610.GF28483@v2.random> <20080302155457.GK8091@v2.random> <20080303032934.GA3301@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <alpine.LFD.1.00.0802151302210.9496@woody.linux-foundation.org>
-	 <47B6784E.2090401@linux.vnet.ibm.com>
-	 <20080218045954.50503fb1.akpm@linux-foundation.org>
+In-Reply-To: <20080303032934.GA3301@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-ext4@vger.kernel.org, Andy Whitcroft <apw@shadowen.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Jack Steiner <steiner@sgi.com>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 16 Feb 2008 11:14:46 +0530 Kamalesh Babulal
-<kamalesh@linux.vnet.ibm.com> wrote:
->  > The 2.6.25-rc2 kernel oopses while running dbench on ext3 filesystem
->  > mounted with mount -o data=writeback,nobh option on the x86_64 box
->  >
->  > BUG: unable to handle kernel NULL pointer dereference at 0000000000000000
->  > IP: [<ffffffff80274972>] kmem_cache_alloc+0x3a/0x6c
->  > PGD 1f6860067 PUD 1f5d64067 PMD 0
->  > Oops: 0000 [1] SMP
->  > CPU 3
->  > Modules linked in:
->  > Pid: 4271, comm: dbench Not tainted 2.6.25-rc2-autotest #1
->  > RIP: 0010:[<ffffffff80274972>]  [<ffffffff80274972>] kmem_cache_alloc+0x3a/0x6c
->  > RSP: 0000:ffff8101fb041dc8  EFLAGS: 00010246
->  > RAX: 0000000000000000 RBX: ffff810180033c00 RCX: ffffffff8027b269
->  > RDX: 0000000000000000 RSI: 00000000000080d0 RDI: ffffffff80632d70
->  > RBP: 00000000000080d0 R08: 0000000000000001 R09: 0000000000000000
->  > R10: ffff8101feb36e50 R11: 0000000000000190 R12: 0000000000000001
->  > R13: 0000000000000000 R14: ffff8101f8f38000 R15: 00000000ffffff9c
->  > FS:  0000000000000000(0000) GS:ffff8101fff0f000(0063) knlGS:00000000f7e41460
->  > CS:  0010 DS: 002b ES: 002b CR0: 0000000080050033
->  > CR2: 0000000000000000 CR3: 00000001f5620000 CR4: 00000000000006e0
->  > DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
->  > DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
->  > Process dbench (pid: 4271, threadinfo ffff8101fb040000, task ffff8101fb180000)
->  > Stack:  0000000000000001 ffff8101fb041ea8 0000000000000001 ffffffff8027b269
->  >  ffff8101fb041ea8 ffffffff80281fe8 0000000000000001 0000000000000000
->  >  ffff8101fb041ea8 00000000ffffff9c 000000000000000b 0000000000000001
->  > Call Trace:
->  >  [<ffffffff8027b269>] get_empty_filp+0x55/0xf9
->  >  [<ffffffff80281fe8>] __path_lookup_intent_open+0x22/0x8f
->  >  [<ffffffff80282853>] open_namei+0x86/0x5a7
->  >  [<ffffffff8027d019>] vfs_stat_fd+0x3c/0x4a
->  >  [<ffffffff80279ab1>] do_filp_open+0x1c/0x3d
->  >  [<ffffffff80279c2c>] get_unused_fd_flags+0x79/0x111
->  >  [<ffffffff80279dce>] do_sys_open+0x46/0xca
->  >  [<ffffffff80221c82>] ia32_sysret+0x0/0xa
+On Mon, Mar 03, 2008 at 04:29:34AM +0100, Nick Piggin wrote:
+> to something I prefer. Others may not, but I'll post them for debate
+> anyway.
 
-On Mon, Feb 18, 2008 at 2:59 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
->  Looks to me like we broke slab.  Christoph is offline until the 27th..
+Sure, thanks!
 
-This is probably fixed by:
+> > I didn't drop invalidate_page, because invalidate_range_begin/end
+> > would be slower for usages like KVM/GRU (we don't need a begin/end
+> > there because where invalidate_page is called, the VM holds a
+> > reference on the page). do_wp_page should also use invalidate_page
+> > since it can free the page after dropping the PT lock without losing
+> > any performance (that's not true for the places where invalidate_range
+> > is called).
+> 
+> I'm still not completely happy with this. I had a very quick look
+> at the GRU driver, but I don't see why it can't be implemented
+> more like the regular TLB model, and have TLB insertions depend on
+> the linux pte, and do invalidates _after_ restricting permissions
+> to the pte.
+> 
+> Ie. I'd still like to get rid of invalidate_range_begin, and get
+> rid of invalidate calls from places where permissions are relaxed.
 
-http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdiff;h=00e962c5408b9f2d0bebd2308673fe982cb9a5fe
+_begin exists because by the time _end is called, the VM already
+dropped the reference on the page. This way we can do a single
+invalidate no matter how large the range is. I don't see ways to
+remove _begin while still invoking _end a single time for the whole
+range.
 
-As this is on the regression list, Kamalesh, can you please confirm
-it's fixed now?
+> If we can agree on the API, then I don't see any reason why it can't
+> go into 2.6.25, unless someome wants more time to review it (but
+> 2.6.25 release should be quite far away still so there should be quite
+> a bit of time).
 
-                             Pekka
+Cool! ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
