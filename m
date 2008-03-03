@@ -1,44 +1,55 @@
-Date: Mon, 3 Mar 2008 12:04:37 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [patch 4/6] xip: support non-struct page backed memory
-In-Reply-To: <6934efce0803031138g725f0ec4ra683d56615b7dbe0@mail.gmail.com>
-Message-ID: <alpine.LFD.1.00.0803031152240.17889@woody.linux-foundation.org>
-References: <20080118045649.334391000@suse.de>  <20080118045755.735923000@suse.de>  <6934efce0803010014p2cc9a5edu5fee2029c0104a07@mail.gmail.com>  <47CBB44D.7040203@de.ibm.com>  <alpine.LFD.1.00.0803031037560.17889@woody.linux-foundation.org>
- <6934efce0803031138g725f0ec4ra683d56615b7dbe0@mail.gmail.com>
+Date: Mon, 3 Mar 2008 12:06:56 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [rfc 05/10] Sparsemem: Vmemmap does not need section bits
+In-Reply-To: <20080301133312.9ab8d826.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0803031204170.16049@schroedinger.engr.sgi.com>
+References: <20080301040755.268426038@sgi.com> <20080301040814.772847658@sgi.com>
+ <20080301133312.9ab8d826.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jared Hulbert <jaredeh@gmail.com>
-Cc: carsteno@de.ibm.com, npiggin@suse.de, Andrew Morton <akpm@linux-foundation.org>, mschwid2@linux.vnet.ibm.com, heicars2@linux.vnet.ibm.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Sat, 1 Mar 2008, KAMEZAWA Hiroyuki wrote:
 
-On Mon, 3 Mar 2008, Jared Hulbert wrote:
-> 
-> By 1:1 you mean virtual + offset == physical + offset right?
+> I like this change. BTW, could you add following change ?
+> (or drop this function in sparsemem-vmemmap.)
 
-Right. It's a special case, and it's an important special case because 
-it's the only one that is fast to do.
+I cannot find the function in mm/spase-vmemmap.c
+ 
+> == /inclurde/linux/mm.h==
+> #ifndef CONFIG_SPARSEMEM_VMEMMAP
+> static inline unsigned long page_to_section(struct page *page)
+> {
+> 	return pfn_to_section(page_to_pfn(page));
+> }
+> #else
+> static inline unsigned long page_to_section(struct page *page)
+> {
+>         return (page->flags >> SECTIONS_PGSHIFT) & SECTIONS_MASK;
+> }
+> #endif
 
-It's not very common, but it's common enough that it's worth doing.
+Not sure what this means. If we have CONFIG_SPARSEMEM_VMEMMAP then 
+SECTION_MASK == 0. So this would reduce to
 
-That said, xip should probably never have used virt_to_phys() in the first 
-place. It should be limited to purely architecture-specific memory 
-management routines.
+#ifndef CONFIG_SPARSEMEM_VMEMMAP
+static inline unsigned long page_to_section(struct page *page)
+{
+       return pfn_to_section(page_to_pfn(page));
+}
+#else
+static inline unsigned long page_to_section(struct page *page)
+{
+         return 0;
+}
+#endif
 
-[ There's a number of drivers that need "physical" addresses for DMA, and 
-  that use virt_to_phys, but they should use the DMA interfaces 
-  that do this right, and even for legacy things that don't use the proper 
-  DMA allocator things virt_to_phys is wrong, because it's about _bus_ 
-  addresses, not CPU physical addresses. Only architecture code can know 
-  when the two actually mean the same thing ]
-
-Quite frankly, I think it's totally wrong to use kernel-virtual addresses 
-in those interfaces in first place. Either you use "struct page *" or you 
-use a pfn number. Nothing else is simply valid.
-
-			Linus
+Do you propose to also remove the use of the section bits for regular (non 
+vmemmap) sparsemem?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
