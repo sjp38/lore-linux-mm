@@ -1,54 +1,103 @@
-Date: Mon, 3 Mar 2008 04:39:04 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] mmu notifiers #v8
-Message-ID: <20080303033903.GE3301@wotan.suse.de>
-References: <20080219084357.GA22249@wotan.suse.de> <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de> <20080221144023.GC9427@v2.random> <20080221161028.GA14220@sgi.com> <20080227192610.GF28483@v2.random> <20080302155457.GK8091@v2.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address ranges
+Date: Mon, 3 Mar 2008 16:11:09 +1100
+References: <20080215064859.384203497@sgi.com> <200802201008.49933.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0802271424390.13186@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0802271424390.13186@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
 Content-Disposition: inline
-In-Reply-To: <20080302155457.GK8091@v2.random>
+Message-Id: <200803031611.10275.nickpiggin@yahoo.com.au>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Jack Steiner <steiner@sgi.com>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Mar 02, 2008 at 04:54:57PM +0100, Andrea Arcangeli wrote:
-> Difference between #v7 and #v8:
+On Thursday 28 February 2008 09:35, Christoph Lameter wrote:
+> On Wed, 20 Feb 2008, Nick Piggin wrote:
+> > On Friday 15 February 2008 17:49, Christoph Lameter wrote:
 
-Here is just a couple of checkpatch fixes on top of the last patches.
+> > Also, what we are going to need here are not skeleton drivers
+> > that just do all the *easy* bits (of registering their callbacks),
+> > but actual fully working examples that do everything that any
+> > real driver will need to do. If not for the sanity of the driver
+> > writer, then for the sanity of the VM developers (I don't want
+> > to have to understand xpmem or infiniband in order to understand
+> > how the VM works).
+>
+> There are 3 different drivers that can already use it but the code is
+> complex and not easy to review. Skeletons are easy to allow people to get
+> started with it.
 
-Index: linux-2.6/include/linux/mmu_notifier.h
-===================================================================
---- linux-2.6.orig/include/linux/mmu_notifier.h
-+++ linux-2.6/include/linux/mmu_notifier.h
-@@ -46,7 +46,7 @@ struct mmu_notifier_ops {
- 	 */
- 	void (*invalidate_range_begin)(struct mmu_notifier *mn,
- 				       struct mm_struct *mm,
--				       unsigned long start, unsigned long end);       
-+				       unsigned long start, unsigned long end);
- 	void (*invalidate_range_end)(struct mmu_notifier *mn,
- 				     struct mm_struct *mm,
- 				     unsigned long start, unsigned long end);
-@@ -137,7 +137,7 @@ static inline void mmu_notifier_mm_init(
- #define ptep_clear_flush_notify(__vma, __address, __ptep)		\
- ({									\
- 	pte_t __pte;							\
--	struct vm_area_struct * ___vma = __vma;				\
-+	struct vm_area_struct *___vma = __vma;				\
- 	unsigned long ___address = __address;				\
- 	__pte = ptep_clear_flush(___vma, ___address, __ptep);		\
- 	mmu_notifier_invalidate_page(___vma->vm_mm, ___address);	\
-@@ -147,7 +147,7 @@ static inline void mmu_notifier_mm_init(
- #define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
- ({									\
- 	int __young;							\
--	struct vm_area_struct * ___vma = __vma;				\
-+	struct vm_area_struct *___vma = __vma;				\
- 	unsigned long ___address = __address;				\
- 	__young = ptep_clear_flush_young(___vma, ___address, __ptep);	\
- 	__young |= mmu_notifier_clear_flush_young(___vma->vm_mm,	\
+Your skeleton is just registering notifiers and saying
+
+/* you fill the hard part in */
+
+If somebody needs a skeleton in order just to register the notifiers,
+then almost by definition they are unqualified to write the hard
+part ;)
+
+
+> > >  	lru_add_drain();
+> > >  	tlb = tlb_gather_mmu(mm, 0);
+> > >  	update_hiwater_rss(mm);
+> > > +	mmu_notifier(invalidate_range_begin, mm, address, end, atomic);
+> > >  	end = unmap_vmas(&tlb, vma, address, end, &nr_accounted, details);
+> > >  	if (tlb)
+> > >  		tlb_finish_mmu(tlb, address, end);
+> > > +	mmu_notifier(invalidate_range_end, mm, address, end, atomic);
+> > >  	return end;
+> > >  }
+> >
+> > Where do you invalidate for munmap()?
+>
+> zap_page_range() called from unmap_vmas().
+
+But it is not allowed to sleep. Where do you call the sleepable one
+from?
+
+
+> > Also, how to you resolve the case where you are not allowed to sleep?
+> > I would have thought either you have to handle it, in which case nobody
+> > needs to sleep; or you can't handle it, in which case the code is
+> > broken.
+>
+> That can be done in a variety of ways:
+>
+> 1. Change VM locking
+>
+> 2. Not handle file backed mappings (XPmem could work mostly in such a
+> config)
+>
+> 3. Keep the refcount elevated until pages are freed in another execution
+> context.
+
+OK, there are ways to solve it or hack around it. But this is exactly
+why I think the implementations should be kept seperate. Andrea's
+notifiers are coherent, work on all types of mappings, and will
+hopefully match closely the regular TLB invalidation sequence in the
+Linux VM (at the moment it is quite close, but I hope to make it a
+bit closer) so that it requires almost no changes to the mm.
+
+All the other things to try to make it sleep are either hacking holes
+in it (eg by removing coherency). So I don't think it is reasonable to
+require that any patch handle all cases. I actually think Andrea's
+patch is quite nice and simple itself, wheras I am against the patches
+that you posted.
+
+What about a completely different approach... XPmem runs over NUMAlink,
+right? Why not provide some non-sleeping way to basically IPI remote
+nodes over the NUMAlink where they can process the invalidation? If you
+intra-node cache coherency has to run over this link anyway, then
+presumably it is capable.
+
+Or another idea, why don't you LD_PRELOAD in the MPT library to also
+intercept munmap, mprotect, mremap etc as well as just fork()? That
+would give you similarly "good enough" coherency as the mmu notifier
+patches except that you can't swap (which Robin said was not a big
+problem).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
