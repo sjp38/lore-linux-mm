@@ -1,35 +1,29 @@
-Date: Mon, 03 Mar 2008 16:14:21 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2.6.24] mm: BadRAM support for broken memory
-In-Reply-To: <200803031632.47888.nickpiggin@yahoo.com.au>
-References: <2f11576a0803020901n715fda8esbfc0172f5a15ae3c@mail.gmail.com> <200803031632.47888.nickpiggin@yahoo.com.au>
-Message-Id: <20080303161025.1E7E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <47CBB44D.7040203@de.ibm.com>
+Date: Mon, 03 Mar 2008 09:18:21 +0100
+From: Carsten Otte <cotte@de.ibm.com>
+Reply-To: carsteno@de.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [patch 4/6] xip: support non-struct page backed memory
+References: <20080118045649.334391000@suse.de> <20080118045755.735923000@suse.de> <6934efce0803010014p2cc9a5edu5fee2029c0104a07@mail.gmail.com>
+In-Reply-To: <6934efce0803010014p2cc9a5edu5fee2029c0104a07@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: kosaki.motohiro@jp.fujitsu.com, KOSAKI Motohiro <m-kosaki@ceres.dti.ne.jp>, Rick van Rein <rick@vanrein.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jared Hulbert <jaredeh@gmail.com>
+Cc: npiggin@suse.de, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, mschwid2@linux.vnet.ibm.com, heicars2@linux.vnet.ibm.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> > some architecture use PG_reserved for treat bad memory.
-> > Why do you want introduce new page flag?
-> > for show_mem() improvement?
-> 
-> I'd like to get rid of PG_reserved at some point. So I'd
-> rather not overload it with more meanings ;)
-
-really?
-
-as far as I know, IA64 already use PG_reserved for bad memory.
-please see arch/ia64/kernel/mcs_drv.c#mca_page_isolate.
-
-Doesn't it works on ia64 if your patch introduce?
-
-
-- kosaki
-
+Jared Hulbert wrote:
+> The problem is that virt_to_phys() gives bogus answer for a
+> mtd->point()'ed address.  It's a ioremap()'ed address which doesn't
+> work with the ARM virt_to_phys().  I can get a physical address from
+> mtd->point() with a patch I dropped a little while back.
+Is there a chance virt_to_phys() can be fixed on arm? It looks like a 
+simple page table walk to me. If not, I would prefer to have 
+get_xip_address return a physical address over having to split the 
+code path here. S390 has a 1:1 mapping for xip mappings, thus it 
+would'nt be a big change for us.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
