@@ -1,41 +1,58 @@
-Date: Mon, 3 Mar 2008 12:28:10 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: [git pull] slub cleanup and fixes
-Message-ID: <Pine.LNX.4.64.0803031224410.3664@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 3 Mar 2008 21:32:02 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 4/6] xip: support non-struct page backed memory
+Message-ID: <20080303203202.GI8974@wotan.suse.de>
+References: <20080118045649.334391000@suse.de> <20080118045755.735923000@suse.de> <6934efce0803010014p2cc9a5edu5fee2029c0104a07@mail.gmail.com> <47CBB44D.7040203@de.ibm.com> <alpine.LFD.1.00.0803031037560.17889@woody.linux-foundation.org> <6934efce0803031138g725f0ec4ra683d56615b7dbe0@mail.gmail.com> <alpine.LFD.1.00.0803031152240.17889@woody.linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.1.00.0803031152240.17889@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: torvalds@linux-foundation.org
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Jared Hulbert <jaredeh@gmail.com>, carsteno@de.ibm.com, Andrew Morton <akpm@linux-foundation.org>, mschwid2@linux.vnet.ibm.com, heicars2@linux.vnet.ibm.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-A seris of patches is available in the git repository at:
+On Mon, Mar 03, 2008 at 12:04:37PM -0800, Linus Torvalds wrote:
+> 
+> 
+> On Mon, 3 Mar 2008, Jared Hulbert wrote:
+> > 
+> > By 1:1 you mean virtual + offset == physical + offset right?
+> 
+> Right. It's a special case, and it's an important special case because 
+> it's the only one that is fast to do.
+> 
+> It's not very common, but it's common enough that it's worth doing.
+> 
+> That said, xip should probably never have used virt_to_phys() in the first 
+> place. It should be limited to purely architecture-specific memory 
+> management routines.
 
-  git://git.kernel.org/pub/scm/linux/kernel/git/christoph/vm.git slab-linus
+Actually, xip in your kernel doesn't, it was just a patch I proposed.
+Basically I wanted to get a pfn from a kva, however that kva might be
+ioremapped which I didn't actually worry about because only testing
+a plain RAM backed system.
 
-Christoph Lameter (9):
-      Revert "unique end pointer" patch
-      slub: rename slab_objects to show_slab_objects
-      slub: Remove objsize check in kmem_cache_flags()
-      slub: Remove useless checks in alloc_debug_processing
-      slub: Use the objsize from the kmem_cache_cpu structure
-      slub: Remove BUG_ON() from ksize and omit checks for !SLUB_DEBUG
-      slub: Rearrange #ifdef CONFIG_SLUB_DEBUG in calculate_sizes()
-      slub: Fix up comments
-      slub: Add kmalloc_large_node() to support kmalloc_node fallback
+ 
+> [ There's a number of drivers that need "physical" addresses for DMA, and 
+>   that use virt_to_phys, but they should use the DMA interfaces 
+>   that do this right, and even for legacy things that don't use the proper 
+>   DMA allocator things virt_to_phys is wrong, because it's about _bus_ 
+>   addresses, not CPU physical addresses. Only architecture code can know 
+>   when the two actually mean the same thing ]
+> 
+> Quite frankly, I think it's totally wrong to use kernel-virtual addresses 
+> in those interfaces in first place. Either you use "struct page *" or you 
+> use a pfn number. Nothing else is simply valid.
 
-Cyrill Gorcunov (1):
-      slub: fix possible NULL pointer dereference
+Although they were already using kernel-virtual addresses before I got
+there, we want to remove the requirement to have a struct page, and
+there are no good accessors to kmap a pfn (AFAIK) otherwise we could
+indeed just use a pfn.
 
-Pekka J Enberg (1):
-      slub: look up object from the freelist once
-
- include/linux/mm_types.h |    5 +-
- include/linux/slub_def.h |    4 +-
- mm/slub.c                |  204 
-++++++++++++++++++++--------------------------
- 3 files changed, 92 insertions(+), 121 deletions(-)
+We'll scrap the virt_to_phys idea and make the interface return both
+the kaddr and the pfn, I think.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
