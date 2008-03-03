@@ -1,59 +1,39 @@
-Date: Mon, 3 Mar 2008 09:18:59 -0600
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [PATCH] mmu notifiers #v8
-Message-ID: <20080303151859.GA19374@sgi.com>
-References: <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de> <20080221144023.GC9427@v2.random> <20080221161028.GA14220@sgi.com> <20080227192610.GF28483@v2.random> <20080302155457.GK8091@v2.random> <20080303032934.GA3301@wotan.suse.de> <20080303125152.GS8091@v2.random> <20080303131017.GC13138@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: by el-out-1112.google.com with SMTP id y26so85108ele.4
+        for <linux-mm@kvack.org>; Mon, 03 Mar 2008 07:44:51 -0800 (PST)
+Message-ID: <6934efce0803030744w6946e74an113d359c398415cd@mail.gmail.com>
+Date: Mon, 3 Mar 2008 07:44:50 -0800
+From: "Jared Hulbert" <jaredeh@gmail.com>
+Subject: Re: [patch 4/6] xip: support non-struct page backed memory
+In-Reply-To: <47CBB44D.7040203@de.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080303131017.GC13138@wotan.suse.de>
+References: <20080118045649.334391000@suse.de>
+	 <20080118045755.735923000@suse.de>
+	 <6934efce0803010014p2cc9a5edu5fee2029c0104a07@mail.gmail.com>
+	 <47CBB44D.7040203@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+To: carsteno@de.ibm.com
+Cc: npiggin@suse.de, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, mschwid2@linux.vnet.ibm.com, heicars2@linux.vnet.ibm.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 03, 2008 at 02:10:17PM +0100, Nick Piggin wrote:
-> On Mon, Mar 03, 2008 at 01:51:53PM +0100, Andrea Arcangeli wrote:
-> > On Mon, Mar 03, 2008 at 04:29:34AM +0100, Nick Piggin wrote:
-> > > to something I prefer. Others may not, but I'll post them for debate
-> > > anyway.
-> > 
-> > Sure, thanks!
-> > 
-> > > > I didn't drop invalidate_page, because invalidate_range_begin/end
-> > > > would be slower for usages like KVM/GRU (we don't need a begin/end
-> > > > there because where invalidate_page is called, the VM holds a
-> > > > reference on the page). do_wp_page should also use invalidate_page
-> > > > since it can free the page after dropping the PT lock without losing
-> > > > any performance (that's not true for the places where invalidate_range
-> > > > is called).
-> > > 
-> > > I'm still not completely happy with this. I had a very quick look
-> > > at the GRU driver, but I don't see why it can't be implemented
-> > > more like the regular TLB model, and have TLB insertions depend on
-> > > the linux pte, and do invalidates _after_ restricting permissions
-> > > to the pte.
-> > > 
-> > > Ie. I'd still like to get rid of invalidate_range_begin, and get
-> > > rid of invalidate calls from places where permissions are relaxed.
-> > 
-> > _begin exists because by the time _end is called, the VM already
-> > dropped the reference on the page. This way we can do a single
-> > invalidate no matter how large the range is. I don't see ways to
-> > remove _begin while still invoking _end a single time for the whole
-> > range.
-> 
-> Is this just a GRU problem? Can't we just require them to take a ref
-> on the page (IIRC Jack said GRU could be changed to more like a TLB
-> model).
+>  Is there a chance virt_to_phys() can be fixed on arm? It looks like a
+>  simple page table walk to me.
 
-Maintaining a long-term reference on a page is a problem. The GRU does not
-currently maintain tables to track the pages for which dropins have been done.
+Are there functions already available for doing a page table walk?  If
+so it could be done. I'd like that.  If somebody could point me in the
+right direction I'd appreciate it.
 
-The GRU has a large internal TLB and is designed to reference up to 8PB of
-memory. The size of the tables to track this many referenced pages would be
-a problem (at best).
+It might be a problem because today the simple case for virt_to_phys()
+just subtracts 0x20000000 to go from 0xCXXXXXXX to 0xAXXXXXXX.  So it
+could have a negative performance if we complicate it.
+
+Is it possible that it might be easier to fix this if we changed
+ioremap()?  I got the impression that ioremap() on ARM ends up placing
+ioremap()'ed memory in the middle of the 0xCXXXXXXX range that is
+valid for RAM.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
