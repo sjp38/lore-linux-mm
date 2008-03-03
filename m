@@ -1,34 +1,39 @@
-Date: Mon, 3 Mar 2008 13:46:34 -0500
+Date: Mon, 3 Mar 2008 13:57:42 -0500
 From: Rik van Riel <riel@redhat.com>
-Subject: Re: [patch 12/21] No Reclaim LRU Infrastructure
-Message-ID: <20080303134634.5893b5e0@cuia.boston.redhat.com>
-In-Reply-To: <44c63dc40803021904n5de681datba400e08079c152d@mail.gmail.com>
+Subject: Re: [patch 02/21] Use an indexed array for LRU variables
+Message-ID: <20080303135742.233f6746@cuia.boston.redhat.com>
+In-Reply-To: <20080229160320.GG28849@shadowen.org>
 References: <20080228192908.126720629@redhat.com>
-	<20080228192929.031646681@redhat.com>
-	<44c63dc40802282058h67f7597bvb614575f06c62e2c@mail.gmail.com>
-	<1204296534.5311.8.camel@localhost>
-	<44c63dc40803021904n5de681datba400e08079c152d@mail.gmail.com>
+	<20080228192928.079732330@redhat.com>
+	<20080229160320.GG28849@shadowen.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: minchan Kim <barrioskmc@gmail.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 3 Mar 2008 12:04:14 +0900
-"minchan Kim" <barrioskmc@gmail.com> wrote:
+On Fri, 29 Feb 2008 16:03:20 +0000
+Andy Whitcroft <apw@shadowen.org> wrote:
 
-> One more thing.
+> >  	/* First 128 byte cacheline (assuming 64 bit words) */
+> >  	NR_FREE_PAGES,
+> > -	NR_INACTIVE,
+> > -	NR_ACTIVE,
+> > +	NR_INACTIVE,	/* must match order of LRU_[IN]ACTIVE */
+> > +	NR_ACTIVE,	/*  "     "     "   "       "         */
 > 
-> zoneinfo_show_print fail to show right information.
-> That's why 'enum zone_stat_item' and 'vmstat_text' index didn't matched.
-> This is a problem about CONFIG_NORECLAIM, too.
+> This little ordering constraint is a little nasty.  If we have enum_list
+> available at this point then we can make sure that these order correctly
+> automatically with something like this:
 
-In what configuration do they not line up, and why?
+A little, true.
 
-AFAICS the #ifdefs in zone_stat_item and vmstat_text match up...
+However, we need to line up with vmstat_text as well, so I suspect
+the best way to make this friendlier to people new to this part of
+the kernel would be to add more documentation, not more magic.
 
 -- 
 All Rights Reversed
