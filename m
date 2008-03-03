@@ -1,41 +1,40 @@
-Message-ID: <47CC822E.8040702@cs.helsinki.fi>
-Date: Tue, 04 Mar 2008 00:56:46 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: by gv-out-0910.google.com with SMTP id n8so266976gve.19
+        for <linux-mm@kvack.org>; Mon, 03 Mar 2008 15:25:17 -0800 (PST)
+Message-ID: <6934efce0803031525s3d95f429g2b5a0ed742f6230d@mail.gmail.com>
+Date: Mon, 3 Mar 2008 15:25:15 -0800
+From: "Jared Hulbert" <jaredeh@gmail.com>
+Subject: Re: [patch 4/6] xip: support non-struct page backed memory
+In-Reply-To: <alpine.LFD.1.00.0803031420430.2979@woody.linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [patch 7/8] slub: Make the order configurable for each slab cache
-References: <20080229044803.482012397@sgi.com>  <20080229044820.044485187@sgi.com> <47C7BEA8.4040906@cs.helsinki.fi>  <Pine.LNX.4.64.0802291137140.11084@schroedinger.engr.sgi.com> <84144f020803010147y489b06fdx479ed0af931de08b@mail.gmail.com> <Pine.LNX.4.64.0803030947300.6010@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0803030947300.6010@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080118045649.334391000@suse.de>
+	 <20080118045755.735923000@suse.de>
+	 <6934efce0803010014p2cc9a5edu5fee2029c0104a07@mail.gmail.com>
+	 <47CBB44D.7040203@de.ibm.com>
+	 <alpine.LFD.1.00.0803031037560.17889@woody.linux-foundation.org>
+	 <6934efce0803031138g725f0ec4ra683d56615b7dbe0@mail.gmail.com>
+	 <alpine.LFD.1.00.0803031152240.17889@woody.linux-foundation.org>
+	 <20080303203202.GI8974@wotan.suse.de>
+	 <alpine.LFD.1.00.0803031420430.2979@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, carsteno@de.ibm.com, Andrew Morton <akpm@linux-foundation.org>, mschwid2@linux.vnet.ibm.com, heicars2@linux.vnet.ibm.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Sat, 1 Mar 2008, Pekka Enberg wrote:
-> 
->> I am not sure I understand what you mean here. For example, for a
->> cache that requires minimum order of 1 to fit any objects (which
->> doesn't happen now because of page allocator pass-through), the
->> order_store() function can call calculate_sizes() with forced_order
-> 
-> It does happen because the page allocator pass through is only possible 
-> for kmalloc allocations.
-> 
->> set to zero after which the cache becomes useless. That deserves a
->> code comment, I think.
-> 
-> If the object does not fit into a page then calculate_sizes will violate 
-> max_order (if necessary) in order to make sure that an allocation is 
-> possible.
+>  Implementing a kmap_pfn() sounds like a perfectly sane idea. But why does
+>  it need to even be mapped into kernel space? Is it for the ELF header
+>  reading or something (not having looked at the patch, just reacting to the
+>  wrongness of using virt_to_phys())?
 
-Hmm, I seem to be missing something here. For page size of 4KB, object 
-size of 8KB, and min_order of zero, when I write zero order to 
-/sys/kernel/slab/<cache>/order the kernel won't crash because...?
+Right.
 
-			Pekka
+My AXFS prefers the filesystem image to be in memory like Flash.  So
+it also uses the kaddr to read it's data structures and to fetch data
+for the readpage().  In fact, the MTD doesn't provide access to the
+physical address of a given partition without a patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
