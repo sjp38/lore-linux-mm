@@ -1,58 +1,29 @@
-Date: Mon, 3 Mar 2008 21:32:02 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 4/6] xip: support non-struct page backed memory
-Message-ID: <20080303203202.GI8974@wotan.suse.de>
-References: <20080118045649.334391000@suse.de> <20080118045755.735923000@suse.de> <6934efce0803010014p2cc9a5edu5fee2029c0104a07@mail.gmail.com> <47CBB44D.7040203@de.ibm.com> <alpine.LFD.1.00.0803031037560.17889@woody.linux-foundation.org> <6934efce0803031138g725f0ec4ra683d56615b7dbe0@mail.gmail.com> <alpine.LFD.1.00.0803031152240.17889@woody.linux-foundation.org>
-Mime-Version: 1.0
+Date: Mon, 3 Mar 2008 22:15:32 +0100
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [PATCH] mmu notifiers #v8
+Message-ID: <20080303211532.GX8091@v2.random>
+References: <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de> <20080221144023.GC9427@v2.random> <20080221161028.GA14220@sgi.com> <20080227192610.GF28483@v2.random> <20080302155457.GK8091@v2.random> <20080303032934.GA3301@wotan.suse.de> <Pine.LNX.4.64.0803031058230.6917@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LFD.1.00.0803031152240.17889@woody.linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0803031058230.6917@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Jared Hulbert <jaredeh@gmail.com>, carsteno@de.ibm.com, Andrew Morton <akpm@linux-foundation.org>, mschwid2@linux.vnet.ibm.com, heicars2@linux.vnet.ibm.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <npiggin@suse.de>, Jack Steiner <steiner@sgi.com>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 03, 2008 at 12:04:37PM -0800, Linus Torvalds wrote:
-> 
-> 
-> On Mon, 3 Mar 2008, Jared Hulbert wrote:
-> > 
-> > By 1:1 you mean virtual + offset == physical + offset right?
-> 
-> Right. It's a special case, and it's an important special case because 
-> it's the only one that is fast to do.
-> 
-> It's not very common, but it's common enough that it's worth doing.
-> 
-> That said, xip should probably never have used virt_to_phys() in the first 
-> place. It should be limited to purely architecture-specific memory 
-> management routines.
+On Mon, Mar 03, 2008 at 11:01:22AM -0800, Christoph Lameter wrote:
+> API still has rcu issues and the example given for making things sleepable 
+> is only working for the aging callback. The most important callback is for 
+> try_to_unmao and page_mkclean. This means the API is still not generic 
+> enough and likely not extendable as needed in its present form.
 
-Actually, xip in your kernel doesn't, it was just a patch I proposed.
-Basically I wanted to get a pfn from a kva, however that kva might be
-ioremapped which I didn't actually worry about because only testing
-a plain RAM backed system.
-
- 
-> [ There's a number of drivers that need "physical" addresses for DMA, and 
->   that use virt_to_phys, but they should use the DMA interfaces 
->   that do this right, and even for legacy things that don't use the proper 
->   DMA allocator things virt_to_phys is wrong, because it's about _bus_ 
->   addresses, not CPU physical addresses. Only architecture code can know 
->   when the two actually mean the same thing ]
-> 
-> Quite frankly, I think it's totally wrong to use kernel-virtual addresses 
-> in those interfaces in first place. Either you use "struct page *" or you 
-> use a pfn number. Nothing else is simply valid.
-
-Although they were already using kernel-virtual addresses before I got
-there, we want to remove the requirement to have a struct page, and
-there are no good accessors to kmap a pfn (AFAIK) otherwise we could
-indeed just use a pfn.
-
-We'll scrap the virt_to_phys idea and make the interface return both
-the kaddr and the pfn, I think.
+I converted only one of those _notify as an example of how it should
+be done, because I assumed you volunteer to convert the other ones
+yourself during .26. It's useless to convert all of them right now,
+because the i_mmap_lock and anon_vma locks are still going to be
+spinlocks in .25.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
