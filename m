@@ -1,64 +1,68 @@
-Received: by rv-out-0910.google.com with SMTP id f1so717894rvb.26
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2008 10:47:37 -0800 (PST)
-Message-ID: <84144f020803041047k7d9d6d5ai10e3f0dac3ca2aeb@mail.gmail.com>
-Date: Tue, 4 Mar 2008 20:47:37 +0200
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [BUG] 2.6.25-rc3-mm1 kernel panic while bootup on powerpc ()
-In-Reply-To: <20080304103636.3e7b8fdd.akpm@linux-foundation.org>
+Date: Tue, 4 Mar 2008 10:53:31 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 0/8] slub: Fallback to order 0 and variable order slab
+ support
+In-Reply-To: <20080304122008.GB19606@csn.ul.ie>
+Message-ID: <Pine.LNX.4.64.0803041044520.13957@schroedinger.engr.sgi.com>
+References: <20080229044803.482012397@sgi.com> <20080304122008.GB19606@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080304011928.e8c82c0c.akpm@linux-foundation.org>
-	 <47CD4AB3.3080409@linux.vnet.ibm.com>
-	 <20080304103636.3e7b8fdd.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 04 Mar 2008 18:42:19 +0530 Kamalesh Babulal
-<kamalesh@linux.vnet.ibm.com> wrote:
->  > 3) Third attempt kernel booted up but had the following call trace 264 times while running
->  > test
->  >
->  > Badness at include/linux/gfp.h:110
->  > NIP: c0000000000b4ff0 LR: c0000000000b4fa0 CTR: c00000000019cdb4
->  > REGS: c000000009edf250 TRAP: 0700   Not tainted  (2.6.25-rc3-mm1-autotest)
->  > MSR: 8000000000029032 <EE,ME,IR,DR>  CR: 22024042  XER: 20000003
->  > TASK = c000000009062140[548] 'kjournald' THREAD: c000000009edc000 CPU: 0
->  > NIP [c0000000000b4ff0] .get_page_from_freelist+0x29c/0x898
->  > LR [c0000000000b4fa0] .get_page_from_freelist+0x24c/0x898
->  > Call Trace:
->  > [c000000009edf5f0] [c0000000000b56e4] .__alloc_pages_internal+0xf8/0x470
->  > [c000000009edf6e0] [c0000000000e0458] .kmem_getpages+0x8c/0x194
->  > [c000000009edf770] [c0000000000e1050] .fallback_alloc+0x194/0x254
->  > [c000000009edf820] [c0000000000e14b0] .kmem_cache_alloc+0xd8/0x144
->  > [c000000009edf8c0] [c0000000001fe0f8] .radix_tree_preload+0x50/0xd4
->  > [c000000009edf960] [c0000000000ad048] .add_to_page_cache+0x38/0x12c
->  > [c000000009edfa00] [c0000000000ad158] .add_to_page_cache_lru+0x1c/0x4c
->  > [c000000009edfa90] [c0000000000add58] .find_or_create_page+0x60/0xa8
->  > [c000000009edfb30] [c00000000011e478] .__getblk+0x140/0x310
->  > [c000000009edfc00] [c0000000001b78c4] .journal_get_descriptor_buffer+0x44/0xd8
->  > [c000000009edfca0] [c0000000001b236c] .journal_commit_transaction+0x948/0x1590
->  > [c000000009edfe00] [c0000000001b585c] .kjournald+0xf4/0x2ac
->  > [c000000009edff00] [c00000000007ff4c] .kthread+0x84/0xd0
->  > [c000000009edff90] [c000000000028900] .kernel_thread+0x4c/0x68
->  > Instruction dump:
->  > 7dc57378 48009575 60000000 2fa30000 419e0490 56c902d8 3c000018 7dd907b4
->  > 7ad2c7e2 7f890000 7c000026 5400fffe <0b000000> e93e8128 3b000000 80090000
+On Tue, 4 Mar 2008, Mel Gorman wrote:
 
-On Tue, Mar 4, 2008 at 8:36 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
->  /* Convert GFP flags to their corresponding migrate type */
->  static inline int allocflags_to_migratetype(gfp_t gfp_flags)
->  {
->         WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
->
->  Mel, Pekka: would you have some head-scratching time for this one please?
+> 				Loss	to	Gain
+> Kernbench Elapsed time		 -0.64%		0.32%
+> Kernbench Total time		 -0.61%		0.48%
+> Hackbench sockets-12 clients	 -2.95%		5.13%
+> Hackbench pipes-12 clients	-16.95%		9.27%
+> TBench 4 clients		 -1.98%		8.2%
+> DBench 4 clients (ext2)		 -5.9%		7.99%
+> 
+> So, running with the high orders is not a clear-cut win to my eyes. What
+> did you test to show that it was a general win justifying a high-order by
+> default? From looking through, tbench seems to be the only obvious one to
+> gain but the rest, it is not clear at all. I'll try give sysbench a spin
+> later to see if it is clear-cut.
 
-Sure. Just to double-check, this is with SLAB, right? Do you see this with SLUB?
+Hmmm... Interesting. The tests that I did awhile ago were with max order 
+3. The patch as is now has max order 4. Maybe we need to reduce the order?
+
+Looks like this was mostly a gain except for hackbench. Which is to be 
+expected since the benchmark shelves out objects from the same slab round 
+robin to different cpus. The higher the number of objects in the slab the 
+higher the chance of contention on the slab lock.
+
+> However, in *all* cases, superpage allocations were less successful and in
+> some cases it was severely regressed (one machine went from 81% success rate
+> to 36%). Sufficient statistics are not gathered to see why this happened
+> in retrospect but my suspicion would be that high-order RECLAIMABLE and
+> UNMOVABLE slub allocations routinely fall back to the less fragmented
+> MOVABLE pageblocks with these patches - something that is normally a very
+> rare event. This change in assumption hurts fragmentation avoidance and
+> chances are the long-term behaviour of these patches is not great.
+
+Superpage allocations means huge page allocations? Enable slub statistics 
+and you will be able to see the number of fallbacks in 
+/sys/kernel/slab/xx/order_fallback to confirm your suspicions.
+
+How would the allocator be able to get MOVABLE allocations? Is fallback 
+permitted for order 0 allocs to MOVABLE?
+
+> If this guess is correct, using a high-order size by default is a bad plan
+> and it should only be set when it is known that the target workload benefits
+> and superpage allocations are not a concern. Alternative, set high-order by
+> default only for a limited number of caches that are RECLAIMABLE (or better
+> yet ones we know can be directly reclaimed with the slub-defrag patches).
+> 
+> As it is, this is painful from a fragmentation perspective and the
+> performance win is not clear-cut.
+
+Could we reduce the max order to 3 and see what happens then?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
