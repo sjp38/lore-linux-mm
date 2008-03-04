@@ -1,68 +1,113 @@
-Date: Tue, 4 Mar 2008 10:53:31 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 0/8] slub: Fallback to order 0 and variable order slab
- support
-In-Reply-To: <20080304122008.GB19606@csn.ul.ie>
-Message-ID: <Pine.LNX.4.64.0803041044520.13957@schroedinger.engr.sgi.com>
-References: <20080229044803.482012397@sgi.com> <20080304122008.GB19606@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [BUG FIX] Fix mempolicy reference counting bugs
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Content-Type: text/plain
+Date: Tue, 04 Mar 2008 13:53:56 -0500
+Message-Id: <1204656837.5338.89.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@suse.de>
+Cc: ak@suse.de, clameter@sgi.com, mel@csn.ul.ie, linux-mm@kvack.org, rientjes@google.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 4 Mar 2008, Mel Gorman wrote:
+[BUG FIX] Fix mempolicy reference counting bugs
 
-> 				Loss	to	Gain
-> Kernbench Elapsed time		 -0.64%		0.32%
-> Kernbench Total time		 -0.61%		0.48%
-> Hackbench sockets-12 clients	 -2.95%		5.13%
-> Hackbench pipes-12 clients	-16.95%		9.27%
-> TBench 4 clients		 -1.98%		8.2%
-> DBench 4 clients (ext2)		 -5.9%		7.99%
-> 
-> So, running with the high orders is not a clear-cut win to my eyes. What
-> did you test to show that it was a general win justifying a high-order by
-> default? From looking through, tbench seems to be the only obvious one to
-> gain but the rest, it is not clear at all. I'll try give sysbench a spin
-> later to see if it is clear-cut.
+This patch address 3 known bugs in the current memory policy
+reference counting method.  I have a series of patches to
+rework the reference counting to reduce overhead in the
+allocation path. However, that series will require testing
+in -mm once I repost it.
 
-Hmmm... Interesting. The tests that I did awhile ago were with max order 
-3. The patch as is now has max order 4. Maybe we need to reduce the order?
+I'm making this patch available for the current upstream
+[2.6.25-rc3] pending submittal and acceptance of the rework.
+Note that these bugs exist back to 2.6.23, so this patch
+may be a candidate for the stable tree.
 
-Looks like this was mostly a gain except for hackbench. Which is to be 
-expected since the benchmark shelves out objects from the same slab round 
-robin to different cpus. The higher the number of objects in the slab the 
-higher the chance of contention on the slab lock.
+Problem description:
 
-> However, in *all* cases, superpage allocations were less successful and in
-> some cases it was severely regressed (one machine went from 81% success rate
-> to 36%). Sufficient statistics are not gathered to see why this happened
-> in retrospect but my suspicion would be that high-order RECLAIMABLE and
-> UNMOVABLE slub allocations routinely fall back to the less fragmented
-> MOVABLE pageblocks with these patches - something that is normally a very
-> rare event. This change in assumption hurts fragmentation avoidance and
-> chances are the long-term behaviour of these patches is not great.
+1) alloc_page_vma() does not release the extra reference
+   taken for vma/shared mempolicy when the mode ==
+   MPOL_INTERLEAVE.  This can result in leaking mempolicy
+   structures.  This is probably occurring, but not being
+   noticed.
 
-Superpage allocations means huge page allocations? Enable slub statistics 
-and you will be able to see the number of fallbacks in 
-/sys/kernel/slab/xx/order_fallback to confirm your suspicions.
+   Fix:  add the conditional release of the reference.
 
-How would the allocator be able to get MOVABLE allocations? Is fallback 
-permitted for order 0 allocs to MOVABLE?
+2) hugezonelist unconditionally releases a reference on
+   the mempolicy when mode == MPOL_INTERLEAVE.  This can
+   result in decrementing the reference count for system
+   default policy [should have no ill effect] or premature
+   freeing of task policy.  If this occurred, the next
+   allocation using task mempolicy would use the freed
+   structure and probably BUG out.
 
-> If this guess is correct, using a high-order size by default is a bad plan
-> and it should only be set when it is known that the target workload benefits
-> and superpage allocations are not a concern. Alternative, set high-order by
-> default only for a limited number of caches that are RECLAIMABLE (or better
-> yet ones we know can be directly reclaimed with the slub-defrag patches).
-> 
-> As it is, this is painful from a fragmentation perspective and the
-> performance win is not clear-cut.
+   Fix:  add the necessary check to the release.
 
-Could we reduce the max order to 3 and see what happens then?
+3) The current reference counting method assumes that
+   vma 'get_policy()' methods automatically add an extra
+   reference a non-NULL returned mempolicy.  This is true
+   for shmem_get_policy() used by tmpfs mappings, including
+   regular page shm segments.  However, SHM_HUGETLB shm's,
+   backed by hugetlbfs, just use the vma policy without the
+   extra reference.  This results in freeing of the vma
+   policy on the first allocation, with reuse of the freed
+   mempolicy structure on subsequent allocations.
+
+   Fix:  Rather than add another condition to the 
+   conditional reference release, which occur in the allocation
+   path, just add a reference when returning the vma policy in 
+   shm_get_policy() to match the assumptions.
+
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+ ipc/shm.c      |    5 +++--
+ mm/mempolicy.c |    7 ++++++-
+ 2 files changed, 9 insertions(+), 3 deletions(-)
+
+Index: linux-2.6.25-rc3/mm/mempolicy.c
+===================================================================
+--- linux-2.6.25-rc3.orig/mm/mempolicy.c	2008-02-29 12:32:47.000000000 -0500
++++ linux-2.6.25-rc3/mm/mempolicy.c	2008-02-29 12:32:48.000000000 -0500
+@@ -1296,7 +1296,9 @@ struct zonelist *huge_zonelist(struct vm
+ 		unsigned nid;
+ 
+ 		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
+-		__mpol_free(pol);		/* finished with pol */
++		if (unlikely(pol != &default_policy &&
++				pol != current->mempolicy))
++			__mpol_free(pol);	/* finished with pol */
+ 		return NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_flags);
+ 	}
+ 
+@@ -1360,6 +1362,9 @@ alloc_page_vma(gfp_t gfp, struct vm_area
+ 		unsigned nid;
+ 
+ 		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT);
++		if (unlikely(pol != &default_policy &&
++				pol != current->mempolicy))
++			__mpol_free(pol);	/* finished with pol */
+ 		return alloc_page_interleave(gfp, 0, nid);
+ 	}
+ 	zl = zonelist_policy(gfp, pol);
+Index: linux-2.6.25-rc3/ipc/shm.c
+===================================================================
+--- linux-2.6.25-rc3.orig/ipc/shm.c	2008-02-29 12:32:47.000000000 -0500
++++ linux-2.6.25-rc3/ipc/shm.c	2008-02-29 12:34:37.000000000 -0500
+@@ -271,9 +271,10 @@ static struct mempolicy *shm_get_policy(
+ 
+ 	if (sfd->vm_ops->get_policy)
+ 		pol = sfd->vm_ops->get_policy(vma, addr);
+-	else if (vma->vm_policy)
++	else if (vma->vm_policy) {
+ 		pol = vma->vm_policy;
+-	else
++		mpol_get(pol);	/* get_vma_policy() expects this */
++	} else
+ 		pol = current->mempolicy;
+ 	return pol;
+ }
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
