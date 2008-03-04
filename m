@@ -1,111 +1,109 @@
-Date: Mon, 3 Mar 2008 17:02:35 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] x86_64: Cleanup non-smp usage of cpu maps v3
-Message-Id: <20080303170235.4334e841.akpm@linux-foundation.org>
-In-Reply-To: <20080219203336.177905000@polaris-admin.engr.sgi.com>
-References: <20080219203335.866324000@polaris-admin.engr.sgi.com>
-	<20080219203336.177905000@polaris-admin.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m241H3dZ001066
+	for <linux-mm@kvack.org>; Mon, 3 Mar 2008 20:17:03 -0500
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m241H3bp267026
+	for <linux-mm@kvack.org>; Mon, 3 Mar 2008 20:17:03 -0500
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m241H3Oj032534
+	for <linux-mm@kvack.org>; Mon, 3 Mar 2008 20:17:03 -0500
+Date: Mon, 3 Mar 2008 17:17:04 -0800
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: [RFC][PATCH] hugetlb: fix pool shrinking while in restricted cpuset
+Message-ID: <20080304011704.GA13954@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Travis <travis@sgi.com>
-Cc: mingo@elte.hu, tglx@linutronix.de, ak@suse.de, clameter@sgi.com, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: agl@us.ibm.com
+Cc: wli@holomorphy.com, Lee.Schermerhorn@hp.com, clameter@sgi.com, pj@sgi.com, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 19 Feb 2008 12:33:37 -0800
-Mike Travis <travis@sgi.com> wrote:
+Adam Litke noticed that currently we grow the hugepage pool independent
+of any cpuset the running process may be in, but when shrinking the
+pool, the cpuset is checked. This leads to inconsistency when shrinking
+the pool in a restricted cpuset -- an administrator may have been able
+to grow the pool on a node restricted by a containing cpuset, but they
+cannot shrink it there. There are two options: either prevent growing of
+the pool outside of the cpuset or allow shrinking outside of the cpuset.
+>From previous discussions on linux-mm, /proc/sys/vm/nr_hugepages is an
+administrative interface that should not be restricted by cpusets. So
+allow shrinking the pool by removing pages from nodes outside of
+current's cpuset.
 
-> Cleanup references to the early cpu maps for the non-SMP configuration
-> and remove some functions called for SMP configurations only.
-> 
-> Based on git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
-> 
+This is a bugfix and should go into 2.6.25.
 
-My 8-way x86_64 box is crashing with this patch series applied.
+Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: Adam Litke <agl@us.ibm.com>
+Cc: William Irwin <wli@holomorphy.com>
+Cc: Lee Schermerhorn <Lee.Schermerhonr@hp.com>
+Cc: Christoph Lameter <clameter@sgi.com>
+Cc: Paul Jackson <pj@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 
-Quite late in boot, when modules are being loaded:
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 89e6286..61ac37f 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -71,7 +71,25 @@ static void enqueue_huge_page(struct page *page)
+ 	free_huge_pages_node[nid]++;
+ }
+ 
+-static struct page *dequeue_huge_page(struct vm_area_struct *vma,
++static struct page *dequeue_huge_page(void)
++{
++	int nid;
++	struct page *page = NULL;
++
++	for (nid = 0; nid < MAX_NUMNODES; ++nid) {
++		if (!list_empty(&hugepage_freelists[nid])) {
++			page = list_entry(hugepage_freelists[nid].next,
++					  struct page, lru);
++			list_del(&page->lru);
++			free_huge_pages--;
++			free_huge_pages_node[nid]--;
++			break;
++		}
++	}
++	return page;
++}
++
++static struct page *dequeue_huge_page_vma(struct vm_area_struct *vma,
+ 				unsigned long address)
+ {
+ 	int nid;
+@@ -402,7 +420,7 @@ static struct page *alloc_huge_page_shared(struct vm_area_struct *vma,
+ 	struct page *page;
+ 
+ 	spin_lock(&hugetlb_lock);
+-	page = dequeue_huge_page(vma, addr);
++	page = dequeue_huge_page_vma(vma, addr);
+ 	spin_unlock(&hugetlb_lock);
+ 	return page ? page : ERR_PTR(-VM_FAULT_OOM);
+ }
+@@ -417,7 +435,7 @@ static struct page *alloc_huge_page_private(struct vm_area_struct *vma,
+ 
+ 	spin_lock(&hugetlb_lock);
+ 	if (free_huge_pages > resv_huge_pages)
+-		page = dequeue_huge_page(vma, addr);
++		page = dequeue_huge_page_vma(vma, addr);
+ 	spin_unlock(&hugetlb_lock);
+ 	if (!page) {
+ 		page = alloc_buddy_huge_page(vma, addr);
+@@ -570,7 +588,7 @@ static unsigned long set_max_huge_pages(unsigned long count)
+ 	min_count = max(count, min_count);
+ 	try_to_free_low(min_count);
+ 	while (min_count < persistent_huge_pages) {
+-		struct page *page = dequeue_huge_page(NULL, 0);
++		struct page *page = dequeue_huge_page();
+ 		if (!page)
+ 			break;
+ 		update_and_free_page(page);
 
-
-SELinux: initialized (dev rootfs, type rootfs), uses genfs_contexts
-SELinux: initialized (dev sysfs, type sysfs), uses genfs_contexts
-SELinux: policy loaded with handle_unknown=deny
-type=1403 audit(1204590434.779:3): policy loaded auid=4294967295 ses=4294967295
-BUG: unable to handle kernel paging request at ffff80ff81959078
-IP: [<ffffffff8025062d>] sys_init_module+0x135e/0x1a24
-PGD 0 
-Oops: 0002 [1] SMP 
-last sysfs file: /sys/devices/pnp0/00:17/id
-CPU 7 
-Modules linked in: dm_mirror dm_multipath dm_mod sbs sbshc dock battery ac parport_pc lp parport snd_hda_intel snd_seq_dummy snd_seq_oss snd_seq_midi_event floppy snd_seq snd_seq_device snd_pcm_oss sg snd_mixer_oss snd_pcm serio_raw ide_cd_mod cdrom snd_timer shpchp snd soundcore snd_page_alloc button pcspkr i2c_i801 i2c_core ehci_hcd ohci_hcd uhci_hcd
-Pid: 2969, comm: modprobe Not tainted 2.6.25-rc3-mm1 #9
-RIP: 0010:[<ffffffff8025062d>]  [<ffffffff8025062d>] sys_init_module+0x135e/0x1a24
-RSP: 0018:ffff81025a50de08  EFLAGS: 00010287
-RAX: ffff810001004000 RBX: 000000000000001c RCX: 000000000000001c
-RDX: 0000000000000000 RSI: ffffc20001b281b0 RDI: ffff80ff81959078
-RBP: ffffc20001b281b0 R08: 0000000000000000 R09: ffffc20001e8d800
-R10: ffffc20001e6d818 R11: 0000000000000002 R12: ffffffffa0300900
-R13: ffffc20001e6cfd8 R14: ffffffff80955078 R15: ffffc20001af3000
-FS:  00007f50a14066f0(0000) GS:ffff81000107b000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-CR2: ffff80ff81959078 CR3: 000000025b565000 CR4: 00000000000006e0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-Process modprobe (pid: 2969, threadinfo ffff81025a50c000, task ffff81025dbbf380)
-Stack:  0000000000000000 00000000006180e0 ffffc20001e6dd98 ffffc20001e6d7d8
- ffffc20001e6dd58 ffff81025b4f2e20 ffffc200021aef80 0000000000000036
- 0000000f00000000 0000000a00000000 0000000d00000011 0000000000000000
-Call Trace:
- [<ffffffff80454696>] ? neigh_lookup+0x0/0xc0
- [<ffffffff80310ca7>] ? selinux_file_permission+0x54/0x127
- [<ffffffff8028cc93>] ? vfs_read+0xa8/0x131
- [<ffffffff8020bceb>] ? system_call_after_swapgs+0x7b/0x80
-
-
-Code: 48 8b 58 20 48 8b 68 10 e8 ad 1b 0e 00 eb 2d 48 8b 05 70 56 5f 00 49 63 d0 4c 89 f7 fc 48 89 ee 48 89 d9 48 8b 04 d0 48 03 78 08 <f3> a4 48 c7 c6 40 d7 96 80 44 89 c7 e8 98 1b 0e 00 3d fe 00 00 
-RIP  [<ffffffff8025062d>] sys_init_module+0x135e/0x1a24
- RSP <ffff81025a50de08>
-CR2: ffff80ff81959078
----[ end trace d72a6bcf35cfd5e6 ]---
-
-
-
-
-In percpu_modcopy():
-
-(gdb) l *0xffffffff8025062d
-0xffffffff8025062d is in sys_init_module (kernel/module.c:436).
-431     static void percpu_modcopy(void *pcpudest, const void *from, unsigned long size)
-432     {
-433             int cpu;
-434     
-435             for_each_possible_cpu(cpu)
-436                     memcpy(pcpudest + per_cpu_offset(cpu), from, size);
-437     }
-438     
-439     static int percpu_modinit(void)
-440     {
-
-
-Full boot log: http://userweb.kernel.org/~akpm/dmesg-akpm2.txt
-
-.config: http://userweb.kernel.org/~akpm/config-akpm2.txt
-
-
-I was unable to bisect it more finely than this:
-
-init-move-setup-of-nr_cpu_ids-to-as-early-as-possible-v3.patch
-generic-percpu-infrastructure-to-rebase-the-per-cpu-area-to-zero-v3.patch OK
-x86_64-fold-pda-into-per-cpu-area-v3.patch
-x86_64-fold-pda-into-per-cpu-area-v3-fix.patch				
-x86_64-cleanup-non-smp-usage-of-cpu-maps-v3.patch			BAD
-
-because when x86_64-cleanup-non-smp-usage-of-cpu-maps-v3.patch was removed
-the machine hung quite early, when playing around with TSC calibration I
-think.
-
-I'll drop 'em.
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
