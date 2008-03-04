@@ -1,50 +1,86 @@
-Date: Mon, 3 Mar 2008 20:55:34 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [patch 12/21] No Reclaim LRU Infrastructure
-Message-ID: <20080303205534.2939d584@bree.surriel.com>
-In-Reply-To: <47CC8C0C.9080502@gmail.com>
-References: <20080228192908.126720629@redhat.com>
-	<20080228192929.031646681@redhat.com>
-	<44c63dc40802282058h67f7597bvb614575f06c62e2c@mail.gmail.com>
-	<1204296534.5311.8.camel@localhost>
-	<44c63dc40803021904n5de681datba400e08079c152d@mail.gmail.com>
-	<20080303134634.5893b5e0@cuia.boston.redhat.com>
-	<47CC8C0C.9080502@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id m24448wI030662
+	for <linux-mm@kvack.org>; Tue, 4 Mar 2008 15:04:08 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m24471bN292160
+	for <linux-mm@kvack.org>; Tue, 4 Mar 2008 15:07:01 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2443MaZ002334
+	for <linux-mm@kvack.org>; Tue, 4 Mar 2008 15:03:22 +1100
+Message-ID: <47CCC9F6.1080601@linux.vnet.ibm.com>
+Date: Tue, 04 Mar 2008 09:33:02 +0530
+From: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [BUG] Linux 2.6.25-rc2 - Kernel Ooops while running dbench
+References: <alpine.LFD.1.00.0802151302210.9496@woody.linux-foundation.org> <47B6784E.2090401@linux.vnet.ibm.com> <20080218045954.50503fb1.akpm@linux-foundation.org> <84144f020803030351l2042e9aaqe656ad1610e5efc5@mail.gmail.com>
+In-Reply-To: <84144f020803030351l2042e9aaqe656ad1610e5efc5@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "barrioskmc@gmail" <minchan.kim@gmail.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-ext4@vger.kernel.org, Andy Whitcroft <apw@shadowen.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 04 Mar 2008 08:38:52 +0900
-"barrioskmc@gmail" <minchan.kim@gmail.com> wrote:
-> Rik van Riel wrote:
-> > On Mon, 3 Mar 2008 12:04:14 +0900
-> > "minchan Kim" <barrioskmc@gmail.com> wrote:
-> > 
-> >> One more thing.
-> >>
-> >> zoneinfo_show_print fail to show right information.
-> >> That's why 'enum zone_stat_item' and 'vmstat_text' index didn't matched.
-> >> This is a problem about CONFIG_NORECLAIM, too.
-> > 
-> > In what configuration do they not line up, and why?
-> > 
-> > AFAICS the #ifdefs in zone_stat_item and vmstat_text match up...
-> > 
+Pekka Enberg wrote:
+> On Sat, 16 Feb 2008 11:14:46 +0530 Kamalesh Babulal
+> <kamalesh@linux.vnet.ibm.com> wrote:
+>>  > The 2.6.25-rc2 kernel oopses while running dbench on ext3 filesystem
+>>  > mounted with mount -o data=writeback,nobh option on the x86_64 box
+>>  >
+>>  > BUG: unable to handle kernel NULL pointer dereference at 0000000000000000
+>>  > IP: [<ffffffff80274972>] kmem_cache_alloc+0x3a/0x6c
+>>  > PGD 1f6860067 PUD 1f5d64067 PMD 0
+>>  > Oops: 0000 [1] SMP
+>>  > CPU 3
+>>  > Modules linked in:
+>>  > Pid: 4271, comm: dbench Not tainted 2.6.25-rc2-autotest #1
+>>  > RIP: 0010:[<ffffffff80274972>]  [<ffffffff80274972>] kmem_cache_alloc+0x3a/0x6c
+>>  > RSP: 0000:ffff8101fb041dc8  EFLAGS: 00010246
+>>  > RAX: 0000000000000000 RBX: ffff810180033c00 RCX: ffffffff8027b269
+>>  > RDX: 0000000000000000 RSI: 00000000000080d0 RDI: ffffffff80632d70
+>>  > RBP: 00000000000080d0 R08: 0000000000000001 R09: 0000000000000000
+>>  > R10: ffff8101feb36e50 R11: 0000000000000190 R12: 0000000000000001
+>>  > R13: 0000000000000000 R14: ffff8101f8f38000 R15: 00000000ffffff9c
+>>  > FS:  0000000000000000(0000) GS:ffff8101fff0f000(0063) knlGS:00000000f7e41460
+>>  > CS:  0010 DS: 002b ES: 002b CR0: 0000000080050033
+>>  > CR2: 0000000000000000 CR3: 00000001f5620000 CR4: 00000000000006e0
+>>  > DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+>>  > DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+>>  > Process dbench (pid: 4271, threadinfo ffff8101fb040000, task ffff8101fb180000)
+>>  > Stack:  0000000000000001 ffff8101fb041ea8 0000000000000001 ffffffff8027b269
+>>  >  ffff8101fb041ea8 ffffffff80281fe8 0000000000000001 0000000000000000
+>>  >  ffff8101fb041ea8 00000000ffffff9c 000000000000000b 0000000000000001
+>>  > Call Trace:
+>>  >  [<ffffffff8027b269>] get_empty_filp+0x55/0xf9
+>>  >  [<ffffffff80281fe8>] __path_lookup_intent_open+0x22/0x8f
+>>  >  [<ffffffff80282853>] open_namei+0x86/0x5a7
+>>  >  [<ffffffff8027d019>] vfs_stat_fd+0x3c/0x4a
+>>  >  [<ffffffff80279ab1>] do_filp_open+0x1c/0x3d
+>>  >  [<ffffffff80279c2c>] get_unused_fd_flags+0x79/0x111
+>>  >  [<ffffffff80279dce>] do_sys_open+0x46/0xca
+>>  >  [<ffffffff80221c82>] ia32_sysret+0x0/0xa
 > 
-> So sorry, It was my mistake.
-> I seem to have a bad eye :(
+> On Mon, Feb 18, 2008 at 2:59 PM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+>>  Looks to me like we broke slab.  Christoph is offline until the 27th..
+> 
+> This is probably fixed by:
+> 
+> http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdiff;h=00e962c5408b9f2d0bebd2308673fe982cb9a5fe
+> 
+> As this is on the regression list, Kamalesh, can you please confirm
+> it's fixed now?
+> 
+>                              Pekka
 
-Not at all.  You found a number of real issues with my patch series,
-which I have fixed today.  I am happy that people like you take a
-good look at my patches, so I get a chance to improve them.
+Thanks, I tested the 2.6.25-rc3-git4 kernel and the oops is not reproducible. This commit seems to fix the kernel oops.
 
 -- 
-All rights reversed.
+Thanks & Regards,
+Kamalesh Babulal,
+Linux Technology Center,
+IBM, ISTL.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
