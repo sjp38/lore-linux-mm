@@ -1,44 +1,31 @@
-Date: Tue, 4 Mar 2008 14:30:20 +0100
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [RFC] Notifier for Externally Mapped Memory (EMM)
-Message-ID: <20080304133020.GC5301@v2.random>
-References: <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de> <20080221144023.GC9427@v2.random> <20080221161028.GA14220@sgi.com> <20080227192610.GF28483@v2.random> <20080302155457.GK8091@v2.random> <20080303213707.GA8091@v2.random> <20080303220502.GA5301@v2.random> <47CC9B57.5050402@qumranet.com> <Pine.LNX.4.64.0803032327470.9642@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
+Date: Tue, 4 Mar 2008 08:44:06 -0600
+From: Jack Steiner <steiner@sgi.com>
+Subject: Re: [PATCH] mmu notifiers #v8
+Message-ID: <20080304144406.GA25467@sgi.com>
+References: <20080302155457.GK8091@v2.random> <20080303032934.GA3301@wotan.suse.de> <20080303125152.GS8091@v2.random> <20080303131017.GC13138@wotan.suse.de> <20080303151859.GA19374@sgi.com> <20080303165910.GA23998@wotan.suse.de> <20080303180605.GA3552@sgi.com> <20080303184517.GA4951@wotan.suse.de> <20080303191540.GB11156@sgi.com> <1204626932.6241.41.camel@lappy>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0803032327470.9642@schroedinger.engr.sgi.com>
+In-Reply-To: <1204626932.6241.41.camel@lappy>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <andrea@qumranet.com>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 03, 2008 at 11:31:15PM -0800, Christoph Lameter wrote:
-> @@ -446,6 +450,8 @@ static int page_mkclean_one(struct page 
->  	if (address == -EFAULT)
->  		goto out;
->  
-> +	/* rmap lock held */
-> +	emm_notify(mm, emm_invalidate_start, address, address + PAGE_SIZE);
->  	pte = page_check_address(page, mm, address, &ptl);
->  	if (!pte)
->  		goto out;
-> @@ -462,6 +468,7 @@ static int page_mkclean_one(struct page 
->  	}
->  
->  	pte_unmap_unlock(pte, ptl);
-> +	emm_notify(mm, emm_invalidate_end, address, address + PAGE_SIZE);
->  out:
->  	return ret;
->  }
+On Tue, Mar 04, 2008 at 11:35:32AM +0100, Peter Zijlstra wrote:
+> 
+> On Mon, 2008-03-03 at 13:15 -0600, Jack Steiner wrote:
+> 
+> > I haven't thought about locking requirements for the radix tree. Most accesses
+> > would be read-only & updates infrequent. Any chance of an RCU-based radix
+> > implementation?  Otherwise, don't we add the potential for hot locks/cachelines
+> > for threaded applications ???
+> 
+> The current radix tree implementation in the kernel is RCU capable. We
+> just don't have many RCU users yet.
 
-I could have ripped invalidate_page from my patch too, except I didn't
-want to slow down those paths for the known-common-users when not even
-GRU would get any benefit from two hooks when only one is needed.
-
-When working with single pages it's more efficient and preferable to
-call invalidate_page and only later release the VM reference on the
-page.
+Ahhh. You are right. I thought I looked but obviously missed it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
