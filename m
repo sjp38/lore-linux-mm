@@ -1,109 +1,49 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m241H3dZ001066
-	for <linux-mm@kvack.org>; Mon, 3 Mar 2008 20:17:03 -0500
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m241H3bp267026
-	for <linux-mm@kvack.org>; Mon, 3 Mar 2008 20:17:03 -0500
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m241H3Oj032534
-	for <linux-mm@kvack.org>; Mon, 3 Mar 2008 20:17:03 -0500
-Date: Mon, 3 Mar 2008 17:17:04 -0800
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [RFC][PATCH] hugetlb: fix pool shrinking while in restricted cpuset
-Message-ID: <20080304011704.GA13954@us.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Mon, 3 Mar 2008 17:30:11 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/2] x86_64: Cleanup non-smp usage of cpu maps v3
+Message-Id: <20080303173011.b0d9a89d.akpm@linux-foundation.org>
+In-Reply-To: <20080303170235.4334e841.akpm@linux-foundation.org>
+References: <20080219203335.866324000@polaris-admin.engr.sgi.com>
+	<20080219203336.177905000@polaris-admin.engr.sgi.com>
+	<20080303170235.4334e841.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: agl@us.ibm.com
-Cc: wli@holomorphy.com, Lee.Schermerhorn@hp.com, clameter@sgi.com, pj@sgi.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: travis@sgi.com, mingo@elte.hu, tglx@linutronix.de, ak@suse.de, clameter@sgi.com, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Adam Litke noticed that currently we grow the hugepage pool independent
-of any cpuset the running process may be in, but when shrinking the
-pool, the cpuset is checked. This leads to inconsistency when shrinking
-the pool in a restricted cpuset -- an administrator may have been able
-to grow the pool on a node restricted by a containing cpuset, but they
-cannot shrink it there. There are two options: either prevent growing of
-the pool outside of the cpuset or allow shrinking outside of the cpuset.
->From previous discussions on linux-mm, /proc/sys/vm/nr_hugepages is an
-administrative interface that should not be restricted by cpusets. So
-allow shrinking the pool by removing pages from nodes outside of
-current's cpuset.
+On Mon, 3 Mar 2008 17:02:35 -0800
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-This is a bugfix and should go into 2.6.25.
+> I was unable to bisect it more finely than this:
+> 
+> init-move-setup-of-nr_cpu_ids-to-as-early-as-possible-v3.patch
+> generic-percpu-infrastructure-to-rebase-the-per-cpu-area-to-zero-v3.patch OK
+> x86_64-fold-pda-into-per-cpu-area-v3.patch
+> x86_64-fold-pda-into-per-cpu-area-v3-fix.patch				
+> x86_64-cleanup-non-smp-usage-of-cpu-maps-v3.patch			BAD
+> 
+> because when x86_64-cleanup-non-smp-usage-of-cpu-maps-v3.patch was removed
+> the machine hung quite early, when playing around with TSC calibration I
+> think.
 
-Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Adam Litke <agl@us.ibm.com>
-Cc: William Irwin <wli@holomorphy.com>
-Cc: Lee Schermerhorn <Lee.Schermerhonr@hp.com>
-Cc: Christoph Lameter <clameter@sgi.com>
-Cc: Paul Jackson <pj@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+This just happened again with the patches dropped, so it is a separate bug -
+just another regression.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 89e6286..61ac37f 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -71,7 +71,25 @@ static void enqueue_huge_page(struct page *page)
- 	free_huge_pages_node[nid]++;
- }
- 
--static struct page *dequeue_huge_page(struct vm_area_struct *vma,
-+static struct page *dequeue_huge_page(void)
-+{
-+	int nid;
-+	struct page *page = NULL;
-+
-+	for (nid = 0; nid < MAX_NUMNODES; ++nid) {
-+		if (!list_empty(&hugepage_freelists[nid])) {
-+			page = list_entry(hugepage_freelists[nid].next,
-+					  struct page, lru);
-+			list_del(&page->lru);
-+			free_huge_pages--;
-+			free_huge_pages_node[nid]--;
-+			break;
-+		}
-+	}
-+	return page;
-+}
-+
-+static struct page *dequeue_huge_page_vma(struct vm_area_struct *vma,
- 				unsigned long address)
- {
- 	int nid;
-@@ -402,7 +420,7 @@ static struct page *alloc_huge_page_shared(struct vm_area_struct *vma,
- 	struct page *page;
- 
- 	spin_lock(&hugetlb_lock);
--	page = dequeue_huge_page(vma, addr);
-+	page = dequeue_huge_page_vma(vma, addr);
- 	spin_unlock(&hugetlb_lock);
- 	return page ? page : ERR_PTR(-VM_FAULT_OOM);
- }
-@@ -417,7 +435,7 @@ static struct page *alloc_huge_page_private(struct vm_area_struct *vma,
- 
- 	spin_lock(&hugetlb_lock);
- 	if (free_huge_pages > resv_huge_pages)
--		page = dequeue_huge_page(vma, addr);
-+		page = dequeue_huge_page_vma(vma, addr);
- 	spin_unlock(&hugetlb_lock);
- 	if (!page) {
- 		page = alloc_buddy_huge_page(vma, addr);
-@@ -570,7 +588,7 @@ static unsigned long set_max_huge_pages(unsigned long count)
- 	min_count = max(count, min_count);
- 	try_to_free_low(min_count);
- 	while (min_count < persistent_huge_pages) {
--		struct page *page = dequeue_huge_page(NULL, 0);
-+		struct page *page = dequeue_huge_page();
- 		if (!page)
- 			break;
- 		update_and_free_page(page);
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+I now recall that it has been happening on every fifth-odd boot for a few
+weeks now.  The machine prints
+
+Time: tsc clocksource has been installed
+
+then five instances of "system 00:01: iomem range 0x...", then it hangs. 
+ie: it never prints "system 00:01: iomem range 0xfe600000-0xfe6fffff has
+been reserved" from http://userweb.kernel.org/~akpm/dmesg-akpm2.txt.
+
+It may have some correlation with whether the machine was booted via
+poweron versus `reboot -f', dunno.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
