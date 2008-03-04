@@ -1,205 +1,87 @@
-Message-Id: <20080304225227.847718844@redhat.com>
-References: <20080304225157.573336066@redhat.com>
-Date: Tue, 04 Mar 2008 17:52:14 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: [patch 17/20] mlock vma pages under mmap_sem held for read
-Content-Disposition: inline; filename=noreclaim-04.1a-lock-vma-pages-under-read-lock.patch
+Date: Tue, 4 Mar 2008 15:14:42 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC] Notifier for Externally Mapped Memory (EMM)
+In-Reply-To: <1204670529.6241.52.camel@lappy>
+Message-ID: <Pine.LNX.4.64.0803041511080.21441@schroedinger.engr.sgi.com>
+References: <20080221144023.GC9427@v2.random>  <20080221161028.GA14220@sgi.com>
+ <20080227192610.GF28483@v2.random>  <20080302155457.GK8091@v2.random>
+ <20080303213707.GA8091@v2.random>  <20080303220502.GA5301@v2.random>
+ <47CC9B57.5050402@qumranet.com>  <Pine.LNX.4.64.0803032327470.9642@schroedinger.engr.sgi.com>
+  <20080304133020.GC5301@v2.random>  <Pine.LNX.4.64.0803041059110.13957@schroedinger.engr.sgi.com>
+  <20080304222030.GB8951@v2.random>  <Pine.LNX.4.64.0803041422070.20821@schroedinger.engr.sgi.com>
+ <1204670529.6241.52.camel@lappy>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-V2 -> V3:
-+ rebase to 23-mm1 atop RvR's split lru series [no change]
-+ fix function return types [void -> int] to fix build when
-  not configured.
+On Tue, 4 Mar 2008, Peter Zijlstra wrote:
 
-New in V2.
+> 
+> On Tue, 2008-03-04 at 14:35 -0800, Christoph Lameter wrote:
+> 
+> > RCU means that the callbacks occur in an atomic context.
+> 
+> Not really, if it requires moving the VM locks to sleepable locks under
+> a .config option, I think its also fair to require PREEMPT_RCU.
 
-We need to hold the mmap_sem for write to initiatate mlock()/munlock()
-because we may need to merge/split vmas.  However, this can lead to
-very long lock hold times attempting to fault in a large memory region
-to mlock it into memory.   This can hold off other faults against the
-mm [multithreaded tasks] and other scans of the mm, such as via /proc.
-To alleviate this, downgrade the mmap_sem to read mode during the 
-population of the region for locking.  This is especially the case 
-if we need to reclaim memory to lock down the region.  We [probably?]
-don't need to do this for unlocking as all of the pages should be
-resident--they're already mlocked.
+Which would make the patchset pretty complex. RCU is not needed with a 
+single linked list. Linked list operations can exploit atomic pointer 
+updates and we only tear down the list when a single execution thread 
+remains.
 
-Now, the caller's of the mlock functions [mlock_fixup() and 
-mlock_vma_pages_range()] expect the mmap_sem to be returned in write
-mode.  Changing all callers appears to be way too much effort at this
-point.  So, restore write mode before returning.  Note that this opens
-a window where the mmap list could change in a multithreaded process.
-So, at least for mlock_fixup(), where we could be called in a loop over
-multiple vmas, we check that a vma still exists at the start address
-and that vma still covers the page range [start,end).  If not, we return
-an error, -EAGAIN, and let the caller deal with it.
 
-Return -EAGAIN from mlock_vma_pages_range() function and mlock_fixup()
-if the vma at 'start' disappears or changes so that the page range
-[start,end) is no longer contained in the vma.  Again, let the caller
-deal with it.  Looks like only sys_remap_file_pages() [via mmap_region()]
-should actually care.
+Having said that: Here a couple of updates to address Andrea's complaint 
+that we not check the referenced bit from the external mapper when the 
+rerferences bit is set on an OS pte.
 
-With this patch, I no longer see processes like ps(1) blocked for seconds
-or minutes at a time waiting for a large [multiple gigabyte] region to be
-locked down.  
+Plus two barriers to ensure that a new emm notifier object becomes
+visible before the base pointer is updated.
 
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-Signed-off-by:  Rik van Riel <riel@redhat.com>
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.25-rc3-mm1/mm/mlock.c
+---
+ mm/rmap.c |   10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+Index: linux-2.6/mm/rmap.c
 ===================================================================
---- linux-2.6.25-rc3-mm1.orig/mm/mlock.c	2008-03-04 16:19:46.000000000 -0500
-+++ linux-2.6.25-rc3-mm1/mm/mlock.c	2008-03-04 17:29:19.000000000 -0500
-@@ -199,6 +199,37 @@ int __mlock_vma_pages_range(struct vm_ar
- 	return ret;
- }
+--- linux-2.6.orig/mm/rmap.c	2008-03-04 14:36:36.321922321 -0800
++++ linux-2.6/mm/rmap.c	2008-03-04 15:10:46.159429369 -0800
+@@ -298,10 +298,10 @@ static int page_referenced_one(struct pa
  
-+/**
-+ * mlock_vma_pages_range - lock the pages of a VMA in memory
-+ * @vma: vm area to mlock into memory
-+ * @start: start address in @vma of range to mlock,
-+ * @end: end address in @vma of range
-+ *
-+ * Called with current->mm->mmap_sem held write locked.  Downgrade to read
-+ * for faulting in pages.  This can take a looong time for large segments.
-+ *
-+ * We need to restore the mmap_sem to write locked because our callers'
-+ * callers expect this.	 However, because the mmap could have changed
-+ * [in a multi-threaded process], we need to recheck.
-+ */
-+int mlock_vma_pages_range(struct vm_area_struct *vma,
-+			unsigned long start, unsigned long end)
-+{
-+	struct mm_struct *mm = vma->vm_mm;
+ 	(*mapcount)--;
+ 	pte_unmap_unlock(pte, ptl);
+-	if (!referenced)
+-		/* rmap lock held */
+-		referenced = emm_notify(mm, emm_referenced,
+-					address, address + PAGE_SIZE);
 +
-+	downgrade_write(&mm->mmap_sem);
-+	__mlock_vma_pages_range(vma, start, end);
-+
-+	up_read(&mm->mmap_sem);
-+	/* vma can change or disappear */
-+	down_write(&mm->mmap_sem);
-+	vma = find_vma(mm, start);
-+	/* non-NULL vma must contain @start, but need to check @end */
-+	if (!vma ||  end > vma->vm_end)
-+		return -EAGAIN;
-+	return 0;
-+}
-+
- #else /* CONFIG_NORECLAIM_MLOCK */
- 
- /*
-@@ -265,14 +296,38 @@ success:
- 	mm->locked_vm += nr_pages;
- 
- 	/*
--	 * vm_flags is protected by the mmap_sem held in write mode.
-+	 * vm_flags is protected by the mmap_sem held for write.
- 	 * It's okay if try_to_unmap_one unmaps a page just after we
- 	 * set VM_LOCKED, __mlock_vma_pages_range will bring it back.
- 	 */
- 	vma->vm_flags = newflags;
- 
-+	/*
-+	 * mmap_sem is currently held for write.  If we're locking pages,
-+	 * downgrade the write lock to a read lock so that other faults,
-+	 * mmap scans, ... while we fault in all pages.
-+	 */
-+	if (lock)
-+		downgrade_write(&mm->mmap_sem);
-+
- 	__mlock_vma_pages_range(vma, start, end);
- 
-+	if (lock) {
-+		/*
-+		 * Need to reacquire mmap sem in write mode, as our callers
-+		 * expect this.  We have no support for atomically upgrading
-+		 * a sem to write, so we need to check for ranges while sem
-+		 * is unlocked.
-+		 */
-+		up_read(&mm->mmap_sem);
-+		/* vma can change or disappear */
-+		down_write(&mm->mmap_sem);
-+		*prev = find_vma(mm, start);
-+		/* non-NULL *prev must contain @start, but need to check @end */
-+		if (!(*prev) || end > (*prev)->vm_end)
-+			ret = -EAGAIN;
-+	}
-+
++	/* rmap lock held */
++	if (emm_notify(mm, emm_referenced, address, address + PAGE_SIZE))
++			referenced = 1;
  out:
- 	if (ret == -ENOMEM)
- 		ret = -EAGAIN;
-Index: linux-2.6.25-rc3-mm1/mm/internal.h
-===================================================================
---- linux-2.6.25-rc3-mm1.orig/mm/internal.h	2008-03-04 16:19:46.000000000 -0500
-+++ linux-2.6.25-rc3-mm1/mm/internal.h	2008-03-04 17:29:19.000000000 -0500
-@@ -61,24 +61,21 @@ extern int __mlock_vma_pages_range(struc
- /*
-  * mlock all pages in this vma range.  For mmap()/mremap()/...
-  */
--static inline void mlock_vma_pages_range(struct vm_area_struct *vma,
--			unsigned long start, unsigned long end)
--{
--	__mlock_vma_pages_range(vma, start, end);
--}
-+extern int mlock_vma_pages_range(struct vm_area_struct *vma,
-+			unsigned long start, unsigned long end);
- 
- /*
-  * munlock range of pages.   For munmap() and exit().
-  * Always called to operate on a full vma that is being unmapped.
-  */
--static inline void munlock_vma_pages_range(struct vm_area_struct *vma,
-+static inline int munlock_vma_pages_range(struct vm_area_struct *vma,
- 			unsigned long start, unsigned long end)
+ 	return referenced;
+ }
+@@ -1057,6 +1057,7 @@ EXPORT_SYMBOL_GPL(emm_notifier_release);
+ void emm_notifier_register(struct emm_notifier *e, struct mm_struct *mm)
  {
- // TODO:  verify my assumption.  Should we just drop the start/end args?
- 	VM_BUG_ON(start != vma->vm_start || end != vma->vm_end);
- 
- 	vma->vm_flags &= ~VM_LOCKED;
--	__mlock_vma_pages_range(vma, start, end);
-+	return __mlock_vma_pages_range(vma, start, end);
+ 	e->next = mm->emm_notifier;
++	smp_wmb();
+ 	mm->emm_notifier = e;
  }
+ EXPORT_SYMBOL_GPL(emm_notifier_register);
+@@ -1069,6 +1070,7 @@ int __emm_notify(struct mm_struct *mm, e
+ 	int x;
  
- extern void clear_page_mlock(struct page *page);
-@@ -90,10 +87,10 @@ static inline int is_mlocked_vma(struct 
- }
- static inline void clear_page_mlock(struct page *page) { }
- static inline void mlock_vma_page(struct page *page) { }
--static inline void mlock_vma_pages_range(struct vm_area_struct *vma,
--			unsigned long start, unsigned long end) { }
--static inline void munlock_vma_pages_range(struct vm_area_struct *vma,
--			unsigned long start, unsigned long end) { }
-+static inline int mlock_vma_pages_range(struct vm_area_struct *vma,
-+			unsigned long start, unsigned long end) { return 0; }
-+static inline int munlock_vma_pages_range(struct vm_area_struct *vma,
-+			unsigned long start, unsigned long end) { return 0; }
- 
- #endif /* CONFIG_NORECLAIM_MLOCK */
- 
-Index: linux-2.6.25-rc3-mm1/mm/mmap.c
-===================================================================
---- linux-2.6.25-rc3-mm1.orig/mm/mmap.c	2008-03-04 17:29:19.000000000 -0500
-+++ linux-2.6.25-rc3-mm1/mm/mmap.c	2008-03-04 17:30:00.000000000 -0500
-@@ -2007,8 +2007,9 @@ unsigned long do_brk(unsigned long addr,
- 		return -ENOMEM;
- 
- 	/* Can we just expand an old private anonymous mapping? */
--	if (vma_merge(mm, prev, addr, addr + len, flags,
--					NULL, NULL, pgoff, NULL))
-+	vma = vma_merge(mm, prev, addr, addr + len, flags,
-+					NULL, NULL, pgoff, NULL);
-+	if (vma)
- 		goto out;
- 
- 	/*
-
--- 
-All Rights Reversed
+ 	while (e) {
++		smp_rmb();
+ 		if (e->func) {
+ 			x = e->func(e, mm, op, start, end);
+ 			if (x)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
