@@ -1,34 +1,40 @@
-Date: Tue, 4 Mar 2008 15:38:00 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [patch 03/21] use an array for the LRU pagevecs
-Message-ID: <20080304153800.4cadcc93@cuia.boston.redhat.com>
-In-Reply-To: <20080304200209.1EAB.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080229154056.GF28849@shadowen.org>
-	<20080301153941.528A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20080304200209.1EAB.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <47CDB498.6040003@cs.helsinki.fi>
+Date: Tue, 04 Mar 2008 22:44:08 +0200
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+MIME-Version: 1.0
+Subject: Re: [BUG] 2.6.25-rc3-mm1 kernel panic while bootup on powerpc ()
+References: <20080304011928.e8c82c0c.akpm@linux-foundation.org>	<47CD4AB3.3080409@linux.vnet.ibm.com>	<20080304103636.3e7b8fdd.akpm@linux-foundation.org>	<47CDA081.7070503@cs.helsinki.fi>	<20080304193532.GC9051@csn.ul.ie>	<84144f020803041141x5bb55832r495d7fde92356e27@mail.gmail.com>	<Pine.LNX.4.64.0803041151360.18160@schroedinger.engr.sgi.com>	<Pine.LNX.4.64.0803042200410.8545@sbz-30.cs.Helsinki.FI>	<Pine.LNX.4.64.0803041205370.18277@schroedinger.engr.sgi.com> <20080304123459.364f879b.akpm@linux-foundation.org>
+In-Reply-To: <20080304123459.364f879b.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andy Whitcroft <apw@shadowen.org>, linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <clameter@sgi.com>, mel@csn.ul.ie, kamalesh@linux.vnet.ibm.com, linuxppc-dev@ozlabs.org, apw@shadowen.org, linux-mm@kvack.org, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 04 Mar 2008 20:04:05 +0900
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-
-> Hi Rik
+Andrew Morton wrote:
+> On Tue, 4 Mar 2008 12:07:39 -0800 (PST)
+> Christoph Lameter <clameter@sgi.com> wrote:
 > 
-> this is fixed patch of Andy Whitcroft's point out.
-> (at least, I hope it)
+>> I think this is the correct fix.
+>>
+>> The NUMA fallback logic should be passing local_flags to kmem_get_pages() 
+>> and not simply the flags.
+>>
+>> Maybe a stable candidate since we are now simply 
+>> passing on flags to the page allocator on the fallback path.
+> 
+> Do we know why this is only reported in 2.6.25-rc3-mm1?
+> 
+> Why does this need fixing in 2.6.24.x?
 
-Applied, except for the documentation to ____pagevec_lru_add, since
-that function should, IMHO, probably stay internal to the VM and not
-be exposed in documentation.
+Looking at the code, it's triggerable in 2.6.24.3 at least. Why we don't 
+have a report yet, probably because (1) the default allocator is SLUB 
+which doesn't suffer from this and (2) you need a big honkin' NUMA box 
+that causes fallback allocations to happen to trigger it.
 
--- 
-All Rights Reversed
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
