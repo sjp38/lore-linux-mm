@@ -1,383 +1,148 @@
-Message-ID: <47CC9B57.5050402@qumranet.com>
-Date: Tue, 04 Mar 2008 02:44:07 +0200
-From: izik eidus <izike@qumranet.com>
+Date: Tue, 4 Mar 2008 18:01:46 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 4/6] Use two zonelist that are filtered by GFP mask
+Message-ID: <20080304180145.GB9051@csn.ul.ie>
+References: <20080227214708.6858.53458.sendpatchset@localhost> <20080227214734.6858.9968.sendpatchset@localhost> <20080228133247.6a7b626f.akpm@linux-foundation.org> <20080229145030.GD6045@csn.ul.ie> <1204300094.5311.50.camel@localhost>
 MIME-Version: 1.0
-Subject: Re: [PATCH] KVM swapping with mmu notifiers #v9
-References: <20080219135851.GI7128@v2.random> <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de> <20080221144023.GC9427@v2.random> <20080221161028.GA14220@sgi.com> <20080227192610.GF28483@v2.random> <20080302155457.GK8091@v2.random> <20080303213707.GA8091@v2.random> <20080303220502.GA5301@v2.random>
-In-Reply-To: <20080303220502.GA5301@v2.random>
-Content-Type: text/plain; charset=windows-1255; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1204300094.5311.50.camel@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com, Christoph Lameter <clameter@sgi.com>
+Return-Path: <owner-linux-mm@kvack.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, ak@suse.de, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, rientjes@google.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-=?ISO-8859-1?Q?=F6=E9=E8=E5=E8?= Andrea Arcangeli:
-Return-Path: <owner-linux-mm@kvack.org>
-X-Envelope-To: <"|/home/majordomo/wrapper archive -f /home/ftp/pub/archives/linux-mm/linux-mm -m -a"> (uid 0)
-X-Orcpt: rfc822;linux-mm-outgoing
-Original-Recipient: rfc822;linux-mm-outgoing
+On (29/02/08 10:48), Lee Schermerhorn didst pronounce:
+> On Fri, 2008-02-29 at 14:50 +0000, Mel Gorman wrote:
+> > On (28/02/08 13:32), Andrew Morton didst pronounce:
+> > > On Wed, 27 Feb 2008 16:47:34 -0500
+> > > Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
+> > > 
+> > > > +/* Returns the first zone at or below highest_zoneidx in a zonelist */
+> > > > +static inline struct zone **first_zones_zonelist(struct zonelist *zonelist,
+> > > > +					enum zone_type highest_zoneidx)
+> > > > +{
+> > > > +	struct zone **z;
+> > > > +
+> > > > +	/* Find the first suitable zone to use for the allocation */
+> > > > +	z = zonelist->zones;
+> > > > +	while (*z && zone_idx(*z) > highest_zoneidx)
+> > > > +		z++;
+> > > > +
+> > > > +	return z;
+> > > > +}
+> > > > +
+> > > > +/* Returns the next zone at or below highest_zoneidx in a zonelist */
+> > > > +static inline struct zone **next_zones_zonelist(struct zone **z,
+> > > > +					enum zone_type highest_zoneidx)
+> > > > +{
+> > > > +	/* Find the next suitable zone to use for the allocation */
+> > > > +	while (*z && zone_idx(*z) > highest_zoneidx)
+> > > > +		z++;
+> > > > +
+> > > > +	return z;
+> > > > +}
+> > > > +
+> > > > +/**
+> > > > + * for_each_zone_zonelist - helper macro to iterate over valid zones in a zonelist at or below a given zone index
+> > > > + * @zone - The current zone in the iterator
+> > > > + * @z - The current pointer within zonelist->zones being iterated
+> > > > + * @zlist - The zonelist being iterated
+> > > > + * @highidx - The zone index of the highest zone to return
+> > > > + *
+> > > > + * This iterator iterates though all zones at or below a given zone index.
+> > > > + */
+> > > > +#define for_each_zone_zonelist(zone, z, zlist, highidx) \
+> > > > +	for (z = first_zones_zonelist(zlist, highidx), zone = *z++;	\
+> > > > +		zone;							\
+> > > > +		z = next_zones_zonelist(z, highidx), zone = *z++)
+> > > > +
+> > > 
+> > > omygawd will that thing generate a lot of code!
+> > > 
+> > > It has four call sites in mm/oom_kill.c and the overall patchset increases
+> > > mm/oom_kill.o's text section (x86_64 allmodconfig) from 3268 bytes to 3845.
+> > > 
+> > 
+> > Yeah... that's pretty bad. They were inlined to avoid function call overhead
+> > when trying to avoid any additional performance overhead but the text overhead
+> > is not helping either. I'll start looking at things to uninline and see what
+> > can be gained text-reduction wise without mucking performance.
+> > 
+> > > vmscan.o and page_alloc.o also grew a lot.  otoh total vmlinux bloat from
+> > > the patchset is only around 700 bytes, so I expect that with a little less
+> > > insanity we could actually get an aggregate improvement here.
+> 
+> Mel:
+> 
+> Thinking about this:
+> 
+> for_each_zone_zonelist():
+> 
+> Seems like the call sites to this macro are not hot paths, so maybe
+> these can call out to a zonelist iterator func in page_alloc.c or, as
+> Kame-san suggested, mmzone.c.
+> 
 
-> Notably the registration now requires the mmap_sem in write mode.
->
-> Signed-off-by: Andrea Arcangeli <andrea@qumranet.com>
->
-> diff --git a/arch/x86/kvm/Kconfig b/arch/x86/kvm/Kconfig
-> index 41962e7..e1287ab 100644
-> --- a/arch/x86/kvm/Kconfig
-> +++ b/arch/x86/kvm/Kconfig
-> @@ -21,6 +21,7 @@ config KVM
->  	tristate "Kernel-based Virtual Machine (KVM) support"
->  	depends on HAVE_KVM && EXPERIMENTAL
->  	select PREEMPT_NOTIFIERS
-> +	select MMU_NOTIFIER
->  	select ANON_INODES
->  	---help---
->  	  Support hosting fully virtualized guest machines using hardware
-> diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-> index 4583329..4067b0f 100644
-> --- a/arch/x86/kvm/mmu.c
-> +++ b/arch/x86/kvm/mmu.c
-> @@ -642,6 +642,110 @@ static void rmap_write_protect(struct kvm *kvm, u64 gfn)
->  	account_shadowed(kvm, gfn);
->  }
->  
-> +static void kvm_unmap_spte(struct kvm *kvm, u64 *spte)
-> +{
-> +	struct page *page = pfn_to_page((*spte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT);
-> +	get_page(page);
-> +	rmap_remove(kvm, spte);
-> +	set_shadow_pte(spte, shadow_trap_nonpresent_pte);
-> +	kvm_flush_remote_tlbs(kvm);
-> +	__free_page(page);
->   
+I am trying an unlined version in mmzone.c to see what is looks like. As
+expected there is less text bloat and I'll know in another day whether
+it makes a performance difference or not. As you note below, the
+majority of call sites are not in hot-paths as such.
 
-i wrote to you about this before (i didnt get answer for this so i write 
-again)
-with large pages support i think we need to use here put_page
+> + oom_kill and vmscan call sites:  if these are hot, we're already in,
+> uh..., slow mode. 
+> 
+> + usage in slab.c and slub.c appears to be the fallback/slow path.
+> Christoph can chime in, here, if he disagrees.
+> 
+> + in page_alloc.c:  waking up of kswapd and counting free zone pages
+> [mostly for init code] don't appear to be fast paths.  
+> 
+> + The call site in hugetlb.c is in the huge-page allocation path, which
+> is under a global spinlock.  So, any slowdown here could result in
+> longer lock hold time and higher contention.  But, I have to believe
+> that in the grand scheme of things, huge-page allocation is not that
+> hot.  [Someone faulting in terabytes of hugepages might contest that.]
+> 
+> That leaves the call to for_each_zone_zonelist_nodemask() in
+> get_page_from_freelist().  This might be deserving of inlining?
+> 
+> If this works out, we could end up with these macros being inlined in
+> only 2 places:  get_page_from_freelist() and a to-be-designed zonelist
+> iterator function.  [In fact, I believe that such an iterator need not
+> expose the details of zonelists outside of page_alloc/mmzone, but that
+> would require more rework of the call sites, and additional helper
+> functions.  Maybe someday...]
+> 
+> Comments?
+> 
+> Right now, I've got to build/test the latest reclaim scalability patches
+> that Rik posted, and clean up the issues already pointed out.  If you
+> don't get to this, I can look at it further next week.
+> 
+> Lee
+> 
+> > > 
+> > > Some of the inlining in mmzone.h is just comical.  Some of it is obvious
+> > > (first_zones_zonelist) and some of it is less obvious (pfn_present).
+> > > 
+> > > I applied these for testing but I really don't think we should be merging
+> > > such easily-fixed regressions into mainline.  Could someone please take a
+> > > look at de-porking core MM?
+> > > 
+> > > 
+> > > Also, I switched all your Tested-by:s to Signed-off-by:s.  You were on the
+> > > delivery path, so s-o-b is the appropriate tag.  I would like to believe
+> > > that Signed-off-by: implies Tested-by: anyway (rofl).
+> > > 
+> > 
+> 
 
-> +}
-> +
-> +static void kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp)
-> +{
-> +	u64 *spte, *curr_spte;
-> +
-> +	spte = rmap_next(kvm, rmapp, NULL);
-> +	while (spte) {
-> +		BUG_ON(!(*spte & PT_PRESENT_MASK));
-> +		rmap_printk("kvm_rmap_unmap_hva: spte %p %llx\n", spte, *spte);
-> +		curr_spte = spte;
-> +		spte = rmap_next(kvm, rmapp, spte);
-> +		kvm_unmap_spte(kvm, curr_spte);
-> +	}
-> +}
-> +
-> +void kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
-> +{
-> +	int i;
-> +
-> +	/*
-> +	 * If mmap_sem isn't taken, we can look the memslots with only
-> +	 * the mmu_lock by skipping over the slots with userspace_addr == 0.
-> +	 */
-> +	spin_lock(&kvm->mmu_lock);
-> +	for (i = 0; i < kvm->nmemslots; i++) {
-> +		struct kvm_memory_slot *memslot = &kvm->memslots[i];
-> +		unsigned long start = memslot->userspace_addr;
-> +		unsigned long end;
-> +
-> +		/* mmu_lock protects userspace_addr */
-> +		if (!start)
-> +			continue;
-> +
-> +		end = start + (memslot->npages << PAGE_SHIFT);
-> +		if (hva >= start && hva < end) {
-> +			gfn_t gfn_offset = (hva - start) >> PAGE_SHIFT;
-> +			kvm_unmap_rmapp(kvm, &memslot->rmap[gfn_offset]);
-> +		}
-> +	}
-> +	spin_unlock(&kvm->mmu_lock);
-> +}
-> +
-> +static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp)
-> +{
-> +	u64 *spte;
-> +	int young = 0;
-> +
-> +	spte = rmap_next(kvm, rmapp, NULL);
-> +	while (spte) {
-> +		int _young;
-> +		u64 _spte = *spte;
-> +		BUG_ON(!(_spte & PT_PRESENT_MASK));
-> +		_young = _spte & PT_ACCESSED_MASK;
-> +		if (_young) {
-> +			young = !!_young;
-> +			set_shadow_pte(spte, _spte & ~PT_ACCESSED_MASK);
-> +		}
-> +		spte = rmap_next(kvm, rmapp, spte);
-> +	}
-> +	return young;
-> +}
-> +
-> +int kvm_age_hva(struct kvm *kvm, unsigned long hva)
-> +{
-> +	int i;
-> +	int young = 0;
-> +
-> +	/*
-> +	 * If mmap_sem isn't taken, we can look the memslots with only
-> +	 * the mmu_lock by skipping over the slots with userspace_addr == 0.
-> +	 */
-> +	spin_lock(&kvm->mmu_lock);
-> +	for (i = 0; i < kvm->nmemslots; i++) {
-> +		struct kvm_memory_slot *memslot = &kvm->memslots[i];
-> +		unsigned long start = memslot->userspace_addr;
-> +		unsigned long end;
-> +
-> +		/* mmu_lock protects userspace_addr */
-> +		if (!start)
-> +			continue;
-> +
-> +		end = start + (memslot->npages << PAGE_SHIFT);
-> +		if (hva >= start && hva < end) {
-> +			gfn_t gfn_offset = (hva - start) >> PAGE_SHIFT;
-> +			young |= kvm_age_rmapp(kvm, &memslot->rmap[gfn_offset]);
-> +		}
-> +	}
-> +	spin_unlock(&kvm->mmu_lock);
-> +
-> +	if (young)
-> +		kvm_flush_remote_tlbs(kvm);
-> +
-> +	return young;
-> +}
-> +
->  #ifdef MMU_DEBUG
->  static int is_empty_shadow_page(u64 *spt)
->  {
-> diff --git a/arch/x86/kvm/paging_tmpl.h b/arch/x86/kvm/paging_tmpl.h
-> index 17f9d16..b014b19 100644
-> --- a/arch/x86/kvm/paging_tmpl.h
-> +++ b/arch/x86/kvm/paging_tmpl.h
-> @@ -380,6 +380,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
->  	int r;
->  	struct page *page;
->  	int largepage = 0;
-> +	unsigned mmu_seq;
->  
->  	pgprintk("%s: addr %lx err %x\n", __FUNCTION__, addr, error_code);
->  	kvm_mmu_audit(vcpu, "pre page fault");
-> @@ -415,6 +416,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
->  			largepage = 1;
->  		}
->  	}
-> +	mmu_seq = read_seqbegin(&vcpu->kvm->arch.mmu_notifier_invalidate_lock);
->  	page = gfn_to_page(vcpu->kvm, walker.gfn);
->  	up_read(&current->mm->mmap_sem);
->  
-> @@ -440,6 +442,15 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
->  	++vcpu->stat.pf_fixed;
->  	kvm_mmu_audit(vcpu, "post page fault (fixed)");
->  	spin_unlock(&vcpu->kvm->mmu_lock);
-> +
-> +	if (read_seqretry(&vcpu->kvm->arch.mmu_notifier_invalidate_lock, mmu_seq)) {
-> +		down_read(&current->mm->mmap_sem);
-> +		if (page != gfn_to_page(vcpu->kvm, walker.gfn))
-> +			BUG();
-> +		up_read(&current->mm->mmap_sem);
-> +		kvm_release_page_clean(page);
-> +	}
-> +
->  	up_read(&vcpu->kvm->slots_lock);
->  
->  	return write_pt;
-> diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-> index 6f09840..1dfb1c9 100644
-> --- a/arch/x86/kvm/x86.c
-> +++ b/arch/x86/kvm/x86.c
-> @@ -25,6 +25,7 @@
->  #include <linux/module.h>
->  #include <linux/mman.h>
->  #include <linux/highmem.h>
-> +#include <linux/mmu_notifier.h>
->  
->  #include <asm/uaccess.h>
->  #include <asm/msr.h>
-> @@ -3319,6 +3320,48 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
->  	free_page((unsigned long)vcpu->arch.pio_data);
->  }
->  
-> +static inline struct kvm *mmu_notifier_to_kvm(struct mmu_notifier *mn)
-> +{
-> +	struct kvm_arch *kvm_arch;
-> +	kvm_arch = container_of(mn, struct kvm_arch, mmu_notifier);
-> +	return container_of(kvm_arch, struct kvm, arch);
-> +}
-> +
-> +void kvm_mmu_notifier_invalidate_page(struct mmu_notifier *mn,
-> +				      struct mm_struct *mm,
-> +				      unsigned long address)
-> +{
-> +	struct kvm *kvm = mmu_notifier_to_kvm(mn);
-> +	BUG_ON(mm != kvm->mm);
-> +	write_seqlock(&kvm->arch.mmu_notifier_invalidate_lock);
-> +	kvm_unmap_hva(kvm, address);
-> +	write_sequnlock(&kvm->arch.mmu_notifier_invalidate_lock);
-> +}
-> +
-> +void kvm_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
-> +					   struct mm_struct *mm,
-> +					   unsigned long start,
-> +					   unsigned long end)
-> +{
-> +	for (; start < end; start += PAGE_SIZE)
-> +		kvm_mmu_notifier_invalidate_page(mn, mm, start);
-> +}
-> +
-> +int kvm_mmu_notifier_clear_flush_young(struct mmu_notifier *mn,
-> +				       struct mm_struct *mm,
-> +				       unsigned long address)
-> +{
-> +	struct kvm *kvm = mmu_notifier_to_kvm(mn);
-> +	BUG_ON(mm != kvm->mm);
-> +	return kvm_age_hva(kvm, address);
-> +}
-> +
-> +static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
-> +	.invalidate_page	= kvm_mmu_notifier_invalidate_page,
-> +	.invalidate_range_end	= kvm_mmu_notifier_invalidate_range_end,
-> +	.clear_flush_young	= kvm_mmu_notifier_clear_flush_young,
-> +};
-> +
->  struct  kvm *kvm_arch_create_vm(void)
->  {
->  	struct kvm *kvm = kzalloc(sizeof(struct kvm), GFP_KERNEL);
-> @@ -3328,6 +3371,12 @@ struct  kvm *kvm_arch_create_vm(void)
->  
->  	INIT_LIST_HEAD(&kvm->arch.active_mmu_pages);
->  
-> +	kvm->arch.mmu_notifier.ops = &kvm_mmu_notifier_ops;
-> +	down_write(&current->mm->mmap_sem);
-> +	mmu_notifier_register(&kvm->arch.mmu_notifier, current->mm);
-> +	up_write(&current->mm->mmap_sem);
-> +	seqlock_init(&kvm->arch.mmu_notifier_invalidate_lock);
-> +
->  	return kvm;
->  }
->  
-> diff --git a/include/asm-x86/kvm_host.h b/include/asm-x86/kvm_host.h
-> index 024b57c..305b7c3 100644
-> --- a/include/asm-x86/kvm_host.h
-> +++ b/include/asm-x86/kvm_host.h
-> @@ -13,6 +13,7 @@
->  
->  #include <linux/types.h>
->  #include <linux/mm.h>
-> +#include <linux/mmu_notifier.h>
->  
->  #include <linux/kvm.h>
->  #include <linux/kvm_para.h>
-> @@ -303,6 +304,9 @@ struct kvm_arch{
->  	struct page *apic_access_page;
->  
->  	gpa_t wall_clock;
-> +
-> +	struct mmu_notifier mmu_notifier;
-> +	seqlock_t mmu_notifier_invalidate_lock;
->  };
->  
->  struct kvm_vm_stat {
-> @@ -422,6 +426,8 @@ int kvm_mmu_create(struct kvm_vcpu *vcpu);
->  int kvm_mmu_setup(struct kvm_vcpu *vcpu);
->  void kvm_mmu_set_nonpresent_ptes(u64 trap_pte, u64 notrap_pte);
->  
-> +void kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
-> +int kvm_age_hva(struct kvm *kvm, unsigned long hva);
->  int kvm_mmu_reset_context(struct kvm_vcpu *vcpu);
->  void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot);
->  void kvm_mmu_zap_all(struct kvm *kvm);
->
->
-> As usual memslot browsing with mmu_lock.
->
-> Signed-off-by: Andrea Arcangeli <andrea@qumranet.com>
->
-> diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-> index 6f09840..a519fd8 100644
-> --- a/arch/x86/kvm/x86.c
-> +++ b/arch/x86/kvm/x86.c
-> @@ -3379,16 +3379,23 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
->  	 */
->  	if (!user_alloc) {
->  		if (npages && !old.rmap) {
-> +			unsigned long userspace_addr;
-> +
->  			down_write(&current->mm->mmap_sem);
-> -			memslot->userspace_addr = do_mmap(NULL, 0,
-> -						     npages * PAGE_SIZE,
-> -						     PROT_READ | PROT_WRITE,
-> -						     MAP_SHARED | MAP_ANONYMOUS,
-> -						     0);
-> +			userspace_addr = do_mmap(NULL, 0,
-> +						 npages * PAGE_SIZE,
-> +						 PROT_READ | PROT_WRITE,
-> +						 MAP_SHARED | MAP_ANONYMOUS,
-> +						 0);
->  			up_write(&current->mm->mmap_sem);
->  
-> -			if (IS_ERR((void *)memslot->userspace_addr))
-> -				return PTR_ERR((void *)memslot->userspace_addr);
-> +			if (IS_ERR((void *)userspace_addr))
-> +				return PTR_ERR((void *)userspace_addr);
-> +
-> +			/* set userspace_addr atomically for kvm_hva_to_rmapp */
-> +			spin_lock(&kvm->mmu_lock);
-> +			memslot->userspace_addr = userspace_addr;
-> +			spin_unlock(&kvm->mmu_lock);
->  		} else {
->  			if (!old.user_alloc && old.rmap) {
->  				int ret;
-> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-> index 30bf832..8f3b6d6 100644
-> --- a/virt/kvm/kvm_main.c
-> +++ b/virt/kvm/kvm_main.c
-> @@ -326,7 +326,15 @@ int __kvm_set_memory_region(struct kvm *kvm,
->  		memset(new.rmap, 0, npages * sizeof(*new.rmap));
->  
->  		new.user_alloc = user_alloc;
-> -		new.userspace_addr = mem->userspace_addr;
-> +		/*
-> +		 * hva_to_rmmap() serialzies with the mmu_lock and to be
-> +		 * safe it has to ignore memslots with !user_alloc &&
-> +		 * !userspace_addr.
-> +		 */
-> +		if (user_alloc)
-> +			new.userspace_addr = mem->userspace_addr;
-> +		else
-> +			new.userspace_addr = 0;
->  	}
->  	if (npages && !new.lpage_info) {
->  		int largepages = npages / KVM_PAGES_PER_HPAGE;
-> @@ -355,14 +363,18 @@ int __kvm_set_memory_region(struct kvm *kvm,
->  		memset(new.dirty_bitmap, 0, dirty_bytes);
->  	}
->  
-> +	spin_lock(&kvm->mmu_lock);
->  	if (mem->slot >= kvm->nmemslots)
->  		kvm->nmemslots = mem->slot + 1;
->  
->  	*memslot = new;
-> +	spin_unlock(&kvm->mmu_lock);
->  
->  	r = kvm_arch_set_memory_region(kvm, mem, old, user_alloc);
->  	if (r) {
-> +		spin_lock(&kvm->mmu_lock);
->  		*memslot = old;
-> +		spin_unlock(&kvm->mmu_lock);
->  		goto out_free;
->  	}
->  
->   
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
