@@ -1,40 +1,73 @@
-Received: by wx-out-0506.google.com with SMTP id h31so404203wxd.11
-        for <linux-mm@kvack.org>; Mon, 03 Mar 2008 15:51:43 -0800 (PST)
-Message-ID: <47CC8C0C.9080502@gmail.com>
-Date: Tue, 04 Mar 2008 08:38:52 +0900
-MIME-Version: 1.0
-Subject: Re: [patch 12/21] No Reclaim LRU Infrastructure
-References: <20080228192908.126720629@redhat.com>	<20080228192929.031646681@redhat.com>	<44c63dc40802282058h67f7597bvb614575f06c62e2c@mail.gmail.com>	<1204296534.5311.8.camel@localhost>	<44c63dc40803021904n5de681datba400e08079c152d@mail.gmail.com> <20080303134634.5893b5e0@cuia.boston.redhat.com>
-In-Reply-To: <20080303134634.5893b5e0@cuia.boston.redhat.com>
-Content-Type: text/plain; charset=US-ASCII; format=flowed
+Date: Tue, 4 Mar 2008 09:18:09 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [rfc 05/10] Sparsemem: Vmemmap does not need section bits
+Message-Id: <20080304091809.b02b1e16.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0803031204170.16049@schroedinger.engr.sgi.com>
+References: <20080301040755.268426038@sgi.com>
+	<20080301040814.772847658@sgi.com>
+	<20080301133312.9ab8d826.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0803031204170.16049@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-From: "barrioskmc@gmail" <minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> On Mon, 3 Mar 2008 12:04:14 +0900
-> "minchan Kim" <barrioskmc@gmail.com> wrote:
-> 
->> One more thing.
->>
->> zoneinfo_show_print fail to show right information.
->> That's why 'enum zone_stat_item' and 'vmstat_text' index didn't matched.
->> This is a problem about CONFIG_NORECLAIM, too.
-> 
-> In what configuration do they not line up, and why?
-> 
-> AFAICS the #ifdefs in zone_stat_item and vmstat_text match up...
-> 
+On Mon, 3 Mar 2008 12:06:56 -0800 (PST)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-So sorry, It was my mistake.
-I seem to have a bad eye :(
+> On Sat, 1 Mar 2008, KAMEZAWA Hiroyuki wrote:
+> 
+> > I like this change. BTW, could you add following change ?
+> > (or drop this function in sparsemem-vmemmap.)
+> 
+> I cannot find the function in mm/spase-vmemmap.c
+>  
+> > == /inclurde/linux/mm.h==
+> > #ifndef CONFIG_SPARSEMEM_VMEMMAP
+> > static inline unsigned long page_to_section(struct page *page)
+> > {
+> > 	return pfn_to_section(page_to_pfn(page));
+> > }
+> > #else
+> > static inline unsigned long page_to_section(struct page *page)
+> > {
+> >         return (page->flags >> SECTIONS_PGSHIFT) & SECTIONS_MASK;
+> > }
+> > #endif
+> 
+> Not sure what this means. If we have CONFIG_SPARSEMEM_VMEMMAP then 
+> SECTION_MASK == 0. So this would reduce to
+> 
+> #ifndef CONFIG_SPARSEMEM_VMEMMAP
+> static inline unsigned long page_to_section(struct page *page)
+> {
+>        return pfn_to_section(page_to_pfn(page));
+> }
+> #else
+> static inline unsigned long page_to_section(struct page *page)
+> {
+>          return 0;
+> }
+> #endif
+> 
+> Do you propose to also remove the use of the section bits for regular (non 
+> vmemmap) sparsemem?
+> 
+No. My point is that page_to_section() should return correct number.
+(0 is not correct for pages in some section other than 'section 0')
 
+"Now" there are no users of page_to_section() if sparsemem_vmemmap
+is configured. But it seems to be defined as generic function.
+So, someone may use this function in future.
+ 
 Thanks,
-barrios
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
