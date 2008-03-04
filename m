@@ -1,285 +1,188 @@
-Message-Id: <20080304225227.593927021@redhat.com>
+Message-Id: <20080304225227.067561310@redhat.com>
 References: <20080304225157.573336066@redhat.com>
-Date: Tue, 04 Mar 2008 17:52:10 -0500
+Date: Tue, 04 Mar 2008 17:52:02 -0500
 From: Rik van Riel <riel@redhat.com>
-Subject: [patch 13/20] scan noreclaim list for reclaimable pages
-Content-Disposition: inline; filename=noreclaim-01.3-scan-noreclaim-list-for-reclaimable-pages.patch
+Subject: [patch 05/20] define page_file_cache() function
+Content-Disposition: inline; filename=rvr-01-linux-2.6-page_file_cache.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-V2 -> V3:
-+ rebase to 23-mm1 atop RvR's split LRU series
+Define page_file_cache() function to answer the question:
+	is page backed by a file?
 
-New in V2
+Originally part of Rik van Riel's split-lru patch.  Extracted
+to make available for other, independent reclaim patches.
 
-This patch adds a function to scan individual or all zones' noreclaim
-lists and move any pages that have become reclaimable onto the respective
-zone's inactive list, where shrink_inactive_list() will deal with them.
+Moved inline function to linux/mm_inline.h where it will
+be needed by subsequent "split LRU" and "noreclaim" patches.  
 
-This replaces the function to splice the entire noreclaim list onto the
-active list for rescan by shrink_active_list().  That method had problems
-with vmstat accounting and complicated '[__]isolate_lru_pages()'.  Now,
-__isolate_lru_page() will never isolate a non-reclaimable page.  The
-only time it should see one is when scanning nearby pages for lumpy
-reclaim.
+Unfortunately this needs to use a page flag, since the
+PG_swapbacked state needs to be preserved all the way
+to the point where the page is last removed from the
+LRU.  Trying to derive the status from other info in
+the page resulted in wrong VM statistics in earlier
+split VM patchsets.
 
-  TODO:  This approach may still need some refinement.
-         E.g., put back to active list?
 
-DEBUGGING ONLY: NOT FOR UPSTREAM MERGE
-
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 Signed-off-by:  Rik van Riel <riel@redhat.com>
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 
 
-Index: linux-2.6.25-rc3-mm1/include/linux/swap.h
+Index: linux-2.6.25-rc3-mm1/include/linux/mm_inline.h
 ===================================================================
---- linux-2.6.25-rc3-mm1.orig/include/linux/swap.h	2008-03-04 16:08:19.000000000 -0500
-+++ linux-2.6.25-rc3-mm1/include/linux/swap.h	2008-03-04 16:14:22.000000000 -0500
-@@ -7,6 +7,7 @@
- #include <linux/list.h>
- #include <linux/memcontrol.h>
- #include <linux/sched.h>
-+#include <linux/node.h>
- 
- #include <asm/atomic.h>
- #include <asm/page.h>
-@@ -244,12 +245,26 @@ static inline int zone_reclaim(struct zo
- 
- #ifdef CONFIG_NORECLAIM_LRU
- extern int page_reclaimable(struct page *page, struct vm_area_struct *vma);
-+extern void scan_zone_noreclaim_pages(struct zone *);
-+extern void scan_all_zones_noreclaim_pages(void);
-+extern unsigned long scan_noreclaim_pages;
-+extern int scan_noreclaim_handler(struct ctl_table *, int, struct file *,
-+					void __user *, size_t *, loff_t *);
-+extern int scan_noreclaim_register_node(struct node *node);
-+extern void scan_noreclaim_unregister_node(struct node *node);
- #else
- static inline int page_reclaimable(struct page *page,
- 						struct vm_area_struct *vma)
+--- linux-2.6.25-rc3-mm1.orig/include/linux/mm_inline.h	2008-03-04 14:59:31.000000000 -0500
++++ linux-2.6.25-rc3-mm1/include/linux/mm_inline.h	2008-03-04 15:30:02.000000000 -0500
+@@ -1,3 +1,26 @@
++#ifndef LINUX_MM_INLINE_H
++#define LINUX_MM_INLINE_H
++
++/**
++ * page_file_cache - should the page be on a file LRU or anon LRU?
++ * @page: the page to test
++ *
++ * Returns !0 if @page is page cache page backed by a regular filesystem,
++ * or 0 if @page is anonymous, tmpfs or otherwise ram or swap backed.
++ *
++ * We would like to get this info without a page flag, but the state
++ * needs to survive until the page is last deleted from the LRU, which
++ * could be as far down as __page_cache_release.
++ */
++static inline int page_file_cache(struct page *page)
++{
++	if (PageSwapBacked(page))
++		return 0;
++
++	/* The page is page cache backed by a normal filesystem. */
++	return 2;
++}
++
+ static inline void
+ add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list l)
  {
- 	return 1;
+@@ -49,3 +72,4 @@ del_page_from_lru(struct zone *zone, str
+ 	__dec_zone_state(zone, NR_INACTIVE + l);
  }
-+static inline void scan_zone_noreclaim_pages(struct zone *z) { }
-+static inline void scan_all_zones_noreclaim_pages(void) { }
-+static inline int scan_noreclaim_register_node(struct node *node)
-+{
-+	return 0;
-+}
-+static inline void scan_noreclaim_unregister_node(struct node *node) { }
- #endif
  
- extern int kswapd_run(int nid);
-Index: linux-2.6.25-rc3-mm1/mm/vmscan.c
-===================================================================
---- linux-2.6.25-rc3-mm1.orig/mm/vmscan.c	2008-03-04 16:09:06.000000000 -0500
-+++ linux-2.6.25-rc3-mm1/mm/vmscan.c	2008-03-04 16:14:22.000000000 -0500
-@@ -39,6 +39,7 @@
- #include <linux/kthread.h>
- #include <linux/freezer.h>
- #include <linux/memcontrol.h>
-+#include <linux/sysctl.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-@@ -2293,4 +2294,143 @@ int page_reclaimable(struct page *page, 
- 
- 	return 1;
- }
-+
-+/**
-+ * scan_zone_noreclaim_pages - check noreclaim list for reclaimable pages
-+ * @zone - zone of which to scan the noreclaim list
-+ *
-+ * Scan @zone's noreclaim LRU lists to check for pages that have become
-+ * reclaimable.  Move those that have to @zone's inactive list where they
-+ * become candidates for reclaim, unless shrink_inactive_zone() decides
-+ * to reactivate them.  Pages that are still non-reclaimable are rotated
-+ * back onto @zone's noreclaim list.
-+ */
-+#define SCAN_NORECLAIM_BATCH_SIZE 16UL	/* arbitrary lock hold batch size */
-+void scan_zone_noreclaim_pages(struct zone *zone)
-+{
-+	struct list_head *l_noreclaim = &zone->list[LRU_NORECLAIM];
-+	struct list_head *l_inactive_anon  = &zone->list[LRU_INACTIVE_ANON];
-+	struct list_head *l_inactive_file  = &zone->list[LRU_INACTIVE_FILE];
-+	unsigned long scan;
-+	unsigned long nr_to_scan = zone_page_state(zone, NR_NORECLAIM);
-+
-+	while (nr_to_scan > 0) {
-+		unsigned long batch_size = min(nr_to_scan,
-+						SCAN_NORECLAIM_BATCH_SIZE);
-+
-+		spin_lock_irq(&zone->lru_lock);
-+		for (scan = 0;  scan < batch_size; scan++) {
-+			struct page* page = lru_to_page(l_noreclaim);
-+
-+			if (unlikely(!PageLRU(page) || !PageNoreclaim(page)))
-+				continue;
-+
-+			prefetchw_prev_lru_page(page, l_noreclaim, flags);
-+
-+			ClearPageNoreclaim(page); /* for page_reclaimable() */
-+			if (page_reclaimable(page, NULL)) {
-+				__dec_zone_state(zone, NR_NORECLAIM);
-+				if (page_file_cache(page)) {
-+					list_move(&page->lru, l_inactive_file);
-+					__inc_zone_state(zone, NR_INACTIVE_FILE);
-+				} else {
-+					list_move(&page->lru, l_inactive_anon);
-+					__inc_zone_state(zone, NR_INACTIVE_ANON);
-+				}
-+			} else {
-+				SetPageNoreclaim(page);
-+				list_move(&page->lru, l_noreclaim);
-+			}
-+
-+		}
-+		spin_unlock_irq(&zone->lru_lock);
-+
-+		nr_to_scan -= batch_size;
-+	}
-+}
-+
-+
-+/**
-+ * scan_all_zones_noreclaim_pages - scan all noreclaim lists for reclaimable pages
-+ *
-+ * A really big hammer:  scan all zones' noreclaim LRU lists to check for
-+ * pages that have become reclaimable.  Move those back to the zones'
-+ * inactive list where they become candidates for reclaim.
-+ * This occurs when, e.g., we have unswappable pages on the noreclaim lists,
-+ * and we add swap to the system.  As such, it runs in the context of a task
-+ * that has possibly/probably made some previously non-reclaimable pages
-+ * reclaimable.
-+ */
-+void scan_all_zones_noreclaim_pages(void)
-+{
-+	struct zone *zone;
-+
-+	for_each_zone(zone) {
-+		scan_zone_noreclaim_pages(zone);
-+	}
-+}
-+
-+/*
-+ * scan_noreclaim_pages [vm] sysctl handler.  On demand re-scan of
-+ * all nodes' noreclaim lists for reclaimable pages
-+ */
-+unsigned long scan_noreclaim_pages;
-+
-+int scan_noreclaim_handler( struct ctl_table *table, int write,
-+			   struct file *file, void __user *buffer,
-+			   size_t *length, loff_t *ppos)
-+{
-+	proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
-+
-+	if (write && *(unsigned long *)table->data)
-+		scan_all_zones_noreclaim_pages();
-+
-+	scan_noreclaim_pages = 0;
-+	return 0;
-+}
-+
-+/*
-+ * per node 'scan_noreclaim_pages' attribute.  On demand re-scan of
-+ * a specified node's per zone noreclaim lists for reclaimable pages.
-+ */
-+
-+static ssize_t read_scan_noreclaim_node(struct sys_device *dev, char *buf)
-+{
-+	return sprintf(buf, "0\n");	/* always zero; should fit... */
-+}
-+
-+static ssize_t write_scan_noreclaim_node(struct sys_device *dev,
-+					const char *buf, size_t count)
-+{
-+	struct zone *node_zones = NODE_DATA(dev->id)->node_zones;
-+	struct zone *zone;
-+	unsigned long req = simple_strtoul(buf, NULL, 10);
-+
-+	if (!req)
-+		return 1;	/* zero is no-op */
-+
-+	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
-+		if (!populated_zone(zone))
-+			continue;
-+		scan_zone_noreclaim_pages(zone);
-+	}
-+	return 1;
-+}
-+
-+
-+static SYSDEV_ATTR(scan_noreclaim_pages, S_IRUGO | S_IWUSR,
-+			read_scan_noreclaim_node,
-+			write_scan_noreclaim_node);
-+
-+int scan_noreclaim_register_node(struct node *node)
-+{
-+	return sysdev_create_file(&node->sysdev, &attr_scan_noreclaim_pages);
-+}
-+
-+void scan_noreclaim_unregister_node(struct node *node)
-+{
-+	sysdev_remove_file(&node->sysdev, &attr_scan_noreclaim_pages);
-+}
-+
-+
- #endif
-Index: linux-2.6.25-rc3-mm1/kernel/sysctl.c
-===================================================================
---- linux-2.6.25-rc3-mm1.orig/kernel/sysctl.c	2008-03-04 14:12:52.000000000 -0500
-+++ linux-2.6.25-rc3-mm1/kernel/sysctl.c	2008-03-04 16:14:22.000000000 -0500
-@@ -1159,6 +1159,16 @@ static struct ctl_table vm_table[] = {
- 		.extra2		= &one,
- 	},
- #endif
-+#ifdef CONFIG_NORECLAIM_LRU
-+	{
-+		.ctl_name	= CTL_UNNUMBERED,
-+		.procname	= "scan_noreclaim_pages",
-+		.data		= &scan_noreclaim_pages,
-+		.maxlen		= sizeof(scan_noreclaim_pages),
-+		.mode		= 0644,
-+		.proc_handler	= &scan_noreclaim_handler,
-+	},
 +#endif
- /*
-  * NOTE: do not add new entries to this table unless you have read
-  * Documentation/sysctl/ctl_unnumbered.txt
-Index: linux-2.6.25-rc3-mm1/drivers/base/node.c
+Index: linux-2.6.25-rc3-mm1/mm/shmem.c
 ===================================================================
---- linux-2.6.25-rc3-mm1.orig/drivers/base/node.c	2008-03-04 16:14:19.000000000 -0500
-+++ linux-2.6.25-rc3-mm1/drivers/base/node.c	2008-03-04 16:14:22.000000000 -0500
-@@ -13,6 +13,7 @@
- #include <linux/nodemask.h>
- #include <linux/cpu.h>
- #include <linux/device.h>
-+#include <linux/swap.h>
+--- linux-2.6.25-rc3-mm1.orig/mm/shmem.c	2008-03-04 14:12:52.000000000 -0500
++++ linux-2.6.25-rc3-mm1/mm/shmem.c	2008-03-04 15:30:02.000000000 -0500
+@@ -1437,6 +1437,7 @@ repeat:
+ 				goto failed;
+ 			}
  
- static struct sysdev_class node_class = {
- 	.name = "node",
-@@ -162,6 +163,8 @@ int register_node(struct node *node, int
- 		sysdev_create_file(&node->sysdev, &attr_meminfo);
- 		sysdev_create_file(&node->sysdev, &attr_numastat);
- 		sysdev_create_file(&node->sysdev, &attr_distance);
-+
-+		scan_noreclaim_register_node(node);
- 	}
- 	return error;
- }
-@@ -180,6 +183,8 @@ void unregister_node(struct node *node)
- 	sysdev_remove_file(&node->sysdev, &attr_numastat);
- 	sysdev_remove_file(&node->sysdev, &attr_distance);
++			SetPageSwapBacked(filepage);
+ 			spin_lock(&info->lock);
+ 			entry = shmem_swp_alloc(info, idx, sgp);
+ 			if (IS_ERR(entry))
+Index: linux-2.6.25-rc3-mm1/include/linux/page-flags.h
+===================================================================
+--- linux-2.6.25-rc3-mm1.orig/include/linux/page-flags.h	2008-03-04 14:12:40.000000000 -0500
++++ linux-2.6.25-rc3-mm1/include/linux/page-flags.h	2008-03-04 15:30:02.000000000 -0500
+@@ -89,6 +89,7 @@
+ #define PG_mappedtodisk		16	/* Has blocks allocated on-disk */
+ #define PG_reclaim		17	/* To be reclaimed asap */
+ #define PG_buddy		19	/* Page is free, on buddy lists */
++#define PG_swapbacked		20	/* Page is backed by RAM/swap */
  
-+	scan_noreclaim_unregister_node(node);
+ /* PG_readahead is only used for file reads; PG_reclaim is only for writes */
+ #define PG_readahead		PG_reclaim /* Reminder to do async read-ahead */
+@@ -252,6 +253,10 @@ static inline void SetPageUptodate(struc
+ #define ClearPageReclaim(page)	clear_bit(PG_reclaim, &(page)->flags)
+ #define TestClearPageReclaim(page) test_and_clear_bit(PG_reclaim, &(page)->flags)
+ 
++#define PageSwapBacked(page)	test_bit(PG_swapbacked, &(page)->flags)
++#define SetPageSwapBacked(page)	set_bit(PG_swapbacked, &(page)->flags)
++#define __ClearPageSwapBacked(page)	__clear_bit(PG_swapbacked, &(page)->flags)
 +
- 	sysdev_unregister(&node->sysdev);
- }
+ #define PageCompound(page)	test_bit(PG_compound, &(page)->flags)
+ #define __SetPageCompound(page)	__set_bit(PG_compound, &(page)->flags)
+ #define __ClearPageCompound(page) __clear_bit(PG_compound, &(page)->flags)
+Index: linux-2.6.25-rc3-mm1/mm/memory.c
+===================================================================
+--- linux-2.6.25-rc3-mm1.orig/mm/memory.c	2008-03-04 14:12:52.000000000 -0500
++++ linux-2.6.25-rc3-mm1/mm/memory.c	2008-03-04 15:30:02.000000000 -0500
+@@ -1677,6 +1677,7 @@ gotten:
+ 		ptep_clear_flush(vma, address, page_table);
+ 		set_pte_at(mm, address, page_table, entry);
+ 		update_mmu_cache(vma, address, entry);
++		SetPageSwapBacked(new_page);
+ 		lru_cache_add_active(new_page);
+ 		page_add_new_anon_rmap(new_page, vma, address);
+ 
+@@ -2145,6 +2146,7 @@ static int do_anonymous_page(struct mm_s
+ 	if (!pte_none(*page_table))
+ 		goto release;
+ 	inc_mm_counter(mm, anon_rss);
++	SetPageSwapBacked(page);
+ 	lru_cache_add_active(page);
+ 	page_add_new_anon_rmap(page, vma, address);
+ 	set_pte_at(mm, address, page_table, entry);
+@@ -2288,6 +2290,7 @@ static int __do_fault(struct mm_struct *
+ 		set_pte_at(mm, address, page_table, entry);
+ 		if (anon) {
+                         inc_mm_counter(mm, anon_rss);
++			SetPageSwapBacked(page);
+                         lru_cache_add_active(page);
+                         page_add_new_anon_rmap(page, vma, address);
+ 		} else {
+Index: linux-2.6.25-rc3-mm1/mm/swap_state.c
+===================================================================
+--- linux-2.6.25-rc3-mm1.orig/mm/swap_state.c	2008-03-04 14:12:40.000000000 -0500
++++ linux-2.6.25-rc3-mm1/mm/swap_state.c	2008-03-04 15:30:02.000000000 -0500
+@@ -82,6 +82,7 @@ int add_to_swap_cache(struct page *page,
+ 		if (!error) {
+ 			page_cache_get(page);
+ 			SetPageSwapCache(page);
++			SetPageSwapBacked(page);
+ 			set_page_private(page, entry.val);
+ 			total_swapcache_pages++;
+ 			__inc_zone_page_state(page, NR_FILE_PAGES);
+Index: linux-2.6.25-rc3-mm1/mm/migrate.c
+===================================================================
+--- linux-2.6.25-rc3-mm1.orig/mm/migrate.c	2008-03-04 15:26:18.000000000 -0500
++++ linux-2.6.25-rc3-mm1/mm/migrate.c	2008-03-04 15:30:02.000000000 -0500
+@@ -547,6 +547,8 @@ static int move_to_new_page(struct page 
+ 	/* Prepare mapping for the new page.*/
+ 	newpage->index = page->index;
+ 	newpage->mapping = page->mapping;
++	if (PageSwapBacked(page))
++		SetPageSwapBacked(newpage);
+ 
+ 	mapping = page_mapping(page);
+ 	if (!mapping)
+Index: linux-2.6.25-rc3-mm1/mm/page_alloc.c
+===================================================================
+--- linux-2.6.25-rc3-mm1.orig/mm/page_alloc.c	2008-03-04 14:59:31.000000000 -0500
++++ linux-2.6.25-rc3-mm1/mm/page_alloc.c	2008-03-04 15:30:02.000000000 -0500
+@@ -260,6 +260,7 @@ static void bad_page(struct page *page)
+ 			1 << PG_slab    |
+ 			1 << PG_swapcache |
+ 			1 << PG_writeback |
++			1 << PG_swapbacked |
+ 			1 << PG_buddy );
+ 	set_page_count(page, 0);
+ 	reset_page_mapcount(page);
+@@ -493,6 +494,8 @@ static inline int free_pages_check(struc
+ 		bad_page(page);
+ 	if (PageDirty(page))
+ 		__ClearPageDirty(page);
++	if (PageSwapBacked(page))
++		__ClearPageSwapBacked(page);
+ 	/*
+ 	 * For now, we report if PG_reserved was found set, but do not
+ 	 * clear it, and do not free the page.  But we shall soon need
+@@ -640,6 +643,7 @@ static int prep_new_page(struct page *pa
+ 			1 << PG_swapcache |
+ 			1 << PG_writeback |
+ 			1 << PG_reserved |
++			1 << PG_swapbacked |
+ 			1 << PG_buddy ))))
+ 		bad_page(page);
  
 
 -- 
