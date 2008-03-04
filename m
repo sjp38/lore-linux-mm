@@ -1,148 +1,56 @@
-Date: Tue, 4 Mar 2008 18:01:46 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/6] Use two zonelist that are filtered by GFP mask
-Message-ID: <20080304180145.GB9051@csn.ul.ie>
-References: <20080227214708.6858.53458.sendpatchset@localhost> <20080227214734.6858.9968.sendpatchset@localhost> <20080228133247.6a7b626f.akpm@linux-foundation.org> <20080229145030.GD6045@csn.ul.ie> <1204300094.5311.50.camel@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1204300094.5311.50.camel@localhost>
+Date: Tue, 4 Mar 2008 10:36:36 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [BUG] 2.6.25-rc3-mm1 kernel panic while bootup on powerpc ()
+Message-Id: <20080304103636.3e7b8fdd.akpm@linux-foundation.org>
+In-Reply-To: <47CD4AB3.3080409@linux.vnet.ibm.com>
+References: <20080304011928.e8c82c0c.akpm@linux-foundation.org>
+	<47CD4AB3.3080409@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, ak@suse.de, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, rientjes@google.com, eric.whitney@hp.com
+To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On (29/02/08 10:48), Lee Schermerhorn didst pronounce:
-> On Fri, 2008-02-29 at 14:50 +0000, Mel Gorman wrote:
-> > On (28/02/08 13:32), Andrew Morton didst pronounce:
-> > > On Wed, 27 Feb 2008 16:47:34 -0500
-> > > Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
-> > > 
-> > > > +/* Returns the first zone at or below highest_zoneidx in a zonelist */
-> > > > +static inline struct zone **first_zones_zonelist(struct zonelist *zonelist,
-> > > > +					enum zone_type highest_zoneidx)
-> > > > +{
-> > > > +	struct zone **z;
-> > > > +
-> > > > +	/* Find the first suitable zone to use for the allocation */
-> > > > +	z = zonelist->zones;
-> > > > +	while (*z && zone_idx(*z) > highest_zoneidx)
-> > > > +		z++;
-> > > > +
-> > > > +	return z;
-> > > > +}
-> > > > +
-> > > > +/* Returns the next zone at or below highest_zoneidx in a zonelist */
-> > > > +static inline struct zone **next_zones_zonelist(struct zone **z,
-> > > > +					enum zone_type highest_zoneidx)
-> > > > +{
-> > > > +	/* Find the next suitable zone to use for the allocation */
-> > > > +	while (*z && zone_idx(*z) > highest_zoneidx)
-> > > > +		z++;
-> > > > +
-> > > > +	return z;
-> > > > +}
-> > > > +
-> > > > +/**
-> > > > + * for_each_zone_zonelist - helper macro to iterate over valid zones in a zonelist at or below a given zone index
-> > > > + * @zone - The current zone in the iterator
-> > > > + * @z - The current pointer within zonelist->zones being iterated
-> > > > + * @zlist - The zonelist being iterated
-> > > > + * @highidx - The zone index of the highest zone to return
-> > > > + *
-> > > > + * This iterator iterates though all zones at or below a given zone index.
-> > > > + */
-> > > > +#define for_each_zone_zonelist(zone, z, zlist, highidx) \
-> > > > +	for (z = first_zones_zonelist(zlist, highidx), zone = *z++;	\
-> > > > +		zone;							\
-> > > > +		z = next_zones_zonelist(z, highidx), zone = *z++)
-> > > > +
-> > > 
-> > > omygawd will that thing generate a lot of code!
-> > > 
-> > > It has four call sites in mm/oom_kill.c and the overall patchset increases
-> > > mm/oom_kill.o's text section (x86_64 allmodconfig) from 3268 bytes to 3845.
-> > > 
-> > 
-> > Yeah... that's pretty bad. They were inlined to avoid function call overhead
-> > when trying to avoid any additional performance overhead but the text overhead
-> > is not helping either. I'll start looking at things to uninline and see what
-> > can be gained text-reduction wise without mucking performance.
-> > 
-> > > vmscan.o and page_alloc.o also grew a lot.  otoh total vmlinux bloat from
-> > > the patchset is only around 700 bytes, so I expect that with a little less
-> > > insanity we could actually get an aggregate improvement here.
-> 
-> Mel:
-> 
-> Thinking about this:
-> 
-> for_each_zone_zonelist():
-> 
-> Seems like the call sites to this macro are not hot paths, so maybe
-> these can call out to a zonelist iterator func in page_alloc.c or, as
-> Kame-san suggested, mmzone.c.
-> 
+On Tue, 04 Mar 2008 18:42:19 +0530 Kamalesh Babulal <kamalesh@linux.vnet.ibm.com> wrote:
 
-I am trying an unlined version in mmzone.c to see what is looks like. As
-expected there is less text bloat and I'll know in another day whether
-it makes a performance difference or not. As you note below, the
-majority of call sites are not in hot-paths as such.
+> 3) Third attempt kernel booted up but had the following call trace 264 times while running
+> test
+> 
+> Badness at include/linux/gfp.h:110
+> NIP: c0000000000b4ff0 LR: c0000000000b4fa0 CTR: c00000000019cdb4
+> REGS: c000000009edf250 TRAP: 0700   Not tainted  (2.6.25-rc3-mm1-autotest)
+> MSR: 8000000000029032 <EE,ME,IR,DR>  CR: 22024042  XER: 20000003
+> TASK = c000000009062140[548] 'kjournald' THREAD: c000000009edc000 CPU: 0
+> NIP [c0000000000b4ff0] .get_page_from_freelist+0x29c/0x898
+> LR [c0000000000b4fa0] .get_page_from_freelist+0x24c/0x898
+> Call Trace:
+> [c000000009edf5f0] [c0000000000b56e4] .__alloc_pages_internal+0xf8/0x470
+> [c000000009edf6e0] [c0000000000e0458] .kmem_getpages+0x8c/0x194
+> [c000000009edf770] [c0000000000e1050] .fallback_alloc+0x194/0x254
+> [c000000009edf820] [c0000000000e14b0] .kmem_cache_alloc+0xd8/0x144
+> [c000000009edf8c0] [c0000000001fe0f8] .radix_tree_preload+0x50/0xd4
+> [c000000009edf960] [c0000000000ad048] .add_to_page_cache+0x38/0x12c
+> [c000000009edfa00] [c0000000000ad158] .add_to_page_cache_lru+0x1c/0x4c
+> [c000000009edfa90] [c0000000000add58] .find_or_create_page+0x60/0xa8
+> [c000000009edfb30] [c00000000011e478] .__getblk+0x140/0x310
+> [c000000009edfc00] [c0000000001b78c4] .journal_get_descriptor_buffer+0x44/0xd8
+> [c000000009edfca0] [c0000000001b236c] .journal_commit_transaction+0x948/0x1590
+> [c000000009edfe00] [c0000000001b585c] .kjournald+0xf4/0x2ac
+> [c000000009edff00] [c00000000007ff4c] .kthread+0x84/0xd0
+> [c000000009edff90] [c000000000028900] .kernel_thread+0x4c/0x68
+> Instruction dump:
+> 7dc57378 48009575 60000000 2fa30000 419e0490 56c902d8 3c000018 7dd907b4 
+> 7ad2c7e2 7f890000 7c000026 5400fffe <0b000000> e93e8128 3b000000 80090000 
 
-> + oom_kill and vmscan call sites:  if these are hot, we're already in,
-> uh..., slow mode. 
-> 
-> + usage in slab.c and slub.c appears to be the fallback/slow path.
-> Christoph can chime in, here, if he disagrees.
-> 
-> + in page_alloc.c:  waking up of kswapd and counting free zone pages
-> [mostly for init code] don't appear to be fast paths.  
-> 
-> + The call site in hugetlb.c is in the huge-page allocation path, which
-> is under a global spinlock.  So, any slowdown here could result in
-> longer lock hold time and higher contention.  But, I have to believe
-> that in the grand scheme of things, huge-page allocation is not that
-> hot.  [Someone faulting in terabytes of hugepages might contest that.]
-> 
-> That leaves the call to for_each_zone_zonelist_nodemask() in
-> get_page_from_freelist().  This might be deserving of inlining?
-> 
-> If this works out, we could end up with these macros being inlined in
-> only 2 places:  get_page_from_freelist() and a to-be-designed zonelist
-> iterator function.  [In fact, I believe that such an iterator need not
-> expose the details of zonelists outside of page_alloc/mmzone, but that
-> would require more rework of the call sites, and additional helper
-> functions.  Maybe someday...]
-> 
-> Comments?
-> 
-> Right now, I've got to build/test the latest reclaim scalability patches
-> that Rik posted, and clean up the issues already pointed out.  If you
-> don't get to this, I can look at it further next week.
-> 
-> Lee
-> 
-> > > 
-> > > Some of the inlining in mmzone.h is just comical.  Some of it is obvious
-> > > (first_zones_zonelist) and some of it is less obvious (pfn_present).
-> > > 
-> > > I applied these for testing but I really don't think we should be merging
-> > > such easily-fixed regressions into mainline.  Could someone please take a
-> > > look at de-porking core MM?
-> > > 
-> > > 
-> > > Also, I switched all your Tested-by:s to Signed-off-by:s.  You were on the
-> > > delivery path, so s-o-b is the appropriate tag.  I would like to believe
-> > > that Signed-off-by: implies Tested-by: anyway (rofl).
-> > > 
-> > 
-> 
+/* Convert GFP flags to their corresponding migrate type */
+static inline int allocflags_to_migratetype(gfp_t gfp_flags)
+{
+        WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Mel, Pekka: would you have some head-scratching time for this one please?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
