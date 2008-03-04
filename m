@@ -1,113 +1,75 @@
-Subject: [BUG FIX] Fix mempolicy reference counting bugs
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Content-Type: text/plain
-Date: Tue, 04 Mar 2008 13:53:56 -0500
-Message-Id: <1204656837.5338.89.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 4 Mar 2008 10:58:41 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address ranges
+In-Reply-To: <200803040650.11942.nickpiggin@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0803041054210.13957@schroedinger.engr.sgi.com>
+References: <20080215064859.384203497@sgi.com> <200803031611.10275.nickpiggin@yahoo.com.au>
+ <Pine.LNX.4.64.0803031124001.7275@schroedinger.engr.sgi.com>
+ <200803040650.11942.nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@suse.de>
-Cc: ak@suse.de, clameter@sgi.com, mel@csn.ul.ie, linux-mm@kvack.org, rientjes@google.com, eric.whitney@hp.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: akpm@linux-foundation.org, Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-[BUG FIX] Fix mempolicy reference counting bugs
+On Tue, 4 Mar 2008, Nick Piggin wrote:
 
-This patch address 3 known bugs in the current memory policy
-reference counting method.  I have a series of patches to
-rework the reference counting to reduce overhead in the
-allocation path. However, that series will require testing
-in -mm once I repost it.
+> > Then put it into the arch code for TLB invalidation. Paravirt ops gives
+> > good examples on how to do that.
+> 
+> Put what into arch code?
 
-I'm making this patch available for the current upstream
-[2.6.25-rc3] pending submittal and acceptance of the rework.
-Note that these bugs exist back to 2.6.23, so this patch
-may be a candidate for the stable tree.
+The mmu notifier code.
 
-Problem description:
+> > > What about a completely different approach... XPmem runs over NUMAlink,
+> > > right? Why not provide some non-sleeping way to basically IPI remote
+> > > nodes over the NUMAlink where they can process the invalidation? If you
+> > > intra-node cache coherency has to run over this link anyway, then
+> > > presumably it is capable.
+> >
+> > There is another Linux instance at the remote end that first has to
+> > remove its own ptes.
+> 
+> Yeah, what's the problem?
 
-1) alloc_page_vma() does not release the extra reference
-   taken for vma/shared mempolicy when the mode ==
-   MPOL_INTERLEAVE.  This can result in leaking mempolicy
-   structures.  This is probably occurring, but not being
-   noticed.
+The remote end has to invalidate the page which involves locking etc.
 
-   Fix:  add the conditional release of the reference.
+> > Also would not work for Inifiniband and other 
+> > solutions.
+> 
+> infiniband doesn't want it. Other solutions is just handwaving,
+> because if we don't know what the other soloutions are, then we can't
+> make any sort of informed choices.
 
-2) hugezonelist unconditionally releases a reference on
-   the mempolicy when mode == MPOL_INTERLEAVE.  This can
-   result in decrementing the reference count for system
-   default policy [should have no ill effect] or premature
-   freeing of task policy.  If this occurred, the next
-   allocation using task mempolicy would use the freed
-   structure and probably BUG out.
+We need a solution in general to avoid the pinning problems. Infiniband 
+has those too.
 
-   Fix:  add the necessary check to the release.
+> > All the approaches that require evictions in an atomic context 
+> > are limiting the approach and do not allow the generic functionality that
+> > we want in order to not add alternate APIs for this.
+> 
+> The only generic way to do this that I have seen (and the only proposed
+> way that doesn't add alternate APIs for that matter) is turning VM locks
+> into sleeping locks. In which case, Andrea's notifiers will work just
+> fine (except for relatively minor details like rcu list scanning).
 
-3) The current reference counting method assumes that
-   vma 'get_policy()' methods automatically add an extra
-   reference a non-NULL returned mempolicy.  This is true
-   for shmem_get_policy() used by tmpfs mappings, including
-   regular page shm segments.  However, SHM_HUGETLB shm's,
-   backed by hugetlbfs, just use the vma policy without the
-   extra reference.  This results in freeing of the vma
-   policy on the first allocation, with reuse of the freed
-   mempolicy structure on subsequent allocations.
+No they wont. As you pointed out the callback need RCU locking.
 
-   Fix:  Rather than add another condition to the 
-   conditional reference release, which occur in the allocation
-   path, just add a reference when returning the vma policy in 
-   shm_get_policy() to match the assumptions.
+> > The good enough solution right now is to pin pages by elevating
+> > refcounts.
+> 
+> Which kind of leads to the question of why do you need any further
+> kernel patches if that is good enough?
 
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- ipc/shm.c      |    5 +++--
- mm/mempolicy.c |    7 ++++++-
- 2 files changed, 9 insertions(+), 3 deletions(-)
-
-Index: linux-2.6.25-rc3/mm/mempolicy.c
-===================================================================
---- linux-2.6.25-rc3.orig/mm/mempolicy.c	2008-02-29 12:32:47.000000000 -0500
-+++ linux-2.6.25-rc3/mm/mempolicy.c	2008-02-29 12:32:48.000000000 -0500
-@@ -1296,7 +1296,9 @@ struct zonelist *huge_zonelist(struct vm
- 		unsigned nid;
- 
- 		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
--		__mpol_free(pol);		/* finished with pol */
-+		if (unlikely(pol != &default_policy &&
-+				pol != current->mempolicy))
-+			__mpol_free(pol);	/* finished with pol */
- 		return NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_flags);
- 	}
- 
-@@ -1360,6 +1362,9 @@ alloc_page_vma(gfp_t gfp, struct vm_area
- 		unsigned nid;
- 
- 		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT);
-+		if (unlikely(pol != &default_policy &&
-+				pol != current->mempolicy))
-+			__mpol_free(pol);	/* finished with pol */
- 		return alloc_page_interleave(gfp, 0, nid);
- 	}
- 	zl = zonelist_policy(gfp, pol);
-Index: linux-2.6.25-rc3/ipc/shm.c
-===================================================================
---- linux-2.6.25-rc3.orig/ipc/shm.c	2008-02-29 12:32:47.000000000 -0500
-+++ linux-2.6.25-rc3/ipc/shm.c	2008-02-29 12:34:37.000000000 -0500
-@@ -271,9 +271,10 @@ static struct mempolicy *shm_get_policy(
- 
- 	if (sfd->vm_ops->get_policy)
- 		pol = sfd->vm_ops->get_policy(vma, addr);
--	else if (vma->vm_policy)
-+	else if (vma->vm_policy) {
- 		pol = vma->vm_policy;
--	else
-+		mpol_get(pol);	/* get_vma_policy() expects this */
-+	} else
- 		pol = current->mempolicy;
- 	return pol;
- }
-
+Well its good enough with severe problems during reclaim, livelocks etc. 
+One could improve on that scheme through Rik's work trying to add a new 
+page flag that mark pinned pages and then keep them off the LRUs and 
+limiting their number. Having pinned page would limit the ability to 
+reclaim by the VM and make page migration, memory unplug etc impossible. 
+It is better to have notifier scheme that allows to tell a device driver 
+to free up the memory it has mapped.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
