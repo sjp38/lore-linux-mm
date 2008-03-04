@@ -1,156 +1,94 @@
-Received: by fg-out-1718.google.com with SMTP id e12so487029fga.4
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2008 02:53:13 -0800 (PST)
-Message-ID: <47CD270D.7080502@gmail.com>
-Date: Tue, 04 Mar 2008 19:40:13 +0900
+Date: Tue, 04 Mar 2008 20:04:05 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch 03/21] use an array for the LRU pagevecs
+In-Reply-To: <20080301153941.528A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080229154056.GF28849@shadowen.org> <20080301153941.528A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080304200209.1EAB.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [patch 08/21] (NEW) add some sanity checks to get_scan_ratio
-References: <20080228192908.126720629@redhat.com> <20080228192928.566747790@redhat.com>
-In-Reply-To: <20080228192928.566747790@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-From: minchan Kim <minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
+Cc: kosaki.motohiro@jp.fujitsu.com, Andy Whitcroft <apw@shadowen.org>, linux-kernel@vger.kernel.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-@@ -1182,9 +1194,8 @@ static unsigned long shrink_list(enum lr
-  static void get_scan_ratio(struct zone *zone, struct scan_control * sc,
-  					unsigned long *percent)
-  {
--	unsigned long anon, file;
-+	unsigned long anon, file, free;
-  	unsigned long anon_prio, file_prio;
--	unsigned long rotate_sum;
-  	unsigned long ap, fp;
+Hi Rik
 
-  	anon  = zone_page_state(zone, NR_ACTIVE_ANON) +
-@@ -1192,15 +1203,19 @@ static void get_scan_ratio(struct zone *
-  	file  = zone_page_state(zone, NR_ACTIVE_FILE) +
-  		zone_page_state(zone, NR_INACTIVE_FILE);
+this is fixed patch of Andy Whitcroft's point out.
+(at least, I hope it)
 
--	rotate_sum = zone->recent_rotated_file + zone->recent_rotated_anon;
--
-  	/* Keep a floating average of RECENT references. */
--	if (unlikely(rotate_sum > min(anon, file))) {
-+	if (unlikely(zone->recent_scanned_anon > anon / zone->inactive_ratio)) {
-  		spin_lock_irq(&zone->lru_lock);
--		zone->recent_rotated_file /= 2;
-+		zone->recent_scanned_anon /= 2;
-  		zone->recent_rotated_anon /= 2;
-  		spin_unlock_irq(&zone->lru_lock);
--		rotate_sum /= 2;
-+	}
-+
-+	if (unlikely(zone->recent_scanned_file > file / 4)) {
-+		spin_lock_irq(&zone->lru_lock);
-+		zone->recent_scanned_file /= 2;
-+		zone->recent_rotated_file /= 2;
-+		spin_unlock_irq(&zone->lru_lock);
-  	}
 
-  	/*
-@@ -1213,23 +1228,33 @@ static void get_scan_ratio(struct zone *
-  	/*
-  	 *                  anon       recent_rotated_anon
-  	 * %anon = 100 * ----------- / ------------------- * IO cost
--	 *               anon + file       rotate_sum
-+	 *               anon + file   recent_scanned_anon
-  	 */
--	ap = (anon_prio * anon) / (anon + file + 1);
--	ap *= rotate_sum / (zone->recent_rotated_anon + 1);
--	if (ap == 0)
--		ap = 1;
--	else if (ap > 100)
--		ap = 100;
--	percent[0] = ap;
--
--	fp = (file_prio * file) / (anon + file + 1);
--	fp *= rotate_sum / (zone->recent_rotated_file + 1);
--	if (fp == 0)
--		fp = 1;
--	else if (fp > 100)
--		fp = 100;
--	percent[1] = fp;
-+	ap = (anon_prio + 1) * (zone->recent_scanned_anon + 1);
-+	ap /= zone->recent_rotated_anon + 1;
-+
-+	fp = (file_prio + 1) * (zone->recent_scanned_file + 1);
-+	fp /= zone->recent_rotated_file + 1;
-+
-+	/* Normalize to percentages */
-+	percent[0] = 100 * ap / (ap + fp + 1);
-+	percent[1] = 100 - percent[0];
-+
-+	free = zone_page_state(zone, NR_FREE_PAGES);
-+
-+	/*
-+	 * If we have no swap space, do not bother scanning anon pages.
-+	 */
-+	if (nr_swap_pages <= 0) {
-+		percent[0] = 0;
-+		percent[1] = 100;
-+	}
-+	/*
-+	 * If we already freed most file pages, scan the anon pages
-+	 * regardless of the page access ratios or swappiness setting.
-+	 */
-+	else if (file + free <= zone->pages_high)
-+		percent[0] = 100;
-  }
 
-I think we don't need to calculate ratio percent if it don't have any 
-swap device.
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-we can get a little bit performance gain.
+---
+ include/linux/mmzone.h |    4 +---
+ mm/swap.c              |   15 +++++++++++----
+ 2 files changed, 12 insertions(+), 7 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e6cb98b..e578c62 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1313,6 +1313,15 @@ static void get_scan_ratio(struct zone *zone, 
-struct scan_control * sc,
-   unsigned long anon_prio, file_prio;
-   unsigned long ap, fp;
+Index: b/include/linux/mmzone.h
+===================================================================
+--- a/include/linux/mmzone.h	2008-03-04 19:07:11.000000000 +0900
++++ b/include/linux/mmzone.h	2008-03-04 19:09:06.000000000 +0900
+@@ -116,9 +116,7 @@ enum lru_list {
+ 
+ static inline int is_active_lru(enum lru_list l)
+ {
+-	if (l == LRU_ACTIVE)
+-		return 1;
+-	return 0;
++	return (l == LRU_ACTIVE);
+ }
+ 
+ enum lru_list page_lru(struct page *page);
+Index: b/mm/swap.c
+===================================================================
+--- a/mm/swap.c	2008-03-04 19:07:11.000000000 +0900
++++ b/mm/swap.c	2008-03-04 20:01:48.000000000 +0900
+@@ -96,8 +96,9 @@ void put_pages_list(struct list_head *pa
+ }
+ EXPORT_SYMBOL(put_pages_list);
+ 
+-/*
++/**
+  * Returns the LRU list a page should be on.
++ * @page: the page we're checking.
+  */
+ enum lru_list page_lru(struct page *page)
+ {
+@@ -222,11 +223,15 @@ void __lru_cache_add(struct page *page, 
+ 	put_cpu_var(lru_add_pvecs);
+ }
+ 
++/**
++ * lru_cache_add_lru: add a page to the page lists
++ * @page: the page to be added to LRU.
++ * @lru:  the lru to which the page is added.
++ */
+ void lru_cache_add_lru(struct page *page, enum lru_list lru)
+ {
+-	if (PageActive(page)) {
++	if (PageActive(page))
+ 		ClearPageActive(page);
+-	}
+ 
+ 	VM_BUG_ON(PageLRU(page) || PageActive(page));
+ 	__lru_cache_add(page, lru);
+@@ -397,9 +402,11 @@ void __pagevec_release_nonlru(struct pag
+ 	pagevec_reinit(pvec);
+ }
+ 
+-/*
++/**
+  * Add the passed pages to the LRU, then drop the caller's refcount
+  * on them.  Reinitialises the caller's pagevec.
++ * @pvec: the pagevec of pages to be added to LRU.
++ * @lru:  the lru to which pages are added.
+  */
+ void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
+ {
 
-+ /*
-+  * If we have no swap space, do not bother scanning anon pages and 
-unnessary calculation.
-+  */
-+ if (nr_swap_pages <= 0) {
-+   percent[0] = 0;
-+   percent[1] = 100;
-+   return;
-+ }
-+
-   anon  = zone_page_state(zone, NR_ACTIVE_ANON) +
-     zone_page_state(zone, NR_INACTIVE_ANON);
-   file  = zone_page_state(zone, NR_ACTIVE_FILE) +
-@@ -1357,18 +1366,12 @@ static void get_scan_ratio(struct zone *zone, 
-struct scan_control * sc,
-
-   free = zone_page_state(zone, NR_FREE_PAGES);
-
-- /*
--  * If we have no swap space, do not bother scanning anon pages.
--  */
-- if (nr_swap_pages <= 0) {
--   percent[0] = 0;
--   percent[1] = 100;
-- }
-+
-   /*
-    * If we already freed most file pages, scan the anon pages
-    * regardless of the page access ratios or swappiness setting.
-    */
-- else if (file + free <= zone->pages_high)
-+ if (file + free <= zone->pages_high)
-     percent[0] = 100;
-  }
-
-Thanks,
-barrios
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
