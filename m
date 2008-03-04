@@ -1,35 +1,43 @@
-Subject: Re: [RFC] Notifier for Externally Mapped Memory (EMM)
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0803041422070.20821@schroedinger.engr.sgi.com>
-References: <20080221144023.GC9427@v2.random>
-	 <20080221161028.GA14220@sgi.com> <20080227192610.GF28483@v2.random>
-	 <20080302155457.GK8091@v2.random> <20080303213707.GA8091@v2.random>
-	 <20080303220502.GA5301@v2.random> <47CC9B57.5050402@qumranet.com>
-	 <Pine.LNX.4.64.0803032327470.9642@schroedinger.engr.sgi.com>
-	 <20080304133020.GC5301@v2.random>
-	 <Pine.LNX.4.64.0803041059110.13957@schroedinger.engr.sgi.com>
-	 <20080304222030.GB8951@v2.random>
-	 <Pine.LNX.4.64.0803041422070.20821@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Tue, 04 Mar 2008 23:42:09 +0100
-Message-Id: <1204670529.6241.52.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Message-Id: <20080304225227.329637496@redhat.com>
+References: <20080304225157.573336066@redhat.com>
+Date: Tue, 04 Mar 2008 17:52:06 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: [patch 09/20] add newly swapped in pages to the inactive list
+Content-Disposition: inline; filename=rvr-swapin-inactive.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-03-04 at 14:35 -0800, Christoph Lameter wrote:
+Swapin_readahead can read in a lot of data that the processes in
+memory never need.  Adding swap cache pages to the inactive list
+prevents them from putting too much pressure on the working set.
 
-> RCU means that the callbacks occur in an atomic context.
+This has the potential to help the programs that are already in
+memory, but it could also be a disadvantage to processes that
+are trying to get swapped in.
 
-Not really, if it requires moving the VM locks to sleepable locks under
-a .config option, I think its also fair to require PREEMPT_RCU.
+In short, this patch needs testing.
 
-OTOH, if you want to unconditionally move the VM locks to sleepable
-locks you have a point.
+Signed-off-by: Rik van Riel <riel@redhat.com>
+
+Index: linux-2.6.25-rc3-mm1/mm/swap_state.c
+===================================================================
+--- linux-2.6.25-rc3-mm1.orig/mm/swap_state.c	2008-03-04 15:30:20.000000000 -0500
++++ linux-2.6.25-rc3-mm1/mm/swap_state.c	2008-03-04 15:46:42.000000000 -0500
+@@ -300,7 +300,7 @@ struct page *read_swap_cache_async(swp_e
+ 			/*
+ 			 * Initiate read into locked page and return.
+ 			 */
+-			lru_cache_add_active_anon(new_page);
++			lru_cache_add_anon(new_page);
+ 			swap_readpage(NULL, new_page);
+ 			return new_page;
+ 		}
+
+-- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
