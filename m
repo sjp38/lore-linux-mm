@@ -1,41 +1,93 @@
-Received: by hs-out-0708.google.com with SMTP id j58so728361hsj.6
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2008 16:47:36 -0800 (PST)
-Message-ID: <47CDEA95.9050507@gmail.com>
-Date: Wed, 05 Mar 2008 09:34:29 +0900
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch 2/6] mmu_notifier: Callbacks to invalidate address ranges
+Date: Wed, 5 Mar 2008 11:52:13 +1100
+References: <20080215064859.384203497@sgi.com> <200803040650.11942.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0803041054210.13957@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0803041054210.13957@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: [patch 11/20] No Reclaim LRU Infrastructure
-References: <20080304225157.573336066@redhat.com> <20080304225227.455963956@redhat.com>
-In-Reply-To: <20080304225227.455963956@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-From: minchan Kim <minchan.kim@gmail.com>
+Content-Disposition: inline
+Message-Id: <200803051152.15160.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-Hi, Rik.
+On Wednesday 05 March 2008 05:58, Christoph Lameter wrote:
+> On Tue, 4 Mar 2008, Nick Piggin wrote:
+> > > Then put it into the arch code for TLB invalidation. Paravirt ops gives
+> > > good examples on how to do that.
+> >
+> > Put what into arch code?
+>
+> The mmu notifier code.
 
-This is another trivial thing.
+It isn't arch specific.
 
- > /*
- >  * Drain pages out of the cpu's pagevecs.
- >  * Either "cpu" is the current CPU, and preemption has already been
- >@@ -353,6 +375,8 @@ void release_pages(struct page **pages,
- >
- > 		if (PageLRU(page)) {
- > 			struct zone *pagezone = page_zone(page);
- >+			int is_lru_page;
- >+
- > 			if (pagezone != zone) {
- > 				if (zone)
- > 					spin_unlock_irqrestore(&zone->lru_lock,
 
-We don't use is_lru_page any more.
-It cause warning at compile time.
+> > > > What about a completely different approach... XPmem runs over
+> > > > NUMAlink, right? Why not provide some non-sleeping way to basically
+> > > > IPI remote nodes over the NUMAlink where they can process the
+> > > > invalidation? If you intra-node cache coherency has to run over this
+> > > > link anyway, then presumably it is capable.
+> > >
+> > > There is another Linux instance at the remote end that first has to
+> > > remove its own ptes.
+> >
+> > Yeah, what's the problem?
+>
+> The remote end has to invalidate the page which involves locking etc.
 
-We can remove is_lru_page local variable.
+I don't see what the problem is.
+
+
+> > > Also would not work for Inifiniband and other
+> > > solutions.
+> >
+> > infiniband doesn't want it. Other solutions is just handwaving,
+> > because if we don't know what the other soloutions are, then we can't
+> > make any sort of informed choices.
+>
+> We need a solution in general to avoid the pinning problems. Infiniband
+> has those too.
+>
+> > > All the approaches that require evictions in an atomic context
+> > > are limiting the approach and do not allow the generic functionality
+> > > that we want in order to not add alternate APIs for this.
+> >
+> > The only generic way to do this that I have seen (and the only proposed
+> > way that doesn't add alternate APIs for that matter) is turning VM locks
+> > into sleeping locks. In which case, Andrea's notifiers will work just
+> > fine (except for relatively minor details like rcu list scanning).
+>
+> No they wont. As you pointed out the callback need RCU locking.
+
+That can be fixed easily.
+
+
+> > > The good enough solution right now is to pin pages by elevating
+> > > refcounts.
+> >
+> > Which kind of leads to the question of why do you need any further
+> > kernel patches if that is good enough?
+>
+> Well its good enough with severe problems during reclaim, livelocks etc.
+> One could improve on that scheme through Rik's work trying to add a new
+> page flag that mark pinned pages and then keep them off the LRUs and
+> limiting their number. Having pinned page would limit the ability to
+> reclaim by the VM and make page migration, memory unplug etc impossible.
+
+Well not impossible. You could have a callback to invalidate the remote
+TLB and drop the pin on a given page.
+
+
+> It is better to have notifier scheme that allows to tell a device driver
+> to free up the memory it has mapped.
+
+Yeah, it would be nice for those people with clusters of Altixes. Doesn't
+mean it has to go upstream, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
