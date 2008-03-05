@@ -1,37 +1,62 @@
-Date: Wed, 5 Mar 2008 01:37:22 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] mmu notifiers #v8
-Message-ID: <20080305003722.GG1510@wotan.suse.de>
-References: <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random> <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de> <20080221144023.GC9427@v2.random> <20080221161028.GA14220@sgi.com> <20080227192610.GF28483@v2.random> <20080302155457.GK8091@v2.random> <20080303032934.GA3301@wotan.suse.de> <Pine.LNX.4.64.0803031058230.6917@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0803031058230.6917@schroedinger.engr.sgi.com>
+Received: by wx-out-0506.google.com with SMTP id h31so1293801wxd.11
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2008 16:41:29 -0800 (PST)
+Message-ID: <47CDE925.9090503@gmail.com>
+Date: Wed, 05 Mar 2008 09:28:21 +0900
+MIME-Version: 1.0
+Subject: Re: [patch 16/20] non-reclaimable mlocked pages
+References: <20080304225157.573336066@redhat.com> <20080304225227.780021971@redhat.com>
+In-Reply-To: <20080304225227.780021971@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+From: minchan Kim <minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Jack Steiner <steiner@sgi.com>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 03, 2008 at 11:01:22AM -0800, Christoph Lameter wrote:
-> On Mon, 3 Mar 2008, Nick Piggin wrote:
-> 
-> > I'm still not completely happy with this. I had a very quick look
-> > at the GRU driver, but I don't see why it can't be implemented
-> > more like the regular TLB model, and have TLB insertions depend on
-> > the linux pte, and do invalidates _after_ restricting permissions
-> > to the pte.
-> > 
-> > Ie. I'd still like to get rid of invalidate_range_begin, and get
-> > rid of invalidate calls from places where permissions are relaxed.
-> 
-> Isnt this more a job for paravirt ops if it is so tightly bound to page 
-> tables? Are we not adding another similar API?
+Hi, Rik.
 
-Um, it's bound to the *Linux page tables*, yes. And I have no idea why
-you would use the paravirt ops for this.
+There is a some trivial mistake.
+It can cause compile error.
 
- 
+ >@@ -665,7 +677,12 @@ static int prep_new_page(struct page *pa
+ >
+ > 	page->flags &= ~(1 << PG_uptodate | 1 << PG_error | 1 << PG_readahead |
+ > 			1 << PG_referenced | 1 << PG_arch_1 |
+ >-			1 << PG_owner_priv_1 | 1 << PG_mappedtodisk);
+ >+			1 << PG_owner_priv_1 | 1 << PG_mappedtodisk |
+ >+#ifdef CONFIG_NORECLAIM_MLOCK
+ >+//TODO take care of it here, for now.
+ >+			1 << PG_mlocked
+ >+#endif
+ >+			);
+ > 	set_page_private(page, 0);
+ > 	set_page_refcounted(page);
+
+we need to fix it.
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 78c3f94..f6d535f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -677,10 +677,10 @@ static int prep_new_page(struct page *page, int 
+order, gfp_t gfp_flags)
+
+   page->flags &= ~(1 << PG_uptodate | 1 << PG_error | 1 << PG_readahead |
+       1 << PG_referenced | 1 << PG_arch_1 |
+-     1 << PG_owner_priv_1 | 1 << PG_mappedtodisk |
++     1 << PG_owner_priv_1 | 1 << PG_mappedtodisk
+  #ifdef CONFIG_NORECLAIM_MLOCK
+  //TODO take care of it here, for now.
+-     1 << PG_mlocked
++     | 1 << PG_mlocked
+  #endif
+       );
+   set_page_private(page, 0);
+
+Thanks,
+barrios.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
