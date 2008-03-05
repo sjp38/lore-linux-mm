@@ -1,68 +1,43 @@
-Date: Tue, 4 Mar 2008 13:01:26 -0600
-From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [patch 0/8] slub: Fallback to order 0 and variable order slab support
-Message-ID: <20080304190126.GM10223@waste.org>
+Date: Tue, 4 Mar 2008 16:04:41 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 0/8] slub: Fallback to order 0 and variable order slab
+ support
+In-Reply-To: <20080304190126.GM10223@waste.org>
+Message-ID: <Pine.LNX.4.64.0803041601520.21992@schroedinger.engr.sgi.com>
 References: <20080229044803.482012397@sgi.com> <20080304122008.GB19606@csn.ul.ie>
+ <20080304190126.GM10223@waste.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080304122008.GB19606@csn.ul.ie>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Christoph Lameter <clameter@sgi.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Matt Mackall <mpm@selenic.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 04, 2008 at 12:20:08PM +0000, Mel Gorman wrote:
-> On (28/02/08 20:48), Christoph Lameter didst pronounce:
-> > This is the patchset that was posted two weeks ago modified according
-> > to the feedback that Pekka gave. I would like to put these patches
-> > into mm.
-> > 
-> 
-> I haven't reviewed the patches properly but I put them through a quick test
-> against 2.6.25-rc3 to see what the performnace was like and the superpage
-> allocation success rates were like. Performance wise, it looked like
-> 
-> 				Loss	to	Gain
-> Kernbench Elapsed time		 -0.64%		0.32%
-> Kernbench Total time		 -0.61%		0.48%
-> Hackbench sockets-12 clients	 -2.95%		5.13%
-> Hackbench pipes-12 clients	-16.95%		9.27%
-> TBench 4 clients		 -1.98%		8.2%
-> DBench 4 clients (ext2)		 -5.9%		7.99%
-> 
-> So, running with the high orders is not a clear-cut win to my eyes. What
-> did you test to show that it was a general win justifying a high-order by
-> default? From looking through, tbench seems to be the only obvious one to
-> gain but the rest, it is not clear at all. I'll try give sysbench a spin
-> later to see if it is clear-cut.
-> 
-> However, in *all* cases, superpage allocations were less successful and in
-> some cases it was severely regressed (one machine went from 81% success rate
-> to 36%). Sufficient statistics are not gathered to see why this happened
-> in retrospect but my suspicion would be that high-order RECLAIMABLE and
-> UNMOVABLE slub allocations routinely fall back to the less fragmented
-> MOVABLE pageblocks with these patches - something that is normally a very
-> rare event. This change in assumption hurts fragmentation avoidance and
-> chances are the long-term behaviour of these patches is not great.
-> 
-> If this guess is correct, using a high-order size by default is a bad plan
-> and it should only be set when it is known that the target workload benefits
-> and superpage allocations are not a concern. Alternative, set high-order by
-> default only for a limited number of caches that are RECLAIMABLE (or better
-> yet ones we know can be directly reclaimed with the slub-defrag patches).
-> 
-> As it is, this is painful from a fragmentation perspective and the
-> performance win is not clear-cut.
+On Tue, 4 Mar 2008, Matt Mackall wrote:
 
-Thanks for looking at this, Mel. Could you try testing.. umm...
-slub_max_order=1? That's never going to get us more than one more
-object per slab, but if we can go from 1 per page to 1.5 per page, it
-might be worth it. Task structs are roughly in that size domain.
+> Thanks for looking at this, Mel. Could you try testing.. umm...
+> slub_max_order=1? That's never going to get us more than one more
+> object per slab, but if we can go from 1 per page to 1.5 per page, it
+> might be worth it. Task structs are roughly in that size domain.
 
--- 
-Mathematics is the supreme nostalgia of our time.
+Note that you would also have decrease the number of objects per slab.
+
+good combinations:
+
+slub_max_order=3 slub_min_objects=8
+
+(Was the config used for mm with the earlier version of higher order alloc w/o fallback)
+
+
+slub_max_order=1 slub_min_objects=4
+
+(upstream config w/o fallback)
+
+
+The default in mm is right now
+
+slub_max_order=4 slub_min_objects=60
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
