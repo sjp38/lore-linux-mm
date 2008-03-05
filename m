@@ -1,11 +1,11 @@
-Date: Wed, 5 Mar 2008 06:07:14 -0600
+Date: Wed, 5 Mar 2008 06:17:54 -0600
 From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH 1/2] Cpuset hardwall flag:  Switch cpusets to use the
- bulk cgroup_add_files() API
-Message-Id: <20080305060714.f49f0d6a.pj@sgi.com>
-In-Reply-To: <20080305080000.270536000@menage.corp.google.com>
+Subject: Re: [PATCH 2/2] Cpuset hardwall flag:  Add a mem_hardwall flag to
+ cpusets
+Message-Id: <20080305061754.61133079.pj@sgi.com>
+In-Reply-To: <20080305080000.432133000@menage.corp.google.com>
 References: <20080305075237.608599000@menage.corp.google.com>
-	<20080305080000.270536000@menage.corp.google.com>
+	<20080305080000.432133000@menage.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -16,7 +16,8 @@ Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Paul M wrote:
-> This change tidies up the cpusets control file definitions,
+> This flag provides the hardwalling properties of mem_exclusive,
+> without enforcing the exclusivity. Either mem_hardwall or ...
 
 Acked-by: Paul Jackson <pj@sgi.com>
 
