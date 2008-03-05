@@ -1,10 +1,11 @@
-Date: Wed, 5 Mar 2008 21:00:24 +0900
+Date: Wed, 5 Mar 2008 21:01:45 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [Preview] [PATCH] radix tree based page cgroup [5/6]
- radix-tree-page-cgroup
-Message-Id: <20080305210024.425f88db.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080305205137.5c744097.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [Preview] [PATCH] radix tree based page cgroup [6/6] boost by
+ per-cpu
+Message-Id: <20080305210145.7a9b6968.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080305205743.79856aa4.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080305205137.5c744097.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080305205743.79856aa4.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -14,251 +15,135 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, xemul@openvz.org, "hugh@veritas.com" <hugh@veritas.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "taka@valinux.co.jp" <taka@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-A lookup routine for page_cgroup struct.
+This patch adds per-cpu look up cache for get_page_cgroup().
+Works well when nearby pages are accessed continuously.
 
-Now, page_cgroup is pointed by struct page's page_cgroup entry
-
-struct page {
-	...
-	struct page_cgroup *page_cgroup;
-	..
-}
-
-But some people dislike this because this increases sizeof(struct page).
-
-For avoiding that, we'll have to add a lookup routine for
-	pfn <-> page_cgroup.
-by radix-tree.
-
-New function is
-
-struct page *get_page_cgroup(struct page *page, gfp_mask mask, bool allocate);
-
-if (allocate == true), look up and allocate new one if necessary.
-if (allocate == false), just do look up and return NULL if not exist.
-
-Changes:
-  - add the 3rd argument 'allocate'
-  - making page_cgroup chunk size to be configurable (for test.)
-
+TODO: add flush routine.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
- init/Kconfig     |   14 ++++
- mm/Makefile      |    2 
- mm/page_cgroup.c |  163 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 178 insertions(+), 1 deletion(-)
+
+ include/linux/page_cgroup.h |   37 +++++++++++++++++++++++++++++++++++--
+ mm/page_cgroup.c            |   23 ++++++++++++++++++-----
+ 2 files changed, 53 insertions(+), 7 deletions(-)
 
 Index: linux-2.6.25-rc4/mm/page_cgroup.c
 ===================================================================
---- /dev/null
+--- linux-2.6.25-rc4.orig/mm/page_cgroup.c
 +++ linux-2.6.25-rc4/mm/page_cgroup.c
-@@ -0,0 +1,169 @@
-+/*
-+ * page_cgroup mamagement codes.
-+ * page_cgroup is yet another mem_map when cgroup's memory resoruce controller
-+ * is activated. It containes information which cannot be stored in usual
-+ * mem_map. (it's too big.)
-+ * This allows us to keep 'struct page' small when a user doesn't activate
-+ * memory resource controller.
-+ *
-+ * Note: all things are allocated on demand.
-+ *
-+ * We can translate : struct page <-> pfn -> page_cgroup -> struct page.
-+ */
+@@ -17,11 +17,10 @@
+ #include <linux/memcontrol.h>
+ #include <linux/page_cgroup.h>
+ #include <linux/err.h>
++#include <linux/interrupt.h>
+ 
+ 
+-
+-#define PCGRP_SHIFT	(CONFIG_CGROUP_PAGE_CGROUP_ORDER)
+-#define PCGRP_SIZE	(1 << PCGRP_SHIFT)
++DEFINE_PER_CPU(struct page_cgroup_cache, pcpu_page_cgroup_cache);
+ 
+ struct page_cgroup_head {
+ 	struct page_cgroup pc[PCGRP_SIZE];
+@@ -71,6 +70,19 @@ void free_page_cgroup(struct page_cgroup
+ }
+ 
+ 
++static void save_result(struct page_cgroup  *base, unsigned long idx)
++{
++	int hash = idx & (PAGE_CGROUP_NR_CACHE - 1);
++	struct page_cgroup_cache *pcp;
++	/* look up is done under preempt_disable(). then, don't call
++	   this under interrupt(). */
++	preempt_disable();
++	pcp = &__get_cpu_var(pcpu_page_cgroup_cache);
++	pcp->ents[hash].idx = idx;
++	pcp->ents[hash].base = base;
++	preempt_enable();
++}
 +
-+#include <linux/mm.h>
-+#include <linux/slab.h>
-+#include <linux/radix-tree.h>
-+#include <linux/memcontrol.h>
-+#include <linux/page_cgroup.h>
-+#include <linux/err.h>
+ /*
+  * Look up page_cgroup struct for struct page (page's pfn)
+  * if (allocate == true), look up and allocate new one if necessary.
+@@ -78,7 +90,7 @@ void free_page_cgroup(struct page_cgroup
+  */
+ 
+ struct page_cgroup *
+-get_page_cgroup(struct page *page, gfp_t gfpmask, bool allocate)
++__get_page_cgroup(struct page *page, gfp_t gfpmask, bool allocate)
+ {
+ 	struct page_cgroup_root *root;
+ 	struct page_cgroup_head *head;
+@@ -107,8 +119,12 @@ retry:
+ 	head = radix_tree_lookup(&root->root_node, idx);
+ 	rcu_read_unlock();
+ 
+-	if (likely(head))
++	if (likely(head)) {
++		if (!in_interrupt())
++			save_result(&head->pc[0], idx);
+ 		return &head->pc[pfn - base_pfn];
++	}
 +
+ 	if (allocate == false)
+ 		return NULL;
+ 
+Index: linux-2.6.25-rc4/include/linux/page_cgroup.h
+===================================================================
+--- linux-2.6.25-rc4.orig/include/linux/page_cgroup.h
++++ linux-2.6.25-rc4/include/linux/page_cgroup.h
+@@ -24,6 +24,20 @@ struct page_cgroup {
+ #define PAGE_CGROUP_FLAG_CACHE	(0x1)	/* charged as cache. */
+ #define PAGE_CGROUP_FLAG_ACTIVE (0x2)	/* is on active list */
+ 
++/* per cpu cashing for fast access */
++#define PAGE_CGROUP_NR_CACHE	(0x8)
++struct page_cgroup_cache {
++	struct {
++		unsigned long idx;
++		struct page_cgroup *base;
++	} ents[PAGE_CGROUP_NR_CACHE];
++};
 +
++DECLARE_PER_CPU(struct page_cgroup_cache, pcpu_page_cgroup_cache);
 +
 +#define PCGRP_SHIFT	(CONFIG_CGROUP_PAGE_CGROUP_ORDER)
 +#define PCGRP_SIZE	(1 << PCGRP_SHIFT)
 +
-+struct page_cgroup_head {
-+	struct page_cgroup pc[PCGRP_SIZE];
-+};
+ /*
+  * Lookup and return page_cgroup struct.
+  * returns NULL when
+@@ -32,9 +46,28 @@ struct page_cgroup {
+  * return -ENOMEM if cannot allocate memory.
+  * If allocate==false, gfpmask will be ignored as a result.
+  */
+-
+ struct page_cgroup *
+-get_page_cgroup(struct page *page, gfp_t gfpmask, bool allocate);
++__get_page_cgroup(struct page *page, gfp_t gfpmask, bool allocate);
 +
-+struct page_cgroup_root {
-+	spinlock_t	       tree_lock;
-+	struct radix_tree_root root_node;
-+};
-+
-+static struct page_cgroup_root *root_dir[MAX_NUMNODES];
-+
-+static void init_page_cgroup(struct page_cgroup_head *head, unsigned long pfn)
-+{
-+	int i;
-+	struct page_cgroup *pc;
-+
-+	memset(head, 0, sizeof(*head));
-+	for (i = 0; i < PCGRP_SIZE; ++i) {
-+		pc = &head->pc[i];
-+		pc->page = pfn_to_page(pfn + i);
-+		spin_lock_init(&pc->lock);
-+		INIT_LIST_HEAD(&pc->lru);
-+	}
-+}
-+
-+
-+struct kmem_cache *page_cgroup_cachep;
-+
-+static struct page_cgroup_head *
-+alloc_init_page_cgroup(unsigned long pfn, int nid, gfp_t mask)
-+{
-+	struct page_cgroup_head *head;
-+
-+	head = kmem_cache_alloc_node(page_cgroup_cachep, mask, nid);
-+	if (!head)
-+		return NULL;
-+
-+	init_page_cgroup(head, pfn);
-+
-+	return head;
-+}
-+
-+void free_page_cgroup(struct page_cgroup_head *head)
-+{
-+	kmem_cache_free(page_cgroup_cachep, head);
-+}
-+
-+
-+/*
-+ * Look up page_cgroup struct for struct page (page's pfn)
-+ * if (allocate == true), look up and allocate new one if necessary.
-+ * if (allocate == false), look up and return NULL if it cannot be found.
-+ */
-+
-+struct page_cgroup *
++static inline struct page_cgroup *
 +get_page_cgroup(struct page *page, gfp_t gfpmask, bool allocate)
 +{
-+	struct page_cgroup_root *root;
-+	struct page_cgroup_head *head;
-+	struct page_cgroup *pc;
-+	unsigned long pfn, idx;
-+	int nid;
-+	unsigned long base_pfn, flags;
-+	int error;
-+	
-+	if (!page)
-+		return NULL;
++	unsigned long pfn = page_to_pfn(page);
++	struct page_cgroup_cache *pcp;
++	struct page_cgroup *ret;
++	unsigned long idx = pfn >> PCGRP_SHIFT;
++	int hnum = (idx) & (PAGE_CGROUP_NR_CACHE - 1);
 +
-+	pfn = page_to_pfn(page);
-+	idx = pfn >> PCGRP_SHIFT;
-+	nid = page_to_nid(page);
++	preempt_disable();
++	pcp = &__get_cpu_var(pcpu_page_cgroup_cache);
++	if (pcp->ents[hnum].idx == idx && pcp->ents[hnum].base)
++		ret = pcp->ents[hnum].base + (pfn - (idx << PCGRP_SHIFT));
++	else
++		ret = NULL;
++	preempt_enable();
 +
-+	root = root_dir[nid];
-+	/* Before Init ? */
-+	if (unlikely(!root))
-+		return NULL;
-+
-+	base_pfn = idx << PCGRP_SHIFT;
-+retry:
-+	error = 0;
-+	rcu_read_lock();
-+	head = radix_tree_lookup(&root->root_node, idx);
-+	rcu_read_unlock();
-+
-+	if (likely(head))
-+		return &head->pc[pfn - base_pfn];
-+	if (allocate == false)
-+		return NULL;
-+
-+	/* Very Slow Path. On demand allocation. */
-+	gfpmask = gfpmask & ~(__GFP_HIGHMEM | __GFP_MOVABLE);
-+
-+	head = alloc_init_page_cgroup(base_pfn, nid, gfpmask);
-+	if (!head)
-+		return ERR_PTR(-ENOMEM);
-+	pc = NULL;
-+	error = radix_tree_preload(gfpmask);
-+	if (error)
-+		goto out;
-+	spin_lock_irqsave(&root->tree_lock, flags);
-+	error = radix_tree_insert(&root->root_node, idx, head);
-+
-+	if (!error)
-+		pc = &head->pc[pfn - base_pfn];
-+	spin_unlock_irqrestore(&root->tree_lock, flags);
-+	radix_tree_preload_end();
-+out:
-+	if (!pc) {
-+		free_page_cgroup(head);
-+		if (error == -EEXIST)
-+			goto retry;
-+	}
-+	if (error)
-+		pc = ERR_PTR(error);
-+	return pc;
++	return (ret)? ret : __get_page_cgroup(page, gfpmask, allocate);
 +}
-+
-+__init int page_cgroup_init(void)
-+{
-+	int nid;
-+	struct page_cgroup_root *root;
-+
-+	page_cgroup_cachep = kmem_cache_create("page_cgroup",
-+				sizeof(struct page_cgroup_head), 0,
-+				SLAB_PANIC | SLAB_DESTROY_BY_RCU, NULL);
-+	if (!page_cgroup_cachep) {
-+		printk(KERN_ERR "page accouning setup failure\n");
-+		printk(KERN_ERR "can't initialize slab memory\n");
-+		/* FIX ME: should return some error code ? */
-+		return 0;
-+	}
-+	for_each_node(nid) {
-+		root = kmalloc_node(sizeof(struct page_cgroup_root),
-+					GFP_KERNEL, nid);
-+		INIT_RADIX_TREE(&root->root_node, GFP_ATOMIC);
-+		spin_lock_init(&root->tree_lock);
-+		smp_wmb();
-+		root_dir[nid] = root;
-+	}
-+
-+	printk(KERN_INFO "Page Accouintg is activated\n");
-+	return 0;
-+}
-+late_initcall(page_cgroup_init);
-Index: linux-2.6.25-rc4/mm/Makefile
-===================================================================
---- linux-2.6.25-rc4.orig/mm/Makefile
-+++ linux-2.6.25-rc4/mm/Makefile
-@@ -32,5 +32,5 @@ obj-$(CONFIG_FS_XIP) += filemap_xip.o
- obj-$(CONFIG_MIGRATION) += migrate.o
- obj-$(CONFIG_SMP) += allocpercpu.o
- obj-$(CONFIG_QUICKLIST) += quicklist.o
--obj-$(CONFIG_CGROUP_MEM_RES_CTLR) += memcontrol.o
-+obj-$(CONFIG_CGROUP_MEM_RES_CTLR) += memcontrol.o page_cgroup.o
  
-Index: linux-2.6.25-rc4/init/Kconfig
-===================================================================
---- linux-2.6.25-rc4.orig/init/Kconfig
-+++ linux-2.6.25-rc4/init/Kconfig
-@@ -407,6 +407,20 @@ config SYSFS_DEPRECATED_V2
- 	  If you are using a distro with the most recent userspace
- 	  packages, it should be safe to say N here.
+ #else
  
-+config CGROUP_PAGE_CGROUP_ORDER
-+	int "Order of page accounting subsystem"
-+	range 0 10
-+	default 3 if HIGHMEM64G
-+	default 10 if 64BIT
-+	default 7
-+	depends on CGROUP_MEM_RES_CTLR
-+	help
-+	  By making this value to be small, wastes in memory usage of page
-+	  accounting can be small. But big number is good for perfomance.
-+	  Especially, HIGHMEM64G users should keep this to be small because
-+	  you tend to have small kernel memory.
-+	  If unsure, use default.
-+
- config PROC_PID_CPUSET
- 	bool "Include legacy /proc/<pid>/cpuset file"
- 	depends on CPUSETS
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
