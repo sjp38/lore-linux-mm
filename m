@@ -1,28 +1,30 @@
-Date: Wed, 5 Mar 2008 10:48:24 -0800 (PST)
+Date: Wed, 5 Mar 2008 10:52:46 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] mmu notifiers #v8
-In-Reply-To: <20080305003722.GG1510@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0803051048100.29794@schroedinger.engr.sgi.com>
-References: <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random>
- <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de>
- <20080221144023.GC9427@v2.random> <20080221161028.GA14220@sgi.com>
- <20080227192610.GF28483@v2.random> <20080302155457.GK8091@v2.random>
- <20080303032934.GA3301@wotan.suse.de> <Pine.LNX.4.64.0803031058230.6917@schroedinger.engr.sgi.com>
- <20080305003722.GG1510@wotan.suse.de>
+Subject: Re: [patch 0/8] slub: Fallback to order 0 and variable order slab
+ support
+In-Reply-To: <20080305182834.GA10678@csn.ul.ie>
+Message-ID: <Pine.LNX.4.64.0803051051190.29794@schroedinger.engr.sgi.com>
+References: <20080229044803.482012397@sgi.com> <20080304122008.GB19606@csn.ul.ie>
+ <Pine.LNX.4.64.0803041044520.13957@schroedinger.engr.sgi.com>
+ <20080305182834.GA10678@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Jack Steiner <steiner@sgi.com>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 5 Mar 2008, Nick Piggin wrote:
+On Wed, 5 Mar 2008, Mel Gorman wrote:
 
-> Um, it's bound to the *Linux page tables*, yes. And I have no idea why
-> you would use the paravirt ops for this.
+> Ok, I'm offically a tool. I had named patchsets wrong and tested slub-defrag
+> instead of slub-highorder. I didn't notice until I opened the diff file to
+> set the max_order. slub-highorder is being tested at the moment but it'll
+> be hours before it completes.
 
-paravirt ops allows interception of page table operations?
+Tool? Never heard it before. Is that an Irish term? Do not worry. That 
+happens all the time in the computer industry. These days, I get 
+suspicious when people claim something is perfect (100% yes!).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
