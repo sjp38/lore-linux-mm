@@ -1,43 +1,64 @@
-Date: Tue, 4 Mar 2008 16:04:41 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 0/8] slub: Fallback to order 0 and variable order slab
- support
-In-Reply-To: <20080304190126.GM10223@waste.org>
-Message-ID: <Pine.LNX.4.64.0803041601520.21992@schroedinger.engr.sgi.com>
-References: <20080229044803.482012397@sgi.com> <20080304122008.GB19606@csn.ul.ie>
- <20080304190126.GM10223@waste.org>
+From: Johannes Weiner <hannes@saeurebad.de>
+Subject: Re: [patch 02/20] Use an indexed array for LRU variables
+References: <20080304225157.573336066@redhat.com>
+	<20080304225226.653954413@redhat.com>
+Date: Wed, 05 Mar 2008 01:31:10 +0100
+In-Reply-To: <20080304225226.653954413@redhat.com> (Rik van Riel's message of
+	"Tue, 04 Mar 2008 17:51:59 -0500")
+Message-ID: <87lk4yc8q9.fsf@saeurebad.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 4 Mar 2008, Matt Mackall wrote:
+Hi Rik,
 
-> Thanks for looking at this, Mel. Could you try testing.. umm...
-> slub_max_order=1? That's never going to get us more than one more
-> object per slab, but if we can go from 1 per page to 1.5 per page, it
-> might be worth it. Task structs are roughly in that size domain.
+Rik van Riel <riel@redhat.com> writes:
 
-Note that you would also have decrease the number of objects per slab.
+> Index: linux-2.6.25-rc3-mm1/include/linux/mmzone.h
+> ===================================================================
+> --- linux-2.6.25-rc3-mm1.orig/include/linux/mmzone.h	2008-03-04 14:12:52.000000000 -0500
+> +++ linux-2.6.25-rc3-mm1/include/linux/mmzone.h	2008-03-04 14:59:31.000000000 -0500
+> @@ -80,8 +80,8 @@ struct zone_padding {
+>  enum zone_stat_item {
+>  	/* First 128 byte cacheline (assuming 64 bit words) */
+>  	NR_FREE_PAGES,
+> -	NR_INACTIVE,
+> -	NR_ACTIVE,
+> +	NR_INACTIVE,	/* must match order of LRU_[IN]ACTIVE */
+> +	NR_ACTIVE,	/*  "     "     "   "       "         */
+>  	NR_ANON_PAGES,	/* Mapped anonymous pages */
+>  	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
+>  			   only modified from process context */
+> @@ -105,6 +105,13 @@ enum zone_stat_item {
+>  #endif
+>  	NR_VM_ZONE_STAT_ITEMS };
 
-good combinations:
+How about a #define LRU_STAT_BASE NR_INACTIVE ...
 
-slub_max_order=3 slub_min_objects=8
+> Index: linux-2.6.25-rc3-mm1/include/linux/mm_inline.h
+> ===================================================================
+> --- linux-2.6.25-rc3-mm1.orig/include/linux/mm_inline.h	2007-07-08 19:32:17.000000000 -0400
+> +++ linux-2.6.25-rc3-mm1/include/linux/mm_inline.h	2008-03-04 14:59:31.000000000 -0500
+> @@ -1,40 +1,51 @@
+>  static inline void
+> +add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list l)
+> +{
+> +	list_add(&page->lru, &zone->list[l]);
+> +	__inc_zone_state(zone, NR_INACTIVE + l);
 
-(Was the config used for mm with the earlier version of higher order alloc w/o fallback)
+... in order to avoid using NR_INACTIVE in places like this?
 
+(LRU_STAT_BASE is a bad name, I apologize)
 
-slub_max_order=1 slub_min_objects=4
+Or perhaps a macro lru_stat (it's getting worse...) that yields the zone
+stat index corresponding to the lru list type?  I think this would
+increase readability.
 
-(upstream config w/o fallback)
-
-
-The default in mm is right now
-
-slub_max_order=4 slub_min_objects=60
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
