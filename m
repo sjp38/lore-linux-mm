@@ -1,32 +1,39 @@
-Date: Tue, 4 Mar 2008 23:21:56 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [patch 11/20] No Reclaim LRU Infrastructure
-Message-ID: <20080304232156.10fe473a@bree.surriel.com>
-In-Reply-To: <47CDEA95.9050507@gmail.com>
-References: <20080304225157.573336066@redhat.com>
-	<20080304225227.455963956@redhat.com>
-	<47CDEA95.9050507@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <47CE2B23.6010505@qumranet.com>
+Date: Wed, 05 Mar 2008 07:09:55 +0200
+From: Avi Kivity <avi@qumranet.com>
+MIME-Version: 1.0
+Subject: Re: [RFC] Notifier for Externally Mapped Memory (EMM)
+References: <20080221144023.GC9427@v2.random>	 <20080221161028.GA14220@sgi.com> <20080227192610.GF28483@v2.random>	 <20080302155457.GK8091@v2.random> <20080303213707.GA8091@v2.random>	 <20080303220502.GA5301@v2.random> <47CC9B57.5050402@qumranet.com>	 <Pine.LNX.4.64.0803032327470.9642@schroedinger.engr.sgi.com>	 <20080304133020.GC5301@v2.random>	 <Pine.LNX.4.64.0803041059110.13957@schroedinger.engr.sgi.com>	 <20080304222030.GB8951@v2.random>	 <Pine.LNX.4.64.0803041422070.20821@schroedinger.engr.sgi.com> <1204670529.6241.52.camel@lappy>
+In-Reply-To: <1204670529.6241.52.camel@lappy>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: minchan Kim <minchan.kim@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, kvm-devel@lists.sourceforge.net, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 05 Mar 2008 09:34:29 +0900
-minchan Kim <minchan.kim@gmail.com> wrote:
+Peter Zijlstra wrote:
+> On Tue, 2008-03-04 at 14:35 -0800, Christoph Lameter wrote:
+>
+>   
+>> RCU means that the callbacks occur in an atomic context.
+>>     
+>
+> Not really, if it requires moving the VM locks to sleepable locks under
+> a .config option, I think its also fair to require PREEMPT_RCU.
+>
+> OTOH, if you want to unconditionally move the VM locks to sleepable
+> locks you have a point.
+>   
 
-> We don't use is_lru_page any more.
-> It cause warning at compile time.
-> 
-> We can remove is_lru_page local variable.
+Isn't that out of the question for .25?
 
-I have applied this fix too.  Thank you.
+I really wish we can get the atomic variant in now, and add on 
+sleepability in .26, updating users if necessary.
 
 -- 
-All rights reversed.
+Do not meddle in the internals of kernels, for they are subtle and quick to panic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
