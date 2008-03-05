@@ -1,34 +1,41 @@
-Subject: [PATCH] mm/slab.c - use angle brackets for include
-From: Joe Perches <joe@perches.com>
-Content-Type: text/plain
-Date: Tue, 04 Mar 2008 16:47:15 -0800
-Message-Id: <1204678035.5180.94.camel@localhost>
-Mime-Version: 1.0
+Received: by hs-out-0708.google.com with SMTP id j58so728361hsj.6
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2008 16:47:36 -0800 (PST)
+Message-ID: <47CDEA95.9050507@gmail.com>
+Date: Wed, 05 Mar 2008 09:34:29 +0900
+MIME-Version: 1.0
+Subject: Re: [patch 11/20] No Reclaim LRU Infrastructure
+References: <20080304225157.573336066@redhat.com> <20080304225227.455963956@redhat.com>
+In-Reply-To: <20080304225227.455963956@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+From: minchan Kim <minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
-Cc: LKML <linux-kernel@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-mm/slab.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+Hi, Rik.
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 473e6c2..a37f897 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -333,7 +333,7 @@ static __always_inline int index_of(const size_t size)
- 		return i; \
- 	else \
- 		i++;
--#include "linux/kmalloc_sizes.h"
-+#include <linux/kmalloc_sizes.h>
- #undef CACHE
- 		__bad_size();
- 	} else
+This is another trivial thing.
 
+ > /*
+ >  * Drain pages out of the cpu's pagevecs.
+ >  * Either "cpu" is the current CPU, and preemption has already been
+ >@@ -353,6 +375,8 @@ void release_pages(struct page **pages,
+ >
+ > 		if (PageLRU(page)) {
+ > 			struct zone *pagezone = page_zone(page);
+ >+			int is_lru_page;
+ >+
+ > 			if (pagezone != zone) {
+ > 				if (zone)
+ > 					spin_unlock_irqrestore(&zone->lru_lock,
 
+We don't use is_lru_page any more.
+It cause warning at compile time.
+
+We can remove is_lru_page local variable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
