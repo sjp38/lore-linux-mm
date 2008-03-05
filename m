@@ -1,11 +1,9 @@
-Date: Wed, 5 Mar 2008 06:17:54 -0600
+Date: Wed, 5 Mar 2008 06:23:18 -0600
 From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH 2/2] Cpuset hardwall flag:  Add a mem_hardwall flag to
- cpusets
-Message-Id: <20080305061754.61133079.pj@sgi.com>
-In-Reply-To: <20080305080000.432133000@menage.corp.google.com>
+Subject: Re: [PATCH 0/2] Cpuset hardwall flag:  Introduction
+Message-Id: <20080305062318.3c7538c3.pj@sgi.com>
+In-Reply-To: <20080305075237.608599000@menage.corp.google.com>
 References: <20080305075237.608599000@menage.corp.google.com>
-	<20080305080000.432133000@menage.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -16,10 +14,20 @@ Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Paul M wrote:
-> This flag provides the hardwalling properties of mem_exclusive,
-> without enforcing the exclusivity. Either mem_hardwall or ...
+> Currently the cpusets mem_exclusive flag is overloaded to mean both
+> "no-overlapping" and "no GFP_KERNEL allocations outside this cpuset".
+> 
+> These patches add a new mem_hardwall flag with just the allocation
+> restriction part of the mem_exclusive semantics, without breaking
+> backwards-compatibility for those who continue to use just
+> mem_exclusive.
 
-Acked-by: Paul Jackson <pj@sgi.com>
+... too bad this nice comment wasn't included in PATCH 2/2, so that
+it would automatically make it into the record of history - the source
+control log message (as best I understand how Andrew's tools work,
+comments off in their own, codeless patch "PATCH 0/N" don't make
+it to the source control log, except when Andrew chooses to make a
+special effort.)
 
 -- 
                   I won't rest till it's the best ...
