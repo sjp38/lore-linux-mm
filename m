@@ -1,42 +1,57 @@
-Message-ID: <47CEAAB4.8070208@openvz.org>
-Date: Wed, 05 Mar 2008 17:14:12 +0300
-From: Pavel Emelyanov <xemul@openvz.org>
+Date: Wed, 5 Mar 2008 14:31:17 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [BUG] 2.6.25-rc3-mm1 kernel panic while bootup on powerpc ()
+Message-ID: <20080305143117.GB7592@csn.ul.ie>
+References: <20080304011928.e8c82c0c.akpm@linux-foundation.org> <47CD4AB3.3080409@linux.vnet.ibm.com> <20080304103636.3e7b8fdd.akpm@linux-foundation.org> <47CDA081.7070503@cs.helsinki.fi> <20080304193532.GC9051@csn.ul.ie> <84144f020803041141x5bb55832r495d7fde92356e27@mail.gmail.com> <Pine.LNX.4.64.0803041151360.18160@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0803042200410.8545@sbz-30.cs.Helsinki.FI> <Pine.LNX.4.64.0803041205370.18277@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: [RFC/PATCH] cgroup swap subsystem
-References: <47CE36A9.3060204@mxp.nes.nec.co.jp> <47CE5AE2.2050303@openvz.org> <Pine.LNX.4.64.0803051400000.22243@blonde.site>
-In-Reply-To: <Pine.LNX.4.64.0803051400000.22243@blonde.site>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0803041205370.18277@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, containers@lists.osdl.org, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Pekka J Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>, linuxppc-dev@ozlabs.org, Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Wed, 5 Mar 2008, Pavel Emelyanov wrote:
->> Daisuke Nishimura wrote:
->>> Todo:
->>>   - rebase new kernel, and split into some patches.
->>>   - Merge with memory subsystem (if it would be better), or
->>>     remove dependency on CONFIG_CGROUP_MEM_CONT if possible
->>>     (needs to make page_cgroup more generic one).
->> Merge is a must IMHO. I can hardly imagine a situation in which
->> someone would need these two separately.
+On (04/03/08 12:07), Christoph Lameter didst pronounce:
+> I think this is the correct fix.
 > 
-> Strongly agree.  Nobody's interested in swap as such: it's just
-> secondary memory, where RAM is primary memory.  People want to
-> control memory as the sum of the two; and I expect they may also
-> want to control primary memory (all that the current memcg does)
-> within that.  I wonder if such nesting of limits fits easily
-> into cgroups or will be problematic.
-
-This nesting would affect the res_couter abstraction, not the
-cgroup infrastructure. Current design of resource counters doesn't
-allow for such thing, but the extension is a couple-of-lines patch :)
-
-> Hugh
+> The NUMA fallback logic should be passing local_flags to kmem_get_pages() 
+> and not simply the flags.
 > 
+> Maybe a stable candidate since we are now simply 
+> passing on flags to the page allocator on the fallback path.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+Thanks Christoph.
+
+> 
+> ---
+>  mm/slab.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> Index: linux-2.6.25-rc3-mm1/mm/slab.c
+> ===================================================================
+> --- linux-2.6.25-rc3-mm1.orig/mm/slab.c	2008-03-04 12:01:07.430911920 -0800
+> +++ linux-2.6.25-rc3-mm1/mm/slab.c	2008-03-04 12:04:54.449857145 -0800
+> @@ -3277,7 +3277,7 @@ retry:
+>  		if (local_flags & __GFP_WAIT)
+>  			local_irq_enable();
+>  		kmem_flagcheck(cache, flags);
+> -		obj = kmem_getpages(cache, flags, -1);
+> +		obj = kmem_getpages(cache, local_flags, -1);
+>  		if (local_flags & __GFP_WAIT)
+>  			local_irq_disable();
+>  		if (obj) {
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
