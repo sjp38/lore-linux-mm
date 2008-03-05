@@ -1,11 +1,11 @@
-Date: Tue, 4 Mar 2008 23:18:44 -0500
+Date: Tue, 4 Mar 2008 23:21:56 -0500
 From: Rik van Riel <riel@redhat.com>
-Subject: Re: [patch 16/20] non-reclaimable mlocked pages
-Message-ID: <20080304231844.499b5a03@bree.surriel.com>
-In-Reply-To: <47CDE925.9090503@gmail.com>
+Subject: Re: [patch 11/20] No Reclaim LRU Infrastructure
+Message-ID: <20080304232156.10fe473a@bree.surriel.com>
+In-Reply-To: <47CDEA95.9050507@gmail.com>
 References: <20080304225157.573336066@redhat.com>
-	<20080304225227.780021971@redhat.com>
-	<47CDE925.9090503@gmail.com>
+	<20080304225227.455963956@redhat.com>
+	<47CDEA95.9050507@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -15,15 +15,15 @@ To: minchan Kim <minchan.kim@gmail.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 05 Mar 2008 09:28:21 +0900
+On Wed, 05 Mar 2008 09:34:29 +0900
 minchan Kim <minchan.kim@gmail.com> wrote:
 
-> Hi, Rik.
+> We don't use is_lru_page any more.
+> It cause warning at compile time.
 > 
-> There is a some trivial mistake.
-> It can cause compile error.
+> We can remove is_lru_page local variable.
 
-Thank you.  I have applied your fix.
+I have applied this fix too.  Thank you.
 
 -- 
 All rights reversed.
