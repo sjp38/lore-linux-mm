@@ -1,102 +1,28 @@
-Date: Wed, 5 Mar 2008 18:28:34 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [patch 0/8] slub: Fallback to order 0 and variable order slab support
-Message-ID: <20080305182834.GA10678@csn.ul.ie>
-References: <20080229044803.482012397@sgi.com> <20080304122008.GB19606@csn.ul.ie> <Pine.LNX.4.64.0803041044520.13957@schroedinger.engr.sgi.com>
+Date: Wed, 5 Mar 2008 10:48:24 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] mmu notifiers #v8
+In-Reply-To: <20080305003722.GG1510@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0803051048100.29794@schroedinger.engr.sgi.com>
+References: <20080219231157.GC18912@wotan.suse.de> <20080220010941.GR7128@v2.random>
+ <20080220103942.GU7128@v2.random> <20080221045430.GC15215@wotan.suse.de>
+ <20080221144023.GC9427@v2.random> <20080221161028.GA14220@sgi.com>
+ <20080227192610.GF28483@v2.random> <20080302155457.GK8091@v2.random>
+ <20080303032934.GA3301@wotan.suse.de> <Pine.LNX.4.64.0803031058230.6917@schroedinger.engr.sgi.com>
+ <20080305003722.GG1510@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0803041044520.13957@schroedinger.engr.sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Jack Steiner <steiner@sgi.com>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, Izik Eidus <izike@qumranet.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
-On (04/03/08 10:53), Christoph Lameter didst pronounce:
-> On Tue, 4 Mar 2008, Mel Gorman wrote:
-> 
-> > 				Loss	to	Gain
-> > Kernbench Elapsed time		 -0.64%		0.32%
-> > Kernbench Total time		 -0.61%		0.48%
-> > Hackbench sockets-12 clients	 -2.95%		5.13%
-> > Hackbench pipes-12 clients	-16.95%		9.27%
-> > TBench 4 clients		 -1.98%		8.2%
-> > DBench 4 clients (ext2)		 -5.9%		7.99%
-> > 
-> > So, running with the high orders is not a clear-cut win to my eyes. What
-> > did you test to show that it was a general win justifying a high-order by
-> > default? From looking through, tbench seems to be the only obvious one to
-> > gain but the rest, it is not clear at all. I'll try give sysbench a spin
-> > later to see if it is clear-cut.
-> 
-> Hmmm... Interesting. The tests that I did awhile ago were with max order 
-> 3. The patch as is now has max order 4. Maybe we need to reduce the order?
-> 
-> Looks like this was mostly a gain except for hackbench. Which is to be 
-> expected since the benchmark shelves out objects from the same slab round 
-> robin to different cpus. The higher the number of objects in the slab the 
-> higher the chance of contention on the slab lock.
-> 
+On Wed, 5 Mar 2008, Nick Piggin wrote:
 
-Ok, I'm offically a tool. I had named patchsets wrong and tested slub-defrag
-instead of slub-highorder. I didn't notice until I opened the diff file to
-set the max_order. slub-highorder is being tested at the moment but it'll
-be hours before it completes.
+> Um, it's bound to the *Linux page tables*, yes. And I have no idea why
+> you would use the paravirt ops for this.
 
-FWIW, the comments in the mail apply to slub-defrag instead. There is definite
-performance alterations with the patches but that is hardly a surprise.
-sysbench in some cases suffered but it wasn't clear why. For small
-pages, it might regress and huge pages, not at all. So there may be a
-alloc/free batch patterns that performance particularly badly.
-
-What is a major surprise is that it hurt huge page allocations so severely
-in some cases. That doesn't make a lot of sense.
-
-> > However, in *all* cases, superpage allocations were less successful and in
-> > some cases it was severely regressed (one machine went from 81% success rate
-> > to 36%). Sufficient statistics are not gathered to see why this happened
-> > in retrospect but my suspicion would be that high-order RECLAIMABLE and
-> > UNMOVABLE slub allocations routinely fall back to the less fragmented
-> > MOVABLE pageblocks with these patches - something that is normally a very
-> > rare event. This change in assumption hurts fragmentation avoidance and
-> > chances are the long-term behaviour of these patches is not great.
-> 
-> Superpage allocations means huge page allocations?
-
-yes
-
-> Enable slub statistics 
-> and you will be able to see the number of fallbacks in 
-> /sys/kernel/slab/xx/order_fallback to confirm your suspicions.
-> 
-> How would the allocator be able to get MOVABLE allocations? Is fallback 
-> permitted for order 0 allocs to MOVABLE?
-> 
-
-Yes as the alternative may be failing allocations. It's avoided where
-possible.
-
-> > If this guess is correct, using a high-order size by default is a bad plan
-> > and it should only be set when it is known that the target workload benefits
-> > and superpage allocations are not a concern. Alternative, set high-order by
-> > default only for a limited number of caches that are RECLAIMABLE (or better
-> > yet ones we know can be directly reclaimed with the slub-defrag patches).
-> > 
-> > As it is, this is painful from a fragmentation perspective and the
-> > performance win is not clear-cut.
-> 
-> Could we reduce the max order to 3 and see what happens then?
-> 
-
-When the order-4 figures come through I'll post them. If they are
-unexpected, I'll run with order 3. Unconditionally, I'll check order-1
-as suggested by Matt.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+paravirt ops allows interception of page table operations?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
