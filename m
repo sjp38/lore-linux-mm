@@ -1,160 +1,87 @@
-Subject: [PATCH] Mempolicy:  make dequeue_huge_page_vma() obey MPOL_BIND
-	nodemask rework
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20080306010440.GE28746@us.ibm.com>
-References: <20080227214708.6858.53458.sendpatchset@localhost>
-	 <20080227214734.6858.9968.sendpatchset@localhost>
-	 <20080228133247.6a7b626f.akpm@linux-foundation.org>
-	 <20080229145030.GD6045@csn.ul.ie> <1204300094.5311.50.camel@localhost>
-	 <20080304180145.GB9051@csn.ul.ie> <1204733195.5026.20.camel@localhost>
-	 <20080305180322.GA9795@us.ibm.com> <1204743774.6244.6.camel@localhost>
-	 <20080306010440.GE28746@us.ibm.com>
-Content-Type: text/plain
-Date: Thu, 06 Mar 2008 16:24:53 -0500
-Message-Id: <1204838693.5294.102.camel@localhost>
-Mime-Version: 1.0
+Received: by rv-out-0910.google.com with SMTP id f1so14048rvb.26
+        for <linux-mm@kvack.org>; Thu, 06 Mar 2008 13:27:38 -0800 (PST)
+Message-ID: <84144f020803061327r2310b23ew6211bc09f9ba25a3@mail.gmail.com>
+Date: Thu, 6 Mar 2008 23:27:37 +0200
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [BUG] in 2.6.25-rc3 with 64k page size and SLUB_DEBUG_ON
+In-Reply-To: <200803061447.05797.Jens.Osterkamp@gmx.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <200803061447.05797.Jens.Osterkamp@gmx.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, agl@us.ibm.com, wli@holomorphy.com, clameter@sgi.com, ak@suse.de, kamezawa.hiroyu@jp.fujitsu.com, rientjes@google.com, linux-mm@kvack.org, eric.whitney@hp.com
+To: Jens Osterkamp <Jens.Osterkamp@gmx.de>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Linux kernel mailing list <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Fix for earlier patch:
-"mempolicy-make-dequeue_huge_page_vma-obey-bind-policy"
+Hi,
 
-Against: 2.6.25-rc3-mm1 atop the above patch.
+On Thu, Mar 6, 2008 at 3:47 PM, Jens Osterkamp <Jens.Osterkamp@gmx.de> wrote:
+>  when booting 2.6.25-rc3 on powerpc64 with SLUB_DEBUG_ON and 64k page size, it drops into xmon
+>  during boot with the following :
+>
+>  Console: colour dummy device 80x25
+>  Dentry cache hash table entries: 262144 (order: 5, 2097152 bytes)
+>  Inode-cache hash table entries: 131072 (order: 4, 1048576 bytes)
+>  freeing bootmem node 0
+>  freeing bootmem node 1
+>  Memory: 2037184k/2097152k available (4864k kernel code, 59968k reserved, 768k data, 419k bss, 384k init)
+>  SLUB: Genslabs=17, HWalign=128, Order=0-2, MinObjects=8, CPUs=4, Nodes=16
+>  Mount-cache hash table entries: 4096
+>  BUG: scheduling while atomic: kthreadd/2/0x00056ef8
+>  Call Trace:
+>  [c00000003c187b68] [c00000000000f140] .show_stack+0x70/0x1bc (unreliable)
+>  [c00000003c187c18] [c000000000052d0c] .__schedule_bug+0x64/0x80
+>  [c00000003c187ca8] [c00000000036fa84] .schedule+0xc4/0x6b0
+>  [c00000003c187d98] [c0000000003702d0] .schedule_timeout+0x3c/0xe8
+>  [c00000003c187e68] [c00000000036f82c] .wait_for_common+0x150/0x22c
+>  [c00000003c187f28] [c000000000074868] .kthreadd+0x12c/0x1f0
+>  [c00000003c187fd8] [c000000000024864] .kernel_thread+0x4c/0x68
+>  ------------[ cut here ]------------
+>  kernel BUG at /home/auto/jens/kernels/linux-2.6.25-rc3/kernel/sched.c:4532!
+>  cpu 0x0: Vector: 700 (Program Check) at [c00000003c187bc8]
+>     pc: c000000000051f8c: .sched_setscheduler+0x5c/0x48c
+>     lr: c0000000000748b0: .kthreadd+0x174/0x1f0
+>     sp: c00000003c187e48
+>    msr: 9000000000029032
+>   current = 0xc00000007e0808a0
+>   paca    = 0xc0000000004cf880
+>     pid   = 2, comm = kthreadd
+>  kernel BUG at /home/auto/jens/kernels/linux-2.6.25-rc3/kernel/sched.c:4532!
+>  enter ? for help
+>  [c00000003c187f28] c0000000000748b0 .kthreadd+0x174/0x1f0
+>  [c00000003c187fd8] c000000000024864 .kernel_thread+0x4c/0x68
+>  0:mon>
+>
+>  In the code this corresponds to
+>
+>  int sched_setscheduler(struct task_struct *p, int policy,
+>                        struct sched_param *param)
+>  {
+>         int retval, oldprio, oldpolicy = -1, on_rq, running;
+>         unsigned long flags;
+>         const struct sched_class *prev_class = p->sched_class;
+>         struct rq *rq;
+>
+>         /* may grab non-irq protected spin_locks */
+>         BUG_ON(in_interrupt());
+>  recheck:
+>         /* double check policy once rq lock held */
+>         if (policy < 0)
+>                 policy = oldpolicy = p->policy;
+>         else if (policy != SCHED_FIFO && policy != SCHED_RR &&
+>                         policy != SCHED_NORMAL && policy != SCHED_BATCH &&
+>                         policy != SCHED_IDLE)
+>                 return -EINVAL;
+>
+>  With slub_debug=- on the kernel command line, the problem is gone.
+>  With 4k page size the problem also does not occur.
+>
+>  Any ideas on why this occurs and how to debug this further ?
 
-As suggested by Nish Aravamudan, remove the mpol_bind_nodemask()
-helper and return a pointer to the policy node mask from
-huge_zonelist for MPOL_BIND.  This hides more of the mempolicy
-quirks from hugetlb.
-
-In making this change, I noticed that the huge_zonelist() stub
-for !NUMA wasn't nulling out the mpol.  Added that as well.
-
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- include/linux/mempolicy.h |   21 ++++++---------------
- mm/hugetlb.c              |    4 ++--
- mm/mempolicy.c            |   18 ++++++++++++------
- 3 files changed, 20 insertions(+), 23 deletions(-)
-
-Index: linux-2.6.25-rc3-mm1/include/linux/mempolicy.h
-===================================================================
---- linux-2.6.25-rc3-mm1.orig/include/linux/mempolicy.h	2008-03-06 12:01:59.000000000 -0500
-+++ linux-2.6.25-rc3-mm1/include/linux/mempolicy.h	2008-03-06 12:14:24.000000000 -0500
-@@ -152,7 +152,8 @@ extern void mpol_fix_fork_child_flag(str
- 
- extern struct mempolicy default_policy;
- extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
--		unsigned long addr, gfp_t gfp_flags, struct mempolicy **mpol);
-+				unsigned long addr, gfp_t gfp_flags,
-+				struct mempolicy **mpol, nodemask_t **nodemask);
- extern unsigned slab_node(struct mempolicy *policy);
- 
- extern enum zone_type policy_zone;
-@@ -163,14 +164,6 @@ static inline void check_highest_zone(en
- 		policy_zone = k;
- }
- 
--static inline nodemask_t *mpol_bind_nodemask(struct mempolicy *mpol)
--{
--	if (mpol->policy == MPOL_BIND)
--		return &mpol->v.nodes;
--	else
--		return NULL;
--}
--
- int do_migrate_pages(struct mm_struct *mm,
- 	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags);
- 
-@@ -248,8 +241,11 @@ static inline void mpol_fix_fork_child_f
- }
- 
- static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
-- 		unsigned long addr, gfp_t gfp_flags, struct mempolicy **mpol)
-+				unsigned long addr, gfp_t gfp_flags,
-+				struct mempolicy **mpol, nodemask_t **nodemask)
- {
-+	*mpol = NULL;
-+	*nodemask = NULL;
- 	return node_zonelist(0, gfp_flags);
- }
- 
-@@ -263,11 +259,6 @@ static inline int do_migrate_pages(struc
- static inline void check_highest_zone(int k)
- {
- }
--
--static inline nodemask_t *mpol_bind_nodemask(struct mempolicy *mpol)
--{
--	return NULL;
--}
- #endif /* CONFIG_NUMA */
- #endif /* __KERNEL__ */
- 
-Index: linux-2.6.25-rc3-mm1/mm/hugetlb.c
-===================================================================
---- linux-2.6.25-rc3-mm1.orig/mm/hugetlb.c	2008-03-06 12:01:59.000000000 -0500
-+++ linux-2.6.25-rc3-mm1/mm/hugetlb.c	2008-03-06 12:03:06.000000000 -0500
-@@ -95,11 +95,11 @@ static struct page *dequeue_huge_page_vm
- 	int nid;
- 	struct page *page = NULL;
- 	struct mempolicy *mpol;
-+	nodemask_t *nodemask;
- 	struct zonelist *zonelist = huge_zonelist(vma, address,
--					htlb_alloc_mask, &mpol);
-+					htlb_alloc_mask, &mpol, &nodemask);
- 	struct zone *zone;
- 	struct zoneref *z;
--	nodemask_t *nodemask = mpol_bind_nodemask(mpol);
- 
- 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
- 						MAX_NR_ZONES - 1, nodemask) {
-Index: linux-2.6.25-rc3-mm1/mm/mempolicy.c
-===================================================================
---- linux-2.6.25-rc3-mm1.orig/mm/mempolicy.c	2008-03-06 12:01:59.000000000 -0500
-+++ linux-2.6.25-rc3-mm1/mm/mempolicy.c	2008-03-06 12:33:58.000000000 -0500
-@@ -1276,25 +1276,31 @@ static inline unsigned interleave_nid(st
-  * @vma = virtual memory area whose policy is sought
-  * @addr = address in @vma for shared policy lookup and interleave policy
-  * @gfp_flags = for requested zone
-- * @mpol = pointer to mempolicy pointer for reference counted 'BIND policy
-+ * @mpol = pointer to mempolicy pointer for reference counted mempolicy
-+ * @nodemask = pointer to nodemask pointer for MPOL_BIND nodemask
-  *
-  * Returns a zonelist suitable for a huge page allocation.
-- * If the effective policy is 'BIND, returns pointer to policy's zonelist.
-+ * If the effective policy is 'BIND, returns pointer to local node's zonelist,
-+ * and a pointer to the mempolicy's @nodemask for filtering the zonelist.
-  * If it is also a policy for which get_vma_policy() returns an extra
-- * reference, we must hold that reference until after allocation.
-+ * reference, we must hold that reference until after the allocation.
-  * In that case, return policy via @mpol so hugetlb allocation can drop
-- * the reference.  For non-'BIND referenced policies, we can/do drop the
-+ * the reference. For non-'BIND referenced policies, we can/do drop the
-  * reference here, so the caller doesn't need to know about the special case
-  * for default and current task policy.
-  */
- struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
--				gfp_t gfp_flags, struct mempolicy **mpol)
-+				gfp_t gfp_flags, struct mempolicy **mpol,
-+				nodemask_t **nodemask)
- {
- 	struct mempolicy *pol = get_vma_policy(current, vma, addr);
- 	struct zonelist *zl;
- 
- 	*mpol = NULL;		/* probably no unref needed */
--	if (pol->policy == MPOL_INTERLEAVE) {
-+	*nodemask = NULL;	/* assume !MPOL_BIND */
-+	if (pol->policy == MPOL_BIND) {
-+			*nodemask = &pol->v.nodes;
-+	} else if (pol->policy == MPOL_INTERLEAVE) {
- 		unsigned nid;
- 
- 		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
-
+There's no SLUB in the stack traces. Ingo, any suggestions how to debug this?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
