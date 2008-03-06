@@ -1,36 +1,92 @@
-Date: Thu, 6 Mar 2008 14:20:15 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
+From: Jens Osterkamp <Jens.Osterkamp@gmx.de>
 Subject: Re: [BUG] in 2.6.25-rc3 with 64k page size and SLUB_DEBUG_ON
-In-Reply-To: <200803062307.22436.Jens.Osterkamp@gmx.de>
-Message-ID: <Pine.LNX.4.64.0803061418430.15083@schroedinger.engr.sgi.com>
-References: <200803061447.05797.Jens.Osterkamp@gmx.de>
- <Pine.LNX.4.64.0803061354210.15083@schroedinger.engr.sgi.com>
- <47D06993.9000703@cs.helsinki.fi> <200803062307.22436.Jens.Osterkamp@gmx.de>
+Date: Thu, 6 Mar 2008 23:21:55 +0100
+References: <200803061447.05797.Jens.Osterkamp@gmx.de> <200803062253.00034.Jens.Osterkamp@gmx.de> <Pine.LNX.4.64.0803061354210.15083@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0803061354210.15083@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/signed;
+  boundary="nextPart1723672.gHEuZt8tL2";
+  protocol="application/pgp-signature";
+  micalg=pgp-sha1
+Content-Transfer-Encoding: 7bit
+Message-Id: <200803062321.55581.Jens.Osterkamp@gmx.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jens Osterkamp <Jens.Osterkamp@gmx.de>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 6 Mar 2008, Jens Osterkamp wrote:
+--nextPart1723672.gHEuZt8tL2
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 
-> > You mention slub_debug=- makes the problem go away but can you narrow it 
-> > down to a specific debug option described in Documentation/vm/slub.txt? 
-> > In particular, does disabling slab poisoning or red zoning make the 
-> > problem go away also?
-> 
-> I tried with slub_debug= F,Z,P and U. Only with F the problem is not there.
 
-Ahh.. That looks like an alignment problem. The other options all add 
-data to the object and thus misalign them if no alignment is 
-specified.
+> Then check 2.6.22 and specify the boot parameter "slub_debug". Make sure=
+=20
+> to compile the kernel with slub support. Is there any way you could get=20
 
-Seems that powerpc expect an alignment but does not specify it for some data.
+With 2.6.22, slub on and slub_debug on the command line I get
 
-You can restrict the debug for certain slabs only. Try some of the arch 
-specific slab caches first.
+PID hash table entries: 4096 (order: 12, 32768 bytes)
+Console: colour dummy device 80x25
+Dentry cache hash table entries: 262144 (order: 5, 2097152 bytes0005416c/2
+Call Trace:
+[c00000000ff87ce8] [c00000000000f2cc] .show_stack+0x68/0x1b0 (unreliable)
+[c00000000ff87d88] [c000000000347d3c] .schedule+0xa4/0x8f0
+[c00000000ff87e88] [c0000000003486f4] .wait_for_completion+0xd8/0x174
+[c00000000ff87f48] [c000000000071770] .kthreadd+0x124/0x1b8
+[c00000000ff87fd8] [c0000000000256f8] .kernel_thread+0x4c/0x68
+BUG: scheduling while atomic: kthreadd/0x0005416c/2
+Call Trace:
+[c00000000ff87da8] [c00000000000f2cc] .show_stack+0x68/0x1b0 (unreliable)
+[c00000000ff87e48] [c000000000347d3c] .schedule+0xa4/0x8f0
+[c00000000ff87f48] [c0000000000716e0] .kthreadd+0x94/0x1b8
+[c00000000ff87fd8] [c0000000000256f8] .kernel_thread+0x4c/0x68
+BUG: scheduling while atomic: kthreadd/0x0005416c/2
+Call Trace:
+[c00000000ff87ce8] [c00000000000f2cc] .show_stack+0x68/0x1b0 (unreliable)
+[c00000000ff87d88] [c000000000347d3c] .schedule+0xa4/0x8f0
+[c00000000ff87e88] [c0000000003486f4] .wait_for_completion+0xd8/0x174
+[c00000000ff87f48] [c000000000071770] .kthreadd+0x124/0x1b8
+[c00000000ff87fd8] [c0000000000256f8] .kernel_thread+0x4c/0x68
+BUG: scheduling while atomic: kthreadd/0x0183eeb8/4
+Call Trace:
+[c00000000ff9bf10] [c00000000000f2cc] .show_stack+0x68/0x1b0 (unreliable)
+[c00000000ff9bfb0] [c000000000347d3c] .schedule+0xa4/0x8f0
+[c00000000ff9c0b0] [c000000000071960] .kthread+0x40/0xc4
+[c00000000ff9c140] [c0000000000256f8] .kernel_thread+0x4c/0x68
+BUG: scheduling while atomic: kthreadd/0x0005416c/2
+Call Trace:
+[c00000000ff87da8] [c00000000000f2cc] .show_stack+0x68/0x1b0 (unreliable)
+[c00000000ff87e48] [c000000000347d3c] .schedule+0xa4/0x8f0
+[c00000000ff87f48] [c0000000000716e0] .kthreadd+0x94/0x1b8
+[c00000000ff87fd8] [c0000000000256f8] .kernel_thread+0x4c/0x68
+
+> us further information about the problem?
+
+Sure, what do you need ?
+
+The system is a Cell Blade with 2G memory, hence numa support enabled.
+I built the 2.6.22 with cell_defconfig and manually selected SLUB.
+
+Gru=DF,
+	Jens
+
+--nextPart1723672.gHEuZt8tL2
+Content-Type: application/pgp-signature; name=signature.asc 
+Content-Description: This is a digitally signed message part.
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQBH0G6DP1aZ9bkt7XMRAnFiAJ48om84jubBz2o9feZvHjuPYBKCvgCgoJRO
++9Za0hl5rmP8lydQ77/ocoQ=
+=QU52
+-----END PGP SIGNATURE-----
+
+--nextPart1723672.gHEuZt8tL2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
