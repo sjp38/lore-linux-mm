@@ -1,31 +1,38 @@
-Date: Thu, 6 Mar 2008 13:49:10 -0800 (PST)
+Date: Thu, 6 Mar 2008 13:50:10 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 2/8] Kbuild: Create a way to create preprocessor constants
- from C expressions
-In-Reply-To: <20080306210005.GB29026@uranus.ravnborg.org>
-Message-ID: <Pine.LNX.4.64.0803061348250.15083@schroedinger.engr.sgi.com>
-References: <20080305223815.574326323@sgi.com> <20080305223845.436523065@sgi.com>
- <20080305200800.23ee10ec.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0803061217240.14140@schroedinger.engr.sgi.com>
- <20080306210005.GB29026@uranus.ravnborg.org>
+Subject: Re: [BUG] in 2.6.25-rc3 with 64k page size and SLUB_DEBUG_ON
+In-Reply-To: <200803062207.37654.Jens.Osterkamp@gmx.de>
+Message-ID: <Pine.LNX.4.64.0803061349220.15083@schroedinger.engr.sgi.com>
+References: <200803061447.05797.Jens.Osterkamp@gmx.de>
+ <Pine.LNX.4.64.0803061151590.14140@schroedinger.engr.sgi.com>
+ <200803062207.37654.Jens.Osterkamp@gmx.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Sam Ravnborg <sam@ravnborg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, ak@suse.de, Mel Gorman <mel@csn.ul.ie>, apw@shadowen.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Jens Osterkamp <Jens.Osterkamp@gmx.de>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 6 Mar 2008, Sam Ravnborg wrote:
+On Thu, 6 Mar 2008, Jens Osterkamp wrote:
 
-> Ehh - the file above is empty.
-> I do not understand why we need an empty file to be present???
+> I had earlier biesected this to the following commit, should have mentioned that,
+> sorry !
+> 
+> commit f0630fff54a239efbbd89faf6a62da071ef1ff78
+> Author: Christoph Lameter <clameter@sgi.com>
+> Date:   Sun Jul 15 23:38:14 2007 -0700
+> 
+>     SLUB: support slub_debug on by default
+> 
+>     [...]
 
-Its going to be populated in later patches of the patchset.
+hehehe. So slub debug is off if you do not specify slub_debug on the 
+commandline. No surprise there.
 
-> We better tell make so - updated patch below.
+> I just tried the patch, but the problem is still there...
 
-I am very thankful for your help.... Will try that.
+Duh. So this is also in 2.6.23 and 2.6.24?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
