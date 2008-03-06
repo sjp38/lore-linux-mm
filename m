@@ -1,55 +1,50 @@
-Message-ID: <47CF8B31.6040001@qumranet.com>
-Date: Thu, 06 Mar 2008 08:12:01 +0200
-From: Avi Kivity <avi@qumranet.com>
+Message-ID: <47CFA941.4070507@openvz.org>
+Date: Thu, 06 Mar 2008 11:20:17 +0300
+From: Pavel Emelyanov <xemul@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [kvm-devel] Notifier for Externally Mapped Memory (EMM) V1
-References: <Pine.LNX.4.64.0803051600470.7481@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0803051600470.7481@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [RFC/PATCH] cgroup swap subsystem
+References: <47CE36A9.3060204@mxp.nes.nec.co.jp>	<47CE5AE2.2050303@openvz.org>	<Pine.LNX.4.64.0803051400000.22243@blonde.site>	<47CEAAB4.8070208@openvz.org> <20080306093324.77c6d7f4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080306093324.77c6d7f4.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <andrea@qumranet.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, containers@lists.osdl.org, linux-mm@kvack.org, balbir@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
->  
->  /*
-> + * Notifier for devices establishing their own references to Linux
-> + * kernel pages in addition to the regular mapping via page
-> + * table and rmap. The notifier allows the device to drop the mapping
-> + * when the VM removes references to pages.
-> + */
-> +enum emm_operation {
-> +	emm_release,		/* Process existing, */
-> +	emm_invalidate_start,	/* Before the VM unmaps pages */
-> +	emm_invalidate_end,	/* After the VM unmapped pages */
-> +	emm_referenced		/* Check if a range was referenced */
-> +};
->   
+KAMEZAWA Hiroyuki wrote:
+> On Wed, 05 Mar 2008 17:14:12 +0300
+> Pavel Emelyanov <xemul@openvz.org> wrote:
+>>> Strongly agree.  Nobody's interested in swap as such: it's just
+>>> secondary memory, where RAM is primary memory.  People want to
+>>> control memory as the sum of the two; and I expect they may also
+>>> want to control primary memory (all that the current memcg does)
+>>> within that.  I wonder if such nesting of limits fits easily
+>>> into cgroups or will be problematic.
+>> This nesting would affect the res_couter abstraction, not the
+>> cgroup infrastructure. Current design of resource counters doesn't
+>> allow for such thing, but the extension is a couple-of-lines patch :)
+>>
+> IMHO, keeping res_counter simple is better.
+> 
+> Is this kind of new entry in mem_cgroup not good ?
+> ==
+> struct mem_cgroup {
+> 	...
+> 	struct res_counter	memory_limit.
+> 	struct res_counter	swap_limit.
+> 	..
+> }
 
-Check and clear
+I meant the same thing actually. By "nesting would affect" I
+meant, that we might want to make res_counters hierarchical.
 
+That would kill two birds with one stone - we will make a true
+hierarchical memory accounting and let charging of two counters
+with one call.
 
-btw, a similar test and clear dirty would be useful as well, no?
-
-> +
-> +struct emm_notifier {
-> +	int (*callback)(struct emm_notifier *e, struct mm_struct *mm,
-> +		enum emm_operation op,
-> +		unsigned long start, unsigned long end);
-> +	struct emm_notifier *next;
-> +};
-> +
->   
-
-It is cleaner for the user to specify individual callbacks instead of 
-having a switch.
-
-
--- 
-Do not meddle in the internals of kernels, for they are subtle and quick to panic.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
