@@ -1,325 +1,99 @@
-Date: Thu, 6 Mar 2008 18:41:27 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/6] Use two zonelist that are filtered by GFP mask
-Message-ID: <20080306184127.GB20085@csn.ul.ie>
-References: <20080227214708.6858.53458.sendpatchset@localhost> <20080227214734.6858.9968.sendpatchset@localhost> <20080228133247.6a7b626f.akpm@linux-foundation.org>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id m26IhhRc028232
+	for <linux-mm@kvack.org>; Fri, 7 Mar 2008 05:43:43 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m26Ii1n24407372
+	for <linux-mm@kvack.org>; Fri, 7 Mar 2008 05:44:01 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m26Ii0DK001443
+	for <linux-mm@kvack.org>; Fri, 7 Mar 2008 05:44:01 +1100
+Message-ID: <47D03B0A.8040906@linux.vnet.ibm.com>
+Date: Fri, 07 Mar 2008 00:12:18 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20080228133247.6a7b626f.akpm@linux-foundation.org>
+Subject: Re: Supporting overcommit with the memory controller
+References: <6599ad830803051617w7835d9b2l69bbc1a0423eac41@mail.gmail.com>
+In-Reply-To: <6599ad830803051617w7835d9b2l69bbc1a0423eac41@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, ak@suse.de, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, rientjes@google.com, eric.whitney@hp.com
+To: Paul Menage <menage@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Linux Containers <containers@lists.osdl.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On (28/02/08 13:32), Andrew Morton didst pronounce:
-> On Wed, 27 Feb 2008 16:47:34 -0500
-> Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
+Paul Menage wrote:
+> We want to be able to use the memory controller in the following way,
+> and I'd like to know how practical this is currently, and will be in
+> the future.
 > 
-> > +/* Returns the first zone at or below highest_zoneidx in a zonelist */
-> > +static inline struct zone **first_zones_zonelist(struct zonelist *zonelist,
-> > +					enum zone_type highest_zoneidx)
-> > +{
-> > +	struct zone **z;
-> > +
-> > +	/* Find the first suitable zone to use for the allocation */
-> > +	z = zonelist->zones;
-> > +	while (*z && zone_idx(*z) > highest_zoneidx)
-> > +		z++;
-> > +
-> > +	return z;
-> > +}
-> > +
-> > +/* Returns the next zone at or below highest_zoneidx in a zonelist */
-> > +static inline struct zone **next_zones_zonelist(struct zone **z,
-> > +					enum zone_type highest_zoneidx)
-> > +{
-> > +	/* Find the next suitable zone to use for the allocation */
-> > +	while (*z && zone_idx(*z) > highest_zoneidx)
-> > +		z++;
-> > +
-> > +	return z;
-> > +}
-> > +
-> > +/**
-> > + * for_each_zone_zonelist - helper macro to iterate over valid zones in a zonelist at or below a given zone index
-> > + * @zone - The current zone in the iterator
-> > + * @z - The current pointer within zonelist->zones being iterated
-> > + * @zlist - The zonelist being iterated
-> > + * @highidx - The zone index of the highest zone to return
-> > + *
-> > + * This iterator iterates though all zones at or below a given zone index.
-> > + */
-> > +#define for_each_zone_zonelist(zone, z, zlist, highidx) \
-> > +	for (z = first_zones_zonelist(zlist, highidx), zone = *z++;	\
-> > +		zone;							\
-> > +		z = next_zones_zonelist(z, highidx), zone = *z++)
-> > +
+> Users are poor at determining how much memory their jobs will actually
+> use (partly due to poor estimation, partly due to high variance of
+> memory usage on some jobs). So, we want to overcommit machines, i.e.
+> we want the total limits granted to all cgroups add up to more than
+> the total size of the machine.
 > 
-> omygawd will that thing generate a lot of code!
+> Our central scheduler will try to ensure that the jobs that are packed
+> on to the same machine are unlikely to all hit their peak usage at
+> once, so the machine as a whole is unlikely to actually run out of
+> memory. But sometimes it will be over-optimistic, and the machine will
+> run out of memory. We will try to ensure that there's a mixture of
+> high and low priority jobs on a machine, so that when the machine runs
+> out of memory the OOM killer can nuke the low-priority jobs and we can
+> reschedule them elsewhere.
 > 
-> It has four call sites in mm/oom_kill.c and the overall patchset increases
-> mm/oom_kill.o's text section (x86_64 allmodconfig) from 3268 bytes to 3845.
+> The tricky bit is that we don't want this OOM process to impact the
+> high-priority jobs on the machine. I.e. even while the low-priority
+> job is OOM-killing itself, the high priority job shouldn't have any
+> difficulty in doing regular memory allocations. And if the
+> high-priority job gets a spike in its memory usage, we want the
+> low-priority jobs to get killed quickly and cleanly to free up memory
+> for the high-priority job, without stalling the high-priority job.
 > 
-> vmscan.o and page_alloc.o also grew a lot.  otoh total vmlinux bloat from
-> the patchset is only around 700 bytes, so I expect that with a little less
-> insanity we could actually get an aggregate improvement here.
+> So for each job we need a (per-job configurable) amount of memory
+> that's essentially reserved for that job. That way the high-priority
+> job can carry on allocating from its reserved pool even while the
+> low-priority job is OOMing; the low-priority job can't touch the
+> reserved pool of the high-priority job.
 > 
-> Some of the inlining in mmzone.h is just comical.  Some of it is obvious
-> (first_zones_zonelist) and some of it is less obvious (pfn_present).
+> But to make this more interesting, there are plenty of jobs that will
+> happily fill as much pagecache as they have available. Even a job
+> that's just writing out logs will continually expand its pagecache
+> usage without anything to stop it, and so just keeping the reserved
+> pool at a fixed amount of free memory will result in the job expanding
+> even if it doesn't need to. Therefore we want to be able to include in
+> the "reserved" pool, memory that's allocated by the job, but which can
+> be freed without causing performance penalties for the job. (e.g. log
+> files, or pages from a large on-disk data file with little access
+> locality of reference) So suppose we'd decided to keep a reserve of
+> 200M for a particular job - if it had 200M of stale log file pages in
+> the pagecache then we could treat those as the 200M reserve, and not
+> have to keep on expanding the reserve pool.
 > 
-> I applied these for testing but I really don't think we should be merging
-> such easily-fixed regressions into mainline.  Could someone please take a
-> look at de-porking core MM?
+> We've been approximating this reasonably well with a combination of
+> cpusets, fake numa, and some hacks to determine how many pages in each
+> node haven't been touched recently (this is a bit different from the
+> active/inactive distinction). By assigning physical chunks of memory
+> (fake numa nodes) to different jobs, we get the pre-reservation that
+> we need. But using fake numa is a little inflexible, so it would be
+> nice to be able to use a page-based memory controller.
 > 
+> Is this something that would be possible to set up with the current
+> memory controller? My impression is that this isn't quite possible
+> yet, but maybe I've not just thought hard enough. I suspect that we'd
+> need at least the addition of page refault data, and the ability to
+> pre-reserve pages for a group.
 
-Here is the first attempt at uninlining the the zonelist walking. It doesn't
-use a callback iterator as that appeared at first glance as it would cause
-more bloat. With the version of patches posted, the increase in text size
-of vmlinux was 946 (x86_64 allmodconfig) and with this patch it's 613 so
-it's a bit of an improvement.
+I have some patches for implementing soft-limits. Have you explored to see if
+they can sort your problem? I am thinking of adding additional statistics like
+page-in, page-out rates and eventually refault statistics.
 
-Performance is still good. It's not a definitive gain or loss in comparison to
-the two-zonelist as different machines show different results. In comparison
-to the vanilla, it's still generally a win so for the reduction in text size,
-it's likely worth it overall.
-
-In comparison to two-zonelist the performance differences looks like
-
-Kernbench Elapsed    time      -0.66      to 2.03
-Kernbench Total  CPU           -0.73      to 0.94
-Hackbench pipes-1              -8.23      to 29.65
-Hackbench pipes-4              -8.10      to 10.98
-Hackbench pipes-8              -17.55     to 8.66
-Hackbench pipes-16             -12.15     to 3.16
-Hackbench sockets-1            -6.90      to 11.78
-Hackbench sockets-4            -1.75      to 3.89
-Hackbench sockets-8            -7.53      to 5.78
-Hackbench sockets-16           -3.78      to 5.89
-TBench    clients-1            -1.98      to 12.01
-TBench    clients-2            -3.83      to 11.02
-TBench    clients-4            -4.49      to 6.32
-TBench    clients-8            -5.65      to 5.76
-DBench    clients-1-ext2       -5.13      to 0.98
-DBench    clients-2-ext2       -2.42      to 8.07
-DBench    clients-4-ext2       -4.64      to 1.92
-DBench    clients-8-ext2       -5.57      to 9.90
-
-DBench is the one I am most frowning at as another file-based microbench
-showed huge variances but it's not clear why it would be particularly
-sensitive.
-
-Suggestions on how to improve the patch or alternatives?
-
-==CUT HERE==
-Subject: Uninline zonelist iterator helper functions
-
-The order zones are accessed in is determined by a zonelist and the
-iterator for it is for_each_zone_zonelist_nodemask(). That uses a number
-of large inline functions that bloats the vmlinux file unnecessarily.
-This patch uninlines one helper function and reduces the size of
-another. Some iterator logic is then pushed to the uninlined function to
-reduce text duplication
-
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- fs/buffer.c            |    4 ++-
- include/linux/mmzone.h |   62 +++++++------------------------------------------
- mm/mempolicy.c         |    4 ++-
- mm/mmzone.c            |   31 ++++++++++++++++++++++++
- mm/page_alloc.c        |   10 ++++++-
- 5 files changed, 55 insertions(+), 56 deletions(-)
-
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-rc2-mm1-1010_update_documentation/fs/buffer.c linux-2.6.25-rc2-mm1-1020_uninline/fs/buffer.c
---- linux-2.6.25-rc2-mm1-1010_update_documentation/fs/buffer.c	2008-03-03 14:39:40.000000000 +0000
-+++ linux-2.6.25-rc2-mm1-1020_uninline/fs/buffer.c	2008-03-06 11:26:07.000000000 +0000
-@@ -369,6 +369,7 @@ void invalidate_bdev(struct block_device
- static void free_more_memory(void)
- {
- 	struct zoneref *zrefs;
-+	struct zone *dummy;
- 	int nid;
- 
- 	wakeup_pdflush(1024);
-@@ -376,7 +377,8 @@ static void free_more_memory(void)
- 
- 	for_each_online_node(nid) {
- 		zrefs = first_zones_zonelist(node_zonelist(nid, GFP_NOFS),
--						gfp_zone(GFP_NOFS), NULL);
-+						gfp_zone(GFP_NOFS), NULL,
-+						&dummy);
- 		if (zrefs->zone)
- 			try_to_free_pages(node_zonelist(nid, GFP_NOFS), 0,
- 						GFP_NOFS);
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-rc2-mm1-1010_update_documentation/include/linux/mmzone.h linux-2.6.25-rc2-mm1-1020_uninline/include/linux/mmzone.h
---- linux-2.6.25-rc2-mm1-1010_update_documentation/include/linux/mmzone.h	2008-03-03 14:39:40.000000000 +0000
-+++ linux-2.6.25-rc2-mm1-1020_uninline/include/linux/mmzone.h	2008-03-06 11:14:59.000000000 +0000
-@@ -750,59 +750,19 @@ static inline int zonelist_node_idx(stru
- #endif /* CONFIG_NUMA */
- }
- 
--static inline void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
--{
--	zoneref->zone = zone;
--	zoneref->zone_idx = zone_idx(zone);
--}
--
--static inline int zref_in_nodemask(struct zoneref *zref, nodemask_t *nodes)
--{
--#ifdef CONFIG_NUMA
--	return node_isset(zonelist_node_idx(zref), *nodes);
--#else
--	return 1;
--#endif /* CONFIG_NUMA */
--}
-+struct zoneref *next_zones_zonelist(struct zoneref *z,
-+					enum zone_type highest_zoneidx,
-+					nodemask_t *nodes,
-+					struct zone **zone);
- 
- /* Returns the first zone at or below highest_zoneidx in a zonelist */
- static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
- 					enum zone_type highest_zoneidx,
--					nodemask_t *nodes)
-+					nodemask_t *nodes,
-+					struct zone **zone)
- {
--	struct zoneref *z;
--
--	/* Find the first suitable zone to use for the allocation */
--	z = zonelist->_zonerefs;
--	if (likely(nodes == NULL))
--		while (zonelist_zone_idx(z) > highest_zoneidx)
--			z++;
--	else
--		while (zonelist_zone_idx(z) > highest_zoneidx ||
--				(z->zone && !zref_in_nodemask(z, nodes)))
--			z++;
--
--	return z;
--}
--
--/* Returns the next zone at or below highest_zoneidx in a zonelist */
--static inline struct zoneref *next_zones_zonelist(struct zoneref *z,
--					enum zone_type highest_zoneidx,
--					nodemask_t *nodes)
--{
--	/*
--	 * Find the next suitable zone to use for the allocation.
--	 * Only filter based on nodemask if it's set
--	 */
--	if (likely(nodes == NULL))
--		while (zonelist_zone_idx(z) > highest_zoneidx)
--			z++;
--	else
--		while (zonelist_zone_idx(z) > highest_zoneidx ||
--				(z->zone && !zref_in_nodemask(z, nodes)))
--			z++;
--
--	return z;
-+	return next_zones_zonelist(zonelist->_zonerefs, highest_zoneidx, nodes,
-+								zone);
- }
- 
- /**
-@@ -817,11 +777,9 @@ static inline struct zoneref *next_zones
-  * within a given nodemask
-  */
- #define for_each_zone_zonelist_nodemask(zone, z, zlist, highidx, nodemask) \
--	for (z = first_zones_zonelist(zlist, highidx, nodemask),	\
--					zone = zonelist_zone(z++);	\
-+	for (z = first_zones_zonelist(zlist, highidx, nodemask, &zone);	\
- 		zone;							\
--		z = next_zones_zonelist(z, highidx, nodemask),		\
--					zone = zonelist_zone(z++))
-+		z = next_zones_zonelist(z, highidx, nodemask, &zone))	\
- 
- /**
-  * for_each_zone_zonelist - helper macro to iterate over valid zones in a zonelist at or below a given zone index
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-rc2-mm1-1010_update_documentation/mm/mempolicy.c linux-2.6.25-rc2-mm1-1020_uninline/mm/mempolicy.c
---- linux-2.6.25-rc2-mm1-1010_update_documentation/mm/mempolicy.c	2008-03-03 14:39:40.000000000 +0000
-+++ linux-2.6.25-rc2-mm1-1020_uninline/mm/mempolicy.c	2008-03-06 12:17:30.000000000 +0000
-@@ -1214,10 +1214,12 @@ unsigned slab_node(struct mempolicy *pol
- 		 */
- 		struct zonelist *zonelist;
- 		struct zoneref *z;
-+		struct zone *dummy;
- 		enum zone_type highest_zoneidx = gfp_zone(GFP_KERNEL);
- 		zonelist = &NODE_DATA(numa_node_id())->node_zonelists[0];
- 		z = first_zones_zonelist(zonelist, highest_zoneidx,
--							&policy->v.nodes);
-+							&policy->v.nodes,
-+							&dummy);
- 		return zonelist_node_idx(z);
- 	}
- 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-rc2-mm1-1010_update_documentation/mm/mmzone.c linux-2.6.25-rc2-mm1-1020_uninline/mm/mmzone.c
---- linux-2.6.25-rc2-mm1-1010_update_documentation/mm/mmzone.c	2008-02-15 20:57:20.000000000 +0000
-+++ linux-2.6.25-rc2-mm1-1020_uninline/mm/mmzone.c	2008-03-06 11:14:57.000000000 +0000
-@@ -42,3 +42,34 @@ struct zone *next_zone(struct zone *zone
- 	return zone;
- }
- 
-+static inline int zref_in_nodemask(struct zoneref *zref, nodemask_t *nodes)
-+{
-+#ifdef CONFIG_NUMA
-+	return node_isset(zonelist_node_idx(zref), *nodes);
-+#else
-+	return 1;
-+#endif /* CONFIG_NUMA */
-+}
-+
-+
-+/* Returns the next zone at or below highest_zoneidx in a zonelist */
-+struct zoneref *next_zones_zonelist(struct zoneref *z,
-+					enum zone_type highest_zoneidx,
-+					nodemask_t *nodes,
-+					struct zone **zone)
-+{
-+	/*
-+	 * Find the next suitable zone to use for the allocation.
-+	 * Only filter based on nodemask if it's set
-+	 */
-+	if (likely(nodes == NULL))
-+		while (zonelist_zone_idx(z) > highest_zoneidx)
-+			z++;
-+	else
-+		while (zonelist_zone_idx(z) > highest_zoneidx ||
-+				(z->zone && !zref_in_nodemask(z, nodes)))
-+			z++;
-+
-+	*zone = zonelist_zone(z++);
-+	return z;
-+}
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-rc2-mm1-1010_update_documentation/mm/page_alloc.c linux-2.6.25-rc2-mm1-1020_uninline/mm/page_alloc.c
---- linux-2.6.25-rc2-mm1-1010_update_documentation/mm/page_alloc.c	2008-03-03 14:39:40.000000000 +0000
-+++ linux-2.6.25-rc2-mm1-1020_uninline/mm/page_alloc.c	2008-03-06 11:11:00.000000000 +0000
-@@ -1398,9 +1398,9 @@ get_page_from_freelist(gfp_t gfp_mask, n
- 	int zlc_active = 0;		/* set if using zonelist_cache */
- 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
- 
--	z = first_zones_zonelist(zonelist, high_zoneidx, nodemask);
-+	z = first_zones_zonelist(zonelist, high_zoneidx, nodemask,
-+							&preferred_zone);
- 	classzone_idx = zonelist_zone_idx(z);
--	preferred_zone = zonelist_zone(z);
- 
- zonelist_scan:
- 	/*
-@@ -1966,6 +1966,12 @@ void show_free_areas(void)
- 	show_swap_cache_info();
- }
- 
-+static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
-+{
-+	zoneref->zone = zone;
-+	zoneref->zone_idx = zone_idx(zone);
-+}
-+
- /*
-  * Builds allocation fallback zone lists.
-  *
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
