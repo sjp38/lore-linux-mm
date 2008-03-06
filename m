@@ -1,46 +1,35 @@
-Received: from zps76.corp.google.com (zps76.corp.google.com [172.25.146.76])
-	by smtp-out.google.com with ESMTP id m268qhTl016649
-	for <linux-mm@kvack.org>; Thu, 6 Mar 2008 00:52:43 -0800
-Received: from wr-out-0506.google.com (wra69.prod.google.com [10.54.1.69])
-	by zps76.corp.google.com with ESMTP id m268qLv6004201
-	for <linux-mm@kvack.org>; Thu, 6 Mar 2008 00:52:42 -0800
-Received: by wr-out-0506.google.com with SMTP id 69so2689957wra.16
-        for <linux-mm@kvack.org>; Thu, 06 Mar 2008 00:52:42 -0800 (PST)
-Message-ID: <6599ad830803060052w32967983ifcf893063ce9a9be@mail.gmail.com>
-Date: Thu, 6 Mar 2008 00:52:41 -0800
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [Devel] Re: [RFC/PATCH] cgroup swap subsystem
-In-Reply-To: <47CFB065.3080200@openvz.org>
+Message-ID: <47CFB193.3040501@openvz.org>
+Date: Thu, 06 Mar 2008 11:55:47 +0300
+From: Pavel Emelyanov <xemul@openvz.org>
 MIME-Version: 1.0
+Subject: Re: Supporting overcommit with the memory controller
+References: <6599ad830803051617w7835d9b2l69bbc1a0423eac41@mail.gmail.com>	 <20080306100158.a521af1b.kamezawa.hiroyu@jp.fujitsu.com> <6599ad830803051854x5ee204bej7212d9c1e444e4d0@mail.gmail.com>
+In-Reply-To: <6599ad830803051854x5ee204bej7212d9c1e444e4d0@mail.gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <47CE36A9.3060204@mxp.nes.nec.co.jp> <47CE5AE2.2050303@openvz.org>
-	 <Pine.LNX.4.64.0803051400000.22243@blonde.site>
-	 <47CEAAB4.8070208@openvz.org>
-	 <20080306093324.77c6d7f4.kamezawa.hiroyu@jp.fujitsu.com>
-	 <47CFA941.4070507@openvz.org>
-	 <20080306173347.f6c5c84c.kamezawa.hiroyu@jp.fujitsu.com>
-	 <47CFAD69.6000909@openvz.org>
-	 <6599ad830803060048sb39735an765a62e6b928657e@mail.gmail.com>
-	 <47CFB065.3080200@openvz.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Emelyanov <xemul@openvz.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, containers@lists.osdl.org, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org
+To: Paul Menage <menage@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Hugh Dickins <hugh@veritas.com>, Linux Containers <containers@lists.osdl.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 6, 2008 at 12:50 AM, Pavel Emelyanov <xemul@openvz.org> wrote:
->  > The change that you're referring to is allowing a cgroup to have a
->  > total memory limit for itself and all its children, and then giving
->  > that cgroup's children separate memory limits within that overall
->  > limit?
->
->  Yup. Isn't this reasonable?
+>>  Can Balbir's soft-limit patches help ?
 
-Yes, sounds like a good plan.
+[snip]
 
-Paul
+> 
+> Yes, that could be a useful part of the solution - I suspect we'd need
+> to have kswapd do the soft-limit push back as well as in
+> try_to_free_pages(), to avoid the high-priority jobs getting stuck in
+> the reclaim code. It would also be nice if we had:
+
+BTW, one of the way OpenVZ users determine how much memory they
+need for containers is the following: they set the limits to
+maximal values and then check the "maxheld" (i.e. the maximal level
+of consumption over the time) value.
+
+Currently, we don't have such in res_counters and I'm going to
+implement this. Objections?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
