@@ -1,27 +1,53 @@
-Message-ID: <47D06A84.8060508@cs.helsinki.fi>
-Date: Fri, 07 Mar 2008 00:04:52 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-MIME-Version: 1.0
+From: Jens Osterkamp <Jens.Osterkamp@gmx.de>
 Subject: Re: [BUG] in 2.6.25-rc3 with 64k page size and SLUB_DEBUG_ON
-References: <200803061447.05797.Jens.Osterkamp@gmx.de> <200803062207.37654.Jens.Osterkamp@gmx.de> <Pine.LNX.4.64.0803061349220.15083@schroedinger.engr.sgi.com> <200803062253.00034.Jens.Osterkamp@gmx.de> <Pine.LNX.4.64.0803061354210.15083@schroedinger.engr.sgi.com> <47D06993.9000703@cs.helsinki.fi>
+Date: Thu, 6 Mar 2008 23:07:22 +0100
+References: <200803061447.05797.Jens.Osterkamp@gmx.de> <Pine.LNX.4.64.0803061354210.15083@schroedinger.engr.sgi.com> <47D06993.9000703@cs.helsinki.fi>
 In-Reply-To: <47D06993.9000703@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+MIME-Version: 1.0
+Content-Type: multipart/signed;
+  boundary="nextPart1633166.YhnW3jjjv1";
+  protocol="application/pgp-signature";
+  micalg=pgp-sha1
 Content-Transfer-Encoding: 7bit
+Message-Id: <200803062307.22436.Jens.Osterkamp@gmx.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Jens Osterkamp <Jens.Osterkamp@gmx.de>, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Pekka Enberg wrote:
-> You mention slub_debug=- makes the problem go away but can you narrow it 
-> down to a specific debug option described in Documentation/vm/slub.txt? 
-> In particular, does disabling slab poisoning or red zoning make the 
+--nextPart1633166.YhnW3jjjv1
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+
+
+> You mention slub_debug=3D- makes the problem go away but can you narrow i=
+t=20
+> down to a specific debug option described in Documentation/vm/slub.txt?=20
+> In particular, does disabling slab poisoning or red zoning make the=20
 > problem go away also?
 
-The most important thing to check is whether the kernel crashes with 
-slub_debug=f. That option enables all the debug paths but doesn't change 
-memory layout or contents at all (unlike red-zoning and poisoning).
+I tried with slub_debug=3D F,Z,P and U. Only with F the problem is not ther=
+e.
+
+Gru=DF,
+	Jens
+
+--nextPart1633166.YhnW3jjjv1
+Content-Type: application/pgp-signature; name=signature.asc 
+Content-Description: This is a digitally signed message part.
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQBH0GsaP1aZ9bkt7XMRApRvAKCuNyaei+ueMmIAlMUJzAg/+oAjXgCgh4rS
+ZfX6rX8MNQYyDTc95jGT41c=
+=DmN8
+-----END PGP SIGNATURE-----
+
+--nextPart1633166.YhnW3jjjv1--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
