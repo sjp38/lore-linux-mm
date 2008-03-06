@@ -1,38 +1,48 @@
-Date: Thu, 6 Mar 2008 13:50:10 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
+From: Jens Osterkamp <Jens.Osterkamp@gmx.de>
 Subject: Re: [BUG] in 2.6.25-rc3 with 64k page size and SLUB_DEBUG_ON
-In-Reply-To: <200803062207.37654.Jens.Osterkamp@gmx.de>
-Message-ID: <Pine.LNX.4.64.0803061349220.15083@schroedinger.engr.sgi.com>
-References: <200803061447.05797.Jens.Osterkamp@gmx.de>
- <Pine.LNX.4.64.0803061151590.14140@schroedinger.engr.sgi.com>
- <200803062207.37654.Jens.Osterkamp@gmx.de>
+Date: Thu, 6 Mar 2008 22:52:57 +0100
+References: <200803061447.05797.Jens.Osterkamp@gmx.de> <200803062207.37654.Jens.Osterkamp@gmx.de> <Pine.LNX.4.64.0803061349220.15083@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0803061349220.15083@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/signed;
+  boundary="nextPart2500716.86xmem3y4C";
+  protocol="application/pgp-signature";
+  micalg=pgp-sha1
+Content-Transfer-Encoding: 7bit
+Message-Id: <200803062253.00034.Jens.Osterkamp@gmx.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jens Osterkamp <Jens.Osterkamp@gmx.de>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 6 Mar 2008, Jens Osterkamp wrote:
+--nextPart2500716.86xmem3y4C
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 
-> I had earlier biesected this to the following commit, should have mentioned that,
-> sorry !
-> 
-> commit f0630fff54a239efbbd89faf6a62da071ef1ff78
-> Author: Christoph Lameter <clameter@sgi.com>
-> Date:   Sun Jul 15 23:38:14 2007 -0700
-> 
->     SLUB: support slub_debug on by default
-> 
->     [...]
 
-hehehe. So slub debug is off if you do not specify slub_debug on the 
-commandline. No surprise there.
+> Duh. So this is also in 2.6.23 and 2.6.24?
 
-> I just tried the patch, but the problem is still there...
+Yes, it got in with 2.6.23-rc1.
 
-Duh. So this is also in 2.6.23 and 2.6.24?
+Gru=DF,
+	Jens
+
+--nextPart2500716.86xmem3y4C
+Content-Type: application/pgp-signature; name=signature.asc 
+Content-Description: This is a digitally signed message part.
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQBH0Ge8P1aZ9bkt7XMRAhSKAJ4k7Wq5owpBz3nwWcaD/+nMw2aw5gCfV4lt
+CwVC0PwNLbX8pKqDrOAlzU4=
+=z8qp
+-----END PGP SIGNATURE-----
+
+--nextPart2500716.86xmem3y4C--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
