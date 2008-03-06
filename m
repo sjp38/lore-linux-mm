@@ -1,33 +1,56 @@
-Message-ID: <47D06F07.4070404@cs.helsinki.fi>
-Date: Fri, 07 Mar 2008 00:24:07 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-MIME-Version: 1.0
+From: Jens Osterkamp <Jens.Osterkamp@gmx.de>
 Subject: Re: [BUG] in 2.6.25-rc3 with 64k page size and SLUB_DEBUG_ON
-References: <200803061447.05797.Jens.Osterkamp@gmx.de> <Pine.LNX.4.64.0803061354210.15083@schroedinger.engr.sgi.com> <47D06993.9000703@cs.helsinki.fi> <200803062307.22436.Jens.Osterkamp@gmx.de> <Pine.LNX.4.64.0803061418430.15083@schroedinger.engr.sgi.com>
+Date: Thu, 6 Mar 2008 23:25:57 +0100
+References: <200803061447.05797.Jens.Osterkamp@gmx.de> <200803062307.22436.Jens.Osterkamp@gmx.de> <Pine.LNX.4.64.0803061418430.15083@schroedinger.engr.sgi.com>
 In-Reply-To: <Pine.LNX.4.64.0803061418430.15083@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+MIME-Version: 1.0
+Content-Type: multipart/signed;
+  boundary="nextPart2802846.sNWxJalY8R";
+  protocol="application/pgp-signature";
+  micalg=pgp-sha1
 Content-Transfer-Encoding: 7bit
+Message-Id: <200803062325.57200.Jens.Osterkamp@gmx.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Jens Osterkamp <Jens.Osterkamp@gmx.de>, linux-mm@kvack.org
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> Ahh.. That looks like an alignment problem. The other options all add 
-> data to the object and thus misalign them if no alignment is 
+--nextPart2802846.sNWxJalY8R
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+
+
+> Ahh.. That looks like an alignment problem. The other options all add=20
+> data to the object and thus misalign them if no alignment is=20
 > specified.
+>=20
+> Seems that powerpc expect an alignment but does not specify it for some d=
+ata.
+>=20
+> You can restrict the debug for certain slabs only. Try some of the arch=20
+> specific slab caches first.
 
-And causes buffer overrun? So the crazy preempt count 0x00056ef8 could a 
-the lower part of an instruction pointer tracked by SLAB_STORE_USER? So 
-does:
+Ok, I will do that. Thanks so far !
 
-   gdb vmlinux
-   (gdb) l *c000000000056ef8
+Gru=DF,
+	Jens
 
-translate into any meaningful kernel function?
+--nextPart2802846.sNWxJalY8R
+Content-Type: application/pgp-signature; name=signature.asc 
+Content-Description: This is a digitally signed message part.
 
-			Pekka
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQBH0G91P1aZ9bkt7XMRAmbzAKDDS7j9w7IrXPsMvNHfPsiLKUEFKwCgjFwk
+ou9LgC0VIIvHbfCzxlFxS/M=
+=G/uw
+-----END PGP SIGNATURE-----
+
+--nextPart2802846.sNWxJalY8R--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
