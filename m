@@ -1,56 +1,26 @@
-From: Jens Osterkamp <Jens.Osterkamp@gmx.de>
-Subject: Re: [BUG] in 2.6.25-rc3 with 64k page size and SLUB_DEBUG_ON
-Date: Thu, 6 Mar 2008 23:25:57 +0100
-References: <200803061447.05797.Jens.Osterkamp@gmx.de> <200803062307.22436.Jens.Osterkamp@gmx.de> <Pine.LNX.4.64.0803061418430.15083@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0803061418430.15083@schroedinger.engr.sgi.com>
+Date: Thu, 6 Mar 2008 14:43:53 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 2/8] Kbuild: Create a way to create preprocessor constants
+ from C expressions
+In-Reply-To: <20080306210005.GB29026@uranus.ravnborg.org>
+Message-ID: <Pine.LNX.4.64.0803061442010.15906@schroedinger.engr.sgi.com>
+References: <20080305223815.574326323@sgi.com> <20080305223845.436523065@sgi.com>
+ <20080305200800.23ee10ec.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0803061217240.14140@schroedinger.engr.sgi.com>
+ <20080306210005.GB29026@uranus.ravnborg.org>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
-  boundary="nextPart2802846.sNWxJalY8R";
-  protocol="application/pgp-signature";
-  micalg=pgp-sha1
-Content-Transfer-Encoding: 7bit
-Message-Id: <200803062325.57200.Jens.Osterkamp@gmx.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Sam Ravnborg <sam@ravnborg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, ak@suse.de, Mel Gorman <mel@csn.ul.ie>, apw@shadowen.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---nextPart2802846.sNWxJalY8R
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+Hmmm.. Even after the Sam's fixes: I still have the recursion probblem 
+that include/linux/bounds.h needs to exist and provide some value for 
+the constants in order to create kernel/bounds.c. And kernel/bounds.c is 
+needed then to create bounds.s which creates bounds.h. Argh!
 
-
-> Ahh.. That looks like an alignment problem. The other options all add=20
-> data to the object and thus misalign them if no alignment is=20
-> specified.
->=20
-> Seems that powerpc expect an alignment but does not specify it for some d=
-ata.
->=20
-> You can restrict the debug for certain slabs only. Try some of the arch=20
-> specific slab caches first.
-
-Ok, I will do that. Thanks so far !
-
-Gru=DF,
-	Jens
-
---nextPart2802846.sNWxJalY8R
-Content-Type: application/pgp-signature; name=signature.asc 
-Content-Description: This is a digitally signed message part.
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
-
-iD8DBQBH0G91P1aZ9bkt7XMRAmbzAKDDS7j9w7IrXPsMvNHfPsiLKUEFKwCgjFwk
-ou9LgC0VIIvHbfCzxlFxS/M=
-=G/uw
------END PGP SIGNATURE-----
-
---nextPart2802846.sNWxJalY8R--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
