@@ -1,55 +1,66 @@
-Message-ID: <47CFB46D.3040409@openvz.org>
-Date: Thu, 06 Mar 2008 12:07:57 +0300
-From: Pavel Emelyanov <xemul@openvz.org>
-MIME-Version: 1.0
-Subject: Re: Supporting overcommit with the memory controller
-References: <6599ad830803051617w7835d9b2l69bbc1a0423eac41@mail.gmail.com>	<20080306100158.a521af1b.kamezawa.hiroyu@jp.fujitsu.com>	<6599ad830803051854x5ee204bej7212d9c1e444e4d0@mail.gmail.com>	<47CFB193.3040501@openvz.org> <20080306180541.404bfd12.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080306180541.404bfd12.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Thu, 06 Mar 2008 19:03:04 +0900 (JST)
+Message-Id: <20080306.190304.83917780.taka@valinux.co.jp>
+Subject: Re: [Preview] [PATCH] radix tree based page cgroup [0/6]
+From: Hirokazu Takahashi <taka@valinux.co.jp>
+In-Reply-To: <20080305205137.5c744097.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080305205137.5c744097.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Paul Menage <menage@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Hugh Dickins <hugh@veritas.com>, Linux Containers <containers@lists.osdl.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: kamezawa.hiroyu@jp.fujitsu.com
+Cc: linux-mm@kvack.org, balbir@linux.vnet.ibm.com, xemul@openvz.org, hugh@veritas.com, yamamoto@valinux.co.jp
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Thu, 06 Mar 2008 11:55:47 +0300
-> Pavel Emelyanov <xemul@openvz.org> wrote:
-> 
->>>>  Can Balbir's soft-limit patches help ?
->> [snip]
->>
->>> Yes, that could be a useful part of the solution - I suspect we'd need
->>> to have kswapd do the soft-limit push back as well as in
->>> try_to_free_pages(), to avoid the high-priority jobs getting stuck in
->>> the reclaim code. It would also be nice if we had:
->> BTW, one of the way OpenVZ users determine how much memory they
->> need for containers is the following: they set the limits to
->> maximal values and then check the "maxheld" (i.e. the maximal level
->> of consumption over the time) value.
->>
->> Currently, we don't have such in res_counters and I'm going to
->> implement this. Objections?
->>
-> Basically, no objection.
-> 
-> BTW, which does it means ? 
-> - create a new cgroup to accounting max memory consumption, etc...
-> or
-> - add new member to mem_cgroup
-> or
-> - add new member to res_counter
+Hi,
 
-The third one - new member on res_counter. This will cost us 8 more
-bytes on mem_cgroup and no performance impact, since the new field
-is about to be touched only together with the limit and usage ones,
-and thus is in one cacheline.
+> Hi, this is the latest version of radix-tree based page cgroup patch.
+> 
+> I post this now because recent major changes are included in 2.6.25-rc4.
+> (I admit I should do more tests on this set.)
+> 
+> Almost all are rewritten and adjusted to rc4's logic.
+> I feel this set is simpler than previous one.
+> 
+> Patch series is following.
+> [1/6] page cgroup definition
+> [2/6] patch against charge/uncharge 
+> [3/6] patch against move_list
+> [4/6] patch against migration
+> [5/6] radix tree based page_cgroup
+> [6/6] boost by per-cpu cache.
+> 
+>  * force_empty patch is dropped because it's unnecessary.
+>  * vmalloc patch is dropped. we always use kmalloc in this version.
+> 
+> TODO:
+>   - add freeing page_cgroup routine. it seems necessary sometimes.
+>     (I have one and will be added to this set in the next post.)
 
+I doubt page_cgroups can be freed effectively since most of the pages
+are used and each of them has its corresponding page_cgroup when you
+need more free memory.
+
+In this case, right after some page_cgroup freed when the corresponding
+pages are released, these pages are reallocated and page_cgroups are
+also reallocated and assigned to them. It will only give us meaningless
+overhead.
+
+And I think it doesn't make sense to free page_cgroups to make much more
+free memory if there are a lot of free memory,
+
+I guess freeing page_cgroup routine will be fine when making hugetlb
+pages.
+
+>   - Logic check again.
+> 
 > Thanks,
 > -Kame
-> 
-> 
+
+
+Thanks,
+Hirokazu Takahashi.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
