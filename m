@@ -1,42 +1,51 @@
-Date: Thu, 6 Mar 2008 11:10:28 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
+Date: Thu, 6 Mar 2008 11:11:45 -0800
+From: Randy Dunlap <randy.dunlap@oracle.com>
 Subject: Re: [PATCH] Add cgroup support for enabling controllers at boot
  time
+Message-Id: <20080306111145.27efc74c.randy.dunlap@oracle.com>
 In-Reply-To: <20080306185952.23290.49571.sendpatchset@localhost.localdomain>
-Message-ID: <alpine.DEB.1.00.0803061108370.13110@chino.kir.corp.google.com>
 References: <20080306185952.23290.49571.sendpatchset@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 7 Mar 2008, Balbir Singh wrote:
+On Fri, 07 Mar 2008 00:29:52 +0530 Balbir Singh wrote:
 
-> @@ -3010,3 +3020,16 @@ static void cgroup_release_agent(struct 
->  	spin_unlock(&release_list_lock);
->  	mutex_unlock(&cgroup_mutex);
->  }
-> +
-> +static int __init cgroup_disable(char *str)
-> +{
-> +	int i;
-> +	for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
-> +		struct cgroup_subsys *ss = subsys[i];
-> +		if (!strcmp(str, ss->name)) {
-> +			ss->disabled = 1;
-> +			break;
-> +		}
-> +	}
-> +}
-> +__setup("cgroup_disable=", cgroup_disable);
-
-This doesn't handle spaces very well, so isn't it possible for the name of 
-a current or future cgroup subsystem to be specified after cgroup_disable= 
-on the command line and have it disabled by accident?
-
+> From: Paul Menage <menage@google.com>
+> 
+> The effects of cgroup_disable=foo are:
+> 
+> - foo doesn't show up in /proc/cgroups
+> - foo isn't auto-mounted if you mount all cgroups in a single hierarchy
+> - foo isn't visible as an individually mountable subsystem
+> 
+> As a result there will only ever be one call to foo->create(), at init
+> time; all processes will stay in this group, and the group will never
+> be mounted on a visible hierarchy. Any additional effects (e.g. not
+> allocating metadata) are up to the foo subsystem.
+> 
+> This doesn't handle early_init subsystems (their "disabled" bit isn't
+> set be, but it could easily be extended to do so if any of the early_init
+> systems wanted it - I think it would just involve some nastier parameter
+> processing since it would occur before the command-line argument parser
+> had been run.
+> 
+> [Balbir added Documentation/kernel-parameters updates]
+> 
+> Signed-off-by: Paul Menage <menage@google.com>
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
+> 
+>  Documentation/kernel-parameters.txt |    4 ++++
+>  include/linux/cgroup.h              |    1 +
+>  kernel/cgroup.c                     |   27 +++++++++++++++++++++++++--
+>  3 files changed, 30 insertions(+), 2 deletions(-)
+> 
 > diff -puN Documentation/kernel-parameters.txt~cgroup_disable Documentation/kernel-parameters.txt
 > --- linux-2.6.25-rc4/Documentation/kernel-parameters.txt~cgroup_disable	2008-03-06 17:57:32.000000000 +0530
 > +++ linux-2.6.25-rc4-balbir/Documentation/kernel-parameters.txt	2008-03-06 18:00:32.000000000 +0530
@@ -45,12 +54,19 @@ on the command line and have it disabled by accident?
 >  			See Documentation/s390/CommonIO for details.
 >  
 > +	cgroup_disable= [KNL] Enable disable a particular controller
+
+So it can enable or disable?  or the text has extra text?
+
 > +			Format: {name of the controller}
 > +			See /proc/cgroups for a list of compiled controllers
 > +
+>  	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
+>  			Format: { "0" | "1" }
+>  			See security/selinux/Kconfig help text.
 
-This works on multiple controllers, though, if they follow 
-cgroup_disable=, so the documentation and format should reflect that.
+
+---
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
