@@ -1,27 +1,33 @@
-Date: Fri, 7 Mar 2008 20:02:32 +0100
+Date: Fri, 7 Mar 2008 20:03:13 +0100
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [4/13] Prepare page_alloc for the maskable allocator
-Message-ID: <20080307190232.GM7365@one.firstfloor.org>
-References: <200803071007.493903088@firstfloor.org> <20080307090714.9493F1B419C@basil.firstfloor.org> <20080307181943.GA14779@uranus.ravnborg.org>
+Subject: Re: [PATCH] [8/13] Enable the mask allocator for x86
+Message-ID: <20080307190313.GN7365@one.firstfloor.org>
+References: <200803071007.493903088@firstfloor.org> <20080307090718.A609E1B419C@basil.firstfloor.org> <20080307183255.GB14779@uranus.ravnborg.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080307181943.GA14779@uranus.ravnborg.org>
+In-Reply-To: <20080307183255.GB14779@uranus.ravnborg.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Sam Ravnborg <sam@ravnborg.org>
 Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Again - looks too big to inline..
+On Fri, Mar 07, 2008 at 07:32:55PM +0100, Sam Ravnborg wrote:
+> On Fri, Mar 07, 2008 at 10:07:18AM +0100, Andi Kleen wrote:
+> > 
+> > - Disable old ZONE_DMA
+> > No fixed size ZONE_DMA now anymore. All existing users of __GFP_DMA rely 
+> > on the compat call to the maskable allocator in alloc/free_pages
+> > - Call maskable allocator initialization functions at boot
+> > - Add TRAD_DMA_MASK for the compat functions 
 > 
-> But for both I do not know where they are used and how often.
+> I see TRAD_DMA_MASK used by patch 6 and patch 7, but only here
+> in this later patch it is defined.
+> Looks like we have build breakage - but I have not checked it.
 
-For the mask allocator it is not that critical, but for the main
-allocator it is on the very very hot page allocation/free path. That is why
-I didn't want to out-of-line it.
-
-Note I didn't change it, just moved it.
+It is only used when the architecture defines CONFIG_MASK_ALLOC and
+that is not done by any until the later patches.
 
 -Andi
 
