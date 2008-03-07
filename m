@@ -1,15 +1,15 @@
-Date: Fri, 7 Mar 2008 11:54:32 -0800 (PST)
+Date: Fri, 7 Mar 2008 12:00:26 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] 2/4 move all invalidate_page outside of PT lock (#v9
- was 1/4)
-In-Reply-To: <20080307151722.GD24114@v2.random>
-Message-ID: <Pine.LNX.4.64.0803071151140.6815@schroedinger.engr.sgi.com>
-References: <20080227192610.GF28483@v2.random> <20080302155457.GK8091@v2.random>
- <20080303213707.GA8091@v2.random> <20080303220502.GA5301@v2.random>
- <47CC9B57.5050402@qumranet.com> <Pine.LNX.4.64.0803032327470.9642@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH] 3/4 combine RCU with seqlock to allow mmu notifier
+ methods to sleep (#v9 was 1/4)
+In-Reply-To: <20080307152328.GE24114@v2.random>
+Message-ID: <Pine.LNX.4.64.0803071155100.6815@schroedinger.engr.sgi.com>
+References: <20080302155457.GK8091@v2.random> <20080303213707.GA8091@v2.random>
+ <20080303220502.GA5301@v2.random> <47CC9B57.5050402@qumranet.com>
+ <Pine.LNX.4.64.0803032327470.9642@schroedinger.engr.sgi.com>
  <20080304133020.GC5301@v2.random> <Pine.LNX.4.64.0803041059110.13957@schroedinger.engr.sgi.com>
  <20080304222030.GB8951@v2.random> <Pine.LNX.4.64.0803041422070.20821@schroedinger.engr.sgi.com>
- <20080307151722.GD24114@v2.random>
+ <20080307151722.GD24114@v2.random> <20080307152328.GE24114@v2.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -20,54 +20,95 @@ List-ID: <linux-mm.kvack.org>
 
 On Fri, 7 Mar 2008, Andrea Arcangeli wrote:
 
-> This below simple patch invalidates the "invalidate_page" part, the
-> next patch will invalidate the RCU part, and btw in a way that doesn't
-> forbid unregistering the mmu notifiers at runtime (like your brand new
-> EMM does).
+> This combines the non-sleep-capable RCU locking of #v9 with a seqlock
+> so the mmu notifier fast path will require zero cacheline
+> writes/bouncing while still providing mmu_notifier_unregister and
+> allowing to schedule inside the mmu notifier methods. If we drop
+> mmu_notifier_unregister we can as well drop all seqlock and
+> rcu_read_lock()s. But this locking scheme combination is sexy enough
+> and 100% scalable (the mmu_notifier_list cacheline will be preloaded
+> anyway and that will most certainly include the sequence number value
+> in l1 for free even in Christoph's NUMA systems) so IMHO it worth to
+> keep mmu_notifier_unregister.
 
-Sounds good.
+Well its adds lots of processing. Not sure if its really worth it. Seems 
+that this scheme cannot work since the existence of the structure passed 
+to the callbacks is not guaranteed since the RCU locks are not held. You 
+need some kind of a refcount to give the existence guarantee.
 
-> The reason I keep this incremental (unlike your EMM that does
-> everything all at the same time mixed in a single patch) is to
-> decrease the non obviously safe mangling over mm/* during .25. The
-> below patch is simple, but not as obviously safe as
-> s/ptep_clear_flush/ptep_clear_flush_notify/.
-
-There was never a chance to merge for .25. Lets drop that and focus on 
-a solution that is good for all.
-
->  #endif /* _LINUX_MMU_NOTIFIER_H */
-> diff --git a/mm/filemap_xip.c b/mm/filemap_xip.c
-> --- a/mm/filemap_xip.c
-> +++ b/mm/filemap_xip.c
-> @@ -194,11 +194,13 @@ __xip_unmap (struct address_space * mapp
->  		if (pte) {
->  			/* Nuke the page table entry. */
->  			flush_cache_page(vma, address, pte_pfn(*pte));
-> -			pteval = ptep_clear_flush_notify(vma, address, pte);
-> +			pteval = ptep_clear_flush(vma, address, pte);
->  			page_remove_rmap(page, vma);
->  			dec_mm_counter(mm, file_rss);
->  			BUG_ON(pte_dirty(pteval));
->  			pte_unmap_unlock(pte, ptl);
-> +			/* must invalidate_page _before_ freeing the page */
-> +			mmu_notifier_invalidate_page(mm, address);
->  			page_cache_release(page);
->  		}
->  	}
-
-Ok but we still hold the i_mmap_lock here.
-
-
-> @@ -834,6 +846,8 @@ static void try_to_unmap_cluster(unsigne
->  	if (!pmd_present(*pmd))
->  		return;
+> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+> --- a/mm/mmu_notifier.c
+> +++ b/mm/mmu_notifier.c
+> @@ -20,7 +20,9 @@ void __mmu_notifier_release(struct mm_st
+>  void __mmu_notifier_release(struct mm_struct *mm)
+>  {
+>  	struct mmu_notifier *mn;
+> +	unsigned seq;
 >  
-> +	start = address;
-> +	mmu_notifier_invalidate_range_begin(mm, start, end);
+> +	seq = read_seqbegin(&mm->mmu_notifier_lock);
+>  	while (unlikely(!hlist_empty(&mm->mmu_notifier_list))) {
+>  		mn = hlist_entry(mm->mmu_notifier_list.first,
+>  				 struct mmu_notifier,
+> @@ -28,6 +30,7 @@ void __mmu_notifier_release(struct mm_st
+>  		hlist_del(&mn->hlist);
+>  		if (mn->ops->release)
+>  			mn->ops->release(mn, mm);
+> +		BUG_ON(read_seqretry(&mm->mmu_notifier_lock, seq));
+>  	}
+>  }
 
-Hmmmm.. Okay you going for range invalidate here like EMM but there are 
-still some invalidate_pages() left.
+So this is only for sanity checking? The BUG_ON detects concurrent 
+operations that should not happen? Need a comment here.
+
+
+> @@ -42,11 +45,19 @@ int __mmu_notifier_clear_flush_young(str
+>  	struct mmu_notifier *mn;
+>  	struct hlist_node *n;
+>  	int young = 0;
+> +	unsigned seq;
+>  
+>  	rcu_read_lock();
+> +restart:
+> +	seq = read_seqbegin(&mm->mmu_notifier_lock);
+>  	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_list, hlist) {
+> -		if (mn->ops->clear_flush_young)
+> +		if (mn->ops->clear_flush_young) {
+> +			rcu_read_unlock();
+>  			young |= mn->ops->clear_flush_young(mn, mm, address);
+> +			rcu_read_lock();
+> +		}
+> +		if (read_seqretry(&mm->mmu_notifier_lock, seq))
+> +			goto restart;
+
+Great innovative idea of the seqlock for versioning checks.
+
+>  	}
+>  	rcu_read_unlock();
+>  
+
+Well that gets pretty sophisticated here. If you drop the rcu lock then 
+the entity pointed to by mn can go away right? So how can you pass that 
+structure to clear_flush_young? What is guaranteeing the existence of the 
+structure?
+
+
+> @@ -58,11 +69,19 @@ void __mmu_notifier_invalidate_page(stru
+>  {
+>  	struct mmu_notifier *mn;
+>  	struct hlist_node *n;
+> +	unsigned seq;
+>  
+>  	rcu_read_lock();
+> +restart:
+> +	seq = read_seqbegin(&mm->mmu_notifier_lock);
+>  	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_list, hlist) {
+> -		if (mn->ops->invalidate_page)
+> +		if (mn->ops->invalidate_page) {
+> +			rcu_read_unlock();
+>  			mn->ops->invalidate_page(mn, mm, address);
+
+Ditto structure can vanish since no existence guarantee exists.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
