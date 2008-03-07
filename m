@@ -1,43 +1,59 @@
-Date: Fri, 7 Mar 2008 15:57:42 -0600
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: Regression:  Re: [patch -mm 2/4] mempolicy: create
- mempolicy_operations structure
-Message-Id: <20080307155742.d7b54da6.pj@sgi.com>
-In-Reply-To: <alpine.DEB.1.00.0803071341090.26765@chino.kir.corp.google.com>
-References: <alpine.DEB.1.00.0803061135001.18590@chino.kir.corp.google.com>
-	<alpine.DEB.1.00.0803061135560.18590@chino.kir.corp.google.com>
-	<1204922646.5340.73.camel@localhost>
-	<alpine.DEB.1.00.0803071341090.26765@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Jens Osterkamp <Jens.Osterkamp@gmx.de>
+Subject: Re: [BUG] in 2.6.25-rc3 with 64k page size and SLUB_DEBUG_ON
+Date: Fri, 7 Mar 2008 23:09:16 +0100
+References: <200803061447.05797.Jens.Osterkamp@gmx.de> <200803062307.22436.Jens.Osterkamp@gmx.de> <Pine.LNX.4.64.0803061418430.15083@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0803061418430.15083@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed;
+  boundary="nextPart4003371.dXf8GQBHZs";
+  protocol="application/pgp-signature";
+  micalg=pgp-sha1
 Content-Transfer-Encoding: 7bit
+Message-Id: <200803072309.19788.Jens.Osterkamp@gmx.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Lee.Schermerhorn@hp.com, akpm@linux-foundation.org, clameter@sgi.com, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, eric.whitney@hp.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-David wrote:
-> If you want to remove this requirement now (please get agreement from Paul)
+--nextPart4003371.dXf8GQBHZs
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 
-I'm ducking and running for cover ;).
 
-Personally, I'm slightly in favor of not requiring the empty mask,
-as I always that that empty mask check was a couple lines of non-
-essential logic.  However I'm slightly in favor of not changing
-this detail from what it has been for years, which would mean we
-still checked for the empty mask.  And no doubt, if someone cares
-to examine the record closely enough they will find where I took a
-third position as well.
+> Ahh.. That looks like an alignment problem. The other options all add=20
+> data to the object and thus misalign them if no alignment is=20
+> specified.
+>=20
+> Seems that powerpc expect an alignment but does not specify it for some d=
+ata.
+>=20
+> You can restrict the debug for certain slabs only. Try some of the arch=20
+> specific slab caches first.
 
-But I can't see where it actually matters enough to write home about.
+I started with rtas_flash_cache, hugepte_cache, spufs_inode_cache, pgd_cach=
+e,
+pmd_cache and around 20 other that are allocated beforce the crash with no
+success yet.
 
-So I'll quit writing, and agree to most anything.
+Gru=DF,
+	Jens
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.940.382.4214
+--nextPart4003371.dXf8GQBHZs
+Content-Type: application/pgp-signature; name=signature.asc 
+Content-Description: This is a digitally signed message part.
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQBH0b0PP1aZ9bkt7XMRAmyzAJ95PGm2q7NrYWLhU1CZ2VL4QbgCqACg2VsI
+zzcNr+IDYmD18kG6TQglOJw=
+=oqdk
+-----END PGP SIGNATURE-----
+
+--nextPart4003371.dXf8GQBHZs--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
