@@ -1,51 +1,74 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28esmtp03.in.ibm.com (8.13.1/8.13.1) with ESMTP id m27DUpBI029341
-	for <linux-mm@kvack.org>; Fri, 7 Mar 2008 19:00:51 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m27DUo4v1048758
-	for <linux-mm@kvack.org>; Fri, 7 Mar 2008 19:00:50 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id m27DUoiC019582
-	for <linux-mm@kvack.org>; Fri, 7 Mar 2008 13:30:50 GMT
-Message-ID: <47D1431C.6060107@linux.vnet.ibm.com>
-Date: Fri, 07 Mar 2008 18:59:00 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH] Add cgroup support for enabling controllers at boot time
- (v2)
-References: <20080307085735.25567.314.sendpatchset@localhost.localdomain> <6599ad830803070125o1ebfd7d1r728cdadf726ecbe2@mail.gmail.com> <6599ad830803070426l22d78446t588691dedeeb490b@mail.gmail.com> <47D13BF1.1060009@linux.vnet.ibm.com> <6599ad830803070509v1ec83aeet9f63bfd61a00ef19@mail.gmail.com>
-In-Reply-To: <6599ad830803070509v1ec83aeet9f63bfd61a00ef19@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [BUG] 2.6.25-rc4 hang/softlockups after freeing hugepages
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20080307114849.GC26229@csn.ul.ie>
+References: <1204824183.5294.62.camel@localhost>
+	 <20080307114849.GC26229@csn.ul.ie>
+Content-Type: text/plain
+Date: Fri, 07 Mar 2008 09:36:56 -0500
+Message-Id: <1204900617.5340.2.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Adam Litke <agl@us.ibm.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-Paul Menage wrote:
-> On Fri, Mar 7, 2008 at 4:58 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->>  > Or rather, it's the other way around - cgroup_disable=cpuset will
->>  > instead disable the "cpu" subsystem if "cpu" comes before "cpuset" in
->>  > the subsystem list.
->>  >
->>
->>  Would it? I must be missing something, since we do a strncmp with ss->name.
->>  I would expect that to match whole strings.
->>
+On Fri, 2008-03-07 at 11:48 +0000, Mel Gorman wrote:
+> On (06/03/08 12:23), Lee Schermerhorn didst pronounce:
+> > Test platform:  HP Proliant DL585 server - 4 socket, dual core AMD with
+> > 32GB memory.
+> > 
+> > I first saw this on 25-rc2-mm1 with Mel's zonelist patches, while
+> > investigating the interaction of hugepages and cpusets.  Thinking that
+> > it might be caused by the zonelist patches, I went back to 25-rc2-mm1
+> > w/o the patches and saw the same thing.  It sometimes takes a while for
+> > the softlockups to start appearing, and I wanted to find a fairly
+> > minimal duplicator.  Meanwhile 25-rc3 and rc4 have come out, so I tried
+> > the latest upstream kernel and see the same thing.
+> > 
+> > To duplicate the problem, I need only:
+> > 
+> > + log into the platform as root in one window and:
+> > 
+> > 	echo N >/proc/sys/vm/nr_hugepages
+> > 	echo 0 >proc/sys/vm/nr_hugepages
+> > 
 > 
-> No, strncmp only checks the first n characters - so in that case,
-> you'd be checking for !strncmp("cpuset", "cpu", 3), which will return
-> true
+> Uncool, I am going to try and find a machine to reproduce this one but
+> in case I have no luck, can you try setting the following in your
+> .config which may rattle out something please?
+> 
+> CONFIG_DEBUG_SPINLOCK=y
+> CONFIG_DEBUG_MUTEXES=y
+> CONFIG_DEBUG_LOCK_ALLOC=y
+> CONFIG_PROVE_LOCKING=y
+> CONFIG_DEBUG_SPINLOCK_SLEEP=y
+> CONFIG_DEBUG_VM=y
+> 
+> and as you have DEBUG_INFO, can you say what line is ffffffff8027b693 ?
 
-Aaah.. I see the problem now.
+Will test and get back to you with info.  Slightly backed up here...
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+> 
+> > In my case, N=64.  If I look, before echoing 0, I see 16 hugepages
+> > allocated on each of the 4 nodes, as expected.
+> > 
+> > + then in another window, log in again.  
+> > 
+> > Sometimes it will hang during the 2nd login and I'll never see a shell
+> > prompt. 
+> 
+> My initial guess was that is is something to do with page_table_lock but as
+> you didn't get to fault in huge pages, it doesn't make much sense.
+
+Yeah.  Most of my previous tests involved creating a hugetlb segment
+[shm or mmap'd hugetlbfs file] and faulting in the pages.  On a whim, I
+tried just allocating and freeing huge pages to/from the free list and
+see the same behavior...  I'm really hoping this isn't another dumb
+operator error :-(.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
