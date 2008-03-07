@@ -1,38 +1,48 @@
-Received: from zps18.corp.google.com (zps18.corp.google.com [172.25.146.18])
-	by smtp-out.google.com with ESMTP id m27CQuqE017000
-	for <linux-mm@kvack.org>; Fri, 7 Mar 2008 04:26:56 -0800
-Received: from py-out-1112.google.com (pygy77.prod.google.com [10.34.226.77])
-	by zps18.corp.google.com with ESMTP id m27CQtBq000468
-	for <linux-mm@kvack.org>; Fri, 7 Mar 2008 04:26:56 -0800
-Received: by py-out-1112.google.com with SMTP id y77so585701pyg.28
-        for <linux-mm@kvack.org>; Fri, 07 Mar 2008 04:26:55 -0800 (PST)
-Message-ID: <6599ad830803070426l22d78446t588691dedeeb490b@mail.gmail.com>
-Date: Fri, 7 Mar 2008 04:26:53 -0800
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [PATCH] Add cgroup support for enabling controllers at boot time (v2)
-In-Reply-To: <6599ad830803070125o1ebfd7d1r728cdadf726ecbe2@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Fri, 7 Mar 2008 14:40:55 +0200 (EET)
+From: Pekka J Enberg <penberg@cs.helsinki.fi>
+Subject: Re: [BUG] in 2.6.25-rc3 with 64k page size and SLUB_DEBUG_ON
+In-Reply-To: <200803071320.58439.Jens.Osterkamp@gmx.de>
+Message-ID: <Pine.LNX.4.64.0803071434240.9017@sbz-30.cs.Helsinki.FI>
+References: <200803061447.05797.Jens.Osterkamp@gmx.de>
+ <Pine.LNX.4.64.0803061418430.15083@schroedinger.engr.sgi.com>
+ <47D06F07.4070404@cs.helsinki.fi> <200803071320.58439.Jens.Osterkamp@gmx.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080307085735.25567.314.sendpatchset@localhost.localdomain>
-	 <6599ad830803070125o1ebfd7d1r728cdadf726ecbe2@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Jens Osterkamp <Jens.Osterkamp@gmx.de>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 7, 2008 at 1:25 AM, Paul Menage <menage@google.com> wrote:
->
->  Doesn't this mean that cgroup_disable=cpu will disable whichever comes
->  first out of cpuset, cpuacct or cpu in the subsystem list?
+On Fri, 7 Mar 2008, Jens Osterkamp wrote:
+> > > Ahh.. That looks like an alignment problem. The other options all add 
+> > > data to the object and thus misalign them if no alignment is 
+> > > specified.
+> > 
+> > And causes buffer overrun? So the crazy preempt count 0x00056ef8 could a 
+> > the lower part of an instruction pointer tracked by SLAB_STORE_USER? So 
+> > does:
+> > 
+> >    gdb vmlinux
+> >    (gdb) l *c000000000056ef8
+> > 
+> > translate into any meaningful kernel function?
+> 
+> No, it is in the middle of copy_process. But I will try to identify what
+> we are actually looking at instead of prempt_count.
 
-Or rather, it's the other way around - cgroup_disable=cpuset will
-instead disable the "cpu" subsystem if "cpu" comes before "cpuset" in
-the subsystem list.
+But that's expected. It's the call-site of a kmalloc() or 
+kmem_cache_alloc() call that stomps on the memory where the 
+->preempt_count of struct thread_info is. Is that anywhere near the 
+dup_task_struct() call? I don't quite see how that could happen, however, 
+alloc_thread_info() uses the page allocator to allocate memory for struct 
+thread_info which is AFAICT 8 KB...
 
-Paul
+It might we worth it to look at other obviously wrong preempt_counts to 
+see if you can figure out a pattern of callers stomping on the memory.
+
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
