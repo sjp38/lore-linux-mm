@@ -1,10 +1,10 @@
-Message-ID: <47D15CDF.5060501@keyaccess.nl>
-Date: Fri, 07 Mar 2008 16:18:55 +0100
+Message-ID: <47D15DA4.2030500@keyaccess.nl>
+Date: Fri, 07 Mar 2008 16:22:12 +0100
 From: Rene Herman <rene.herman@keyaccess.nl>
 MIME-Version: 1.0
 Subject: Re: [PATCH] [0/13] General DMA zone rework
-References: <200803071007.493903088@firstfloor.org>
-In-Reply-To: <200803071007.493903088@firstfloor.org>
+References: <200803071007.493903088@firstfloor.org> <47D15CDF.5060501@keyaccess.nl>
+In-Reply-To: <47D15CDF.5060501@keyaccess.nl>
 Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -13,14 +13,18 @@ To: Andi Kleen <andi@firstfloor.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07-03-08 10:07, Andi Kleen wrote:
+On 07-03-08 16:18, Rene Herman wrote:
 
-> it to any size needed (upto 2GB currently). The default sizing 
-> heuristics are for now the same as in the old code: by default
-> all free memory below 16MB is put into the pool (in practice that
-> is only ~8MB or so usable because the kernel is loaded there too)
+> On 07-03-08 10:07, Andi Kleen wrote:
+> 
+>> it to any size needed (upto 2GB currently). The default sizing 
+>> heuristics are for now the same as in the old code: by default
+>> all free memory below 16MB is put into the pool (in practice that
+>> is only ~8MB or so usable because the kernel is loaded there too)
+> 
+> Just a side-comment -- not necessarily, given CONFIG_PHYSICAL_START.
 
-Just a side-comment -- not necessarily, given CONFIG_PHYSICAL_START.
+By the way, 1/13 didn't make it to LKML.
 
 Rene.
 
