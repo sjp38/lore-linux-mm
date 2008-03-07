@@ -1,94 +1,131 @@
-Message-ID: <47D1971A.7070500@tuxrocks.com>
-Date: Fri, 07 Mar 2008 13:27:22 -0600
-From: Frank Sorenson <frank@tuxrocks.com>
+Date: Fri, 7 Mar 2008 20:47:28 +0100
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [PATCH] 3/4 combine RCU with seqlock to allow mmu notifier
+	methods to sleep (#v9 was 1/4)
+Message-ID: <20080307194728.GP24114@v2.random>
+References: <20080304133020.GC5301@v2.random> <Pine.LNX.4.64.0803041059110.13957@schroedinger.engr.sgi.com> <20080304222030.GB8951@v2.random> <Pine.LNX.4.64.0803041422070.20821@schroedinger.engr.sgi.com> <20080307151722.GD24114@v2.random> <20080307152328.GE24114@v2.random> <1204908762.8514.114.camel@twins> <20080307175019.GK24114@v2.random> <1204912895.8514.120.camel@twins> <20080307184552.GL24114@v2.random>
 MIME-Version: 1.0
-Subject: Re: 2.6.25-rc4 OOMs itself dead on bootup
-References: <47D02940.1030707@tuxrocks.com> <20080306184954.GA15492@elte.hu>
-In-Reply-To: <20080306184954.GA15492@elte.hu>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080307184552.GL24114@v2.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
 List-ID: <linux-mm.kvack.org>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+On Fri, Mar 07, 2008 at 07:45:52PM +0100, Andrea Arcangeli wrote:
+> On Fri, Mar 07, 2008 at 07:01:35PM +0100, Peter Zijlstra wrote:
+> > The reason Christoph can do without RCU is because he doesn't allow
+> > unregister, and as soon as you drop that you'll end up with something
+> 
+> Not sure to follow, what do you mean "he doesn't allow"? We'll also
+> have to rip unregister regardless after you pointed out the ->release
+> won't be called after calling my mmu_notifier_unregister in 3/4. If
+> you figured out how to retain mmu_notifier_unregister I'm not seeing
+> it anymore.
 
-Ingo Molnar wrote:
-> * Frank Sorenson <frank@tuxrocks.com> wrote:
-> 
->> 2.6.25-rc4 invokes the oom-killer repeatedly when attempting to boot, 
->> eventually panicing with "Out of memory and no killable processes." 
->> This happens since at least 2.6.25-rc3, but 2.6.24 boots just fine,
->>
->> The system is a Dell Inspiron E1705 running Fedora 8 (x86_64).
->>
->> My .config is at http://tuxrocks.com/tmp/config-2.6.25-rc4, and a 
->> syslog of the system up until the point where it oom-killed syslog 
->> (just before the panic) is at 
->> http://tuxrocks.com/tmp/oom-2.6.25-rc4.txt
-> 
-> i've picked up your .config and enabled a few drivers in it to make it 
-> boot on a testsystem of mine and it doesnt OOM:
-> 
->  20:47:17 up 10 min,  1 user,  load average: 0.01, 0.07, 0.03
->               total       used       free     shared    buffers     cached
->  Mem:       1025768     258544     767224          0      12956     169556
->  -/+ buffers/cache:      76032     949736
->  Swap:      3911816          0    3911816
-> 
-> (config and bootlog from my box attached.)
-> 
-> So it's probably not a .config dependent generic kernel problem, but 
-> probably something specific to your hardware.
-> 
-> Since the first oom happens about 9 minutes into the bootup:
-> 
->  [  569.755853] sh invoked oom-killer: gfp_mask=0x1201d2, order=0, oomkilladj=-17
-> 
-> do you have any chance to log in and capture MM statistics? The 
-> following script will capture a bunch of statistics:
-> 
->  http://people.redhat.com/mingo/cfs-scheduler/tools/cfs-debug-info.sh
-> 
-> and takes less than a minute to run - should be enough time in theory. 
-> If it's possible to run it then send us the output file it produces.
-> 
-> 	Ingo
+Given I don't see other (buggy ;) ways anymore to retain
+mmu_notifier_unregister, I did like in EMM and I dropped the
+unregister function.
 
-Thank you for the help, and for the time.
+To me it looks like this will be enough and equally efficient as the
+expanded version in EMM that is not using the highlevel hlist_rcu
+macros. If you can see any pitfall let me know! Thanks a lot for the
+help.
 
-I did some additional debugging, and I believe you're correct about it
-being specific to my system.  The system seems to run fine until some
-time during the boot.  I booted with "init=/bin/sh" (that's how the
-system stayed up for 9 minutes), then it died when I tried starting
-things up.  I've further narrowed the OOM down to udev (though it's not
-entirely udev's fault, since 2.6.24 runs fine).
+------
+This is a replacement for the previously posted 3/4, one of the pieces
+to allow the mmu notifier methods to sleep.
 
-I ran your debug info tool before killing the box by running
-/sbin/start_udev.  The output of the tool is at
-http://tuxrocks.com/tmp/cfs-debug-info-2008.03.06-14.11.24
+Signed-off-by: Andrea Arcangeli <andrea@qumranet.com>
 
-Something is apparently happening between 2.6.24 and 2.6.25-rc[34] which
-causes udev (or something it calls) to behave very badly.
-
-I'll keep looking further into the cause.  Thanks again for the help.
-
-Frank
-- --
-Frank Sorenson - KD7TZK
-Linux Systems Engineer, DSS Engineering, UBS AG
-frank@tuxrocks.com
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.7 (GNU/Linux)
-Comment: Using GnuPG with Fedora - http://enigmail.mozdev.org
-
-iD8DBQFH0ZcXaI0dwg4A47wRAoy7AJ9ILIlACjitvOpNghRNxmOgiygk1QCfb3Oi
-8Drhxc4Tvu0K+1KD0U6XUOE=
-=SmQj
------END PGP SIGNATURE-----
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -70,17 +70,6 @@ static inline int mm_has_notifiers(struc
+  */
+ extern void mmu_notifier_register(struct mmu_notifier *mn,
+ 				  struct mm_struct *mm);
+-/*
+- * Must hold the mmap_sem for write.
+- *
+- * RCU is used to traverse the list. A quiescent period needs to pass
+- * before the "struct mmu_notifier" can be freed. Alternatively it
+- * can be synchronously freed inside ->release when the list can't
+- * change anymore and nobody could possibly walk it.
+- */
+-extern void mmu_notifier_unregister(struct mmu_notifier *mn,
+-				    struct mm_struct *mm);
+-
+ extern void __mmu_notifier_release(struct mm_struct *mm);
+ extern int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
+ 					  unsigned long address);
+diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+--- a/mm/mmu_notifier.c
++++ b/mm/mmu_notifier.c
+@@ -43,12 +43,10 @@ int __mmu_notifier_clear_flush_young(str
+ 	struct hlist_node *n;
+ 	int young = 0;
+ 
+-	rcu_read_lock();
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_list, hlist) {
+ 		if (mn->ops->clear_flush_young)
+ 			young |= mn->ops->clear_flush_young(mn, mm, address);
+ 	}
+-	rcu_read_unlock();
+ 
+ 	return young;
+ }
+@@ -59,12 +57,10 @@ void __mmu_notifier_invalidate_page(stru
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+ 
+-	rcu_read_lock();
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_list, hlist) {
+ 		if (mn->ops->invalidate_page)
+ 			mn->ops->invalidate_page(mn, mm, address);
+ 	}
+-	rcu_read_unlock();
+ }
+ 
+ void __mmu_notifier_invalidate_range_begin(struct mm_struct *mm,
+@@ -73,12 +69,10 @@ void __mmu_notifier_invalidate_range_beg
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+ 
+-	rcu_read_lock();
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_list, hlist) {
+ 		if (mn->ops->invalidate_range_begin)
+ 			mn->ops->invalidate_range_begin(mn, mm, start, end);
+ 	}
+-	rcu_read_unlock();
+ }
+ 
+ void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
+@@ -87,12 +81,10 @@ void __mmu_notifier_invalidate_range_end
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+ 
+-	rcu_read_lock();
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_list, hlist) {
+ 		if (mn->ops->invalidate_range_end)
+ 			mn->ops->invalidate_range_end(mn, mm, start, end);
+ 	}
+-	rcu_read_unlock();
+ }
+ 
+ /*
+@@ -106,9 +98,3 @@ void mmu_notifier_register(struct mmu_no
+ 	hlist_add_head_rcu(&mn->hlist, &mm->mmu_notifier_list);
+ }
+ EXPORT_SYMBOL_GPL(mmu_notifier_register);
+-
+-void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
+-{
+-	hlist_del_rcu(&mn->hlist);
+-}
+-EXPORT_SYMBOL_GPL(mmu_notifier_unregister);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
