@@ -1,53 +1,30 @@
-From: Andi Kleen <andi@firstfloor.org>
-References: <200803071007.493903088@firstfloor.org>
-In-Reply-To: <200803071007.493903088@firstfloor.org>
-Subject: [PATCH] [12/13] Add vmstat statistics for new swiotlb code
-Message-Id: <20080307090722.B6BCE1B419C@basil.firstfloor.org>
-Date: Fri,  7 Mar 2008 10:07:22 +0100 (CET)
+Date: Fri, 7 Mar 2008 01:08:19 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Make memory resource control aware of boot options (v2)
+Message-Id: <20080307010819.85b194c9.akpm@linux-foundation.org>
+In-Reply-To: <20080307010649.74f51535.akpm@linux-foundation.org>
+References: <20080307085735.25567.314.sendpatchset@localhost.localdomain>
+	<20080307085746.25567.71595.sendpatchset@localhost.localdomain>
+	<20080307010649.74f51535.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Signed-off-by: Andi Kleen <ak@suse.de>
+On Fri, 7 Mar 2008 01:06:49 -0800 Andrew Morton <akpm@linux-foundation.org> wrote:
 
----
- include/linux/vmstat.h |    4 ++++
- mm/vmstat.c            |    6 ++++++
- 2 files changed, 10 insertions(+)
+> On Fri, 07 Mar 2008 14:27:46 +0530 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+> > +	if (mem_cgroup_subsys.disabled)
+> 
+> My copy of `struct cgroup_subsys' doesn't have a .disabled?
+> 
 
-Index: linux/include/linux/vmstat.h
-===================================================================
---- linux.orig/include/linux/vmstat.h
-+++ linux/include/linux/vmstat.h
-@@ -41,6 +41,10 @@ enum vm_event_item { PGPGIN, PGPGOUT, PS
- 		MASK_ALLOC, MASK_FREE, MASK_BITMAP_SKIP, MASK_WAIT,
- 		MASK_HIGHER, MASK_LOW_WASTE, MASK_HIGH_WASTE,
- #endif
-+#ifdef CONFIG_SWIOTLB_MASK_ALLOC
-+		SWIOTLB_USED_PAGES, SWIOTLB_BYTES_WASTED, SWIOTLB_NUM_ALLOCS,
-+		SWIOTLB_NUM_FREES,
-+#endif
- 		NR_VM_EVENT_ITEMS
- };
- 
-Index: linux/mm/vmstat.c
-===================================================================
---- linux.orig/mm/vmstat.c
-+++ linux/mm/vmstat.c
-@@ -654,6 +654,12 @@ static const char * const vmstat_text[] 
- 	"mask_low_waste",
- 	"mask_high_waste",
- #endif
-+#ifdef CONFIG_SWIOTLB_MASK_ALLOC
-+	"swiotlb_used_pages",
-+	"swiotlb_bytes_wasted",
-+	"swiotlb_num_allocs",
-+	"swiotlb_num_frees",
-+#endif
- #endif
- };
- 
+Ah.  You didn't sequence-number the patches, and they arrived out-of-order. 
+tsk.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
