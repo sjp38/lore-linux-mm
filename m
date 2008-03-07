@@ -1,58 +1,47 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [patch 8/8] Pageflags: Eliminate PG_xxx aliases
-Date: Fri, 7 Mar 2008 15:16:11 +1100
-References: <20080305223815.574326323@sgi.com> <200803071320.16967.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0803061951060.476@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0803061951060.476@schroedinger.engr.sgi.com>
+Message-Id: <47D0C326.6060103@mxp.nes.nec.co.jp>
+Date: Fri, 07 Mar 2008 13:23:02 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [RFC/PATCH] cgroup swap subsystem
+References: <47CE36A9.3060204@mxp.nes.nec.co.jp> <47CE4BB6.8050803@linux.vnet.ibm.com>
+In-Reply-To: <47CE4BB6.8050803@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200803071516.12268.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, ak@suse.de, Mel Gorman <mel@csn.ul.ie>, apw@shadowen.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: containers@lists.osdl.org, linux-mm@kvack.org, xemul@openvz.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 07 March 2008 14:53, Christoph Lameter wrote:
-> On Fri, 7 Mar 2008, Nick Piggin wrote:
-> > > It avoids us having to deal with aliases in the future.
-> >
-> > It doesn't. You still have to deal with them.
->
-> Sortof.
->
-> You do not have to deal with it on the level of the PG_xxx enum constant.
+Hi.
 
-But that's the easy part, and the part that I think is actually
-useful because you get to explicitly see the aliases.
+Balbir Singh wrote:
+> Daisuke Nishimura wrote:
+>> Basic idea of my implementation:
+>>   - what will be charged ?
+>>     the number of swap entries.
+>>
+>>   - when to charge/uncharge ?
+>>     charge at get_swap_entry(), and uncharge at swap_entry_free().
+>>
+> 
+> You mean get_swap_page(), I suppose. The assumption in the code is that every
+> swap page being charged has already been charged by the memory controller (that
+> will go against making the controllers independent). Also, be careful of any
+
+To make swap-limit independent of memory subsystem, I think
+page_cgroup code should be separated into two part:
+subsystem-independent and subsystem-dependent, that is
+part of associating page and page_cgroup and that of associating
+page_cgroup and subsystem.
+
+Rather than to do such a thing, I now think that
+it would be better to implement swap-limit as part of
+memory subsystem.
 
 
-> Yes you will have to deal with the aliases at the level of the
-> functions.
-
-Which is the hard part.
-
-
-> > > PG_xx at this
-> > > point is not unique which can be confusing. See the PG_reclaim in
-> > > mm/page_alloc.c. It also means PG_readahead. If I look for
-> > > handling of PG_readahead then I wont find it.
-> >
-> > You can't just pretend not to deal with aliases at that point
-> > in mm/page_alloc.c just becuase you only have one name for the
-> > bit position.
->
-> If you only have one name for the bit position the you can localize the
-> aliases and uses of that bit. This means you can go from a bit that you
-> see set while debugging to the PG_xxx flag and then look for uses. Which
-> will turn up aliases.
-
-I don't understand how this would be any different from the current
-code except with the curent code, you only have to look for aliases
-in one place (ie. the PG_ definitions).
-
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
