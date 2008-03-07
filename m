@@ -1,115 +1,43 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m278xdkL000717
-	for <linux-mm@kvack.org>; Fri, 7 Mar 2008 03:59:39 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m278xdfF296504
-	for <linux-mm@kvack.org>; Fri, 7 Mar 2008 03:59:39 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m278xcg4009889
-	for <linux-mm@kvack.org>; Fri, 7 Mar 2008 03:59:39 -0500
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Fri, 07 Mar 2008 14:27:46 +0530
-Message-Id: <20080307085746.25567.71595.sendpatchset@localhost.localdomain>
-In-Reply-To: <20080307085735.25567.314.sendpatchset@localhost.localdomain>
-References: <20080307085735.25567.314.sendpatchset@localhost.localdomain>
-Subject: [PATCH] Make memory resource control aware of boot options (v2)
+Received: from zps37.corp.google.com (zps37.corp.google.com [172.25.146.37])
+	by smtp-out.google.com with ESMTP id m2791oJY018137
+	for <linux-mm@kvack.org>; Fri, 7 Mar 2008 01:01:50 -0800
+Received: from py-out-1112.google.com (pycj37.prod.google.com [10.34.111.37])
+	by zps37.corp.google.com with ESMTP id m2791nnw016492
+	for <linux-mm@kvack.org>; Fri, 7 Mar 2008 01:01:49 -0800
+Received: by py-out-1112.google.com with SMTP id j37so445167pyc.4
+        for <linux-mm@kvack.org>; Fri, 07 Mar 2008 01:01:48 -0800 (PST)
+Message-ID: <6599ad830803070101t18c4814jeabf9c8a10a35dc5@mail.gmail.com>
+Date: Fri, 7 Mar 2008 01:01:48 -0800
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [PATCH] Add cgroup support for enabling controllers at boot time
+In-Reply-To: <alpine.DEB.1.00.0803070055020.3470@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080306185952.23290.49571.sendpatchset@localhost.localdomain>
+	 <alpine.DEB.1.00.0803061108370.13110@chino.kir.corp.google.com>
+	 <47D0C76D.8050207@linux.vnet.ibm.com>
+	 <alpine.DEB.1.00.0803062111560.26462@chino.kir.corp.google.com>
+	 <6599ad830803070040i5e54f5f3u9b4c753ac5a87771@mail.gmail.com>
+	 <alpine.DEB.1.00.0803070055020.3470@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>
-Cc: Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
+On Fri, Mar 7, 2008 at 12:56 AM, David Rientjes <rientjes@google.com> wrote:
+>
+>  Ok, so the cgroup_disable= parameter should be a list of subsystem names
+>  delimited by anything other than a space that the user wants disabled.
+>  That makes more sense, thanks.
+>
 
-A boot option for the memory controller was discussed on lkml. It is a good
-idea to add it, since it saves memory for people who want to turn off the
-memory controller.
+As the code stands now, it should be just a single name. Disabling
+multiple subsystems requires multiple cgroup_disable= options.
 
-By default the option is on for the following two reasons
-
-1. It provides compatibility with the current scheme where the memory
-   controller turns on if the config option is enabled
-2. It allows for wider testing of the memory controller, once the config
-   option is enabled
-
-We still allow the create, destroy callbacks to succeed, since they are
-not aware of boot options. We do not populate the directory will
-memory resource controller specific files.
-
-Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
----
-
- mm/memcontrol.c |   17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
-
-diff -puN mm/memcontrol.c~memory-controller-add-boot-option mm/memcontrol.c
---- linux-2.6.25-rc4/mm/memcontrol.c~memory-controller-add-boot-option	2008-03-07 14:26:44.000000000 +0530
-+++ linux-2.6.25-rc4-balbir/mm/memcontrol.c	2008-03-07 14:26:44.000000000 +0530
-@@ -533,6 +533,9 @@ static int mem_cgroup_charge_common(stru
- 	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
- 	struct mem_cgroup_per_zone *mz;
- 
-+	if (mem_cgroup_subsys.disabled)
-+		return 0;
-+
- 	/*
- 	 * Should page_cgroup's go to their own slab?
- 	 * One could optimize the performance of the charging routine
-@@ -665,6 +668,9 @@ void mem_cgroup_uncharge_page(struct pag
- 	struct mem_cgroup_per_zone *mz;
- 	unsigned long flags;
- 
-+	if (mem_cgroup_subsys.disabled)
-+		return;
-+
- 	/*
- 	 * Check if our page_cgroup is valid
- 	 */
-@@ -705,6 +711,9 @@ int mem_cgroup_prepare_migration(struct 
- {
- 	struct page_cgroup *pc;
- 
-+	if (mem_cgroup_subsys.disabled)
-+		return 0;
-+
- 	lock_page_cgroup(page);
- 	pc = page_get_page_cgroup(page);
- 	if (pc)
-@@ -803,6 +812,9 @@ static int mem_cgroup_force_empty(struct
- 	int ret = -EBUSY;
- 	int node, zid;
- 
-+	if (mem_cgroup_subsys.disabled)
-+		return 0;
-+
- 	css_get(&mem->css);
- 	/*
- 	 * page reclaim code (kswapd etc..) will move pages between
-@@ -1053,6 +1065,8 @@ static void mem_cgroup_destroy(struct cg
- static int mem_cgroup_populate(struct cgroup_subsys *ss,
- 				struct cgroup *cont)
- {
-+	if (mem_cgroup_subsys.disabled)
-+		return 0;
- 	return cgroup_add_files(cont, ss, mem_cgroup_files,
- 					ARRAY_SIZE(mem_cgroup_files));
- }
-@@ -1065,6 +1079,9 @@ static void mem_cgroup_move_task(struct 
- 	struct mm_struct *mm;
- 	struct mem_cgroup *mem, *old_mem;
- 
-+	if (mem_cgroup_subsys.disabled)
-+		return;
-+
- 	mm = get_task_mm(p);
- 	if (mm == NULL)
- 		return;
-_
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
