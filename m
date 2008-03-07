@@ -1,131 +1,58 @@
-Date: Fri, 7 Mar 2008 20:47:28 +0100
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [PATCH] 3/4 combine RCU with seqlock to allow mmu notifier
-	methods to sleep (#v9 was 1/4)
-Message-ID: <20080307194728.GP24114@v2.random>
-References: <20080304133020.GC5301@v2.random> <Pine.LNX.4.64.0803041059110.13957@schroedinger.engr.sgi.com> <20080304222030.GB8951@v2.random> <Pine.LNX.4.64.0803041422070.20821@schroedinger.engr.sgi.com> <20080307151722.GD24114@v2.random> <20080307152328.GE24114@v2.random> <1204908762.8514.114.camel@twins> <20080307175019.GK24114@v2.random> <1204912895.8514.120.camel@twins> <20080307184552.GL24114@v2.random>
+Date: Fri, 7 Mar 2008 11:50:53 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 0/8] slub: Fallback to order 0 and variable order slab
+ support
+In-Reply-To: <20080307121748.GF26229@csn.ul.ie>
+Message-ID: <Pine.LNX.4.64.0803071147370.6815@schroedinger.engr.sgi.com>
+References: <20080229044803.482012397@sgi.com> <20080304122008.GB19606@csn.ul.ie>
+ <Pine.LNX.4.64.0803041044520.13957@schroedinger.engr.sgi.com>
+ <20080305182834.GA10678@csn.ul.ie> <Pine.LNX.4.64.0803051051190.29794@schroedinger.engr.sgi.com>
+ <20080306220402.GC20085@csn.ul.ie> <Pine.LNX.4.64.0803061409150.15083@schroedinger.engr.sgi.com>
+ <20080307121748.GF26229@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080307184552.GL24114@v2.random>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 07, 2008 at 07:45:52PM +0100, Andrea Arcangeli wrote:
-> On Fri, Mar 07, 2008 at 07:01:35PM +0100, Peter Zijlstra wrote:
-> > The reason Christoph can do without RCU is because he doesn't allow
-> > unregister, and as soon as you drop that you'll end up with something
+On Fri, 7 Mar 2008, Mel Gorman wrote:
+
+> I don't think it would reduce them unless everyone was always using the
+> same order. Once slub is using a higher order than everywhere else, it
+> is possible it will use an alternative pageblock type just for the high
+> order.
+
+Hmmm... Maybe just order 0 and huge page order?
+
+> The only tuning of the page allocator I can think of is to teach
+> rmqueue_bulk() to use the fewer high-order allocations to batch refill
+> the pcp queues. It's not very straight-forward though as when I tried
+> this a bit over a year ago, it cause fragmentation problems of its own.
+> I'll see about trying again.
+
+The simplest solution would be to remove the pcps and put something else 
+around the slow paths that does not check the limits etc.
+
+> > Well in that case there is something going on very strange performance
+> > wise. The results should be equal to upstream since the same orders 
+> > are used.
 > 
-> Not sure to follow, what do you mean "he doesn't allow"? We'll also
-> have to rip unregister regardless after you pointed out the ->release
-> won't be called after calling my mmu_notifier_unregister in 3/4. If
-> you figured out how to retain mmu_notifier_unregister I'm not seeing
-> it anymore.
+> Really, order-1 is used by default by SLUB upstream? I missed that and
+> it doesn't appear to be the case on 2.6.25-rc2-mm1 at least according to
+> slabinfo. If it was the difference between order-0 and order-1, it may be
+> explained by the pcp allocator being bypassed.
 
-Given I don't see other (buggy ;) ways anymore to retain
-mmu_notifier_unregister, I did like in EMM and I dropped the
-unregister function.
+Order 1 is the maximum that slub can use. We are not talking defaults 
+here but what orders slub is allowed to use. The overwhelming majority of 
+slab caches use order 0.
 
-To me it looks like this will be enough and equally efficient as the
-expanded version in EMM that is not using the highlevel hlist_rcu
-macros. If you can see any pitfall let me know! Thanks a lot for the
-help.
+Even if you specify slub_max_order=4 there will still be lots of slab 
+caches that use order 0 alloc. The higher orders are only used if the 
+small order cannot fit more than slub_min_objects into one slab.
 
-------
-This is a replacement for the previously posted 3/4, one of the pieces
-to allow the mmu notifier methods to sleep.
 
-Signed-off-by: Andrea Arcangeli <andrea@qumranet.com>
-
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -70,17 +70,6 @@ static inline int mm_has_notifiers(struc
-  */
- extern void mmu_notifier_register(struct mmu_notifier *mn,
- 				  struct mm_struct *mm);
--/*
-- * Must hold the mmap_sem for write.
-- *
-- * RCU is used to traverse the list. A quiescent period needs to pass
-- * before the "struct mmu_notifier" can be freed. Alternatively it
-- * can be synchronously freed inside ->release when the list can't
-- * change anymore and nobody could possibly walk it.
-- */
--extern void mmu_notifier_unregister(struct mmu_notifier *mn,
--				    struct mm_struct *mm);
--
- extern void __mmu_notifier_release(struct mm_struct *mm);
- extern int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
- 					  unsigned long address);
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -43,12 +43,10 @@ int __mmu_notifier_clear_flush_young(str
- 	struct hlist_node *n;
- 	int young = 0;
- 
--	rcu_read_lock();
- 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_list, hlist) {
- 		if (mn->ops->clear_flush_young)
- 			young |= mn->ops->clear_flush_young(mn, mm, address);
- 	}
--	rcu_read_unlock();
- 
- 	return young;
- }
-@@ -59,12 +57,10 @@ void __mmu_notifier_invalidate_page(stru
- 	struct mmu_notifier *mn;
- 	struct hlist_node *n;
- 
--	rcu_read_lock();
- 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_list, hlist) {
- 		if (mn->ops->invalidate_page)
- 			mn->ops->invalidate_page(mn, mm, address);
- 	}
--	rcu_read_unlock();
- }
- 
- void __mmu_notifier_invalidate_range_begin(struct mm_struct *mm,
-@@ -73,12 +69,10 @@ void __mmu_notifier_invalidate_range_beg
- 	struct mmu_notifier *mn;
- 	struct hlist_node *n;
- 
--	rcu_read_lock();
- 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_list, hlist) {
- 		if (mn->ops->invalidate_range_begin)
- 			mn->ops->invalidate_range_begin(mn, mm, start, end);
- 	}
--	rcu_read_unlock();
- }
- 
- void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
-@@ -87,12 +81,10 @@ void __mmu_notifier_invalidate_range_end
- 	struct mmu_notifier *mn;
- 	struct hlist_node *n;
- 
--	rcu_read_lock();
- 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_list, hlist) {
- 		if (mn->ops->invalidate_range_end)
- 			mn->ops->invalidate_range_end(mn, mm, start, end);
- 	}
--	rcu_read_unlock();
- }
- 
- /*
-@@ -106,9 +98,3 @@ void mmu_notifier_register(struct mmu_no
- 	hlist_add_head_rcu(&mn->hlist, &mm->mmu_notifier_list);
- }
- EXPORT_SYMBOL_GPL(mmu_notifier_register);
--
--void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
--{
--	hlist_del_rcu(&mn->hlist);
--}
--EXPORT_SYMBOL_GPL(mmu_notifier_unregister);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
