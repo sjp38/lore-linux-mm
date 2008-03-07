@@ -1,135 +1,133 @@
-Date: Fri, 7 Mar 2008 17:51:48 -0300
-From: "Luiz Fernando N. Capitulino" <lcapitulino@mandriva.com.br>
-Subject: Re: [PATCH] [0/13] General DMA zone rework
-Message-ID: <20080307175148.3a49d8d3@mandriva.com.br>
-In-Reply-To: <200803071007.493903088@firstfloor.org>
-References: <200803071007.493903088@firstfloor.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: by gv-out-0910.google.com with SMTP id n8so460726gve.19
+        for <linux-mm@kvack.org>; Fri, 07 Mar 2008 13:13:51 -0800 (PST)
+Date: Sat, 8 Mar 2008 00:13:22 +0300
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH] [6/13] Core maskable allocator
+Message-ID: <20080307211322.GD7589@cvg>
+References: <200803071007.493903088@firstfloor.org> <20080307090716.9D3E91B419C@basil.firstfloor.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080307090716.9D3E91B419C@basil.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andi Kleen <andi@firstfloor.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Em Fri,  7 Mar 2008 10:07:10 +0100 (CET)
-Andi Kleen <andi@firstfloor.org> escreveu:
+[Andi Kleen - Fri, Mar 07, 2008 at 10:07:16AM +0100]
+[...]
+| +
+| +/**
+| + * alloc_pages_mask - Alloc page(s) in a specific address range.
+| + * @gfp:      Standard GFP mask. See get_free_pages for a list valid flags.
+| + * @size:     Allocate size worth of pages. Rounded up to PAGE_SIZE.
+| + * @mask:     Memory must fit into mask physical address.
+| + *
+| + * Returns a struct page *
+| + *
+| + * Manage dedicated maskable low memory zone. This zone are isolated
+| + * from the normal zones. This is only a single continuous zone.
+| + * The main difference to the standard allocator is that it tries
+| + * to allocate memory with an physical address fitting in the passed mask.
+| + *
+| + * Warning: the size is in bytes, not in order like get_free_pages.
+| + */
+| +struct page *
+| +alloc_pages_mask(gfp_t gfp, unsigned size, u64 mask)
+| +{
+| +	unsigned long max_pfn = mask >> PAGE_SHIFT;
+| +	unsigned pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+| +	struct page *p;
+| +	unsigned left = (gfp & __GFP_REPEAT) ? ~0 : mask_timeout, oleft;
+| +	unsigned order = get_order(size);
+| +
+| +	BUG_ON(size < MASK_MIN_SIZE);	/* You likely passed order by mistake */
+| +	BUG_ON(gfp & (__GFP_DMA|__GFP_DMA32|__GFP_COMP));
+| +
+| +	/* Add fault injection here */
+| +
+| +again:
+| +	count_vm_event(MASK_ALLOC);
+| +	if (!force_mask) {
+| +		/* First try normal allocation in suitable zones
+| +		 * RED-PEN if size fits very badly in PS<<order don't do this?
+| +		 */
+| +		p = alloc_higher_pages(gfp, order, max_pfn);
+| +
+| +		/*
+| +		 * If the mask covers everything don't bother with the low zone
+| +		 * This way we avoid running out of low memory on a higher zones
+| +		 * OOM too.
+| +		 */
+| +		if (p != NULL || max_pfn >= max_low_pfn) {
 
-| I chose to implement a new "maskable memory" allocator to solve these
-| problems. The existing page buddy allocator is not really suited for
-| this because the data structures don't allow cheap allocation by physical 
-| address boundary. 
+Andi, I'm a little confused by _this_ statistics. We could get p = NULL
+there and change MASK_HIGH_WASTE even have mask not allocated. Am I
+wrong or miss something? Or maybe there should be '&&' instead of '||'?
 
- These patches are supposed to work, I think?
-
- I've tried to give them a try but got some problems. First, the
-simple test case seems to fail miserably:
-
-"""
-testing mask alloc upto 24 bits
-gpm1 3 mask 3fffff size 20440 total 62KB failed
-gpm1 4 mask 3fffff size 24369 total 62KB failed
-gpm1 6 mask 3fffff size 15255 total 64KB failed
-gpm1 7 mask 3fffff size 12676 total 64KB failed
-gpm1 8 mask 3fffff size 23917 total 64KB failed
-gpm1 9 mask 3fffff size 11682 total 64KB failed
-gpm1 10 mask 3fffff size 23091 total 64KB failed
-gpm1 11 mask 3fffff size 16880 total 64KB failed
-gpm1 12 mask 3fffff size 17257 total 64KB failed
-gpm1 13 mask 3fffff size 8686 total 64KB failed
-gpm1 14 mask 3fffff size 9871 total 64KB failed
-gpm1 15 mask 3fffff size 19740 total 64KB failed
-gpm1 16 mask 3fffff size 11557 total 64KB failed
-gpm1 18 mask 3fffff size 23723 total 67KB failed
-gpm1 19 mask 3fffff size 16136 total 67KB failed
-gpm2 6 mask 3fffff size 4471 failed
-gpm2 7 mask 3fffff size 16868 failed
-gpm2 8 mask 3fffff size 22093 failed
-gpm2 9 mask 3fffff size 17666 failed
-gpm2 11 mask 3fffff size 14416 failed
-gpm2 12 mask 3fffff size 10825 failed
-gpm2 13 mask 3fffff size 3918 failed
-gpm2 14 mask 3fffff size 6255 failed
-gpm2 15 mask 3fffff size 2428 failed
-gpm2 16 mask 3fffff size 517 failed
-gpm2 18 mask 3fffff size 12890 failed
-gpm2 19 mask 3fffff size 3211 failed
-verify & free
-mask fffff
-mask 1fffff
-mask 3fffff
-mask 7fffff
-mask ffffff
-done
-"""
-
- Then boot up goes on and while init is running I get this:
-
-"""
-Starting udev: ------------[ cut here ]------------
-kernel BUG at mm/mask-alloc.c:178!
-invalid opcode: 0000 [#1] 
-Modules linked in: parport_pc(+) parport snd_via82xx(+) gameport snd_ac97_codec rtc_cmos ac97_bus rtc_core rtc_lib snd_pcm snd_timer snd_page_alloc snd_mpu401_uart snd_rawmidi snd_seq_device pcspkr snd soundcore evdev i2c_viapro i2c_core thermal button processor ohci1394 ide_cd_mod ieee1394 cdrom firewire_ohci shpchp via_agp firewire_core crc_itu_t agpgart pci_hotplug 8139too mii via82cxxx ide_disk ide_core ext3 jbd uhci_hcd ohci_hcd ehci_hcd usbcore
-
-Pid: 1088, comm: modprobe Not tainted (2.6.25-0.rc4.1mdv #1)
-EIP: 0060:[<c016d493>] EFLAGS: 00010206 CPU: 0
-EIP is at alloc_pages_mask+0x74/0x3de
-EAX: 00000000 EBX: 00001000 ECX: df8fb854 EDX: 000004e2
-ESI: 00000000 EDI: 00010000 EBP: dfbf9c44 ESP: dfbf9bec
- DS: 007b ES: 007b FS: 0000 GS: 0033 SS: 0068
-Process modprobe (pid: 1088, ti=dfbf8000 task=dfb9c1a0 task.ti=dfbf8000)
-Stack: c0486858 004f1000 004f1000 dfbf9c04 00001000 000052d0 dfbf9c28 000fffff 
-       00000001 000004e2 dfbf8000 00000000 c0496ea0 dfb9c1a0 00000000 dfbf9c40 
-       c010ab33 00000000 c02c9250 00001000 00000000 00010000 dfbf9c54 c016d80b 
-Call Trace:
- [<c010ab33>] ? save_stack_trace+0x1c/0x3a
- [<c016d80b>] ? get_pages_mask+0xe/0x23
- [<c0107b83>] ? dma_alloc_coherent+0xab/0xe5
- [<c010aab6>] ? save_stack_address+0x0/0x2c
- [<e095634f>] ? snd_dma_alloc_pages+0xef/0x1ef [snd_page_alloc]
- [<e0956a17>] ? snd_malloc_sgbuf_pages+0xdd/0x170 [snd_page_alloc]
- [<c0137e1f>] ? trace_hardirqs_on+0xe6/0x11b
- [<c02bf3ff>] ? __mutex_unlock_slowpath+0xf2/0x104
- [<e0956409>] ? snd_dma_alloc_pages+0x1a9/0x1ef [snd_page_alloc]
- [<c02bf419>] ? mutex_unlock+0x8/0xa
- [<e095689f>] ? snd_dma_get_reserved_buf+0xb4/0xbd [snd_page_alloc]
- [<e09a1d77>] ? snd_pcm_lib_preallocate_pages+0x5b/0x115 [snd_pcm]
- [<e09a1e62>] ? snd_pcm_lib_preallocate_pages_for_all+0x31/0x56 [snd_pcm]
- [<e09ae2ab>] ? snd_via82xx_probe+0xb22/0xe6d [snd_via82xx]
- [<c02bf043>] ? mutex_trylock+0xf3/0x10f
- [<e09ac083>] ? snd_via82xx_mixer_free_ac97+0x0/0x12 [snd_via82xx]
- [<c02c0785>] ? _spin_unlock+0x1d/0x20
- [<c01e02d4>] ? pci_match_device+0x9a/0xa5
- [<c01e0393>] ? pci_device_probe+0x39/0x59
- [<c0238115>] ? driver_probe_device+0x9f/0x119
- [<c0238274>] ? __driver_attach+0x4a/0x7f
- [<c02376ed>] ? bus_for_each_dev+0x39/0x5b
- [<c0237fad>] ? driver_attach+0x14/0x16
- [<c023822a>] ? __driver_attach+0x0/0x7f
- [<c0237dc7>] ? bus_add_driver+0x9d/0x1ae
- [<c0238433>] ? driver_register+0x47/0xa3
- [<c01e055f>] ? __pci_register_driver+0x40/0x6d
- [<e093f017>] ? alsa_card_via82xx_init+0x17/0x19 [snd_via82xx]
- [<c013ed7a>] ? sys_init_module+0x13b0/0x14a8
- [<c0122ae5>] ? __request_region+0x0/0x90
- [<c010496d>] ? sysenter_past_esp+0xb6/0xc9
- [<c0137e1f>] ? trace_hardirqs_on+0xe6/0x11b
- [<c0104924>] ? sysenter_past_esp+0x6d/0xc9
- =======================
-Code: 00 74 1b 8b 45 b8 c7 45 d4 ff ff ff ff 48 c1 e8 0b ff 45 d4 d1 e8 75 f9 83 7d b8 0f 77 04 0f 0b eb fe f7 45 bc 05 40 00 00 74 04 <0f> 0b eb fe 8b 4d bc 80 cd 02 89 4d b0 d1 e9 89 4d ac ff 05 84 
-EIP: [<c016d493>] alloc_pages_mask+0x74/0x3de SS:ESP 0068:dfbf9bec
----[ end trace c02107712b611dcb ]---
-""""
-
- How can I help to debug this?
-
- Btw, I've created a package to test this for my convenience
-(that's why you see 'mdv' in the kernel name), but it's a vanilla
-kernel with your patches on top.
-
--- 
-Luiz Fernando N. Capitulino
+| +			count_vm_event(MASK_HIGHER);
+| +			count_vm_events(MASK_HIGH_WASTE,
+| +					(PAGE_SIZE << order) - size);
+| +			return p;
+| +		}
+| +	}
+| +
+| +	might_sleep_if(gfp & __GFP_WAIT);
+| +	do {
+| +		int i;
+| +		long pfn;
+| +
+| +		/* Implement waiter fairness queueing here? */
+| +
+| +		pfn = alloc_mask(pages, max_pfn);
+| +		if (pfn != -1L) {
+| +			p = pfn_to_page(pfn);
+| +
+| +			Mprintk("mask page %lx size %d mask %Lx\n",
+| +			       po, size, mask);
+| +
+| +			BUG_ON(pfn + pages > mask_max_pfn);
+| +
+| +			if (page_prep_struct(p))
+| +				goto again;
+| +
+| +			kernel_map_pages(p, pages, 1);
+| +
+| +			for (i = 0; i < pages; i++) {
+| +				struct page *n = p + i;
+| +				BUG_ON(!test_bit(pfn_to_maskbm_index(pfn+i),
+| +						mask_bitmap));
+| +				BUG_ON(!PageMaskAlloc(n));
+| +				arch_alloc_page(n, 0);
+| +				if (gfp & __GFP_ZERO)
+| +					clear_page(page_address(n));
+| +			}
+| +
+| +			count_vm_events(MASK_LOW_WASTE, pages*PAGE_SIZE-size);
+| +			return p;
+| +		}
+| +
+| +		if (!(gfp & __GFP_WAIT))
+| +			break;
+| +
+| +		oleft = left;
+| +		left = wait_for_mask_free(left);
+| +		count_vm_events(MASK_WAIT, left - oleft);
+| +	} while (left > 0);
+| +
+| +	if (!(gfp & __GFP_NOWARN)) {
+| +		printk(KERN_ERR
+| +		"%s: Cannot allocate maskable memory size %u gfp %x mask %Lx\n",
+| +				current->comm, size, gfp, mask);
+| +		dump_stack();
+| +	}
+| +	return NULL;
+| +}
+| +EXPORT_SYMBOL(alloc_pages_mask);
+| +
+[...]
+		- Cyrill -
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
