@@ -1,43 +1,40 @@
-Received: from zps37.corp.google.com (zps37.corp.google.com [172.25.146.37])
-	by smtp-out.google.com with ESMTP id m2791oJY018137
-	for <linux-mm@kvack.org>; Fri, 7 Mar 2008 01:01:50 -0800
-Received: from py-out-1112.google.com (pycj37.prod.google.com [10.34.111.37])
-	by zps37.corp.google.com with ESMTP id m2791nnw016492
-	for <linux-mm@kvack.org>; Fri, 7 Mar 2008 01:01:49 -0800
-Received: by py-out-1112.google.com with SMTP id j37so445167pyc.4
-        for <linux-mm@kvack.org>; Fri, 07 Mar 2008 01:01:48 -0800 (PST)
-Message-ID: <6599ad830803070101t18c4814jeabf9c8a10a35dc5@mail.gmail.com>
-Date: Fri, 7 Mar 2008 01:01:48 -0800
-From: "Paul Menage" <menage@google.com>
+Date: Fri, 7 Mar 2008 01:04:12 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [PATCH] Add cgroup support for enabling controllers at boot time
-In-Reply-To: <alpine.DEB.1.00.0803070055020.3470@chino.kir.corp.google.com>
+ (v2)
+In-Reply-To: <20080307085735.25567.314.sendpatchset@localhost.localdomain>
+Message-ID: <alpine.DEB.1.00.0803070102020.4693@chino.kir.corp.google.com>
+References: <20080307085735.25567.314.sendpatchset@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080306185952.23290.49571.sendpatchset@localhost.localdomain>
-	 <alpine.DEB.1.00.0803061108370.13110@chino.kir.corp.google.com>
-	 <47D0C76D.8050207@linux.vnet.ibm.com>
-	 <alpine.DEB.1.00.0803062111560.26462@chino.kir.corp.google.com>
-	 <6599ad830803070040i5e54f5f3u9b4c753ac5a87771@mail.gmail.com>
-	 <alpine.DEB.1.00.0803070055020.3470@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Randy Dunlap <randy.dunlap@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 7, 2008 at 12:56 AM, David Rientjes <rientjes@google.com> wrote:
->
->  Ok, so the cgroup_disable= parameter should be a list of subsystem names
->  delimited by anything other than a space that the user wants disabled.
->  That makes more sense, thanks.
->
+On Fri, 7 Mar 2008, Balbir Singh wrote:
 
-As the code stands now, it should be just a single name. Disabling
-multiple subsystems requires multiple cgroup_disable= options.
+> diff -puN Documentation/kernel-parameters.txt~cgroup_disable Documentation/kernel-parameters.txt
+> --- linux-2.6.25-rc4/Documentation/kernel-parameters.txt~cgroup_disable	2008-03-07 14:26:16.000000000 +0530
+> +++ linux-2.6.25-rc4-balbir/Documentation/kernel-parameters.txt	2008-03-07 14:26:16.000000000 +0530
+> @@ -383,6 +383,10 @@ and is between 256 and 4096 characters. 
+>  	ccw_timeout_log [S390]
+>  			See Documentation/s390/CommonIO for details.
+>  
+> +	cgroup_disable= [KNL] Disable a particular controller
+> +			Format: {name of the controller(s) to disable}
+> +				{Currently supported controllers - "memory"}
+> +
+>  	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
+>  			Format: { "0" | "1" }
+>  			See security/selinux/Kconfig help text.
 
-Paul
+It would probably be helpful to mention in the documentation that the 
+names of the subsystems must now be delimited by commas.
+
+ [ I also find it very helpful to add randy.dunlap@oracle.com to the cc
+   list for any patch touching Documentation ]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
