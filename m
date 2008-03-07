@@ -1,57 +1,49 @@
-Date: Thu, 6 Mar 2008 21:15:33 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] Add cgroup support for enabling controllers at boot
- time
-In-Reply-To: <20080307135839.918a849a.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.1.00.0803062115010.26462@chino.kir.corp.google.com>
-References: <20080306185952.23290.49571.sendpatchset@localhost.localdomain> <alpine.DEB.1.00.0803061108370.13110@chino.kir.corp.google.com> <47D0C76D.8050207@linux.vnet.ibm.com> <20080307135839.918a849a.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <47D0FB45.1030209@mxp.nes.nec.co.jp>
+Date: Fri, 07 Mar 2008 17:22:29 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC/PATCH] cgroup swap subsystem
+References: <47CFD957.3060402@mxp.nes.nec.co.jp> <47CE36A9.3060204@mxp.nes.nec.co.jp> <20080305155329.60e02f48.kamezawa.hiroyu@jp.fujitsu.com> <6197904.1204808216900.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <6197904.1204808216900.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: balbir@linux.vnet.ibm.com, Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org
+To: kamezawa.hiroyu@jp.fujitsu.com
+Cc: containers@lists.osdl.org, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, xemul@openvz.org, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 7 Mar 2008, KAMEZAWA Hiroyuki wrote:
+Hi.
 
-> > David Rientjes wrote:
-> > > On Fri, 7 Mar 2008, Balbir Singh wrote:
-> > > 
-> > >> @@ -3010,3 +3020,16 @@ static void cgroup_release_agent(struct 
-> > >>  	spin_unlock(&release_list_lock);
-> > >>  	mutex_unlock(&cgroup_mutex);
-> > >>  }
-> > >> +
-> > >> +static int __init cgroup_disable(char *str)
-> > >> +{
-> > >> +	int i;
-> > >> +	for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
-> > >> +		struct cgroup_subsys *ss = subsys[i];
-> > >> +		if (!strcmp(str, ss->name)) {
-> > >> +			ss->disabled = 1;
-> > >> +			break;
-> > >> +		}
-> > >> +	}
-> > >> +}
-> > >> +__setup("cgroup_disable=", cgroup_disable);
-> > > 
-> > > This doesn't handle spaces very well, so isn't it possible for the name of 
-> > > a current or future cgroup subsystem to be specified after cgroup_disable= 
-> > > on the command line and have it disabled by accident?
-> > > 
-> > 
-> Hmm, cmdline like
+kamezawa.hiroyu@jp.fujitsu.com wrote:
+>>> At first look, remembering mm struct is not very good.
+>>> Remembering swap controller itself is better.
+>> The swap_cgroup when the page(and page_cgroup) is allocated and
+>> the swap_cgroup when the page is going to be swapped out may be
+>> different by swap_cgroup_move_task(), so I think swap_cgroup
+>> to be charged should be determined at the point of swapout.
+>>
+> Accounting swap against an entity which allocs anon memory is
+> not strange. Problem here is move_task itself.
+> Now, charges against anon is not moved when a task which uses it
+> is moved. please fix this behavior first if you think this is
+> problematic.
 > 
-> cgroup_disable=cpu,memory, ...
-> 
-> should be written as
-> 
-> cgroup_disable=cpu cgroup_disable=memory ....
+> But, finally, a daemon driven by process event connector
+> determines the group before process starts using anon. It's
+> doubtful that it's worth to add complicated/costly ones.
 > 
 
-Or just set the first space following cgroup_disable= to '\0' and you're 
-done.  strcmp() will take care of the rest.
+I agree with you.
+
+I think the current behavior of move_task is problematic,
+and should fix it.
+But fixing it would be difficult and add a costly process,
+so I should consider more.
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
