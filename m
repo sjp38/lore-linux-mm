@@ -1,61 +1,60 @@
-Subject: Re: [PATCH] 3/4 combine RCU with seqlock to allow mmu notifier
-	methods to sleep (#v9 was 1/4)
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20080307152328.GE24114@v2.random>
-References: <20080302155457.GK8091@v2.random>
-	 <20080303213707.GA8091@v2.random> <20080303220502.GA5301@v2.random>
-	 <47CC9B57.5050402@qumranet.com>
-	 <Pine.LNX.4.64.0803032327470.9642@schroedinger.engr.sgi.com>
-	 <20080304133020.GC5301@v2.random>
-	 <Pine.LNX.4.64.0803041059110.13957@schroedinger.engr.sgi.com>
-	 <20080304222030.GB8951@v2.random>
-	 <Pine.LNX.4.64.0803041422070.20821@schroedinger.engr.sgi.com>
-	 <20080307151722.GD24114@v2.random>  <20080307152328.GE24114@v2.random>
-Content-Type: text/plain
-Date: Fri, 07 Mar 2008 17:52:42 +0100
-Message-Id: <1204908762.8514.114.camel@twins>
+Date: Fri, 7 Mar 2008 09:05:17 -0800
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: [PATCH] [6/13] Core maskable allocator
+Message-Id: <20080307090517.b6b27987.randy.dunlap@oracle.com>
+In-Reply-To: <20080307090716.9D3E91B419C@basil.firstfloor.org>
+References: <200803071007.493903088@firstfloor.org>
+	<20080307090716.9D3E91B419C@basil.firstfloor.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, Robin Holt <holt@sgi.com>, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, general@lists.openfabrics.org, Steve Wise <swise@opengridcomputing.com>, Roland Dreier <rdreier@cisco.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, daniel.blueman@quadrics.com
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-03-07 at 16:23 +0100, Andrea Arcangeli wrote:
+On Fri,  7 Mar 2008 10:07:16 +0100 (CET) Andi Kleen wrote:
 
+> 
+> This is the core code of the maskable allocator. Introduction
+> appended.
 
-> @@ -42,11 +45,19 @@ int __mmu_notifier_clear_flush_young(str
->  	struct mmu_notifier *mn;
->  	struct hlist_node *n;
->  	int young = 0;
-> +	unsigned seq;
+> Index: linux/Documentation/kernel-parameters.txt
+> ===================================================================
+> --- linux.orig/Documentation/kernel-parameters.txt
+> +++ linux/Documentation/kernel-parameters.txt
+> @@ -2116,6 +2116,9 @@ and is between 256 and 4096 characters. 
+>  	norandmaps	Don't use address space randomization
+>  			Equivalent to echo 0 > /proc/sys/kernel/randomize_va_space
 >  
->  	rcu_read_lock();
-> +restart:
-> +	seq = read_seqbegin(&mm->mmu_notifier_lock);
->  	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_list, hlist) {
-> -		if (mn->ops->clear_flush_young)
-> +		if (mn->ops->clear_flush_young) {
+> +	maskzone=size[MG] Set size of maskable DMA zone to size.
+> +		 force	Always allocate from the mask zone (for testing)
 
-hlist_del_rcu(&mn->hlist)
+                 ^^^^^^^^^^^^^ ??
 
-> +			rcu_read_unlock();
+> +
+>  ______________________________________________________________________
+>  
+>  TODO:
 
-kfree(mn);
+> Index: linux/Documentation/DocBook/kernel-api.tmpl
+> ===================================================================
+> --- linux.orig/Documentation/DocBook/kernel-api.tmpl
+> +++ linux/Documentation/DocBook/kernel-api.tmpl
+> @@ -164,6 +164,7 @@ X!Ilib/string.c
+>  !Emm/memory.c
+>  !Emm/vmalloc.c
+>  !Imm/page_alloc.c
+> +!Emm/mask-alloc.c
+>  !Emm/mempool.c
+>  !Emm/dmapool.c
+>  !Emm/page-writeback.c
 
->  			young |= mn->ops->clear_flush_young(mn, mm, address);
+Thanks for the kernel-doc annotations.
 
-*BANG*
-
-> +			rcu_read_lock();
-> +		}
-> +		if (read_seqretry(&mm->mmu_notifier_lock, seq))
-> +			goto restart;
->  	}
->  	rcu_read_unlock();
-
-
+---
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
