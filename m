@@ -1,121 +1,49 @@
-Date: Fri, 7 Mar 2008 11:53:40 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] 2.6.25-rc3-mm1 - Mempolicy - update stale documentation and comments
-Message-ID: <20080307115339.GD26229@csn.ul.ie>
-References: <20071109143226.23540.12907.sendpatchset@skynet.skynet.ie> <20071109143406.23540.41284.sendpatchset@skynet.skynet.ie> <20080228230140.321581a4.pj@sgi.com> <1204662057.5338.104.camel@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1204662057.5338.104.camel@localhost>
+Subject: Re: [PATCH 00/28] Swap over NFS -v16
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <1204888675.8514.102.camel@twins>
+References: <20080220144610.548202000@chello.nl>
+	 <20080223000620.7fee8ff8.akpm@linux-foundation.org>
+	 <18371.43950.150842.429997@notabene.brown>
+	 <1204023042.6242.271.camel@lappy>
+	 <18372.64081.995262.986841@notabene.brown>
+	 <1204099113.6242.353.camel@lappy> <1837 <1204626509.6241.39.camel@lappy>
+	 <18384.46967.583615.711455@notabene.brown>
+	 <1204888675.8514.102.camel@twins>
+Content-Type: text/plain
+Date: Fri, 07 Mar 2008 12:55:31 +0100
+Message-Id: <1204890931.8514.107.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Paul Jackson <pj@sgi.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, nacc@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com, Eric Whitney <eric.whitney@hp.com>
+To: Neil Brown <neilb@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On (04/03/08 15:20), Lee Schermerhorn didst pronounce:
-> Was Re: [PATCH 5/6] Filter based on a nodemask as well as a gfp_mask
-> 
-> On Thu, 2008-02-28 at 23:01 -0600, Paul Jackson wrote:
-> > Mel wrote:
-> > > A positive benefit of
-> > > this is that allocations using MPOL_BIND now use the local-node-ordered
-> > > zonelist instead of a custom node-id-ordered zonelist.
-> > 
-> > Could you update the now obsolete documentation (perhaps just delete
-> > the no longer correct remark):
-> > 
-> > Documentation/vm/numa_memory_policy.txt:
-> > 
-> >         MPOL_BIND:  This mode specifies that memory must come from the
-> >         set of nodes specified by the policy.
-> > 
-> >             The memory policy APIs do not specify an order in which the nodes
-> >             will be searched.  However, unlike "local allocation", the Bind
-> >             policy does not consider the distance between the nodes.  Rather,
-> >             allocations will fallback to the nodes specified by the policy in
-> >             order of numeric node id.  Like everything in Linux, this is subject
-> >             to change.
-> > 
-> 
-> How's this:
-> 
-> PATCH Mempolicy:  update documentation and comments
-> 
-> Address stale comments and numa_memory_policy.txt discussion
-> based on Mel Gorman's changes to page allocation zonelist handling.
-> 
-> Specifically:  mpol_free() and mpol_copy() no longer need to deal
-> with a custom zonelist for MPOL_BIND policy, and MPOL_BIND now
-> allocates memory from the nearest node with available memory in the
-> specified nodemask.
-> 
-> In "fixing" the mpol_free() and mpol_copy() comments in mempolicy.h,
-> I wanted to replace them with something, rather than just deleting
-> them.  So, I described the reference counting.  Not directly related
-> to the zonelist changes, but useful, IMO.
-> 
-> Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-> 
+On Fri, 2008-03-07 at 12:17 +0100, Peter Zijlstra wrote:
 
-Looks great.
+> That would be so if the whole path from RX to socket demux would have
+> hard-irqs disabled. However I didn't see that. Moreover I think the
+> whole purpose of the NetPoll interface is to allow some RX queueing to
+> cut down on softirq overhead.
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+s/NetPoll/NAPI/
 
->  Documentation/vm/numa_memory_policy.txt |   11 +++--------
->  include/linux/mempolicy.h               |    8 +++++---
->  2 files changed, 8 insertions(+), 11 deletions(-)
-> 
-> Index: linux-2.6.25-rc3-mm1/Documentation/vm/numa_memory_policy.txt
-> ===================================================================
-> --- linux-2.6.25-rc3-mm1.orig/Documentation/vm/numa_memory_policy.txt	2008-01-24 17:58:37.000000000 -0500
-> +++ linux-2.6.25-rc3-mm1/Documentation/vm/numa_memory_policy.txt	2008-03-04 14:44:51.000000000 -0500
-> @@ -182,14 +182,9 @@ Components of Memory Policies
->  	    The Default mode does not use the optional set of nodes.
->  
->  	MPOL_BIND:  This mode specifies that memory must come from the
-> -	set of nodes specified by the policy.
-> -
-> -	    The memory policy APIs do not specify an order in which the nodes
-> -	    will be searched.  However, unlike "local allocation", the Bind
-> -	    policy does not consider the distance between the nodes.  Rather,
-> -	    allocations will fallback to the nodes specified by the policy in
-> -	    order of numeric node id.  Like everything in Linux, this is subject
-> -	    to change.
-> +	set of nodes specified by the policy.  Memory will be allocated from
-> +	the node in the set with sufficient free memory that is closest to
-> +	the node where the allocation takes place.
->  
->  	MPOL_PREFERRED:  This mode specifies that the allocation should be
->  	attempted from the single node specified in the policy.  If that
-> Index: linux-2.6.25-rc3-mm1/include/linux/mempolicy.h
-> ===================================================================
-> --- linux-2.6.25-rc3-mm1.orig/include/linux/mempolicy.h	2008-03-04 14:19:06.000000000 -0500
-> +++ linux-2.6.25-rc3-mm1/include/linux/mempolicy.h	2008-03-04 14:38:29.000000000 -0500
-> @@ -54,11 +54,13 @@ struct mm_struct;
->   * mmap_sem.
->   *
->   * Freeing policy:
-> - * When policy is MPOL_BIND v.zonelist is kmalloc'ed and must be kfree'd.
-> - * All other policies don't have any external state. mpol_free() handles this.
-> + * Mempolicy objects are reference counted.  A mempolicy will be freed when
-> + * mpol_free() decrements the reference count to zero.
->   *
->   * Copying policy objects:
-> - * For MPOL_BIND the zonelist must be always duplicated. mpol_clone() does this.
-> + * mpol_copy() allocates a new mempolicy and copies the specified mempolicy
-> + * to the new storage.  The reference count of the new object is initialized
-> + * to 1, representing the caller of mpol_copy().
->   */
->  struct mempolicy {
->  	atomic_t refcnt;
-> 
-> 
+More specifically look at net/core/dev.c:netif_rx()
+It has a input queue per device.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> >   2/ If the host is routing network packets, then incoming packets
+> >      might go on an outbound queue.  Is this space limited?  and
+> >      included in the reserve?
+> 
+> Not sure, somewhere along the routing code I lost it again. Constructive
+> input from someone versed in that part of the kernel would be most
+> welcome.
+
+To clarify, I think we just send it on as I saw no reason why that could
+fail. However the more fancy stuff like engress or QoS might spoil the
+party, that is where I lost track.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
