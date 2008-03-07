@@ -1,27 +1,47 @@
-Date: Fri, 7 Mar 2008 14:44:28 +0200 (EET)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [BUG] in 2.6.25-rc3 with 64k page size and SLUB_DEBUG_ON
-In-Reply-To: <Pine.LNX.4.64.0803071434240.9017@sbz-30.cs.Helsinki.FI>
-Message-ID: <Pine.LNX.4.64.0803071443430.9202@sbz-30.cs.Helsinki.FI>
-References: <200803061447.05797.Jens.Osterkamp@gmx.de>
- <Pine.LNX.4.64.0803061418430.15083@schroedinger.engr.sgi.com>
- <47D06F07.4070404@cs.helsinki.fi> <200803071320.58439.Jens.Osterkamp@gmx.de>
- <Pine.LNX.4.64.0803071434240.9017@sbz-30.cs.Helsinki.FI>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m27D1PA3030730
+	for <linux-mm@kvack.org>; Sat, 8 Mar 2008 00:01:25 +1100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m27D42wI260906
+	for <linux-mm@kvack.org>; Sat, 8 Mar 2008 00:04:02 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m27D0OCx022779
+	for <linux-mm@kvack.org>; Sat, 8 Mar 2008 00:00:27 +1100
+Message-ID: <47D13BF1.1060009@linux.vnet.ibm.com>
+Date: Fri, 07 Mar 2008 18:28:25 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH] Add cgroup support for enabling controllers at boot time
+ (v2)
+References: <20080307085735.25567.314.sendpatchset@localhost.localdomain> <6599ad830803070125o1ebfd7d1r728cdadf726ecbe2@mail.gmail.com> <6599ad830803070426l22d78446t588691dedeeb490b@mail.gmail.com>
+In-Reply-To: <6599ad830803070426l22d78446t588691dedeeb490b@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jens Osterkamp <Jens.Osterkamp@gmx.de>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: Paul Menage <menage@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 7 Mar 2008, Pekka J Enberg wrote:
-> It might we worth it to look at other obviously wrong preempt_counts to 
-> see if you can figure out a pattern of callers stomping on the memory.
+Paul Menage wrote:
+> On Fri, Mar 7, 2008 at 1:25 AM, Paul Menage <menage@google.com> wrote:
+>>  Doesn't this mean that cgroup_disable=cpu will disable whichever comes
+>>  first out of cpuset, cpuacct or cpu in the subsystem list?
+> 
+> Or rather, it's the other way around - cgroup_disable=cpuset will
+> instead disable the "cpu" subsystem if "cpu" comes before "cpuset" in
+> the subsystem list.
+> 
 
-And checking whether disabling debugging for the 'task_struct' cache makes 
-the problem go away.
+Would it? I must be missing something, since we do a strncmp with ss->name.
+I would expect that to match whole strings.
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
