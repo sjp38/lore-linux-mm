@@ -1,44 +1,43 @@
-Date: Fri, 7 Mar 2008 13:48:59 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Regression:  Re: [patch -mm 2/4] mempolicy: create mempolicy_operations
- structure
-In-Reply-To: <1204922646.5340.73.camel@localhost>
-Message-ID: <alpine.DEB.1.00.0803071341090.26765@chino.kir.corp.google.com>
-References: <alpine.DEB.1.00.0803061135001.18590@chino.kir.corp.google.com>  <alpine.DEB.1.00.0803061135560.18590@chino.kir.corp.google.com> <1204922646.5340.73.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 7 Mar 2008 15:57:42 -0600
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: Regression:  Re: [patch -mm 2/4] mempolicy: create
+ mempolicy_operations structure
+Message-Id: <20080307155742.d7b54da6.pj@sgi.com>
+In-Reply-To: <alpine.DEB.1.00.0803071341090.26765@chino.kir.corp.google.com>
+References: <alpine.DEB.1.00.0803061135001.18590@chino.kir.corp.google.com>
+	<alpine.DEB.1.00.0803061135560.18590@chino.kir.corp.google.com>
+	<1204922646.5340.73.camel@localhost>
+	<alpine.DEB.1.00.0803071341090.26765@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Jackson <pj@sgi.com>, Christoph Lameter <clameter@sgi.com>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Lee.Schermerhorn@hp.com, akpm@linux-foundation.org, clameter@sgi.com, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 7 Mar 2008, Lee Schermerhorn wrote:
+David wrote:
+> If you want to remove this requirement now (please get agreement from Paul)
 
-> It also appears that the patch series listed above required a non-empty
-> nodemask with MPOL_DEFAULT.  However, I didn't test that.  With this
-> patch, MPOL_DEFAULT effectively ignores the nodemask--empty or not.
-> This is a change in behavior that I have argued against, but the
-> regression tests don't test this, so I'm not going to attempt to address
-> it with this patch.
-> 
+I'm ducking and running for cover ;).
 
-Excuse me, but there was significant discussion about this on LKML and I 
-eventually did force MPOL_DEFAULT to require a non-empty nodemask 
-specifically because of your demand that it should.  It didn't originally 
-require this in my patchset, and now you're removing the exact same 
-requirement that you demanded.
+Personally, I'm slightly in favor of not requiring the empty mask,
+as I always that that empty mask check was a couple lines of non-
+essential logic.  However I'm slightly in favor of not changing
+this detail from what it has been for years, which would mean we
+still checked for the empty mask.  And no doubt, if someone cares
+to examine the record closely enough they will find where I took a
+third position as well.
 
-You said on February 13:
+But I can't see where it actually matters enough to write home about.
 
-	1) we've discussed the issue of returning EINVAL for non-empty
-	nodemasks with MPOL_DEFAULT.  By removing this restriction, we run
-	the risk of breaking applications if we should ever want to define
-	a semantic to non-empty node mask for MPOL_DEFAULT.
+So I'll quit writing, and agree to most anything.
 
-If you want to remove this requirement now (please get agreement from 
-Paul) and are sure of your position, you'll at least need an update to 
-Documentation/vm/numa-memory-policy.txt.
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.940.382.4214
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
