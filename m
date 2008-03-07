@@ -1,8 +1,8 @@
-Message-ID: <47D15FAF.3000204@openvz.org>
-Date: Fri, 07 Mar 2008 18:30:55 +0300
+Message-ID: <47D16004.7050204@openvz.org>
+Date: Fri, 07 Mar 2008 18:32:20 +0300
 From: Pavel Emelyanov <xemul@openvz.org>
 MIME-Version: 1.0
-Subject: [PATCH 1/2] Add the max_usage member on the res_counter
+Subject: [PATCH 2/2] Make res_counter hierarchical
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -11,79 +11,166 @@ To: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu
 Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a very usefull feature. E.g. one may set the
-limit to "unlimited" value and check for the memory
-requirements of a new container.
+This allows us two things basically:
+
+1. If the subgroup has the limit higher than its parent has
+   then the one will get more memory than allowed.
+2. When we will need to account for a resource in more than
+   one place, we'll be able to use this technics.
+
+   Look, consider we have a memory limit and swap limit. The
+   memory limit is the limit for the sum of RSS, page cache
+   and swap usage. To account for this gracefuly, we'll set
+   two counters:
+
+	   res_counter mem_counter;
+	   res_counter swap_counter;
+
+   attach mm to the swap one
+
+	   mm->mem_cnt = &swap_counter;
+
+   and make the swap_counter be mem's child. That's it. If we
+   want hierarchical support, then the tree will look like this:
+
+   mem_counter_top
+    swap_counter_top <- mm_struct living at top
+     mem_counter_sub
+      swap_counter_sub <- mm_struct living at sub
 
 Signed-off-by: Pavel Emelyanov <xemul@openvz.org>
 
 ---
- include/linux/res_counter.h |    5 +++++
- kernel/res_counter.c        |    4 ++++
- mm/memcontrol.c             |    5 +++++
- 3 files changed, 14 insertions(+), 0 deletions(-)
+ include/linux/res_counter.h |   11 ++++++++++-
+ kernel/res_counter.c        |   36 +++++++++++++++++++++++++++++-------
+ mm/memcontrol.c             |    9 ++++++---
+ 3 files changed, 45 insertions(+), 11 deletions(-)
 
 diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-index 8cb1ecd..2c4deb5 100644
+index 2c4deb5..a27105e 100644
 --- a/include/linux/res_counter.h
 +++ b/include/linux/res_counter.h
-@@ -25,6 +25,10 @@ struct res_counter {
+@@ -41,6 +41,10 @@ struct res_counter {
+ 	 * the routines below consider this to be IRQ-safe
  	 */
- 	unsigned long long usage;
- 	/*
-+	 * the maximal value of the usage from the counter creation
-+	 */
-+	unsigned long long max_usage;
+ 	spinlock_t lock;
 +	/*
- 	 * the limit that usage cannot exceed
- 	 */
- 	unsigned long long limit;
-@@ -67,6 +71,7 @@ ssize_t res_counter_write(struct res_counter *counter, int member,
- 
- enum {
- 	RES_USAGE,
-+	RES_MAX_USAGE,
- 	RES_LIMIT,
- 	RES_FAILCNT,
++	 * the parent counter. used for hierarchical resource accounting
++	 */
++	struct res_counter *parent;
  };
+ 
+ /**
+@@ -80,7 +84,12 @@ enum {
+  * helpers for accounting
+  */
+ 
+-void res_counter_init(struct res_counter *counter);
++/*
++ * the parent pointer is set only once - during the counter
++ * initialization. caller then must itself provide that this
++ * pointer is valid during the new counter lifetime
++ */
++void res_counter_init(struct res_counter *counter, struct res_counter *parent);
+ 
+ /*
+  * charge - try to consume more resource.
 diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-index 791ff2b..f1f20c2 100644
+index f1f20c2..046f6f4 100644
 --- a/kernel/res_counter.c
 +++ b/kernel/res_counter.c
-@@ -27,6 +27,8 @@ int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
- 	}
+@@ -13,10 +13,11 @@
+ #include <linux/res_counter.h>
+ #include <linux/uaccess.h>
  
- 	counter->usage += val;
-+	if (counter->usage > counter->max_usage)
-+		counter->max_usage = counter->usage;
- 	return 0;
+-void res_counter_init(struct res_counter *counter)
++void res_counter_init(struct res_counter *counter, struct res_counter *parent)
+ {
+ 	spin_lock_init(&counter->lock);
+ 	counter->limit = (unsigned long long)LLONG_MAX;
++	counter->parent = parent;
  }
  
-@@ -65,6 +67,8 @@ res_counter_member(struct res_counter *counter, int member)
- 	switch (member) {
- 	case RES_USAGE:
- 		return &counter->usage;
-+	case RES_MAX_USAGE:
-+		return &counter->max_usage;
- 	case RES_LIMIT:
- 		return &counter->limit;
- 	case RES_FAILCNT:
+ int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
+@@ -36,10 +37,26 @@ int res_counter_charge(struct res_counter *counter, unsigned long val)
+ {
+ 	int ret;
+ 	unsigned long flags;
++	struct res_counter *c, *unroll_c;
++
++	local_irq_save(flags);
++	for (c = counter; c != NULL; c = c->parent) {
++		spin_lock(&c->lock);
++		ret = res_counter_charge_locked(c, val);
++		spin_unlock(&c->lock);
++		if (ret < 0)
++			goto unroll;
++	}
++	local_irq_restore(flags);
++	return 0;
+ 
+-	spin_lock_irqsave(&counter->lock, flags);
+-	ret = res_counter_charge_locked(counter, val);
+-	spin_unlock_irqrestore(&counter->lock, flags);
++unroll:
++	for (unroll_c = counter; unroll_c != c; unroll_c = unroll_c->parent) {
++		spin_lock(&unroll_c->lock);
++		res_counter_uncharge_locked(unroll_c, val);
++		spin_unlock(&unroll_c->lock);
++	}
++	local_irq_restore(flags);
+ 	return ret;
+ }
+ 
+@@ -54,10 +71,15 @@ void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
+ void res_counter_uncharge(struct res_counter *counter, unsigned long val)
+ {
+ 	unsigned long flags;
++	struct res_counter *c;
+ 
+-	spin_lock_irqsave(&counter->lock, flags);
+-	res_counter_uncharge_locked(counter, val);
+-	spin_unlock_irqrestore(&counter->lock, flags);
++	local_irq_save(flags);
++	for (c = counter; c != NULL; c = c->parent) {
++		spin_lock(&c->lock);
++		res_counter_uncharge_locked(c, val);
++		spin_unlock(&c->lock);
++	}
++	local_irq_restore(flags);
+ }
+ 
+ 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 2d59163..e5c741a 100644
+index e5c741a..61db79c 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -911,6 +911,11 @@ static struct cftype mem_cgroup_files[] = {
- 		.read_u64 = mem_cgroup_read,
- 	},
- 	{
-+		.name = "max_usage_in_bytes",
-+		.private = RES_MAX_USAGE,
-+		.read_u64 = mem_cgroup_read,
-+	},
-+	{
- 		.name = "limit_in_bytes",
- 		.private = RES_LIMIT,
- 		.write = mem_cgroup_write,
+@@ -976,19 +976,22 @@ static void free_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+ static struct cgroup_subsys_state *
+ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+ {
+-	struct mem_cgroup *mem;
++	struct mem_cgroup *mem, *parent;
+ 	int node;
+ 
+ 	if (unlikely((cont->parent) == NULL)) {
+ 		mem = &init_mem_cgroup;
+ 		init_mm.mem_cgroup = mem;
+-	} else
++		parent = NULL;
++	} else {
+ 		mem = kzalloc(sizeof(struct mem_cgroup), GFP_KERNEL);
++		parent = mem_cgroup_from_cont(cont->parent);
++	}
+ 
+ 	if (mem == NULL)
+ 		return ERR_PTR(-ENOMEM);
+ 
+-	res_counter_init(&mem->res);
++	res_counter_init(&mem->res, parent ? &parent->res : NULL);
+ 
+ 	memset(&mem->info, 0, sizeof(mem->info));
+ 
 -- 
 1.5.3.4
 
