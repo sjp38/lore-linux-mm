@@ -1,37 +1,91 @@
-Date: Fri, 7 Mar 2008 16:31:36 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [0/13] General DMA zone rework
-Message-ID: <20080307153136.GG7365@one.firstfloor.org>
-References: <200803071007.493903088@firstfloor.org> <47D15CDF.5060501@keyaccess.nl> <47D15DA4.2030500@keyaccess.nl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <47D15DA4.2030500@keyaccess.nl>
+Message-ID: <47D15FAF.3000204@openvz.org>
+Date: Fri, 07 Mar 2008 18:30:55 +0300
+From: Pavel Emelyanov <xemul@openvz.org>
+MIME-Version: 1.0
+Subject: [PATCH 1/2] Add the max_usage member on the res_counter
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rene Herman <rene.herman@keyaccess.nl>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Menage <menage@google.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 07, 2008 at 04:22:12PM +0100, Rene Herman wrote:
-> On 07-03-08 16:18, Rene Herman wrote:
-> 
-> >On 07-03-08 10:07, Andi Kleen wrote:
-> >
-> >>it to any size needed (upto 2GB currently). The default sizing 
-> >>heuristics are for now the same as in the old code: by default
-> >>all free memory below 16MB is put into the pool (in practice that
-> >>is only ~8MB or so usable because the kernel is loaded there too)
-> >
-> >Just a side-comment -- not necessarily, given CONFIG_PHYSICAL_START.
-> 
-> By the way, 1/13 didn't make it to LKML.
+This is a very usefull feature. E.g. one may set the
+limit to "unlimited" value and check for the memory
+requirements of a new container.
 
-Yes, i was told. Not sure what happened. I'm pretty sure my script
-has posted it. If anybody wants it it's in
-ftp://firstfloor.org/pub/ak/mask/patches/bitops
+Signed-off-by: Pavel Emelyanov <xemul@openvz.org>
 
--Andi
+---
+ include/linux/res_counter.h |    5 +++++
+ kernel/res_counter.c        |    4 ++++
+ mm/memcontrol.c             |    5 +++++
+ 3 files changed, 14 insertions(+), 0 deletions(-)
+
+diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+index 8cb1ecd..2c4deb5 100644
+--- a/include/linux/res_counter.h
++++ b/include/linux/res_counter.h
+@@ -25,6 +25,10 @@ struct res_counter {
+ 	 */
+ 	unsigned long long usage;
+ 	/*
++	 * the maximal value of the usage from the counter creation
++	 */
++	unsigned long long max_usage;
++	/*
+ 	 * the limit that usage cannot exceed
+ 	 */
+ 	unsigned long long limit;
+@@ -67,6 +71,7 @@ ssize_t res_counter_write(struct res_counter *counter, int member,
+ 
+ enum {
+ 	RES_USAGE,
++	RES_MAX_USAGE,
+ 	RES_LIMIT,
+ 	RES_FAILCNT,
+ };
+diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+index 791ff2b..f1f20c2 100644
+--- a/kernel/res_counter.c
++++ b/kernel/res_counter.c
+@@ -27,6 +27,8 @@ int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
+ 	}
+ 
+ 	counter->usage += val;
++	if (counter->usage > counter->max_usage)
++		counter->max_usage = counter->usage;
+ 	return 0;
+ }
+ 
+@@ -65,6 +67,8 @@ res_counter_member(struct res_counter *counter, int member)
+ 	switch (member) {
+ 	case RES_USAGE:
+ 		return &counter->usage;
++	case RES_MAX_USAGE:
++		return &counter->max_usage;
+ 	case RES_LIMIT:
+ 		return &counter->limit;
+ 	case RES_FAILCNT:
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 2d59163..e5c741a 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -911,6 +911,11 @@ static struct cftype mem_cgroup_files[] = {
+ 		.read_u64 = mem_cgroup_read,
+ 	},
+ 	{
++		.name = "max_usage_in_bytes",
++		.private = RES_MAX_USAGE,
++		.read_u64 = mem_cgroup_read,
++	},
++	{
+ 		.name = "limit_in_bytes",
+ 		.private = RES_LIMIT,
+ 		.write = mem_cgroup_write,
+-- 
+1.5.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
