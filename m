@@ -1,40 +1,61 @@
-Date: Fri, 7 Mar 2008 01:04:12 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] Add cgroup support for enabling controllers at boot time
- (v2)
-In-Reply-To: <20080307085735.25567.314.sendpatchset@localhost.localdomain>
-Message-ID: <alpine.DEB.1.00.0803070102020.4693@chino.kir.corp.google.com>
-References: <20080307085735.25567.314.sendpatchset@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Andi Kleen <andi@firstfloor.org>
+References: <200803071007.493903088@firstfloor.org>
+In-Reply-To: <200803071007.493903088@firstfloor.org>
+Subject: [PATCH] [3/13] Make kvm bad_page symbol static
+Message-Id: <20080307090713.90A1C1B419C@basil.firstfloor.org>
+Date: Fri,  7 Mar 2008 10:07:13 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Randy Dunlap <randy.dunlap@oracle.com>
+To: avi@qumranet.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 7 Mar 2008, Balbir Singh wrote:
+Avoids global namespace clash with later patch that exports page_alloc's 
+bad_page. bad_page is not used outside kvm_main.c, so making it static is fine.
 
-> diff -puN Documentation/kernel-parameters.txt~cgroup_disable Documentation/kernel-parameters.txt
-> --- linux-2.6.25-rc4/Documentation/kernel-parameters.txt~cgroup_disable	2008-03-07 14:26:16.000000000 +0530
-> +++ linux-2.6.25-rc4-balbir/Documentation/kernel-parameters.txt	2008-03-07 14:26:16.000000000 +0530
-> @@ -383,6 +383,10 @@ and is between 256 and 4096 characters. 
->  	ccw_timeout_log [S390]
->  			See Documentation/s390/CommonIO for details.
->  
-> +	cgroup_disable= [KNL] Disable a particular controller
-> +			Format: {name of the controller(s) to disable}
-> +				{Currently supported controllers - "memory"}
-> +
->  	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
->  			Format: { "0" | "1" }
->  			See security/selinux/Kconfig help text.
+Cc: avi@qumranet.com
 
-It would probably be helpful to mention in the documentation that the 
-names of the subsystems must now be delimited by commas.
+Signed-off-by: Andi Kleen <ak@suse.de>
 
- [ I also find it very helpful to add randy.dunlap@oracle.com to the cc
-   list for any patch touching Documentation ]
+---
+ include/linux/kvm_host.h |    2 --
+ virt/kvm/kvm_main.c      |    4 ++--
+ 2 files changed, 2 insertions(+), 4 deletions(-)
+
+Index: linux/include/linux/kvm_host.h
+===================================================================
+--- linux.orig/include/linux/kvm_host.h
++++ linux/include/linux/kvm_host.h
+@@ -150,8 +150,6 @@ void kvm_exit(void);
+ static inline int is_error_hpa(hpa_t hpa) { return hpa >> HPA_MSB; }
+ struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva);
+ 
+-extern struct page *bad_page;
+-
+ int is_error_page(struct page *page);
+ int kvm_is_error_hva(unsigned long addr);
+ int kvm_set_memory_region(struct kvm *kvm,
+Index: linux/virt/kvm/kvm_main.c
+===================================================================
+--- linux.orig/virt/kvm/kvm_main.c
++++ linux/virt/kvm/kvm_main.c
+@@ -52,6 +52,8 @@ MODULE_LICENSE("GPL");
+ DEFINE_SPINLOCK(kvm_lock);
+ LIST_HEAD(vm_list);
+ 
++static struct page *bad_page;
++
+ static cpumask_t cpus_hardware_enabled;
+ 
+ struct kmem_cache *kvm_vcpu_cache;
+@@ -1271,8 +1273,6 @@ static struct sys_device kvm_sysdev = {
+ 	.cls = &kvm_sysdev_class,
+ };
+ 
+-struct page *bad_page;
+-
+ static inline
+ struct kvm_vcpu *preempt_notifier_to_vcpu(struct preempt_notifier *pn)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
