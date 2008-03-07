@@ -1,49 +1,78 @@
-Subject: Re: [PATCH 00/28] Swap over NFS -v16
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1204888675.8514.102.camel@twins>
-References: <20080220144610.548202000@chello.nl>
-	 <20080223000620.7fee8ff8.akpm@linux-foundation.org>
-	 <18371.43950.150842.429997@notabene.brown>
-	 <1204023042.6242.271.camel@lappy>
-	 <18372.64081.995262.986841@notabene.brown>
-	 <1204099113.6242.353.camel@lappy> <1837 <1204626509.6241.39.camel@lappy>
-	 <18384.46967.583615.711455@notabene.brown>
-	 <1204888675.8514.102.camel@twins>
-Content-Type: text/plain
-Date: Fri, 07 Mar 2008 12:55:31 +0100
-Message-Id: <1204890931.8514.107.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 7 Mar 2008 11:56:02 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 6/6] Filter based on a nodemask as well as a gfp_mask
+Message-ID: <20080307115602.GE26229@csn.ul.ie>
+References: <20080227214708.6858.53458.sendpatchset@localhost> <20080227214747.6858.46514.sendpatchset@localhost> <20080229115957.85d0b5b2.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20080229115957.85d0b5b2.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Neil Brown <neilb@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Pekka Enberg <penberg@cs.helsinki.fi>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, akpm@linux-foundation.org, ak@suse.de, clameter@sgi.com, linux-mm@kvack.org, rientjes@google.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-03-07 at 12:17 +0100, Peter Zijlstra wrote:
-
-> That would be so if the whole path from RX to socket demux would have
-> hard-irqs disabled. However I didn't see that. Moreover I think the
-> whole purpose of the NetPoll interface is to allow some RX queueing to
-> cut down on softirq overhead.
-
-s/NetPoll/NAPI/
-
-More specifically look at net/core/dev.c:netif_rx()
-It has a input queue per device.
-
-> >   2/ If the host is routing network packets, then incoming packets
-> >      might go on an outbound queue.  Is this space limited?  and
-> >      included in the reserve?
+On (29/02/08 11:59), KAMEZAWA Hiroyuki didst pronounce:
+> On Wed, 27 Feb 2008 16:47:47 -0500
+> Lee Schermerhorn <lee.schermerhorn@hp.com>, Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> Not sure, somewhere along the routing code I lost it again. Constructive
-> input from someone versed in that part of the kernel would be most
-> welcome.
+> > [PATCH 6/6] Filter based on a nodemask as well as a gfp_mask
+> > 
+> > V11r3 against 2.6.25-rc2-mm1
+> > 
+> > The MPOL_BIND policy creates a zonelist that is used for allocations
+> > controlled by that mempolicy. As the per-node zonelist is already being
+> > filtered based on a zone id, this patch adds a version of __alloc_pages()
+> > that takes a nodemask for further filtering. This eliminates the need
+> > for MPOL_BIND to create a custom zonelist.
+> > 
+> > A positive benefit of this is that allocations using MPOL_BIND now use the
+> > local node's distance-ordered zonelist instead of a custom node-id-ordered
+> > zonelist.  I.e., pages will be allocated from the closest allowed node with
+> > available memory.
+> > 
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > Acked-by: Christoph Lameter <clameter@sgi.com>
+> > Tested-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+> > 
+> 
+> Thank you! I like this very much.
+> Next step is maybe to pass nodemask to try_to_free_pages().
+> 
 
-To clarify, I think we just send it on as I saw no reason why that could
-fail. However the more fancy stuff like engress or QoS might spoil the
-party, that is where I lost track.
+Not a bad plan. I will visit it after the text bloat is reduced a bit.
+Currently each usage of for_each_zone_zonelist_nodemask() adds a bit too
+much.
 
+> BTW, cpuset memory limitation by nodemask has the same kind of feature.
+> But it seems cpuset_zone_allowed_soft/hardwall() has extra checks for system
+> sanity. 
+> 
+> Could you import them ? maybe like this
+> ==
+> void __alloc_pages_internal(gfp_t gfp_mask, unsigned int order,
+> +			struct zonelist *zonelist, nodemask_t *nodemask))
+> {
+> 	if (nodemask) {
+> 		if (unlikely(test_thread_flag(TIF_MEMDIE)))
+> 	                nodemask = NULL;
+> 		if ((gfp_mask & __GFP_HARDWALL)
+>                      && (unlikely(test_thread_flag(TIF_MEMDIE)))
+> 			nodemask = NULL;
+> 	}
+> }
+> ==
+> (I don't think above is clean.)
+
+I get the idea, I'll check it out and see.
+
+Thanks
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
