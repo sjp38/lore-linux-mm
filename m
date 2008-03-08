@@ -1,108 +1,56 @@
-Date: Sat, 8 Mar 2008 13:33:07 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] Add the max_usage member on the res_counter
-Message-Id: <20080308133307.a2e02402.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <47D15FAF.3000204@openvz.org>
-References: <47D15FAF.3000204@openvz.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by rv-out-0910.google.com with SMTP id f1so499544rvb.26
+        for <linux-mm@kvack.org>; Fri, 07 Mar 2008 20:33:34 -0800 (PST)
+Message-ID: <6934efce0803072033g3dab6106n32beb61532f365f7@mail.gmail.com>
+Date: Fri, 7 Mar 2008 20:33:34 -0800
+From: "Jared Hulbert" <jaredeh@gmail.com>
+Subject: [RFC][PATCH 0/3] xip: no struct pages -- summary
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Emelyanov <xemul@openvz.org>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Maxim Shchetynin <maxim@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 07 Mar 2008 18:30:55 +0300
-Pavel Emelyanov <xemul@openvz.org> wrote:
+[RFC][PATCH 0/3] xip: no struct pages -- summary
 
-> This is a very usefull feature. E.g. one may set the
-> limit to "unlimited" value and check for the memory
-> requirements of a new container.
-> 
-Hm, I like this. Could you add a method to reset this counter ?
+This short series extendeds one of Nick Piggins patches for the XIP
+overhaul that we've been kicking around.  I'm just hoping to get the
+API changes reviewed now.  I haven't tested this, just compiled what I
+can.
 
-Thanks,
--Kame
+So what I'm doing here is swapping out get_xip_page() for
+get_xip_mem().  The get_xip_mem() API gives us a kaddr and a pfn.  I
+thought it worked best to force this kaddr and pfn down through the
+block dev's direct_access() API.  I'm really unsure if I understand
+whether I got the device specific implementations of the new
+direct_access() right.
 
+For those interested I'll be updating my git tree at
+git.infradead.org/users/jehulber/axfs.git with an updated patch set
+Monday.
 
-> Signed-off-by: Pavel Emelyanov <xemul@openvz.org>
-> 
-> ---
->  include/linux/res_counter.h |    5 +++++
->  kernel/res_counter.c        |    4 ++++
->  mm/memcontrol.c             |    5 +++++
->  3 files changed, 14 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-> index 8cb1ecd..2c4deb5 100644
-> --- a/include/linux/res_counter.h
-> +++ b/include/linux/res_counter.h
-> @@ -25,6 +25,10 @@ struct res_counter {
->  	 */
->  	unsigned long long usage;
->  	/*
-> +	 * the maximal value of the usage from the counter creation
-> +	 */
-> +	unsigned long long max_usage;
-> +	/*
->  	 * the limit that usage cannot exceed
->  	 */
->  	unsigned long long limit;
-> @@ -67,6 +71,7 @@ ssize_t res_counter_write(struct res_counter *counter, int member,
->  
->  enum {
->  	RES_USAGE,
-> +	RES_MAX_USAGE,
->  	RES_LIMIT,
->  	RES_FAILCNT,
->  };
-> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-> index 791ff2b..f1f20c2 100644
-> --- a/kernel/res_counter.c
-> +++ b/kernel/res_counter.c
-> @@ -27,6 +27,8 @@ int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
->  	}
->  
->  	counter->usage += val;
-> +	if (counter->usage > counter->max_usage)
-> +		counter->max_usage = counter->usage;
->  	return 0;
->  }
->  
-> @@ -65,6 +67,8 @@ res_counter_member(struct res_counter *counter, int member)
->  	switch (member) {
->  	case RES_USAGE:
->  		return &counter->usage;
-> +	case RES_MAX_USAGE:
-> +		return &counter->max_usage;
->  	case RES_LIMIT:
->  		return &counter->limit;
->  	case RES_FAILCNT:
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 2d59163..e5c741a 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -911,6 +911,11 @@ static struct cftype mem_cgroup_files[] = {
->  		.read_u64 = mem_cgroup_read,
->  	},
->  	{
-> +		.name = "max_usage_in_bytes",
-> +		.private = RES_MAX_USAGE,
-> +		.read_u64 = mem_cgroup_read,
-> +	},
-> +	{
->  		.name = "limit_in_bytes",
->  		.private = RES_LIMIT,
->  		.write = mem_cgroup_write,
-> -- 
-> 1.5.3.4
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+[1/3] filemap_xip
+fs/open.c          |    2
+include/linux/fs.h |    4 -
+mm/fadvise.c       |    2
+mm/filemap_xip.c   |  204 ++++++++++++++++++++++++-----------------------------
+mm/madvise.c       |    2
+5 files changed, 101 insertions(+), 113 deletions(-)
+
+[2/3] direct_access
+arch/powerpc/sysdev/axonram.c |    5 +++--
+drivers/block/brd.c           |    5 +++--
+drivers/s390/block/dcssblk.c  |    7 +++++--
+include/linux/fs.h            |    3 ++-
+4 files changed, 13 insertions(+), 7 deletions(-)
+
+[3/3] ext2
+inode.c |    2 +-
+xip.c   |   45 ++++++++++++++++++++++++---------------------
+xip.h   |    9 +++++----
+3 files changed, 30 insertions(+), 26 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
