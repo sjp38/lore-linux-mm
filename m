@@ -1,9 +1,9 @@
-Received: by wf-out-1314.google.com with SMTP id 25so900339wfc.11
-        for <linux-mm@kvack.org>; Fri, 07 Mar 2008 20:33:50 -0800 (PST)
-Message-ID: <6934efce0803072033idf51aa4rf211eece44c679e7@mail.gmail.com>
-Date: Fri, 7 Mar 2008 20:33:50 -0800
+Received: by rv-out-0910.google.com with SMTP id f1so499544rvb.26
+        for <linux-mm@kvack.org>; Fri, 07 Mar 2008 20:33:56 -0800 (PST)
+Message-ID: <6934efce0803072033l301d39f0q909ab21f4f77657a@mail.gmail.com>
+Date: Fri, 7 Mar 2008 20:33:56 -0800
 From: "Jared Hulbert" <jaredeh@gmail.com>
-Subject: [RFC][PATCH 2/3] xip: no struct pages -- direct_access
+Subject: [RFC][PATCH 3/3] xip: no struct pages -- ext2
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
@@ -13,109 +13,158 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Maxim Shchetynin <maxim@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-[RFC][PATCH 2/3] xip: no struct pages -- direct_access
+[RFC][PATCH 3/3] xip: no struct pages -- ext2
 
-Altering the block device ->direct_access() API to fix with the new
-get_xip_mem() API.  Allows devices to specify a kaddr and pfn.
+Patching ext2 xip functions to use both the get_xip_mem()
+and the new direct_access() API.
 
 Signed-off-by: Jared Hulbert <jaredeh@gmail.com>
 ---
 
-arch/powerpc/sysdev/axonram.c |    5 +++--
-drivers/block/brd.c           |    5 +++--
-drivers/s390/block/dcssblk.c  |    7 +++++--
-include/linux/fs.h            |    3 ++-
-4 files changed, 13 insertions(+), 7 deletions(-)
+fs/ext2/inode.c |    2 +-
+fs/ext2/xip.c   |   45 ++++++++++++++++++++++++---------------------
+fs/ext2/xip.h   |    9 +++++----
+3 files changed, 30 insertions(+), 26 deletions(-)
 
-diff --git a/arch/powerpc/sysdev/axonram.c b/arch/powerpc/sysdev/axonram.c
-index d359d6e..7f59188 100644
---- a/arch/powerpc/sysdev/axonram.c
-+++ b/arch/powerpc/sysdev/axonram.c
-@@ -143,7 +143,7 @@ axon_ram_make_request(struct request_queue *queue,
-struct bio *bio)
-  */
- static int
- axon_ram_direct_access(struct block_device *device, sector_t sector,
--		       unsigned long *data)
-+		       void **kaddr, unsigned long *pfn)
+
+diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
+index c620068..0374e54 100644
+--- a/fs/ext2/inode.c
++++ b/fs/ext2/inode.c
+@@ -796,7 +796,7 @@ const struct address_space_operations ext2_aops = {
+
+ const struct address_space_operations ext2_aops_xip = {
+ 	.bmap			= ext2_bmap,
+-	.get_xip_page		= ext2_get_xip_page,
++	.get_xip_mem		= ext2_get_xip_mem,
+ };
+
+ const struct address_space_operations ext2_nobh_aops = {
+diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
+index ca7f003..b272ed0 100644
+--- a/fs/ext2/xip.c
++++ b/fs/ext2/xip.c
+@@ -15,24 +15,26 @@
+ #include "xip.h"
+
+ static inline int
+-__inode_direct_access(struct inode *inode, sector_t sector,
+-		      unsigned long *data)
++__inode_direct_access(struct inode *inode, sector_t block, void **kaddr,
++		      unsigned long *pfn)
  {
- 	struct axon_ram_bank *bank = device->bd_disk->private_data;
- 	loff_t offset;
-@@ -154,7 +154,8 @@ axon_ram_direct_access(struct block_device
-*device, sector_t sector,
- 		return -ERANGE;
++	sector_t sector;
+ 	BUG_ON(!inode->i_sb->s_bdev->bd_disk->fops->direct_access);
++
++	sector = block * (PAGE_SIZE / 512); /* ext2 block to bdev sector */
+ 	return inode->i_sb->s_bdev->bd_disk->fops
+-		->direct_access(inode->i_sb->s_bdev,sector,data);
++		->direct_access(inode->i_sb->s_bdev,sector,kaddr,pfn);
+ }
+
+ static inline int
+-__ext2_get_sector(struct inode *inode, sector_t offset, int create,
++__ext2_get_block(struct inode *inode, pgoff_t pgoff, int create,
+ 		   sector_t *result)
+ {
+ 	struct buffer_head tmp;
+ 	int rc;
+
+ 	memset(&tmp, 0, sizeof(struct buffer_head));
+-	rc = ext2_get_block(inode, offset/ (PAGE_SIZE/512), &tmp,
+-			    create);
++	rc = ext2_get_block(inode, pgoff, &tmp, create);
+ 	*result = tmp.b_blocknr;
+
+ 	/* did we get a sparse block (hole in the file)? */
+@@ -45,15 +47,15 @@ __ext2_get_sector(struct inode *inode, sector_t
+offset, int create,
+ }
+
+ int
+-ext2_clear_xip_target(struct inode *inode, int block)
++ext2_clear_xip_target(struct inode *inode, sector_t block)
+ {
+-	sector_t sector = block * (PAGE_SIZE/512);
+-	unsigned long data;
++	void *kaddr;
++	unsigned long pfn;
+ 	int rc;
+
+-	rc = __inode_direct_access(inode, sector, &data);
++	rc = __inode_direct_access(inode, block, &kaddr, &pfn);
+ 	if (!rc)
+-		clear_page((void*)data);
++		clear_page(kaddr);
+ 	return rc;
+ }
+
+@@ -69,25 +71,25 @@ void ext2_xip_verify_sb(struct super_block *sb)
  	}
-
--	*data = bank->ph_addr + offset;
-+	*kaddr = (void *)(bank->ph_addr + offset);
-+	*pfn = virt_to_phys(kaddr) >> PAGE_SHIFT;
-
- 	return 0;
  }
-diff --git a/drivers/block/brd.c b/drivers/block/brd.c
-index 8536480..ec56f3c 100644
---- a/drivers/block/brd.c
-+++ b/drivers/block/brd.c
-@@ -319,7 +319,7 @@ out:
 
- #ifdef CONFIG_BLK_DEV_XIP
- static int brd_direct_access (struct block_device *bdev, sector_t sector,
--			unsigned long *data)
-+			void **kaddr, unsigned long *pfn)
+-struct page *
+-ext2_get_xip_page(struct address_space *mapping, sector_t offset,
+-		   int create)
++int
++ext2_get_xip_mem(struct address_space *mapping, pgoff_t pgoff, int create,
++		 void **kaddr, unsigned long *pfn)
  {
- 	struct brd_device *brd = bdev->bd_disk->private_data;
- 	struct page *page;
-@@ -333,7 +333,8 @@ static int brd_direct_access (struct block_device
-*bdev, sector_t sector,
- 	page = brd_insert_page(brd, sector);
- 	if (!page)
- 		return -ENOMEM;
--	*data = (unsigned long)page_address(page);
-+	*kaddr = page_address(page);
-+	*pfn = page_to_pfn(page);
+ 	int rc;
+-	unsigned long data;
+-	sector_t sector;
++	sector_t block;
 
- 	return 0;
+ 	/* first, retrieve the sector number */
+-	rc = __ext2_get_sector(mapping->host, offset, create, &sector);
++	rc = __ext2_get_block(mapping->host, pgoff, create, &block);
+ 	if (rc)
+ 		goto error;
+
+ 	/* retrieve address of the target data */
+-	rc = __inode_direct_access
+-		(mapping->host, sector * (PAGE_SIZE/512), &data);
+-	if (!rc)
+-		return virt_to_page(data);
++	rc = __inode_direct_access(mapping->host, block, kaddr, pfn);
++	if (rc)
++		goto error;
++
++	return 0;
+
+  error:
+-	return ERR_PTR(rc);
++	return rc;
  }
-diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
-index e6c94db..59c1949 100644
---- a/drivers/s390/block/dcssblk.c
-+++ b/drivers/s390/block/dcssblk.c
-@@ -687,7 +687,7 @@ fail:
+diff --git a/fs/ext2/xip.h b/fs/ext2/xip.h
+index aa85331..53ec33d 100644
+--- a/fs/ext2/xip.h
++++ b/fs/ext2/xip.h
+@@ -7,19 +7,20 @@
 
- static int
- dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
--			unsigned long *data)
-+			void **kaddr, unsigned long *pfn)
+ #ifdef CONFIG_EXT2_FS_XIP
+ extern void ext2_xip_verify_sb (struct super_block *);
+-extern int ext2_clear_xip_target (struct inode *, int);
++extern int ext2_clear_xip_target (struct inode *, sector_t);
+
+ static inline int ext2_use_xip (struct super_block *sb)
  {
- 	struct dcssblk_dev_info *dev_info;
- 	unsigned long pgoff;
-@@ -700,7 +700,10 @@ dcssblk_direct_access (struct block_device *bdev,
-sector_t secnum,
- 	pgoff = secnum / (PAGE_SIZE / 512);
- 	if ((pgoff+1)*PAGE_SIZE-1 > dev_info->end - dev_info->start)
- 		return -ERANGE;
--	*data = (unsigned long) (dev_info->start+pgoff*PAGE_SIZE);
-+
-+	*kaddr = (void *)(dev_info->start + pgoff * PAGE_SIZE);
-+	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
-+
- 	return 0;
+ 	struct ext2_sb_info *sbi = EXT2_SB(sb);
+ 	return (sbi->s_mount_opt & EXT2_MOUNT_XIP);
  }
-
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index b84b848..27f9a74 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1129,7 +1129,8 @@ struct block_device_operations {
- 	int (*ioctl) (struct inode *, struct file *, unsigned, unsigned long);
- 	long (*unlocked_ioctl) (struct file *, unsigned, unsigned long);
- 	long (*compat_ioctl) (struct file *, unsigned, unsigned long);
--	int (*direct_access) (struct block_device *, sector_t, unsigned long *);
-+	int (*direct_access) (struct block_device *, sector_t, void **,
-+			unsigned long *);
- 	int (*media_changed) (struct gendisk *);
- 	int (*revalidate_disk) (struct gendisk *);
- 	int (*getgeo)(struct block_device *, struct hd_geometry *);
+-struct page* ext2_get_xip_page (struct address_space *, sector_t, int);
+-#define mapping_is_xip(map) unlikely(map->a_ops->get_xip_page)
++int ext2_get_xip_mem(struct address_space *, pgoff_t, int, void **,
++		unsigned long *);
++#define mapping_is_xip(map) unlikely(map->a_ops->get_xip_mem)
+ #else
+ #define mapping_is_xip(map)			0
+ #define ext2_xip_verify_sb(sb)			do { } while (0)
+ #define ext2_use_xip(sb)			0
+ #define ext2_clear_xip_target(inode, chain)	0
+-#define ext2_get_xip_page			NULL
++#define ext2_get_xip_mem			NULL
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
