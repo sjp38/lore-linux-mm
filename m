@@ -1,50 +1,90 @@
-Date: Fri, 7 Mar 2008 23:37:32 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [RFC][PATCH 1/3] xip: no struct pages -- get_xip_mem
-In-Reply-To: <6934efce0803072033m5efd4d1o1ca8526f94649bb5@mail.gmail.com>
-Message-ID: <alpine.LFD.1.00.0803072331090.2911@woody.linux-foundation.org>
-References: <6934efce0803072033m5efd4d1o1ca8526f94649bb5@mail.gmail.com>
+Date: Sat, 8 Mar 2008 09:22:43 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: [patch] revert "dcdbas: add DMI-based module autloading"
+Message-ID: <20080308082243.GA18123@elte.hu>
+References: <47D02940.1030707@tuxrocks.com> <20080306184954.GA15492@elte.hu> <47D1971A.7070500@tuxrocks.com> <47D23B7E.3020505@tuxrocks.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <47D23B7E.3020505@tuxrocks.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jared Hulbert <jaredeh@gmail.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Maxim Shchetynin <maxim@de.ibm.com>
+To: Frank Sorenson <frank@tuxrocks.com>
+Cc: kay.sievers@vrfy.org, Matt_Domsch@dell.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+* Frank Sorenson <frank@tuxrocks.com> wrote:
 
-On Fri, 7 Mar 2008, Jared Hulbert wrote:
->
-> [RFC][PATCH 1/3] xip: no struct pages -- get_xip_mem
+> -----BEGIN PGP SIGNED MESSAGE-----
+> Hash: SHA1
 > 
-> Convert XIP to support non-struct page backed memory.
-> The get_xip_page API is changed from a page based to an address/pfn based one.
+> Frank Sorenson wrote:
+> > I did some additional debugging, and I believe you're correct about it
+> > being specific to my system.  The system seems to run fine until some
+> > time during the boot.  I booted with "init=/bin/sh" (that's how the
+> > system stayed up for 9 minutes), then it died when I tried starting
+> > things up.  I've further narrowed the OOM down to udev (though it's not
+> > entirely udev's fault, since 2.6.24 runs fine).
+> > 
+> > I ran your debug info tool before killing the box by running
+> > /sbin/start_udev.  The output of the tool is at
+> > http://tuxrocks.com/tmp/cfs-debug-info-2008.03.06-14.11.24
+> > 
+> > Something is apparently happening between 2.6.24 and 2.6.25-rc[34] which
+> > causes udev (or something it calls) to behave very badly.
+> 
+> Found it.  The culprit is 8f47f0b688bba7642dac4e979896e4692177670b
+>     dcdbas: add DMI-based module autloading
+> 
+>     DMI autoload dcdbas on all Dell systems.
+> 
+>     This looks for BIOS Vendor or System Vendor == Dell, so this should
+>     work for systems both Dell-branded and those Dell builds but brands
+>     for others.  It causes udev to load the dcdbas module at startup,
+>     which is used by tools called by HAL for wireless control and
+>     backlight control, among other uses.
+> 
+> What actually happens is that when udev loads the dcdbas module at 
+> startup, modprobe apparently calls "modprobe dcdbas" itself, repeating 
+> until the system runs out of resources (in this case, it OOMs).
 
-Is there any way we could just re-use the same calling conventions as we 
-already use for "vma->fault()"?
+nice work! I've attached the revert below against latest -git - just in 
+case no-one can think of an obvious fix to this bug.
 
-> +	int (*get_xip_mem)(struct address_space *, pgoff_t, int, void **,
-> +			unsigned long *);
+	Ingo
 
-This really looks very close to 
+--------------------->
+Subject: revert "dcdbas: add DMI-based module autloading"
+From: Ingo Molnar <mingo@elte.hu>
+Date: Sat Mar 08 09:09:16 CET 2008
 
-	int (*fault)(struct vm_area_struct *vma, struct vm_fault *vmf);
+Frank Sorenson reported that 2.6.25-rc OOMs on his box and
+tracked it down to commit 8f47f0b688bba7642dac4e979896e4692177670b,
+"dcdbas: add DMI-based module autloading". Frank says:
 
-and "struct vm_fault" returns either a kernel virtual address or a "struct 
-page *" 
+> What actually happens is that when udev loads the dcdbas module at
+> startup, modprobe apparently calls "modprobe dcdbas" itself, repeating
+> until the system runs out of resources (in this case, it OOMs).
 
-So would it be possible to just use the same calling convention, except 
-passing a "struct address_space" instead of a "struct vm_area_struct"?
+revert the commit.
 
-I realize that "struct vm_fault" doesn't have a pfn in it (if they don't 
-do a "struct page", they are expected to fill in the PTE directly instead 
-and return VM_FAULT_NOPAGE), but I wonder if it should.
+Bisected-by: Frank Sorenson <frank@tuxrocks.com>
+Signed-off-by: Ingo Molnar <mingo@elte.hu>
+---
+ drivers/firmware/dcdbas.c |    3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-The whole git_xip_page() issue really looks very similar to "fault in a 
-page from an address space". It feels kind of wrong to have filesystems 
-implement two functions for what seems to be the exact same issue.
-
-			Linus
+Index: linux/drivers/firmware/dcdbas.c
+===================================================================
+--- linux.orig/drivers/firmware/dcdbas.c
++++ linux/drivers/firmware/dcdbas.c
+@@ -658,5 +658,4 @@ MODULE_DESCRIPTION(DRIVER_DESCRIPTION " 
+ MODULE_VERSION(DRIVER_VERSION);
+ MODULE_AUTHOR("Dell Inc.");
+ MODULE_LICENSE("GPL");
+-/* Any System or BIOS claiming to be by Dell */
+-MODULE_ALIAS("dmi:*:[bs]vnD[Ee][Ll][Ll]*:*");
++
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
