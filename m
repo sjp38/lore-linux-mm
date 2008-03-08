@@ -1,170 +1,98 @@
-Received: by rv-out-0910.google.com with SMTP id f1so499544rvb.26
-        for <linux-mm@kvack.org>; Fri, 07 Mar 2008 20:33:56 -0800 (PST)
-Message-ID: <6934efce0803072033l301d39f0q909ab21f4f77657a@mail.gmail.com>
-Date: Fri, 7 Mar 2008 20:33:56 -0800
-From: "Jared Hulbert" <jaredeh@gmail.com>
-Subject: [RFC][PATCH 3/3] xip: no struct pages -- ext2
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Sat, 8 Mar 2008 13:45:14 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2/2] Make res_counter hierarchical
+Message-Id: <20080308134514.434f38f4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <47D16004.7050204@openvz.org>
+References: <47D16004.7050204@openvz.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Maxim Shchetynin <maxim@de.ibm.com>
+To: Pavel Emelyanov <xemul@openvz.org>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-[RFC][PATCH 3/3] xip: no struct pages -- ext2
+On Fri, 07 Mar 2008 18:32:20 +0300
+Pavel Emelyanov <xemul@openvz.org> wrote:
 
-Patching ext2 xip functions to use both the get_xip_mem()
-and the new direct_access() API.
+> This allows us two things basically:
+> 
+> 1. If the subgroup has the limit higher than its parent has
+>    then the one will get more memory than allowed.
+> 2. When we will need to account for a resource in more than
+>    one place, we'll be able to use this technics.
+> 
+>    Look, consider we have a memory limit and swap limit. The
+>    memory limit is the limit for the sum of RSS, page cache
+>    and swap usage. To account for this gracefuly, we'll set
+>    two counters:
+> 
+> 	   res_counter mem_counter;
+> 	   res_counter swap_counter;
+> 
+>    attach mm to the swap one
+> 
+> 	   mm->mem_cnt = &swap_counter;
+> 
+>    and make the swap_counter be mem's child. That's it. If we
+>    want hierarchical support, then the tree will look like this:
+> 
+>    mem_counter_top
+>     swap_counter_top <- mm_struct living at top
+>      mem_counter_sub
+>       swap_counter_sub <- mm_struct living at sub
+> 
+Hmm? seems strange.
 
-Signed-off-by: Jared Hulbert <jaredeh@gmail.com>
----
+IMO, a parent's usage is just sum of all childs'.
+And, historically, memory overcommit is done agaist "memory usage + swap".
 
-fs/ext2/inode.c |    2 +-
-fs/ext2/xip.c   |   45 ++++++++++++++++++++++++---------------------
-fs/ext2/xip.h   |    9 +++++----
-3 files changed, 30 insertions(+), 26 deletions(-)
+How about this ?
+    <mem_counter_top, swap_counter_top>
+	<mem_counter_sub, swap_counter_sub>
+	<mem_counter_sub, swap_counter_sub>
+	<mem_counter_sub, swap_counter_sub>
+
+   mem_counter_top.usage == sum of all mem_coutner_sub.usage
+   swap_counter_sub.usage = sum of all swap_counter_sub.usage
 
 
-diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index c620068..0374e54 100644
---- a/fs/ext2/inode.c
-+++ b/fs/ext2/inode.c
-@@ -796,7 +796,7 @@ const struct address_space_operations ext2_aops = {
+> @@ -976,19 +976,22 @@ static void free_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+>  static struct cgroup_subsys_state *
+>  mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+>  {
+> -	struct mem_cgroup *mem;
+> +	struct mem_cgroup *mem, *parent;
+>  	int node;
+>  
+>  	if (unlikely((cont->parent) == NULL)) {
+>  		mem = &init_mem_cgroup;
+>  		init_mm.mem_cgroup = mem;
+> -	} else
+> +		parent = NULL;
+> +	} else {
+>  		mem = kzalloc(sizeof(struct mem_cgroup), GFP_KERNEL);
+> +		parent = mem_cgroup_from_cont(cont->parent);
+> +	}
+>  
+>  	if (mem == NULL)
+>  		return ERR_PTR(-ENOMEM);
+>  
+> -	res_counter_init(&mem->res);
+> +	res_counter_init(&mem->res, parent ? &parent->res : NULL);
+>  
+I have no objection to add some hierarchical support to res_counter.
 
- const struct address_space_operations ext2_aops_xip = {
- 	.bmap			= ext2_bmap,
--	.get_xip_page		= ext2_get_xip_page,
-+	.get_xip_mem		= ext2_get_xip_mem,
- };
+But we should wait to add it to mem_cgroup because we have to add 
+some amount of codes to handle hierarchy under mem_cgroup in reasonable way.
+for example) 
+	- hierarchical memory reclaim
+	- keeping fairness between sub memory controllers.
+	  etc...
 
- const struct address_space_operations ext2_nobh_aops = {
-diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
-index ca7f003..b272ed0 100644
---- a/fs/ext2/xip.c
-+++ b/fs/ext2/xip.c
-@@ -15,24 +15,26 @@
- #include "xip.h"
-
- static inline int
--__inode_direct_access(struct inode *inode, sector_t sector,
--		      unsigned long *data)
-+__inode_direct_access(struct inode *inode, sector_t block, void **kaddr,
-+		      unsigned long *pfn)
- {
-+	sector_t sector;
- 	BUG_ON(!inode->i_sb->s_bdev->bd_disk->fops->direct_access);
-+
-+	sector = block * (PAGE_SIZE / 512); /* ext2 block to bdev sector */
- 	return inode->i_sb->s_bdev->bd_disk->fops
--		->direct_access(inode->i_sb->s_bdev,sector,data);
-+		->direct_access(inode->i_sb->s_bdev,sector,kaddr,pfn);
- }
-
- static inline int
--__ext2_get_sector(struct inode *inode, sector_t offset, int create,
-+__ext2_get_block(struct inode *inode, pgoff_t pgoff, int create,
- 		   sector_t *result)
- {
- 	struct buffer_head tmp;
- 	int rc;
-
- 	memset(&tmp, 0, sizeof(struct buffer_head));
--	rc = ext2_get_block(inode, offset/ (PAGE_SIZE/512), &tmp,
--			    create);
-+	rc = ext2_get_block(inode, pgoff, &tmp, create);
- 	*result = tmp.b_blocknr;
-
- 	/* did we get a sparse block (hole in the file)? */
-@@ -45,15 +47,15 @@ __ext2_get_sector(struct inode *inode, sector_t
-offset, int create,
- }
-
- int
--ext2_clear_xip_target(struct inode *inode, int block)
-+ext2_clear_xip_target(struct inode *inode, sector_t block)
- {
--	sector_t sector = block * (PAGE_SIZE/512);
--	unsigned long data;
-+	void *kaddr;
-+	unsigned long pfn;
- 	int rc;
-
--	rc = __inode_direct_access(inode, sector, &data);
-+	rc = __inode_direct_access(inode, block, &kaddr, &pfn);
- 	if (!rc)
--		clear_page((void*)data);
-+		clear_page(kaddr);
- 	return rc;
- }
-
-@@ -69,25 +71,25 @@ void ext2_xip_verify_sb(struct super_block *sb)
- 	}
- }
-
--struct page *
--ext2_get_xip_page(struct address_space *mapping, sector_t offset,
--		   int create)
-+int
-+ext2_get_xip_mem(struct address_space *mapping, pgoff_t pgoff, int create,
-+		 void **kaddr, unsigned long *pfn)
- {
- 	int rc;
--	unsigned long data;
--	sector_t sector;
-+	sector_t block;
-
- 	/* first, retrieve the sector number */
--	rc = __ext2_get_sector(mapping->host, offset, create, &sector);
-+	rc = __ext2_get_block(mapping->host, pgoff, create, &block);
- 	if (rc)
- 		goto error;
-
- 	/* retrieve address of the target data */
--	rc = __inode_direct_access
--		(mapping->host, sector * (PAGE_SIZE/512), &data);
--	if (!rc)
--		return virt_to_page(data);
-+	rc = __inode_direct_access(mapping->host, block, kaddr, pfn);
-+	if (rc)
-+		goto error;
-+
-+	return 0;
-
-  error:
--	return ERR_PTR(rc);
-+	return rc;
- }
-diff --git a/fs/ext2/xip.h b/fs/ext2/xip.h
-index aa85331..53ec33d 100644
---- a/fs/ext2/xip.h
-+++ b/fs/ext2/xip.h
-@@ -7,19 +7,20 @@
-
- #ifdef CONFIG_EXT2_FS_XIP
- extern void ext2_xip_verify_sb (struct super_block *);
--extern int ext2_clear_xip_target (struct inode *, int);
-+extern int ext2_clear_xip_target (struct inode *, sector_t);
-
- static inline int ext2_use_xip (struct super_block *sb)
- {
- 	struct ext2_sb_info *sbi = EXT2_SB(sb);
- 	return (sbi->s_mount_opt & EXT2_MOUNT_XIP);
- }
--struct page* ext2_get_xip_page (struct address_space *, sector_t, int);
--#define mapping_is_xip(map) unlikely(map->a_ops->get_xip_page)
-+int ext2_get_xip_mem(struct address_space *, pgoff_t, int, void **,
-+		unsigned long *);
-+#define mapping_is_xip(map) unlikely(map->a_ops->get_xip_mem)
- #else
- #define mapping_is_xip(map)			0
- #define ext2_xip_verify_sb(sb)			do { } while (0)
- #define ext2_use_xip(sb)			0
- #define ext2_clear_xip_target(inode, chain)	0
--#define ext2_get_xip_page			NULL
-+#define ext2_get_xip_mem			NULL
- #endif
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
