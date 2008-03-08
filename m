@@ -1,130 +1,66 @@
-Subject: Re: Regression:  Re: [patch -mm 2/4] mempolicy: create
-	mempolicy_operations structure
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <alpine.DEB.1.00.0803071341090.26765@chino.kir.corp.google.com>
-References: <alpine.DEB.1.00.0803061135001.18590@chino.kir.corp.google.com>
-	 <alpine.DEB.1.00.0803061135560.18590@chino.kir.corp.google.com>
-	 <1204922646.5340.73.camel@localhost>
-	 <alpine.DEB.1.00.0803071341090.26765@chino.kir.corp.google.com>
-Content-Type: text/plain
-Date: Sat, 08 Mar 2008 13:49:31 -0500
-Message-Id: <1205002171.4918.2.camel@localhost>
-Mime-Version: 1.0
+Received: by wa-out-1112.google.com with SMTP id m33so1184992wag.8
+        for <linux-mm@kvack.org>; Sat, 08 Mar 2008 10:54:01 -0800 (PST)
+Message-ID: <6934efce0803081053t7c9c1351sd977803157540ce3@mail.gmail.com>
+Date: Sat, 8 Mar 2008 10:53:59 -0800
+From: "Jared Hulbert" <jaredeh@gmail.com>
+Subject: Re: [RFC][PATCH 1/3] xip: no struct pages -- get_xip_mem
+In-Reply-To: <alpine.LFD.1.00.0803072331090.2911@woody.linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <6934efce0803072033m5efd4d1o1ca8526f94649bb5@mail.gmail.com>
+	 <alpine.LFD.1.00.0803072331090.2911@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Jackson <pj@sgi.com>, Christoph Lameter <clameter@sgi.com>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Maxim Shchetynin <maxim@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-03-07 at 13:48 -0800, David Rientjes wrote: 
-> On Fri, 7 Mar 2008, Lee Schermerhorn wrote:
-> 
-> > It also appears that the patch series listed above required a non-empty
-> > nodemask with MPOL_DEFAULT.  However, I didn't test that.  With this
-> > patch, MPOL_DEFAULT effectively ignores the nodemask--empty or not.
-> > This is a change in behavior that I have argued against, but the
-> > regression tests don't test this, so I'm not going to attempt to address
-> > it with this patch.
-> > 
-> 
-> Excuse me, but there was significant discussion about this on LKML and I 
-> eventually did force MPOL_DEFAULT to require a non-empty nodemask 
-> specifically because of your demand that it should.  It didn't originally 
-> require this in my patchset, and now you're removing the exact same 
-> requirement that you demanded.
-> 
-> You said on February 13:
-> 
-> 	1) we've discussed the issue of returning EINVAL for non-empty
-> 	nodemasks with MPOL_DEFAULT.  By removing this restriction, we run
-> 	the risk of breaking applications if we should ever want to define
-> 	a semantic to non-empty node mask for MPOL_DEFAULT.
-> 
-> If you want to remove this requirement now (please get agreement from 
-> Paul) and are sure of your position, you'll at least need an update to 
-> Documentation/vm/numa-memory-policy.txt.
+>  Is there any way we could just re-use the same calling conventions as we
+>  already use for "vma->fault()"?
+>
+>
+>  > +     int (*get_xip_mem)(struct address_space *, pgoff_t, int, void **,
+>  > +                     unsigned long *);
+>
+>  This really looks very close to
+>
+>         int (*fault)(struct vm_area_struct *vma, struct vm_fault *vmf);
+>
+>  and "struct vm_fault" returns either a kernel virtual address or a "struct
+>  page *"
+>
+>  So would it be possible to just use the same calling convention, except
+>  passing a "struct address_space" instead of a "struct vm_area_struct"?
+>
+>  I realize that "struct vm_fault" doesn't have a pfn in it (if they don't
+>  do a "struct page", they are expected to fill in the PTE directly instead
+>  and return VM_FAULT_NOPAGE), but I wonder if it should.
 
-Excuse me.  I thought that the discussion--my position, anyway--was
-about preserving existing behavior for MPOL_DEFAULT which is to require
-an EMPTY [or NULL--same effect] nodemask.  Not a NON-EMPTY one.  See:
-http://www.kernel.org/doc/man-pages/online/pages/man2/set_mempolicy.2.html
-It does appear that your patches now require a non-empty nodemask.  This
-was intentional?
+I think that makes a lot of sense.  The get_xip_mem() also takes in
+vmf->pgoff as an input, yeah that would be nice.  I'll do that Monday.
 
-Is it, then, the case that our disagreement was based on the fact that
-you thought I was advocating a non-empty nodemask with MPOL_DEFAULT?  No
-wonder you said it didn't make sense. 
+>  The whole git_xip_page() issue really looks very similar to "fault in a
+>  page from an address space". It feels kind of wrong to have filesystems
+>  implement two functions for what seems to be the exact same issue.
 
-Since we can't seem to understand each other with ~English prose, I've
-attached a little test program that demonstrates the behavior that I
-expect.   This is not to belabor the point; just an attempt to establish
-understanding.
+get_xip_mem() does look similar to fault() but if you at it's place in
+call stack it's more like
 
-Note:  in the subject patch, I didn't enforce this behavior because your
-patch didn't [it enforced just the opposite], and I've pretty much given
-up.  Although I prefer current behavior [before your series], if we
-change it, we will need to change the man pages to remove the error
-condition for non-empty nodemasks with MPOL_DEFAULT.
+        int (*readpage)(struct file *, struct page *);
 
-Later,
-Lee
+In AXFS depending on whether a page is XIP or not
 
+	axfs_fault() > filemap_fault() > axfs_readpage()
 
-/*
- * test error returns for set_mempolicy(MPOL_DEFAULT, nodemask, maxnodes) for
- * null, empty and non-empty nodemasks.
- *
- * requires libnuma
- */
-#include <sys/types.h>
+Or for an XIP page it's
 
-#include <errno.h>
-#include <numaif.h>
-#include <numa.h>
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
+	axfs_fault() > xip_file_fault() > get_xip_mem()
 
-void results(int ret, int ierr, int expected)
-{
-	if (ret) {
-		printf("\tResults:   %s [%d]\n", strerror(ierr), ierr);
-	} else {
-		printf("\tResults:   No Error [0]\n");
-	}
-	printf("\tExpected:  %s [%d]\n",
-			expected ? strerror(expected) : "No Error", expected);
-}
-
-int main(int argc, char *argv[])
-{
-	unsigned long nodemask;	/* hack:  single long word mask */
-	int maxnodes = 4;	/* arbitrary max <= 8 * sizeof(nodemask) */
-	int ret;
-
-	printf("\n1: testing set_mempolicy(MPOL_DEFAULT, ...) with NULL nodemask:\n");
-	ret = set_mempolicy(MPOL_DEFAULT, NULL, maxnodes);
-	results(ret, errno, 0);	/* expect success */
-
-	printf("\n2: testing set_mempolicy(MPOL_DEFAULT, ...) with non-NULL, "
-			"but empty, nodemask:\n");
-	nodemask = 0UL;
-	ret = set_mempolicy(MPOL_DEFAULT, &nodemask, maxnodes);
-	results(ret, errno, 0);	/* expect success */
-
-	printf("\n2: testing set_mempolicy(MPOL_DEFAULT, ...) with non-NULL, "
-			"non-empty nodemask:\n");
-	nodemask = 1UL;
-	ret = set_mempolicy(MPOL_DEFAULT, &nodemask, maxnodes);
-	results(ret, errno, EINVAL);	/* expect EINVAL */
-
-}
-
-
-
+So I it doesn't feel like overlap to me.  I think the overlap is
+actually upstream in filemap_fault() vs xip_file_fault().  But I'm not
+smart enough to figure it out yet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
