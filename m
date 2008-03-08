@@ -1,30 +1,78 @@
-Subject: Re: 2.6.25-rc4 OOMs itself dead on bootup (modprobe bug?)
-From: Jon Masters <jcm@redhat.com>
-In-Reply-To: <47D29CAB.50301@tuxrocks.com>
-References: <47D02940.1030707@tuxrocks.com> <20080306184954.GA15492@elte.hu>
-	 <47D1971A.7070500@tuxrocks.com> <47D23B7E.3020505@tuxrocks.com>
-	 <20080308135318.GA8036@auslistsprd01.us.dell.com>
-	 <47D29CAB.50301@tuxrocks.com>
-Content-Type: text/plain
-Date: Sat, 08 Mar 2008 16:53:17 -0500
-Message-Id: <1205013197.5484.81.camel@perihelion>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Sat, 8 Mar 2008 14:09:11 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: Regression:  Re: [patch -mm 2/4] mempolicy: create mempolicy_operations
+ structure
+In-Reply-To: <1205002171.4918.2.camel@localhost>
+Message-ID: <alpine.DEB.1.00.0803081403460.12095@chino.kir.corp.google.com>
+References: <alpine.DEB.1.00.0803061135001.18590@chino.kir.corp.google.com>  <alpine.DEB.1.00.0803061135560.18590@chino.kir.corp.google.com>  <1204922646.5340.73.camel@localhost>  <alpine.DEB.1.00.0803071341090.26765@chino.kir.corp.google.com>
+ <1205002171.4918.2.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Frank Sorenson <frank@tuxrocks.com>
-Cc: Matt Domsch <Matt_Domsch@dell.com>, Ingo Molnar <mingo@elte.hu>, kay.sievers@vrfy.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Jackson <pj@sgi.com>, Christoph Lameter <clameter@sgi.com>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2008-03-08 at 08:03 -0600, Frank Sorenson wrote:
+On Sat, 8 Mar 2008, Lee Schermerhorn wrote:
 
-> It's module-init-tools-3.4-2.fc8.x86_64 (most recent Fedora rpm available).
+> > Excuse me, but there was significant discussion about this on LKML and I 
+> > eventually did force MPOL_DEFAULT to require a non-empty nodemask 
 
-Ok, so I'll see if I can find a Dell system in the office to reproduce
-this on Monday. Any Dell should do, right Matt?
+Correction: s/non-empty/empty
 
-Jon.
+> > specifically because of your demand that it should.  It didn't originally 
+> > require this in my patchset, and now you're removing the exact same 
+> > requirement that you demanded.
+> > 
+> > You said on February 13:
+> > 
+> > 	1) we've discussed the issue of returning EINVAL for non-empty
+> > 	nodemasks with MPOL_DEFAULT.  By removing this restriction, we run
+> > 	the risk of breaking applications if we should ever want to define
+> > 	a semantic to non-empty node mask for MPOL_DEFAULT.
+> > 
+> > If you want to remove this requirement now (please get agreement from 
+> > Paul) and are sure of your position, you'll at least need an update to 
+> > Documentation/vm/numa-memory-policy.txt.
+> 
+> Excuse me.  I thought that the discussion--my position, anyway--was
+> about preserving existing behavior for MPOL_DEFAULT which is to require
+> an EMPTY [or NULL--same effect] nodemask.  Not a NON-EMPTY one.  See:
+> http://www.kernel.org/doc/man-pages/online/pages/man2/set_mempolicy.2.html
+> It does appear that your patches now require a non-empty nodemask.  This
+> was intentional?
+> 
 
+The first and second set did not have this requirement, but the third set 
+does (not currently in -mm), so I've changed it back.  Hopefully there's 
+no confusion and we can settle on a solution without continuously 
+revisiting the topic.
+
+My position was originally to allow any type of nodemask to be passed with 
+MPOL_DEFAULT since its not used.  You asked for strict argument checking 
+and so after some debate I changed it to require an empty nodemask mainly 
+because I didn't want the patchset to stall on such a minor point.  But in 
+your regression fix, you expressed the desire once again to allow it to 
+accept any nodemask because the testsuite does not check for it.
+
+So if you'd like to do that, I'd encourage you to submit it as a separate 
+patch and open it up for review.
+
+What is currently in -mm and what I will be posting shortly is the updated 
+regression fix.  All of these patches require that MPOL_DEFAULT include a 
+NULL pointer or empty nodemask passed via the two syscalls.
+
+> Note:  in the subject patch, I didn't enforce this behavior because your
+> patch didn't [it enforced just the opposite], and I've pretty much given
+> up.  Although I prefer current behavior [before your series], if we
+> change it, we will need to change the man pages to remove the error
+> condition for non-empty nodemasks with MPOL_DEFAULT.
+> 
+
+With my patches it still requires a NULL pointer or empty nodemask and 
+I've updated Documentation/vm/numa_memory_policy.txt to explicitly say its 
+an error if a non-empty nodemask is passed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
