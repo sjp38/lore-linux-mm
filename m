@@ -1,90 +1,120 @@
-Date: Sat, 8 Mar 2008 09:22:43 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: [patch] revert "dcdbas: add DMI-based module autloading"
-Message-ID: <20080308082243.GA18123@elte.hu>
-References: <47D02940.1030707@tuxrocks.com> <20080306184954.GA15492@elte.hu> <47D1971A.7070500@tuxrocks.com> <47D23B7E.3020505@tuxrocks.com>
+Received: by hs-out-0708.google.com with SMTP id j58so725156hsj.6
+        for <linux-mm@kvack.org>; Sat, 08 Mar 2008 01:35:57 -0800 (PST)
+Message-ID: <e2e108260803080135w88bba4bt8e6153a1e162c21@mail.gmail.com>
+Date: Sat, 8 Mar 2008 10:35:57 +0100
+From: "Bart Van Assche" <bart.vanassche@gmail.com>
+Subject: Re: Synchronization of the procps tools with /proc/meminfo
+In-Reply-To: <787b0d920802191053pea784fdycd3b5119cfb886a@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <47D23B7E.3020505@tuxrocks.com>
+References: <e2e108260802180755l1c80b13an89ed417c20132f08@mail.gmail.com>
+	 <787b0d920802191053pea784fdycd3b5119cfb886a@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Frank Sorenson <frank@tuxrocks.com>
-Cc: kay.sievers@vrfy.org, Matt_Domsch@dell.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Albert Cahalan <acahalan@cs.uml.edu>
+Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-* Frank Sorenson <frank@tuxrocks.com> wrote:
+On Tue, Feb 19, 2008 at 7:53 PM, Albert Cahalan <acahalan@cs.uml.edu> wrote:
+> On Feb 18, 2008 10:55 AM, Bart Van Assche <bart.vanassche@gmail.com> wrote:
+>
+>  > This leads me to the question: if the layout of /proc/meminfo changes,
+>  > who communicates these changes to the procps maintainers ?
+>
+>  Nobody ever informs me. :-(
 
-> -----BEGIN PGP SIGNED MESSAGE-----
-> Hash: SHA1
-> 
-> Frank Sorenson wrote:
-> > I did some additional debugging, and I believe you're correct about it
-> > being specific to my system.  The system seems to run fine until some
-> > time during the boot.  I booted with "init=/bin/sh" (that's how the
-> > system stayed up for 9 minutes), then it died when I tried starting
-> > things up.  I've further narrowed the OOM down to udev (though it's not
-> > entirely udev's fault, since 2.6.24 runs fine).
-> > 
-> > I ran your debug info tool before killing the box by running
-> > /sbin/start_udev.  The output of the tool is at
-> > http://tuxrocks.com/tmp/cfs-debug-info-2008.03.06-14.11.24
-> > 
-> > Something is apparently happening between 2.6.24 and 2.6.25-rc[34] which
-> > causes udev (or something it calls) to behave very badly.
-> 
-> Found it.  The culprit is 8f47f0b688bba7642dac4e979896e4692177670b
->     dcdbas: add DMI-based module autloading
-> 
->     DMI autoload dcdbas on all Dell systems.
-> 
->     This looks for BIOS Vendor or System Vendor == Dell, so this should
->     work for systems both Dell-branded and those Dell builds but brands
->     for others.  It causes udev to load the dcdbas module at startup,
->     which is used by tools called by HAL for wireless control and
->     backlight control, among other uses.
-> 
-> What actually happens is that when udev loads the dcdbas module at 
-> startup, modprobe apparently calls "modprobe dcdbas" itself, repeating 
-> until the system runs out of resources (in this case, it OOMs).
+Albert, can you please review the patch below ?
 
-nice work! I've attached the revert below against latest -git - just in 
-case no-one can think of an obvious fix to this bug.
+Thanks,
 
-	Ingo
+Bart.
 
---------------------->
-Subject: revert "dcdbas: add DMI-based module autloading"
-From: Ingo Molnar <mingo@elte.hu>
-Date: Sat Mar 08 09:09:16 CET 2008
 
-Frank Sorenson reported that 2.6.25-rc OOMs on his box and
-tracked it down to commit 8f47f0b688bba7642dac4e979896e4692177670b,
-"dcdbas: add DMI-based module autloading". Frank says:
+diff -ru orig/procps-3.2.7/proc/library.map procps-3.2.7/proc/library.map
+--- orig/procps-3.2.7/proc/library.map	2005-03-14 05:32:40.000000000 +0100
++++ procps-3.2.7/proc/library.map	2008-03-08 10:17:01.000000000 +0100
+@@ -18,6 +18,8 @@
+   kb_main_free; kb_main_total; kb_main_used; kb_swap_free;
+   kb_swap_total; kb_swap_used; kb_main_shared;
+   kb_low_total; kb_low_free; kb_high_total; kb_high_free;
++  kb_swap_cached; kb_anon_pages; kb_bounce; kb_nfs_unstable;
++  kb_slab_reclaimable; kb_slab_unreclaimable;
+   vm_pgpgin; vm_pgpgout; vm_pswpin; vm_pswpout;
+   free_slabinfo; put_slabinfo; get_slabinfo; get_proc_stats;
+ local: *;
+diff -ru orig/procps-3.2.7/proc/sysinfo.c procps-3.2.7/proc/sysinfo.c
+--- orig/procps-3.2.7/proc/sysinfo.c	2006-06-25 08:41:48.000000000 +0200
++++ procps-3.2.7/proc/sysinfo.c	2008-03-08 10:30:14.000000000 +0100
+@@ -8,6 +8,8 @@
+ // File for parsing top-level /proc entities. */
+ //
+ // June 2003, Fabian Frederick, disk and slab info
++// Copyright (c) 2003 Fabian Frederick.
++// Copyright (c) 2008 Bart Van Assche.
 
-> What actually happens is that when udev loads the dcdbas module at
-> startup, modprobe apparently calls "modprobe dcdbas" itself, repeating
-> until the system runs out of resources (in this case, it OOMs).
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -503,6 +505,11 @@
+ unsigned long kb_swap_free;
+ unsigned long kb_swap_total;
+ /* recently introduced */
++unsigned long kb_anon_pages;
++unsigned long kb_bounce;
++unsigned long kb_nfs_unstable;
++unsigned long kb_slab_reclaimable;
++unsigned long kb_slab_unreclaimable;
+ unsigned long kb_high_free;
+ unsigned long kb_high_total;
+ unsigned long kb_low_free;
+@@ -539,6 +546,8 @@
+   char *tail;
+   static const mem_table_struct mem_table[] = {
+   {"Active",       &kb_active},       // important
++  {"AnonPages",    &kb_anon_pages},
++  {"Bounce",       &kb_bounce},
+   {"Buffers",      &kb_main_buffers}, // important
+   {"Cached",       &kb_main_cached},  // important
+   {"Committed_AS", &kb_committed_as},
+@@ -556,10 +565,13 @@
+   {"MemFree",      &kb_main_free},    // important
+   {"MemShared",    &kb_main_shared},  // important, but now gone!
+   {"MemTotal",     &kb_main_total},   // important
++  {"NFS_Unstable", &kb_nfs_unstable},
+   {"PageTables",   &kb_pagetables},   // kB version of vmstat
+nr_page_table_pages
+   {"ReverseMaps",  &nr_reversemaps},  // same as vmstat nr_page_table_pages
+   {"Slab",         &kb_slab},         // kB version of vmstat nr_slab
+   {"SwapCached",   &kb_swap_cached},
++  {"SReclaimable", &kb_slab_reclaimable},
++  {"SUnreclaim",   &kb_slab_unreclaimable},
+   {"SwapFree",     &kb_swap_free},    // important
+   {"SwapTotal",    &kb_swap_total},   // important
+   {"VmallocChunk", &kb_vmalloc_chunk},
+@@ -603,6 +615,7 @@
+   }
+   kb_swap_used = kb_swap_total - kb_swap_free;
+   kb_main_used = kb_main_total - kb_main_free;
++  kb_main_cached += kb_slab_reclaimable + kb_swap_cached + kb_nfs_unstable;
+ }
 
-revert the commit.
-
-Bisected-by: Frank Sorenson <frank@tuxrocks.com>
-Signed-off-by: Ingo Molnar <mingo@elte.hu>
----
- drivers/firmware/dcdbas.c |    3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
-
-Index: linux/drivers/firmware/dcdbas.c
-===================================================================
---- linux.orig/drivers/firmware/dcdbas.c
-+++ linux/drivers/firmware/dcdbas.c
-@@ -658,5 +658,4 @@ MODULE_DESCRIPTION(DRIVER_DESCRIPTION " 
- MODULE_VERSION(DRIVER_VERSION);
- MODULE_AUTHOR("Dell Inc.");
- MODULE_LICENSE("GPL");
--/* Any System or BIOS claiming to be by Dell */
--MODULE_ALIAS("dmi:*:[bs]vnD[Ee][Ll][Ll]*:*");
-+
+ /*****************************************************************/
+diff -ru orig/procps-3.2.7/proc/sysinfo.h procps-3.2.7/proc/sysinfo.h
+--- orig/procps-3.2.7/proc/sysinfo.h	2006-06-25 08:41:48.000000000 +0200
++++ procps-3.2.7/proc/sysinfo.h	2008-03-08 10:15:41.000000000 +0100
+@@ -30,6 +30,11 @@
+ extern unsigned long kb_swap_free;
+ extern unsigned long kb_swap_total;
+ /* recently introduced */
++extern unsigned long kb_anon_pages;
++extern unsigned long kb_bounce;
++extern unsigned long kb_nfs_unstable;
++extern unsigned long kb_slab_reclaimable;
++extern unsigned long kb_slab_unreclaimable;
+ extern unsigned long kb_high_free;
+ extern unsigned long kb_high_total;
+ extern unsigned long kb_low_free;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
