@@ -1,38 +1,39 @@
-Subject: Re: 2.6.25-rc4 OOMs itself dead on bootup (modprobe bug?)
-From: Jon Masters <jcm@redhat.com>
-In-Reply-To: <1205016884.24056.1.camel@lov.site>
-References: <47D02940.1030707@tuxrocks.com> <20080306184954.GA15492@elte.hu>
-	 <47D1971A.7070500@tuxrocks.com> <47D23B7E.3020505@tuxrocks.com>
-	 <20080308135318.GA8036@auslistsprd01.us.dell.com>
-	 <47D29CAB.50301@tuxrocks.com>  <1205013197.5484.81.camel@perihelion>
-	 <1205016884.24056.1.camel@lov.site>
-Content-Type: text/plain
-Date: Sat, 08 Mar 2008 22:41:32 -0500
-Message-Id: <1205034092.5484.115.camel@perihelion>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: by ug-out-1314.google.com with SMTP id u40so4120764ugc.29
+        for <linux-mm@kvack.org>; Sun, 09 Mar 2008 17:17:50 -0700 (PDT)
+Date: Mon, 10 Mar 2008 01:12:08 +0100 (CET)
+Subject: [PATCH] Do not include linux/backing-dev.h twice inside
+ mm/filemap.c
+Message-ID: <alpine.LNX.1.00.0803100106370.7691@dragon.funnycrock.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Jesper Juhl <jesper.juhl@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kay Sievers <kay.sievers@vrfy.org>
-Cc: Frank Sorenson <frank@tuxrocks.com>, Matt Domsch <Matt_Domsch@dell.com>, Ingo Molnar <mingo@elte.hu>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: Linux memory management list <linux-mm@kvack.org>, Trivial Patch Monkey <trivial@kernel.org>, Emil Medve <Emilian.Medve@Freescale.com>, Jesper Juhl <jesper.juhl@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2008-03-08 at 23:54 +0100, Kay Sievers wrote:
-> On Sat, 2008-03-08 at 16:53 -0500, Jon Masters wrote:
-> > On Sat, 2008-03-08 at 08:03 -0600, Frank Sorenson wrote:
-> > 
-> > > It's module-init-tools-3.4-2.fc8.x86_64 (most recent Fedora rpm available).
-> > 
-> > Ok, so I'll see if I can find a Dell system in the office to reproduce
-> > this on Monday. Any Dell should do, right Matt?
-> 
-> Should not be needed:
->   http://lkml.org/lkml/2008/3/8/91
+Don't include linux/backing-dev.h twice in mm/filemap.c, it's pointless.
 
-Oh, all's well that ends well :)
 
-Jon.
+Signed-off-by: Jesper Juhl <jesper.juhl@gmail.com>
+---
 
+ filemap.c |    1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 5c74b68..ab98557 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -28,7 +28,6 @@
+ #include <linux/backing-dev.h>
+ #include <linux/pagevec.h>
+ #include <linux/blkdev.h>
+-#include <linux/backing-dev.h>
+ #include <linux/security.h>
+ #include <linux/syscalls.h>
+ #include <linux/cpuset.h>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
