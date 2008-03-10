@@ -1,152 +1,109 @@
-Subject: Re: [PATCH 00/28] Swap over NFS -v16
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <18388.50188.552322.780524@notabene.brown>
-References: <20080220144610.548202000@chello.nl>
-	 <20080223000620.7fee8ff8.akpm@linux-foundation.org>
-	 <18371.43950.150842.429997@notabene.brown>
-	 <1204023042.6242.271.camel@lappy>
-	 <18372.64081.995262.986841@notabene.brown>
-	 <1204099113.6242.353.camel@lappy> <1837 <1204626509.6241.39.camel@lappy>
-	 <18384.46967.583615.711455@notabene.brown>
-	 <1204888675.8514.102.camel@twins>
-	 <18388.50188.552322.780524@notabene.brown>
+Subject: Re: Regression:  Re: [patch -mm 2/4] mempolicy: create
+	mempolicy_operations structure
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <alpine.DEB.1.00.0803081403460.12095@chino.kir.corp.google.com>
+References: <alpine.DEB.1.00.0803061135001.18590@chino.kir.corp.google.com>
+	 <alpine.DEB.1.00.0803061135560.18590@chino.kir.corp.google.com>
+	 <1204922646.5340.73.camel@localhost>
+	 <alpine.DEB.1.00.0803071341090.26765@chino.kir.corp.google.com>
+	 <1205002171.4918.2.camel@localhost>
+	 <alpine.DEB.1.00.0803081403460.12095@chino.kir.corp.google.com>
 Content-Type: text/plain
-Date: Mon, 10 Mar 2008 10:17:54 +0100
-Message-Id: <1205140674.8514.152.camel@twins>
+Date: Mon, 10 Mar 2008 10:58:48 -0400
+Message-Id: <1205161128.5579.16.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Neil Brown <neilb@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Pekka Enberg <penberg@cs.helsinki.fi>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Jackson <pj@sgi.com>, Christoph Lameter <clameter@sgi.com>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-03-10 at 16:15 +1100, Neil Brown wrote:
+On Sat, 2008-03-08 at 14:09 -0800, David Rientjes wrote: 
+> On Sat, 8 Mar 2008, Lee Schermerhorn wrote:
+> 
+> > > Excuse me, but there was significant discussion about this on LKML and I 
+> > > eventually did force MPOL_DEFAULT to require a non-empty nodemask 
+> 
+> Correction: s/non-empty/empty
 
-> > On Fri, 2008-03-07 at 14:33 +1100, Neil Brown wrote:
+That makes more sense.  I agree.  more below... 
+> 
+> > > specifically because of your demand that it should.  It didn't originally 
+> > > require this in my patchset, and now you're removing the exact same 
+> > > requirement that you demanded.
 > > > 
-> > > [I don't find the above wholly satisfying.  There seems to be too much
-> > >  hand-waving.  If someone can provide better text explaining why
-> > >  swapout is a special case, that would be great.]
+> > > You said on February 13:
+> > > 
+> > > 	1) we've discussed the issue of returning EINVAL for non-empty
+> > > 	nodemasks with MPOL_DEFAULT.  By removing this restriction, we run
+> > > 	the risk of breaking applications if we should ever want to define
+> > > 	a semantic to non-empty node mask for MPOL_DEFAULT.
+> > > 
+> > > If you want to remove this requirement now (please get agreement from 
+> > > Paul) and are sure of your position, you'll at least need an update to 
+> > > Documentation/vm/numa-memory-policy.txt.
 > > 
-> > Anonymous pages are dirty by definition (except the zero page, but I
-> > think we recently ditched it). So shrinking of the anonymous pool will
-> > require swapping.
+> > Excuse me.  I thought that the discussion--my position, anyway--was
+> > about preserving existing behavior for MPOL_DEFAULT which is to require
+> > an EMPTY [or NULL--same effect] nodemask.  Not a NON-EMPTY one.  See:
+> > http://www.kernel.org/doc/man-pages/online/pages/man2/set_mempolicy.2.html
+> > It does appear that your patches now require a non-empty nodemask.  This
+> > was intentional?
+> > 
 > 
-> Well, there is the swap cache.  That's probably what I was thinking of
-> when I said "clean anonymous pages".  I suspect they are the first to
-> go!
-
-Ah, right, we could consider those clean anonymous. Alas, they are just
-part of the aging lists and do not get special priority.
-
-> > It is indeed the last refuge for those with GFP_NOFS. Allong with the
-> > strict limit on the amount of dirty file pages it also ensures writing
-> > those out will never deadlock the machine as there are always clean file
-> > pages and or anonymous pages to launder.
+> The first and second set did not have this requirement, but the third set 
+> does (not currently in -mm), so I've changed it back.  Hopefully there's 
+> no confusion and we can settle on a solution without continuously 
+> revisiting the topic.
 > 
-> The difficulty I have is justifying exactly why page-cache writeout
-> will not deadlock.  What if all the memory that is not dirty-pagecache
-> is anonymous, and if swap isn't enabled?
+> My position was originally to allow any type of nodemask to be passed with 
+> MPOL_DEFAULT since its not used.  You asked for strict argument checking 
+> and so after some debate I changed it to require an empty nodemask mainly 
+> because I didn't want the patchset to stall on such a minor point.  But in 
+> your regression fix, you expressed the desire once again to allow it to 
+> accept any nodemask because the testsuite does not check for it.
 
-Ah, I never considered the !SWAP case.
+Not a desire.  Just that when I fixed the MPOL_PREFERRED with empty node
+mask regression, I also fixed mpol_new() not to require a non-empty
+nodemask with MPOL_DEFAULT.  I didn't go the extra step to require an
+empty one.  I'm tiring of the subject, as I think you are, and didn't
+want to argue it anymore.  So, I was willing to "cave" on that point.
 
-> Maybe the number returned by "determine_dirtyable_memory" in
-> page-writeback.c excludes anonymous pages?  I wonder if the meaning of
-> NR_FREE_PAGES, NR_INACTIVE, etc is documented anywhere....
-
-I don't think they are, but it should be obvious once you know the VM,
-har har har :-)
-
-NR_FREE_PAGES are the pages in the page allocators free lists.
-NR_INACTIVE are the pages on the inactive list
-NR_ACTIVE are the pageso on the active list
-
-NR_INACTIVE+NR_ACTIVE are the number of pages on the page reclaim lists.
-
-So, if you consider !SWAP, we could get in a deadlock when all of memory
-is anonymous except for a few (<=dirty limit) dirty file pages.
-
-But I guess the !SWAP people know what they're doing, large anon usage
-without swap is asking for trouble.
- 
-> > Right. I've had a long conversation on PG_emergency with Pekka. And I
-> > think the conclusion was that PG_emergency will create more head-aches
-> > than it solves. I probably have the conversation in my IRC logs and
-> > could email it if you're interested (and Pekka doesn't object).
 > 
-> Maybe that depends on the exact semantic of PG_emergency ??
-> I remember you being concerned that PG_emergency never changes between
-> allocation and freeing, and that wouldn't work well with slub.
-> My envisioned semantic has it possibly changing quite often.
-> What it means is:
->    The last allocation done from this page was in a low-memory
->    condition.
+> So if you'd like to do that, I'd encourage you to submit it as a separate 
+> patch and open it up for review.
 
-Yes, that works, except that we'd need to iterate all pages and clear
-PG_emergency - which would imply tracking all these pages etc..
+No, I'm quite happy if, after your patches, the APIs retain the previous
+behavior w/rt nodemask error checking.
 
-Hence it would be better not to keep persistent state and do as we do
-now; use some non-persistent state on allocation.
-
-> You really need some way to tell if the result of kmalloc/kmemalloc
-> should be treated as reserved.
-> I think you had code which first tried the allocation without
-> GFP_MEMALLOC and then if that failed, tried again *with*
-> GFP_MEMALLOC.  If that then succeeded, it is assumed to be an
-> allocation from reserves.  That seemed rather ugly, though I guess you
-> could wrap it in a function to hide the ugliness:
 > 
-> void *kmalloc_reserve(size_t size, int *reserve, gfp_t gfp_flags)
-> {
-> 	void *result = kmalloc(size, gfp_flags & ~GFP_MEMALLOC);
-> 	if (result) {
-> 		*reserve = 0;
-> 		return result;
-> 	}
-> 	result = kmalloc(size, gfp_flags | GFP_MEMALLOC);
-> 	if (result) {
-> 		*reserve = 1;
-> 		return result;
-> 	}
-> 	return NULL;
-> }
-> ???
-
-Yeah, I this this is the best we can do, just split this part out into
-helper functions. I've been thinking of doing this - just haven't gotten
-around to implementing it. Hope to do so this week and send out a new
-series.
-
-> > I've already heard interest from other people to use these hooks to
-> > provide swap on other non-block filesystems such as jffs2, logfs and the
-> > like.
+> What is currently in -mm and what I will be posting shortly is the updated 
+> regression fix.  All of these patches require that MPOL_DEFAULT include a 
+> NULL pointer or empty nodemask passed via the two syscalls.
 > 
-> I'm interested in the swap_in/swap_out interface for external
-> write-intent bitmaps for md/raid arrays.
-> You can have a write-intent bitmap which records which blocks might be
-> dirty if the host crashes, so that resync is much faster.
-> It can be stored in a file in a separate filesystem, but that is
-> currently implemented by using bmap to enumerate the blocks and then
-> reading/writing directly to the device (like swap).  Your interface
-> would be much nicer for that (not that I think having a
-> write-intent-bitmap on an NFS filesystem would be a clever idea ;-)
-
-Hmm, right. But for that purpose the names swap_* are a tad misleading.
-I remember hch mentioning this at some point. What would be a more
-suitable naming scheme so we can both use it?
-
-> I'll look forward to your next patch set....
+> > Note:  in the subject patch, I didn't enforce this behavior because your
+> > patch didn't [it enforced just the opposite], and I've pretty much given
+> > up.  Although I prefer current behavior [before your series], if we
+> > change it, we will need to change the man pages to remove the error
+> > condition for non-empty nodemasks with MPOL_DEFAULT.
+> > 
 > 
-> One thing I had thought odd while reading the patches, but haven't
-> found an opportunity to mention before, is the "IS_SWAPFILE" test in
-> nfs-swapper.patch.
-> This seems like a layering violation.  It would be better if the test
-> was based on whether  ->swapfile had been called on the file.  That way
-> my write-intent-bitmaps would get the same benefit.
+> With my patches it still requires a NULL pointer or empty nodemask and 
+> I've updated Documentation/vm/numa_memory_policy.txt to explicitly say its 
+> an error if a non-empty nodemask is passed.
 
-I'll look into this, I didn't thing using a inode test inside a
-filesystem implementation was too weird..
+Good.
+
+Do you intend for your patch entitled "[patch -mm v2] mempolicy:
+disallow static or relative flags for local preferred mode" to replace
+the patch that I sent in to repair the regression?  Looks that way.
+I'll replace it in my tree and retest.
+
+Lee
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
