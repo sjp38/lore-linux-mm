@@ -1,58 +1,33 @@
-Date: Mon, 10 Mar 2008 15:03:16 -0300
-From: "Luiz Fernando N. Capitulino" <lcapitulino@mandriva.com.br>
+Date: Mon, 10 Mar 2008 19:08:43 +0100
+From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: [PATCH] [0/13] General DMA zone rework
-Message-ID: <20080310150316.752e4489@mandriva.com.br>
-In-Reply-To: <20080308004654.GQ7365@one.firstfloor.org>
-References: <200803071007.493903088@firstfloor.org>
-	<20080307175148.3a49d8d3@mandriva.com.br>
-	<20080308004654.GQ7365@one.firstfloor.org>
+Message-ID: <20080310180843.GC28780@one.firstfloor.org>
+References: <200803071007.493903088@firstfloor.org> <20080307175148.3a49d8d3@mandriva.com.br> <20080308004654.GQ7365@one.firstfloor.org> <20080310150316.752e4489@mandriva.com.br>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080310150316.752e4489@mandriva.com.br>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Luiz Fernando N. Capitulino" <lcapitulino@mandriva.com.br>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Em Sat, 8 Mar 2008 01:46:54 +0100
-Andi Kleen <andi@firstfloor.org> escreveu:
+>  I saw that the patches you've posted here are only a subset of
+> the patches you have in your FTP. Should I test all the patches
 
-| >  I've tried to give them a try but got some problems. First, the
-| > simple test case seems to fail miserably:
-| 
-| Hmm I guess you got a pretty filled up 16MB area already.
-| Do you have a full log? It just couldn't allocate some memory
-| for the 24bit mask, but that is likely because it just ran out of 
-| memory.
+The ftp directory contains the SCSI patchkit (which I have been
+posting to linux-scsi for quite some time, but it didn't get applied
+yet) and the block patchkit (which hit linux-kernel earlier,
+but was unfortunately not graced by a reply by the block maintainer so far) 
 
- You'll find the full log here:
+> you have or only the subset you posted?
 
-http://users.mandriva.com.br/~lcapitulino/tmp/minicom.cap
+Best you test all together. The subsets are independent
+(as in kernel should work with any subset of them), but 
+they all clean up DMA memory related issues.
 
-| I suppose it will work if you cut down the allocations in the 
-| test case a bit, e.g. decrease NUMALLOC to 10 and perhaps MAX_LEN to
-| 5*PAGE_SIZE. Did that in my copy.
-
-[...]
-
-| I put up an updated patchkit on ftp://firstfloor.org/pub/ak/mask/patches/
-| It also has some other fixes.
-| 
-| Can you retest with that please?
-
- Yes, will do. But I have something to suggest.
-
- I saw that the patches you've posted here are only a subset of
-the patches you have in your FTP. Should I test all the patches
-you have or only the subset you posted?
-
- If you want to get only the subset tested, would be nice to
-create a new directory in the FTP for them, that would make
-my life easier a bit.
-
--- 
-Luiz Fernando N. Capitulino
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
