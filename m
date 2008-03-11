@@ -1,71 +1,68 @@
-Message-ID: <47D65A27.80605@cn.fujitsu.com>
-Date: Tue, 11 Mar 2008 19:08:39 +0900
+Message-ID: <47D65A36.4020008@cn.fujitsu.com>
+Date: Tue, 11 Mar 2008 19:08:54 +0900
 From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH 1/3] res_counter: introduce res_counter_write_u64()
+Subject: [PATCH 2/3] memcg: put a restriction on writing memory.force_empty
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelianov <xemul@openvz.org>, Paul Menage <menage@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux Containers <containers@lists.osdl.org>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Menage <menage@google.com>, Pavel Emelianov <xemul@openvz.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux Containers <containers@lists.osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-This function can be used to assign the value of a resource counter member.
+We can write whatever to memory.force_empty:
+
+        echo 999 > memory.force_empty
+        echo wow > memory.force_empty
+
+This is odd, so let's make '1' to be the only valid value.
 
 Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
 ---
- include/linux/res_counter.h |    9 ++++++---
- kernel/res_counter.c        |    9 +++++++++
- 2 files changed, 15 insertions(+), 3 deletions(-)
+ mm/memcontrol.c |   21 ++++++++++++---------
+ 1 files changed, 12 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-index 8cb1ecd..8c23f7f 100644
---- a/include/linux/res_counter.h
-+++ b/include/linux/res_counter.h
-@@ -41,9 +41,10 @@ struct res_counter {
- 
- /**
-  * Helpers to interact with userspace
-- * res_counter_read_u64() - returns the value of the specified member.
-- * res_counter_read/_write - put/get the specified fields from the
-- * res_counter struct to/from the user
-+ * res_counter_read_64/_write_u64 - returns/assigns the value of the
-+ *	specified member
-+ * res_counter_read/_write - puts/gets the specified fields from the
-+ *	res_counter struct to/from the user
-  *
-  * @counter:     the counter in question
-  * @member:  the field to work with (see RES_xxx below)
-@@ -53,6 +54,8 @@ struct res_counter {
-  */
- 
- u64 res_counter_read_u64(struct res_counter *counter, int member);
-+void res_counter_write_u64(struct res_counter *counter, int member,
-+			   unsigned long long val);
- 
- ssize_t res_counter_read(struct res_counter *counter, int member,
- 		const char __user *buf, size_t nbytes, loff_t *pos,
-diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-index 791ff2b..a16b727 100644
---- a/kernel/res_counter.c
-+++ b/kernel/res_counter.c
-@@ -97,6 +97,15 @@ u64 res_counter_read_u64(struct res_counter *counter, int member)
- 	return *res_counter_member(counter, member);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index eb681a6..6145031 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -868,15 +868,18 @@ static ssize_t mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
+ 				mem_cgroup_write_strategy);
  }
  
-+void res_counter_write_u64(struct res_counter *counter, int member,
-+			   unsigned long long val)
-+{
-+	unsigned long long *tmp;
+-static ssize_t mem_force_empty_write(struct cgroup *cont,
+-				struct cftype *cft, struct file *file,
+-				const char __user *userbuf,
+-				size_t nbytes, loff_t *ppos)
++static int mem_force_empty_write(struct cgroup *cont, struct cftype *cft,
++				 u64 val)
+ {
+-	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+-	int ret = mem_cgroup_force_empty(mem);
+-	if (!ret)
+-		ret = nbytes;
++	struct mem_cgroup *mem;
++	int ret;
 +
-+	tmp = res_counter_member(counter, member);
-+	*tmp = val;
-+}
++	if (val != 1)
++		return -EINVAL;
 +
- ssize_t res_counter_write(struct res_counter *counter, int member,
- 		const char __user *userbuf, size_t nbytes, loff_t *pos,
- 		int (*write_strategy)(char *st_buf, unsigned long long *val))
++	mem = mem_cgroup_from_cont(cont);
++	ret = mem_cgroup_force_empty(mem);
++
+ 	return ret;
+ }
+ 
+@@ -935,7 +938,7 @@ static struct cftype mem_cgroup_files[] = {
+ 	},
+ 	{
+ 		.name = "force_empty",
+-		.write = mem_force_empty_write,
++		.write_u64 = mem_force_empty_write,
+ 	},
+ 	{
+ 		.name = "stat",
 -- 
 1.5.4.rc3
 
