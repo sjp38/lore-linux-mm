@@ -1,57 +1,85 @@
-Date: Tue, 11 Mar 2008 19:49:26 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [0/13] General DMA zone rework
-Message-ID: <20080311184926.GI27593@one.firstfloor.org>
-References: <200803071007.493903088@firstfloor.org> <20080307175148.3a49d8d3@mandriva.com.br> <20080308004654.GQ7365@one.firstfloor.org> <20080310150316.752e4489@mandriva.com.br> <20080310180843.GC28780@one.firstfloor.org> <20080311142624.1dbd3af5@mandriva.com.br> <20080311173540.GG27593@one.firstfloor.org> <20080311150048.4376c73a@mandriva.com.br>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080311150048.4376c73a@mandriva.com.br>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m2BIlhuU016078
+	for <linux-mm@kvack.org>; Wed, 12 Mar 2008 05:47:43 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2BIlvS24636798
+	for <linux-mm@kvack.org>; Wed, 12 Mar 2008 05:47:57 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2BIluq8027102
+	for <linux-mm@kvack.org>; Wed, 12 Mar 2008 05:47:57 +1100
+Message-ID: <47D6D3CC.5070705@linux.vnet.ibm.com>
+Date: Wed, 12 Mar 2008 00:17:40 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH] Move memory controller allocations to their own slabs
+ (v2)
+References: <20080311061836.6664.5072.sendpatchset@localhost.localdomain> <Pine.LNX.4.64.0803111230410.15328@blonde.site>
+In-Reply-To: <Pine.LNX.4.64.0803111230410.15328@blonde.site>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luiz Fernando N. Capitulino" <lcapitulino@mandriva.com.br>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-> | Oops. Thanks. I'll double check that. mask allocator indeed doesn't
-> | handle __GFP_COMP and nobody should be passing that into dma_alloc_coherent
-> | anyways. But the bug you got was for the small size wasn't it?
+Hugh Dickins wrote:
+> On Tue, 11 Mar 2008, Balbir Singh wrote:
+>> Move the memory controller data structure page_cgroup to its own slab cache.
+>> It saves space on the system, allocations are not necessarily pushed to order
+>> of 2 and should provide performance benefits. Users who disable the memory
+>> controller can also double check that the memory controller is not allocating
+>> page_cgroup's.
+>>
+>> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 > 
->  No, it triggers the BUG_ON() which checks the gfp, not the one
-> which checks MASK_MIN_SIZE.
-
-I see. I misdiagnosed your original problem then. But fixing the 
-size < 16 bytes case was a good idea anyways, someone else would
-have triggered that.
-
+> I certainly approve of giving page_cgroups their own kmem_cache
+> (and agree with Kame that it was overkill for the zones).
 > 
->  On the other hand I'm not sure whether it does the right thing
-> (ie, pass size in bytes instead of order) it does:
 
+Thanks, yes, I agreed with Kame as well.
+
+> But I don't agree with the SLAB_HWCACHE_ALIGN you've slipped into
+> this version.  That'll be wasting a lot of (all? more than?) the
+> space you're trying to save with a kmem_cache, won't it?  Let me
+> talk about that separately, in reply to the mail where you report
+> the numbers.
 > 
-> """
-> pg = get_order(size);
-> [...]
-> res = dma_alloc_coherent(dev, PAGE_SIZE << pg, dma, gfp_flags);
 
-With the mask allocator it can be changed to pass size directly
-and save some memory. Before that it didn't make any difference.
+I slipped in the SLAB_HWCACHE_ALIGN to reduce page cgroup cache contention. Yes
+you are right, we do lose out on space due to the extra alignment. My test
+results (lmbench) on kmalloc, slub and slab are not very conclusive about
+performance. SLUB had the best results w.r.t protection faults and context switches.
 
-Can you perhaps send me a complete patch fixing that for sound and the 
-__GFP_COMP with description and Signed-off-by etc.? I can add it to my 
-patchkit then and you would be correctly attributed. Otherwise I can do it 
-myself too if you prefer. I'll also do a grep over the tree for other
-such bogus __GFP_COMP users. That was an issue I hadn't considered before.
+> Are you proposing this page_cgroup_cache mod for 2.6.25 or for 2.6.26?
 
-> if (res != NULL)
-> 	inc_snd_pages(pg);
-> """
+I am OK with any version as long as we can get good feedback. I suspect the
+feature will be useful for 2.6.25.
+
+> I ask because I want to build upon it to fix up some GFP_ flag issues:
+> I think we end up claiming the page_cgroups are __GFP_MOVABLE when they
+> should be called __GFP_RECLAIMABLE; but I don't know how seriously we
+> take MOVABLE/RECLAIMABLE discrepancies at present.
 > 
->  Maybe it could be changed to:
 
-Agreed.
+That's a very good question. I am not sure about the correct answer to that
+myself at the moment.
 
--Andi
+> There's a patch I'd also like to build upon from Christoph in -mm
+> (remove-set_migrateflags.patch), which sheds light on a similar issue
+> with radix_tree_nodes).  It's importance is again dependent on how
+> seriously we're taking MOVABLE/RECLAIMABLE discrepancies.
+> 
+
+I'll look at Christoph's patch and see what it addresses to understand the
+MOVABLE/RECLAIMABLE discrepancy better.
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
