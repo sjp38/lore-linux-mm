@@ -1,29 +1,34 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [patch 0/7] [rfc] VM_MIXEDMAP, pte_special, xip work
-Date: Tue, 11 Mar 2008 22:44:23 +1100
-References: <20080311104653.995564000@nick.local0.net>
-In-Reply-To: <20080311104653.995564000@nick.local0.net>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200803112244.23693.nickpiggin@yahoo.com.au>
+Subject: Re: [PATCH] [6/13] Core maskable allocator 
+From: corbet@lwn.net (Jonathan Corbet)
+In-reply-to: Your message of "Fri, 07 Mar 2008 10:07:16 +0100."
+             <20080307090716.9D3E91B419C@basil.firstfloor.org>
+Date: Tue, 11 Mar 2008 09:34:53 -0600
+Message-ID: <26256.1205249693@vena.lwn.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@nick.local0.net
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, akpm@linux-foundation.org, Jared Hulbert <jaredeh@gmail.com>, Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 11 March 2008 21:46, npiggin@nick.local0.net wrote:
-> --
->
-> (doh, please ignore the previous "x/6" patches, they're old. The
-> new ones are these x/7 set)
+Hi, Andi,
 
-Ah shit and now I use the wrong address. Sorry. If you could take
-it in your heart to correct it when you reply to me, I won't have
-to mailbomb everyone again.
+As I dig through this patch, I find it mostly makes sense; seems like it
+could be a good idea.  I did have one little API question...
+
+> +struct page *
+> +alloc_pages_mask(gfp_t gfp, unsigned size, u64 mask)
+> +{
+> +	unsigned long max_pfn = mask >> PAGE_SHIFT;
+
+The "mask" parameter isn't really a mask - it's an upper bound on the
+address of the allocated memory.  Might it be better to call it
+"max_addr" or "limit" or "ceiling" or some such so callers understand
+for sure how it's interpreted?  The use of the term "mask" throughout
+the interface could maybe create a certain amount of confusion.
+
+Thanks,
+
+jon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
