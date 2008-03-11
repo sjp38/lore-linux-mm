@@ -1,51 +1,125 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp01.in.ibm.com (8.13.1/8.13.1) with ESMTP id m2B8Fo9J021575
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2008 13:45:50 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2B8Fo7x1138830
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2008 13:45:50 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.13.1/8.13.3) with ESMTP id m2B8FnBB027723
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2008 08:15:50 GMT
-Message-ID: <47D63FB1.7040502@linux.vnet.ibm.com>
-Date: Tue, 11 Mar 2008 13:45:45 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Message-ID: <47D63FBC.1010805@openvz.org>
+Date: Tue, 11 Mar 2008 11:15:56 +0300
+From: Pavel Emelyanov <xemul@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Move memory controller allocations to their own slabs
- (v2)
-References: <20080311061836.6664.5072.sendpatchset@localhost.localdomain> <47D63E9D.70500@openvz.org>
-In-Reply-To: <47D63E9D.70500@openvz.org>
+Subject: Re: [PATCH 2/2] Make res_counter hierarchical
+References: <47D16004.7050204@openvz.org> <20080308134514.434f38f4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080308134514.434f38f4.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Emelyanov <xemul@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Pavel Emelyanov wrote:
-> Balbir Singh wrote:
->> Move the memory controller data structure page_cgroup to its own slab cache.
->> It saves space on the system, allocations are not necessarily pushed to order
->> of 2 and should provide performance benefits. Users who disable the memory
->> controller can also double check that the memory controller is not allocating
->> page_cgroup's.
+KAMEZAWA Hiroyuki wrote:
+> On Fri, 07 Mar 2008 18:32:20 +0300
+> Pavel Emelyanov <xemul@openvz.org> wrote:
 > 
-> Can you, please, check how many objects-per-page we have with and 
-> without this patch for SLAB and SLUB?
+>> This allows us two things basically:
+>>
+>> 1. If the subgroup has the limit higher than its parent has
+>>    then the one will get more memory than allowed.
+>> 2. When we will need to account for a resource in more than
+>>    one place, we'll be able to use this technics.
+>>
+>>    Look, consider we have a memory limit and swap limit. The
+>>    memory limit is the limit for the sum of RSS, page cache
+>>    and swap usage. To account for this gracefuly, we'll set
+>>    two counters:
+>>
+>> 	   res_counter mem_counter;
+>> 	   res_counter swap_counter;
+>>
+>>    attach mm to the swap one
+>>
+>> 	   mm->mem_cnt = &swap_counter;
+>>
+>>    and make the swap_counter be mem's child. That's it. If we
+>>    want hierarchical support, then the tree will look like this:
+>>
+>>    mem_counter_top
+>>     swap_counter_top <- mm_struct living at top
+>>      mem_counter_sub
+>>       swap_counter_sub <- mm_struct living at sub
+>>
+> Hmm? seems strange.
 > 
-> Thanks.
+> IMO, a parent's usage is just sum of all childs'.
+> And, historically, memory overcommit is done agaist "memory usage + swap".
+> 
+> How about this ?
+>     <mem_counter_top, swap_counter_top>
+> 	<mem_counter_sub, swap_counter_sub>
+> 	<mem_counter_sub, swap_counter_sub>
+> 	<mem_counter_sub, swap_counter_sub>
+> 
+>    mem_counter_top.usage == sum of all mem_coutner_sub.usage
+>    swap_counter_sub.usage = sum of all swap_counter_sub.usage
 
-I can for objects-per-page with this patch for SLUB and SLAB. I am not sure
-about what to check for without this patch. The machine is temporarily busy,
-I'll check it once I get it back.
+I've misprinted in y tree, sorry.
+The correct hierarchy as I see it is
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+<mem_couter_0>
+ + -- <swap_counter_0>
+ + -- <mem_counter_1>
+ |     + -- <swap_counter_1>
+ |     + -- <mem_counter_11>
+ |     |     + -- <swap_counter_11>
+ |     + -- <mem_counter_12>
+ |           + -- <swap_counter_12>
+ + -- <mem_counter_2>
+ |     + -- <swap_counter_2>
+ |     + -- <mem_counter_21>
+ |     |     + -- <swap_counter_21>
+ |     + -- <mem_counter_22>
+ |           + -- <swap_counter_22>
+ + -- <mem_counter_N>
+       + -- <swap_counter_N>
+       + -- <mem_counter_N1>
+       |     + -- <swap_counter_N1>
+       + -- <mem_counter_N2>
+             + -- <swap_counter_N2>
+
+> 
+>> @@ -976,19 +976,22 @@ static void free_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+>>  static struct cgroup_subsys_state *
+>>  mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+>>  {
+>> -	struct mem_cgroup *mem;
+>> +	struct mem_cgroup *mem, *parent;
+>>  	int node;
+>>  
+>>  	if (unlikely((cont->parent) == NULL)) {
+>>  		mem = &init_mem_cgroup;
+>>  		init_mm.mem_cgroup = mem;
+>> -	} else
+>> +		parent = NULL;
+>> +	} else {
+>>  		mem = kzalloc(sizeof(struct mem_cgroup), GFP_KERNEL);
+>> +		parent = mem_cgroup_from_cont(cont->parent);
+>> +	}
+>>  
+>>  	if (mem == NULL)
+>>  		return ERR_PTR(-ENOMEM);
+>>  
+>> -	res_counter_init(&mem->res);
+>> +	res_counter_init(&mem->res, parent ? &parent->res : NULL);
+>>  
+> I have no objection to add some hierarchical support to res_counter.
+> 
+> But we should wait to add it to mem_cgroup because we have to add 
+> some amount of codes to handle hierarchy under mem_cgroup in reasonable way.
+> for example) 
+> 	- hierarchical memory reclaim
+> 	- keeping fairness between sub memory controllers.
+> 	  etc...
+> 
+> Thanks,
+> -Kame
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
