@@ -1,39 +1,35 @@
-Date: Tue, 11 Mar 2008 21:33:18 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: grow_dev_page's __GFP_MOVABLE
-Message-ID: <Pine.LNX.4.64.0803112116380.18085@blonde.site>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch 0/7] [rfc] VM_MIXEDMAP, pte_special, xip work
+Date: Wed, 12 Mar 2008 10:21:55 +1100
+References: <20080311104653.995564000@nick.local0.net> <200803112244.23693.nickpiggin@yahoo.com.au> <6934efce0803111412g471e5c72i491b7b87c473ee8d@mail.gmail.com>
+In-Reply-To: <6934efce0803111412g471e5c72i491b7b87c473ee8d@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200803121021.55652.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Jared Hulbert <jaredeh@gmail.com>
+Cc: npiggin@nick.local0.net, Linus Torvalds <torvalds@linux-foundation.org>, akpm@linux-foundation.org, Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Mel,
+On Wednesday 12 March 2008 08:12, Jared Hulbert wrote:
+> >  > (doh, please ignore the previous "x/6" patches, they're old. The
+> >  > new ones are these x/7 set)
+> >
+> >  Ah shit and now I use the wrong address. Sorry. If you could take
+> >  it in your heart to correct it when you reply to me, I won't have
+> >  to mailbomb everyone again.
+>
+> is there a [patch 6/7] and [patch 7/7]  I didn't see them...
 
-I'm (slightly) worried by your __GFP_MOVABLE in grow_dev_page:
-is it valid, given that we come here for filesystem metadata pages
-- don't we?  If it is valid, then wouldn't adding __GFP_HIGHMEM
-be valid there also?  It'd be very nice to have __GFP_MOVABLE and
-__GFP_HIGHMEM on all blockdev pages, but we've concluded in the
-past that __GFP_HIGHMEM cannot be allowed without large kmapping
-mods throughout the filesystems.  Go back to GFP_NOFS there?
+Hmm, they were s390 patches that didn't get cc'ed to linux-mm, sorry.
+They implement pte_special and struct page less XIP for s390, and
+don't touch any core code.
 
-Hugh
 
---- 2.6.25-rc5/fs/buffer.c	2008-03-05 10:47:40.000000000 +0000
-+++ linux/fs/buffer.c	2008-03-11 21:21:10.000000000 +0000
-@@ -1029,8 +1029,7 @@ grow_dev_page(struct block_device *bdev,
- 	struct page *page;
- 	struct buffer_head *bh;
- 
--	page = find_or_create_page(inode->i_mapping, index,
--		(mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS)|__GFP_MOVABLE);
-+	page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
- 	if (!page)
- 		return NULL;
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
