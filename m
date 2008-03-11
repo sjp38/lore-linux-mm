@@ -1,161 +1,132 @@
-Received: by wa-out-1112.google.com with SMTP id m33so2232744wag.8
-        for <linux-mm@kvack.org>; Mon, 10 Mar 2008 16:45:49 -0700 (PDT)
-Message-ID: <6934efce0803101645x19e01141y5368ebb6f78a5dc6@mail.gmail.com>
-Date: Mon, 10 Mar 2008 16:45:48 -0700
-From: "Jared Hulbert" <jaredeh@gmail.com>
-Subject: Re: [RFC][PATCH 3/3] xip: no struct pages -- ext2
-In-Reply-To: <6934efce0803072033l301d39f0q909ab21f4f77657a@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <6934efce0803072033l301d39f0q909ab21f4f77657a@mail.gmail.com>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m2B4V1NT018753
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2008 00:31:01 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2B4VwM6205066
+	for <linux-mm@kvack.org>; Mon, 10 Mar 2008 22:31:58 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2B4VvgM004444
+	for <linux-mm@kvack.org>; Mon, 10 Mar 2008 22:31:58 -0600
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Tue, 11 Mar 2008 10:01:49 +0530
+Message-Id: <20080311043149.20251.50059.sendpatchset@localhost.localdomain>
+Subject: [PATCH] Move memory controller allocations to their own slabs
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Maxim Shchetynin <maxim@de.ibm.com>
+To: Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>
+Cc: Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Updated with struct vm_fault
 
+Move the memory controller data structures page_cgroup and
+mem_cgroup_per_zone to their own slab caches. It saves space on the system,
+allocations are not necessarily pushed to order of 2 and should provide
+performance benefits. Users who disable the memory controller can also double
+check that the memory controller is not allocating page_cgroup's.
+
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
 
-diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index c620068..0374e54 100644
---- a/fs/ext2/inode.c
-+++ b/fs/ext2/inode.c
-@@ -796,7 +796,7 @@ const struct address_space_operations ext2_aops = {
+ linux/memcontrol.h |    0 
+ mm/memcontrol.c    |   21 ++++++++++++++-------
+ 2 files changed, 14 insertions(+), 7 deletions(-)
 
- const struct address_space_operations ext2_aops_xip = {
- 	.bmap			= ext2_bmap,
--	.get_xip_page		= ext2_get_xip_page,
-+	.get_xip_mem		= ext2_get_xip_mem,
- };
-
- const struct address_space_operations ext2_nobh_aops = {
-diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
-index ca7f003..0f3f8f0 100644
---- a/fs/ext2/xip.c
-+++ b/fs/ext2/xip.c
-@@ -15,24 +15,26 @@
- #include "xip.h"
-
- static inline int
--__inode_direct_access(struct inode *inode, sector_t sector,
--		      unsigned long *data)
-+__inode_direct_access(struct inode *inode, sector_t block, void **kaddr,
-+		      unsigned long *pfn)
- {
-+	sector_t sector;
- 	BUG_ON(!inode->i_sb->s_bdev->bd_disk->fops->direct_access);
-+
-+	sector = block * (PAGE_SIZE / 512); /* ext2 block to bdev sector */
- 	return inode->i_sb->s_bdev->bd_disk->fops
--		->direct_access(inode->i_sb->s_bdev,sector,data);
-+		->direct_access(inode->i_sb->s_bdev,sector,kaddr,pfn);
- }
-
- static inline int
--__ext2_get_sector(struct inode *inode, sector_t offset, int create,
-+__ext2_get_block(struct inode *inode, pgoff_t pgoff, int create,
- 		   sector_t *result)
- {
- 	struct buffer_head tmp;
- 	int rc;
-
- 	memset(&tmp, 0, sizeof(struct buffer_head));
--	rc = ext2_get_block(inode, offset/ (PAGE_SIZE/512), &tmp,
--			    create);
-+	rc = ext2_get_block(inode, pgoff, &tmp, create);
- 	*result = tmp.b_blocknr;
-
- 	/* did we get a sparse block (hole in the file)? */
-@@ -45,15 +47,15 @@ __ext2_get_sector(struct inode *inode, sector_t
-offset, int create,
- }
-
- int
--ext2_clear_xip_target(struct inode *inode, int block)
-+ext2_clear_xip_target(struct inode *inode, sector_t block)
- {
--	sector_t sector = block * (PAGE_SIZE/512);
--	unsigned long data;
-+	void *kaddr;
-+	unsigned long pfn;
- 	int rc;
-
--	rc = __inode_direct_access(inode, sector, &data);
-+	rc = __inode_direct_access(inode, block, &kaddr, &pfn);
- 	if (!rc)
--		clear_page((void*)data);
-+		clear_page(kaddr);
- 	return rc;
- }
-
-@@ -69,25 +71,25 @@ void ext2_xip_verify_sb(struct super_block *sb)
+diff -puN mm/memcontrol.c~memory-controller-move-to-own-slab mm/memcontrol.c
+--- linux-2.6.25-rc4/mm/memcontrol.c~memory-controller-move-to-own-slab	2008-03-10 23:22:34.000000000 +0530
++++ linux-2.6.25-rc4-balbir/mm/memcontrol.c	2008-03-10 23:34:42.000000000 +0530
+@@ -26,6 +26,7 @@
+ #include <linux/backing-dev.h>
+ #include <linux/bit_spinlock.h>
+ #include <linux/rcupdate.h>
++#include <linux/slab.h>
+ #include <linux/swap.h>
+ #include <linux/spinlock.h>
+ #include <linux/fs.h>
+@@ -35,6 +36,8 @@
+ 
+ struct cgroup_subsys mem_cgroup_subsys;
+ static const int MEM_CGROUP_RECLAIM_RETRIES = 5;
++static struct kmem_cache *page_cgroup_cache;
++static struct kmem_cache *mem_cgroup_per_zone_cache;
+ 
+ /*
+  * Statistics for memory cgroup.
+@@ -560,7 +563,7 @@ retry:
  	}
+ 	unlock_page_cgroup(page);
+ 
+-	pc = kzalloc(sizeof(struct page_cgroup), gfp_mask);
++	pc = kmem_cache_zalloc(page_cgroup_cache, gfp_mask);
+ 	if (pc == NULL)
+ 		goto err;
+ 
+@@ -622,7 +625,7 @@ retry:
+ 		 */
+ 		res_counter_uncharge(&mem->res, PAGE_SIZE);
+ 		css_put(&mem->css);
+-		kfree(pc);
++		kmem_cache_free(page_cgroup_cache, pc);
+ 		goto retry;
+ 	}
+ 	page_assign_page_cgroup(page, pc);
+@@ -637,7 +640,7 @@ done:
+ 	return 0;
+ out:
+ 	css_put(&mem->css);
+-	kfree(pc);
++	kmem_cache_free(page_cgroup_cache, pc);
+ err:
+ 	return -ENOMEM;
  }
-
--struct page *
--ext2_get_xip_page(struct address_space *mapping, sector_t offset,
--		   int create)
-+int
-+ext2_get_xip_mem(struct address_space *mapping, struct vm_fault *vmf,
-+		 int create)
+@@ -695,7 +698,7 @@ void mem_cgroup_uncharge_page(struct pag
+ 		res_counter_uncharge(&mem->res, PAGE_SIZE);
+ 		css_put(&mem->css);
+ 
+-		kfree(pc);
++		kmem_cache_free(page_cgroup_cache, pc);
+ 		return;
+ 	}
+ 
+@@ -988,9 +991,10 @@ static int alloc_mem_cgroup_per_zone_inf
+ 	 *       function.
+ 	 */
+ 	if (node_state(node, N_HIGH_MEMORY))
+-		pn = kmalloc_node(sizeof(*pn), GFP_KERNEL, node);
++		pn = kmem_cache_alloc_node(mem_cgroup_per_zone_cache,
++						GFP_KERNEL, node);
+ 	else
+-		pn = kmalloc(sizeof(*pn), GFP_KERNEL);
++		pn = kmem_cache_alloc(mem_cgroup_per_zone_cache, GFP_KERNEL);
+ 	if (!pn)
+ 		return 1;
+ 
+@@ -1008,7 +1012,7 @@ static int alloc_mem_cgroup_per_zone_inf
+ 
+ static void free_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
  {
- 	int rc;
--	unsigned long data;
--	sector_t sector;
-+	sector_t block;
-
- 	/* first, retrieve the sector number */
--	rc = __ext2_get_sector(mapping->host, offset, create, &sector);
-+	rc = __ext2_get_block(mapping->host, vmf->pgoff, create, &block);
- 	if (rc)
- 		goto error;
-
- 	/* retrieve address of the target data */
--	rc = __inode_direct_access
--		(mapping->host, sector * (PAGE_SIZE/512), &data);
--	if (!rc)
--		return virt_to_page(data);
-+	rc = __inode_direct_access(mapping->host, block, vmf->kaddr, vmf->pfn);
-+	if (rc)
-+		goto error;
-+
-+	return 0;
-
-  error:
--	return ERR_PTR(rc);
-+	return rc;
+-	kfree(mem->info.nodeinfo[node]);
++	kmem_cache_free(mem_cgroup_per_zone_cache, mem->info.nodeinfo[node]);
  }
-diff --git a/fs/ext2/xip.h b/fs/ext2/xip.h
-index aa85331..60ba805 100644
---- a/fs/ext2/xip.h
-+++ b/fs/ext2/xip.h
-@@ -7,19 +7,19 @@
+ 
+ static struct cgroup_subsys_state *
+@@ -1020,6 +1024,9 @@ mem_cgroup_create(struct cgroup_subsys *
+ 	if (unlikely((cont->parent) == NULL)) {
+ 		mem = &init_mem_cgroup;
+ 		init_mm.mem_cgroup = mem;
++		page_cgroup_cache = KMEM_CACHE(page_cgroup, SLAB_PANIC);
++		mem_cgroup_per_zone_cache = KMEM_CACHE(mem_cgroup_per_zone,
++							SLAB_PANIC);
+ 	} else
+ 		mem = kzalloc(sizeof(struct mem_cgroup), GFP_KERNEL);
+ 
+diff -puN include/linux/memcontrol.h~memory-controller-move-to-own-slab include/linux/memcontrol.h
+_
 
- #ifdef CONFIG_EXT2_FS_XIP
- extern void ext2_xip_verify_sb (struct super_block *);
--extern int ext2_clear_xip_target (struct inode *, int);
-+extern int ext2_clear_xip_target (struct inode *, sector_t);
-
- static inline int ext2_use_xip (struct super_block *sb)
- {
- 	struct ext2_sb_info *sbi = EXT2_SB(sb);
- 	return (sbi->s_mount_opt & EXT2_MOUNT_XIP);
- }
--struct page* ext2_get_xip_page (struct address_space *, sector_t, int);
--#define mapping_is_xip(map) unlikely(map->a_ops->get_xip_page)
-+int ext2_get_xip_mem(struct address_space *, struct vm_fault *, int);
-+#define mapping_is_xip(map) unlikely(map->a_ops->get_xip_mem)
- #else
- #define mapping_is_xip(map)			0
- #define ext2_xip_verify_sb(sb)			do { } while (0)
- #define ext2_use_xip(sb)			0
- #define ext2_clear_xip_target(inode, chain)	0
--#define ext2_get_xip_page			NULL
-+#define ext2_get_xip_mem			NULL
- #endif
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
