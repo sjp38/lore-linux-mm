@@ -1,93 +1,136 @@
-Date: Tue, 11 Mar 2008 16:36:30 -0300
-From: "Luiz Fernando N. Capitulino" <lcapitulino@mandriva.com.br>
-Subject: Re: [PATCH] [0/13] General DMA zone rework
-Message-ID: <20080311163630.776484a1@mandriva.com.br>
-In-Reply-To: <20080311184926.GI27593@one.firstfloor.org>
-References: <200803071007.493903088@firstfloor.org>
-	<20080307175148.3a49d8d3@mandriva.com.br>
-	<20080308004654.GQ7365@one.firstfloor.org>
-	<20080310150316.752e4489@mandriva.com.br>
-	<20080310180843.GC28780@one.firstfloor.org>
-	<20080311142624.1dbd3af5@mandriva.com.br>
-	<20080311173540.GG27593@one.firstfloor.org>
-	<20080311150048.4376c73a@mandriva.com.br>
-	<20080311184926.GI27593@one.firstfloor.org>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m2BKNKqf029618
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2008 16:23:20 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2BKNKFF245962
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2008 16:23:20 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2BKNKYT003828
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2008 16:23:20 -0400
+Received: from [9.67.58.99] (wecm-9-67-58-99.wecm.ibm.com [9.67.58.99])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id m2BKNJbP003782
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2008 16:23:19 -0400
+Subject: [PATCH] hugetlb: vmstat events for huge page allocations
+From: Eric B Munson <ebmunson@us.ibm.com>
+Reply-To: ebmunson@us.ibm.com
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-5QBBwTOmRl/Yd0xM/S5t"
+Date: Tue, 11 Mar 2008 13:23:21 -0700
+Message-Id: <1205267001.7676.6.camel@grover.beaverton.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Em Tue, 11 Mar 2008 19:49:26 +0100
-Andi Kleen <andi@firstfloor.org> escreveu:
+--=-5QBBwTOmRl/Yd0xM/S5t
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-| > | Oops. Thanks. I'll double check that. mask allocator indeed doesn't
-| > | handle __GFP_COMP and nobody should be passing that into dma_alloc_coherent
-| > | anyways. But the bug you got was for the small size wasn't it?
-| > 
-| >  No, it triggers the BUG_ON() which checks the gfp, not the one
-| > which checks MASK_MIN_SIZE.
-| 
-| I see. I misdiagnosed your original problem then. But fixing the 
-| size < 16 bytes case was a good idea anyways, someone else would
-| have triggered that.
+From: Adam Litke <agl@us.ibm.com>
 
- I see.
+Allocating huge pages directly from the buddy allocator is not guaranteed
+to succeed.  Success depends on several factors (such as the amount of
+physical memory available and the level of fragmentation).  With the
+addition of dynamic hugetlb pool resizing, allocations can occur much more
+frequently.  For these reasons it is desirable to keep track of huge page
+allocation successes and failures.
 
-| Can you perhaps send me a complete patch fixing that for sound and the 
-| __GFP_COMP with description and Signed-off-by etc.? I can add it to my 
-| patchkit then and you would be correctly attributed. Otherwise I can do it 
-| myself too if you prefer. I'll also do a grep over the tree for other
-| such bogus __GFP_COMP users. That was an issue I hadn't considered before.
+Add two new vmstat entries to track huge page allocations that succeed and
+fail.  The presence of the two entries is contingent upon
+CONFIG_HUGETLB_PAGE being enabled.
 
- Here are you (passed minimal tests).
+This patch was created against linux-2.6.25-rc5
 
-------
-ALSA: Convert snd_malloc_dev_pages() to the mask allocator
+Signed-off-by: Adam Litke <agl@us.ibm.com>
+Signed-off-by: Eric Munson <ebmunson@us.ibm.com>
 
-The mask allocator do not handle the __GFP_COMP flag and
-will BUG_ON() if that flag is passed to it.
+---
 
-Also, we should pass the allocation size in bytes to
-dma_alloc_coherent().
+ include/linux/vmstat.h |    4 +++-
+ mm/hugetlb.c           |    7 +++++++
+ mm/vmstat.c            |    2 ++
+ 3 files changed, 12 insertions(+), 1 deletions(-)
 
-Signed-off-by: Luiz Fernando N. Capitulino <lcapitulino@mandriva.com.br>
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index 9f1b4b4..70f6861 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -27,6 +27,8 @@
 
-Index: linux-2.6.24/sound/core/memalloc.c
-===================================================================
---- linux-2.6.24.orig/sound/core/memalloc.c
-+++ linux-2.6.24/sound/core/memalloc.c
-@@ -210,20 +210,17 @@ void snd_free_pages(void *ptr, size_t si
- /* allocate the coherent DMA pages */
- static void *snd_malloc_dev_pages(struct device *dev, size_t size, dma_addr_t *dma)
- {
--	int pg;
- 	void *res;
- 	gfp_t gfp_flags;
- 
- 	snd_assert(size > 0, return NULL);
- 	snd_assert(dma != NULL, return NULL);
--	pg = get_order(size);
- 	gfp_flags = GFP_KERNEL
--		| __GFP_COMP	/* compound page lets parts be mapped */
- 		| __GFP_NORETRY /* don't trigger OOM-killer */
- 		| __GFP_NOWARN; /* no stack trace print - this call is non-critical */
--	res = dma_alloc_coherent(dev, PAGE_SIZE << pg, dma, gfp_flags);
-+	res = dma_alloc_coherent(dev, size, dma, gfp_flags);
- 	if (res != NULL)
--		inc_snd_pages(pg);
-+		inc_snd_pages(get_order(size));
- 
- 	return res;
+ #define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) xx##_NORMAL HIGHMEM_=
+ZONE(xx) , xx##_MOVABLE
+
++#define HTLB_STATS     HTLB_ALLOC_SUCCESS, HTLB_ALLOC_FAIL
++
+ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+                FOR_ALL_ZONES(PGALLOC),
+                PGFREE, PGACTIVATE, PGDEACTIVATE,
+@@ -36,7 +38,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+                FOR_ALL_ZONES(PGSCAN_KSWAPD),
+                FOR_ALL_ZONES(PGSCAN_DIRECT),
+                PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEA=
+L,
+-               PAGEOUTRUN, ALLOCSTALL, PGROTATED,
++               PAGEOUTRUN, ALLOCSTALL, PGROTATED, HTLB_STATS,
+                NR_VM_EVENT_ITEMS
+ };
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index dcacc81..1507697 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -239,6 +239,11 @@ static int alloc_fresh_huge_page(void)
+                hugetlb_next_nid =3D next_nid;
+        } while (!page && hugetlb_next_nid !=3D start_nid);
+
++       if (ret)
++               count_vm_event(HTLB_ALLOC_SUCCESS);
++       else
++               count_vm_event(HTLB_ALLOC_FAIL);
++
+        return ret;
  }
 
+@@ -293,9 +298,11 @@ static struct page *alloc_buddy_huge_page(struct vm_ar=
+ea_struct *vma,
+                 */
+                nr_huge_pages_node[nid]++;
+                surplus_huge_pages_node[nid]++;
++               count_vm_event(HTLB_ALLOC_SUCCESS);
+        } else {
+                nr_huge_pages--;
+                surplus_huge_pages--;
++               count_vm_event(HTLB_ALLOC_FAIL);
+        }
+        spin_unlock(&hugetlb_lock);
+
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 422d960..045a8d7 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -644,6 +644,8 @@ static const char * const vmstat_text[] =3D {
+        "allocstall",
+
+        "pgrotated",
++       "htlb_alloc_success",
++       "htlb_alloc_fail",
+ #endif
+ };
 
 
--- 
-Luiz Fernando N. Capitulino
+--=-5QBBwTOmRl/Yd0xM/S5t
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQBH1uo5snv9E83jkzoRAkd9AKCQJpAgxGy/8x0sGyY1w9+AxQq4aQCg6aO7
+1qY8szz84ykyxEFnyxYC9Ug=
+=TSYL
+-----END PGP SIGNATURE-----
+
+--=-5QBBwTOmRl/Yd0xM/S5t--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
