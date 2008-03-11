@@ -1,85 +1,193 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m2BIlhuU016078
-	for <linux-mm@kvack.org>; Wed, 12 Mar 2008 05:47:43 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2BIlvS24636798
-	for <linux-mm@kvack.org>; Wed, 12 Mar 2008 05:47:57 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2BIluq8027102
-	for <linux-mm@kvack.org>; Wed, 12 Mar 2008 05:47:57 +1100
-Message-ID: <47D6D3CC.5070705@linux.vnet.ibm.com>
-Date: Wed, 12 Mar 2008 00:17:40 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH] Move memory controller allocations to their own slabs
- (v2)
-References: <20080311061836.6664.5072.sendpatchset@localhost.localdomain> <Pine.LNX.4.64.0803111230410.15328@blonde.site>
-In-Reply-To: <Pine.LNX.4.64.0803111230410.15328@blonde.site>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: [PATCH -mm v3] mempolicy: disallow static or relative flags for
+	local preferred mode
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <alpine.DEB.1.00.0803081409260.12095@chino.kir.corp.google.com>
+References: <alpine.DEB.1.00.0803081409260.12095@chino.kir.corp.google.com>
+Content-Type: text/plain
+Date: Tue, 11 Mar 2008 15:21:51 -0400
+Message-Id: <1205263312.5293.19.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Paul Jackson <pj@sgi.com>, Christoph Lameter <clameter@sgi.com>, Andi Kleen <ak@suse.de>, Randy Dunlap <randy.dunlap@oracle.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Tue, 11 Mar 2008, Balbir Singh wrote:
->> Move the memory controller data structure page_cgroup to its own slab cache.
->> It saves space on the system, allocations are not necessarily pushed to order
->> of 2 and should provide performance benefits. Users who disable the memory
->> controller can also double check that the memory controller is not allocating
->> page_cgroup's.
->>
->> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> 
-> I certainly approve of giving page_cgroups their own kmem_cache
-> (and agree with Kame that it was overkill for the zones).
-> 
+David, Andrew:  I've rebased David's recent patch--the one with
+"significant-looking reject"--atop 25-rc5-mm1 and retested.
 
-Thanks, yes, I agreed with Kame as well.
+Lee
 
-> But I don't agree with the SLAB_HWCACHE_ALIGN you've slipped into
-> this version.  That'll be wasting a lot of (all? more than?) the
-> space you're trying to save with a kmem_cache, won't it?  Let me
-> talk about that separately, in reply to the mail where you report
-> the numbers.
-> 
+mempolicy: disallow static or relative flags for local preferred mode
 
-I slipped in the SLAB_HWCACHE_ALIGN to reduce page cgroup cache contention. Yes
-you are right, we do lose out on space due to the extra alignment. My test
-results (lmbench) on kmalloc, slub and slab are not very conclusive about
-performance. SLUB had the best results w.r.t protection faults and context switches.
+Against:  2.6.25-rc5-mm1
 
-> Are you proposing this page_cgroup_cache mod for 2.6.25 or for 2.6.26?
+V2 -> V3 [lts]:
++ rebased to 25-rc5-mm1
++ preserved behavior of MPOL_PREFERRED w/ non-empty nodemask containing
+  only dis-allowed nodes.
++ pulled the setting of policy->flags outside of the "if(nodes)..."
+  block as future flags might not be associated only with nodemasks
+  as STATIC and RELATIVE are.  This is safe, now that David disallows
+  these flags for the case of MPOL_PREFERRED with empty nodemask.
++ dropped the localalloc variable in favor of just NULLing out nodes
+  pointer to indicate "local preferred" mode.  
 
-I am OK with any version as long as we can get good feedback. I suspect the
-feature will be useful for 2.6.25.
+MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES don't mean anything for
+MPOL_PREFERRED policies that were created with an empty nodemask (for
+purely local allocations).  They'll never be invalidated because the
+allowed mems of a task changes or need to be rebound relative to a
+cpuset's placement.
 
-> I ask because I want to build upon it to fix up some GFP_ flag issues:
-> I think we end up claiming the page_cgroups are __GFP_MOVABLE when they
-> should be called __GFP_RECLAIMABLE; but I don't know how seriously we
-> take MOVABLE/RECLAIMABLE discrepancies at present.
-> 
+Also fixes a bug identified by Lee Schermerhorn that disallowed empty
+nodemasks to be passed to MPOL_PREFERRED to specify local allocations.
+[A different, somewhat incomplete, patch already existed in 25-rc5-mm1.]
 
-That's a very good question. I am not sure about the correct answer to that
-myself at the moment.
+Cc: Paul Jackson <pj@sgi.com>
+Cc: Christoph Lameter <clameter@sgi.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Andi Kleen <ak@suse.de>
+Cc: Randy Dunlap <randy.dunlap@oracle.com>
+Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
 
-> There's a patch I'd also like to build upon from Christoph in -mm
-> (remove-set_migrateflags.patch), which sheds light on a similar issue
-> with radix_tree_nodes).  It's importance is again dependent on how
-> seriously we're taking MOVABLE/RECLAIMABLE discrepancies.
-> 
+ Documentation/vm/numa_memory_policy.txt |   16 ++++++++++--
+ mm/mempolicy.c                          |   42 +++++++++++++++++++-------------
+ 2 files changed, 40 insertions(+), 18 deletions(-)
 
-I'll look at Christoph's patch and see what it addresses to understand the
-MOVABLE/RECLAIMABLE discrepancy better.
+Index: linux-2.6.25-rc5-mm1/Documentation/vm/numa_memory_policy.txt
+===================================================================
+--- linux-2.6.25-rc5-mm1.orig/Documentation/vm/numa_memory_policy.txt	2008-03-11 14:22:56.000000000 -0400
++++ linux-2.6.25-rc5-mm1/Documentation/vm/numa_memory_policy.txt	2008-03-11 14:32:40.000000000 -0400
+@@ -205,6 +205,12 @@ Components of Memory Policies
+ 	    local allocation for a specific range of addresses--i.e. for
+ 	    VMA policies.
+ 
++	    It is possible for the user to specify that local allocation is
++	    always preferred by passing an empty nodemask with this mode.
++	    If an empty nodemask is passed, the policy cannot use the
++	    MPOL_F_STATIC_NODES or MPOL_F_RELATIVE_NODES flags described
++	    below.
++
+ 	MPOL_INTERLEAVED:  This mode specifies that page allocations be
+ 	interleaved, on a page granularity, across the nodes specified in
+ 	the policy.  This mode also behaves slightly differently, based on
+@@ -254,7 +260,10 @@ Components of Memory Policies
+ 	    occurs over that node.  If no nodes from the user's nodemask are
+ 	    now allowed, the Default behavior is used.
+ 
+-	    MPOL_F_STATIC_NODES cannot be used with MPOL_F_RELATIVE_NODES.
++	    MPOL_F_STATIC_NODES cannot be combined with the
++	    MPOL_F_RELATIVE_NODES flag.  It also cannot be used for
++	    MPOL_PREFERRED policies that were created with an empty nodemask
++	    (local allocation).
+ 
+ 	MPOL_F_RELATIVE_NODES:  This flag specifies that the nodemask passed
+ 	by the user will be mapped relative to the set of the task or VMA's
+@@ -301,7 +310,10 @@ Components of Memory Policies
+ 	    set of memory nodes allowed by the task's cpuset, as that may
+ 	    change over time.
+ 
+-	    MPOL_F_RELATIVE_NODES cannot be used with MPOL_F_STATIC_NODES.
++	    MPOL_F_RELATIVE_NODES cannot be combined with the
++	    MPOL_F_STATIC_NODES flag.  It also cannot be used for
++	    MPOL_PREFERRED policies that were created with an empty nodemask
++	    (local allocation).
+ 
+ MEMORY POLICY APIs
+ 
+Index: linux-2.6.25-rc5-mm1/mm/mempolicy.c
+===================================================================
+--- linux-2.6.25-rc5-mm1.orig/mm/mempolicy.c	2008-03-11 14:32:17.000000000 -0400
++++ linux-2.6.25-rc5-mm1/mm/mempolicy.c	2008-03-11 15:14:49.000000000 -0400
+@@ -181,27 +181,43 @@ static struct mempolicy *mpol_new(unsign
+ {
+ 	struct mempolicy *policy;
+ 	nodemask_t cpuset_context_nmask;
+-	int localalloc = 0;
+ 	int ret;
+ 
+ 	pr_debug("setting mode %d flags %d nodes[0] %lx\n",
+ 		 mode, flags, nodes ? nodes_addr(*nodes)[0] : -1);
+ 
+-	if (mode == MPOL_DEFAULT)
+-		return NULL;
+-	if (!nodes || nodes_empty(*nodes)) {
+-		if (mode != MPOL_PREFERRED)
++	if (mode == MPOL_DEFAULT) {
++		if (nodes && !nodes_empty(*nodes))
+ 			return ERR_PTR(-EINVAL);
+-		localalloc = 1;	/* special case:  no mode flags */
++		return NULL;
+ 	}
++	VM_BUG_ON(!nodes);
++
++	/*
++	 * MPOL_PREFERRED cannot be used with MPOL_F_STATIC_NODES or
++	 * MPOL_F_RELATIVE_NODES if the nodemask is empty (local allocation).
++	 * All other modes require a valid pointer to a non-empty nodemask.
++	 */
++	if (mode == MPOL_PREFERRED) {
++		if (nodes_empty(*nodes)) {
++			if (((flags & MPOL_F_STATIC_NODES) ||
++			     (flags & MPOL_F_RELATIVE_NODES)))
++				return ERR_PTR(-EINVAL);
++			nodes = NULL;	/* flag local alloc */
++		}
++	} else if (nodes_empty(*nodes))
++		return ERR_PTR(-EINVAL);
+ 	policy = kmem_cache_alloc(policy_cache, GFP_KERNEL);
+ 	if (!policy)
+ 		return ERR_PTR(-ENOMEM);
+ 	atomic_set(&policy->refcnt, 1);
+ 	policy->policy = mode;
++	policy->flags = flags;
+ 
+-	if (!localalloc) {
+-		policy->flags = flags;
++	if (nodes) {
++		/*
++		 * cpuset related setup doesn't apply to local allocation
++		 */
+ 		cpuset_update_task_memory_state();
+ 		if (flags & MPOL_F_RELATIVE_NODES)
+ 			mpol_relative_nodemask(&cpuset_context_nmask, nodes,
+@@ -217,7 +233,7 @@ static struct mempolicy *mpol_new(unsign
+ 	}
+ 
+ 	ret = mpol_ops[mode].create(policy,
+-				localalloc ? NULL : &cpuset_context_nmask);
++				nodes ? &cpuset_context_nmask : NULL);
+ 	if (ret < 0) {
+ 		kmem_cache_free(policy_cache, policy);
+ 		return ERR_PTR(ret);
+@@ -259,10 +275,6 @@ static void mpol_rebind_preferred(struct
+ {
+ 	nodemask_t tmp;
+ 
+-	/*
+-	 * check 'STATIC_NODES first, as preferred_node == -1 may be
+-	 * a temporary, "fallback" state for this policy.
+-	 */
+ 	if (pol->flags & MPOL_F_STATIC_NODES) {
+ 		int node = first_node(pol->w.user_nodemask);
+ 
+@@ -270,12 +282,10 @@ static void mpol_rebind_preferred(struct
+ 			pol->v.preferred_node = node;
+ 		else
+ 			pol->v.preferred_node = -1;
+-	} else if (pol->v.preferred_node == -1) {
+-		return;	/* no remap required for explicit local alloc */
+ 	} else if (pol->flags & MPOL_F_RELATIVE_NODES) {
+ 		mpol_relative_nodemask(&tmp, &pol->w.user_nodemask, nodes);
+ 		pol->v.preferred_node = first_node(tmp);
+-	} else {
++	} else if (pol->v.preferred_node != -1) {
+ 		pol->v.preferred_node = node_remap(pol->v.preferred_node,
+ 						   pol->w.cpuset_mems_allowed,
+ 						   *nodes);
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
