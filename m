@@ -1,34 +1,44 @@
-Subject: Re: [PATCH] [6/13] Core maskable allocator 
-From: corbet@lwn.net (Jonathan Corbet)
-In-reply-to: Your message of "Fri, 07 Mar 2008 10:07:16 +0100."
-             <20080307090716.9D3E91B419C@basil.firstfloor.org>
-Date: Tue, 11 Mar 2008 09:34:53 -0600
-Message-ID: <26256.1205249693@vena.lwn.net>
+Date: Tue, 11 Mar 2008 16:54:45 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] [6/13] Core maskable allocator
+Message-ID: <20080311155445.GB27593@one.firstfloor.org>
+References: <20080307090716.9D3E91B419C@basil.firstfloor.org> <26256.1205249693@vena.lwn.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <26256.1205249693@vena.lwn.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, Andi,
+On Tue, Mar 11, 2008 at 09:34:53AM -0600, Jonathan Corbet wrote:
+> Hi, Andi,
+> 
+> As I dig through this patch, I find it mostly makes sense; seems like it
+> could be a good idea. 
 
-As I dig through this patch, I find it mostly makes sense; seems like it
-could be a good idea.  I did have one little API question...
+Thanks.
+> 
+> > +struct page *
+> > +alloc_pages_mask(gfp_t gfp, unsigned size, u64 mask)
+> > +{
+> > +	unsigned long max_pfn = mask >> PAGE_SHIFT;
+> 
+> The "mask" parameter isn't really a mask - it's an upper bound on the
 
-> +struct page *
-> +alloc_pages_mask(gfp_t gfp, unsigned size, u64 mask)
-> +{
-> +	unsigned long max_pfn = mask >> PAGE_SHIFT;
+Actually it's both.
 
-The "mask" parameter isn't really a mask - it's an upper bound on the
-address of the allocated memory.  Might it be better to call it
-"max_addr" or "limit" or "ceiling" or some such so callers understand
-for sure how it's interpreted?  The use of the term "mask" throughout
-the interface could maybe create a certain amount of confusion.
+> address of the allocated memory.  Might it be better to call it
+> "max_addr" or "limit" or "ceiling" or some such so callers understand
 
-Thanks,
+mask is the standard term used by the PCI-DMA API for the same
+thing and since one of the main purposes of the mask allocator is to 
+implement underlying support for that interface it seemed fitting to use 
+the same convention.
 
-jon
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
