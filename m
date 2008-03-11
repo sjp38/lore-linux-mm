@@ -1,37 +1,31 @@
-Date: Mon, 10 Mar 2008 21:50:03 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 0/9] Page flags V3: Cleanup and reorg
-Message-Id: <20080310215003.8622e6b8.akpm@linux-foundation.org>
-In-Reply-To: <20080308001850.306617873@sgi.com>
-References: <20080308001850.306617873@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Tue, 11 Mar 2008 14:00:15 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: +
+In-Reply-To: <20080311043149.20251.50059.sendpatchset@localhost.localdomain>
+References: <20080311043149.20251.50059.sendpatchset@localhost.localdomain>
+Message-Id: <20080311135933.8937.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: apw@shadowen.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 07 Mar 2008 16:18:50 -0800 Christoph Lameter <clameter@sgi.com> wrote:
+Hi
 
-> A set of patches that attempts to improve page flag handling.
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
+> 
+>  linux/memcontrol.h |    0 
 
-First darn thing I tried was i386 allnoconfig and it goes splat.
+???
+unnecessary hunk?
+or diff comannd bug?
 
-In file included from include/linux/mm.h:192,
-                 from kernel/bounds.c:8:
-include/linux/page-flags.h: In function 'PageHighMem':
-include/linux/page-flags.h:180: error: implicit declaration of function 'page_zone'
-
-There's also a parenthesis mismatch so it looks like it was neither
-compile-time nor runtime tested on i386.  Sorry, but I don't have the time
-to be the first one to try this out.
-
-
-To fix this page-flags.h needs to include mm.h, but mm.h includes
-page-flags.h.  Making PageHighMem a macro would be the expedient fix.
-
+>  mm/memcontrol.c    |   21 ++++++++++++++-------
+>  2 files changed, 14 insertions(+), 7 deletions(-)
 
 
 --
