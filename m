@@ -1,63 +1,44 @@
-Date: Wed, 12 Mar 2008 15:16:54 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: [PATCH -mmotm] mm/oom_kill: fix kernel-doc
-Message-Id: <20080312151654.858181f4.randy.dunlap@oracle.com>
+Subject: Re: Re: [RFC/PATCH] cgroup swap subsystem
+In-Reply-To: Your message of "Thu, 6 Mar 2008 21:56:56 +0900 (JST)"
+	<6197904.1204808216900.kamezawa.hiroyu@jp.fujitsu.com>
+References: <6197904.1204808216900.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: Text/Plain; charset=us-ascii
+Message-Id: <20080312225740.315FD1E703E@siro.lan>
+Date: Thu, 13 Mar 2008 07:57:40 +0900 (JST)
+From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
 Sender: owner-linux-mm@kvack.org
-From: Randy Dunlap <randy.dunlap@oracle.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm <akpm@linux-foundation.org>
+To: kamezawa.hiroyu@jp.fujitsu.com
+Cc: nishimura@mxp.nes.nec.co.jp, linux-mm@kvack.org, containers@lists.osdl.org, hugh@veritas.com, balbir@linux.vnet.ibm.com, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-Fix kernel-doc notation in oom_kill.c.
+> >> At first look, remembering mm struct is not very good.
+> >> Remembering swap controller itself is better.
+> >
+> >The swap_cgroup when the page(and page_cgroup) is allocated and
+> >the swap_cgroup when the page is going to be swapped out may be
+> >different by swap_cgroup_move_task(), so I think swap_cgroup
+> >to be charged should be determined at the point of swapout.
+> >
+> Accounting swap against an entity which allocs anon memory is
+> not strange. Problem here is move_task itself.
+> Now, charges against anon is not moved when a task which uses it
+> is moved. please fix this behavior first if you think this is
+> problematic.
+> 
+> But, finally, a daemon driven by process event connector
+> determines the group before process starts using anon. It's
+> doubtful that it's worth to add complicated/costly ones.
+> 
+> 
+> Thanks,
+> -Kame
 
-Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
----
- mm/oom_kill.c |    9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+doesn't PEC work asynchronously and allows processes to use
+anonymous memory before being moved by the daemon?
 
---- lin2625-rc5-mmotm.orig/mm/oom_kill.c
-+++ lin2625-rc5-mmotm/mm/oom_kill.c
-@@ -37,6 +37,7 @@ static DEFINE_SPINLOCK(zone_scan_mutex);
-  * badness - calculate a numeric value for how bad this task has been
-  * @p: task struct of which task we should calculate
-  * @uptime: current uptime in seconds
-+ * @mem: target memory controller
-  *
-  * The formula used is relatively simple and documented inline in the
-  * function. The main rationale is that we want to select a good task
-@@ -266,6 +267,9 @@ static struct task_struct *select_bad_pr
- }
- 
- /**
-+ * dump_tasks - dump current memory state of all system tasks
-+ * @mem: target memory controller
-+ *
-  * Dumps the current memory state of all system tasks, excluding kernel threads.
-  * State information includes task's pid, uid, tgid, vm size, rss, cpu, oom_adj
-  * score, and name.
-@@ -300,7 +304,7 @@ static void dump_tasks(const struct mem_
- 	} while_each_thread(g, p);
- }
- 
--/**
-+/*
-  * Send SIGKILL to the selected  process irrespective of  CAP_SYS_RAW_IO
-  * flag though it's unlikely that  we select a process with CAP_SYS_RAW_IO
-  * set.
-@@ -505,6 +509,9 @@ void clear_zonelist_oom(struct zonelist 
- 
- /**
-  * out_of_memory - kill the "best" process when we run out of memory
-+ * @zonelist: zonelist pointer
-+ * @gfp_mask: memory allocation flags
-+ * @order: amount of memory being requested as a power of 2
-  *
-  * If we run out of memory, we have the choice between either
-  * killing a random task (bad), letting the system crash (worse)
+YAMAMOTO Takashi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
