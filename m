@@ -1,52 +1,28 @@
-Subject: Re: [PATCH 2/2] Make res_counter hierarchical
-In-Reply-To: Your message of "Fri, 07 Mar 2008 18:32:20 +0300"
-	<47D16004.7050204@openvz.org>
-References: <47D16004.7050204@openvz.org>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20080312230541.CB9021E703D@siro.lan>
-Date: Thu, 13 Mar 2008 08:05:41 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+Date: Wed, 12 Mar 2008 16:34:15 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [BUG] in 2.6.25-rc3 with 64k page size and SLUB_DEBUG_ON
+In-Reply-To: <200803121619.45708.Jens.Osterkamp@gmx.de>
+Message-ID: <Pine.LNX.4.64.0803121630110.10488@schroedinger.engr.sgi.com>
+References: <200803061447.05797.Jens.Osterkamp@gmx.de>
+ <200803072330.46448.Jens.Osterkamp@gmx.de> <Pine.LNX.4.64.0803071453170.9654@schroedinger.engr.sgi.com>
+ <200803121619.45708.Jens.Osterkamp@gmx.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: xemul@openvz.org
-Cc: balbir@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, menage@google.com, containers@lists.osdl.org, linux-mm@kvack.org
+To: Jens Osterkamp <Jens.Osterkamp@gmx.de>
+Cc: Pekka J Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> @@ -36,10 +37,26 @@ int res_counter_charge(struct res_counter *counter, unsigned long val)
->  {
->  	int ret;
->  	unsigned long flags;
-> +	struct res_counter *c, *unroll_c;
-> +
-> +	local_irq_save(flags);
-> +	for (c = counter; c != NULL; c = c->parent) {
-> +		spin_lock(&c->lock);
-> +		ret = res_counter_charge_locked(c, val);
-> +		spin_unlock(&c->lock);
-> +		if (ret < 0)
-> +			goto unroll;
-> +	}
-> +	local_irq_restore(flags);
-> +	return 0;
->  
-> -	spin_lock_irqsave(&counter->lock, flags);
-> -	ret = res_counter_charge_locked(counter, val);
-> -	spin_unlock_irqrestore(&counter->lock, flags);
-> +unroll:
-> +	for (unroll_c = counter; unroll_c != c; unroll_c = unroll_c->parent) {
-> +		spin_lock(&unroll_c->lock);
-> +		res_counter_uncharge_locked(unroll_c, val);
-> +		spin_unlock(&unroll_c->lock);
-> +	}
-> +	local_irq_restore(flags);
->  	return ret;
->  }
+On Wed, 12 Mar 2008, Jens Osterkamp wrote:
 
-what prevents the topology (in particular, ->parent pointers) from
-changing behind us?
+> I added a printk in kmalloc and the size seems to be 0x4000.
 
-YAMAMOTO Takashi
+Hmmmm... So kmalloc_index returns 14. This should all be fine.
+
+However, with slub_debug the size of the 16k kmalloc object is 
+actually a bit larger than 0x4000. The caller must not expect the object 
+to be aligned to a 16kb boundary. Is that the case?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
