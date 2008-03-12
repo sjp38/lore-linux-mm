@@ -1,72 +1,42 @@
-From: Jens Osterkamp <Jens.Osterkamp@gmx.de>
-Subject: Re: [BUG] in 2.6.25-rc3 with 64k page size and SLUB_DEBUG_ON
-Date: Wed, 12 Mar 2008 16:19:42 +0100
-References: <200803061447.05797.Jens.Osterkamp@gmx.de> <200803072330.46448.Jens.Osterkamp@gmx.de> <Pine.LNX.4.64.0803071453170.9654@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0803071453170.9654@schroedinger.engr.sgi.com>
+Received: by wa-out-1112.google.com with SMTP id m33so3104081wag.8
+        for <linux-mm@kvack.org>; Wed, 12 Mar 2008 09:40:37 -0700 (PDT)
+Message-ID: <6934efce0803120940x49707de7icb66d9cb6950ea86@mail.gmail.com>
+Date: Wed, 12 Mar 2008 09:40:37 -0700
+From: "Jared Hulbert" <jaredeh@gmail.com>
+Subject: Re: [patch 0/7] [rfc] VM_MIXEDMAP, pte_special, xip work
+In-Reply-To: <200803121633.34539.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
-  boundary="nextPart1441593.E2tnLPT8v4";
-  protocol="application/pgp-signature";
-  micalg=pgp-sha1
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
-Message-Id: <200803121619.45708.Jens.Osterkamp@gmx.de>
+Content-Disposition: inline
+References: <20080311104653.995564000@nick.local0.net>
+	 <20080311213525.a5994894.akpm@linux-foundation.org>
+	 <200803121633.34539.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Pekka J Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, npiggin@nick.local0.net, Linus Torvalds <torvalds@linux-foundation.org>, Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---nextPart1441593.E2tnLPT8v4
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+>  2. VM_MIXEDMAP allows us to support mappings where you actually do want
+>    to refcount _some_ pages in the mapping, but not others. I haven't
+>    actually seen his code, but I understand Jared requires this for his
+>    filesystem that can migrate pages between RAM and XIP/NVRAM
+>    transparently. Obviously the filesystem isn't finished yet, but
+>    Jared is relying on these changes for it to work.
 
-On Friday 07 March 2008, Christoph Lameter wrote:
-> On Fri, 7 Mar 2008, Jens Osterkamp wrote:
->=20
-> > 0xc000000000056f08 is in copy_process (/home/auto/jens/kernels/linux-2.=
-6.25-rc3/include/linux/slub_def.h:209).
-> > 204                             struct kmem_cache *s =3D kmalloc_slab(s=
-ize);
-> > 205
-> > 206                             if (!s)
-> > 207                                     return ZERO_SIZE_PTR;
-> > 208
-> > 209                             return kmem_cache_alloc(s, flags);
-> > 210                     }
-> > 211             }
-> > 212             return __kmalloc(size, flags);
-> > 213     }
-> >=20
-> > which is in the middle of kmalloc.
->=20
-> Its in the middle of inline code generated within the function that calls=
-=20
-> kmalloc. Its not in kmalloc per se.
->=20
-> Can you figure out what the value of size is here? I suspect we are doing=
-=20
-> a lookup here in kmalloc_caches with an invalid offset.
+So the filesystem I'm working on right now isn't that cool...  It's
+just a readonly XIP filesystem.  But it does need VM_MIXEDMAP.
 
-I added a printk in kmalloc and the size seems to be 0x4000.
+The problem was that VM_PFNMAP required pfn mapped pages to be
+contiguous.  My filesystem wants to allow a mixed of struct page and
+pfn mapped pages within a given vma.  VM_MIXEDMAP allows that to
+happen.
 
-Gru=DF,
-	Jens
-
---nextPart1441593.E2tnLPT8v4
-Content-Type: application/pgp-signature; name=signature.asc 
-Content-Description: This is a digitally signed message part.
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
-
-iD8DBQBH1/SRP1aZ9bkt7XMRAujiAJ42Abn29naSP7bqT5unIWnnIA1lqwCgtZww
-Vm1yULSEypyv1OK7RN2LED0=
-=aRLF
------END PGP SIGNATURE-----
-
---nextPart1441593.E2tnLPT8v4--
+But VM_MIXEDMAP is one of those foundation pieces that will allow us
+to move on and do the cool migrate from RAM to NVM magic.  You can't
+transparently migrate pages when you are tied down to the VM_PFNMAP
+rules.  It'd be more like migrating vma chunks, yuck.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
