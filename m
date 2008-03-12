@@ -1,28 +1,61 @@
-Date: Wed, 12 Mar 2008 16:34:15 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [BUG] in 2.6.25-rc3 with 64k page size and SLUB_DEBUG_ON
-In-Reply-To: <200803121619.45708.Jens.Osterkamp@gmx.de>
-Message-ID: <Pine.LNX.4.64.0803121630110.10488@schroedinger.engr.sgi.com>
-References: <200803061447.05797.Jens.Osterkamp@gmx.de>
- <200803072330.46448.Jens.Osterkamp@gmx.de> <Pine.LNX.4.64.0803071453170.9654@schroedinger.engr.sgi.com>
- <200803121619.45708.Jens.Osterkamp@gmx.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 2/2] Make res_counter hierarchical
+In-Reply-To: Your message of "Thu, 13 Mar 2008 08:05:41 +0900 (JST)"
+	<20080312230541.CB9021E703D@siro.lan>
+References: <20080312230541.CB9021E703D@siro.lan>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Message-Id: <20080312233650.363181E705C@siro.lan>
+Date: Thu, 13 Mar 2008 08:36:50 +0900 (JST)
+From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jens Osterkamp <Jens.Osterkamp@gmx.de>
-Cc: Pekka J Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: xemul@openvz.org
+Cc: containers@lists.osdl.org, linux-mm@kvack.org, menage@google.com, balbir@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Mar 2008, Jens Osterkamp wrote:
+> > @@ -36,10 +37,26 @@ int res_counter_charge(struct res_counter *counter, unsigned long val)
+> >  {
+> >  	int ret;
+> >  	unsigned long flags;
+> > +	struct res_counter *c, *unroll_c;
+> > +
+> > +	local_irq_save(flags);
+> > +	for (c = counter; c != NULL; c = c->parent) {
+> > +		spin_lock(&c->lock);
+> > +		ret = res_counter_charge_locked(c, val);
+> > +		spin_unlock(&c->lock);
+> > +		if (ret < 0)
+> > +			goto unroll;
+> > +	}
+> > +	local_irq_restore(flags);
+> > +	return 0;
+> >  
+> > -	spin_lock_irqsave(&counter->lock, flags);
+> > -	ret = res_counter_charge_locked(counter, val);
+> > -	spin_unlock_irqrestore(&counter->lock, flags);
+> > +unroll:
+> > +	for (unroll_c = counter; unroll_c != c; unroll_c = unroll_c->parent) {
+> > +		spin_lock(&unroll_c->lock);
+> > +		res_counter_uncharge_locked(unroll_c, val);
+> > +		spin_unlock(&unroll_c->lock);
+> > +	}
+> > +	local_irq_restore(flags);
+> >  	return ret;
+> >  }
+> 
+> what prevents the topology (in particular, ->parent pointers) from
+> changing behind us?
+> 
+> YAMAMOTO Takashi
 
-> I added a printk in kmalloc and the size seems to be 0x4000.
+to answer myself: cgroupfs rename doesn't allow topological changes
+in the first place.
 
-Hmmmm... So kmalloc_index returns 14. This should all be fine.
+btw, i think you need to do the same for res_counter_limit_check_locked
+as well.  i'm skeptical about doing these complicated stuffs in kernel,
+esp. in this potentially performance critical code.
 
-However, with slub_debug the size of the 16k kmalloc object is 
-actually a bit larger than 0x4000. The caller must not expect the object 
-to be aligned to a 16kb boundary. Is that the case?
+YAMAMOTO Takashi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
