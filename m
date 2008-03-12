@@ -1,118 +1,142 @@
-Subject: [PATCH] Mempolicy:  fix parsing of tmpfs mpol mount option
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <alpine.DEB.1.00.0803071341090.26765@chino.kir.corp.google.com>
-References: <alpine.DEB.1.00.0803061135001.18590@chino.kir.corp.google.com>
-	 <alpine.DEB.1.00.0803061135560.18590@chino.kir.corp.google.com>
-	 <1204922646.5340.73.camel@localhost>
-	 <alpine.DEB.1.00.0803071341090.26765@chino.kir.corp.google.com>
-Content-Type: text/plain
-Date: Wed, 12 Mar 2008 15:33:15 -0400
-Message-Id: <1205350396.6000.56.camel@localhost>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m2CKilB3011359
+	for <linux-mm@kvack.org>; Wed, 12 Mar 2008 16:44:47 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2CKikjR286710
+	for <linux-mm@kvack.org>; Wed, 12 Mar 2008 16:44:47 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2CKiklc031421
+	for <linux-mm@kvack.org>; Wed, 12 Mar 2008 16:44:46 -0400
+Received: from [9.47.17.125] (grover.beaverton.ibm.com [9.47.17.125])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id m2CKikrQ031393
+	for <linux-mm@kvack.org>; Wed, 12 Mar 2008 16:44:46 -0400
+Subject: [PATCH] hugetlb: vmstat events for huge page allocations v2
+From: Eric B Munson <ebmunson@us.ibm.com>
+Reply-To: ebmunson@us.ibm.com
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-Xj+8anspC2v5Z96E40wk"
+Date: Wed, 12 Mar 2008 13:44:46 -0700
+Message-Id: <1205354686.7191.9.camel@grover.beaverton.ibm.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: DavidRientjes <rientjes@google.com>, Paul Jackson <pj@sgi.com>, Christoph Lameter <clameter@sgi.com>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Against:  2.6.25-rc5-mm1 atop:
-+ mempolicy-disallow-static-or-relative-flags-for-local-preferred-mode
-+ mempolicy-support-optional-mode-flags-fix [Hugh]
+--=-Xj+8anspC2v5Z96E40wk
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-Parsing of new mode flags in the tmpfs mpol mount option is
-slightly broken:
+Changed from v1: fixed whitespace mangling.
 
-Setting a valid flag works OK:
-	#mount -o remount,mpol=bind=static:1-2 /dev/shm
-	#mount
-	...
-	tmpfs on /dev/shm type tmpfs (rw,mpol=bind=static:1-2)
-	...
+From: Adam Litke <agl@us.ibm.com>
 
-However, we can't remove them or change them, once we've
-set a valid flag:
+Allocating huge pages directly from the buddy allocator is not guaranteed
+to succeed.  Success depends on several factors (such as the amount of
+physical memory available and the level of fragmentation).  With the
+addition of dynamic hugetlb pool resizing, allocations can occur much more
+frequently.  For these reasons it is desirable to keep track of huge page
+allocation successes and failures.
 
-	#mount -o remount,mpol=bind:1-2 /dev/shm
-	#mount
-	...
-	tmpfs on /dev/shm type tmpfs (rw,mpol=bind:1-2)
-	...
+Add two new vmstat entries to track huge page allocations that succeed and
+fail.  The presence of the two entries is contingent upon
+CONFIG_HUGETLB_PAGE being enabled.
 
-It SAYS it removed it, but that's just a copy of the input
-string.  If we now try to set it to a different flag, we
-get:
+This patch was created against linux-2.6.25-rc5
 
-	#mount -o remount,mpol=bind=relative:1-2 /dev/shm
-	mount: /dev/shm not mounted already, or bad option
+Signed-off-by: Adam Litke <agl@us.ibm.com>
+Signed-off-by: Eric Munson <ebmunson@us.ibm.com>
 
-And on the console, we see:
-	tmpfs: Bad value 'bind' for mount option 'mpol'
-	                      ^ lost remainder of string
+---
 
-Furthermore, bogus flags are accepted with out error.
-Granted, they are a no-op:
+ include/linux/vmstat.h |    4 +++-
+ mm/hugetlb.c           |    7 +++++++
+ mm/vmstat.c            |    2 ++
+ 3 files changed, 12 insertions(+), 1 deletions(-)
 
-	#mount -o remount,mpol=interleave=foo:0-3 /dev/shm
-	#mount
-	...
-	tmpfs on /dev/shm type tmpfs (rw,mpol=interleave=foo:0-3)
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index 9f1b4b4..70f6861 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -27,6 +27,8 @@
 
-Again, that's just a copy of the input string shown by the
-mount command.
+ #define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) xx##_NORMAL HIGHMEM_=
+ZONE(xx) , xx##_MOVABLE
 
-This patch fixes the behavior by pre-zeroing the flags so that
-only one of the mutually exclusive flags can be set at one time.
-It also reports an error when an unrecognized flag is specified.
-
-The check for both flags being set is removed because it can't
-happen with this implementation.  If we ever want to support
-multiple non-exclusive flags, this area will need rework and we
-will need to check that any mutually exclusive flags aren't
-specified.
-
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- mm/shmem.c |   16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
-
-Index: linux-2.6.25-rc5-mm1/mm/shmem.c
-===================================================================
---- linux-2.6.25-rc5-mm1.orig/mm/shmem.c	2008-03-12 14:15:27.000000000 -0400
-+++ linux-2.6.25-rc5-mm1/mm/shmem.c	2008-03-12 14:18:09.000000000 -0400
-@@ -1128,20 +1128,26 @@ static int shmem_parse_mpol(char *value,
- 			*policy_nodes = node_states[N_HIGH_MEMORY];
- 		err = 0;
- 	}
++#define HTLB_STATS     HTLB_ALLOC_SUCCESS, HTLB_ALLOC_FAIL
 +
-+	*mode_flags = 0;
- 	if (flags) {
-+		/*
-+		 * Currently, we only support two mutually exclusive
-+		 * mode flags.
-+		 */
- 		if (!strcmp(flags, "static"))
- 			*mode_flags |= MPOL_F_STATIC_NODES;
--		if (!strcmp(flags, "relative"))
-+		else if (!strcmp(flags, "relative"))
- 			*mode_flags |= MPOL_F_RELATIVE_NODES;
--
--		if ((*mode_flags & MPOL_F_STATIC_NODES) &&
--		    (*mode_flags & MPOL_F_RELATIVE_NODES))
--			err = 1;
-+		else
-+			err = 1;	/* unrecognized flag */
- 	}
- out:
- 	/* Restore string for error message */
- 	if (nodelist)
- 		*--nodelist = ':';
-+	if (flags)
-+		*--flags = '=';
- 	return err;
- }
- 
+ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+		FOR_ALL_ZONES(PGALLOC),
+		PGFREE, PGACTIVATE, PGDEACTIVATE,
+@@ -36,7 +38,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+		FOR_ALL_ZONES(PGSCAN_KSWAPD),
+		FOR_ALL_ZONES(PGSCAN_DIRECT),
+		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
+-		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
++		PAGEOUTRUN, ALLOCSTALL, PGROTATED, HTLB_STATS,
+		NR_VM_EVENT_ITEMS
+ };
 
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index dcacc81..1507697 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -239,6 +239,11 @@ static int alloc_fresh_huge_page(void)
+		hugetlb_next_nid =3D next_nid;
+	} while (!page && hugetlb_next_nid !=3D start_nid);
+
++	if (ret)
++		count_vm_event(HTLB_ALLOC_SUCCESS);
++	else
++		count_vm_event(HTLB_ALLOC_FAIL);
++
+	return ret;
+ }
+
+@@ -293,9 +298,11 @@ static struct page *alloc_buddy_huge_page(struct vm_ar=
+ea_struct *vma,
+		 */
+		nr_huge_pages_node[nid]++;
+		surplus_huge_pages_node[nid]++;
++		count_vm_event(HTLB_ALLOC_SUCCESS);
+	} else {
+		nr_huge_pages--;
+		surplus_huge_pages--;
++		count_vm_event(HTLB_ALLOC_FAIL);
+	}
+	spin_unlock(&hugetlb_lock);
+
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 422d960..045a8d7 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -644,6 +644,8 @@ static const char * const vmstat_text[] =3D {
+	"allocstall",
+
+	"pgrotated",
++	"htlb_alloc_success",
++	"htlb_alloc_fail",
+ #endif
+ };
+
+--=20
+Eric Munson
+IBM LTC
+ebmunson@us.ibm.com
+503.578.3104
+
+--=-Xj+8anspC2v5Z96E40wk
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQBH2EC+snv9E83jkzoRAkjdAKC8QW1y9oDcUobU1D4JychKT0DX1QCg6gr0
++dePItK75NdZF6UHu0w1Me0=
+=K2yq
+-----END PGP SIGNATURE-----
+
+--=-Xj+8anspC2v5Z96E40wk--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
