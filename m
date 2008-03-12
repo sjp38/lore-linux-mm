@@ -1,189 +1,68 @@
-Date: Wed, 12 Mar 2008 10:59:26 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: [PATCH -mmotm] mm: fix various kernel-doc comments
-Message-Id: <20080312105926.32415996.randy.dunlap@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 12 Mar 2008 18:11:19 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: grow_dev_page's __GFP_MOVABLE
+In-Reply-To: <20080312140831.GD6072@csn.ul.ie>
+Message-ID: <Pine.LNX.4.64.0803121740170.32508@blonde.site>
+References: <Pine.LNX.4.64.0803112116380.18085@blonde.site>
+ <20080312140831.GD6072@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-From: Randy Dunlap <randy.dunlap@oracle.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Fix various kernel-doc notation in mm/:
+On Wed, 12 Mar 2008, Mel Gorman wrote:
+> On (11/03/08 21:33), Hugh Dickins didst pronounce:
+> > 
+> > I'm (slightly) worried by your __GFP_MOVABLE in grow_dev_page:
+> > is it valid, given that we come here for filesystem metadata pages
+> > - don't we? 
+> 
+> This is a tricky one and the second time it's come up. The pages allocated
+> here end up on the page cache and had a similar life-cycle to other LRU-pages
+> in the majority of cases when I checked at the time. The allocations are
+> labeled MOVABLE, but in this case they can be cleaned and moved to disk
+> rather than movable by page migration.  Strictly, one would argue that
+> they could be marked RECLAIMABLE but it increases the number of pageblocks
+> used by RECLAIMABLE allocations quite considerably and they have a very
+> different lifecycle which in itself is bad (spreads difficult to reclaim
+> allocations wider than necessary).
 
-filemap.c: add function short description; convert 2 to kernel-doc
-fremap.c: change parameter 'prot' to @prot
-pagewalk.c: change "-" in function parameters to ":"
-slab.c: fix short description of kmem_ptr_validate()
-swap.c: fix description & parameters of put_pages_list()
-swap_state.c: fix function parameters
-vmalloc.c: change "@returns" to "Returns:" since that is not a parameter
+I was finding this ever so hard to understand, but now think I was blocked
+by the misapprehension that a filesystem would hold all the metadata pages
+associated with an inode in core while that file was open.  That might be
+true of some primitive filesystems, but could hardly be true of a grownup
+filesystem.  Though even so, I'd expect different kinds of metadata pages
+to have significantly different lifecycles, and quite dependent on the
+filesystem in question e.g. superblock pages are held in core? inodes?
 
+But you found that the majority are not, their counts merely raised while
+being accessed by the filesystem, so made the decision to treat them all
+as MOVABLE because most can be reclaimed from the pagecache in the same
+way as pagecache pages, which needs significantly less effort than
+RECLAIMing from slab.  Too bad about the obstacle to defragmentation
+that the held ones would pose.  Okay (if I'm getting it right): you
+have to choose one way or the other, you've chosen this way, fine.
+And my argument by analogy with __GFP_HIGHMEM was just bogus.
 
+(I guess this is why you added GFP_HIGHUSER_PAGECACHE etc., which to
+my mind just obfuscate things further, and intend a patch to remove.)
 
-Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
----
- mm/filemap.c    |   20 +++++++++++++++++---
- mm/fremap.c     |    2 +-
- mm/pagewalk.c   |   10 +++++-----
- mm/slab.c       |    5 ++---
- mm/swap.c       |    5 ++---
- mm/swap_state.c |    2 ++
- mm/vmalloc.c    |    6 ++++--
- 7 files changed, 33 insertions(+), 17 deletions(-)
+Though, what prevents them from being genuinely MOVABLE while they're
+not transiently in use by the filesystem?  And why does block_dev.c
+set mapping gfp_mask to GFP_USER instead of (not yet defined)
+GFP_USER_MOVABLE (ah, GFP_USER_PAGECACHE is defined, but unused)? 
 
---- lin2625-rc5-mmotm.orig/mm/filemap.c
-+++ lin2625-rc5-mmotm/mm/filemap.c
-@@ -344,7 +344,7 @@ int sync_page_range(struct inode *inode,
- EXPORT_SYMBOL(sync_page_range);
- 
- /**
-- * sync_page_range_nolock
-+ * sync_page_range_nolock - write & wait on all pages in the passed range without locking
-  * @inode:	target inode
-  * @mapping:	target address_space
-  * @pos:	beginning offset in pages to write
-@@ -612,7 +612,10 @@ int __lock_page_killable(struct page *pa
- 					sync_page_killable, TASK_KILLABLE);
- }
- 
--/*
-+/**
-+ * __lock_page_nosync - get a lock on the page, without calling sync_page()
-+ * @page: the page to lock
-+ *
-  * Variant of lock_page that does not require the caller to hold a reference
-  * on the page's mapping.
-  */
-@@ -1540,9 +1543,20 @@ repeat:
- 	return page;
- }
- 
--/*
-+/**
-+ * read_cache_page_async - read into page cache, fill it if needed
-+ * @mapping:	the page's address_space
-+ * @index:	the page index
-+ * @filler:	function to perform the read
-+ * @data:	destination for read data
-+ *
-  * Same as read_cache_page, but don't wait for page to become unlocked
-  * after submitting it to the filler.
-+ *
-+ * Read into the page cache. If a page already exists, and PageUptodate() is
-+ * not set, try to fill the page but don't wait for it to become unlocked.
-+ *
-+ * If the page does not get brought uptodate, return -EIO.
-  */
- struct page *read_cache_page_async(struct address_space *mapping,
- 				pgoff_t index,
---- lin2625-rc5-mmotm.orig/mm/fremap.c
-+++ lin2625-rc5-mmotm/mm/fremap.c
-@@ -113,7 +113,7 @@ static int populate_range(struct mm_stru
-  * mmap()/mremap() it does not create any new vmas. The new mappings are
-  * also safe across swapout.
-  *
-- * NOTE: the 'prot' parameter right now is ignored (but must be zero),
-+ * NOTE: the @prot parameter right now is ignored (but must be zero),
-  * and the vma's default protection is used. Arbitrary protections
-  * might be implemented in the future.
-  */
---- lin2625-rc5-mmotm.orig/mm/pagewalk.c
-+++ lin2625-rc5-mmotm/mm/pagewalk.c
-@@ -77,11 +77,11 @@ static int walk_pud_range(pgd_t *pgd, un
- 
- /**
-  * walk_page_range - walk a memory map's page tables with a callback
-- * @mm - memory map to walk
-- * @addr - starting address
-- * @end - ending address
-- * @walk - set of callbacks to invoke for each level of the tree
-- * @private - private data passed to the callback function
-+ * @mm: memory map to walk
-+ * @addr: starting address
-+ * @end: ending address
-+ * @walk: set of callbacks to invoke for each level of the tree
-+ * @private: private data passed to the callback function
-  *
-  * Recursively walk the page table for the memory area in a VMA,
-  * calling supplied callbacks. Callbacks are called in-order (first
---- lin2625-rc5-mmotm.orig/mm/slab.c
-+++ lin2625-rc5-mmotm/mm/slab.c
-@@ -3621,12 +3621,11 @@ void *kmem_cache_alloc(struct kmem_cache
- EXPORT_SYMBOL(kmem_cache_alloc);
- 
- /**
-- * kmem_ptr_validate - check if an untrusted pointer might
-- *	be a slab entry.
-+ * kmem_ptr_validate - check if an untrusted pointer might be a slab entry.
-  * @cachep: the cache we're checking against
-  * @ptr: pointer to validate
-  *
-- * This verifies that the untrusted pointer looks sane:
-+ * This verifies that the untrusted pointer looks sane;
-  * it is _not_ a guarantee that the pointer is actually
-  * part of the slab cache in question, but it at least
-  * validates that the pointer can be dereferenced and
---- lin2625-rc5-mmotm.orig/mm/swap.c
-+++ lin2625-rc5-mmotm/mm/swap.c
-@@ -78,12 +78,11 @@ void put_page(struct page *page)
- EXPORT_SYMBOL(put_page);
- 
- /**
-- * put_pages_list(): release a list of pages
-+ * put_pages_list() - release a list of pages
-+ * @pages: list of pages threaded on page->lru
-  *
-  * Release a list of pages which are strung together on page.lru.  Currently
-  * used by read_cache_pages() and related error recovery code.
-- *
-- * @pages: list of pages threaded on page->lru
-  */
- void put_pages_list(struct list_head *pages)
- {
---- lin2625-rc5-mmotm.orig/mm/swap_state.c
-+++ lin2625-rc5-mmotm/mm/swap_state.c
-@@ -115,6 +115,7 @@ void __delete_from_swap_cache(struct pag
- /**
-  * add_to_swap - allocate swap space for a page
-  * @page: page we want to move to swap
-+ * @gfp_mask: memory allocation flags
-  *
-  * Allocate swap space for the page and add the page to the
-  * swap cache.  Caller needs to hold the page lock. 
-@@ -315,6 +316,7 @@ struct page *read_swap_cache_async(swp_e
- /**
-  * swapin_readahead - swap in pages in hope we need them soon
-  * @entry: swap entry of this memory
-+ * @gfp_mask: memory allocation flags
-  * @vma: user vma this address belongs to
-  * @addr: target address for mempolicy
-  *
---- lin2625-rc5-mmotm.orig/mm/vmalloc.c
-+++ lin2625-rc5-mmotm/mm/vmalloc.c
-@@ -757,7 +757,8 @@ finished:
-  *	@vma:		vma to cover (map full range of vma)
-  *	@addr:		vmalloc memory
-  *	@pgoff:		number of pages into addr before first page to map
-- *	@returns:	0 for success, -Exxx on failure
-+ *
-+ *	Returns:	0 for success, -Exxx on failure
-  *
-  *	This function checks that addr is a valid vmalloc'ed area, and
-  *	that it is big enough to cover the vma. Will return failure if
-@@ -829,7 +830,8 @@ static int f(pte_t *pte, pgtable_t table
- /**
-  *	alloc_vm_area - allocate a range of kernel address space
-  *	@size:		size of the area
-- *	@returns:	NULL on failure, vm_struct on success
-+ *
-+ *	Returns:	NULL on failure, vm_struct on success
-  *
-  *	This function reserves a range of kernel address space, and
-  *	allocates pagetables to map that range.  No actual mappings
+> Similarly, leaving them GFP_NOFS would
+> scatter allocations like page table pages wider than expected.
+
+Yes, I accept we should do better than GFP_NOFS there: but I'm
+now not seeing why it isn't just &~__GFP_FS, with block_dev.c
+supplying the MOVABLE.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
