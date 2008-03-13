@@ -1,148 +1,111 @@
-Date: Thu, 13 Mar 2008 11:22:33 +0000
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: Re: [PATCH] hugetlb: vmstat events for huge page allocations v2
-Message-ID: <20080313112224.GA1210@shadowen.org>
-References: <1205354686.7191.9.camel@grover.beaverton.ibm.com>
+Date: Thu, 13 Mar 2008 12:07:55 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: grow_dev_page's __GFP_MOVABLE
+Message-ID: <20080313120755.GC12351@csn.ul.ie>
+References: <Pine.LNX.4.64.0803112116380.18085@blonde.site> <20080312140831.GD6072@csn.ul.ie> <Pine.LNX.4.64.0803121740170.32508@blonde.site>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1205354686.7191.9.camel@grover.beaverton.ibm.com>
+In-Reply-To: <Pine.LNX.4.64.0803121740170.32508@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric B Munson <ebmunson@us.ibm.com>
-Cc: linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 12, 2008 at 01:44:46PM -0700, Eric B Munson wrote:
-> Changed from v1: fixed whitespace mangling.
+On (12/03/08 18:11), Hugh Dickins didst pronounce:
+> On Wed, 12 Mar 2008, Mel Gorman wrote:
+> > On (11/03/08 21:33), Hugh Dickins didst pronounce:
+> > > 
+> > > I'm (slightly) worried by your __GFP_MOVABLE in grow_dev_page:
+> > > is it valid, given that we come here for filesystem metadata pages
+> > > - don't we? 
+> > 
+> > This is a tricky one and the second time it's come up. The pages allocated
+> > here end up on the page cache and had a similar life-cycle to other LRU-pages
+> > in the majority of cases when I checked at the time. The allocations are
+> > labeled MOVABLE, but in this case they can be cleaned and moved to disk
+> > rather than movable by page migration.  Strictly, one would argue that
+> > they could be marked RECLAIMABLE but it increases the number of pageblocks
+> > used by RECLAIMABLE allocations quite considerably and they have a very
+> > different lifecycle which in itself is bad (spreads difficult to reclaim
+> > allocations wider than necessary).
 > 
-> From: Adam Litke <agl@us.ibm.com>
-> 
-> Allocating huge pages directly from the buddy allocator is not guaranteed
-> to succeed.  Success depends on several factors (such as the amount of
-> physical memory available and the level of fragmentation).  With the
-> addition of dynamic hugetlb pool resizing, allocations can occur much more
-> frequently.  For these reasons it is desirable to keep track of huge page
-> allocation successes and failures.
-> 
-> Add two new vmstat entries to track huge page allocations that succeed and
-> fail.  The presence of the two entries is contingent upon
-> CONFIG_HUGETLB_PAGE being enabled.
-> 
-> This patch was created against linux-2.6.25-rc5
-> 
-> Signed-off-by: Adam Litke <agl@us.ibm.com>
-> Signed-off-by: Eric Munson <ebmunson@us.ibm.com>
-> 
-> ---
-> 
->  include/linux/vmstat.h |    4 +++-
->  mm/hugetlb.c           |    7 +++++++
->  mm/vmstat.c            |    2 ++
->  3 files changed, 12 insertions(+), 1 deletions(-)
-> 
-> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-> index 9f1b4b4..70f6861 100644
-> --- a/include/linux/vmstat.h
-> +++ b/include/linux/vmstat.h
-> @@ -27,6 +27,8 @@
-> 
->  #define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) xx##_NORMAL HIGHMEM_ZONE(xx) , xx##_MOVABLE
-> 
-> +#define HTLB_STATS     HTLB_ALLOC_SUCCESS, HTLB_ALLOC_FAIL
-> +
+> I was finding this ever so hard to understand, but now think I was blocked
+> by the misapprehension that a filesystem would hold all the metadata pages
+> associated with an inode in core while that file was open.  That might be
+> true of some primitive filesystems, but could hardly be true of a grownup
+> filesystem. 
 
-Looking at where we are incrementing these, these are success and failures
-allocating pages from the buddy into the hugetlb pool.  From the names
-I had assumed they were success/failure allocating to userspace out of
-the pool.  As we might at some point want to count allocations on that side
-of the pool too, I think we should be very careful about the naming and in
-particular be explicit that these are buddy fill events you are counting.
+That is my current understanding.
 
-If I was adding events for the events from the consumer side of the huge
-page pool I would think prefixing the normal names with HTLB_ would make
-sense, so that would "consume" HTLB_PGALLOC, and HTLB_PGFREE.  As these
-are success and failures allocating from the buddy into the hugetlb pool
-perhaps they should contain buddy in their name.  HTLB_BUDDY_PGALLOC,
-and HTLB_BUDDY_PGALLOC_FAIL perhaps?
-
-While discussing what these stats meant I realised that I has started
-out assuming these would be stats for fill operators relating to the
-dynamic pool resize operations.  Clearly tracking success rates for that
-is helpful, as those operations occur "transparently" in the backgroud.
-I worry that including the normal fills for manual resizes might pollute
-those figures.  I wonder if what we really want is HTLB_DYNRESIZE_PGALLOC
-etc.
-
-Finally should these be conditionally compiled under CONFIG_HUGETLBFS or
-similar, the leader says it is, but I do not see anything making it so.
-There is precident in this file for useless entries being elided based on
-config options.  The NUMA options are only present when NUMA is enabled
-for example.
-
->  enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
-> 		FOR_ALL_ZONES(PGALLOC),
-> 		PGFREE, PGACTIVATE, PGDEACTIVATE,
-> @@ -36,7 +38,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
-> 		FOR_ALL_ZONES(PGSCAN_KSWAPD),
-> 		FOR_ALL_ZONES(PGSCAN_DIRECT),
-> 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
-> -		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-> +		PAGEOUTRUN, ALLOCSTALL, PGROTATED, HTLB_STATS,
-> 		NR_VM_EVENT_ITEMS
->  };
+> Though even so, I'd expect different kinds of metadata pages
+> to have significantly different lifecycles, and quite dependent on the
+> filesystem in question e.g. superblock pages are held in core? inodes?
 > 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index dcacc81..1507697 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -239,6 +239,11 @@ static int alloc_fresh_huge_page(void)
-> 		hugetlb_next_nid = next_nid;
-> 	} while (!page && hugetlb_next_nid != start_nid);
+
+This is probably true. To be right, every caller that enters this path should
+be updated separetly.
+
+> But you found that the majority are not, their counts merely raised while
+> being accessed by the filesystem, so made the decision to treat them all
+> as MOVABLE because most can be reclaimed from the pagecache in the same
+> way as pagecache pages, which needs significantly less effort than
+> RECLAIMing from slab. 
+
+Yes, this is correct. For some filesystems, the pages with buffers can
+also be migrated (ext2, ext3, ext4, gfs2, ntfs, ocfs2, xfs) but it's not
+universal.
+
+> Too bad about the obstacle to defragmentation
+> that the held ones would pose. 
+
+Yeah and I suspect if this is going to hit as a bug report, it will be
+related to memory hot-remove. At some point, I'll may have to bite
+the bullet and set this place to GFP_NOFS, distinguish between the
+different types of caller.
+
+> Okay (if I'm getting it right): you
+> have to choose one way or the other, you've chosen this way, fine.
+> And my argument by analogy with __GFP_HIGHMEM was just bogus.
 > 
-> +	if (ret)
-> +		count_vm_event(HTLB_ALLOC_SUCCESS);
-> +	else
-> +		count_vm_event(HTLB_ALLOC_FAIL);
-> +
-
-This is tracking the static pool changes.  So if we only wanted the
-dynamic ones this would not be needed.
-
-> 	return ret;
->  }
+> (I guess this is why you added GFP_HIGHUSER_PAGECACHE etc., which to
+> my mind just obfuscate things further, and intend a patch to remove.)
 > 
-> @@ -293,9 +298,11 @@ static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
-> 		 */
-> 		nr_huge_pages_node[nid]++;
-> 		surplus_huge_pages_node[nid]++;
-> +		count_vm_event(HTLB_ALLOC_SUCCESS);
-> 	} else {
-> 		nr_huge_pages--;
-> 		surplus_huge_pages--;
-> +		count_vm_event(HTLB_ALLOC_FAIL);
 
-These two here are inside a spinlock, and those disable preempt by
-definition.  So I believe you should use the __count_vm_event interfaces
-for these.
+Ironically, that was originally introduced to make things easier to
+read. 
 
-> 	}
-> 	spin_unlock(&hugetlb_lock);
+> Though, what prevents them from being genuinely MOVABLE while they're
+> not transiently in use by the filesystem? 
+
+Some of them are. The address_space will have a migratepage() helper if
+they are really movable.
+
+>And why does block_dev.c
+> set mapping gfp_mask to GFP_USER instead of (not yet defined)
+> GFP_USER_MOVABLE (ah, GFP_USER_PAGECACHE is defined, but unused)? 
 > 
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 422d960..045a8d7 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -644,6 +644,8 @@ static const char * const vmstat_text[] = {
-> 	"allocstall",
-> 
-> 	"pgrotated",
-> +	"htlb_alloc_success",
-> +	"htlb_alloc_fail",
->  #endif
->  };
 
--apw
+When I last checked, the blockdev address_space did not implement migratepage()
+so pages allocated on its behalf were not movable. I cannot recall if
+they ended up on the LRU where they could be reclaimed as normal or not.
+
+> > Similarly, leaving them GFP_NOFS would
+> > scatter allocations like page table pages wider than expected.
+> 
+> Yes, I accept we should do better than GFP_NOFS there: but I'm
+> now not seeing why it isn't just &~__GFP_FS, with block_dev.c
+> supplying the MOVABLE.
+> 
+
+I don't have a quick answer. I've added to the to-do list to revisit
+this and see can it be done better.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
