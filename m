@@ -1,61 +1,56 @@
+Message-ID: <47D8EC5A.20907@openvz.org>
+Date: Thu, 13 Mar 2008 11:56:58 +0300
+From: Pavel Emelyanov <xemul@openvz.org>
+MIME-Version: 1.0
 Subject: Re: [PATCH 2/2] Make res_counter hierarchical
-In-Reply-To: Your message of "Thu, 13 Mar 2008 08:05:41 +0900 (JST)"
-	<20080312230541.CB9021E703D@siro.lan>
-References: <20080312230541.CB9021E703D@siro.lan>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20080312233650.363181E705C@siro.lan>
-Date: Thu, 13 Mar 2008 08:36:50 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+References: <47D16004.7050204@openvz.org> <20080312230541.CB9021E703D@siro.lan>
+In-Reply-To: <20080312230541.CB9021E703D@siro.lan>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: xemul@openvz.org
-Cc: containers@lists.osdl.org, linux-mm@kvack.org, menage@google.com, balbir@linux.vnet.ibm.com
+To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+Cc: balbir@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, menage@google.com, containers@lists.osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > @@ -36,10 +37,26 @@ int res_counter_charge(struct res_counter *counter, unsigned long val)
-> >  {
-> >  	int ret;
-> >  	unsigned long flags;
-> > +	struct res_counter *c, *unroll_c;
-> > +
-> > +	local_irq_save(flags);
-> > +	for (c = counter; c != NULL; c = c->parent) {
-> > +		spin_lock(&c->lock);
-> > +		ret = res_counter_charge_locked(c, val);
-> > +		spin_unlock(&c->lock);
-> > +		if (ret < 0)
-> > +			goto unroll;
-> > +	}
-> > +	local_irq_restore(flags);
-> > +	return 0;
-> >  
-> > -	spin_lock_irqsave(&counter->lock, flags);
-> > -	ret = res_counter_charge_locked(counter, val);
-> > -	spin_unlock_irqrestore(&counter->lock, flags);
-> > +unroll:
-> > +	for (unroll_c = counter; unroll_c != c; unroll_c = unroll_c->parent) {
-> > +		spin_lock(&unroll_c->lock);
-> > +		res_counter_uncharge_locked(unroll_c, val);
-> > +		spin_unlock(&unroll_c->lock);
-> > +	}
-> > +	local_irq_restore(flags);
-> >  	return ret;
-> >  }
+YAMAMOTO Takashi wrote:
+>> @@ -36,10 +37,26 @@ int res_counter_charge(struct res_counter *counter, unsigned long val)
+>>  {
+>>  	int ret;
+>>  	unsigned long flags;
+>> +	struct res_counter *c, *unroll_c;
+>> +
+>> +	local_irq_save(flags);
+>> +	for (c = counter; c != NULL; c = c->parent) {
+>> +		spin_lock(&c->lock);
+>> +		ret = res_counter_charge_locked(c, val);
+>> +		spin_unlock(&c->lock);
+>> +		if (ret < 0)
+>> +			goto unroll;
+>> +	}
+>> +	local_irq_restore(flags);
+>> +	return 0;
+>>  
+>> -	spin_lock_irqsave(&counter->lock, flags);
+>> -	ret = res_counter_charge_locked(counter, val);
+>> -	spin_unlock_irqrestore(&counter->lock, flags);
+>> +unroll:
+>> +	for (unroll_c = counter; unroll_c != c; unroll_c = unroll_c->parent) {
+>> +		spin_lock(&unroll_c->lock);
+>> +		res_counter_uncharge_locked(unroll_c, val);
+>> +		spin_unlock(&unroll_c->lock);
+>> +	}
+>> +	local_irq_restore(flags);
+>>  	return ret;
+>>  }
 > 
 > what prevents the topology (in particular, ->parent pointers) from
 > changing behind us?
-> 
+
+The res_counter client must provide this. Currently cgroup subsystem does this.
+
 > YAMAMOTO Takashi
-
-to answer myself: cgroupfs rename doesn't allow topological changes
-in the first place.
-
-btw, i think you need to do the same for res_counter_limit_check_locked
-as well.  i'm skeptical about doing these complicated stuffs in kernel,
-esp. in this potentially performance critical code.
-
-YAMAMOTO Takashi
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
