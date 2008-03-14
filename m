@@ -1,77 +1,48 @@
-From: Neil Brown <neilb@suse.de>
-Date: Fri, 14 Mar 2008 16:22:27 +1100
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Fri, 14 Mar 2008 18:59:54 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 0/7] memcg: radix-tree page_cgroup
+Message-Id: <20080314185954.5cd51ff6.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-ID: <18394.2963.890847.4606@notabene.brown>
-Subject: Re: [PATCH 00/28] Swap over NFS -v16
-In-Reply-To: message from Peter Zijlstra on Monday March 10
-References: <20080220144610.548202000@chello.nl>
-	<20080223000620.7fee8ff8.akpm@linux-foundation.org>
-	<18371.43950.150842.429997@notabene.brown>
-	<1204023042.6242.271.camel@lappy>
-	<18372.64081.995262.986841@notabene.brown>
-	<1204099113.6242.353.camel@lappy>
-	<1837 <1204626509.6241.39.camel@lappy>
-	<18384.46967.583615.711455@notabene.brown>
-	<1204888675.8514.102.camel@twins>
-	<18388.50188.552322.780524@notabene.brown>
-	<1205140674.8514.152.camel@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Pekka Enberg <penberg@cs.helsinki.fi>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, xemul@openvz.org, "hugh@veritas.com" <hugh@veritas.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Monday March 10, a.p.zijlstra@chello.nl wrote:
-> > 
-> > Maybe that depends on the exact semantic of PG_emergency ??
-> > I remember you being concerned that PG_emergency never changes between
-> > allocation and freeing, and that wouldn't work well with slub.
-> > My envisioned semantic has it possibly changing quite often.
-> > What it means is:
-> >    The last allocation done from this page was in a low-memory
-> >    condition.
-> 
-> Yes, that works, except that we'd need to iterate all pages and clear
-> PG_emergency - which would imply tracking all these pages etc..
-> 
+This is a patch set for implemening page_cgroup under radix-tree.
+against 2.6.25-rc5-mm1.
 
-I don't see why you need to clear PG_emergency at all.
-If the semantic is:
+Before this patch, page and page_cgroup relationship is
 
-> >    The last allocation done from this page was in a low-memory
-> >    condition.
+    pfn <-> struct page <-> struct page_cgroup
+    lock for page_cgroup is in struct page.
 
-Then you only need to (potentially) modify it's value when you
-allocate it, or an element within it.
+After this patch, 
+    struct page <-> pfn <-> struct page_cgroup.
+    lock for page_cgroup is in struct page_cgroup itself.
 
-But if it doesn't fit well in the overall picture, then by all means
-get rid of it.
+Pros.
+   - we can remove an extra pointer in struct page.
+   - lock for page_cgroup is moved to page_cgroup inself from struct page.
+Cons.
+   - For avoiding too much access to radix-tree, some kind of workaround is
+     necessary. On this patch set, page_cgroup is managed by chunk of an order.
 
-> 
-> Hmm, right. But for that purpose the names swap_* are a tad misleading.
-> I remember hch mentioning this at some point. What would be a more
-> suitable naming scheme so we can both use it?
+I think this will hunk with patches which are already merged into -mm tree.
+So, if I got positive answers from people, I'd like to rebase this to the next
+-mm again in the next week.
 
-One could argue that "swap" is already a misleading term.
-Level 7 Unix used to do swapping.  It would write one process image
-out to swap space, and read a different one in.  Moving whole
-processes at a time was called swapping.
-When this clever idea of only moving pages at a time was introduced (I
-think in 4BSD, but possible in 2BSD and elsewhere) it was called
-"demand paging" or just "paging".
+Changes from previous (preview) version.
+ - page migration algorithm is changed. (thanks to Chrisotph)
+ - freeing routine is added.
 
-So we don't have a swap partition any more.  We have a paging
-partition.
+I did tested on ia64/NUMA box. My x86_64 box is busy....
+I'm glad if someone test this in his own box.
 
-But everyone calls it 'swap' and we know what it means.  I don't think
-there would be a big cost in keeping the swap_ names but allowing them
-to be used for occasional things other than swap.
-And I suspect you would lose a lot if you tried to use a different
-name that people didn't immediately identify with...
-
-NeilBrown
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
