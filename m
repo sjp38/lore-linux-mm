@@ -1,177 +1,51 @@
-Date: Fri, 14 Mar 2008 19:22:53 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 7/7] memcg: freeing page_cgroup at suitable chance
-Message-Id: <20080314192253.edb38762.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080314185954.5cd51ff6.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080314185954.5cd51ff6.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 14 Mar 2008 11:16:09 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH] Move memory controller allocations to their own slabs
+ (v3)
+In-Reply-To: <20080314115645.e78b7f5c.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0803141100110.19587@blonde.site>
+References: <20080313140307.20133.30405.sendpatchset@localhost.localdomain>
+ <20080314115645.e78b7f5c.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, xemul@openvz.org, "hugh@veritas.com" <hugh@veritas.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch is for freeing page_cgroup if a chunk of pages are freed.
+On Fri, 14 Mar 2008, KAMEZAWA Hiroyuki wrote:
+> At first, in my understanding,
+> - MOVABLE is for migratable pages. (so, not for kernel objects.)
+> - RECLAIMABLE is for reclaimable kernel objects. (for slab etc..)
+> 
+> All reclaimable objects are not necessary to be always reclaimable but
+> some amount of RECLAIMABLE objects (not all) should be recraimable easily.
+> For example, some of dentry-cache, inode-cache is reclaimable because *unused*
+> objects are cached.
+> 
+> When it comes to page_cgroup, *all* objects has dependency to pages which are
+> assigned to.  And user pages are reclaimable.
+> There is a similar object....the radix tree. radix-tree's node is allocated as
+> RECLAIMABLE object.
+> 
+> So I think it makes sense to changing page_cgroup to be reclaimable.
+> 
+> But final decision should be done by how fragmentation avoidance works.
+> It's good to test "how many hugepages can be allocated dynamically" when we
+> make page_cgroup to be GFP_RECAIMABLE 
 
-How this works 
- * when the order of free page reaches PCGRP_SHRINK_ORDER, pcgrp is freed.
-   This will be done by RCU.
+I agree with you on all points.  No need for it to be done in the same
+patch as Balbir's, but yes, __GFP_RECLAIMABLE appears to be appropriate
+for the page_cgroup kmem_cache.
 
-I think this works well because
-   - unnecessary freeing will not occur in busy servers.
-   - page_cgroup will be removed at necessary point (allocating Hugepage,etc..)
-   - If tons of pages are freed (ex. big file is removed), page_cgroup will
-     be removed.
+(I think it's a better fit than for the radix_tree_node cache: though
+the common pagecache usage of the radix_tree implies that its nodes
+are reclaimable, I can't see why radix_tree nodes would intrinsically
+be reclaimable.  If a significant non-reclaimable user of radix-tree
+comes on the scene, I'd expect us to change that assumption.)
 
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsuc.com>
-
-
- include/linux/page_cgroup.h |   15 +++++++++++-
- mm/page_alloc.c             |    3 ++
- mm/page_cgroup.c            |   54 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 71 insertions(+), 1 deletion(-)
-
-Index: mm-2.6.25-rc5-mm1/include/linux/page_cgroup.h
-===================================================================
---- mm-2.6.25-rc5-mm1.orig/include/linux/page_cgroup.h
-+++ mm-2.6.25-rc5-mm1/include/linux/page_cgroup.h
-@@ -39,6 +39,12 @@ DECLARE_PER_CPU(struct page_cgroup_cache
- #define PCGRP_SHIFT	(CONFIG_CGROUP_PAGE_CGROUP_ORDER)
- #define PCGRP_SIZE	(1 << PCGRP_SHIFT)
- 
-+#if PCGRP_SHIFT + 3 >= MAX_ORDER
-+#define PCGRP_SHRINK_ORDER	(MAX_ORDER - 1)
-+#else
-+#define PCGRP_SHRINK_ORDER	(PCGRP_SHIFT + 3)
-+#endif
-+
- /*
-  * Lookup and return page_cgroup struct.
-  * returns NULL when
-@@ -70,12 +76,19 @@ get_page_cgroup(struct page *page, gfp_t
- 	return (ret)? ret : __get_page_cgroup(page, gfpmask, allocate);
- }
- 
-+void try_to_shrink_page_cgroup(struct page *page, int order);
-+
- #else
- 
--static struct page_cgroup *
-+static inline struct page_cgroup *
- get_page_cgroup(struct page *page, gfp_t gfpmask, bool allocate)
- {
- 	return NULL;
- }
-+static inline void try_to_shrink_page_cgroup(struct page *page, int order)
-+{
-+	return;
-+}
-+#define PCGRP_SHRINK_ORDER	(MAX_ORDER)
- #endif
- #endif
-Index: mm-2.6.25-rc5-mm1/mm/page_cgroup.c
-===================================================================
---- mm-2.6.25-rc5-mm1.orig/mm/page_cgroup.c
-+++ mm-2.6.25-rc5-mm1/mm/page_cgroup.c
-@@ -12,6 +12,7 @@
-  */
- 
- #include <linux/mm.h>
-+#include <linux/mmzone.h>
- #include <linux/slab.h>
- #include <linux/radix-tree.h>
- #include <linux/memcontrol.h>
-@@ -80,6 +81,7 @@ static void save_result(struct page_cgro
- 	pcp = &__get_cpu_var(pcpu_page_cgroup_cache);
- 	pcp->ents[hash].idx = idx;
- 	pcp->ents[hash].base = base;
-+	smp_wmb();
- 	preempt_enable();
- }
- 
-@@ -156,6 +158,58 @@ out:
- 	return pc;
- }
- 
-+/* Must be called under zone->lock */
-+void try_to_shrink_page_cgroup(struct page *page, int order)
-+{
-+	unsigned long pfn = page_to_pfn(page);
-+	int nid = page_to_nid(page);
-+	int idx = pfn >> PCGRP_SHIFT;
-+	int hnum = (PAGE_CGROUP_NR_CACHE - 1);
-+	struct page_cgroup_cache *pcp;
-+	struct page_cgroup_head *head;
-+	struct page_cgroup_root *root;
-+	unsigned long end_pfn;
-+	int cpu;
-+
-+
-+	root = root_dir[nid];
-+	if (!root || in_interrupt() || (order < PCGRP_SHIFT))
-+		return;
-+
-+	pfn = page_to_pfn(page);
-+	end_pfn = pfn + (1 << order);
-+
-+	while (pfn != end_pfn) {
-+		idx = pfn >> PCGRP_SHIFT;
-+		/* Is this pfn has entry ? */
-+		rcu_read_lock();
-+		head = radix_tree_lookup(&root->root_node, idx);
-+		rcu_read_unlock();
-+		if (!head) {
-+			pfn += (1 << PCGRP_SHIFT);
-+			continue;
-+		}
-+		/* It's guaranteed that no one access to this pfn/idx
-+		   because there is no reference to this page. */
-+		hnum = (idx) & (PAGE_CGROUP_NR_CACHE - 1);
-+		for_each_online_cpu(cpu) {
-+			pcp = &per_cpu(pcpu_page_cgroup_cache, cpu);
-+			smp_rmb();
-+			if (pcp->ents[hnum].idx == idx)
-+				pcp->ents[hnum].base = NULL;
-+		}
-+		if (spin_trylock(&root->tree_lock)) {
-+			/* radix tree is freed by RCU. so they will not call
-+			   free_pages() right now.*/
-+			radix_tree_delete(&root->root_node, idx);
-+			spin_unlock(&root->tree_lock);
-+			/* We can free this in lazy fashion .*/
-+			free_page_cgroup(head);
-+		}
-+		pfn += (1 << PCGRP_SHIFT);
-+	}
-+}
-+
- __init int page_cgroup_init(void)
- {
- 	int nid;
-Index: mm-2.6.25-rc5-mm1/mm/page_alloc.c
-===================================================================
---- mm-2.6.25-rc5-mm1.orig/mm/page_alloc.c
-+++ mm-2.6.25-rc5-mm1/mm/page_alloc.c
-@@ -45,6 +45,7 @@
- #include <linux/fault-inject.h>
- #include <linux/page-isolation.h>
- #include <linux/memcontrol.h>
-+#include <linux/page_cgroup.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-@@ -463,6 +464,8 @@ static inline void __free_one_page(struc
- 		order++;
- 	}
- 	set_page_order(page, order);
-+	if (order >= PCGRP_SHRINK_ORDER)
-+		try_to_shrink_page_cgroup(page, order);
- 	list_add(&page->lru,
- 		&zone->free_area[order].free_list[migratetype]);
- 	zone->free_area[order].nr_free++;
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
