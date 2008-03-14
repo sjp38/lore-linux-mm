@@ -1,9 +1,9 @@
-Date: Fri, 14 Mar 2008 23:41:59 +0900
+Date: Fri, 14 Mar 2008 23:44:35 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [PATCH 2/3 (RFC)](memory hotplug) free pages allocated by bootmem for hotremove
+Subject: [PATCH 3/3 (RFC)](memory hotplug) align maps for easy removing
 In-Reply-To: <20080314231112.20D7.E1E9C6FF@jp.fujitsu.com>
 References: <20080314231112.20D7.E1E9C6FF@jp.fujitsu.com>
-Message-Id: <20080314233901.20DB.E1E9C6FF@jp.fujitsu.com>
+Message-Id: <20080314234205.20DD.E1E9C6FF@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -13,124 +13,73 @@ To: Badari Pulavarty <pbadari@us.ibm.com>
 Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Yinghai Lu <yhlu.kernel@gmail.com>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-This patch is to free memmap and usemap by using registered information.
+To free memmap and usemap easier, this patch aligns these maps to page size.
+
+I know usemap size is too small to align page size.
+It will be waste of area. So, there may be better way than this.
+
+Followings are pros. and cons with other my ideas.
+But I'm not sure which is better way. 
+
+a) Packing many section's usemap on one page. Count how many sections use
+   it in page_count.
+  Pros.
+    - Avoid waisting area.
+  Cons.
+    - This usemap's page will be hard(or impossible) to remove due to
+      dependency.
+      It should be allocated on un-movable zone/node.
+      (I'm not sure it's impact of performance.)
+    - Nodes' structures may have to be packed like usemap???
+
+b) Pack memmap and usemap in one allocation.
+  Pros.
+    - May avoid wasting area if its size is suitable.
+  Cons.
+    - If size is not suitable, it will be same as this patch.
+    - This way is not good for VMEMMAP_SPARSEMEM.
+      At least, it is reverse way against Yinghai-san's fix.
+
+c) This way.
+  Pros.
+    - Very easy to remove.
+  Cons.
+    - Waist of area.
+
+Any other idea is welcome.
+
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
 ---
- mm/internal.h   |    3 +--
- mm/page_alloc.c |    2 +-
- mm/sparse.c     |   47 +++++++++++++++++++++++++++++++++++++++++------
- 3 files changed, 43 insertions(+), 9 deletions(-)
+ mm/sparse.c |    7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
 Index: current/mm/sparse.c
 ===================================================================
---- current.orig/mm/sparse.c	2008-03-10 22:24:46.000000000 +0900
-+++ current/mm/sparse.c	2008-03-10 22:31:03.000000000 +0900
-@@ -8,6 +8,7 @@
- #include <linux/module.h>
- #include <linux/spinlock.h>
- #include <linux/vmalloc.h>
-+#include "internal.h"
- #include <asm/dma.h>
- #include <asm/pgalloc.h>
- #include <asm/pgtable.h>
-@@ -361,28 +362,62 @@
- 		free_pages((unsigned long)memmap,
- 			   get_order(sizeof(struct page) * nr_pages));
+--- current.orig/mm/sparse.c	2008-03-11 20:15:41.000000000 +0900
++++ current/mm/sparse.c	2008-03-11 20:58:18.000000000 +0900
+@@ -244,7 +244,8 @@
+ 	struct mem_section *ms = __nr_to_section(pnum);
+ 	int nid = sparse_early_nid(ms);
+ 
+-	usemap = alloc_bootmem_node(NODE_DATA(nid), usemap_size());
++	usemap = alloc_bootmem_pages_node(NODE_DATA(nid),
++					  PAGE_ALIGN(usemap_size()));
+ 	if (usemap)
+ 		return usemap;
+ 
+@@ -264,8 +265,8 @@
+ 	if (map)
+ 		return map;
+ 
+-	map = alloc_bootmem_node(NODE_DATA(nid),
+-			sizeof(struct page) * PAGES_PER_SECTION);
++	map = alloc_bootmem_pages_node(NODE_DATA(nid),
++		       PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION));
+ 	return map;
  }
-+
-+static void free_maps_by_bootmem(struct page *map, unsigned long nr_pages)
-+{
-+	unsigned long maps_section_nr, removing_section_nr, i;
-+	struct page *page = map;
-+
-+	for (i = 0; i < nr_pages; i++, page++) {
-+		maps_section_nr = pfn_to_section_nr(page_to_pfn(page));
-+		removing_section_nr = page->private;
-+
-+		/*
-+		 * If removing section's memmap is placed on other section,
-+		 * it must be free.
-+		 * Else, nothing is necessary. the memmap is already isolated
-+		 * against page allocator, and it is not used any more.
-+		 */
-+		if (maps_section_nr != removing_section_nr) {
-+			clear_page_bootmem_info(page);
-+			__free_pages_bootmem(page, 0);
-+		}
-+	}
-+}
- #endif /* CONFIG_SPARSEMEM_VMEMMAP */
- 
- static void free_section_usemap(struct page *memmap, unsigned long *usemap)
- {
-+	struct page *usemap_page;
-+	unsigned long nr_pages;
-+
- 	if (!usemap)
- 		return;
- 
-+	usemap_page = virt_to_page(usemap);
- 	/*
- 	 * Check to see if allocation came from hot-plug-add
- 	 */
--	if (PageSlab(virt_to_page(usemap))) {
-+	if (PageSlab(usemap_page)) {
- 		kfree(usemap);
- 		if (memmap)
- 			__kfree_section_memmap(memmap, PAGES_PER_SECTION);
- 		return;
- 	}
- 
--	/*
--	 * TODO: Allocations came from bootmem - how do I free up ?
--	 */
--	printk(KERN_WARNING "Not freeing up allocations from bootmem "
--			"- leaking memory\n");
-+	/* free maps came from bootmem */
-+	nr_pages = PAGE_ALIGN(usemap_size()) >> PAGE_SHIFT;
-+	free_maps_by_bootmem(usemap_page, nr_pages);
-+
-+	if (memmap) {
-+		struct page *memmap_page;
-+		memmap_page = virt_to_page(memmap);
-+
-+		nr_pages = PAGE_ALIGN(PAGES_PER_SECTION * sizeof(struct page))
-+			>> PAGE_SHIFT;
-+
-+		free_maps_by_bootmem(memmap_page, nr_pages);
-+	}
- }
- 
- /*
-Index: current/mm/page_alloc.c
-===================================================================
---- current.orig/mm/page_alloc.c	2008-03-10 22:24:46.000000000 +0900
-+++ current/mm/page_alloc.c	2008-03-10 22:29:20.000000000 +0900
-@@ -564,7 +564,7 @@
- /*
-  * permit the bootmem allocator to evade page validation on high-order frees
-  */
--void __init __free_pages_bootmem(struct page *page, unsigned int order)
-+void __free_pages_bootmem(struct page *page, unsigned int order)
- {
- 	if (order == 0) {
- 		__ClearPageReserved(page);
-Index: current/mm/internal.h
-===================================================================
---- current.orig/mm/internal.h	2008-03-10 22:24:46.000000000 +0900
-+++ current/mm/internal.h	2008-03-10 22:29:20.000000000 +0900
-@@ -34,8 +34,7 @@
- 	atomic_dec(&page->_count);
- }
- 
--extern void __init __free_pages_bootmem(struct page *page,
--						unsigned int order);
-+extern void __free_pages_bootmem(struct page *page, unsigned int order);
- 
- /*
-  * function for dealing with page's order in buddy system.
+ #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
 
 -- 
 Yasunori Goto 
