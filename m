@@ -1,60 +1,79 @@
-Date: Fri, 14 Mar 2008 11:47:06 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: grow_dev_page's __GFP_MOVABLE
-Message-ID: <20080314114705.GA18381@csn.ul.ie>
-References: <Pine.LNX.4.64.0803112116380.18085@blonde.site> <20080312140831.GD6072@csn.ul.ie> <Pine.LNX.4.64.0803121740170.32508@blonde.site> <20080313120755.GC12351@csn.ul.ie> <1205420758.19403.6.camel@dyn9047017100.beaverton.ibm.com> <20080313154428.GD12351@csn.ul.ie> <1205455806.19403.47.camel@dyn9047017100.beaverton.ibm.com>
+Date: Fri, 14 Mar 2008 23:36:11 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [PATCH 0/3 (RFC)](memory hotplug) freeing pages allocated by bootmem for hotremove
+Message-Id: <20080314231112.20D7.E1E9C6FF@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1205455806.19403.47.camel@dyn9047017100.beaverton.ibm.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@gmail.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Yinghai Lu <yhlu.kernel@gmail.com>, Andrew Morton <akpm@osdl.org>, Yasunori Goto <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On (13/03/08 16:50), Badari Pulavarty didst pronounce:
-> > > <SNIP>
-> > > page_owner shows:
-> > > 
-> > > Page allocated via order 0, mask 0x120050
-> > > PFN 30625 Block 7 type 2          Flags      L
-> > 
-> > This page is indicated as being on the LRU so it should have been possible
-> > to reclaim. Is memory hot-remove making any effort to reclaim this page or
-> > is it depending only on page migration?
-> 
-> offline_pages() finds all the pages on LRU and tries to migrate them by
-> calling unmap_and_move(). I don't see any explicit attempt to reclaim.
-> It tries to migrate the page (move_to_new_page()), but what I have seen
-> in the past is that these pages have buffer heads attached to them. 
-> So, migrate_page_move_mapping() fails to release the page. (BTW,
-> I narrowed this in Oct 2007 and forgot most of the details). I can
-> take a closer look again. Can we reclaim these pages easily ?
-> 
+Hello.
 
-They should be, or huge page allocations using lumpy reclaim would also
-be failing all the time.
+I would like to post patch set to free pages which is allocated by bootmem
+for memory-hotremove.
 
-> > 
-> > > [0xc0000000000c511c] .alloc_pages_current+208
-> > > [0xc0000000001049d8] .__find_get_block_slow+88
-> > > [0xc0000000004f0bbc] .__wait_on_bit+232
-> > > [0xc0000000000994ec] .__page_cache_alloc+24
-> > > [0xc000000000104fd8] .__find_get_block+272
-> > > [0xc00000000009a124] .find_or_create_page+76
-> > > [0xc0000000001063fc] .unlock_buffer+48
-> > > [0xc000000000105280] .__getblk+312
-> > > 
-> 
-> Thanks,
-> Badari
-> 
+Basic my idea is using remain members of struct page to remember
+information of users of bootmem (section number or node id).
+When the section is removing, kernel can confirm it.
+By this information, some issues can be solved.
+
+  1) When the memmap of removing section is allocated on other
+     section by bootmem, it should/can be free. 
+  2) When the memmap of removing section is allocated on the
+     same section, it shouldn't be freed. Because the section has to be
+     offlined already and all pages must be isolated against
+     page allocater. Kernel keeps it as is.
+  3) When removing section has other section's memmap, 
+     kernel will be able to show easily which section should be removed
+     before it for user. (Not implemented yet)
+  4) When the above case 2), the page migrator will be able to check and skip
+     memmap againt page isolation when page offline.
+     Current page migration fails in this case because this page is 
+     just reserved page and it can't distinguish this pages can be
+     removed or not. But, it will be able to do by this patch.
+     (Not implemented yet.)
+  5) The node information like pgdat has similar issues. But, this
+     will be able to be solved too by this.
+     (Not implemented yet, but, remembering node id in the pages.)
+
+Fortunately, current bootmem allocator just keeps PageReserved flags,
+and doesn't use any other members of page struct. The users of
+bootmem doesn't use them too.
+
+This patch set needs Badari-san's generic __remove_pages() support patch.
+http://linux.derkeiler.com/Mailing-Lists/Kernel/2008-03/msg02881.html
+
+I think this patch set is not perfect. Because, some of section/node
+informations are smaller than one page, and bootmem allocator may
+mix other data. This patch is still trial.
+But I suppose this is good start for everyone to understand what is necessary.
+
+Please comments.
+
+Other Todo:
+  - for SPARSEMEM_VMEMMAP.
+    Freeing vmemmap's page is more diffcult than normal sparsemem.
+    Because not only memmap's page, but also the pages like page table must
+    be removed too. If removing section has pages for , then it must
+    be migrated too. Relocatable page table is necessary.
+    
+  - compile with other config.
+    This version is just for requesting comments.
+    If this way is accepted, I'll check it.
+  - Follow fix bootmem by Yinghai Lu-san.
+    (This patch set is for 2.6.25-rc3-mm1 with Badari-san's patch yet.)
+
+Thanks.
+
+
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
