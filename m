@@ -1,77 +1,61 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m2EHpVnK027322
-	for <linux-mm@kvack.org>; Fri, 14 Mar 2008 13:51:31 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2EHqWSZ220678
-	for <linux-mm@kvack.org>; Fri, 14 Mar 2008 11:52:32 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2EHqVNc017724
-	for <linux-mm@kvack.org>; Fri, 14 Mar 2008 11:52:32 -0600
-Subject: Re: grow_dev_page's __GFP_MOVABLE
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <1205510734.19403.53.camel@dyn9047017100.beaverton.ibm.com>
-References: <Pine.LNX.4.64.0803112116380.18085@blonde.site>
-	 <20080312140831.GD6072@csn.ul.ie>
-	 <Pine.LNX.4.64.0803121740170.32508@blonde.site>
-	 <20080313120755.GC12351@csn.ul.ie>
-	 <1205420758.19403.6.camel@dyn9047017100.beaverton.ibm.com>
-	 <20080313154428.GD12351@csn.ul.ie>
-	 <1205455806.19403.47.camel@dyn9047017100.beaverton.ibm.com>
-	 <20080314114705.GA18381@csn.ul.ie>
-	 <1205510734.19403.53.camel@dyn9047017100.beaverton.ibm.com>
-Content-Type: text/plain
-Date: Fri, 14 Mar 2008 10:52:45 -0800
-Message-Id: <1205520765.19403.59.camel@dyn9047017100.beaverton.ibm.com>
-Mime-Version: 1.0
+Date: Sat, 15 Mar 2008 13:12:21 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [PATCH 3/3 (RFC)](memory hotplug) align maps for easy removing
+In-Reply-To: <86802c440803140926n2ec2bd2fscf0f3e9a6e2e4d2e@mail.gmail.com>
+References: <20080314234205.20DD.E1E9C6FF@jp.fujitsu.com> <86802c440803140926n2ec2bd2fscf0f3e9a6e2e4d2e@mail.gmail.com>
+Message-Id: <20080315121118.E4BC.E1E9C6FF@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Yinghai Lu <yhlu.kernel@gmail.com>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-03-14 at 08:05 -0800, Badari Pulavarty wrote:
-> On Fri, 2008-03-14 at 11:47 +0000, Mel Gorman wrote:
-> > On (13/03/08 16:50), Badari Pulavarty didst pronounce:
-> > > > > <SNIP>
-> > > > > page_owner shows:
-> > > > > 
-> > > > > Page allocated via order 0, mask 0x120050
-> > > > > PFN 30625 Block 7 type 2          Flags      L
-> > > > 
-> > > > This page is indicated as being on the LRU so it should have been possible
-> > > > to reclaim. Is memory hot-remove making any effort to reclaim this page or
-> > > > is it depending only on page migration?
-> > > 
-> > > offline_pages() finds all the pages on LRU and tries to migrate them by
-> > > calling unmap_and_move(). I don't see any explicit attempt to reclaim.
-> > > It tries to migrate the page (move_to_new_page()), but what I have seen
-> > > in the past is that these pages have buffer heads attached to them. 
-> > > So, migrate_page_move_mapping() fails to release the page. (BTW,
-> > > I narrowed this in Oct 2007 and forgot most of the details). I can
-> > > take a closer look again. Can we reclaim these pages easily ?
-> > > 
-> > 
-> > They should be, or huge page allocations using lumpy reclaim would also
-> > be failing all the time.
+> >  Index: current/mm/sparse.c
+> >  ===================================================================
+> >  --- current.orig/mm/sparse.c    2008-03-11 20:15:41.000000000 +0900
+> >  +++ current/mm/sparse.c 2008-03-11 20:58:18.000000000 +0900
+> >  @@ -244,7 +244,8 @@
+> >         struct mem_section *ms = __nr_to_section(pnum);
+> >         int nid = sparse_early_nid(ms);
+> >
+> >  -       usemap = alloc_bootmem_node(NODE_DATA(nid), usemap_size());
+> >  +       usemap = alloc_bootmem_pages_node(NODE_DATA(nid),
+> >  +                                         PAGE_ALIGN(usemap_size()));
 > 
-> Hi Mel,
+> if we allocate usemap continuously,
+> old way could make different usermap share one page. usermap size is
+> only about 24bytes. align to 128bytes ( the SMP cache lines)
 > 
-> These pages are on LRU and clean. In order to reclaim these pages
-> (looking at pageout()), all we need to do is try_to_release_page().
-> fallback_migrate_page() does this but fails to free it up. What
-> else I can do here to force reclaim these ?
-
-In other words, caller has a ref on the buffer_head by calling
-getblk(). So, try_to_release_page() would fail since buffer_busy().
-These buffers could be holding meta-data (super block, bitmaps etc.)
-for a file system. Till fs gets rid of the ref, there is nothing
-much we can do. Isn't it ?
+> sparse_early_usemap_alloc: usemap = ffff810024e00000 size = 24
+> sparse_early_usemap_alloc: usemap = ffff810024e00080 size = 24
+> sparse_early_usemap_alloc: usemap = ffff810024e00100 size = 24
+> sparse_early_usemap_alloc: usemap = ffff810024e00180 size = 24
 
 
+Yes, they can share one page. 
 
-Thanks,
-Badari
+I was afraid its page will be hard to remove yesterday.
+If all sections' usemaps are allocated on section A,
+the other sections (from B to Z) must be removed before section A.
+If only one of them are busy, section A can't be removed.
+So, I disliked its dependency.
+
+But, I reconsidered it after reading your mail.
+The node structures like pgdat has same feature.
+If a section has pgdat for the node, it must wait for other section's
+removing on the node. So, I'll try to keep same section about pgdat
+and shared usemap page.
+
+Anyway, thanks for your comments. 
+
+Bye.
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
