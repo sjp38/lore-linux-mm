@@ -1,83 +1,38 @@
-Date: Sun, 16 Mar 2008 11:32:00 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: [RFC][3/3] Update documentation for virtual address space
- control
-Message-Id: <20080316113200.cc6da618.randy.dunlap@oracle.com>
-In-Reply-To: <20080316173017.8812.41614.sendpatchset@localhost.localdomain>
-References: <20080316172942.8812.56051.sendpatchset@localhost.localdomain>
-	<20080316173017.8812.41614.sendpatchset@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from zps76.corp.google.com (zps76.corp.google.com [172.25.146.76])
+	by smtp-out.google.com with ESMTP id m2GNQOUC002665
+	for <linux-mm@kvack.org>; Sun, 16 Mar 2008 23:26:25 GMT
+Received: from wx-out-0506.google.com (wxdh26.prod.google.com [10.70.134.26])
+	by zps76.corp.google.com with ESMTP id m2GNQN57019660
+	for <linux-mm@kvack.org>; Sun, 16 Mar 2008 16:26:23 -0700
+Received: by wx-out-0506.google.com with SMTP id h26so5621490wxd.22
+        for <linux-mm@kvack.org>; Sun, 16 Mar 2008 16:26:23 -0700 (PDT)
+Message-ID: <6599ad830803161626q1fcf261bta52933bb5e7a6bdd@mail.gmail.com>
+Date: Mon, 17 Mar 2008 07:26:22 +0800
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [RFC][0/3] Virtual address space control for cgroups
+In-Reply-To: <20080316172942.8812.56051.sendpatchset@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080316172942.8812.56051.sendpatchset@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 16 Mar 2008 23:00:17 +0530 Balbir Singh wrote:
+On Mon, Mar 17, 2008 at 1:29 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> This is an early patchset for virtual address space control for cgroups.
+>  The patches are against 2.6.25-rc5-mm1 and have been tested on top of
+>  User Mode Linux.
 
-> This patch adds documentation for virtual address space control.
-> 
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
-> 
->  Documentation/controllers/memory.txt |   26 +++++++++++++++++++++++++-
->  1 file changed, 25 insertions(+), 1 deletion(-)
-> 
-> diff -puN Documentation/controllers/memory.txt~memory-controller-virtual-address-control-documentation Documentation/controllers/memory.txt
-> --- linux-2.6.25-rc5/Documentation/controllers/memory.txt~memory-controller-virtual-address-control-documentation	2008-03-16 22:57:44.000000000 +0530
-> +++ linux-2.6.25-rc5-balbir/Documentation/controllers/memory.txt	2008-03-16 22:57:44.000000000 +0530
-> @@ -237,7 +237,31 @@ cgroup might have some charge associated
->  tasks have migrated away from it. Such charges are automatically dropped at
->  rmdir() if there are no tasks.
->  
-> -5. TODO
-> +5. Virtual address space accounting
-> +
-> +A new resource counter controls the address space expansion of the tasks in
-> +the cgroup. Address space control is provided along the same lines as
-> +RLIMIT_AS control, which is available via getrlimit(2)/setrlimit(2).
-> +The interface for controlling address space is provided through
-> +"as_limit_in_bytes". The file is similar to "limit_in_bytes" w.r.t the user
+What's the performance hit of doing these accounting checks on every
+mmap/munmap? If it's not totally lost in the noise, couldn't it be
+made a separate control group, so that it could be just enabled (and
+the performance hit taken) for users that actually want it?
 
-                                                                w.r.t.
-  or even spelled out.
-
-> +interface. Please see section 3 for more details on how to use the user
-> +interface to get and set values.
-> +
-> +The "as_usage_in_bytes" file provides information about the total address
-> +space usage of the cgroup in bytes.
-> +
-> +5.1 Advantages of providing this feature
-> +
-> +1. Control over virtual address space allows for a cgroup to fail gracefully
-> +   i.e, via a malloc or mmap failure as compared to OOM kill when no
-
-      i.e.,
-
-> +   pages can be reclaimed
-
-end with period.
-
-> +2. It provides better control over how many pages can be swapped out when
-> +   the cgroup goes over it's limit. A badly setup cgroup can cause excessive
-
-                           its (not "it is")
-
-> +   swapping. Providing control over the address space allocations ensures
-> +   that the system administrator has control over the total swapping that
-> +   can take place.
-> +
-> +6. TODO
->  
->  1. Add support for accounting huge pages (as a separate controller)
->  2. Make per-cgroup scanner reclaim not-shared pages first
-> _
-
----
-~Randy
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
