@@ -1,65 +1,72 @@
-Received: by wf-out-1314.google.com with SMTP id 25so5641199wfc.11
-        for <linux-mm@kvack.org>; Sun, 16 Mar 2008 19:19:46 -0700 (PDT)
-Message-ID: <86802c440803161919h20ed9f78k6e3798ef56668638@mail.gmail.com>
-Date: Sun, 16 Mar 2008 19:19:45 -0700
-From: "Yinghai Lu" <yhlu.kernel@gmail.com>
-Subject: Re: [PATCH] [11/18] Fix alignment bug in bootmem allocator
-In-Reply-To: <20080317015825.0C0171B41E0@basil.firstfloor.org>
+Message-ID: <47DDD6E6.8010306@cn.fujitsu.com>
+Date: Mon, 17 Mar 2008 11:26:46 +0900
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 2/7] charge/uncharge
+References: <20080314185954.5cd51ff6.kamezawa.hiroyu@jp.fujitsu.com> <20080314190622.0e147b43.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080314190622.0e147b43.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080317258.659191058@firstfloor.org>
-	 <20080317015825.0C0171B41E0@basil.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, xemul@openvz.org, "hugh@veritas.com" <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Mar 16, 2008 at 6:58 PM, Andi Kleen <andi@firstfloor.org> wrote:
->
->  Without this fix bootmem can return unaligned addresses when the start of a
->  node is not aligned to the align value. Needed for reliably allocating
->  gigabyte pages.
->  Signed-off-by: Andi Kleen <ak@suse.de>
->
->  ---
->   mm/bootmem.c |    4 +++-
->   1 file changed, 3 insertions(+), 1 deletion(-)
->
->  Index: linux/mm/bootmem.c
->  ===================================================================
->  --- linux.orig/mm/bootmem.c
->  +++ linux/mm/bootmem.c
->  @@ -197,6 +197,7 @@ __alloc_bootmem_core(struct bootmem_data
->   {
->         unsigned long offset, remaining_size, areasize, preferred;
->         unsigned long i, start = 0, incr, eidx, end_pfn;
->  +       unsigned long pfn;
->         void *ret;
->
->         if (!size) {
->  @@ -239,12 +240,13 @@ __alloc_bootmem_core(struct bootmem_data
->         preferred = PFN_DOWN(ALIGN(preferred, align)) + offset;
->         areasize = (size + PAGE_SIZE-1) / PAGE_SIZE;
->         incr = align >> PAGE_SHIFT ? : 1;
->  +       pfn = PFN_DOWN(bdata->node_boot_start);
->
->   restart_scan:
->         for (i = preferred; i < eidx; i += incr) {
->                 unsigned long j;
->                 i = find_next_zero_bit(bdata->node_bootmem_map, eidx, i);
->  -               i = ALIGN(i, incr);
->  +               i = ALIGN(pfn + i, incr) - pfn;
->                 if (i >= eidx)
->                         break;
->                 if (test_bit(i, bdata->node_bootmem_map))
->  --
+KAMEZAWA Hiroyuki wrote:
+> Because bit spin lock is removed and spinlock is added to page_cgroup.
+> There are some amount of changes.
+> 
+> This patch does
+> 	- modify charge/uncharge to adjust it to the new lock.
+> 	- Added simple lock rule comments.
+> 
+> Major changes from current(-mm) version is
+> 	- pc->refcnt is set as "1" after the charge is done.
+> 
+> Changelog
+>   - Rebased to rc5-mm1
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> 
+>  mm/memcontrol.c |  136 +++++++++++++++++++++++++-------------------------------
+>  1 file changed, 62 insertions(+), 74 deletions(-)
+> 
+> Index: mm-2.6.25-rc5-mm1/mm/memcontrol.c
+> ===================================================================
+> --- mm-2.6.25-rc5-mm1.orig/mm/memcontrol.c
+> +++ mm-2.6.25-rc5-mm1/mm/memcontrol.c
+> @@ -34,6 +34,16 @@
+>  
+>  #include <asm/uaccess.h>
+>  
+> +/*
+> + * Lock Rule
+> + * zone->lru_lcok (global LRU)
+> + *	-> pc->lock (page_cgroup's lock)
+> + *		-> mz->lru_lock (mem_cgroup's per_zone lock.)
+> + *
+> + * At least, mz->lru_lock and pc->lock should be acquired irq off.
+> + *
+> + */
+> +
+>  struct cgroup_subsys mem_cgroup_subsys;
+>  static const int MEM_CGROUP_RECLAIM_RETRIES = 5;
+>  
+> @@ -479,33 +489,22 @@ static int mem_cgroup_charge_common(stru
+>  	if (mem_cgroup_subsys.disabled)
+>  		return 0;
+>  
+> +	pc = get_page_cgroup(page, gfp_mask, true);
+> +	if (!pc || IS_ERR(pc))
+> +		return PTR_ERR(pc);
+> +
 
-node_boot_start is not page aligned?
+If get_page_cgroup() returns NULL, you will end up return *sucesss* by
+returning PTR_ERR(pc)
 
-YH
+> +	spin_lock_irqsave(&pc->lock, flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
