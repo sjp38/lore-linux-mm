@@ -1,24 +1,23 @@
-Date: Mon, 17 Mar 2008 00:35:22 -0500
-From: Paul Jackson <pj@sgi.com>
+Date: Mon, 17 Mar 2008 07:58:27 +0100
+From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: [PATCH] [0/18] GB pages hugetlb support
-Message-Id: <20080317003522.6642f41f.pj@sgi.com>
-In-Reply-To: <20080317258.659191058@firstfloor.org>
-References: <20080317258.659191058@firstfloor.org>
+Message-ID: <20080317065827.GA27015@one.firstfloor.org>
+References: <20080317258.659191058@firstfloor.org> <20080317003522.6642f41f.pj@sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080317003522.6642f41f.pj@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+To: Paul Jackson <pj@sgi.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-What kernel version is this patchset against ... apparently not 2.6.25-rc5-mm1.
+On Mon, Mar 17, 2008 at 12:35:22AM -0500, Paul Jackson wrote:
+> What kernel version is this patchset against ... apparently not 2.6.25-rc5-mm1.
+This was against 2.6.25-rc4 
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.940.382.4214
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
