@@ -1,59 +1,159 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m2HKtQGD001903
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 16:55:26 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2HKtQPI192304
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 14:55:26 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2HKtQUE028212
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 14:55:26 -0600
-Subject: Re: [PATCH] a fix for procfs-task-exe-symlink.patch
-From: Matt Helsley <matthltc@us.ibm.com>
-In-Reply-To: <20080317004330.6D4441E7958@siro.lan>
-References: <20080317004330.6D4441E7958@siro.lan>
-Content-Type: text/plain
-Date: Mon, 17 Mar 2008 13:55:24 -0700
-Message-Id: <1205787324.1175.0.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: by rv-out-0910.google.com with SMTP id f1so2994484rvb.26
+        for <linux-mm@kvack.org>; Mon, 17 Mar 2008 14:27:21 -0700 (PDT)
+Message-ID: <86802c440803171427y7c9b2a54nacb0603916713033@mail.gmail.com>
+Date: Mon, 17 Mar 2008 14:27:21 -0700
+From: "Yinghai Lu" <yhlu.kernel@gmail.com>
+Subject: Re: [PATCH] [11/18] Fix alignment bug in bootmem allocator
+In-Reply-To: <86802c440803171152y379560dfp1296aefb0b86b54b@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed;
+	boundary="----=_Part_18705_33452704.1205789241136"
+References: <20080317258.659191058@firstfloor.org>
+	 <20080317015825.0C0171B41E0@basil.firstfloor.org>
+	 <86802c440803161919h20ed9f78k6e3798ef56668638@mail.gmail.com>
+	 <20080317070208.GC27015@one.firstfloor.org>
+	 <86802c440803170017r622114bdpede8625d1a8ff585@mail.gmail.com>
+	 <86802c440803170031u75167e5m301f65049b6d62ff@mail.gmail.com>
+	 <20080317074146.GG27015@one.firstfloor.org>
+	 <86802c440803170053n32a1c918h2ff2a32abef44050@mail.gmail.com>
+	 <20080317085604.GA12405@basil.nowhere.org>
+	 <86802c440803171152y379560dfp1296aefb0b86b54b@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, minoura@valinux.co.jp
+To: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-03-17 at 09:43 +0900, YAMAMOTO Takashi wrote:
-> it seems that procfs-task-exe-symlink.patch broke the case of
-> dup_mmap failure.  ie. mm->exe_file is copied by memcpy from oldmm
-> and then be fput'ed by mmput/set_mm_exe_file.
-> 
-> YAMAMOTO Takashi
-> 
-> 
-> Signed-off-by: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-> ---
-> 
-> --- linux-2.6.25-rc3-mm1/kernel/fork.c.BACKUP	2008-03-05 15:45:50.000000000 +0900
-> +++ linux-2.6.25-rc3-mm1/kernel/fork.c	2008-03-17 09:17:39.000000000 +0900
-> @@ -523,11 +526,12 @@ static struct mm_struct *dup_mm(struct t
->  	if (init_new_context(tsk, mm))
->  		goto fail_nocontext;
-> 
-> +	dup_mm_exe_file(oldmm, mm);
-> +
->  	err = dup_mmap(mm, oldmm);
->  	if (err)
->  		goto free_pt;
-> 
-> -	dup_mm_exe_file(oldmm, mm);
->  	mm->hiwater_rss = get_mm_rss(mm);
->  	mm->hiwater_vm = mm->total_vm;
-> 
+------=_Part_18705_33452704.1205789241136
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-Acked-by: Matt Helsley <matthltc@us.ibm.com>
+On Mon, Mar 17, 2008 at 11:52 AM, Yinghai Lu <yhlu.kernel@gmail.com> wrote:
+> On Mon, Mar 17, 2008 at 1:56 AM, Andi Kleen <andi@firstfloor.org> wrote:
+>  > > only happen when align is large than alignment of node_boot_start.
+>  >
+>  >  Here's an updated version of the patch with this addressed.
+>  >  Please review. The patch is somewhat more complicated, but
+>  >  actually makes the code a little cleaner now.
+>  >
+>  >  -Andi
+>  >
+>  >
+>  >  Fix alignment bug in bootmem allocator
+>  >
+>  >
+>  >  Without this fix bootmem can return unaligned addresses when the start of a
+>  >  node is not aligned to the align value. Needed for reliably allocating
+>  >  gigabyte pages.
+>  >
+>  >  I removed the offset variable because all tests should align themself correctly
+>  >  now. Slight drawback might be that the bootmem allocator will spend
+>  >  some more time skipping bits in the bitmap initially, but that shouldn't
+>  >  be a big issue.
+>  >
+>  >
+>  >  Signed-off-by: Andi Kleen <ak@suse.de>
+>  >
+>  how about create local node_boot_start and node_bootmem_map that make
+>  sure node_boot_start has bigger alignment than align input.
 
-Cheers,
-	-Matt Helsley
+please check it
+
+YH
+
+------=_Part_18705_33452704.1205789241136
+Content-Type: text/x-patch; name=offset_alloc_bootmem_v2.patch
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_fdxjtwqk0
+Content-Disposition: attachment; filename=offset_alloc_bootmem_v2.patch
+
+W1BBVENIXSBtbTogb2Zmc2V0IGFsaWduIGluIGFsbG9jX2Jvb3RtZW0gdjIKCm5lZWQgb2Zmc2V0
+IGFsaWdubWVudCB3aGVuIG5vZGVfYm9vdF9zdGFydCdzIGFsaWdubWVudCBpcyBsZXNzIHRoYW4K
+YWxpZ24gcmVxdWlyZWQKCnYyOiB1c2UgbG9jYWwgbm9kZV9ib290X3N0YXJ0IHRvIG1hdGNoIGFs
+aWduLgoKU2lnbmVkLW9mZi1ieTogWWluZ2hhaSBMdSA8eWhsdS5rZXJuZWxAZ21haWwuY29tPgoK
+SW5kZXg6IGxpbnV4LTIuNi9tbS9ib290bWVtLmMKPT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQotLS0gbGludXgtMi42Lm9y
+aWcvbW0vYm9vdG1lbS5jCisrKyBsaW51eC0yLjYvbW0vYm9vdG1lbS5jCkBAIC0yMDYsOSArMjA2
+LDExIEBAIHZvaWQgKiBfX2luaXQKIF9fYWxsb2NfYm9vdG1lbV9jb3JlKHN0cnVjdCBib290bWVt
+X2RhdGEgKmJkYXRhLCB1bnNpZ25lZCBsb25nIHNpemUsCiAJICAgICAgdW5zaWduZWQgbG9uZyBh
+bGlnbiwgdW5zaWduZWQgbG9uZyBnb2FsLCB1bnNpZ25lZCBsb25nIGxpbWl0KQogewotCXVuc2ln
+bmVkIGxvbmcgb2Zmc2V0LCByZW1haW5pbmdfc2l6ZSwgYXJlYXNpemUsIHByZWZlcnJlZDsKKwl1
+bnNpZ25lZCBsb25nIGFyZWFzaXplLCBwcmVmZXJyZWQ7CiAJdW5zaWduZWQgbG9uZyBpLCBzdGFy
+dCA9IDAsIGluY3IsIGVpZHgsIGVuZF9wZm47CiAJdm9pZCAqcmV0OworCXVuc2lnbmVkIGxvbmcg
+bm9kZV9ib290X3N0YXJ0OworCXZvaWQgKm5vZGVfYm9vdG1lbV9tYXA7CiAKIAlpZiAoIXNpemUp
+IHsKIAkJcHJpbnRrKCJfX2FsbG9jX2Jvb3RtZW1fY29yZSgpOiB6ZXJvLXNpemVkIHJlcXVlc3Rc
+biIpOwpAQCAtMjE2LDIzICsyMTgsMjkgQEAgX19hbGxvY19ib290bWVtX2NvcmUoc3RydWN0IGJv
+b3RtZW1fZGF0YQogCX0KIAlCVUdfT04oYWxpZ24gJiAoYWxpZ24tMSkpOwogCi0JaWYgKGxpbWl0
+ICYmIGJkYXRhLT5ub2RlX2Jvb3Rfc3RhcnQgPj0gbGltaXQpCi0JCXJldHVybiBOVUxMOwotCiAJ
+Lyogb24gbm9kZXMgd2l0aG91dCBtZW1vcnkgLSBib290bWVtX21hcCBpcyBOVUxMICovCiAJaWYg
+KCFiZGF0YS0+bm9kZV9ib290bWVtX21hcCkKIAkJcmV0dXJuIE5VTEw7CiAKKwkvKiBiZGF0YS0+
+bm9kZV9ib290X3N0YXJ0IGlzIHN1cHBvc2VkIHRvIGJlICgxMis2KWJpdHMgYWxpZ25tZW50ID8g
+Ki8KKwlpZiAoYWxpZ24gJiYgZmZzKGFsaWduKSA+IGZmcyhiZGF0YS0+bm9kZV9ib290X3N0YXJ0
+KSkgeworCQlub2RlX2Jvb3Rfc3RhcnQgPSBBTElHTihiZGF0YS0+bm9kZV9ib290X3N0YXJ0LCBh
+bGlnbik7CisJCW5vZGVfYm9vdG1lbV9tYXAgPSAodW5zaWduZWQgY2hhciAqKWJkYXRhLT5ub2Rl
+X2Jvb3RtZW1fbWFwICsKKwkJICAgIFBGTl9ET1dOKG5vZGVfYm9vdF9zdGFydCAtIGJkYXRhLT5u
+b2RlX2Jvb3Rfc3RhcnQpL0JJVFNfUEVSX0xPTkc7CisJfSBlbHNlIHsKKwkJbm9kZV9ib290X3N0
+YXJ0ID0gYmRhdGEtPm5vZGVfYm9vdF9zdGFydDsKKwkJbm9kZV9ib290bWVtX21hcCA9IGJkYXRh
+LT5ub2RlX2Jvb3RtZW1fbWFwOworCX0KKworCWlmIChsaW1pdCAmJiBub2RlX2Jvb3Rfc3RhcnQg
+Pj0gbGltaXQpCisJCXJldHVybiBOVUxMOworCiAJZW5kX3BmbiA9IGJkYXRhLT5ub2RlX2xvd19w
+Zm47CiAJbGltaXQgPSBQRk5fRE9XTihsaW1pdCk7CiAJaWYgKGxpbWl0ICYmIGVuZF9wZm4gPiBs
+aW1pdCkKIAkJZW5kX3BmbiA9IGxpbWl0OwogCi0JZWlkeCA9IGVuZF9wZm4gLSBQRk5fRE9XTihi
+ZGF0YS0+bm9kZV9ib290X3N0YXJ0KTsKLQlvZmZzZXQgPSAwOwotCWlmIChhbGlnbiAmJiAoYmRh
+dGEtPm5vZGVfYm9vdF9zdGFydCAmIChhbGlnbiAtIDFVTCkpICE9IDApCi0JCW9mZnNldCA9IGFs
+aWduIC0gKGJkYXRhLT5ub2RlX2Jvb3Rfc3RhcnQgJiAoYWxpZ24gLSAxVUwpKTsKLQlvZmZzZXQg
+PSBQRk5fRE9XTihvZmZzZXQpOworCWVpZHggPSBlbmRfcGZuIC0gUEZOX0RPV04obm9kZV9ib290
+X3N0YXJ0KTsKIAogCS8qCiAJICogV2UgdHJ5IHRvIGFsbG9jYXRlIGJvb3RtZW0gcGFnZXMgYWJv
+dmUgJ2dvYWwnCkBAIC0yNDAsMTUgKzI0OCwxNSBAQCBfX2FsbG9jX2Jvb3RtZW1fY29yZShzdHJ1
+Y3QgYm9vdG1lbV9kYXRhCiAJICovCiAJcHJlZmVycmVkID0gMDsKIAlpZiAoZ29hbCAmJiBQRk5f
+RE9XTihnb2FsKSA8IGVuZF9wZm4pIHsKLQkJaWYgKGdvYWwgPiBiZGF0YS0+bm9kZV9ib290X3N0
+YXJ0KQotCQkJcHJlZmVycmVkID0gZ29hbCAtIGJkYXRhLT5ub2RlX2Jvb3Rfc3RhcnQ7CisJCWlm
+IChnb2FsID4gbm9kZV9ib290X3N0YXJ0KQorCQkJcHJlZmVycmVkID0gZ29hbCAtIG5vZGVfYm9v
+dF9zdGFydDsKIAogCQlpZiAoYmRhdGEtPmxhc3Rfc3VjY2VzcyA+PSBwcmVmZXJyZWQpCiAJCQlp
+ZiAoIWxpbWl0IHx8IChsaW1pdCAmJiBsaW1pdCA+IGJkYXRhLT5sYXN0X3N1Y2Nlc3MpKQogCQkJ
+CXByZWZlcnJlZCA9IGJkYXRhLT5sYXN0X3N1Y2Nlc3M7CiAJfQogCi0JcHJlZmVycmVkID0gUEZO
+X0RPV04oQUxJR04ocHJlZmVycmVkLCBhbGlnbikpICsgb2Zmc2V0OworCXByZWZlcnJlZCA9IFBG
+Tl9ET1dOKEFMSUdOKHByZWZlcnJlZCwgYWxpZ24pKTsKIAlhcmVhc2l6ZSA9IChzaXplICsgUEFH
+RV9TSVpFLTEpIC8gUEFHRV9TSVpFOwogCWluY3IgPSBhbGlnbiA+PiBQQUdFX1NISUZUID8gOiAx
+OwogCkBAIC0yNTYsMTggKzI2NCwxOCBAQCByZXN0YXJ0X3NjYW46CiAJZm9yIChpID0gcHJlZmVy
+cmVkOyBpIDwgZWlkeDspIHsKIAkJdW5zaWduZWQgbG9uZyBqOwogCi0JCWkgPSBmaW5kX25leHRf
+emVyb19iaXQoYmRhdGEtPm5vZGVfYm9vdG1lbV9tYXAsIGVpZHgsIGkpOworCQlpID0gZmluZF9u
+ZXh0X3plcm9fYml0KG5vZGVfYm9vdG1lbV9tYXAsIGVpZHgsIGkpOwogCQlpID0gQUxJR04oaSwg
+aW5jcik7CiAJCWlmIChpID49IGVpZHgpCiAJCQlicmVhazsKLQkJaWYgKHRlc3RfYml0KGksIGJk
+YXRhLT5ub2RlX2Jvb3RtZW1fbWFwKSkgeworCQlpZiAodGVzdF9iaXQoaSwgbm9kZV9ib290bWVt
+X21hcCkpIHsKIAkJCWkgKz0gaW5jcjsKIAkJCWNvbnRpbnVlOwogCQl9CiAJCWZvciAoaiA9IGkg
+KyAxOyBqIDwgaSArIGFyZWFzaXplOyArK2opIHsKIAkJCWlmIChqID49IGVpZHgpCiAJCQkJZ290
+byBmYWlsX2Jsb2NrOwotCQkJaWYgKHRlc3RfYml0KGosIGJkYXRhLT5ub2RlX2Jvb3RtZW1fbWFw
+KSkKKwkJCWlmICh0ZXN0X2JpdChqLCBub2RlX2Jvb3RtZW1fbWFwKSkKIAkJCQlnb3RvIGZhaWxf
+YmxvY2s7CiAJCX0KIAkJc3RhcnQgPSBpOwpAQCAtMjc4LDggKzI4Niw4IEBAIHJlc3RhcnRfc2Nh
+bjoKIAkJCWkgKz0gaW5jcjsKIAl9CiAKLQlpZiAocHJlZmVycmVkID4gb2Zmc2V0KSB7Ci0JCXBy
+ZWZlcnJlZCA9IG9mZnNldDsKKwlpZiAocHJlZmVycmVkID4gMCkgeworCQlwcmVmZXJyZWQgPSAw
+OwogCQlnb3RvIHJlc3RhcnRfc2NhbjsKIAl9CiAJcmV0dXJuIE5VTEw7CkBAIC0yOTUsNiArMzAz
+LDcgQEAgZm91bmQ6CiAJICovCiAJaWYgKGFsaWduIDwgUEFHRV9TSVpFICYmCiAJICAgIGJkYXRh
+LT5sYXN0X29mZnNldCAmJiBiZGF0YS0+bGFzdF9wb3MrMSA9PSBzdGFydCkgeworCQl1bnNpZ25l
+ZCBsb25nIG9mZnNldCwgcmVtYWluaW5nX3NpemU7CiAJCW9mZnNldCA9IEFMSUdOKGJkYXRhLT5s
+YXN0X29mZnNldCwgYWxpZ24pOwogCQlCVUdfT04ob2Zmc2V0ID4gUEFHRV9TSVpFKTsKIAkJcmVt
+YWluaW5nX3NpemUgPSBQQUdFX1NJWkUgLSBvZmZzZXQ7CkBAIC0zMDMsMTQgKzMxMiwxMiBAQCBm
+b3VuZDoKIAkJCS8qIGxhc3RfcG9zIHVuY2hhbmdlZCAqLwogCQkJYmRhdGEtPmxhc3Rfb2Zmc2V0
+ID0gb2Zmc2V0ICsgc2l6ZTsKIAkJCXJldCA9IHBoeXNfdG9fdmlydChiZGF0YS0+bGFzdF9wb3Mg
+KiBQQUdFX1NJWkUgKwotCQkJCQkgICBvZmZzZXQgKwotCQkJCQkgICBiZGF0YS0+bm9kZV9ib290
+X3N0YXJ0KTsKKwkJCQkJICAgb2Zmc2V0ICsgbm9kZV9ib290X3N0YXJ0KTsKIAkJfSBlbHNlIHsK
+IAkJCXJlbWFpbmluZ19zaXplID0gc2l6ZSAtIHJlbWFpbmluZ19zaXplOwogCQkJYXJlYXNpemUg
+PSAocmVtYWluaW5nX3NpemUgKyBQQUdFX1NJWkUtMSkgLyBQQUdFX1NJWkU7CiAJCQlyZXQgPSBw
+aHlzX3RvX3ZpcnQoYmRhdGEtPmxhc3RfcG9zICogUEFHRV9TSVpFICsKLQkJCQkJICAgb2Zmc2V0
+ICsKLQkJCQkJICAgYmRhdGEtPm5vZGVfYm9vdF9zdGFydCk7CisJCQkJCSAgIG9mZnNldCArIG5v
+ZGVfYm9vdF9zdGFydCk7CiAJCQliZGF0YS0+bGFzdF9wb3MgPSBzdGFydCArIGFyZWFzaXplIC0g
+MTsKIAkJCWJkYXRhLT5sYXN0X29mZnNldCA9IHJlbWFpbmluZ19zaXplOwogCQl9CkBAIC0zMTgs
+MTQgKzMyNSwxNCBAQCBmb3VuZDoKIAl9IGVsc2UgewogCQliZGF0YS0+bGFzdF9wb3MgPSBzdGFy
+dCArIGFyZWFzaXplIC0gMTsKIAkJYmRhdGEtPmxhc3Rfb2Zmc2V0ID0gc2l6ZSAmIH5QQUdFX01B
+U0s7Ci0JCXJldCA9IHBoeXNfdG9fdmlydChzdGFydCAqIFBBR0VfU0laRSArIGJkYXRhLT5ub2Rl
+X2Jvb3Rfc3RhcnQpOworCQlyZXQgPSBwaHlzX3RvX3ZpcnQoc3RhcnQgKiBQQUdFX1NJWkUgKyBu
+b2RlX2Jvb3Rfc3RhcnQpOwogCX0KIAogCS8qCiAJICogUmVzZXJ2ZSB0aGUgYXJlYSBub3c6CiAJ
+ICovCiAJZm9yIChpID0gc3RhcnQ7IGkgPCBzdGFydCArIGFyZWFzaXplOyBpKyspCi0JCWlmICh1
+bmxpa2VseSh0ZXN0X2FuZF9zZXRfYml0KGksIGJkYXRhLT5ub2RlX2Jvb3RtZW1fbWFwKSkpCisJ
+CWlmICh1bmxpa2VseSh0ZXN0X2FuZF9zZXRfYml0KGksIG5vZGVfYm9vdG1lbV9tYXApKSkKIAkJ
+CUJVRygpOwogCW1lbXNldChyZXQsIDAsIHNpemUpOwogCXJldHVybiByZXQ7Cg==
+------=_Part_18705_33452704.1205789241136--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
