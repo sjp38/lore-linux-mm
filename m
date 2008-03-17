@@ -1,62 +1,79 @@
 From: Andi Kleen <andi@firstfloor.org>
 References: <20080317258.659191058@firstfloor.org>
 In-Reply-To: <20080317258.659191058@firstfloor.org>
-Subject: [PATCH] [4/18] Add basic support for more than one hstate in hugetlbfs
-Message-Id: <20080317015817.DE00E1B41E0@basil.firstfloor.org>
-Date: Mon, 17 Mar 2008 02:58:17 +0100 (CET)
+Subject: [PATCH] [7/18] Abstract out the NUMA node round robin code into a separate function
+Message-Id: <20080317015820.ECC861B41E0@basil.firstfloor.org>
+Date: Mon, 17 Mar 2008 02:58:20 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
+Need this as a separate function for a future patch.
+
+No behaviour change.
+
 Signed-off-by: Andi Kleen <ak@suse.de>
 
 ---
- mm/hugetlb.c |   15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ mm/hugetlb.c |   37 ++++++++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)
 
 Index: linux/mm/hugetlb.c
 ===================================================================
 --- linux.orig/mm/hugetlb.c
 +++ linux/mm/hugetlb.c
-@@ -550,26 +550,33 @@ static unsigned int cpuset_mems_nr(unsig
- 
- #ifdef CONFIG_SYSCTL
- #ifdef CONFIG_HIGHMEM
--static void try_to_free_low(unsigned long count)
-+static void do_try_to_free_low(struct hstate *h, unsigned long count)
- {
--	struct hstate *h = &global_hstate;
- 	int i;
- 
- 	for (i = 0; i < MAX_NUMNODES; ++i) {
- 		struct page *page, *next;
- 		struct list_head *freel = &h->hugepage_freelists[i];
- 		list_for_each_entry_safe(page, next, freel, lru) {
--			if (count >= nr_huge_pages)
-+			if (count >= h->nr_huge_pages)
- 				return;
- 			if (PageHighMem(page))
- 				continue;
- 			list_del(&page->lru);
--			update_and_free_page(page);
-+			update_and_free_page(h, page);
- 			h->free_huge_pages--;
- 			h->free_huge_pages_node[page_to_nid(page)]--;
- 		}
- 	}
+@@ -219,6 +219,27 @@ static struct page *alloc_fresh_huge_pag
+ 	return page;
  }
-+
-+static void try_to_free_low(unsigned long count)
+ 
++/*
++ * Use a helper variable to find the next node and then
++ * copy it back to hugetlb_next_nid afterwards:
++ * otherwise there's a window in which a racer might
++ * pass invalid nid MAX_NUMNODES to alloc_pages_node.
++ * But we don't need to use a spin_lock here: it really
++ * doesn't matter if occasionally a racer chooses the
++ * same nid as we do.  Move nid forward in the mask even
++ * if we just successfully allocated a hugepage so that
++ * the next caller gets hugepages on the next node.
++ */
++static int huge_next_node(struct hstate *h)
 +{
-+	struct hstate *h;
-+	for_each_hstate (h) {
-+		do_try_to_free_low(h, count);
-+	}
++	int next_nid;
++	next_nid = next_node(h->hugetlb_next_nid, node_online_map);
++	if (next_nid == MAX_NUMNODES)
++		next_nid = first_node(node_online_map);
++	h->hugetlb_next_nid = next_nid;
++	return next_nid;
 +}
- #else
- static inline void try_to_free_low(unsigned long count)
++
+ static int alloc_fresh_huge_page(struct hstate *h)
  {
+ 	struct page *page;
+@@ -232,21 +253,7 @@ static int alloc_fresh_huge_page(struct 
+ 		page = alloc_fresh_huge_page_node(h, h->hugetlb_next_nid);
+ 		if (page)
+ 			ret = 1;
+-		/*
+-		 * Use a helper variable to find the next node and then
+-		 * copy it back to hugetlb_next_nid afterwards:
+-		 * otherwise there's a window in which a racer might
+-		 * pass invalid nid MAX_NUMNODES to alloc_pages_node.
+-		 * But we don't need to use a spin_lock here: it really
+-		 * doesn't matter if occasionally a racer chooses the
+-		 * same nid as we do.  Move nid forward in the mask even
+-		 * if we just successfully allocated a hugepage so that
+-		 * the next caller gets hugepages on the next node.
+-		 */
+-		next_nid = next_node(h->hugetlb_next_nid, node_online_map);
+-		if (next_nid == MAX_NUMNODES)
+-			next_nid = first_node(node_online_map);
+-		h->hugetlb_next_nid = next_nid;
++		next_nid = huge_next_node(h);
+ 	} while (!page && h->hugetlb_next_nid != start_nid);
+ 
+ 	return ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
