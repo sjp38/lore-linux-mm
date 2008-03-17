@@ -1,106 +1,52 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id m2HEfAu2002641
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 20:11:10 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2HEf9Kj1347634
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 20:11:09 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.13.1/8.13.3) with ESMTP id m2HEf9pB032292
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 14:41:09 GMT
-Message-ID: <47DE82A6.3050604@linux.vnet.ibm.com>
-Date: Mon, 17 Mar 2008 20:09:34 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [RFC][2/3] Account and control virtual address space allocations
-References: <20080316172942.8812.56051.sendpatchset@localhost.localdomain> <20080316173005.8812.88290.sendpatchset@localhost.localdomain> <47DE57C2.5060206@openvz.org> <47DE640F.3070601@linux.vnet.ibm.com> <47DE66BE.30904@openvz.org> <47DE695D.3080605@linux.vnet.ibm.com> <47DE6B8D.5090302@openvz.org>
-In-Reply-To: <47DE6B8D.5090302@openvz.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m2HF3gLR019714
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 11:03:42 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2HF3UYi240920
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 09:03:31 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2HF3Lko008658
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 09:03:21 -0600
+Subject: Re: [PATCH] [0/18] GB pages hugetlb support
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <20080317258.659191058@firstfloor.org>
+References: <20080317258.659191058@firstfloor.org>
+Content-Type: text/plain
+Date: Mon, 17 Mar 2008 10:05:07 -0500
+Message-Id: <1205766307.10849.38.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Emelyanov <xemul@openvz.org>
-Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-Pavel Emelyanov wrote:
-> Balbir Singh wrote:
->> Pavel Emelyanov wrote:
->>> Balbir Singh wrote:
->>>> Pavel Emelyanov wrote:
->>>>> [snip]
->>>>>
->>>>>> +int mem_cgroup_update_as(struct mm_struct *mm, long nr_pages)
->>>>>> +{
->>>>>> +	int ret = 0;
->>>>>> +	struct mem_cgroup *mem;
->>>>>> +	if (mem_cgroup_subsys.disabled)
->>>>>> +		return ret;
->>>>>> +
->>>>>> +	rcu_read_lock();
->>>>>> +	mem = rcu_dereference(mm->mem_cgroup);
->>>>>> +	css_get(&mem->css);
->>>>>> +	rcu_read_unlock();
->>>>>> +
->>>>>> +	if (nr_pages > 0) {
->>>>>> +		if (res_counter_charge(&mem->as_res, (nr_pages * PAGE_SIZE)))
->>>>>> +			ret = 1;
->>>>>> +	} else
->>>>>> +		res_counter_uncharge(&mem->as_res, (-nr_pages * PAGE_SIZE));
->>>>> No, please, no. Let's make two calls - mem_cgroup_charge_as and mem_cgroup_uncharge_as.
->>>>>
->>>>> [snip]
->>>>>
->>>> Yes, sure :)
->>> Thanks :)
->>>
->>>>>> @@ -1117,6 +1117,9 @@ munmap_back:
->>>>>>  		}
->>>>>>  	}
->>>>>>  
->>>>>> +	if (mem_cgroup_update_as(mm, len >> PAGE_SHIFT))
->>>>>> +		return -ENOMEM;
->>>>>> +
->>>>> Why not use existintg cap_vm_enough_memory and co?
->>>>>
->>>> I thought about it and almost used may_expand_vm(), but there is a slight catch
->>>> there. With cap_vm_enough_memory() or security_vm_enough_memory(), they are
->>>> called after total_vm has been calculated. In our case we need to keep the
->>>> cgroups equivalent of total_vm up to date, and we do this in mem_cgorup_update_as.
->>> So? What prevents us from using these hooks? :)
->> 1. We need to account total_vm usage of the task anyway. So why have two places,
->>    one for accounting and second for control?
-> 
-> We still have two of them even placing hooks in each place manually.
-> 
-> Besides, putting the mem_cgroup_(un)charge_as() in these vm hooks will
-> 1. save the number of places to patch
-> 2. help keeping memcgroup consistent in case someone adds more places
->    that expand tasks vm (arches, drivers) - in case we have our hooks
->    celled from inside vm ones, we won't have to patch more.
-> 
+On Mon, 2008-03-17 at 02:58 +0100, Andi Kleen wrote:
+<snip>
+> - lockdep sometimes complains about recursive page_table_locks
+> for shared hugetlb memory, but as far as I can see I didn't
+> actually change this area. Looks a little dubious, might
+> be a false positive too.
 
-I am not sure I understand your proposal. Without manually placing these hooks
-how do we track
+I bet copy_hugetlb_page_range() is causing your complaints.  It takes
+the dest_mm->page_table_lock followed by src_mm->page_table_lock inside
+a loop and hasn't yet been converted to call spin_lock_nested().  A
+harmless false positive.
 
-1. When the vm size has increased/decreased
-2. In case due to some reason, the call following these hooks fail, how do we
-   undo it, without placing hooks?
+> - hugemmap04 from LTP fails. Cause unknown currently
 
+I am not sure how well LTP is tracking mainline development in this
+area.  How do these patches do with the libhugetlbfs test suite?  We are
+adding support for ginormous pages (1GB, 16GB, etc) but it is not
+complete.  Should run fine with 2M pages though.
 
->> 2. These hooks are activated for conditionally invoked for vma's with VM_ACCOUNT
->>    set.
-> 
-> This is a good point against. But, wrt my previous comment, can we handle 
-> this somehow?
-
-Not sure I understand
+Before you ask, here is the link:
+http://libhugetlbfs.ozlabs.org/snapshots/libhugetlbfs-dev-20080310.tar.gz
 
 -- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
