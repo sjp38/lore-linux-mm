@@ -1,59 +1,65 @@
-Message-ID: <47DDD246.60600@cn.fujitsu.com>
-Date: Mon, 17 Mar 2008 11:07:02 +0900
-From: Li Zefan <lizf@cn.fujitsu.com>
+Received: by wf-out-1314.google.com with SMTP id 25so5641199wfc.11
+        for <linux-mm@kvack.org>; Sun, 16 Mar 2008 19:19:46 -0700 (PDT)
+Message-ID: <86802c440803161919h20ed9f78k6e3798ef56668638@mail.gmail.com>
+Date: Sun, 16 Mar 2008 19:19:45 -0700
+From: "Yinghai Lu" <yhlu.kernel@gmail.com>
+Subject: Re: [PATCH] [11/18] Fix alignment bug in bootmem allocator
+In-Reply-To: <20080317015825.0C0171B41E0@basil.firstfloor.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/7] re-define page_cgroup.
-References: <20080314185954.5cd51ff6.kamezawa.hiroyu@jp.fujitsu.com> <20080314190313.e6e00026.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080314190313.e6e00026.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080317258.659191058@firstfloor.org>
+	 <20080317015825.0C0171B41E0@basil.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, xemul@openvz.org, "hugh@veritas.com" <hugh@veritas.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> (This is one of a series of patch for "lookup page_cgroup" patches..)
-> 
->  * Exporting page_cgroup definition.
->  * Remove page_cgroup member from sturct page.
->  * As result, PAGE_CGROUP_LOCK_BIT and assign/access functions are removed.
-> 
-> Other chages will appear in following patches.
-> There is a change in the structure itself, spin_lock is added.
-> 
-> Changelog:
->  - adjusted to rc5-mm1
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> 
->  include/linux/memcontrol.h  |   11 --------
->  include/linux/mm_types.h    |    3 --
->  include/linux/page_cgroup.h |   47 +++++++++++++++++++++++++++++++++++
->  mm/memcontrol.c             |   59 --------------------------------------------
->  mm/page_alloc.c             |    8 -----
->  5 files changed, 48 insertions(+), 80 deletions(-)
-> 
-> Index: mm-2.6.25-rc5-mm1/include/linux/page_cgroup.h
-> ===================================================================
-> --- /dev/null
-> +++ mm-2.6.25-rc5-mm1/include/linux/page_cgroup.h
-> @@ -0,0 +1,47 @@
-> +#ifndef __LINUX_PAGE_CGROUP_H
-> +#define __LINUX_PAGE_CGROUP_H
-> +
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-> +/*
-> + * page_cgroup is yet another mem_map structure for accounting  usage.
+On Sun, Mar 16, 2008 at 6:58 PM, Andi Kleen <andi@firstfloor.org> wrote:
+>
+>  Without this fix bootmem can return unaligned addresses when the start of a
+>  node is not aligned to the align value. Needed for reliably allocating
+>  gigabyte pages.
+>  Signed-off-by: Andi Kleen <ak@suse.de>
+>
+>  ---
+>   mm/bootmem.c |    4 +++-
+>   1 file changed, 3 insertions(+), 1 deletion(-)
+>
+>  Index: linux/mm/bootmem.c
+>  ===================================================================
+>  --- linux.orig/mm/bootmem.c
+>  +++ linux/mm/bootmem.c
+>  @@ -197,6 +197,7 @@ __alloc_bootmem_core(struct bootmem_data
+>   {
+>         unsigned long offset, remaining_size, areasize, preferred;
+>         unsigned long i, start = 0, incr, eidx, end_pfn;
+>  +       unsigned long pfn;
+>         void *ret;
+>
+>         if (!size) {
+>  @@ -239,12 +240,13 @@ __alloc_bootmem_core(struct bootmem_data
+>         preferred = PFN_DOWN(ALIGN(preferred, align)) + offset;
+>         areasize = (size + PAGE_SIZE-1) / PAGE_SIZE;
+>         incr = align >> PAGE_SHIFT ? : 1;
+>  +       pfn = PFN_DOWN(bdata->node_boot_start);
+>
+>   restart_scan:
+>         for (i = preferred; i < eidx; i += incr) {
+>                 unsigned long j;
+>                 i = find_next_zero_bit(bdata->node_bootmem_map, eidx, i);
+>  -               i = ALIGN(i, incr);
+>  +               i = ALIGN(pfn + i, incr) - pfn;
+>                 if (i >= eidx)
+>                         break;
+>                 if (test_bit(i, bdata->node_bootmem_map))
+>  --
 
-                                                      two spaces ^^
+node_boot_start is not page aligned?
 
-> + * but, unlike mem_map, allocated on demand for accounted pages.
-> + * see also memcontrol.h
-> + * In nature, this cosumes much amount of memory.
-> + */
+YH
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
