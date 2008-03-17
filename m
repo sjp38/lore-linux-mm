@@ -1,60 +1,60 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m2HKW7sD010522
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 16:32:07 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2HKU5Qr242396
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 16:30:05 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2HKU5AH027913
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 16:30:05 -0400
-Subject: Re: [PATCH] [10/18] Factor out new huge page preparation code into
-	separate function
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <20080317015824.074A31B41E0@basil.firstfloor.org>
-References: <20080317258.659191058@firstfloor.org>
-	 <20080317015824.074A31B41E0@basil.firstfloor.org>
+Subject: Couple of questions about mempolicy rebinding
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <alpine.DEB.1.00.0803131255150.32474@chino.kir.corp.google.com>
+References: <200803122118.03942.ak@suse.de>
+	 <alpine.DEB.1.00.0803131219380.28673@chino.kir.corp.google.com>
+	 <1205437802.5300.69.camel@localhost>
+	 <alpine.DEB.1.00.0803131255150.32474@chino.kir.corp.google.com>
 Content-Type: text/plain
-Date: Mon, 17 Mar 2008 15:31:53 -0500
-Message-Id: <1205785913.10849.84.camel@localhost.localdomain>
+Date: Mon, 17 Mar 2008 16:36:47 -0400
+Message-Id: <1205786207.5297.30.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au, agl <agl@linux.vnet.ibm.com>
+To: Paul Jackson <pj@sgi.com>, David Rientjes <rientjes@google.com>
+Cc: Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, cpw@sgi.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-03-17 at 02:58 +0100, Andi Kleen wrote:
-> Index: linux/mm/hugetlb.c
-> ===================================================================
-> --- linux.orig/mm/hugetlb.c
-> +++ linux/mm/hugetlb.c
-> @@ -200,6 +200,17 @@ static int adjust_pool_surplus(struct hs
->  	return ret;
->  }
-> 
-> +static void huge_new_page(struct hstate *h, struct page *page)
-> +{
-> +	unsigned nid = pfn_to_nid(page_to_pfn(page));
-> +	set_compound_page_dtor(page, free_huge_page);
-> +	spin_lock(&hugetlb_lock);
-> +	h->nr_huge_pages++;
-> +	h->nr_huge_pages_node[nid]++;
-> +	spin_unlock(&hugetlb_lock);
-> +	put_page(page); /* free it into the hugepage allocator */
-> +}
-> +
->  static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
->  {
->  	struct page *page;
+Paul, David:
 
-We do not usually preface functions in mm/hugetlb.c with "huge" and the
-name you have chosen doesn't seem that clear to me anyway.  Could we
-rename it to prep_new_huge_page() or something similar?
+Like the subject says, I have a couple of questions that arose while
+looking through the mempolicy code for corner cases that might be
+affected by some pending cleanup patches.  Nothing major, I think, I
+just want to understand.  I'm looking at 25-rc5-mm1 plus the recent
+patch:  "disallow static or relative flags for local preferred".
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+1) In __mpol_copy():  when the "current_cpuset_is_being_rebound", why do
+we rebind the old policy policy and then copy it to the new?  Seems like
+the old policy will get rebound in due time if, indeed, it needs to be
+rebound.  I don't see any usage now, where it won't, but this seems less
+general than just rebinding the new copy.  E.g., the old mempolicy being
+copied may be a context-free policy that shouln't be rebound.   I think
+we should at least add a comment to warn future callers.  Comments?
+
+2) In mpol_rebind_nodemask():  this function is shared by bind and
+interleave policy, and is used to rebind both task and vma policies.
+However, we unconditionally update current->il_next.  Probably not an
+issue for interleave vs bind because, in the case of bind policy,
+il_next is meaningless.  However, il_next is used only to interleave
+based on task policy [for page cache and slab allocations].  Any
+allocation based on a vma policy will use the address offset into the
+vma to interleave.  So, I think it's technically incorrect to update
+il_next when we're rebinding a vma policy.  It may contain nodes that
+are not in the task policy and vice versa.  
+
+If we were to address this, a couple of methods come to mind:
+
+a) add an internal mode flag--e.g., MPOL_F_TASK_POLICY--to indicate task
+vs vma policy to the rebind ops, or
+
+b) pass a task vs vma flag parameter to mpol_rebind_policy() and down to
+the rebind ops.  However, how would we tell in __mpol_copy() which we're
+dealing with?
+
+Comments?
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
