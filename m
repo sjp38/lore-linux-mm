@@ -1,58 +1,56 @@
 Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m2HFxLGK028619
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 11:59:21 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2HFvKUE205530
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 11:57:20 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2HFvJjl008933
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 11:57:20 -0400
-Subject: Re: [PATCH] [0/18] GB pages hugetlb support
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <20080317153314.GD5578@one.firstfloor.org>
-References: <20080317258.659191058@firstfloor.org>
-	 <1205766307.10849.38.camel@localhost.localdomain>
-	 <20080317153314.GD5578@one.firstfloor.org>
+	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m2HGtF1o000505
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 12:55:15 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2HGrDLB221084
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 12:53:13 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2HGrD42030901
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 12:53:13 -0400
+Subject: Re: [RFC][2/3] Account and control virtual address space
+	allocations
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20080316173005.8812.88290.sendpatchset@localhost.localdomain>
+References: <20080316172942.8812.56051.sendpatchset@localhost.localdomain>
+	 <20080316173005.8812.88290.sendpatchset@localhost.localdomain>
 Content-Type: text/plain
-Date: Mon, 17 Mar 2008 10:59:06 -0500
-Message-Id: <1205769546.10849.43.camel@localhost.localdomain>
+Date: Mon, 17 Mar 2008 09:53:10 -0700
+Message-Id: <1205772790.18916.17.camel@nimitz.home.sr71.net>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-03-17 at 16:33 +0100, Andi Kleen wrote:
-> > I bet copy_hugetlb_page_range() is causing your complaints.  It takes
-> > the dest_mm->page_table_lock followed by src_mm->page_table_lock inside
-> > a loop and hasn't yet been converted to call spin_lock_nested().  A
-> > harmless false positive.
-> 
-> Yes. Looking at the warning I'm not sure why lockdep doesn't filter
-> it out automatically. I cannot think of a legitimate case where
-> a "possible recursive lock" with different lock addresses would be 
-> a genuine bug.
-> 
-> So instead of a false positive, it's more like a "always false" :)
-> 
-> > 
-> > > - hugemmap04 from LTP fails. Cause unknown currently
-> > 
-> > I am not sure how well LTP is tracking mainline development in this
-> > area.  How do these patches do with the libhugetlbfs test suite?  We are
-> 
-> I wasn't aware of that one.
+On Sun, 2008-03-16 at 23:00 +0530, Balbir Singh wrote:
+> @@ -787,6 +788,8 @@ static int ptrace_bts_realloc(struct tas
+>         current->mm->total_vm  -= old_size;
+>         current->mm->locked_vm -= old_size;
+>  
+> +       mem_cgroup_update_as(current->mm, -old_size);
+> +
+>         if (size == 0)
+>                 goto out;
 
-Libhugetlbfs comes with a rigorous functional test suite.  It has test
-cases for specific bugs that have since been fixed.  I ran it on your
-patches and got an oops around hugetlb_overcommit_handler() when running
-the 'counters' test.
+I think splattering these things all over is probably a bad idea.
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+If you're going to do this, I think you need a couple of phases.  
+
+1. update the vm_(un)acct_memory() functions to take an mm
+2. start using them (or some other abstracted functions in place)
+3. update the new functions for cgroups
+
+It's a bit non-obvious why you do the mem_cgroup_update_as() calls in
+the places that you do from context.
+
+Having some other vm-abstracted functions will also keep you from
+splattering mem_cgroup_update_as() across the tree.  That's a pretty bad
+name. :)  ...update_mapped() or ...update_vm() might be a wee bit
+better. 
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
