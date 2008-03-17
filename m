@@ -1,79 +1,105 @@
 From: Andi Kleen <andi@firstfloor.org>
 References: <20080317258.659191058@firstfloor.org>
 In-Reply-To: <20080317258.659191058@firstfloor.org>
-Subject: [PATCH] [7/18] Abstract out the NUMA node round robin code into a separate function
-Message-Id: <20080317015820.ECC861B41E0@basil.firstfloor.org>
-Date: Mon, 17 Mar 2008 02:58:20 +0100 (CET)
+Subject: [PATCH] [3/18] Convert /proc output code over to report multiple hstates
+Message-Id: <20080317015816.D915C1B41E0@basil.firstfloor.org>
+Date: Mon, 17 Mar 2008 02:58:16 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-Need this as a separate function for a future patch.
-
-No behaviour change.
+I chose to just report the numbers in a row, in the hope 
+to minimze breakage of existing software. The "compat" page size
+is always the first number.
 
 Signed-off-by: Andi Kleen <ak@suse.de>
 
 ---
- mm/hugetlb.c |   37 ++++++++++++++++++++++---------------
- 1 file changed, 22 insertions(+), 15 deletions(-)
+ mm/hugetlb.c |   59 +++++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 39 insertions(+), 20 deletions(-)
 
 Index: linux/mm/hugetlb.c
 ===================================================================
 --- linux.orig/mm/hugetlb.c
 +++ linux/mm/hugetlb.c
-@@ -219,6 +219,27 @@ static struct page *alloc_fresh_huge_pag
- 	return page;
- }
+@@ -683,37 +683,56 @@ int hugetlb_overcommit_handler(struct ct
  
-+/*
-+ * Use a helper variable to find the next node and then
-+ * copy it back to hugetlb_next_nid afterwards:
-+ * otherwise there's a window in which a racer might
-+ * pass invalid nid MAX_NUMNODES to alloc_pages_node.
-+ * But we don't need to use a spin_lock here: it really
-+ * doesn't matter if occasionally a racer chooses the
-+ * same nid as we do.  Move nid forward in the mask even
-+ * if we just successfully allocated a hugepage so that
-+ * the next caller gets hugepages on the next node.
-+ */
-+static int huge_next_node(struct hstate *h)
+ #endif /* CONFIG_SYSCTL */
+ 
++static int dump_field(char *buf, unsigned field)
 +{
-+	int next_nid;
-+	next_nid = next_node(h->hugetlb_next_nid, node_online_map);
-+	if (next_nid == MAX_NUMNODES)
-+		next_nid = first_node(node_online_map);
-+	h->hugetlb_next_nid = next_nid;
-+	return next_nid;
++	int n = 0;
++	struct hstate *h;
++	for_each_hstate (h)
++		n += sprintf(buf + n, " %5lu", *(unsigned long *)((char *)h + field));
++	buf[n++] = '\n';
++	return n;
 +}
 +
- static int alloc_fresh_huge_page(struct hstate *h)
+ int hugetlb_report_meminfo(char *buf)
  {
- 	struct page *page;
-@@ -232,21 +253,7 @@ static int alloc_fresh_huge_page(struct 
- 		page = alloc_fresh_huge_page_node(h, h->hugetlb_next_nid);
- 		if (page)
- 			ret = 1;
--		/*
--		 * Use a helper variable to find the next node and then
--		 * copy it back to hugetlb_next_nid afterwards:
--		 * otherwise there's a window in which a racer might
--		 * pass invalid nid MAX_NUMNODES to alloc_pages_node.
--		 * But we don't need to use a spin_lock here: it really
--		 * doesn't matter if occasionally a racer chooses the
--		 * same nid as we do.  Move nid forward in the mask even
--		 * if we just successfully allocated a hugepage so that
--		 * the next caller gets hugepages on the next node.
--		 */
--		next_nid = next_node(h->hugetlb_next_nid, node_online_map);
--		if (next_nid == MAX_NUMNODES)
--			next_nid = first_node(node_online_map);
--		h->hugetlb_next_nid = next_nid;
-+		next_nid = huge_next_node(h);
- 	} while (!page && h->hugetlb_next_nid != start_nid);
+-	struct hstate *h = &global_hstate;
+-	return sprintf(buf,
+-			"HugePages_Total: %5lu\n"
+-			"HugePages_Free:  %5lu\n"
+-			"HugePages_Rsvd:  %5lu\n"
+-			"HugePages_Surp:  %5lu\n"
+-			"Hugepagesize:    %5lu kB\n",
+-			h->nr_huge_pages,
+-			h->free_huge_pages,
+-			h->resv_huge_pages,
+-			h->surplus_huge_pages,
+-			1UL << (huge_page_order(h) + PAGE_SHIFT - 10));
++	struct hstate *h;
++	int n = 0;
++	n += sprintf(buf + 0, "HugePages_Total:");
++	n += dump_field(buf + n, offsetof(struct hstate, nr_huge_pages));
++	n += sprintf(buf + n, "HugePages_Free: ");
++	n += dump_field(buf + n, offsetof(struct hstate, free_huge_pages));
++	n += sprintf(buf + n, "HugePages_Rsvd: ");
++	n += dump_field(buf + n, offsetof(struct hstate, resv_huge_pages));
++	n += sprintf(buf + n, "HugePages_Surp: ");
++	n += dump_field(buf + n, offsetof(struct hstate, surplus_huge_pages));
++	n += sprintf(buf + n, "Hugepagesize:   ");
++	for_each_hstate (h)
++		n += sprintf(buf + n, " %5u", huge_page_size(h) / 1024);
++	n += sprintf(buf + n, " kB\n");
++	return n;
+ }
  
- 	return ret;
+ int hugetlb_report_node_meminfo(int nid, char *buf)
+ {
+-	struct hstate *h = &global_hstate;
+-	return sprintf(buf,
+-		"Node %d HugePages_Total: %5u\n"
+-		"Node %d HugePages_Free:  %5u\n",
+-		nid, h->nr_huge_pages_node[nid],
+-		nid, h->free_huge_pages_node[nid]);
++	int n = 0;
++	n += sprintf(buf, "Node %d HugePages_Total:", nid);
++	n += dump_field(buf + n, offsetof(struct hstate,
++						nr_huge_pages_node[nid]));
++	n += sprintf(buf + n , "Node %d HugePages_Free: ", nid);
++	n += dump_field(buf + n, offsetof(struct hstate,
++						 free_huge_pages_node[nid]));
++	return n;
+ }
+ 
+ /* Return the number pages of memory we physically have, in PAGE_SIZE units. */
+ unsigned long hugetlb_total_pages(void)
+ {
+-	struct hstate *h = &global_hstate;
+-	return h->nr_huge_pages * (1 << huge_page_order(h));
++	long x = 0;
++	struct hstate *h;
++	for_each_hstate (h) {
++		x += h->nr_huge_pages * (1 << huge_page_order(h));
++	}
++	return x;
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
