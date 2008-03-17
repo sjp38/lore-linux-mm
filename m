@@ -1,9 +1,9 @@
-Message-Id: <20080317191945.122011759@szeredi.hu>
+Message-Id: <20080317191947.989369784@szeredi.hu>
 References: <20080317191908.123631326@szeredi.hu>
-Date: Mon, 17 Mar 2008 20:19:12 +0100
+Date: Mon, 17 Mar 2008 20:19:14 +0100
 From: Miklos Szeredi <miklos@szeredi.hu>
-Subject: [patch 4/8] mm: allow not updating BDI stats in end_page_writeback()
-Content-Disposition: inline; filename=end_page_writeback_nobdi.patch
+Subject: [patch 6/8] fuse: clean up setting i_size in write
+Content-Disposition: inline; filename=fuse_write_update_size.patch
 Sender: owner-linux-mm@kvack.org
 From: Miklos Szeredi <mszeredi@suse.cz>
 Return-Path: <owner-linux-mm@kvack.org>
@@ -11,105 +11,73 @@ To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Fuse's writepage will need to clear page writeback separately from
-updating the per BDI counters.
-
-This patch renames end_page_writeback() to __end_page_writeback() and
-adds a boolean parameter to indicate if the per BDI stats need to be
-updated.
-
-Regular callers get an inline end_page_writeback() without the boolean
-parameter.
+Extract common code for setting i_size in write functions into a
+common helper.
 
 Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
 ---
- include/linux/page-flags.h |    2 +-
- include/linux/pagemap.h    |    7 ++++++-
- mm/filemap.c               |    7 ++++---
- mm/page-writeback.c        |    4 ++--
- 4 files changed, 13 insertions(+), 7 deletions(-)
+ fs/fuse/file.c |   28 +++++++++++++++-------------
+ 1 file changed, 15 insertions(+), 13 deletions(-)
 
-Index: linux/include/linux/page-flags.h
+Index: linux/fs/fuse/file.c
 ===================================================================
---- linux.orig/include/linux/page-flags.h	2008-03-17 18:24:13.000000000 +0100
-+++ linux/include/linux/page-flags.h	2008-03-17 18:25:53.000000000 +0100
-@@ -300,7 +300,7 @@ struct page;	/* forward declaration */
- 
- extern void cancel_dirty_page(struct page *page, unsigned int account_size);
- 
--int test_clear_page_writeback(struct page *page);
-+int test_clear_page_writeback(struct page *page, bool bdi_stats);
- int test_set_page_writeback(struct page *page);
- 
- static inline void set_page_writeback(struct page *page)
-Index: linux/include/linux/pagemap.h
-===================================================================
---- linux.orig/include/linux/pagemap.h	2008-03-17 18:24:13.000000000 +0100
-+++ linux/include/linux/pagemap.h	2008-03-17 18:25:53.000000000 +0100
-@@ -223,7 +223,12 @@ static inline void wait_on_page_writebac
- 		wait_on_page_bit(page, PG_writeback);
+--- linux.orig/fs/fuse/file.c	2008-03-17 18:26:04.000000000 +0100
++++ linux/fs/fuse/file.c	2008-03-17 18:26:28.000000000 +0100
+@@ -610,13 +610,24 @@ static int fuse_write_begin(struct file 
+ 	return 0;
  }
  
--extern void end_page_writeback(struct page *page);
-+extern void __end_page_writeback(struct page *page, bool bdi_stats);
-+
-+static inline void end_page_writeback(struct page *page)
++static void fuse_write_update_size(struct inode *inode, loff_t pos)
 +{
-+	__end_page_writeback(page, true);
++	struct fuse_conn *fc = get_fuse_conn(inode);
++	struct fuse_inode *fi = get_fuse_inode(inode);
++
++	spin_lock(&fc->lock);
++	fi->attr_version = ++fc->attr_version;
++	if (pos > inode->i_size)
++		i_size_write(inode, pos);
++	spin_unlock(&fc->lock);
 +}
- 
- /*
-  * Fault a userspace page into pagetables.  Return non-zero on a fault.
-Index: linux/mm/filemap.c
-===================================================================
---- linux.orig/mm/filemap.c	2008-03-17 18:25:38.000000000 +0100
-+++ linux/mm/filemap.c	2008-03-17 18:25:53.000000000 +0100
-@@ -574,19 +574,20 @@ EXPORT_SYMBOL(unlock_page);
- /**
-  * end_page_writeback - end writeback against a page
-  * @page: the page
-+ * @bdi_stats: update the per-bdi writeback counter
-  */
--void end_page_writeback(struct page *page)
-+void __end_page_writeback(struct page *page, bool bdi_stats)
++
+ static int fuse_buffered_write(struct file *file, struct inode *inode,
+ 			       loff_t pos, unsigned count, struct page *page)
  {
- 	if (TestClearPageReclaim(page))
- 		rotate_reclaimable_page(page);
+ 	int err;
+ 	size_t nres;
+ 	struct fuse_conn *fc = get_fuse_conn(inode);
+-	struct fuse_inode *fi = get_fuse_inode(inode);
+ 	unsigned offset = pos & (PAGE_CACHE_SIZE - 1);
+ 	struct fuse_req *req;
  
--	if (!test_clear_page_writeback(page))
-+	if (!test_clear_page_writeback(page, bdi_stats))
- 		BUG();
- 
- 	smp_mb__after_clear_bit();
- 	wake_up_page(page, PG_writeback);
- }
--EXPORT_SYMBOL(end_page_writeback);
-+EXPORT_SYMBOL(__end_page_writeback);
- 
- /**
-  * __lock_page - get a lock on the page, assuming we need to sleep to get it
-Index: linux/mm/page-writeback.c
-===================================================================
---- linux.orig/mm/page-writeback.c	2008-03-17 18:25:17.000000000 +0100
-+++ linux/mm/page-writeback.c	2008-03-17 18:25:53.000000000 +0100
-@@ -1242,7 +1242,7 @@ int clear_page_dirty_for_io(struct page 
- }
- EXPORT_SYMBOL(clear_page_dirty_for_io);
- 
--int test_clear_page_writeback(struct page *page)
-+int test_clear_page_writeback(struct page *page, bool bdi_stats)
- {
- 	struct address_space *mapping = page_mapping(page);
- 	int ret;
-@@ -1257,7 +1257,7 @@ int test_clear_page_writeback(struct pag
- 			radix_tree_tag_clear(&mapping->page_tree,
- 						page_index(page),
- 						PAGECACHE_TAG_WRITEBACK);
--			if (bdi_cap_writeback_dirty(bdi)) {
-+			if (bdi_stats && bdi_cap_writeback_dirty(bdi)) {
- 				__dec_bdi_stat(bdi, BDI_WRITEBACK);
- 				__bdi_writeout_inc(bdi);
- 			}
+@@ -643,12 +654,7 @@ static int fuse_buffered_write(struct fi
+ 		err = -EIO;
+ 	if (!err) {
+ 		pos += nres;
+-		spin_lock(&fc->lock);
+-		fi->attr_version = ++fc->attr_version;
+-		if (pos > inode->i_size)
+-			i_size_write(inode, pos);
+-		spin_unlock(&fc->lock);
+-
++		fuse_write_update_size(inode, pos);
+ 		if (count == PAGE_CACHE_SIZE)
+ 			SetPageUptodate(page);
+ 	}
+@@ -766,12 +772,8 @@ static ssize_t fuse_direct_io(struct fil
+ 	}
+ 	fuse_put_request(fc, req);
+ 	if (res > 0) {
+-		if (write) {
+-			spin_lock(&fc->lock);
+-			if (pos > inode->i_size)
+-				i_size_write(inode, pos);
+-			spin_unlock(&fc->lock);
+-		}
++		if (write)
++			fuse_write_update_size(inode, pos);
+ 		*ppos = pos;
+ 	}
+ 	fuse_invalidate_attr(inode);
 
 --
 
