@@ -1,38 +1,56 @@
-Received: from zps76.corp.google.com (zps76.corp.google.com [172.25.146.76])
-	by smtp-out.google.com with ESMTP id m2GNQOUC002665
-	for <linux-mm@kvack.org>; Sun, 16 Mar 2008 23:26:25 GMT
-Received: from wx-out-0506.google.com (wxdh26.prod.google.com [10.70.134.26])
-	by zps76.corp.google.com with ESMTP id m2GNQN57019660
-	for <linux-mm@kvack.org>; Sun, 16 Mar 2008 16:26:23 -0700
-Received: by wx-out-0506.google.com with SMTP id h26so5621490wxd.22
-        for <linux-mm@kvack.org>; Sun, 16 Mar 2008 16:26:23 -0700 (PDT)
-Message-ID: <6599ad830803161626q1fcf261bta52933bb5e7a6bdd@mail.gmail.com>
-Date: Mon, 17 Mar 2008 07:26:22 +0800
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [RFC][0/3] Virtual address space control for cgroups
-In-Reply-To: <20080316172942.8812.56051.sendpatchset@localhost.localdomain>
+Message-ID: <47DDB9A5.1000405@cn.fujitsu.com>
+Date: Mon, 17 Mar 2008 09:21:57 +0900
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080316172942.8812.56051.sendpatchset@localhost.localdomain>
+Subject: Re: [PATCH 1/7] re-define page_cgroup.
+References: <20080314185954.5cd51ff6.kamezawa.hiroyu@jp.fujitsu.com> <20080314190313.e6e00026.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080314190313.e6e00026.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, xemul@openvz.org, "hugh@veritas.com" <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 17, 2008 at 1:29 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> This is an early patchset for virtual address space control for cgroups.
->  The patches are against 2.6.25-rc5-mm1 and have been tested on top of
->  User Mode Linux.
+KAMEZAWA Hiroyuki wrote:
+> (This is one of a series of patch for "lookup page_cgroup" patches..)
+> 
+>  * Exporting page_cgroup definition.
+>  * Remove page_cgroup member from sturct page.
+>  * As result, PAGE_CGROUP_LOCK_BIT and assign/access functions are removed.
+> 
+> Other chages will appear in following patches.
+> There is a change in the structure itself, spin_lock is added.
+> 
+> Changelog:
+>  - adjusted to rc5-mm1
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
 
-What's the performance hit of doing these accounting checks on every
-mmap/munmap? If it's not totally lost in the noise, couldn't it be
-made a separate control group, so that it could be just enabled (and
-the performance hit taken) for users that actually want it?
+Please don't break git-bisect. Make sure your patches can be applied one
+by one.
 
-Paul
+mm/memcontrol.c: In function a??mem_cgroup_move_listsa??:
+mm/memcontrol.c:309: error: implicit declaration of function a??try_lock_page_cgroupa??
+mm/memcontrol.c:312: error: implicit declaration of function a??page_get_page_cgroupa??
+mm/memcontrol.c:312: warning: assignment makes pointer from integer without a cast
+mm/memcontrol.c:319: error: implicit declaration of function a??unlock_page_cgroupa??
+mm/memcontrol.c: In function a??mem_cgroup_charge_commona??:
+mm/memcontrol.c:490: error: implicit declaration of function a??lock_page_cgroupa??
+mm/memcontrol.c:491: warning: assignment makes pointer from integer without a cast
+mm/memcontrol.c:500: error: a??struct page_cgroupa?? has no member named a??ref_cnta??
+mm/memcontrol.c:551: error: a??struct page_cgroupa?? has no member named a??ref_cnta??
+mm/memcontrol.c:571: error: implicit declaration of function a??page_assign_page_cgroupa??
+mm/memcontrol.c: In function a??mem_cgroup_uncharge_pagea??:
+mm/memcontrol.c:621: warning: assignment makes pointer from integer without a cast
+mm/memcontrol.c:628: error: a??struct page_cgroupa?? has no member named a??ref_cnta??
+mm/memcontrol.c: In function a??mem_cgroup_prepare_migrationa??:
+mm/memcontrol.c:661: warning: assignment makes pointer from integer without a cast
+mm/memcontrol.c:663: error: a??struct page_cgroupa?? has no member named a??ref_cnta??
+mm/memcontrol.c: In function a??mem_cgroup_page_migrationa??:
+mm/memcontrol.c:685: warning: assignment makes pointer from integer without a cast
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
