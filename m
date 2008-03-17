@@ -1,53 +1,77 @@
-Message-ID: <47DE57C2.5060206@openvz.org>
-Date: Mon, 17 Mar 2008 14:36:34 +0300
-From: Pavel Emelyanov <xemul@openvz.org>
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id m2HCVZ7h001455
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 23:31:35 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2HCYPSb197614
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 23:34:25 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2HCUe0I016804
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 23:30:41 +1100
+Message-ID: <47DE640F.3070601@linux.vnet.ibm.com>
+Date: Mon, 17 Mar 2008 17:59:03 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
 Subject: Re: [RFC][2/3] Account and control virtual address space allocations
-References: <20080316172942.8812.56051.sendpatchset@localhost.localdomain> <20080316173005.8812.88290.sendpatchset@localhost.localdomain>
-In-Reply-To: <20080316173005.8812.88290.sendpatchset@localhost.localdomain>
+References: <20080316172942.8812.56051.sendpatchset@localhost.localdomain> <20080316173005.8812.88290.sendpatchset@localhost.localdomain> <47DE57C2.5060206@openvz.org>
+In-Reply-To: <47DE57C2.5060206@openvz.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Pavel Emelyanov <xemul@openvz.org>
+Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-[snip]
+Pavel Emelyanov wrote:
+> [snip]
+> 
+>> +int mem_cgroup_update_as(struct mm_struct *mm, long nr_pages)
+>> +{
+>> +	int ret = 0;
+>> +	struct mem_cgroup *mem;
+>> +	if (mem_cgroup_subsys.disabled)
+>> +		return ret;
+>> +
+>> +	rcu_read_lock();
+>> +	mem = rcu_dereference(mm->mem_cgroup);
+>> +	css_get(&mem->css);
+>> +	rcu_read_unlock();
+>> +
+>> +	if (nr_pages > 0) {
+>> +		if (res_counter_charge(&mem->as_res, (nr_pages * PAGE_SIZE)))
+>> +			ret = 1;
+>> +	} else
+>> +		res_counter_uncharge(&mem->as_res, (-nr_pages * PAGE_SIZE));
+> 
+> No, please, no. Let's make two calls - mem_cgroup_charge_as and mem_cgroup_uncharge_as.
+> 
+> [snip]
+> 
 
-> +int mem_cgroup_update_as(struct mm_struct *mm, long nr_pages)
-> +{
-> +	int ret = 0;
-> +	struct mem_cgroup *mem;
-> +	if (mem_cgroup_subsys.disabled)
-> +		return ret;
-> +
-> +	rcu_read_lock();
-> +	mem = rcu_dereference(mm->mem_cgroup);
-> +	css_get(&mem->css);
-> +	rcu_read_unlock();
-> +
-> +	if (nr_pages > 0) {
-> +		if (res_counter_charge(&mem->as_res, (nr_pages * PAGE_SIZE)))
-> +			ret = 1;
-> +	} else
-> +		res_counter_uncharge(&mem->as_res, (-nr_pages * PAGE_SIZE));
+Yes, sure :)
 
-No, please, no. Let's make two calls - mem_cgroup_charge_as and mem_cgroup_uncharge_as.
+>> @@ -1117,6 +1117,9 @@ munmap_back:
+>>  		}
+>>  	}
+>>  
+>> +	if (mem_cgroup_update_as(mm, len >> PAGE_SHIFT))
+>> +		return -ENOMEM;
+>> +
+> 
+> Why not use existintg cap_vm_enough_memory and co?
+> 
 
-[snip]
+I thought about it and almost used may_expand_vm(), but there is a slight catch
+there. With cap_vm_enough_memory() or security_vm_enough_memory(), they are
+called after total_vm has been calculated. In our case we need to keep the
+cgroups equivalent of total_vm up to date, and we do this in mem_cgorup_update_as.
 
-> @@ -1117,6 +1117,9 @@ munmap_back:
->  		}
->  	}
->  
-> +	if (mem_cgroup_update_as(mm, len >> PAGE_SHIFT))
-> +		return -ENOMEM;
-> +
-
-Why not use existintg cap_vm_enough_memory and co?
-
-[snip]
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
