@@ -1,51 +1,100 @@
 From: Andi Kleen <andi@firstfloor.org>
 References: <20080317258.659191058@firstfloor.org>
 In-Reply-To: <20080317258.659191058@firstfloor.org>
-Subject: [PATCH] [9/18] Export prep_compound_page to the hugetlb allocator
-Message-Id: <20080317015823.025301B41E0@basil.firstfloor.org>
-Date: Mon, 17 Mar 2008 02:58:23 +0100 (CET)
+Subject: [PATCH] [14/18] Clean up hugetlb boot time printk
+Message-Id: <20080317015828.1AB091B41E0@basil.firstfloor.org>
+Date: Mon, 17 Mar 2008 02:58:28 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-hugetlb will need to get compound pages from bootmem to handle
-the case of them being larger than MAX_ORDER. Export
-the constructor function needed for this.
+- Reword sentence to clarify meaning with multiple options
+- Add support for using GB prefixes for the page size
+- Add extra printk to delayed > MAX_ORDER allocation code
 
 Signed-off-by: Andi Kleen <ak@suse.de>
 
 ---
- mm/internal.h   |    2 ++
- mm/page_alloc.c |    2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ mm/hugetlb.c |   33 ++++++++++++++++++++++++++++++---
+ 1 file changed, 30 insertions(+), 3 deletions(-)
 
-Index: linux/mm/internal.h
+Index: linux/mm/hugetlb.c
 ===================================================================
---- linux.orig/mm/internal.h
-+++ linux/mm/internal.h
-@@ -13,6 +13,8 @@
- 
- #include <linux/mm.h>
- 
-+extern void prep_compound_page(struct page *page, unsigned long order);
-+
- static inline void set_page_count(struct page *page, int v)
- {
- 	atomic_set(&page->_count, v);
-Index: linux/mm/page_alloc.c
-===================================================================
---- linux.orig/mm/page_alloc.c
-+++ linux/mm/page_alloc.c
-@@ -272,7 +272,7 @@ static void free_compound_page(struct pa
- 	__free_pages_ok(page, compound_order(page));
+--- linux.orig/mm/hugetlb.c
++++ linux/mm/hugetlb.c
+@@ -510,6 +510,15 @@ static struct page *alloc_huge_page(stru
+ 	return page;
  }
  
--static void prep_compound_page(struct page *page, unsigned long order)
-+void prep_compound_page(struct page *page, unsigned long order)
++static __init char *memfmt(char *buf, unsigned long n)
++{
++	if (n >= (1UL << 30))
++		sprintf(buf, "%lu GB", n >> 30);
++	else
++		sprintf(buf, "%lu MB", n >> 20);
++	return buf;
++}
++
+ static __initdata LIST_HEAD(huge_boot_pages);
+ 
+ struct huge_bm_page {
+@@ -536,14 +545,28 @@ static int __init alloc_bm_huge_page(str
+ /* Put bootmem huge pages into the standard lists after mem_map is up */
+ static int __init huge_init_bm(void)
  {
- 	int i;
- 	int nr_pages = 1 << order;
++	unsigned long pages = 0;
+ 	struct huge_bm_page *m;
++	struct hstate *h = NULL;
++	char buf[32];
++
+ 	list_for_each_entry (m, &huge_boot_pages, list) {
+ 		struct page *page = virt_to_page(m);
+-		struct hstate *h = m->hstate;
++		h = m->hstate;
+ 		__ClearPageReserved(page);
+ 		prep_compound_page(page, h->order);
+ 		huge_new_page(h, page);
++		pages++;
+ 	}
++
++	/*
++	 * This only prints for a single hstate. This works for x86-64,
++	 * but if you do multiple > MAX_ORDER hstates you'll need to fix it.
++	 */
++	if (pages > 0)
++		printk(KERN_INFO "HugeTLB pre-allocated %ld %s pages\n",
++				h->free_huge_pages,
++				memfmt(buf, huge_page_size(h)));
+ 	return 0;
+ }
+ __initcall(huge_init_bm);
+@@ -551,6 +574,8 @@ __initcall(huge_init_bm);
+ static int __init hugetlb_init_hstate(struct hstate *h)
+ {
+ 	unsigned long i;
++	char buf[32];
++	unsigned long pages = 0;
+ 
+ 	/* Don't reinitialize lists if they have been already init'ed */
+ 	if (!h->hugepage_freelists[0].next) {
+@@ -567,12 +592,14 @@ static int __init hugetlb_init_hstate(st
+ 		} else if (!alloc_fresh_huge_page(h))
+ 			break;
+ 		h->parsed_hugepages++;
++		pages++;
+ 	}
+ 	max_huge_pages[h - hstates] = h->parsed_hugepages;
+ 
+-	printk(KERN_INFO "Total HugeTLB memory allocated, %ld %dMB pages\n",
++	if (pages > 0)
++		printk(KERN_INFO "HugeTLB pre-allocated %ld %s pages\n",
+ 			h->free_huge_pages,
+-			1 << (h->order + PAGE_SHIFT - 20));
++			memfmt(buf, huge_page_size(h)));
+ 	return 0;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
