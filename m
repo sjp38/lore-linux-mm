@@ -1,26 +1,33 @@
-Date: Mon, 17 Mar 2008 08:02:08 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [11/18] Fix alignment bug in bootmem allocator
-Message-ID: <20080317070208.GC27015@one.firstfloor.org>
-References: <20080317258.659191058@firstfloor.org> <20080317015825.0C0171B41E0@basil.firstfloor.org> <86802c440803161919h20ed9f78k6e3798ef56668638@mail.gmail.com>
+Date: Mon, 17 Mar 2008 02:00:18 -0500
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH] [0/18] GB pages hugetlb support
+Message-Id: <20080317020018.2bf0b466.pj@sgi.com>
+In-Reply-To: <20080317070026.GB27015@one.firstfloor.org>
+References: <20080317258.659191058@firstfloor.org>
+	<20080316221132.7218743e.pj@sgi.com>
+	<20080317070026.GB27015@one.firstfloor.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <86802c440803161919h20ed9f78k6e3798ef56668638@mail.gmail.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yinghai Lu <yhlu.kernel@gmail.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-> node_boot_start is not page aligned?
+Andi wrote:
+> This was against 2.6.25-rc4 
 
-It is, but it is not necessarily GB aligned and without this
-change sometimes alloc_bootmem when requesting GB alignment
-doesn't return GB aligned memory. This was a nasty problem
-that took some time to track down.
+Ok - I'll try that one.
 
--Andi
+> Ideally look at the end result of the whole series.
+
+Ok.  Thanks.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.940.382.4214
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
