@@ -1,9 +1,9 @@
-Message-Id: <20080317191942.482475908@szeredi.hu>
+Message-Id: <20080317191945.122011759@szeredi.hu>
 References: <20080317191908.123631326@szeredi.hu>
-Date: Mon, 17 Mar 2008 20:19:10 +0100
+Date: Mon, 17 Mar 2008 20:19:12 +0100
 From: Miklos Szeredi <miklos@szeredi.hu>
-Subject: [patch 2/8] mm: Add NR_WRITEBACK_TEMP counter
-Content-Disposition: inline; filename=add_nr_writeback_temp_stat.patch
+Subject: [patch 4/8] mm: allow not updating BDI stats in end_page_writeback()
+Content-Disposition: inline; filename=end_page_writeback_nobdi.patch
 Sender: owner-linux-mm@kvack.org
 From: Miklos Szeredi <mszeredi@suse.cz>
 Return-Path: <owner-linux-mm@kvack.org>
@@ -11,92 +11,105 @@ To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Fuse will use temporary buffers to write back dirty data from memory
-mappings (normal writes are done synchronously).  This is needed,
-because there cannot be any guarantee about the time in which a write
-will complete.
+Fuse's writepage will need to clear page writeback separately from
+updating the per BDI counters.
 
-By using temporary buffers, from the MM's point if view the page is
-written back immediately.  If the writeout was due to memory pressure,
-this effectively migrates data from a full zone to a less full zone.
+This patch renames end_page_writeback() to __end_page_writeback() and
+adds a boolean parameter to indicate if the per BDI stats need to be
+updated.
 
-This patch adds a new counter (NR_WRITEBACK_TEMP) for the number of
-pages used as temporary buffers.
+Regular callers get an inline end_page_writeback() without the boolean
+parameter.
 
 Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
 ---
- drivers/base/node.c    |    2 ++
- fs/proc/proc_misc.c    |    2 ++
- include/linux/mmzone.h |    1 +
- mm/page-writeback.c    |    3 ++-
- 4 files changed, 7 insertions(+), 1 deletion(-)
+ include/linux/page-flags.h |    2 +-
+ include/linux/pagemap.h    |    7 ++++++-
+ mm/filemap.c               |    7 ++++---
+ mm/page-writeback.c        |    4 ++--
+ 4 files changed, 13 insertions(+), 7 deletions(-)
 
-Index: linux/fs/proc/proc_misc.c
+Index: linux/include/linux/page-flags.h
 ===================================================================
---- linux.orig/fs/proc/proc_misc.c	2008-03-17 18:24:13.000000000 +0100
-+++ linux/fs/proc/proc_misc.c	2008-03-17 18:25:17.000000000 +0100
-@@ -179,6 +179,7 @@ static int meminfo_read_proc(char *page,
- 		"PageTables:   %8lu kB\n"
- 		"NFS_Unstable: %8lu kB\n"
- 		"Bounce:       %8lu kB\n"
-+		"WritebackTmp: %8lu kB\n"
- 		"CommitLimit:  %8lu kB\n"
- 		"Committed_AS: %8lu kB\n"
- 		"VmallocTotal: %8lu kB\n"
-@@ -210,6 +211,7 @@ static int meminfo_read_proc(char *page,
- 		K(global_page_state(NR_PAGETABLE)),
- 		K(global_page_state(NR_UNSTABLE_NFS)),
- 		K(global_page_state(NR_BOUNCE)),
-+		K(global_page_state(NR_WRITEBACK_TEMP)),
- 		K(allowed),
- 		K(committed),
- 		(unsigned long)VMALLOC_TOTAL >> 10,
-Index: linux/include/linux/mmzone.h
+--- linux.orig/include/linux/page-flags.h	2008-03-17 18:24:13.000000000 +0100
++++ linux/include/linux/page-flags.h	2008-03-17 18:25:53.000000000 +0100
+@@ -300,7 +300,7 @@ struct page;	/* forward declaration */
+ 
+ extern void cancel_dirty_page(struct page *page, unsigned int account_size);
+ 
+-int test_clear_page_writeback(struct page *page);
++int test_clear_page_writeback(struct page *page, bool bdi_stats);
+ int test_set_page_writeback(struct page *page);
+ 
+ static inline void set_page_writeback(struct page *page)
+Index: linux/include/linux/pagemap.h
 ===================================================================
---- linux.orig/include/linux/mmzone.h	2008-03-17 18:24:13.000000000 +0100
-+++ linux/include/linux/mmzone.h	2008-03-17 18:25:17.000000000 +0100
-@@ -95,6 +95,7 @@ enum zone_stat_item {
- 	NR_UNSTABLE_NFS,	/* NFS unstable pages */
- 	NR_BOUNCE,
- 	NR_VMSCAN_WRITE,
-+	NR_WRITEBACK_TEMP,	/* Writeback using temporary buffers */
- #ifdef CONFIG_NUMA
- 	NUMA_HIT,		/* allocated in intended node */
- 	NUMA_MISS,		/* allocated in non intended node */
-Index: linux/drivers/base/node.c
+--- linux.orig/include/linux/pagemap.h	2008-03-17 18:24:13.000000000 +0100
++++ linux/include/linux/pagemap.h	2008-03-17 18:25:53.000000000 +0100
+@@ -223,7 +223,12 @@ static inline void wait_on_page_writebac
+ 		wait_on_page_bit(page, PG_writeback);
+ }
+ 
+-extern void end_page_writeback(struct page *page);
++extern void __end_page_writeback(struct page *page, bool bdi_stats);
++
++static inline void end_page_writeback(struct page *page)
++{
++	__end_page_writeback(page, true);
++}
+ 
+ /*
+  * Fault a userspace page into pagetables.  Return non-zero on a fault.
+Index: linux/mm/filemap.c
 ===================================================================
---- linux.orig/drivers/base/node.c	2008-03-17 18:24:13.000000000 +0100
-+++ linux/drivers/base/node.c	2008-03-17 18:25:17.000000000 +0100
-@@ -64,6 +64,7 @@ static ssize_t node_read_meminfo(struct 
- 		       "Node %d PageTables:   %8lu kB\n"
- 		       "Node %d NFS_Unstable: %8lu kB\n"
- 		       "Node %d Bounce:       %8lu kB\n"
-+		       "Node %d WritebackTmp: %8lu kB\n"
- 		       "Node %d Slab:         %8lu kB\n"
- 		       "Node %d SReclaimable: %8lu kB\n"
- 		       "Node %d SUnreclaim:   %8lu kB\n",
-@@ -86,6 +87,7 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(node_page_state(nid, NR_PAGETABLE)),
- 		       nid, K(node_page_state(nid, NR_UNSTABLE_NFS)),
- 		       nid, K(node_page_state(nid, NR_BOUNCE)),
-+		       nid, K(node_page_state(nid, NR_WRITEBACK_TEMP)),
- 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE) +
- 				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
- 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
+--- linux.orig/mm/filemap.c	2008-03-17 18:25:38.000000000 +0100
++++ linux/mm/filemap.c	2008-03-17 18:25:53.000000000 +0100
+@@ -574,19 +574,20 @@ EXPORT_SYMBOL(unlock_page);
+ /**
+  * end_page_writeback - end writeback against a page
+  * @page: the page
++ * @bdi_stats: update the per-bdi writeback counter
+  */
+-void end_page_writeback(struct page *page)
++void __end_page_writeback(struct page *page, bool bdi_stats)
+ {
+ 	if (TestClearPageReclaim(page))
+ 		rotate_reclaimable_page(page);
+ 
+-	if (!test_clear_page_writeback(page))
++	if (!test_clear_page_writeback(page, bdi_stats))
+ 		BUG();
+ 
+ 	smp_mb__after_clear_bit();
+ 	wake_up_page(page, PG_writeback);
+ }
+-EXPORT_SYMBOL(end_page_writeback);
++EXPORT_SYMBOL(__end_page_writeback);
+ 
+ /**
+  * __lock_page - get a lock on the page, assuming we need to sleep to get it
 Index: linux/mm/page-writeback.c
 ===================================================================
---- linux.orig/mm/page-writeback.c	2008-03-17 18:24:36.000000000 +0100
-+++ linux/mm/page-writeback.c	2008-03-17 18:25:17.000000000 +0100
-@@ -211,7 +211,8 @@ clip_bdi_dirty_limit(struct backing_dev_
- 	avail_dirty = dirty -
- 		(global_page_state(NR_FILE_DIRTY) +
- 		 global_page_state(NR_WRITEBACK) +
--		 global_page_state(NR_UNSTABLE_NFS));
-+		 global_page_state(NR_UNSTABLE_NFS) +
-+		 global_page_state(NR_WRITEBACK_TEMP));
+--- linux.orig/mm/page-writeback.c	2008-03-17 18:25:17.000000000 +0100
++++ linux/mm/page-writeback.c	2008-03-17 18:25:53.000000000 +0100
+@@ -1242,7 +1242,7 @@ int clear_page_dirty_for_io(struct page 
+ }
+ EXPORT_SYMBOL(clear_page_dirty_for_io);
  
- 	if (avail_dirty < 0)
- 		avail_dirty = 0;
+-int test_clear_page_writeback(struct page *page)
++int test_clear_page_writeback(struct page *page, bool bdi_stats)
+ {
+ 	struct address_space *mapping = page_mapping(page);
+ 	int ret;
+@@ -1257,7 +1257,7 @@ int test_clear_page_writeback(struct pag
+ 			radix_tree_tag_clear(&mapping->page_tree,
+ 						page_index(page),
+ 						PAGECACHE_TAG_WRITEBACK);
+-			if (bdi_cap_writeback_dirty(bdi)) {
++			if (bdi_stats && bdi_cap_writeback_dirty(bdi)) {
+ 				__dec_bdi_stat(bdi, BDI_WRITEBACK);
+ 				__bdi_writeout_inc(bdi);
+ 			}
 
 --
 
