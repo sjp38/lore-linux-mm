@@ -1,52 +1,59 @@
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m2HF3gLR019714
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 11:03:42 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2HF3UYi240920
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 09:03:31 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2HF3Lko008658
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 09:03:21 -0600
-Subject: Re: [PATCH] [0/18] GB pages hugetlb support
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <20080317258.659191058@firstfloor.org>
-References: <20080317258.659191058@firstfloor.org>
-Content-Type: text/plain
-Date: Mon, 17 Mar 2008 10:05:07 -0500
-Message-Id: <1205766307.10849.38.camel@localhost.localdomain>
-Mime-Version: 1.0
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp01.in.ibm.com (8.13.1/8.13.1) with ESMTP id m2HFHIjR003730
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 20:47:18 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2HFHHSW1183964
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 20:47:18 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id m2HFHH0X011516
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 15:17:17 GMT
+Message-ID: <47DE8B1E.4010501@linux.vnet.ibm.com>
+Date: Mon, 17 Mar 2008 20:45:42 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [RFC][0/3] Virtual address space control for cgroups
+References: <20080316172942.8812.56051.sendpatchset@localhost.localdomain> <6599ad830803161626q1fcf261bta52933bb5e7a6bdd@mail.gmail.com> <47DDCDA7.4020108@cn.fujitsu.com> <6599ad830803161857r6d01f962vfd0f570e6124ab24@mail.gmail.com> <47DDFCEA.3030207@linux.vnet.ibm.com> <6599ad830803162222t6c32f5a1qd4d0af4887dfa910@mail.gmail.com>
+In-Reply-To: <6599ad830803162222t6c32f5a1qd4d0af4887dfa910@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+To: Paul Menage <menage@google.com>
+Cc: Li Zefan <lizf@cn.fujitsu.com>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-03-17 at 02:58 +0100, Andi Kleen wrote:
-<snip>
-> - lockdep sometimes complains about recursive page_table_locks
-> for shared hugetlb memory, but as far as I can see I didn't
-> actually change this area. Looks a little dubious, might
-> be a false positive too.
+Paul Menage wrote:
+> On Mon, Mar 17, 2008 at 1:08 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>>  I understand the per-mm pointer overhead back to the cgroup. I don't understand
+>>  the part about adding a per-mm pointer back to the "owning" task. We already
+>>  have task->mm.
+> 
+> Yes, but we don't have mm->owner, which is what I was proposing -
+> mm->owner would be a pointer typically to the mm's thread group
+> leader. It would remove the need to have to have pointers for the
+> various different cgroup subsystems that need to act on an mm rather
+> than a task_struct, since then you could use
+> mm->owner->cgroups[subsys_id].
+> 
 
-I bet copy_hugetlb_page_range() is causing your complaints.  It takes
-the dest_mm->page_table_lock followed by src_mm->page_table_lock inside
-a loop and hasn't yet been converted to call spin_lock_nested().  A
-harmless false positive.
+Aaahh.. Yes.. mm->owner might be a good idea. The only thing we'll need to
+handle is when mm->owner dies (I think the thread group is still kept around).
+The other disadvantage is the double dereferencing, which should not be all that
+bad.
 
-> - hugemmap04 from LTP fails. Cause unknown currently
+> But this is kind of orthogonal to whether virtual address space limits
+> should be a separate cgroup subsystem.
+> 
 
-I am not sure how well LTP is tracking mainline development in this
-area.  How do these patches do with the libhugetlbfs test suite?  We are
-adding support for ginormous pages (1GB, 16GB, etc) but it is not
-complete.  Should run fine with 2M pages though.
+Yes, sure.
 
-Before you ask, here is the link:
-http://libhugetlbfs.ozlabs.org/snapshots/libhugetlbfs-dev-20080310.tar.gz
 
 -- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
