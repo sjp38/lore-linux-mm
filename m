@@ -1,58 +1,60 @@
-Received: by wr-out-0506.google.com with SMTP id c37so1687340wra.26
-        for <linux-mm@kvack.org>; Mon, 17 Mar 2008 11:52:45 -0700 (PDT)
-Message-ID: <86802c440803171152y379560dfp1296aefb0b86b54b@mail.gmail.com>
-Date: Mon, 17 Mar 2008 11:52:43 -0700
-From: "Yinghai Lu" <yhlu.kernel@gmail.com>
-Subject: Re: [PATCH] [11/18] Fix alignment bug in bootmem allocator
-In-Reply-To: <20080317085604.GA12405@basil.nowhere.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080317258.659191058@firstfloor.org>
-	 <20080317015825.0C0171B41E0@basil.firstfloor.org>
-	 <86802c440803161919h20ed9f78k6e3798ef56668638@mail.gmail.com>
-	 <20080317070208.GC27015@one.firstfloor.org>
-	 <86802c440803170017r622114bdpede8625d1a8ff585@mail.gmail.com>
-	 <86802c440803170031u75167e5m301f65049b6d62ff@mail.gmail.com>
-	 <20080317074146.GG27015@one.firstfloor.org>
-	 <86802c440803170053n32a1c918h2ff2a32abef44050@mail.gmail.com>
-	 <20080317085604.GA12405@basil.nowhere.org>
+Message-Id: <20080317191941.332720129@szeredi.hu>
+References: <20080317191908.123631326@szeredi.hu>
+Date: Mon, 17 Mar 2008 20:19:09 +0100
+From: Miklos Szeredi <miklos@szeredi.hu>
+Subject: [patch 1/8] mm: bdi: export bdi_writeout_inc()
+Content-Disposition: inline; filename=export_bdi_writeout_inc.patch
 Sender: owner-linux-mm@kvack.org
+From: Miklos Szeredi <mszeredi@suse.cz>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 17, 2008 at 1:56 AM, Andi Kleen <andi@firstfloor.org> wrote:
-> > only happen when align is large than alignment of node_boot_start.
->
->  Here's an updated version of the patch with this addressed.
->  Please review. The patch is somewhat more complicated, but
->  actually makes the code a little cleaner now.
->
->  -Andi
->
->
->  Fix alignment bug in bootmem allocator
->
->
->  Without this fix bootmem can return unaligned addresses when the start of a
->  node is not aligned to the align value. Needed for reliably allocating
->  gigabyte pages.
->
->  I removed the offset variable because all tests should align themself correctly
->  now. Slight drawback might be that the bootmem allocator will spend
->  some more time skipping bits in the bitmap initially, but that shouldn't
->  be a big issue.
->
->
->  Signed-off-by: Andi Kleen <ak@suse.de>
->
-how about create local node_boot_start and node_bootmem_map that make
-sure node_boot_start has bigger alignment than align input.
+Fuse needs this for writable mmap support.
 
-YH
+Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
+---
+ include/linux/backing-dev.h |    2 ++
+ mm/page-writeback.c         |   10 ++++++++++
+ 2 files changed, 12 insertions(+)
+
+Index: linux/include/linux/backing-dev.h
+===================================================================
+--- linux.orig/include/linux/backing-dev.h	2008-03-17 18:24:13.000000000 +0100
++++ linux/include/linux/backing-dev.h	2008-03-17 18:24:36.000000000 +0100
+@@ -134,6 +134,8 @@ static inline s64 bdi_stat_sum(struct ba
+ 	return sum;
+ }
+ 
++extern void bdi_writeout_inc(struct backing_dev_info *bdi);
++
+ /*
+  * maximal error of a stat counter.
+  */
+Index: linux/mm/page-writeback.c
+===================================================================
+--- linux.orig/mm/page-writeback.c	2008-03-17 18:24:13.000000000 +0100
++++ linux/mm/page-writeback.c	2008-03-17 18:24:36.000000000 +0100
+@@ -168,6 +168,16 @@ static inline void __bdi_writeout_inc(st
+ 			      bdi->max_prop_frac);
+ }
+ 
++void bdi_writeout_inc(struct backing_dev_info *bdi)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++	__bdi_writeout_inc(bdi);
++	local_irq_restore(flags);
++}
++EXPORT_SYMBOL(bdi_writeout_inc);
++
+ static inline void task_dirty_inc(struct task_struct *tsk)
+ {
+ 	prop_inc_single(&vm_dirties, &tsk->dirties);
+
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
