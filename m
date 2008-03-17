@@ -1,159 +1,69 @@
 From: Andi Kleen <andi@firstfloor.org>
-References: <20080317258.659191058@firstfloor.org>
-In-Reply-To: <20080317258.659191058@firstfloor.org>
-Subject: [PATCH] [5/18] Expand the hugetlbfs sysctls to handle arrays for all hstates
-Message-Id: <20080317015818.E30041B41E0@basil.firstfloor.org>
-Date: Mon, 17 Mar 2008 02:58:18 +0100 (CET)
+Message-Id: <20080317258.659191058@firstfloor.org>
+Subject: [PATCH] [0/18] GB pages hugetlb support
+Date: Mon, 17 Mar 2008 02:58:13 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-- I didn't bother with hugetlb_shm_group and treat_as_movable,
-these are still single global.
-- Also improve error propagation for the sysctl handlers a bit
+This patchkit supports GB pages for hugetlb on x86-64 in addition to 
+2MB pages.   This is the sucessor of an earlier much simpler
+patchkit that allowed to set the hugepagesz globally at boot
+to 1GB pages. The advantage of this more complex patchkit
+is that it allows 2MB page users and 1GB page users to 
+coexist (although not on the same hugetlbfs mount points) 
 
+It first adds some straight-forward infrastructure 
+to hugetlbfs to support multiple page sizes. Then it uses that
+infrastructure to implement support for huge pages > MAX_ORDER 
+(which can be allocated at boot with bootmem only). Then 
+the x86-64 port is extended to support 1GB pages on CPUs
+that support them (AMD Quad Cores)
 
-Signed-off-by: Andi Kleen <ak@suse.de>
+There is no support for i386 because GB pages are only available in
+long mode.
 
----
- include/linux/hugetlb.h |    5 +++--
- kernel/sysctl.c         |    2 +-
- mm/hugetlb.c            |   43 +++++++++++++++++++++++++++++++------------
- 3 files changed, 35 insertions(+), 15 deletions(-)
+The variable page size support is currently limited to the
+specific use case of the single additional 1GB page size.
+Using it for more page sizes (especially those < MAX_ORDER)
+would require some more work, although the basic infrastructure
+is all in place and the incremental work will be small.
+But I didn't bother to implement some corner cases not needed
+for the GB page case. I usually added comments so they
+should be easy to find (and fix) later however :)
 
-Index: linux/include/linux/hugetlb.h
-===================================================================
---- linux.orig/include/linux/hugetlb.h
-+++ linux/include/linux/hugetlb.h
-@@ -32,8 +32,6 @@ int hugetlb_fault(struct mm_struct *mm, 
- int hugetlb_reserve_pages(struct inode *inode, long from, long to);
- void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
- 
--extern unsigned long max_huge_pages;
--extern unsigned long sysctl_overcommit_huge_pages;
- extern unsigned long hugepages_treat_as_movable;
- extern const unsigned long hugetlb_zero, hugetlb_infinity;
- extern int sysctl_hugetlb_shm_group;
-@@ -258,6 +256,9 @@ static inline unsigned huge_page_shift(s
- 	return h->order + PAGE_SHIFT;
- }
- 
-+extern unsigned long max_huge_pages[HUGE_MAX_HSTATE];
-+extern unsigned long sysctl_overcommit_huge_pages[HUGE_MAX_HSTATE];
-+
- #else
- struct hstate {};
- #define hstate_file(f) NULL
-Index: linux/kernel/sysctl.c
-===================================================================
---- linux.orig/kernel/sysctl.c
-+++ linux/kernel/sysctl.c
-@@ -935,7 +935,7 @@ static struct ctl_table vm_table[] = {
- 	 {
- 		.procname	= "nr_hugepages",
- 		.data		= &max_huge_pages,
--		.maxlen		= sizeof(unsigned long),
-+		.maxlen 	= sizeof(max_huge_pages),
- 		.mode		= 0644,
- 		.proc_handler	= &hugetlb_sysctl_handler,
- 		.extra1		= (void *)&hugetlb_zero,
-Index: linux/mm/hugetlb.c
-===================================================================
---- linux.orig/mm/hugetlb.c
-+++ linux/mm/hugetlb.c
-@@ -22,8 +22,8 @@
- #include "internal.h"
- 
- const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
--unsigned long max_huge_pages;
--unsigned long sysctl_overcommit_huge_pages;
-+unsigned long max_huge_pages[HUGE_MAX_HSTATE];
-+unsigned long sysctl_overcommit_huge_pages[HUGE_MAX_HSTATE];
- static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
- unsigned long hugepages_treat_as_movable;
- 
-@@ -496,11 +496,11 @@ static int __init hugetlb_init_hstate(st
- 
- 	h->hugetlb_next_nid = first_node(node_online_map);
- 
--	for (i = 0; i < max_huge_pages; ++i) {
-+	for (i = 0; i < max_huge_pages[h - hstates]; ++i) {
- 		if (!alloc_fresh_huge_page(h))
- 			break;
- 	}
--	max_huge_pages = h->free_huge_pages = h->nr_huge_pages = i;
-+	max_huge_pages[h - hstates] = h->free_huge_pages = h->nr_huge_pages = i;
- 
- 	printk(KERN_INFO "Total HugeTLB memory allocated, %ld %dMB pages\n",
- 			h->free_huge_pages,
-@@ -531,8 +531,9 @@ void __init huge_add_hstate(unsigned ord
- 
- static int __init hugetlb_setup(char *s)
- {
--	if (sscanf(s, "%lu", &max_huge_pages) <= 0)
--		max_huge_pages = 0;
-+	unsigned long *mhp = &max_huge_pages[parsed_hstate - hstates];
-+	if (sscanf(s, "%lu", mhp) <= 0)
-+		*mhp = 0;
- 	return 1;
- }
- __setup("hugepages=", hugetlb_setup);
-@@ -584,10 +585,12 @@ static inline void try_to_free_low(unsig
- #endif
- 
- #define persistent_huge_pages(h) (h->nr_huge_pages - h->surplus_huge_pages)
--static unsigned long set_max_huge_pages(unsigned long count)
-+static unsigned long
-+set_max_huge_pages(struct hstate *h, unsigned long count, int *err)
- {
- 	unsigned long min_count, ret;
--	struct hstate *h = &global_hstate;
-+
-+	*err = 0;
- 
- 	/*
- 	 * Increase the pool size
-@@ -659,8 +662,20 @@ int hugetlb_sysctl_handler(struct ctl_ta
- 			   struct file *file, void __user *buffer,
- 			   size_t *length, loff_t *ppos)
- {
--	proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
--	max_huge_pages = set_max_huge_pages(max_huge_pages);
-+	int err = 0;
-+	struct hstate *h;
-+	int i;
-+	err = proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
-+	if (err)
-+		return err;
-+	i = 0;
-+	for_each_hstate (h) {
-+		max_huge_pages[i] = set_max_huge_pages(h, max_huge_pages[i],
-+							&err);
-+		if (err)
-+			return err;
-+		i++;
-+	}
- 	return 0;
- }
- 
-@@ -680,10 +695,14 @@ int hugetlb_overcommit_handler(struct ct
- 			struct file *file, void __user *buffer,
- 			size_t *length, loff_t *ppos)
- {
--	struct hstate *h = &global_hstate;
-+	struct hstate *h;
-+	int i = 0;
- 	proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
- 	spin_lock(&hugetlb_lock);
--	h->nr_overcommit_huge_pages = sysctl_overcommit_huge_pages;
-+	for_each_hstate (h) {
-+		h->nr_overcommit_huge_pages = sysctl_overcommit_huge_pages[i];
-+		i++;
-+	}
- 	spin_unlock(&hugetlb_lock);
- 	return 0;
- }
+I hacked in also cpuset support. It would be good if 
+Paul double checked that.
+
+GB pages are only intended to be used in special situations, like
+dedicated databases where complicated configuration does not matter. 
+That is why they have some limitations:
+- Can be only allocated at boot (using hugepagesz=1G hugepages=...) 
+- Can't be freed at runtime
+- One hugetlbfs mount per page size (using the pagesize=... mount 
+option). This is a little awkward, but greatly simplified the
+code.
+- No IPC SHM support currently (would not be very hard to do, 
+but it is unclear what the best API for this is. Suggestions
+welcome)
+
+Some of this would be fixable later.
+
+Known issues:
+- GB pages are not reported in total memory, which gives
+confusing free(1) output
+- I have still to explain myself how and if free_pgd_pages works
+on hugetlb, both with 1GB and with 2MB pages. 
+- cpuset support is a little dubious, but the code was 
+even before quite strange.
+- lockdep sometimes complains about recursive page_table_locks
+for shared hugetlb memory, but as far as I can see I didn't
+actually change this area. Looks a little dubious, might
+be a false positive too.
+- hugemmap04 from LTP fails. Cause unknown currently
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
