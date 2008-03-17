@@ -1,54 +1,58 @@
-Date: Mon, 17 Mar 2008 11:43:11 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: [git pull] slub fallback fix
-Message-ID: <Pine.LNX.4.64.0803171135420.8746@schroedinger.engr.sgi.com>
+Received: by wr-out-0506.google.com with SMTP id c37so1687340wra.26
+        for <linux-mm@kvack.org>; Mon, 17 Mar 2008 11:52:45 -0700 (PDT)
+Message-ID: <86802c440803171152y379560dfp1296aefb0b86b54b@mail.gmail.com>
+Date: Mon, 17 Mar 2008 11:52:43 -0700
+From: "Yinghai Lu" <yhlu.kernel@gmail.com>
+Subject: Re: [PATCH] [11/18] Fix alignment bug in bootmem allocator
+In-Reply-To: <20080317085604.GA12405@basil.nowhere.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080317258.659191058@firstfloor.org>
+	 <20080317015825.0C0171B41E0@basil.firstfloor.org>
+	 <86802c440803161919h20ed9f78k6e3798ef56668638@mail.gmail.com>
+	 <20080317070208.GC27015@one.firstfloor.org>
+	 <86802c440803170017r622114bdpede8625d1a8ff585@mail.gmail.com>
+	 <86802c440803170031u75167e5m301f65049b6d62ff@mail.gmail.com>
+	 <20080317074146.GG27015@one.firstfloor.org>
+	 <86802c440803170053n32a1c918h2ff2a32abef44050@mail.gmail.com>
+	 <20080317085604.GA12405@basil.nowhere.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: torvalds@linux-foundation.org
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-We need to reenable interrupts before calling the page allocator from the
-fallback path for kmalloc. Used to be okay with the alternate fastpath 
-which shifted interrupt enable/disable to the fastpath. But the slowpath
-is always called with interrupts disabled now. So we need this fix.
+On Mon, Mar 17, 2008 at 1:56 AM, Andi Kleen <andi@firstfloor.org> wrote:
+> > only happen when align is large than alignment of node_boot_start.
+>
+>  Here's an updated version of the patch with this addressed.
+>  Please review. The patch is somewhat more complicated, but
+>  actually makes the code a little cleaner now.
+>
+>  -Andi
+>
+>
+>  Fix alignment bug in bootmem allocator
+>
+>
+>  Without this fix bootmem can return unaligned addresses when the start of a
+>  node is not aligned to the align value. Needed for reliably allocating
+>  gigabyte pages.
+>
+>  I removed the offset variable because all tests should align themself correctly
+>  now. Slight drawback might be that the bootmem allocator will spend
+>  some more time skipping bits in the bitmap initially, but that shouldn't
+>  be a big issue.
+>
+>
+>  Signed-off-by: Andi Kleen <ak@suse.de>
+>
+how about create local node_boot_start and node_bootmem_map that make
+sure node_boot_start has bigger alignment than align input.
 
-
-  git://git.kernel.org/pub/scm/linux/kernel/git/christoph/vm.git slab-linus
-
-Christoph Lameter (1):
-      slub page alloc fallback: Enable interrupts for GFP_WAIT.
-
- mm/slub.c |   12 +++++++++---
- 1 files changed, 9 insertions(+), 3 deletions(-)
-
-diff --git a/mm/slub.c b/mm/slub.c
-index 96d63eb..ca71d5b 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1536,9 +1536,15 @@ new_slab:
-         * That is only possible if certain conditions are met that are 
-being
-         * checked when a slab is created.
-         */
--       if (!(gfpflags & __GFP_NORETRY) && (s->flags & 
-__PAGE_ALLOC_FALLBACK))
--               return kmalloc_large(s->objsize, gfpflags);
--
-+       if (!(gfpflags & __GFP_NORETRY) &&
-+                               (s->flags & __PAGE_ALLOC_FALLBACK)) {
-+               if (gfpflags & __GFP_WAIT)
-+                       local_irq_enable();
-+               object = kmalloc_large(s->objsize, gfpflags);
-+               if (gfpflags & __GFP_WAIT)
-+                       local_irq_disable();
-+               return object;
-+       }
-        return NULL;
- debug:
-        if (!alloc_debug_processing(s, c->page, object, addr))
+YH
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
