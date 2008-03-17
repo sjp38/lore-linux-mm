@@ -1,59 +1,48 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id m2H5EEGO026315
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 16:14:14 +1100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2H5DKUb3674134
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 16:13:20 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2H5DQtH032221
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2008 16:13:26 +1100
-Message-ID: <47DDFD97.6000209@linux.vnet.ibm.com>
-Date: Mon, 17 Mar 2008 10:41:51 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Received: from zps78.corp.google.com (zps78.corp.google.com [172.25.146.78])
+	by smtp-out.google.com with ESMTP id m2H5Mncj030071
+	for <linux-mm@kvack.org>; Sun, 16 Mar 2008 22:22:49 -0700
+Received: from py-out-1112.google.com (pyef47.prod.google.com [10.34.157.47])
+	by zps78.corp.google.com with ESMTP id m2H5Mm9R030206
+	for <linux-mm@kvack.org>; Sun, 16 Mar 2008 22:22:49 -0700
+Received: by py-out-1112.google.com with SMTP id f47so5703101pye.14
+        for <linux-mm@kvack.org>; Sun, 16 Mar 2008 22:22:48 -0700 (PDT)
+Message-ID: <6599ad830803162222t6c32f5a1qd4d0af4887dfa910@mail.gmail.com>
+Date: Mon, 17 Mar 2008 13:22:48 +0800
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [RFC][0/3] Virtual address space control for cgroups
+In-Reply-To: <47DDFCEA.3030207@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] another swap controller for cgroup
-References: <20080317020407.8512E1E7995@siro.lan>
-In-Reply-To: <20080317020407.8512E1E7995@siro.lan>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080316172942.8812.56051.sendpatchset@localhost.localdomain>
+	 <6599ad830803161626q1fcf261bta52933bb5e7a6bdd@mail.gmail.com>
+	 <47DDCDA7.4020108@cn.fujitsu.com>
+	 <6599ad830803161857r6d01f962vfd0f570e6124ab24@mail.gmail.com>
+	 <47DDFCEA.3030207@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: containers@lists.osdl.org, linux-mm@kvack.org, nishimura@mxp.nes.nec.co.jp, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com, minoura@valinux.co.jp
+To: balbir@linux.vnet.ibm.com
+Cc: Li Zefan <lizf@cn.fujitsu.com>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-YAMAMOTO Takashi wrote:
-> hi,
-> 
-> the following is another swap controller, which was designed and
-> implemented independently from nishimura-san's one.
-> 
-> some random differences from nishimura-san's one:
-> - counts and limits the number of ptes with swap entries instead of
->   on-disk swap slots.
-> - no swapon-time memory allocation.
-> - anonymous objects (shmem) are not accounted.
-> - precise wrt moving tasks between cgroups. 
-> 
-> this patch contains some unrelated small fixes which i've posted separately:
-> - exe_file fput botch fix
-> - cgroup_rmdir EBUSY fix
-> 
-> any comments?
-> 
+On Mon, Mar 17, 2008 at 1:08 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>
+>  I understand the per-mm pointer overhead back to the cgroup. I don't understand
+>  the part about adding a per-mm pointer back to the "owning" task. We already
+>  have task->mm.
 
-Hi, YAMAMOTO-San,
+Yes, but we don't have mm->owner, which is what I was proposing -
+mm->owner would be a pointer typically to the mm's thread group
+leader. It would remove the need to have to have pointers for the
+various different cgroup subsystems that need to act on an mm rather
+than a task_struct, since then you could use
+mm->owner->cgroups[subsys_id].
 
-Thanks for the patch. I'll review and test it. I'll get back soon
+But this is kind of orthogonal to whether virtual address space limits
+should be a separate cgroup subsystem.
 
-Balbir
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
