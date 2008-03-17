@@ -1,44 +1,291 @@
-Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
-	by smtp-out.google.com with ESMTP id m2H1vdAP017046
-	for <linux-mm@kvack.org>; Sun, 16 Mar 2008 18:57:39 -0700
-Received: from py-out-1112.google.com (pyed32.prod.google.com [10.34.156.32])
-	by zps75.corp.google.com with ESMTP id m2H1vcsf005517
-	for <linux-mm@kvack.org>; Sun, 16 Mar 2008 18:57:39 -0700
-Received: by py-out-1112.google.com with SMTP id d32so5253313pye.21
-        for <linux-mm@kvack.org>; Sun, 16 Mar 2008 18:57:38 -0700 (PDT)
-Message-ID: <6599ad830803161857r6d01f962vfd0f570e6124ab24@mail.gmail.com>
-Date: Mon, 17 Mar 2008 09:57:37 +0800
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [RFC][0/3] Virtual address space control for cgroups
-In-Reply-To: <47DDCDA7.4020108@cn.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080316172942.8812.56051.sendpatchset@localhost.localdomain>
-	 <6599ad830803161626q1fcf261bta52933bb5e7a6bdd@mail.gmail.com>
-	 <47DDCDA7.4020108@cn.fujitsu.com>
+From: Andi Kleen <andi@firstfloor.org>
+References: <20080317258.659191058@firstfloor.org>
+In-Reply-To: <20080317258.659191058@firstfloor.org>
+Subject: [PATCH] [6/18] Add support to have individual hstates for each hugetlbfs mount
+Message-Id: <20080317015819.E7ECB1B41E0@basil.firstfloor.org>
+Date: Mon, 17 Mar 2008 02:58:19 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 17, 2008 at 9:47 AM, Li Zefan <lizf@cn.fujitsu.com> wrote:
->
->  It will be code duplication to make it a new subsystem,
+- Add a new pagesize= option to the hugetlbfs mount that allows setting
+the page size
+- Set up pointers to a suitable hstate for the set page size option
+to the super block and the inode and the vma.
+- Change the hstate accessors to use this information
+- Add code to the hstate init function to set parsed_hstate for command
+line processing
+- Handle duplicated hstate registrations to the make command line user proof
 
-Would it? Other than the basic cgroup boilerplate, the only real
-duplication that I could see would be that there'd need to be an
-additional per-mm pointer back to the cgroup. (Which could be avoided
-if we added a single per-mm pointer back to the "owning" task, which
-would generally be the mm's thread group leader, so that you could go
-quickly from an mm to a set of cgroup subsystems).
+Signed-off-by: Andi Kleen <ak@suse.de>
 
-And the advantage would that you'd be able to more easily pick/choose
-which bits of control you use (and pay for).
+---
+ fs/hugetlbfs/inode.c    |   50 ++++++++++++++++++++++++++++++++++++++----------
+ include/linux/hugetlb.h |   12 ++++++++---
+ mm/hugetlb.c            |   22 +++++++++++++++++----
+ 3 files changed, 67 insertions(+), 17 deletions(-)
 
-Paul
+Index: linux/include/linux/hugetlb.h
+===================================================================
+--- linux.orig/include/linux/hugetlb.h
++++ linux/include/linux/hugetlb.h
+@@ -134,6 +134,7 @@ struct hugetlbfs_config {
+ 	umode_t mode;
+ 	long	nr_blocks;
+ 	long	nr_inodes;
++	struct hstate *hstate;
+ };
+ 
+ struct hugetlbfs_sb_info {
+@@ -142,12 +143,14 @@ struct hugetlbfs_sb_info {
+ 	long	max_inodes;   /* inodes allowed */
+ 	long	free_inodes;  /* inodes free */
+ 	spinlock_t	stat_lock;
++	struct hstate *hstate;
+ };
+ 
+ 
+ struct hugetlbfs_inode_info {
+ 	struct shared_policy policy;
+ 	struct inode vfs_inode;
++	struct hstate *hstate;
+ };
+ 
+ static inline struct hugetlbfs_inode_info *HUGETLBFS_I(struct inode *inode)
+@@ -212,6 +215,7 @@ struct hstate {
+ };
+ 
+ void __init huge_add_hstate(unsigned order);
++struct hstate *huge_lookup_hstate(unsigned long pagesize);
+ 
+ #ifndef HUGE_MAX_HSTATE
+ #define HUGE_MAX_HSTATE 1
+@@ -223,17 +227,19 @@ extern struct hstate hstates[HUGE_MAX_HS
+ 
+ static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
+ {
+-	return &global_hstate;
++	return (struct hstate *)vma->vm_private_data;
+ }
+ 
+ static inline struct hstate *hstate_file(struct file *f)
+ {
+-	return &global_hstate;
++	struct dentry *d = f->f_dentry;
++	struct inode *i = d->d_inode;
++	return HUGETLBFS_I(i)->hstate;
+ }
+ 
+ static inline struct hstate *hstate_inode(struct inode *i)
+ {
+-	return &global_hstate;
++	return HUGETLBFS_I(i)->hstate;
+ }
+ 
+ static inline unsigned huge_page_size(struct hstate *h)
+Index: linux/fs/hugetlbfs/inode.c
+===================================================================
+--- linux.orig/fs/hugetlbfs/inode.c
++++ linux/fs/hugetlbfs/inode.c
+@@ -53,6 +53,7 @@ int sysctl_hugetlb_shm_group;
+ enum {
+ 	Opt_size, Opt_nr_inodes,
+ 	Opt_mode, Opt_uid, Opt_gid,
++	Opt_pagesize,
+ 	Opt_err,
+ };
+ 
+@@ -62,6 +63,7 @@ static match_table_t tokens = {
+ 	{Opt_mode,	"mode=%o"},
+ 	{Opt_uid,	"uid=%u"},
+ 	{Opt_gid,	"gid=%u"},
++	{Opt_pagesize,	"pagesize=%s"},
+ 	{Opt_err,	NULL},
+ };
+ 
+@@ -92,6 +94,7 @@ static int hugetlbfs_file_mmap(struct fi
+ 	 */
+ 	vma->vm_flags |= VM_HUGETLB | VM_RESERVED;
+ 	vma->vm_ops = &hugetlb_vm_ops;
++	vma->vm_private_data = h;
+ 
+ 	if (vma->vm_pgoff & ~(huge_page_mask(h) >> PAGE_SHIFT))
+ 		return -EINVAL;
+@@ -530,6 +533,7 @@ static struct inode *hugetlbfs_get_inode
+ 			inode->i_op = &page_symlink_inode_operations;
+ 			break;
+ 		}
++		info->hstate = HUGETLBFS_SB(sb)->hstate;
+ 	}
+ 	return inode;
+ }
+@@ -750,6 +754,8 @@ hugetlbfs_parse_options(char *options, s
+ 	char *p, *rest;
+ 	substring_t args[MAX_OPT_ARGS];
+ 	int option;
++	unsigned long long size = 0;
++	enum { NO_SIZE, SIZE_STD, SIZE_PERCENT } setsize = NO_SIZE;
+ 
+ 	if (!options)
+ 		return 0;
+@@ -780,17 +786,13 @@ hugetlbfs_parse_options(char *options, s
+ 			break;
+ 
+ 		case Opt_size: {
+- 			unsigned long long size;
+ 			/* memparse() will accept a K/M/G without a digit */
+ 			if (!isdigit(*args[0].from))
+ 				goto bad_val;
+ 			size = memparse(args[0].from, &rest);
+-			if (*rest == '%') {
+-				size <<= HPAGE_SHIFT;
+-				size *= max_huge_pages;
+-				do_div(size, 100);
+-			}
+-			pconfig->nr_blocks = (size >> HPAGE_SHIFT);
++			setsize = SIZE_STD;
++			if (*rest == '%')
++				setsize = SIZE_PERCENT;
+ 			break;
+ 		}
+ 
+@@ -801,6 +803,19 @@ hugetlbfs_parse_options(char *options, s
+ 			pconfig->nr_inodes = memparse(args[0].from, &rest);
+ 			break;
+ 
++		case Opt_pagesize: {
++			unsigned long ps;
++			ps = memparse(args[0].from, &rest);
++			pconfig->hstate = huge_lookup_hstate(ps);
++			if (!pconfig->hstate) {
++				printk(KERN_ERR
++				"hugetlbfs: Unsupported page size %lu MB\n",
++					ps >> 20);
++				return -EINVAL;
++			}
++			break;
++		}
++
+ 		default:
+ 			printk(KERN_ERR "hugetlbfs: Bad mount option: \"%s\"\n",
+ 				 p);
+@@ -808,6 +823,18 @@ hugetlbfs_parse_options(char *options, s
+ 			break;
+ 		}
+ 	}
++
++	/* Do size after hstate is set up */
++	if (setsize > NO_SIZE) {
++		struct hstate *h = pconfig->hstate;
++		if (setsize == SIZE_PERCENT) {
++			size <<= huge_page_shift(h);
++			size *= max_huge_pages[h - hstates];
++			do_div(size, 100);
++		}
++		pconfig->nr_blocks = (size >> huge_page_shift(h));
++	}
++
+ 	return 0;
+ 
+ bad_val:
+@@ -832,6 +859,7 @@ hugetlbfs_fill_super(struct super_block 
+ 	config.uid = current->fsuid;
+ 	config.gid = current->fsgid;
+ 	config.mode = 0755;
++	config.hstate = &global_hstate;
+ 	ret = hugetlbfs_parse_options(data, &config);
+ 	if (ret)
+ 		return ret;
+@@ -840,14 +868,15 @@ hugetlbfs_fill_super(struct super_block 
+ 	if (!sbinfo)
+ 		return -ENOMEM;
+ 	sb->s_fs_info = sbinfo;
++	sbinfo->hstate = config.hstate;
+ 	spin_lock_init(&sbinfo->stat_lock);
+ 	sbinfo->max_blocks = config.nr_blocks;
+ 	sbinfo->free_blocks = config.nr_blocks;
+ 	sbinfo->max_inodes = config.nr_inodes;
+ 	sbinfo->free_inodes = config.nr_inodes;
+ 	sb->s_maxbytes = MAX_LFS_FILESIZE;
+-	sb->s_blocksize = HPAGE_SIZE;
+-	sb->s_blocksize_bits = HPAGE_SHIFT;
++	sb->s_blocksize = huge_page_size(config.hstate);
++	sb->s_blocksize_bits = huge_page_shift(config.hstate);
+ 	sb->s_magic = HUGETLBFS_MAGIC;
+ 	sb->s_op = &hugetlbfs_ops;
+ 	sb->s_time_gran = 1;
+@@ -949,7 +978,8 @@ struct file *hugetlb_file_setup(const ch
+ 		goto out_dentry;
+ 
+ 	error = -ENOMEM;
+-	if (hugetlb_reserve_pages(inode, 0, size >> HPAGE_SHIFT))
++	if (hugetlb_reserve_pages(inode, 0,
++			size >> huge_page_shift(hstate_inode(inode))))
+ 		goto out_inode;
+ 
+ 	d_instantiate(dentry, inode);
+Index: linux/mm/hugetlb.c
+===================================================================
+--- linux.orig/mm/hugetlb.c
++++ linux/mm/hugetlb.c
+@@ -143,7 +143,7 @@ static void update_and_free_page(struct 
+ 
+ static void free_huge_page(struct page *page)
+ {
+-	struct hstate *h = &global_hstate;
++	struct hstate *h = huge_lookup_hstate(PAGE_SIZE << compound_order(page));
+ 	int nid = page_to_nid(page);
+ 	struct address_space *mapping;
+ 
+@@ -519,7 +519,11 @@ module_init(hugetlb_init);
+ /* Should be called on processing a hugepagesz=... option */
+ void __init huge_add_hstate(unsigned order)
+ {
+-	struct hstate *h;
++	struct hstate *h = huge_lookup_hstate(PAGE_SIZE << order);
++	if (h) {
++		parsed_hstate = h;
++		return;
++	}
+ 	BUG_ON(max_hstate >= HUGE_MAX_HSTATE);
+ 	BUG_ON(order <= HPAGE_SHIFT - PAGE_SHIFT);
+ 	h = &hstates[max_hstate++];
+@@ -538,6 +542,16 @@ static int __init hugetlb_setup(char *s)
+ }
+ __setup("hugepages=", hugetlb_setup);
+ 
++struct hstate *huge_lookup_hstate(unsigned long pagesize)
++{
++	struct hstate *h;
++	for_each_hstate (h) {
++		if (huge_page_size(h) == pagesize)
++			return h;
++	}
++	return NULL;
++}
++
+ static unsigned int cpuset_mems_nr(unsigned int *array)
+ {
+ 	int node;
+@@ -1345,7 +1359,7 @@ out:
+ int hugetlb_reserve_pages(struct inode *inode, long from, long to)
+ {
+ 	long ret, chg;
+-	struct hstate *h = &global_hstate;
++	struct hstate *h = hstate_inode(inode);
+ 
+ 	chg = region_chg(&inode->i_mapping->private_list, from, to);
+ 	if (chg < 0)
+@@ -1364,7 +1378,7 @@ int hugetlb_reserve_pages(struct inode *
+ 
+ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
+ {
+-	struct hstate *h = &global_hstate;
++	struct hstate *h = hstate_inode(inode);
+ 	long chg = region_truncate(&inode->i_mapping->private_list, offset);
+ 
+ 	spin_lock(&inode->i_lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
