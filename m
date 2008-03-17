@@ -1,25 +1,40 @@
-Date: Mon, 17 Mar 2008 09:17:35 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [11/18] Fix alignment bug in bootmem allocator
-Message-ID: <20080317081735.GI27015@one.firstfloor.org>
-References: <20080317258.659191058@firstfloor.org> <20080317015825.0C0171B41E0@basil.firstfloor.org> <86802c440803161919h20ed9f78k6e3798ef56668638@mail.gmail.com> <20080317070208.GC27015@one.firstfloor.org> <86802c440803170017r622114bdpede8625d1a8ff585@mail.gmail.com> <86802c440803170031u75167e5m301f65049b6d62ff@mail.gmail.com> <20080317074146.GG27015@one.firstfloor.org> <86802c440803170053n32a1c918h2ff2a32abef44050@mail.gmail.com> <86802c440803170110l2e47c25bu2adb16b094d2867f@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <86802c440803170110l2e47c25bu2adb16b094d2867f@mail.gmail.com>
+Message-Id: <47DE2894.6010306@mxp.nes.nec.co.jp>
+Date: Mon, 17 Mar 2008 17:15:16 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH] another swap controller for cgroup
+References: <20080317020407.8512E1E7995@siro.lan>
+In-Reply-To: <20080317020407.8512E1E7995@siro.lan>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yinghai Lu <yhlu.kernel@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+To: yamamoto@valinux.co.jp
+Cc: Hugh Dickins <hugh@veritas.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, minoura@valinux.co.jp, Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 17, 2008 at 01:10:31AM -0700, Yinghai Lu wrote:
-> please check the one against -mm and x86.git
+Hi, Yamamoto-san.
 
-No offset is not enough because it is still relative to the zone
-start. I'm preparing an updated patch.
+I'm reviewing and testing your patch now.
 
--Andi
+I think your implementation is better because:
+- the group to be charged is determined correctly
+  at the point of swapout, without fixing the behavior
+  of move_task of memcg.
+  (I think the behavior of move_task of memcg should be
+  fixed anyway.)
+- the group to be uncharged is remembered in page struct
+  of pmd, so there is no need to add array of pointers
+  to swap_info_struct.
+
+> - anonymous objects (shmem) are not accounted.
+IMHO, shmem should be accounted.
+I agree it's difficult in your implementation,
+but are you going to support it?
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
