@@ -1,25 +1,35 @@
-Date: Tue, 18 Mar 2008 16:47:07 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [7/18] Abstract out the NUMA node round robin code into a separate function
-Message-ID: <20080318154707.GA23490@one.firstfloor.org>
-References: <20080317258.659191058@firstfloor.org> <20080317015820.ECC861B41E0@basil.firstfloor.org> <20080318154209.GG23866@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080318154209.GG23866@csn.ul.ie>
+In-reply-to: <1205848760.8514.366.camel@twins> (message from Peter Zijlstra on
+	Tue, 18 Mar 2008 14:59:20 +0100)
+Subject: Re: [patch 4/8] mm: allow not updating BDI stats in
+	end_page_writeback()
+References: <20080317191908.123631326@szeredi.hu>
+	 <20080317191945.122011759@szeredi.hu> <1205840031.8514.346.camel@twins>
+	 <E1JbaTH-0005jN-4r@pomaz-ex.szeredi.hu> <1205843375.8514.357.camel@twins>
+	 <E1JbbHf-0005rm-R5@pomaz-ex.szeredi.hu> <1205845702.8514.365.camel@twins>
+	 <E1JbcKL-00060V-9N@pomaz-ex.szeredi.hu> <1205848760.8514.366.camel@twins>
+Message-Id: <E1Jbe8O-0006H7-E4@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 18 Mar 2008 16:53:52 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+To: peterz@infradead.org
+Cc: miklos@szeredi.hu, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> hmm, I'm not seeing where next_nid gets declared locally here as it
-> should have been removed in an earlier patch. Maybe it's reintroduced
+> > Well, but this is the kernel, you can't really make foolproof
+> > interfaces.  If we'll go with Andrew's suggestion, I'll add comments
+> > warning users about not touching those flags unless they know what
+> > they are doing, OK?
+> 
+> Yeah, I guess so :-)
 
-No there was no earlier patch touching this, so the old next_nid 
-is still there.
+Cool :)
 
--Andi
+On a related note, is there a reason why bdi_cap_writeback_dirty() and
+friends need to be macros instead of inline functions?  If not I'd
+clean that up as well.
+
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
