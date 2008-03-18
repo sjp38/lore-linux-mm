@@ -1,35 +1,32 @@
-Date: Tue, 18 Mar 2008 12:00:13 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 7/9] slub: Adjust order boundaries and minimum objects
- per slab.
-In-Reply-To: <47E00FEF.10604@cs.helsinki.fi>
-Message-ID: <Pine.LNX.4.64.0803181159450.23790@schroedinger.engr.sgi.com>
-References: <20080317230516.078358225@sgi.com> <20080317230529.474353536@sgi.com>
- <47E00FEF.10604@cs.helsinki.fi>
+Received: by el-out-1112.google.com with SMTP id y26so55665ele.4
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2008 12:32:50 -0700 (PDT)
+Message-ID: <84144f020803181232y55a35393id73d2bd78f8d6159@mail.gmail.com>
+Date: Tue, 18 Mar 2008 21:32:48 +0200
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [patch 8/9] Pageflags: Eliminate PG_xxx aliases
+In-Reply-To: <20080318182036.212376083@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080318181957.138598511@sgi.com>
+	 <20080318182036.212376083@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Mel Gorman <mel@csn.ul.ie>, Matt Mackall <mpm@selenic.com>, yanmin_zhang@linux.intel.com, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, apw@shadowen.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jeremy Fitzhardinge <jeremy@goop.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Mar 2008, Pekka Enberg wrote:
+On Tue, Mar 18, 2008 at 8:20 PM, Christoph Lameter <clameter@sgi.com> wrote:
+>   #ifdef CONFIG_HIGHMEM
+>   /*
+>   * Must use a macro here due to header dependency issues. page_zone() is not
+>   * available at this point.
+>   */
+>  -#define PageHighMem(__p) is_highmem(page_zone(page))
+>  +#define PageHighMem(__p) is_highmem(page_zone(__p))
 
-> Christoph Lameter wrote:
-> > Since there is now no worry anymore about higher order allocs (hopefully).
-> > Set the max order to default to PAGE_ALLOC_ORDER_COSTLY (32k) and require
-> > slub to use a higher order if a certain object density cannot be reached.
-> > 
-> > The mininum objects per slab is calculated based on the number of processors
-> > that may come online.
-> 
-> Interesting. Why do we want to make min objects depend on CPU count and not
-> amount of memory available on the system?
-
-Yanmin found a performance correlation with processors. He may be able to 
-expand on that.
- 
+Looks like this hunk should be in some other patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
