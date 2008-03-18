@@ -1,53 +1,32 @@
-Date: Tue, 18 Mar 2008 10:44:37 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH prototype] [0/8] Predictive bitmaps for ELF executables
-Message-Id: <20080318104437.966c10ec.akpm@linux-foundation.org>
-In-Reply-To: <20080318172045.GI11966@one.firstfloor.org>
-References: <20080318209.039112899@firstfloor.org>
-	<20080318003620.d84efb95.akpm@linux-foundation.org>
-	<20080318141828.GD11966@one.firstfloor.org>
-	<20080318095715.27120788.akpm@linux-foundation.org>
-	<20080318172045.GI11966@one.firstfloor.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 18 Mar 2008 10:45:51 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [BUG] in 2.6.25-rc3 with 64k page size and SLUB_DEBUG_ON
+In-Reply-To: <200803181744.58735.Jens.Osterkamp@gmx.de>
+Message-ID: <Pine.LNX.4.64.0803181043390.21992@schroedinger.engr.sgi.com>
+References: <200803061447.05797.Jens.Osterkamp@gmx.de>
+ <200803121619.45708.Jens.Osterkamp@gmx.de> <Pine.LNX.4.64.0803121630110.10488@schroedinger.engr.sgi.com>
+ <200803181744.58735.Jens.Osterkamp@gmx.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jens Osterkamp <Jens.Osterkamp@gmx.de>
+Cc: Pekka J Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Mar 2008 18:20:45 +0100 Andi Kleen <andi@firstfloor.org> wrote:
+On Tue, 18 Mar 2008, Jens Osterkamp wrote:
 
-> > What's the permission problem?  executable-but-not-readable files?  Could
-> 
-> Not writable. 
+> Actually the caller expects exactly that. The kmalloc that I saw was coming
+> from alloc_thread_info in dup_task_struct. For 4k pages this maps to 
+> __get_free_pages whereas for 64k pages it maps to kmalloc.
+> The result of __get_free_pages seem to be aligned and kmalloc (with slub_debug)
+> of course not. That explains the 4k/64k difference and the crash I am seeing...
+> but I can't think of a reasonable fix right now as I don't understand the
+> reason for the difference in the allocation code (yet).
 
-Oh.
-
-I doubt if a userspace implementation would even try to alter the ELF
-files, really - there seems to be no point in it.   This is just complexity
-which was added by trying to do it in the kernel.
-
-> > be handled by passing your request to a suitable-privileged server process,
-> > I guess.
-> 
-> Yes it could, but i dont even want to thi nk about all the issues of
-> doing such an interface. It is basically an microkernelish approach.
-> I prefer monolithic simplicity.
-
-It's not complex at all.  Pass a null-terminated pathname to the server and
-keep running.  The server will asynchronously read your pages for you.
-
-That's assuming executable+unreadable libraries and binaries actually need
-to be handled.  If not: no server needed.
-
-> e.g. i am pretty sure your user space implementation would be far
-> more complicated than a nicely streamlined kernel implementation. 
-> And I am really not a friend of unnecessary complexity. In the end
-> complexity hurts you, no matter if it is in ring 3 or ring 0.
-
-There is no complexity here.
+One simple solution is to create a special slab and specify the alignment 
+you want. The other is to use the page allocator which also gives you 
+guaranteed alignment.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
