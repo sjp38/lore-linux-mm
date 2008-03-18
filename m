@@ -1,41 +1,53 @@
-Date: Tue, 18 Mar 2008 10:42:32 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [git pull] slub fallback fix
-In-Reply-To: <alpine.LFD.1.00.0803180737350.3020@woody.linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0803181037470.21992@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0803171135420.8746@schroedinger.engr.sgi.com>
- <alpine.LFD.1.00.0803180737350.3020@woody.linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 18 Mar 2008 10:44:37 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH prototype] [0/8] Predictive bitmaps for ELF executables
+Message-Id: <20080318104437.966c10ec.akpm@linux-foundation.org>
+In-Reply-To: <20080318172045.GI11966@one.firstfloor.org>
+References: <20080318209.039112899@firstfloor.org>
+	<20080318003620.d84efb95.akpm@linux-foundation.org>
+	<20080318141828.GD11966@one.firstfloor.org>
+	<20080318095715.27120788.akpm@linux-foundation.org>
+	<20080318172045.GI11966@one.firstfloor.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Mar 2008, Linus Torvalds wrote:
+On Tue, 18 Mar 2008 18:20:45 +0100 Andi Kleen <andi@firstfloor.org> wrote:
 
-> > We need to reenable interrupts before calling the page allocator from the
-> > fallback path for kmalloc. Used to be okay with the alternate fastpath 
-> > which shifted interrupt enable/disable to the fastpath. But the slowpath
-> > is always called with interrupts disabled now. So we need this fix.
+> > What's the permission problem?  executable-but-not-readable files?  Could
 > 
-> I think this fix is bogus and inefficient.
-> 
-> The proper fix would seem to be to just not disable the irq's 
-> unnecessarily!
-> 
-> We don't care what the return state of the interrupts are, since the 
-> caller will restore the _true_ interrupt state (which we don't even know 
-> about, so we can't do it). 
-> 
-> So why isn't the patch just doing something like the appended instead of 
-> disabling and enabling interrupts unnecessarily?
+> Not writable. 
 
-Fallback is rare and I'd like to have the fallback logic in one place. It 
-would also mean that the interrupt state on return to slab_alloc() would 
-be indeterminate. Currently that works but it may be surprising in the 
-future when changes are made there.
+Oh.
+
+I doubt if a userspace implementation would even try to alter the ELF
+files, really - there seems to be no point in it.   This is just complexity
+which was added by trying to do it in the kernel.
+
+> > be handled by passing your request to a suitable-privileged server process,
+> > I guess.
+> 
+> Yes it could, but i dont even want to thi nk about all the issues of
+> doing such an interface. It is basically an microkernelish approach.
+> I prefer monolithic simplicity.
+
+It's not complex at all.  Pass a null-terminated pathname to the server and
+keep running.  The server will asynchronously read your pages for you.
+
+That's assuming executable+unreadable libraries and binaries actually need
+to be handled.  If not: no server needed.
+
+> e.g. i am pretty sure your user space implementation would be far
+> more complicated than a nicely streamlined kernel implementation. 
+> And I am really not a friend of unnecessary complexity. In the end
+> complexity hurts you, no matter if it is in ring 3 or ring 0.
+
+There is no complexity here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
