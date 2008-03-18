@@ -1,57 +1,130 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp03.in.ibm.com (8.13.1/8.13.1) with ESMTP id m2I1C0JR010427
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2008 06:42:00 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2I1C0Oh1040472
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2008 06:42:00 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id m2I1C4v6002113
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2008 01:12:06 GMT
-Message-ID: <47DF167D.9040405@linux.vnet.ibm.com>
-Date: Tue, 18 Mar 2008 06:40:21 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [RFC][2/3] Account and control virtual address space allocations
-References: <20080316173005.8812.88290.sendpatchset@localhost.localdomain> <20080317233552.4A7E21E7CE6@siro.lan>
-In-Reply-To: <20080317233552.4A7E21E7CE6@siro.lan>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Tue, 18 Mar 2008 10:17:10 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 4/7] memcg: page migration
+Message-Id: <20080318101710.bd68c836.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <47DDD939.7050309@cn.fujitsu.com>
+References: <20080314185954.5cd51ff6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080314191543.7b0f0fa3.kamezawa.hiroyu@jp.fujitsu.com>
+	<47DDD939.7050309@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: linux-mm@kvack.org, hugh@veritas.com, skumar@linux.vnet.ibm.com, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, rientjes@google.com, xemul@openvz.org, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com
+To: Li Zefan <lizf@cn.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, xemul@openvz.org, "hugh@veritas.com" <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-YAMAMOTO Takashi wrote:
->> diff -puN mm/swapfile.c~memory-controller-virtual-address-space-accounting-and-control mm/swapfile.c
->> diff -puN mm/memory.c~memory-controller-virtual-address-space-accounting-and-control mm/memory.c
->> --- linux-2.6.25-rc5/mm/memory.c~memory-controller-virtual-address-space-accounting-and-control	2008-03-16 22:57:40.000000000 +0530
->> +++ linux-2.6.25-rc5-balbir/mm/memory.c	2008-03-16 22:57:40.000000000 +0530
->> @@ -838,6 +838,11 @@ unsigned long unmap_vmas(struct mmu_gath
->>  
->>  		if (vma->vm_flags & VM_ACCOUNT)
->>  			*nr_accounted += (end - start) >> PAGE_SHIFT;
->> +		/*
->> +		 * Unaccount used virtual memory for cgroups
->> +		 */
->> +		mem_cgroup_update_as(vma->vm_mm,
->> +					((long)(start - end)) >> PAGE_SHIFT);
->>  
->>  		while (start != end) {
->>  			if (!tlb_start_valid) {
-> 
-> i think you can sum and uncharge it with a single call.
-> 
+On Mon, 17 Mar 2008 11:36:41 +0900
+Li Zefan <lizf@cn.fujitsu.com> wrote:
 
-Like nr_accounted? I'll have to duplicate nr_accounted since that depends
-conditionally on VM_ACCOUNT.
+> > @@ -147,6 +147,8 @@ struct mem_cgroup {
+> >  	 * statistics.
+> >  	 */
+> >  	struct mem_cgroup_stat stat;
+> > +	/* migration is under going ? */
+> 
+> Please stick to this comment style:
+> 	/*
+> 	 * ...
+> 	 */
+> 
+ok.
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+
+> > +	pc = get_page_cgroup(page, GFP_ATOMIC, false);
+> > +	spin_lock_irqsave(&pc->lock, flags);
+> > +	if (pc && pc->refcnt) {
+> 
+> You check if (pc) after you deference it by &pc->lock, it's a bug
+> here or the check is unneeded ?
+> 
+Ah, BUG. Thanks.
+
+> > +		mem = pc->mem_cgroup;
+> > +		if (pc->flags & PAGE_CGROUP_FLAG_CACHE)
+> > +			type = MEM_CGROUP_CHARGE_TYPE_MIGRATION_CACHE;
+> > +		else
+> > +			type = MEM_CGROUP_CHARGE_TYPE_MIGRATION_MAPPED;
+> > +	}
+> > +	spin_unlock_irqrestore(&pc->lock, flags);
+> >  
+> > -void mem_cgroup_end_migration(struct page *page)
+> > -{
+> > -	mem_cgroup_uncharge_page(page);
+> > +	if (mem) {
+> > +		ret = mem_cgroup_charge_common(newpage, NULL, GFP_KERNEL,
+> > +				type, mem);
+> > +	}
+> > +	return ret;
+> >  }
+> > -
+> >  /*
+> > - * We know both *page* and *newpage* are now not-on-LRU and PG_locked.
+> > - * And no race with uncharge() routines because page_cgroup for *page*
+> > - * has extra one reference by mem_cgroup_prepare_migration.
+> > + * At the end of migration, we'll push newpage to LRU and
+> > + * drop one refcnt which added at prepare_migration.
+> >   */
+> > -void mem_cgroup_page_migration(struct page *page, struct page *newpage)
+> > +void mem_cgroup_end_migration(struct page *newpage)
+> >  {
+> >  	struct page_cgroup *pc;
+> >  	struct mem_cgroup_per_zone *mz;
+> > +	struct mem_cgroup *mem;
+> >  	unsigned long flags;
+> > +	int moved = 0;
+> >  
+> > -	lock_page_cgroup(page);
+> > -	pc = page_get_page_cgroup(page);
+> > -	if (!pc) {
+> > -		unlock_page_cgroup(page);
+> > +	if (mem_cgroup_subsys.disabled)
+> >  		return;
+> > -	}
+> > -
+> > -	mz = page_cgroup_zoneinfo(pc);
+> > -	spin_lock_irqsave(&mz->lru_lock, flags);
+> > -	__mem_cgroup_remove_list(pc);
+> > -	spin_unlock_irqrestore(&mz->lru_lock, flags);
+> > -
+> > -	page_assign_page_cgroup(page, NULL);
+> > -	unlock_page_cgroup(page);
+> > -
+> > -	pc->page = newpage;
+> > -	lock_page_cgroup(newpage);
+> > -	page_assign_page_cgroup(newpage, pc);
+> >  
+> > -	mz = page_cgroup_zoneinfo(pc);
+> > -	spin_lock_irqsave(&mz->lru_lock, flags);
+> > -	__mem_cgroup_add_list(pc);
+> > -	spin_unlock_irqrestore(&mz->lru_lock, flags);
+> > -
+> > -	unlock_page_cgroup(newpage);
+> > +	pc = get_page_cgroup(newpage, GFP_ATOMIC, false);
+> > +	if (!pc)
+> > +		return;
+> > +	spin_lock_irqsave(&pc->lock, flags);
+> > +	if (pc->flags & PAGE_CGROUP_FLAG_MIGRATION) {
+> > +		pc->flags &= ~PAGE_CGROUP_FLAG_MIGRATION;
+> > +		mem = pc->mem_cgroup;
+> > +		mz = page_cgroup_zoneinfo(pc);
+> > +		spin_lock(&mz->lru_lock);
+> > +		__mem_cgroup_add_list(pc);
+> > +		spin_unlock(&mz->lru_lock);
+> > +		moved = 1;
+> > +	}
+> > +	spin_unlock_irqrestore(&pc->lock, flags);
+> > +	if (!pc)
+> > +		return;
+> 
+> redundant check ?
+> 
+yes. will fix.
+
+
+Thank you.
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
