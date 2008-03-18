@@ -1,41 +1,31 @@
-In-reply-to: <1205839896.8514.344.camel@twins> (message from Peter Zijlstra on
-	Tue, 18 Mar 2008 12:31:36 +0100)
-Subject: Re: [patch 3/8] mm: rotate_reclaimable_page() cleanup
+In-reply-to: <1205840031.8514.346.camel@twins> (message from Peter Zijlstra on
+	Tue, 18 Mar 2008 12:33:51 +0100)
+Subject: Re: [patch 4/8] mm: allow not updating BDI stats in
+	end_page_writeback()
 References: <20080317191908.123631326@szeredi.hu>
-	 <20080317191944.208962764@szeredi.hu> <1205839896.8514.344.camel@twins>
-Message-Id: <E1JbaQk-0005iw-67@pomaz-ex.szeredi.hu>
+	 <20080317191945.122011759@szeredi.hu> <1205840031.8514.346.camel@twins>
+Message-Id: <E1JbaTH-0005jN-4r@pomaz-ex.szeredi.hu>
 From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Tue, 18 Mar 2008 12:56:34 +0100
+Date: Tue, 18 Mar 2008 12:59:11 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: peterz@infradead.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > -int rotate_reclaimable_page(struct page *page)
-> > +void  rotate_reclaimable_page(struct page *page)
-> >  {
-> > -	struct pagevec *pvec;
-> > -	unsigned long flags;
-> > -
-> > -	if (PageLocked(page))
-> > -		return 1;
-> > -	if (PageDirty(page))
-> > -		return 1;
-> > -	if (PageActive(page))
-> > -		return 1;
-> > -	if (!PageLRU(page))
-> > -		return 1;
+> On Mon, 2008-03-17 at 20:19 +0100, Miklos Szeredi wrote:
+> > plain text document attachment (end_page_writeback_nobdi.patch)
+> > From: Miklos Szeredi <mszeredi@suse.cz>
+> > 
+> > Fuse's writepage will need to clear page writeback separately from
+> > updating the per BDI counters.
 > 
-> Might be me, but I find the above easier to read than
+> This is because of the juggling with temporary pages, right?
 > 
-> > +	if (!PageLocked(page) && !PageDirty(page) && !PageActive(page) &&
-> > +	    PageLRU(page)) {
-> >  
+> Would be nice to have some comments in the code explaining this.
 
-Matter of taste, returning from a middle of a function is generally to
-be avoided (unless not).  Anyway, this is just a side effect of the
-main cleanup, so I think I'm entitled to choose the style I prefer ;)
+Yup, well it will go through a bigger cleanup, as discussed with
+Andrew, if that's OK with you?
 
 Miklos
 
