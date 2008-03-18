@@ -1,35 +1,85 @@
-In-reply-to: <1205848760.8514.366.camel@twins> (message from Peter Zijlstra on
-	Tue, 18 Mar 2008 14:59:20 +0100)
-Subject: Re: [patch 4/8] mm: allow not updating BDI stats in
-	end_page_writeback()
-References: <20080317191908.123631326@szeredi.hu>
-	 <20080317191945.122011759@szeredi.hu> <1205840031.8514.346.camel@twins>
-	 <E1JbaTH-0005jN-4r@pomaz-ex.szeredi.hu> <1205843375.8514.357.camel@twins>
-	 <E1JbbHf-0005rm-R5@pomaz-ex.szeredi.hu> <1205845702.8514.365.camel@twins>
-	 <E1JbcKL-00060V-9N@pomaz-ex.szeredi.hu> <1205848760.8514.366.camel@twins>
-Message-Id: <E1Jbe8O-0006H7-E4@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Tue, 18 Mar 2008 16:53:52 +0100
+Date: Tue, 18 Mar 2008 15:54:14 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] [8/18] Add a __alloc_bootmem_node_nopanic
+Message-ID: <20080318155414.GH23866@csn.ul.ie>
+References: <20080317258.659191058@firstfloor.org> <20080317015821.F18431B41E0@basil.firstfloor.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20080317015821.F18431B41E0@basil.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: peterz@infradead.org
-Cc: miklos@szeredi.hu, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-> > Well, but this is the kernel, you can't really make foolproof
-> > interfaces.  If we'll go with Andrew's suggestion, I'll add comments
-> > warning users about not touching those flags unless they know what
-> > they are doing, OK?
+On (17/03/08 02:58), Andi Kleen didst pronounce:
+> Straight forward variant of the existing __alloc_bootmem_node, only 
+> Signed-off-by: Andi Kleen <ak@suse.de>
 > 
-> Yeah, I guess so :-)
+> difference is that it doesn't panic on failure
 
-Cool :)
+Seems to be a bit of cut&paste jumbling there.
 
-On a related note, is there a reason why bdi_cap_writeback_dirty() and
-friends need to be macros instead of inline functions?  If not I'd
-clean that up as well.
+> 
+> Signed-off-by: Andi Kleen <ak@suse.de>
+> ---
+>  include/linux/bootmem.h |    4 ++++
+>  mm/bootmem.c            |   12 ++++++++++++
+>  2 files changed, 16 insertions(+)
+> 
+> Index: linux/mm/bootmem.c
+> ===================================================================
+> --- linux.orig/mm/bootmem.c
+> +++ linux/mm/bootmem.c
+> @@ -471,6 +471,18 @@ void * __init __alloc_bootmem_node(pg_da
+>  	return __alloc_bootmem(size, align, goal);
+>  }
+>  
+> +void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned long size,
+> +				   unsigned long align, unsigned long goal)
+> +{
+> +	void *ptr;
+> +
+> +	ptr = __alloc_bootmem_core(pgdat->bdata, size, align, goal, 0);
+> +	if (ptr)
+> +		return ptr;
+> +
+> +	return __alloc_bootmem_nopanic(size, align, goal);
+> +}
 
-Miklos
+Straight-forward. Mildly irritating that there are multiple variants that
+only differ by whether they panic on allocation failure or not. Probably
+should be a seperate removal of duplicated code there but outside the
+scope of this patch.
+
+> +
+>  #ifndef ARCH_LOW_ADDRESS_LIMIT
+>  #define ARCH_LOW_ADDRESS_LIMIT	0xffffffffUL
+>  #endif
+> Index: linux/include/linux/bootmem.h
+> ===================================================================
+> --- linux.orig/include/linux/bootmem.h
+> +++ linux/include/linux/bootmem.h
+> @@ -90,6 +90,10 @@ extern void *__alloc_bootmem_node(pg_dat
+>  				  unsigned long size,
+>  				  unsigned long align,
+>  				  unsigned long goal);
+> +extern void *__alloc_bootmem_node_nopanic(pg_data_t *pgdat,
+> +				  unsigned long size,
+> +				  unsigned long align,
+> +				  unsigned long goal);
+>  extern unsigned long init_bootmem_node(pg_data_t *pgdat,
+>  				       unsigned long freepfn,
+>  				       unsigned long startpfn,
+> 
+
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
