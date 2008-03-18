@@ -1,54 +1,102 @@
 From: Andi Kleen <andi@firstfloor.org>
 References: <20080318209.039112899@firstfloor.org>
 In-Reply-To: <20080318209.039112899@firstfloor.org>
-Subject: [PATCH prototype] [5/8] Add ELF constants for pbitmaps
-Message-Id: <20080318010939.566791B41E1@basil.firstfloor.org>
-Date: Tue, 18 Mar 2008 02:09:39 +0100 (CET)
+Subject: [PATCH prototype] [8/8] Add mmap_full_slurp support
+Message-Id: <20080318010942.64C241B41E1@basil.firstfloor.org>
+Date: Tue, 18 Mar 2008 02:09:42 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I made up some numbers for the present bitmap phdrs and shdrs.
+This is the non-subtle brother of pbitmaps. Instead of only prefetching
+the pages used last time always prefetch complete mmap areas
+(subject to the max_ra_chunk limits)
 
-For serious use this would probably require an allocation somewhere.
+Main advantage is that it works for shared libraries too (but
+the prefetching is currently done for all file backed mmaps, 
+not just executable mappings)
 
+Disadvantage is that uses far more memory and does a lot of 
+unnecessary work.
+
+Still is faster in some circumstances.
+
+Experimental.  Mainly added for comparison. Off by default. 
+Probably not a good idea.  
+
+I'm more including it for easier experimentation.
 
 Signed-off-by: Andi Kleen <andi@firstfloor.org>
 
 ---
- include/linux/elf.h |    4 ++++
- 1 file changed, 4 insertions(+)
+ include/linux/mm.h |    2 ++
+ kernel/sysctl.c    |   10 ++++++++++
+ mm/mmap.c          |   10 ++++++++++
+ 3 files changed, 22 insertions(+)
 
-Index: linux/include/linux/elf.h
+Index: linux/mm/mmap.c
 ===================================================================
---- linux.orig/include/linux/elf.h
-+++ linux/include/linux/elf.h
-@@ -49,6 +49,7 @@ typedef __s64	Elf64_Sxword;
- #define PT_GNU_EH_FRAME		0x6474e550
+--- linux.orig/mm/mmap.c
++++ linux/mm/mmap.c
+@@ -40,6 +40,8 @@
+ #define arch_rebalance_pgtables(addr, len)		(addr)
+ #endif
  
- #define PT_GNU_STACK	(PT_LOOS + 0x474e551)
-+#define PT_PRESENT_BITMAP (PT_GNU_STACK + 1)
- 
- /* These constants define the different elf file types */
- #define ET_NONE   0
-@@ -230,6 +231,8 @@ typedef struct elf64_hdr {
- #define PF_W		0x2
- #define PF_X		0x1
- 
-+#define PF_PLEASE_LOAD_SHDRS		0x8 /* hack. checked on PT_GNU_STACK */
++int mmap_full_slurp __read_mostly;
 +
- typedef struct elf32_phdr{
-   Elf32_Word	p_type;
-   Elf32_Off	p_offset;
-@@ -270,6 +273,7 @@ typedef struct elf64_phdr {
- #define SHT_HIPROC	0x7fffffff
- #define SHT_LOUSER	0x80000000
- #define SHT_HIUSER	0xffffffff
-+#define SHT_PRESENT_BITMAP (SHT_LOPROC - 1000)
+ static void unmap_region(struct mm_struct *mm,
+ 		struct vm_area_struct *vma, struct vm_area_struct *prev,
+ 		unsigned long start, unsigned long end);
+@@ -2023,6 +2025,14 @@ out:
+ 		mm->locked_vm += len >> PAGE_SHIFT;
+ 		make_pages_present(addr, addr + len);
+ 	}
++	if (vma->vm_file && mmap_full_slurp) {
++		up_write(&mm->mmap_sem);
++		force_page_cache_readahead(vma->vm_file->f_mapping,
++					   vma->vm_file,
++					   vma->vm_pgoff,
++					   max_sane_readahead(vma_pages(vma)));
++		down_write(&mm->mmap_sem);
++	}
+ 	return addr;
+ }
  
- /* sh_flags */
- #define SHF_WRITE	0x1
+Index: linux/include/linux/mm.h
+===================================================================
+--- linux.orig/include/linux/mm.h
++++ linux/include/linux/mm.h
+@@ -1077,6 +1077,8 @@ extern int do_munmap(struct mm_struct *,
+ 
+ extern unsigned long do_brk(unsigned long, unsigned long);
+ 
++extern int mmap_full_slurp;
++
+ /* filemap.c */
+ extern unsigned long page_unuse(struct page *);
+ extern void truncate_inode_pages(struct address_space *, loff_t);
+Index: linux/kernel/sysctl.c
+===================================================================
+--- linux.orig/kernel/sysctl.c
++++ linux/kernel/sysctl.c
+@@ -909,6 +909,16 @@ static struct ctl_table vm_table[] = {
+ 		.extra2		= &one_hundred,
+ 	},
+ 	{
++		.ctl_name	= CTL_UNNUMBERED,
++		.procname	= "mmap_full_slurp",
++		.data		= &mmap_full_slurp,
++		.maxlen 	= sizeof(mmap_full_slurp),
++		.mode		= 0644,
++		.proc_handler	= &proc_dointvec,
++		.strategy	= &sysctl_intvec,
++		.extra1 	= &zero,
++	},
++	{
+ 		.procname	= "dirty_writeback_centisecs",
+ 		.data		= &dirty_writeback_interval,
+ 		.maxlen		= sizeof(dirty_writeback_interval),
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
