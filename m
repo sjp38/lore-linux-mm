@@ -1,27 +1,67 @@
-Date: Tue, 18 Mar 2008 16:04:23 +0000
+Date: Tue, 18 Mar 2008 16:18:21 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] [7/18] Abstract out the NUMA node round robin code into a separate function
-Message-ID: <20080318160423.GJ23866@csn.ul.ie>
-References: <20080317258.659191058@firstfloor.org> <20080317015820.ECC861B41E0@basil.firstfloor.org> <20080318154209.GG23866@csn.ul.ie> <20080318154707.GA23490@one.firstfloor.org>
+Subject: Re: [PATCH] [11/18] Fix alignment bug in bootmem allocator
+Message-ID: <20080318161821.GK23866@csn.ul.ie>
+References: <20080317258.659191058@firstfloor.org> <20080317015825.0C0171B41E0@basil.firstfloor.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20080318154707.GA23490@one.firstfloor.org>
+In-Reply-To: <20080317015825.0C0171B41E0@basil.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andi Kleen <andi@firstfloor.org>
 Cc: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-On (18/03/08 16:47), Andi Kleen didst pronounce:
-> > hmm, I'm not seeing where next_nid gets declared locally here as it
-> > should have been removed in an earlier patch. Maybe it's reintroduced
-> 
-> No there was no earlier patch touching this, so the old next_nid 
-> is still there.
-> 
+On (17/03/08 02:58), Andi Kleen didst pronounce:
+> Without this fix bootmem can return unaligned addresses when the start of a
+> node is not aligned to the align value. Needed for reliably allocating
+> gigabyte pages.
+> Signed-off-by: Andi Kleen <ak@suse.de>
 
-ah yes, my bad. I thought it went away in patch 1/18.
+Seems like something that should be fixed anyway independently of your
+patchset. If moved to the start of the set, it can be treated in batch with
+the cleanups as well.
+
+> 
+> ---
+>  mm/bootmem.c |    4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+> 
+> Index: linux/mm/bootmem.c
+> ===================================================================
+> --- linux.orig/mm/bootmem.c
+> +++ linux/mm/bootmem.c
+> @@ -197,6 +197,7 @@ __alloc_bootmem_core(struct bootmem_data
+>  {
+>  	unsigned long offset, remaining_size, areasize, preferred;
+>  	unsigned long i, start = 0, incr, eidx, end_pfn;
+> +	unsigned long pfn;
+>  	void *ret;
+>  
+>  	if (!size) {
+> @@ -239,12 +240,13 @@ __alloc_bootmem_core(struct bootmem_data
+>  	preferred = PFN_DOWN(ALIGN(preferred, align)) + offset;
+>  	areasize = (size + PAGE_SIZE-1) / PAGE_SIZE;
+>  	incr = align >> PAGE_SHIFT ? : 1;
+> +	pfn = PFN_DOWN(bdata->node_boot_start);
+>  
+
+hmm, preferred is already been aligned above and it appears that "offset"
+was meant to handle the situation you are dealing with here. Is the caller
+passing in "goal" (to avoid DMA32 for example) and messing up how "offset"
+is calculated?
+
+>  restart_scan:
+>  	for (i = preferred; i < eidx; i += incr) {
+>  		unsigned long j;
+>  		i = find_next_zero_bit(bdata->node_bootmem_map, eidx, i);
+> -		i = ALIGN(i, incr);
+> +		i = ALIGN(pfn + i, incr) - pfn;
+>  		if (i >= eidx)
+>  			break;
+>  		if (test_bit(i, bdata->node_bootmem_map))
+> 
 
 -- 
 Mel Gorman
