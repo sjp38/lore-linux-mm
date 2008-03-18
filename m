@@ -1,11 +1,11 @@
-Subject: Re: [patch 1/8] mm: bdi: export bdi_writeout_inc()
+Subject: Re: [patch 3/8] mm: rotate_reclaimable_page() cleanup
 From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20080317191941.332720129@szeredi.hu>
+In-Reply-To: <20080317191944.208962764@szeredi.hu>
 References: <20080317191908.123631326@szeredi.hu>
-	 <20080317191941.332720129@szeredi.hu>
+	 <20080317191944.208962764@szeredi.hu>
 Content-Type: text/plain
-Date: Tue, 18 Mar 2008 12:27:40 +0100
-Message-Id: <1205839660.8514.340.camel@twins>
+Date: Tue, 18 Mar 2008 12:31:36 +0100
+Message-Id: <1205839896.8514.344.camel@twins>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -15,50 +15,34 @@ Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 2008-03-17 at 20:19 +0100, Miklos Szeredi wrote:
-> plain text document attachment (export_bdi_writeout_inc.patch)
+> plain text document attachment (rotate_reclaimable_page_cleanup.patch)
 > From: Miklos Szeredi <mszeredi@suse.cz>
 > 
-> Fuse needs this for writable mmap support.
-> 
-> Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
-> ---
->  include/linux/backing-dev.h |    2 ++
->  mm/page-writeback.c         |   10 ++++++++++
->  2 files changed, 12 insertions(+)
-> 
-> Index: linux/include/linux/backing-dev.h
-> ===================================================================
-> --- linux.orig/include/linux/backing-dev.h	2008-03-17 18:24:13.000000000 +0100
-> +++ linux/include/linux/backing-dev.h	2008-03-17 18:24:36.000000000 +0100
-> @@ -134,6 +134,8 @@ static inline s64 bdi_stat_sum(struct ba
->  	return sum;
->  }
->  
-> +extern void bdi_writeout_inc(struct backing_dev_info *bdi);
-> +
->  /*
->   * maximal error of a stat counter.
->   */
-> Index: linux/mm/page-writeback.c
-> ===================================================================
-> --- linux.orig/mm/page-writeback.c	2008-03-17 18:24:13.000000000 +0100
-> +++ linux/mm/page-writeback.c	2008-03-17 18:24:36.000000000 +0100
-> @@ -168,6 +168,16 @@ static inline void __bdi_writeout_inc(st
->  			      bdi->max_prop_frac);
->  }
->  
-> +void bdi_writeout_inc(struct backing_dev_info *bdi)
-> +{
-> +	unsigned long flags;
-> +
-> +	local_irq_save(flags);
-> +	__bdi_writeout_inc(bdi);
-> +	local_irq_restore(flags);
-> +}
-> +EXPORT_SYMBOL(bdi_writeout_inc);
-> +
+> Clean up messy conditional calling of test_clear_page_writeback() from
+> both rotate_reclaimable_page() and end_page_writeback().
 
-May I ask to make this a _GPL export, please? 
+> -int rotate_reclaimable_page(struct page *page)
+> +void  rotate_reclaimable_page(struct page *page)
+>  {
+> -	struct pagevec *pvec;
+> -	unsigned long flags;
+> -
+> -	if (PageLocked(page))
+> -		return 1;
+> -	if (PageDirty(page))
+> -		return 1;
+> -	if (PageActive(page))
+> -		return 1;
+> -	if (!PageLRU(page))
+> -		return 1;
+
+Might be me, but I find the above easier to read than
+
+> +	if (!PageLocked(page) && !PageDirty(page) && !PageActive(page) &&
+> +	    PageLRU(page)) {
+>  
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
