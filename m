@@ -1,38 +1,35 @@
-Message-Id: <20080318185718.873571360@szeredi.hu>
-References: <20080318185626.300130296@szeredi.hu>
-Date: Tue, 18 Mar 2008 19:56:28 +0100
-From: Miklos Szeredi <miklos@szeredi.hu>
-Subject: [patch 2/4] mm: bdi: export bdi_writeout_inc() fix
-Content-Disposition: inline; filename=export_bdi_writeout_inc_fix.patch
+Date: Tue, 18 Mar 2008 12:00:13 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 7/9] slub: Adjust order boundaries and minimum objects
+ per slab.
+In-Reply-To: <47E00FEF.10604@cs.helsinki.fi>
+Message-ID: <Pine.LNX.4.64.0803181159450.23790@schroedinger.engr.sgi.com>
+References: <20080317230516.078358225@sgi.com> <20080317230529.474353536@sgi.com>
+ <47E00FEF.10604@cs.helsinki.fi>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-From: Miklos Szeredi <mszeredi@suse.cz>
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: peterz@infradead.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Mel Gorman <mel@csn.ul.ie>, Matt Mackall <mpm@selenic.com>, yanmin_zhang@linux.intel.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Make bdi_writeout_inc() GPL only at the request of Peter Zijlstra.
+On Tue, 18 Mar 2008, Pekka Enberg wrote:
 
-Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
----
- mm/page-writeback.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+> Christoph Lameter wrote:
+> > Since there is now no worry anymore about higher order allocs (hopefully).
+> > Set the max order to default to PAGE_ALLOC_ORDER_COSTLY (32k) and require
+> > slub to use a higher order if a certain object density cannot be reached.
+> > 
+> > The mininum objects per slab is calculated based on the number of processors
+> > that may come online.
+> 
+> Interesting. Why do we want to make min objects depend on CPU count and not
+> amount of memory available on the system?
 
-Index: linux/mm/page-writeback.c
-===================================================================
---- linux.orig/mm/page-writeback.c	2008-03-18 19:38:45.000000000 +0100
-+++ linux/mm/page-writeback.c	2008-03-18 19:39:51.000000000 +0100
-@@ -176,7 +176,7 @@ void bdi_writeout_inc(struct backing_dev
- 	__bdi_writeout_inc(bdi);
- 	local_irq_restore(flags);
- }
--EXPORT_SYMBOL(bdi_writeout_inc);
-+EXPORT_SYMBOL_GPL(bdi_writeout_inc);
+Yanmin found a performance correlation with processors. He may be able to 
+expand on that.
  
- static inline void task_dirty_inc(struct task_struct *tsk)
- {
-
---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
