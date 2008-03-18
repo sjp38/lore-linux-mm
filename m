@@ -1,42 +1,67 @@
-Received: by rv-out-0910.google.com with SMTP id f1so3191942rvb.26
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2008 10:51:52 -0700 (PDT)
-Message-ID: <84144f020803181051m1b1cb3bdgc254714c64c8ee7a@mail.gmail.com>
-Date: Tue, 18 Mar 2008 19:51:52 +0200
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [BUG] in 2.6.25-rc3 with 64k page size and SLUB_DEBUG_ON
-In-Reply-To: <Pine.LNX.4.64.0803181043390.21992@schroedinger.engr.sgi.com>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id m2II00cU011674
+	for <linux-mm@kvack.org>; Wed, 19 Mar 2008 05:00:00 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2II0R6V3420396
+	for <linux-mm@kvack.org>; Wed, 19 Mar 2008 05:00:27 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2II0Qg9002870
+	for <linux-mm@kvack.org>; Wed, 19 Mar 2008 05:00:26 +1100
+Message-ID: <47E002CB.4090900@linux.vnet.ibm.com>
+Date: Tue, 18 Mar 2008 23:28:35 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
+Subject: Re: [RFC][2/3] Account and control virtual address space allocations
+References: <20080316172942.8812.56051.sendpatchset@localhost.localdomain> <20080316173005.8812.88290.sendpatchset@localhost.localdomain> <1205772790.18916.17.camel@nimitz.home.sr71.net> <47DF1760.9030908@linux.vnet.ibm.com> <1205860276.8872.20.camel@nimitz.home.sr71.net>
+In-Reply-To: <1205860276.8872.20.camel@nimitz.home.sr71.net>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <200803061447.05797.Jens.Osterkamp@gmx.de>
-	 <200803121619.45708.Jens.Osterkamp@gmx.de>
-	 <Pine.LNX.4.64.0803121630110.10488@schroedinger.engr.sgi.com>
-	 <200803181744.58735.Jens.Osterkamp@gmx.de>
-	 <Pine.LNX.4.64.0803181043390.21992@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Jens Osterkamp <Jens.Osterkamp@gmx.de>, linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Mar 2008, Jens Osterkamp wrote:
->  > Actually the caller expects exactly that. The kmalloc that I saw was coming
->  > from alloc_thread_info in dup_task_struct. For 4k pages this maps to
->  > __get_free_pages whereas for 64k pages it maps to kmalloc.
->  > The result of __get_free_pages seem to be aligned and kmalloc (with slub_debug)
->  > of course not. That explains the 4k/64k difference and the crash I am seeing...
->  > but I can't think of a reasonable fix right now as I don't understand the
->  > reason for the difference in the allocation code (yet).
+Dave Hansen wrote:
+> On Tue, 2008-03-18 at 06:44 +0530, Balbir Singh wrote: 
+>>> If you're going to do this, I think you need a couple of phases.  
+>>>
+>>> 1. update the vm_(un)acct_memory() functions to take an mm
+>> There are other problems
+>>
+>> 1. vm_(un)acct_memory is conditionally dependent on VM_ACCOUNT. Look at
+>> shmem_(un)acct_size for example
+> 
+> Yeah, but if VM_ACCOUNT isn't set, do you really want the controller
+> accounting for them?  It's there for a reason. :)
+> 
 
-On Tue, Mar 18, 2008 at 7:45 PM, Christoph Lameter <clameter@sgi.com> wrote:
->  One simple solution is to create a special slab and specify the alignment
->  you want. The other is to use the page allocator which also gives you
->  guaranteed alignment.
+We are trying to account for virtual memory usage. Please see
+http://lwn.net/Articles/5016/ to see what VM_ACCOUNT does or
+Documentation/vm/overcommit-accounting. We want to account and control virtual
+memory usage and not necessarily implement overcommit accounting
 
-Btw, there are other architectures that use kmalloc() for
-alloc_thread_info() which need to be fixed as well. Using the page
-allocator directly is probably the best solution here.
+> The shmem_acct_size() helpers look good.  I wonder if we should be using
+> that kind of things more generically.
+> 
+
+Yes, it is well written. I wish there were more such abstractions, but it does
+not help us.
+
+>> 2. These routines are not called from all contexts that we care about (look at
+>> insert_special_mapping())
+> 
+> Could you explain why "we" care about it and why it isn't accounted for
+> now?
+
+It is accounted for in total_vm and that's why we care about :)
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
