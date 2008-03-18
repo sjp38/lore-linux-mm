@@ -1,52 +1,92 @@
-Date: Tue, 18 Mar 2008 10:14:04 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/7] charge/uncharge
-Message-Id: <20080318101404.76ec357a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080317014601.GB24473@balbir.in.ibm.com>
-References: <20080314185954.5cd51ff6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080314190622.0e147b43.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080317014601.GB24473@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Andi Kleen <andi@firstfloor.org>
+Message-Id: <20080318209.039112899@firstfloor.org>
+Subject: [PATCH prototype] [0/8] Predictive bitmaps for ELF executables
+Date: Tue, 18 Mar 2008 02:09:34 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, xemul@openvz.org, "hugh@veritas.com" <hugh@veritas.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Mar 2008 07:16:01 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+This patchkit is an experimental optimization I played around with 
+some time ago.
 
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2008-03-14 19:06:22]:
-> 
-> > Because bit spin lock is removed and spinlock is added to page_cgroup.
-> > There are some amount of changes.
-> > 
-> > This patch does
-> > 	- modify charge/uncharge to adjust it to the new lock.
-> > 	- Added simple lock rule comments.
-> > 
-> > Major changes from current(-mm) version is
-> > 	- pc->refcnt is set as "1" after the charge is done.
-> > 
-> > Changelog
-> >   - Rebased to rc5-mm1
-> > 
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >
-> 
-> Hi, KAMEZAWA-San,
-> 
-> The build continues to be broken, even after this patch is applied.
-> We will have to find another way to refactor the code, so that we
-> don't break git-bisect.
->  
-At least, patch 1-5 should be applied.
-Hmm, ok. folding patch 1-5 to one patch.
+This is more a prototype still, but I wanted to push it out 
+so that other people can play with it.
 
-Thanks,
--Kame
+The basic idea is that most programs have the same working set
+over multiple runs. So instead of demand paging all the text pages
+in the order the program runs save the working set to disk and prefetch
+it at program start and then save it at program exit.
+
+This allows some optimizations: 
+- it can avoid unnecessary disk seeks because the blocks will be fetched in 
+sorted offset order instead of program execution order. 
+- batch kernel entries (each demand page exception has some
+overhead just for entering the kernel). This keeps the caches hot too.
+- The prefetch could be in theory done in the background while the program 
+runs (although that is not implemented currently)
+
+Some details on the implementation:
+
+To do all this we need a bitmap space somewhere in the ELF executable. I originally
+hoped to use a standard ELF PHDR for this, which are already parsed by the
+Linux ELF loader. However the problem is that PHDRs are part of the 
+mapped program image and inserting any new ones requires relinking
+the program. Since relinking programs just to get this would be 
+rather heavy-handed I used a hack by setting another bitflag 
+in the gnu_execstack header and when it is set let the kernel
+look for ELF SHDRs at the end of the file. Disadvantage is that
+this costs a seek, but it allows easily to update existing 
+executables with a simple too.
+
+The seek overhead would be gone if the linkers are taught to 
+always generate a PBITMAP bitmap header.
+
+I also considered external bitmap files, but just putting it into the ELF
+files and keeping it all together seemed much nicer policywise.
+
+Then there is some probability of thrashing the bitmap, e.g. when
+a program runs in different modi with totally different working sets
+(a good example of this would be busybox). I haven't found
+a good heuristic to handle this yet (e.g. one possibility would
+be to or the bitmap instead of rewriting it on exit) this is something
+that could need further experimentation. Also one doesn't want
+too many bitmap updates of course so there is a simple heuristic 
+to not update bitmaps more often than a sysctl configurable 
+interval.  
+
+User tools:
+ftp://ftp.firstfloor.org/pub/ak/pbitmap/pbitmap.c 
+is a simple program to a pbitmap shdrs to an existing ELF executable.
+
+Base kernel:
+Again 2.6.25-rc6
+
+Drawbacks: 
+- No support for dynamic libraries right now (except very clumpsily
+through the mmap_slurp hack). This is the main reason it is not 
+very useful for speed up desktops currently. 
+
+- Executable files have to be writable by the user executing it
+currently to get bitmap updates. It would be possible to let the 
+kernel bypass this, but I haven't thought too much about the security 
+implications of it.
+However any user can use the bitmap data written by a user with
+write rights.
+
+That's currently one of the bigger usability issues (together
+with the missing shared library support) and why it is more 
+a prototype than a fully usable solution.
+
+Possible areas of improvements if anybody is interested:
+- Background prefetch
+- Tune all the sysctl defaults
+- Implement shared library support (will require glibc support)
+- Do something about the executable access problem
+- Experiment with more fancy heuristics to update bitmaps (like OR
+or do aging etc.) 
+
+-Andi 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
