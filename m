@@ -1,12 +1,12 @@
-Date: Tue, 18 Mar 2008 12:23:02 +0000
+Date: Tue, 18 Mar 2008 12:28:29 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] [2/18] Add basic support for more than one hstate in hugetlbfs
-Message-ID: <20080318122302.GB23866@csn.ul.ie>
-References: <20080317258.659191058@firstfloor.org> <20080317015815.D43991B41E0@basil.firstfloor.org>
+Subject: Re: [PATCH] [3/18] Convert /proc output code over to report multiple hstates
+Message-ID: <20080318122829.GC23866@csn.ul.ie>
+References: <20080317258.659191058@firstfloor.org> <20080317015816.D915C1B41E0@basil.firstfloor.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20080317015815.D43991B41E0@basil.firstfloor.org>
+In-Reply-To: <20080317015816.D915C1B41E0@basil.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andi Kleen <andi@firstfloor.org>
@@ -14,139 +14,108 @@ Cc: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yah
 List-ID: <linux-mm.kvack.org>
 
 On (17/03/08 02:58), Andi Kleen didst pronounce:
-> - Convert hstates to an array
-> - Add a first default entry covering the standard huge page size
-> - Add functions for architectures to register new hstates
-> - Add basic iterators over hstates
+> I chose to just report the numbers in a row, in the hope 
+> to minimze breakage of existing software. The "compat" page size
+> is always the first number.
 > 
+
+Glancing through the libhugetlbfs code, it appears to take the first
+value after Hugepagesize: as the "huge pagesize" so I suspect you're
+safe there at least FWIW.
+
 > Signed-off-by: Andi Kleen <ak@suse.de>
 > 
 > ---
->  include/linux/hugetlb.h |   10 +++++++++-
->  mm/hugetlb.c            |   46 +++++++++++++++++++++++++++++++++++++---------
->  2 files changed, 46 insertions(+), 10 deletions(-)
+>  mm/hugetlb.c |   59 +++++++++++++++++++++++++++++++++++++++--------------------
+>  1 file changed, 39 insertions(+), 20 deletions(-)
 > 
 > Index: linux/mm/hugetlb.c
 > ===================================================================
 > --- linux.orig/mm/hugetlb.c
 > +++ linux/mm/hugetlb.c
-> @@ -27,7 +27,15 @@ unsigned long sysctl_overcommit_huge_pag
->  static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
->  unsigned long hugepages_treat_as_movable;
+> @@ -683,37 +683,56 @@ int hugetlb_overcommit_handler(struct ct
 >  
-> -struct hstate global_hstate;
-> +static int max_hstate = 1;
+>  #endif /* CONFIG_SYSCTL */
+>  
+> +static int dump_field(char *buf, unsigned field)
+> +{
+> +	int n = 0;
+> +	struct hstate *h;
+> +	for_each_hstate (h)
+> +		n += sprintf(buf + n, " %5lu", *(unsigned long *)((char *)h + field));
+> +	buf[n++] = '\n';
+> +	return n;
+> +}
 > +
-> +struct hstate hstates[HUGE_MAX_HSTATE];
-> +
-> +/* for command line parsing */
-> +struct hstate *parsed_hstate __initdata = &global_hstate;
-> +
-
-global_hstate becomes a misleading name in this patch. default_hstate
-minimally
-
-> +#define for_each_hstate(h) \
-> +	for ((h) = hstates; (h) < &hstates[max_hstate]; (h)++)
+>  int hugetlb_report_meminfo(char *buf)
+>  {
+> -	struct hstate *h = &global_hstate;
+> -	return sprintf(buf,
+> -			"HugePages_Total: %5lu\n"
+> -			"HugePages_Free:  %5lu\n"
+> -			"HugePages_Rsvd:  %5lu\n"
+> -			"HugePages_Surp:  %5lu\n"
+> -			"Hugepagesize:    %5lu kB\n",
+> -			h->nr_huge_pages,
+> -			h->free_huge_pages,
+> -			h->resv_huge_pages,
+> -			h->surplus_huge_pages,
+> -			1UL << (huge_page_order(h) + PAGE_SHIFT - 10));
+> +	struct hstate *h;
+> +	int n = 0;
+> +	n += sprintf(buf + 0, "HugePages_Total:");
+> +	n += dump_field(buf + n, offsetof(struct hstate, nr_huge_pages));
+> +	n += sprintf(buf + n, "HugePages_Free: ");
+> +	n += dump_field(buf + n, offsetof(struct hstate, free_huge_pages));
+> +	n += sprintf(buf + n, "HugePages_Rsvd: ");
+> +	n += dump_field(buf + n, offsetof(struct hstate, resv_huge_pages));
+> +	n += sprintf(buf + n, "HugePages_Surp: ");
+> +	n += dump_field(buf + n, offsetof(struct hstate, surplus_huge_pages));
+> +	n += sprintf(buf + n, "Hugepagesize:   ");
+> +	for_each_hstate (h)
+> +		n += sprintf(buf + n, " %5u", huge_page_size(h) / 1024);
+> +	n += sprintf(buf + n, " kB\n");
+> +	return n;
+>  }
+>  
+>  int hugetlb_report_node_meminfo(int nid, char *buf)
+>  {
+> -	struct hstate *h = &global_hstate;
+> -	return sprintf(buf,
+> -		"Node %d HugePages_Total: %5u\n"
+> -		"Node %d HugePages_Free:  %5u\n",
+> -		nid, h->nr_huge_pages_node[nid],
+> -		nid, h->free_huge_pages_node[nid]);
+> +	int n = 0;
+> +	n += sprintf(buf, "Node %d HugePages_Total:", nid);
+> +	n += dump_field(buf + n, offsetof(struct hstate,
+> +						nr_huge_pages_node[nid]));
+> +	n += sprintf(buf + n , "Node %d HugePages_Free: ", nid);
+> +	n += dump_field(buf + n, offsetof(struct hstate,
+> +						 free_huge_pages_node[nid]));
+> +	return n;
+>  }
+>  
+>  /* Return the number pages of memory we physically have, in PAGE_SIZE units. */
+>  unsigned long hugetlb_total_pages(void)
+>  {
+> -	struct hstate *h = &global_hstate;
+> -	return h->nr_huge_pages * (1 << huge_page_order(h));
+> +	long x = 0;
+> +	struct hstate *h;
+> +	for_each_hstate (h) {
+> +		x += h->nr_huge_pages * (1 << huge_page_order(h));
+> +	}
+> +	return x;
+>  }
 >  
 >  /*
->   * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
-> @@ -474,15 +482,11 @@ static struct page *alloc_huge_page(stru
->  	return page;
->  }
->  
-> -static int __init hugetlb_init(void)
-> +static int __init hugetlb_init_hstate(struct hstate *h)
->  {
->  	unsigned long i;
-> -	struct hstate *h = &global_hstate;
->  
-> -	if (HPAGE_SHIFT == 0)
-> -		return 0;
-> -
-
-Why is there no need for
-
-if (huge_page_shift(h) == 0)
-	return 0;
-?
-
-ah, it's because of what you do to hugetlb_init().
-
-> -	if (!h->order) {
-> +	if (h == &global_hstate && !h->order) {
->  		h->order = HPAGE_SHIFT - PAGE_SHIFT;
->  		h->mask = HPAGE_MASK;
->  	}
-> @@ -497,11 +501,34 @@ static int __init hugetlb_init(void)
->  			break;
->  	}
->  	max_huge_pages = h->free_huge_pages = h->nr_huge_pages = i;
-> -	printk("Total HugeTLB memory allocated, %ld\n", h->free_huge_pages);
-> +
-> +	printk(KERN_INFO "Total HugeTLB memory allocated, %ld %dMB pages\n",
-> +			h->free_huge_pages,
-> +			1 << (h->order + PAGE_SHIFT - 20));
-
-Ah, you partially fix up my whinge from the previous patch here.
-
-page_alloc.c has a helper called K() for conversions. Perhaps move it to
-internal.h and add one for M instead of the - 20 here? Not a big deal as
-it doesn't take long to figure out.
-
->  	return 0;
->  }
-> +
-> +static int __init hugetlb_init(void)
-> +{
-> +	if (HPAGE_SHIFT == 0)
-> +		return 0;
-> +	return hugetlb_init_hstate(&global_hstate);
-> +}
->  module_init(hugetlb_init);
->  
-> +/* Should be called on processing a hugepagesz=... option */
-> +void __init huge_add_hstate(unsigned order)
-> +{
-> +	struct hstate *h;
-> +	BUG_ON(max_hstate >= HUGE_MAX_HSTATE);
-> +	BUG_ON(order <= HPAGE_SHIFT - PAGE_SHIFT);
-> +	h = &hstates[max_hstate++];
-> +	h->order = order;
-> +	h->mask = ~((1ULL << (order + PAGE_SHIFT)) - 1);
-> +	hugetlb_init_hstate(h);
-> +	parsed_hstate = h;
-> +}
-
-It's not clear in this patch what parsed_hstate is for as it is not used
-elsewhere. I've made a note to check if parsed_hstate makes an unwritten
-assumption that there is only "one other" huge page size in the system.
-
-> +
->  static int __init hugetlb_setup(char *s)
->  {
->  	if (sscanf(s, "%lu", &max_huge_pages) <= 0)
-> Index: linux/include/linux/hugetlb.h
-> ===================================================================
-> --- linux.orig/include/linux/hugetlb.h
-> +++ linux/include/linux/hugetlb.h
-> @@ -213,7 +213,15 @@ struct hstate {
->  	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
->  };
->  
-> -extern struct hstate global_hstate;
-> +void __init huge_add_hstate(unsigned order);
-> +
-> +#ifndef HUGE_MAX_HSTATE
-> +#define HUGE_MAX_HSTATE 1
-> +#endif
-> +
-> +extern struct hstate hstates[HUGE_MAX_HSTATE];
-> +
-> +#define global_hstate (hstates[0])
->  
->  static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
->  {
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
 
 -- 
