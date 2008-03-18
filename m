@@ -1,9 +1,10 @@
-Date: Tue, 18 Mar 2008 19:16:24 +0900
+Date: Tue, 18 Mar 2008 19:22:33 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH O/4] Block I/O tracking
-Message-Id: <20080318191624.85ca135f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080318.182251.93858044.taka@valinux.co.jp>
+Subject: Re: [PATCH 2/4] Block I/O tracking
+Message-Id: <20080318192233.89c5cc3e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080318.182906.104806991.taka@valinux.co.jp>
 References: <20080318.182251.93858044.taka@valinux.co.jp>
+	<20080318.182906.104806991.taka@valinux.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -13,46 +14,49 @@ To: Hirokazu Takahashi <taka@valinux.co.jp>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Mar 2008 18:22:51 +0900 (JST)
+On Tue, 18 Mar 2008 18:29:06 +0900 (JST)
 Hirokazu Takahashi <taka@valinux.co.jp> wrote:
 
->  # mount -t cgroup -o bio none /cgroup/bio
+> Hi,
 > 
-> Then, you make new bio cgroups and put some processes in them.
+> This patch implements the bio cgroup on the memory cgroup.
 > 
->  # mkdir /cgroup/bio/bgroup1
->  # mkdir /cgroup/bio/bgroup2
->  # echo 1234 /cgroup/bio/bgroup1/tasks
->  # echo 5678 /cgroup/bio/bgroup1/tasks
+> Signed-off-by: Hirokazu Takahashi <taka@valinux.co.jp>
 > 
-> Now you check the ids of the bio cgroups which you just created.
 > 
->  # cat /cgroup/bio/bgroup1/bio.id
->    1
->  # cat /cgroup/bio/bgroup2/bio.id
->    2
-> 
-> Finally, you can attach the cgroups to "ioband1" and assign them weights.
-> 
->  # dmsetup message ioband1 0 type cgroup
->  # dmsetup message ioband1 0 attach 1
->  # dmsetup message ioband1 0 attach 2
->  # dmsetup message ioband1 0 weight 1:30
->  # dmsetup message ioband1 0 weight 2:60
-> 
-> You can find the manual of dm-ioband at
-> http://people.valinux.co.jp/~ryov/dm-ioband/manual/index.html.
-> But the user interface for the bio cgroup is temporal and it will be
-> changed after the io_context support. 
-> 
-I'm grad if these some kinds of params rather than 'id' are also shown
-under cgroup.
+> --- linux-2.6.25-rc5.pagecgroup2/include/linux/memcontrol.h	2008-03-18 12:45:14.000000000 +0900
+> +++ linux-2.6.25-rc5-mm1/include/linux/memcontrol.h	2008-03-18 12:55:59.000000000 +0900
+> @@ -54,6 +54,10 @@ struct page_cgroup {
+>  	struct list_head lru;		/* per cgroup LRU list */
+>  	struct mem_cgroup *mem_cgroup;
+>  #endif /* CONFIG_CGROUP_MEM_RES_CTLR */
+> +#ifdef  CONFIG_CGROUP_BIO
+> +	struct list_head blist;		/* for bio_cgroup page list */
+> +	struct bio_cgroup *bio_cgroup;
+> +#endif
+
+Hmm, definition like this
+==
+enum {
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+	MEM_RES_CTLR,
+#endif
+#ifdef CONFIG_CGROURP_BIO
+	BIO_CTLR,
+#endif
+	NR_VM_CTRL,
+};
+
+	void	*cgroups[NR_VM_CGROUP];
+==
+Can save another #ifdefs ?
+
+And, blist seems to be just used for force_empty.
+Do you really need this ? no alternative ?
+
 
 Thanks,
 -Kame
-
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
