@@ -1,42 +1,43 @@
-Date: Tue, 18 Mar 2008 20:55:01 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/4] Block I/O tracking
-Message-Id: <20080318205501.59877972.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080318.203422.45236787.taka@valinux.co.jp>
-References: <20080318.182251.93858044.taka@valinux.co.jp>
-	<20080318.182906.104806991.taka@valinux.co.jp>
-	<20080318192233.89c5cc3e.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080318.203422.45236787.taka@valinux.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-reply-to: <1205839896.8514.344.camel@twins> (message from Peter Zijlstra on
+	Tue, 18 Mar 2008 12:31:36 +0100)
+Subject: Re: [patch 3/8] mm: rotate_reclaimable_page() cleanup
+References: <20080317191908.123631326@szeredi.hu>
+	 <20080317191944.208962764@szeredi.hu> <1205839896.8514.344.camel@twins>
+Message-Id: <E1JbaQk-0005iw-67@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 18 Mar 2008 12:56:34 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org
+To: peterz@infradead.org
+Cc: miklos@szeredi.hu, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Mar 2008 20:34:22 +0900 (JST)
-Hirokazu Takahashi <taka@valinux.co.jp> wrote:
+> > -int rotate_reclaimable_page(struct page *page)
+> > +void  rotate_reclaimable_page(struct page *page)
+> >  {
+> > -	struct pagevec *pvec;
+> > -	unsigned long flags;
+> > -
+> > -	if (PageLocked(page))
+> > -		return 1;
+> > -	if (PageDirty(page))
+> > -		return 1;
+> > -	if (PageActive(page))
+> > -		return 1;
+> > -	if (!PageLRU(page))
+> > -		return 1;
+> 
+> Might be me, but I find the above easier to read than
+> 
+> > +	if (!PageLocked(page) && !PageDirty(page) && !PageActive(page) &&
+> > +	    PageLRU(page)) {
+> >  
 
->
-> > And, blist seems to be just used for force_empty.
-> > Do you really need this ? no alternative ?
-> 
-> I selected this approach because it was the simplest way for the
-> first implementation.
-> 
-> I've been also thinking about what you pointed.
-> If you don't mind taking a long time to remove a bio cgroup, it will be
-> the easiest way that you can scan all pages to find the pages which
-> belong to the cgroup and delete them. It may be enough since you may
-> say it will rarely happen. But it might cause some trouble on machines
-> with huge memory.
-> 
-Hmm, force_empty itself is necessary ?
+Matter of taste, returning from a middle of a function is generally to
+be avoided (unless not).  Anyway, this is just a side effect of the
+main cleanup, so I think I'm entitled to choose the style I prefer ;)
 
-Thanks,
--Kame
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
