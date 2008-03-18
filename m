@@ -1,33 +1,74 @@
-Date: Tue, 18 Mar 2008 16:46:10 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] [13/18] Add support to allocate hugepages of different size with hugepages=...
-Message-ID: <20080318164610.GO23866@csn.ul.ie>
-References: <20080317258.659191058@firstfloor.org> <20080317015827.15E811B41E0@basil.firstfloor.org> <20080318163225.GM23866@csn.ul.ie> <20080318164550.GF11966@one.firstfloor.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20080318164550.GF11966@one.firstfloor.org>
+Date: Tue, 18 Mar 2008 09:57:15 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH prototype] [0/8] Predictive bitmaps for ELF executables
+Message-Id: <20080318095715.27120788.akpm@linux-foundation.org>
+In-Reply-To: <20080318141828.GD11966@one.firstfloor.org>
+References: <20080318209.039112899@firstfloor.org>
+	<20080318003620.d84efb95.akpm@linux-foundation.org>
+	<20080318141828.GD11966@one.firstfloor.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (18/03/08 17:45), Andi Kleen didst pronounce:
-> > hmm, it's not very clear to me how hugetlb_init_hstate() would get
-> > called twice for the same hstate. Should it be VM_BUG_ON() if a hstate
->
-> It is called from a __setup function and the user can specify them multiple
-> times.  Also when the user specified the HPAGE_SIZE already and it got set up
-> it should not be called again.
+On Tue, 18 Mar 2008 15:18:28 +0100 Andi Kleen <andi@firstfloor.org> wrote:
+
+> On Tue, Mar 18, 2008 at 12:36:20AM -0700, Andrew Morton wrote:
+> > On Tue, 18 Mar 2008 02:09:34 +0100 (CET) Andi Kleen <andi@firstfloor.org> wrote:
+> > 
+> > > This patchkit is an experimental optimization I played around with 
+> > > some time ago.
+> > > 
+> > > This is more a prototype still, but I wanted to push it out 
+> > > so that other people can play with it.
+> > > 
+> > > The basic idea is that most programs have the same working set
+> > > over multiple runs. So instead of demand paging all the text pages
+> > > in the order the program runs save the working set to disk and prefetch
+> > > it at program start and then save it at program exit.
+> > > 
+> > > This allows some optimizations: 
+> > > - it can avoid unnecessary disk seeks because the blocks will be fetched in 
+> > > sorted offset order instead of program execution order. 
+> > > - batch kernel entries (each demand page exception has some
+> > > overhead just for entering the kernel). This keeps the caches hot too.
+> > > - The prefetch could be in theory done in the background while the program 
+> > > runs (although that is not implemented currently)
+> > 
+> > Should be worthwhile for some things.
+> > 
+> > > Some details on the implementation:
+> > 
+> > Can't this all be done in userspace?  Hook into exit() with an LD_PRELOAD,
 > 
+> In theory yes, but it would have much more overhead.
 
-Ok, that is a fair explanation. Thanks.
+s/much/slightly/.  The main win will be in optimising disk patterns.  We
+can fault in cached pages at, what?  A few GB/sec?
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> Also I think prefetching
+> algorithms like this really belong in the kernel.
+
+hrmph.
+
+> > > - Executable files have to be writable by the user executing it
+> > > currently to get bitmap updates. It would be possible to let the 
+> > > kernel bypass this, but I haven't thought too much about the security 
+> > > implications of it.
+> > > However any user can use the bitmap data written by a user with
+> > > write rights.
+> > 
+> > Those all get fixed with the userspace version?
+> 
+> No in fact the permission problem is much harder to fix in user space.
+
+What's the permission problem?  executable-but-not-readable files?  Could
+be handled by passing your request to a suitable-privileged server process,
+I guess.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
