@@ -1,43 +1,49 @@
-Date: Tue, 18 Mar 2008 10:12:43 +0900
+Date: Tue, 18 Mar 2008 10:14:04 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/7] re-define page_cgroup.
-Message-Id: <20080318101243.18a7c694.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <47DDB9A5.1000405@cn.fujitsu.com>
+Subject: Re: [PATCH 2/7] charge/uncharge
+Message-Id: <20080318101404.76ec357a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080317014601.GB24473@balbir.in.ibm.com>
 References: <20080314185954.5cd51ff6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080314190313.e6e00026.kamezawa.hiroyu@jp.fujitsu.com>
-	<47DDB9A5.1000405@cn.fujitsu.com>
+	<20080314190622.0e147b43.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080317014601.GB24473@balbir.in.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, xemul@openvz.org, "hugh@veritas.com" <hugh@veritas.com>
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, xemul@openvz.org, "hugh@veritas.com" <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Mar 2008 09:21:57 +0900
-Li Zefan <lizf@cn.fujitsu.com> wrote:
+On Mon, 17 Mar 2008 07:16:01 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> KAMEZAWA Hiroyuki wrote:
-> > (This is one of a series of patch for "lookup page_cgroup" patches..)
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2008-03-14 19:06:22]:
+> 
+> > Because bit spin lock is removed and spinlock is added to page_cgroup.
+> > There are some amount of changes.
 > > 
-> >  * Exporting page_cgroup definition.
-> >  * Remove page_cgroup member from sturct page.
-> >  * As result, PAGE_CGROUP_LOCK_BIT and assign/access functions are removed.
+> > This patch does
+> > 	- modify charge/uncharge to adjust it to the new lock.
+> > 	- Added simple lock rule comments.
 > > 
-> > Other chages will appear in following patches.
-> > There is a change in the structure itself, spin_lock is added.
+> > Major changes from current(-mm) version is
+> > 	- pc->refcnt is set as "1" after the charge is done.
 > > 
-> > Changelog:
-> >  - adjusted to rc5-mm1
+> > Changelog
+> >   - Rebased to rc5-mm1
 > > 
 > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
+> >
 > 
-> Please don't break git-bisect. Make sure your patches can be applied one
-> by one.
+> Hi, KAMEZAWA-San,
 > 
-folding all 7 patches into one patch ?
+> The build continues to be broken, even after this patch is applied.
+> We will have to find another way to refactor the code, so that we
+> don't break git-bisect.
+>  
+At least, patch 1-5 should be applied.
+Hmm, ok. folding patch 1-5 to one patch.
 
 Thanks,
 -Kame
