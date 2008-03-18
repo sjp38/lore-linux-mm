@@ -1,43 +1,39 @@
-Date: Tue, 18 Mar 2008 15:33:06 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: [PATCH] mm/readhead: fix kernel-doc notation
-Message-Id: <20080318153306.966f9ea5.randy.dunlap@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <47E05681.8020409@cn.fujitsu.com>
+Date: Wed, 19 Mar 2008 08:55:45 +0900
+From: Li Zefan <lizf@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 6/7] memcg: speed up by percpu
+References: <20080314185954.5cd51ff6.kamezawa.hiroyu@jp.fujitsu.com>	<20080314191852.50b4b569.kamezawa.hiroyu@jp.fujitsu.com>	<47DDDF7E.7030804@cn.fujitsu.com> <20080318102558.0da456e1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080318102558.0da456e1.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Randy Dunlap <randy.dunlap@oracle.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, xemul@openvz.org, "hugh@veritas.com" <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Fix kernel-doc notation in mm/readahead.c.
+KAMEZAWA Hiroyuki wrote:
+> On Mon, 17 Mar 2008 12:03:26 +0900
+> Li Zefan <lizf@cn.fujitsu.com> wrote:
+> 
+>>> +static inline struct page_cgroup *
+>>> +get_page_cgroup(struct page *page, gfp_t gfpmask, bool allocate)
+>> This function is too big to be inline
+>>
+> I don't think so. This just does shift, mask, access to per-cpu.
+> And enough benefit to make this to be inline.
+> But ok, will check text size.
+> 
 
-Change ":" to ";" so that it doesn't get treated as a doc section heading.
-Move the comment block ending "*/" to a line by itself so that the
-text on that last line is not lost (dropped).
+Normally 1-line or 2-lines functions are good candidates for inline,
+but others are usually not.
 
-Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
----
- mm/readahead.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
---- mmotm-2008-0314-1449.orig/mm/readahead.c
-+++ mmotm-2008-0314-1449/mm/readahead.c
-@@ -449,9 +449,10 @@ EXPORT_SYMBOL_GPL(page_cache_sync_readah
-  *            pagecache pages
-  *
-  * page_cache_async_ondemand() should be called when a page is used which
-- * has the PG_readahead flag: this is a marker to suggest that the application
-+ * has the PG_readahead flag; this is a marker to suggest that the application
-  * has used up enough of the readahead window that we should start pulling in
-- * more pages. */
-+ * more pages.
-+ */
- void
- page_cache_async_readahead(struct address_space *mapping,
- 			   struct file_ra_state *ra, struct file *filp,
+> Thanks,
+> -Kame
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
