@@ -1,57 +1,123 @@
-Received: by el-out-1112.google.com with SMTP id y26so2851038ele.4
-        for <linux-mm@kvack.org>; Mon, 17 Mar 2008 19:19:20 -0700 (PDT)
-Message-ID: <70b6f0bf0803171919t9ba6cbewbc03c9ddae63c255@mail.gmail.com>
-Date: Mon, 17 Mar 2008 19:19:19 -0700
-From: "Valerie Henson" <val@vahconsulting.com>
-Subject: Re: ebizzy performance with different allocators
-In-Reply-To: <200803172321.31572.nickpiggin@yahoo.com.au>
+Received: by wx-out-0506.google.com with SMTP id h31so5940659wxd.11
+        for <linux-mm@kvack.org>; Mon, 17 Mar 2008 19:53:58 -0700 (PDT)
+Message-ID: <86802c440803171953i5a230cf0pda3a96a173f8707f@mail.gmail.com>
+Date: Mon, 17 Mar 2008 19:53:57 -0700
+From: "Yinghai Lu" <yhlu.kernel@gmail.com>
+Subject: [PATCH] mm: offset align in alloc_bootmem v3
 MIME-Version: 1.0
+Content-Type: multipart/mixed;
+	boundary="----=_Part_19488_7845786.1205808837203"
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, pj@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+List-ID: <linux-mm.kvack.org>
+
+------=_Part_19488_7845786.1205808837203
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <200803172321.31572.nickpiggin@yahoo.com.au>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: opensource@google.com, Jakub Jelinek <jakub@redhat.com>, linux-mm@kvack.org, "Rodrigo Rubira Branco (BSDaemon)" <rodrigo@kernelhacking.com>
-List-ID: <linux-mm.kvack.org>
 
-[Cc'd current ebizzy maintainer, Rodrigo.]
 
-On Mon, Mar 17, 2008 at 5:21 AM, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> Hi,
->
->  I was recently interested in ebizzy performance, and specifically the
->  reason why Linux doesn't appear to scale very well versus FreeBSD.
 
-[snip]
+------=_Part_19488_7845786.1205808837203
+Content-Type: text/x-patch; name=offset_alloc_bootmem_v3.patch
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_fdxvgmvx0
+Content-Disposition: attachment; filename=offset_alloc_bootmem_v3.patch
 
->  linux-glibc was the best single-threaded performer, with ~7000 r/s,
->  however it starts running into system time which the profile shows up
->  as unmapping pages and faulting in new pages. Is "fixing" this as simple
->  as increasing hysteresis in glibc? Can that be done via environment? (I
->  couldn't work out a way).
-
-Huh, yeah, that sounds like glibc is mmap()'ing your allocations.
-Check to see if your glibc version includes this patch:
-
-http://www.valhenson.org/patches/dynamic_mmap_threshold
-
-If it does, you shouldn't see much in the way of mmap/munmap activity
-when running ebizzy.  It's possible that some other malloc() settings
-are interfering, maybe the trim threshold.  It's also worth noting
-that the self-tuning mmap threshold is disabled if the user sets the
-mmap threshold explicitly.  Oh, and is this 32-bit or 64-bit?
-
-If you want to tune the exact behavior of malloc with regard to mmap, check out:
-
-http://www.gnu.org/software/libtool/manual/libc/Malloc-Tunable-Parameters.html
-
-If you use the "-M" option to ebizzy, it will use mallopt() to turn
-off mmap()'d allocations entirely. (It'd be nice to have command line
-knobs for all the mallopt() tuning options, actually.)
-
--VAL
+W1BBVENIXSBtbTogb2Zmc2V0IGFsaWduIGluIGFsbG9jX2Jvb3RtZW0gdjMKCm5lZWQgb2Zmc2V0
+IGFsaWdubWVudCB3aGVuIG5vZGVfYm9vdF9zdGFydCdzIGFsaWdubWVudCBpcyBsZXNzIHRoYW4K
+YWxpZ24gcmVxdWlyZWQKCnVzZSBsb2NhbCBub2RlX2Jvb3Rfc3RhcnQgdG8gbWF0Y2ggYWxpZ24u
+IHNvIGRvbid0IGFkZCBleHRyYSBvcHRlcmF0aW9uIGluCnNlYXJjaCBsb29wLgoKU2lnbmVkLW9m
+Zi1ieTogWWluZ2hhaSBMdSA8eWhsdS5rZXJuZWxAZ21haWwuY29tPgoKSW5kZXg6IGxpbnV4LTIu
+Ni9tbS9ib290bWVtLmMKPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PQotLS0gbGludXgtMi42Lm9yaWcvbW0vYm9vdG1lbS5j
+CisrKyBsaW51eC0yLjYvbW0vYm9vdG1lbS5jCkBAIC0yMDYsOSArMjA2LDExIEBAIHZvaWQgKiBf
+X2luaXQKIF9fYWxsb2NfYm9vdG1lbV9jb3JlKHN0cnVjdCBib290bWVtX2RhdGEgKmJkYXRhLCB1
+bnNpZ25lZCBsb25nIHNpemUsCiAJICAgICAgdW5zaWduZWQgbG9uZyBhbGlnbiwgdW5zaWduZWQg
+bG9uZyBnb2FsLCB1bnNpZ25lZCBsb25nIGxpbWl0KQogewotCXVuc2lnbmVkIGxvbmcgb2Zmc2V0
+LCByZW1haW5pbmdfc2l6ZSwgYXJlYXNpemUsIHByZWZlcnJlZDsKKwl1bnNpZ25lZCBsb25nIGFy
+ZWFzaXplLCBwcmVmZXJyZWQ7CiAJdW5zaWduZWQgbG9uZyBpLCBzdGFydCA9IDAsIGluY3IsIGVp
+ZHgsIGVuZF9wZm47CiAJdm9pZCAqcmV0OworCXVuc2lnbmVkIGxvbmcgbm9kZV9ib290X3N0YXJ0
+OworCXZvaWQgKm5vZGVfYm9vdG1lbV9tYXA7CiAKIAlpZiAoIXNpemUpIHsKIAkJcHJpbnRrKCJf
+X2FsbG9jX2Jvb3RtZW1fY29yZSgpOiB6ZXJvLXNpemVkIHJlcXVlc3RcbiIpOwpAQCAtMjE2LDIz
+ICsyMTgsMjkgQEAgX19hbGxvY19ib290bWVtX2NvcmUoc3RydWN0IGJvb3RtZW1fZGF0YQogCX0K
+IAlCVUdfT04oYWxpZ24gJiAoYWxpZ24tMSkpOwogCi0JaWYgKGxpbWl0ICYmIGJkYXRhLT5ub2Rl
+X2Jvb3Rfc3RhcnQgPj0gbGltaXQpCi0JCXJldHVybiBOVUxMOwotCiAJLyogb24gbm9kZXMgd2l0
+aG91dCBtZW1vcnkgLSBib290bWVtX21hcCBpcyBOVUxMICovCiAJaWYgKCFiZGF0YS0+bm9kZV9i
+b290bWVtX21hcCkKIAkJcmV0dXJuIE5VTEw7CiAKKwkvKiBiZGF0YS0+bm9kZV9ib290X3N0YXJ0
+IGlzIHN1cHBvc2VkIHRvIGJlICgxMis2KWJpdHMgYWxpZ25tZW50IG9uIHg4Nl82NCA/ICovCisJ
+bm9kZV9ib290X3N0YXJ0ID0gYmRhdGEtPm5vZGVfYm9vdF9zdGFydDsKKwlub2RlX2Jvb3RtZW1f
+bWFwID0gYmRhdGEtPm5vZGVfYm9vdG1lbV9tYXA7CisJaWYgKGFsaWduKSB7CisJCW5vZGVfYm9v
+dF9zdGFydCA9IEFMSUdOKGJkYXRhLT5ub2RlX2Jvb3Rfc3RhcnQsIGFsaWduKTsKKwkJaWYgKG5v
+ZGVfYm9vdF9zdGFydCA+IGJkYXRhLT5ub2RlX2Jvb3Rfc3RhcnQpCisJCQlub2RlX2Jvb3RtZW1f
+bWFwID0gKHVuc2lnbmVkIGxvbmcgKiliZGF0YS0+bm9kZV9ib290bWVtX21hcCArCisJCQkgICAg
+UEZOX0RPV04obm9kZV9ib290X3N0YXJ0IC0gYmRhdGEtPm5vZGVfYm9vdF9zdGFydCkvQklUU19Q
+RVJfTE9ORzsKKwl9CisKKwlpZiAobGltaXQgJiYgbm9kZV9ib290X3N0YXJ0ID49IGxpbWl0KQor
+CQlyZXR1cm4gTlVMTDsKKwogCWVuZF9wZm4gPSBiZGF0YS0+bm9kZV9sb3dfcGZuOwogCWxpbWl0
+ID0gUEZOX0RPV04obGltaXQpOwogCWlmIChsaW1pdCAmJiBlbmRfcGZuID4gbGltaXQpCiAJCWVu
+ZF9wZm4gPSBsaW1pdDsKIAotCWVpZHggPSBlbmRfcGZuIC0gUEZOX0RPV04oYmRhdGEtPm5vZGVf
+Ym9vdF9zdGFydCk7Ci0Jb2Zmc2V0ID0gMDsKLQlpZiAoYWxpZ24gJiYgKGJkYXRhLT5ub2RlX2Jv
+b3Rfc3RhcnQgJiAoYWxpZ24gLSAxVUwpKSAhPSAwKQotCQlvZmZzZXQgPSBhbGlnbiAtIChiZGF0
+YS0+bm9kZV9ib290X3N0YXJ0ICYgKGFsaWduIC0gMVVMKSk7Ci0Jb2Zmc2V0ID0gUEZOX0RPV04o
+b2Zmc2V0KTsKKwllaWR4ID0gZW5kX3BmbiAtIFBGTl9ET1dOKG5vZGVfYm9vdF9zdGFydCk7CiAK
+IAkvKgogCSAqIFdlIHRyeSB0byBhbGxvY2F0ZSBib290bWVtIHBhZ2VzIGFib3ZlICdnb2FsJwpA
+QCAtMjQwLDE1ICsyNDgsMTYgQEAgX19hbGxvY19ib290bWVtX2NvcmUoc3RydWN0IGJvb3RtZW1f
+ZGF0YQogCSAqLwogCXByZWZlcnJlZCA9IDA7CiAJaWYgKGdvYWwgJiYgUEZOX0RPV04oZ29hbCkg
+PCBlbmRfcGZuKSB7Ci0JCWlmIChnb2FsID4gYmRhdGEtPm5vZGVfYm9vdF9zdGFydCkKLQkJCXBy
+ZWZlcnJlZCA9IGdvYWwgLSBiZGF0YS0+bm9kZV9ib290X3N0YXJ0OworCQlpZiAoZ29hbCA+IG5v
+ZGVfYm9vdF9zdGFydCkKKwkJCXByZWZlcnJlZCA9IGdvYWwgLSBub2RlX2Jvb3Rfc3RhcnQ7CiAK
+LQkJaWYgKGJkYXRhLT5sYXN0X3N1Y2Nlc3MgPj0gcHJlZmVycmVkKQorCQlpZiAoYmRhdGEtPmxh
+c3Rfc3VjY2VzcyA+IG5vZGVfYm9vdF9zdGFydCAmJgorCQkJYmRhdGEtPmxhc3Rfc3VjY2VzcyAt
+IG5vZGVfYm9vdF9zdGFydCA+PSBwcmVmZXJyZWQpCiAJCQlpZiAoIWxpbWl0IHx8IChsaW1pdCAm
+JiBsaW1pdCA+IGJkYXRhLT5sYXN0X3N1Y2Nlc3MpKQotCQkJCXByZWZlcnJlZCA9IGJkYXRhLT5s
+YXN0X3N1Y2Nlc3M7CisJCQkJcHJlZmVycmVkID0gYmRhdGEtPmxhc3Rfc3VjY2VzcyAtIG5vZGVf
+Ym9vdF9zdGFydDsKIAl9CiAKLQlwcmVmZXJyZWQgPSBQRk5fRE9XTihBTElHTihwcmVmZXJyZWQs
+IGFsaWduKSkgKyBvZmZzZXQ7CisJcHJlZmVycmVkID0gUEZOX0RPV04oQUxJR04ocHJlZmVycmVk
+LCBhbGlnbikpOwogCWFyZWFzaXplID0gKHNpemUgKyBQQUdFX1NJWkUtMSkgLyBQQUdFX1NJWkU7
+CiAJaW5jciA9IGFsaWduID4+IFBBR0VfU0hJRlQgPyA6IDE7CiAKQEAgLTI1NiwxOCArMjY1LDE4
+IEBAIHJlc3RhcnRfc2NhbjoKIAlmb3IgKGkgPSBwcmVmZXJyZWQ7IGkgPCBlaWR4OykgewogCQl1
+bnNpZ25lZCBsb25nIGo7CiAKLQkJaSA9IGZpbmRfbmV4dF96ZXJvX2JpdChiZGF0YS0+bm9kZV9i
+b290bWVtX21hcCwgZWlkeCwgaSk7CisJCWkgPSBmaW5kX25leHRfemVyb19iaXQobm9kZV9ib290
+bWVtX21hcCwgZWlkeCwgaSk7CiAJCWkgPSBBTElHTihpLCBpbmNyKTsKIAkJaWYgKGkgPj0gZWlk
+eCkKIAkJCWJyZWFrOwotCQlpZiAodGVzdF9iaXQoaSwgYmRhdGEtPm5vZGVfYm9vdG1lbV9tYXAp
+KSB7CisJCWlmICh0ZXN0X2JpdChpLCBub2RlX2Jvb3RtZW1fbWFwKSkgewogCQkJaSArPSBpbmNy
+OwogCQkJY29udGludWU7CiAJCX0KIAkJZm9yIChqID0gaSArIDE7IGogPCBpICsgYXJlYXNpemU7
+ICsraikgewogCQkJaWYgKGogPj0gZWlkeCkKIAkJCQlnb3RvIGZhaWxfYmxvY2s7Ci0JCQlpZiAo
+dGVzdF9iaXQoaiwgYmRhdGEtPm5vZGVfYm9vdG1lbV9tYXApKQorCQkJaWYgKHRlc3RfYml0KGos
+IG5vZGVfYm9vdG1lbV9tYXApKQogCQkJCWdvdG8gZmFpbF9ibG9jazsKIAkJfQogCQlzdGFydCA9
+IGk7CkBAIC0yNzgsMTQgKzI4NywxNCBAQCByZXN0YXJ0X3NjYW46CiAJCQlpICs9IGluY3I7CiAJ
+fQogCi0JaWYgKHByZWZlcnJlZCA+IG9mZnNldCkgewotCQlwcmVmZXJyZWQgPSBvZmZzZXQ7CisJ
+aWYgKHByZWZlcnJlZCA+IDApIHsKKwkJcHJlZmVycmVkID0gMDsKIAkJZ290byByZXN0YXJ0X3Nj
+YW47CiAJfQogCXJldHVybiBOVUxMOwogCiBmb3VuZDoKLQliZGF0YS0+bGFzdF9zdWNjZXNzID0g
+UEZOX1BIWVMoc3RhcnQpOworCWJkYXRhLT5sYXN0X3N1Y2Nlc3MgPSBQRk5fUEhZUyhzdGFydCkg
+KyBub2RlX2Jvb3Rfc3RhcnQ7CiAJQlVHX09OKHN0YXJ0ID49IGVpZHgpOwogCiAJLyoKQEAgLTI5
+NSw2ICszMDQsNyBAQCBmb3VuZDoKIAkgKi8KIAlpZiAoYWxpZ24gPCBQQUdFX1NJWkUgJiYKIAkg
+ICAgYmRhdGEtPmxhc3Rfb2Zmc2V0ICYmIGJkYXRhLT5sYXN0X3BvcysxID09IHN0YXJ0KSB7CisJ
+CXVuc2lnbmVkIGxvbmcgb2Zmc2V0LCByZW1haW5pbmdfc2l6ZTsKIAkJb2Zmc2V0ID0gQUxJR04o
+YmRhdGEtPmxhc3Rfb2Zmc2V0LCBhbGlnbik7CiAJCUJVR19PTihvZmZzZXQgPiBQQUdFX1NJWkUp
+OwogCQlyZW1haW5pbmdfc2l6ZSA9IFBBR0VfU0laRSAtIG9mZnNldDsKQEAgLTMwMywxNCArMzEz
+LDEyIEBAIGZvdW5kOgogCQkJLyogbGFzdF9wb3MgdW5jaGFuZ2VkICovCiAJCQliZGF0YS0+bGFz
+dF9vZmZzZXQgPSBvZmZzZXQgKyBzaXplOwogCQkJcmV0ID0gcGh5c190b192aXJ0KGJkYXRhLT5s
+YXN0X3BvcyAqIFBBR0VfU0laRSArCi0JCQkJCSAgIG9mZnNldCArCi0JCQkJCSAgIGJkYXRhLT5u
+b2RlX2Jvb3Rfc3RhcnQpOworCQkJCQkgICBvZmZzZXQgKyBub2RlX2Jvb3Rfc3RhcnQpOwogCQl9
+IGVsc2UgewogCQkJcmVtYWluaW5nX3NpemUgPSBzaXplIC0gcmVtYWluaW5nX3NpemU7CiAJCQlh
+cmVhc2l6ZSA9IChyZW1haW5pbmdfc2l6ZSArIFBBR0VfU0laRS0xKSAvIFBBR0VfU0laRTsKIAkJ
+CXJldCA9IHBoeXNfdG9fdmlydChiZGF0YS0+bGFzdF9wb3MgKiBQQUdFX1NJWkUgKwotCQkJCQkg
+ICBvZmZzZXQgKwotCQkJCQkgICBiZGF0YS0+bm9kZV9ib290X3N0YXJ0KTsKKwkJCQkJICAgb2Zm
+c2V0ICsgbm9kZV9ib290X3N0YXJ0KTsKIAkJCWJkYXRhLT5sYXN0X3BvcyA9IHN0YXJ0ICsgYXJl
+YXNpemUgLSAxOwogCQkJYmRhdGEtPmxhc3Rfb2Zmc2V0ID0gcmVtYWluaW5nX3NpemU7CiAJCX0K
+QEAgLTMxOCwxNCArMzI2LDE0IEBAIGZvdW5kOgogCX0gZWxzZSB7CiAJCWJkYXRhLT5sYXN0X3Bv
+cyA9IHN0YXJ0ICsgYXJlYXNpemUgLSAxOwogCQliZGF0YS0+bGFzdF9vZmZzZXQgPSBzaXplICYg
+flBBR0VfTUFTSzsKLQkJcmV0ID0gcGh5c190b192aXJ0KHN0YXJ0ICogUEFHRV9TSVpFICsgYmRh
+dGEtPm5vZGVfYm9vdF9zdGFydCk7CisJCXJldCA9IHBoeXNfdG9fdmlydChzdGFydCAqIFBBR0Vf
+U0laRSArIG5vZGVfYm9vdF9zdGFydCk7CiAJfQogCiAJLyoKIAkgKiBSZXNlcnZlIHRoZSBhcmVh
+IG5vdzoKIAkgKi8KIAlmb3IgKGkgPSBzdGFydDsgaSA8IHN0YXJ0ICsgYXJlYXNpemU7IGkrKykK
+LQkJaWYgKHVubGlrZWx5KHRlc3RfYW5kX3NldF9iaXQoaSwgYmRhdGEtPm5vZGVfYm9vdG1lbV9t
+YXApKSkKKwkJaWYgKHVubGlrZWx5KHRlc3RfYW5kX3NldF9iaXQoaSwgbm9kZV9ib290bWVtX21h
+cCkpKQogCQkJQlVHKCk7CiAJbWVtc2V0KHJldCwgMCwgc2l6ZSk7CiAJcmV0dXJuIHJldDsK
+------=_Part_19488_7845786.1205808837203--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
