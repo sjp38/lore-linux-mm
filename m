@@ -1,11 +1,11 @@
-Date: Wed, 19 Mar 2008 11:34:48 +0900
+Date: Wed, 19 Mar 2008 11:44:58 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/7] memcg: move_lists
-Message-Id: <20080319113448.03688ae8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080318164437.GC24473@balbir.in.ibm.com>
+Subject: Re: [PATCH 4/7] memcg: page migration
+Message-Id: <20080319114458.932a90fa.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080318181141.GD24473@balbir.in.ibm.com>
 References: <20080314185954.5cd51ff6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080314190731.b3635ae9.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080318164437.GC24473@balbir.in.ibm.com>
+	<20080314191543.7b0f0fa3.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080318181141.GD24473@balbir.in.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -15,44 +15,57 @@ To: balbir@linux.vnet.ibm.com
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, xemul@openvz.org, "hugh@veritas.com" <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Mar 2008 22:14:37 +0530
+On Tue, 18 Mar 2008 23:41:41 +0530
 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2008-03-14 19:07:31]:
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2008-03-14 19:15:43]:
 > 
-> > Modifies mem_cgroup_move_lists() to use get_page_cgroup().
-> > No major algorithm changes just adjusted to new locks.
+> > Christoph Lameter, writer of page migraion, suggested me that
+> > new page_cgroup should be assignd to new page at page is allocated.
+> > This patch changes migration path to assign page_cgroup of new page
+> > at allocation.
 > > 
-> > Signed-off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Pros:
+> >  - We can avoid compliated lock depndencies.
+> > Cons:
+> >  - Have to handle a page which is not on LRU in memory resource controller.
 > > 
-> >  mm/memcontrol.c |   16 +++++++++-------
-> >  1 file changed, 9 insertions(+), 7 deletions(-)
+> > For pages not-on-LRU, I added PAGE_CGROUP_FLAG_MIGRATION and
+> > mem_cgroup->migrations counter.
+> > (force_empty will not end while migration because new page's
+> >  refcnt is alive until the end of migration.)
 > > 
-> > Index: mm-2.6.25-rc5-mm1/mm/memcontrol.c
-> > ===================================================================
-> > --- mm-2.6.25-rc5-mm1.orig/mm/memcontrol.c
-> > +++ mm-2.6.25-rc5-mm1/mm/memcontrol.c
-> > @@ -309,6 +309,10 @@ void mem_cgroup_move_lists(struct page *
-> >  	struct mem_cgroup_per_zone *mz;
-> >  	unsigned long flags;
+> > I think this version simplifies complicated lock dependency in page migraiton,
+> > but I admit this adds some hacky codes. If you have good idea, please advise me.
 > > 
-> > +	/* This GFP will be ignored..*/
-> > +	pc = get_page_cgroup(page, GFP_ATOMIC, false);
-> > +	if (!pc)
-> > +		return;
+> > Works well under my tests.
 > 
-> Splitting get_page_cgroup will help avoid thse kinds of hacks. Please
-> see my earlier comment.
+> This code is easier to read as well. I think this a good approach. To
+> be honest, I've not had the chance to test page migration very often.
+> Should we update Documentation/controllers/memory.txt to indicate that
+> migration might prevent force_empty and hence rmdir() from working?
 > 
-My new version has 2 funcs.
+I'm now rewriting this code to use 'list' instead of a counter but
+reconsidering this care is really necessary or not.
 
-get_page_cgroup(struct page *page)
-get_alloc_page_cgroup(struct page *page, gfp_t mask);
+Because !Page_lru pages are already handled in mem_cgroup_isolate_page(),
+we don't have to do something special to non-LRU pages.
 
-I will post after I can get test machine..
+I'd like to drop this care-nolru-pages check today and check it.
 
 Thanks,
 -Kame
+
+
+
+
+
+
+
+
+
+
+
 
 
 
