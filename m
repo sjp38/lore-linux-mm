@@ -1,63 +1,29 @@
-Date: Wed, 19 Mar 2008 12:59:08 +0900 (JST)
-Message-Id: <20080319.125908.14787908.taka@valinux.co.jp>
-Subject: Re: [PATCH O/4] Block I/O tracking
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <20080318191624.85ca135f.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080318.182251.93858044.taka@valinux.co.jp>
-	<20080318191624.85ca135f.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Date: Tue, 18 Mar 2008 21:13:49 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [git pull] slub fallback fix
+In-Reply-To: <Pine.LNX.4.64.0803181137250.23639@schroedinger.engr.sgi.com>
+Message-ID: <alpine.LFD.1.00.0803182113220.3020@woody.linux-foundation.org>
+References: <Pine.LNX.4.64.0803171135420.8746@schroedinger.engr.sgi.com> <alpine.LFD.1.00.0803180737350.3020@woody.linux-foundation.org> <Pine.LNX.4.64.0803181037470.21992@schroedinger.engr.sgi.com> <alpine.LFD.1.00.0803181115580.3020@woody.linux-foundation.org>
+ <Pine.LNX.4.64.0803181137250.23639@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
 
-> >  # mount -t cgroup -o bio none /cgroup/bio
-> > 
-> > Then, you make new bio cgroups and put some processes in them.
-> > 
-> >  # mkdir /cgroup/bio/bgroup1
-> >  # mkdir /cgroup/bio/bgroup2
-> >  # echo 1234 /cgroup/bio/bgroup1/tasks
-> >  # echo 5678 /cgroup/bio/bgroup1/tasks
-> > 
-> > Now you check the ids of the bio cgroups which you just created.
-> > 
-> >  # cat /cgroup/bio/bgroup1/bio.id
-> >    1
-> >  # cat /cgroup/bio/bgroup2/bio.id
-> >    2
-> > 
-> > Finally, you can attach the cgroups to "ioband1" and assign them weights.
-> > 
-> >  # dmsetup message ioband1 0 type cgroup
-> >  # dmsetup message ioband1 0 attach 1
-> >  # dmsetup message ioband1 0 attach 2
-> >  # dmsetup message ioband1 0 weight 1:30
-> >  # dmsetup message ioband1 0 weight 2:60
-> > 
-> > You can find the manual of dm-ioband at
-> > http://people.valinux.co.jp/~ryov/dm-ioband/manual/index.html.
-> > But the user interface for the bio cgroup is temporal and it will be
-> > changed after the io_context support. 
-> > 
-> I'm grad if these some kinds of params rather than 'id' are also shown
-> under cgroup.
+On Tue, 18 Mar 2008, Christoph Lameter wrote:
+> 
+> Well it may now have become not so readable anymore. However, this 
+> contains the kmalloc fallback logic in one spot. And that logic is likely 
+> going to be generalized for 2.6.26 removing __PAGE_ALLOC_FALLBACK etc. The 
+> chunk is going away. Either solution is fine with me. Just get it fixed.
 
-You mean each bio cgroup has to have a lot of files which shows the status
-of the cgroup or allows you to control the cgroup.
-I think this should be done after the cgroup bio subsystem supports
-io_context since the interface will be changed to support it.
+Ok, if the code is going away, I don't care enough. I pulled your tree.
 
-> Thanks,
-> -Kame
-
-Thank you,
-Hirokazu Takahashi.
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
