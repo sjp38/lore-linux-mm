@@ -1,31 +1,49 @@
-Date: Wed, 19 Mar 2008 22:42:27 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [2/2] vmallocinfo: Add caller information
-Message-ID: <20080319214227.GA4454@elte.hu>
-References: <20080318222701.788442216@sgi.com> <20080318222827.519656153@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080318222827.519656153@sgi.com>
+Date: Wed, 19 Mar 2008 15:07:04 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [0/2] vmalloc: Add /proc/vmallocinfo to display mappings
+Message-Id: <20080319150704.d3f090e6.akpm@linux-foundation.org>
+In-Reply-To: <20080319111943.0E1B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080318222701.788442216@sgi.com>
+	<20080319111943.0E1B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* Christoph Lameter <clameter@sgi.com> wrote:
+On Wed, 19 Mar 2008 11:23:30 +0900
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+>
+> > The following two patches implement /proc/vmallocinfo. /proc/vmallocinfo
+> > displays data about the vmalloc allocations. The second patch introduces
+> > a tracing feature that allows to display the function that allocated the
+> > vmalloc area.
+> > 
+> > Example:
+> > 
+> > cat /proc/vmallocinfo
 
-> Add caller information so that /proc/vmallocinfo shows where the 
-> allocation request for a slice of vmalloc memory originated.
+argh, please don't top-post.
 
-please use one simple save_stack_trace() instead of polluting a dozen 
-architectures with:
+(undoes it)
 
-> -	return __ioremap(phys_addr, size, IOR_MODE_UNCACHED);
-> +	return __ioremap_caller(phys_addr, size, IOR_MODE_UNCACHED,
-> +						__builtin_return_address(0));
+>
+> Hi
+> 
+> Great.
+> it seems very useful.
+> and, I found no bug.
+> 
+> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-	Ingo
+
+I was just about to ask whether we actually need the feature - I don't
+recall ever having needed it, nor do I recall seeing anyone else need it.
+
+Why is it useful?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
