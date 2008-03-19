@@ -1,47 +1,31 @@
-Subject: Re: [PATCH 6/7] memcg: speed up by percpu
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <1205961565.6437.16.camel@lappy>
-References: <20080314185954.5cd51ff6.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20080314191852.50b4b569.kamezawa.hiroyu@jp.fujitsu.com>
-	 <1205961565.6437.16.camel@lappy>
-Content-Type: text/plain
-Date: Wed, 19 Mar 2008 22:41:56 +0100
-Message-Id: <1205962916.6437.36.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 19 Mar 2008 22:42:27 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [2/2] vmallocinfo: Add caller information
+Message-ID: <20080319214227.GA4454@elte.hu>
+References: <20080318222701.788442216@sgi.com> <20080318222827.519656153@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080318222827.519656153@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, xemul@openvz.org, "hugh@veritas.com" <hugh@veritas.com>, apw <apw@shadowen.org>, Ingo Molnar <mingo@elte.hu>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-03-19 at 22:19 +0100, Peter Zijlstra wrote:
+* Christoph Lameter <clameter@sgi.com> wrote:
 
-> > +static void save_result(struct page_cgroup  *base, unsigned long idx)
-> > +{
-> > +	int hash = idx & (PAGE_CGROUP_NR_CACHE - 1);
-> > +	struct page_cgroup_cache *pcp;
-> > +	/* look up is done under preempt_disable(). then, don't call
-> > +	   this under interrupt(). */
-> > +	preempt_disable();
-> > +	pcp = &__get_cpu_var(pcpu_page_cgroup_cache);
-> > +	pcp->ents[hash].idx = idx;
-> > +	pcp->ents[hash].base = base;
-> > +	preempt_enable();
-> > +}
+> Add caller information so that /proc/vmallocinfo shows where the 
+> allocation request for a slice of vmalloc memory originated.
 
-Another instance where get_cpu_var(), put_cpu_var() would be preferable.
+please use one simple save_stack_trace() instead of polluting a dozen 
+architectures with:
 
-Raw preempt_{disable,enable)() calls are discouraged, because just as
-the BKL they are opaque, they don't tell us what data is protected from
-what, or if we rely upon interaction with the RCU grace period or things
-like that.
+> -	return __ioremap(phys_addr, size, IOR_MODE_UNCACHED);
+> +	return __ioremap_caller(phys_addr, size, IOR_MODE_UNCACHED,
+> +						__builtin_return_address(0));
 
-These things are a pain to sort out if you try to change the preemption
-model after a few years.
-
-Ingo, does it make sense to make checkpatch.pl warn about raw
-preempt_{disable,enable} calls?
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
