@@ -1,97 +1,39 @@
-Date: Wed, 19 Mar 2008 16:12:11 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH prototype] [0/8] Predictive bitmaps for ELF executables
-Message-Id: <20080319161211.2df88adc.akpm@linux-foundation.org>
-In-Reply-To: <a36005b50803191545h33d1a443y57d09176f8324186@mail.gmail.com>
-References: <20080318209.039112899@firstfloor.org>
-	<20080318003620.d84efb95.akpm@linux-foundation.org>
-	<20080318141828.GD11966@one.firstfloor.org>
-	<20080318095715.27120788.akpm@linux-foundation.org>
-	<20080318172045.GI11966@one.firstfloor.org>
-	<20080318104437.966c10ec.akpm@linux-foundation.org>
-	<20080319083228.GM11966@one.firstfloor.org>
-	<20080319020440.80379d50.akpm@linux-foundation.org>
-	<a36005b50803191545h33d1a443y57d09176f8324186@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 19 Mar 2008 16:33:50 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [0/2] vmalloc: Add /proc/vmallocinfo to display mappings
+In-Reply-To: <20080319150704.d3f090e6.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0803191628480.4070@schroedinger.engr.sgi.com>
+References: <20080318222701.788442216@sgi.com> <20080319111943.0E1B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+ <20080319150704.d3f090e6.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ulrich Drepper <drepper@gmail.com>
-Cc: andi@firstfloor.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Mar 2008 15:45:16 -0700
-"Ulrich Drepper" <drepper@gmail.com> wrote:
+On Wed, 19 Mar 2008, Andrew Morton wrote:
 
-> On Wed, Mar 19, 2008 at 2:04 AM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
-> >  The requirement to write to an executable sounds like a bit of a
-> >  showstopper.
+> I was just about to ask whether we actually need the feature - I don't
+> recall ever having needed it, nor do I recall seeing anyone else need it.
 > 
-> Agreed.  In addition, it makes all kinds of tools misbehave.  I can
-> see extensions to the ELF format and those would require relinking
-> binaries, but without this you create chaos.  ELF is so nice because
-> it describes the entire file and we can handle everything according to
-> rules.  If you just somehow magically patch some new data structure in
-> this will break things.
-> 
-> Furthermore, by adding all this data to the end of the file you'll
-> normally create unnecessary costs.  The parts of the binaries which
-> are used at runtime start at the front.  At the end there might be a
-> lot of data which isn't needed at runtime and is therefore normally
-> not read.
-> 
-> 
-> >  if it proves useful, build it all into libc..
-> 
-> I could see that.  But to handle it efficiently kernel support is
-> needed.  Especially since I don't think the currently proposed
-> "learning mode" is adequate.  Over many uses of a program all kinds of
-> pages will be needed.  Far more than in most cases.  The prefetching
-> should really only cover the commonly used code paths in the program.
-> If you pull in everything, this will have advantages if you have that
-> much page cache to spare.  In that case just prefetching the entire
-> file is even easier.  No, such an improved method has to be more
-> selective.
+> Why is it useful?
 
-yes, ultimately we'd end up pulling in most of the executable that way, and
-a 90%-good-enough solution is perhaps to just suck the whole thing into
-pagecache.
+It allows to see the users of vmalloc. That is important if vmalloc space 
+is scarce (i386 for example).
 
-I did some work on that many years ago and I do recall that it helped, but
-I forget how much.
+And its going to be important for the compound page fallback to vmalloc.
+Many of the current users can be switched to use compound pages with
+fallback. This means that the number of users of vmalloc is reduced and 
+page tables no longer necessary to access the memory.
+/proc/vmallocinfo allows to review how that reduction occurs.
 
-There's a very very easy way of testing this though.  filemap_fault()
-_already_ does readaround when it gets a major fault.  And this is tunable
-via /sys/block/sda/queue/read_ahead_kb.  So set that to "infinity" to pull
-the whole file into pagecache at the first major fault and run some
-benchmarks.
-
-If that proves useful we could look at separating read()'s readahead
-tunable from filemap_fault()'s tunable.
-
-Note!  Due to interaction between the linker and common filesystems,
-executables tend to be very poorly laid out on disk: the blocks are
-out-of-order, often grossly.  So one shouldn't do performance testing of
-this form against executable files which were written directly by
-/usr/bin/ld.  First use `cp' to straighten the file out..
-
-> But if we're selective in the loading of the pages we'll
-> (unfortunately) end up with holes.  Possibly many of them.  This would
-> mean with today's interfaces a large number of madvise() calls.  What
-> would be needed is kernel support which takes a bitmap, each bit
-> representing a page.  This bitmap could be allocated as part of the
-> binary by the linker.  With appropriate ELF data structures supporting
-> it so that strip et.al won't stumble.  To fill in the bitmaps one can
-> have separate a separate tool which is explicitly asked to update the
-> bitmap data. To collect the page fault data one could use systemtap.
-> It's easy enough to write a script which monitors the minor page
-> faults for each binary and writes the data into a file.  The binary
-> update tool and can use the information from that file to generate the
-> bitmap.
-
-bitmap-based madvise() or fadvise() sounds pretty easy to do.
+If memory becomes fragmented and larger order allocations are no longer 
+possible then /proc/vmallocinfo allows to see which compound 
+page allocations fell back to virtual compound pages. That is important 
+for new users of virtual compound pages. Such as order 1 stack allocation 
+etc that may fallback to virtual compound pages in the future.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
