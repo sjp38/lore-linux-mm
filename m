@@ -1,168 +1,178 @@
-Message-Id: <20080320202125.196698000@chello.nl>
+Message-Id: <20080320202120.294551000@chello.nl>
 References: <20080320201042.675090000@chello.nl>
-Date: Thu, 20 Mar 2008 21:11:08 +0100
+Date: Thu, 20 Mar 2008 21:10:44 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 26/30] nfs: remove mempools
-Content-Disposition: inline; filename=nfs-no-mempool.patch
+Subject: [PATCH 02/30] mm: gfp_to_alloc_flags()
+Content-Disposition: inline; filename=mm-gfp-to-alloc_flags.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, neilb@suse.de, miklos@szeredi.hu, penberg@cs.helsinki.fi, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-With the introduction of the shared dirty page accounting in .19, NFS should
-not be able to surpise the VM with all dirty pages. Thus it should always be
-able to free some memory. Hence no more need for mempools.
+Factor out the gfp to alloc_flags mapping so it can be used in other places.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/nfs/read.c  |   15 +++------------
- fs/nfs/write.c |   27 +++++----------------------
- 2 files changed, 8 insertions(+), 34 deletions(-)
+ mm/internal.h   |   10 +++++
+ mm/page_alloc.c |   95 +++++++++++++++++++++++++++++++-------------------------
+ 2 files changed, 64 insertions(+), 41 deletions(-)
 
-Index: linux-2.6/fs/nfs/read.c
+Index: linux-2.6/mm/internal.h
 ===================================================================
---- linux-2.6.orig/fs/nfs/read.c
-+++ linux-2.6/fs/nfs/read.c
-@@ -33,13 +33,10 @@ static const struct rpc_call_ops nfs_rea
- static const struct rpc_call_ops nfs_read_full_ops;
+--- linux-2.6.orig/mm/internal.h
++++ linux-2.6/mm/internal.h
+@@ -60,4 +60,14 @@ static inline unsigned long page_order(s
+ #define __paginginit __init
+ #endif
  
- static struct kmem_cache *nfs_rdata_cachep;
--static mempool_t *nfs_rdata_mempool;
--
--#define MIN_POOL_READ	(32)
- 
- struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
- {
--	struct nfs_read_data *p = mempool_alloc(nfs_rdata_mempool, GFP_NOFS);
-+	struct nfs_read_data *p = kmem_cache_alloc(nfs_rdata_cachep, GFP_NOFS);
- 
- 	if (p) {
- 		memset(p, 0, sizeof(*p));
-@@ -50,7 +47,7 @@ struct nfs_read_data *nfs_readdata_alloc
- 		else {
- 			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
- 			if (!p->pagevec) {
--				mempool_free(p, nfs_rdata_mempool);
-+				kmem_cache_free(nfs_rdata_cachep, p);
- 				p = NULL;
- 			}
- 		}
-@@ -63,7 +60,7 @@ static void nfs_readdata_rcu_free(struct
- 	struct nfs_read_data *p = container_of(head, struct nfs_read_data, task.u.tk_rcu);
- 	if (p && (p->pagevec != &p->page_array[0]))
- 		kfree(p->pagevec);
--	mempool_free(p, nfs_rdata_mempool);
-+	kmem_cache_free(nfs_rdata_cachep, p);
- }
- 
- static void nfs_readdata_free(struct nfs_read_data *rdata)
-@@ -595,16 +592,10 @@ int __init nfs_init_readpagecache(void)
- 	if (nfs_rdata_cachep == NULL)
- 		return -ENOMEM;
- 
--	nfs_rdata_mempool = mempool_create_slab_pool(MIN_POOL_READ,
--						     nfs_rdata_cachep);
--	if (nfs_rdata_mempool == NULL)
--		return -ENOMEM;
--
- 	return 0;
- }
- 
- void nfs_destroy_readpagecache(void)
- {
--	mempool_destroy(nfs_rdata_mempool);
- 	kmem_cache_destroy(nfs_rdata_cachep);
- }
-Index: linux-2.6/fs/nfs/write.c
++#define ALLOC_HARDER		0x01 /* try to alloc harder */
++#define ALLOC_HIGH		0x02 /* __GFP_HIGH set */
++#define ALLOC_WMARK_MIN		0x04 /* use pages_min watermark */
++#define ALLOC_WMARK_LOW		0x08 /* use pages_low watermark */
++#define ALLOC_WMARK_HIGH	0x10 /* use pages_high watermark */
++#define ALLOC_NO_WATERMARKS	0x20 /* don't check watermarks at all */
++#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
++
++int gfp_to_alloc_flags(gfp_t gfp_mask);
++
+ #endif
+Index: linux-2.6/mm/page_alloc.c
 ===================================================================
---- linux-2.6.orig/fs/nfs/write.c
-+++ linux-2.6/fs/nfs/write.c
-@@ -28,9 +28,6 @@
+--- linux-2.6.orig/mm/page_alloc.c
++++ linux-2.6/mm/page_alloc.c
+@@ -1135,14 +1135,6 @@ failed:
+ 	return NULL;
+ }
  
- #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
- 
--#define MIN_POOL_WRITE		(32)
--#define MIN_POOL_COMMIT		(4)
+-#define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
+-#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
+-#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
+-#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
+-#define ALLOC_HARDER		0x10 /* try to alloc harder */
+-#define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
+-#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
 -
+ #ifdef CONFIG_FAIL_PAGE_ALLOC
+ 
+ static struct fail_page_alloc_attr {
+@@ -1520,6 +1512,44 @@ static void set_page_owner(struct page *
+ #endif /* CONFIG_PAGE_OWNER */
+ 
  /*
-  * Local function declarations
++ * get the deepest reaching allocation flags for the given gfp_mask
++ */
++int gfp_to_alloc_flags(gfp_t gfp_mask)
++{
++	struct task_struct *p = current;
++	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
++	const gfp_t wait = gfp_mask & __GFP_WAIT;
++
++	/*
++	 * The caller may dip into page reserves a bit more if the caller
++	 * cannot run direct reclaim, or if the caller has realtime scheduling
++	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
++	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
++	 */
++	if (gfp_mask & __GFP_HIGH)
++		alloc_flags |= ALLOC_HIGH;
++
++	if (!wait) {
++		alloc_flags |= ALLOC_HARDER;
++		/*
++		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
++		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
++		 */
++		alloc_flags &= ~ALLOC_CPUSET;
++	} else if (unlikely(rt_task(p)) && !in_interrupt())
++		alloc_flags |= ALLOC_HARDER;
++
++	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
++		if (!in_interrupt() &&
++		    ((p->flags & PF_MEMALLOC) ||
++		     unlikely(test_thread_flag(TIF_MEMDIE))))
++			alloc_flags |= ALLOC_NO_WATERMARKS;
++	}
++
++	return alloc_flags;
++}
++
++/*
+  * This is the 'heart' of the zoned buddy allocator.
   */
-@@ -44,12 +41,10 @@ static const struct rpc_call_ops nfs_wri
- static const struct rpc_call_ops nfs_commit_ops;
+ static struct page *
+@@ -1576,49 +1606,28 @@ restart:
+ 	 * OK, we're below the kswapd watermark and have kicked background
+ 	 * reclaim. Now things get more complex, so set up alloc_flags according
+ 	 * to how we want to proceed.
+-	 *
+-	 * The caller may dip into page reserves a bit more if the caller
+-	 * cannot run direct reclaim, or if the caller has realtime scheduling
+-	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
+-	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
+ 	 */
+-	alloc_flags = ALLOC_WMARK_MIN;
+-	if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
+-		alloc_flags |= ALLOC_HARDER;
+-	if (gfp_mask & __GFP_HIGH)
+-		alloc_flags |= ALLOC_HIGH;
+-	if (wait)
+-		alloc_flags |= ALLOC_CPUSET;
++	alloc_flags = gfp_to_alloc_flags(gfp_mask);
  
- static struct kmem_cache *nfs_wdata_cachep;
--static mempool_t *nfs_wdata_mempool;
--static mempool_t *nfs_commit_mempool;
+-	/*
+-	 * Go through the zonelist again. Let __GFP_HIGH and allocations
+-	 * coming from realtime tasks go deeper into reserves.
+-	 *
+-	 * This is the last chance, in general, before the goto nopage.
+-	 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
+-	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+-	 */
++	/* This is the last chance, in general, before the goto nopage. */
+ 	page = get_page_from_freelist(gfp_mask, nodemask, order, zonelist,
+-						high_zoneidx, alloc_flags);
++			high_zoneidx, alloc_flags & ~ALLOC_NO_WATERMARKS);
+ 	if (page)
+ 		goto got_pg;
  
- struct nfs_write_data *nfs_commit_alloc(void)
- {
--	struct nfs_write_data *p = mempool_alloc(nfs_commit_mempool, GFP_NOFS);
-+	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
- 
- 	if (p) {
- 		memset(p, 0, sizeof(*p));
-@@ -63,7 +58,7 @@ static void nfs_commit_rcu_free(struct r
- 	struct nfs_write_data *p = container_of(head, struct nfs_write_data, task.u.tk_rcu);
- 	if (p && (p->pagevec != &p->page_array[0]))
- 		kfree(p->pagevec);
--	mempool_free(p, nfs_commit_mempool);
-+	kmem_cache_free(nfs_wdata_cachep, p);
- }
- 
- void nfs_commit_free(struct nfs_write_data *wdata)
-@@ -73,7 +68,7 @@ void nfs_commit_free(struct nfs_write_da
- 
- struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
- {
--	struct nfs_write_data *p = mempool_alloc(nfs_wdata_mempool, GFP_NOFS);
-+	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
- 
- 	if (p) {
- 		memset(p, 0, sizeof(*p));
-@@ -84,7 +79,7 @@ struct nfs_write_data *nfs_writedata_all
- 		else {
- 			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
- 			if (!p->pagevec) {
--				mempool_free(p, nfs_wdata_mempool);
-+				kmem_cache_free(nfs_wdata_cachep, p);
- 				p = NULL;
- 			}
+ 	/* This allocation should allow future memory freeing. */
+-
+ rebalance:
+-	if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
+-			&& !in_interrupt()) {
+-		if (!(gfp_mask & __GFP_NOMEMALLOC)) {
++	if (alloc_flags & ALLOC_NO_WATERMARKS) {
+ nofail_alloc:
+-			/* go through the zonelist yet again, ignoring mins */
+-			page = get_page_from_freelist(gfp_mask, nodemask, order,
++		/* go through the zonelist yet again, ignoring mins */
++		page = get_page_from_freelist(gfp_mask, nodemask, order,
+ 				zonelist, high_zoneidx, ALLOC_NO_WATERMARKS);
+-			if (page)
+-				goto got_pg;
+-			if (gfp_mask & __GFP_NOFAIL) {
+-				congestion_wait(WRITE, HZ/50);
+-				goto nofail_alloc;
+-			}
++		if (page)
++			goto got_pg;
++
++		if (wait && (gfp_mask & __GFP_NOFAIL)) {
++			congestion_wait(WRITE, HZ/50);
++			goto nofail_alloc;
  		}
-@@ -97,7 +92,7 @@ static void nfs_writedata_rcu_free(struc
- 	struct nfs_write_data *p = container_of(head, struct nfs_write_data, task.u.tk_rcu);
- 	if (p && (p->pagevec != &p->page_array[0]))
- 		kfree(p->pagevec);
--	mempool_free(p, nfs_wdata_mempool);
-+	kmem_cache_free(nfs_wdata_cachep, p);
- }
+ 		goto nopage;
+ 	}
+@@ -1627,6 +1636,10 @@ nofail_alloc:
+ 	if (!wait)
+ 		goto nopage;
  
- static void nfs_writedata_free(struct nfs_write_data *wdata)
-@@ -1518,16 +1513,6 @@ int __init nfs_init_writepagecache(void)
- 	if (nfs_wdata_cachep == NULL)
- 		return -ENOMEM;
++	/* Avoid recursion of direct reclaim */
++	if (p->flags & PF_MEMALLOC)
++		goto nopage;
++
+ 	cond_resched();
  
--	nfs_wdata_mempool = mempool_create_slab_pool(MIN_POOL_WRITE,
--						     nfs_wdata_cachep);
--	if (nfs_wdata_mempool == NULL)
--		return -ENOMEM;
--
--	nfs_commit_mempool = mempool_create_slab_pool(MIN_POOL_COMMIT,
--						      nfs_wdata_cachep);
--	if (nfs_commit_mempool == NULL)
--		return -ENOMEM;
--
- 	/*
- 	 * NFS congestion size, scale with available memory.
- 	 *
-@@ -1553,8 +1538,6 @@ int __init nfs_init_writepagecache(void)
- 
- void nfs_destroy_writepagecache(void)
- {
--	mempool_destroy(nfs_commit_mempool);
--	mempool_destroy(nfs_wdata_mempool);
- 	kmem_cache_destroy(nfs_wdata_cachep);
- }
- 
+ 	/* We now go into synchronous reclaim */
 
 --
 
