@@ -1,54 +1,50 @@
-Date: Thu, 20 Mar 2008 12:22:07 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [1/2] vmalloc: Show vmalloced areas via /proc/vmallocinfo
-In-Reply-To: <20080319210436.191bb8fe@laptopd505.fenrus.org>
-Message-ID: <Pine.LNX.4.64.0803201141250.10592@schroedinger.engr.sgi.com>
-References: <20080318222701.788442216@sgi.com> <20080318222827.291587297@sgi.com>
- <20080319210436.191bb8fe@laptopd505.fenrus.org>
+Message-ID: <47E2CAAC.6020903@de.ibm.com>
+Date: Thu, 20 Mar 2008 21:35:56 +0100
+From: Carsten Otte <cotte@de.ibm.com>
+Reply-To: carsteno@de.ibm.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [kvm-devel] [RFC/PATCH 01/15] preparation: provide hook to enable
+ pgstes	in	user pagetable
+References: <1206028710.6690.21.camel@cotte.boeblingen.de.ibm.com> <1206030278.6690.52.camel@cotte.boeblingen.de.ibm.com> <47E29EC6.5050403@goop.org> <1206040405.8232.24.camel@nimitz.home.sr71.net>
+In-Reply-To: <1206040405.8232.24.camel@nimitz.home.sr71.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Christian Ehrhardt <EHRHARDT@de.ibm.com>, hollisb@us.ibm.com, arnd@arndb.de, borntrae@linux.vnet.ibm.com, kvm-devel@lists.sourceforge.net, heicars2@linux.vnet.ibm.com, jeroney@us.ibm.com, Avi Kivity <avi@qumranet.com>, virtualization@lists.linux-foundation.org, Linux Memory Management List <linux-mm@kvack.org>, mschwid2@linux.vnet.ibm.com, rvdheij@gmail.com, Olaf Schnapper <os@de.ibm.com>, jblunck@suse.de, "Zhang, Xiantao" <xiantao.zhang@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Mar 2008, Arjan van de Ven wrote:
+Dave Hansen wrote:
+> Well, and more fundamentally: do we really want dup_mm() able to be
+> called from other code?
+> 
+> Maybe we need a bit more detailed justification why fork() itself isn't
+> good enough.  It looks to me like they basically need an arch-specific
+> argument to fork, telling the new process's page tables to take the
+> fancy new bit.
+> 
+> I'm really curious how this new stuff is going to get used.  Are you
+> basically replacing fork() when creating kvm guests?
+No. The trick is, that we do need bigger page tables when running 
+guests: our page tables are usually 2k, but when running a guest 
+they're 4k to track both guest and host dirty&reference information. 
+This looks like this:
+*----------*
+*2k PTE's  *
+*----------*
+*2k PGSTE  *
+*----------*
+We don't want to waste precious memory for all page tables. We'd like 
+to have one kernel image that runs regular server workload _and_ 
+guests. Therefore, we need to reallocate the page table after fork() 
+once we know that task is going to be a hypervisor. That's what this 
+code does: reallocate a bigger page table to accomondate the extra 
+information. The task needs to be single-threaded when calling for 
+extended page tables.
 
-> > +	proc_create("vmallocinfo",S_IWUSR|S_IRUGO, NULL,
-> why should non-root be able to read this? sounds like a security issue (info leak) to me...
-
-Well I copied from the slabinfo logic (leaking info for slabs is okay?).
-
-Lets restrict it to root then:
-
-
-
-Subject: vmallocinfo: Only allow root to read /proc/vmallocinfo
-
-Change permissions for /proc/vmallocinfo to only allow read
-for root.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
----
- fs/proc/proc_misc.c |    3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
-
-Index: linux-2.6.25-rc5-mm1/fs/proc/proc_misc.c
-===================================================================
---- linux-2.6.25-rc5-mm1.orig/fs/proc/proc_misc.c	2008-03-20 12:14:20.215358835 -0700
-+++ linux-2.6.25-rc5-mm1/fs/proc/proc_misc.c	2008-03-20 12:23:01.920887750 -0700
-@@ -1002,8 +1002,7 @@ void __init proc_misc_init(void)
- 	proc_create("slab_allocators", 0, NULL, &proc_slabstats_operations);
- #endif
- #endif
--	proc_create("vmallocinfo",S_IWUSR|S_IRUGO, NULL,
--						&proc_vmalloc_operations);
-+	proc_create("vmallocinfo",S_IRUSR, NULL, &proc_vmalloc_operations);
- 	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
- 	proc_create("pagetypeinfo", S_IRUGO, NULL, &pagetypeinfo_file_ops);
- 	proc_create("vmstat", S_IRUGO, NULL, &proc_vmstat_file_operations);
+Btw: at fork() time, we cannot tell whether or not the user's going to 
+be a hypervisor. Therefore we cannot do this in fork.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
