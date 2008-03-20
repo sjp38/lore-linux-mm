@@ -1,142 +1,105 @@
-Received: by nf-out-0910.google.com with SMTP id h3so1061168nfh.6
-        for <linux-mm@kvack.org>; Thu, 20 Mar 2008 13:20:33 -0700 (PDT)
-From: Nitin Gupta <nitingupta910@gmail.com>
-Reply-To: nitingupta910@gmail.com
-Subject: [RFC][PATCH 3/6] compcache: TLSF Allocator interface
-Date: Fri, 21 Mar 2008 01:38:56 +0530
-References: <200803210129.59299.nitingupta910@gmail.com>
-In-Reply-To: <200803210129.59299.nitingupta910@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-Message-Id: <200803210138.56796.nitingupta910@gmail.com>
+Message-Id: <20080320202123.467542000@chello.nl>
+References: <20080320201042.675090000@chello.nl>
+Date: Thu, 20 Mar 2008 21:10:56 +0100
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: [PATCH 14/30] net: wrap sk->sk_backlog_rcv()
+Content-Disposition: inline; filename=net-backlog.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, neilb@suse.de, miklos@szeredi.hu, penberg@cs.helsinki.fi, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-Two Level Segregate Fit (TLSF) Allocator is used to allocate memory for
-variable size compressed pages. Its fast and gives low fragmentation.
-Following links give details on this allocator:
- - http://rtportal.upv.es/rtmalloc/files/tlsf_paper_spe_2007.pdf
- - http://code.google.com/p/compcache/wiki/TLSFAllocator
+Wrap calling sk->sk_backlog_rcv() in a function. This will allow extending the
+generic sk_backlog_rcv behaviour.
 
-This kernel port of TLSF (v2.3.2) introduces several changes but underlying
-algorithm remains the same.
-
-Changelog TLSF v2.3.2 vs this kernel port
- - Pool now dynamically expands/shrinks.
-   It is collection of contiguous memory regions.
- - Changes to pool create interface as a result of above change.
- - Collect and export stats (/proc/tlsfinfo)
- - Cleanups: kernel coding style, added comments, macros -> static inline, etc.
-
-Signed-off-by: Nitin Gupta <nitingupta910 at gmail dot com>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/tlsf.h |   93 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 93 insertions(+), 0 deletions(-)
+ include/net/sock.h   |    5 +++++
+ include/net/tcp.h    |    2 +-
+ net/core/sock.c      |    4 ++--
+ net/ipv4/tcp.c       |    2 +-
+ net/ipv4/tcp_timer.c |    2 +-
+ 5 files changed, 10 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/tlsf.h b/include/linux/tlsf.h
-new file mode 100644
-index 0000000..ef8092c
---- /dev/null
-+++ b/include/linux/tlsf.h
-@@ -0,0 +1,93 @@
-+/*
-+ * Two Levels Segregate Fit memory allocator (TLSF)
-+ * Version 2.3.2
-+ *
-+ * Written by Miguel Masmano Tello <mimastel@doctor.upv.es>
-+ *
-+ * Thanks to Ismael Ripoll for his suggestions and reviews
-+ *
-+ * Copyright (C) 2007, 2006, 2005, 2004
-+ *
-+ * This code is released using a dual license strategy: GPL/LGPL
-+ * You can choose the licence that better fits your requirements.
-+ *
-+ * Released under the terms of the GNU General Public License Version 2.0
-+ * Released under the terms of the GNU Lesser General Public License Version 2.1
-+ *
-+ * This is kernel port of TLSF allocator.
-+ * Original code can be found at: http://rtportal.upv.es/rtmalloc/
-+ * 	- Nitin Gupta (nitingupta910 at gmail dot com)
-+ */
+Index: linux-2.6/include/net/sock.h
+===================================================================
+--- linux-2.6.orig/include/net/sock.h
++++ linux-2.6/include/net/sock.h
+@@ -475,6 +475,11 @@ static inline void sk_add_backlog(struct
+ 	skb->next = NULL;
+ }
+ 
++static inline int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
++{
++	return sk->sk_backlog_rcv(sk, skb);
++}
 +
-+#ifndef _TLSF_H_
-+#define _TLSF_H_
-+
-+typedef void* (get_memory)(size_t bytes);
-+typedef void (put_memory)(void *ptr);
-+
-+/**
-+ * tlsf_create_memory_pool - create dynamic memory pool
-+ * @name: name of the pool
-+ * @get_mem: callback function used to expand pool
-+ * @put_mem: callback function used to shrink pool
-+ * @init_size: inital pool size (in bytes)
-+ * @max_size: maximum pool size (in bytes) - set this as 0 for no limit
-+ * @grow_size: amount of memory (in bytes) added to pool whenever required
-+ *
-+ * All size values are rounded up to next page boundary.
-+ */
-+extern void *tlsf_create_memory_pool(const char *name,
-+					get_memory get_mem,
-+					put_memory put_mem,
-+					size_t init_size,
-+					size_t max_size,
-+					size_t grow_size);
-+/**
-+ * tlsf_destory_memory_pool - cleanup given pool
-+ * @mem_pool: Pool to be destroyed
-+ *
-+ * Data structures associated with pool are freed.
-+ * All memory allocated from pool must be freed before
-+ * destorying it.
-+ */
-+extern void tlsf_destroy_memory_pool(void *mem_pool);
-+
-+/**
-+ * tlsf_malloc - allocate memory from given pool
-+ * @size: no. of bytes
-+ * @mem_pool: pool to allocate from
-+ */
-+extern void *tlsf_malloc(size_t size, void *mem_pool);
-+
-+/**
-+ * tlsf_calloc - allocate and zero-out memory from given pool
-+ * @size: no. of bytes
-+ * @mem_pool: pool to allocate from
-+ */
-+extern void *tlsf_calloc(size_t nelem, size_t elem_size, void *mem_pool);
-+
-+/**
-+ * tlsf_free - free memory from given pool
-+ * @ptr: address of memory to be freed
-+ * @mem_pool: pool to free from
-+ */
-+extern void tlsf_free(void *ptr, void *mem_pool);
-+
-+/**
-+ * tlsf_get_used_size - get memory currently used by given pool
-+ *
-+ * Used memory includes stored data + metadata + internal fragmentation
-+ */
-+extern size_t tlsf_get_used_size(void *mem_pool);
-+
-+/**
-+ * tlsf_get_total_size - get total memory currently allocated for given pool
-+ *
-+ * This is the total memory currently allocated for this pool which includes
-+ * used size + free size.
-+ *
-+ * (Total - Used) is good indicator of memory efficiency of allocator.
-+ */
-+extern size_t tlsf_get_total_size(void *mem_pool);
-+
-+#endif
+ #define sk_wait_event(__sk, __timeo, __condition)			\
+ 	({	int __rc;						\
+ 		release_sock(__sk);					\
+Index: linux-2.6/net/core/sock.c
+===================================================================
+--- linux-2.6.orig/net/core/sock.c
++++ linux-2.6/net/core/sock.c
+@@ -325,7 +325,7 @@ int sk_receive_skb(struct sock *sk, stru
+ 		 */
+ 		mutex_acquire(&sk->sk_lock.dep_map, 0, 1, _RET_IP_);
+ 
+-		rc = sk->sk_backlog_rcv(sk, skb);
++		rc = sk_backlog_rcv(sk, skb);
+ 
+ 		mutex_release(&sk->sk_lock.dep_map, 1, _RET_IP_);
+ 	} else
+@@ -1360,7 +1360,7 @@ static void __release_sock(struct sock *
+ 			struct sk_buff *next = skb->next;
+ 
+ 			skb->next = NULL;
+-			sk->sk_backlog_rcv(sk, skb);
++			sk_backlog_rcv(sk, skb);
+ 
+ 			/*
+ 			 * We are in process context here with softirqs
+Index: linux-2.6/net/ipv4/tcp.c
+===================================================================
+--- linux-2.6.orig/net/ipv4/tcp.c
++++ linux-2.6/net/ipv4/tcp.c
+@@ -1158,7 +1158,7 @@ static void tcp_prequeue_process(struct 
+ 	 * necessary */
+ 	local_bh_disable();
+ 	while ((skb = __skb_dequeue(&tp->ucopy.prequeue)) != NULL)
+-		sk->sk_backlog_rcv(sk, skb);
++		sk_backlog_rcv(sk, skb);
+ 	local_bh_enable();
+ 
+ 	/* Clear memory counter. */
+Index: linux-2.6/net/ipv4/tcp_timer.c
+===================================================================
+--- linux-2.6.orig/net/ipv4/tcp_timer.c
++++ linux-2.6/net/ipv4/tcp_timer.c
+@@ -203,7 +203,7 @@ static void tcp_delack_timer(unsigned lo
+ 		NET_INC_STATS_BH(LINUX_MIB_TCPSCHEDULERFAILED);
+ 
+ 		while ((skb = __skb_dequeue(&tp->ucopy.prequeue)) != NULL)
+-			sk->sk_backlog_rcv(sk, skb);
++			sk_backlog_rcv(sk, skb);
+ 
+ 		tp->ucopy.memory = 0;
+ 	}
+Index: linux-2.6/include/net/tcp.h
+===================================================================
+--- linux-2.6.orig/include/net/tcp.h
++++ linux-2.6/include/net/tcp.h
+@@ -879,7 +879,7 @@ static inline int tcp_prequeue(struct so
+ 			BUG_ON(sock_owned_by_user(sk));
+ 
+ 			while ((skb1 = __skb_dequeue(&tp->ucopy.prequeue)) != NULL) {
+-				sk->sk_backlog_rcv(sk, skb1);
++				sk_backlog_rcv(sk, skb1);
+ 				NET_INC_STATS_BH(LINUX_MIB_TCPPREQUEUEDROPPED);
+ 			}
+ 
+
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
