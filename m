@@ -1,127 +1,104 @@
-Message-Id: <20080320202125.095096000@chello.nl>
+Message-Id: <20080320202124.540993000@chello.nl>
 References: <20080320201042.675090000@chello.nl>
-Date: Thu, 20 Mar 2008 21:11:07 +0100
+Date: Thu, 20 Mar 2008 21:11:03 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 25/30] mm: methods for teaching filesystems about PG_swapcache pages
-Content-Disposition: inline; filename=mm-page_file_methods.patch
+Subject: [PATCH 21/30] netvm: prevent a stream specific deadlock
+Content-Disposition: inline; filename=netvm-tcp-deadlock.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, neilb@suse.de, miklos@szeredi.hu, penberg@cs.helsinki.fi, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-In order to teach filesystems to handle swap cache pages, three new page
-functions are introduced:
+It could happen that all !SOCK_MEMALLOC sockets have buffered so much data
+that we're over the global rmem limit. This will prevent SOCK_MEMALLOC buffers
+from receiving data, which will prevent userspace from running, which is needed
+to reduce the buffered data.
 
-  pgoff_t page_file_index(struct page *);
-  loff_t page_file_offset(struct page *);
-  struct address_space *page_file_mapping(struct page *);
-
-page_file_index() - gives the offset of this page in the file in
-PAGE_CACHE_SIZE blocks. Like page->index is for mapped pages, this function
-also gives the correct index for PG_swapcache pages.
-
-page_file_offset() - uses page_file_index(), so that it will give the expected
-result, even for PG_swapcache pages.
-
-page_file_mapping() - gives the mapping backing the actual page; that is for
-swap cache pages it will give swap_file->f_mapping.
+Fix this by exempting the SOCK_MEMALLOC sockets from the rmem limit.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/mm.h      |   25 +++++++++++++++++++++++++
- include/linux/pagemap.h |    5 +++++
- mm/swapfile.c           |   19 +++++++++++++++++++
- 3 files changed, 49 insertions(+)
+ include/net/sock.h   |    7 ++++---
+ net/core/sock.c      |    2 +-
+ net/ipv4/tcp_input.c |    8 ++++----
+ net/sctp/ulpevent.c  |    2 +-
+ 4 files changed, 10 insertions(+), 9 deletions(-)
 
-Index: linux-2.6/include/linux/mm.h
+Index: linux-2.6/include/net/sock.h
 ===================================================================
---- linux-2.6.orig/include/linux/mm.h
-+++ linux-2.6/include/linux/mm.h
-@@ -598,6 +598,17 @@ static inline struct address_space *page
- 	return mapping;
+--- linux-2.6.orig/include/net/sock.h
++++ linux-2.6/include/net/sock.h
+@@ -800,12 +800,13 @@ static inline int sk_wmem_schedule(struc
+ 		__sk_mem_schedule(sk, size, SK_MEM_SEND);
  }
  
-+extern struct address_space *__page_file_mapping(struct page *);
-+
-+static inline
-+struct address_space *page_file_mapping(struct page *page)
-+{
-+	if (unlikely(PageSwapCache(page)))
-+		return __page_file_mapping(page);
-+
-+	return page->mapping;
-+}
-+
- static inline int PageAnon(struct page *page)
+-static inline int sk_rmem_schedule(struct sock *sk, int size)
++static inline int sk_rmem_schedule(struct sock *sk, struct sk_buff *skb)
  {
- 	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
-@@ -614,6 +625,20 @@ static inline pgoff_t page_index(struct 
- 	return page->index;
+ 	if (!sk_has_account(sk))
+ 		return 1;
+-	return size <= sk->sk_forward_alloc ||
+-		__sk_mem_schedule(sk, size, SK_MEM_RECV);
++	return skb->truesize <= sk->sk_forward_alloc ||
++		__sk_mem_schedule(sk, skb->truesize, SK_MEM_RECV) ||
++		skb_emergency(skb);
  }
  
-+extern pgoff_t __page_file_index(struct page *page);
-+
-+/*
-+ * Return the file index of the page. Regular pagecache pages use ->index
-+ * whereas swapcache pages use swp_offset(->private)
-+ */
-+static inline pgoff_t page_file_index(struct page *page)
-+{
-+	if (unlikely(PageSwapCache(page)))
-+		return __page_file_index(page);
-+
-+	return page->index;
-+}
-+
- /*
-  * The atomic page->_mapcount, like _count, starts from -1:
-  * so that transitions both from it and to it can be tracked,
-Index: linux-2.6/include/linux/pagemap.h
+ static inline void sk_mem_reclaim(struct sock *sk)
+Index: linux-2.6/net/core/sock.c
 ===================================================================
---- linux-2.6.orig/include/linux/pagemap.h
-+++ linux-2.6/include/linux/pagemap.h
-@@ -148,6 +148,11 @@ static inline loff_t page_offset(struct 
- 	return ((loff_t)page->index) << PAGE_CACHE_SHIFT;
- }
+--- linux-2.6.orig/net/core/sock.c
++++ linux-2.6/net/core/sock.c
+@@ -384,7 +384,7 @@ int sock_queue_rcv_skb(struct sock *sk, 
+ 	if (err)
+ 		goto out;
  
-+static inline loff_t page_file_offset(struct page *page)
-+{
-+	return ((loff_t)page_file_index(page)) << PAGE_CACHE_SHIFT;
-+}
-+
- static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
- 					unsigned long address)
- {
-Index: linux-2.6/mm/swapfile.c
+-	if (!sk_rmem_schedule(sk, skb->truesize)) {
++	if (!sk_rmem_schedule(sk, skb)) {
+ 		err = -ENOBUFS;
+ 		goto out;
+ 	}
+Index: linux-2.6/net/ipv4/tcp_input.c
 ===================================================================
---- linux-2.6.orig/mm/swapfile.c
-+++ linux-2.6/mm/swapfile.c
-@@ -1828,6 +1828,25 @@ struct swap_info_struct *page_swap_info(
- }
+--- linux-2.6.orig/net/ipv4/tcp_input.c
++++ linux-2.6/net/ipv4/tcp_input.c
+@@ -3862,9 +3862,9 @@ static void tcp_data_queue(struct sock *
+ queue_and_out:
+ 			if (eaten < 0 &&
+ 			    (atomic_read(&sk->sk_rmem_alloc) > sk->sk_rcvbuf ||
+-			     !sk_rmem_schedule(sk, skb->truesize))) {
++			     !sk_rmem_schedule(sk, skb))) {
+ 				if (tcp_prune_queue(sk) < 0 ||
+-				    !sk_rmem_schedule(sk, skb->truesize))
++				    !sk_rmem_schedule(sk, skb))
+ 					goto drop;
+ 			}
+ 			skb_set_owner_r(skb, sk);
+@@ -3936,9 +3936,9 @@ drop:
+ 	TCP_ECN_check_ce(tp, skb);
  
- /*
-+ * out-of-line __page_file_ methods to avoid include hell.
-+ */
-+
-+struct address_space *__page_file_mapping(struct page *page)
-+{
-+	VM_BUG_ON(!PageSwapCache(page));
-+	return page_swap_info(page)->swap_file->f_mapping;
-+}
-+EXPORT_SYMBOL_GPL(__page_file_mapping);
-+
-+pgoff_t __page_file_index(struct page *page)
-+{
-+	swp_entry_t swap = { .val = page_private(page) };
-+	VM_BUG_ON(!PageSwapCache(page));
-+	return swp_offset(swap);
-+}
-+EXPORT_SYMBOL_GPL(__page_file_index);
-+
-+/*
-  * swap_lock prevents swap_map being freed. Don't grab an extra
-  * reference on the swaphandle, it doesn't matter if it becomes unused.
-  */
+ 	if (atomic_read(&sk->sk_rmem_alloc) > sk->sk_rcvbuf ||
+-	    !sk_rmem_schedule(sk, skb->truesize)) {
++	    !sk_rmem_schedule(sk, skb)) {
+ 		if (tcp_prune_queue(sk) < 0 ||
+-		    !sk_rmem_schedule(sk, skb->truesize))
++		    !sk_rmem_schedule(sk, skb))
+ 			goto drop;
+ 	}
+ 
+Index: linux-2.6/net/sctp/ulpevent.c
+===================================================================
+--- linux-2.6.orig/net/sctp/ulpevent.c
++++ linux-2.6/net/sctp/ulpevent.c
+@@ -701,7 +701,7 @@ struct sctp_ulpevent *sctp_ulpevent_make
+ 	if (rx_count >= asoc->base.sk->sk_rcvbuf) {
+ 
+ 		if ((asoc->base.sk->sk_userlocks & SOCK_RCVBUF_LOCK) ||
+-		    (!sk_rmem_schedule(asoc->base.sk, chunk->skb->truesize)))
++		    (!sk_rmem_schedule(asoc->base.sk, chunk->skb)))
+ 			goto fail;
+ 	}
+ 
 
 --
 
