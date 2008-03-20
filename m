@@ -1,33 +1,32 @@
-Date: Wed, 19 Mar 2008 17:03:17 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [2/2] vmallocinfo: Add caller information
-In-Reply-To: <20080319214227.GA4454@elte.hu>
-Message-ID: <Pine.LNX.4.64.0803191659410.4645@schroedinger.engr.sgi.com>
-References: <20080318222701.788442216@sgi.com> <20080318222827.519656153@sgi.com>
- <20080319214227.GA4454@elte.hu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 19 Mar 2008 17:09:37 -0700 (PDT)
+Message-Id: <20080319.170937.247919863.davem@davemloft.net>
+Subject: Re: [PATCH prototype] [0/8] Predictive bitmaps for ELF executables
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20080319161211.2df88adc.akpm@linux-foundation.org>
+References: <20080319020440.80379d50.akpm@linux-foundation.org>
+	<a36005b50803191545h33d1a443y57d09176f8324186@mail.gmail.com>
+	<20080319161211.2df88adc.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Andrew Morton <akpm@linux-foundation.org>
+Date: Wed, 19 Mar 2008 16:12:11 -0700
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: drepper@gmail.com, andi@firstfloor.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Mar 2008, Ingo Molnar wrote:
+> I did some work on that many years ago and I do recall that it
+> helped, but I forget how much.
 
-> 
-> * Christoph Lameter <clameter@sgi.com> wrote:
-> 
-> > Add caller information so that /proc/vmallocinfo shows where the 
-> > allocation request for a slice of vmalloc memory originated.
-> 
-> please use one simple save_stack_trace() instead of polluting a dozen 
-> architectures with:
+I wrote such a patch ages ago as well.
 
-save_stack_trace() depends on CONFIG_STACKTRACE which is only available 
-when debugging is compiled it. I was more thinking about this as a 
-generally available feature.
+Frankly, based upon my experiences then and what I know now, I think
+it's a lose to do this.
 
+Better to 1) have enough ram and 2) make the reclaim smarter about
+important "executable" page cache pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
