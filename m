@@ -1,198 +1,127 @@
-Message-Id: <20080320202124.799183000@chello.nl>
+Message-Id: <20080320202125.095096000@chello.nl>
 References: <20080320201042.675090000@chello.nl>
-Date: Thu, 20 Mar 2008 21:11:05 +0100
+Date: Thu, 20 Mar 2008 21:11:07 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 23/30] netvm: skb processing
-Content-Disposition: inline; filename=netvm.patch
+Subject: [PATCH 25/30] mm: methods for teaching filesystems about PG_swapcache pages
+Content-Disposition: inline; filename=mm-page_file_methods.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, neilb@suse.de, miklos@szeredi.hu, penberg@cs.helsinki.fi, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-In order to make sure emergency packets receive all memory needed to proceed
-ensure processing of emergency SKBs happens under PF_MEMALLOC.
+In order to teach filesystems to handle swap cache pages, three new page
+functions are introduced:
 
-Use the (new) sk_backlog_rcv() wrapper to ensure this for backlog processing.
+  pgoff_t page_file_index(struct page *);
+  loff_t page_file_offset(struct page *);
+  struct address_space *page_file_mapping(struct page *);
 
-Skip taps, since those are user-space again.
+page_file_index() - gives the offset of this page in the file in
+PAGE_CACHE_SIZE blocks. Like page->index is for mapped pages, this function
+also gives the correct index for PG_swapcache pages.
+
+page_file_offset() - uses page_file_index(), so that it will give the expected
+result, even for PG_swapcache pages.
+
+page_file_mapping() - gives the mapping backing the actual page; that is for
+swap cache pages it will give swap_file->f_mapping.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/net/sock.h |    5 ++++
- net/core/dev.c     |   58 +++++++++++++++++++++++++++++++++++++++++++++++------
- net/core/sock.c    |   16 ++++++++++++++
- 3 files changed, 73 insertions(+), 6 deletions(-)
+ include/linux/mm.h      |   25 +++++++++++++++++++++++++
+ include/linux/pagemap.h |    5 +++++
+ mm/swapfile.c           |   19 +++++++++++++++++++
+ 3 files changed, 49 insertions(+)
 
-Index: linux-2.6/net/core/dev.c
+Index: linux-2.6/include/linux/mm.h
 ===================================================================
---- linux-2.6.orig/net/core/dev.c
-+++ linux-2.6/net/core/dev.c
-@@ -2008,6 +2008,30 @@ out:
+--- linux-2.6.orig/include/linux/mm.h
++++ linux-2.6/include/linux/mm.h
+@@ -598,6 +598,17 @@ static inline struct address_space *page
+ 	return mapping;
  }
- #endif
  
-+/*
-+ * Filter the protocols for which the reserves are adequate.
-+ *
-+ * Before adding a protocol make sure that it is either covered by the existing
-+ * reserves, or add reserves covering the memory need of the new protocol's
-+ * packet processing.
-+ */
-+static int skb_emergency_protocol(struct sk_buff *skb)
++extern struct address_space *__page_file_mapping(struct page *);
++
++static inline
++struct address_space *page_file_mapping(struct page *page)
 +{
-+	if (skb_emergency(skb))
-+		switch (skb->protocol) {
-+		case __constant_htons(ETH_P_ARP):
-+		case __constant_htons(ETH_P_IP):
-+		case __constant_htons(ETH_P_IPV6):
-+		case __constant_htons(ETH_P_8021Q):
-+			break;
++	if (unlikely(PageSwapCache(page)))
++		return __page_file_mapping(page);
 +
-+		default:
-+			return 0;
-+		}
-+
-+	return 1;
++	return page->mapping;
 +}
 +
- /**
-  *	netif_receive_skb - process receive buffer from network
-  *	@skb: buffer to process
-@@ -2029,10 +2053,22 @@ int netif_receive_skb(struct sk_buff *sk
- 	struct net_device *orig_dev;
- 	int ret = NET_RX_DROP;
- 	__be16 type;
-+	unsigned long pflags = current->flags;
-+
-+	/* Emergency skb are special, they should
-+	 *  - be delivered to SOCK_MEMALLOC sockets only
-+	 *  - stay away from userspace
-+	 *  - have bounded memory usage
-+	 *
-+	 * Use PF_MEMALLOC so that we're not memory challenged during
-+	 * packet processing of this emergency packet.
-+	 */
-+	if (skb_emergency(skb))
-+		current->flags |= PF_MEMALLOC;
- 
- 	/* if we've gotten here through NAPI, check netpoll */
- 	if (netpoll_receive_skb(skb))
--		return NET_RX_DROP;
-+		goto out;
- 
- 	if (!skb->tstamp.tv64)
- 		net_timestamp(skb);
-@@ -2043,7 +2079,7 @@ int netif_receive_skb(struct sk_buff *sk
- 	orig_dev = skb_bond(skb);
- 
- 	if (!orig_dev)
--		return NET_RX_DROP;
-+		goto out;
- 
- 	__get_cpu_var(netdev_rx_stat).total++;
- 
-@@ -2062,6 +2098,9 @@ int netif_receive_skb(struct sk_buff *sk
- 	}
- #endif
- 
-+	if (skb_emergency(skb))
-+		goto skip_taps;
-+
- 	list_for_each_entry_rcu(ptype, &ptype_all, list) {
- 		if (!ptype->dev || ptype->dev == skb->dev) {
- 			if (pt_prev)
-@@ -2070,19 +2109,23 @@ int netif_receive_skb(struct sk_buff *sk
- 		}
- 	}
- 
-+skip_taps:
- #ifdef CONFIG_NET_CLS_ACT
- 	skb = handle_ing(skb, &pt_prev, &ret, orig_dev);
- 	if (!skb)
--		goto out;
-+		goto unlock;
- ncls:
- #endif
- 
-+	if (!skb_emergency_protocol(skb))
-+		goto drop;
-+
- 	skb = handle_bridge(skb, &pt_prev, &ret, orig_dev);
- 	if (!skb)
--		goto out;
-+		goto unlock;
- 	skb = handle_macvlan(skb, &pt_prev, &ret, orig_dev);
- 	if (!skb)
--		goto out;
-+		goto unlock;
- 
- 	type = skb->protocol;
- 	list_for_each_entry_rcu(ptype,
-@@ -2098,6 +2141,7 @@ ncls:
- 	if (pt_prev) {
- 		ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
- 	} else {
-+drop:
- 		kfree_skb(skb);
- 		/* Jamal, now you will not able to escape explaining
- 		 * me how you were going to use this. :-)
-@@ -2105,8 +2149,10 @@ ncls:
- 		ret = NET_RX_DROP;
- 	}
- 
--out:
-+unlock:
- 	rcu_read_unlock();
-+out:
-+	tsk_restore_flags(current, pflags, PF_MEMALLOC);
- 	return ret;
- }
- 
-Index: linux-2.6/include/net/sock.h
-===================================================================
---- linux-2.6.orig/include/net/sock.h
-+++ linux-2.6/include/net/sock.h
-@@ -521,8 +521,13 @@ static inline void sk_add_backlog(struct
- 	skb->next = NULL;
- }
- 
-+extern int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb);
-+
- static inline int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
+ static inline int PageAnon(struct page *page)
  {
-+	if (skb_emergency(skb))
-+		return __sk_backlog_rcv(sk, skb);
-+
- 	return sk->sk_backlog_rcv(sk, skb);
+ 	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
+@@ -614,6 +625,20 @@ static inline pgoff_t page_index(struct 
+ 	return page->index;
  }
  
-Index: linux-2.6/net/core/sock.c
-===================================================================
---- linux-2.6.orig/net/core/sock.c
-+++ linux-2.6/net/core/sock.c
-@@ -311,6 +311,22 @@ int sk_clear_memalloc(struct sock *sk)
- 	return set;
- }
- EXPORT_SYMBOL_GPL(sk_clear_memalloc);
++extern pgoff_t __page_file_index(struct page *page);
 +
-+int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
++/*
++ * Return the file index of the page. Regular pagecache pages use ->index
++ * whereas swapcache pages use swp_offset(->private)
++ */
++static inline pgoff_t page_file_index(struct page *page)
 +{
-+	int ret;
-+	unsigned long pflags = current->flags;
++	if (unlikely(PageSwapCache(page)))
++		return __page_file_index(page);
 +
-+	/* these should have been dropped before queueing */
-+	BUG_ON(!sk_has_memalloc(sk));
-+
-+	current->flags |= PF_MEMALLOC;
-+	ret = sk->sk_backlog_rcv(sk, skb);
-+	tsk_restore_flags(current, pflags, PF_MEMALLOC);
-+
-+	return ret;
++	return page->index;
 +}
-+EXPORT_SYMBOL(__sk_backlog_rcv);
- #endif
++
+ /*
+  * The atomic page->_mapcount, like _count, starts from -1:
+  * so that transitions both from it and to it can be tracked,
+Index: linux-2.6/include/linux/pagemap.h
+===================================================================
+--- linux-2.6.orig/include/linux/pagemap.h
++++ linux-2.6/include/linux/pagemap.h
+@@ -148,6 +148,11 @@ static inline loff_t page_offset(struct 
+ 	return ((loff_t)page->index) << PAGE_CACHE_SHIFT;
+ }
  
- static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
++static inline loff_t page_file_offset(struct page *page)
++{
++	return ((loff_t)page_file_index(page)) << PAGE_CACHE_SHIFT;
++}
++
+ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
+ 					unsigned long address)
+ {
+Index: linux-2.6/mm/swapfile.c
+===================================================================
+--- linux-2.6.orig/mm/swapfile.c
++++ linux-2.6/mm/swapfile.c
+@@ -1828,6 +1828,25 @@ struct swap_info_struct *page_swap_info(
+ }
+ 
+ /*
++ * out-of-line __page_file_ methods to avoid include hell.
++ */
++
++struct address_space *__page_file_mapping(struct page *page)
++{
++	VM_BUG_ON(!PageSwapCache(page));
++	return page_swap_info(page)->swap_file->f_mapping;
++}
++EXPORT_SYMBOL_GPL(__page_file_mapping);
++
++pgoff_t __page_file_index(struct page *page)
++{
++	swp_entry_t swap = { .val = page_private(page) };
++	VM_BUG_ON(!PageSwapCache(page));
++	return swp_offset(swap);
++}
++EXPORT_SYMBOL_GPL(__page_file_index);
++
++/*
+  * swap_lock prevents swap_map being freed. Don't grab an extra
+  * reference on the swaphandle, it doesn't matter if it becomes unused.
+  */
 
 --
 
