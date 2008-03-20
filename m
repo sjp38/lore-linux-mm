@@ -1,26 +1,32 @@
-Message-ID: <47E29EC6.5050403@goop.org>
-Date: Thu, 20 Mar 2008 10:28:38 -0700
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Date: Thu, 20 Mar 2008 11:29:44 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 5/9] slub: Fallback to minimal order during slab page
+ allocation
+In-Reply-To: <1205989839.14496.32.camel@ymzhang>
+Message-ID: <Pine.LNX.4.64.0803201128001.10474@schroedinger.engr.sgi.com>
+References: <20080317230516.078358225@sgi.com>  <20080317230528.939792410@sgi.com>
+ <1205989839.14496.32.camel@ymzhang>
 MIME-Version: 1.0
-Subject: Re: [RFC/PATCH 01/15] preparation: provide hook to enable pgstes
- in	user pagetable
-References: <1206028710.6690.21.camel@cotte.boeblingen.de.ibm.com> <1206030278.6690.52.camel@cotte.boeblingen.de.ibm.com>
-In-Reply-To: <1206030278.6690.52.camel@cotte.boeblingen.de.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Carsten Otte <cotte@de.ibm.com>
-Cc: virtualization@lists.linux-foundation.org, kvm-devel@lists.sourceforge.net, Avi Kivity <avi@qumranet.com>, Linux Memory Management List <linux-mm@kvack.org>, aliguori@us.ibm.com, EHRHARDT@de.ibm.com, arnd@arndb.de, hollisb@us.ibm.com, heiko.carstens@de.ibm.com, jeroney@us.ibm.com, borntraeger@de.ibm.com, schwidefsky@de.ibm.com, rvdheij@gmail.com, os@de.ibm.com, jblunck@suse.de, "Zhang, Xiantao" <xiantao.zhang@intel.com>
+To: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mel@csn.ul.ie>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Carsten Otte wrote:
-> +struct mm_struct *dup_mm(struct task_struct *tsk);
->   
+On Thu, 20 Mar 2008, Zhang, Yanmin wrote:
 
-No prototypes in .c files.  Put this in an appropriate header.
+> page->objects = (PAGE_SIZE << get_order(s->size)) / s->size;
+> 
+> 
+> It'll look more readable and be simplified.
 
-    J
+The earlier version of the fallback had that.
+
+However, its a division in a potentially hot codepath.
+And some architectures have slow division logic.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
