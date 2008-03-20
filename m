@@ -1,53 +1,82 @@
-Received: by fg-out-1718.google.com with SMTP id e12so453911fga.4
-        for <linux-mm@kvack.org>; Wed, 19 Mar 2008 17:16:49 -0700 (PDT)
-Date: Thu, 20 Mar 2008 01:15:20 +0100
-From: Diego Calleja <diegocg@gmail.com>
-Subject: Re: [PATCH prototype] [0/8] Predictive bitmaps for ELF executables
-Message-Id: <20080320011520.60e151be.diegocg@gmail.com>
-In-Reply-To: <20080319020440.80379d50.akpm@linux-foundation.org>
-References: <20080318209.039112899@firstfloor.org>
-	<20080318003620.d84efb95.akpm@linux-foundation.org>
-	<20080318141828.GD11966@one.firstfloor.org>
-	<20080318095715.27120788.akpm@linux-foundation.org>
-	<20080318172045.GI11966@one.firstfloor.org>
-	<20080318104437.966c10ec.akpm@linux-foundation.org>
-	<20080319083228.GM11966@one.firstfloor.org>
-	<20080319020440.80379d50.akpm@linux-foundation.org>
+Subject: Re: [patch 2/9] Store max number of objects in the page struct.
+From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+In-Reply-To: <Pine.LNX.4.64.0803191049450.29173@schroedinger.engr.sgi.com>
+References: <20080317230516.078358225@sgi.com>
+	 <20080317230528.279983034@sgi.com> <1205917757.10318.1.camel@ymzhang>
+	 <Pine.LNX.4.64.0803191049450.29173@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=utf-8
+Date: Thu, 20 Mar 2008 11:32:17 +0800
+Message-Id: <1205983937.14496.24.camel@ymzhang>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>, LKML <linux-kernel@vger.kernel.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mel@csn.ul.ie>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-El Wed, 19 Mar 2008 02:04:40 -0700, Andrew Morton <akpm@linux-foundation.org> escribio:
+On Wed, 2008-03-19 at 10:49 -0700, Christoph Lameter wrote:
+> On Wed, 19 Mar 2008, Zhang, Yanmin wrote:
+> 
+> > > +	if ((PAGE_SIZE << min_order) / size > 65535)
+> > > +		return get_order(size * 65535) - 1;
+> > Is it better to define something like USHORT_MAX to replace 65535?
+> 
+> Yes. Do we have something like that?
 
-> Assuming that all users have the same access pattern might be inefficient,
-> a little bit.  There might be some advantage to making it per-user, dunno.
+I couldn't find such definition in include/linux/kernel.h.
 
-In the Dark Side of operating systems, the prefetching system they use
-can log several access patterns for a single executable, because a single
-executable can have different behaviours even for the same user, depending
-on what parameters the executable is passed and what COM machinery it
-uses. For example, wmplayer.exe can play a dvd, rip a CD, listen to a music
-stream, etc...diferent usages, different access patterns. Linux probably faces
-the same problem (bash, cat...)
 
-A alternative design for a userspace solution that doesn't needs LD_PRELOAD
-is to use CONFIG_PROC_EVENTS to get notifications of what processes are
-started, which can be used to poll its /proc files or try to preload data
-(asynchronously, and a bit hacky maybe).
+But glibc defines USHRT_MAX file include/limits.h:
 
-But if a kernel patch is really needed to implement this properly, maybe
-it'd be worth to take a look at the prefetch project that the Ubuntu guys
-are apparently going to merge in the next ubuntu development release (8.10)...
-https://wiki.ubuntu.com/DesktopTeam/Specs/Prefetch
+/* Minimum and maximum values a `signed short int' can hold.  */
+#  define SHRT_MIN      (-32768)
+#  define SHRT_MAX      32767
 
-There are even kernel patches:
-http://code.google.com/p/prefetch/source/browse/tags/soc2007-end/trunk/kernel-patches/2.6.22/submitted/0001-prefetch-core.diff
-http://code.google.com/p/prefetch/source/browse/tags/soc2007-end/trunk/kernel-patches/2.6.22/submitted/0002-prefetch-boot.diff
+/* Maximum value an `unsigned short int' can hold.  (Minimum is 0.)  */
+#  define USHRT_MAX     65535
+
+
+How about below patch against 2.6.25-rc6?
+
+---
+
+Add definitions of USHRT_MAX and others into kernel. ipc uses it and
+slub implementation might also use it.
+
+The patch is against 2.6.25-rc6.
+
+Signed-off-by: Zhang Yanmin <yanmin.zhang@intel.com>
+
+---
+
+--- linux-2.6.25-rc6/include/linux/kernel.h	2008-03-20 04:25:46.000000000 +0800
++++ linux-2.6.25-rc6_work/include/linux/kernel.h	2008-03-20 04:17:45.000000000 +0800
+@@ -20,6 +20,9 @@
+ extern const char linux_banner[];
+ extern const char linux_proc_banner[];
+ 
++#define USHRT_MAX	((u16)(~0U))
++#define SHRT_MAX	((s16)(USHRT_MAX>>1))
++#define SHRT_MIN	(-SHRT_MAX - 1)
+ #define INT_MAX		((int)(~0U>>1))
+ #define INT_MIN		(-INT_MAX - 1)
+ #define UINT_MAX	(~0U)
+--- linux-2.6.25-rc6/ipc/util.h	2008-03-20 04:25:46.000000000 +0800
++++ linux-2.6.25-rc6_work/ipc/util.h	2008-03-20 04:22:07.000000000 +0800
+@@ -12,7 +12,6 @@
+ 
+ #include <linux/err.h>
+ 
+-#define USHRT_MAX 0xffff
+ #define SEQ_MULTIPLIER	(IPCMNI)
+ 
+ void sem_init (void);
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
