@@ -1,171 +1,198 @@
-Message-Id: <20080320202123.869960000@chello.nl>
+Message-Id: <20080320202124.799183000@chello.nl>
 References: <20080320201042.675090000@chello.nl>
-Date: Thu, 20 Mar 2008 21:10:58 +0100
+Date: Thu, 20 Mar 2008 21:11:05 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 16/30] net: sk_allocation() - concentrate socket related allocations
-Content-Disposition: inline; filename=net-sk_allocation.patch
+Subject: [PATCH 23/30] netvm: skb processing
+Content-Disposition: inline; filename=netvm.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, neilb@suse.de, miklos@szeredi.hu, penberg@cs.helsinki.fi, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-Introduce sk_allocation(), this function allows to inject sock specific
-flags to each sock related allocation.
+In order to make sure emergency packets receive all memory needed to proceed
+ensure processing of emergency SKBs happens under PF_MEMALLOC.
+
+Use the (new) sk_backlog_rcv() wrapper to ensure this for backlog processing.
+
+Skip taps, since those are user-space again.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/net/sock.h    |    5 +++++
- net/ipv4/tcp.c        |    3 ++-
- net/ipv4/tcp_output.c |   12 +++++++-----
- net/ipv6/tcp_ipv6.c   |   15 ++++++++++-----
- 4 files changed, 24 insertions(+), 11 deletions(-)
+ include/net/sock.h |    5 ++++
+ net/core/dev.c     |   58 +++++++++++++++++++++++++++++++++++++++++++++++------
+ net/core/sock.c    |   16 ++++++++++++++
+ 3 files changed, 73 insertions(+), 6 deletions(-)
 
-Index: linux-2.6/net/ipv4/tcp_output.c
+Index: linux-2.6/net/core/dev.c
 ===================================================================
---- linux-2.6.orig/net/ipv4/tcp_output.c
-+++ linux-2.6/net/ipv4/tcp_output.c
-@@ -2078,7 +2078,8 @@ void tcp_send_fin(struct sock *sk)
- 	} else {
- 		/* Socket is locked, keep trying until memory is available. */
- 		for (;;) {
--			skb = alloc_skb_fclone(MAX_TCP_HEADER, GFP_KERNEL);
-+			skb = alloc_skb_fclone(MAX_TCP_HEADER,
-+					       sk_allocation(sk, GFP_KERNEL));
- 			if (skb)
- 				break;
- 			yield();
-@@ -2104,7 +2105,7 @@ void tcp_send_active_reset(struct sock *
- 	struct sk_buff *skb;
- 
- 	/* NOTE: No TCP options attached and we never retransmit this. */
--	skb = alloc_skb(MAX_TCP_HEADER, priority);
-+	skb = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, priority));
- 	if (!skb) {
- 		NET_INC_STATS(LINUX_MIB_TCPABORTFAILED);
- 		return;
-@@ -2171,7 +2172,8 @@ struct sk_buff *tcp_make_synack(struct s
- 	__u8 *md5_hash_location;
+--- linux-2.6.orig/net/core/dev.c
++++ linux-2.6/net/core/dev.c
+@@ -2008,6 +2008,30 @@ out:
+ }
  #endif
  
--	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15, 1, GFP_ATOMIC);
-+	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15, 1,
-+			sk_allocation(sk, GFP_ATOMIC));
- 	if (skb == NULL)
- 		return NULL;
++/*
++ * Filter the protocols for which the reserves are adequate.
++ *
++ * Before adding a protocol make sure that it is either covered by the existing
++ * reserves, or add reserves covering the memory need of the new protocol's
++ * packet processing.
++ */
++static int skb_emergency_protocol(struct sk_buff *skb)
++{
++	if (skb_emergency(skb))
++		switch (skb->protocol) {
++		case __constant_htons(ETH_P_ARP):
++		case __constant_htons(ETH_P_IP):
++		case __constant_htons(ETH_P_IPV6):
++		case __constant_htons(ETH_P_8021Q):
++			break;
++
++		default:
++			return 0;
++		}
++
++	return 1;
++}
++
+ /**
+  *	netif_receive_skb - process receive buffer from network
+  *	@skb: buffer to process
+@@ -2029,10 +2053,22 @@ int netif_receive_skb(struct sk_buff *sk
+ 	struct net_device *orig_dev;
+ 	int ret = NET_RX_DROP;
+ 	__be16 type;
++	unsigned long pflags = current->flags;
++
++	/* Emergency skb are special, they should
++	 *  - be delivered to SOCK_MEMALLOC sockets only
++	 *  - stay away from userspace
++	 *  - have bounded memory usage
++	 *
++	 * Use PF_MEMALLOC so that we're not memory challenged during
++	 * packet processing of this emergency packet.
++	 */
++	if (skb_emergency(skb))
++		current->flags |= PF_MEMALLOC;
  
-@@ -2425,7 +2427,7 @@ void tcp_send_ack(struct sock *sk)
- 	 * tcp_transmit_skb() will set the ownership to this
- 	 * sock.
- 	 */
--	buff = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
-+	buff = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, GFP_ATOMIC));
- 	if (buff == NULL) {
- 		inet_csk_schedule_ack(sk);
- 		inet_csk(sk)->icsk_ack.ato = TCP_ATO_MIN;
-@@ -2460,7 +2462,7 @@ static int tcp_xmit_probe_skb(struct soc
- 	struct sk_buff *skb;
+ 	/* if we've gotten here through NAPI, check netpoll */
+ 	if (netpoll_receive_skb(skb))
+-		return NET_RX_DROP;
++		goto out;
  
- 	/* We don't queue it, tcp_transmit_skb() sets ownership. */
--	skb = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
-+	skb = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, GFP_ATOMIC));
- 	if (skb == NULL)
- 		return -1;
+ 	if (!skb->tstamp.tv64)
+ 		net_timestamp(skb);
+@@ -2043,7 +2079,7 @@ int netif_receive_skb(struct sk_buff *sk
+ 	orig_dev = skb_bond(skb);
+ 
+ 	if (!orig_dev)
+-		return NET_RX_DROP;
++		goto out;
+ 
+ 	__get_cpu_var(netdev_rx_stat).total++;
+ 
+@@ -2062,6 +2098,9 @@ int netif_receive_skb(struct sk_buff *sk
+ 	}
+ #endif
+ 
++	if (skb_emergency(skb))
++		goto skip_taps;
++
+ 	list_for_each_entry_rcu(ptype, &ptype_all, list) {
+ 		if (!ptype->dev || ptype->dev == skb->dev) {
+ 			if (pt_prev)
+@@ -2070,19 +2109,23 @@ int netif_receive_skb(struct sk_buff *sk
+ 		}
+ 	}
+ 
++skip_taps:
+ #ifdef CONFIG_NET_CLS_ACT
+ 	skb = handle_ing(skb, &pt_prev, &ret, orig_dev);
+ 	if (!skb)
+-		goto out;
++		goto unlock;
+ ncls:
+ #endif
+ 
++	if (!skb_emergency_protocol(skb))
++		goto drop;
++
+ 	skb = handle_bridge(skb, &pt_prev, &ret, orig_dev);
+ 	if (!skb)
+-		goto out;
++		goto unlock;
+ 	skb = handle_macvlan(skb, &pt_prev, &ret, orig_dev);
+ 	if (!skb)
+-		goto out;
++		goto unlock;
+ 
+ 	type = skb->protocol;
+ 	list_for_each_entry_rcu(ptype,
+@@ -2098,6 +2141,7 @@ ncls:
+ 	if (pt_prev) {
+ 		ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
+ 	} else {
++drop:
+ 		kfree_skb(skb);
+ 		/* Jamal, now you will not able to escape explaining
+ 		 * me how you were going to use this. :-)
+@@ -2105,8 +2149,10 @@ ncls:
+ 		ret = NET_RX_DROP;
+ 	}
+ 
+-out:
++unlock:
+ 	rcu_read_unlock();
++out:
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+ 	return ret;
+ }
  
 Index: linux-2.6/include/net/sock.h
 ===================================================================
 --- linux-2.6.orig/include/net/sock.h
 +++ linux-2.6/include/net/sock.h
-@@ -427,6 +427,11 @@ static inline int sock_flag(struct sock 
- 	return test_bit(flag, &sk->sk_flags);
+@@ -521,8 +521,13 @@ static inline void sk_add_backlog(struct
+ 	skb->next = NULL;
  }
  
-+static inline gfp_t sk_allocation(struct sock *sk, gfp_t gfp_mask)
-+{
-+	return gfp_mask;
-+}
++extern int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb);
 +
- static inline void sk_acceptq_removed(struct sock *sk)
+ static inline int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
  {
- 	sk->sk_ack_backlog--;
-Index: linux-2.6/net/ipv6/tcp_ipv6.c
++	if (skb_emergency(skb))
++		return __sk_backlog_rcv(sk, skb);
++
+ 	return sk->sk_backlog_rcv(sk, skb);
+ }
+ 
+Index: linux-2.6/net/core/sock.c
 ===================================================================
---- linux-2.6.orig/net/ipv6/tcp_ipv6.c
-+++ linux-2.6/net/ipv6/tcp_ipv6.c
-@@ -568,7 +568,8 @@ static int tcp_v6_md5_do_add(struct sock
- 	} else {
- 		/* reallocate new list if current one is full. */
- 		if (!tp->md5sig_info) {
--			tp->md5sig_info = kzalloc(sizeof(*tp->md5sig_info), GFP_ATOMIC);
-+			tp->md5sig_info = kzalloc(sizeof(*tp->md5sig_info),
-+					sk_allocation(sk, GFP_ATOMIC));
- 			if (!tp->md5sig_info) {
- 				kfree(newkey);
- 				return -ENOMEM;
-@@ -581,7 +582,8 @@ static int tcp_v6_md5_do_add(struct sock
- 		}
- 		if (tp->md5sig_info->alloced6 == tp->md5sig_info->entries6) {
- 			keys = kmalloc((sizeof (tp->md5sig_info->keys6[0]) *
--				       (tp->md5sig_info->entries6 + 1)), GFP_ATOMIC);
-+				       (tp->md5sig_info->entries6 + 1)),
-+				       sk_allocation(sk, GFP_ATOMIC));
- 
- 			if (!keys) {
- 				tcp_free_md5sig_pool();
-@@ -705,7 +707,8 @@ static int tcp_v6_parse_md5_keys (struct
- 		struct tcp_sock *tp = tcp_sk(sk);
- 		struct tcp_md5sig_info *p;
- 
--		p = kzalloc(sizeof(struct tcp_md5sig_info), GFP_KERNEL);
-+		p = kzalloc(sizeof(struct tcp_md5sig_info),
-+				   sk_allocation(sk, GFP_KERNEL));
- 		if (!p)
- 			return -ENOMEM;
- 
-@@ -1006,7 +1009,7 @@ static void tcp_v6_send_reset(struct soc
- 	 */
- 
- 	buff = alloc_skb(MAX_HEADER + sizeof(struct ipv6hdr) + tot_len,
--			 GFP_ATOMIC);
-+			 sk_allocation(sk, GFP_ATOMIC));
- 	if (buff == NULL)
- 		return;
- 
-@@ -1085,10 +1088,12 @@ static void tcp_v6_send_ack(struct tcp_t
- 	struct tcp_md5sig_key *key;
- 	struct tcp_md5sig_key tw_key;
- #endif
-+	gfp_t gfp_mask = GFP_ATOMIC;
- 
- #ifdef CONFIG_TCP_MD5SIG
- 	if (!tw && skb->sk) {
- 		key = tcp_v6_md5_do_lookup(skb->sk, &ipv6_hdr(skb)->daddr);
-+		gfp_mask = sk_allocation(skb->sk, gfp_mask);
- 	} else if (tw && tw->tw_md5_keylen) {
- 		tw_key.key = tw->tw_md5_key;
- 		tw_key.keylen = tw->tw_md5_keylen;
-@@ -1106,7 +1111,7 @@ static void tcp_v6_send_ack(struct tcp_t
+--- linux-2.6.orig/net/core/sock.c
++++ linux-2.6/net/core/sock.c
+@@ -311,6 +311,22 @@ int sk_clear_memalloc(struct sock *sk)
+ 	return set;
+ }
+ EXPORT_SYMBOL_GPL(sk_clear_memalloc);
++
++int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
++{
++	int ret;
++	unsigned long pflags = current->flags;
++
++	/* these should have been dropped before queueing */
++	BUG_ON(!sk_has_memalloc(sk));
++
++	current->flags |= PF_MEMALLOC;
++	ret = sk->sk_backlog_rcv(sk, skb);
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
++
++	return ret;
++}
++EXPORT_SYMBOL(__sk_backlog_rcv);
  #endif
  
- 	buff = alloc_skb(MAX_HEADER + sizeof(struct ipv6hdr) + tot_len,
--			 GFP_ATOMIC);
-+			 gfp_mask);
- 	if (buff == NULL)
- 		return;
- 
-Index: linux-2.6/net/ipv4/tcp.c
-===================================================================
---- linux-2.6.orig/net/ipv4/tcp.c
-+++ linux-2.6/net/ipv4/tcp.c
-@@ -636,7 +636,8 @@ struct sk_buff *sk_stream_alloc_skb(stru
- 	/* The TCP header must be at least 32-bit aligned.  */
- 	size = ALIGN(size, 4);
- 
--	skb = alloc_skb_fclone(size + sk->sk_prot->max_header, gfp);
-+	skb = alloc_skb_fclone(size + sk->sk_prot->max_header,
-+			       sk_allocation(sk, gfp));
- 	if (skb) {
- 		if (sk_wmem_schedule(sk, skb->truesize)) {
- 			/*
+ static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
 
 --
 
