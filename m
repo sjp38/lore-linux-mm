@@ -1,599 +1,125 @@
-Subject: Re: OOM (HighMem) on linux 2.6.24.2
-From: Kevin Shanahan <kmshanah@ucwb.org.au>
-In-Reply-To: <47E223E9.6000908@gmail.com>
-References: <1205974089.4023.20.camel@kulgan.wumi.org.au>
-	 <47E223E9.6000908@gmail.com>
-Content-Type: text/plain
-Date: Thu, 20 Mar 2008 20:47:12 +1030
-Message-Id: <1206008232.5086.20.camel@kulgan.wumi.org.au>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 20 Mar 2008 15:29:53 +0300
+From: root <root@el5-64-build>
+Subject: [PATCH] Fix data leak in nobh_write_end.
+Message-ID: <20080320122953.GA19928@dmon-lap.sw.ru>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jiri Slaby <jirislaby@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-03-20 at 09:44 +0100, Jiri Slaby wrote:
-> lsmod, lspci, lsusb, .config, /proc/mounts would be good, please, I think I get 
-> this too time to time on latest -mm (akpm).
-> 
-> Could somebody from -mm (memory) interpret the output, I must admit, I don't 
-> understand too much by who all the memory is held. The inactive 339150 is memory 
-> which was not touched for longer time got from __get_free_page* and might be 
-> swapped out, right?
+Hi.
+Current nobh_write_end() implementation ignore partial writes(copied < len)
+case if page was fully mapped and simply mark page as Uptodate, which
+is totally wrong because area [pos+copied, pos+len) wasn't updated explicitly
+in previous write_begin call. It simply contains garbage from pagecache
+and result in data leakage.
+#TEST_CASE_BEGIN:
+~~~~~~~~~~~~~~~~
+In fact issue triggered by classical testcase
+	open("/mnt/test", O_RDWR|O_CREAT|O_TRUNC, 0666) = 3
+	ftruncate(3, 409600)                    = 0 
+	writev(3, [{"a", 1}, {NULL, 4095}], 2)  = 1
+##TESTCASE_SOURCE:
+~~~~~~~~~~~~~~~~~
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <sys/uio.h>
+#include <sys/mman.h>
+#include <errno.h>
+int main(int argc, char **argv)
+{
+	int fd,  ret;
+	void* p;
+	struct iovec iov[2];
+	fd = open(argv[1], O_RDWR|O_CREAT|O_TRUNC, 0666);
+	ftruncate(fd, 409600);
+	iov[0].iov_base="a";
+	iov[0].iov_len=1;
+	iov[1].iov_base=NULL;
+	iov[1].iov_len=4096;
+	ret = writev(fd, iov, sizeof(iov)/sizeof(struct iovec));
+	printf("writev  = %d, err = %d\n", ret, errno);
+	return 0;
+}
+##TESTCASE RESULT:
+~~~~~~~~~~~~~~~~~~
+[root@ts63 ~]# mount | grep mnt2
+/dev/mapper/test on /mnt2 type ext2 (rw,nobh)
+[root@ts63 ~]#  /tmp/writev /mnt2/test
+writev  = 1, err = 0
+[root@ts63 ~]# hexdump -C /mnt2/test
 
-Thanks Jiri. Info suggested is below.
+00000000  61 65 62 6f 6f 74 00 00  f0 b9 b4 59 3a 00 00 00  |aeboot.....Y:...|
+00000010  20 00 00 00 00 00 00 00  21 00 00 00 00 00 00 00  | .......!.......|
+00000020  df df df df df df df df  df df df df df df df df  |................|
+00000030  3a 00 00 00 2a 00 00 00  21 00 00 00 00 00 00 00  |:...*...!.......|
+00000040  60 c0 8c 00 00 00 00 00  40 4a 8d 00 00 00 00 00  |`.......@J......|
+00000050  00 00 00 00 00 00 00 00  41 00 00 00 00 00 00 00  |........A.......|
+00000060  74 69 6d 65 20 64 64 20  69 66 3d 2f 64 65 76 2f  |time dd if=/dev/|
+00000070  6c 6f 6f 70 30 20 20 6f  66 3d 2f 64 65 76 2f 6e  |loop0  of=/dev/n|
+skip..
+00000f50  00 00 00 00 00 00 00 00  31 00 00 00 00 00 00 00  |........1.......|
+00000f60  6d 6b 66 73 2e 65 78 74  33 20 2f 64 65 76 2f 76  |mkfs.ext3 /dev/v|
+00000f70  7a 76 67 2f 74 65 73 74  20 2d 62 34 30 39 36 00  |zvg/test -b4096.|
+00000f80  a0 fe 8c 00 00 00 00 00  21 00 00 00 00 00 00 00  |........!.......|
+00000f90  23 31 32 30 35 39 35 30  34 30 34 00 3a 00 00 00  |#1205950404.:...|
+00000fa0  20 00 8d 00 00 00 00 00  21 00 00 00 00 00 00 00  | .......!.......|
+00000fb0  d0 cf 8c 00 00 00 00 00  10 d0 8c 00 00 00 00 00  |................|
+00000fc0  00 00 00 00 00 00 00 00  41 00 00 00 00 00 00 00  |........A.......|
+00000fd0  6d 6f 75 6e 74 20 2f 64  65 76 2f 76 7a 76 67 2f  |mount /dev/vzvg/|
+00000fe0  74 65 73 74 20 20 2f 76  7a 20 2d 6f 20 64 61 74  |test  /vz -o dat|
+00000ff0  61 3d 77 72 69 74 65 62  61 63 6b 00 00 00 00 00  |a=writeback.....|
+00001000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
 
-Cheers,
-Kevin.
+As you can see file's page contains garbage from pagecache instead of zeros.
+#TEST_CASE_END
 
-(# CONFIG_MODULES is not set)
+Attached patch:
+- Add sanity check BUG_ON in order to prevent incorrect usage by caller,
+  This is function invariant because page can has buffers and in no zero
+  *fadata pointer at the same time.
+- Always attach buffers to page is it is partial write case.
+- Always switch back to generic_write_end if page has buffers.
+  This is reasonable because if page already has buffer then generic_write_begin
+  was called previously.
 
-hermes:~# lspci
-00:00.0 Memory controller: nVidia Corporation CK804 Memory Controller (rev a3)
-00:01.0 ISA bridge: nVidia Corporation CK804 ISA Bridge (rev a3)
-00:01.1 SMBus: nVidia Corporation CK804 SMBus (rev a2)
-00:02.0 USB Controller: nVidia Corporation CK804 USB Controller (rev a2)
-00:02.1 USB Controller: nVidia Corporation CK804 USB Controller (rev a3)
-00:04.0 Multimedia audio controller: nVidia Corporation CK804 AC'97 Audio Controller (rev a2)
-00:06.0 IDE interface: nVidia Corporation CK804 IDE (rev f2)
-00:07.0 IDE interface: nVidia Corporation CK804 Serial ATA Controller (rev f3)
-00:08.0 IDE interface: nVidia Corporation CK804 Serial ATA Controller (rev f3)
-00:09.0 PCI bridge: nVidia Corporation CK804 PCI Bridge (rev a2)
-00:0a.0 Bridge: nVidia Corporation CK804 Ethernet Controller (rev a3)
-00:0b.0 PCI bridge: nVidia Corporation CK804 PCIE Bridge (rev a3)
-00:0c.0 PCI bridge: nVidia Corporation CK804 PCIE Bridge (rev a3)
-00:0d.0 PCI bridge: nVidia Corporation CK804 PCIE Bridge (rev a3)
-00:0e.0 PCI bridge: nVidia Corporation CK804 PCIE Bridge (rev a3)
-00:18.0 Host bridge: Advanced Micro Devices [AMD] K8 [Athlon64/Opteron] HyperTransport Technology Configuration
-00:18.1 Host bridge: Advanced Micro Devices [AMD] K8 [Athlon64/Opteron] Address Map
-00:18.2 Host bridge: Advanced Micro Devices [AMD] K8 [Athlon64/Opteron] DRAM Controller
-00:18.3 Host bridge: Advanced Micro Devices [AMD] K8 [Athlon64/Opteron] Miscellaneous Control
-03:00.0 PCI bridge: PLX Technology, Inc. PEX 8114 PCI Express-to-PCI/PCI-X Bridge (rev bb)
-04:08.0 SCSI storage controller: LSI Logic / Symbios Logic 53c1030 PCI-X Fusion-MPT Dual Ultra320 SCSI (rev c1)
-06:06.0 VGA compatible controller: Cirrus Logic GD 5430/40 [Alpine] (rev 47)
-06:08.0 Mass storage controller: Promise Technology, Inc. PDC20318 (SATA150 TX4) (rev 02)
-06:0b.0 FireWire (IEEE 1394): Texas Instruments TSB43AB22/A IEEE-1394a-2000 Controller (PHY/Link)
+Signed-off-by: Dmitri Monakhov <dmonakhov@openvz.org>
+---
+ fs/buffer.c |   13 ++++++-------
+ 1 files changed, 6 insertions(+), 7 deletions(-)
 
-hermes:~# lsusb 
-Bus 001 Device 001: ID 0000:0000  
-
-hermes:~# cat /proc/mounts 
-rootfs / rootfs rw 0 0
-/dev/root / ext3 rw,noatime,nodiratime,errors=remount-ro,data=ordered 0 0
-tmpfs /lib/init/rw tmpfs rw,nosuid 0 0
-proc /proc proc rw,nosuid,nodev,noexec 0 0
-sysfs /sys sysfs rw,nosuid,nodev,noexec 0 0
-usbfs /proc/bus/usb usbfs rw,nosuid,nodev,noexec 0 0
-tmpfs /dev/shm tmpfs rw,nosuid,nodev 0 0
-devpts /dev/pts devpts rw,nosuid,noexec 0 0
-/dev/md0 /boot ext3 rw,noatime,nodiratime,errors=remount-ro,data=ordered 0 0
-/dev/vg_raid_store/lv_data /srv/samba/local ext3 rw,noatime,nodiratime,errors=remount-ro,user_xattr,acl,data=ordered 0 0
-/dev/vg_raid_store/lv_backup /srv/samba/backup ext3 rw,noatime,nodiratime,errors=remount-ro,user_xattr,acl,data=ordered 0 0
-/dev/vg_raid_store/lv_home /home ext3 rw,noatime,nodiratime,errors=remount-ro,user_xattr,acl,data=ordered,usrquota 0 0
-
-hermes:~# grep "=[y|m]" hermes.config
-CONFIG_X86_32=y
-CONFIG_X86=y
-CONFIG_GENERIC_TIME=y
-CONFIG_GENERIC_CMOS_UPDATE=y
-CONFIG_CLOCKSOURCE_WATCHDOG=y
-CONFIG_GENERIC_CLOCKEVENTS=y
-CONFIG_GENERIC_CLOCKEVENTS_BROADCAST=y
-CONFIG_LOCKDEP_SUPPORT=y
-CONFIG_STACKTRACE_SUPPORT=y
-CONFIG_SEMAPHORE_SLEEPERS=y
-CONFIG_MMU=y
-CONFIG_ZONE_DMA=y
-CONFIG_QUICKLIST=y
-CONFIG_GENERIC_ISA_DMA=y
-CONFIG_GENERIC_IOMAP=y
-CONFIG_GENERIC_BUG=y
-CONFIG_GENERIC_HWEIGHT=y
-CONFIG_ARCH_MAY_HAVE_PC_FDC=y
-CONFIG_DMI=y
-CONFIG_RWSEM_XCHGADD_ALGORITHM=y
-CONFIG_GENERIC_CALIBRATE_DELAY=y
-CONFIG_ARCH_SUPPORTS_OPROFILE=y
-CONFIG_ARCH_POPULATES_NODE_MAP=y
-CONFIG_GENERIC_HARDIRQS=y
-CONFIG_GENERIC_IRQ_PROBE=y
-CONFIG_GENERIC_PENDING_IRQ=y
-CONFIG_X86_SMP=y
-CONFIG_X86_HT=y
-CONFIG_X86_BIOS_REBOOT=y
-CONFIG_X86_TRAMPOLINE=y
-CONFIG_KTIME_SCALAR=y
-CONFIG_EXPERIMENTAL=y
-CONFIG_LOCK_KERNEL=y
-CONFIG_SWAP=y
-CONFIG_SYSVIPC=y
-CONFIG_SYSVIPC_SYSCTL=y
-CONFIG_BSD_PROCESS_ACCT=y
-CONFIG_BSD_PROCESS_ACCT_V3=y
-CONFIG_FAIR_GROUP_SCHED=y
-CONFIG_FAIR_USER_SCHED=y
-CONFIG_BLK_DEV_INITRD=y
-CONFIG_CC_OPTIMIZE_FOR_SIZE=y
-CONFIG_SYSCTL=y
-CONFIG_UID16=y
-CONFIG_SYSCTL_SYSCALL=y
-CONFIG_KALLSYMS=y
-CONFIG_HOTPLUG=y
-CONFIG_PRINTK=y
-CONFIG_BUG=y
-CONFIG_ELF_CORE=y
-CONFIG_BASE_FULL=y
-CONFIG_FUTEX=y
-CONFIG_ANON_INODES=y
-CONFIG_EPOLL=y
-CONFIG_SIGNALFD=y
-CONFIG_EVENTFD=y
-CONFIG_SHMEM=y
-CONFIG_VM_EVENT_COUNTERS=y
-CONFIG_SLAB=y
-CONFIG_SLABINFO=y
-CONFIG_RT_MUTEXES=y
-CONFIG_BLOCK=y
-CONFIG_IOSCHED_NOOP=y
-CONFIG_IOSCHED_AS=y
-CONFIG_IOSCHED_DEADLINE=y
-CONFIG_IOSCHED_CFQ=y
-CONFIG_DEFAULT_CFQ=y
-CONFIG_GENERIC_CLOCKEVENTS_BUILD=y
-CONFIG_SMP=y
-CONFIG_X86_PC=y
-CONFIG_SCHED_NO_NO_OMIT_FRAME_POINTER=y
-CONFIG_MK8=y
-CONFIG_X86_GENERIC=y
-CONFIG_X86_CMPXCHG=y
-CONFIG_X86_XADD=y
-CONFIG_X86_WP_WORKS_OK=y
-CONFIG_X86_INVLPG=y
-CONFIG_X86_BSWAP=y
-CONFIG_X86_POPAD_OK=y
-CONFIG_X86_GOOD_APIC=y
-CONFIG_X86_INTEL_USERCOPY=y
-CONFIG_X86_USE_PPRO_CHECKSUM=y
-CONFIG_X86_TSC=y
-CONFIG_SCHED_MC=y
-CONFIG_PREEMPT=y
-CONFIG_PREEMPT_BKL=y
-CONFIG_X86_LOCAL_APIC=y
-CONFIG_X86_IO_APIC=y
-CONFIG_X86_MCE=y
-CONFIG_X86_MCE_NONFATAL=y
-CONFIG_VM86=y
-CONFIG_MICROCODE=y
-CONFIG_MICROCODE_OLD_INTERFACE=y
-CONFIG_X86_MSR=y
-CONFIG_X86_CPUID=y
-CONFIG_HIGHMEM4G=y
-CONFIG_HIGHMEM=y
-CONFIG_ARCH_FLATMEM_ENABLE=y
-CONFIG_ARCH_SPARSEMEM_ENABLE=y
-CONFIG_ARCH_SELECT_MEMORY_MODEL=y
-CONFIG_SELECT_MEMORY_MODEL=y
-CONFIG_FLATMEM_MANUAL=y
-CONFIG_FLATMEM=y
-CONFIG_FLAT_NODE_MEM_MAP=y
-CONFIG_SPARSEMEM_STATIC=y
-CONFIG_BOUNCE=y
-CONFIG_VIRT_TO_BUS=y
-CONFIG_HIGHPTE=y
-CONFIG_MTRR=y
-CONFIG_IRQBALANCE=y
-CONFIG_SECCOMP=y
-CONFIG_HZ_300=y
-CONFIG_COMPAT_VDSO=y
-CONFIG_ARCH_ENABLE_MEMORY_HOTPLUG=y
-CONFIG_PM=y
-CONFIG_PM_LEGACY=y
-CONFIG_SUSPEND_SMP_POSSIBLE=y
-CONFIG_HIBERNATION_SMP_POSSIBLE=y
-CONFIG_ACPI=y
-CONFIG_ACPI_PROCFS=y
-CONFIG_ACPI_PROCFS_POWER=y
-CONFIG_ACPI_SYSFS_POWER=y
-CONFIG_ACPI_PROC_EVENT=y
-CONFIG_ACPI_BUTTON=y
-CONFIG_ACPI_FAN=y
-CONFIG_ACPI_PROCESSOR=y
-CONFIG_ACPI_THERMAL=y
-CONFIG_ACPI_EC=y
-CONFIG_ACPI_POWER=y
-CONFIG_ACPI_SYSTEM=y
-CONFIG_X86_PM_TIMER=y
-CONFIG_PCI=y
-CONFIG_PCI_GOANY=y
-CONFIG_PCI_BIOS=y
-CONFIG_PCI_DIRECT=y
-CONFIG_PCI_MMCONFIG=y
-CONFIG_PCI_DOMAINS=y
-CONFIG_PCIEPORTBUS=y
-CONFIG_PCIEAER=y
-CONFIG_ARCH_SUPPORTS_MSI=y
-CONFIG_PCI_MSI=y
-CONFIG_PCI_LEGACY=y
-CONFIG_HT_IRQ=y
-CONFIG_ISA_DMA_API=y
-CONFIG_ISA=y
-CONFIG_EISA=y
-CONFIG_EISA_PCI_EISA=y
-CONFIG_EISA_VIRTUAL_ROOT=y
-CONFIG_EISA_NAMES=y
-CONFIG_BINFMT_ELF=y
-CONFIG_NET=y
-CONFIG_PACKET=y
-CONFIG_PACKET_MMAP=y
-CONFIG_UNIX=y
-CONFIG_XFRM=y
-CONFIG_NET_KEY=y
-CONFIG_INET=y
-CONFIG_IP_MULTICAST=y
-CONFIG_IP_ADVANCED_ROUTER=y
-CONFIG_ASK_IP_FIB_HASH=y
-CONFIG_IP_FIB_HASH=y
-CONFIG_IP_MULTIPLE_TABLES=y
-CONFIG_IP_ROUTE_MULTIPATH=y
-CONFIG_IP_ROUTE_VERBOSE=y
-CONFIG_NET_IPIP=y
-CONFIG_SYN_COOKIES=y
-CONFIG_INET_TUNNEL=y
-CONFIG_INET_DIAG=y
-CONFIG_INET_TCP_DIAG=y
-CONFIG_TCP_CONG_CUBIC=y
-CONFIG_NETFILTER=y
-CONFIG_BRIDGE_NETFILTER=y
-CONFIG_NETFILTER_NETLINK=y
-CONFIG_NETFILTER_XTABLES=y
-CONFIG_NETFILTER_XT_TARGET_CLASSIFY=y
-CONFIG_NETFILTER_XT_TARGET_MARK=y
-CONFIG_NETFILTER_XT_TARGET_NFQUEUE=y
-CONFIG_NETFILTER_XT_TARGET_TCPMSS=y
-CONFIG_NETFILTER_XT_MATCH_COMMENT=y
-CONFIG_NETFILTER_XT_MATCH_DCCP=y
-CONFIG_NETFILTER_XT_MATCH_LENGTH=y
-CONFIG_NETFILTER_XT_MATCH_LIMIT=y
-CONFIG_NETFILTER_XT_MATCH_MAC=y
-CONFIG_NETFILTER_XT_MATCH_MARK=y
-CONFIG_NETFILTER_XT_MATCH_PHYSDEV=y
-CONFIG_NETFILTER_XT_MATCH_PKTTYPE=y
-CONFIG_NETFILTER_XT_MATCH_REALM=y
-CONFIG_NETFILTER_XT_MATCH_SCTP=y
-CONFIG_NETFILTER_XT_MATCH_STRING=y
-CONFIG_NETFILTER_XT_MATCH_TCPMSS=y
-CONFIG_IP_NF_QUEUE=y
-CONFIG_IP_NF_IPTABLES=y
-CONFIG_IP_NF_MATCH_IPRANGE=y
-CONFIG_IP_NF_MATCH_TOS=y
-CONFIG_IP_NF_MATCH_RECENT=y
-CONFIG_IP_NF_MATCH_ECN=y
-CONFIG_IP_NF_MATCH_TTL=y
-CONFIG_IP_NF_MATCH_OWNER=y
-CONFIG_IP_NF_MATCH_ADDRTYPE=y
-CONFIG_IP_NF_FILTER=y
-CONFIG_IP_NF_TARGET_REJECT=y
-CONFIG_IP_NF_TARGET_LOG=y
-CONFIG_IP_NF_TARGET_ULOG=y
-CONFIG_IP_NF_MANGLE=y
-CONFIG_IP_NF_TARGET_TOS=y
-CONFIG_IP_NF_TARGET_ECN=y
-CONFIG_IP_NF_TARGET_TTL=y
-CONFIG_BRIDGE_NF_EBTABLES=y
-CONFIG_BRIDGE_EBT_BROUTE=y
-CONFIG_BRIDGE_EBT_T_FILTER=y
-CONFIG_BRIDGE_EBT_T_NAT=y
-CONFIG_BRIDGE_EBT_802_3=y
-CONFIG_BRIDGE_EBT_AMONG=y
-CONFIG_BRIDGE_EBT_ARP=y
-CONFIG_BRIDGE_EBT_IP=y
-CONFIG_BRIDGE_EBT_LIMIT=y
-CONFIG_BRIDGE_EBT_MARK=y
-CONFIG_BRIDGE_EBT_PKTTYPE=y
-CONFIG_BRIDGE_EBT_STP=y
-CONFIG_BRIDGE_EBT_VLAN=y
-CONFIG_BRIDGE_EBT_ARPREPLY=y
-CONFIG_BRIDGE_EBT_DNAT=y
-CONFIG_BRIDGE_EBT_MARK_T=y
-CONFIG_BRIDGE_EBT_REDIRECT=y
-CONFIG_BRIDGE_EBT_SNAT=y
-CONFIG_BRIDGE_EBT_LOG=y
-CONFIG_BRIDGE=y
-CONFIG_VLAN_8021Q=y
-CONFIG_LLC=y
-CONFIG_NET_SCHED=y
-CONFIG_NET_SCH_HTB=y
-CONFIG_NET_SCH_PRIO=y
-CONFIG_NET_SCH_RED=y
-CONFIG_NET_SCH_SFQ=y
-CONFIG_NET_SCH_TEQL=y
-CONFIG_NET_SCH_TBF=y
-CONFIG_NET_SCH_GRED=y
-CONFIG_NET_SCH_DSMARK=y
-CONFIG_NET_SCH_INGRESS=y
-CONFIG_NET_CLS=y
-CONFIG_NET_CLS_TCINDEX=y
-CONFIG_NET_CLS_ROUTE4=y
-CONFIG_NET_CLS_ROUTE=y
-CONFIG_NET_CLS_FW=y
-CONFIG_NET_CLS_U32=y
-CONFIG_NET_CLS_RSVP=y
-CONFIG_NET_CLS_ACT=y
-CONFIG_NET_ACT_POLICE=y
-CONFIG_NET_ACT_GACT=y
-CONFIG_GACT_PROB=y
-CONFIG_NET_ACT_MIRRED=y
-CONFIG_NET_ACT_IPT=y
-CONFIG_NET_ACT_PEDIT=y
-CONFIG_NET_CLS_POLICE=y
-CONFIG_NET_SCH_FIFO=y
-CONFIG_FIB_RULES=y
-CONFIG_STANDALONE=y
-CONFIG_PREVENT_FIRMWARE_BUILD=y
-CONFIG_FW_LOADER=y
-CONFIG_PARPORT=y
-CONFIG_PARPORT_PC=y
-CONFIG_PARPORT_1284=y
-CONFIG_PNP=y
-CONFIG_ISAPNP=y
-CONFIG_PNPACPI=y
-CONFIG_BLK_DEV=y
-CONFIG_BLK_DEV_FD=y
-CONFIG_BLK_DEV_LOOP=y
-CONFIG_BLK_DEV_RAM=y
-CONFIG_MISC_DEVICES=y
-CONFIG_IDE=y
-CONFIG_BLK_DEV_IDE=y
-CONFIG_BLK_DEV_IDEDISK=y
-CONFIG_IDE_PROC_FS=y
-CONFIG_BLK_DEV_IDEPCI=y
-CONFIG_IDEPCI_SHARE_IRQ=y
-CONFIG_IDEPCI_PCIBUS_ORDER=y
-CONFIG_BLK_DEV_IDEDMA_PCI=y
-CONFIG_BLK_DEV_AMD74XX=y
-CONFIG_BLK_DEV_PDC202XX_OLD=y
-CONFIG_PDC202XX_BURST=y
-CONFIG_BLK_DEV_IDEDMA=y
-CONFIG_IDE_ARCH_OBSOLETE_INIT=y
-CONFIG_SCSI=y
-CONFIG_SCSI_DMA=y
-CONFIG_SCSI_PROC_FS=y
-CONFIG_BLK_DEV_SD=y
-CONFIG_CHR_DEV_ST=y
-CONFIG_CHR_DEV_SG=y
-CONFIG_CHR_DEV_SCH=y
-CONFIG_SCSI_MULTI_LUN=y
-CONFIG_SCSI_SPI_ATTRS=y
-CONFIG_SCSI_SAS_ATTRS=y
-CONFIG_SCSI_SAS_LIBSAS=y
-CONFIG_SCSI_LOWLEVEL=y
-CONFIG_SCSI_AACRAID=y
-CONFIG_ATA=y
-CONFIG_ATA_ACPI=y
-CONFIG_SATA_NV=y
-CONFIG_SATA_PROMISE=y
-CONFIG_MD=y
-CONFIG_BLK_DEV_MD=y
-CONFIG_MD_RAID1=y
-CONFIG_MD_RAID456=y
-CONFIG_MD_RAID5_RESHAPE=y
-CONFIG_BLK_DEV_DM=y
-CONFIG_DM_CRYPT=y
-CONFIG_FUSION=y
-CONFIG_FUSION_SPI=y
-CONFIG_FUSION_CTL=y
-CONFIG_NETDEVICES=y
-CONFIG_TUN=y
-CONFIG_PHYLIB=y
-CONFIG_MARVELL_PHY=y
-CONFIG_DAVICOM_PHY=y
-CONFIG_QSEMI_PHY=y
-CONFIG_LXT_PHY=y
-CONFIG_CICADA_PHY=y
-CONFIG_NET_ETHERNET=y
-CONFIG_MII=y
-CONFIG_NET_PCI=y
-CONFIG_FORCEDETH=y
-CONFIG_NETDEV_1000=y
-CONFIG_SKGE=y
-CONFIG_SK98LIN=y
-CONFIG_PLIP=y
-CONFIG_PPP=y
-CONFIG_PPP_FILTER=y
-CONFIG_PPP_ASYNC=y
-CONFIG_PPP_DEFLATE=y
-CONFIG_PPP_BSDCOMP=y
-CONFIG_SLHC=y
-CONFIG_INPUT=y
-CONFIG_INPUT_MOUSEDEV=y
-CONFIG_INPUT_MOUSEDEV_PSAUX=y
-CONFIG_INPUT_EVDEV=y
-CONFIG_INPUT_KEYBOARD=y
-CONFIG_KEYBOARD_ATKBD=y
-CONFIG_INPUT_MOUSE=y
-CONFIG_MOUSE_PS2=y
-CONFIG_MOUSE_PS2_ALPS=y
-CONFIG_MOUSE_PS2_LOGIPS2PP=y
-CONFIG_MOUSE_PS2_SYNAPTICS=y
-CONFIG_MOUSE_PS2_LIFEBOOK=y
-CONFIG_MOUSE_PS2_TRACKPOINT=y
-CONFIG_SERIO=y
-CONFIG_SERIO_I8042=y
-CONFIG_SERIO_LIBPS2=y
-CONFIG_VT=y
-CONFIG_VT_CONSOLE=y
-CONFIG_HW_CONSOLE=y
-CONFIG_SERIAL_8250=y
-CONFIG_FIX_EARLYCON_MEM=y
-CONFIG_SERIAL_8250_PCI=y
-CONFIG_SERIAL_8250_PNP=y
-CONFIG_SERIAL_CORE=y
-CONFIG_UNIX98_PTYS=y
-CONFIG_LEGACY_PTYS=y
-CONFIG_PRINTER=y
-CONFIG_PPDEV=y
-CONFIG_RTC=y
-CONFIG_DEVPORT=y
-CONFIG_I2C=y
-CONFIG_I2C_BOARDINFO=y
-CONFIG_I2C_ALGOBIT=y
-CONFIG_POWER_SUPPLY=y
-CONFIG_HWMON=y
-CONFIG_SENSORS_K8TEMP=y
-CONFIG_SSB_POSSIBLE=y
-CONFIG_AGP=y
-CONFIG_AGP_VIA=y
-CONFIG_FB=y
-CONFIG_FIRMWARE_EDID=y
-CONFIG_FB_CFB_FILLRECT=y
-CONFIG_FB_CFB_COPYAREA=y
-CONFIG_FB_CFB_IMAGEBLIT=y
-CONFIG_FB_DEFERRED_IO=y
-CONFIG_FB_VESA=y
-CONFIG_VGA_CONSOLE=y
-CONFIG_VIDEO_SELECT=y
-CONFIG_DUMMY_CONSOLE=y
-CONFIG_FRAMEBUFFER_CONSOLE=y
-CONFIG_FONT_8x8=y
-CONFIG_FONT_8x16=y
-CONFIG_LOGO=y
-CONFIG_LOGO_LINUX_CLUT224=y
-CONFIG_HID_SUPPORT=y
-CONFIG_HID=y
-CONFIG_USB_HID=y
-CONFIG_USB_HIDDEV=y
-CONFIG_USB_SUPPORT=y
-CONFIG_USB_ARCH_HAS_HCD=y
-CONFIG_USB_ARCH_HAS_OHCI=y
-CONFIG_USB_ARCH_HAS_EHCI=y
-CONFIG_USB=y
-CONFIG_USB_DEVICEFS=y
-CONFIG_USB_EHCI_HCD=y
-CONFIG_USB_UHCI_HCD=y
-CONFIG_USB_STORAGE=y
-CONFIG_RTC_LIB=y
-CONFIG_RTC_CLASS=y
-CONFIG_RTC_HCTOSYS=y
-CONFIG_RTC_INTF_SYSFS=y
-CONFIG_RTC_INTF_PROC=y
-CONFIG_RTC_INTF_DEV=y
-CONFIG_RTC_DRV_DS1672=y
-CONFIG_RTC_DRV_RS5C372=y
-CONFIG_RTC_DRV_X1205=y
-CONFIG_RTC_DRV_PCF8563=y
-CONFIG_RTC_DRV_CMOS=y
-CONFIG_RTC_DRV_M48T86=y
-CONFIG_DMADEVICES=y
-CONFIG_DMIID=y
-CONFIG_EXT2_FS=y
-CONFIG_EXT2_FS_XATTR=y
-CONFIG_EXT2_FS_POSIX_ACL=y
-CONFIG_EXT2_FS_SECURITY=y
-CONFIG_EXT3_FS=y
-CONFIG_EXT3_FS_XATTR=y
-CONFIG_EXT3_FS_POSIX_ACL=y
-CONFIG_EXT3_FS_SECURITY=y
-CONFIG_JBD=y
-CONFIG_FS_MBCACHE=y
-CONFIG_FS_POSIX_ACL=y
-CONFIG_ROMFS_FS=y
-CONFIG_INOTIFY=y
-CONFIG_INOTIFY_USER=y
-CONFIG_QUOTA=y
-CONFIG_QFMT_V2=y
-CONFIG_QUOTACTL=y
-CONFIG_DNOTIFY=y
-CONFIG_ISO9660_FS=y
-CONFIG_JOLIET=y
-CONFIG_ZISOFS=y
-CONFIG_UDF_FS=y
-CONFIG_UDF_NLS=y
-CONFIG_FAT_FS=y
-CONFIG_MSDOS_FS=y
-CONFIG_VFAT_FS=y
-CONFIG_PROC_FS=y
-CONFIG_PROC_KCORE=y
-CONFIG_PROC_SYSCTL=y
-CONFIG_SYSFS=y
-CONFIG_TMPFS=y
-CONFIG_NETWORK_FILESYSTEMS=y
-CONFIG_MSDOS_PARTITION=y
-CONFIG_NLS=y
-CONFIG_NLS_CODEPAGE_437=y
-CONFIG_NLS_CODEPAGE_737=y
-CONFIG_NLS_CODEPAGE_775=y
-CONFIG_NLS_CODEPAGE_850=y
-CONFIG_NLS_CODEPAGE_852=y
-CONFIG_NLS_CODEPAGE_855=y
-CONFIG_NLS_CODEPAGE_857=y
-CONFIG_NLS_CODEPAGE_860=y
-CONFIG_NLS_CODEPAGE_861=y
-CONFIG_NLS_CODEPAGE_862=y
-CONFIG_NLS_CODEPAGE_863=y
-CONFIG_NLS_CODEPAGE_864=y
-CONFIG_NLS_CODEPAGE_865=y
-CONFIG_NLS_CODEPAGE_866=y
-CONFIG_NLS_CODEPAGE_869=y
-CONFIG_NLS_CODEPAGE_936=y
-CONFIG_NLS_CODEPAGE_950=y
-CONFIG_NLS_CODEPAGE_932=y
-CONFIG_NLS_CODEPAGE_949=y
-CONFIG_NLS_CODEPAGE_874=y
-CONFIG_NLS_ISO8859_8=y
-CONFIG_NLS_CODEPAGE_1250=y
-CONFIG_NLS_CODEPAGE_1251=y
-CONFIG_NLS_ASCII=y
-CONFIG_NLS_ISO8859_1=y
-CONFIG_NLS_ISO8859_2=y
-CONFIG_NLS_ISO8859_3=y
-CONFIG_NLS_ISO8859_4=y
-CONFIG_NLS_ISO8859_5=y
-CONFIG_NLS_ISO8859_6=y
-CONFIG_NLS_ISO8859_7=y
-CONFIG_NLS_ISO8859_9=y
-CONFIG_NLS_ISO8859_13=y
-CONFIG_NLS_ISO8859_14=y
-CONFIG_NLS_ISO8859_15=y
-CONFIG_NLS_KOI8_R=y
-CONFIG_NLS_KOI8_U=y
-CONFIG_NLS_UTF8=y
-CONFIG_TRACE_IRQFLAGS_SUPPORT=y
-CONFIG_ENABLE_WARN_DEPRECATED=y
-CONFIG_ENABLE_MUST_CHECK=y
-CONFIG_DEBUG_BUGVERBOSE=y
-CONFIG_EARLY_PRINTK=y
-CONFIG_X86_FIND_SMP_CONFIG=y
-CONFIG_X86_MPPARSE=y
-CONFIG_DOUBLEFAULT=y
-CONFIG_XOR_BLOCKS=y
-CONFIG_ASYNC_CORE=y
-CONFIG_ASYNC_MEMCPY=y
-CONFIG_ASYNC_XOR=y
-CONFIG_CRYPTO=y
-CONFIG_CRYPTO_ALGAPI=y
-CONFIG_CRYPTO_BLKCIPHER=y
-CONFIG_CRYPTO_MANAGER=y
-CONFIG_CRYPTO_CBC=y
-CONFIG_CRYPTO_PCBC=y
-CONFIG_CRYPTO_AES=y
-CONFIG_CRYPTO_AES_586=y
-CONFIG_CRYPTO_HW=y
-CONFIG_BITREVERSE=y
-CONFIG_CRC_CCITT=y
-CONFIG_CRC32=y
-CONFIG_ZLIB_INFLATE=y
-CONFIG_ZLIB_DEFLATE=y
-CONFIG_TEXTSEARCH=y
-CONFIG_TEXTSEARCH_KMP=y
-CONFIG_TEXTSEARCH_BM=y
-CONFIG_TEXTSEARCH_FSM=y
-CONFIG_PLIST=y
-CONFIG_HAS_IOMEM=y
-CONFIG_HAS_IOPORT=y
-CONFIG_HAS_DMA=y
-
+diff --git a/fs/buffer.c b/fs/buffer.c
+index f349f13..c234d79 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -2570,14 +2570,13 @@ int nobh_write_end(struct file *file, struct address_space *mapping,
+ 	struct inode *inode = page->mapping->host;
+ 	struct buffer_head *head = fsdata;
+ 	struct buffer_head *bh;
++	BUG_ON(fsdata != NULL && page_has_buffers(page));
+ 
+-	if (!PageMappedToDisk(page)) {
+-		if (unlikely(copied < len) && !page_has_buffers(page))
+-			attach_nobh_buffers(page, head);
+-		if (page_has_buffers(page))
+-			return generic_write_end(file, mapping, pos, len,
+-						copied, page, fsdata);
+-	}
++	if (unlikely(copied < len) && !page_has_buffers(page))
++		attach_nobh_buffers(page, head);
++	if (page_has_buffers(page))
++		return generic_write_end(file, mapping, pos, len,
++					copied, page, fsdata);
+ 
+ 	SetPageUptodate(page);
+ 	set_page_dirty(page);
+-- 
+1.5.4.rc4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
