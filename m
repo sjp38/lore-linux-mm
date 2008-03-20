@@ -1,44 +1,61 @@
-Date: Thu, 20 Mar 2008 14:09:43 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 5/7] radix-tree page cgroup
-Message-Id: <20080320140943.6d879380.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080320134513.3e4d45f1.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080314185954.5cd51ff6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080314191733.eff648f8.kamezawa.hiroyu@jp.fujitsu.com>
-	<1205961066.6437.10.camel@lappy>
-	<20080320134513.3e4d45f1.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 5/9] slub: Fallback to minimal order during slab page
+	allocation
+From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+In-Reply-To: <20080317230528.939792410@sgi.com>
+References: <20080317230516.078358225@sgi.com>
+	 <20080317230528.939792410@sgi.com>
+Content-Type: text/plain; charset=utf-8
+Date: Thu, 20 Mar 2008 13:10:39 +0800
+Message-Id: <1205989839.14496.32.camel@ymzhang>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, xemul@openvz.org, "hugh@veritas.com" <hugh@veritas.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mel@csn.ul.ie>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 Mar 2008 13:45:13 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
->
-> > > +	base_pfn = idx << PCGRP_SHIFT;
-> > > +retry:
-> > > +	error = 0;
-> > > +	rcu_read_lock();
-> > > +	head = radix_tree_lookup(&root->root_node, idx);
-> > > +	rcu_read_unlock();
-> > 
-> > This looks iffy, who protects head here?
-> > 
+On Mon, 2008-03-17 at 16:05 -0700, Christoph Lameter wrote:
+> plain text document attachment
+> (0005-slub-Fallback-to-minimal-order-during-slab-page-all.patch)
+> If any higher order allocation fails then fall back the smallest order
+> necessary to contain at least one object.
 > 
-> In this patch, a routine for freeing "head" is not included.
-> Then....Hmm.....rcu_read_xxx is not required...I'll remove it.
-> I'll check the whole logic around here again.
+> Add a new field min_objects that will contain the objects for the smallest
+> possible order of an allocation.
 > 
-Sorry, I was confused...for radix-tree, ruc_xxx is necessary.
+> Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> ---
+>  include/linux/slub_def.h |    2 +
+>  mm/slub.c                |   49 +++++++++++++++++++++++++++++++++--------------
+>  2 files changed, 37 insertions(+), 14 deletions(-)
+> 
+> Index: linux-2.6/include/linux/slub_def.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/slub_def.h	2008-03-17 15:32:07.605564060 -0700
+> +++ linux-2.6/include/linux/slub_def.h	2008-03-17 15:33:05.718268322 -0700
+> @@ -29,6 +29,7 @@ enum stat_item {
+>  	DEACTIVATE_TO_HEAD,	/* Cpu slab was moved to the head of partials */
+>  	DEACTIVATE_TO_TAIL,	/* Cpu slab was moved to the tail of partials */
+>  	DEACTIVATE_REMOTE_FREES,/* Slab contained remotely freed objects */
+> +	ORDER_FALLBACK,		/* Number of times fallback was necessary */
+>  	NR_SLUB_STAT_ITEMS };
+>  
+>  struct kmem_cache_cpu {
+> @@ -73,6 +74,7 @@ struct kmem_cache {
+>  	/* Allocation and freeing of slabs */
+>  	int max_objects;	/* Number of objects in a slab of maximum size */
+>  	int objects;		/* Number of objects in a slab of current size */
+> +	int min_objects;	/* Number of objects in a slab of mininum size */
+Will min_objects be exported by sysfs? If not, I would like not to add the member.
+In stead, just change function allocate_slab:
 
-Regards,
--Kame
- 
+page->objects = (PAGE_SIZE << get_order(s->size)) / s->size;
+
+
+It'll look more readable and be simplified.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
