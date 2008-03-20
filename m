@@ -1,11 +1,11 @@
-Date: Thu, 20 Mar 2008 13:45:13 +0900
+Date: Thu, 20 Mar 2008 13:46:31 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 5/7] radix-tree page cgroup
-Message-Id: <20080320134513.3e4d45f1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1205961066.6437.10.camel@lappy>
+Subject: Re: [PATCH 6/7] memcg: speed up by percpu
+Message-Id: <20080320134631.aa5b80f6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1205961565.6437.16.camel@lappy>
 References: <20080314185954.5cd51ff6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080314191733.eff648f8.kamezawa.hiroyu@jp.fujitsu.com>
-	<1205961066.6437.10.camel@lappy>
+	<20080314191852.50b4b569.kamezawa.hiroyu@jp.fujitsu.com>
+	<1205961565.6437.16.camel@lappy>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -15,97 +15,44 @@ To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, xemul@openvz.org, "hugh@veritas.com" <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-thank you for review.
-
-On Wed, 19 Mar 2008 22:11:06 +0100
+On Wed, 19 Mar 2008 22:19:25 +0100
 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> > New function is
-> > 
-> > struct page *get_page_cgroup(struct page *page, gfp_mask mask, bool allocate);
-> > 
-> > if (allocate == true), look up and allocate new one if necessary.
-> > if (allocate == false), just do look up and return NULL if not exist.
-> 
-> I think others said as well, but we generally just write
-> 
->  if (allocate)
-> 
->  if (!allocate)
-> 
-ok. I'm now separating this function to 2 functions.
-just look-up/ look-up and allocate.
 
-
-> > +	struct page_cgroup_head *head;
+> > +static inline struct page_cgroup *
+> > +get_page_cgroup(struct page *page, gfp_t gfpmask, bool allocate)
+> > +{
+> > +	unsigned long pfn = page_to_pfn(page);
+> > +	struct page_cgroup_cache *pcp;
+> > +	struct page_cgroup *ret;
+> > +	unsigned long idx = pfn >> PCGRP_SHIFT;
+> > +	int hnum = (idx) & (PAGE_CGROUP_NR_CACHE - 1);
 > > +
-> > +	head = kmem_cache_alloc_node(page_cgroup_cachep, mask, nid);
-> > +	if (!head)
-> > +		return NULL;
-> > +
-> > +	init_page_cgroup(head, pfn);
+> > +	preempt_disable();
 > 
-> Just because I'm lazy, I'll suggest the shorter:
+> get_cpu_var()
 > 
-> if (head)
->    init_page_cgroup(head, pfn)
-I'll fix.
-
-
-> > +	struct page_cgroup_root *root;
-> > +	struct page_cgroup_head *head;
-> > +	struct page_cgroup *pc;
-> > +	unsigned long pfn, idx;
-> > +	int nid;
-> > +	unsigned long base_pfn, flags;
-> > +	int error;
+> > +	pcp = &__get_cpu_var(pcpu_page_cgroup_cache);
+> > +	if (pcp->ents[hnum].idx == idx && pcp->ents[hnum].base)
+> > +		ret = pcp->ents[hnum].base + (pfn - (idx << PCGRP_SHIFT));
+> > +	else
+> > +		ret = NULL;
+> > +	preempt_enable();
 > 
-> Would a this make sense? :
+> put_cpu_var()
 > 
->   might_sleep_if(allocate && (gfp_mask & __GFP_WAIT));
+> > +	return (ret)? ret : __get_page_cgroup(page, gfpmask, allocate);
 > 
-seems good. I'll add it.
-
-
-> > +	base_pfn = idx << PCGRP_SHIFT;
-> > +retry:
-> > +	error = 0;
-> > +	rcu_read_lock();
-> > +	head = radix_tree_lookup(&root->root_node, idx);
-> > +	rcu_read_unlock();
+> if (!ret)
+>   ret = __get_page_cgroup();
 > 
-> This looks iffy, who protects head here?
+> return ret;
 > 
-
-In this patch, a routine for freeing "head" is not included.
-Then....Hmm.....rcu_read_xxx is not required...I'll remove it.
-I'll check the whole logic around here again.
-
-> > +	for_each_online_node(nid) {
-> > +		if (node_state(nid, N_NORMAL_MEMORY)
-> > +			root = kmalloc_node(sizeof(struct page_cgroup_root),
-> > +					GFP_KERNEL, nid);
-> > +		else
-> > +			root = kmalloc(sizeof(struct page_cgroup_root),
-> > +					GFP_KERNEL);
-> 
-> if (!node_state(nid, N_NORMAL_MEMORY))
->   nid = -1;
-> 
-> allows us to use a single kmalloc_node() statement.
-> 
-Oh, ok. it seems good.
-
-> > +		INIT_RADIX_TREE(&root->root_node, GFP_ATOMIC);
-> > +		spin_lock_init(&root->tree_lock);
-> > +		smp_wmb();
-> 
-> unadorned barrier; we usually require a comment outlining the race, and
-> a reference to the matching barrier.
-> 
-I'll add comments.
+ok, I'll fix. 
 
 Thanks,
 -Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
