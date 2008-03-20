@@ -1,456 +1,844 @@
-Message-Id: <20080320202124.132168000@chello.nl>
+Message-Id: <20080320202122.938305000@chello.nl>
 References: <20080320201042.675090000@chello.nl>
-Date: Thu, 20 Mar 2008 21:11:00 +0100
+Date: Thu, 20 Mar 2008 21:10:54 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 18/30] netvm: INET reserves.
-Content-Disposition: inline; filename=netvm-reserve-inet.patch
+Subject: [PATCH 12/30] mm: memory reserve management
+Content-Disposition: inline; filename=mm-reserve.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, neilb@suse.de, miklos@szeredi.hu, penberg@cs.helsinki.fi, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-Add reserves for INET.
+Generic reserve management code. 
 
-The two big users seem to be the route cache and ip-fragment cache.
+It provides methods to reserve and charge. Upon this, generic alloc/free style
+reserve pools could be build, which could fully replace mempool_t
+functionality.
 
-Reserve the route cache under generic RX reserve, its usage is bounded by
-the high reclaim watermark, and thus does not need further accounting.
-
-Reserve the ip-fragement caches under SKB data reserve, these add to the
-SKB RX limit. By ensuring we can at least receive as much data as fits in
-the reassmbly line we avoid fragment attack deadlocks.
-
-Use proc conv() routines to update these limits and return -ENOMEM to user
-space.
-
-Adds to the reserve tree:
-
-  total network reserve      
-    network TX reserve       
-      protocol TX pages      
-    network RX reserve       
-+     IPv6 route cache       
-+     IPv4 route cache       
-      SKB data reserve       
-+       IPv6 fragment cache  
-+       IPv4 fragment cache  
+It should also allow for a Banker's algorithm replacement of __GFP_NOFAIL.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- net/ipv4/ip_fragment.c |   65 +++++++++++++++++++++++++++++++++++++++++++++++--
- net/ipv4/route.c       |   65 +++++++++++++++++++++++++++++++++++++++++++++++--
- net/ipv6/reassembly.c  |   65 +++++++++++++++++++++++++++++++++++++++++++++++--
- net/ipv6/route.c       |   65 +++++++++++++++++++++++++++++++++++++++++++++++--
- 4 files changed, 252 insertions(+), 8 deletions(-)
+ include/linux/reserve.h |  146 +++++++++++
+ include/linux/slab.h    |   20 -
+ mm/Makefile             |    2 
+ mm/reserve.c            |  594 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 752 insertions(+), 10 deletions(-)
 
-Index: linux-2.6/net/ipv4/ip_fragment.c
+Index: linux-2.6/include/linux/reserve.h
 ===================================================================
---- linux-2.6.orig/net/ipv4/ip_fragment.c
-+++ linux-2.6/net/ipv4/ip_fragment.c
-@@ -44,6 +44,7 @@
- #include <linux/udp.h>
- #include <linux/inet.h>
- #include <linux/netfilter_ipv4.h>
+--- /dev/null
++++ linux-2.6/include/linux/reserve.h
+@@ -0,0 +1,146 @@
++/*
++ * Memory reserve management.
++ *
++ *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
++ *
++ * This file contains the public data structure and API definitions.
++ */
++
++#ifndef _LINUX_RESERVE_H
++#define _LINUX_RESERVE_H
++
++#include <linux/list.h>
++#include <linux/spinlock.h>
++#include <linux/wait.h>
++#include <linux/slab.h>
++
++struct mem_reserve {
++	struct mem_reserve *parent;
++	struct list_head children;
++	struct list_head siblings;
++
++	const char *name;
++
++	long pages;
++	long limit;
++	long usage;
++	spinlock_t lock;	/* protects limit and usage */
++
++	wait_queue_head_t waitqueue;
++};
++
++extern struct mem_reserve mem_reserve_root;
++
++void mem_reserve_init(struct mem_reserve *res, const char *name,
++		      struct mem_reserve *parent);
++int mem_reserve_connect(struct mem_reserve *new_child,
++			struct mem_reserve *node);
++void mem_reserve_disconnect(struct mem_reserve *node);
++
++int mem_reserve_pages_set(struct mem_reserve *res, long pages);
++int mem_reserve_pages_add(struct mem_reserve *res, long pages);
++int mem_reserve_pages_charge(struct mem_reserve *res, long pages);
++
++int mem_reserve_kmalloc_set(struct mem_reserve *res, long bytes);
++int mem_reserve_kmalloc_charge(struct mem_reserve *res, long bytes);
++
++struct kmem_cache;
++
++int mem_reserve_kmem_cache_set(struct mem_reserve *res,
++			       struct kmem_cache *s,
++			       int objects);
++int mem_reserve_kmem_cache_charge(struct mem_reserve *res,
++				  struct kmem_cache *s, long objs);
++
++void *___kmalloc_reserve(size_t size, gfp_t flags, int node, void *ip,
++			 struct mem_reserve *res, int *emerg);
++
++static inline
++void *__kmalloc_reserve(size_t size, gfp_t flags, int node, void *ip,
++			struct mem_reserve *res, int *emerg)
++{
++	void *obj;
++
++	obj = __kmalloc_node_track_caller(size,
++			flags | __GFP_NOMEMALLOC | __GFP_NOWARN, node, ip);
++	if (!obj)
++		obj = ___kmalloc_reserve(size, flags, node, ip, res, emerg);
++
++	return obj;
++}
++
++#define kmalloc_reserve(size, gfp, node, res, emerg) 			\
++	__kmalloc_reserve(size, gfp, node, 				\
++			  __builtin_return_address(0), res, emerg)
++
++void __kfree_reserve(void *obj, struct mem_reserve *res, int emerg);
++
++static inline
++void kfree_reserve(void *obj, struct mem_reserve *res, int emerg)
++{
++	if (unlikely(obj && res && emerg))
++		__kfree_reserve(obj, res, emerg);
++	else
++		kfree(obj);
++}
++
++void *__kmem_cache_alloc_reserve(struct kmem_cache *s, gfp_t flags, int node,
++				 struct mem_reserve *res, int *emerg);
++static inline
++void *kmem_cache_alloc_reserve(struct kmem_cache *s, gfp_t flags, int node,
++			       struct mem_reserve *res, int *emerg)
++{
++	void *obj;
++
++	obj = kmem_cache_alloc_node(s,
++			flags | __GFP_NOMEMALLOC | __GFP_NOWARN, node);
++	if (!obj)
++		obj = __kmem_cache_alloc_reserve(s, flags, node, res, emerg);
++
++	return obj;
++}
++
++void __kmem_cache_free_reserve(struct kmem_cache *s, void *obj,
++			       struct mem_reserve *res, int emerg);
++
++static inline
++void kmem_cache_free_reserve(struct kmem_cache *s, void *obj,
++			     struct mem_reserve *res, int emerg)
++{
++	if (unlikely(obj && res && emerg))
++		__kmem_cache_free_reserve(s, obj, res, emerg);
++	else
++		kmem_cache_free(s, obj);
++}
++
++struct page *__alloc_pages_reserve(int node, gfp_t flags, int order,
++				  struct mem_reserve *res, int *emerg);
++
++static inline
++struct page *alloc_pages_reserve(int node, gfp_t flags, int order,
++				 struct mem_reserve *res, int *emerg)
++{
++	struct page *page;
++
++	page = alloc_pages_node(node,
++			flags | __GFP_NOMEMALLOC | __GFP_NOWARN, order);
++	if (!page)
++		page = __alloc_pages_reserve(node, flags, order, res, emerg);
++
++	return page;
++}
++
++void __free_pages_reserve(struct page *page, int order,
++			  struct mem_reserve *res, int emerg);
++
++static inline
++void free_pages_reserve(struct page *page, int order,
++			struct mem_reserve *res, int emerg)
++{
++	if (unlikely(page && res && emerg))
++		__free_pages_reserve(page, order, res, emerg);
++	else
++		__free_pages(page, order);
++}
++
++#endif /* _LINUX_RESERVE_H */
+Index: linux-2.6/mm/Makefile
+===================================================================
+--- linux-2.6.orig/mm/Makefile
++++ linux-2.6/mm/Makefile
+@@ -11,7 +11,7 @@ obj-y			:= bootmem.o filemap.o mempool.o
+ 			   maccess.o page_alloc.o page-writeback.o pdflush.o \
+ 			   readahead.o swap.o truncate.o vmscan.o \
+ 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
+-			   page_isolation.o $(mmu-y)
++			   page_isolation.o reserve.o $(mmu-y)
+ 
+ obj-$(CONFIG_PROC_PAGE_MONITOR) += pagewalk.o
+ obj-$(CONFIG_BOUNCE)	+= bounce.o
+Index: linux-2.6/mm/reserve.c
+===================================================================
+--- /dev/null
++++ linux-2.6/mm/reserve.c
+@@ -0,0 +1,594 @@
++/*
++ * Memory reserve management.
++ *
++ *  Copyright (C) 2007, Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
++ *
++ * Description:
++ *
++ * Manage a set of memory reserves.
++ *
++ * A memory reserve is a reserve for a specified number of object of specified
++ * size. Since memory is managed in pages, this reserve demand is then
++ * translated into a page unit.
++ *
++ * So each reserve has a specified object limit, an object usage count and a
++ * number of pages required to back these objects.
++ *
++ * Usage is charged against a reserve, if the charge fails, the resource must
++ * not be allocated/used.
++ *
++ * The reserves are managed in a tree, and the resource demands (pages and
++ * limit) are propagated up the tree. Obviously the object limit will be
++ * meaningless as soon as the unit starts mixing, but the required page reserve
++ * (being of one unit) is still valid at the root.
++ *
++ * It is the page demand of the root node that is used to set the global
++ * reserve (adjust_memalloc_reserve() which sets zone->pages_emerg).
++ *
++ * As long as a subtree has the same usage unit, an aggregate node can be used
++ * to charge against, instead of the leaf nodes. However, do be consistent with
++ * who is charged, resource usage is not propagated up the tree (for
++ * performance reasons).
++ */
++
 +#include <linux/reserve.h>
- 
- /* NOTE. Logic of IP defragmentation is parallel to corresponding IPv6
-  * code now. If you change something here, _PLEASE_ update ipv6/reassembly.c
-@@ -591,17 +592,72 @@ int ip_defrag(struct sk_buff *skb, u32 u
- 	return -ENOMEM;
- }
- 
-+static struct mem_reserve ipv4_frag_reserve;
++#include <linux/mutex.h>
++#include <linux/mmzone.h>
++#include <linux/log2.h>
++#include <linux/proc_fs.h>
++#include <linux/seq_file.h>
++#include <linux/module.h>
++#include <linux/slab.h>
++#include <linux/sched.h>
++#include "internal.h"
 +
- #ifdef CONFIG_SYSCTL
-+static int ipv4_frag_bytes;
++static DEFINE_MUTEX(mem_reserve_mutex);
 +
-+static int proc_dointvec_fragment(struct ctl_table *table, int write,
-+		struct file *filp, void __user *buffer, size_t *lenp,
-+		loff_t *ppos)
++/**
++ * @mem_reserve_root - the global reserve root
++ *
++ * The global reserve is empty, and has no limit unit, it merely
++ * acts as an aggregation point for reserves and an interface to
++ * adjust_memalloc_reserve().
++ */
++struct mem_reserve mem_reserve_root = {
++	.children = LIST_HEAD_INIT(mem_reserve_root.children),
++	.siblings = LIST_HEAD_INIT(mem_reserve_root.siblings),
++	.name = "total reserve",
++	.lock = __SPIN_LOCK_UNLOCKED(mem_reserve_root.lock),
++	.waitqueue = __WAIT_QUEUE_HEAD_INITIALIZER(mem_reserve_root.waitqueue),
++};
++EXPORT_SYMBOL_GPL(mem_reserve_root);
++
++/**
++ * mem_reserve_init() - initialize a memory reserve object
++ * @res - the new reserve object
++ * @name - a name for this reserve
++ * @parent - when non NULL, the parent to connect to.
++ */
++void mem_reserve_init(struct mem_reserve *res, const char *name,
++		      struct mem_reserve *parent)
 +{
-+	int old_bytes, ret;
++	memset(res, 0, sizeof(*res));
++	INIT_LIST_HEAD(&res->children);
++	INIT_LIST_HEAD(&res->siblings);
++	res->name = name;
++	spin_lock_init(&res->lock);
++	init_waitqueue_head(&res->waitqueue);
 +
-+	if (!write)
-+		ipv4_frag_bytes = init_net.ipv4.frags.high_thresh;
-+	old_bytes = ipv4_frag_bytes;
++	if (parent)
++		mem_reserve_connect(res, parent);
++}
++EXPORT_SYMBOL_GPL(mem_reserve_init);
 +
-+	ret = proc_dointvec(table, write, filp, buffer, lenp, ppos);
++/*
++ * propagate the pages and limit changes up the (sub)tree.
++ */
++static void __calc_reserve(struct mem_reserve *res, long pages, long limit)
++{
++	unsigned long flags;
 +
-+	if (!ret && write) {
-+		ret = mem_reserve_kmalloc_set(&ipv4_frag_reserve,
-+					      ipv4_frag_bytes);
-+		if (!ret)
-+			init_net.ipv4.frags.high_thresh = ipv4_frag_bytes;
-+		else
-+			ipv4_frag_bytes = old_bytes;
++	for ( ; res; res = res->parent) {
++		res->pages += pages;
++
++		if (limit) {
++			spin_lock_irqsave(&res->lock, flags);
++			res->limit += limit;
++			spin_unlock_irqrestore(&res->lock, flags);
++		}
 +	}
++}
++
++/**
++ * __mem_reserve_add() - primitive to change the size of a reserve
++ * @res - reserve to change
++ * @pages - page delta
++ * @limit - usage limit delta
++ *
++ * Returns -ENOMEM when a size increase is not possible atm.
++ */
++static int __mem_reserve_add(struct mem_reserve *res, long pages, long limit)
++{
++	int ret = 0;
++	long reserve;
++
++	/*
++	 * This looks more complex than need be, that is because we handle
++	 * the case where @res isn't actually connected to mem_reserve_root.
++	 *
++	 * So, by propagating the new pages up the (sub)tree and computing
++	 * the difference in mem_reserve_root.pages we find if this action
++	 * affects the actual reserve.
++	 *
++	 * The (partial) propagation also makes that mem_reserve_connect()
++	 * needs only look at the direct child, since each disconnected
++	 * sub-tree is fully up-to-date.
++	 */
++	reserve = mem_reserve_root.pages;
++	__calc_reserve(res, pages, 0);
++	reserve = mem_reserve_root.pages - reserve;
++
++	if (reserve) {
++		ret = adjust_memalloc_reserve(reserve);
++		if (ret)
++			__calc_reserve(res, -pages, 0);
++	}
++
++	/*
++	 * Delay updating the limits until we've acquired the resources to
++	 * back it.
++	 */
++	if (!ret)
++		__calc_reserve(res, 0, limit);
 +
 +	return ret;
 +}
 +
-+static int sysctl_intvec_fragment(struct ctl_table *table,
-+		int __user *name, int nlen,
-+		void __user *oldval, size_t __user *oldlenp,
-+		void __user *newval, size_t newlen)
++/**
++ * __mem_reserve_charge() - primitive to charge object usage of a reserve
++ * @res - reserve to charge
++ * @charge - size of the charge
++ *
++ * Returns non-zero on success, zero on failure.
++ */
++static
++int __mem_reserve_charge(struct mem_reserve *res, long charge)
 +{
-+	int old_bytes, ret;
-+	int write = (newval && newlen);
++	unsigned long flags;
++	int ret = 0;
 +
-+	if (!write)
-+		ipv4_frag_bytes = init_net.ipv4.frags.high_thresh;
-+	old_bytes = ipv4_frag_bytes;
-+
-+	ret = sysctl_intvec(table, name, nlen, oldval, oldlenp, newval, newlen);
-+
-+	if (!ret && write) {
-+		ret = mem_reserve_kmalloc_set(&ipv4_frag_reserve,
-+					      ipv4_frag_bytes);
-+		if (!ret)
-+			init_net.ipv4.frags.high_thresh = ipv4_frag_bytes;
-+		else
-+			ipv4_frag_bytes = old_bytes;
++	spin_lock_irqsave(&res->lock, flags);
++	if (charge < 0 || res->usage + charge < res->limit) {
++		res->usage += charge;
++		if (unlikely(res->usage < 0))
++			res->usage = 0;
++		ret = 1;
 +	}
++	if (charge < 0)
++		wake_up_all(&res->waitqueue);
++	spin_unlock_irqrestore(&res->lock, flags);
 +
 +	return ret;
 +}
 +
- static int zero;
- 
- static struct ctl_table ip4_frags_ctl_table[] = {
- 	{
- 		.ctl_name	= NET_IPV4_IPFRAG_HIGH_THRESH,
- 		.procname	= "ipfrag_high_thresh",
--		.data		= &init_net.ipv4.frags.high_thresh,
-+		.data		= &ipv4_frag_bytes,
- 		.maxlen		= sizeof(int),
- 		.mode		= 0644,
--		.proc_handler	= &proc_dointvec
-+		.proc_handler	= &proc_dointvec_fragment,
-+		.strategy	= &sysctl_intvec_fragment,
- 	},
- 	{
- 		.ctl_name	= NET_IPV4_IPFRAG_LOW_THRESH,
-@@ -736,6 +792,11 @@ void __init ipfrag_init(void)
- 	ip4_frags.frag_expire = ip_expire;
- 	ip4_frags.secret_interval = 10 * 60 * HZ;
- 	inet_frags_init(&ip4_frags);
++/**
++ * mem_reserve_connect() - connect a reserve to another in a child-parent relation
++ * @new_child - the reserve node to connect (child)
++ * @node - the reserve node to connect to (parent)
++ *
++ * Connecting a node results in an increase of the reserve by the amount of
++ * pages in @new_child->pages if @node has a connection to mem_reserve_root.
++ *
++ * Returns -ENOMEM when the new connection would increase the reserve (parent
++ * is connected to mem_reserve_root) and there is no memory to do so.
++ *
++ * On error, the child is _NOT_ connected.
++ */
++int mem_reserve_connect(struct mem_reserve *new_child, struct mem_reserve *node)
++{
++	int ret;
 +
-+	mem_reserve_init(&ipv4_frag_reserve, "IPv4 fragment cache",
-+			 &net_skb_reserve);
-+	mem_reserve_kmalloc_set(&ipv4_frag_reserve,
-+				init_net.ipv4.frags.high_thresh);
- }
- 
- EXPORT_SYMBOL(ip_defrag);
-Index: linux-2.6/net/ipv6/reassembly.c
++	WARN_ON(!new_child->name);
++
++	mutex_lock(&mem_reserve_mutex);
++	if (new_child->parent) {
++		ret = -EEXIST;
++		goto unlock;
++	}
++	new_child->parent = node;
++	list_add(&new_child->siblings, &node->children);
++	ret = __mem_reserve_add(node, new_child->pages, new_child->limit);
++	if (ret) {
++		new_child->parent = NULL;
++		list_del_init(&new_child->siblings);
++	}
++unlock:
++	mutex_unlock(&mem_reserve_mutex);
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(mem_reserve_connect);
++
++/**
++ * mem_reserve_disconnect() - sever a nodes connection to the reserve tree
++ * @node - the node to disconnect
++ *
++ * Disconnecting a node results in a reduction of the reserve by @node->pages
++ * if node had a connection to mem_reserve_root.
++ */
++void mem_reserve_disconnect(struct mem_reserve *node)
++{
++	int ret;
++
++	BUG_ON(!node->parent);
++
++	mutex_lock(&mem_reserve_mutex);
++	if (!node->parent) {
++		ret = -ENOENT;
++		goto unlock;
++	}
++	ret = __mem_reserve_add(node->parent, -node->pages, -node->limit);
++	if (!ret) {
++		node->parent = NULL;
++		list_del_init(&node->siblings);
++	}
++unlock:
++	mutex_unlock(&mem_reserve_mutex);
++
++	/*
++	 * We cannot fail to shrink the reserves, can we?
++	 */
++	WARN_ON(ret);
++}
++EXPORT_SYMBOL_GPL(mem_reserve_disconnect);
++
++#ifdef CONFIG_PROC_FS
++
++/*
++ * Simple output of the reserve tree in: /proc/reserve_info
++ * Example:
++ *
++ * localhost ~ # cat /proc/reserve_info
++ * 1:0 "total reserve" 6232K 0/278581
++ * 2:1 "total network reserve" 6232K 0/278581
++ * 3:2 "network TX reserve" 212K 0/53
++ * 4:3 "protocol TX pages" 212K 0/53
++ * 5:2 "network RX reserve" 6020K 0/278528
++ * 6:5 "IPv4 route cache" 5508K 0/16384
++ * 7:5 "SKB data reserve" 512K 0/262144
++ * 8:7 "IPv4 fragment cache" 512K 0/262144
++ */
++
++static void mem_reserve_show_item(struct seq_file *m, struct mem_reserve *res,
++				  unsigned int parent, unsigned int *id)
++{
++	struct mem_reserve *child;
++	unsigned int my_id = ++*id;
++
++	seq_printf(m, "%d:%d \"%s\" %ldK %ld/%ld\n",
++			my_id, parent, res->name,
++			res->pages << (PAGE_SHIFT - 10),
++			res->usage, res->limit);
++
++	list_for_each_entry(child, &res->children, siblings)
++		mem_reserve_show_item(m, child, my_id, id);
++}
++
++static int mem_reserve_show(struct seq_file *m, void *v)
++{
++	unsigned int ident = 0;
++
++	mutex_lock(&mem_reserve_mutex);
++	mem_reserve_show_item(m, &mem_reserve_root, ident, &ident);
++	mutex_unlock(&mem_reserve_mutex);
++
++	return 0;
++}
++
++static int mem_reserve_open(struct inode *inode, struct file *file)
++{
++	return single_open(file, mem_reserve_show, NULL);
++}
++
++static const struct file_operations mem_reserve_opterations = {
++	.open = mem_reserve_open,
++	.read = seq_read,
++	.llseek = seq_lseek,
++	.release = single_release,
++};
++
++static __init int mem_reserve_proc_init(void)
++{
++	proc_create("reserve_info", S_IRUSR, NULL, &mem_reserve_opterations);
++	return 0;
++}
++
++module_init(mem_reserve_proc_init);
++
++#endif
++
++/*
++ * alloc_page helpers
++ */
++
++/**
++ * mem_reserve_pages_set() - set reserves size in pages
++ * @res - reserve to set
++ * @pages - size in pages to set it to
++ *
++ * Returns -ENOMEM when it fails to set the reserve. On failure the old size
++ * is preserved.
++ */
++int mem_reserve_pages_set(struct mem_reserve *res, long pages)
++{
++	int ret;
++
++	mutex_lock(&mem_reserve_mutex);
++	pages -= res->pages;
++	ret = __mem_reserve_add(res, pages, pages * PAGE_SIZE);
++	mutex_unlock(&mem_reserve_mutex);
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(mem_reserve_pages_set);
++
++/**
++ * mem_reserve_pages_add() - change the size in a relative way
++ * @res - reserve to change
++ * @pages - number of pages to add (or subtract when negative)
++ *
++ * Similar to mem_reserve_pages_set, except that the argument is relative
++ * instead of absolute.
++ *
++ * Returns -ENOMEM when it fails to increase.
++ */
++int mem_reserve_pages_add(struct mem_reserve *res, long pages)
++{
++	int ret;
++
++	mutex_lock(&mem_reserve_mutex);
++	ret = __mem_reserve_add(res, pages, pages * PAGE_SIZE);
++	mutex_unlock(&mem_reserve_mutex);
++
++	return ret;
++}
++
++/**
++ * mem_reserve_pages_charge() - charge page usage to a reserve
++ * @res - reserve to charge
++ * @pages - size to charge
++ *
++ * Returns non-zero on success.
++ */
++int mem_reserve_pages_charge(struct mem_reserve *res, long pages)
++{
++	return __mem_reserve_charge(res, pages * PAGE_SIZE);
++}
++EXPORT_SYMBOL_GPL(mem_reserve_pages_charge);
++
++/*
++ * kmalloc helpers
++ */
++
++/**
++ * mem_reserve_kmalloc_set() - set this reserve to bytes worth of kmalloc
++ * @res - reserve to change
++ * @bytes - size in bytes to reserve
++ *
++ * Returns -ENOMEM on failure.
++ */
++int mem_reserve_kmalloc_set(struct mem_reserve *res, long bytes)
++{
++	int ret;
++	long pages;
++
++	mutex_lock(&mem_reserve_mutex);
++	pages = kmalloc_estimate_variable(GFP_ATOMIC, bytes);
++	pages -= res->pages;
++	bytes -= res->limit;
++	ret = __mem_reserve_add(res, pages, bytes);
++	mutex_unlock(&mem_reserve_mutex);
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(mem_reserve_kmalloc_set);
++
++/**
++ * mem_reserve_kmalloc_charge() - charge bytes to a reserve
++ * @res - reserve to charge
++ * @bytes - bytes to charge
++ *
++ * Returns non-zero on success.
++ */
++int mem_reserve_kmalloc_charge(struct mem_reserve *res, long bytes)
++{
++	if (bytes < 0)
++		bytes = -roundup_pow_of_two(-bytes);
++	else
++		bytes = roundup_pow_of_two(bytes);
++
++	return __mem_reserve_charge(res, bytes);
++}
++EXPORT_SYMBOL_GPL(mem_reserve_kmalloc_charge);
++
++/*
++ * kmem_cache helpers
++ */
++
++/**
++ * mem_reserve_kmem_cache_set() - set reserve to @objects worth of kmem_cache_alloc of @s
++ * @res - reserve to set
++ * @s - kmem_cache to reserve from
++ * @objects - number of objects to reserve
++ *
++ * Returns -ENOMEM on failure.
++ */
++int mem_reserve_kmem_cache_set(struct mem_reserve *res, struct kmem_cache *s,
++			       int objects)
++{
++	int ret;
++	long pages, bytes;
++
++	mutex_lock(&mem_reserve_mutex);
++	pages = kmem_alloc_estimate(s, GFP_ATOMIC, objects);
++	pages -= res->pages;
++	bytes = objects * kmem_cache_size(s) - res->limit;
++	ret = __mem_reserve_add(res, pages, bytes);
++	mutex_unlock(&mem_reserve_mutex);
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(mem_reserve_kmem_cache_set);
++
++/**
++ * mem_reserve_kmem_cache_charge() - charge (or uncharge) usage of objs
++ * @res - reserve to charge
++ * @objs - objects to charge for
++ *
++ * Returns non-zero on success.
++ */
++int mem_reserve_kmem_cache_charge(struct mem_reserve *res, struct kmem_cache *s,
++				  long objs)
++{
++	return __mem_reserve_charge(res, objs * kmem_cache_size(s));
++}
++EXPORT_SYMBOL_GPL(mem_reserve_kmem_cache_charge);
++
++/*
++ * alloc wrappers
++ */
++
++void *___kmalloc_reserve(size_t size, gfp_t flags, int node, void *ip,
++			 struct mem_reserve *res, int *emerg)
++{
++	void *obj;
++	gfp_t gfp;
++
++	gfp = flags | __GFP_NOMEMALLOC | __GFP_NOWARN;
++	obj = __kmalloc_node_track_caller(size, gfp, node, ip);
++
++	if (obj || !(gfp_to_alloc_flags(flags) & ALLOC_NO_WATERMARKS))
++		goto out;
++
++	if (res && !mem_reserve_kmalloc_charge(res, size)) {
++		if (!(flags & __GFP_WAIT))
++			goto out;
++
++		wait_event(res->waitqueue,
++				mem_reserve_kmalloc_charge(res, size));
++
++		obj = __kmalloc_node_track_caller(size, gfp, node, ip);
++		if (obj) {
++			mem_reserve_kmalloc_charge(res, -size);
++			goto out;
++		}
++	}
++
++	obj = __kmalloc_node_track_caller(size, flags, node, ip);
++	WARN_ON(!obj);
++	if (emerg)
++		*emerg |= 1;
++
++out:
++	return obj;
++}
++
++void __kfree_reserve(void *obj, struct mem_reserve *res, int emerg)
++{
++	size_t size = ksize(obj);
++
++	kfree(obj);
++	/*
++	 * ksize gives the full allocated size vs the requested size we used to
++	 * charge; however since we round up to the nearest power of two, this
++	 * should all work nicely.
++	 */
++	mem_reserve_kmalloc_charge(res, -size);
++}
++
++
++void *__kmem_cache_alloc_reserve(struct kmem_cache *s, gfp_t flags, int node,
++				 struct mem_reserve *res, int *emerg)
++{
++	void *obj;
++	gfp_t gfp;
++
++	gfp = flags | __GFP_NOMEMALLOC | __GFP_NOWARN;
++	obj = kmem_cache_alloc_node(s, gfp, node);
++
++	if (obj || !(gfp_to_alloc_flags(flags) & ALLOC_NO_WATERMARKS))
++		goto out;
++
++	if (res && !mem_reserve_kmem_cache_charge(res, s, 1)) {
++		if (!(flags & __GFP_WAIT))
++			goto out;
++
++		wait_event(res->waitqueue,
++				mem_reserve_kmem_cache_charge(res, s, 1));
++
++		obj = kmem_cache_alloc_node(s, gfp, node);
++		if (obj) {
++			mem_reserve_kmem_cache_charge(res, s, -1);
++			goto out;
++		}
++	}
++
++	obj = kmem_cache_alloc_node(s, flags, node);
++	WARN_ON(!obj);
++	if (emerg)
++		*emerg |= 1;
++
++out:
++	return obj;
++}
++
++void __kmem_cache_free_reserve(struct kmem_cache *s, void *obj,
++			       struct mem_reserve *res, int emerg)
++{
++	kmem_cache_free(s, obj);
++	mem_reserve_kmem_cache_charge(res, s, -1);
++}
++
++
++struct page *__alloc_pages_reserve(int node, gfp_t flags, int order,
++				   struct mem_reserve *res, int *emerg)
++{
++	struct page *page;
++	gfp_t gfp;
++	long pages = 1 << order;
++
++	gfp = flags | __GFP_NOMEMALLOC | __GFP_NOWARN;
++	page = alloc_pages_node(node, gfp, order);
++
++	if (page || !(gfp_to_alloc_flags(flags) & ALLOC_NO_WATERMARKS))
++		goto out;
++
++	if (res && !mem_reserve_pages_charge(res, pages)) {
++		if (!(flags & __GFP_WAIT))
++			goto out;
++
++		wait_event(res->waitqueue,
++				mem_reserve_pages_charge(res, pages));
++
++		page = alloc_pages_node(node, gfp, order);
++		if (page) {
++			mem_reserve_pages_charge(res, -pages);
++			goto out;
++		}
++	}
++
++	page = alloc_pages_node(node, flags, order);
++	WARN_ON(!page);
++	if (emerg)
++		*emerg |= 1;
++
++out:
++	return page;
++}
++
++void __free_pages_reserve(struct page *page, int order,
++			  struct mem_reserve *res, int emerg)
++{
++	__free_pages(page, order);
++	mem_reserve_pages_charge(res, -(1 << order));
++}
+Index: linux-2.6/include/linux/slab.h
 ===================================================================
---- linux-2.6.orig/net/ipv6/reassembly.c
-+++ linux-2.6/net/ipv6/reassembly.c
-@@ -43,6 +43,7 @@
- #include <linux/random.h>
- #include <linux/jhash.h>
- #include <linux/skbuff.h>
-+#include <linux/reserve.h>
+--- linux-2.6.orig/include/linux/slab.h
++++ linux-2.6/include/linux/slab.h
+@@ -224,13 +224,14 @@ static inline void *kmem_cache_alloc_nod
+  */
+ #if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB)
+ extern void *__kmalloc_track_caller(size_t, gfp_t, void*);
+-#define kmalloc_track_caller(size, flags) \
+-	__kmalloc_track_caller(size, flags, __builtin_return_address(0))
+ #else
+-#define kmalloc_track_caller(size, flags) \
++#define __kmalloc_track_caller(size, flags, ip) \
+ 	__kmalloc(size, flags)
+ #endif /* DEBUG_SLAB */
  
- #include <net/sock.h>
- #include <net/snmp.h>
-@@ -628,15 +629,70 @@ static struct inet6_protocol frag_protoc
- 	.flags		=	INET6_PROTO_NOPOLICY,
- };
- 
-+static struct mem_reserve ipv6_frag_reserve;
++#define kmalloc_track_caller(size, flags) \
++	__kmalloc_track_caller(size, flags, __builtin_return_address(0))
 +
- #ifdef CONFIG_SYSCTL
-+static int ipv6_frag_bytes;
-+
-+static int proc_dointvec_fragment(struct ctl_table *table, int write,
-+		struct file *filp, void __user *buffer, size_t *lenp,
-+		loff_t *ppos)
-+{
-+	int old_bytes, ret;
-+
-+	if (!write)
-+		ipv6_frag_bytes = init_net.ipv6.frags.high_thresh;
-+	old_bytes = ipv6_frag_bytes;
-+
-+	ret = proc_dointvec(table, write, filp, buffer, lenp, ppos);
-+
-+	if (!ret && write) {
-+		ret = mem_reserve_kmalloc_set(&ipv6_frag_reserve,
-+					      ipv6_frag_bytes);
-+		if (!ret)
-+			init_net.ipv6.frags.high_thresh = ipv6_frag_bytes;
-+		else
-+			ipv6_frag_bytes = old_bytes;
-+	}
-+
-+	return ret;
-+}
-+
-+static int sysctl_intvec_fragment(struct ctl_table *table,
-+		int __user *name, int nlen,
-+		void __user *oldval, size_t __user *oldlenp,
-+		void __user *newval, size_t newlen)
-+{
-+	int old_bytes, ret;
-+	int write = (newval && newlen);
-+
-+	if (!write)
-+		ipv6_frag_bytes = init_net.ipv6.frags.high_thresh;
-+	old_bytes = ipv6_frag_bytes;
-+
-+	ret = sysctl_intvec(table, name, nlen, oldval, oldlenp, newval, newlen);
-+
-+	if (!ret && write) {
-+		ret = mem_reserve_kmalloc_set(&ipv6_frag_reserve,
-+					      ipv6_frag_bytes);
-+		if (!ret)
-+			init_net.ipv6.frags.high_thresh = ipv6_frag_bytes;
-+		else
-+			ipv6_frag_bytes = old_bytes;
-+	}
-+
-+	return ret;
-+}
-+
- static struct ctl_table ip6_frags_ctl_table[] = {
- 	{
- 		.ctl_name	= NET_IPV6_IP6FRAG_HIGH_THRESH,
- 		.procname	= "ip6frag_high_thresh",
--		.data		= &init_net.ipv6.frags.high_thresh,
-+		.data		= &ipv6_frag_bytes,
- 		.maxlen		= sizeof(int),
- 		.mode		= 0644,
--		.proc_handler	= &proc_dointvec
-+		.proc_handler	= &proc_dointvec_fragment,
-+		.strategy	= &sysctl_intvec_fragment,
- 	},
- 	{
- 		.ctl_name	= NET_IPV6_IP6FRAG_LOW_THRESH,
-@@ -758,6 +814,11 @@ int __init ipv6_frag_init(void)
- 	ip6_frags.frag_expire = ip6_frag_expire;
- 	ip6_frags.secret_interval = 10 * 60 * HZ;
- 	inet_frags_init(&ip6_frags);
-+
-+	mem_reserve_init(&ipv6_frag_reserve, "IPv6 fragment cache",
-+			 &net_skb_reserve);
-+	mem_reserve_kmalloc_set(&ipv6_frag_reserve,
-+				init_net.ipv6.frags.high_thresh);
- out:
- 	return ret;
- }
-Index: linux-2.6/net/ipv4/route.c
-===================================================================
---- linux-2.6.orig/net/ipv4/route.c
-+++ linux-2.6/net/ipv4/route.c
-@@ -109,6 +109,7 @@
- #ifdef CONFIG_SYSCTL
- #include <linux/sysctl.h>
+ #ifdef CONFIG_NUMA
+ /*
+  * kmalloc_node_track_caller is a special version of kmalloc_node that
+@@ -242,21 +243,22 @@ extern void *__kmalloc_track_caller(size
+  */
+ #if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB)
+ extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, void *);
+-#define kmalloc_node_track_caller(size, flags, node) \
+-	__kmalloc_node_track_caller(size, flags, node, \
+-			__builtin_return_address(0))
+ #else
+-#define kmalloc_node_track_caller(size, flags, node) \
++#define __kmalloc_node_track_caller(size, flags, node, ip) \
+ 	__kmalloc_node(size, flags, node)
  #endif
-+#include <linux/reserve.h>
  
- #define RT_FL_TOS(oldflp) \
-     ((u32)(oldflp->fl4_tos & (IPTOS_RT_MASK | RTO_ONLINK)))
-@@ -2793,6 +2794,8 @@ void ip_rt_multicast_event(struct in_dev
- 	rt_cache_flush(0);
- }
+ #else /* CONFIG_NUMA */
  
-+static struct mem_reserve ipv4_route_reserve;
-+
- #ifdef CONFIG_SYSCTL
- static int flush_delay;
+-#define kmalloc_node_track_caller(size, flags, node) \
+-	kmalloc_track_caller(size, flags)
++#define __kmalloc_node_track_caller(size, flags, node, ip) \
++	__kmalloc_track_caller(size, flags, ip)
  
-@@ -2826,6 +2829,58 @@ static int ipv4_sysctl_rtcache_flush_str
- 	return 0;
- }
+ #endif /* DEBUG_SLAB */
  
-+static int ipv4_route_size;
++#define kmalloc_node_track_caller(size, flags, node) \
++	__kmalloc_node_track_caller(size, flags, node, \
++			__builtin_return_address(0))
 +
-+static int proc_dointvec_route(struct ctl_table *table, int write,
-+		struct file *filp, void __user *buffer, size_t *lenp,
-+		loff_t *ppos)
-+{
-+	int old_size, ret;
-+
-+	if (!write)
-+		ipv4_route_size = ip_rt_max_size;
-+	old_size = ipv4_route_size;
-+
-+	ret = proc_dointvec(table, write, filp, buffer, lenp, ppos);
-+
-+	if (!ret && write) {
-+		ret = mem_reserve_kmem_cache_set(&ipv4_route_reserve,
-+				ipv4_dst_ops.kmem_cachep, ipv4_route_size);
-+		if (!ret)
-+			ip_rt_max_size = ipv4_route_size;
-+		else
-+			ipv4_route_size = old_size;
-+	}
-+
-+	return ret;
-+}
-+
-+static int sysctl_intvec_route(struct ctl_table *table,
-+		int __user *name, int nlen,
-+		void __user *oldval, size_t __user *oldlenp,
-+		void __user *newval, size_t newlen)
-+{
-+	int old_size, ret;
-+	int write = (newval && newlen);
-+
-+	if (!write)
-+		ipv4_route_size = ip_rt_max_size;
-+	old_size = ipv4_route_size;
-+
-+	ret = sysctl_intvec(table, name, nlen, oldval, oldlenp, newval, newlen);
-+
-+	if (!ret && write) {
-+		ret = mem_reserve_kmem_cache_set(&ipv4_route_reserve,
-+				ipv4_dst_ops.kmem_cachep, ipv4_route_size);
-+		if (!ret)
-+			ip_rt_max_size = ipv4_route_size;
-+		else
-+			ipv4_route_size = old_size;
-+	}
-+
-+	return ret;
-+}
-+
- ctl_table ipv4_route_table[] = {
- 	{
- 		.ctl_name 	= NET_IPV4_ROUTE_FLUSH,
-@@ -2847,10 +2902,11 @@ ctl_table ipv4_route_table[] = {
- 	{
- 		.ctl_name	= NET_IPV4_ROUTE_MAX_SIZE,
- 		.procname	= "max_size",
--		.data		= &ip_rt_max_size,
-+		.data		= &ipv4_route_size,
- 		.maxlen		= sizeof(int),
- 		.mode		= 0644,
--		.proc_handler	= &proc_dointvec,
-+		.proc_handler	= &proc_dointvec_route,
-+		.strategy	= &sysctl_intvec_route,
- 	},
- 	{
- 		/*  Deprecated. Use gc_min_interval_ms */
-@@ -3025,6 +3081,11 @@ int __init ip_rt_init(void)
- 	ipv4_dst_ops.gc_thresh = (rt_hash_mask + 1);
- 	ip_rt_max_size = (rt_hash_mask + 1) * 16;
- 
-+	mem_reserve_init(&ipv4_route_reserve, "IPv4 route cache",
-+			&net_rx_reserve);
-+	mem_reserve_kmem_cache_set(&ipv4_route_reserve,
-+			ipv4_dst_ops.kmem_cachep, ip_rt_max_size);
-+
- 	devinet_init();
- 	ip_fib_init();
- 
-Index: linux-2.6/net/ipv6/route.c
-===================================================================
---- linux-2.6.orig/net/ipv6/route.c
-+++ linux-2.6/net/ipv6/route.c
-@@ -38,6 +38,7 @@
- #include <linux/in6.h>
- #include <linux/init.h>
- #include <linux/if_arp.h>
-+#include <linux/reserve.h>
- #include <linux/proc_fs.h>
- #include <linux/seq_file.h>
- #include <net/net_namespace.h>
-@@ -2393,6 +2394,8 @@ static inline void ipv6_route_proc_fini(
- }
- #endif	/* CONFIG_PROC_FS */
- 
-+static struct mem_reserve ipv6_route_reserve;
-+
- #ifdef CONFIG_SYSCTL
- 
- static
-@@ -2408,6 +2411,58 @@ int ipv6_sysctl_rtcache_flush(ctl_table 
- 		return -EINVAL;
- }
- 
-+static int ipv6_route_size;
-+
-+static int proc_dointvec_route(struct ctl_table *table, int write,
-+		struct file *filp, void __user *buffer, size_t *lenp,
-+		loff_t *ppos)
-+{
-+	int old_size, ret;
-+
-+	if (!write)
-+		ipv6_route_size = ip6_rt_max_size;
-+	old_size = ipv6_route_size;
-+
-+	ret = proc_dointvec(table, write, filp, buffer, lenp, ppos);
-+
-+	if (!ret && write) {
-+		ret = mem_reserve_kmem_cache_set(&ipv6_route_reserve,
-+				ip6_dst_ops.kmem_cachep, ipv6_route_size);
-+		if (!ret)
-+			ip6_rt_max_size = ipv6_route_size;
-+		else
-+			ipv6_route_size = old_size;
-+	}
-+
-+	return ret;
-+}
-+
-+static int sysctl_intvec_route(struct ctl_table *table,
-+		int __user *name, int nlen,
-+		void __user *oldval, size_t __user *oldlenp,
-+		void __user *newval, size_t newlen)
-+{
-+	int old_size, ret;
-+	int write = (newval && newlen);
-+
-+	if (!write)
-+		ipv6_route_size = ip6_rt_max_size;
-+	old_size = ipv6_route_size;
-+
-+	ret = sysctl_intvec(table, name, nlen, oldval, oldlenp, newval, newlen);
-+
-+	if (!ret && write) {
-+		ret = mem_reserve_kmem_cache_set(&ipv6_route_reserve,
-+				ip6_dst_ops.kmem_cachep, ipv6_route_size);
-+		if (!ret)
-+			ip6_rt_max_size = ipv6_route_size;
-+		else
-+			ipv6_route_size = old_size;
-+	}
-+
-+	return ret;
-+}
-+
- ctl_table ipv6_route_table_template[] = {
- 	{
- 		.procname	=	"flush",
-@@ -2427,10 +2482,11 @@ ctl_table ipv6_route_table_template[] = 
- 	{
- 		.ctl_name	=	NET_IPV6_ROUTE_MAX_SIZE,
- 		.procname	=	"max_size",
--		.data		=	&init_net.ipv6.sysctl.ip6_rt_max_size,
-+		.data		=	&ipv6_route_size,
- 		.maxlen		=	sizeof(int),
- 		.mode		=	0644,
--		.proc_handler	=	&proc_dointvec,
-+		.proc_handler	=	&proc_dointvec_route,
-+		.strategy	= 	&sysctl_intvec_route,
- 	},
- 	{
- 		.ctl_name	=	NET_IPV6_ROUTE_GC_MIN_INTERVAL,
-@@ -2521,6 +2577,11 @@ int __init ip6_route_init(void)
- 
- 	ip6_dst_blackhole_ops.kmem_cachep = ip6_dst_ops.kmem_cachep;
- 
-+	mem_reserve_init(&ipv6_route_reserve, "IPv6 route cache",
-+			&net_rx_reserve);
-+	mem_reserve_kmem_cache_set(&ipv6_route_reserve,
-+			ip6_dst_ops.kmem_cachep, ip6_rt_max_size);
-+
- 	ret = fib6_init();
- 	if (ret)
- 		goto out_kmem_cache;
+ /*
+  * Shortcuts
+  */
 
 --
 
