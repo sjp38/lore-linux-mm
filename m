@@ -1,50 +1,72 @@
-Received: by py-out-1112.google.com with SMTP id f47so838319pye.20
-        for <linux-mm@kvack.org>; Thu, 20 Mar 2008 00:43:22 -0700 (PDT)
-Message-ID: <2f11576a0803200043p52d875ealcebe46d47d539628@mail.gmail.com>
-Date: Thu, 20 Mar 2008 16:43:22 +0900
-From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [0/2] vmalloc: Add /proc/vmallocinfo to display mappings
-In-Reply-To: <20080319150704.d3f090e6.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 7/7] memcg: freeing page_cgroup at suitable chance
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20080320140703.935073df.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080314185954.5cd51ff6.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20080314192253.edb38762.kamezawa.hiroyu@jp.fujitsu.com>
+	 <1205962399.6437.30.camel@lappy>
+	 <20080320140703.935073df.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Thu, 20 Mar 2008 08:55:06 +0100
+Message-Id: <1205999706.8514.394.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080318222701.788442216@sgi.com>
-	 <20080319111943.0E1B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080319150704.d3f090e6.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, xemul@openvz.org, "hugh@veritas.com" <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+On Thu, 2008-03-20 at 14:07 +0900, KAMEZAWA Hiroyuki wrote:
+> On Wed, 19 Mar 2008 22:33:19 +0100
+> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> 
+> > > +		if (spin_trylock(&root->tree_lock)) {
+> > > +			/* radix tree is freed by RCU. so they will not call
+> > > +			   free_pages() right now.*/
+> > > +			radix_tree_delete(&root->root_node, idx);
+> > > +			spin_unlock(&root->tree_lock);
+> > > +			/* We can free this in lazy fashion .*/
+> > > +			free_page_cgroup(head);
+> > 
+> > No RCU based freeing? I'd expected a call_rcu(), otherwise we race with
+> > lookups.
+> > 
+> SLAB itself is SLAB_DESTROY_BY_RCU. I'll add comments here.
 
->  > > Example:
->  > >
->  > > cat /proc/vmallocinfo
->
->  argh, please don't top-post.
->
->  (undoes it)
+SLAB_DESTROYED_BY_RCU is not enough, that will just ensure the slab does
+not get invalid, but it does not guarantee the objects will not be
+re-used. So you still have a race here, the lookup can see another
+object than it went for.
 
-sorry, I don't do that at next.
+Consider:
 
->  > Great.
->  > it seems very useful.
->  > and, I found no bug.
->  >
->  > Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->
->  I was just about to ask whether we actually need the feature - I don't
->  recall ever having needed it, nor do I recall seeing anyone else need it.
->
->  Why is it useful?
 
-to be honest, I tought this is merely good debug feature.
-but crishtoph-san already explained it is more useful things.
+	A				B
 
-Thanks.
+rcu_read_lock()
+				spin_lock(&tree_lock)
+				obj = radix_tree_remove(&tree, idx)
+				spin_unlock(&tree_lock)
+
+				kmem_cache_free(s, obj)
+
+obj = radix_tree_lookup(&tree, idx)
+rcu_read_unlock()
+
+				obj2 = kmem_cache_alloc(s)
+				spin_lock(&tree_lock)
+				radix_tree_insert(&tree_lock, idx2)
+				spin_unlock(&tree_lock)
+
+
+return obj->data
+
+
+If B's obj2 == obj (possible), then A will return the object for idx2,
+while it asked for idx.
+
+So A needs an object validate and retry loop, or you need to RCU-free
+objects and extend the rcu_read_lock() range to cover obj's usage.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
