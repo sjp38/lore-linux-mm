@@ -1,47 +1,50 @@
-Date: Thu, 20 Mar 2008 02:11:40 -0500
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: Couple of questions about mempolicy rebinding
-Message-Id: <20080320021140.93a235dc.pj@sgi.com>
-In-Reply-To: <1205786207.5297.30.camel@localhost>
-References: <200803122118.03942.ak@suse.de>
-	<alpine.DEB.1.00.0803131219380.28673@chino.kir.corp.google.com>
-	<1205437802.5300.69.camel@localhost>
-	<alpine.DEB.1.00.0803131255150.32474@chino.kir.corp.google.com>
-	<1205786207.5297.30.camel@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by py-out-1112.google.com with SMTP id f47so838319pye.20
+        for <linux-mm@kvack.org>; Thu, 20 Mar 2008 00:43:22 -0700 (PDT)
+Message-ID: <2f11576a0803200043p52d875ealcebe46d47d539628@mail.gmail.com>
+Date: Thu, 20 Mar 2008 16:43:22 +0900
+From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [0/2] vmalloc: Add /proc/vmallocinfo to display mappings
+In-Reply-To: <20080319150704.d3f090e6.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080318222701.788442216@sgi.com>
+	 <20080319111943.0E1B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080319150704.d3f090e6.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: rientjes@google.com, ak@suse.de, clameter@sgi.com, cpw@sgi.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Lee wrote:
-> 1) In __mpol_copy():  when the "current_cpuset_is_being_rebound", why do
-> we rebind the old policy policy and then copy it to the new?  Seems like
-> the old policy will get rebound in due time if, indeed, it needs to be
-> rebound.  I don't see any usage now, where it won't, but this seems less
-> general than just rebinding the new copy.  E.g., the old mempolicy being
-> copied may be a context-free policy that shouln't be rebound.   I think
-> we should at least add a comment to warn future callers.  Comments?
+Hi Andrew,
 
-Sorry for the delay responding.
+>  > > Example:
+>  > >
+>  > > cat /proc/vmallocinfo
+>
+>  argh, please don't top-post.
+>
+>  (undoes it)
 
-You're probably right; I'm not sure.  I have no record nor recollection
-of why I rebound the old policy before copying, instead of rebinding the
-new policy after copying.  I suspect this might be a case of "shoot
-everything in sight, and hope I get them all."  Most code that I write
-in that state of mind eventually gets fixed, to be more precise, once
-someone has a better understanding.  Looks like this is that time.
+sorry, I don't do that at next.
 
-I'd be more than comfortable you changing this to copy first and then
-only rebind the new policy.
+>  > Great.
+>  > it seems very useful.
+>  > and, I found no bug.
+>  >
+>  > Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>
+>  I was just about to ask whether we actually need the feature - I don't
+>  recall ever having needed it, nor do I recall seeing anyone else need it.
+>
+>  Why is it useful?
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.940.382.4214
+to be honest, I tought this is merely good debug feature.
+but crishtoph-san already explained it is more useful things.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
