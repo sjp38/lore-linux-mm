@@ -1,50 +1,41 @@
-Message-ID: <47E2CAAC.6020903@de.ibm.com>
-Date: Thu, 20 Mar 2008 21:35:56 +0100
-From: Carsten Otte <cotte@de.ibm.com>
-Reply-To: carsteno@de.ibm.com
+Received: by ug-out-1314.google.com with SMTP id u40so1391701ugc.29
+        for <linux-mm@kvack.org>; Thu, 20 Mar 2008 13:04:49 -0700 (PDT)
+From: Nitin Gupta <nitingupta910@gmail.com>
+Reply-To: nitingupta910@gmail.com
+Subject: [RFC][PATCH 0/6] compcache: Compressed Caching
+Date: Fri, 21 Mar 2008 01:29:58 +0530
 MIME-Version: 1.0
-Subject: Re: [kvm-devel] [RFC/PATCH 01/15] preparation: provide hook to enable
- pgstes	in	user pagetable
-References: <1206028710.6690.21.camel@cotte.boeblingen.de.ibm.com> <1206030278.6690.52.camel@cotte.boeblingen.de.ibm.com> <47E29EC6.5050403@goop.org> <1206040405.8232.24.camel@nimitz.home.sr71.net>
-In-Reply-To: <1206040405.8232.24.camel@nimitz.home.sr71.net>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain;
+  charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200803210129.59299.nitingupta910@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Christian Ehrhardt <EHRHARDT@de.ibm.com>, hollisb@us.ibm.com, arnd@arndb.de, borntrae@linux.vnet.ibm.com, kvm-devel@lists.sourceforge.net, heicars2@linux.vnet.ibm.com, jeroney@us.ibm.com, Avi Kivity <avi@qumranet.com>, virtualization@lists.linux-foundation.org, Linux Memory Management List <linux-mm@kvack.org>, mschwid2@linux.vnet.ibm.com, rvdheij@gmail.com, Olaf Schnapper <os@de.ibm.com>, jblunck@suse.de, "Zhang, Xiantao" <xiantao.zhang@intel.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
-> Well, and more fundamentally: do we really want dup_mm() able to be
-> called from other code?
-> 
-> Maybe we need a bit more detailed justification why fork() itself isn't
-> good enough.  It looks to me like they basically need an arch-specific
-> argument to fork, telling the new process's page tables to take the
-> fancy new bit.
-> 
-> I'm really curious how this new stuff is going to get used.  Are you
-> basically replacing fork() when creating kvm guests?
-No. The trick is, that we do need bigger page tables when running 
-guests: our page tables are usually 2k, but when running a guest 
-they're 4k to track both guest and host dirty&reference information. 
-This looks like this:
-*----------*
-*2k PTE's  *
-*----------*
-*2k PGSTE  *
-*----------*
-We don't want to waste precious memory for all page tables. We'd like 
-to have one kernel image that runs regular server workload _and_ 
-guests. Therefore, we need to reallocate the page table after fork() 
-once we know that task is going to be a hypervisor. That's what this 
-code does: reallocate a bigger page table to accomondate the extra 
-information. The task needs to be single-threaded when calling for 
-extended page tables.
+Hi All,
 
-Btw: at fork() time, we cannot tell whether or not the user's going to 
-be a hypervisor. Therefore we cannot do this in fork.
+This implements a RAM based block device which acts as swap disk.
+Pages swapped to this disk are compressed and stored in memory itself.
+This allows more applications to fit in given amount of memory. This is
+especially useful for embedded devices, OLPC and small desktops
+(aka virtual machines).
+
+Project home: http://code.google.com/p/compcache/
+
+It consists of following components:
+- compcache.ko: Creates RAM based block device
+- tlsf.ko: Two Level Segregate Fit (TLSF) allocator
+- LZO de/compressor: (Already in mainline)
+
+Project home contains some performance numbers for TLSF and LZO.
+For general desktop use, this is giving *significant* performance gain
+under memory pressure. For now, it has been tested only on x86.
+
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
