@@ -1,102 +1,36 @@
-Message-Id: <20080320202123.467542000@chello.nl>
+Message-Id: <20080320202123.205173000@chello.nl>
 References: <20080320201042.675090000@chello.nl>
-Date: Thu, 20 Mar 2008 21:10:56 +0100
+Date: Thu, 20 Mar 2008 21:10:55 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 14/30] net: wrap sk->sk_backlog_rcv()
-Content-Disposition: inline; filename=net-backlog.patch
+Subject: [PATCH 13/30] selinux: tag avc cache alloc as non-critical
+Content-Disposition: inline; filename=mm-selinux-emergency.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, neilb@suse.de, miklos@szeredi.hu, penberg@cs.helsinki.fi, a.p.zijlstra@chello.nl
+Cc: James Morris <jmorris@namei.org>
 List-ID: <linux-mm.kvack.org>
 
-Wrap calling sk->sk_backlog_rcv() in a function. This will allow extending the
-generic sk_backlog_rcv behaviour.
+Failing to allocate a cache entry will only harm performance not correctness.
+Do not consume valuable reserve pages for something like that.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Acked-by: James Morris <jmorris@namei.org>
 ---
- include/net/sock.h   |    5 +++++
- include/net/tcp.h    |    2 +-
- net/core/sock.c      |    4 ++--
- net/ipv4/tcp.c       |    2 +-
- net/ipv4/tcp_timer.c |    2 +-
- 5 files changed, 10 insertions(+), 5 deletions(-)
+ security/selinux/avc.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: linux-2.6/include/net/sock.h
+Index: linux-2.6/security/selinux/avc.c
 ===================================================================
---- linux-2.6.orig/include/net/sock.h
-+++ linux-2.6/include/net/sock.h
-@@ -475,6 +475,11 @@ static inline void sk_add_backlog(struct
- 	skb->next = NULL;
- }
+--- linux-2.6.orig/security/selinux/avc.c
++++ linux-2.6/security/selinux/avc.c
+@@ -334,7 +334,7 @@ static struct avc_node *avc_alloc_node(v
+ {
+ 	struct avc_node *node;
  
-+static inline int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
-+{
-+	return sk->sk_backlog_rcv(sk, skb);
-+}
-+
- #define sk_wait_event(__sk, __timeo, __condition)			\
- 	({	int __rc;						\
- 		release_sock(__sk);					\
-Index: linux-2.6/net/core/sock.c
-===================================================================
---- linux-2.6.orig/net/core/sock.c
-+++ linux-2.6/net/core/sock.c
-@@ -325,7 +325,7 @@ int sk_receive_skb(struct sock *sk, stru
- 		 */
- 		mutex_acquire(&sk->sk_lock.dep_map, 0, 1, _RET_IP_);
- 
--		rc = sk->sk_backlog_rcv(sk, skb);
-+		rc = sk_backlog_rcv(sk, skb);
- 
- 		mutex_release(&sk->sk_lock.dep_map, 1, _RET_IP_);
- 	} else
-@@ -1360,7 +1360,7 @@ static void __release_sock(struct sock *
- 			struct sk_buff *next = skb->next;
- 
- 			skb->next = NULL;
--			sk->sk_backlog_rcv(sk, skb);
-+			sk_backlog_rcv(sk, skb);
- 
- 			/*
- 			 * We are in process context here with softirqs
-Index: linux-2.6/net/ipv4/tcp.c
-===================================================================
---- linux-2.6.orig/net/ipv4/tcp.c
-+++ linux-2.6/net/ipv4/tcp.c
-@@ -1158,7 +1158,7 @@ static void tcp_prequeue_process(struct 
- 	 * necessary */
- 	local_bh_disable();
- 	while ((skb = __skb_dequeue(&tp->ucopy.prequeue)) != NULL)
--		sk->sk_backlog_rcv(sk, skb);
-+		sk_backlog_rcv(sk, skb);
- 	local_bh_enable();
- 
- 	/* Clear memory counter. */
-Index: linux-2.6/net/ipv4/tcp_timer.c
-===================================================================
---- linux-2.6.orig/net/ipv4/tcp_timer.c
-+++ linux-2.6/net/ipv4/tcp_timer.c
-@@ -203,7 +203,7 @@ static void tcp_delack_timer(unsigned lo
- 		NET_INC_STATS_BH(LINUX_MIB_TCPSCHEDULERFAILED);
- 
- 		while ((skb = __skb_dequeue(&tp->ucopy.prequeue)) != NULL)
--			sk->sk_backlog_rcv(sk, skb);
-+			sk_backlog_rcv(sk, skb);
- 
- 		tp->ucopy.memory = 0;
- 	}
-Index: linux-2.6/include/net/tcp.h
-===================================================================
---- linux-2.6.orig/include/net/tcp.h
-+++ linux-2.6/include/net/tcp.h
-@@ -879,7 +879,7 @@ static inline int tcp_prequeue(struct so
- 			BUG_ON(sock_owned_by_user(sk));
- 
- 			while ((skb1 = __skb_dequeue(&tp->ucopy.prequeue)) != NULL) {
--				sk->sk_backlog_rcv(sk, skb1);
-+				sk_backlog_rcv(sk, skb1);
- 				NET_INC_STATS_BH(LINUX_MIB_TCPPREQUEUEDROPPED);
- 			}
+-	node = kmem_cache_zalloc(avc_node_cachep, GFP_ATOMIC);
++	node = kmem_cache_zalloc(avc_node_cachep, GFP_ATOMIC|__GFP_NOMEMALLOC);
+ 	if (!node)
+ 		goto out;
  
 
 --
