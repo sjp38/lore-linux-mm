@@ -1,367 +1,297 @@
-Message-Id: <20080320202125.333112000@chello.nl>
+Message-Id: <20080320202120.024907000@chello.nl>
 References: <20080320201042.675090000@chello.nl>
-Date: Thu, 20 Mar 2008 21:11:09 +0100
+Date: Thu, 20 Mar 2008 21:10:43 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 27/30] nfs: teach the NFS client how to treat PG_swapcache pages
-Content-Disposition: inline; filename=nfs-swapcache.patch
+Subject: [PATCH 01/30] swap over network documentation
+Content-Disposition: inline; filename=doc.patch
 Sender: owner-linux-mm@kvack.org
+From: Neil Brown <neilb@suse.de>
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, neilb@suse.de, miklos@szeredi.hu, penberg@cs.helsinki.fi, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-Replace all relevant occurences of page->index and page->mapping in the NFS
-client with the new page_file_index() and page_file_mapping() functions.
+Document describing the problem and proposed solution
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/nfs/file.c     |    6 ++---
- fs/nfs/internal.h |    7 +++---
- fs/nfs/pagelist.c |    6 ++---
- fs/nfs/read.c     |    6 ++---
- fs/nfs/write.c    |   57 +++++++++++++++++++++++++++---------------------------
- 5 files changed, 42 insertions(+), 40 deletions(-)
+ Documentation/network-swap.txt |  270 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 270 insertions(+)
 
-Index: linux-2.6/fs/nfs/file.c
+Index: linux-2.6/Documentation/network-swap.txt
 ===================================================================
---- linux-2.6.orig/fs/nfs/file.c
-+++ linux-2.6/fs/nfs/file.c
-@@ -359,7 +359,7 @@ static void nfs_invalidate_page(struct p
- 	if (offset != 0)
- 		return;
- 	/* Cancel any unstarted writes on this page */
--	nfs_wb_page_cancel(page->mapping->host, page);
-+	nfs_wb_page_cancel(page_file_mapping(page)->host, page);
- }
- 
- static int nfs_release_page(struct page *page, gfp_t gfp)
-@@ -370,7 +370,7 @@ static int nfs_release_page(struct page 
- 
- static int nfs_launder_page(struct page *page)
- {
--	return nfs_wb_page(page->mapping->host, page);
-+	return nfs_wb_page(page_file_mapping(page)->host, page);
- }
- 
- const struct address_space_operations nfs_file_aops = {
-@@ -397,7 +397,7 @@ static int nfs_vm_page_mkwrite(struct vm
- 	struct address_space *mapping;
- 
- 	lock_page(page);
--	mapping = page->mapping;
-+	mapping = page_file_mapping(page);
- 	if (mapping != vma->vm_file->f_path.dentry->d_inode->i_mapping)
- 		goto out_unlock;
- 
-Index: linux-2.6/fs/nfs/pagelist.c
-===================================================================
---- linux-2.6.orig/fs/nfs/pagelist.c
-+++ linux-2.6/fs/nfs/pagelist.c
-@@ -76,11 +76,11 @@ nfs_create_request(struct nfs_open_conte
- 	 * update_nfs_request below if the region is not locked. */
- 	req->wb_page    = page;
- 	atomic_set(&req->wb_complete, 0);
--	req->wb_index	= page->index;
-+	req->wb_index	= page_file_index(page);
- 	page_cache_get(page);
- 	BUG_ON(PagePrivate(page));
- 	BUG_ON(!PageLocked(page));
--	BUG_ON(page->mapping->host != inode);
-+	BUG_ON(page_file_mapping(page)->host != inode);
- 	req->wb_offset  = offset;
- 	req->wb_pgbase	= offset;
- 	req->wb_bytes   = count;
-@@ -376,7 +376,7 @@ void nfs_pageio_cond_complete(struct nfs
-  * nfs_scan_list - Scan a list for matching requests
-  * @nfsi: NFS inode
-  * @dst: Destination list
-- * @idx_start: lower bound of page->index to scan
-+ * @idx_start: lower bound of page_file_index(page) to scan
-  * @npages: idx_start + npages sets the upper bound to scan.
-  * @tag: tag to scan for
-  *
-Index: linux-2.6/fs/nfs/read.c
-===================================================================
---- linux-2.6.orig/fs/nfs/read.c
-+++ linux-2.6/fs/nfs/read.c
-@@ -458,11 +458,11 @@ static const struct rpc_call_ops nfs_rea
- int nfs_readpage(struct file *file, struct page *page)
- {
- 	struct nfs_open_context *ctx;
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	int		error;
- 
- 	dprintk("NFS: nfs_readpage (%p %ld@%lu)\n",
--		page, PAGE_CACHE_SIZE, page->index);
-+		page, PAGE_CACHE_SIZE, page_file_index(page));
- 	nfs_inc_stats(inode, NFSIOS_VFSREADPAGE);
- 	nfs_add_stats(inode, NFSIOS_READPAGES, 1);
- 
-@@ -509,7 +509,7 @@ static int
- readpage_async_filler(void *data, struct page *page)
- {
- 	struct nfs_readdesc *desc = (struct nfs_readdesc *)data;
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	struct nfs_page *new;
- 	unsigned int len;
- 	int error;
-Index: linux-2.6/fs/nfs/write.c
-===================================================================
---- linux-2.6.orig/fs/nfs/write.c
-+++ linux-2.6/fs/nfs/write.c
-@@ -126,7 +126,7 @@ static struct nfs_page *nfs_page_find_re
- 
- static struct nfs_page *nfs_page_find_request(struct page *page)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	struct nfs_page *req = NULL;
- 
- 	spin_lock(&inode->i_lock);
-@@ -138,13 +138,13 @@ static struct nfs_page *nfs_page_find_re
- /* Adjust the file length if we're writing beyond the end */
- static void nfs_grow_file(struct page *page, unsigned int offset, unsigned int count)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	loff_t end, i_size = i_size_read(inode);
- 	pgoff_t end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
- 
--	if (i_size > 0 && page->index < end_index)
-+	if (i_size > 0 && page_file_index(page) < end_index)
- 		return;
--	end = ((loff_t)page->index << PAGE_CACHE_SHIFT) + ((loff_t)offset+count);
-+	end = page_file_offset(page) + ((loff_t)offset+count);
- 	if (i_size >= end)
- 		return;
- 	nfs_inc_stats(inode, NFSIOS_EXTENDWRITE);
-@@ -155,7 +155,7 @@ static void nfs_grow_file(struct page *p
- static void nfs_set_pageerror(struct page *page)
- {
- 	SetPageError(page);
--	nfs_zap_mapping(page->mapping->host, page->mapping);
-+	nfs_zap_mapping(page_file_mapping(page)->host, page_file_mapping(page));
- }
- 
- /* We can set the PG_uptodate flag if we see that a write request
-@@ -185,7 +185,7 @@ static int nfs_writepage_setup(struct nf
- 		ret = PTR_ERR(req);
- 		if (ret != -EBUSY)
- 			return ret;
--		ret = nfs_wb_page(page->mapping->host, page);
-+		ret = nfs_wb_page(page_file_mapping(page)->host, page);
- 		if (ret != 0)
- 			return ret;
- 	}
-@@ -219,7 +219,7 @@ static int nfs_set_page_writeback(struct
- 	int ret = test_set_page_writeback(page);
- 
- 	if (!ret) {
--		struct inode *inode = page->mapping->host;
-+		struct inode *inode = page_file_mapping(page)->host;
- 		struct nfs_server *nfss = NFS_SERVER(inode);
- 
- 		if (atomic_long_inc_return(&nfss->writeback) >
-@@ -231,7 +231,7 @@ static int nfs_set_page_writeback(struct
- 
- static void nfs_end_page_writeback(struct page *page)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	struct nfs_server *nfss = NFS_SERVER(inode);
- 
- 	end_page_writeback(page);
-@@ -246,7 +246,7 @@ static void nfs_end_page_writeback(struc
- static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
- 				struct page *page)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	struct nfs_page *req;
- 	int ret;
- 
-@@ -289,12 +289,12 @@ static int nfs_page_async_flush(struct n
- 
- static int nfs_do_writepage(struct page *page, struct writeback_control *wbc, struct nfs_pageio_descriptor *pgio)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 
- 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
- 	nfs_add_stats(inode, NFSIOS_WRITEPAGES, 1);
- 
--	nfs_pageio_cond_complete(pgio, page->index);
-+	nfs_pageio_cond_complete(pgio, page_file_index(page));
- 	return nfs_page_async_flush(pgio, page);
- }
- 
-@@ -306,7 +306,7 @@ static int nfs_writepage_locked(struct p
- 	struct nfs_pageio_descriptor pgio;
- 	int err;
- 
--	nfs_pageio_init_write(&pgio, page->mapping->host, wb_priority(wbc));
-+	nfs_pageio_init_write(&pgio, page_file_mapping(page)->host, wb_priority(wbc));
- 	err = nfs_do_writepage(page, wbc, &pgio);
- 	nfs_pageio_complete(&pgio);
- 	if (err < 0)
-@@ -436,7 +436,8 @@ nfs_mark_request_commit(struct nfs_page 
- 			NFS_PAGE_TAG_COMMIT);
- 	spin_unlock(&inode->i_lock);
- 	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
--	inc_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_RECLAIMABLE);
-+	inc_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
-+			BDI_RECLAIMABLE);
- 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
- }
- 
-@@ -523,7 +524,7 @@ static void nfs_cancel_commit_list(struc
- 	while(!list_empty(head)) {
- 		req = nfs_list_entry(head->next);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
--		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
-+		dec_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
- 				BDI_RECLAIMABLE);
- 		nfs_list_remove_request(req);
- 		clear_bit(PG_NEED_COMMIT, &(req)->wb_flags);
-@@ -537,7 +538,7 @@ static void nfs_cancel_commit_list(struc
-  * nfs_scan_commit - Scan an inode for commit requests
-  * @inode: NFS inode to scan
-  * @dst: destination list
-- * @idx_start: lower bound of page->index to scan.
-+ * @idx_start: lower bound of page_file_index(page) to scan.
-  * @npages: idx_start + npages sets the upper bound to scan.
-  *
-  * Moves requests from the inode's 'commit' request list.
-@@ -573,7 +574,7 @@ static inline int nfs_scan_commit(struct
- static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
- 		struct page *page, unsigned int offset, unsigned int bytes)
- {
--	struct address_space *mapping = page->mapping;
-+	struct address_space *mapping = page_file_mapping(page);
- 	struct inode *inode = mapping->host;
- 	struct nfs_page		*req, *new = NULL;
- 	pgoff_t		rqend, end;
-@@ -690,7 +691,7 @@ int nfs_flush_incompatible(struct file *
- 		nfs_release_request(req);
- 		if (!do_flush)
- 			return 0;
--		status = nfs_wb_page(page->mapping->host, page);
-+		status = nfs_wb_page(page_file_mapping(page)->host, page);
- 	} while (status == 0);
- 	return status;
- }
-@@ -716,7 +717,7 @@ int nfs_updatepage(struct file *file, st
- 		unsigned int offset, unsigned int count)
- {
- 	struct nfs_open_context *ctx = nfs_file_open_context(file);
--	struct inode	*inode = page->mapping->host;
-+	struct inode	*inode = page_file_mapping(page)->host;
- 	int		status = 0;
- 
- 	nfs_inc_stats(inode, NFSIOS_VFSUPDATEPAGE);
-@@ -724,7 +725,7 @@ int nfs_updatepage(struct file *file, st
- 	dprintk("NFS:      nfs_updatepage(%s/%s %d@%Ld)\n",
- 		file->f_path.dentry->d_parent->d_name.name,
- 		file->f_path.dentry->d_name.name, count,
--		(long long)(page_offset(page) +offset));
-+		(long long)(page_file_offset(page) + offset));
- 
- 	/* If we're not using byte range locks, and we know the page
- 	 * is up to date, it may be more efficient to extend the write
-@@ -984,7 +985,7 @@ static void nfs_writeback_done_partial(s
- 	}
- 
- 	if (nfs_write_need_commit(data)) {
--		struct inode *inode = page->mapping->host;
-+		struct inode *inode = page_file_mapping(page)->host;
- 
- 		spin_lock(&inode->i_lock);
- 		if (test_bit(PG_NEED_RESCHED, &req->wb_flags)) {
-@@ -1235,7 +1236,7 @@ nfs_commit_list(struct inode *inode, str
- 		nfs_list_remove_request(req);
- 		nfs_mark_request_commit(req);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
--		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
-+		dec_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
- 				BDI_RECLAIMABLE);
- 		nfs_clear_page_tag_locked(req);
- 	}
-@@ -1262,7 +1263,7 @@ static void nfs_commit_done(struct rpc_t
- 		nfs_list_remove_request(req);
- 		clear_bit(PG_NEED_COMMIT, &(req)->wb_flags);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
--		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
-+		dec_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
- 				BDI_RECLAIMABLE);
- 
- 		dprintk("NFS: commit (%s/%Ld %d@%Ld)",
-@@ -1425,10 +1426,10 @@ int nfs_wb_nocommit(struct inode *inode)
- int nfs_wb_page_cancel(struct inode *inode, struct page *page)
- {
- 	struct nfs_page *req;
--	loff_t range_start = page_offset(page);
-+	loff_t range_start = page_file_offset(page);
- 	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
- 	struct writeback_control wbc = {
--		.bdi = page->mapping->backing_dev_info,
-+		.bdi = page_file_mapping(page)->backing_dev_info,
- 		.sync_mode = WB_SYNC_ALL,
- 		.nr_to_write = LONG_MAX,
- 		.range_start = range_start,
-@@ -1461,7 +1462,7 @@ int nfs_wb_page_cancel(struct inode *ino
- 	}
- 	if (!PagePrivate(page))
- 		return 0;
--	ret = nfs_sync_mapping_wait(page->mapping, &wbc, FLUSH_INVALIDATE);
-+	ret = nfs_sync_mapping_wait(page_file_mapping(page), &wbc, FLUSH_INVALIDATE);
- out:
- 	return ret;
- }
-@@ -1469,10 +1470,10 @@ out:
- static int nfs_wb_page_priority(struct inode *inode, struct page *page,
- 				int how)
- {
--	loff_t range_start = page_offset(page);
-+	loff_t range_start = page_file_offset(page);
- 	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
- 	struct writeback_control wbc = {
--		.bdi = page->mapping->backing_dev_info,
-+		.bdi = page_file_mapping(page)->backing_dev_info,
- 		.sync_mode = WB_SYNC_ALL,
- 		.nr_to_write = LONG_MAX,
- 		.range_start = range_start,
-@@ -1488,7 +1489,7 @@ static int nfs_wb_page_priority(struct i
- 	}
- 	if (!PagePrivate(page))
- 		return 0;
--	ret = nfs_sync_mapping_wait(page->mapping, &wbc, how);
-+	ret = nfs_sync_mapping_wait(page_file_mapping(page), &wbc, how);
- 	if (ret >= 0)
- 		return 0;
- out:
-Index: linux-2.6/fs/nfs/internal.h
-===================================================================
---- linux-2.6.orig/fs/nfs/internal.h
-+++ linux-2.6/fs/nfs/internal.h
-@@ -255,13 +255,14 @@ void nfs_super_set_maxbytes(struct super
- static inline
- unsigned int nfs_page_length(struct page *page)
- {
--	loff_t i_size = i_size_read(page->mapping->host);
-+	loff_t i_size = i_size_read(page_file_mapping(page)->host);
- 
- 	if (i_size > 0) {
-+		pgoff_t page_index = page_file_index(page);
- 		pgoff_t end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
--		if (page->index < end_index)
-+		if (page_index < end_index)
- 			return PAGE_CACHE_SIZE;
--		if (page->index == end_index)
-+		if (page_index == end_index)
- 			return ((i_size - 1) & ~PAGE_CACHE_MASK) + 1;
- 	}
- 	return 0;
+--- /dev/null
++++ linux-2.6/Documentation/network-swap.txt
+@@ -0,0 +1,270 @@
++
++Problem:
++   When Linux needs to allocate memory it may find that there is
++   insufficient free memory so it needs to reclaim space that is in
++   use but not needed at the moment.  There are several options:
++
++   1/ Shrink a kernel cache such as the inode or dentry cache.  This
++      is fairly easy but provides limited returns.
++   2/ Discard 'clean' pages from the page cache.  This is easy, and
++      works well as long as there are clean pages in the page cache.
++      Similarly clean 'anonymous' pages can be discarded - if there
++      are any.
++   3/ Write out some dirty page-cache pages so that they become clean.
++      The VM limits the number of dirty page-cache pages to e.g. 40%
++      of available memory so that (among other reasons) a "sync" will
++      not take excessively long.  So there should never be excessive
++      amounts of dirty pagecache.
++      Writing out dirty page-cache pages involves work by the
++      filesystem which may need to allocate memory itself.  To avoid
++      deadlock, filesystems use GFP_NOFS when allocating memory on the
++      write-out path.  When this is used, cleaning dirty page-cache
++      pages is not an option so if the filesystem finds that  memory
++      is tight, another option must be found.
++   4/ Write out dirty anonymous pages to the "Swap" partition/file.
++      This is the most interesting for a couple of reasons.
++      a/ Unlike dirty page-cache pages, there is no need to write anon
++         pages out unless we are actually short of memory.  Thus they
++         tend to be left to last.
++      b/ Anon pages tend to be updated randomly and unpredictably, and
++         flushing them out of memory can have a very significant
++         performance impact on the process using them.  This contrasts
++         with page-cache pages which are often written sequentially
++         and often treated as "write-once, read-many".
++      So anon pages tend to be left until last to be cleaned, and may
++      be the only cleanable pages while there are still some dirty
++      page-cache pages (which are waiting on a GFP_NOFS allocation).
++
++[I don't find the above wholly satisfying.  There seems to be too much
++ hand-waving.  If someone can provide better text explaining why
++ swapout is a special case, that would be great.]
++
++So we need to be able to write to the swap file/partition without
++needing to allocate any memory ... or only a small well controlled
++amount.
++
++The VM reserves a small amount of memory that can only be allocated
++for use as part of the swap-out procedure.  It is only available to
++processes with the PF_MEMALLOC flag set, which is typically just the
++memory cleaner.
++
++Traditionally swap-out is performed directly to block devices (swap
++files on block-device filesystems are supported by examining the
++mapping from file offset to device offset in advance, and then using
++the device offsets to write directly to the device).  Block devices
++are (required to be) written to pre-allocate any memory that might be
++needed during write-out, and to block when the pre-allocated memory is
++exhausted and no other memory is available.  They can be sure not to
++block forever as the pre-allocated memory will be returned as soon as
++the data it is being used for has been written out.  The primary
++mechanism for pre-allocating memory is called "mempools".
++
++This approach does not work for writing anonymous pages
++(i.e. swapping) over a network, using e.g NFS or NBD or iSCSI.
++
++
++The main reason that it does not work is that when data from an anon
++page is written to the network, we must wait for a reply to confirm
++the data is safe.  Receiving that reply will consume memory and,
++significantly, we need to allocate memory to an incoming packet before
++we can tell if it is the reply we are waiting for or not.
++
++The secondary reason is that the network code is not written to use
++mempools and in most cases does not need to use them.  Changing all
++allocations in the networking layer to use mempools would be quite
++intrusive, and would waste memory, and probably cause a slow-down in
++the common case of not swapping over the network.
++
++These problems are addressed by enhancing the system of memory
++reserves used by PF_MEMALLOC and requiring any in-kernel networking
++client that is used for swap-out to indicate which sockets are used
++for swapout so they can be handled specially in low memory situations.
++
++There are several major parts to this enhancement:
++
++1/ page->reserve, GFP_MEMALLOC
++
++  To handle low memory conditions we need to know when those
++  conditions exist.  Having a global "low on memory" flag seems easy,
++  but its implementation is problematic.  Instead we make it possible
++  to tell if a recent memory allocation required use of the emergency
++  memory pool.
++  For pages returned by alloc_page, the new page->reserve flag
++  can be tested.  If this is set, then a low memory condition was
++  current when the page was allocated, so the memory should be used
++  carefully. (Because low memory conditions are transient, this
++  state is kept in an overloaded member instead of in page flags, which
++  would suggest a more permanent state.)
++
++  For memory allocated using slab/slub: If a page that is added to a
++  kmem_cache is found to have page->reserve set, then a  s->reserve
++  flag is set for the whole kmem_cache.  Further allocations will only
++  be returned from that page (or any other page in the cache) if they
++  are emergency allocation (i.e. PF_MEMALLOC or GFP_MEMALLOC is set).
++  Non-emergency allocations will block in alloc_page until a
++  non-reserve page is available.  Once a non-reserve page has been
++  added to the cache, the s->reserve flag on the cache is removed.
++
++  Because slab objects have no individual state its hard to pass
++  reserve state along, the current code relies on a regular alloc
++  failing. There are various allocation wrappers help here.
++
++  This allows us to
++   a/ request use of the emergency pool when allocating memory
++     (GFP_MEMALLOC), and
++   b/ to find out if the emergency pool was used.
++
++2/ SK_MEMALLOC, sk_buff->emergency.
++
++  When memory from the reserve is used to store incoming network
++  packets, the memory must be freed (and the packet dropped) as soon
++  as we find out that the packet is not for a socket that is used for
++  swap-out.
++  To achieve this we have an ->emergency flag for skbs, and an
++  SK_MEMALLOC flag for sockets.
++  When memory is allocated for an skb, it is allocated with
++  GFP_MEMALLOC (if we are currently swapping over the network at
++  all).  If a subsequent test shows that the emergency pool was used,
++  ->emergency is set.
++  When the skb is finally attached to its destination socket, the
++  SK_MEMALLOC flag on the socket is tested.  If the skb has
++  ->emergency set, but the socket does not have SK_MEMALLOC set, then
++  the skb is immediately freed and the packet is dropped.
++  This ensures that reserve memory is never queued on a socket that is
++  not used for swapout.
++
++  Similarly, if an skb is ever queued for delivery to user-space for
++  example by netfilter, the ->emergency flag is tested and the skb is
++  released if ->emergency is set. (so obviously the storage route may
++  not pass through a userspace helper, otherwise the packets will never
++  arrive and we'll deadlock)
++
++  This ensures that memory from the emergency reserve can be used to
++  allow swapout to proceed, but will not get caught up in any other
++  network queue.
++
++
++3/ pages_emergency
++
++  The above would be sufficient if the total memory below the lowest
++  memory watermark (i.e the size of the emergency reserve) were known
++  to be enough to hold all transient allocations needed for writeout.
++  I'm a little blurry on how big the current emergency pool is, but it
++  isn't big and certainly hasn't been sized to allow network traffic
++  to consume any.
++
++  We could simply make the size of the reserve bigger. However in the
++  common case that we are not swapping over the network, that would be
++  a waste of memory.
++
++  So a new "watermark" is defined: pages_emergency.  This is
++  effectively added to the current low water marks, so that pages from
++  this emergency pool can only be allocated if one of PF_MEMALLOC or
++  GFP_MEMALLOC are set.
++
++  pages_emergency can be changed dynamically based on need.  When
++  swapout over the network is required, pages_emergency is increased
++  to cover the maximum expected load.  When network swapout is
++  disabled, pages_emergency is decreased.
++
++  To determine how much to increase it by, we introduce reservation
++  groups....
++
++3a/ reservation groups
++
++  The memory used transiently for swapout can be in a number of
++  different places.  e.g. the network route cache, the network
++  fragment cache, in transit between network card and socket, or (in
++  the case of NFS) in sunrpc data structures awaiting a reply.
++  We need to ensure each of these is limited in the amount of memory
++  they use, and that the maximum is included in the reserve.
++
++  The memory required by the network layer only needs to be reserved
++  once, even if there are multiple swapout paths using the network
++  (e.g. NFS and NDB and iSCSI, though using all three for swapout at
++  the same time would be unusual).
++
++  So we create a tree of reservation groups.  The network might
++  register a collection of reservations, but not mark them as being in
++  use.  NFS and sunrpc might similarly register a collection of
++  reservations, and attach it to the network reservations as it
++  depends on them.
++  When swapout over NFS is requested, the NFS/sunrpc reservations are
++  activated which implicitly activates the network reservations.
++
++  The total new reservation is added to pages_emergency.
++
++  Provided each memory usage stays beneath the registered limit (at
++  least when allocating memory from reserves), the system will never
++  run out of emergency memory, and swapout will not deadlock.
++
++  It is worth noting here that it is not critical that each usage
++  stays beneath the limit 100% of the time.  Occasional excess is
++  acceptable provided that the memory will be freed  again within a
++  short amount of time that does *not* require waiting for any event
++  that itself might require memory.
++  This is because, at all stages of transmit and receive, it is
++  acceptable to discard all transient memory associated with a
++  particular writeout and try again later.  On transmit, the page can
++  be re-queued for later transmission.  On receive, the packet can be
++  dropped assuming that the peer will resend after a timeout.
++
++  Thus allocations that are truly transient and will be freed without
++  blocking do not strictly need to be reserved for.  Doing so might
++  still be a good idea to ensure forward progress doesn't take too
++  long.
++
++4/ low-mem accounting
++
++  Most places that might hold on to emergency memory (e.g. route
++  cache, fragment cache etc) already place a limit on the amount of
++  memory that they can use.  This limit can simply be reserved using
++  the above mechanism and no more needs to be done.
++
++  However some memory usage might not be accounted with sufficient
++  firmness to allow an appropriate emergency reservation.  The
++  in-flight skbs for incoming packets is on such example.
++
++  To support this, a low-overhead mechanism for accounting memory
++  usage against the reserves is provided.  This mechanism uses the
++  same data structure that is used to store the emergency memory
++  reservations through the addition of a 'usage' field.
++
++  Before we attempt allocation from the memory reserves, we much check
++  if the resulting 'usage' is below the reservation. If so, we increase
++  the usage and attempt the allocation (which should succeed). If
++  the projected 'usage' exceeds the reservation we'll either fail the
++  allocation, or wait for 'usage' to decrease enough so that it would
++  succeed, depending on __GFP_WAIT.
++
++  When memory that was allocated for that purpose is freed, the
++  'usage' field is checked again.  If it is non-zero, then the size of
++  the freed memory is subtracted from the usage, making sure the usage
++  never becomes less than zero.
++
++  This provides adequate accounting with minimal overheads when not in
++  a low memory condition.  When a low memory condition is encountered
++  it does add the cost of a spin lock necessary to serialise updates
++  to 'usage'.
++
++
++
++5/ swapon/swapoff/swap_out/swap_in
++
++  So that a filesystem (e.g. NFS) can know when to set SK_MEMALLOC on
++  any network socket that it uses, and can know when to account
++  reserve memory carefully, new address_space_operations are
++  available.
++  "swapon" requests that an address space (i.e a file) be make ready
++  for swapout.  swap_out and swap_in request the actual IO.  They
++  together must ensure that each swap_out request can succeed without
++  allocating more emergency memory that was reserved by swapon. swapoff
++  is used to reverse the state changes caused by swapon when we disable
++  the swap file.
++
++
++Thanks for reading this far.  I hope it made sense :-)
++
++Neil Brown (with updates from Peter Zijlstra)
++
++
 
 --
 
