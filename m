@@ -1,11 +1,11 @@
-Date: Thu, 20 Mar 2008 11:29:44 -0700 (PDT)
+Date: Thu, 20 Mar 2008 11:31:29 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 5/9] slub: Fallback to minimal order during slab page
- allocation
-In-Reply-To: <1205989839.14496.32.camel@ymzhang>
-Message-ID: <Pine.LNX.4.64.0803201128001.10474@schroedinger.engr.sgi.com>
-References: <20080317230516.078358225@sgi.com>  <20080317230528.939792410@sgi.com>
- <1205989839.14496.32.camel@ymzhang>
+Subject: Re: [patch 8/9] slub: Make the order configurable for each slab
+ cache
+In-Reply-To: <1205992409.14496.48.camel@ymzhang>
+Message-ID: <Pine.LNX.4.64.0803201130230.10474@schroedinger.engr.sgi.com>
+References: <20080317230516.078358225@sgi.com>  <20080317230529.701336582@sgi.com>
+ <1205992409.14496.48.camel@ymzhang>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -16,17 +16,11 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 20 Mar 2008, Zhang, Yanmin wrote:
 
-> page->objects = (PAGE_SIZE << get_order(s->size)) / s->size;
-> 
-> 
-> It'll look more readable and be simplified.
+> It could be resolved by fetch s->order in allocate_slab firstly and calculate
+> page->objects lately instead of fetching s->objects.
 
-The earlier version of the fallback had that.
-
-However, its a division in a potentially hot codepath.
-And some architectures have slow division logic.
-
-
+Hmmm..... Indeed a race there. But I want to avoid divisions in that code 
+path.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
