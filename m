@@ -1,30 +1,37 @@
-Date: Fri, 21 Mar 2008 19:45:27 +0100
+Date: Fri, 21 Mar 2008 20:02:58 +0100
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [2/2] vmallocinfo: Add caller information
-Message-ID: <20080321184526.GB6571@elte.hu>
-References: <20080318222701.788442216@sgi.com> <20080318222827.519656153@sgi.com> <20080319214227.GA4454@elte.hu> <Pine.LNX.4.64.0803191659410.4645@schroedinger.engr.sgi.com> <20080321110008.GW20420@elte.hu> <Pine.LNX.4.64.0803211034140.18671@schroedinger.engr.sgi.com>
+Subject: Re: [11/14] vcompound: Fallbacks for order 1 stack allocations on
+	IA64 and x86
+Message-ID: <20080321190258.GF6571@elte.hu>
+References: <20080321061703.921169367@sgi.com> <20080321061726.782068299@sgi.com> <20080321.002502.223136918.davem@davemloft.net> <20080321083952.GA20454@elte.hu> <Pine.LNX.4.64.0803211032390.18671@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0803211034140.18671@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0803211032390.18671@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: David Miller <davem@davemloft.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
 * Christoph Lameter <clameter@sgi.com> wrote:
 
 > On Fri, 21 Mar 2008, Ingo Molnar wrote:
 > 
-> > then make STACKTRACE available generally via the patch below.
+> > another thing is that this patchset includes KERNEL_STACK_SIZE_ORDER 
+> > which has been NACK-ed before on x86 by several people and i'm 
+> > nacking this "configurable stack size" aspect of it again.
 > 
-> How do I figure out which nesting level to display if we'd do this?
+> Huh? Nothing of that nature is in this patchset.
 
-the best i found for lockdep was to include a fair number of them, and 
-to skip the top 3. struct vm_area that vmalloc uses isnt space-critical, 
-so 4-8 entries with a 3 skip would be quite ok. (but can be more than 
-that as well)
+your patch indeed does not introduce it here, but 
+KERNEL_STACK_SIZE_ORDER shows up in the x86 portion of your patch and 
+you refer to multi-order stack allocations in your 0/14 mail :-)
+
+> -#define alloc_task_struct()	((struct task_struct *)__get_free_pages(GFP_KERNEL | __GFP_COMP, KERNEL_STACK_SIZE_ORDER))
+> -#define free_task_struct(tsk)	free_pages((unsigned long) (tsk), KERNEL_STACK_SIZE_ORDER)
+> +#define alloc_task_struct()	((struct task_struct *)__alloc_vcompound( \
+> +			GFP_KERNEL, KERNEL_STACK_SIZE_ORDER))
 
 	Ingo
 
