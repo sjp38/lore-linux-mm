@@ -1,32 +1,27 @@
-Date: Fri, 21 Mar 2008 03:12:49 +0100 (CET)
-From: Jan Engelhardt <jengelh@computergmbh.de>
-Subject: Re: [PATCH] Add definitions of USHRT_MAX
-In-Reply-To: <1206064278.26345.108.camel@localhost>
-Message-ID: <alpine.LNX.1.00.0803210312400.10642@fbirervta.pbzchgretzou.qr>
-References: <1206063614.14496.72.camel@ymzhang> <1206064278.26345.108.camel@localhost>
+Date: Thu, 20 Mar 2008 20:35:30 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 5/9] slub: Fallback to minimal order during slab page
+ allocation
+In-Reply-To: <1206060738.14496.66.camel@ymzhang>
+Message-ID: <Pine.LNX.4.64.0803202034340.14239@schroedinger.engr.sgi.com>
+References: <20080317230516.078358225@sgi.com>  <20080317230528.939792410@sgi.com>
+ <1205989839.14496.32.camel@ymzhang>  <Pine.LNX.4.64.0803201128001.10474@schroedinger.engr.sgi.com>
+ <1206060738.14496.66.camel@ymzhang>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mel@csn.ul.ie>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mar 20 2008 18:51, Joe Perches wrote:
-> On Fri, 2008-03-21 at 09:40 +0800, Zhang, Yanmin wrote:
->> Add definitions of USHRT_MAX and others into kernel. ipc uses it and
->> slub implementation might also use it.
->> +#define USHRT_MAX	((u16)(~0U))
->> +#define SHRT_MAX	((s16)(USHRT_MAX>>1))
->> +#define SHRT_MIN	(-SHRT_MAX - 1)
->
-> Perhaps it's better to use the most common kernel types?
-> Perhaps U16_MAX, S16_MAX and S16_MIN?
->
-> Don't you need to cast SHRT_MIN/S16_MIN too?
-> #define S16_MIN ((s16)(-SHRT_MAX - 1))
+On Fri, 21 Mar 2008, Zhang, Yanmin wrote:
 
-SHRT_MAX is already s16.
+> > However, its a division in a potentially hot codepath.
+> No as long as there is no allocation failure because of fragmentation.
+
+If its only used for the fallback path then the race condition is still 
+there?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
