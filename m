@@ -1,24 +1,36 @@
-Date: Fri, 21 Mar 2008 00:03:51 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [14/14] vcompound: Avoid vmalloc for ehash_locks
-In-Reply-To: <47E35D73.6060703@cosmosbay.com>
-Message-ID: <Pine.LNX.4.64.0803210002450.15903@schroedinger.engr.sgi.com>
-References: <20080321061703.921169367@sgi.com> <20080321061727.491610308@sgi.com>
- <47E35D73.6060703@cosmosbay.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 21 Mar 2008 00:25:02 -0700 (PDT)
+Message-Id: <20080321.002502.223136918.davem@davemloft.net>
+Subject: Re: [11/14] vcompound: Fallbacks for order 1 stack allocations on
+ IA64 and x86
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20080321061726.782068299@sgi.com>
+References: <20080321061703.921169367@sgi.com>
+	<20080321061726.782068299@sgi.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Christoph Lameter <clameter@sgi.com>
+Date: Thu, 20 Mar 2008 23:17:14 -0700
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linux Netdev List <netdev@vger.kernel.org>
+To: clameter@sgi.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 Mar 2008, Eric Dumazet wrote:
+> This allows fallback for order 1 stack allocations. In the fallback
+> scenario the stacks will be virtually mapped.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-> But, isnt it defeating the purpose of this *particular* vmalloc() use ?
+I would be very careful with this especially on IA64.
 
-I thought that was controlled by hashdist? I did not see it used here and 
-so I assumed that the RR was not intended here.
+If the TLB miss or other low-level trap handler depends upon being
+able to dereference thread info, task struct, or kernel stack stuff
+without causing a fault outside of the linear PAGE_OFFSET area, this
+patch will cause problems.
+
+It will be difficult to debug the kinds of crashes this will cause
+too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
