@@ -1,56 +1,46 @@
-Message-Id: <20080321061726.446275264@sgi.com>
+Message-Id: <20080321061727.491610308@sgi.com>
 References: <20080321061703.921169367@sgi.com>
-Date: Thu, 20 Mar 2008 23:17:13 -0700
+Date: Thu, 20 Mar 2008 23:17:17 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [10/14] vcompound: slub: Use for buffer to correlate allocation addresses
-Content-Disposition: inline; filename=0015-vcompound-Fallback-for-buffer-to-correlate-alloc-lo.patch
+Subject: [14/14] vcompound: Avoid vmalloc for ehash_locks
+Content-Disposition: inline; filename=tcpinit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The caller table can get quite large if there are many call sites for a
-particular slab. Using a virtual compound page allows fallback to vmalloc in
-case the caller table gets too big and memory is fragmented. Currently we
-would fail the operation.
+Avoid the use of vmalloc for the ehash locks.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
----
- mm/slub.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
 
-Index: linux-2.6.25-rc5-mm1/mm/slub.c
+---
+ include/net/inet_hashtables.h |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+Index: linux-2.6.25-rc5-mm1/include/net/inet_hashtables.h
 ===================================================================
---- linux-2.6.25-rc5-mm1.orig/mm/slub.c	2008-03-20 18:04:44.153110938 -0700
-+++ linux-2.6.25-rc5-mm1/mm/slub.c	2008-03-20 19:40:17.103393950 -0700
-@@ -21,6 +21,7 @@
- #include <linux/ctype.h>
- #include <linux/kallsyms.h>
- #include <linux/memory.h>
-+#include <linux/vmalloc.h>
- 
- /*
-  * Lock order:
-@@ -3372,8 +3373,7 @@ struct loc_track {
- static void free_loc_track(struct loc_track *t)
- {
- 	if (t->max)
--		free_pages((unsigned long)t->loc,
--			get_order(sizeof(struct location) * t->max));
-+		__free_vcompound(t->loc);
- }
- 
- static int alloc_loc_track(struct loc_track *t, unsigned long max, gfp_t flags)
-@@ -3383,7 +3383,7 @@ static int alloc_loc_track(struct loc_tr
- 
- 	order = get_order(sizeof(struct location) * max);
- 
--	l = (void *)__get_free_pages(flags, order);
-+	l = __alloc_vcompound(flags, order);
- 	if (!l)
- 		return 0;
- 
+--- linux-2.6.25-rc5-mm1.orig/include/net/inet_hashtables.h	2008-03-20 22:21:02.680501729 -0700
++++ linux-2.6.25-rc5-mm1/include/net/inet_hashtables.h	2008-03-20 22:22:15.416565317 -0700
+@@ -164,7 +164,8 @@ static inline int inet_ehash_locks_alloc
+ 	if (sizeof(rwlock_t) != 0) {
+ #ifdef CONFIG_NUMA
+ 		if (size * sizeof(rwlock_t) > PAGE_SIZE)
+-			hashinfo->ehash_locks = vmalloc(size * sizeof(rwlock_t));
++			hashinfo->ehash_locks = __alloc_vcompound(GFP_KERNEL,
++				get_order(size * sizeof(rwlock_t)));
+ 		else
+ #endif
+ 		hashinfo->ehash_locks =	kmalloc(size * sizeof(rwlock_t),
+@@ -185,7 +186,7 @@ static inline void inet_ehash_locks_free
+ 		unsigned int size = (hashinfo->ehash_locks_mask + 1) *
+ 							sizeof(rwlock_t);
+ 		if (size > PAGE_SIZE)
+-			vfree(hashinfo->ehash_locks);
++			__free_vcompound(hashinfo->ehash_locks);
+ 		else
+ #endif
+ 		kfree(hashinfo->ehash_locks);
 
 -- 
 
