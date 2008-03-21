@@ -1,52 +1,44 @@
-Date: Fri, 21 Mar 2008 14:33:23 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [13/14] vcompound: Use vcompound for swap_map
-In-Reply-To: <8763vfixb8.fsf@basil.nowhere.org>
-Message-ID: <Pine.LNX.4.64.0803211429270.21071@schroedinger.engr.sgi.com>
-References: <20080321061703.921169367@sgi.com> <20080321061727.269764652@sgi.com>
- <8763vfixb8.fsf@basil.nowhere.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 21 Mar 2008 14:57:12 -0700 (PDT)
+Message-Id: <20080321.145712.198736315.davem@davemloft.net>
+Subject: Re: [11/14] vcompound: Fallbacks for order 1 stack allocations on
+ IA64 and x86
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <Pine.LNX.4.64.0803211037140.18671@schroedinger.engr.sgi.com>
+References: <20080321061726.782068299@sgi.com>
+	<20080321.002502.223136918.davem@davemloft.net>
+	<Pine.LNX.4.64.0803211037140.18671@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Christoph Lameter <clameter@sgi.com>
+Date: Fri, 21 Mar 2008 10:40:18 -0700 (PDT)
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
+To: clameter@sgi.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 Mar 2008, Andi Kleen wrote:
-
-> > is larger then there is no way around the use of vmalloc.
+> On Fri, 21 Mar 2008, David Miller wrote:
 > 
-> Have you considered the potential memory wastage from rounding up
-> to the next page order now? (similar in all the other patches
-> to change vmalloc). e.g. if the old size was 64k + 1 byte it will
-> suddenly get 128k now. That is actually not a uncommon situation
-> in my experience; there are often power of two buffers with 
-> some small headers.
-
-Yes the larger the order the more significant the problem becomes.
-
-> A long time ago (in 2.4-aa) I did something similar for module loading
-> as an experiment to avoid too many TLB misses. The module loader
-> would first try to get a continuous range in the direct mapping and 
-> only then fall back to vmalloc.
+> > I would be very careful with this especially on IA64.
+> > 
+> > If the TLB miss or other low-level trap handler depends upon being
+> > able to dereference thread info, task struct, or kernel stack stuff
+> > without causing a fault outside of the linear PAGE_OFFSET area, this
+> > patch will cause problems.
 > 
-> But I used a simple trick to avoid the waste problem: it allocated a
-> continuous range rounded up to the next page-size order and then freed
-> the excess pages back into the page allocator. That was called
-> alloc_exact(). If you replace vmalloc with alloc_pages you should
-> use something like that too I think.
+> Hmmm. Does not sound good for arches that cannot handle TLB misses in 
+> hardware. I wonder how arch specific this is? Last time around I was told 
+> that some arches already virtually map their stacks.
 
-That trick is still in use for alloc_large_system_hash....
+I'm not saying there is a problem, I'm saying "tread lightly"
+because there might be one.
 
-But cutting off the tail of compound pages would make treating them as 
-order N pages difficult. The vmalloc fallback situation is easy to deal 
-with.
+The thing to do is to first validate the way that IA64
+handles recursive TLB misses occuring during an initial
+TLB miss, and if there are any limitations therein.
 
-Maybe we can think about making compound pages being N consecutive pages 
-of PAGE_SIZE rather than an order O page? The api would be a bit 
-different then and it would require changes to the page allocator. More 
-fragmentation if pages like that are freed.
+That's the kind of thing I'm talking about.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
