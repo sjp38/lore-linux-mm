@@ -1,41 +1,44 @@
-Message-Id: <20080321061726.035952517@sgi.com>
+Message-Id: <20080321061725.701640800@sgi.com>
 References: <20080321061703.921169367@sgi.com>
-Date: Thu, 20 Mar 2008 23:17:11 -0700
+Date: Thu, 20 Mar 2008 23:17:10 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [08/14] vcompound: Fallback for zone wait table
-Content-Disposition: inline; filename=0010-vcompound-Fallback-for-wait-table.patch
+Subject: [07/14] vcompound: bit waitqueue support
+Content-Disposition: inline; filename=0011-vcompound-bit-waitqueue-support.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Currently vmalloc may be used for allocating zone wait table.
-Use virtual compound page in order to be able to use a physically contiguous
-page that can then use the large kernel TLBs.
-
-Drawback: The zone wait table is rounded up to the next power of two which
-may cost some memory.
+If bit_waitqueue is passed a vmalloc address then it must use
+vmalloc_head_page() instead of virt_to_page().
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- mm/page_alloc.c |    3 ++-
+ kernel/wait.c |    3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
 
-Index: linux-2.6.25-rc5-mm1/mm/page_alloc.c
+Index: linux-2.6.25-rc5-mm1/kernel/wait.c
 ===================================================================
---- linux-2.6.25-rc5-mm1.orig/mm/page_alloc.c	2008-03-20 20:03:50.885900600 -0700
-+++ linux-2.6.25-rc5-mm1/mm/page_alloc.c	2008-03-20 20:04:43.282104684 -0700
-@@ -2866,7 +2866,8 @@ int zone_wait_table_init(struct zone *zo
- 		 * To use this new node's memory, further consideration will be
- 		 * necessary.
- 		 */
--		zone->wait_table = vmalloc(alloc_size);
-+		zone->wait_table = __alloc_vcompound(GFP_KERNEL,
-+						get_order(alloc_size));
- 	}
- 	if (!zone->wait_table)
- 		return -ENOMEM;
+--- linux-2.6.25-rc5-mm1.orig/kernel/wait.c	2008-03-20 20:03:51.141901370 -0700
++++ linux-2.6.25-rc5-mm1/kernel/wait.c	2008-03-20 20:07:57.266856571 -0700
+@@ -9,6 +9,7 @@
+ #include <linux/mm.h>
+ #include <linux/wait.h>
+ #include <linux/hash.h>
++#include <linux/vmalloc.h>
+ 
+ void init_waitqueue_head(wait_queue_head_t *q)
+ {
+@@ -245,7 +246,7 @@ EXPORT_SYMBOL(wake_up_bit);
+ wait_queue_head_t *bit_waitqueue(void *word, int bit)
+ {
+ 	const int shift = BITS_PER_LONG == 32 ? 5 : 6;
+-	const struct zone *zone = page_zone(virt_to_page(word));
++	const struct zone *zone = page_zone(vcompound_head_page(word));
+ 	unsigned long val = (unsigned long)word << shift | bit;
+ 
+ 	return &zone->wait_table[hash_long(val, zone->wait_table_bits)];
 
 -- 
 
