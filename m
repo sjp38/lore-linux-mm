@@ -1,51 +1,59 @@
-Subject: Re: [patch 5/9] slub: Fallback to minimal order during slab page
-	allocation
-From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-In-Reply-To: <Pine.LNX.4.64.0803202305590.14617@schroedinger.engr.sgi.com>
-References: <20080317230516.078358225@sgi.com>
-	 <20080317230528.939792410@sgi.com> <1205989839.14496.32.camel@ymzhang>
-	 <Pine.LNX.4.64.0803201128001.10474@schroedinger.engr.sgi.com>
-	 <1206060738.14496.66.camel@ymzhang>
-	 <Pine.LNX.4.64.0803202034340.14239@schroedinger.engr.sgi.com>
-	 <1206076457.14496.85.camel@ymzhang>
-	 <Pine.LNX.4.64.0803202305590.14617@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=utf-8
-Date: Fri, 21 Mar 2008 16:23:15 +0800
-Message-Id: <1206087795.14496.120.camel@ymzhang>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 21 Mar 2008 09:39:52 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [11/14] vcompound: Fallbacks for order 1 stack allocations on
+	IA64 and x86
+Message-ID: <20080321083952.GA20454@elte.hu>
+References: <20080321061703.921169367@sgi.com> <20080321061726.782068299@sgi.com> <20080321.002502.223136918.davem@davemloft.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080321.002502.223136918.davem@davemloft.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mel@csn.ul.ie>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: David Miller <davem@davemloft.net>
+Cc: clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-03-20 at 23:07 -0700, Christoph Lameter wrote:
-> On Fri, 21 Mar 2008, Zhang, Yanmin wrote:
+* David Miller <davem@davemloft.net> wrote:
+
+> From: Christoph Lameter <clameter@sgi.com>
+> Date: Thu, 20 Mar 2008 23:17:14 -0700
 > 
-> > On Thu, 2008-03-20 at 20:35 -0700, Christoph Lameter wrote:
-> > > On Fri, 21 Mar 2008, Zhang, Yanmin wrote:
-> > > 
-> > > > > However, its a division in a potentially hot codepath.
-> > > > No as long as there is no allocation failure because of fragmentation.
-> > > 
-> > > If its only used for the fallback path then the race condition is still 
-> > > there?
-> > I can't understand your question. Does it means min_objects? It's not related
-> > to the race. The fallback path also isn't related to the race.
+> > This allows fallback for order 1 stack allocations. In the fallback
+> > scenario the stacks will be virtually mapped.
 > > 
-> > The race is when kernel runs in allocate_slab, just between fetching s->order and
-> > s->objects,user might change s->order by sysfs.
+> > Signed-off-by: Christoph Lameter <clameter@sgi.com>
 > 
-> Right. That patch matters most and with the patch that I posted a few 
-> hours ago there is a common scheme that addresses both the race and the 
-> issue with min_objects (hopefully...)
-Yes, the patch does address them.
+> I would be very careful with this especially on IA64.
+> 
+> If the TLB miss or other low-level trap handler depends upon being 
+> able to dereference thread info, task struct, or kernel stack stuff 
+> without causing a fault outside of the linear PAGE_OFFSET area, this 
+> patch will cause problems.
+> 
+> It will be difficult to debug the kinds of crashes this will cause 
+> too. [...]
 
-Thanks,
-Yanmin
+another thing is that this patchset includes KERNEL_STACK_SIZE_ORDER 
+which has been NACK-ed before on x86 by several people and i'm nacking 
+this "configurable stack size" aspect of it again.
 
+although it's not being spelled out in the changelog, i believe the 
+fundamental problem comes from a cpumask_t taking 512 bytes with 
+nr_cpus=4096, and if a few of them are on the kernel stack it can be a 
+problem. The correct answer is to not put them on the stack and we've 
+been taking patches to that end. Every other object allocator in the 
+kernel is able to not put stuff on the kernel stack. We _dont_ want 
+higher-order kernel stacks and we dont want to make a special exception 
+for cpumask_t either.
 
+i believe time might be better spent increasing PAGE_SIZE on these 
+ridiculously large systems and making that work well with our binary 
+formats - instead of complicating our kernel VM with virtually mapped 
+buffers. That will also solve the kernel stack problem, in a very 
+natural way.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
