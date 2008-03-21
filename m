@@ -1,59 +1,33 @@
-Message-ID: <47E40682.3020209@de.ibm.com>
-Date: Fri, 21 Mar 2008 20:03:30 +0100
-From: Carsten Otte <cotte@de.ibm.com>
-Reply-To: carsteno@de.ibm.com
+Date: Fri, 21 Mar 2008 12:16:00 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [2/2] vmallocinfo: Add caller information
+In-Reply-To: <20080321184526.GB6571@elte.hu>
+Message-ID: <Pine.LNX.4.64.0803211212520.19558@schroedinger.engr.sgi.com>
+References: <20080318222701.788442216@sgi.com> <20080318222827.519656153@sgi.com>
+ <20080319214227.GA4454@elte.hu> <Pine.LNX.4.64.0803191659410.4645@schroedinger.engr.sgi.com>
+ <20080321110008.GW20420@elte.hu> <Pine.LNX.4.64.0803211034140.18671@schroedinger.engr.sgi.com>
+ <20080321184526.GB6571@elte.hu>
 MIME-Version: 1.0
-Subject: Re: [kvm-devel] [RFC/PATCH 01/15] preparation: provide hook to enable
- pgstes	in	user pagetable
-References: <1206028710.6690.21.camel@cotte.boeblingen.de.ibm.com> <1206030278.6690.52.camel@cotte.boeblingen.de.ibm.com> <47E29EC6.5050403@goop.org> <1206040405.8232.24.camel@nimitz.home.sr71.net> <47E2CAAC.6020903@de.ibm.com> <1206124176.30471.27.camel@nimitz.home.sr71.net>
-In-Reply-To: <1206124176.30471.27.camel@nimitz.home.sr71.net>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: carsteno@de.ibm.com, Jeremy Fitzhardinge <jeremy@goop.org>, Christian Ehrhardt <EHRHARDT@de.ibm.com>, hollisb@us.ibm.com, arnd@arndb.de, borntrae@linux.vnet.ibm.com, kvm-devel@lists.sourceforge.net, heicars2@linux.vnet.ibm.com, jeroney@us.ibm.com, Avi Kivity <avi@qumranet.com>, virtualization@lists.linux-foundation.org, Linux Memory Management List <linux-mm@kvack.org>, mschwid2@linux.vnet.ibm.com, rvdheij@gmail.com, Olaf Schnapper <os@de.ibm.com>, jblunck@suse.de, "Zhang, Xiantao" <xiantao.zhang@intel.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
-> On Thu, 2008-03-20 at 21:35 +0100, Carsten Otte wrote:
->> Dave Hansen wrote:
->>> Well, and more fundamentally: do we really want dup_mm() able to be
->>> called from other code?
->>>
->>> Maybe we need a bit more detailed justification why fork() itself isn't
->>> good enough.  It looks to me like they basically need an arch-specific
->>> argument to fork, telling the new process's page tables to take the
->>> fancy new bit.
->>>
->>> I'm really curious how this new stuff is going to get used.  Are you
->>> basically replacing fork() when creating kvm guests?
->> No. The trick is, that we do need bigger page tables when running 
->> guests: our page tables are usually 2k, but when running a guest 
->> they're 4k to track both guest and host dirty&reference information. 
->> This looks like this:
->> *----------*
->> *2k PTE's  *
->> *----------*
->> *2k PGSTE  *
->> *----------*
->> We don't want to waste precious memory for all page tables. We'd like 
->> to have one kernel image that runs regular server workload _and_ 
->> guests.
-> 
-> That makes a lot of sense.
-> 
-> Is that layout (the shadow and regular stacked together) specified in
-> hardware somehow, or was it just chosen?
-It's defined by hardware. The chip just adds +2k to the ptep to get to 
-the corresponding pgste. Both pte and pgste are 64bit per page. I know 
-Heiko and Martin have thought a lot about possible races. I'll have to 
-leave your question on the race against pfault open for them.
+On Fri, 21 Mar 2008, Ingo Molnar wrote:
 
-Btw: thanks a lot for reviewing our changes :-)
+> the best i found for lockdep was to include a fair number of them, and 
+> to skip the top 3. struct vm_area that vmalloc uses isnt space-critical, 
+> so 4-8 entries with a 3 skip would be quite ok. (but can be more than 
+> that as well)
 
-cheers,
-Carsten
+STACKTRACE depends on STACKTRACE_SUPPORT which is not available on 
+all arches? alpha blackfin ia64 etc are missing it?
+
+I thought there were also issues on x86 with optimizations leading to 
+weird stacktraces?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
