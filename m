@@ -1,25 +1,26 @@
-Date: Fri, 21 Mar 2008 10:32:11 -0700 (PDT)
+Date: Fri, 21 Mar 2008 10:33:50 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [03/14] vmallocinfo: Support display of vcompound for a virtual
- compound page
-In-Reply-To: <47E369D8.2010904@cosmosbay.com>
-Message-ID: <Pine.LNX.4.64.0803211031530.18671@schroedinger.engr.sgi.com>
-References: <20080321061703.921169367@sgi.com> <20080321061724.795229401@sgi.com>
- <47E369D8.2010904@cosmosbay.com>
+Subject: Re: [11/14] vcompound: Fallbacks for order 1 stack allocations on
+ IA64 and x86
+In-Reply-To: <20080321083952.GA20454@elte.hu>
+Message-ID: <Pine.LNX.4.64.0803211032390.18671@schroedinger.engr.sgi.com>
+References: <20080321061703.921169367@sgi.com> <20080321061726.782068299@sgi.com>
+ <20080321.002502.223136918.davem@davemloft.net> <20080321083952.GA20454@elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: David Miller <davem@davemloft.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 Mar 2008, Eric Dumazet wrote:
+On Fri, 21 Mar 2008, Ingo Molnar wrote:
 
-> I would love to see NUMA information as well on vmallocinfo, but have
-> currently no available time to prepare a patch.
+> another thing is that this patchset includes KERNEL_STACK_SIZE_ORDER 
+> which has been NACK-ed before on x86 by several people and i'm nacking 
+> this "configurable stack size" aspect of it again.
 
-Ok. Easy to add.
+Huh? Nothing of that nature is in this patchset.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
