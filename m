@@ -1,44 +1,47 @@
-Date: Fri, 21 Mar 2008 14:57:12 -0700 (PDT)
-Message-Id: <20080321.145712.198736315.davem@davemloft.net>
-Subject: Re: [11/14] vcompound: Fallbacks for order 1 stack allocations on
- IA64 and x86
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <Pine.LNX.4.64.0803211037140.18671@schroedinger.engr.sgi.com>
-References: <20080321061726.782068299@sgi.com>
-	<20080321.002502.223136918.davem@davemloft.net>
-	<Pine.LNX.4.64.0803211037140.18671@schroedinger.engr.sgi.com>
+Date: Fri, 21 Mar 2008 15:19:35 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [1/2] vmalloc: Show vmalloced areas via /proc/vmallocinfo
+Message-Id: <20080321151935.6a330536.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0803201141250.10592@schroedinger.engr.sgi.com>
+References: <20080318222701.788442216@sgi.com>
+	<20080318222827.291587297@sgi.com>
+	<20080319210436.191bb8fe@laptopd505.fenrus.org>
+	<Pine.LNX.4.64.0803201141250.10592@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Christoph Lameter <clameter@sgi.com>
-Date: Fri, 21 Mar 2008 10:40:18 -0700 (PDT)
 Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: arjan@infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> On Fri, 21 Mar 2008, David Miller wrote:
+On Thu, 20 Mar 2008 12:22:07 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
+
+> On Wed, 19 Mar 2008, Arjan van de Ven wrote:
 > 
-> > I would be very careful with this especially on IA64.
-> > 
-> > If the TLB miss or other low-level trap handler depends upon being
-> > able to dereference thread info, task struct, or kernel stack stuff
-> > without causing a fault outside of the linear PAGE_OFFSET area, this
-> > patch will cause problems.
+> > > +	proc_create("vmallocinfo",S_IWUSR|S_IRUGO, NULL,
+> > why should non-root be able to read this? sounds like a security issue (info leak) to me...
+
+What is the security concern here?  This objection is rather vague.
+
+> Well I copied from the slabinfo logic (leaking info for slabs is okay?).
 > 
-> Hmmm. Does not sound good for arches that cannot handle TLB misses in 
-> hardware. I wonder how arch specific this is? Last time around I was told 
-> that some arches already virtually map their stacks.
+> Lets restrict it to root then:
+> 
+> 
+> 
+> Subject: vmallocinfo: Only allow root to read /proc/vmallocinfo
+> 
+> Change permissions for /proc/vmallocinfo to only allow read
+> for root.
 
-I'm not saying there is a problem, I'm saying "tread lightly"
-because there might be one.
+That makes the feature somewhat less useful.  Let's think this through more
+carefully - it is, after all, an unrevokable, unalterable addition to the
+kernel ABI.
 
-The thing to do is to first validate the way that IA64
-handles recursive TLB misses occuring during an initial
-TLB miss, and if there are any limitations therein.
-
-That's the kind of thing I'm talking about.
+Arjan, what scenarios are you thinking about?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
