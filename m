@@ -1,40 +1,43 @@
-Date: Thu, 20 Mar 2008 23:07:30 -0700 (PDT)
+Message-Id: <20080321061726.035952517@sgi.com>
+References: <20080321061703.921169367@sgi.com>
+Date: Thu, 20 Mar 2008 23:17:11 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 5/9] slub: Fallback to minimal order during slab page
- allocation
-In-Reply-To: <1206076457.14496.85.camel@ymzhang>
-Message-ID: <Pine.LNX.4.64.0803202305590.14617@schroedinger.engr.sgi.com>
-References: <20080317230516.078358225@sgi.com>  <20080317230528.939792410@sgi.com>
- <1205989839.14496.32.camel@ymzhang>  <Pine.LNX.4.64.0803201128001.10474@schroedinger.engr.sgi.com>
-  <1206060738.14496.66.camel@ymzhang>  <Pine.LNX.4.64.0803202034340.14239@schroedinger.engr.sgi.com>
- <1206076457.14496.85.camel@ymzhang>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [08/14] vcompound: Fallback for zone wait table
+Content-Disposition: inline; filename=0010-vcompound-Fallback-for-wait-table.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mel@csn.ul.ie>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 Mar 2008, Zhang, Yanmin wrote:
+Currently vmalloc may be used for allocating zone wait table.
+Use virtual compound page in order to be able to use a physically contiguous
+page that can then use the large kernel TLBs.
 
-> On Thu, 2008-03-20 at 20:35 -0700, Christoph Lameter wrote:
-> > On Fri, 21 Mar 2008, Zhang, Yanmin wrote:
-> > 
-> > > > However, its a division in a potentially hot codepath.
-> > > No as long as there is no allocation failure because of fragmentation.
-> > 
-> > If its only used for the fallback path then the race condition is still 
-> > there?
-> I can't understand your question. Does it means min_objects? It's not related
-> to the race. The fallback path also isn't related to the race.
-> 
-> The race is when kernel runs in allocate_slab, just between fetching s->order and
-> s->objects,user might change s->order by sysfs.
+Drawback: The zone wait table is rounded up to the next power of two which
+may cost some memory.
 
-Right. That patch matters most and with the patch that I posted a few 
-hours ago there is a common scheme that addresses both the race and the 
-issue with min_objects (hopefully...).
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+---
+ mm/page_alloc.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+Index: linux-2.6.25-rc5-mm1/mm/page_alloc.c
+===================================================================
+--- linux-2.6.25-rc5-mm1.orig/mm/page_alloc.c	2008-03-20 20:03:50.885900600 -0700
++++ linux-2.6.25-rc5-mm1/mm/page_alloc.c	2008-03-20 20:04:43.282104684 -0700
+@@ -2866,7 +2866,8 @@ int zone_wait_table_init(struct zone *zo
+ 		 * To use this new node's memory, further consideration will be
+ 		 * necessary.
+ 		 */
+-		zone->wait_table = vmalloc(alloc_size);
++		zone->wait_table = __alloc_vcompound(GFP_KERNEL,
++						get_order(alloc_size));
+ 	}
+ 	if (!zone->wait_table)
+ 		return -ENOMEM;
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
