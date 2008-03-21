@@ -1,46 +1,63 @@
-Message-Id: <20080321061726.192070985@sgi.com>
+Message-Id: <20080321061727.269764652@sgi.com>
 References: <20080321061703.921169367@sgi.com>
-Date: Thu, 20 Mar 2008 23:17:12 -0700
+Date: Thu, 20 Mar 2008 23:17:16 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [09/14] vcompound: crypto: Fallback for temporary order 2 allocation
-Content-Disposition: inline; filename=0012-vcompound-crypto-Fallback-for-temporary-order-2-al.patch
+Subject: [13/14] vcompound: Use vcompound for swap_map
+Content-Disposition: inline; filename=fixswapon
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The crypto subsystem needs an order 2 allocation. This is a temporary buffer
-for xoring data so we can safely allow fallback.
+Use virtual compound pages for the large swap maps. This only works for
+swap maps that are smaller than a MAX_ORDER block though. If the swap map
+is larger then there is no way around the use of vmalloc.
 
-Cc: Dan Williams <dan.j.williams@intel.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
----
- crypto/xor.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Index: linux-2.6.25-rc5-mm1/crypto/xor.c
+---
+ mm/swapfile.c |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+Index: linux-2.6.25-rc5-mm1/mm/swapfile.c
 ===================================================================
---- linux-2.6.25-rc5-mm1.orig/crypto/xor.c	2008-03-20 18:04:44.649120096 -0700
-+++ linux-2.6.25-rc5-mm1/crypto/xor.c	2008-03-20 19:41:35.383789613 -0700
-@@ -101,7 +101,7 @@ calibrate_xor_blocks(void)
- 	void *b1, *b2;
- 	struct xor_block_template *f, *fastest;
+--- linux-2.6.25-rc5-mm1.orig/mm/swapfile.c	2008-03-20 20:32:12.793950570 -0700
++++ linux-2.6.25-rc5-mm1/mm/swapfile.c	2008-03-20 20:37:43.367821147 -0700
+@@ -1312,7 +1312,7 @@ asmlinkage long sys_swapoff(const char _
+ 	p->flags = 0;
+ 	spin_unlock(&swap_lock);
+ 	mutex_unlock(&swapon_mutex);
+-	vfree(swap_map);
++	__free_vcompound(swap_map);
+ 	inode = mapping->host;
+ 	if (S_ISBLK(inode->i_mode)) {
+ 		struct block_device *bdev = I_BDEV(inode);
+@@ -1636,13 +1636,13 @@ asmlinkage long sys_swapon(const char __
+ 			goto bad_swap;
  
--	b1 = (void *) __get_free_pages(GFP_KERNEL, 2);
-+	b1 = __alloc_vcompound(GFP_KERNEL, 2);
- 	if (!b1) {
- 		printk(KERN_WARNING "xor: Yikes!  No memory available.\n");
- 		return -ENOMEM;
-@@ -140,7 +140,7 @@ calibrate_xor_blocks(void)
+ 		/* OK, set up the swap map and apply the bad block list */
+-		if (!(p->swap_map = vmalloc(maxpages * sizeof(short)))) {
++		if (!(p->swap_map = __alloc_vcompound(GFP_KERNEL | __GFP_ZERO,
++					get_order(maxpages * sizeof(short))))) {
+ 			error = -ENOMEM;
+ 			goto bad_swap;
+ 		}
  
- #undef xor_speed
- 
--	free_pages((unsigned long)b1, 2);
-+	__free_vcompound(b1);
- 
- 	active_template = fastest;
- 	return 0;
+ 		error = 0;
+-		memset(p->swap_map, 0, maxpages * sizeof(short));
+ 		for (i = 0; i < swap_header->info.nr_badpages; i++) {
+ 			int page_nr = swap_header->info.badpages[i];
+ 			if (page_nr <= 0 || page_nr >= swap_header->info.last_page)
+@@ -1718,7 +1718,7 @@ bad_swap_2:
+ 	if (!(swap_flags & SWAP_FLAG_PREFER))
+ 		++least_priority;
+ 	spin_unlock(&swap_lock);
+-	vfree(swap_map);
++	__free_vcompound(swap_map);
+ 	if (swap_file)
+ 		filp_close(swap_file, NULL);
+ out:
 
 -- 
 
