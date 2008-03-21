@@ -1,63 +1,68 @@
-Message-Id: <20080321061727.269764652@sgi.com>
+Message-Id: <20080321061725.476134262@sgi.com>
 References: <20080321061703.921169367@sgi.com>
-Date: Thu, 20 Mar 2008 23:17:16 -0700
+Date: Thu, 20 Mar 2008 23:17:09 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [13/14] vcompound: Use vcompound for swap_map
-Content-Disposition: inline; filename=fixswapon
+Subject: [06/14] vcompound: Virtual fallback for sparsemem
+Content-Disposition: inline; filename=0009-vcompound-Virtual-fallback-for-sparsemem.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-Use virtual compound pages for the large swap maps. This only works for
-swap maps that are smaller than a MAX_ORDER block though. If the swap map
-is larger then there is no way around the use of vmalloc.
+Sparsemem currently attempts to do a physically contiguous mapping
+and then falls back to vmalloc. The same thing can now be accomplished
+using virtual compound pages.
 
+Cc: apw@shadowen.org
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
 ---
- mm/swapfile.c |    8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ mm/sparse.c |   25 ++-----------------------
+ 1 file changed, 2 insertions(+), 23 deletions(-)
 
-Index: linux-2.6.25-rc5-mm1/mm/swapfile.c
+Index: linux-2.6.25-rc5-mm1/mm/sparse.c
 ===================================================================
---- linux-2.6.25-rc5-mm1.orig/mm/swapfile.c	2008-03-20 20:32:12.793950570 -0700
-+++ linux-2.6.25-rc5-mm1/mm/swapfile.c	2008-03-20 20:37:43.367821147 -0700
-@@ -1312,7 +1312,7 @@ asmlinkage long sys_swapoff(const char _
- 	p->flags = 0;
- 	spin_unlock(&swap_lock);
- 	mutex_unlock(&swapon_mutex);
--	vfree(swap_map);
-+	__free_vcompound(swap_map);
- 	inode = mapping->host;
- 	if (S_ISBLK(inode->i_mode)) {
- 		struct block_device *bdev = I_BDEV(inode);
-@@ -1636,13 +1636,13 @@ asmlinkage long sys_swapon(const char __
- 			goto bad_swap;
+--- linux-2.6.25-rc5-mm1.orig/mm/sparse.c	2008-03-20 18:04:45.345133447 -0700
++++ linux-2.6.25-rc5-mm1/mm/sparse.c	2008-03-20 19:32:53.361317058 -0700
+@@ -327,24 +327,7 @@ static void __kfree_section_memmap(struc
+ #else
+ static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
+ {
+-	struct page *page, *ret;
+-	unsigned long memmap_size = sizeof(struct page) * nr_pages;
+-
+-	page = alloc_pages(GFP_KERNEL|__GFP_NOWARN, get_order(memmap_size));
+-	if (page)
+-		goto got_map_page;
+-
+-	ret = vmalloc(memmap_size);
+-	if (ret)
+-		goto got_map_ptr;
+-
+-	return NULL;
+-got_map_page:
+-	ret = (struct page *)pfn_to_kaddr(page_to_pfn(page));
+-got_map_ptr:
+-	memset(ret, 0, memmap_size);
+-
+-	return ret;
++	return __alloc_vcompound(GFP_KERNEL, get_order(memmap_size)));
+ }
  
- 		/* OK, set up the swap map and apply the bad block list */
--		if (!(p->swap_map = vmalloc(maxpages * sizeof(short)))) {
-+		if (!(p->swap_map = __alloc_vcompound(GFP_KERNEL | __GFP_ZERO,
-+					get_order(maxpages * sizeof(short))))) {
- 			error = -ENOMEM;
- 			goto bad_swap;
- 		}
+ static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
+@@ -355,11 +338,7 @@ static inline struct page *kmalloc_secti
  
- 		error = 0;
--		memset(p->swap_map, 0, maxpages * sizeof(short));
- 		for (i = 0; i < swap_header->info.nr_badpages; i++) {
- 			int page_nr = swap_header->info.badpages[i];
- 			if (page_nr <= 0 || page_nr >= swap_header->info.last_page)
-@@ -1718,7 +1718,7 @@ bad_swap_2:
- 	if (!(swap_flags & SWAP_FLAG_PREFER))
- 		++least_priority;
- 	spin_unlock(&swap_lock);
--	vfree(swap_map);
-+	__free_vcompound(swap_map);
- 	if (swap_file)
- 		filp_close(swap_file, NULL);
- out:
+ static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
+ {
+-	if (is_vmalloc_addr(memmap))
+-		vfree(memmap);
+-	else
+-		free_pages((unsigned long)memmap,
+-			   get_order(sizeof(struct page) * nr_pages));
++	__free_vcompound(memmap);
+ }
+ #endif /* CONFIG_SPARSEMEM_VMEMMAP */
+ 
 
 -- 
 
