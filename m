@@ -1,66 +1,65 @@
-Message-Id: <20080321061703.921169367@sgi.com>
-Date: Thu, 20 Mar 2008 23:17:03 -0700
-From: Christoph Lameter <clameter@sgi.com>
-Subject: [00/14] Virtual Compound Page Support V3
+Message-ID: <47E35D73.6060703@cosmosbay.com>
+Date: Fri, 21 Mar 2008 08:02:11 +0100
+From: Eric Dumazet <dada1@cosmosbay.com>
+MIME-Version: 1.0
+Subject: Re: [14/14] vcompound: Avoid vmalloc for ehash_locks
+References: <20080321061703.921169367@sgi.com> <20080321061727.491610308@sgi.com>
+In-Reply-To: <20080321061727.491610308@sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linux Netdev List <netdev@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Allocations of larger pages are not reliable in Linux. If larger
-pages have to be allocated then one faces various choices of allowing
-graceful fallback or using vmalloc with a performance penalty due
-to the use of a page table. Virtual Compound pages are
-a simple solution out of this dilemma.
+Christoph Lameter a ecrit :
+> Avoid the use of vmalloc for the ehash locks.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> 
+> ---
+>  include/net/inet_hashtables.h |    5 +++--
+>  1 file changed, 3 insertions(+), 2 deletions(-)
+> 
+> Index: linux-2.6.25-rc5-mm1/include/net/inet_hashtables.h
+> ===================================================================
+> --- linux-2.6.25-rc5-mm1.orig/include/net/inet_hashtables.h	2008-03-20 22:21:02.680501729 -0700
+> +++ linux-2.6.25-rc5-mm1/include/net/inet_hashtables.h	2008-03-20 22:22:15.416565317 -0700
+> @@ -164,7 +164,8 @@ static inline int inet_ehash_locks_alloc
+>  	if (sizeof(rwlock_t) != 0) {
+>  #ifdef CONFIG_NUMA
+>  		if (size * sizeof(rwlock_t) > PAGE_SIZE)
+> -			hashinfo->ehash_locks = vmalloc(size * sizeof(rwlock_t));
+> +			hashinfo->ehash_locks = __alloc_vcompound(GFP_KERNEL,
+> +				get_order(size * sizeof(rwlock_t)));
+>  		else
+>  #endif
+>  		hashinfo->ehash_locks =	kmalloc(size * sizeof(rwlock_t),
+> @@ -185,7 +186,7 @@ static inline void inet_ehash_locks_free
+>  		unsigned int size = (hashinfo->ehash_locks_mask + 1) *
+>  							sizeof(rwlock_t);
+>  		if (size > PAGE_SIZE)
+> -			vfree(hashinfo->ehash_locks);
+> +			__free_vcompound(hashinfo->ehash_locks);
+>  		else
+>  #endif
+>  		kfree(hashinfo->ehash_locks);
+> 
 
-A virtual compound allocation means that there will be first of all
-an attempt to satisfy the request with physically contiguous memory.
-If that is not possible then a virtually contiguous memory will be
-created.
+But, isnt it defeating the purpose of this *particular* vmalloc() use ?
 
-This has two advantages:
+CONFIG_NUMA and vmalloc() at boot time means :
 
-1. Current uses of vmalloc can be converted to allocate virtual
-   compounds instead. In most cases physically contiguous
-   memory can be used which avoids the vmalloc performance
-   penalty. See f.e. the e1000 driver patch.
+Try to distribute the pages on several nodes.
 
-2. Uses of higher order allocations (stacks, buffers etc) can be
-   converted to use virtual compounds instead. Physically contiguous
-   memory will still be used for those higher order allocs in general
-   but the system can degrade to the use of vmalloc should memory
-   become heavily fragmented.
+Memory pressure on ehash_locks[] is so high we definitly want to spread it.
 
-There is a compile time option to switch on fallback for
-testing purposes. Virtually mapped mmemory may behave differently
-and the CONFIG_FALLBACK_ALWAYS option will ensure that the code is
-tested to deal with virtual memory.
+(for similar uses of vmalloc(), see also hashdist=1 )
 
-V2->V3:
-- Put the code into mm/vmalloc.c and leave the page allocator alone.
-- Add a series of examples where virtual compound pages can be used.
-- Diffed on top of the page flags and the vmalloc info patches
-  already in mm.
-- Simplify things by omitting some of the more complex code
-  that used to be in there.
+Also, please CC netdev for network patches :)
 
-V1->V2
-- Remove some cleanup patches and the SLUB patches from this set.
-- Transparent vcompound support through page_address() and
-  virt_to_head_page().
-- Additional use cases.
-- Factor the code better for an easier read
-- Add configurable stack size.
-- Follow up on various suggestions made for V1
-
-RFC->V1
-- Complete support for all compound functions for virtual compound pages
-  (including the compound_nth_page() necessary for LBS mmap support)
-- Fix various bugs
-- Fix i386 build
-
--- 
+Thank you
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
