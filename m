@@ -1,24 +1,31 @@
-Date: Fri, 21 Mar 2008 10:35:03 -0700 (PDT)
+Date: Fri, 21 Mar 2008 10:40:18 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [2/2] vmallocinfo: Add caller information
-In-Reply-To: <20080321110008.GW20420@elte.hu>
-Message-ID: <Pine.LNX.4.64.0803211034140.18671@schroedinger.engr.sgi.com>
-References: <20080318222701.788442216@sgi.com> <20080318222827.519656153@sgi.com>
- <20080319214227.GA4454@elte.hu> <Pine.LNX.4.64.0803191659410.4645@schroedinger.engr.sgi.com>
- <20080321110008.GW20420@elte.hu>
+Subject: Re: [11/14] vcompound: Fallbacks for order 1 stack allocations on
+ IA64 and x86
+In-Reply-To: <20080321.002502.223136918.davem@davemloft.net>
+Message-ID: <Pine.LNX.4.64.0803211037140.18671@schroedinger.engr.sgi.com>
+References: <20080321061703.921169367@sgi.com> <20080321061726.782068299@sgi.com>
+ <20080321.002502.223136918.davem@davemloft.net>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Miller <davem@davemloft.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 Mar 2008, Ingo Molnar wrote:
+On Fri, 21 Mar 2008, David Miller wrote:
 
-> then make STACKTRACE available generally via the patch below.
+> I would be very careful with this especially on IA64.
+> 
+> If the TLB miss or other low-level trap handler depends upon being
+> able to dereference thread info, task struct, or kernel stack stuff
+> without causing a fault outside of the linear PAGE_OFFSET area, this
+> patch will cause problems.
 
-How do I figure out which nesting level to display if we'd do this?
+Hmmm. Does not sound good for arches that cannot handle TLB misses in 
+hardware. I wonder how arch specific this is? Last time around I was told 
+that some arches already virtually map their stacks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
