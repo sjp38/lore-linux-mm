@@ -1,247 +1,65 @@
-Subject: [RFC/PATCH 02/15 v2] preparation: host memory management changes
-	for s390 kvm
+Subject: [RFC/PATCH 00/15 v2] kvm on big iron
 From: Carsten Otte <cotte@de.ibm.com>
-In-Reply-To: <1206203560.7177.45.camel@cotte.boeblingen.de.ibm.com>
+In-Reply-To: <1206030270.6690.51.camel@cotte.boeblingen.de.ibm.com>
 References: <1206030270.6690.51.camel@cotte.boeblingen.de.ibm.com>
-	 <1206203560.7177.45.camel@cotte.boeblingen.de.ibm.com>
 Content-Type: text/plain
-Date: Sat, 22 Mar 2008 18:02:39 +0100
-Message-Id: <1206205359.7177.84.camel@cotte.boeblingen.de.ibm.com>
+Date: Sat, 22 Mar 2008 18:02:34 +0100
+Message-Id: <1206205354.7177.82.camel@cotte.boeblingen.de.ibm.com>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-From: Christian Borntraeger <borntraeger@de.ibm.com>
 Return-Path: <owner-linux-mm@kvack.org>
 To: virtualization@lists.linux-foundation.org, kvm-devel@lists.sourceforge.net, Avi Kivity <avi@qumranet.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, hugh@veritas.com, Linux Memory Management List <linux-mm@kvack.org>
 Cc: schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, os@de.ibm.com, borntraeger@de.ibm.com, hollisb@us.ibm.com, EHRHARDT@de.ibm.com, jeroney@us.ibm.com, aliguori@us.ibm.com, jblunck@suse.de, rvdheij@gmail.com, rusty@rustcorp.com.au, arnd@arndb.de, "Zhang, Xiantao" <xiantao.zhang@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch changes the s390 memory management defintions to use the pgste field
-for dirty and reference bit tracking of host and guest code. Usually on s390, 
-dirty and referenced are tracked in storage keys, which belong to the physical
-page. This changes with virtualization: The guest and host dirty/reference bits
-are defined to be the logical OR of the values for the mapping and the physical
-page. This patch implements the necessary changes in pgtable.h for s390.
+This patch series introduces a backend for kvm to run on IBM System z
+machines (aka s390x) that uses the mainframe's sie virtualization
+capability. Many thanks for the review feedback we have received so far,
+I do greatly appreciate it!
 
+The first submission didn't draw much attention of elder vm magicians on
+linux-mm. I am adding Nick, Hugh and Andrew explicitly to the first two
+patches. Please do comment on our common code change buried in there. Is
+this acceptable for you? Who else does need to review them?
 
-There is a common code change in mm/rmap.c, the call to page_test_and_clear_young
-must be moved. This is a no-op for all architecture but s390. page_referenced
-checks the referenced bits for the physiscal page and for all mappings:
-o The physical page is checked with page_test_and_clear_young.
-o The mappings are checked with ptep_test_and_clear_young and friends.
+Changes from the Version 1:
+- include Feedback from Randy Dunlap on the Documentation
+- include Feedback from Jeremy Fitzhardinge, the prototype for dup_mm
+  has moved to include/linux/sched.h
+- rebase to current kvm.git hash g361be34. Thank you Avi for pulling
+  in the fix we need, and for moving KVM_MAX_VCPUS to include/arch :-).
 
-Without pgstes (the current implementation on Linux s390) the physical page
-check is implemented but the mapping callbacks are no-ops because dirty 
-and referenced are not tracked in the s390 page tables. The pgstes introduces 
-guest and host dirty and reference bits for s390 in the host mapping. These
-mapping must be checked before page_test_and_clear_young resets the reference
-bit. 
+Todo list:
+- I've created a patch for Christoph Helwig's feedback about symbolic
+names for machine_flags. This change is independent of the kvm port, and
+I will submit it for review to Martin.
+- Rusty Russell has provided feedback that improves patch #15. Christian
+is looking into that and will likely update that patch. If this goes in
+before, we can safely do an add-on patch on top of #15.
+- an open comment from Dave Hansen about a possible race enable_sie
+versus ptrace in patch #1 exceeds my basic vm knowledge and needs to be
+answered by Martin or Heiko
 
-Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
-Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
-Acked-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Signed-off-by: Carsten Otte <cotte@de.ibm.com>
----
- include/asm-s390/pgtable.h |  109 +++++++++++++++++++++++++++++++++++++++++++--
- mm/rmap.c                  |    7 +-
- 2 files changed, 110 insertions(+), 6 deletions(-)
-
-Index: linux-host/include/asm-s390/pgtable.h
-===================================================================
---- linux-host.orig/include/asm-s390/pgtable.h
-+++ linux-host/include/asm-s390/pgtable.h
-@@ -30,6 +30,7 @@
-  */
- #ifndef __ASSEMBLY__
- #include <linux/mm_types.h>
-+#include <asm/atomic.h>
- #include <asm/bug.h>
- #include <asm/processor.h>
- 
-@@ -258,6 +259,13 @@ extern char empty_zero_page[PAGE_SIZE];
-  * swap pte is 1011 and 0001, 0011, 0101, 0111 are invalid.
-  */
- 
-+/* Page status extended for virtualization */
-+#define _PAGE_RCP_PCL	0x0080000000000000UL
-+#define _PAGE_RCP_HR	0x0040000000000000UL
-+#define _PAGE_RCP_HC	0x0020000000000000UL
-+#define _PAGE_RCP_GR	0x0004000000000000UL
-+#define _PAGE_RCP_GC	0x0002000000000000UL
-+
- #ifndef __s390x__
- 
- /* Bits in the segment table address-space-control-element */
-@@ -513,6 +521,67 @@ static inline int pte_file(pte_t pte)
- #define __HAVE_ARCH_PTE_SAME
- #define pte_same(a,b)  (pte_val(a) == pte_val(b))
- 
-+static inline void rcp_lock(pte_t *ptep)
-+{
-+#ifdef CONFIG_PGSTE
-+	atomic64_t *rcp = (atomic64_t *) (ptep + PTRS_PER_PTE);
-+	preempt_disable();
-+	atomic64_set_mask(_PAGE_RCP_PCL, rcp);
-+#endif
-+}
-+
-+static inline void rcp_unlock(pte_t *ptep)
-+{
-+#ifdef CONFIG_PGSTE
-+	atomic64_t *rcp = (atomic64_t *) (ptep + PTRS_PER_PTE);
-+	atomic64_clear_mask(_PAGE_RCP_PCL, rcp);
-+	preempt_enable();
-+#endif
-+}
-+
-+static inline void rcp_set_bits(pte_t *ptep, unsigned long val)
-+{
-+#ifdef CONFIG_PGSTE
-+	*(unsigned long *) (ptep + PTRS_PER_PTE) |= val;
-+#endif
-+}
-+
-+static inline int rcp_test_and_clear_bits(pte_t *ptep, unsigned long val)
-+{
-+#ifdef CONFIG_PGSTE
-+	unsigned long ret;
-+
-+	ret = *(unsigned long *) (ptep + PTRS_PER_PTE);
-+	*(unsigned long *) (ptep + PTRS_PER_PTE) &= ~val;
-+	return (ret & val) == val;
-+#else
-+	return 0;
-+#endif
-+}
-+
-+
-+/* forward declaration for SetPageUptodate in page-flags.h*/
-+static inline void page_clear_dirty(struct page *page);
-+#include <linux/page-flags.h>
-+
-+static inline void ptep_rcp_copy(pte_t *ptep)
-+{
-+#ifdef CONFIG_PGSTE
-+	struct page *page = virt_to_page(pte_val(*ptep));
-+	unsigned int skey;
-+
-+	skey = page_get_storage_key(page_to_phys(page));
-+	if (skey & _PAGE_CHANGED)
-+		rcp_set_bits(ptep, _PAGE_RCP_GC);
-+	if (skey & _PAGE_REFERENCED)
-+		rcp_set_bits(ptep, _PAGE_RCP_GR);
-+	if (rcp_test_and_clear_bits(ptep, _PAGE_RCP_HC))
-+		SetPageDirty(page);
-+	if (rcp_test_and_clear_bits(ptep, _PAGE_RCP_HR))
-+		SetPageReferenced(page);
-+#endif
-+}
-+
- /*
-  * query functions pte_write/pte_dirty/pte_young only work if
-  * pte_present() is true. Undefined behaviour if not..
-@@ -599,6 +668,8 @@ static inline void pmd_clear(pmd_t *pmd)
- 
- static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
- {
-+	if (mm->context.pgstes)
-+		ptep_rcp_copy(ptep);
- 	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
- 	if (mm->context.noexec)
- 		pte_val(ptep[PTRS_PER_PTE]) = _PAGE_TYPE_EMPTY;
-@@ -667,6 +738,22 @@ static inline pte_t pte_mkyoung(pte_t pt
- static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
- 					    unsigned long addr, pte_t *ptep)
- {
-+#ifdef CONFIG_PGSTE
-+	unsigned long physpage;
-+	int young;
-+
-+	if (!vma->vm_mm->context.pgstes)
-+		return 0;
-+	physpage = pte_val(*ptep) & PAGE_MASK;
-+
-+	young = ((page_get_storage_key(physpage) & _PAGE_REFERENCED) != 0);
-+	rcp_lock(ptep);
-+	if (young)
-+		rcp_set_bits(ptep, _PAGE_RCP_GR);
-+	young |= rcp_test_and_clear_bits(ptep, _PAGE_RCP_HR);
-+	rcp_unlock(ptep);
-+	return young;
-+#endif
- 	return 0;
- }
- 
-@@ -674,7 +761,13 @@ static inline int ptep_test_and_clear_yo
- static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
- 					 unsigned long address, pte_t *ptep)
- {
--	/* No need to flush TLB; bits are in storage key */
-+	/* No need to flush TLB
-+	 * On s390 reference bits are in storage key and never in TLB
-+	 * With virtualization we handle the reference bit, without we
-+	 * we can simply return */
-+#ifdef CONFIG_PGSTE
-+	return ptep_test_and_clear_young(vma, address, ptep);
-+#endif
- 	return 0;
- }
- 
-@@ -693,15 +786,25 @@ static inline void __ptep_ipte(unsigned 
- 			: "=m" (*ptep) : "m" (*ptep),
- 			  "a" (pto), "a" (address));
- 	}
--	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
- }
- 
- static inline void ptep_invalidate(struct mm_struct *mm,
- 				   unsigned long address, pte_t *ptep)
- {
-+	if (mm->context.pgstes) {
-+		rcp_lock(ptep);
-+		__ptep_ipte(address, ptep);
-+		ptep_rcp_copy(ptep);
-+		pte_val(*ptep) = _PAGE_TYPE_EMPTY;
-+		rcp_unlock(ptep);
-+		return;
-+	}
- 	__ptep_ipte(address, ptep);
--	if (mm->context.noexec)
-+	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
-+	if (mm->context.noexec) {
- 		__ptep_ipte(address, ptep + PTRS_PER_PTE);
-+		pte_val(*(ptep + PTRS_PER_PTE)) = _PAGE_TYPE_EMPTY;
-+	}
- }
- 
- /*
-Index: linux-host/mm/rmap.c
-===================================================================
---- linux-host.orig/mm/rmap.c
-+++ linux-host/mm/rmap.c
-@@ -413,9 +413,6 @@ int page_referenced(struct page *page, i
- {
- 	int referenced = 0;
- 
--	if (page_test_and_clear_young(page))
--		referenced++;
--
- 	if (TestClearPageReferenced(page))
- 		referenced++;
- 
-@@ -433,6 +430,10 @@ int page_referenced(struct page *page, i
- 			unlock_page(page);
- 		}
- 	}
-+
-+	if (page_test_and_clear_young(page))
-+		referenced++;
-+
- 	return referenced;
- }
- 
-
+The patch queue consists of the following patches:
+[RFC/PATCH 01/15] preparation: provide hook to enable pgstes in user 
+                               pagetable
+[RFC/PATCH 02/15] preparation: host memory management changes for s390 
+                               kvm
+[RFC/PATCH 03/15] preparation: address of the 64bit extint parm in 
+                               lowcore
+[RFC/PATCH 04/15] preparation: split sysinfo defintions for kvm use
+[RFC/PATCH 05/15] kvm-s390: s390 arch backend for the kvm kernel module
+[RFC/PATCH 06/15] kvm-s390: sie intercept handling
+[RFC/PATCH 07/15] kvm-s390: interrupt subsystem, cpu timer, waitpsw
+[RFC/PATCH 08/15] kvm-s390: intercepts for privileged instructions
+[RFC/PATCH 09/15] kvm-s390: interprocessor communication via sigp
+[RFC/PATCH 10/15] kvm-s390: intercepts for diagnose instructions
+[RFC/PATCH 11/15] kvm-s390: add kvm to kconfig on s390
+[RFC/PATCH 12/15] kvm-s390: API documentation
+[RFC/PATCH 13/15] kvm-s390: update maintainers
+[RFC/PATCH 14/15] guest: detect when running on kvm
+[RFC/PATCH 15/15] guest: virtio device support, and kvm hypercalls
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
