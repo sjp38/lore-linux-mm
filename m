@@ -1,65 +1,50 @@
-Date: Sat, 22 Mar 2008 21:10:20 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [04/14] vcompound: Core piece
-In-Reply-To: <20080321061724.956843984@sgi.com>
-References: <20080321061703.921169367@sgi.com> <20080321061724.956843984@sgi.com>
-Message-Id: <20080322205729.B317.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Date: Sat, 22 Mar 2008 15:29:49 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH prototype] [0/8] Predictive bitmaps for ELF executables
+Message-ID: <20080322142949.GB10687@one.firstfloor.org>
+References: <20080319020440.80379d50.akpm@linux-foundation.org> <a36005b50803191545h33d1a443y57d09176f8324186@mail.gmail.com> <20080320090005.GA25734@one.firstfloor.org> <a36005b50803211015l64005f6emb80dbfc21dcfad9f@mail.gmail.com> <20080321172644.GG2346@one.firstfloor.org> <a36005b50803212136s78dc2e4bx5ac715ebc7a6e48a@mail.gmail.com> <20080322071755.GP2346@one.firstfloor.org> <1206170695.2438.39.camel@entropy> <20080322091001.GA7264@one.firstfloor.org> <1206180991.2438.43.camel@entropy>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1206180991.2438.43.camel@entropy>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nicholas Miell <nmiell@comcast.net>
+Cc: Andi Kleen <andi@firstfloor.org>, Ulrich Drepper <drepper@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
+On Sat, Mar 22, 2008 at 03:16:31AM -0700, Nicholas Miell wrote:
+> 
+> *sigh* this is probably true
 
-in general, I like this patch and I found no bug :)
+Actually it is a relatively weak argument assuming the standard
+4k xattrs, but still an issue.
 
-> Index: linux-2.6.25-rc5-mm1/include/linux/vmalloc.h
-> ===================================================================
-> --- linux-2.6.25-rc5-mm1.orig/include/linux/vmalloc.h	2008-03-20 23:03:14.600588151 -0700
-> +++ linux-2.6.25-rc5-mm1/include/linux/vmalloc.h	2008-03-20 23:03:14.612588010 -0700
-> @@ -86,6 +86,20 @@ extern struct vm_struct *alloc_vm_area(s
->  extern void free_vm_area(struct vm_struct *area);
->  
->  /*
-> + * Support for virtual compound pages.
-> + *
-> + * Calls to vcompound alloc will result in the allocation of normal compound
-> + * pages unless memory is fragmented.  If insufficient physical linear memory
-> + * is available then a virtually contiguous area of memory will be created
-> + * using the vmalloc functionality.
-> + */
-> +struct page *alloc_vcompound_alloc(gfp_t flags, int order);
+The other stronger argument against it is that larger xattrs tend to be
+outside the inode so you would have another seek again.
 
-where exist alloc_vcompound_alloc?
+> > and a mess to manage (a lot of tools don't know about them)
+> 
+> At this point in time, all tools that don't support xattrs are
+> defective,
 
+Good joke.
 
-> +/*
-> + * Virtual Compound Page support.
-> + *
-> + * Virtual Compound Pages are used to fall back to order 0 allocations if large
-> + * linear mappings are not available. They are formatted according to compound
-> + * page conventions. I.e. following page->first_page if PageTail(page) is set
-> + * can be used to determine the head page.
-> + */
-> +
+> I just have an instinctive aversion towards the kernel mucking around in
+> ELF objects -- for one thing, you're going to have to blacklist
+> cryptographically signed binaries.
 
-Hmm,
-IMHO we need vcompound documentation more for the beginner in the Documentation/ directory.
-if not, nobody understand mean of vcompound flag at /proc/vmallocinfo.
+What signed binaries? 
 
+Anyways there are two ways to deal with this:
 
-> +void __free_vcompound(void *addr)
-> +void free_vcompound(struct page *page)
-> +struct page *alloc_vcompound(gfp_t flags, int order)
-> +void *__alloc_vcompound(gfp_t flags, int order)
+- Run the executable through a little filter that zeroes the bitmap before
+computing the checksum.  That is how rpm -V deals with prelinked binaries which 
+have a similar issue. You can probably reuse the scripts from rpm.
+- Disable the pbitmap header before you sign, either by never adding
+one or disabling it by turning the phdr type into a nop (should be very simple) 
 
-may be, we need DocBook style comment at the head of these 4 functions.
-
-
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
