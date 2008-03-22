@@ -1,48 +1,40 @@
-Received: from root by ciao.gmane.org with local (Exim 4.43)
-	id 1JcuQk-0007a6-Ef
-	for linux-mm@kvack.org; Sat, 22 Mar 2008 03:30:02 +0000
-Received: from 76.14.48.172 ([76.14.48.172])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Sat, 22 Mar 2008 03:30:02 +0000
-Received: from blp by 76.14.48.172 with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Sat, 22 Mar 2008 03:30:02 +0000
-From: Ben Pfaff <blp@cs.stanford.edu>
-Subject: Re: [patch 2/9] Store max number of objects in the page struct.
-Date: Fri, 21 Mar 2008 20:27:31 -0700
-Message-ID: <87od975tgc.fsf@blp.benpfaff.org>
-References: <20080317230516.078358225@sgi.com> <20080317230528.279983034@sgi.com> <1205917757.10318.1.camel@ymzhang> <Pine.LNX.4.64.0803191049450.29173@schroedinger.engr.sgi.com> <1205983937.14496.24.camel@ymzhang> <20080321152407.b0fbe81f.akpm@linux-foundation.org>
-Reply-To: blp@cs.stanford.edu
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: by hs-out-0708.google.com with SMTP id j58so1283818hsj.6
+        for <linux-mm@kvack.org>; Fri, 21 Mar 2008 21:36:51 -0700 (PDT)
+Message-ID: <a36005b50803212136s78dc2e4bx5ac715ebc7a6e48a@mail.gmail.com>
+Date: Fri, 21 Mar 2008 21:36:51 -0700
+From: "Ulrich Drepper" <drepper@gmail.com>
+Subject: Re: [PATCH prototype] [0/8] Predictive bitmaps for ELF executables
+In-Reply-To: <20080321172644.GG2346@one.firstfloor.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080318003620.d84efb95.akpm@linux-foundation.org>
+	 <20080318095715.27120788.akpm@linux-foundation.org>
+	 <20080318172045.GI11966@one.firstfloor.org>
+	 <20080318104437.966c10ec.akpm@linux-foundation.org>
+	 <20080319083228.GM11966@one.firstfloor.org>
+	 <20080319020440.80379d50.akpm@linux-foundation.org>
+	 <a36005b50803191545h33d1a443y57d09176f8324186@mail.gmail.com>
+	 <20080320090005.GA25734@one.firstfloor.org>
+	 <a36005b50803211015l64005f6emb80dbfc21dcfad9f@mail.gmail.com>
+	 <20080321172644.GG2346@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@linux-foundation.org> writes:
+On Fri, Mar 21, 2008 at 10:26 AM, Andi Kleen <andi@firstfloor.org> wrote:
+>  Concrete suggestions please.
 
->> +#define USHRT_MAX	((u16)(~0U))
->> +#define SHRT_MAX	((s16)(USHRT_MAX>>1))
->> +#define SHRT_MIN	(-SHRT_MAX - 1)
->
-> We have UINT_MAX and ULONG_MAX and ULLONG_MAX.  If these were actually
-> UNT_MAX, ULNG_MAX and ULLNG_MAX then USHRT_MAX would make sense.
->
-> But they aren't, so it doesn't ;)
->
-> Please, let's call them USHORT_MAX, SHORT_MAX and SHORT_MIN.
+I already spelled it out.  Add a new program header entry, point it to
+a bit array large enough to cover all loadable segments.
 
-SHRT_MIN, SHRT_MAX, and USHRT_MAX are the spellings used by
-<limits.h> required in ISO-conforming C implementations.  That
-doesn't mean that the kernel has to use those spellings, but it
-does mean that those names are widely understood by C
-programmers.
--- 
-Ben Pfaff 
-http://benpfaff.org
+It is not worth creating problems with this invalid extension just for
+old binaries.  Just let those go.  New binaries can automatically get
+the array and then there are no extra seeks, the format is well
+defined, etc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
