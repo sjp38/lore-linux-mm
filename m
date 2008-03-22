@@ -1,44 +1,48 @@
-Received: by wf-out-1314.google.com with SMTP id 25so1965031wfc.11
-        for <linux-mm@kvack.org>; Fri, 21 Mar 2008 19:40:23 -0700 (PDT)
-Message-ID: <8bd0f97a0803211940s6d7b5214q57f4f9eabd11a991@mail.gmail.com>
-Date: Fri, 21 Mar 2008 22:40:23 -0400
-From: "Mike Frysinger" <vapier.adi@gmail.com>
-Subject: Re: [2/2] vmallocinfo: Add caller information
-In-Reply-To: <20080321205559.GC3509@elte.hu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080318222701.788442216@sgi.com>
-	 <20080318222827.519656153@sgi.com> <20080319214227.GA4454@elte.hu>
-	 <Pine.LNX.4.64.0803191659410.4645@schroedinger.engr.sgi.com>
-	 <20080321110008.GW20420@elte.hu>
-	 <Pine.LNX.4.64.0803211034140.18671@schroedinger.engr.sgi.com>
-	 <20080321184526.GB6571@elte.hu>
-	 <Pine.LNX.4.64.0803211212520.19558@schroedinger.engr.sgi.com>
-	 <20080321205559.GC3509@elte.hu>
+Received: from root by ciao.gmane.org with local (Exim 4.43)
+	id 1JcuQk-0007a6-Ef
+	for linux-mm@kvack.org; Sat, 22 Mar 2008 03:30:02 +0000
+Received: from 76.14.48.172 ([76.14.48.172])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Sat, 22 Mar 2008 03:30:02 +0000
+Received: from blp by 76.14.48.172 with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Sat, 22 Mar 2008 03:30:02 +0000
+From: Ben Pfaff <blp@cs.stanford.edu>
+Subject: Re: [patch 2/9] Store max number of objects in the page struct.
+Date: Fri, 21 Mar 2008 20:27:31 -0700
+Message-ID: <87od975tgc.fsf@blp.benpfaff.org>
+References: <20080317230516.078358225@sgi.com> <20080317230528.279983034@sgi.com> <1205917757.10318.1.camel@ymzhang> <Pine.LNX.4.64.0803191049450.29173@schroedinger.engr.sgi.com> <1205983937.14496.24.camel@ymzhang> <20080321152407.b0fbe81f.akpm@linux-foundation.org>
+Reply-To: blp@cs.stanford.edu
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 21, 2008 at 4:55 PM, Ingo Molnar <mingo@elte.hu> wrote:
->  * Christoph Lameter <clameter@sgi.com> wrote:
->  > > the best i found for lockdep was to include a fair number of them,
->  > > and to skip the top 3. struct vm_area that vmalloc uses isnt
->  > > space-critical, so 4-8 entries with a 3 skip would be quite ok. (but
->  > > can be more than that as well)
->  >
->  > STACKTRACE depends on STACKTRACE_SUPPORT which is not available on all
->  > arches? alpha blackfin ia64 etc are missing it?
->
->  one more reason for them to implement it.
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-as long as the new code in question is properly ifdef-ed, making it
-rely on STACKTRACE sounds fine.  i'll open an item in our Blackfin
-tracker to add support for it.
--mike
+>> +#define USHRT_MAX	((u16)(~0U))
+>> +#define SHRT_MAX	((s16)(USHRT_MAX>>1))
+>> +#define SHRT_MIN	(-SHRT_MAX - 1)
+>
+> We have UINT_MAX and ULONG_MAX and ULLONG_MAX.  If these were actually
+> UNT_MAX, ULNG_MAX and ULLNG_MAX then USHRT_MAX would make sense.
+>
+> But they aren't, so it doesn't ;)
+>
+> Please, let's call them USHORT_MAX, SHORT_MAX and SHORT_MIN.
+
+SHRT_MIN, SHRT_MAX, and USHRT_MAX are the spellings used by
+<limits.h> required in ISO-conforming C implementations.  That
+doesn't mean that the kernel has to use those spellings, but it
+does mean that those names are widely understood by C
+programmers.
+-- 
+Ben Pfaff 
+http://benpfaff.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
