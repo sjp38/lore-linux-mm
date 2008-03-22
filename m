@@ -1,7 +1,7 @@
-Received: by hs-out-0708.google.com with SMTP id j58so1283818hsj.6
-        for <linux-mm@kvack.org>; Fri, 21 Mar 2008 21:36:51 -0700 (PDT)
-Message-ID: <a36005b50803212136s78dc2e4bx5ac715ebc7a6e48a@mail.gmail.com>
-Date: Fri, 21 Mar 2008 21:36:51 -0700
+Received: by wx-out-0506.google.com with SMTP id h31so2024883wxd.11
+        for <linux-mm@kvack.org>; Fri, 21 Mar 2008 21:38:29 -0700 (PDT)
+Message-ID: <a36005b50803212138m1c37dd9evcecb0ebda569670c@mail.gmail.com>
+Date: Fri, 21 Mar 2008 21:38:29 -0700
 From: "Ulrich Drepper" <drepper@gmail.com>
 Subject: Re: [PATCH prototype] [0/8] Predictive bitmaps for ELF executables
 In-Reply-To: <20080321172644.GG2346@one.firstfloor.org>
@@ -26,15 +26,12 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, lin
 List-ID: <linux-mm.kvack.org>
 
 On Fri, Mar 21, 2008 at 10:26 AM, Andi Kleen <andi@firstfloor.org> wrote:
->  Concrete suggestions please.
+>  When would that time be? I cannot think of a single heuristic that would
+>  work for both "/bin/true" and a OpenOffice start.
 
-I already spelled it out.  Add a new program header entry, point it to
-a bit array large enough to cover all loadable segments.
-
-It is not worth creating problems with this invalid extension just for
-old binaries.  Just let those go.  New binaries can automatically get
-the array and then there are no extra seeks, the format is well
-defined, etc.
+In both cases the stable state is reached after, say, 4 seconds.  It's
+just that true terminates before the time is up.  I think something
+like "trace the first N seconds" is a reasonable heuristics.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
