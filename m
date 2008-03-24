@@ -1,64 +1,159 @@
-Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
-	by smtp-out.google.com with ESMTP id m2OHkjGW032402
-	for <linux-mm@kvack.org>; Mon, 24 Mar 2008 17:46:45 GMT
-Received: from wx-out-0506.google.com (wxct4.prod.google.com [10.70.121.4])
-	by zps75.corp.google.com with ESMTP id m2OHkc8M002749
-	for <linux-mm@kvack.org>; Mon, 24 Mar 2008 10:46:44 -0700
-Received: by wx-out-0506.google.com with SMTP id t4so3060961wxc.18
-        for <linux-mm@kvack.org>; Mon, 24 Mar 2008 10:46:44 -0700 (PDT)
-Message-ID: <6599ad830803241046l61e2965t52fd28e165d5df7a@mail.gmail.com>
-Date: Mon, 24 Mar 2008 10:46:43 -0700
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [RFC][-mm] Memory controller add mm->owner
-In-Reply-To: <47E7E5D0.9020904@linux.vnet.ibm.com>
+Received: by gv-out-0910.google.com with SMTP id n8so438564gve.19
+        for <linux-mm@kvack.org>; Mon, 24 Mar 2008 10:51:08 -0700 (PDT)
+Message-ID: <4cefeab80803241050y1ee7c22fi73234f24e65f958a@mail.gmail.com>
+Date: Mon, 24 Mar 2008 23:20:59 +0530
+From: "Nitin Gupta" <nitingupta910@gmail.com>
+Subject: Re: [PATCH 2/6] compcache: block device - internal defs
+In-Reply-To: <87a5b0800803240905g705a8ea3p11c415ad37fc3cbb@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <20080324140142.28786.97267.sendpatchset@localhost.localdomain>
-	 <6599ad830803240803s5160101bi2bf68b36085f777f@mail.gmail.com>
-	 <47E7D51E.4050304@linux.vnet.ibm.com>
-	 <6599ad830803240934g2a70d904m1ca5548f8644c906@mail.gmail.com>
-	 <47E7E5D0.9020904@linux.vnet.ibm.com>
+References: <200803242033.30782.nitingupta910@gmail.com>
+	 <87a5b0800803240905g705a8ea3p11c415ad37fc3cbb@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Will Newton <will.newton@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 24, 2008 at 10:33 AM, Balbir Singh
-<balbir@linux.vnet.ibm.com> wrote:
->  > OK, so we don't need to handle this for NPTL apps - but for anything
->  > still using LinuxThreads or manually constructed clone() calls that
->  > use CLONE_VM without CLONE_PID, this could still be an issue.
+On Mon, Mar 24, 2008 at 9:35 PM, Will Newton <will.newton@gmail.com> wrote:
+> On Mon, Mar 24, 2008 at 3:03 PM, Nitin Gupta <nitingupta910@gmail.com> wrote:
 >
->  CLONE_PID?? Do you mean CLONE_THREAD?
+>  Hi Nitin,
+>
+>
+>
+>  > This contains header to be used internally by block device code.
+>  >  It contains flags to enable/disable debugging, stats collection and also
+>  >  defines default disk size (25% of total RAM).
+>  >
+>  >  Signed-off-by: Nitin Gupta <nitingupta910 at gmail dot com>
+>  >  ---
+>  >   drivers/block/compcache.h |  147 +++++++++++++++++++++++++++++++++++++++++++++
+>  >   1 files changed, 147 insertions(+), 0 deletions(-)
+>  >
+>  >  diff --git a/drivers/block/compcache.h b/drivers/block/compcache.h
+>  >  new file mode 100644
+>  >  index 0000000..b84b5d3
+>  >  --- /dev/null
+>  >  +++ b/drivers/block/compcache.h
+>  >  @@ -0,0 +1,147 @@
+>  >  +/*
+>  >  + * Compressed RAM based swap device
+>  >  + *
+>  >  + * (C) Nitin Gupta
+>  >  + *
+>  >  + * This RAM based block device acts as swap disk.
+>  >  + * Pages swapped to this device are compressed and
+>  >  + * stored in memory.
+>  >  + *
+>  >  + * Project home: http://code.google.com/p/compcache
+>  >  + */
+>  >  +
+>  >  +#ifndef _COMPCACHE_H_
+>  >  +#define _COMPCACHE_H_
+>  >  +
+>  >  +#define K(x)   ((x) >> 10)
+>  >  +#define KB(x)  ((x) << 10)
+>  >  +
+>  >  +#define SECTOR_SHIFT           9
+>  >  +#define SECTOR_SIZE            (1 << SECTOR_SHIFT)
+>  >  +#define SECTORS_PER_PAGE_SHIFT (PAGE_SHIFT - SECTOR_SHIFT)
+>  >  +#define SECTORS_PER_PAGE       (1 << SECTORS_PER_PAGE_SHIFT)
+>  >  +
+>  >  +/*-- Configurable parameters */
+>  >  +/* Default compcache size: 25% of total RAM */
+>  >  +#define DEFAULT_COMPCACHE_PERCENT      25
+>  >  +#define INIT_SIZE                      KB(16)
+>  >  +#define GROW_SIZE                      INIT_SIZE
+>
+>  Maybe these could be renamed to INIT_SIZE_BYTES/GROW_SIZE_BYTES to
+>  make the units clearer?
+>
 
-Yes, sorry - CLONE_THREAD.
+
+Sounds better. I will rename these.
+
 
 >
->  For the case you mentioned, mm->owner is a moving target and we don't want to
->  spend time finding the successor, that can be expensive when threads start
->  exiting one-by-one quickly and when the number of threads are high. I wonder if
->  there is an efficient way to find mm->owner in that case.
+>  >  +/*-- */
+>  >  +
+>  >  +/* Message prefix */
+>  >  +#define C "compcache: "
+>  >  +
+>  >  +/* Debugging and Stats */
+>  >  +#define NOP    do { } while(0)
+>  >  +
+>  >  +#if (1 || defined(CONFIG_DEBUG_COMPCACHE))
+>  >  +#define DEBUG  1
+>  >  +#define STATS  1
+>  >  +#else
+>  >  +#define DEBUG  0
+>  >  +#define STATS  0
+>  >  +#endif
+>
+>  If DEBUG is defined unconditionally what is the point of CONFIG_DEBUG_COMPCACHE?
+>
 >
 
-But:
+For now I have not added DEBUG_COMPCACHE as make option (menuconfig)
+so its unconditional for now. I am now adding this option and then it
+will not be unconditional.
 
-- running a high-threadcount LinuxThreads process is by definition
-inefficient and expensive (hence the move to NPTL)
+>  >  +
+>  >  +/* Create /proc/compcache? */
+>  >  +/* If STATS is disabled, this will give minimal compcache info */
+>  >  +#define CONFIG_COMPCACHE_PROC
+>  >  +
+>  >  +#if DEBUG
+>  >  +#define CC_DEBUG(fmt,arg...) \
+>  >  +       printk(KERN_DEBUG C fmt,##arg)
+>  >  +#else
+>  >  +#define CC_DEBUG(fmt,arg...) NOP
+>  >  +#endif
+>
+>  Have you thought about using pr_debug() for this? It looks like it
+>  would simplify this file at the cost of a little flexibility.
+>
 
-- any potential performance hit is only paid at exit time
+I want to enable/disable this debugging based on DEBUG_COMPCACHE flag.
+Thats why I added these macros. I will do 'printk(KERN_DEBUG' ->
+pr_debug
 
-- in the normal case, any of your children or one of your siblings
-will be a suitable alternate owner
 
-- in the worst case, it's not going to be worse than doing a
-for_each_thread() loop
+>
+>  >  +
+>  >  +/*
+>  >  + * Verbose debugging:
+>  >  + * Enable basic debugging + verbose messages spread all over code
+>  >  + */
+>  >  +#define DEBUG2 0
+>  >  +
+>  >  +#if DEBUG2
+>  >  +#define DEBUG  1
+>  >  +#define STATS  1
+>  >  +#define CONFIG_COMPCACHE_PROC  1
+>  >  +#define CC_DEBUG2((fmt,arg...) \
+>  >  +       printk(KERN_DEBUG C fmt,##arg)
+>  >  +#else /* DEBUG2 */
+>  >  +#define CC_DEBUG2(fmt,arg...) NOP
+>  >  +#endif
+>  >  +
+>  >  +/* Its useless to collect stats if there is no way to export it */
+>  >  +#if (STATS && !defined(CONFIG_COMPCACHE_PROC))
+>  >  +#error "compcache stats is enabled but not /proc/compcache."
+>  >  +#endif
+>
+>  So it appears that if we want DEBUG we also get STATS, which requires
+>  /proc support enabled, so it is impossible to have just DEBUG and no
+>  STATS or /proc support?
+>
 
-so I don't think this would be a major problem
+I will decouple debug and stats so each can be enabled/disabled individually.
 
-Paul
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
