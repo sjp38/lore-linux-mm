@@ -1,7 +1,7 @@
-Date: Mon, 24 Mar 2008 13:21:04 -0500
+Date: Mon, 24 Mar 2008 13:21:19 -0500
 From: Jack Steiner <steiner@sgi.com>
-Subject: [RFC 0/8] - Support for UV platform
-Message-ID: <20080324182104.GA27968@sgi.com>
+Subject: [RFC 7/8] x86_64: Define the macros and tables for blade functions
+Message-ID: <20080324182119.GA28318@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -11,47 +11,101 @@ To: mingo@elte.hu, tglx@linutronix.de
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This series of patches add x86_64 support for the SGI "UV" platform.
-Most of the changes are related to support for larger apic IDs and
-new chipset hardware that is used for sending IPIs, etc.
+Add UV macros for converting between cpu numbers, blade numbers
+and node numbers. Note that these are used ONLY within x86_64 UV
+modules, and are not for general kernel use.
 
-UV supports really big systems. So big, in fact, that the APICID register
-does not contain enough bits to contain an APICID that is unique across all
-cpus.
-
-The UV BIOS supports 3 APICID modes:
-
-        - legacy mode. This mode uses the old APIC mode where
-          APICID is in bits [31:24] of the APICID register.
-
-        - x2apic mode. This mode is whitebox-compatible. APICIDs
-          are unique across all cpus. Standard x2apic APIC operations
-          (Intel-defined) can be used for IPIs. The node identifier
-          fits within the Intel-defined portion of the APICID register.
-	  (Note: most of the code to support x2apic mode will come in
-	  a separate patch).
-
-        - x2apic-uv mode. In this mode, the APICIDs on each node have
-          unique IDs, but IDs on different node are not unique. For example,
-          if each mode has 32 cpus, the APICIDs on each node might be
-          0 - 31. Every node has the same set of IDs.
-          The UV hub is used to route IPIs/interrupts to the correct node.
-          Traditional APIC IPI operations WILL NOT WORK.
+	Signed-off-by: Jack Steiner <steiner@sgi.com>
 
 
-In x2apic-uv mode, the ACPI tables all contain a full unique ID:
-        nnnnnnnnnnlc0cch
-                n = unique node number
-                l = socket number on board
-                c = core
-                h = hyperthread
+---
+ include/asm-x86/uv_hub.h |   74 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 74 insertions(+)
 
-Only the "c0cch" bits are written to the APICID register. The remaining bits are
-supplied by having the get_apic_id() function "OR" the extra bits into the value
-read from the APICID register.
-
-The x2apic-uv mode is recognized by <oem_id> & <oem_table_id> fields of
-the MADT table.
+Index: linux/include/asm-x86/uv_hub.h
+===================================================================
+--- linux.orig/include/asm-x86/uv_hub.h	2008-03-21 15:48:18.000000000 -0500
++++ linux/include/asm-x86/uv_hub.h	2008-03-21 15:49:26.000000000 -0500
+@@ -213,5 +213,79 @@ static inline void uv_write_local_mmr(un
+ 	*uv_local_mmr_address(offset) = val;
+ }
+ 
++/*
++ * Structures and definitions for converting between cpu, node, and blade
++ * numbers.
++ */
++struct uv_blade_info {
++	unsigned short	nr_posible_cpus;
++	unsigned short	nr_online_cpus;
++	unsigned short	nasid;
++};
++struct uv_blade_info *uv_blade_info;
++extern short *uv_node_to_blade;
++extern short *uv_cpu_to_blade;
++extern short uv_possible_blades;
++
++/* Blade-local cpu number of current cpu. Numbered 0 .. <# cpus on the blade> */
++static inline int uv_blade_processor_id(void)
++{
++	return uv_hub_info->blade_processor_id;
++}
++
++/* Blade number of current cpu. Numnbered 0 .. <#blades -1> */
++static inline int uv_numa_blade_id(void)
++{
++	return uv_hub_info->numa_blade_id;
++}
++
++/* Convert a cpu number to the the UV blade number */
++static inline int uv_cpu_to_blade_id(int cpu)
++{
++	return uv_cpu_to_blade[cpu];
++}
++
++/* Convert linux node number to the UV blade number */
++static inline int uv_node_to_blade_id(int nid)
++{
++	return uv_node_to_blade[nid];
++}
++
++/* Convert a blade id to the NASID of the blade */
++static inline int uv_blade_to_nasid(int bid)
++{
++	return uv_blade_info[bid].nasid;
++}
++
++/* Determine the number of possible cpus on a blade */
++static inline int uv_blade_nr_possible_cpus(int bid)
++{
++	return uv_blade_info[bid].nr_posible_cpus;
++}
++
++/* Determine the number of online cpus on a blade */
++static inline int uv_blade_nr_online_cpus(int bid)
++{
++	return uv_blade_info[bid].nr_online_cpus;
++}
++
++/* Convert a cpu id to the NASID of the blade containing the cpu */
++static inline int uv_cpu_to_nasid(int cpu)
++{
++	return uv_blade_info[uv_cpu_to_blade_id(cpu)].nasid;
++}
++
++/* Convert a node number to the NASID of the blade */
++static inline int uv_node_to_nasid(int nid)
++{
++	return uv_blade_info[uv_node_to_blade_id(nid)].nasid;
++}
++
++/* Maximum possible number of blades */
++static inline int uv_num_possible_blades(void)
++{
++	return uv_possible_blades;
++}
++
+ #endif /* __ASM_X86_UV_HUB__ */
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
