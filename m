@@ -1,33 +1,51 @@
-Content-class: urn:content-classes:message
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Subject: RE: larger default page sizes...
-Date: Mon, 24 Mar 2008 14:25:11 -0700
-Message-ID: <1FE6DD409037234FAB833C420AA843ECE5B88C@orsmsx424.amr.corp.intel.com>
-In-reply-to: <20080324.133722.38645342.davem@davemloft.net>
-References: <Pine.LNX.4.64.0803211037140.18671@schroedinger.engr.sgi.com><20080321.145712.198736315.davem@davemloft.net><Pine.LNX.4.64.0803241121090.3002@schroedinger.engr.sgi.com> <20080324.133722.38645342.davem@davemloft.net>
-From: "Luck, Tony" <tony.luck@intel.com>
+Date: Mon, 24 Mar 2008 14:43:56 -0700 (PDT)
+Message-Id: <20080324.144356.104645106.davem@davemloft.net>
+Subject: Re: larger default page sizes...
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <Pine.LNX.4.64.0803241402060.7762@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0803241121090.3002@schroedinger.engr.sgi.com>
+	<20080324.133722.38645342.davem@davemloft.net>
+	<Pine.LNX.4.64.0803241402060.7762@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Christoph Lameter <clameter@sgi.com>
+Date: Mon, 24 Mar 2008 14:05:02 -0700 (PDT)
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>, clameter@sgi.com
+To: clameter@sgi.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-> The memory wastage is just rediculious.
+> On Mon, 24 Mar 2008, David Miller wrote:
+> 
+> > From: Christoph Lameter <clameter@sgi.com>
+> > Date: Mon, 24 Mar 2008 11:27:06 -0700 (PDT)
+> > 
+> > > The move to 64k page size on IA64 is another way that this issue can
+> > > be addressed though.
+> > 
+> > This is such a huge mistake I wish platforms such as powerpc and IA64
+> > would not make such decisions so lightly.
+> 
+> Its certainly not a light decision if your customer tells you that the box 
+> is almost unusable with 16k page size. For our new 2k and 4k processor 
+> systems this seems to be a requirement. Customers start hacking SLES10 to 
+> run with 64k pages....
 
-In an ideal world we'd have variable sized pages ... but
-since most arcthitectures have no h/w support for these
-it may be a long time before that comes to Linux.
+We should fix the underlying problems.
 
-In a fixed page size world the right page size to use
-depends on the workload and the capacity of the system.
+I'm hitting issues on 128 cpu Niagara2 boxes, and it's all fundamental
+stuff like contention on the per-zone page allocator locks.
 
-When memory capacity is measured in hundreds of GB, then
-a larger page size doesn't look so ridiculous.
+Which is very fixable, without going to larger pages.
 
--Tony
+> powerpc also runs HPC codes. They certainly see the same results
+> that we see.
+
+There are ways to get large pages into the process address space for
+compute bound tasks, without suffering the well known negative side
+effects of using larger pages for everything.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
