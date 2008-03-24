@@ -1,7 +1,7 @@
-Date: Mon, 24 Mar 2008 13:21:12 -0500
+Date: Mon, 24 Mar 2008 13:21:18 -0500
 From: Jack Steiner <steiner@sgi.com>
-Subject: [RFC 3/8] x86_64: Increase size of APICID
-Message-ID: <20080324182112.GA28026@sgi.com>
+Subject: [RFC 6/8] x86_64: Define the macros and tables for the basic UV infrastructure.
+Message-ID: <20080324182118.GA21758@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -11,184 +11,240 @@ To: mingo@elte.hu, tglx@linutronix.de
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Increase the number of bits in an apicid from 8 to 32.
+Define the macros and tables for the basic UV infrastructure.
 
-By default, MP_processor_info() gets the APICID from the
-mpc_config_processor structure. However, this structure limits
-the size of APICID to 8 bits. This patch allows the caller of
-MP_processor_info() to optionally pass a larger APICID that will
-be used instead of the one in the mpc_config_processor struct.
 
+(NOTE: a work-in-progress. Pieces missing....)
 
 
 	Signed-off-by: Jack Steiner <steiner@sgi.com>
 
 ---
- arch/x86/kernel/mpparse_64.c |   29 ++++++++++++++++-------------
- arch/x86/mm/srat_64.c        |    6 +++++-
- include/asm-x86/apicdef.h    |    4 ++--
- include/asm-x86/mpspec.h     |    2 +-
- 4 files changed, 24 insertions(+), 17 deletions(-)
+ include/asm-x86/uv_hub.h |  217 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 217 insertions(+)
 
-Index: linux/arch/x86/kernel/mpparse_64.c
+Index: linux/include/asm-x86/uv_hub.h
 ===================================================================
---- linux.orig/arch/x86/kernel/mpparse_64.c	2008-03-21 15:36:45.000000000 -0500
-+++ linux/arch/x86/kernel/mpparse_64.c	2008-03-21 15:38:52.000000000 -0500
-@@ -92,7 +92,8 @@ static int __init mpf_checksum(unsigned 
- 	return sum & 0xFF;
- }
- 
--static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
-+static void __cpuinit MP_processor_info(struct mpc_config_processor *m,
-+					int apicid)
- {
- 	int cpu;
- 	cpumask_t tmp_map;
-@@ -102,12 +103,14 @@ static void __cpuinit MP_processor_info(
- 		disabled_cpus++;
- 		return;
- 	}
-+	if (apicid < 0)
-+		apicid = m->mpc_apicid;
- 	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
- 		bootup_cpu = " (Bootup-CPU)";
--		boot_cpu_id = m->mpc_apicid;
-+		boot_cpu_id = apicid;
- 	}
- 
--	printk(KERN_INFO "Processor #%d%s\n", m->mpc_apicid, bootup_cpu);
-+	printk(KERN_INFO "Processor #%d%s\n", apicid, bootup_cpu);
- 
- 	if (num_processors >= NR_CPUS) {
- 		printk(KERN_WARNING "WARNING: NR_CPUS limit of %i reached."
-@@ -119,7 +122,7 @@ static void __cpuinit MP_processor_info(
- 	cpus_complement(tmp_map, cpu_present_map);
- 	cpu = first_cpu(tmp_map);
- 
--	physid_set(m->mpc_apicid, phys_cpu_present_map);
-+	physid_set(apicid, phys_cpu_present_map);
-  	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
-  		/*
- 		 * x86_bios_cpu_apicid is required to have processors listed
-@@ -133,11 +136,11 @@ static void __cpuinit MP_processor_info(
- 		u16 *cpu_to_apicid = x86_cpu_to_apicid_early_ptr;
- 		u16 *bios_cpu_apicid = x86_bios_cpu_apicid_early_ptr;
- 
--		cpu_to_apicid[cpu] = m->mpc_apicid;
--		bios_cpu_apicid[cpu] = m->mpc_apicid;
-+		cpu_to_apicid[cpu] = apicid;
-+		bios_cpu_apicid[cpu] = apicid;
- 	} else {
--		per_cpu(x86_cpu_to_apicid, cpu) = m->mpc_apicid;
--		per_cpu(x86_bios_cpu_apicid, cpu) = m->mpc_apicid;
-+		per_cpu(x86_cpu_to_apicid, cpu) = apicid;
-+		per_cpu(x86_bios_cpu_apicid, cpu) = apicid;
- 	}
- 
- 	cpu_set(cpu, cpu_possible_map);
-@@ -269,7 +272,7 @@ static int __init smp_read_mpc(struct mp
- 				struct mpc_config_processor *m=
- 					(struct mpc_config_processor *)mpt;
- 				if (!acpi_lapic)
--					MP_processor_info(m);
-+					MP_processor_info(m, -1);
- 				mpt += sizeof(*m);
- 				count += sizeof(*m);
- 				break;
-@@ -419,7 +422,7 @@ static inline void __init construct_defa
- 	processor.mpc_reserved[1] = 0;
- 	for (i = 0; i < 2; i++) {
- 		processor.mpc_apicid = i;
--		MP_processor_info(&processor);
-+		MP_processor_info(&processor, -1);
- 	}
- 
- 	bus.mpc_type = MP_BUS;
-@@ -617,7 +620,7 @@ void __init mp_register_lapic_address(u6
- 		boot_cpu_id = get_apic_id();
- }
- 
--void __cpuinit mp_register_lapic (u8 id, u8 enabled)
-+void __cpuinit mp_register_lapic(int id, u8 enabled)
- {
- 	struct mpc_config_processor processor;
- 	int			boot_cpu = 0;
-@@ -626,7 +629,7 @@ void __cpuinit mp_register_lapic (u8 id,
- 		boot_cpu = 1;
- 
- 	processor.mpc_type = MP_PROCESSOR;
--	processor.mpc_apicid = id;
-+	processor.mpc_apicid = 0;
- 	processor.mpc_apicver = 0;
- 	processor.mpc_cpuflag = (enabled ? CPU_ENABLED : 0);
- 	processor.mpc_cpuflag |= (boot_cpu ? CPU_BOOTPROCESSOR : 0);
-@@ -635,7 +638,7 @@ void __cpuinit mp_register_lapic (u8 id,
- 	processor.mpc_reserved[0] = 0;
- 	processor.mpc_reserved[1] = 0;
- 
--	MP_processor_info(&processor);
-+	MP_processor_info(&processor, id);
- }
- 
- #define MP_ISA_BUS		0
-Index: linux/include/asm-x86/mpspec.h
-===================================================================
---- linux.orig/include/asm-x86/mpspec.h	2008-03-21 15:36:38.000000000 -0500
-+++ linux/include/asm-x86/mpspec.h	2008-03-21 15:37:22.000000000 -0500
-@@ -42,7 +42,7 @@ extern void find_smp_config(void);
- extern void get_smp_config(void);
- 
- #ifdef CONFIG_ACPI
--extern void mp_register_lapic(u8 id, u8 enabled);
-+extern void mp_register_lapic(int id, u8 enabled);
- extern void mp_register_lapic_address(u64 address);
- extern void mp_register_ioapic(u8 id, u32 address, u32 gsi_base);
- extern void mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger,
-Index: linux/arch/x86/mm/srat_64.c
-===================================================================
---- linux.orig/arch/x86/mm/srat_64.c	2008-03-21 15:36:38.000000000 -0500
-+++ linux/arch/x86/mm/srat_64.c	2008-03-21 15:37:22.000000000 -0500
-@@ -20,6 +20,7 @@
- #include <asm/proto.h>
- #include <asm/numa.h>
- #include <asm/e820.h>
-+#include <asm/genapic.h>
- 
- int acpi_numa __initdata;
- 
-@@ -148,7 +149,10 @@ acpi_numa_processor_affinity_init(struct
- 		return;
- 	}
- 
--	apic_id = pa->apic_id;
-+	if (is_uv_system())
-+		apic_id = (pa->apic_id << 8) | pa->local_sapic_eid;
-+	else
-+		apic_id = pa->apic_id;
- 	apicid_to_node[apic_id] = node;
- 	acpi_numa = 1;
- 	printk(KERN_INFO "SRAT: PXM %u -> APIC %u -> Node %u\n",
-Index: linux/include/asm-x86/apicdef.h
-===================================================================
---- linux.orig/include/asm-x86/apicdef.h	2008-03-21 15:36:45.000000000 -0500
-+++ linux/include/asm-x86/apicdef.h	2008-03-21 15:37:22.000000000 -0500
-@@ -134,7 +134,7 @@
- # define MAX_IO_APICS 64
- #else
- # define MAX_IO_APICS 128
--# define MAX_LOCAL_APIC 256
-+# define MAX_LOCAL_APIC 32768
- #endif
- 
- /*
-@@ -407,6 +407,6 @@ struct local_apic {
- 
- #undef u32
- 
--#define BAD_APICID 0xFFu
-+#define BAD_APICID 0xFFFFu
- 
- #endif
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux/include/asm-x86/uv_hub.h	2008-03-21 15:48:18.000000000 -0500
+@@ -0,0 +1,217 @@
++/*
++ * This file is subject to the terms and conditions of the GNU General Public
++ * License.  See the file "COPYING" in the main directory of this archive
++ * for more details.
++ *
++ * SGI UV architectural definitions
++ *
++ * Copyright (C) 2007 Silicon Graphics, Inc. All rights reserved.
++ */
++
++#ifndef __ASM_X86_UV_HUB_H__
++#define __ASM_X86_UV_HUB_H__
++
++#include <linux/numa.h>
++#include <linux/percpu.h>
++#include <asm/types.h>
++#include <asm/percpu.h>
++
++
++/*
++ * Addressing Terminology
++ *
++ * 	NASID - network ID of a router, Mbrick or Cbrick. Nasid values of
++ * 		routers always have low bit of 1, C/MBricks have low bit
++ * 		equal to 0. Most addressing macros that target UV hub chips
++ * 		right shift the NASID by 1 to exclude the always-zero bit.
++ *
++ *	SNASID - NASID right shifted by 1 bit.
++ *
++ *
++ *  Memory/UV-HUB Processor Socket Address Format:
++ *  +--------+---------------+---------------------+
++ *  |00..0000|    SNASID     |      NodeOffset     |
++ *  +--------+---------------+---------------------+
++ *           <--- N bits --->|<--------M bits ----->
++ *
++ *	M number of node offset bits (35 .. 40)
++ *	N number of SNASID bits (0 .. 10)
++ *
++ *		Note: M + N cannot currently exceed 44 (x86_64) or 46 (IA64).
++ *		The actual values are configuration dependent and are set at
++ *		boot time
++ *
++ * APICID format
++ * 	NOTE!!!!!! This is the current format of the APICID. However, code
++ * 	should assume that this will change in the future. Use functions
++ * 	in this file for all APICID bit manipulations and conversion.
++ *
++ * 		1111110000000000
++ * 		5432109876543210
++ *		nnnnnnnnnnlc0cch
++ *		sssssssssss
++ *
++ *			n  = snasid bits
++ *			l =  socket number on board
++ *			c  = core
++ *			h  = hyperthread
++ *			s  = bits that are in the socket CSR
++ *
++ *	Note: Processor only supports 12 bits in the APICID register. The ACPI
++ *	      tables hold all 16 bits. Software needs to be aware of this.
++ *
++ * 	      Unless otherwise specified, all references to APICID refer to
++ * 	      the FULL value contained in ACPI tables, not the subset in the
++ * 	      processor APICID register.
++ */
++
++
++/*
++ * Maximum number of bricks in all partitions and in all coherency domains.
++ * This is the total number of bricks accessible in the numalink fabric. It
++ * includes all C & M bricks. Routers are NOT included.
++ *
++ * This value is also the value of the maximum number of non-router NASIDs
++ * in the numalink fabric.
++ *
++ * NOTE: a brick may be 1 or 2 OS nodes. Don't get these confused.
++ */
++#define UV_MAX_NUMALINK_BLADES	16384
++
++/*
++ * Maximum number of C/Mbricks within a software SSI (hardware may support
++ * more).
++ */
++#define UV_MAX_SSI_BLADES	256
++
++/*
++ * The largest possible NASID of a C or M brick (+ 2)
++ */
++#define UV_MAX_NASID_VALUE	(UV_MAX_NUMALINK_NODES * 2)
++
++/*
++ * The following defines attributes of the HUB chip. These attributes are
++ * frequently referenced and are kept in the per-cpu data areas of each cpu.
++ * They are kept together in a struct to minimize cache misses.
++ */
++struct uv_hub_info_s {
++	unsigned long	global_mmr_base;
++	unsigned short	local_nasid;
++	unsigned short	gnode_upper;
++	unsigned short	coherency_domain_number;
++	unsigned short	numa_blade_id;
++	unsigned char	blade_processor_id;
++	unsigned char	m_val;
++	unsigned char	n_val;
++};
++DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
++#define uv_hub_info 		(&__get_cpu_var(__uv_hub_info))
++#define uv_cpu_hub_info(cpu)	(&per_cpu(__uv_hub_info, cpu))
++
++/* This header file is used in BIOS code that runs in physical mode */
++#ifdef __BIOS__
++#define UV_ADDR(x)		((unsigned long *)(x))
++#else
++#define UV_ADDR(x)		((unsigned long *)__va(x))
++#endif
++
++/*
++ * Local & Global MMR space macros.
++ * 	Note: macros are intended to be used ONLY by inline functions
++ * 	in this file - not by other kernel code.
++ */
++#define UV_SNASID(n)			((n) >> 1)
++#define UV_NASID(n)			((n) << 1)
++
++#define UV_LOCAL_MMR_BASE		0xf4000000UL
++#define UV_GLOBAL_MMR32_BASE		0xf8000000UL
++#define UV_GLOBAL_MMR64_BASE		(uv_hub_info->global_mmr_base)
++
++#define UV_GLOBAL_MMR32_SNASID_MASK	0x3ff
++#define UV_GLOBAL_MMR32_SNASID_SHIFT	15
++#define UV_GLOBAL_MMR64_SNASID_SHIFT	26
++
++#define UV_GLOBAL_MMR32_NASID_BITS(n)					\
++		(((UV_SNASID(n) & UV_GLOBAL_MMR32_SNASID_MASK)) <<	\
++		(UV_GLOBAL_MMR32_SNASID_SHIFT))
++
++#define UV_GLOBAL_MMR64_NASID_BITS(n)					\
++	((unsigned long)UV_SNASID(n) << UV_GLOBAL_MMR64_SNASID_SHIFT)
++
++#define UV_APIC_NASID_SHIFT	7
++
++/*
++ * Extract a NASID from an APICID (full apicid, not processor subset)
++ */
++static inline int uv_apicid_to_nasid(int apicid)
++{
++	return (UV_NASID(apicid >> UV_APIC_NASID_SHIFT));
++}
++
++/*
++ * Access global MMRs using the low memory MMR32 space. This region supports
++ * faster MMR access but not all MMRs are accessible in this space.
++ */
++static inline unsigned long *uv_global_mmr32_address(int nasid,
++				unsigned long offset)
++{
++	return UV_ADDR(UV_GLOBAL_MMR32_BASE |
++		       UV_GLOBAL_MMR32_NASID_BITS(nasid) | offset);
++}
++
++static inline void uv_write_global_mmr32(int nasid, unsigned long offset,
++				 unsigned long val)
++{
++	*uv_global_mmr32_address(nasid, offset) = val;
++}
++
++static inline unsigned long uv_read_global_mmr32(int nasid,
++						 unsigned long offset)
++{
++	return *uv_global_mmr32_address(nasid, offset);
++}
++
++/*
++ * Access Global MMR space using the MMR space located at the top of physical
++ * memory.
++ */
++static inline unsigned long *uv_global_mmr64_address(int nasid,
++				unsigned long offset)
++{
++	return UV_ADDR(UV_GLOBAL_MMR64_BASE |
++		       UV_GLOBAL_MMR64_NASID_BITS(nasid) | offset);
++}
++
++static inline void uv_write_global_mmr64(int nasid, unsigned long offset,
++				unsigned long val)
++{
++	*uv_global_mmr64_address(nasid, offset) = val;
++}
++
++static inline unsigned long uv_read_global_mmr64(int nasid,
++						 unsigned long offset)
++{
++	return *uv_global_mmr64_address(nasid, offset);
++}
++
++/*
++ * Access node local MMRs. Faster than using global space but only local MMRs
++ * are accessible.
++ */
++static inline unsigned long *uv_local_mmr_address(unsigned long offset)
++{
++	return UV_ADDR(UV_LOCAL_MMR_BASE | offset);
++}
++
++static inline unsigned long uv_read_local_mmr(unsigned long offset)
++{
++	return *uv_local_mmr_address(offset);
++}
++
++static inline void uv_write_local_mmr(unsigned long offset, unsigned long val)
++{
++	*uv_local_mmr_address(offset) = val;
++}
++
++#endif /* __ASM_X86_UV_HUB__ */
++
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
