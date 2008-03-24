@@ -1,118 +1,67 @@
-Received: by gv-out-0910.google.com with SMTP id n8so450801gve.19
-        for <linux-mm@kvack.org>; Mon, 24 Mar 2008 11:35:25 -0700 (PDT)
-Message-ID: <4cefeab80803241135i70bd81e5od82b84685bc4dbb@mail.gmail.com>
-Date: Tue, 25 Mar 2008 00:05:24 +0530
-From: "Nitin Gupta" <nitingupta910@gmail.com>
-Subject: Re: [PATCH 1/6] compcache: compressed RAM block device
-In-Reply-To: <87a5b0800803240923m1ec9e343ld08c2828fe42e4e@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 3/6] compcache: TLSF Allocator interface
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <4cefeab80803241034m6f62c01fq669129db9959f47f@mail.gmail.com>
+References: <200803242034.24264.nitingupta910@gmail.com>
+	 <1206377777.6437.123.camel@lappy>
+	 <4cefeab80803241034m6f62c01fq669129db9959f47f@mail.gmail.com>
+Content-Type: text/plain
+Date: Mon, 24 Mar 2008 19:56:53 +0100
+Message-Id: <1206385013.6437.140.camel@lappy>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <200803242032.40589.nitingupta910@gmail.com>
-	 <87a5b0800803240923m1ec9e343ld08c2828fe42e4e@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Will Newton <will.newton@gmail.com>
+To: Nitin Gupta <nitingupta910@gmail.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 24, 2008 at 9:53 PM, Will Newton <will.newton@gmail.com> wrote:
->
-> On Mon, Mar 24, 2008 at 3:02 PM, Nitin Gupta <nitingupta910@gmail.com> wrote:
+On Mon, 2008-03-24 at 23:04 +0530, Nitin Gupta wrote:
+> On Mon, Mar 24, 2008 at 10:26 PM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> > On Mon, 2008-03-24 at 20:34 +0530, Nitin Gupta wrote:
+> >  > Two Level Segregate Fit (TLSF) Allocator is used to allocate memory for
+> >  > variable size compressed pages. Its fast and gives low fragmentation.
+> >  > Following links give details on this allocator:
+> >  >  - http://rtportal.upv.es/rtmalloc/files/tlsf_paper_spe_2007.pdf
+> >  >  - http://code.google.com/p/compcache/wiki/TLSFAllocator
+> >  >
+> >  > This kernel port of TLSF (v2.3.2) introduces several changes but underlying
+> >  > algorithm remains the same.
+> >  >
+> >  > Changelog TLSF v2.3.2 vs this kernel port
+> >  >  - Pool now dynamically expands/shrinks.
+> >  >    It is collection of contiguous memory regions.
+> >  >  - Changes to pool create interface as a result of above change.
+> >  >  - Collect and export stats (/proc/tlsfinfo)
+> >  >  - Cleanups: kernel coding style, added comments, macros -> static inline, etc.
+> >
+> >  Can you explain why you need this allocator, why don't the current
+> >  kernel allocators work for you?
+> >
+> >
+> 
+> kmalloc() allocates one of pre-defined sizes (as defined in
+> kmalloc_sizes.h). This will surely cause severe fragmentation with
+> these variable sized compressed pages.
+> 
+> Whereas, TLSF maintains very fine grained size lists. In all the
+> workloads I tested, it showed <5% fragmentation. Also, its very simple
+> as just ~700 LOC.
 
+Yeah, it also suffers from a horrible coding style, can use excessive
+amounts of vmalloc space, isn't hooked into the reclaim process as an
+allocator should be and has a severe lack of per-cpu data making it a
+pretty big bottleneck on anything with more than a few cores.
 
->  >  diff --git a/drivers/block/Makefile b/drivers/block/Makefile
->  >  index 5e58430..b6d3dd2 100644
->  >  --- a/drivers/block/Makefile
->  >  +++ b/drivers/block/Makefile
->  >  @@ -12,6 +12,7 @@ obj-$(CONFIG_PS3_DISK)                += ps3disk.o
->  >   obj-$(CONFIG_ATARI_FLOPPY)     += ataflop.o
->  >   obj-$(CONFIG_AMIGA_Z2RAM)      += z2ram.o
->  >   obj-$(CONFIG_BLK_DEV_RAM)      += brd.o
->  >  +obj-$(CONFIG_BLK_DEV_COMPCACHE)        += compcache.o
->
->  Minor - this isn't in alphabetical order.
+Now, it might be needed, might work better, and the scalability issue
+might not be a problem when used for swap, but still, you don't treat
+any of these points in your changelog.
 
-Intent here is to keep related things together. So, I have placed it
-with generic ramdisk. This also seems to be convention used in this
-file.
+FWIW, please split up the patches in a sane way. This series looks like
+it wants to be 2 or 3 patches. The first introducing all of TLSF (this
+split per file is horrible). The second doing all of the block device,
+and a possible last doing documentation and such.
 
->  >  diff --git a/drivers/block/compcache.c b/drivers/block/compcache.c
->  >  new file mode 100644
->  >  index 0000000..4ffcd63
->  >  --- /dev/null
->  >  +++ b/drivers/block/compcache.c
->  >  @@ -0,0 +1,440 @@
->  >  +/*
->  >  + * Compressed RAM based swap device
->  >  + *
->  >  + * (C) Nitin Gupta
->
->  Should add a copyright year.
->
-
-ok.
-
->  >  +#include <asm/string.h>
->
->  Should this be <linux/string.h>?
->
-
-Yes. I will change this.
-
-
->  >  +/* Check if request is within bounds and page aligned */
->  >  +static inline int valid_swap_request(struct bio *bio)
->  >  +{
->  >  +       if (unlikely((bio->bi_sector >= compcache.size) ||
->  >  +                       (bio->bi_sector & (SECTORS_PER_PAGE - 1)) ||
->  >  +                       (bio->bi_vcnt != 1) ||
->  >  +                       (bio->bi_size != PAGE_SIZE) ||
->  >  +                       (bio->bi_io_vec[0].bv_offset != 0)))
->  >  +               return 0;
->  >  +       return 1;
->  >  +}
->
->  Probably unnecessary to mark this explicitly inline.
->
->
-
-Probably yes. I am not sure.
-
-
->  >  +       /*
->  >  +        * It is named like this to prevent distro installers
->  >  +        * from offering compcache as installation target. They
->  >  +        * seem to ignore all devices beginning with 'ram'
->  >  +        */
->  >  +       sprintf(compcache.disk->disk_name, "%s", "ramzswap0");
->
->  I'm not sure the name makes it 100% obvious what the device is for.
->  You could use strcpy here also.
->
-
-"z" == compress
-and hence the name ramzswap :)
-
-
->  >  +       if (compcache.table[0].addr)
->  >  +               free_page((unsigned long)compcache.table[0].addr);
->  >  +       if (compcache.compress_workmem)
->  >  +               kfree(compcache.compress_workmem);
->  >  +       if (compcache.compress_buffer)
->  >  +               kfree(compcache.compress_buffer);
->  >  +       if (compcache.table)
->  >  +               vfree(compcache.table);
->
->  kfree() and vfree() may safely be called on NULL pointers.
->
-
-I will remove these unnecessary checks then.
-
-
-Thanks,
-Nitin
+Also, how bad was kmalloc() compared to this TLSF, we need numbers :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
