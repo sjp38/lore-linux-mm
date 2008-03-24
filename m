@@ -1,7 +1,7 @@
-Date: Mon, 24 Mar 2008 13:21:18 -0500
+Date: Mon, 24 Mar 2008 13:21:07 -0500
 From: Jack Steiner <steiner@sgi.com>
-Subject: [RFC 6/8] x86_64: Define the macros and tables for the basic UV infrastructure.
-Message-ID: <20080324182118.GA21758@sgi.com>
+Subject: [RFC 1/8] x86_64: Change GET_APIC_ID() from an inline function to an out-of-line function
+Message-ID: <20080324182107.GA27979@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -11,240 +11,163 @@ To: mingo@elte.hu, tglx@linutronix.de
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Define the macros and tables for the basic UV infrastructure.
+Change GET_APIC_ID() on x86_64 from an inline function to an
+out-of-line function. The function is rarely called and the
+additional overhead is negligible.
 
-
-(NOTE: a work-in-progress. Pieces missing....)
-
+This change is in preparation for additional changes to
+the APICID functions that will come in a later patch.
 
 	Signed-off-by: Jack Steiner <steiner@sgi.com>
 
 ---
- include/asm-x86/uv_hub.h |  217 +++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 217 insertions(+)
+ arch/x86/kernel/apic_64.c         |    2 +-
+ arch/x86/kernel/genapic_64.c      |    5 +++++
+ arch/x86/kernel/genapic_flat_64.c |    2 +-
+ arch/x86/kernel/io_apic_64.c      |    4 ++--
+ arch/x86/kernel/mpparse_64.c      |    2 +-
+ arch/x86/kernel/smpboot_64.c      |    6 +++---
+ include/asm-x86/apic.h            |    1 +
+ include/asm-x86/apicdef.h         |    1 -
+ include/asm-x86/smp_64.h          |    2 +-
+ 9 files changed, 15 insertions(+), 10 deletions(-)
 
-Index: linux/include/asm-x86/uv_hub.h
+Index: linux/arch/x86/kernel/apic_64.c
 ===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux/include/asm-x86/uv_hub.h	2008-03-21 15:48:18.000000000 -0500
-@@ -0,0 +1,217 @@
-+/*
-+ * This file is subject to the terms and conditions of the GNU General Public
-+ * License.  See the file "COPYING" in the main directory of this archive
-+ * for more details.
-+ *
-+ * SGI UV architectural definitions
-+ *
-+ * Copyright (C) 2007 Silicon Graphics, Inc. All rights reserved.
-+ */
+--- linux.orig/arch/x86/kernel/apic_64.c	2008-03-18 14:54:19.000000000 -0500
++++ linux/arch/x86/kernel/apic_64.c	2008-03-20 15:30:23.000000000 -0500
+@@ -885,7 +885,7 @@ void __init init_apic_mappings(void)
+ 	 * Fetch the APIC ID of the BSP in case we have a
+ 	 * default configuration (or the MP table is broken).
+ 	 */
+-	boot_cpu_id = GET_APIC_ID(apic_read(APIC_ID));
++	boot_cpu_id = get_apic_id();
+ }
+ 
+ /*
+Index: linux/arch/x86/kernel/genapic_64.c
+===================================================================
+--- linux.orig/arch/x86/kernel/genapic_64.c	2008-03-18 14:54:19.000000000 -0500
++++ linux/arch/x86/kernel/genapic_64.c	2008-03-21 09:13:41.000000000 -0500
+@@ -64,3 +64,8 @@ void send_IPI_self(int vector)
+ {
+ 	__send_IPI_shortcut(APIC_DEST_SELF, vector, APIC_DEST_PHYSICAL);
+ }
 +
-+#ifndef __ASM_X86_UV_HUB_H__
-+#define __ASM_X86_UV_HUB_H__
-+
-+#include <linux/numa.h>
-+#include <linux/percpu.h>
-+#include <asm/types.h>
-+#include <asm/percpu.h>
-+
-+
-+/*
-+ * Addressing Terminology
-+ *
-+ * 	NASID - network ID of a router, Mbrick or Cbrick. Nasid values of
-+ * 		routers always have low bit of 1, C/MBricks have low bit
-+ * 		equal to 0. Most addressing macros that target UV hub chips
-+ * 		right shift the NASID by 1 to exclude the always-zero bit.
-+ *
-+ *	SNASID - NASID right shifted by 1 bit.
-+ *
-+ *
-+ *  Memory/UV-HUB Processor Socket Address Format:
-+ *  +--------+---------------+---------------------+
-+ *  |00..0000|    SNASID     |      NodeOffset     |
-+ *  +--------+---------------+---------------------+
-+ *           <--- N bits --->|<--------M bits ----->
-+ *
-+ *	M number of node offset bits (35 .. 40)
-+ *	N number of SNASID bits (0 .. 10)
-+ *
-+ *		Note: M + N cannot currently exceed 44 (x86_64) or 46 (IA64).
-+ *		The actual values are configuration dependent and are set at
-+ *		boot time
-+ *
-+ * APICID format
-+ * 	NOTE!!!!!! This is the current format of the APICID. However, code
-+ * 	should assume that this will change in the future. Use functions
-+ * 	in this file for all APICID bit manipulations and conversion.
-+ *
-+ * 		1111110000000000
-+ * 		5432109876543210
-+ *		nnnnnnnnnnlc0cch
-+ *		sssssssssss
-+ *
-+ *			n  = snasid bits
-+ *			l =  socket number on board
-+ *			c  = core
-+ *			h  = hyperthread
-+ *			s  = bits that are in the socket CSR
-+ *
-+ *	Note: Processor only supports 12 bits in the APICID register. The ACPI
-+ *	      tables hold all 16 bits. Software needs to be aware of this.
-+ *
-+ * 	      Unless otherwise specified, all references to APICID refer to
-+ * 	      the FULL value contained in ACPI tables, not the subset in the
-+ * 	      processor APICID register.
-+ */
-+
-+
-+/*
-+ * Maximum number of bricks in all partitions and in all coherency domains.
-+ * This is the total number of bricks accessible in the numalink fabric. It
-+ * includes all C & M bricks. Routers are NOT included.
-+ *
-+ * This value is also the value of the maximum number of non-router NASIDs
-+ * in the numalink fabric.
-+ *
-+ * NOTE: a brick may be 1 or 2 OS nodes. Don't get these confused.
-+ */
-+#define UV_MAX_NUMALINK_BLADES	16384
-+
-+/*
-+ * Maximum number of C/Mbricks within a software SSI (hardware may support
-+ * more).
-+ */
-+#define UV_MAX_SSI_BLADES	256
-+
-+/*
-+ * The largest possible NASID of a C or M brick (+ 2)
-+ */
-+#define UV_MAX_NASID_VALUE	(UV_MAX_NUMALINK_NODES * 2)
-+
-+/*
-+ * The following defines attributes of the HUB chip. These attributes are
-+ * frequently referenced and are kept in the per-cpu data areas of each cpu.
-+ * They are kept together in a struct to minimize cache misses.
-+ */
-+struct uv_hub_info_s {
-+	unsigned long	global_mmr_base;
-+	unsigned short	local_nasid;
-+	unsigned short	gnode_upper;
-+	unsigned short	coherency_domain_number;
-+	unsigned short	numa_blade_id;
-+	unsigned char	blade_processor_id;
-+	unsigned char	m_val;
-+	unsigned char	n_val;
-+};
-+DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
-+#define uv_hub_info 		(&__get_cpu_var(__uv_hub_info))
-+#define uv_cpu_hub_info(cpu)	(&per_cpu(__uv_hub_info, cpu))
-+
-+/* This header file is used in BIOS code that runs in physical mode */
-+#ifdef __BIOS__
-+#define UV_ADDR(x)		((unsigned long *)(x))
-+#else
-+#define UV_ADDR(x)		((unsigned long *)__va(x))
-+#endif
-+
-+/*
-+ * Local & Global MMR space macros.
-+ * 	Note: macros are intended to be used ONLY by inline functions
-+ * 	in this file - not by other kernel code.
-+ */
-+#define UV_SNASID(n)			((n) >> 1)
-+#define UV_NASID(n)			((n) << 1)
-+
-+#define UV_LOCAL_MMR_BASE		0xf4000000UL
-+#define UV_GLOBAL_MMR32_BASE		0xf8000000UL
-+#define UV_GLOBAL_MMR64_BASE		(uv_hub_info->global_mmr_base)
-+
-+#define UV_GLOBAL_MMR32_SNASID_MASK	0x3ff
-+#define UV_GLOBAL_MMR32_SNASID_SHIFT	15
-+#define UV_GLOBAL_MMR64_SNASID_SHIFT	26
-+
-+#define UV_GLOBAL_MMR32_NASID_BITS(n)					\
-+		(((UV_SNASID(n) & UV_GLOBAL_MMR32_SNASID_MASK)) <<	\
-+		(UV_GLOBAL_MMR32_SNASID_SHIFT))
-+
-+#define UV_GLOBAL_MMR64_NASID_BITS(n)					\
-+	((unsigned long)UV_SNASID(n) << UV_GLOBAL_MMR64_SNASID_SHIFT)
-+
-+#define UV_APIC_NASID_SHIFT	7
-+
-+/*
-+ * Extract a NASID from an APICID (full apicid, not processor subset)
-+ */
-+static inline int uv_apicid_to_nasid(int apicid)
++unsigned int get_apic_id(void)
 +{
-+	return (UV_NASID(apicid >> UV_APIC_NASID_SHIFT));
++	return (apic_read(APIC_ID) >> 24) & 0xFFu;
 +}
-+
-+/*
-+ * Access global MMRs using the low memory MMR32 space. This region supports
-+ * faster MMR access but not all MMRs are accessible in this space.
-+ */
-+static inline unsigned long *uv_global_mmr32_address(int nasid,
-+				unsigned long offset)
-+{
-+	return UV_ADDR(UV_GLOBAL_MMR32_BASE |
-+		       UV_GLOBAL_MMR32_NASID_BITS(nasid) | offset);
-+}
-+
-+static inline void uv_write_global_mmr32(int nasid, unsigned long offset,
-+				 unsigned long val)
-+{
-+	*uv_global_mmr32_address(nasid, offset) = val;
-+}
-+
-+static inline unsigned long uv_read_global_mmr32(int nasid,
-+						 unsigned long offset)
-+{
-+	return *uv_global_mmr32_address(nasid, offset);
-+}
-+
-+/*
-+ * Access Global MMR space using the MMR space located at the top of physical
-+ * memory.
-+ */
-+static inline unsigned long *uv_global_mmr64_address(int nasid,
-+				unsigned long offset)
-+{
-+	return UV_ADDR(UV_GLOBAL_MMR64_BASE |
-+		       UV_GLOBAL_MMR64_NASID_BITS(nasid) | offset);
-+}
-+
-+static inline void uv_write_global_mmr64(int nasid, unsigned long offset,
-+				unsigned long val)
-+{
-+	*uv_global_mmr64_address(nasid, offset) = val;
-+}
-+
-+static inline unsigned long uv_read_global_mmr64(int nasid,
-+						 unsigned long offset)
-+{
-+	return *uv_global_mmr64_address(nasid, offset);
-+}
-+
-+/*
-+ * Access node local MMRs. Faster than using global space but only local MMRs
-+ * are accessible.
-+ */
-+static inline unsigned long *uv_local_mmr_address(unsigned long offset)
-+{
-+	return UV_ADDR(UV_LOCAL_MMR_BASE | offset);
-+}
-+
-+static inline unsigned long uv_read_local_mmr(unsigned long offset)
-+{
-+	return *uv_local_mmr_address(offset);
-+}
-+
-+static inline void uv_write_local_mmr(unsigned long offset, unsigned long val)
-+{
-+	*uv_local_mmr_address(offset) = val;
-+}
-+
-+#endif /* __ASM_X86_UV_HUB__ */
-+
+Index: linux/arch/x86/kernel/genapic_flat_64.c
+===================================================================
+--- linux.orig/arch/x86/kernel/genapic_flat_64.c	2008-03-18 14:54:19.000000000 -0500
++++ linux/arch/x86/kernel/genapic_flat_64.c	2008-03-20 15:30:23.000000000 -0500
+@@ -97,7 +97,7 @@ static void flat_send_IPI_all(int vector
+ 
+ static int flat_apic_id_registered(void)
+ {
+-	return physid_isset(GET_APIC_ID(apic_read(APIC_ID)), phys_cpu_present_map);
++	return physid_isset(get_apic_id(), phys_cpu_present_map);
+ }
+ 
+ static unsigned int flat_cpu_mask_to_apicid(cpumask_t cpumask)
+Index: linux/arch/x86/kernel/io_apic_64.c
+===================================================================
+--- linux.orig/arch/x86/kernel/io_apic_64.c	2008-03-18 14:54:19.000000000 -0500
++++ linux/arch/x86/kernel/io_apic_64.c	2008-03-21 09:07:19.000000000 -0500
+@@ -1067,7 +1067,7 @@ void __apicdebuginit print_local_APIC(vo
+ 	printk("\n" KERN_DEBUG "printing local APIC contents on CPU#%d/%d:\n",
+ 		smp_processor_id(), hard_smp_processor_id());
+ 	v = apic_read(APIC_ID);
+-	printk(KERN_INFO "... APIC ID:      %08x (%01x)\n", v, GET_APIC_ID(v));
++	printk(KERN_INFO "... APIC ID:      %08x (%01x)\n", v, get_apic_id());
+ 	v = apic_read(APIC_LVR);
+ 	printk(KERN_INFO "... APIC VERSION: %08x\n", v);
+ 	ver = GET_APIC_VERSION(v);
+@@ -1261,7 +1261,7 @@ void disable_IO_APIC(void)
+ 		entry.dest_mode       = 0; /* Physical */
+ 		entry.delivery_mode   = dest_ExtINT; /* ExtInt */
+ 		entry.vector          = 0;
+-		entry.dest          = GET_APIC_ID(apic_read(APIC_ID));
++		entry.dest          = get_apic_id();
+ 
+ 		/*
+ 		 * Add it to the IO-APIC irq-routing table:
+Index: linux/arch/x86/kernel/mpparse_64.c
+===================================================================
+--- linux.orig/arch/x86/kernel/mpparse_64.c	2008-03-18 14:54:19.000000000 -0500
++++ linux/arch/x86/kernel/mpparse_64.c	2008-03-21 09:07:23.000000000 -0500
+@@ -614,7 +614,7 @@ void __init mp_register_lapic_address(u6
+ 	mp_lapic_addr = (unsigned long) address;
+ 	set_fixmap_nocache(FIX_APIC_BASE, mp_lapic_addr);
+ 	if (boot_cpu_id == -1U)
+-		boot_cpu_id = GET_APIC_ID(apic_read(APIC_ID));
++		boot_cpu_id = get_apic_id();
+ }
+ 
+ void __cpuinit mp_register_lapic (u8 id, u8 enabled)
+Index: linux/arch/x86/kernel/smpboot_64.c
+===================================================================
+--- linux.orig/arch/x86/kernel/smpboot_64.c	2008-03-18 14:54:19.000000000 -0500
++++ linux/arch/x86/kernel/smpboot_64.c	2008-03-21 09:07:19.000000000 -0500
+@@ -158,7 +158,7 @@ void __cpuinit smp_callin(void)
+ 	/*
+ 	 * (This works even if the APIC is not enabled.)
+ 	 */
+-	phys_id = GET_APIC_ID(apic_read(APIC_ID));
++	phys_id = get_apic_id();
+ 	cpuid = smp_processor_id();
+ 	if (cpu_isset(cpuid, cpu_callin_map)) {
+ 		panic("smp_callin: phys CPU#%d, CPU#%d already present??\n",
+@@ -878,9 +878,9 @@ void __init smp_prepare_cpus(unsigned in
+ 		enable_IO_APIC();
+ 	end_local_APIC_setup();
+ 
+-	if (GET_APIC_ID(apic_read(APIC_ID)) != boot_cpu_id) {
++	if (get_apic_id() != boot_cpu_id) {
+ 		panic("Boot APIC ID in local APIC unexpected (%d vs %d)",
+-		      GET_APIC_ID(apic_read(APIC_ID)), boot_cpu_id);
++		      get_apic_id(), boot_cpu_id);
+ 		/* Or can we switch back to PIC here? */
+ 	}
+ 
+Index: linux/include/asm-x86/apic.h
+===================================================================
+--- linux.orig/include/asm-x86/apic.h	2008-03-18 14:54:19.000000000 -0500
++++ linux/include/asm-x86/apic.h	2008-03-21 09:07:59.000000000 -0500
+@@ -129,6 +129,7 @@ extern void enable_NMI_through_LVT0(void
+  */
+ #ifdef CONFIG_X86_64
+ extern void setup_apic_routing(void);
++extern unsigned int get_apic_id(void);
+ #endif
+ 
+ extern u8 setup_APIC_eilvt_mce(u8 vector, u8 msg_type, u8 mask);
+Index: linux/include/asm-x86/apicdef.h
+===================================================================
+--- linux.orig/include/asm-x86/apicdef.h	2008-03-18 14:54:19.000000000 -0500
++++ linux/include/asm-x86/apicdef.h	2008-03-21 09:07:23.000000000 -0500
+@@ -14,7 +14,6 @@
+ 
+ #ifdef CONFIG_X86_64
+ # define	APIC_ID_MASK		(0xFFu<<24)
+-# define	GET_APIC_ID(x)		(((x)>>24)&0xFFu)
+ # define	SET_APIC_ID(x)		(((x)<<24))
+ #endif
+ 
+Index: linux/include/asm-x86/smp_64.h
+===================================================================
+--- linux.orig/include/asm-x86/smp_64.h	2008-03-18 14:54:19.000000000 -0500
++++ linux/include/asm-x86/smp_64.h	2008-03-18 14:54:24.000000000 -0500
+@@ -92,7 +92,7 @@ static __inline int logical_smp_processo
+ static inline int hard_smp_processor_id(void)
+ {
+ 	/* we don't want to mark this access volatile - bad code generation */
+-	return GET_APIC_ID(*(u32 *)(APIC_BASE + APIC_ID));
++	return get_apic_id();
+ }
+ 
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
