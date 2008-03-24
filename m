@@ -1,77 +1,40 @@
-Received: from zps35.corp.google.com (zps35.corp.google.com [172.25.146.35])
-	by smtp-out.google.com with ESMTP id m2OGYgGl007799
-	for <linux-mm@kvack.org>; Mon, 24 Mar 2008 16:34:43 GMT
-Received: from py-out-1112.google.com (pyed32.prod.google.com [10.34.156.32])
-	by zps35.corp.google.com with ESMTP id m2OGYfaD028528
-	for <linux-mm@kvack.org>; Mon, 24 Mar 2008 09:34:41 -0700
-Received: by py-out-1112.google.com with SMTP id d32so3356520pye.22
-        for <linux-mm@kvack.org>; Mon, 24 Mar 2008 09:34:40 -0700 (PDT)
-Message-ID: <6599ad830803240934g2a70d904m1ca5548f8644c906@mail.gmail.com>
-Date: Mon, 24 Mar 2008 09:34:39 -0700
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [RFC][-mm] Memory controller add mm->owner
-In-Reply-To: <47E7D51E.4050304@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 3/6] compcache: TLSF Allocator interface
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <200803242034.24264.nitingupta910@gmail.com>
+References: <200803242034.24264.nitingupta910@gmail.com>
+Content-Type: text/plain
+Date: Mon, 24 Mar 2008 17:56:17 +0100
+Message-Id: <1206377777.6437.123.camel@lappy>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080324140142.28786.97267.sendpatchset@localhost.localdomain>
-	 <6599ad830803240803s5160101bi2bf68b36085f777f@mail.gmail.com>
-	 <47E7D51E.4050304@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: nitingupta910@gmail.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 24, 2008 at 9:21 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->  > Also, if mm->owner exits but mm is still alive (unlikely, but could
->  > happen with weird custom threading libraries?) then we need to
->  > reassign mm->owner to one of the other users of the mm (by looking
->  > first in the thread group, then among the parents/siblings/children,
->  > and then among all processes as a last resort?)
->  >
->
->  The comment in __exit_signal states that
->
->  "The group leader stays around as a zombie as long
->   as there are other threads.  When it gets reaped,
->   the exit.c code will add its counts into these totals."
+On Mon, 2008-03-24 at 20:34 +0530, Nitin Gupta wrote:
+> Two Level Segregate Fit (TLSF) Allocator is used to allocate memory for
+> variable size compressed pages. Its fast and gives low fragmentation.
+> Following links give details on this allocator:
+>  - http://rtportal.upv.es/rtmalloc/files/tlsf_paper_spe_2007.pdf
+>  - http://code.google.com/p/compcache/wiki/TLSFAllocator
+> 
+> This kernel port of TLSF (v2.3.2) introduces several changes but underlying
+> algorithm remains the same.
+> 
+> Changelog TLSF v2.3.2 vs this kernel port
+>  - Pool now dynamically expands/shrinks.
+>    It is collection of contiguous memory regions.
+>  - Changes to pool create interface as a result of above change.
+>  - Collect and export stats (/proc/tlsfinfo)
+>  - Cleanups: kernel coding style, added comments, macros -> static inline, etc.
 
-Ah, that's useful to know.
+Can you explain why you need this allocator, why don't the current
+kernel allocators work for you?
 
->
->  Given that the thread group leader stays around, do we need to reassign
->  mm->owner? Do you do anything special in cgroups like cleanup the
->  task_struct->css->subsys_state on exit?
->
 
-OK, so we don't need to handle this for NPTL apps - but for anything
-still using LinuxThreads or manually constructed clone() calls that
-use CLONE_VM without CLONE_PID, this could still be an issue. (Also I
-guess there's the case of someone holding a reference to the mm via a
-/proc file?)
 
->
->  >>  -       rcu_read_lock();
->  >>  -       mem = rcu_dereference(mm->mem_cgroup);
->  >>  +       mem = mem_cgroup_from_task(mm->owner);
->  >
->  > I think we still need the rcu_read_lock(), since mm->owner can move
->  > cgroups any time.
->  >
->
->  OK, so cgroup task movement is protected by RCU, right? I'll check for all
->  mm->owner uses.
->
-
-Yes - cgroup_attach() uses synchronize_rcu() before release the cgroup
-mutex. So although you can't guarantee that the cgroup set won't
-change if you're just using RCU, you can't guarantee that you're
-addressing a still-valid non-destroyed (and of course non-freed)
-cgroup set.
-
-Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
