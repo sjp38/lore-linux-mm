@@ -1,35 +1,33 @@
-Date: Mon, 24 Mar 2008 11:27:06 -0700 (PDT)
+Date: Mon, 24 Mar 2008 11:28:24 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [11/14] vcompound: Fallbacks for order 1 stack allocations on
- IA64 and x86
-In-Reply-To: <20080321.145712.198736315.davem@davemloft.net>
-Message-ID: <Pine.LNX.4.64.0803241121090.3002@schroedinger.engr.sgi.com>
-References: <20080321061726.782068299@sgi.com> <20080321.002502.223136918.davem@davemloft.net>
- <Pine.LNX.4.64.0803211037140.18671@schroedinger.engr.sgi.com>
- <20080321.145712.198736315.davem@davemloft.net>
+Subject: Re: [04/14] vcompound: Core piece
+In-Reply-To: <20080322205729.B317.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0803241127370.3002@schroedinger.engr.sgi.com>
+References: <20080321061703.921169367@sgi.com> <20080321061724.956843984@sgi.com>
+ <20080322205729.B317.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 Mar 2008, David Miller wrote:
+On Sat, 22 Mar 2008, KOSAKI Motohiro wrote:
 
-> The thing to do is to first validate the way that IA64
-> handles recursive TLB misses occuring during an initial
-> TLB miss, and if there are any limitations therein.
+> > +struct page *alloc_vcompound_alloc(gfp_t flags, int order);
+> 
+> where exist alloc_vcompound_alloc?
 
-I am familiar with that area and I am resonably sure that this 
-is an issue on IA64 under some conditions (the processor decides to spill 
-some registers either onto the stack or into the register backing store 
-during tlb processing). Recursion (in the kernel context) still expects 
-the stack and register backing store to be available. ccing linux-ia64 for 
-any thoughts to the contrary.
+Duh... alloc_vcompound is not used at this point. Typo. _alloc needs to be 
+cut off.
 
-The move to 64k page size on IA64 is another way that this issue can be 
-addressed though. So I think its best to drop the IA64 portion.
+> Hmm,
+> IMHO we need vcompound documentation more for the beginner in the Documentation/ directory.
+> if not, nobody understand mean of vcompound flag at /proc/vmallocinfo.
+
+
+Ok.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
