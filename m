@@ -1,98 +1,35 @@
-Date: Mon, 24 Mar 2008 13:21:10 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: [RFC 2/8] x86_64: Add functions to determine if platform is a UV platform
-Message-ID: <20080324182110.GA27984@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Mon, 24 Mar 2008 11:27:06 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [11/14] vcompound: Fallbacks for order 1 stack allocations on
+ IA64 and x86
+In-Reply-To: <20080321.145712.198736315.davem@davemloft.net>
+Message-ID: <Pine.LNX.4.64.0803241121090.3002@schroedinger.engr.sgi.com>
+References: <20080321061726.782068299@sgi.com> <20080321.002502.223136918.davem@davemloft.net>
+ <Pine.LNX.4.64.0803211037140.18671@schroedinger.engr.sgi.com>
+ <20080321.145712.198736315.davem@davemloft.net>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mingo@elte.hu, tglx@linutronix.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Miller <davem@davemloft.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Add functions that can be used to determine if an x86_64
-system is a SGI "UV" system. UV systems come in 3 types and
-are identified by the OEM ID in the MADT.
+On Fri, 21 Mar 2008, David Miller wrote:
 
-        Signed-off-by: Jack Steiner <steiner@sgi.com>
+> The thing to do is to first validate the way that IA64
+> handles recursive TLB misses occuring during an initial
+> TLB miss, and if there are any limitations therein.
 
----
- arch/x86/kernel/acpi/boot.c  |    4 +---
- arch/x86/kernel/genapic_64.c |   25 +++++++++++++++++++++++++
- include/asm-x86/genapic_64.h |    5 +++++
- 3 files changed, 31 insertions(+), 3 deletions(-)
+I am familiar with that area and I am resonably sure that this 
+is an issue on IA64 under some conditions (the processor decides to spill 
+some registers either onto the stack or into the register backing store 
+during tlb processing). Recursion (in the kernel context) still expects 
+the stack and register backing store to be available. ccing linux-ia64 for 
+any thoughts to the contrary.
 
-Index: linux/arch/x86/kernel/acpi/boot.c
-===================================================================
---- linux.orig/arch/x86/kernel/acpi/boot.c	2008-03-21 09:07:24.000000000 -0500
-+++ linux/arch/x86/kernel/acpi/boot.c	2008-03-21 09:16:06.000000000 -0500
-@@ -52,9 +52,7 @@ EXPORT_SYMBOL(acpi_disabled);
- #ifdef	CONFIG_X86_64
- 
- #include <asm/proto.h>
--
--static inline int acpi_madt_oem_check(char *oem_id, char *oem_table_id) { return 0; }
--
-+#include <asm/genapic.h>
- 
- #else				/* X86 */
- 
-Index: linux/arch/x86/kernel/genapic_64.c
-===================================================================
---- linux.orig/arch/x86/kernel/genapic_64.c	2008-03-21 09:13:41.000000000 -0500
-+++ linux/arch/x86/kernel/genapic_64.c	2008-03-21 09:35:10.000000000 -0500
-@@ -33,6 +33,8 @@ EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid)
- 
- struct genapic __read_mostly *genapic = &apic_flat;
- 
-+static enum uv_system_type uv_system_type;
-+
- /*
-  * Check the APIC IDs in bios_cpu_apicid and choose the APIC mode.
-  */
-@@ -69,3 +71,26 @@ unsigned int get_apic_id(void)
- {
- 	return (apic_read(APIC_ID) >> 24) & 0xFFu;
- }
-+
-+int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
-+{
-+	if (!strcmp(oem_id, "SGI")) {
-+		if (!strcmp(oem_table_id, "UVL"))
-+			uv_system_type = UV_LEGACY_APIC;
-+		else if (!strcmp(oem_table_id, "UVX"))
-+			uv_system_type = UV_X2APIC;
-+		else if (!strcmp(oem_table_id, "UVH"))
-+			uv_system_type = UV_NON_UNIQUE_APIC;
-+	}
-+	return 0;
-+}
-+
-+enum uv_system_type get_uv_system_type(void)
-+{
-+	return uv_system_type;
-+}
-+
-+int is_uv_system(void)
-+{
-+	return uv_system_type != UV_NONE;
-+}
-Index: linux/include/asm-x86/genapic_64.h
-===================================================================
---- linux.orig/include/asm-x86/genapic_64.h	2008-03-21 09:07:24.000000000 -0500
-+++ linux/include/asm-x86/genapic_64.h	2008-03-21 09:34:45.000000000 -0500
-@@ -33,5 +33,10 @@ extern struct genapic *genapic;
- 
- extern struct genapic apic_flat;
- extern struct genapic apic_physflat;
-+extern int acpi_madt_oem_check(char *, char *);
-+
-+enum uv_system_type {UV_NONE, UV_LEGACY_APIC, UV_X2APIC, UV_NON_UNIQUE_APIC};
-+extern enum uv_system_type get_uv_system_type(void);
-+extern int is_uv_system(void);
- 
- #endif
+The move to 64k page size on IA64 is another way that this issue can be 
+addressed though. So I think its best to drop the IA64 portion.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
