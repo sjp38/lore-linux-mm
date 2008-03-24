@@ -1,181 +1,140 @@
-Received: by ik-out-1112.google.com with SMTP id c28so739714ika.6
-        for <linux-mm@kvack.org>; Mon, 24 Mar 2008 08:08:11 -0700 (PDT)
+Received: by wa-out-1112.google.com with SMTP id m33so2963926wag.8
+        for <linux-mm@kvack.org>; Mon, 24 Mar 2008 08:09:05 -0700 (PDT)
 From: Nitin Gupta <nitingupta910@gmail.com>
 Reply-To: nitingupta910@gmail.com
-Subject: [PATCH 2/6] compcache: block device - internal defs
-Date: Mon, 24 Mar 2008 20:33:30 +0530
+Subject: [PATCH 3/6] compcache: TLSF Allocator interface
+Date: Mon, 24 Mar 2008 20:34:24 +0530
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="us-ascii"
-Content-Transfer-Encoding: 7bit
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
 Content-Disposition: inline
-Message-Id: <200803242033.30782.nitingupta910@gmail.com>
+Message-Id: <200803242034.24264.nitingupta910@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This contains header to be used internally by block device code.
-It contains flags to enable/disable debugging, stats collection and also
-defines default disk size (25% of total RAM).
+Two Level Segregate Fit (TLSF) Allocator is used to allocate memory for
+variable size compressed pages. Its fast and gives low fragmentation.
+Following links give details on this allocator:
+ - http://rtportal.upv.es/rtmalloc/files/tlsf_paper_spe_2007.pdf
+ - http://code.google.com/p/compcache/wiki/TLSFAllocator
+
+This kernel port of TLSF (v2.3.2) introduces several changes but underlying
+algorithm remains the same.
+
+Changelog TLSF v2.3.2 vs this kernel port
+ - Pool now dynamically expands/shrinks.
+   It is collection of contiguous memory regions.
+ - Changes to pool create interface as a result of above change.
+ - Collect and export stats (/proc/tlsfinfo)
+ - Cleanups: kernel coding style, added comments, macros -> static inline, etc.
 
 Signed-off-by: Nitin Gupta <nitingupta910 at gmail dot com>
 ---
- drivers/block/compcache.h |  147 +++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 147 insertions(+), 0 deletions(-)
 
-diff --git a/drivers/block/compcache.h b/drivers/block/compcache.h
+ include/linux/tlsf.h |   93 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 93 insertions(+), 0 deletions(-)
+
+diff --git a/include/linux/tlsf.h b/include/linux/tlsf.h
 new file mode 100644
-index 0000000..b84b5d3
+index 0000000..ef8092c
 --- /dev/null
-+++ b/drivers/block/compcache.h
-@@ -0,0 +1,147 @@
++++ b/include/linux/tlsf.h
+@@ -0,0 +1,93 @@
 +/*
-+ * Compressed RAM based swap device
++ * Two Levels Segregate Fit memory allocator (TLSF)
++ * Version 2.3.2
 + *
-+ * (C) Nitin Gupta
++ * Written by Miguel Masmano Tello <mimastel@doctor.upv.es>
 + *
-+ * This RAM based block device acts as swap disk.
-+ * Pages swapped to this device are compressed and
-+ * stored in memory.
++ * Thanks to Ismael Ripoll for his suggestions and reviews
 + *
-+ * Project home: http://code.google.com/p/compcache
++ * Copyright (C) 2007, 2006, 2005, 2004
++ *
++ * This code is released using a dual license strategy: GPL/LGPL
++ * You can choose the licence that better fits your requirements.
++ *
++ * Released under the terms of the GNU General Public License Version 2.0
++ * Released under the terms of the GNU Lesser General Public License Version 2.1
++ *
++ * This is kernel port of TLSF allocator.
++ * Original code can be found at: http://rtportal.upv.es/rtmalloc/
++ * 	- Nitin Gupta (nitingupta910 at gmail dot com)
 + */
 +
-+#ifndef _COMPCACHE_H_
-+#define _COMPCACHE_H_
++#ifndef _TLSF_H_
++#define _TLSF_H_
 +
-+#define K(x)	((x) >> 10)
-+#define KB(x)	((x) << 10)
++typedef void* (get_memory)(size_t bytes);
++typedef void (put_memory)(void *ptr);
 +
-+#define SECTOR_SHIFT		9
-+#define SECTOR_SIZE		(1 << SECTOR_SHIFT)
-+#define SECTORS_PER_PAGE_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
-+#define SECTORS_PER_PAGE	(1 << SECTORS_PER_PAGE_SHIFT)
-+
-+/*-- Configurable parameters */
-+/* Default compcache size: 25% of total RAM */
-+#define DEFAULT_COMPCACHE_PERCENT	25
-+#define INIT_SIZE			KB(16)
-+#define GROW_SIZE			INIT_SIZE
-+/*-- */
-+
-+/* Message prefix */
-+#define C "compcache: "
-+
-+/* Debugging and Stats */
-+#define NOP	do { } while(0)
-+
-+#if (1 || defined(CONFIG_DEBUG_COMPCACHE))
-+#define DEBUG	1
-+#define STATS	1
-+#else
-+#define DEBUG	0
-+#define STATS	0
-+#endif
-+
-+/* Create /proc/compcache? */
-+/* If STATS is disabled, this will give minimal compcache info */
-+#define CONFIG_COMPCACHE_PROC
-+
-+#if DEBUG
-+#define CC_DEBUG(fmt,arg...) \
-+	printk(KERN_DEBUG C fmt,##arg)
-+#else
-+#define CC_DEBUG(fmt,arg...) NOP
-+#endif
-+
-+/*
-+ * Verbose debugging:
-+ * Enable basic debugging + verbose messages spread all over code
++/**
++ * tlsf_create_memory_pool - create dynamic memory pool
++ * @name: name of the pool
++ * @get_mem: callback function used to expand pool
++ * @put_mem: callback function used to shrink pool
++ * @init_size: inital pool size (in bytes)
++ * @max_size: maximum pool size (in bytes) - set this as 0 for no limit
++ * @grow_size: amount of memory (in bytes) added to pool whenever required
++ *
++ * All size values are rounded up to next page boundary.
 + */
-+#define DEBUG2	0
++extern void *tlsf_create_memory_pool(const char *name,
++					get_memory get_mem,
++					put_memory put_mem,
++					size_t init_size,
++					size_t max_size,
++					size_t grow_size);
++/**
++ * tlsf_destory_memory_pool - cleanup given pool
++ * @mem_pool: Pool to be destroyed
++ *
++ * Data structures associated with pool are freed.
++ * All memory allocated from pool must be freed before
++ * destorying it.
++ */
++extern void tlsf_destroy_memory_pool(void *mem_pool);
 +
-+#if DEBUG2
-+#define DEBUG	1
-+#define STATS	1
-+#define CONFIG_COMPCACHE_PROC	1
-+#define CC_DEBUG2((fmt,arg...) \
-+	printk(KERN_DEBUG C fmt,##arg)
-+#else /* DEBUG2 */
-+#define CC_DEBUG2(fmt,arg...) NOP
-+#endif
++/**
++ * tlsf_malloc - allocate memory from given pool
++ * @size: no. of bytes
++ * @mem_pool: pool to allocate from
++ */
++extern void *tlsf_malloc(size_t size, void *mem_pool);
 +
-+/* Its useless to collect stats if there is no way to export it */
-+#if (STATS && !defined(CONFIG_COMPCACHE_PROC))
-+#error "compcache stats is enabled but not /proc/compcache."
-+#endif
++/**
++ * tlsf_calloc - allocate and zero-out memory from given pool
++ * @size: no. of bytes
++ * @mem_pool: pool to allocate from
++ */
++extern void *tlsf_calloc(size_t nelem, size_t elem_size, void *mem_pool);
 +
-+#if STATS
-+static inline void stat_inc_if_less(size_t *stat, const size_t val1,
-+						const size_t val2)
-+{
-+	*stat += ((val1 < val2) ? 1 : 0);
-+}
++/**
++ * tlsf_free - free memory from given pool
++ * @ptr: address of memory to be freed
++ * @mem_pool: pool to free from
++ */
++extern void tlsf_free(void *ptr, void *mem_pool);
 +
-+static inline void stat_inc(size_t *stat)
-+{
-+	++*stat;
-+}
++/**
++ * tlsf_get_used_size - get memory currently used by given pool
++ *
++ * Used memory includes stored data + metadata + internal fragmentation
++ */
++extern size_t tlsf_get_used_size(void *mem_pool);
 +
-+static inline void stat_dec(size_t *stat)
-+{
-+	BUG_ON(*stat == 0);
-+	--*stat;
-+}
-+
-+static inline void stat_set(size_t *stat, const size_t val)
-+{
-+	*stat = val;
-+}
-+
-+static inline void stat_setmax(size_t *max, const size_t cur)
-+{
-+	*max = (cur > *max) ? cur : *max;
-+}
-+#else	/* STATS */
-+#define stat_inc(x)			NOP
-+#define stat_dec(x)			NOP
-+#define stat_set(x, v)			NOP
-+#define stat_setmax(x, v)		NOP
-+#define stat_inc_if_less(x, v1, v2)	NOP
-+#endif	/* STATS */
-+
-+/*-- Data structures */
-+/* Indexed by page no. */
-+struct table {
-+	void *addr;
-+	unsigned short len;
-+} __attribute__ ((packed));
-+
-+struct compcache {
-+	void *mem_pool;
-+	void *compress_workmem;
-+	void *compress_buffer;
-+	struct table *table;
-+	struct mutex lock;
-+	struct gendisk *disk;
-+	size_t size;            /* In sectors */
-+};
-+
-+#if STATS
-+struct compcache_stats {
-+	u32 num_reads;		/* failed + successful */
-+	u32 num_writes;		/* --do-- */
-+	u32 failed_reads;	/* can happen when memory is tooo low */
-+	u32 failed_writes;	/* should NEVER! happen */
-+	u32 invalid_io;		/* non-swap I/O requests */
-+	u32 good_compress;	/* no. of pages with compression
-+				 * ratio <= 50%. TODO: export full
-+				 * compressed page size histogram */
-+	u32 pages_expand;	/* no. of incompressible pages */
-+	size_t curr_pages;	/* current no. of compressed pages */
-+	size_t curr_mem;	/* current total size of compressed pages */
-+	size_t peak_mem;
-+};
-+#endif
-+/*-- */
++/**
++ * tlsf_get_total_size - get total memory currently allocated for given pool
++ *
++ * This is the total memory currently allocated for this pool which includes
++ * used size + free size.
++ *
++ * (Total - Used) is good indicator of memory efficiency of allocator.
++ */
++extern size_t tlsf_get_total_size(void *mem_pool);
 +
 +#endif
 
