@@ -1,33 +1,31 @@
-Date: Mon, 24 Mar 2008 11:28:24 -0700 (PDT)
+Date: Mon, 24 Mar 2008 11:31:05 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [04/14] vcompound: Core piece
-In-Reply-To: <20080322205729.B317.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0803241127370.3002@schroedinger.engr.sgi.com>
-References: <20080321061703.921169367@sgi.com> <20080321061724.956843984@sgi.com>
- <20080322205729.B317.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [00/14] Virtual Compound Page Support V3
+In-Reply-To: <20080322114043.17833ab4@laptopd505.fenrus.org>
+Message-ID: <Pine.LNX.4.64.0803241129100.3002@schroedinger.engr.sgi.com>
+References: <20080321061703.921169367@sgi.com> <20080322114043.17833ab4@laptopd505.fenrus.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Arjan van de Ven <arjan@infradead.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 22 Mar 2008, KOSAKI Motohiro wrote:
+On Sat, 22 Mar 2008, Arjan van de Ven wrote:
 
-> > +struct page *alloc_vcompound_alloc(gfp_t flags, int order);
-> 
-> where exist alloc_vcompound_alloc?
+> can you document the drawback of large, frequent vmalloc() allocations at least?
 
-Duh... alloc_vcompound is not used at this point. Typo. _alloc needs to be 
-cut off.
+Ok. Lets add some documentation about this issue and some other 
+things. A similar suggestion was made by Kosaki-san.
 
-> Hmm,
-> IMHO we need vcompound documentation more for the beginner in the Documentation/ directory.
-> if not, nobody understand mean of vcompound flag at /proc/vmallocinfo.
+> On 32 bit x86, the effective vmalloc space is 64Mb or so (after various PCI bars are ioremaped),
+> so if this type of allocation is used for a "scales with nr of ABC" where "ABC" is workload dependent,
+> there's a rather abrupt upper limit to this.
+> Not saying that that is a flaw of your patch, just pointing out that we should discourage usage of 
+> the "scales with nr of ABC" (for example "one for each thread") kind of things.
 
-
-Ok.
+I better take out any patches that do large scale allocs then.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
