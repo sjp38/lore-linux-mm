@@ -1,33 +1,52 @@
-Date: Mon, 24 Mar 2008 13:37:22 -0700 (PDT)
-Message-Id: <20080324.133722.38645342.davem@davemloft.net>
-Subject: larger default page sizes...
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <Pine.LNX.4.64.0803241121090.3002@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0803211037140.18671@schroedinger.engr.sgi.com>
-	<20080321.145712.198736315.davem@davemloft.net>
-	<Pine.LNX.4.64.0803241121090.3002@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Received: by el-out-1112.google.com with SMTP id y26so1329241ele.4
+        for <linux-mm@kvack.org>; Mon, 24 Mar 2008 13:44:11 -0700 (PDT)
+From: Nitin Gupta <nitingupta910@gmail.com>
+Reply-To: nitingupta910@gmail.com
+Subject: Re: [PATCH 2/6] compcache: block device - internal defs
+Date: Tue, 25 Mar 2008 02:09:27 +0530
+References: <200803242033.30782.nitingupta910@gmail.com> <4cefeab80803241050y1ee7c22fi73234f24e65f958a@mail.gmail.com> <87a5b0800803241336u547e0f39j277a8857ce674403@mail.gmail.com>
+In-Reply-To: <87a5b0800803241336u547e0f39j277a8857ce674403@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200803250209.28332.nitingupta910@gmail.com>
 Sender: owner-linux-mm@kvack.org
-From: Christoph Lameter <clameter@sgi.com>
-Date: Mon, 24 Mar 2008 11:27:06 -0700 (PDT)
 Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, torvalds@linux-foundation.org
+To: Will Newton <will.newton@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> The move to 64k page size on IA64 is another way that this issue can
-> be addressed though.
+On Tuesday 25 March 2008 02:06:02 am Will Newton wrote:
+> On Mon, Mar 24, 2008 at 5:50 PM, Nitin Gupta <nitingupta910@gmail.com> wrote:
+> >  >  >  +
+> >  >  >  +/* Create /proc/compcache? */
+> >  >  >  +/* If STATS is disabled, this will give minimal compcache info */
+> >  >  >  +#define CONFIG_COMPCACHE_PROC
+> >  >  >  +
+> >  >  >  +#if DEBUG
+> >  >  >  +#define CC_DEBUG(fmt,arg...) \
+> >  >  >  +       printk(KERN_DEBUG C fmt,##arg)
+> >  >  >  +#else
+> >  >  >  +#define CC_DEBUG(fmt,arg...) NOP
+> >  >  >  +#endif
+> >  >
+> >  >  Have you thought about using pr_debug() for this? It looks like it
+> >  >  would simplify this file at the cost of a little flexibility.
+> >  >
+> >
+> >  I want to enable/disable this debugging based on DEBUG_COMPCACHE flag.
+> >  Thats why I added these macros. I will do 'printk(KERN_DEBUG' ->
+> >  pr_debug
+> 
+> The definition of pr_debug (kernel.h) is already surrounded by #ifdef
+> DEBUG so it may give you the same behaviour as the CC_DEBUG macro.
+> 
 
-This is such a huge mistake I wish platforms such as powerpc and IA64
-would not make such decisions so lightly.
+Yes, I missed this point. But still, I want to have two levels of debugging. I can probably use pr_debug() for "normal" debug and CC_DEBUG for "verbose" debugging. This looks bit inconsistent, so maybe I should stick which CC_DEBUG/CC_DEBUG2 pair instead?
 
-The memory wastage is just rediculious.
-
-I already see several distributions moving to 64K pages for powerpc,
-so I want to nip this in the bud before this monkey-see-monkey-do
-thing gets any more out of hand.
+- Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
