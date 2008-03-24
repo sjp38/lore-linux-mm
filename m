@@ -1,74 +1,172 @@
-Date: Mon, 24 Mar 2008 14:52:09 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC/PATCH 02/15 v2] preparation: host memory management
- changes for s390 kvm
-Message-Id: <20080324145209.23920166.akpm@linux-foundation.org>
-In-Reply-To: <1206205359.7177.84.camel@cotte.boeblingen.de.ibm.com>
-References: <1206030270.6690.51.camel@cotte.boeblingen.de.ibm.com>
-	<1206203560.7177.45.camel@cotte.boeblingen.de.ibm.com>
-	<1206205359.7177.84.camel@cotte.boeblingen.de.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by wr-out-0506.google.com with SMTP id c37so2764472wra.26
+        for <linux-mm@kvack.org>; Mon, 24 Mar 2008 15:34:50 -0700 (PDT)
+Message-ID: <86802c440803241534p5c28193brf769280fe05d286d@mail.gmail.com>
+Date: Mon, 24 Mar 2008 15:34:49 -0700
+From: "Yinghai Lu" <yhlu.kernel@gmail.com>
+Subject: Re: [RFC 1/8] x86_64: Change GET_APIC_ID() from an inline function to an out-of-line function
+In-Reply-To: <20080324182107.GA27979@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080324182107.GA27979@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Carsten Otte <cotte@de.ibm.com>
-Cc: virtualization@lists.linux-foundation.org, kvm-devel@lists.sourceforge.net, avi@qumranet.com, npiggin@suse.de, hugh@veritas.com, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, os@de.ibm.com, borntraeger@de.ibm.com, hollisb@us.ibm.com, EHRHARDT@de.ibm.com, jeroney@us.ibm.com, aliguori@us.ibm.com, jblunck@suse.de, rvdheij@gmail.com, rusty@rustcorp.com.au, arnd@arndb.de, xiantao.zhang@intel.com
+To: Jack Steiner <steiner@sgi.com>
+Cc: mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 22 Mar 2008 18:02:39 +0100
-Carsten Otte <cotte@de.ibm.com> wrote:
-
-> From: Heiko Carstens <heiko.carstens@de.ibm.com>
-> From: Christian Borntraeger <borntraeger@de.ibm.com>
-> 
-> This patch changes the s390 memory management defintions to use the pgste field
-> for dirty and reference bit tracking of host and guest code. Usually on s390, 
-> dirty and referenced are tracked in storage keys, which belong to the physical
-> page. This changes with virtualization: The guest and host dirty/reference bits
-> are defined to be the logical OR of the values for the mapping and the physical
-> page. This patch implements the necessary changes in pgtable.h for s390.
-> 
-> 
-> There is a common code change in mm/rmap.c, the call to page_test_and_clear_young
-> must be moved. This is a no-op for all architecture but s390. page_referenced
-> checks the referenced bits for the physiscal page and for all mappings:
-> o The physical page is checked with page_test_and_clear_young.
-> o The mappings are checked with ptep_test_and_clear_young and friends.
-> 
-> Without pgstes (the current implementation on Linux s390) the physical page
-> check is implemented but the mapping callbacks are no-ops because dirty 
-> and referenced are not tracked in the s390 page tables. The pgstes introduces 
-> guest and host dirty and reference bits for s390 in the host mapping. These
-> mapping must be checked before page_test_and_clear_young resets the reference
-> bit. 
+On Mon, Mar 24, 2008 at 11:21 AM, Jack Steiner <steiner@sgi.com> wrote:
 >
-> ...
+>  Change GET_APIC_ID() on x86_64 from an inline function to an
+>  out-of-line function. The function is rarely called and the
+>  additional overhead is negligible.
 >
-> --- linux-host.orig/mm/rmap.c
-> +++ linux-host/mm/rmap.c
-> @@ -413,9 +413,6 @@ int page_referenced(struct page *page, i
->  {
->  	int referenced = 0;
->  
-> -	if (page_test_and_clear_young(page))
-> -		referenced++;
-> -
->  	if (TestClearPageReferenced(page))
->  		referenced++;
->  
-> @@ -433,6 +430,10 @@ int page_referenced(struct page *page, i
->  			unlock_page(page);
->  		}
->  	}
-> +
-> +	if (page_test_and_clear_young(page))
-> +		referenced++;
-> +
->  	return referenced;
->  }
+>  This change is in preparation for additional changes to
+>  the APICID functions that will come in a later patch.
+>
+>         Signed-off-by: Jack Steiner <steiner@sgi.com>
+>
+>  ---
+>   arch/x86/kernel/apic_64.c         |    2 +-
+>   arch/x86/kernel/genapic_64.c      |    5 +++++
+>   arch/x86/kernel/genapic_flat_64.c |    2 +-
+>   arch/x86/kernel/io_apic_64.c      |    4 ++--
+>   arch/x86/kernel/mpparse_64.c      |    2 +-
+>   arch/x86/kernel/smpboot_64.c      |    6 +++---
+>   include/asm-x86/apic.h            |    1 +
+>   include/asm-x86/apicdef.h         |    1 -
+>   include/asm-x86/smp_64.h          |    2 +-
+>   9 files changed, 15 insertions(+), 10 deletions(-)
+>
+>  Index: linux/arch/x86/kernel/apic_64.c
+>  ===================================================================
+>  --- linux.orig/arch/x86/kernel/apic_64.c        2008-03-18 14:54:19.000000000 -0500
+>  +++ linux/arch/x86/kernel/apic_64.c     2008-03-20 15:30:23.000000000 -0500
+>  @@ -885,7 +885,7 @@ void __init init_apic_mappings(void)
+>          * Fetch the APIC ID of the BSP in case we have a
+>          * default configuration (or the MP table is broken).
+>          */
+>  -       boot_cpu_id = GET_APIC_ID(apic_read(APIC_ID));
+>  +       boot_cpu_id = get_apic_id();
+>   }
+>
+>   /*
+>  Index: linux/arch/x86/kernel/genapic_64.c
+>  ===================================================================
+>  --- linux.orig/arch/x86/kernel/genapic_64.c     2008-03-18 14:54:19.000000000 -0500
+>  +++ linux/arch/x86/kernel/genapic_64.c  2008-03-21 09:13:41.000000000 -0500
+>  @@ -64,3 +64,8 @@ void send_IPI_self(int vector)
+>   {
+>         __send_IPI_shortcut(APIC_DEST_SELF, vector, APIC_DEST_PHYSICAL);
+>   }
+>  +
+>  +unsigned int get_apic_id(void)
+>  +{
+>  +       return (apic_read(APIC_ID) >> 24) & 0xFFu;
+>  +}
+>  Index: linux/arch/x86/kernel/genapic_flat_64.c
+>  ===================================================================
+>  --- linux.orig/arch/x86/kernel/genapic_flat_64.c        2008-03-18 14:54:19.000000000 -0500
+>  +++ linux/arch/x86/kernel/genapic_flat_64.c     2008-03-20 15:30:23.000000000 -0500
+>  @@ -97,7 +97,7 @@ static void flat_send_IPI_all(int vector
+>
+>   static int flat_apic_id_registered(void)
+>   {
+>  -       return physid_isset(GET_APIC_ID(apic_read(APIC_ID)), phys_cpu_present_map);
+>  +       return physid_isset(get_apic_id(), phys_cpu_present_map);
+>   }
+>
+>   static unsigned int flat_cpu_mask_to_apicid(cpumask_t cpumask)
+>  Index: linux/arch/x86/kernel/io_apic_64.c
+>  ===================================================================
+>  --- linux.orig/arch/x86/kernel/io_apic_64.c     2008-03-18 14:54:19.000000000 -0500
+>  +++ linux/arch/x86/kernel/io_apic_64.c  2008-03-21 09:07:19.000000000 -0500
+>  @@ -1067,7 +1067,7 @@ void __apicdebuginit print_local_APIC(vo
+>         printk("\n" KERN_DEBUG "printing local APIC contents on CPU#%d/%d:\n",
+>                 smp_processor_id(), hard_smp_processor_id());
+>         v = apic_read(APIC_ID);
+>  -       printk(KERN_INFO "... APIC ID:      %08x (%01x)\n", v, GET_APIC_ID(v));
+>  +       printk(KERN_INFO "... APIC ID:      %08x (%01x)\n", v, get_apic_id());
+>         v = apic_read(APIC_LVR);
+>         printk(KERN_INFO "... APIC VERSION: %08x\n", v);
+>         ver = GET_APIC_VERSION(v);
+>  @@ -1261,7 +1261,7 @@ void disable_IO_APIC(void)
+>                 entry.dest_mode       = 0; /* Physical */
+>                 entry.delivery_mode   = dest_ExtINT; /* ExtInt */
+>                 entry.vector          = 0;
+>  -               entry.dest          = GET_APIC_ID(apic_read(APIC_ID));
+>  +               entry.dest          = get_apic_id();
+>
+>                 /*
+>                  * Add it to the IO-APIC irq-routing table:
+>  Index: linux/arch/x86/kernel/mpparse_64.c
+>  ===================================================================
+>  --- linux.orig/arch/x86/kernel/mpparse_64.c     2008-03-18 14:54:19.000000000 -0500
+>  +++ linux/arch/x86/kernel/mpparse_64.c  2008-03-21 09:07:23.000000000 -0500
+>  @@ -614,7 +614,7 @@ void __init mp_register_lapic_address(u6
+>         mp_lapic_addr = (unsigned long) address;
+>         set_fixmap_nocache(FIX_APIC_BASE, mp_lapic_addr);
+>         if (boot_cpu_id == -1U)
+>  -               boot_cpu_id = GET_APIC_ID(apic_read(APIC_ID));
+>  +               boot_cpu_id = get_apic_id();
+>   }
+>
+>   void __cpuinit mp_register_lapic (u8 id, u8 enabled)
+>  Index: linux/arch/x86/kernel/smpboot_64.c
+>  ===================================================================
+>  --- linux.orig/arch/x86/kernel/smpboot_64.c     2008-03-18 14:54:19.000000000 -0500
+>  +++ linux/arch/x86/kernel/smpboot_64.c  2008-03-21 09:07:19.000000000 -0500
+>  @@ -158,7 +158,7 @@ void __cpuinit smp_callin(void)
+>         /*
+>          * (This works even if the APIC is not enabled.)
+>          */
+>  -       phys_id = GET_APIC_ID(apic_read(APIC_ID));
+>  +       phys_id = get_apic_id();
+>         cpuid = smp_processor_id();
+>         if (cpu_isset(cpuid, cpu_callin_map)) {
+>                 panic("smp_callin: phys CPU#%d, CPU#%d already present??\n",
+>  @@ -878,9 +878,9 @@ void __init smp_prepare_cpus(unsigned in
+>                 enable_IO_APIC();
+>         end_local_APIC_setup();
+>
+>  -       if (GET_APIC_ID(apic_read(APIC_ID)) != boot_cpu_id) {
+>  +       if (get_apic_id() != boot_cpu_id) {
+>                 panic("Boot APIC ID in local APIC unexpected (%d vs %d)",
+>  -                     GET_APIC_ID(apic_read(APIC_ID)), boot_cpu_id);
+>  +                     get_apic_id(), boot_cpu_id);
+>                 /* Or can we switch back to PIC here? */
+>         }
+>
+>  Index: linux/include/asm-x86/apic.h
+>  ===================================================================
+>  --- linux.orig/include/asm-x86/apic.h   2008-03-18 14:54:19.000000000 -0500
+>  +++ linux/include/asm-x86/apic.h        2008-03-21 09:07:59.000000000 -0500
+>  @@ -129,6 +129,7 @@ extern void enable_NMI_through_LVT0(void
+>   */
+>   #ifdef CONFIG_X86_64
+>   extern void setup_apic_routing(void);
+>  +extern unsigned int get_apic_id(void);
+>   #endif
+>
+>   extern u8 setup_APIC_eilvt_mce(u8 vector, u8 msg_type, u8 mask);
+>  Index: linux/include/asm-x86/apicdef.h
+>  ===================================================================
+>  --- linux.orig/include/asm-x86/apicdef.h        2008-03-18 14:54:19.000000000 -0500
+>  +++ linux/include/asm-x86/apicdef.h     2008-03-21 09:07:23.000000000 -0500
+>  @@ -14,7 +14,6 @@
+>
+>   #ifdef CONFIG_X86_64
+>   # define       APIC_ID_MASK            (0xFFu<<24)
+>  -# define       GET_APIC_ID(x)          (((x)>>24)&0xFFu)
+>   # define       SET_APIC_ID(x)          (((x)<<24))
+>   #endif
 
-ack.
+it this patch after smpboot.c integration?
+
+that patchsets have GET_APIC_ID in mach_apicdef.h instead of apicdef.h
+
+YH
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
