@@ -3,29 +3,29 @@ MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="iso-8859-1"
 Content-Transfer-Encoding: 8BIT
-Subject: RE: [11/14] vcompound: Fallbacks for order 1 stack allocations on IA64 and x86
-Date: Mon, 24 Mar 2008 14:13:38 -0700
-Message-ID: <1FE6DD409037234FAB833C420AA843ECE5B84D@orsmsx424.amr.corp.intel.com>
-In-reply-to: <Pine.LNX.4.64.0803241121090.3002@schroedinger.engr.sgi.com>
-References: <20080321061726.782068299@sgi.com> <20080321.002502.223136918.davem@davemloft.net> <Pine.LNX.4.64.0803211037140.18671@schroedinger.engr.sgi.com> <20080321.145712.198736315.davem@davemloft.net> <Pine.LNX.4.64.0803241121090.3002@schroedinger.engr.sgi.com>
+Subject: RE: larger default page sizes...
+Date: Mon, 24 Mar 2008 14:25:11 -0700
+Message-ID: <1FE6DD409037234FAB833C420AA843ECE5B88C@orsmsx424.amr.corp.intel.com>
+In-reply-to: <20080324.133722.38645342.davem@davemloft.net>
+References: <Pine.LNX.4.64.0803211037140.18671@schroedinger.engr.sgi.com><20080321.145712.198736315.davem@davemloft.net><Pine.LNX.4.64.0803241121090.3002@schroedinger.engr.sgi.com> <20080324.133722.38645342.davem@davemloft.net>
 From: "Luck, Tony" <tony.luck@intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>, David Miller <davem@davemloft.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org
+To: David Miller <davem@davemloft.net>, clameter@sgi.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-> I am familiar with that area and I am resonably sure that this 
-> is an issue on IA64 under some conditions (the processor decides to spill 
-> some registers either onto the stack or into the register backing store 
-> during tlb processing). Recursion (in the kernel context) still expects 
-> the stack and register backing store to be available. ccing linux-ia64 for 
-> any thoughts to the contrary.
+> The memory wastage is just rediculious.
 
-Christoph is correct ... IA64 pins the TLB entry for the kernel stack
-(which covers both the normal C stack and the register backing store)
-so that it won't have to deal with a TLB miss on the stack while handling
-another TLB miss.
+In an ideal world we'd have variable sized pages ... but
+since most arcthitectures have no h/w support for these
+it may be a long time before that comes to Linux.
+
+In a fixed page size world the right page size to use
+depends on the workload and the capacity of the system.
+
+When memory capacity is measured in hundreds of GB, then
+a larger page size doesn't look so ridiculous.
 
 -Tony
 
