@@ -1,44 +1,46 @@
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <18408.59112.945786.488350@cargo.ozlabs.ibm.com>
-Date: Tue, 25 Mar 2008 22:50:00 +1100
+Message-ID: <18409.28204.539283.566893@cargo.ozlabs.ibm.com>
+Date: Wed, 26 Mar 2008 08:27:08 +1100
 From: Paul Mackerras <paulus@samba.org>
 Subject: Re: larger default page sizes...
-In-Reply-To: <20080324.211532.33163290.davem@davemloft.net>
-References: <Pine.LNX.4.64.0803241121090.3002@schroedinger.engr.sgi.com>
+In-Reply-To: <87wsnrgg9q.fsf@basil.nowhere.org>
+References: <Pine.LNX.4.64.0803211037140.18671@schroedinger.engr.sgi.com>
+	<20080321.145712.198736315.davem@davemloft.net>
+	<Pine.LNX.4.64.0803241121090.3002@schroedinger.engr.sgi.com>
 	<20080324.133722.38645342.davem@davemloft.net>
 	<18408.29107.709577.374424@cargo.ozlabs.ibm.com>
-	<20080324.211532.33163290.davem@davemloft.net>
+	<87wsnrgg9q.fsf@basil.nowhere.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, torvalds@linux-foundation.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: David Miller <davem@davemloft.net>, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-David Miller writes:
+Andi Kleen writes:
 
-> From: Paul Mackerras <paulus@samba.org>
-> Date: Tue, 25 Mar 2008 14:29:55 +1100
+> Paul Mackerras <paulus@samba.org> writes:
+> > 
+> > 4kB pages:	444.051s user + 34.406s system time
+> > 64kB pages:	419.963s user + 16.869s system time
+> > 
+> > That's nearly 10% faster with 64kB pages -- on a kernel compile.
 > 
-> > The performance advantage of using hardware 64k pages is pretty
-> > compelling, on a wide range of programs, and particularly on HPC apps.
-> 
-> Please read the rest of my responses in this thread, you
-> can have your HPC cake and eat it too.
+> Do you have some idea where the improvement mainly comes from?
+> Is it TLB misses or reduced in kernel overhead? Ok I assume both
+> play together but which part of the equation is more important?
 
-It's not just HPC, as I pointed out, it's pretty much everything,
-including kernel compiles.  And "use hugepages" is a pretty inadequate
-answer given the restrictions of hugepages and the difficulty of using
-them.  How do I get gcc to use hugepages, for instance?  Using 64k
-pages gives us a performance boost for almost everything without the
-user having to do anything.
+I think that to a first approximation, the improvement in user time
+(24 seconds) is due to the increased TLB reach and reduced TLB misses,
+and the improvement in system time (18 seconds) is due to the reduced
+number of page faults and reductions in other kernel overheads.
 
-If the hugepage stuff was in a state where it enabled large pages to
-be used for mapping an existing program, where possible, without any
-changes to the executable, then I would agree with you.  But it isn't,
-it's a long way from that, and (as I understand it) Linus has in the
-past opposed the suggestion that we should move in that direction.
+As Dave Hansen points out, I can separate the two effects by having
+the kernel use 64k pages at the VM level but 4k pages in the hardware
+page table, which is easy since we have support for 64k base page size
+on machines that don't have hardware 64k page support.  I'll do that
+today.
 
 Paul.
 
