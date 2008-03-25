@@ -1,33 +1,66 @@
-Subject: Re: larger default page sizes...
-References: <Pine.LNX.4.64.0803211037140.18671@schroedinger.engr.sgi.com>
-	<20080321.145712.198736315.davem@davemloft.net>
-	<Pine.LNX.4.64.0803241121090.3002@schroedinger.engr.sgi.com>
-	<20080324.133722.38645342.davem@davemloft.net>
-	<18408.29107.709577.374424@cargo.ozlabs.ibm.com>
-From: Andi Kleen <andi@firstfloor.org>
-Date: 25 Mar 2008 13:05:53 +0100
-In-Reply-To: <18408.29107.709577.374424@cargo.ozlabs.ibm.com>
-Message-ID: <87wsnrgg9q.fsf@basil.nowhere.org>
+Message-Id: <47E8F1A0.5080209@mxp.nes.nec.co.jp>
+Date: Tue, 25 Mar 2008 21:35:44 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [RFC][PATCH] another swap controller for cgroup
+References: <47E88129.1010705@mxp.nes.nec.co.jp> <20080325085723.698C11E936D@siro.lan>
+In-Reply-To: <20080325085723.698C11E936D@siro.lan>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mackerras <paulus@samba.org>
-Cc: David Miller <davem@davemloft.net>, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, torvalds@linux-foundation.org
+To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+Cc: minoura@valinux.co.jp, Hugh Dickins <hugh@veritas.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-Paul Mackerras <paulus@samba.org> writes:
+YAMAMOTO Takashi wrote:
+>> YAMAMOTO Takashi wrote:
+>>> hi,
+>>>
+>>>> Daisuke Nishimura wrote:
+>>>>> Hi, Yamamoto-san.
+>>>>>
+>>>>> I'm reviewing and testing your patch now.
+>>>>>
+>>>> In building kernel infinitely(in a cgroup of
+>>>> memory.limit=64M and swap.limit=128M, with swappiness=100),
+>>>> almost all of the swap (1GB) is consumed as swap cache
+>>>> after a day or so.
+>>>> As a result, processes are occasionally OOM-killed even when
+>>>> the swap.usage of the group doesn't exceed the limit.
+>>>>
+>>>> I don't know why the swap cache uses up swap space.
+>>>> I will test whether a similar issue happens without your patch.
+>>>> Do you have any thoughts?
+>>> my patch tends to yield more swap cache because it makes try_to_unmap
+>>> fail and shrink_page_list leaves swap cache in that case.
+>>> i'm not sure how it causes 1GB swap cache, tho.
+>>>
+>> Agree.
+>>
+>> I suspected that the cause of this problem was the behavior
+>> of shrink_page_list as you said, so I thought one of Rik's
+>> split-lru patchset:
+>>
+>>   http://lkml.org/lkml/2008/3/4/492
+>>   [patch 04/20] free swap space on swap-in/activation
+>>
+>> would reduce the usage of swap cache to half of the total swap.
+>> But it didn't help, so I think there may be some other causes.
 > 
-> 4kB pages:	444.051s user + 34.406s system time
-> 64kB pages:	419.963s user + 16.869s system time
+> do you mean you tested with the patch in the url?
+> i don't think remove_exclusive_swap_page works for us
+> because our page has more references than it expects.
+> ie. ptes, cache, isolate_page
 > 
-> That's nearly 10% faster with 64kB pages -- on a kernel compile.
+umm... you are right.
 
-Do you have some idea where the improvement mainly comes from?
-Is it TLB misses or reduced in kernel overhead? Ok I assume both
-play together but which part of the equation is more important?
+I missed the fact that isolate_page increases page count.
 
--Andi
+
+Thanks,
+Daisuke Nishimura.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
