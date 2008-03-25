@@ -1,34 +1,70 @@
-Date: Tue, 25 Mar 2008 21:47:25 +0000
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: What if a TLB flush needed to sleep?
-Message-ID: <20080325214725.3d707445@core>
-In-Reply-To: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com>
-References: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-Id: <20080325220651.822567000@polaris-admin.engr.sgi.com>
+References: <20080325220650.835342000@polaris-admin.engr.sgi.com>
+Date: Tue, 25 Mar 2008 15:06:57 -0700
+From: Mike Travis <travis@sgi.com>
+Subject: [PATCH 07/10] cpu: change cpu_sys_devices from array to per_cpu variable
+Content-Disposition: inline; filename=nr_cpus-in-cpu_c
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> 	down(&ptcg_sem);
-> 	... execute ptc.g
-> 	up(&ptcg_sem);
+Change cpu_sys_devices from array to per_cpu variable in
+drivers/base/cpu.c.
 
-That will dig you a nice large hole for real time to fall into. If you
-want to do rt nicely you want to avoid semaphores and the corresponding
-lack of ability to fix priority inversions.
+Based on:
+	git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
+	git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
 
-> 2) Is it feasible to rearrange the MM code so that we don't
-> hold any locks while doing a TLB flush?  Or should I implement
-> some sort of spin_only_semaphore?
+(MAINTAINER unknown)
+Signed-off-by: Mike Travis <travis@sgi.com>
+---
+ drivers/base/cpu.c |   10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
 
-Better to keep ia64 perversions in the IA64 code whenever possible and
-lower risk for everyone else.
+--- linux.trees.git.orig/drivers/base/cpu.c
++++ linux.trees.git/drivers/base/cpu.c
+@@ -18,7 +18,7 @@ struct sysdev_class cpu_sysdev_class = {
+ };
+ EXPORT_SYMBOL(cpu_sysdev_class);
+ 
+-static struct sys_device *cpu_sys_devices[NR_CPUS];
++static DEFINE_PER_CPU(struct sys_device *, cpu_sys_devices);
+ 
+ #ifdef CONFIG_HOTPLUG_CPU
+ static ssize_t show_online(struct sys_device *dev, char *buf)
+@@ -68,7 +68,7 @@ void unregister_cpu(struct cpu *cpu)
+ 	sysdev_remove_file(&cpu->sysdev, &attr_online);
+ 
+ 	sysdev_unregister(&cpu->sysdev);
+-	cpu_sys_devices[logical_cpu] = NULL;
++	per_cpu(cpu_sys_devices, logical_cpu) = NULL;
+ 	return;
+ }
+ #else /* ... !CONFIG_HOTPLUG_CPU */
+@@ -122,7 +122,7 @@ int __cpuinit register_cpu(struct cpu *c
+ 	if (!error && cpu->hotpluggable)
+ 		register_cpu_control(cpu);
+ 	if (!error)
+-		cpu_sys_devices[num] = &cpu->sysdev;
++		per_cpu(cpu_sys_devices, num) = &cpu->sysdev;
+ 	if (!error)
+ 		register_cpu_under_node(num, cpu_to_node(num));
+ 
+@@ -135,8 +135,8 @@ int __cpuinit register_cpu(struct cpu *c
+ 
+ struct sys_device *get_cpu_sysdev(unsigned cpu)
+ {
+-	if (cpu < NR_CPUS)
+-		return cpu_sys_devices[cpu];
++	if (cpu < nr_cpu_ids && cpu_possible(cpu))
++		return per_cpu(cpu_sys_devices, cpu);
+ 	else
+ 		return NULL;
+ }
 
-Alan
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
