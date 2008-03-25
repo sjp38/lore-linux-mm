@@ -1,27 +1,57 @@
-Date: Mon, 24 Mar 2008 21:15:32 -0700 (PDT)
-Message-Id: <20080324.211532.33163290.davem@davemloft.net>
-Subject: Re: larger default page sizes...
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <18408.29107.709577.374424@cargo.ozlabs.ibm.com>
-References: <Pine.LNX.4.64.0803241121090.3002@schroedinger.engr.sgi.com>
-	<20080324.133722.38645342.davem@davemloft.net>
-	<18408.29107.709577.374424@cargo.ozlabs.ibm.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Message-Id: <47E88129.1010705@mxp.nes.nec.co.jp>
+Date: Tue, 25 Mar 2008 13:35:53 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH] another swap controller for cgroup
+References: <47E79A26.3070401@mxp.nes.nec.co.jp> <20080325031039.549831E9292@siro.lan>
+In-Reply-To: <20080325031039.549831E9292@siro.lan>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Paul Mackerras <paulus@samba.org>
-Date: Tue, 25 Mar 2008 14:29:55 +1100
 Return-Path: <owner-linux-mm@kvack.org>
-To: paulus@samba.org
-Cc: clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, torvalds@linux-foundation.org
+To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+Cc: hugh@veritas.com, balbir@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, minoura@valinux.co.jp, containers@lists.osdl.org, linux-mm@kvack.org, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-> The performance advantage of using hardware 64k pages is pretty
-> compelling, on a wide range of programs, and particularly on HPC apps.
+YAMAMOTO Takashi wrote:
+> hi,
+> 
+>> Daisuke Nishimura wrote:
+>>> Hi, Yamamoto-san.
+>>>
+>>> I'm reviewing and testing your patch now.
+>>>
+>> In building kernel infinitely(in a cgroup of
+>> memory.limit=64M and swap.limit=128M, with swappiness=100),
+>> almost all of the swap (1GB) is consumed as swap cache
+>> after a day or so.
+>> As a result, processes are occasionally OOM-killed even when
+>> the swap.usage of the group doesn't exceed the limit.
+>>
+>> I don't know why the swap cache uses up swap space.
+>> I will test whether a similar issue happens without your patch.
+>> Do you have any thoughts?
+> 
+> my patch tends to yield more swap cache because it makes try_to_unmap
+> fail and shrink_page_list leaves swap cache in that case.
+> i'm not sure how it causes 1GB swap cache, tho.
+> 
 
-Please read the rest of my responses in this thread, you
-can have your HPC cake and eat it too.
+Agree.
+
+I suspected that the cause of this problem was the behavior
+of shrink_page_list as you said, so I thought one of Rik's
+split-lru patchset:
+
+  http://lkml.org/lkml/2008/3/4/492
+  [patch 04/20] free swap space on swap-in/activation
+
+would reduce the usage of swap cache to half of the total swap.
+But it didn't help, so I think there may be some other causes.
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
