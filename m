@@ -1,58 +1,42 @@
-Content-class: urn:content-classes:message
+Message-ID: <47E96876.3050206@redhat.com>
+Date: Tue, 25 Mar 2008 17:02:46 -0400
+From: Chris Snook <csnook@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Subject: What if a TLB flush needed to sleep?
-Date: Tue, 25 Mar 2008 13:49:54 -0700
-Message-ID: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com>
-From: "Luck, Tony" <tony.luck@intel.com>
+Subject: Re: [PATCH] - Increase max physical memory size of x86_64
+References: <20080321133157.GA10911@sgi.com> <20080325164154.GA5909@alberich.amd.com> <20080325165438.GA5298@sgi.com>
+In-Reply-To: <20080325165438.GA5298@sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-arch@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jack Steiner <steiner@sgi.com>
+Cc: Andreas Herrmann <andreas.herrmann3@amd.com>, mingo@elte.hu, ak@suse.de, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-ia64 processors have a "ptc.g" instruction that will purge
-a TLB entry across all processors in a system.  On current
-cpus there is a limitation that only one ptc.g instruction may
-be in flight at a time, so we serialize execution with code
-like this:
+Jack Steiner wrote:
+> On Tue, Mar 25, 2008 at 05:41:54PM +0100, Andreas Herrmann wrote:
+>> On Fri, Mar 21, 2008 at 08:31:57AM -0500, Jack Steiner wrote:
+>>> Increase the maximum physical address size of x86_64 system
+>>> to 44-bits. This is in preparation for future chips that
+>>> support larger physical memory sizes.
+>> Shouldn't this be increased to 48?
+>> AMD family 10h CPUs actually support 48 bits for the
+>> physical address.
+> 
+> You are probably correct but I don't work with AMD processors
+> and don't understand their requirements. If someone
+> wants to submit a patch to support larger phys memory sizes,
+> I certainly have no objections....
 
-	spin_lock(&ptcg_lock);
-	... execute ptc.g
-	spin_unlock(&ptcg_lock);
+The only advantage 44 bits has over 48 bits is that it allows us to uniquely 
+identify 4k physical pages with 32 bits, potentially allowing for tighter 
+packing of certain structures.  Do we have any code that does this, and if so, 
+is it a worthwhile optimization?
 
-The architecture allows for more than one purge at a time.
-So (without making any declarations about features of
-unreleased processors) it seemed like time to update the
-code to grab the maximum count from PAL, use that to
-initialize a semaphore, and change the code to:
+Personally, I think we should support the full capability of the hardware, but I 
+don't have a 17 TB Opteron box to test with.
 
-	down(&ptcg_sem);
-	... execute ptc.g
-	up(&ptcg_sem);
-
-This code lasted about a week before someone ran hackbench
-with parameters chosen to cause some swap activity (memory
-footprint ~8.5GB on an 8GB system).  The machine promptly
-deadlocked because VM code called the tlbflush code while
-holding an anon_vma_lock, the semaphore happened to sleep
-because some other processor was also trying to do a purge,
-and the test was on a system where the limit was still just
-one ptc.g at a time, and the process got swapped.
-
-Now for the questions:
-
-1) Is holding a spin lock a problem for any other arch when
-doing a TLB flush (I'm particularly thinking of those that
-need to use IPI shootdown for the purge)?
-
-2) Is it feasible to rearrange the MM code so that we don't
-hold any locks while doing a TLB flush?  Or should I implement
-some sort of spin_only_semaphore?
-
--Tony
+-- Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
