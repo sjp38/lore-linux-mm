@@ -1,225 +1,39 @@
-Message-ID: <47E854CD.1090105@cn.fujitsu.com>
-Date: Tue, 25 Mar 2008 09:26:37 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [RFC][-mm] Memory controller add mm->owner
-References: <20080324140142.28786.97267.sendpatchset@localhost.localdomain>
-In-Reply-To: <20080324140142.28786.97267.sendpatchset@localhost.localdomain>
-Content-Type: text/plain; charset=GB2312
-Content-Transfer-Encoding: 7bit
+Date: Mon, 24 Mar 2008 20:37:59 -0500
+From: Jack Steiner <steiner@sgi.com>
+Subject: Re: [RFC 1/8] x86_64: Change GET_APIC_ID() from an inline function to an out-of-line function
+Message-ID: <20080325013759.GA16549@sgi.com>
+References: <20080324182107.GA27979@sgi.com> <86802c440803241534p5c28193brf769280fe05d286d@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <86802c440803241534p5c28193brf769280fe05d286d@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Yinghai Lu <yhlu.kernel@gmail.com>
+Cc: mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> This patch removes the mem_cgroup member from mm_struct and instead adds
-> an owner. This approach was suggested by Paul Menage. The advantage of
-> this approach is that, once the mm->owner is known, using the subsystem
-> id, the cgroup can be determined. It also allows several control groups
-> that are virtually grouped by mm_struct, to exist independent of the memory
-> controller i.e., without adding mem_cgroup's for each controller,
-> to mm_struct.
+> >  Index: linux/include/asm-x86/apicdef.h
+> >  ===================================================================
+> >  --- linux.orig/include/asm-x86/apicdef.h        2008-03-18 14:54:19.000000000 -0500
+> >  +++ linux/include/asm-x86/apicdef.h     2008-03-21 09:07:23.000000000 -0500
+> >  @@ -14,7 +14,6 @@
+> >
+> >   #ifdef CONFIG_X86_64
+> >   # define       APIC_ID_MASK            (0xFFu<<24)
+> >  -# define       GET_APIC_ID(x)          (((x)>>24)&0xFFu)
+> >   # define       SET_APIC_ID(x)          (((x)<<24))
+> >   #endif
 > 
-> The code initially assigns mm->owner to the task and then after the
-> thread group leader is identified. The mm->owner is changed to the thread
-> group leader of the task later at the end of copy_process.
+> it this patch after smpboot.c integration?
 > 
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
+> that patchsets have GET_APIC_ID in mach_apicdef.h instead of apicdef.h
 > 
->  include/linux/memcontrol.h |   14 +++++++++++++-
->  include/linux/mm_types.h   |    5 ++++-
->  kernel/fork.c              |    4 ++++
->  mm/memcontrol.c            |   42 ++++++++++++++++++++++++++++++++++--------
->  4 files changed, 55 insertions(+), 10 deletions(-)
-> 
-> diff -puN include/linux/mm_types.h~memory-controller-add-mm-owner include/linux/mm_types.h
-> --- linux-2.6.25-rc5/include/linux/mm_types.h~memory-controller-add-mm-owner	2008-03-20 13:35:09.000000000 +0530
-> +++ linux-2.6.25-rc5-balbir/include/linux/mm_types.h	2008-03-20 15:11:05.000000000 +0530
-> @@ -228,7 +228,10 @@ struct mm_struct {
->  	rwlock_t		ioctx_list_lock;
->  	struct kioctx		*ioctx_list;
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
-> -	struct mem_cgroup *mem_cgroup;
-> +	struct task_struct *owner;	/* The thread group leader that */
-> +					/* owns the mm_struct. This     */
-> +					/* might be useful even outside */
-> +					/* of the config option         */
->  #endif
->  
->  #ifdef CONFIG_PROC_FS
-> diff -puN kernel/fork.c~memory-controller-add-mm-owner kernel/fork.c
-> --- linux-2.6.25-rc5/kernel/fork.c~memory-controller-add-mm-owner	2008-03-20 13:35:09.000000000 +0530
-> +++ linux-2.6.25-rc5-balbir/kernel/fork.c	2008-03-24 18:49:29.000000000 +0530
-> @@ -1357,6 +1357,10 @@ static struct task_struct *copy_process(
->  	write_unlock_irq(&tasklist_lock);
->  	proc_fork_connector(p);
->  	cgroup_post_fork(p);
-> +
-> +	if (!(clone_flags & CLONE_VM))
-> +		mem_cgroup_fork_init(p);
-> +
->  	return p;
->  
->  bad_fork_free_pid:
-> diff -puN include/linux/memcontrol.h~memory-controller-add-mm-owner include/linux/memcontrol.h
-> --- linux-2.6.25-rc5/include/linux/memcontrol.h~memory-controller-add-mm-owner	2008-03-20 13:35:09.000000000 +0530
-> +++ linux-2.6.25-rc5-balbir/include/linux/memcontrol.h	2008-03-24 18:49:52.000000000 +0530
-> @@ -29,6 +29,7 @@ struct mm_struct;
->  
->  extern void mm_init_cgroup(struct mm_struct *mm, struct task_struct *p);
->  extern void mm_free_cgroup(struct mm_struct *mm);
-> +extern void mem_cgroup_fork_init(struct task_struct *p);
->  
->  #define page_reset_bad_cgroup(page)	((page)->page_cgroup = 0)
->  
-> @@ -49,7 +50,7 @@ extern void mem_cgroup_out_of_memory(str
->  int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
->  
->  #define mm_match_cgroup(mm, cgroup)	\
-> -	((cgroup) == rcu_dereference((mm)->mem_cgroup))
-> +	((cgroup) == mem_cgroup_from_task((mm)->owner))
->  
->  extern int mem_cgroup_prepare_migration(struct page *page);
->  extern void mem_cgroup_end_migration(struct page *page);
-> @@ -72,6 +73,8 @@ extern long mem_cgroup_calc_reclaim_acti
->  extern long mem_cgroup_calc_reclaim_inactive(struct mem_cgroup *mem,
->  				struct zone *zone, int priority);
->  
-> +extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
-> +
->  #else /* CONFIG_CGROUP_MEM_RES_CTLR */
->  static inline void mm_init_cgroup(struct mm_struct *mm,
->  					struct task_struct *p)
-> @@ -82,6 +85,10 @@ static inline void mm_free_cgroup(struct
->  {
->  }
->  
-> +static inline void mem_cgroup_fork_init(struct task_struct *p)
-> +{
-> +}
-> +
->  static inline void page_reset_bad_cgroup(struct page *page)
->  {
->  }
-> @@ -172,6 +179,11 @@ static inline long mem_cgroup_calc_recla
->  {
->  	return 0;
->  }
-> +
-> +static void mm_free_fork_cgroup(struct task_struct *p)
-> +{
-> +}
-> +
 
-Where is this function used? I don't see the corresponding one
-with CONFIG_CGROUP_MEM_RES_CTLR enabled?
+Sorry - I meant to add to the patches that they are based on linux-2.6.25-rc5-mm1.
+Was the change to smpboot.c made in -rc6??
 
->  #endif /* CONFIG_CGROUP_MEM_CONT */
->  
->  #endif /* _LINUX_MEMCONTROL_H */
-> diff -puN mm/memcontrol.c~memory-controller-add-mm-owner mm/memcontrol.c
-> --- linux-2.6.25-rc5/mm/memcontrol.c~memory-controller-add-mm-owner	2008-03-20 13:35:09.000000000 +0530
-> +++ linux-2.6.25-rc5-balbir/mm/memcontrol.c	2008-03-24 19:04:32.000000000 +0530
-> @@ -236,7 +236,7 @@ static struct mem_cgroup *mem_cgroup_fro
->  				css);
->  }
->  
-> -static struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
-> +struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
->  {
->  	return container_of(task_subsys_state(p, mem_cgroup_subsys_id),
->  				struct mem_cgroup, css);
-> @@ -248,12 +248,40 @@ void mm_init_cgroup(struct mm_struct *mm
->  
->  	mem = mem_cgroup_from_task(p);
->  	css_get(&mem->css);
-> -	mm->mem_cgroup = mem;
-> +	mm->owner = p;
-> +}
-> +
-> +void mem_cgroup_fork_init(struct task_struct *p)
-> +{
-> +	struct mm_struct *mm = get_task_mm(p);
-> +	struct mem_cgroup *mem, *oldmem;
-
-Leave an empty line here.
-
-> +	if (!mm)
-> +		return;
-> +
-> +	/*
-> +	 * Initial owner at mm_init_cgroup() time is the task itself.
-> +	 * The thread group leader had not been setup then
-> +	 */
-> +	oldmem = mem_cgroup_from_task(mm->owner);
-> +	/*
-> +	 * Override the mm->owner after we know the thread group later
-> +	 */
-> +	mm->owner = p->group_leader;
-> +	mem = mem_cgroup_from_task(mm->owner);
-> +	css_get(&mem->css);
-> +	css_put(&oldmem->css);
-> +	mmput(mm);
->  }
->  
->  void mm_free_cgroup(struct mm_struct *mm)
->  {
-> -	css_put(&mm->mem_cgroup->css);
-> +	struct mem_cgroup *mem;
-> +
-> +	/*
-> +	 * TODO: Should we assign mm->owner to NULL here?
-> +	 */
-> +	mem = mem_cgroup_from_task(mm->owner);
-> +	css_put(&mem->css);
->  }
->  
->  static inline int page_cgroup_locked(struct page *page)
-> @@ -476,6 +504,7 @@ unsigned long mem_cgroup_isolate_pages(u
->  	int zid = zone_idx(z);
->  	struct mem_cgroup_per_zone *mz;
->  
-> +	BUG_ON(!mem_cont);
->  	mz = mem_cgroup_zoneinfo(mem_cont, nid, zid);
->  	if (active)
->  		src = &mz->active_list;
-> @@ -573,13 +602,11 @@ retry:
->  	if (!mm)
->  		mm = &init_mm;
->  
-> -	rcu_read_lock();
-> -	mem = rcu_dereference(mm->mem_cgroup);
-> +	mem = mem_cgroup_from_task(mm->owner);
->  	/*
->  	 * For every charge from the cgroup, increment reference count
->  	 */
->  	css_get(&mem->css);
-> -	rcu_read_unlock();
->  
->  	while (res_counter_charge(&mem->res, PAGE_SIZE)) {
->  		if (!(gfp_mask & __GFP_WAIT))
-> @@ -988,7 +1015,7 @@ mem_cgroup_create(struct cgroup_subsys *
->  
->  	if (unlikely((cont->parent) == NULL)) {
->  		mem = &init_mem_cgroup;
-> -		init_mm.mem_cgroup = mem;
-> +		init_mm.owner = &init_task;
->  	} else
->  		mem = kzalloc(sizeof(struct mem_cgroup), GFP_KERNEL);
->  
-> @@ -1069,7 +1096,6 @@ static void mem_cgroup_move_task(struct 
->  		goto out;
->  
->  	css_get(&mem->css);
-> -	rcu_assign_pointer(mm->mem_cgroup, mem);
->  	css_put(&old_mem->css);
->  
->  out:
-> _
-> 
+--- jack
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
