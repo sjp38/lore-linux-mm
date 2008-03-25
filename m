@@ -1,38 +1,35 @@
-Date: Tue, 25 Mar 2008 08:52:36 +0100
+Date: Tue, 25 Mar 2008 08:54:03 +0100
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [13/14] vcompound: Use vcompound for swap_map
-Message-ID: <20080325075236.GG2170@one.firstfloor.org>
-References: <20080321061703.921169367@sgi.com> <20080321061727.269764652@sgi.com> <8763vfixb8.fsf@basil.nowhere.org> <Pine.LNX.4.64.0803241253250.4218@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH prototype] [0/8] Predictive bitmaps for ELF executables
+Message-ID: <20080325075403.GH2170@one.firstfloor.org>
+References: <20080320090005.GA25734@one.firstfloor.org> <a36005b50803211015l64005f6emb80dbfc21dcfad9f@mail.gmail.com> <20080321172644.GG2346@one.firstfloor.org> <a36005b50803212136s78dc2e4bx5ac715ebc7a6e48a@mail.gmail.com> <20080322071755.GP2346@one.firstfloor.org> <1206170695.2438.39.camel@entropy> <20080322091001.GA7264@one.firstfloor.org> <a36005b50803232120j63fb08d8p4a6cfdc8df2a3f21@mail.gmail.com> <1206335761.2438.63.camel@entropy> <a36005b50803241242r2a9b38c5s57d9ac6b084021fa@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0803241253250.4218@schroedinger.engr.sgi.com>
+In-Reply-To: <a36005b50803241242r2a9b38c5s57d9ac6b084021fa@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ulrich Drepper <drepper@gmail.com>
+Cc: Nicholas Miell <nmiell@comcast.net>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 24, 2008 at 12:54:54PM -0700, Christoph Lameter wrote:
-> On Fri, 21 Mar 2008, Andi Kleen wrote:
+On Mon, Mar 24, 2008 at 12:42:14PM -0700, Ulrich Drepper wrote:
+> On Sun, Mar 23, 2008 at 10:16 PM, Nicholas Miell <nmiell@comcast.net> wrote:
+> >  The limit is filesystem dependent -- I think ext2/3s is something like
+> >  4k total for attribute names and values per inode.
+> >
+> >  That's more than enough space for the largest executable on my system
+> >  (emacs at 36788160 bytes) which would have a 1123 byte predictive bitmap
+> >  (plus space for the name e.g. "system.predictive_bitmap"). The bitmap
+> >  also could be compressed.
 > 
-> > But I used a simple trick to avoid the waste problem: it allocated a
-> > continuous range rounded up to the next page-size order and then freed
-> > the excess pages back into the page allocator. That was called
-> > alloc_exact(). If you replace vmalloc with alloc_pages you should
-> > use something like that too I think.
-> 
-> One way of dealing with it would be to define an additional allocation 
-> variant that allows the limiting of the loss? I noted that both the swap
-> and the wait tables vary significantly between allocations. So we could 
-> specify an upper boundary of a loss that is acceptable. If too much memory
-> would be lost then use vmalloc unconditionally.
+> 4k attribute means support for about 32768 pages.  That's a total of
+> 134MB.  I think this qualifies as sufficient.  Also, I assume the
+> attribute limit is just a "because nobody needed more so far" limit
+> and could in theory be extended.
 
-I liked your idea of fixing compound pages to not rely on order
-better. Ok it is likely more work to implement @)
-
-Also if anything preserving memory should be default, but maybe
-skippable a with __GFP_GO_FAST flag.
+There is still the additional seek. Large xattrs tend to be out of line
+from the inode.
 
 -Andi
 
