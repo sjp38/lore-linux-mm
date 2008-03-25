@@ -1,136 +1,266 @@
-Message-Id: <20080325021954.979158000@polaris-admin.engr.sgi.com>
-Date: Mon, 24 Mar 2008 19:19:54 -0700
+Message-Id: <20080325021955.228351000@polaris-admin.engr.sgi.com>
+References: <20080325021954.979158000@polaris-admin.engr.sgi.com>
+Date: Mon, 24 Mar 2008 19:19:55 -0700
 From: Mike Travis <travis@sgi.com>
-Subject: [PATCH 00/10] NR_CPUS: third reduction of NR_CPUS memory usage
+Subject: [PATCH 01/10] x86_64: Cleanup non-smp usage of cpu maps v4
+Content-Disposition: inline; filename=cleanup
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Here's the third round of removing static allocations of arrays using
-NR_CPUS to size the length.  The change is to use PER_CPU variables in
-place of the static tables, or allocate the array based on nr_cpu_ids.
-
-In addition, there's a cleanup of x86 non-smp code, the movement of
-setting nr_cpu_ids to setup_per_cpu_areas() so it's available as soon
-as possible, and a new function cpumask_scnprintf_len() to return the
-number of characters needed to display "len" cpumask bits.
-
-Affected files:
-
-	arch/ia64/kernel/acpi.c
-	arch/ia64/kernel/setup.c
-	arch/powerpc/kernel/setup_64.c
-	arch/sparc64/mm/init.c
-	arch/x86/kernel/cpu/intel_cacheinfo.c
-	arch/x86/kernel/genapic_64.c
-	arch/x86/kernel/mpparse_64.c
-	arch/x86/kernel/setup64.c
-	arch/x86/kernel/smpboot_32.c
-	arch/x86/mm/numa_64.c
-	arch/x86/oprofile/nmi_int.c
-	drivers/acpi/processor_core.c
-	drivers/acpi/processor_idle.c
-	drivers/acpi/processor_perflib.c
-	drivers/acpi/processor_throttling.c
-	drivers/base/cpu.c
-	drivers/cpufreq/cpufreq.c
-	drivers/cpufreq/cpufreq_stats.c
-	drivers/cpufreq/freq_table.c
-	include/acpi/processor.h
-	include/asm-x86/smp_32.h
-	include/asm-x86/smp_64.h
-	include/asm-x86/topology.h
-	include/linux/bitmap.h
-	include/linux/cpumask.h
-	init/main.c
-	kernel/sched.c
-	lib/bitmap.c
-	net/core/dev.c
+Cleanup references to the early cpu maps for the non-SMP configuration
+and remove some functions called for SMP configurations only.
 
 Based on linux-2.6.25-rc5-mm1
 
-Cc: Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
 Cc: Andi Kleen <ak@suse.de>
-Cc: Anton Blanchard <anton@samba.org>
-Cc: Christoph Lameter <clameter@sgi.com>
-Cc: Dave Jones <davej@codemonkey.org.uk>
-Cc: David S. Miller <davem@davemloft.net>
-Cc: H. Peter Anvin <hpa@zytor.com>
 Cc: Ingo Molnar <mingo@elte.hu>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: James Morris <jmorris@namei.org>
-Cc: Len Brown <len.brown@intel.com>
-Cc: Patrick McHardy <kaber@trash.net>
-Cc: Paul Jackson <pj@sgi.com>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Philippe Elie <phil.el@wanadoo.fr>
 Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Tony Luck <tony.luck@intel.com>
-Cc: William L. Irwin <wli@holomorphy.com>
+Cc: Christoph Lameter <clameter@sgi.com>
 
 Signed-off-by: Mike Travis <travis@sgi.com>
 ---
+This patch was moved from the zero-based percpu variables patchset to here.
+---
 
-I moved the x86_64 cleanup and move-set-nr_cpu_ids from the zero-based
-percpu variables patchset to this one, as I was encountering a panic
-from system_call_after_swapgs() after an unknown device interrupt during
-module loading.  That problem will be dealt with in another patch.
+ arch/x86/kernel/genapic_64.c |    2 +
+ arch/x86/kernel/mpparse_64.c |    2 +
+ arch/x86/kernel/setup64.c    |   45 ++++++++++++++++++++++---------------------
+ arch/x86/kernel/smpboot_32.c |    2 +
+ arch/x86/mm/numa_64.c        |    4 ++-
+ include/asm-x86/smp_32.h     |    4 +++
+ include/asm-x86/smp_64.h     |    5 ++++
+ include/asm-x86/topology.h   |   16 +++++++++++----
+ 8 files changed, 54 insertions(+), 26 deletions(-)
 
-
-Here's the various effects of the patches on memory usages using the
-akpm2 config file with NR_CPUS=4096 and MAXNODES=512:
-
-====== Data (-l 500)
-    1 - initial
-    2 - cleanup
-    4 - nr_cpus-in-cpufreq-cpu_alloc
-    5 - nr_cpus-in-acpi-driver-cpu_alloc
-    7 - nr_cpus-in-intel_cacheinfo
-    8 - nr_cpus-in-cpu_c
-   11 - nr_cpus-in-kernel_sched
-
-    .1.   .2.     .4.     .5.   .7.     .8.    .11.  
-  32768     .  -32768       .     .       .       .   show_table(.bss)
-  32768     .       .       .     .       .  -32768   sched_group_nodes_bycpu(.bss)
-  32768     .       .  -32768     .       .       .   processors(.bss)
-  32768     .       .  -32768     .       .       .   processor_device_array(.bss)
-  32768     .       .       .     .       .  -32768   init_sched_entity_p(.bss)
-  32768     .       .       .     .       .  -32768   init_cfs_rq_p(.bss)
-  32768     .       .       .-32768       .       .   index_kobject(.bss)
-  32768     .       .       .-32768       .       .   cpuid4_info(.bss)
-  32768     .  -32768       .     .       .       .   cpufreq_cpu_governor(.bss)
-  32768     .  -32768       .     .       .       .   cpufreq_cpu_data(.bss)
-  32768     .       .       .     .  -32768       .   cpu_sys_devices(.bss)
-  32768     .       .       .-32768       .       .   cache_kobject(.bss)
-
-====== Text/Data ()
-    1 - initial
-    4 - nr_cpus-in-cpufreq-cpu_alloc
-    5 - nr_cpus-in-acpi-driver-cpu_alloc
-    7 - nr_cpus-in-intel_cacheinfo
-    8 - nr_cpus-in-cpu_c
-   11 - nr_cpus-in-kernel_sched
-
-       .1.     .4.     .5.     .7.     .8.    .11.    ..final..
-   3373056       .   +2048       .       .       . 3375104    <1%  TextSize
-   1656832       .   +2048       .       .       . 1658880    <1%  DataSize
-   1855488  -98304  -65536  -98304  -32768  -98304 1462272   -21%  BssSize
-  10395648       .   +4096       .       .       . 10399744   <1%  OtherSize
-  17281024  -98304  -57344  -98304  -32768  -98304 16896000   -2%  Totals
-
-====== Stack (-l 500)
-... files 11 vars 928 all 0 lim 500 unch 0
-
-    1 - initial
-    7 - nr_cpus-in-intel_cacheinfo
-   11 - nr_cpus-in-kernel_sched
-
-   .1.    .7.   .11.    ..final..
-  4648      .  -4080  568   -87%  cpu_attach_domain
-  4104  -4104      .    .  -100%  show_shared_cpu_map
-  8752  -4104  -4080  568   -93%  Totals
+--- linux-2.6.25-rc5.orig/arch/x86/kernel/genapic_64.c
++++ linux-2.6.25-rc5/arch/x86/kernel/genapic_64.c
+@@ -25,9 +25,11 @@
+ #endif
+ 
+ /* which logical CPU number maps to which CPU (physical APIC ID) */
++#ifdef CONFIG_SMP
+ u16 x86_cpu_to_apicid_init[NR_CPUS] __initdata
+ 					= { [0 ... NR_CPUS-1] = BAD_APICID };
+ void *x86_cpu_to_apicid_early_ptr;
++#endif
+ DEFINE_PER_CPU(u16, x86_cpu_to_apicid) = BAD_APICID;
+ EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
+ 
+--- linux-2.6.25-rc5.orig/arch/x86/kernel/mpparse_64.c
++++ linux-2.6.25-rc5/arch/x86/kernel/mpparse_64.c
+@@ -67,9 +67,11 @@ unsigned disabled_cpus __cpuinitdata;
+ /* Bitmask of physically existing CPUs */
+ physid_mask_t phys_cpu_present_map = PHYSID_MASK_NONE;
+ 
++#ifdef CONFIG_SMP
+ u16 x86_bios_cpu_apicid_init[NR_CPUS] __initdata
+ 				= { [0 ... NR_CPUS-1] = BAD_APICID };
+ void *x86_bios_cpu_apicid_early_ptr;
++#endif
+ DEFINE_PER_CPU(u16, x86_bios_cpu_apicid) = BAD_APICID;
+ EXPORT_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
+ 
+--- linux-2.6.25-rc5.orig/arch/x86/kernel/setup64.c
++++ linux-2.6.25-rc5/arch/x86/kernel/setup64.c
+@@ -86,6 +86,8 @@ static int __init nonx32_setup(char *str
+ }
+ __setup("noexec32=", nonx32_setup);
+ 
++
++#ifdef CONFIG_SMP
+ /*
+  * Copy data used in early init routines from the initial arrays to the
+  * per cpu data areas.  These arrays then become expendable and the
+@@ -96,23 +98,13 @@ static void __init setup_per_cpu_maps(vo
+ 	int cpu;
+ 
+ 	for_each_possible_cpu(cpu) {
+-#ifdef CONFIG_SMP
+-		if (per_cpu_offset(cpu)) {
+-#endif
+-			per_cpu(x86_cpu_to_apicid, cpu) =
+-						x86_cpu_to_apicid_init[cpu];
+-			per_cpu(x86_bios_cpu_apicid, cpu) =
++		per_cpu(x86_cpu_to_apicid, cpu) = x86_cpu_to_apicid_init[cpu];
++		per_cpu(x86_bios_cpu_apicid, cpu) =
+ 						x86_bios_cpu_apicid_init[cpu];
+ #ifdef CONFIG_NUMA
+-			per_cpu(x86_cpu_to_node_map, cpu) =
++		per_cpu(x86_cpu_to_node_map, cpu) =
+ 						x86_cpu_to_node_map_init[cpu];
+ #endif
+-#ifdef CONFIG_SMP
+-		}
+-		else
+-			printk(KERN_NOTICE "per_cpu_offset zero for cpu %d\n",
+-									cpu);
+-#endif
+ 	}
+ 
+ 	/* indicate the early static arrays will soon be gone */
+@@ -140,26 +132,37 @@ void __init setup_per_cpu_areas(void)
+ 	/* Copy section for each CPU (we discard the original) */
+ 	size = PERCPU_ENOUGH_ROOM;
+ 
+-	printk(KERN_INFO "PERCPU: Allocating %lu bytes of per cpu data\n", size);
+-	for_each_cpu_mask (i, cpu_possible_map) {
++	printk(KERN_INFO
++		"PERCPU: Allocating %lu bytes of per cpu data\n", size);
++
++	for_each_possible_cpu(i) {
++
++#ifndef CONFIG_NEED_MULTIPLE_NODES
++		char *ptr = alloc_bootmem_pages(size);
++#else
+ 		char *ptr;
++		int node = early_cpu_to_node(i);
+ 
+-		if (!NODE_DATA(early_cpu_to_node(i))) {
+-			printk("cpu with no node %d, num_online_nodes %d\n",
+-			       i, num_online_nodes());
++		if (NODE_DATA(node))
++			ptr = alloc_bootmem_pages_node(NODE_DATA(node), size);
++
++		else {
+ 			ptr = alloc_bootmem_pages(size);
+-		} else { 
+-			ptr = alloc_bootmem_pages_node(NODE_DATA(early_cpu_to_node(i)), size);
++			printk(KERN_INFO
++			       "cpu %d has no node or node-local memory\n", i);
+ 		}
++#endif
+ 		if (!ptr)
+ 			panic("Cannot allocate cpu data for CPU %d\n", i);
++
+ 		cpu_pda(i)->data_offset = ptr - __per_cpu_start;
+ 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+ 	}
+ 
+-	/* setup percpu data maps early */
++	/* Setup percpu data maps */
+ 	setup_per_cpu_maps();
+ } 
++#endif /* CONFIG_SMP */
+ 
+ void pda_init(int cpu)
+ { 
+--- linux-2.6.25-rc5.orig/arch/x86/kernel/smpboot_32.c
++++ linux-2.6.25-rc5/arch/x86/kernel/smpboot_32.c
+@@ -92,9 +92,11 @@ DEFINE_PER_CPU_SHARED_ALIGNED(struct cpu
+ EXPORT_PER_CPU_SYMBOL(cpu_info);
+ 
+ /* which logical CPU number maps to which CPU (physical APIC ID) */
++#ifdef CONFIG_SMP
+ u8 x86_cpu_to_apicid_init[NR_CPUS] __initdata =
+ 			{ [0 ... NR_CPUS-1] = BAD_APICID };
+ void *x86_cpu_to_apicid_early_ptr;
++#endif
+ DEFINE_PER_CPU(u8, x86_cpu_to_apicid) = BAD_APICID;
+ EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
+ 
+--- linux-2.6.25-rc5.orig/arch/x86/mm/numa_64.c
++++ linux-2.6.25-rc5/arch/x86/mm/numa_64.c
+@@ -31,13 +31,15 @@ bootmem_data_t plat_node_bdata[MAX_NUMNO
+ 
+ struct memnode memnode;
+ 
++#ifdef CONFIG_SMP
+ int x86_cpu_to_node_map_init[NR_CPUS] = {
+ 	[0 ... NR_CPUS-1] = NUMA_NO_NODE
+ };
+ void *x86_cpu_to_node_map_early_ptr;
++EXPORT_SYMBOL(x86_cpu_to_node_map_early_ptr);
++#endif
+ DEFINE_PER_CPU(int, x86_cpu_to_node_map) = NUMA_NO_NODE;
+ EXPORT_PER_CPU_SYMBOL(x86_cpu_to_node_map);
+-EXPORT_SYMBOL(x86_cpu_to_node_map_early_ptr);
+ 
+ s16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
+ 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
+--- linux-2.6.25-rc5.orig/include/asm-x86/smp_32.h
++++ linux-2.6.25-rc5/include/asm-x86/smp_32.h
+@@ -29,8 +29,12 @@ extern void unlock_ipi_call_lock(void);
+ extern void (*mtrr_hook) (void);
+ extern void zap_low_mappings (void);
+ 
++#ifdef CONFIG_SMP
+ extern u8 __initdata x86_cpu_to_apicid_init[];
+ extern void *x86_cpu_to_apicid_early_ptr;
++#else
++#define x86_cpu_to_apicid_early_ptr NULL
++#endif
+ 
+ DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
+ DECLARE_PER_CPU(cpumask_t, cpu_core_map);
+--- linux-2.6.25-rc5.orig/include/asm-x86/smp_64.h
++++ linux-2.6.25-rc5/include/asm-x86/smp_64.h
+@@ -26,10 +26,15 @@ extern void unlock_ipi_call_lock(void);
+ extern int smp_call_function_mask(cpumask_t mask, void (*func)(void *),
+ 				  void *info, int wait);
+ 
++#ifdef CONFIG_SMP
+ extern u16 __initdata x86_cpu_to_apicid_init[];
+ extern u16 __initdata x86_bios_cpu_apicid_init[];
+ extern void *x86_cpu_to_apicid_early_ptr;
+ extern void *x86_bios_cpu_apicid_early_ptr;
++#else
++#define x86_cpu_to_apicid_early_ptr NULL
++#define x86_bios_cpu_apicid_early_ptr NULL
++#endif
+ 
+ DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
+ DECLARE_PER_CPU(cpumask_t, cpu_core_map);
+--- linux-2.6.25-rc5.orig/include/asm-x86/topology.h
++++ linux-2.6.25-rc5/include/asm-x86/topology.h
+@@ -35,8 +35,14 @@ extern int cpu_to_node_map[];
+ 
+ #else
+ DECLARE_PER_CPU(int, x86_cpu_to_node_map);
++
++#ifdef CONFIG_SMP
+ extern int x86_cpu_to_node_map_init[];
+ extern void *x86_cpu_to_node_map_early_ptr;
++#else
++#define x86_cpu_to_node_map_early_ptr NULL
++#endif
++
+ /* Returns the number of the current Node. */
+ #define numa_node_id()		(early_cpu_to_node(raw_smp_processor_id()))
+ #endif
+@@ -54,6 +60,8 @@ static inline int cpu_to_node(int cpu)
+ }
+ 
+ #else /* CONFIG_X86_64 */
++
++#ifdef CONFIG_SMP
+ static inline int early_cpu_to_node(int cpu)
+ {
+ 	int *cpu_to_node_map = x86_cpu_to_node_map_early_ptr;
+@@ -65,6 +73,9 @@ static inline int early_cpu_to_node(int 
+ 	else
+ 		return NUMA_NO_NODE;
+ }
++#else
++#define	early_cpu_to_node(cpu)	cpu_to_node(cpu)
++#endif
+ 
+ static inline int cpu_to_node(int cpu)
+ {
+@@ -76,10 +87,7 @@ static inline int cpu_to_node(int cpu)
+ 		return ((int *)x86_cpu_to_node_map_early_ptr)[cpu];
+ 	}
+ #endif
+-	if (per_cpu_offset(cpu))
+-		return per_cpu(x86_cpu_to_node_map, cpu);
+-	else
+-		return NUMA_NO_NODE;
++	return per_cpu(x86_cpu_to_node_map, cpu);
+ }
+ #endif /* CONFIG_X86_64 */
+ 
 
 -- 
 
