@@ -1,56 +1,39 @@
-Date: Mon, 24 Mar 2008 22:53:09 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] fix spurious EBUSY on memory cgroup removal
-Message-Id: <20080324225309.0a1ab8ec.akpm@linux-foundation.org>
-In-Reply-To: <20080325054713.948EF1E92EC@siro.lan>
-References: <20080325054713.948EF1E92EC@siro.lan>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: by fg-out-1718.google.com with SMTP id e12so2367899fga.4
+        for <linux-mm@kvack.org>; Mon, 24 Mar 2008 23:00:35 -0700 (PDT)
+Date: Tue, 25 Mar 2008 08:57:52 +0300
+From: Alexey Dobriyan <adobriyan@gmail.com>
+Subject: Re: [PATCH 08/10] net: remove NR_CPUS arrays in net/core/dev.c
+Message-ID: <20080325055752.GA4774@martell.zuzino.mipt.ru>
+References: <20080325021954.979158000@polaris-admin.engr.sgi.com> <20080325021956.212787000@polaris-admin.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080325021956.212787000@polaris-admin.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: balbir@linux.vnet.ibm.com, containers@lists.osdl.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, minoura@valinux.co.jp
+To: Mike Travis <travis@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, James Morris <jmorris@namei.org>, Patrick McHardy <kaber@trash.net>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 Mar 2008 14:47:13 +0900 (JST) yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
+On Mon, Mar 24, 2008 at 07:20:02PM -0700, Mike Travis wrote:
+> Remove the fixed size channels[NR_CPUS] array in
+> net/core/dev.c and dynamically allocate array based on
+> nr_cpu_ids.
 
-> [ resending with To: akpm.  Andrew, can you include this in -mm tree? ]
-
-Shouldn't it be in 2.6.25?
-
-> hi,
-> 
-> the following patch is to fix spurious EBUSY on cgroup removal.
-> 
-> YAMAMOTO Takashi
-> 
-> 
-> call mm_free_cgroup earlier.
-> otherwise a reference due to lazy mm switching can prevent cgroup removal.
-> 
-> Signed-off-by: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-> Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
-> 
-> --- linux-2.6.24-rc8-mm1/kernel/fork.c.BACKUP	2008-01-23 14:43:29.000000000 +0900
-> +++ linux-2.6.24-rc8-mm1/kernel/fork.c	2008-01-31 17:26:31.000000000 +0900
-> @@ -393,7 +393,6 @@ void __mmdrop(struct mm_struct *mm)
+> @@ -4362,6 +4362,13 @@ netdev_dma_event(struct dma_client *clie
+>   */
+>  static int __init netdev_dma_register(void)
 >  {
->  	BUG_ON(mm == &init_mm);
->  	mm_free_pgd(mm);
-> -	mm_free_cgroup(mm);
->  	destroy_context(mm);
->  	free_mm(mm);
->  }
-> @@ -415,6 +414,7 @@ void mmput(struct mm_struct *mm)
->  			spin_unlock(&mmlist_lock);
->  		}
->  		put_swap_token(mm);
-> +		mm_free_cgroup(mm);
->  		mmdrop(mm);
->  	}
->  }
+> +	net_dma.channels = kzalloc(nr_cpu_ids * sizeof(struct net_dma),
+> +								GFP_KERNEL);
+> +	if (unlikely(net_dma.channels)) {
+
+		     !net_dma.channels
+
+> +		printk(KERN_NOTICE
+> +				"netdev_dma: no memory for net_dma.channels\n");
+> +		return -ENOMEM;
+> +	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
