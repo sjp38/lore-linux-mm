@@ -1,39 +1,24 @@
-Received: by fg-out-1718.google.com with SMTP id e12so2367899fga.4
-        for <linux-mm@kvack.org>; Mon, 24 Mar 2008 23:00:35 -0700 (PDT)
-Date: Tue, 25 Mar 2008 08:57:52 +0300
-From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: Re: [PATCH 08/10] net: remove NR_CPUS arrays in net/core/dev.c
-Message-ID: <20080325055752.GA4774@martell.zuzino.mipt.ru>
-References: <20080325021954.979158000@polaris-admin.engr.sgi.com> <20080325021956.212787000@polaris-admin.engr.sgi.com>
+Message-ID: <47E896EA.5060309@de.ibm.com>
+Date: Tue, 25 Mar 2008 07:08:42 +0100
+From: Carsten Otte <cotte@de.ibm.com>
+Reply-To: carsteno@de.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080325021956.212787000@polaris-admin.engr.sgi.com>
+Subject: Re: [kvm-devel] [RFC/PATCH 01/15] preparation: provide	hook	to	enable
+ pgstes in user pagetable
+References: <1206028710.6690.21.camel@cotte.boeblingen.de.ibm.com>	 <1206030278.6690.52.camel@cotte.boeblingen.de.ibm.com>	 <47E29EC6.5050403@goop.org>	<1206040405.8232.24.camel@nimitz.home.sr71.net>	 <47E2CAAC.6020903@de.ibm.com>	 <1206124176.30471.27.camel@nimitz.home.sr71.net>	 <20080322175705.GD6367@osiris.boeblingen.de.ibm.com>	 <47E62DBA.4050102@qumranet.com> <1206296609.10233.5.camel@localhost> <47E750ED.7060509@qumranet.com>
+In-Reply-To: <47E750ED.7060509@qumranet.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Travis <travis@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, James Morris <jmorris@namei.org>, Patrick McHardy <kaber@trash.net>
+To: Avi Kivity <avi@qumranet.com>
+Cc: schwidefsky@de.ibm.com, Heiko Carstens <heiko.carstens@de.ibm.com>, Dave Hansen <haveblue@us.ibm.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Christian Ehrhardt <EHRHARDT@de.ibm.com>, hollisb@us.ibm.com, arnd@arndb.de, Linux Memory Management List <linux-mm@kvack.org>, carsteno@de.ibm.com, heicars2@linux.vnet.ibm.com, mschwid2@linux.vnet.ibm.com, jeroney@us.ibm.com, borntrae@linux.vnet.ibm.com, virtualization@lists.linux-foundation.org, kvm-devel@lists.sourceforge.net, rvdheij@gmail.com, Olaf Schnapper <os@de.ibm.com>, jblunck@suse.de, "Zhang, Xiantao" <xiantao.zhang@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 24, 2008 at 07:20:02PM -0700, Mike Travis wrote:
-> Remove the fixed size channels[NR_CPUS] array in
-> net/core/dev.c and dynamically allocate array based on
-> nr_cpu_ids.
-
-> @@ -4362,6 +4362,13 @@ netdev_dma_event(struct dma_client *clie
->   */
->  static int __init netdev_dma_register(void)
->  {
-> +	net_dma.channels = kzalloc(nr_cpu_ids * sizeof(struct net_dma),
-> +								GFP_KERNEL);
-> +	if (unlikely(net_dma.channels)) {
-
-		     !net_dma.channels
-
-> +		printk(KERN_NOTICE
-> +				"netdev_dma: no memory for net_dma.channels\n");
-> +		return -ENOMEM;
-> +	}
+Avi Kivity wrote:
+> Well, dup_mm() can't work (and now that I think about it, for more 
+> reasons -- what if the process has threads?).
+We lock out multithreaded users already, -EINVAL.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
