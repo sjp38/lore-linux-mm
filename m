@@ -1,28 +1,99 @@
 From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH] Fix data leak in nobh_write_end.
-Date: Tue, 25 Mar 2008 20:22:48 +1100
-References: <20080320122953.GA19928@dmon-lap.sw.ru> <20080320123916.GA19995@dmon-lap.sw.ru>
-In-Reply-To: <20080320123916.GA19995@dmon-lap.sw.ru>
+Subject: Re: [PATCH] ext3: Use page_mkwrite vma_operations to get mmap write notification.
+Date: Tue, 25 Mar 2008 20:21:14 +1100
+References: <1206378298-10341-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1206378298-10341-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20080324160141.67746905.akpm@linux-foundation.org>
+In-Reply-To: <20080324160141.67746905.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Disposition: inline
-Message-Id: <200803252022.48730.nickpiggin@yahoo.com.au>
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200803252021.15004.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dmitri Monakhov <dmonakhov@openvz.org>, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, cmm@us.ibm.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 20 March 2008 23:39, Dmitri Monakhov wrote:
-> On 15:29 Thu 20 Mar     , root wrote:
-> Opps.. sorry for incorrectly filled "FROM:" filed, email was from me.
+On Tuesday 25 March 2008 10:01, Andrew Morton wrote:
+> On Mon, 24 Mar 2008 22:34:56 +0530
+>
+> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+> > We would like to get notified when we are doing a write on mmap section.
+> > The changes are needed to handle ENOSPC when writing to an mmap section
+> > of files with holes.
+>
+> umm,
+>
+> > diff --git a/fs/ext3/file.c b/fs/ext3/file.c
+> > index acc4913..09e22e4 100644
+> > --- a/fs/ext3/file.c
+> > +++ b/fs/ext3/file.c
+> > @@ -106,6 +106,23 @@ force_commit:
+> >  	return ret;
+> >  }
+> >
+> > +static struct vm_operations_struct ext3_file_vm_ops = {
+> > +	.fault		= filemap_fault,
+> > +	.page_mkwrite   = ext3_page_mkwrite,
+> > +};
+> > +
+> > +static int ext3_file_mmap(struct file *file, struct vm_area_struct *vma)
+> > +{
+> > +	struct address_space *mapping = file->f_mapping;
+> > +
+> > +	if (!mapping->a_ops->readpage)
+> > +		return -ENOEXEC;
+> > +	file_accessed(file);
+> > +	vma->vm_ops = &ext3_file_vm_ops;
+> > +	vma->vm_flags |= VM_CAN_NONLINEAR;
+> > +	return 0;
+> > +}
+> > +
+> >  const struct file_operations ext3_file_operations = {
+> >  	.llseek		= generic_file_llseek,
+> >  	.read		= do_sync_read,
+> > @@ -116,7 +133,7 @@ const struct file_operations ext3_file_operations = {
+> >  #ifdef CONFIG_COMPAT
+> >  	.compat_ioctl	= ext3_compat_ioctl,
+> >  #endif
+> > -	.mmap		= generic_file_mmap,
+> > +	.mmap		= ext3_file_mmap,
+> >  	.open		= generic_file_open,
+> >  	.release	= ext3_release_file,
+> >  	.fsync		= ext3_sync_file,
+> > diff --git a/fs/ext3/inode.c b/fs/ext3/inode.c
+> > index eb95670..2293506 100644
+> > --- a/fs/ext3/inode.c
+> > +++ b/fs/ext3/inode.c
+> > @@ -3306,3 +3306,8 @@ int ext3_change_inode_journal_flag(struct inode
+> > *inode, int val)
+> >
+> >  	return err;
+> >  }
+> > +
+> > +int ext3_page_mkwrite(struct vm_area_struct *vma, struct page *page)
+> > +{
+> > +	return block_page_mkwrite(vma, page, ext3_get_block);
+> > +}
+>
+> This gets called within the pagefault handler.
+>
+> And block_page_mkwrite() does lock_page().
+>
+> But the pagefault handler can be called with a page already locked, from
+> generic_perform_write().
+>
+> Nick, why are we not vulnerable to A-A or to AB-BA deadlocks here?
 
-Thanks for finding this. I guess it was a thinko as to the semantics
-of PageMappedToDisk on my behalf...
+Pagefault handler unlocks the page before calling page_mkwrite. This is
+kind of crap, because the caller invariably has to lock the page again
+to check that it has not been truncated away anyway.... I voiced my
+concerns about this page_mkwrite API, but no, as always, people want to
+be really clever first and have understandable locking schemes second ;)
 
-Reviewed-by: Nick Piggin <npiggin@suse.de>
+I'm hoping to one day clean this up and fold it all into ->fault()...
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
