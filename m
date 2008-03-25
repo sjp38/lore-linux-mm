@@ -1,256 +1,314 @@
-Message-Id: <20080325023122.070919000@polaris-admin.engr.sgi.com>
+Message-Id: <20080325023122.923298000@polaris-admin.engr.sgi.com>
 References: <20080325023120.859257000@polaris-admin.engr.sgi.com>
-Date: Mon, 24 Mar 2008 19:31:27 -0700
+Date: Mon, 24 Mar 2008 19:31:32 -0700
 From: Mike Travis <travis@sgi.com>
-Subject: [PATCH 07/12] cpumask: reduce stack usage in SD_x_INIT initializers
-Content-Disposition: inline; filename=sched_domain
+Subject: [PATCH 12/12] cpu/node mask: reduce stack usage using MASK_NONE, MASK_ALL
+Content-Disposition: inline; filename=CPU_NODE_MASK
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-Remove empty cpumask_t (and all non-zero/non-null) variables
-in SD_*_INIT macros.  Use memset(0) to clear.  Also, don't
-inline the initializer functions to save on stack space in
-build_sched_domains().
+Replace usages of CPU_MASK_NONE, CPU_MASK_ALL, NODE_MASK_NONE,
+NODE_MASK_ALL to reduce stack requirements for large NR_CPUS
+and MAXNODES counts.
 
 Based on linux-2.6.25-rc5-mm1
 
+# x86
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: Ingo Molnar <mingo@elte.hu>
 Cc: H. Peter Anvin <hpa@zytor.com>
 
 Signed-off-by: Mike Travis <travis@sgi.com>
 ---
-One checkpatch warning that I think can't be removed:
+ arch/x86/kernel/cpu/cpufreq/powernow-k8.c |    6 +++---
+ arch/x86/kernel/cpu/mcheck/mce_amd_64.c   |    4 ++--
+ arch/x86/kernel/genapic_flat_64.c         |    4 +++-
+ arch/x86/kernel/io_apic_64.c              |    2 +-
+ include/linux/cpumask.h                   |    6 ++++++
+ init/main.c                               |    7 ++++++-
+ kernel/cpu.c                              |    2 +-
+ kernel/cpuset.c                           |   10 +++++-----
+ kernel/irq/chip.c                         |    2 +-
+ kernel/kmod.c                             |    2 +-
+ kernel/kthread.c                          |    4 ++--
+ kernel/rcutorture.c                       |    3 ++-
+ kernel/sched.c                            |    8 ++++----
+ mm/allocpercpu.c                          |    3 ++-
+ 14 files changed, 39 insertions(+), 24 deletions(-)
 
-ERROR: Macros with complex values should be enclosed in parenthesis
-#165: FILE: kernel/sched.c:6591:
-#define SD_INIT_FUNC(type)	\
-static noinline void sd_init_##type(struct sched_domain *sd)	\
-{								\
-	memset(sd, 0, sizeof(*sd));				\
-	*sd = SD_##type##_INIT;					\
-}
-
----
- include/asm-x86/topology.h |    5 -----
- include/linux/topology.h   |   33 ++-------------------------------
- kernel/sched.c             |   35 ++++++++++++++++++++++++++++++-----
- 3 files changed, 32 insertions(+), 41 deletions(-)
-
---- linux-2.6.25-rc5.orig/include/asm-x86/topology.h
-+++ linux-2.6.25-rc5/include/asm-x86/topology.h
-@@ -155,10 +155,6 @@ extern unsigned long node_remap_size[];
+--- linux-2.6.25-rc5.orig/arch/x86/kernel/cpu/cpufreq/powernow-k8.c
++++ linux-2.6.25-rc5/arch/x86/kernel/cpu/cpufreq/powernow-k8.c
+@@ -478,7 +478,7 @@ static int core_voltage_post_transition(
  
- /* sched_domains SD_NODE_INIT for NUMAQ machines */
- #define SD_NODE_INIT (struct sched_domain) {		\
--	.span			= CPU_MASK_NONE,	\
--	.parent			= NULL,			\
--	.child			= NULL,			\
--	.groups			= NULL,			\
- 	.min_interval		= 8,			\
- 	.max_interval		= 32,			\
- 	.busy_factor		= 32,			\
-@@ -176,7 +172,6 @@ extern unsigned long node_remap_size[];
- 				| SD_WAKE_BALANCE,	\
- 	.last_balance		= jiffies,		\
- 	.balance_interval	= 1,			\
--	.nr_balance_failed	= 0,			\
+ static int check_supported_cpu(unsigned int cpu)
+ {
+-	cpumask_t oldmask = CPU_MASK_ALL;
++	cpumask_t oldmask;
+ 	u32 eax, ebx, ecx, edx;
+ 	unsigned int rc = 0;
+ 
+@@ -1015,7 +1015,7 @@ static int transition_frequency_pstate(s
+ /* Driver entry point to switch to the target frequency */
+ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsigned relation)
+ {
+-	cpumask_t oldmask = CPU_MASK_ALL;
++	cpumask_t oldmask;
+ 	struct powernow_k8_data *data = per_cpu(powernow_data, pol->cpu);
+ 	u32 checkfid;
+ 	u32 checkvid;
+@@ -1104,7 +1104,7 @@ static int powernowk8_verify(struct cpuf
+ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
+ {
+ 	struct powernow_k8_data *data;
+-	cpumask_t oldmask = CPU_MASK_ALL;
++	cpumask_t oldmask;
+ 	int rc;
+ 
+ 	if (!cpu_online(pol->cpu))
+--- linux-2.6.25-rc5.orig/arch/x86/kernel/cpu/mcheck/mce_amd_64.c
++++ linux-2.6.25-rc5/arch/x86/kernel/cpu/mcheck/mce_amd_64.c
+@@ -255,7 +255,7 @@ static void affinity_set(unsigned int cp
+ 						cpumask_t *newmask)
+ {
+ 	*oldmask = current->cpus_allowed;
+-	*newmask = CPU_MASK_NONE;
++	cpus_clear(*newmask);
+ 	cpu_set(cpu, *newmask);
+ 	set_cpus_allowed(current, newmask);
  }
+@@ -468,7 +468,7 @@ static __cpuinit int threshold_create_ba
+ {
+ 	int i, err = 0;
+ 	struct threshold_bank *b = NULL;
+-	cpumask_t oldmask = CPU_MASK_NONE, newmask;
++	cpumask_t oldmask, newmask;
+ 	char name[32];
  
- #ifdef CONFIG_X86_64_ACPI_NUMA
---- linux-2.6.25-rc5.orig/include/linux/topology.h
-+++ linux-2.6.25-rc5/include/linux/topology.h
-@@ -77,7 +77,9 @@
-  * by defining their own arch-specific initializer in include/asm/topology.h.
-  * A definition there will automagically override these default initializers
-  * and allow arch-specific performance tuning of sched_domains.
-+ * (Only non-zero and non-null fields need be specified.)
-  */
+ 	sprintf(name, "threshold_bank%i", bank);
+--- linux-2.6.25-rc5.orig/arch/x86/kernel/genapic_flat_64.c
++++ linux-2.6.25-rc5/arch/x86/kernel/genapic_flat_64.c
+@@ -138,7 +138,9 @@ static cpumask_t physflat_target_cpus(vo
+ 
+ static cpumask_t physflat_vector_allocation_domain(int cpu)
+ {
+-	cpumask_t domain = CPU_MASK_NONE;
++	cpumask_t domain;
 +
- #ifdef CONFIG_SCHED_SMT
- /* MCD - Do we really need this?  It is always on if CONFIG_SCHED_SMT is,
-  * so can't we drop this in favor of CONFIG_SCHED_SMT?
-@@ -86,20 +88,10 @@
- /* Common values for SMT siblings */
- #ifndef SD_SIBLING_INIT
- #define SD_SIBLING_INIT (struct sched_domain) {		\
--	.span			= CPU_MASK_NONE,	\
--	.parent			= NULL,			\
--	.child			= NULL,			\
--	.groups			= NULL,			\
- 	.min_interval		= 1,			\
- 	.max_interval		= 2,			\
- 	.busy_factor		= 64,			\
- 	.imbalance_pct		= 110,			\
--	.cache_nice_tries	= 0,			\
--	.busy_idx		= 0,			\
--	.idle_idx		= 0,			\
--	.newidle_idx		= 0,			\
--	.wake_idx		= 0,			\
--	.forkexec_idx		= 0,			\
- 	.flags			= SD_LOAD_BALANCE	\
- 				| SD_BALANCE_NEWIDLE	\
- 				| SD_BALANCE_FORK	\
-@@ -109,7 +101,6 @@
- 				| SD_SHARE_CPUPOWER,	\
- 	.last_balance		= jiffies,		\
- 	.balance_interval	= 1,			\
--	.nr_balance_failed	= 0,			\
++	cpus_clear(domain);
+ 	cpu_set(cpu, domain);
+ 	return domain;
  }
- #endif
- #endif /* CONFIG_SCHED_SMT */
-@@ -118,18 +109,12 @@
- /* Common values for MC siblings. for now mostly derived from SD_CPU_INIT */
- #ifndef SD_MC_INIT
- #define SD_MC_INIT (struct sched_domain) {		\
--	.span			= CPU_MASK_NONE,	\
--	.parent			= NULL,			\
--	.child			= NULL,			\
--	.groups			= NULL,			\
- 	.min_interval		= 1,			\
- 	.max_interval		= 4,			\
- 	.busy_factor		= 64,			\
- 	.imbalance_pct		= 125,			\
- 	.cache_nice_tries	= 1,			\
- 	.busy_idx		= 2,			\
--	.idle_idx		= 0,			\
--	.newidle_idx		= 0,			\
- 	.wake_idx		= 1,			\
- 	.forkexec_idx		= 1,			\
- 	.flags			= SD_LOAD_BALANCE	\
-@@ -142,7 +127,6 @@
- 				| BALANCE_FOR_MC_POWER,	\
- 	.last_balance		= jiffies,		\
- 	.balance_interval	= 1,			\
--	.nr_balance_failed	= 0,			\
- }
- #endif
- #endif /* CONFIG_SCHED_MC */
-@@ -150,10 +134,6 @@
- /* Common values for CPUs */
- #ifndef SD_CPU_INIT
- #define SD_CPU_INIT (struct sched_domain) {		\
--	.span			= CPU_MASK_NONE,	\
--	.parent			= NULL,			\
--	.child			= NULL,			\
--	.groups			= NULL,			\
- 	.min_interval		= 1,			\
- 	.max_interval		= 4,			\
- 	.busy_factor		= 64,			\
-@@ -172,16 +152,11 @@
- 				| BALANCE_FOR_PKG_POWER,\
- 	.last_balance		= jiffies,		\
- 	.balance_interval	= 1,			\
--	.nr_balance_failed	= 0,			\
- }
- #endif
+--- linux-2.6.25-rc5.orig/arch/x86/kernel/io_apic_64.c
++++ linux-2.6.25-rc5/arch/x86/kernel/io_apic_64.c
+@@ -770,7 +770,7 @@ static void __clear_irq_vector(int irq)
+ 		per_cpu(vector_irq, cpu)[vector] = -1;
  
- /* sched_domains SD_ALLNODES_INIT for NUMA machines */
- #define SD_ALLNODES_INIT (struct sched_domain) {	\
--	.span			= CPU_MASK_NONE,	\
--	.parent			= NULL,			\
--	.child			= NULL,			\
--	.groups			= NULL,			\
- 	.min_interval		= 64,			\
- 	.max_interval		= 64*num_online_cpus(),	\
- 	.busy_factor		= 128,			\
-@@ -189,14 +164,10 @@
- 	.cache_nice_tries	= 1,			\
- 	.busy_idx		= 3,			\
- 	.idle_idx		= 3,			\
--	.newidle_idx		= 0, /* unused */	\
--	.wake_idx		= 0, /* unused */	\
--	.forkexec_idx		= 0, /* unused */	\
- 	.flags			= SD_LOAD_BALANCE	\
- 				| SD_SERIALIZE,	\
- 	.last_balance		= jiffies,		\
- 	.balance_interval	= 64,			\
--	.nr_balance_failed	= 0,			\
+ 	cfg->vector = 0;
+-	cfg->domain = CPU_MASK_NONE;
++	cpus_clear(cfg->domain);
  }
  
- #ifdef CONFIG_NUMA
+ void __setup_vector_irq(int cpu)
+--- linux-2.6.25-rc5.orig/include/linux/cpumask.h
++++ linux-2.6.25-rc5/include/linux/cpumask.h
+@@ -251,6 +251,8 @@ int __next_cpu(int n, const cpumask_t *s
+ 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD			\
+ } }
+ 
++#define CPU_MASK_ALL_PTR	(&CPU_MASK_ALL)
++
+ #else
+ 
+ #define CPU_MASK_ALL							\
+@@ -259,6 +261,10 @@ int __next_cpu(int n, const cpumask_t *s
+ 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD			\
+ } }
+ 
++/* cpu_mask_all is in init/main.c */
++extern cpumask_t cpu_mask_all;
++#define CPU_MASK_ALL_PTR	(&cpu_mask_all)
++
+ #endif
+ 
+ #define CPU_MASK_NONE							\
+--- linux-2.6.25-rc5.orig/init/main.c
++++ linux-2.6.25-rc5/init/main.c
+@@ -199,6 +199,11 @@ static const char *panic_later, *panic_p
+ 
+ extern struct obs_kernel_param __setup_start[], __setup_end[];
+ 
++#if NR_CPUS > BITS_PER_LONG
++cpumask_t cpu_mask_all = CPU_MASK_ALL;
++EXPORT_SYMBOL(cpu_mask_all);
++#endif
++
+ static int __init obsolete_checksetup(char *line)
+ {
+ 	struct obs_kernel_param *p;
+@@ -828,7 +833,7 @@ static int __init kernel_init(void * unu
+ 	/*
+ 	 * init can run on any cpu.
+ 	 */
+-	set_cpus_allowed(current, &CPU_MASK_ALL);
++	set_cpus_allowed(current, CPU_MASK_ALL_PTR);
+ 	/*
+ 	 * Tell the world that we're going to be the grim
+ 	 * reaper of innocent orphaned children.
+--- linux-2.6.25-rc5.orig/kernel/cpu.c
++++ linux-2.6.25-rc5/kernel/cpu.c
+@@ -222,7 +222,7 @@ static int __ref _cpu_down(unsigned int 
+ 
+ 	/* Ensure that we are not runnable on dying cpu */
+ 	old_allowed = current->cpus_allowed;
+-	tmp = CPU_MASK_ALL;
++	cpus_setall(tmp);
+ 	cpu_clear(cpu, tmp);
+ 	set_cpus_allowed(current, &tmp);
+ 
+--- linux-2.6.25-rc5.orig/kernel/cpuset.c
++++ linux-2.6.25-rc5/kernel/cpuset.c
+@@ -1567,8 +1567,8 @@ static struct cgroup_subsys_state *cpuse
+ 	if (is_spread_slab(parent))
+ 		set_bit(CS_SPREAD_SLAB, &cs->flags);
+ 	set_bit(CS_SCHED_LOAD_BALANCE, &cs->flags);
+-	cs->cpus_allowed = CPU_MASK_NONE;
+-	cs->mems_allowed = NODE_MASK_NONE;
++	cpus_clear(cs->cpus_allowed);
++	nodes_clear(cs->mems_allowed);
+ 	cs->mems_generation = cpuset_mems_generation++;
+ 	fmeter_init(&cs->fmeter);
+ 
+@@ -1637,8 +1637,8 @@ int __init cpuset_init(void)
+ {
+ 	int err = 0;
+ 
+-	top_cpuset.cpus_allowed = CPU_MASK_ALL;
+-	top_cpuset.mems_allowed = NODE_MASK_ALL;
++	cpus_setall(top_cpuset.cpus_allowed);
++	nodes_setall(top_cpuset.mems_allowed);
+ 
+ 	fmeter_init(&top_cpuset.fmeter);
+ 	top_cpuset.mems_generation = cpuset_mems_generation++;
+@@ -1885,7 +1885,7 @@ void cpuset_cpus_allowed_locked(struct t
+ 
+ void cpuset_init_current_mems_allowed(void)
+ {
+-	current->mems_allowed = NODE_MASK_ALL;
++	nodes_setall(current->mems_allowed);
+ }
+ 
+ /**
+--- linux-2.6.25-rc5.orig/kernel/irq/chip.c
++++ linux-2.6.25-rc5/kernel/irq/chip.c
+@@ -47,7 +47,7 @@ void dynamic_irq_init(unsigned int irq)
+ 	desc->irq_count = 0;
+ 	desc->irqs_unhandled = 0;
+ #ifdef CONFIG_SMP
+-	desc->affinity = CPU_MASK_ALL;
++	cpus_setall(desc->affinity);
+ #endif
+ 	spin_unlock_irqrestore(&desc->lock, flags);
+ }
+--- linux-2.6.25-rc5.orig/kernel/kmod.c
++++ linux-2.6.25-rc5/kernel/kmod.c
+@@ -165,7 +165,7 @@ static int ____call_usermodehelper(void 
+ 	}
+ 
+ 	/* We can run anywhere, unlike our parent keventd(). */
+-	set_cpus_allowed(current, &CPU_MASK_ALL);
++	set_cpus_allowed(current, CPU_MASK_ALL_PTR);
+ 
+ 	/*
+ 	 * Our parent is keventd, which runs with elevated scheduling priority.
+--- linux-2.6.25-rc5.orig/kernel/kthread.c
++++ linux-2.6.25-rc5/kernel/kthread.c
+@@ -106,7 +106,7 @@ static void create_kthread(struct kthrea
+ 		 */
+ 		sched_setscheduler(create->result, SCHED_NORMAL, &param);
+ 		set_user_nice(create->result, KTHREAD_NICE_LEVEL);
+-		set_cpus_allowed(create->result, &CPU_MASK_ALL);
++		set_cpus_allowed(create->result, CPU_MASK_ALL_PTR);
+ 	}
+ 	complete(&create->done);
+ }
+@@ -231,7 +231,7 @@ int kthreadd(void *unused)
+ 	set_task_comm(tsk, "kthreadd");
+ 	ignore_signals(tsk);
+ 	set_user_nice(tsk, KTHREAD_NICE_LEVEL);
+-	set_cpus_allowed(tsk, &CPU_MASK_ALL);
++	set_cpus_allowed(tsk, CPU_MASK_ALL_PTR);
+ 
+ 	current->flags |= PF_NOFREEZE;
+ 
+--- linux-2.6.25-rc5.orig/kernel/rcutorture.c
++++ linux-2.6.25-rc5/kernel/rcutorture.c
+@@ -723,9 +723,10 @@ static int rcu_idle_cpu;	/* Force all to
+  */
+ static void rcu_torture_shuffle_tasks(void)
+ {
+-	cpumask_t tmp_mask = CPU_MASK_ALL;
++	cpumask_t tmp_mask;
+ 	int i;
+ 
++	cpus_setall(tmp_mask);
+ 	get_online_cpus();
+ 
+ 	/* No point in shuffling if there is only one online CPU (ex: UP) */
 --- linux-2.6.25-rc5.orig/kernel/sched.c
 +++ linux-2.6.25-rc5/kernel/sched.c
-@@ -6584,6 +6584,31 @@ static void init_sched_groups_power(int 
- }
- 
- /*
-+ * Initializers for schedule domains
-+ * Non-inlined to reduce accumulated stack pressure in build_sched_domains()
-+ */
-+
-+#define	SD_INIT(sd, type)	sd_init_##type(sd)
-+#define SD_INIT_FUNC(type)	\
-+static noinline void sd_init_##type(struct sched_domain *sd)	\
-+{								\
-+	memset(sd, 0, sizeof(*sd));				\
-+	*sd = SD_##type##_INIT;					\
-+}
-+
-+SD_INIT_FUNC(CPU)
-+#ifdef CONFIG_NUMA
-+ SD_INIT_FUNC(ALLNODES)
-+ SD_INIT_FUNC(NODE)
-+#endif
-+#ifdef CONFIG_SCHED_SMT
-+ SD_INIT_FUNC(SIBLING)
-+#endif
-+#ifdef CONFIG_SCHED_MC
-+ SD_INIT_FUNC(MC)
-+#endif
-+
-+/*
-  * Build sched domains for a given set of cpus and attach the sched domains
-  * to the individual cpus
+@@ -5576,7 +5576,7 @@ static void move_task_off_dead_cpu(int d
   */
-@@ -6626,7 +6651,7 @@ static int build_sched_domains(const cpu
- 		if (cpus_weight(*cpu_map) >
- 				SD_NODES_PER_DOMAIN*cpus_weight(nodemask)) {
- 			sd = &per_cpu(allnodes_domains, i);
--			*sd = SD_ALLNODES_INIT;
-+			SD_INIT(sd, ALLNODES);
- 			sd->span = *cpu_map;
- 			cpu_to_allnodes_group(i, cpu_map, &sd->groups);
- 			p = sd;
-@@ -6635,7 +6660,7 @@ static int build_sched_domains(const cpu
- 			p = NULL;
+ static void migrate_nr_uninterruptible(struct rq *rq_src)
+ {
+-	struct rq *rq_dest = cpu_rq(any_online_cpu(CPU_MASK_ALL));
++	struct rq *rq_dest = cpu_rq(any_online_cpu(*CPU_MASK_ALL_PTR));
+ 	unsigned long flags;
  
- 		sd = &per_cpu(node_domains, i);
--		*sd = SD_NODE_INIT;
-+		SD_INIT(sd, NODE);
- 		sd->span = sched_domain_node_span(cpu_to_node(i));
- 		sd->parent = p;
- 		if (p)
-@@ -6645,7 +6670,7 @@ static int build_sched_domains(const cpu
+ 	local_irq_save(flags);
+@@ -6272,7 +6272,7 @@ init_sched_build_groups(const cpumask_t 
+ 	struct sched_group *first = NULL, *last = NULL;
+ 	int i;
  
- 		p = sd;
- 		sd = &per_cpu(phys_domains, i);
--		*sd = SD_CPU_INIT;
-+		SD_INIT(sd, CPU);
- 		sd->span = nodemask;
- 		sd->parent = p;
- 		if (p)
-@@ -6655,7 +6680,7 @@ static int build_sched_domains(const cpu
- #ifdef CONFIG_SCHED_MC
- 		p = sd;
- 		sd = &per_cpu(core_domains, i);
--		*sd = SD_MC_INIT;
-+		SD_INIT(sd, MC);
- 		sd->span = cpu_coregroup_map(i);
- 		cpus_and(sd->span, sd->span, *cpu_map);
- 		sd->parent = p;
-@@ -6666,7 +6691,7 @@ static int build_sched_domains(const cpu
- #ifdef CONFIG_SCHED_SMT
- 		p = sd;
- 		sd = &per_cpu(cpu_domains, i);
--		*sd = SD_SIBLING_INIT;
-+		SD_INIT(sd, SIBLING);
- 		sd->span = per_cpu(cpu_sibling_map, i);
- 		cpus_and(sd->span, sd->span, *cpu_map);
- 		sd->parent = p;
+-	*covered = CPU_MASK_NONE;
++	cpus_clear(*covered);
+ 
+ 	for_each_cpu_mask(i, *span) {
+ 		struct sched_group *sg;
+@@ -6282,7 +6282,7 @@ init_sched_build_groups(const cpumask_t 
+ 		if (cpu_isset(i, *covered))
+ 			continue;
+ 
+-		sg->cpumask = CPU_MASK_NONE;
++		cpus_clear(sg->cpumask);
+ 		sg->__cpu_power = 0;
+ 
+ 		for_each_cpu_mask(j, *span) {
+@@ -6842,7 +6842,7 @@ static int build_sched_domains(const cpu
+ 		int j;
+ 
+ 		*nodemask = node_to_cpumask(i);
+-		*covered = CPU_MASK_NONE;
++		cpus_clear(*covered);
+ 
+ 		cpus_and(*nodemask, *nodemask, *cpu_map);
+ 		if (cpus_empty(*nodemask)) {
+--- linux-2.6.25-rc5.orig/mm/allocpercpu.c
++++ linux-2.6.25-rc5/mm/allocpercpu.c
+@@ -82,9 +82,10 @@ EXPORT_SYMBOL_GPL(percpu_populate);
+ int __percpu_populate_mask(void *__pdata, size_t size, gfp_t gfp,
+ 			   cpumask_t *mask)
+ {
+-	cpumask_t populated = CPU_MASK_NONE;
++	cpumask_t populated;
+ 	int cpu;
+ 
++	cpus_clear(populated);
+ 	for_each_cpu_mask(cpu, *mask)
+ 		if (unlikely(!percpu_populate(__pdata, size, gfp, cpu))) {
+ 			__percpu_depopulate_mask(__pdata, &populated);
 
 -- 
 
