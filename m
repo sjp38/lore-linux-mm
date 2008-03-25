@@ -1,49 +1,60 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id m2P6cLYE103208
-	for <linux-mm@kvack.org>; Tue, 25 Mar 2008 17:38:22 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2P6VDRK335996
-	for <linux-mm@kvack.org>; Tue, 25 Mar 2008 17:31:13 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2P6VCQc026013
-	for <linux-mm@kvack.org>; Tue, 25 Mar 2008 17:31:13 +1100
-Message-ID: <47E89B80.3000806@linux.vnet.ibm.com>
-Date: Tue, 25 Mar 2008 11:58:16 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Message-Id: <47E89FC4.4090105@mxp.nes.nec.co.jp>
+Date: Tue, 25 Mar 2008 15:46:28 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
-Subject: Re: [PATCH] fix spurious EBUSY on memory cgroup removal
-References: <20080325054713.948EF1E92EC@siro.lan> <20080324225309.0a1ab8ec.akpm@linux-foundation.org> <20080325153020.d9179428.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080325153020.d9179428.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] another swap controller for cgroup
+References: <20080317020407.8512E1E7995@siro.lan> <47DE2894.6010306@mxp.nes.nec.co.jp> <47E79A26.3070401@mxp.nes.nec.co.jp> <47E79CF0.6040308@linux.vnet.ibm.com>
+In-Reply-To: <47E79CF0.6040308@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, containers@lists.osdl.org, linux-mm@kvack.org, minoura@valinux.co.jp
+To: balbir@linux.vnet.ibm.com
+Cc: yamamoto@valinux.co.jp, minoura@valinux.co.jp, Linux MM <linux-mm@kvack.org>, Linux Containers <containers@lists.osdl.org>, Hugh Dickins <hugh@veritas.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Mon, 24 Mar 2008 22:53:09 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
->> On Tue, 25 Mar 2008 14:47:13 +0900 (JST) yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
+Balbir Singh wrote:
+> Daisuke Nishimura wrote:
+>> Daisuke Nishimura wrote:
+>>> Hi, Yamamoto-san.
+>>>
+>>> I'm reviewing and testing your patch now.
+>>>
+>> In building kernel infinitely(in a cgroup of
+>> memory.limit=64M and swap.limit=128M, with swappiness=100),
+>> almost all of the swap (1GB) is consumed as swap cache
+>> after a day or so.
+>> As a result, processes are occasionally OOM-killed even when
+>> the swap.usage of the group doesn't exceed the limit.
 >>
->>> [ resending with To: akpm.  Andrew, can you include this in -mm tree? ]
->> Shouldn't it be in 2.6.25?
+>> I don't know why the swap cache uses up swap space.
+>> I will test whether a similar issue happens without your patch.
+>> Do you have any thoughts?
 >>
-> I think this should be.
+>>
+>> BTW, I think that it would be better, in the sence of
+>> isolating memory resource, if there is a framework
+>> to limit the usage of swap cache.
 > 
-> Thanks,
-> -Kame
+> We had this earlier, but dropped it later due to issues related to swap
+> readahead and assigning the pages to the correct cgroup.
+> 
+Yes, I know.
 
-Me too
+In my swap subsystem posted before, I charge swap entries
+and remember to which cgroup each swap entries is charged
+in an array of pointers. So swap caches is charged as swap
+not memory, and swap usage including swap cache can be accounted.
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+There may be better solution, and one of the issue of
+my implementation is swap_cgroup_chage() returns error
+before reclaiming swap entries which are only used
+by swap caches.
+I'm considering this issue now.
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
