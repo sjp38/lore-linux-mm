@@ -1,233 +1,258 @@
-Message-Id: <20080325220651.683748000@polaris-admin.engr.sgi.com>
+Message-Id: <20080325220652.224182000@polaris-admin.engr.sgi.com>
 References: <20080325220650.835342000@polaris-admin.engr.sgi.com>
-Date: Tue, 25 Mar 2008 15:06:56 -0700
+Date: Tue, 25 Mar 2008 15:07:00 -0700
 From: Mike Travis <travis@sgi.com>
-Subject: [PATCH 06/10] x86: reduce memory and stack usage in intel_cacheinfo
-Content-Disposition: inline; filename=nr_cpus-in-intel_cacheinfo
+Subject: [PATCH 10/10] sched: Remove fixed NR_CPUS sized arrays in kernel_sched.c
+Content-Disposition: inline; filename=nr_cpus-in-kernel_sched
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@suse.de>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* Change the following static arrays sized by NR_CPUS to
-  per_cpu data variables:
+Change fixed size arrays to per_cpu variables or dynamically allocated
+arrays in sched_init() and sched_init_smp().
 
-	_cpuid4_info *cpuid4_info[NR_CPUS];
-	_index_kobject *index_kobject[NR_CPUS];
-	kobject * cache_kobject[NR_CPUS];
+ (1)	static struct sched_entity *init_sched_entity_p[NR_CPUS];
+ (1)	static struct cfs_rq *init_cfs_rq_p[NR_CPUS];
+ (1)	static struct sched_rt_entity *init_sched_rt_entity_p[NR_CPUS];
+ (1)	static struct rt_rq *init_rt_rq_p[NR_CPUS];
+	static struct sched_group **sched_group_nodes_bycpu[NR_CPUS];
+	char str[NR_CPUS];
+	int ints[NR_CPUS], i;
 
-* Remove the local NR_CPUS array with a kmalloc'd region in
-  show_shared_cpu_map().
+(1 - these arrays are allocated via alloc_bootmem_low())
 
-Also some minor complaints from checkpatch.pl fixed.
+Also in sched_create_group() we allocate new arrays based on nr_cpu_ids.
 
 Based on:
 	git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
 	git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
 
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Andi Kleen <ak@suse.de>
-
+Cc: Ingo Molnar <mingo@elte.hu>
 Signed-off-by: Mike Travis <travis@sgi.com>
 ---
- arch/x86/kernel/cpu/intel_cacheinfo.c |   70 +++++++++++++++++++---------------
- 1 file changed, 40 insertions(+), 30 deletions(-)
+ kernel/sched.c |   92 +++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 63 insertions(+), 29 deletions(-)
 
---- linux.trees.git.orig/arch/x86/kernel/cpu/intel_cacheinfo.c
-+++ linux.trees.git/arch/x86/kernel/cpu/intel_cacheinfo.c
-@@ -129,7 +129,7 @@ struct _cpuid4_info {
- 	union _cpuid4_leaf_ebx ebx;
- 	union _cpuid4_leaf_ecx ecx;
- 	unsigned long size;
--	cpumask_t shared_cpu_map;
-+	cpumask_t shared_cpu_map;	/* future?: only cpus/node is needed */
- };
+--- linux.trees.git.orig/kernel/sched.c
++++ linux.trees.git/kernel/sched.c
+@@ -66,6 +66,7 @@
+ #include <linux/unistd.h>
+ #include <linux/pagemap.h>
+ #include <linux/hrtimer.h>
++#include <linux/bootmem.h>
  
- unsigned short			num_cache_leaves;
-@@ -451,8 +451,8 @@ unsigned int __cpuinit init_intel_cachei
- }
+ #include <asm/tlb.h>
+ #include <asm/irq_regs.h>
+@@ -193,17 +194,11 @@ struct task_group {
+ static DEFINE_PER_CPU(struct sched_entity, init_sched_entity);
+ /* Default task group's cfs_rq on each cpu */
+ static DEFINE_PER_CPU(struct cfs_rq, init_cfs_rq) ____cacheline_aligned_in_smp;
+-
+-static struct sched_entity *init_sched_entity_p[NR_CPUS];
+-static struct cfs_rq *init_cfs_rq_p[NR_CPUS];
+ #endif
  
- /* pointer to _cpuid4_info array (for each cache leaf) */
--static struct _cpuid4_info *cpuid4_info[NR_CPUS];
--#define CPUID4_INFO_IDX(x,y)    (&((cpuid4_info[x])[y]))
-+static DEFINE_PER_CPU(struct _cpuid4_info *, cpuid4_info);
-+#define CPUID4_INFO_IDX(x, y)    (&((per_cpu(cpuid4_info, x))[y]))
+ #ifdef CONFIG_RT_GROUP_SCHED
+ static DEFINE_PER_CPU(struct sched_rt_entity, init_sched_rt_entity);
+ static DEFINE_PER_CPU(struct rt_rq, init_rt_rq) ____cacheline_aligned_in_smp;
+-
+-static struct sched_rt_entity *init_sched_rt_entity_p[NR_CPUS];
+-static struct rt_rq *init_rt_rq_p[NR_CPUS];
+ #endif
  
- #ifdef CONFIG_SMP
- static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
-@@ -474,7 +474,7 @@ static void __cpuinit cache_shared_cpu_m
- 			if (cpu_data(i).apicid >> index_msb ==
- 			    c->apicid >> index_msb) {
- 				cpu_set(i, this_leaf->shared_cpu_map);
--				if (i != cpu && cpuid4_info[i])  {
-+				if (i != cpu && per_cpu(cpuid4_info, i))  {
- 					sibling_leaf = CPUID4_INFO_IDX(i, index);
- 					cpu_set(cpu, sibling_leaf->shared_cpu_map);
- 				}
-@@ -505,8 +505,8 @@ static void __cpuinit free_cache_attribu
- 	for (i = 0; i < num_cache_leaves; i++)
- 		cache_remove_shared_cpu_map(cpu, i);
+ /* task_group_lock serializes add/remove of task groups and also changes to
+@@ -227,17 +222,7 @@ static int init_task_group_load = INIT_T
+ /* Default task group.
+  *	Every task in system belong to this group at bootup.
+  */
+-struct task_group init_task_group = {
+-#ifdef CONFIG_FAIR_GROUP_SCHED
+-	.se	= init_sched_entity_p,
+-	.cfs_rq = init_cfs_rq_p,
+-#endif
+-
+-#ifdef CONFIG_RT_GROUP_SCHED
+-	.rt_se	= init_sched_rt_entity_p,
+-	.rt_rq	= init_rt_rq_p,
+-#endif
+-};
++struct task_group init_task_group;
  
--	kfree(cpuid4_info[cpu]);
--	cpuid4_info[cpu] = NULL;
-+	kfree(per_cpu(cpuid4_info, cpu));
-+	per_cpu(cpuid4_info, cpu) = NULL;
- }
+ /* return group to which a task belongs */
+ static inline struct task_group *task_group(struct task_struct *p)
+@@ -3518,7 +3503,7 @@ static inline void trigger_load_balance(
+ 			 */
+ 			int ilb = first_cpu(nohz.cpu_mask);
  
- static int __cpuinit detect_cache_attributes(unsigned int cpu)
-@@ -519,9 +519,9 @@ static int __cpuinit detect_cache_attrib
- 	if (num_cache_leaves == 0)
- 		return -ENOENT;
+-			if (ilb != NR_CPUS)
++			if (ilb < nr_cpu_ids)
+ 				resched_cpu(ilb);
+ 		}
+ 	}
+@@ -5470,11 +5455,11 @@ static void move_task_off_dead_cpu(int d
+ 		dest_cpu = any_online_cpu(mask);
  
--	cpuid4_info[cpu] = kzalloc(
-+	per_cpu(cpuid4_info, cpu) = kzalloc(
- 	    sizeof(struct _cpuid4_info) * num_cache_leaves, GFP_KERNEL);
--	if (cpuid4_info[cpu] == NULL)
-+	if (per_cpu(cpuid4_info, cpu) == NULL)
- 		return -ENOMEM;
+ 		/* On any allowed CPU? */
+-		if (dest_cpu == NR_CPUS)
++		if (dest_cpu >= nr_cpu_ids)
+ 			dest_cpu = any_online_cpu(p->cpus_allowed);
  
- 	oldmask = current->cpus_allowed;
-@@ -546,8 +546,8 @@ static int __cpuinit detect_cache_attrib
+ 		/* No more Mr. Nice Guy. */
+-		if (dest_cpu == NR_CPUS) {
++		if (dest_cpu >= nr_cpu_ids) {
+ 			cpumask_t cpus_allowed = cpuset_cpus_allowed_locked(p);
+ 			/*
+ 			 * Try to stay on the same cpuset, where the
+@@ -5929,9 +5914,16 @@ static int sched_domain_debug_one(struct
+ {
+ 	struct sched_group *group = sd->groups;
+ 	cpumask_t groupmask;
+-	char str[NR_CPUS];
++	int len = cpumask_scnprintf_len(nr_cpu_ids);
++	char *str = kmalloc(len, GFP_KERNEL);
++	int ret = 0;
++
++	if (!str) {
++		printk(KERN_DEBUG "Cannot load-balance (no memory)\n");
++		return -1;
++	}
  
- out:
- 	if (retval) {
--		kfree(cpuid4_info[cpu]);
--		cpuid4_info[cpu] = NULL;
-+		kfree(per_cpu(cpuid4_info, cpu));
-+		per_cpu(cpuid4_info, cpu) = NULL;
+-	cpumask_scnprintf(str, NR_CPUS, sd->span);
++	cpumask_scnprintf(str, len, sd->span);
+ 	cpus_clear(groupmask);
+ 
+ 	printk(KERN_DEBUG "%*s domain %d: ", level, "", level);
+@@ -5941,6 +5933,7 @@ static int sched_domain_debug_one(struct
+ 		if (sd->parent)
+ 			printk(KERN_ERR "ERROR: !SD_LOAD_BALANCE domain"
+ 					" has parent");
++		kfree(str);
+ 		return -1;
  	}
  
- 	return retval;
-@@ -561,7 +561,7 @@ out:
- extern struct sysdev_class cpu_sysdev_class; /* from drivers/base/cpu.c */
+@@ -5984,7 +5977,7 @@ static int sched_domain_debug_one(struct
  
- /* pointer to kobject for cpuX/cache */
--static struct kobject * cache_kobject[NR_CPUS];
-+static DEFINE_PER_CPU(struct kobject *, cache_kobject);
+ 		cpus_or(groupmask, groupmask, group->cpumask);
  
- struct _index_kobject {
- 	struct kobject kobj;
-@@ -570,8 +570,8 @@ struct _index_kobject {
- };
+-		cpumask_scnprintf(str, NR_CPUS, group->cpumask);
++		cpumask_scnprintf(str, len, group->cpumask);
+ 		printk(KERN_CONT " %s", str);
  
- /* pointer to array of kobjects for cpuX/cache/indexY */
--static struct _index_kobject *index_kobject[NR_CPUS];
--#define INDEX_KOBJECT_PTR(x,y)    (&((index_kobject[x])[y]))
-+static DEFINE_PER_CPU(struct _index_kobject *, index_kobject);
-+#define INDEX_KOBJECT_PTR(x, y)    (&((per_cpu(index_kobject, x))[y]))
- 
- #define show_one_plus(file_name, object, val)				\
- static ssize_t show_##file_name						\
-@@ -593,9 +593,16 @@ static ssize_t show_size(struct _cpuid4_
- 
- static ssize_t show_shared_cpu_map(struct _cpuid4_info *this_leaf, char *buf)
- {
--	char mask_str[NR_CPUS];
--	cpumask_scnprintf(mask_str, NR_CPUS, this_leaf->shared_cpu_map);
--	return sprintf(buf, "%s\n", mask_str);
-+	int n = 0;
-+	int len = cpumask_scnprintf_len(nr_cpu_ids);
-+	char *mask_str = kmalloc(len, GFP_KERNEL);
+ 		group = group->next;
+@@ -5997,6 +5990,8 @@ static int sched_domain_debug_one(struct
+ 	if (sd->parent && !cpus_subset(groupmask, sd->parent->span))
+ 		printk(KERN_ERR "ERROR: parent span is not a superset "
+ 			"of domain->span\n");
 +
-+	if (mask_str) {
-+		cpumask_scnprintf(mask_str, len, this_leaf->shared_cpu_map);
-+		n = sprintf(buf, "%s\n", mask_str);
-+		kfree(mask_str);
-+	}
-+	return n;
- }
- 
- static ssize_t show_type(struct _cpuid4_info *this_leaf, char *buf) {
-@@ -684,10 +691,10 @@ static struct kobj_type ktype_percpu_ent
- 
- static void __cpuinit cpuid4_cache_sysfs_exit(unsigned int cpu)
- {
--	kfree(cache_kobject[cpu]);
--	kfree(index_kobject[cpu]);
--	cache_kobject[cpu] = NULL;
--	index_kobject[cpu] = NULL;
-+	kfree(per_cpu(cache_kobject, cpu));
-+	kfree(per_cpu(index_kobject, cpu));
-+	per_cpu(cache_kobject, cpu) = NULL;
-+	per_cpu(index_kobject, cpu) = NULL;
- 	free_cache_attributes(cpu);
- }
- 
-@@ -703,13 +710,14 @@ static int __cpuinit cpuid4_cache_sysfs_
- 		return err;
- 
- 	/* Allocate all required memory */
--	cache_kobject[cpu] = kzalloc(sizeof(struct kobject), GFP_KERNEL);
--	if (unlikely(cache_kobject[cpu] == NULL))
-+	per_cpu(cache_kobject, cpu) =
-+		kzalloc(sizeof(struct kobject), GFP_KERNEL);
-+	if (unlikely(per_cpu(cache_kobject, cpu) == NULL))
- 		goto err_out;
- 
--	index_kobject[cpu] = kzalloc(
-+	per_cpu(index_kobject, cpu) = kzalloc(
- 	    sizeof(struct _index_kobject ) * num_cache_leaves, GFP_KERNEL);
--	if (unlikely(index_kobject[cpu] == NULL))
-+	if (unlikely(per_cpu(index_kobject, cpu) == NULL))
- 		goto err_out;
- 
++	kfree(str);
  	return 0;
-@@ -733,7 +741,8 @@ static int __cpuinit cache_add_dev(struc
- 	if (unlikely(retval < 0))
- 		return retval;
- 
--	retval = kobject_init_and_add(cache_kobject[cpu], &ktype_percpu_entry,
-+	retval = kobject_init_and_add(per_cpu(cache_kobject, cpu),
-+				      &ktype_percpu_entry,
- 				      &sys_dev->kobj, "%s", "cache");
- 	if (retval < 0) {
- 		cpuid4_cache_sysfs_exit(cpu);
-@@ -745,13 +754,14 @@ static int __cpuinit cache_add_dev(struc
- 		this_object->cpu = cpu;
- 		this_object->index = i;
- 		retval = kobject_init_and_add(&(this_object->kobj),
--					      &ktype_cache, cache_kobject[cpu],
-+					      &ktype_cache,
-+					      per_cpu(cache_kobject, cpu),
- 					      "index%1lu", i);
- 		if (unlikely(retval)) {
- 			for (j = 0; j < i; j++) {
- 				kobject_put(&(INDEX_KOBJECT_PTR(cpu,j)->kobj));
- 			}
--			kobject_put(cache_kobject[cpu]);
-+			kobject_put(per_cpu(cache_kobject, cpu));
- 			cpuid4_cache_sysfs_exit(cpu);
- 			break;
- 		}
-@@ -760,7 +770,7 @@ static int __cpuinit cache_add_dev(struc
- 	if (!retval)
- 		cpu_set(cpu, cache_dev_map);
- 
--	kobject_uevent(cache_kobject[cpu], KOBJ_ADD);
-+	kobject_uevent(per_cpu(cache_kobject, cpu), KOBJ_ADD);
- 	return retval;
  }
  
-@@ -769,7 +779,7 @@ static void __cpuinit cache_remove_dev(s
- 	unsigned int cpu = sys_dev->id;
- 	unsigned long i;
+@@ -6198,7 +6193,7 @@ __setup("isolcpus=", isolated_cpu_setup)
+ /*
+  * init_sched_build_groups takes the cpumask we wish to span, and a pointer
+  * to a function which identifies what group(along with sched group) a CPU
+- * belongs to. The return value of group_fn must be a >= 0 and < NR_CPUS
++ * belongs to. The return value of group_fn must be a >= 0 and < nr_cpu_ids
+  * (due to the fact that we keep track of groups covered with a cpumask_t).
+  *
+  * init_sched_build_groups will build a circular linked list of the groups
+@@ -6396,7 +6391,7 @@ cpu_to_phys_group(int cpu, const cpumask
+  * gets dynamically allocated.
+  */
+ static DEFINE_PER_CPU(struct sched_domain, node_domains);
+-static struct sched_group **sched_group_nodes_bycpu[NR_CPUS];
++static struct sched_group ***sched_group_nodes_bycpu;
  
--	if (cpuid4_info[cpu] == NULL)
-+	if (per_cpu(cpuid4_info, cpu) == NULL)
- 		return;
- 	if (!cpu_isset(cpu, cache_dev_map))
- 		return;
-@@ -777,7 +787,7 @@ static void __cpuinit cache_remove_dev(s
+ static DEFINE_PER_CPU(struct sched_domain, allnodes_domains);
+ static DEFINE_PER_CPU(struct sched_group, sched_group_allnodes);
+@@ -7039,6 +7034,11 @@ void __init sched_init_smp(void)
+ {
+ 	cpumask_t non_isolated_cpus;
  
- 	for (i = 0; i < num_cache_leaves; i++)
- 		kobject_put(&(INDEX_KOBJECT_PTR(cpu,i)->kobj));
--	kobject_put(cache_kobject[cpu]);
-+	kobject_put(per_cpu(cache_kobject, cpu));
- 	cpuid4_cache_sysfs_exit(cpu);
++#if defined(CONFIG_NUMA)
++	sched_group_nodes_bycpu = kzalloc(nr_cpu_ids * sizeof(void **),
++								GFP_KERNEL);
++	BUG_ON(sched_group_nodes_bycpu == NULL);
++#endif
+ 	get_online_cpus();
+ 	arch_init_sched_domains(&cpu_online_map);
+ 	cpus_andnot(non_isolated_cpus, cpu_possible_map, cpu_isolated_map);
+@@ -7056,6 +7056,11 @@ void __init sched_init_smp(void)
+ #else
+ void __init sched_init_smp(void)
+ {
++#if defined(CONFIG_NUMA)
++	sched_group_nodes_bycpu = kzalloc(nr_cpu_ids * sizeof(void **),
++								GFP_KERNEL);
++	BUG_ON(sched_group_nodes_bycpu == NULL);
++#endif
+ 	sched_init_granularity();
  }
+ #endif /* CONFIG_SMP */
+@@ -7149,6 +7154,35 @@ static void init_tg_rt_entry(struct rq *
+ void __init sched_init(void)
+ {
+ 	int i, j;
++	unsigned long alloc_size = 0, ptr;
++
++#ifdef CONFIG_FAIR_GROUP_SCHED
++	alloc_size += 2 * nr_cpu_ids * sizeof(void **);
++#endif
++#ifdef CONFIG_RT_GROUP_SCHED
++	alloc_size += 2 * nr_cpu_ids * sizeof(void **);
++#endif
++	/*
++	 * As sched_init() is called before page_alloc is setup,
++	 * we use alloc_bootmem().
++	 */
++	if (alloc_size) {
++		ptr = (unsigned long)alloc_bootmem_low(alloc_size);
++
++#ifdef CONFIG_FAIR_GROUP_SCHED
++		init_task_group.se = (struct sched_entity **)ptr;
++		ptr += nr_cpu_ids * sizeof(void **);
++
++		init_task_group.cfs_rq = (struct cfs_rq **)ptr;
++		ptr += nr_cpu_ids * sizeof(void **);
++#endif
++#ifdef CONFIG_RT_GROUP_SCHED
++		init_task_group.rt_se = (struct sched_rt_entity **)ptr;
++		ptr += nr_cpu_ids * sizeof(void **);
++
++		init_task_group.rt_rq = (struct rt_rq **)ptr;
++#endif
++	}
+ 
+ #ifdef CONFIG_SMP
+ 	init_defrootdomain();
+@@ -7394,10 +7428,10 @@ static int alloc_fair_sched_group(struct
+ 	struct rq *rq;
+ 	int i;
+ 
+-	tg->cfs_rq = kzalloc(sizeof(cfs_rq) * NR_CPUS, GFP_KERNEL);
++	tg->cfs_rq = kzalloc(sizeof(cfs_rq) * nr_cpu_ids, GFP_KERNEL);
+ 	if (!tg->cfs_rq)
+ 		goto err;
+-	tg->se = kzalloc(sizeof(se) * NR_CPUS, GFP_KERNEL);
++	tg->se = kzalloc(sizeof(se) * nr_cpu_ids, GFP_KERNEL);
+ 	if (!tg->se)
+ 		goto err;
+ 
+@@ -7477,10 +7511,10 @@ static int alloc_rt_sched_group(struct t
+ 	struct rq *rq;
+ 	int i;
+ 
+-	tg->rt_rq = kzalloc(sizeof(rt_rq) * NR_CPUS, GFP_KERNEL);
++	tg->rt_rq = kzalloc(sizeof(rt_rq) * nr_cpu_ids, GFP_KERNEL);
+ 	if (!tg->rt_rq)
+ 		goto err;
+-	tg->rt_se = kzalloc(sizeof(rt_se) * NR_CPUS, GFP_KERNEL);
++	tg->rt_se = kzalloc(sizeof(rt_se) * nr_cpu_ids, GFP_KERNEL);
+ 	if (!tg->rt_se)
+ 		goto err;
  
 
 -- 
