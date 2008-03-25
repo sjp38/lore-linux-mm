@@ -1,171 +1,168 @@
-Date: Tue, 25 Mar 2008 12:56:57 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [RFC 8/8] x86_64: Support for new UV apic
-Message-ID: <20080325175657.GA6262@sgi.com>
-References: <20080324182122.GA28327@sgi.com> <87abknhzhd.fsf@basil.nowhere.org>
+Date: Tue, 25 Mar 2008 10:57:50 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bugme-new] [Bug 10318] New: WARNING: at
+ arch/x86/mm/highmem_32.c:43 kmap_atomic_prot+0x87/0x184()
+Message-Id: <20080325105750.ff913a83.akpm@linux-foundation.org>
+In-Reply-To: <bug-10318-10286@http.bugzilla.kernel.org/>
+References: <bug-10318-10286@http.bugzilla.kernel.org/>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87abknhzhd.fsf@basil.nowhere.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: netdev@vger.kernel.org
+Cc: bugme-daemon@bugzilla.kernel.org, pstaszewski@artcom.pl, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 25, 2008 at 11:25:34AM +0100, Andi Kleen wrote:
-> Jack Steiner <steiner@sgi.com> writes:
-> 
-> >  unsigned int get_apic_id(void)
-> >  {
-> > -	return (apic_read(APIC_ID) >> 24) & 0xFFu;
-> > +	unsigned int id;
-> > +
-> > +	preempt_disable();
-> > +	id = apic_read(APIC_ID);
-> > +	if (uv_system_type >= UV_X2APIC)
-> > +		id  |= __get_cpu_var(x2apic_extra_bits);
-> > +	else
-> > +		id = (id >> 24) & 0xFFu;;
-> > +	preempt_enable();
-> > +	return id;
-> 
-> Really caller should have done preempt_disable(), otherwise
-> the value can be wrong as soon as you return.
-> 
-> Better probably to just WARN_ON if preemption is on
+On Tue, 25 Mar 2008 02:50:54 -0700 (PDT) bugme-daemon@bugzilla.kernel.org wrote:
 
-Will do (assuming it doesn't ripple thru too much code eliminating
-warnings - doesn't look bad at first glance).
-
-
+> http://bugzilla.kernel.org/show_bug.cgi?id=10318
 > 
-> (just be careful it does not trigger in oopses and machine checks)
-> 
-> > +
-> > +DEFINE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
-> > +EXPORT_PER_CPU_SYMBOL(__uv_hub_info);
-> 
-> GPL export too?
-
-Yes.
-
-
-> 
-> > +
-> > +struct uv_blade_info *uv_blade_info;
-> > +EXPORT_SYMBOL_GPL(uv_blade_info);
-> > +
-> > +short *uv_node_to_blade;
-> > +EXPORT_SYMBOL_GPL(uv_node_to_blade);
-> > +
-> > +short *uv_cpu_to_blade;
-> > +EXPORT_SYMBOL_GPL(uv_cpu_to_blade);
-> > +
-> > +short uv_possible_blades;
-> > +EXPORT_SYMBOL_GPL(uv_possible_blades);
-> > +
-> > +/* Start with all IRQs pointing to boot CPU.  IRQ balancing will shift them. */
-> > +/* Probably incorrect for UV  ZZZ */
-> 
-> Actually it should be correct. Except for UV you likely really need a
-> NUMA aware irqbalanced. I used to have some old very hackish patches
-> to implement that in irqbalanced, but never pushed it because the
-> systems I was working on didn't really need it.
-
-Deleted comment.
-
+>            Summary: WARNING: at arch/x86/mm/highmem_32.c:43
+>                     kmap_atomic_prot+0x87/0x184()
+>            Product: Networking
+>            Version: 2.5
+>      KernelVersion: 2.6.25-rc6-git7
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: IPV4
+>         AssignedTo: shemminger@linux-foundation.org
+>         ReportedBy: pstaszewski@artcom.pl
 > 
 > 
-> > +
-> > +static void uv_send_IPI_one(int cpu, int vector)
-> > +{
-> > +	unsigned long val, apicid;
-> > +	int nasid;
-> > +
-> > +	apicid = per_cpu(x86_cpu_to_apicid, cpu); /* ZZZ - cache node-local ? */
-> 
-> Instead of doing that it might be better to implement __read_mostly per CPU variables
-> (should not be very hard) 
+> Latest working kernel version: 2.6.24
 
-Added to list of loose-ends that need addressing.
+This is a post-2.6.24 regression.
 
+> Software Environment: bgp/quagga
 
-> 
-> > +static void uv_send_IPI_mask(cpumask_t mask, int vector)
-> > +{
-> > +	unsigned long flags;
-> > +	unsigned int cpu;
-> > +
-> > +	local_irq_save(flags);
-> > +	for (cpu = 0; cpu < NR_CPUS; ++cpu)
-> > +		if (cpu_isset(cpu, mask))
-> > +			uv_send_IPI_one(cpu, vector);
-> > +	local_irq_restore(flags);
-> 
-> This could disable interrupts for a long time could't it?  Really needed?
+The app does a lot of route management stuff.
 
-No, not sure why I did that. Deleted the irq disable...
+> Problem Description:
+> Pid: 0, comm: swapper Not tainted 2.6.25-rc6-git7 #1
+>  [<c021a0bf>] warn_on_slowpath+0x40/0x4f
+>  [<c043c372>] fn_trie_lookup+0xe3/0x288
+>  [<c043d61a>] fib4_rule_action+0x3d/0x4d
+>  [<c03f6417>] fib_rules_lookup+0x71/0xb6
+>  [<c043d652>] fib_lookup+0x28/0x36
+>  [<c023f126>] __rmqueue_smallest+0x83/0xe1
+>  [<c023f197>] __rmqueue+0x13/0x172
+>  [<c0211806>] kmap_atomic_prot+0x87/0x184
+>  [<c023fe7c>] get_page_from_freelist+0x2c5/0x358
+>  [<c023ff92>] __alloc_pages+0x71/0x2cf
+>  [<c0240229>] __get_free_pages+0x39/0x47
+>  [<c03f10d0>] neigh_create+0x2d8/0x40e
+>  [<c045b85b>] _read_unlock_bh+0x5/0xd
+>  [<c03f0539>] neigh_lookup+0x92/0x9b
+>  [<c03f1241>] neigh_event_ns+0x3b/0x70
+>  [<c0432523>] arp_process+0x1e5/0x534
+>  [<c03edd5a>] dev_queue_xmit+0x279/0x29f
+>  [<c0419415>] ip_finish_output+0x1c6/0x1fc
+>  [<c03f81d5>] tc_classify+0x14/0x6b
+>  [<c03eb578>] netif_receive_skb+0x29f/0x30e
+>  [<c0357e63>] e1000_receive_skb+0x132/0x14c
+>  [<c0359ecf>] e1000_clean_rx_irq+0x1fa/0x29c
+>  [<c0356f82>] e1000_clean+0x29f/0x427
+>  [<c03ed3ee>] net_rx_action+0x5c/0x14a
+>  [<c021e25e>] __do_softirq+0x5d/0xc1
+>  [<c021e2f4>] do_softirq+0x32/0x36
+>  [<c021e585>] irq_exit+0x35/0x67
+>  [<c0204f79>] do_IRQ+0x73/0x82
+>  [<c020343b>] common_interrupt+0x23/0x28
+>  [<c0201377>] mwait_idle_with_hints+0x36/0x39
+>  [<c020137a>] mwait_idle+0x0/0xa
+>  [<c0201817>] cpu_idle+0xa8/0xc8
+>  =======================
+> ---[ end trace 6a93a9703f6a626e ]---
+> ------------[ cut here ]------------
 
+This backtrace is a mess.
 
-> 
-> 
-> > +	bytes = sizeof(struct uv_blade_info) * uv_num_possible_blades();
-> > +	uv_blade_info = alloc_bootmem_pages(bytes);
-> > +	memset(uv_blade_info, 255, bytes);
-> 
-> 255?  Strange poison value.
+> WARNING: at arch/x86/mm/highmem_32.c:43 kmap_atomic_prot+0x87/0x184()
+> Modules linked in:
+> Pid: 0, comm: swapper Not tainted 2.6.25-rc6-git7 #1
+>  [<c021a0bf>] warn_on_slowpath+0x40/0x4f
+>  [<c043c372>] fn_trie_lookup+0xe3/0x288
+>  [<c043d61a>] fib4_rule_action+0x3d/0x4d
+>  [<c03f6417>] fib_rules_lookup+0x71/0xb6
+>  [<c043d652>] fib_lookup+0x28/0x36
+>  [<c023f126>] __rmqueue_smallest+0x83/0xe1
+>  [<c023f197>] __rmqueue+0x13/0x172
+>  [<c0211806>] kmap_atomic_prot+0x87/0x184
+>  [<c023fe7c>] get_page_from_freelist+0x2c5/0x358
+>  [<c023ff92>] __alloc_pages+0x71/0x2cf
+>  [<c0240229>] __get_free_pages+0x39/0x47
+>  [<c03f10d0>] neigh_create+0x2d8/0x40e
+>  [<c045b85b>] _read_unlock_bh+0x5/0xd
+>  [<c03f0539>] neigh_lookup+0x92/0x9b
+>  [<c03f1241>] neigh_event_ns+0x3b/0x70
+>  [<c0432523>] arp_process+0x1e5/0x534
+>  [<c03edd5a>] dev_queue_xmit+0x279/0x29f
+>  [<c0419415>] ip_finish_output+0x1c6/0x1fc
+>  [<c03f81d5>] tc_classify+0x14/0x6b
+>  [<c03eb578>] netif_receive_skb+0x29f/0x30e
+>  [<c0357e63>] e1000_receive_skb+0x132/0x14c
+>  [<c0359ecf>] e1000_clean_rx_irq+0x1fa/0x29c
+>  [<c0356f82>] e1000_clean+0x29f/0x427
+>  [<c03ed3ee>] net_rx_action+0x5c/0x14a
+>  [<c021e25e>] __do_softirq+0x5d/0xc1
+>  [<c021e2f4>] do_softirq+0x32/0x36
+>  [<c021e585>] irq_exit+0x35/0x67
+>  [<c0204f79>] do_IRQ+0x73/0x82
+>  [<c020343b>] common_interrupt+0x23/0x28
+>  [<c0201377>] mwait_idle_with_hints+0x36/0x39
+>  [<c020137a>] mwait_idle+0x0/0xa
+>  [<c0201817>] cpu_idle+0xa8/0xc8
+>  =======================
 
-Deleted the memset. Should not be depending on poison values. Was useful
-in debugging but it has outlived it's usefulness.
+They all are.
 
+afacit what's happened is that someone is running __alloc_pages(...,
+__GFP_ZERO) from softirq context.  But the __GFP_ZERO implementation uses
+KM_USER0 which cannot be used from softirq context because non-interrupt
+code on this CPU might be using the same kmap slot.
 
-> 
-> > ===================================================================
-> > --- linux.orig/arch/x86/kernel/Makefile	2008-03-21 15:36:35.000000000 -0500
-> > +++ linux/arch/x86/kernel/Makefile	2008-03-21 15:49:38.000000000 -0500
-> > @@ -90,7 +90,7 @@ scx200-y			+= scx200_32.o
-> >  ###
-> >  # 64 bit specific files
-> >  ifeq ($(CONFIG_X86_64),y)
-> > -        obj-y				+= genapic_64.o genapic_flat_64.o
-> > +        obj-y				+= genapic_64.o genapic_flat_64.o genx2apic_uv_x.o
-> 
-> Definitely should be a CONFIG
+Can anyone thing of anything which recently changed in either networking
+core or e1000e which would have triggered this?
 
-Not sure that I understand why. The overhead of UV is minimal & we want UV
-enabled in all distro kernels. OTOH, small embedded systems probably want to
-eliminate every last bit of unneeded code.
+I think the core MM code is being doubly dumb here.
 
-Might make sense to have a config option. Thoughts????
+a) We should be able to use __GFP_ZERO from all copntexts.
 
+b) it's not a highmem page anyway, so we won't be using that kmap slot.
 
-> 
-> > @@ -418,6 +419,9 @@ static int __cpuinit wakeup_secondary_vi
-> >  	unsigned long send_status, accept_status = 0;
-> >  	int maxlvt, num_starts, j;
-> >  
-> > +	if (get_uv_system_type() == UV_NON_UNIQUE_APIC)
-> > +		return uv_wakeup_secondary(phys_apicid, start_rip);
-> > +
-> 
-> This should be probably factored properly (didn't Jeremy have smp_ops 
-> for this some time ago) so that even the default case is a call.
+Pawel, can you please confirm that this:
 
-By factored, do you means something like:
-	is_uv_legacy_system()
-	is_us_non_unique_apicid_system()
-	...
+--- a/arch/x86/mm/highmem_32.c~a
++++ a/arch/x86/mm/highmem_32.c
+@@ -73,15 +73,15 @@ void *kmap_atomic_prot(struct page *page
+ {
+ 	enum fixed_addresses idx;
+ 	unsigned long vaddr;
+-	/* even !CONFIG_PREEMPT needs this, for in_atomic in do_page_fault */
+-
+-	debug_kmap_atomic_prot(type);
+ 
++	/* even !CONFIG_PREEMPT needs this, for in_atomic in do_page_fault */
+ 	pagefault_disable();
+ 
+ 	if (!PageHighMem(page))
+ 		return page_address(page);
+ 
++	debug_kmap_atomic_prot(type);
++
+ 	idx = type + KM_TYPE_NR*smp_processor_id();
+ 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
+ 	BUG_ON(!pte_none(*(kmap_pte-idx)));
+_
 
-Or maybe:
-	is_uv_system_type(x)   # where x is UV_NON_UNIQUE_APIC, etc
+fixes it?
 
-
-> -Andi
-
-Thanks for the careful review.
-
---- jack
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
