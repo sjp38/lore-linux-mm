@@ -1,137 +1,74 @@
-Subject: Re: [RFC 8/8] x86_64: Support for new UV apic
-References: <20080324182122.GA28327@sgi.com>
-From: Andi Kleen <andi@firstfloor.org>
-Date: 25 Mar 2008 11:25:34 +0100
-In-Reply-To: <20080324182122.GA28327@sgi.com>
-Message-ID: <87abknhzhd.fsf@basil.nowhere.org>
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id m2PBiarO016707
+	for <linux-mm@kvack.org>; Tue, 25 Mar 2008 17:14:36 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2PBiaLm1347624
+	for <linux-mm@kvack.org>; Tue, 25 Mar 2008 17:14:36 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.13.1/8.13.3) with ESMTP id m2PBiZ9c014195
+	for <linux-mm@kvack.org>; Tue, 25 Mar 2008 11:44:36 GMT
+Message-ID: <47E8E4F3.6090604@linux.vnet.ibm.com>
+Date: Tue, 25 Mar 2008 17:11:39 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [RFC][-mm] Memory controller add mm->owner
+References: <20080324140142.28786.97267.sendpatchset@localhost.localdomain> <6599ad830803240803s5160101bi2bf68b36085f777f@mail.gmail.com> <47E7D51E.4050304@linux.vnet.ibm.com> <6599ad830803240934g2a70d904m1ca5548f8644c906@mail.gmail.com> <47E7E5D0.9020904@linux.vnet.ibm.com> <6599ad830803241046l61e2965t52fd28e165d5df7a@mail.gmail.com>
+In-Reply-To: <6599ad830803241046l61e2965t52fd28e165d5df7a@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Paul Menage <menage@google.com>
+Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Jack Steiner <steiner@sgi.com> writes:
+Paul Menage wrote:
+> On Mon, Mar 24, 2008 at 10:33 AM, Balbir Singh
+> <balbir@linux.vnet.ibm.com> wrote:
+>>  > OK, so we don't need to handle this for NPTL apps - but for anything
+>>  > still using LinuxThreads or manually constructed clone() calls that
+>>  > use CLONE_VM without CLONE_PID, this could still be an issue.
+>>
+>>  CLONE_PID?? Do you mean CLONE_THREAD?
+> 
+> Yes, sorry - CLONE_THREAD.
+> 
+>>  For the case you mentioned, mm->owner is a moving target and we don't want to
+>>  spend time finding the successor, that can be expensive when threads start
+>>  exiting one-by-one quickly and when the number of threads are high. I wonder if
+>>  there is an efficient way to find mm->owner in that case.
+>>
+> 
+> But:
+> 
+> - running a high-threadcount LinuxThreads process is by definition
+> inefficient and expensive (hence the move to NPTL)
+> 
+> - any potential performance hit is only paid at exit time
+> 
+> - in the normal case, any of your children or one of your siblings
+> will be a suitable alternate owner
+> 
+> - in the worst case, it's not going to be worse than doing a
+> for_each_thread() loop
+> 
+> so I don't think this would be a major problem
+> 
 
->  unsigned int get_apic_id(void)
->  {
-> -	return (apic_read(APIC_ID) >> 24) & 0xFFu;
-> +	unsigned int id;
-> +
-> +	preempt_disable();
-> +	id = apic_read(APIC_ID);
-> +	if (uv_system_type >= UV_X2APIC)
-> +		id  |= __get_cpu_var(x2apic_extra_bits);
-> +	else
-> +		id = (id >> 24) & 0xFFu;;
-> +	preempt_enable();
-> +	return id;
+I've been looking at zap_threads, I suspect we'll end up implementing a similar
+loop, which makes me very uncomfortable. Adding code for the least possible
+scenario. It will not get invoked for CLONE_THREAD, but will get invoked for the
+case when CLONE_VM is set without CLONE_THREAD.
 
-Really caller should have done preempt_disable(), otherwise
-the value can be wrong as soon as you return.
-
-Better probably to just WARN_ON if preemption is on
-
-(just be careful it does not trigger in oopses and machine checks)
-
-> +
-> +DEFINE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
-> +EXPORT_PER_CPU_SYMBOL(__uv_hub_info);
-
-GPL export too?
-
-> +
-> +struct uv_blade_info *uv_blade_info;
-> +EXPORT_SYMBOL_GPL(uv_blade_info);
-> +
-> +short *uv_node_to_blade;
-> +EXPORT_SYMBOL_GPL(uv_node_to_blade);
-> +
-> +short *uv_cpu_to_blade;
-> +EXPORT_SYMBOL_GPL(uv_cpu_to_blade);
-> +
-> +short uv_possible_blades;
-> +EXPORT_SYMBOL_GPL(uv_possible_blades);
-> +
-> +/* Start with all IRQs pointing to boot CPU.  IRQ balancing will shift them. */
-> +/* Probably incorrect for UV  ZZZ */
-
-Actually it should be correct. Except for UV you likely really need a
-NUMA aware irqbalanced. I used to have some old very hackish patches
-to implement that in irqbalanced, but never pushed it because the
-systems I was working on didn't really need it.
+I'll try and experiment a bit more and see what I come up with
 
 
-> +
-> +static void uv_send_IPI_one(int cpu, int vector)
-> +{
-> +	unsigned long val, apicid;
-> +	int nasid;
-> +
-> +	apicid = per_cpu(x86_cpu_to_apicid, cpu); /* ZZZ - cache node-local ? */
-
-Instead of doing that it might be better to implement __read_mostly per CPU variables
-(should not be very hard) 
-
-> +static void uv_send_IPI_mask(cpumask_t mask, int vector)
-> +{
-> +	unsigned long flags;
-> +	unsigned int cpu;
-> +
-> +	local_irq_save(flags);
-> +	for (cpu = 0; cpu < NR_CPUS; ++cpu)
-> +		if (cpu_isset(cpu, mask))
-> +			uv_send_IPI_one(cpu, vector);
-> +	local_irq_restore(flags);
-
-This could disable interrupts for a long time could't it?  Really needed?
-
-
-> +	bytes = sizeof(struct uv_blade_info) * uv_num_possible_blades();
-> +	uv_blade_info = alloc_bootmem_pages(bytes);
-> +	memset(uv_blade_info, 255, bytes);
-
-255?  Strange poison value.
-
-> ===================================================================
-> --- linux.orig/arch/x86/kernel/Makefile	2008-03-21 15:36:35.000000000 -0500
-> +++ linux/arch/x86/kernel/Makefile	2008-03-21 15:49:38.000000000 -0500
-> @@ -90,7 +90,7 @@ scx200-y			+= scx200_32.o
->  ###
->  # 64 bit specific files
->  ifeq ($(CONFIG_X86_64),y)
-> -        obj-y				+= genapic_64.o genapic_flat_64.o
-> +        obj-y				+= genapic_64.o genapic_flat_64.o genx2apic_uv_x.o
-
-Definitely should be a CONFIG
-
-> @@ -418,6 +419,9 @@ static int __cpuinit wakeup_secondary_vi
->  	unsigned long send_status, accept_status = 0;
->  	int maxlvt, num_starts, j;
->  
-> +	if (get_uv_system_type() == UV_NON_UNIQUE_APIC)
-> +		return uv_wakeup_secondary(phys_apicid, start_rip);
-> +
-
-This should be probably factored properly (didn't Jeremy have smp_ops 
-for this some time ago) so that even the default case is a call.
-
->  	Dprintk("Asserting INIT.\n");
->  
->  	/*
-> @@ -679,7 +683,8 @@ do_rest:
->  				/* trampoline code not run */
->  				printk("Not responding.\n");
->  #ifdef APIC_DEBUG
-> -			inquire_remote_apic(apicid);
-> +			if (get_uv_system_type() != UV_NON_UNIQUE_APIC)
-> +				inquire_remote_apic(apicid);
-
-Dito.
-
-
--Andi
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
