@@ -1,148 +1,86 @@
-Message-Id: <20080325220650.835342000@polaris-admin.engr.sgi.com>
-Date: Tue, 25 Mar 2008 15:06:50 -0700
+Message-Id: <20080325220651.964533000@polaris-admin.engr.sgi.com>
+References: <20080325220650.835342000@polaris-admin.engr.sgi.com>
+Date: Tue, 25 Mar 2008 15:06:58 -0700
 From: Mike Travis <travis@sgi.com>
-Subject: [PATCH 00/10] NR_CPUS: third reduction of NR_CPUS memory usage x86-version v2
+Subject: [PATCH 08/10] net: remove NR_CPUS arrays in net/core/dev.c v2
+Content-Disposition: inline; filename=nr_cpus-in-net_core_dev
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, James Morris <jmorris@namei.org>, Patrick McHardy <kaber@trash.net>
 List-ID: <linux-mm.kvack.org>
 
-Wii, isn't this fun...!  This is a resubmission of yesterday's patches
-based on the x86.git/latest tree.  Yes, it _is_ a maze of twisty litle
-passages. ;-)  
-
-Patches that are actually different are marked "v2". (I did not recalculate
-the memory usages changes but I did reverify the defconfig and akpm2
-configs with both 255 and 4096 NR_CPUS.)
-...................
-
-Here's the third round of removing static allocations of arrays using
-NR_CPUS to size the length.  The change is to use PER_CPU variables in
-place of the static tables, or allocate the array based on nr_cpu_ids.
-
-In addition, there's a cleanup of x86 non-smp code, the movement of
-setting nr_cpu_ids to setup_per_cpu_areas() so it's available as soon
-as possible, and a new function cpumask_scnprintf_len() to return the
-number of characters needed to display "len" cpumask bits.
-
-Affected files:
-
-	arch/ia64/kernel/acpi.c
-	arch/ia64/kernel/setup.c
-	arch/powerpc/kernel/setup_64.c
-	arch/sparc64/mm/init.c
-	arch/x86/kernel/cpu/intel_cacheinfo.c
-	arch/x86/kernel/genapic_64.c
-	arch/x86/kernel/mpparse_64.c
-	arch/x86/kernel/setup64.c
-	arch/x86/kernel/smpboot_32.c
-	arch/x86/mm/numa_64.c
-	arch/x86/oprofile/nmi_int.c
-	drivers/acpi/processor_core.c
-	drivers/acpi/processor_idle.c
-	drivers/acpi/processor_perflib.c
-	drivers/acpi/processor_throttling.c
-	drivers/base/cpu.c
-	drivers/cpufreq/cpufreq.c
-	drivers/cpufreq/cpufreq_stats.c
-	drivers/cpufreq/freq_table.c
-	include/acpi/processor.h
-	include/asm-x86/smp_32.h
-	include/asm-x86/smp_64.h
-	include/asm-x86/topology.h
-	include/linux/bitmap.h
-	include/linux/cpumask.h
-	init/main.c
-	kernel/sched.c
-	lib/bitmap.c
-	net/core/dev.c
+Remove the fixed size channels[NR_CPUS] array in
+net/core/dev.c and dynamically allocate array based on
+nr_cpu_ids.
 
 Based on:
 	git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
 	git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
 
-
-Cc: Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
-Cc: Andi Kleen <ak@suse.de>
-Cc: Anton Blanchard <anton@samba.org>
-Cc: Christoph Lameter <clameter@sgi.com>
-Cc: Dave Jones <davej@codemonkey.org.uk>
 Cc: David S. Miller <davem@davemloft.net>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Ingo Molnar <mingo@elte.hu>
-Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
 Cc: James Morris <jmorris@namei.org>
-Cc: Len Brown <len.brown@intel.com>
 Cc: Patrick McHardy <kaber@trash.net>
-Cc: Paul Jackson <pj@sgi.com>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Philippe Elie <phil.el@wanadoo.fr>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Tony Luck <tony.luck@intel.com>
-Cc: William L. Irwin <wli@holomorphy.com>
-
 Signed-off-by: Mike Travis <travis@sgi.com>
 ---
+v2: fixed logic error in netdev_dma_register().
+---
+ net/core/dev.c |   15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)
 
-I moved the x86_64 cleanup and move-set-nr_cpu_ids from the zero-based
-percpu variables patchset to this one, as I was encountering a panic
-from system_call_after_swapgs() after an unknown device interrupt during
-module loading.  That problem will be dealt with in another patch.
-
-
-Here's the various effects of the patches on memory usages using the
-akpm2 config file with NR_CPUS=4096 and MAXNODES=512:
-
-====== Data (-l 500)
-    1 - initial
-    2 - cleanup
-    4 - nr_cpus-in-cpufreq-cpu_alloc
-    5 - nr_cpus-in-acpi-driver-cpu_alloc
-    7 - nr_cpus-in-intel_cacheinfo
-    8 - nr_cpus-in-cpu_c
-   11 - nr_cpus-in-kernel_sched
-
-    .1.   .2.     .4.     .5.   .7.     .8.    .11.  
-  32768     .  -32768       .     .       .       .   show_table(.bss)
-  32768     .       .       .     .       .  -32768   sched_group_nodes_bycpu(.bss)
-  32768     .       .  -32768     .       .       .   processors(.bss)
-  32768     .       .  -32768     .       .       .   processor_device_array(.bss)
-  32768     .       .       .     .       .  -32768   init_sched_entity_p(.bss)
-  32768     .       .       .     .       .  -32768   init_cfs_rq_p(.bss)
-  32768     .       .       .-32768       .       .   index_kobject(.bss)
-  32768     .       .       .-32768       .       .   cpuid4_info(.bss)
-  32768     .  -32768       .     .       .       .   cpufreq_cpu_governor(.bss)
-  32768     .  -32768       .     .       .       .   cpufreq_cpu_data(.bss)
-  32768     .       .       .     .  -32768       .   cpu_sys_devices(.bss)
-  32768     .       .       .-32768       .       .   cache_kobject(.bss)
-
-====== Text/Data ()
-    1 - initial
-    4 - nr_cpus-in-cpufreq-cpu_alloc
-    5 - nr_cpus-in-acpi-driver-cpu_alloc
-    7 - nr_cpus-in-intel_cacheinfo
-    8 - nr_cpus-in-cpu_c
-   11 - nr_cpus-in-kernel_sched
-
-       .1.     .4.     .5.     .7.     .8.    .11.    ..final..
-   3373056       .   +2048       .       .       . 3375104    <1%  TextSize
-   1656832       .   +2048       .       .       . 1658880    <1%  DataSize
-   1855488  -98304  -65536  -98304  -32768  -98304 1462272   -21%  BssSize
-  10395648       .   +4096       .       .       . 10399744   <1%  OtherSize
-  17281024  -98304  -57344  -98304  -32768  -98304 16896000   -2%  Totals
-
-====== Stack (-l 500)
-... files 11 vars 928 all 0 lim 500 unch 0
-
-    1 - initial
-    7 - nr_cpus-in-intel_cacheinfo
-   11 - nr_cpus-in-kernel_sched
-
-   .1.    .7.   .11.    ..final..
-  4648      .  -4080  568   -87%  cpu_attach_domain
-  4104  -4104      .    .  -100%  show_shared_cpu_map
-  8752  -4104  -4080  568   -93%  Totals
+--- linux.trees.git.orig/net/core/dev.c
++++ linux.trees.git/net/core/dev.c
+@@ -162,7 +162,7 @@ struct net_dma {
+ 	struct dma_client client;
+ 	spinlock_t lock;
+ 	cpumask_t channel_mask;
+-	struct dma_chan *channels[NR_CPUS];
++	struct dma_chan **channels;
+ };
+ 
+ static enum dma_state_client
+@@ -2444,7 +2444,7 @@ static struct netif_rx_stats *softnet_ge
+ {
+ 	struct netif_rx_stats *rc = NULL;
+ 
+-	while (*pos < NR_CPUS)
++	while (*pos < nr_cpu_ids)
+ 		if (cpu_online(*pos)) {
+ 			rc = &per_cpu(netdev_rx_stat, *pos);
+ 			break;
+@@ -4316,7 +4316,7 @@ netdev_dma_event(struct dma_client *clie
+ 	spin_lock(&net_dma->lock);
+ 	switch (state) {
+ 	case DMA_RESOURCE_AVAILABLE:
+-		for (i = 0; i < NR_CPUS; i++)
++		for (i = 0; i < nr_cpu_ids; i++)
+ 			if (net_dma->channels[i] == chan) {
+ 				found = 1;
+ 				break;
+@@ -4331,7 +4331,7 @@ netdev_dma_event(struct dma_client *clie
+ 		}
+ 		break;
+ 	case DMA_RESOURCE_REMOVED:
+-		for (i = 0; i < NR_CPUS; i++)
++		for (i = 0; i < nr_cpu_ids; i++)
+ 			if (net_dma->channels[i] == chan) {
+ 				found = 1;
+ 				pos = i;
+@@ -4358,6 +4358,13 @@ netdev_dma_event(struct dma_client *clie
+  */
+ static int __init netdev_dma_register(void)
+ {
++	net_dma.channels = kzalloc(nr_cpu_ids * sizeof(struct net_dma),
++								GFP_KERNEL);
++	if (unlikely(!net_dma.channels)) {
++		printk(KERN_NOTICE
++				"netdev_dma: no memory for net_dma.channels\n");
++		return -ENOMEM;
++	}
+ 	spin_lock_init(&net_dma.lock);
+ 	dma_cap_set(DMA_MEMCPY, net_dma.client.cap_mask);
+ 	dma_async_client_register(&net_dma.client);
 
 -- 
 
