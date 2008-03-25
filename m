@@ -1,295 +1,234 @@
-Message-Id: <20080325220651.417537000@polaris-admin.engr.sgi.com>
+Message-Id: <20080325220651.683748000@polaris-admin.engr.sgi.com>
 References: <20080325220650.835342000@polaris-admin.engr.sgi.com>
-Date: Tue, 25 Mar 2008 15:06:54 -0700
+Date: Tue, 25 Mar 2008 15:06:56 -0700
 From: Mike Travis <travis@sgi.com>
-Subject: [PATCH 04/10] acpi: change processors from array to per_cpu variable
-Content-Disposition: inline; filename=nr_cpus-in-acpi-driver-cpu_alloc
+Subject: [PATCH 06/10] x86: reduce memory and stack usage in intel_cacheinfo
+Content-Disposition: inline; filename=nr_cpus-in-intel_cacheinfo
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Len Brown <len.brown@intel.com>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Change processors from an array sized by NR_CPUS to a per_cpu variable.
+* Change the following static arrays sized by NR_CPUS to
+  per_cpu data variables:
+
+	_cpuid4_info *cpuid4_info[NR_CPUS];
+	_index_kobject *index_kobject[NR_CPUS];
+	kobject * cache_kobject[NR_CPUS];
+
+* Remove the local NR_CPUS array with a kmalloc'd region in
+  show_shared_cpu_map().
+
+Also some minor complaints from checkpatch.pl fixed.
 
 Based on:
 	git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
 	git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
 
-Cc: Len Brown <len.brown@intel.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Andi Kleen <ak@suse.de>
+
 Signed-off-by: Mike Travis <travis@sgi.com>
 ---
- drivers/acpi/processor_core.c       |   18 ++++++++----------
- drivers/acpi/processor_idle.c       |    8 ++++----
- drivers/acpi/processor_perflib.c    |   18 +++++++++---------
- drivers/acpi/processor_throttling.c |   14 +++++++-------
- include/acpi/processor.h            |    2 +-
- 5 files changed, 29 insertions(+), 31 deletions(-)
+ arch/x86/kernel/cpu/intel_cacheinfo.c |   70 +++++++++++++++++++---------------
+ 1 file changed, 40 insertions(+), 30 deletions(-)
 
---- linux.trees.git.orig/drivers/acpi/processor_core.c
-+++ linux.trees.git/drivers/acpi/processor_core.c
-@@ -118,7 +118,7 @@ static const struct file_operations acpi
- 	.release = single_release,
+--- linux.trees.git.orig/arch/x86/kernel/cpu/intel_cacheinfo.c
++++ linux.trees.git/arch/x86/kernel/cpu/intel_cacheinfo.c
+@@ -129,7 +129,7 @@ struct _cpuid4_info {
+ 	union _cpuid4_leaf_ebx ebx;
+ 	union _cpuid4_leaf_ecx ecx;
+ 	unsigned long size;
+-	cpumask_t shared_cpu_map;
++	cpumask_t shared_cpu_map;	/* future?: only cpus/node is needed */
  };
  
--struct acpi_processor *processors[NR_CPUS];
-+DEFINE_PER_CPU(struct acpi_processor *, processors);
- struct acpi_processor_errata errata __read_mostly;
- 
- /* --------------------------------------------------------------------------
-@@ -615,7 +615,7 @@ static int acpi_processor_get_info(struc
- 	return 0;
+ unsigned short			num_cache_leaves;
+@@ -451,8 +451,8 @@ unsigned int __cpuinit init_intel_cachei
  }
  
--static void *processor_device_array[NR_CPUS];
-+static DEFINE_PER_CPU(void *, processor_device_array);
- 
- static int __cpuinit acpi_processor_start(struct acpi_device *device)
- {
-@@ -639,15 +639,15 @@ static int __cpuinit acpi_processor_star
- 	 * ACPI id of processors can be reported wrongly by the BIOS.
- 	 * Don't trust it blindly
- 	 */
--	if (processor_device_array[pr->id] != NULL &&
--	    processor_device_array[pr->id] != device) {
-+	if (per_cpu(processor_device_array, pr->id) != NULL &&
-+	    per_cpu(processor_device_array, pr->id) != device) {
- 		printk(KERN_WARNING "BIOS reported wrong ACPI id "
- 			"for the processor\n");
- 		return -ENODEV;
- 	}
--	processor_device_array[pr->id] = device;
-+	per_cpu(processor_device_array, pr->id) = device;
- 
--	processors[pr->id] = pr;
-+	per_cpu(processors, pr->id) = pr;
- 
- 	result = acpi_processor_add_fs(device);
- 	if (result)
-@@ -751,7 +751,7 @@ static int acpi_cpu_soft_notify(struct n
- 		unsigned long action, void *hcpu)
- {
- 	unsigned int cpu = (unsigned long)hcpu;
--	struct acpi_processor *pr = processors[cpu];
-+	struct acpi_processor *pr = per_cpu(processors, cpu);
- 
- 	if (action == CPU_ONLINE && pr) {
- 		acpi_processor_ppc_has_changed(pr);
-@@ -821,7 +821,7 @@ static int acpi_processor_remove(struct 
- 		pr->cdev = NULL;
- 	}
- 
--	processors[pr->id] = NULL;
-+	per_cpu(processors, pr->id) = NULL;
- 
- 	kfree(pr);
- 
-@@ -1070,8 +1070,6 @@ static int __init acpi_processor_init(vo
- {
- 	int result = 0;
- 
--
--	memset(&processors, 0, sizeof(processors));
- 	memset(&errata, 0, sizeof(errata));
+ /* pointer to _cpuid4_info array (for each cache leaf) */
+-static struct _cpuid4_info *cpuid4_info[NR_CPUS];
+-#define CPUID4_INFO_IDX(x,y)    (&((cpuid4_info[x])[y]))
++static DEFINE_PER_CPU(struct _cpuid4_info *, cpuid4_info);
++#define CPUID4_INFO_IDX(x, y)    (&((per_cpu(cpuid4_info, x))[y]))
  
  #ifdef CONFIG_SMP
---- linux.trees.git.orig/drivers/acpi/processor_idle.c
-+++ linux.trees.git/drivers/acpi/processor_idle.c
-@@ -401,7 +401,7 @@ static void acpi_processor_idle(void)
- 	 */
- 	local_irq_disable();
+ static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
+@@ -474,7 +474,7 @@ static void __cpuinit cache_shared_cpu_m
+ 			if (cpu_data(i).apicid >> index_msb ==
+ 			    c->apicid >> index_msb) {
+ 				cpu_set(i, this_leaf->shared_cpu_map);
+-				if (i != cpu && cpuid4_info[i])  {
++				if (i != cpu && per_cpu(cpuid4_info, i))  {
+ 					sibling_leaf = CPUID4_INFO_IDX(i, index);
+ 					cpu_set(cpu, sibling_leaf->shared_cpu_map);
+ 				}
+@@ -505,8 +505,8 @@ static void __cpuinit free_cache_attribu
+ 	for (i = 0; i < num_cache_leaves; i++)
+ 		cache_remove_shared_cpu_map(cpu, i);
  
--	pr = processors[smp_processor_id()];
-+	pr = __get_cpu_var(processors);
- 	if (!pr) {
- 		local_irq_enable();
+-	kfree(cpuid4_info[cpu]);
+-	cpuid4_info[cpu] = NULL;
++	kfree(per_cpu(cpuid4_info, cpu));
++	per_cpu(cpuid4_info, cpu) = NULL;
+ }
+ 
+ static int __cpuinit detect_cache_attributes(unsigned int cpu)
+@@ -519,9 +519,9 @@ static int __cpuinit detect_cache_attrib
+ 	if (num_cache_leaves == 0)
+ 		return -ENOENT;
+ 
+-	cpuid4_info[cpu] = kzalloc(
++	per_cpu(cpuid4_info, cpu) = kzalloc(
+ 	    sizeof(struct _cpuid4_info) * num_cache_leaves, GFP_KERNEL);
+-	if (cpuid4_info[cpu] == NULL)
++	if (per_cpu(cpuid4_info, cpu) == NULL)
+ 		return -ENOMEM;
+ 
+ 	oldmask = current->cpus_allowed;
+@@ -546,8 +546,8 @@ static int __cpuinit detect_cache_attrib
+ 
+ out:
+ 	if (retval) {
+-		kfree(cpuid4_info[cpu]);
+-		cpuid4_info[cpu] = NULL;
++		kfree(per_cpu(cpuid4_info, cpu));
++		per_cpu(cpuid4_info, cpu) = NULL;
+ 	}
+ 
+ 	return retval;
+@@ -561,7 +561,7 @@ out:
+ extern struct sysdev_class cpu_sysdev_class; /* from drivers/base/cpu.c */
+ 
+ /* pointer to kobject for cpuX/cache */
+-static struct kobject * cache_kobject[NR_CPUS];
++static DEFINE_PER_CPU(struct kobject *, cache_kobject);
+ 
+ struct _index_kobject {
+ 	struct kobject kobj;
+@@ -570,8 +570,8 @@ struct _index_kobject {
+ };
+ 
+ /* pointer to array of kobjects for cpuX/cache/indexY */
+-static struct _index_kobject *index_kobject[NR_CPUS];
+-#define INDEX_KOBJECT_PTR(x,y)    (&((index_kobject[x])[y]))
++static DEFINE_PER_CPU(struct _index_kobject *, index_kobject);
++#define INDEX_KOBJECT_PTR(x, y)    (&((per_cpu(index_kobject, x))[y]))
+ 
+ #define show_one_plus(file_name, object, val)				\
+ static ssize_t show_##file_name						\
+@@ -593,9 +593,16 @@ static ssize_t show_size(struct _cpuid4_
+ 
+ static ssize_t show_shared_cpu_map(struct _cpuid4_info *this_leaf, char *buf)
+ {
+-	char mask_str[NR_CPUS];
+-	cpumask_scnprintf(mask_str, NR_CPUS, this_leaf->shared_cpu_map);
+-	return sprintf(buf, "%s\n", mask_str);
++	int n = 0;
++	int len = cpumask_scnprintf_len(nr_cpu_ids);
++	char *mask_str = kmalloc(len, GFP_KERNEL);
++
++	if (mask_str) {
++		cpumask_scnprintf(mask_str, len, this_leaf->shared_cpu_map);
++		n = sprintf(buf, "%s\n", mask_str);
++		kfree(mask_str);
++	}
++	return n;
+ }
+ 
+ static ssize_t show_type(struct _cpuid4_info *this_leaf, char *buf) {
+@@ -684,10 +691,10 @@ static struct kobj_type ktype_percpu_ent
+ 
+ static void __cpuinit cpuid4_cache_sysfs_exit(unsigned int cpu)
+ {
+-	kfree(cache_kobject[cpu]);
+-	kfree(index_kobject[cpu]);
+-	cache_kobject[cpu] = NULL;
+-	index_kobject[cpu] = NULL;
++	kfree(per_cpu(cache_kobject, cpu));
++	kfree(per_cpu(index_kobject, cpu));
++	per_cpu(cache_kobject, cpu) = NULL;
++	per_cpu(index_kobject, cpu) = NULL;
+ 	free_cache_attributes(cpu);
+ }
+ 
+@@ -703,13 +710,14 @@ static int __cpuinit cpuid4_cache_sysfs_
+ 		return err;
+ 
+ 	/* Allocate all required memory */
+-	cache_kobject[cpu] = kzalloc(sizeof(struct kobject), GFP_KERNEL);
+-	if (unlikely(cache_kobject[cpu] == NULL))
++	per_cpu(cache_kobject, cpu) =
++		kzalloc(sizeof(struct kobject), GFP_KERNEL);
++	if (unlikely(per_cpu(cache_kobject, cpu) == NULL))
+ 		goto err_out;
+ 
+-	index_kobject[cpu] = kzalloc(
++	per_cpu(index_kobject, cpu) = kzalloc(
+ 	    sizeof(struct _index_kobject ) * num_cache_leaves, GFP_KERNEL);
+-	if (unlikely(index_kobject[cpu] == NULL))
++	if (unlikely(per_cpu(index_kobject, cpu) == NULL))
+ 		goto err_out;
+ 
+ 	return 0;
+@@ -733,7 +741,8 @@ static int __cpuinit cache_add_dev(struc
+ 	if (unlikely(retval < 0))
+ 		return retval;
+ 
+-	retval = kobject_init_and_add(cache_kobject[cpu], &ktype_percpu_entry,
++	retval = kobject_init_and_add(per_cpu(cache_kobject, cpu),
++				      &ktype_percpu_entry,
+ 				      &sys_dev->kobj, "%s", "cache");
+ 	if (retval < 0) {
+ 		cpuid4_cache_sysfs_exit(cpu);
+@@ -745,13 +754,14 @@ static int __cpuinit cache_add_dev(struc
+ 		this_object->cpu = cpu;
+ 		this_object->index = i;
+ 		retval = kobject_init_and_add(&(this_object->kobj),
+-					      &ktype_cache, cache_kobject[cpu],
++					      &ktype_cache,
++					      per_cpu(cache_kobject, cpu),
+ 					      "index%1lu", i);
+ 		if (unlikely(retval)) {
+ 			for (j = 0; j < i; j++) {
+ 				kobject_put(&(INDEX_KOBJECT_PTR(cpu,j)->kobj));
+ 			}
+-			kobject_put(cache_kobject[cpu]);
++			kobject_put(per_cpu(cache_kobject, cpu));
+ 			cpuid4_cache_sysfs_exit(cpu);
+ 			break;
+ 		}
+@@ -760,7 +770,7 @@ static int __cpuinit cache_add_dev(struc
+ 	if (!retval)
+ 		cpu_set(cpu, cache_dev_map);
+ 
+-	kobject_uevent(cache_kobject[cpu], KOBJ_ADD);
++	kobject_uevent(per_cpu(cache_kobject, cpu), KOBJ_ADD);
+ 	return retval;
+ }
+ 
+@@ -769,7 +779,7 @@ static void __cpuinit cache_remove_dev(s
+ 	unsigned int cpu = sys_dev->id;
+ 	unsigned long i;
+ 
+-	if (cpuid4_info[cpu] == NULL)
++	if (per_cpu(cpuid4_info, cpu) == NULL)
  		return;
-@@ -1425,7 +1425,7 @@ static int acpi_idle_enter_c1(struct cpu
- 	struct acpi_processor *pr;
- 	struct acpi_processor_cx *cx = cpuidle_get_statedata(state);
- 
--	pr = processors[smp_processor_id()];
-+	pr = __get_cpu_var(processors);
- 
- 	if (unlikely(!pr))
- 		return 0;
-@@ -1465,7 +1465,7 @@ static int acpi_idle_enter_simple(struct
- 	u32 t1, t2;
- 	int sleep_ticks = 0;
- 
--	pr = processors[smp_processor_id()];
-+	pr = __get_cpu_var(processors);
- 
- 	if (unlikely(!pr))
- 		return 0;
-@@ -1544,7 +1544,7 @@ static int acpi_idle_enter_bm(struct cpu
- 	u32 t1, t2;
- 	int sleep_ticks = 0;
- 
--	pr = processors[smp_processor_id()];
-+	pr = __get_cpu_var(processors);
- 
- 	if (unlikely(!pr))
- 		return 0;
---- linux.trees.git.orig/drivers/acpi/processor_perflib.c
-+++ linux.trees.git/drivers/acpi/processor_perflib.c
-@@ -89,7 +89,7 @@ static int acpi_processor_ppc_notifier(s
- 	if (event != CPUFREQ_INCOMPATIBLE)
- 		goto out;
- 
--	pr = processors[policy->cpu];
-+	pr = per_cpu(processors, policy->cpu);
- 	if (!pr || !pr->performance)
- 		goto out;
- 
-@@ -577,7 +577,7 @@ int acpi_processor_preregister_performan
- 
- 	/* Call _PSD for all CPUs */
- 	for_each_possible_cpu(i) {
--		pr = processors[i];
-+		pr = per_cpu(processors, i);
- 		if (!pr) {
- 			/* Look only at processors in ACPI namespace */
- 			continue;
-@@ -608,7 +608,7 @@ int acpi_processor_preregister_performan
- 	 * domain info.
- 	 */
- 	for_each_possible_cpu(i) {
--		pr = processors[i];
-+		pr = per_cpu(processors, i);
- 		if (!pr)
- 			continue;
- 
-@@ -629,7 +629,7 @@ int acpi_processor_preregister_performan
- 
- 	cpus_clear(covered_cpus);
- 	for_each_possible_cpu(i) {
--		pr = processors[i];
-+		pr = per_cpu(processors, i);
- 		if (!pr)
- 			continue;
- 
-@@ -656,7 +656,7 @@ int acpi_processor_preregister_performan
- 			if (i == j)
- 				continue;
- 
--			match_pr = processors[j];
-+			match_pr = per_cpu(processors, j);
- 			if (!match_pr)
- 				continue;
- 
-@@ -685,7 +685,7 @@ int acpi_processor_preregister_performan
- 			if (i == j)
- 				continue;
- 
--			match_pr = processors[j];
-+			match_pr = per_cpu(processors, j);
- 			if (!match_pr)
- 				continue;
- 
-@@ -702,7 +702,7 @@ int acpi_processor_preregister_performan
- 
- err_ret:
- 	for_each_possible_cpu(i) {
--		pr = processors[i];
-+		pr = per_cpu(processors, i);
- 		if (!pr || !pr->performance)
- 			continue;
- 
-@@ -733,7 +733,7 @@ acpi_processor_register_performance(stru
- 
- 	mutex_lock(&performance_mutex);
- 
--	pr = processors[cpu];
-+	pr = per_cpu(processors, cpu);
- 	if (!pr) {
- 		mutex_unlock(&performance_mutex);
- 		return -ENODEV;
-@@ -771,7 +771,7 @@ acpi_processor_unregister_performance(st
- 
- 	mutex_lock(&performance_mutex);
- 
--	pr = processors[cpu];
-+	pr = per_cpu(processors, cpu);
- 	if (!pr) {
- 		mutex_unlock(&performance_mutex);
+ 	if (!cpu_isset(cpu, cache_dev_map))
  		return;
---- linux.trees.git.orig/drivers/acpi/processor_throttling.c
-+++ linux.trees.git/drivers/acpi/processor_throttling.c
-@@ -71,7 +71,7 @@ static int acpi_processor_update_tsd_coo
- 	 * coordination between all CPUs.
- 	 */
- 	for_each_possible_cpu(i) {
--		pr = processors[i];
-+		pr = per_cpu(processors, i);
- 		if (!pr)
- 			continue;
+@@ -777,7 +787,7 @@ static void __cpuinit cache_remove_dev(s
  
-@@ -93,7 +93,7 @@ static int acpi_processor_update_tsd_coo
+ 	for (i = 0; i < num_cache_leaves; i++)
+ 		kobject_put(&(INDEX_KOBJECT_PTR(cpu,i)->kobj));
+-	kobject_put(cache_kobject[cpu]);
++	kobject_put(per_cpu(cache_kobject, cpu));
+ 	cpuid4_cache_sysfs_exit(cpu);
+ }
  
- 	cpus_clear(covered_cpus);
- 	for_each_possible_cpu(i) {
--		pr = processors[i];
-+		pr = per_cpu(processors, i);
- 		if (!pr)
- 			continue;
- 
-@@ -119,7 +119,7 @@ static int acpi_processor_update_tsd_coo
- 			if (i == j)
- 				continue;
- 
--			match_pr = processors[j];
-+			match_pr = per_cpu(processors, j);
- 			if (!match_pr)
- 				continue;
- 
-@@ -152,7 +152,7 @@ static int acpi_processor_update_tsd_coo
- 			if (i == j)
- 				continue;
- 
--			match_pr = processors[j];
-+			match_pr = per_cpu(processors, j);
- 			if (!match_pr)
- 				continue;
- 
-@@ -172,7 +172,7 @@ static int acpi_processor_update_tsd_coo
- 
- err_ret:
- 	for_each_possible_cpu(i) {
--		pr = processors[i];
-+		pr = per_cpu(processors, i);
- 		if (!pr)
- 			continue;
- 
-@@ -214,7 +214,7 @@ static int acpi_processor_throttling_not
- 	struct acpi_processor_throttling *p_throttling;
- 
- 	cpu = p_tstate->cpu;
--	pr = processors[cpu];
-+	pr = per_cpu(processors, cpu);
- 	if (!pr) {
- 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Invalid pr pointer\n"));
- 		return 0;
-@@ -1035,7 +1035,7 @@ int acpi_processor_set_throttling(struct
- 		 * cpus.
- 		 */
- 		for_each_cpu_mask(i, online_throttling_cpus) {
--			match_pr = processors[i];
-+			match_pr = per_cpu(processors, i);
- 			/*
- 			 * If the pointer is invalid, we will report the
- 			 * error message and continue.
---- linux.trees.git.orig/include/acpi/processor.h
-+++ linux.trees.git/include/acpi/processor.h
-@@ -255,7 +255,7 @@ extern void acpi_processor_unregister_pe
- int acpi_processor_notify_smm(struct module *calling_module);
- 
- /* for communication between multiple parts of the processor kernel module */
--extern struct acpi_processor *processors[NR_CPUS];
-+DECLARE_PER_CPU(struct acpi_processor *, processors);
- extern struct acpi_processor_errata errata;
- 
- void arch_acpi_processor_init_pdc(struct acpi_processor *pr);
 
 -- 
 
