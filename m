@@ -1,86 +1,295 @@
-Message-Id: <20080325220651.552166000@polaris-admin.engr.sgi.com>
+Message-Id: <20080325220651.417537000@polaris-admin.engr.sgi.com>
 References: <20080325220650.835342000@polaris-admin.engr.sgi.com>
-Date: Tue, 25 Mar 2008 15:06:55 -0700
+Date: Tue, 25 Mar 2008 15:06:54 -0700
 From: Mike Travis <travis@sgi.com>
-Subject: [PATCH 05/10] cpumask: Add cpumask_scnprintf_len function
-Content-Disposition: inline; filename=add-cpumask_scnprintf_len
+Subject: [PATCH 04/10] acpi: change processors from array to per_cpu variable
+Content-Disposition: inline; filename=nr_cpus-in-acpi-driver-cpu_alloc
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Jackson <pj@sgi.com>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Len Brown <len.brown@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Add a new function cpumask_scnprintf_len() to return the number of
-characters needed to display "len" cpumask bits.  The current method
-of allocating NR_CPUS bytes is incorrect as what's really needed is
-9 characters per 32-bit word of cpumask bits (8 hex digits plus the
-seperator [','] or the terminating NULL.)  This function provides the
-caller the means to allocate the correct string length.
+Change processors from an array sized by NR_CPUS to a per_cpu variable.
 
 Based on:
 	git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
 	git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
 
-Cc: Paul Jackson <pj@sgi.com>
-
+Cc: Len Brown <len.brown@intel.com>
 Signed-off-by: Mike Travis <travis@sgi.com>
 ---
- include/linux/bitmap.h  |    1 +
- include/linux/cpumask.h |    7 +++++++
- lib/bitmap.c            |   16 ++++++++++++++++
- 3 files changed, 24 insertions(+)
+ drivers/acpi/processor_core.c       |   18 ++++++++----------
+ drivers/acpi/processor_idle.c       |    8 ++++----
+ drivers/acpi/processor_perflib.c    |   18 +++++++++---------
+ drivers/acpi/processor_throttling.c |   14 +++++++-------
+ include/acpi/processor.h            |    2 +-
+ 5 files changed, 29 insertions(+), 31 deletions(-)
 
---- linux.trees.git.orig/include/linux/bitmap.h
-+++ linux.trees.git/include/linux/bitmap.h
-@@ -108,6 +108,7 @@ extern int __bitmap_weight(const unsigne
+--- linux.trees.git.orig/drivers/acpi/processor_core.c
++++ linux.trees.git/drivers/acpi/processor_core.c
+@@ -118,7 +118,7 @@ static const struct file_operations acpi
+ 	.release = single_release,
+ };
  
- extern int bitmap_scnprintf(char *buf, unsigned int len,
- 			const unsigned long *src, int nbits);
-+extern int bitmap_scnprintf_len(unsigned int len);
- extern int __bitmap_parse(const char *buf, unsigned int buflen, int is_user,
- 			unsigned long *dst, int nbits);
- extern int bitmap_parse_user(const char __user *ubuf, unsigned int ulen,
---- linux.trees.git.orig/include/linux/cpumask.h
-+++ linux.trees.git/include/linux/cpumask.h
-@@ -273,6 +273,13 @@ static inline int __cpumask_scnprintf(ch
- 	return bitmap_scnprintf(buf, len, srcp->bits, nbits);
+-struct acpi_processor *processors[NR_CPUS];
++DEFINE_PER_CPU(struct acpi_processor *, processors);
+ struct acpi_processor_errata errata __read_mostly;
+ 
+ /* --------------------------------------------------------------------------
+@@ -615,7 +615,7 @@ static int acpi_processor_get_info(struc
+ 	return 0;
  }
  
-+#define cpumask_scnprintf_len(len) \
-+			__cpumask_scnprintf_len((len))
-+static inline int __cpumask_scnprintf_len(int len)
-+{
-+	return bitmap_scnprintf_len(len);
-+}
-+
- #define cpumask_parse_user(ubuf, ulen, dst) \
- 			__cpumask_parse_user((ubuf), (ulen), &(dst), NR_CPUS)
- static inline int __cpumask_parse_user(const char __user *buf, int len,
---- linux.trees.git.orig/lib/bitmap.c
-+++ linux.trees.git/lib/bitmap.c
-@@ -316,6 +316,22 @@ int bitmap_scnprintf(char *buf, unsigned
- EXPORT_SYMBOL(bitmap_scnprintf);
+-static void *processor_device_array[NR_CPUS];
++static DEFINE_PER_CPU(void *, processor_device_array);
  
- /**
-+ * bitmap_scnprintf_len - return buffer length needed to convert
-+ * bitmap to an ASCII hex string.
-+ * @len: number of bits to be converted
-+ */
-+int bitmap_scnprintf_len(unsigned int len)
-+{
-+	/* we need 9 chars per word for 32 bit words (8 hexdigits + sep/null) */
-+	int bitslen = ALIGN(len, CHUNKSZ);
-+	int wordlen = CHUNKSZ / 4;
-+	int buflen = (bitslen / wordlen) * (wordlen + 1) * sizeof(char);
-+
-+	return buflen;
-+}
-+EXPORT_SYMBOL(bitmap_scnprintf_len);
-+
-+/**
-  * __bitmap_parse - convert an ASCII hex string into a bitmap.
-  * @buf: pointer to buffer containing string.
-  * @buflen: buffer size in bytes.  If string is smaller than this
+ static int __cpuinit acpi_processor_start(struct acpi_device *device)
+ {
+@@ -639,15 +639,15 @@ static int __cpuinit acpi_processor_star
+ 	 * ACPI id of processors can be reported wrongly by the BIOS.
+ 	 * Don't trust it blindly
+ 	 */
+-	if (processor_device_array[pr->id] != NULL &&
+-	    processor_device_array[pr->id] != device) {
++	if (per_cpu(processor_device_array, pr->id) != NULL &&
++	    per_cpu(processor_device_array, pr->id) != device) {
+ 		printk(KERN_WARNING "BIOS reported wrong ACPI id "
+ 			"for the processor\n");
+ 		return -ENODEV;
+ 	}
+-	processor_device_array[pr->id] = device;
++	per_cpu(processor_device_array, pr->id) = device;
+ 
+-	processors[pr->id] = pr;
++	per_cpu(processors, pr->id) = pr;
+ 
+ 	result = acpi_processor_add_fs(device);
+ 	if (result)
+@@ -751,7 +751,7 @@ static int acpi_cpu_soft_notify(struct n
+ 		unsigned long action, void *hcpu)
+ {
+ 	unsigned int cpu = (unsigned long)hcpu;
+-	struct acpi_processor *pr = processors[cpu];
++	struct acpi_processor *pr = per_cpu(processors, cpu);
+ 
+ 	if (action == CPU_ONLINE && pr) {
+ 		acpi_processor_ppc_has_changed(pr);
+@@ -821,7 +821,7 @@ static int acpi_processor_remove(struct 
+ 		pr->cdev = NULL;
+ 	}
+ 
+-	processors[pr->id] = NULL;
++	per_cpu(processors, pr->id) = NULL;
+ 
+ 	kfree(pr);
+ 
+@@ -1070,8 +1070,6 @@ static int __init acpi_processor_init(vo
+ {
+ 	int result = 0;
+ 
+-
+-	memset(&processors, 0, sizeof(processors));
+ 	memset(&errata, 0, sizeof(errata));
+ 
+ #ifdef CONFIG_SMP
+--- linux.trees.git.orig/drivers/acpi/processor_idle.c
++++ linux.trees.git/drivers/acpi/processor_idle.c
+@@ -401,7 +401,7 @@ static void acpi_processor_idle(void)
+ 	 */
+ 	local_irq_disable();
+ 
+-	pr = processors[smp_processor_id()];
++	pr = __get_cpu_var(processors);
+ 	if (!pr) {
+ 		local_irq_enable();
+ 		return;
+@@ -1425,7 +1425,7 @@ static int acpi_idle_enter_c1(struct cpu
+ 	struct acpi_processor *pr;
+ 	struct acpi_processor_cx *cx = cpuidle_get_statedata(state);
+ 
+-	pr = processors[smp_processor_id()];
++	pr = __get_cpu_var(processors);
+ 
+ 	if (unlikely(!pr))
+ 		return 0;
+@@ -1465,7 +1465,7 @@ static int acpi_idle_enter_simple(struct
+ 	u32 t1, t2;
+ 	int sleep_ticks = 0;
+ 
+-	pr = processors[smp_processor_id()];
++	pr = __get_cpu_var(processors);
+ 
+ 	if (unlikely(!pr))
+ 		return 0;
+@@ -1544,7 +1544,7 @@ static int acpi_idle_enter_bm(struct cpu
+ 	u32 t1, t2;
+ 	int sleep_ticks = 0;
+ 
+-	pr = processors[smp_processor_id()];
++	pr = __get_cpu_var(processors);
+ 
+ 	if (unlikely(!pr))
+ 		return 0;
+--- linux.trees.git.orig/drivers/acpi/processor_perflib.c
++++ linux.trees.git/drivers/acpi/processor_perflib.c
+@@ -89,7 +89,7 @@ static int acpi_processor_ppc_notifier(s
+ 	if (event != CPUFREQ_INCOMPATIBLE)
+ 		goto out;
+ 
+-	pr = processors[policy->cpu];
++	pr = per_cpu(processors, policy->cpu);
+ 	if (!pr || !pr->performance)
+ 		goto out;
+ 
+@@ -577,7 +577,7 @@ int acpi_processor_preregister_performan
+ 
+ 	/* Call _PSD for all CPUs */
+ 	for_each_possible_cpu(i) {
+-		pr = processors[i];
++		pr = per_cpu(processors, i);
+ 		if (!pr) {
+ 			/* Look only at processors in ACPI namespace */
+ 			continue;
+@@ -608,7 +608,7 @@ int acpi_processor_preregister_performan
+ 	 * domain info.
+ 	 */
+ 	for_each_possible_cpu(i) {
+-		pr = processors[i];
++		pr = per_cpu(processors, i);
+ 		if (!pr)
+ 			continue;
+ 
+@@ -629,7 +629,7 @@ int acpi_processor_preregister_performan
+ 
+ 	cpus_clear(covered_cpus);
+ 	for_each_possible_cpu(i) {
+-		pr = processors[i];
++		pr = per_cpu(processors, i);
+ 		if (!pr)
+ 			continue;
+ 
+@@ -656,7 +656,7 @@ int acpi_processor_preregister_performan
+ 			if (i == j)
+ 				continue;
+ 
+-			match_pr = processors[j];
++			match_pr = per_cpu(processors, j);
+ 			if (!match_pr)
+ 				continue;
+ 
+@@ -685,7 +685,7 @@ int acpi_processor_preregister_performan
+ 			if (i == j)
+ 				continue;
+ 
+-			match_pr = processors[j];
++			match_pr = per_cpu(processors, j);
+ 			if (!match_pr)
+ 				continue;
+ 
+@@ -702,7 +702,7 @@ int acpi_processor_preregister_performan
+ 
+ err_ret:
+ 	for_each_possible_cpu(i) {
+-		pr = processors[i];
++		pr = per_cpu(processors, i);
+ 		if (!pr || !pr->performance)
+ 			continue;
+ 
+@@ -733,7 +733,7 @@ acpi_processor_register_performance(stru
+ 
+ 	mutex_lock(&performance_mutex);
+ 
+-	pr = processors[cpu];
++	pr = per_cpu(processors, cpu);
+ 	if (!pr) {
+ 		mutex_unlock(&performance_mutex);
+ 		return -ENODEV;
+@@ -771,7 +771,7 @@ acpi_processor_unregister_performance(st
+ 
+ 	mutex_lock(&performance_mutex);
+ 
+-	pr = processors[cpu];
++	pr = per_cpu(processors, cpu);
+ 	if (!pr) {
+ 		mutex_unlock(&performance_mutex);
+ 		return;
+--- linux.trees.git.orig/drivers/acpi/processor_throttling.c
++++ linux.trees.git/drivers/acpi/processor_throttling.c
+@@ -71,7 +71,7 @@ static int acpi_processor_update_tsd_coo
+ 	 * coordination between all CPUs.
+ 	 */
+ 	for_each_possible_cpu(i) {
+-		pr = processors[i];
++		pr = per_cpu(processors, i);
+ 		if (!pr)
+ 			continue;
+ 
+@@ -93,7 +93,7 @@ static int acpi_processor_update_tsd_coo
+ 
+ 	cpus_clear(covered_cpus);
+ 	for_each_possible_cpu(i) {
+-		pr = processors[i];
++		pr = per_cpu(processors, i);
+ 		if (!pr)
+ 			continue;
+ 
+@@ -119,7 +119,7 @@ static int acpi_processor_update_tsd_coo
+ 			if (i == j)
+ 				continue;
+ 
+-			match_pr = processors[j];
++			match_pr = per_cpu(processors, j);
+ 			if (!match_pr)
+ 				continue;
+ 
+@@ -152,7 +152,7 @@ static int acpi_processor_update_tsd_coo
+ 			if (i == j)
+ 				continue;
+ 
+-			match_pr = processors[j];
++			match_pr = per_cpu(processors, j);
+ 			if (!match_pr)
+ 				continue;
+ 
+@@ -172,7 +172,7 @@ static int acpi_processor_update_tsd_coo
+ 
+ err_ret:
+ 	for_each_possible_cpu(i) {
+-		pr = processors[i];
++		pr = per_cpu(processors, i);
+ 		if (!pr)
+ 			continue;
+ 
+@@ -214,7 +214,7 @@ static int acpi_processor_throttling_not
+ 	struct acpi_processor_throttling *p_throttling;
+ 
+ 	cpu = p_tstate->cpu;
+-	pr = processors[cpu];
++	pr = per_cpu(processors, cpu);
+ 	if (!pr) {
+ 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Invalid pr pointer\n"));
+ 		return 0;
+@@ -1035,7 +1035,7 @@ int acpi_processor_set_throttling(struct
+ 		 * cpus.
+ 		 */
+ 		for_each_cpu_mask(i, online_throttling_cpus) {
+-			match_pr = processors[i];
++			match_pr = per_cpu(processors, i);
+ 			/*
+ 			 * If the pointer is invalid, we will report the
+ 			 * error message and continue.
+--- linux.trees.git.orig/include/acpi/processor.h
++++ linux.trees.git/include/acpi/processor.h
+@@ -255,7 +255,7 @@ extern void acpi_processor_unregister_pe
+ int acpi_processor_notify_smm(struct module *calling_module);
+ 
+ /* for communication between multiple parts of the processor kernel module */
+-extern struct acpi_processor *processors[NR_CPUS];
++DECLARE_PER_CPU(struct acpi_processor *, processors);
+ extern struct acpi_processor_errata errata;
+ 
+ void arch_acpi_processor_init_pdc(struct acpi_processor *pr);
 
 -- 
 
