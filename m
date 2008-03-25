@@ -1,34 +1,42 @@
-Date: Tue, 25 Mar 2008 19:07:00 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [11/14] vcompound: Fallbacks for order 1 stack allocations on IA64 and x86
-Message-ID: <20080325180700.GY2170@one.firstfloor.org>
-References: <20080321061703.921169367@sgi.com> <20080321061726.782068299@sgi.com> <871w63iuap.fsf@basil.nowhere.org> <Pine.LNX.4.64.0803241251360.4218@schroedinger.engr.sgi.com> <20080325075106.GF2170@one.firstfloor.org> <Pine.LNX.4.64.0803251054320.16374@schroedinger.engr.sgi.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m2PIRi0n015715
+	for <linux-mm@kvack.org>; Tue, 25 Mar 2008 14:27:44 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2PIRiG6241980
+	for <linux-mm@kvack.org>; Tue, 25 Mar 2008 14:27:44 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2PIRig7030595
+	for <linux-mm@kvack.org>; Tue, 25 Mar 2008 14:27:44 -0400
+Subject: Re: larger default page sizes...
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <18408.29107.709577.374424@cargo.ozlabs.ibm.com>
+References: <Pine.LNX.4.64.0803211037140.18671@schroedinger.engr.sgi.com>
+	 <20080321.145712.198736315.davem@davemloft.net>
+	 <Pine.LNX.4.64.0803241121090.3002@schroedinger.engr.sgi.com>
+	 <20080324.133722.38645342.davem@davemloft.net>
+	 <18408.29107.709577.374424@cargo.ozlabs.ibm.com>
+Content-Type: text/plain
+Date: Tue, 25 Mar 2008 11:27:45 -0700
+Message-Id: <1206469665.27393.19.camel@nimitz.home.sr71.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0803251054320.16374@schroedinger.engr.sgi.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, viro@ftp.linux.org.uk
+To: Paul Mackerras <paulus@samba.org>
+Cc: David Miller <davem@davemloft.net>, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 25, 2008 at 10:55:06AM -0700, Christoph Lameter wrote:
-> On Tue, 25 Mar 2008, Andi Kleen wrote:
+On Tue, 2008-03-25 at 14:29 +1100, Paul Mackerras wrote:
+> 4kB pages:      444.051s user + 34.406s system time
+> 64kB pages:     419.963s user + 16.869s system time
 > 
-> > Maybe sparse could be taught to check for this if it happens
-> > in a single function? (cc'ing Al who might have some thoughts
-> > on this). Of course if it happens spread out over multiple
-> > functions sparse wouldn't help neither. 
-> 
-> We could add debugging code to virt_to_page (or __pa) to catch these uses.
+> That's nearly 10% faster with 64kB pages -- on a kernel compile.
 
-Hard to test all cases. Static checking would be better.
+Can you do the same thing with the 4k MMU pages and 64k PAGE_SIZE?
+Wouldn't that easily break out whether the advantage is from the TLB or
+from less kernel overhead?
 
-Or just not do it? I didn't think order 1 failures were that big a problem.
-
-
--Andi
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
