@@ -1,32 +1,41 @@
-Date: Tue, 25 Mar 2008 12:25:04 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: RE: [11/14] vcompound: Fallbacks for order 1 stack allocations on
- IA64 and x86
-In-Reply-To: <1FE6DD409037234FAB833C420AA843ECE9DDFA@orsmsx424.amr.corp.intel.com>
-Message-ID: <Pine.LNX.4.64.0803251223470.17521@schroedinger.engr.sgi.com>
-References: <20080321061726.782068299@sgi.com> <20080321.002502.223136918.davem@davemloft.net>
- <Pine.LNX.4.64.0803211037140.18671@schroedinger.engr.sgi.com>
- <20080321.145712.198736315.davem@davemloft.net>
- <Pine.LNX.4.64.0803241121090.3002@schroedinger.engr.sgi.com>
- <1FE6DD409037234FAB833C420AA843ECE5B84D@orsmsx424.amr.corp.intel.com>
- <Pine.LNX.4.64.0803251036410.15870@schroedinger.engr.sgi.com>
- <1FE6DD409037234FAB833C420AA843ECE9DDFA@orsmsx424.amr.corp.intel.com>
+Date: Tue, 25 Mar 2008 21:23:50 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [Bugme-new] [Bug 10318] New: WARNING: at
+	arch/x86/mm/highmem_32.c:43 kmap_atomic_prot+0x87/0x184()
+Message-ID: <20080325202350.GH15330@elte.hu>
+References: <bug-10318-10286@http.bugzilla.kernel.org/> <20080325105750.ff913a83.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080325105750.ff913a83.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: David Miller <davem@davemloft.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: netdev@vger.kernel.org, bugme-daemon@bugzilla.kernel.org, pstaszewski@artcom.pl, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 Mar 2008, Luck, Tony wrote:
+* Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> dtr[1] : maps an area of region 7 that spans kernel stack
->          page size is kernel granule size (default 16M).
->          This mapping needs to be reset on a context switch
->          where we move to a stack in a different granule.
+> afacit what's happened is that someone is running __alloc_pages(..., 
+> __GFP_ZERO) from softirq context.  But the __GFP_ZERO implementation 
+> uses KM_USER0 which cannot be used from softirq context because 
+> non-interrupt code on this CPU might be using the same kmap slot.
+> 
+> Can anyone thing of anything which recently changed in either 
+> networking core or e1000e which would have triggered this?
+> 
+> I think the core MM code is being doubly dumb here.
+> 
+> a) We should be able to use __GFP_ZERO from all copntexts.
+> 
+> b) it's not a highmem page anyway, so we won't be using that kmap 
+> slot.
 
-Interesting.... Never realized we were doing these tricks with DTR.
+i think this came up before (with kzalloc()) and the MM code should have 
+been fixed to not even attempt a kmap_atomic(), instead of working it 
+around in the callsite or in the kmap_atomic() code.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
