@@ -1,9 +1,9 @@
-Subject: Re: [RFC 5/8] x86_64: Add UV specific header for MMR definitions
-References: <20080324182116.GA28285@sgi.com>
+Subject: Re: [RFC 6/8] x86_64: Define the macros and tables for the basic UV infrastructure.
+References: <20080324182118.GA21758@sgi.com>
 From: Andi Kleen <andi@firstfloor.org>
-Date: 25 Mar 2008 11:06:37 +0100
-In-Reply-To: <20080324182116.GA28285@sgi.com>
-Message-ID: <87iqzbi0cy.fsf@basil.nowhere.org>
+Date: 25 Mar 2008 11:11:11 +0100
+In-Reply-To: <20080324182118.GA21758@sgi.com>
+Message-ID: <87ej9zi05c.fsf@basil.nowhere.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -14,20 +14,31 @@ List-ID: <linux-mm.kvack.org>
 
 Jack Steiner <steiner@sgi.com> writes:
 
+> Define the macros and tables for the basic UV infrastructure.
 > 
-> 	Signed-off-by: Jack Steiner <steiner@sgi.com>
-
-Not sure why you indent that? Normally it is not. 
-Some tools get confused by it I think.
-
-> ---
->  include/asm-x86/uv_mmrs.h |  373 ++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 373 insertions(+)
 > 
-> Index: linux/include/asm-x86/uv_mmrs.h
+> (NOTE: a work-in-progress. Pieces missing....)
 
-I personally would consider it cleaner to put these into a asm-x86/uv/ 
-sub directory
+Does the kernel really need all this information? You just want
+to address the UV-APIC right? I suspect you could use a much stripped
+down file.
+
+> +DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
+> +#define uv_hub_info 		(&__get_cpu_var(__uv_hub_info))
+> +#define uv_cpu_hub_info(cpu)	(&per_cpu(__uv_hub_info, cpu))
+> +
+> +/* This header file is used in BIOS code that runs in physical mode */
+
+Not sure what physical mode is.
+
+> +#ifdef __BIOS__
+> +#define UV_ADDR(x)		((unsigned long *)(x))
+> +#else
+> +#define UV_ADDR(x)		((unsigned long *)__va(x))
+> +#endif
+
+But it it would be cleaner if your BIOS just supplied a suitable __va()
+and then you remove these macros.
 
 -Andi
 
