@@ -1,44 +1,45 @@
-Date: Tue, 25 Mar 2008 08:45:00 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [RFC 5/8] x86_64: Add UV specific header for MMR definitions
-Message-ID: <20080325134459.GA19668@sgi.com>
-References: <20080324182116.GA28285@sgi.com> <87iqzbi0cy.fsf@basil.nowhere.org>
-Mime-Version: 1.0
+Date: Tue, 25 Mar 2008 15:30:59 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [RFC 8/8] x86_64: Support for new UV apic
+Message-ID: <20080325143059.GB11323@elte.hu>
+References: <20080324182122.GA28327@sgi.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87iqzbi0cy.fsf@basil.nowhere.org>
+In-Reply-To: <20080324182122.GA28327@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jack Steiner <steiner@sgi.com>
+Cc: tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 25, 2008 at 11:06:37AM +0100, Andi Kleen wrote:
-> Jack Steiner <steiner@sgi.com> writes:
-> 
-> > 
-> > 	Signed-off-by: Jack Steiner <steiner@sgi.com>
-> 
-> Not sure why you indent that? Normally it is not. 
-> Some tools get confused by it I think.
+* Jack Steiner <steiner@sgi.com> wrote:
 
-Fixed.
+> Index: linux/arch/x86/kernel/genapic_64.c
 
+> @@ -69,7 +73,16 @@ void send_IPI_self(int vector)
+>  
+>  unsigned int get_apic_id(void)
+>  {
+> -	return (apic_read(APIC_ID) >> 24) & 0xFFu;
+> +	unsigned int id;
+> +
+> +	preempt_disable();
+> +	id = apic_read(APIC_ID);
+> +	if (uv_system_type >= UV_X2APIC)
+> +		id  |= __get_cpu_var(x2apic_extra_bits);
+> +	else
+> +		id = (id >> 24) & 0xFFu;;
+> +	preempt_enable();
+> +	return id;
 
-> 
-> > ---
-> >  include/asm-x86/uv_mmrs.h |  373 ++++++++++++++++++++++++++++++++++++++++++++++
-> >  1 file changed, 373 insertions(+)
-> > 
-> > Index: linux/include/asm-x86/uv_mmrs.h
-> 
-> I personally would consider it cleaner to put these into a asm-x86/uv/ 
-> sub directory
+dont we want to put get_apic_id() into struct genapic instead? We 
+already have ID management there.
 
-Will change...
+also, we want to unify 32-bit and 64-bit genapic code and just have 
+genapic all across x86.
 
-
---- jack
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
