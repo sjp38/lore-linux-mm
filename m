@@ -1,51 +1,62 @@
-Subject: Re: [RFC][PATCH] another swap controller for cgroup
-In-Reply-To: Your message of "Mon, 24 Mar 2008 21:10:14 +0900"
-	<47E79A26.3070401@mxp.nes.nec.co.jp>
-References: <47E79A26.3070401@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20080325031039.549831E9292@siro.lan>
-Date: Tue, 25 Mar 2008 12:10:39 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <18408.29107.709577.374424@cargo.ozlabs.ibm.com>
+Date: Tue, 25 Mar 2008 14:29:55 +1100
+From: Paul Mackerras <paulus@samba.org>
+Subject: Re: larger default page sizes...
+In-Reply-To: <20080324.133722.38645342.davem@davemloft.net>
+References: <Pine.LNX.4.64.0803211037140.18671@schroedinger.engr.sgi.com>
+	<20080321.145712.198736315.davem@davemloft.net>
+	<Pine.LNX.4.64.0803241121090.3002@schroedinger.engr.sgi.com>
+	<20080324.133722.38645342.davem@davemloft.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: nishimura@mxp.nes.nec.co.jp
-Cc: hugh@veritas.com, balbir@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, minoura@valinux.co.jp, containers@lists.osdl.org, linux-mm@kvack.org
+To: David Miller <davem@davemloft.net>
+Cc: clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-hi,
+David Miller writes:
 
-> Daisuke Nishimura wrote:
-> > Hi, Yamamoto-san.
-> > 
-> > I'm reviewing and testing your patch now.
-> > 
+> From: Christoph Lameter <clameter@sgi.com>
+> Date: Mon, 24 Mar 2008 11:27:06 -0700 (PDT)
 > 
-> In building kernel infinitely(in a cgroup of
-> memory.limit=64M and swap.limit=128M, with swappiness=100),
-> almost all of the swap (1GB) is consumed as swap cache
-> after a day or so.
-> As a result, processes are occasionally OOM-killed even when
-> the swap.usage of the group doesn't exceed the limit.
+> > The move to 64k page size on IA64 is another way that this issue can
+> > be addressed though.
 > 
-> I don't know why the swap cache uses up swap space.
-> I will test whether a similar issue happens without your patch.
-> Do you have any thoughts?
+> This is such a huge mistake I wish platforms such as powerpc and IA64
+> would not make such decisions so lightly.
 
-my patch tends to yield more swap cache because it makes try_to_unmap
-fail and shrink_page_list leaves swap cache in that case.
-i'm not sure how it causes 1GB swap cache, tho.
+The performance advantage of using hardware 64k pages is pretty
+compelling, on a wide range of programs, and particularly on HPC apps.
 
-YAMAMOTO Takashi
+> The memory wastage is just rediculious.
 
-> 
-> BTW, I think that it would be better, in the sence of
-> isolating memory resource, if there is a framework
-> to limit the usage of swap cache.
-> 
-> 
-> Thanks,
-> Daisuke Nishimura.
+Depends on the distribution of file sizes you have.
+
+> I already see several distributions moving to 64K pages for powerpc,
+> so I want to nip this in the bud before this monkey-see-monkey-do
+> thing gets any more out of hand.
+
+I just tried a kernel compile on a 4.2GHz POWER6 partition with 4
+threads (2 cores) and 2GB of RAM, with two kernels.  One was
+configured with 4kB pages and the other with 64kB kernels but they
+were otherwise identically configured.  Here are the times for the
+same kernel compile (total time across all threads, for a fairly
+full-featured config):
+
+4kB pages:	444.051s user + 34.406s system time
+64kB pages:	419.963s user + 16.869s system time
+
+That's nearly 10% faster with 64kB pages -- on a kernel compile.
+
+Yes, the fragmentation in the page cache can be a pain in some
+circumstances, but on the whole I think the performance advantage is
+worth that pain, particularly for the sort of applications that people
+will tend to be running on RHEL on Power boxes.
+
+Regards,
+Paul.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
