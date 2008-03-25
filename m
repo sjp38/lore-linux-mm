@@ -1,41 +1,58 @@
-Date: Tue, 25 Mar 2008 21:23:50 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [Bugme-new] [Bug 10318] New: WARNING: at
-	arch/x86/mm/highmem_32.c:43 kmap_atomic_prot+0x87/0x184()
-Message-ID: <20080325202350.GH15330@elte.hu>
-References: <bug-10318-10286@http.bugzilla.kernel.org/> <20080325105750.ff913a83.akpm@linux-foundation.org>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080325105750.ff913a83.akpm@linux-foundation.org>
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Subject: What if a TLB flush needed to sleep?
+Date: Tue, 25 Mar 2008 13:49:54 -0700
+Message-ID: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com>
+From: "Luck, Tony" <tony.luck@intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: netdev@vger.kernel.org, bugme-daemon@bugzilla.kernel.org, pstaszewski@artcom.pl, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
+To: linux-arch@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* Andrew Morton <akpm@linux-foundation.org> wrote:
+ia64 processors have a "ptc.g" instruction that will purge
+a TLB entry across all processors in a system.  On current
+cpus there is a limitation that only one ptc.g instruction may
+be in flight at a time, so we serialize execution with code
+like this:
 
-> afacit what's happened is that someone is running __alloc_pages(..., 
-> __GFP_ZERO) from softirq context.  But the __GFP_ZERO implementation 
-> uses KM_USER0 which cannot be used from softirq context because 
-> non-interrupt code on this CPU might be using the same kmap slot.
-> 
-> Can anyone thing of anything which recently changed in either 
-> networking core or e1000e which would have triggered this?
-> 
-> I think the core MM code is being doubly dumb here.
-> 
-> a) We should be able to use __GFP_ZERO from all copntexts.
-> 
-> b) it's not a highmem page anyway, so we won't be using that kmap 
-> slot.
+	spin_lock(&ptcg_lock);
+	... execute ptc.g
+	spin_unlock(&ptcg_lock);
 
-i think this came up before (with kzalloc()) and the MM code should have 
-been fixed to not even attempt a kmap_atomic(), instead of working it 
-around in the callsite or in the kmap_atomic() code.
+The architecture allows for more than one purge at a time.
+So (without making any declarations about features of
+unreleased processors) it seemed like time to update the
+code to grab the maximum count from PAL, use that to
+initialize a semaphore, and change the code to:
 
-	Ingo
+	down(&ptcg_sem);
+	... execute ptc.g
+	up(&ptcg_sem);
+
+This code lasted about a week before someone ran hackbench
+with parameters chosen to cause some swap activity (memory
+footprint ~8.5GB on an 8GB system).  The machine promptly
+deadlocked because VM code called the tlbflush code while
+holding an anon_vma_lock, the semaphore happened to sleep
+because some other processor was also trying to do a purge,
+and the test was on a system where the limit was still just
+one ptc.g at a time, and the process got swapped.
+
+Now for the questions:
+
+1) Is holding a spin lock a problem for any other arch when
+doing a TLB flush (I'm particularly thinking of those that
+need to use IPI shootdown for the purge)?
+
+2) Is it feasible to rearrange the MM code so that we don't
+hold any locks while doing a TLB flush?  Or should I implement
+some sort of spin_only_semaphore?
+
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
