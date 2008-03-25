@@ -1,84 +1,136 @@
-Message-Id: <20080325021955.802967000@polaris-admin.engr.sgi.com>
-References: <20080325021954.979158000@polaris-admin.engr.sgi.com>
-Date: Mon, 24 Mar 2008 19:19:59 -0700
+Message-Id: <20080325021954.979158000@polaris-admin.engr.sgi.com>
+Date: Mon, 24 Mar 2008 19:19:54 -0700
 From: Mike Travis <travis@sgi.com>
-Subject: [PATCH 05/10] cpumask: Add cpumask_scnprintf_len function
-Content-Disposition: inline; filename=add-cpumask_scnprintf_len
+Subject: [PATCH 00/10] NR_CPUS: third reduction of NR_CPUS memory usage
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Jackson <pj@sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Add a new function cpumask_scnprintf_len() to return the number of
-characters needed to display "len" cpumask bits.  The current method
-of allocating NR_CPUS bytes is incorrect as what's really needed is
-9 characters per 32-bit word of cpumask bits (8 hex digits plus the
-seperator [','] or the terminating NULL.)  This function provides the
-caller the means to allocate the correct string length.
+Here's the third round of removing static allocations of arrays using
+NR_CPUS to size the length.  The change is to use PER_CPU variables in
+place of the static tables, or allocate the array based on nr_cpu_ids.
+
+In addition, there's a cleanup of x86 non-smp code, the movement of
+setting nr_cpu_ids to setup_per_cpu_areas() so it's available as soon
+as possible, and a new function cpumask_scnprintf_len() to return the
+number of characters needed to display "len" cpumask bits.
+
+Affected files:
+
+	arch/ia64/kernel/acpi.c
+	arch/ia64/kernel/setup.c
+	arch/powerpc/kernel/setup_64.c
+	arch/sparc64/mm/init.c
+	arch/x86/kernel/cpu/intel_cacheinfo.c
+	arch/x86/kernel/genapic_64.c
+	arch/x86/kernel/mpparse_64.c
+	arch/x86/kernel/setup64.c
+	arch/x86/kernel/smpboot_32.c
+	arch/x86/mm/numa_64.c
+	arch/x86/oprofile/nmi_int.c
+	drivers/acpi/processor_core.c
+	drivers/acpi/processor_idle.c
+	drivers/acpi/processor_perflib.c
+	drivers/acpi/processor_throttling.c
+	drivers/base/cpu.c
+	drivers/cpufreq/cpufreq.c
+	drivers/cpufreq/cpufreq_stats.c
+	drivers/cpufreq/freq_table.c
+	include/acpi/processor.h
+	include/asm-x86/smp_32.h
+	include/asm-x86/smp_64.h
+	include/asm-x86/topology.h
+	include/linux/bitmap.h
+	include/linux/cpumask.h
+	init/main.c
+	kernel/sched.c
+	lib/bitmap.c
+	net/core/dev.c
 
 Based on linux-2.6.25-rc5-mm1
 
+Cc: Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
+Cc: Andi Kleen <ak@suse.de>
+Cc: Anton Blanchard <anton@samba.org>
+Cc: Christoph Lameter <clameter@sgi.com>
+Cc: Dave Jones <davej@codemonkey.org.uk>
+Cc: David S. Miller <davem@davemloft.net>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Ingo Molnar <mingo@elte.hu>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: James Morris <jmorris@namei.org>
+Cc: Len Brown <len.brown@intel.com>
+Cc: Patrick McHardy <kaber@trash.net>
 Cc: Paul Jackson <pj@sgi.com>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: Philippe Elie <phil.el@wanadoo.fr>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Tony Luck <tony.luck@intel.com>
+Cc: William L. Irwin <wli@holomorphy.com>
 
 Signed-off-by: Mike Travis <travis@sgi.com>
 ---
- include/linux/bitmap.h  |    1 +
- include/linux/cpumask.h |    7 +++++++
- lib/bitmap.c            |   16 ++++++++++++++++
- 3 files changed, 24 insertions(+)
 
---- linux-2.6.25-rc5.orig/include/linux/bitmap.h
-+++ linux-2.6.25-rc5/include/linux/bitmap.h
-@@ -110,6 +110,7 @@ extern int __bitmap_weight(const unsigne
- 
- extern int bitmap_scnprintf(char *buf, unsigned int len,
- 			const unsigned long *src, int nbits);
-+extern int bitmap_scnprintf_len(unsigned int len);
- extern int __bitmap_parse(const char *buf, unsigned int buflen, int is_user,
- 			unsigned long *dst, int nbits);
- extern int bitmap_parse_user(const char __user *ubuf, unsigned int ulen,
---- linux-2.6.25-rc5.orig/include/linux/cpumask.h
-+++ linux-2.6.25-rc5/include/linux/cpumask.h
-@@ -277,6 +277,13 @@ static inline int __cpumask_scnprintf(ch
- 	return bitmap_scnprintf(buf, len, srcp->bits, nbits);
- }
- 
-+#define cpumask_scnprintf_len(len) \
-+			__cpumask_scnprintf_len((len))
-+static inline int __cpumask_scnprintf_len(int len)
-+{
-+	return bitmap_scnprintf_len(len);
-+}
-+
- #define cpumask_parse_user(ubuf, ulen, dst) \
- 			__cpumask_parse_user((ubuf), (ulen), &(dst), NR_CPUS)
- static inline int __cpumask_parse_user(const char __user *buf, int len,
---- linux-2.6.25-rc5.orig/lib/bitmap.c
-+++ linux-2.6.25-rc5/lib/bitmap.c
-@@ -316,6 +316,22 @@ int bitmap_scnprintf(char *buf, unsigned
- EXPORT_SYMBOL(bitmap_scnprintf);
- 
- /**
-+ * bitmap_scnprintf_len - return buffer length needed to convert
-+ * bitmap to an ASCII hex string.
-+ * @len: number of bits to be converted
-+ */
-+int bitmap_scnprintf_len(unsigned int len)
-+{
-+	/* we need 9 chars per word for 32 bit words (8 hexdigits + sep/null) */
-+	int bitslen = ALIGN(len, CHUNKSZ);
-+	int wordlen = CHUNKSZ / 4;
-+	int buflen = (bitslen / wordlen) * (wordlen + 1) * sizeof(char);
-+
-+	return buflen;
-+}
-+EXPORT_SYMBOL(bitmap_scnprintf_len);
-+
-+/**
-  * __bitmap_parse - convert an ASCII hex string into a bitmap.
-  * @buf: pointer to buffer containing string.
-  * @buflen: buffer size in bytes.  If string is smaller than this
+I moved the x86_64 cleanup and move-set-nr_cpu_ids from the zero-based
+percpu variables patchset to this one, as I was encountering a panic
+from system_call_after_swapgs() after an unknown device interrupt during
+module loading.  That problem will be dealt with in another patch.
+
+
+Here's the various effects of the patches on memory usages using the
+akpm2 config file with NR_CPUS=4096 and MAXNODES=512:
+
+====== Data (-l 500)
+    1 - initial
+    2 - cleanup
+    4 - nr_cpus-in-cpufreq-cpu_alloc
+    5 - nr_cpus-in-acpi-driver-cpu_alloc
+    7 - nr_cpus-in-intel_cacheinfo
+    8 - nr_cpus-in-cpu_c
+   11 - nr_cpus-in-kernel_sched
+
+    .1.   .2.     .4.     .5.   .7.     .8.    .11.  
+  32768     .  -32768       .     .       .       .   show_table(.bss)
+  32768     .       .       .     .       .  -32768   sched_group_nodes_bycpu(.bss)
+  32768     .       .  -32768     .       .       .   processors(.bss)
+  32768     .       .  -32768     .       .       .   processor_device_array(.bss)
+  32768     .       .       .     .       .  -32768   init_sched_entity_p(.bss)
+  32768     .       .       .     .       .  -32768   init_cfs_rq_p(.bss)
+  32768     .       .       .-32768       .       .   index_kobject(.bss)
+  32768     .       .       .-32768       .       .   cpuid4_info(.bss)
+  32768     .  -32768       .     .       .       .   cpufreq_cpu_governor(.bss)
+  32768     .  -32768       .     .       .       .   cpufreq_cpu_data(.bss)
+  32768     .       .       .     .  -32768       .   cpu_sys_devices(.bss)
+  32768     .       .       .-32768       .       .   cache_kobject(.bss)
+
+====== Text/Data ()
+    1 - initial
+    4 - nr_cpus-in-cpufreq-cpu_alloc
+    5 - nr_cpus-in-acpi-driver-cpu_alloc
+    7 - nr_cpus-in-intel_cacheinfo
+    8 - nr_cpus-in-cpu_c
+   11 - nr_cpus-in-kernel_sched
+
+       .1.     .4.     .5.     .7.     .8.    .11.    ..final..
+   3373056       .   +2048       .       .       . 3375104    <1%  TextSize
+   1656832       .   +2048       .       .       . 1658880    <1%  DataSize
+   1855488  -98304  -65536  -98304  -32768  -98304 1462272   -21%  BssSize
+  10395648       .   +4096       .       .       . 10399744   <1%  OtherSize
+  17281024  -98304  -57344  -98304  -32768  -98304 16896000   -2%  Totals
+
+====== Stack (-l 500)
+... files 11 vars 928 all 0 lim 500 unch 0
+
+    1 - initial
+    7 - nr_cpus-in-intel_cacheinfo
+   11 - nr_cpus-in-kernel_sched
+
+   .1.    .7.   .11.    ..final..
+  4648      .  -4080  568   -87%  cpu_attach_domain
+  4104  -4104      .    .  -100%  show_shared_cpu_map
+  8752  -4104  -4080  568   -93%  Totals
 
 -- 
 
