@@ -1,35 +1,32 @@
-Date: Tue, 25 Mar 2008 19:06:16 +0100
+Date: Tue, 25 Mar 2008 19:07:00 +0100
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [RFC 8/8] x86_64: Support for new UV apic
-Message-ID: <20080325180616.GX2170@one.firstfloor.org>
-References: <20080324182122.GA28327@sgi.com> <87abknhzhd.fsf@basil.nowhere.org> <20080325175657.GA6262@sgi.com>
+Subject: Re: [11/14] vcompound: Fallbacks for order 1 stack allocations on IA64 and x86
+Message-ID: <20080325180700.GY2170@one.firstfloor.org>
+References: <20080321061703.921169367@sgi.com> <20080321061726.782068299@sgi.com> <871w63iuap.fsf@basil.nowhere.org> <Pine.LNX.4.64.0803241251360.4218@schroedinger.engr.sgi.com> <20080325075106.GF2170@one.firstfloor.org> <Pine.LNX.4.64.0803251054320.16374@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080325175657.GA6262@sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0803251054320.16374@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: Andi Kleen <andi@firstfloor.org>, mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, viro@ftp.linux.org.uk
 List-ID: <linux-mm.kvack.org>
 
-> > This should be probably factored properly (didn't Jeremy have smp_ops 
-> > for this some time ago) so that even the default case is a call.
+On Tue, Mar 25, 2008 at 10:55:06AM -0700, Christoph Lameter wrote:
+> On Tue, 25 Mar 2008, Andi Kleen wrote:
 > 
-> By factored, do you means something like:
-> 	is_uv_legacy_system()
-> 	is_us_non_unique_apicid_system()
-> 	...
+> > Maybe sparse could be taught to check for this if it happens
+> > in a single function? (cc'ing Al who might have some thoughts
+> > on this). Of course if it happens spread out over multiple
+> > functions sparse wouldn't help neither. 
 > 
-> Or maybe:
-> 	is_uv_system_type(x)   # where x is UV_NON_UNIQUE_APIC, etc
+> We could add debugging code to virt_to_page (or __pa) to catch these uses.
 
-No instead of having lots of if (xyz_system) do_xyz_special()
-go through smp_ops for the whole thing so that UV would just have a 
-special smp_ops that has special implementions or wrappers. 
+Hard to test all cases. Static checking would be better.
 
-Oops I see smp_ops are currently only implemented
-for 32bit. Ok do it only once smp_ops exist on 64bit too. 
+Or just not do it? I didn't think order 1 failures were that big a problem.
+
 
 -Andi
 
