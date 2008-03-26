@@ -1,38 +1,47 @@
-Date: Tue, 25 Mar 2008 22:03:38 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [RFC 6/8] x86_64: Define the macros and tables for the basic UV infrastructure.
-Message-ID: <20080326030338.GB11714@sgi.com>
-References: <20080324182118.GA21758@sgi.com> <87ej9zi05c.fsf@basil.nowhere.org> <20080326000930.GB18701@infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: by py-out-1112.google.com with SMTP id f47so3504404pye.20
+        for <linux-mm@kvack.org>; Tue, 25 Mar 2008 20:22:09 -0700 (PDT)
+Message-ID: <5d6222a80803252022n208abd1bieda5cfc4920e2b0c@mail.gmail.com>
+Date: Wed, 26 Mar 2008 00:22:07 -0300
+From: "Glauber Costa" <glommer@gmail.com>
+Subject: Re: [RFC 8/8] x86_64: Support for new UV apic
+In-Reply-To: <47E9B398.3080008@goop.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080326000930.GB18701@infradead.org>
+References: <20080324182122.GA28327@sgi.com> <87abknhzhd.fsf@basil.nowhere.org>
+	 <20080325175657.GA6262@sgi.com>
+	 <20080325180616.GX2170@one.firstfloor.org> <47E9B398.3080008@goop.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andi Kleen <andi@firstfloor.org>, mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Jack Steiner <steiner@sgi.com>, mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 25, 2008 at 08:09:30PM -0400, Christoph Hellwig wrote:
-> On Tue, Mar 25, 2008 at 11:11:11AM +0100, Andi Kleen wrote:
-> > Not sure what physical mode is.
-> > 
-> > > +#ifdef __BIOS__
-> > > +#define UV_ADDR(x)		((unsigned long *)(x))
-> > > +#else
-> > > +#define UV_ADDR(x)		((unsigned long *)__va(x))
-> > > +#endif
-> > 
-> > But it it would be cleaner if your BIOS just supplied a suitable __va()
-> > and then you remove these macros.
-> 
-> the bios should just have headers of it's own instead of placing this
-> burden on kernel code.
+On Tue, Mar 25, 2008 at 11:23 PM, Jeremy Fitzhardinge <jeremy@goop.org> wrote:
+> Andi Kleen wrote:
+>  > No instead of having lots of if (xyz_system) do_xyz_special()
+>  > go through smp_ops for the whole thing so that UV would just have a
+>  > special smp_ops that has special implementions or wrappers.
+>  >
+>  > Oops I see smp_ops are currently only implemented
+>  > for 32bit. Ok do it only once smp_ops exist on 64bit too.
+>  >
+>
+>  I think glommer has patches to unify smp stuff, which should include
+>  smp_ops.
+>
 
-See mail from earlier today. The UV_ADDR macro has been eliminated.
+They are already merged in ingo's tree.
 
+I'm still about to post some last-minute issues, but the full smp_ops
+support is there.
+-- 
+Glauber Costa.
+"Free as in Freedom"
+http://glommer.net
 
---- jack
+"The less confident you are, the more serious you have to act."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
