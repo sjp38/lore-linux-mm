@@ -1,322 +1,251 @@
-Message-Id: <20080326013813.481009000@polaris-admin.engr.sgi.com>
-References: <20080326013811.569646000@polaris-admin.engr.sgi.com>
-Date: Tue, 25 Mar 2008 18:38:23 -0700
+Message-Id: <20080326013811.569646000@polaris-admin.engr.sgi.com>
+Date: Tue, 25 Mar 2008 18:38:11 -0700
 From: Mike Travis <travis@sgi.com>
-Subject: [PATCH 12/12] cpu/node mask: reduce stack usage using MASK_NONE, MASK_ALL
-Content-Disposition: inline; filename=CPU_NODE_MASK
+Subject: [PATCH 00/12] cpumask: reduce stack pressure from local/passed cpumask variables v2
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Replace usages of CPU_MASK_NONE, CPU_MASK_ALL, NODE_MASK_NONE,
-NODE_MASK_ALL to reduce stack requirements for large NR_CPUS
-and MAXNODES counts.  In some cases, the cpumask variable was
-initialized but then overwritten with another value.  This is
-the case for changes like this:
+Modify usage of cpumask_t variables to use pointers as much as possible.
 
--       cpumask_t oldmask = CPU_MASK_ALL;
-+       cpumask_t oldmask;
+Changes are:
 
+	* Use an allocated array of cpumask_t's for cpumask_of_cpu() when
+	  large NR_CPUS count is present.  This removes 26168 bytes of stack
+	  usage (see chart below), as well as reduces the code generated for
+	  each usage.
+
+	* Modify set_cpus_allowed to pass a pointer to the "newly allowed"
+	  cpumask.  This removes 10792 bytes of stack usage but is an
+	  ABI change.
+
+	* Add node_to_cpumask_ptr that returns pointer to cpumask for the
+	  specified node.  This removes 10256 bytes of stack usage.
+
+	* Modify build_sched_domains and related sub-functions to pass
+	  pointers to cpumask temp variables.  This consolidates stack
+	  space that was spread over various functions.
+
+	* Remove large array from numa_initmem_init() [-8248 bytes].
+
+	* Optimize usages of {CPU,NODE}_MASK_{NONE,ALL} [-9408 bytes].
+
+	* Various other changes to reduce stacksize and silence checkpatch
+	  warnings [-7672 bytes].
 
 Based on:
 	git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
 	git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
 
-# x86
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@elte.hu>
+Cc: Anton Blanchard <anton@samba.org>
+Cc: Christoph Lameter <clameter@sgi.com>
+Cc: Cliff Wickman <cpw@sgi.com>
+Cc: Dave Jones <davej@codemonkey.org.uk>
+Cc: David Howells <dhowells@redhat.com>
+Cc: David S. Miller <davem@davemloft.net>
 Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Ingo Molnar <mingo@elte.hu>
+Cc: Jack Steiner <steiner@sgi.com>
+Cc: Len Brown <len.brown@intel.com>
+Cc: Paul Jackson <pj@sgi.com>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: Richard Henderson <rth@twiddle.net>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Tony Luck <tony.luck@intel.com>
+Cc: William L. Irwin <wli@holomorphy.com>
 
 Signed-off-by: Mike Travis <travis@sgi.com>
 ---
- arch/x86/kernel/cpu/cpufreq/powernow-k8.c |    6 +++---
- arch/x86/kernel/cpu/mcheck/mce_amd_64.c   |    4 ++--
- arch/x86/kernel/genapic_flat_64.c         |    4 +++-
- arch/x86/kernel/io_apic_64.c              |    2 +-
- include/linux/cpumask.h                   |    6 ++++++
- init/main.c                               |    7 ++++++-
- kernel/cpu.c                              |    2 +-
- kernel/cpuset.c                           |   10 +++++-----
- kernel/irq/chip.c                         |    2 +-
- kernel/kmod.c                             |    2 +-
- kernel/kthread.c                          |    4 ++--
- kernel/rcutorture.c                       |    3 ++-
- kernel/sched.c                            |    8 ++++----
- mm/allocpercpu.c                          |    3 ++-
- 14 files changed, 39 insertions(+), 24 deletions(-)
 
---- linux.trees.git.orig/arch/x86/kernel/cpu/cpufreq/powernow-k8.c
-+++ linux.trees.git/arch/x86/kernel/cpu/cpufreq/powernow-k8.c
-@@ -478,7 +478,7 @@ static int core_voltage_post_transition(
- 
- static int check_supported_cpu(unsigned int cpu)
- {
--	cpumask_t oldmask = CPU_MASK_ALL;
-+	cpumask_t oldmask;
- 	u32 eax, ebx, ecx, edx;
- 	unsigned int rc = 0;
- 
-@@ -1015,7 +1015,7 @@ static int transition_frequency_pstate(s
- /* Driver entry point to switch to the target frequency */
- static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsigned relation)
- {
--	cpumask_t oldmask = CPU_MASK_ALL;
-+	cpumask_t oldmask;
- 	struct powernow_k8_data *data = per_cpu(powernow_data, pol->cpu);
- 	u32 checkfid;
- 	u32 checkvid;
-@@ -1104,7 +1104,7 @@ static int powernowk8_verify(struct cpuf
- static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
- {
- 	struct powernow_k8_data *data;
--	cpumask_t oldmask = CPU_MASK_ALL;
-+	cpumask_t oldmask;
- 	int rc;
- 
- 	if (!cpu_online(pol->cpu))
---- linux.trees.git.orig/arch/x86/kernel/cpu/mcheck/mce_amd_64.c
-+++ linux.trees.git/arch/x86/kernel/cpu/mcheck/mce_amd_64.c
-@@ -255,7 +255,7 @@ static void affinity_set(unsigned int cp
- 						cpumask_t *newmask)
- {
- 	*oldmask = current->cpus_allowed;
--	*newmask = CPU_MASK_NONE;
-+	cpus_clear(*newmask);
- 	cpu_set(cpu, *newmask);
- 	set_cpus_allowed(current, newmask);
- }
-@@ -468,7 +468,7 @@ static __cpuinit int threshold_create_ba
- {
- 	int i, err = 0;
- 	struct threshold_bank *b = NULL;
--	cpumask_t oldmask = CPU_MASK_NONE, newmask;
-+	cpumask_t oldmask, newmask;
- 	char name[32];
- 
- 	sprintf(name, "threshold_bank%i", bank);
---- linux.trees.git.orig/arch/x86/kernel/genapic_flat_64.c
-+++ linux.trees.git/arch/x86/kernel/genapic_flat_64.c
-@@ -138,7 +138,9 @@ static cpumask_t physflat_target_cpus(vo
- 
- static cpumask_t physflat_vector_allocation_domain(int cpu)
- {
--	cpumask_t domain = CPU_MASK_NONE;
-+	cpumask_t domain;
-+
-+	cpus_clear(domain);
- 	cpu_set(cpu, domain);
- 	return domain;
- }
---- linux.trees.git.orig/arch/x86/kernel/io_apic_64.c
-+++ linux.trees.git/arch/x86/kernel/io_apic_64.c
-@@ -770,7 +770,7 @@ static void __clear_irq_vector(int irq)
- 		per_cpu(vector_irq, cpu)[vector] = -1;
- 
- 	cfg->vector = 0;
--	cfg->domain = CPU_MASK_NONE;
-+	cpus_clear(cfg->domain);
- }
- 
- void __setup_vector_irq(int cpu)
---- linux.trees.git.orig/include/linux/cpumask.h
-+++ linux.trees.git/include/linux/cpumask.h
-@@ -244,6 +244,8 @@ int __next_cpu(int n, const cpumask_t *s
- }))
- static inline void setup_cpumask_of_cpu(int num) {}
- 
-+#define CPU_MASK_ALL_PTR	(&CPU_MASK_ALL)
-+
- #else
- 
- #define CPU_MASK_ALL							\
-@@ -252,6 +254,10 @@ static inline void setup_cpumask_of_cpu(
- 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD			\
- } }
- 
-+/* cpu_mask_all is in init/main.c */
-+extern cpumask_t cpu_mask_all;
-+#define CPU_MASK_ALL_PTR	(&cpu_mask_all)
-+
- /* cpumask_of_cpu_map is in init/main.c */
- #define cpumask_of_cpu(cpu)    (cpumask_of_cpu_map[cpu])
- extern cpumask_t *cpumask_of_cpu_map;
---- linux.trees.git.orig/init/main.c
-+++ linux.trees.git/init/main.c
-@@ -194,6 +194,11 @@ static const char *panic_later, *panic_p
- 
- extern struct obs_kernel_param __setup_start[], __setup_end[];
- 
-+#if NR_CPUS > BITS_PER_LONG
-+cpumask_t cpu_mask_all = CPU_MASK_ALL;
-+EXPORT_SYMBOL(cpu_mask_all);
-+#endif
-+
- static int __init obsolete_checksetup(char *line)
- {
- 	struct obs_kernel_param *p;
-@@ -845,7 +850,7 @@ static int __init kernel_init(void * unu
- 	/*
- 	 * init can run on any cpu.
- 	 */
--	set_cpus_allowed(current, &CPU_MASK_ALL);
-+	set_cpus_allowed(current, CPU_MASK_ALL_PTR);
- 	/*
- 	 * Tell the world that we're going to be the grim
- 	 * reaper of innocent orphaned children.
---- linux.trees.git.orig/kernel/cpu.c
-+++ linux.trees.git/kernel/cpu.c
-@@ -232,7 +232,7 @@ static int _cpu_down(unsigned int cpu, i
- 
- 	/* Ensure that we are not runnable on dying cpu */
- 	old_allowed = current->cpus_allowed;
--	tmp = CPU_MASK_ALL;
-+	cpus_setall(tmp);
- 	cpu_clear(cpu, tmp);
- 	set_cpus_allowed(current, &tmp);
- 
---- linux.trees.git.orig/kernel/cpuset.c
-+++ linux.trees.git/kernel/cpuset.c
-@@ -1556,8 +1556,8 @@ static struct cgroup_subsys_state *cpuse
- 	if (is_spread_slab(parent))
- 		set_bit(CS_SPREAD_SLAB, &cs->flags);
- 	set_bit(CS_SCHED_LOAD_BALANCE, &cs->flags);
--	cs->cpus_allowed = CPU_MASK_NONE;
--	cs->mems_allowed = NODE_MASK_NONE;
-+	cpus_clear(cs->cpus_allowed);
-+	nodes_clear(cs->mems_allowed);
- 	cs->mems_generation = cpuset_mems_generation++;
- 	fmeter_init(&cs->fmeter);
- 
-@@ -1626,8 +1626,8 @@ int __init cpuset_init(void)
- {
- 	int err = 0;
- 
--	top_cpuset.cpus_allowed = CPU_MASK_ALL;
--	top_cpuset.mems_allowed = NODE_MASK_ALL;
-+	cpus_setall(top_cpuset.cpus_allowed);
-+	nodes_setall(top_cpuset.mems_allowed);
- 
- 	fmeter_init(&top_cpuset.fmeter);
- 	top_cpuset.mems_generation = cpuset_mems_generation++;
-@@ -1873,7 +1873,7 @@ void cpuset_cpus_allowed_locked(struct t
- 
- void cpuset_init_current_mems_allowed(void)
- {
--	current->mems_allowed = NODE_MASK_ALL;
-+	nodes_setall(current->mems_allowed);
- }
- 
- /**
---- linux.trees.git.orig/kernel/irq/chip.c
-+++ linux.trees.git/kernel/irq/chip.c
-@@ -47,7 +47,7 @@ void dynamic_irq_init(unsigned int irq)
- 	desc->irq_count = 0;
- 	desc->irqs_unhandled = 0;
- #ifdef CONFIG_SMP
--	desc->affinity = CPU_MASK_ALL;
-+	cpus_setall(desc->affinity);
- #endif
- 	spin_unlock_irqrestore(&desc->lock, flags);
- }
---- linux.trees.git.orig/kernel/kmod.c
-+++ linux.trees.git/kernel/kmod.c
-@@ -165,7 +165,7 @@ static int ____call_usermodehelper(void 
- 	}
- 
- 	/* We can run anywhere, unlike our parent keventd(). */
--	set_cpus_allowed(current, &CPU_MASK_ALL);
-+	set_cpus_allowed(current, CPU_MASK_ALL_PTR);
- 
- 	/*
- 	 * Our parent is keventd, which runs with elevated scheduling priority.
---- linux.trees.git.orig/kernel/kthread.c
-+++ linux.trees.git/kernel/kthread.c
-@@ -107,7 +107,7 @@ static void create_kthread(struct kthrea
- 		 */
- 		sched_setscheduler(create->result, SCHED_NORMAL, &param);
- 		set_user_nice(create->result, KTHREAD_NICE_LEVEL);
--		set_cpus_allowed(create->result, &CPU_MASK_ALL);
-+		set_cpus_allowed(create->result, CPU_MASK_ALL_PTR);
- 	}
- 	complete(&create->done);
- }
-@@ -232,7 +232,7 @@ int kthreadd(void *unused)
- 	set_task_comm(tsk, "kthreadd");
- 	ignore_signals(tsk);
- 	set_user_nice(tsk, KTHREAD_NICE_LEVEL);
--	set_cpus_allowed(tsk, &CPU_MASK_ALL);
-+	set_cpus_allowed(tsk, CPU_MASK_ALL_PTR);
- 
- 	current->flags |= PF_NOFREEZE;
- 
---- linux.trees.git.orig/kernel/rcutorture.c
-+++ linux.trees.git/kernel/rcutorture.c
-@@ -723,9 +723,10 @@ static int rcu_idle_cpu;	/* Force all to
-  */
- static void rcu_torture_shuffle_tasks(void)
- {
--	cpumask_t tmp_mask = CPU_MASK_ALL;
-+	cpumask_t tmp_mask;
- 	int i;
- 
-+	cpus_setall(tmp_mask);
- 	get_online_cpus();
- 
- 	/* No point in shuffling if there is only one online CPU (ex: UP) */
---- linux.trees.git.orig/kernel/sched.c
-+++ linux.trees.git/kernel/sched.c
-@@ -5502,7 +5502,7 @@ static void move_task_off_dead_cpu(int d
-  */
- static void migrate_nr_uninterruptible(struct rq *rq_src)
- {
--	struct rq *rq_dest = cpu_rq(any_online_cpu(CPU_MASK_ALL));
-+	struct rq *rq_dest = cpu_rq(any_online_cpu(*CPU_MASK_ALL_PTR));
- 	unsigned long flags;
- 
- 	local_irq_save(flags);
-@@ -6220,7 +6220,7 @@ init_sched_build_groups(const cpumask_t 
- 	struct sched_group *first = NULL, *last = NULL;
- 	int i;
- 
--	*covered = CPU_MASK_NONE;
-+	cpus_clear(*covered);
- 
- 	for_each_cpu_mask(i, *span) {
- 		struct sched_group *sg;
-@@ -6230,7 +6230,7 @@ init_sched_build_groups(const cpumask_t 
- 		if (cpu_isset(i, *covered))
- 			continue;
- 
--		sg->cpumask = CPU_MASK_NONE;
-+		cpus_clear(sg->cpumask);
- 		sg->__cpu_power = 0;
- 
- 		for_each_cpu_mask(j, *span) {
-@@ -6790,7 +6790,7 @@ static int build_sched_domains(const cpu
- 		int j;
- 
- 		*nodemask = node_to_cpumask(i);
--		*covered = CPU_MASK_NONE;
-+		cpus_clear(*covered);
- 
- 		cpus_and(*nodemask, *nodemask, *cpu_map);
- 		if (cpus_empty(*nodemask)) {
---- linux.trees.git.orig/mm/allocpercpu.c
-+++ linux.trees.git/mm/allocpercpu.c
-@@ -82,9 +82,10 @@ EXPORT_SYMBOL_GPL(percpu_populate);
- int __percpu_populate_mask(void *__pdata, size_t size, gfp_t gfp,
- 			   cpumask_t *mask)
- {
--	cpumask_t populated = CPU_MASK_NONE;
-+	cpumask_t populated;
- 	int cpu;
- 
-+	cpus_clear(populated);
- 	for_each_cpu_mask(cpu, *mask)
- 		if (unlikely(!percpu_populate(__pdata, size, gfp, cpu))) {
- 			__percpu_depopulate_mask(__pdata, &populated);
+v2: resubmitted based on x86/latest.
+
+Summaries:
+
+	1 - Memory Usages Changes
+	2 - Build & Test Results
+
+--- ---------------------------------------------------------
+* Memory Usages Changes
+
+Patch list summary of various memory usage changes using the akpm2
+config file with NR_CPUS=4096 and MAX_NUMNODES=512.
+
+
+====== Data (-l 500)
+    1 - initial
+    2 - cpumask_of_cpu
+    8 - sched_domain
+   13 - CPU_NODE_MASK
+
+   .1.   .2.    .8.  .13.    ..final..
+  3553     .  -1146  +320 2727   -23%  build_sched_domains(.text)
+   533  -533      .     .    .  -100%  hpet_enable(.init.text)
+   512     .      .  -512    .  -100%  C(.rodata)
+     0     .      .  +512  512      .  cpu_mask_all(.data)
+ 4598 -533 -1146 +320 3239  -29%  Totals
+
+====== Text/Data ()
+    1 - initial
+    2 - cpumask_of_cpu
+    3 - set_cpus_allowed
+    6 - numa_initmem_init
+    9 - kern_sched
+   13 - CPU_NODE_MASK
+
+        .1.    .2.    .3.    .6.    .9.   .13.    ..final..
+    3397632  -2048      .      .      .      .   3395584    <1%  TextSize
+    1642496  +2048  +4096      .  -4096  -4096   1640448    <1%  DataSize
+    1658880      .      .  +8192      .      .   1667072    <1%  InitSize
+  287709184      .  +4096      .  -4096  +4096 287713280    <1%  OtherSize
+  294408192      .  +8192  +8192  -8192      . 294416384    +0%  Totals
+
+====== Stack (-l 500)
+    1 - initial
+    2 - cpumask_of_cpu
+    3 - set_cpus_allowed
+    4 - cpumask_affinity
+    6 - numa_initmem_init
+    7 - node_to_cpumask_ptr
+    8 - sched_domain
+    9 - kern_sched
+   11 - build_sched_domains
+   12 - cpu_coregroup_map
+   13 - CPU_NODE_MASK
+
+    .1.    .2.    .3.    .4.    .6.    .7.    .8.   .9.  .11.  .12.   .13.    ..final..
+  11080      .      .      .      .   -512  -6352     .  -976   +16   -512 2744   -75%  build_sched_domains
+   8248      .      .      .  -8248      .      .     .     .     .      .    .  -100%  numa_initmem_init
+   3672  -1024   -496      .      .      .      .     .     .     .      . 2152   -41%  centrino_target
+   3176      .      .      .      .  -2576      .     .     .     .      .  600   -81%  sched_domain_node_span
+   3096  -1536   -520      .      .      .      .     .     .     .      . 1040   -66%  acpi_processor_set_throttling
+   2600  -1536      .      .      .      .      .     .     .     .   -512  552   -78%  powernowk8_cpu_init
+   2120  -1024   -512      .      .      .      .     .     .     .      .  584   -72%  cache_add_dev
+   2104  -1008      .      .      .      .      .     .     .     .   -512  584   -72%  powernowk8_target
+   2104      .   -512      .      .      .      .     .     .     .   -512 1080   -48%  _cpu_down
+   2072   -512      .      .      .      .      .     .     .     .      . 1560   -24%  tick_notify
+   2064  -1024      .      .      .      .      .     .     .     .   -504  536   -74%  check_supported_cpu
+   2056      .  -1544   +520      .      .      .     .     .     .      . 1032   -49%  sched_setaffinity
+   2056  -1024   -512      .      .      .      .     .     .     .      .  520   -74%  get_cur_freq
+   2056      .   -512  -1032      .      .      .     .     .     .   -512    .  -100%  affinity_set
+   2056  -1024   -520      .      .      .      .     .     .     .      .  512   -75%  acpi_processor_get_throttling
+   2056  -1024   -512      .      .      .      .     .     .     .      .  520   -74%  acpi_processor_ffh_cstate_probe
+   2048  -1016   -520      .      .      .      .     .     .     .      .  512   -75%  powernowk8_get
+   1784  -1024      .      .      .      .      .     .     .     .      .  760   -57%  cpufreq_add_dev
+   1768      .   -512      .      .  -1256      .     .     .     .      .    .  -100%  kswapd
+   1608  -1608      .      .      .      .      .     .     .     .      .    .  -100%  disable_smp
+   1592      .      .      .      .  -1592      .     .     .     .      .    .  -100%  do_tune_cpucache
+   1576      .      .      .      .      .      .  -480     .     .  -1096    .  -100%  init_sched_build_groups
+   1560      .   -528      .      .   -512      .     .     .     .      .  520   -66%  pci_device_probe
+   1552      .   -512      .      .      .      .     .     .     .  -1040    .  -100%  kthreadd
+   1544  -1024   -520      .      .      .      .     .     .     .      .    .  -100%  stopmachine
+   1544  -1032   -512      .      .      .      .     .     .     .      .    .  -100%  native_machine_shutdown
+   1544  -1008      .      .      .      .      .     .     .     .      .  536   -65%  alloc_ldt
+   1536   -504      .      .      .      .      .     .     .     .      . 1032   -32%  smp_call_function_single
+   1536  -1024      .      .      .      .      .     .     .     .      .  512   -66%  native_smp_send_reschedule
+   1176      .      .      .      .      .      .  -512     .     .      .  664   -43%  thread_return
+   1176      .      .      .      .      .      .  -512     .     .      .  664   -43%  schedule
+   1160      .      .      .      .      .      .  -512     .     .      .  648   -44%  run_rebalance_domains
+   1160      .      .      .      .  -1160      .     .     .     .      .    .  -100%  __build_all_zonelists
+   1144      .      .   +512      .      .      .     .     .     .   -512 1144      .  threshold_create_device
+   1080      .   -520      .      .      .      .     .     .     .      .  560   -48%  pdflush
+   1080      .   -512      .      .      .      .     .     .     .   -568    .  -100%  kernel_init
+   1064      .      .      .      .  -1064      .     .     .     .      .    .  -100%  cpuup_canceled
+   1064      .      .      .      .  -1064      .     .     .     .      .    .  -100%  cpuup_callback
+   1032  -1032      .      .      .      .      .     .     .     .      .    .  -100%  setup_pit_timer
+   1032      .      .      .      .      .      .     .     .     .   -520  512   -50%  physflat_vector_allocation_domain
+   1032  -1032      .      .      .      .      .     .     .     .      .    .  -100%  init_workqueues
+   1032  -1032      .      .      .      .      .     .     .     .      .    .  -100%  init_idle
+   1032      .      .      .      .      .      .     .     .     .   -512  520   -49%  destroy_irq
+   1024      .      .   -512      .      .      .     .     .     .      .  512   -50%  sys_sched_setaffinity
+   1024  -1024      .      .      .      .      .     .     .     .      .    .  -100%  setup_APIC_timer
+   1024      .   -504      .      .      .      .     .     .     .      .  520   -49%  sched_init_smp
+   1024  -1024      .      .      .      .      .     .     .     .      .    .  -100%  native_smp_prepare_cpus
+   1024  -1024      .      .      .      .      .     .     .     .      .    .  -100%  kthread_bind
+   1024  -1024      .      .      .      .      .     .     .     .      .    .  -100%  hpet_enable
+   1024      .      .   -512      .      .      .     .     .     .      .  512   -50%  compat_sys_sched_setaffinity
+   1024      .      .      .      .      .      .     .     .     .   -512  512   -50%  __percpu_populate_mask
+   1024      .   -512      .      .      .      .     .     .     .   -512    .  -100%  ____call_usermodehelper
+    568      .      .      .      .      .      .  -568     .     .      .    .  -100%  cpu_attach_domain
+    552      .      .      .      .      .      .     .     .     .   -552    .  -100%  migration_call
+    520      .      .      .      .   -520      .     .     .     .      .    .  -100%  node_read_cpumap
+    520      .      .      .      .      .      .     .     .     .   -520    .  -100%  dynamic_irq_init
+    520      .      .      .      .      .      .    -8     .  -512      .    .  -100%  cpu_to_phys_group
+    520      .      .      .      .      .      .  -520     .     .      .    .  -100%  cpu_to_core_group
+      0      .      .      .      .      .   +760     .     .     .      .  760      .  sd_init_SIBLING
+      0      .      .      .      .      .   +760     .     .     .      .  760      .  sd_init_NODE
+      0      .      .      .      .      .   +752     .     .     .      .  752      .  sd_init_MC
+      0      .      .      .      .      .   +752     .     .     .      .  752      .  sd_init_CPU
+      0      .      .      .      .      .   +752     .     .     .      .  752      .  sd_init_ALLNODES
+      0      .      .      .      .      .      .  +512     .     .      .  512      .  detach_destroy_domains
+ 101488 -26168 -10792  -1024  -8248 -10256  -2576 -2600  -976  -496  -9408 28944  -71%  Totals
+
+--- ---------------------------------------------------------
+* Build & Test Results
+
+Built/tested:
+
+    nosmp
+    nonuma
+    defconfig (NR_CPUS/MAX_NUMANODES: 32/64 and 4096/512)
+    akpm2 config (NR_CPUS/MAX_NUMANODES: 255/64 and 4096/512)
+
+Built no errors:
+
+    allyesconfig
+    allnoconfig
+    allmodconfig
+    current-x86_64-default
+    current-ia64-sn2
+    current-ia64-default
+    current-ia64-nosmp
+    current-ia64-zx1
+    current-s390-default
+    current-arm-default
+    current-sparc-default
+    current-sparc64-default
+    current-sparc64-smp
+    current-ppc-pmac32
+
+Not Built (previous errors):
+
+    current-x86_64-single
+	drivers/built-in.o: In function `sas_request_addr':
+	(.text+0x814bd): undefined reference to `request_firmware'
+	drivers/built-in.o: In function `sas_request_addr':
+	(.text+0x81556): undefined reference to `release_firmware'
+    current-x86_64-8psmp
+	drivers/built-in.o: In function `sas_request_addr':
+	(.text+0x814bd): undefined reference to `request_firmware'
+	drivers/built-in.o: In function `sas_request_addr':
+	(.text+0x81556): undefined reference to `release_firmware'
+    current-x86_64-debug
+	sas_scsi_host.c:1091: undefined reference to `request_firmware'
+	sas_scsi_host.c:1103: undefined reference to `release_firmware'
+    current-x86_64-numa
+	drivers/built-in.o: In function `sas_request_addr':
+	(.text+0x8540d): undefined reference to `request_firmware'
+	drivers/built-in.o: In function `sas_request_addr':
+	(.text+0x854a6): undefined reference to `release_firmware'
+    current-i386-single
+	drivers/built-in.o: In function `sas_request_addr':
+	(.text+0x7617a): undefined reference to `request_firmware'
+	drivers/built-in.o: In function `sas_request_addr':
+	(.text+0x76208): undefined reference to `release_firmware'
+    current-i386-smp
+	drivers/built-in.o: In function `sas_request_addr':
+	(.text+0x7985a): undefined reference to `request_firmware'
+	drivers/built-in.o: In function `sas_request_addr':
+	(.text+0x798e8): undefined reference to `release_firmware'
+    current-ppc-smp
+	WRAP    arch/powerpc/boot/uImage
+	ln: accessing `arch/powerpc/boot/uImage': No such file or directory
+
+(Note: build with patches applied did not change errors.)
+
+
+--- ---------------------------------------------------------
 
 -- 
 
