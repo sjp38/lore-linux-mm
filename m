@@ -1,85 +1,97 @@
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28smtp01.in.ibm.com (8.13.1/8.13.1) with ESMTP id m2QAWnJR007641
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 16:02:49 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2QAWnGR1110068
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 16:02:49 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.13.1/8.13.3) with ESMTP id m2QAWmqv022914
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 10:32:49 GMT
-Message-ID: <47EA2592.7090600@linux.vnet.ibm.com>
-Date: Wed, 26 Mar 2008 15:59:38 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
+Received: from zps37.corp.google.com (zps37.corp.google.com [172.25.146.37])
+	by smtp-out.google.com with ESMTP id m2QBKaef028853
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 11:20:37 GMT
+Received: from py-out-1112.google.com (pybu52.prod.google.com [10.34.97.52])
+	by zps37.corp.google.com with ESMTP id m2QBKZ6Y015775
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 04:20:36 -0700
+Received: by py-out-1112.google.com with SMTP id u52so5564942pyb.10
+        for <linux-mm@kvack.org>; Wed, 26 Mar 2008 04:20:35 -0700 (PDT)
+Message-ID: <6599ad830803260420v236127cfydd8cf828fcce65bb@mail.gmail.com>
+Date: Wed, 26 Mar 2008 04:20:35 -0700
+From: "Paul Menage" <menage@google.com>
 Subject: Re: [RFC][-mm] Memory controller add mm->owner
-References: <20080324140142.28786.97267.sendpatchset@localhost.localdomain> <6599ad830803240803s5160101bi2bf68b36085f777f@mail.gmail.com> <47E7D51E.4050304@linux.vnet.ibm.com> <6599ad830803240934g2a70d904m1ca5548f8644c906@mail.gmail.com> <47E7E5D0.9020904@linux.vnet.ibm.com> <6599ad830803241046l61e2965t52fd28e165d5df7a@mail.gmail.com> <47E8E4F3.6090604@linux.vnet.ibm.com>
-In-Reply-To: <47E8E4F3.6090604@linux.vnet.ibm.com>
+In-Reply-To: <47EA2592.7090600@linux.vnet.ibm.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080324140142.28786.97267.sendpatchset@localhost.localdomain>
+	 <6599ad830803240803s5160101bi2bf68b36085f777f@mail.gmail.com>
+	 <47E7D51E.4050304@linux.vnet.ibm.com>
+	 <6599ad830803240934g2a70d904m1ca5548f8644c906@mail.gmail.com>
+	 <47E7E5D0.9020904@linux.vnet.ibm.com>
+	 <6599ad830803241046l61e2965t52fd28e165d5df7a@mail.gmail.com>
+	 <47E8E4F3.6090604@linux.vnet.ibm.com>
+	 <47EA2592.7090600@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: balbir@linux.vnet.ibm.com, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: balbir@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> Paul Menage wrote:
->> On Mon, Mar 24, 2008 at 10:33 AM, Balbir Singh
->> <balbir@linux.vnet.ibm.com> wrote:
->>>  > OK, so we don't need to handle this for NPTL apps - but for anything
->>>  > still using LinuxThreads or manually constructed clone() calls that
->>>  > use CLONE_VM without CLONE_PID, this could still be an issue.
->>>
->>>  CLONE_PID?? Do you mean CLONE_THREAD?
->> Yes, sorry - CLONE_THREAD.
->>
->>>  For the case you mentioned, mm->owner is a moving target and we don't want to
->>>  spend time finding the successor, that can be expensive when threads start
->>>  exiting one-by-one quickly and when the number of threads are high. I wonder if
->>>  there is an efficient way to find mm->owner in that case.
->>>
->> But:
->>
->> - running a high-threadcount LinuxThreads process is by definition
->> inefficient and expensive (hence the move to NPTL)
->>
->> - any potential performance hit is only paid at exit time
->>
->> - in the normal case, any of your children or one of your siblings
->> will be a suitable alternate owner
->>
->> - in the worst case, it's not going to be worse than doing a
->> for_each_thread() loop
->>
+On Wed, Mar 26, 2008 at 3:29 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>  >>
+>  >> - in the worst case, it's not going to be worse than doing a
+>  >> for_each_thread() loop
+>  >>
+>
+>  This will have to be the common case, since you never know what combination of
+>  clone calls did CLONE_VM and what did CLONE_THREAD. At exit time, we need to pay
+>  a for_each_process() overhead.
 
-This will have to be the common case, since you never know what combination of
-clone calls did CLONE_VM and what did CLONE_THREAD. At exit time, we need to pay
-a for_each_process() overhead. Although very unlikely, an application can call
-pthread_* functions (NPTL) and then do a clone with CLONE_VM, thus forcing
-threads in a thread group and another process to share the mm_struct. This makes
-mm->owner struct approach hard to implement.
+I'm not convinced of this. All we have to do is find some other
+process p where p->mm == current->mm and make it the new owner.
+Exactly what sequence of clone() calls was used to cause the sharing
+isn't really relevant. I really think that a suitable candidate will
+be found amongst your children or your first sibling in 99.9% of those
+cases where more than one process is using an mm.
 
->> so I don't think this would be a major problem
->>
-> 
-> I've been looking at zap_threads, I suspect we'll end up implementing a similar
-> loop, which makes me very uncomfortable. Adding code for the least possible
-> scenario. It will not get invoked for CLONE_THREAD, but will get invoked for the
-> case when CLONE_VM is set without CLONE_THREAD.
-> 
-> I'll try and experiment a bit more and see what I come up with
+The actual sequence would have to go something like:
 
-I am yet to benchmark the cost of doing for_each_process() on every exit. I
-suspect, we'll see a big drop in performance. I am not sure anymore if mm->owner
-is worth the overhead.
+static inline bool need_new_owner(struct mm_struct *mm) {
+  return (mm && mm->owner == current && atomic_read(&mm->users) > 1);
+}
+static inline void try_give_mm_ownership(
+    struct task_struct *task,
+    struct mm_struct *mm) {
+  if (task->mm != mm) return;
+  task_lock(task);
+  if (task->mm == mm) {
+    mm->owner = task;
+  }
+  task_unlock(task);
+}
 
+struct mm_struct *mm = current->mm;
+task_lock(current);
+current->mm = NULL;
+task_unlock(current);
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+/* First try my children */
+if (need_new_owner(mm)) {
+  for_each_child(current, c) {
+    try_give_mm_ownership(c);
+    if (!need_new_owner(mm)) break;
+  }
+}
+
+/* Then try my siblings */
+if (need_new_owner(mm)) {
+  for_each_child(current->real_parent, c) {
+    try_give_mm_ownership(c);
+    if (!need_new_owner(mm)) break;
+  }
+}
+
+if (need_new_owner(mm)) {
+  /* We'll almost never get here */
+  for_each_process(p) {
+    try_give_mm_ownership(p);
+    if (!need_new_owner(mm)) break;
+  }
+}
+
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
