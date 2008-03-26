@@ -1,85 +1,59 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m2QLTUuu022577
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 17:29:30 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2QLTUvH309564
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 17:29:30 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2QLTTXu001489
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 17:29:30 -0400
-Message-ID: <47EAC048.30006@linux.vnet.ibm.com>
-Date: Wed, 26 Mar 2008 16:29:44 -0500
-From: Jon Tollefson <kniht@linux.vnet.ibm.com>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m2QLa3TH006627
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 17:36:03 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2QLbUoH197532
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 15:37:30 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2QLbThr001449
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 15:37:30 -0600
+Date: Wed, 26 Mar 2008 14:37:53 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: [PATCH 1/2] hugetlb: indicate surplus huge page counts in per-node
+	meminfo
+Message-ID: <20080326213753.GE14331@us.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH 4/4] powerpc: define page support for 16G pages
-References: <47EABE2D.7080400@linux.vnet.ibm.com>
-In-Reply-To: <47EABE2D.7080400@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@ozlabs.org>
-Cc: Adam Litke <agl@linux.vnet.ibm.com>, Andi Kleen <andi@firstfloor.org>, Paul Mackerras <paulus@samba.org>
+To: torvalds@linux-foundation.org
+Cc: akpm@linux-foundation.org, agl@us.ibm.com, apw@shadowen.org, mel@csn.ul.ie, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The huge page size is setup for 16G pages if that size is specified at boot-time.  The support for
-multiple huge page sizes is not being utilized yet.  That will be in a future patch.
+Currently we show the surplus hugetlb pool state in /proc/meminfo, but
+not in the per-node meminfo files, even though we track the information
+on a per-node basis. Printing it there can help track down dynamic pool
+bugs including the one in the follow-on patch.
+    
+Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
-
-Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
 ---
+This would be nice to have this late in the 2.6.25 cycle, but should not
+block the follow-on patch from getting merged.
 
- hugetlbpage.c |   12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
-
-
-diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index 44d3d55..b6a02b7 100644
---- a/arch/powerpc/mm/hugetlbpage.c
-+++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -26,6 +26,7 @@
- 
- #define HPAGE_SHIFT_64K	16
- #define HPAGE_SHIFT_16M	24
-+#define HPAGE_SHIFT_16G	34
- 
- #define NUM_LOW_AREAS	(0x100000000UL >> SID_SHIFT)
- #define NUM_HIGH_AREAS	(PGTABLE_RANGE >> HTLB_AREA_SHIFT)
-@@ -589,9 +590,11 @@ void set_huge_psize(int psize)
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index ecaeedb..548a75d 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -719,9 +719,11 @@ int hugetlb_report_node_meminfo(int nid, char *buf)
  {
- 	/* Check that it is a page size supported by the hardware and
- 	 * that it fits within pagetable limits. */
--	if (mmu_psize_defs[psize].shift && mmu_psize_defs[psize].shift < SID_SHIFT &&
-+	if (mmu_psize_defs[psize].shift &&
-+		mmu_psize_defs[psize].shift < SID_SHIFT_1T &&
- 		(mmu_psize_defs[psize].shift > MIN_HUGEPTE_SHIFT ||
--			mmu_psize_defs[psize].shift == HPAGE_SHIFT_64K)) {
-+		 mmu_psize_defs[psize].shift == HPAGE_SHIFT_64K ||
-+		 mmu_psize_defs[psize].shift == HPAGE_SHIFT_16G)) {
- 		HPAGE_SHIFT = mmu_psize_defs[psize].shift;
- 		mmu_huge_psize = psize;
- #ifdef CONFIG_PPC_64K_PAGES
-@@ -599,6 +602,8 @@ void set_huge_psize(int psize)
- #else
- 		if (HPAGE_SHIFT == HPAGE_SHIFT_64K)
- 			hugepte_shift = (PMD_SHIFT-HPAGE_SHIFT);
-+		else if (HPAGE_SHIFT == HPAGE_SHIFT_16G)
-+			hugepte_shift = (PGDIR_SHIFT-HPAGE_SHIFT);
- 		else
- 			hugepte_shift = (PUD_SHIFT-HPAGE_SHIFT);
- #endif
-@@ -625,6 +630,9 @@ static int __init hugepage_setup_sz(char *str)
- 	case HPAGE_SHIFT_16M:
- 		mmu_psize = MMU_PAGE_16M;
- 		break;
-+	case HPAGE_SHIFT_16G:
-+		mmu_psize = MMU_PAGE_16G;
-+		break;
- 	}
+ 	return sprintf(buf,
+ 		"Node %d HugePages_Total: %5u\n"
+-		"Node %d HugePages_Free:  %5u\n",
++		"Node %d HugePages_Free:  %5u\n"
++		"Node %d HugePages_Surp:  %5u\n",
+ 		nid, nr_huge_pages_node[nid],
+-		nid, free_huge_pages_node[nid]);
++		nid, free_huge_pages_node[nid],
++		nid, surplus_huge_pages_node[nid]);
+ }
  
- 	if (mmu_psize >=0 && mmu_psize_defs[mmu_psize].shift)
+ #ifdef CONFIG_NUMA
 
-
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
