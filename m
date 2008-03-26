@@ -1,50 +1,71 @@
-Received: from zps37.corp.google.com (zps37.corp.google.com [172.25.146.37])
-	by smtp-out.google.com with ESMTP id m2QFM1Lp024240
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 15:22:02 GMT
-Received: from py-out-1112.google.com (pygz59.prod.google.com [10.34.227.59])
-	by zps37.corp.google.com with ESMTP id m2QFLxrs005140
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 08:22:00 -0700
-Received: by py-out-1112.google.com with SMTP id z59so3871719pyg.27
-        for <linux-mm@kvack.org>; Wed, 26 Mar 2008 08:21:59 -0700 (PDT)
-Message-ID: <6599ad830803260821r5c5b56f3pd381659d0866c87b@mail.gmail.com>
-Date: Wed, 26 Mar 2008 08:21:59 -0700
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [RFC][-mm] Memory controller add mm->owner
-In-Reply-To: <47EA3684.60107@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: [PATCH] smaps: account swap entries
+From: Peter Zijlstra <peterz@infradead.org>
+Content-Type: text/plain
+Date: Wed, 26 Mar 2008 16:28:24 +0100
+Message-Id: <1206545304.8514.494.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080324140142.28786.97267.sendpatchset@localhost.localdomain>
-	 <6599ad830803240803s5160101bi2bf68b36085f777f@mail.gmail.com>
-	 <47E7D51E.4050304@linux.vnet.ibm.com>
-	 <6599ad830803240934g2a70d904m1ca5548f8644c906@mail.gmail.com>
-	 <47E7E5D0.9020904@linux.vnet.ibm.com>
-	 <6599ad830803241046l61e2965t52fd28e165d5df7a@mail.gmail.com>
-	 <47E8E4F3.6090604@linux.vnet.ibm.com>
-	 <47EA2592.7090600@linux.vnet.ibm.com>
-	 <6599ad830803260420v236127cfydd8cf828fcce65bb@mail.gmail.com>
-	 <47EA3684.60107@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
+Subject: smaps: account swap entries
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>, mpm <mpm@selenic.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 26, 2008 at 4:41 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->
->  Hmmm.. the 99.9% of the time is just guess work (not measured, could be possibly
->  true). I see and understand your code below. But before I try and implement
->  something like that, I was wondering why zap_threads() does not have that
->  heuristic. That should explain my inhibition.
->
->  Can anyone elaborate on zap_threads further?
->
+Show the amount of swap for each vma. This can be used to see where all the
+swap goes.
 
-zap_threads() has to find *all* the other users, whereas in this case
-we only have to find one other user.
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ fs/proc/task_mmu.c |   13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
 
-Paul
+Index: linux-2.6/fs/proc/task_mmu.c
+===================================================================
+--- linux-2.6.orig/fs/proc/task_mmu.c
++++ linux-2.6/fs/proc/task_mmu.c
+@@ -313,6 +313,7 @@ struct mem_size_stats
+ 	unsigned long private_clean;
+ 	unsigned long private_dirty;
+ 	unsigned long referenced;
++	unsigned long swap;
+ 	u64 pss;
+ };
+ 
+@@ -329,6 +330,12 @@ static int smaps_pte_range(pmd_t *pmd, u
+ 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+ 	for (; addr != end; pte++, addr += PAGE_SIZE) {
+ 		ptent = *pte;
++
++		if (is_swap_pte(ptent)) {
++			mss->swap += PAGE_SIZE;
++			continue;
++		}
++
+ 		if (!pte_present(ptent))
+ 			continue;
+ 
+@@ -387,7 +394,8 @@ static int show_smap(struct seq_file *m,
+ 		   "Shared_Dirty:   %8lu kB\n"
+ 		   "Private_Clean:  %8lu kB\n"
+ 		   "Private_Dirty:  %8lu kB\n"
+-		   "Referenced:     %8lu kB\n",
++		   "Referenced:     %8lu kB\n"
++		   "Swap:           %8lu kB\n",
+ 		   (vma->vm_end - vma->vm_start) >> 10,
+ 		   mss.resident >> 10,
+ 		   (unsigned long)(mss.pss >> (10 + PSS_SHIFT)),
+@@ -395,7 +403,8 @@ static int show_smap(struct seq_file *m,
+ 		   mss.shared_dirty  >> 10,
+ 		   mss.private_clean >> 10,
+ 		   mss.private_dirty >> 10,
+-		   mss.referenced >> 10);
++		   mss.referenced >> 10,
++		   mss.swap >> 10);
+ 
+ 	return ret;
+ }
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
