@@ -1,131 +1,163 @@
-Message-Id: <20080326212347.792178000@polaris-admin.engr.sgi.com>
-References: <20080326212347.466221000@polaris-admin.engr.sgi.com>
-Date: Wed, 26 Mar 2008 14:23:49 -0700
-From: Mike Travis <travis@sgi.com>
-Subject: [PATCH 2/2] sched: add new set_cpus_allowed_ptr function
-Content-Disposition: inline; filename=add-set_cpus_allowed_ptr
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m2QLMiuO009923
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 17:22:44 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2QLOBxN208222
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 15:24:11 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2QLOBqF026924
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 15:24:11 -0600
+Message-ID: <47EABF09.6090302@linux.vnet.ibm.com>
+Date: Wed, 26 Mar 2008 16:24:25 -0500
+From: Jon Tollefson <kniht@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: [PATCH 1/4] allow arch specific function for allocating gigantic
+ pages
+References: <47EABE2D.7080400@linux.vnet.ibm.com>
+In-Reply-To: <47EABE2D.7080400@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@ozlabs.org>
+Cc: Adam Litke <agl@linux.vnet.ibm.com>, Andi Kleen <andi@firstfloor.org>, Paul Mackerras <paulus@samba.org>
 List-ID: <linux-mm.kvack.org>
 
-Add a new function that accepts a pointer to the "newly allowed cpus"
-cpumask argument.
+Allow alloc_bm_huge_page() to be overridden by architectures that can't always use bootmem.
+This requires huge_boot_pages to be available for use by this function.  Also huge_page_size()
+and other functions need to use a long so that they can handle the 16G page size.
 
-int set_cpus_allowed_ptr(struct task_struct *p, const cpumask_t *new_mask)
 
-The current set_cpus_allowed() function is modified to use the above
-but this does not result in an ABI change.  And with some compiler
-optimization help, it may not introduce any additional overhead.
-
-Additionally, to enforce the read only nature of the new_mask arg, the
-"const" property is migrated to sub-functions called by set_cpus_allowed.
-This silences compiler warnings.
-
-Based on:
-	git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
-	git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
-
-Signed-off-by: Mike Travis <travis@sgi.com>
+Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
 ---
- include/linux/sched.h |   15 +++++++++++----
- kernel/sched.c        |   14 +++++++-------
- kernel/sched_rt.c     |    3 ++-
- 3 files changed, 20 insertions(+), 12 deletions(-)
 
---- linux.trees.git.orig/include/linux/sched.h
-+++ linux.trees.git/include/linux/sched.h
-@@ -889,7 +889,8 @@ struct sched_class {
- 	void (*set_curr_task) (struct rq *rq);
- 	void (*task_tick) (struct rq *rq, struct task_struct *p, int queued);
- 	void (*task_new) (struct rq *rq, struct task_struct *p);
--	void (*set_cpus_allowed)(struct task_struct *p, cpumask_t *newmask);
-+	void (*set_cpus_allowed)(struct task_struct *p,
-+				 const cpumask_t *newmask);
+ include/linux/hugetlb.h |   10 +++++++++-
+ mm/hugetlb.c            |   21 +++++++++------------
+ 2 files changed, 18 insertions(+), 13 deletions(-)
+
+
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index a8de3c1..35a41be 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -35,6 +35,7 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
+ extern unsigned long hugepages_treat_as_movable;
+ extern const unsigned long hugetlb_zero, hugetlb_infinity;
+ extern int sysctl_hugetlb_shm_group;
++extern struct list_head huge_boot_pages;
  
- 	void (*join_domain)(struct rq *rq);
- 	void (*leave_domain)(struct rq *rq);
-@@ -1501,15 +1502,21 @@ static inline void put_task_struct(struc
- #define used_math() tsk_used_math(current)
+ /* arch callbacks */
  
- #ifdef CONFIG_SMP
--extern int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask);
-+extern int set_cpus_allowed_ptr(struct task_struct *p,
-+				const cpumask_t *new_mask);
+@@ -219,9 +220,15 @@ struct hstate {
+ 	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
+ 	unsigned long parsed_hugepages;
+ };
++struct huge_bm_page {
++	struct list_head list;
++	struct hstate *hstate;
++};
+ 
+ void __init huge_add_hstate(unsigned order);
+ struct hstate *huge_lookup_hstate(unsigned long pagesize);
++/* arch callback */
++int alloc_bm_huge_page(struct hstate *h);
+ 
+ #ifndef HUGE_MAX_HSTATE
+ #define HUGE_MAX_HSTATE 1
+@@ -248,7 +255,7 @@ static inline struct hstate *hstate_inode(struct inode *i)
+ 	return HUGETLBFS_I(i)->hstate;
+ }
+ 
+-static inline unsigned huge_page_size(struct hstate *h)
++static inline unsigned long huge_page_size(struct hstate *h)
+ {
+ 	return PAGE_SIZE << h->order;
+ }
+@@ -273,6 +280,7 @@ extern unsigned long sysctl_overcommit_huge_pages[HUGE_MAX_HSTATE];
+ 
  #else
--static inline int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
-+static inline int set_cpus_allowed_ptr(struct task_struct *p,
-+				       const cpumask_t *new_mask)
- {
--	if (!cpu_isset(0, new_mask))
-+	if (!cpu_isset(0, *new_mask))
- 		return -EINVAL;
- 	return 0;
- }
- #endif
-+static inline int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
-+{
-+	return set_cpus_allowed_ptr(p, &new_mask);
-+}
+ struct hstate {};
++#define alloc_bm_huge_page(h) NULL
+ #define hstate_file(f) NULL
+ #define hstate_vma(v) NULL
+ #define hstate_inode(i) NULL
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index c28b8b6..a0017b0 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -27,6 +27,7 @@ unsigned long max_huge_pages[HUGE_MAX_HSTATE];
+ unsigned long sysctl_overcommit_huge_pages[HUGE_MAX_HSTATE];
+ static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
+ unsigned long hugepages_treat_as_movable;
++struct list_head huge_boot_pages;
  
- extern unsigned long long sched_clock(void);
+ static int max_hstate = 1;
  
---- linux.trees.git.orig/kernel/sched.c
-+++ linux.trees.git/kernel/sched.c
-@@ -5295,7 +5295,7 @@ static inline void sched_init_granularit
-  * task must not exit() & deallocate itself prematurely. The
-  * call is not atomic; no spinlocks may be held.
+@@ -43,7 +44,8 @@ struct hstate *parsed_hstate __initdata = &global_hstate;
   */
--int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
-+int set_cpus_allowed_ptr(struct task_struct *p, const cpumask_t *new_mask)
+ static DEFINE_SPINLOCK(hugetlb_lock);
+ 
+-static void clear_huge_page(struct page *page, unsigned long addr, unsigned sz)
++static void clear_huge_page(struct page *page, unsigned long addr,
++			    unsigned long sz)
  {
- 	struct migration_req req;
- 	unsigned long flags;
-@@ -5303,23 +5303,23 @@ int set_cpus_allowed(struct task_struct 
- 	int ret = 0;
+ 	int i;
  
- 	rq = task_rq_lock(p, &flags);
--	if (!cpus_intersects(new_mask, cpu_online_map)) {
-+	if (!cpus_intersects(*new_mask, cpu_online_map)) {
- 		ret = -EINVAL;
- 		goto out;
- 	}
- 
- 	if (p->sched_class->set_cpus_allowed)
--		p->sched_class->set_cpus_allowed(p, &new_mask);
-+		p->sched_class->set_cpus_allowed(p, new_mask);
- 	else {
--		p->cpus_allowed = new_mask;
--		p->rt.nr_cpus_allowed = cpus_weight(new_mask);
-+		p->cpus_allowed = *new_mask;
-+		p->rt.nr_cpus_allowed = cpus_weight(*new_mask);
- 	}
- 
- 	/* Can the task run on the task's current CPU? If so, we're done */
--	if (cpu_isset(task_cpu(p), new_mask))
-+	if (cpu_isset(task_cpu(p), *new_mask))
- 		goto out;
- 
--	if (migrate_task(p, any_online_cpu(new_mask), &req)) {
-+	if (migrate_task(p, any_online_cpu(*new_mask), &req)) {
- 		/* Need help from migration thread: drop lock and wait. */
- 		task_rq_unlock(rq, &flags);
- 		wake_up_process(rq->migration_thread);
---- linux.trees.git.orig/kernel/sched_rt.c
-+++ linux.trees.git/kernel/sched_rt.c
-@@ -1001,7 +1001,8 @@ move_one_task_rt(struct rq *this_rq, int
- 	return 0;
+@@ -521,14 +523,8 @@ static __init char *memfmt(char *buf, unsigned long n)
+ 	return buf;
  }
  
--static void set_cpus_allowed_rt(struct task_struct *p, cpumask_t *new_mask)
-+static void set_cpus_allowed_rt(struct task_struct *p,
-+				const cpumask_t *new_mask)
+-static __initdata LIST_HEAD(huge_boot_pages);
+-
+-struct huge_bm_page {
+-	struct list_head list;
+-	struct hstate *hstate;
+-};
+-
+-static int __init alloc_bm_huge_page(struct hstate *h)
++/* Can be overriden by architectures */
++__attribute__((weak)) int alloc_bm_huge_page(struct hstate *h)
  {
- 	int weight = cpus_weight(*new_mask);
+ 	struct huge_bm_page *m;
+ 	m = __alloc_bootmem_node_nopanic(NODE_DATA(h->hugetlb_next_nid),
+@@ -614,6 +610,7 @@ static int __init hugetlb_init(void)
+ {
+ 	if (HPAGE_SHIFT == 0)
+ 		return 0;
++	INIT_LIST_HEAD(&huge_boot_pages);
+ 	return hugetlb_init_hstate(&global_hstate);
+ }
+ module_init(hugetlb_init);
+@@ -866,7 +863,7 @@ int hugetlb_report_meminfo(char *buf)
+ 	n += dump_field(buf + n, offsetof(struct hstate, surplus_huge_pages));
+ 	n += sprintf(buf + n, "Hugepagesize:   ");
+ 	for_each_hstate (h)
+-		n += sprintf(buf + n, " %5u", huge_page_size(h) / 1024);
++		n += sprintf(buf + n, " %5lu", huge_page_size(h) / 1024);
+ 	n += sprintf(buf + n, " kB\n");
+ 	return n;
+ }
+@@ -947,7 +944,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 	unsigned long addr;
+ 	int cow;
+ 	struct hstate *h = hstate_vma(vma);
+-	unsigned sz = huge_page_size(h);
++	unsigned long sz = huge_page_size(h);
  
+ 	cow = (vma->vm_flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+ 
+@@ -992,7 +989,7 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
+ 	struct page *page;
+ 	struct page *tmp;
+ 	struct hstate *h = hstate_vma(vma);
+-	unsigned sz = huge_page_size(h);
++	unsigned long sz = huge_page_size(h);
+ 
+ 	/*
+ 	 * A page gathering list, protected by per file i_mmap_lock. The
 
--- 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
