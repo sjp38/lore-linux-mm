@@ -1,38 +1,31 @@
-Date: Tue, 25 Mar 2008 22:15:54 -0400
-From: Dave Jones <davej@codemonkey.org.uk>
-Subject: Re: [PATCH 04/12] cpumask: pass cpumask by reference to
-	acpi-cpufreq
-Message-ID: <20080326021554.GA8388@codemonkey.org.uk>
-References: <20080326013811.569646000@polaris-admin.engr.sgi.com> <20080326013812.324977000@polaris-admin.engr.sgi.com>
+Message-ID: <47E9B398.3080008@goop.org>
+Date: Tue, 25 Mar 2008 19:23:20 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080326013812.324977000@polaris-admin.engr.sgi.com>
+Subject: Re: [RFC 8/8] x86_64: Support for new UV apic
+References: <20080324182122.GA28327@sgi.com> <87abknhzhd.fsf@basil.nowhere.org> <20080325175657.GA6262@sgi.com> <20080325180616.GX2170@one.firstfloor.org>
+In-Reply-To: <20080325180616.GX2170@one.firstfloor.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Travis <travis@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Len Brown <len.brown@intel.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Jack Steiner <steiner@sgi.com>, mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Glauber de Oliveira Costa <glommer@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 25, 2008 at 06:38:15PM -0700, Mike Travis wrote:
- > Pass cpumask_t variables by reference in acpi-cpufreq functions.
- > 
- > Based on:
- > 	git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
- > 	git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
- > 
- > Cc: Len Brown <len.brown@intel.com>
- > Cc: Dave Jones <davej@codemonkey.org.uk>
- > Signed-off-by: Mike Travis <travis@sgi.com>
+Andi Kleen wrote:
+> No instead of having lots of if (xyz_system) do_xyz_special()
+> go through smp_ops for the whole thing so that UV would just have a 
+> special smp_ops that has special implementions or wrappers. 
+>
+> Oops I see smp_ops are currently only implemented
+> for 32bit. Ok do it only once smp_ops exist on 64bit too. 
+>   
 
-As this is dependant on non-cpufreq bits, I'm assuming this is going
-via Ingo.  From a quick eyeball of this, and the change its dependant on,
-it looks ok to me.
+I think glommer has patches to unify smp stuff, which should include 
+smp_ops.
 
-	Dave
-
--- 
-http://www.codemonkey.org.uk
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
