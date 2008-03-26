@@ -1,198 +1,356 @@
-Message-Id: <20080326013811.869519000@polaris-admin.engr.sgi.com>
+Message-Id: <20080326013813.184939000@polaris-admin.engr.sgi.com>
 References: <20080326013811.569646000@polaris-admin.engr.sgi.com>
-Date: Tue, 25 Mar 2008 18:38:12 -0700
+Date: Tue, 25 Mar 2008 18:38:21 -0700
 From: Mike Travis <travis@sgi.com>
-Subject: [PATCH 01/12] cpumask: Convert cpumask_of_cpu to allocated array v2
-Content-Disposition: inline; filename=cpumask_of_cpu
+Subject: [PATCH 10/12] cpumask: reduce stack usage in build_sched_domains
+Content-Disposition: inline; filename=build_sched_domains
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, "David S. Miller" <davem@davemloft.net>, "William L. Irwin" <wli@holomorphy.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Christoph Lameter <clameter@sgi.com>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Here is a simple patch to use an allocated array of cpumasks to
-represent cpumask_of_cpu() instead of constructing one on the
-stack, when the size of cpumask_t is significant.
-
-Conditioned by NR_CPUS > BITS_PER_LONG, as if less than or equal,
-cpumask_of_cpu() generates a simple unsigned long.  But the macro is
-changed to generate an lvalue so a pointer to cpumask_of_cpu can be
-provided.
-
-This removes 26168 bytes of stack usage, as well as reduces the code
-generated for each usage.
+Reduce the amount of stack used in build_sched_domains by allocating
+all the masks at once, and setting up individual pointers.  If
+NR_CPUS <= 128, then stack space is used instead.
 
 Based on:
 	git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
 	git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
 
-# ia64
-Cc: Tony Luck <tony.luck@intel.com>
-
-# powerpc
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Anton Blanchard <anton@samba.org>
-
-# sparc
-Cc: David S. Miller <davem@davemloft.net>
-Cc: William L. Irwin <wli@holomorphy.com>
-
-# x86
-Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: Ingo Molnar <mingo@elte.hu>
-Cc: H. Peter Anvin <hpa@zytor.com>
 
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: Mike Travis <travis@sgi.com>
 ---
-v2: rebased on linux-2.6.git + linux-2.6-x86.git
-    ... and changed to use an allocated array of cpumask_t's instead
-        of a percpu variable.
----
- arch/ia64/kernel/setup.c       |    3 +++
- arch/powerpc/kernel/setup_64.c |    3 +++
- arch/sparc64/mm/init.c         |    3 +++
- arch/x86/kernel/setup.c        |    3 +++
- include/linux/cpumask.h        |   30 ++++++++++++++++++------------
- init/main.c                    |   18 ++++++++++++++++++
- 6 files changed, 48 insertions(+), 12 deletions(-)
+One checkpatch warning that I'm not sure how to remove:
 
---- linux.trees.git.orig/arch/ia64/kernel/setup.c
-+++ linux.trees.git/arch/ia64/kernel/setup.c
-@@ -772,6 +772,9 @@ setup_per_cpu_areas (void)
- 		highest_cpu = cpu;
- 
- 	nr_cpu_ids = highest_cpu + 1;
-+
-+	/* Setup cpumask_of_cpu() map */
-+	setup_cpumask_of_cpu(nr_cpu_ids);
- #endif
- }
- 
---- linux.trees.git.orig/arch/powerpc/kernel/setup_64.c
-+++ linux.trees.git/arch/powerpc/kernel/setup_64.c
-@@ -601,6 +601,9 @@ void __init setup_per_cpu_areas(void)
- 
- 	/* Now that per_cpu is setup, initialize cpu_sibling_map */
- 	smp_setup_cpu_sibling_map();
-+
-+	/* Setup cpumask_of_cpu() map */
-+	setup_cpumask_of_cpu(nr_cpu_ids);
- }
+ERROR: Macros with complex values should be enclosed in parenthesis
+#61: FILE: kernel/sched.c:6656:
++#define        SCHED_CPU_VAR(v, a)     cpumask_t *v = (cpumask_t *) \
+			((unsigned long)(a) + offsetof(struct allmasks, v))
+---
+ kernel/sched.c |  165 ++++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 112 insertions(+), 53 deletions(-)
+
+--- linux.trees.git.orig/kernel/sched.c
++++ linux.trees.git/kernel/sched.c
+@@ -6573,6 +6573,40 @@ SD_INIT_FUNC(CPU)
  #endif
  
---- linux.trees.git.orig/arch/sparc64/mm/init.c
-+++ linux.trees.git/arch/sparc64/mm/init.c
-@@ -1302,6 +1302,9 @@ void __init setup_per_cpu_areas(void)
- 		highest_cpu = cpu;
- 
- 	nr_cpu_ids = highest_cpu + 1;
+ /*
++ * To minimize stack usage kmalloc room for cpumasks and share the
++ * space as the usage in build_sched_domains() dictates.  Used only
++ * if the amount of space is significant.
++ */
++struct allmasks {
++	cpumask_t tmpmask;			/* make this one first */
++	union {
++		cpumask_t nodemask;
++		cpumask_t this_sibling_map;
++		cpumask_t this_core_map;
++	};
++	cpumask_t send_covered;
 +
-+	/* Setup cpumask_of_cpu() map */
-+	setup_cpumask_of_cpu(nr_cpu_ids);
- }
- #endif
- 
---- linux.trees.git.orig/arch/x86/kernel/setup.c
-+++ linux.trees.git/arch/x86/kernel/setup.c
-@@ -96,6 +96,9 @@ void __init setup_per_cpu_areas(void)
- 
- 	/* Setup percpu data maps */
- 	setup_per_cpu_maps();
++#ifdef CONFIG_NUMA
++	cpumask_t domainspan;
++	cpumask_t covered;
++	cpumask_t notcovered;
++#endif
++};
 +
-+	/* Setup cpumask_of_cpu() map */
-+	setup_cpumask_of_cpu(nr_cpu_ids);
- }
- 
- #endif
---- linux.trees.git.orig/include/linux/cpumask.h
-+++ linux.trees.git/include/linux/cpumask.h
-@@ -222,18 +222,6 @@ int __next_cpu(int n, const cpumask_t *s
- #define next_cpu(n, src)	({ (void)(src); 1; })
- #endif
- 
--#define cpumask_of_cpu(cpu)						\
--({									\
--	typeof(_unused_cpumask_arg_) m;					\
--	if (sizeof(m) == sizeof(unsigned long)) {			\
--		m.bits[0] = 1UL<<(cpu);					\
--	} else {							\
--		cpus_clear(m);						\
--		cpu_set((cpu), m);					\
--	}								\
--	m;								\
--})
--
- #define CPU_MASK_LAST_WORD BITMAP_LAST_WORD_MASK(NR_CPUS)
- 
- #if NR_CPUS <= BITS_PER_LONG
-@@ -243,6 +231,19 @@ int __next_cpu(int n, const cpumask_t *s
- 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD			\
- } }
- 
-+#define cpumask_of_cpu(cpu)						\
-+(*({									\
-+	typeof(_unused_cpumask_arg_) m;					\
-+	if (sizeof(m) == sizeof(unsigned long)) {			\
-+		m.bits[0] = 1UL<<(cpu);					\
-+	} else {							\
-+		cpus_clear(m);						\
-+		cpu_set((cpu), m);					\
-+	}								\
-+	&m;								\
-+}))
-+static inline void setup_cpumask_of_cpu(int num) {}
-+
- #else
- 
- #define CPU_MASK_ALL							\
-@@ -251,6 +252,11 @@ int __next_cpu(int n, const cpumask_t *s
- 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD			\
- } }
- 
-+/* cpumask_of_cpu_map is in init/main.c */
-+#define cpumask_of_cpu(cpu)    (cpumask_of_cpu_map[cpu])
-+extern cpumask_t *cpumask_of_cpu_map;
-+void setup_cpumask_of_cpu(int num);
-+
- #endif
- 
- #define CPU_MASK_NONE							\
---- linux.trees.git.orig/init/main.c
-+++ linux.trees.git/init/main.c
-@@ -367,6 +367,21 @@ static inline void smp_prepare_cpus(unsi
- int nr_cpu_ids __read_mostly = NR_CPUS;
- EXPORT_SYMBOL(nr_cpu_ids);
- 
-+#if NR_CPUS > BITS_PER_LONG
-+cpumask_t *cpumask_of_cpu_map __read_mostly;
-+EXPORT_SYMBOL(cpumask_of_cpu_map);
-+
-+void __init setup_cpumask_of_cpu(int num)
-+{
-+	int i;
-+
-+	/* alloc_bootmem zeroes memory */
-+	cpumask_of_cpu_map = alloc_bootmem_low(sizeof(cpumask_t) * num);
-+	for (i = 0; i < num; i++)
-+		cpu_set(i, cpumask_of_cpu_map[i]);
-+}
++#if	NR_CPUS > 128
++#define	SCHED_CPUMASK_ALLOC		1
++#define	SCHED_CPUMASK_FREE(v)		kfree(v)
++#define	SCHED_CPUMASK_DECLARE(v)	struct allmasks *v
++#else
++#define	SCHED_CPUMASK_ALLOC		0
++#define	SCHED_CPUMASK_FREE(v)
++#define	SCHED_CPUMASK_DECLARE(v)	struct allmasks _v, *v = &_v
 +#endif
 +
- #ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
- unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
- EXPORT_SYMBOL(__per_cpu_offset);
-@@ -393,6 +408,9 @@ static void __init setup_per_cpu_areas(v
- 
- 	nr_cpu_ids = highest_cpu + 1;
- 	printk(KERN_DEBUG "NR_CPUS:%d (nr_cpu_ids:%d)\n", NR_CPUS, nr_cpu_ids);
++#define	SCHED_CPUMASK_VAR(v, a) 	cpumask_t *v = (cpumask_t *) \
++			((unsigned long)(a) + offsetof(struct allmasks, v))
 +
-+	/* Setup cpumask_of_cpu() map */
-+	setup_cpumask_of_cpu(nr_cpu_ids);
- }
- #endif /* CONFIG_HAVE_SETUP_PER_CPU_AREA */
++/*
+  * Build sched domains for a given set of cpus and attach the sched domains
+  * to the individual cpus
+  */
+@@ -6580,7 +6614,8 @@ static int build_sched_domains(const cpu
+ {
+ 	int i;
+ 	struct root_domain *rd;
+-	cpumask_t tmpmask;
++	SCHED_CPUMASK_DECLARE(allmasks);
++	cpumask_t *tmpmask;
+ #ifdef CONFIG_NUMA
+ 	struct sched_group **sched_group_nodes = NULL;
+ 	int sd_allnodes = 0;
+@@ -6605,6 +6640,21 @@ static int build_sched_domains(const cpu
+ 		return -ENOMEM;
+ 	}
  
++#if SCHED_CPUMASK_ALLOC
++	/* get space for all scratch cpumask variables */
++	allmasks = kmalloc(sizeof(*allmasks), GFP_KERNEL);
++	if (!allmasks) {
++		printk(KERN_WARNING "Cannot alloc cpumask array\n");
++		kfree(rd);
++#ifdef CONFIG_NUMA
++		kfree(sched_group_nodes);
++#endif
++		return -ENOMEM;
++	}
++#endif
++	tmpmask = (cpumask_t *)allmasks;
++
++
+ #ifdef CONFIG_NUMA
+ 	sched_group_nodes_bycpu[first_cpu(*cpu_map)] = sched_group_nodes;
+ #endif
+@@ -6614,18 +6664,18 @@ static int build_sched_domains(const cpu
+ 	 */
+ 	for_each_cpu_mask(i, *cpu_map) {
+ 		struct sched_domain *sd = NULL, *p;
+-		cpumask_t nodemask = node_to_cpumask(cpu_to_node(i));
++		SCHED_CPUMASK_VAR(nodemask, allmasks);
+ 
+-		cpus_and(nodemask, nodemask, *cpu_map);
++		*nodemask = node_to_cpumask(cpu_to_node(i));
++		cpus_and(*nodemask, *nodemask, *cpu_map);
+ 
+ #ifdef CONFIG_NUMA
+ 		if (cpus_weight(*cpu_map) >
+-				SD_NODES_PER_DOMAIN*cpus_weight(nodemask)) {
++				SD_NODES_PER_DOMAIN*cpus_weight(*nodemask)) {
+ 			sd = &per_cpu(allnodes_domains, i);
+ 			SD_INIT(sd, ALLNODES);
+ 			sd->span = *cpu_map;
+-			cpu_to_allnodes_group(i, cpu_map, &sd->groups,
+-								      &tmpmask);
++			cpu_to_allnodes_group(i, cpu_map, &sd->groups, tmpmask);
+ 			p = sd;
+ 			sd_allnodes = 1;
+ 		} else
+@@ -6643,11 +6693,11 @@ static int build_sched_domains(const cpu
+ 		p = sd;
+ 		sd = &per_cpu(phys_domains, i);
+ 		SD_INIT(sd, CPU);
+-		sd->span = nodemask;
++		sd->span = *nodemask;
+ 		sd->parent = p;
+ 		if (p)
+ 			p->child = sd;
+-		cpu_to_phys_group(i, cpu_map, &sd->groups, &tmpmask);
++		cpu_to_phys_group(i, cpu_map, &sd->groups, tmpmask);
+ 
+ #ifdef CONFIG_SCHED_MC
+ 		p = sd;
+@@ -6657,7 +6707,7 @@ static int build_sched_domains(const cpu
+ 		cpus_and(sd->span, sd->span, *cpu_map);
+ 		sd->parent = p;
+ 		p->child = sd;
+-		cpu_to_core_group(i, cpu_map, &sd->groups, &tmpmask);
++		cpu_to_core_group(i, cpu_map, &sd->groups, tmpmask);
+ #endif
+ 
+ #ifdef CONFIG_SCHED_SMT
+@@ -6668,81 +6718,88 @@ static int build_sched_domains(const cpu
+ 		cpus_and(sd->span, sd->span, *cpu_map);
+ 		sd->parent = p;
+ 		p->child = sd;
+-		cpu_to_cpu_group(i, cpu_map, &sd->groups, &tmpmask);
++		cpu_to_cpu_group(i, cpu_map, &sd->groups, tmpmask);
+ #endif
+ 	}
+ 
+ #ifdef CONFIG_SCHED_SMT
+ 	/* Set up CPU (sibling) groups */
+ 	for_each_cpu_mask(i, *cpu_map) {
+-		cpumask_t this_sibling_map = per_cpu(cpu_sibling_map, i);
+-		cpumask_t send_covered;
++		SCHED_CPUMASK_VAR(this_sibling_map, allmasks);
++		SCHED_CPUMASK_VAR(send_covered, allmasks);
+ 
+-		cpus_and(this_sibling_map, this_sibling_map, *cpu_map);
+-		if (i != first_cpu(this_sibling_map))
++		*this_sibling_map = per_cpu(cpu_sibling_map, i);
++		cpus_and(*this_sibling_map, *this_sibling_map, *cpu_map);
++		if (i != first_cpu(*this_sibling_map))
+ 			continue;
+ 
+-		init_sched_build_groups(&this_sibling_map, cpu_map,
+-					&cpu_to_cpu_group,
+-					&send_covered, &tmpmask);
++		init_sched_build_groups(this_sibling_map, cpu_map,
++					cpu_to_cpu_group,
++					send_covered, tmpmask);
+ 	}
+ #endif
+ 
+ #ifdef CONFIG_SCHED_MC
+ 	/* Set up multi-core groups */
+ 	for_each_cpu_mask(i, *cpu_map) {
+-		cpumask_t this_core_map = cpu_coregroup_map(i);
+-		cpumask_t send_covered;
++		SCHED_CPUMASK_VAR(this_core_map, allmasks);
++		SCHED_CPUMASK_VAR(send_covered, allmasks);
+ 
+-		cpus_and(this_core_map, this_core_map, *cpu_map);
+-		if (i != first_cpu(this_core_map))
++		*this_core_map = cpu_coregroup_map(i);
++		cpus_and(*this_core_map, *this_core_map, *cpu_map);
++		if (i != first_cpu(*this_core_map))
+ 			continue;
+-		init_sched_build_groups(&this_core_map, cpu_map,
++
++		init_sched_build_groups(this_core_map, cpu_map,
+ 					&cpu_to_core_group,
+-					&send_covered, &tmpmask);
++					send_covered, tmpmask);
+ 	}
+ #endif
+ 
+ 	/* Set up physical groups */
+ 	for (i = 0; i < MAX_NUMNODES; i++) {
+-		cpumask_t nodemask = node_to_cpumask(i);
+-		cpumask_t send_covered;
++		SCHED_CPUMASK_VAR(nodemask, allmasks);
++		SCHED_CPUMASK_VAR(send_covered, allmasks);
+ 
+-		cpus_and(nodemask, nodemask, *cpu_map);
+-		if (cpus_empty(nodemask))
++		*nodemask = node_to_cpumask(i);
++		cpus_and(*nodemask, *nodemask, *cpu_map);
++		if (cpus_empty(*nodemask))
+ 			continue;
+ 
+-		init_sched_build_groups(&nodemask, cpu_map,
++		init_sched_build_groups(nodemask, cpu_map,
+ 					&cpu_to_phys_group,
+-					&send_covered, &tmpmask);
++					send_covered, tmpmask);
+ 	}
+ 
+ #ifdef CONFIG_NUMA
+ 	/* Set up node groups */
+ 	if (sd_allnodes) {
+-		cpumask_t send_covered;
++		SCHED_CPUMASK_VAR(send_covered, allmasks);
+ 
+ 		init_sched_build_groups(cpu_map, cpu_map,
+ 					&cpu_to_allnodes_group,
+-					&send_covered, &tmpmask);
++					send_covered, tmpmask);
+ 	}
+ 
+ 	for (i = 0; i < MAX_NUMNODES; i++) {
+ 		/* Set up node groups */
+ 		struct sched_group *sg, *prev;
+-		cpumask_t nodemask = node_to_cpumask(i);
+-		cpumask_t domainspan;
+-		cpumask_t covered = CPU_MASK_NONE;
++		SCHED_CPUMASK_VAR(nodemask, allmasks);
++		SCHED_CPUMASK_VAR(domainspan, allmasks);
++		SCHED_CPUMASK_VAR(covered, allmasks);
+ 		int j;
+ 
+-		cpus_and(nodemask, nodemask, *cpu_map);
+-		if (cpus_empty(nodemask)) {
++		*nodemask = node_to_cpumask(i);
++		*covered = CPU_MASK_NONE;
++
++		cpus_and(*nodemask, *nodemask, *cpu_map);
++		if (cpus_empty(*nodemask)) {
+ 			sched_group_nodes[i] = NULL;
+ 			continue;
+ 		}
+ 
+-		domainspan = sched_domain_node_span(i);
+-		cpus_and(domainspan, domainspan, *cpu_map);
++		*domainspan = sched_domain_node_span(i);
++		cpus_and(*domainspan, *domainspan, *cpu_map);
+ 
+ 		sg = kmalloc_node(sizeof(struct sched_group), GFP_KERNEL, i);
+ 		if (!sg) {
+@@ -6751,31 +6808,31 @@ static int build_sched_domains(const cpu
+ 			goto error;
+ 		}
+ 		sched_group_nodes[i] = sg;
+-		for_each_cpu_mask(j, nodemask) {
++		for_each_cpu_mask(j, *nodemask) {
+ 			struct sched_domain *sd;
+ 
+ 			sd = &per_cpu(node_domains, j);
+ 			sd->groups = sg;
+ 		}
+ 		sg->__cpu_power = 0;
+-		sg->cpumask = nodemask;
++		sg->cpumask = *nodemask;
+ 		sg->next = sg;
+-		cpus_or(covered, covered, nodemask);
++		cpus_or(*covered, *covered, *nodemask);
+ 		prev = sg;
+ 
+ 		for (j = 0; j < MAX_NUMNODES; j++) {
+-			cpumask_t tmp, notcovered;
++			SCHED_CPUMASK_VAR(notcovered, allmasks);
+ 			int n = (i + j) % MAX_NUMNODES;
+-			node_to_cpumask_ptr(nodemask, n);
+ 
+-			cpus_complement(notcovered, covered);
+-			cpus_and(tmp, notcovered, *cpu_map);
+-			cpus_and(tmp, tmp, domainspan);
+-			if (cpus_empty(tmp))
++			cpus_complement(*notcovered, *covered);
++			cpus_and(*tmpmask, *notcovered, *cpu_map);
++			cpus_and(*tmpmask, *tmpmask, *domainspan);
++			if (cpus_empty(*tmpmask))
+ 				break;
+ 
+-			cpus_and(tmp, tmp, *nodemask);
+-			if (cpus_empty(tmp))
++			*nodemask = node_to_cpumask(n);
++			cpus_and(*tmpmask, *tmpmask, *nodemask);
++			if (cpus_empty(*tmpmask))
+ 				continue;
+ 
+ 			sg = kmalloc_node(sizeof(struct sched_group),
+@@ -6786,9 +6843,9 @@ static int build_sched_domains(const cpu
+ 				goto error;
+ 			}
+ 			sg->__cpu_power = 0;
+-			sg->cpumask = tmp;
++			sg->cpumask = *tmpmask;
+ 			sg->next = prev->next;
+-			cpus_or(covered, covered, tmp);
++			cpus_or(*covered, *covered, *tmpmask);
+ 			prev->next = sg;
+ 			prev = sg;
+ 		}
+@@ -6825,7 +6882,7 @@ static int build_sched_domains(const cpu
+ 		struct sched_group *sg;
+ 
+ 		cpu_to_allnodes_group(first_cpu(*cpu_map), cpu_map, &sg,
+-								&tmpmask);
++								tmpmask);
+ 		init_numa_sched_groups_power(sg);
+ 	}
+ #endif
+@@ -6843,11 +6900,13 @@ static int build_sched_domains(const cpu
+ 		cpu_attach_domain(sd, rd, i);
+ 	}
+ 
++	SCHED_CPUMASK_FREE((void *)allmasks);
+ 	return 0;
+ 
+ #ifdef CONFIG_NUMA
+ error:
+-	free_sched_groups(cpu_map, &tmpmask);
++	free_sched_groups(cpu_map, tmpmask);
++	SCHED_CPUMASK_FREE((void *)allmasks);
+ 	return -ENOMEM;
+ #endif
+ }
 
 -- 
 
