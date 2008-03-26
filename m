@@ -1,11 +1,11 @@
-Message-ID: <47EA7030.2080301@sgi.com>
-Date: Wed, 26 Mar 2008 08:48:00 -0700
+Message-ID: <47EA7177.8010605@sgi.com>
+Date: Wed, 26 Mar 2008 08:53:27 -0700
 From: Mike Travis <travis@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/10] NR_CPUS: third reduction of NR_CPUS memory usage
- x86-version v2
-References: <20080325220650.835342000@polaris-admin.engr.sgi.com> <20080326063401.GE18301@elte.hu>
-In-Reply-To: <20080326063401.GE18301@elte.hu>
+Subject: Re: [PATCH 00/12] cpumask: reduce stack pressure from local/passed
+ cpumask variables v2
+References: <20080326013811.569646000@polaris-admin.engr.sgi.com> <20080326061824.GB18301@elte.hu>
+In-Reply-To: <20080326061824.GB18301@elte.hu>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,29 +17,26 @@ List-ID: <linux-mm.kvack.org>
 Ingo Molnar wrote:
 > * Mike Travis <travis@sgi.com> wrote:
 > 
->> Wii, isn't this fun...!  This is a resubmission of yesterday's patches 
->> based on the x86.git/latest tree.  Yes, it _is_ a maze of twisty litle 
->> passages. ;-)
+>> Modify usage of cpumask_t variables to use pointers as much as 
+>> possible.
 > 
-> just to make patch dependencies clear: most of the patches here can be 
-> applied to their base trees as-is, without depending on any other patch, 
-> correct?
+> hm, why is there no minimal patch against -git that does nothing but 
+> introduces the new pointer based generic APIs (without using them) - 
+> such as set_cpus_allowed_ptr(), etc.? Once that is upstream all the 
+> remaining changes can trickle one arch and one subsystem at a time, and 
+> once that's done, the old set_cpus_allowed() can be removed. This is far 
+> more manageable than one large patch.
 > 
-> the only undeclared dependency i found was the cpumask_scnprintf_len() 
-> patch - please prominently list dependencies in the changelog like this:
-> 
->  [ this patch depends on "cpumask: Add cpumask_scnprintf_len function" ]
+> and the cpumask_of_cpu() change should be Kconfig based initially - once 
+> all arches have moved to it (or even sooner) we can remove that.
 > 
 > 	Ingo
 
+Yes, good idea!  I'll see about dividing them up.  Though 99% seems to
+be in generic kernel code (kernel/sched.c is by far the biggest user.)
 
-Ahh, ok.  I was under the assumption that an entire patchset would be
-applied en-mass and only divided up by bi-sect debugging...?
-
-The second patchset (cpumask) is highly incremental and I did it like
-this to show memory gains (or losses).  I tossed a few patches that
-didn't have any overall goodness (and have a few more to help with
-the memory footprint or performance in the queue.)
+There is one function pointer in a struct that would need an additional entry
+if we keep both interfaces.
 
 Thanks,
 Mike
