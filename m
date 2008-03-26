@@ -1,50 +1,34 @@
-Message-ID: <47EA9456.8060709@sgi.com>
-Date: Wed, 26 Mar 2008 11:22:14 -0700
-From: Mike Travis <travis@sgi.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 02/10] init: move setup of nr_cpu_ids to as early as	possible
- v2
-References: <20080325220650.835342000@polaris-admin.engr.sgi.com> <20080325220651.146336000@polaris-admin.engr.sgi.com> <20080326062725.GD18301@elte.hu> <47EA6F39.6020909@sgi.com> <20080326170950.GB20016@elte.hu>
-In-Reply-To: <20080326170950.GB20016@elte.hu>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Wed, 26 Mar 2008 19:54:38 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH prototype] [0/8] Predictive bitmaps for ELF executables
+Message-ID: <20080326185438.GA27154@one.firstfloor.org>
+References: <20080321172644.GG2346@one.firstfloor.org> <a36005b50803212136s78dc2e4bx5ac715ebc7a6e48a@mail.gmail.com> <20080322071755.GP2346@one.firstfloor.org> <1206170695.2438.39.camel@entropy> <20080322091001.GA7264@one.firstfloor.org> <a36005b50803232120j63fb08d8p4a6cfdc8df2a3f21@mail.gmail.com> <1206335761.2438.63.camel@entropy> <a36005b50803241242r2a9b38c5s57d9ac6b084021fa@mail.gmail.com> <20080325075403.GH2170@one.firstfloor.org> <a36005b50803261115s6a3aa889w42fd4890c124ee01@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <a36005b50803261115s6a3aa889w42fd4890c124ee01@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, "David S. Miller" <davem@davemloft.net>, "William L. Irwin" <wli@holomorphy.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+To: Ulrich Drepper <drepper@gmail.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Nicholas Miell <nmiell@comcast.net>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
-> * Mike Travis <travis@sgi.com> wrote:
+On Wed, Mar 26, 2008 at 11:15:49AM -0700, Ulrich Drepper wrote:
+> On Tue, Mar 25, 2008 at 12:54 AM, Andi Kleen <andi@firstfloor.org> wrote:
+> >  There is still the additional seek.
 > 
->> Ingo Molnar wrote:
->>> * Mike Travis <travis@sgi.com> wrote:
->>>
->>>> Move the setting of nr_cpu_ids from sched_init() to 
->>>> setup_per_cpu_areas(), so that it's available as early as possible.
->>> hm, why not a separate call before setup_per_cpu_areas(), so that we can 
->>> avoid spreading this from generic kernel into a bunch of architectures 
->>> that happen to have their own version of setup_per_cpu_areas():
->>>
->>>>  7 files changed, 43 insertions(+), 15 deletions(-)
->>> 	Ingo
->> I had this before but I then discovered that an arch would increase 
->> (and possible decrease) it's number of possible cpus in 
->> setup_per_cpu_areas(). So I figured that setting nr_cpu_ids (and the 
->> cpumask_of_cpu map) should be a side effect of setup_per_cpu_areas().
-> 
-> well, then why not do it shortly after setup_per_cpu_areas()? That still 
-> moves it earlier than sched_init() but doesnt export all this code and 
-> complexity toevery setup_per_cpu_areas() implementation. (which clearly 
-> didnt need this complexity before)
-> 
-> 	Ingo
+> You've been proposing and implementing a solution which needs an
+> additional seek.  Don't use double standards.
 
+You're wrong. I am implementing a solution that allows two 
+methods -- one (SHDR) that needs an seek (but an continuous one
+so it's likely served from the track buffer) but has some advantages 
+and another one (PHDR) that does not require a seek.
 
-Ok, will do.
+You two are arguing a method that always requires the seek
+and has a couple of other drawbacks as earlier discussed too.
 
-Thanks,
-Mike
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
