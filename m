@@ -1,37 +1,85 @@
-Date: Wed, 26 Mar 2008 08:38:23 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [RFC 8/8] x86_64: Support for new UV apic
-Message-ID: <20080326073823.GD3442@elte.hu>
-References: <20080324182122.GA28327@sgi.com> <87abknhzhd.fsf@basil.nowhere.org> <20080325175657.GA6262@sgi.com>
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp01.in.ibm.com (8.13.1/8.13.1) with ESMTP id m2QAWnJR007641
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 16:02:49 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2QAWnGR1110068
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 16:02:49 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.13.1/8.13.3) with ESMTP id m2QAWmqv022914
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 10:32:49 GMT
+Message-ID: <47EA2592.7090600@linux.vnet.ibm.com>
+Date: Wed, 26 Mar 2008 15:59:38 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080325175657.GA6262@sgi.com>
+Subject: Re: [RFC][-mm] Memory controller add mm->owner
+References: <20080324140142.28786.97267.sendpatchset@localhost.localdomain> <6599ad830803240803s5160101bi2bf68b36085f777f@mail.gmail.com> <47E7D51E.4050304@linux.vnet.ibm.com> <6599ad830803240934g2a70d904m1ca5548f8644c906@mail.gmail.com> <47E7E5D0.9020904@linux.vnet.ibm.com> <6599ad830803241046l61e2965t52fd28e165d5df7a@mail.gmail.com> <47E8E4F3.6090604@linux.vnet.ibm.com>
+In-Reply-To: <47E8E4F3.6090604@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: Andi Kleen <andi@firstfloor.org>, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Paul Menage <menage@google.com>
+Cc: balbir@linux.vnet.ibm.com, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-* Jack Steiner <steiner@sgi.com> wrote:
+Balbir Singh wrote:
+> Paul Menage wrote:
+>> On Mon, Mar 24, 2008 at 10:33 AM, Balbir Singh
+>> <balbir@linux.vnet.ibm.com> wrote:
+>>>  > OK, so we don't need to handle this for NPTL apps - but for anything
+>>>  > still using LinuxThreads or manually constructed clone() calls that
+>>>  > use CLONE_VM without CLONE_PID, this could still be an issue.
+>>>
+>>>  CLONE_PID?? Do you mean CLONE_THREAD?
+>> Yes, sorry - CLONE_THREAD.
+>>
+>>>  For the case you mentioned, mm->owner is a moving target and we don't want to
+>>>  spend time finding the successor, that can be expensive when threads start
+>>>  exiting one-by-one quickly and when the number of threads are high. I wonder if
+>>>  there is an efficient way to find mm->owner in that case.
+>>>
+>> But:
+>>
+>> - running a high-threadcount LinuxThreads process is by definition
+>> inefficient and expensive (hence the move to NPTL)
+>>
+>> - any potential performance hit is only paid at exit time
+>>
+>> - in the normal case, any of your children or one of your siblings
+>> will be a suitable alternate owner
+>>
+>> - in the worst case, it's not going to be worse than doing a
+>> for_each_thread() loop
+>>
 
-> > > -        obj-y				+= genapic_64.o genapic_flat_64.o
-> > > +        obj-y				+= genapic_64.o genapic_flat_64.o genx2apic_uv_x.o
-> > 
-> > Definitely should be a CONFIG
+This will have to be the common case, since you never know what combination of
+clone calls did CLONE_VM and what did CLONE_THREAD. At exit time, we need to pay
+a for_each_process() overhead. Although very unlikely, an application can call
+pthread_* functions (NPTL) and then do a clone with CLONE_VM, thus forcing
+threads in a thread group and another process to share the mm_struct. This makes
+mm->owner struct approach hard to implement.
+
+>> so I don't think this would be a major problem
+>>
 > 
-> Not sure that I understand why. The overhead of UV is minimal & we 
-> want UV enabled in all distro kernels. OTOH, small embedded systems 
-> probably want to eliminate every last bit of unneeded code.
+> I've been looking at zap_threads, I suspect we'll end up implementing a similar
+> loop, which makes me very uncomfortable. Adding code for the least possible
+> scenario. It will not get invoked for CLONE_THREAD, but will get invoked for the
+> case when CLONE_VM is set without CLONE_THREAD.
 > 
-> Might make sense to have a config option. Thoughts????
+> I'll try and experiment a bit more and see what I come up with
 
-i wouldnt mind having UV enabled by default (it can be a config option 
-but default-enabled on generic kernels so all distros will pick this hw 
-support up), but we definitely need the genapic unification before we 
-can add more features.
+I am yet to benchmark the cost of doing for_each_process() on every exit. I
+suspect, we'll see a big drop in performance. I am not sure anymore if mm->owner
+is worth the overhead.
 
-	Ingo
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
