@@ -1,71 +1,34 @@
-Received: by rv-out-0910.google.com with SMTP id f1so1806290rvb.26
-        for <linux-mm@kvack.org>; Wed, 26 Mar 2008 12:28:28 -0700 (PDT)
-Message-ID: <86802c440803261228m5026bca1x46047c0dc656545c@mail.gmail.com>
-Date: Wed, 26 Mar 2008 12:28:28 -0700
-From: "Yinghai Lu" <yhlu.kernel@gmail.com>
-Subject: Re: [PATCH 2/2] x86: Modify Kconfig to allow up to 4096 cpus
-In-Reply-To: <20080326014138.292294000@polaris-admin.engr.sgi.com>
+Date: Wed, 26 Mar 2008 21:29:13 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: What if a TLB flush needed to sleep?
+In-Reply-To: <Pine.LNX.4.64.0803261222090.31000@schroedinger.engr.sgi.com>
+Message-ID: <alpine.LFD.1.00.0803262121440.3781@apollo.tec.linutronix.de>
+References: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com> <Pine.LNX.4.64.0803261222090.31000@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080326014137.934171000@polaris-admin.engr.sgi.com>
-	 <20080326014138.292294000@polaris-admin.engr.sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Travis <travis@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: "Luck, Tony" <tony.luck@intel.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 25, 2008 at 6:41 PM, Mike Travis <travis@sgi.com> wrote:
-> Increase the limit of NR_CPUS to 4096 and introduce a boolean
->  called "MAXSMP" which when set (e.g. "allyesconfig"), will set
->  NR_CPUS = 4096 and NODES_SHIFT = 9 (512).
->
->  Based on:
->         git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
->         git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
->
->  Signed-off-by: Mike Travis <travis@sgi.com>
->  ---
->   arch/x86/Kconfig |   20 ++++++++++++++++----
->   1 file changed, 16 insertions(+), 4 deletions(-)
->
->  --- linux.trees.git.orig/arch/x86/Kconfig
->  +++ linux.trees.git/arch/x86/Kconfig
->  @@ -522,16 +522,24 @@ config SWIOTLB
->           access 32-bits of memory can be used on systems with more than
->           3 GB of memory. If unsure, say Y.
->
->  +config MAXSMP
->  +       bool "Configure Maximum number of SMP Processors"
->  +       depends on X86_64 && SMP
->  +       default n
->  +       help
->  +         Configure maximum number of CPUS for this architecture.
->  +         If unsure, say N.
->
->   config NR_CPUS
->  -       int "Maximum number of CPUs (2-255)"
->  -       range 2 255
->  +       int "Maximum number of CPUs (2-4096)"
->  +       range 2 4096
->         depends on SMP
->  +       default "4096" if MAXSMP
->         default "32" if X86_NUMAQ || X86_SUMMIT || X86_BIGSMP || X86_ES7000
->         default "8"
->         help
->           This allows you to specify the maximum number of CPUs which this
->  -         kernel will support.  The maximum supported value is 255 and the
->  +         kernel will support.  The maximum supported value is 4096 and the
->           minimum value which makes sense is 2.
->
->           This is purely to save memory - each supported CPU adds
+On Wed, 26 Mar 2008, Christoph Lameter wrote:
 
-or put
-if  MAXSMP around NR_CPUS...
+> On Tue, 25 Mar 2008, Luck, Tony wrote:
+> 
+> > 2) Is it feasible to rearrange the MM code so that we don't
+> > hold any locks while doing a TLB flush?  Or should I implement
+> > some sort of spin_only_semaphore?
+> 
+> The EMM notifier V2 patchset contains two patches that 
+> convert the immap_lock and the anon_vma lock to semaphores.
 
-YH
+Please use a mutex, not a semaphore. semaphores should only be used
+when you need a counting sempahore.
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
