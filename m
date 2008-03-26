@@ -1,33 +1,31 @@
-Date: Tue, 25 Mar 2008 20:09:30 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [RFC 6/8] x86_64: Define the macros and tables for the basic
-	UV infrastructure.
-Message-ID: <20080326000930.GB18701@infradead.org>
-References: <20080324182118.GA21758@sgi.com> <87ej9zi05c.fsf@basil.nowhere.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87ej9zi05c.fsf@basil.nowhere.org>
+Date: Tue, 25 Mar 2008 17:16:49 -0700 (PDT)
+Message-Id: <20080325.171649.223175755.davem@davemloft.net>
+Subject: Re: larger default page sizes...
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <1FE6DD409037234FAB833C420AA843ECE9E2CA@orsmsx424.amr.corp.intel.com>
+References: <18408.59112.945786.488350@cargo.ozlabs.ibm.com>
+	<20080325.163240.102401706.davem@davemloft.net>
+	<1FE6DD409037234FAB833C420AA843ECE9E2CA@orsmsx424.amr.corp.intel.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: "Luck, Tony" <tony.luck@intel.com>
+Date: Tue, 25 Mar 2008 16:49:23 -0700
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Jack Steiner <steiner@sgi.com>, mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: tony.luck@intel.com
+Cc: paulus@samba.org, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 25, 2008 at 11:11:11AM +0100, Andi Kleen wrote:
-> Not sure what physical mode is.
-> 
-> > +#ifdef __BIOS__
-> > +#define UV_ADDR(x)		((unsigned long *)(x))
-> > +#else
-> > +#define UV_ADDR(x)		((unsigned long *)__va(x))
-> > +#endif
-> 
-> But it it would be cleaner if your BIOS just supplied a suitable __va()
-> and then you remove these macros.
+> Making an application use huge pages as heap may be simple
+> (just link with a different library to provide with a different
+> version of malloc()) ... code, stack, mmap'd files are all
+> a lot harder to do transparently.
 
-the bios should just have headers of it's own instead of placing this
-burden on kernel code.
+The kernel should be able to do this transparently, at the
+very least for the anonymous page case.  It should also
+be able to handle just fine chips that provide multiple
+page size support, as many do.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
