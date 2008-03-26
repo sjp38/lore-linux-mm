@@ -1,31 +1,35 @@
-Date: Wed, 26 Mar 2008 08:29:45 +0100
+Date: Wed, 26 Mar 2008 08:38:23 +0100
 From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [RFC 8/8] x86_64: Support for new UV apic
-Message-ID: <20080326072945.GC3442@elte.hu>
-References: <20080324182122.GA28327@sgi.com> <87abknhzhd.fsf@basil.nowhere.org> <20080325175657.GA6262@sgi.com> <20080325180616.GX2170@one.firstfloor.org> <47E9B398.3080008@goop.org>
+Message-ID: <20080326073823.GD3442@elte.hu>
+References: <20080324182122.GA28327@sgi.com> <87abknhzhd.fsf@basil.nowhere.org> <20080325175657.GA6262@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <47E9B398.3080008@goop.org>
+In-Reply-To: <20080325175657.GA6262@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Jack Steiner <steiner@sgi.com>, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Glauber de Oliveira Costa <glommer@gmail.com>
+To: Jack Steiner <steiner@sgi.com>
+Cc: Andi Kleen <andi@firstfloor.org>, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* Jeremy Fitzhardinge <jeremy@goop.org> wrote:
+* Jack Steiner <steiner@sgi.com> wrote:
 
-> Andi Kleen wrote:
->> No instead of having lots of if (xyz_system) do_xyz_special()
->> go through smp_ops for the whole thing so that UV would just have a 
->> special smp_ops that has special implementions or wrappers. 
->> Oops I see smp_ops are currently only implemented
->> for 32bit. Ok do it only once smp_ops exist on 64bit too.   
->
-> I think glommer has patches to unify smp stuff, which should include 
-> smp_ops.
+> > > -        obj-y				+= genapic_64.o genapic_flat_64.o
+> > > +        obj-y				+= genapic_64.o genapic_flat_64.o genx2apic_uv_x.o
+> > 
+> > Definitely should be a CONFIG
+> 
+> Not sure that I understand why. The overhead of UV is minimal & we 
+> want UV enabled in all distro kernels. OTOH, small embedded systems 
+> probably want to eliminate every last bit of unneeded code.
+> 
+> Might make sense to have a config option. Thoughts????
 
-yep, x86.git/latest has all that work included.
+i wouldnt mind having UV enabled by default (it can be a config option 
+but default-enabled on generic kernels so all distros will pick this hw 
+support up), but we definitely need the genapic unification before we 
+can add more features.
 
 	Ingo
 
