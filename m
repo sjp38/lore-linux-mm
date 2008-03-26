@@ -1,43 +1,35 @@
-Message-ID: <47EA92A9.9070808@sgi.com>
-Date: Wed, 26 Mar 2008 11:15:05 -0700
-From: Mike Travis <travis@sgi.com>
+Received: by gv-out-0910.google.com with SMTP id n8so800270gve.19
+        for <linux-mm@kvack.org>; Wed, 26 Mar 2008 11:15:52 -0700 (PDT)
+Message-ID: <a36005b50803261115s6a3aa889w42fd4890c124ee01@mail.gmail.com>
+Date: Wed, 26 Mar 2008 11:15:49 -0700
+From: "Ulrich Drepper" <drepper@gmail.com>
+Subject: Re: [PATCH prototype] [0/8] Predictive bitmaps for ELF executables
+In-Reply-To: <20080325075403.GH2170@one.firstfloor.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 06/10] x86: reduce memory and stack usage in	intel_cacheinfo
-References: <20080325220650.835342000@polaris-admin.engr.sgi.com> <20080325220651.683748000@polaris-admin.engr.sgi.com> <20080326065023.GG18301@elte.hu> <47EA6EA3.1070609@sgi.com> <47EA7633.1080909@goop.org> <47EA7958.6050202@sgi.com> <47EA80D5.1040002@goop.org>
-In-Reply-To: <47EA80D5.1040002@goop.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080320090005.GA25734@one.firstfloor.org>
+	 <20080321172644.GG2346@one.firstfloor.org>
+	 <a36005b50803212136s78dc2e4bx5ac715ebc7a6e48a@mail.gmail.com>
+	 <20080322071755.GP2346@one.firstfloor.org>
+	 <1206170695.2438.39.camel@entropy>
+	 <20080322091001.GA7264@one.firstfloor.org>
+	 <a36005b50803232120j63fb08d8p4a6cfdc8df2a3f21@mail.gmail.com>
+	 <1206335761.2438.63.camel@entropy>
+	 <a36005b50803241242r2a9b38c5s57d9ac6b084021fa@mail.gmail.com>
+	 <20080325075403.GH2170@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Nicholas Miell <nmiell@comcast.net>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jeremy Fitzhardinge wrote:
-> Mike Travis wrote:
->> Hmm, I hadn't thought of that.  There is commonly a format spec called
->> %b for diags, etc. to print bit strings.  Maybe something like:
->>
->>     "... %*b ...", nr_cpu_ids, ptr_to_bitmap
->>
->> where the length arg is rounded up to 32 or 64 bits...?   
-> 
-> I think that would need to be %.*b, but I always need to try it both
-> ways anyway...
-> 
-> But yes, that seems like the right way to go.
+On Tue, Mar 25, 2008 at 12:54 AM, Andi Kleen <andi@firstfloor.org> wrote:
+>  There is still the additional seek.
 
-I had the same thought after hitting return.
-
-But for this case, I was over thinking the problem.  Turns out that the
-number of cpus in a leaf will be fairly small, even with new cpus around
-the corner (maybe 64 or 128 cpu threads per leaf?)
-
-So I dropped the cpumask_scnprintf_len() patch and have a new intel_cacheinfo
-patch which I'll send in a separate message.
-
-Thanks,
-Mike
+You've been proposing and implementing a solution which needs an
+additional seek.  Don't use double standards.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
