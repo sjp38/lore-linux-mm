@@ -1,40 +1,108 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m2QLIxKt007929
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 17:18:59 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2QLKUf3189844
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 15:20:30 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2QLKUJA030334
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 15:20:30 -0600
-Message-ID: <47EABE2D.7080400@linux.vnet.ibm.com>
-Date: Wed, 26 Mar 2008 16:20:45 -0500
-From: Jon Tollefson <kniht@linux.vnet.ibm.com>
-Reply-To: kniht@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: [PATCH 0/4] 16G huge page support for powerpc
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Message-Id: <20080326212347.654559000@polaris-admin.engr.sgi.com>
+References: <20080326212347.466221000@polaris-admin.engr.sgi.com>
+Date: Wed, 26 Mar 2008 14:23:48 -0700
+From: Mike Travis <travis@sgi.com>
+Subject: [PATCH 1/2] init: move setup of nr_cpu_ids to as early as possible v3
+Content-Disposition: inline; filename=setup-nr_cpu_ids
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@ozlabs.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Paul Mackerras <paulus@samba.org>, Adam Litke <agl@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This patch set builds on Andi Kleen's patches for GB pages for hugetlb
-posted on March 16th.  This set adds support for 16G huge pages on
-ppc64.  Supporting multiple huge page sizes on ppc64 as defined in
-Andi's patches is not a part of this set; that will be included in a
-future patch.
+Move the setting of nr_cpu_ids from sched_init() to start_kernel()
+so that it's available as early as possible.
 
-The first patch here adds an arch callback since the 16G pages are not
-allocated from bootmem.  The 16G pages have to be reserved prior to
-boot-time.  The location of these pages are indicated in the device tree.
+Note that an arch has the option of setting it even earlier if need be,
+but it should not result in a different value than the setup_nr_cpu_ids()
+function.
 
-Support for 16G pages requires a POWER5+ or later machine and a little
-bit of memory.
+Based on:
+	git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
+	git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
 
-Jon
+Signed-off-by: Mike Travis <travis@sgi.com>
+---
+ init/main.c    |   17 +++++++++++++++++
+ kernel/sched.c |    7 -------
+ 2 files changed, 17 insertions(+), 7 deletions(-)
+
+--- linux.trees.git.orig/init/main.c
++++ linux.trees.git/init/main.c
+@@ -360,10 +360,26 @@ static void __init smp_init(void)
+ #endif
+ 
+ static inline void setup_per_cpu_areas(void) { }
++static inline void setup_nr_cpu_ids(void) { }
+ static inline void smp_prepare_cpus(unsigned int maxcpus) { }
+ 
+ #else
+ 
++/* Setup number of possible processor ids */
++int nr_cpu_ids __read_mostly = NR_CPUS;
++EXPORT_SYMBOL(nr_cpu_ids);
++
++/* An arch may set nr_cpu_ids earlier if needed, so this would be redundant */
++static void __init setup_nr_cpu_ids(void)
++{
++	int cpu, highest_cpu = 0;
++
++	for_each_possible_cpu(cpu)
++		highest_cpu = cpu;
++
++	nr_cpu_ids = highest_cpu + 1;
++}
++
+ #ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
+ unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
+ 
+@@ -544,6 +560,7 @@ asmlinkage void __init start_kernel(void
+ 	setup_command_line(command_line);
+ 	unwind_setup();
+ 	setup_per_cpu_areas();
++	setup_nr_cpu_ids();
+ 	smp_prepare_boot_cpu();	/* arch-specific boot-cpu hooks */
+ 
+ 	/*
+--- linux.trees.git.orig/kernel/sched.c
++++ linux.trees.git/kernel/sched.c
+@@ -5923,10 +5923,6 @@ void __init migration_init(void)
+ 
+ #ifdef CONFIG_SMP
+ 
+-/* Number of possible processor ids */
+-int nr_cpu_ids __read_mostly = NR_CPUS;
+-EXPORT_SYMBOL(nr_cpu_ids);
+-
+ #ifdef CONFIG_SCHED_DEBUG
+ 
+ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level)
+@@ -7152,7 +7148,6 @@ static void init_tg_rt_entry(struct rq *
+ 
+ void __init sched_init(void)
+ {
+-	int highest_cpu = 0;
+ 	int i, j;
+ 
+ #ifdef CONFIG_SMP
+@@ -7207,7 +7202,6 @@ void __init sched_init(void)
+ #endif
+ 		init_rq_hrtick(rq);
+ 		atomic_set(&rq->nr_iowait, 0);
+-		highest_cpu = i;
+ 	}
+ 
+ 	set_load_weight(&init_task);
+@@ -7217,7 +7211,6 @@ void __init sched_init(void)
+ #endif
+ 
+ #ifdef CONFIG_SMP
+-	nr_cpu_ids = highest_cpu + 1;
+ 	open_softirq(SCHED_SOFTIRQ, run_rebalance_domains, NULL);
+ #endif
+ 
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
