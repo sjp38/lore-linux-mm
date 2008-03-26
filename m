@@ -1,66 +1,44 @@
-Date: Wed, 26 Mar 2008 18:55:54 +0200
-From: Adrian Bunk <bunk@kernel.org>
-Subject: Re: [PATCH 2/2] x86: Modify Kconfig to allow up to 4096 cpus
-Message-ID: <20080326165554.GD1789@cs181133002.pp.htv.fi>
-References: <20080326014137.934171000@polaris-admin.engr.sgi.com> <20080326014138.292294000@polaris-admin.engr.sgi.com> <20080326160924.GC1789@cs181133002.pp.htv.fi> <47EA7A5A.5030207@sgi.com>
+Message-ID: <47EA80D5.1040002@goop.org>
+Date: Wed, 26 Mar 2008 09:59:01 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <47EA7A5A.5030207@sgi.com>
+Subject: Re: [PATCH 06/10] x86: reduce memory and stack usage in	intel_cacheinfo
+References: <20080325220650.835342000@polaris-admin.engr.sgi.com> <20080325220651.683748000@polaris-admin.engr.sgi.com> <20080326065023.GG18301@elte.hu> <47EA6EA3.1070609@sgi.com> <47EA7633.1080909@goop.org> <47EA7958.6050202@sgi.com>
+In-Reply-To: <47EA7958.6050202@sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mike Travis <travis@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 26, 2008 at 09:31:22AM -0700, Mike Travis wrote:
-> Adrian Bunk wrote:
-> > On Tue, Mar 25, 2008 at 06:41:39PM -0700, Mike Travis wrote:
-> >> Increase the limit of NR_CPUS to 4096 and introduce a boolean
-> >> called "MAXSMP" which when set (e.g. "allyesconfig"), will set
-> >> NR_CPUS = 4096 and NODES_SHIFT = 9 (512).
-> > 
-> > 
-> > I'm not really getting the point of MAXSMP - people should simply pick 
-> > their values, and when they want the maximum "(2-4096)" and "(1-15)" 
-> > already provide this information (except that your patch hides the 
-> > latter information from the user).
-> > 
-> > And with your patch, even with MAXSMP=y people could still set 
-> > NR_CPUS=7 and NODES_SHIFT=15 or whatever else they want...
-> > 
-> > More interesting would be why you want it to set NODES_SHIFT to 
-> > something less than the maximum value of 15. I'm getting the fact that
-> > 2^15 > 4096 and that 15 might be nonsensical high, but this sounds more 
-> > like requiring a patch to limit the range to 9?
-> 
-> I guess the main effect is that "MAXSMP" represents what's really
-> usable for an architecture based on other factors.  The limit of
-> NODES_SHIFT = 15 is that it's represented in some places as a signed
-> 16-bit value, so 15 is the hard limit without coding changes, not
-> an architecture limit.
+Mike Travis wrote:
+> Hmm, I hadn't thought of that.  There is commonly a format spec called
+> %b for diags, etc. to print bit strings.  Maybe something like:
+>
+> 	"... %*b ...", nr_cpu_ids, ptr_to_bitmap
+>
+> where the length arg is rounded up to 32 or 64 bits...? 
+>   
 
+I think that would need to be %.*b, but I always need to try it both 
+ways anyway...
 
-This is the x86-specific Kconfig file that presents the x86 specific 
-limits to the users.
+But yes, that seems like the right way to go.
 
-If NODES_SHIFT=15 is offered to the user although it's higher than the 
-current architecture limit on x86 then this is simply a bug that should 
-be fixed.
+>> Eh?  What's the difference between snprintf and scnprintf?
+>>     
+>
+> Good question... I'll have to ask the cpumask person. ;-)
+>   
 
+It's in generic lib/vsprintf.c.  The two functions are pretty much 
+identical...  Oh, I see; snprintf returns the total output size, 
+regardless of whether it fits into the provided buffer, but scnprintf 
+returns the actual output size, clipped by the buffer length.
 
-> Thanks,
-> Mike
-
-cu
-Adrian
-
--- 
-
-       "Is there not promise of rain?" Ling Tan asked suddenly out
-        of the darkness. There had been need of rain for many days.
-       "Only a promise," Lao Er said.
-                                       Pearl S. Buck - Dragon Seed
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
