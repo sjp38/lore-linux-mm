@@ -1,64 +1,56 @@
-Date: Wed, 26 Mar 2008 07:50:23 +0100
+Date: Wed, 26 Mar 2008 07:53:17 +0100
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 06/10] x86: reduce memory and stack usage in
-	intel_cacheinfo
-Message-ID: <20080326065023.GG18301@elte.hu>
-References: <20080325220650.835342000@polaris-admin.engr.sgi.com> <20080325220651.683748000@polaris-admin.engr.sgi.com>
+Subject: Re: [PATCH 09/10] x86: oprofile: remove NR_CPUS arrays in
+	arch/x86/oprofile/nmi_int.c
+Message-ID: <20080326065317.GH18301@elte.hu>
+References: <20080325220650.835342000@polaris-admin.engr.sgi.com> <20080325220652.088163000@polaris-admin.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080325220651.683748000@polaris-admin.engr.sgi.com>
+In-Reply-To: <20080325220652.088163000@polaris-admin.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mike Travis <travis@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Philippe Elie <phil.el@wanadoo.fr>
 List-ID: <linux-mm.kvack.org>
 
 * Mike Travis <travis@sgi.com> wrote:
 
-> * Change the following static arrays sized by NR_CPUS to
->   per_cpu data variables:
+> Change the following arrays sized by NR_CPUS to be PERCPU variables:
 > 
-> 	_cpuid4_info *cpuid4_info[NR_CPUS];
-> 	_index_kobject *index_kobject[NR_CPUS];
-> 	kobject * cache_kobject[NR_CPUS];
+> 	static struct op_msrs cpu_msrs[NR_CPUS];
+> 	static unsigned long saved_lvtpc[NR_CPUS];
 > 
-> * Remove the local NR_CPUS array with a kmalloc'd region in
->   show_shared_cpu_map().
+> Also some minor complaints from checkpatch.pl fixed.
 
-thanks Travis, i've applied this to x86.git.
+thanks, applied.
 
-one observation:
-
->  static ssize_t show_shared_cpu_map(struct _cpuid4_info *this_leaf, char *buf)
+> All changes were transparent except for:
+> 
+>  static void nmi_shutdown(void)
 >  {
-> -	char mask_str[NR_CPUS];
-> -	cpumask_scnprintf(mask_str, NR_CPUS, this_leaf->shared_cpu_map);
-> -	return sprintf(buf, "%s\n", mask_str);
-> +	int n = 0;
-> +	int len = cpumask_scnprintf_len(nr_cpu_ids);
-> +	char *mask_str = kmalloc(len, GFP_KERNEL);
-> +
-> +	if (mask_str) {
-> +		cpumask_scnprintf(mask_str, len, this_leaf->shared_cpu_map);
-> +		n = sprintf(buf, "%s\n", mask_str);
-> +		kfree(mask_str);
-> +	}
-> +	return n;
+> +	struct op_msrs *msrs = &__get_cpu_var(cpu_msrs);
+>  	nmi_enabled = 0;
+>  	on_each_cpu(nmi_cpu_shutdown, NULL, 0, 1);
+>  	unregister_die_notifier(&profile_exceptions_nb);
+> -	model->shutdown(cpu_msrs);
+> +	model->shutdown(msrs);
+>  	free_msrs();
+>  }
+> 
+> The existing code passed a reference to cpu 0's instance of struct 
+> op_msrs to model->shutdown, whilst the other functions are passed a 
+> reference to <this cpu's> instance of a struct op_msrs.  This seemed 
+> to be a bug to me even though as long as cpu 0 and <this cpu> are of 
+> the same type it would have the same effect...?
 
-the other changes look good, but this one looks a bit ugly and complex. 
-We basically want to sprintf shared_cpu_map into 'buf', but we do that 
-by first allocating a temporary buffer, print a string into it, then 
-print that string into another buffer ...
+i dont think this has any real effect in practice (the model pointers 
+are not expected to change across cpus on the same system) - but in any 
+case i've promoted your observation to the main portion of the changelog 
+so that we'll have notice of this.
 
-this very much smells like an API bug in cpumask_scnprintf() - why dont 
-you create a cpumask_scnprintf_ptr() API that takes a pointer to a 
-cpumask? Then this change would become a trivial and much more readable:
-
- -	char mask_str[NR_CPUS];
- -	cpumask_scnprintf(mask_str, NR_CPUS, this_leaf->shared_cpu_map);
- -	return sprintf(buf, "%s\n", mask_str);
- +	return cpumask_scnprintf_ptr(buf, NR_CPUS, &this_leaf->shared_cpu_map);
+(someone might want to play with simulating a weaker CPU on a secondary 
+core, but we've got tons of other assumptions on CPU type symmetry.)
 
 	Ingo
 
