@@ -1,41 +1,59 @@
-Received: by py-out-1112.google.com with SMTP id f47so3504404pye.20
-        for <linux-mm@kvack.org>; Tue, 25 Mar 2008 20:22:09 -0700 (PDT)
-Message-ID: <5d6222a80803252022n208abd1bieda5cfc4920e2b0c@mail.gmail.com>
-Date: Wed, 26 Mar 2008 00:22:07 -0300
+Received: by py-out-1112.google.com with SMTP id f47so3504969pye.20
+        for <linux-mm@kvack.org>; Tue, 25 Mar 2008 20:24:02 -0700 (PDT)
+Message-ID: <5d6222a80803252024u6bb5d4ddk556329ec6ce56@mail.gmail.com>
+Date: Wed, 26 Mar 2008 00:24:02 -0300
 From: "Glauber Costa" <glommer@gmail.com>
 Subject: Re: [RFC 8/8] x86_64: Support for new UV apic
-In-Reply-To: <47E9B398.3080008@goop.org>
+In-Reply-To: <20080325163103.GA2651@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <20080324182122.GA28327@sgi.com> <87abknhzhd.fsf@basil.nowhere.org>
-	 <20080325175657.GA6262@sgi.com>
-	 <20080325180616.GX2170@one.firstfloor.org> <47E9B398.3080008@goop.org>
+References: <20080324182122.GA28327@sgi.com> <20080325143059.GB11323@elte.hu>
+	 <20080325163103.GA2651@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Jack Steiner <steiner@sgi.com>, mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jack Steiner <steiner@sgi.com>
+Cc: Ingo Molnar <mingo@elte.hu>, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 25, 2008 at 11:23 PM, Jeremy Fitzhardinge <jeremy@goop.org> wrote:
-> Andi Kleen wrote:
->  > No instead of having lots of if (xyz_system) do_xyz_special()
->  > go through smp_ops for the whole thing so that UV would just have a
->  > special smp_ops that has special implementions or wrappers.
+On Tue, Mar 25, 2008 at 1:31 PM, Jack Steiner <steiner@sgi.com> wrote:
+> On Tue, Mar 25, 2008 at 03:30:59PM +0100, Ingo Molnar wrote:
 >  >
->  > Oops I see smp_ops are currently only implemented
->  > for 32bit. Ok do it only once smp_ops exist on 64bit too.
+>  > * Jack Steiner <steiner@sgi.com> wrote:
 >  >
+>  > > Index: linux/arch/x86/kernel/genapic_64.c
+>  >
+>  > > @@ -69,7 +73,16 @@ void send_IPI_self(int vector)
+>  > >
+>  > >  unsigned int get_apic_id(void)
+>  > >  {
+>  > > -   return (apic_read(APIC_ID) >> 24) & 0xFFu;
+>  > > +   unsigned int id;
+>  > > +
+>  > > +   preempt_disable();
+>  > > +   id = apic_read(APIC_ID);
+>  > > +   if (uv_system_type >= UV_X2APIC)
+>  > > +           id  |= __get_cpu_var(x2apic_extra_bits);
+>  > > +   else
+>  > > +           id = (id >> 24) & 0xFFu;;
+>  > > +   preempt_enable();
+>  > > +   return id;
+>  >
+>  > dont we want to put get_apic_id() into struct genapic instead? We
+>  > already have ID management there.
+>  >
+>  > also, we want to unify 32-bit and 64-bit genapic code and just have
+>  > genapic all across x86.
 >
->  I think glommer has patches to unify smp stuff, which should include
->  smp_ops.
+>  Long term, I think that makes sense. However, I think that should be a
+>  separate series of patches since there are significant differences between
+>  the 32-bit and 64-bit genapic structs.
 >
+However, if you add more code, they'll keep diverging. The moment you
+touch them, and get your
+hands warmed up, is the perfect moment for an integration series.
 
-They are already merged in ingo's tree.
-
-I'm still about to post some last-minute issues, but the full smp_ops
-support is there.
 -- 
 Glauber Costa.
 "Free as in Freedom"
