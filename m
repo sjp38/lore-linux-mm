@@ -1,65 +1,63 @@
-Received: by py-out-1112.google.com with SMTP id f47so3504969pye.20
-        for <linux-mm@kvack.org>; Tue, 25 Mar 2008 20:24:02 -0700 (PDT)
-Message-ID: <5d6222a80803252024u6bb5d4ddk556329ec6ce56@mail.gmail.com>
-Date: Wed, 26 Mar 2008 00:24:02 -0300
-From: "Glauber Costa" <glommer@gmail.com>
-Subject: Re: [RFC 8/8] x86_64: Support for new UV apic
-In-Reply-To: <20080325163103.GA2651@sgi.com>
+Message-ID: <47E9CE00.7060106@fc.hp.com>
+Date: Tue, 25 Mar 2008 22:16:00 -0600
+From: John Marvin <jsm@fc.hp.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: larger default page sizes...
+References: <Pine.LNX.4.64.0803241402060.7762@schroedinger.engr.sgi.com>	<20080324.144356.104645106.davem@davemloft.net>	<Pine.LNX.4.64.0803251045510.16206@schroedinger.engr.sgi.com>	<20080325.162244.61337214.davem@davemloft.net>	<87tziu5q37.wl%peter@chubb.wattle.id.au>	<ed5aea430803251734u70f199w10951bc4f0db6262@mail.gmail.com> <87lk465mks.wl%peter@chubb.wattle.id.au>
+In-Reply-To: <87lk465mks.wl%peter@chubb.wattle.id.au>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080324182122.GA28327@sgi.com> <20080325143059.GB11323@elte.hu>
-	 <20080325163103.GA2651@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: Ingo Molnar <mingo@elte.hu>, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-ia64@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 25, 2008 at 1:31 PM, Jack Steiner <steiner@sgi.com> wrote:
-> On Tue, Mar 25, 2008 at 03:30:59PM +0100, Ingo Molnar wrote:
->  >
->  > * Jack Steiner <steiner@sgi.com> wrote:
->  >
->  > > Index: linux/arch/x86/kernel/genapic_64.c
->  >
->  > > @@ -69,7 +73,16 @@ void send_IPI_self(int vector)
->  > >
->  > >  unsigned int get_apic_id(void)
->  > >  {
->  > > -   return (apic_read(APIC_ID) >> 24) & 0xFFu;
->  > > +   unsigned int id;
->  > > +
->  > > +   preempt_disable();
->  > > +   id = apic_read(APIC_ID);
->  > > +   if (uv_system_type >= UV_X2APIC)
->  > > +           id  |= __get_cpu_var(x2apic_extra_bits);
->  > > +   else
->  > > +           id = (id >> 24) & 0xFFu;;
->  > > +   preempt_enable();
->  > > +   return id;
->  >
->  > dont we want to put get_apic_id() into struct genapic instead? We
->  > already have ID management there.
->  >
->  > also, we want to unify 32-bit and 64-bit genapic code and just have
->  > genapic all across x86.
->
->  Long term, I think that makes sense. However, I think that should be a
->  separate series of patches since there are significant differences between
->  the 32-bit and 64-bit genapic structs.
->
-However, if you add more code, they'll keep diverging. The moment you
-touch them, and get your
-hands warmed up, is the perfect moment for an integration series.
+Peter Chubb wrote:
 
--- 
-Glauber Costa.
-"Free as in Freedom"
-http://glommer.net
+> 
+> You end up having to repeat PTEs to fit into Linux's page table
+> structure *anyway* (unless we can change Linux's page table).  But
+> there's no place in the short format hardware-walked page table (that
+> reuses the leaf entries in Linux's table) for a page size.  And if you
+> use some of the holes in the format, the hardware walker doesn't
+> understand it --- so you have to turn off the hardware walker for
+> *any* regions where there might be a superpage.  
 
-"The less confident you are, the more serious you have to act."
+No, you can set an illegal memory attribute in the pte for any superpage entry, 
+and leave the hardware walker enabled for the base page size. The software tlb 
+miss handler can then install the superpage tlb entry. I posted a working 
+prototype of Shimizu superpages working on ia64 using short format vhpt's to the 
+linux kernel list a while back.
+
+> 
+> If you use the long format VHPT, you have a choice:  load the
+> hash table with just the translation that caused the miss, load all
+> possible hash entries that could have caused the miss for the page, or
+> preload the hash table when the page is instantiated, with all
+> possible entries that could hash to the huge page.  I don't remember
+> the details, but I seem to remember all these being bad choices for
+> one reason or other ... Ian, can you elaborate?
+
+When I was doing measurements of long format vs. short format, the two main 
+problems with long format (and why I eventually chose to stick with short 
+format) were:
+
+1) There was no easy way of determining what size the long format vhpt cache 
+should be automatically, and changing it dynamically would be too painful. 
+Different workloads performed better with different size vhpt caches.
+
+2) Regardless of the size, the vhpt cache is duplicated information. Using long 
+format vhpt's significantly increased the number of cache misses for some 
+workloads. Theoretically there should have been some cases where the long format 
+solution would have performed better than the short format solution, but I was 
+never able to create such a case. In many cases the performance difference 
+between the long format solution and the short format solution was essentially 
+the same. In other cases the short format vhpt solution outperformed the long 
+format solution, and in those cases there was a significant difference in cache 
+misses that I believe explained the performance difference.
+
+John
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
