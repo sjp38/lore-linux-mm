@@ -1,106 +1,103 @@
-Message-ID: <47EA7958.6050202@sgi.com>
-Date: Wed, 26 Mar 2008 09:27:04 -0700
+Message-ID: <47EA7A5A.5030207@sgi.com>
+Date: Wed, 26 Mar 2008 09:31:22 -0700
 From: Mike Travis <travis@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 06/10] x86: reduce memory and stack usage in	intel_cacheinfo
-References: <20080325220650.835342000@polaris-admin.engr.sgi.com> <20080325220651.683748000@polaris-admin.engr.sgi.com> <20080326065023.GG18301@elte.hu> <47EA6EA3.1070609@sgi.com> <47EA7633.1080909@goop.org>
-In-Reply-To: <47EA7633.1080909@goop.org>
+Subject: Re: [PATCH 2/2] x86: Modify Kconfig to allow up to 4096 cpus
+References: <20080326014137.934171000@polaris-admin.engr.sgi.com> <20080326014138.292294000@polaris-admin.engr.sgi.com> <20080326160924.GC1789@cs181133002.pp.htv.fi>
+In-Reply-To: <20080326160924.GC1789@cs181133002.pp.htv.fi>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+To: Adrian Bunk <bunk@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Jeremy Fitzhardinge wrote:
-> Mike Travis wrote:
->> Ingo Molnar wrote:
->>  
->>> * Mike Travis <travis@sgi.com> wrote:
->>>
->>>    
->>>> * Change the following static arrays sized by NR_CPUS to
->>>>   per_cpu data variables:
->>>>
->>>>     _cpuid4_info *cpuid4_info[NR_CPUS];
->>>>     _index_kobject *index_kobject[NR_CPUS];
->>>>     kobject * cache_kobject[NR_CPUS];
->>>>
->>>> * Remove the local NR_CPUS array with a kmalloc'd region in
->>>>   show_shared_cpu_map().
->>>>       
->>> thanks Travis, i've applied this to x86.git.
->>>
->>> one observation:
->>>
->>>    
->>>>  static ssize_t show_shared_cpu_map(struct _cpuid4_info *this_leaf,
->>>> char *buf)
->>>>  {
->>>> -    char mask_str[NR_CPUS];
->>>> -    cpumask_scnprintf(mask_str, NR_CPUS, this_leaf->shared_cpu_map);
->>>> -    return sprintf(buf, "%s\n", mask_str);
->>>> +    int n = 0;
->>>> +    int len = cpumask_scnprintf_len(nr_cpu_ids);
->>>> +    char *mask_str = kmalloc(len, GFP_KERNEL);
->>>> +
->>>> +    if (mask_str) {
->>>> +        cpumask_scnprintf(mask_str, len, this_leaf->shared_cpu_map);
->>>> +        n = sprintf(buf, "%s\n", mask_str);
->>>> +        kfree(mask_str);
->>>> +    }
->>>> +    return n;
->>>>       
->>> the other changes look good, but this one looks a bit ugly and
->>> complex. We basically want to sprintf shared_cpu_map into 'buf', but
->>> we do that by first allocating a temporary buffer, print a string
->>> into it, then print that string into another buffer ...
->>>
->>> this very much smells like an API bug in cpumask_scnprintf() - why
->>> dont you create a cpumask_scnprintf_ptr() API that takes a pointer to
->>> a cpumask? Then this change would become a trivial and much more
->>> readable:
->>>
->>>  -    char mask_str[NR_CPUS];
->>>  -    cpumask_scnprintf(mask_str, NR_CPUS, this_leaf->shared_cpu_map);
->>>  -    return sprintf(buf, "%s\n", mask_str);
->>>  +    return cpumask_scnprintf_ptr(buf, NR_CPUS,
->>> &this_leaf->shared_cpu_map);
->>>
->>>     Ingo
->>>     
->>
->> The main goal was to avoid allocating 4096 bytes when only 32 would do
->> (characters needed to represent nr_cpu_ids cpus instead of NR_CPUS cpus.)
->> But I'll look at cleaning it up a bit more.  It wouldn't have to be
->> a function if CHUNKSZ in cpumask_scnprintf() were visible (or a
->> non-changeable
->> constant.)
->>   
+Adrian Bunk wrote:
+> On Tue, Mar 25, 2008 at 06:41:39PM -0700, Mike Travis wrote:
+>> Increase the limit of NR_CPUS to 4096 and introduce a boolean
+>> called "MAXSMP" which when set (e.g. "allyesconfig"), will set
+>> NR_CPUS = 4096 and NODES_SHIFT = 9 (512).
 > 
-> It's a pity you can't take advantage of kasprintf to handle all this.
 > 
-> Hm, I would say that bitmap_scnprintf is a candidate for implementation
-> as a printk format specifier so you could get away from needing a
-> special function to print bitmaps...
-
-Hmm, I hadn't thought of that.  There is commonly a format spec called
-%b for diags, etc. to print bit strings.  Maybe something like:
-
-	"... %*b ...", nr_cpu_ids, ptr_to_bitmap
-
-where the length arg is rounded up to 32 or 64 bits...? 
-
+> I'm not really getting the point of MAXSMP - people should simply pick 
+> their values, and when they want the maximum "(2-4096)" and "(1-15)" 
+> already provide this information (except that your patch hides the 
+> latter information from the user).
 > 
-> Eh?  What's the difference between snprintf and scnprintf?
-
-Good question... I'll have to ask the cpumask person. ;-)
+> And with your patch, even with MAXSMP=y people could still set 
+> NR_CPUS=7 and NODES_SHIFT=15 or whatever else they want...
 > 
->    J
+> More interesting would be why you want it to set NODES_SHIFT to 
+> something less than the maximum value of 15. I'm getting the fact that
+> 2^15 > 4096 and that 15 might be nonsensical high, but this sounds more 
+> like requiring a patch to limit the range to 9?
 
-Thanks!
+I guess the main effect is that "MAXSMP" represents what's really
+usable for an architecture based on other factors.  The limit of
+NODES_SHIFT = 15 is that it's represented in some places as a signed
+16-bit value, so 15 is the hard limit without coding changes, not
+an architecture limit.
+
+Thanks,
 Mike
+
+> 
+> 
+>> ...
+>> --- linux.trees.git.orig/arch/x86/Kconfig
+>> +++ linux.trees.git/arch/x86/Kconfig
+>> @@ -522,16 +522,24 @@ config SWIOTLB
+>>  	  access 32-bits of memory can be used on systems with more than
+>>  	  3 GB of memory. If unsure, say Y.
+>>  
+>> +config MAXSMP
+>> +	bool "Configure Maximum number of SMP Processors"
+>> +	depends on X86_64 && SMP
+>> +	default n
+>> +	help
+>> +	  Configure maximum number of CPUS for this architecture.
+>> +	  If unsure, say N.
+>>  
+>>  config NR_CPUS
+>> -	int "Maximum number of CPUs (2-255)"
+>> -	range 2 255
+>> +	int "Maximum number of CPUs (2-4096)"
+>> +	range 2 4096
+>>  	depends on SMP
+>> +	default "4096" if MAXSMP
+>>  	default "32" if X86_NUMAQ || X86_SUMMIT || X86_BIGSMP || X86_ES7000
+>>  	default "8"
+>>  	help
+>>  	  This allows you to specify the maximum number of CPUs which this
+>> -	  kernel will support.  The maximum supported value is 255 and the
+>> +	  kernel will support.  The maximum supported value is 4096 and the
+>>  	  minimum value which makes sense is 2.
+>>  
+>>  	  This is purely to save memory - each supported CPU adds
+>> @@ -918,12 +926,16 @@ config NUMA_EMU
+>>  	  number of nodes. This is only useful for debugging.
+>>  
+>>  config NODES_SHIFT
+>> -	int "Max num nodes shift(1-15)"
+>> +	int "Maximum NUMA Nodes (as a power of 2)"
+>>  	range 1 15  if X86_64
+>> +	default "9" if MAXSMP
+>>  	default "6" if X86_64
+>>  	default "4" if X86_NUMAQ
+>>  	default "3"
+>>  	depends on NEED_MULTIPLE_NODES
+>> +	help
+>> +	  Specify the maximum number of NUMA Nodes available on the target
+>> +	  system.  Increases memory reserved to accomodate various tables.
+>>  
+>>  config HAVE_ARCH_BOOTMEM_NODE
+>>  	def_bool y
+>>
+> 
+> cu
+> Adrian
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
