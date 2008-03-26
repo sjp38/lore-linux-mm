@@ -1,32 +1,29 @@
-Date: Wed, 26 Mar 2008 07:19:25 +0100
+Date: Wed, 26 Mar 2008 07:27:25 +0100
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 0/2] NR_CPUS: increase maximum NR_CPUS to 4096
-Message-ID: <20080326061925.GC18301@elte.hu>
-References: <20080326014137.934171000@polaris-admin.engr.sgi.com>
+Subject: Re: [PATCH 02/10] init: move setup of nr_cpu_ids to as early as
+	possible v2
+Message-ID: <20080326062725.GD18301@elte.hu>
+References: <20080325220650.835342000@polaris-admin.engr.sgi.com> <20080325220651.146336000@polaris-admin.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080326014137.934171000@polaris-admin.engr.sgi.com>
+In-Reply-To: <20080325220651.146336000@polaris-admin.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mike Travis <travis@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, "David S. Miller" <davem@davemloft.net>, "William L. Irwin" <wli@holomorphy.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
 * Mike Travis <travis@sgi.com> wrote:
 
-> Increases the limit of NR_CPUS to 4096 and introduces a boolean called 
-> "MAXSMP" which when set (e.g. "allyesconfig") will set NR_CPUS = 4096 
-> and NODES_SHIFT = 9 (512).
-> 
-> I've been running this config (4k NR_CPUS, 512 Max Nodes) on an AMD 
-> box with 2 dual-cores and 4gb memory.  I've also successfully booted 
-> it in a simulated 2cpus/1Gb environment.
+> Move the setting of nr_cpu_ids from sched_init() to 
+> setup_per_cpu_areas(), so that it's available as early as possible.
 
-cool!
+hm, why not a separate call before setup_per_cpu_areas(), so that we can 
+avoid spreading this from generic kernel into a bunch of architectures 
+that happen to have their own version of setup_per_cpu_areas():
 
-this depends on the cpumask changes to work correctly (i.e. to boot at 
-all), right?
+>  7 files changed, 43 insertions(+), 15 deletions(-)
 
 	Ingo
 
