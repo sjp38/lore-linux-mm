@@ -1,81 +1,50 @@
-Date: Wed, 26 Mar 2008 06:32:39 -0600
-From: Matthew Wilcox <matthew@wil.cx>
-Subject: Re: What if a TLB flush needed to sleep?
-Message-ID: <20080326123239.GG16721@parisc-linux.org>
-References: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com>
+Received: from zps37.corp.google.com (zps37.corp.google.com [172.25.146.37])
+	by smtp-out.google.com with ESMTP id m2QFM1Lp024240
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 15:22:02 GMT
+Received: from py-out-1112.google.com (pygz59.prod.google.com [10.34.227.59])
+	by zps37.corp.google.com with ESMTP id m2QFLxrs005140
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2008 08:22:00 -0700
+Received: by py-out-1112.google.com with SMTP id z59so3871719pyg.27
+        for <linux-mm@kvack.org>; Wed, 26 Mar 2008 08:21:59 -0700 (PDT)
+Message-ID: <6599ad830803260821r5c5b56f3pd381659d0866c87b@mail.gmail.com>
+Date: Wed, 26 Mar 2008 08:21:59 -0700
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [RFC][-mm] Memory controller add mm->owner
+In-Reply-To: <47EA3684.60107@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com>
+References: <20080324140142.28786.97267.sendpatchset@localhost.localdomain>
+	 <6599ad830803240803s5160101bi2bf68b36085f777f@mail.gmail.com>
+	 <47E7D51E.4050304@linux.vnet.ibm.com>
+	 <6599ad830803240934g2a70d904m1ca5548f8644c906@mail.gmail.com>
+	 <47E7E5D0.9020904@linux.vnet.ibm.com>
+	 <6599ad830803241046l61e2965t52fd28e165d5df7a@mail.gmail.com>
+	 <47E8E4F3.6090604@linux.vnet.ibm.com>
+	 <47EA2592.7090600@linux.vnet.ibm.com>
+	 <6599ad830803260420v236127cfydd8cf828fcce65bb@mail.gmail.com>
+	 <47EA3684.60107@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: balbir@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 25, 2008 at 01:49:54PM -0700, Luck, Tony wrote:
-> 1) Is holding a spin lock a problem for any other arch when
-> doing a TLB flush (I'm particularly thinking of those that
-> need to use IPI shootdown for the purge)?
+On Wed, Mar 26, 2008 at 4:41 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>
+>  Hmmm.. the 99.9% of the time is just guess work (not measured, could be possibly
+>  true). I see and understand your code below. But before I try and implement
+>  something like that, I was wondering why zap_threads() does not have that
+>  heuristic. That should explain my inhibition.
+>
+>  Can anyone elaborate on zap_threads further?
+>
 
-parisc certainly has that problem too.  It won't happen very often, but
-it will do an on_each_cpu() and wait for the outcome once in a while.
+zap_threads() has to find *all* the other users, whereas in this case
+we only have to find one other user.
 
-> 2) Is it feasible to rearrange the MM code so that we don't
-> hold any locks while doing a TLB flush?  Or should I implement
-> some sort of spin_only_semaphore?
-
-down_spin() is trivial to implement without knowing the details of the
-semaphore code:
-
-void down_spin(struct semaphore *sem)
-{
-	while (down_trylock(sem))
-		cpu_relax();
-}
-
-Of course, someone who wrote it could do better ;-)
-
-void down_spin(struct semaphore *sem)
-{
-	unsigned long flags;
-	int count;
-
-	spin_lock_irqsave(&sem->lock, flags);
-	count = sem->count - 1;
-	if (likely(count >= 0))
-		sem->count = count;
-	else
-		__down_spin(sem);
-	spin_unlock_irqrestore(&sem->lock, flags);
-}
-
-void __down_spin(struct semaphore *sem)
-{
-	struct semaphore_waiter waiter;
-
-	list_add_tail(&waiter.list, &sem->wait_list);
-	waiter.task = current;
-	waiter.up = 0;
-
-	spin_unlock_irq(&sem->lock);
-	while (!waiter.up)
-		cpu_relax();
-	spin_lock_irq(&sem->lock);
-}
-
-This more complex implementation is better because:
- - It queues properly (see also down_timeout)
- - It spins on a stack-local variable, not on a global structure
-
-Having done all that ... I bet parisc and ia64 aren't the only two
-architectures which can sleep in their tlb flush handlers.
-
--- 
-Intel are signing my paycheques ... these opinions are still mine
-"Bill, look, we understand that you're interested in selling us this
-operating system, but compare it to ours.  We can't possibly take such
-a retrograde step."
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
