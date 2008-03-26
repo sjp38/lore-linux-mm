@@ -1,213 +1,198 @@
-Message-Id: <20080326013812.186940000@polaris-admin.engr.sgi.com>
+Message-Id: <20080326013811.869519000@polaris-admin.engr.sgi.com>
 References: <20080326013811.569646000@polaris-admin.engr.sgi.com>
-Date: Tue, 25 Mar 2008 18:38:14 -0700
+Date: Tue, 25 Mar 2008 18:38:12 -0700
 From: Mike Travis <travis@sgi.com>
-Subject: [PATCH 03/12] cpumask: reduce stack pressure in sched_affinity
-Content-Disposition: inline; filename=cpumask_affinity
+Subject: [PATCH 01/12] cpumask: Convert cpumask_of_cpu to allocated array v2
+Content-Disposition: inline; filename=cpumask_of_cpu
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Jackson <pj@sgi.com>, Cliff Wickman <cpw@sgi.com>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, "David S. Miller" <davem@davemloft.net>, "William L. Irwin" <wli@holomorphy.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Remove local and passed cpumask_t variables in kernel/sched.c
+Here is a simple patch to use an allocated array of cpumasks to
+represent cpumask_of_cpu() instead of constructing one on the
+stack, when the size of cpumask_t is significant.
+
+Conditioned by NR_CPUS > BITS_PER_LONG, as if less than or equal,
+cpumask_of_cpu() generates a simple unsigned long.  But the macro is
+changed to generate an lvalue so a pointer to cpumask_of_cpu can be
+provided.
+
+This removes 26168 bytes of stack usage, as well as reduces the code
+generated for each usage.
 
 Based on:
 	git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
 	git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
 
-Cc: Ingo Molnar <mingo@elte.hu>
-Cc: Paul Jackson <pj@sgi.com>
-Cc: Cliff Wickman <cpw@sgi.com>
+# ia64
+Cc: Tony Luck <tony.luck@intel.com>
 
+# powerpc
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: Anton Blanchard <anton@samba.org>
+
+# sparc
+Cc: David S. Miller <davem@davemloft.net>
+Cc: William L. Irwin <wli@holomorphy.com>
+
+# x86
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@elte.hu>
+Cc: H. Peter Anvin <hpa@zytor.com>
+
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: Mike Travis <travis@sgi.com>
 ---
- arch/x86/kernel/cpu/mcheck/mce_amd_64.c |   46 ++++++++++++++++----------------
- include/linux/sched.h                   |    2 -
- kernel/compat.c                         |    2 -
- kernel/rcupreempt.c                     |    4 +-
- kernel/sched.c                          |    5 ++-
- 5 files changed, 30 insertions(+), 29 deletions(-)
+v2: rebased on linux-2.6.git + linux-2.6-x86.git
+    ... and changed to use an allocated array of cpumask_t's instead
+        of a percpu variable.
+---
+ arch/ia64/kernel/setup.c       |    3 +++
+ arch/powerpc/kernel/setup_64.c |    3 +++
+ arch/sparc64/mm/init.c         |    3 +++
+ arch/x86/kernel/setup.c        |    3 +++
+ include/linux/cpumask.h        |   30 ++++++++++++++++++------------
+ init/main.c                    |   18 ++++++++++++++++++
+ 6 files changed, 48 insertions(+), 12 deletions(-)
 
---- linux.trees.git.orig/arch/x86/kernel/cpu/mcheck/mce_amd_64.c
-+++ linux.trees.git/arch/x86/kernel/cpu/mcheck/mce_amd_64.c
-@@ -251,18 +251,18 @@ struct threshold_attr {
- 	ssize_t(*store) (struct threshold_block *, const char *, size_t count);
- };
+--- linux.trees.git.orig/arch/ia64/kernel/setup.c
++++ linux.trees.git/arch/ia64/kernel/setup.c
+@@ -772,6 +772,9 @@ setup_per_cpu_areas (void)
+ 		highest_cpu = cpu;
  
--static cpumask_t affinity_set(unsigned int cpu)
-+static void affinity_set(unsigned int cpu, cpumask_t *oldmask,
-+						cpumask_t *newmask)
- {
--	cpumask_t oldmask = current->cpus_allowed;
--	cpumask_t newmask = CPU_MASK_NONE;
--	cpu_set(cpu, newmask);
--	set_cpus_allowed(current, &newmask);
--	return oldmask;
-+	*oldmask = current->cpus_allowed;
-+	*newmask = CPU_MASK_NONE;
-+	cpu_set(cpu, *newmask);
-+	set_cpus_allowed(current, newmask);
+ 	nr_cpu_ids = highest_cpu + 1;
++
++	/* Setup cpumask_of_cpu() map */
++	setup_cpumask_of_cpu(nr_cpu_ids);
+ #endif
  }
  
--static void affinity_restore(cpumask_t oldmask)
-+static void affinity_restore(cpumask_t *oldmask)
- {
--	set_cpus_allowed(current, &oldmask);
-+	set_cpus_allowed(current, oldmask);
- }
+--- linux.trees.git.orig/arch/powerpc/kernel/setup_64.c
++++ linux.trees.git/arch/powerpc/kernel/setup_64.c
+@@ -601,6 +601,9 @@ void __init setup_per_cpu_areas(void)
  
- #define SHOW_FIELDS(name)                                           \
-@@ -277,15 +277,15 @@ static ssize_t store_interrupt_enable(st
- 				      const char *buf, size_t count)
- {
- 	char *end;
--	cpumask_t oldmask;
-+	cpumask_t oldmask, newmask;
- 	unsigned long new = simple_strtoul(buf, &end, 0);
- 	if (end == buf)
- 		return -EINVAL;
- 	b->interrupt_enable = !!new;
- 
--	oldmask = affinity_set(b->cpu);
-+	affinity_set(b->cpu, &oldmask, &newmask);
- 	threshold_restart_bank(b, 0, 0);
--	affinity_restore(oldmask);
-+	affinity_restore(&oldmask);
- 
- 	return end - buf;
- }
-@@ -294,7 +294,7 @@ static ssize_t store_threshold_limit(str
- 				     const char *buf, size_t count)
- {
- 	char *end;
--	cpumask_t oldmask;
-+	cpumask_t oldmask, newmask;
- 	u16 old;
- 	unsigned long new = simple_strtoul(buf, &end, 0);
- 	if (end == buf)
-@@ -306,9 +306,9 @@ static ssize_t store_threshold_limit(str
- 	old = b->threshold_limit;
- 	b->threshold_limit = new;
- 
--	oldmask = affinity_set(b->cpu);
-+	affinity_set(b->cpu, &oldmask, &newmask);
- 	threshold_restart_bank(b, 0, old);
--	affinity_restore(oldmask);
-+	affinity_restore(&oldmask);
- 
- 	return end - buf;
- }
-@@ -316,10 +316,10 @@ static ssize_t store_threshold_limit(str
- static ssize_t show_error_count(struct threshold_block *b, char *buf)
- {
- 	u32 high, low;
--	cpumask_t oldmask;
--	oldmask = affinity_set(b->cpu);
-+	cpumask_t oldmask, newmask;
-+	affinity_set(b->cpu, &oldmask, &newmask);
- 	rdmsr(b->address, low, high);
--	affinity_restore(oldmask);
-+	affinity_restore(&oldmask);
- 	return sprintf(buf, "%x\n",
- 		       (high & 0xFFF) - (THRESHOLD_MAX - b->threshold_limit));
- }
-@@ -327,10 +327,10 @@ static ssize_t show_error_count(struct t
- static ssize_t store_error_count(struct threshold_block *b,
- 				 const char *buf, size_t count)
- {
--	cpumask_t oldmask;
--	oldmask = affinity_set(b->cpu);
-+	cpumask_t oldmask, newmask;
-+	affinity_set(b->cpu, &oldmask, &newmask);
- 	threshold_restart_bank(b, 1, 0);
--	affinity_restore(oldmask);
-+	affinity_restore(&oldmask);
- 	return 1;
- }
- 
-@@ -468,7 +468,7 @@ static __cpuinit int threshold_create_ba
- {
- 	int i, err = 0;
- 	struct threshold_bank *b = NULL;
--	cpumask_t oldmask = CPU_MASK_NONE;
-+	cpumask_t oldmask = CPU_MASK_NONE, newmask;
- 	char name[32];
- 
- 	sprintf(name, "threshold_bank%i", bank);
-@@ -519,10 +519,10 @@ static __cpuinit int threshold_create_ba
- 
- 	per_cpu(threshold_banks, cpu)[bank] = b;
- 
--	oldmask = affinity_set(cpu);
-+	affinity_set(cpu, &oldmask, &newmask);
- 	err = allocate_threshold_blocks(cpu, bank, 0,
- 					MSR_IA32_MC0_MISC + bank * 4);
--	affinity_restore(oldmask);
-+	affinity_restore(&oldmask);
- 
- 	if (err)
- 		goto out_free;
---- linux.trees.git.orig/include/linux/sched.h
-+++ linux.trees.git/include/linux/sched.h
-@@ -2026,7 +2026,7 @@ static inline void arch_pick_mmap_layout
+ 	/* Now that per_cpu is setup, initialize cpu_sibling_map */
+ 	smp_setup_cpu_sibling_map();
++
++	/* Setup cpumask_of_cpu() map */
++	setup_cpumask_of_cpu(nr_cpu_ids);
  }
  #endif
  
--extern long sched_setaffinity(pid_t pid, cpumask_t new_mask);
-+extern long sched_setaffinity(pid_t pid, const cpumask_t *new_mask);
- extern long sched_getaffinity(pid_t pid, cpumask_t *mask);
+--- linux.trees.git.orig/arch/sparc64/mm/init.c
++++ linux.trees.git/arch/sparc64/mm/init.c
+@@ -1302,6 +1302,9 @@ void __init setup_per_cpu_areas(void)
+ 		highest_cpu = cpu;
  
- extern int sched_mc_power_savings, sched_smt_power_savings;
---- linux.trees.git.orig/kernel/compat.c
-+++ linux.trees.git/kernel/compat.c
-@@ -446,7 +446,7 @@ asmlinkage long compat_sys_sched_setaffi
- 	if (retval)
- 		return retval;
+ 	nr_cpu_ids = highest_cpu + 1;
++
++	/* Setup cpumask_of_cpu() map */
++	setup_cpumask_of_cpu(nr_cpu_ids);
+ }
+ #endif
  
--	return sched_setaffinity(pid, new_mask);
-+	return sched_setaffinity(pid, &new_mask);
+--- linux.trees.git.orig/arch/x86/kernel/setup.c
++++ linux.trees.git/arch/x86/kernel/setup.c
+@@ -96,6 +96,9 @@ void __init setup_per_cpu_areas(void)
+ 
+ 	/* Setup percpu data maps */
+ 	setup_per_cpu_maps();
++
++	/* Setup cpumask_of_cpu() map */
++	setup_cpumask_of_cpu(nr_cpu_ids);
  }
  
- asmlinkage long compat_sys_sched_getaffinity(compat_pid_t pid, unsigned int len,
---- linux.trees.git.orig/kernel/rcupreempt.c
-+++ linux.trees.git/kernel/rcupreempt.c
-@@ -1007,10 +1007,10 @@ void __synchronize_sched(void)
- 	if (sched_getaffinity(0, &oldmask) < 0)
- 		oldmask = cpu_possible_map;
- 	for_each_online_cpu(cpu) {
--		sched_setaffinity(0, cpumask_of_cpu(cpu));
-+		sched_setaffinity(0, &cpumask_of_cpu(cpu));
- 		schedule();
- 	}
--	sched_setaffinity(0, oldmask);
-+	sched_setaffinity(0, &oldmask);
+ #endif
+--- linux.trees.git.orig/include/linux/cpumask.h
++++ linux.trees.git/include/linux/cpumask.h
+@@ -222,18 +222,6 @@ int __next_cpu(int n, const cpumask_t *s
+ #define next_cpu(n, src)	({ (void)(src); 1; })
+ #endif
+ 
+-#define cpumask_of_cpu(cpu)						\
+-({									\
+-	typeof(_unused_cpumask_arg_) m;					\
+-	if (sizeof(m) == sizeof(unsigned long)) {			\
+-		m.bits[0] = 1UL<<(cpu);					\
+-	} else {							\
+-		cpus_clear(m);						\
+-		cpu_set((cpu), m);					\
+-	}								\
+-	m;								\
+-})
+-
+ #define CPU_MASK_LAST_WORD BITMAP_LAST_WORD_MASK(NR_CPUS)
+ 
+ #if NR_CPUS <= BITS_PER_LONG
+@@ -243,6 +231,19 @@ int __next_cpu(int n, const cpumask_t *s
+ 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD			\
+ } }
+ 
++#define cpumask_of_cpu(cpu)						\
++(*({									\
++	typeof(_unused_cpumask_arg_) m;					\
++	if (sizeof(m) == sizeof(unsigned long)) {			\
++		m.bits[0] = 1UL<<(cpu);					\
++	} else {							\
++		cpus_clear(m);						\
++		cpu_set((cpu), m);					\
++	}								\
++	&m;								\
++}))
++static inline void setup_cpumask_of_cpu(int num) {}
++
+ #else
+ 
+ #define CPU_MASK_ALL							\
+@@ -251,6 +252,11 @@ int __next_cpu(int n, const cpumask_t *s
+ 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD			\
+ } }
+ 
++/* cpumask_of_cpu_map is in init/main.c */
++#define cpumask_of_cpu(cpu)    (cpumask_of_cpu_map[cpu])
++extern cpumask_t *cpumask_of_cpu_map;
++void setup_cpumask_of_cpu(int num);
++
+ #endif
+ 
+ #define CPU_MASK_NONE							\
+--- linux.trees.git.orig/init/main.c
++++ linux.trees.git/init/main.c
+@@ -367,6 +367,21 @@ static inline void smp_prepare_cpus(unsi
+ int nr_cpu_ids __read_mostly = NR_CPUS;
+ EXPORT_SYMBOL(nr_cpu_ids);
+ 
++#if NR_CPUS > BITS_PER_LONG
++cpumask_t *cpumask_of_cpu_map __read_mostly;
++EXPORT_SYMBOL(cpumask_of_cpu_map);
++
++void __init setup_cpumask_of_cpu(int num)
++{
++	int i;
++
++	/* alloc_bootmem zeroes memory */
++	cpumask_of_cpu_map = alloc_bootmem_low(sizeof(cpumask_t) * num);
++	for (i = 0; i < num; i++)
++		cpu_set(i, cpumask_of_cpu_map[i]);
++}
++#endif
++
+ #ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
+ unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
+ EXPORT_SYMBOL(__per_cpu_offset);
+@@ -393,6 +408,9 @@ static void __init setup_per_cpu_areas(v
+ 
+ 	nr_cpu_ids = highest_cpu + 1;
+ 	printk(KERN_DEBUG "NR_CPUS:%d (nr_cpu_ids:%d)\n", NR_CPUS, nr_cpu_ids);
++
++	/* Setup cpumask_of_cpu() map */
++	setup_cpumask_of_cpu(nr_cpu_ids);
  }
- EXPORT_SYMBOL_GPL(__synchronize_sched);
+ #endif /* CONFIG_HAVE_SETUP_PER_CPU_AREA */
  
---- linux.trees.git.orig/kernel/sched.c
-+++ linux.trees.git/kernel/sched.c
-@@ -4706,9 +4706,10 @@ out_unlock:
- 	return retval;
- }
- 
--long sched_setaffinity(pid_t pid, cpumask_t new_mask)
-+long sched_setaffinity(pid_t pid, const cpumask_t *in_mask)
- {
- 	cpumask_t cpus_allowed;
-+	cpumask_t new_mask = *in_mask;
- 	struct task_struct *p;
- 	int retval;
- 
-@@ -4789,7 +4790,7 @@ asmlinkage long sys_sched_setaffinity(pi
- 	if (retval)
- 		return retval;
- 
--	return sched_setaffinity(pid, new_mask);
-+	return sched_setaffinity(pid, &new_mask);
- }
- 
- /*
 
 -- 
 
