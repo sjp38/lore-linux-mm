@@ -1,13 +1,12 @@
-Date: Wed, 26 Mar 2008 07:18:24 +0100
+Date: Wed, 26 Mar 2008 07:19:25 +0100
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 00/12] cpumask: reduce stack pressure from local/passed
-	cpumask variables v2
-Message-ID: <20080326061824.GB18301@elte.hu>
-References: <20080326013811.569646000@polaris-admin.engr.sgi.com>
+Subject: Re: [PATCH 0/2] NR_CPUS: increase maximum NR_CPUS to 4096
+Message-ID: <20080326061925.GC18301@elte.hu>
+References: <20080326014137.934171000@polaris-admin.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080326013811.569646000@polaris-admin.engr.sgi.com>
+In-Reply-To: <20080326014137.934171000@polaris-admin.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mike Travis <travis@sgi.com>
@@ -16,18 +15,18 @@ List-ID: <linux-mm.kvack.org>
 
 * Mike Travis <travis@sgi.com> wrote:
 
-> Modify usage of cpumask_t variables to use pointers as much as 
-> possible.
+> Increases the limit of NR_CPUS to 4096 and introduces a boolean called 
+> "MAXSMP" which when set (e.g. "allyesconfig") will set NR_CPUS = 4096 
+> and NODES_SHIFT = 9 (512).
+> 
+> I've been running this config (4k NR_CPUS, 512 Max Nodes) on an AMD 
+> box with 2 dual-cores and 4gb memory.  I've also successfully booted 
+> it in a simulated 2cpus/1Gb environment.
 
-hm, why is there no minimal patch against -git that does nothing but 
-introduces the new pointer based generic APIs (without using them) - 
-such as set_cpus_allowed_ptr(), etc.? Once that is upstream all the 
-remaining changes can trickle one arch and one subsystem at a time, and 
-once that's done, the old set_cpus_allowed() can be removed. This is far 
-more manageable than one large patch.
+cool!
 
-and the cpumask_of_cpu() change should be Kconfig based initially - once 
-all arches have moved to it (or even sooner) we can remove that.
+this depends on the cpumask changes to work correctly (i.e. to boot at 
+all), right?
 
 	Ingo
 
