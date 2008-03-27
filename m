@@ -1,137 +1,114 @@
-Date: Thu, 27 Mar 2008 08:15:08 -0600
-From: Matthew Wilcox <matthew@wil.cx>
-Subject: down_spin() implementation
-Message-ID: <20080327141508.GL16721@parisc-linux.org>
-References: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com> <20080326123239.GG16721@parisc-linux.org> <1FE6DD409037234FAB833C420AA843ECE9EB1C@orsmsx424.amr.corp.intel.com>
+Received: from zps37.corp.google.com (zps37.corp.google.com [172.25.146.37])
+	by smtp-out.google.com with ESMTP id m2RESKVl001417
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2008 07:28:20 -0700
+Received: from py-out-1112.google.com (pyia25.prod.google.com [10.34.253.25])
+	by zps37.corp.google.com with ESMTP id m2RESJGW030141
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2008 07:28:19 -0700
+Received: by py-out-1112.google.com with SMTP id a25so5776534pyi.13
+        for <linux-mm@kvack.org>; Thu, 27 Mar 2008 07:28:19 -0700 (PDT)
+Message-ID: <6599ad830803270728y354b567s7bfe8cb7472aa065@mail.gmail.com>
+Date: Thu, 27 Mar 2008 07:28:18 -0700
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [RFC][0/3] Virtual address space control for cgroups (v2)
+In-Reply-To: <47EB5528.8070800@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1FE6DD409037234FAB833C420AA843ECE9EB1C@orsmsx424.amr.corp.intel.com>
+References: <20080326184954.9465.19379.sendpatchset@localhost.localdomain>
+	 <6599ad830803261522p45a9daddi8100a0635c21cf7d@mail.gmail.com>
+	 <47EB5528.8070800@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: balbir@linux.vnet.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 26, 2008 at 01:29:58PM -0700, Luck, Tony wrote:
-> This looks a lot cleaner than my ia64 specific code that
-> used cmpxchg() for the down() operation and fetchadd for
-> the up() ... using a brand new semaphore_spin data type.
+On Thu, Mar 27, 2008 at 1:04 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>
+>  I thought I addressed some of those by adding a separate config option. You
+>  could enable just the address space control, by letting memory.limit_in_bytes at
+>  the maximum value it is at (at the moment).
+>
 
-I did brifly consider creating a spinaphore data type, but it's
-significantly less code to create down_spin().
+Having a config option is better than none at all, certainly for
+people who roll their own kernels. But what config choice should a
+distro make when they're deciding what to build into their kernel
+configuration?
 
-> It appears to work ... I tried to do some timing comparisons
-> of this generic version against my arch specific one, but the
-> hackbench test case has a run to run variation of a factor of
-> three (from 1min9sec to 3min44sec) so it is hopeless to try
-> and see some small percentage difference.
+It's much easier to decide to build in a feature that can be ignored
+by those who don't use it.
 
-Thanks for testing and putting this together in patch form.  I've fixed it
-up to address Jens' astute comment and added it to my semaphore patchset.
+>
+>  Yes, I agree with the overhead philosophy. I suspect that users will enable
+>  both. I am not against making it a separate controller. I am still hopeful of
+>  getting the mm->owner approach working
+>
 
-http://git.kernel.org/?p=linux/kernel/git/willy/misc.git;a=shortlog;h=semaphore-20080327
-
-Stephen, I've updated the 'semaphore' tag to point ot the same place as
-semaphore-20080327, so please change your linux-next tree from pulling
-semaphore-20080314 to just pulling plain 'semaphore'.  I'll use this
-method of tagging from now on.
-
-Here's the edited patch.
-
-commit 517df6fedc88af3f871cf827a62ef1a1a2073645
-Author: Matthew Wilcox <matthew@wil.cx>
-Date:   Thu Mar 27 09:49:26 2008 -0400
-
-    Add down_spin()
-    
-    ia64 would like to use a semaphore in flush_tlb_all() as it can have
-    multiple tokens.  Unfortunately, it's currently nested inside a spinlock,
-    so they can't sleep.  down_spin() is the cheapest solution to implement.
-    
-    Signed-off-by: Tony Luck <tony.luck@intel.com>
-    Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
-
-diff --git a/include/linux/semaphore.h b/include/linux/semaphore.h
-index a7125da..13b5f32 100644
---- a/include/linux/semaphore.h
-+++ b/include/linux/semaphore.h
-@@ -78,6 +78,14 @@ extern int __must_check down_trylock(struct semaphore *sem);
- extern int __must_check down_timeout(struct semaphore *sem, long jiffies);
- 
- /*
-+ * As down(), except this function will spin waiting for the semaphore
-+ * instead of sleeping.  It is safe to use while holding a spinlock or
-+ * with interrupts disabled.  It should not be called from interrupt
-+ * context as this may lead to deadlocks.
-+ */
-+extern void down_spin(struct semaphore *sem);
-+
-+/*
-  * Release the semaphore.  Unlike mutexes, up() may be called from any
-  * context and even by tasks which have never called down().
-  */
-diff --git a/kernel/semaphore.c b/kernel/semaphore.c
-index bef977b..a242d87 100644
---- a/kernel/semaphore.c
-+++ b/kernel/semaphore.c
-@@ -26,6 +26,7 @@ static noinline void __down(struct semaphore *sem);
- static noinline int __down_interruptible(struct semaphore *sem);
- static noinline int __down_killable(struct semaphore *sem);
- static noinline int __down_timeout(struct semaphore *sem, long jiffies);
-+static noinline void __down_spin(struct semaphore *sem, unsigned long flags);
- static noinline void __up(struct semaphore *sem);
- 
- void down(struct semaphore *sem)
-@@ -117,6 +118,20 @@ int down_timeout(struct semaphore *sem, long jiffies)
- }
- EXPORT_SYMBOL(down_timeout);
- 
-+void down_spin(struct semaphore *sem)
-+{
-+       unsigned long flags;
-+
-+       spin_lock_irqsave(&sem->lock, flags);
-+       if (likely(sem->count > 0)) {
-+               sem->count--;
-+               spin_unlock_irqrestore(&sem->lock, flags);
-+       } else {
-+               __down_spin(sem, flags);
-+       }
-+}
-+EXPORT_SYMBOL(down_spin);
-+
- void up(struct semaphore *sem)
- {
-        unsigned long flags;
-@@ -197,6 +212,20 @@ static noinline int __sched __down_timeout(struct semaphore
-        return __down_common(sem, TASK_UNINTERRUPTIBLE, jiffies);
- }
- 
-+static noinline void __sched __down_spin(struct semaphore *sem,
-+                                                       unsigned long flags)
-+{
-+       struct semaphore_waiter waiter;
-+
-+       list_add_tail(&waiter.list, &sem->wait_list);
-+       waiter.task = current;
-+       waiter.up = 0;
-+
-+       spin_unlock_irqrestore(&sem->lock, flags);
-+       while (!waiter.up)
-+               cpu_relax();
-+}
-+
- static noinline void __sched __up(struct semaphore *sem)
- {
-        struct semaphore_waiter *waiter = list_first_entry(&sem->wait_list,
+I was thinking more about that, and I think I found a possibly fatal flaw:
 
 
--- 
-Intel are signing my paycheques ... these opinions are still mine
-"Bill, look, we understand that you're interested in selling us this
-operating system, but compare it to ours.  We can't possibly take such
-a retrograde step."
+>
+>  >
+>  > Trying to account/control physical memory or swap usage via virtual
+>  > address space limits is IMO a hopeless task. Taking Google's
+>  > production clusters and the virtual server systems that I worked on in
+>  > my previous job as real-life examples that I've encountered, there's
+>  > far too much variety of application behaviour (including Java apps
+>  > that have massive sparse heaps, jobs with lots of forked children
+>  > sharing pages but not address spaces with their parents, and multiple
+>  > serving processes mapping large shared data repositories from SHM
+>  > segments) that saying VA = RAM + swap is going to break lots of jobs.
+>  > But pushing up the VA limit massively makes it useless for the purpose
+>  > of preventing excessive swapping. If you want to prevent excessive
+>  > swap space usage without breaking a large class of apps, you need to
+>  > limit swap space, not virtual address space.
+>  >
+>  > Additionally, you suggested that VA limits provide a "soft-landing".
+>  > But I'm think that the number of applications that will do much other
+>  > than abort() if mmap() returns ENOMEM is extremely small - I'd be
+>  > interested to hear if you know of any.
+>  >
+>
+>  What happens if swap is completely disabled? Should the task running be OOM
+>  killed in the container?
+
+Yes, I think so.
+
+>  How does the application get to know that it is
+>  reaching its limit?
+
+That's something that needs to be addressed outside of the concept of
+cgroups too.
+
+> I suspect the system administrator will consider
+>  vm.overcommit_ratio while setting up virtual address space limits and real page
+>  usage limit. As far as applications failing gracefully is concerned, my opinion is
+>
+>  1. Lets not be dictated by bad applications to design our features
+>  2. Autonomic computing is forcing applications to see what resources
+>  applications do have access to
+
+Yes, you're right - I shouldn't be arguing this based on current apps,
+I should be thinking of the potential for future apps.
+
+>  3. Swapping is expensive, so most application developers, I spoken to at
+>  conferences, recently, state that they can manage their own memory, provided
+>  they are given sufficient hints from the OS. An mmap() failure, for example can
+>  force the application to free memory it is not currently using or trigger the
+>  garbage collector in a managed environment.
+
+But the problem that I have with this is that mmap() is only very
+loosely connected with physical memory. If we're trying to help
+applications avoid swapping, and giving them advance warning that
+they're running out of physical memory, then we should do exactly
+that, not try to treat address space as a proxy for physical memory.
+For apps where there's a close correspondence between virtual address
+space and physical memory, this should work equally well. For apps
+that use a lot more virtual address space than physical memory this
+should work much better.
+
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
