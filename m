@@ -1,64 +1,123 @@
-Date: Thu, 27 Mar 2008 18:30:27 +0100
-From: Andreas Herrmann <andreas.herrmann3@amd.com>
-Subject: Re: [PATCH] - Increase max physical memory size of x86_64
-Message-ID: <20080327173027.GA26969@alberich.amd.com>
-References: <20080321133157.GA10911@sgi.com> <20080325164154.GA5909@alberich.amd.com> <20080325165438.GA5298@sgi.com> <47E96876.3050206@redhat.com>
+Date: Thu, 27 Mar 2008 17:36:31 +0000
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: Re: [PATCH] hugetlb: vmstat events for huge page allocations v3
+Message-ID: <20080327173631.GX22584@shadowen.org>
+References: <1205784175.7122.2.camel@grover.beaverton.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <47E96876.3050206@redhat.com>
+In-Reply-To: <1205784175.7122.2.camel@grover.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Snook <csnook@redhat.com>
-Cc: Jack Steiner <steiner@sgi.com>, mingo@elte.hu, ak@suse.de, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Eric B Munson <ebmunson@us.ibm.com>
+Cc: linux-mm@kvack.org, aglitke@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 25, 2008 at 05:02:46PM -0400, Chris Snook wrote:
-> Jack Steiner wrote:
->> On Tue, Mar 25, 2008 at 05:41:54PM +0100, Andreas Herrmann wrote:
->>> On Fri, Mar 21, 2008 at 08:31:57AM -0500, Jack Steiner wrote:
->>>> Increase the maximum physical address size of x86_64 system
->>>> to 44-bits. This is in preparation for future chips that
->>>> support larger physical memory sizes.
->>> Shouldn't this be increased to 48?
->>> AMD family 10h CPUs actually support 48 bits for the
->>> physical address.
->> You are probably correct but I don't work with AMD processors
->> and don't understand their requirements. If someone
->> wants to submit a patch to support larger phys memory sizes,
->> I certainly have no objections....
->
-> The only advantage 44 bits has over 48 bits is that it allows us to 
-> uniquely identify 4k physical pages with 32 bits, potentially allowing for 
-> tighter packing of certain structures.  Do we have any code that does this, 
-> and if so, is it a worthwhile optimization?
+On Mon, Mar 17, 2008 at 01:02:55PM -0700, Eric B Munson wrote:
+> From: Adam Litke <agl@us.ibm.com>
+> 
+> Following feedback here is v3
+> 
+> Allocating huge pages directly from the buddy allocator is not guaranteed
+> to succeed.  Success depends on several factors (such as the amount of
+> physical memory available and the level of fragmentation).  With the
+> addition of dynamic hugetlb pool resizing, allocations can occur much more
+> frequently.  For these reasons it is desirable to keep track of huge page
+> allocation successes and failures.
+> 
+> Add two new vmstat entries to track huge page allocations that succeed and
+> fail.  The presence of the two entries is contingent upon
+> CONFIG_HUGETLB_PAGE being enabled.
+> 
+> This patch was created against linux-2.6.25-rc5
+> 
+> Signed-off-by: Adam Litke <agl@us.ibm.com>
+> Signed-off-by: Eric Munson <ebmunson@us.ibm.com>
+> 
+>  include/linux/vmstat.h |    8 +++++++-
+>  mm/hugetlb.c           |    7 +++++++
+>  mm/vmstat.c            |    4 ++++
+>  3 files changed, 18 insertions(+), 1 deletions(-)
+> 
+> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+> index 9f1b4b4..f68f538 100644
+> --- a/include/linux/vmstat.h
+> +++ b/include/linux/vmstat.h
+> @@ -25,6 +25,12 @@
+>  #define HIGHMEM_ZONE(xx)
+>  #endif
+>  
+> +#ifdef CONFIG_HUGETLB_PAGE
+> +#define HTLB_STATS	HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
+> +#else
+> +#define HTLB_STATS
+> +#endif
+> +
+>  #define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) xx##_NORMAL HIGHMEM_ZONE(xx) , xx##_MOVABLE
+>  
+>  enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+> @@ -36,7 +42,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+>  		FOR_ALL_ZONES(PGSCAN_KSWAPD),
+>  		FOR_ALL_ZONES(PGSCAN_DIRECT),
+>  		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
+> -		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
+> +		PAGEOUTRUN, ALLOCSTALL, PGROTATED, HTLB_STATS
+>  		NR_VM_EVENT_ITEMS
+>  };
+>  
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 74c1b6b..dd20cb0 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -239,6 +239,11 @@ static int alloc_fresh_huge_page(void)
+>  		hugetlb_next_nid = next_nid;
+>  	} while (!page && hugetlb_next_nid != start_nid);
+>  
+> +	if (ret)
+> +		count_vm_event(HTLB_BUDDY_PGALLOC);
+> +	else
+> +		count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
+> +
+>  	return ret;
+>  }
+>  
+> @@ -299,9 +304,11 @@ static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
+>  		 */
+>  		nr_huge_pages_node[nid]++;
+>  		surplus_huge_pages_node[nid]++;
+> +		__count_vm_event(HTLB_BUDDY_PGALLOC);
+>  	} else {
+>  		nr_huge_pages--;
+>  		surplus_huge_pages--;
+> +		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
+>  	}
+>  	spin_unlock(&hugetlb_lock);
+>  
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 422d960..bbe728d 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -644,6 +644,10 @@ static const char * const vmstat_text[] = {
+>  	"allocstall",
+>  
+>  	"pgrotated",
+> +#ifdef CONFIG_HUGETLB_PAGE
+> +	"htlb_alloc_success",
+> +	"htlb_alloc_fail",
 
-I've checked where those defines are used. If I didn't miss something
-MAX_PHYSADDR_BITS isn't used at all on x86 and MAX_PHYSMEM_BITS is
-used (directly or indirectly) in several other macros.
+I think I was expecting these to follow the names events.
+htlb_buddy_alloc_{success,fail}.  Just in case that we do ever want to
+add consumer stats on htlb_alloc_{success,fail}.
 
-But basically it's just section_to_node_table which would increase to 2
-or 4 MB depending on MAX_NUMNODES.  Using 44 bits this table is just
-128 kB resp. 256 kB in size.
+> +#endif
+>  #endif
+>  };
 
-> Personally, I think we should support the full capability of the hardware, 
-> but I don't have a 17 TB Opteron box to test with.
+Other than the output tags, that looks pretty good.
 
-I don't have one either.
-By adjusting some NB-registers it might be possible to configure
-physical addresses larger than 40 or 44 bits though. (Even if the
-machine has not more than 1 or 16 TB.) I'll verify whether this is
-really possible.
+Reviewed-by: Andy Whitcroft <apw@shadowen.org>
 
-At the moment I think it's best to leave the define as is (44 or 40
-bit) as there is currently no practical benefit from increasing it to
-48 bit.
-
-
-Regards,
-
-Andreas
-
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
