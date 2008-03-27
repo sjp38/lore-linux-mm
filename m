@@ -1,52 +1,77 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp01.in.ibm.com (8.13.1/8.13.1) with ESMTP id m2R9oEX4009946
-	for <linux-mm@kvack.org>; Thu, 27 Mar 2008 15:20:14 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2R9oE6k573632
-	for <linux-mm@kvack.org>; Thu, 27 Mar 2008 15:20:14 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id m2R9oKi7017539
-	for <linux-mm@kvack.org>; Thu, 27 Mar 2008 09:50:21 GMT
-Message-ID: <47EB6D00.5070306@linux.vnet.ibm.com>
-Date: Thu, 27 Mar 2008 15:16:40 +0530
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id m2R9w94J019277
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2008 20:58:09 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2R9vOTC4403424
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2008 20:57:24 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2R9vNc3024055
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2008 20:57:24 +1100
+Message-ID: <47EB6EB5.5050808@linux.vnet.ibm.com>
+Date: Thu, 27 Mar 2008 15:23:57 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [RFC][1/3] Add user interface for virtual address space control
- (v2)
-References: <20080326184954.9465.19379.sendpatchset@localhost.localdomain>	<20080326185006.9465.4720.sendpatchset@localhost.localdomain> <20080327181404.1e95a725.kamezawa.hiroyu@jp.fujitsu.com> <47EB6B4D.2030305@openvz.org>
-In-Reply-To: <47EB6B4D.2030305@openvz.org>
+Subject: Re: [-mm] [PATCH 0/4] memcg : radix-tree page_cgroup v2
+References: <20080327174435.e69f5b45.kamezawa.hiroyu@jp.fujitsu.com> <20080327175654.C749.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080327183415.166db9ad.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080327183415.166db9ad.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Emelyanov <xemul@openvz.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, lizf@cn.fujitsu.com, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-Pavel Emelyanov wrote:
-> KAMEZAWA Hiroyuki wrote:
->> On Thu, 27 Mar 2008 00:20:06 +0530
->> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+KAMEZAWA Hiroyuki wrote:
+> On Thu, 27 Mar 2008 18:12:42 +0900
+> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> 
+>> Hi
 >>
->>> Add as_usage_in_bytes and as_limit_in_bytes interfaces. These provide
->>> control over the total address space that the processes combined together
->>> in the cgroup can grow upto. This functionality is analogous to
->>> the RLIMIT_AS function of the getrlimit(2) and setrlimit(2) calls.
->>> A as_res resource counter is added to the mem_cgroup structure. The
->>> as_res counter handles all the accounting associated with the virtual
->>> address space accounting and control of cgroups.
+>>>          TEST                                BASELINE     RESULT      INDEX
+>>> (1)      Execl Throughput                        43.0     2868.8      667.2
+>>> (2)      Execl Throughput                        43.0     2810.3      653.6
+>>> (3)      Execl Throughput                        43.0     2836.9      659.7
+>>> (4)      Execl Throughput                        43.0     2846.0      661.9
+>>> (5)      Execl Throughput                        43.0     2862.0      665.6
+>>> (6)      Execl Throughput                        43.0     3110.0      723.3
 >>>
->>> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
->> I wonder that it's better to create "rlimit cgroup" rather than enhancing
->> memory controller. (But I have no strong opinion.)
->> How do you think ?
+>>> (1) .... rc5-mm1 + memory controller
+>>> (2) .... patch 1/4 is applied.      (use radix-tree always.)
+>>> (3) .... patch [1-3]/4 are applied. (caching by percpu)
+>>> (4) .... patch [1-4]/4 are applied. (uses prefetch)
+>>> (5) .... adjust sizeof(struct page) to be 64 bytes by padding.
+>>> (6) .... rc5-mm1 *without* memory controller
+>> I am very surprised this result. 
+>> 723.3 -> 667.2 seems large performance impact.
+>>
+>> Why do you need count resource usage when unlimited limit.
+>> Could you separate unlimited group to resource usage counting and no counting.
+>> I hope default cgroup keep no counting and no decrease performance.
 > 
-> I believe that all memory management is better to have in one controller...
+> At first, I'd like to reduce this overhead even under memory resource
+> controller's accounting ;)
+> We have boot-time-disable option now. But it doesn't seem what you want.
 > 
+> Considering workaround....
+> In current system, *unlimited* doesn't mean *no account*.
+> So, I think we have an option to add "no account" flag per cgroup.
+> 
+> Hmm..some interface to do
+> - allow "no account" -> "account"
+> - disallow "account" -> "no account"
+> 
+> Balbir-san, how do you think ?
 
-Paul wants to see it in a different controller. He has been reasoning it out in
-another email thread.
+The reason we do accounting for default group is to allow reporting of
+usage/statistics and in the future when we do hierarchial accounting and
+control, it will be much more useful.
+
+I like the interface idea, but I'd like to do two things
+
+1. Keeping accounting on by default or have an option to do so
+2. Reduce the memory controller overhead
 
 -- 
 	Warm Regards,
