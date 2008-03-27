@@ -1,44 +1,39 @@
-Date: Fri, 28 Mar 2008 20:06:11 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [-mm] Add an owner to the mm_struct (v2)
-Message-Id: <20080328200611.71200768.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <47ECCDA4.3050909@linux.vnet.ibm.com>
-References: <20080328082316.6961.29044.sendpatchset@localhost.localdomain>
-	<20080328194839.fe6ffa52.kamezawa.hiroyu@jp.fujitsu.com>
-	<47ECCDA4.3050909@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: vmalloc: Return page array on vunmap
+Date: Thu, 27 Mar 2008 23:22:20 +1100
+References: <Pine.LNX.4.64.0803262117320.2794@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0803262117320.2794@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200803272322.20493.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Paul Menage <menage@google.com>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 Mar 2008 16:21:16 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Thursday 27 March 2008 15:18, Christoph Lameter wrote:
+> Make vunmap return the page array that was used at vmap. This is useful
+> if one has no structures to track the page array but simply stores the
+> virtual address somewhere. The disposition of the page array can then
+> be decided upon by the caller after vunmap has torn down the mapping.
+>
+> vfree() may now also be used instead of vunmap. vfree() will release the
+> page array after vunmap'ping it. If vfree() is called to free the page
+> array then the page array must either be
+>
+> 1. Allocated via the slab allocator
+>
+> 2. Allocated via vmalloc but then VM_VPAGES must have been passed at
+>    vunmap to specify that a vfree is needed.
 
-> > -a bit off topic-
-> > BTW, could you move mem_cgroup_from_task() to include/linux/memcontrol.h ?
-> > 
-> 
-> Yes, that can be done
-> 
-> > Then, I'll add an interface like
-> > mem_cgroup_charge_xxx(struct page *page, struct mem_cgroup *mem, gfp_mask mask)
-> > 
-> > This can be called in following way:
-> > mem_cgroup_charge_xxx(page, mem_cgroup_from_task(current), GFP_XXX);
-> > and I don't have to access mm_struct's member in this case.
-> > 
-> 
-> OK. Will do. Can that wait until Andrew picks up these patches. Then I'll put
-> that as an add-on?
-> 
-Of course, I can wait.
-
-Thanks,
--Kame
+Is this really for something important? Because vmap/vunmap is so slow
+and unscalable that it is pretty well unusable for any kind of dynamic
+allocations. I have mostly rewritten it so it is a lot more scalable,
+but all these little patches will make annoying rejects... Can it wait?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
