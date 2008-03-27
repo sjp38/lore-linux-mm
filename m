@@ -1,29 +1,67 @@
-Date: Wed, 26 Mar 2008 18:19:26 -0700 (PDT)
+Date: Wed, 26 Mar 2008 19:21:40 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: What if a TLB flush needed to sleep?
-In-Reply-To: <alpine.LFD.1.00.0803262121440.3781@apollo.tec.linutronix.de>
-Message-ID: <Pine.LNX.4.64.0803261817110.1115@schroedinger.engr.sgi.com>
-References: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com>
- <Pine.LNX.4.64.0803261222090.31000@schroedinger.engr.sgi.com>
- <alpine.LFD.1.00.0803262121440.3781@apollo.tec.linutronix.de>
+Subject: page flags: Handle PG_uncached like all other flags
+Message-ID: <Pine.LNX.4.64.0803261920130.2183@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
+From: Christoph Lameter <clameter@sgi.com>
+Subject: page flags: Handle PG_uncached like all other flags
 Return-Path: <owner-linux-mm@kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: "Luck, Tony" <tony.luck@intel.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, dcn@sgi.com, jes@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Mar 2008, Thomas Gleixner wrote:
+Remove the special setup for PG_uncached and simply make it part of the enum.
+The page flag will only be allocated when the kernel build includes the uncached
+allocator.
 
-> Please use a mutex, not a semaphore. semaphores should only be used
-> when you need a counting sempahore.
+Cc: Dean Nelson <dcn@sgi.com>
+Cc: Jes Sorensen <jes@trained-monkey.org>
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Seems that mutexes are mainly useful for 2 processor systems since they 
-do not allow concurrent read sections. We want multiple processors able 
-to reclaim pages within the same vma or file concurrently. This means 
-processors need to be able to concurrently walk potentially long lists of 
-vmas.
+---
+ include/linux/page-flags.h |   19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)
+
+Index: linux-2.6.25-rc5-mm1/include/linux/page-flags.h
+===================================================================
+--- linux-2.6.25-rc5-mm1.orig/include/linux/page-flags.h	2008-03-25 21:22:16.312931059 -0700
++++ linux-2.6.25-rc5-mm1/include/linux/page-flags.h	2008-03-25 21:22:53.466668675 -0700
+@@ -99,16 +99,8 @@ enum pageflags {
+ 	 * read ahead needs to be done.
+ 	 */
+ 	PG_buddy,		/* Page is free, on buddy lists */
+-
+-#if (BITS_PER_LONG > 32)
+-/*
+- * 64-bit-only flags build down from bit 31
+- *
+- * 32 bit  -------------------------------| FIELDS |       FLAGS         |
+- * 64 bit  |           FIELDS             | ??????         FLAGS         |
+- *         63                            32                              0
+- */
+-	PG_uncached = 31,		/* Page has been mapped as uncached */
++#ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
++	PG_uncached,		/* Page has been mapped as uncached */
+ #endif
+ 	__NR_PAGEFLAGS
+ };
+@@ -205,8 +197,13 @@ static inline int PageSwapCache(struct p
+ }
+ #endif
+ 
+-#if (BITS_PER_LONG > 32)
++#ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
+ PAGEFLAG(Uncached, uncached)
++#else
++static inline int PageUncached(struct page *)
++{
++	return 0;
++}
+ #endif
+ 
+ static inline int PageUptodate(struct page *page)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
