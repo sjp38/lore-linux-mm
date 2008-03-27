@@ -1,75 +1,48 @@
-Date: Thu, 27 Mar 2008 19:19:43 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [-mm] [PATCH 0/4] memcg : radix-tree page_cgroup v2
-Message-Id: <20080327191943.e0424fa4.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <47EB6EB5.5050808@linux.vnet.ibm.com>
-References: <20080327174435.e69f5b45.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080327175654.C749.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20080327183415.166db9ad.kamezawa.hiroyu@jp.fujitsu.com>
-	<47EB6EB5.5050808@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <47EB8CED.60002@qumranet.com>
+Date: Thu, 27 Mar 2008 14:02:53 +0200
+From: Avi Kivity <avi@qumranet.com>
+MIME-Version: 1.0
+Subject: Re: [RFC/PATCH 00/15 v3] kvm on big iron
+References: <1206030270.6690.51.camel@cotte.boeblingen.de.ibm.com>	 <1206205354.7177.82.camel@cotte.boeblingen.de.ibm.com> <1206467227.6507.36.camel@cotte.boeblingen.de.ibm.com>
+In-Reply-To: <1206467227.6507.36.camel@cotte.boeblingen.de.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, lizf@cn.fujitsu.com, a.p.zijlstra@chello.nl
+To: Carsten Otte <cotte@de.ibm.com>
+Cc: virtualization@lists.linux-foundation.org, kvm-devel@lists.sourceforge.net, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, os@de.ibm.com, borntraeger@de.ibm.com, hollisb@us.ibm.com, EHRHARDT@de.ibm.com, jeroney@us.ibm.com, aliguori@us.ibm.com, jblunck@suse.de, rvdheij@gmail.com, rusty@rustcorp.com.au, arnd@arndb.de, "Zhang, Xiantao" <xiantao.zhang@intel.com>, oliver.paukstadt@millenux.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 27 Mar 2008 15:23:57 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> >>>          TEST                                BASELINE     RESULT      INDEX
-> >>> (1)      Execl Throughput                        43.0     2868.8      667.2
-> >>> (2)      Execl Throughput                        43.0     2810.3      653.6
-> >>> (3)      Execl Throughput                        43.0     2836.9      659.7
-> >>> (4)      Execl Throughput                        43.0     2846.0      661.9
-> >>> (5)      Execl Throughput                        43.0     2862.0      665.6
-> >>> (6)      Execl Throughput                        43.0     3110.0      723.3
-> >>>
-> >>> (1) .... rc5-mm1 + memory controller
-> >>> (2) .... patch 1/4 is applied.      (use radix-tree always.)
-> >>> (3) .... patch [1-3]/4 are applied. (caching by percpu)
-> >>> (4) .... patch [1-4]/4 are applied. (uses prefetch)
-> >>> (5) .... adjust sizeof(struct page) to be 64 bytes by padding.
-> >>> (6) .... rc5-mm1 *without* memory controller
-> >> I am very surprised this result. 
-> >> 723.3 -> 667.2 seems large performance impact.
-> >>
-> >> Why do you need count resource usage when unlimited limit.
-> >> Could you separate unlimited group to resource usage counting and no counting.
-> >> I hope default cgroup keep no counting and no decrease performance.
-> > 
-> > At first, I'd like to reduce this overhead even under memory resource
-> > controller's accounting ;)
-> > We have boot-time-disable option now. But it doesn't seem what you want.
-> > 
-> > Considering workaround....
-> > In current system, *unlimited* doesn't mean *no account*.
-> > So, I think we have an option to add "no account" flag per cgroup.
-> > 
-> > Hmm..some interface to do
-> > - allow "no account" -> "account"
-> > - disallow "account" -> "no account"
-> > 
-> > Balbir-san, how do you think ?
-> 
-> The reason we do accounting for default group is to allow reporting of
-> usage/statistics and in the future when we do hierarchial accounting and
-> control, it will be much more useful.
-> 
-I see.
+Carsten Otte wrote:
+> Many thanks for the review feedback we have received so far,
+> and many thanks to Andrew for reviewing our common code memory
+> management changes. I do greatly appreciate that :-).
+>
+> All important parts have been reviewed, all review feedback has been
+> integrated in the code. Therefore we would like to ask for inclusion of
+> our work into kvm.git.
+>
+> Changes from Version 1:
+> - include feedback from Randy Dunlap on the documentation
+> - include feedback from Jeremy Fitzhardinge, the prototype for dup_mm
+>   has moved to include/linux/sched.h
+> - rebase to current kvm.git hash g361be34. Thank you Avi for pulling
+>   in the fix we need, and for moving KVM_MAX_VCPUS to include/arch :-).
+>
+> Changes from Version 2:
+> - include feedback from Rusty Russell on the virtio patch
+> - include fix for race s390_enable_sie() versus ptrace spotted by Dave 
+>   Hansen: we now do task_lock() to protect mm_users from update while 
+>   we're growing the page table. Good catch, Dave :-).
+> - rebase to current kvm.git hash g680615e
+>
+>   
 
-> I like the interface idea, but I'd like to do two things
-> 
-> 1. Keeping accounting on by default or have an option to do so
-> 2. Reduce the memory controller overhead
-> 
-I'll do something against "1" if I can think of.
-I'd like to try "2" after this patches. Maybe reducing lock-bouncing can be
-good help...
+Applied all, thanks.
 
-Thanks,
--Kame
+
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
