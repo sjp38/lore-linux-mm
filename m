@@ -1,77 +1,29 @@
-Date: Wed, 26 Mar 2008 19:45:40 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Page flags: Add PAGEFLAGS_FALSE for flags that are always false
-Message-ID: <Pine.LNX.4.64.0803261943260.2242@schroedinger.engr.sgi.com>
+Date: Thu, 27 Mar 2008 11:57:05 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] smaps: account swap entries
+In-Reply-To: <1206545563.3527.79.camel@calx>
+References: <1206545304.8514.494.camel@twins> <1206545563.3527.79.camel@calx>
+Message-Id: <20080327115628.C730.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: Matt Mackall <mpm@selenic.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Applies on top of the PG_uncached flag patch.
+> > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> 
+> Looks great to me.
+> 
+> Acked-by: Matt Mackall <mpm@selenic.com>
+
+me too :)
 
 
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Page flags: Add PAGEFLAGS_FALSE
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Turns out that there a number of times that a flag is simply always returning 0.
-Define a macro for that.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
----
- include/linux/page-flags.h |   19 +++++++------------
- 1 file changed, 7 insertions(+), 12 deletions(-)
-
-Index: linux-2.6.25-rc5-mm1/include/linux/page-flags.h
-===================================================================
---- linux-2.6.25-rc5-mm1.orig/include/linux/page-flags.h	2008-03-26 19:21:50.259169581 -0700
-+++ linux-2.6.25-rc5-mm1/include/linux/page-flags.h	2008-03-26 19:37:17.456669515 -0700
-@@ -145,6 +145,10 @@ static inline int TestClearPage##uname(s
- #define __PAGEFLAG(uname, lname) TESTPAGEFLAG(uname, lname)		\
- 	__SETPAGEFLAG(uname, lname)  __CLEARPAGEFLAG(uname, lname)
- 
-+#define PAGEFLAG_FALSE(uname) 						\
-+static inline int Page##uname(struct page *page) 			\
-+			{ return 0; }
-+
- #define TESTSCFLAG(uname, lname)					\
- 	TESTSETFLAG(uname, lname) TESTCLEARFLAG(uname, lname)
- 
-@@ -182,28 +186,19 @@ PAGEFLAG(Readahead, reclaim)		/* Reminde
-  */
- #define PageHighMem(__p) is_highmem(page_zone(__p))
- #else
--static inline int PageHighMem(struct page *page)
--{
--	return 0;
--}
-+PAGEFLAG_FALSE(HighMem)
- #endif
- 
- #ifdef CONFIG_SWAP
- PAGEFLAG(SwapCache, swapcache)
- #else
--static inline int PageSwapCache(struct page *page)
--{
--	return 0;
--}
-+PAGEFLAG_FALSE(SwapCache)
- #endif
- 
- #ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
- PAGEFLAG(Uncached, uncached)
- #else
--static inline int PageUncached(struct page *)
--{
--	return 0;
--}
-+PAGEFLAG_FALSE(Uncached)
- #endif
- 
- static inline int PageUptodate(struct page *page)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
