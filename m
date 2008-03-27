@@ -1,41 +1,43 @@
-Date: Thu, 27 Mar 2008 18:14:04 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][1/3] Add user interface for virtual address space control
- (v2)
-Message-Id: <20080327181404.1e95a725.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080326185006.9465.4720.sendpatchset@localhost.localdomain>
-References: <20080326184954.9465.19379.sendpatchset@localhost.localdomain>
-	<20080326185006.9465.4720.sendpatchset@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Thu, 27 Mar 2008 18:12:42 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [-mm] [PATCH 0/4] memcg : radix-tree page_cgroup v2
+In-Reply-To: <20080327174435.e69f5b45.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080327174435.e69f5b45.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20080327175654.C749.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, lizf@cn.fujitsu.com, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 27 Mar 2008 00:20:06 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+Hi
 
+>          TEST                                BASELINE     RESULT      INDEX
+> (1)      Execl Throughput                        43.0     2868.8      667.2
+> (2)      Execl Throughput                        43.0     2810.3      653.6
+> (3)      Execl Throughput                        43.0     2836.9      659.7
+> (4)      Execl Throughput                        43.0     2846.0      661.9
+> (5)      Execl Throughput                        43.0     2862.0      665.6
+> (6)      Execl Throughput                        43.0     3110.0      723.3
 > 
-> 
-> Add as_usage_in_bytes and as_limit_in_bytes interfaces. These provide
-> control over the total address space that the processes combined together
-> in the cgroup can grow upto. This functionality is analogous to
-> the RLIMIT_AS function of the getrlimit(2) and setrlimit(2) calls.
-> A as_res resource counter is added to the mem_cgroup structure. The
-> as_res counter handles all the accounting associated with the virtual
-> address space accounting and control of cgroups.
-> 
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> (1) .... rc5-mm1 + memory controller
+> (2) .... patch 1/4 is applied.      (use radix-tree always.)
+> (3) .... patch [1-3]/4 are applied. (caching by percpu)
+> (4) .... patch [1-4]/4 are applied. (uses prefetch)
+> (5) .... adjust sizeof(struct page) to be 64 bytes by padding.
+> (6) .... rc5-mm1 *without* memory controller
 
-I wonder that it's better to create "rlimit cgroup" rather than enhancing
-memory controller. (But I have no strong opinion.)
-How do you think ?
+I am very surprised this result. 
+723.3 -> 667.2 seems large performance impact.
 
-Thanks,
--Kame
+Why do you need count resource usage when unlimited limit.
+Could you separate unlimited group to resource usage counting and no counting.
+I hope default cgroup keep no counting and no decrease performance.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
