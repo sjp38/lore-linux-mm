@@ -1,27 +1,28 @@
-Date: Thu, 27 Mar 2008 11:44:14 -0700 (PDT)
+Date: Thu, 27 Mar 2008 11:48:48 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: What if a TLB flush needed to sleep?
-In-Reply-To: <1206624052.8514.570.camel@twins>
-Message-ID: <Pine.LNX.4.64.0803271143540.7531@schroedinger.engr.sgi.com>
-References: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com>
-  <Pine.LNX.4.64.0803261222090.31000@schroedinger.engr.sgi.com>
- <alpine.LFD.1.00.0803262121440.3781@apollo.tec.linutronix.de>
- <Pine.LNX.4.64.0803261817110.1115@schroedinger.engr.sgi.com>
- <1206624052.8514.570.camel@twins>
+Subject: Re: vmalloc: Return page array on vunmap
+In-Reply-To: <200803272322.20493.nickpiggin@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0803271147170.7531@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0803262117320.2794@schroedinger.engr.sgi.com>
+ <200803272322.20493.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, "Luck, Tony" <tony.luck@intel.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 27 Mar 2008, Peter Zijlstra wrote:
+On Thu, 27 Mar 2008, Nick Piggin wrote:
 
-> confusion between semaphores and rwsems
+> Is this really for something important? Because vmap/vunmap is so slow
+> and unscalable that it is pretty well unusable for any kind of dynamic
+> allocations. I have mostly rewritten it so it is a lot more scalable,
+> but all these little patches will make annoying rejects... Can it wait?
 
-rwsem is not a semaphore despite its name? What do you want to call it 
-then?
+Its necessary for the virtual compound page patchset which relies on 
+vmap/vunmap. Is the rewrite available somewhere?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
