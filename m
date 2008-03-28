@@ -1,106 +1,35 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: down_spin() implementation
-Date: Fri, 28 Mar 2008 11:01:24 +1100
-References: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com> <1FE6DD409037234FAB833C420AA843ECE9EB1C@orsmsx424.amr.corp.intel.com> <20080327141508.GL16721@parisc-linux.org>
-In-Reply-To: <20080327141508.GL16721@parisc-linux.org>
-MIME-Version: 1.0
-Content-Disposition: inline
-Message-Id: <200803281101.25037.nickpiggin@yahoo.com.au>
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Date: Fri, 28 Mar 2008 01:12:40 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 4/9] Pageflags: Get rid of FLAGS_RESERVED
+Message-Id: <20080328011240.fae44d52.akpm@linux-foundation.org>
+In-Reply-To: <20080318182035.197900850@sgi.com>
+References: <20080318181957.138598511@sgi.com>
+	<20080318182035.197900850@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Wilcox <matthew@wil.cx>
-Cc: "Luck, Tony" <tony.luck@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: apw@shadowen.org, David Miller <davem@davemloft.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jeremy Fitzhardinge <jeremy@goop.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Friday 28 March 2008 01:15, Matthew Wilcox wrote:
-> On Wed, Mar 26, 2008 at 01:29:58PM -0700, Luck, Tony wrote:
-> > This looks a lot cleaner than my ia64 specific code that
-> > used cmpxchg() for the down() operation and fetchadd for
-> > the up() ... using a brand new semaphore_spin data type.
->
-> I did brifly consider creating a spinaphore data type, but it's
-> significantly less code to create down_spin().
->
-> > It appears to work ... I tried to do some timing comparisons
-> > of this generic version against my arch specific one, but the
-> > hackbench test case has a run to run variation of a factor of
-> > three (from 1min9sec to 3min44sec) so it is hopeless to try
-> > and see some small percentage difference.
->
-> Thanks for testing and putting this together in patch form.  I've fixed it
-> up to address Jens' astute comment and added it to my semaphore patchset.
->
-> http://git.kernel.org/?p=linux/kernel/git/willy/misc.git;a=shortlog;h=semap
->hore-20080327
->
-> Stephen, I've updated the 'semaphore' tag to point ot the same place as
-> semaphore-20080327, so please change your linux-next tree from pulling
-> semaphore-20080314 to just pulling plain 'semaphore'.  I'll use this
-> method of tagging from now on.
->
-> Here's the edited patch.
->
-> commit 517df6fedc88af3f871cf827a62ef1a1a2073645
-> Author: Matthew Wilcox <matthew@wil.cx>
-> Date:   Thu Mar 27 09:49:26 2008 -0400
->
->     Add down_spin()
->
->     ia64 would like to use a semaphore in flush_tlb_all() as it can have
->     multiple tokens.  Unfortunately, it's currently nested inside a
-> spinlock, so they can't sleep.  down_spin() is the cheapest solution to
-> implement.
+On Tue, 18 Mar 2008 11:20:01 -0700 Christoph Lameter <clameter@sgi.com> wrote:
 
-Uhm, how do you use this exactly? All other holders of this
-semaphore must have preempt disabled and not sleep, right? (and
-so you need a new down() that disables preempt too)
+> NR_PAGEFLAGS specifies the number of page flags we are using.
+> >From that we can calculate the number of bits leftover that can
+> be used for zone, node (and maybe the sections id). There is
+> no need anymore for FLAGS_RESERVED if we use NR_PAGEFLAGS.
+> 
+> Use the new methods to make NR_PAGEFLAGS available via
+> the preprocessor. NR_PAGEFLAGS is used to calculate field
+> boundaries in the page flags fields. These field widths have
 
-So the only difference between this and a spinlock I guess is
-that waiters can sleep rather than spin on contention (except
-this down_spin guy, which sleeps).
+For some reason this isn't working on mips - include/linux/bounds.h has no
+#define for NR_PAGEFLAGS.
 
-Oh, I see from the context of Tony's message... so this can *only*
-be used when preempt is off, and *only* against other down_spin
-lockers.
-
-Bad idea to be hack this into the semaphore code, IMO. It would
-take how many lines to implement it properly?
-
-
-struct {
-  atomic_t cur;
-  int max;
-} ss_t;
-
-void spin_init(ss_t *ss, int max)
-{
-	&ss->cur = ATOMIC_INIT(0);
-	&ss->max = max;
-}
-
-void spin_take(ss_t *ss)
-{
-  preempt_disable();
-  while (unlikely(!atomic_add_unless(&ss->cur, 1, &ss->max))) {
-    while (atomic_read(&ss->cur) == ss->max)
-      cpu_relax();
-  }
-}
-
-void spin_put(ss_t *ss)
-{
-  smp_mb();
-  atomic_dec(&ss->cur);
-  preempt_enable();
-}
-
-About the same number as down_spin(). And it is much harder to
-misuse. So LOC isn't such a great argument for this kind of thing.
-
-My 2c
+http://userweb.kernel.org/~akpm/cross-compilers/ has the i386->mips
+toolchain which I'm using.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
