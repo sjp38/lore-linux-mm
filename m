@@ -1,50 +1,35 @@
-Date: Fri, 28 Mar 2008 02:08:32 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 0/9] Page flags V3: Cleanup and reorg
-Message-Id: <20080328020832.5f6f8e92.akpm@linux-foundation.org>
-In-Reply-To: <20080318181957.138598511@sgi.com>
-References: <20080318181957.138598511@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: down_spin() implementation
+Date: Fri, 28 Mar 2008 16:03:33 +1100
+References: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com> <20080327141508.GL16721@parisc-linux.org> <20080328155107.e9d8866c.sfr@canb.auug.org.au>
+In-Reply-To: <20080328155107.e9d8866c.sfr@canb.auug.org.au>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200803281603.34134.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: apw@shadowen.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jeremy Fitzhardinge <jeremy@goop.org>, linux-mm@kvack.org
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Matthew Wilcox <matthew@wil.cx>, "Luck, Tony" <tony.luck@intel.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Mar 2008 11:19:57 -0700 Christoph Lameter <clameter@sgi.com> wrote:
+On Friday 28 March 2008 15:51, Stephen Rothwell wrote:
+> Hi Willy,
+>
+> On Thu, 27 Mar 2008 08:15:08 -0600 Matthew Wilcox <matthew@wil.cx> wrote:
+> > Stephen, I've updated the 'semaphore' tag to point ot the same place as
+> > semaphore-20080327, so please change your linux-next tree from pulling
+> > semaphore-20080314 to just pulling plain 'semaphore'.  I'll use this
+> > method of tagging from now on.
+>
+> Thanks. I read this to late for today's tree, but I will fix it up for
+> the next one.
 
-> A set of patches that attempts to improve page flag handling.
+Please don't add this nasty code to semaphore.
 
-sh allmodconfig blows up with various unsatisfied link-time references to
-swapper_space.
-
-this:
-
---- a/include/linux/mm.h~a
-+++ a/include/linux/mm.h
-@@ -605,9 +605,12 @@ static inline struct address_space *page
- 	struct address_space *mapping = page->mapping;
- 
- 	VM_BUG_ON(PageSlab(page));
-+#ifdef CONFIG_SWAP
- 	if (unlikely(PageSwapCache(page)))
- 		mapping = &swapper_space;
--	else if (unlikely((unsigned long)mapping & PAGE_MAPPING_ANON))
-+	else
-+#endif
-+	if (unlikely((unsigned long)mapping & PAGE_MAPPING_ANON))
- 		mapping = NULL;
- 	return mapping;
- }
-_
-
-fixes it, but it shouldn't, unless it's a cimpiler bug.  Could you
-investigate please, check that we're not adding unintended code bloat for
-some reason?
-
-http://userweb.kernel.org/~akpm/cross-compilers/ has the toolchain.
+Did my previous message to the thread get eaten by spam filters?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
