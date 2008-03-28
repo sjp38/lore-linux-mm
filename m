@@ -1,35 +1,39 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: down_spin() implementation
-Date: Fri, 28 Mar 2008 16:03:33 +1100
-References: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com> <20080327141508.GL16721@parisc-linux.org> <20080328155107.e9d8866c.sfr@canb.auug.org.au>
-In-Reply-To: <20080328155107.e9d8866c.sfr@canb.auug.org.au>
+Received: by nf-out-0910.google.com with SMTP id h3so171302nfh.6
+        for <linux-mm@kvack.org>; Fri, 28 Mar 2008 02:43:20 -0700 (PDT)
+Message-ID: <47ECBDAF.9070007@gmail.com>
+Date: Fri, 28 Mar 2008 10:43:11 +0100
+From: Jiri Slaby <jirislaby@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
+Subject: Re: [-mm] Add an owner to the mm_struct (v2)
+References: <20080328082316.6961.29044.sendpatchset@localhost.localdomain> <47ECBD4A.8080908@gmail.com>
+In-Reply-To: <47ECBD4A.8080908@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-2; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200803281603.34134.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Matthew Wilcox <matthew@wil.cx>, "Luck, Tony" <tony.luck@intel.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Paul Menage <menage@google.com>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 28 March 2008 15:51, Stephen Rothwell wrote:
-> Hi Willy,
->
-> On Thu, 27 Mar 2008 08:15:08 -0600 Matthew Wilcox <matthew@wil.cx> wrote:
-> > Stephen, I've updated the 'semaphore' tag to point ot the same place as
-> > semaphore-20080327, so please change your linux-next tree from pulling
-> > semaphore-20080314 to just pulling plain 'semaphore'.  I'll use this
-> > method of tagging from now on.
->
-> Thanks. I read this to late for today's tree, but I will fix it up for
-> the next one.
+On 03/28/2008 10:41 AM, Jiri Slaby wrote:
+>> linux-2.6.25-rc5/include/linux/mm_types.h~memory-controller-add-mm-owner    
+>> 2008-03-28 09:30:47.000000000 +0530
+>> +++ linux-2.6.25-rc5-balbir/include/linux/mm_types.h    2008-03-28 
+>> 12:26:59.000000000 +0530
+>> @@ -227,8 +227,10 @@ struct mm_struct {
+>>      /* aio bits */
+>>      rwlock_t        ioctx_list_lock;
+>>      struct kioctx        *ioctx_list;
+>> -#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+>> -    struct mem_cgroup *mem_cgroup;
+>> +#ifdef CONFIG_MM_OWNER
+>> +    spinlock_t owner_lock;
+>> +    struct task_struct *owner;    /* The thread group leader that */
+> 
+> Doesn't make sense to switch them (spinlock is unsigned int on x86, 
+> what's sizeof between and after?)?
 
-Please don't add this nasty code to semaphore.
-
-Did my previous message to the thread get eaten by spam filters?
+Hmm, doesn't matter, there is another pointer after it, ignore me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
