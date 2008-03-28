@@ -1,114 +1,77 @@
-Date: Fri, 28 Mar 2008 14:12:14 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: [PATCH 7/8] x86_64: Define the macros and tables for blade functions
-Message-ID: <20080328191214.GA16450@sgi.com>
+Date: Fri, 28 Mar 2008 12:23:13 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 4/9] Pageflags: Get rid of FLAGS_RESERVED
+Message-Id: <20080328122313.aa8d7c8c.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0803281159250.18120@schroedinger.engr.sgi.com>
+References: <20080318181957.138598511@sgi.com>
+	<20080318182035.197900850@sgi.com>
+	<20080328011240.fae44d52.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0803281148110.17920@schroedinger.engr.sgi.com>
+	<20080328115919.12c0445b.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0803281159250.18120@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mingo@elte.hu, tglx@linutronix.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: apw@shadowen.org, davem@davemloft.net, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, jeremy@goop.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add UV macros for converting between cpu numbers, blade numbers
-and node numbers. Note that these are used ONLY within x86_64 UV
-modules, and are not for general kernel use.
+On Fri, 28 Mar 2008 12:04:00 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-Based on:
-        git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
+> On Fri, 28 Mar 2008, Andrew Morton wrote:
+> 
+> > On Fri, 28 Mar 2008 11:51:09 -0700 (PDT)
+> > Christoph Lameter <clameter@sgi.com> wrote:
+> > 
+> > > On Fri, 28 Mar 2008, Andrew Morton wrote:
+> > > 
+> > > > For some reason this isn't working on mips - include/linux/bounds.h has no
+> > > > #define for NR_PAGEFLAGS.
+> > > 
+> > > Likely an asm issue? Are there no definitions at all in 
+> > > include/linux/bounds.h?
+> > 
+> > None - just the skeleton comments and ifdefs.
+> 
+> Guess the asm is different for mips:
+> 
+> kernel/bounds.c does:
+> 
+> #define DEFINE(sym, val) \
+>         asm volatile("\n->" #sym " %0 " #val : : "i" (val))
+> 
+> mips wants something different.
+> 
+> #define offset(string, val) \
+>         __asm__("\n@@@" string "%0" : : "i" (val))
+> 
+> Argh. Do an #ifdef MIPS or add a definition in an arch specific .h file 
+> somewhere?
 
-Signed-off-by: Jack Steiner <steiner@sgi.com>
+The usual way is to add asm-generic/foo.h which has the usual
+implementation and then have each arch's asm/foo.h include
+asm-generic/foo.h.  Architectires which have special needs would provide a
+custom implementation and do not include the asm-generic file.
 
+> The asm could be different. gas is pretty uniform but some 
+> arches may not be using gas?
 
----
- include/asm-x86/uv/uv_hub.h |   74 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 74 insertions(+)
+I'm unaware of any other assemblers being used.  If they are, they'd need
+to be fairly gassy to be able to build the kernel.  Maybe Intel's ICC uses
+its own assembler, dunno - hopefully it uses gas.
 
-Index: linux/include/asm-x86/uv/uv_hub.h
-===================================================================
---- linux.orig/include/asm-x86/uv/uv_hub.h	2008-03-27 12:47:39.000000000 -0500
-+++ linux/include/asm-x86/uv/uv_hub.h	2008-03-27 12:47:45.000000000 -0500
-@@ -206,5 +206,79 @@ static inline void uv_write_local_mmr(un
- 	*uv_local_mmr_address(offset) = val;
- }
- 
-+/*
-+ * Structures and definitions for converting between cpu, node, and blade
-+ * numbers.
-+ */
-+struct uv_blade_info {
-+	unsigned short	nr_posible_cpus;
-+	unsigned short	nr_online_cpus;
-+	unsigned short	nasid;
-+};
-+struct uv_blade_info *uv_blade_info;
-+extern short *uv_node_to_blade;
-+extern short *uv_cpu_to_blade;
-+extern short uv_possible_blades;
-+
-+/* Blade-local cpu number of current cpu. Numbered 0 .. <# cpus on the blade> */
-+static inline int uv_blade_processor_id(void)
-+{
-+	return uv_hub_info->blade_processor_id;
-+}
-+
-+/* Blade number of current cpu. Numnbered 0 .. <#blades -1> */
-+static inline int uv_numa_blade_id(void)
-+{
-+	return uv_hub_info->numa_blade_id;
-+}
-+
-+/* Convert a cpu number to the the UV blade number */
-+static inline int uv_cpu_to_blade_id(int cpu)
-+{
-+	return uv_cpu_to_blade[cpu];
-+}
-+
-+/* Convert linux node number to the UV blade number */
-+static inline int uv_node_to_blade_id(int nid)
-+{
-+	return uv_node_to_blade[nid];
-+}
-+
-+/* Convert a blade id to the NASID of the blade */
-+static inline int uv_blade_to_nasid(int bid)
-+{
-+	return uv_blade_info[bid].nasid;
-+}
-+
-+/* Determine the number of possible cpus on a blade */
-+static inline int uv_blade_nr_possible_cpus(int bid)
-+{
-+	return uv_blade_info[bid].nr_posible_cpus;
-+}
-+
-+/* Determine the number of online cpus on a blade */
-+static inline int uv_blade_nr_online_cpus(int bid)
-+{
-+	return uv_blade_info[bid].nr_online_cpus;
-+}
-+
-+/* Convert a cpu id to the NASID of the blade containing the cpu */
-+static inline int uv_cpu_to_nasid(int cpu)
-+{
-+	return uv_blade_info[uv_cpu_to_blade_id(cpu)].nasid;
-+}
-+
-+/* Convert a node number to the NASID of the blade */
-+static inline int uv_node_to_nasid(int nid)
-+{
-+	return uv_blade_info[uv_node_to_blade_id(nid)].nasid;
-+}
-+
-+/* Maximum possible number of blades */
-+static inline int uv_num_possible_blades(void)
-+{
-+	return uv_possible_blades;
-+}
-+
- #endif /* __ASM_X86_UV_HUB__ */
- 
+Why do we use gas at all here?  All we're doing is converting
+
+->NR_PAGEFLAGS 18 __NR_PAGEFLAGS         #
+
+into
+
+#define NR_PAGEFLAGS 18
+
+which can be done with sed or whatever?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
