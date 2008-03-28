@@ -1,39 +1,36 @@
-Received: by nf-out-0910.google.com with SMTP id h3so171302nfh.6
-        for <linux-mm@kvack.org>; Fri, 28 Mar 2008 02:43:20 -0700 (PDT)
-Message-ID: <47ECBDAF.9070007@gmail.com>
-Date: Fri, 28 Mar 2008 10:43:11 +0100
-From: Jiri Slaby <jirislaby@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [-mm] Add an owner to the mm_struct (v2)
-References: <20080328082316.6961.29044.sendpatchset@localhost.localdomain> <47ECBD4A.8080908@gmail.com>
-In-Reply-To: <47ECBD4A.8080908@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-2; format=flowed
+Subject: Re: What if a TLB flush needed to sleep?
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <Pine.LNX.4.64.0803271143540.7531@schroedinger.engr.sgi.com>
+References: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com>
+	 <Pine.LNX.4.64.0803261222090.31000@schroedinger.engr.sgi.com>
+	 <alpine.LFD.1.00.0803262121440.3781@apollo.tec.linutronix.de>
+	 <Pine.LNX.4.64.0803261817110.1115@schroedinger.engr.sgi.com>
+	 <1206624052.8514.570.camel@twins>
+	 <Pine.LNX.4.64.0803271143540.7531@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Fri, 28 Mar 2008 10:59:31 +0100
+Message-Id: <1206698371.8514.608.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Paul Menage <menage@google.com>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, "Luck, Tony" <tony.luck@intel.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 03/28/2008 10:41 AM, Jiri Slaby wrote:
->> linux-2.6.25-rc5/include/linux/mm_types.h~memory-controller-add-mm-owner    
->> 2008-03-28 09:30:47.000000000 +0530
->> +++ linux-2.6.25-rc5-balbir/include/linux/mm_types.h    2008-03-28 
->> 12:26:59.000000000 +0530
->> @@ -227,8 +227,10 @@ struct mm_struct {
->>      /* aio bits */
->>      rwlock_t        ioctx_list_lock;
->>      struct kioctx        *ioctx_list;
->> -#ifdef CONFIG_CGROUP_MEM_RES_CTLR
->> -    struct mem_cgroup *mem_cgroup;
->> +#ifdef CONFIG_MM_OWNER
->> +    spinlock_t owner_lock;
->> +    struct task_struct *owner;    /* The thread group leader that */
+On Thu, 2008-03-27 at 11:44 -0700, Christoph Lameter wrote:
+> On Thu, 27 Mar 2008, Peter Zijlstra wrote:
 > 
-> Doesn't make sense to switch them (spinlock is unsigned int on x86, 
-> what's sizeof between and after?)?
+> > confusion between semaphores and rwsems
+> 
+> rwsem is not a semaphore despite its name? What do you want to call it 
+> then?
 
-Hmm, doesn't matter, there is another pointer after it, ignore me.
+Its not a real counting semaphore, a sleeping rw lock might be a better
+name as opposed to the contradition rw-mutex :-)
+
+But lets just call it a rwsem; we all know what that is.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
