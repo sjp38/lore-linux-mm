@@ -1,25 +1,25 @@
-Date: Fri, 28 Mar 2008 11:51:09 -0700 (PDT)
+Date: Fri, 28 Mar 2008 11:51:38 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 4/9] Pageflags: Get rid of FLAGS_RESERVED
-In-Reply-To: <20080328011240.fae44d52.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0803281148110.17920@schroedinger.engr.sgi.com>
-References: <20080318181957.138598511@sgi.com> <20080318182035.197900850@sgi.com>
- <20080328011240.fae44d52.akpm@linux-foundation.org>
+Subject: Re: vmalloc: Return page array on vunmap
+In-Reply-To: <200803281002.52110.nickpiggin@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0803281151190.17920@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0803262117320.2794@schroedinger.engr.sgi.com>
+ <200803272322.20493.nickpiggin@yahoo.com.au>
+ <Pine.LNX.4.64.0803271147170.7531@schroedinger.engr.sgi.com>
+ <200803281002.52110.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: apw@shadowen.org, David Miller <davem@davemloft.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jeremy Fitzhardinge <jeremy@goop.org>, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 Mar 2008, Andrew Morton wrote:
+On Fri, 28 Mar 2008, Nick Piggin wrote:
 
-> For some reason this isn't working on mips - include/linux/bounds.h has no
-> #define for NR_PAGEFLAGS.
+> So can't it just stay with that patchset?
 
-Likely an asm issue? Are there no definitions at all in 
-include/linux/bounds.h?
+It can stay with that patchset yet but it has some general use.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
