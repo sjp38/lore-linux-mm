@@ -1,130 +1,102 @@
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28smtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id m2SIESQ9032650
-	for <linux-mm@kvack.org>; Fri, 28 Mar 2008 23:44:28 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2SIERSm1147018
-	for <linux-mm@kvack.org>; Fri, 28 Mar 2008 23:44:27 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id m2SIEYEG001796
-	for <linux-mm@kvack.org>; Fri, 28 Mar 2008 18:14:35 GMT
-Message-ID: <47ED34A4.70604@linux.vnet.ibm.com>
-Date: Fri, 28 Mar 2008 23:40:44 +0530
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id m2SIGvJ5028022
+	for <linux-mm@kvack.org>; Sat, 29 Mar 2008 05:16:57 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2SIL6XA121576
+	for <linux-mm@kvack.org>; Sat, 29 Mar 2008 05:21:06 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2SIHIqc007233
+	for <linux-mm@kvack.org>; Sat, 29 Mar 2008 05:17:18 +1100
+Message-ID: <47ED354C.2040502@linux.vnet.ibm.com>
+Date: Fri, 28 Mar 2008 23:43:32 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [-mm] Add an owner to the mm_struct (v2)
-References: <20080328082316.6961.29044.sendpatchset@localhost.localdomain> <6599ad830803280401r68d30e91waaea8eb1de36eb52@mail.gmail.com> <47ECE662.3060506@linux.vnet.ibm.com> <6599ad830803280705o4213c448r991cbf9da6ffe2f1@mail.gmail.com> <47ED0621.4050304@linux.vnet.ibm.com> <6599ad830803280838s19ffc366w1a950ebb12e2907b@mail.gmail.com>
-In-Reply-To: <6599ad830803280838s19ffc366w1a950ebb12e2907b@mail.gmail.com>
+Subject: Re: [RFC][0/3] Virtual address space control for cgroups (v2)
+References: <20080326184954.9465.19379.sendpatchset@localhost.localdomain> <6599ad830803261522p45a9daddi8100a0635c21cf7d@mail.gmail.com> <47EB5528.8070800@linux.vnet.ibm.com> <6599ad830803270728y354b567s7bfe8cb7472aa065@mail.gmail.com> <47EBDE7B.4090002@linux.vnet.ibm.com> <6599ad830803271144k635da1d8y106710152bb9c3be@mail.gmail.com> <47EC6D29.1080201@linux.vnet.ibm.com> <6599ad830803280737lf6882bapd9707c02bf26ef12@mail.gmail.com>
+In-Reply-To: <6599ad830803280737lf6882bapd9707c02bf26ef12@mail.gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Paul Menage <menage@google.com>
-Cc: Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
 Paul Menage wrote:
-> On Fri, Mar 28, 2008 at 7:52 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->>  mm->owner_lock is there to protect mm->owner field from changing simultaneously
->>  as tasks fork/exit.
+> On Thu, Mar 27, 2008 at 8:59 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>>  > Java (or at least, Sun's JRE) is an example of a common application
+>>  > that does this. It creates a huge heap mapping at startup, and faults
+>>  > it in as necessary.
+>>  >
+>>
+>>  Isn't this controlled by the java -Xm options?
 >>
 > 
-> But the *hardware* already does that for you - individual writes to
-> pointers are already atomic operations and so will be serialized.
-> Using a lock to guard something only does anything useful if at least
-> one of the critical regions that takes the lock consists of more than
-> a single atomic operation, or if you have a mixture of read sections
-> and write sections. Now it's true that your critical region in
-> mm_fork_init_owner() is more than a single atomic op, but I'm arguing
-> below that it's a no-op. So that just leaves the single region
+> Probably - that was just an example, and the behaviour of Java isn't
+> exactly unreasonable. A different example would be an app that maps a
+> massive database file, but only pages small amounts of it in at any
+> one time.
 > 
-> spin_lock(&mm->owner_lock);
-> mm->owner = new_owner;
-> spin_unlock(&mm->owner_lock);
-> 
-> which isn't observably different if you remove the spinlock.
-> 
-
-At fork time, we can have do_fork() run in parallel and we need to protect
-mm->owner, if several threads are created at the same time. We don't want to
-overwrite mm->owner for each thread that is created.
-
->>  Oh! yes.. my bad again. The check should have been p == p->thread_group, but
->>  that is not required either. The check should now ideally be
+>>  I understand, but
 >>
->>  if (!(clone_flags & CLONE_VM))
->>
+>>  1. The system by default enforces overcommit on most distros, so why should we
+>>  not have something similar and that flexible for cgroups.
 > 
-> OK, so if the new thread has its own mm (and hence will already have
-> mm->owner set up to point to p in mm_init()) then we do:
+> Right, I guess I should make it clear that I'm *not* arguing that we
+> shouldn't have a virtual address space limit subsystem.
 > 
->>  +       if (mm->owner != p)
->>  +               rcu_assign_pointer(mm->owner, p->group_leader);
+> My main arguments in this and my previous email were to back up my
+> assertion that there are a significant set of real-world cases where
+> it doesn't help, and hence it should be a separate subsystem that can
+> be turned on or off as desired.
 > 
-> which is a no-op since we know mm->owner == p.
+> It strikes me that when split into its own subsystem, this is going to
+> be very simple - basically just a resource counter and some file
+> handlers. We should probably have something like
+> include/linux/rescounter_subsys_template.h, so you can do:
 > 
->>  Yes.. I think we need to call it earlier.
->>
+> #define SUBSYS_NAME va
+> #define SUBSYS_UNIT_SUFFIX in_bytes
+> #include <linux/rescounter_subsys_template.h>
 > 
-> No, I think we need to call it later - after we've cleared current->mm
-> (from within task_lock(current)) - so we can't rely on p->mm in this
-> function, we have to pass it in. If we call it before while
-> current->mm == mm, then we risk a race where the (new or existing)
-> owner exits and passes it back to us *after* we've done a check to see
-> if we need to find a new owner. If we ensure that current->mm != mm
-> before we call mm_update_next_owner(), then we know we're not a
-> candidate for receiving the ownership if we don't have it already.
+> then all you have to add are the hooks to call the rescounter
+> charge/uncharge functions and you're done. It would be nice to have a
+> separate trivial subsystem like this for each of the rlimit types, not
+> just virtual address space.
 > 
 
-Yes and we could also check for flags & PF_EXITING
+OK, I'll consider doing a separate controller, once we get the mm->owner issue
+sorted out.
 
->>  But there is no way to guarantee that, what is the new_owner exec's after we've
->>  done the check and assigned. Won't we end up breaking the invariant? How about
->>  we have mm_update_new_owner() call in exec_mmap() as well? That way, we can
->>  still use owner_lock and keep the invariant.
+>>   And specifying
+>>  > them manually requires either unusually clueful users (most of whom
+>>  > have enough trouble figuring out how much physical memory they'll
+>>  > need, and would just set very high virtual address space limits) or
+>>  > sysadmins with way too much time on their hands ...
+>>  >
+>>
+>>  It's a one time thing to setup for sysadmins
 >>
 > 
-> Oops, I thought that exit_mm() already got called in the execve()
-> path, but you're right, it doesn't.
+> Sure, it's a one-time thing to setup *if* your cluster workload is
+> completely static.
 > 
-> Yes, exit_mmap() should call mm_update_next_owner() after the call to
-> task_unlock(), i.e. after it's set its new mm.
+>>  > As I said, I think focussing on ways to tell apps that they're running
+>>  > low on physical memory would be much more productive.
+>>  >
+>>
+>>  We intend to do that as well. We intend to have user space OOM notification.
 > 
-> So I need to express the invariant more carefully.
-> 
-> What we need to preserve is that, for every mm at all times, mm->owner
-> points to a valid task. So either:
-> 
-> 1) mm->owner->mm == mm AND mm->owner will check to see whether it
-> needs to pass ownership before it exits or execs.
-> 
-> OR
-> 
-> 2) mm->owner is the last user of mm and is about to free mm.
-> 
-> OR
-> 
-> 3) mm->owner is currently searching for another user of mm to pass the
-> ownership to.
-> 
-> In order to get from state 3 to state 1 safely we have to hold
-> task_lock(new_owner). Otherwise we can race with an exit or exec in
-> new_owner, resulting in a process that has already passed the point of
-> checking current->mm->owner.
-> 
+> We've been playing with a user-space OOM notification system at Google
+> - it's on my TODO list to push it to mainline (as an independent
+> subsystem, since either cpusets or the memory controller can be used
+> to cause OOMs that are localized to a cgroup). What we have works
+> pretty well but I think our interface is a bit too much of a kludge at
+> this point.
 
-No.. like you said if we do it after current->mm has changed and is different
-from mm, then it's safe to find a new owner. I still don't see why we need
-task_lock(new_owner). Even if we have task_lock(new_owner), it can still exit or
-exec later.
-
-> I don't see why we need mm->owner_lock to maintain this invariant.
-> (But am quite prepared to be proven wrong).
-> 
-
-Why mix task_lock() to protect mm->owner? owner_lock can provide the protection
-you are talking about.
-
+It's good to know you have something generic working. I was planning to start
+work on it later.
 
 -- 
 	Warm Regards,
