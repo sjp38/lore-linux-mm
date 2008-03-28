@@ -1,36 +1,43 @@
-Content-class: urn:content-classes:message
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: down_spin() implementation
+Date: Sat, 29 Mar 2008 00:48:21 +0100
+References: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com> <20080328124517.GQ16721@parisc-linux.org> <1FE6DD409037234FAB833C420AA843ECF237C0@orsmsx424.amr.corp.intel.com>
+In-Reply-To: <1FE6DD409037234FAB833C420AA843ECF237C0@orsmsx424.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
-	charset="iso-8859-1"
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 8BIT
-Subject: RE: down_spin() implementation
-Date: Fri, 28 Mar 2008 14:16:55 -0700
-Message-ID: <1FE6DD409037234FAB833C420AA843ECF237C0@orsmsx424.amr.corp.intel.com>
-In-reply-to: <20080328124517.GQ16721@parisc-linux.org>
-References: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com> <1FE6DD409037234FAB833C420AA843ECE9EB1C@orsmsx424.amr.corp.intel.com> <20080327141508.GL16721@parisc-linux.org> <200803281101.25037.nickpiggin@yahoo.com.au> <20080328124517.GQ16721@parisc-linux.org>
-From: "Luck, Tony" <tony.luck@intel.com>
+Content-Disposition: inline
+Message-Id: <200803290048.22931.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Wilcox <matthew@wil.cx>, Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: Matthew Wilcox <matthew@wil.cx>, Nick Piggin <nickpiggin@yahoo.com.au>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> So it makes little sense to add this to semaphores.  Better to introduce
-> a spinaphore, as you say.
+On Friday 28 March 2008, Luck, Tony wrote:
+> > So it makes little sense to add this to semaphores.  Better to introduce
+> > a spinaphore, as you say.
+> 
+> > struct {
+> >   atomic_t cur;
+> >   int max;
+> > } ss_t;
+> 
+> Could this API sneak into the bottom of one or the other of
+> linux/include/{spinlock,semaphore}.h ... or should it get its own
+> spinaphore.h file?
+>
+> Or should I follow Alan's earlier advice and keep this as an ia64
+> only thing (since I'll be the only user).
 
-> struct {
->   atomic_t cur;
->   int max;
-> } ss_t;
+If you use the simple version suggested last by Willy, I think it
+could even be open-coded in your TLB management code.
 
-Could this API sneak into the bottom of one or the other of
-linux/include/{spinlock,semaphore}.h ... or should it get its own
-spinaphore.h file?
+Should we decided to make it an official interface, I'd suggest
+putting it into atomic.h, because it operates on a plain atomic_t.
 
-Or should I follow Alan's earlier advice and keep this as an ia64
-only thing (since I'll be the only user).
-
--Tony
+	Arnd <><
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
