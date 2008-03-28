@@ -1,25 +1,41 @@
-Date: Fri, 28 Mar 2008 21:13:37 +0100
+Date: Fri, 28 Mar 2008 21:15:32 +0100
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 0/8] - Support for UV platform
-Message-ID: <20080328201337.GA26555@elte.hu>
-References: <20080328191156.GA16415@sgi.com>
+Subject: Re: [PATCH 8/8] x86_64: Support for new UV apic
+Message-ID: <20080328201532.GB26555@elte.hu>
+References: <20080328191216.GA16455@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080328191156.GA16415@sgi.com>
+In-Reply-To: <20080328191216.GA16455@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Jack Steiner <steiner@sgi.com>
-Cc: tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>
+Cc: tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 * Jack Steiner <steiner@sgi.com> wrote:
 
-> This series of patches add x86_64 support for the SGI "UV" platform. 
-> Most of the changes are related to support for larger apic IDs and new 
-> chipset hardware that is used for sending IPIs, etc.
+> Index: linux/arch/x86/kernel/apic_64.c
+> ===================================================================
+> --- linux.orig/arch/x86/kernel/apic_64.c	2008-03-28 13:00:22.000000000 -0500
+> +++ linux/arch/x86/kernel/apic_64.c	2008-03-28 13:06:12.000000000 -0500
+> @@ -738,6 +738,7 @@ void __cpuinit setup_local_APIC(void)
+>  	unsigned int value;
+>  	int i, j;
+>  
+> +	preempt_disable();
+>  	value = apic_read(APIC_LVR);
+>  
+>  	BUILD_BUG_ON((SPURIOUS_APIC_VECTOR & 0x0f) != 0x0f);
+> @@ -831,6 +832,7 @@ void __cpuinit setup_local_APIC(void)
+>  	else
+>  		value = APIC_DM_NMI | APIC_LVT_MASKED;
+>  	apic_write(APIC_LVT1, value);
+> +	preempt_enable();
+>  }
 
-thanks Jack, applied.
+hm, this looks a bit weird - why are all the preempt-disable/enable 
+calls needed?
 
 	Ingo
 
