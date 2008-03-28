@@ -1,51 +1,56 @@
-Date: Fri, 28 Mar 2008 11:01:16 +0100
-From: Jens Axboe <jens.axboe@oracle.com>
-Subject: Re: [patch 2/2]: introduce fast_gup
-Message-ID: <20080328100116.GH12346@kernel.dk>
-References: <20080328025455.GA8083@wotan.suse.de> <20080328030023.GC8083@wotan.suse.de>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id m2SAGPGd023002
+	for <linux-mm@kvack.org>; Fri, 28 Mar 2008 21:16:25 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2SAFXuI4309004
+	for <linux-mm@kvack.org>; Fri, 28 Mar 2008 21:15:33 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2SAFW8J024665
+	for <linux-mm@kvack.org>; Fri, 28 Mar 2008 21:15:33 +1100
+Message-ID: <47ECC45F.3020005@linux.vnet.ibm.com>
+Date: Fri, 28 Mar 2008 15:41:43 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080328030023.GC8083@wotan.suse.de>
+Subject: Re: [-mm] Add an owner to the mm_struct (v2)
+References: <20080328082316.6961.29044.sendpatchset@localhost.localdomain> <47ECBD4A.8080908@gmail.com> <47ECBDAF.9070007@gmail.com>
+In-Reply-To: <47ECBDAF.9070007@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, shaggy@austin.ibm.com, linux-mm@kvack.org, linux-arch@vger.kernel.org, torvalds@linux-foundation.org
+To: Jiri Slaby <jirislaby@gmail.com>
+Cc: Paul Menage <menage@google.com>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 28 2008, Nick Piggin wrote:
+Jiri Slaby wrote:
+> On 03/28/2008 10:41 AM, Jiri Slaby wrote:
+>>> linux-2.6.25-rc5/include/linux/mm_types.h~memory-controller-add-mm-owner   
+>>> 2008-03-28 09:30:47.000000000 +0530
+>>> +++ linux-2.6.25-rc5-balbir/include/linux/mm_types.h    2008-03-28
+>>> 12:26:59.000000000 +0530
+>>> @@ -227,8 +227,10 @@ struct mm_struct {
+>>>      /* aio bits */
+>>>      rwlock_t        ioctx_list_lock;
+>>>      struct kioctx        *ioctx_list;
+>>> -#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+>>> -    struct mem_cgroup *mem_cgroup;
+>>> +#ifdef CONFIG_MM_OWNER
+>>> +    spinlock_t owner_lock;
+>>> +    struct task_struct *owner;    /* The thread group leader that */
+>>
+>> Doesn't make sense to switch them (spinlock is unsigned int on x86,
+>> what's sizeof between and after?)?
 > 
-> Introduce a new "fast_gup" (for want of a better name right now) which
-> is basically a get_user_pages with a less general API (but still tends to
-> be suited to the common case):
+> Hmm, doesn't matter, there is another pointer after it, ignore me.
 
-I did some quick tests here with two kernels - baseline was current -git
-with the io cpu affinity stuff, nick is that same base but with your
-fast_gup() applied. The test run was meant to show the best possible
-scenario, 1 thread per disk (11 in total) with 4kb block size. Each
-thread used async O_DIRECT reads, queue depth was 64.
-
-For each kernel, a=0 means that completions were done normally and
-a=1 means that completions were moved to the submitter. Total
-runtime for each iteration is ~20 seconds, each test was run 3 times and
-the scores averaged (very little deviation was seen between runs).
-
-Kernel             bw         usr(sec)       sys(sec)           bw/sys
-----------------------------------------------------------------------
-baseline,a=0    306MiB/s     3.490          14.308              21.39
-baseline,a=1    309MiB/s     3.717          13.718              22.53
-nick,a=0        310MiB/s     3.669          13.804              22.46
-nick,a=1        311MiB/s     3.686          13.279              23.42
-
-That last number is just bandwidth/systime. So baseline vs your patch
-gets about 5% better bw/sys utilization. fast_gup() + io affinity is
-about 9.5% better bw/sys.
-
-The system is just a puny 2-way x86-64, two sockets with HT enabled. So
-I'd say the results look quite good!
+OK :)
 
 -- 
-Jens Axboe
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
