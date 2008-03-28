@@ -1,7 +1,7 @@
-Date: Fri, 28 Mar 2008 14:12:06 -0500
+Date: Fri, 28 Mar 2008 14:12:08 -0500
 From: Jack Steiner <steiner@sgi.com>
-Subject: [PATCH 2/8] x86_64: Add functions to determine if platform is a UV platform
-Message-ID: <20080328191206.GA16425@sgi.com>
+Subject: [PATCH 3/8] x86_64: Increase size of APICID
+Message-ID: <20080328191208.GA16430@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -11,106 +11,116 @@ To: mingo@elte.hu, tglx@linutronix.de
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Add functions that can be used to determine if an x86_64
-system is a SGI "UV" system. UV systems come in 3 types and
-are identified by the OEM ID in the MADT.
+Increase the number of bits in an apicid from 8 to 32.
+
+By default, MP_processor_info() gets the APICID from the
+mpc_config_processor structure. However, this structure limits
+the size of APICID to 8 bits. This patch allows the caller of
+MP_processor_info() to optionally pass a larger APICID that will
+be used instead of the one in the mpc_config_processor struct.
 
 Based on:
         git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
 
+
 Signed-off-by: Jack Steiner <steiner@sgi.com>
 
 ---
- arch/x86/kernel/acpi/boot.c  |    4 +---
- arch/x86/kernel/genapic_64.c |   25 +++++++++++++++++++++++++
- include/asm-x86/genapic_32.h |    5 +++++
- include/asm-x86/genapic_64.h |    5 +++++
- 4 files changed, 36 insertions(+), 3 deletions(-)
+ arch/x86/kernel/acpi/boot.c  |    2 +-
+ arch/x86/kernel/mpparse_32.c |    2 +-
+ arch/x86/mm/srat_64.c        |    6 +++++-
+ include/asm-x86/apicdef.h    |    9 ++++++---
+ include/asm-x86/mpspec.h     |    2 +-
+ 5 files changed, 14 insertions(+), 7 deletions(-)
 
-Index: linux/arch/x86/kernel/acpi/boot.c
+Index: linux/include/asm-x86/mpspec.h
 ===================================================================
---- linux.orig/arch/x86/kernel/acpi/boot.c	2008-03-27 11:24:49.000000000 -0500
-+++ linux/arch/x86/kernel/acpi/boot.c	2008-03-27 12:47:22.000000000 -0500
-@@ -56,9 +56,7 @@ EXPORT_SYMBOL(acpi_disabled);
- #ifdef	CONFIG_X86_64
+--- linux.orig/include/asm-x86/mpspec.h	2008-03-28 12:11:09.000000000 -0500
++++ linux/include/asm-x86/mpspec.h	2008-03-28 12:13:00.000000000 -0500
+@@ -47,7 +47,7 @@ extern void get_smp_config(void);
  
+ void __cpuinit generic_processor_info(int apicid, int version);
+ #ifdef CONFIG_ACPI
+-extern void mp_register_lapic(u8 id, u8 enabled);
++extern void mp_register_lapic(int id, u8 enabled);
+ extern void mp_register_lapic_address(u64 address);
+ extern void mp_register_ioapic(u8 id, u32 address, u32 gsi_base);
+ extern void mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger,
+Index: linux/arch/x86/mm/srat_64.c
+===================================================================
+--- linux.orig/arch/x86/mm/srat_64.c	2008-03-28 12:11:09.000000000 -0500
++++ linux/arch/x86/mm/srat_64.c	2008-03-28 12:13:00.000000000 -0500
+@@ -20,6 +20,7 @@
  #include <asm/proto.h>
--
--static inline int acpi_madt_oem_check(char *oem_id, char *oem_table_id) { return 0; }
--
+ #include <asm/numa.h>
+ #include <asm/e820.h>
 +#include <asm/genapic.h>
  
- #else				/* X86 */
+ int acpi_numa __initdata;
  
-Index: linux/arch/x86/kernel/genapic_64.c
+@@ -148,7 +149,10 @@ acpi_numa_processor_affinity_init(struct
+ 		return;
+ 	}
+ 
+-	apic_id = pa->apic_id;
++	if (is_uv_system())
++		apic_id = (pa->apic_id << 8) | pa->local_sapic_eid;
++	else
++		apic_id = pa->apic_id;
+ 	apicid_to_node[apic_id] = node;
+ 	acpi_numa = 1;
+ 	printk(KERN_INFO "SRAT: PXM %u -> APIC %u -> Node %u\n",
+Index: linux/include/asm-x86/apicdef.h
 ===================================================================
---- linux.orig/arch/x86/kernel/genapic_64.c	2008-03-27 11:33:09.000000000 -0500
-+++ linux/arch/x86/kernel/genapic_64.c	2008-03-27 12:47:22.000000000 -0500
-@@ -35,6 +35,8 @@ EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid)
+--- linux.orig/include/asm-x86/apicdef.h	2008-03-28 12:11:09.000000000 -0500
++++ linux/include/asm-x86/apicdef.h	2008-03-28 12:13:00.000000000 -0500
+@@ -133,7 +133,7 @@
+ # define MAX_IO_APICS 64
+ #else
+ # define MAX_IO_APICS 128
+-# define MAX_LOCAL_APIC 256
++# define MAX_LOCAL_APIC 32768
+ #endif
  
- struct genapic __read_mostly *genapic = &apic_flat;
- 
-+static enum uv_system_type uv_system_type;
-+
  /*
-  * Check the APIC IDs in bios_cpu_apicid and choose the APIC mode.
-  */
-@@ -66,3 +68,26 @@ void send_IPI_self(int vector)
- {
- 	__send_IPI_shortcut(APIC_DEST_SELF, vector, APIC_DEST_PHYSICAL);
+@@ -406,6 +406,9 @@ struct local_apic {
+ 
+ #undef u32
+ 
+-#define BAD_APICID 0xFFu
+-
++#ifdef CONFIG_X86_32
++ #define BAD_APICID 0xFFu
++#else
++ #define BAD_APICID 0xFFFFu
++#endif
+ #endif
+Index: linux/arch/x86/kernel/mpparse_32.c
+===================================================================
+--- linux.orig/arch/x86/kernel/mpparse_32.c	2008-03-28 12:11:09.000000000 -0500
++++ linux/arch/x86/kernel/mpparse_32.c	2008-03-28 12:13:00.000000000 -0500
+@@ -807,7 +807,7 @@ void __init mp_register_lapic_address(u6
+ 	Dprintk("Boot CPU = %d\n", boot_cpu_physical_apicid);
  }
-+
-+int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
-+{
-+	if (!strcmp(oem_id, "SGI")) {
-+		if (!strcmp(oem_table_id, "UVL"))
-+			uv_system_type = UV_LEGACY_APIC;
-+		else if (!strcmp(oem_table_id, "UVX"))
-+			uv_system_type = UV_X2APIC;
-+		else if (!strcmp(oem_table_id, "UVH"))
-+			uv_system_type = UV_NON_UNIQUE_APIC;
-+	}
-+	return 0;
-+}
-+
-+enum uv_system_type get_uv_system_type(void)
-+{
-+	return uv_system_type;
-+}
-+
-+int is_uv_system(void)
-+{
-+	return uv_system_type != UV_NONE;
-+}
-Index: linux/include/asm-x86/genapic_64.h
+ 
+-void __cpuinit mp_register_lapic (u8 id, u8 enabled)
++void __cpuinit mp_register_lapic (int id, u8 enabled)
+ {
+ 	if (MAX_APICS - id <= 0) {
+ 		printk(KERN_WARNING "Processor #%d invalid (max %d)\n",
+Index: linux/arch/x86/kernel/acpi/boot.c
 ===================================================================
---- linux.orig/include/asm-x86/genapic_64.h	2008-03-27 11:24:52.000000000 -0500
-+++ linux/include/asm-x86/genapic_64.h	2008-03-27 12:47:22.000000000 -0500
-@@ -33,5 +33,10 @@ extern struct genapic *genapic;
+--- linux.orig/arch/x86/kernel/acpi/boot.c	2008-03-28 12:12:56.000000000 -0500
++++ linux/arch/x86/kernel/acpi/boot.c	2008-03-28 12:24:34.000000000 -0500
+@@ -239,7 +239,7 @@ static int __init acpi_parse_madt(struct
+ 	return 0;
+ }
  
- extern struct genapic apic_flat;
- extern struct genapic apic_physflat;
-+extern int acpi_madt_oem_check(char *, char *);
-+
-+enum uv_system_type {UV_NONE, UV_LEGACY_APIC, UV_X2APIC, UV_NON_UNIQUE_APIC};
-+extern enum uv_system_type get_uv_system_type(void);
-+extern int is_uv_system(void);
- 
- #endif
-Index: linux/include/asm-x86/genapic_32.h
-===================================================================
---- linux.orig/include/asm-x86/genapic_32.h	2008-03-27 11:24:52.000000000 -0500
-+++ linux/include/asm-x86/genapic_32.h	2008-03-27 12:47:22.000000000 -0500
-@@ -114,4 +114,9 @@ struct genapic {
- 
- extern struct genapic *genapic;
- 
-+enum uv_system_type {UV_NONE, UV_LEGACY_APIC, UV_X2APIC, UV_NON_UNIQUE_APIC};
-+#define get_uv_system_type()		UV_NONE
-+#define is_uv_system()			0
-+
-+
- #endif
+-static void __cpuinit acpi_register_lapic(u8 id, u8 enabled)
++static void __cpuinit acpi_register_lapic(int id, u8 enabled)
+ {
+ #ifdef CONFIG_X86_SMP
+ 	if (MAX_APICS - id <= 0) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
