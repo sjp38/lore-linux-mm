@@ -1,141 +1,71 @@
-Date: Fri, 28 Mar 2008 13:51:04 +0100
-From: Jens Axboe <jens.axboe@oracle.com>
-Subject: Re: down_spin() implementation
-Message-ID: <20080328125104.GK12346@kernel.dk>
-References: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com> <20080326123239.GG16721@parisc-linux.org> <1FE6DD409037234FAB833C420AA843ECE9EB1C@orsmsx424.amr.corp.intel.com> <20080327141508.GL16721@parisc-linux.org>
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp04.in.ibm.com (8.13.1/8.13.1) with ESMTP id m2SCwKKO022972
+	for <linux-mm@kvack.org>; Fri, 28 Mar 2008 18:28:20 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2SCwJZX1347828
+	for <linux-mm@kvack.org>; Fri, 28 Mar 2008 18:28:19 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id m2SCwJxS024144
+	for <linux-mm@kvack.org>; Fri, 28 Mar 2008 12:58:19 GMT
+Message-ID: <47ECEA8F.5060505@linux.vnet.ibm.com>
+Date: Fri, 28 Mar 2008 18:24:39 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080327141508.GL16721@parisc-linux.org>
+Subject: Re: [-mm] Add an owner to the mm_struct (v2)
+References: <20080328082316.6961.29044.sendpatchset@localhost.localdomain> <6599ad830803280401r68d30e91waaea8eb1de36eb52@mail.gmail.com> <47ECE662.3060506@linux.vnet.ibm.com>
+In-Reply-To: <47ECE662.3060506@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Wilcox <matthew@wil.cx>
-Cc: "Luck, Tony" <tony.luck@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Paul Menage <menage@google.com>
+Cc: balbir@linux.vnet.ibm.com, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 27 2008, Matthew Wilcox wrote:
-> On Wed, Mar 26, 2008 at 01:29:58PM -0700, Luck, Tony wrote:
-> > This looks a lot cleaner than my ia64 specific code that
-> > used cmpxchg() for the down() operation and fetchadd for
-> > the up() ... using a brand new semaphore_spin data type.
+Balbir Singh wrote:
+> Paul Menage wrote:
+>> On Fri, Mar 28, 2008 at 1:23 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>>>  diff -puN include/linux/mm_types.h~memory-controller-add-mm-owner include/linux/mm_types.h
+>>>  --- linux-2.6.25-rc5/include/linux/mm_types.h~memory-controller-add-mm-owner    2008-03-28 09:30:47.000000000 +0530
+>>>  +++ linux-2.6.25-rc5-balbir/include/linux/mm_types.h    2008-03-28 12:26:59.000000000 +0530
+>>>  @@ -227,8 +227,10 @@ struct mm_struct {
+>>>         /* aio bits */
+>>>         rwlock_t                ioctx_list_lock;
+>>>         struct kioctx           *ioctx_list;
+>>>  -#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+>>>  -       struct mem_cgroup *mem_cgroup;
+>>>  +#ifdef CONFIG_MM_OWNER
+>>>  +       spinlock_t owner_lock;
+>>>  +       struct task_struct *owner;      /* The thread group leader that */
+>>>  +                                       /* owns the mm_struct.          */
+>>>   #endif
+>> I'm not convinced that we need the spinlock. Just use the simple rule
+>> that you can only modify mm->owner if:
+>>
+>> - mm->owner points to current
+>> - the new owner is a user of mm
 > 
-> I did brifly consider creating a spinaphore data type, but it's
-> significantly less code to create down_spin().
+> This will always hold, otherwise it cannot be the new owner :)
 > 
-> > It appears to work ... I tried to do some timing comparisons
-> > of this generic version against my arch specific one, but the
-> > hackbench test case has a run to run variation of a factor of
-> > three (from 1min9sec to 3min44sec) so it is hopeless to try
-> > and see some small percentage difference.
-> 
-> Thanks for testing and putting this together in patch form.  I've fixed it
-> up to address Jens' astute comment and added it to my semaphore patchset.
-> 
-> http://git.kernel.org/?p=linux/kernel/git/willy/misc.git;a=shortlog;h=semaphore-20080327
-> 
-> Stephen, I've updated the 'semaphore' tag to point ot the same place as
-> semaphore-20080327, so please change your linux-next tree from pulling
-> semaphore-20080314 to just pulling plain 'semaphore'.  I'll use this
-> method of tagging from now on.
-> 
-> Here's the edited patch.
-> 
-> commit 517df6fedc88af3f871cf827a62ef1a1a2073645
-> Author: Matthew Wilcox <matthew@wil.cx>
-> Date:   Thu Mar 27 09:49:26 2008 -0400
-> 
->     Add down_spin()
->     
->     ia64 would like to use a semaphore in flush_tlb_all() as it can have
->     multiple tokens.  Unfortunately, it's currently nested inside a spinlock,
->     so they can't sleep.  down_spin() is the cheapest solution to implement.
->     
->     Signed-off-by: Tony Luck <tony.luck@intel.com>
->     Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
-> 
-> diff --git a/include/linux/semaphore.h b/include/linux/semaphore.h
-> index a7125da..13b5f32 100644
-> --- a/include/linux/semaphore.h
-> +++ b/include/linux/semaphore.h
-> @@ -78,6 +78,14 @@ extern int __must_check down_trylock(struct semaphore *sem);
->  extern int __must_check down_timeout(struct semaphore *sem, long jiffies);
->  
->  /*
-> + * As down(), except this function will spin waiting for the semaphore
-> + * instead of sleeping.  It is safe to use while holding a spinlock or
-> + * with interrupts disabled.  It should not be called from interrupt
-> + * context as this may lead to deadlocks.
-> + */
-> +extern void down_spin(struct semaphore *sem);
-> +
-> +/*
->   * Release the semaphore.  Unlike mutexes, up() may be called from any
->   * context and even by tasks which have never called down().
->   */
-> diff --git a/kernel/semaphore.c b/kernel/semaphore.c
-> index bef977b..a242d87 100644
-> --- a/kernel/semaphore.c
-> +++ b/kernel/semaphore.c
-> @@ -26,6 +26,7 @@ static noinline void __down(struct semaphore *sem);
->  static noinline int __down_interruptible(struct semaphore *sem);
->  static noinline int __down_killable(struct semaphore *sem);
->  static noinline int __down_timeout(struct semaphore *sem, long jiffies);
-> +static noinline void __down_spin(struct semaphore *sem, unsigned long flags);
->  static noinline void __up(struct semaphore *sem);
->  
->  void down(struct semaphore *sem)
-> @@ -117,6 +118,20 @@ int down_timeout(struct semaphore *sem, long jiffies)
->  }
->  EXPORT_SYMBOL(down_timeout);
->  
-> +void down_spin(struct semaphore *sem)
-> +{
-> +       unsigned long flags;
-> +
-> +       spin_lock_irqsave(&sem->lock, flags);
-> +       if (likely(sem->count > 0)) {
-> +               sem->count--;
-> +               spin_unlock_irqrestore(&sem->lock, flags);
-> +       } else {
-> +               __down_spin(sem, flags);
-> +       }
-> +}
-> +EXPORT_SYMBOL(down_spin);
-> +
->  void up(struct semaphore *sem)
->  {
->         unsigned long flags;
-> @@ -197,6 +212,20 @@ static noinline int __sched __down_timeout(struct semaphore
->         return __down_common(sem, TASK_UNINTERRUPTIBLE, jiffies);
->  }
->  
-> +static noinline void __sched __down_spin(struct semaphore *sem,
-> +                                                       unsigned long flags)
-> +{
-> +       struct semaphore_waiter waiter;
-> +
-> +       list_add_tail(&waiter.list, &sem->wait_list);
-> +       waiter.task = current;
-> +       waiter.up = 0;
-> +
-> +       spin_unlock_irqrestore(&sem->lock, flags);
-> +       while (!waiter.up)
-> +               cpu_relax();
-> +}
-> +
->  static noinline void __sched __up(struct semaphore *sem)
->  {
->         struct semaphore_waiter *waiter = list_first_entry(&sem->wait_list,
+>> - you hold task_lock() for the new owner (which is necessary anyway to
+>> ensure that the new owner's mm doesn't change while you're updating
+>> mm->owner)
+>>
 
-It used to be illegal to pass flags as parameters. IIRC, sparc did some
-trickery with it. That may still be the case, I haven't checked in a
-long time.
+Thinking more, I don't think it makes sense for us to overload task_lock() to do
+the mm->owner handling (we don't want to mix lock domains). task_lock() is used
+for several things
 
-Why not just fold __down_spin() into down_spin() and get rid of that
-nasty anyway?
+1. We don't want to make task_lock() rules more complicated by having it protect
+an mm member to save space
+2. We don't want more contention on task_lock()
 
 -- 
-Jens Axboe
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
