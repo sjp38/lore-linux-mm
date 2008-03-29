@@ -1,26 +1,38 @@
-Received: from NWJSVP10.INNODATA.NET ([10.155.1.11])
-	by dlsdns20.innodata-isogen.com (8.12.9-20030924/8.12.1) with ESMTP id m2TAFDBZ029420
-	for <linux-mm@kvack.org>; Sat, 29 Mar 2008 05:15:30 -0500 (CDT)
-Message-Id: <200803291015.m2TAFDBZ029420@dlsdns20.innodata-isogen.com>
-From: Mailer-Daemon@innodata-isogen.com
-Subject: Mail could not be scanned
-Mime-version: 1.0
-Content-Type: text/plain;
-	charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Date: Sat, 29 Mar 2008 06:40:48 -0400
+Date: Sat, 29 Mar 2008 13:22:30 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 4/9] Pageflags: Get rid of FLAGS_RESERVED
+In-Reply-To: <20080328122313.aa8d7c8c.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0803291321020.26338@schroedinger.engr.sgi.com>
+References: <20080318181957.138598511@sgi.com> <20080318182035.197900850@sgi.com>
+ <20080328011240.fae44d52.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0803281148110.17920@schroedinger.engr.sgi.com>
+ <20080328115919.12c0445b.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0803281159250.18120@schroedinger.engr.sgi.com>
+ <20080328122313.aa8d7c8c.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: apw@shadowen.org, davem@davemloft.net, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, jeremy@goop.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dear Sender, 
-The mail sent by you on Sat Mar 29 06:40:48 2008 with subject line as "Returned mail: see transcript for details" was failed to get processed by our Email System due to some technical reasons so it could not be delivered to the recipient(s). Kindly try to resend the message or contact Infrastructure-Applications-Support@INNODATA-ISOGEN.COM for further assistance.
+On Fri, 28 Mar 2008, Andrew Morton wrote:
 
-Regards,
+> Why do we use gas at all here?  All we're doing is converting
+> 
+> ->NR_PAGEFLAGS 18 __NR_PAGEFLAGS         #
+> 
+> into
+> 
+> #define NR_PAGEFLAGS 18
+> 
+> which can be done with sed or whatever?
 
-Infrastructure Applications Support,
-The Global Technology Department
+Only the compiler knows the value of __NR_PAGEFLAGS since it was defined 
+via enum. We are generating an object file and then extract the symbols.
+This is the same process as used in arch/*/asm-offsets.*
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
