@@ -1,43 +1,42 @@
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: down_spin() implementation
-Date: Sat, 29 Mar 2008 00:48:21 +0100
-References: <1FE6DD409037234FAB833C420AA843ECE9DF60@orsmsx424.amr.corp.intel.com> <20080328124517.GQ16721@parisc-linux.org> <1FE6DD409037234FAB833C420AA843ECF237C0@orsmsx424.amr.corp.intel.com>
-In-Reply-To: <1FE6DD409037234FAB833C420AA843ECF237C0@orsmsx424.amr.corp.intel.com>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m2T16N9O028649
+	for <linux-mm@kvack.org>; Sat, 29 Mar 2008 12:06:23 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m2T16foW4579344
+	for <linux-mm@kvack.org>; Sat, 29 Mar 2008 12:06:42 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m2T16fAr030965
+	for <linux-mm@kvack.org>; Sat, 29 Mar 2008 12:06:41 +1100
+Message-ID: <47ED953A.1050906@linux.vnet.ibm.com>
+Date: Sat, 29 Mar 2008 06:32:50 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-Message-Id: <200803290048.22931.arnd@arndb.de>
+Subject: Re: [-mm] Add an owner to the mm_struct (v2)
+References: <20080328082316.6961.29044.sendpatchset@localhost.localdomain> <6599ad830803280401r68d30e91waaea8eb1de36eb52@mail.gmail.com> <47ECE662.3060506@linux.vnet.ibm.com> <6599ad830803280705o4213c448r991cbf9da6ffe2f1@mail.gmail.com> <47ED0621.4050304@linux.vnet.ibm.com> <6599ad830803280838s19ffc366w1a950ebb12e2907b@mail.gmail.com> <47ED34A4.70604@linux.vnet.ibm.com> <6599ad830803281152g33e693f5s4c7090a503d2751d@mail.gmail.com>
+In-Reply-To: <6599ad830803281152g33e693f5s4c7090a503d2751d@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Matthew Wilcox <matthew@wil.cx>, Nick Piggin <nickpiggin@yahoo.com.au>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Paul Menage <menage@google.com>
+Cc: Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 28 March 2008, Luck, Tony wrote:
-> > So it makes little sense to add this to semaphores.  Better to introduce
-> > a spinaphore, as you say.
+Paul Menage wrote:
+> Hi Balbir,
 > 
-> > struct {
-> >   atomic_t cur;
-> >   int max;
-> > } ss_t;
-> 
-> Could this API sneak into the bottom of one or the other of
-> linux/include/{spinlock,semaphore}.h ... or should it get its own
-> spinaphore.h file?
->
-> Or should I follow Alan's earlier advice and keep this as an ia64
-> only thing (since I'll be the only user).
+> Could you send out the latest version of your patch? I suspect it's
+> changed a bit based on on this review and it would be good to make
+> sure we're both on the same page.
 
-If you use the simple version suggested last by Willy, I think it
-could even be open-coded in your TLB management code.
+Sure, let me rework that and send it across.
 
-Should we decided to make it an official interface, I'd suggest
-putting it into atomic.h, because it operates on a plain atomic_t.
-
-	Arnd <><
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
