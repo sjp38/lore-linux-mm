@@ -1,53 +1,44 @@
-Date: Sun, 30 Mar 2008 16:03:56 -0500
+Date: Sun, 30 Mar 2008 16:08:43 -0500
 From: Jack Steiner <steiner@sgi.com>
 Subject: Re: [RFC 8/8] x86_64: Support for new UV apic
-Message-ID: <20080330210356.GA13383@sgi.com>
-References: <20080324182122.GA28327@sgi.com> <87abknhzhd.fsf@basil.nowhere.org> <20080325175657.GA6262@sgi.com> <20080326073823.GD3442@elte.hu> <86802c440803301323q5c4bd4f4k1f9bdc1d6b1a0a7b@mail.gmail.com>
+Message-ID: <20080330210843.GB13383@sgi.com>
+References: <20080324182122.GA28327@sgi.com> <86802c440803301341i5d116b0en362a51f6d8550482@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <86802c440803301323q5c4bd4f4k1f9bdc1d6b1a0a7b@mail.gmail.com>
+In-Reply-To: <86802c440803301341i5d116b0en362a51f6d8550482@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Yinghai Lu <yhlu.kernel@gmail.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Mar 30, 2008 at 01:23:12PM -0700, Yinghai Lu wrote:
-> On Wed, Mar 26, 2008 at 12:38 AM, Ingo Molnar <mingo@elte.hu> wrote:
+> >   unsigned int get_apic_id(void)
+> >   {
+> >  -       return (apic_read(APIC_ID) >> 24) & 0xFFu;
+> >  +       unsigned int id;
+> >  +
+> >  +       preempt_disable();
+> >  +       id = apic_read(APIC_ID);
+> >  +       if (uv_system_type >= UV_X2APIC)
+> >  +               id  |= __get_cpu_var(x2apic_extra_bits);
+> >  +       else
+> >  +               id = (id >> 24) & 0xFFu;;
+> >  +       preempt_enable();
+> >  +       return id;
 > >
-> >  * Jack Steiner <steiner@sgi.com> wrote:
-> >
-> >  > > > -        obj-y                            += genapic_64.o genapic_flat_64.o
-> >  > > > +        obj-y                            += genapic_64.o genapic_flat_64.o genx2apic_uv_x.o
-> >  > >
-> >  > > Definitely should be a CONFIG
-> >  >
-> >  > Not sure that I understand why. The overhead of UV is minimal & we
-> >  > want UV enabled in all distro kernels. OTOH, small embedded systems
-> >  > probably want to eliminate every last bit of unneeded code.
-> >  >
-> >  > Might make sense to have a config option. Thoughts????
-> >
-> >  i wouldnt mind having UV enabled by default (it can be a config option
-> >  but default-enabled on generic kernels so all distros will pick this hw
-> >  support up), but we definitely need the genapic unification before we
-> >  can add more features.
 > 
-> config option would be reasonable.
-> for x86_64
-> subarch already have X86_PC, X86_VSMP.
-> we have X86_UVSMP
+> you can not shift id here.
+> 
+> GET_APIC_ID will shift that again.
+> 
+> you apic id will be 0 for all cpu
+> 
 
-If there was a significant differece between UV and generic kernels
-(or hardware), then I would agree. However, the only significant
-difference is the APIC model on large systems. Small systems are
-exactly compatible.
+I think this is fixed in the patch that I submitted on Friday. I
+had to rework the GET_APIC_ID() changes because of the unification
+of -32 & -64 apic code. I think the new code is much cleaner...
 
-The problem with subarch is that we want 1 binary kernel to support
-both generic hardware AND uv hardware. This restriction is desirable
-for the distros and software vendors. Otherwise, additional kernel
-images would have to be built, released, & certified.
 
 --- jack
 
