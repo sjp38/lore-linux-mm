@@ -1,84 +1,32 @@
-Date: Sun, 30 Mar 2008 17:19:40 +0900
+Date: Sun, 30 Mar 2008 17:23:17 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH][-mm][2/2] introduce sysctl i/f of max task of throttle
-In-Reply-To: <20080330171152.89D5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080330171152.89D5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20080330171528.89DB.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [PATCH][-mm][0/2] page reclaim throttle take4
+In-Reply-To: <47EF4B51.20204@linux.vnet.ibm.com>
+References: <20080330171152.89D5.KOSAKI.MOTOHIRO@jp.fujitsu.com> <47EF4B51.20204@linux.vnet.ibm.com>
+Message-Id: <20080330172127.89DE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: balbir@linux.vnet.ibm.com
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-introduce sysctl parameter of max task of throttle.
+Hi
 
-<usage>
- # echo 5 > /proc/sys/vm/max_nr_task_per_zone
+> > <<2. performance improvement>>
+> > I mesure various parameter of hackbench.
+> > 
+> > result number mean seconds (i.e. smaller is better)
+> > 
+> 
+> The results look quite impressive. Have you seen how your patches integrate with
+> Rik's LRU changes?
 
- set max reclaim tasks at the same time to 5.
+I am mesuring just now.
+I will be able to report about 2-3 days after.
 
-
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
----
- include/linux/swap.h |    2 ++
- kernel/sysctl.c      |    9 +++++++++
- mm/vmscan.c          |    3 ++-
- 3 files changed, 13 insertions(+), 1 deletion(-)
-
-Index: b/mm/vmscan.c
-===================================================================
---- a/mm/vmscan.c	2008-03-27 17:47:15.000000000 +0900
-+++ b/mm/vmscan.c	2008-03-27 17:47:39.000000000 +0900
-@@ -124,9 +124,10 @@ struct scan_control {
- int vm_swappiness = 60;
- long vm_total_pages;	/* The total number of pages which the VM controls */
- 
--#define MAX_RECLAIM_TASKS CONFIG_NR_MAX_RECLAIM_TASKS_PER_ZONE
-+#define MAX_RECLAIM_TASKS vm_max_nr_task_per_zone
- static LIST_HEAD(shrinker_list);
- static DECLARE_RWSEM(shrinker_rwsem);
-+int vm_max_nr_task_per_zone = CONFIG_NR_MAX_RECLAIM_TASKS_PER_ZONE;
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR
- #define scan_global_lru(sc)	(!(sc)->mem_cgroup)
-Index: b/include/linux/swap.h
-===================================================================
---- a/include/linux/swap.h	2008-03-27 17:45:45.000000000 +0900
-+++ b/include/linux/swap.h	2008-03-27 17:47:39.000000000 +0900
-@@ -206,6 +206,8 @@ static inline int zone_reclaim(struct zo
- 
- extern int kswapd_run(int nid);
- 
-+extern int vm_max_nr_task_per_zone;
-+
- #ifdef CONFIG_MMU
- /* linux/mm/shmem.c */
- extern int shmem_unuse(swp_entry_t entry, struct page *page);
-Index: b/kernel/sysctl.c
-===================================================================
---- a/kernel/sysctl.c	2008-03-27 17:45:45.000000000 +0900
-+++ b/kernel/sysctl.c	2008-03-27 19:41:12.000000000 +0900
-@@ -1141,6 +1141,15 @@ static struct ctl_table vm_table[] = {
- 		.extra2		= &one,
- 	},
- #endif
-+	{
-+		.ctl_name       = CTL_UNNUMBERED,
-+		.procname       = "max_nr_task_per_zone",
-+		.data           = &vm_max_nr_task_per_zone,
-+		.maxlen         = sizeof(vm_max_nr_task_per_zone),
-+		.mode           = 0644,
-+		.proc_handler   = &proc_dointvec,
-+		.strategy       = &sysctl_intvec,
-+	},
- /*
-  * NOTE: do not add new entries to this table unless you have read
-  * Documentation/sysctl/ctl_unnumbered.txt
 
 
 --
