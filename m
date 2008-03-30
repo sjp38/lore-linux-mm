@@ -1,53 +1,59 @@
-Received: by rv-out-0910.google.com with SMTP id f1so707587rvb.26
-        for <linux-mm@kvack.org>; Sun, 30 Mar 2008 16:24:29 -0700 (PDT)
-Message-ID: <86802c440803301624r4601eae2g5bacc54f69c032db@mail.gmail.com>
-Date: Sun, 30 Mar 2008 16:24:29 -0700
+Received: by rv-out-0910.google.com with SMTP id f1so708631rvb.26
+        for <linux-mm@kvack.org>; Sun, 30 Mar 2008 16:29:15 -0700 (PDT)
+Message-ID: <86802c440803301629g6d1b896o27e12ef3c84ded2c@mail.gmail.com>
+Date: Sun, 30 Mar 2008 16:29:15 -0700
 From: "Yinghai Lu" <yhlu.kernel@gmail.com>
 Subject: Re: [RFC 8/8] x86_64: Support for new UV apic
-In-Reply-To: <20080330210843.GB13383@sgi.com>
+In-Reply-To: <20080330211848.GA29105@one.firstfloor.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <20080324182122.GA28327@sgi.com>
-	 <86802c440803301341i5d116b0en362a51f6d8550482@mail.gmail.com>
-	 <20080330210843.GB13383@sgi.com>
+References: <20080324182122.GA28327@sgi.com> <87abknhzhd.fsf@basil.nowhere.org>
+	 <20080325175657.GA6262@sgi.com> <20080326073823.GD3442@elte.hu>
+	 <86802c440803301323q5c4bd4f4k1f9bdc1d6b1a0a7b@mail.gmail.com>
+	 <20080330210356.GA13383@sgi.com>
+	 <20080330211848.GA29105@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Jack Steiner <steiner@sgi.com>, Ingo Molnar <mingo@elte.hu>, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Mar 30, 2008 at 2:08 PM, Jack Steiner <steiner@sgi.com> wrote:
-> > >   unsigned int get_apic_id(void)
->  > >   {
->  > >  -       return (apic_read(APIC_ID) >> 24) & 0xFFu;
->  > >  +       unsigned int id;
->  > >  +
->  > >  +       preempt_disable();
->  > >  +       id = apic_read(APIC_ID);
->  > >  +       if (uv_system_type >= UV_X2APIC)
->  > >  +               id  |= __get_cpu_var(x2apic_extra_bits);
->  > >  +       else
->  > >  +               id = (id >> 24) & 0xFFu;;
->  > >  +       preempt_enable();
->  > >  +       return id;
->  > >
+On Sun, Mar 30, 2008 at 2:18 PM, Andi Kleen <andi@firstfloor.org> wrote:
+> > If there was a significant differece between UV and generic kernels
+>  > (or hardware), then I would agree. However, the only significant
+>  > difference is the APIC model on large systems. Small systems are
+>  > exactly compatible.
 >  >
->  > you can not shift id here.
->  >
->  > GET_APIC_ID will shift that again.
->  >
->  > you apic id will be 0 for all cpu
->  >
+>  > The problem with subarch is that we want 1 binary kernel to support
 >
->  I think this is fixed in the patch that I submitted on Friday. I
->  had to rework the GET_APIC_ID() changes because of the unification
->  of -32 & -64 apic code. I think the new code is much cleaner...
+>  x86-64 subarchs are more options than true subarchs. They generally
+>  do not prevent the kernel from running on other systems, just
+>  control addition of some additional code or special data layout. They are
+>  quite different from the i386 subarchs or those of other architectures.
+>
+>  The main reason vSMP is called a subarch is that it pads a lot
+>  of data structures to 4K and you don't really want that on your
+>  normal kernel, but there isn't anything in there that would
+>  prevent booting on a normal system.
+>
+>  The UV option certainly doesn't have this issue.
+>
+>
+>  > both generic hardware AND uv hardware. This restriction is desirable
+>  > for the distros and software vendors. Otherwise, additional kernel
+>  > images would have to be built, released, & certified.
+>
+>  I think an option would be fine, just don't call it a subarch. I don't
+>  feel strongly about it, as you point out it is not really very much
+>  code.
 
-i think Ingo already put you Friday's version in x86.git#latest.
+if the calling path like GET_APIC_ID is keeping checking if it is UV
+box after boot time, that may not good.
 
-that is wrong too with extra shift.
+don't need make other hundreds of machine keep running the code only
+for several big box all the time.
 
 YH
 
