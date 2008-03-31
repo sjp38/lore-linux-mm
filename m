@@ -1,30 +1,22 @@
-Date: Mon, 31 Mar 2008 15:07:39 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 8/8] x86_64: V2 Support for new UV apic
-Message-ID: <20080331130739.GE14636@elte.hu>
-References: <20080328191216.GA16455@sgi.com> <20080331020207.GA20605@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080331020207.GA20605@sgi.com>
+Message-Id: <20080331154154.549122000@polaris-admin.engr.sgi.com>
+Date: Mon, 31 Mar 2008 08:41:54 -0700
+From: Mike Travis <travis@sgi.com>
+Subject: [PATCH 0/1] numa: add function for node_to_cpumask_ptr
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: tglx@linutronix.de, yhlu.kernel@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* Jack Steiner <steiner@sgi.com> wrote:
+Here is a small change to add the definition for a generic node_to_cpumask_ptr.
+It isn't used in this patch, but allows other architectures to compile cleanly with
+future changes coming to common kernel code.
 
-> Fix double-shift of apicid in previous patch.
+Based on 2.6.25-rc5-mm1
 
-> The code is clearly wrong.  I booted on an 8p AMD box and had no 
-> problems. Apparently the kernel (at least basic booting) is not too 
-> sensitive to incorrect apicids being returned. Most critical-to-boot 
-> code must use apicids from the ACPI tables.
+Signed-off-by: Mike Travis <travis@sgi.com>
 
-yeah - patch added. Thanks Yinghai for persisting on this.
-
-	Ingo
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
