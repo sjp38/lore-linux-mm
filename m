@@ -1,59 +1,139 @@
-Received: by rv-out-0910.google.com with SMTP id f1so708631rvb.26
-        for <linux-mm@kvack.org>; Sun, 30 Mar 2008 16:29:15 -0700 (PDT)
-Message-ID: <86802c440803301629g6d1b896o27e12ef3c84ded2c@mail.gmail.com>
-Date: Sun, 30 Mar 2008 16:29:15 -0700
+Received: by rv-out-0910.google.com with SMTP id f1so731300rvb.26
+        for <linux-mm@kvack.org>; Sun, 30 Mar 2008 18:33:04 -0700 (PDT)
+Message-ID: <86802c440803301833r2229900cw99129515822dc373@mail.gmail.com>
+Date: Sun, 30 Mar 2008 18:33:04 -0700
 From: "Yinghai Lu" <yhlu.kernel@gmail.com>
-Subject: Re: [RFC 8/8] x86_64: Support for new UV apic
-In-Reply-To: <20080330211848.GA29105@one.firstfloor.org>
+Subject: Re: [PATCH 8/8] x86_64: Support for new UV apic
+In-Reply-To: <86802c440803301622j2874ca56t51b52a54920a233b@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <20080324182122.GA28327@sgi.com> <87abknhzhd.fsf@basil.nowhere.org>
-	 <20080325175657.GA6262@sgi.com> <20080326073823.GD3442@elte.hu>
-	 <86802c440803301323q5c4bd4f4k1f9bdc1d6b1a0a7b@mail.gmail.com>
-	 <20080330210356.GA13383@sgi.com>
-	 <20080330211848.GA29105@one.firstfloor.org>
+References: <20080328191216.GA16455@sgi.com>
+	 <86802c440803301622j2874ca56t51b52a54920a233b@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Jack Steiner <steiner@sgi.com>, Ingo Molnar <mingo@elte.hu>, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jack Steiner <steiner@sgi.com>, Andi Kleen <andi@firstfloor.org>
+Cc: mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Mar 30, 2008 at 2:18 PM, Andi Kleen <andi@firstfloor.org> wrote:
-> > If there was a significant differece between UV and generic kernels
->  > (or hardware), then I would agree. However, the only significant
->  > difference is the APIC model on large systems. Small systems are
->  > exactly compatible.
+On Sun, Mar 30, 2008 at 4:22 PM, Yinghai Lu <yhlu.kernel@gmail.com> wrote:
+>
+> On Fri, Mar 28, 2008 at 12:12 PM, Jack Steiner <steiner@sgi.com> wrote:
 >  >
->  > The problem with subarch is that we want 1 binary kernel to support
+>  >  UV supports really big systems. So big, in fact, that the APICID register
+>  >  does not contain enough bits to contain an APICID that is unique across all
+>  >  cpus.
+>  >
+>  >  The UV BIOS supports 3 APICID modes:
+>  >
+>  >         - legacy mode. This mode uses the old APIC mode where
+>  >           APICID is in bits [31:24] of the APICID register.
+>  >
+>  >         - x2apic mode. This mode is whitebox-compatible. APICIDs
+>  >           are unique across all cpus. Standard x2apic APIC operations
+>  >           (Intel-defined) can be used for IPIs. The node identifier
+>  >           fits within the Intel-defined portion of the APICID register.
+>  >
+>  >         - x2apic-uv mode. In this mode, the APICIDs on each node have
+>  >           unique IDs, but IDs on different node are not unique. For example,
+>  >           if each mode has 32 cpus, the APICIDs on each node might be
+>  >           0 - 31. Every node has the same set of IDs.
+>  >           The UV hub is used to route IPIs/interrupts to the correct node.
+>  >           Traditional APIC operations WILL NOT WORK.
+>  >
+>  >  In x2apic-uv mode, the ACPI tables all contain a full unique ID (note:
+>  >  exact bit layout still changing but the following is close):
+>  >
+>  >         nnnnnnnnnnlc0cch
+>  >                 n = unique node number
+>  >                 l = socket number on board
+>  >                 c = core
+>  >                 h = hyperthread
+>  >
+>  >  Only the "lc0cch" bits are written to the APICID register. The remaining bits are
+>  >  supplied by having the get_apic_id() function "OR" the extra bits into the value
+>  >  read from the APICID register. (Hmmm.. why not keep the ENTIRE APICID register
+>  >  in per-cpu data....)
+>  >
+>  >  The x2apic-uv mode is recognized by the MADT table containing:
+>  >           oem_id = "SGI"
+>  >           oem_table_id = "UV-X"
+>  >
+>  >  Based on:
+>  >         git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
+>  >
+>  >  Signed-off-by: Jack Steiner <steiner@sgi.com>
+>  >
+>  >  ---
+>  >   arch/x86/kernel/Makefile         |    2
+>  >   arch/x86/kernel/apic_64.c        |    2
+>  >   arch/x86/kernel/genapic_64.c     |   18 ++
+>  >   arch/x86/kernel/genx2apic_uv_x.c |  245 +++++++++++++++++++++++++++++++++++++++
+>  >   arch/x86/kernel/setup64.c        |    4
+>  >   arch/x86/kernel/smpboot.c        |    5
+>  >   include/asm-x86/genapic_64.h     |    5
+>  >   include/asm-x86/smp.h            |    5
+>  >   8 files changed, 285 insertions(+), 1 deletion(-)
+>  >
+>  >  Index: linux/arch/x86/kernel/genapic_64.c
+>  >  ===================================================================
+>  >  --- linux.orig/arch/x86/kernel/genapic_64.c     2008-03-28 13:06:07.000000000 -0500
+>  >  +++ linux/arch/x86/kernel/genapic_64.c  2008-03-28 13:06:12.000000000 -0500
+>  >  @@ -15,6 +15,7 @@
+>  >   #include <linux/kernel.h>
+>  >   #include <linux/ctype.h>
+>  >   #include <linux/init.h>
+>  >  +#include <linux/hardirq.h>
+>  >
+>  >   #include <asm/smp.h>
+>  >   #include <asm/ipi.h>
+>  >  @@ -32,6 +33,7 @@ void *x86_cpu_to_apicid_early_ptr;
+>  >   #endif
+>  >   DEFINE_PER_CPU(u16, x86_cpu_to_apicid) = BAD_APICID;
+>  >   EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
+>  >  +DEFINE_PER_CPU(int, x2apic_extra_bits);
+>  >
+>  >   struct genapic __read_mostly *genapic = &apic_flat;
+>  >
+>  >  @@ -42,6 +44,9 @@ static enum uv_system_type uv_system_typ
+>  >   */
+>  >   void __init setup_apic_routing(void)
+>  >   {
+>  >  +       if (uv_system_type == UV_NON_UNIQUE_APIC)
+>  >  +               genapic = &apic_x2apic_uv_x;
+>  >  +       else
+>  >   #ifdef CONFIG_ACPI
+>  >         /*
+>  >          * Quirk: some x86_64 machines can only use physical APIC mode
+>  >  @@ -82,6 +87,19 @@ int __init acpi_madt_oem_check(char *oem
+>  >         return 0;
+>  >   }
+>  >
+>  >  +unsigned int read_apic_id(void)
+>  >  +{
+>  >  +       unsigned int id;
+>  >  +
+>  >  +       WARN_ON(preemptible());
+>  >  +       id = apic_read(APIC_ID);
+>  >  +       if (uv_system_type >= UV_X2APIC)
+>  >  +               id  |= __get_cpu_var(x2apic_extra_bits);
+>  >  +       else
+>  >  +               id = (id >> 24) & 0xFFu;;
+>  >  +       return id;
+>  >  +}
 >
->  x86-64 subarchs are more options than true subarchs. They generally
->  do not prevent the kernel from running on other systems, just
->  control addition of some additional code or special data layout. They are
->  quite different from the i386 subarchs or those of other architectures.
+>  so this is "the new one of Friday"?
 >
->  The main reason vSMP is called a subarch is that it pads a lot
->  of data structures to 4K and you don't really want that on your
->  normal kernel, but there isn't anything in there that would
->  prevent booting on a normal system.
+>  it still wrong. you can not shit id here. ot broke all x86_64 smp.
 >
->  The UV option certainly doesn't have this issue.
->
->
->  > both generic hardware AND uv hardware. This restriction is desirable
->  > for the distros and software vendors. Otherwise, additional kernel
->  > images would have to be built, released, & certified.
->
->  I think an option would be fine, just don't call it a subarch. I don't
->  feel strongly about it, as you point out it is not really very much
->  code.
+>  Did you test it on non UV_X2APIC box?
 
-if the calling path like GET_APIC_ID is keeping checking if it is UV
-box after boot time, that may not good.
+anyway the read_apic_id is totally wrong, even for your UV_X2APIC box.
+because id=apic_read(APIC_ID) will have apic_id at bits [31,24], and
+id |= __get_cpu_var(x2apic_extra_bits) is assuming that is on bits [5,0]
 
-don't need make other hundreds of machine keep running the code only
-for several big box all the time.
+so you even didn't test in your UV_X2APIC box!
 
 YH
 
