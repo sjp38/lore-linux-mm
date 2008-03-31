@@ -1,39 +1,38 @@
-Date: Mon, 31 Mar 2008 15:04:26 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 1/7] mm: introduce VM_MIXEDMAP
-Message-Id: <20080331150426.20d57ddb.akpm@linux-foundation.org>
-In-Reply-To: <20080328015421.905848000@nick.local0.net>
-References: <20080328015238.519230000@nick.local0.net>
-	<20080328015421.905848000@nick.local0.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Tue, 01 Apr 2008 08:28:12 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] hugetlb: vmstat events for huge page allocations
+In-Reply-To: <1206978548.8042.7.camel@grover.beaverton.ibm.com>
+References: <1206978548.8042.7.camel@grover.beaverton.ibm.com>
+Message-Id: <20080401082435.3A47.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
-Cc: torvalds@linux-foundation.org, jaredeh@gmail.com, cotte@de.ibm.com, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, linux-mm@kvack.org
+To: ebmunson@us.ibm.com
+Cc: kosaki.motohiro@jp.fujitsu.com, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, agl@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 Mar 2008 12:52:39 +1100
-npiggin@suse.de wrote:
+Hi
 
-> From: npiggin@suse.de
-> From: Jared Hulbert <jaredeh@gmail.com>
-> To: akpm@linux-foundation.org
-> Cc: Linus Torvalds <torvalds@linux-foundation.org>, Jared Hulbert <jaredeh@gmail.com>, Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org
-> Subject: [patch 1/7] mm: introduce VM_MIXEDMAP
-> Date: 	Fri, 28 Mar 2008 12:52:39 +1100
-> Sender: owner-linux-mm@kvack.org
-> User-Agent: quilt/0.46-14
+> Allocating huge pages directly from the buddy allocator is not guaranteed
+> to succeed.  Success depends on several factors (such as the amount of
+> physical memory available and the level of fragmentation).  With the
+> addition of dynamic hugetlb pool resizing, allocations can occur much more
+> frequently.  For these reasons it is desirable to keep track of huge page
+> allocation successes and failures.
+> 
+> Add two new vmstat entries to track huge page allocations that succeed and
+> fail.  The presence of the two entries is contingent upon
+> CONFIG_HUGETLB_PAGE being enabled.
 
-It's unusual to embed the original author's From: line in the headers
-like that - it is usually placed in the message body and this arrangement
-might fool some people's scripts.
+In generaly, I like this patch.
 
-patch 6/7 was subtly hidden, concatenated to 5/7, but I found it.
+Have you seen Andi Kleen's "GB pages hugetlb support" series?
+it contain multiple size hugepage support.
+if it is merged, Is your patch caused any effect?
 
-[7/7] needs to be redone please - git-s390 makes functional changes to
-add_shared_memory().
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
