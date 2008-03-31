@@ -1,68 +1,104 @@
-Received: by wr-out-0506.google.com with SMTP id c37so1147044wra.26
-        for <linux-mm@kvack.org>; Mon, 31 Mar 2008 11:42:10 -0700 (PDT)
-Message-ID: <86802c440803311142u4cbbdca9m830e86d46ad020af@mail.gmail.com>
-Date: Mon, 31 Mar 2008 11:42:09 -0700
-From: "Yinghai Lu" <yhlu.kernel@gmail.com>
-Subject: Re: [RFC 8/8] x86_64: Support for new UV apic
-In-Reply-To: <20080331123338.GA14636@elte.hu>
+Date: Mon, 31 Mar 2008 13:19:44 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 4/9] Pageflags: Get rid of FLAGS_RESERVED
+In-Reply-To: <20080329150630.21019399.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0803311317060.9698@schroedinger.engr.sgi.com>
+References: <20080318181957.138598511@sgi.com> <20080318182035.197900850@sgi.com>
+ <20080328011240.fae44d52.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0803281148110.17920@schroedinger.engr.sgi.com>
+ <20080328115919.12c0445b.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0803281159250.18120@schroedinger.engr.sgi.com>
+ <20080328122313.aa8d7c8c.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0803291321020.26338@schroedinger.engr.sgi.com>
+ <20080329150630.21019399.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080324182122.GA28327@sgi.com> <20080325175657.GA6262@sgi.com>
-	 <20080326073823.GD3442@elte.hu>
-	 <86802c440803301323q5c4bd4f4k1f9bdc1d6b1a0a7b@mail.gmail.com>
-	 <20080330210356.GA13383@sgi.com>
-	 <20080330211848.GA29105@one.firstfloor.org>
-	 <86802c440803301629g6d1b896o27e12ef3c84ded2c@mail.gmail.com>
-	 <20080331021821.GC20619@sgi.com>
-	 <86802c440803301920o47335876yac12a5a09d1a8cc9@mail.gmail.com>
-	 <20080331123338.GA14636@elte.hu>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Jack Steiner <steiner@sgi.com>, Andi Kleen <andi@firstfloor.org>, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: apw@shadowen.org, davem@davemloft.net, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, jeremy@goop.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 31, 2008 at 5:33 AM, Ingo Molnar <mingo@elte.hu> wrote:
->
->
->  * Yinghai Lu <yhlu.kernel@gmail.com> wrote:
->
->  > On Sun, Mar 30, 2008 at 7:18 PM, Jack Steiner <steiner@sgi.com> wrote:
->  > > >
->  > >  > if the calling path like GET_APIC_ID is keeping checking if it is
->  > >  > UV box after boot time, that may not good.
->  > >  >
->  > >  > don't need make other hundreds of machine keep running the code
->  > >  > only for several big box all the time.
->  > >  >
->  > >  > YH
->  > >
->  > >
->  > >  I added trace code to see how often GET_APIC_ID() is called. For my
->  > >  8p AMD box, the function is called 6 times per cpu during boot. I
->  > >  have not seen any other calls to the function after early boot
->  > >  although I'm they occur under some circumstances.
->  >
->  > then it is ok.
->
->  yes - and even if it were called more frequently, having generic code
->  and having the possibility of an as generic as possible kernel image
->  (and kernel rpms) is still a very important feature. In that sense
->  subarch support is actively harmful and we are trying to move away from
->  that model.
+On Sat, 29 Mar 2008, Andrew Morton wrote:
 
-regarding LinuxBIOS = coreboot + TinyKernel. some box need to use
-64bit kernel, because 32 bit kernel could mess up the 64 bit
-resources, and final kernel kexeced is 64 bit.
+> > This is the same process as used in arch/*/asm-offsets.*
+> 
+> Maybe that wasn't the best way of doing it.
 
-and TinyKernel need to stay with coreboot in MB flash rom, and that
-flash is about 2M...
+Is there any alternative? It would be best if we could get the c compiler
+to define a linker symbol with the values that we need without asm. I 
+guess we could somehow stick this into ldlinux.lds.S but that is going to 
+be ugly as well.
 
-So hope it is easier to use MACRO to mask platform detect code out.
+I checked and all arches use the same asm to define a symbol except for 
+mips. If we allow an arch to override the way to define a symbol then it 
+also works on mips.
 
-YH
+
+
+
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Allow override of definition for asm constant
+
+MIPS has a different way of defining asm constants which causes troubles
+for bounds.h generation.
+
+Add a new per arch CONFIG variable
+
+	CONFIG_ASM_SYMBOL_PREFIX
+
+which can be set to define an alternate header for asm constant definitions.
+Use this for MIPS to make bounds determination work right.
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+---
+ arch/mips/Kconfig |    7 +++++++
+ kernel/bounds.c   |   11 ++++++++++-
+ 2 files changed, 17 insertions(+), 1 deletion(-)
+
+Index: linux-2.6.25-rc5-mm1/arch/mips/Kconfig
+===================================================================
+--- linux-2.6.25-rc5-mm1.orig/arch/mips/Kconfig	2008-03-31 13:14:26.888383587 -0700
++++ linux-2.6.25-rc5-mm1/arch/mips/Kconfig	2008-03-31 13:14:28.028403612 -0700
+@@ -2019,6 +2019,13 @@ config I8253
+ config ZONE_DMA32
+ 	bool
+ 
++#
++# Used to override gas symbol setup in kernel/bounds.c.
++#
++config ASM_SYMBOL_PREFIX
++	string
++	default "@@@#define "
++
+ source "drivers/pcmcia/Kconfig"
+ 
+ source "drivers/pci/hotplug/Kconfig"
+Index: linux-2.6.25-rc5-mm1/kernel/bounds.c
+===================================================================
+--- linux-2.6.25-rc5-mm1.orig/kernel/bounds.c	2008-03-31 13:14:26.904383870 -0700
++++ linux-2.6.25-rc5-mm1/kernel/bounds.c	2008-03-31 13:14:28.028403612 -0700
+@@ -9,8 +9,17 @@
+ #include <linux/page-flags.h>
+ #include <linux/mmzone.h>
+ 
++#ifdef CONFIG_ASM_SYMBOL_PREFIX
++#define PREFIX CONFIG_ASM_SYMBOL_PREFIX
++#else
++/*
++ * Standard gas way of defining an asm symbol
++ */
++#define PREFIX "->"
++#endif
++
+ #define DEFINE(sym, val) \
+-	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
++	asm volatile("\n" PREFIX #sym " %0 " : : "i" (val))
+ 
+ #define BLANK() asm volatile("\n->" : :)
+ 
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
