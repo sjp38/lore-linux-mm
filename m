@@ -1,43 +1,50 @@
-Received: by rv-out-0910.google.com with SMTP id f1so740086rvb.26
-        for <linux-mm@kvack.org>; Sun, 30 Mar 2008 19:23:07 -0700 (PDT)
-Message-ID: <86802c440803301923m29b6a0coca7f61975331cbe5@mail.gmail.com>
-Date: Sun, 30 Mar 2008 19:23:07 -0700
-From: "Yinghai Lu" <yhlu.kernel@gmail.com>
+Date: Sun, 30 Mar 2008 21:23:23 -0500
+From: Jack Steiner <steiner@sgi.com>
 Subject: Re: [PATCH 8/8] x86_64: Support for new UV apic
-In-Reply-To: <20080331021224.GB20619@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Message-ID: <20080331022323.GD20619@sgi.com>
+References: <20080328191216.GA16455@sgi.com> <86802c440803301622j2874ca56t51b52a54920a233b@mail.gmail.com> <20080331020613.GA20619@sgi.com> <86802c440803301913n1cd4fe88v2374a8ba835153e@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <20080328191216.GA16455@sgi.com>
-	 <86802c440803301622j2874ca56t51b52a54920a233b@mail.gmail.com>
-	 <86802c440803301833r2229900cw99129515822dc373@mail.gmail.com>
-	 <20080331021224.GB20619@sgi.com>
+In-Reply-To: <86802c440803301913n1cd4fe88v2374a8ba835153e@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: Andi Kleen <andi@firstfloor.org>, mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Yinghai Lu <yhlu.kernel@gmail.com>
+Cc: Andi Kleen <ak@suse.de>, mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Mar 30, 2008 at 7:12 PM, Jack Steiner <steiner@sgi.com> wrote:
-> > >  Did you test it on non UV_X2APIC box?
->  >
->  > anyway the read_apic_id is totally wrong, even for your UV_X2APIC box.
->  > because id=apic_read(APIC_ID) will have apic_id at bits [31,24], and
->  > id |= __get_cpu_var(x2apic_extra_bits) is assuming that is on bits [5,0]
->  >
->  > so you even didn't test in your UV_X2APIC box!
->  >
->
->  It works fine on UV_X2APIX boxes because the double shift does
->  not occur. However, support for UV_X2APIC is dependent on
->  x2apic code that is not yet in the tree. Once the APIC
->  is switched into x2apic mode, the apicid is located in the LOW
->  bits of the apicid register, not the HIGH bits.
+On Sun, Mar 30, 2008 at 07:13:42PM -0700, Yinghai Lu wrote:
+> On Sun, Mar 30, 2008 at 7:06 PM, Jack Steiner <steiner@sgi.com> wrote:
+> > > so this is "the new one of Friday"?
+> >
+> >  Yes, and it has the same bug although it is located
+> >  in a slightly different place.
+> >
+> >  A few minutes ago, I posted a patch to delete the extra lines.
+> >
+> >
+> >
+> >  > Did you test it on non UV_X2APIC box?
+> >
+> >  The code is clearly wrong.  I booted on an 8p AMD box and
+> >  had no problems. Apparently the kernel (at least basic booting) is
+> >  not too sensitive to incorrect apicids being returned. Most
+> >  critical-to-boot code must use apicids from the ACPI tables.
+> >  However, the bug does affect numa node assignment. And probably
+> >  other places, too.
+> 
+> please consider one global get_apic_id() and bad_apicid to replace
+> GET_APIC_ID and BAD_APICID at this point.
 
-oh, so that will need have new version GET_APIC_ID too.
+I think that makes sense.
 
-YH
+The x2apic patch that should be posted in the near future also makes
+significant changes in this area.  Once that patch is posted, I'll
+make the simplifications.
+
+Ok???
+
+--- jack
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
