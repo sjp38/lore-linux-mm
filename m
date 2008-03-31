@@ -1,104 +1,39 @@
-Date: Mon, 31 Mar 2008 13:19:44 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 4/9] Pageflags: Get rid of FLAGS_RESERVED
-In-Reply-To: <20080329150630.21019399.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0803311317060.9698@schroedinger.engr.sgi.com>
-References: <20080318181957.138598511@sgi.com> <20080318182035.197900850@sgi.com>
- <20080328011240.fae44d52.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0803281148110.17920@schroedinger.engr.sgi.com>
- <20080328115919.12c0445b.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0803281159250.18120@schroedinger.engr.sgi.com>
- <20080328122313.aa8d7c8c.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0803291321020.26338@schroedinger.engr.sgi.com>
- <20080329150630.21019399.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 31 Mar 2008 15:04:26 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 1/7] mm: introduce VM_MIXEDMAP
+Message-Id: <20080331150426.20d57ddb.akpm@linux-foundation.org>
+In-Reply-To: <20080328015421.905848000@nick.local0.net>
+References: <20080328015238.519230000@nick.local0.net>
+	<20080328015421.905848000@nick.local0.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: apw@shadowen.org, davem@davemloft.net, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, jeremy@goop.org, linux-mm@kvack.org
+To: npiggin@suse.de
+Cc: torvalds@linux-foundation.org, jaredeh@gmail.com, cotte@de.ibm.com, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 29 Mar 2008, Andrew Morton wrote:
+On Fri, 28 Mar 2008 12:52:39 +1100
+npiggin@suse.de wrote:
 
-> > This is the same process as used in arch/*/asm-offsets.*
-> 
-> Maybe that wasn't the best way of doing it.
+> From: npiggin@suse.de
+> From: Jared Hulbert <jaredeh@gmail.com>
+> To: akpm@linux-foundation.org
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>, Jared Hulbert <jaredeh@gmail.com>, Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org
+> Subject: [patch 1/7] mm: introduce VM_MIXEDMAP
+> Date: 	Fri, 28 Mar 2008 12:52:39 +1100
+> Sender: owner-linux-mm@kvack.org
+> User-Agent: quilt/0.46-14
 
-Is there any alternative? It would be best if we could get the c compiler
-to define a linker symbol with the values that we need without asm. I 
-guess we could somehow stick this into ldlinux.lds.S but that is going to 
-be ugly as well.
+It's unusual to embed the original author's From: line in the headers
+like that - it is usually placed in the message body and this arrangement
+might fool some people's scripts.
 
-I checked and all arches use the same asm to define a symbol except for 
-mips. If we allow an arch to override the way to define a symbol then it 
-also works on mips.
+patch 6/7 was subtly hidden, concatenated to 5/7, but I found it.
 
-
-
-
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Allow override of definition for asm constant
-
-MIPS has a different way of defining asm constants which causes troubles
-for bounds.h generation.
-
-Add a new per arch CONFIG variable
-
-	CONFIG_ASM_SYMBOL_PREFIX
-
-which can be set to define an alternate header for asm constant definitions.
-Use this for MIPS to make bounds determination work right.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
----
- arch/mips/Kconfig |    7 +++++++
- kernel/bounds.c   |   11 ++++++++++-
- 2 files changed, 17 insertions(+), 1 deletion(-)
-
-Index: linux-2.6.25-rc5-mm1/arch/mips/Kconfig
-===================================================================
---- linux-2.6.25-rc5-mm1.orig/arch/mips/Kconfig	2008-03-31 13:14:26.888383587 -0700
-+++ linux-2.6.25-rc5-mm1/arch/mips/Kconfig	2008-03-31 13:14:28.028403612 -0700
-@@ -2019,6 +2019,13 @@ config I8253
- config ZONE_DMA32
- 	bool
- 
-+#
-+# Used to override gas symbol setup in kernel/bounds.c.
-+#
-+config ASM_SYMBOL_PREFIX
-+	string
-+	default "@@@#define "
-+
- source "drivers/pcmcia/Kconfig"
- 
- source "drivers/pci/hotplug/Kconfig"
-Index: linux-2.6.25-rc5-mm1/kernel/bounds.c
-===================================================================
---- linux-2.6.25-rc5-mm1.orig/kernel/bounds.c	2008-03-31 13:14:26.904383870 -0700
-+++ linux-2.6.25-rc5-mm1/kernel/bounds.c	2008-03-31 13:14:28.028403612 -0700
-@@ -9,8 +9,17 @@
- #include <linux/page-flags.h>
- #include <linux/mmzone.h>
- 
-+#ifdef CONFIG_ASM_SYMBOL_PREFIX
-+#define PREFIX CONFIG_ASM_SYMBOL_PREFIX
-+#else
-+/*
-+ * Standard gas way of defining an asm symbol
-+ */
-+#define PREFIX "->"
-+#endif
-+
- #define DEFINE(sym, val) \
--	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
-+	asm volatile("\n" PREFIX #sym " %0 " : : "i" (val))
- 
- #define BLANK() asm volatile("\n->" : :)
- 
- 
+[7/7] needs to be redone please - git-s390 makes functional changes to
+add_shared_memory().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
