@@ -1,46 +1,42 @@
+Received: from zps76.corp.google.com (zps76.corp.google.com [172.25.146.76])
+	by smtp-out.google.com with ESMTP id m3166Eig025953
+	for <linux-mm@kvack.org>; Tue, 1 Apr 2008 07:06:14 +0100
+Received: from py-out-1112.google.com (pyef47.prod.google.com [10.34.157.47])
+	by zps76.corp.google.com with ESMTP id m3166CGR008979
+	for <linux-mm@kvack.org>; Mon, 31 Mar 2008 23:06:13 -0700
+Received: by py-out-1112.google.com with SMTP id f47so2151790pye.8
+        for <linux-mm@kvack.org>; Mon, 31 Mar 2008 23:06:12 -0700 (PDT)
+Message-ID: <6599ad830803312306l59fabaa0o2f62feb0d59b2ce3@mail.gmail.com>
+Date: Mon, 31 Mar 2008 23:06:12 -0700
+From: "Paul Menage" <menage@google.com>
 Subject: Re: [RFC][-mm] Add an owner to the mm_struct (v3)
-In-Reply-To: Your message of "Tue, 01 Apr 2008 11:13:24 +0530"
-	<20080401054324.829.4517.sendpatchset@localhost.localdomain>
+In-Reply-To: <20080401060330.743815A02@siro.lan>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 References: <20080401054324.829.4517.sendpatchset@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20080401060330.743815A02@siro.lan>
-Date: Tue,  1 Apr 2008 15:03:30 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+	 <20080401060330.743815A02@siro.lan>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: menage@google.com, xemul@openvz.org, hugh@veritas.com, skumar@linux.vnet.ibm.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com
+To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+Cc: balbir@linux.vnet.ibm.com, xemul@openvz.org, hugh@veritas.com, skumar@linux.vnet.ibm.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-> This patch removes the mem_cgroup member from mm_struct and instead adds
-> an owner. This approach was suggested by Paul Menage. The advantage of
-> this approach is that, once the mm->owner is known, using the subsystem
-> id, the cgroup can be determined. It also allows several control groups
-> that are virtually grouped by mm_struct, to exist independent of the memory
-> controller i.e., without adding mem_cgroup's for each controller,
-> to mm_struct.
-> 
-> A new config option CONFIG_MM_OWNER is added and the memory resource
-> controller selects this config option.
-> 
-> NOTE: This patch was developed on top of 2.6.25-rc5-mm1 and is applied on top
-> of the memory-controller-move-to-own-slab patch (which is already present
-> in the Andrew's patchset).
-> 
-> I am indebted to Paul Menage for the several reviews of this patchset
-> and helping me make it lighter and simpler.
-> 
-> This patch was tested on a powerpc box, by running a task under the memory
-> resource controller and moving it across groups at a constant interval.
-> 
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
+On Mon, Mar 31, 2008 at 11:03 PM, YAMAMOTO Takashi
+<yamamoto@valinux.co.jp> wrote:
+>
+>  changing mm->owner without notifying controllers makes it difficult to use.
+>  can you provide a notification mechanism?
+>
 
-changing mm->owner without notifying controllers makes it difficult to use.
-can you provide a notification mechanism?
+Yes, I think that call will need to be in the task_lock() critical
+section in which we update mm->owner.
 
-YAMAMOTO Takashi
+Right now I think the only user that needs to be notified at that
+point is Balbir's virtual address limits controller.
+
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
