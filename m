@@ -1,13 +1,13 @@
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 5/9] Convert anon_vma lock to rw_sem and refcount
-Date: Tue, 01 Apr 2008 13:55:36 -0700
-Message-ID: <20080401205636.777127252@sgi.com>
+Subject: [patch 1/9] EMM Notifier: The notifier calls
+Date: Tue, 01 Apr 2008 13:55:32 -0700
+Message-ID: <20080401205635.793766935@sgi.com>
 References: <20080401205531.986291575@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: 7bit
 Return-path: <kvm-devel-bounces@lists.sourceforge.net>
-Content-Disposition: inline; filename=emm_anon_vma_sem
+Content-Disposition: inline; filename=emm_notifier
 List-Unsubscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
 	<mailto:kvm-devel-request@lists.sourceforge.net?subject=unsubscribe>
 List-Archive: <http://sourceforge.net/mailarchive/forum.php?forum_name=kvm-devel>
@@ -21,327 +21,625 @@ To: Hugh Dickins <hugh@veritas.com>
 Cc: steiner@sgi.com, Andrea Arcangeli <andrea@qumranet.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org
 List-Id: linux-mm.kvack.org
 
-Convert the anon_vma spinlock to a rw semaphore. This allows concurrent
-traversal of reverse maps for try_to_unmap and page_mkclean. It also
-allows the calling of sleeping functions from reverse map traversal.
+This patch implements a simple callback for device drivers that establish
+their own references to pages (KVM, GRU, XPmem, RDMA/Infiniband, DMA engines
+etc). These references are unknown to the VM (therefore external).
 
-An additional complication is that rcu is used in some context to guarantee
-the presence of the anon_vma while we acquire the lock. We cannot take a
-semaphore within an rcu critical section. Add a refcount to the anon_vma
-structure which allow us to give an existence guarantee for the anon_vma
-structure independent of the spinlock or the list contents.
+With these callbacks it is possible for the device driver to release external
+references when the VM requests it. This enables swapping, page migration and
+allows support of remapping, permission changes etc etc for externally
+mapped memory.
 
-The refcount can then be taken within the RCU section. If it has been
-taken successfully then the refcount guarantees the existence of the
-anon_vma. The refcount in anon_vma also allows us to fix a nasty
-issue in page migration where we fudged by using rcu for a long code
-path to guarantee the existence of the anon_vma.
+With this functionality it becomes also possible to avoid pinning or mlocking
+pages (commonly done to stop the VM from unmapping device mapped pages).
 
-The refcount in general allows a shortening of RCU critical sections since
-we can do a rcu_unlock after taking the refcount. This is particularly
-relevant if the anon_vma chains contain hundreds of entries.
+A device driver must subscribe to a process using
 
-Issues:
-- Atomic overhead increases in situations where a new reference
-  to the anon_vma has to be established or removed. Overhead also increases
-  when a speculative reference is used (try_to_unmap,
-  page_mkclean, page migration). There is also the more frequent processor
-  change due to up_xxx letting waiting tasks run first.
-  This results in f.e. the Aim9 brk performance test to got down by 10-15%.
+	emm_register_notifier(struct emm_notifier *, struct mm_struct *)
+
+
+The VM will then perform callbacks for operations that unmap or change
+permissions of pages in that address space. When the process terminates
+the callback function is called with emm_release.
+
+Callbacks are performed before and after the unmapping action of the VM.
+
+	emm_invalidate_start	before
+
+	emm_invalidate_end	after
+
+The device driver must hold off establishing new references to pages
+in the range specified between a callback with emm_invalidate_start and
+the subsequent call with emm_invalidate_end set. This allows the VM to
+ensure that no concurrent driver actions are performed on an address
+range while performing remapping or unmapping operations.
+
+Callbacks are mostly performed in a non atomic context. However, in
+various places spinlocks are held to traverse rmaps. So this patch here
+is only useful for those devices that can remove mappings in an atomic
+context (f.e. KVM/GRU).
+
+If the rmap spinlocks are converted to semaphores then all callbacks will
+be performed in a nonatomic context. No additional changes will be necessary
+to this patchset.
+
+V1->V2:
+- page_referenced_one: Do not increment reference count if it is already
+  != 0.
+- Use rcu_assign_pointer and rcu_derefence_pointer instead of putting in our
+  own barriers.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- include/linux/rmap.h |   20 ++++++++++++++++---
- mm/migrate.c         |   26 ++++++++++---------------
- mm/mmap.c            |    4 +--
- mm/rmap.c            |   53 +++++++++++++++++++++++++++++----------------------
- 4 files changed, 61 insertions(+), 42 deletions(-)
+ include/linux/mm_types.h |    3 +
+ include/linux/rmap.h     |   50 +++++++++++++++++++++++++++++
+ kernel/fork.c            |    3 +
+ mm/Kconfig               |    5 ++
+ mm/filemap_xip.c         |    4 ++
+ mm/fremap.c              |    2 +
+ mm/hugetlb.c             |    3 +
+ mm/memory.c              |   42 +++++++++++++++++++-----
+ mm/mmap.c                |    3 +
+ mm/mprotect.c            |    3 +
+ mm/mremap.c              |    4 ++
+ mm/rmap.c                |   80 +++++++++++++++++++++++++++++++++++++++++++++--
+ 12 files changed, 192 insertions(+), 10 deletions(-)
 
-Index: linux-2.6/include/linux/rmap.h
+Index: linux-2.6/include/linux/mm_types.h
 ===================================================================
---- linux-2.6.orig/include/linux/rmap.h	2008-03-25 21:59:40.597918752 -0700
-+++ linux-2.6/include/linux/rmap.h	2008-03-25 22:00:02.909168301 -0700
-@@ -25,7 +25,8 @@
-  * pointing to this anon_vma once its vma list is empty.
-  */
- struct anon_vma {
--	spinlock_t lock;	/* Serialize access to vma list */
-+	atomic_t refcount;	/* vmas on the list */
-+	struct rw_semaphore sem;/* Serialize access to vma list */
- 	struct list_head head;	/* List of private "related" vmas */
+--- linux-2.6.orig/include/linux/mm_types.h	2008-04-01 12:57:14.957042203 -0700
++++ linux-2.6/include/linux/mm_types.h	2008-04-01 12:57:38.957452502 -0700
+@@ -225,6 +225,9 @@ struct mm_struct {
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+ 	struct mem_cgroup *mem_cgroup;
+ #endif
++#ifdef CONFIG_EMM_NOTIFIER
++	struct emm_notifier     *emm_notifier;
++#endif
  };
  
-@@ -43,18 +44,31 @@ static inline void anon_vma_free(struct 
- 	kmem_cache_free(anon_vma_cachep, anon_vma);
- }
- 
-+struct anon_vma *grab_anon_vma(struct page *page);
-+
-+static inline void get_anon_vma(struct anon_vma *anon_vma)
-+{
-+	atomic_inc(&anon_vma->refcount);
-+}
-+
-+static inline void put_anon_vma(struct anon_vma *anon_vma)
-+{
-+	if (atomic_dec_and_test(&anon_vma->refcount))
-+		anon_vma_free(anon_vma);
-+}
-+
- static inline void anon_vma_lock(struct vm_area_struct *vma)
- {
- 	struct anon_vma *anon_vma = vma->anon_vma;
- 	if (anon_vma)
--		spin_lock(&anon_vma->lock);
-+		down_write(&anon_vma->sem);
- }
- 
- static inline void anon_vma_unlock(struct vm_area_struct *vma)
- {
- 	struct anon_vma *anon_vma = vma->anon_vma;
- 	if (anon_vma)
--		spin_unlock(&anon_vma->lock);
-+		up_write(&anon_vma->sem);
- }
- 
- /*
-Index: linux-2.6/mm/migrate.c
+ #endif /* _LINUX_MM_TYPES_H */
+Index: linux-2.6/mm/Kconfig
 ===================================================================
---- linux-2.6.orig/mm/migrate.c	2008-03-25 21:59:57.246668245 -0700
-+++ linux-2.6/mm/migrate.c	2008-03-25 22:00:02.909168301 -0700
-@@ -235,15 +235,16 @@ static void remove_anon_migration_ptes(s
- 		return;
- 
- 	/*
--	 * We hold the mmap_sem lock. So no need to call page_lock_anon_vma.
-+	 * We hold either the mmap_sem lock or a reference on the
-+	 * anon_vma. So no need to call page_lock_anon_vma.
- 	 */
- 	anon_vma = (struct anon_vma *) (mapping - PAGE_MAPPING_ANON);
--	spin_lock(&anon_vma->lock);
-+	down_read(&anon_vma->sem);
- 
- 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
- 		remove_migration_pte(vma, old, new);
- 
--	spin_unlock(&anon_vma->lock);
-+	up_read(&anon_vma->sem);
- }
+--- linux-2.6.orig/mm/Kconfig	2008-04-01 12:56:13.595994316 -0700
++++ linux-2.6/mm/Kconfig	2008-04-01 12:57:38.957452502 -0700
+@@ -193,3 +193,8 @@ config NR_QUICK
+ config VIRT_TO_BUS
+ 	def_bool y
+ 	depends on !ARCH_NO_VIRT_TO_BUS
++
++config EMM_NOTIFIER
++	def_bool n
++	bool "External Mapped Memory Notifier for drivers directly mapping memory"
++
+Index: linux-2.6/include/linux/rmap.h
+===================================================================
+--- linux-2.6.orig/include/linux/rmap.h	2008-04-01 12:57:24.033197213 -0700
++++ linux-2.6/include/linux/rmap.h	2008-04-01 13:02:26.426353593 -0700
+@@ -85,6 +85,56 @@ static inline void page_dup_rmap(struct 
+ #endif
  
  /*
-@@ -623,7 +624,7 @@ static int unmap_and_move(new_page_t get
- 	int rc = 0;
- 	int *result = NULL;
- 	struct page *newpage = get_new_page(page, private, &result);
--	int rcu_locked = 0;
-+	struct anon_vma *anon_vma = NULL;
- 	int charge = 0;
- 
- 	if (!newpage)
-@@ -647,16 +648,14 @@ static int unmap_and_move(new_page_t get
- 	}
- 	/*
- 	 * By try_to_unmap(), page->mapcount goes down to 0 here. In this case,
--	 * we cannot notice that anon_vma is freed while we migrates a page.
-+	 * we cannot notice that anon_vma is freed while we migrate a page.
- 	 * This rcu_read_lock() delays freeing anon_vma pointer until the end
- 	 * of migration. File cache pages are no problem because of page_lock()
- 	 * File Caches may use write_page() or lock_page() in migration, then,
- 	 * just care Anon page here.
- 	 */
--	if (PageAnon(page)) {
--		rcu_read_lock();
--		rcu_locked = 1;
--	}
-+	if (PageAnon(page))
-+		anon_vma = grab_anon_vma(page);
- 
- 	/*
- 	 * Corner case handling:
-@@ -674,10 +673,7 @@ static int unmap_and_move(new_page_t get
- 		if (!PageAnon(page) && PagePrivate(page)) {
- 			/*
- 			 * Go direct to try_to_free_buffers() here because
--			 * a) that's what try_to_release_page() would do anyway
--			 * b) we may be under rcu_read_lock() here, so we can't
--			 *    use GFP_KERNEL which is what try_to_release_page()
--			 *    needs to be effective.
-+			 * that's what try_to_release_page() would do anyway
- 			 */
- 			try_to_free_buffers(page);
- 		}
-@@ -698,8 +694,8 @@ static int unmap_and_move(new_page_t get
- 	} else if (charge)
-  		mem_cgroup_end_migration(newpage);
- rcu_unlock:
--	if (rcu_locked)
--		rcu_read_unlock();
-+	if (anon_vma)
-+		put_anon_vma(anon_vma);
- 
- unlock:
- 
++ * Notifier for devices establishing their own references to Linux
++ * kernel pages in addition to the regular mapping via page
++ * table and rmap. The notifier allows the device to drop the mapping
++ * when the VM removes references to pages.
++ */
++enum emm_operation {
++	emm_release,		/* Process existing, */
++	emm_invalidate_start,	/* Before the VM unmaps pages */
++	emm_invalidate_end,	/* After the VM unmapped pages */
++ 	emm_referenced		/* Check if a range was referenced */
++};
++
++struct emm_notifier {
++	int (*callback)(struct emm_notifier *e, struct mm_struct *mm,
++		enum emm_operation op,
++		unsigned long start, unsigned long end);
++	struct emm_notifier *next;
++};
++
++extern int __emm_notify(struct mm_struct *mm, enum emm_operation op,
++		unsigned long start, unsigned long end);
++
++/*
++ * Callback to the device driver for an externally memory mapped section
++ * of memory.
++ *
++ * start	Address of first byte of the range
++ * end		Address of first byte after range.
++ */
++static inline int emm_notify(struct mm_struct *mm, enum emm_operation op,
++	unsigned long start, unsigned long end)
++{
++#ifdef CONFIG_EMM_NOTIFIER
++	if (unlikely(mm->emm_notifier))
++		return __emm_notify(mm, op, start, end);
++#endif
++	return 0;
++}
++
++/*
++ * Register a notifier with an mm struct. Release occurs when the process
++ * terminates by calling the notifier function with emm_release.
++ *
++ * Must hold the mmap_sem for write.
++ */
++extern void emm_notifier_register(struct emm_notifier *e,
++					struct mm_struct *mm);
++
++
++/*
+  * Called from mm/vmscan.c to handle paging out
+  */
+ int page_referenced(struct page *, int is_locked, struct mem_cgroup *cnt);
 Index: linux-2.6/mm/rmap.c
 ===================================================================
---- linux-2.6.orig/mm/rmap.c	2008-03-25 21:59:57.256667410 -0700
-+++ linux-2.6/mm/rmap.c	2008-03-25 22:00:02.909168301 -0700
-@@ -68,7 +68,7 @@ int anon_vma_prepare(struct vm_area_stru
- 		if (anon_vma) {
- 			allocated = NULL;
- 			locked = anon_vma;
--			spin_lock(&locked->lock);
-+			down_write(&locked->sem);
- 		} else {
- 			anon_vma = anon_vma_alloc();
- 			if (unlikely(!anon_vma))
-@@ -80,6 +80,7 @@ int anon_vma_prepare(struct vm_area_stru
- 		/* page_table_lock to protect against threads */
- 		spin_lock(&mm->page_table_lock);
- 		if (likely(!vma->anon_vma)) {
-+			get_anon_vma(anon_vma);
- 			vma->anon_vma = anon_vma;
- 			list_add_tail(&vma->anon_vma_node, &anon_vma->head);
- 			allocated = NULL;
-@@ -87,7 +88,7 @@ int anon_vma_prepare(struct vm_area_stru
- 		spin_unlock(&mm->page_table_lock);
- 
- 		if (locked)
--			spin_unlock(&locked->lock);
-+			up_write(&locked->sem);
- 		if (unlikely(allocated))
- 			anon_vma_free(allocated);
- 	}
-@@ -98,14 +99,17 @@ void __anon_vma_merge(struct vm_area_str
- {
- 	BUG_ON(vma->anon_vma != next->anon_vma);
- 	list_del(&next->anon_vma_node);
-+	put_anon_vma(vma->anon_vma);
+--- linux-2.6.orig/mm/rmap.c	2008-04-01 12:56:13.603994568 -0700
++++ linux-2.6/mm/rmap.c	2008-04-01 12:57:38.957452502 -0700
+@@ -263,6 +263,67 @@ pte_t *page_check_address(struct page *p
+ 	return NULL;
  }
  
- void __anon_vma_link(struct vm_area_struct *vma)
- {
- 	struct anon_vma *anon_vma = vma->anon_vma;
- 
--	if (anon_vma)
-+	if (anon_vma) {
-+		get_anon_vma(anon_vma);
- 		list_add_tail(&vma->anon_vma_node, &anon_vma->head);
++#ifdef CONFIG_EMM_NOTIFIER
++/*
++ * Notifier for devices establishing their own references to Linux
++ * kernel pages in addition to the regular mapping via page
++ * table and rmap. The notifier allows the device to drop the mapping
++ * when the VM removes references to pages.
++ */
++
++/*
++ * This function is only called when a single process remains that performs
++ * teardown when the last process is exiting.
++ */
++void emm_notifier_release(struct mm_struct *mm)
++{
++	struct emm_notifier *e;
++
++	while (mm->emm_notifier) {
++		e = mm->emm_notifier;
++		mm->emm_notifier = e->next;
++		e->callback(e, mm, emm_release, 0, 0);
 +	}
- }
- 
- void anon_vma_link(struct vm_area_struct *vma)
-@@ -113,36 +117,32 @@ void anon_vma_link(struct vm_area_struct
- 	struct anon_vma *anon_vma = vma->anon_vma;
- 
- 	if (anon_vma) {
--		spin_lock(&anon_vma->lock);
-+		get_anon_vma(anon_vma);
-+		down_write(&anon_vma->sem);
- 		list_add_tail(&vma->anon_vma_node, &anon_vma->head);
--		spin_unlock(&anon_vma->lock);
-+		up_write(&anon_vma->sem);
- 	}
- }
- 
- void anon_vma_unlink(struct vm_area_struct *vma)
- {
- 	struct anon_vma *anon_vma = vma->anon_vma;
--	int empty;
- 
- 	if (!anon_vma)
- 		return;
- 
--	spin_lock(&anon_vma->lock);
-+	down_write(&anon_vma->sem);
- 	list_del(&vma->anon_vma_node);
--
--	/* We must garbage collect the anon_vma if it's empty */
--	empty = list_empty(&anon_vma->head);
--	spin_unlock(&anon_vma->lock);
--
--	if (empty)
--		anon_vma_free(anon_vma);
-+	up_write(&anon_vma->sem);
-+	put_anon_vma(anon_vma);
- }
- 
- static void anon_vma_ctor(struct kmem_cache *cachep, void *data)
- {
- 	struct anon_vma *anon_vma = data;
- 
--	spin_lock_init(&anon_vma->lock);
-+	init_rwsem(&anon_vma->sem);
-+	atomic_set(&anon_vma->refcount, 0);
- 	INIT_LIST_HEAD(&anon_vma->head);
- }
- 
-@@ -156,9 +156,9 @@ void __init anon_vma_init(void)
-  * Getting a lock on a stable anon_vma from a page off the LRU is
-  * tricky: page_lock_anon_vma rely on RCU to guard against the races.
-  */
--static struct anon_vma *page_lock_anon_vma(struct page *page)
-+struct anon_vma *grab_anon_vma(struct page *page)
- {
--	struct anon_vma *anon_vma;
-+	struct anon_vma *anon_vma = NULL;
- 	unsigned long anon_mapping;
- 
- 	rcu_read_lock();
-@@ -169,17 +169,26 @@ static struct anon_vma *page_lock_anon_v
- 		goto out;
- 
- 	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
--	spin_lock(&anon_vma->lock);
--	return anon_vma;
-+	if (!atomic_inc_not_zero(&anon_vma->refcount))
-+		anon_vma = NULL;
- out:
- 	rcu_read_unlock();
--	return NULL;
-+	return anon_vma;
 +}
 +
-+static struct anon_vma *page_lock_anon_vma(struct page *page)
++/* Register a notifier */
++void emm_notifier_register(struct emm_notifier *e, struct mm_struct *mm)
 +{
-+	struct anon_vma *anon_vma = grab_anon_vma(page);
++	e->next = mm->emm_notifier;
++	/*
++	 * The update to emm_notifier (e->next) must be visible
++	 * before the pointer becomes visible.
++	 * rcu_assign_pointer() does exactly what we need.
++	 */
++	rcu_assign_pointer(mm->emm_notifier, e);
++}
++EXPORT_SYMBOL_GPL(emm_notifier_register);
 +
-+	if (anon_vma)
-+		down_read(&anon_vma->sem);
-+	return anon_vma;
++/* Perform a callback */
++int __emm_notify(struct mm_struct *mm, enum emm_operation op,
++		unsigned long start, unsigned long end)
++{
++	struct emm_notifier *e = rcu_dereference(mm)->emm_notifier;
++	int x;
++
++	while (e) {
++
++		if (e->callback) {
++			x = e->callback(e, mm, op, start, end);
++			if (x)
++				return x;
++		}
++		/*
++		 * emm_notifier contents (e) must be fetched after
++		 * the retrival of the pointer to the notifier.
++		 */
++		e = rcu_dereference(e)->next;
++	}
++	return 0;
++}
++EXPORT_SYMBOL_GPL(__emm_notify);
++#endif
++
+ /*
+  * Subfunctions of page_referenced: page_referenced_one called
+  * repeatedly from either page_referenced_anon or page_referenced_file.
+@@ -298,6 +359,10 @@ static int page_referenced_one(struct pa
+ 
+ 	(*mapcount)--;
+ 	pte_unmap_unlock(pte, ptl);
++
++	if (emm_notify(mm, emm_referenced, address, address + PAGE_SIZE)
++							&& !referenced)
++			referenced++;
+ out:
+ 	return referenced;
+ }
+@@ -448,9 +513,10 @@ static int page_mkclean_one(struct page 
+ 	if (address == -EFAULT)
+ 		goto out;
+ 
++	emm_notify(mm, emm_invalidate_start, address, address + PAGE_SIZE);
+ 	pte = page_check_address(page, mm, address, &ptl);
+ 	if (!pte)
+-		goto out;
++		goto out_notifier;
+ 
+ 	if (pte_dirty(*pte) || pte_write(*pte)) {
+ 		pte_t entry;
+@@ -464,6 +530,9 @@ static int page_mkclean_one(struct page 
+ 	}
+ 
+ 	pte_unmap_unlock(pte, ptl);
++
++out_notifier:
++	emm_notify(mm, emm_invalidate_end, address, address + PAGE_SIZE);
+ out:
+ 	return ret;
+ }
+@@ -707,9 +776,10 @@ static int try_to_unmap_one(struct page 
+ 	if (address == -EFAULT)
+ 		goto out;
+ 
++	emm_notify(mm, emm_invalidate_start, address, address + PAGE_SIZE);
+ 	pte = page_check_address(page, mm, address, &ptl);
+ 	if (!pte)
+-		goto out;
++		goto out_notify;
+ 
+ 	/*
+ 	 * If the page is mlock()d, we cannot swap it out.
+@@ -779,6 +849,8 @@ static int try_to_unmap_one(struct page 
+ 
+ out_unmap:
+ 	pte_unmap_unlock(pte, ptl);
++out_notify:
++	emm_notify(mm, emm_invalidate_end, address, address + PAGE_SIZE);
+ out:
+ 	return ret;
+ }
+@@ -817,6 +889,7 @@ static void try_to_unmap_cluster(unsigne
+ 	spinlock_t *ptl;
+ 	struct page *page;
+ 	unsigned long address;
++	unsigned long start;
+ 	unsigned long end;
+ 
+ 	address = (vma->vm_start + cursor) & CLUSTER_MASK;
+@@ -838,6 +911,8 @@ static void try_to_unmap_cluster(unsigne
+ 	if (!pmd_present(*pmd))
+ 		return;
+ 
++	start = address;
++	emm_notify(mm, emm_invalidate_start, start, end);
+ 	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
+ 
+ 	/* Update high watermark before we lower rss */
+@@ -870,6 +945,7 @@ static void try_to_unmap_cluster(unsigne
+ 		(*mapcount)--;
+ 	}
+ 	pte_unmap_unlock(pte - 1, ptl);
++	emm_notify(mm, emm_invalidate_end, start, end);
  }
  
- static void page_unlock_anon_vma(struct anon_vma *anon_vma)
+ static int try_to_unmap_anon(struct page *page, int migration)
+Index: linux-2.6/kernel/fork.c
+===================================================================
+--- linux-2.6.orig/kernel/fork.c	2008-04-01 12:56:13.655995449 -0700
++++ linux-2.6/kernel/fork.c	2008-04-01 12:57:38.961451952 -0700
+@@ -362,6 +362,9 @@ static struct mm_struct * mm_init(struct
+ 
+ 	if (likely(!mm_alloc_pgd(mm))) {
+ 		mm->def_flags = 0;
++#ifdef CONFIG_EMM_NOTIFIER
++		mm->emm_notifier = NULL;
++#endif
+ 		return mm;
+ 	}
+ 
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c	2008-04-01 12:56:13.607994778 -0700
++++ linux-2.6/mm/memory.c	2008-04-01 12:57:38.961451952 -0700
+@@ -596,6 +596,7 @@ int copy_page_range(struct mm_struct *ds
+ 	unsigned long next;
+ 	unsigned long addr = vma->vm_start;
+ 	unsigned long end = vma->vm_end;
++	int ret = 0;
+ 
+ 	/*
+ 	 * Don't copy ptes where a page fault will fill them correctly.
+@@ -605,12 +606,15 @@ int copy_page_range(struct mm_struct *ds
+ 	 */
+ 	if (!(vma->vm_flags & (VM_HUGETLB|VM_NONLINEAR|VM_PFNMAP|VM_INSERTPAGE))) {
+ 		if (!vma->anon_vma)
+-			return 0;
++			goto out;
+ 	}
+ 
+ 	if (is_vm_hugetlb_page(vma))
+ 		return copy_hugetlb_page_range(dst_mm, src_mm, vma);
+ 
++	if (is_cow_mapping(vma->vm_flags))
++		emm_notify(src_mm, emm_invalidate_start, addr, end);
++
+ 	dst_pgd = pgd_offset(dst_mm, addr);
+ 	src_pgd = pgd_offset(src_mm, addr);
+ 	do {
+@@ -618,10 +622,16 @@ int copy_page_range(struct mm_struct *ds
+ 		if (pgd_none_or_clear_bad(src_pgd))
+ 			continue;
+ 		if (copy_pud_range(dst_mm, src_mm, dst_pgd, src_pgd,
+-						vma, addr, next))
+-			return -ENOMEM;
++						vma, addr, next)) {
++			ret = -ENOMEM;
++			break;
++		}
+ 	} while (dst_pgd++, src_pgd++, addr = next, addr != end);
+-	return 0;
++
++	if (is_cow_mapping(vma->vm_flags))
++		emm_notify(src_mm, emm_invalidate_end, addr, end);
++out:
++	return ret;
+ }
+ 
+ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+@@ -894,12 +904,15 @@ unsigned long zap_page_range(struct vm_a
+ 	unsigned long end = address + size;
+ 	unsigned long nr_accounted = 0;
+ 
++	emm_notify(mm, emm_invalidate_start, address, end);
+ 	lru_add_drain();
+ 	tlb = tlb_gather_mmu(mm, 0);
+ 	update_hiwater_rss(mm);
++
+ 	end = unmap_vmas(&tlb, vma, address, end, &nr_accounted, details);
+ 	if (tlb)
+ 		tlb_finish_mmu(tlb, address, end);
++	emm_notify(mm, emm_invalidate_end, address, end);
+ 	return end;
+ }
+ 
+@@ -1340,6 +1353,7 @@ int remap_pfn_range(struct vm_area_struc
+ 	pgd_t *pgd;
+ 	unsigned long next;
+ 	unsigned long end = addr + PAGE_ALIGN(size);
++	unsigned long start = addr;
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	int err;
+ 
+@@ -1372,6 +1386,7 @@ int remap_pfn_range(struct vm_area_struc
+ 	BUG_ON(addr >= end);
+ 	pfn -= addr >> PAGE_SHIFT;
+ 	pgd = pgd_offset(mm, addr);
++	emm_notify(mm, emm_invalidate_start, start, end);
+ 	flush_cache_range(vma, addr, end);
+ 	do {
+ 		next = pgd_addr_end(addr, end);
+@@ -1380,6 +1395,7 @@ int remap_pfn_range(struct vm_area_struc
+ 		if (err)
+ 			break;
+ 	} while (pgd++, addr = next, addr != end);
++	emm_notify(mm, emm_invalidate_end, start, end);
+ 	return err;
+ }
+ EXPORT_SYMBOL(remap_pfn_range);
+@@ -1463,10 +1479,12 @@ int apply_to_page_range(struct mm_struct
  {
--	spin_unlock(&anon_vma->lock);
--	rcu_read_unlock();
-+	up_read(&anon_vma->sem);
-+	put_anon_vma(anon_vma);
+ 	pgd_t *pgd;
+ 	unsigned long next;
++	unsigned long start = addr;
+ 	unsigned long end = addr + size;
+ 	int err;
+ 
+ 	BUG_ON(addr >= end);
++	emm_notify(mm, emm_invalidate_start, start, end);
+ 	pgd = pgd_offset(mm, addr);
+ 	do {
+ 		next = pgd_addr_end(addr, end);
+@@ -1474,6 +1492,7 @@ int apply_to_page_range(struct mm_struct
+ 		if (err)
+ 			break;
+ 	} while (pgd++, addr = next, addr != end);
++	emm_notify(mm, emm_invalidate_end, start, end);
+ 	return err;
+ }
+ EXPORT_SYMBOL_GPL(apply_to_page_range);
+@@ -1614,8 +1633,10 @@ static int do_wp_page(struct mm_struct *
+ 			page_table = pte_offset_map_lock(mm, pmd, address,
+ 							 &ptl);
+ 			page_cache_release(old_page);
+-			if (!pte_same(*page_table, orig_pte))
+-				goto unlock;
++			if (!pte_same(*page_table, orig_pte)) {
++				pte_unmap_unlock(page_table, ptl);
++				goto check_dirty;
++			}
+ 
+ 			page_mkwrite = 1;
+ 		}
+@@ -1631,7 +1652,8 @@ static int do_wp_page(struct mm_struct *
+ 		if (ptep_set_access_flags(vma, address, page_table, entry,1))
+ 			update_mmu_cache(vma, address, entry);
+ 		ret |= VM_FAULT_WRITE;
+-		goto unlock;
++		pte_unmap_unlock(page_table, ptl);
++		goto check_dirty;
+ 	}
+ 
+ 	/*
+@@ -1653,6 +1675,7 @@ gotten:
+ 	if (mem_cgroup_charge(new_page, mm, GFP_KERNEL))
+ 		goto oom_free_new;
+ 
++	emm_notify(mm, emm_invalidate_start, address, address + PAGE_SIZE);
+ 	/*
+ 	 * Re-check the pte - we dropped the lock
+ 	 */
+@@ -1691,8 +1714,11 @@ gotten:
+ 		page_cache_release(new_page);
+ 	if (old_page)
+ 		page_cache_release(old_page);
+-unlock:
++
+ 	pte_unmap_unlock(page_table, ptl);
++	emm_notify(mm, emm_invalidate_end, address, address + PAGE_SIZE);
++
++check_dirty:
+ 	if (dirty_page) {
+ 		if (vma->vm_file)
+ 			file_update_time(vma->vm_file);
+Index: linux-2.6/mm/mmap.c
+===================================================================
+--- linux-2.6.orig/mm/mmap.c	2008-04-01 12:56:13.615994773 -0700
++++ linux-2.6/mm/mmap.c	2008-04-01 12:57:38.961451952 -0700
+@@ -1744,6 +1744,7 @@ static void unmap_region(struct mm_struc
+ 	struct mmu_gather *tlb;
+ 	unsigned long nr_accounted = 0;
+ 
++	emm_notify(mm, emm_invalidate_start, start, end);
+ 	lru_add_drain();
+ 	tlb = tlb_gather_mmu(mm, 0);
+ 	update_hiwater_rss(mm);
+@@ -1752,6 +1753,7 @@ static void unmap_region(struct mm_struc
+ 	free_pgtables(&tlb, vma, prev? prev->vm_end: FIRST_USER_ADDRESS,
+ 				 next? next->vm_start: 0);
+ 	tlb_finish_mmu(tlb, start, end);
++	emm_notify(mm, emm_invalidate_end, start, end);
  }
  
  /*
-Index: linux-2.6/mm/mmap.c
+@@ -2038,6 +2040,7 @@ void exit_mmap(struct mm_struct *mm)
+ 
+ 	/* mm's last user has gone, and its about to be pulled down */
+ 	arch_exit_mmap(mm);
++	emm_notify(mm, emm_release, 0, TASK_SIZE);
+ 
+ 	lru_add_drain();
+ 	flush_cache_mm(mm);
+Index: linux-2.6/mm/mprotect.c
 ===================================================================
---- linux-2.6.orig/mm/mmap.c	2008-03-25 21:59:57.256667410 -0700
-+++ linux-2.6/mm/mmap.c	2008-03-25 22:00:02.909168301 -0700
-@@ -564,7 +564,7 @@ again:			remove_next = 1 + (end > next->
- 	if (vma->anon_vma)
- 		anon_vma = vma->anon_vma;
- 	if (anon_vma) {
--		spin_lock(&anon_vma->lock);
-+		down_write(&anon_vma->sem);
- 		/*
- 		 * Easily overlooked: when mprotect shifts the boundary,
- 		 * make sure the expanding vma has anon_vma set if the
-@@ -618,7 +618,7 @@ again:			remove_next = 1 + (end > next->
+--- linux-2.6.orig/mm/mprotect.c	2008-04-01 12:56:13.619994769 -0700
++++ linux-2.6/mm/mprotect.c	2008-04-01 12:57:38.961451952 -0700
+@@ -21,6 +21,7 @@
+ #include <linux/syscalls.h>
+ #include <linux/swap.h>
+ #include <linux/swapops.h>
++#include <linux/rmap.h>
+ #include <asm/uaccess.h>
+ #include <asm/pgtable.h>
+ #include <asm/cacheflush.h>
+@@ -198,10 +199,12 @@ success:
+ 		dirty_accountable = 1;
  	}
  
- 	if (anon_vma)
--		spin_unlock(&anon_vma->lock);
-+		up_write(&anon_vma->sem);
- 	if (mapping)
- 		up_write(&mapping->i_mmap_sem);
++	emm_notify(mm, emm_invalidate_start, start, end);
+ 	if (is_vm_hugetlb_page(vma))
+ 		hugetlb_change_protection(vma, start, end, vma->vm_page_prot);
+ 	else
+ 		change_protection(vma, start, end, vma->vm_page_prot, dirty_accountable);
++	emm_notify(mm, emm_invalidate_end, start, end);
+ 	vm_stat_account(mm, oldflags, vma->vm_file, -nrpages);
+ 	vm_stat_account(mm, newflags, vma->vm_file, nrpages);
+ 	return 0;
+Index: linux-2.6/mm/mremap.c
+===================================================================
+--- linux-2.6.orig/mm/mremap.c	2008-04-01 12:56:13.627994994 -0700
++++ linux-2.6/mm/mremap.c	2008-04-01 12:57:38.961451952 -0700
+@@ -18,6 +18,7 @@
+ #include <linux/highmem.h>
+ #include <linux/security.h>
+ #include <linux/syscalls.h>
++#include <linux/rmap.h>
  
+ #include <asm/uaccess.h>
+ #include <asm/cacheflush.h>
+@@ -74,7 +75,9 @@ static void move_ptes(struct vm_area_str
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	pte_t *old_pte, *new_pte, pte;
+ 	spinlock_t *old_ptl, *new_ptl;
++	unsigned long old_start = old_addr;
+ 
++	emm_notify(mm, emm_invalidate_start, old_start, old_end);
+ 	if (vma->vm_file) {
+ 		/*
+ 		 * Subtle point from Rajesh Venkatasubramanian: before
+@@ -116,6 +119,7 @@ static void move_ptes(struct vm_area_str
+ 	pte_unmap_unlock(old_pte - 1, old_ptl);
+ 	if (mapping)
+ 		spin_unlock(&mapping->i_mmap_lock);
++	emm_notify(mm, emm_invalidate_end, old_start, old_end);
+ }
+ 
+ #define LATENCY_LIMIT	(64 * PAGE_SIZE)
+Index: linux-2.6/mm/filemap_xip.c
+===================================================================
+--- linux-2.6.orig/mm/filemap_xip.c	2008-04-01 12:56:13.631995051 -0700
++++ linux-2.6/mm/filemap_xip.c	2008-04-01 12:57:38.961451952 -0700
+@@ -190,6 +190,8 @@ __xip_unmap (struct address_space * mapp
+ 		address = vma->vm_start +
+ 			((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
+ 		BUG_ON(address < vma->vm_start || address >= vma->vm_end);
++		emm_notify(mm, emm_invalidate_start,
++					address, address + PAGE_SIZE);
+ 		pte = page_check_address(page, mm, address, &ptl);
+ 		if (pte) {
+ 			/* Nuke the page table entry. */
+@@ -201,6 +203,8 @@ __xip_unmap (struct address_space * mapp
+ 			pte_unmap_unlock(pte, ptl);
+ 			page_cache_release(page);
+ 		}
++		emm_notify(mm, emm_invalidate_end,
++					address, address + PAGE_SIZE);
+ 	}
+ 	spin_unlock(&mapping->i_mmap_lock);
+ }
+Index: linux-2.6/mm/fremap.c
+===================================================================
+--- linux-2.6.orig/mm/fremap.c	2008-04-01 12:56:13.639995208 -0700
++++ linux-2.6/mm/fremap.c	2008-04-01 12:57:38.961451952 -0700
+@@ -214,7 +214,9 @@ asmlinkage long sys_remap_file_pages(uns
+ 		spin_unlock(&mapping->i_mmap_lock);
+ 	}
+ 
++	emm_notify(mm, emm_invalidate_start, start, end);
+ 	err = populate_range(mm, vma, start, size, pgoff);
++	emm_notify(mm, emm_invalidate_end, start, end);
+ 	if (!err && !(flags & MAP_NONBLOCK)) {
+ 		if (unlikely(has_write_lock)) {
+ 			downgrade_write(&mm->mmap_sem);
+Index: linux-2.6/mm/hugetlb.c
+===================================================================
+--- linux-2.6.orig/mm/hugetlb.c	2008-04-01 12:56:13.647995311 -0700
++++ linux-2.6/mm/hugetlb.c	2008-04-01 12:57:38.961451952 -0700
+@@ -14,6 +14,7 @@
+ #include <linux/mempolicy.h>
+ #include <linux/cpuset.h>
+ #include <linux/mutex.h>
++#include <linux/rmap.h>
+ 
+ #include <asm/page.h>
+ #include <asm/pgtable.h>
+@@ -799,6 +800,7 @@ void __unmap_hugepage_range(struct vm_ar
+ 	BUG_ON(start & ~HPAGE_MASK);
+ 	BUG_ON(end & ~HPAGE_MASK);
+ 
++	emm_notify(mm, emm_invalidate_start, start, end);
+ 	spin_lock(&mm->page_table_lock);
+ 	for (address = start; address < end; address += HPAGE_SIZE) {
+ 		ptep = huge_pte_offset(mm, address);
+@@ -819,6 +821,7 @@ void __unmap_hugepage_range(struct vm_ar
+ 	}
+ 	spin_unlock(&mm->page_table_lock);
+ 	flush_tlb_range(vma, start, end);
++	emm_notify(mm, emm_invalidate_end, start, end);
+ 	list_for_each_entry_safe(page, tmp, &page_list, lru) {
+ 		list_del(&page->lru);
+ 		put_page(page);
 
 -- 
 
