@@ -1,73 +1,85 @@
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] hugetlb: vmstat events for huge page allocations
-Date: Tue, 1 Apr 2008 13:52:04 -0700
-Message-ID: <20080401135204.d3aff907.akpm@linux-foundation.org>
-References: <1206978548.8042.7.camel@grover.beaverton.ibm.com>
+From: "Tom May" <tom@tommay.com>
+Subject: Re: [PATCH 0/8][for -mm] mem_notify v6
+Date: Tue, 1 Apr 2008 16:35:06 -0700
+Message-ID: <ab3f9b940804011635g2de833d0l44558f78a1cce1e5@mail.gmail.com>
+References: <2f11576a0802090719i3c08a41aj38504e854edbfeac@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1761919AbYDAVFL@vger.kernel.org>
-In-Reply-To: <1206978548.8042.7.camel@grover.beaverton.ibm.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: ebmunson@us.ibm.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, agl@us.ibm.com
+Content-Type: text/plain; charset=WINDOWS-1252
+Content-Transfer-Encoding: QUOTED-PRINTABLE
+Return-path: <linux-fsdevel-owner@vger.kernel.org>
+In-Reply-To: <2f11576a0802090719i3c08a41aj38504e854edbfeac@mail.gmail.com>
+Content-Disposition: inline
+Sender: linux-fsdevel-owner@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org
 List-Id: linux-mm.kvack.org
 
-On Mon, 31 Mar 2008 23:49:08 +0800
-Eric B Munson <ebmunson@us.ibm.com> wrote:
+On Sat, Feb 9, 2008 at 8:19 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> Hi
+>
+>  The /dev/mem_notify is low memory notification device.
+>  it can avoid swappness and oom by cooperationg with the user process=
+=2E
+>
+>  the Linux Today article is very nice description. (great works by Ja=
+ke Edge)
+>  http://www.linuxworld.com/news/2008/020508-kernel.html
+>
+>  <quoted>
+>  When memory gets tight, it is quite possible that applications have =
+memory
+>  allocated=97often caches for better performance=97that they could fr=
+ee.
+>  After all, it is generally better to lose some performance than to f=
+ace the
+>  consequences of being chosen by the OOM killer.
+>  But, currently, there is no way for a process to know that the kerne=
+l is
+>  feeling memory pressure.
+>  The patch provides a way for interested programs to monitor the /dev=
+/mem_notify
+>   file to be notified if memory starts to run low.
+>  </quoted>
+>
+>
+>  You need not be annoyed by OOM any longer :)
+>  please any comments!
 
-> --- a/include/linux/vmstat.h
-> +++ b/include/linux/vmstat.h
-> @@ -25,6 +25,12 @@
->  #define HIGHMEM_ZONE(xx)
->  #endif
->  
-> +#ifdef CONFIG_HUGETLB_PAGE
-> +#define HTLB_STATS	HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
-> +#else
-> +#define HTLB_STATS
-> +#endif
-> +
->  #define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) xx##_NORMAL HIGHMEM_ZONE(xx) , xx##_MOVABLE
->  
->  enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
-> @@ -36,7 +42,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
->  		FOR_ALL_ZONES(PGSCAN_KSWAPD),
->  		FOR_ALL_ZONES(PGSCAN_DIRECT),
->  		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
-> -		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-> +		PAGEOUTRUN, ALLOCSTALL, PGROTATED, HTLB_STATS
->  		NR_VM_EVENT_ITEMS
->  };
+Thanks for this patch set!  I ported it to 2.6.23.9 and tried it, on a
+system with no swap since I'm evaluating this for an embedded system.
+In practice, the criterion it uses for notifications wasn't sufficient =
+to avoid
+memory problems, including OOM, in a cyclic allocate/notify/free
+sequence which is probably typical.
 
-The requirement that HTLB_STATS not have a comma after it is just a bit too
-weird, methinks.
+I tried it with a real-world program that, among other things, mmaps
+anonymous pages and touches them at a reasonable speed until it gets
+notified via /dev/mem_notify, releases most of them with
+madvise(MADV_DONTNEED), then loops to start the cycle again.
 
-I did this:
+What tends to happen is that I do indeed get notifications via
+/dev/mem_notify when the kernel would like to be swapping, at which
+point I free memory.  But the notifications come at a time when the
+kernel needs memory, and it gets the memory by discarding some Cached
+or Mapped memory (I can see these decreasing in /proc/meminfo with
+each notification).  With each mmap/notify/madvise cycle the Cached
+and Mapped memory gets smaller, until eventually while I'm touching
+pages the kernel can't find enough memory and will either invoke the
+OOM killer or return ENOMEM from syscalls.  This is precisely the
+situation I'm trying to avoid by using /dev/mem_notify.
 
---- a/include/linux/vmstat.h
-+++ a/include/linux/vmstat.h
-@@ -25,11 +25,6 @@
- #define HIGHMEM_ZONE(xx)
- #endif
- 
--#ifdef CONFIG_HUGETLB_PAGE
--#define HTLB_STATS	HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
--#else
--#define HTLB_STATS
--#endif
- 
- #define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) xx##_NORMAL HIGHMEM_ZONE(xx) , xx##_MOVABLE
- 
-@@ -42,7 +37,10 @@ enum vm_event_item { PGPGIN, PGPGOUT, PS
- 		FOR_ALL_ZONES(PGSCAN_KSWAPD),
- 		FOR_ALL_ZONES(PGSCAN_DIRECT),
- 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
--		PAGEOUTRUN, ALLOCSTALL, PGROTATED, HTLB_STATS
-+		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-+#ifdef CONFIG_HUGETLB_PAGE
-+		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
-+#endif
- 		NR_VM_EVENT_ITEMS
- };
- 
+The criterion of "notify when the kernel would like to swap" feels
+correct, but in addition I seem to need something like "notify when
+cached+mapped+free memory is getting low".
+
+I'll need to be looking into doing this, so any comments or ideas are
+welcome.
+
+Thanks,
+=2Etom
+--
+To unsubscribe from this list: send the line "unsubscribe linux-fsdevel=
+" in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
