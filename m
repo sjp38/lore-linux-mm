@@ -1,9 +1,9 @@
 From: Johannes Weiner <hannes@saeurebad.de>
-Subject: [RFC 06/22] cris: Use generic show_mem()
-Date: Wed,  2 Apr 2008 22:40:12 +0200
-Message-ID: <12071688953584-git-send-email-hannes@saeurebad.de>
+Subject: [RFC 07/22] frv: Use generic show_mem()
+Date: Wed,  2 Apr 2008 22:40:13 +0200
+Message-ID: <12071689072627-git-send-email-hannes@saeurebad.de>
 References: <12071688283927-git-send-email-hannes@saeurebad.de>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1757530AbYDBVoM@vger.kernel.org>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1763086AbYDBVoj@vger.kernel.org>
 In-Reply-To: <12071688283927-git-send-email-hannes@saeurebad.de>
 Sender: linux-kernel-owner@vger.kernel.org
 To: linux-kernel@vger.kernel.org
@@ -13,61 +13,61 @@ List-Id: linux-mm.kvack.org
 
 Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
 
-diff --git a/arch/cris/Kconfig b/arch/cris/Kconfig
-index 217c658..9389d38 100644
---- a/arch/cris/Kconfig
-+++ b/arch/cris/Kconfig
-@@ -108,9 +108,6 @@ config OOM_REBOOT
- 
- source "kernel/Kconfig.preempt"
+diff --git a/arch/frv/Kconfig b/arch/frv/Kconfig
+index c1a5aac..a5aac1b 100644
+--- a/arch/frv/Kconfig
++++ b/arch/frv/Kconfig
+@@ -107,9 +107,6 @@ config HIGHPTE
+ 	  with a lot of RAM, this can be wasteful of precious low memory.
+ 	  Setting this option will put user-space page tables in high memory.
  
 -config HAVE_ARCH_SHOW_MEM
 -	def_bool y
 -
- source mm/Kconfig
+ source "mm/Kconfig"
  
- endmenu
-diff --git a/arch/cris/mm/init.c b/arch/cris/mm/init.c
-index 4207a2b..2fdd212 100644
---- a/arch/cris/mm/init.c
-+++ b/arch/cris/mm/init.c
-@@ -19,37 +19,6 @@ unsigned long empty_zero_page;
- extern char _stext, _edata, _etext; /* From linkerscript */
- extern char __init_begin, __init_end;
+ choice
+diff --git a/arch/frv/mm/init.c b/arch/frv/mm/init.c
+index b841ecf..f7a16d3 100644
+--- a/arch/frv/mm/init.c
++++ b/arch/frv/mm/init.c
+@@ -60,37 +60,6 @@ unsigned long empty_zero_page;
  
--void 
--show_mem(void)
+ /*****************************************************************************/
+ /*
+- *
+- */
+-void show_mem(void)
 -{
--	int i,free = 0,total = 0,cached = 0, reserved = 0, nonshared = 0;
--	int shared = 0;
+-	unsigned long i;
+-	int free = 0, total = 0, reserved = 0, shared = 0;
 -
 -	printk("\nMem-info:\n");
 -	show_free_areas();
--	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 -	i = max_mapnr;
 -	while (i-- > 0) {
+-		struct page *page = &mem_map[i];
+-
 -		total++;
--		if (PageReserved(mem_map+i))
+-		if (PageReserved(page))
 -			reserved++;
--		else if (PageSwapCache(mem_map+i))
--			cached++;
--		else if (!page_count(mem_map+i))
+-		else if (!page_count(page))
 -			free++;
--		else if (page_count(mem_map+i) == 1)
--			nonshared++;
 -		else
--			shared += page_count(mem_map+i) - 1;
+-			shared += page_count(page) - 1;
 -	}
+-
 -	printk("%d pages of RAM\n",total);
 -	printk("%d free pages\n",free);
 -	printk("%d reserved pages\n",reserved);
--	printk("%d pages nonshared\n",nonshared);
 -	printk("%d pages shared\n",shared);
--	printk("%d pages swap cached\n",cached);
--}
 -
- void __init
- mem_init(void)
- {
+-} /* end show_mem() */
+-
+-/*****************************************************************************/
+-/*
+  * paging_init() continues the virtual memory environment setup which
+  * was begun by the code in arch/head.S.
+  * The parameters are pointers to where to stick the starting and ending
 -- 
 1.5.2.2
