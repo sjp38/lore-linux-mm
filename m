@@ -1,120 +1,78 @@
-From: Johannes Weiner <hannes@saeurebad.de>
-Subject: [RFC 22/22] alpha: Use generic show_mem()
-Date: Wed,  2 Apr 2008 22:40:28 +0200
-Message-ID: <12071690771658-git-send-email-hannes@saeurebad.de>
-References: <12071688283927-git-send-email-hannes@saeurebad.de>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1764978AbYDBVwh@vger.kernel.org>
-In-Reply-To: <12071688283927-git-send-email-hannes@saeurebad.de>
-Sender: linux-kernel-owner@vger.kernel.org
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, mingo@elte.hu, davem@davemloft.net, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, dhowells@redhat.com, ysato@users.sf.net, takata@linux-m32r.org, geert@linux-m68k.org, ralf@linux-mips.org, kyle@parisc-linux.org, paulus@samba.org, schwidefsky@de.ibm.com, lethal@linux-sh.org, jdike@addtoit.com, miles@gnu.org, chris@zankel.net, rmk@arm.linux.org.uk, tony.luck@intel.com
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: [ofa-general] Re: [patch 1/9] EMM Notifier: The notifier calls
+Date: Wed, 2 Apr 2008 23:53:34 +0200
+Message-ID: <20080402215334.GT19189@duo.random>
+References: <20080401205531.986291575@sgi.com>
+	<20080401205635.793766935@sgi.com>
+	<20080402064952.GF19189@duo.random>
+	<Pine.LNX.4.64.0804021048460.27214@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Return-path: <general-bounces@lists.openfabrics.org>
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0804021048460.27214@schroedinger.engr.sgi.com>
+List-Unsubscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
+	<mailto:general-request@lists.openfabrics.org?subject=unsubscribe>
+List-Archive: <http://lists.openfabrics.org/pipermail/general>
+List-Post: <mailto:general@lists.openfabrics.org>
+List-Help: <mailto:general-request@lists.openfabrics.org?subject=help>
+List-Subscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
+	<mailto:general-request@lists.openfabrics.org?subject=subscribe>
+Sender: general-bounces@lists.openfabrics.org
+Errors-To: general-bounces@lists.openfabrics.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <npiggin@suse.de>, steiner@sgi.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Izik Eidus <izike@qumranet.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
 List-Id: linux-mm.kvack.org
 
+On Wed, Apr 02, 2008 at 10:59:50AM -0700, Christoph Lameter wrote:
+> Did I see #v10? Could you start a new subject when you post please? Do 
+> not respond to some old message otherwise the threading will be wrong.
 
-Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
+I wasn't clear enough, #v10 was in the works... I was thinking about
+the last two issues before posting it.
 
-diff --git a/arch/alpha/Kconfig b/arch/alpha/Kconfig
-index efffa92..c91629f 100644
---- a/arch/alpha/Kconfig
-+++ b/arch/alpha/Kconfig
-@@ -598,9 +598,6 @@ config ALPHA_LARGE_VMALLOC
- 
- 	  Say N unless you know you need gobs and gobs of vmalloc space.
- 
--config HAVE_ARCH_SHOW_MEM
--	def_bool y
--
- config VERBOSE_MCHECK
- 	bool "Verbose Machine Checks"
- 
-@@ -679,4 +676,3 @@ source "security/Kconfig"
- source "crypto/Kconfig"
- 
- source "lib/Kconfig"
--
-diff --git a/arch/alpha/mm/init.c b/arch/alpha/mm/init.c
-index 40c15e7..234e42b 100644
---- a/arch/alpha/mm/init.c
-+++ b/arch/alpha/mm/init.c
-@@ -94,36 +94,6 @@ __bad_page(void)
- 	return pte_mkdirty(mk_pte(virt_to_page(EMPTY_PGE), PAGE_SHARED));
- }
- 
--#ifndef CONFIG_DISCONTIGMEM
--void
--show_mem(void)
--{
--	long i,free = 0,total = 0,reserved = 0;
--	long shared = 0, cached = 0;
--
--	printk("\nMem-info:\n");
--	show_free_areas();
--	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
--	i = max_mapnr;
--	while (i-- > 0) {
--		total++;
--		if (PageReserved(mem_map+i))
--			reserved++;
--		else if (PageSwapCache(mem_map+i))
--			cached++;
--		else if (!page_count(mem_map+i))
--			free++;
--		else
--			shared += page_count(mem_map + i) - 1;
--	}
--	printk("%ld pages of RAM\n",total);
--	printk("%ld free pages\n",free);
--	printk("%ld reserved pages\n",reserved);
--	printk("%ld pages shared\n",shared);
--	printk("%ld pages swap cached\n",cached);
--}
--#endif
--
- static inline unsigned long
- load_PCB(struct pcb_struct *pcb)
- {
-diff --git a/arch/alpha/mm/numa.c b/arch/alpha/mm/numa.c
-index 10ab783..a460645 100644
---- a/arch/alpha/mm/numa.c
-+++ b/arch/alpha/mm/numa.c
-@@ -359,38 +359,3 @@ void __init mem_init(void)
- 	mem_stress();
- #endif
- }
--
--void
--show_mem(void)
--{
--	long i,free = 0,total = 0,reserved = 0;
--	long shared = 0, cached = 0;
--	int nid;
--
--	printk("\nMem-info:\n");
--	show_free_areas();
--	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
--	for_each_online_node(nid) {
--		unsigned long flags;
--		pgdat_resize_lock(NODE_DATA(nid), &flags);
--		i = node_spanned_pages(nid);
--		while (i-- > 0) {
--			struct page *page = nid_page_nr(nid, i);
--			total++;
--			if (PageReserved(page))
--				reserved++;
--			else if (PageSwapCache(page))
--				cached++;
--			else if (!page_count(page))
--				free++;
--			else
--				shared += page_count(page) - 1;
--		}
--		pgdat_resize_unlock(NODE_DATA(nid), &flags);
--	}
--	printk("%ld pages of RAM\n",total);
--	printk("%ld free pages\n",free);
--	printk("%ld reserved pages\n",reserved);
--	printk("%ld pages shared\n",shared);
--	printk("%ld pages swap cached\n",cached);
--}
--- 
-1.5.2.2
+> How exactly does the GRU corrupt memory?
+
+Jack added synchronize_rcu, I assume for a reason.
+
+>  
+> >    Another less obviously safe approach is to allow the register
+> >    method to succeed only when mm_users=1 and the task is single
+> >    threaded. This way if all the places where the mmu notifers aren't
+> >    invoked on the mm not by the current task, are only doing
+> >    invalidates after/before zapping ptes, if the istantiation of new
+> >    ptes is single threaded too, we shouldn't worry if we miss an
+> >    invalidate for a pte that is zero and doesn't point to any physical
+> >    page. In the places where current->mm != mm I'm using
+> >    invalidate_page 99% of the time, and that only follows the
+> >    ptep_clear_flush. The problem are the range_begin that will happen
+> >    before zapping the pte in places where current->mm !=
+> >    mm. Unfortunately in my incremental patch where I move all
+> >    invalidate_page outside of the PT lock to prepare for allowing
+> >    sleeping inside the mmu notifiers, I used range_begin/end in places
+> >    like try_to_unmap_cluster where current->mm != mm. In general
+> >    this solution looks more fragile than the seqlock.
+> 
+> Hmmm... Okay that is one solution that would just require a BUG_ON in the 
+> registration methods.
+
+Perhaps you didn't notice that this solution can't work if you call
+range_begin/end not in the "current" context and try_to_unmap_cluster
+does exactly that for both my patchset and yours. Missing an _end is
+ok, missing a _begin is never ok.
+
+> Well doesnt the requirement of just one execution thread also deal with 
+> that issue?
+
+Yes, except again it can't work for try_to_unmap_cluster.
+
+This solution is only applicable to #v10 if I fix try_to_unmap_cluster
+to only call invalidate_page (relaying on the fact the VM holds a pin
+and a lock on any page that is being mmu-notifier-invalidated).
+
+You can't use the single threaded approach to solve either 1 or 2,
+because your _begin call is called anywhere and that's where you call
+the secondary-tlb flush and it's fatal to miss it.
+
+invalidate_page is called always after, so it enforced the tlb flush
+to be called _after_ and so it's inherently safe.
