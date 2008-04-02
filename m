@@ -1,52 +1,141 @@
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: [ofa-general] Re: EMM: Fixup return value handling of emm_notify()
-Date: Wed, 2 Apr 2008 23:25:15 +0200
-Message-ID: <20080402212515.GS19189@duo.random>
-References: <20080401205531.986291575@sgi.com>
-	<20080401205635.793766935@sgi.com>
-	<20080402064952.GF19189@duo.random>
-	<Pine.LNX.4.64.0804021048460.27214@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0804021202450.28436@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <general-bounces@lists.openfabrics.org>
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0804021202450.28436@schroedinger.engr.sgi.com>
-List-Unsubscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
-	<mailto:general-request@lists.openfabrics.org?subject=unsubscribe>
-List-Archive: <http://lists.openfabrics.org/pipermail/general>
-List-Post: <mailto:general@lists.openfabrics.org>
-List-Help: <mailto:general-request@lists.openfabrics.org?subject=help>
-List-Subscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
-	<mailto:general-request@lists.openfabrics.org?subject=subscribe>
-Sender: general-bounces@lists.openfabrics.org
-Errors-To: general-bounces@lists.openfabrics.org
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <npiggin@suse.de>, steiner@sgi.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Izik Eidus <izike@qumranet.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
+From: Johannes Weiner <hannes@saeurebad.de>
+Subject: [RFC 02/22] x86: Use generic show_mem()
+Date: Wed,  2 Apr 2008 22:29:54 +0200
+Message-ID: <12071682182232-git-send-email-hannes@saeurebad.de>
+References: <12071682142640-git-send-email-hannes@saeurebad.de>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1760607AbYDBVcO@vger.kernel.org>
+In-Reply-To: <12071682142640-git-send-email-hannes@saeurebad.de>
+Sender: linux-kernel-owner@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, mingo@elte.hu, davem@davemloft.net, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, dhowells@redhat.com, ysato@users.sf.net, takata@linux-m32r.org, geert@linux-m68k.org, ralf@linux-mips.org, kyle@parisc-linux.org, paulus@samba.org, schwidefsky@de.ibm.com, lethal@linux-sh.org, jdike@addtoit.com, miles@gnu.org, chris@zankel.net, rmk@arm.linux.org.uk, tony.luck@intel.com
 List-Id: linux-mm.kvack.org
 
-On Wed, Apr 02, 2008 at 12:03:50PM -0700, Christoph Lameter wrote:
-> +			/*
-> +			 * Callback may return a positive value to indicate a count
-> +			 * or a negative error code. We keep the first error code
-> +			 * but continue to perform callbacks to other subscribed
-> +			 * subsystems.
-> +			 */
-> +			if (x && result >= 0) {
-> +				if (x >= 0)
-> +					result += x;
-> +				else
-> +					result = x;
-> +			}
->  		}
-> +
 
-Now think of when one of the kernel janitors will micro-optimize
-PG_dirty to be returned by invalidate_page so a single set_page_dirty
-will be invoked... Keep in mind this is a kernel internal APIs, ask
-Greg if we can change it in order to optimize later in the future. I
-think my #v9 is optimal enough while being simple at the same time,
-but anyway it's silly to be hardwired to such an interface that worst
-of all requires switch statements instead of proper pointer to
-functions and a fixed set of parameters and retval semantics for all
-methods.
+Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
+
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 47bb585..6c70fed 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -939,9 +939,6 @@ config ARCH_MEMORY_PROBE
+ 	def_bool X86_64
+ 	depends on MEMORY_HOTPLUG
+ 
+-config HAVE_ARCH_SHOW_MEM
+-	def_bool y
+-
+ source "mm/Kconfig"
+ 
+ config HIGHPTE
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index a02a14f..82f3b6d 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -60,46 +60,6 @@ DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
+  * around without checking the pgd every time.
+  */
+ 
+-void show_mem(void)
+-{
+-	long i, total = 0, reserved = 0;
+-	long shared = 0, cached = 0;
+-	struct page *page;
+-	pg_data_t *pgdat;
+-
+-	printk(KERN_INFO "Mem-info:\n");
+-	show_free_areas();
+-	printk(KERN_INFO "Free swap:       %6ldkB\n",
+-		nr_swap_pages << (PAGE_SHIFT-10));
+-
+-	for_each_online_pgdat(pgdat) {
+-		for (i = 0; i < pgdat->node_spanned_pages; ++i) {
+-			/*
+-			 * This loop can take a while with 256 GB and
+-			 * 4k pages so defer the NMI watchdog:
+-			 */
+-			if (unlikely(i % MAX_ORDER_NR_PAGES == 0))
+-				touch_nmi_watchdog();
+-
+-			if (!pfn_valid(pgdat->node_start_pfn + i))
+-				continue;
+-
+-			page = pfn_to_page(pgdat->node_start_pfn + i);
+-			total++;
+-			if (PageReserved(page))
+-				reserved++;
+-			else if (PageSwapCache(page))
+-				cached++;
+-			else if (page_count(page))
+-				shared += page_count(page) - 1;
+-		}
+-	}
+-	printk(KERN_INFO "%lu pages of RAM\n",		total);
+-	printk(KERN_INFO "%lu reserved pages\n",	reserved);
+-	printk(KERN_INFO "%lu pages shared\n",		shared);
+-	printk(KERN_INFO "%lu pages swap cached\n",	cached);
+-}
+-
+ int after_bootmem;
+ 
+ static __init void *spp_getpage(void)
+diff --git a/arch/x86/mm/pgtable_32.c b/arch/x86/mm/pgtable_32.c
+index 2f9e9af..ead7015 100644
+--- a/arch/x86/mm/pgtable_32.c
++++ b/arch/x86/mm/pgtable_32.c
+@@ -24,54 +24,6 @@
+ #include <asm/tlb.h>
+ #include <asm/tlbflush.h>
+ 
+-void show_mem(void)
+-{
+-	int total = 0, reserved = 0;
+-	int shared = 0, cached = 0;
+-	int highmem = 0;
+-	struct page *page;
+-	pg_data_t *pgdat;
+-	unsigned long i;
+-	unsigned long flags;
+-
+-	printk(KERN_INFO "Mem-info:\n");
+-	show_free_areas();
+-	printk(KERN_INFO "Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
+-	for_each_online_pgdat(pgdat) {
+-		pgdat_resize_lock(pgdat, &flags);
+-		for (i = 0; i < pgdat->node_spanned_pages; ++i) {
+-			if (unlikely(i % MAX_ORDER_NR_PAGES == 0))
+-				touch_nmi_watchdog();
+-			page = pgdat_page_nr(pgdat, i);
+-			total++;
+-			if (PageHighMem(page))
+-				highmem++;
+-			if (PageReserved(page))
+-				reserved++;
+-			else if (PageSwapCache(page))
+-				cached++;
+-			else if (page_count(page))
+-				shared += page_count(page) - 1;
+-		}
+-		pgdat_resize_unlock(pgdat, &flags);
+-	}
+-	printk(KERN_INFO "%d pages of RAM\n", total);
+-	printk(KERN_INFO "%d pages of HIGHMEM\n", highmem);
+-	printk(KERN_INFO "%d reserved pages\n", reserved);
+-	printk(KERN_INFO "%d pages shared\n", shared);
+-	printk(KERN_INFO "%d pages swap cached\n", cached);
+-
+-	printk(KERN_INFO "%lu pages dirty\n", global_page_state(NR_FILE_DIRTY));
+-	printk(KERN_INFO "%lu pages writeback\n",
+-					global_page_state(NR_WRITEBACK));
+-	printk(KERN_INFO "%lu pages mapped\n", global_page_state(NR_FILE_MAPPED));
+-	printk(KERN_INFO "%lu pages slab\n",
+-		global_page_state(NR_SLAB_RECLAIMABLE) +
+-		global_page_state(NR_SLAB_UNRECLAIMABLE));
+-	printk(KERN_INFO "%lu pages pagetables\n",
+-					global_page_state(NR_PAGETABLE));
+-}
+-
+ /*
+  * Associate a virtual page frame with a given physical page frame 
+  * and protection flags for that frame.
+-- 
+1.5.2.2
