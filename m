@@ -1,9 +1,9 @@
 From: Johannes Weiner <hannes@saeurebad.de>
-Subject: [RFC 14/22] parisc: Use generic show_mem()
-Date: Wed,  2 Apr 2008 22:40:20 +0200
-Message-ID: <12071689863221-git-send-email-hannes@saeurebad.de>
+Subject: [RFC 13/22] mn10300: Use generic show_mem()
+Date: Wed,  2 Apr 2008 22:40:19 +0200
+Message-ID: <1207168975499-git-send-email-hannes@saeurebad.de>
 References: <12071688283927-git-send-email-hannes@saeurebad.de>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1763936AbYDBVrj@vger.kernel.org>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1763791AbYDBVrL@vger.kernel.org>
 In-Reply-To: <12071688283927-git-send-email-hannes@saeurebad.de>
 Sender: linux-kernel-owner@vger.kernel.org
 To: linux-kernel@vger.kernel.org
@@ -13,102 +13,57 @@ List-Id: linux-mm.kvack.org
 
 Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
 
-diff --git a/arch/parisc/Kconfig b/arch/parisc/Kconfig
-index 9ec4fcd..bc7a19d 100644
---- a/arch/parisc/Kconfig
-+++ b/arch/parisc/Kconfig
-@@ -240,9 +240,6 @@ config NODES_SHIFT
- 	default "3"
- 	depends on NEED_MULTIPLE_NODES
+diff --git a/arch/mn10300/Kconfig b/arch/mn10300/Kconfig
+index a20b8f6..6a6409a 100644
+--- a/arch/mn10300/Kconfig
++++ b/arch/mn10300/Kconfig
+@@ -353,9 +353,6 @@ config MN10300_TTYSM2_CTS
+ 
+ endmenu
  
 -config HAVE_ARCH_SHOW_MEM
 -	def_bool y
 -
- source "kernel/Kconfig.preempt"
- source "kernel/Kconfig.hz"
  source "mm/Kconfig"
-diff --git a/arch/parisc/mm/init.c b/arch/parisc/mm/init.c
-index eb80f5e..e8e9891 100644
---- a/arch/parisc/mm/init.c
-+++ b/arch/parisc/mm/init.c
-@@ -548,78 +548,6 @@ void __init mem_init(void)
  
- unsigned long *empty_zero_page __read_mostly;
+ menu "Power management options"
+diff --git a/arch/mn10300/mm/pgtable.c b/arch/mn10300/mm/pgtable.c
+index a477038..baffc58 100644
+--- a/arch/mn10300/mm/pgtable.c
++++ b/arch/mn10300/mm/pgtable.c
+@@ -27,33 +27,6 @@
+ #include <asm/tlb.h>
+ #include <asm/tlbflush.h>
  
 -void show_mem(void)
 -{
--	int i,free = 0,total = 0,reserved = 0;
--	int shared = 0, cached = 0;
+-	unsigned long i;
+-	int free = 0, total = 0, reserved = 0, shared = 0;
 -
+-	int cached = 0;
 -	printk(KERN_INFO "Mem-info:\n");
 -	show_free_areas();
--	printk(KERN_INFO "Free swap:	 %6ldkB\n",
--				nr_swap_pages<<(PAGE_SHIFT-10));
--#ifndef CONFIG_DISCONTIGMEM
 -	i = max_mapnr;
 -	while (i-- > 0) {
 -		total++;
--		if (PageReserved(mem_map+i))
+-		if (PageReserved(mem_map + i))
 -			reserved++;
--		else if (PageSwapCache(mem_map+i))
+-		else if (PageSwapCache(mem_map + i))
 -			cached++;
--		else if (!page_count(&mem_map[i]))
+-		else if (!page_count(mem_map + i))
 -			free++;
 -		else
--			shared += page_count(&mem_map[i]) - 1;
+-			shared += page_count(mem_map + i) - 1;
 -	}
--#else
--	for (i = 0; i < npmem_ranges; i++) {
--		int j;
--
--		for (j = node_start_pfn(i); j < node_end_pfn(i); j++) {
--			struct page *p;
--			unsigned long flags;
--
--			pgdat_resize_lock(NODE_DATA(i), &flags);
--			p = nid_page_nr(i, j) - node_start_pfn(i);
--
--			total++;
--			if (PageReserved(p))
--				reserved++;
--			else if (PageSwapCache(p))
--				cached++;
--			else if (!page_count(p))
--				free++;
--			else
--				shared += page_count(p) - 1;
--			pgdat_resize_unlock(NODE_DATA(i), &flags);
--        	}
--	}
--#endif
 -	printk(KERN_INFO "%d pages of RAM\n", total);
+-	printk(KERN_INFO "%d free pages\n", free);
 -	printk(KERN_INFO "%d reserved pages\n", reserved);
 -	printk(KERN_INFO "%d pages shared\n", shared);
 -	printk(KERN_INFO "%d pages swap cached\n", cached);
--
--
--#ifdef CONFIG_DISCONTIGMEM
--	{
--		struct zonelist *zl;
--		int i, j, k;
--
--		for (i = 0; i < npmem_ranges; i++) {
--			for (j = 0; j < MAX_NR_ZONES; j++) {
--				zl = NODE_DATA(i)->node_zonelists + j;
--
--				printk("Zone list for zone %d on node %d: ", j, i);
--				for (k = 0; zl->zones[k] != NULL; k++) 
--					printk("[%d/%s] ", zone_to_nid(zl->zones[k]), zl->zones[k]->name);
--				printk("\n");
--			}
--		}
--	}
--#endif
 -}
 -
--
- static void __init map_pages(unsigned long start_vaddr, unsigned long start_paddr, unsigned long size, pgprot_t pgprot)
- {
- 	pgd_t *pg_dir;
+ /*
+  * Associate a large virtual page frame with a given physical page frame
+  * and protection flags for that frame. pfn is for the base of the page,
 -- 
 1.5.2.2
