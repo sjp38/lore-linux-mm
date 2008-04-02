@@ -1,9 +1,9 @@
 From: Johannes Weiner <hannes@saeurebad.de>
-Subject: [RFC 19/22] um: Use generic show_mem()
-Date: Wed,  2 Apr 2008 22:40:25 +0200
-Message-ID: <12071690432631-git-send-email-hannes@saeurebad.de>
+Subject: [RFC 20/22] v850: Use generic show_mem()
+Date: Wed,  2 Apr 2008 22:40:26 +0200
+Message-ID: <12071690544083-git-send-email-hannes@saeurebad.de>
 References: <12071688283927-git-send-email-hannes@saeurebad.de>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1764397AbYDBVti@vger.kernel.org>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1764737AbYDBVvF@vger.kernel.org>
 In-Reply-To: <12071688283927-git-send-email-hannes@saeurebad.de>
 Sender: linux-kernel-owner@vger.kernel.org
 To: linux-kernel@vger.kernel.org
@@ -13,62 +13,57 @@ List-Id: linux-mm.kvack.org
 
 Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
 
-diff --git a/arch/um/Kconfig b/arch/um/Kconfig
-index f3b75af..dba8e05 100644
---- a/arch/um/Kconfig
-+++ b/arch/um/Kconfig
-@@ -86,10 +86,6 @@ config STATIC_LINK
- 	  2.75G) for UML.
+diff --git a/arch/v850/Kconfig b/arch/v850/Kconfig
+index a4d8e72..4379f43 100644
+--- a/arch/v850/Kconfig
++++ b/arch/v850/Kconfig
+@@ -56,9 +56,6 @@ config ARCH_HAS_ILOG2_U64
+ config ARCH_SUPPORTS_AOUT
+ 	def_bool y
  
- source "arch/um/Kconfig.arch"
--
 -config HAVE_ARCH_SHOW_MEM
 -	def_bool y
 -
- source "mm/Kconfig"
- source "kernel/time/Kconfig"
- 
-diff --git a/arch/um/kernel/mem.c b/arch/um/kernel/mem.c
-index 2eea1ff..e1c7d20 100644
---- a/arch/um/kernel/mem.c
-+++ b/arch/um/kernel/mem.c
-@@ -295,37 +295,6 @@ void free_initrd_mem(unsigned long start, unsigned long end)
+ # Turn off some random 386 crap that can affect device config
+ config ISA
+ 	bool
+diff --git a/arch/v850/kernel/setup.c b/arch/v850/kernel/setup.c
+index a0a8456..5751709 100644
+--- a/arch/v850/kernel/setup.c
++++ b/arch/v850/kernel/setup.c
+@@ -298,33 +298,3 @@ init_mem_alloc (unsigned long ram_start, unsigned long ram_len)
+ 	free_area_init_node (0, NODE_DATA(0), zones_size,
+ 			     ADDR_TO_PAGE (PAGE_OFFSET), 0);
  }
- #endif
- 
+-
+-
+-
+-/* Taken from m68knommu */
 -void show_mem(void)
 -{
--	int pfn, total = 0, reserved = 0;
--	int shared = 0, cached = 0;
--	int high_mem = 0;
--	struct page *page;
+-    unsigned long i;
+-    int free = 0, total = 0, reserved = 0, shared = 0;
+-    int cached = 0;
 -
--	printk(KERN_INFO "Mem-info:\n");
--	show_free_areas();
--	printk(KERN_INFO "Free swap:       %6ldkB\n",
--	       nr_swap_pages<<(PAGE_SHIFT-10));
--	pfn = max_mapnr;
--	while (pfn-- > 0) {
--		page = pfn_to_page(pfn);
--		total++;
--		if (PageHighMem(page))
--			high_mem++;
--		if (PageReserved(page))
--			reserved++;
--		else if (PageSwapCache(page))
--			cached++;
--		else if (page_count(page))
--			shared += page_count(page) - 1;
--	}
--	printk(KERN_INFO "%d pages of RAM\n", total);
--	printk(KERN_INFO "%d pages of HIGHMEM\n", high_mem);
--	printk(KERN_INFO "%d reserved pages\n", reserved);
--	printk(KERN_INFO "%d pages shared\n", shared);
--	printk(KERN_INFO "%d pages swap cached\n", cached);
+-    printk(KERN_INFO "\nMem-info:\n");
+-    show_free_areas();
+-    i = max_mapnr;
+-    while (i-- > 0) {
+-	total++;
+-	if (PageReserved(mem_map+i))
+-	    reserved++;
+-	else if (PageSwapCache(mem_map+i))
+-	    cached++;
+-	else if (!page_count(mem_map+i))
+-	    free++;
+-	else
+-	    shared += page_count(mem_map+i) - 1;
+-    }
+-    printk(KERN_INFO "%d pages of RAM\n",total);
+-    printk(KERN_INFO "%d free pages\n",free);
+-    printk(KERN_INFO "%d reserved pages\n",reserved);
+-    printk(KERN_INFO "%d pages shared\n",shared);
+-    printk(KERN_INFO "%d pages swap cached\n",cached);
 -}
--
- /* Allocate and free page tables. */
- 
- pgd_t *pgd_alloc(struct mm_struct *mm)
 -- 
 1.5.2.2
