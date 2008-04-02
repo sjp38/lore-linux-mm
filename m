@@ -1,45 +1,45 @@
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [-mm] Add an owner to the mm_struct (v8)
-Date: Sat, 5 Apr 2008 16:31:27 -0700
-Message-ID: <6599ad830804051631g15363456s1952fda0bb4d395d@mail.gmail.com>
-References: <20080404080544.26313.38199.sendpatchset@localhost.localdomain>
-	 <47F5E69C.9@linux.vnet.ibm.com>
-	 <6599ad830804040150j4946cf92h886bb26000319f3b@mail.gmail.com>
-	 <47F5F3FA.7060709@linux.vnet.ibm.com>
-	 <6599ad830804041211r37848a6coaa900d8bdac40fbe@mail.gmail.com>
-	 <47F79102.6090406@linux.vnet.ibm.com>
-	 <6599ad830804051023v69caa3d4h6e26ccb420bca899@mail.gmail.com>
-	 <47F7BB69.3000502@linux.vnet.ibm.com>
-	 <6599ad830804051057n2f2802e4w6179f2e108467494@mail.gmail.com>
-	 <47F7CC08.4090209@linux.vnet.ibm.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: RFC: swaptrace tool
+Date: Wed, 02 Apr 2008 16:55:52 +0900
+Message-ID: <20080402165439.958E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <f284c33d0804012249vb16325fpb9946487140c5905@mail.gmail.com> <804dabb00804020052v391622adm4db85c4837e2ed87@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1755491AbYDEXbv@vger.kernel.org>
-In-Reply-To: <47F7CC08.4090209@linux.vnet.ibm.com>
-Content-Disposition: inline
-Sender: linux-kernel-owner@vger.kernel.org
-To: balbir@linux.vnet.ibm.com
-Cc: Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Return-path: <kernelnewbies-bounce@nl.linux.org>
+In-Reply-To: <804dabb00804020052v391622adm4db85c4837e2ed87@mail.gmail.com>
+Sender: kernelnewbies-bounce@nl.linux.org
+Errors-to: kernelnewbies-bounce@nl.linux.org
+List-help: <mailto:ecartis@nl.linux.org?Subject=help>
+List-unsubscribe: <mailto:kernelnewbies-request@nl.linux.org?Subject=unsubscribe>
+List-software: Ecartis version 1.0.0
+List-subscribe: <mailto:kernelnewbies-request@nl.linux.org?Subject=subscribe>
+List-owner: <mailto:ecartis-owner@nl.linux.org>
+List-post: <mailto:kernelnewbies@nl.linux.org>
+List-archive: <http://mail.nl.linux.org/kernelnewbies/>
+To: Peter Teoh <htmldeveloper@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Mulyadi Santosa <mulyadi.santosa@gmail.com>, Kernel Newbies <kernelnewbies@nl.linux.org>, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-On Sat, Apr 5, 2008 at 11:59 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->  >>  It's easier to set it up that way. Usually the end user gets the same SLA for
->  >>  memory, CPU and other resources, so it makes sense to bind the controllers together.
->  >>
->  >
->  > True - but in that case why wouldn't they have the same SLA for
->  > virtual address space too?
->  >
->
->  Yes, mostly. That's why I had made the virtual address space patches as a config
->  option on top of the memory controller :)
->
+Hi
 
-*If* they want to use the virtual address space controller, that is.
+> >  >  thus, now we have its capability via /proc/pid/smap.
+> 
+> For a criticism of smaps:
+> 
+> http://bmaurer.blogspot.com/2006/03/memory-usage-with-smaps.html
+> 
+> and btw....i cannot find any "swp" or "swap" output.   so peterz and
+> yours are non-overlapping.
 
-By that argument, you should make the memory and cpu controllers the
-same controller, since in your scenario they'll usually be used
-together..
+please looks my mail again.
+Peter Zijlstra added swap output feature.
 
-Paul
+  ->  http://marc.info/?l=linux-kernel&m=120654533828554&w=2
+
+
+
+--
+To unsubscribe from this list: send an email with
+"unsubscribe kernelnewbies" to ecartis@nl.linux.org
+Please read the FAQ at http://kernelnewbies.org/FAQ
