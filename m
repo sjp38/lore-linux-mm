@@ -1,50 +1,64 @@
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 5/9] Convert anon_vma lock to rw_sem and
-	refcount
-Date: Wed, 2 Apr 2008 11:15:26 -0700 (PDT)
-Message-ID: <Pine.LNX.4.64.0804021107520.27337@schroedinger.engr.sgi.com>
-References: <20080401205531.986291575@sgi.com>
-	<20080401205636.777127252@sgi.com>
-	<20080402175058.GR19189@duo.random>
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC][-mm] Add an owner to the mm_struct (v4)
+Date: Thu, 03 Apr 2008 00:23:34 +0530
+Message-ID: <47F3D62E.4070808@linux.vnet.ibm.com>
+References: <20080401124312.23664.64616.sendpatchset@localhost.localdomain>
+Reply-To: balbir@linux.vnet.ibm.com
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Return-path: <kvm-devel-bounces@lists.sourceforge.net>
-In-Reply-To: <20080402175058.GR19189@duo.random>
-List-Unsubscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
-	<mailto:kvm-devel-request@lists.sourceforge.net?subject=unsubscribe>
-List-Archive: <http://sourceforge.net/mailarchive/forum.php?forum_name=kvm-devel>
-List-Post: <mailto:kvm-devel@lists.sourceforge.net>
-List-Help: <mailto:kvm-devel-request@lists.sourceforge.net?subject=help>
-List-Subscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
-	<mailto:kvm-devel-request@lists.sourceforge.net?subject=subscribe>
-Sender: kvm-devel-bounces@lists.sourceforge.net
-Errors-To: kvm-devel-bounces@lists.sourceforge.net
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: steiner@sgi.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1760889AbYDBSyI@vger.kernel.org>
+In-Reply-To: <20080401124312.23664.64616.sendpatchset@localhost.localdomain>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Paul Menage <menage@google.com>, Pavel Emelianov <xemul@openvz.org>
+Cc: Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-Id: linux-mm.kvack.org
 
-On Wed, 2 Apr 2008, Andrea Arcangeli wrote:
-
-> On Tue, Apr 01, 2008 at 01:55:36PM -0700, Christoph Lameter wrote:
-> >   This results in f.e. the Aim9 brk performance test to got down by 10-15%.
+Balbir Singh wrote:
+> Changelog v3
+> ------------
 > 
-> I guess it's more likely because of overscheduling for small crtitical
-> sections, did you counted the total number of context switches? I
-> guess there will be a lot more with your patch applied. That
-> regression is a showstopper and it is the reason why I've suggested
-> before to add a CONFIG_XPMEM or CONFIG_MMU_NOTIFIER_SLEEP config
-> option to make the VM locks sleep capable only when XPMEM=y
-> (PREEMPT_RT will enable it too). Thanks for doing the benchmark work!
+> 1. Add mm->owner change callbacks using cgroups
+> 
+> This patch removes the mem_cgroup member from mm_struct and instead adds
+> an owner. This approach was suggested by Paul Menage. The advantage of
+> this approach is that, once the mm->owner is known, using the subsystem
+> id, the cgroup can be determined. It also allows several control groups
+> that are virtually grouped by mm_struct, to exist independent of the memory
+> controller i.e., without adding mem_cgroup's for each controller,
+> to mm_struct.
+> 
+> A new config option CONFIG_MM_OWNER is added and the memory resource
+> controller selects this config option.
+> 
+> NOTE: This patch was developed on top of 2.6.25-rc5-mm1 and is applied on top
+> of the memory-controller-move-to-own-slab patch (which is already present
+> in the Andrew's patchset).
+> 
+> This patch also adds cgroup callbacks to notify subsystems when mm->owner
+> changes. The mm_cgroup_changed callback is called with the task_lock()
+> of the new task held and is called just prior to changing the mm->owner.
+> 
+> I am indebted to Paul Menage for the several reviews of this patchset
+> and helping me make it lighter and simpler.
+> 
+> This patch was tested on a powerpc box.
+> 
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-There are more context switches if locks are contended. 
+Hi,
 
-But that has actually also some good aspects because we avoid busy loops 
-and can potentially continue work in another process.
+So far I've heard no objections or seen any review suggestions. Paul if you are
+OK with this patch, I'll ask Andrew to include it in -mm.
 
+People waiting on this patch
 
--------------------------------------------------------------------------
-Check out the new SourceForge.net Marketplace.
-It's the best place to buy or sell services for
-just about anything Open Source.
-http://ad.doubleclick.net/clk;164216239;13503038;w?http://sf.net/marketplace
+1. Pekka Enberg for revoke* syscalls
+2. Serge Hallyn for swap namespaces
+3. Myself to implement the rlimit controller for cgroups
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
