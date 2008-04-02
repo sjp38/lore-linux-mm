@@ -1,54 +1,73 @@
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: [PATCH 7 of 8] XPMEM would have used sys_madvise()
-	except that	madvise_dontneed()
-Date: Wed, 02 Apr 2008 23:30:08 +0200
-Message-ID: <31fc23193bd039cc595f.1207171808@duo.random>
-References: <patchbomb.1207171801@duo.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Return-path: <kvm-devel-bounces@lists.sourceforge.net>
-In-Reply-To: <patchbomb.1207171801@duo.random>
-List-Unsubscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
-	<mailto:kvm-devel-request@lists.sourceforge.net?subject=unsubscribe>
-List-Archive: <http://sourceforge.net/mailarchive/forum.php?forum_name=kvm-devel>
-List-Post: <mailto:kvm-devel@lists.sourceforge.net>
-List-Help: <mailto:kvm-devel-request@lists.sourceforge.net?subject=help>
-List-Subscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
-	<mailto:kvm-devel-request@lists.sourceforge.net?subject=subscribe>
-Sender: kvm-devel-bounces@lists.sourceforge.net
-Errors-To: kvm-devel-bounces@lists.sourceforge.net
-To: akpm@linux-foundation.org
-Cc: Nick Piggin <npiggin@suse.de>, Steve Wise <swise@opengridcomputing.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Christoph Lameter <clameter@sgi.com>
+From: Johannes Weiner <hannes@saeurebad.de>
+Subject: [RFC 10/22] m68k: Use generic show_mem()
+Date: Wed,  2 Apr 2008 22:40:16 +0200
+Message-ID: <1207168941186-git-send-email-hannes@saeurebad.de>
+References: <12071688283927-git-send-email-hannes@saeurebad.de>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1763481AbYDBVqT@vger.kernel.org>
+In-Reply-To: <12071688283927-git-send-email-hannes@saeurebad.de>
+Sender: linux-kernel-owner@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, mingo@elte.hu, davem@davemloft.net, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, dhowells@redhat.com, ysato@users.sf.net, takata@linux-m32r.org, geert@linux-m68k.org, ralf@linux-mips.org, kyle@parisc-linux.org, paulus@samba.org, schwidefsky@de.ibm.com, lethal@linux-sh.org, jdike@addtoit.com, miles@gnu.org, chris@zankel.net, rmk@arm.linux.org.uk, tony.luck@intel.com
 List-Id: linux-mm.kvack.org
 
-# HG changeset patch
-# User Andrea Arcangeli <andrea@qumranet.com>
-# Date 1207159059 -7200
-# Node ID 31fc23193bd039cc595fba1ca149a9715f7d0fb2
-# Parent  dd918e267ce1d054e8364a53adcecf3c7439cff4
-XPMEM would have used sys_madvise() except that madvise_dontneed()
-returns an -EINVAL if VM_PFNMAP is set, which is always true for the pages
-XPMEM imports from other partitions and is also true for uncached pages
-allocated locally via the mspec allocator.  XPMEM needs zap_page_range()
-functionality for these types of pages as well as 'normal' pages.
 
-Signed-off-by: Dean Nelson <dcn@sgi.com>
+Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
 
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -900,6 +900,7 @@
+diff --git a/arch/m68k/Kconfig b/arch/m68k/Kconfig
+index 53b36a8..65db226 100644
+--- a/arch/m68k/Kconfig
++++ b/arch/m68k/Kconfig
+@@ -396,9 +396,6 @@ config NODES_SHIFT
+ 	default "3"
+ 	depends on !SINGLE_MEMORY_CHUNK
  
- 	return unmap_vmas(vma, address, end, &nr_accounted, details);
- }
-+EXPORT_SYMBOL_GPL(zap_page_range);
+-config HAVE_ARCH_SHOW_MEM
+-	def_bool y
+-
+ source "mm/Kconfig"
  
- /*
-  * Do a quick page-table lookup for a single page.
-
--------------------------------------------------------------------------
-Check out the new SourceForge.net Marketplace.
-It's the best place to buy or sell services for
-just about anything Open Source.
-http://ad.doubleclick.net/clk;164216239;13503038;w?http://sf.net/marketplace
+ endmenu
+diff --git a/arch/m68k/mm/init.c b/arch/m68k/mm/init.c
+index f42caa7..19eb3ae 100644
+--- a/arch/m68k/mm/init.c
++++ b/arch/m68k/mm/init.c
+@@ -70,37 +70,6 @@ void __init m68k_setup_node(int node)
+ 
+ void *empty_zero_page;
+ 
+-void show_mem(void)
+-{
+-	pg_data_t *pgdat;
+-	int free = 0, total = 0, reserved = 0, shared = 0;
+-	int cached = 0;
+-	int i;
+-
+-	printk("\nMem-info:\n");
+-	show_free_areas();
+-	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
+-	for_each_online_pgdat(pgdat) {
+-		for (i = 0; i < pgdat->node_spanned_pages; i++) {
+-			struct page *page = pgdat->node_mem_map + i;
+-			total++;
+-			if (PageReserved(page))
+-				reserved++;
+-			else if (PageSwapCache(page))
+-				cached++;
+-			else if (!page_count(page))
+-				free++;
+-			else
+-				shared += page_count(page) - 1;
+-		}
+-	}
+-	printk("%d pages of RAM\n",total);
+-	printk("%d free pages\n",free);
+-	printk("%d reserved pages\n",reserved);
+-	printk("%d pages shared\n",shared);
+-	printk("%d pages swap cached\n",cached);
+-}
+-
+ extern void init_pointer_table(unsigned long ptable);
+ 
+ /* References to section boundaries */
+-- 
+1.5.2.2
