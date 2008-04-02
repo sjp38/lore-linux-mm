@@ -1,39 +1,73 @@
-From: Balbir Singh <balbir-23VcF4HTsmIX0ybBhKVfKdBPR1lH4CV8@public.gmane.org>
-Subject: Re: [PATCH 2/2] Make res_counter hierarchical
-Date: Wed, 02 Apr 2008 20:56:55 +0530
-Message-ID: <47F3A5BF.1080301@linux.vnet.ibm.com>
-References: <47D16004.7050204@openvz.org>
-Reply-To: balbir-23VcF4HTsmIX0ybBhKVfKdBPR1lH4CV8@public.gmane.org
+From: "Tom May" <tom@tommay.com>
+Subject: Re: [PATCH 0/8][for -mm] mem_notify v6
+Date: Wed, 2 Apr 2008 10:45:05 -0700
+Message-ID: <ab3f9b940804021045r28e88ce9vfddad5362ea6372d@mail.gmail.com>
+References: <2f11576a0802090719i3c08a41aj38504e854edbfeac@mail.gmail.com>
+	 <ab3f9b940804011635g2de833d0l44558f78a1cce1e5@mail.gmail.com>
+	 <20080402154910.9588.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Return-path: <containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
-In-Reply-To: <47D16004.7050204-GEFAQzZX7r8dnm+yROfE0A@public.gmane.org>
-List-Unsubscribe: <https://lists.linux-foundation.org/mailman/listinfo/containers>,
-	<mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
-List-Archive: <http://lists.linux-foundation.org/pipermail/containers>
-List-Post: <mailto:containers-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
-List-Help: <mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
-List-Subscribe: <https://lists.linux-foundation.org/mailman/listinfo/containers>,
-	<mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
-Sender: containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-Errors-To: containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-To: Pavel Emelyanov <xemul-GEFAQzZX7r8dnm+yROfE0A@public.gmane.org>
-Cc: Linux Containers <containers-qjLDD68F18O7TbgM5vRIOg@public.gmane.org>, Linux MM <linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org>, Paul Menage <menage-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, Daisuke Nishimura <nishimura-YQH0OdQVrdy45+QrQBaojngSJqDPrsil@public.gmane.org>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1759361AbYDBRpj@vger.kernel.org>
+In-Reply-To: <20080402154910.9588.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Disposition: inline
+Sender: linux-kernel-owner@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-Id: linux-mm.kvack.org
 
-Pavel Emelyanov wrote:
-> This allows us two things basically:
-> 
+On Wed, Apr 2, 2008 at 12:31 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> Hi Tom,
+>
+>  Thank you very useful comment.
+>  that is very interesting.
+>
+>
+>  > I tried it with a real-world program that, among other things, mmaps
+>  > anonymous pages and touches them at a reasonable speed until it gets
+>  > notified via /dev/mem_notify, releases most of them with
+>  > madvise(MADV_DONTNEED), then loops to start the cycle again.
+>  >
+>  > What tends to happen is that I do indeed get notifications via
+>  > /dev/mem_notify when the kernel would like to be swapping, at which
+>  > point I free memory.  But the notifications come at a time when the
+>  > kernel needs memory, and it gets the memory by discarding some Cached
+>  > or Mapped memory (I can see these decreasing in /proc/meminfo with
+>  > each notification).  With each mmap/notify/madvise cycle the Cached
+>  > and Mapped memory gets smaller, until eventually while I'm touching
+>  > pages the kernel can't find enough memory and will either invoke the
+>  > OOM killer or return ENOMEM from syscalls.  This is precisely the
+>  > situation I'm trying to avoid by using /dev/mem_notify.
+>
+>  Could you send your test program?
 
-Pavel,
+Unfortunately, no, it's a Java Virtual Machine (which is a perfect
+user of /dev/mem_notify since it can garbage collect on notification,
+among other times).
 
-Do you have any further updates on this. I think we need a way of being able to
-implement reclaim per hierarchy as mentioned earlier. Do you want me to take a
-look at it?
+But it should be possible to make a small program with the same
+behavior; I'll do that.
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+>  I can't reproduce that now, sorry.
+>
+>
+>
+>  > The criterion of "notify when the kernel would like to swap" feels
+>  > correct, but in addition I seem to need something like "notify when
+>  > cached+mapped+free memory is getting low".
+>
+>  Hmmm,
+>  I think this idea is only useful when userland process call
+>  madvise(MADV_DONTNEED) periodically.
+
+Do you have a recommendation for freeing memory?  I could maybe use
+munmap/mmap, but that's not atomic and may be "worse" (more overhead,
+etc.) than madvise(MADV_DONTNEED).
+
+>  but I hope improve my patch and solve your problem.
+>  if you don' mind, please help my testing ;)
+
+It's my pleasure to help in any way I can.
+
+.tom
