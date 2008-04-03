@@ -1,42 +1,39 @@
-From: Johannes Weiner <hannes@saeurebad.de>
-Subject: Re: [RFC 01/22] Generic show_mem() implementation
-Date: Thu, 03 Apr 2008 16:49:42 +0200
-Message-ID: <871w5nouwp.fsf@saeurebad.de>
-References: <12071688283927-git-send-email-hannes@saeurebad.de>
-	<1207168839586-git-send-email-hannes@saeurebad.de>
-	<20080403075545.GC4125@osiris.boeblingen.de.ibm.com>
-	<20080403124820.GA30356@uranus.ravnborg.org>
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: [ofa-general] Re: EMM: Fixup return value handling of emm_notify()
+Date: Thu, 3 Apr 2008 17:00:48 +0200
+Message-ID: <20080403143341.GA9603@duo.random>
+References: <20080401205531.986291575@sgi.com>
+	<20080401205635.793766935@sgi.com>
+	<20080402064952.GF19189@duo.random>
+	<Pine.LNX.4.64.0804021048460.27214@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0804021202450.28436@schroedinger.engr.sgi.com>
+	<20080402212515.GS19189@duo.random>
+	<Pine.LNX.4.64.0804021427210.30516@schroedinger.engr.sgi.com>
+	<1207219246.8514.817.camel@twins>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1759772AbYDCOuD@vger.kernel.org>
-In-Reply-To: <20080403124820.GA30356@uranus.ravnborg.org> (Sam Ravnborg's
-	message of "Thu, 3 Apr 2008 14:48:20 +0200")
-Sender: linux-kernel-owner@vger.kernel.org
-To: Sam Ravnborg <sam@ravnborg.org>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, davem@davemloft.net, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, dhowells@redhat.com, ysato@users.sf.net, takata@linux-m32r.org, geert@linux-m68k.org, ralf@linux-mips.org, kyle@parisc-linux.org, paulus@samba.org, schwidefsky@de.ibm.com, lethal@linux-sh.org, jdike@addtoit.com, miles@gnu.org, chris@zankel.net, rmk@arm.linux.org.uk, tony.luck@intel.com
+Return-path: <general-bounces@lists.openfabrics.org>
+Content-Disposition: inline
+In-Reply-To: <1207219246.8514.817.camel@twins>
+List-Unsubscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
+	<mailto:general-request@lists.openfabrics.org?subject=unsubscribe>
+List-Archive: <http://lists.openfabrics.org/pipermail/general>
+List-Post: <mailto:general@lists.openfabrics.org>
+List-Help: <mailto:general-request@lists.openfabrics.org?subject=help>
+List-Subscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
+	<mailto:general-request@lists.openfabrics.org?subject=subscribe>
+Sender: general-bounces@lists.openfabrics.org
+Errors-To: general-bounces@lists.openfabrics.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Nick Piggin <npiggin@suse.de>, steiner@sgi.com, linux-mm@kvack.org, Izik Eidus <izike@qumranet.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Christoph Lameter <clameter@sgi.com>
 List-Id: linux-mm.kvack.org
 
-Hi,
+On Thu, Apr 03, 2008 at 12:40:46PM +0200, Peter Zijlstra wrote:
+> It seems to me that common code can be shared using functions? No need
+> FWIW I prefer separate methods.
 
-Sam Ravnborg <sam@ravnborg.org> writes:
-
->> e.g. we currently have this in arch/s390/Kconfig:
->> 
->> config S390
->>         def_bool y
->>         select HAVE_OPROFILE
->>         select HAVE_KPROBES
->>         select HAVE_KRETPROBES
->> 
->> just add a select HAVE_GENERIC_SHOWMEM or something like that in the arch
->> specific patches.
-> Seconded.
-> See Documentation/kbuild/kconfig-language.txt for a few more hints
-> how to do it.
-
-After more thinking about it, wouldn't it be better to have
-HAVE_ARCH_SHOW_MEM in mm/Kconfig and let archs with their own show_mem()
-select it?  Because there are far more archs that use the generic
-version than those having their own.
-
-	Hannes
+kvm patch using mmu notifiers shares 99% of the code too between the
+two different methods implemented indeed. Code sharing is the same and
+if something pointer to functions will be faster if gcc isn't smart or
+can't create a compile time hash to jump into the right address
+without having to check every case: .
