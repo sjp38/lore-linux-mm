@@ -1,42 +1,44 @@
 From: Johannes Weiner <hannes@saeurebad.de>
-Subject: Re: [RFC 10/22] m68k: Use generic show_mem()
-Date: Thu, 03 Apr 2008 14:58:15 +0200
-Message-ID: <87myobp02g.fsf@saeurebad.de>
+Subject: Re: [RFC 17/22] s390: Use generic show_mem()
+Date: Thu, 03 Apr 2008 15:00:22 +0200
+Message-ID: <87iqyzozyx.fsf@saeurebad.de>
 References: <12071688283927-git-send-email-hannes@saeurebad.de>
-	<1207168941186-git-send-email-hannes@saeurebad.de>
-	<Pine.LNX.4.64.0804030939320.9848@anakin>
+	<12071690203023-git-send-email-hannes@saeurebad.de>
+	<20080403075029.GB4125@osiris.boeblingen.de.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1757502AbYDCM6d@vger.kernel.org>
-In-Reply-To: <Pine.LNX.4.64.0804030939320.9848@anakin> (Geert Uytterhoeven's
-	message of "Thu, 3 Apr 2008 09:40:50 +0200 (CEST)")
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1757561AbYDCNAj@vger.kernel.org>
+In-Reply-To: <20080403075029.GB4125@osiris.boeblingen.de.ibm.com> (Heiko
+	Carstens's message of "Thu, 3 Apr 2008 09:50:29 +0200")
 Sender: linux-kernel-owner@vger.kernel.org
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, davem@davemloft.net, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, dhowells@redhat.com, ysato@users.sourceforge.net, takata@linux-m32r.org, ralf@linux-mips.org, kyle@parisc-linux.org, paulus@samba.org, schwidefsky@de.ibm.com, lethal@linux-sh.org, jdike@addtoit.com, miles@gnu.org, chris@zankel.net, rmk@arm.linux.org.uk, tony.luck@intel.com
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, davem@davemloft.net, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, dhowells@redhat.com, ysato@users.sf.net, takata@linux-m32r.org, geert@linux-m68k.org, ralf@linux-mips.org, kyle@parisc-linux.org, paulus@samba.org, schwidefsky@de.ibm.com, lethal@linux-sh.org, jdike@addtoit.com, miles@gnu.org, chris@zankel.net, rmk@arm.linux.org.uk, tony.luck@intel.com
 List-Id: linux-mm.kvack.org
 
-Hi Geert,
+Hi,
 
-Geert Uytterhoeven <geert@linux-m68k.org> writes:
+Heiko Carstens <heiko.carstens@de.ibm.com> writes:
 
-> The new version no longer prints
+>> diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
+>> index 8053245..27b94cb 100644
+>> --- a/arch/s390/mm/init.c
+>> +++ b/arch/s390/mm/init.c
+>> @@ -42,42 +42,6 @@ DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
+>>  pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((__aligned__(PAGE_SIZE)));
+>>  char  empty_zero_page[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
+>> 
+>> -	printk("Free swap:       %6ldkB\n", nr_swap_pages << (PAGE_SHIFT - 10));
+>> -	printk("%lu pages dirty\n", global_page_state(NR_FILE_DIRTY));
+>> -	printk("%lu pages writeback\n", global_page_state(NR_WRITEBACK));
+>> -	printk("%lu pages mapped\n", global_page_state(NR_FILE_MAPPED));
+>> -	printk("%lu pages slab\n",
+>> -	       global_page_state(NR_SLAB_RECLAIMABLE) +
+>> -	       global_page_state(NR_SLAB_UNRECLAIMABLE));
+>> -	printk("%lu pages pagetables\n", global_page_state(NR_PAGETABLE));
 >
->> -	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
->
+> These are all missing in the generic implementation.
 
-show_mem()
- show_free_areas()
-  show_swap_cache_info()
-   printk("Free swap  = %lukB\n", nr_swap_pages << (PAGE_SHIFT - 10));
-
-> and
->
->> -	printk("%d free pages\n",free);
->
-> on m68k.
-
-show_free_areas() prints global_page_state(NR_FREE_PAGES).  Isn't this
-the same?
+These are all duplicates from show_free_areas().
 
 Thanks,
 
