@@ -1,47 +1,43 @@
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: [RFC 01/22] Generic show_mem() implementation
-Date: Thu, 3 Apr 2008 20:12:02 +0200
-Message-ID: <20080403181202.GA32319@uranus.ravnborg.org>
-References: <12071688283927-git-send-email-hannes@saeurebad.de> <1207168839586-git-send-email-hannes@saeurebad.de> <20080403075545.GC4125@osiris.boeblingen.de.ibm.com> <20080403124820.GA30356@uranus.ravnborg.org> <871w5nouwp.fsf@saeurebad.de>
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [-mm] Add an owner to the mm_struct (v7)
+Date: Thu, 03 Apr 2008 23:41:51 +0530
+Message-ID: <47F51DE7.7010204@linux.vnet.ibm.com>
+References: <20080403174433.26356.42121.sendpatchset@localhost.localdomain> <6599ad830804031058l1e2a7ad9p56cff47dca738d79@mail.gmail.com>
+Reply-To: balbir@linux.vnet.ibm.com
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1758871AbYDCSLx@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <871w5nouwp.fsf@saeurebad.de>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1760476AbYDCSM3@vger.kernel.org>
+In-Reply-To: <6599ad830804031058l1e2a7ad9p56cff47dca738d79@mail.gmail.com>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Johannes Weiner <hannes@saeurebad.de>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, davem@davemloft.net, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, dhowells@redhat.com, ysato@users.sf.net, takata@linux-m32r.org, geert@linux-m68k.org, ralf@linux-mips.org, kyle@parisc-linux.org, paulus@samba.org, schwidefsky@de.ibm.com, lethal@linux-sh.org, jdike@addtoit.com, miles@gnu.org, chris@zankel.net, rmk@arm.linux.org.uk, tony.luck@intel.com
+To: Paul Menage <menage@google.com>
+Cc: Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-Id: linux-mm.kvack.org
 
-On Thu, Apr 03, 2008 at 04:49:42PM +0200, Johannes Weiner wrote:
-> Hi,
+Paul Menage wrote:
+> On Thu, Apr 3, 2008 at 10:44 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>>  +
+>>  +       /*
+>>  +        * If there are other users of the mm and the owner (us) is exiting
+>>  +        * we need to find a new owner to take on the responsibility.
+>>  +        * When we use thread groups (CLONE_THREAD), the thread group
+>>  +        * leader is kept around in zombie state, even after it exits.
+>>  +        * delay_group_leader() ensures that if the group leader is around
+>>  +        * we need not select a new owner.
+>>  +        */
 > 
-> Sam Ravnborg <sam@ravnborg.org> writes:
+> Hmm, is this new check for delay_group_leader() safe? Won't we have
+> called exit_cgroup() by this point, and hence be reassigned to the
+> root cgroup? And so mm->owner->cgroups won't point to the right place?
 > 
-> >> e.g. we currently have this in arch/s390/Kconfig:
-> >> 
-> >> config S390
-> >>         def_bool y
-> >>         select HAVE_OPROFILE
-> >>         select HAVE_KPROBES
-> >>         select HAVE_KRETPROBES
-> >> 
-> >> just add a select HAVE_GENERIC_SHOWMEM or something like that in the arch
-> >> specific patches.
-> > Seconded.
-> > See Documentation/kbuild/kconfig-language.txt for a few more hints
-> > how to do it.
-> 
-> After more thinking about it, wouldn't it be better to have
-> HAVE_ARCH_SHOW_MEM in mm/Kconfig and let archs with their own show_mem()
-> select it?  Because there are far more archs that use the generic
-> version than those having their own.
 
-Positive logic is almost always simpler to grasp.
-And the usual way to do this is to let arch's select what they
-use.
-We do not want to have a situation where in most cases we select
-a generic version but in some oddball case we select to have
-a local version.
+cgroup_exit() comes in much later after exit_mm(). Moreover delay_group_leader()
+is a function that checks to see if
 
-	Sam
+We are the group leader and the thread group is not empty.
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
