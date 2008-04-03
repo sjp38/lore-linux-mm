@@ -1,39 +1,38 @@
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: [ofa-general] Re: EMM: Fixup return value handling of emm_notify()
-Date: Thu, 3 Apr 2008 17:00:48 +0200
-Message-ID: <20080403143341.GA9603@duo.random>
-References: <20080401205531.986291575@sgi.com>
-	<20080401205635.793766935@sgi.com>
-	<20080402064952.GF19189@duo.random>
-	<Pine.LNX.4.64.0804021048460.27214@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0804021202450.28436@schroedinger.engr.sgi.com>
-	<20080402212515.GS19189@duo.random>
-	<Pine.LNX.4.64.0804021427210.30516@schroedinger.engr.sgi.com>
-	<1207219246.8514.817.camel@twins>
+From: Johannes Weiner <hannes@saeurebad.de>
+Subject: Re: [RFC 10/22] m68k: Use generic show_mem()
+Date: Thu, 03 Apr 2008 17:10:21 +0200
+Message-ID: <87wsnfnfdu.fsf@saeurebad.de>
+References: <12071688283927-git-send-email-hannes@saeurebad.de>
+	<1207168941186-git-send-email-hannes@saeurebad.de>
+	<Pine.LNX.4.64.0804030939320.9848@anakin>
+	<87myobp02g.fsf@saeurebad.de>
+	<Pine.LNX.4.64.0804031538150.11898@anakin>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Return-path: <general-bounces@lists.openfabrics.org>
-Content-Disposition: inline
-In-Reply-To: <1207219246.8514.817.camel@twins>
-List-Unsubscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
-	<mailto:general-request@lists.openfabrics.org?subject=unsubscribe>
-List-Archive: <http://lists.openfabrics.org/pipermail/general>
-List-Post: <mailto:general@lists.openfabrics.org>
-List-Help: <mailto:general-request@lists.openfabrics.org?subject=help>
-List-Subscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
-	<mailto:general-request@lists.openfabrics.org?subject=subscribe>
-Sender: general-bounces@lists.openfabrics.org
-Errors-To: general-bounces@lists.openfabrics.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Nick Piggin <npiggin@suse.de>, steiner@sgi.com, linux-mm@kvack.org, Izik Eidus <izike@qumranet.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Christoph Lameter <clameter@sgi.com>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1759098AbYDCPKj@vger.kernel.org>
+In-Reply-To: <Pine.LNX.4.64.0804031538150.11898@anakin> (Geert Uytterhoeven's
+	message of "Thu, 3 Apr 2008 15:39:16 +0200 (CEST)")
+Sender: linux-kernel-owner@vger.kernel.org
+To: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, davem@davemloft.net, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, dhowells@redhat.com, ysato@users.sourceforge.net, takata@linux-m32r.org, ralf@linux-mips.org, kyle@parisc-linux.org, paulus@samba.org, schwidefsky@de.ibm.com, lethal@linux-sh.org, jdike@addtoit.com, miles@gnu.org, chris@zankel.net, rmk@arm.linux.org.uk, tony.luck@intel.com, akpm@linux-foundation.org
 List-Id: linux-mm.kvack.org
 
-On Thu, Apr 03, 2008 at 12:40:46PM +0200, Peter Zijlstra wrote:
-> It seems to me that common code can be shared using functions? No need
-> FWIW I prefer separate methods.
+Hi,
 
-kvm patch using mmu notifiers shares 99% of the code too between the
-two different methods implemented indeed. Code sharing is the same and
-if something pointer to functions will be faster if gcc isn't smart or
-can't create a compile time hash to jump into the right address
-without having to check every case: .
+Geert Uytterhoeven <geert@linux-m68k.org> writes:
+
+> So I suggest to add an additional (first) step to the consolidation: remove all
+> duplicates.
+
+I shall do that.  Problem is, I had a patch-series removing only parts
+of the duplication (shame on me) and not all of these patches are yet in
+the subsystem trees and still partially in -mm.  None of them have hit
+mainline yet.  Suggestions?
+
+The earlier patch-series was called `remove redundant output from
+show_mem()'.
+
+Sorry for the wasted time.  These cleanups already took more energy than
+they are worth it, I guess... :/
+
+	Hannes
