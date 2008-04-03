@@ -1,40 +1,60 @@
-From: Pavel Emelyanov <xemul-GEFAQzZX7r8dnm+yROfE0A@public.gmane.org>
-Subject: Re: [PATCH 2/2] Make res_counter hierarchical
-Date: Thu, 03 Apr 2008 16:26:22 +0400
-Message-ID: <47F4CCEE.2090106@openvz.org>
-References: <47D16004.7050204@openvz.org> <47F3A5BF.1080301@linux.vnet.ibm.com>
+From: Sam Ravnborg <sam@ravnborg.org>
+Subject: Re: [RFC 01/22] Generic show_mem() implementation
+Date: Thu, 3 Apr 2008 14:48:20 +0200
+Message-ID: <20080403124820.GA30356@uranus.ravnborg.org>
+References: <12071688283927-git-send-email-hannes@saeurebad.de> <1207168839586-git-send-email-hannes@saeurebad.de> <20080403075545.GC4125@osiris.boeblingen.de.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Return-path: <containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
-In-Reply-To: <47F3A5BF.1080301-23VcF4HTsmIX0ybBhKVfKdBPR1lH4CV8@public.gmane.org>
-List-Unsubscribe: <https://lists.linux-foundation.org/mailman/listinfo/containers>,
-	<mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
-List-Archive: <http://lists.linux-foundation.org/pipermail/containers>
-List-Post: <mailto:containers-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
-List-Help: <mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
-List-Subscribe: <https://lists.linux-foundation.org/mailman/listinfo/containers>,
-	<mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
-Sender: containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-Errors-To: containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-To: balbir-23VcF4HTsmIX0ybBhKVfKdBPR1lH4CV8@public.gmane.org
-Cc: Linux Containers <containers-qjLDD68F18O7TbgM5vRIOg@public.gmane.org>, Linux MM <linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org>, Paul Menage <menage-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, Daisuke Nishimura <nishimura-YQH0OdQVrdy45+QrQBaojngSJqDPrsil@public.gmane.org>
+Content-Type: text/plain; charset=us-ascii
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1757164AbYDCMsQ@vger.kernel.org>
+Content-Disposition: inline
+In-Reply-To: <20080403075545.GC4125@osiris.boeblingen.de.ibm.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Johannes Weiner <hannes@saeurebad.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, davem@davemloft.net, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, dhowells@redhat.com, ysato@users.sf.net, takata@linux-m32r.org, geert@linux-m68k.org, ralf@linux-mips.org, kyle@parisc-linux.org, paulus@samba.org, schwidefsky@de.ibm.com, lethal@linux-sh.org, jdike@addtoit.com, miles@gnu.org, chris@zankel.net, rmk@arm.linux.org.uk, tony.luck@intel.com
 List-Id: linux-mm.kvack.org
 
-Balbir Singh wrote:
-> Pavel Emelyanov wrote:
->> This allows us two things basically:
->>
+On Thu, Apr 03, 2008 at 09:55:45AM +0200, Heiko Carstens wrote:
+> > diff --git a/arch/alpha/Kconfig b/arch/alpha/Kconfig
+> > index 729cdbd..efffa92 100644
+> > --- a/arch/alpha/Kconfig
+> > +++ b/arch/alpha/Kconfig
+> > @@ -598,6 +598,9 @@ config ALPHA_LARGE_VMALLOC
+> > 
+> >  	  Say N unless you know you need gobs and gobs of vmalloc space.
+> > 
+> > +config HAVE_ARCH_SHOW_MEM
+> > +	def_bool y
+> > +
+> >  config VERBOSE_MCHECK
+> >  	bool "Verbose Machine Checks"
+> > 
+> > diff --git a/arch/arm/mm/Kconfig b/arch/arm/mm/Kconfig
+> > index 76348f0..acad217 100644
+> > --- a/arch/arm/mm/Kconfig
+> > +++ b/arch/arm/mm/Kconfig
+> > @@ -673,3 +673,6 @@ config OUTER_CACHE
+> >  config CACHE_L2X0
+> >  	bool
+> >  	select OUTER_CACHE
+> > +
+> > +config HAVE_ARCH_SHOW_MEM
+> > +	def_bool y
 > 
-> Pavel,
+> These are all not necessary. Better add some global Kconfig option that
+> gets selected by an arch if it wants the generic implementation.
 > 
-> Do you have any further updates on this. I think we need a way of being able to
+> e.g. we currently have this in arch/s390/Kconfig:
+> 
+> config S390
+>         def_bool y
+>         select HAVE_OPROFILE
+>         select HAVE_KPROBES
+>         select HAVE_KRETPROBES
+> 
+> just add a select HAVE_GENERIC_SHOWMEM or something like that in the arch
+> specific patches.
+Seconded.
+See Documentation/kbuild/kconfig-language.txt for a few more hints
+how to do it.
 
-No. Unfortunately I stopped following the discussion at some point
-and decided that nobody liked this patch that much.
-
-> implement reclaim per hierarchy as mentioned earlier. Do you want me to take a
-> look at it?
-
-Yes, sure. I'm now busy (among other stuff) with kmemsize controller, hope I 
-can finish its polishing and testing till summer :(
+	Sam
