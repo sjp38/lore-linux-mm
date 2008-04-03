@@ -1,54 +1,40 @@
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [rfc] SLQB: YASA
-Date: Thu, 3 Apr 2008 12:12:57 -0700 (PDT)
-Message-ID: <Pine.LNX.4.64.0804031200530.7265@schroedinger.engr.sgi.com>
-References: <20080403072550.GC25932@wotan.suse.de>
+Subject: [ofa-general] Re: EMM: Fixup return value handling of emm_notify()
+Date: Thu, 3 Apr 2008 12:14:24 -0700 (PDT)
+Message-ID: <Pine.LNX.4.64.0804031213480.7480@schroedinger.engr.sgi.com>
+References: <20080401205531.986291575@sgi.com>
+	<20080401205635.793766935@sgi.com>
+	<20080402064952.GF19189@duo.random>
+	<Pine.LNX.4.64.0804021048460.27214@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0804021202450.28436@schroedinger.engr.sgi.com>
+	<20080402212515.GS19189@duo.random>
+	<Pine.LNX.4.64.0804021427210.30516@schroedinger.engr.sgi.com>
+	<1207219246.8514.817.camel@twins>
 Mime-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1759466AbYDCTPp@vger.kernel.org>
-In-Reply-To: <20080403072550.GC25932@wotan.suse.de>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Return-path: <general-bounces@lists.openfabrics.org>
+In-Reply-To: <1207219246.8514.817.camel@twins>
+List-Unsubscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
+	<mailto:general-request@lists.openfabrics.org?subject=unsubscribe>
+List-Archive: <http://lists.openfabrics.org/pipermail/general>
+List-Post: <mailto:general@lists.openfabrics.org>
+List-Help: <mailto:general-request@lists.openfabrics.org?subject=help>
+List-Subscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
+	<mailto:general-request@lists.openfabrics.org?subject=subscribe>
+Sender: general-bounces@lists.openfabrics.org
+Errors-To: general-bounces@lists.openfabrics.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Nick Piggin <npiggin@suse.de>, steiner@sgi.com, Andrea Arcangeli <andrea@qumranet.com>, linux-mm@kvack.org, Izik Eidus <izike@qumranet.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
 List-Id: linux-mm.kvack.org
 
-On Thu, 3 Apr 2008, Nick Piggin wrote:
+On Thu, 3 Apr 2008, Peter Zijlstra wrote:
 
-> I've been playing around with slab allocators because I'm concerned about
-> the directions that SLUB is going in. I've come up so far with a working
-> alternative implementation, which I have called SLQB (the remaining vowels
-> are crap).
+> It seems to me that common code can be shared using functions? No need
+> to stuff everything into a single function. We have method vectors all
+> over the kernel, we could do a_ops as a single callback too, but we
+> dont.
+> 
+> FWIW I prefer separate methods.
 
-Hmm... Interesting stuff. I have toyed around with a lot of similar ideas 
-to add at least limited queuing to SLUB but the increased overhead / 
-complexity in the hot paths always killed these attempts. Well worth 
-pursuing and I could even imagine the queuing you are adding to be merged 
-to SLUB (or rename it to whatever else) if it does not impact performance 
-otherwise.
-
-> What I have tried to concentrate on is:
-> - Per CPU scalability, which is important for MC and MT CPUs.
-> This is achieved by having per CPU queues of node local free and partial
-> lists. Per node lists are used for off-node allocations.
-
-Yeah that is similar to SLAB. The off node lists will require locks and 
-thus you run into similar issues with queue management as in SLAB. How do 
-you expire the objects and configure the queues?
- 
-> - Good performance with order-0 pages.
-> I feel that order-0 allocations are the way to go and higher orders are not.
-> This is achieved by using queues of pages. We still could* use higher order
-> allocations, but it is not as important as SLUB.
-
-If you want to go with order-0 pages then it would be good to first work 
-on the page allocator performance so that there is no need of buffering 
-order-0 allocations in the slab allocators. The buffering stuff for 4k 
-allocs that I had to add to SLUB in 2.6.25 and that likely concerns you 
-could go mostly away if the page allocator had competitive performance.
-
-Higher orders are still likely a must in the future because it allows a 
-reduction of the metadata management overhead (pretty important for 
-filesystems f.e.). And the argument about faster processors compensating 
-for the increased effort to manage the metadata (page structs and such) 
-really does not cut it because memory speeds do not keep up nor does the 
-evolution of the locking algorithms / reclaim logic in the kernel.
+Ok. It seems that I already added some new methods which do not use all 
+parameters. So lets switch back to the old scheme for the next release.
