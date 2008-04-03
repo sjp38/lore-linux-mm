@@ -1,48 +1,27 @@
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [-mm] Add an owner to the mm_struct (v6)
-Date: Thu, 3 Apr 2008 08:45:33 -0700
-Message-ID: <6599ad830804030845m71d56d88u3508a252fc134ba5@mail.gmail.com>
-References: <20080403073043.3563.63717.sendpatchset@localhost.localdomain>
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [RFC 10/22] m68k: Use generic show_mem()
+Date: Thu, 3 Apr 2008 17:07:32 +0100 (BST)
+Message-ID: <Pine.LNX.4.64.0804031705230.11465@blonde.site>
+References: <12071688283927-git-send-email-hannes@saeurebad.de>
+ <1207168941186-git-send-email-hannes@saeurebad.de> <Pine.LNX.4.64.0804030939320.9848@anakin>
+ <87myobp02g.fsf@saeurebad.de> <Pine.LNX.4.64.0804031538150.11898@anakin>
+ <87wsnfnfdu.fsf@saeurebad.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1760133AbYDCPp6@vger.kernel.org>
-In-Reply-To: <20080403073043.3563.63717.sendpatchset@localhost.localdomain>
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1759957AbYDCQMt@vger.kernel.org>
+In-Reply-To: <87wsnfnfdu.fsf@saeurebad.de>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Johannes Weiner <hannes@saeurebad.de>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, davem@davemloft.net, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, dhowells@redhat.com, ysato@users.sourceforge.net, takata@linux-m32r.org, ralf@linux-mips.org, kyle@parisc-linux.org, paulus@samba.org, schwidefsky@de.ibm.com, lethal@linux-sh.org, jdike@addtoit.com, miles@gnu.org, chris@zankel.net, rmk@arm.linux.org.uk, tony.luck@intel.com, akpm@linux-foundation.org
 List-Id: linux-mm.kvack.org
 
-On Thu, Apr 3, 2008 at 12:30 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->  +         This option enables mm_struct's to have an owner. The advantage
->  +         of this approach is that it allows for several independent memory
->  +         based cgorup controllers to co-exist independently without too
+On Thu, 3 Apr 2008, Johannes Weiner wrote:
+> 
+> Sorry for the wasted time.  These cleanups already took more energy than
+> they are worth it, I guess... :/
 
-cgorup -> cgroup
+Please do persist, I for one appreciate your efforts on this:
+something I wanted to do years ago but never yet got around to.
 
->  +       if (need_mm_owner_callback) {
->  +               int i;
->  +               for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
->  +                       struct cgroup_subsys *ss = subsys[i];
->  +                       oldcgrp = task_cgroup(old, ss->subsys_id);
->  +                       newcgrp = task_cgroup(new, ss->subsys_id);
->  +                       if (oldcgrp == newcgrp)
->  +                               continue;
->  +                       if (ss->mm_owner_changed)
->  +                               ss->mm_owner_changed(ss, oldcgrp, newcgrp);
-
-Even better, maybe just pass in the relevant cgroup_subsys_state
-objects here, rather than the cgroup objects?
-
->
->         css_get(&mem->css);
->  -       rcu_assign_pointer(mm->mem_cgroup, mem);
->         css_put(&old_mem->css);
-
-These get/put calls are now unwanted?
-
-Could you also add comments in mm_need_new_owner(), in particular the
-reason for checking for delay_group_leader() ?
-
-Paul
+Thank you!
+Hugh
