@@ -1,45 +1,56 @@
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [-mm] Make the memory controller more desktop responsive
-Date: Thu, 3 Apr 2008 18:55:55 +0900
-Message-ID: <20080403185555.9dfe8dd3.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080403093253.8944.10168.sendpatchset@localhost.localdomain>
-	<20080403184351.42de4f56.kamezawa.hiroyu@jp.fujitsu.com>
-	<47F4A700.3080307@linux.vnet.ibm.com>
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: [ofa-general] Re: EMM: Fixup return value handling of emm_notify()
+Date: Thu, 03 Apr 2008 12:40:46 +0200
+Message-ID: <1207219246.8514.817.camel@twins>
+References: <20080401205531.986291575@sgi.com>
+	<20080401205635.793766935@sgi.com> <20080402064952.GF19189@duo.random>
+	<Pine.LNX.4.64.0804021048460.27214@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0804021202450.28436@schroedinger.engr.sgi.com>
+	<20080402212515.GS19189@duo.random>
+	<Pine.LNX.4.64.0804021427210.30516@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1758172AbYDCJvc@vger.kernel.org>
-In-Reply-To: <47F4A700.3080307@linux.vnet.ibm.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: balbir@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>
+Return-path: <general-bounces@lists.openfabrics.org>
+In-Reply-To: <Pine.LNX.4.64.0804021427210.30516@schroedinger.engr.sgi.com>
+List-Unsubscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
+	<mailto:general-request@lists.openfabrics.org?subject=unsubscribe>
+List-Archive: <http://lists.openfabrics.org/pipermail/general>
+List-Post: <mailto:general@lists.openfabrics.org>
+List-Help: <mailto:general-request@lists.openfabrics.org?subject=help>
+List-Subscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
+	<mailto:general-request@lists.openfabrics.org?subject=subscribe>
+Sender: general-bounces@lists.openfabrics.org
+Errors-To: general-bounces@lists.openfabrics.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <npiggin@suse.de>, steiner@sgi.com, Andrea Arcangeli <andrea@qumranet.com>, linux-mm@kvack.org, Izik Eidus <izike@qumranet.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
 List-Id: linux-mm.kvack.org
 
-On Thu, 03 Apr 2008 15:14:32 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> KAMEZAWA Hiroyuki wrote:
-> > On Thu, 03 Apr 2008 15:02:53 +0530
-> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> >> This patch makes the memory controller more responsive on my desktop.
-> >>
-> >> Here is what the patch does
-> >>
-> >> 1. Reduces the number of retries to 2. We had 5 earlier, since we
-> >>    were controlling swap cache as well. We pushed data from mappings
-> >>    to swap cache and we needed additional passes to clear out the cache.
-> > 
-> > Hmm, what this change improves ?
-> > I don't want to see OOM.
-> > 
+On Wed, 2008-04-02 at 14:33 -0700, Christoph Lameter wrote:
+> On Wed, 2 Apr 2008, Andrea Arcangeli wrote:
 > 
-> I had set it to 5 earlier, since the swap cache came back to our memory
-> controller, where it was accounted. I have not seen OOM with it on my desktop,
-> but at some point if the memory required is so much that we cannot fulfill it,
-> we do OOM. I have not seen any OOM so far with these changes.
+> > but anyway it's silly to be hardwired to such an interface that worst
+> > of all requires switch statements instead of proper pointer to
+> > functions and a fixed set of parameters and retval semantics for all
+> > methods.
 > 
-Hmm, I'm now testing swap-cache accounting patch.
-It seems I should check this value again.
+> The EMM API with a single callback is the simplest approach at this point. 
+> A common callback for all operations allows the driver to implement common 
+> entry and exit code as seen in XPMem.
 
-Thanks,
--Kame
+It seems to me that common code can be shared using functions? No need
+to stuff everything into a single function. We have method vectors all
+over the kernel, we could do a_ops as a single callback too, but we
+dont.
+
+FWIW I prefer separate methods.
+
+> I guess we can complicate this more by switching to a different API or 
+> adding additional emm_xxx() callback if need be but I really want to have 
+> a strong case for why this would be needed. There is the danger of 
+> adding frills with special callbacks in this and that situation that could 
+> make the notifier complicated and specific to a certain usage scenario. 
+> 
+> Having this generic simple interface will hopefully avoid such things.
+> 
+> 
