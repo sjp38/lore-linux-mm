@@ -1,54 +1,32 @@
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: [RFC 01/22] Generic show_mem() implementation
-Date: Thu, 3 Apr 2008 09:55:45 +0200
-Message-ID: <20080403075545.GC4125@osiris.boeblingen.de.ibm.com>
-References: <12071688283927-git-send-email-hannes@saeurebad.de> <1207168839586-git-send-email-hannes@saeurebad.de>
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [rfc] SLQB: YASA
+Date: Thu, 3 Apr 2008 09:57:25 +0200
+Message-ID: <20080403075725.GA7514@wotan.suse.de>
+References: <20080403072550.GC25932@wotan.suse.de> <84144f020804030045p44456894lfc006dcdeab6f67c@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1761780AbYDCH4D@vger.kernel.org>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1762168AbYDCH5m@vger.kernel.org>
 Content-Disposition: inline
-In-Reply-To: <1207168839586-git-send-email-hannes@saeurebad.de>
+In-Reply-To: <84144f020804030045p44456894lfc006dcdeab6f67c@mail.gmail.com>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Johannes Weiner <hannes@saeurebad.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, davem@davemloft.net, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, dhowells@redhat.com, ysato@users.sf.net, takata@linux-m32r.org, geert@linux-m68k.org, ralf@linux-mips.org, kyle@parisc-linux.org, paulus@samba.org, schwidefsky@de.ibm.com, lethal@linux-sh.org, jdike@addtoit.com, miles@gnu.org, chris@zankel.net, rmk@arm.linux.org.uk, tony.luck@intel.com
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Christoph Lameter <clameter@sgi.com>
 List-Id: linux-mm.kvack.org
 
-> diff --git a/arch/alpha/Kconfig b/arch/alpha/Kconfig
-> index 729cdbd..efffa92 100644
-> --- a/arch/alpha/Kconfig
-> +++ b/arch/alpha/Kconfig
-> @@ -598,6 +598,9 @@ config ALPHA_LARGE_VMALLOC
+On Thu, Apr 03, 2008 at 10:45:44AM +0300, Pekka Enberg wrote:
+> Hi Nick,
 > 
->  	  Say N unless you know you need gobs and gobs of vmalloc space.
+> On Thu, Apr 3, 2008 at 10:25 AM, Nick Piggin <npiggin@suse.de> wrote:
+> >  I'm not quite sure what to do with this. If anybody could test or comment,
+> >  I guess that would be a good start :)
 > 
-> +config HAVE_ARCH_SHOW_MEM
-> +	def_bool y
-> +
->  config VERBOSE_MCHECK
->  	bool "Verbose Machine Checks"
-> 
-> diff --git a/arch/arm/mm/Kconfig b/arch/arm/mm/Kconfig
-> index 76348f0..acad217 100644
-> --- a/arch/arm/mm/Kconfig
-> +++ b/arch/arm/mm/Kconfig
-> @@ -673,3 +673,6 @@ config OUTER_CACHE
->  config CACHE_L2X0
->  	bool
->  	select OUTER_CACHE
-> +
-> +config HAVE_ARCH_SHOW_MEM
-> +	def_bool y
+> Why is this not a patch set against SLUB?
 
-These are all not necessary. Better add some global Kconfig option that
-gets selected by an arch if it wants the generic implementation.
+It's a completely different design of the core allocator algorithms
+really.
 
-e.g. we currently have this in arch/s390/Kconfig:
-
-config S390
-        def_bool y
-        select HAVE_OPROFILE
-        select HAVE_KPROBES
-        select HAVE_KRETPROBES
-
-just add a select HAVE_GENERIC_SHOWMEM or something like that in the arch
-specific patches.
+It probably looks quite similar because I started with slub.c, but
+really is just the peripheral supporting code and structure. I'm never
+intending to try to go through the pain of incrementally changing SLUB
+into SLQB. If SLQB is found to be a good idea, then it could maybe get
+merged.
