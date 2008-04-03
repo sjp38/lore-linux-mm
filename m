@@ -1,27 +1,40 @@
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: [RFC 18/22] sh: Use generic show_mem()
-Date: Thu, 3 Apr 2008 20:41:24 +0900
-Message-ID: <20080403114124.GA25523@linux-sh.org>
-References: <12071688283927-git-send-email-hannes@saeurebad.de> <12071690311447-git-send-email-hannes@saeurebad.de>
+From: Pavel Emelyanov <xemul-GEFAQzZX7r8dnm+yROfE0A@public.gmane.org>
+Subject: Re: [PATCH 2/2] Make res_counter hierarchical
+Date: Thu, 03 Apr 2008 16:26:22 +0400
+Message-ID: <47F4CCEE.2090106@openvz.org>
+References: <47D16004.7050204@openvz.org> <47F3A5BF.1080301@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1757179AbYDCLnq@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <12071690311447-git-send-email-hannes@saeurebad.de>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Johannes Weiner <hannes@saeurebad.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, davem@davemloft.net, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, dhowells@redhat.com, ysato@users.sf.net, takata@linux-m32r.org, geert@linux-m68k.org, ralf@linux-mips.org, kyle@parisc-linux.org, paulus@samba.org, schwidefsky@de.ibm.com, jdike@addtoit.com, miles@gnu.org, chris@zankel.net, rmk@arm.linux.org.uk, tony.luck@intel.com
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+In-Reply-To: <47F3A5BF.1080301-23VcF4HTsmIX0ybBhKVfKdBPR1lH4CV8@public.gmane.org>
+List-Unsubscribe: <https://lists.linux-foundation.org/mailman/listinfo/containers>,
+	<mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
+List-Archive: <http://lists.linux-foundation.org/pipermail/containers>
+List-Post: <mailto:containers-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+List-Help: <mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
+List-Subscribe: <https://lists.linux-foundation.org/mailman/listinfo/containers>,
+	<mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
+Sender: containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+Errors-To: containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+To: balbir-23VcF4HTsmIX0ybBhKVfKdBPR1lH4CV8@public.gmane.org
+Cc: Linux Containers <containers-qjLDD68F18O7TbgM5vRIOg@public.gmane.org>, Linux MM <linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org>, Paul Menage <menage-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, Daisuke Nishimura <nishimura-YQH0OdQVrdy45+QrQBaojngSJqDPrsil@public.gmane.org>
 List-Id: linux-mm.kvack.org
 
-On Wed, Apr 02, 2008 at 10:40:24PM +0200, Johannes Weiner wrote:
-> -	printk(KERN_INFO "Total of %ld pages in page table cache\n",
-> -	       quicklist_total_size());
-> -}
-> -
+Balbir Singh wrote:
+> Pavel Emelyanov wrote:
+>> This allows us two things basically:
+>>
+> 
+> Pavel,
+> 
+> Do you have any further updates on this. I think we need a way of being able to
 
-NACK. The quicklists are also absent from the generic implementation.
-Doing things generically is nice and all, but please do not go around
-removing all of the different implementations and consolidating on the
-simplest point of commonality you could come up with. Either combine
-everything in to a generic show_mem() that doesn't sacrifice
-functionality, or only convert the platforms that are identical.
+No. Unfortunately I stopped following the discussion at some point
+and decided that nobody liked this patch that much.
+
+> implement reclaim per hierarchy as mentioned earlier. Do you want me to take a
+> look at it?
+
+Yes, sure. I'm now busy (among other stuff) with kmemsize controller, hope I 
+can finish its polishing and testing till summer :(
