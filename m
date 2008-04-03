@@ -1,19 +1,22 @@
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [ofa-general] Re: EMM: Fixup return value handling of emm_notify()
-Date: Thu, 3 Apr 2008 12:14:24 -0700 (PDT)
-Message-ID: <Pine.LNX.4.64.0804031213480.7480@schroedinger.engr.sgi.com>
+Subject: [ofa-general] Re: EMM: disable other notifiers before register and
+	unregister
+Date: Thu, 3 Apr 2008 12:20:41 -0700 (PDT)
+Message-ID: <Pine.LNX.4.64.0804031215050.7480@schroedinger.engr.sgi.com>
 References: <20080401205531.986291575@sgi.com>
 	<20080401205635.793766935@sgi.com>
 	<20080402064952.GF19189@duo.random>
 	<Pine.LNX.4.64.0804021048460.27214@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0804021202450.28436@schroedinger.engr.sgi.com>
-	<20080402212515.GS19189@duo.random>
-	<Pine.LNX.4.64.0804021427210.30516@schroedinger.engr.sgi.com>
-	<1207219246.8514.817.camel@twins>
+	<Pine.LNX.4.64.0804021402190.30337@schroedinger.engr.sgi.com>
+	<20080402220148.GV19189@duo.random>
+	<Pine.LNX.4.64.0804021503320.31247@schroedinger.engr.sgi.com>
+	<20080402221716.GY19189@duo.random>
+	<Pine.LNX.4.64.0804021821230.639@schroedinger.engr.sgi.com>
+	<20080403151908.GB9603@duo.random>
 Mime-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Return-path: <general-bounces@lists.openfabrics.org>
-In-Reply-To: <1207219246.8514.817.camel@twins>
+In-Reply-To: <20080403151908.GB9603@duo.random>
 List-Unsubscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
 	<mailto:general-request@lists.openfabrics.org?subject=unsubscribe>
 List-Archive: <http://lists.openfabrics.org/pipermail/general>
@@ -23,18 +26,23 @@ List-Subscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
 	<mailto:general-request@lists.openfabrics.org?subject=subscribe>
 Sender: general-bounces@lists.openfabrics.org
 Errors-To: general-bounces@lists.openfabrics.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Nick Piggin <npiggin@suse.de>, steiner@sgi.com, Andrea Arcangeli <andrea@qumranet.com>, linux-mm@kvack.org, Izik Eidus <izike@qumranet.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Nick Piggin <npiggin@suse.de>, steiner@sgi.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Izik Eidus <izike@qumranet.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
 List-Id: linux-mm.kvack.org
 
-On Thu, 3 Apr 2008, Peter Zijlstra wrote:
+On Thu, 3 Apr 2008, Andrea Arcangeli wrote:
 
-> It seems to me that common code can be shared using functions? No need
-> to stuff everything into a single function. We have method vectors all
-> over the kernel, we could do a_ops as a single callback too, but we
-> dont.
-> 
-> FWIW I prefer separate methods.
+> My attempt to fix this once and for all is to walk all vmas of the
+> "mm" inside mmu_notifier_register and take all anon_vma locks and
+> i_mmap_locks in virtual address order in a row. It's ok to take those
+> inside the mmap_sem. Supposedly if anybody will ever take a double
+> lock it'll do in order too. Then I can dump all the other locking and
 
-Ok. It seems that I already added some new methods which do not use all 
-parameters. So lets switch back to the old scheme for the next release.
+What about concurrent mmu_notifier registrations from two mm_structs 
+that have shared mappings? Isnt there a potential deadlock situation?
+
+> faults). So it should be ok to take all those locks inside the
+> mmap_sem and implement a lock_vm(mm) unlock_vm(mm). I'll think more
+> about this hammer approach while I try to implement it...
+
+Well good luck. Hopefully we will get to something that works.
