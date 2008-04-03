@@ -1,58 +1,31 @@
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [-mm] Add an owner to the mm_struct (v7)
-Date: Fri, 04 Apr 2008 00:58:00 +0530
-Message-ID: <47F52FC0.60305@linux.vnet.ibm.com>
-References: <20080403174433.26356.42121.sendpatchset@localhost.localdomain> <1207247113.21922.63.camel@nimitz.home.sr71.net> <47F52735.7090502@linux.vnet.ibm.com> <6599ad830804031156w79366866yed9f8c3b8acf71fb@mail.gmail.com>
-Reply-To: balbir@linux.vnet.ibm.com
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: EMM: disable other notifiers before register and unregister
+Date: Thu, 3 Apr 2008 13:23:12 -0700 (PDT)
+Message-ID: <Pine.LNX.4.64.0804031321260.8331@schroedinger.engr.sgi.com>
+References: <20080401205531.986291575@sgi.com> <20080401205635.793766935@sgi.com>
+ <20080402064952.GF19189@duo.random> <Pine.LNX.4.64.0804021048460.27214@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0804021402190.30337@schroedinger.engr.sgi.com>
+ <20080402220148.GV19189@duo.random> <Pine.LNX.4.64.0804021503320.31247@schroedinger.engr.sgi.com>
+ <20080402221716.GY19189@duo.random> <Pine.LNX.4.64.0804021821230.639@schroedinger.engr.sgi.com>
+ <20080403151908.GB9603@duo.random> <Pine.LNX.4.64.0804031215050.7480@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1760673AbYDCT2d@vger.kernel.org>
-In-Reply-To: <6599ad830804031156w79366866yed9f8c3b8acf71fb@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1758767AbYDCU0J@vger.kernel.org>
+In-Reply-To: <Pine.LNX.4.64.0804031215050.7480@schroedinger.engr.sgi.com>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Paul Menage <menage@google.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Robin Holt <holt@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>
 List-Id: linux-mm.kvack.org
 
-Paul Menage wrote:
-> On Thu, Apr 3, 2008 at 11:51 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->>  >> +     * delay_group_leader() ensures that if the group leader is around
->>  >> +     * we need not select a new owner.
->>  >> +     */
->>  >> +    ret = (mm && (atomic_read(&mm->mm_users) > 1) && (mm->owner == p) &&
->>  >> +            !delay_group_leader(p));
->>  >> +    return ret;
->>  >> +}
->>  >
->>  > Ugh.  Could you please spell this out a bit more.  I find that stuff
->>  > above really hard to read.  Something like:
->>  >
->>  >       if (!mm)
->>  >               return 0;
->>  >       if (atomic_read(&mm->mm_users) <= 1)
->>  >               return 0;
->>  >       if (mm->owner != p)
->>  >               return 0;
->>  >       if (delay_group_leader(p))
->>  >               return 0;
->>  >       return 1;
->>  >
->>
->>  The problem with code above is 4 branch instructions and the code I have just 4
->>  AND operations.
+On Thu, 3 Apr 2008, Christoph Lameter wrote:
+
+> > faults). So it should be ok to take all those locks inside the
+> > mmap_sem and implement a lock_vm(mm) unlock_vm(mm). I'll think more
+> > about this hammer approach while I try to implement it...
 > 
-> They'll be completely equivalent to the compiler, due to the
-> short-circuit evaluation of &&
+> Well good luck. Hopefully we will get to something that works.
 
-Aahh.. Yes.. my bad.. I keep under-estimating compilers and their potential to
-optimize
-
-Form (2) seems more readable, I'll move to that
-
-
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Another hammer to use may be the freezer from software suspend. With that 
+you can get all tasks of a process into a definite state. Then take the 
+mmap_sem writably. But then there is still try_to_unmap and friends that 
+can race.
