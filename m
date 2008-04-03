@@ -1,165 +1,68 @@
-From: Christoph Lameter <clameter@sgi.com>
-Subject: EMM: disable other notifiers before register and
-	unregister
-Date: Wed, 2 Apr 2008 18:24:15 -0700 (PDT)
-Message-ID: <Pine.LNX.4.64.0804021821230.639@schroedinger.engr.sgi.com>
-References: <20080401205531.986291575@sgi.com>
-	<20080401205635.793766935@sgi.com>
-	<20080402064952.GF19189@duo.random>
-	<Pine.LNX.4.64.0804021048460.27214@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0804021402190.30337@schroedinger.engr.sgi.com>
-	<20080402220148.GV19189@duo.random>
-	<Pine.LNX.4.64.0804021503320.31247@schroedinger.engr.sgi.com>
-	<20080402221716.GY19189@duo.random>
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC][-mm] Add an owner to the mm_struct (v4)
+Date: Thu, 03 Apr 2008 09:35:18 +0530
+Message-ID: <47F4577E.5060905@linux.vnet.ibm.com>
+References: <20080401124312.23664.64616.sendpatchset@localhost.localdomain> <47F3D62E.4070808@linux.vnet.ibm.com> <6599ad830804021253y6bf3b37y9bf1167b63c32e70@mail.gmail.com>
+Reply-To: balbir@linux.vnet.ibm.com
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Return-path: <kvm-devel-bounces@lists.sourceforge.net>
-In-Reply-To: <20080402221716.GY19189@duo.random>
-List-Unsubscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
-	<mailto:kvm-devel-request@lists.sourceforge.net?subject=unsubscribe>
-List-Archive: <http://sourceforge.net/mailarchive/forum.php?forum_name=kvm-devel>
-List-Post: <mailto:kvm-devel@lists.sourceforge.net>
-List-Help: <mailto:kvm-devel-request@lists.sourceforge.net?subject=help>
-List-Subscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
-	<mailto:kvm-devel-request@lists.sourceforge.net?subject=subscribe>
-Sender: kvm-devel-bounces@lists.sourceforge.net
-Errors-To: kvm-devel-bounces@lists.sourceforge.net
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Nick Piggin <npiggin@suse.de>, steiner@sgi.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1753271AbYDCEFy@vger.kernel.org>
+In-Reply-To: <6599ad830804021253y6bf3b37y9bf1167b63c32e70@mail.gmail.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Paul Menage <menage@google.com>
+Cc: Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-Id: linux-mm.kvack.org
 
-Ok lets forget about the single theaded thing to solve the registration 
-races. As Andrea pointed out this still has ssues with other subscribed 
-subsystems (and also try_to_unmap). We could do something like what 
-stop_machine_run does: First disable all running subsystems before 
-registering a new one.
+Paul Menage wrote:
+> On Wed, Apr 2, 2008 at 11:53 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>>  So far I've heard no objections or seen any review suggestions. Paul if you are
+>>  OK with this patch, I'll ask Andrew to include it in -mm.
+> 
+> My only thoughts were:
+> 
+> - I think I'd still prefer CONFIG_MM_OWNER to be auto-selected rather
+> than manually configured, but it's not a huge deal either way.
+> 
 
-Maybe this is a possible solution.
+It is auto-selected now by CONFIG_CGROUP_MEM_RES_CTLR in the latest patchset
 
+> - in theory I think we should goto retry if we get to the end of
+> mm_update_next_owner() without finding any other owner. Otherwise we
+> could miss another user if we race with one process forking a new
+> child and then exiting?
+> 
 
-Subject: EMM: disable other notifiers before register and unregister
+When we the current task is exiting and we've verified that we are mm->owner and
+we cannot miss the new process since through the process of forking, it would
+have added the new process to the tasklist before exiting.
 
-As Andrea has pointed out: There are races during registration if other
-subsystem notifiers are active while we register a callback.
+> - I was looking through the exit code trying to convince myself that
+> current is still on the tasklist until after it makes this call. If it
+> isn't then we could have trouble finding the new owner. But I can't
+> figure out for sure exactly at what point we come off the tasklist.
+> 
 
-Solve that issue by adding two new notifiers:
+We come off the task list in __unhash_process(), which is in turn called by
+release_task() through __exit_signal().
 
-emm_stop
-	Stops the notifier operations. Notifier must block on
-	invalidate_start and emm_referenced from this point on.
-	If an invalidate_start has not been completed by a call
-	to invalidate_end then the driver must wait until the
-	operation is complete before returning.
+> - I think we only need the cgroup callback in the event that
+> current->cgroups != new_owner->cgroups. (Hmm, have we already been
+> moved back to the root cgroup by this point? If so, then we'll have no
+> way to know which cgruop to unaccount from).
+> 
 
-emm_start
-	Restart notifier operations.
+I checked to see that cgroup_exit is called after mm_update_new_owner(). We call
+mm_update_new_owner() from exit_mm(). I did not check for current->cgroups !=
+new_owner->cgroups, since I did not want to limit the callbacks. An interested
+callback can make that check and no-op the callback.
 
-Before registration all other subscribed subsystems are stopped.
-Then the new subsystem is subscribed and things can get running
-without consistency issues.
-
-Subsystems are restarted after the lists have been updated.
-
-This also works for unregistering. If we can get all subsystems
-to stop then we can also reliably unregister a subsystem. So
-provide that callback.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
----
- include/linux/rmap.h |   10 +++++++---
- mm/rmap.c            |   30 ++++++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+), 3 deletions(-)
-
-Index: linux-2.6/include/linux/rmap.h
-===================================================================
---- linux-2.6.orig/include/linux/rmap.h	2008-04-02 18:16:07.906032549 -0700
-+++ linux-2.6/include/linux/rmap.h	2008-04-02 18:17:10.291070009 -0700
-@@ -94,7 +94,9 @@ enum emm_operation {
- 	emm_release,		/* Process exiting, */
- 	emm_invalidate_start,	/* Before the VM unmaps pages */
- 	emm_invalidate_end,	/* After the VM unmapped pages */
-- 	emm_referenced		/* Check if a range was referenced */
-+ 	emm_referenced,		/* Check if a range was referenced */
-+	emm_stop,		/* Halt all faults/invalidate_starts */
-+	emm_start,		/* Restart operations */
- };
- 
- struct emm_notifier {
-@@ -126,13 +128,15 @@ static inline int emm_notify(struct mm_s
- 
- /*
-  * Register a notifier with an mm struct. Release occurs when the process
-- * terminates by calling the notifier function with emm_release.
-+ * terminates by calling the notifier function with emm_release or when
-+ * emm_notifier_unregister is called.
-  *
-  * Must hold the mmap_sem for write.
-  */
- extern void emm_notifier_register(struct emm_notifier *e,
- 					struct mm_struct *mm);
--
-+extern void emm_notifier_unregister(struct emm_notifier *e,
-+					struct mm_struct *mm);
- 
- /*
-  * Called from mm/vmscan.c to handle paging out
-Index: linux-2.6/mm/rmap.c
-===================================================================
---- linux-2.6.orig/mm/rmap.c	2008-04-02 18:16:09.378057062 -0700
-+++ linux-2.6/mm/rmap.c	2008-04-02 18:16:10.710079201 -0700
-@@ -289,16 +289,46 @@ void emm_notifier_release(struct mm_stru
- /* Register a notifier */
- void emm_notifier_register(struct emm_notifier *e, struct mm_struct *mm)
- {
-+	/* Bring all other notifiers into a quiescent state */
-+	emm_notify(mm, emm_stop, 0, TASK_SIZE);
-+
- 	e->next = mm->emm_notifier;
-+
- 	/*
- 	 * The update to emm_notifier (e->next) must be visible
- 	 * before the pointer becomes visible.
- 	 * rcu_assign_pointer() does exactly what we need.
- 	 */
- 	rcu_assign_pointer(mm->emm_notifier, e);
-+
-+	/* Continue notifiers */
-+	emm_notify(mm, emm_start, 0, TASK_SIZE);
- }
- EXPORT_SYMBOL_GPL(emm_notifier_register);
- 
-+/* Unregister a notifier */
-+void emm_notifier_unregister(struct emm_notifier *e, struct mm_struct *mm)
-+{
-+	struct emm_notifier *p;
-+
-+	emm_notify(mm, emm_stop, 0, TASK_SIZE);
-+
-+	p = mm->emm_notifier;
-+	if (e == p)
-+		mm->emm_notifier = e->next;
-+	else {
-+		while (p->next != e)
-+			p = p->next;
-+
-+		p->next = e->next;
-+	}
-+	e->next = mm->emm_notifier;
-+
-+	emm_notify(mm, emm_start, 0, TASK_SIZE);
-+	e->callback(e, mm, emm_release, 0, TASK_SIZE);
-+}
-+EXPORT_SYMBOL_GPL(emm_notifier_unregister);
-+
- /*
-  * Perform a callback
-  *
+I am going to change the rcu_read_lock(), so that it is released after we take
+the task_lock() and repost the patch
 
 
--------------------------------------------------------------------------
-Check out the new SourceForge.net Marketplace.
-It's the best place to buy or sell services for
-just about anything Open Source.
-http://ad.doubleclick.net/clk;164216239;13503038;w?http://sf.net/marketplace
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
