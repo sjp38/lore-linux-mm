@@ -1,41 +1,24 @@
-From: "KOSAKI Motohiro" <m-kosaki@ceres.dti.ne.jp>
-Subject: Re: [-mm] Make the memory controller more desktop responsive (v2)
-Date: Fri, 4 Apr 2008 23:02:51 +0900
-Message-ID: <2f11576a0804040702j854653ble14fe655d25b922f@mail.gmail.com>
-References: <20080404132116.5217.14401.sendpatchset@localhost.localdomain>
-	 <2f11576a0804040701s5b6267b0w430c29b5010bf841@mail.gmail.com>
+From: Jeff Dike <jdike@addtoit.com>
+Subject: Re: [RFC 19/22] um: Use generic show_mem()
+Date: Fri, 4 Apr 2008 10:38:41 -0400
+Message-ID: <20080404143841.GD6514@c2.user-mode-linux.org>
+References: <12071688283927-git-send-email-hannes@saeurebad.de> <12071690432631-git-send-email-hannes@saeurebad.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1758606AbYDDODL@vger.kernel.org>
-In-Reply-To: <2f11576a0804040701s5b6267b0w430c29b5010bf841@mail.gmail.com>
+Content-Type: text/plain; charset=us-ascii
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1759401AbYDDOp2@vger.kernel.org>
 Content-Disposition: inline
+In-Reply-To: <12071690432631-git-send-email-hannes@saeurebad.de>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pavel Emelianov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Johannes Weiner <hannes@saeurebad.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, davem@davemloft.net, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, dhowells@redhat.com, ysato@users.sourceforge.net, takata@linux-m32r.org, geert@linux-m68k.org, ralf@linux-mips.org, kyle@parisc-linux.org, paulus@samba.org, schwidefsky@de.ibm.com, lethal@linux-sh.org, miles@gnu.org, chris@zankel.net, rmk@arm.linux.org.uk, tony.luck@intel.com
 List-Id: linux-mm.kvack.org
 
-On Fri, Apr 4, 2008 at 11:01 PM, KOSAKI Motohiro
-<m-kosaki@ceres.dti.ne.jp> wrote:
-> Hi
->
->
->  >  @@ -612,7 +611,7 @@ retry:
->  >         pc->page = page;
->  >         pc->flags = PAGE_CGROUP_FLAG_ACTIVE;
->  >         if (ctype == MEM_CGROUP_CHARGE_TYPE_CACHE)
->  >  -               pc->flags |= PAGE_CGROUP_FLAG_CACHE;
->  >  +               pc->flags = PAGE_CGROUP_FLAG_CACHE;
->  >
->  >         lock_page_cgroup(page);
->  >         if (page_get_page_cgroup(page)) {
->
->  Yes.
->  in general, cache page create as cold page.
->  if not, large file copy or streaming file drop all cache easily.
->
->  Reviewd-by: KOSAKI
+On Wed, Apr 02, 2008 at 10:40:25PM +0200, Johannes Weiner wrote:
+> Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
 
-sorry, I sent premature document.
+This looks fine for UML.
 
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+     	   	Jeff
+
+-- 
+Work email - jdike at linux dot intel dot com
