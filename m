@@ -1,78 +1,73 @@
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [-mm] Add an owner to the mm_struct (v8)
-Date: Fri, 04 Apr 2008 14:55:14 +0530
-Message-ID: <47F5F3FA.7060709@linux.vnet.ibm.com>
-References: <20080404080544.26313.38199.sendpatchset@localhost.localdomain> <6599ad830804040112q3dd5333aodf6a170c78e61dc8@mail.gmail.com> <47F5E69C.9@linux.vnet.ibm.com> <6599ad830804040150j4946cf92h886bb26000319f3b@mail.gmail.com>
-Reply-To: balbir@linux.vnet.ibm.com
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: EMM: disable other notifiers before register and
+	unregister
+Date: Fri, 4 Apr 2008 14:30:40 +0200
+Message-ID: <20080404123040.GC10185@duo.random>
+References: <20080401205635.793766935@sgi.com>
+	<20080402064952.GF19189@duo.random>
+	<Pine.LNX.4.64.0804021048460.27214@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0804021402190.30337@schroedinger.engr.sgi.com>
+	<20080402220148.GV19189@duo.random>
+	<Pine.LNX.4.64.0804021503320.31247@schroedinger.engr.sgi.com>
+	<20080402221716.GY19189@duo.random>
+	<Pine.LNX.4.64.0804021821230.639@schroedinger.engr.sgi.com>
+	<20080403151908.GB9603@duo.random>
+	<Pine.LNX.4.64.0804031215050.7480@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1759123AbYDDJ1j@vger.kernel.org>
-In-Reply-To: <6599ad830804040150j4946cf92h886bb26000319f3b@mail.gmail.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Paul Menage <menage@google.com>
-Cc: Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Return-path: <kvm-devel-bounces@lists.sourceforge.net>
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0804031215050.7480@schroedinger.engr.sgi.com>
+List-Unsubscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
+	<mailto:kvm-devel-request@lists.sourceforge.net?subject=unsubscribe>
+List-Archive: <http://sourceforge.net/mailarchive/forum.php?forum_name=kvm-devel>
+List-Post: <mailto:kvm-devel@lists.sourceforge.net>
+List-Help: <mailto:kvm-devel-request@lists.sourceforge.net?subject=help>
+List-Subscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
+	<mailto:kvm-devel-request@lists.sourceforge.net?subject=subscribe>
+Sender: kvm-devel-bounces@lists.sourceforge.net
+Errors-To: kvm-devel-bounces@lists.sourceforge.net
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <npiggin@suse.de>, steiner@sgi.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
 List-Id: linux-mm.kvack.org
 
-Paul Menage wrote:
-> On Fri, Apr 4, 2008 at 1:28 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->>  It won't uncharge for the memory controller from the root cgroup since each page
->>   has the mem_cgroup information associated with it.
+On Thu, Apr 03, 2008 at 12:20:41PM -0700, Christoph Lameter wrote:
+> On Thu, 3 Apr 2008, Andrea Arcangeli wrote:
 > 
-> Right, I realise that the memory controller is OK because of the ref counts.
+> > My attempt to fix this once and for all is to walk all vmas of the
+> > "mm" inside mmu_notifier_register and take all anon_vma locks and
+> > i_mmap_locks in virtual address order in a row. It's ok to take those
+> > inside the mmap_sem. Supposedly if anybody will ever take a double
+> > lock it'll do in order too. Then I can dump all the other locking and
 > 
->>  For other controllers,
->>  they'll need to monitor exit() callbacks to know when the leader is dead :( (sigh).
-> 
-> That sounds like a nightmare ...
-> 
+> What about concurrent mmu_notifier registrations from two mm_structs 
+> that have shared mappings? Isnt there a potential deadlock situation?
 
-Yes, it would be, but worth the trouble. Is it really critical to move a dead
-cgroup leader to init_css_set in cgroup_exit()?
+No, the ordering of the lock avoids that. Here a snippnet.
 
->>  Not having the group leader optimization can introduce big overheads (consider
->>  thousands of tasks, with the group leader being the first one to exit).
-> 
-> Can you test the overhead?
-> 
+/*
+ * This operation locks against the VM for all pte/vma/mm related
+ * operations that could ever happen on a certain mm. This includes
+ * vmtruncate, try_to_unmap, and all page faults. The holder
+ * must not hold any mm related lock. A single task can't take more
+ * than one mm lock in a row or it would deadlock.
+ */
 
-I probably can write a program and see what the overhead looks like
+So you can't do:
 
-> As long as we find someone to pass the mm to quickly, it shouldn't be
-> too bad - I think we're already optimized for that case. Generally the
-> group leader's first child will be the new owner, and any subsequent
-> times the owner exits, they're unlikely to have any children so
-> they'll go straight to the sibling check and pass the mm to the
-> parent's first child.
-> 
-> Unless they all exit in strict sibling order and hence pass the mm
-> along the chain one by one, we should be fine. And if that exit
-> ordering does turn out to be common, then simply walking the child and
-> sibling lists in reverse order to find a victim will minimize the
-> amount of passing.
-> 
+   mm_lock(mm1);
+   mm_lock(mm2);
 
+But if two different tasks run the mm_lock everything is ok. Each task
+in the system can lock at most 1 mm at time.
 
-Finding the next mm might not be all that bad, but doing it each time a task
-exits, can be an overhead, specially for large multi threaded programs. This can
-get severe if the new mm->owner belongs to a different cgroup, in which case we
-need to use callbacks as well.
+> Well good luck. Hopefully we will get to something that works.
 
-If half the threads belonged to a different cgroup and the new mm->owner kept
-switching between cgroups, the overhead would be really high, with the callbacks
-and the mm->owner changing frequently.
+Looks good so far but I didn't finish it yet.
 
-> One other thing occurred to me - what lock protects the child and
-> sibling links? I don't see any documentation anywhere, but from the
-> code it looks as though it's tasklist_lock rather than RCU - so maybe
-> we should be holding that with a read_lock(), at least for the first
-> two parts of the search? (The full thread search is RCU-safe).
-> 
-
-You are right about the read_lock()
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+-------------------------------------------------------------------------
+Check out the new SourceForge.net Marketplace.
+It's the best place to buy or sell services for
+just about anything Open Source.
+http://ad.doubleclick.net/clk;164216239;13503038;w?http://sf.net/marketplace
