@@ -1,14 +1,14 @@
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 08/10] xpmem: Locking rules for taking multiple
-	mmap_sem locks.
-Date: Fri, 04 Apr 2008 15:30:56 -0700
-Message-ID: <20080404223132.971442620@sgi.com>
+Subject: [patch 07/10] xpmem: This patch exports zap_page_range
+	as it is needed by XPMEM.
+Date: Fri, 04 Apr 2008 15:30:55 -0700
+Message-ID: <20080404223132.734091146@sgi.com>
 References: <20080404223048.374852899@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: 7bit
 Return-path: <kvm-devel-bounces@lists.sourceforge.net>
-Content-Disposition: inline; filename=xpmem_v003_lock-rule
+Content-Disposition: inline; filename=xpmem_v003_export-zap_page_range
 List-Unsubscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
 	<mailto:kvm-devel-request@lists.sourceforge.net?subject=unsubscribe>
 List-Archive: <http://sourceforge.net/mailarchive/forum.php?forum_name=kvm-devel>
@@ -22,29 +22,30 @@ To: Andrea Arcangeli <andrea@qumranet.com>
 Cc: Dean Nelson <dcn@sgi.com>, kvm-devel@lists.sourceforge.net, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-Id: linux-mm.kvack.org
 
-This patch adds a lock ordering rule to avoid a potential deadlock when
-multiple mmap_sems need to be locked.
+XPMEM would have used sys_madvise() except that madvise_dontneed()
+returns an -EINVAL if VM_PFNMAP is set, which is always true for the pages
+XPMEM imports from other partitions and is also true for uncached pages
+allocated locally via the mspec allocator.  XPMEM needs zap_page_range()
+functionality for these types of pages as well as 'normal' pages.
 
 Signed-off-by: Dean Nelson <dcn@sgi.com>
 
 ---
- mm/filemap.c |    3 +++
- 1 file changed, 3 insertions(+)
+ mm/memory.c |    1 +
+ 1 file changed, 1 insertion(+)
 
-Index: linux-2.6/mm/filemap.c
+Index: linux-2.6/mm/memory.c
 ===================================================================
---- linux-2.6.orig/mm/filemap.c	2008-04-01 13:02:41.374608387 -0700
-+++ linux-2.6/mm/filemap.c	2008-04-01 13:05:02.777015782 -0700
-@@ -80,6 +80,9 @@ generic_file_direct_IO(int rw, struct ki
-  *  ->i_mutex			(generic_file_buffered_write)
-  *    ->mmap_sem		(fault_in_pages_readable->do_page_fault)
-  *
-+ *    When taking multiple mmap_sems, one should lock the lowest-addressed
-+ *    one first proceeding on up to the highest-addressed one.
-+ *
-  *  ->i_mutex
-  *    ->i_alloc_sem             (various)
-  *
+--- linux-2.6.orig/mm/memory.c	2008-04-01 13:02:43.902651345 -0700
++++ linux-2.6/mm/memory.c	2008-04-01 13:04:43.720691616 -0700
+@@ -901,6 +901,7 @@ unsigned long zap_page_range(struct vm_a
+ 
+ 	return unmap_vmas(vma, address, end, &nr_accounted, details);
+ }
++EXPORT_SYMBOL_GPL(zap_page_range);
+ 
+ /*
+  * Do a quick page-table lookup for a single page.
 
 -- 
 
