@@ -1,341 +1,133 @@
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [ofa-general] [patch 10/10] xpmem: Simple example
-Date: Fri, 04 Apr 2008 15:30:58 -0700
-Message-ID: <20080404223133.463091757@sgi.com>
+Subject: [patch 03/10] emm: Move tlb flushing into free_pgtables
+Date: Fri, 04 Apr 2008 15:30:51 -0700
+Message-ID: <20080404223131.727813758@sgi.com>
 References: <20080404223048.374852899@sgi.com>
-Return-path: <general-bounces@lists.openfabrics.org>
-Content-Disposition: inline; filename=xpmem_test
-List-Unsubscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
-	<mailto:general-request@lists.openfabrics.org?subject=unsubscribe>
-List-Archive: <http://lists.openfabrics.org/pipermail/general>
-List-Post: <mailto:general@lists.openfabrics.org>
-List-Help: <mailto:general-request@lists.openfabrics.org?subject=help>
-List-Subscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
-	<mailto:general-request@lists.openfabrics.org?subject=subscribe>
-Sender: general-bounces@lists.openfabrics.org
-Errors-To: general-bounces@lists.openfabrics.org
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <kvm-devel-bounces@lists.sourceforge.net>
+Content-Disposition: inline; filename=move_tlb_flush
+List-Unsubscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
+	<mailto:kvm-devel-request@lists.sourceforge.net?subject=unsubscribe>
+List-Archive: <http://sourceforge.net/mailarchive/forum.php?forum_name=kvm-devel>
+List-Post: <mailto:kvm-devel@lists.sourceforge.net>
+List-Help: <mailto:kvm-devel-request@lists.sourceforge.net?subject=help>
+List-Subscribe: <https://lists.sourceforge.net/lists/listinfo/kvm-devel>,
+	<mailto:kvm-devel-request@lists.sourceforge.net?subject=subscribe>
+Sender: kvm-devel-bounces@lists.sourceforge.net
+Errors-To: kvm-devel-bounces@lists.sourceforge.net
 To: Andrea Arcangeli <andrea@qumranet.com>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org
 List-Id: linux-mm.kvack.org
 
-A simple test program (well actually a pair).  They are fairly easy to use.
+Move the tlb flushing into free_pgtables. The conversion of the locks
+taken for reverse map scanning would require taking sleeping locks
+in free_pgtables(). Moving the tlb flushing into free_pgtables allows
+sleeping in parts of free_pgtables().
 
-NOTE: the xpmem.h is copied from the kernel/drivers/misc/xp/xpmem.h
-file.
-
-Type make.  Then from one session, type ./A1.  Grab the first
-line of output which should begin with ./A2 and paste the whole line
-into a second session.  Paste as many times as you like.  Each pass will
-increment the value one additional time.  When you are tired, hit enter
-in the first window.  You should see the same value printed from A1 as
-you most recently received from A2.
+This means that we do a tlb_finish_mmu() before freeing the page tables.
+Strictly speaking there may not be the need to do another tlb flush after
+freeing the tables. But its the only way to free a series of page table
+pages from the tlb list. And we do not want to call into the page allocator
+for performance reasons. Aim9 numbers look okay after this patch.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- xpmem_test/A1.c     |   64 +++++++++++++++++++++++++
- xpmem_test/A2.c     |   70 ++++++++++++++++++++++++++++
- xpmem_test/Makefile |   14 +++++
- xpmem_test/xpmem.h  |  130 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 278 insertions(+)
+ include/linux/mm.h |    4 ++--
+ mm/memory.c        |   14 ++++++++++----
+ mm/mmap.c          |    6 +++---
+ 3 files changed, 15 insertions(+), 9 deletions(-)
 
-Index: linux-2.6/xpmem_test/A1.c
+Index: linux-2.6/include/linux/mm.h
 ===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6/xpmem_test/A1.c	2008-04-04 15:09:11.955215737 -0700
-@@ -0,0 +1,64 @@
-+/*
-+ *  Simple test program.  Makes a segment then waits for an input line
-+ * and finally prints the value of the first integer of that segment.
-+ */
-+
-+#include <errno.h>
-+#include <fcntl.h>
-+#include <stdio.h>
-+#include <stdlib.h>
-+#include <stropts.h>
-+#include <sys/mman.h>
-+#include <sys/stat.h>
-+#include <sys/types.h>
-+#include <unistd.h>
-+
-+#include "xpmem.h"
-+
-+int xpmem_fd;
-+
-+int
-+main(int argc, char **argv)
-+{
-+	char input[32];
-+	struct xpmem_cmd_make make_info;
-+	int *data_block;
-+	int ret;
-+	__s64 segid;
-+
-+	xpmem_fd = open("/dev/xpmem", O_RDWR);
-+	if (xpmem_fd == -1) {
-+		perror("Opening /dev/xpmem");
-+		return -1;
-+	}
-+
-+	data_block = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE,
-+			  MAP_SHARED | MAP_ANONYMOUS, 0, 0);
-+	if (data_block == MAP_FAILED) {
-+		perror("Creating mapping.");
-+		return -1;
-+	}
-+	data_block[0] = 1;
-+
-+	make_info.vaddr = (__u64) data_block;
-+	make_info.size = getpagesize();
-+	make_info.permit_type = XPMEM_PERMIT_MODE;
-+	make_info.permit_value = (__u64) 0600;
-+	ret = ioctl(xpmem_fd, XPMEM_CMD_MAKE, &make_info);
-+	if (ret != 0) {
-+		perror("xpmem_make");
-+		return -1;
-+	}
-+
-+	segid = make_info.segid;
-+	printf("./A2 %d %d %d %d\ndata_block[0] = %d\n",
-+	       (int)(segid >> 48 & 0xffff), (int)(segid >> 32 & 0xffff),
-+	       (int)(segid >> 16 & 0xffff), (int)(segid & 0xffff),
-+	       data_block[0]);
-+	printf("Waiting for input before exiting.\n");
-+	fscanf(stdin, "%s", input);
-+
-+	printf("data_block[0] = %d\n", data_block[0]);
-+
-+	return 0;
-+}
-Index: linux-2.6/xpmem_test/A2.c
+--- linux-2.6.orig/include/linux/mm.h	2008-03-19 13:30:51.460856986 -0700
++++ linux-2.6/include/linux/mm.h	2008-03-19 13:31:20.809377398 -0700
+@@ -751,8 +751,8 @@ int walk_page_range(const struct mm_stru
+ 		    void *private);
+ void free_pgd_range(struct mmu_gather **tlb, unsigned long addr,
+ 		unsigned long end, unsigned long floor, unsigned long ceiling);
+-void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *start_vma,
+-		unsigned long floor, unsigned long ceiling);
++void free_pgtables(struct vm_area_struct *start_vma, unsigned long floor,
++						unsigned long ceiling);
+ int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 			struct vm_area_struct *vma);
+ void unmap_mapping_range(struct address_space *mapping,
+Index: linux-2.6/mm/memory.c
 ===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6/xpmem_test/A2.c	2008-04-04 15:09:11.955215737 -0700
-@@ -0,0 +1,70 @@
-+/*
-+ * Simple test program that gets then attaches an xpmem segment identified
-+ * on the command line then increments the first integer of that buffer by
-+ * one and exits.
-+ */
+--- linux-2.6.orig/mm/memory.c	2008-03-19 13:29:06.007351495 -0700
++++ linux-2.6/mm/memory.c	2008-03-19 13:46:31.352774359 -0700
+@@ -271,9 +271,11 @@ void free_pgd_range(struct mmu_gather **
+ 	} while (pgd++, addr = next, addr != end);
+ }
+ 
+-void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *vma,
+-		unsigned long floor, unsigned long ceiling)
++void free_pgtables(struct vm_area_struct *vma, unsigned long floor,
++							unsigned long ceiling)
+ {
++	struct mmu_gather *tlb;
 +
-+#include <errno.h>
-+#include <fcntl.h>
-+#include <stdio.h>
-+#include <stdlib.h>
-+#include <stropts.h>
-+#include <sys/mman.h>
-+#include <sys/stat.h>
-+#include <sys/types.h>
-+#include <unistd.h>
-+
-+#include "xpmem.h"
-+
-+int xpmem_fd;
-+
-+int
-+main(int argc, char **argv)
-+{
-+	int ret;
-+	__s64 segid;
-+	__s64 apid;
-+	struct xpmem_cmd_get get_info;
-+	struct xpmem_cmd_attach attach_info;
-+	int *attached_buffer;
-+
-+	xpmem_fd = open("/dev/xpmem", O_RDWR);
-+	if (xpmem_fd == -1) {
-+		perror("Opening /dev/xpmem");
-+		return -1;
-+	}
-+
-+	segid = (__s64) atoi(argv[1]) << 48;
-+	segid |= (__s64) atoi(argv[2]) << 32;
-+	segid |= (__s64) atoi(argv[3]) << 16;
-+	segid |= (__s64) atoi(argv[4]);
-+	get_info.segid = segid;
-+	get_info.flags = XPMEM_RDWR;
-+	get_info.permit_type = XPMEM_PERMIT_MODE;
-+	get_info.permit_value = (__u64) NULL;
-+	ret = ioctl(xpmem_fd, XPMEM_CMD_GET, &get_info);
-+	if (ret != 0) {
-+		perror("xpmem_get");
-+		return -1;
-+	}
-+	apid = get_info.apid;
-+
-+	attach_info.apid = get_info.apid;
-+	attach_info.offset = 0;
-+	attach_info.size = getpagesize();
-+	attach_info.vaddr = (__u64) NULL;
-+	attach_info.fd = xpmem_fd;
-+	attach_info.flags = 0;
-+
-+	ret = ioctl(xpmem_fd, XPMEM_CMD_ATTACH, &attach_info);
-+	if (ret != 0) {
-+		perror("xpmem_attach");
-+		return -1;
-+	}
-+
-+	attached_buffer = (int *)attach_info.vaddr;
-+	attached_buffer[0]++;
-+
-+	printf("Just incremented the value to %d\n", attached_buffer[0]);
-+	return 0;
-+}
-Index: linux-2.6/xpmem_test/Makefile
+ 	while (vma) {
+ 		struct vm_area_struct *next = vma->vm_next;
+ 		unsigned long addr = vma->vm_start;
+@@ -285,8 +287,10 @@ void free_pgtables(struct mmu_gather **t
+ 		unlink_file_vma(vma);
+ 
+ 		if (is_vm_hugetlb_page(vma)) {
+-			hugetlb_free_pgd_range(tlb, addr, vma->vm_end,
++			tlb = tlb_gather_mmu(vma->vm_mm, 0);
++			hugetlb_free_pgd_range(&tlb, addr, vma->vm_end,
+ 				floor, next? next->vm_start: ceiling);
++			tlb_finish_mmu(tlb, addr, vma->vm_end);
+ 		} else {
+ 			/*
+ 			 * Optimization: gather nearby vmas into one call down
+@@ -298,8 +302,10 @@ void free_pgtables(struct mmu_gather **t
+ 				anon_vma_unlink(vma);
+ 				unlink_file_vma(vma);
+ 			}
+-			free_pgd_range(tlb, addr, vma->vm_end,
++			tlb = tlb_gather_mmu(vma->vm_mm, 0);
++			free_pgd_range(&tlb, addr, vma->vm_end,
+ 				floor, next? next->vm_start: ceiling);
++			tlb_finish_mmu(tlb, addr, vma->vm_end);
+ 		}
+ 		vma = next;
+ 	}
+Index: linux-2.6/mm/mmap.c
 ===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6/xpmem_test/Makefile	2008-04-04 15:09:11.955215737 -0700
-@@ -0,0 +1,14 @@
-+
-+default:	A1 A2
-+
-+A1:	A1.c xpmem.h
-+	gcc -Wall -o A1 A1.c
-+
-+A2:	A2.c xpmem.h
-+	gcc -Wall -o A2 A2.c
-+
-+indent:
-+	indent -npro -kr -i8 -ts8 -sob -l80 -ss -ncs -cp1 -psl -npcs A1.c A2.c
-+
-+clean:
-+	rm -f A1 A2 *~
-Index: linux-2.6/xpmem_test/xpmem.h
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6/xpmem_test/xpmem.h	2008-04-04 15:09:11.955215737 -0700
-@@ -0,0 +1,130 @@
-+/*
-+ * This file is subject to the terms and conditions of the GNU General Public
-+ * License.  See the file "COPYING" in the main directory of this archive
-+ * for more details.
-+ *
-+ * Copyright (c) 2004-2007 Silicon Graphics, Inc.  All Rights Reserved.
-+ */
-+
-+/*
-+ * Cross Partition Memory (XPMEM) structures and macros.
-+ */
-+
-+#ifndef _ASM_IA64_SN_XPMEM_H
-+#define _ASM_IA64_SN_XPMEM_H
-+
-+#include <linux/types.h>
-+#include <linux/ioctl.h>
-+
-+/*
-+ * basic argument type definitions
-+ */
-+struct xpmem_addr {
-+	__s64 apid;		/* apid that represents memory */
-+	off_t offset;		/* offset into apid's memory */
-+};
-+
-+#define XPMEM_MAXADDR_SIZE	(size_t)(-1L)
-+
-+#define XPMEM_ATTACH_WC		0x10000
-+#define XPMEM_ATTACH_GETSPACE	0x20000
-+
-+/*
-+ * path to XPMEM device
-+ */
-+#define XPMEM_DEV_PATH  "/dev/xpmem"
-+
-+/*
-+ * The following are the possible XPMEM related errors.
-+ */
-+#define XPMEM_ERRNO_NOPROC	2004	/* unknown thread due to fork() */
-+
-+/*
-+ * flags for segment permissions
-+ */
-+#define XPMEM_RDONLY	0x1
-+#define XPMEM_RDWR	0x2
-+
-+/*
-+ * Valid permit_type values for xpmem_make().
-+ */
-+#define XPMEM_PERMIT_MODE	0x1
-+
-+/*
-+ * ioctl() commands used to interface to the kernel module.
-+ */
-+#define XPMEM_IOC_MAGIC		'x'
-+#define XPMEM_CMD_VERSION	_IO(XPMEM_IOC_MAGIC, 0)
-+#define XPMEM_CMD_MAKE		_IO(XPMEM_IOC_MAGIC, 1)
-+#define XPMEM_CMD_REMOVE	_IO(XPMEM_IOC_MAGIC, 2)
-+#define XPMEM_CMD_GET		_IO(XPMEM_IOC_MAGIC, 3)
-+#define XPMEM_CMD_RELEASE	_IO(XPMEM_IOC_MAGIC, 4)
-+#define XPMEM_CMD_ATTACH	_IO(XPMEM_IOC_MAGIC, 5)
-+#define XPMEM_CMD_DETACH	_IO(XPMEM_IOC_MAGIC, 6)
-+#define XPMEM_CMD_COPY		_IO(XPMEM_IOC_MAGIC, 7)
-+#define XPMEM_CMD_BCOPY		_IO(XPMEM_IOC_MAGIC, 8)
-+#define XPMEM_CMD_FORK_BEGIN	_IO(XPMEM_IOC_MAGIC, 9)
-+#define XPMEM_CMD_FORK_END	_IO(XPMEM_IOC_MAGIC, 10)
-+
-+/*
-+ * Structures used with the preceding ioctl() commands to pass data.
-+ */
-+struct xpmem_cmd_make {
-+	__u64 vaddr;
-+	size_t size;
-+	int permit_type;
-+	__u64 permit_value;
-+	__s64 segid;		/* returned on success */
-+};
-+
-+struct xpmem_cmd_remove {
-+	__s64 segid;
-+};
-+
-+struct xpmem_cmd_get {
-+	__s64 segid;
-+	int flags;
-+	int permit_type;
-+	__u64 permit_value;
-+	__s64 apid;		/* returned on success */
-+};
-+
-+struct xpmem_cmd_release {
-+	__s64 apid;
-+};
-+
-+struct xpmem_cmd_attach {
-+	__s64 apid;
-+	off_t offset;
-+	size_t size;
-+	__u64 vaddr;
-+	int fd;
-+	int flags;
-+};
-+
-+struct xpmem_cmd_detach {
-+	__u64 vaddr;
-+};
-+
-+struct xpmem_cmd_copy {
-+	__s64 src_apid;
-+	off_t src_offset;
-+	__s64 dst_apid;
-+	off_t dst_offset;
-+	size_t size;
-+};
-+
-+#ifndef __KERNEL__
-+extern int xpmem_version(void);
-+extern __s64 xpmem_make(void *, size_t, int, void *);
-+extern int xpmem_remove(__s64);
-+extern __s64 xpmem_get(__s64, int, int, void *);
-+extern int xpmem_release(__s64);
-+extern void *xpmem_attach(struct xpmem_addr, size_t, void *);
-+extern void *xpmem_attach_wc(struct xpmem_addr, size_t, void *);
-+extern void *xpmem_attach_getspace(struct xpmem_addr, size_t, void *);
-+extern int xpmem_detach(void *);
-+extern int xpmem_bcopy(struct xpmem_addr, struct xpmem_addr, size_t);
-+#endif
-+
-+#endif /* _ASM_IA64_SN_XPMEM_H */
+--- linux-2.6.orig/mm/mmap.c	2008-03-19 13:29:48.659889667 -0700
++++ linux-2.6/mm/mmap.c	2008-03-19 13:30:36.296604891 -0700
+@@ -1750,9 +1750,9 @@ static void unmap_region(struct mm_struc
+ 	update_hiwater_rss(mm);
+ 	unmap_vmas(&tlb, vma, start, end, &nr_accounted, NULL);
+ 	vm_unacct_memory(nr_accounted);
+-	free_pgtables(&tlb, vma, prev? prev->vm_end: FIRST_USER_ADDRESS,
+-				 next? next->vm_start: 0);
+ 	tlb_finish_mmu(tlb, start, end);
++	free_pgtables(vma, prev? prev->vm_end: FIRST_USER_ADDRESS,
++				 next? next->vm_start: 0);
+ 	emm_notify(mm, emm_invalidate_end, start, end);
+ }
+ 
+@@ -2049,8 +2049,8 @@ void exit_mmap(struct mm_struct *mm)
+ 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+ 	end = unmap_vmas(&tlb, vma, 0, -1, &nr_accounted, NULL);
+ 	vm_unacct_memory(nr_accounted);
+-	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, 0);
+ 	tlb_finish_mmu(tlb, 0, end);
++	free_pgtables(vma, FIRST_USER_ADDRESS, 0);
+ 
+ 	/*
+ 	 * Walk the list again, actually closing and freeing it,
 
 -- 
+
+-------------------------------------------------------------------------
+This SF.net email is sponsored by the 2008 JavaOne(SM) Conference 
+Register now and save $200. Hurry, offer ends at 11:59 p.m., 
+Monday, April 7! Use priority code J8TLD2. 
+http://ad.doubleclick.net/clk;198757673;13503038;p?http://java.sun.com/javaone
