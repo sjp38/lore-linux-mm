@@ -1,29 +1,40 @@
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [RFC 02/22] x86: Use generic show_mem()
-Date: Fri, 4 Apr 2008 10:17:31 +0200
-Message-ID: <20080404081731.GA31261@elte.hu>
-References: <12071688283927-git-send-email-hannes@saeurebad.de> <12071688511076-git-send-email-hannes@saeurebad.de>
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [-mm] Add an owner to the mm_struct (v8)
+Date: Fri, 04 Apr 2008 13:58:12 +0530
+Message-ID: <47F5E69C.9@linux.vnet.ibm.com>
+References: <20080404080544.26313.38199.sendpatchset@localhost.localdomain> <6599ad830804040112q3dd5333aodf6a170c78e61dc8@mail.gmail.com>
+Reply-To: balbir@linux.vnet.ibm.com
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1758311AbYDDIVr@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <12071688511076-git-send-email-hannes@saeurebad.de>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1758733AbYDDI3Q@vger.kernel.org>
+In-Reply-To: <6599ad830804040112q3dd5333aodf6a170c78e61dc8@mail.gmail.com>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Johannes Weiner <hannes@saeurebad.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, davem@davemloft.net, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, dhowells@redhat.com, ysato@users.sf.net, takata@linux-m32r.org, geert@linux-m68k.org, ralf@linux-mips.org, kyle@parisc-linux.org, paulus@samba.org, schwidefsky@de.ibm.com, lethal@linux-sh.org, jdike@addtoit.com, miles@gnu.org, chris@zankel.net, rmk@arm.linux.org.uk, tony.luck@intel.com
+To: Paul Menage <menage@google.com>
+Cc: Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-Id: linux-mm.kvack.org
 
+Paul Menage wrote:
+> On Fri, Apr 4, 2008 at 1:05 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>>  After the thread group leader exits, it's moved to init_css_state by
+>>  cgroup_exit(), thus all future charges from runnings threads would
+>>  be redirected to the init_css_set's subsystem.
+> 
+> And its uncharges, which is more of the problem I was getting at
+> earlier - surely when the mm is finally destroyed, all its virtual
+> address space charges will be uncharged from the root cgroup rather
+> than the correct cgroup, if we left the delayed group leader as the
+> owner? Which is why I think the group leader optimization is unsafe.
 
-* Johannes Weiner <hannes@saeurebad.de> wrote:
+It won't uncharge for the memory controller from the root cgroup since each page
+ has the mem_cgroup information associated with it. For other controllers,
+they'll need to monitor exit() callbacks to know when the leader is dead :( (sigh).
 
-> -config HAVE_ARCH_SHOW_MEM
-> -	def_bool y
+Not having the group leader optimization can introduce big overheads (consider
+thousands of tasks, with the group leader being the first one to exit).
 
-> -void show_mem(void)
-> -{
-
-nice work!
-
-Acked-by: Ingo Molnar <mingo@elte.hu>
-
-	Ingo
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
