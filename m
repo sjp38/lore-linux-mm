@@ -1,43 +1,44 @@
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: [ofa-general] Re: [patch 02/10] emm: notifier logic
-Date: Sat, 5 Apr 2008 02:57:59 +0200
-Message-ID: <20080405005759.GH14784@duo.random>
-References: <20080404223048.374852899@sgi.com>
-	<20080404223131.469710551@sgi.com>
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [RFC 01/22] Generic show_mem() implementation
+Date: Sat, 5 Apr 2008 09:51:08 +0200
+Message-ID: <20080405075108.GA6730@osiris.boeblingen.de.ibm.com>
+References: <12071688283927-git-send-email-hannes@saeurebad.de> <1207168839586-git-send-email-hannes@saeurebad.de> <20080403075545.GC4125@osiris.boeblingen.de.ibm.com> <20080403124820.GA30356@uranus.ravnborg.org> <871w5nouwp.fsf@saeurebad.de> <20080403181202.GA32319@uranus.ravnborg.org> <87prt6muux.fsf@saeurebad.de> <20080404213540.GA15535@uranus.ravnborg.org> <87d4p5kyhj.fsf@saeurebad.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Return-path: <general-bounces@lists.openfabrics.org>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1752335AbYDEHv2@vger.kernel.org>
 Content-Disposition: inline
-In-Reply-To: <20080404223131.469710551@sgi.com>
-List-Unsubscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
-	<mailto:general-request@lists.openfabrics.org?subject=unsubscribe>
-List-Archive: <http://lists.openfabrics.org/pipermail/general>
-List-Post: <mailto:general@lists.openfabrics.org>
-List-Help: <mailto:general-request@lists.openfabrics.org?subject=help>
-List-Subscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
-	<mailto:general-request@lists.openfabrics.org?subject=subscribe>
-Sender: general-bounces@lists.openfabrics.org
-Errors-To: general-bounces@lists.openfabrics.org
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+In-Reply-To: <87d4p5kyhj.fsf@saeurebad.de>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Johannes Weiner <hannes@saeurebad.de>
+Cc: Sam Ravnborg <sam@ravnborg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, davem@davemloft.net, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, dhowells@redhat.com, ysato@users.sf.net, takata@linux-m32r.org, geert@linux-m68k.org, ralf@linux-mips.org, kyle@parisc-linux.org, paulus@samba.org, schwidefsky@de.ibm.com, lethal@linux-sh.org, jdike@addtoit.com, miles@gnu.org, chris@zankel.net, rmk@arm.linux.org.uk, tony.luck@intel.com
 List-Id: linux-mm.kvack.org
 
-On Fri, Apr 04, 2008 at 03:30:50PM -0700, Christoph Lameter wrote:
-> +	mm_lock(mm);
-> +	e->next = mm->emm_notifier;
-> +	/*
-> +	 * The update to emm_notifier (e->next) must be visible
-> +	 * before the pointer becomes visible.
-> +	 * rcu_assign_pointer() does exactly what we need.
-> +	 */
-> +	rcu_assign_pointer(mm->emm_notifier, e);
-> +	mm_unlock(mm);
+> >> I can not follow you.  Of course the arch selects what they use.  But
+> >> they should not _all_ have to be flagged with an extra select.  So what
+> >> default-value are you arguing for?
+> > The normal pattern is to let arch select the generic implmentation they
+> > use.
+> > Just because the majority does use the generic version should not
+> > make us start to use the inverse logic as in your case.
+> >
+> > So I want all archs that uses the generic show_mem() to
+> > do an explicit:
+> >
+> > config MYARCH
+> > 	select HAVE_GENERIC_SHOWMEM
+> >
+> > 	Sam
+> 
+> What is the rationale behind this?  It is not a function the arch should
+> select at all because it is VM code.  The remaining arch-specific
+> versions are meant to be removed too.
+> 
+> It would be like forcing all architectures to select HAVE_GENERIC_PRINTK
+> just because one architecture oopses on printk() and needs to replace it
+> with its own version.
 
-My mm_lock solution makes all rcu serialization an unnecessary
-overhead so you should remove it like I already did in #v11. If it
-wasn't the case, then mm_lock wouldn't be a definitive fix for the
-race.
+Positive logic and consistency with the CONFIG_HAVE_WHATEVER is the reason.
 
-> +		e = rcu_dereference(e->next);
-
-Same here.
+But you can solve this problem with no ifdefs and config options at all,
+since you may as well just use __attribute__((weak)) for the generic
+implementation.
