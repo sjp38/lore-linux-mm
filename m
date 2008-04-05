@@ -1,15 +1,22 @@
-From: Jeremy Fitzhardinge <jeremy@goop.org>
-Subject: [ofa-general] Re: [patch 01/10] emm: mm_lock: Lock a process against
-	reclaim
-Date: Fri, 04 Apr 2008 16:12:42 -0700
-Message-ID: <47F6B5EA.6060106@goop.org>
-References: <20080404223048.374852899@sgi.com>
-	<20080404223131.271668133@sgi.com>
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: [ofa-general] Re: [PATCH] mmu notifier #v11
+Date: Sat, 5 Apr 2008 02:23:30 +0200
+Message-ID: <20080405002330.GF14784@duo.random>
+References: <Pine.LNX.4.64.0804021048460.27214@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0804021402190.30337@schroedinger.engr.sgi.com>
+	<20080402220148.GV19189@duo.random>
+	<Pine.LNX.4.64.0804021503320.31247@schroedinger.engr.sgi.com>
+	<20080402221716.GY19189@duo.random>
+	<Pine.LNX.4.64.0804021821230.639@schroedinger.engr.sgi.com>
+	<20080403151908.GB9603@duo.random>
+	<Pine.LNX.4.64.0804031215050.7480@schroedinger.engr.sgi.com>
+	<20080404202055.GA14784@duo.random>
+	<Pine.LNX.4.64.0804041504310.12396@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Return-path: <general-bounces@lists.openfabrics.org>
-In-Reply-To: <20080404223131.271668133@sgi.com>
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0804041504310.12396@schroedinger.engr.sgi.com>
 List-Unsubscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
 	<mailto:general-request@lists.openfabrics.org?subject=unsubscribe>
 List-Archive: <http://lists.openfabrics.org/pipermail/general>
@@ -20,136 +27,28 @@ List-Subscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
 Sender: general-bounces@lists.openfabrics.org
 Errors-To: general-bounces@lists.openfabrics.org
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org
+Cc: Nick Piggin <npiggin@suse.de>, steiner@sgi.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Izik Eidus <izike@qumranet.com>, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, daniel.blueman@quadrics.com, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
 List-Id: linux-mm.kvack.org
 
-Christoph Lameter wrote:
-> Provide a way to lock an mm_struct against reclaim (try_to_unmap
-> etc). This is necessary for the invalidate notifier approaches so
-> that they can reliably add and remove a notifier.
->
-> Signed-off-by: Andrea Arcangeli <andrea@qumranet.com>
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
->
-> ---
->  include/linux/mm.h |   10 ++++++++
->  mm/mmap.c          |   66 +++++++++++++++++++++++++++++++++++++++++++++++++++++
->  2 files changed, 76 insertions(+)
->
-> Index: linux-2.6/include/linux/mm.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/mm.h	2008-04-02 11:41:47.741678873 -0700
-> +++ linux-2.6/include/linux/mm.h	2008-04-04 15:02:17.660504756 -0700
-> @@ -1050,6 +1050,16 @@ extern int install_special_mapping(struc
->  				   unsigned long addr, unsigned long len,
->  				   unsigned long flags, struct page **pages);
->  
-> +/*
-> + * Locking and unlocking am mm against reclaim.
-> + *
-> + * mm_lock will take mmap_sem writably (to prevent additional vmas from being
-> + * added) and then take all mapping locks of the existing vmas. With that
-> + * reclaim is effectively stopped.
-> + */
-> +extern void mm_lock(struct mm_struct *mm);
-> +extern void mm_unlock(struct mm_struct *mm);
-> +
->  extern unsigned long get_unmapped_area(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
->  
->  extern unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
-> Index: linux-2.6/mm/mmap.c
-> ===================================================================
-> --- linux-2.6.orig/mm/mmap.c	2008-04-04 14:55:03.477593980 -0700
-> +++ linux-2.6/mm/mmap.c	2008-04-04 14:59:05.505395402 -0700
-> @@ -2242,3 +2242,69 @@ int install_special_mapping(struct mm_st
->  
->  	return 0;
->  }
-> +
-> +static void mm_lock_unlock(struct mm_struct *mm, int lock)
-> +{
-> +	struct vm_area_struct *vma;
-> +	spinlock_t *i_mmap_lock_last, *anon_vma_lock_last;
-> +
-> +	i_mmap_lock_last = NULL;
-> +	for (;;) {
-> +		spinlock_t *i_mmap_lock = (spinlock_t *) -1UL;
-> +		for (vma = mm->mmap; vma; vma = vma->vm_next)
-> +			if (vma->vm_file && vma->vm_file->f_mapping &&
->   
-I think you can break this if() down a bit:
+On Fri, Apr 04, 2008 at 03:06:18PM -0700, Christoph Lameter wrote:
+> Adds some comments. Still objectionable is the multiple ways of
+> invalidating pages in #v11. Callout now has similar locking to emm.
 
-			if (!(vma->vm_file && vma->vm_file->f_mapping))
-				continue;
+range_begin exists because range_end is called after the page has
+already been freed. invalidate_page is called _before_ the page is
+freed but _after_ the pte has been zapped.
 
+In short when working with single pages it's a waste to block the
+secondary-mmu page fault, because it's zero cost to invalidate_page
+before put_page. Not even GRU need to do that.
 
-> +			    (unsigned long) i_mmap_lock >
-> +			    (unsigned long)
-> +			    &vma->vm_file->f_mapping->i_mmap_lock &&
-> +			    (unsigned long)
-> +			    &vma->vm_file->f_mapping->i_mmap_lock >
-> +			    (unsigned long) i_mmap_lock_last)
-> +				i_mmap_lock =
-> +					&vma->vm_file->f_mapping->i_mmap_lock;
->   
+Instead for the multiple-pte-zapping we have to call range_end _after_
+the page is already freed. This is so that there is a single range_end
+call for an huge amount of address space. So we need a range_begin for
+the subsystems not using page pinning for example. When working with
+single pages (try_to_unmap_one, do_wp_page) invalidate_page avoids to
+block the secondary mmu page fault, and it's in turn faster.
 
-So this is an O(n^2) algorithm to take the i_mmap_locks from low to high 
-order?  A comment would be nice.  And O(n^2)?  Ouch.  How often is it 
-called?
-
-And is it necessary to mush lock and unlock together?  Unlock ordering 
-doesn't matter, so you should just be able to have a much simpler loop, no?
-
-
-> +		if (i_mmap_lock == (spinlock_t *) -1UL)
-> +			break;
-> +		i_mmap_lock_last = i_mmap_lock;
-> +		if (lock)
-> +			spin_lock(i_mmap_lock);
-> +		else
-> +			spin_unlock(i_mmap_lock);
-> +	}
-> +
-> +	anon_vma_lock_last = NULL;
-> +	for (;;) {
-> +		spinlock_t *anon_vma_lock = (spinlock_t *) -1UL;
-> +		for (vma = mm->mmap; vma; vma = vma->vm_next)
-> +			if (vma->anon_vma &&
-> +			    (unsigned long) anon_vma_lock >
-> +			    (unsigned long) &vma->anon_vma->lock &&
-> +			    (unsigned long) &vma->anon_vma->lock >
-> +			    (unsigned long) anon_vma_lock_last)
-> +				anon_vma_lock = &vma->anon_vma->lock;
-> +		if (anon_vma_lock == (spinlock_t *) -1UL)
-> +			break;
-> +		anon_vma_lock_last = anon_vma_lock;
-> +		if (lock)
-> +			spin_lock(anon_vma_lock);
-> +		else
-> +			spin_unlock(anon_vma_lock);
-> +	}
-> +}
->   
-
-
-> +
-> +/*
-> + * This operation locks against the VM for all pte/vma/mm related
-> + * operations that could ever happen on a certain mm. This includes
-> + * vmtruncate, try_to_unmap, and all page faults. The holder
-> + * must not hold any mm related lock. A single task can't take more
-> + * than one mm lock in a row or it would deadlock.
-> + */
-> +void mm_lock(struct mm_struct * mm)
-> +{
-> +	down_write(&mm->mmap_sem);
-> +	mm_lock_unlock(mm, 1);
-> +}
-> +
-> +void mm_unlock(struct mm_struct *mm)
-> +{
-> +	mm_lock_unlock(mm, 0);
-> +	up_write(&mm->mmap_sem);
-> +}
->
->   
+Besides avoiding need of serializing the secondary mmu page fault,
+invalidate_page also reduces the overhead when the mmu notifiers are
+disarmed (i.e. kvm not running).
