@@ -1,15 +1,14 @@
 From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: [ofa-general] Re: [patch 01/10] emm: mm_lock: Lock a process against
-	reclaim
-Date: Sat, 5 Apr 2008 02:41:27 +0200
-Message-ID: <20080405004127.GG14784@duo.random>
+Subject: [ofa-general] Re: [patch 02/10] emm: notifier logic
+Date: Sat, 5 Apr 2008 02:57:59 +0200
+Message-ID: <20080405005759.GH14784@duo.random>
 References: <20080404223048.374852899@sgi.com>
-	<20080404223131.271668133@sgi.com> <47F6B5EA.6060106@goop.org>
+	<20080404223131.469710551@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Return-path: <general-bounces@lists.openfabrics.org>
 Content-Disposition: inline
-In-Reply-To: <47F6B5EA.6060106@goop.org>
+In-Reply-To: <20080404223131.469710551@sgi.com>
 List-Unsubscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
 	<mailto:general-request@lists.openfabrics.org?subject=unsubscribe>
 List-Archive: <http://lists.openfabrics.org/pipermail/general>
@@ -19,34 +18,26 @@ List-Subscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
 	<mailto:general-request@lists.openfabrics.org?subject=subscribe>
 Sender: general-bounces@lists.openfabrics.org
 Errors-To: general-bounces@lists.openfabrics.org
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Christoph Lameter <clameter@sgi.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 List-Id: linux-mm.kvack.org
 
-On Fri, Apr 04, 2008 at 04:12:42PM -0700, Jeremy Fitzhardinge wrote:
-> I think you can break this if() down a bit:
->
-> 			if (!(vma->vm_file && vma->vm_file->f_mapping))
-> 				continue;
+On Fri, Apr 04, 2008 at 03:30:50PM -0700, Christoph Lameter wrote:
+> +	mm_lock(mm);
+> +	e->next = mm->emm_notifier;
+> +	/*
+> +	 * The update to emm_notifier (e->next) must be visible
+> +	 * before the pointer becomes visible.
+> +	 * rcu_assign_pointer() does exactly what we need.
+> +	 */
+> +	rcu_assign_pointer(mm->emm_notifier, e);
+> +	mm_unlock(mm);
 
-It makes no difference at runtime, coding style preferences are quite
-subjective.
+My mm_lock solution makes all rcu serialization an unnecessary
+overhead so you should remove it like I already did in #v11. If it
+wasn't the case, then mm_lock wouldn't be a definitive fix for the
+race.
 
-> So this is an O(n^2) algorithm to take the i_mmap_locks from low to high 
-> order?  A comment would be nice.  And O(n^2)?  Ouch.  How often is it 
-> called?
+> +		e = rcu_dereference(e->next);
 
-It's called a single time when the mmu notifier is registered. It's a
-very slow path of course. Any other approach to reduce the complexity
-would require memory allocations and it would require
-mmu_notifier_register to return -ENOMEM failure. It didn't seem worth
-it.
-
-> And is it necessary to mush lock and unlock together?  Unlock ordering 
-> doesn't matter, so you should just be able to have a much simpler loop, no?
-
-That avoids duplicating .text. Originally they were separated. unlock
-can't be a simpler loop because I didn't reserve vm_flags bitflags to
-do a single O(N) loop for unlock. If you do malloc+fork+munmap two
-vmas will point to the same anon-vma lock, that's why the unlock isn't
-simpler unless I mark what I locked with a vm_flags bitflag.
+Same here.
