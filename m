@@ -1,72 +1,104 @@
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch 004/005](memory hotplug)allocate usemap on the section with pgdat
-Date: Mon, 07 Apr 2008 21:48:36 +0900
-Message-ID: <20080407214736.8878.E1E9C6FF@jp.fujitsu.com>
-References: <20080407213519.886E.E1E9C6FF@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1758663AbYDGNBP@vger.kernel.org>
-In-Reply-To: <20080407213519.886E.E1E9C6FF@jp.fujitsu.com>
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: [-mm] Disable the memory controller by default (v2)
+Date: Mon, 07 Apr 2008 18:32:15 +0530
+Message-ID: <20080407130215.26565.81715.sendpatchset@localhost.localdomain>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1758675AbYDGNDn@vger.kernel.org>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Yinghai Lu <yhlu.kernel@gmail.com>
+To: andi@firstfloor.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pavel Emelianov <xemul@openvz.org>, hugh@veritas.com, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-Id: linux-mm.kvack.org
 
 
-Usemaps are allocated on the section which has pgdat by this.
 
-Because usemap size is very small, many other sections usemaps
-are allocated on only one page. If a section has usemap, it
-can't be removed until removing other sections.
-This dependency is not desirable for memory removing.
+Changelog v1
 
-Pgdat has similar feature. When a section has pgdat area, it 
-must be the last section for removing on the node.
-So, if section A has pgdat and section B has usemap for section A,
-Both sections can't be removed due to dependency each other.
+1. Split cgroup_disable into cgroup_disable and cgroup_enable
+2. Remove cgroup_toggle
 
-To solve this issue, this patch collects usemap on same
-section with pgdat.
-If other sections doesn't have any dependency, this section will
-be able to be removed finally.
+Due to the overhead of the memory controller. The
+memory controller is now disabled by default. This patch adds cgroup_enable.
 
-Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+If everyone agrees on this approach and likes it, should we push this
+into 2.6.25?
 
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
 
- mm/sparse.c |   15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ Documentation/kernel-parameters.txt |    3 +++
+ kernel/cgroup.c                     |   28 ++++++++++++++++++++++++++--
+ mm/memcontrol.c                     |    1 +
+ 3 files changed, 30 insertions(+), 2 deletions(-)
 
-Index: current/mm/sparse.c
-===================================================================
---- current.orig/mm/sparse.c	2008-04-07 20:12:55.000000000 +0900
-+++ current/mm/sparse.c	2008-04-07 20:13:15.000000000 +0900
-@@ -239,11 +239,22 @@
+diff -puN kernel/cgroup.c~memory-controller-default-option-off kernel/cgroup.c
+--- linux-2.6.25-rc8/kernel/cgroup.c~memory-controller-default-option-off	2008-04-07 16:24:28.000000000 +0530
++++ linux-2.6.25-rc8-balbir/kernel/cgroup.c	2008-04-07 18:30:31.000000000 +0530
+@@ -3077,8 +3077,8 @@ static int __init cgroup_disable(char *s
  
- static unsigned long *__init sparse_early_usemap_alloc(unsigned long pnum)
- {
--	unsigned long *usemap;
-+	unsigned long *usemap, section_nr;
- 	struct mem_section *ms = __nr_to_section(pnum);
- 	int nid = sparse_early_nid(ms);
-+	struct pglist_data *pgdat = NODE_DATA(nid);
+ 			if (!strcmp(token, ss->name)) {
+ 				ss->disabled = 1;
+-				printk(KERN_INFO "Disabling %s control group"
+-					" subsystem\n", ss->name);
++				printk(KERN_INFO "%s control group "
++						"is disabled\n", ss->name);
+ 				break;
+ 			}
+ 		}
+@@ -3086,3 +3086,27 @@ static int __init cgroup_disable(char *s
+ 	return 1;
+ }
+ __setup("cgroup_disable=", cgroup_disable);
++
++static int __init cgroup_enable(char *str)
++{
++	int i;
++	char *token;
++
++	while ((token = strsep(&str, ",")) != NULL) {
++		if (!*token)
++			continue;
++
++		for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
++			struct cgroup_subsys *ss = subsys[i];
++
++			if (!strcmp(token, ss->name)) {
++				ss->disabled = 0;
++				printk(KERN_INFO "%s control group "
++						"is enabled\n", ss->name);
++				break;
++			}
++		}
++	}
++	return 1;
++}
++__setup("cgroup_enable=", cgroup_enable);
+diff -puN mm/memcontrol.c~memory-controller-default-option-off mm/memcontrol.c
+--- linux-2.6.25-rc8/mm/memcontrol.c~memory-controller-default-option-off	2008-04-07 16:24:28.000000000 +0530
++++ linux-2.6.25-rc8-balbir/mm/memcontrol.c	2008-04-07 16:40:22.000000000 +0530
+@@ -1104,4 +1104,5 @@ struct cgroup_subsys mem_cgroup_subsys =
+ 	.populate = mem_cgroup_populate,
+ 	.attach = mem_cgroup_move_task,
+ 	.early_init = 0,
++	.disabled = 1,
+ };
+diff -puN Documentation/kernel-parameters.txt~memory-controller-default-option-off Documentation/kernel-parameters.txt
+--- linux-2.6.25-rc8/Documentation/kernel-parameters.txt~memory-controller-default-option-off	2008-04-07 16:38:25.000000000 +0530
++++ linux-2.6.25-rc8-balbir/Documentation/kernel-parameters.txt	2008-04-07 17:53:28.000000000 +0530
+@@ -382,8 +382,11 @@ and is between 256 and 4096 characters. 
+ 			See Documentation/s390/CommonIO for details.
  
--	usemap = alloc_bootmem_node(NODE_DATA(nid), usemap_size());
-+	/*
-+	 * Usemap's page can't be freed until freeing other sections
-+	 * which use it. And, Pgdat has same feature.
-+	 * If section A has pgdat and section B has usemap for other
-+	 * sections (includes section A), both sections can't be removed,
-+	 * because there is the dependency each other.
-+	 * To solve above issue, this collects all usemap on the same section
-+	 * which has pgdat.
-+	 */
-+	section_nr = pfn_to_section_nr(__pa(pgdat) >> PAGE_SHIFT);
-+	usemap = alloc_bootmem_section(usemap_size(), section_nr);
- 	printk(KERN_INFO "sparse_early_usemap_alloc: usemap = %p size = %ld\n",
- 		usemap, usemap_size());
- 	if (usemap)
+ 	cgroup_disable= [KNL] Disable a particular controller
++	cgroup_enable=  [KNL] Enable a particular controller
++			For both cgroup_enable and cgroup_enable
+ 			Format: {name of the controller(s) to disable}
+ 				{Currently supported controllers - "memory"}
++				{Memory controller is disabled by default}
+ 
+ 	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
+ 			Format: { "0" | "1" }
+_
 
 -- 
-Yasunori Goto 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
