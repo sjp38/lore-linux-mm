@@ -1,12 +1,12 @@
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch 001/005](memory hotplug) register section/node id to free
-Date: Mon, 07 Apr 2008 21:45:04 +0900
-Message-ID: <20080407214318.8870.E1E9C6FF@jp.fujitsu.com>
+Subject: [Patch 005/005](memory hotplug) free memmaps allocated by bootmem
+Date: Mon, 07 Apr 2008 21:50:18 +0900
+Message-ID: <20080407214844.887A.E1E9C6FF@jp.fujitsu.com>
 References: <20080407213519.886E.E1E9C6FF@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1758611AbYDGMvX@vger.kernel.org>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1758741AbYDGMvl@vger.kernel.org>
 In-Reply-To: <20080407213519.886E.E1E9C6FF@jp.fujitsu.com>
 Sender: linux-kernel-owner@vger.kernel.org
 To: Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
@@ -14,236 +14,180 @@ Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
 
-This is to register information which is node or section's id.
-Kernel can distinguish which node/section uses the pages
-allcated by bootmem. This is basis for hot-remove sections or nodes.
+This patch is to free memmaps which is allocated by bootmem.
+
+Freeing usemap is not necessary. The pages of usemap may be necessary
+for other sections.
+
+If removing section is last section on the node,
+its section is the final user of usemap page.
+(usemaps are allocated on its section by previous patch.)
+But it shouldn't be freed too, because the section must be
+logical offline state which all pages are isolated against page allocater.
+If it is freed, page alloctor may use it which will be removed
+physically soon. It will be disaster.
+So, this patch keeps it as it is.
 
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
 ---
+ mm/internal.h       |    3 +--
+ mm/memory_hotplug.c |   11 +++++++++++
+ mm/page_alloc.c     |    2 +-
+ mm/sparse.c         |   51 +++++++++++++++++++++++++++++++++++++++++++++++----
+ 4 files changed, 60 insertions(+), 7 deletions(-)
 
- include/linux/memory_hotplug.h |   27 +++++++++++
- include/linux/mmzone.h         |    1 
- mm/bootmem.c                   |    1 
- mm/memory_hotplug.c            |   99 ++++++++++++++++++++++++++++++++++++++++-
- mm/sparse.c                    |    3 -
- 5 files changed, 128 insertions(+), 3 deletions(-)
-
-Index: current/mm/bootmem.c
-===================================================================
---- current.orig/mm/bootmem.c	2008-04-07 16:06:49.000000000 +0900
-+++ current/mm/bootmem.c	2008-04-07 20:08:14.000000000 +0900
-@@ -458,6 +458,7 @@
- 
- unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
- {
-+	register_page_bootmem_info_node(pgdat);
- 	return free_all_bootmem_core(pgdat);
- }
- 
-Index: current/include/linux/memory_hotplug.h
-===================================================================
---- current.orig/include/linux/memory_hotplug.h	2008-04-07 16:06:49.000000000 +0900
-+++ current/include/linux/memory_hotplug.h	2008-04-07 16:33:12.000000000 +0900
-@@ -11,6 +11,15 @@
- struct mem_section;
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
-+
-+/*
-+ * Magic number for free bootmem.
-+ * The normal smallest mapcount is -1. Here is smaller value than it.
-+ */
-+#define SECTION_INFO		0xfffffffe
-+#define MIX_INFO		0xfffffffd
-+#define NODE_INFO		0xfffffffc
-+
- /*
-  * pgdat resizing functions
-  */
-@@ -145,6 +154,18 @@
- #endif /* CONFIG_NUMA */
- #endif /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
- 
-+#ifdef CONFIG_SPARSEMEM_VMEMMAP
-+static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
-+{
-+}
-+static inline void put_page_bootmem(struct page *page)
-+{
-+}
-+#else
-+extern void register_page_bootmem_info_node(struct pglist_data *pgdat);
-+extern void put_page_bootmem(struct page *page);
-+#endif
-+
- #else /* ! CONFIG_MEMORY_HOTPLUG */
- /*
-  * Stub functions for when hotplug is off
-@@ -172,6 +193,10 @@
- 	return -ENOSYS;
- }
- 
-+static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
-+{
-+}
-+
- #endif /* ! CONFIG_MEMORY_HOTPLUG */
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
-@@ -192,5 +217,7 @@
- extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
- 								int nr_pages);
- extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms);
-+extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
-+					  unsigned long pnum);
- 
- #endif /* __LINUX_MEMORY_HOTPLUG_H */
-Index: current/include/linux/mmzone.h
-===================================================================
---- current.orig/include/linux/mmzone.h	2008-04-07 16:06:49.000000000 +0900
-+++ current/include/linux/mmzone.h	2008-04-07 18:29:08.000000000 +0900
-@@ -879,6 +879,7 @@
- 	return &mem_section[SECTION_NR_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
- }
- extern int __section_nr(struct mem_section* ms);
-+extern unsigned long usemap_size(void);
- 
- /*
-  * We use the lower bits of the mem_map pointer to store
-Index: current/mm/memory_hotplug.c
-===================================================================
---- current.orig/mm/memory_hotplug.c	2008-04-07 16:06:49.000000000 +0900
-+++ current/mm/memory_hotplug.c	2008-04-07 20:08:13.000000000 +0900
-@@ -59,8 +59,105 @@
- 	return;
- }
- 
--
- #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
-+#ifndef CONFIG_SPARSEMEM_VMEMMAP
-+static void get_page_bootmem(unsigned long info,  struct page *page, int magic)
-+{
-+	atomic_set(&page->_mapcount, magic);
-+	SetPagePrivate(page);
-+	set_page_private(page, info);
-+	atomic_inc(&page->_count);
-+}
-+
-+void put_page_bootmem(struct page *page)
-+{
-+	int magic;
-+
-+	magic = atomic_read(&page->_mapcount);
-+	BUG_ON(magic >= -1);
-+
-+	if (atomic_dec_return(&page->_count) == 1) {
-+		ClearPagePrivate(page);
-+		set_page_private(page, 0);
-+		reset_page_mapcount(page);
-+		__free_pages_bootmem(page, 0);
-+	}
-+
-+}
-+
-+void register_page_bootmem_info_section(unsigned long start_pfn)
-+{
-+	unsigned long *usemap, mapsize, section_nr, i;
-+	struct mem_section *ms;
-+	struct page *page, *memmap;
-+
-+	if (!pfn_valid(start_pfn))
-+		return;
-+
-+	section_nr = pfn_to_section_nr(start_pfn);
-+	ms = __nr_to_section(section_nr);
-+
-+	/* Get section's memmap address */
-+	memmap = sparse_decode_mem_map(ms->section_mem_map, section_nr);
-+
-+	/*
-+	 * Get page for the memmap's phys address
-+	 * XXX: need more consideration for sparse_vmemmap...
-+	 */
-+	page = virt_to_page(memmap);
-+	mapsize = sizeof(struct page) * PAGES_PER_SECTION;
-+	mapsize = PAGE_ALIGN(mapsize) >> PAGE_SHIFT;
-+
-+	/* remember memmap's page */
-+	for (i = 0; i < mapsize; i++, page++)
-+		get_page_bootmem(section_nr, page, SECTION_INFO);
-+
-+	usemap = __nr_to_section(section_nr)->pageblock_flags;
-+	page = virt_to_page(usemap);
-+
-+	mapsize = PAGE_ALIGN(usemap_size()) >> PAGE_SHIFT;
-+
-+	for (i = 0; i < mapsize; i++, page++)
-+		get_page_bootmem(section_nr, page, MIX_INFO);
-+
-+}
-+
-+void register_page_bootmem_info_node(struct pglist_data *pgdat)
-+{
-+	unsigned long i, pfn, end_pfn, nr_pages;
-+	int node = pgdat->node_id;
-+	struct page *page;
-+	struct zone *zone;
-+
-+	nr_pages = PAGE_ALIGN(sizeof(struct pglist_data)) >> PAGE_SHIFT;
-+	page = virt_to_page(pgdat);
-+
-+	for (i = 0; i < nr_pages; i++, page++)
-+		get_page_bootmem(node, page, NODE_INFO);
-+
-+	zone = &pgdat->node_zones[0];
-+	for (; zone < pgdat->node_zones + MAX_NR_ZONES - 1; zone++) {
-+		if (zone->wait_table) {
-+			nr_pages = zone->wait_table_hash_nr_entries
-+				* sizeof(wait_queue_head_t);
-+			nr_pages = PAGE_ALIGN(nr_pages) >> PAGE_SHIFT;
-+			page = virt_to_page(zone->wait_table);
-+
-+			for (i = 0; i < nr_pages; i++, page++)
-+				get_page_bootmem(node, page, NODE_INFO);
-+		}
-+	}
-+
-+	pfn = pgdat->node_start_pfn;
-+	end_pfn = pfn + pgdat->node_spanned_pages;
-+
-+	/* register_section info */
-+	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION)
-+		register_page_bootmem_info_section(pfn);
-+
-+}
-+#endif /* !CONFIG_SPARSEMEM_VMEMMAP */
-+
- static int __add_zone(struct zone *zone, unsigned long phys_start_pfn)
- {
- 	struct pglist_data *pgdat = zone->zone_pgdat;
 Index: current/mm/sparse.c
 ===================================================================
---- current.orig/mm/sparse.c	2008-04-07 16:06:49.000000000 +0900
-+++ current/mm/sparse.c	2008-04-07 20:08:16.000000000 +0900
-@@ -200,7 +200,6 @@
- /*
-  * Decode mem_map from the coded memmap
-  */
--static
- struct page *sparse_decode_mem_map(unsigned long coded_mem_map, unsigned long pnum)
+--- current.orig/mm/sparse.c	2008-04-07 20:13:25.000000000 +0900
++++ current/mm/sparse.c	2008-04-07 20:27:20.000000000 +0900
+@@ -8,6 +8,7 @@
+ #include <linux/module.h>
+ #include <linux/spinlock.h>
+ #include <linux/vmalloc.h>
++#include "internal.h"
+ #include <asm/dma.h>
+ #include <asm/pgalloc.h>
+ #include <asm/pgtable.h>
+@@ -360,6 +361,9 @@
  {
- 	/* mask off the extra low bits of information */
-@@ -223,7 +222,7 @@
- 	return 1;
+ 	return; /* XXX: Not implemented yet */
+ }
++static void free_map_bootmem(struct page *page, unsigned long nr_pages)
++{
++}
+ #else
+ static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
+ {
+@@ -397,17 +401,47 @@
+ 		free_pages((unsigned long)memmap,
+ 			   get_order(sizeof(struct page) * nr_pages));
+ }
++
++static void free_map_bootmem(struct page *page, unsigned long nr_pages)
++{
++	unsigned long maps_section_nr, removing_section_nr, i;
++	int magic;
++
++	for (i = 0; i < nr_pages; i++, page++) {
++		magic = atomic_read(&page->_mapcount);
++
++		BUG_ON(magic == NODE_INFO);
++
++		maps_section_nr = pfn_to_section_nr(page_to_pfn(page));
++		removing_section_nr = page->private;
++
++		/*
++		 * When this function is called, the removing section is
++		 * logical offlined state. This means all pages are isolated
++		 * from page allocator. If removing section's memmap is placed
++		 * on the same section, it must not be freed.
++		 * If it is freed, page allocator may allocate it which will
++		 * be removed physically soon.
++		 */
++		if (maps_section_nr != removing_section_nr)
++			put_page_bootmem(page);
++	}
++}
+ #endif /* CONFIG_SPARSEMEM_VMEMMAP */
+ 
+ static void free_section_usemap(struct page *memmap, unsigned long *usemap)
+ {
++	struct page *usemap_page;
++	unsigned long nr_pages;
++
+ 	if (!usemap)
+ 		return;
+ 
++	usemap_page = virt_to_page(usemap);
+ 	/*
+ 	 * Check to see if allocation came from hot-plug-add
+ 	 */
+-	if (PageSlab(virt_to_page(usemap))) {
++	if (PageSlab(usemap_page)) {
+ 		kfree(usemap);
+ 		if (memmap)
+ 			__kfree_section_memmap(memmap, PAGES_PER_SECTION);
+@@ -415,10 +449,19 @@
+ 	}
+ 
+ 	/*
+-	 * TODO: Allocations came from bootmem - how do I free up ?
++	 * The usemap came from bootmem. This is packed with other usemaps
++	 * on the section which has pgdat at boot time. Just keep it as is now.
+ 	 */
+-	printk(KERN_WARNING "Not freeing up allocations from bootmem "
+-			"- leaking memory\n");
++
++	if (memmap) {
++		struct page *memmap_page;
++		memmap_page = virt_to_page(memmap);
++
++		nr_pages = PAGE_ALIGN(PAGES_PER_SECTION * sizeof(struct page))
++			>> PAGE_SHIFT;
++
++		free_map_bootmem(memmap_page, nr_pages);
++	}
  }
  
--static unsigned long usemap_size(void)
-+unsigned long usemap_size(void)
+ /*
+Index: current/mm/page_alloc.c
+===================================================================
+--- current.orig/mm/page_alloc.c	2008-04-07 20:12:55.000000000 +0900
++++ current/mm/page_alloc.c	2008-04-07 20:13:29.000000000 +0900
+@@ -568,7 +568,7 @@
+ /*
+  * permit the bootmem allocator to evade page validation on high-order frees
+  */
+-void __init __free_pages_bootmem(struct page *page, unsigned int order)
++void __free_pages_bootmem(struct page *page, unsigned int order)
  {
- 	unsigned long size_bytes;
- 	size_bytes = roundup(SECTION_BLOCKFLAGS_BITS, 8) / 8;
+ 	if (order == 0) {
+ 		__ClearPageReserved(page);
+Index: current/mm/internal.h
+===================================================================
+--- current.orig/mm/internal.h	2008-04-07 20:12:55.000000000 +0900
++++ current/mm/internal.h	2008-04-07 20:13:29.000000000 +0900
+@@ -34,8 +34,7 @@
+ 	atomic_dec(&page->_count);
+ }
+ 
+-extern void __init __free_pages_bootmem(struct page *page,
+-						unsigned int order);
++extern void __free_pages_bootmem(struct page *page, unsigned int order);
+ 
+ /*
+  * function for dealing with page's order in buddy system.
+Index: current/mm/memory_hotplug.c
+===================================================================
+--- current.orig/mm/memory_hotplug.c	2008-04-07 20:12:55.000000000 +0900
++++ current/mm/memory_hotplug.c	2008-04-07 20:13:29.000000000 +0900
+@@ -199,6 +199,16 @@
+ 	return register_new_memory(__pfn_to_section(phys_start_pfn));
+ }
+ 
++#ifdef CONFIG_SPARSEMEM_VMEMMAP
++static int __remove_section(struct zone *zone, struct mem_section *ms)
++{
++	/*
++	 * XXX: Freeing memmap with vmemmap is not implement yet.
++	 *      This should be removed later.
++	 */
++	return -EBUSY;
++}
++#else
+ static int __remove_section(struct zone *zone, struct mem_section *ms)
+ {
+ 	unsigned long flags;
+@@ -217,6 +227,7 @@
+ 	pgdat_resize_unlock(pgdat, &flags);
+ 	return 0;
+ }
++#endif
+ 
+ /*
+  * Reasonably generic function for adding memory.  It is
 
 -- 
 Yasunori Goto 
