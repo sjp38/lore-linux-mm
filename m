@@ -1,43 +1,76 @@
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [-mm] Disable the memory controller by default
-Date: Mon, 7 Apr 2008 10:48:23 -0700
-Message-ID: <6599ad830804071048u5e0687dfy4313467fd95dab1c@mail.gmail.com>
-References: <20080407115137.24124.59692.sendpatchset@localhost.localdomain>
-	 <20080407120340.GB16647@one.firstfloor.org>
-	 <47FA0D85.201@linux.vnet.ibm.com>
-	 <2f11576a0804070516r185bff87t449c315bd7787c7e@mail.gmail.com>
-	 <47FA10BB.9000305@linux.vnet.ibm.com>
+From: Jeremy Fitzhardinge <jeremy@goop.org>
+Subject: [ofa-general] Re: [patch 01/10] emm: mm_lock: Lock a process against
+	reclaim
+Date: Mon, 07 Apr 2008 12:02:53 -0700
+Message-ID: <47FA6FDD.9060605@goop.org>
+References: <20080404223048.374852899@sgi.com>
+	<20080404223131.271668133@sgi.com> <47F6B5EA.6060106@goop.org>
+	<20080405004127.GG14784@duo.random>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1753476AbYDGRs6@vger.kernel.org>
-In-Reply-To: <47FA10BB.9000305@linux.vnet.ibm.com>
-Content-Disposition: inline
-Sender: linux-kernel-owner@vger.kernel.org
-To: balbir@linux.vnet.ibm.com
-Cc: KOSAKI Motohiro <m-kosaki@ceres.dti.ne.jp>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pavel Emelianov <xemul@openvz.org>, hugh@veritas.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Return-path: <general-bounces@lists.openfabrics.org>
+In-Reply-To: <20080405004127.GG14784@duo.random>
+List-Unsubscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
+	<mailto:general-request@lists.openfabrics.org?subject=unsubscribe>
+List-Archive: <http://lists.openfabrics.org/pipermail/general>
+List-Post: <mailto:general@lists.openfabrics.org>
+List-Help: <mailto:general-request@lists.openfabrics.org?subject=help>
+List-Subscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
+	<mailto:general-request@lists.openfabrics.org?subject=subscribe>
+Sender: general-bounces@lists.openfabrics.org
+Errors-To: general-bounces@lists.openfabrics.org
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Christoph Lameter <clameter@sgi.com>
 List-Id: linux-mm.kvack.org
 
-On Mon, Apr 7, 2008 at 5:16 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->  No, it is not all bad. That can be done, but we need to guard against a usage like
+Andrea Arcangeli wrote:
+> On Fri, Apr 04, 2008 at 04:12:42PM -0700, Jeremy Fitzhardinge wrote:
+>   
+>> I think you can break this if() down a bit:
+>>
+>> 			if (!(vma->vm_file && vma->vm_file->f_mapping))
+>> 				continue;
+>>     
 >
->  cgroup_disable=memory cgroup_enable=memory
+> It makes no difference at runtime, coding style preferences are quite
+> subjective.
+>   
+
+Well, overall the formatting of that if statement is very hard to read.  
+Separating out the logically distinct pieces in to different ifs at 
+least shows the reader that they are distinct.
+Aside from that, doing some manual CSE to remove all the casts and 
+expose the actual thing you're testing for would help a lot (are the 
+casts even necessary?).
+
+>> So this is an O(n^2) algorithm to take the i_mmap_locks from low to high 
+>> order?  A comment would be nice.  And O(n^2)?  Ouch.  How often is it 
+>> called?
+>>     
 >
->  The user will probably get what he/she deserves for it.
+> It's called a single time when the mmu notifier is registered. It's a
+> very slow path of course. Any other approach to reduce the complexity
+> would require memory allocations and it would require
+> mmu_notifier_register to return -ENOMEM failure. It didn't seem worth
+> it.
+>   
 
-I don't think we need to guard against that. It seems perfectly valid
-to have a lilo config with
+It's per-mm though.  How many processes would need to have notifiers?
 
-  append="cgroup_disable=memory"
 
-and then want to boot with the memory controller enabled you can do
+>> And is it necessary to mush lock and unlock together?  Unlock ordering 
+>> doesn't matter, so you should just be able to have a much simpler loop, no?
+>>     
+>
+> That avoids duplicating .text. Originally they were separated. unlock
+> can't be a simpler loop because I didn't reserve vm_flags bitflags to
+> do a single O(N) loop for unlock. If you do malloc+fork+munmap two
+> vmas will point to the same anon-vma lock, that's why the unlock isn't
+> simpler unless I mark what I locked with a vm_flags bitflag.
 
-  lilo -R <image> cgroup_enable=memory
+Well, its definitely going to need more comments then.  I assumed it 
+would end up locking everything, so unlocking everything would be 
+sufficient.
 
-The kernel command line will then look like
-
-  "... cgroup_disable=memory cgroup_enable=memory"
-
-and the last switch should win.
-
-Paul
+    J
