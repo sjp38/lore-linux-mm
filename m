@@ -1,39 +1,50 @@
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [ofa-general] Re: [patch 01/10] emm: mm_lock: Lock a process against
-	reclaim
-Date: Mon, 07 Apr 2008 15:55:48 +0200
-Message-ID: <1207576548.15579.43.camel@twins>
-References: <20080404223048.374852899@sgi.com>
-	<20080404223131.271668133@sgi.com> <47F6B5EA.6060106@goop.org>
-	<20080405004127.GG14784@duo.random>
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [-mm] Disable the memory controller by default (v2)
+Date: Mon, 7 Apr 2008 10:43:37 -0700
+Message-ID: <6599ad830804071043j33212a6kbeb4ef7d79e17f5c@mail.gmail.com>
+References: <20080407130215.26565.81715.sendpatchset@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Return-path: <general-bounces@lists.openfabrics.org>
-In-Reply-To: <20080405004127.GG14784@duo.random>
-List-Unsubscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
-	<mailto:general-request@lists.openfabrics.org?subject=unsubscribe>
-List-Archive: <http://lists.openfabrics.org/pipermail/general>
-List-Post: <mailto:general@lists.openfabrics.org>
-List-Help: <mailto:general-request@lists.openfabrics.org?subject=help>
-List-Subscribe: <http://lists.openfabrics.org/cgi-bin/mailman/listinfo/general>,
-	<mailto:general-request@lists.openfabrics.org?subject=subscribe>
-Sender: general-bounces@lists.openfabrics.org
-Errors-To: general-bounces@lists.openfabrics.org
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>, kvm-devel@lists.sourceforge.net, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Christoph Lameter <clameter@sgi.com>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1753105AbYDGRn5@vger.kernel.org>
+In-Reply-To: <20080407130215.26565.81715.sendpatchset@localhost.localdomain>
+Content-Disposition: inline
+Sender: linux-kernel-owner@vger.kernel.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: andi@firstfloor.org, Andrew Morton <akpm@linux-foundation.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pavel Emelianov <xemul@openvz.org>, hugh@veritas.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-Id: linux-mm.kvack.org
 
-On Sat, 2008-04-05 at 02:41 +0200, Andrea Arcangeli wrote:
-> On Fri, Apr 04, 2008 at 04:12:42PM -0700, Jeremy Fitzhardinge wrote:
-> > I think you can break this if() down a bit:
-> >
-> > 			if (!(vma->vm_file && vma->vm_file->f_mapping))
-> > 				continue;
-> 
-> It makes no difference at runtime, coding style preferences are quite
-> subjective.
+On Mon, Apr 7, 2008 at 6:02 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>         return 1;
+>   }
+>   __setup("cgroup_disable=", cgroup_disable);
+>  +
+>  +static int __init cgroup_enable(char *str)
+>  +{
+>  +       int i;
+>  +       char *token;
+>  +
+>  +       while ((token = strsep(&str, ",")) != NULL) {
+>  +               if (!*token)
+>  +                       continue;
+>  +
+>  +               for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
+>  +                       struct cgroup_subsys *ss = subsys[i];
+>  +
+>  +                       if (!strcmp(token, ss->name)) {
+>  +                               ss->disabled = 0;
+>  +                               printk(KERN_INFO "%s control group "
+>  +                                               "is enabled\n", ss->name);
+>  +                               break;
+>  +                       }
+>  +               }
+>  +       }
+>  +       return 1;
+>  +}
+>  +__setup("cgroup_enable=", cgroup_enable);
 
-I'll have to concurr with Jeremy here, please break that monstrous if
-stmt down. It might not matter to the compiler, but it sure as hell
-helps for anyone trying to understand/maintain the thing.
+Good idea - but you could just use the same handler function for both
+of these (with a one-line wrapper for each to pass disabled=1 or
+disabled=0)
+
+Paul
