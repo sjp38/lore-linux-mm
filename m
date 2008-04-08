@@ -1,34 +1,30 @@
-Date: Tue, 8 Apr 2008 14:02:46 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 05/18] SLUB: Slab defrag core
-In-Reply-To: <20080407231129.3c044ba1.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0804081401350.31230@schroedinger.engr.sgi.com>
-References: <20080404230158.365359425@sgi.com> <20080404230226.847485429@sgi.com>
- <20080407231129.3c044ba1.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 8 Apr 2008 23:07:56 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [patch 04/18] SLUB: Sort slab cache list and establish maximum objects for defrag slabs
+Message-ID: <20080408210756.GA19010@one.firstfloor.org>
+References: <20080404230158.365359425@sgi.com> <20080404230226.577197795@sgi.com> <20080407231113.855e2ba3.akpm@linux-foundation.org> <Pine.LNX.4.64.0804081359240.31230@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0804081359240.31230@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 7 Apr 2008, Andrew Morton wrote:
-
-> >    Fragmentation is skipped if it was less than a tenth of a second since we
-> >    last checked a slab cache. An unsuccessful defrag attempt pauses attempts
-> >    for at least one second.
+On Tue, Apr 08, 2008 at 02:01:12PM -0700, Christoph Lameter wrote:
+> On Mon, 7 Apr 2008, Andrew Morton wrote:
 > 
-> Can we not do this?  It's a really nasty hack.  Wall time has almost no
-> correlation with reclaim and allocation activity.
+> > Use of __read_mostly would be appropriate here.
 > 
-> If we really cannot think of anything smarter than just throttling then the
-> decision regarding when to throttle and for how long should at least be
-> driven by something which is vaguely correlated with the present/recent
-> allocation/reclaim activity.
+> Lets not proliferate that stuff unnecessarily. Variable is not used in 
+> hot code paths.
 
-The reclaim interval increases to 1 second if slab reclaim was not 
-succcessful.
+... and the hot paths should eventually move over to immediate values 
+once that patch is in
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
