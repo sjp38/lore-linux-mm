@@ -1,43 +1,65 @@
-Date: Wed, 9 Apr 2008 09:42:46 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [-mm] Add an owner to the mm_struct (v8)
-Message-Id: <20080409094246.f9a2a901.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080404080544.26313.38199.sendpatchset@localhost.localdomain>
-References: <20080404080544.26313.38199.sendpatchset@localhost.localdomain>
+Date: Tue, 8 Apr 2008 15:51:42 -0300
+From: "Luiz Fernando N. Capitulino" <lcapitulino@mandriva.com.br>
+Subject: Re: [rfc] SLQB: YASA
+Message-ID: <20080408155142.4b421497@mandriva.com.br>
+In-Reply-To: <20080408115717.GB22687@wotan.suse.de>
+References: <20080403072550.GC25932@wotan.suse.de>
+	<Pine.LNX.4.64.0804031200530.7265@schroedinger.engr.sgi.com>
+	<20080408115717.GB22687@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Paul Menage <menage@google.com>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Lameter <clameter@sgi.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 04 Apr 2008 13:35:44 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> +	/*
-> +	 * Search through everything else. We should not get
-> +	 * here often
-> +	 */
-> +	do_each_thread(g, c) {
-> +		if (c->mm == mm)
-> +			goto assign_new_owner;
-> +	} while_each_thread(g, c);
-> +
-I'm sorry for my laziness.
+Em Tue, 8 Apr 2008 13:57:17 +0200
+Nick Piggin <npiggin@suse.de> escreveu:
 
-Why do_each_thread() ? for_each_process() is not enough ?
-(because of delay_group_leader().)
+| Here is my more working version of SLQB. 
+| 
+| Was experimenting with a couple of different ways to do remote freeing,
+| but it is really hard to tune properly without having "real" workloads,
+| due to cache effects.
+| 
+| Anyway, same comments apply. Patch is against mainline.
 
-And what we have to test for the worst case is following, right ?
-==
- 1. create a tons of threads.
- 2. create a process which calls vfork().
- 3. keep child alive and vfork() caller exits
-==
+ I get the following error when compiling without CONFIG_SMP
 
-Thanks,
--Kame
+"""
+In file included from include/linux/rcupdate.h:52,
+                 from include/linux/slqb_def.h:15,
+                 from include/linux/slab.h:121,
+                 from include/asm/pgtable_32.h:22,
+                 from include/asm/pgtable.h:241,
+                 from include/linux/mm.h:40,
+                 from arch/x86/kernel/pci-dma_32.c:12:
+include/linux/percpu.h: In function '__percpu_alloc_mask':
+include/linux/percpu.h:106: error: implicit declaration of function 'kzalloc'
+include/linux/percpu.h:106: warning: return makes pointer from integer without a cast
+In file included from include/asm/pgtable_32.h:22,
+                 from include/asm/pgtable.h:241,
+                 from include/linux/mm.h:40,
+                 from arch/x86/kernel/pci-dma_32.c:12:
+include/linux/slab.h: At top level:
+include/linux/slab.h:272: error: conflicting types for 'kzalloc'
+include/linux/percpu.h:106: error: previous implicit declaration of 'kzalloc' was here
+ICECC[27645] 15:49:30: Compiled on XXXXXXXX
+make[1]: *** [arch/x86/kernel/pci-dma_32.o] Error 1
+make: *** [arch/x86/kernel] Error 2
+
+"""
+
+ Could not figure out what the problem is.
+
+ Regarding performance tests, I saw that Christoph has some
+interesting test modules in his git repository. Do you think it's
+worth to run them?
+
+-- 
+Luiz Fernando N. Capitulino
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
