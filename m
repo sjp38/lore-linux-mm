@@ -1,11 +1,10 @@
-Date: Tue, 8 Apr 2008 14:01:12 -0700 (PDT)
+Date: Tue, 8 Apr 2008 14:02:46 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 04/18] SLUB: Sort slab cache list and establish maximum
- objects for defrag slabs
-In-Reply-To: <20080407231113.855e2ba3.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0804081359240.31230@schroedinger.engr.sgi.com>
-References: <20080404230158.365359425@sgi.com> <20080404230226.577197795@sgi.com>
- <20080407231113.855e2ba3.akpm@linux-foundation.org>
+Subject: Re: [patch 05/18] SLUB: Slab defrag core
+In-Reply-To: <20080407231129.3c044ba1.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0804081401350.31230@schroedinger.engr.sgi.com>
+References: <20080404230158.365359425@sgi.com> <20080404230226.847485429@sgi.com>
+ <20080407231129.3c044ba1.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -16,10 +15,20 @@ List-ID: <linux-mm.kvack.org>
 
 On Mon, 7 Apr 2008, Andrew Morton wrote:
 
-> Use of __read_mostly would be appropriate here.
+> >    Fragmentation is skipped if it was less than a tenth of a second since we
+> >    last checked a slab cache. An unsuccessful defrag attempt pauses attempts
+> >    for at least one second.
+> 
+> Can we not do this?  It's a really nasty hack.  Wall time has almost no
+> correlation with reclaim and allocation activity.
+> 
+> If we really cannot think of anything smarter than just throttling then the
+> decision regarding when to throttle and for how long should at least be
+> driven by something which is vaguely correlated with the present/recent
+> allocation/reclaim activity.
 
-Lets not proliferate that stuff unnecessarily. Variable is not used in 
-hot code paths.
+The reclaim interval increases to 1 second if slab reclaim was not 
+succcessful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
