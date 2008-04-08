@@ -1,152 +1,100 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [RFC PATCH 1/2] futex: rely on get_user_pages() for shared futexes
-Date: Tue, 8 Apr 2008 21:40:04 +1000
-Message-ID: <200804082140.04356.nickpiggin@yahoo.com.au>
-References: <20080404193332.348493000@chello.nl> <20080404193817.574188000@chello.nl>
-Mime-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1753865AbYDHLrR@vger.kernel.org>
-In-Reply-To: <20080404193817.574188000@chello.nl>
-Content-Disposition: inline
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: [-mm] Disable the memory controller by default (v3)
+Date: Tue, 08 Apr 2008 17:16:13 +0530
+Message-ID: <20080408114613.8165.69030.sendpatchset@localhost.localdomain>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1754009AbYDHLr7@vger.kernel.org>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Eric Dumazet <dada1@cosmosbay.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: andi@firstfloor.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pavel Emelianov <xemul@openvz.org>, hugh@veritas.com, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-Id: linux-mm.kvack.org
 
-On Saturday 05 April 2008 06:33, Peter Zijlstra wrote:
-> On the way of getting rid of the mmap_sem requirement for shared futexes,
-> start by relying on get_user_pages().
->
-> This requires we get the page associated with the key, and put the page
-> when we're done with it.
 
-Hi Peter,
 
-Cool.
+Changelog v1
 
-I'm all for removing mmap_sem requirement from shared futexes...
-Are there many apps which make a non-trivial use of them I wonder?
-I guess it will help legacy (pre-FUTEX_PRIVATE) usespaces in
-performance too, though.
+1. Split cgroup_disable into cgroup_disable and cgroup_enable
+2. Remove cgroup_toggle
 
-What I'm worried about with this is invalidate or truncate races.
-With direct IO, it obviously doesn't matter because the only
-requirement is that the page existed at the address at some point
-during the syscall... 
+Due to the overhead of the memory controller. The
+memory controller is now disabled by default. This patch adds cgroup_enable.
 
-So I'd really like you to not carry the page around in the key, but
-just continue using the same key we have now. Also, lock the page
-and ensure it hasn't been truncated before taking the inode from the
-key and incrementing its count (page lock's extra atomics should be
-more or less cancelled out by fewer mmap_sem atomic ops).
+If everyone agrees on this approach and likes it, should we push this
+into 2.6.25?
 
-get_futex_key should look something like this I would have thought:?
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
 
-BTW. I like that it removes a lot of fshared crap from around
-the place. And also this is a really good user of fast_gup
-because I guess it should usually be faulted in. The problem is
-that this could be a little more expensive for architectures that
-don't implement fast_gup. Though most should be able to.
+ Documentation/kernel-parameters.txt |    3 +++
+ kernel/cgroup.c                     |   17 +++++++++++++----
+ mm/memcontrol.c                     |    1 +
+ 3 files changed, 17 insertions(+), 4 deletions(-)
 
-@@ -191,7 +191,6 @@ static int get_futex_key(u32 __user *uad
- {
-        unsigned long address = (unsigned long)uaddr;
-        struct mm_struct *mm = current->mm;
--       struct vm_area_struct *vma;
-        struct page *page;
-        int err;
-
-@@ -210,27 +209,26 @@ static int get_futex_key(u32 __user *uad
-         * Note : We do have to check 'uaddr' is a valid user address,
-         *        but access_ok() should be faster than find_vma()
-         */
--       if (!fshared) {
-+       if (likely(!fshared)) {
-                if (unlikely(!access_ok(VERIFY_WRITE, uaddr, sizeof(u32))))
-                        return -EFAULT;
-                key->private.mm = mm;
-                key->private.address = address;
-                return 0;
-        }
--       /*
--        * The futex is hashed differently depending on whether
--        * it's in a shared or private mapping.  So check vma first.
--        */
--       vma = find_extend_vma(mm, address);
--       if (unlikely(!vma))
--               return -EFAULT;
--
--       /*
--        * Permissions.
--        */
--       if (unlikely((vma->vm_flags & (VM_IO|VM_READ)) != VM_READ))
--               return (vma->vm_flags & VM_IO) ? -EPERM : -EACCES;
-
-+again:
-+       err = fast_gup(address, 1, 0, &page);
-+       if (err < 0)
-+               return err;
-+
-+       lock_page(page);
-+       if (!page->mapping) { /* PageAnon pages shouldn't get caught here */
-+               unlock_page(page);
-+               put_page(page);
-+               goto again;
-+       }
-+
-        /*
-         * Private mappings are handled in a simple way.
-         *
-@@ -240,38 +238,19 @@ static int get_futex_key(u32 __user *uad
-         * VM_MAYSHARE here, not VM_SHARED which is restricted to shared
-         * mappings of _writable_ handles.
-         */
--       if (likely(!(vma->vm_flags & VM_MAYSHARE))) {
--               key->both.offset |= FUT_OFF_MMSHARED; /* reference taken on mm 
-*
-/
-+       if (PageAnon(page)) {
-+               key->both.offset |= FUT_OFF_MMSHARED; /* ref taken on mm */
-                key->private.mm = mm;
-                key->private.address = address;
--               return 0;
--       }
--
--       /*
--        * Linear file mappings are also simple.
--        */
--       key->shared.inode = vma->vm_file->f_path.dentry->d_inode;
--       key->both.offset |= FUT_OFF_INODE; /* inode-based key. */
--       if (likely(!(vma->vm_flags & VM_NONLINEAR))) {
--               key->shared.pgoff = (((address - vma->vm_start) >> PAGE_SHIFT)
--                                    + vma->vm_pgoff);
--               return 0;
--       }
--
--       /*
--        * We could walk the page table to read the non-linear
--        * pte, and get the page index without fetching the page
--        * from swap.  But that's a lot of code to duplicate here
--        * for a rare case, so we simply fetch the page.
--        */
--       err = get_user_pages(current, mm, address, 1, 0, 0, &page, NULL);
--       if (err >= 0) {
--               key->shared.pgoff =
--                       page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
--               put_page(page);
--               return 0;
-+       } else {
-+               key->both.offset |= FUT_OFF_INODE; /* inode-based key. */
-+               key->shared.inode = page->mapping->inode;
-+               key->shared.pgoff = page->index;
-        }
--       return err;
-+out:
-+       unlock_page(page);
-+       put_page(page);
-+       return 0;
+diff -puN kernel/cgroup.c~memory-controller-default-option-off kernel/cgroup.c
+--- linux-2.6.25-rc8/kernel/cgroup.c~memory-controller-default-option-off	2008-04-07 16:24:28.000000000 +0530
++++ linux-2.6.25-rc8-balbir/kernel/cgroup.c	2008-04-08 16:04:49.000000000 +0530
+@@ -3063,7 +3063,7 @@ static void cgroup_release_agent(struct 
+ 	mutex_unlock(&cgroup_mutex);
  }
+ 
+-static int __init cgroup_disable(char *str)
++static inline int __init cgroup_turnonoff(char *str, int disable)
+ {
+ 	int i;
+ 	char *token;
+@@ -3076,13 +3076,22 @@ static int __init cgroup_disable(char *s
+ 			struct cgroup_subsys *ss = subsys[i];
+ 
+ 			if (!strcmp(token, ss->name)) {
+-				ss->disabled = 1;
+-				printk(KERN_INFO "Disabling %s control group"
+-					" subsystem\n", ss->name);
++				ss->disabled = disable;
+ 				break;
+ 			}
+ 		}
+ 	}
+ 	return 1;
+ }
++
++static int __init cgroup_disable(char *str)
++{
++	return cgroup_turnonoff(str, 1);
++}
+ __setup("cgroup_disable=", cgroup_disable);
++
++static int __init cgroup_enable(char *str)
++{
++	return cgroup_turnonoff(str, 0);
++}
++__setup("cgroup_enable=", cgroup_enable);
+diff -puN mm/memcontrol.c~memory-controller-default-option-off mm/memcontrol.c
+--- linux-2.6.25-rc8/mm/memcontrol.c~memory-controller-default-option-off	2008-04-07 16:24:28.000000000 +0530
++++ linux-2.6.25-rc8-balbir/mm/memcontrol.c	2008-04-07 16:40:22.000000000 +0530
+@@ -1104,4 +1104,5 @@ struct cgroup_subsys mem_cgroup_subsys =
+ 	.populate = mem_cgroup_populate,
+ 	.attach = mem_cgroup_move_task,
+ 	.early_init = 0,
++	.disabled = 1,
+ };
+diff -puN Documentation/kernel-parameters.txt~memory-controller-default-option-off Documentation/kernel-parameters.txt
+--- linux-2.6.25-rc8/Documentation/kernel-parameters.txt~memory-controller-default-option-off	2008-04-07 16:38:25.000000000 +0530
++++ linux-2.6.25-rc8-balbir/Documentation/kernel-parameters.txt	2008-04-07 17:53:28.000000000 +0530
+@@ -382,8 +382,11 @@ and is between 256 and 4096 characters. 
+ 			See Documentation/s390/CommonIO for details.
+ 
+ 	cgroup_disable= [KNL] Disable a particular controller
++	cgroup_enable=  [KNL] Enable a particular controller
++			For both cgroup_enable and cgroup_enable
+ 			Format: {name of the controller(s) to disable}
+ 				{Currently supported controllers - "memory"}
++				{Memory controller is disabled by default}
+ 
+ 	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
+ 			Format: { "0" | "1" }
+_
 
- /*
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
