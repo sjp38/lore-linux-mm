@@ -1,35 +1,25 @@
-Date: Tue, 8 Apr 2008 13:55:46 -0700 (PDT)
+Date: Tue, 8 Apr 2008 14:01:12 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 04/12] slub: Add kmem_cache_order_objects struct
-In-Reply-To: <47FA4507.6090409@cs.helsinki.fi>
-Message-ID: <Pine.LNX.4.64.0804081351100.31230@schroedinger.engr.sgi.com>
-References: <20080404225019.369359572@sgi.com> <20080404225104.311511519@sgi.com>
- <47FA4507.6090409@cs.helsinki.fi>
+Subject: Re: [patch 04/18] SLUB: Sort slab cache list and establish maximum
+ objects for defrag slabs
+In-Reply-To: <20080407231113.855e2ba3.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0804081359240.31230@schroedinger.engr.sgi.com>
+References: <20080404230158.365359425@sgi.com> <20080404230226.577197795@sgi.com>
+ <20080407231113.855e2ba3.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 7 Apr 2008, Pekka Enberg wrote:
+On Mon, 7 Apr 2008, Andrew Morton wrote:
 
-> Hi Christoph,
-> 
-> Christoph Lameter wrote:
-> > @@ -1143,7 +1165,7 @@ static struct page *new_slab(struct kmem
-> >  	start = page_address(page);
-> >   	if (unlikely(s->flags & SLAB_POISON))
-> > -		memset(start, POISON_INUSE, PAGE_SIZE << s->order);
-> > +		memset(start, POISON_INUSE, PAGE_SIZE << oo_order(oo));
-> 
-> This should be compound_order(page) as allocate_slab() can fall back to
-> smaller page order.
+> Use of __read_mostly would be appropriate here.
 
-Ack. I distinctly remember fixing this once before. Sigh.
-
-
+Lets not proliferate that stuff unnecessarily. Variable is not used in 
+hot code paths.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
