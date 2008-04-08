@@ -1,29 +1,32 @@
-Date: Wed, 9 Apr 2008 11:30:56 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH][trivial fix] add "Isolate" migratetype name to /proc/pagetypeinfo.
-Message-ID: <20080409103056.GA5872@csn.ul.ie>
-References: <2f11576a0804080952n3041e1edw94978843833f0953@mail.gmail.com>
+Date: Tue, 8 Apr 2008 14:17:15 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 05/18] SLUB: Slab defrag core
+In-Reply-To: <20080408141135.de5a6350.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0804081416060.31490@schroedinger.engr.sgi.com>
+References: <20080404230158.365359425@sgi.com> <20080404230226.847485429@sgi.com>
+ <20080407231129.3c044ba1.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0804081401350.31230@schroedinger.engr.sgi.com>
+ <20080408141135.de5a6350.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <2f11576a0804080952n3041e1edw94978843833f0953@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On (09/04/08 01:52), KOSAKI Motohiro didst pronounce:
-> patch against: 2.6.25-rc8-mm1
-> 
-> in a5d76b54a3f3a40385d7f76069a2feac9f1bad63 (memory unplug: page
-> isolation by KAMEZAWA Hiroyuki), "isolate" migratetype added.
-> but unfortunately, it doesn't treat /proc/pagetypeinfo display logic.
-> 
-> this patch add "Isolate" to pagetype name field.
-> 
+On Tue, 8 Apr 2008, Andrew Morton wrote:
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+> I know that.  It's still an arbitrary-to-the-point-of-uselessness hack.
+> 
+> Reclaim is clocked by scanning rates, allocation rates and disk speed.  Not
+> wall time.
+
+Hmmmm... We could key it to the rate of free of objects that 
+shrink_slab() has been able to accomplish? We already check for != 0 
+there. The more are freed the more urgent to scan the partial lists for 
+reclaimable slabs.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
