@@ -1,46 +1,35 @@
-Date: Tue, 8 Apr 2008 14:09:09 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 17/18] dentries: Add constructor
-In-Reply-To: <20080407231402.63284bb5.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0804081407550.31230@schroedinger.engr.sgi.com>
-References: <20080404230158.365359425@sgi.com> <20080404230229.678047976@sgi.com>
- <20080407231402.63284bb5.akpm@linux-foundation.org>
+Message-ID: <47FBB497.4050603@cs.helsinki.fi>
+Date: Tue, 08 Apr 2008 21:08:23 +0300
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch] slub: change the formula which calculates min_objects
+ based on number of processors
+References: <20080404225019.369359572@sgi.com>	 <20080404225105.959019108@sgi.com> <1207548437.12878.48.camel@ymzhang>	 <47FA346C.4020802@cs.helsinki.fi> <1207635477.12878.74.camel@ymzhang>	 <84144f020804072337s541646d8s999be14b4c17375e@mail.gmail.com> <1207646286.12878.150.camel@ymzhang>
+In-Reply-To: <1207646286.12878.150.camel@ymzhang>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 7 Apr 2008, Andrew Morton wrote:
-
-> On Fri, 04 Apr 2008 16:02:15 -0700 Christoph Lameter <clameter@sgi.com> wrote:
+Zhang, Yanmin wrote:
+> Current formula to calculate min_objects based on number of processors is 
+> '4 * fls(nr_cpu_ids)', which is not the best optimization on 16-core tigerton.
+> If I add 4 to its result, hackbench result is better.
 > 
-> > In order to support defragmentation on the dentry cache we need to have
-> > a determined object state at all times.
+> On 16-core tigerton, by run
+> ./hackbench 100 process 2000
+> results are:
+> 1) 2.6.25-rc6slab: 23.5seconds
+> 2) 2.6.25-rc7SLUB+slub_min_objects=20: 31seconds
+> 3) 2.6.25-rc7SLUB+slub_min_objects=24: 23.5seconds
 > 
-> Oh.  I don't recall seeing any previous changelog text or code comments
-> which told us this, and which explained why?
-> 
-> I might have missed it.
+> So adding 4 to the output of '4 * fls(nr_cpu_ids)' could get the similar result
+> like CONFIG_SLAB=y.
 
-There is prior docs and the code checks for the presence of a ctor 
-for any defragmentable slab.
-
-> > +void dcache_ctor(struct kmem_cache *s, void *p)
-> > +{
-> > +	struct dentry *dentry = p;
-> > +
-> > +	spin_lock_init(&dentry->d_lock);
-> > +	dentry->d_inode = NULL;
-> > +	INIT_LIST_HEAD(&dentry->d_lru);
-> > +	INIT_LIST_HEAD(&dentry->d_alias);
-> > +}
-> 
-> I don't think this needed global scope?
-
-Correct.
+Applied, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
