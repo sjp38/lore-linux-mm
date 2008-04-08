@@ -1,30 +1,36 @@
-Date: Tue, 8 Apr 2008 23:07:56 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [patch 04/18] SLUB: Sort slab cache list and establish maximum objects for defrag slabs
-Message-ID: <20080408210756.GA19010@one.firstfloor.org>
-References: <20080404230158.365359425@sgi.com> <20080404230226.577197795@sgi.com> <20080407231113.855e2ba3.akpm@linux-foundation.org> <Pine.LNX.4.64.0804081359240.31230@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0804081359240.31230@schroedinger.engr.sgi.com>
+Date: Tue, 8 Apr 2008 14:05:51 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 09/18] SLUB: Trigger defragmentation from memory reclaim
+In-Reply-To: <20080407231137.6e3a38cd.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0804081403220.31230@schroedinger.engr.sgi.com>
+References: <20080404230158.365359425@sgi.com> <20080404230227.768964864@sgi.com>
+ <20080407231137.6e3a38cd.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 08, 2008 at 02:01:12PM -0700, Christoph Lameter wrote:
-> On Mon, 7 Apr 2008, Andrew Morton wrote:
-> 
-> > Use of __read_mostly would be appropriate here.
-> 
-> Lets not proliferate that stuff unnecessarily. Variable is not used in 
-> hot code paths.
+On Mon, 7 Apr 2008, Andrew Morton wrote:
 
-... and the hot paths should eventually move over to immediate values 
-once that patch is in
+> > + * zone is the zone for which we are shrinking the slabs. If the intent
+> > + * is to do a global shrink then zone may be NULL. Specification of a
+> > + * zone is currently only used to limit slab defragmentation to a NUMA node.
+> > + * The performace of shrink_slab would be better (in particular under NUMA)
+> > + * if it could be targeted as a whole to the zone that is under memory
+> > + * pressure but the VFS infrastructure does not allow that at the present
+> > + * time.
+> 
+> Surely this will falsely trigger the ->next_defrag logic?
 
--Andi
+slab reclaim is run rarely so I thought that these races do not matter 
+much.
+
+We could put that next_defrag logic into the per node structure 
+and protect it by taking the partial list lock if we wanted to be race 
+safe.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
