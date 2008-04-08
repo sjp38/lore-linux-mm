@@ -1,50 +1,87 @@
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [-mm] Add an owner to the mm_struct (v8)
-Date: Mon, 7 Apr 2008 19:55:49 -0700
-Message-ID: <20080407195549.beca617e.akpm@linux-foundation.org>
-References: <20080404080544.26313.38199.sendpatchset@localhost.localdomain>
-	<20080407150956.9a29573a.akpm@linux-foundation.org>
-	<47FADAFD.7030202@linux.vnet.ibm.com>
+From: yamamoto-jCdQPDEk3idL9jVzuh4AOg@public.gmane.org (YAMAMOTO Takashi)
+Subject: Re: [RFC][PATCH] another swap controller for cgroup
+Date: Tue,  8 Apr 2008 12:29:37 +0900 (JST)
+Message-ID: <20080408032937.3CCCE5A07@siro.lan>
+References: <47ECB3B1.6040500@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1755991AbYDHC4f@vger.kernel.org>
-In-Reply-To: <47FADAFD.7030202@linux.vnet.ibm.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: balbir@linux.vnet.ibm.com
-Cc: menage@google.com, xemul@openvz.org, hugh@veritas.com, skumar@linux.vnet.ibm.com, yamamoto@valinux.co.jp, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com
+Return-path: <containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+In-Reply-To: Your message of "Fri, 28 Mar 2008 18:00:33 +0900"
+	<47ECB3B1.6040500-YQH0OdQVrdy45+QrQBaojngSJqDPrsil@public.gmane.org>
+List-Unsubscribe: <https://lists.linux-foundation.org/mailman/listinfo/containers>,
+	<mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
+List-Archive: <http://lists.linux-foundation.org/pipermail/containers>
+List-Post: <mailto:containers-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+List-Help: <mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
+List-Subscribe: <https://lists.linux-foundation.org/mailman/listinfo/containers>,
+	<mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
+Sender: containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+Errors-To: containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+To: nishimura-YQH0OdQVrdy45+QrQBaojngSJqDPrsil@public.gmane.org
+Cc: minoura-jCdQPDEk3idL9jVzuh4AOg@public.gmane.org, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, containers-qjLDD68F18O7TbgM5vRIOg@public.gmane.org, hugh-DTz5qymZ9yRBDgjK7y7TUQ@public.gmane.org, balbir-23VcF4HTsmIX0ybBhKVfKdBPR1lH4CV8@public.gmane.org
 List-Id: linux-mm.kvack.org
 
-On Tue, 08 Apr 2008 08:09:57 +0530 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> Andrew Morton wrote:
-> > On Fri, 04 Apr 2008 13:35:44 +0530
-> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> YAMAMOTO Takashi wrote:
+> > hi,
 > > 
-> >> 1. Add mm->owner change callbacks using cgroups
-> >>
-> >> ...
-> >>
-> >> +config MM_OWNER
-> >> +	bool "Enable ownership of mm structure"
-> >> +	help
-> >> +	  This option enables mm_struct's to have an owner. The advantage
-> >> +	  of this approach is that it allows for several independent memory
-> >> +	  based cgroup controllers to co-exist independently without too
-> >> +	  much space overhead
-> >> +
-> >> +	  This feature adds fork/exit overhead. So enable this only if
-> >> +	  you need resource controllers
+> > i tried to reproduce the large swap cache issue, but no luck.
+> > can you provide a little more detailed instruction?
 > > 
-> > Do we really want to offer this option to people?  It's rather a low-level
-> > thing and it's likely to cause more confusion than it's worth.  Remember
-> > that most kernels get to our users via kernel vendors - to what will they
-> > be setting this config option?
-> > 
+> This issue also happens on generic 2.6.25-rc3-mm1
+> (with limitting only memory), so I think this issue is not
+> related to your patch.
+> I'm investigating this issue too.
 > 
-> I suspect that this kernel option will not be explicitly set it. This option
-> will be selected by other config options (memory controller, swap namespace,
-> revoke*)
+> Below is my environment and how to reproduce.
+> 
+> - System
+>   full virtualized xen guest based on RHEL5.1(x86_64).
+>     CPU: 2
+>     memory: 2GB
+>     swap: 1GB
+>   A config of the running kernel(2.6.25-rc3-mm1 with your patch)
+>   is attached.
+> 
+> - how to reproduce
+>   - change swappines to 100
+> 
+>     echo 100 >/proc/sys/vm/swappiness
+> 
+>   - mount cgroup fs
+> 
+>     # mount -t cgroup -o memory,swap none /cgroup
+> 
+>   - make cgroup for test
+> 
+>     # mkdir /cgroup/02
+>     # echo -n 64M >/cgroup/02/memory.limit_in_bytes
+>     # echo -n `expr 128 \* 1024 \* 1024` >/cgroup/02/swap.limit_in_bytes
+> 
+>   - run test
+> 
+>     # echo $$ >/cgropu/02/tasks
+>     # while true; do make clean; make -j2; done
+> 
+>   In other terminals, I run some monitoring processes, top,
+>   "tail -f /var/log/messages", and displaying *.usage_in_bytes
+>   every seconds.
+> 
+> 
+> Thanks,
+> Daisuke Nishimura.
 
-I believe that the way to do this is to not give the option a `help'
-section.  Tht makes it a Kconfig-internal-only thing.
+what i tried was essentially same.
+for me, once vm_swap_full() got true, swap cache stopped growing as expected.
+
+	http://people.valinux.co.jp/~yamamoto/swap.png
+
+it was taken by running
+	while :;do swapon -s|tail -1;sleep 1;done > foo
+in an unlimited cgroup, and then plotted by gnuplot.
+	plot "foo" u 4
+
+as my system has 1GB swap configured, the vm_swap_full() threshold is
+around 500MB.
+
+YAMAMOTO Takashi
