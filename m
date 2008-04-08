@@ -1,115 +1,198 @@
-Date: Tue, 8 Apr 2008 22:07:49 +0300 (EEST)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [patch 03/18] SLUB: Add get() and kick() methods
-In-Reply-To: <20080407231059.e8c173fa.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0804082206001.9054@sbz-30.cs.Helsinki.FI>
-References: <20080404230158.365359425@sgi.com> <20080404230226.340749825@sgi.com>
- <20080407231059.e8c173fa.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
+MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
+Subject: [PATCH 1 of 9] Lock the entire mm to prevent any mmu related
+	operation to happen
+Message-Id: <ec6d8f91b299cf26cce5.1207669444@duo.random>
+In-Reply-To: <patchbomb.1207669443@duo.random>
+Date: Tue, 08 Apr 2008 17:44:04 +0200
+From: Andrea Arcangeli <andrea@qumranet.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>, Steve Wise <swise@opengridcomputing.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 04 Apr 2008 16:02:01 -0700 Christoph Lameter <clameter@sgi.com> wrote:
-> > Add the two methods needed for defragmentation and add the display of the
-> > methods via the proc interface.
-> > 
-> > Add documentation explaining the use of these methods.
-> > 
-> > +	void *(*get)(struct kmem_cache *, int nr, void **),
-> > +	void (*kick)(struct kmem_cache *, int nr, void **, void *private)) {}
-> > +	void *(*get)(struct kmem_cache *, int nr, void **),
-> > +	void (*kick)(struct kmem_cache *, int nr, void **, void *private)) {}
-> > +	void *(*get)(struct kmem_cache *, int nr, void **);
-> > +	void (*kick)(struct kmem_cache *, int nr, void **, void *private);
-> > +	void *(*get)(struct kmem_cache *, int nr, void **),
-> > +	void (*kick)(struct kmem_cache *, int nr, void **, void *private));
-> > +	void *(*get)(struct kmem_cache *, int nr, void **),
-> > +	void (*kick)(struct kmem_cache *, int nr, void **, void *private))
+# HG changeset patch
+# User Andrea Arcangeli <andrea@qumranet.com>
+# Date 1207666462 -7200
+# Node ID ec6d8f91b299cf26cce5c3d49bb25d35ee33c137
+# Parent  d4c25404de6376297ed34fada14cd6b894410eb0
+Lock the entire mm to prevent any mmu related operation to happen.
 
-On Mon, 7 Apr 2008, Andrew Morton wrote:
-> This is one of the few instances where we do use typedefs.
+Signed-off-by: Andrea Arcangeli <andrea@qumranet.com>
 
-Aye, aye, Cap'n!
-
-			Pekka
-
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Subject: [PATCH] slub: use typedefs for ->get and ->kick functions
-
-As suggested by Andrew Morton, use typedefs for the SLUB defragmentation ->get
-and ->kick callback functions.
-
-Signed-off-by: Pekka Enberg <penberg@cs.helsinki.fi>
----
- include/linux/slub_def.h |   12 +++++++-----
- mm/slub.c                |    5 ++---
- 2 files changed, 9 insertions(+), 8 deletions(-)
-
-Index: slab-2.6/include/linux/slub_def.h
-===================================================================
---- slab-2.6.orig/include/linux/slub_def.h	2008-04-08 21:57:56.000000000 +0300
-+++ slab-2.6/include/linux/slub_def.h	2008-04-08 22:00:29.000000000 +0300
-@@ -38,6 +38,9 @@
- 	SHRINK_OBJECT_RECLAIM_FAILED, /* Callbacks signaled busy objects */
- 	NR_SLUB_STAT_ITEMS };
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1050,6 +1050,15 @@
+ 				   unsigned long addr, unsigned long len,
+ 				   unsigned long flags, struct page **pages);
  
-+typedef void *(*kmem_get_fn_t)(struct kmem_cache *, int, void **);
-+typedef void (*kmem_kick_fn_t)(struct kmem_cache *, int, void **, void *);
++struct mm_lock_data {
++	spinlock_t **i_mmap_locks;
++	spinlock_t **anon_vma_locks;
++	unsigned long nr_i_mmap_locks;
++	unsigned long nr_anon_vma_locks;
++};
++extern struct mm_lock_data *mm_lock(struct mm_struct * mm);
++extern void mm_unlock(struct mm_struct *mm, struct mm_lock_data *data);
 +
- struct kmem_cache_cpu {
- 	void **freelist;	/* Pointer to first free per cpu object */
- 	struct page *page;	/* The slab from which we are allocating */
-@@ -109,7 +112,7 @@
- 	 * The array passed to get() is also passed to kick(). The
- 	 * function may remove objects by setting array elements to NULL.
- 	 */
--	void *(*get)(struct kmem_cache *, int nr, void **);
-+	kmem_get_fn_t get;
+ extern unsigned long get_unmapped_area(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
  
- 	/*
- 	 * Called with no locks held and interrupts enabled.
-@@ -122,7 +125,7 @@
- 	 * Success is checked by examining the number of remaining
- 	 * objects in the slab.
- 	 */
--	void (*kick)(struct kmem_cache *, int nr, void **, void *private);
-+	kmem_kick_fn_t kick;
+ extern unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+diff --git a/mm/mmap.c b/mm/mmap.c
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -26,6 +26,7 @@
+ #include <linux/mount.h>
+ #include <linux/mempolicy.h>
+ #include <linux/rmap.h>
++#include <linux/vmalloc.h>
  
- 	int inuse;		/* Offset to metadata */
- 	int align;		/* Alignment */
-@@ -288,9 +291,8 @@
+ #include <asm/uaccess.h>
+ #include <asm/cacheflush.h>
+@@ -2242,3 +2243,140 @@
+ 
+ 	return 0;
  }
- #endif
- 
--void kmem_cache_setup_defrag(struct kmem_cache *s,
--	void *(*get)(struct kmem_cache *, int nr, void **),
--	void (*kick)(struct kmem_cache *, int nr, void **, void *private));
-+void kmem_cache_setup_defrag(struct kmem_cache *s, kmem_get_fn_t get,
-+			     kmem_kick_fn_t kick);
- int kmem_cache_defrag(int node);
- 
- #endif /* _LINUX_SLUB_DEF_H */
-Index: slab-2.6/mm/slub.c
-===================================================================
---- slab-2.6.orig/mm/slub.c	2008-04-08 21:57:52.000000000 +0300
-+++ slab-2.6/mm/slub.c	2008-04-08 22:01:22.000000000 +0300
-@@ -2770,9 +2770,8 @@
- 								GFP_KERNEL);
- }
- 
--void kmem_cache_setup_defrag(struct kmem_cache *s,
--	void *(*get)(struct kmem_cache *, int nr, void **),
--	void (*kick)(struct kmem_cache *, int nr, void **, void *private))
-+void kmem_cache_setup_defrag(struct kmem_cache *s, kmem_get_fn_t get,
-+			     kmem_kick_fn_t kick)
- {
- 	int max_objects = oo_objects(s->max);
- 
++
++/*
++ * This operation locks against the VM for all pte/vma/mm related
++ * operations that could ever happen on a certain mm. This includes
++ * vmtruncate, try_to_unmap, and all page faults. The holder
++ * must not hold any mm related lock. A single task can't take more
++ * than one mm lock in a row or it would deadlock.
++ */
++struct mm_lock_data *mm_lock(struct mm_struct * mm)
++{
++	struct vm_area_struct *vma;
++	spinlock_t *i_mmap_lock_last, *anon_vma_lock_last;
++	unsigned long nr_i_mmap_locks, nr_anon_vma_locks, i;
++	struct mm_lock_data *data;
++	int err;
++
++	down_write(&mm->mmap_sem);
++
++	err = -EINTR;
++	nr_i_mmap_locks = nr_anon_vma_locks = 0;
++	for (vma = mm->mmap; vma; vma = vma->vm_next) {
++		cond_resched();
++		if (unlikely(signal_pending(current)))
++			goto out;
++
++		if (vma->vm_file && vma->vm_file->f_mapping)
++			nr_i_mmap_locks++;
++		if (vma->anon_vma)
++			nr_anon_vma_locks++;
++	}
++
++	err = -ENOMEM;
++	data = kmalloc(sizeof(struct mm_lock_data), GFP_KERNEL);
++	if (!data)
++		goto out;
++
++	if (nr_i_mmap_locks) {
++		data->i_mmap_locks = vmalloc(nr_i_mmap_locks *
++					     sizeof(spinlock_t));
++		if (!data->i_mmap_locks)
++			goto out_kfree;
++	} else
++		data->i_mmap_locks = NULL;
++
++	if (nr_anon_vma_locks) {
++		data->anon_vma_locks = vmalloc(nr_anon_vma_locks *
++					       sizeof(spinlock_t));
++		if (!data->anon_vma_locks)
++			goto out_vfree;
++	} else
++		data->anon_vma_locks = NULL;
++
++	err = -EINTR;
++	i_mmap_lock_last = NULL;
++	nr_i_mmap_locks = 0;
++	for (;;) {
++		spinlock_t *i_mmap_lock = (spinlock_t *) -1UL;
++		for (vma = mm->mmap; vma; vma = vma->vm_next) {
++			cond_resched();
++			if (unlikely(signal_pending(current)))
++				goto out_vfree_both;
++
++			if (!vma->vm_file || !vma->vm_file->f_mapping)
++				continue;
++			if ((unsigned long) i_mmap_lock >
++			    (unsigned long)
++			    &vma->vm_file->f_mapping->i_mmap_lock &&
++			    (unsigned long)
++			    &vma->vm_file->f_mapping->i_mmap_lock >
++			    (unsigned long) i_mmap_lock_last)
++				i_mmap_lock =
++					&vma->vm_file->f_mapping->i_mmap_lock;
++		}
++		if (i_mmap_lock == (spinlock_t *) -1UL)
++			break;
++		i_mmap_lock_last = i_mmap_lock;
++		data->i_mmap_locks[nr_i_mmap_locks++] = i_mmap_lock;
++	}
++	data->nr_i_mmap_locks = nr_i_mmap_locks;
++
++	anon_vma_lock_last = NULL;
++	nr_anon_vma_locks = 0;
++	for (;;) {
++		spinlock_t *anon_vma_lock = (spinlock_t *) -1UL;
++		for (vma = mm->mmap; vma; vma = vma->vm_next) {
++			cond_resched();
++			if (unlikely(signal_pending(current)))
++				goto out_vfree_both;
++
++			if (!vma->anon_vma)
++				continue;
++			if ((unsigned long) anon_vma_lock >
++			    (unsigned long) &vma->anon_vma->lock &&
++			    (unsigned long) &vma->anon_vma->lock >
++			    (unsigned long) anon_vma_lock_last)
++				anon_vma_lock = &vma->anon_vma->lock;
++		}
++		if (anon_vma_lock == (spinlock_t *) -1UL)
++			break;
++		anon_vma_lock_last = anon_vma_lock;
++		data->anon_vma_locks[nr_anon_vma_locks++] = anon_vma_lock;
++	}
++	data->nr_anon_vma_locks = nr_anon_vma_locks;
++
++	for (i = 0; i < nr_i_mmap_locks; i++)
++		spin_lock(data->i_mmap_locks[i]);
++	for (i = 0; i < nr_anon_vma_locks; i++)
++		spin_lock(data->anon_vma_locks[i]);
++
++	return data;
++
++out_vfree_both:
++	vfree(data->anon_vma_locks);
++out_vfree:
++	vfree(data->i_mmap_locks);
++out_kfree:
++	kfree(data);
++out:
++	up_write(&mm->mmap_sem);
++	return ERR_PTR(err);
++}
++
++void mm_unlock(struct mm_struct *mm, struct mm_lock_data *data)
++{
++	unsigned long i;
++
++	for (i = 0; i < data->nr_i_mmap_locks; i++)
++		spin_unlock(data->i_mmap_locks[i]);
++	for (i = 0; i < data->nr_anon_vma_locks; i++)
++		spin_unlock(data->anon_vma_locks[i]);
++
++	up_write(&mm->mmap_sem);
++	
++	vfree(data->i_mmap_locks);
++	vfree(data->anon_vma_locks);
++	kfree(data);
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
