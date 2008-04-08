@@ -1,65 +1,126 @@
-Date: Tue, 8 Apr 2008 15:51:42 -0300
-From: "Luiz Fernando N. Capitulino" <lcapitulino@mandriva.com.br>
-Subject: Re: [rfc] SLQB: YASA
-Message-ID: <20080408155142.4b421497@mandriva.com.br>
-In-Reply-To: <20080408115717.GB22687@wotan.suse.de>
-References: <20080403072550.GC25932@wotan.suse.de>
-	<Pine.LNX.4.64.0804031200530.7265@schroedinger.engr.sgi.com>
-	<20080408115717.GB22687@wotan.suse.de>
+Date: Tue, 8 Apr 2008 21:55:05 +0300 (EEST)
+From: Pekka J Enberg <penberg@cs.helsinki.fi>
+Subject: Re: [patch 01/18] SLUB: Add defrag_ratio field and sysfs support.
+In-Reply-To: <20080407231052.eb37a8fd.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0804082154180.8437@sbz-30.cs.Helsinki.FI>
+References: <20080404230158.365359425@sgi.com> <20080404230225.862960359@sgi.com>
+ <20080407231052.eb37a8fd.akpm@linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Em Tue, 8 Apr 2008 13:57:17 +0200
-Nick Piggin <npiggin@suse.de> escreveu:
+On Fri, 04 Apr 2008 16:01:59 -0700 Christoph Lameter <clameter@sgi.com> wrote:
+> > +static ssize_t defrag_ratio_store(struct kmem_cache *s,
+> > +				const char *buf, size_t length)
+> > +{
+> > +	int n = simple_strtoul(buf, NULL, 10);
 
-| Here is my more working version of SLQB. 
-| 
-| Was experimenting with a couple of different ways to do remote freeing,
-| but it is really hard to tune properly without having "real" workloads,
-| due to cache effects.
-| 
-| Anyway, same comments apply. Patch is against mainline.
+On Mon, 7 Apr 2008, Andrew Morton wrote:
+> WARNING: consider using strict_strtoul in preference to simple_strtoul
+> #99: FILE: mm/slub.c:4038:
+> +       int n = simple_strtoul(buf, NULL, 10);
+> 
+> total: 0 errors, 1 warnings, 49 lines checked
+> 
+> 
+> It speaketh truth.
 
- I get the following error when compiling without CONFIG_SMP
+I fixed that up, thanks!
 
-"""
-In file included from include/linux/rcupdate.h:52,
-                 from include/linux/slqb_def.h:15,
-                 from include/linux/slab.h:121,
-                 from include/asm/pgtable_32.h:22,
-                 from include/asm/pgtable.h:241,
-                 from include/linux/mm.h:40,
-                 from arch/x86/kernel/pci-dma_32.c:12:
-include/linux/percpu.h: In function '__percpu_alloc_mask':
-include/linux/percpu.h:106: error: implicit declaration of function 'kzalloc'
-include/linux/percpu.h:106: warning: return makes pointer from integer without a cast
-In file included from include/asm/pgtable_32.h:22,
-                 from include/asm/pgtable.h:241,
-                 from include/linux/mm.h:40,
-                 from arch/x86/kernel/pci-dma_32.c:12:
-include/linux/slab.h: At top level:
-include/linux/slab.h:272: error: conflicting types for 'kzalloc'
-include/linux/percpu.h:106: error: previous implicit declaration of 'kzalloc' was here
-ICECC[27645] 15:49:30: Compiled on XXXXXXXX
-make[1]: *** [arch/x86/kernel/pci-dma_32.o] Error 1
-make: *** [arch/x86/kernel] Error 2
+			Pekka
 
-"""
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [PATCH] SLUB: Add defrag_ratio field and sysfs support.
 
- Could not figure out what the problem is.
+The defrag_ratio is used to set the threshold at which defragmentation
+should be run on a slabcache.
 
- Regarding performance tests, I saw that Christoph has some
-interesting test modules in his git repository. Do you think it's
-worth to run them?
+The allocation ratio is measured in the percentage of the available slots
+allocated. The percentage will be lower for slabs that are more fragmented.
 
--- 
-Luiz Fernando N. Capitulino
+Add a defrag ratio field and set it to 30% by default. A limit of 30% specified
+that less than 3 out of 10 available slots for objects are in use before
+slab defragmeentation runs.
+
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Signed-off-by: Pekka Enberg <penberg@cs.helsinki.fi>
+---
+ include/linux/slub_def.h |    7 +++++++
+ mm/slub.c                |   18 ++++++++++++++++++
+ 2 files changed, 25 insertions(+), 0 deletions(-)
+
+Index: slab-2.6/include/linux/slub_def.h
+===================================================================
+--- slab-2.6.orig/include/linux/slub_def.h	2008-04-08 21:43:24.000000000 +0300
++++ slab-2.6/include/linux/slub_def.h	2008-04-08 21:44:03.000000000 +0300
+@@ -88,6 +88,13 @@
+ 	void (*ctor)(struct kmem_cache *, void *);
+ 	int inuse;		/* Offset to metadata */
+ 	int align;		/* Alignment */
++	int defrag_ratio;	/*
++				 * Ratio used to check the percentage of
++				 * objects allocate in a slab page.
++				 * If less than this ratio is allocated
++				 * then reclaim attempts are made.
++				 */
++
+ 	const char *name;	/* Name (only for display!) */
+ 	struct list_head list;	/* List of slab caches */
+ #ifdef CONFIG_SLUB_DEBUG
+Index: slab-2.6/mm/slub.c
+===================================================================
+--- slab-2.6.orig/mm/slub.c	2008-04-08 21:43:37.000000000 +0300
++++ slab-2.6/mm/slub.c	2008-04-08 21:51:43.000000000 +0300
+@@ -2332,6 +2332,7 @@
+ 		goto error;
+ 
+ 	s->refcount = 1;
++	s->defrag_ratio = 30;
+ #ifdef CONFIG_NUMA
+ 	s->remote_node_defrag_ratio = 100;
+ #endif
+@@ -4025,6 +4026,27 @@
+ }
+ SLAB_ATTR_RO(free_calls);
+ 
++static ssize_t defrag_ratio_show(struct kmem_cache *s, char *buf)
++{
++	return sprintf(buf, "%d\n", s->defrag_ratio);
++}
++
++static ssize_t defrag_ratio_store(struct kmem_cache *s,
++				const char *buf, size_t length)
++{
++	unsigned long ratio;
++	int err;
++
++	err = strict_strtoul(buf, 10, &ratio);
++	if (err)
++		return err;
++
++	if (ratio < 100)
++		s->defrag_ratio = ratio;
++	return length;
++}
++SLAB_ATTR(defrag_ratio);
++
+ #ifdef CONFIG_NUMA
+ static ssize_t remote_node_defrag_ratio_show(struct kmem_cache *s, char *buf)
+ {
+@@ -4126,6 +4148,7 @@
+ 	&shrink_attr.attr,
+ 	&alloc_calls_attr.attr,
+ 	&free_calls_attr.attr,
++	&defrag_ratio_attr.attr,
+ #ifdef CONFIG_ZONE_DMA
+ 	&cache_dma_attr.attr,
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
