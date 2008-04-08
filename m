@@ -1,46 +1,47 @@
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [-mm] Add an owner to the mm_struct (v8)
-Date: Tue, 8 Apr 2008 00:29:45 -0700
-Message-ID: <6599ad830804080029v1d8f2ff7g5254f32362fd7cb9@mail.gmail.com>
-References: <20080404080544.26313.38199.sendpatchset@localhost.localdomain>
-	 <47F7BB69.3000502@linux.vnet.ibm.com>
-	 <6599ad830804051057n2f2802e4w6179f2e108467494@mail.gmail.com>
-	 <47F7CC08.4090209@linux.vnet.ibm.com>
-	 <6599ad830804051629k3649dbc4na92bb3d0cd7a0492@mail.gmail.com>
-	 <47F861C8.7080700@linux.vnet.ibm.com>
-	 <6599ad830804072337g2e7b4613hdcc05062dc2ca4e0@mail.gmail.com>
-	 <47FB162D.1020506@linux.vnet.ibm.com>
-	 <6599ad830804072357o2fd5e9bco3309d151e270e62e@mail.gmail.com>
-	 <47FB193A.8070801@linux.vnet.ibm.com>
+From: Li Zefan <lizf@cn.fujitsu.com>
+Subject: [PATCH] oom_kill: remove unused parameter in badness()
+Date: Tue, 08 Apr 2008 15:54:55 +0800
+Message-ID: <47FB24CF.40704@cn.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1752512AbYDHHaL@vger.kernel.org>
-In-Reply-To: <47FB193A.8070801@linux.vnet.ibm.com>
-Content-Disposition: inline
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1753396AbYDHH5G@vger.kernel.org>
 Sender: linux-kernel-owner@vger.kernel.org
-To: balbir@linux.vnet.ibm.com
-Cc: Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
 List-Id: linux-mm.kvack.org
 
-On Tue, Apr 8, 2008 at 12:05 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->
-> Paul Menage wrote:
->  > On Mon, Apr 7, 2008 at 11:52 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->  >>  I agree, but like I said earlier, this was the easily available ready made
->  >>  application I found. Do you know of any other highly threaded micro benchmark?
->  >>
->  >
->  > How about a simple program that creates N threads that just sleep,
->  > then has the main thread exit?
->  >
->
->  That is not really representative of anything. I have that program handy. How do
->  we measure the impact on throughput?
+In commit 4c4a22148909e4c003562ea7ffe0a06e26919e3c, we moved the
+memcontroller-related code from badness() to select_bad_process(),
+so the parameter 'mem' in badness() is unused now.
 
-It's very representative of how much additional overhead in terms of
-mm->owner churn there is in a large multi-threaded application
-exiting, which is the thing that you're trying to optimize with the
-delayed thread group leader checks.
+Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
+---
+ mm/oom_kill.c |    5 ++---
+ 1 files changed, 2 insertions(+), 3 deletions(-)
 
-Paul
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index f255eda..8be1baf 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -53,8 +53,7 @@ static DEFINE_SPINLOCK(zone_scan_mutex);
+  *    of least surprise ... (be careful when you change it)
+  */
+ 
+-unsigned long badness(struct task_struct *p, unsigned long uptime,
+-			struct mem_cgroup *mem)
++unsigned long badness(struct task_struct *p, unsigned long uptime)
+ {
+ 	unsigned long points, cpu_time, run_time, s;
+ 	struct mm_struct *mm;
+@@ -254,7 +253,7 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
+ 		if (p->oomkilladj == OOM_DISABLE)
+ 			continue;
+ 
+-		points = badness(p, uptime.tv_sec, mem);
++		points = badness(p, uptime.tv_sec);
+ 		if (points > *ppoints || !chosen) {
+ 			chosen = p;
+ 			*ppoints = points;
+-- 
+1.5.4.rc3
