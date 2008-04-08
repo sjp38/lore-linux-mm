@@ -1,12 +1,14 @@
-Date: Tue, 8 Apr 2008 14:41:26 -0700 (PDT)
+Date: Tue, 8 Apr 2008 14:47:05 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 18/18] dentries: dentry defragmentation
-In-Reply-To: <20080408142232.8ac243bc.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0804081433210.31620@schroedinger.engr.sgi.com>
-References: <20080404230158.365359425@sgi.com> <20080404230229.922470579@sgi.com>
- <20080407231434.88352977.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0804081409270.31230@schroedinger.engr.sgi.com>
- <20080408142232.8ac243bc.akpm@linux-foundation.org>
+Subject: Re: [patch 05/18] SLUB: Slab defrag core
+In-Reply-To: <20080408142505.4bfc7a4d.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0804081441350.31620@schroedinger.engr.sgi.com>
+References: <20080404230158.365359425@sgi.com> <20080404230226.847485429@sgi.com>
+ <20080407231129.3c044ba1.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0804081401350.31230@schroedinger.engr.sgi.com>
+ <20080408141135.de5a6350.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0804081416060.31490@schroedinger.engr.sgi.com>
+ <20080408142505.4bfc7a4d.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,50 +19,26 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 8 Apr 2008, Andrew Morton wrote:
 
-> We know from hard experience that scanning code tends to have failure
-> scenarios where it expends large amounts of CPU time not achieving much.
-
-That is prevented by marking slabs where we were unable to reclaim all 
-objects in a special way. Those are exempt from future scans. Another 
-reclaim attempt is made on these slabs only after all objects have been 
-allocated from a slab.
-
-So the worst case would be:
-
-1. Removal of one object from a slab
-
-2. Reclaim scan fails. Page marked unkickable
-
-3. We allocate the last object. Page marked kickable.
-
-4. goto 1
-
-
-Note that it is difficult to get below the slab defrag ratio (20%) to 
-trigger this. I guess a slab with 5 objects could get there if 4 objects
-have been freed.
-
-If one increases the ratio to 60% then one would be able to do that with a 
-slab cache that has only 2 objects. Boot with slab_max_order=0 to force 
-mininum objects per slab.
- 
-> What workloads are most likely to trigger that sort of behaviour with these
-> changes?  How do we establish such failure scenarios and test them?
+> > Hmmmm... We could key it to the rate of free of objects that 
+> > shrink_slab() has been able to accomplish? We already check for != 0 
+> > there. The more are freed the more urgent to scan the partial lists for 
+> > reclaimable slabs.
+> > 
 > 
-> It could be that the non-kickable flag saves us from all such cases, dunno.
+> That's related to the scanning priority, isn't it?
 
-The kickable flag exempts slabs from attempt to reclaim but it does not 
-take the slab off the partial. If we have a large amount of partial slabs 
-then scanning the partials may become expensive. That is why I added the 
-timeout to reduce the scans in V11.
+Not directly. The number of scanned pages (which depends on the scannig 
+priority) is passed down and then shrink_slab does some magic to do a 
+couple of passes.
 
-If we want to get rid of the timeout then we should key the reclaim 
-frequency off the number of objects freed since last reclaim and also 
-consider the size of the partial slab list. The larger the partial slab 
-list the rarer the scan. slabinfo will show the size of the partial lists. 
-Also slabinfo provides counters to verify the operation of slab reclaim.
+> It makes sense to pass the scan_control down into the shrinker callouts -
+> that has come up before.  That would provide access to the scanning
+> priority, as well as to anything else we want to toss in there in the future.
 
-
+The scanned pages etc is available at the point that kmem_cache_defrag() 
+is called. We can add logic to shrink_slab to determine if a defrag scan 
+is necessary. We likely need to add a field to the zone that gives us the 
+objects freed since the last defrag scan.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
