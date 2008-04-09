@@ -1,25 +1,79 @@
-Date: Tue, 8 Apr 2008 13:23:33 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 02/10] emm: notifier logic
-In-Reply-To: <20080407071330.GH9309@duo.random>
-Message-ID: <Pine.LNX.4.64.0804081320160.30874@schroedinger.engr.sgi.com>
-References: <20080404223048.374852899@sgi.com> <20080404223131.469710551@sgi.com>
- <20080405005759.GH14784@duo.random> <Pine.LNX.4.64.0804062246030.18148@schroedinger.engr.sgi.com>
- <20080407060602.GE9309@duo.random> <Pine.LNX.4.64.0804062314080.18728@schroedinger.engr.sgi.com>
- <20080407071330.GH9309@duo.random>
+Date: Wed, 9 Apr 2008 16:44:01 +0200
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [PATCH 0 of 9] mmu notifier #v12
+Message-ID: <20080409144401.GT10133@duo.random>
+References: <patchbomb.1207669443@duo.random> <20080409131709.GR11364@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080409131709.GR11364@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Robin Holt <holt@sgi.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, kvm-devel@lists.sourceforge.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, general@lists.openfabrics.org, steiner@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Robin Holt <holt@sgi.com>
+Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>, Steve Wise <swise@opengridcomputing.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-It may also be useful to allow invalidate_start() to fail in some contexts 
-(try_to_unmap f.e., maybe if a certain flag is passed). This may allow the 
-device to get out of tight situations (pending I/O f.e. or time out if 
-there is no response for network communications). But then that 
-complicates the API.
+On Wed, Apr 09, 2008 at 08:17:09AM -0500, Robin Holt wrote:
+> I applied this patch set with the xpmem version I am working up for
+> submission and the basic level-1 and level-2 tests passed.  The full mpi
+> regression test still tends to hang, but that appears to be a common
+> problem failure affecting either emm or mmu notifiers and therefore, I
+> am certain is a problem in my code.
+> 
+> Please note this is not an endorsement of one method over the other,
+> merely that under conditions where we would expect xpmem to pass the
+> regression tests, it does pass those tests.
+
+Thanks a lot for testing! #v12 works great with KVM too. (I'm now in
+the process of chagning the KVM patch to drop the page pinning)
+
+BTW, how did you implement invalidate_page? As this?
+
+       	invalidate_page() {
+       		invalidate_range_begin()
+		invalidate_range_end()
+	}
+
+If yes, I prefer to remind you that normally invalidate_range_begin is
+always called before zapping the pte. In the invalidate_page case
+instead, invalidate_range_begin is called _after_ the pte has been
+zapped already.
+
+Now there's no problem if the pte is established and the spte isn't
+established. But it must never happen that the spte is established and
+the pte isn't established (with page-pinning that means unswappable
+memlock leak, without page-pinning it would mean memory corruption).
+
+So the range_begin must serialize against the secondary mmu page fault
+so that it can't establish the spte on a pte that was zapped by the
+rmap code after get_user_pages/follow_page returned. I think your
+range_begin already does that so you should be ok but I wanted to
+remind about this slight difference in implementing invalidate_page as
+I suggested above in previous email just to be sure ;).
+
+This is the race you must guard against in invalidate_page:
+
+
+   	 CPU0 	     	      CPU1
+	 try_to_unmap on page
+			      secondary mmu page fault
+			      get_user_pages()/follow_page found a page
+         ptep_clear_flush
+	 invalidate_page()
+	  invalidate_range_begin()
+          invalidate_range_end()
+          return from invalidate_page
+			      establish spte on page
+			      return from secodnary mmu page fault
+
+If your range_begin already serializes in a hard way against the
+secondary mmu page fault, my previously "trivial" suggested
+implementation for invalidate_page should work just fine and this this
+saves 1 branch for each try_to_unmap_one if compared to the emm
+implementation. The branch check is inlined and it checks against the
+mmu_notifier_head that is the hot cacheline, no new cachline is
+checked just one branch is saved and so it worth it IMHO even if it
+doesn't provide any other advantage if you implement it the way above.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
