@@ -1,82 +1,45 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate1.de.ibm.com (8.13.8/8.13.8) with ESMTP id m31EKccW090676
-	for <linux-mm@kvack.org>; Tue, 1 Apr 2008 14:20:38 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m31EKbYc3694600
-	for <linux-mm@kvack.org>; Tue, 1 Apr 2008 16:20:37 +0200
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m31EKbc7024017
-	for <linux-mm@kvack.org>; Tue, 1 Apr 2008 16:20:37 +0200
-Subject: Re: [patch 1/7] mm: introduce VM_MIXEDMAP
-From: Carsten Otte <cotte@de.ibm.com>
-In-Reply-To: <20080331150426.20d57ddb.akpm@linux-foundation.org>
-References: <20080328015238.519230000@nick.local0.net>
-	 <20080328015421.905848000@nick.local0.net>
-	 <20080331150426.20d57ddb.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Tue, 01 Apr 2008 16:20:33 +0200
-Message-Id: <1207059633.7075.1.camel@cotte.boeblingen.de.ibm.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 9 Apr 2008 08:17:09 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH 0 of 9] mmu notifier #v12
+Message-ID: <20080409131709.GR11364@sgi.com>
+References: <patchbomb.1207669443@duo.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <patchbomb.1207669443@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: npiggin@suse.de, torvalds@linux-foundation.org, jaredeh@gmail.com, mschwid2@linux.vnet.ibm.com, heicars2@linux.vnet.ibm.com, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>, Steve Wise <swise@opengridcomputing.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Am Montag, den 31.03.2008, 15:04 -0700 schrieb Andrew Morton:
-> [7/7] needs to be redone please - git-s390 makes functional changes to
-> add_shared_memory().
+I applied this patch set with the xpmem version I am working up for
+submission and the basic level-1 and level-2 tests passed.  The full mpi
+regression test still tends to hang, but that appears to be a common
+problem failure affecting either emm or mmu notifiers and therefore, I
+am certain is a problem in my code.
 
-This patch removes struct page entries for DCSS segments that are being loaded.
-They can still be accessed correctly, thanks to the struct page-less XIP work
-of previous patches.
+Please note this is not an endorsement of one method over the other,
+merely that under conditions where we would expect xpmem to pass the
+regression tests, it does pass those tests.
 
-Signed-off-by: Carsten Otte <cotte@de.ibm.com>
----
- arch/s390/mm/vmem.c |   18 +-----------------
- 1 files changed, 1 insertion(+), 17 deletions(-)
+Thanks,
+Robin
 
-Index: linux-2.6-marist/arch/s390/mm/vmem.c
-===================================================================
---- linux-2.6-marist.orig/arch/s390/mm/vmem.c
-+++ linux-2.6-marist/arch/s390/mm/vmem.c
-@@ -343,8 +343,6 @@ out:
- int add_shared_memory(unsigned long start, unsigned long size)
- {
- 	struct memory_segment *seg;
--	struct page *page;
--	unsigned long pfn, num_pfn, end_pfn;
- 	int ret;
- 
- 	mutex_lock(&vmem_mutex);
-@@ -359,24 +357,10 @@ int add_shared_memory(unsigned long star
- 	if (ret)
- 		goto out_free;
- 
--	ret = vmem_add_mem(start, size, 0);
-+	ret = vmem_add_range(start, size, 0);
- 	if (ret)
- 		goto out_remove;
- 
--	pfn = PFN_DOWN(start);
--	num_pfn = PFN_DOWN(size);
--	end_pfn = pfn + num_pfn;
--
--	page = pfn_to_page(pfn);
--	memset(page, 0, num_pfn * sizeof(struct page));
--
--	for (; pfn < end_pfn; pfn++) {
--		page = pfn_to_page(pfn);
--		init_page_count(page);
--		reset_page_mapcount(page);
--		SetPageReserved(page);
--		INIT_LIST_HEAD(&page->lru);
--	}
- 	goto out;
- 
- out_remove:
-
+On Tue, Apr 08, 2008 at 05:44:03PM +0200, Andrea Arcangeli wrote:
+> The difference with #v11 is a different implementation of mm_lock that
+> guarantees handling signals in O(N). It's also more lowlatency friendly. 
+> 
+> Note that mmu_notifier_unregister may also fail with -EINTR if there are
+> signal pending or the system runs out of vmalloc space or physical memory,
+> only exit_mmap guarantees that any kernel module can be unloaded in presence
+> of an oom condition.
+> 
+> Either #v11 or the first three #v12 1,2,3 patches are suitable for inclusion
+> in -mm, pick what you prefer looking at the mmu_notifier_register retval and
+> mm_lock retval difference, I implemented and slighty tested both. GRU and KVM
+> only needs 1,2,3, XPMEM needs the rest of the patchset too (4, ...) but all
+> patches from 4 to the end can be deffered to a second merge window.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
