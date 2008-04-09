@@ -1,40 +1,34 @@
-Date: Wed, 9 Apr 2008 08:34:49 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [-mm] Disable the memory controller by default (v3)
-Message-Id: <20080409083449.d6a63259.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080408114613.8165.69030.sendpatchset@localhost.localdomain>
-References: <20080408114613.8165.69030.sendpatchset@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <47FC95AD.1070907@tiscali.nl>
+Date: Wed, 09 Apr 2008 12:08:45 +0200
+From: Roel Kluin <12o3l@tiscali.nl>
+MIME-Version: 1.0
+Subject: [PATCH] pagewalk: don't pte_unmap(NULL) in walk_pte_range()
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: andi@firstfloor.org, Andrew Morton <akpm@linux-foundation.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pavel Emelianov <xemul@openvz.org>, hugh@veritas.com
+To: linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 08 Apr 2008 17:16:13 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+This is right isn't it?
+---
+Don't pte_unmap a NULL pointer, but the previous.
 
-> 
-> 
-> Changelog v1
-> 
-> 1. Split cgroup_disable into cgroup_disable and cgroup_enable
-> 2. Remove cgroup_toggle
-> 
-> Due to the overhead of the memory controller. The
-> memory controller is now disabled by default. This patch adds cgroup_enable.
-> 
-> If everyone agrees on this approach and likes it, should we push this
-> into 2.6.25?
-> 
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
-> 
-Thank you for this boot option.
-
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Roel Kluin <12o3l@tiscali.nl>
+---
+diff --git a/mm/pagewalk.c b/mm/pagewalk.c
+index 1cf1417..6615f0b 100644
+--- a/mm/pagewalk.c
++++ b/mm/pagewalk.c
+@@ -15,7 +15,7 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 		       break;
+ 	} while (pte++, addr += PAGE_SIZE, addr != end);
+ 
+-	pte_unmap(pte);
++	pte_unmap(pte - 1);
+ 	return err;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
