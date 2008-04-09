@@ -1,31 +1,43 @@
-Message-ID: <47FBE7C9.9000701@qumranet.com>
-Date: Wed, 09 Apr 2008 00:46:49 +0300
-From: Avi Kivity <avi@qumranet.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0 of 9] mmu notifier #v12
-References: <patchbomb.1207669443@duo.random>
-In-Reply-To: <patchbomb.1207669443@duo.random>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Wed, 9 Apr 2008 09:42:46 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [-mm] Add an owner to the mm_struct (v8)
+Message-Id: <20080409094246.f9a2a901.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080404080544.26313.38199.sendpatchset@localhost.localdomain>
+References: <20080404080544.26313.38199.sendpatchset@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>, Steve Wise <swise@opengridcomputing.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, kvm-devel@lists.sourceforge.net, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Paul Menage <menage@google.com>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, taka@valinux.co.jp, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
-> Note that mmu_notifier_unregister may also fail with -EINTR if there are
-> signal pending or the system runs out of vmalloc space or physical memory,
-> only exit_mmap guarantees that any kernel module can be unloaded in presence
-> of an oom condition.
->
->   
+On Fri, 04 Apr 2008 13:35:44 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> +	/*
+> +	 * Search through everything else. We should not get
+> +	 * here often
+> +	 */
+> +	do_each_thread(g, c) {
+> +		if (c->mm == mm)
+> +			goto assign_new_owner;
+> +	} while_each_thread(g, c);
+> +
+I'm sorry for my laziness.
 
-That's unusual.  What happens to the notifier?  Suppose I destroy a vm 
-without exiting the process, what happens if it fires?
+Why do_each_thread() ? for_each_process() is not enough ?
+(because of delay_group_leader().)
 
--- 
-Any sufficiently difficult bug is indistinguishable from a feature.
+And what we have to test for the worst case is following, right ?
+==
+ 1. create a tons of threads.
+ 2. create a process which calls vfork().
+ 3. keep child alive and vfork() caller exits
+==
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
