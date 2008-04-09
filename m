@@ -1,43 +1,61 @@
-Date: Tue, 8 Apr 2008 14:25:05 -0700
+Date: Tue, 8 Apr 2008 19:47:40 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 05/18] SLUB: Slab defrag core
-Message-Id: <20080408142505.4bfc7a4d.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0804081416060.31490@schroedinger.engr.sgi.com>
-References: <20080404230158.365359425@sgi.com>
-	<20080404230226.847485429@sgi.com>
-	<20080407231129.3c044ba1.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0804081401350.31230@schroedinger.engr.sgi.com>
-	<20080408141135.de5a6350.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0804081416060.31490@schroedinger.engr.sgi.com>
+Subject: Re: [RFC][PATCH 0/6] compcache: Compressed Caching
+Message-Id: <20080408194740.1219e8b8.akpm@linux-foundation.org>
+In-Reply-To: <200803210129.59299.nitingupta910@gmail.com>
+References: <200803210129.59299.nitingupta910@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: nitingupta910@gmail.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 Apr 2008 14:17:15 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+On Fri, 21 Mar 2008 01:29:58 +0530 Nitin Gupta <nitingupta910@gmail.com> wrote:
 
-> On Tue, 8 Apr 2008, Andrew Morton wrote:
-> 
-> > I know that.  It's still an arbitrary-to-the-point-of-uselessness hack.
-> > 
-> > Reclaim is clocked by scanning rates, allocation rates and disk speed.  Not
-> > wall time.
-> 
-> Hmmmm... We could key it to the rate of free of objects that 
-> shrink_slab() has been able to accomplish? We already check for != 0 
-> there. The more are freed the more urgent to scan the partial lists for 
-> reclaimable slabs.
-> 
+> Subject: [RFC][PATCH 0/6] compcache: Compressed Caching
 
-That's related to the scanning priority, isn't it?
+Didn't get many C's, did it?
 
-It makes sense to pass the scan_control down into the shrinker callouts -
-that has come up before.  That would provide access to the scanning
-priority, as well as to anything else we want to toss in there in the future.
+Be sure to cc linux-kernel on the next version.
+
+> Hi All,
+> 
+> This implements a RAM based block device which acts as swap disk.
+> Pages swapped to this disk are compressed and stored in memory itself.
+> This allows more applications to fit in given amount of memory. This is
+> especially useful for embedded devices, OLPC and small desktops
+> (aka virtual machines).
+> 
+> Project home: http://code.google.com/p/compcache/
+> 
+> It consists of following components:
+> - compcache.ko: Creates RAM based block device
+> - tlsf.ko: Two Level Segregate Fit (TLSF) allocator
+> - LZO de/compressor: (Already in mainline)
+> 
+> Project home contains some performance numbers for TLSF and LZO.
+> For general desktop use, this is giving *significant* performance gain
+> under memory pressure. For now, it has been tested only on x86.
+
+The values of "*significant*" should be exhaustively documented in the
+patch changelogs. That is 100%-the-entire-whole-point of the patchset!
+Omitting that information tends to reduce the number of C's.
+
+Please feed all diffs through scripts/checkpatch.pl, contemplate the
+result.
+
+kmap_atomic() is (much) preferred over kmap().
+
+flush_dcache_page() is needed after the CPU modifies pagecache or anon page
+by hand (generally linked to kmap[_atomic]()).
+
+The changelogs should include *complete* justification for the introduction
+of a new allocator.  What problem is it solving, what are the possible
+solutions to that problem, why this one was chosen, etc.  It's a fairly big
+deal.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
