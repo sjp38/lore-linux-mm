@@ -1,65 +1,29 @@
-Date: Tue, 8 Apr 2008 14:14:33 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 18/18] dentries: dentry defragmentation
-In-Reply-To: <20080407231434.88352977.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0804081409270.31230@schroedinger.engr.sgi.com>
-References: <20080404230158.365359425@sgi.com> <20080404230229.922470579@sgi.com>
- <20080407231434.88352977.akpm@linux-foundation.org>
+Date: Wed, 9 Apr 2008 11:30:56 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH][trivial fix] add "Isolate" migratetype name to /proc/pagetypeinfo.
+Message-ID: <20080409103056.GA5872@csn.ul.ie>
+References: <2f11576a0804080952n3041e1edw94978843833f0953@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <2f11576a0804080952n3041e1edw94978843833f0953@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 7 Apr 2008, Andrew Morton wrote:
-
-> > +		dentry = v[i];
-> > +
-> > +		if (dentry)
-> > +			d_invalidate(dentry);
-> > +	}
+On (09/04/08 01:52), KOSAKI Motohiro didst pronounce:
+> patch against: 2.6.25-rc8-mm1
 > 
-> So ->kick can be passed a v[] which has NULLs in it, whereas ->get does
-> not.  How come?
-
-->get() may see that we cannot reclaim an entity because its going away. 
-Then we zap the pointer. Described in the core docs.
-
+> in a5d76b54a3f3a40385d7f76069a2feac9f1bad63 (memory unplug: page
+> isolation by KAMEZAWA Hiroyuki), "isolate" migratetype added.
+> but unfortunately, it doesn't treat /proc/pagetypeinfo display logic.
 > 
-> > +	/*
-> > +	 * If we are the last one holding a reference then the dentries can
-> > +	 * be freed. We need the dcache_lock.
-> > +	 */
-> > +	spin_lock(&dcache_lock);
+> this patch add "Isolate" to pagetype name field.
 > 
-> hrm.   What is a tyical value of `nr' here?
 
-Number of dentries in a page. 19.
-
-> > +	spin_unlock(&dcache_lock);
-> 
-> Do we know what the typical success rate is of the above code?
-
-About 60-70% of slab pages are successfully reclaimed (updatedb). 
-Percentage increases if more memory is used by caches dentries.
- 
-> More importantly - what is the worst success rate, and under which
-> circumstances will it occur, and what are the consequences?
-
-If just dentries remain that are pinned then the function 
-will not succeed and the slab page will be marked unkickable and no longer 
-scanned.
-
-> > +	 * operations are complete
-> > +	 */
-> > +	synchronize_rcu();
-> 
-> Do we?  Why?
-
-dentries must be removed by RCU. We cannot free the page before the RCU 
-period has expired.
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
