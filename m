@@ -1,50 +1,80 @@
-Date: Thu, 10 Apr 2008 11:33:06 +0100
 From: Andy Whitcroft <apw@shadowen.org>
-Subject: Re: max_mapnr config option
-Message-ID: <20080410103306.GA29831@shadowen.org>
-References: <1207340609.26869.20.camel@nimitz.home.sr71.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1207340609.26869.20.camel@nimitz.home.sr71.net>
+Subject: [PATCH 1/8] alpha: mem_map/max_mapnr -- init is FLATMEM use correct defines
+References: <20080410103306.GA29831@shadowen.org>
+Date: Thu, 10 Apr 2008 11:40:50 +0100
+Message-Id: <1207824050.0@pinky>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, Jeremy Fitzhardinge <jeremy@goop.org>, Johannes Weiner <hannes@saeurebad.de>
+Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Johannes Weiner <hannes@saeurebad.de>, Andy Whitcroft <apw@shadowen.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 04, 2008 at 01:23:29PM -0700, Dave Hansen wrote:
-> Hey Andy,
-> 
-> Take a look at include/linux/mm.h:
-> 
-> #ifndef CONFIG_DISCONTIGMEM          /* Don't use mapnrs, do it properly */
-> extern unsigned long max_mapnr;
-> #endif
-> 
-> Shouldn't that be #ifdef CONFIG_FLATMEM?
-> 
-> I don't think it is causing any problems since all references to
-> max_mapnr are under FLATMEM ifdefs, but for correctness...
+The alpha init.c implementation of mem_init is specifically a FLATMEM
+implementation, use the correct config option.
 
-Ok, I did a comprehensive review of all the references, both to max_mapnr
-and to mem_map which are both inherently FLATMEM specific variables.
-It seems that there are actually a fair number of references which are
-under inappropriate defines.  Generally this is the use of !DISCONTIGMEM
-on architectures which only support FLATMEM and DISCONTIGMEM.  There are
-also a number of unused constructs which can just go.
-
-The biggest offenders of this are the show_mem implementations, but
-it seems that Johannes (copied) is sorting that mess out; clearly one
-implemenation is needed.  Johannes, I have some changes to that series
-which came out of my implementation of the same which I will send your
-way separatly.
-
-Following this email is a set of patches which fix the problems I have
-found.  Obviously these are all over the architecture map, and so will
-probabally need feeding back via those trees individually.
-
--apw
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+---
+ arch/alpha/mm/init.c        |    4 ++--
+ include/asm-alpha/mmzone.h  |    2 --
+ include/asm-alpha/pgtable.h |    4 ++--
+ 3 files changed, 4 insertions(+), 6 deletions(-)
+diff --git a/arch/alpha/mm/init.c b/arch/alpha/mm/init.c
+index 234e42b..9a4e669 100644
+--- a/arch/alpha/mm/init.c
++++ b/arch/alpha/mm/init.c
+@@ -277,7 +277,7 @@ srm_paging_stop (void)
+ }
+ #endif
+ 
+-#ifndef CONFIG_DISCONTIGMEM
++#ifdef CONFIG_FLATMEM
+ static void __init
+ printk_memory_info(void)
+ {
+@@ -317,7 +317,7 @@ mem_init(void)
+ 
+ 	printk_memory_info();
+ }
+-#endif /* CONFIG_DISCONTIGMEM */
++#endif /* CONFIG_FLATMEM */
+ 
+ void
+ free_reserved_mem(void *start, void *end)
+diff --git a/include/asm-alpha/mmzone.h b/include/asm-alpha/mmzone.h
+index 8af56ce..8bfb3b2 100644
+--- a/include/asm-alpha/mmzone.h
++++ b/include/asm-alpha/mmzone.h
+@@ -72,8 +72,6 @@ PLAT_NODE_DATA_LOCALNR(unsigned long p, int n)
+ 
+ #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
+ 
+-#define VALID_PAGE(page)	(((page) - mem_map) < max_mapnr)
+-
+ #define pmd_page(pmd)		(pfn_to_page(pmd_val(pmd) >> 32))
+ #define pgd_page(pgd)		(pfn_to_page(pgd_val(pgd) >> 32))
+ #define pte_pfn(pte)		(pte_val(pte) >> 32)
+diff --git a/include/asm-alpha/pgtable.h b/include/asm-alpha/pgtable.h
+index 99037b0..665ba5c 100644
+--- a/include/asm-alpha/pgtable.h
++++ b/include/asm-alpha/pgtable.h
+@@ -202,7 +202,7 @@ extern unsigned long __zero_page(void);
+  * Conversion functions:  convert a page and protection to a page entry,
+  * and a page entry and page directory to the page they refer to.
+  */
+-#ifndef CONFIG_DISCONTIGMEM
++#ifdef CONFIG_FLATMEM
+ #define page_to_pa(page)	(((page) - mem_map) << PAGE_SHIFT)
+ 
+ #define pte_pfn(pte)	(pte_val(pte) >> 32)
+@@ -235,7 +235,7 @@ pmd_page_vaddr(pmd_t pmd)
+ 	return ((pmd_val(pmd) & _PFN_MASK) >> (32-PAGE_SHIFT)) + PAGE_OFFSET;
+ }
+ 
+-#ifndef CONFIG_DISCONTIGMEM
++#ifdef CONFIG_FLATMEM
+ #define pmd_page(pmd)	(mem_map + ((pmd_val(pmd) & _PFN_MASK) >> 32))
+ #define pgd_page(pgd)	(mem_map + ((pgd_val(pgd) & _PFN_MASK) >> 32))
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
