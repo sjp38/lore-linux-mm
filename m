@@ -1,45 +1,50 @@
-Date: Thu, 10 Apr 2008 13:27:41 +0300 (EEST)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: Re: git-slub crashes on the t16p
-In-Reply-To: <20080410015958.bc2fd041.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0804101327190.15828@sbz-30.cs.Helsinki.FI>
-References: <20080410015958.bc2fd041.akpm@linux-foundation.org>
-Mime-Version: 1.0
+Date: Thu, 10 Apr 2008 11:33:06 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: Re: max_mapnr config option
+Message-ID: <20080410103306.GA29831@shadowen.org>
+References: <1207340609.26869.20.camel@nimitz.home.sr71.net>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <1207340609.26869.20.camel@nimitz.home.sr71.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>, Jeremy Fitzhardinge <jeremy@goop.org>, Johannes Weiner <hannes@saeurebad.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 10 Apr 2008, Andrew Morton wrote:
-> It's the tree I pulled about 12 hours ago.  Quite early in boot.
+On Fri, Apr 04, 2008 at 01:23:29PM -0700, Dave Hansen wrote:
+> Hey Andy,
 > 
-> crash: http://userweb.kernel.org/~akpm/p4105087.jpg
-> config: http://userweb.kernel.org/~akpm/config-t61p.txt
-> git-slub.patch: http://userweb.kernel.org/~akpm/mmotm/broken-out/git-slub.patch
+> Take a look at include/linux/mm.h:
 > 
-> A t61p is a dual-core x86_64.
+> #ifndef CONFIG_DISCONTIGMEM          /* Don't use mapnrs, do it properly */
+> extern unsigned long max_mapnr;
+> #endif
 > 
-> I was testing with all of the -mm series up to and including git-slub.patch
-> applied.
+> Shouldn't that be #ifdef CONFIG_FLATMEM?
+> 
+> I don't think it is causing any problems since all references to
+> max_mapnr are under FLATMEM ifdefs, but for correctness...
 
-Does the following patch fix it?
+Ok, I did a comprehensive review of all the references, both to max_mapnr
+and to mem_map which are both inherently FLATMEM specific variables.
+It seems that there are actually a fair number of references which are
+under inappropriate defines.  Generally this is the use of !DISCONTIGMEM
+on architectures which only support FLATMEM and DISCONTIGMEM.  There are
+also a number of unused constructs which can just go.
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 4b694a7..3916b4d 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -895,7 +895,7 @@ static inline void inc_slabs_node(struct kmem_cache *s, int node, int objects)
- 	 * dilemma by deferring the increment of the count during
- 	 * bootstrap (see early_kmem_cache_node_alloc).
- 	 */
--	if (!NUMA_BUILD || n) {
-+	if (n) {
- 		atomic_long_inc(&n->nr_slabs);
- 		atomic_long_add(objects, &n->total_objects);
- 	}
+The biggest offenders of this are the show_mem implementations, but
+it seems that Johannes (copied) is sorting that mess out; clearly one
+implemenation is needed.  Johannes, I have some changes to that series
+which came out of my implementation of the same which I will send your
+way separatly.
+
+Following this email is a set of patches which fix the problems I have
+found.  Obviously these are all over the architecture map, and so will
+probabally need feeding back via those trees individually.
+
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
