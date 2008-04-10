@@ -1,60 +1,34 @@
-Received: by py-out-1112.google.com with SMTP id f47so77670pye.20
-        for <linux-mm@kvack.org>; Thu, 10 Apr 2008 10:33:51 -0700 (PDT)
-Message-ID: <86802c440804101033p6e914cb4oacaeb6eca823d1cd@mail.gmail.com>
-Date: Thu, 10 Apr 2008 10:33:50 -0700
-From: "Yinghai Lu" <yhlu.kernel@gmail.com>
-Subject: Re: [patch 10/17] mm: fix bootmem alignment
-In-Reply-To: <20080410171101.395469000@nick.local0.net>
+Date: Thu, 10 Apr 2008 10:33:54 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 0/9] Page flags V3: Cleanup and reorg
+In-Reply-To: <Pine.LNX.4.64.0804031149060.7108@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0804101033220.11823@schroedinger.engr.sgi.com>
+References: <20080401200019.47892504.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0804021026400.26938@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0804022125001.1684@schroedinger.engr.sgi.com>
+ <20080402.222542.106676535.davem@davemloft.net>
+ <Pine.LNX.4.64.0804031149060.7108@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080410170232.015351000@nick.local0.net>
-	 <20080410171101.395469000@nick.local0.net>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com, kniht@linux.vnet.ibm.com
+To: David Miller <davem@davemloft.net>
+Cc: akpm@linux-foundation.org, apw@shadowen.org, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, jeremy@goop.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 10, 2008 at 10:02 AM,  <npiggin@suse.de> wrote:
-> Without this fix bootmem can return unaligned addresses when the start of a
->  node is not aligned to the align value. Needed for reliably allocating
->  gigabyte pages.
->
->  I removed the offset variable because all tests should align themself correctly
->  now. Slight drawback might be that the bootmem allocator will spend
->  some more time skipping bits in the bitmap initially, but that shouldn't
->  be a big issue.
->
+Ping? Is this okay Dave?
 
+On Thu, 3 Apr 2008, Christoph Lameter wrote:
 
-this patch from Andi was obsoleted by the one in -mm
-
-
-The patch titled
-    mm: offset align in alloc_bootmem
-has been added to the -mm tree.  Its filename is
-    mm-offset-align-in-alloc_bootmem.patch
-
-------------------------------------------------------
-Subject: mm: offset align in alloc_bootmem
-From: Yinghai Lu <yhlu.kernel.send@gmail.com>
-
-Need offset alignment when node_boot_start's alignment is less than align
-required
-
-Use local node_boot_start to match align.  so don't add extra opteration in
-search loop.
-
-Signed-off-by: Yinghai Lu <yhlu.kernel@gmail.com>
-Cc: Andi Kleen <ak@suse.de>
-Cc: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Ingo Molnar <mingo@elte.hu>
-Cc: Christoph Lameter <clameter@sgi.com>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> On Wed, 2 Apr 2008, David Miller wrote:
+> 
+> > No this won't work, see PG_dcache_cpu_shift in arch/sparc64/mm/init.c,
+> > the code currently statically puts the cpu number of the the cpu which
+> > potentially dirtied the page in the D-cache at bit 32 of the page
+> > flags and onwards.
+> 
+> That looks fine to me. If we use less than 32 page flags then bits 32 to 
+> the beginning of the zone field are still available.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
