@@ -1,63 +1,69 @@
-Message-Id: <20080410171101.936927000@nick.local0.net>
+Message-Id: <20080410171101.071652000@nick.local0.net>
 References: <20080410170232.015351000@nick.local0.net>
-Date: Fri, 11 Apr 2008 03:02:47 +1000
+Date: Fri, 11 Apr 2008 03:02:39 +1000
 From: npiggin@suse.de
-Subject: [patch 15/17] x86: support GB hugepages on 64-bit
-Content-Disposition: inline; filename=x86-support-GB-hugetlb-pages.patch
+Subject: [patch 07/17] mm: introduce non panic alloc_bootmem
+Content-Disposition: inline; filename=__alloc_bootmem_node_nopanic.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.orgakpm@linux-foundation.org
-Cc: Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com, andi@firstfloor.org, kniht@linux.vnet.ibm.comlinux-kernel@vger.kernel.orglinux-mm@kvack.orgpj@sgi.comandi@firstfloor.orgkniht@linux.vnet.ibm.com
+To: akpm@linux-foundation.org
+Cc: Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com, andi@firstfloor.org, kniht@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
----
- arch/x86/mm/hugetlbpage.c |   18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
+Straight forward variant of the existing __alloc_bootmem_node, only 
+difference is that it doesn't panic on failure.
 
-Index: linux-2.6/arch/x86/mm/hugetlbpage.c
+Signed-off-by: Andi Kleen <ak@suse.de>
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: pj@sgi.com
+Cc: andi@firstfloor.org
+Cc: kniht@linux.vnet.ibm.com
+---
+ include/linux/bootmem.h |    4 ++++
+ mm/bootmem.c            |   12 ++++++++++++
+ 2 files changed, 16 insertions(+)
+
+Index: linux-2.6/mm/bootmem.c
 ===================================================================
---- linux-2.6.orig/arch/x86/mm/hugetlbpage.c
-+++ linux-2.6/arch/x86/mm/hugetlbpage.c
-@@ -133,9 +133,14 @@ pte_t *huge_pte_alloc(struct mm_struct *
- 	pgd = pgd_offset(mm, addr);
- 	pud = pud_alloc(mm, pgd, addr);
- 	if (pud) {
--		if (pud_none(*pud))
--			huge_pmd_share(mm, addr, pud);
--		pte = (pte_t *) pmd_alloc(mm, pud, addr);
-+		if (sz == PUD_SIZE) {
-+			pte = (pte_t *)pud;
-+		} else {
-+			BUG_ON(sz != PMD_SIZE);
-+			if (pud_none(*pud))
-+				huge_pmd_share(mm, addr, pud);
-+			pte = (pte_t *) pmd_alloc(mm, pud, addr);
-+		}
- 	}
- 	BUG_ON(pte && !pte_none(*pte) && !pte_huge(*pte));
- 
-@@ -151,8 +156,11 @@ pte_t *huge_pte_offset(struct mm_struct 
- 	pgd = pgd_offset(mm, addr);
- 	if (pgd_present(*pgd)) {
- 		pud = pud_offset(pgd, addr);
--		if (pud_present(*pud))
-+		if (pud_present(*pud)) {
-+			if (pud_large(*pud))
-+				return (pte_t *)pud;
- 			pmd = pmd_offset(pud, addr);
-+		}
- 	}
- 	return (pte_t *) pmd;
- }
-@@ -215,7 +223,7 @@ int pmd_huge(pmd_t pmd)
- 
- int pud_huge(pud_t pud)
- {
--	return 0;
-+	return !!(pud_val(pud) & _PAGE_PSE);
+--- linux-2.6.orig/mm/bootmem.c
++++ linux-2.6/mm/bootmem.c
+@@ -484,6 +484,18 @@ void * __init __alloc_bootmem_node(pg_da
+ 	return __alloc_bootmem(size, align, goal);
  }
  
- struct page *
++void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned long size,
++				   unsigned long align, unsigned long goal)
++{
++	void *ptr;
++
++	ptr = __alloc_bootmem_core(pgdat->bdata, size, align, goal, 0);
++	if (ptr)
++		return ptr;
++
++	return __alloc_bootmem_nopanic(size, align, goal);
++}
++
+ #ifndef ARCH_LOW_ADDRESS_LIMIT
+ #define ARCH_LOW_ADDRESS_LIMIT	0xffffffffUL
+ #endif
+Index: linux-2.6/include/linux/bootmem.h
+===================================================================
+--- linux-2.6.orig/include/linux/bootmem.h
++++ linux-2.6/include/linux/bootmem.h
+@@ -90,6 +90,10 @@ extern void *__alloc_bootmem_node(pg_dat
+ 				  unsigned long size,
+ 				  unsigned long align,
+ 				  unsigned long goal);
++extern void *__alloc_bootmem_node_nopanic(pg_data_t *pgdat,
++				  unsigned long size,
++				  unsigned long align,
++				  unsigned long goal);
+ extern unsigned long init_bootmem_node(pg_data_t *pgdat,
+ 				       unsigned long freepfn,
+ 				       unsigned long startpfn,
 
 -- 
 
