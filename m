@@ -1,10 +1,10 @@
-Message-ID: <47FE5137.4000605@cs.helsinki.fi>
-Date: Thu, 10 Apr 2008 20:41:11 +0300
+Message-ID: <47FE523B.80100@cs.helsinki.fi>
+Date: Thu, 10 Apr 2008 20:45:31 +0300
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
 Subject: Re: git-slub crashes on the t16p
-References: <20080410015958.bc2fd041.akpm@linux-foundation.org> <Pine.LNX.4.64.0804101327190.15828@sbz-30.cs.Helsinki.FI> <47FE37D0.5030004@cs.helsinki.fi> <47FE41EE.8040402@cs.helsinki.fi> <20080410102454.8248e0ae.akpm@linux-foundation.org> <Pine.LNX.4.64.0804101029270.11781@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0804101029270.11781@schroedinger.engr.sgi.com>
+References: <20080410015958.bc2fd041.akpm@linux-foundation.org> <Pine.LNX.4.64.0804101327190.15828@sbz-30.cs.Helsinki.FI> <47FE37D0.5030004@cs.helsinki.fi> <47FE41EE.8040402@cs.helsinki.fi> <20080410102454.8248e0ae.akpm@linux-foundation.org> <Pine.LNX.4.64.0804101029270.11781@schroedinger.engr.sgi.com> <47FE5137.4000605@cs.helsinki.fi>
+In-Reply-To: <47FE5137.4000605@cs.helsinki.fi>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -13,30 +13,16 @@ To: Christoph Lameter <clameter@sgi.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, mel@skynet.ie
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Thu, 10 Apr 2008, Andrew Morton wrote:
-> 
->> That's within the call to atomic64_inc(), from the inc_slabs_node() here:
-> 
-> Right. The slab counter cleanup patch did a non equivalent transformation 
-> here.
-> 
-> Index: linux-2.6/mm/slub.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slub.c	2008-04-10 10:27:29.000000000 -0700
-> +++ linux-2.6/mm/slub.c	2008-04-10 10:28:02.000000000 -0700
-> @@ -1174,6 +1174,8 @@
->  	if (!page)
->  		goto out;
->  
-> +	/* Must use the node that the page allocator determined for us. */
-> +	node = page_to_nid(page);
->  	inc_slabs_node(s, node, page->objects);
->  	page->slab = s;
->  	page->flags |= 1 << PG_slab;
+Pekka Enberg wrote:
+> Actually, that's fixed in my tree since Saturday. So unfortunately I 
+> don't think this is the problem...
 
-Actually, that's fixed in my tree since Saturday. So unfortunately I 
-don't think this is the problem...
+Aah, it is, Andrew has this:
+
++	inc_slabs_node(s, node, page->objects);
+
+Did I mess up my git tree or something? At least git clone gives me the 
+correct results...
 
 			Pekka
 
