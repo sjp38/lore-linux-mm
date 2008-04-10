@@ -1,8 +1,8 @@
-Date: Thu, 10 Apr 2008 10:51:20 -0700 (PDT)
+Date: Thu, 10 Apr 2008 10:54:53 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: git-slub crashes on the t16p
 In-Reply-To: <47FE523B.80100@cs.helsinki.fi>
-Message-ID: <Pine.LNX.4.64.0804101051040.12091@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0804101053370.12130@schroedinger.engr.sgi.com>
 References: <20080410015958.bc2fd041.akpm@linux-foundation.org>
  <Pine.LNX.4.64.0804101327190.15828@sbz-30.cs.Helsinki.FI>
  <47FE37D0.5030004@cs.helsinki.fi> <47FE41EE.8040402@cs.helsinki.fi>
@@ -17,20 +17,9 @@ To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, mel@skynet.ie
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 10 Apr 2008, Pekka Enberg wrote:
-
-> Pekka Enberg wrote:
-> > Actually, that's fixed in my tree since Saturday. So unfortunately I don't
-> > think this is the problem...
-> 
-> Aah, it is, Andrew has this:
-> 
-> +	inc_slabs_node(s, node, page->objects);
-> 
-> Did I mess up my git tree or something? At least git clone gives me the
-> correct results...
-
-I guess he was pulling my tree and not yours.
+One thing that does not make sense is that there was 0x64 in there. All 
+unused node pointers should be NULL (they are zapped in 
+kmem_cache_open()). So there may still be something else at play.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
