@@ -1,29 +1,21 @@
-Message-ID: <47FDFD3C.1030708@tiscali.nl>
-Date: Thu, 10 Apr 2008 13:42:52 +0200
-From: Roel Kluin <12o3l@tiscali.nl>
-MIME-Version: 1.0
+From: Andreas Schwab <schwab@suse.de>
 Subject: Re: [PATCH] pagewalk: don't pte_unmap(NULL) in walk_pte_range()
 References: <47FC95AD.1070907@tiscali.nl> <87zls3qhop.fsf@saeurebad.de>
-In-Reply-To: <87zls3qhop.fsf@saeurebad.de>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Thu, 10 Apr 2008 14:09:00 +0200
+In-Reply-To: <87zls3qhop.fsf@saeurebad.de> (Johannes Weiner's message of "Wed\,
+	09 Apr 2008 15\:30\:30 +0200")
+Message-ID: <jer6dd9ajn.fsf@sykes.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Johannes Weiner <hannes@saeurebad.de>
-Cc: linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
+Cc: Roel Kluin <12o3l@tiscali.nl>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Johannes Weiner wrote:
-> Hi,
-> 
-> Roel Kluin <12o3l@tiscali.nl> writes:
-> 
->> This is right isn't it?
->> ---
->> Don't pte_unmap a NULL pointer, but the previous.
-> 
-> Which NULL pointer?
-> 
+Johannes Weiner <hannes@saeurebad.de> writes:
+
 >> Signed-off-by: Roel Kluin <12o3l@tiscali.nl>
 >> ---
 >> diff --git a/mm/pagewalk.c b/mm/pagewalk.c
@@ -38,16 +30,19 @@ Johannes Weiner wrote:
 >> +	pte_unmap(pte - 1);
 >>  	return err;
 >>  }
-> 
+>
 > This does not make any sense to me.
 
-you are right, please ignore.
+There is something fishy here.  If the loop ends because addr == end
+then pte has been incremented past the pmd page for addr, no?
 
-> 	Hannes
+Andreas.
 
-thanks,
-
-Roel
+-- 
+Andreas Schwab, SuSE Labs, schwab@suse.de
+SuSE Linux Products GmbH, Maxfeldstrasse 5, 90409 Nurnberg, Germany
+PGP key fingerprint = 58CA 54C7 6D53 942B 1756  01D3 44D5 214B 8276 4ED5
+"And now for something completely different."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
