@@ -1,41 +1,63 @@
-Message-Id: <20080410170232.015351000@nick.local0.net>
-Date: Fri, 11 Apr 2008 03:02:32 +1000
+Message-Id: <20080410171101.936927000@nick.local0.net>
+References: <20080410170232.015351000@nick.local0.net>
+Date: Fri, 11 Apr 2008 03:02:47 +1000
 From: npiggin@suse.de
-Subject: [patch 00/17] multi size, and giant hugetlb page support, 1GB hugetlb for x86
+Subject: [patch 15/17] x86: support GB hugepages on 64-bit
+Content-Disposition: inline; filename=x86-support-GB-hugetlb-pages.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com, andi@firstfloor.org, kniht@linux.vnet.ibm.com
+To: akpm@linux-foundation.orgakpm@linux-foundation.org
+Cc: Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com, andi@firstfloor.org, kniht@linux.vnet.ibm.comlinux-kernel@vger.kernel.orglinux-mm@kvack.orgpj@sgi.comandi@firstfloor.orgkniht@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+---
+ arch/x86/mm/hugetlbpage.c |   18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)
 
-I'm taking care of Andi's hugetlb patchset now. I've taken a while to appear
-to do anything with it because I have had other things to do and also needed
-some time to get up to speed on it.
-
-Anyway, from my reviewing of the patchset, I didn't find a great deal
-wrong with it in the technical aspects. Taking hstate out of the hugetlbfs
-inode and vma is really the main thing I did.
-
-However on the less technical side, I think a few things could be improved,
-eg. to do with the configuring and reporting, as well as the "administrative"
-type of code. I tried to make improvements to things in the last patch of
-the series. I will end up folding this properly into the rest of the patchset
-where possible.
-
-The other thing I did was try to shuffle the patches around a bit. There
-were one or two (pretty trivial) points where it wasn't bisectable, and also
-merge a couple of patches.
-
-I will try to get this patchset merged in -mm soon if feedback is positive.
-I would also like to take patches for other architectures or any other
-patches or suggestions for improvements.
-
-Patches are against head.
-
-Thanks,
-Nick
+Index: linux-2.6/arch/x86/mm/hugetlbpage.c
+===================================================================
+--- linux-2.6.orig/arch/x86/mm/hugetlbpage.c
++++ linux-2.6/arch/x86/mm/hugetlbpage.c
+@@ -133,9 +133,14 @@ pte_t *huge_pte_alloc(struct mm_struct *
+ 	pgd = pgd_offset(mm, addr);
+ 	pud = pud_alloc(mm, pgd, addr);
+ 	if (pud) {
+-		if (pud_none(*pud))
+-			huge_pmd_share(mm, addr, pud);
+-		pte = (pte_t *) pmd_alloc(mm, pud, addr);
++		if (sz == PUD_SIZE) {
++			pte = (pte_t *)pud;
++		} else {
++			BUG_ON(sz != PMD_SIZE);
++			if (pud_none(*pud))
++				huge_pmd_share(mm, addr, pud);
++			pte = (pte_t *) pmd_alloc(mm, pud, addr);
++		}
+ 	}
+ 	BUG_ON(pte && !pte_none(*pte) && !pte_huge(*pte));
+ 
+@@ -151,8 +156,11 @@ pte_t *huge_pte_offset(struct mm_struct 
+ 	pgd = pgd_offset(mm, addr);
+ 	if (pgd_present(*pgd)) {
+ 		pud = pud_offset(pgd, addr);
+-		if (pud_present(*pud))
++		if (pud_present(*pud)) {
++			if (pud_large(*pud))
++				return (pte_t *)pud;
+ 			pmd = pmd_offset(pud, addr);
++		}
+ 	}
+ 	return (pte_t *) pmd;
+ }
+@@ -215,7 +223,7 @@ int pmd_huge(pmd_t pmd)
+ 
+ int pud_huge(pud_t pud)
+ {
+-	return 0;
++	return !!(pud_val(pud) & _PAGE_PSE);
+ }
+ 
+ struct page *
 
 -- 
 
