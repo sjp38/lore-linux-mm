@@ -1,70 +1,52 @@
-Message-ID: <47FE37D0.5030004@cs.helsinki.fi>
-Date: Thu, 10 Apr 2008 18:52:48 +0300
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: by el-out-1112.google.com with SMTP id y26so61644ele.4
+        for <linux-mm@kvack.org>; Thu, 10 Apr 2008 09:17:45 -0700 (PDT)
+Message-ID: <84144f020804100917y44ebc18an3e4afe3ac7052e8a@mail.gmail.com>
+Date: Thu, 10 Apr 2008 19:17:44 +0300
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [patch 04/18] SLUB: Sort slab cache list and establish maximum objects for defrag slabs
+In-Reply-To: <20080407233001.3e1e5147.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: git-slub crashes on the t16p
-References: <20080410015958.bc2fd041.akpm@linux-foundation.org> <Pine.LNX.4.64.0804101327190.15828@sbz-30.cs.Helsinki.FI>
-In-Reply-To: <Pine.LNX.4.64.0804101327190.15828@sbz-30.cs.Helsinki.FI>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080404230158.365359425@sgi.com>
+	 <20080404230226.577197795@sgi.com>
+	 <20080407231113.855e2ba3.akpm@linux-foundation.org>
+	 <84144f020804072317g5b2b9f42yb300cad9a4258a15@mail.gmail.com>
+	 <20080407233001.3e1e5147.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 Hi Andrew,
 
-Pekka J Enberg wrote:
->> It's the tree I pulled about 12 hours ago.  Quite early in boot.
->>
->> crash: http://userweb.kernel.org/~akpm/p4105087.jpg
->> config: http://userweb.kernel.org/~akpm/config-t61p.txt
->> git-slub.patch: http://userweb.kernel.org/~akpm/mmotm/broken-out/git-slub.patch
->>
->> A t61p is a dual-core x86_64.
->>
->> I was testing with all of the -mm series up to and including git-slub.patch
->> applied.
+On Tue, Apr 8, 2008 at 9:30 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
+>  > >  What the heck is oo_objects()?
+>  >
+>  > It's from the variable order patches. A cache has two orders: default
+>  > order and the minimum order that we fall back to if default order
+>  > allocations fail. We also have the same values for the number of
+>  > objects per slab packed in a struct kmem_cache_order_objects. But yeah
+>  > it's a terrible name...
+>
+>  umm, the phrase "what is X" is akpmese for "X should have been documented,
+>  please fix".
+>
+>  I guess I should be explicit about that.
 
-On Thu, 10 Apr 2008, Andrew Morton wrote:
-> Does the following patch fix it?
+I looked at fixing this and noticed struct kmem_cache_order_object has
+the following nice comment on top of it:
 
-Okay, forget the patch. Looking at disassembly of the oops:
+/*
+ * Word size structure that can be atomically updated or read and that
+ * contains both the order and the number of objects that a slab of the
+ * given order would contain.
+ */
 
-0000000000000000 <.text>:
-    0:   eb ce                   jmp    0xffffffffffffffd0
-    2:   48 89 de                mov    %rbx,%rsi
-    5:   4c 89 e7                mov    %r12,%rdi
-    8:   e8 38 fe ff ff          callq  0xfffffffffffffe45
-    d:   b8 01 00 00 00          mov    $0x1,%eax
-   12:   5b                      pop    %rbx
-   13:   41 5c                   pop    %r12
-   15:   c9                      leaveq
-   16:   c3                      retq
-   17:   c3                      retq
-   18:   48 63 f6                movslq %esi,%rsi
-   1b:   55                      push   %rbp
-   1c:   48 8b 8c f7 20 01 00    mov    0x120(%rdi,%rsi,8),%rcx
-   23:   00
-   24:   48 89 e5                mov    %rsp,%rbp
-   27:   48 85 c9                test   %rcx,%rcx
-   2a:   74 0d                   je     0x39
-   2c:   f0 48 ff 41 50          lock incq 0x50(%rcx) # %rcx == 0x64
-   31:   48 63 c2                movslq %edx,%rax
-   34:   f0 48 01 41 58          lock add %rax,0x58(%rcx)
-   39:   c9                      leaveq
-   3a:   c3                      retq
-   3b:   48 8b 07                mov    (%rdi),%rax
-   3e:   55                      push   %rbp
-   3f:   48                      rex.W
-   40:   89                      .byte 0x89
-
-Somehow s->node[node] gets to be 0x64 which makes no sense. I checked my 
-logs and I hit the exact same problem but it went away with "make 
-clean". Andrew, can you please try that as well?
-
-			Pekka
+Is that sufficient for you or do you want me to add kerneldoc style
+comments on top of the actual oo_order() and oo_objects() functions?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
