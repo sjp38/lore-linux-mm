@@ -1,28 +1,23 @@
-Message-Id: <20080410171101.395469000@nick.local0.net>
+Message-Id: <20080410171102.045009000@nick.local0.net>
 References: <20080410170232.015351000@nick.local0.net>
-Date: Fri, 11 Apr 2008 03:02:42 +1000
+Date: Fri, 11 Apr 2008 03:02:48 +1000
 From: npiggin@suse.de
-Subject: [patch 10/17] mm: fix bootmem alignment
-Content-Disposition: inline; filename=bootmem-fix-alignment.patch
+Subject: [patch 16/17] x86: add hugepagesz option on 64-bit
+Content-Disposition: inline; filename=x86-64-implement-hugepagesz.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
-Cc: Andi Kleen <ak@suse.de>, Yinghai Lu <yhlu.kernel@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com, andi@firstfloor.org, kniht@linux.vnet.ibm.com
+Cc: Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com, andi@firstfloor.org, kniht@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Without this fix bootmem can return unaligned addresses when the start of a
-node is not aligned to the align value. Needed for reliably allocating
-gigabyte pages.
+Add an hugepagesz=... option similar to IA64, PPC etc. to x86-64.
 
-I removed the offset variable because all tests should align themself correctly
-now. Slight drawback might be that the bootmem allocator will spend
-some more time skipping bits in the bitmap initially, but that shouldn't
-be a big issue.
+This finally allows to select GB pages for hugetlbfs in x86 now
+that all the infrastructure is in place.
 
 Signed-off-by: Andi Kleen <ak@suse.de>
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 To: akpm@linux-foundation.org
-Cc: Yinghai Lu <yhlu.kernel@gmail.com>
 Cc: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org
 Cc: pj@sgi.com
@@ -30,81 +25,71 @@ Cc: andi@firstfloor.org
 Cc: kniht@linux.vnet.ibm.com
 
 ---
- mm/bootmem.c |   24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ Documentation/kernel-parameters.txt |   11 +++++++++--
+ arch/x86/mm/hugetlbpage.c           |   17 +++++++++++++++++
+ include/asm-x86/page.h              |    2 ++
+ 3 files changed, 28 insertions(+), 2 deletions(-)
 
-Index: linux-2.6/mm/bootmem.c
+Index: linux-2.6/arch/x86/mm/hugetlbpage.c
 ===================================================================
---- linux-2.6.orig/mm/bootmem.c
-+++ linux-2.6/mm/bootmem.c
-@@ -206,8 +206,9 @@ void * __init
- __alloc_bootmem_core(struct bootmem_data *bdata, unsigned long size,
- 	      unsigned long align, unsigned long goal, unsigned long limit)
- {
--	unsigned long offset, remaining_size, areasize, preferred;
--	unsigned long i, start = 0, incr, eidx, end_pfn;
-+	unsigned long remaining_size, areasize, preferred;
-+	unsigned long i, start, incr, eidx, end_pfn;
-+	unsigned long pfn;
- 	void *ret;
+--- linux-2.6.orig/arch/x86/mm/hugetlbpage.c
++++ linux-2.6/arch/x86/mm/hugetlbpage.c
+@@ -421,3 +421,20 @@ hugetlb_get_unmapped_area(struct file *f
  
- 	if (!size) {
-@@ -229,10 +230,6 @@ __alloc_bootmem_core(struct bootmem_data
- 		end_pfn = limit;
+ #endif /*HAVE_ARCH_HUGETLB_UNMAPPED_AREA*/
  
- 	eidx = end_pfn - PFN_DOWN(bdata->node_boot_start);
--	offset = 0;
--	if (align && (bdata->node_boot_start & (align - 1UL)) != 0)
--		offset = align - (bdata->node_boot_start & (align - 1UL));
--	offset = PFN_DOWN(offset);
++#ifdef CONFIG_X86_64
++static __init int setup_hugepagesz(char *opt)
++{
++	unsigned long ps = memparse(opt, &opt);
++	if (ps == PMD_SIZE) {
++		huge_add_hstate(PMD_SHIFT - PAGE_SHIFT);
++	} else if (ps == PUD_SIZE && cpu_has_gbpages) {
++		huge_add_hstate(PUD_SHIFT - PAGE_SHIFT);
++	} else {
++		printk(KERN_ERR "hugepagesz: Unsupported page size %lu M\n",
++			ps >> 20);
++		return 0;
++	}
++	return 1;
++}
++__setup("hugepagesz=", setup_hugepagesz);
++#endif
+Index: linux-2.6/include/asm-x86/page.h
+===================================================================
+--- linux-2.6.orig/include/asm-x86/page.h
++++ linux-2.6/include/asm-x86/page.h
+@@ -21,6 +21,8 @@
+ #define HPAGE_MASK		(~(HPAGE_SIZE - 1))
+ #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
  
- 	/*
- 	 * We try to allocate bootmem pages above 'goal'
-@@ -247,15 +244,18 @@ __alloc_bootmem_core(struct bootmem_data
- 	} else
- 		preferred = 0;
++#define HUGE_MAX_HSTATE 2
++
+ /* to align the pointer to the (next) page boundary */
+ #define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
  
--	preferred = PFN_DOWN(ALIGN(preferred, align)) + offset;
-+	start = bdata->node_boot_start;
-+	preferred = PFN_DOWN(ALIGN(preferred + start, align) - start);
- 	areasize = (size + PAGE_SIZE-1) / PAGE_SIZE;
- 	incr = align >> PAGE_SHIFT ? : 1;
-+	pfn = PFN_DOWN(start);
-+	start = 0;
+Index: linux-2.6/Documentation/kernel-parameters.txt
+===================================================================
+--- linux-2.6.orig/Documentation/kernel-parameters.txt
++++ linux-2.6/Documentation/kernel-parameters.txt
+@@ -722,8 +722,15 @@ and is between 256 and 4096 characters. 
+ 	hisax=		[HW,ISDN]
+ 			See Documentation/isdn/README.HiSax.
  
- restart_scan:
- 	for (i = preferred; i < eidx; i += incr) {
- 		unsigned long j;
- 		i = find_next_zero_bit(bdata->node_bootmem_map, eidx, i);
--		i = ALIGN(i, incr);
-+		i = ALIGN(pfn + i, incr) - pfn;
- 		if (i >= eidx)
- 			break;
- 		if (test_bit(i, bdata->node_bootmem_map))
-@@ -269,11 +269,11 @@ restart_scan:
- 		start = i;
- 		goto found;
- 	fail_block:
--		i = ALIGN(j, incr);
-+		i = ALIGN(j + pfn, incr) - pfn;
- 	}
+-	hugepages=	[HW,X86-32,IA-64] Maximal number of HugeTLB pages.
+-	hugepagesz=	[HW,IA-64,PPC] The size of the HugeTLB pages.
++	hugepages=	[HW,X86-32,IA-64] HugeTLB pages to allocate at boot.
++	hugepagesz=	[HW,IA-64,PPC,X86-64] The size of the HugeTLB pages.
++			On x86 this option can be specified multiple times
++			interleaved with hugepages= to reserve huge pages
++			of different sizes. Valid pages sizes on x86-64
++			are 2M (when the CPU supports "pse") and 1G (when the
++			CPU supports the "pdpe1gb" cpuinfo flag)
++			Note that 1GB pages can only be allocated at boot time
++			using hugepages= and not freed afterwards.
  
--	if (preferred > offset) {
--		preferred = offset;
-+	if (preferred > 0) {
-+		preferred = 0;
- 		goto restart_scan;
- 	}
- 	return NULL;
-@@ -289,7 +289,7 @@ found:
- 	 */
- 	if (align < PAGE_SIZE &&
- 	    bdata->last_offset && bdata->last_pos+1 == start) {
--		offset = ALIGN(bdata->last_offset, align);
-+		unsigned long offset = ALIGN(bdata->last_offset, align);
- 		BUG_ON(offset > PAGE_SIZE);
- 		remaining_size = PAGE_SIZE - offset;
- 		if (size < remaining_size) {
+ 	i8042.direct	[HW] Put keyboard port into non-translated mode
+ 	i8042.dumbkbd	[HW] Pretend that controller can only read data from
 
 -- 
 
