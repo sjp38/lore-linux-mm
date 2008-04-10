@@ -1,14 +1,20 @@
-Message-Id: <20080410171101.613691000@nick.local0.net>
+Message-Id: <20080410171100.685121000@nick.local0.net>
 References: <20080410170232.015351000@nick.local0.net>
-Date: Fri, 11 Apr 2008 03:02:44 +1000
+Date: Fri, 11 Apr 2008 03:02:35 +1000
 From: npiggin@suse.de
-Subject: [patch 12/17] hugetlb: support boot allocate different sizes
-Content-Disposition: inline; filename=hugetlb-different-page-sizes.patch
+Subject: [patch 03/17] hugetlb: multi hstate proc files
+Content-Disposition: inline; filename=hugetlb-proc-hstates.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com, andi@firstfloor.org, kniht@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
+
+Convert /proc output code over to report multiple hstates
+
+I chose to just report the numbers in a row, in the hope 
+to minimze breakage of existing software. The "compat" page size
+is always the first number.
 
 Signed-off-by: Andi Kleen <ak@suse.de>
 Signed-off-by: Nick Piggin <npiggin@suse.de>
@@ -20,71 +26,95 @@ Cc: andi@firstfloor.org
 Cc: kniht@linux.vnet.ibm.com
 
 ---
- include/linux/hugetlb.h |    1 +
- mm/hugetlb.c            |   23 ++++++++++++++++++-----
- 2 files changed, 19 insertions(+), 5 deletions(-)
+ mm/hugetlb.c |   64 ++++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 42 insertions(+), 22 deletions(-)
 
 Index: linux-2.6/mm/hugetlb.c
 ===================================================================
 --- linux-2.6.orig/mm/hugetlb.c
 +++ linux-2.6/mm/hugetlb.c
-@@ -578,19 +578,23 @@ static int __init hugetlb_init_hstate(st
- 		h->mask = HPAGE_MASK;
- 	}
+@@ -709,39 +709,59 @@ int hugetlb_overcommit_handler(struct ct
  
--	for (i = 0; i < MAX_NUMNODES; ++i)
--		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
-+	/* Don't reinitialize lists if they have been already init'ed */
-+	if (!h->hugepage_freelists[0].next) {
-+		for (i = 0; i < MAX_NUMNODES; ++i)
-+			INIT_LIST_HEAD(&h->hugepage_freelists[i]);
+ #endif /* CONFIG_SYSCTL */
  
--	h->hugetlb_next_nid = first_node(node_online_map);
-+		h->hugetlb_next_nid = first_node(node_online_map);
-+	}
- 
--	for (i = 0; i < max_huge_pages[h - hstates]; ++i) {
-+	while (h->parsed_hugepages < max_huge_pages[h - hstates]) {
- 		if (h->order > MAX_ORDER) {
- 			if (!alloc_bm_huge_page(h))
- 				break;
- 		} else if (!alloc_fresh_huge_page(h))
- 			break;
-+		h->parsed_hugepages++;
- 	}
--	max_huge_pages[h - hstates] = h->free_huge_pages = h->nr_huge_pages = i;
-+	max_huge_pages[h - hstates] = h->parsed_hugepages;
- 
- 	printk(KERN_INFO "Total HugeTLB memory allocated, %ld %dMB pages\n",
- 			h->free_huge_pages,
-@@ -625,6 +629,15 @@ static int __init hugetlb_setup(char *s)
- 	unsigned long *mhp = &max_huge_pages[parsed_hstate - hstates];
- 	if (sscanf(s, "%lu", mhp) <= 0)
- 		*mhp = 0;
-+	/*
-+	 * Global state is always initialized later in hugetlb_init.
-+	 * But we need to allocate > MAX_ORDER hstates here early to still
-+	 * use the bootmem allocator.
-+	 * If you add additional hstates <= MAX_ORDER you'll need
-+	 * to fix that.
-+	 */
-+	if (parsed_hstate != &global_hstate)
-+		hugetlb_init_hstate(parsed_hstate);
- 	return 1;
++static int dump_field(char *buf, unsigned field)
++{
++	int n = 0;
++	struct hstate *h;
++	for_each_hstate (h)
++		n += sprintf(buf + n, " %5lu", *(unsigned long *)((char *)h + field));
++	buf[n++] = '\n';
++	return n;
++}
++
+ int hugetlb_report_meminfo(char *buf)
+ {
+-	struct hstate *h = &global_hstate;
+-	return sprintf(buf,
+-			"HugePages_Total: %5lu\n"
+-			"HugePages_Free:  %5lu\n"
+-			"HugePages_Rsvd:  %5lu\n"
+-			"HugePages_Surp:  %5lu\n"
+-			"Hugepagesize:    %5lu kB\n",
+-			h->nr_huge_pages,
+-			h->free_huge_pages,
+-			h->resv_huge_pages,
+-			h->surplus_huge_pages,
+-			1UL << (huge_page_order(h) + PAGE_SHIFT - 10));
++	struct hstate *h;
++	int n = 0;
++	n += sprintf(buf + 0, "HugePages_Total:");
++	n += dump_field(buf + n, offsetof(struct hstate, nr_huge_pages));
++	n += sprintf(buf + n, "HugePages_Free: ");
++	n += dump_field(buf + n, offsetof(struct hstate, free_huge_pages));
++	n += sprintf(buf + n, "HugePages_Rsvd: ");
++	n += dump_field(buf + n, offsetof(struct hstate, resv_huge_pages));
++	n += sprintf(buf + n, "HugePages_Surp: ");
++	n += dump_field(buf + n, offsetof(struct hstate, surplus_huge_pages));
++	n += sprintf(buf + n, "Hugepagesize:   ");
++	for_each_hstate (h)
++		n += sprintf(buf + n, " %5u", huge_page_size(h) / 1024);
++	n += sprintf(buf + n, " kB\n");
++	return n;
  }
- __setup("hugepages=", hugetlb_setup);
-Index: linux-2.6/include/linux/hugetlb.h
-===================================================================
---- linux-2.6.orig/include/linux/hugetlb.h
-+++ linux-2.6/include/linux/hugetlb.h
-@@ -210,6 +210,7 @@ struct hstate {
- 	unsigned int nr_huge_pages_node[MAX_NUMNODES];
- 	unsigned int free_huge_pages_node[MAX_NUMNODES];
- 	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
-+	unsigned long parsed_hugepages;
- };
  
- void __init huge_add_hstate(unsigned order);
+ int hugetlb_report_node_meminfo(int nid, char *buf)
+ {
+-	struct hstate *h = &global_hstate;
+-	return sprintf(buf,
+-		"Node %d HugePages_Total: %5u\n"
+-		"Node %d HugePages_Free:  %5u\n"
+-		"Node %d HugePages_Surp:  %5u\n",
+-		nid, h->nr_huge_pages_node[nid],
+-		nid, h->free_huge_pages_node[nid],
+-		nid, h->surplus_huge_pages_node[nid]);
++	int n = 0;
++	n += sprintf(buf, "Node %d HugePages_Total: ", nid);
++	n += dump_field(buf + n, offsetof(struct hstate,
++						nr_huge_pages_node[nid]));
++	n += sprintf(buf + n, "Node %d HugePages_Free: ", nid);
++	n += dump_field(buf + n, offsetof(struct hstate,
++						free_huge_pages_node[nid]));
++	n += sprintf(buf + n, "Node %d HugePages_Surp: ", nid);
++	n += dump_field(buf + n, offsetof(struct hstate,
++						surplus_huge_pages_node[nid]));
++	return n;
+ }
+ 
+ /* Return the number pages of memory we physically have, in PAGE_SIZE units. */
+ unsigned long hugetlb_total_pages(void)
+ {
+-	struct hstate *h = &global_hstate;
+-	return h->nr_huge_pages * (1 << huge_page_order(h));
++	long x = 0;
++	struct hstate *h;
++	for_each_hstate (h) {
++		x += h->nr_huge_pages * (1 << huge_page_order(h));
++	}
++	return x;
+ }
+ 
+ /*
 
 -- 
 
