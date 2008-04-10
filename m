@@ -1,80 +1,70 @@
-From: Johannes Weiner <hannes@saeurebad.de>
-Subject: [PATCH] Stay below upper pmd boundary on pte range walk
-References: <47FC95AD.1070907@tiscali.nl> <87zls3qhop.fsf@saeurebad.de>
-	<jer6dd9ajn.fsf@sykes.suse.de>
-Date: Thu, 10 Apr 2008 16:01:49 +0200
-In-Reply-To: <jer6dd9ajn.fsf@sykes.suse.de> (Andreas Schwab's message of "Thu,
-	10 Apr 2008 14:09:00 +0200")
-Message-ID: <878wzlzu42.fsf_-_@saeurebad.de>
+Message-ID: <47FE37D0.5030004@cs.helsinki.fi>
+Date: Thu, 10 Apr 2008 18:52:48 +0300
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: git-slub crashes on the t16p
+References: <20080410015958.bc2fd041.akpm@linux-foundation.org> <Pine.LNX.4.64.0804101327190.15828@sbz-30.cs.Helsinki.FI>
+In-Reply-To: <Pine.LNX.4.64.0804101327190.15828@sbz-30.cs.Helsinki.FI>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andreas Schwab <schwab@suse.de>
-Cc: Roel Kluin <12o3l@tiscali.nl>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi Andrew,
 
-Andreas Schwab <schwab@suse.de> writes:
-
-> Johannes Weiner <hannes@saeurebad.de> writes:
->
->>> Signed-off-by: Roel Kluin <12o3l@tiscali.nl>
->>> ---
->>> diff --git a/mm/pagewalk.c b/mm/pagewalk.c
->>> index 1cf1417..6615f0b 100644
->>> --- a/mm/pagewalk.c
->>> +++ b/mm/pagewalk.c
->>> @@ -15,7 +15,7 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->>>  		       break;
->>>  	} while (pte++, addr += PAGE_SIZE, addr != end);
->>>  
->>> -	pte_unmap(pte);
->>> +	pte_unmap(pte - 1);
->>>  	return err;
->>>  }
+Pekka J Enberg wrote:
+>> It's the tree I pulled about 12 hours ago.  Quite early in boot.
 >>
->> This does not make any sense to me.
->
-> There is something fishy here.  If the loop ends because addr == end
-> then pte has been incremented past the pmd page for addr, no?
+>> crash: http://userweb.kernel.org/~akpm/p4105087.jpg
+>> config: http://userweb.kernel.org/~akpm/config-t61p.txt
+>> git-slub.patch: http://userweb.kernel.org/~akpm/mmotm/broken-out/git-slub.patch
+>>
+>> A t61p is a dual-core x86_64.
+>>
+>> I was testing with all of the -mm series up to and including git-slub.patch
+>> applied.
 
-Whoops, yes.  But Roel's fix breaks if the break is taken in the first
-iteration of the loop, because the pte is then out of the lower bounds
-of the pmd page.  Please see attached fix.
+On Thu, 10 Apr 2008, Andrew Morton wrote:
+> Does the following patch fix it?
 
-	Hannes
+Okay, forget the patch. Looking at disassembly of the oops:
 
----
+0000000000000000 <.text>:
+    0:   eb ce                   jmp    0xffffffffffffffd0
+    2:   48 89 de                mov    %rbx,%rsi
+    5:   4c 89 e7                mov    %r12,%rdi
+    8:   e8 38 fe ff ff          callq  0xfffffffffffffe45
+    d:   b8 01 00 00 00          mov    $0x1,%eax
+   12:   5b                      pop    %rbx
+   13:   41 5c                   pop    %r12
+   15:   c9                      leaveq
+   16:   c3                      retq
+   17:   c3                      retq
+   18:   48 63 f6                movslq %esi,%rsi
+   1b:   55                      push   %rbp
+   1c:   48 8b 8c f7 20 01 00    mov    0x120(%rdi,%rsi,8),%rcx
+   23:   00
+   24:   48 89 e5                mov    %rsp,%rbp
+   27:   48 85 c9                test   %rcx,%rcx
+   2a:   74 0d                   je     0x39
+   2c:   f0 48 ff 41 50          lock incq 0x50(%rcx) # %rcx == 0x64
+   31:   48 63 c2                movslq %edx,%rax
+   34:   f0 48 01 41 58          lock add %rax,0x58(%rcx)
+   39:   c9                      leaveq
+   3a:   c3                      retq
+   3b:   48 8b 07                mov    (%rdi),%rax
+   3e:   55                      push   %rbp
+   3f:   48                      rex.W
+   40:   89                      .byte 0x89
 
-After the loop in walk_pte_range() pte might point to the first address
-after the pmd it walks.  The pte_unmap() is then applied to something
-bad.
+Somehow s->node[node] gets to be 0x64 which makes no sense. I checked my 
+logs and I hit the exact same problem but it went away with "make 
+clean". Andrew, can you please try that as well?
 
-Spotted by Roel Kluin and Andreas Schwab.
-
-Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
----
-
-A bug is unlikely, though.  kunmap_atomic() looks up the kmap entry by
-map-type instead of the address the pte points.  So the worst thing I
-could find with a quick grep was that a wrong TLB entry is being
-flushed.  Still, the code is wrong :)
-
-diff --git a/mm/pagewalk.c b/mm/pagewalk.c
-index 1cf1417..cf3c004 100644
---- a/mm/pagewalk.c
-+++ b/mm/pagewalk.c
-@@ -13,7 +13,7 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 		err = walk->pte_entry(pte, addr, addr + PAGE_SIZE, private);
- 		if (err)
- 		       break;
--	} while (pte++, addr += PAGE_SIZE, addr != end);
-+	} while (addr += PAGE_SIZE, addr != end && pte++);
- 
- 	pte_unmap(pte);
- 	return err;
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
