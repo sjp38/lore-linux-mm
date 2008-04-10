@@ -1,60 +1,44 @@
-Date: Thu, 10 Apr 2008 19:39:51 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 10/17] mm: fix bootmem alignment
-Message-ID: <20080410173951.GA9482@wotan.suse.de>
-References: <20080410170232.015351000@nick.local0.net> <20080410171101.395469000@nick.local0.net> <86802c440804101033p6e914cb4oacaeb6eca823d1cd@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <86802c440804101033p6e914cb4oacaeb6eca823d1cd@mail.gmail.com>
+Message-ID: <47FE5137.4000605@cs.helsinki.fi>
+Date: Thu, 10 Apr 2008 20:41:11 +0300
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+MIME-Version: 1.0
+Subject: Re: git-slub crashes on the t16p
+References: <20080410015958.bc2fd041.akpm@linux-foundation.org> <Pine.LNX.4.64.0804101327190.15828@sbz-30.cs.Helsinki.FI> <47FE37D0.5030004@cs.helsinki.fi> <47FE41EE.8040402@cs.helsinki.fi> <20080410102454.8248e0ae.akpm@linux-foundation.org> <Pine.LNX.4.64.0804101029270.11781@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0804101029270.11781@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yinghai Lu <yhlu.kernel@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com, kniht@linux.vnet.ibm.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, mel@skynet.ie
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 10, 2008 at 10:33:50AM -0700, Yinghai Lu wrote:
-> On Thu, Apr 10, 2008 at 10:02 AM,  <npiggin@suse.de> wrote:
-> > Without this fix bootmem can return unaligned addresses when the start of a
-> >  node is not aligned to the align value. Needed for reliably allocating
-> >  gigabyte pages.
-> >
-> >  I removed the offset variable because all tests should align themself correctly
-> >  now. Slight drawback might be that the bootmem allocator will spend
-> >  some more time skipping bits in the bitmap initially, but that shouldn't
-> >  be a big issue.
-> >
+Christoph Lameter wrote:
+> On Thu, 10 Apr 2008, Andrew Morton wrote:
 > 
+>> That's within the call to atomic64_inc(), from the inc_slabs_node() here:
 > 
-> this patch from Andi was obsoleted by the one in -mm
+> Right. The slab counter cleanup patch did a non equivalent transformation 
+> here.
+> 
+> Index: linux-2.6/mm/slub.c
+> ===================================================================
+> --- linux-2.6.orig/mm/slub.c	2008-04-10 10:27:29.000000000 -0700
+> +++ linux-2.6/mm/slub.c	2008-04-10 10:28:02.000000000 -0700
+> @@ -1174,6 +1174,8 @@
+>  	if (!page)
+>  		goto out;
+>  
+> +	/* Must use the node that the page allocator determined for us. */
+> +	node = page_to_nid(page);
+>  	inc_slabs_node(s, node, page->objects);
+>  	page->slab = s;
+>  	page->flags |= 1 << PG_slab;
 
-Ah, great thanks for letting me know.
+Actually, that's fixed in my tree since Saturday. So unfortunately I 
+don't think this is the problem...
 
- 
- 
-> The patch titled
->     mm: offset align in alloc_bootmem
-> has been added to the -mm tree.  Its filename is
->     mm-offset-align-in-alloc_bootmem.patch
-> 
-> ------------------------------------------------------
-> Subject: mm: offset align in alloc_bootmem
-> From: Yinghai Lu <yhlu.kernel.send@gmail.com>
-> 
-> Need offset alignment when node_boot_start's alignment is less than align
-> required
-> 
-> Use local node_boot_start to match align.  so don't add extra opteration in
-> search loop.
-> 
-> Signed-off-by: Yinghai Lu <yhlu.kernel@gmail.com>
-> Cc: Andi Kleen <ak@suse.de>
-> Cc: Yasunori Goto <y-goto@jp.fujitsu.com>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Ingo Molnar <mingo@elte.hu>
-> Cc: Christoph Lameter <clameter@sgi.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
