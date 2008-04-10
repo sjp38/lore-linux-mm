@@ -1,20 +1,19 @@
+Date: Thu, 10 Apr 2008 13:27:41 +0300 (EEST)
+From: Pekka J Enberg <penberg@cs.helsinki.fi>
 Subject: Re: git-slub crashes on the t16p
 In-Reply-To: <20080410015958.bc2fd041.akpm@linux-foundation.org>
-Message-ID: <lnun8CCD.1207820081.9463900.penberg@cs.helsinki.fi>
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Date: Thu, 10 Apr 2008 12:34:42 +0300 (EEST)
+Message-ID: <Pine.LNX.4.64.0804101327190.15828@sbz-30.cs.Helsinki.FI>
+References: <20080410015958.bc2fd041.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org, penberg@cs.helsinki.fi, clameter@sgi.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On 4/10/2008, "Andrew Morton" <akpm@linux-foundation.org> wrote:
+On Thu, 10 Apr 2008, Andrew Morton wrote:
 > It's the tree I pulled about 12 hours ago.  Quite early in boot.
 > 
 > crash: http://userweb.kernel.org/~akpm/p4105087.jpg
@@ -26,15 +25,21 @@ On 4/10/2008, "Andrew Morton" <akpm@linux-foundation.org> wrote:
 > I was testing with all of the -mm series up to and including git-slub.patch
 > applied.
 
-You have CONFIG_NUMA enabled, so we check for NULL in inc_slabs_node():
+Does the following patch fix it?
 
-        if (!NUMA_BUILD || n) {
-                atomic_long_inc(&n->nr_slabs);
-                atomic_long_add(objects, &n->total_objects);
-
-I think I hit the same problem and it went away after make clean. Hmm...
-
-                                        Pekka
+diff --git a/mm/slub.c b/mm/slub.c
+index 4b694a7..3916b4d 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -895,7 +895,7 @@ static inline void inc_slabs_node(struct kmem_cache *s, int node, int objects)
+ 	 * dilemma by deferring the increment of the count during
+ 	 * bootstrap (see early_kmem_cache_node_alloc).
+ 	 */
+-	if (!NUMA_BUILD || n) {
++	if (n) {
+ 		atomic_long_inc(&n->nr_slabs);
+ 		atomic_long_add(objects, &n->total_objects);
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
