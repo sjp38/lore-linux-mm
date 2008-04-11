@@ -1,183 +1,88 @@
-Received: by fk-out-0910.google.com with SMTP id 22so730735fkq.6
-        for <linux-mm@kvack.org>; Fri, 11 Apr 2008 12:57:26 -0700 (PDT)
-Message-ID: <29495f1d0804111257w787de80ew3c2c2be54d34685f@mail.gmail.com>
-Date: Fri, 11 Apr 2008 12:57:25 -0700
-From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
-Subject: Re: [patch 00/17] multi size, and giant hugetlb page support, 1GB hugetlb for x86
-In-Reply-To: <20080411082858.GB20253@wotan.suse.de>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3BNZQag014078
+	for <linux-mm@kvack.org>; Fri, 11 Apr 2008 19:35:26 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3BNZKJU190134
+	for <linux-mm@kvack.org>; Fri, 11 Apr 2008 17:35:25 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3BNZKtA007327
+	for <linux-mm@kvack.org>; Fri, 11 Apr 2008 17:35:20 -0600
+Date: Fri, 11 Apr 2008 16:35:00 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: [PATCH 1/3] mm: fix misleading __GFP_REPEAT related comments
+Message-ID: <20080411233500.GA19078@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <20080410170232.015351000@nick.local0.net>
-	 <29495f1d0804101659r44f4a8c2wa1ec05a84e7876fe@mail.gmail.com>
-	 <20080411082858.GB20253@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com, andi@firstfloor.org, kniht@linux.vnet.ibm.com, Adam Litke <agl@us.ibm.com>, Greg KH <gregkh@suse.de>
+To: akpm@linux-foundation.org
+Cc: mel@csn.ul.ie, clameter@sgi.com, apw@shadowen.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[Trimming Andi's SUSE address, as it gave me permanent failures on my
-last message]
+The definition and use of __GFP_REPEAT, __GFP_NOFAIL and __GFP_NORETRY
+in the core VM have somewhat differing comments as to their actual
+semantics. Annoyingly, the flags definition has inline and header
+comments, which might be interpreted as not being equivalent. Just add
+references to the header comments in the inline ones so they don't go
+out of sync in the future. In their use in __alloc_pages() clarify that
+the current implementation treats low-order allocations and __GFP_REPEAT
+allocations as distinct cases.
 
-On 4/11/08, Nick Piggin <npiggin@suse.de> wrote:
-> On Thu, Apr 10, 2008 at 04:59:15PM -0700, Nish Aravamudan wrote:
->  > Hi Nick,
->  >
->  > On 4/10/08, npiggin@suse.de <npiggin@suse.de> wrote:
->  > > Hi,
->  > >
->  > >  I'm taking care of Andi's hugetlb patchset now. I've taken a while to appear
->  > >  to do anything with it because I have had other things to do and also needed
->  > >  some time to get up to speed on it.
->  > >
->  > >  Anyway, from my reviewing of the patchset, I didn't find a great deal
->  > >  wrong with it in the technical aspects. Taking hstate out of the hugetlbfs
->  > >  inode and vma is really the main thing I did.
->  >
->  > Have you tested with the libhugetlbfs test suite? We're gearing up for
->  > libhugetlbfs 1.3, so most of the test are uptodate and expected to run
->  > cleanly, even with giant hugetlb page support (Jon has been working
->  > diligently to test with his 16G page support for power). I'm planning
->  > on pushing the last bits out today for Adam to pick up before we start
->  > stabilizing for 1.3, so I'm hoping if you grab tomorrow's development
->  > snapshot from libhugetlbfs.ozlabs.org, things should run ok. Probably
->  > only with just 1G hugepages, though, we haven't yet taught
->  > libhugetlbfs about multiple hugepage size availability at run-time,
->  > but that shouldn't be hard.
->
->
-> Yeah, it should be easy to disable the 2MB default and just make it
->  look exactly the same but with 1G pages.
+To clarify, the flags' semantics are:
 
-Exactly.
+__GFP_NORETRY means try no harder than one run through __alloc_pages
 
->  Thanks a lot for your suggestion, I'll pull the snapshot over the
->  weekend and try to make it pass on x86 and work with Jon to ensure it
->  is working with powerpc...
+__GFP_REPEAT means __GFP_NOFAIL
 
-Just FYI, we tagged 1.3-pre1 today and it's out now:
-http://libhugetlbfs.ozlabs.org/releases/libhugetlbfs-1.3-pre1.tar.gz.
+__GFP_NOFAIL means repeat forever
 
-The kernel tests should work fine on x86 as is, even with 1G pages. I
-expect some of the linker script testcases to fail, though, as they
-will require alignment changes, I think (Adam is actually reworking
-the segment remapping code for libhugetlbfs 2.0, which will release
-shortly after 1.3, under our current plans).
+order <= PAGE_ALLOC_COSTLY_ORDER means __GFP_NOFAIL
 
->  > >  However on the less technical side, I think a few things could be improved,
->  > >  eg. to do with the configuring and reporting, as well as the "administrative"
->  > >  type of code. I tried to make improvements to things in the last patch of
->  > >  the series. I will end up folding this properly into the rest of the patchset
->  > >  where possible.
->  >
->  > I've got a few ideas here. Are we sure that
->  > /proc/sys/vm/nr_{,overcommit}_hugepages is the pool allocation
->  > interface we want going forward? I'm fairly sure we don't. I think
->  > we're best off moving to a sysfs-based allocator scheme, while keeping
->  > /proc/sys/vm/nr_{,overcommit}_hugepages around for the default
->  > hugepage size (which may be the only for many folks for now).
->  >
->  > I'm thinking something like:
->  >
->  > /sys/devices/system/[DIRNAME]/nr_hugepages ->
->  > nr_hugepages_{default_hugepagesize}
->  > /sys/devices/system/[DIRNAME]/nr_hugepages_default_hugepagesize
->  > /sys/devices/system/[DIRNAME]/nr_hugepages_other_hugepagesize1
->  > /sys/devices/system/[DIRNAME]/nr_hugepages_other_hugepagesize2
->  > /sys/devices/system/[DIRNAME]/nr_overcommit_hugepages ->
->  > nr_overcommit_hugepages_{default_hugepagesize}
->  > /sys/devices/system/[DIRNAME]/nr_overcommit_hugepages_default_hugepagesize
->  > /sys/devices/system/[DIRNAME]/nr_overcommit_hugepages_other_hugepagesize1
->  > /sys/devices/system/[DIRNAME]/nr_overcommit_hugepages_other_hugepagesize2
->  >
->  > That is, nr_hugepages in the directory (should it be called vm?
->  > memory? hugepages specifically? I'm looking for ideas!) will just be a
->  > symlink to the underlying default hugepagesize allocator. The files
->  > themselves would probably be named along the lines of:
->  >
->  > nr_hugepages_2M
->  > nr_hugepages_1G
->  > nr_hugepages_64K
->  >
->  > etc?
->
->
-> Yes I don't like the proc interface, nor the way it has been extended
->  (although that's not Andi's fault it is just a limitation of the old
->  API).
+Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-Agreed, I wasn't trying to blame you or Andi for the choice. Just
-suggesting we nip the extension in the bud :)
+---
+Andrew, would it be possible to give this patch and the following two a
+spin in the next -mm?
 
->  I think actually we should have individual directories for each hstate
->  size, and we can put all other stuff (reservations and per-node stuff
->  etc) under those directories. Leave the proc stuff just for the default
->  page size.
->
->  I think it should go in /sys/kernel/, because I think /sys/devices is
->  more of the hardware side of the system (so it makes sense for
->  reporting eg the actual supported TLB sizes, but for configuring your
->  page reserves, I think it makes more sense under /sys/kernel/). But
->  we'll ask the sysfs folk for guidance there.
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 898aa9d..b46b861 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -40,9 +40,9 @@ struct vm_area_struct;
+ #define __GFP_FS	((__force gfp_t)0x80u)	/* Can call down to low-level FS? */
+ #define __GFP_COLD	((__force gfp_t)0x100u)	/* Cache-cold page required */
+ #define __GFP_NOWARN	((__force gfp_t)0x200u)	/* Suppress page allocation failure warning */
+-#define __GFP_REPEAT	((__force gfp_t)0x400u)	/* Retry the allocation.  Might fail */
+-#define __GFP_NOFAIL	((__force gfp_t)0x800u)	/* Retry for ever.  Cannot fail */
+-#define __GFP_NORETRY	((__force gfp_t)0x1000u)/* Do not retry.  Might fail */
++#define __GFP_REPEAT	((__force gfp_t)0x400u)	/* See above */
++#define __GFP_NOFAIL	((__force gfp_t)0x800u)	/* See above */
++#define __GFP_NORETRY	((__force gfp_t)0x1000u)/* See above */
+ #define __GFP_COMP	((__force gfp_t)0x4000u)/* Add compound page metadata */
+ #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
+ #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 935ae16..1db36da 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1691,8 +1691,9 @@ nofail_alloc:
+ 	 * Don't let big-order allocations loop unless the caller explicitly
+ 	 * requests that.  Wait for some write requests to complete then retry.
+ 	 *
+-	 * In this implementation, __GFP_REPEAT means __GFP_NOFAIL for order
+-	 * <= 3, but that may not be true in other implementations.
++	 * In this implementation, either order <= PAGE_ALLOC_COSTLY_ORDER or
++	 * __GFP_REPEAT mean __GFP_NOFAIL, but that may not be true in other
++	 * implementations.
+ 	 */
+ 	do_retry = 0;
+ 	if (!(gfp_mask & __GFP_NORETRY)) {
 
-That's a good point. I've added Greg explicitly to the Cc, to see if
-he has any input. Greg, for something like an allocator interface for
-hugepages, where would you expect to see that put in the sysfs
-hierarchy? /sys/devices/system or /sys/kernel ?
-
-The reason I was suggesting /sys/devices/system is that we already
-have the NUMA topology laid out there (and is where I currently have
-the per-node nr_hugepages). If we put per-node allocations in
-/sys/kernel, we would have to duplicate some of that information (or
-have really long filenames), and I'm not sure which is better.
-
-Also, for reference, can we not use "reservations" for the pool
-allocators? Reserved huge pages have a special meaning (are used to
-satisfy MAP_SHARED mmap()s -- see
-http://linux-mm.org/DynamicHugetlbPool). I'm not sure of a better
-terminology, beyond perhaps "hugetlb pool interfaces" or something. I
-know what you mean, but it got me confused for a second or two :)
-
->  > We'd want to have a similar layout on a per-node basis, I think (see
->  > my patchsets to add a per-node interface).
->  >
->  > >  The other thing I did was try to shuffle the patches around a bit. There
->  > >  were one or two (pretty trivial) points where it wasn't bisectable, and also
->  > >  merge a couple of patches.
->  > >
->  > >  I will try to get this patchset merged in -mm soon if feedback is positive.
->  > >  I would also like to take patches for other architectures or any other
->  > >  patches or suggestions for improvements.
->  >
->  > There are definitely going to be conflicts between my per-node stack
->  > and your set, but if you agree the interface should be cleaned up for
->  > multiple hugepage size support, then I'd like to get my sysfs bits
->  > into -mm and work on putting the global allocator into sysfs properly
->  > for you to base off. I think there's enough room for discussion that
->  > -mm may be a bit premature, but that's just my opinion.
->  >
->  > Thanks for keeping the patchset uptodate, I hope to do a more careful
->  > review next week of the individual patches.
->
->
-> Sure, I haven't seen your work but it shouldn't be terribly hard to merge
->  either way. It should be easy if we work together ;)
-
-I'll make sure to Cc you on the patches that will conflict. If we
-decide that /sys/kernel is the right place for the per-node interface
-to live, too, then I will need to respin them anyways.
-
-As a side note, I don't think I saw any patches for Documentation in
-the last posted set :) Could you update that, it might help with
-understanding the changes a bit, although most are pretty
-straightforward. It would also be great to update
-http://linux-mm.org/PageTableStructure for the 1G case (and eventually
-the power 16G case, Jon).
-
-Thanks,
-Nish
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
