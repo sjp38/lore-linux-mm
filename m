@@ -1,69 +1,43 @@
-Message-Id: <47FF57A7.5000704@mxp.nes.nec.co.jp>
-Date: Fri, 11 Apr 2008 21:20:55 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Received: from zps36.corp.google.com (zps36.corp.google.com [172.25.146.36])
+	by smtp-out.google.com with ESMTP id m3BDn4Gj024302
+	for <linux-mm@kvack.org>; Fri, 11 Apr 2008 14:49:04 +0100
+Received: from fg-out-1718.google.com (fge13.prod.google.com [10.86.5.13])
+	by zps36.corp.google.com with ESMTP id m3BDn0Ai028543
+	for <linux-mm@kvack.org>; Fri, 11 Apr 2008 06:49:01 -0700
+Received: by fg-out-1718.google.com with SMTP id 13so374747fge.20
+        for <linux-mm@kvack.org>; Fri, 11 Apr 2008 06:49:00 -0700 (PDT)
+Message-ID: <d43160c70804110649q1b099b02n835f90c5651f3073@mail.gmail.com>
+Date: Fri, 11 Apr 2008 09:49:00 -0400
+From: "Ross Biro" <rossb@google.com>
+Subject: Re: [PATCH 1/2] MM: Make Page Tables Relocatable -- conditional flush
+In-Reply-To: <20080410172603.98224DCA40@localhost>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 3/3] account swapcache
-References: <20080408190734.70ab55b0.kamezawa.hiroyu@jp.fujitsu.com> <20080408191311.73b167bb.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080408191311.73b167bb.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080410172603.98224DCA40@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, Hugh Dickins <hugh@veritas.com>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, rossb@google.com, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, KAMEZAWA-san.
+On Thu, Apr 10, 2008 at 1:26 PM, Ross Biro <rossb@google.com> wrote:
+>  rcu cleanup.  There still appears to be a race, but it looks like it's
+>  in the rcu code.  If I reduce the migration code to
+>
+>  down_interruptible()
+>  synchronize_rcu()
+>  up()
+>
+>  I still get a crash about once every 1-2 million times through the
+>  loop.  If the race is in my code, it's something stupid.  Otherwise
+>  it's elsewhere and my code won't make things anyworse.
 
-KAMEZAWA Hiroyuki wrote:
-> Now swapcache is not accounted. (because it had some troubles.)
-> 
-> This is retrying account swap cache, based on remove-refcnt patch.
-> 
-> This does.
->  * When a page is swap-cache,  mem_cgroup_uncharge_page() will *not*
->    uncharge page even if page->mapcount == 0.
->  * When a page is removed from swap-cache, mem_cgroup_uncharge_page()
->    is called again.
->  * A swapcache page is newly charged only when it's mapped.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
+This race appears to have been fixed between 2.6.25rc5-mm1 and
+2.6.25rc8-mm1.  I've been running the later over night and have over 7
+million iterations with out a crash.
 
-I agree with the idea that swap caches should be charged as memory.
-(I think they may be charged as swap at the same time.)
-
-IMO, not charging swap caches as memory occasionally causes a problem
-that swap caches are not freed even when a process that owns
-those pages try to free them(e.g. task exit).
-
-For example:
-
-  Some pages are being reclaimed via memcg memory reclaim.
-
-  Assume that shrink_page_list() has already moved those pages
-  to swap cache, unmapped them from ptes, removed from mz->lru,
-  and is working on other pages on page_list.
-  Those swap cache pages are unlocked and
-  page_count of them are 2(swap cache, isolate_page).
-
-  At the same time on other CPU, if the process that owns those
-  pages are trying to free them, free_swap_and_cache() cannot
-  free those pages unless vm_swap_full, because find_get_pages()
-  increases page_count.
-
-I think this rare case itself also exists on global memory reclaim,
-but global memory reclaim does not assume that those pases have
-been freed, so, if it need to free more memory, those pases
-will be freed later because they remain on global inactive list.
-
-The problem here is that those swap cache pages are uncharged
-from memcg, so memcg can never reclaim those pages that belonged
-to the group.
-
-
-Thanks,
-Daisuke Nishimura.
+    Ross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
