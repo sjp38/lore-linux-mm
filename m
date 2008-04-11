@@ -1,123 +1,60 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3BNZlSF003165
-	for <linux-mm@kvack.org>; Fri, 11 Apr 2008 19:35:47 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3BNZlhO227818
-	for <linux-mm@kvack.org>; Fri, 11 Apr 2008 19:35:47 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3BNZkvk028229
-	for <linux-mm@kvack.org>; Fri, 11 Apr 2008 19:35:47 -0400
-Date: Fri, 11 Apr 2008 16:35:53 -0700
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3BNaljt016137
+	for <linux-mm@kvack.org>; Fri, 11 Apr 2008 19:36:47 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3BNalh0114796
+	for <linux-mm@kvack.org>; Fri, 11 Apr 2008 17:36:47 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3BNalCS031267
+	for <linux-mm@kvack.org>; Fri, 11 Apr 2008 17:36:47 -0600
+Date: Fri, 11 Apr 2008 16:36:54 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [PATCH] Smarter retry of costly-order allocations
-Message-ID: <20080411233553.GB19078@us.ibm.com>
-References: <20080411233500.GA19078@us.ibm.com>
+Subject: [PATCH 3/3] Explicitly retry hugepage allocations
+Message-ID: <20080411233654.GC19078@us.ibm.com>
+References: <20080411233500.GA19078@us.ibm.com> <20080411233553.GB19078@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080411233500.GA19078@us.ibm.com>
+In-Reply-To: <20080411233553.GB19078@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
-Cc: mel@csn.ul.ie, clameter@sgi.com, apw@shadowen.org, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
+Cc: mel@csn.ul.ie, clameter@sgi.com, apw@shadowen.org, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Because of page order checks in __alloc_pages(), hugepage (and similarly
-large order) allocations will not retry unless explicitly marked
-__GFP_REPEAT. However, the current retry logic is nearly an infinite
-loop (or until reclaim does no progress whatsoever). For these costly
-allocations, that seems like overkill and could potentially never
-terminate.
-
-Modify try_to_free_pages() to indicate how many pages were reclaimed.
-Use that information in __alloc_pages() to eventually fail a large
-__GFP_REPEAT allocation when we've reclaimed an order of pages equal to
-or greater than the allocation's order. This relies on lumpy reclaim
-functioning as advertised. Due to fragmentation, lumpy reclaim may not
-be able to free up the order needed in one invocation, so multiple
-iterations may be requred. In other words, the more fragmented memory
-is, the more retry attempts __GFP_REPEAT will make (particularly for
-higher order allocations).
+Add __GFP_REPEAT to hugepage allocations. Do so to not necessitate
+userspace putting pressure on the VM by repeated echo's into
+/proc/sys/vm/nr_hugepages to grow the pool. With the previous patch to
+allow for large-order __GFP_REPEAT attempts to loop for a bit (as
+opposed to indefinitely), this increases the likelihood of getting
+hugepages when the system experiences (or recently experienced) load.
 
 Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1db36da..1a0cc4d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1541,7 +1541,8 @@ __alloc_pages_internal(gfp_t gfp_mask, unsigned int order,
- 	struct task_struct *p = current;
- 	int do_retry;
- 	int alloc_flags;
--	int did_some_progress;
-+	unsigned long did_some_progress;
-+	unsigned long pages_reclaimed = 0;
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index df28c17..e13a7b2 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -199,7 +199,8 @@ static struct page *alloc_fresh_huge_page_node(int nid)
+ 	struct page *page;
  
- 	might_sleep_if(wait);
- 
-@@ -1691,15 +1692,26 @@ nofail_alloc:
- 	 * Don't let big-order allocations loop unless the caller explicitly
- 	 * requests that.  Wait for some write requests to complete then retry.
- 	 *
--	 * In this implementation, either order <= PAGE_ALLOC_COSTLY_ORDER or
--	 * __GFP_REPEAT mean __GFP_NOFAIL, but that may not be true in other
-+	 * In this implementation, order <= PAGE_ALLOC_COSTLY_ORDER
-+	 * means __GFP_NOFAIL, but that may not be true in other
- 	 * implementations.
-+	 *
-+	 * For order > PAGE_ALLOC_COSTLY_ORDER, if __GFP_REPEAT is
-+	 * specified, then we retry until we no longer reclaim any pages
-+	 * (above), or we've reclaimed an order of pages at least as
-+	 * large as the allocation's order. In both cases, if the
-+	 * allocation still fails, we stop retrying.
- 	 */
-+	pages_reclaimed += did_some_progress;
- 	do_retry = 0;
- 	if (!(gfp_mask & __GFP_NORETRY)) {
--		if ((order <= PAGE_ALLOC_COSTLY_ORDER) ||
--						(gfp_mask & __GFP_REPEAT))
-+		if (order <= PAGE_ALLOC_COSTLY_ORDER) {
- 			do_retry = 1;
-+		} else {
-+			if (gfp_mask & __GFP_REPEAT &&
-+				pages_reclaimed < (1 << order))
-+					do_retry = 1;
-+		}
- 		if (gfp_mask & __GFP_NOFAIL)
- 			do_retry = 1;
+ 	page = alloc_pages_node(nid,
+-		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|__GFP_NOWARN,
++		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|
++						__GFP_REPEAT|__GFP_NOWARN,
+ 		HUGETLB_PAGE_ORDER);
+ 	if (page) {
+ 		if (arch_prepare_hugepage(page)) {
+@@ -294,7 +295,8 @@ static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
  	}
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 83f42c9..d106b2c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1319,6 +1319,9 @@ static unsigned long shrink_zones(int priority, struct zonelist *zonelist,
-  * hope that some of these pages can be written.  But if the allocating task
-  * holds filesystem locks which prevent writeout this might not work, and the
-  * allocation attempt will fail.
-+ *
-+ * returns:	0, if no pages reclaimed
-+ * 		else, the number of pages reclaimed
-  */
- static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 					struct scan_control *sc)
-@@ -1368,7 +1371,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 		}
- 		total_scanned += sc->nr_scanned;
- 		if (nr_reclaimed >= sc->swap_cluster_max) {
--			ret = 1;
-+			ret = nr_reclaimed;
- 			goto out;
- 		}
+ 	spin_unlock(&hugetlb_lock);
  
-@@ -1391,7 +1394,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 	}
- 	/* top priority shrink_caches still had more to do? don't OOM, then */
- 	if (!sc->all_unreclaimable && scan_global_lru(sc))
--		ret = 1;
-+		ret = nr_reclaimed;
- out:
- 	/*
- 	 * Now that we've scanned all the zones at this priority level, note
+-	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
++	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
++					__GFP_REPEAT|__GFP_NOWARN,
+ 					HUGETLB_PAGE_ORDER);
+ 
+ 	spin_lock(&hugetlb_lock);
 
 -- 
 Nishanth Aravamudan <nacc@us.ibm.com>
