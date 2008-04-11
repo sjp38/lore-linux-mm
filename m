@@ -1,30 +1,53 @@
-Date: Fri, 11 Apr 2008 10:59:28 +0200
+Date: Fri, 11 Apr 2008 13:58:48 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 11/17] hugetlbfs: support larger than MAX_ORDER
-Message-ID: <20080411085928.GC20253@wotan.suse.de>
-References: <20080410170232.015351000@nick.local0.net> <20080410171101.551336000@nick.local0.net> <20080411081317.GQ10019@one.firstfloor.org>
+Subject: Re: [patch 10/17] mm: fix bootmem alignment
+Message-ID: <20080411115848.GB15481@wotan.suse.de>
+References: <20080410170232.015351000@nick.local0.net> <20080410171101.395469000@nick.local0.net> <86802c440804101033p6e914cb4oacaeb6eca823d1cd@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080411081317.GQ10019@one.firstfloor.org>
+In-Reply-To: <86802c440804101033p6e914cb4oacaeb6eca823d1cd@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: akpm@linux-foundation.org, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com, kniht@linux.vnet.ibm.com
+To: Yinghai Lu <yhlu.kernel@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com, kniht@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 11, 2008 at 10:13:17AM +0200, Andi Kleen wrote:
-> >  	spin_lock(&hugetlb_lock);
-> > -	if (h->surplus_huge_pages_node[nid]) {
-> > +	if (h->surplus_huge_pages_node[nid] && h->order <= MAX_ORDER) {
+On Thu, Apr 10, 2008 at 10:33:50AM -0700, Yinghai Lu wrote:
+> On Thu, Apr 10, 2008 at 10:02 AM,  <npiggin@suse.de> wrote:
+> > Without this fix bootmem can return unaligned addresses when the start of a
+> >  node is not aligned to the align value. Needed for reliably allocating
+> >  gigabyte pages.
+> >
+> >  I removed the offset variable because all tests should align themself correctly
+> >  now. Slight drawback might be that the bootmem allocator will spend
+> >  some more time skipping bits in the bitmap initially, but that shouldn't
+> >  be a big issue.
+> >
 > 
-> As Andrew Hastings pointed out earlier this all needs to be h->order < MAX_ORDER
-> [got pretty much all the checks wrong off by one]. It won't affect anything
-> on x86-64 but might cause problems on archs which have exactly MAX_ORDER
-> sized huge pages.
+> 
+> this patch from Andi was obsoleted by the one in -mm
+> 
+> 
+> The patch titled
+>     mm: offset align in alloc_bootmem
+> has been added to the -mm tree.  Its filename is
+>     mm-offset-align-in-alloc_bootmem.patch
+> 
+> ------------------------------------------------------
+> Subject: mm: offset align in alloc_bootmem
+> From: Yinghai Lu <yhlu.kernel.send@gmail.com>
+> 
+> Need offset alignment when node_boot_start's alignment is less than align
+> required
+> 
+> Use local node_boot_start to match align.  so don't add extra opteration in
+> search loop.
 
-Ah, hmm, I might have missed a couple of emails worth of feedback when
-you last posted. Thanks for pointing this out, I'll read over them again.
+Ah, with this patch I'm actually able to allocate 2 1GB pages (on my 4GB
+box), so it must be doing something right ;) Will be helpful for my
+testing, thanks.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
