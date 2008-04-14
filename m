@@ -1,57 +1,55 @@
-Date: Mon, 14 Apr 2008 10:32:31 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: [PATCH 8/15] Mempolicy: Rework mempolicy Reference Counting
- [yet again]
-Message-Id: <20080414103231.60cf6005.randy.dunlap@oracle.com>
-In-Reply-To: <20080404150034.5442.92020.sendpatchset@localhost>
-References: <20080404145944.5442.2684.sendpatchset@localhost>
-	<20080404150034.5442.92020.sendpatchset@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 14 Apr 2008 10:46:47 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Warning on memory offline (and possible in usual migration?)
+In-Reply-To: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
+References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-numa@vger.kernel.org, eric.whitney@hp.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, npiggin@suse.de, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 04 Apr 2008 11:00:34 -0400 Lee Schermerhorn wrote:
+On Mon, 14 Apr 2008, KAMEZAWA Hiroyuki wrote:
 
-> PATCH 08/15 Mem Policy:  rework mempolicy reference counting [yet again]
+> Then, "page" is not Uptodate when it reaches (*).
+
+Yes. Strange situation.
+
+> But, migrate_page() call path is
+> ==
+>    buffer_migrate_page()
+> 	-> lock all buffers on old pages.
+> 	-> move buffers to newpage.
+> 	-> migrate_page_copy(page, newpage)
+> 		-> set_page_dirty().
+> 	-> unlock all buffers().
+> ==
+> static void migrate_page_copy(struct page *newpage, struct page *page)
+> {
+>         copy_highpage(newpage, page);
+> <snip>
+>         if (PageUptodate(page))
+>                 SetPageUptodate(newpage);
+
+Hmmm... I guess BUG_ON(!PageUptodate) would be better here?
+
+> <snip>
+>         if (PageDirty(page)) {
+>                 clear_page_dirty_for_io(page);
+>                 set_page_dirty(newpage);------------------------(**)
+>         }
 > 
-> Against:  2.6.25-rc8-mm1
-> 
->  Documentation/vm/numa_memory_policy.txt |   68 ++++++++++++++
-> 
-> Index: linux-2.6.25-rc8-mm1/Documentation/vm/numa_memory_policy.txt
-> ===================================================================
-> --- linux-2.6.25-rc8-mm1.orig/Documentation/vm/numa_memory_policy.txt	2008-04-02 17:47:15.000000000 -0400
-> +++ linux-2.6.25-rc8-mm1/Documentation/vm/numa_memory_policy.txt	2008-04-02 17:47:26.000000000 -0400
-> @@ -311,6 +311,74 @@ Components of Memory Policies
->  	    MPOL_PREFERRED policies that were created with an empty nodemask
->  	    (local allocation).
+> ==
+> Then, Uptodate() is copied before set_page_dirty(). 
+> So, "page" is not Uptodate and Dirty when it reaches (**)
 
-...
+The page will be marked uptodate before we reach ** so its okay in 
+general. If a page is not uptodate then we should not be getting here.
 
-> +   Because of this extra reference counting, and because we must lookup
-> +   shared policies in a tree structure under spinlock, shared policies are
-> +   more expensive to use in the page allocation path.  This is expecially
-
-                                                                  especially
-
-> +   true for shared policies on shared memory regions shared by tasks running
-> +   on different NUMA nodes.  This extra overhead can be avoided by always
-> +   falling back to task or system default policy for shared memory regions,
-> +   or by prefaulting the entire shared memory region into memory and locking
-> +   it down.  However, this might not be appropriate for all applications.
-> +
->  MEMORY POLICY APIs
->  
->  Linux supports 3 system calls for controlling memory policy.  These APIS
-
-
----
-~Randy
+An !uptodate page is not migratable. Maybe we need to add better checking?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
