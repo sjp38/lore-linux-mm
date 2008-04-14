@@ -1,54 +1,65 @@
-Message-ID: <4803030D.3070906@cn.fujitsu.com>
-Date: Mon, 14 Apr 2008 15:09:01 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: kernel warning: tried to kill an mm-less task!
-Content-Type: text/plain; charset=UTF-8
+Date: Mon, 14 Apr 2008 16:24:04 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] memcg: fix oops in oom handling
+Message-Id: <20080414162404.b5340fe9.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4802FF10.6030905@cn.fujitsu.com>
+References: <4802FF10.6030905@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelianov <xemul@openvz.org>
+To: Li Zefan <lizf@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Paul Menage <menage@google.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-When I ran the same test program I described in a previous patch,
-I got the following warning:
+On Mon, 14 Apr 2008 14:52:00 +0800
+Li Zefan <lizf@cn.fujitsu.com> wrote:
+> It's reproducable in a x86_64 box, but doesn't happen in x86_32.
+> 
+> This is because tsk->sighand is not guarded by RCU, so we have to
+> hold tasklist_lock, just as what out_of_memory() does.
+> 
+> Signed-off-by: Li Zefan <lizf@cn.fujitsu>
 
-WARNING: at mm/oom_kill.c:320 __oom_kill_task+0x6d/0x101()
-Modules linked in: 
+Andrew, fast-path for 2.6.25 is still not-closed ? I think this patch is worth
+to be merged as bugfix to 2.6.25 if enough acks.
 
-Pid: 3856, comm: a.out Not tainted 2.6.25-rc8-mm2 #37
- [<ffffffff80243941>] warn_on_slowpath+0x64/0xa2
- [<ffffffff80244e16>] printk+0x5e/0x7b
- [<ffffffff8022b096>] page_count+0x25/0x49
- [<ffffffff8022b2cd>] show_mem+0x125/0x15a
- [<ffffffff8028f00f>] __oom_kill_task+0x6d/0x101
- [<ffffffff8028f319>] oom_kill_process+0x16c/0x22e
- [<ffffffff8028f72c>] select_bad_process+0xb0/0x122
- [<ffffffff8028f8d3>] mem_cgroup_out_of_memory+0x65/0x8a
- [<ffffffff802bee84>] mem_cgroup_charge_common+0xf8/0x215
- [<ffffffff802a14ac>] handle_mm_fault+0x216/0x6c8
- [<ffffffff8029ebca>] follow_page+0x191/0x27d
- [<ffffffff80234155>] need_resched+0x31/0x4f
- [<ffffffff802a1c53>] get_user_pages+0x2f5/0x3eb
- [<ffffffff802a1f64>] make_pages_present+0x9e/0xca
- [<ffffffff802a51fc>] mmap_region+0x38c/0x452
- [<ffffffff802119c4>] arch_get_unmapped_area_topdown+0x1bf/0x2a7
- [<ffffffff802a5971>] do_mmap_pgoff+0x321/0x39b
- [<ffffffff805037ee>] _cond_resched+0x1c/0x5f
- [<ffffffff80211715>] sys_mmap+0xf5/0x138
- [<ffffffff8020c6d2>] tracesys+0xd5/0xda
----[ end trace fe959fb2f0473e7c ]---
-tried to kill an mm-less task!
+Thanks,
+-Kame
 
-This showed up several times in some seconds, but then didn't appear
-any more. And it's reproducable in a x86_64 box, but doesn't happen
-in a x86_32 one.
 
-And this happens both with and without the oops fixing.
-
-Regards,
-Li Zefan
+> ---
+>  mm/oom_kill.c |    4 ++--
+>  1 files changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index f255eda..beb592f 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -423,7 +423,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
+>  	struct task_struct *p;
+>  
+>  	cgroup_lock();
+> -	rcu_read_lock();
+> +	read_lock(&tasklist_lock);
+>  retry:
+>  	p = select_bad_process(&points, mem);
+>  	if (PTR_ERR(p) == -1UL)
+> @@ -436,7 +436,7 @@ retry:
+>  				"Memory cgroup out of memory"))
+>  		goto retry;
+>  out:
+> -	rcu_read_unlock();
+> +	read_unlock(&tasklist_lock);
+>  	cgroup_unlock();
+>  }
+>  #endif
+> -- 1.5.4.rc3 
+> 
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
