@@ -1,146 +1,98 @@
-Date: Mon, 14 Apr 2008 14:58:06 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Warning on memory offline (and possible in usual migration?)
-Message-Id: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <4802FF10.6030905@cn.fujitsu.com>
+Date: Mon, 14 Apr 2008 14:52:00 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: [PATCH] memcg: fix oops in oom handling
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: npiggin@suse.de, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Paul Menage <menage@google.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-In 2.6.25-rc8-mm2.
+When I used a test program to fork mass processes and immediately
+move them to a cgroup where the memory limit is low enough to
+trigger oom kill, I got oops:
 
-I saw below warning at memory offlining. please help.
-(ia64/NUMA box with ext3 file system. Almost all memory are free memory.)
-==
+BUG: unable to handle kernel NULL pointer dereference at 0000000000000808
+IP: [<ffffffff8045c47f>] _spin_lock_irqsave+0x8/0x18
+PGD 4c95f067 PUD 4406c067 PMD 0
+Oops: 0002 [1] SMP
+CPU 2
+Modules linked in:
 
-localhost.localdomain login: ------------[ cut here ]------------
-WARNING: at fs/buffer.c:720 __set_page_dirty+0x330/0x360()
-Modules linked in: ipt_REJECT xt_tcpudp iptable_filter ip_tables x_tables bridge ipv6 ipmi_watchdog mptctl ipmi_devintf ipmi_si ipmi_msghandler vfat fat dm_multipath parport_pc lp parport sg tg3 e100 mii button shpchp dm_snapshot dm_zero dm_mirror dm_log dm_mod usb_storage mptspi mptscsih scsi_transport_spi mptbase sd_mod scsi_mod ext3 jbd ehci_hcd ohci_hcd uhci_hcd [last unloaded: ipmi_watchdog]
-
+Pid: 11973, comm: a.out Not tainted 2.6.25-rc7 #5
+RIP: 0010:[<ffffffff8045c47f>]  [<ffffffff8045c47f>] _spin_lock_irqsave+0x8/0x18
+RSP: 0018:ffff8100448c7c30  EFLAGS: 00010002
+RAX: 0000000000000202 RBX: 0000000000000009 RCX: 000000000001c9f3
+RDX: 0000000000000100 RSI: 0000000000000001 RDI: 0000000000000808
+RBP: ffff81007e444080 R08: 0000000000000000 R09: ffff8100448c7900
+R10: ffff81000105f480 R11: 00000100ffffffff R12: ffff810067c84140
+R13: 0000000000000001 R14: ffff8100441d0018 R15: ffff81007da56200
+FS:  00007f70eb1856f0(0000) GS:ffff81007fbad3c0(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+CR2: 0000000000000808 CR3: 000000004498a000 CR4: 00000000000006e0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+Process a.out (pid: 11973, threadinfo ffff8100448c6000, task ffff81007da533e0)
+Stack:  ffffffff8023ef5a 00000000000000d0 ffffffff80548dc0 00000000000000d0
+ ffff810067c84140 ffff81007e444080 ffffffff8026cef9 00000000000000d0
+ ffff8100441d0000 00000000000000d0 ffff8100441d0000 ffff8100505445c0
 Call Trace:
- [<a000000100015220>] show_stack+0x80/0xa0
-                                sp=e000012027b9fae0 bsp=e000012027b99398
- [<a000000100015270>] dump_stack+0x30/0x60
-                                sp=e000012027b9fcb0 bsp=e000012027b99380
- [<a000000100089ed0>] warn_on_slowpath+0x90/0xe0
-                                sp=e000012027b9fcb0 bsp=e000012027b99358
- [<a0000001001f8b10>] __set_page_dirty+0x330/0x360
-                                sp=e000012027b9fda0 bsp=e000012027b99328
- [<a0000001001ffb90>] __set_page_dirty_buffers+0xd0/0x280
-                                sp=e000012027b9fda0 bsp=e000012027b992f8
- [<a00000010012fec0>] set_page_dirty+0xc0/0x260
-                                sp=e000012027b9fda0 bsp=e000012027b992d0
- [<a000000100195670>] migrate_page_copy+0x5d0/0x5e0
-                                sp=e000012027b9fda0 bsp=e000012027b992a8
- [<a000000100197840>] buffer_migrate_page+0x2e0/0x3c0
-                                sp=e000012027b9fda0 bsp=e000012027b99260
- [<a000000100195eb0>] migrate_pages+0x770/0xe00
-                                sp=e000012027b9fda0 bsp=e000012027b991a8
- [<a000000100191250>] offline_pages+0x6f0/0xa20
-                                sp=e000012027b9fdf0 bsp=e000012027b99118
- [<a00000010006b1f0>] remove_memory+0x30/0x60
-                                sp=e000012027b9fe20 bsp=e000012027b990f0
- [<a000000100482c50>] memory_block_change_state+0x390/0x400
-                                sp=e000012027b9fe20 bsp=e000012027b990a0
- [<a000000100483720>] store_mem_state+0x1e0/0x200
-                                sp=e000012027b9fe20 bsp=e000012027b99068
- [<a0000001004718a0>] sysdev_store+0x60/0xa0
-                                sp=e000012027b9fe20 bsp=e000012027b99030
- [<a000000100246100>] sysfs_write_file+0x220/0x300
-                                sp=e000012027b9fe20 bsp=e000012027b98fd0
- [<a00000010019e2e0>] vfs_write+0x1a0/0x320
-                                sp=e000012027b9fe20 bsp=e000012027b98f80
- [<a00000010019edf0>] sys_write+0x70/0xe0
-                                sp=e000012027b9fe20 bsp=e000012027b98f08
- [<a00000010000a570>] ia64_trace_syscall+0xd0/0x110
-                                sp=e000012027b9fe30 bsp=e000012027b98f08
- [<a000000000010720>] __start_ivt_text+0xffffffff00010720/0x400
-                                sp=e000012027ba0000 bsp=e000012027b98f08
-==
+ [<ffffffff8023ef5a>] ? force_sig_info+0x25/0xb9
+ [<ffffffff8026cef9>] ? oom_kill_task+0x77/0xe2
+ [<ffffffff8026d696>] ? mem_cgroup_out_of_memory+0x55/0x67
+ [<ffffffff802910ad>] ? mem_cgroup_charge_common+0xec/0x202
+ [<ffffffff8027997b>] ? handle_mm_fault+0x24e/0x77f
+ [<ffffffff8022c4af>] ? default_wake_function+0x0/0xe
+ [<ffffffff8027a17a>] ? get_user_pages+0x2ce/0x3af
+ [<ffffffff80290fee>] ? mem_cgroup_charge_common+0x2d/0x202
+ [<ffffffff8027a441>] ? make_pages_present+0x8e/0xa4
+ [<ffffffff8027d1ab>] ? mmap_region+0x373/0x429
+ [<ffffffff8027d7eb>] ? do_mmap_pgoff+0x2ff/0x364
+ [<ffffffff80210471>] ? sys_mmap+0xe5/0x111
+ [<ffffffff8020bfc9>] ? tracesys+0xdc/0xe1
 
-This comes from fs/buffer.c
-==
-static int __set_page_dirty(struct page *page,
-                struct address_space *mapping, int warn)
-{
-        if (unlikely(!mapping))
-                return !TestSetPageDirty(page);
+Code: 00 00 01 48 8b 3c 24 e9 46 d4 dd ff f0 ff 07 48 8b 3c 24 e9 3a d4 dd ff fe 07 48 8b 3c 24 e9 2f d4 dd ff 9c 58 fa ba 00 01 00 00 <f0> 66 0f c1 17 38 f2 74 06 f3 90 8a 17 eb f6 c3 fa b8 00 01 00
+RIP  [<ffffffff8045c47f>] _spin_lock_irqsave+0x8/0x18
+ RSP <ffff8100448c7c30>
+CR2: 0000000000000808
+---[ end trace c3702fa668021ea4 ]---
 
-        if (TestSetPageDirty(page))
-                return 0;
+It's reproducable in a x86_64 box, but doesn't happen in x86_32.
 
-        write_lock_irq(&mapping->tree_lock);
-        if (page->mapping) {    /* Race with truncate? */
-                WARN_ON_ONCE(warn && !PageUptodate(page)); ---------(*)
+This is because tsk->sighand is not guarded by RCU, so we have to
+hold tasklist_lock, just as what out_of_memory() does.
 
-                if (mapping_cap_account_dirty(mapping)) {
-                        __inc_zone_page_state(page, NR_FILE_DIRTY);
-                        __inc_bdi_stat(mapping->backing_dev_info,
-                                        BDI_RECLAIMABLE);
-                        task_io_account_write(PAGE_CACHE_SIZE);
-                }
-                radix_tree_tag_set(&mapping->page_tree,
-                                page_index(page), PAGECACHE_TAG_DIRTY);
-        }
-        write_unlock_irq(&mapping->tree_lock);
-        __mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+Signed-off-by: Li Zefan <lizf@cn.fujitsu>
+---
+ mm/oom_kill.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-        return 1;
-}
-==
-Then, "page" is not Uptodate when it reaches (*).
-
-But, migrate_page() call path is
-==
-   buffer_migrate_page()
-	-> lock all buffers on old pages.
-	-> move buffers to newpage.
-	-> migrate_page_copy(page, newpage)
-		-> set_page_dirty().
-	-> unlock all buffers().
-==
-static void migrate_page_copy(struct page *newpage, struct page *page)
-{
-        copy_highpage(newpage, page);
-<snip>
-        if (PageUptodate(page))
-                SetPageUptodate(newpage);
-<snip>
-        if (PageDirty(page)) {
-                clear_page_dirty_for_io(page);
-                set_page_dirty(newpage);------------------------(**)
-        }
-
-==
-Then, Uptodate() is copied before set_page_dirty(). 
-So, "page" is not Uptodate and Dirty when it reaches (**)
-
-"newpage" has buffers but not dirty and Uptodate().
-
->From patch comment, http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=787d2214c19bcc9b6ac48af0ce098277a801eded
-
-"It is a bug to set a page dirty if it is not uptodate unless it has
- buffers."
-
-__set_page_dirty() should be following ?
-=
-if (TestSetPageDirty(page))
-	return 0;
-if (PagePrivate(page))
-	return 0;
-if (page->mapping) {
-	...
-   }
-=
-
-Thanks,
--Kame
-
-
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index f255eda..beb592f 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -423,7 +423,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
+ 	struct task_struct *p;
+ 
+ 	cgroup_lock();
+-	rcu_read_lock();
++	read_lock(&tasklist_lock);
+ retry:
+ 	p = select_bad_process(&points, mem);
+ 	if (PTR_ERR(p) == -1UL)
+@@ -436,7 +436,7 @@ retry:
+ 				"Memory cgroup out of memory"))
+ 		goto retry;
+ out:
+-	rcu_read_unlock();
++	read_unlock(&tasklist_lock);
+ 	cgroup_unlock();
+ }
+ #endif
+-- 1.5.4.rc3 
 
 
 
