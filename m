@@ -1,40 +1,38 @@
-Date: Mon, 14 Apr 2008 17:45:15 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 3/3] account swapcache
-Message-Id: <20080414174515.dfcd69a0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <48031775.10008@mtf.biglobe.ne.jp>
-References: <20080408190734.70ab55b0.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080408191311.73b167bb.kamezawa.hiroyu@jp.fujitsu.com>
-	<47FF57A7.5000704@mxp.nes.nec.co.jp>
-	<20080414094709.fb9c3745.kamezawa.hiroyu@jp.fujitsu.com>
-	<48030FE9.1040401@mtf.biglobe.ne.jp>
-	<20080414172321.b97c4eb9.kamezawa.hiroyu@jp.fujitsu.com>
-	<48031775.10008@mtf.biglobe.ne.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <480321D9.7020507@cn.fujitsu.com>
+Date: Mon, 14 Apr 2008 17:20:25 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] memcg: fix oops in oom handling
+References: <4802FF10.6030905@cn.fujitsu.com>	 <20080414161428.27f3ee59.kamezawa.hiroyu@jp.fujitsu.com> <6599ad830804140053y4bcdceeatc9763c1e8c1aaf44@mail.gmail.com> <480310C5.1070102@cn.fujitsu.com>
+In-Reply-To: <480310C5.1070102@cn.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, Hugh Dickins <hugh@veritas.com>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
+To: Paul Menage <menage@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 Apr 2008 17:36:05 +0900
-Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp> wrote:
-
-> I was saying the case when swapcaches are not charged.
-> I showed one of the problems if they are not charged.
+Li Zefan wrote:
+> Paul Menage wrote:
+>> On Mon, Apr 14, 2008 at 12:14 AM, KAMEZAWA Hiroyuki
+>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>>>  Paul, I have one confirmation. Lock hierarchy of
+>>>         cgroup_lock()
+>>>         ->      read_lock(&tasklist_lock)
+>>>
+>>>  is ok ? (I think this is ok.)
+>> Should be fine, I think.
+>>
+>> Have you built/booted with lockdep?
+>>
 > 
-> Sorry for confusing you.
+> I should have done this. :(
 > 
-no problem.
-
-> I agree that your patch handles this case :-)
+> I'll check it.
 > 
-Thank you for review :)
 
-Regards,
--Kame
+I've done the test, and nothing is broken ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
