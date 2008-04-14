@@ -1,38 +1,60 @@
-Message-ID: <480310C5.1070102@cn.fujitsu.com>
-Date: Mon, 14 Apr 2008 16:07:33 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: fix oops in oom handling
-References: <4802FF10.6030905@cn.fujitsu.com>	 <20080414161428.27f3ee59.kamezawa.hiroyu@jp.fujitsu.com> <6599ad830804140053y4bcdceeatc9763c1e8c1aaf44@mail.gmail.com>
-In-Reply-To: <6599ad830804140053y4bcdceeatc9763c1e8c1aaf44@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Mon, 14 Apr 2008 17:23:21 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 3/3] account swapcache
+Message-Id: <20080414172321.b97c4eb9.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <48030FE9.1040401@mtf.biglobe.ne.jp>
+References: <20080408190734.70ab55b0.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080408191311.73b167bb.kamezawa.hiroyu@jp.fujitsu.com>
+	<47FF57A7.5000704@mxp.nes.nec.co.jp>
+	<20080414094709.fb9c3745.kamezawa.hiroyu@jp.fujitsu.com>
+	<48030FE9.1040401@mtf.biglobe.ne.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, Hugh Dickins <hugh@veritas.com>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-Paul Menage wrote:
-> On Mon, Apr 14, 2008 at 12:14 AM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->>  Paul, I have one confirmation. Lock hierarchy of
->>         cgroup_lock()
->>         ->      read_lock(&tasklist_lock)
->>
->>  is ok ? (I think this is ok.)
-> 
-> Should be fine, I think.
-> 
-> Have you built/booted with lockdep?
+On Mon, 14 Apr 2008 17:03:53 +0900
+Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp> wrote:
+
+> I was thinking the case below.
+> Assume some anonymous pages(mapped, referenced, !SwapCache)
+> are being reclaimed.
 > 
 
-I should have done this. :(
+Numbering for below.
 
-I'll check it.
-
-> Paul
+(1) > shrink_page_list()
+(2)> 	-> add_to_swap() <- makes the page dirty.
+(3)> 	->  try_to_unmap() <- uncharged from memcg and removed from mz->lru.
+(4)> 	-> PageDirty() == true
+(5)> 		sc->order <= PAGE_ALLOC_COSTLY_ORDER && referenced
+(6)> 			goto keep_locked
+(7)> 	-> unlocks the page and will work on other pages on page_list.
 > 
+> And, if on other CPU the process that owns those pages is exiting
+> at the timing of my example above, those pages remain only on
+> global lru, and are never charged(mapped) because the process exits.
+> 
+> I said "never" because once they are removed from mz->lru,
+> mem_cgroup_isolate_pages() doesn't select those pages
+> unless they are charged(mapped) again.
+> 
+I'm sorry if I don't catch your points.
+
+Because of (1), it's marked as SwapCache.
+At (2) , page is not removed from mz->lru because it's SwapCache. (see my patch)
+page is still on mz->lru after (7).
+
+After a process exits, this page will be reclaimed when page-recalim for
+page_cgroup find this.
+
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
