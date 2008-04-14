@@ -1,33 +1,28 @@
-Date: Mon, 14 Apr 2008 14:33:30 -0700 (PDT)
-Message-Id: <20080414.143330.69128651.davem@davemloft.net>
-Subject: Re: sparc64: Fix NR_PAGEFLAGS check V2
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <Pine.LNX.4.64.0804141139270.7130@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0804141139270.7130@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Received: by wf-out-1314.google.com with SMTP id 25so1925438wfc.11
+        for <linux-mm@kvack.org>; Mon, 14 Apr 2008 15:22:58 -0700 (PDT)
+Message-ID: <8bd0f97a0804141522k5a854f9dtb9b66253b5ac6b54@mail.gmail.com>
+Date: Mon, 14 Apr 2008 18:22:58 -0400
+From: "Mike Frysinger" <vapier.adi@gmail.com>
+Subject: Re: [patch 10/19] blackfin: Use kbuild.h instead of defining macros in asm-macros.c
+In-Reply-To: <20080414221846.735656759@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080414221808.269371488@sgi.com>
+	 <20080414221846.735656759@sgi.com>
 Sender: owner-linux-mm@kvack.org
-From: Christoph Lameter <clameter@sgi.com>
-Date: Mon, 14 Apr 2008 11:40:28 -0700 (PDT)
 Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>, Bryan Wu <cooloney.lkml@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, apw@shadowen.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Update checks to make sure that we can place the cpu number in the
-> upper portion of the page flags.
-> 
-> Its okay if we use less than 32 page flags. There can only be a problem if
-> the page flags grow beyond 32 bits to reach into the area reserved for the
-> cpu number.
-> 
-> Cc: David S. Miller <davem@davemloft.net>
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+On Mon, Apr 14, 2008 at 6:18 PM, Christoph Lameter <clameter@sgi.com> wrote:
+> Cc: Mike Frysinger <vapier.adi@gmail.com>
+>  Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Acked-by: David S. Miller <davem@davemloft.net>
-
-Looks good.
+nifty, thanks ... should add Bryan Wu to the chain
+-mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
