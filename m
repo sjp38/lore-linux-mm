@@ -1,19 +1,21 @@
-Message-ID: <48040E19.2090007@cn.fujitsu.com>
-Date: Tue, 15 Apr 2008 10:08:25 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
-MIME-Version: 1.0
+Date: Mon, 14 Apr 2008 19:17:30 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] use vmalloc for mem_cgroup allocation. v2
-References: <20080415105434.3044afb6.kamezawa.hiroyu@jp.fujitsu.com> <20080415111038.ffac0e12.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20080414191730.7d13e619.akpm@linux-foundation.org>
 In-Reply-To: <20080415111038.ffac0e12.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+References: <20080415105434.3044afb6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080415111038.ffac0e12.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, menage@google.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, lizf@cn.fujitsu.com, menage@google.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
+On Tue, 15 Apr 2008 11:10:38 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
 > On ia64, this kmalloc() requires order-4 pages. But this is not
 > necessary to be phisically contiguous. (and x86-32, which has
 > small vmalloc area, has small mem_cgroup struct.)
@@ -46,17 +48,10 @@ KAMEZAWA Hiroyuki wrote:
 > +	} else {
 > +		mem = vmalloc(sizeof(struct mem_cgroup));
 > +		memset(mem, 0, sizeof(*mem));
-
-what if mem == NULL. ;)
-
 > +	}
 >  
 >  	if (mem == NULL)
 >  		return ERR_PTR(-ENOMEM);
-
-So we can move this NULL check to the above else branch, in the if brach,
-mem won't be NULL.
-
 > @@ -1011,7 +1014,7 @@ free_out:
 >  	for_each_node_state(node, N_POSSIBLE)
 >  		free_mem_cgroup_per_zone_info(mem, node);
@@ -75,9 +70,28 @@ mem won't be NULL.
 >  }
 >  
 >  static int mem_cgroup_populate(struct cgroup_subsys *ss,
-> 
-> 
-> 
+
+Well...  vmalloced memory is of course a little slower to use - additional
+TLB pressure.
+
+Do you think the memcgroup is accessed frequently enough to use vmalloc()
+only on those architectures which actually need it?
+
+Because it'd be pretty simple to implement:
+
+	if (sizeof(struct mem_group) > PAGE_SIZE)
+		vmalloc()
+	else
+		kmalloc()
+
+	...
+
+	if (sizeof(struct mem_group) > PAGE_SIZE)
+		vfree()
+	else
+		kfree()
+
+the compiler will optimise away the `if'.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
