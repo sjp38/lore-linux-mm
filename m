@@ -1,26 +1,38 @@
-Date: Tue, 15 Apr 2008 12:09:27 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 11/19] frv: Use kbuild.h instead of defining macros in
- asm-offsets.c
-In-Reply-To: <15368.1208253316@redhat.com>
-Message-ID: <Pine.LNX.4.64.0804151209140.1500@schroedinger.engr.sgi.com>
-References: <20080414221846.967753424@sgi.com> <20080414221808.269371488@sgi.com>
- <15368.1208253316@redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 15 Apr 2008 12:18:34 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Smarter retry of costly-order allocations
+Message-Id: <20080415121834.0aa406c4.akpm@linux-foundation.org>
+In-Reply-To: <20080415172614.GE15840@us.ibm.com>
+References: <20080411233500.GA19078@us.ibm.com>
+	<20080411233553.GB19078@us.ibm.com>
+	<20080415000745.9af1b269.akpm@linux-foundation.org>
+	<20080415172614.GE15840@us.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Howells <dhowells@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, apw@shadowen.org, linux-mm@kvack.org
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: mel@csn.ul.ie, clameter@sgi.com, apw@shadowen.org, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Apr 2008, David Howells wrote:
+On Tue, 15 Apr 2008 10:26:14 -0700
+Nishanth Aravamudan <nacc@us.ibm.com> wrote:
 
-> arch/frv/kernel/asm-offsets.c:10:26: error: linux/kbuild.h: No such file or directory
+> > So... would like to see some firmer-looking testing results, please.
 > 
-> Is this something that's queued in the -mm tree?
+> Do Mel's e-mails cover this sufficiently?
 
-It hopefully will be queued soon.
+I guess so.
+
+Could you please pull together a new set of changelogs sometime?
+
+The big-picture change here is that we now use GFP_REPEAT for hugepages,
+which makes the allocations work better.  But I assume that you hit some
+problem with that which led you to reduce the amount of effort which
+GFP_REPEAT will expend for larger pages, yes?
+
+If so, a description of that problem would be appropriate as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
