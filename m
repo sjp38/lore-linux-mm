@@ -1,167 +1,94 @@
-Date: Tue, 15 Apr 2008 14:19:05 +0400
-From: Oleg Nesterov <oleg@tv-sign.ru>
-Subject: s/PF_BORROWED_MM/PF_KTHREAD/ (was: kernel warning: tried to kill an mm-less task!)
-Message-ID: <20080415101905.GB89@tv-sign.ru>
-References: <4803030D.3070906@cn.fujitsu.com> <48030F69.7040801@linux.vnet.ibm.com> <48031090.5050002@cn.fujitsu.com> <48042539.8050009@cn.fujitsu.com> <20080415061716.GA89@tv-sign.ru>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
+	by smtp-out.google.com with ESMTP id m3FCleBi029902
+	for <linux-mm@kvack.org>; Tue, 15 Apr 2008 13:47:40 +0100
+Received: from fg-out-1718.google.com (fge22.prod.google.com [10.86.5.22])
+	by zps75.corp.google.com with ESMTP id m3FClcF2011617
+	for <linux-mm@kvack.org>; Tue, 15 Apr 2008 05:47:39 -0700
+Received: by fg-out-1718.google.com with SMTP id 22so1894389fge.18
+        for <linux-mm@kvack.org>; Tue, 15 Apr 2008 05:47:37 -0700 (PDT)
+Message-ID: <d43160c70804150547v7896e813t4bb1bafd932c30ec@mail.gmail.com>
+Date: Tue, 15 Apr 2008 08:47:37 -0400
+From: "Ross Biro" <rossb@google.com>
+Subject: Re: [PATCH 1/2] MM: Make page tables relocatable -- conditional flush (rc9)
+In-Reply-To: <20080414155702.ca7eb622.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080415061716.GA89@tv-sign.ru>
+References: <20080414163933.A9628DCA48@localhost>
+	 <20080414155702.ca7eb622.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelianov <xemul@openvz.org>, Roland McGrath <roland@redhat.com>, Jeff Dike <jdike@addtoit.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/15, Oleg Nesterov wrote:
+On Mon, Apr 14, 2008 at 6:57 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
 >
-> 	+struct mm_struct *__get_task_mm(struct task_struct *tsk)
-> 	+{
-> 	+	struct mm_struct *mm = tsk->mm;
-> 	+	smp_rmb();
-> 	+	if (tsk->flags & PF_BORROWED_MM)
-> 	+		mm = NULL;
-> 	+	return mm;
-> 	+}
+>  This patchset doesn't apply to the 2.6.26 queue because of the ongoing x86
+>  shell game: the arch/x86/kernel/smp_??.c files were consolidated.
 
-No, this is racy wrt unuse_mm(), we still need task_lock().
+It's probably best to just wait until the smoke clears on 2.6.26 then.
+ I'll add some comments, however I usually get in trouble for adding
+too verbose comments, so I've learned to go the other way.  If you
+prefer comments though, I'll add them.
 
-Actually, I think PF_BORROWED_MM should die, and PF_I_AM_A_KERNEL_THREAD
-is better, see the "patch" below.
+>  - Must ->page_table_relocation_lock be a semaphore?  mutexes are
+>   preferred.
 
-First, include/asm-um/mmu_context.h:activate_mm() doesn't look right to me,
-use_mm() does switch_mm(), not activate_mm(), so I think we can do
+Not any more.  It used to require a semaphore, but I can switch it
+back to a mutex now.  I can even replace the mutex with an atomic
+inc/dec which might be even better since it will work at interrupt
+time as well.
 
-	--- include/asm-um/mmu_context.h	2008-02-17 23:40:08.000000000 +0300
-	+++ -	2008-04-15 13:35:34.089295980 +0400
-	@@ -29,7 +29,7 @@ static inline void activate_mm(struct mm
-		 * host. Since they're very expensive, we want to avoid that as far as
-		 * possible.
-		 */
-	-	if (old != new && (current->flags & PF_BORROWED_MM))
-	+	if (old != new)
-			__switch_mm(&new->context.id);
-	 
-		arch_dup_mmap(old, new);
+>  - The patch adds a number of largeish inlined functions.  There's rarely
+>   a need for this, and it can lead to large icache footprint which will, we
+>   expect, produce slower code.
 
-With this + patch below, we can make a simple helper,
+If these are the ones I'm thinking of, they are in the fast path on
+page faults.  So they should be inlined.  However, I could easily
+change it to a small macro or inline function and a regular function
+call that would rarely be taken.  This should be a win from the icache
+point of view and only a loss in a case we really don't care much
+about.
 
-	/* The result must not be dereferenced !!! */
-	struct mm_struct *__get_task_mm(struct task_struct *tsk)
-	{
-		if (tsk->flags & PF_KTHREAD)
-			return NULL;
-		return tsk->mm;
-	}
+>  - The patch adds a lot of macros which look like they could have been
+>   implemented as inlines.  Inlines are preferred, please.  They look nicer,
+>   they provide typechecking, they avoid accidental
+>   multiple-reference-to-arguments bugs and they help to avoid
+>   unused-variable warnings.
 
-it could ve used by oom_kill/coredump/ptrace_attach instead of "->mm != NULL"
-which doesn't really work. Note also that ecard_task() runs with mm != NULL,
-but it is the kernel thread without PF_BORROWED_MM.
+Here I disagree.  The only added function-like #define's I see are
+either just aliasing functions, or the case when any function that
+does nothing.  I guess the later could be replaced by inlines to avoid
+warnings.
 
-daemonize() is racy, but it is hopeless anyway.
+>  - Doing PAGE_SIZE memcpy under spin_lock_irqsave() might get a bit
+>   expensive from an interrupt-latency POV.  It could (I think?) result in
+>   large periods of time where interrupts are almost always disabled, which
+>   might disrupt some device drivers.
 
-Oleg.
+Here I'm just being stupid.  There is no reason to have interrupts
+disabled at this point.
 
---- include/linux/sched.h	2008-02-17 23:40:09.000000000 +0300
-+++ -	2008-04-15 11:38:46.892847693 +0400
-@@ -1458,7 +1458,7 @@ static inline void put_task_struct(struc
- #define PF_KSWAPD	0x00040000	/* I am kswapd */
- #define PF_SWAPOFF	0x00080000	/* I am in swapoff */
- #define PF_LESS_THROTTLE 0x00100000	/* Throttle me less: I clean memory */
--#define PF_BORROWED_MM	0x00200000	/* I am a kthread doing use_mm */
-+#define PF_KTHREAD	0x00200000	/* I am a kernel thread */
- #define PF_RANDOMIZE	0x00400000	/* randomize virtual address space */
- #define PF_SWAPWRITE	0x00800000	/* Allowed to write to swap */
- #define PF_SPREAD_PAGE	0x01000000	/* Spread page cache over cpuset */
---- kernel/power/process.c	2008-02-17 23:40:09.000000000 +0300
-+++ -	2008-04-15 11:41:13.044031366 +0400
-@@ -93,7 +93,7 @@ static void send_fake_signal(struct task
- 
- static int has_mm(struct task_struct *p)
- {
--	return (p->mm && !(p->flags & PF_BORROWED_MM));
-+	return (p->mm && !(p->flags & PF_KTHREAD));
- }
- 
- /**
---- fs/aio.c	2008-02-17 23:40:07.000000000 +0300
-+++ -	2008-04-15 11:44:11.100698248 +0400
-@@ -578,15 +578,10 @@ static void use_mm(struct mm_struct *mm)
- 	struct task_struct *tsk = current;
- 
- 	task_lock(tsk);
--	tsk->flags |= PF_BORROWED_MM;
- 	active_mm = tsk->active_mm;
- 	atomic_inc(&mm->mm_count);
- 	tsk->mm = mm;
- 	tsk->active_mm = mm;
--	/*
--	 * Note that on UML this *requires* PF_BORROWED_MM to be set, otherwise
--	 * it won't work. Update it accordingly if you change it here
--	 */
- 	switch_mm(active_mm, mm, tsk);
- 	task_unlock(tsk);
- 
-@@ -606,7 +601,6 @@ static void unuse_mm(struct mm_struct *m
- 	struct task_struct *tsk = current;
- 
- 	task_lock(tsk);
--	tsk->flags &= ~PF_BORROWED_MM;
- 	tsk->mm = NULL;
- 	/* active_mm is still 'mm' */
- 	enter_lazy_tlb(mm, tsk);
---- kernel/fork.c	2008-02-17 23:40:09.000000000 +0300
-+++ -	2008-04-15 11:48:24.539070614 +0400
-@@ -424,7 +424,7 @@ EXPORT_SYMBOL_GPL(mmput);
- /**
-  * get_task_mm - acquire a reference to the task's mm
-  *
-- * Returns %NULL if the task has no mm.  Checks PF_BORROWED_MM (meaning
-+ * Returns %NULL if the task has no mm.  Checks PF_KTHREAD (meaning
-  * this kernel workthread has transiently adopted a user mm with use_mm,
-  * to do its AIO) is not set and if so returns a reference to it, after
-  * bumping up the use count.  User must release the mm via mmput()
-@@ -437,7 +437,7 @@ struct mm_struct *get_task_mm(struct tas
- 	task_lock(task);
- 	mm = task->mm;
- 	if (mm) {
--		if (task->flags & PF_BORROWED_MM)
-+		if (task->flags & PF_KTHREAD)
- 			mm = NULL;
- 		else
- 			atomic_inc(&mm->mm_users);
---- kernel/kthread.c	2008-02-17 23:40:09.000000000 +0300
-+++ -	2008-04-15 11:51:06.014085477 +0400
-@@ -234,7 +234,7 @@ int kthreadd(void *unused)
- 	set_user_nice(tsk, KTHREAD_NICE_LEVEL);
- 	set_cpus_allowed(tsk, CPU_MASK_ALL);
- 
--	current->flags |= PF_NOFREEZE;
-+	current->flags |= (PF_NOFREEZE | PF_KTHREAD);
- 
- 	for (;;) {
- 		set_current_state(TASK_INTERRUPTIBLE);
---- fs/exec.c	2008-02-17 23:40:07.000000000 +0300
-+++ -	2008-04-15 12:33:10.854945536 +0400
-@@ -1328,6 +1328,7 @@ int do_execve(char * filename,
- 		goto out;
- 	bprm->argv_len = env_p - bprm->p;
- 
-+	current->flags &= ~PF_KTHREAD;
- 	retval = search_binary_handler(bprm,regs);
- 	if (retval >= 0) {
- 		/* execve success */
---- kernel/exit.c	2008-02-17 23:40:09.000000000 +0300
-+++ -	2008-04-15 13:49:30.916850385 +0400
-@@ -382,7 +382,7 @@ void daemonize(const char *name, ...)
- 	 * We don't want to have TIF_FREEZE set if the system-wide hibernation
- 	 * or suspend transition begins right now.
- 	 */
--	current->flags |= PF_NOFREEZE;
-+	current->flags |= (PF_NOFREEZE | PF_KTHREAD);
- 
- 	if (current->nsproxy != &init_nsproxy) {
- 		get_nsproxy(&init_nsproxy);
+>
+>  - Why is this code doing spin_lock_irqsave() on page_table_lock?  The
+>   rest of mm/ doesn't disable IRQs for that lock.  This implies that
+
+Laziness.  I didn't feel like figuring this out if the irqsave was
+necessary when I started, and forgot to go back and fix it later.
+There is no reason.
+
+
+>  - I haven't checked, but if the code is taking KM_USER0 from interrupt
+>   context then that would be a bug.  Switching to KM_IRQ0 would fix that.
+
+KM_USER0 is currently correct.  For memory hotplug, we may need to
+change this in the future.
+
+
+     Ross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
