@@ -1,65 +1,32 @@
-Date: Tue, 15 Apr 2008 12:31:00 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Warning on memory offline (and possible in usual migration?)
-In-Reply-To: <20080415191350.0dc847b6.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0804151227050.1785@schroedinger.engr.sgi.com>
-References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
- <20080415191350.0dc847b6.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+From: Roland McGrath <roland@redhat.com>
+Subject: Re: kernel warning: tried to kill an mm-less task!
+In-Reply-To: Oleg Nesterov's message of  Tuesday, 15 April 2008 10:17:16 +0400 <20080415061716.GA89@tv-sign.ru>
+References: <4803030D.3070906@cn.fujitsu.com>
+	<48030F69.7040801@linux.vnet.ibm.com>
+	<48031090.5050002@cn.fujitsu.com>
+	<48042539.8050009@cn.fujitsu.com>
+	<20080415061716.GA89@tv-sign.ru>
+Message-Id: <20080415205830.2BA4B26FA5E@magilla.localdomain>
+Date: Tue, 15 Apr 2008 13:58:30 -0700 (PDT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, npiggin@suse.de, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
+To: Oleg Nesterov <oleg@tv-sign.ru>
+Cc: Li Zefan <lizf@cn.fujitsu.com>, balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelianov <xemul@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Apr 2008, KAMEZAWA Hiroyuki wrote:
+> Roland, what do you think about the coredump? Looks like we have the ancient
+> bug, zap_threads() can hit the kernel thread.
 
-> > An !uptodate page is not migratable. Maybe we need to add better checking?
-> > 
-> adding check is good but...
-> 
-> I found I can reproduce this. I'd like to chase this a bit more.
-> 
-> following is just a report.
-> ==
-> a page which caused trouble was
-> - Dirty, Private, Locked (locked because of migration)
-> - a file cache of ext3. (maybe)
-> 
-> When I added following check,
-> ==
-> @@ -648,6 +649,10 @@ static int unmap_and_move(new_page_t get
->                         goto move_newpage;
->                 lock_page(page);
->         }
-> +       /* All caches should be Uptodate before migration.*/
-> +       if (page_mapping(page) && !PageUptodate(page))
-> +               goto unlock;
-> +
-> 
->         if (PageWriteback(page)) {
->                 if (!force)
-> ==
-> A page offlining never ends until I run "echo 3 > /proc/sys/vm/drop_caches".
+I think you're right.  But I've never known much about the ->mm maintenance
+code or the aio use_mm logic.  So I'm just going from a quick glance.
+(That part of the zap_threads() logic predates you or I fiddling with it.)
 
-Page migration should stop after 10 retries though? You need to set the RC 
-to another value than -EAGAIN in order to avoid the retries.
 
-if (page_mapping(page) && !PageUptodate(page)) {
-	rc = -EBUSY;
-	goto unlock;
-}
-
-will stop retries.
-
-> Once I use drop_caches, memory offlining works very well.
-> (even under some workload.) If the code I added is bad, plz blame me.
-
-The retries during page migration may hold off the completion of bringing 
-up a page up to date since the PageLock is repeatedly acquired. So either 
-pass more pages in one go to migrate_pages() or pause once in awhile?
+Thanks,
+Roland
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
