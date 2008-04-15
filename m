@@ -1,113 +1,56 @@
-Date: Tue, 15 Apr 2008 14:12:08 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] use vmalloc for mem_cgroup allocation. v3
-Message-Id: <20080415141208.8be5af56.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080415105434.3044afb6.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080415105434.3044afb6.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 15 Apr 2008 00:07:45 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Smarter retry of costly-order allocations
+Message-Id: <20080415000745.9af1b269.akpm@linux-foundation.org>
+In-Reply-To: <20080411233553.GB19078@us.ibm.com>
+References: <20080411233500.GA19078@us.ibm.com>
+	<20080411233553.GB19078@us.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, lizf@cn.fujitsu.com, menage@google.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: mel@csn.ul.ie, clameter@sgi.com, apw@shadowen.org, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Tested on ia64/NUMA and x86/smp.
-==
-On ia64, this kmalloc() requires order-4 pages. But this is not
-necessary to be phisically contiguous. 
-For big mem_cgroup, vmalloc is better. For small ones, kmalloc is used.
+On Fri, 11 Apr 2008 16:35:53 -0700 Nishanth Aravamudan <nacc@us.ibm.com> wrote:
 
+> Because of page order checks in __alloc_pages(), hugepage (and similarly
+> large order) allocations will not retry unless explicitly marked
+> __GFP_REPEAT. However, the current retry logic is nearly an infinite
+> loop (or until reclaim does no progress whatsoever). For these costly
+> allocations, that seems like overkill and could potentially never
+> terminate.
+> 
+> Modify try_to_free_pages() to indicate how many pages were reclaimed.
+> Use that information in __alloc_pages() to eventually fail a large
+> __GFP_REPEAT allocation when we've reclaimed an order of pages equal to
+> or greater than the allocation's order. This relies on lumpy reclaim
+> functioning as advertised. Due to fragmentation, lumpy reclaim may not
+> be able to free up the order needed in one invocation, so multiple
+> iterations may be requred. In other words, the more fragmented memory
+> is, the more retry attempts __GFP_REPEAT will make (particularly for
+> higher order allocations).
+> 
 
-Changelog: v2->v3
- - fixed the place of memset.
- - added mem_cgroup_alloc()/free()
- - use kmalloc if mem_cgroup is enough small.
-Changelog: v1->v2
- - added memset().
+hm, there's rather a lot of speculation and wishful thinking in that
+changelog.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+If we put this through -mm and into mainline then nobody will test it 
+and we won't discover whether it's good or bad until late -rc at best.
 
-Index: mm-2.6.25-rc8-mm2/mm/memcontrol.c
-===================================================================
---- mm-2.6.25-rc8-mm2.orig/mm/memcontrol.c
-+++ mm-2.6.25-rc8-mm2/mm/memcontrol.c
-@@ -31,6 +31,7 @@
- #include <linux/spinlock.h>
- #include <linux/fs.h>
- #include <linux/seq_file.h>
-+#include <linux/vmalloc.h>
- 
- #include <asm/uaccess.h>
- 
-@@ -983,6 +984,31 @@ static void free_mem_cgroup_per_zone_inf
- 	kfree(mem->info.nodeinfo[node]);
- }
- 
-+static struct mem_cgroup *mem_cgroup_alloc(void)
-+{
-+	struct mem_cgroup *mem;
-+
-+	if (sizeof(*mem) < PAGE_SIZE)
-+		mem = kmalloc(sizeof(*mem), GFP_KERNEL);
-+	else
-+		mem = vmalloc(sizeof(*mem));
-+
-+	if (!mem)
-+		return NULL;
-+
-+	memset(mem, 0, sizeof(*mem));
-+	return mem;
-+}
-+
-+static void mem_cgroup_free(struct mem_cgroup *mem)
-+{
-+	if (sizeof(*mem) < PAGE_SIZE)
-+		kfree(mem);
-+	else
-+		vfree(mem);
-+}
-+
-+
- static struct cgroup_subsys_state *
- mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
- {
-@@ -992,11 +1018,11 @@ mem_cgroup_create(struct cgroup_subsys *
- 	if (unlikely((cont->parent) == NULL)) {
- 		mem = &init_mem_cgroup;
- 		page_cgroup_cache = KMEM_CACHE(page_cgroup, SLAB_PANIC);
--	} else
--		mem = kzalloc(sizeof(struct mem_cgroup), GFP_KERNEL);
--
--	if (mem == NULL)
--		return ERR_PTR(-ENOMEM);
-+	} else {
-+		mem = mem_cgroup_alloc();
-+		if (!mem)
-+			return ERR_PTR(-ENOMEM);
-+	}
- 
- 	res_counter_init(&mem->res);
- 
-@@ -1011,7 +1037,7 @@ free_out:
- 	for_each_node_state(node, N_POSSIBLE)
- 		free_mem_cgroup_per_zone_info(mem, node);
- 	if (cont->parent != NULL)
--		kfree(mem);
-+		mem_cgroup_free(mem);
- 	return ERR_PTR(-ENOMEM);
- }
- 
-@@ -1031,7 +1057,7 @@ static void mem_cgroup_destroy(struct cg
- 	for_each_node_state(node, N_POSSIBLE)
- 		free_mem_cgroup_per_zone_info(mem, node);
- 
--	kfree(mem_cgroup_from_cont(cont));
-+	mem_cgroup_free(mem_cgroup_from_cont(cont));
- }
- 
- static int mem_cgroup_populate(struct cgroup_subsys *ss,
+So... would like to see some firmer-looking testing results, please.
+
+I _assume_ this patch was inspired by some observed problem?  What was that
+problem, and what effect did the patch have?
+
+And what scenarios might be damaged by this patch, and how do we test for
+them?
+
+The "repeat until we've reclaimed 1<<order pages" thing is in fact a magic
+number, and its value is "1".  How did we arrive at this magic number and
+why isn't "2" a better one?  Or "0.5"?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
