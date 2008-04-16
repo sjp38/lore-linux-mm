@@ -1,32 +1,25 @@
-Date: Wed, 16 Apr 2008 16:10:23 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [patch 02/19] x86: Use kbuild.h
-Message-ID: <20080416141023.GA25280@elte.hu>
-References: <20080414221808.269371488@sgi.com> <20080414221844.876647987@sgi.com> <20080416130128.GF6304@elte.hu>
+Date: Wed, 16 Apr 2008 11:33:37 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH 1 of 9] Lock the entire mm to prevent any mmu related
+	operation to happen
+Message-ID: <20080416163337.GJ22493@sgi.com>
+References: <patchbomb.1207669443@duo.random> <ec6d8f91b299cf26cce5.1207669444@duo.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080416130128.GF6304@elte.hu>
+In-Reply-To: <ec6d8f91b299cf26cce5.1207669444@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, apw@shadowen.org, Sam Ravnborg <sam@ravnborg.org>, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>, Steve Wise <swise@opengridcomputing.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-* Ingo Molnar <mingo@elte.hu> wrote:
+I don't think this lock mechanism is completely working.  I have
+gotten a few failures trying to dereference 0x100100 which appears to
+be LIST_POISON1.
 
-> * Christoph Lameter <clameter@sgi.com> wrote:
-> 
-> > Drop the macro definitions in asm-offsets_*.c and use kbuild.h
-> 
-> thanks Christoph, applied.
-
-the dependency i missed was the existence of include/linux/kbuild.h ;-) 
-Anyway:
-
-Acked-by: Ingo Molnar <mingo@elte.hu>
-
-	Ingo
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
