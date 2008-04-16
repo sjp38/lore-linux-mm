@@ -1,72 +1,73 @@
-Date: Wed, 16 Apr 2008 14:54:23 +0900
+Date: Wed, 16 Apr 2008 20:00:36 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [-mm][PATCH] Fix broken gfp_zone with __GFP_THISNODE
-Message-Id: <20080416145423.858462af.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Warning on memory offline (and possible in usual migration?)
+Message-Id: <20080416200036.2ea9b5c2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
+References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "Lee.Schermerhorn@hp.com" <Lee.Schermerhorn@hp.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, npiggin@suse.de, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch is for -mm.
-Fix broken __GFP_THISNODE.
+On Mon, 14 Apr 2008 10:46:47 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
--Kame
+> On Mon, 14 Apr 2008, KAMEZAWA Hiroyuki wrote:
+> 
+> > Then, "page" is not Uptodate when it reaches (*).
+> 
+> The page will be marked uptodate before we reach ** so its okay in
+> general. If a page is not uptodate then we should not be getting here.
+> 
+> An !uptodate page is not migratable. Maybe we need to add better checking?
+> 
+> 
+With tons of printk, I think I found when it happens.
+
+Assume I use ia64/PAGE_SIZE=16k and ext3's blocksize=4k.
+A page has 4 buffer_heads.
+
+Assume that a page is not Uptodate before issuing write_begin()
+
+At the end of writing to ext3, the kernel reaches here.
 ==
-This hack, "base = MAX_NR_ZONES", at __GFP_THISNODE was used for
-old zonliests.
+static int __block_commit_write(struct inode *inode, struct page *page,
+                unsigned from, unsigned to)
+{
+    int patrial=0;
 
-Now, new zonelist[] have a list for __GFP_THISNODE and this hack
-is incorrect. Should be removed.
+    if (!All_buffers_to_this_page_is_uptodate)
+	partial = 1
+    if (!partial)
+        SetPageUptodate(page)
+}
+==
+To set a page as Uptodate, all buffers must be uptodate.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+But *all* buffers to this page is not necessary to be uptodate, here. 
+Then, the page can be not-up-to-date after commit-write.
 
----
- include/linux/gfp.h |   17 +++++------------
- 1 file changed, 5 insertions(+), 12 deletions(-)
+At page offlining, all buffers on the page seems to be marked as Uptodate
+(by printk) but the page itself isn't. This seems strange.
 
-Index: mm-2.6.25-rc8-mm2/include/linux/gfp.h
-===================================================================
---- mm-2.6.25-rc8-mm2.orig/include/linux/gfp.h
-+++ mm-2.6.25-rc8-mm2/include/linux/gfp.h
-@@ -119,29 +119,22 @@ static inline int allocflags_to_migratet
- 
- static inline enum zone_type gfp_zone(gfp_t flags)
- {
--	int base = 0;
--
--#ifdef CONFIG_NUMA
--	if (flags & __GFP_THISNODE)
--		base = MAX_NR_ZONES;
--#endif
--
- #ifdef CONFIG_ZONE_DMA
- 	if (flags & __GFP_DMA)
--		return base + ZONE_DMA;
-+		return ZONE_DMA;
- #endif
- #ifdef CONFIG_ZONE_DMA32
- 	if (flags & __GFP_DMA32)
--		return base + ZONE_DMA32;
-+		return ZONE_DMA32;
- #endif
- 	if ((flags & (__GFP_HIGHMEM | __GFP_MOVABLE)) ==
- 			(__GFP_HIGHMEM | __GFP_MOVABLE))
--		return base + ZONE_MOVABLE;
-+		return ZONE_MOVABLE;
- #ifdef CONFIG_HIGHMEM
- 	if (flags & __GFP_HIGHMEM)
--		return base + ZONE_HIGHMEM;
-+		return ZONE_HIGHMEM;
- #endif
--	return base + ZONE_NORMAL;
-+	return ZONE_NORMAL;
- }
- 
- /*
+But I don't found who set Uptodate to the buffers. 
+And why page isn't up-to-date while all buffers are marked as up-to-date.
+
+still chasing.
+
+Thanks,
+-Kame
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
