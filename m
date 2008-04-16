@@ -1,36 +1,98 @@
-Date: Wed, 16 Apr 2008 12:15:08 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 1 of 9] Lock the entire mm to prevent any mmu related
- operation to happen
-In-Reply-To: <20080416190213.GK22493@sgi.com>
-Message-ID: <Pine.LNX.4.64.0804161214170.14657@schroedinger.engr.sgi.com>
-References: <patchbomb.1207669443@duo.random> <ec6d8f91b299cf26cce5.1207669444@duo.random>
- <20080416163337.GJ22493@sgi.com> <Pine.LNX.4.64.0804161134360.12296@schroedinger.engr.sgi.com>
- <20080416190213.GK22493@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 16 Apr 2008 12:15:50 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 02/19] x86: Use kbuild.h
+Message-Id: <20080416121550.b31f828c.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0804161044250.12019@schroedinger.engr.sgi.com>
+References: <20080414221808.269371488@sgi.com>
+	<20080414221844.876647987@sgi.com>
+	<20080416130128.GF6304@elte.hu>
+	<20080416141023.GA25280@elte.hu>
+	<Pine.LNX.4.64.0804161044250.12019@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>, Steve Wise <swise@opengridcomputing.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: mingo@elte.hu, apw@shadowen.org, sam@ravnborg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Apr 2008, Robin Holt wrote:
+On Wed, 16 Apr 2008 10:44:55 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> On Wed, Apr 16, 2008 at 11:35:38AM -0700, Christoph Lameter wrote:
-> > On Wed, 16 Apr 2008, Robin Holt wrote:
-> > 
-> > > I don't think this lock mechanism is completely working.  I have
-> > > gotten a few failures trying to dereference 0x100100 which appears to
-> > > be LIST_POISON1.
-> > 
-> > How does xpmem unregistering of notifiers work?
+> On Wed, 16 Apr 2008, Ingo Molnar wrote:
 > 
-> For the tests I have been running, we are waiting for the release
-> callout as part of exit.
+> > 
+> > * Ingo Molnar <mingo@elte.hu> wrote:
+> > 
+> > > * Christoph Lameter <clameter@sgi.com> wrote:
+> > > 
+> > > > Drop the macro definitions in asm-offsets_*.c and use kbuild.h
+> > > 
+> > > thanks Christoph, applied.
+> > 
+> > the dependency i missed was the existence of include/linux/kbuild.h ;-) 
+> > Anyway:
+> > 
+> > Acked-by: Ingo Molnar <mingo@elte.hu>
+> 
+> Yes sorry this is dependent on other patches merged by Andrew. This is the 
+> classic case of arch changes that depend on core changes.
 
-Some more details on the failure may be useful. AFAICT list_del[_rcu] is 
-the culprit here and that is only used on release or unregister.
+Yeah, I tricked a few people that way yesterday ;)
+
+For this series I cc'ed 30-odd people on the core patch
+(add-kbuildh-that-contains-common-definitions-for-kbuild-users.patch) and
+then cc'ed them individually on the dependent patch (eg,
+sparc-use-kbuildh-instead-of-defining-macros-in-asm-offsetsc.patch).  So
+hopefully it was somewhat obvious what was going on.
+
+In the case of *-use-get-put_unaligned_-helpers.patch it was more obscure
+because the core patch
+(kernel-add-common-infrastructure-for-unaligned-access.patch) came in a lot
+earlier so nobody got to see it.  That tricked 'em.
+
+Perhaps I should put "depends on -mm's
+kernel-add-common-infrastructure-for-unaligned-access.patch" in the
+changelog.  Problem is that I'd never remember to take that out before
+sending the patch onwards.
+
+I guess I could add "this depends on a patch which is only in -mm" into
+that email somehow.
+
+hm.  Oh well, it doesn't happen very often.
+
+
+
+
+Related:
+
+I'm now sitting on things like:
+
+kernel-add-common-infrastructure-for-unaligned-access.patch
+...
+input-use-get_unaligned_-helpers.patch
+
+
+Strictly and formally, the merge process for these is
+
+a) I send kernel-add-common-infrastructure-for-unaligned-access.patch to
+Linus.
+
+b) He merges it
+
+c) I send input-use-get_unaligned_-helpers.patch to Dmitry
+
+d) He merges it
+
+e) He sends input-use-get_unaligned_-helpers.patch to Linus
+
+f) Linus merges it.
+
+
+This is a lot of fuss and there's a non-zero chance that we'll miss the
+merge window.  So I like people to send along acked-by's for this sort of
+thing so I can scoot them along to Linus straight away.
 
 
 --
