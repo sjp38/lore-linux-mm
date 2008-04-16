@@ -1,32 +1,30 @@
-Date: Wed, 16 Apr 2008 16:04:31 +0200
+Date: Wed, 16 Apr 2008 16:10:23 +0200
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 1/4] Add a basic debugging framework for memory
-	initialisation
-Message-ID: <20080416140431.GD24383@elte.hu>
-References: <20080416135058.1346.65546.sendpatchset@skynet.skynet.ie> <20080416135118.1346.72244.sendpatchset@skynet.skynet.ie>
+Subject: Re: [patch 02/19] x86: Use kbuild.h
+Message-ID: <20080416141023.GA25280@elte.hu>
+References: <20080414221808.269371488@sgi.com> <20080414221844.876647987@sgi.com> <20080416130128.GF6304@elte.hu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080416135118.1346.72244.sendpatchset@skynet.skynet.ie>
+In-Reply-To: <20080416130128.GF6304@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, apw@shadowen.org, Sam Ravnborg <sam@ravnborg.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Mel Gorman <mel@csn.ul.ie> wrote:
+* Ingo Molnar <mingo@elte.hu> wrote:
 
-> +static __init int set_mminit_debug_level(char *str)
-> +{
-> +	get_option(&str, &mminit_debug_level);
-> +	return 0;
-> +}
-> +early_param("mminit_debug_level", set_mminit_debug_level);
+> * Christoph Lameter <clameter@sgi.com> wrote:
+> 
+> > Drop the macro definitions in asm-offsets_*.c and use kbuild.h
+> 
+> thanks Christoph, applied.
 
-another small suggestion: could you please also add a Kconfig method of 
-enabling it, dependent on KERNEL_DEBUG, default-off (for now). The best 
-would be not a numeric switch but something that gets randomized by 
-"make randconfig". I.e. an on/off switch kind of things.
+the dependency i missed was the existence of include/linux/kbuild.h ;-) 
+Anyway:
+
+Acked-by: Ingo Molnar <mingo@elte.hu>
 
 	Ingo
 
