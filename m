@@ -1,25 +1,35 @@
-Date: Wed, 16 Apr 2008 15:01:28 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [patch 02/19] x86: Use kbuild.h
-Message-ID: <20080416130128.GF6304@elte.hu>
-References: <20080414221808.269371488@sgi.com> <20080414221844.876647987@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080414221844.876647987@sgi.com>
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20080416135058.1346.65546.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 0/4] [RFC] Verification and debugging of memory initialisation
+Date: Wed, 16 Apr 2008 14:50:58 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, apw@shadowen.org, Sam Ravnborg <sam@ravnborg.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Mel Gorman <mel@csn.ul.ie>, mingo@elte.hu, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* Christoph Lameter <clameter@sgi.com> wrote:
+Boot initialisation has always been a bit of a mess with a number
+of ugly points. While significant amounts of the initialisation
+is architecture-independent, it trusts of the data received from the
+architecture layer. This was a mistake in retrospect as it has resulted in
+a number of difficult-to-diagnose bugs.
 
-> Drop the macro definitions in asm-offsets_*.c and use kbuild.h
+This patchset is an RFC to add some validation and tracing to memory
+initialisation. It also introduces a few basic defencive measures and
+depending on a boot parameter, will perform additional tests for errors
+"that should never occur". I think this would have reduced debugging time
+for some boot-related problems. The last part of the patchset is a similar
+fix for the patch "[patch] mm: sparsemem memory_present() memory corruption"
+that corrects a few more areas where similar errors were made.
 
-thanks Christoph, applied.
+I'm not looking to merge this as-is obviously but are there opinions on
+whether this is a good idea in principal? Should it be done differently or
+not at all?
 
-	Ingo
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
