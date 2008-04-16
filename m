@@ -1,102 +1,88 @@
-Message-Id: <20080416113719.236705173@skyscraper.fehenstaub.lan>
+Message-Id: <20080416113719.395268372@skyscraper.fehenstaub.lan>
 References: <20080416113629.947746497@skyscraper.fehenstaub.lan>
-Date: Wed, 16 Apr 2008 13:36:32 +0200
+Date: Wed, 16 Apr 2008 13:36:33 +0200
 From: Johannes Weiner <hannes@saeurebad.de>
-Subject: [RFC][patch 3/5] mm: Unexport __alloc_bootmem_core()
-Content-Disposition: inline; filename=0003-bootmem-Unexport-__alloc_bootmem_core.patch
+Subject: [RFC][patch 4/5] mm: Normalize internal argument passing of bootmem data
+Content-Disposition: inline; filename=0004-bootmem-Normalize-internal-argument-passing-of-boot.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Function has no external callers, make it local to the allocator.
-Also fix its naming inconsistency.
+All _core functions only need the bootmem data, not the node
+descriptor.  Adjust the two functions that take a node descriptor
+unneededly.
 
 Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
 ---
- include/linux/bootmem.h |    5 -----
- mm/bootmem.c            |   18 +++++++++---------
- 2 files changed, 9 insertions(+), 14 deletions(-)
+ mm/bootmem.c |   14 ++++++--------
+ 1 files changed, 6 insertions(+), 8 deletions(-)
 
-Index: tree-linus/include/linux/bootmem.h
-===================================================================
---- tree-linus.orig/include/linux/bootmem.h
-+++ tree-linus/include/linux/bootmem.h
-@@ -54,11 +54,6 @@ extern void *__alloc_bootmem_low_node(pg
- 				      unsigned long size,
- 				      unsigned long align,
- 				      unsigned long goal);
--extern void *__alloc_bootmem_core(struct bootmem_data *bdata,
--				  unsigned long size,
--				  unsigned long align,
--				  unsigned long goal,
--				  unsigned long limit);
- 
- /*
-  * flags for reserve_bootmem (also if CONFIG_HAVE_ARCH_BOOTMEM_NODE,
 Index: tree-linus/mm/bootmem.c
 ===================================================================
 --- tree-linus.orig/mm/bootmem.c
 +++ tree-linus/mm/bootmem.c
-@@ -191,16 +191,16 @@ static void __init free_bootmem_core(boo
-  *
-  * NOTE:  This function is _not_ reentrant.
+@@ -85,10 +85,9 @@ static unsigned long __init get_mapsize(
+ /*
+  * Called once to set up the allocator itself.
   */
--void * __init
--__alloc_bootmem_core(struct bootmem_data *bdata, unsigned long size,
--	      unsigned long align, unsigned long goal, unsigned long limit)
-+static void * __init alloc_bootmem_core(struct bootmem_data *bdata,
-+				unsigned long size, unsigned long align,
-+				unsigned long goal, unsigned long limit)
+-static unsigned long __init init_bootmem_core(pg_data_t *pgdat,
++static unsigned long __init init_bootmem_core(bootmem_data_t *bdata,
+ 	unsigned long mapstart, unsigned long start, unsigned long end)
  {
- 	unsigned long offset, remaining_size, areasize, preferred;
- 	unsigned long i, start = 0, incr, eidx, end_pfn;
- 	void *ret;
+-	bootmem_data_t *bdata = pgdat->bdata;
+ 	unsigned long mapsize;
  
- 	if (!size) {
--		printk("__alloc_bootmem_core(): zero-sized request\n");
-+		printk(KERN_ERR "alloc_bootmem_core(): zero-sized request\n");
- 		BUG();
- 	}
- 	BUG_ON(align & (align-1));
-@@ -461,7 +461,7 @@ void * __init __alloc_bootmem_nopanic(un
- 	void *ptr;
- 
- 	list_for_each_entry(bdata, &bdata_list, list) {
--		ptr = __alloc_bootmem_core(bdata, size, align, goal, 0);
-+		ptr = alloc_bootmem_core(bdata, size, align, goal, 0);
- 		if (ptr)
- 			return ptr;
- 	}
-@@ -489,7 +489,7 @@ void * __init __alloc_bootmem_node(pg_da
- {
- 	void *ptr;
- 
--	ptr = __alloc_bootmem_core(pgdat->bdata, size, align, goal, 0);
-+	ptr = alloc_bootmem_core(pgdat->bdata, size, align, goal, 0);
- 	if (ptr)
- 		return ptr;
- 
-@@ -507,8 +507,8 @@ void * __init __alloc_bootmem_low(unsign
- 	void *ptr;
- 
- 	list_for_each_entry(bdata, &bdata_list, list) {
--		ptr = __alloc_bootmem_core(bdata, size, align, goal,
--						ARCH_LOW_ADDRESS_LIMIT);
-+		ptr = alloc_bootmem_core(bdata, size, align, goal,
-+					ARCH_LOW_ADDRESS_LIMIT);
- 		if (ptr)
- 			return ptr;
- 	}
-@@ -524,6 +524,6 @@ void * __init __alloc_bootmem_low(unsign
- void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
- 				       unsigned long align, unsigned long goal)
- {
--	return __alloc_bootmem_core(pgdat->bdata, size, align, goal,
-+	return alloc_bootmem_core(pgdat->bdata, size, align, goal,
- 				    ARCH_LOW_ADDRESS_LIMIT);
+ 	bdata->node_bootmem_map = phys_to_virt(PFN_PHYS(mapstart));
+@@ -314,11 +313,10 @@ found:
+ 	return ret;
  }
+ 
+-static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
++static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+ {
+ 	struct page *page;
+ 	unsigned long pfn;
+-	bootmem_data_t *bdata = pgdat->bdata;
+ 	unsigned long i, count, total = 0;
+ 	unsigned long idx;
+ 	unsigned long *map; 
+@@ -384,7 +382,7 @@ static unsigned long __init free_all_boo
+ unsigned long __init init_bootmem_node(pg_data_t *pgdat, unsigned long freepfn,
+ 				unsigned long startpfn, unsigned long endpfn)
+ {
+-	return init_bootmem_core(pgdat, freepfn, startpfn, endpfn);
++	return init_bootmem_core(pgdat->bdata, freepfn, startpfn, endpfn);
+ }
+ 
+ void __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
+@@ -401,14 +399,14 @@ void __init free_bootmem_node(pg_data_t 
+ 
+ unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
+ {
+-	return free_all_bootmem_core(pgdat);
++	return free_all_bootmem_core(pgdat->bdata);
+ }
+ 
+ unsigned long __init init_bootmem(unsigned long start, unsigned long pages)
+ {
+ 	max_low_pfn = pages;
+ 	min_low_pfn = start;
+-	return init_bootmem_core(NODE_DATA(0), start, 0, pages);
++	return init_bootmem_core(NODE_DATA(0)->bdata, start, 0, pages);
+ }
+ 
+ #ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
+@@ -451,7 +449,7 @@ void __init free_bootmem(unsigned long a
+ 
+ unsigned long __init free_all_bootmem(void)
+ {
+-	return free_all_bootmem_core(NODE_DATA(0));
++	return free_all_bootmem_core(NODE_DATA(0)->bdata);
+ }
+ 
+ void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
 
 -- 
 
