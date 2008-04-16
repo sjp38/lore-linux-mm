@@ -1,33 +1,26 @@
-Date: Wed, 16 Apr 2008 11:04:19 -0700 (PDT)
+Date: Wed, 16 Apr 2008 11:35:38 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Warning on memory offline (and possible in usual migration?)
-In-Reply-To: <20080416121003.8440caf4.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0804161102570.12313@schroedinger.engr.sgi.com>
-References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
- <20080415191350.0dc847b6.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0804151227050.1785@schroedinger.engr.sgi.com>
- <20080416092334.2dabce2c.kamezawa.hiroyu@jp.fujitsu.com>
- <20080416112341.ef1d5452.kamezawa.hiroyu@jp.fujitsu.com>
- <20080416121003.8440caf4.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1 of 9] Lock the entire mm to prevent any mmu related
+ operation to happen
+In-Reply-To: <20080416163337.GJ22493@sgi.com>
+Message-ID: <Pine.LNX.4.64.0804161134360.12296@schroedinger.engr.sgi.com>
+References: <patchbomb.1207669443@duo.random> <ec6d8f91b299cf26cce5.1207669444@duo.random>
+ <20080416163337.GJ22493@sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, npiggin@suse.de, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
+To: Robin Holt <holt@sgi.com>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>, Steve Wise <swise@opengridcomputing.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Apr 2008, KAMEZAWA Hiroyuki wrote:
+On Wed, 16 Apr 2008, Robin Holt wrote:
 
-> BTW, a bit off-topic.
-> I found I can't do memory offline when I use SLAB not SLUB, 
+> I don't think this lock mechanism is completely working.  I have
+> gotten a few failures trying to dereference 0x100100 which appears to
+> be LIST_POISON1.
 
-Ah. SLAB depends on GFP_THISNODE to force the page allocator to allocate 
-on a certain and since we broke that it does strange things.
-
-SLUB lets the page allocator figure out which node to use. GFP_THISNODE is 
-only used if the caller specifies it.
+How does xpmem unregistering of notifiers work?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
