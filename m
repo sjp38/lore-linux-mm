@@ -1,73 +1,46 @@
-Date: Wed, 16 Apr 2008 20:00:36 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Warning on memory offline (and possible in usual migration?)
-Message-Id: <20080416200036.2ea9b5c2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
-References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-Id: <20080416113629.947746497@skyscraper.fehenstaub.lan>
+Date: Wed, 16 Apr 2008 13:36:29 +0200
+From: Johannes Weiner <hannes@saeurebad.de>
+Subject: [RFC][patch 0/5] Bootmem fixes
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, npiggin@suse.de, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 Apr 2008 10:46:47 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+Hi,
 
-> On Mon, 14 Apr 2008, KAMEZAWA Hiroyuki wrote:
-> 
-> > Then, "page" is not Uptodate when it reaches (*).
-> 
-> The page will be marked uptodate before we reach ** so its okay in
-> general. If a page is not uptodate then we should not be getting here.
-> 
-> An !uptodate page is not migratable. Maybe we need to add better checking?
-> 
-> 
-With tons of printk, I think I found when it happens.
+here are a bunch of fixes for the bootmem allocator.  These are tested
+on boring x86_32 UMA hardware, but 3 patches only show their effects
+on multi-node systems, so please review and test.
 
-Assume I use ia64/PAGE_SIZE=16k and ext3's blocksize=4k.
-A page has 4 buffer_heads.
+Only the first two patches are real code changes, the others are
+cleanups.
 
-Assume that a page is not Uptodate before issuing write_begin()
+`Node-setup agnostic free_bootmem()' assumes that all bootmem
+descriptors describe contiguous regions and bdata_list is in ascending
+order.  Yinghai was unsure about this fact, Ingo could you ACK/NAK
+this?
 
-At the end of writing to ext3, the kernel reaches here.
-==
-static int __block_commit_write(struct inode *inode, struct page *page,
-                unsigned from, unsigned to)
-{
-    int patrial=0;
+	Hannes
 
-    if (!All_buffers_to_this_page_is_uptodate)
-	partial = 1
-    if (!partial)
-        SetPageUptodate(page)
-}
-==
-To set a page as Uptodate, all buffers must be uptodate.
+ arch/alpha/mm/numa.c             |    8 ++--
+ arch/arm/mm/discontig.c          |   34 +++++++--------
+ arch/ia64/mm/discontig.c         |   11 ++---
+ arch/m32r/mm/discontig.c         |    4 +-
+ arch/m68k/mm/init.c              |    4 +-
+ arch/mips/sgi-ip27/ip27-memory.c |    3 +-
+ arch/parisc/mm/init.c            |    3 +-
+ arch/powerpc/mm/numa.c           |    3 +-
+ arch/sh/mm/numa.c                |    5 +-
+ arch/x86/mm/discontig_32.c       |    3 +-
+ arch/x86/mm/numa_64.c            |    4 +-
+ include/linux/bootmem.h          |    7 +--
+ mm/bootmem.c                     |   82 ++++++++++++++++++++++----------------
+ mm/page_alloc.c                  |    4 +-
+ 14 files changed, 84 insertions(+), 91 deletions(-)
 
-But *all* buffers to this page is not necessary to be uptodate, here. 
-Then, the page can be not-up-to-date after commit-write.
-
-At page offlining, all buffers on the page seems to be marked as Uptodate
-(by printk) but the page itself isn't. This seems strange.
-
-But I don't found who set Uptodate to the buffers. 
-And why page isn't up-to-date while all buffers are marked as up-to-date.
-
-still chasing.
-
-Thanks,
--Kame
-
-
-
-
-
-
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
