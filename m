@@ -1,45 +1,32 @@
-Date: Wed, 16 Apr 2008 14:22:38 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [PATCH] - Increase MAX_APICS for large configs
-Message-ID: <20080416192238.GA12115@sgi.com>
-References: <20080416163936.GA23099@sgi.com> <20080416184543.GD3722@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080416184543.GD3722@elte.hu>
+Date: Wed, 16 Apr 2008 12:22:58 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 1/2] MM: Make page tables relocatable -- conditional
+ flush (rc9)
+In-Reply-To: <20080414155702.ca7eb622.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0804161221060.14718@schroedinger.engr.sgi.com>
+References: <20080414163933.A9628DCA48@localhost>
+ <20080414155702.ca7eb622.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ross Biro <rossb@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@skynet.ie, apm@shadoween.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 16, 2008 at 08:45:43PM +0200, Ingo Molnar wrote:
-> 
-> * Jack Steiner <steiner@sgi.com> wrote:
-> 
-> > Increase the maximum number of apics when running very large 
-> > configurations. This patch has no affect on most systems.
-> > 
-> > Signed-off-by: Jack Steiner <steiner@sgi.com>
-> > 
-> > I think this area of the code will be substantially changed when the 
-> > full x2apic patch is available. In the meantime, this seems like an 
-> > acceptible alternative. The patch has no effect on any 32-bit kernel. 
-> > It adds ~4k to the size of 64-bit kernels but only if NR_CPUS > 255.
-> 
-> ugly ... but well - applied. What's the static size cost of 64K APICs?
+On Mon, 14 Apr 2008, Andrew Morton wrote:
 
-64k APICs would add ~8k to the static size of the kernel. Most of the
-increase is in the phys_cpu_present_map[].
+> This is a large patch which is quite intrusive on the core memory
+> management code.  It appears that there has been close to zero interest
+> from any MM developers apart from a bit of to-and-fro back in October. 
+> Probably because nobody can see why the chnges are valuable to them, and
+> that's probably because you're not telling them!
 
-When the x2apic patch is integrated, I expect (may be wrong) that this
-array will be eliminated since x2apic increases the max APIC_ID to 32 bits,
-
-Note that MAX_APICS is really misnamed. It is not the maximum number of APICs. It
-is the value of the largest APIC ID. IDs are not necessarily dense.
-
-
---- jack
+The patch is interesting because it would allow the moving of page table 
+pages into MOVABLE sections and reduce the size of the UNMOVABLE 
+allocations signficantly (Ross: We need some numbers here). This in turn 
+improves the success of the antifrag methods. May also improve lumpy 
+reclaim if it can be adapted to move page table pages out of the way.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
