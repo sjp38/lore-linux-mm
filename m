@@ -1,37 +1,34 @@
-Date: Wed, 16 Apr 2008 20:30:18 +0100
+Date: Wed, 16 Apr 2008 21:16:52 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/4] Add a basic debugging framework for memory initialisation
-Message-ID: <20080416193017.GA13968@csn.ul.ie>
-References: <20080416135058.1346.65546.sendpatchset@skynet.skynet.ie> <20080416135118.1346.72244.sendpatchset@skynet.skynet.ie> <20080416140431.GD24383@elte.hu>
+Subject: Re: [PATCH 2/4] Verify the page links and memory model
+Message-ID: <20080416201651.GD13968@csn.ul.ie>
+References: <20080416135058.1346.65546.sendpatchset@skynet.skynet.ie> <20080416135138.1346.87095.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0804161211140.14635@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20080416140431.GD24383@elte.hu>
+In-Reply-To: <Pine.LNX.4.64.0804161211140.14635@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, mingo@elte.hu, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On (16/04/08 16:04), Ingo Molnar didst pronounce:
+On (16/04/08 12:12), Christoph Lameter didst pronounce:
+> On Wed, 16 Apr 2008, Mel Gorman wrote:
 > 
-> * Mel Gorman <mel@csn.ul.ie> wrote:
+> > +		FLAGS_RESERVED);
 > 
-> > +static __init int set_mminit_debug_level(char *str)
-> > +{
-> > +	get_option(&str, &mminit_debug_level);
-> > +	return 0;
-> > +}
-> > +early_param("mminit_debug_level", set_mminit_debug_level);
+> FLAGS_RESERVED no longer exists in mm. Its dynamically calculated.
 > 
-> another small suggestion: could you please also add a Kconfig method of 
-> enabling it, dependent on KERNEL_DEBUG, default-off (for now). The best 
-> would be not a numeric switch but something that gets randomized by 
-> "make randconfig". I.e. an on/off switch kind of things.
+> It may be useful to print out NR_PAGEFLAGS instead and show the area in 
+> the middle of page flags that is left unused and that may be used by 
+> arches such as sparc64.
 > 
 
-Makes sense. I've this and your other suggestions incorporated. It'll be
-part of V2.
+That's a good point. I'll do that on a version I rebase to -mm. V2 will
+still be based on mainline.
+
+Thanks.
 
 -- 
 Mel Gorman
