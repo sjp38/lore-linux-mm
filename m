@@ -1,34 +1,33 @@
-Date: Wed, 16 Apr 2008 20:48:16 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [RFC][patch 2/5] mm: Node-setup agnostic free_bootmem()
-Message-ID: <20080416184816.GA4400@elte.hu>
-References: <20080416113629.947746497@skyscraper.fehenstaub.lan> <20080416113719.092060936@skyscraper.fehenstaub.lan> <86802c440804161054h6f0cfc3dmde49006afb7889b2@mail.gmail.com> <86802c440804161144id4f2a68i37513ac0428c693@mail.gmail.com>
+Date: Wed, 16 Apr 2008 14:02:13 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH 1 of 9] Lock the entire mm to prevent any mmu related
+	operation to happen
+Message-ID: <20080416190213.GK22493@sgi.com>
+References: <patchbomb.1207669443@duo.random> <ec6d8f91b299cf26cce5.1207669444@duo.random> <20080416163337.GJ22493@sgi.com> <Pine.LNX.4.64.0804161134360.12296@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <86802c440804161144id4f2a68i37513ac0428c693@mail.gmail.com>
+In-Reply-To: <Pine.LNX.4.64.0804161134360.12296@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yinghai Lu <yhlu.kernel@gmail.com>
-Cc: Johannes Weiner <hannes@saeurebad.de>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, "Siddha, Suresh B" <suresh.b.siddha@intel.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Robin Holt <holt@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>, Steve Wise <swise@opengridcomputing.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-* Yinghai Lu <yhlu.kernel@gmail.com> wrote:
-
-> >  Yes, it should work well with cross nodes case.
-> >
-> >  but please add boundary check on free_bootmem_node too.
+On Wed, Apr 16, 2008 at 11:35:38AM -0700, Christoph Lameter wrote:
+> On Wed, 16 Apr 2008, Robin Holt wrote:
 > 
-> also please note: it will have problem span nodes box.
+> > I don't think this lock mechanism is completely working.  I have
+> > gotten a few failures trying to dereference 0x100100 which appears to
+> > be LIST_POISON1.
 > 
-> for example: node 0: 0-2g, 4-6g, node1: 2-4g, 6-8g. and if ramdisk sit 
-> creoss 2G boundary. you will only free the range before 2g.
+> How does xpmem unregistering of notifiers work?
 
-yes. Such systems _will_ become more common - so the "this is rare" 
-arguments are incorrect. bootmem has to be robust enough to deal with 
-it.
+For the tests I have been running, we are waiting for the release
+callout as part of exit.
 
-	Ingo
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
