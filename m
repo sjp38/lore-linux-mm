@@ -1,32 +1,42 @@
-Date: Wed, 16 Apr 2008 12:22:58 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 1/2] MM: Make page tables relocatable -- conditional
- flush (rc9)
-In-Reply-To: <20080414155702.ca7eb622.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0804161221060.14718@schroedinger.engr.sgi.com>
-References: <20080414163933.A9628DCA48@localhost>
- <20080414155702.ca7eb622.akpm@linux-foundation.org>
+Date: Wed, 16 Apr 2008 20:30:18 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/4] Add a basic debugging framework for memory initialisation
+Message-ID: <20080416193017.GA13968@csn.ul.ie>
+References: <20080416135058.1346.65546.sendpatchset@skynet.skynet.ie> <20080416135118.1346.72244.sendpatchset@skynet.skynet.ie> <20080416140431.GD24383@elte.hu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20080416140431.GD24383@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ross Biro <rossb@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@skynet.ie, apm@shadoween.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 Apr 2008, Andrew Morton wrote:
+On (16/04/08 16:04), Ingo Molnar didst pronounce:
+> 
+> * Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > +static __init int set_mminit_debug_level(char *str)
+> > +{
+> > +	get_option(&str, &mminit_debug_level);
+> > +	return 0;
+> > +}
+> > +early_param("mminit_debug_level", set_mminit_debug_level);
+> 
+> another small suggestion: could you please also add a Kconfig method of 
+> enabling it, dependent on KERNEL_DEBUG, default-off (for now). The best 
+> would be not a numeric switch but something that gets randomized by 
+> "make randconfig". I.e. an on/off switch kind of things.
+> 
 
-> This is a large patch which is quite intrusive on the core memory
-> management code.  It appears that there has been close to zero interest
-> from any MM developers apart from a bit of to-and-fro back in October. 
-> Probably because nobody can see why the chnges are valuable to them, and
-> that's probably because you're not telling them!
+Makes sense. I've this and your other suggestions incorporated. It'll be
+part of V2.
 
-The patch is interesting because it would allow the moving of page table 
-pages into MOVABLE sections and reduce the size of the UNMOVABLE 
-allocations signficantly (Ross: We need some numbers here). This in turn 
-improves the success of the antifrag methods. May also improve lumpy 
-reclaim if it can be adapted to move page table pages out of the way.
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
