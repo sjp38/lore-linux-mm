@@ -1,72 +1,102 @@
-Message-Id: <20080416113719.092060936@skyscraper.fehenstaub.lan>
+Message-Id: <20080416113719.236705173@skyscraper.fehenstaub.lan>
 References: <20080416113629.947746497@skyscraper.fehenstaub.lan>
-Date: Wed, 16 Apr 2008 13:36:31 +0200
+Date: Wed, 16 Apr 2008 13:36:32 +0200
 From: Johannes Weiner <hannes@saeurebad.de>
-Subject: [RFC][patch 2/5] mm: Node-setup agnostic free_bootmem()
-Content-Disposition: inline; filename=mm-node-setup-agnostic-free_bootmem.patch
+Subject: [RFC][patch 3/5] mm: Unexport __alloc_bootmem_core()
+Content-Disposition: inline; filename=0003-bootmem-Unexport-__alloc_bootmem_core.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: Linux MM <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Yinghai Lu <yhlu.kernel@gmail.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Make free_bootmem() look up the node holding the specified address
-range which lets it work transparently on single-node and multi-node
-configurations.
-
-If the address range exceeds the node range, it well be marked free
-across node boundaries, too.
+Function has no external callers, make it local to the allocator.
+Also fix its naming inconsistency.
 
 Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
-CC: Ingo Molnar <mingo@elte.hu>
-CC: Andi Kleen <andi@firstfloor.org>
-CC: Yinghai Lu <yhlu.kernel@gmail.com>
-CC: Yasunori Goto <y-goto@jp.fujitsu.com>
-CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-CC: Christoph Lameter <clameter@sgi.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/bootmem.c |   10 +++++++++-
- 1 files changed, 9 insertions(+), 1 deletions(-)
+ include/linux/bootmem.h |    5 -----
+ mm/bootmem.c            |   18 +++++++++---------
+ 2 files changed, 9 insertions(+), 14 deletions(-)
 
+Index: tree-linus/include/linux/bootmem.h
+===================================================================
+--- tree-linus.orig/include/linux/bootmem.h
++++ tree-linus/include/linux/bootmem.h
+@@ -54,11 +54,6 @@ extern void *__alloc_bootmem_low_node(pg
+ 				      unsigned long size,
+ 				      unsigned long align,
+ 				      unsigned long goal);
+-extern void *__alloc_bootmem_core(struct bootmem_data *bdata,
+-				  unsigned long size,
+-				  unsigned long align,
+-				  unsigned long goal,
+-				  unsigned long limit);
+ 
+ /*
+  * flags for reserve_bootmem (also if CONFIG_HAVE_ARCH_BOOTMEM_NODE,
 Index: tree-linus/mm/bootmem.c
 ===================================================================
 --- tree-linus.orig/mm/bootmem.c
 +++ tree-linus/mm/bootmem.c
-@@ -421,7 +421,32 @@ int __init reserve_bootmem(unsigned long
- 
- void __init free_bootmem(unsigned long addr, unsigned long size)
+@@ -191,16 +191,16 @@ static void __init free_bootmem_core(boo
+  *
+  * NOTE:  This function is _not_ reentrant.
+  */
+-void * __init
+-__alloc_bootmem_core(struct bootmem_data *bdata, unsigned long size,
+-	      unsigned long align, unsigned long goal, unsigned long limit)
++static void * __init alloc_bootmem_core(struct bootmem_data *bdata,
++				unsigned long size, unsigned long align,
++				unsigned long goal, unsigned long limit)
  {
--	free_bootmem_core(NODE_DATA(0)->bdata, addr, size);
-+	bootmem_data_t *bdata;
-+	unsigned long pos = addr;
-+	unsigned long partsize = size;
-+
-+	list_for_each_entry(bdata, &bdata_list, list) {
-+		unsigned long remainder = 0;
-+
-+		if (pos < bdata->node_boot_start)
-+			continue;
-+
-+		if (PFN_DOWN(pos + partsize) > bdata->node_low_pfn) {
-+			remainder = PFN_DOWN(pos + partsize) - bdata->node_low_pfn;
-+			partsize -= remainder;
-+		}
-+
-+		free_bootmem_core(bdata, pos, partsize);
-+
-+		if (!remainder)
-+			return;
-+
-+		pos = PFN_PHYS(bdata->node_low_pfn + 1);
-+	}
-+	printk(KERN_ERR "free_bootmem: request: addr=%lx, size=%lx, "
-+			"state: pos=%lx, partsize=%lx\n", addr, size,
-+			pos, partsize);
-+	BUG();
- }
+ 	unsigned long offset, remaining_size, areasize, preferred;
+ 	unsigned long i, start = 0, incr, eidx, end_pfn;
+ 	void *ret;
  
- unsigned long __init free_all_bootmem(void)
+ 	if (!size) {
+-		printk("__alloc_bootmem_core(): zero-sized request\n");
++		printk(KERN_ERR "alloc_bootmem_core(): zero-sized request\n");
+ 		BUG();
+ 	}
+ 	BUG_ON(align & (align-1));
+@@ -461,7 +461,7 @@ void * __init __alloc_bootmem_nopanic(un
+ 	void *ptr;
+ 
+ 	list_for_each_entry(bdata, &bdata_list, list) {
+-		ptr = __alloc_bootmem_core(bdata, size, align, goal, 0);
++		ptr = alloc_bootmem_core(bdata, size, align, goal, 0);
+ 		if (ptr)
+ 			return ptr;
+ 	}
+@@ -489,7 +489,7 @@ void * __init __alloc_bootmem_node(pg_da
+ {
+ 	void *ptr;
+ 
+-	ptr = __alloc_bootmem_core(pgdat->bdata, size, align, goal, 0);
++	ptr = alloc_bootmem_core(pgdat->bdata, size, align, goal, 0);
+ 	if (ptr)
+ 		return ptr;
+ 
+@@ -507,8 +507,8 @@ void * __init __alloc_bootmem_low(unsign
+ 	void *ptr;
+ 
+ 	list_for_each_entry(bdata, &bdata_list, list) {
+-		ptr = __alloc_bootmem_core(bdata, size, align, goal,
+-						ARCH_LOW_ADDRESS_LIMIT);
++		ptr = alloc_bootmem_core(bdata, size, align, goal,
++					ARCH_LOW_ADDRESS_LIMIT);
+ 		if (ptr)
+ 			return ptr;
+ 	}
+@@ -524,6 +524,6 @@ void * __init __alloc_bootmem_low(unsign
+ void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
+ 				       unsigned long align, unsigned long goal)
+ {
+-	return __alloc_bootmem_core(pgdat->bdata, size, align, goal,
++	return alloc_bootmem_core(pgdat->bdata, size, align, goal,
+ 				    ARCH_LOW_ADDRESS_LIMIT);
+ }
 
 -- 
 
