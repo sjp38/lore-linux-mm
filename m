@@ -1,25 +1,53 @@
-Date: Wed, 16 Apr 2008 11:33:37 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH 1 of 9] Lock the entire mm to prevent any mmu related
-	operation to happen
-Message-ID: <20080416163337.GJ22493@sgi.com>
-References: <patchbomb.1207669443@duo.random> <ec6d8f91b299cf26cce5.1207669444@duo.random>
-MIME-Version: 1.0
+Date: Wed, 16 Apr 2008 11:39:36 -0500
+From: Jack Steiner <steiner@sgi.com>
+Subject: [PATCH] - Increase MAX_APICS for large configs
+Message-ID: <20080416163936.GA23099@sgi.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <ec6d8f91b299cf26cce5.1207669444@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>, Steve Wise <swise@opengridcomputing.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
+To: mingo@elte.hu, tglx@linutronix.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I don't think this lock mechanism is completely working.  I have
-gotten a few failures trying to dereference 0x100100 which appears to
-be LIST_POISON1.
+Increase the maximum number of apics when running very large
+configurations. This patch has no affect on most systems.
 
-Thanks,
-Robin
+Signed-off-by: Jack Steiner <steiner@sgi.com>
+
+---
+
+I think this area of the code will be substantially changed when
+the full x2apic patch is available. In the meantime, this seems
+like an acceptible alternative. The patch has no effect on any 32-bit
+kernel. It adds ~4k to the size of 64-bit kernels but only if
+NR_CPUS > 255.
+
+
+ include/asm-x86/mpspec_def.h |    9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+Index: linux/include/asm-x86/mpspec_def.h
+===================================================================
+--- linux.orig/include/asm-x86/mpspec_def.h	2008-03-29 06:45:28.000000000 -0500
++++ linux/include/asm-x86/mpspec_def.h	2008-03-31 14:17:01.000000000 -0500
+@@ -17,10 +17,11 @@
+ # define MAX_MPC_ENTRY 1024
+ # define MAX_APICS      256
+ #else
+-/*
+- * A maximum of 255 APICs with the current APIC ID architecture.
+- */
+-# define MAX_APICS 255
++# if NR_CPUS <= 255
++#  define MAX_APICS     255
++# else
++#  define MAX_APICS   32768
++# endif
+ #endif
+ 
+ struct intel_mp_floating {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
