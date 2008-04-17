@@ -1,193 +1,165 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20080417000644.18399.66175.sendpatchset@skynet.skynet.ie>
+Message-Id: <20080417000704.18399.150.sendpatchset@skynet.skynet.ie>
 In-Reply-To: <20080417000624.18399.35041.sendpatchset@skynet.skynet.ie>
 References: <20080417000624.18399.35041.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 1/4] Add a basic debugging framework for memory initialisation
-Date: Thu, 17 Apr 2008 01:06:44 +0100 (IST)
+Subject: [PATCH 2/4] Verify the page links and memory model
+Date: Thu, 17 Apr 2008 01:07:04 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Mel Gorman <mel@csn.ul.ie>, mingo@elte.hu, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This patch creates a new file mm/mm_init.c which is conditionally
-compiled to have almost all of the debugging and verification code to
-avoid further polluting page_alloc.c. Ideally other mm initialisation code
-will be moved here over time and the file partially compiled depending
-on Kconfig. This patch introduces a simple mminit_debug_printk() macro
-and an mminit_debug_level commmand-line parameter for setting the level of
-tracing and verification that should be done.
+This patch prints out information on how the page flags are being used and
+verifies they are correct if mminit_debug_level is MMINIT_VERIFY or higher.
+When the page flags are updated with section, node and zone information, an
+additional check is made to ensure the values can be retrieved correctly. The
+final check made with respect to pages is that pfn_to_page() and page_to_pfn()
+are returning sensible values.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
- Documentation/kernel-parameters.txt |    8 ++++++++
- lib/Kconfig.debug                   |   12 ++++++++++++
- mm/Makefile                         |    1 +
- mm/internal.h                       |   26 ++++++++++++++++++++++++++
- mm/mm_init.c                        |   18 ++++++++++++++++++
- mm/page_alloc.c                     |   16 ++++++++++------
- 6 files changed, 75 insertions(+), 6 deletions(-)
+ mm/internal.h   |   12 +++++++++
+ mm/mm_init.c    |   64 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/page_alloc.c |    6 ++++
+ 3 files changed, 82 insertions(+)
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-rc9-ingo-fix-sparsemem/Documentation/kernel-parameters.txt linux-2.6.25-rc9-0010_mminit_debug_framework/Documentation/kernel-parameters.txt
---- linux-2.6.25-rc9-ingo-fix-sparsemem/Documentation/kernel-parameters.txt	2008-04-11 21:32:29.000000000 +0100
-+++ linux-2.6.25-rc9-0010_mminit_debug_framework/Documentation/kernel-parameters.txt	2008-04-17 00:20:19.000000000 +0100
-@@ -1148,6 +1148,14 @@ and is between 256 and 4096 characters. 
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-rc9-0010_mminit_debug_framework/mm/internal.h linux-2.6.25-rc9-0020_memmap_init_debug/mm/internal.h
+--- linux-2.6.25-rc9-0010_mminit_debug_framework/mm/internal.h	2008-04-17 00:20:19.000000000 +0100
++++ linux-2.6.25-rc9-0020_memmap_init_debug/mm/internal.h	2008-04-17 00:20:33.000000000 +0100
+@@ -78,6 +78,10 @@ do { \
+ 	} \
+ } while (0)
  
- 	mga=		[HW,DRM]
- 
-+	mminit_debug_level=
-+			[KNL] When CONFIG_DEBUG_MEMORY_INIT is set, this
-+			parameter allows control of what level of debugging
-+			and verification is done during memory initialisation.
-+			A value of -1 disables the checks and a level of 4 will
-+			enable tracing. By default basic verifications are made
-+			when the Kconfig option is set
++extern void mminit_verify_pageflags(void);
++extern void mminit_verify_page_links(struct page *page,
++		enum zone_type zone, unsigned long nid, unsigned long pfn);
 +
- 	mousedev.tap_time=
- 			[MOUSE] Maximum time between finger touching and
- 			leaving touchpad surface for touch to be considered
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-rc9-ingo-fix-sparsemem/lib/Kconfig.debug linux-2.6.25-rc9-0010_mminit_debug_framework/lib/Kconfig.debug
---- linux-2.6.25-rc9-ingo-fix-sparsemem/lib/Kconfig.debug	2008-04-11 21:32:29.000000000 +0100
-+++ linux-2.6.25-rc9-0010_mminit_debug_framework/lib/Kconfig.debug	2008-04-17 00:20:19.000000000 +0100
-@@ -437,6 +437,18 @@ config DEBUG_VM
+ #else
  
- 	  If unsure, say N.
+ static inline void mminit_debug_printk(unsigned int level, const char *prefix,
+@@ -85,5 +89,13 @@ static inline void mminit_debug_printk(u
+ {
+ }
  
-+config DEBUG_MEMORY_INIT
-+	bool "Debug memory initialisation"
-+	depends on DEBUG_KERNEL
-+	help
-+	  Enable this to turn on debug checks during memory initialisation. By
-+	  default, sanity checks will be made on the memory model and
-+	  information provided by the architecture. What level of checking
-+	  made and verbosity during boot can be set with the
-+	  mminit_debug_level= command-line option.
++static inline void mminit_verify_pageflags(void)
++{
++}
 +
-+	  If unsure, say N
-+
- config DEBUG_LIST
- 	bool "Debug linked list manipulation"
- 	depends on DEBUG_KERNEL
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-rc9-ingo-fix-sparsemem/mm/internal.h linux-2.6.25-rc9-0010_mminit_debug_framework/mm/internal.h
---- linux-2.6.25-rc9-ingo-fix-sparsemem/mm/internal.h	2008-04-11 21:32:29.000000000 +0100
-+++ linux-2.6.25-rc9-0010_mminit_debug_framework/mm/internal.h	2008-04-17 00:20:19.000000000 +0100
-@@ -60,4 +60,30 @@ static inline unsigned long page_order(s
- #define __paginginit __init
++static inline void mminit_verify_page_links(struct page *page,
++		enum zone_type zone, unsigned long nid, unsigned long pfn)
++{
++}
+ #endif /* CONFIG_DEBUG_MEMORY_INIT */
  #endif
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-rc9-0010_mminit_debug_framework/mm/mm_init.c linux-2.6.25-rc9-0020_memmap_init_debug/mm/mm_init.c
+--- linux-2.6.25-rc9-0010_mminit_debug_framework/mm/mm_init.c	2008-04-17 00:20:19.000000000 +0100
++++ linux-2.6.25-rc9-0020_memmap_init_debug/mm/mm_init.c	2008-04-17 00:20:33.000000000 +0100
+@@ -7,9 +7,73 @@
+  */
+ #include <linux/kernel.h>
+ #include <linux/init.h>
++#include "internal.h"
  
-+/* Memory initialisation debug and verification */
-+enum mminit_levels {
-+	MMINIT_NORMAL = -1,
-+	MMINIT_VERIFY,
-+	MMINIT_TRACE
-+};
+ int __initdata mminit_debug_level;
+ 
++void __init mminit_verify_pageflags(void)
++{
++	unsigned long shift;
++	if (mminit_debug_level < MMINIT_VERIFY)
++		return;
 +
-+#ifdef CONFIG_DEBUG_MEMORY_INIT
-+
-+extern int mminit_debug_level;
-+
-+#define mminit_debug_printk(level, prefix, fmt, arg...) \
-+do { \
-+	if (level < mminit_debug_level) { \
-+		printk(KERN_INFO "mminit::%s " fmt, prefix, ##arg); \
-+	} \
-+} while (0)
-+
++	mminit_debug_printk(MMINIT_TRACE, "pageflags_layout_widths",
++		"Section %d Node %d Zone %d Reserved %d\n",
++		SECTIONS_WIDTH,
++		NODES_WIDTH,
++		ZONES_WIDTH,
++		FLAGS_RESERVED);
++	mminit_debug_printk(MMINIT_TRACE, "pageflags_layout_shifts",
++		"Section %d Node %d Zone %d\n",
++#ifdef SECTIONS_SHIFT
++		SECTIONS_SHIFT,
 +#else
++		0,
++#endif
++		NODES_SHIFT,
++		ZONES_SHIFT);
++	mminit_debug_printk(MMINIT_TRACE, "pageflags_layout_offsets",
++		"Section %d Node %d Zone %d\n",
++		SECTIONS_PGSHIFT,
++		NODES_PGSHIFT,
++		ZONES_PGSHIFT);
++	mminit_debug_printk(MMINIT_TRACE, "pageflags_layout_zoneid",
++		"Zone ID: %d -> %d\n",
++		ZONEID_PGOFF, ZONEID_PGOFF + ZONEID_SHIFT);
++#ifdef NODE_NOT_IN_PAGE_FLAGS
++	mminit_debug_printk(MMINIT_TRACE, "pageflags_layout_nodeflags",
++		"Node not in page flags");
++#endif
 +
-+static inline void mminit_debug_printk(unsigned int level, const char *prefix,
-+				const char *fmt, ...)
-+{
++	shift = 8 * sizeof(unsigned long);
++	if (SECTIONS_WIDTH) {
++		shift -= SECTIONS_WIDTH;
++		BUG_ON(shift != SECTIONS_PGSHIFT);
++	}
++	if (NODES_WIDTH) {
++		shift -= NODES_WIDTH;
++		BUG_ON(shift != NODES_PGSHIFT);
++	}
++	if (ZONES_WIDTH) {
++		shift -= ZONES_WIDTH;
++		BUG_ON(shift != ZONES_PGSHIFT);
++	}
++	BUG_ON((ZONES_MASK << ZONES_PGSHIFT) &
++			(NODES_MASK << NODES_PGSHIFT) &
++			(SECTIONS_MASK << SECTIONS_PGSHIFT));
 +}
 +
-+#endif /* CONFIG_DEBUG_MEMORY_INIT */
- #endif
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-rc9-ingo-fix-sparsemem/mm/Makefile linux-2.6.25-rc9-0010_mminit_debug_framework/mm/Makefile
---- linux-2.6.25-rc9-ingo-fix-sparsemem/mm/Makefile	2008-04-11 21:32:29.000000000 +0100
-+++ linux-2.6.25-rc9-0010_mminit_debug_framework/mm/Makefile	2008-04-17 00:20:19.000000000 +0100
-@@ -33,4 +33,5 @@ obj-$(CONFIG_MIGRATION) += migrate.o
- obj-$(CONFIG_SMP) += allocpercpu.o
- obj-$(CONFIG_QUICKLIST) += quicklist.o
- obj-$(CONFIG_CGROUP_MEM_RES_CTLR) += memcontrol.o
-+obj-$(CONFIG_DEBUG_MEMORY_INIT) += mm_init.o
- 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-rc9-ingo-fix-sparsemem/mm/mm_init.c linux-2.6.25-rc9-0010_mminit_debug_framework/mm/mm_init.c
---- linux-2.6.25-rc9-ingo-fix-sparsemem/mm/mm_init.c	2008-04-16 10:42:54.000000000 +0100
-+++ linux-2.6.25-rc9-0010_mminit_debug_framework/mm/mm_init.c	2008-04-17 00:20:19.000000000 +0100
-@@ -0,0 +1,18 @@
-+/*
-+ * mm_init.c - Memory initialisation verification and debugging
-+ *
-+ * Copyright 2008 IBM Corporation, 2008
-+ * Author Mel Gorman <mel@csn.ul.ie>
-+ *
-+ */
-+#include <linux/kernel.h>
-+#include <linux/init.h>
-+
-+int __initdata mminit_debug_level;
-+
-+static __init int set_mminit_debug_level(char *str)
++void __meminit mminit_verify_page_links(struct page *page, enum zone_type zone,
++			unsigned long nid, unsigned long pfn)
 +{
-+	get_option(&str, &mminit_debug_level);
-+	return 0;
++	if (mminit_debug_level < MMINIT_VERIFY)
++		return;
++
++	BUG_ON(page_to_nid(page) != nid);
++	BUG_ON(page_zonenum(page) != zone);
++	BUG_ON(page_to_pfn(page) != pfn);
 +}
-+early_param("mminit_debug_level", set_mminit_debug_level);
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-rc9-ingo-fix-sparsemem/mm/page_alloc.c linux-2.6.25-rc9-0010_mminit_debug_framework/mm/page_alloc.c
---- linux-2.6.25-rc9-ingo-fix-sparsemem/mm/page_alloc.c	2008-04-11 21:32:29.000000000 +0100
-+++ linux-2.6.25-rc9-0010_mminit_debug_framework/mm/page_alloc.c	2008-04-17 00:20:19.000000000 +0100
-@@ -2958,7 +2958,8 @@ void __init sparse_memory_present_with_a
- void __init push_node_boundaries(unsigned int nid,
- 		unsigned long start_pfn, unsigned long end_pfn)
++
+ static __init int set_mminit_debug_level(char *str)
  {
--	printk(KERN_DEBUG "Entering push_node_boundaries(%u, %lu, %lu)\n",
-+	mminit_debug_printk(MMINIT_TRACE, "zoneboundary",
-+			"Entering push_node_boundaries(%u, %lu, %lu)\n",
- 			nid, start_pfn, end_pfn);
- 
- 	/* Initialise the boundary for this node if necessary */
-@@ -2976,7 +2977,8 @@ void __init push_node_boundaries(unsigne
- static void __meminit account_node_boundary(unsigned int nid,
- 		unsigned long *start_pfn, unsigned long *end_pfn)
- {
--	printk(KERN_DEBUG "Entering account_node_boundary(%u, %lu, %lu)\n",
-+	mminit_debug_printk(MMINIT_TRACE, "zoneboundary",
-+			"Entering account_node_boundary(%u, %lu, %lu)\n",
- 			nid, *start_pfn, *end_pfn);
- 
- 	/* Return if boundary information has not been provided */
-@@ -3350,8 +3352,8 @@ static void __paginginit free_area_init_
- 		memmap_pages = (size * sizeof(struct page)) >> PAGE_SHIFT;
- 		if (realsize >= memmap_pages) {
- 			realsize -= memmap_pages;
--			printk(KERN_DEBUG
--				"  %s zone: %lu pages used for memmap\n",
-+			mminit_debug_printk(MMINIT_TRACE, "memmap_init",
-+				"%s zone: %lu pages used for memmap\n",
- 				zone_names[j], memmap_pages);
- 		} else
- 			printk(KERN_WARNING
-@@ -3361,7 +3363,8 @@ static void __paginginit free_area_init_
- 		/* Account for reserved pages */
- 		if (j == 0 && realsize > dma_reserve) {
- 			realsize -= dma_reserve;
--			printk(KERN_DEBUG "  %s zone: %lu pages reserved\n",
-+			mminit_debug_printk(MMINIT_TRACE, "memmap_init",
-+					"%s zone: %lu pages reserved\n",
- 					zone_names[0], dma_reserve);
+ 	get_option(&str, &mminit_debug_level);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-rc9-0010_mminit_debug_framework/mm/page_alloc.c linux-2.6.25-rc9-0020_memmap_init_debug/mm/page_alloc.c
+--- linux-2.6.25-rc9-0010_mminit_debug_framework/mm/page_alloc.c	2008-04-17 00:20:19.000000000 +0100
++++ linux-2.6.25-rc9-0020_memmap_init_debug/mm/page_alloc.c	2008-04-17 00:20:33.000000000 +0100
+@@ -2533,6 +2533,7 @@ void __meminit memmap_init_zone(unsigned
  		}
+ 		page = pfn_to_page(pfn);
+ 		set_page_links(page, zone, nid, pfn);
++		mminit_verify_page_links(page, zone, nid, pfn);
+ 		init_page_count(page);
+ 		reset_page_mapcount(page);
+ 		SetPageReserved(page);
+@@ -2829,6 +2830,10 @@ __meminit int init_currently_empty_zone(
  
-@@ -3496,7 +3499,8 @@ void __init add_active_range(unsigned in
- {
- 	int i;
+ 	zone->zone_start_pfn = zone_start_pfn;
  
--	printk(KERN_DEBUG "Entering add_active_range(%d, %lu, %lu) "
-+	mminit_debug_printk(MMINIT_TRACE, "memory_register",
-+			"Entering add_active_range(%d, %lu, %lu) "
- 			  "%d entries of %d used\n",
- 			  nid, start_pfn, end_pfn,
- 			  nr_nodemap_entries, MAX_ACTIVE_REGIONS);
++	mminit_debug_printk(MMINIT_TRACE, "memmap_init",
++			"Initialising map node %d zone %d pfns %lu -> %lu\n",
++			pgdat->node_id, zone_idx(zone),
++			zone_start_pfn, (zone_start_pfn + size));
+ 	memmap_init(size, pgdat->node_id, zone_idx(zone), zone_start_pfn);
+ 
+ 	zone_init_free_lists(zone);
+@@ -3896,6 +3901,7 @@ void __init free_area_init_nodes(unsigne
+ 						early_node_map[i].end_pfn);
+ 
+ 	/* Initialise every node */
++	mminit_verify_pageflags();
+ 	setup_nr_node_ids();
+ 	for_each_online_node(nid) {
+ 		pg_data_t *pgdat = NODE_DATA(nid);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
