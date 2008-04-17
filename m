@@ -1,38 +1,45 @@
-Date: Thu, 17 Apr 2008 16:22:17 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs ABI
-In-Reply-To: <20080417231617.GA18815@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0804171619340.12031@schroedinger.engr.sgi.com>
-References: <20080411234449.GE19078@us.ibm.com> <20080411234712.GF19078@us.ibm.com>
- <20080411234743.GG19078@us.ibm.com> <20080411234913.GH19078@us.ibm.com>
- <20080411235648.GA13276@suse.de> <20080412094118.GA7708@wotan.suse.de>
- <20080413034136.GA22686@suse.de> <20080414210506.GA6350@us.ibm.com>
- <20080417231617.GA18815@us.ibm.com>
+Received: by yw-out-1718.google.com with SMTP id 6so178662ywa.26
+        for <linux-mm@kvack.org>; Thu, 17 Apr 2008 16:24:48 -0700 (PDT)
+Message-ID: <e9c3a7c20804171624n43a3665dkfea4d474aac4c99e@mail.gmail.com>
+Date: Thu, 17 Apr 2008 16:24:48 -0700
+From: "Dan Williams" <dan.j.williams@intel.com>
+Subject: Re: 2.6.25-mm1: not looking good
+In-Reply-To: <20080417160331.b4729f0c.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080417160331.b4729f0c.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Greg KH <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morris <jmorris@namei.org>, Stephen Smalley <sds@tycho.nsa.gov>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 17 Apr 2008, Nishanth Aravamudan wrote:
+On Thu, Apr 17, 2008 at 4:03 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+>
+>  I repulled all the trees an hour or two ago, installed everything on an
+>  8-way x86_64 box and:
+>
+>
+[..]
+>  more usb/sysfs:
+>
+>  hub 2-0:1.0: USB hub found
+>  hub 2-0:1.0: 2 ports detected
+>  sysfs: duplicate filename '189:128' can not be created
+[..]
+>  I have maybe two hours in which to weed out whatever very-recently-added
+>  dud patches are causing this.  Any suggestions are welcome.
+>
 
-> > Do you see a particular more-sysfs-way here, Greg?
-> 
-> So I've received no comments yet? Perhaps I should leave things the way
-> they are (per-node files in /sys/devices/system/node) and add
-> nr_hugepages to /sys/kernel?
+The duplicate filename <major>:<minor> messages are coming from
+"sysfs-add-sys-dev-char-block-to-lookup-sysfs-path-by-major-minor.patch"
+now in Greg's tree.  I'll take a look.
 
-The strange location of the node directories has always irked me.
-> 
-> Do we want to put it in a subdirectory of /sys/kernel? What should the
-> subdir be called? "hugetlb" (refers to the implementation?) or
-> "hugepages"?
-
-How about:
-
-/sys/kernel/node<nr>/<node specific setting/status files> ?
+--
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
