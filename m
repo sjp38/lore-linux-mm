@@ -1,30 +1,35 @@
-Date: Thu, 17 Apr 2008 16:39:56 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs ABI
-In-Reply-To: <20080417233615.GA24508@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0804171639340.15173@schroedinger.engr.sgi.com>
-References: <20080411234449.GE19078@us.ibm.com> <20080411234712.GF19078@us.ibm.com>
- <20080411234743.GG19078@us.ibm.com> <20080411234913.GH19078@us.ibm.com>
- <20080411235648.GA13276@suse.de> <20080412094118.GA7708@wotan.suse.de>
- <20080413034136.GA22686@suse.de> <20080414210506.GA6350@us.ibm.com>
- <20080417231617.GA18815@us.ibm.com> <Pine.LNX.4.64.0804171619340.12031@schroedinger.engr.sgi.com>
- <20080417233615.GA24508@us.ibm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 17 Apr 2008 16:40:34 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: 2.6.25-mm1: not looking good
+Message-Id: <20080417164034.e406ef53.akpm@linux-foundation.org>
+In-Reply-To: <20080417160331.b4729f0c.akpm@linux-foundation.org>
+References: <20080417160331.b4729f0c.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Greg KH <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
+To: mingo@elte.hu, tglx@linutronix.de, penberg@cs.helsinki.fi, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jmorris@namei.org, sds@tycho.nsa.gov
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 17 Apr 2008, Nishanth Aravamudan wrote:
+On Thu, 17 Apr 2008 16:03:31 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> That seems fine to me. I will work on it. However, as I mentioned in a
-> previous e-mail, the files in /sys/devices/system/node/node<nr>/
-> already violate the "one value per file" rule in several instances. I'm
-> guessing Greg won't want me moving the files and keeping that violation?
+> 
+> I have maybe two hours in which to weed out whatever very-recently-added
+> dud patches are causing this.  Any suggestions are welcome.
+> 
 
-That violation is replicated in /proc/meminfo /proc/vmstat etc etc.
+With git-selinux at top-of tree it's repeatably hanging in the CPA
+self-tests (git-x86 stuff).  Last two lines are:
+
+CPA self-test:
+ 4k 8704 large 4847 gb 0 x 0[0-0] miss 0
+
+(clear as mud ;))
+
+I will find the config knob to disable that test.  Of course, it could be
+telling me that CPA is buggy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
