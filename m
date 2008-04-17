@@ -1,45 +1,49 @@
-Received: by wr-out-0506.google.com with SMTP id c37so238025wra.26
-        for <linux-mm@kvack.org>; Thu, 17 Apr 2008 11:02:18 -0700 (PDT)
-Message-ID: <86802c440804171102q2be96c67m881394c1e6fa3867@mail.gmail.com>
-Date: Thu, 17 Apr 2008 11:02:13 -0700
-From: "Yinghai Lu" <yhlu.kernel@gmail.com>
-Subject: Re: [PATCH] - Increase MAX_APICS for large configs
-In-Reply-To: <20080417110727.GA942@elte.hu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: [PATCH] Mempolicy:  fix mpol_to_str() to handle ignore mode flags
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Content-Type: text/plain
+Date: Thu, 17 Apr 2008 14:20:27 -0400
+Message-Id: <1208456427.5292.16.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080416163936.GA23099@sgi.com> <20080417110727.GA942@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>
-Cc: Jack Steiner <steiner@sgi.com>, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-numa <linux-numa@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 17, 2008 at 4:07 AM, Ingo Molnar <mingo@elte.hu> wrote:
->
->  * Jack Steiner <steiner@sgi.com> wrote:
->
->  > Increase the maximum number of apics when running very large
->  > configurations. This patch has no affect on most systems.
->
->  x86.git overnight random-qa testing found a boot crash and i bisected it
->  down to this patch. The config is:
->
->   http://redhat.com/~mingo/misc/config-Thu_Apr_17_10_17_14_CEST_2008.bad
->
->  the failure is attached below. (I needed the exact boot parameters
->  listed in that bootup log to see this failure.)
->
->  it seems to be CONFIG_MAXSMP=y triggers the new more-apic-ids code and
->  that causes some breakage elsewhere. [btw., this again shows how useful
->  the CONFIG_MAXSMP debug feature is!]
+Against: 2.6.25-rc8-mm1
 
-so this one and Mike's 4096 NR_CPUS cause the problem?
+Fixes problem introduced by my previous patch:
+  mempolicy-use-mpol_f_local-to-indicate-preferred-local-policy.patch
 
-2048 CPUs works.
+Eliminate display of bogus '=' flag indicator in presence of
+internal mode flags.
 
-YH
+Without this fix, on 25-rc8-mm1, a display of a process' numa_maps
+will show, e.g., default policy as "default=".  Worse, if the maps
+include longer policies, such as "interleave:0-3", this problem will
+lose the string terminator after the "<mode>=" and display subsequent
+default policies as "default=ve:0-3".
+
+Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+ mm/mempolicy.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: linux-2.6.25-rc8-mm2/mm/mempolicy.c
+===================================================================
+--- linux-2.6.25-rc8-mm2.orig/mm/mempolicy.c	2008-04-16 12:27:54.000000000 -0400
++++ linux-2.6.25-rc8-mm2/mm/mempolicy.c	2008-04-17 11:43:10.000000000 -0400
+@@ -2149,7 +2149,7 @@ int mpol_to_str(char *buffer, int maxlen
+ 	strcpy(p, policy_types[mode]);
+ 	p += l;
+ 
+-	if (flags) {
++	if (flags & MPOL_MODE_FLAGS) {
+ 		if (buffer + maxlen < p + 2)
+ 			return -ENOSPC;
+ 		*p++ = '=';
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
