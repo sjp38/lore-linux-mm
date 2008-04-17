@@ -1,111 +1,67 @@
-From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20080417000744.18399.84537.sendpatchset@skynet.skynet.ie>
-In-Reply-To: <20080417000624.18399.35041.sendpatchset@skynet.skynet.ie>
-References: <20080417000624.18399.35041.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 4/4] Print out the zonelists on request for manual verification
-Date: Thu, 17 Apr 2008 01:07:44 +0100 (IST)
+Date: Thu, 17 Apr 2008 09:19:30 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Warning on memory offline (and possible in usual migration?)
+Message-Id: <20080417091930.cbac6286.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080416113642.8ffd5684.akpm@linux-foundation.org>
+References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
+	<20080416200036.2ea9b5c2.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080416113642.8ffd5684.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Mel Gorman <mel@csn.ul.ie>, mingo@elte.hu, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: clameter@sgi.com, linux-mm@kvack.org, npiggin@suse.de, y-goto@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-This patch prints out the zonelists during boot for manual verification
-by the user. This is useful for checking if the zonelists were somehow
-corrupt during initialisation. Note that this patch will not work in -mm
-due to differences in how zonelists are used.
+On Wed, 16 Apr 2008 11:36:42 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
+> > To set a page as Uptodate, all buffers must be uptodate.
+> > 
+> > But *all* buffers to this page is not necessary to be uptodate, here. 
+> > Then, the page can be not-up-to-date after commit-write.
+> > 
+> > At page offlining, all buffers on the page seems to be marked as Uptodate
+> > (by printk) but the page itself isn't. This seems strange.
+> > 
+> > But I don't found who set Uptodate to the buffers. 
+> > And why page isn't up-to-date while all buffers are marked as up-to-date.
+> 
+> That would imply that someone brought a buffer uptodate and didn't mark the
+> page uptodate.  That can happen if a read reads the buffer from disk or
+> memsets all of it.  Or if a write memsets all of it, or does
+> copy_from_user() into all of it.
+> 
+ok, I'll pay attention to codes for read.
 
- mm/internal.h   |    5 +++++
- mm/mm_init.c    |   40 ++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c |    1 +
- 3 files changed, 46 insertions(+)
+> > still chasing.
+> 
+> umm..
+> 
+> If you had some code which does
+> 
+> 	pread(fd, buf, 1, 0);
+> 	pread(fd, buf, 1, 4096);
+> 	pread(fd, buf, 1, 8192);
+> 	pread(fd, buf, 1, 12288);
+> 
+> then I'd expect that each read would read a single buffer so we end up with
+> four uptodate buffers, but nobody brings the entire page uptodate.
+> 
+> readahead will hide this most of the time by reading entire pages, but if
+> for some reason readahead has collapsed the window to zero then it could
+> happen.
+> 
+> I'd expect that you could reproduce this by disabling readahead with
+> fadvise(POSIX_FADV_RANDOM) and then issuing the above four reads.
+> 
+Thank you for advice. I'll try.
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-rc9-0025_defensive_pfn_checks/mm/internal.h linux-2.6.25-rc9-0030_display_zonelist/mm/internal.h
---- linux-2.6.25-rc9-0025_defensive_pfn_checks/mm/internal.h	2008-04-17 00:20:47.000000000 +0100
-+++ linux-2.6.25-rc9-0030_display_zonelist/mm/internal.h	2008-04-17 00:21:07.000000000 +0100
-@@ -81,6 +81,7 @@ do { \
- extern void mminit_verify_pageflags(void);
- extern void mminit_verify_page_links(struct page *page,
- 		enum zone_type zone, unsigned long nid, unsigned long pfn);
-+extern void mminit_verify_zonelist(void);
- 
- #else
- 
-@@ -97,6 +98,10 @@ static inline void mminit_verify_page_li
- 		enum zone_type zone, unsigned long nid, unsigned long pfn)
- {
- }
-+
-+static inline void mminit_verify_zonelist(void)
-+{
-+}
- #endif /* CONFIG_DEBUG_MEMORY_INIT */
- 
- /* mminit_validate_physlimits is independent of CONFIG_DEBUG_MEMORY_INIT */
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-rc9-0025_defensive_pfn_checks/mm/mm_init.c linux-2.6.25-rc9-0030_display_zonelist/mm/mm_init.c
---- linux-2.6.25-rc9-0025_defensive_pfn_checks/mm/mm_init.c	2008-04-17 00:20:33.000000000 +0100
-+++ linux-2.6.25-rc9-0030_display_zonelist/mm/mm_init.c	2008-04-17 00:21:07.000000000 +0100
-@@ -11,6 +11,46 @@
- 
- int __initdata mminit_debug_level;
- 
-+/* Note that the verification of correctness is required from the user */
-+void mminit_verify_zonelist(void)
-+{
-+	int nid;
-+
-+	if (mminit_debug_level < MMINIT_VERIFY)
-+		return;
-+
-+	for_each_online_node(nid) {
-+		pg_data_t *pgdat = NODE_DATA(nid);
-+		struct zone *zone;
-+		struct zone **z;
-+		int listid;
-+
-+		for (listid = 0; listid < MAX_ZONELISTS; listid++) {
-+			zone = &pgdat->node_zones[listid % MAX_NR_ZONES];
-+
-+			if (!populated_zone(zone))
-+				continue;
-+
-+			printk(KERN_INFO "mminit::zonelist %s %d:%s = ",
-+				listid >= MAX_NR_ZONES ? "thisnode" : "general",
-+				nid,
-+				zone->name);
-+			z = pgdat->node_zonelists[listid].zones;
-+
-+			while (*z != NULL) {
-+#ifdef CONFIG_NUMA
-+				printk(KERN_CONT "%d:%s ",
-+						(*z)->node, (*z)->name);
-+#else
-+				printk(KERN_CONT "0:%s ", (*z)->name);
-+#endif
-+				z++;
-+			}
-+			printk(KERN_CONT "\n");
-+		}
-+	}
-+}
-+
- void __init mminit_verify_pageflags(void)
- {
- 	unsigned long shift;
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-rc9-0025_defensive_pfn_checks/mm/page_alloc.c linux-2.6.25-rc9-0030_display_zonelist/mm/page_alloc.c
---- linux-2.6.25-rc9-0025_defensive_pfn_checks/mm/page_alloc.c	2008-04-17 00:20:47.000000000 +0100
-+++ linux-2.6.25-rc9-0030_display_zonelist/mm/page_alloc.c	2008-04-17 00:21:07.000000000 +0100
-@@ -2353,6 +2353,7 @@ void build_all_zonelists(void)
- 
- 	if (system_state == SYSTEM_BOOTING) {
- 		__build_all_zonelists(NULL);
-+		mminit_verify_zonelist();
- 		cpuset_init_current_mems_allowed();
- 	} else {
- 		/* we have to stop all cpus to guarantee there is no user
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
