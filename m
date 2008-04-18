@@ -1,49 +1,47 @@
-Date: Fri, 18 Apr 2008 14:57:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcgroup: check and initialize page->cgroup in
- memmap_init_zone
-Message-Id: <20080418145716.afa70f76.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <48083506.7080909@cn.fujitsu.com>
-References: <48080706.50305@cn.fujitsu.com>
-	<48080930.5090905@cn.fujitsu.com>
-	<48080B86.7040200@cn.fujitsu.com>
-	<20080417201432.36b1c326.akpm@linux-foundation.org>
-	<20080418123256.da4d1db0.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080418140946.e265c1f3.kamezawa.hiroyu@jp.fujitsu.com>
-	<48083506.7080909@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3I6461X001774
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 02:04:06 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3I646uv253690
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 02:04:06 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3I645Xj007384
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 02:04:06 -0400
+Date: Thu, 17 Apr 2008 23:04:04 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs ABI
+Message-ID: <20080418060404.GA5807@us.ibm.com>
+References: <20080411234743.GG19078@us.ibm.com> <20080411234913.GH19078@us.ibm.com> <20080411235648.GA13276@suse.de> <20080412094118.GA7708@wotan.suse.de> <20080413034136.GA22686@suse.de> <20080414210506.GA6350@us.ibm.com> <20080417231617.GA18815@us.ibm.com> <Pine.LNX.4.64.0804171619340.12031@schroedinger.engr.sgi.com> <20080417233615.GA24508@us.ibm.com> <Pine.LNX.4.64.0804171639340.15173@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0804171639340.15173@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Shi Weihua <shiwh@cn.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, balbir@linux.vnet.ibm.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Greg KH <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 Apr 2008 13:43:34 +0800
-Shi Weihua <shiwh@cn.fujitsu.com> wrote:
+On 17.04.2008 [16:39:56 -0700], Christoph Lameter wrote:
+> On Thu, 17 Apr 2008, Nishanth Aravamudan wrote:
+> 
+> > That seems fine to me. I will work on it. However, as I mentioned in a
+> > previous e-mail, the files in /sys/devices/system/node/node<nr>/
+> > already violate the "one value per file" rule in several instances. I'm
+> > guessing Greg won't want me moving the files and keeping that violation?
+> 
+> That violation is replicated in /proc/meminfo /proc/vmstat etc etc.
 
-> KAMEZAWA Hiroyuki wrote::
-> > On Fri, 18 Apr 2008 12:32:56 +0900
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > 
-> >>> Or perhaps that page was used and then later freed before we got to
-> >>> memmap_init_zone() and was freed with a non-zero ->page_cgroup.  Which is
-> >>> unlikely given that page.page_cgroup was only just added and is only
-> >>> present if CONFIG_CGROUP_MEM_RES_CTLR.
-> >>>
-> >> Hmm, I'll try his .config and see what happens.
-> >>
-> > I reproduced the hang with his config and confirmed his fix works well.
-> > But I can't find why...I'll dig a bit more.
-> 
-> If i use CONFIG_SPARSEMEM instead of CONFIG_DISCONTIGMEM, the kernel 
-> boots successfully.
-> 
-Hmmm....ok. I'll check DISCONTIGMEM's boot codes.
+Right, but /proc doesn't have such a restriction (the "one value per
+file" rule). I'm not sure how the meminfo, etc. files in sysfs got put
+in past Greg, but that's how it is :)
 
 Thanks,
--Kame
+Nish
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
