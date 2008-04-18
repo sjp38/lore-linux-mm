@@ -1,50 +1,60 @@
-Date: Thu, 17 Apr 2008 18:12:30 -0700
+Date: Thu, 17 Apr 2008 18:35:38 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: 2.6.25-mm1: not looking good
-Message-Id: <20080417181230.334d087a.akpm@linux-foundation.org>
-In-Reply-To: <3ae72650804171748y713c965bvbaf5de39e05ab555@mail.gmail.com>
+Message-Id: <20080417183538.d88feff5.akpm@linux-foundation.org>
+In-Reply-To: <200804171955.46600.paul.moore@hp.com>
 References: <20080417160331.b4729f0c.akpm@linux-foundation.org>
-	<20080417232441.GA19281@kroah.com>
-	<3ae72650804171748y713c965bvbaf5de39e05ab555@mail.gmail.com>
+	<200804171955.46600.paul.moore@hp.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kay Sievers <kay.sievers@vrfy.org>
-Cc: greg@kroah.com, mingo@elte.hu, tglx@linutronix.de, penberg@cs.helsinki.fi, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jmorris@namei.org, sds@tycho.nsa.gov
+To: Paul Moore <paul.moore@hp.com>
+Cc: mingo@elte.hu, tglx@linutronix.de, penberg@cs.helsinki.fi, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jmorris@namei.org, sds@tycho.nsa.gov
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 Apr 2008 02:48:19 +0200
-"Kay Sievers" <kay.sievers@vrfy.org> wrote:
+On Thu, 17 Apr 2008 19:55:46 -0400
+Paul Moore <paul.moore@hp.com> wrote:
 
-> On Fri, Apr 18, 2008 at 1:24 AM, Greg KH <greg@kroah.com> wrote:
+> > security/selinux/netnode.c looks to be doing simple old
+> > kzalloc/kfree, so I'd be suspecting slab.  But there are significant
+> > changes netnode.c in git-selinux.
 > >
-> > On Thu, Apr 17, 2008 at 04:03:31PM -0700, Andrew Morton wrote:
-> >  >
-> >  > I repulled all the trees an hour or two ago, installed everything on an
-> >  > 8-way x86_64 box and:
+> > I have maybe two hours in which to weed out whatever
+> > very-recently-added dud patches are causing this.  Any suggestions
+> > are welcome.
 > 
-> >  > usb/sysfs:
-> >  >
-> >  > ACPI: PCI Interrupt 0000:00:1d.0[A] -> GSI 17 (level, low) -> IRQ 17
-> >  > uhci_hcd 0000:00:1d.0: UHCI Host Controller
-> >  > uhci_hcd 0000:00:1d.0: new USB bus registered, assigned bus number 1
-> >  > uhci_hcd 0000:00:1d.0: irq 17, io base 0x00002080
-> >  > usb usb1: configuration #1 chosen from 1 choice
-> >  > hub 1-0:1.0: USB hub found
-> >  > hub 1-0:1.0: 2 ports detected
-> >  > sysfs: duplicate filename '189:0' can not be created
-> >
-> >  Interesting, that's the new major:minor code.  I'll go poke at it...
+> For what it's worth I just looked over the changes in netnode.c and 
+> nothing is jumping out at me.  The changes ran fine for me when tested 
+> on the later 2.6.25-rcX kernels but I suppose that doesn't mean a whole 
+> lot.
 > 
-> Is this with the deprecated CONFIG_USB_DEVICE_CLASS=y?
+> I've got a 4-way x86_64 box but it needs to be installed (which means 
+> I'm not going to be able to do anything useful with it until tomorrow 
+> at the earliest).  I'll try it out and see if I can recreate the 
+> problem.
 
-Yes.
+I dropped git-selinux and that crash seems to have gone away.  It took about
+five minutes before, but would presumably have happened earlier if I'd
+reduced the cache size.
 
-> They have the
-> same dev_t as usb_device and would be a reason for the duplicates.
-> 
+btw, wouldn't this
+
+--- a/security/selinux/netnode.c~a
++++ a/security/selinux/netnode.c
+@@ -190,7 +190,7 @@ static int sel_netnode_insert(struct sel
+ 	if (sel_netnode_hash[idx].size == SEL_NETNODE_HASH_BKT_LIMIT) {
+ 		struct sel_netnode *tail;
+ 		tail = list_entry(node->list.prev, struct sel_netnode, list);
+-		list_del_rcu(node->list.prev);
++		list_del_rcu(&tail->list);
+ 		call_rcu(&tail->rcu, sel_netnode_free);
+ 	} else
+ 		sel_netnode_hash[idx].size++;
+_
+
+be a bit clearer?  If it's correct - I didn't try too hard :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
