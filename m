@@ -1,87 +1,81 @@
-Date: Fri, 18 Apr 2008 09:37:32 +0200
-From: Ingo Molnar <mingo@elte.hu>
+Date: Fri, 18 Apr 2008 00:50:34 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: 2.6.25-mm1: not looking good
-Message-ID: <20080418073732.GA22724@elte.hu>
-References: <20080417160331.b4729f0c.akpm@linux-foundation.org> <20080417164034.e406ef53.akpm@linux-foundation.org> <20080417171413.6f8458e4.akpm@linux-foundation.org> <48080FE7.1070400@windriver.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <48080FE7.1070400@windriver.com>
+Message-Id: <20080418005034.6e4dd9e7.akpm@linux-foundation.org>
+In-Reply-To: <20080417160331.b4729f0c.akpm@linux-foundation.org>
+References: <20080417160331.b4729f0c.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jason Wessel <jason.wessel@windriver.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, tglx@linutronix.de, penberg@cs.helsinki.fi, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jmorris@namei.org, sds@tycho.nsa.gov
+To: Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morris <jmorris@namei.org>, Stephen Smalley <sds@tycho.nsa.gov>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-* Jason Wessel <jason.wessel@windriver.com> wrote:
+Another runtime warning on the t61p:
 
-> > [...] The final initcall is init_kgdbts() and disabling KGDB 
-> > prevents the hang.
 
-> That enables verbose logging of exactly what is going on and will show 
-> where wheels fall off the cart.  If the kernel is dying silently it 
-> means the early exception code has completely failed in some way on 
-> the kernel architecture that was selected, and of course the .config 
-> is always useful in this case.
+Brought up 2 CPUs
+Total of 2 processors activated (9583.80 BogoMIPS).
+CPU0 attaching sched-domain:
+ domain 0: span 00000000,00000003
+  groups: 00000000,00000001 00000000,00000002
+  domain 1: span 00000000,00000003
+   groups: 00000000,00000003
+CPU1 attaching sched-domain:
+ domain 0: span 00000000,00000003
+  groups: 00000000,00000002 00000000,00000001
+  domain 1: span 00000000,00000003
+   groups: 00000000,00000003
+------------[ cut here ]------------
+WARNING: at kernel/lockdep.c:2677 check_flags+0x84/0x11f()
+Modules linked in:
+Pid: 0, comm: swapper Not tainted 2.6.25-mm1 #15
 
-incidentally, just today, in overnight testing i triggered a similar 
-hang in the KGDB self-test:
+Call Trace:
+ [<ffffffff8105f7ec>] ? print_modules+0x88/0x8f
+ [<ffffffff81037b55>] warn_on_slowpath+0x58/0x7f
+ [<ffffffff81056143>] ? trace_hardirqs_off+0xd/0xf
+ [<ffffffff810560b7>] ? trace_hardirqs_off_caller+0x1d/0x9c
+ [<ffffffff81056143>] ? trace_hardirqs_off+0xd/0xf
+ [<ffffffff810560b7>] ? trace_hardirqs_off_caller+0x1d/0x9c
+ [<ffffffff81056143>] ? trace_hardirqs_off+0xd/0xf
+ [<ffffffff81058576>] ? __lock_acquire+0x809/0x893
+ [<ffffffff810560b7>] ? trace_hardirqs_off_caller+0x1d/0x9c
+ [<ffffffff81056143>] ? trace_hardirqs_off+0xd/0xf
+ [<ffffffff812b94d1>] ? __atomic_notifier_call_chain+0x0/0x81
+ [<ffffffff8105627e>] check_flags+0x84/0x11f
+ [<ffffffff81058914>] lock_acquire+0x54/0xb4
+ [<ffffffff812b9515>] __atomic_notifier_call_chain+0x44/0x81
+ [<ffffffff8100a2c2>] ? mwait_idle+0x0/0x49
+ [<ffffffff812b9561>] atomic_notifier_call_chain+0xf/0x11
+ [<ffffffff8100a228>] __exit_idle+0x27/0x29
+ [<ffffffff8100b33c>] cpu_idle+0xdf/0xf7
+ [<ffffffff812b10da>] start_secondary+0xb2/0xb4
 
-  http://redhat.com/~mingo/misc/config-Thu_Apr_17_23_46_36_CEST_2008.bad
+---[ end trace 93d72a36b9146f22 ]---
+possible reason: unannotated irqs-on.
+irq event stamp: 34
+hardirqs last  enabled at (33): [<ffffffff812b63f0>] trace_hardirqs_on_thunk+0x3a/0x3f
+hardirqs last disabled at (34): [<ffffffff81056143>] trace_hardirqs_off+0xd/0xf
+softirqs last  enabled at (32): [<ffffffff8103cfe8>] __do_softirq+0xc5/0xce
+softirqs last disabled at (25): [<ffffffff8100d32c>] call_softirq+0x1c/0x28
+calling  init_cpufreq_transition_notifier_list+0x0/0x1b()
+initcall init_cpufreq_transition_notifier_list+0x0/0x1b() returned 0 after 0 msecs
+calling  net_ns_init+0x0/0x12a()
+net_namespace: 1352 bytes
+initcall net_ns_init+0x0/0x12a() returned 0 after 0 msecs
+calling  cpufreq_tsc+0x0/0x16()
 
-to get a similar tree to the one i tested, pick up sched-devel/latest 
-from:
+dmesg: http://userweb.kernel.org/~akpm/x.txt
+config: http://userweb.kernel.org/~akpm/config-t61p.txt
 
-   http://people.redhat.com/mingo/sched-devel.git/README 
+but it lumbered to a login prompt, which is more than good enough for this
+pile of dung.
 
-pick up that failing .config, do 'make oldconfig' and accept all the 
-defaults to get a comparable kernel to mine. (kgdb is embedded in 
-sched-devel.git.)
-
-the hang was at:
-
-[   12.504057] Calling initcall 0xffffffff80b800c1: init_kgdbts+0x0/0x1b()
-[   12.511298] kgdb: Registered I/O driver kgdbts.
-[   12.515062] kgdbts:RUN plant and detach test
-[   12.520283] kgdbts:RUN sw breakpoint test
-[   12.524651] kgdbts:RUN bad memory access test
-[   12.529052] kgdbts:RUN singlestep breakpoint test
-
-full log:
-
-  http://redhat.com/~mingo/misc/log-Thu_Apr_17_23_46_36_CEST_2008.bad
-
-note that this was a 64-bit config too - our tests do a perfect mix of 
-50% 32-bit and 50% 64-bit kernels. So single-stepping of the kernel 
-broke in some circumstances.
-
-find the boot log below. (it also includes all command line parameters) 
-
-This is the first time ever i saw the self-test in KGDB hanging, so it's 
-some recent non-KGDB change that provoked it or made it more likely. The 
-KGDB self-test runs very frequently in my bootup tests:
-
-[   12.508236] kgdb: Registered I/O driver kgdbts.
-[   12.511245] kgdbts:RUN plant and detach test
-[   12.517418] kgdbts:RUN sw breakpoint test
-[   12.521056] kgdbts:RUN bad memory access test
-[   12.525515] kgdbts:RUN singlestep breakpoint test
-[   12.531483] kgdbts:RUN hw breakpoint test
-[   12.536142] kgdbts:RUN hw write breakpoint test
-[   12.541007] kgdbts:RUN access write breakpoint test
-[   12.546223] kgdbts:RUN do_fork for 100 breakpoints
-
-so the latest kgdb-light tree literally survived thousands of such tests 
-since it was changed last.
-
-unfortunately, the condition was not reproducible - i booted it once 
-more and then it came up just fine - using the same bzImage.
-
-there's no recent change in x86.git related to the TF flag that i could 
-think of to cause something like this. I checked changes to traps_64.c 
-and entry_64.S, and nothing suspicious.
-
-	Ingo
+The number of runtime warnings, compile errors and runtime failures which
+have been added since 2.6.25-rc8-mm2 is astonishing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
