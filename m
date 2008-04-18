@@ -1,71 +1,45 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3IHdcEl001602
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 13:39:38 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3IHfwTd214950
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 11:41:58 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3IHfvsB001335
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 11:41:58 -0600
-Subject: Re: [PATCH]Fix usemap for DISCONTIG/FLATMEM with not-aligned zone
-	initilaization.
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20080418161522.GB9147@csn.ul.ie>
-References: <48080706.50305@cn.fujitsu.com>
-	 <48080930.5090905@cn.fujitsu.com> <48080B86.7040200@cn.fujitsu.com>
-	 <20080418211214.299f91cd.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20080418161522.GB9147@csn.ul.ie>
-Content-Type: text/plain
-Date: Fri, 18 Apr 2008 10:41:56 -0700
-Message-Id: <1208540516.25363.44.camel@nimitz.home.sr71.net>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 18 Apr 2008 11:55:29 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: get_task_mm() should not succeed if mm_users = 0.
+Message-ID: <Pine.LNX.4.64.0804181154480.25690@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Shi Weihua <shiwh@cn.fujitsu.com>, akpm@linux-foundation.org, balbir@linux.vnet.ibm.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, holt@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-04-18 at 17:15 +0100, Mel Gorman wrote:
-> -void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
-> +void __meminit memmap_init_zone(unsigned long size, int nid, struct zone *zone,
->                 unsigned long start_pfn, enum memmap_context context)
->  {
->         struct page *page;
->         unsigned long end_pfn = start_pfn + size;
->         unsigned long pfn;
-> +       int zoneidx = zone_idx(zone);
-> +
-> +       /*
-> +        * Sanity check the values passed in. It is possible an architecture
-> +        * calling this function directly will use values outside of the memory
-> +        * they registered
-> +        */
-> +       if (start_pfn < zone->zone_start_pfn) {
-> +               WARN_ON_ONCE(1);
-> +               start_pfn = zone->zone_start_pfn;
-> +       }
-> +
-> +       if (size > zone->spanned_pages) {
-> +               WARN_ON_ONCE(1);
-> +               size = zone->spanned_pages;
-> +       }
+get_task_mm should not succeed if mmput() is running and has reduced
+the mm_users count to zero. This can occur if a processor follows
+a tasks pointer to an mm struct because that pointer is only cleared
+after the mmput().
 
-I was thinking about whether size needs to be modified in there like
-this:
+If get_task_mm() succeeds after mmput() reduced the mm_users to zero then
+we have the lovely situation that one portion of the kernel is doing
+all the teardown work for an mm while another portion is happily using
+it.
 
-	if (start_pfn < zone->zone_start_pfn) {
-		WARN_ON_ONCE(1);
-+		size -= zone->zone_start_pfn - start_pfn;
-		start_pfn = zone->zone_start_pfn;
-	}
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-and I realized that your modification of size actually happens after its
-only use in the function (to calculate end_pfn).  Seems like we either
-be error-checking end_pfn or delaying its calculation until after 'size'
-is fixed.
+---
+ kernel/fork.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
--- Dave
+Index: linux-2.6/kernel/fork.c
+===================================================================
+--- linux-2.6.orig/kernel/fork.c	2008-04-17 13:25:15.000000000 -0700
++++ linux-2.6/kernel/fork.c	2008-04-17 13:27:13.000000000 -0700
+@@ -440,7 +440,8 @@ struct mm_struct *get_task_mm(struct tas
+ 		if (task->flags & PF_BORROWED_MM)
+ 			mm = NULL;
+ 		else
+-			atomic_inc(&mm->mm_users);
++			if (!atomic_inc_not_zero(&mm->mm_users))
++				mm = NULL;
+ 	}
+ 	task_unlock(task);
+ 	return mm;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
