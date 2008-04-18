@@ -1,66 +1,30 @@
-Date: Fri, 18 Apr 2008 14:18:53 +0200
+Date: Fri, 18 Apr 2008 14:34:39 +0200
 From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: 2.6.25-mm1: not looking good
-Message-ID: <20080418121853.GA13623@elte.hu>
-References: <20080417160331.b4729f0c.akpm@linux-foundation.org> <20080418005034.6e4dd9e7.akpm@linux-foundation.org> <20080418005323.7c015c42.akpm@linux-foundation.org> <20080418005733.aa3e8250.akpm@linux-foundation.org> <20080418092254.GA20661@elte.hu>
+Message-ID: <20080418123439.GA17013@elte.hu>
+References: <20080417160331.b4729f0c.akpm@linux-foundation.org> <20080417164034.e406ef53.akpm@linux-foundation.org> <20080417171413.6f8458e4.akpm@linux-foundation.org> <48080FE7.1070400@windriver.com> <20080418073732.GA22724@elte.hu> <19f34abd0804180446u2d6f17damf391a8c0584358b8@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080418092254.GA20661@elte.hu>
+In-Reply-To: <19f34abd0804180446u2d6f17damf391a8c0584358b8@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morris <jmorris@namei.org>, Stephen Smalley <sds@tycho.nsa.gov>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-pm@lists.linux-foundation.org, Greg KH <greg@kroah.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Pavel Machek <pavel@ucw.cz>, Jack Steiner <steiner@sgi.com>, Mike Travis <travis@sgi.com>, Alan Mayer <ajm@sgi.com>
+To: Vegard Nossum <vegard.nossum@gmail.com>
+Cc: Jason Wessel <jason.wessel@windriver.com>, Andrew Morton <akpm@linux-foundation.org>, tglx@linutronix.de, penberg@cs.helsinki.fi, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jmorris@namei.org, sds@tycho.nsa.gov
 List-ID: <linux-mm.kvack.org>
 
-* Ingo Molnar <mingo@elte.hu> wrote:
+* Vegard Nossum <vegard.nossum@gmail.com> wrote:
 
-> Subject: x86: disable preemption in native_smp_prepare_cpus
+> With the patch below, it seems 100% reproducible to me (7 out of 7 
+> bootups hung).
+> 
+> The number of loops it could do before hanging were, in order: 697, 
+> 898, 237, 55, 45, 92, 59
 
-that should be the patch below.
+cool! Jason: i think that particular self-test should be repeated 1000 
+times before reporting success ;-)
 
 	Ingo
-
------------->
-Subject: x86: disable preemption in native_smp_prepare_cpus
-From: Ingo Molnar <mingo@elte.hu>
-Date: Fri Apr 18 11:07:10 CEST 2008
-
-Signed-off-by: Ingo Molnar <mingo@elte.hu>
----
- arch/x86/kernel/smpboot.c |    5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
-
-Index: linux-x86.q/arch/x86/kernel/smpboot.c
-===================================================================
---- linux-x86.q.orig/arch/x86/kernel/smpboot.c
-+++ linux-x86.q/arch/x86/kernel/smpboot.c
-@@ -1181,6 +1181,7 @@ static void __init smp_cpu_index_default
-  */
- void __init native_smp_prepare_cpus(unsigned int max_cpus)
- {
-+	preempt_disable();
- 	nmi_watchdog_default();
- 	smp_cpu_index_default();
- 	current_cpu_data = boot_cpu_data;
-@@ -1197,7 +1198,7 @@ void __init native_smp_prepare_cpus(unsi
- 	if (smp_sanity_check(max_cpus) < 0) {
- 		printk(KERN_INFO "SMP disabled\n");
- 		disable_smp();
--		return;
-+		goto out;
- 	}
- 
- 	preempt_disable();
-@@ -1237,6 +1238,8 @@ void __init native_smp_prepare_cpus(unsi
- 	printk(KERN_INFO "CPU%d: ", 0);
- 	print_cpu_info(&cpu_data(0));
- 	setup_boot_clock();
-+out:
-+	preempt_enable();
- }
- /*
-  * Early setup to make printk work.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
