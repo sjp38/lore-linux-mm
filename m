@@ -1,74 +1,87 @@
-Date: Fri, 18 Apr 2008 00:28:58 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Date: Fri, 18 Apr 2008 09:37:32 +0200
+From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: 2.6.25-mm1: not looking good
-Message-Id: <20080418002858.de236663.akpm@linux-foundation.org>
-In-Reply-To: <20080418071945.GA18044@elte.hu>
-References: <20080417160331.b4729f0c.akpm@linux-foundation.org>
-	<20080417224908.67cec814@laptopd505.fenrus.org>
-	<20080417231038.72363123.akpm@linux-foundation.org>
-	<20080418071945.GA18044@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <20080418073732.GA22724@elte.hu>
+References: <20080417160331.b4729f0c.akpm@linux-foundation.org> <20080417164034.e406ef53.akpm@linux-foundation.org> <20080417171413.6f8458e4.akpm@linux-foundation.org> <48080FE7.1070400@windriver.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <48080FE7.1070400@windriver.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morris <jmorris@namei.org>, Stephen Smalley <sds@tycho.nsa.gov>
+To: Jason Wessel <jason.wessel@windriver.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, tglx@linutronix.de, penberg@cs.helsinki.fi, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jmorris@namei.org, sds@tycho.nsa.gov
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 Apr 2008 09:19:45 +0200 Ingo Molnar <mingo@elte.hu> wrote:
+* Jason Wessel <jason.wessel@windriver.com> wrote:
 
-> 
-> * Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
-> > On Thu, 17 Apr 2008 22:49:08 -0700 Arjan van de Ven <arjan@infradead.org> wrote:
-> > 
-> > > On Thu, 17 Apr 2008 16:03:31 -0700
-> > > Andrew Morton <akpm@linux-foundation.org> wrote:
-> > > 
-> > > > 
-> > > > I repulled all the trees an hour or two ago, installed everything on
-> > > > an 8-way x86_64 box and:
-> > > > 
-> > > > 
-> > > > stack-protector:
-> > > > 
-> > > > Testing -fstack-protector-all feature
-> > > > No -fstack-protector-stack-frame!
-> > > > -fstack-protector-all test failed
-> > > 
-> > > do you have a stack-protector capable GCC? I guess not.
-> > > 
-> > > This is a catch-22. You do not have stack-protector. Should we make that 
-> > > a silent failure? or do you want to know that you don't have a security
-> > > feature you thought you had.... complaining seems to be the right thing to do imo.
-> > 
-> > A #warning sounds more appropriate.
-> 
-> this warning is telling the user that the security feature that got 
-> enabled in the .config is completely, 100% not working due to using a
-> stack-protector-incapable GCC.
+> > [...] The final initcall is init_kgdbts() and disabling KGDB 
+> > prevents the hang.
 
-I doubt if anyone will care much.
+> That enables verbose logging of exactly what is going on and will show 
+> where wheels fall off the cart.  If the kernel is dying silently it 
+> means the early exception code has completely failed in some way on 
+> the kernel architecture that was selected, and of course the .config 
+> is always useful in this case.
 
-> it's analogous as if there was a bug in gcc that made SELinux totally 
-> ineffective in some mitigate-exploit-damage scenarios.
+incidentally, just today, in overnight testing i triggered a similar 
+hang in the KGDB self-test:
 
-Not really.  In the selinux case we don't know that it'll break at compile
-time.  
+  http://redhat.com/~mingo/misc/config-Thu_Apr_17_23_46_36_CEST_2008.bad
 
-> No harm done on a 
-> perfectly bug-free system - but once a bug happens that SELinux should 
-> have mitigated, the breakage becomes real. Having a prominent warning is 
-> the _minimum_.
-> 
-> having a build failure would be nice too because this is a build 
-> environment problem. (not a build warning - warnings can easily be 
-> missed because on a typical kernel build there's so many false positives 
-> that get emitted by various other warning mechanisms) Arjan?
-> 
+to get a similar tree to the one i tested, pick up sched-devel/latest 
+from:
 
-Yeah, #error would work too.
+   http://people.redhat.com/mingo/sched-devel.git/README 
+
+pick up that failing .config, do 'make oldconfig' and accept all the 
+defaults to get a comparable kernel to mine. (kgdb is embedded in 
+sched-devel.git.)
+
+the hang was at:
+
+[   12.504057] Calling initcall 0xffffffff80b800c1: init_kgdbts+0x0/0x1b()
+[   12.511298] kgdb: Registered I/O driver kgdbts.
+[   12.515062] kgdbts:RUN plant and detach test
+[   12.520283] kgdbts:RUN sw breakpoint test
+[   12.524651] kgdbts:RUN bad memory access test
+[   12.529052] kgdbts:RUN singlestep breakpoint test
+
+full log:
+
+  http://redhat.com/~mingo/misc/log-Thu_Apr_17_23_46_36_CEST_2008.bad
+
+note that this was a 64-bit config too - our tests do a perfect mix of 
+50% 32-bit and 50% 64-bit kernels. So single-stepping of the kernel 
+broke in some circumstances.
+
+find the boot log below. (it also includes all command line parameters) 
+
+This is the first time ever i saw the self-test in KGDB hanging, so it's 
+some recent non-KGDB change that provoked it or made it more likely. The 
+KGDB self-test runs very frequently in my bootup tests:
+
+[   12.508236] kgdb: Registered I/O driver kgdbts.
+[   12.511245] kgdbts:RUN plant and detach test
+[   12.517418] kgdbts:RUN sw breakpoint test
+[   12.521056] kgdbts:RUN bad memory access test
+[   12.525515] kgdbts:RUN singlestep breakpoint test
+[   12.531483] kgdbts:RUN hw breakpoint test
+[   12.536142] kgdbts:RUN hw write breakpoint test
+[   12.541007] kgdbts:RUN access write breakpoint test
+[   12.546223] kgdbts:RUN do_fork for 100 breakpoints
+
+so the latest kgdb-light tree literally survived thousands of such tests 
+since it was changed last.
+
+unfortunately, the condition was not reproducible - i booted it once 
+more and then it came up just fine - using the same bzImage.
+
+there's no recent change in x86.git related to the TF flag that i could 
+think of to cause something like this. I checked changes to traps_64.c 
+and entry_64.S, and nothing suspicious.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
