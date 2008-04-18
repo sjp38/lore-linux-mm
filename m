@@ -1,47 +1,42 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3I6461X001774
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 02:04:06 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3I646uv253690
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 02:04:06 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3I645Xj007384
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 02:04:06 -0400
-Date: Thu, 17 Apr 2008 23:04:04 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs ABI
-Message-ID: <20080418060404.GA5807@us.ibm.com>
-References: <20080411234743.GG19078@us.ibm.com> <20080411234913.GH19078@us.ibm.com> <20080411235648.GA13276@suse.de> <20080412094118.GA7708@wotan.suse.de> <20080413034136.GA22686@suse.de> <20080414210506.GA6350@us.ibm.com> <20080417231617.GA18815@us.ibm.com> <Pine.LNX.4.64.0804171619340.12031@schroedinger.engr.sgi.com> <20080417233615.GA24508@us.ibm.com> <Pine.LNX.4.64.0804171639340.15173@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0804171639340.15173@schroedinger.engr.sgi.com>
+Date: Thu, 17 Apr 2008 23:10:38 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: 2.6.25-mm1: not looking good
+Message-Id: <20080417231038.72363123.akpm@linux-foundation.org>
+In-Reply-To: <20080417224908.67cec814@laptopd505.fenrus.org>
+References: <20080417160331.b4729f0c.akpm@linux-foundation.org>
+	<20080417224908.67cec814@laptopd505.fenrus.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Greg KH <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
+To: Arjan van de Ven <arjan@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morris <jmorris@namei.org>, Stephen Smalley <sds@tycho.nsa.gov>
 List-ID: <linux-mm.kvack.org>
 
-On 17.04.2008 [16:39:56 -0700], Christoph Lameter wrote:
-> On Thu, 17 Apr 2008, Nishanth Aravamudan wrote:
+On Thu, 17 Apr 2008 22:49:08 -0700 Arjan van de Ven <arjan@infradead.org> wrote:
+
+> On Thu, 17 Apr 2008 16:03:31 -0700
+> Andrew Morton <akpm@linux-foundation.org> wrote:
 > 
-> > That seems fine to me. I will work on it. However, as I mentioned in a
-> > previous e-mail, the files in /sys/devices/system/node/node<nr>/
-> > already violate the "one value per file" rule in several instances. I'm
-> > guessing Greg won't want me moving the files and keeping that violation?
+> > 
+> > I repulled all the trees an hour or two ago, installed everything on
+> > an 8-way x86_64 box and:
+> > 
+> > 
+> > stack-protector:
+> > 
+> > Testing -fstack-protector-all feature
+> > No -fstack-protector-stack-frame!
+> > -fstack-protector-all test failed
 > 
-> That violation is replicated in /proc/meminfo /proc/vmstat etc etc.
+> do you have a stack-protector capable GCC? I guess not.
+> 
+> This is a catch-22. You do not have stack-protector. Should we make that 
+> a silent failure? or do you want to know that you don't have a security
+> feature you thought you had.... complaining seems to be the right thing to do imo.
 
-Right, but /proc doesn't have such a restriction (the "one value per
-file" rule). I'm not sure how the meminfo, etc. files in sysfs got put
-in past Greg, but that's how it is :)
-
-Thanks,
-Nish
-
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+A #warning sounds more appropriate.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
