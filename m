@@ -1,87 +1,55 @@
-From: kamezawa.hiroyu@jp.fujitsu.com
-Message-ID: <21878461.1208539556838.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Sat, 19 Apr 2008 02:25:56 +0900 (JST)
-Subject: Re: Re: [PATCH]Fix usemap for DISCONTIG/FLATMEM with not-aligned zone initilaization.
-In-Reply-To: <20080418161522.GB9147@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: 7bit
-References: <20080418161522.GB9147@csn.ul.ie>
- <48080706.50305@cn.fujitsu.com> <48080930.5090905@cn.fujitsu.com> <48080B86.7040200@cn.fujitsu.com> <20080418211214.299f91cd.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3IHTcAl009991
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 13:29:38 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3IHRWKY231576
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 13:27:32 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3IHRVn3024771
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 13:27:32 -0400
+Date: Fri, 18 Apr 2008 10:27:30 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs ABI
+Message-ID: <20080418172730.GA12798@us.ibm.com>
+References: <20080411234913.GH19078@us.ibm.com> <20080411235648.GA13276@suse.de> <20080412094118.GA7708@wotan.suse.de> <20080413034136.GA22686@suse.de> <20080414210506.GA6350@us.ibm.com> <20080417231617.GA18815@us.ibm.com> <Pine.LNX.4.64.0804171619340.12031@schroedinger.engr.sgi.com> <20080417233615.GA24508@us.ibm.com> <Pine.LNX.4.64.0804171639340.15173@schroedinger.engr.sgi.com> <20080418060404.GA5807@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080418060404.GA5807@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Shi Weihua <shiwh@cn.fujitsu.com>, akpm@linux-foundation.org, balbir@linux.vnet.ibm.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Greg KH <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Thank you for looking into.
-
->> -		if ((pfn & (pageblock_nr_pages-1)))
->> -			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
->> +		set_pageblock_migratetype(page, MIGRATE_MOVABLE);
->>  
->
->The point of the if there was so that set_pageblock_migratetype() would
->only be called once per pageblock. The impact with an unaligned zone is
->that the first block is not set and will be used for UNMOVABLE pages
->initially. However, this is not a major impact and there is no need to
->call set_pageblock_migratetype for every page.
->
-But if ((pfn & (pageblock_nr_pages -1))) is not correct.
-for calling set_pageblock_migrationtype() once in a pageblock,
-!((pfn & (pageblock_nr_pages -1))) is correct.
-
-
->
->This is a pretty large change for what seems to be a fairly basic problem -
-I think so ;(
-
->alignment issues during boot where I'm guessing we are writing past the end
->of the bitmap. Even if the virtual memmap is covering non-existant pages,
->the PFNs there for bitmaps and the like should still not be getting used
->and the map size is already rounded up to the pageblock size. It's also
->expanding the size of zone which seems overkill.
->
->I think I have a possible alternative fix below.
->
-ok.
-
->What about something like the following? Instead of expanding the size of
->structures, it sanity checks input parameters. It touches a number of places
->because of an API change but it is otherwise straight-forward.
->
->Unfortunately, I do not have an IA-64 machine that can reproduce the problem
->to see if this still fixes it or not so a test as well as a review would be
->appreciated. What should happen is the machine boots but prints a warning
->about the unexpected PFN ranges. It boot-tested fine on a number of other
->machines (x86-32 x86-64 and ppc64).
->
-ok, I'll test today if I have a chance. At least, I think I can test this
-until Monday. but I have one concern (below)
-
-
->+	/*
->+	 * Sanity check the values passed in. It is possible an architecture
->+	 * calling this function directly will use values outside of the memory
->+	 * they registered
->+	 */
->+	if (start_pfn < zone->zone_start_pfn) {
->+		WARN_ON_ONCE(1);
->+		start_pfn = zone->zone_start_pfn;
->+	}
->+
->+	if (size > zone->spanned_pages) {
->+		WARN_ON_ONCE(1);
->+		size = zone->spanned_pages;
->+	}
+On 17.04.2008 [23:04:04 -0700], Nishanth Aravamudan wrote:
+> On 17.04.2008 [16:39:56 -0700], Christoph Lameter wrote:
+> > On Thu, 17 Apr 2008, Nishanth Aravamudan wrote:
+> > 
+> > > That seems fine to me. I will work on it. However, as I mentioned in a
+> > > previous e-mail, the files in /sys/devices/system/node/node<nr>/
+> > > already violate the "one value per file" rule in several instances. I'm
+> > > guessing Greg won't want me moving the files and keeping that violation?
+> > 
+> > That violation is replicated in /proc/meminfo /proc/vmstat etc etc.
 > 
-My concern here is, memmap out-of-zone is not initialized and not
-marked as PG_reserved...sholdn't we initialize existing memmap even
-if they are out-ot-zone ? I think all existing mem_map for memory hole
-should be initialized properly.
+> Right, but /proc doesn't have such a restriction (the "one value per
+> file" rule). I'm not sure how the meminfo, etc. files in sysfs got put
+> in past Greg, but that's how it is :)
+
+Greg, can you give any insight here? Are we better off leaving the files
+in question in /sys/devices/system/node/node<nr>/{meminfo,numastat,etc}
+since they are part of the ABI there and already violate the rules for
+sysfs? Or can we move them to /sys/kernel and continue to violate the
+rules? In this case, I don't see any way to provide a "snapshot" of the
+system's memory information without all the values being in one file?
 
 Thanks,
--Kame
+Nish
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
