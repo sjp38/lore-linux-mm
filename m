@@ -1,64 +1,52 @@
-Date: Fri, 18 Apr 2008 11:28:43 +0200
-From: Ingo Molnar <mingo@elte.hu>
+Date: Fri, 18 Apr 2008 11:42:21 +0200
+From: Pavel Machek <pavel@ucw.cz>
 Subject: Re: 2.6.25-mm1: not looking good
-Message-ID: <20080418092842.GB20661@elte.hu>
-References: <20080417160331.b4729f0c.akpm@linux-foundation.org> <20080417224908.67cec814@laptopd505.fenrus.org> <20080417231038.72363123.akpm@linux-foundation.org> <20080418071945.GA18044@elte.hu> <20080418002858.de236663.akpm@linux-foundation.org>
+Message-ID: <20080418094220.GB23572@elf.ucw.cz>
+References: <20080417160331.b4729f0c.akpm@linux-foundation.org> <20080418005034.6e4dd9e7.akpm@linux-foundation.org> <20080418005323.7c015c42.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080418002858.de236663.akpm@linux-foundation.org>
+In-Reply-To: <20080418005323.7c015c42.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morris <jmorris@namei.org>, Stephen Smalley <sds@tycho.nsa.gov>
+Cc: Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morris <jmorris@namei.org>, Stephen Smalley <sds@tycho.nsa.gov>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-pm@lists.linux-foundation.org, Greg KH <greg@kroah.com>, "Rafael J. Wysocki" <rjw@sisk.pl>
 List-ID: <linux-mm.kvack.org>
 
-* Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> > > A #warning sounds more appropriate.
-> > 
-> > this warning is telling the user that the security feature that got 
-> > enabled in the .config is completely, 100% not working due to using 
-> > a stack-protector-incapable GCC.
+On Fri 2008-04-18 00:53:23, Andrew Morton wrote:
+> On Fri, 18 Apr 2008 00:50:34 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
 > 
-> I doubt if anyone will care much.
+> > dmesg: http://userweb.kernel.org/~akpm/x.txt
+> > config: http://userweb.kernel.org/~akpm/config-t61p.txt
+> 
+> oop, there's more:
+> 
+> 
+> sd 0:0:0:0: [sda] Mode Sense: 00 3a 00 00
+> sd 0:0:0:0: [sda] Write cache: enabled, read cache: enabled, doesn't support DPO or FUA
+> firewire_core: created device fw0: GUID 00016c2000174bad, S400
+> PM: Device usb4 failed to restore: error -113
+> eth0: Link is Up 100 Mbps Full Duplex, Flow Control: RX/TX
+> eth0: 10/100 speed: disabling TSO
+> PM: Device usb5 failed to restore: error -113
+> PM: Device usb7 failed to restore: error -113
+> sd 0:0:0:0: [sda] Starting disk
+> PM: Image restored successfully.
+> Restarting tasks ... done.
+> PM: Basic memory bitmaps freed
+> 
+> Those USB restore failures are new.  They're similar to the ones on the
+> doesnt-resume-properly-any-more Vaio.  They came out from the machine's
+> second (successful) resume-from-disk.
 
-you noticed it ;-) Distro maintainers will notice it too if it pops up 
-when something breaks StackProtector. Normal user might not notice. (but 
-normal user might not notice a few hundred guest roots either)
+Try rmmod usb / insmod usb around suspend to see if it is
+usb-specific, or if something went seriously wrong in core.
 
-but ... the real thing that made it slip into your config was that it 
-was default-enabled in x86/latest - the patch below should fix that.
-
-we need the warning: it could have caught the toplevel Makefile change 
-last October that broke StackProtector completely. So no, we wont be and 
-cannot be silent about this anymore - we need and now have an end-to-end 
-test about it.
-
-	Ingo
-
------------------->
-Subject: stackprotector: non default
-From: Ingo Molnar <mingo@elte.hu>
-Date: Fri Apr 18 11:13:17 CEST 2008
-
-Signed-off-by: Ingo Molnar <mingo@elte.hu>
----
- arch/x86/Kconfig |    1 -
- 1 file changed, 1 deletion(-)
-
-Index: linux-x86.q/arch/x86/Kconfig
-===================================================================
---- linux-x86.q.orig/arch/x86/Kconfig
-+++ linux-x86.q/arch/x86/Kconfig
-@@ -1146,7 +1146,6 @@ config CC_STACKPROTECTOR
- 	bool "Enable -fstack-protector buffer overflow detection (EXPERIMENTAL)"
- 	depends on X86_64
- 	select CC_STACKPROTECTOR_ALL
--	default y
- 	help
-           This option turns on the -fstack-protector GCC feature. This
- 	  feature puts, at the beginning of functions, a canary value on
+Or you might just bisect it ;-).
+									Pavel
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
