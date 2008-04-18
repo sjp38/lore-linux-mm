@@ -1,59 +1,34 @@
-Received: by rv-out-0506.google.com with SMTP id g37so188987rvb.26
-        for <linux-mm@kvack.org>; Thu, 17 Apr 2008 22:06:22 -0700 (PDT)
-Message-ID: <86802c440804172206k7533e7d1kf1f355f6a97a4412@mail.gmail.com>
-Date: Thu, 17 Apr 2008 22:06:22 -0700
-From: "Yinghai Lu" <yhlu.kernel@gmail.com>
-Subject: Re: [RFC][patch 2/5] mm: Node-setup agnostic free_bootmem()
-In-Reply-To: <877iexfw2h.fsf@saeurebad.de>
+Message-ID: <48083506.7080909@cn.fujitsu.com>
+Date: Fri, 18 Apr 2008 13:43:34 +0800
+From: Shi Weihua <shiwh@cn.fujitsu.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH] memcgroup: check and initialize page->cgroup in memmap_init_zone
+References: <48080706.50305@cn.fujitsu.com>	<48080930.5090905@cn.fujitsu.com>	<48080B86.7040200@cn.fujitsu.com>	<20080417201432.36b1c326.akpm@linux-foundation.org>	<20080418123256.da4d1db0.kamezawa.hiroyu@jp.fujitsu.com> <20080418140946.e265c1f3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080418140946.e265c1f3.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080416113629.947746497@skyscraper.fehenstaub.lan>
-	 <20080416113719.092060936@skyscraper.fehenstaub.lan>
-	 <86802c440804161054h6f0cfc3dmde49006afb7889b2@mail.gmail.com>
-	 <86802c440804161144id4f2a68i37513ac0428c693@mail.gmail.com>
-	 <20080416184816.GA4400@elte.hu> <877iexfw2h.fsf@saeurebad.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Johannes Weiner <hannes@saeurebad.de>
-Cc: Ingo Molnar <mingo@elte.hu>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, "Siddha, Suresh B" <suresh.b.siddha@intel.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, balbir@linux.vnet.ibm.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 16, 2008 at 12:17 PM, Johannes Weiner <hannes@saeurebad.de> wrote:
-> Hi,
->
->
->
->  Ingo Molnar <mingo@elte.hu> writes:
->
->  > * Yinghai Lu <yhlu.kernel@gmail.com> wrote:
->  >
->  >> >  Yes, it should work well with cross nodes case.
->  >> >
->  >> >  but please add boundary check on free_bootmem_node too.
->  >>
->  >> also please note: it will have problem span nodes box.
->  >>
->  >> for example: node 0: 0-2g, 4-6g, node1: 2-4g, 6-8g. and if ramdisk sit
->  >> creoss 2G boundary. you will only free the range before 2g.
->  >
->  > yes. Such systems _will_ become more common - so the "this is rare"
->  > arguments are incorrect. bootmem has to be robust enough to deal with
->  > it.
->
->  Ingo, I never doubted any of this, I was just asking more than once if
->  and when this might happen.  And I don't want the allocator become
->  fragile, just not completely ignorant about bogus input.
->
->  But the situation is still not clear for me.  Ingo, how are these
->  node spanning pfn ranges represented in the kernel?  How many node
->  descriptors will you have in the case Yinghai described and how will
->  they look like?
+KAMEZAWA Hiroyuki wrote::
+> On Fri, 18 Apr 2008 12:32:56 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+>>> Or perhaps that page was used and then later freed before we got to
+>>> memmap_init_zone() and was freed with a non-zero ->page_cgroup.  Which is
+>>> unlikely given that page.page_cgroup was only just added and is only
+>>> present if CONFIG_CGROUP_MEM_RES_CTLR.
+>>>
+>> Hmm, I'll try his .config and see what happens.
+>>
+> I reproduced the hang with his config and confirmed his fix works well.
+> But I can't find why...I'll dig a bit more.
 
-according to patch from Suresh in x86.git, one node still only have one bdata.
-
-YH
+If i use CONFIG_SPARSEMEM instead of CONFIG_DISCONTIGMEM, the kernel 
+boots successfully.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
