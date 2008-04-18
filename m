@@ -1,55 +1,71 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3IHTcAl009991
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 13:29:38 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3IHRWKY231576
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 13:27:32 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3IHRVn3024771
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 13:27:32 -0400
-Date: Fri, 18 Apr 2008 10:27:30 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs ABI
-Message-ID: <20080418172730.GA12798@us.ibm.com>
-References: <20080411234913.GH19078@us.ibm.com> <20080411235648.GA13276@suse.de> <20080412094118.GA7708@wotan.suse.de> <20080413034136.GA22686@suse.de> <20080414210506.GA6350@us.ibm.com> <20080417231617.GA18815@us.ibm.com> <Pine.LNX.4.64.0804171619340.12031@schroedinger.engr.sgi.com> <20080417233615.GA24508@us.ibm.com> <Pine.LNX.4.64.0804171639340.15173@schroedinger.engr.sgi.com> <20080418060404.GA5807@us.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080418060404.GA5807@us.ibm.com>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3IHdcEl001602
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 13:39:38 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3IHfwTd214950
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 11:41:58 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3IHfvsB001335
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2008 11:41:58 -0600
+Subject: Re: [PATCH]Fix usemap for DISCONTIG/FLATMEM with not-aligned zone
+	initilaization.
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20080418161522.GB9147@csn.ul.ie>
+References: <48080706.50305@cn.fujitsu.com>
+	 <48080930.5090905@cn.fujitsu.com> <48080B86.7040200@cn.fujitsu.com>
+	 <20080418211214.299f91cd.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20080418161522.GB9147@csn.ul.ie>
+Content-Type: text/plain
+Date: Fri, 18 Apr 2008 10:41:56 -0700
+Message-Id: <1208540516.25363.44.camel@nimitz.home.sr71.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Greg KH <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Shi Weihua <shiwh@cn.fujitsu.com>, akpm@linux-foundation.org, balbir@linux.vnet.ibm.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On 17.04.2008 [23:04:04 -0700], Nishanth Aravamudan wrote:
-> On 17.04.2008 [16:39:56 -0700], Christoph Lameter wrote:
-> > On Thu, 17 Apr 2008, Nishanth Aravamudan wrote:
-> > 
-> > > That seems fine to me. I will work on it. However, as I mentioned in a
-> > > previous e-mail, the files in /sys/devices/system/node/node<nr>/
-> > > already violate the "one value per file" rule in several instances. I'm
-> > > guessing Greg won't want me moving the files and keeping that violation?
-> > 
-> > That violation is replicated in /proc/meminfo /proc/vmstat etc etc.
-> 
-> Right, but /proc doesn't have such a restriction (the "one value per
-> file" rule). I'm not sure how the meminfo, etc. files in sysfs got put
-> in past Greg, but that's how it is :)
+On Fri, 2008-04-18 at 17:15 +0100, Mel Gorman wrote:
+> -void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+> +void __meminit memmap_init_zone(unsigned long size, int nid, struct zone *zone,
+>                 unsigned long start_pfn, enum memmap_context context)
+>  {
+>         struct page *page;
+>         unsigned long end_pfn = start_pfn + size;
+>         unsigned long pfn;
+> +       int zoneidx = zone_idx(zone);
+> +
+> +       /*
+> +        * Sanity check the values passed in. It is possible an architecture
+> +        * calling this function directly will use values outside of the memory
+> +        * they registered
+> +        */
+> +       if (start_pfn < zone->zone_start_pfn) {
+> +               WARN_ON_ONCE(1);
+> +               start_pfn = zone->zone_start_pfn;
+> +       }
+> +
+> +       if (size > zone->spanned_pages) {
+> +               WARN_ON_ONCE(1);
+> +               size = zone->spanned_pages;
+> +       }
 
-Greg, can you give any insight here? Are we better off leaving the files
-in question in /sys/devices/system/node/node<nr>/{meminfo,numastat,etc}
-since they are part of the ABI there and already violate the rules for
-sysfs? Or can we move them to /sys/kernel and continue to violate the
-rules? In this case, I don't see any way to provide a "snapshot" of the
-system's memory information without all the values being in one file?
+I was thinking about whether size needs to be modified in there like
+this:
 
-Thanks,
-Nish
+	if (start_pfn < zone->zone_start_pfn) {
+		WARN_ON_ONCE(1);
++		size -= zone->zone_start_pfn - start_pfn;
+		start_pfn = zone->zone_start_pfn;
+	}
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+and I realized that your modification of size actually happens after its
+only use in the function (to calculate end_pfn).  Seems like we either
+be error-checking end_pfn or delaying its calculation until after 'size'
+is fixed.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
