@@ -1,126 +1,213 @@
-Received: by wf-out-1314.google.com with SMTP id 25so443729wfc.11
-        for <linux-mm@kvack.org>; Fri, 18 Apr 2008 04:46:48 -0700 (PDT)
-Message-ID: <19f34abd0804180446u2d6f17damf391a8c0584358b8@mail.gmail.com>
-Date: Fri, 18 Apr 2008 13:46:48 +0200
-From: "Vegard Nossum" <vegard.nossum@gmail.com>
-Subject: Re: 2.6.25-mm1: not looking good
-In-Reply-To: <20080418073732.GA22724@elte.hu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Date: Fri, 18 Apr 2008 21:12:14 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH]Fix usemap for DISCONTIG/FLATMEM with not-aligned zone
+ initilaization.
+Message-Id: <20080418211214.299f91cd.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <48080B86.7040200@cn.fujitsu.com>
+References: <48080706.50305@cn.fujitsu.com>
+	<48080930.5090905@cn.fujitsu.com>
+	<48080B86.7040200@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080417160331.b4729f0c.akpm@linux-foundation.org>
-	 <20080417164034.e406ef53.akpm@linux-foundation.org>
-	 <20080417171413.6f8458e4.akpm@linux-foundation.org>
-	 <48080FE7.1070400@windriver.com> <20080418073732.GA22724@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Jason Wessel <jason.wessel@windriver.com>, Andrew Morton <akpm@linux-foundation.org>, tglx@linutronix.de, penberg@cs.helsinki.fi, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jmorris@namei.org, sds@tycho.nsa.gov
+To: Shi Weihua <shiwh@cn.fujitsu.com>
+Cc: akpm@linux-foundation.org, balbir@linux.vnet.ibm.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com, "mel@csn.ul.ie" <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 18, 2008 at 9:37 AM, Ingo Molnar <mingo@elte.hu> wrote:
->
->  * Jason Wessel <jason.wessel@windriver.com> wrote:
->
->  > > [...] The final initcall is init_kgdbts() and disabling KGDB
->  > > prevents the hang.
->
->
->  > That enables verbose logging of exactly what is going on and will show
->  > where wheels fall off the cart.  If the kernel is dying silently it
->  > means the early exception code has completely failed in some way on
->  > the kernel architecture that was selected, and of course the .config
->  > is always useful in this case.
->
->  incidentally, just today, in overnight testing i triggered a similar
->  hang in the KGDB self-test:
->
->   http://redhat.com/~mingo/misc/config-Thu_Apr_17_23_46_36_CEST_2008.bad
->
->  to get a similar tree to the one i tested, pick up sched-devel/latest
->  from:
->
->    http://people.redhat.com/mingo/sched-devel.git/README
->
->  pick up that failing .config, do 'make oldconfig' and accept all the
->  defaults to get a comparable kernel to mine. (kgdb is embedded in
->  sched-devel.git.)
->
->  the hang was at:
->
->  [   12.504057] Calling initcall 0xffffffff80b800c1: init_kgdbts+0x0/0x1b()
->  [   12.511298] kgdb: Registered I/O driver kgdbts.
->  [   12.515062] kgdbts:RUN plant and detach test
->  [   12.520283] kgdbts:RUN sw breakpoint test
->  [   12.524651] kgdbts:RUN bad memory access test
->  [   12.529052] kgdbts:RUN singlestep breakpoint test
->
->  full log:
->
->   http://redhat.com/~mingo/misc/log-Thu_Apr_17_23_46_36_CEST_2008.bad
->
->  note that this was a 64-bit config too - our tests do a perfect mix of
->  50% 32-bit and 50% 64-bit kernels. So single-stepping of the kernel
->  broke in some circumstances.
->
->  find the boot log below. (it also includes all command line parameters)
->
->  This is the first time ever i saw the self-test in KGDB hanging, so it's
->  some recent non-KGDB change that provoked it or made it more likely. The
->  KGDB self-test runs very frequently in my bootup tests:
->
->  [   12.508236] kgdb: Registered I/O driver kgdbts.
->  [   12.511245] kgdbts:RUN plant and detach test
->  [   12.517418] kgdbts:RUN sw breakpoint test
->  [   12.521056] kgdbts:RUN bad memory access test
->  [   12.525515] kgdbts:RUN singlestep breakpoint test
->  [   12.531483] kgdbts:RUN hw breakpoint test
->  [   12.536142] kgdbts:RUN hw write breakpoint test
->  [   12.541007] kgdbts:RUN access write breakpoint test
->  [   12.546223] kgdbts:RUN do_fork for 100 breakpoints
->
->  so the latest kgdb-light tree literally survived thousands of such tests
->  since it was changed last.
->
->  unfortunately, the condition was not reproducible - i booted it once
->  more and then it came up just fine - using the same bzImage.
->
->  there's no recent change in x86.git related to the TF flag that i could
->  think of to cause something like this. I checked changes to traps_64.c
->  and entry_64.S, and nothing suspicious.
+On Fri, 18 Apr 2008 10:46:30 +0800
+Shi Weihua <shiwh@cn.fujitsu.com> wrote:
+> We found commit 9442ec9df40d952b0de185ae5638a74970388e01
+> causes this boot failure by git-bisect.
+> And, we found the following change caused the boot failure.
+> -------------------------------------
+> @@ -2528,7 +2535,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zon
+>                 set_page_links(page, zone, nid, pfn);
+>                 init_page_count(page);
+>                 reset_page_mapcount(page);
+> -               page_assign_page_cgroup(page, NULL);
+>                 SetPageReserved(page);
+> 
+>                 /*
+> -------------------------------------
+Finally, above was not guilty. patch is below. Mel, could you review below ?
 
-With the patch below, it seems 100% reproducible to me (7 out of 7
-bootups hung).
+This happens because this box's start_pfn == 256 and memmap_init_zone(),
+called by ia64's virtual_mem_map() passed aligned pfn.
+patch is against 2.6.25.
 
-The number of loops it could do before hanging were, in order: 697,
-898, 237, 55, 45, 92, 59
+-Kame
+==
+This patch is quick workaround. If someone can write a clearer patch, please.
+Tested under ia64/torublesome machine. works well.
+****
 
-It seems timing-related, so I'm guessing it could be some interaction
-with interrupts?
+At boot, memmap_init_zone(size, zone, start_pfn, context) is called.
 
+In usual,  memmap_init_zone() 's start_pfn is equal to zone->zone_start_pfn.
+But ia64's virtual memmap under CONFIG_DISCONTIGMEM passes an aligned pfn
+to this function.
 
-Vegard
+When start_pfn is smaller than zone->zone_start_pfn, set_pageblock_migratetype()
+causes a memory corruption, because bitmap_idx in usemap (pagetype bitmap)
+is calculated by "pfn - start_pfn" and out-of-range.
+(See set_pageblock_flags_group()//pfn_to_bitidx() in page_alloc.c)
 
+On my ia64 box case, which has start_pfn = 256, bitmap_idx == -3
+and set_pageblock_flags_group() corrupts memory.
 
-diff --git a/drivers/misc/kgdbts.c b/drivers/misc/kgdbts.c
-index 6d6286c..ee87820 100644
---- a/drivers/misc/kgdbts.c
-+++ b/drivers/misc/kgdbts.c
-@@ -895,7 +895,13 @@ static void kgdbts_run_tests(void)
-        v1printk("kgdbts:RUN bad memory access test\n");
-        run_bad_read_test();
-        v1printk("kgdbts:RUN singlestep breakpoint test\n");
--       run_singlestep_break_test();
+This patch fixes the calculation of bitmap_idx and bitmap_size for pagetype.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+---
+ include/linux/mmzone.h |    1 +
+ mm/page_alloc.c        |   22 ++++++++++++++--------
+ 2 files changed, 15 insertions(+), 8 deletions(-)
+
+Index: linux-2.6.25/mm/page_alloc.c
+===================================================================
+--- linux-2.6.25.orig/mm/page_alloc.c
++++ linux-2.6.25/mm/page_alloc.c
+@@ -2546,8 +2546,7 @@ void __meminit memmap_init_zone(unsigned
+ 		 * the start are marked MIGRATE_RESERVE by
+ 		 * setup_zone_migrate_reserve()
+ 		 */
+-		if ((pfn & (pageblock_nr_pages-1)))
+-			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
++		set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+ 
+ 		INIT_LIST_HEAD(&page->lru);
+ #ifdef WANT_PAGE_VIRTUAL
+@@ -2815,6 +2814,48 @@ static __meminit void zone_pcp_init(stru
+ 			zone->name, zone->present_pages, batch);
+ }
+ 
++#ifndef CONFIG_SPARSEMEM
++/*
++ * Calculate the size of the zone->blockflags rounded to an unsigned long
++ * Start by making sure zonesize is a multiple of pageblock_order by rounding
++ * up. Then use 1 NR_PAGEBLOCK_BITS worth of bits per pageblock, finally
++ * round what is now in bits to nearest long in bits, then return it in
++ * bytes.
++ */
++static unsigned long __init usemap_size(struct zone* zone)
++{
++	unsigned long usemapsize;
++	unsigned long usemapbase = zone->zone_start_pfn;
++	unsigned long usemapend = zone->zone_start_pfn + zone->spanned_pages;
 +
-+       while(1) {
-+               static int i = 0;
++	usemapbase = ALIGN(usemapbase, pageblock_nr_pages);
++	usemapend = roundup(usemapend, pageblock_nr_pages);
++	usemapsize = usemapend - usemapbase;
++	usemapsize = usemapsize >> pageblock_order;
++	usemapsize *= NR_PAGEBLOCK_BITS;
++	usemapsize = roundup(usemapsize, 8 * sizeof(unsigned long));
 +
-+               run_singlestep_break_test();
-+               printk(KERN_EMERG "test #%d successfull\n", i++);
-+       }
-
-        /* ===Optional tests=== */
++	return usemapsize / 8;
++}
++
++static void __init setup_usemap(struct pglist_data *pgdat,
++				struct zone *zone)
++{
++	unsigned long usemapsize = usemap_size(zone);
++	zone->pageblock_base_pfn = zone->zone_start_pfn;
++	zone->pageblock_flags = NULL;
++	if (usemapsize) {
++		zone->pageblock_base_pfn =
++			ALIGN(zone->zone_start_pfn, pageblock_nr_pages);
++		zone->pageblock_flags = alloc_bootmem_node(pgdat, usemapsize);
++		memset(zone->pageblock_flags, 0, usemapsize);
++	}
++}
++#else
++static void inline setup_usemap(struct pglist_data *pgdat,
++				struct zone *zone) {}
++#endif /* CONFIG_SPARSEMEM */
++
+ __meminit int init_currently_empty_zone(struct zone *zone,
+ 					unsigned long zone_start_pfn,
+ 					unsigned long size,
+@@ -2829,6 +2870,8 @@ __meminit int init_currently_empty_zone(
+ 
+ 	zone->zone_start_pfn = zone_start_pfn;
+ 
++	setup_usemap(pgdat, zone);
++
+ 	memmap_init(size, pgdat->node_id, zone_idx(zone), zone_start_pfn);
+ 
+ 	zone_init_free_lists(zone);
+@@ -3240,40 +3283,6 @@ static void __meminit calculate_node_tot
+ 							realtotalpages);
+ }
+ 
+-#ifndef CONFIG_SPARSEMEM
+-/*
+- * Calculate the size of the zone->blockflags rounded to an unsigned long
+- * Start by making sure zonesize is a multiple of pageblock_order by rounding
+- * up. Then use 1 NR_PAGEBLOCK_BITS worth of bits per pageblock, finally
+- * round what is now in bits to nearest long in bits, then return it in
+- * bytes.
+- */
+-static unsigned long __init usemap_size(unsigned long zonesize)
+-{
+-	unsigned long usemapsize;
+-
+-	usemapsize = roundup(zonesize, pageblock_nr_pages);
+-	usemapsize = usemapsize >> pageblock_order;
+-	usemapsize *= NR_PAGEBLOCK_BITS;
+-	usemapsize = roundup(usemapsize, 8 * sizeof(unsigned long));
+-
+-	return usemapsize / 8;
+-}
+-
+-static void __init setup_usemap(struct pglist_data *pgdat,
+-				struct zone *zone, unsigned long zonesize)
+-{
+-	unsigned long usemapsize = usemap_size(zonesize);
+-	zone->pageblock_flags = NULL;
+-	if (usemapsize) {
+-		zone->pageblock_flags = alloc_bootmem_node(pgdat, usemapsize);
+-		memset(zone->pageblock_flags, 0, usemapsize);
+-	}
+-}
+-#else
+-static void inline setup_usemap(struct pglist_data *pgdat,
+-				struct zone *zone, unsigned long zonesize) {}
+-#endif /* CONFIG_SPARSEMEM */
+ 
+ #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
+ 
+@@ -3396,7 +3405,6 @@ static void __paginginit free_area_init_
+ 			continue;
+ 
+ 		set_pageblock_order(pageblock_default_order());
+-		setup_usemap(pgdat, zone, size);
+ 		ret = init_currently_empty_zone(zone, zone_start_pfn,
+ 						size, MEMMAP_EARLY);
+ 		BUG_ON(ret);
+@@ -4408,7 +4416,7 @@ static inline int pfn_to_bitidx(struct z
+ 	pfn &= (PAGES_PER_SECTION-1);
+ 	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
+ #else
+-	pfn = pfn - zone->zone_start_pfn;
++	pfn = pfn - zone->pageblock_base_pfn;
+ 	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
+ #endif /* CONFIG_SPARSEMEM */
+ }
+Index: linux-2.6.25/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.25.orig/include/linux/mmzone.h
++++ linux-2.6.25/include/linux/mmzone.h
+@@ -250,6 +250,7 @@ struct zone {
+ 	 * Flags for a pageblock_nr_pages block. See pageblock-flags.h.
+ 	 * In SPARSEMEM, this map is stored in struct mem_section
+ 	 */
++	unsigned long		pageblock_base_pfn;
+ 	unsigned long		*pageblock_flags;
+ #endif /* CONFIG_SPARSEMEM */
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
