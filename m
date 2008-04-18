@@ -1,100 +1,64 @@
-Message-ID: <48081A52.8040802@cn.fujitsu.com>
-Date: Fri, 18 Apr 2008 11:49:38 +0800
-From: Shi Weihua <shiwh@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] memcgroup: check and initialize page->cgroup in memmap_init_zone
-References: <48080706.50305@cn.fujitsu.com> <48080930.5090905@cn.fujitsu.com> <48080B86.7040200@cn.fujitsu.com> <20080417201432.36b1c326.akpm@linux-foundation.org> <4808177F.3090208@linux.vnet.ibm.com>
-In-Reply-To: <4808177F.3090208@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Thu, 17 Apr 2008 21:07:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: 2.6.25-mm1: not looking good
+Message-Id: <20080417210747.1ae21413.akpm@linux-foundation.org>
+In-Reply-To: <3ae72650804171748y713c965bvbaf5de39e05ab555@mail.gmail.com>
+References: <20080417160331.b4729f0c.akpm@linux-foundation.org>
+	<20080417232441.GA19281@kroah.com>
+	<3ae72650804171748y713c965bvbaf5de39e05ab555@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com
+To: Kay Sievers <kay.sievers@vrfy.org>
+Cc: Greg KH <greg@kroah.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morris <jmorris@namei.org>, Stephen Smalley <sds@tycho.nsa.gov>, Alexey Dobriyan <adobriyan@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote::
-> Andrew Morton wrote:
->> On Fri, 18 Apr 2008 10:46:30 +0800 Shi Weihua <shiwh@cn.fujitsu.com> wrote:
->>
->>> When we test memory controller in Fujitsu PrimeQuest(arch: ia64),
->>> the compiled kernel boots failed, the following message occured on
->>> the telnet terminal.
->>> -------------------------------------
->>> ..........
->>> ELILO boot: Uncompressing Linux... done
->>> Loading file initrd-2.6.25-rc9-00067-gb87e81e.img...done
->>> _ (system freezed)
->>> -------------------------------------
->>>
->>> We found commit 9442ec9df40d952b0de185ae5638a74970388e01
->>> causes this boot failure by git-bisect.
->>> And, we found the following change caused the boot failure.
->>> -------------------------------------
->>> @@ -2528,7 +2535,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zon
->>>                 set_page_links(page, zone, nid, pfn);
->>>                 init_page_count(page);
->>>                 reset_page_mapcount(page);
->>> -               page_assign_page_cgroup(page, NULL);
->>>                 SetPageReserved(page);
->>>
->>>                 /*
->>> -------------------------------------
->>> In this patch, the Author Hugh Dickins said 
->>> "...memmap_init_zone doesn't need it either, ...
->>> Linux assumes pointers in zeroed structures are NULL pointers."
-> 
-> 
-> 
->>> But it seems it's not always the case, so we should check and initialize
->>> page->cgroup anyways.
->>>
-> 
-> The comment from Hugh is correct, which implies that in this case page->cgroup
-> is not zeroed.
-> 
->>> Signed-off-by: Shi Weihua <shiwh@cn.fujitsu.com> 
->>> ---
->>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>> index 402a504..506d4cf 100644
->>> --- a/mm/page_alloc.c
->>> +++ b/mm/page_alloc.c
->>> @@ -2518,6 +2518,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->>>  	struct page *page;
->>>  	unsigned long end_pfn = start_pfn + size;
->>>  	unsigned long pfn;
->>> +	void *pc;
->>>  
->>>  	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
->>>  		/*
->>> @@ -2535,6 +2536,9 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->>>  		set_page_links(page, zone, nid, pfn);
->>>  		init_page_count(page);
->>>  		reset_page_mapcount(page);
->>> +		pc = page_get_page_cgroup(page);
->>> +		if (pc) 
->>> +			page_reset_bad_cgroup(page);
->>>  		SetPageReserved(page);
->>>  
->> hm, fishy.  Perhaps the architecture isn't zeroing the memmap arrays?
->>
-> 
-> The mem_map array should be cleared. I need to see the code to check where the
-> clearing takes place.
-> 
->> Or perhaps that page was used and then later freed before we got to
->> memmap_init_zone() and was freed with a non-zero ->page_cgroup.  Which is
->> unlikely given that page.page_cgroup was only just added and is only
->> present if CONFIG_CGROUP_MEM_RES_CTLR.
-> 
-> Please share your .config? Is this a kexec/kdump reboot by any chance?
-> 
+On Fri, 18 Apr 2008 02:48:19 +0200 "Kay Sievers" <kay.sievers@vrfy.org> wrote:
 
-.config is shared in previous mails.
-kexec/kdump has not been used.
+> On Fri, Apr 18, 2008 at 1:24 AM, Greg KH <greg@kroah.com> wrote:
+> >
+> > On Thu, Apr 17, 2008 at 04:03:31PM -0700, Andrew Morton wrote:
+> >  >
+> >  > I repulled all the trees an hour or two ago, installed everything on an
+> >  > 8-way x86_64 box and:
+> 
+> >  > usb/sysfs:
+> >  >
+> >  > ACPI: PCI Interrupt 0000:00:1d.0[A] -> GSI 17 (level, low) -> IRQ 17
+> >  > uhci_hcd 0000:00:1d.0: UHCI Host Controller
+> >  > uhci_hcd 0000:00:1d.0: new USB bus registered, assigned bus number 1
+> >  > uhci_hcd 0000:00:1d.0: irq 17, io base 0x00002080
+> >  > usb usb1: configuration #1 chosen from 1 choice
+> >  > hub 1-0:1.0: USB hub found
+> >  > hub 1-0:1.0: 2 ports detected
+> >  > sysfs: duplicate filename '189:0' can not be created
+> >
+> >  Interesting, that's the new major:minor code.  I'll go poke at it...
+> 
+> Is this with the deprecated CONFIG_USB_DEVICE_CLASS=y? They have the
+> same dev_t as usb_device and would be a reason for the duplicates.
 
-Thanks
--Shi
+The mac g5 is warning us about stuff too:
+
+io scheduler deadline registered
+io scheduler cfq registered
+io scheduler bfq registered
+proc_dir_entry '00' already registered
+Call Trace:
+[c00000017a0fbb80] [c000000000012018] .show_stack+0x58/0x1dc (unreliable)
+[c00000017a0fbc30] [c00000000013f68c] .proc_register+0x218/0x260
+[c00000017a0fbce0] [c00000000013fab8] .proc_mkdir_mode+0x40/0x74
+[c00000017a0fbd60] [c0000000001f49a8] .pci_proc_attach_device+0x90/0x134
+[c00000017a0fbe00] [c0000000005f0084] .pci_proc_init+0x68/0xa0
+[c00000017a0fbe80] [c0000000005cbc94] .kernel_init+0x1ec/0x430
+[c00000017a0fbf90] [c000000000026fc0] .kernel_thread+0x4c/0x68
+nvidiafb: Device ID: 10de0141 
+nvidiafb: CRTC0 analog not found
+
+http://userweb.kernel.org/~akpm/config-g5.txt
+http://userweb.kernel.org/~akpm/dmesg-g5.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
