@@ -1,92 +1,56 @@
-Received: by qb-out-0506.google.com with SMTP id e21so363453qba.0
-        for <linux-mm@kvack.org>; Fri, 18 Apr 2008 08:02:53 -0700 (PDT)
-Message-ID: <19f34abd0804180747i244c483flf8421f42a330c519@mail.gmail.com>
-Date: Fri, 18 Apr 2008 16:47:17 +0200
-From: "Vegard Nossum" <vegard.nossum@gmail.com>
+Date: Fri, 18 Apr 2008 11:22:42 -0400 (EDT)
+From: Alan Stern <stern@rowland.harvard.edu>
 Subject: Re: 2.6.25-mm1: not looking good
-In-Reply-To: <4808A1C7.7000907@windriver.com>
+In-Reply-To: <20080418094220.GB23572@elf.ucw.cz>
+Message-ID: <Pine.LNX.4.44L0.0804181120270.6252-100000@iolanthe.rowland.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080417160331.b4729f0c.akpm@linux-foundation.org>
-	 <20080417171413.6f8458e4.akpm@linux-foundation.org>
-	 <48080FE7.1070400@windriver.com> <20080418073732.GA22724@elte.hu>
-	 <19f34abd0804180446u2d6f17damf391a8c0584358b8@mail.gmail.com>
-	 <20080418123439.GA17013@elte.hu>
-	 <19f34abd0804180541l7b4d14a6tb13bdd51dd533d70@mail.gmail.com>
-	 <48089BCA.1090704@windriver.com>
-	 <19f34abd0804180622l4f89191cp4cc7833822e058f5@mail.gmail.com>
-	 <4808A1C7.7000907@windriver.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jason Wessel <jason.wessel@windriver.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, tglx@linutronix.de, penberg@cs.helsinki.fi, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jmorris@namei.org, sds@tycho.nsa.gov
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morris <jmorris@namei.org>, Stephen Smalley <sds@tycho.nsa.gov>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-pm@lists.linux-foundation.org, Greg KH <greg@kroah.com>, "Rafael J. Wysocki" <rjw@sisk.pl>
 List-ID: <linux-mm.kvack.org>
 
-On 4/18/08, Jason Wessel <jason.wessel@windriver.com> wrote:
-> Vegard Nossum wrote:
-> > On Fri, Apr 18, 2008 at 3:02 PM, Jason Wessel
-> > <jason.wessel@windriver.com> wrote:
-> >
-> >> Vegard Nossum wrote:
-> >>  > On Fri, Apr 18, 2008 at 2:34 PM, Ingo Molnar <mingo@elte.hu> wrote:
-> >>  >
-> >>  >>  * Vegard Nossum <vegard.nossum@gmail.com> wrote:
-> >>  >>
-> >>  >>  > With the patch below, it seems 100% reproducible to me (7 out of 7
-> >>  >>  > bootups hung).
-> >>  >>  >
-> >>  >>  > The number of loops it could do before hanging were, in order:
-> 697,
-> >>  >>  > 898, 237, 55, 45, 92, 59
-> >>  >>
-> >>  >>  cool! Jason: i think that particular self-test should be repeated
-> 1000
-> >>  >>  times before reporting success ;-)
-> >>  >>
-> >>  >
-> >>  > BTW, I just tested a 32-bit config and it hung after 55 iterations as
-> well.
-> >>  >
-> >>  > Vegard
-> >>  >
-> >>  >
-> >>  >
-> >>  I assume this was SMP?
-> >>
-> >
-> > Yes. But now that I realize this, I tried running same kernel with
-> > qemu, using -smp 16, and it seems to be stuck here:
-> >
-> >
->
-> Unless you have a qemu with the NMI patches, kgdb does not work on SMP
-> with qemu.  The very first test is going to fail because the IPI sent by
-> the kernel is not handled in qemu's hardware emulation.
+On Fri, 18 Apr 2008, Pavel Machek wrote:
 
-Oops, no, and that makes sense.
+> On Fri 2008-04-18 00:53:23, Andrew Morton wrote:
+> > On Fri, 18 Apr 2008 00:50:34 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+> > 
+> > > dmesg: http://userweb.kernel.org/~akpm/x.txt
+> > > config: http://userweb.kernel.org/~akpm/config-t61p.txt
+> > 
+> > oop, there's more:
+> > 
+> > 
+> > sd 0:0:0:0: [sda] Mode Sense: 00 3a 00 00
+> > sd 0:0:0:0: [sda] Write cache: enabled, read cache: enabled, doesn't support DPO or FUA
+> > firewire_core: created device fw0: GUID 00016c2000174bad, S400
+> > PM: Device usb4 failed to restore: error -113
+> > eth0: Link is Up 100 Mbps Full Duplex, Flow Control: RX/TX
+> > eth0: 10/100 speed: disabling TSO
+> > PM: Device usb5 failed to restore: error -113
+> > PM: Device usb7 failed to restore: error -113
+> > sd 0:0:0:0: [sda] Starting disk
+> > PM: Image restored successfully.
+> > Restarting tasks ... done.
+> > PM: Basic memory bitmaps freed
+> > 
+> > Those USB restore failures are new.  They're similar to the ones on the
+> > doesnt-resume-properly-any-more Vaio.  They came out from the machine's
+> > second (successful) resume-from-disk.
+> 
+> Try rmmod usb / insmod usb around suspend to see if it is
+> usb-specific, or if something went seriously wrong in core.
+> 
+> Or you might just bisect it ;-).
 
-I now picked up qemu 0.9.1 and applied the three NMI/SMI patches by Jan Kiszka.
+There's no need to worry about them.  They merely indicate that the 
+root hubs didn't resume along with everything else, because they were 
+already suspended when the system went to sleep and so they were left 
+suspended.  The return codes in usbcore will be changed soon so that 
+this won't appear to be an error.
 
-So in qemu it seems to run fine now, except that I need to prod it
-sometimes (it gets stuck in cpu_clock() and I have to break/continue
-from gdb to make it proceed). Oh, there it made it to 1056, and gdb
-can't interrupt anymore. Hmm. This is probably not a very good
-testing/debugging environment if the qemu support is that bad. Sorry
-:-)
-
-But booting with nosmp on real hardware gets easily above 100,000
-iterations of the loop (before I reboot), so it seems to be related to
-that, anyway.
-
-Vegard
-
--- 
-"The animistic metaphor of the bug that maliciously sneaked in while
-the programmer was not looking is intellectually dishonest as it
-disguises that the error is the programmer's own creation."
-	-- E. W. Dijkstra, EWD1036
+Alan Stern
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
