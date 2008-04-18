@@ -1,60 +1,77 @@
-Date: Thu, 17 Apr 2008 18:35:38 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: 2.6.25-mm1: not looking good
-Message-Id: <20080417183538.d88feff5.akpm@linux-foundation.org>
-In-Reply-To: <200804171955.46600.paul.moore@hp.com>
-References: <20080417160331.b4729f0c.akpm@linux-foundation.org>
-	<200804171955.46600.paul.moore@hp.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <48080B86.7040200@cn.fujitsu.com>
+Date: Fri, 18 Apr 2008 10:46:30 +0800
+From: Shi Weihua <shiwh@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: [PATCH] memcgroup: check and initialize page->cgroup in memmap_init_zone
+References: <48080706.50305@cn.fujitsu.com> <48080930.5090905@cn.fujitsu.com>
+In-Reply-To: <48080930.5090905@cn.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Moore <paul.moore@hp.com>
-Cc: mingo@elte.hu, tglx@linutronix.de, penberg@cs.helsinki.fi, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jmorris@namei.org, sds@tycho.nsa.gov
+To: akpm@linux-foundation.org
+Cc: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 17 Apr 2008 19:55:46 -0400
-Paul Moore <paul.moore@hp.com> wrote:
+When we test memory controller in Fujitsu PrimeQuest(arch: ia64),
+the compiled kernel boots failed, the following message occured on
+the telnet terminal.
+-------------------------------------
+..........
+ELILO boot: Uncompressing Linux... done
+Loading file initrd-2.6.25-rc9-00067-gb87e81e.img...done
+_ (system freezed)
+-------------------------------------
 
-> > security/selinux/netnode.c looks to be doing simple old
-> > kzalloc/kfree, so I'd be suspecting slab.  But there are significant
-> > changes netnode.c in git-selinux.
-> >
-> > I have maybe two hours in which to weed out whatever
-> > very-recently-added dud patches are causing this.  Any suggestions
-> > are welcome.
-> 
-> For what it's worth I just looked over the changes in netnode.c and 
-> nothing is jumping out at me.  The changes ran fine for me when tested 
-> on the later 2.6.25-rcX kernels but I suppose that doesn't mean a whole 
-> lot.
-> 
-> I've got a 4-way x86_64 box but it needs to be installed (which means 
-> I'm not going to be able to do anything useful with it until tomorrow 
-> at the earliest).  I'll try it out and see if I can recreate the 
-> problem.
+We found commit 9442ec9df40d952b0de185ae5638a74970388e01
+causes this boot failure by git-bisect.
+And, we found the following change caused the boot failure.
+-------------------------------------
+@@ -2528,7 +2535,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zon
+                set_page_links(page, zone, nid, pfn);
+                init_page_count(page);
+                reset_page_mapcount(page);
+-               page_assign_page_cgroup(page, NULL);
+                SetPageReserved(page);
 
-I dropped git-selinux and that crash seems to have gone away.  It took about
-five minutes before, but would presumably have happened earlier if I'd
-reduced the cache size.
+                /*
+-------------------------------------
+In this patch, the Author Hugh Dickins said 
+"...memmap_init_zone doesn't need it either, ...
+Linux assumes pointers in zeroed structures are NULL pointers."
+But it seems it's not always the case, so we should check and initialize
+page->cgroup anyways.
 
-btw, wouldn't this
+Signed-off-by: Shi Weihua <shiwh@cn.fujitsu.com> 
+---
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 402a504..506d4cf 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2518,6 +2518,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 	struct page *page;
+ 	unsigned long end_pfn = start_pfn + size;
+ 	unsigned long pfn;
++	void *pc;
+ 
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+ 		/*
+@@ -2535,6 +2536,9 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 		set_page_links(page, zone, nid, pfn);
+ 		init_page_count(page);
+ 		reset_page_mapcount(page);
++		pc = page_get_page_cgroup(page);
++		if (pc) 
++			page_reset_bad_cgroup(page);
+ 		SetPageReserved(page);
+ 
+ 		/*
 
---- a/security/selinux/netnode.c~a
-+++ a/security/selinux/netnode.c
-@@ -190,7 +190,7 @@ static int sel_netnode_insert(struct sel
- 	if (sel_netnode_hash[idx].size == SEL_NETNODE_HASH_BKT_LIMIT) {
- 		struct sel_netnode *tail;
- 		tail = list_entry(node->list.prev, struct sel_netnode, list);
--		list_del_rcu(node->list.prev);
-+		list_del_rcu(&tail->list);
- 		call_rcu(&tail->rcu, sel_netnode_free);
- 	} else
- 		sel_netnode_hash[idx].size++;
-_
 
-be a bit clearer?  If it's correct - I didn't try too hard :)
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
