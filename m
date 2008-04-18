@@ -1,54 +1,79 @@
-Date: Fri, 18 Apr 2008 20:32:39 +1000 (EST)
-From: James Morris <jmorris@namei.org>
+Date: Fri, 18 Apr 2008 13:07:21 +0200
+From: Pavel Machek <pavel@ucw.cz>
 Subject: Re: 2.6.25-mm1: not looking good
-In-Reply-To: <20080418072457.GB18044@elte.hu>
-Message-ID: <Xine.LNX.4.64.0804182029110.5998@us.intercode.com.au>
-References: <20080417160331.b4729f0c.akpm@linux-foundation.org>
- <84144f020804172340l79f9c815u42e4dad69dada299@mail.gmail.com>
- <20080418072457.GB18044@elte.hu>
+Message-ID: <20080418110721.GA5478@elf.ucw.cz>
+References: <20080417160331.b4729f0c.akpm@linux-foundation.org> <20080418005034.6e4dd9e7.akpm@linux-foundation.org> <20080418005323.7c015c42.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080418005323.7c015c42.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Thomas Gleixner <tglx@linutronix.de>, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Stephen Smalley <sds@tycho.nsa.gov>, Paul Moore <paul.moore@hp.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morris <jmorris@namei.org>, Stephen Smalley <sds@tycho.nsa.gov>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-pm@lists.linux-foundation.org, Greg KH <greg@kroah.com>, "Rafael J. Wysocki" <rjw@sisk.pl>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 Apr 2008, Ingo Molnar wrote:
+Hi!
 
+> On Fri, 18 Apr 2008 00:50:34 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
 > 
-> * Pekka Enberg <penberg@cs.helsinki.fi> wrote:
+> > dmesg: http://userweb.kernel.org/~akpm/x.txt
+> > config: http://userweb.kernel.org/~akpm/config-t61p.txt
 > 
-> > Andrew, you don't seem to have slab debugging enabled:
-> > 
-> > # CONFIG_DEBUG_SLAB is not set
-> > 
-> > And quite frankly, the oops looks unlikely to be a slab bug but rather 
-> > a plain old slab corruption cause by the callers...
+> oop, there's more:
 > 
-> hm, there's sel_netnode_free() in the stackframe - that's from 
-> security/selinux/netnode.c. Andrew, any recent changes in that area?
+> 
+> sd 0:0:0:0: [sda] Mode Sense: 00 3a 00 00
+> sd 0:0:0:0: [sda] Write cache: enabled, read cache: enabled, doesn't support DPO or FUA
+> firewire_core: created device fw0: GUID 00016c2000174bad, S400
+> PM: Device usb4 failed to restore: error -113
+> eth0: Link is Up 100 Mbps Full Duplex, Flow Control: RX/TX
+> eth0: 10/100 speed: disabling TSO
+> PM: Device usb5 failed to restore: error -113
+> PM: Device usb7 failed to restore: error -113
+> sd 0:0:0:0: [sda] Starting disk
+> PM: Image restored successfully.
+> Restarting tasks ... done.
+> PM: Basic memory bitmaps freed
+> 
+> Those USB restore failures are new.  They're similar to the ones on the
+> doesnt-resume-properly-any-more Vaio.  They came out from the machine's
+> second (successful) resume-from-disk.
 
-I've reverted the -mm only change to that file in 
+I got USB messages after s2ram + suspend to disk combination, too, but
+machine seems to work.
 
-git://git.kernel.org/pub/scm/linux/kernel/git/jmorris/selinux-2.6.git#for-akpm
+ata1.00: ACPI cmd ef/10:03:00:00:00:a0 succeeded
+ata1.00: configured for UDMA/100
+ata1.00: configured for UDMA/100
+ata1: EH complete
+sd 0:0:0:0: [sda] 117210240 512-byte hardware sectors (60012 MB)
+sd 0:0:0:0: [sda] Write Protect is off
+sd 0:0:0:0: [sda] Mode Sense: 00 3a 00 00
+sd 0:0:0:0: [sda] Write cache: enabled, read cache: enabled, doesn't
+support DPO or FUA
+sd 0:0:0:0: [sda] 117210240 512-byte hardware sectors (60012 MB)
+sd 0:0:0:0: [sda] Write Protect is off
+sd 0:0:0:0: [sda] Mode Sense: 00 3a 00 00
+sd 0:0:0:0: [sda] Write cache: enabled, read cache: enabled, doesn't
+support DPO or FUA
+PM: Device usb2 failed to restore: error -113
+PM: Device usb3 failed to restore: error -113
+PM: Device usb4 failed to restore: error -113
+PM: Image restored successfully.
+Restarting tasks ... done.
+PM: Basic memory bitmaps freed
+wlan0: RX disassociation from 00:11:2f:0e:95:a0 (reason=7)
+wlan0: disassociated
 
+(Apart from some wireless problems, solved by reconnecting...)
 
-commit f777964ad75cf4a119d911d12e81948d2402677f
-Author: James Morris <jmorris@namei.org>
-Date:   Fri Apr 18 20:27:24 2008 +1000
-
-    Revert "SELinux: Made netnode cache adds faster"
-    
-    This reverts commit 6bf8f41d4efdf9d4eeb4f7df9c591e281f7da93e.
-    
-    Possible cause of slab corruption in -mm.
-
-
+(And ipw3945 LED indication now seems to work, good!)
+									Pavel 
 
 -- 
-James Morris
-<jmorris@namei.org>
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
