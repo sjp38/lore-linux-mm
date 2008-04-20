@@ -1,79 +1,218 @@
-Received: by fg-out-1718.google.com with SMTP id e12so1153305fga.4
-        for <linux-mm@kvack.org>; Sun, 20 Apr 2008 04:29:19 -0700 (PDT)
-Message-ID: <480B2904.1040204@gmail.com>
-Date: Sun, 20 Apr 2008 13:29:08 +0200
-From: Jiri Slaby <jirislaby@gmail.com>
+Message-ID: <480BD01D.4000201@linux.intel.com>
+Date: Sun, 20 Apr 2008 16:22:05 -0700
+From: Arjan van de Ven <arjan@linux.intel.com>
 MIME-Version: 1.0
-Subject: internal compiler error: SIGSEGV [Was: 2.6.25-mm1]
-References: <20080418014757.52fb4a4f.akpm@linux-foundation.org>
-In-Reply-To: <20080418014757.52fb4a4f.akpm@linux-foundation.org>
+Subject: Proof of concept: sorting per-cpu-page lists to reduce memory fragmentation
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On 04/18/2008 10:47 AM, Andrew Morton wrote:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.25/2.6.25-mm1/ 
+Hi,
 
-Hi, I'm not sure by what was this caused.
+Right now, the per-cpu page lists are interfering somewhat with the buddy allocator in
+terms of keeping the free memory pool unfragmented. This proof-of-concept patch
+(just to show the idea) tries to improve that situation by sorting the per-cpu page
+lists by physical address, with the idea that when the pcp list gives a chunk of itself
+back to the global pool, the chunk it gives back isn't random but actually very localized,
+if not already containing contiguous parts.. as opposed to pure random ordering.
 
-LANG=en strace -fo strace_gcc.txt  gcc -Wp,-MD,drivers/usb/class/.usblp.o.d 
--nostdinc -isystem /usr/lib64/gcc/x86_64-suse-linux/4.3/include -D__KERNEL__ 
--Iinclude -Iinclude2 -I/home/l/latest/xxx/include -include 
-include/linux/autoconf.h -I/home/l/latest/xxx/drivers/usb/class 
--Idrivers/usb/class -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs 
--fno-strict-aliasing -fno-common -Werror-implicit-function-declaration -O2 
--fno-stack-protector -m64 -march=core2 -mno-red-zone -mcmodel=kernel 
--funit-at-a-time -maccumulate-outgoing-args -DCONFIG_AS_CFI=1 
--DCONFIG_AS_CFI_SIGNAL_FRAME=1 -pipe -Wno-sign-compare 
--fno-asynchronous-unwind-tables -mno-sse -mno-mmx -mno-sse2 -mno-3dnow 
--I/home/l/latest/xxx/include/asm-x86/mach-default -Iinclude/asm-x86/mach-default 
--fno-omit-frame-pointer -fno-optimize-sibling-calls -g 
--Wdeclaration-after-statement -Wno-pointer-sign -DMODULE -D"KBUILD_STR(s)=#s" 
--D"KBUILD_BASENAME=KBUILD_STR(usblp)"  -D"KBUILD_MODNAME=KBUILD_STR(usblp)" 
-/home/l/latest/xxx/drivers/usb/class/usblp.c -S -o usblp.s
-/home/l/latest/xxx/drivers/usb/class/usblp.c: In function 'usblp_submit_read':
-/home/l/latest/xxx/drivers/usb/class/usblp.c:977: internal compiler error: 
-Segmentation fault
-Please submit a full bug report,
-with preprocessed source if appropriate.
-See <http://bugs.opensuse.org/> for instructions.
+Now, there's some issues I need to resolve before I can really propose this for merging:
+1) Measuring success. Measuring fragmentation is a *hard* problem. Measurements I've done so
+    far tend to show a little improvement, but that's very subjective since it's basically
+    impossible to get reproducable results. Ideas on how to measure this are VERY welcome
+2) Cache locality; the head of the pcp list in theory is cache hot; the current code doesn't
+    take that into account. It's easy to not sort the, say, first 5 pages though; not done
+    in the current implementation
+
+The patch below implements this, and has a hacky sysreq to print cpu 0's pcp list out
+(I use this to verify that the sort works).
+
+
+I'm posting this to get early feedback/comments on the approach; I fully realize that the code
+is far from perfect obviously...
 
 
 
 
-strace_gcc.txt:
-http://www.fi.muni.cz/~xslaby/sklad/strace_gcc.txt
+---
+  arch/x86/kernel/process_64.c |    3 +
+  drivers/char/sysrq.c         |   30 +++++++++++++-
+  mm/page_alloc.c              |   87 ++++++++++++++++++++++++++++++++++++++++++
+  3 files changed, 118 insertions(+), 2 deletions(-)
 
-preprocessor output available here:
-http://www.fi.muni.cz/~xslaby/sklad/usblp.E
+diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
+index 91dc9c1..341a775 100644
+--- a/arch/x86/kernel/process_64.c
++++ b/arch/x86/kernel/process_64.c
+@@ -158,6 +158,8 @@ static inline void play_dead(void)
+  }
+  #endif /* CONFIG_HOTPLUG_CPU */
 
-Reboot fixed it. It happened after few suspend/resume cycles. The preproc output 
-differs in no way from after the reboot. Now, the strace looks like:
-5341  mmap(NULL, 32768, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) 
-= 0x7f362e004000
-5341  mmap(NULL, 1048576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 
-0) = 0x7f362df04000
-5341  brk(0x1964000)                    = 0x1964000
-5341  brk(0x194c000)                    = 0x194c000
-5341  brk(0x196d000)                    = 0x196d000
-5341  brk(0x195a000)                    = 0x195a000
-5341  mmap(NULL, 143360, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) 
-= 0x7f362dee1000
-5341  munmap(0x7f362dee1000, 143360)    = 0
-5341  brk(0x1981000)                    = 0x1981000
-5341  brk(0x196b000)                    = 0x196b000
-5341  brk(0x1966000)                    = 0x1966000
-5341  mmap(NULL, 32768, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) 
-= 0x7f362defc000
-5341  brk(0x1988000)                    = 0x1988000
++extern void sort_pcp_list(void);
++
+  /*
+   * The idle thread. There's no useful work to be
+   * done, so just try to conserve power and have a
+@@ -181,6 +183,7 @@ void cpu_idle(void)
+  	/* endless idle loop with no priority at all */
+  	while (1) {
+  		tick_nohz_stop_sched_tick();
++		sort_pcp_list();
+  		while (!need_resched()) {
+  			void (*idle)(void);
 
-at that sigsegv place.
+diff --git a/drivers/char/sysrq.c b/drivers/char/sysrq.c
+index de60e1e..21e42b5 100644
+--- a/drivers/char/sysrq.c
++++ b/drivers/char/sysrq.c
+@@ -148,6 +148,32 @@ static struct sysrq_key_op sysrq_reboot_op = {
+  	.enable_mask	= SYSRQ_ENABLE_BOOT,
+  };
 
-Some kind of random-brk gcc (gcc-4.3-30) non-readiness?
++extern void print_pcp_list(unsigned int cpu);
++extern void sort_pcp_list(void);
++
++static void sysrq_handle_memdump(int key, struct tty_struct *tty)
++{
++	 print_pcp_list(0);
++}
++static struct sysrq_key_op sysrq_memdump_op = {
++	.handler	= sysrq_handle_memdump,
++	.help_msg	= "memdumpY",
++	.action_msg	= "Dumping",
++	.enable_mask	= SYSRQ_ENABLE_BOOT,
++};
++
++static void sysrq_handle_memsort(int key, struct tty_struct *tty)
++{
++	sort_pcp_list();
++}
++static struct sysrq_key_op sysrq_memsort_op = {
++	.handler	= sysrq_handle_memsort,
++	.help_msg	= "memsortZ",
++	.action_msg	= "Sorting",
++	.enable_mask	= SYSRQ_ENABLE_BOOT,
++};
++
++
+  static void sysrq_handle_sync(int key, struct tty_struct *tty)
+  {
+  	emergency_sync();
+@@ -357,8 +383,8 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
+  	&sysrq_showstate_blocked_op,	/* w */
+  	/* x: May be registered on ppc/powerpc for xmon */
+  	NULL,				/* x */
+-	NULL,				/* y */
+-	NULL				/* z */
++	&sysrq_memdump_op,		/* y */
++	&sysrq_memsort_op		/* z */
+  };
+
+  /* key2index calculation, -1 on invalid index */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 402a504..414f7ec 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -900,6 +900,93 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp)
+  }
+  #endif
+
++static int swaps;
++
++/*
++ * Print continuity count for per cpu page lists
++ */
++void print_pcp_list(unsigned int cpu)
++{
++	unsigned long flags;
++	struct zone *zone;
++	struct page *page;
++
++	printk("Swaps done so far: %i \n", swaps);
++
++	for_each_zone(zone) {
++		struct per_cpu_pageset *pset;
++		struct per_cpu_pages *pcp;
++
++		if (!populated_zone(zone))
++			continue;
++
++
++		pset = zone_pcp(zone, cpu);
++
++		pcp = &pset->pcp;
++		printk("Zone %s \n", zone->name);
++		local_irq_save(flags);
++			list_for_each_entry(page, &pcp->list, lru)
++				printk("Page %x \n", page_to_pfn(page));
++	
++		local_irq_restore(flags);
++	}
++}
++
++/*
++ * Print continuity count for per cpu page lists
++ */
++void sort_pcp_list(void)
++{
++	unsigned long flags;
++	struct zone *zone;
++	struct page *page, *page2;
++
++	for_each_zone(zone) {
++		struct per_cpu_pageset *pset;
++		struct list_head *cursor, *next;
++		struct per_cpu_pages *pcp;
++
++
++		if (!populated_zone(zone))
++			continue;
++
++
++		local_irq_save(flags);
++		pset = zone_pcp(zone, smp_processor_id());
++
++		pcp = &pset->pcp;
++		cursor = &pcp->list;
++		cursor = cursor->next;
++		while (cursor != &pcp->list) {
++			next = cursor->next;
++			if (next == &pcp->list)
++				break;
++
++			if (need_resched())
++				break;
++
++			page  = list_entry(cursor, struct page, lru);
++			page2 = list_entry(next, struct page, lru);
++
++			if (page_to_pfn(page) > page_to_pfn(page2)) {
++				page->lru.prev->next = &page2->lru;
++				page2->lru.next->prev = &page->lru;
++				page->lru.next = page2->lru.next;
++				page2->lru.prev = page->lru.prev;
++
++				page->lru.prev = &page2->lru;
++				page2->lru.next = &page->lru;
++				swaps++;
++			} else {
++				cursor = cursor->next;
++			}
++		}
++	
++		local_irq_restore(flags);
++	}
++}
++
+  /*
+   * Drain pages of the indicated processor.
+   *
+-- 
+1.5.4.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
