@@ -1,50 +1,105 @@
-From: kamezawa.hiroyu@jp.fujitsu.com
-Message-ID: <13567392.1208782944657.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 21 Apr 2008 22:02:24 +0900 (JST)
-Subject: Re: Re: [PATCH]Fix usemap for DISCONTIG/FLATMEM with not-aligned zone initilaization.
-In-Reply-To: <Pine.LNX.4.64.0804211250000.16476@blonde.site>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="iso-2022-jp"
+Message-ID: <480C9619.2050201@qumranet.com>
+Date: Mon, 21 Apr 2008 16:26:49 +0300
+From: Avi Kivity <avi@qumranet.com>
+MIME-Version: 1.0
+Subject: Re: [patch 2/2]: introduce fast_gup
+References: <20080328025455.GA8083@wotan.suse.de>	 <20080328030023.GC8083@wotan.suse.de> <1208444605.7115.2.camel@twins>	 <alpine.LFD.1.00.0804170814090.2879@woody.linux-foundation.org>	 <480C81C4.8030200@qumranet.com> <1208781013.7115.173.camel@twins>
+In-Reply-To: <1208781013.7115.173.camel@twins>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-References: <Pine.LNX.4.64.0804211250000.16476@blonde.site>
- <20080418161522.GB9147@csn.ul.ie> <48080706.50305@cn.fujitsu.com>
- <48080930.5090905@cn.fujitsu.com> <48080B86.7040200@cn.fujitsu.com>
- <20080418211214.299f91cd.kamezawa.hiroyu@jp.fujitsu.com>
- <21878461.1208539556838.kamezawa.hiroyu@jp.fujitsu.com>
- <20080421112048.78f0ec76.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Shi Weihua <shiwh@cn.fujitsu.com>, akpm@linux-foundation.org, balbir@linux.vnet.ibm.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, shaggy@austin.ibm.com, axboe@kernel.dk, linux-mm@kvack.org, linux-arch@vger.kernel.org, Clark Williams <williams@redhat.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-thank you for review.
+Peter Zijlstra wrote:
+> On Mon, 2008-04-21 at 15:00 +0300, Avi Kivity wrote:
+>   
+>> Linus Torvalds wrote:
+>>     
+>>> Finally, I don't think that comment is correct in the first place. It's 
+>>> not that simple. The thing is, even *with* the memory barrier in place, we 
+>>> may have:
+>>>
+>>> 	CPU#1			CPU#2
+>>> 	=====			=====
+>>>
+>>> 	fast_gup:
+>>> 	 - read low word
+>>>
+>>> 				native_set_pte_present:
+>>> 				 - set low word to 0
+>>> 				 - set high word to new value
+>>>
+>>> 	 - read high word
+>>>
+>>> 				- set low word to new value
+>>>
+>>> and so you read a low word that is associated with a *different* high 
+>>> word! Notice?
+>>>
+>>> So trivial memory ordering is _not_ enough.
+>>>
+>>> So I think the code literally needs to be something like this
+>>>
+>>> 	#ifdef CONFIG_X86_PAE
+>>>
+>>> 	static inline pte_t native_get_pte(pte_t *ptep)
+>>> 	{
+>>> 		pte_t pte;
+>>>
+>>> 	retry:
+>>> 		pte.pte_low = ptep->pte_low;
+>>> 		smp_rmb();
+>>> 		pte.pte_high = ptep->pte_high;
+>>> 		smp_rmb();
+>>> 		if (unlikely(pte.pte_low != ptep->pte_low)
+>>> 			goto retry;
+>>> 		return pte;
+>>> 	}
+>>>
+>>>   
+>>>       
+>> I think this is still broken.  Suppose that after reading pte_high 
+>> native_set_pte() is called again on another cpu, changing pte_low back 
+>> to the original value (but with a different pte_high).  You now have 
+>> pte_low from second native_set_pte() but pte_high from the first 
+>> native_set_pte().
+>>     
+>
+> I think the idea was that for user pages we only use set_pte_present()
+> which does the low=0 thing first.
+>   
 
->> +		z = page_zone(page);
->
->Does this have to be recalculated for every page?  The function name
->"memmap_init_zone" suggests it could be done just once (but I'm on
->unfamiliar territory here, ignore any nonsense from me).
->
-you're right. I will consider this again.
+Doesn't matter.  The second native_set_pte() (or set_pte_present()) 
+executes atomically:
 
->> -		if ((pfn & (pageblock_nr_pages-1)))
->> +		if ((z->zone_start_pfn < pfn)
->
->Shouldn't that be <= ?
->
-yes.
 
->> +		    && (pfn < z->zone_start_pfn + z->spanned_pages)
->> +		    && !(pfn & (pageblock_nr_pages-1)))
->
->Ah, that line (with the ! in) makes more sense than what was there
->before; but that's an unrelated (minor) bugfix which you ought to
->mention separately in the change comment.
->
-Ah, ok. I'll rewrite and post again. thank you.
+	fast_gup:
+	 - read low word (l0)
 
--Kame
+				native_set_pte_present:
+				 - set low word to 0
+				 - set high word to new value (h1)
+	 			 - set low word to new value (l1)
+ 
+
+	 - read high word (h1)
+
+				native_set_pte_present:
+				 - set low word to 0
+				 - set high word to new value (h2)
+	 			 - set low word to new value (l2)
+
+   	 - re-read low word (l2)
+
+
+If l2 happens to be equal to l0, then the check succeeds and we have a 
+splintered pte h1:l0.
+
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
