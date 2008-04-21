@@ -1,68 +1,76 @@
 Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3LGiErH026515
-	for <linux-mm@kvack.org>; Mon, 21 Apr 2008 12:44:14 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3LGg8En215796
-	for <linux-mm@kvack.org>; Mon, 21 Apr 2008 12:42:08 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3LGfvsE015643
-	for <linux-mm@kvack.org>; Mon, 21 Apr 2008 12:41:58 -0400
-Date: Mon, 21 Apr 2008 09:41:46 -0700
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3LGhvpQ018646
+	for <linux-mm@kvack.org>; Mon, 21 Apr 2008 12:43:57 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3LGhvF5238716
+	for <linux-mm@kvack.org>; Mon, 21 Apr 2008 12:43:57 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3LGhkZa002533
+	for <linux-mm@kvack.org>; Mon, 21 Apr 2008 12:43:47 -0400
+Date: Mon, 21 Apr 2008 09:43:35 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
 Subject: Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs ABI
-Message-ID: <20080421164146.GA32429@us.ibm.com>
-References: <20080411235648.GA13276@suse.de> <20080412094118.GA7708@wotan.suse.de> <20080413034136.GA22686@suse.de> <20080414210506.GA6350@us.ibm.com> <20080417231617.GA18815@us.ibm.com> <Pine.LNX.4.64.0804171619340.12031@schroedinger.engr.sgi.com> <20080417233615.GA24508@us.ibm.com> <Pine.LNX.4.64.0804171639340.15173@schroedinger.engr.sgi.com> <20080420022159.GA14037@suse.de> <Pine.LNX.4.64.0804202305470.13872@schroedinger.engr.sgi.com>
+Message-ID: <20080421164335.GB32429@us.ibm.com>
+References: <20080412094118.GA7708@wotan.suse.de> <20080413034136.GA22686@suse.de> <20080414210506.GA6350@us.ibm.com> <20080417231617.GA18815@us.ibm.com> <Pine.LNX.4.64.0804171619340.12031@schroedinger.engr.sgi.com> <20080417233615.GA24508@us.ibm.com> <Pine.LNX.4.64.0804171639340.15173@schroedinger.engr.sgi.com> <20080418060404.GA5807@us.ibm.com> <20080418172730.GA12798@us.ibm.com> <20080420022421.GB14037@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0804202305470.13872@schroedinger.engr.sgi.com>
+In-Reply-To: <20080420022421.GB14037@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Greg KH <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
+To: Greg KH <gregkh@suse.de>
+Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 20.04.2008 [23:06:48 -0700], Christoph Lameter wrote:
-> On Sat, 19 Apr 2008, Greg KH wrote:
-> 
-> > > That violation is replicated in /proc/meminfo /proc/vmstat etc etc.
+On 19.04.2008 [19:24:21 -0700], Greg KH wrote:
+> On Fri, Apr 18, 2008 at 10:27:30AM -0700, Nishanth Aravamudan wrote:
+> > On 17.04.2008 [23:04:04 -0700], Nishanth Aravamudan wrote:
+> > > On 17.04.2008 [16:39:56 -0700], Christoph Lameter wrote:
+> > > > On Thu, 17 Apr 2008, Nishanth Aravamudan wrote:
+> > > > 
+> > > > > That seems fine to me. I will work on it. However, as I mentioned in a
+> > > > > previous e-mail, the files in /sys/devices/system/node/node<nr>/
+> > > > > already violate the "one value per file" rule in several instances. I'm
+> > > > > guessing Greg won't want me moving the files and keeping that violation?
+> > > > 
+> > > > That violation is replicated in /proc/meminfo /proc/vmstat etc etc.
+> > > 
+> > > Right, but /proc doesn't have such a restriction (the "one value per
+> > > file" rule). I'm not sure how the meminfo, etc. files in sysfs got put
+> > > in past Greg, but that's how it is :)
 > > 
-> > Those are /proc files, not sysfs files :)
+> > Greg, can you give any insight here? Are we better off leaving the files
+> > in question in /sys/devices/system/node/node<nr>/{meminfo,numastat,etc}
+> > since they are part of the ABI there and already violate the rules for
+> > sysfs? Or can we move them to /sys/kernel and continue to violate the
+> > rules? In this case, I don't see any way to provide a "snapshot" of the
+> > system's memory information without all the values being in one file?
 > 
-> Hmmm.. Maybe we need to have /proc/node<x>/meminfo etc that replicates
-> the /proc content for each node? Otherwise this cannot be symmetric
-> because the different mount points have different requirements on how
-> the output should look like.
+> Yeah, the "snapshot" issue is what allows those values all to be present
+> at once.
+> 
+> As for where to place them, are there any tools out there that are
+> expecting the current file locations?  If so, can they work if they are
+> in both places?
 
-But the memory info has nothing to do with process specific information,
-which is what "new" /proc files should contain (or maybe I'm
-mis-remembering).
+I believe libnuma uses /sys/devices/system/node for some information. As
+long as the files are in both places, nothing should be affected,
+though. And we could deprecate the old files (if we decide to move them)
+for the longer-term and update the necessary libraries.
 
-The current location (/sys/devices/system/node) reflects that memory is
-tied to system devices called "nodes"; I'm not entirely convinced we'd
-want to change that?  Especially, as Greg noted, it's easier to obtain
-the information we want off a sysdev, rather than the raw kobject.
+> If you think they should be moved, I'll defer to your judgement, but
+> it will be a bit harder, as you will be working with "raw" kobjects in
+> that case, not the sysdev structures, which do make things a bit
+> easier for you.
 
-While I understand the desire to maintain sanity for sysfs files,
-perhaps the meminfo files (and numastat, etc) are just special, in that
-they only make sense as a collective (the snapshot mentioned earlier in
-this thread) -- to get a view of the component (memory, NUMA statistics,
-etc) as a whole.
+Yeah, I noticed that while fiddling around. Still possible, just not as
+easy.
 
-In that sense, perhaps the sysfs notion should be extended to "One
-logical value per file", where logical is defined as the minimum atomic
-information needed by the user [1]? Or perhaps sysfs just isn't the best
-place for this information, I don't know. I don't believe I am the
-person to make that call.
+> sorry for the delay, am traveling...
 
-Thanks,
-Nish
+No problem, thanks for the input!
 
-[1] That would allow files like available_clocksource not to seem like
-violators of the sysfs rule:
-
-$ sudo cat /sys/devices/system/clocksource/clocksource0/available_clocksource
-hpet acpi_pm pit jiffies tsc
+-Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
