@@ -1,12 +1,12 @@
-Date: Tue, 22 Apr 2008 16:13:20 -0700 (PDT)
+Date: Tue, 22 Apr 2008 16:14:26 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 03 of 12] get_task_mm should not succeed if mmput() is
- running and has reduced
-In-Reply-To: <20080422223727.GQ24536@duo.random>
-Message-ID: <Pine.LNX.4.64.0804221612290.4868@schroedinger.engr.sgi.com>
-References: <a6672bdeead0d41b2ebd.1208872279@duo.random>
- <Pine.LNX.4.64.0804221323100.3640@schroedinger.engr.sgi.com>
- <20080422223727.GQ24536@duo.random>
+Subject: Re: [PATCH 04 of 12] Moves all mmu notifier methods outside the PT
+ lock (first and not last
+In-Reply-To: <20080422224048.GR24536@duo.random>
+Message-ID: <Pine.LNX.4.64.0804221613570.4868@schroedinger.engr.sgi.com>
+References: <ac9bb1fb3de2aa5d2721.1208872280@duo.random>
+ <Pine.LNX.4.64.0804221323510.3640@schroedinger.engr.sgi.com>
+ <20080422224048.GR24536@duo.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,22 +17,20 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 23 Apr 2008, Andrea Arcangeli wrote:
 
-> On Tue, Apr 22, 2008 at 01:23:16PM -0700, Christoph Lameter wrote:
-> > Missing signoff by you.
+> On Tue, Apr 22, 2008 at 01:24:21PM -0700, Christoph Lameter wrote:
+> > Reverts a part of an earlier patch. Why isnt this merged into 1 of 12?
 > 
-> I thought I had to signoff if I conributed with anything that could
-> resemble copyright? Given I only merged that patch, I can add an
-> Acked-by if you like, but merging this in my patchset was already an
-> implicit ack ;-).
+> To give zero regression risk to 1/12 when MMU_NOTIFIER=y or =n and the
+> mmu notifiers aren't registered by GRU or KVM. Keep in mind that the
+> whole point of my proposed patch ordering from day 0, is to keep as
+> 1/N, the absolutely minimum change that fully satisfy GRU and KVM
+> requirements. 4/12 isn't required by GRU/KVM so I keep it in a later
+> patch. I now moved mmu_notifier_unregister in a later patch too for
+> the same reason.
 
-No you have to include a signoff if the patch goes through your custody 
-chain. This one did.
-
-Also add a 
-
-From: Christoph Lameter <clameter@sgi.com>
-
-somewhere if you want to signify that the patch came from me. 
+We want a full solution and this kind of patching makes the patches 
+difficuilt to review because later patches revert earlier ones.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
