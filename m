@@ -1,12 +1,11 @@
-Date: Tue, 22 Apr 2008 16:19:06 -0700 (PDT)
+Date: Tue, 22 Apr 2008 16:20:35 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 10 of 12] Convert mm_lock to use semaphores after
- i_mmap_lock and anon_vma_lock
-In-Reply-To: <20080422225424.GT24536@duo.random>
-Message-ID: <Pine.LNX.4.64.0804221615150.4868@schroedinger.engr.sgi.com>
-References: <f8210c45f1c6f8b38d15.1208872286@duo.random>
- <Pine.LNX.4.64.0804221325490.3640@schroedinger.engr.sgi.com>
- <20080422225424.GT24536@duo.random>
+Subject: Re: [PATCH 01 of 12] Core of mmu notifiers
+In-Reply-To: <20080422223545.GP24536@duo.random>
+Message-ID: <Pine.LNX.4.64.0804221619540.4996@schroedinger.engr.sgi.com>
+References: <ea87c15371b1bd49380c.1208872277@duo.random>
+ <Pine.LNX.4.64.0804221315160.3640@schroedinger.engr.sgi.com>
+ <20080422223545.GP24536@duo.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,23 +16,13 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 23 Apr 2008, Andrea Arcangeli wrote:
 
-> The right patch ordering isn't necessarily the one that reduces the
-> total number of lines in the patchsets. The mmu-notifier-core is
-> already converged and can go in. The rest isn't converged at
-> all... nearly nobody commented on the other part (the few comments so
-> far were negative), so there's no good reason to delay indefinitely
-> what is already converged, given it's already feature complete for
-> certain users of the code. My patch ordering looks more natural to
-> me. What is finished goes in, the rest is orthogonal anyway.
+> I'll send an update in any case to Andrew way before Saturday so
+> hopefully we'll finally get mmu-notifiers-core merged before next
+> week. Also I'm not updating my mmu-notifier-core patch anymore except
+> for strict bugfixes so don't worry about any more cosmetical bugs
+> being introduced while optimizing the code like it happened this time.
 
-I would not want to review code that is later reverted or essentially 
-changed in later patches. I only review your patches because we have a 
-high interest in the patch. I suspect that others will be more willing to 
-review this material if it would be done the right way.
-
-If you cannot produce an easily reviewable and properly formatted patchset 
-that follows conventions then I will have to do it because we really need 
-to get this merged.
+I guess I have to prepare another patchset then?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
