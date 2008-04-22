@@ -1,53 +1,103 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3LKoYZC004101
-	for <linux-mm@kvack.org>; Mon, 21 Apr 2008 16:50:34 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3LKoYkt215830
-	for <linux-mm@kvack.org>; Mon, 21 Apr 2008 16:50:34 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3LKoYKJ013570
-	for <linux-mm@kvack.org>; Mon, 21 Apr 2008 16:50:34 -0400
-Subject: Re: [patch 01/17] hugetlb: modular state
-From: Jon Tollefson <kniht@linux.vnet.ibm.com>
-In-Reply-To: <20080410171100.425293000@nick.local0.net>
-References: <20080410170232.015351000@nick.local0.net>
-	 <20080410171100.425293000@nick.local0.net>
-Content-Type: text/plain
-Date: Mon, 21 Apr 2008 15:51:24 -0500
-Message-Id: <1208811084.11866.10.camel@skynet>
+Date: Tue, 22 Apr 2008 10:40:43 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [BUGFIX][PATCH] Fix usemap initialization v2
+Message-Id: <20080422104043.215c7dc4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0804211250000.16476@blonde.site>
+References: <20080418161522.GB9147@csn.ul.ie>
+	<48080706.50305@cn.fujitsu.com>
+	<48080930.5090905@cn.fujitsu.com>
+	<48080B86.7040200@cn.fujitsu.com>
+	<20080418211214.299f91cd.kamezawa.hiroyu@jp.fujitsu.com>
+	<21878461.1208539556838.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080421112048.78f0ec76.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0804211250000.16476@blonde.site>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
-Cc: akpm@linux-foundation.org, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com, andi@firstfloor.org, kniht@linux.vnet.ibm.com
+To: akpm@linux-foundation.org
+Cc: Hugh Dickins <hugh@veritas.com>, Mel Gorman <mel@csn.ul.ie>, Shi Weihua <shiwh@cn.fujitsu.com>, balbir@linux.vnet.ibm.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-04-11 at 03:02 +1000, npiggin@suse.de wrote:
+Tested on ia64/2.6.25
+   DISCONTIGMEM + 16KB/64KB pages
+   SPARSEMEM    + 16KB/64KB pages
+seems no troubles.
 
-<snip>
+Thanks,
+-Kame
 
-> Index: linux-2.6/include/linux/hugetlb.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/hugetlb.h
-> +++ linux-2.6/include/linux/hugetlb.h
-> @@ -40,7 +40,7 @@ extern int sysctl_hugetlb_shm_group;
-> 
->  /* arch callbacks */
-> 
-> -pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr);
-> +pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, int sz);
+=
+usemap must be initialized only when pfn is within zone.
+If not, it corrupts memory.
 
-<snip>
+And this patch also reduces the number of calls to set_pageblock_migratetype()
+from
+	(pfn & (pageblock_nr_pages -1)
+to
+	!(pfn & (pageblock_nr_pages-1)
+it should be called once per pageblock.
 
-The sz here needs to be a long to handle sizes such as 16G on powerpc.
+Changelog v1->v2
+ - Fixed boundary check.
+ - Move calculation of pointer for zone to out of loop.
 
-There are other places in hugetlb.c where the size also needs to be a
-long, but this one affects the arch code too since it is public.
 
-Jon
-Tollefson
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
+---
+ mm/page_alloc.c |   14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+Index: linux-2.6.25/mm/page_alloc.c
+===================================================================
+--- linux-2.6.25.orig/mm/page_alloc.c
++++ linux-2.6.25/mm/page_alloc.c
+@@ -2518,7 +2518,9 @@ void __meminit memmap_init_zone(unsigned
+ 	struct page *page;
+ 	unsigned long end_pfn = start_pfn + size;
+ 	unsigned long pfn;
++	struct zone *z;
+ 
++	z = &NODE_DATA(nid)->node_zones[zid];
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+ 		/*
+ 		 * There can be holes in boot-time mem_map[]s
+@@ -2536,7 +2538,6 @@ void __meminit memmap_init_zone(unsigned
+ 		init_page_count(page);
+ 		reset_page_mapcount(page);
+ 		SetPageReserved(page);
+-
+ 		/*
+ 		 * Mark the block movable so that blocks are reserved for
+ 		 * movable at startup. This will force kernel allocations
+@@ -2545,8 +2546,15 @@ void __meminit memmap_init_zone(unsigned
+ 		 * kernel allocations are made. Later some blocks near
+ 		 * the start are marked MIGRATE_RESERVE by
+ 		 * setup_zone_migrate_reserve()
++		 *
++		 * bitmap is creted for zone's valid pfn range. but memmap
++		 * can be created for invalid pages (for alignment)
++		 * check here not to call set_pageblock_migratetpye() against
++		 * pfn out of zone.
+ 		 */
+-		if ((pfn & (pageblock_nr_pages-1)))
++		if ((z->zone_start_pfn <= pfn)
++		    && (pfn < z->zone_start_pfn + z->spanned_pages)
++		    && !(pfn & (pageblock_nr_pages - 1)))
+ 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+ 
+ 		INIT_LIST_HEAD(&page->lru);
+@@ -4460,6 +4468,8 @@ void set_pageblock_flags_group(struct pa
+ 	pfn = page_to_pfn(page);
+ 	bitmap = get_pageblock_bitmap(zone, pfn);
+ 	bitidx = pfn_to_bitidx(zone, pfn);
++	VM_BUG_ON(pfn < zone->zone_start_pfn);
++	VM_BUG_ON(pfn >= zone->zone_start_pfn + zone->spanned_pages);
+ 
+ 	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
+ 		if (flags & value)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
