@@ -1,110 +1,71 @@
-Date: Tue, 22 Apr 2008 11:12:59 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [BUGFIX][PATCH] Fix usemap initialization v2
-In-Reply-To: <20080422104043.215c7dc4.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0804221106250.12316@blonde.site>
-References: <20080418161522.GB9147@csn.ul.ie> <48080706.50305@cn.fujitsu.com>
- <48080930.5090905@cn.fujitsu.com> <48080B86.7040200@cn.fujitsu.com>
- <20080418211214.299f91cd.kamezawa.hiroyu@jp.fujitsu.com>
- <21878461.1208539556838.kamezawa.hiroyu@jp.fujitsu.com>
- <20080421112048.78f0ec76.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0804211250000.16476@blonde.site>
- <20080422104043.215c7dc4.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 22 Apr 2008 12:21:52 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/4] Add a basic debugging framework for memory initialisation
+Message-ID: <20080422112151.GB30798@csn.ul.ie>
+References: <20080417000624.18399.35041.sendpatchset@skynet.skynet.ie> <20080417000644.18399.66175.sendpatchset@skynet.skynet.ie> <20080421151405.GI5474@elte.hu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20080421151405.GI5474@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Shi Weihua <shiwh@cn.fujitsu.com>, balbir@linux.vnet.ibm.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Apr 2008, KAMEZAWA Hiroyuki wrote:
-> Tested on ia64/2.6.25
->    DISCONTIGMEM + 16KB/64KB pages
->    SPARSEMEM    + 16KB/64KB pages
-> seems no troubles.
+On (21/04/08 17:14), Ingo Molnar didst pronounce:
 > 
-> Thanks,
-> -Kame
+> * Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > +config DEBUG_MEMORY_INIT
+> > +	bool "Debug memory initialisation"
+> > +	depends on DEBUG_KERNEL
+> > +	help
+> > +	  Enable this to turn on debug checks during memory initialisation. By
+> > +	  default, sanity checks will be made on the memory model and
+> > +	  information provided by the architecture. What level of checking
+> > +	  made and verbosity during boot can be set with the
+> > +	  mminit_debug_level= command-line option.
+> > +
+> > +	  If unsure, say N
+> 
+> should be "default y" - and perhaps only disable-able on 
+> CONFIG_EMBEDDED.
 
-Looks good to me, if Mel and Shi approve.  (Well, there are two typos,
-"creted" should be "created" and "migratetpye" should be "migratetype".)
+Ok, that would be something like the following?
 
-Thanks a lot for all your effort on this!
+       bool "Debug memory initialisation" if DEBUG_KERNEL && EMBEDDED
+       depends on DEBUG_KERNEL
+       default !EMBEDDED
 
-Hugh
+This will slow up boot slightly on debug kernels as the additional checks
+are made. It'll remain to be seen as to whether this is a problem for people
+or not. I doubt it'll be noticed.
 
+> We generally want such bugs to pop up as soon as 
+> possible, and the sanity checks should only go away if someone 
+> specifically aims for lowest system footprint.
 > 
-> =
-> usemap must be initialized only when pfn is within zone.
-> If not, it corrupts memory.
+
+Seems fair and it's the second time this has been suggested (off-list reviewer
+again). The only potential gotcha is if a sanity check is introduced that is
+itself broken. It should be very obvious when this type of bug occurs though.
+
+> the default loglevel for debug printouts might deserve another debug 
+> option - but the core checks should always be included, and _errors_ 
+> should always be printed out.
 > 
-> And this patch also reduces the number of calls to set_pageblock_migratetype()
-> from
-> 	(pfn & (pageblock_nr_pages -1)
-> to
-> 	!(pfn & (pageblock_nr_pages-1)
-> it should be called once per pageblock.
-> 
-> Changelog v1->v2
->  - Fixed boundary check.
->  - Move calculation of pointer for zone to out of loop.
-> 
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> ---
->  mm/page_alloc.c |   14 ++++++++++++--
->  1 file changed, 12 insertions(+), 2 deletions(-)
-> 
-> Index: linux-2.6.25/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.25.orig/mm/page_alloc.c
-> +++ linux-2.6.25/mm/page_alloc.c
-> @@ -2518,7 +2518,9 @@ void __meminit memmap_init_zone(unsigned
->  	struct page *page;
->  	unsigned long end_pfn = start_pfn + size;
->  	unsigned long pfn;
-> +	struct zone *z;
->  
-> +	z = &NODE_DATA(nid)->node_zones[zid];
->  	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
->  		/*
->  		 * There can be holes in boot-time mem_map[]s
-> @@ -2536,7 +2538,6 @@ void __meminit memmap_init_zone(unsigned
->  		init_page_count(page);
->  		reset_page_mapcount(page);
->  		SetPageReserved(page);
-> -
->  		/*
->  		 * Mark the block movable so that blocks are reserved for
->  		 * movable at startup. This will force kernel allocations
-> @@ -2545,8 +2546,15 @@ void __meminit memmap_init_zone(unsigned
->  		 * kernel allocations are made. Later some blocks near
->  		 * the start are marked MIGRATE_RESERVE by
->  		 * setup_zone_migrate_reserve()
-> +		 *
-> +		 * bitmap is creted for zone's valid pfn range. but memmap
-> +		 * can be created for invalid pages (for alignment)
-> +		 * check here not to call set_pageblock_migratetpye() against
-> +		 * pfn out of zone.
->  		 */
-> -		if ((pfn & (pageblock_nr_pages-1)))
-> +		if ((z->zone_start_pfn <= pfn)
-> +		    && (pfn < z->zone_start_pfn + z->spanned_pages)
-> +		    && !(pfn & (pageblock_nr_pages - 1)))
->  			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
->  
->  		INIT_LIST_HEAD(&page->lru);
-> @@ -4460,6 +4468,8 @@ void set_pageblock_flags_group(struct pa
->  	pfn = page_to_pfn(page);
->  	bitmap = get_pageblock_bitmap(zone, pfn);
->  	bitidx = pfn_to_bitidx(zone, pfn);
-> +	VM_BUG_ON(pfn < zone->zone_start_pfn);
-> +	VM_BUG_ON(pfn >= zone->zone_start_pfn + zone->spanned_pages);
->  
->  	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
->  		if (flags & value)
+
+I'll replace mminit_debug_level with mminit_loglevel that determines whether
+information is printed at KERN_DEBUG or not. This matches what other similar
+debug-frameworks are doing. I'll make sure errors always get printed.
+
+Thanks
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
