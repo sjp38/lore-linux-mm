@@ -1,69 +1,194 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20080422183133.13750.57133.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 0/4] Verification and debugging of memory initialisation V3
-Date: Tue, 22 Apr 2008 19:31:33 +0100 (IST)
+Message-Id: <20080422183153.13750.61533.sendpatchset@skynet.skynet.ie>
+In-Reply-To: <20080422183133.13750.57133.sendpatchset@skynet.skynet.ie>
+References: <20080422183133.13750.57133.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 1/4] Add a basic debugging framework for memory initialisation
+Date: Tue, 22 Apr 2008 19:31:53 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Mel Gorman <mel@csn.ul.ie>, mingo@elte.hu, linux-kernel@vger.kernel.org, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Other than a rebase to the latest -mm, there are not many big changes.
-Credit goes to Christoph Lameter, an off-list reviewer and in particular
-Ingo Molnar for helping bash this into shape.
+This patch creates a new file mm/mm_init.c which is conditionally compiled
+to have almost all of the debugging and verification code to avoid further
+polluting page_alloc.c. Ideally other mm initialisation code will be moved
+here over time and the file partially compiled depending on Kconfig. This
+patch introduces a simple mminit_debug_printk() macro and an mminit_loglevel
+command-line parameter. Tracing and verification is always done but the
+amount of information logged at KERN_DEBUG level can be controlled.
 
-Changelog since V2
-  o (Mel) Rebase to 2.6.25-mm1 and rewrite zonelist dump
-  o (Mel) Depend on DEBUG_VM instead of DEBUG_KERNEL
-  o (Mel) Use __meminitdata instead of __initdata for logging level
-  o (Christoph) Get rid of FLAGS_RESERVED references
-  o (Christoph) Print out flag usage information
-  o (Ingo) Default do the verifications on DEBUG_VM and instead control the
-           level of verbose logging with mminit_loglevel= instead of
-	   mminit_debug_level=
-  o (Anon) Log at KERN_DEBUG level
-  o (Anon) Optimisation to the mminit_debug_printk macro
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
 
-Changelog since V1
-  o (Ingo) Make memory initialisation verification a DEBUG option depending on
-    DEBUG_KERNEL option. By default it will then to verify structures but
-    tracing can be enabled via the command-line. Without the CONFIG option,
-    checks will still be made on PFN ranges passed by the architecture-specific
-    code and a warning printed once if a problem is encountered
-  o (Ingo) WARN_ON_ONCE when PFNs from the architecture violate SPARSEMEM
-    limitations. The warning should be "harmless" as the system will boot
-    regardless but it acts as a reminder that bad input is being used.
-  o (Anon) Convert mminit_debug_printk() to a macro
-  o (Anon) Spelling mistake corrections
-  o (Anon) Use of KERN_CONT properly for multiple printks
-  o (Mel) Reshuffle the patches so that the zonelist printing is at the
-    end of the patchset. This is because -mm requires a different patch to
-    print zonelists and this allows the end patch to be temporarily dropped
-    when testing against -mm
-  o (Mel) Rebase on top of Ingo's sparsemem fix for easier testing
-  o (Mel) Document mminit_debug_level=
-  o (Mel) Fix check on pageflags where the masks were not being shifted
-  o (Mel) The zone ID should should have used page_zonenum not page_zone_id
-  o (Mel) Iterate all zonelists correctly
-  o (Mel) Correct typo of SECTIONS_SHIFT
+ Documentation/kernel-parameters.txt |    8 ++++++++
+ lib/Kconfig.debug                   |   13 +++++++++++++
+ mm/Makefile                         |    1 +
+ mm/internal.h                       |   26 ++++++++++++++++++++++++++
+ mm/mm_init.c                        |   18 ++++++++++++++++++
+ mm/page_alloc.c                     |   16 ++++++++++------
+ 6 files changed, 76 insertions(+), 6 deletions(-)
 
-Boot initialisation has always been a bit of a mess with a number
-of ugly points. While significant amounts of the initialisation
-is architecture-independent, it trusts of the data received from the
-architecture layer. This was a mistake in retrospect as it has resulted in
-a number of difficult-to-diagnose bugs.
-
-This patchset adds some validation and tracing to memory initialisation when
-CONFIG_DEBUG_VM is set. The configuration option can be explicitly disabled
-for embedded systems. It also introduces a few basic defencive measures and
-depending on a boot parameter, will perform additional tests for errors
-"that should never occur". The intention is that additional checks are
-added over time that would have identified mysterious boot failures faster.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-mm1-clean/Documentation/kernel-parameters.txt linux-2.6.25-mm1-0010_mminit_debug_framework/Documentation/kernel-parameters.txt
+--- linux-2.6.25-mm1-clean/Documentation/kernel-parameters.txt	2008-04-22 10:29:56.000000000 +0100
++++ linux-2.6.25-mm1-0010_mminit_debug_framework/Documentation/kernel-parameters.txt	2008-04-22 17:47:13.000000000 +0100
+@@ -1185,6 +1185,14 @@ and is between 256 and 4096 characters. 
+ 
+ 	mga=		[HW,DRM]
+ 
++	mminit_loglevel=
++			[KNL] When CONFIG_DEBUG_MEMORY_INIT is set, this
++			parameter allows control of the logging verbosity for
++			the additional memory initialisation checks. A value
++			of -1 disables mminit logging and a level of 2 will
++			log everything. Information is printed at KERN_DEBUG
++			so loglevel=9 may also need to be specified.
++
+ 	mousedev.tap_time=
+ 			[MOUSE] Maximum time between finger touching and
+ 			leaving touchpad surface for touch to be considered
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-mm1-clean/lib/Kconfig.debug linux-2.6.25-mm1-0010_mminit_debug_framework/lib/Kconfig.debug
+--- linux-2.6.25-mm1-clean/lib/Kconfig.debug	2008-04-22 10:30:04.000000000 +0100
++++ linux-2.6.25-mm1-0010_mminit_debug_framework/lib/Kconfig.debug	2008-04-22 17:47:13.000000000 +0100
+@@ -482,6 +482,19 @@ config DEBUG_WRITECOUNT
+ 
+ 	  If unsure, say N.
+ 
++config DEBUG_MEMORY_INIT
++	bool "Debug memory initialisation" if DEBUG_VM && EMBEDDED
++	depends on DEBUG_VM
++	default !EMBEDDED
++	help
++	  Enable this for additional checks during memory initialisation.
++	  The sanity checks verify aspects of the VM such as the memory model
++	  and other information provided by the architecture. Verbose
++	  information will be printed at KERN_DEBUG loglevel depending 
++	  on the mminit_loglevel= command-line option.
++
++	  If unsure, say N
++
+ config DEBUG_LIST
+ 	bool "Debug linked list manipulation"
+ 	depends on DEBUG_KERNEL
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-mm1-clean/mm/internal.h linux-2.6.25-mm1-0010_mminit_debug_framework/mm/internal.h
+--- linux-2.6.25-mm1-clean/mm/internal.h	2008-04-22 10:30:04.000000000 +0100
++++ linux-2.6.25-mm1-0010_mminit_debug_framework/mm/internal.h	2008-04-22 17:47:13.000000000 +0100
+@@ -59,4 +59,30 @@ static inline unsigned long page_order(s
+ #define __paginginit __init
+ #endif
+ 
++/* Memory initialisation debug and verification */
++enum mminit_levels {
++	MMINIT_NORMAL = -1,
++	MMINIT_VERIFY,
++	MMINIT_TRACE
++};
++
++#ifdef CONFIG_DEBUG_MEMORY_INIT
++
++extern int mminit_loglevel;
++
++#define mminit_debug_printk(level, prefix, fmt, arg...) \
++do { \
++	if (level < mminit_loglevel) { \
++		printk(KERN_DEBUG "mminit:: " prefix " " fmt, ##arg); \
++	} \
++} while (0)
++
++#else
++
++static inline void mminit_debug_printk(unsigned int level, const char *prefix,
++				const char *fmt, ...)
++{
++}
++
++#endif /* CONFIG_DEBUG_MEMORY_INIT */
+ #endif
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-mm1-clean/mm/Makefile linux-2.6.25-mm1-0010_mminit_debug_framework/mm/Makefile
+--- linux-2.6.25-mm1-clean/mm/Makefile	2008-04-22 10:30:04.000000000 +0100
++++ linux-2.6.25-mm1-0010_mminit_debug_framework/mm/Makefile	2008-04-22 17:47:13.000000000 +0100
+@@ -33,4 +33,5 @@ obj-$(CONFIG_MIGRATION) += migrate.o
+ obj-$(CONFIG_SMP) += allocpercpu.o
+ obj-$(CONFIG_QUICKLIST) += quicklist.o
+ obj-$(CONFIG_CGROUP_MEM_RES_CTLR) += memcontrol.o
++obj-$(CONFIG_DEBUG_MEMORY_INIT) += mm_init.o
+ 
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-mm1-clean/mm/mm_init.c linux-2.6.25-mm1-0010_mminit_debug_framework/mm/mm_init.c
+--- linux-2.6.25-mm1-clean/mm/mm_init.c	2008-04-22 12:29:06.000000000 +0100
++++ linux-2.6.25-mm1-0010_mminit_debug_framework/mm/mm_init.c	2008-04-22 17:47:13.000000000 +0100
+@@ -0,0 +1,18 @@
++/*
++ * mm_init.c - Memory initialisation verification and debugging
++ *
++ * Copyright 2008 IBM Corporation, 2008
++ * Author Mel Gorman <mel@csn.ul.ie>
++ *
++ */
++#include <linux/kernel.h>
++#include <linux/init.h>
++
++int __meminitdata mminit_loglevel;
++
++static __init int set_mminit_loglevel(char *str)
++{
++	get_option(&str, &mminit_loglevel);
++	return 0;
++}
++early_param("mminit_loglevel", set_mminit_loglevel);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-mm1-clean/mm/page_alloc.c linux-2.6.25-mm1-0010_mminit_debug_framework/mm/page_alloc.c
+--- linux-2.6.25-mm1-clean/mm/page_alloc.c	2008-04-22 10:30:04.000000000 +0100
++++ linux-2.6.25-mm1-0010_mminit_debug_framework/mm/page_alloc.c	2008-04-22 17:47:13.000000000 +0100
+@@ -3068,7 +3068,8 @@ void __init sparse_memory_present_with_a
+ void __init push_node_boundaries(unsigned int nid,
+ 		unsigned long start_pfn, unsigned long end_pfn)
+ {
+-	printk(KERN_DEBUG "Entering push_node_boundaries(%u, %lu, %lu)\n",
++	mminit_debug_printk(MMINIT_TRACE, "zoneboundary",
++			"Entering push_node_boundaries(%u, %lu, %lu)\n",
+ 			nid, start_pfn, end_pfn);
+ 
+ 	/* Initialise the boundary for this node if necessary */
+@@ -3086,7 +3087,8 @@ void __init push_node_boundaries(unsigne
+ static void __meminit account_node_boundary(unsigned int nid,
+ 		unsigned long *start_pfn, unsigned long *end_pfn)
+ {
+-	printk(KERN_DEBUG "Entering account_node_boundary(%u, %lu, %lu)\n",
++	mminit_debug_printk(MMINIT_TRACE, "zoneboundary",
++			"Entering account_node_boundary(%u, %lu, %lu)\n",
+ 			nid, *start_pfn, *end_pfn);
+ 
+ 	/* Return if boundary information has not been provided */
+@@ -3460,8 +3462,8 @@ static void __paginginit free_area_init_
+ 		memmap_pages = (size * sizeof(struct page)) >> PAGE_SHIFT;
+ 		if (realsize >= memmap_pages) {
+ 			realsize -= memmap_pages;
+-			printk(KERN_DEBUG
+-				"  %s zone: %lu pages used for memmap\n",
++			mminit_debug_printk(MMINIT_TRACE, "memmap_init",
++				"%s zone: %lu pages used for memmap\n",
+ 				zone_names[j], memmap_pages);
+ 		} else
+ 			printk(KERN_WARNING
+@@ -3471,7 +3473,8 @@ static void __paginginit free_area_init_
+ 		/* Account for reserved pages */
+ 		if (j == 0 && realsize > dma_reserve) {
+ 			realsize -= dma_reserve;
+-			printk(KERN_DEBUG "  %s zone: %lu pages reserved\n",
++			mminit_debug_printk(MMINIT_TRACE, "memmap_init",
++					"%s zone: %lu pages reserved\n",
+ 					zone_names[0], dma_reserve);
+ 		}
+ 
+@@ -3609,7 +3612,8 @@ void __init add_active_range(unsigned in
+ {
+ 	int i;
+ 
+-	printk(KERN_DEBUG "Entering add_active_range(%d, %lu, %lu) "
++	mminit_debug_printk(MMINIT_TRACE, "memory_register",
++			"Entering add_active_range(%d, %lu, %lu) "
+ 			  "%d entries of %d used\n",
+ 			  nid, start_pfn, end_pfn,
+ 			  nr_nodemap_entries, MAX_ACTIVE_REGIONS);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
