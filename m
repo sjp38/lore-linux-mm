@@ -1,60 +1,77 @@
-Date: Tue, 22 Apr 2008 06:52:05 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: Warning on memory offline (and possible in usual migration?)
-Message-ID: <20080422045205.GH21993@wotan.suse.de>
-References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [PATCH 1 of 9] Lock the entire mm to prevent any mmu related operation to happen
+Date: Tue, 22 Apr 2008 15:06:24 +1000
+References: <ec6d8f91b299cf26cce5.1207669444@duo.random>
+In-Reply-To: <ec6d8f91b299cf26cce5.1207669444@duo.random>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
+Message-Id: <200804221506.26226.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>, Steve Wise <swise@opengridcomputing.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 14, 2008 at 10:46:47AM -0700, Christoph Lameter wrote:
-> On Mon, 14 Apr 2008, KAMEZAWA Hiroyuki wrote:
-> 
-> > Then, "page" is not Uptodate when it reaches (*).
-> 
-> Yes. Strange situation.
-> 
-> > But, migrate_page() call path is
-> > ==
-> >    buffer_migrate_page()
-> > 	-> lock all buffers on old pages.
-> > 	-> move buffers to newpage.
-> > 	-> migrate_page_copy(page, newpage)
-> > 		-> set_page_dirty().
-> > 	-> unlock all buffers().
-> > ==
-> > static void migrate_page_copy(struct page *newpage, struct page *page)
-> > {
-> >         copy_highpage(newpage, page);
-> > <snip>
-> >         if (PageUptodate(page))
-> >                 SetPageUptodate(newpage);
-> 
-> Hmmm... I guess BUG_ON(!PageUptodate) would be better here?
-> 
-> > <snip>
-> >         if (PageDirty(page)) {
-> >                 clear_page_dirty_for_io(page);
-> >                 set_page_dirty(newpage);------------------------(**)
-> >         }
-> > 
-> > ==
-> > Then, Uptodate() is copied before set_page_dirty(). 
-> > So, "page" is not Uptodate and Dirty when it reaches (**)
-> 
-> The page will be marked uptodate before we reach ** so its okay in 
-> general. If a page is not uptodate then we should not be getting here.
-> 
-> An !uptodate page is not migratable. Maybe we need to add better checking?
+On Wednesday 09 April 2008 01:44:04 Andrea Arcangeli wrote:
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1050,6 +1050,15 @@
+>  				   unsigned long addr, unsigned long len,
+>  				   unsigned long flags, struct page **pages);
+>
+> +struct mm_lock_data {
+> +	spinlock_t **i_mmap_locks;
+> +	spinlock_t **anon_vma_locks;
+> +	unsigned long nr_i_mmap_locks;
+> +	unsigned long nr_anon_vma_locks;
+> +};
+> +extern struct mm_lock_data *mm_lock(struct mm_struct * mm);
+> +extern void mm_unlock(struct mm_struct *mm, struct mm_lock_data *data);
 
-Why is an !uptodate page not migrateable, and where are you testing to
-prevent that?
+As far as I can tell you don't actually need to expose this struct at all?
+
+> +		data->i_mmap_locks = vmalloc(nr_i_mmap_locks *
+> +					     sizeof(spinlock_t));
+
+This is why non-typesafe allocators suck.  You want 'sizeof(spinlock_t *)' 
+here.
+
+> +		data->anon_vma_locks = vmalloc(nr_anon_vma_locks *
+> +					       sizeof(spinlock_t));
+
+and here.
+
+> +	err = -EINTR;
+> +	i_mmap_lock_last = NULL;
+> +	nr_i_mmap_locks = 0;
+> +	for (;;) {
+> +		spinlock_t *i_mmap_lock = (spinlock_t *) -1UL;
+> +		for (vma = mm->mmap; vma; vma = vma->vm_next) {
+...
+> +		data->i_mmap_locks[nr_i_mmap_locks++] = i_mmap_lock;
+> +	}
+> +	data->nr_i_mmap_locks = nr_i_mmap_locks;
+
+How about you track your running counter in data->nr_i_mmap_locks, leave 
+nr_i_mmap_locks alone, and BUG_ON(data->nr_i_mmap_locks != nr_i_mmap_locks)?
+
+Even nicer would be to wrap this in a "get_sorted_mmap_locks()" function.
+
+Similarly for anon_vma locks.
+
+Unfortunately, I just don't think we can fail locking like this.  In your next 
+patch unregistering a notifier can fail because of it: that not usable.
+
+I think it means you need to add a linked list element to the vma for the 
+CONFIG_MMU_NOTIFIER case.  Or track the max number of vmas for any mm, and 
+keep a pool to handle mm_lock for this number (ie. if you can't enlarge the 
+pool, fail the vma allocation).  
+
+Both have their problems though...
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
