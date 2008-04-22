@@ -1,71 +1,51 @@
-Date: Tue, 22 Apr 2008 12:21:52 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/4] Add a basic debugging framework for memory initialisation
-Message-ID: <20080422112151.GB30798@csn.ul.ie>
-References: <20080417000624.18399.35041.sendpatchset@skynet.skynet.ie> <20080417000644.18399.66175.sendpatchset@skynet.skynet.ie> <20080421151405.GI5474@elte.hu>
+Date: Tue, 22 Apr 2008 14:00:56 +0200
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [PATCH 0 of 9] mmu notifier #v12
+Message-ID: <20080422120056.GR12709@duo.random>
+References: <patchbomb.1207669443@duo.random> <20080409131709.GR11364@sgi.com> <20080409144401.GT10133@duo.random> <20080409185500.GT11364@sgi.com> <20080422072026.GM12709@duo.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080421151405.GI5474@elte.hu>
+In-Reply-To: <20080422072026.GM12709@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Robin Holt <holt@sgi.com>
+Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>, Steve Wise <swise@opengridcomputing.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On (21/04/08 17:14), Ingo Molnar didst pronounce:
+On Tue, Apr 22, 2008 at 09:20:26AM +0200, Andrea Arcangeli wrote:
+>     invalidate_range_start {
+> 	spin_lock(&kvm->mmu_lock);
 > 
-> * Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > +config DEBUG_MEMORY_INIT
-> > +	bool "Debug memory initialisation"
-> > +	depends on DEBUG_KERNEL
-> > +	help
-> > +	  Enable this to turn on debug checks during memory initialisation. By
-> > +	  default, sanity checks will be made on the memory model and
-> > +	  information provided by the architecture. What level of checking
-> > +	  made and verbosity during boot can be set with the
-> > +	  mminit_debug_level= command-line option.
-> > +
-> > +	  If unsure, say N
-> 
-> should be "default y" - and perhaps only disable-able on 
-> CONFIG_EMBEDDED.
-
-Ok, that would be something like the following?
-
-       bool "Debug memory initialisation" if DEBUG_KERNEL && EMBEDDED
-       depends on DEBUG_KERNEL
-       default !EMBEDDED
-
-This will slow up boot slightly on debug kernels as the additional checks
-are made. It'll remain to be seen as to whether this is a problem for people
-or not. I doubt it'll be noticed.
-
-> We generally want such bugs to pop up as soon as 
-> possible, and the sanity checks should only go away if someone 
-> specifically aims for lowest system footprint.
+> 	kvm->invalidate_range_count++;
+> 	rmap-invalidate of sptes in range
 > 
 
-Seems fair and it's the second time this has been suggested (off-list reviewer
-again). The only potential gotcha is if a sanity check is introduced that is
-itself broken. It should be very obvious when this type of bug occurs though.
+	write_seqlock; write_sequnlock;
 
-> the default loglevel for debug printouts might deserve another debug 
-> option - but the core checks should always be included, and _errors_ 
-> should always be printed out.
+> 	spin_unlock(&kvm->mmu_lock)
+>     }
 > 
+>     invalidate_range_end {
+> 	spin_lock(&kvm->mmu_lock);
+> 
+> 	kvm->invalidate_range_count--;
 
-I'll replace mminit_debug_level with mminit_loglevel that determines whether
-information is printed at KERN_DEBUG or not. This matches what other similar
-debug-frameworks are doing. I'll make sure errors always get printed.
 
-Thanks
+	write_seqlock; write_sequnlock;
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> 
+> 	spin_unlock(&kvm->mmu_lock)
+>     }
+
+Robin correctly pointed out by PM there should be a seqlock in
+range_begin/end too like corrected above.
+
+I guess it's better to use an explicit sequence counter so we avoid an
+useless spinlock of the write_seqlock (mmu_lock is enough already in
+all places) and so we can increase it with a single op with +=2 in the
+range_begin/end. The above is a lower-perf version of the final
+locking but simpler for reading purposes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
