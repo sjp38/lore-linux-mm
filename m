@@ -1,103 +1,89 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3MGuEFe031201
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2008 12:56:14 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3MGu831129400
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2008 10:56:10 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3MGu66k010744
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2008 10:56:06 -0600
-Date: Tue, 22 Apr 2008 09:56:02 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs ABI
-Message-ID: <20080422165602.GA29570@us.ibm.com>
-References: <20080411234712.GF19078@us.ibm.com> <20080411234743.GG19078@us.ibm.com> <20080411234913.GH19078@us.ibm.com> <20080411235648.GA13276@suse.de> <20080412094118.GA7708@wotan.suse.de> <20080413034136.GA22686@suse.de> <20080414210506.GA6350@us.ibm.com> <20080417231617.GA18815@us.ibm.com> <Pine.LNX.4.64.0804171619340.12031@schroedinger.engr.sgi.com> <20080422051447.GI21993@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080422051447.GI21993@wotan.suse.de>
+Subject: Re: Suspect use of "first_zones_zonelist()"
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20080422161524.GA27624@csn.ul.ie>
+References: <1208877444.5534.34.camel@localhost>
+	 <20080422161524.GA27624@csn.ul.ie>
+Content-Type: text/plain
+Date: Tue, 22 Apr 2008 13:10:15 -0400
+Message-Id: <1208884215.5534.57.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, Greg KH <gregkh@suse.de>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On 22.04.2008 [07:14:47 +0200], Nick Piggin wrote:
-> On Thu, Apr 17, 2008 at 04:22:17PM -0700, Christoph Lameter wrote:
-> > On Thu, 17 Apr 2008, Nishanth Aravamudan wrote:
+On Tue, 2008-04-22 at 17:15 +0100, Mel Gorman wrote:
+> On (22/04/08 11:17), Lee Schermerhorn didst pronounce:
+> > Mel:
 > > 
-> > > > Do you see a particular more-sysfs-way here, Greg?
-> > > 
-> > > So I've received no comments yet? Perhaps I should leave things the way
-> > > they are (per-node files in /sys/devices/system/node) and add
-> > > nr_hugepages to /sys/kernel?
+> > I was testing my "lazy migration" patches and noticed something
+> > interesting about first_zones_zonelist().  I use this function to find
+> > the target node for MPOL_BIND policy to determine if a page is
+> > "misplaced" and should be migrated.  In my testing, I found that I was
+> > always "off by one".  E.g., if my mempolicy nodemask contained only node
+> > 2, I'd migrate to node 3.  If it contained node 3, I'd migrate to node 0
+> > [on a 4-node platform], etc.
 > > 
-> > The strange location of the node directories has always irked me.
-> > > 
-> > > Do we want to put it in a subdirectory of /sys/kernel? What should the
-> > > subdir be called? "hugetlb" (refers to the implementation?) or
-> > > "hugepages"?
+> > Following the usage in slab_node(), I was doing something like:
 > > 
-> > How about:
+> > zr = first_zones_zonelist(node_zonelist(nid, ...), gfp_zone(...),
+> > &pol->v.vnodes, &dummy);
+> > newnid = zonelist_node_idx(zr);
 > > 
-> > /sys/kernel/node<nr>/<node specific setting/status files> ?
+> > Turns out that the return value is the NEXT zoneref in the zonelist
+> > AFTER the one of interest
 > 
-> I don't like /sys/kernel/node :P
-
-Neither do I. My reasoning is that it duplicates information available
-elsewhere -- what Christoph was suggesting, I think, was moving all of
-the node files there. That seems like it might be outside the scope of
-our discussion given the files we have now (but becomes intertwined once
-we start talking about the intersection of hugetlb + NUMA in per-node
-control).
-
-> Under /sys/kernel, we should have parameters to set and query various
-> kernel functionality. Control of the kernel software implementation. I
-> think this is pretty well agreed (although there are maybe grey areas
-> I guess)
-
-I am fine with this claim.
-
-> So anyway, underneath that directory, we should have more
-> subdirectories grouping subsystems or sumilar functionality. We aren't
-> tuning node, but hugepages subsystem.
+> Yes, the intention was that the cursor (zr) was meant to be pointing to
+> the next reference likely to be of interest. Bad usage of the cursor was
+> a pretty stupid mistake particularly as the cursor was implemented this
+> way intentionally.
 > 
-> /sys/kernel/huge{tlb|pages}/
+> /me beats self with clue-stick
 > 
-> Under that directory could be global settings as well as per node
-> settings or subdirectories and so on. The layout should be similar to
-> /proc/sys/* IMO. Actually it should be much neater since we have some
-> hindsight, but unfortunately it is looking like it is actually messier
-> ;)
+> > --i.e., the first that satisfies any nodemask
+> > constraint.  I renamed 'dummy' to 'zone', ignore the return value and
+> > use:  newnid = zone->node.  [I guess I could use zonelist_node_idx(zr
+> > -1) as well.] 
+> 
+> zr - 1 would be vunerable to the iterator implementation changing.
 
-Well, that's where I start to get a little stymied. It seems odd to me
-to have some per-node information in one place and some in another,
-where the two are not even rooted at the same location, beyond both
-being in sysfs. Perhaps, as I've mentioned elsewhere, we simply have
-symlinks underneath /sys/kernel/hugepages into
-/sys/devices/system/node/nodeX ... but the immediate ugliness I see
-there is either we duplicate the directories, or we symlink the
-directories and there are now to paths into all the NUMA information,
-where one (/sys/kernel/hugepages/nodeX) seems like it should only have
-hugepage information.
+Ah, good point.  Shouldn't peek under the covers like that.
 
-I'd prefer hugepages to hugetlb, I think, but don't necessarily care one
-way or the other.
+> 
+> >  This results in page migration to the expected node.
+> > 
+> 
+> This use of zone instead of the zoneref cursor should be made throughout.
+> 
+> > Anyway, after discovering this, I checked other usages of
+> > first_zones_zonelist() outside of the iterator macros, and I THINK they
+> > might be making the same mistake?
+> > 
+> 
+> Yes, you're right.
+> 
+> > Here's a patch that "fixes" these.  Do you agree?  Or am I
+> > misunderstanding this area [again!]?
+> > 
+> 
+> No, I screwed up with the use of cursors and didn't get caught for it as
+> the effect would be very difficult to spot normally. I extended your patch
+> slightly below to catch the other callers. Can you take a read-through please?
 
-> Let's really try to put some thought into new sysfs locations. Not
-> just will it work, but is it logical and will it work tomorrow...
+OK.  Looks good.  I see I missed one case.
 
-I agree and that's why I keep sending out e-mails about it :) Perhaps I
-should prototype /sys/kernel/hugepages so we can see how it would look
-as a first step, and then decide given that layout how we want the
-per-node information to be presented?
+A suggestion.  How about enhancing the comment [maybe a kernel doc
+block?] on first_zones_zonelist() to explain that it returns the zone
+via the zone parameter and that the return value is a cursor for
+iterators?  Perhaps similarly for next_zones_zonelist() in mmzone.c?
 
-Thanks,
-Nish
+Or would you like me to take a cut at this?
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+Lee
+
+<patch snipped>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
