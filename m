@@ -1,12 +1,12 @@
-Date: Tue, 22 Apr 2008 16:14:26 -0700 (PDT)
+Date: Tue, 22 Apr 2008 16:19:06 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 04 of 12] Moves all mmu notifier methods outside the PT
- lock (first and not last
-In-Reply-To: <20080422224048.GR24536@duo.random>
-Message-ID: <Pine.LNX.4.64.0804221613570.4868@schroedinger.engr.sgi.com>
-References: <ac9bb1fb3de2aa5d2721.1208872280@duo.random>
- <Pine.LNX.4.64.0804221323510.3640@schroedinger.engr.sgi.com>
- <20080422224048.GR24536@duo.random>
+Subject: Re: [PATCH 10 of 12] Convert mm_lock to use semaphores after
+ i_mmap_lock and anon_vma_lock
+In-Reply-To: <20080422225424.GT24536@duo.random>
+Message-ID: <Pine.LNX.4.64.0804221615150.4868@schroedinger.engr.sgi.com>
+References: <f8210c45f1c6f8b38d15.1208872286@duo.random>
+ <Pine.LNX.4.64.0804221325490.3640@schroedinger.engr.sgi.com>
+ <20080422225424.GT24536@duo.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,20 +17,23 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 23 Apr 2008, Andrea Arcangeli wrote:
 
-> On Tue, Apr 22, 2008 at 01:24:21PM -0700, Christoph Lameter wrote:
-> > Reverts a part of an earlier patch. Why isnt this merged into 1 of 12?
-> 
-> To give zero regression risk to 1/12 when MMU_NOTIFIER=y or =n and the
-> mmu notifiers aren't registered by GRU or KVM. Keep in mind that the
-> whole point of my proposed patch ordering from day 0, is to keep as
-> 1/N, the absolutely minimum change that fully satisfy GRU and KVM
-> requirements. 4/12 isn't required by GRU/KVM so I keep it in a later
-> patch. I now moved mmu_notifier_unregister in a later patch too for
-> the same reason.
+> The right patch ordering isn't necessarily the one that reduces the
+> total number of lines in the patchsets. The mmu-notifier-core is
+> already converged and can go in. The rest isn't converged at
+> all... nearly nobody commented on the other part (the few comments so
+> far were negative), so there's no good reason to delay indefinitely
+> what is already converged, given it's already feature complete for
+> certain users of the code. My patch ordering looks more natural to
+> me. What is finished goes in, the rest is orthogonal anyway.
 
-We want a full solution and this kind of patching makes the patches 
-difficuilt to review because later patches revert earlier ones.
- 
+I would not want to review code that is later reverted or essentially 
+changed in later patches. I only review your patches because we have a 
+high interest in the patch. I suspect that others will be more willing to 
+review this material if it would be done the right way.
+
+If you cannot produce an easily reviewable and properly formatted patchset 
+that follows conventions then I will have to do it because we really need 
+to get this merged.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
