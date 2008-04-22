@@ -1,103 +1,52 @@
-Date: Tue, 22 Apr 2008 10:40:43 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [BUGFIX][PATCH] Fix usemap initialization v2
-Message-Id: <20080422104043.215c7dc4.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0804211250000.16476@blonde.site>
-References: <20080418161522.GB9147@csn.ul.ie>
-	<48080706.50305@cn.fujitsu.com>
-	<48080930.5090905@cn.fujitsu.com>
-	<48080B86.7040200@cn.fujitsu.com>
-	<20080418211214.299f91cd.kamezawa.hiroyu@jp.fujitsu.com>
-	<21878461.1208539556838.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080421112048.78f0ec76.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0804211250000.16476@blonde.site>
+Date: Tue, 22 Apr 2008 05:14:14 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 2/2]: introduce fast_gup
+Message-ID: <20080422031414.GA21993@wotan.suse.de>
+References: <20080328025455.GA8083@wotan.suse.de> <20080328030023.GC8083@wotan.suse.de> <1208444605.7115.2.camel@twins> <alpine.LFD.1.00.0804170814090.2879@woody.linux-foundation.org> <1208448768.7115.30.camel@twins> <alpine.LFD.1.00.0804170916470.2879@woody.linux-foundation.org> <1208450119.7115.36.camel@twins> <alpine.LFD.1.00.0804170940270.2879@woody.linux-foundation.org> <1208453014.7115.39.camel@twins> <alpine.LFD.1.00.0804171127310.2879@woody.linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.1.00.0804171127310.2879@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: Hugh Dickins <hugh@veritas.com>, Mel Gorman <mel@csn.ul.ie>, Shi Weihua <shiwh@cn.fujitsu.com>, balbir@linux.vnet.ibm.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, shaggy@austin.ibm.com, axboe@kernel.dk, linux-mm@kvack.org, linux-arch@vger.kernel.org, Clark Williams <williams@redhat.com>, Ingo Molnar <mingo@elte.hu>, Jeremy Fitzhardinge <jeremy@goop.org>
 List-ID: <linux-mm.kvack.org>
 
-Tested on ia64/2.6.25
-   DISCONTIGMEM + 16KB/64KB pages
-   SPARSEMEM    + 16KB/64KB pages
-seems no troubles.
+On Thu, Apr 17, 2008 at 11:28:45AM -0700, Linus Torvalds wrote:
+> 
+> 
+> On Thu, 17 Apr 2008, Peter Zijlstra wrote:
+> > 
+> > D'0h - clearly not my day today...
+> 
+> Ok, I'm acking this one ;)
+> 
+> And yes, it would be nice if the gup patches would go in early, since I 
+> wouldn't be entirely surprised if other architectures didn't have some 
+> other subtle issues here. We've never accessed the page tables without 
+> locking before, so we've only had races with hardware, never software.
 
-Thanks,
--Kame
+Well I'd love them to go in 2.6.26. Andrew will be sending you some
+precursor patches soon, and then I can rediff the x86 fast_gup.
 
-=
-usemap must be initialized only when pfn is within zone.
-If not, it corrupts memory.
+We actually do access the page tables without the traditional linux vm
+locking in architectures like powerpc that do software pagetable walks.
+That's why their pagetables are RCUed for example.
 
-And this patch also reduces the number of calls to set_pageblock_migratetype()
-from
-	(pfn & (pageblock_nr_pages -1)
-to
-	!(pfn & (pageblock_nr_pages-1)
-it should be called once per pageblock.
+So the concept is actually more foreign to x86 than it is to some others.
 
-Changelog v1->v2
- - Fixed boundary check.
- - Move calculation of pointer for zone to out of loop.
+BTW. we do have powerpc patches for fast_gup. The "problem" with that
+is that it requires my speculative page references from the lockless
+pagecache patches (basically fast_gup for powerpc is exactly like
+lockless pagecache but substitute the pagecache radix tree for the
+page tables). But that might have to wait for 2.6.27. At least we'll
+have the x86 fast_gup.
 
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
----
- mm/page_alloc.c |   14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
-
-Index: linux-2.6.25/mm/page_alloc.c
-===================================================================
---- linux-2.6.25.orig/mm/page_alloc.c
-+++ linux-2.6.25/mm/page_alloc.c
-@@ -2518,7 +2518,9 @@ void __meminit memmap_init_zone(unsigned
- 	struct page *page;
- 	unsigned long end_pfn = start_pfn + size;
- 	unsigned long pfn;
-+	struct zone *z;
- 
-+	z = &NODE_DATA(nid)->node_zones[zid];
- 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
- 		/*
- 		 * There can be holes in boot-time mem_map[]s
-@@ -2536,7 +2538,6 @@ void __meminit memmap_init_zone(unsigned
- 		init_page_count(page);
- 		reset_page_mapcount(page);
- 		SetPageReserved(page);
--
- 		/*
- 		 * Mark the block movable so that blocks are reserved for
- 		 * movable at startup. This will force kernel allocations
-@@ -2545,8 +2546,15 @@ void __meminit memmap_init_zone(unsigned
- 		 * kernel allocations are made. Later some blocks near
- 		 * the start are marked MIGRATE_RESERVE by
- 		 * setup_zone_migrate_reserve()
-+		 *
-+		 * bitmap is creted for zone's valid pfn range. but memmap
-+		 * can be created for invalid pages (for alignment)
-+		 * check here not to call set_pageblock_migratetpye() against
-+		 * pfn out of zone.
- 		 */
--		if ((pfn & (pageblock_nr_pages-1)))
-+		if ((z->zone_start_pfn <= pfn)
-+		    && (pfn < z->zone_start_pfn + z->spanned_pages)
-+		    && !(pfn & (pageblock_nr_pages - 1)))
- 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
- 
- 		INIT_LIST_HEAD(&page->lru);
-@@ -4460,6 +4468,8 @@ void set_pageblock_flags_group(struct pa
- 	pfn = page_to_pfn(page);
- 	bitmap = get_pageblock_bitmap(zone, pfn);
- 	bitidx = pfn_to_bitidx(zone, pfn);
-+	VM_BUG_ON(pfn < zone->zone_start_pfn);
-+	VM_BUG_ON(pfn >= zone->zone_start_pfn + zone->spanned_pages);
- 
- 	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
- 		if (flags & value)
+But the upshot is that I now have "real world" benchmark results to
+justify adding the complexity of speculative references. After that,
+adding lockless pagecache is more or less a noop ;) Everything's
+falling into place, mwa ha ha.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
