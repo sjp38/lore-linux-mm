@@ -1,77 +1,57 @@
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: [PATCH 1 of 9] Lock the entire mm to prevent any mmu related operation to happen
-Date: Tue, 22 Apr 2008 15:06:24 +1000
-References: <ec6d8f91b299cf26cce5.1207669444@duo.random>
-In-Reply-To: <ec6d8f91b299cf26cce5.1207669444@duo.random>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Date: Tue, 22 Apr 2008 07:14:47 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs ABI
+Message-ID: <20080422051447.GI21993@wotan.suse.de>
+References: <20080411234449.GE19078@us.ibm.com> <20080411234712.GF19078@us.ibm.com> <20080411234743.GG19078@us.ibm.com> <20080411234913.GH19078@us.ibm.com> <20080411235648.GA13276@suse.de> <20080412094118.GA7708@wotan.suse.de> <20080413034136.GA22686@suse.de> <20080414210506.GA6350@us.ibm.com> <20080417231617.GA18815@us.ibm.com> <Pine.LNX.4.64.0804171619340.12031@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200804221506.26226.rusty@rustcorp.com.au>
+In-Reply-To: <Pine.LNX.4.64.0804171619340.12031@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>, Steve Wise <swise@opengridcomputing.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, Greg KH <gregkh@suse.de>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 09 April 2008 01:44:04 Andrea Arcangeli wrote:
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1050,6 +1050,15 @@
->  				   unsigned long addr, unsigned long len,
->  				   unsigned long flags, struct page **pages);
->
-> +struct mm_lock_data {
-> +	spinlock_t **i_mmap_locks;
-> +	spinlock_t **anon_vma_locks;
-> +	unsigned long nr_i_mmap_locks;
-> +	unsigned long nr_anon_vma_locks;
-> +};
-> +extern struct mm_lock_data *mm_lock(struct mm_struct * mm);
-> +extern void mm_unlock(struct mm_struct *mm, struct mm_lock_data *data);
+On Thu, Apr 17, 2008 at 04:22:17PM -0700, Christoph Lameter wrote:
+> On Thu, 17 Apr 2008, Nishanth Aravamudan wrote:
+> 
+> > > Do you see a particular more-sysfs-way here, Greg?
+> > 
+> > So I've received no comments yet? Perhaps I should leave things the way
+> > they are (per-node files in /sys/devices/system/node) and add
+> > nr_hugepages to /sys/kernel?
+> 
+> The strange location of the node directories has always irked me.
+> > 
+> > Do we want to put it in a subdirectory of /sys/kernel? What should the
+> > subdir be called? "hugetlb" (refers to the implementation?) or
+> > "hugepages"?
+> 
+> How about:
+> 
+> /sys/kernel/node<nr>/<node specific setting/status files> ?
 
-As far as I can tell you don't actually need to expose this struct at all?
+I don't like /sys/kernel/node :P
 
-> +		data->i_mmap_locks = vmalloc(nr_i_mmap_locks *
-> +					     sizeof(spinlock_t));
+Under /sys/kernel, we should have parameters to set and query various
+kernel functionality. Control of the kernel software implementation. I
+think this is pretty well agreed (although there are maybe grey areas I
+guess)
 
-This is why non-typesafe allocators suck.  You want 'sizeof(spinlock_t *)' 
-here.
+So anyway, underneath that directory, we should have more subdirectories
+grouping subsystems or sumilar functionality. We aren't tuning node,
+but hugepages subsystem.
 
-> +		data->anon_vma_locks = vmalloc(nr_anon_vma_locks *
-> +					       sizeof(spinlock_t));
+/sys/kernel/huge{tlb|pages}/
 
-and here.
+Under that directory could be global settings as well as per node settings
+or subdirectories and so on. The layout should be similar to /proc/sys/*
+IMO. Actually it should be much neater since we have some hindsight, but
+unfortunately it is looking like it is actually messier ;)
 
-> +	err = -EINTR;
-> +	i_mmap_lock_last = NULL;
-> +	nr_i_mmap_locks = 0;
-> +	for (;;) {
-> +		spinlock_t *i_mmap_lock = (spinlock_t *) -1UL;
-> +		for (vma = mm->mmap; vma; vma = vma->vm_next) {
-...
-> +		data->i_mmap_locks[nr_i_mmap_locks++] = i_mmap_lock;
-> +	}
-> +	data->nr_i_mmap_locks = nr_i_mmap_locks;
-
-How about you track your running counter in data->nr_i_mmap_locks, leave 
-nr_i_mmap_locks alone, and BUG_ON(data->nr_i_mmap_locks != nr_i_mmap_locks)?
-
-Even nicer would be to wrap this in a "get_sorted_mmap_locks()" function.
-
-Similarly for anon_vma locks.
-
-Unfortunately, I just don't think we can fail locking like this.  In your next 
-patch unregistering a notifier can fail because of it: that not usable.
-
-I think it means you need to add a linked list element to the vma for the 
-CONFIG_MMU_NOTIFIER case.  Or track the max number of vmas for any mm, and 
-keep a pool to handle mm_lock for this number (ie. if you can't enlarge the 
-pool, fail the vma allocation).  
-
-Both have their problems though...
-Rusty.
+Let's really try to put some thought into new sysfs locations. Not just
+will it work, but is it logical and will it work tomorrow...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
