@@ -1,40 +1,65 @@
-Subject: Re: [RFC] Reserve huge pages for reliable MAP_PRIVATE hugetlbfs mappings
-From: Andi Kleen <andi@firstfloor.org>
-References: <20080421183621.GA13100@csn.ul.ie>
-Date: Wed, 23 Apr 2008 15:55:10 +0200
-In-Reply-To: <20080421183621.GA13100@csn.ul.ie> (Mel Gorman's message of "Mon, 21 Apr 2008 19:36:22 +0100")
-Message-ID: <87hcdsznep.fsf@basil.nowhere.org>
+Date: Wed, 23 Apr 2008 09:47:47 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH 01 of 12] Core of mmu notifiers
+Message-ID: <20080423144747.GU30298@sgi.com>
+References: <ea87c15371b1bd49380c.1208872277@duo.random> <Pine.LNX.4.64.0804221315160.3640@schroedinger.engr.sgi.com> <20080422223545.GP24536@duo.random> <20080422230727.GR30298@sgi.com> <20080423133619.GV24536@duo.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080423133619.GV24536@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: wli@holomorphy.com, agl@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Robin Holt <holt@sgi.com>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, Jack Steiner <steiner@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman <mel@csn.ul.ie> writes:
+On Wed, Apr 23, 2008 at 03:36:19PM +0200, Andrea Arcangeli wrote:
+> On Tue, Apr 22, 2008 at 06:07:27PM -0500, Robin Holt wrote:
+> > > The only other change I did has been to move mmu_notifier_unregister
+> > > at the end of the patchset after getting more questions about its
+> > > reliability and I documented a bit the rmmod requirements for
+> > > ->release. we'll think later if it makes sense to add it, nobody's
+> > > using it anyway.
+> > 
+> > XPMEM is using it.  GRU will be as well (probably already does).
+> 
+> XPMEM requires more patches anyway. Note that in previous email you
+> told me you weren't using it. I think GRU can work fine on 2.6.26
 
-> MAP_SHARED mappings on hugetlbfs reserve huge pages at mmap() time. This is
-> so that all future faults will be guaranteed to succeed. Applications are not
-> expected to use mlock() as this can result in poor NUMA placement.
->
-> MAP_PRIVATE mappings do not reserve pages. This can result in an application
-> being SIGKILLed later if a large page is not available at fault time. This
-> makes huge pages usage very ill-advised in some cases as the unexpected
-> application failure is intolerable. Forcing potential poor placement with
-> mlock() is not a great solution either.
->
-> This patch reserves huge pages at mmap() time for MAP_PRIVATE mappings similar
-> to what happens for MAP_SHARED mappings. 
+I said I could test without it.  It is needed for the final version.
+It also makes the API consistent.  What you are proposing is equivalent
+to having a file you can open but never close.
 
-This will break all applications that mmap more hugetlbpages than they
-actually use. How do you know these don't exist?
+This whole discussion seems ludicrous.  You could refactor the code to get
+the sorted list of locks, pass that list into mm_lock to do the locking,
+do the register/unregister, then pass the same list into mm_unlock.
 
-> Opinions?
+If the allocation fails, you could fall back to the older slower method
+of repeatedly scanning the lists and acquiring locks in ascending order.
 
-Seems like a risky interface change to me.
+> without mmu_notifier_unregister, like KVM too. You've simply to unpin
+> the module count in ->release. The most important bit is that you've
+> to do that anyway in case mmu_notifier_unregister fails (and it can
 
--Andi
+If you are not going to provide the _unregister callout you need to change
+the API so I can scan the list of notifiers to see if my structures are
+already registered.
+
+We register our notifier structure at device open time.  If we receive a
+_release callout, we mark our structure as unregistered.  At device close
+time, if we have not been unregistered, we call _unregister.  If you
+take away _unregister, I have an xpmem kernel structure in use _AFTER_
+the device is closed with no indication that the process is using it.
+In that case, I need to get an extra reference to the module in my device
+open method and hold that reference until the _release callout.
+
+Additionally, if the users program reopens the device, I need to scan the
+mmu_notifiers list to see if this tasks notifier is already registered.
+
+I view _unregister as essential.  Did I miss something?
+
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
