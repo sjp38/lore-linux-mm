@@ -1,44 +1,23 @@
-Date: Wed, 23 Apr 2008 18:25:50 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [patch 12/18] hugetlbfs: support larger than MAX_ORDER
-Message-ID: <20080423162550.GD29087@one.firstfloor.org>
-References: <20080423015302.745723000@nick.local0.net> <20080423015430.965631000@nick.local0.net> <480F608B.90100@cray.com>
-Mime-Version: 1.0
+Date: Wed, 23 Apr 2008 18:26:29 +0200
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [PATCH 01 of 12] Core of mmu notifiers
+Message-ID: <20080423162629.GB24536@duo.random>
+References: <ea87c15371b1bd49380c.1208872277@duo.random> <Pine.LNX.4.64.0804221315160.3640@schroedinger.engr.sgi.com> <20080422223545.GP24536@duo.random> <Pine.LNX.4.64.0804221619540.4996@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <480F608B.90100@cray.com>
+In-Reply-To: <Pine.LNX.4.64.0804221619540.4996@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Hastings <abh@cray.com>
-Cc: npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, nacc@us.ibm.com, wli@holomorphy.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <npiggin@suse.de>, Jack Steiner <steiner@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 23, 2008 at 11:15:07AM -0500, Andrew Hastings wrote:
-> npiggin@suse.de wrote:
-> >This is needed on x86-64 to handle GB pages in hugetlbfs, because it is
-> >not practical to enlarge MAX_ORDER to 1GB. 
-> 
-> Sorry to ask what is probably a dumb question, but why is it not 
-> practical to increase MAX_ORDER to 1GB for a 64-bit platform like 
-> x86-64?  
+On Tue, Apr 22, 2008 at 04:20:35PM -0700, Christoph Lameter wrote:
+> I guess I have to prepare another patchset then?
 
-That would mean all zones would need to be 1GB aligned.
-That would make it impossible to have a 16MB zone dma and
-the following normal zone. That one is actually going 
-away with the mask allocator patchkit, but also the
-movable zone is not necessarily aligned to 1GB.
-
-The other issue is that it would increase the cache foot print
-of the page allocator significantly and that is very sensitive
-in important benchmarks.
-
-> Doing so would make 1GB pages much more practical to use.
-
-It's very doubtful that even with an increased MAX_ORDER you would
-be actually able to allocate GB pages efficiently after boot.
-Even with all tricks like movable zone etc.
-
--Andi
+If you want to embarrass yourself three time in a row go ahead ;). I
+thought two failed takeovers was enough.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
