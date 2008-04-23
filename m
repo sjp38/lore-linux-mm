@@ -1,75 +1,100 @@
-Date: Wed, 23 Apr 2008 12:44:25 +0900
+Date: Wed, 23 Apr 2008 13:46:21 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Warning on memory offline (and possible in usual migration?)
-Message-Id: <20080423124425.5c80d3cf.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080423025358.GA9751@wotan.suse.de>
-References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
-	<20080422045205.GH21993@wotan.suse.de>
-	<20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080422094352.GB23770@wotan.suse.de>
-	<Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com>
-	<20080423004804.GA14134@wotan.suse.de>
-	<20080423114107.b8df779c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080423025358.GA9751@wotan.suse.de>
+Subject: [BUGFIX][PATCH] Fix usemap initialization v3
+Message-Id: <20080423134621.6020dd83.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080422104043.215c7dc4.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080418161522.GB9147@csn.ul.ie>
+	<48080706.50305@cn.fujitsu.com>
+	<48080930.5090905@cn.fujitsu.com>
+	<48080B86.7040200@cn.fujitsu.com>
+	<20080418211214.299f91cd.kamezawa.hiroyu@jp.fujitsu.com>
+	<21878461.1208539556838.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080421112048.78f0ec76.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0804211250000.16476@blonde.site>
+	<20080422104043.215c7dc4.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, Hugh Dickins <hugh@veritas.com>, Mel Gorman <mel@csn.ul.ie>, Shi Weihua <shiwh@cn.fujitsu.com>, balbir@linux.vnet.ibm.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 23 Apr 2008 04:53:58 +0200
-Nick Piggin <npiggin@suse.de> wrote:
-
-> > BTW, can I ask a question for understanding this change ?
-> > 
-> > ==this check==
-> >  WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
-> > 
-> > in __set_page_dirty_nobuffers() seems to check "the page should have buffer or
-> > be up-to-date when it calls this function."
-> > 
-> > When it comes to __set_page_dirty() (in fs/buffer.c)
-> > == this check==
-> >  WARN_ON_ONCE(warn && !PageUptodate(page));
-> > 
-> > is used and doesn't see page has buffers or not.
-> > What's difference between two functions's condition for WARNING ?
-> 
-> Yes, __set_page_dirty_nobuffers confusingly can also be called for pages
-> with buffers. In the case that the page has buffers (or any other private
-> metadata), then __set_page_dirty_nobuffers does not have enough information
-> to know whether the page should be uptodate before being marked dirty.
-> 
-> In the __set_page_dirty case in fs/buffer.c, we _do_ know that the page
-> has buffers and that it would be wrong to have a situation where the
-> page is !uptodate at this point.
-> 
-> Is that clear? Or have I explained it poorly?
-> 
-
-Hmm...does that comes from difference of the purpose of the functions ?
-
-Is this correct ?
+fixed typos.
 ==
-set_page_dirty_buffers() (in fs/buffer.c) makes a page and _all_ buffers on it
-dirty. So, a page *must* be up-to-date when it calls set_page_dirty_buffers().
-This is used for mapped pages or some callers which requires the whole
-page containes valid data.
+usemap must be initialized only when pfn is within zone.
+If not, it corrupts memory.
 
-In set_page_dirty_nobuffers()case , it just makes a page to be dirty. We can't
-see whether a page is really up-to-date or not when PagePrivate(page) &&
-!PageUptodate(page). This is used for a page which contains some data
-to be written out. (part of buffers contains data.)
+And this patch also reduces the number of calls to set_pageblock_migratetype()
+from
+	(pfn & (pageblock_nr_pages -1)
+to
+	!(pfn & (pageblock_nr_pages-1)
+it should be called once per pageblock.
 
-==
+Changelog.
+v2->v3
+ - Fixed typos.
+v1->v2
+ - Fixed boundary check.
+ - Move calculation of pointer for zone struct to out of loop.
 
-Thank you.
 
--Kame
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+---
+ mm/page_alloc.c |   14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+Index: linux-2.6.25/mm/page_alloc.c
+===================================================================
+--- linux-2.6.25.orig/mm/page_alloc.c
++++ linux-2.6.25/mm/page_alloc.c
+@@ -2518,7 +2518,9 @@ void __meminit memmap_init_zone(unsigned
+ 	struct page *page;
+ 	unsigned long end_pfn = start_pfn + size;
+ 	unsigned long pfn;
++	struct zone *z;
+ 
++	z = &NODE_DATA(nid)->node_zones[zone];
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+ 		/*
+ 		 * There can be holes in boot-time mem_map[]s
+@@ -2536,7 +2538,6 @@ void __meminit memmap_init_zone(unsigned
+ 		init_page_count(page);
+ 		reset_page_mapcount(page);
+ 		SetPageReserved(page);
+-
+ 		/*
+ 		 * Mark the block movable so that blocks are reserved for
+ 		 * movable at startup. This will force kernel allocations
+@@ -2545,8 +2546,15 @@ void __meminit memmap_init_zone(unsigned
+ 		 * kernel allocations are made. Later some blocks near
+ 		 * the start are marked MIGRATE_RESERVE by
+ 		 * setup_zone_migrate_reserve()
++		 *
++		 * bitmap is created for zone's valid pfn range. but memmap
++		 * can be created for invalid pages (for alignment)
++		 * check here not to call set_pageblock_migratetype() against
++		 * pfn out of zone.
+ 		 */
+-		if ((pfn & (pageblock_nr_pages-1)))
++		if ((z->zone_start_pfn <= pfn)
++		    && (pfn < z->zone_start_pfn + z->spanned_pages)
++		    && !(pfn & (pageblock_nr_pages - 1)))
+ 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+ 
+ 		INIT_LIST_HEAD(&page->lru);
+@@ -4460,6 +4468,8 @@ void set_pageblock_flags_group(struct pa
+ 	pfn = page_to_pfn(page);
+ 	bitmap = get_pageblock_bitmap(zone, pfn);
+ 	bitidx = pfn_to_bitidx(zone, pfn);
++	VM_BUG_ON(pfn < zone->zone_start_pfn);
++	VM_BUG_ON(pfn >= zone->zone_start_pfn + zone->spanned_pages);
+ 
+ 	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
+ 		if (flags & value)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
