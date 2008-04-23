@@ -1,73 +1,131 @@
-Date: Wed, 23 Apr 2008 17:46:52 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [patch 00/18] multi size, and giant hugetlb page support, 1GB hugetlb for x86
-Message-ID: <20080423154652.GB29087@one.firstfloor.org>
-References: <20080423015302.745723000@nick.local0.net> <480EEDD9.2010601@firstfloor.org> <20080423153404.GB16769@wotan.suse.de>
+Date: Wed, 23 Apr 2008 17:44:15 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 18/18] hugetlb: my fixes 2
+Message-ID: <20080423154415.GE16769@wotan.suse.de>
+References: <20080423015302.745723000@nick.local0.net> <20080423015431.569358000@nick.local0.net> <1208964053.16652.11.camel@skynet>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080423153404.GB16769@wotan.suse.de>
+In-Reply-To: <1208964053.16652.11.camel@skynet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, nacc@us.ibm.com, abh@cray.com, wli@holomorphy.com
+To: Jon Tollefson <kniht@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, nacc@us.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 23, 2008 at 05:34:04PM +0200, Nick Piggin wrote:
-> On Wed, Apr 23, 2008 at 10:05:45AM +0200, Andi Kleen wrote:
-> > 
-> > > Testing-wise, I've changed the registration mechanism so that if you specify
-> > > hugepagesz=1G on the command line, then you do not get the 2M pages by default
-> > > (you have to also specify hugepagesz=2M). Also, when only one hstate is
-> > > registered, all the proc outputs appear unchanged, so this makes it very easy
-> > > to test with.
-> > 
-> > Are you sure that's a good idea? Just replacing the 2M count in meminfo
-> > with 1G pages is not fully compatible proc ABI wise I think.
+On Wed, Apr 23, 2008 at 10:20:53AM -0500, Jon Tollefson wrote:
 > 
-> Not sure that it is a good idea, but it did allow the test suite to pass
-> more tests ;)
-
-Then the test suite is wrong. Really I expect programs that want
-to use 1G pages to be adapted to it.
-
-> What the best option is for backwards compatibility, I don't know. I
-
-The first number has to be always the "legacy" size for compatibility.   
-I don't think know why you don't know that, it really seems like an
-obvious fact to me.
-
-> think this approach would give things a better chance of actually
-> working with 1G hugepags and old userspace, but it probably also
-> increases the chances of funny bugs.
-
-It's not fully compatible. And that is bad.
-
-> > I think rather that applications who only know about 2M pages should
-> > see "0" in this case and not be confused by larger pages. And only
-> > applications who are multi page size aware should see the new page
-> > sizes.
+> On Wed, 2008-04-23 at 11:53 +1000, npiggin@suse.de wrote:
+> > plain text document attachment (hugetlb-fixes2.patch)
+> > Here is my next set of fixes and changes:
+> > - Allow configurations without the default HPAGE_SIZE size (mainly useful
+> >   for testing but maybe it is the right way to go).
+> > - Fixed another case where mappings would be set up on incorrect boundaries
+> >   because prepare_hugepage_range was not hpage-ified.
+> > - Changed the sysctl table behaviour so it only displays as many values in
+> >   the vector as there are hstates configured.
+> > - Fixed oops in overcommit sysctl handler
 > > 
-> > If you prefer it you could move all the new page sizes to sysfs
-> > and only ever display the "legacy page size" in meminfo,
-> > but frankly I personally prefer the quite simple and comparatively
-> > efficient /proc/meminfo with multiple numbers interface.
+> > This fixes several oopses seen on the libhugetlbfs test suite. Now it seems to
+> > pass most of them and fails reasonably on others (eg. most 32-bit tests fail
+> > due to being unable to map enough virtual memory, others due to not enough
+> > hugepages given that I only have 2).
+> > 
+> > Signed-off-by: Nick Piggin <npiggin@suse.de>
+> > ---
+> > ---
+> >  arch/x86/mm/hugetlbpage.c |    4 ++--
+> >  fs/hugetlbfs/inode.c      |    4 +++-
+> >  include/linux/hugetlb.h   |   19 ++-----------------
+> >  kernel/sysctl.c           |    2 ++
+> >  mm/hugetlb.c              |   35 ++++++++++++++++++++++++++++++-----
+> >  5 files changed, 39 insertions(+), 25 deletions(-)
+> > 
+> > Index: linux-2.6/arch/x86/mm/hugetlbpage.c
+> > ===================================================================
+> > --- linux-2.6.orig/arch/x86/mm/hugetlbpage.c
+> > +++ linux-2.6/arch/x86/mm/hugetlbpage.c
+> > @@ -124,7 +124,7 @@ int huge_pmd_unshare(struct mm_struct *m
+> >  	return 1;
+> >  }
+> > 
+> > -pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, int sz)
+> > +pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz)
+> >  {
+> >  	pgd_t *pgd;
+> >  	pud_t *pud;
+> > @@ -402,7 +402,7 @@ hugetlb_get_unmapped_area(struct file *f
+> >  		return -ENOMEM;
+> > 
+> >  	if (flags & MAP_FIXED) {
+> > -		if (prepare_hugepage_range(addr, len))
+> > +		if (prepare_hugepage_range(file, addr, len))
+> >  			return -EINVAL;
+> >  		return addr;
+> >  	}
+> > Index: linux-2.6/mm/hugetlb.c
+> > ===================================================================
+> > --- linux-2.6.orig/mm/hugetlb.c
+> > +++ linux-2.6/mm/hugetlb.c
+> > @@ -640,7 +640,7 @@ static int __init hugetlb_init(void)
+> >  {
+> >  	BUILD_BUG_ON(HPAGE_SHIFT == 0);
+> > 
+> > -	if (!size_to_hstate(HPAGE_SIZE)) {
+> > +	if (!max_hstate) {
+> >  		huge_add_hstate(HUGETLB_PAGE_ORDER);
+> >  		parsed_hstate->max_huge_pages = default_hstate_resv;
+> >  	}
+> > @@ -821,9 +821,10 @@ int hugetlb_sysctl_handler(struct ctl_ta
+> >  			   struct file *file, void __user *buffer,
+> >  			   size_t *length, loff_t *ppos)
+> >  {
+> > -	int err = 0;
+> > +	int err;
+> >  	struct hstate *h;
+> > 
+> > +	table->maxlen = max_hstate * sizeof(unsigned long);
+> >  	err = proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
+> >  	if (err)
+> >  		return err;
+> > @@ -846,6 +847,7 @@ int hugetlb_treat_movable_handler(struct
+> >  			struct file *file, void __user *buffer,
+> >  			size_t *length, loff_t *ppos)
+> >  {
+> > +	table->maxlen = max_hstate * sizeof(int);
+> >  	proc_dointvec(table, write, file, buffer, length, ppos);
+> >  	if (hugepages_treat_as_movable)
+> >  		htlb_alloc_mask = GFP_HIGHUSER_MOVABLE;
+> > @@ -858,15 +860,22 @@ int hugetlb_overcommit_handler(struct ct
+> >  			struct file *file, void __user *buffer,
+> >  			size_t *length, loff_t *ppos)
+> >  {
+> > +	int err;
+> >  	struct hstate *h;
+> > -	int i = 0;
+> > -	proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
+> > +
+> > +	table->maxlen = max_hstate * sizeof(unsigned long);
+> > +	err = proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
+> > +	if (err)
+> > +		return err;
+> > +
+> >  	spin_lock(&hugetlb_lock);
+> >  	for_each_hstate (h) {
+> > -		h->nr_overcommit_huge_pages = sysctl_overcommit_huge_pages[i];
+> > +		h->nr_overcommit_huge_pages =
+> > +				sysctl_overcommit_huge_pages[h - hstates];
+> >  		i++;
 > 
-> Well I've chance it so it just has single numbers if a single hstate
-> is registered: that way we're completely backwards compatible in the
-> case of only using 2M pages.
+> The increment of i can be removed since it is no longer used or defined.
 
-That makes sense.
+Thanks... sorry for the poor quality of patch. I honestly thought I
+actually compiled and ran this one, but I must have made said compile
+fix on my test box and not picked it up in my working tree. Otherwise
+it looks good to go.
 
-But please also undo the change to not have the legacy page size.
-
-> But I think your multiple hstates in /proc/meminfo isn't too bad
-> given the bad situation. Maybe just adding more meminfo lines would
-> be better though?
-
-Would also work for me, no particular opinion either way.
-
--Andi
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
