@@ -1,215 +1,266 @@
-Message-Id: <20080423015431.569358000@nick.local0.net>
+Message-Id: <20080423015430.378900000@nick.local0.net>
 References: <20080423015302.745723000@nick.local0.net>
-Date: Wed, 23 Apr 2008 11:53:20 +1000
+Date: Wed, 23 Apr 2008 11:53:09 +1000
 From: npiggin@suse.de
-Subject: [patch 18/18] hugetlb: my fixes 2
-Content-Disposition: inline; filename=hugetlb-fixes2.patch
+Subject: [patch 07/18] hugetlbfs: per mount hstates
+Content-Disposition: inline; filename=hugetlbfs-per-mount-hstate.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, nacc@us.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-Here is my next set of fixes and changes:
-- Allow configurations without the default HPAGE_SIZE size (mainly useful
-  for testing but maybe it is the right way to go).
-- Fixed another case where mappings would be set up on incorrect boundaries
-  because prepare_hugepage_range was not hpage-ified.
-- Changed the sysctl table behaviour so it only displays as many values in
-  the vector as there are hstates configured.
-- Fixed oops in overcommit sysctl handler
+Add support to have individual hstates for each hugetlbfs mount
 
-This fixes several oopses seen on the libhugetlbfs test suite. Now it seems to
-pass most of them and fails reasonably on others (eg. most 32-bit tests fail
-due to being unable to map enough virtual memory, others due to not enough
-hugepages given that I only have 2).
+- Add a new pagesize= option to the hugetlbfs mount that allows setting
+the page size
+- Set up pointers to a suitable hstate for the set page size option
+to the super block and the inode and the vma.
+- Change the hstate accessors to use this information
+- Add code to the hstate init function to set parsed_hstate for command
+line processing
+- Handle duplicated hstate registrations to the make command line user proof
 
+[np: take hstate out of hugetlbfs inode and vma->vm_private_data]
+
+Signed-off-by: Andi Kleen <ak@suse.de>
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
----
- arch/x86/mm/hugetlbpage.c |    4 ++--
- fs/hugetlbfs/inode.c      |    4 +++-
- include/linux/hugetlb.h   |   19 ++-----------------
- kernel/sysctl.c           |    2 ++
- mm/hugetlb.c              |   35 ++++++++++++++++++++++++++++++-----
- 5 files changed, 39 insertions(+), 25 deletions(-)
+ fs/hugetlbfs/inode.c    |   48 ++++++++++++++++++++++++++++++++++++++----------
+ include/linux/hugetlb.h |   14 +++++++++-----
+ mm/hugetlb.c            |   16 +++-------------
+ mm/memory.c             |   18 ++++++++++++++++--
+ 4 files changed, 66 insertions(+), 30 deletions(-)
 
-Index: linux-2.6/arch/x86/mm/hugetlbpage.c
-===================================================================
---- linux-2.6.orig/arch/x86/mm/hugetlbpage.c
-+++ linux-2.6/arch/x86/mm/hugetlbpage.c
-@@ -124,7 +124,7 @@ int huge_pmd_unshare(struct mm_struct *m
- 	return 1;
- }
- 
--pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, int sz)
-+pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz)
- {
- 	pgd_t *pgd;
- 	pud_t *pud;
-@@ -402,7 +402,7 @@ hugetlb_get_unmapped_area(struct file *f
- 		return -ENOMEM;
- 
- 	if (flags & MAP_FIXED) {
--		if (prepare_hugepage_range(addr, len))
-+		if (prepare_hugepage_range(file, addr, len))
- 			return -EINVAL;
- 		return addr;
- 	}
-Index: linux-2.6/mm/hugetlb.c
-===================================================================
---- linux-2.6.orig/mm/hugetlb.c
-+++ linux-2.6/mm/hugetlb.c
-@@ -640,7 +640,7 @@ static int __init hugetlb_init(void)
- {
- 	BUILD_BUG_ON(HPAGE_SHIFT == 0);
- 
--	if (!size_to_hstate(HPAGE_SIZE)) {
-+	if (!max_hstate) {
- 		huge_add_hstate(HUGETLB_PAGE_ORDER);
- 		parsed_hstate->max_huge_pages = default_hstate_resv;
- 	}
-@@ -821,9 +821,10 @@ int hugetlb_sysctl_handler(struct ctl_ta
- 			   struct file *file, void __user *buffer,
- 			   size_t *length, loff_t *ppos)
- {
--	int err = 0;
-+	int err;
- 	struct hstate *h;
- 
-+	table->maxlen = max_hstate * sizeof(unsigned long);
- 	err = proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
- 	if (err)
- 		return err;
-@@ -846,6 +847,7 @@ int hugetlb_treat_movable_handler(struct
- 			struct file *file, void __user *buffer,
- 			size_t *length, loff_t *ppos)
- {
-+	table->maxlen = max_hstate * sizeof(int);
- 	proc_dointvec(table, write, file, buffer, length, ppos);
- 	if (hugepages_treat_as_movable)
- 		htlb_alloc_mask = GFP_HIGHUSER_MOVABLE;
-@@ -858,15 +860,22 @@ int hugetlb_overcommit_handler(struct ct
- 			struct file *file, void __user *buffer,
- 			size_t *length, loff_t *ppos)
- {
-+	int err;
- 	struct hstate *h;
--	int i = 0;
--	proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
-+
-+	table->maxlen = max_hstate * sizeof(unsigned long);
-+	err = proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
-+	if (err)
-+		return err;
-+
- 	spin_lock(&hugetlb_lock);
- 	for_each_hstate (h) {
--		h->nr_overcommit_huge_pages = sysctl_overcommit_huge_pages[i];
-+		h->nr_overcommit_huge_pages =
-+				sysctl_overcommit_huge_pages[h - hstates];
- 		i++;
- 	}
- 	spin_unlock(&hugetlb_lock);
-+
- 	return 0;
- }
- 
-@@ -1015,6 +1024,22 @@ nomem:
- 	return -ENOMEM;
- }
- 
-+#ifndef ARCH_HAS_PREPARE_HUGEPAGE_RANGE
-+/*
-+ * If the arch doesn't supply something else, assume that hugepage
-+ * size aligned regions are ok without further preparation.
-+ */
-+int prepare_hugepage_range(struct file *file, unsigned long addr, unsigned long len)
-+{
-+	struct hstate *h = hstate_file(file);
-+	if (len & ~huge_page_mask(h))
-+		return -EINVAL;
-+	if (addr & ~huge_page_mask(h))
-+		return -EINVAL;
-+	return 0;
-+}
-+#endif
-+
- void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
- 			    unsigned long end)
- {
-Index: linux-2.6/fs/hugetlbfs/inode.c
-===================================================================
---- linux-2.6.orig/fs/hugetlbfs/inode.c
-+++ linux-2.6/fs/hugetlbfs/inode.c
-@@ -141,7 +141,7 @@ hugetlb_get_unmapped_area(struct file *f
- 		return -ENOMEM;
- 
- 	if (flags & MAP_FIXED) {
--		if (prepare_hugepage_range(addr, len))
-+		if (prepare_hugepage_range(file, addr, len))
- 			return -EINVAL;
- 		return addr;
- 	}
-@@ -858,6 +858,8 @@ hugetlbfs_fill_super(struct super_block 
- 	config.gid = current->fsgid;
- 	config.mode = 0755;
- 	config.hstate = size_to_hstate(HPAGE_SIZE);
-+	if (!config.hstate)
-+		config.hstate = &hstates[0];
- 	ret = hugetlbfs_parse_options(data, &config);
- 	if (ret)
- 		return ret;
 Index: linux-2.6/include/linux/hugetlb.h
 ===================================================================
 --- linux-2.6.orig/include/linux/hugetlb.h
 +++ linux-2.6/include/linux/hugetlb.h
-@@ -64,22 +64,7 @@ void hugetlb_free_pgd_range(struct mmu_g
- 			    unsigned long ceiling);
- #endif
+@@ -136,6 +136,7 @@ struct hugetlbfs_config {
+ 	umode_t mode;
+ 	long	nr_blocks;
+ 	long	nr_inodes;
++	struct hstate *hstate;
+ };
  
--#ifndef ARCH_HAS_PREPARE_HUGEPAGE_RANGE
--/*
-- * If the arch doesn't supply something else, assume that hugepage
-- * size aligned regions are ok without further preparation.
-- */
--static inline int prepare_hugepage_range(unsigned long addr, unsigned long len)
--{
--	if (len & ~HPAGE_MASK)
--		return -EINVAL;
--	if (addr & ~HPAGE_MASK)
--		return -EINVAL;
--	return 0;
--}
--#else
--int prepare_hugepage_range(unsigned long addr, unsigned long len);
--#endif
-+int prepare_hugepage_range(struct file *file, unsigned long addr, unsigned long len);
+ struct hugetlbfs_sb_info {
+@@ -144,6 +145,7 @@ struct hugetlbfs_sb_info {
+ 	long	max_inodes;   /* inodes allowed */
+ 	long	free_inodes;  /* inodes free */
+ 	spinlock_t	stat_lock;
++	struct hstate *hstate;
+ };
  
- #ifndef ARCH_HAS_SETCLEAR_HUGE_PTE
- #define set_huge_pte_at(mm, addr, ptep, pte)	set_pte_at(mm, addr, ptep, pte)
-@@ -116,7 +101,7 @@ static inline unsigned long hugetlb_tota
- #define hugetlb_report_node_meminfo(n, buf)	0
- #define follow_huge_pmd(mm, addr, pmd, write)	NULL
- #define follow_huge_pud(mm, addr, pud, write)	NULL
--#define prepare_hugepage_range(addr,len)	(-EINVAL)
-+#define prepare_hugepage_range(file,addr,len)	(-EINVAL)
- #define pmd_huge(x)	0
- #define pud_huge(x)	0
- #define is_hugepage_only_range(mm, addr, len)	0
-Index: linux-2.6/kernel/sysctl.c
+ 
+@@ -226,19 +228,21 @@ extern struct hstate hstates[HUGE_MAX_HS
+ 
+ #define global_hstate (hstates[0])
+ 
+-static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
++static inline struct hstate *hstate_inode(struct inode *i)
+ {
+-	return &global_hstate;
++	struct hugetlbfs_sb_info *hsb;
++	hsb = HUGETLBFS_SB(i->i_sb);
++	return hsb->hstate;
+ }
+ 
+ static inline struct hstate *hstate_file(struct file *f)
+ {
+-	return &global_hstate;
++	return hstate_inode(f->f_dentry->d_inode);
+ }
+ 
+-static inline struct hstate *hstate_inode(struct inode *i)
++static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
+ {
+-	return &global_hstate;
++	return hstate_file(vma->vm_file);
+ }
+ 
+ static inline unsigned long huge_page_size(struct hstate *h)
+Index: linux-2.6/fs/hugetlbfs/inode.c
 ===================================================================
---- linux-2.6.orig/kernel/sysctl.c
-+++ linux-2.6/kernel/sysctl.c
-@@ -953,6 +953,8 @@ static struct ctl_table vm_table[] = {
- 		.maxlen		= sizeof(sysctl_overcommit_huge_pages),
- 		.mode		= 0644,
- 		.proc_handler	= &hugetlb_overcommit_handler,
-+		.extra1		= (void *)&hugetlb_zero,
-+		.extra2		= (void *)&hugetlb_infinity,
- 	},
- #endif
- 	{
+--- linux-2.6.orig/fs/hugetlbfs/inode.c
++++ linux-2.6/fs/hugetlbfs/inode.c
+@@ -53,6 +53,7 @@ int sysctl_hugetlb_shm_group;
+ enum {
+ 	Opt_size, Opt_nr_inodes,
+ 	Opt_mode, Opt_uid, Opt_gid,
++	Opt_pagesize,
+ 	Opt_err,
+ };
+ 
+@@ -62,6 +63,7 @@ static match_table_t tokens = {
+ 	{Opt_mode,	"mode=%o"},
+ 	{Opt_uid,	"uid=%u"},
+ 	{Opt_gid,	"gid=%u"},
++	{Opt_pagesize,	"pagesize=%s"},
+ 	{Opt_err,	NULL},
+ };
+ 
+@@ -750,6 +752,8 @@ hugetlbfs_parse_options(char *options, s
+ 	char *p, *rest;
+ 	substring_t args[MAX_OPT_ARGS];
+ 	int option;
++	unsigned long long size = 0;
++	enum { NO_SIZE, SIZE_STD, SIZE_PERCENT } setsize = NO_SIZE;
+ 
+ 	if (!options)
+ 		return 0;
+@@ -780,17 +784,13 @@ hugetlbfs_parse_options(char *options, s
+ 			break;
+ 
+ 		case Opt_size: {
+- 			unsigned long long size;
+ 			/* memparse() will accept a K/M/G without a digit */
+ 			if (!isdigit(*args[0].from))
+ 				goto bad_val;
+ 			size = memparse(args[0].from, &rest);
+-			if (*rest == '%') {
+-				size <<= HPAGE_SHIFT;
+-				size *= max_huge_pages;
+-				do_div(size, 100);
+-			}
+-			pconfig->nr_blocks = (size >> HPAGE_SHIFT);
++			setsize = SIZE_STD;
++			if (*rest == '%')
++				setsize = SIZE_PERCENT;
+ 			break;
+ 		}
+ 
+@@ -801,6 +801,19 @@ hugetlbfs_parse_options(char *options, s
+ 			pconfig->nr_inodes = memparse(args[0].from, &rest);
+ 			break;
+ 
++		case Opt_pagesize: {
++			unsigned long ps;
++			ps = memparse(args[0].from, &rest);
++			pconfig->hstate = size_to_hstate(ps);
++			if (!pconfig->hstate) {
++				printk(KERN_ERR
++				"hugetlbfs: Unsupported page size %lu MB\n",
++					ps >> 20);
++				return -EINVAL;
++			}
++			break;
++		}
++
+ 		default:
+ 			printk(KERN_ERR "hugetlbfs: Bad mount option: \"%s\"\n",
+ 				 p);
+@@ -808,6 +821,18 @@ hugetlbfs_parse_options(char *options, s
+ 			break;
+ 		}
+ 	}
++
++	/* Do size after hstate is set up */
++	if (setsize > NO_SIZE) {
++		struct hstate *h = pconfig->hstate;
++		if (setsize == SIZE_PERCENT) {
++			size <<= huge_page_shift(h);
++			size *= h->max_huge_pages;
++			do_div(size, 100);
++		}
++		pconfig->nr_blocks = (size >> huge_page_shift(h));
++	}
++
+ 	return 0;
+ 
+ bad_val:
+@@ -832,6 +857,7 @@ hugetlbfs_fill_super(struct super_block 
+ 	config.uid = current->fsuid;
+ 	config.gid = current->fsgid;
+ 	config.mode = 0755;
++	config.hstate = size_to_hstate(HPAGE_SIZE);
+ 	ret = hugetlbfs_parse_options(data, &config);
+ 	if (ret)
+ 		return ret;
+@@ -840,14 +866,15 @@ hugetlbfs_fill_super(struct super_block 
+ 	if (!sbinfo)
+ 		return -ENOMEM;
+ 	sb->s_fs_info = sbinfo;
++	sbinfo->hstate = config.hstate;
+ 	spin_lock_init(&sbinfo->stat_lock);
+ 	sbinfo->max_blocks = config.nr_blocks;
+ 	sbinfo->free_blocks = config.nr_blocks;
+ 	sbinfo->max_inodes = config.nr_inodes;
+ 	sbinfo->free_inodes = config.nr_inodes;
+ 	sb->s_maxbytes = MAX_LFS_FILESIZE;
+-	sb->s_blocksize = HPAGE_SIZE;
+-	sb->s_blocksize_bits = HPAGE_SHIFT;
++	sb->s_blocksize = huge_page_size(config.hstate);
++	sb->s_blocksize_bits = huge_page_shift(config.hstate);
+ 	sb->s_magic = HUGETLBFS_MAGIC;
+ 	sb->s_op = &hugetlbfs_ops;
+ 	sb->s_time_gran = 1;
+@@ -949,7 +976,8 @@ struct file *hugetlb_file_setup(const ch
+ 		goto out_dentry;
+ 
+ 	error = -ENOMEM;
+-	if (hugetlb_reserve_pages(inode, 0, size >> HPAGE_SHIFT))
++	if (hugetlb_reserve_pages(inode, 0,
++			size >> huge_page_shift(hstate_inode(inode))))
+ 		goto out_inode;
+ 
+ 	d_instantiate(dentry, inode);
+Index: linux-2.6/mm/hugetlb.c
+===================================================================
+--- linux-2.6.orig/mm/hugetlb.c
++++ linux-2.6/mm/hugetlb.c
+@@ -934,19 +934,9 @@ void __unmap_hugepage_range(struct vm_ar
+ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
+ 			  unsigned long end)
+ {
+-	/*
+-	 * It is undesirable to test vma->vm_file as it should be non-null
+-	 * for valid hugetlb area. However, vm_file will be NULL in the error
+-	 * cleanup path of do_mmap_pgoff. When hugetlbfs ->mmap method fails,
+-	 * do_mmap_pgoff() nullifies vma->vm_file before calling this function
+-	 * to clean up. Since no pte has actually been setup, it is safe to
+-	 * do nothing in this case.
+-	 */
+-	if (vma->vm_file) {
+-		spin_lock(&vma->vm_file->f_mapping->i_mmap_lock);
+-		__unmap_hugepage_range(vma, start, end);
+-		spin_unlock(&vma->vm_file->f_mapping->i_mmap_lock);
+-	}
++	spin_lock(&vma->vm_file->f_mapping->i_mmap_lock);
++	__unmap_hugepage_range(vma, start, end);
++	spin_unlock(&vma->vm_file->f_mapping->i_mmap_lock);
+ }
+ 
+ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c
++++ linux-2.6/mm/memory.c
+@@ -846,9 +846,23 @@ unsigned long unmap_vmas(struct mmu_gath
+ 			}
+ 
+ 			if (unlikely(is_vm_hugetlb_page(vma))) {
+-				unmap_hugepage_range(vma, start, end);
+-				zap_work -= (end - start) /
++				/*
++				 * It is undesirable to test vma->vm_file as it
++				 * should be non-null for valid hugetlb area.
++				 * However, vm_file will be NULL in the error
++				 * cleanup path of do_mmap_pgoff. When
++				 * hugetlbfs ->mmap method fails,
++				 * do_mmap_pgoff() nullifies vma->vm_file
++				 * before calling this function to clean up.
++				 * Since no pte has actually been setup, it is
++				 * safe to do nothing in this case.
++	 			 */
++				if (vma->vm_file) {
++					unmap_hugepage_range(vma, start, end);
++					zap_work -= (end - start) /
+ 					(1 << huge_page_order(hstate_vma(vma)));
++				}
++
+ 				start = end;
+ 			} else
+ 				start = unmap_page_range(*tlbp, vma,
 
 -- 
 
