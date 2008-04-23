@@ -1,118 +1,72 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3NFMpA2031088
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 11:22:51 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3NFKgt7125622
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 09:20:42 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3NFKeCo008415
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 09:20:42 -0600
-Subject: Re: [patch 04/18] hugetlb: modular state
-From: Jon Tollefson <kniht@linux.vnet.ibm.com>
-In-Reply-To: <20080423015430.054070000@nick.local0.net>
-References: <20080423015302.745723000@nick.local0.net>
-	 <20080423015430.054070000@nick.local0.net>
-Content-Type: text/plain
-Date: Wed, 23 Apr 2008 10:21:38 -0500
-Message-Id: <1208964098.16652.13.camel@skynet>
+Date: Wed, 23 Apr 2008 17:28:09 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: Warning on memory offline (and possible in usual migration?)
+Message-ID: <20080423152809.GA16769@wotan.suse.de>
+References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com> <20080422045205.GH21993@wotan.suse.de> <20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com> <20080422094352.GB23770@wotan.suse.de> <Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com> <20080423004804.GA14134@wotan.suse.de> <20080423114107.b8df779c.kamezawa.hiroyu@jp.fujitsu.com> <20080423025358.GA9751@wotan.suse.de> <20080423124425.5c80d3cf.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080423124425.5c80d3cf.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, nacc@us.ibm.com, abh@cray.com, wli@holomorphy.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Christoph Lameter <clameter@sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-04-23 at 11:53 +1000, npiggin@suse.de wrote:
-
-<snip>
-
-> Index: linux-2.6/arch/powerpc/mm/hugetlbpage.c
-> ===================================================================
-> --- linux-2.6.orig/arch/powerpc/mm/hugetlbpage.c
-> +++ linux-2.6/arch/powerpc/mm/hugetlbpage.c
-> @@ -128,7 +128,7 @@ pte_t *huge_pte_offset(struct mm_struct 
->  	return NULL;
->  }
+On Wed, Apr 23, 2008 at 12:44:25PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Wed, 23 Apr 2008 04:53:58 +0200
+> Nick Piggin <npiggin@suse.de> wrote:
 > 
-> -pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
-> +pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, int sz)
-
-The sz has to be an unsigned long to match the definition in the header.
-The same is true for the other architectures too.
-
-Jon
-Tollefson
-
-
->  {
->  	pgd_t *pg;
->  	pud_t *pu;
-> Index: linux-2.6/arch/sparc64/mm/hugetlbpage.c
-> ===================================================================
-> --- linux-2.6.orig/arch/sparc64/mm/hugetlbpage.c
-> +++ linux-2.6/arch/sparc64/mm/hugetlbpage.c
-> @@ -195,7 +195,7 @@ hugetlb_get_unmapped_area(struct file *f
->  				pgoff, flags);
->  }
+> > > BTW, can I ask a question for understanding this change ?
+> > > 
+> > > ==this check==
+> > >  WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
+> > > 
+> > > in __set_page_dirty_nobuffers() seems to check "the page should have buffer or
+> > > be up-to-date when it calls this function."
+> > > 
+> > > When it comes to __set_page_dirty() (in fs/buffer.c)
+> > > == this check==
+> > >  WARN_ON_ONCE(warn && !PageUptodate(page));
+> > > 
+> > > is used and doesn't see page has buffers or not.
+> > > What's difference between two functions's condition for WARNING ?
+> > 
+> > Yes, __set_page_dirty_nobuffers confusingly can also be called for pages
+> > with buffers. In the case that the page has buffers (or any other private
+> > metadata), then __set_page_dirty_nobuffers does not have enough information
+> > to know whether the page should be uptodate before being marked dirty.
+> > 
+> > In the __set_page_dirty case in fs/buffer.c, we _do_ know that the page
+> > has buffers and that it would be wrong to have a situation where the
+> > page is !uptodate at this point.
+> > 
+> > Is that clear? Or have I explained it poorly?
+> > 
 > 
-> -pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
-> +pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, int sz)
->  {
->  	pgd_t *pgd;
->  	pud_t *pud;
-> Index: linux-2.6/arch/sh/mm/hugetlbpage.c
-> ===================================================================
-> --- linux-2.6.orig/arch/sh/mm/hugetlbpage.c
-> +++ linux-2.6/arch/sh/mm/hugetlbpage.c
-> @@ -22,7 +22,7 @@
->  #include <asm/tlbflush.h>
->  #include <asm/cacheflush.h>
-> 
-> -pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
-> +pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, int sz)
->  {
->  	pgd_t *pgd;
->  	pud_t *pud;
-> Index: linux-2.6/arch/ia64/mm/hugetlbpage.c
-> ===================================================================
-> --- linux-2.6.orig/arch/ia64/mm/hugetlbpage.c
-> +++ linux-2.6/arch/ia64/mm/hugetlbpage.c
-> @@ -24,7 +24,7 @@
->  unsigned int hpage_shift=HPAGE_SHIFT_DEFAULT;
-> 
->  pte_t *
-> -huge_pte_alloc (struct mm_struct *mm, unsigned long addr)
-> +huge_pte_alloc (struct mm_struct *mm, unsigned long addr, int sz)
->  {
->  	unsigned long taddr = htlbpage_to_page(addr);
->  	pgd_t *pgd;
-> Index: linux-2.6/arch/x86/mm/hugetlbpage.c
-> ===================================================================
-> --- linux-2.6.orig/arch/x86/mm/hugetlbpage.c
-> +++ linux-2.6/arch/x86/mm/hugetlbpage.c
-> @@ -124,7 +124,7 @@ int huge_pmd_unshare(struct mm_struct *m
->  	return 1;
->  }
-> 
-> -pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
-> +pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, int sz)
->  {
->  	pgd_t *pgd;
->  	pud_t *pud;
-> Index: linux-2.6/include/linux/hugetlb.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/hugetlb.h
-> +++ linux-2.6/include/linux/hugetlb.h
-> @@ -40,7 +40,7 @@ extern int sysctl_hugetlb_shm_group;
-> 
->  /* arch callbacks */
-> 
-> -pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr);
-> +pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz);
+> Hmm...does that comes from difference of the purpose of the functions ?
 
-<snip>
+Yes, well sometimes __set_page_dirty_nobuffers is actually called into
+for a page which does have buffers or some private data (eg. via
+redirty_page_for_writepage). If it was only called for pages that really
+have no buffers, it could simply be WARN_ON(!PageUptodate(page))
 
+ 
+> Is this correct ?
+> ==
+> set_page_dirty_buffers() (in fs/buffer.c) makes a page and _all_ buffers on it
+> dirty. So, a page *must* be up-to-date when it calls set_page_dirty_buffers().
+> This is used for mapped pages or some callers which requires the whole
+> page containes valid data.
+> 
+> In set_page_dirty_nobuffers()case , it just makes a page to be dirty. We can't
+> see whether a page is really up-to-date or not when PagePrivate(page) &&
+> !PageUptodate(page). This is used for a page which contains some data
+> to be written out. (part of buffers contains data.)
+> 
+> ==
+
+Yes I think you have it correct. 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
