@@ -1,29 +1,37 @@
-Date: Wed, 23 Apr 2008 14:55:00 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH 04 of 12] Moves all mmu notifier methods outside the PT
-	lock (first and not last
-Message-ID: <20080423195500.GW30298@sgi.com>
-References: <ac9bb1fb3de2aa5d2721.1208872280@duo.random> <Pine.LNX.4.64.0804221323510.3640@schroedinger.engr.sgi.com> <20080422224048.GR24536@duo.random> <Pine.LNX.4.64.0804221613570.4868@schroedinger.engr.sgi.com> <20080423134427.GW24536@duo.random> <20080423154536.GV30298@sgi.com> <20080423161544.GZ24536@duo.random>
+Message-ID: <480FA4A9.4090403@qumranet.com>
+Date: Thu, 24 Apr 2008 00:05:45 +0300
+From: Avi Kivity <avi@qumranet.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080423161544.GZ24536@duo.random>
+Subject: Re: [PATCH 04 of 12] Moves all mmu notifier methods outside the PT
+ lock (first and not last
+References: <ac9bb1fb3de2aa5d2721.1208872280@duo.random> <Pine.LNX.4.64.0804221323510.3640@schroedinger.engr.sgi.com> <20080422224048.GR24536@duo.random> <Pine.LNX.4.64.0804221613570.4868@schroedinger.engr.sgi.com> <20080423134427.GW24536@duo.random> <20080423154536.GV30298@sgi.com>
+In-Reply-To: <20080423154536.GV30298@sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>, Jack Steiner <steiner@sgi.com>
-Cc: Robin Holt <holt@sgi.com>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
+To: Robin Holt <holt@sgi.com>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, Jack Steiner <steiner@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 23, 2008 at 06:15:45PM +0200, Andrea Arcangeli wrote:
-> Once I get confirmation that everyone is ok with #v13 I'll push a #v14
-> before Saturday with that cosmetical error cleaned up and
-> mmu_notifier_unregister moved at the end (XPMEM will have unregister
-> don't worry). I expect the 1/13 of #v14 to go in -mm and then 2.6.26.
+Robin Holt wrote:
+>> an hurry like we are, we can't progress without this. Infact we can
+>>     
+>
+> SGI is under an equally strict timeline.  We really needed the sleeping
+> version into 2.6.26.  We may still be able to get this accepted by
+> vendor distros if we make 2.6.27.
+>   
 
-I think GRU needs _unregister as well.
+The difference is that the non-sleeping variant can be shown not to 
+affect stability or performance, even if configed in, as long as its not 
+used.  The sleeping variant will raise performance and stability concerns.
 
-Thanks,
-Robin
+I have zero objections to sleeping mmu notifiers; I only object to tying 
+the schedules of the two together.
+
+-- 
+Do not meddle in the internals of kernels, for they are subtle and quick to panic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
