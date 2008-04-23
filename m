@@ -1,47 +1,41 @@
-Received: by wf-out-1314.google.com with SMTP id 25so2142901wfc.11
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2008 01:27:46 -0700 (PDT)
-Message-ID: <cfd9edbf0804230127k33a56312i6582f926e00ea17@mail.gmail.com>
-Date: Wed, 23 Apr 2008 10:27:46 +0200
-From: "=?ISO-8859-1?Q?Daniel_Sp=E5ng?=" <daniel.spang@gmail.com>
-Subject: Re: [PATCH 0/8][for -mm] mem_notify v6
-In-Reply-To: <ab3f9b940804171223m722912bfy291a2c6d9d40b24a@mail.gmail.com>
+Message-ID: <480F13F5.9090003@firstfloor.org>
+Date: Wed, 23 Apr 2008 12:48:21 +0200
+From: Andi Kleen <andi@firstfloor.org>
 MIME-Version: 1.0
+Subject: Re: [patch 18/18] hugetlb: my fixes 2
+References: <20080423015302.745723000@nick.local0.net> <20080423015431.569358000@nick.local0.net>
+In-Reply-To: <20080423015431.569358000@nick.local0.net>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080402154910.9588.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <ab3f9b940804141716x755787f5h8e0122c394922a83@mail.gmail.com>
-	 <20080417182121.A8CA.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <ab3f9b940804171223m722912bfy291a2c6d9d40b24a@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tom May <tom@tommay.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: npiggin@suse.de
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, nacc@us.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-Hi Tom
+npiggin@suse.de wrote:
 
-On 4/17/08, Tom May <tom@tommay.com> wrote:
->
->  Here is the start and end of the output from the test program.  At
->  each /dev/mem_notify notification Cached decreases, then eventually
->  Mapped decreases as well, which means the amount of time the program
->  has to free memory gets smaller and smaller.  Finally the oom killer
->  is invoked because the program can't react quickly enough to free
->  memory, even though it can free at a faster rate than it can use
->  memory.  My test is slow to free because it calls nanosleep, but this
->  is just a simulation of my actual program that has to perform garbage
->  collection before it can free memory.
+Thanks for these fixes. The subject definitely needs improvement, or
+rather all these fixes should be folded into the original patches.
 
-I have also seen this behaviour in my static tests with low mem
-notification on swapless systems. It is a problem with small programs
-(typically static test programs) where the text segment is only a few
-pages. I have not seen this behaviour in larger programs which use a
-larger working set. As long as the system working set is bigger than
-the amount of memory that needs to be allocated, between every
-notification reaction opportunity, it seems to be ok.
+> Here is my next set of fixes and changes:
+> - Allow configurations without the default HPAGE_SIZE size (mainly useful
+>   for testing but maybe it is the right way to go).
 
-/Daniel
+I don't think it is the correct way. If you want to do it this way you
+would need to special case it in /proc/meminfo to keep things compatible.
+
+Also in general I would think that always keeping the old huge page size
+around is a good idea. There is some chance at least to allocate 2MB
+pages after boot (especially with the new movable zone and with lumpy
+reclaim), so it doesn't need to be configured at boot time strictly. And
+why take that option away from the user?
+
+Also I would hope that distributions keep their existing /hugetlbfs
+(if they have one) at the compat size for 100% compatibility to existing
+applications.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
