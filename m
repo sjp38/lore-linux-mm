@@ -1,35 +1,29 @@
-Message-ID: <480F8FE5.1030106@firstfloor.org>
-Date: Wed, 23 Apr 2008 21:37:09 +0200
-From: Andi Kleen <andi@firstfloor.org>
+Date: Wed, 23 Apr 2008 14:55:00 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH 04 of 12] Moves all mmu notifier methods outside the PT
+	lock (first and not last
+Message-ID: <20080423195500.GW30298@sgi.com>
+References: <ac9bb1fb3de2aa5d2721.1208872280@duo.random> <Pine.LNX.4.64.0804221323510.3640@schroedinger.engr.sgi.com> <20080422224048.GR24536@duo.random> <Pine.LNX.4.64.0804221613570.4868@schroedinger.engr.sgi.com> <20080423134427.GW24536@duo.random> <20080423154536.GV30298@sgi.com> <20080423161544.GZ24536@duo.random>
 MIME-Version: 1.0
-Subject: Re: [patch 18/18] hugetlb: my fixes 2
-References: <20080423015302.745723000@nick.local0.net> <20080423015431.569358000@nick.local0.net> <480F13F5.9090003@firstfloor.org> <20080423184959.GD10548@us.ibm.com>
-In-Reply-To: <20080423184959.GD10548@us.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080423161544.GZ24536@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
+To: Andrea Arcangeli <andrea@qumranet.com>, Jack Steiner <steiner@sgi.com>
+Cc: Robin Holt <holt@sgi.com>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
 List-ID: <linux-mm.kvack.org>
 
-> they blatantly are ignoring information being provided by
-> the kernel *and* are non-portable.
+On Wed, Apr 23, 2008 at 06:15:45PM +0200, Andrea Arcangeli wrote:
+> Once I get confirmation that everyone is ok with #v13 I'll push a #v14
+> before Saturday with that cosmetical error cleaned up and
+> mmu_notifier_unregister moved at the end (XPMEM will have unregister
+> don't worry). I expect the 1/13 of #v14 to go in -mm and then 2.6.26.
 
-And? I'm sure both descriptions apply to significant parts of the
-deployed userland, including software that deals with hugepages. You
-should watch one of the Dave Jones' "why user space sucks" talks at some
-point @)
+I think GRU needs _unregister as well.
 
-> Sure, but that's an administrative choice and might be the default.
-> We're already requiring extra effort to even use 1G pages, right, by
-> specifying hugepagesz=1G, why does it matter if they also have to
-> specify hugepagesz=2M.
-
-Like I said earlier hugepagesz=2M is basically free, so there is no
-reason to not have it even when you happen to have 1GB pages too.
-
--Andi
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
