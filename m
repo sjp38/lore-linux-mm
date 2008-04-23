@@ -1,34 +1,38 @@
-Date: Wed, 23 Apr 2008 10:50:33 -0700 (PDT)
+Date: Wed, 23 Apr 2008 11:02:18 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Warning on memory offline (and possible in usual migration?)
-In-Reply-To: <20080423124425.5c80d3cf.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0804231048120.12373@schroedinger.engr.sgi.com>
-References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
- <20080422045205.GH21993@wotan.suse.de> <20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com>
- <20080422094352.GB23770@wotan.suse.de> <Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com>
- <20080423004804.GA14134@wotan.suse.de> <20080423114107.b8df779c.kamezawa.hiroyu@jp.fujitsu.com>
- <20080423025358.GA9751@wotan.suse.de> <20080423124425.5c80d3cf.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 04 of 12] Moves all mmu notifier methods outside the PT
+ lock (first and not last
+In-Reply-To: <20080423134427.GW24536@duo.random>
+Message-ID: <Pine.LNX.4.64.0804231059300.12373@schroedinger.engr.sgi.com>
+References: <ac9bb1fb3de2aa5d2721.1208872280@duo.random>
+ <Pine.LNX.4.64.0804221323510.3640@schroedinger.engr.sgi.com>
+ <20080422224048.GR24536@duo.random> <Pine.LNX.4.64.0804221613570.4868@schroedinger.engr.sgi.com>
+ <20080423134427.GW24536@duo.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Nick Piggin <npiggin@suse.de>, Jack Steiner <steiner@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 23 Apr 2008, KAMEZAWA Hiroyuki wrote:
+On Wed, 23 Apr 2008, Andrea Arcangeli wrote:
 
-> In set_page_dirty_nobuffers()case , it just makes a page to be dirty. We can't
-> see whether a page is really up-to-date or not when PagePrivate(page) &&
-> !PageUptodate(page). This is used for a page which contains some data
-> to be written out. (part of buffers contains data.)
+> I know you rather want to see KVM development stalled for more months
+> than to get a partial solution now that already covers KVM and GRU
+> with the same API that XPMEM will also use later. It's very unfair on
+> your side to pretend to stall other people development if what you
+> need has stronger requirements and can't be merged immediately. This
+> is especially true given it was publically stated that XPMEM never
+> passed all regression tests anyway, so you can't possibly be in such
+> an hurry like we are, we can't progress without this. Infact we can
+> but it would be an huge effort and it would run _slower_ and it would
+> all need to be deleted once mmu notifiers are in.
 
-So its safe to migrate a !Uptodate page if it contains buffers? Note that 
-the migration code reattaches the buffer to the new page in 
-buffer_migrate_page().
-
-
+We have had this workaround effort done years ago and have been 
+suffering the ill effects of pinning for years. Had to deal with 
+it again and again so I guess we do not matter? Certainly we have no 
+interest in stalling KVM development.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
