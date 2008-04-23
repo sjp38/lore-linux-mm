@@ -1,48 +1,56 @@
-Date: Wed, 23 Apr 2008 17:36:18 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 18/18] hugetlb: my fixes 2
-Message-ID: <20080423153618.GC16769@wotan.suse.de>
-References: <20080423015302.745723000@nick.local0.net> <20080423015431.569358000@nick.local0.net> <480F13F5.9090003@firstfloor.org>
+Date: Wed, 23 Apr 2008 17:43:23 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [RFC] Reserve huge pages for reliable MAP_PRIVATE hugetlbfs mappings
+Message-ID: <20080423154323.GA29087@one.firstfloor.org>
+References: <20080421183621.GA13100@csn.ul.ie> <87hcdsznep.fsf@basil.nowhere.org> <20080423151428.GA15834@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <480F13F5.9090003@firstfloor.org>
+In-Reply-To: <20080423151428.GA15834@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, nacc@us.ibm.com, abh@cray.com, wli@holomorphy.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andi Kleen <andi@firstfloor.org>, wli@holomorphy.com, agl@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 23, 2008 at 12:48:21PM +0200, Andi Kleen wrote:
-> npiggin@suse.de wrote:
-> 
-> Thanks for these fixes. The subject definitely needs improvement, or
-> rather all these fixes should be folded into the original patches.
+> If the large pages exist to satisfy the mapping, the application will not
+> even notice this change. They will only break if the are creating larger
+> mappings than large pages exist for (or can be allocated for in the event
+> they have enabled dynamic resizing with nr_overcommit_hugepages). If they
+> are doing that, they are running a big risk as they may get arbitrarily
+> killed later. 
 
-Yes that's what I intend. I just have the broken out patch at the end
-so it is easy to review. Afterwards I will fold it into your patches.
+The point is it is pretty common (especially when you have enough 
+address space) just create a huge mapping and only use the begining.
+This avoids costly resize operations later and is a quite useful
+strategy on 64bit (but even on 32bit).  Now the upper size will
+likely be incredibly huge (far beyond available physical memory), but it's 
+obviously impossible really uses all of it.
 
- 
-> > Here is my next set of fixes and changes:
-> > - Allow configurations without the default HPAGE_SIZE size (mainly useful
-> >   for testing but maybe it is the right way to go).
-> 
-> I don't think it is the correct way. If you want to do it this way you
-> would need to special case it in /proc/meminfo to keep things compatible.
-> 
-> Also in general I would think that always keeping the old huge page size
-> around is a good idea. There is some chance at least to allocate 2MB
-> pages after boot (especially with the new movable zone and with lumpy
-> reclaim), so it doesn't need to be configured at boot time strictly. And
-> why take that option away from the user?
-> 
-> Also I would hope that distributions keep their existing /hugetlbfs
-> (if they have one) at the compat size for 100% compatibility to existing
-> applications.
+It's also common in languages who don't support dynamic allocation well (like 
+older fortran dialects). Given these won't use hugetlbfs directly either, 
+but I couldn't rule out that someone wrote a special fortran run time library 
+which transparently allocates large arrays from hugetlbfs. 
 
-You are probably right on all counts here. I did intend to stress
-that it was mainly for my ease of testing and I don't know so
-much about the userspace aspect of it.
+In fact i would be surprised if a number of such beasts don't exist -- it is 
+really an obvious simple tuning option for old HPC fortran applications.
+
+> Sometimes their app will run, other times it dies. If more
+> than one application is running on the system that is behaving like this,
+> they are really playing with fire.
+
+With your change such an application will not run at all. Doesn't
+seem like an improvement to me.
+
+> With this change, a mmap() failure is a clear indication that the mapping
+> would have been unsafe to use and they should try mmap()ing with small pages
+> instead. 
+
+I don't have a problem with having an optional strict overcommit checking 
+mode (similar to what standard VM has), but it should be configurable
+and off by default.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
