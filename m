@@ -1,222 +1,215 @@
-Message-Id: <20080423015431.239900000@nick.local0.net>
+Message-Id: <20080423015431.569358000@nick.local0.net>
 References: <20080423015302.745723000@nick.local0.net>
-Date: Wed, 23 Apr 2008 11:53:17 +1000
+Date: Wed, 23 Apr 2008 11:53:20 +1000
 From: npiggin@suse.de
-Subject: [patch 15/18] hugetlb: introduce huge_pud
-Content-Disposition: inline; filename=hugetlbfs-huge_pud.patch
+Subject: [patch 18/18] hugetlb: my fixes 2
+Content-Disposition: inline; filename=hugetlb-fixes2.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, nacc@us.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-Straight forward extensions for huge pages located in the PUD
-instead of PMDs.
+Here is my next set of fixes and changes:
+- Allow configurations without the default HPAGE_SIZE size (mainly useful
+  for testing but maybe it is the right way to go).
+- Fixed another case where mappings would be set up on incorrect boundaries
+  because prepare_hugepage_range was not hpage-ified.
+- Changed the sysctl table behaviour so it only displays as many values in
+  the vector as there are hstates configured.
+- Fixed oops in overcommit sysctl handler
 
-Signed-off-by: Andi Kleen <ak@suse.de>
+This fixes several oopses seen on the libhugetlbfs test suite. Now it seems to
+pass most of them and fails reasonably on others (eg. most 32-bit tests fail
+due to being unable to map enough virtual memory, others due to not enough
+hugepages given that I only have 2).
+
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
- arch/ia64/mm/hugetlbpage.c    |    6 ++++++
- arch/powerpc/mm/hugetlbpage.c |    5 +++++
- arch/sh/mm/hugetlbpage.c      |    5 +++++
- arch/sparc64/mm/hugetlbpage.c |    5 +++++
- arch/x86/mm/hugetlbpage.c     |   25 ++++++++++++++++++++++++-
- include/linux/hugetlb.h       |    5 +++++
- mm/hugetlb.c                  |    9 +++++++++
- mm/memory.c                   |   10 +++++++++-
- 8 files changed, 68 insertions(+), 2 deletions(-)
+---
+ arch/x86/mm/hugetlbpage.c |    4 ++--
+ fs/hugetlbfs/inode.c      |    4 +++-
+ include/linux/hugetlb.h   |   19 ++-----------------
+ kernel/sysctl.c           |    2 ++
+ mm/hugetlb.c              |   35 ++++++++++++++++++++++++++++++-----
+ 5 files changed, 39 insertions(+), 25 deletions(-)
 
-Index: linux-2.6/include/linux/hugetlb.h
-===================================================================
---- linux-2.6.orig/include/linux/hugetlb.h
-+++ linux-2.6/include/linux/hugetlb.h
-@@ -45,7 +45,10 @@ struct page *follow_huge_addr(struct mm_
- 			      int write);
- struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 				pmd_t *pmd, int write);
-+struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,
-+				pud_t *pud, int write);
- int pmd_huge(pmd_t pmd);
-+int pud_huge(pud_t pmd);
- void hugetlb_change_protection(struct vm_area_struct *vma,
- 		unsigned long address, unsigned long end, pgprot_t newprot);
- 
-@@ -112,8 +115,10 @@ static inline unsigned long hugetlb_tota
- #define hugetlb_report_meminfo(buf)		0
- #define hugetlb_report_node_meminfo(n, buf)	0
- #define follow_huge_pmd(mm, addr, pmd, write)	NULL
-+#define follow_huge_pud(mm, addr, pud, write)	NULL
- #define prepare_hugepage_range(addr,len)	(-EINVAL)
- #define pmd_huge(x)	0
-+#define pud_huge(x)	0
- #define is_hugepage_only_range(mm, addr, len)	0
- #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
- #define hugetlb_fault(mm, vma, addr, write)	({ BUG(); 0; })
-Index: linux-2.6/arch/ia64/mm/hugetlbpage.c
-===================================================================
---- linux-2.6.orig/arch/ia64/mm/hugetlbpage.c
-+++ linux-2.6/arch/ia64/mm/hugetlbpage.c
-@@ -106,6 +106,12 @@ int pmd_huge(pmd_t pmd)
- {
- 	return 0;
- }
-+
-+int pud_huge(pud_t pud)
-+{
-+	return 0;
-+}
-+
- struct page *
- follow_huge_pmd(struct mm_struct *mm, unsigned long address, pmd_t *pmd, int write)
- {
-Index: linux-2.6/arch/powerpc/mm/hugetlbpage.c
-===================================================================
---- linux-2.6.orig/arch/powerpc/mm/hugetlbpage.c
-+++ linux-2.6/arch/powerpc/mm/hugetlbpage.c
-@@ -368,6 +368,11 @@ int pmd_huge(pmd_t pmd)
- 	return 0;
- }
- 
-+int pud_huge(pud_t pud)
-+{
-+	return 0;
-+}
-+
- struct page *
- follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 		pmd_t *pmd, int write)
-Index: linux-2.6/arch/sh/mm/hugetlbpage.c
-===================================================================
---- linux-2.6.orig/arch/sh/mm/hugetlbpage.c
-+++ linux-2.6/arch/sh/mm/hugetlbpage.c
-@@ -78,6 +78,11 @@ int pmd_huge(pmd_t pmd)
- 	return 0;
- }
- 
-+int pud_huge(pud_t pud)
-+{
-+	return 0;
-+}
-+
- struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 			     pmd_t *pmd, int write)
- {
-Index: linux-2.6/arch/sparc64/mm/hugetlbpage.c
-===================================================================
---- linux-2.6.orig/arch/sparc64/mm/hugetlbpage.c
-+++ linux-2.6/arch/sparc64/mm/hugetlbpage.c
-@@ -294,6 +294,11 @@ int pmd_huge(pmd_t pmd)
- 	return 0;
- }
- 
-+int pud_huge(pud_t pud)
-+{
-+	return 0;
-+}
-+
- struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 			     pmd_t *pmd, int write)
- {
 Index: linux-2.6/arch/x86/mm/hugetlbpage.c
 ===================================================================
 --- linux-2.6.orig/arch/x86/mm/hugetlbpage.c
 +++ linux-2.6/arch/x86/mm/hugetlbpage.c
-@@ -188,6 +188,11 @@ int pmd_huge(pmd_t pmd)
- 	return 0;
+@@ -124,7 +124,7 @@ int huge_pmd_unshare(struct mm_struct *m
+ 	return 1;
  }
  
-+int pud_huge(pud_t pud)
-+{
-+	return 0;
-+}
-+
- struct page *
- follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 		pmd_t *pmd, int write)
-@@ -208,6 +213,11 @@ int pmd_huge(pmd_t pmd)
- 	return !!(pmd_val(pmd) & _PAGE_PSE);
- }
+-pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, int sz)
++pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz)
+ {
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+@@ -402,7 +402,7 @@ hugetlb_get_unmapped_area(struct file *f
+ 		return -ENOMEM;
  
-+int pud_huge(pud_t pud)
-+{
-+	return 0;
-+}
-+
- struct page *
- follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 		pmd_t *pmd, int write)
-@@ -216,9 +226,22 @@ follow_huge_pmd(struct mm_struct *mm, un
- 
- 	page = pte_page(*(pte_t *)pmd);
- 	if (page)
--		page += ((address & ~HPAGE_MASK) >> PAGE_SHIFT);
-+		page += ((address & ~PMD_MASK) >> PAGE_SHIFT);
- 	return page;
- }
-+
-+struct page *
-+follow_huge_pud(struct mm_struct *mm, unsigned long address,
-+		pud_t *pud, int write)
-+{
-+	struct page *page;
-+
-+	page = pte_page(*(pte_t *)pud);
-+	if (page)
-+		page += ((address & ~PUD_MASK) >> PAGE_SHIFT);
-+	return page;
-+}
-+
- #endif
- 
- /* x86_64 also uses this file */
+ 	if (flags & MAP_FIXED) {
+-		if (prepare_hugepage_range(addr, len))
++		if (prepare_hugepage_range(file, addr, len))
+ 			return -EINVAL;
+ 		return addr;
+ 	}
 Index: linux-2.6/mm/hugetlb.c
 ===================================================================
 --- linux-2.6.orig/mm/hugetlb.c
 +++ linux-2.6/mm/hugetlb.c
-@@ -1236,6 +1236,15 @@ int hugetlb_fault(struct mm_struct *mm, 
- 	return ret;
+@@ -640,7 +640,7 @@ static int __init hugetlb_init(void)
+ {
+ 	BUILD_BUG_ON(HPAGE_SHIFT == 0);
+ 
+-	if (!size_to_hstate(HPAGE_SIZE)) {
++	if (!max_hstate) {
+ 		huge_add_hstate(HUGETLB_PAGE_ORDER);
+ 		parsed_hstate->max_huge_pages = default_hstate_resv;
+ 	}
+@@ -821,9 +821,10 @@ int hugetlb_sysctl_handler(struct ctl_ta
+ 			   struct file *file, void __user *buffer,
+ 			   size_t *length, loff_t *ppos)
+ {
+-	int err = 0;
++	int err;
+ 	struct hstate *h;
+ 
++	table->maxlen = max_hstate * sizeof(unsigned long);
+ 	err = proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
+ 	if (err)
+ 		return err;
+@@ -846,6 +847,7 @@ int hugetlb_treat_movable_handler(struct
+ 			struct file *file, void __user *buffer,
+ 			size_t *length, loff_t *ppos)
+ {
++	table->maxlen = max_hstate * sizeof(int);
+ 	proc_dointvec(table, write, file, buffer, length, ppos);
+ 	if (hugepages_treat_as_movable)
+ 		htlb_alloc_mask = GFP_HIGHUSER_MOVABLE;
+@@ -858,15 +860,22 @@ int hugetlb_overcommit_handler(struct ct
+ 			struct file *file, void __user *buffer,
+ 			size_t *length, loff_t *ppos)
+ {
++	int err;
+ 	struct hstate *h;
+-	int i = 0;
+-	proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
++
++	table->maxlen = max_hstate * sizeof(unsigned long);
++	err = proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
++	if (err)
++		return err;
++
+ 	spin_lock(&hugetlb_lock);
+ 	for_each_hstate (h) {
+-		h->nr_overcommit_huge_pages = sysctl_overcommit_huge_pages[i];
++		h->nr_overcommit_huge_pages =
++				sysctl_overcommit_huge_pages[h - hstates];
+ 		i++;
+ 	}
+ 	spin_unlock(&hugetlb_lock);
++
+ 	return 0;
  }
  
-+/* Can be overriden by architectures */
-+__attribute__((weak)) struct page *
-+follow_huge_pud(struct mm_struct *mm, unsigned long address,
-+	       pud_t *pud, int write)
-+{
-+	BUG();
-+	return NULL;
-+}
-+
- int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			struct page **pages, struct vm_area_struct **vmas,
- 			unsigned long *position, int *length, int i,
-Index: linux-2.6/mm/memory.c
-===================================================================
---- linux-2.6.orig/mm/memory.c
-+++ linux-2.6/mm/memory.c
-@@ -945,7 +945,13 @@ struct page *follow_page(struct vm_area_
- 	pud = pud_offset(pgd, address);
- 	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
- 		goto no_page_table;
--	
-+
-+	if (pud_huge(*pud)) {
-+		BUG_ON(flags & FOLL_GET);
-+		page = follow_huge_pud(mm, address, pud, flags & FOLL_WRITE);
-+		goto out;
-+	}
-+
- 	pmd = pmd_offset(pud, address);
- 	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
- 		goto no_page_table;
-@@ -1436,6 +1442,8 @@ static int apply_to_pmd_range(struct mm_
- 	unsigned long next;
- 	int err;
+@@ -1015,6 +1024,22 @@ nomem:
+ 	return -ENOMEM;
+ }
  
-+	BUG_ON(pud_huge(*pud));
++#ifndef ARCH_HAS_PREPARE_HUGEPAGE_RANGE
++/*
++ * If the arch doesn't supply something else, assume that hugepage
++ * size aligned regions are ok without further preparation.
++ */
++int prepare_hugepage_range(struct file *file, unsigned long addr, unsigned long len)
++{
++	struct hstate *h = hstate_file(file);
++	if (len & ~huge_page_mask(h))
++		return -EINVAL;
++	if (addr & ~huge_page_mask(h))
++		return -EINVAL;
++	return 0;
++}
++#endif
 +
- 	pmd = pmd_alloc(mm, pud, addr);
- 	if (!pmd)
+ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
+ 			    unsigned long end)
+ {
+Index: linux-2.6/fs/hugetlbfs/inode.c
+===================================================================
+--- linux-2.6.orig/fs/hugetlbfs/inode.c
++++ linux-2.6/fs/hugetlbfs/inode.c
+@@ -141,7 +141,7 @@ hugetlb_get_unmapped_area(struct file *f
  		return -ENOMEM;
+ 
+ 	if (flags & MAP_FIXED) {
+-		if (prepare_hugepage_range(addr, len))
++		if (prepare_hugepage_range(file, addr, len))
+ 			return -EINVAL;
+ 		return addr;
+ 	}
+@@ -858,6 +858,8 @@ hugetlbfs_fill_super(struct super_block 
+ 	config.gid = current->fsgid;
+ 	config.mode = 0755;
+ 	config.hstate = size_to_hstate(HPAGE_SIZE);
++	if (!config.hstate)
++		config.hstate = &hstates[0];
+ 	ret = hugetlbfs_parse_options(data, &config);
+ 	if (ret)
+ 		return ret;
+Index: linux-2.6/include/linux/hugetlb.h
+===================================================================
+--- linux-2.6.orig/include/linux/hugetlb.h
++++ linux-2.6/include/linux/hugetlb.h
+@@ -64,22 +64,7 @@ void hugetlb_free_pgd_range(struct mmu_g
+ 			    unsigned long ceiling);
+ #endif
+ 
+-#ifndef ARCH_HAS_PREPARE_HUGEPAGE_RANGE
+-/*
+- * If the arch doesn't supply something else, assume that hugepage
+- * size aligned regions are ok without further preparation.
+- */
+-static inline int prepare_hugepage_range(unsigned long addr, unsigned long len)
+-{
+-	if (len & ~HPAGE_MASK)
+-		return -EINVAL;
+-	if (addr & ~HPAGE_MASK)
+-		return -EINVAL;
+-	return 0;
+-}
+-#else
+-int prepare_hugepage_range(unsigned long addr, unsigned long len);
+-#endif
++int prepare_hugepage_range(struct file *file, unsigned long addr, unsigned long len);
+ 
+ #ifndef ARCH_HAS_SETCLEAR_HUGE_PTE
+ #define set_huge_pte_at(mm, addr, ptep, pte)	set_pte_at(mm, addr, ptep, pte)
+@@ -116,7 +101,7 @@ static inline unsigned long hugetlb_tota
+ #define hugetlb_report_node_meminfo(n, buf)	0
+ #define follow_huge_pmd(mm, addr, pmd, write)	NULL
+ #define follow_huge_pud(mm, addr, pud, write)	NULL
+-#define prepare_hugepage_range(addr,len)	(-EINVAL)
++#define prepare_hugepage_range(file,addr,len)	(-EINVAL)
+ #define pmd_huge(x)	0
+ #define pud_huge(x)	0
+ #define is_hugepage_only_range(mm, addr, len)	0
+Index: linux-2.6/kernel/sysctl.c
+===================================================================
+--- linux-2.6.orig/kernel/sysctl.c
++++ linux-2.6/kernel/sysctl.c
+@@ -953,6 +953,8 @@ static struct ctl_table vm_table[] = {
+ 		.maxlen		= sizeof(sysctl_overcommit_huge_pages),
+ 		.mode		= 0644,
+ 		.proc_handler	= &hugetlb_overcommit_handler,
++		.extra1		= (void *)&hugetlb_zero,
++		.extra2		= (void *)&hugetlb_infinity,
+ 	},
+ #endif
+ 	{
 
 -- 
 
