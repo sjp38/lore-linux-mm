@@ -1,88 +1,44 @@
-Message-ID: <480F60AC.4030803@cray.com>
-Date: Wed, 23 Apr 2008 11:15:40 -0500
-From: Andrew Hastings <abh@cray.com>
-MIME-Version: 1.0
-Subject: Re: [patch 13/18] hugetlb: support boot allocate different sizes
-References: <20080423015302.745723000@nick.local0.net> <20080423015431.027712000@nick.local0.net>
-In-Reply-To: <20080423015431.027712000@nick.local0.net>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Wed, 23 Apr 2008 18:25:50 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [patch 12/18] hugetlbfs: support larger than MAX_ORDER
+Message-ID: <20080423162550.GD29087@one.firstfloor.org>
+References: <20080423015302.745723000@nick.local0.net> <20080423015430.965631000@nick.local0.net> <480F608B.90100@cray.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <480F608B.90100@cray.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, nacc@us.ibm.com, wli@holomorphy.com
+To: Andrew Hastings <abh@cray.com>
+Cc: npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, nacc@us.ibm.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-npiggin@suse.de wrote:
-> Signed-off-by: Andi Kleen <ak@suse.de>
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
-> ---
->  mm/hugetlb.c |   24 +++++++++++++++++++-----
->  1 file changed, 19 insertions(+), 5 deletions(-)
+On Wed, Apr 23, 2008 at 11:15:07AM -0500, Andrew Hastings wrote:
+> npiggin@suse.de wrote:
+> >This is needed on x86-64 to handle GB pages in hugetlbfs, because it is
+> >not practical to enlarge MAX_ORDER to 1GB. 
 > 
-> Index: linux-2.6/mm/hugetlb.c
-> ===================================================================
-> --- linux-2.6.orig/mm/hugetlb.c
-> +++ linux-2.6/mm/hugetlb.c
-> @@ -582,10 +582,13 @@ static void __init hugetlb_init_hstate(s
->  {
->  	unsigned long i;
->  
-> -	for (i = 0; i < MAX_NUMNODES; ++i)
-> -		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
-> +	/* Don't reinitialize lists if they have been already init'ed */
-> +	if (!h->hugepage_freelists[0].next) {
-> +		for (i = 0; i < MAX_NUMNODES; ++i)
-> +			INIT_LIST_HEAD(&h->hugepage_freelists[i]);
->  
-> -	h->hugetlb_next_nid = first_node(node_online_map);
-> +		h->hugetlb_next_nid = first_node(node_online_map);
-> +	}
->  
->  	for (i = 0; i < h->max_huge_pages; ++i) {
->  		if (h->order >= MAX_ORDER) {
-> @@ -594,7 +597,7 @@ static void __init hugetlb_init_hstate(s
->  		} else if (!alloc_fresh_huge_page(h))
->  			break;
->  	}
-> -	h->max_huge_pages = h->free_huge_pages = h->nr_huge_pages = i;
-> +	h->max_huge_pages = i;
->  }
->  
->  static void __init hugetlb_init_hstates(void)
-> @@ -602,7 +605,10 @@ static void __init hugetlb_init_hstates(
->  	struct hstate *h;
->  
->  	for_each_hstate(h) {
-> -		hugetlb_init_hstate(h);
-> +		/* oversize hugepages were init'ed in early boot */
-> +		if (h->order < MAX_ORDER)
-> +			hugetlb_init_hstate(h);
-> +		max_huge_pages[h - hstates] = h->max_huge_pages;
->  	}
->  }
->  
-> @@ -665,6 +671,14 @@ static int __init hugetlb_setup(char *s)
->  	if (sscanf(s, "%lu", mhp) <= 0)
->  		*mhp = 0;
->  
-> +	/*
-> +	 * Global state is always initialized later in hugetlb_init.
-> +	 * But we need to allocate >= MAX_ORDER hstates here early to still
-> +	 * use the bootmem allocator.
-> +	 */
-> +	if (max_hstate > 0 && parsed_hstate->order >= MAX_ORDER)
-> +		hugetlb_init_hstate(parsed_hstate);
-> +
->  	return 1;
->  }
->  __setup("hugepages=", hugetlb_setup);
-> 
+> Sorry to ask what is probably a dumb question, but why is it not 
+> practical to increase MAX_ORDER to 1GB for a 64-bit platform like 
+> x86-64?  
 
-Acked-by: Andrew Hastings <abh@cray.com>
+That would mean all zones would need to be 1GB aligned.
+That would make it impossible to have a 16MB zone dma and
+the following normal zone. That one is actually going 
+away with the mask allocator patchkit, but also the
+movable zone is not necessarily aligned to 1GB.
 
--Andrew Hastings
-  Cray Inc.
+The other issue is that it would increase the cache foot print
+of the page allocator significantly and that is very sensitive
+in important benchmarks.
+
+> Doing so would make 1GB pages much more practical to use.
+
+It's very doubtful that even with an increased MAX_ORDER you would
+be actually able to allocate GB pages efficiently after boot.
+Even with all tricks like movable zone etc.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
