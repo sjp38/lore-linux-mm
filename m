@@ -1,47 +1,34 @@
-Date: Wed, 23 Apr 2008 15:33:03 +0200
+Date: Wed, 23 Apr 2008 15:36:19 +0200
 From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [PATCH 00 of 12] mmu notifier #v13
-Message-ID: <20080423133303.GU24536@duo.random>
-References: <patchbomb.1208872276@duo.random> <20080422182213.GS22493@sgi.com> <20080422184335.GN24536@duo.random> <20080422194223.GT22493@sgi.com> <Pine.LNX.4.64.0804221328400.3640@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 01 of 12] Core of mmu notifiers
+Message-ID: <20080423133619.GV24536@duo.random>
+References: <ea87c15371b1bd49380c.1208872277@duo.random> <Pine.LNX.4.64.0804221315160.3640@schroedinger.engr.sgi.com> <20080422223545.GP24536@duo.random> <20080422230727.GR30298@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0804221328400.3640@schroedinger.engr.sgi.com>
+In-Reply-To: <20080422230727.GR30298@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, Jack Steiner <steiner@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
+To: Robin Holt <holt@sgi.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, Jack Steiner <steiner@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 22, 2008 at 01:30:53PM -0700, Christoph Lameter wrote:
-> One solution would be to separate the invalidate_page() callout into a
-> patch at the very end that can be omitted. AFACIT There is no compelling 
-> reason to have this callback and it complicates the API for the device 
-> driver writers. Not having this callback makes the way that mmu notifiers 
-> are called from the VM uniform which is a desirable goal.
+On Tue, Apr 22, 2008 at 06:07:27PM -0500, Robin Holt wrote:
+> > The only other change I did has been to move mmu_notifier_unregister
+> > at the end of the patchset after getting more questions about its
+> > reliability and I documented a bit the rmmod requirements for
+> > ->release. we'll think later if it makes sense to add it, nobody's
+> > using it anyway.
+> 
+> XPMEM is using it.  GRU will be as well (probably already does).
 
-I agree that the invalidate_page optimization can be moved to a
-separate patch. That will be a patch that will definitely alter the
-API in a not backwards compatible way (unlike 2-12 in my #v13, which
-are all backwards compatible in terms of mmu notifier API).
-
-invalidate_page is beneficial to both mmu notifier users, and a bit
-beneficial to the do_wp_page users too. So there's no point to remove
-it from my mmu-notifier-core as long as the mmu-notifier-core is 1/N
-in my patchset, and N/N in your patchset, the differences caused by
-that ordering difference are a bigger change than invalidate_page
-existing or not.
-
-As I expected invalidate_page provided significant benefits (not just
-to GRU but to KVM too) without altering the locking scheme at all,
-this is because the page fault handler has to notice if begin->end
-both runs anyway after follow_page/get_user_pages. So it's a no
-brainer to keep and my approach will avoid a not backwards compatible
-breakage of the API IMHO. Not a big deal, nobody can care if the API
-will change, it will definitely change eventually, it's a kernel
-internal one, but given I've already invalidate_page in my patch
-there's no reason to remove it as long as mmu-notifier-core remains
-N/N on your patchset.
+XPMEM requires more patches anyway. Note that in previous email you
+told me you weren't using it. I think GRU can work fine on 2.6.26
+without mmu_notifier_unregister, like KVM too. You've simply to unpin
+the module count in ->release. The most important bit is that you've
+to do that anyway in case mmu_notifier_unregister fails (and it can
+fail because of vmalloc space shortage because somebody loaded some
+framebuffer driver or whatever).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
