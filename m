@@ -1,63 +1,52 @@
-Message-Id: <20080423015430.710102000@nick.local0.net>
+Message-Id: <20080423015430.814185000@nick.local0.net>
 References: <20080423015302.745723000@nick.local0.net>
-Date: Wed, 23 Apr 2008 11:53:12 +1000
+Date: Wed, 23 Apr 2008 11:53:13 +1000
 From: npiggin@suse.de
-Subject: [patch 10/18] mm: introduce non panic alloc_bootmem
-Content-Disposition: inline; filename=__alloc_bootmem_node_nopanic.patch
+Subject: [patch 11/18] mm: export prep_compound_page to mm
+Content-Disposition: inline; filename=mm-export-prep_compound_page.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, nacc@us.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-Straight forward variant of the existing __alloc_bootmem_node, only 
-difference is that it doesn't panic on failure.
+hugetlb will need to get compound pages from bootmem to handle
+the case of them being larger than MAX_ORDER. Export
+the constructor function needed for this.
 
 Signed-off-by: Andi Kleen <ak@suse.de>
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
- include/linux/bootmem.h |    4 ++++
- mm/bootmem.c            |   12 ++++++++++++
- 2 files changed, 16 insertions(+)
+ mm/internal.h   |    2 ++
+ mm/page_alloc.c |    2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
 
-Index: linux-2.6/mm/bootmem.c
+Index: linux-2.6/mm/internal.h
 ===================================================================
---- linux-2.6.orig/mm/bootmem.c
-+++ linux-2.6/mm/bootmem.c
-@@ -492,6 +492,18 @@ void * __init __alloc_bootmem_node(pg_da
- 	return __alloc_bootmem(size, align, goal);
+--- linux-2.6.orig/mm/internal.h
++++ linux-2.6/mm/internal.h
+@@ -13,6 +13,8 @@
+ 
+ #include <linux/mm.h>
+ 
++extern void prep_compound_page(struct page *page, unsigned long order);
++
+ static inline void set_page_count(struct page *page, int v)
+ {
+ 	atomic_set(&page->_count, v);
+Index: linux-2.6/mm/page_alloc.c
+===================================================================
+--- linux-2.6.orig/mm/page_alloc.c
++++ linux-2.6/mm/page_alloc.c
+@@ -272,7 +272,7 @@ static void free_compound_page(struct pa
+ 	__free_pages_ok(page, compound_order(page));
  }
  
-+void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned long size,
-+				   unsigned long align, unsigned long goal)
-+{
-+	void *ptr;
-+
-+	ptr = __alloc_bootmem_core(pgdat->bdata, size, align, goal, 0);
-+	if (ptr)
-+		return ptr;
-+
-+	return __alloc_bootmem_nopanic(size, align, goal);
-+}
-+
- #ifndef ARCH_LOW_ADDRESS_LIMIT
- #define ARCH_LOW_ADDRESS_LIMIT	0xffffffffUL
- #endif
-Index: linux-2.6/include/linux/bootmem.h
-===================================================================
---- linux-2.6.orig/include/linux/bootmem.h
-+++ linux-2.6/include/linux/bootmem.h
-@@ -90,6 +90,10 @@ extern void *__alloc_bootmem_node(pg_dat
- 				  unsigned long size,
- 				  unsigned long align,
- 				  unsigned long goal);
-+extern void *__alloc_bootmem_node_nopanic(pg_data_t *pgdat,
-+				  unsigned long size,
-+				  unsigned long align,
-+				  unsigned long goal);
- extern unsigned long init_bootmem_node(pg_data_t *pgdat,
- 				       unsigned long freepfn,
- 				       unsigned long startpfn,
+-static void prep_compound_page(struct page *page, unsigned long order)
++void prep_compound_page(struct page *page, unsigned long order)
+ {
+ 	int i;
+ 	int nr_pages = 1 << order;
 
 -- 
 
