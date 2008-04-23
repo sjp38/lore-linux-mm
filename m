@@ -1,58 +1,88 @@
-Date: Wed, 23 Apr 2008 18:15:45 +0200
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [PATCH 04 of 12] Moves all mmu notifier methods outside the PT
-	lock (first and not last
-Message-ID: <20080423161544.GZ24536@duo.random>
-References: <ac9bb1fb3de2aa5d2721.1208872280@duo.random> <Pine.LNX.4.64.0804221323510.3640@schroedinger.engr.sgi.com> <20080422224048.GR24536@duo.random> <Pine.LNX.4.64.0804221613570.4868@schroedinger.engr.sgi.com> <20080423134427.GW24536@duo.random> <20080423154536.GV30298@sgi.com>
+Message-ID: <480F60AC.4030803@cray.com>
+Date: Wed, 23 Apr 2008 11:15:40 -0500
+From: Andrew Hastings <abh@cray.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080423154536.GV30298@sgi.com>
+Subject: Re: [patch 13/18] hugetlb: support boot allocate different sizes
+References: <20080423015302.745723000@nick.local0.net> <20080423015431.027712000@nick.local0.net>
+In-Reply-To: <20080423015431.027712000@nick.local0.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, Jack Steiner <steiner@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
+To: npiggin@suse.de
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, nacc@us.ibm.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 23, 2008 at 10:45:36AM -0500, Robin Holt wrote:
-> XPMEM has passed all regression tests using your version 12 notifiers.
+npiggin@suse.de wrote:
+> Signed-off-by: Andi Kleen <ak@suse.de>
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
+> ---
+>  mm/hugetlb.c |   24 +++++++++++++++++++-----
+>  1 file changed, 19 insertions(+), 5 deletions(-)
+> 
+> Index: linux-2.6/mm/hugetlb.c
+> ===================================================================
+> --- linux-2.6.orig/mm/hugetlb.c
+> +++ linux-2.6/mm/hugetlb.c
+> @@ -582,10 +582,13 @@ static void __init hugetlb_init_hstate(s
+>  {
+>  	unsigned long i;
+>  
+> -	for (i = 0; i < MAX_NUMNODES; ++i)
+> -		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
+> +	/* Don't reinitialize lists if they have been already init'ed */
+> +	if (!h->hugepage_freelists[0].next) {
+> +		for (i = 0; i < MAX_NUMNODES; ++i)
+> +			INIT_LIST_HEAD(&h->hugepage_freelists[i]);
+>  
+> -	h->hugetlb_next_nid = first_node(node_online_map);
+> +		h->hugetlb_next_nid = first_node(node_online_map);
+> +	}
+>  
+>  	for (i = 0; i < h->max_huge_pages; ++i) {
+>  		if (h->order >= MAX_ORDER) {
+> @@ -594,7 +597,7 @@ static void __init hugetlb_init_hstate(s
+>  		} else if (!alloc_fresh_huge_page(h))
+>  			break;
+>  	}
+> -	h->max_huge_pages = h->free_huge_pages = h->nr_huge_pages = i;
+> +	h->max_huge_pages = i;
+>  }
+>  
+>  static void __init hugetlb_init_hstates(void)
+> @@ -602,7 +605,10 @@ static void __init hugetlb_init_hstates(
+>  	struct hstate *h;
+>  
+>  	for_each_hstate(h) {
+> -		hugetlb_init_hstate(h);
+> +		/* oversize hugepages were init'ed in early boot */
+> +		if (h->order < MAX_ORDER)
+> +			hugetlb_init_hstate(h);
+> +		max_huge_pages[h - hstates] = h->max_huge_pages;
+>  	}
+>  }
+>  
+> @@ -665,6 +671,14 @@ static int __init hugetlb_setup(char *s)
+>  	if (sscanf(s, "%lu", mhp) <= 0)
+>  		*mhp = 0;
+>  
+> +	/*
+> +	 * Global state is always initialized later in hugetlb_init.
+> +	 * But we need to allocate >= MAX_ORDER hstates here early to still
+> +	 * use the bootmem allocator.
+> +	 */
+> +	if (max_hstate > 0 && parsed_hstate->order >= MAX_ORDER)
+> +		hugetlb_init_hstate(parsed_hstate);
+> +
+>  	return 1;
+>  }
+>  __setup("hugepages=", hugetlb_setup);
+> 
 
-That's great news, thanks! I'd greatly appreciate if you could test
-#v13 too as I posted it. It already passed GRU and KVM regressions
-tests and it should work fine for XPMEM too. You can ignore the purely
-cosmetical error I managed to introduce in mm_lock_cmp (I implemented
-a BUG_ON that would have trigger if that wasn't a purely cosmetical
-issue, and it clearly doesn't trigger so you can be sure it's
-only cosmetical ;).
+Acked-by: Andrew Hastings <abh@cray.com>
 
-Once I get confirmation that everyone is ok with #v13 I'll push a #v14
-before Saturday with that cosmetical error cleaned up and
-mmu_notifier_unregister moved at the end (XPMEM will have unregister
-don't worry). I expect the 1/13 of #v14 to go in -mm and then 2.6.26.
-
-> I have a bug in xpmem which shows up on our 8x oversubscription tests,
-> but that is clearly my bug to figure out.  Unfortunately it only shows
-
-This is what I meant.
-
-As opposed we don't have any known bug left in this area, infact we
-need mmu_notifiers to _fix_ issues I identified that can't be fixed
-efficiently without mmu notifiers, and we need the mmu notifier to go
-productive ASAP.
-
-> up on a 128 processor machine so I have 1024 stack traces to sort
-> through each time it fails.  Does take a bit of time and a lot of
-> concentration.
-
-Sure, hope you find it soon!
-
-> SGI is under an equally strict timeline.  We really needed the sleeping
-> version into 2.6.26.  We may still be able to get this accepted by
-> vendor distros if we make 2.6.27.
-
-I don't think vendor distro are less likely to take the patches 2-12
-if 1/N (aka mmu-notifier-core) is merged in 2.6.26 especially at the
-light of kabi.
+-Andrew Hastings
+  Cray Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
