@@ -1,48 +1,45 @@
-Date: Wed, 23 Apr 2008 10:37:17 +0900
+Date: Wed, 23 Apr 2008 10:45:11 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Warning on memory offline (and possible in usual migration?)
-Message-Id: <20080423103717.e3afddc6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080423004804.GA14134@wotan.suse.de>
-References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
-	<20080422045205.GH21993@wotan.suse.de>
-	<20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080422094352.GB23770@wotan.suse.de>
-	<Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com>
-	<20080423004804.GA14134@wotan.suse.de>
+Subject: Re: [BUGFIX][PATCH] Fix usemap initialization v2
+Message-Id: <20080423104511.3148a126.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0804221106250.12316@blonde.site>
+References: <20080418161522.GB9147@csn.ul.ie>
+	<48080706.50305@cn.fujitsu.com>
+	<48080930.5090905@cn.fujitsu.com>
+	<48080B86.7040200@cn.fujitsu.com>
+	<20080418211214.299f91cd.kamezawa.hiroyu@jp.fujitsu.com>
+	<21878461.1208539556838.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080421112048.78f0ec76.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0804211250000.16476@blonde.site>
+	<20080422104043.215c7dc4.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0804221106250.12316@blonde.site>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Shi Weihua <shiwh@cn.fujitsu.com>, balbir@linux.vnet.ibm.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 23 Apr 2008 02:48:04 +0200
-Nick Piggin <npiggin@suse.de> wrote:
+On Tue, 22 Apr 2008 11:12:59 +0100 (BST)
+Hugh Dickins <hugh@veritas.com> wrote:
 
-> On Tue, Apr 22, 2008 at 12:16:07PM -0700, Christoph Lameter wrote:
-> > On Tue, 22 Apr 2008, Nick Piggin wrote:
+> On Tue, 22 Apr 2008, KAMEZAWA Hiroyuki wrote:
+> > Tested on ia64/2.6.25
+> >    DISCONTIGMEM + 16KB/64KB pages
+> >    SPARSEMEM    + 16KB/64KB pages
+> > seems no troubles.
 > > 
-> > > No, it need not be under IO or in some unstable state. Christoph just
-> > > said that migration can't handle !uptodate pages, and I'm very
-> > > curious as to why not, and what is in place to prevent that from
-> > > happening.
-> > 
-> > We just assumed that the page was in an unstable state since it was under 
-> > I/O.
+> > Thanks,
+> > -Kame
 > 
-> A !uptodate page isn't necessarily under IO. But even if you are assuming
-> it is in an unstable state, I don't see any code that would prevent it
-> from trying to migrate an !uptodate page.
+> Looks good to me, if Mel and Shi approve.  (Well, there are two typos,
+> "creted" should be "created" and "migratetpye" should be "migratetype".)
 > 
-> Anyway, here is my proposed (uncompiled, untested) fix. Score 1 for my
-> buffer invariant checks if I'm right ;)
-> 
-Thank you!, I'll test this.
+Ouch...I'll fix.
 
-Regards,
+Thanks,
 -Kame
 
 --
