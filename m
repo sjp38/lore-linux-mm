@@ -1,72 +1,55 @@
-Date: Wed, 23 Apr 2008 17:28:09 +0200
+Date: Wed, 23 Apr 2008 17:34:04 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: Warning on memory offline (and possible in usual migration?)
-Message-ID: <20080423152809.GA16769@wotan.suse.de>
-References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com> <20080422045205.GH21993@wotan.suse.de> <20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com> <20080422094352.GB23770@wotan.suse.de> <Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com> <20080423004804.GA14134@wotan.suse.de> <20080423114107.b8df779c.kamezawa.hiroyu@jp.fujitsu.com> <20080423025358.GA9751@wotan.suse.de> <20080423124425.5c80d3cf.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 00/18] multi size, and giant hugetlb page support, 1GB hugetlb for x86
+Message-ID: <20080423153404.GB16769@wotan.suse.de>
+References: <20080423015302.745723000@nick.local0.net> <480EEDD9.2010601@firstfloor.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080423124425.5c80d3cf.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <480EEDD9.2010601@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Christoph Lameter <clameter@sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, nacc@us.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 23, 2008 at 12:44:25PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Wed, 23 Apr 2008 04:53:58 +0200
-> Nick Piggin <npiggin@suse.de> wrote:
+On Wed, Apr 23, 2008 at 10:05:45AM +0200, Andi Kleen wrote:
 > 
-> > > BTW, can I ask a question for understanding this change ?
-> > > 
-> > > ==this check==
-> > >  WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
-> > > 
-> > > in __set_page_dirty_nobuffers() seems to check "the page should have buffer or
-> > > be up-to-date when it calls this function."
-> > > 
-> > > When it comes to __set_page_dirty() (in fs/buffer.c)
-> > > == this check==
-> > >  WARN_ON_ONCE(warn && !PageUptodate(page));
-> > > 
-> > > is used and doesn't see page has buffers or not.
-> > > What's difference between two functions's condition for WARNING ?
-> > 
-> > Yes, __set_page_dirty_nobuffers confusingly can also be called for pages
-> > with buffers. In the case that the page has buffers (or any other private
-> > metadata), then __set_page_dirty_nobuffers does not have enough information
-> > to know whether the page should be uptodate before being marked dirty.
-> > 
-> > In the __set_page_dirty case in fs/buffer.c, we _do_ know that the page
-> > has buffers and that it would be wrong to have a situation where the
-> > page is !uptodate at this point.
-> > 
-> > Is that clear? Or have I explained it poorly?
-> > 
+> > Testing-wise, I've changed the registration mechanism so that if you specify
+> > hugepagesz=1G on the command line, then you do not get the 2M pages by default
+> > (you have to also specify hugepagesz=2M). Also, when only one hstate is
+> > registered, all the proc outputs appear unchanged, so this makes it very easy
+> > to test with.
 > 
-> Hmm...does that comes from difference of the purpose of the functions ?
+> Are you sure that's a good idea? Just replacing the 2M count in meminfo
+> with 1G pages is not fully compatible proc ABI wise I think.
 
-Yes, well sometimes __set_page_dirty_nobuffers is actually called into
-for a page which does have buffers or some private data (eg. via
-redirty_page_for_writepage). If it was only called for pages that really
-have no buffers, it could simply be WARN_ON(!PageUptodate(page))
+Not sure that it is a good idea, but it did allow the test suite to pass
+more tests ;)
 
- 
-> Is this correct ?
-> ==
-> set_page_dirty_buffers() (in fs/buffer.c) makes a page and _all_ buffers on it
-> dirty. So, a page *must* be up-to-date when it calls set_page_dirty_buffers().
-> This is used for mapped pages or some callers which requires the whole
-> page containes valid data.
-> 
-> In set_page_dirty_nobuffers()case , it just makes a page to be dirty. We can't
-> see whether a page is really up-to-date or not when PagePrivate(page) &&
-> !PageUptodate(page). This is used for a page which contains some data
-> to be written out. (part of buffers contains data.)
-> 
-> ==
+What the best option is for backwards compatibility, I don't know. I
+think this approach would give things a better chance of actually
+working with 1G hugepags and old userspace, but it probably also
+increases the chances of funny bugs.
 
-Yes I think you have it correct. 
+
+> I think rather that applications who only know about 2M pages should
+> see "0" in this case and not be confused by larger pages. And only
+> applications who are multi page size aware should see the new page
+> sizes.
+> 
+> If you prefer it you could move all the new page sizes to sysfs
+> and only ever display the "legacy page size" in meminfo,
+> but frankly I personally prefer the quite simple and comparatively
+> efficient /proc/meminfo with multiple numbers interface.
+
+Well I've chance it so it just has single numbers if a single hstate
+is registered: that way we're completely backwards compatible in the
+case of only using 2M pages.
+
+But I think your multiple hstates in /proc/meminfo isn't too bad
+given the bad situation. Maybe just adding more meminfo lines would
+be better though?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
