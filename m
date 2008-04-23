@@ -1,84 +1,93 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3NIlcv6020510
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 14:47:38 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3NIo1rU212822
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 12:50:02 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3NIo0WF006839
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 12:50:00 -0600
-Date: Wed, 23 Apr 2008 11:49:59 -0700
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3NIqOoi021388
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 14:52:24 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3NIqOAL222458
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 14:52:24 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3NIqOSx001331
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 14:52:24 -0400
+Date: Wed, 23 Apr 2008 11:52:23 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [patch 18/18] hugetlb: my fixes 2
-Message-ID: <20080423184959.GD10548@us.ibm.com>
-References: <20080423015302.745723000@nick.local0.net> <20080423015431.569358000@nick.local0.net> <480F13F5.9090003@firstfloor.org>
+Subject: Re: [patch 00/18] multi size, and giant hugetlb page support, 1GB
+	hugetlb for x86
+Message-ID: <20080423185223.GE10548@us.ibm.com>
+References: <20080423015302.745723000@nick.local0.net> <480EEDD9.2010601@firstfloor.org> <20080423153404.GB16769@wotan.suse.de> <20080423154652.GB29087@one.firstfloor.org> <20080423155338.GF16769@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <480F13F5.9090003@firstfloor.org>
+In-Reply-To: <20080423155338.GF16769@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On 23.04.2008 [12:48:21 +0200], Andi Kleen wrote:
-> npiggin@suse.de wrote:
+On 23.04.2008 [17:53:38 +0200], Nick Piggin wrote:
+> On Wed, Apr 23, 2008 at 05:46:52PM +0200, Andi Kleen wrote:
+> > On Wed, Apr 23, 2008 at 05:34:04PM +0200, Nick Piggin wrote:
+> > > On Wed, Apr 23, 2008 at 10:05:45AM +0200, Andi Kleen wrote:
+> > > > 
+> > > > > Testing-wise, I've changed the registration mechanism so that if you specify
+> > > > > hugepagesz=1G on the command line, then you do not get the 2M pages by default
+> > > > > (you have to also specify hugepagesz=2M). Also, when only one hstate is
+> > > > > registered, all the proc outputs appear unchanged, so this makes it very easy
+> > > > > to test with.
+> > > > 
+> > > > Are you sure that's a good idea? Just replacing the 2M count in meminfo
+> > > > with 1G pages is not fully compatible proc ABI wise I think.
+> > > 
+> > > Not sure that it is a good idea, but it did allow the test suite to pass
+> > > more tests ;)
+> > 
+> > Then the test suite is wrong. Really I expect programs that want
+> > to use 1G pages to be adapted to it.
 > 
-> Thanks for these fixes. The subject definitely needs improvement, or
-> rather all these fixes should be folded into the original patches.
+> No, it can generally determine the size of the hugepages. It would
+> be more wrong (but probably more common) for portable code to assume
+> 2MB hugepages.
+
+Ack.
+
+> > > What the best option is for backwards compatibility, I don't know. I
+> > 
+> > The first number has to be always the "legacy" size for compatibility.   
+> > I don't think know why you don't know that, it really seems like an
+> > obvious fact to me.
 > 
-> > Here is my next set of fixes and changes:
-> > - Allow configurations without the default HPAGE_SIZE size (mainly useful
-> >   for testing but maybe it is the right way to go).
+> Obvious? When you want your legacy userspace to use 1G pages and don't
+> have any 2MB pages in the machine? In that case IMO there is no question
+> that my way is the most likely possibility. We have a hugepagesize
+> field there, so the assumption would be that it gets used.
 > 
-> I don't think it is the correct way. If you want to do it this way you
-> would need to special case it in /proc/meminfo to keep things
-> compatible.
+> If you want your legacy userspace to have 2MB hugepages, then you would
+> have a 2MB hstate and see the 2MB sizes there.
 
-I'm not sure I believe you here. /proc/meminfo displays both the number
-of hugepages and the size. If any app relied on hugepages being a fixed
-size, well, they blatantly are ignoring information being provided by
-the kernel *and* are non-portable.
+Ack.
 
-> Also in general I would think that always keeping the old huge page
-> size around is a good idea. There is some chance at least to allocate
-> 2MB pages after boot (especially with the new movable zone and with
-> lumpy reclaim), so it doesn't need to be configured at boot time
-> strictly. And why take that option away from the user?
+> > > think this approach would give things a better chance of actually
+> > > working with 1G hugepags and old userspace, but it probably also
+> > > increases the chances of funny bugs.
+> > 
+> > It's not fully compatible. And that is bad.
+> 
+> It is fully compatible because if you don't actually ask for any new
+> option then you don't get it. What you see will be exactly unchanged.
+> If you ask for _only_ 1G pages, then this new scheme is very likely to
+> work with well written applications wheras if you also print out the 2MB
+> legacy values first, then they have little to no chance of working.
+> 
+> Then if you want legacy apps to use 2MB pages, and new ones to use 1G,
+> then you ask for both and get the 2MB column printed in /proc/meminfo
+> (actually it can probably get printed 2nd if you ask for 2MB pages
+> after asking for 1G pages -- that is something I'll fix).
 
-Sure, but that's an administrative choice and might be the default.
-We're already requiring extra effort to even use 1G pages, right, by
-specifying hugepagesz=1G, why does it matter if they also have to
-specify hugepagesz=2M. So nothing is being taken away from the user,
-unless their administrator only expliclity specified one hugepage size.
-
-Otherwise, we get implicit command-line arguments like:
-
-hugepagesz=1G hugepages=10 hugepages=20
-
-I prefer the flexibility of allowing an administrator to specify exactly
-what pool-sizes they want to allow users access to. They also have to
-mount hugetlbfs, and specify the size there, but still, I think Nick's
-way is the right way forward, especially given the potential for more
-than 2 hugepage sizes available.
-
-So I'd say the cmdline should function like:
-
-a) no hugepagesz= specified. hugepages= defaults to the "default"
-hugepage size, which is arch-defined (as the historical value, I guess).
-
-b) hugepagesz= specified. every hugepagesz that should be available must
-be specified (if the pool is not going to be allocated at boot-time, say
-for 64K and 16M pages on power, could the admin to
-hugepagesz=64k,16m?)
-
-> Also I would hope that distributions keep their existing /hugetlbfs
-> (if they have one) at the compat size for 100% compatibility to
-> existing applications.
-
-Sure, but this is again an administrative decision and such, decided by
-the distro, not the kernel.
+Yep, the "default hugepagesz" was something I was going to ask about. I
+believe hugepagesz= should function kind of like console= where the
+order matters if specified multiple times for where /dev/console points.
+I agree with you that hugepagesz=XX hugepagesz=YY implies XX is the
+default, and YY is the "other", regardless of their values, and that is
+how they should be presented in meminfo.
 
 Thanks,
 Nish
