@@ -1,87 +1,90 @@
-Date: Wed, 23 Apr 2008 02:48:04 +0200
+Date: Wed, 23 Apr 2008 03:03:00 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: Warning on memory offline (and possible in usual migration?)
-Message-ID: <20080423004804.GA14134@wotan.suse.de>
-References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com> <20080422045205.GH21993@wotan.suse.de> <20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com> <20080422094352.GB23770@wotan.suse.de> <Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com>
+Subject: Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs ABI
+Message-ID: <20080423010259.GA17572@wotan.suse.de>
+References: <20080411234743.GG19078@us.ibm.com> <20080411234913.GH19078@us.ibm.com> <20080411235648.GA13276@suse.de> <20080412094118.GA7708@wotan.suse.de> <20080413034136.GA22686@suse.de> <20080414210506.GA6350@us.ibm.com> <20080417231617.GA18815@us.ibm.com> <Pine.LNX.4.64.0804171619340.12031@schroedinger.engr.sgi.com> <20080422051447.GI21993@wotan.suse.de> <20080422165602.GA29570@us.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com>
+In-Reply-To: <20080422165602.GA29570@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Greg KH <gregkh@suse.de>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 22, 2008 at 12:16:07PM -0700, Christoph Lameter wrote:
-> On Tue, 22 Apr 2008, Nick Piggin wrote:
+On Tue, Apr 22, 2008 at 09:56:02AM -0700, Nishanth Aravamudan wrote:
+> On 22.04.2008 [07:14:47 +0200], Nick Piggin wrote:
 > 
-> > No, it need not be under IO or in some unstable state. Christoph just
-> > said that migration can't handle !uptodate pages, and I'm very
-> > curious as to why not, and what is in place to prevent that from
-> > happening.
+> > So anyway, underneath that directory, we should have more
+> > subdirectories grouping subsystems or sumilar functionality. We aren't
+> > tuning node, but hugepages subsystem.
+> > 
+> > /sys/kernel/huge{tlb|pages}/
+> > 
+> > Under that directory could be global settings as well as per node
+> > settings or subdirectories and so on. The layout should be similar to
+> > /proc/sys/* IMO. Actually it should be much neater since we have some
+> > hindsight, but unfortunately it is looking like it is actually messier
+> > ;)
 > 
-> We just assumed that the page was in an unstable state since it was under 
-> I/O.
+> Well, that's where I start to get a little stymied. It seems odd to me
+> to have some per-node information in one place and some in another,
+> where the two are not even rooted at the same location, beyond both
+> being in sysfs.
 
-A !uptodate page isn't necessarily under IO. But even if you are assuming
-it is in an unstable state, I don't see any code that would prevent it
-from trying to migrate an !uptodate page.
+Why are nodes special? Why wouldn't you also group per-CPU information in
+one place, for example?
 
-Anyway, here is my proposed (uncompiled, untested) fix. Score 1 for my
-buffer invariant checks if I'm right ;)
+Anyway, I'd argue that you wouldn't group either of those things primarily.
+You would group by functionality first.
 
----
+If you wanted to tweak or view your hugepages parameters, where do you
+start? /sys/kernel/node is unintuitive; /sys/kernel/hugepages is easy.
 
-KAMEZAWA Hiroyuki found a warning message in the buffer dirtying code that
-is coming from page migration caller.
 
-WARNING: at fs/buffer.c:720 __set_page_dirty+0x330/0x360()
-Call Trace:
- [<a000000100015220>] show_stack+0x80/0xa0
- [<a000000100015270>] dump_stack+0x30/0x60
- [<a000000100089ed0>] warn_on_slowpath+0x90/0xe0
- [<a0000001001f8b10>] __set_page_dirty+0x330/0x360
- [<a0000001001ffb90>] __set_page_dirty_buffers+0xd0/0x280
- [<a00000010012fec0>] set_page_dirty+0xc0/0x260
- [<a000000100195670>] migrate_page_copy+0x5d0/0x5e0
- [<a000000100197840>] buffer_migrate_page+0x2e0/0x3c0
- [<a000000100195eb0>] migrate_pages+0x770/0xe00
+> Perhaps, as I've mentioned elsewhere, we simply have
+> symlinks underneath /sys/kernel/hugepages into
+> /sys/devices/system/node/nodeX ... but the immediate ugliness I see
+> there is either we duplicate the directories, or we symlink the
 
-What was happening is that migrate_page_copy wants to transfer the PG_dirty
-bit from old page to new page, so what it would do is set_page_dirty(newpage).
-However set_page_dirty() is used to set the entire page dirty, wheras in
-this case, only part of the page was dirty, and it also was not uptodate.
+I don't like the idea of putting kernel implementation parameters in
+/sys/devices/ (grey area for device drivers, perhaps).
 
-Marking the whole page dirty with set_page_dirty would lead to corruption or
-unresolvable conditions -- a dirty && !uptodate page and dirty && !uptodate
-buffers.
 
-Possibly we could just ClearPageDirty(oldpage); SetPageDirty(newpage);
-however in the interests of keeping the change minimal...
+> directories and there are now to paths into all the NUMA information,
+> where one (/sys/kernel/hugepages/nodeX) seems like it should only have
+> hugepage information.
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
----
-Index: linux-2.6/mm/migrate.c
-===================================================================
---- linux-2.6.orig/mm/migrate.c
-+++ linux-2.6/mm/migrate.c
-@@ -383,7 +383,14 @@ static void migrate_page_copy(struct pag
+But the idea of getting "all NUMA information" from one place just seems
+wrong to me. Getting all *hardware* NUMA information from one place is
+fine. But kernel implementation wise I think you are really interested in
+subsystems *first*.
+
+Just to demonstrate how badly "all NUMA information in one place"
+generalises: you also then need a completely different place to store
+global information for that subsystem, and a different place again to
+store per-CPU information.
+
  
- 	if (PageDirty(page)) {
- 		clear_page_dirty_for_io(page);
--		set_page_dirty(newpage);
-+		/*
-+		 * Want to mark the page and the radix tree as dirty, and
-+		 * redo the accounting that clear_page_dirty_for_io undid,
-+		 * but we can't use set_page_dirty because that function
-+		 * is actually a signal that all of the page has become dirty.
-+		 * Wheras only part of our page may be dirty.
-+		 */
-+		__set_page_dirty_nobuffers(newpage);
-  	}
- 
- #ifdef CONFIG_SWAP
+> I'd prefer hugepages to hugetlb, I think, but don't necessarily care one
+> way or the other.
+
+I'm fine with that. 
+
+
+> > Let's really try to put some thought into new sysfs locations. Not
+> > just will it work, but is it logical and will it work tomorrow...
+> 
+> I agree and that's why I keep sending out e-mails about it :) Perhaps I
+> should prototype /sys/kernel/hugepages so we can see how it would look
+> as a first step, and then decide given that layout how we want the
+> per-node information to be presented?
+
+Sure.
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
