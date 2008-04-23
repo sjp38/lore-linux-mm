@@ -1,95 +1,63 @@
-Date: Wed, 23 Apr 2008 17:01:13 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC] Reserve huge pages for reliable MAP_PRIVATE hugetlbfs mappings
-Message-ID: <20080423160112.GC15834@csn.ul.ie>
-References: <20080421183621.GA13100@csn.ul.ie> <87hcdsznep.fsf@basil.nowhere.org> <20080423151428.GA15834@csn.ul.ie> <20080423154323.GA29087@one.firstfloor.org>
+Message-ID: <480F600B.9000802@cray.com>
+Date: Wed, 23 Apr 2008 11:12:59 -0500
+From: Andrew Hastings <abh@cray.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20080423154323.GA29087@one.firstfloor.org>
+Subject: Re: [patch 11/18] mm: export prep_compound_page to mm
+References: <20080423015302.745723000@nick.local0.net> <20080423015430.814185000@nick.local0.net>
+In-Reply-To: <20080423015430.814185000@nick.local0.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: wli@holomorphy.com, agl@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: npiggin@suse.de
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, nacc@us.ibm.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On (23/04/08 17:43), Andi Kleen didst pronounce:
-> > If the large pages exist to satisfy the mapping, the application will not
-> > even notice this change. They will only break if the are creating larger
-> > mappings than large pages exist for (or can be allocated for in the event
-> > they have enabled dynamic resizing with nr_overcommit_hugepages). If they
-> > are doing that, they are running a big risk as they may get arbitrarily
-> > killed later. 
-> 
-> The point is it is pretty common (especially when you have enough 
-> address space) just create a huge mapping and only use the begining.
+npiggin@suse.de wrote:
+> hugetlb will need to get compound pages from bootmem to handle
+> the case of them being larger than MAX_ORDER. Export
 
-Clearly these applications are assuming that overcommit is always allowed
-because otherwise they would be failing. Also, the behaviour with reservations
-is currently inconsistent as MAP_SHARED always tries to reserve the pages.
-Maybe large shared mappings are rarer than large private mappings, but
-this inconsistency is still shoddy.
+s/larger/greater than or equal to/
 
-> This avoids costly resize operations later and is a quite useful
-> strategy on 64bit (but even on 32bit).  Now the upper size will
-> likely be incredibly huge (far beyond available physical memory), but it's 
-> obviously impossible really uses all of it.
+> the constructor function needed for this.
 > 
-> It's also common in languages who don't support dynamic allocation well (like 
-> older fortran dialects). Given these won't use hugetlbfs directly either, 
-> but I couldn't rule out that someone wrote a special fortran run time library 
-> which transparently allocates large arrays from hugetlbfs. 
+> Signed-off-by: Andi Kleen <ak@suse.de>
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
+> ---
+>  mm/internal.h   |    2 ++
+>  mm/page_alloc.c |    2 +-
+>  2 files changed, 3 insertions(+), 1 deletion(-)
 > 
-> In fact i would be surprised if a number of such beasts don't exist -- it is 
-> really an obvious simple tuning option for old HPC fortran applications.
-> 
-
-I don't know if such a run-time library exists but libhugetlbfs is occasionally
-used in situations like this to back the data segment backed by huge pages. It
-first copies the data MAP_SHARED to fake the reservation before remapping
-private and kinda hopes for the best.
-
-> > Sometimes their app will run, other times it dies. If more
-> > than one application is running on the system that is behaving like this,
-> > they are really playing with fire.
-> 
-> With your change such an application will not run at all. Doesn't
-> seem like an improvement to me.
-> 
-
-I disagree. mmap() failing is something an application should be able to
-take care of and at least it possible as opposed to SIGKILL where it's
-"game over". Even if they are using run-time helpers like libhugetlbfs,
-it should be able to detect when a large-page-backed is flaky and use small
-pages instead. As it is, it's very difficult to detect in advance if future
-faults will succeed, particularly when more than one application is running.
-
-If the application is unable to handle mmap() failing, then yes, it'll
-exit. But at least it'll exit consistently and not get SIGKILLed
-randomly which to me is a far worse situation.
-
-> > With this change, a mmap() failure is a clear indication that the mapping
-> > would have been unsafe to use and they should try mmap()ing with small pages
-> > instead. 
-> 
-> I don't have a problem with having an optional strict overcommit checking 
-> mode (similar to what standard VM has), but it should be configurable
-> and off by default.
+> Index: linux-2.6/mm/internal.h
+> ===================================================================
+> --- linux-2.6.orig/mm/internal.h
+> +++ linux-2.6/mm/internal.h
+> @@ -13,6 +13,8 @@
+>  
+>  #include <linux/mm.h>
+>  
+> +extern void prep_compound_page(struct page *page, unsigned long order);
+> +
+>  static inline void set_page_count(struct page *page, int v)
+>  {
+>  	atomic_set(&page->_count, v);
+> Index: linux-2.6/mm/page_alloc.c
+> ===================================================================
+> --- linux-2.6.orig/mm/page_alloc.c
+> +++ linux-2.6/mm/page_alloc.c
+> @@ -272,7 +272,7 @@ static void free_compound_page(struct pa
+>  	__free_pages_ok(page, compound_order(page));
+>  }
+>  
+> -static void prep_compound_page(struct page *page, unsigned long order)
+> +void prep_compound_page(struct page *page, unsigned long order)
+>  {
+>  	int i;
+>  	int nr_pages = 1 << order;
 > 
 
-There already is partial strict overcommit checking for MAP_SHARED. I
-think it should be consistent and done for MAP_PRIVATE.
-
-For disabling, I could look into adding MAP_NORESERVE support and
-something like the current overcommit_memory tunable for hugetlbfs.
-However with yet another proc tunable, I would push for enabling strict
-checking by default for safe behaviour than disabled by default for
-random SIGKILLs.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+-Andrew Hastings
+  Cray Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
