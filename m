@@ -1,56 +1,41 @@
-Date: Wed, 23 Apr 2008 17:43:23 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [RFC] Reserve huge pages for reliable MAP_PRIVATE hugetlbfs mappings
-Message-ID: <20080423154323.GA29087@one.firstfloor.org>
-References: <20080421183621.GA13100@csn.ul.ie> <87hcdsznep.fsf@basil.nowhere.org> <20080423151428.GA15834@csn.ul.ie>
+Date: Wed, 23 Apr 2008 17:38:32 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 04/18] hugetlb: modular state
+Message-ID: <20080423153832.GD16769@wotan.suse.de>
+References: <20080423015302.745723000@nick.local0.net> <20080423015430.054070000@nick.local0.net> <1208964098.16652.13.camel@skynet>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080423151428.GA15834@csn.ul.ie>
+In-Reply-To: <1208964098.16652.13.camel@skynet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andi Kleen <andi@firstfloor.org>, wli@holomorphy.com, agl@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jon Tollefson <kniht@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, nacc@us.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-> If the large pages exist to satisfy the mapping, the application will not
-> even notice this change. They will only break if the are creating larger
-> mappings than large pages exist for (or can be allocated for in the event
-> they have enabled dynamic resizing with nr_overcommit_hugepages). If they
-> are doing that, they are running a big risk as they may get arbitrarily
-> killed later. 
+On Wed, Apr 23, 2008 at 10:21:38AM -0500, Jon Tollefson wrote:
+> 
+> On Wed, 2008-04-23 at 11:53 +1000, npiggin@suse.de wrote:
+> 
+> <snip>
+> 
+> > Index: linux-2.6/arch/powerpc/mm/hugetlbpage.c
+> > ===================================================================
+> > --- linux-2.6.orig/arch/powerpc/mm/hugetlbpage.c
+> > +++ linux-2.6/arch/powerpc/mm/hugetlbpage.c
+> > @@ -128,7 +128,7 @@ pte_t *huge_pte_offset(struct mm_struct 
+> >  	return NULL;
+> >  }
+> > 
+> > -pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
+> > +pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, int sz)
+> 
+> The sz has to be an unsigned long to match the definition in the header.
+> The same is true for the other architectures too.
 
-The point is it is pretty common (especially when you have enough 
-address space) just create a huge mapping and only use the begining.
-This avoids costly resize operations later and is a quite useful
-strategy on 64bit (but even on 32bit).  Now the upper size will
-likely be incredibly huge (far beyond available physical memory), but it's 
-obviously impossible really uses all of it.
+Ah, sorry I forgot to do an arch sweep after the change :P
 
-It's also common in languages who don't support dynamic allocation well (like 
-older fortran dialects). Given these won't use hugetlbfs directly either, 
-but I couldn't rule out that someone wrote a special fortran run time library 
-which transparently allocates large arrays from hugetlbfs. 
-
-In fact i would be surprised if a number of such beasts don't exist -- it is 
-really an obvious simple tuning option for old HPC fortran applications.
-
-> Sometimes their app will run, other times it dies. If more
-> than one application is running on the system that is behaving like this,
-> they are really playing with fire.
-
-With your change such an application will not run at all. Doesn't
-seem like an improvement to me.
-
-> With this change, a mmap() failure is a clear indication that the mapping
-> would have been unsafe to use and they should try mmap()ing with small pages
-> instead. 
-
-I don't have a problem with having an optional strict overcommit checking 
-mode (similar to what standard VM has), but it should be configurable
-and off by default.
-
--Andi
+Thanks for picking that up
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
