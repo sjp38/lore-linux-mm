@@ -1,39 +1,40 @@
-Date: Wed, 23 Apr 2008 15:44:27 +0200
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [PATCH 04 of 12] Moves all mmu notifier methods outside the PT
-	lock (first and not last
-Message-ID: <20080423134427.GW24536@duo.random>
-References: <ac9bb1fb3de2aa5d2721.1208872280@duo.random> <Pine.LNX.4.64.0804221323510.3640@schroedinger.engr.sgi.com> <20080422224048.GR24536@duo.random> <Pine.LNX.4.64.0804221613570.4868@schroedinger.engr.sgi.com>
+Subject: Re: [RFC] Reserve huge pages for reliable MAP_PRIVATE hugetlbfs mappings
+From: Andi Kleen <andi@firstfloor.org>
+References: <20080421183621.GA13100@csn.ul.ie>
+Date: Wed, 23 Apr 2008 15:55:10 +0200
+In-Reply-To: <20080421183621.GA13100@csn.ul.ie> (Mel Gorman's message of "Mon, 21 Apr 2008 19:36:22 +0100")
+Message-ID: <87hcdsznep.fsf@basil.nowhere.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0804221613570.4868@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <npiggin@suse.de>, Jack Steiner <steiner@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: wli@holomorphy.com, agl@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 22, 2008 at 04:14:26PM -0700, Christoph Lameter wrote:
-> We want a full solution and this kind of patching makes the patches 
-> difficuilt to review because later patches revert earlier ones.
+Mel Gorman <mel@csn.ul.ie> writes:
 
-I know you rather want to see KVM development stalled for more months
-than to get a partial solution now that already covers KVM and GRU
-with the same API that XPMEM will also use later. It's very unfair on
-your side to pretend to stall other people development if what you
-need has stronger requirements and can't be merged immediately. This
-is especially true given it was publically stated that XPMEM never
-passed all regression tests anyway, so you can't possibly be in such
-an hurry like we are, we can't progress without this. Infact we can
-but it would be an huge effort and it would run _slower_ and it would
-all need to be deleted once mmu notifiers are in.
+> MAP_SHARED mappings on hugetlbfs reserve huge pages at mmap() time. This is
+> so that all future faults will be guaranteed to succeed. Applications are not
+> expected to use mlock() as this can result in poor NUMA placement.
+>
+> MAP_PRIVATE mappings do not reserve pages. This can result in an application
+> being SIGKILLed later if a large page is not available at fault time. This
+> makes huge pages usage very ill-advised in some cases as the unexpected
+> application failure is intolerable. Forcing potential poor placement with
+> mlock() is not a great solution either.
+>
+> This patch reserves huge pages at mmap() time for MAP_PRIVATE mappings similar
+> to what happens for MAP_SHARED mappings. 
 
-Note that the only patch that you can avoid with your approach is
-mm_lock-rwsem, given that's software developed and not human developed
-I don't see a big deal of wasted effort. The main difference is the
-ordering. Most of the code is orthogonal so there's not much to
-revert.
+This will break all applications that mmap more hugetlbpages than they
+actually use. How do you know these don't exist?
+
+> Opinions?
+
+Seems like a risky interface change to me.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
