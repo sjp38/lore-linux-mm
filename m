@@ -1,137 +1,78 @@
-Message-Id: <20080423015431.349278000@nick.local0.net>
+Message-Id: <20080423015431.027712000@nick.local0.net>
 References: <20080423015302.745723000@nick.local0.net>
-Date: Wed, 23 Apr 2008 11:53:18 +1000
+Date: Wed, 23 Apr 2008 11:53:15 +1000
 From: npiggin@suse.de
-Subject: [patch 16/18] x86: support GB hugepages on 64-bit
-Content-Disposition: inline; filename=x86-support-GB-hugetlb-pages.patch
+Subject: [patch 13/18] hugetlb: support boot allocate different sizes
+Content-Disposition: inline; filename=hugetlb-different-page-sizes.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, nacc@us.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
+Signed-off-by: Andi Kleen <ak@suse.de>
+Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
- arch/x86/mm/hugetlbpage.c |   33 ++++++++++++++++++++++-----------
- 1 file changed, 22 insertions(+), 11 deletions(-)
+ mm/hugetlb.c |   24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)
 
-Index: linux-2.6/arch/x86/mm/hugetlbpage.c
+Index: linux-2.6/mm/hugetlb.c
 ===================================================================
---- linux-2.6.orig/arch/x86/mm/hugetlbpage.c
-+++ linux-2.6/arch/x86/mm/hugetlbpage.c
-@@ -133,9 +133,14 @@ pte_t *huge_pte_alloc(struct mm_struct *
- 	pgd = pgd_offset(mm, addr);
- 	pud = pud_alloc(mm, pgd, addr);
- 	if (pud) {
--		if (pud_none(*pud))
--			huge_pmd_share(mm, addr, pud);
--		pte = (pte_t *) pmd_alloc(mm, pud, addr);
-+		if (sz == PUD_SIZE) {
-+			pte = (pte_t *)pud;
-+		} else {
-+			BUG_ON(sz != PMD_SIZE);
-+			if (pud_none(*pud))
-+				huge_pmd_share(mm, addr, pud);
-+			pte = (pte_t *) pmd_alloc(mm, pud, addr);
-+		}
- 	}
- 	BUG_ON(pte && !pte_none(*pte) && !pte_huge(*pte));
- 
-@@ -151,8 +156,11 @@ pte_t *huge_pte_offset(struct mm_struct 
- 	pgd = pgd_offset(mm, addr);
- 	if (pgd_present(*pgd)) {
- 		pud = pud_offset(pgd, addr);
--		if (pud_present(*pud))
-+		if (pud_present(*pud)) {
-+			if (pud_large(*pud))
-+				return (pte_t *)pud;
- 			pmd = pmd_offset(pud, addr);
-+		}
- 	}
- 	return (pte_t *) pmd;
- }
-@@ -215,7 +223,7 @@ int pmd_huge(pmd_t pmd)
- 
- int pud_huge(pud_t pud)
+--- linux-2.6.orig/mm/hugetlb.c
++++ linux-2.6/mm/hugetlb.c
+@@ -582,10 +582,13 @@ static void __init hugetlb_init_hstate(s
  {
--	return 0;
-+	return !!(pud_val(pud) & _PAGE_PSE);
+ 	unsigned long i;
+ 
+-	for (i = 0; i < MAX_NUMNODES; ++i)
+-		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
++	/* Don't reinitialize lists if they have been already init'ed */
++	if (!h->hugepage_freelists[0].next) {
++		for (i = 0; i < MAX_NUMNODES; ++i)
++			INIT_LIST_HEAD(&h->hugepage_freelists[i]);
+ 
+-	h->hugetlb_next_nid = first_node(node_online_map);
++		h->hugetlb_next_nid = first_node(node_online_map);
++	}
+ 
+ 	for (i = 0; i < h->max_huge_pages; ++i) {
+ 		if (h->order >= MAX_ORDER) {
+@@ -594,7 +597,7 @@ static void __init hugetlb_init_hstate(s
+ 		} else if (!alloc_fresh_huge_page(h))
+ 			break;
+ 	}
+-	h->max_huge_pages = h->free_huge_pages = h->nr_huge_pages = i;
++	h->max_huge_pages = i;
  }
  
- struct page *
-@@ -251,6 +259,7 @@ static unsigned long hugetlb_get_unmappe
- 		unsigned long addr, unsigned long len,
- 		unsigned long pgoff, unsigned long flags)
- {
-+	struct hstate *h = hstate_file(file);
- 	struct mm_struct *mm = current->mm;
- 	struct vm_area_struct *vma;
- 	unsigned long start_addr;
-@@ -263,7 +272,7 @@ static unsigned long hugetlb_get_unmappe
- 	}
+ static void __init hugetlb_init_hstates(void)
+@@ -602,7 +605,10 @@ static void __init hugetlb_init_hstates(
+ 	struct hstate *h;
  
- full_search:
--	addr = ALIGN(start_addr, HPAGE_SIZE);
-+	addr = ALIGN(start_addr, huge_page_size(h));
- 
- 	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
- 		/* At this point:  (!vma || addr < vma->vm_end). */
-@@ -285,7 +294,7 @@ full_search:
- 		}
- 		if (addr + mm->cached_hole_size < vma->vm_start)
- 		        mm->cached_hole_size = vma->vm_start - addr;
--		addr = ALIGN(vma->vm_end, HPAGE_SIZE);
-+		addr = ALIGN(vma->vm_end, huge_page_size(h));
+ 	for_each_hstate(h) {
+-		hugetlb_init_hstate(h);
++		/* oversize hugepages were init'ed in early boot */
++		if (h->order < MAX_ORDER)
++			hugetlb_init_hstate(h);
++		max_huge_pages[h - hstates] = h->max_huge_pages;
  	}
  }
  
-@@ -293,6 +302,7 @@ static unsigned long hugetlb_get_unmappe
- 		unsigned long addr0, unsigned long len,
- 		unsigned long pgoff, unsigned long flags)
- {
-+	struct hstate *h = hstate_file(file);
- 	struct mm_struct *mm = current->mm;
- 	struct vm_area_struct *vma, *prev_vma;
- 	unsigned long base = mm->mmap_base, addr = addr0;
-@@ -313,7 +323,7 @@ try_again:
- 		goto fail;
+@@ -665,6 +671,14 @@ static int __init hugetlb_setup(char *s)
+ 	if (sscanf(s, "%lu", mhp) <= 0)
+ 		*mhp = 0;
  
- 	/* either no address requested or cant fit in requested address hole */
--	addr = (mm->free_area_cache - len) & HPAGE_MASK;
-+	addr = (mm->free_area_cache - len) & huge_page_mask(h);
- 	do {
- 		/*
- 		 * Lookup failure means no vma is above this address,
-@@ -344,7 +354,7 @@ try_again:
- 		        largest_hole = vma->vm_start - addr;
- 
- 		/* try just below the current vma->vm_start */
--		addr = (vma->vm_start - len) & HPAGE_MASK;
-+		addr = (vma->vm_start - len) & huge_page_mask(h);
- 	} while (len <= vma->vm_start);
- 
- fail:
-@@ -382,10 +392,11 @@ unsigned long
- hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
- 		unsigned long len, unsigned long pgoff, unsigned long flags)
- {
-+	struct hstate *h = hstate_file(file);
- 	struct mm_struct *mm = current->mm;
- 	struct vm_area_struct *vma;
- 
--	if (len & ~HPAGE_MASK)
-+	if (len & ~huge_page_mask(h))
- 		return -EINVAL;
- 	if (len > TASK_SIZE)
- 		return -ENOMEM;
-@@ -397,7 +408,7 @@ hugetlb_get_unmapped_area(struct file *f
- 	}
- 
- 	if (addr) {
--		addr = ALIGN(addr, HPAGE_SIZE);
-+		addr = ALIGN(addr, huge_page_size(h));
- 		vma = find_vma(mm, addr);
- 		if (TASK_SIZE - len >= addr &&
- 		    (!vma || addr + len <= vma->vm_start))
++	/*
++	 * Global state is always initialized later in hugetlb_init.
++	 * But we need to allocate >= MAX_ORDER hstates here early to still
++	 * use the bootmem allocator.
++	 */
++	if (max_hstate > 0 && parsed_hstate->order >= MAX_ORDER)
++		hugetlb_init_hstate(parsed_hstate);
++
+ 	return 1;
+ }
+ __setup("hugepages=", hugetlb_setup);
 
 -- 
 
