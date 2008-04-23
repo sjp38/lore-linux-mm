@@ -1,45 +1,75 @@
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28smtp05.in.ibm.com (8.13.1/8.13.1) with ESMTP id m3N36sP1010302
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 08:36:54 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3N36nB91138904
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 08:36:49 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id m3N372fY008147
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 03:07:02 GMT
-Message-ID: <480EA6DE.8060307@linux.vnet.ibm.com>
-Date: Wed, 23 Apr 2008 08:32:54 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: remove redundant initialization in mem_cgroup_create()
-References: <480E9E52.4080905@cn.fujitsu.com> <20080423115041.c918091d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080423115041.c918091d.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Wed, 23 Apr 2008 12:44:25 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Warning on memory offline (and possible in usual migration?)
+Message-Id: <20080423124425.5c80d3cf.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080423025358.GA9751@wotan.suse.de>
+References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
+	<20080422045205.GH21993@wotan.suse.de>
+	<20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080422094352.GB23770@wotan.suse.de>
+	<Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com>
+	<20080423004804.GA14134@wotan.suse.de>
+	<20080423114107.b8df779c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080423025358.GA9751@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Lameter <clameter@sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Wed, 23 Apr 2008 10:26:26 +0800
-> Li Zefan <lizf@cn.fujitsu.com> wrote:
-> 
->> *mem has been zeroed, that means mem->info has already
->> been filled with 0.
->>
-> maybe my mistake :(
-> 
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+On Wed, 23 Apr 2008 04:53:58 +0200
+Nick Piggin <npiggin@suse.de> wrote:
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+> > BTW, can I ask a question for understanding this change ?
+> > 
+> > ==this check==
+> >  WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
+> > 
+> > in __set_page_dirty_nobuffers() seems to check "the page should have buffer or
+> > be up-to-date when it calls this function."
+> > 
+> > When it comes to __set_page_dirty() (in fs/buffer.c)
+> > == this check==
+> >  WARN_ON_ONCE(warn && !PageUptodate(page));
+> > 
+> > is used and doesn't see page has buffers or not.
+> > What's difference between two functions's condition for WARNING ?
+> 
+> Yes, __set_page_dirty_nobuffers confusingly can also be called for pages
+> with buffers. In the case that the page has buffers (or any other private
+> metadata), then __set_page_dirty_nobuffers does not have enough information
+> to know whether the page should be uptodate before being marked dirty.
+> 
+> In the __set_page_dirty case in fs/buffer.c, we _do_ know that the page
+> has buffers and that it would be wrong to have a situation where the
+> page is !uptodate at this point.
+> 
+> Is that clear? Or have I explained it poorly?
+> 
+
+Hmm...does that comes from difference of the purpose of the functions ?
+
+Is this correct ?
+==
+set_page_dirty_buffers() (in fs/buffer.c) makes a page and _all_ buffers on it
+dirty. So, a page *must* be up-to-date when it calls set_page_dirty_buffers().
+This is used for mapped pages or some callers which requires the whole
+page containes valid data.
+
+In set_page_dirty_nobuffers()case , it just makes a page to be dirty. We can't
+see whether a page is really up-to-date or not when PagePrivate(page) &&
+!PageUptodate(page). This is used for a page which contains some data
+to be written out. (part of buffers contains data.)
+
+==
+
+Thank you.
+
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
