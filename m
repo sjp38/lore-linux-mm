@@ -1,56 +1,73 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3NIsNkx024283
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 14:54:23 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3NIsMBK311640
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 14:54:22 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3NIsM8l007933
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 14:54:22 -0400
-Date: Wed, 23 Apr 2008 11:54:21 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [patch 00/18] multi size, and giant hugetlb page support, 1GB
-	hugetlb for x86
-Message-ID: <20080423185421.GF10548@us.ibm.com>
-References: <20080423015302.745723000@nick.local0.net> <480EEDD9.2010601@firstfloor.org> <20080423153404.GB16769@wotan.suse.de> <20080423154652.GB29087@one.firstfloor.org> <20080423155338.GF16769@wotan.suse.de> <20080423160210.GC29087@one.firstfloor.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080423160210.GC29087@one.firstfloor.org>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3NJ4kHo021042
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 15:04:46 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3NJ7H50191808
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 13:07:17 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3NJ7H8D013515
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2008 13:07:17 -0600
+Subject: Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs ABI
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <20080423183252.GA10548@us.ibm.com>
+References: <20080411234913.GH19078@us.ibm.com>
+	 <20080411235648.GA13276@suse.de> <20080412094118.GA7708@wotan.suse.de>
+	 <20080413034136.GA22686@suse.de> <20080414210506.GA6350@us.ibm.com>
+	 <20080417231617.GA18815@us.ibm.com>
+	 <Pine.LNX.4.64.0804171619340.12031@schroedinger.engr.sgi.com>
+	 <20080422051447.GI21993@wotan.suse.de> <20080422165602.GA29570@us.ibm.com>
+	 <20080423010259.GA17572@wotan.suse.de>  <20080423183252.GA10548@us.ibm.com>
+Content-Type: text/plain
+Date: Wed, 23 Apr 2008 14:07:46 -0500
+Message-Id: <1208977666.17385.113.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Greg KH <gregkh@suse.de>, wli@holomorphy.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 23.04.2008 [18:02:10 +0200], Andi Kleen wrote:
-> > No, it can generally determine the size of the hugepages. It would
-> > be more wrong (but probably more common) for portable code to assume
+On Wed, 2008-04-23 at 11:32 -0700, Nishanth Aravamudan wrote:
+> So, I think, we pretty much agree on how things should be:
 > 
-> For compatibility we have to assume code does that.
+> Direct translation of the current sysctl:
 > 
-> > 2MB hugepages.
+> /sys/kernel/hugepages/nr_hugepages
+>                       nr_overcommit_hugepages
 > 
-> Well then it should just run with 2MB pages on a kernel where both
-> 1G and 2M are configured. Does it not do that? 
+> Adding multiple pools:
 > 
-> > If you want your legacy userspace to have 2MB hugepages, then you would
+> /sys/kernel/hugepages/nr_hugepages -> nr_hugepages_${default_size}
+>                       nr_overcommit_hugepages -> nr_overcommit_hugepages_${default_size}
+>                       nr_hugepages_${default_size}
+>                       nr_overcommit_hugepages_${default_size}
+>                       nr_hugepages_${other_size1}
+>                       nr_overcommit_hugepages_${other_size2}
 > 
-> I think all legacy user space should only use 2MB huge pages.
+> Adding per-node control:
+> 
+> /sys/kernel/hugepages/nr_hugepages -> nr_hugepages_${default_size}
+>                       nr_overcommit_hugepages -> nr_overcommit_hugepages_${default_size}
+>                       nr_hugepages_${default_size}
+>                       nr_overcommit_hugepages_${default_size}
+>                       nr_hugepages_${other_size1}
+>                       nr_overcommit_hugepages_${other_size2}
+>                       nodeX/nr_hugepages -> nr_hugepages_${default_size}
+>                             nr_overcommit_hugepages -> nr_overcommit_hugepages_${default_size}
+>                             nr_hugepages_${default_size}
+>                             nr_overcommit_hugepages_${default_size}
+>                             nr_hugepages_${other_size1}
+>                             nr_overcommit_hugepages_${other_size2}
+> 
+> How does that look? Does anyone have any problems with such an
+> arrangement?
 
-Even with what you're saying (that 1G implies 2M is also there), let's
-say a legacy app just looks in /proc/mounts for hugetlbfs mountpoints
-and then creates a file in the first one it finds. If the system
-administrator mounted a 1G hugetlbfs first, then the legacy app is going
-to get 1G pages, regardless of whether or not 2M are presented to
-userspace. So that legacy app just broke -- I don't see any way of
-preventing that.
+This seems sensible to me.  
 
-I think Nick's method is sane and reasonable. Do you know of specific
-legacy apps that require what you're saying?
-
-Thanks,
-Nish
+-- 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
