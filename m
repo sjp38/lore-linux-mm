@@ -1,29 +1,87 @@
-Date: Tue, 22 Apr 2008 19:31:40 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [PATCH 00 of 12] mmu notifier #v13
-Message-ID: <20080423003140.GB32618@sgi.com>
-References: <patchbomb.1208872276@duo.random>
+Date: Wed, 23 Apr 2008 02:48:04 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: Warning on memory offline (and possible in usual migration?)
+Message-ID: <20080423004804.GA14134@wotan.suse.de>
+References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com> <20080422045205.GH21993@wotan.suse.de> <20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com> <20080422094352.GB23770@wotan.suse.de> <Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <patchbomb.1208872276@duo.random>
+In-Reply-To: <Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 22, 2008 at 03:51:16PM +0200, Andrea Arcangeli wrote:
-> Hello,
+On Tue, Apr 22, 2008 at 12:16:07PM -0700, Christoph Lameter wrote:
+> On Tue, 22 Apr 2008, Nick Piggin wrote:
 > 
-> This is the latest and greatest version of the mmu notifier patch #v13.
+> > No, it need not be under IO or in some unstable state. Christoph just
+> > said that migration can't handle !uptodate pages, and I'm very
+> > curious as to why not, and what is in place to prevent that from
+> > happening.
 > 
+> We just assumed that the page was in an unstable state since it was under 
+> I/O.
 
-FWIW, I have updated the GRU driver to use this patch (plus the fixeups).
-No problems. AFAICT, everything works.
+A !uptodate page isn't necessarily under IO. But even if you are assuming
+it is in an unstable state, I don't see any code that would prevent it
+from trying to migrate an !uptodate page.
 
+Anyway, here is my proposed (uncompiled, untested) fix. Score 1 for my
+buffer invariant checks if I'm right ;)
 
---- jack
+---
+
+KAMEZAWA Hiroyuki found a warning message in the buffer dirtying code that
+is coming from page migration caller.
+
+WARNING: at fs/buffer.c:720 __set_page_dirty+0x330/0x360()
+Call Trace:
+ [<a000000100015220>] show_stack+0x80/0xa0
+ [<a000000100015270>] dump_stack+0x30/0x60
+ [<a000000100089ed0>] warn_on_slowpath+0x90/0xe0
+ [<a0000001001f8b10>] __set_page_dirty+0x330/0x360
+ [<a0000001001ffb90>] __set_page_dirty_buffers+0xd0/0x280
+ [<a00000010012fec0>] set_page_dirty+0xc0/0x260
+ [<a000000100195670>] migrate_page_copy+0x5d0/0x5e0
+ [<a000000100197840>] buffer_migrate_page+0x2e0/0x3c0
+ [<a000000100195eb0>] migrate_pages+0x770/0xe00
+
+What was happening is that migrate_page_copy wants to transfer the PG_dirty
+bit from old page to new page, so what it would do is set_page_dirty(newpage).
+However set_page_dirty() is used to set the entire page dirty, wheras in
+this case, only part of the page was dirty, and it also was not uptodate.
+
+Marking the whole page dirty with set_page_dirty would lead to corruption or
+unresolvable conditions -- a dirty && !uptodate page and dirty && !uptodate
+buffers.
+
+Possibly we could just ClearPageDirty(oldpage); SetPageDirty(newpage);
+however in the interests of keeping the change minimal...
+
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+---
+Index: linux-2.6/mm/migrate.c
+===================================================================
+--- linux-2.6.orig/mm/migrate.c
++++ linux-2.6/mm/migrate.c
+@@ -383,7 +383,14 @@ static void migrate_page_copy(struct pag
+ 
+ 	if (PageDirty(page)) {
+ 		clear_page_dirty_for_io(page);
+-		set_page_dirty(newpage);
++		/*
++		 * Want to mark the page and the radix tree as dirty, and
++		 * redo the accounting that clear_page_dirty_for_io undid,
++		 * but we can't use set_page_dirty because that function
++		 * is actually a signal that all of the page has become dirty.
++		 * Wheras only part of our page may be dirty.
++		 */
++		__set_page_dirty_nobuffers(newpage);
+  	}
+ 
+ #ifdef CONFIG_SWAP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
