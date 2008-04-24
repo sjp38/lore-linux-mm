@@ -1,40 +1,51 @@
-Date: Thu, 24 Apr 2008 00:19:28 +0200
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [PATCH 01 of 12] Core of mmu notifiers
-Message-ID: <20080423221928.GV24536@duo.random>
-References: <ea87c15371b1bd49380c.1208872277@duo.random> <Pine.LNX.4.64.0804221315160.3640@schroedinger.engr.sgi.com> <20080422223545.GP24536@duo.random> <20080422230727.GR30298@sgi.com> <20080423002848.GA32618@sgi.com> <20080423163713.GC24536@duo.random>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080423163713.GC24536@duo.random>
+Date: Thu, 24 Apr 2008 10:34:07 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Warning on memory offline (and possible in usual migration?)
+Message-Id: <20080424103407.ea36cca0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080423152809.GA16769@wotan.suse.de>
+References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
+	<20080422045205.GH21993@wotan.suse.de>
+	<20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080422094352.GB23770@wotan.suse.de>
+	<Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com>
+	<20080423004804.GA14134@wotan.suse.de>
+	<20080423114107.b8df779c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080423025358.GA9751@wotan.suse.de>
+	<20080423124425.5c80d3cf.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080423152809.GA16769@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: Robin Holt <holt@sgi.com>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Lameter <clameter@sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 23, 2008 at 06:37:13PM +0200, Andrea Arcangeli wrote:
-> I'm afraid if you don't want to worst-case unregister with ->release
-> you need to have a better idea than my mm_lock and personally I can't
-> see any other way than mm_lock to ensure not to miss range_begin...
+On Wed, 23 Apr 2008 17:28:09 +0200
+Nick Piggin <npiggin@suse.de> wrote:
+> > Is this correct ?
+> > ==
+> > set_page_dirty_buffers() (in fs/buffer.c) makes a page and _all_ buffers on it
+> > dirty. So, a page *must* be up-to-date when it calls set_page_dirty_buffers().
+> > This is used for mapped pages or some callers which requires the whole
+> > page containes valid data.
+> > 
+> > In set_page_dirty_nobuffers()case , it just makes a page to be dirty. We can't
+> > see whether a page is really up-to-date or not when PagePrivate(page) &&
+> > !PageUptodate(page). This is used for a page which contains some data
+> > to be written out. (part of buffers contains data.)
+> > 
+> > ==
+> 
+> Yes I think you have it correct. 
+> 
 
-But wait, mmu_notifier_register absolutely requires mm_lock to ensure
-that when the kvm->arch.mmu_notifier_invalidate_range_count is zero
-(large variable name, it'll get shorter but this is to explain),
-really no cpu is in the middle of range_begin/end critical
-section. That's why we've to take all the mm locks.
+Thank you for kindly explanation.
 
-But we cannot care less if we unregister in the middle, unregister
-only needs to be sure that no cpu could possibly still using the ram
-of the notifier allocated by the driver before returning. So I'll
-implement unregister in O(1) and without ram allocations using srcu
-and that'll fix all issues with unregister. It'll return "void" to
-make it crystal clear it can't fail. It turns out unregister will make
-life easier to kvm as well, mostly to simplify the teardown of the
-/dev/kvm closure. Given this can be a considered a bugfix to
-mmu_notifier_unregister I'll apply it to 1/N and I'll release a new
-mmu-notifier-core patch for you to review before I resend to Andrew
-before Saturday. Thanks!
+Regards,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
