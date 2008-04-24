@@ -1,119 +1,142 @@
-Date: Thu, 24 Apr 2008 09:47:37 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: Re: [RFC] Reserve huge pages for reliable MAP_PRIVATE hugetlbfs mappings
-Message-ID: <20080424084736.GA25266@shadowen.org>
-References: <20080421183621.GA13100@csn.ul.ie> <87hcdsznep.fsf@basil.nowhere.org> <20080423151428.GA15834@csn.ul.ie> <20080423154323.GA29087@one.firstfloor.org> <20080423160112.GC15834@csn.ul.ie>
+Date: Thu, 24 Apr 2008 04:51:12 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH 01 of 12] Core of mmu notifiers
+Message-ID: <20080424095112.GC30298@sgi.com>
+References: <ea87c15371b1bd49380c.1208872277@duo.random> <Pine.LNX.4.64.0804221315160.3640@schroedinger.engr.sgi.com> <20080422223545.GP24536@duo.random> <20080422230727.GR30298@sgi.com> <20080423002848.GA32618@sgi.com> <20080423163713.GC24536@duo.random> <20080423221928.GV24536@duo.random> <20080424064753.GH24536@duo.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080423160112.GC15834@csn.ul.ie>
+In-Reply-To: <20080424064753.GH24536@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andi Kleen <andi@firstfloor.org>, wli@holomorphy.com, agl@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Jack Steiner <steiner@sgi.com>, Robin Holt <holt@sgi.com>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 23, 2008 at 05:01:13PM +0100, Mel Gorman wrote:
-> On (23/04/08 17:43), Andi Kleen didst pronounce:
-> > > If the large pages exist to satisfy the mapping, the application will not
-> > > even notice this change. They will only break if the are creating larger
-> > > mappings than large pages exist for (or can be allocated for in the event
-> > > they have enabled dynamic resizing with nr_overcommit_hugepages). If they
-> > > are doing that, they are running a big risk as they may get arbitrarily
-> > > killed later. 
-> > 
-> > The point is it is pretty common (especially when you have enough 
-> > address space) just create a huge mapping and only use the begining.
-> 
-> Clearly these applications are assuming that overcommit is always allowed
-> because otherwise they would be failing. Also, the behaviour with reservations
-> is currently inconsistent as MAP_SHARED always tries to reserve the pages.
-> Maybe large shared mappings are rarer than large private mappings, but
-> this inconsistency is still shoddy.
+I am not certain of this, but it seems like this patch leaves things in
+a somewhat asymetric state.  At the very least, I think that asymetry
+should be documented in the comments of either mmu_notifier.h or .c.
 
-As I remember history, in the beginning we had pre-fault semantics for all
-mappings.  This meant that for the longest time we had the equivalent to
-"reserve at mmap" semantics, indeed probabally had reserve at fork() too.
-When dynamic faulting went in (to get locality of allocation to reference
-for performance in numa systems) that changed, but mostly because it
-was seen as hard to implement, or perhaps hard to decide what the sane
-semantics were.
+Before I do the first mmu_notifier_register, all places that test for
+mm_has_notifiers(mm) will return false and take the fast path.
 
-During the evolution since its been clear that the biggest problem is
-unreliable semantics.  A semantic difference between private and shared
-mappings is annoying enough, but the random SIGKILL at a random time in
-the future has always been a festering thorn.  How many customers would
-accept a support response of "yeah it'll do that on day 5 one time in
-20 or so *beam*" not many I would bet.
+After I do some mmu_notifier_register()s and their corresponding
+mmu_notifier_unregister()s, The mm_has_notifiers(mm) will return true
+and the slow path will be taken.  This, despite all registered notifiers
+having unregistered.
 
-In an ideal world we would have the same semantics for small and large
-pages, but that would be to ignore the obvious difference in quantity and
-availability of these mappings.  Of the strict and sloppy semantic options
-we have had, the former are cirtainly easier to rely on if potentially
-harder to work with.
+It seems to me the work done by mmu_notifier_mm_destroy should really
+be done inside the mm_lock()/mm_unlock area of mmu_unregister and
+mm_notifier_release when we have removed the last entry.  That would
+give the users job the same performance after they are done using the
+special device that they had prior to its use.
 
-> > This avoids costly resize operations later and is a quite useful
-> > strategy on 64bit (but even on 32bit).  Now the upper size will
-> > likely be incredibly huge (far beyond available physical memory), but it's 
-> > obviously impossible really uses all of it.
-> > 
-> > It's also common in languages who don't support dynamic allocation well (like 
-> > older fortran dialects). Given these won't use hugetlbfs directly either, 
-> > but I couldn't rule out that someone wrote a special fortran run time library 
-> > which transparently allocates large arrays from hugetlbfs. 
-> > 
-> > In fact i would be surprised if a number of such beasts don't exist -- it is 
-> > really an obvious simple tuning option for old HPC fortran applications.
-> > 
-> 
-> I don't know if such a run-time library exists but libhugetlbfs is occasionally
-> used in situations like this to back the data segment backed by huge pages. It
-> first copies the data MAP_SHARED to fake the reservation before remapping
-> private and kinda hopes for the best.
 
-Indeed we do see a number of such fortran apps.  The nice thing about them
-is that they actually have only static allocations and so that in reality we
-know how big they are up front and can use that information when sizing
-the mappings to back them.  So those are actually the _easiest_ to handle.
+On Thu, Apr 24, 2008 at 08:49:40AM +0200, Andrea Arcangeli wrote:
+...
+> diff --git a/mm/memory.c b/mm/memory.c
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+...
+> @@ -603,25 +605,39 @@
+>  	 * readonly mappings. The tradeoff is that copy_page_range is more
+>  	 * efficient than faulting.
+>  	 */
+> +	ret = 0;
+>  	if (!(vma->vm_flags & (VM_HUGETLB|VM_NONLINEAR|VM_PFNMAP|VM_INSERTPAGE))) {
+>  		if (!vma->anon_vma)
+> -			return 0;
+> +			goto out;
+>  	}
+>  
+> -	if (is_vm_hugetlb_page(vma))
+> -		return copy_hugetlb_page_range(dst_mm, src_mm, vma);
+> +	if (unlikely(is_vm_hugetlb_page(vma))) {
+> +		ret = copy_hugetlb_page_range(dst_mm, src_mm, vma);
+> +		goto out;
+> +	}
+>  
+> +	if (is_cow_mapping(vma->vm_flags))
+> +		mmu_notifier_invalidate_range_start(src_mm, addr, end);
+> +
+> +	ret = 0;
 
-> > > Sometimes their app will run, other times it dies. If more
-> > > than one application is running on the system that is behaving like this,
-> > > they are really playing with fire.
-> > 
-> > With your change such an application will not run at all. Doesn't
-> > seem like an improvement to me.
-> > 
-> 
-> I disagree. mmap() failing is something an application should be able to
-> take care of and at least it possible as opposed to SIGKILL where it's
-> "game over". Even if they are using run-time helpers like libhugetlbfs,
-> it should be able to detect when a large-page-backed is flaky and use small
-> pages instead. As it is, it's very difficult to detect in advance if future
-> faults will succeed, particularly when more than one application is running.
-> 
-> If the application is unable to handle mmap() failing, then yes, it'll
-> exit. But at least it'll exit consistently and not get SIGKILLed
-> randomly which to me is a far worse situation.
->
-> > > With this change, a mmap() failure is a clear indication that the mapping
-> > > would have been unsafe to use and they should try mmap()ing with small pages
-> > > instead. 
-> > 
-> > I don't have a problem with having an optional strict overcommit checking 
-> > mode (similar to what standard VM has), but it should be configurable
-> > and off by default.
-> > 
-> 
-> There already is partial strict overcommit checking for MAP_SHARED. I
-> think it should be consistent and done for MAP_PRIVATE.
-> 
-> For disabling, I could look into adding MAP_NORESERVE support and
-> something like the current overcommit_memory tunable for hugetlbfs.
-> However with yet another proc tunable, I would push for enabling strict
-> checking by default for safe behaviour than disabled by default for
-> random SIGKILLs.
+I don't think this is needed.
 
--apw
+...
+> +/* avoid memory allocations for mm_unlock to prevent deadlock */
+> +void mm_unlock(struct mm_struct *mm, struct mm_lock_data *data)
+> +{
+> +	if (mm->map_count) {
+> +		if (data->nr_anon_vma_locks)
+> +			mm_unlock_vfree(data->anon_vma_locks,
+> +					data->nr_anon_vma_locks);
+> +		if (data->i_mmap_locks)
+
+I think you really want data->nr_i_mmap_locks.
+
+...
+> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+> new file mode 100644
+> --- /dev/null
+> +++ b/mm/mmu_notifier.c
+...
+> +/*
+> + * This function can't run concurrently against mmu_notifier_register
+> + * or any other mmu notifier method. mmu_notifier_register can only
+> + * run with mm->mm_users > 0 (and exit_mmap runs only when mm_users is
+> + * zero). All other tasks of this mm already quit so they can't invoke
+> + * mmu notifiers anymore. This can run concurrently only against
+> + * mmu_notifier_unregister and it serializes against it with the
+> + * unregister_lock in addition to RCU. struct mmu_notifier_mm can't go
+> + * away from under us as the exit_mmap holds a mm_count pin itself.
+> + *
+> + * The ->release method can't allow the module to be unloaded, the
+> + * module can only be unloaded after mmu_notifier_unregister run. This
+> + * is because the release method has to run the ret instruction to
+> + * return back here, and so it can't allow the ret instruction to be
+> + * freed.
+> + */
+
+The second paragraph of this comment seems extraneous.
+
+...
+> +	/*
+> +	 * Wait ->release if mmu_notifier_unregister run list_del_rcu.
+> +	 * srcu can't go away from under us because one mm_count is
+> +	 * hold by exit_mmap.
+> +	 */
+
+These two sentences don't make any sense to me.
+
+...
+> +void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
+> +{
+> +	int before_release = 0, srcu;
+> +
+> +	BUG_ON(atomic_read(&mm->mm_count) <= 0);
+> +
+> +	srcu = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+> +	spin_lock(&mm->mmu_notifier_mm->unregister_lock);
+> +	if (!hlist_unhashed(&mn->hlist)) {
+> +		hlist_del_rcu(&mn->hlist);
+> +		before_release = 1;
+> +	}
+> +	spin_unlock(&mm->mmu_notifier_mm->unregister_lock);
+> +	if (before_release)
+> +		/*
+> +		 * exit_mmap will block in mmu_notifier_release to
+> +		 * guarantee ->release is called before freeing the
+> +		 * pages.
+> +		 */
+> +		mn->ops->release(mn, mm);
+
+I am not certain about the need to do the release callout when the driver
+has already told this subsystem it is done.  For XPMEM, this callout
+would immediately return.  I would expect it to be the same or GRU.
+
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
