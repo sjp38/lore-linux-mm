@@ -1,142 +1,336 @@
-Date: Thu, 24 Apr 2008 04:51:12 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH 01 of 12] Core of mmu notifiers
-Message-ID: <20080424095112.GC30298@sgi.com>
-References: <ea87c15371b1bd49380c.1208872277@duo.random> <Pine.LNX.4.64.0804221315160.3640@schroedinger.engr.sgi.com> <20080422223545.GP24536@duo.random> <20080422230727.GR30298@sgi.com> <20080423002848.GA32618@sgi.com> <20080423163713.GC24536@duo.random> <20080423221928.GV24536@duo.random> <20080424064753.GH24536@duo.random>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080424064753.GH24536@duo.random>
+Message-Id: <20080424151408.577430665@polymtl.ca>
+References: <20080424150324.802695381@polymtl.ca>
+Date: Thu, 24 Apr 2008 11:04:00 -0400
+From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Subject: [patch 36/37] LTTng instrumentation mm
+Content-Disposition: inline; filename=lttng-instrumentation-mm.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Jack Steiner <steiner@sgi.com>, Robin Holt <holt@sgi.com>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
+To: akpm@linux-foundation.org, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org
+Cc: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-I am not certain of this, but it seems like this patch leaves things in
-a somewhat asymetric state.  At the very least, I think that asymetry
-should be documented in the comments of either mmu_notifier.h or .c.
+Memory management core events.
 
-Before I do the first mmu_notifier_register, all places that test for
-mm_has_notifiers(mm) will return false and take the fast path.
+Added markers :
 
-After I do some mmu_notifier_register()s and their corresponding
-mmu_notifier_unregister()s, The mm_has_notifiers(mm) will return true
-and the slow path will be taken.  This, despite all registered notifiers
-having unregistered.
+mm_filemap_wait_end
+mm_filemap_wait_start
+mm_handle_fault_entry
+mm_handle_fault_exit
+mm_huge_page_alloc
+mm_huge_page_free
+mm_page_alloc
+mm_page_free
+mm_swap_file_close
+mm_swap_file_open
+mm_swap_in
+mm_swap_out
+statedump_swap_files
 
-It seems to me the work done by mmu_notifier_mm_destroy should really
-be done inside the mm_lock()/mm_unlock area of mmu_unregister and
-mm_notifier_release when we have removed the last entry.  That would
-give the users job the same performance after they are done using the
-special device that they had prior to its use.
+Changelog:
+- Use page_to_pfn for swap out instrumentation, wait_on_page_bit, do_swap_page,
+  page alloc/free.
+- add missing free_hot_cold_page instrumentation.
+- add hugetlb page_alloc page_free instrumentation.
+- Add write_access to mm fault.
+- Add page bit_nr waited for by wait_on_page_bit.
+- Move page alloc instrumentation to __aloc_pages so we cover the alloc zeroed
+  page path.
+- Add swap file used for swap in and swap out events.
+- Dump the swap files, instrument swapon and swapoff.
 
+Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+CC: linux-mm@kvack.org
+CC: Dave Hansen <haveblue@us.ibm.com>
+---
+ include/linux/swapops.h |    8 ++++++++
+ mm/filemap.c            |    7 +++++++
+ mm/hugetlb.c            |    3 +++
+ mm/memory.c             |   41 ++++++++++++++++++++++++++++++++---------
+ mm/page_alloc.c         |    9 +++++++++
+ mm/page_io.c            |    6 ++++++
+ mm/swapfile.c           |   23 +++++++++++++++++++++++
+ 7 files changed, 88 insertions(+), 9 deletions(-)
 
-On Thu, Apr 24, 2008 at 08:49:40AM +0200, Andrea Arcangeli wrote:
-...
-> diff --git a/mm/memory.c b/mm/memory.c
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-...
-> @@ -603,25 +605,39 @@
->  	 * readonly mappings. The tradeoff is that copy_page_range is more
->  	 * efficient than faulting.
->  	 */
-> +	ret = 0;
->  	if (!(vma->vm_flags & (VM_HUGETLB|VM_NONLINEAR|VM_PFNMAP|VM_INSERTPAGE))) {
->  		if (!vma->anon_vma)
-> -			return 0;
-> +			goto out;
->  	}
->  
-> -	if (is_vm_hugetlb_page(vma))
-> -		return copy_hugetlb_page_range(dst_mm, src_mm, vma);
-> +	if (unlikely(is_vm_hugetlb_page(vma))) {
-> +		ret = copy_hugetlb_page_range(dst_mm, src_mm, vma);
-> +		goto out;
-> +	}
->  
-> +	if (is_cow_mapping(vma->vm_flags))
-> +		mmu_notifier_invalidate_range_start(src_mm, addr, end);
-> +
-> +	ret = 0;
+Index: linux-2.6-lttng/mm/filemap.c
+===================================================================
+--- linux-2.6-lttng.orig/mm/filemap.c	2008-04-21 09:53:24.000000000 -0400
++++ linux-2.6-lttng/mm/filemap.c	2008-04-21 10:08:01.000000000 -0400
+@@ -33,6 +33,7 @@
+ #include <linux/cpuset.h>
+ #include <linux/hardirq.h> /* for BUG_ON(!in_atomic()) only */
+ #include <linux/memcontrol.h>
++#include <linux/marker.h>
+ #include "internal.h"
+ 
+ /*
+@@ -540,9 +541,15 @@ void wait_on_page_bit(struct page *page,
+ {
+ 	DEFINE_WAIT_BIT(wait, &page->flags, bit_nr);
+ 
++	trace_mark(mm_filemap_wait_start, "pfn %lu bit_nr %d",
++		page_to_pfn(page), bit_nr);
++
+ 	if (test_bit(bit_nr, &page->flags))
+ 		__wait_on_bit(page_waitqueue(page), &wait, sync_page,
+ 							TASK_UNINTERRUPTIBLE);
++
++	trace_mark(mm_filemap_wait_end, "pfn %lu bit_nr %d",
++		page_to_pfn(page), bit_nr);
+ }
+ EXPORT_SYMBOL(wait_on_page_bit);
+ 
+Index: linux-2.6-lttng/mm/memory.c
+===================================================================
+--- linux-2.6-lttng.orig/mm/memory.c	2008-04-21 10:08:00.000000000 -0400
++++ linux-2.6-lttng/mm/memory.c	2008-04-21 11:16:52.000000000 -0400
+@@ -45,6 +45,7 @@
+ #include <linux/swap.h>
+ #include <linux/highmem.h>
+ #include <linux/pagemap.h>
++#include <linux/marker.h>
+ #include <linux/rmap.h>
+ #include <linux/module.h>
+ #include <linux/delayacct.h>
+@@ -2058,6 +2059,12 @@ static int do_swap_page(struct mm_struct
+ 		/* Had to read the page from swap area: Major fault */
+ 		ret = VM_FAULT_MAJOR;
+ 		count_vm_event(PGMAJFAULT);
++#ifdef CONFIG_SWAP
++		trace_mark(mm_swap_in, "pfn %lu filp %p offset %lu",
++			page_to_pfn(page),
++			get_swap_info_struct(swp_type(entry))->swap_file,
++			swp_offset(entry));
++#endif
+ 	}
+ 
+ 	if (mem_cgroup_charge(page, mm, GFP_KERNEL)) {
+@@ -2517,30 +2524,46 @@ unlock:
+ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		unsigned long address, int write_access)
+ {
++	int res;
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+ 	pmd_t *pmd;
+ 	pte_t *pte;
+ 
++	trace_mark(mm_handle_fault_entry,
++		"address %lu ip #p%ld write_access %d",
++		address, KSTK_EIP(current), write_access);
++
+ 	__set_current_state(TASK_RUNNING);
+ 
+ 	count_vm_event(PGFAULT);
+ 
+-	if (unlikely(is_vm_hugetlb_page(vma)))
+-		return hugetlb_fault(mm, vma, address, write_access);
++	if (unlikely(is_vm_hugetlb_page(vma))) {
++		res = hugetlb_fault(mm, vma, address, write_access);
++		goto end;
++	}
+ 
+ 	pgd = pgd_offset(mm, address);
+ 	pud = pud_alloc(mm, pgd, address);
+-	if (!pud)
+-		return VM_FAULT_OOM;
++	if (!pud) {
++		res = VM_FAULT_OOM;
++		goto end;
++	}
+ 	pmd = pmd_alloc(mm, pud, address);
+-	if (!pmd)
+-		return VM_FAULT_OOM;
++	if (!pmd) {
++		res = VM_FAULT_OOM;
++		goto end;
++	}
+ 	pte = pte_alloc_map(mm, pmd, address);
+-	if (!pte)
+-		return VM_FAULT_OOM;
++	if (!pte) {
++		res = VM_FAULT_OOM;
++		goto end;
++	}
+ 
+-	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
++	res = handle_pte_fault(mm, vma, address, pte, pmd, write_access);
++end:
++	trace_mark(mm_handle_fault_exit, MARK_NOARGS);
++	return res;
+ }
+ 
+ #ifndef __PAGETABLE_PUD_FOLDED
+Index: linux-2.6-lttng/mm/page_alloc.c
+===================================================================
+--- linux-2.6-lttng.orig/mm/page_alloc.c	2008-04-21 09:53:24.000000000 -0400
++++ linux-2.6-lttng/mm/page_alloc.c	2008-04-21 10:08:01.000000000 -0400
+@@ -45,6 +45,7 @@
+ #include <linux/fault-inject.h>
+ #include <linux/page-isolation.h>
+ #include <linux/memcontrol.h>
++#include <linux/marker.h>
+ 
+ #include <asm/tlbflush.h>
+ #include <asm/div64.h>
+@@ -527,6 +528,9 @@ static void __free_pages_ok(struct page 
+ 	int i;
+ 	int reserved = 0;
+ 
++	trace_mark(mm_page_free, "order %u pfn %lu",
++		order, page_to_pfn(page));
++
+ 	for (i = 0 ; i < (1 << order) ; ++i)
+ 		reserved += free_pages_check(page + i);
+ 	if (reserved)
+@@ -990,6 +994,8 @@ static void free_hot_cold_page(struct pa
+ 	struct per_cpu_pages *pcp;
+ 	unsigned long flags;
+ 
++	trace_mark(mm_page_free, "order %u pfn %lu", 0, page_to_pfn(page));
++
+ 	if (PageAnon(page))
+ 		page->mapping = NULL;
+ 	if (free_pages_check(page))
+@@ -1643,6 +1649,9 @@ nopage:
+ 		show_mem();
+ 	}
+ got_pg:
++	if (page)
++		trace_mark(mm_page_alloc, "order %u pfn %lu", order,
++			   page_to_pfn(page));
+ 	return page;
+ }
+ 
+Index: linux-2.6-lttng/mm/page_io.c
+===================================================================
+--- linux-2.6-lttng.orig/mm/page_io.c	2008-04-21 09:53:24.000000000 -0400
++++ linux-2.6-lttng/mm/page_io.c	2008-04-21 10:08:01.000000000 -0400
+@@ -17,6 +17,7 @@
+ #include <linux/bio.h>
+ #include <linux/swapops.h>
+ #include <linux/writeback.h>
++#include <linux/marker.h>
+ #include <asm/pgtable.h>
+ 
+ static struct bio *get_swap_bio(gfp_t gfp_flags, pgoff_t index,
+@@ -114,6 +115,11 @@ int swap_writepage(struct page *page, st
+ 		rw |= (1 << BIO_RW_SYNC);
+ 	count_vm_event(PSWPOUT);
+ 	set_page_writeback(page);
++	trace_mark(mm_swap_out, "pfn %lu filp %p offset %lu",
++			page_to_pfn(page),
++			get_swap_info_struct(swp_type(
++				page_swp_entry(page)))->swap_file,
++			swp_offset(page_swp_entry(page)));
+ 	unlock_page(page);
+ 	submit_bio(rw, bio);
+ out:
+Index: linux-2.6-lttng/mm/hugetlb.c
+===================================================================
+--- linux-2.6-lttng.orig/mm/hugetlb.c	2008-04-21 09:53:24.000000000 -0400
++++ linux-2.6-lttng/mm/hugetlb.c	2008-04-21 10:08:01.000000000 -0400
+@@ -14,6 +14,7 @@
+ #include <linux/mempolicy.h>
+ #include <linux/cpuset.h>
+ #include <linux/mutex.h>
++#include <linux/marker.h>
+ 
+ #include <asm/page.h>
+ #include <asm/pgtable.h>
+@@ -137,6 +138,7 @@ static void free_huge_page(struct page *
+ 	int nid = page_to_nid(page);
+ 	struct address_space *mapping;
+ 
++	trace_mark(mm_huge_page_free, "pfn %lu", page_to_pfn(page));
+ 	mapping = (struct address_space *) page_private(page);
+ 	set_page_private(page, 0);
+ 	BUG_ON(page_count(page));
+@@ -485,6 +487,7 @@ static struct page *alloc_huge_page(stru
+ 	if (!IS_ERR(page)) {
+ 		set_page_refcounted(page);
+ 		set_page_private(page, (unsigned long) mapping);
++		trace_mark(mm_huge_page_alloc, "pfn %lu", page_to_pfn(page));
+ 	}
+ 	return page;
+ }
+Index: linux-2.6-lttng/include/linux/swapops.h
+===================================================================
+--- linux-2.6-lttng.orig/include/linux/swapops.h	2008-04-21 09:53:24.000000000 -0400
++++ linux-2.6-lttng/include/linux/swapops.h	2008-04-21 10:08:01.000000000 -0400
+@@ -76,6 +76,14 @@ static inline pte_t swp_entry_to_pte(swp
+ 	return __swp_entry_to_pte(arch_entry);
+ }
+ 
++static inline swp_entry_t page_swp_entry(struct page *page)
++{
++	swp_entry_t entry;
++	VM_BUG_ON(!PageSwapCache(page));
++	entry.val = page_private(page);
++	return entry;
++}
++
+ #ifdef CONFIG_MIGRATION
+ static inline swp_entry_t make_migration_entry(struct page *page, int write)
+ {
+Index: linux-2.6-lttng/mm/swapfile.c
+===================================================================
+--- linux-2.6-lttng.orig/mm/swapfile.c	2008-04-21 09:53:24.000000000 -0400
++++ linux-2.6-lttng/mm/swapfile.c	2008-04-21 10:08:01.000000000 -0400
+@@ -28,6 +28,7 @@
+ #include <linux/capability.h>
+ #include <linux/syscalls.h>
+ #include <linux/memcontrol.h>
++#include <linux/marker.h>
+ 
+ #include <asm/pgtable.h>
+ #include <asm/tlbflush.h>
+@@ -1310,6 +1311,7 @@ asmlinkage long sys_swapoff(const char _
+ 	swap_map = p->swap_map;
+ 	p->swap_map = NULL;
+ 	p->flags = 0;
++	trace_mark(mm_swap_file_close, "filp %p", swap_file);
+ 	spin_unlock(&swap_lock);
+ 	mutex_unlock(&swapon_mutex);
+ 	vfree(swap_map);
+@@ -1691,6 +1693,8 @@ asmlinkage long sys_swapon(const char __
+ 	} else {
+ 		swap_info[prev].next = p - swap_info;
+ 	}
++	trace_mark(mm_swap_file_open, "filp %p filename %s",
++		swap_file, name);
+ 	spin_unlock(&swap_lock);
+ 	mutex_unlock(&swapon_mutex);
+ 	error = 0;
+@@ -1844,3 +1848,22 @@ int valid_swaphandles(swp_entry_t entry,
+ 	*offset = ++toff;
+ 	return nr_pages? ++nr_pages: 0;
+ }
++
++void ltt_dump_swap_files(void *call_data)
++{
++	int type;
++	struct swap_info_struct *p = NULL;
++
++	mutex_lock(&swapon_mutex);
++	for (type = swap_list.head; type >= 0; type = swap_info[type].next) {
++		p = swap_info + type;
++		if ((p->flags & SWP_ACTIVE) != SWP_ACTIVE)
++			continue;
++		__trace_mark(0, statedump_swap_files, call_data,
++			"filp %p vfsmount %p dname %s",
++			p->swap_file, p->swap_file->f_vfsmnt,
++			p->swap_file->f_dentry->d_name.name);
++	}
++	mutex_unlock(&swapon_mutex);
++}
++EXPORT_SYMBOL_GPL(ltt_dump_swap_files);
 
-I don't think this is needed.
-
-...
-> +/* avoid memory allocations for mm_unlock to prevent deadlock */
-> +void mm_unlock(struct mm_struct *mm, struct mm_lock_data *data)
-> +{
-> +	if (mm->map_count) {
-> +		if (data->nr_anon_vma_locks)
-> +			mm_unlock_vfree(data->anon_vma_locks,
-> +					data->nr_anon_vma_locks);
-> +		if (data->i_mmap_locks)
-
-I think you really want data->nr_i_mmap_locks.
-
-...
-> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-> new file mode 100644
-> --- /dev/null
-> +++ b/mm/mmu_notifier.c
-...
-> +/*
-> + * This function can't run concurrently against mmu_notifier_register
-> + * or any other mmu notifier method. mmu_notifier_register can only
-> + * run with mm->mm_users > 0 (and exit_mmap runs only when mm_users is
-> + * zero). All other tasks of this mm already quit so they can't invoke
-> + * mmu notifiers anymore. This can run concurrently only against
-> + * mmu_notifier_unregister and it serializes against it with the
-> + * unregister_lock in addition to RCU. struct mmu_notifier_mm can't go
-> + * away from under us as the exit_mmap holds a mm_count pin itself.
-> + *
-> + * The ->release method can't allow the module to be unloaded, the
-> + * module can only be unloaded after mmu_notifier_unregister run. This
-> + * is because the release method has to run the ret instruction to
-> + * return back here, and so it can't allow the ret instruction to be
-> + * freed.
-> + */
-
-The second paragraph of this comment seems extraneous.
-
-...
-> +	/*
-> +	 * Wait ->release if mmu_notifier_unregister run list_del_rcu.
-> +	 * srcu can't go away from under us because one mm_count is
-> +	 * hold by exit_mmap.
-> +	 */
-
-These two sentences don't make any sense to me.
-
-...
-> +void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
-> +{
-> +	int before_release = 0, srcu;
-> +
-> +	BUG_ON(atomic_read(&mm->mm_count) <= 0);
-> +
-> +	srcu = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
-> +	spin_lock(&mm->mmu_notifier_mm->unregister_lock);
-> +	if (!hlist_unhashed(&mn->hlist)) {
-> +		hlist_del_rcu(&mn->hlist);
-> +		before_release = 1;
-> +	}
-> +	spin_unlock(&mm->mmu_notifier_mm->unregister_lock);
-> +	if (before_release)
-> +		/*
-> +		 * exit_mmap will block in mmu_notifier_release to
-> +		 * guarantee ->release is called before freeing the
-> +		 * pages.
-> +		 */
-> +		mn->ops->release(mn, mm);
-
-I am not certain about the need to do the release callout when the driver
-has already told this subsystem it is done.  For XPMEM, this callout
-would immediately return.  I would expect it to be the same or GRU.
-
-Thanks,
-Robin
+-- 
+Mathieu Desnoyers
+Computer Engineering Ph.D. Student, Ecole Polytechnique de Montreal
+OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
