@@ -1,79 +1,65 @@
-Date: Thu, 24 Apr 2008 09:06:24 +0200
+Date: Thu, 24 Apr 2008 09:13:52 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 00/18] multi size, and giant hugetlb page support, 1GB hugetlb for x86
-Message-ID: <20080424070624.GA14543@wotan.suse.de>
-References: <20080423015302.745723000@nick.local0.net> <480EEDD9.2010601@firstfloor.org> <20080423153404.GB16769@wotan.suse.de> <20080423154652.GB29087@one.firstfloor.org> <20080423155338.GF16769@wotan.suse.de> <20080423185223.GE10548@us.ibm.com> <20080424020828.GA7101@wotan.suse.de> <20080424064350.GA17886@us.ibm.com>
+Subject: Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs ABI
+Message-ID: <20080424071352.GB14543@wotan.suse.de>
+References: <20080411235648.GA13276@suse.de> <20080412094118.GA7708@wotan.suse.de> <20080413034136.GA22686@suse.de> <20080414210506.GA6350@us.ibm.com> <20080417231617.GA18815@us.ibm.com> <Pine.LNX.4.64.0804171619340.12031@schroedinger.engr.sgi.com> <20080422051447.GI21993@wotan.suse.de> <20080422165602.GA29570@us.ibm.com> <20080423010259.GA17572@wotan.suse.de> <20080423183252.GA10548@us.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080424064350.GA17886@us.ibm.com>
+In-Reply-To: <20080423183252.GA10548@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
+Cc: Christoph Lameter <clameter@sgi.com>, Greg KH <gregkh@suse.de>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 23, 2008 at 11:43:50PM -0700, Nishanth Aravamudan wrote:
-> On 24.04.2008 [04:08:28 +0200], Nick Piggin wrote:
-> > On Wed, Apr 23, 2008 at 11:52:23AM -0700, Nishanth Aravamudan wrote:
-> > > On 23.04.2008 [17:53:38 +0200], Nick Piggin wrote:
-> > > > > It's not fully compatible. And that is bad.
-> > > > 
-> > > > It is fully compatible because if you don't actually ask for any new
-> > > > option then you don't get it. What you see will be exactly unchanged.
-> > > > If you ask for _only_ 1G pages, then this new scheme is very likely to
-> > > > work with well written applications wheras if you also print out the 2MB
-> > > > legacy values first, then they have little to no chance of working.
-> > > > 
-> > > > Then if you want legacy apps to use 2MB pages, and new ones to use 1G,
-> > > > then you ask for both and get the 2MB column printed in /proc/meminfo
-> > > > (actually it can probably get printed 2nd if you ask for 2MB pages
-> > > > after asking for 1G pages -- that is something I'll fix).
-> > > 
-> > > Yep, the "default hugepagesz" was something I was going to ask about. I
-> > > believe hugepagesz= should function kind of like console= where the
-> > > order matters if specified multiple times for where /dev/console points.
-> > > I agree with you that hugepagesz=XX hugepagesz=YY implies XX is the
-> > > default, and YY is the "other", regardless of their values, and that is
-> > > how they should be presented in meminfo.
-> > 
-> > OK, that would be fine. I was going to do it the other way and make
-> > 2M always come first. However so long as we document as such the
-> > command line parameters, I don't see why we couldn't have this extra
-> > flexibility (and that means I shouldn't have to write any more code ;))
+On Wed, Apr 23, 2008 at 11:32:52AM -0700, Nishanth Aravamudan wrote:
 > 
-> Keep in mind, I did retract this to some extent in my other
-> reply...After thinking about Andi's points a bit more, I believe the
-> most flexible (not too-x86_64-centric, either) option is to have all
-> potential hugepage sizes be "available" at run-time. What hugepages are
-> allocated at boot-time is all that is specified on the kernel
-> command-line, in that case (and is only truly necessary for the
-> ginormous hugepages, and needs to be heavily documented as such).
+> So, I think, we pretty much agree on how things should be:
 > 
-> Realistically, yes, we could have it either way (hugepagesz= determines
-> the order), but it shouldn't matter to well-written applications, so
-> keeping things reflecting current reality as much as possible does make
-> sense -- that is, 2M would always come first meminfo on x86_64.
+> Direct translation of the current sysctl:
 > 
-> If you want, I can send you a patch to do that, as I start the sysfs
-> patches.
+> /sys/kernel/hugepages/nr_hugepages
+>                       nr_overcommit_hugepages
+> 
+> Adding multiple pools:
+> 
+> /sys/kernel/hugepages/nr_hugepages -> nr_hugepages_${default_size}
+>                       nr_overcommit_hugepages -> nr_overcommit_hugepages_${default_size}
+>                       nr_hugepages_${default_size}
+>                       nr_overcommit_hugepages_${default_size}
+>                       nr_hugepages_${other_size1}
+>                       nr_overcommit_hugepages_${other_size2}
+> 
+> Adding per-node control:
+> 
+> /sys/kernel/hugepages/nr_hugepages -> nr_hugepages_${default_size}
+>                       nr_overcommit_hugepages -> nr_overcommit_hugepages_${default_size}
+>                       nr_hugepages_${default_size}
+>                       nr_overcommit_hugepages_${default_size}
+>                       nr_hugepages_${other_size1}
+>                       nr_overcommit_hugepages_${other_size2}
+>                       nodeX/nr_hugepages -> nr_hugepages_${default_size}
+>                             nr_overcommit_hugepages -> nr_overcommit_hugepages_${default_size}
+>                             nr_hugepages_${default_size}
+>                             nr_overcommit_hugepages_${default_size}
+>                             nr_hugepages_${other_size1}
+>                             nr_overcommit_hugepages_${other_size2}
+> 
+> How does that look? Does anyone have any problems with such an
+> arrangement?
 
-Honestly, I don't really care about the exact behaviour and user APIs.
+Looks pretty good. I would personally lean toward subdirectories for
+hstates. Pros are that it would be a little easier to navigate from
+the shell, and maybe more regular to program for.
 
-I agree with the point Andi stresses that backwards compatibility is
-#1 priority; and with unchanged kernel command line / config options,
-I think we need to have /proc/meminfo give *unchanged* (ie. single
-column) output.
+You could possibly have hugepages_default symlink as well to one of
+the directories of your choice. This could be used by apps which do
+not specify exactly what size they want...
 
-Second, future apps obviously should use some more appropriate sysfs
-tunables and be aware of multiple hstates.
+I don't know, just ideas.
 
-Finally, I would have thought people would be interested in *trying*
-to get legacy apps to work with 1G hugepages (eg. oracle/db2 or HPC
-stuff could probably make use of them quite nicely). However this 3rd
-consideration is obviously the least important of the 3. I wouldn't
-lose any sleep if my option doesn't get in.
-
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
