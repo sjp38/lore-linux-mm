@@ -1,53 +1,45 @@
-Date: Thu, 24 Apr 2008 10:36:59 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Warning on memory offline (and possible in usual migration?)
-Message-Id: <20080424103659.90a1006d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0804231048120.12373@schroedinger.engr.sgi.com>
-References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
-	<20080422045205.GH21993@wotan.suse.de>
-	<20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080422094352.GB23770@wotan.suse.de>
-	<Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com>
-	<20080423004804.GA14134@wotan.suse.de>
-	<20080423114107.b8df779c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080423025358.GA9751@wotan.suse.de>
-	<20080423124425.5c80d3cf.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0804231048120.12373@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by py-out-1112.google.com with SMTP id f47so2949691pye.20
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2008 19:03:12 -0700 (PDT)
+Message-ID: <44c63dc40804231903m654736e7k47d79373d5449571@mail.gmail.com>
+Date: Thu, 24 Apr 2008 11:03:11 +0900
+From: "minchan Kim" <barrioskmc@gmail.com>
+Subject: wrong comment in do_try_to_free_pages ?
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
+To: linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 23 Apr 2008 10:50:33 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+static unsigned long do_try_to_free_pages(struct zone **zones, gfp_t gfp_mask,
+           struct scan_control *sc)
+...
+...
+   /* Take a nap, wait for some writeback to complete */
+   if (sc->nr_scanned && priority < DEF_PRIORITY - 2)
+     congestion_wait(WRITE, HZ/10);
+ }
+ /* top priority shrink_caches still had more to do? don't OOM, then */
+                     ^^^^^^^^^^^^^^^^^
+ if (!sc->all_unreclaimable && scan_global_lru(sc))
+   ret = 1;
+out:
+ /*
+....
 
-> On Wed, 23 Apr 2008, KAMEZAWA Hiroyuki wrote:
-> 
-> > In set_page_dirty_nobuffers()case , it just makes a page to be dirty. We can't
-> > see whether a page is really up-to-date or not when PagePrivate(page) &&
-> > !PageUptodate(page). This is used for a page which contains some data
-> > to be written out. (part of buffers contains data.)
-> 
-> So its safe to migrate a !Uptodate page if it contains buffers? Note that 
-> the migration code reattaches the buffer to the new page in 
-> buffer_migrate_page().
-> 
-I think it's safe because it reattaches buffers as you explained.
+I think we change shrink_caches commet with shrink_zone.
 
-under migration
-1. a page is locked.
-2. buffers are reattached.
-3. a PG_writeback page are not migrated.
+And I can't understand that's comment.
 
-So, it seems safe.
+What's role sc->all_unreclaimable ?
+What benefit do we can get with that code ?
+If we don't have that code, What's problem happen ?
 
+-- 
 Thanks,
--Kame
+barrios
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
