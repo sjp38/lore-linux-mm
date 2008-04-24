@@ -1,136 +1,221 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3OH600w010960
-	for <linux-mm@kvack.org>; Thu, 24 Apr 2008 13:06:00 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3OH8SUd135576
-	for <linux-mm@kvack.org>; Thu, 24 Apr 2008 11:08:28 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3OH8SJa008494
-	for <linux-mm@kvack.org>; Thu, 24 Apr 2008 11:08:28 -0600
-Date: Thu, 24 Apr 2008 10:08:04 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [patch 00/18] multi size, and giant hugetlb page support, 1GB
-	hugetlb for x86
-Message-ID: <20080424170804.GB8451@us.ibm.com>
-References: <20080423015302.745723000@nick.local0.net> <480EEDD9.2010601@firstfloor.org> <20080423153404.GB16769@wotan.suse.de> <20080423154652.GB29087@one.firstfloor.org> <20080423155338.GF16769@wotan.suse.de> <20080423185223.GE10548@us.ibm.com> <20080424020828.GA7101@wotan.suse.de> <20080424064350.GA17886@us.ibm.com> <20080424070624.GA14543@wotan.suse.de>
+Date: Thu, 24 Apr 2008 19:41:45 +0200
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [PATCH 01 of 12] Core of mmu notifiers
+Message-ID: <20080424174145.GM24536@duo.random>
+References: <ea87c15371b1bd49380c.1208872277@duo.random> <Pine.LNX.4.64.0804221315160.3640@schroedinger.engr.sgi.com> <20080422223545.GP24536@duo.random> <20080422230727.GR30298@sgi.com> <20080423002848.GA32618@sgi.com> <20080423163713.GC24536@duo.random> <20080423221928.GV24536@duo.random> <20080424064753.GH24536@duo.random> <20080424095112.GC30298@sgi.com> <20080424153943.GJ24536@duo.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080424070624.GA14543@wotan.suse.de>
+In-Reply-To: <20080424153943.GJ24536@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
+To: Robin Holt <holt@sgi.com>
+Cc: Jack Steiner <steiner@sgi.com>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On 24.04.2008 [09:06:24 +0200], Nick Piggin wrote:
-> On Wed, Apr 23, 2008 at 11:43:50PM -0700, Nishanth Aravamudan wrote:
-> > On 24.04.2008 [04:08:28 +0200], Nick Piggin wrote:
-> > > On Wed, Apr 23, 2008 at 11:52:23AM -0700, Nishanth Aravamudan wrote:
-> > > > On 23.04.2008 [17:53:38 +0200], Nick Piggin wrote:
-> > > > > > It's not fully compatible. And that is bad.
-> > > > > 
-> > > > > It is fully compatible because if you don't actually ask for
-> > > > > any new option then you don't get it. What you see will be
-> > > > > exactly unchanged.  If you ask for _only_ 1G pages, then this
-> > > > > new scheme is very likely to work with well written
-> > > > > applications wheras if you also print out the 2MB legacy
-> > > > > values first, then they have little to no chance of working.
-> > > > > 
-> > > > > Then if you want legacy apps to use 2MB pages, and new ones to
-> > > > > use 1G, then you ask for both and get the 2MB column printed
-> > > > > in /proc/meminfo (actually it can probably get printed 2nd if
-> > > > > you ask for 2MB pages after asking for 1G pages -- that is
-> > > > > something I'll fix).
-> > > > 
-> > > > Yep, the "default hugepagesz" was something I was going to ask
-> > > > about. I believe hugepagesz= should function kind of like
-> > > > console= where the order matters if specified multiple times for
-> > > > where /dev/console points.  I agree with you that hugepagesz=XX
-> > > > hugepagesz=YY implies XX is the
-> > > > default, and YY is the "other", regardless of their values, and that is
-> > > > how they should be presented in meminfo.
-> > > 
-> > > OK, that would be fine. I was going to do it the other way and
-> > > make 2M always come first. However so long as we document as such
-> > > the command line parameters, I don't see why we couldn't have this
-> > > extra flexibility (and that means I shouldn't have to write any
-> > > more code ;))
-> > 
-> > Keep in mind, I did retract this to some extent in my other
-> > reply...After thinking about Andi's points a bit more, I believe the
-> > most flexible (not too-x86_64-centric, either) option is to have all
-> > potential hugepage sizes be "available" at run-time. What hugepages
-> > are allocated at boot-time is all that is specified on the kernel
-> > command-line, in that case (and is only truly necessary for the
-> > ginormous hugepages, and needs to be heavily documented as such).
-> > 
-> > Realistically, yes, we could have it either way (hugepagesz=
-> > determines the order), but it shouldn't matter to well-written
-> > applications, so keeping things reflecting current reality as much
-> > as possible does make sense -- that is, 2M would always come first
-> > meminfo on x86_64.
-> > 
-> > If you want, I can send you a patch to do that, as I start the sysfs
-> > patches.
-> 
-> Honestly, I don't really care about the exact behaviour and user APIs.
-> 
-> I agree with the point Andi stresses that backwards compatibility is
-> #1 priority; and with unchanged kernel command line / config options,
-> I think we need to have /proc/meminfo give *unchanged* (ie. single
-> column) output.
+On Thu, Apr 24, 2008 at 05:39:43PM +0200, Andrea Arcangeli wrote:
+> There's at least one small issue I noticed so far, that while _release
+> don't need to care about _register, but _unregister definitely need to
+> care about _register. I've to take the mmap_sem in addition or in
 
-Ok -- so meminfo will have one format (single column) if the command
-line is unchanged, and a different one if, say "hugepagesz=1G" is
-specified?
+In the end the best is to use the spinlock around those
+list_add/list_del they all run in O(1) with the hlist and they take a
+few asm insn. This also avoids to take the mmap_sem in exit_mmap, at
+exit_mmap time nobody should need to use mmap_sem anymore, it might
+work but this looks cleaner. The lock is dynamically allocated only
+when the notifiers are registered, so the few bytes taken by it aren't
+relevant.
 
-Should we just leave the default hugepage size info in /proc/meminfo
-(always single column) and use sysfs for everything else? Including
-hugepage meminfo's on a page-size basis? I guess that would violate
-sysfs rules, but might be fine for a proof-of-concept?
+A full new update will some become visible here:
 
-> Second, future apps obviously should use some more appropriate sysfs
-> tunables and be aware of multiple hstates.
+	http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.25/mmu-notifier-v14-pre3/
 
-Indeed.
+Please have a close look again. Your help is extremely appreciated and
+very helpful as usual! Thanks a lot.
 
-> Finally, I would have thought people would be interested in *trying*
-> to get legacy apps to work with 1G hugepages (eg. oracle/db2 or HPC
-> stuff could probably make use of them quite nicely). However this 3rd
-> consideration is obviously the least important of the 3. I wouldn't
-> lose any sleep if my option doesn't get in.
-
-Well, there are two interfaces, right?
-
-1) SHM_HUGETLB
-  I'm not sure how to extend this best. iirc, SHM_HUGETLB uses an
-  internal (invisible) hugetlbfs mount. And I don't think it specifies a
-  size or anything to said mount...so unless *only* 1G hugepages are
-  available (which we've decided will not be the case?), I believe
-  SHM_HUGETLB as currently used will never use them.
-
-2) hugetlbfs
-  By mounting hugetlbfs with size= (I believe), we can specify which
-  pool should be accessed by files in the mount. This is what
-  libhugetlbfs would leverage to use different hugepage sizes. There has
-  been some discussion on that list and among some of us working on
-  libhugetlbfs on how best to allow applications to specify the size
-  they'd prefer. Eric Munson has been working on a binary (hugectl) to
-  demonstrate hugepage-backed stacks in-kernel, which might be
-  extended to include a --preferred-size flag (it's essentially an
-  exec() wrapper, in the same vein as numactl). In any case,
-  libhugetlbfs could be used (by only mounting the 1G sized hugetlbfs)
-  for legacy apps without modification (well segment remapping may not
-  work due to alignments, but should be easy to fix, and will probably
-  be fixed in 2.0, which will change our remapping algorithm).
-
-Thanks,
-Nish
-
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+diff -urN xxx/include/linux/mmu_notifier.h xx/include/linux/mmu_notifier.h
+--- xxx/include/linux/mmu_notifier.h	2008-04-24 19:41:15.000000000 +0200
++++ xx/include/linux/mmu_notifier.h	2008-04-24 19:38:37.000000000 +0200
+@@ -15,7 +15,7 @@
+ 	struct hlist_head list;
+ 	struct srcu_struct srcu;
+ 	/* to serialize mmu_notifier_unregister against mmu_notifier_release */
+-	spinlock_t unregister_lock;
++	spinlock_t lock;
+ };
+ 
+ struct mmu_notifier_ops {
+diff -urN xxx/mm/memory.c xx/mm/memory.c
+--- xxx/mm/memory.c	2008-04-24 19:41:15.000000000 +0200
++++ xx/mm/memory.c	2008-04-24 19:38:37.000000000 +0200
+@@ -605,16 +605,13 @@
+ 	 * readonly mappings. The tradeoff is that copy_page_range is more
+ 	 * efficient than faulting.
+ 	 */
+-	ret = 0;
+ 	if (!(vma->vm_flags & (VM_HUGETLB|VM_NONLINEAR|VM_PFNMAP|VM_INSERTPAGE))) {
+ 		if (!vma->anon_vma)
+-			goto out;
++			return 0;
+ 	}
+ 
+-	if (unlikely(is_vm_hugetlb_page(vma))) {
+-		ret = copy_hugetlb_page_range(dst_mm, src_mm, vma);
+-		goto out;
+-	}
++	if (is_vm_hugetlb_page(vma))
++		return copy_hugetlb_page_range(dst_mm, src_mm, vma);
+ 
+ 	if (is_cow_mapping(vma->vm_flags))
+ 		mmu_notifier_invalidate_range_start(src_mm, addr, end);
+@@ -636,7 +633,6 @@
+ 	if (is_cow_mapping(vma->vm_flags))
+ 		mmu_notifier_invalidate_range_end(src_mm,
+ 						  vma->vm_start, end);
+-out:
+ 	return ret;
+ }
+ 
+diff -urN xxx/mm/mmap.c xx/mm/mmap.c
+--- xxx/mm/mmap.c	2008-04-24 19:41:15.000000000 +0200
++++ xx/mm/mmap.c	2008-04-24 19:38:37.000000000 +0200
+@@ -2381,7 +2381,7 @@
+ 		if (data->nr_anon_vma_locks)
+ 			mm_unlock_vfree(data->anon_vma_locks,
+ 					data->nr_anon_vma_locks);
+-		if (data->i_mmap_locks)
++		if (data->nr_i_mmap_locks)
+ 			mm_unlock_vfree(data->i_mmap_locks,
+ 					data->nr_i_mmap_locks);
+ 	}
+diff -urN xxx/mm/mmu_notifier.c xx/mm/mmu_notifier.c
+--- xxx/mm/mmu_notifier.c	2008-04-24 19:41:15.000000000 +0200
++++ xx/mm/mmu_notifier.c	2008-04-24 19:31:23.000000000 +0200
+@@ -24,22 +24,16 @@
+  * zero). All other tasks of this mm already quit so they can't invoke
+  * mmu notifiers anymore. This can run concurrently only against
+  * mmu_notifier_unregister and it serializes against it with the
+- * unregister_lock in addition to RCU. struct mmu_notifier_mm can't go
+- * away from under us as the exit_mmap holds a mm_count pin itself.
+- *
+- * The ->release method can't allow the module to be unloaded, the
+- * module can only be unloaded after mmu_notifier_unregister run. This
+- * is because the release method has to run the ret instruction to
+- * return back here, and so it can't allow the ret instruction to be
+- * freed.
++ * mmu_notifier_mm->lock in addition to RCU. struct mmu_notifier_mm
++ * can't go away from under us as exit_mmap holds a mm_count pin
++ * itself.
+  */
+ void __mmu_notifier_release(struct mm_struct *mm)
+ {
+ 	struct mmu_notifier *mn;
+ 	int srcu;
+ 
+-	srcu = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+-	spin_lock(&mm->mmu_notifier_mm->unregister_lock);
++	spin_lock(&mm->mmu_notifier_mm->lock);
+ 	while (unlikely(!hlist_empty(&mm->mmu_notifier_mm->list))) {
+ 		mn = hlist_entry(mm->mmu_notifier_mm->list.first,
+ 				 struct mmu_notifier,
+@@ -52,23 +46,28 @@
+ 		 */
+ 		hlist_del_init(&mn->hlist);
+ 		/*
++		 * SRCU here will block mmu_notifier_unregister until
++		 * ->release returns.
++		 */
++		srcu = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
++		spin_unlock(&mm->mmu_notifier_mm->lock);
++		/*
+ 		 * if ->release runs before mmu_notifier_unregister it
+ 		 * must be handled as it's the only way for the driver
+-		 * to flush all existing sptes before the pages in the
+-		 * mm are freed.
++		 * to flush all existing sptes and stop the driver
++		 * from establishing any more sptes before all the
++		 * pages in the mm are freed.
+ 		 */
+-		spin_unlock(&mm->mmu_notifier_mm->unregister_lock);
+-		/* SRCU will block mmu_notifier_unregister */
+ 		mn->ops->release(mn, mm);
+-		spin_lock(&mm->mmu_notifier_mm->unregister_lock);
++		srcu_read_unlock(&mm->mmu_notifier_mm->srcu, srcu);
++		spin_lock(&mm->mmu_notifier_mm->lock);
+ 	}
+-	spin_unlock(&mm->mmu_notifier_mm->unregister_lock);
+-	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, srcu);
++	spin_unlock(&mm->mmu_notifier_mm->lock);
+ 
+ 	/*
+-	 * Wait ->release if mmu_notifier_unregister run list_del_rcu.
+-	 * srcu can't go away from under us because one mm_count is
+-	 * hold by exit_mmap.
++	 * Wait ->release if mmu_notifier_unregister is running it.
++	 * The mmu_notifier_mm can't go away from under us because one
++	 * mm_count is hold by exit_mmap.
+ 	 */
+ 	synchronize_srcu(&mm->mmu_notifier_mm->srcu);
+ }
+@@ -177,11 +176,19 @@
+ 			goto out_unlock;
+ 		}
+ 		INIT_HLIST_HEAD(&mm->mmu_notifier_mm->list);
+-		spin_lock_init(&mm->mmu_notifier_mm->unregister_lock);
++		spin_lock_init(&mm->mmu_notifier_mm->lock);
+ 	}
+ 	atomic_inc(&mm->mm_count);
+ 
++	/*
++	 * Serialize the update against mmu_notifier_unregister. A
++	 * side note: mmu_notifier_release can't run concurrently with
++	 * us because we hold the mm_users pin (either implicitly as
++	 * current->mm or explicitly with get_task_mm() or similar).
++	 */
++	spin_lock(&mm->mmu_notifier_mm->lock);
+ 	hlist_add_head_rcu(&mn->hlist, &mm->mmu_notifier_mm->list);
++	spin_unlock(&mm->mmu_notifier_mm->lock);
+ out_unlock:
+ 	mm_unlock(mm, &data);
+ out:
+@@ -215,23 +222,32 @@
+ 
+ 	BUG_ON(atomic_read(&mm->mm_count) <= 0);
+ 
+-	srcu = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+-	spin_lock(&mm->mmu_notifier_mm->unregister_lock);
++	spin_lock(&mm->mmu_notifier_mm->lock);
+ 	if (!hlist_unhashed(&mn->hlist)) {
+ 		hlist_del_rcu(&mn->hlist);
+ 		before_release = 1;
+ 	}
+-	spin_unlock(&mm->mmu_notifier_mm->unregister_lock);
+ 	if (before_release)
+ 		/*
++		 * SRCU here will force exit_mmap to wait ->release to finish
++		 * before freeing the pages.
++		 */
++		srcu = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
++	spin_unlock(&mm->mmu_notifier_mm->lock);
++	if (before_release) {
++		/*
+ 		 * exit_mmap will block in mmu_notifier_release to
+ 		 * guarantee ->release is called before freeing the
+ 		 * pages.
+ 		 */
+ 		mn->ops->release(mn, mm);
+-	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, srcu);
++		srcu_read_unlock(&mm->mmu_notifier_mm->srcu, srcu);
++	}
+ 
+-	/* wait any running method to finish, including ->release */
++	/*
++	 * Wait any running method to finish, of course including
++	 * ->release if it was run by mmu_notifier_relase instead of us.
++	 */
+ 	synchronize_srcu(&mm->mmu_notifier_mm->srcu);
+ 
+ 	BUG_ON(atomic_read(&mm->mm_count) <= 0);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
