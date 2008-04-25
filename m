@@ -1,281 +1,252 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3PHEAGw027635
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 13:14:10 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3PHEAJB253662
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 13:14:10 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3PHDx47010747
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 13:14:00 -0400
-Date: Fri, 25 Apr 2008 10:13:46 -0700
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3PHca1e009198
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 13:38:36 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3PHcZvc177086
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 11:38:35 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3PHcZWO031073
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 11:38:35 -0600
+Date: Fri, 25 Apr 2008 10:38:27 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [patch 04/18] hugetlb: modular state
-Message-ID: <20080425171346.GB9680@us.ibm.com>
-References: <20080423015302.745723000@nick.local0.net> <20080423015430.054070000@nick.local0.net>
+Subject: Re: [patch 05/18] hugetlb: multiple hstates
+Message-ID: <20080425173827.GC9680@us.ibm.com>
+References: <20080423015302.745723000@nick.local0.net> <20080423015430.162027000@nick.local0.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080423015430.054070000@nick.local0.net>
+In-Reply-To: <20080423015430.162027000@nick.local0.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: npiggin@suse.de
 Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On 23.04.2008 [11:53:06 +1000], npiggin@suse.de wrote:
-> Large, but rather mechanical patch that converts most of the hugetlb.c
-> globals into structure members and passes them around.
+On 23.04.2008 [11:53:07 +1000], npiggin@suse.de wrote:
+> Add basic support for more than one hstate in hugetlbfs
 > 
-> Right now there is only a single global hstate structure, but most of
-> the infrastructure to extend it is there.
-
-While going through the patches as I apply them to 2.6.25-mm1 (as none
-will apply cleanly so far :), I have a few comments. I like this patch
-overall.
-
+> - Convert hstates to an array
+> - Add a first default entry covering the standard huge page size
+> - Add functions for architectures to register new hstates
+> - Add basic iterators over hstates
+> 
+> Signed-off-by: Andi Kleen <ak@suse.de>
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
+> ---
+>  include/linux/hugetlb.h |   11 ++++
+>  mm/hugetlb.c            |  112 +++++++++++++++++++++++++++++++++++++-----------
+>  2 files changed, 97 insertions(+), 26 deletions(-)
+> 
 > Index: linux-2.6/mm/hugetlb.c
 > ===================================================================
 > --- linux-2.6.orig/mm/hugetlb.c
 > +++ linux-2.6/mm/hugetlb.c
+> @@ -27,7 +27,17 @@ unsigned long sysctl_overcommit_huge_pag
+>  static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
+>  unsigned long hugepages_treat_as_movable;
+> 
+> -struct hstate global_hstate;
+> +static int max_hstate = 0;
+> +
+> +static unsigned long default_hstate_resv = 0;
 
-<snip>
+Unnecessary initializations (and whitespace)?
 
-> +struct hstate global_hstate;
+What's the purpose of default_hstate_resv? Isn't it basically just
+replacing max_huge_pages? "resv" has a very special meaning in
+hugetlb.c, can another name be chosen?
 
-One thing I noticed throughout is that it's sort of inconsistent where a
-hstate is passed to a function and where it's locally determined in
-functions. It seems like we should obtain the hstate as early as
-possible and just pass the pointer down as needed ... except in those
-contexts that we don't control the caller, of course. That seems to be
-more flexible than the way this patch does it, especially given that the
-whole thing is a series that immediately extends this infrastructure to
-multiple hugepage sizes. That would seem to, at least, make the
-follow-on patches easier to follow.
+> +struct hstate hstates[HUGE_MAX_HSTATE];
+> +
+> +/* for command line parsing */
+> +struct hstate *parsed_hstate __initdata = NULL;
 
+Unnecessary initialization (checkpatch caught the first two, not this
+one). Should this be static? Isn't __initdata traditionally put closer
+to the front of the line?
+
+> +#define for_each_hstate(h) \
+> +	for ((h) = hstates; (h) < &hstates[max_hstate]; (h)++)
 > 
 >  /*
 >   * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
->   */
->  static DEFINE_SPINLOCK(hugetlb_lock);
+> @@ -128,9 +138,19 @@ static void update_and_free_page(struct 
+>  	__free_pages(page, huge_page_order(h));
+>  }
+> 
+> +struct hstate *size_to_hstate(unsigned long size)
+> +{
+> +	struct hstate *h;
+> +	for_each_hstate (h) {
 
-Not sure if this makes sense or not, but would it be useful to make the
-lock be per-hstate? It is designed to protect the counters and the
-freelists, but those are per-hstate, right? Would need heavy testing,
-but might be useful for varying apps both trying to use different size
-hugepages simultaneously?
+Extraneous space?
 
-<snip>
+> +		if (huge_page_size(h) == size)
+> +			return h;
+> +	}
+> +	return NULL;
+> +}
 
-> @@ -98,18 +93,19 @@ static struct page *dequeue_huge_page_vm
->  	struct zonelist *zonelist = huge_zonelist(vma, address,
->  					htlb_alloc_mask, &mpol);
->  	struct zone **z;
-> +	struct hstate *h = hstate_vma(vma);
-
-Why not make dequeue_huge_page_vma() take an hstate too? All the callers
-have the vma, which means they can do this call themselves ... makes
-more for a more consistent API between the two dequeue_ variants.
-
-<snip>
+Might become annoying if we add many hugepagesizes, but I guess we'll
+never have enough to really matter. Just don't want to have to worry
+about this loop for performance reasons when only one hugepage size is
+in use? Would it make sense to cache the last value used? Probably
+overkill for now.
 
 >  static void free_huge_page(struct page *page)
 >  {
-> +	struct hstate *h = &global_hstate;
+> -	struct hstate *h = &global_hstate;
+> +	struct hstate *h = size_to_hstate(PAGE_SIZE << compound_order(page));
+
+Perhaps this could be made a static inline function?
+
+static inline page_hstate(struct page *page)
+{
+	return size_to_hstate(PAGE_SIZE << compound_order(page))
+}
+
+I guess I haven't checked yet if it's used anywhere else, but it makes
+things a little clearer, perhaps?
+
+And this is only needed to be done actually for the destructor case?
+Technically, we have the hstate already in the set_max_huge_pages()
+path? Might be worth a cleanup down-the-road.
+
 >  	int nid = page_to_nid(page);
 >  	struct address_space *mapping;
-
-Similarly, the only caller of free_huge_page has already figured out the
-hstate to use (even if there is only one) -- why not pass it down here?
-
-Oh here it might be because free_huge_page is used as the destructor --
-perhaps add a comment?
-
-<snip>
-
-> -static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
-> -						unsigned long address)
-> +static struct page *alloc_buddy_huge_page(struct hstate *h,
-> +					  struct vm_area_struct *vma,
-> +					  unsigned long address)
->  {
->  	struct page *page;
->  	unsigned int nid;
-> @@ -277,17 +275,17 @@ static struct page *alloc_buddy_huge_pag
->  	 * per-node value is checked there.
->  	 */
->  	spin_lock(&hugetlb_lock);
-> -	if (surplus_huge_pages >= nr_overcommit_huge_pages) {
-> +	if (h->surplus_huge_pages >= h->nr_overcommit_huge_pages) {
->  		spin_unlock(&hugetlb_lock);
->  		return NULL;
->  	} else {
-> -		nr_huge_pages++;
-> -		surplus_huge_pages++;
-> +		h->nr_huge_pages++;
-> +		h->surplus_huge_pages++;
->  	}
->  	spin_unlock(&hugetlb_lock);
 > 
->  	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
-> -					HUGETLB_PAGE_ORDER);
-> +			   huge_page_order(h));
+> @@ -495,38 +515,80 @@ static struct page *alloc_huge_page(stru
+>  	return page;
+>  }
+> 
+> -static int __init hugetlb_init(void)
+> +static void __init hugetlb_init_hstate(struct hstate *h)
 
-Nit: odd indentation?
+Could this perhaps be named hugetlb_init_one_hstate()? Makes it harder
+for me to go cross-eyed as I go between the functions :)
 
 <snip>
 
-> @@ -539,19 +546,21 @@ static unsigned int cpuset_mems_nr(unsig
->  #ifdef CONFIG_HIGHMEM
->  static void try_to_free_low(unsigned long count)
+> +static void __init report_hugepages(void)
+> +{
+> +	struct hstate *h;
+> +
+> +	for_each_hstate(h) {
+> +		printk(KERN_INFO "Total HugeTLB memory allocated, %ld %dMB pages\n",
+> +				h->free_huge_pages,
+> +				1 << (h->order + PAGE_SHIFT - 20));
+
+This will need to be changed for 64K hugepages (which already exist in
+mainline). Perhaps we need a hugepage_units() function :)
+
+<snip>
+
+> +/* Should be called on processing a hugepagesz=... option */
+> +void __init huge_add_hstate(unsigned order)
+> +{
+> +	struct hstate *h;
+> +	if (size_to_hstate(PAGE_SIZE << order)) {
+> +		printk("hugepagesz= specified twice, ignoring\n");
+
+Needs a KERN_ level.
+
+And did we decide whether specifying hugepagesz= multiple times is ok,
+or not?
+
+> +		return;
+> +	}
+> +	BUG_ON(max_hstate >= HUGE_MAX_HSTATE);
+> +	BUG_ON(order < HPAGE_SHIFT - PAGE_SHIFT);
+> +	h = &hstates[max_hstate++];
+> +	h->order = order;
+> +	h->mask = ~((1ULL << (order + PAGE_SHIFT)) - 1);
+> +	hugetlb_init_hstate(h);
+> +	parsed_hstate = h;
+> +}
+> +
+>  static int __init hugetlb_setup(char *s)
 >  {
-
-Shouldn't this just take an hstate as a parameter?
-
-> +	struct hstate *h = &global_hstate;
+> -	if (sscanf(s, "%lu", &max_huge_pages) <= 0)
+> -		max_huge_pages = 0;
+> +	if (sscanf(s, "%lu", &default_hstate_resv) <= 0)
+> +		default_hstate_resv = 0;
+>  	return 1;
+>  }
+>  __setup("hugepages=", hugetlb_setup);
+> @@ -544,28 +606,27 @@ static unsigned int cpuset_mems_nr(unsig
+> 
+>  #ifdef CONFIG_SYSCTL
+>  #ifdef CONFIG_HIGHMEM
+> -static void try_to_free_low(unsigned long count)
+> +static void try_to_free_low(struct hstate *h, unsigned long count)
+>  {
+> -	struct hstate *h = &global_hstate;
 >  	int i;
 > 
 >  	for (i = 0; i < MAX_NUMNODES; ++i) {
 >  		struct page *page, *next;
-> -		list_for_each_entry_safe(page, next, &hugepage_freelists[i], lru) {
-> +		struct list_head *freel = &h->hugepage_freelists[i];
-> +		list_for_each_entry_safe(page, next, freel, lru) {
-
-Was this does just to make the line shorter? Just want to make sure I'm
-not missing something.
-
-<snip>
-
->  int hugetlb_report_meminfo(char *buf)
->  {
-> +	struct hstate *h = &global_hstate;
->  	return sprintf(buf,
->  			"HugePages_Total: %5lu\n"
->  			"HugePages_Free:  %5lu\n"
->  			"HugePages_Rsvd:  %5lu\n"
->  			"HugePages_Surp:  %5lu\n"
->  			"Hugepagesize:    %5lu kB\n",
-> -			nr_huge_pages,
-> -			free_huge_pages,
-> -			resv_huge_pages,
-> -			surplus_huge_pages,
-> -			HPAGE_SIZE/1024);
-> +			h->nr_huge_pages,
-> +			h->free_huge_pages,
-> +			h->resv_huge_pages,
-> +			h->surplus_huge_pages,
-> +			1UL << (huge_page_order(h) + PAGE_SHIFT - 10));
-
-"- 10"? I think this should be easier to get at then this? Oh I guess
-it's to get it into kilobytes... Seems kind of odd, but I guess it's
-fine.
-
-<snip>
-
-> Index: linux-2.6/include/linux/hugetlb.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/hugetlb.h
-> +++ linux-2.6/include/linux/hugetlb.h
-> @@ -40,7 +40,7 @@ extern int sysctl_hugetlb_shm_group;
-> 
->  /* arch callbacks */
-> 
-> -pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr);
-> +pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz);
->  pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr);
->  int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep);
->  struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
-> @@ -95,7 +95,6 @@ pte_t huge_ptep_get_and_clear(struct mm_
+>  		struct list_head *freel = &h->hugepage_freelists[i];
+>  		list_for_each_entry_safe(page, next, freel, lru) {
+> -			if (count >= nr_huge_pages)
+> +			if (count >= h->nr_huge_pages)
+>  				return;
+>  			if (PageHighMem(page))
+>  				continue;
+>  			list_del(&page->lru);
+> -			update_and_free_page(page);
+> +			update_and_free_page(h, page);
+>  			h->free_huge_pages--;
+>  			h->free_huge_pages_node[page_to_nid(page)]--;
+>  		}
+>  	}
+>  }
 >  #else
->  void hugetlb_prefault_arch_hook(struct mm_struct *mm);
->  #endif
-> -
-
-Unrelated whitespace change?
-
->  #else /* !CONFIG_HUGETLB_PAGE */
-> 
->  static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
-> @@ -169,8 +168,6 @@ struct file *hugetlb_file_setup(const ch
->  int hugetlb_get_quota(struct address_space *mapping, long delta);
->  void hugetlb_put_quota(struct address_space *mapping, long delta);
-> 
-> -#define BLOCKS_PER_HUGEPAGE	(HPAGE_SIZE / 512)
-> -
-
-Rather than deleting this and then putting the similar calculation in
-the two callers, perhaps use an inline to calculate it and call that in
-the two places you change?
-
->  static inline int is_file_hugepages(struct file *file)
+> -static inline void try_to_free_low(unsigned long count)
+> +static inline void try_to_free_low(struct hstate *h, unsigned long count)
 >  {
->  	if (file->f_op == &hugetlbfs_file_operations)
-> @@ -199,4 +196,71 @@ unsigned long hugetlb_get_unmapped_area(
->  					unsigned long flags);
->  #endif /* HAVE_ARCH_HUGETLB_UNMAPPED_AREA */
-> 
-> +#ifdef CONFIG_HUGETLB_PAGE
+>  }
+>  #endif
+> @@ -625,7 +686,7 @@ static unsigned long set_max_huge_pages(
+>  	 */
+>  	min_count = h->resv_huge_pages + h->nr_huge_pages - h->free_huge_pages;
+>  	min_count = max(count, min_count);
+> -	try_to_free_low(min_count);
+> +	try_to_free_low(h, min_count);
+>  	while (min_count < persistent_huge_pages(h)) {
+>  		struct page *page = dequeue_huge_page(h);
+>  		if (!page)
+> @@ -648,6 +709,7 @@ int hugetlb_sysctl_handler(struct ctl_ta
+>  {
+>  	proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
+>  	max_huge_pages = set_max_huge_pages(max_huge_pages);
+> +	global_hstate.max_huge_pages = max_huge_pages;
 
-Why another block of HUGETLB_PAGE? Shouldn't this go at the end of the
-other one? And the !HUGETLB_PAGE within the corresponding #else?
+So this implies the sysctl still only controls the singe state? Perhaps
+it would be better if this patch made set_max_huge_pages() take an
+hstate? Also, this seems to be the only place where max_huge_pages is
+still used, so can't you just do:
 
-> +
-> +/* Defines one hugetlb page size */
-> +struct hstate {
-> +	int hugetlb_next_nid;
-> +	unsigned int order;
-
-Which is actually a shift, too, right? So why not just call it that? No
-function should be direclty accessing these members, so the function
-name indicates how the shift is being used?
-
-> +	unsigned long mask;
-> +	unsigned long max_huge_pages;
-> +	unsigned long nr_huge_pages;
-> +	unsigned long free_huge_pages;
-> +	unsigned long resv_huge_pages;
-> +	unsigned long surplus_huge_pages;
-> +	unsigned long nr_overcommit_huge_pages;
-> +	struct list_head hugepage_freelists[MAX_NUMNODES];
-> +	unsigned int nr_huge_pages_node[MAX_NUMNODES];
-> +	unsigned int free_huge_pages_node[MAX_NUMNODES];
-> +	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
-> +};
-> +
-> +extern struct hstate global_hstate;
-> +
-> +static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
-> +{
-> +	return &global_hstate;
-> +}
-
-After having looked at this functions while reviewing, it does seem like
-it might be more intuitive to ready vma_hstate ("vma's hstate") rather
-than hstate_vma ("hstate's vma"?). But your call.
+global_hstate.max_huge_pages = set_max_huge_pages(max_huge_pages); ?
 
 <snip>
 
-> Index: linux-2.6/mm/mempolicy.c
-> ===================================================================
-> --- linux-2.6.orig/mm/mempolicy.c
-> +++ linux-2.6/mm/mempolicy.c
-> @@ -1295,7 +1295,8 @@ struct zonelist *huge_zonelist(struct vm
->  	if (pol->policy == MPOL_INTERLEAVE) {
->  		unsigned nid;
-> 
-> -		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
-> +		nid = interleave_nid(pol, vma, addr,
-> +					huge_page_shift(hstate_vma(vma)));
->  		if (unlikely(pol != &default_policy &&
->  				pol != current->mempolicy))
->  			__mpol_free(pol);	/* finished with pol */
-> @@ -1944,9 +1945,12 @@ static void check_huge_range(struct vm_a
+> @@ -1296,7 +1358,7 @@ out:
+>  int hugetlb_reserve_pages(struct inode *inode, long from, long to)
 >  {
->  	unsigned long addr;
->  	struct page *page;
-> +	struct hstate *h = hstate_vma(vma);
-> +	unsigned sz = huge_page_size(h);
+>  	long ret, chg;
+> -	struct hstate *h = &global_hstate;
+> +	struct hstate *h = hstate_inode(inode);
+> 
+>  	chg = region_chg(&inode->i_mapping->private_list, from, to);
+>  	if (chg < 0)
+> @@ -1315,7 +1377,7 @@ int hugetlb_reserve_pages(struct inode *
+> 
+>  void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
+>  {
+> -	struct hstate *h = &global_hstate;
+> +	struct hstate *h = hstate_inode(inode);
 
-This should be unsigned long?
+Couldn't both of these changes have been made in the previous patch?
 
 Thanks,
 Nish
