@@ -1,70 +1,34 @@
-Date: Fri, 25 Apr 2008 12:23:32 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: slub: #ifdef simplification
-Message-ID: <Pine.LNX.4.64.0804251222570.5971@schroedinger.engr.sgi.com>
+Date: Fri, 25 Apr 2008 14:25:32 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH 1 of 9] Lock the entire mm to prevent any mmu related
+	operation to happen
+Message-ID: <20080425192532.GA19717@sgi.com>
+References: <ec6d8f91b299cf26cce5.1207669444@duo.random> <200804221506.26226.rusty@rustcorp.com.au> <20080425165639.GA23300@duo.random>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080425165639.GA23300@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Rusty Russell <rusty@rustcorp.com.au>, Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>, Steve Wise <swise@opengridcomputing.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, Robin Holt <holt@sgi.com>, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-If we make SLUB_DEBUG depend on SYSFS then we can simplify some
-#ifdefs and avoid others.
+On Fri, Apr 25, 2008 at 06:56:40PM +0200, Andrea Arcangeli wrote:
+> Fortunately I figured out we don't really need mm_lock in unregister
+> because it's ok to unregister in the middle of the range_begin/end
+> critical section (that's definitely not ok for register that's why
+> register needs mm_lock). And it's perfectly ok to fail in register().
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+I think you still need mm_lock (unless I miss something).  What happens
+when one callout is scanning mmu_notifier_invalidate_range_start() and
+you unlink.  That list next pointer with LIST_POISON1 which is a really
+bad address for the processor to track.
 
----
- init/Kconfig |    2 +-
- mm/slub.c    |    6 ++----
- 2 files changed, 3 insertions(+), 5 deletions(-)
+Maybe I misunderstood your description.
 
-Index: linux-2.6/init/Kconfig
-===================================================================
---- linux-2.6.orig/init/Kconfig	2008-04-24 23:42:27.229890443 -0700
-+++ linux-2.6/init/Kconfig	2008-04-24 23:55:07.371187159 -0700
-@@ -701,7 +701,7 @@ config VM_EVENT_COUNTERS
- config SLUB_DEBUG
- 	default y
- 	bool "Enable SLUB debugging support" if EMBEDDED
--	depends on SLUB
-+	depends on SLUB && SYSFS
- 	help
- 	  SLUB has extensive debug support features. Disabling these can
- 	  result in significant savings in code size. This also disables
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2008-04-24 23:42:57.729889540 -0700
-+++ linux-2.6/mm/slub.c	2008-04-24 23:53:47.088164300 -0700
-@@ -239,7 +239,7 @@ struct track {
- 
- enum track_item { TRACK_ALLOC, TRACK_FREE };
- 
--#if defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)
-+#ifdef CONFIG_SLUB_DEBUG
- static int sysfs_slab_add(struct kmem_cache *);
- static int sysfs_slab_alias(struct kmem_cache *, const char *);
- static void sysfs_slab_remove(struct kmem_cache *);
-@@ -3461,7 +3461,7 @@ void *__kmalloc_node_track_caller(size_t
- 	return slab_alloc(s, gfpflags, node, caller);
- }
- 
--#if (defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)) || defined(CONFIG_SLABINFO)
-+#ifdef CONFIG_SLUB_DEBUG
- static unsigned long count_partial(struct kmem_cache_node *n,
- 					int (*get_count)(struct page *))
- {
-@@ -3490,9 +3490,7 @@ static int count_free(struct page *page)
- {
- 	return page->objects - page->inuse;
- }
--#endif
- 
--#if defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)
- static int validate_slab(struct kmem_cache *s, struct page *page,
- 						unsigned long *map)
- {
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
