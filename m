@@ -1,40 +1,61 @@
-Message-ID: <481183FC.9060408@firstfloor.org>
-Date: Fri, 25 Apr 2008 09:10:52 +0200
-From: Andi Kleen <andi@firstfloor.org>
+Date: Fri, 25 Apr 2008 06:12:43 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH] Minimal mmu notifiers for kvm
+Message-ID: <20080425111243.GA17326@sgi.com>
+References: <200804250813.00792.rusty@rustcorp.com.au>
 MIME-Version: 1.0
-Subject: Re: [patch 02/18] hugetlb: factor out huge_new_page
-References: <20080423015302.745723000@nick.local0.net> <20080423015429.834926000@nick.local0.net> <20080424235431.GB4741@us.ibm.com> <20080424235829.GC4741@us.ibm.com>
-In-Reply-To: <20080424235829.GC4741@us.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200804250813.00792.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Avi Kivity <avi@qumranet.com>, Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@qumranet.com>, Robin Holt <holt@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nishanth Aravamudan wrote:
-> On 24.04.2008 [16:54:31 -0700], Nishanth Aravamudan wrote:
->> On 23.04.2008 [11:53:04 +1000], npiggin@suse.de wrote:
->>> Needed to avoid code duplication in follow up patches.
->>>
->>> This happens to fix a minor bug. When alloc_bootmem_node returns
->>> a fallback node on a different node than passed the old code
->>> would have put it into the free lists of the wrong node.
->>> Now it would end up in the freelist of the correct node.
->> This is rather frustrating. The whole point of having the __GFP_THISNODE
->> flag is to indicate off-node allocations are *not* supported from the
->> caller... This was all worked on quite heavily a while back.
+This patch would require GRU to maintain its own page tables and hold
+reference counts on the pages.  That seems like a complete waste of
+memory compared to Andrea's most recent patch.  The invalidate_range_start
+and invalidate_range_end pair is needed to eliminate the page reference
+counts.  The _start callout sets an internal structure in a state that
+prevents GRU from satisfying faults, then executes the GRU instruction
+to flush the TLB entry.  The _end callout releases the block on faults.
 
-Perhaps it was, but the result in hugetlb.c was not correct.
+On Fri, Apr 25, 2008 at 08:13:00AM +1000, Rusty Russell wrote:
+> +static DEFINE_SPINLOCK(notifier_lock);
+> +
+> +/*
+> + * Must not hold mmap_sem nor any other VM related lock when calling
+> + * this registration function.
+> + */
+> +int mm_add_notifier_ops(struct mm_struct *mm,
+> +			const struct mmu_notifier_ops *mops)
+> +{
+> +	int err;
+> +
+> +	spin_lock(&notifier_lock);
 
-> Oh I see. This patch refers to a bug that only is introduced by patch
-> 12/18...perhaps *that* patch should add the nid calculation in the
-> helper, if it is truly needed.
+This one global lock will get extremely hot when a 4096 MPI rank job
+is starting up and every one of them goes to use the GRU at once.  I am
+not sure where x86_64 peaks out, but on ia64 going beyond approx 32 cpus
+contending for the same lock made starvation a very important issue.
 
-No, the bug is already there even without the bootmem patch.
+> +	if (mm->mmu_notifier_ops)
+> +		err = -EBUSY;
 
--Andi
+So we can only use one of KVM or GRU or Quadrix or IB or (later) XPMEM
+per mm?
+
+> +	else {
+> +		mm->mmu_notifier_ops = mops;
+> +		err = 0;
+> +	}
+> +	spin_unlock(&notifier_lock);
+> +	return err;
+> +}
+> +EXPORT_SYMBOL_GPL(mm_add_notifier_ops);
+
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
