@@ -1,114 +1,91 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3PK5tFG014628
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 16:05:55 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3PK5t59221722
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 16:05:55 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3PK5iW4016159
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 16:05:45 -0400
-Date: Fri, 25 Apr 2008 13:05:32 -0700
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3PKal55014751
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 16:36:47 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3PKafSJ220172
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 14:36:46 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3PKaf4d003883
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 14:36:41 -0600
+Date: Fri, 25 Apr 2008 13:36:39 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [patch 13/18] hugetlb: support boot allocate different sizes
-Message-ID: <20080425200532.GC14623@us.ibm.com>
-References: <20080423015302.745723000@nick.local0.net> <20080423015431.027712000@nick.local0.net> <20080425184041.GH9680@us.ibm.com> <481227FF.5000802@firstfloor.org>
+Subject: Re: [patch 07/18] hugetlbfs: per mount hstates
+Message-ID: <20080425203639.GE14623@us.ibm.com>
+References: <20080423015302.745723000@nick.local0.net> <20080423015430.378900000@nick.local0.net> <20080425180933.GF9680@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <481227FF.5000802@firstfloor.org>
+In-Reply-To: <20080425180933.GF9680@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
+To: npiggin@suse.de
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On 25.04.2008 [20:50:39 +0200], Andi Kleen wrote:
-> Nishanth Aravamudan wrote:
-> 
-> > When would this be the case (the list is already init'd)?
-> 
-> It can happen inside the series before all the final checks are in
-> with multiple arguments. In theory it could be removed at the end,
-> but then it doesn't hurt.
-
-Ok, I guess that indicates to me an ordering issue, but perhaps it is
-unavoidable.
-
-> >>  	for (i = 0; i < h->max_huge_pages; ++i) {
-> >>  		if (h->order >= MAX_ORDER) {
-> >> @@ -594,7 +597,7 @@ static void __init hugetlb_init_hstate(s
-> >>  		} else if (!alloc_fresh_huge_page(h))
-> >>  			break;
-> >>  	}
-> >> -	h->max_huge_pages = h->free_huge_pages = h->nr_huge_pages = i;
-> >> +	h->max_huge_pages = i;
+On 25.04.2008 [11:09:33 -0700], Nishanth Aravamudan wrote:
+> On 23.04.2008 [11:53:09 +1000], npiggin@suse.de wrote:
+> > Add support to have individual hstates for each hugetlbfs mount
 > > 
-> > Why don't we need to set these other values anymore?
+> > - Add a new pagesize= option to the hugetlbfs mount that allows setting
+> > the page size
+> > - Set up pointers to a suitable hstate for the set page size option
+> > to the super block and the inode and the vma.
+> > - Change the hstate accessors to use this information
+> > - Add code to the hstate init function to set parsed_hstate for command
+> > line processing
+> > - Handle duplicated hstate registrations to the make command line user proof
+> > 
+> > [np: take hstate out of hugetlbfs inode and vma->vm_private_data]
+> > 
+> > Signed-off-by: Andi Kleen <ak@suse.de>
+> > Signed-off-by: Nick Piggin <npiggin@suse.de>
+> > ---
+> >  fs/hugetlbfs/inode.c    |   48 ++++++++++++++++++++++++++++++++++++++----------
+> >  include/linux/hugetlb.h |   14 +++++++++-----
+> >  mm/hugetlb.c            |   16 +++-------------
+> >  mm/memory.c             |   18 ++++++++++++++++--
+> >  4 files changed, 66 insertions(+), 30 deletions(-)
+> > 
+> > Index: linux-2.6/include/linux/hugetlb.h
+> > ===================================================================
 > 
-> Because the low level functions handle them already (as a simple grep
-> would have told you)
-
-[12:36:40]nacc@arkanoid:~/linux/views/linux-2.6-work$ rgrep free_huge_pages *
-arch/x86/ia32/ia32entry.S:	.quad quiet_ni_syscall 	/* free_huge_pages */
-include/linux/hugetlb.h:	unsigned long free_huge_pages;
-include/linux/hugetlb.h:	unsigned int free_huge_pages_node[MAX_NUMNODES];
-mm/hugetlb.c: * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
-mm/hugetlb.c:	h->free_huge_pages++;
-mm/hugetlb.c:	h->free_huge_pages_node[nid]++;
-mm/hugetlb.c:			h->free_huge_pages--;
-mm/hugetlb.c:			h->free_huge_pages_node[nid]--;
-mm/hugetlb.c:			h->free_huge_pages--;
-mm/hugetlb.c:			h->free_huge_pages_node[nid]--;
-mm/hugetlb.c:	needed = (h->resv_huge_pages + delta) - h->free_huge_pages;
-mm/hugetlb.c:	 * because either resv_huge_pages or free_huge_pages may have changed.
-mm/hugetlb.c:			(h->free_huge_pages + allocated);
-mm/hugetlb.c:			h->free_huge_pages--;
-mm/hugetlb.c:			h->free_huge_pages_node[nid]--;
-mm/hugetlb.c:	if (h->free_huge_pages > h->resv_huge_pages)
-mm/hugetlb.c:			h->free_huge_pages);
-mm/hugetlb.c:			h->free_huge_pages--;
-mm/hugetlb.c:			h->free_huge_pages_node[page_to_nid(page)]--;
-mm/hugetlb.c:	min_count = h->resv_huge_pages + h->nr_huge_pages - h->free_huge_pages;
-mm/hugetlb.c:	n += dump_field(buf + n, offsetof(struct hstate, free_huge_pages));
-mm/hugetlb.c:						free_huge_pages_node[nid]));
-mm/hugetlb.c:		if (delta > cpuset_mems_nr(h->free_huge_pages_node)) {
-
-Hrm, I don't see a single assignment to free_huge_pages there.
-
-grep'ing through the patches from Nick's series, I don't see any there
-either (which would indicate I misapplied a patch).
-
-Andi, I'm doing a review of the patches because it is needed (I haven't
-seen a comprehensive set of responses yet) and because my work depends
-on these patches doing the right thing. I would appreciate it if you
-could give me slightly more useful responses -- for instance, the aside
-comment in your reply was entirely unnecessary, as grep didn't shed any
-insight *and* I am looking at the code in question as I work.  Instead
-please try to help me understand the patches.
-
-If I didn't hope differently, I'd believe you don't want me to review
-the patches at all.
-
-> > I think it's use should be restricted to the sysctl as much as
-> > possible (and the sysctl's should be updated to only do work if
-> > write is set).  Does that seem sane to you?
+> <snip>
 > 
-> Fundamental rule of programming: Information should be only kept at a
-> single place if possible.
+> > @@ -226,19 +228,21 @@ extern struct hstate hstates[HUGE_MAX_HS
+> > 
+> >  #define global_hstate (hstates[0])
+> > 
+> > -static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
+> > +static inline struct hstate *hstate_inode(struct inode *i)
+> >  {
+> > -	return &global_hstate;
+> > +	struct hugetlbfs_sb_info *hsb;
+> > +	hsb = HUGETLBFS_SB(i->i_sb);
+> > +	return hsb->hstate;
+> >  }
+> > 
+> >  static inline struct hstate *hstate_file(struct file *f)
+> >  {
+> > -	return &global_hstate;
+> > +	return hstate_inode(f->f_dentry->d_inode);
+> >  }
+> > 
+> > -static inline struct hstate *hstate_inode(struct inode *i)
+> > +static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
+> >  {
+> > -	return &global_hstate;
+> > +	return hstate_file(vma->vm_file);
+> 
+> Odd, diff seems to think you've moved these two functions around
+> (hstate_{vma,inode})...
 
-Ok ... I'm tired of reading one-sentence responses that don't answer my
-questions and come across as insulting. The current patches duplicate
-max_huge_pages *already*. My point was reduction. So if your response
-was meant to be
+Err, duh, which of course you have to because of the definitions :)
 
-	"Yes, that does seem sane."
-
-then that is all you needed to write. If it was
-
-	"No, that does not seem sane."
-
-that would have been equally fine. But what you wrote has neither a
-"yes" nor a "no" in it.
+However, doesn't this now make a core hugetlb functionality (which
+really should only depend on CONFIG_HUGETLB_PAGE) depend on HUGETLBFS
+being set to have access to HUGETLBFS_SB()? That seems to go in the
+opposite direction from where we want to... Perhaps some of these
+functions should be in the CONFIG_HUGETLBFS section of hugetlb.h?
 
 Thanks,
 Nish
