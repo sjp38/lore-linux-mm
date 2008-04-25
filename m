@@ -1,49 +1,80 @@
-Message-ID: <481227FF.5000802@firstfloor.org>
-Date: Fri, 25 Apr 2008 20:50:39 +0200
-From: Andi Kleen <andi@firstfloor.org>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3PIu1ho004016
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 14:56:01 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3PIu1K2185446
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 14:56:01 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3PItt0T026160
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 14:55:56 -0400
+Date: Fri, 25 Apr 2008 11:55:43 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [patch 12/18] hugetlbfs: support larger than MAX_ORDER
+Message-ID: <20080425185543.GA14623@us.ibm.com>
+References: <20080423015302.745723000@nick.local0.net> <20080423015430.965631000@nick.local0.net>
 MIME-Version: 1.0
-Subject: Re: [patch 13/18] hugetlb: support boot allocate different sizes
-References: <20080423015302.745723000@nick.local0.net> <20080423015431.027712000@nick.local0.net> <20080425184041.GH9680@us.ibm.com>
-In-Reply-To: <20080425184041.GH9680@us.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080423015430.965631000@nick.local0.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
+To: npiggin@suse.de
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-Nishanth Aravamudan wrote:
-
-> When would this be the case (the list is already init'd)?
-
-It can happen inside the series before all the final checks are in
-with multiple arguments. In theory it could be removed at the end,
-but then it doesn't hurt.
-
+On 23.04.2008 [11:53:14 +1000], npiggin@suse.de wrote:
+> This is needed on x86-64 to handle GB pages in hugetlbfs, because it is
+> not practical to enlarge MAX_ORDER to 1GB. 
 > 
->>  	for (i = 0; i < h->max_huge_pages; ++i) {
->>  		if (h->order >= MAX_ORDER) {
->> @@ -594,7 +597,7 @@ static void __init hugetlb_init_hstate(s
->>  		} else if (!alloc_fresh_huge_page(h))
->>  			break;
->>  	}
->> -	h->max_huge_pages = h->free_huge_pages = h->nr_huge_pages = i;
->> +	h->max_huge_pages = i;
+> Instead the 1GB pages are only allocated at boot using the bootmem
+> allocator using the hugepages=... option.
 > 
-> Why don't we need to set these other values anymore?
+> These 1G bootmem pages are never freed. In theory it would be possible
+> to implement that with some complications, but since it would be a one-way
+> street (>= MAX_ORDER pages cannot be allocated later) I decided not to
+> currently.
+> 
+> The >= MAX_ORDER code is not ifdef'ed per architecture. It is not very big
+> and the ifdef uglyness seemed not be worth it.
+> 
+> Known problems: /proc/meminfo and "free" do not display the memory 
+> allocated for gb pages in "Total". This is a little confusing for the
+> user.
+> 
+> Signed-off-by: Andi Kleen <ak@suse.de>
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
+> ---
+>  mm/hugetlb.c |   74 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+>  1 file changed, 72 insertions(+), 2 deletions(-)
+> 
+> Index: linux-2.6/mm/hugetlb.c
+> ===================================================================
+> --- linux-2.6.orig/mm/hugetlb.c
+> +++ linux-2.6/mm/hugetlb.c
+> @@ -14,6 +14,7 @@
+>  #include <linux/mempolicy.h>
+>  #include <linux/cpuset.h>
+>  #include <linux/mutex.h>
+> +#include <linux/bootmem.h>
+> 
+>  #include <asm/page.h>
+>  #include <asm/pgtable.h>
+> @@ -160,7 +161,7 @@ static void free_huge_page(struct page *
+>  	INIT_LIST_HEAD(&page->lru);
+> 
+>  	spin_lock(&hugetlb_lock);
+> -	if (h->surplus_huge_pages_node[nid]) {
+> +	if (h->surplus_huge_pages_node[nid] && h->order < MAX_ORDER) {
 
-Because the low level functions handle them already (as a simple grep
-would have told you)
+Shouldn't all h->order accesses actually be using the huge_page_order()
+to be consistent?
 
-> I think it's use should be restricted to the sysctl as much as possible
-> (and the sysctl's should be updated to only do work if write is set).
-> Does that seem sane to you?
+Thanks,
+Nish
 
-Fundamental rule of programming: Information should be only kept at a
-single place if possible.
-
--Andi
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
