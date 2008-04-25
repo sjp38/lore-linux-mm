@@ -1,60 +1,40 @@
-Date: Fri, 25 Apr 2008 09:11:35 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Warning on memory offline (and possible in usual migration?)
-Message-Id: <20080425091135.40336844.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0804241208470.27853@schroedinger.engr.sgi.com>
-References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
-	<20080422045205.GH21993@wotan.suse.de>
-	<20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080422094352.GB23770@wotan.suse.de>
-	<Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com>
-	<20080423004804.GA14134@wotan.suse.de>
-	<20080423114107.b8df779c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080423025358.GA9751@wotan.suse.de>
-	<20080423124425.5c80d3cf.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0804231048120.12373@schroedinger.engr.sgi.com>
-	<20080424103659.90a1006d.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0804241208470.27853@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <481183FC.9060408@firstfloor.org>
+Date: Fri, 25 Apr 2008 09:10:52 +0200
+From: Andi Kleen <andi@firstfloor.org>
+MIME-Version: 1.0
+Subject: Re: [patch 02/18] hugetlb: factor out huge_new_page
+References: <20080423015302.745723000@nick.local0.net> <20080423015429.834926000@nick.local0.net> <20080424235431.GB4741@us.ibm.com> <20080424235829.GC4741@us.ibm.com>
+In-Reply-To: <20080424235829.GC4741@us.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 24 Apr 2008 12:11:07 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+Nishanth Aravamudan wrote:
+> On 24.04.2008 [16:54:31 -0700], Nishanth Aravamudan wrote:
+>> On 23.04.2008 [11:53:04 +1000], npiggin@suse.de wrote:
+>>> Needed to avoid code duplication in follow up patches.
+>>>
+>>> This happens to fix a minor bug. When alloc_bootmem_node returns
+>>> a fallback node on a different node than passed the old code
+>>> would have put it into the free lists of the wrong node.
+>>> Now it would end up in the freelist of the correct node.
+>> This is rather frustrating. The whole point of having the __GFP_THISNODE
+>> flag is to indicate off-node allocations are *not* supported from the
+>> caller... This was all worked on quite heavily a while back.
 
-> On Thu, 24 Apr 2008, KAMEZAWA Hiroyuki wrote:
-> 
-> > > So its safe to migrate a !Uptodate page if it contains buffers? Note that 
-> > > the migration code reattaches the buffer to the new page in 
-> > > buffer_migrate_page().
-> > > 
-> > I think it's safe because it reattaches buffers as you explained.
-> > 
-> > under migration
-> > 1. a page is locked.
-> > 2. buffers are reattached.
-> > 3. a PG_writeback page are not migrated.
-> > 
-> > So, it seems safe.
-> 
-> Concurrent DMA reads cannot occur while we migrate? What holds off 
-> potential I/O to the page? The page lock? Or some buffer lock?
-> 
-> Not that the "buffers" are segments of the page that is migrated.
-> If concurrent transfers occur while we copy the page then we may see data 
-> corruption.
-> 
-Hmm ? If a buffer in a page is under I/O, the whole page is locked, isn't it ?
-If not, It seems anyone cannot use a page safely.
+Perhaps it was, but the result in hugetlb.c was not correct.
 
-Thanks,
--Kame
+> Oh I see. This patch refers to a bug that only is introduced by patch
+> 12/18...perhaps *that* patch should add the nid calculation in the
+> helper, if it is truly needed.
+
+No, the bug is already there even without the bootmem patch.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
