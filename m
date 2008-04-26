@@ -1,73 +1,59 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3PNZhOP032704
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 19:35:43 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3PNZb0k196444
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 17:35:43 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3PNZbD5016891
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2008 17:35:37 -0600
-Date: Fri, 25 Apr 2008 16:35:36 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [patch 08/18] hugetlb: multi hstate sysctls
-Message-ID: <20080425233536.GA31226@us.ibm.com>
-References: <20080423015302.745723000@nick.local0.net> <20080423015430.487393000@nick.local0.net>
+Date: Sat, 26 Apr 2008 02:57:26 +0200
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [PATCH 1 of 9] Lock the entire mm to prevent any mmu related
+	operation to happen
+Message-ID: <20080426005726.GA9514@duo.random>
+References: <ec6d8f91b299cf26cce5.1207669444@duo.random> <200804221506.26226.rusty@rustcorp.com.au> <20080425165639.GA23300@duo.random> <20080425192532.GA19717@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080423015430.487393000@nick.local0.net>
+In-Reply-To: <20080425192532.GA19717@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
+To: Robin Holt <holt@sgi.com>
+Cc: Rusty Russell <rusty@rustcorp.com.au>, Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>, Steve Wise <swise@opengridcomputing.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, kvm-devel@lists.sourceforge.net, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On 23.04.2008 [11:53:10 +1000], npiggin@suse.de wrote:
-> Expand the hugetlbfs sysctls to handle arrays for all hstates. This
-> now allows the removal of global_hstate -- everything is now hstate
-> aware.
-> 
-> - I didn't bother with hugetlb_shm_group and treat_as_movable,
-> these are still single global.
-> - Also improve error propagation for the sysctl handlers a bit
+On Fri, Apr 25, 2008 at 02:25:32PM -0500, Robin Holt wrote:
+> I think you still need mm_lock (unless I miss something).  What happens
+> when one callout is scanning mmu_notifier_invalidate_range_start() and
+> you unlink.  That list next pointer with LIST_POISON1 which is a really
+> bad address for the processor to track.
 
-<snip>
+Ok, _release list_del_init qcan't race with that because it happens in
+exit_mmap when no other mmu notifier can trigger anymore.
 
-> @@ -707,10 +717,25 @@ int hugetlb_sysctl_handler(struct ctl_ta
->  			   struct file *file, void __user *buffer,
->  			   size_t *length, loff_t *ppos)
->  {
-> -	proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
-> -	max_huge_pages = set_max_huge_pages(max_huge_pages);
-> -	global_hstate.max_huge_pages = max_huge_pages;
-> -	return 0;
-> +	int err = 0;
-> +	struct hstate *h;
-> +
-> +	err = proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
-> +	if (err)
-> +		return err;
-> +
-> +	if (write) {
-> +		for_each_hstate (h) {
-> +			int tmp;
-> +
-> +			h->max_huge_pages = set_max_huge_pages(h,
-> +					max_huge_pages[h - hstates], &tmp);
-> +			max_huge_pages[h - hstates] = h->max_huge_pages;
-> +			if (tmp && !err)
-> +				err = tmp;
-> +		}
-> +	}
+_unregister can run concurrently but it does list_del_rcu, that only
+overwrites the pprev pointer with LIST_POISON2. The
+mmu_notifier_invalidate_range_start won't crash on LIST_POISON1 thanks
+to srcu.
 
-Could this same condition be added to the overcommit handler, please?
+Actually I did more changes than necessary, for example I noticed the
+mmu_notifier_register can return a list_add_head instead of
+list_add_head_rcu. _register can't race against _release thanks to the
+mm_users temporary or implicit pin. _register can't race against
+_unregister thanks to the mmu_notifier_mm->lock. And register can't
+race against all other mmu notifiers thanks to the mm_lock.
 
-Thanks,
-Nish
+At this time I've no other pending patches on top of v14-pre3 other
+than the below micro-optimizing cleanup. It'd be great to have
+confirmation that v14-pre3 passes GRU/XPMEM regressions tests as well
+as my KVM testing already passed successfully on it. I'll forward
+v14-pre3 mmu-notifier-core plus the below to Andrew tomorrow, I'm
+trying to be optimistic here! ;)
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+--- a/mm/mmu_notifier.c
++++ b/mm/mmu_notifier.c
+@@ -187,7 +187,7 @@ int mmu_notifier_register(struct mmu_not
+ 	 * current->mm or explicitly with get_task_mm() or similar).
+ 	 */
+ 	spin_lock(&mm->mmu_notifier_mm->lock);
+-	hlist_add_head_rcu(&mn->hlist, &mm->mmu_notifier_mm->list);
++	hlist_add_head(&mn->hlist, &mm->mmu_notifier_mm->list);
+ 	spin_unlock(&mm->mmu_notifier_mm->lock);
+ out_unlock:
+ 	mm_unlock(mm, &data);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
