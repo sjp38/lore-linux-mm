@@ -1,42 +1,47 @@
-Date: Fri, 25 Apr 2008 23:10:28 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/4] Add a basic debugging framework for memory
- initialisation
-Message-Id: <20080425231028.cb4a57b1.akpm@linux-foundation.org>
-In-Reply-To: <20080422183153.13750.61533.sendpatchset@skynet.skynet.ie>
-References: <20080422183133.13750.57133.sendpatchset@skynet.skynet.ie>
-	<20080422183153.13750.61533.sendpatchset@skynet.skynet.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Sat, 26 Apr 2008 08:17:34 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH 01 of 12] Core of mmu notifiers
+Message-ID: <20080426131734.GB19717@sgi.com>
+References: <Pine.LNX.4.64.0804221315160.3640@schroedinger.engr.sgi.com> <20080422223545.GP24536@duo.random> <20080422230727.GR30298@sgi.com> <20080423002848.GA32618@sgi.com> <20080423163713.GC24536@duo.random> <20080423221928.GV24536@duo.random> <20080424064753.GH24536@duo.random> <20080424095112.GC30298@sgi.com> <20080424153943.GJ24536@duo.random> <20080424174145.GM24536@duo.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080424174145.GM24536@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, mingo@elte.hu, linux-kernel@vger.kernel.org, clameter@sgi.com
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Robin Holt <holt@sgi.com>, Jack Steiner <steiner@sgi.com>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 22 Apr 2008 19:31:53 +0100 (IST) Mel Gorman <mel@csn.ul.ie> wrote:
->
-> This patch creates a new file mm/mm_init.c which is conditionally compiled
-> to have almost all of the debugging and verification code to avoid further
-> polluting page_alloc.c. Ideally other mm initialisation code will be moved
-> here over time and the file partially compiled depending on Kconfig.
+On Thu, Apr 24, 2008 at 07:41:45PM +0200, Andrea Arcangeli wrote:
+> A full new update will some become visible here:
+> 
+> 	http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.25/mmu-notifier-v14-pre3/
 
-I was wondering why the file was misnamed ;)
+I grabbed these and built them.  Only change needed was another include.
+After that, everything built fine and xpmem regression tests ran through
+the first four sets.  The fifth is the oversubscription test which trips
+my xpmem bug.  This is as good as the v12 runs from before.
 
-I worry that
+Since this include and the one for mm_types.h both are build breakages
+for ia64, I think you need to apply your ia64_cpumask and the following
+(possibly as a single patch) first or in your patch 1.  Without that,
+ia64 doing a git-bisect could hit a build failure.
 
-a) MM developers will forget to turn on the debug option (ask me about
-   this) and the code in mm_init.c will break and 
 
-b) The mm_init.c code is broken (or will break) on some architecture(s)
-   and people who run that arch won't turn on the debug option either.
-
-So hm.  I think that we should be more inclined to at least compile the
-code even if we don't run it.  To catch compile-time breakage.
-
-And it would be good if we could have a super-quick version of the checks
-just so that more people at least partially run them.  Or something.
+Index: mmu_v14_pre3_xpmem_v003_v1/include/linux/srcu.h
+===================================================================
+--- mmu_v14_pre3_xpmem_v003_v1.orig/include/linux/srcu.h	2008-04-26 06:41:54.000000000 -0500
++++ mmu_v14_pre3_xpmem_v003_v1/include/linux/srcu.h	2008-04-26 07:01:17.292071827 -0500
+@@ -27,6 +27,8 @@
+ #ifndef _LINUX_SRCU_H
+ #define _LINUX_SRCU_H
+ 
++#include <linux/mutex.h>
++
+ struct srcu_struct_array {
+ 	int c[2];
+ };
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
