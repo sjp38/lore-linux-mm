@@ -1,10 +1,10 @@
-Message-ID: <48144EDA.3090407@cs.helsinki.fi>
-Date: Sun, 27 Apr 2008 13:00:58 +0300
+Message-ID: <48144ED0.5040805@cs.helsinki.fi>
+Date: Sun, 27 Apr 2008 13:00:48 +0300
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: slub: #ifdef simplification
-References: <Pine.LNX.4.64.0804251222570.5971@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0804251222570.5971@schroedinger.engr.sgi.com>
+Subject: Re: slub: Dump list of objects not freed on kmem_cache_close()
+References: <Pine.LNX.4.64.0804251221170.5971@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0804251221170.5971@schroedinger.engr.sgi.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,12 +14,15 @@ Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Christoph Lameter wrote:
-> If we make SLUB_DEBUG depend on SYSFS then we can simplify some
-> #ifdefs and avoid others.
+> Dump a list of unfreed objects if a slab cache is closed but
+> objects still remain.
+> 
+> [Untested (straight use of the logic from process_slab()), may conflict 
+> with the other patch you just committed]
 > 
 > Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Applied, thanks!
+It conflicted with the free_list() cleanup but I fixed that up. Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
