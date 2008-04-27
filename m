@@ -1,43 +1,29 @@
-Date: Sat, 26 Apr 2008 22:10:29 -0700
-From: Greg KH <gregkh@suse.de>
-Subject: Re: [RFC][PATCH] hugetlb: add information and interface in sysfs
-	[Was Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs
-	ABI]
-Message-ID: <20080427051029.GA22858@suse.de>
-References: <20080413034136.GA22686@suse.de> <20080414210506.GA6350@us.ibm.com> <20080417231617.GA18815@us.ibm.com> <Pine.LNX.4.64.0804171619340.12031@schroedinger.engr.sgi.com> <20080422051447.GI21993@wotan.suse.de> <20080422165602.GA29570@us.ibm.com> <20080423010259.GA17572@wotan.suse.de> <20080423183252.GA10548@us.ibm.com> <20080424071352.GB14543@wotan.suse.de> <20080427034942.GB12129@us.ibm.com>
+Message-ID: <48144EB3.50508@cs.helsinki.fi>
+Date: Sun, 27 Apr 2008 13:00:19 +0300
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080427034942.GB12129@us.ibm.com>
+Subject: Re: slabinfo: Support printout of the number of fallbacks
+References: <Pine.LNX.4.64.0804251218530.5971@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0804251218530.5971@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Apr 26, 2008 at 08:49:42PM -0700, Nishanth Aravamudan wrote:
+Christoph Lameter wrote:
+> Add functionality to slabinfo to print out the number of fallbacks
+> that have occurred for each slab cache when the -D option is specified.
+> Also widen the allocation / free field since the numbers became
+> too big after a week.
 > 
-> [20:41:56]nacc@arkanoid:/sys/kernel/hugepages$ cat /sys/kernel/hugepages/hugepages-2MB/meminfo
-> HugePages_Total:     0
-> HugePages_Free:      0
-> HugePages_Rsvd:      0
-> HugePages_Surp:      0
-> Hugepagesize:     2048 kB
+> [On top of defrag patches I am afraid]
 > 
-> Greg, do you see any obvious violations of sysfs rules here? Well, beyond
-> meminfo itself, I guess, but given our previous snapshot discussion, I left it
-> simple and the same, rather than split it up.
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Yeah, I don't like that file.  Why not just have 5 files, one for each
-value?  There isn't such a need for an immediate snapshot shere you
-can't just read all 5 values from 5 files?
-
-Also, why use a "units" here, just always use the lowest unit, and
-userspace can convert from kB to GB if needed.
-
-thanks,
-
-greg k-h
+Applied, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
