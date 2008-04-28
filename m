@@ -1,7 +1,7 @@
-Date: Mon, 28 Apr 2008 20:26:52 +0900
+Date: Mon, 28 Apr 2008 20:28:10 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 4/8] memcg: read_mostly
-Message-Id: <20080428202652.b00f28da.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 5/8] memcg: optimize branches
+Message-Id: <20080428202810.a8de4468.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20080428201900.ae25e086.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080428201900.ae25e086.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -13,28 +13,54 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "hugh@veritas.com" <hugh@veritas.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-These 3 params are read_mostly.
+Showing brach direction for obvious conditions.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
+---
+ mm/memcontrol.c |   10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
 
 Index: mm-2.6.25-mm1/mm/memcontrol.c
 ===================================================================
 --- mm-2.6.25-mm1.orig/mm/memcontrol.c
 +++ mm-2.6.25-mm1/mm/memcontrol.c
-@@ -35,9 +35,9 @@
+@@ -541,7 +541,7 @@ retry:
+ 	 * The page_cgroup exists and
+ 	 * the page has already been accounted.
+ 	 */
+-	if (pc) {
++	if (unlikely(pc)) {
+ 		VM_BUG_ON(pc->page != page);
+ 		VM_BUG_ON(!pc->mem_cgroup);
+ 		unlock_page_cgroup(page);
+@@ -550,7 +550,7 @@ retry:
+ 	unlock_page_cgroup(page);
  
- #include <asm/uaccess.h>
+ 	pc = kmem_cache_zalloc(page_cgroup_cache, gfp_mask);
+-	if (pc == NULL)
++	if (unlikely(!pc))
+ 		goto err;
  
--struct cgroup_subsys mem_cgroup_subsys;
--static const int MEM_CGROUP_RECLAIM_RETRIES = 5;
--static struct kmem_cache *page_cgroup_cache;
-+struct cgroup_subsys mem_cgroup_subsys __read_mostly;
-+static const int MEM_CGROUP_RECLAIM_RETRIES __read_mostly = 5;
-+static struct kmem_cache *page_cgroup_cache __read_mostly;
+ 	/*
+@@ -602,7 +602,7 @@ retry:
+ 		pc->flags = PAGE_CGROUP_FLAG_CACHE;
  
- /*
-  * Statistics for memory cgroup.
+ 	lock_page_cgroup(page);
+-	if (page_get_page_cgroup(page)) {
++	if (unlikely(page_get_page_cgroup(page))) {
+ 		unlock_page_cgroup(page);
+ 		/*
+ 		 * Another charge has been added to this page already.
+@@ -668,7 +668,7 @@ void __mem_cgroup_uncharge_common(struct
+ 	 */
+ 	lock_page_cgroup(page);
+ 	pc = page_get_page_cgroup(page);
+-	if (!pc)
++	if (unlikely(!pc))
+ 		goto unlock;
+ 
+ 	VM_BUG_ON(pc->page != page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
