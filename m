@@ -1,114 +1,33 @@
-From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20080428192959.23649.58799.sendpatchset@skynet.skynet.ie>
-In-Reply-To: <20080428192839.23649.82172.sendpatchset@skynet.skynet.ie>
-References: <20080428192839.23649.82172.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 4/4] Print out the zonelists on request for manual verification
-Date: Mon, 28 Apr 2008 20:29:59 +0100 (IST)
+Date: Mon, 28 Apr 2008 13:31:00 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC][PATCH] hugetlb: add information and interface in sysfs
+ [Was Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs ABI]
+In-Reply-To: <20080427051029.GA22858@suse.de>
+Message-ID: <Pine.LNX.4.64.0804281328300.31163@schroedinger.engr.sgi.com>
+References: <20080413034136.GA22686@suse.de> <20080414210506.GA6350@us.ibm.com>
+ <20080417231617.GA18815@us.ibm.com> <Pine.LNX.4.64.0804171619340.12031@schroedinger.engr.sgi.com>
+ <20080422051447.GI21993@wotan.suse.de> <20080422165602.GA29570@us.ibm.com>
+ <20080423010259.GA17572@wotan.suse.de> <20080423183252.GA10548@us.ibm.com>
+ <20080424071352.GB14543@wotan.suse.de> <20080427034942.GB12129@us.ibm.com>
+ <20080427051029.GA22858@suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, apw@shadowen.org, mingo@elte.hu, clameter@sgi.com
+To: Greg KH <gregkh@suse.de>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, Nick Piggin <npiggin@suse.de>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch prints out the zonelists during boot for manual verification by
-the user if the mminit_loglevel is MMINIT_VERIFY or higher.
+On Sat, 26 Apr 2008, Greg KH wrote:
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
+> Also, why use a "units" here, just always use the lowest unit, and
+> userspace can convert from kB to GB if needed.
 
- mm/internal.h   |    5 +++++
- mm/mm_init.c    |   45 +++++++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c |    1 +
- 3 files changed, 51 insertions(+)
+Additional complications will come about because IA64 supports 
+varying hugetlb sizes from 4kb to 1GB.
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-mm1-0025_defensive_pfn_checks/mm/internal.h linux-2.6.25-mm1-0030_display_zonelist/mm/internal.h
---- linux-2.6.25-mm1-0025_defensive_pfn_checks/mm/internal.h	2008-04-28 14:41:59.000000000 +0100
-+++ linux-2.6.25-mm1-0030_display_zonelist/mm/internal.h	2008-04-28 14:47:09.000000000 +0100
-@@ -81,6 +81,7 @@ do { \
- extern void mminit_verify_pageflags_layout(void);
- extern void mminit_verify_page_links(struct page *page,
- 		enum zone_type zone, unsigned long nid, unsigned long pfn);
-+extern void mminit_verify_zonelist(void);
- 
- #else
- 
-@@ -97,6 +98,10 @@ static inline void mminit_verify_page_li
- 		enum zone_type zone, unsigned long nid, unsigned long pfn)
- {
- }
-+
-+static inline void mminit_verify_zonelist(void)
-+{
-+}
- #endif /* CONFIG_DEBUG_MEMORY_INIT */
- 
- /* mminit_validate_memmodel_limits is independent of CONFIG_DEBUG_MEMORY_INIT */
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-mm1-0025_defensive_pfn_checks/mm/mm_init.c linux-2.6.25-mm1-0030_display_zonelist/mm/mm_init.c
---- linux-2.6.25-mm1-0025_defensive_pfn_checks/mm/mm_init.c	2008-04-28 14:41:48.000000000 +0100
-+++ linux-2.6.25-mm1-0030_display_zonelist/mm/mm_init.c	2008-04-28 14:47:09.000000000 +0100
-@@ -11,6 +11,51 @@
- 
- int __meminitdata mminit_loglevel;
- 
-+/* The zonelists are simply reported, validation is manual. */
-+void mminit_verify_zonelist(void)
-+{
-+	int nid;
-+
-+	if (mminit_loglevel < MMINIT_VERIFY)
-+		return;
-+
-+	for_each_online_node(nid) {
-+		pg_data_t *pgdat = NODE_DATA(nid);
-+		struct zone *zone;
-+		struct zoneref *z;
-+		struct zonelist *zonelist;
-+		int i, listid, zoneid;
-+
-+		BUG_ON(MAX_ZONELISTS > 2);
-+		for (i = 0; i < MAX_ZONELISTS * MAX_NR_ZONES; i++) {
-+
-+			/* Identify the zone and nodelist */
-+			zoneid = i % MAX_NR_ZONES;
-+			listid = i / MAX_NR_ZONES;
-+			zonelist = &pgdat->node_zonelists[listid];
-+			zone = &pgdat->node_zones[zoneid];
-+			if (!populated_zone(zone))
-+				continue;
-+
-+			/* Print information about the zonelist */
-+			printk(KERN_DEBUG "mminit::zonelist %s %d:%s = ",
-+				listid > 0 ? "thisnode" : "general", nid,
-+				zone->name);
-+
-+			/* Iterate the zonelist */
-+			for_each_zone_zonelist(zone, z, zonelist, zoneid) {
-+#ifdef CONFIG_NUMA
-+				printk(KERN_CONT "%d:%s ",
-+					zone->node, zone->name);
-+#else
-+				printk(KERN_CONT "0:%s ", zone->name);
-+#endif /* CONFIG_NUMA */
-+			}
-+			printk(KERN_CONT "\n");
-+		}
-+	}
-+}
-+
- void __init mminit_verify_pageflags_layout(void)
- {
- 	int shift, width;
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-mm1-0025_defensive_pfn_checks/mm/page_alloc.c linux-2.6.25-mm1-0030_display_zonelist/mm/page_alloc.c
---- linux-2.6.25-mm1-0025_defensive_pfn_checks/mm/page_alloc.c	2008-04-28 14:41:59.000000000 +0100
-+++ linux-2.6.25-mm1-0030_display_zonelist/mm/page_alloc.c	2008-04-28 14:47:09.000000000 +0100
-@@ -2456,6 +2456,7 @@ void build_all_zonelists(void)
- 
- 	if (system_state == SYSTEM_BOOTING) {
- 		__build_all_zonelists(NULL);
-+		mminit_verify_zonelist();
- 		cpuset_init_current_mems_allowed();
- 	} else {
- 		/* we have to stop all cpus to guarantee there is no user
+Also we would at some point like to add support for 1TB hugepages (that 
+may depend on the presence of a special device that handles these).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
