@@ -1,36 +1,45 @@
-Date: Tue, 29 Apr 2008 10:22:43 -0700
-From: Greg KH <gregkh@suse.de>
-Subject: Re: [RFC][PATCH] hugetlb: add information and interface in sysfs
-	[Was Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs
-	ABI]
-Message-ID: <20080429172243.GA16176@suse.de>
-References: <20080422051447.GI21993@wotan.suse.de> <20080422165602.GA29570@us.ibm.com> <20080423010259.GA17572@wotan.suse.de> <20080423183252.GA10548@us.ibm.com> <20080424071352.GB14543@wotan.suse.de> <20080427034942.GB12129@us.ibm.com> <20080427051029.GA22858@suse.de> <20080428172239.GA24169@us.ibm.com> <20080428172951.GA764@suse.de> <20080429171115.GD24967@us.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080429171115.GD24967@us.ibm.com>
+Date: Mon, 28 Apr 2008 12:48:49 -0700
+From: Arjan van de Ven <arjan@infradead.org>
+Subject: Re: [2/2] vmallocinfo: Add caller information
+Message-ID: <20080428124849.4959c419@infradead.org>
+In-Reply-To: <Pine.LNX.4.64.0804291001420.10847@schroedinger.engr.sgi.com>
+References: <20080318222701.788442216@sgi.com>
+	<20080318222827.519656153@sgi.com>
+	<20080429084854.GA14913@elte.hu>
+	<Pine.LNX.4.64.0804291001420.10847@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 29, 2008 at 10:11:15AM -0700, Nishanth Aravamudan wrote:
-> +struct hstate_attribute {
-> +	struct attribute attr;
-> +	ssize_t (*show)(struct hstate *h, char *buf);
-> +	ssize_t (*store)(struct hstate *h, const char *buf, size_t count);
-> +};
+On Tue, 29 Apr 2008 10:08:29 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-Do you need your own attribute type with show and store?  Can't you just
-use the "default" kobject attributes?
+> On Tue, 29 Apr 2008, Ingo Molnar wrote:
+> 
+> > i pointed out how it should be done _much cleaner_ (and much
+> > smaller - only a single patch needed) via stack-trace, without
+> > changing a dozen architectures, and even gave a patch to make it
+> > all easier for you:
+> > 
+> >     http://lkml.org/lkml/2008/3/19/568
+> >     http://lkml.org/lkml/2008/3/21/88
+> > 
+> > in fact, a stacktrace printout is much more informative as well to 
+> > users, than a punny __builtin_return_address(0)!
+> 
+> Sorry lost track of this issue. Adding stracktrace support is not a 
+> trivial thing and will change the basic handling of vmallocinfo.
+> 
+> Not sure if stacktrace support can be enabled without a penalty on
+> various platforms. Doesnt this require stackframes to be formatted in
+> a certain way?
 
-Also, you have no release function for your kobject to be cleaned up,
-that's a major bug.
-
-thanks,
-
-greg k-h
+it doesn't.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
