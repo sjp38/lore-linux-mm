@@ -1,124 +1,76 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3SIkeXM029260
-	for <linux-mm@kvack.org>; Mon, 28 Apr 2008 14:46:40 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3SIkdpc256644
-	for <linux-mm@kvack.org>; Mon, 28 Apr 2008 14:46:39 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3SIkd4e021068
-	for <linux-mm@kvack.org>; Mon, 28 Apr 2008 14:46:39 -0400
-Date: Mon, 28 Apr 2008 11:46:38 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [patch 07/18] hugetlbfs: per mount hstates
-Message-ID: <20080428184638.GA4284@us.ibm.com>
-References: <20080423015302.745723000@nick.local0.net> <20080423015430.378900000@nick.local0.net> <20080425180933.GF9680@us.ibm.com> <20080425203639.GE14623@us.ibm.com> <20080425223909.GF14623@us.ibm.com> <1209406849.2183.4.camel@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1209406849.2183.4.camel@localhost.localdomain>
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20080428192839.23649.82172.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 0/4] Verification and debugging of memory initialisation V4
+Date: Mon, 28 Apr 2008 20:28:39 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
+To: akpm@linux-foundation.org
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, apw@shadowen.org, mingo@elte.hu, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On 28.04.2008 [13:20:49 -0500], Adam Litke wrote:
-> On Fri, 2008-04-25 at 15:39 -0700, Nishanth Aravamudan wrote: 
-> > On 25.04.2008 [13:36:39 -0700], Nishanth Aravamudan wrote:
-> > > On 25.04.2008 [11:09:33 -0700], Nishanth Aravamudan wrote:
-> > > > On 23.04.2008 [11:53:09 +1000], npiggin@suse.de wrote:
-> > > > > Add support to have individual hstates for each hugetlbfs mount
-> > > > > 
-> > > > > - Add a new pagesize= option to the hugetlbfs mount that allows setting
-> > > > > the page size
-> > > > > - Set up pointers to a suitable hstate for the set page size option
-> > > > > to the super block and the inode and the vma.
-> > > > > - Change the hstate accessors to use this information
-> > > > > - Add code to the hstate init function to set parsed_hstate for command
-> > > > > line processing
-> > > > > - Handle duplicated hstate registrations to the make command line user proof
-> > > > > 
-> > > > > [np: take hstate out of hugetlbfs inode and vma->vm_private_data]
-> > > > > 
-> > > > > Signed-off-by: Andi Kleen <ak@suse.de>
-> > > > > Signed-off-by: Nick Piggin <npiggin@suse.de>
-> > > > > ---
-> > > > >  fs/hugetlbfs/inode.c    |   48 ++++++++++++++++++++++++++++++++++++++----------
-> > > > >  include/linux/hugetlb.h |   14 +++++++++-----
-> > > > >  mm/hugetlb.c            |   16 +++-------------
-> > > > >  mm/memory.c             |   18 ++++++++++++++++--
-> > > > >  4 files changed, 66 insertions(+), 30 deletions(-)
-> > > > > 
-> > > > > Index: linux-2.6/include/linux/hugetlb.h
-> > > > > ===================================================================
-> > > > 
-> > > > <snip>
-> > > > 
-> > > > > @@ -226,19 +228,21 @@ extern struct hstate hstates[HUGE_MAX_HS
-> > > > > 
-> > > > >  #define global_hstate (hstates[0])
-> > > > > 
-> > > > > -static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
-> > > > > +static inline struct hstate *hstate_inode(struct inode *i)
-> > > > >  {
-> > > > > -	return &global_hstate;
-> > > > > +	struct hugetlbfs_sb_info *hsb;
-> > > > > +	hsb = HUGETLBFS_SB(i->i_sb);
-> > > > > +	return hsb->hstate;
-> > > > >  }
-> > > > > 
-> > > > >  static inline struct hstate *hstate_file(struct file *f)
-> > > > >  {
-> > > > > -	return &global_hstate;
-> > > > > +	return hstate_inode(f->f_dentry->d_inode);
-> > > > >  }
-> > > > > 
-> > > > > -static inline struct hstate *hstate_inode(struct inode *i)
-> > > > > +static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
-> > > > >  {
-> > > > > -	return &global_hstate;
-> > > > > +	return hstate_file(vma->vm_file);
-> > > > 
-> > > > Odd, diff seems to think you've moved these two functions around
-> > > > (hstate_{vma,inode})...
-> > > 
-> > > Err, duh, which of course you have to because of the definitions :)
-> > > 
-> > > However, doesn't this now make a core hugetlb functionality (which
-> > > really should only depend on CONFIG_HUGETLB_PAGE) depend on HUGETLBFS
-> > > being set to have access to HUGETLBFS_SB()? That seems to go in the
-> > > opposite direction from where we want to... Perhaps some of these
-> > > functions should be in the CONFIG_HUGETLBFS section of hugetlb.h?
-> > 
-> > Even if you don't move anything as I had originally suggested, I think
-> > you need to express the CONFIG_ dependencies more clearly (that now
-> > HUGETLB_PAGE depends on HUGETLBFS, afaict).
-> > 
-> > Urgh, there's actually other similar issue(s) in this file already...
-> > 
-> > if CONFIG_HUGETLBFS, is_file_hugepages() is defined and calls
-> > is_file_shm_hugepages(), but that is defined in shm.h, which is only
-> > included if CONFIG_HUGETLB_PAGE... Adam, that seems buggy? Is this just
-> > further evidence that our current separation of the two options is
-> > bull-honky?
-> 
-> Yeah.  I'd say there is little reason to separate them anymore.  I am
-> not an expert on the history here, but I suspect the original reason for
-> separating CONFIG_HUGETLBFS and CONFIG_HUGETLB_PAGE was a lack of
-> psychic abilities.  Hugetlbfs is ubiquitous now and there is no other
-> valid way to use huge pages.  Even SHM_HUGETLB shared memory segments
-> use hugetlbfs.
+Boot initialisation is very complex, with significant numbers of
+architecture-specific routines, hooks and code ordering. While significant
+amounts of the initialisation is architecture-independent, it trusts
+the data received from the architecture layer. This is a mistake, and has
+resulted in a number of difficult-to-diagnose bugs. This patchset adds some
+validation and tracing to memory initialisation. It also introduces a few
+basic defensive measures.  The validation code can be explicitly disabled
+for embedded systems.
 
-Yeah, I was thinking it might make sense to merge them now and then
-separate them back out later, if we do add any other interfaces to
-hugepages.
+I believe it's ready for a round of testing in -mm. The patches are based
+against 2.6.25-mm1.
 
-> One thing you should check is which config options are required for
-> the hugetlb kernel mappings.  Otherwise, I think we are in the clear
-> to merge them.
+Changelog since V3
+  o (Andrew) Only allow disabling of verification checks on CONFIG_EMBEDDED
+  o (Andy Whitcroft) Documentation and leader fixups
+  o (Andy) Rename mminit_debug_printk to mminit_dprintk for consistency
+  o (Andy) Rename mminit_verify_pageflags to mminit_verify_pageflags_layout
+  o (Andy) Rename mminit_validate_physlimits to mminit_validate_memmodel_limits
+  o (Andy) Fix page->flags bitmap overlap checks
+  o (Andy) Fix argument type for level in mminit_dprintk()
+  o (Mel) Add WARNING error level that is the default logging level for
+  	  mminit_loglevel=. Messages printed at this or lower levels will use
+	  KERN_WARNING for the printk loglevel. Otherwise KERN_DEBUG is used.
 
-Yep, thanks,
-Nish
+Changelog since V2
+  o (Mel) Rebase to 2.6.25-mm1 and rewrite zonelist dump
+  o (Mel) Depend on DEBUG_VM instead of DEBUG_KERNEL
+  o (Mel) Use __meminitdata instead of __initdata for logging level
+  o (Christoph) Get rid of FLAGS_RESERVED references
+  o (Christoph) Print out flag usage information
+  o (Ingo) Default do the verifications on DEBUG_VM and instead control the
+           level of verbose logging with mminit_loglevel= instead of
+	   mminit_debug_level=
+  o (Anon) Log at KERN_DEBUG level
+  o (Anon) Optimisation to the mminit_debug_printk macro
+
+Changelog since V1
+  o (Ingo) Make memory initialisation verification a DEBUG option depending on
+    DEBUG_KERNEL option. By default it will then to verify structures but
+    tracing can be enabled via the command-line. Without the CONFIG option,
+    checks will still be made on PFN ranges passed by the architecture-specific
+    code and a warning printed once if a problem is encountered
+  o (Ingo) WARN_ON_ONCE when PFNs from the architecture violate SPARSEMEM
+    limitations. The warning should be "harmless" as the system will boot
+    regardless but it acts as a reminder that bad input is being used.
+  o (Anon) Convert mminit_debug_printk() to a macro
+  o (Anon) Spelling mistake corrections
+  o (Anon) Use of KERN_CONT properly for multiple printks
+  o (Mel) Reshuffle the patches so that the zonelist printing is at the
+    end of the patchset. This is because -mm requires a different patch to
+    print zonelists and this allows the end patch to be temporarily dropped
+    when testing against -mm
+  o (Mel) Rebase on top of Ingo's sparsemem fix for easier testing
+  o (Mel) Document mminit_debug_level=
+  o (Mel) Fix check on pageflags where the masks were not being shifted
+  o (Mel) The zone ID should should have used page_zonenum not page_zone_id
+  o (Mel) Iterate all zonelists correctly
+  o (Mel) Correct typo of SECTIONS_SHIFT
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
