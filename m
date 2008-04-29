@@ -1,47 +1,48 @@
-Date: Mon, 28 Apr 2008 18:28:06 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 01 of 12] Core of mmu notifiers
-In-Reply-To: <20080429001052.GA8315@duo.random>
-Message-ID: <Pine.LNX.4.64.0804281819020.2502@schroedinger.engr.sgi.com>
-References: <20080423002848.GA32618@sgi.com> <20080423163713.GC24536@duo.random>
- <20080423221928.GV24536@duo.random> <20080424064753.GH24536@duo.random>
- <20080424095112.GC30298@sgi.com> <20080424153943.GJ24536@duo.random>
- <20080424174145.GM24536@duo.random> <20080426131734.GB19717@sgi.com>
- <20080427122727.GO9514@duo.random> <Pine.LNX.4.64.0804281332030.31163@schroedinger.engr.sgi.com>
- <20080429001052.GA8315@duo.random>
+Message-ID: <48167B22.4060704@cn.fujitsu.com>
+Date: Tue, 29 Apr 2008 09:34:26 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC][PATCH 4/8] memcg: read_mostly
+References: <20080428201900.ae25e086.kamezawa.hiroyu@jp.fujitsu.com> <20080428202652.b00f28da.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080428202652.b00f28da.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Robin Holt <holt@sgi.com>, Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "hugh@veritas.com" <hugh@veritas.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 29 Apr 2008, Andrea Arcangeli wrote:
+KAMEZAWA Hiroyuki wrote:
+> These 3 params are read_mostly.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> 
+> Index: mm-2.6.25-mm1/mm/memcontrol.c
+> ===================================================================
+> --- mm-2.6.25-mm1.orig/mm/memcontrol.c
+> +++ mm-2.6.25-mm1/mm/memcontrol.c
+> @@ -35,9 +35,9 @@
+>  
+>  #include <asm/uaccess.h>
+>  
+> -struct cgroup_subsys mem_cgroup_subsys;
+> -static const int MEM_CGROUP_RECLAIM_RETRIES = 5;
+> -static struct kmem_cache *page_cgroup_cache;
+> +struct cgroup_subsys mem_cgroup_subsys __read_mostly;
+> +static const int MEM_CGROUP_RECLAIM_RETRIES __read_mostly = 5;
 
-> Frankly I've absolutely no idea why rcu is needed in all rmap code
-> when walking the page->mapping. Definitely the PG_locked is taken so
-> there's no way page->mapping could possibly go away under the rmap
-> code, hence the anon_vma can't go away as it's queued in the vma, and
-> the vma has to go away before the page is zapped out of the pte.
+it's not __read_mostly, it's __read_always. ;)
+so why not make it a macro:
+	#define MEM_CGROUP_RECLAIM_RETRIES	5
 
-zap_pte_range can race with the rmap code and it does not take the page 
-lock. The page may not go away since a refcount was taken but the mapping 
-can go away. Without RCU you have no guarantee that the anon_vma is 
-existing when you take the lock. 
-
-How long were you away from VM development?
-
-> Now the double atomic op may not be horrible when not contented, as it
-> works on the same cacheline but with cacheline bouncing with
-> contention it sounds doubly horrible than a single cacheline bounce
-> and I don't see the point of it as you can't use rcu anyways, so you
-> can't possibly take advantage of whatever microoptimization done over
-> the original locking.
-
-Cachelines are acquired for exclusive use for a mininum duration. 
-Multiple atomic operations can be performed after a cacheline becomes 
-exclusive without danger of bouncing.
+> +static struct kmem_cache *page_cgroup_cache __read_mostly;
+>  
+>  /*
+>   * Statistics for memory cgroup.
+> 
+> --
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
