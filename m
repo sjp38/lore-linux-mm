@@ -1,7 +1,7 @@
-Date: Tue, 29 Apr 2008 16:11:12 -0700 (PDT)
+Date: Tue, 29 Apr 2008 16:14:46 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: slub: Whitespace cleanup and use of strict_strtoul
-Message-ID: <Pine.LNX.4.64.0804291609380.15406@schroedinger.engr.sgi.com>
+Subject: [PATCH] slabinfo: Support printout of the number of fallbacks
+Message-ID: <Pine.LNX.4.64.0804291613470.15436@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -10,118 +10,64 @@ To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[This is material that I found in your testing tree interspersed with slub 
-defrag stuff. Separated out. Maybe merge this earlier]
+[Also from your testing tree. Rediffed against current git]
 
-Fix some issues with wrapping and use strict_strtoul to make parameter
-passing from sysfs safer.
+Add functionality to slabinfo to print out the number of fallbacks
+that have occurred for each slab cache when the -D option is specified.
+Also widen the allocation / free field since the numbers became
+too big after a week.
 
-Signed-off-by: Pekka Enberg <penberg@cs.helsinki.fi>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
+Signed-off-by: Pekka Enberg <penberg@cs.helsinki.fi>
 ---
- mm/slub.c |   38 +++++++++++++++++++++++++-------------
- 1 file changed, 25 insertions(+), 13 deletions(-)
+ Documentation/vm/slabinfo.c |   10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
 
-Index: linux-2.6/mm/slub.c
+Index: linux-2.6/Documentation/vm/slabinfo.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2008-04-28 21:20:44.642390610 -0700
-+++ linux-2.6/mm/slub.c	2008-04-28 21:21:08.983640178 -0700
-@@ -812,7 +812,8 @@ static int on_freelist(struct kmem_cache
- 	return search == NULL;
- }
- 
--static void trace(struct kmem_cache *s, struct page *page, void *object, int alloc)
-+static void trace(struct kmem_cache *s, struct page *page, void *object,
-+								int alloc)
+--- linux-2.6.orig/Documentation/vm/slabinfo.c	2008-04-28 21:20:43.971140163 -0700
++++ linux-2.6/Documentation/vm/slabinfo.c	2008-04-28 21:22:12.919899273 -0700
+@@ -38,7 +38,7 @@ struct slabinfo {
+ 	unsigned long alloc_from_partial, alloc_slab, free_slab, alloc_refill;
+ 	unsigned long cpuslab_flush, deactivate_full, deactivate_empty;
+ 	unsigned long deactivate_to_head, deactivate_to_tail;
+-	unsigned long deactivate_remote_frees;
++	unsigned long deactivate_remote_frees, order_fallback;
+ 	int numa[MAX_NODES];
+ 	int numa_partial[MAX_NODES];
+ } slabinfo[MAX_SLABS];
+@@ -293,7 +293,7 @@ int line = 0;
+ void first_line(void)
  {
- 	if (s->flags & SLAB_TRACE) {
- 		printk(KERN_INFO "TRACE %s %s 0x%p inuse=%d fp=0x%p\n",
-@@ -1265,8 +1266,7 @@ static void add_partial(struct kmem_cach
- 	spin_unlock(&n->list_lock);
- }
+ 	if (show_activity)
+-		printf("Name                   Objects    Alloc     Free   %%Fast\n");
++		printf("Name                   Objects      Alloc       Free   %%Fast Fallb O\n");
+ 	else
+ 		printf("Name                   Objects Objsize    Space "
+ 			"Slabs/Part/Cpu  O/S O %%Fr %%Ef Flg\n");
+@@ -573,11 +573,12 @@ void slabcache(struct slabinfo *s)
+ 		total_alloc = s->alloc_fastpath + s->alloc_slowpath;
+ 		total_free = s->free_fastpath + s->free_slowpath;
  
--static void remove_partial(struct kmem_cache *s,
--						struct page *page)
-+static void remove_partial(struct kmem_cache *s, struct page *page)
- {
- 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
- 
-@@ -1281,7 +1281,8 @@ static void remove_partial(struct kmem_c
-  *
-  * Must hold list_lock.
-  */
--static inline int lock_and_freeze_slab(struct kmem_cache_node *n, struct page *page)
-+static inline int lock_and_freeze_slab(struct kmem_cache_node *n,
-+							struct page *page)
- {
- 	if (slab_trylock(page)) {
- 		list_del(&page->lru);
-@@ -1418,8 +1419,8 @@ static void unfreeze_slab(struct kmem_ca
- 			 * so that the others get filled first. That way the
- 			 * size of the partial list stays small.
- 			 *
--			 * kmem_cache_shrink can reclaim any empty slabs from the
--			 * partial list.
-+			 * kmem_cache_shrink can reclaim any empty slabs from
-+			 * the partial list.
- 			 */
- 			add_partial(n, page, 1);
- 			slab_unlock(page);
-@@ -2905,7 +2906,7 @@ static int slab_mem_going_online_callbac
- 		return 0;
- 
- 	/*
--	 * We are bringing a node online. No memory is availabe yet. We must
-+	 * We are bringing a node online. No memory is available yet. We must
- 	 * allocate a kmem_cache_node structure in order to bring the node
- 	 * online.
- 	 */
-@@ -3810,7 +3811,12 @@ SLAB_ATTR_RO(objs_per_slab);
- static ssize_t order_store(struct kmem_cache *s,
- 				const char *buf, size_t length)
- {
--	int order = simple_strtoul(buf, NULL, 10);
-+	unsigned long order;
-+	int err;
-+
-+	err = strict_strtoul(buf, 10, &order);
-+	if (err)
-+		return err;
- 
- 	if (order > slub_max_order || order < slub_min_order)
- 		return -EINVAL;
-@@ -4063,10 +4069,16 @@ static ssize_t remote_node_defrag_ratio_
- static ssize_t remote_node_defrag_ratio_store(struct kmem_cache *s,
- 				const char *buf, size_t length)
- {
--	int n = simple_strtoul(buf, NULL, 10);
-+	unsigned long ratio;
-+	int err;
-+
-+	err = strict_strtoul(buf, 10, &ratio);
-+	if (err)
-+		return err;
-+
-+	if (ratio < 100)
-+		s->remote_node_defrag_ratio = ratio * 10;
- 
--	if (n < 100)
--		s->remote_node_defrag_ratio = n * 10;
- 	return length;
- }
- SLAB_ATTR(remote_node_defrag_ratio);
-@@ -4423,8 +4435,8 @@ __initcall(slab_sysfs_init);
-  */
- #ifdef CONFIG_SLABINFO
- 
--ssize_t slabinfo_write(struct file *file, const char __user * buffer,
--                       size_t count, loff_t *ppos)
-+ssize_t slabinfo_write(struct file *file, const char __user *buffer,
-+		       size_t count, loff_t *ppos)
- {
- 	return -EINVAL;
- }
+-		printf("%-21s %8ld %8ld %8ld %3ld %3ld \n",
++		printf("%-21s %8ld %10ld %10ld %3ld %3ld %5ld %1d\n",
+ 			s->name, s->objects,
+ 			total_alloc, total_free,
+ 			total_alloc ? (s->alloc_fastpath * 100 / total_alloc) : 0,
+-			total_free ? (s->free_fastpath * 100 / total_free) : 0);
++			total_free ? (s->free_fastpath * 100 / total_free) : 0,
++			s->order_fallback, s->order);
+ 	}
+ 	else
+ 		printf("%-21s %8ld %7d %8s %14s %4d %1d %3ld %3ld %s\n",
+@@ -1188,6 +1189,7 @@ void read_slab_dir(void)
+ 			slab->deactivate_to_head = get_obj("deactivate_to_head");
+ 			slab->deactivate_to_tail = get_obj("deactivate_to_tail");
+ 			slab->deactivate_remote_frees = get_obj("deactivate_remote_frees");
++			slab->order_fallback = get_obj("order_fallback");
+ 			chdir("..");
+ 			if (slab->name[0] == ':')
+ 				alias_targets++;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
