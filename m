@@ -1,37 +1,40 @@
-Date: Tue, 29 Apr 2008 21:29:13 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [2/2] vmallocinfo: Add caller information
-Message-ID: <20080429192913.GA18279@elte.hu>
-References: <20080318222701.788442216@sgi.com> <20080318222827.519656153@sgi.com> <20080429084854.GA14913@elte.hu> <Pine.LNX.4.64.0804291001420.10847@schroedinger.engr.sgi.com> <20080428124849.4959c419@infradead.org> <Pine.LNX.4.64.0804291143080.12128@schroedinger.engr.sgi.com> <20080428140026.32aaf3bf@infradead.org> <Pine.LNX.4.64.0804291204450.12689@schroedinger.engr.sgi.com>
+Received: by mu-out-0910.google.com with SMTP id w9so9268mue.6
+        for <linux-mm@kvack.org>; Tue, 29 Apr 2008 13:28:14 -0700 (PDT)
+Message-ID: <12c511ca0804291328v2f0b87csd0f2cf3accc6ad00@mail.gmail.com>
+Date: Tue, 29 Apr 2008 13:28:14 -0700
+From: "Tony Luck" <tony.luck@intel.com>
+Subject: Re: [PATCH 1/8] Scaling msgmni to the amount of lowmem
+In-Reply-To: <20080211141813.354484000@bull.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0804291204450.12689@schroedinger.engr.sgi.com>
+References: <20080211141646.948191000@bull.net>
+	 <20080211141813.354484000@bull.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Arjan van de Ven <arjan@infradead.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Nadia.Derbey@bull.net
+Cc: linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, akpm@linux-foundation.org, linux-mm@kvack.org, containers@lists.linux-foundation.org, matthltc@us.ibm.com, cmm@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-* Christoph Lameter <clameter@sgi.com> wrote:
+On Mon, Feb 11, 2008 at 7:16 AM,  <Nadia.Derbey@bull.net> wrote:
+>  Index: linux-2.6.24-mm1/ipc/msg.c
+>  ===================================================================
+>  --- linux-2.6.24-mm1.orig/ipc/msg.c     2008-02-07 15:02:29.000000000 +0100
+>  +++ linux-2.6.24-mm1/ipc/msg.c  2008-02-07 15:24:19.000000000 +0100
+...
+>  +out_callback:
+>  +
+>  +       printk(KERN_INFO "msgmni has been set to %d for ipc namespace %p\n",
+>  +               ns->msg_ctlmni, ns);
+>  +}
 
-> On Mon, 28 Apr 2008, Arjan van de Ven wrote:
-> 
-> > > Hmmm... Why do we have CONFIG_FRAMEPOINTER then?
-> > 
-> > to make the backtraces more accurate.
-> 
-> Well so we display out of whack backtraces? There are also issues on 
-> platforms that do not have a stack in the classic sense (rotating 
-> register file on IA64 and Sparc64 f.e.). Determining a backtrace can 
-> be very expensive.
+This patch has now made its way to mainline.  I can see how this printk
+was really useful to you while developing this patch. But does it add
+much value in a production system? It just looks like another piece of
+clutter on the console to my uncontainerized eyes.
 
-they have to solve that for kernel oopses and for lockdep somehow 
-anyway. Other users of stacktrace are: fault injection, kmemcheck, 
-latencytop, ftrace. All new debugging and instrumentation code uses it, 
-and for a good reason.
-
-	Ingo
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
