@@ -1,41 +1,54 @@
-Received: from zps35.corp.google.com (zps35.corp.google.com [172.25.146.35])
-	by smtp-out.google.com with ESMTP id m3TG5EEE020141
-	for <linux-mm@kvack.org>; Tue, 29 Apr 2008 17:05:14 +0100
-Received: from fg-out-1718.google.com (fge22.prod.google.com [10.86.5.22])
-	by zps35.corp.google.com with ESMTP id m3TG5CWX010924
-	for <linux-mm@kvack.org>; Tue, 29 Apr 2008 09:05:13 -0700
-Received: by fg-out-1718.google.com with SMTP id 22so61662fge.19
-        for <linux-mm@kvack.org>; Tue, 29 Apr 2008 09:05:12 -0700 (PDT)
-Message-ID: <d43160c70804290905m1e451435q2766f552f2b6767c@mail.gmail.com>
-Date: Tue, 29 Apr 2008 12:05:12 -0400
-From: "Ross Biro" <rossb@google.com>
-Subject: Re: Page Faults slower in 2.6.25-rc9 than 2.6.23
-In-Reply-To: <Pine.LNX.4.64.0804291629410.23101@blonde.site>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3TGhZ3n003388
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2008 12:43:35 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3TGhZcm334964
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2008 12:43:35 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3TGhYxm012980
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2008 12:43:34 -0400
+Date: Tue, 29 Apr 2008 09:43:32 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [RFC][PATCH] hugetlb: add information and interface in sysfs
+	[Was Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs
+	ABI]
+Message-ID: <20080429164332.GA24967@us.ibm.com>
+References: <20080422051447.GI21993@wotan.suse.de> <20080422165602.GA29570@us.ibm.com> <20080423010259.GA17572@wotan.suse.de> <20080423183252.GA10548@us.ibm.com> <20080424071352.GB14543@wotan.suse.de> <20080427034942.GB12129@us.ibm.com> <20080427051029.GA22858@suse.de> <Pine.LNX.4.64.0804281328300.31163@schroedinger.engr.sgi.com> <20080428205200.GA4386@us.ibm.com> <Pine.LNX.4.64.0804281427150.32083@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <d43160c70804290610t2135a271hd9b907529e89e74e@mail.gmail.com>
-	 <Pine.LNX.4.64.0804291447040.5058@blonde.site>
-	 <661de9470804290752w1dc0cfb3k72e81d828a45765e@mail.gmail.com>
-	 <d43160c70804290821i2bb0bc17m21b0c5838631e0b8@mail.gmail.com>
-	 <Pine.LNX.4.64.0804291629410.23101@blonde.site>
+In-Reply-To: <Pine.LNX.4.64.0804281427150.32083@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Greg KH <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 29, 2008 at 11:32 AM, Hugh Dickins <hugh@veritas.com> wrote:
->> I'm checking 2.6.24 now.  A quick run of 2.6.25-rc9 without fake numa
->> showed no real change.
->
+On 28.04.2008 [14:29:02 -0700], Christoph Lameter wrote:
+> On Mon, 28 Apr 2008, Nishanth Aravamudan wrote:
+> 
+> > More importnatly, I think the fact that IA64 supports multiple hugepage
+> > sizes is a reason *for* moving to sysfs for this information? However, I
+> > think we may need to massage the IA64-specific bits of the kernel to
+> > actually support multiple hugepage size pools being available at
+> > run-time? That is, with the current kernel, we can only support one
+> > hugepagesize at run-time, due to VHPT restrictions?
+> 
+> We'd love to have multiple huge page pools available but the current
+> rigid region setup limits us to one size. Switching off the VHPT or
+> doing some tricks with the tlb fault handler, or freeing up an unused
+> region (region 0?) could get us there.
 
-2.6.24 is slower as well.  I can't say for sure it's the full 10%
-without more work than it's worth.  But it is definitely significantly
-slower than 2.6.23.
+Ok, that was my impression. So on IA64, without further kernel
+modifications, we will always only have one hugepage size visible in
+/proc/meminfo and /sys/kernel/hugepages?
 
-    Ross
+Thanks,
+Nish
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
