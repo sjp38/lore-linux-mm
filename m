@@ -1,78 +1,36 @@
-Date: Tue, 29 Apr 2008 17:58:40 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: 2.6.25-mm1: Failing to probe IDE interface
-Message-ID: <20080429165840.GA24125@csn.ul.ie>
-References: <20080417160331.b4729f0c.akpm@linux-foundation.org> <20080428164235.GA29229@csn.ul.ie> <200804282044.34783.bzolnier@gmail.com> <20080429094327.GB4503@csn.ul.ie> <20080429154957.GA19148@csn.ul.ie>
+Date: Tue, 29 Apr 2008 10:08:29 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [2/2] vmallocinfo: Add caller information
+In-Reply-To: <20080429084854.GA14913@elte.hu>
+Message-ID: <Pine.LNX.4.64.0804291001420.10847@schroedinger.engr.sgi.com>
+References: <20080318222701.788442216@sgi.com> <20080318222827.519656153@sgi.com>
+ <20080429084854.GA14913@elte.hu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20080429154957.GA19148@csn.ul.ie>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, ink@jurassic.park.msu.ru
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, gregkh@suse.de
+To: Ingo Molnar <mingo@elte.hu>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Arjan van de Ven <arjan@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On (29/04/08 16:49), Mel Gorman didst pronounce:
-> On (29/04/08 10:43), Mel Gorman didst pronounce:
-> > On (28/04/08 20:44), Bartlomiej Zolnierkiewicz didst pronounce:
-> > > 
-> > > Hi,
-> > > 
-> > > On Monday 28 April 2008, Mel Gorman wrote:
-> > > > An old T21 is failing to boot and the relevant message appears to be
-> > > > 
-> > > > [    1.929536] Probing IDE interface ide0...
-> > > > [   36.939317] ide0: Wait for ready failed before probe !
-> > > > [   37.502676] ide0: DISABLED, NO IRQ
-> > > > [   37.506356] ide0: failed to initialize IDE interface
-> > > > 
-> > > > The owner of ide-mm-ide-add-struct-ide_io_ports-take-2.patch with the
-> > > > "DISABLED, NO IRQ" message is cc'd. I've attached the config, full boot log
-> > > > and lspci -v for the machine in question. I'll start reverting some of the
-> > > > these patches to see if ide-mm-ide-add-struct-ide_io_ports-take-2.patch
-> > > > is really the culprit.
-> > > 
-> > > Please try reverting ide-fix-hwif-s-initialization.patch first - it has
-> > > already been dropped from IDE tree because people were reporting problems
-> > > similar to the one encountered by you.
-> > > 
-> > 
-> > Thanks.
-> > 
-> > I reverted this patch and ide-mm-ide-make-ide_hwifs-static.patch (for compile
-> > breakage reasons). It's better but still fails to find the IDE device.
+On Tue, 29 Apr 2008, Ingo Molnar wrote:
+
+> i pointed out how it should be done _much cleaner_ (and much smaller - 
+> only a single patch needed) via stack-trace, without changing a dozen 
+> architectures, and even gave a patch to make it all easier for you:
 > 
-> Interestingly, bisection firmly blames this patch and QEMU boots with the two
-> patches reverted but fails with them applied so that patch does cause problems.
-> The failure on the laptop must be depending on some follow-on patch. I tried
-> a hatchet-job revert of the IDE patches between IDE-START and IDE-END in
-> the series file and it similarly fails to probe the IDE devices. So either
-> I made a mess of the reverts (strong possibility) or there is more than one
-> problem patch.
+>     http://lkml.org/lkml/2008/3/19/568
+>     http://lkml.org/lkml/2008/3/21/88
 > 
+> in fact, a stacktrace printout is much more informative as well to 
+> users, than a punny __builtin_return_address(0)!
 
-The third patch that needed reverting was
-gregkh-pci-pci-clean-up-resource-alignment-management.patch (owners added
-to cc). The relevant hint in the a diff between a broken and working bootlog was;
+Sorry lost track of this issue. Adding stracktrace support is not a 
+trivial thing and will change the basic handling of vmallocinfo.
 
- system 00:09: ioport range 0x15e0-0x15ef has been reserved
-+ PCI: bogus alignment of resource 7 [100:1ff] (flags 100) of 0000:00:02.0
-+ PCI: bogus alignment of resource 8 [100:1ff] (flags 100) of 0000:00:02.0
-+ PCI: bogus alignment of resource 9 [4000000:7ffffff] (flags 1200) of 0000:00:02.0
-+ PCI: bogus alignment of resource 10 [4000000:7ffffff] (flags 200) of 0000:00:02.0
-+ PCI: bogus alignment of resource 7 [100:1ff] (flags 100) of 0000:00:02.1
-+ PCI: bogus alignment of resource 8 [100:1ff] (flags 100) of 0000:00:02.1
-+ PCI: bogus alignment of resource 9 [4000000:7ffffff] (flags 1200) of 0000:00:02.1
-+ PCI: bogus alignment of resource 10 [4000000:7ffffff] (flags 200) of 0000:00:02.1
-
-With the resource alignment patch and the two IDE patches reverted, the
-laptop is able to boot.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Not sure if stacktrace support can be enabled without a penalty on various 
+platforms. Doesnt this require stackframes to be formatted in a certain 
+way?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
