@@ -1,44 +1,67 @@
-Date: Tue, 29 Apr 2008 07:41:35 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc] data race in page table setup/walking?
-Message-ID: <20080429054135.GD21795@wotan.suse.de>
-References: <20080429050054.GC21795@wotan.suse.de> <1209445724.18023.136.camel@pasglop>
+Date: Tue, 29 Apr 2008 16:20:16 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Warning on memory offline (and possible in usual migration?)
+Message-Id: <20080429162016.961aa59d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080423004804.GA14134@wotan.suse.de>
+References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
+	<20080422045205.GH21993@wotan.suse.de>
+	<20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080422094352.GB23770@wotan.suse.de>
+	<Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com>
+	<20080423004804.GA14134@wotan.suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1209445724.18023.136.camel@pasglop>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Lameter <clameter@sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 29, 2008 at 03:08:44PM +1000, Benjamin Herrenschmidt wrote:
+I myself want to this patch to be included (to next -mm) and put this under
+test. How do you think ? Nick ? Christoph ?
+
+Thanks,
+-Kame
+
+
+On Wed, 23 Apr 2008 02:48:04 +0200
+Nick Piggin <npiggin@suse.de> wrote:
+> What was happening is that migrate_page_copy wants to transfer the PG_dirty
+> bit from old page to new page, so what it would do is set_page_dirty(newpage).
+> However set_page_dirty() is used to set the entire page dirty, wheras in
+> this case, only part of the page was dirty, and it also was not uptodate.
 > 
-> On Tue, 2008-04-29 at 07:00 +0200, Nick Piggin wrote:
-> > 
-> > At this point, the spinlock is not guaranteed to have ordered the previous
-> > stores to initialize the pte page with the subsequent store to put it in the
-> > page tables. So another Linux page table walker might be walking down (without
-> > any locks, because we have split-leaf-ptls), and find that new pte we've
-> > inserted. It might try to take the spinlock before the store from the other
-> > CPU initializes it. And subsequently it might read a pte_t out before stores
-> > from the other CPU have cleared the memory.
+> Marking the whole page dirty with set_page_dirty would lead to corruption or
+> unresolvable conditions -- a dirty && !uptodate page and dirty && !uptodate
+> buffers.
 > 
-> Funny, we used to have a similar race where the zeros for clearing a
-> newly allocated anonymous pages end up reaching the coherency domain
-> after the new PTE in set_pte, causing memory corruption on threaded
-> apps. I think back then we fixed that with an explicit smp_wmb() before
-> a set_pte().
-
-Yep, I remember that one. We had the same problem with inserting pages
-into the pagecache radix-tree, so I recently changed the fix to encompass
-both problems: the barriers are now in SetPageUptodate and (Test)PageUptodate.
-
-
-> Maybe we need that also when setting the higher levels.
-
-That is my reading of the situation, yes.
+> Possibly we could just ClearPageDirty(oldpage); SetPageDirty(newpage);
+> however in the interests of keeping the change minimal...
+> 
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
+> ---
+> Index: linux-2.6/mm/migrate.c
+> ===================================================================
+> --- linux-2.6.orig/mm/migrate.c
+> +++ linux-2.6/mm/migrate.c
+> @@ -383,7 +383,14 @@ static void migrate_page_copy(struct pag
+>  
+>  	if (PageDirty(page)) {
+>  		clear_page_dirty_for_io(page);
+> -		set_page_dirty(newpage);
+> +		/*
+> +		 * Want to mark the page and the radix tree as dirty, and
+> +		 * redo the accounting that clear_page_dirty_for_io undid,
+> +		 * but we can't use set_page_dirty because that function
+> +		 * is actually a signal that all of the page has become dirty.
+> +		 * Wheras only part of our page may be dirty.
+> +		 */
+> +		__set_page_dirty_nobuffers(newpage);
+>   	}
+>  
+>  #ifdef CONFIG_SWAP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
