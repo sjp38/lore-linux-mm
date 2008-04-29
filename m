@@ -1,6 +1,6 @@
-Subject: [RFC/PATH 1/2] MM: Make Page Tables Relocatable -- conditional flush
-Message-Id: <20080429134254.635FEDC683@localhost>
-Date: Tue, 29 Apr 2008 06:42:54 -0700 (PDT)
+Subject: [RFC/PATH 2/2] MM: Make Page Tables Relocatable -- relocation code.
+Message-Id: <20080429134340.61C42DC683@localhost>
+Date: Tue, 29 Apr 2008 06:43:40 -0700 (PDT)
 From: rossb@google.com (Ross Biro)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -8,765 +8,1342 @@ To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: rossb@google.com
 List-ID: <linux-mm.kvack.org>
 
-These Patches make page tables relocatable for numa, memory
-defragmentation, and memory hotblug.  The potential need to rewalk the
-page tables before making any changes causes a 1.6% peformance
-degredation in the lmbench page miss micro benchmark.
-
-Page table relocation is critical for several projects.
-
-1) Numa system process relcoation.  Currently, when a process is migrated
-from one node to another the page tables are left behind.  This means 
-increased latency and inter-node traffic on all page faults.  Migrating the
-page tables with the process will be a performance win.
-
-2) Memory hotplug.  Currently memory hotplug cannot move page tables out of
-the memory that is about to be removed.  This code is a first step to 
-being able to move page tables out of memory that is going to be unplugged.
-
-3) Memory defragmentation. Currently page tables are the largest chunk
-of non-moveable memory (needs verification).  By making page tables
-relocatable, we can decrease the number of memory fragments and allow for
-higher order allocations.  This is important for supporting huge pages 
-that can greatly improve performance in some circumstances.
-
-Currently the high level memory relocation code only supports 1 above.
-The low level routines can be used to migrate any page table to any
-new page.  However, 1 seems to be the best case for correctness
-testing and is also the easiest place to hook into existing code, so
-that is what is currently supported.
-
-The low level page table relocation routines are generic and will be easy
-to use for 2 and 3.
-
-Signed-off-by:rossb@google.com
-
 -----
-
-Major changes from the previous version include more comments and
-replacing the semaphore that serialized access to the relocation code
-with an integer count of the number of times it has been reentered.  The
-later lead to an improvement from a 3% performace loss to a 1.6% perfromance
-loss vs no relocation code (There was also a version change from 2.6.23 to
-2.6.25-rc9 since the last benchmark, so some of the performance difference
-may be related to other changes.)
-
-Please discuss the code and approach to handling unstable page tables.
-
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/alpha/kernel/smp.c 2.6.25-rc9/arch/alpha/kernel/smp.c
---- /home/rossb/local/linux-2.6.25-rc9/arch/alpha/kernel/smp.c	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/arch/alpha/kernel/smp.c	2008-04-14 09:00:18.000000000 -0700
-@@ -845,6 +845,8 @@ flush_tlb_mm(struct mm_struct *mm)
- {
- 	preempt_disable();
- 
-+	clear_bit(MMF_NEED_FLUSH, mm->flags);
+diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/powerpc/mm/fault.c 2.6.25-rc9/arch/powerpc/mm/fault.c
+--- /home/rossb/local/linux-2.6.25-rc9/arch/powerpc/mm/fault.c	2008-04-11 13:32:29.000000000 -0700
++++ 2.6.25-rc9/arch/powerpc/mm/fault.c	2008-04-14 09:00:29.000000000 -0700
+@@ -299,6 +299,8 @@ good_area:
+ 		if (get_pteptr(mm, address, &ptep, &pmdp)) {
+ 			spinlock_t *ptl = pte_lockptr(mm, pmdp);
+ 			spin_lock(ptl);
++			delimbo_pte(&ptep, &ptl, &pmdp, mm, address);
 +
- 	if (mm == current->active_mm) {
- 		flush_tlb_current(mm);
- 		if (atomic_read(&mm->mm_users) <= 1) {
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/arm/kernel/smp.c 2.6.25-rc9/arch/arm/kernel/smp.c
---- /home/rossb/local/linux-2.6.25-rc9/arch/arm/kernel/smp.c	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/arch/arm/kernel/smp.c	2008-04-14 09:00:18.000000000 -0700
-@@ -738,6 +738,8 @@ void flush_tlb_mm(struct mm_struct *mm)
- {
- 	cpumask_t mask = mm->cpu_vm_mask;
+ 			if (pte_present(*ptep)) {
+ 				struct page *page = pte_page(*ptep);
  
-+	clear_bit(MMF_NEED_FLUSH, mm->flags);
+diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/powerpc/mm/hugetlbpage.c 2.6.25-rc9/arch/powerpc/mm/hugetlbpage.c
+--- /home/rossb/local/linux-2.6.25-rc9/arch/powerpc/mm/hugetlbpage.c	2008-04-11 13:32:29.000000000 -0700
++++ 2.6.25-rc9/arch/powerpc/mm/hugetlbpage.c	2008-04-14 09:00:29.000000000 -0700
+@@ -73,6 +73,7 @@ static int __hugepte_alloc(struct mm_str
+ 		return -ENOMEM;
+ 
+ 	spin_lock(&mm->page_table_lock);
++	delimbo_hpd(&hpdp, mm, address);
+ 	if (!hugepd_none(*hpdp))
+ 		kmem_cache_free(huge_pgtable_cache, new);
+ 	else
+diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/ppc/mm/fault.c 2.6.25-rc9/arch/ppc/mm/fault.c
+--- /home/rossb/local/linux-2.6.25-rc9/arch/ppc/mm/fault.c	2008-04-11 13:32:29.000000000 -0700
++++ 2.6.25-rc9/arch/ppc/mm/fault.c	2008-04-14 09:00:29.000000000 -0700
+@@ -219,6 +219,7 @@ good_area:
+ 		if (get_pteptr(mm, address, &ptep, &pmdp)) {
+ 			spinlock_t *ptl = pte_lockptr(mm, pmdp);
+ 			spin_lock(ptl);
++			delimbo_pte(&ptep, &ptl, &pmdp, mm, address);
+ 			if (pte_present(*ptep)) {
+ 				struct page *page = pte_page(*ptep);
+ 
+diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/x86/mm/hugetlbpage.c 2.6.25-rc9/arch/x86/mm/hugetlbpage.c
+--- /home/rossb/local/linux-2.6.25-rc9/arch/x86/mm/hugetlbpage.c	2008-04-11 13:32:29.000000000 -0700
++++ 2.6.25-rc9/arch/x86/mm/hugetlbpage.c	2008-04-14 09:00:29.000000000 -0700
+@@ -88,6 +88,7 @@ static void huge_pmd_share(struct mm_str
+ 		goto out;
+ 
+ 	spin_lock(&mm->page_table_lock);
++	delimbo_pud(&pud, mm, addr);
+ 	if (pud_none(*pud))
+ 		pud_populate(mm, pud, (pmd_t *)((unsigned long)spte & PAGE_MASK));
+ 	else
+diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-generic/pgalloc.h 2.6.25-rc9/include/asm-generic/pgalloc.h
+--- /home/rossb/local/linux-2.6.25-rc9/include/asm-generic/pgalloc.h	1969-12-31 16:00:00.000000000 -0800
++++ 2.6.25-rc9/include/asm-generic/pgalloc.h	2008-04-14 09:00:29.000000000 -0700
+@@ -0,0 +1,37 @@
++#ifndef _ASM_GENERIC_PGALLOC_H
++#define _ASM_GENERIC_PGALLOC_H
 +
- 	on_each_cpu_mask(ipi_flush_tlb_mm, mm, 1, 1, mask);
- }
- 
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/avr32/mm/tlb.c 2.6.25-rc9/arch/avr32/mm/tlb.c
---- /home/rossb/local/linux-2.6.25-rc9/arch/avr32/mm/tlb.c	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/arch/avr32/mm/tlb.c	2008-04-14 09:00:18.000000000 -0700
-@@ -249,6 +249,8 @@ void flush_tlb_kernel_range(unsigned lon
- 
- void flush_tlb_mm(struct mm_struct *mm)
- {
-+	clear_bit(MMF_NEED_FLUSH, mm->flags);
 +
- 	/* Invalidate all TLB entries of this process by getting a new ASID */
- 	if (mm->context != NO_CONTEXT) {
- 		unsigned long flags;
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/cris/arch-v10/mm/tlb.c 2.6.25-rc9/arch/cris/arch-v10/mm/tlb.c
---- /home/rossb/local/linux-2.6.25-rc9/arch/cris/arch-v10/mm/tlb.c	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/arch/cris/arch-v10/mm/tlb.c	2008-04-14 09:00:18.000000000 -0700
-@@ -69,6 +69,8 @@ flush_tlb_mm(struct mm_struct *mm)
- 
- 	D(printk("tlb: flush mm context %d (%p)\n", page_id, mm));
- 
-+	clear_bit(MMF_NEED_FLUSH, mm->flags);
 +
- 	if(page_id == NO_CONTEXT)
- 		return;
- 
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/cris/arch-v32/kernel/smp.c 2.6.25-rc9/arch/cris/arch-v32/kernel/smp.c
---- /home/rossb/local/linux-2.6.25-rc9/arch/cris/arch-v32/kernel/smp.c	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/arch/cris/arch-v32/kernel/smp.c	2008-04-14 09:00:18.000000000 -0700
-@@ -252,6 +252,7 @@ void flush_tlb_all(void)
- 
- void flush_tlb_mm(struct mm_struct *mm)
- {
-+	clear_bit(MMF_NEED_FLUSH, mm->flags);
- 	__flush_tlb_mm(mm);
- 	flush_tlb_common(mm, FLUSH_ALL, 0);
- 	/* No more mappings in other CPUs */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/ia64/kernel/smp.c 2.6.25-rc9/arch/ia64/kernel/smp.c
---- /home/rossb/local/linux-2.6.25-rc9/arch/ia64/kernel/smp.c	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/arch/ia64/kernel/smp.c	2008-04-14 09:00:18.000000000 -0700
-@@ -325,6 +325,8 @@ smp_flush_tlb_all (void)
- void
- smp_flush_tlb_mm (struct mm_struct *mm)
- {
-+	clear_bit(MMF_NEED_FLUSH, mm->flags);
++/* Page Table Levels used for alloc_page_table. */
++#define PAGE_TABLE_PGD 0
++#define PAGE_TABLE_PUD 1
++#define PAGE_TABLE_PMD 2
++#define PAGE_TABLE_PTE 3
 +
- 	preempt_disable();
- 	/* this happens for the common case of a single-threaded fork():  */
- 	if (likely(mm == current->active_mm && atomic_read(&mm->mm_users) == 1))
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/m32r/kernel/smp.c 2.6.25-rc9/arch/m32r/kernel/smp.c
---- /home/rossb/local/linux-2.6.25-rc9/arch/m32r/kernel/smp.c	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/arch/m32r/kernel/smp.c	2008-04-14 09:00:18.000000000 -0700
-@@ -280,6 +280,8 @@ void smp_flush_tlb_mm(struct mm_struct *
- 	unsigned long *mmc;
- 	unsigned long flags;
- 
-+	clear_bit(MMF_NEED_FLUSH, mm->flags);
-+
- 	preempt_disable();
- 	cpu_id = smp_processor_id();
- 	mmc = &mm->context[cpu_id];
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/mips/kernel/smp.c 2.6.25-rc9/arch/mips/kernel/smp.c
---- /home/rossb/local/linux-2.6.25-rc9/arch/mips/kernel/smp.c	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/arch/mips/kernel/smp.c	2008-04-14 09:00:18.000000000 -0700
-@@ -408,6 +408,8 @@ static inline void smp_on_each_tlb(void 
- 
- void flush_tlb_mm(struct mm_struct *mm)
- {
-+	clear_bit(MMF_NEED_FLUSH, mm->flags);
-+
- 	preempt_disable();
- 
- 	if ((atomic_read(&mm->mm_users) != 1) || (current->mm != mm)) {
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/powerpc/mm/tlb_32.c 2.6.25-rc9/arch/powerpc/mm/tlb_32.c
---- /home/rossb/local/linux-2.6.25-rc9/arch/powerpc/mm/tlb_32.c	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/arch/powerpc/mm/tlb_32.c	2008-04-14 09:00:18.000000000 -0700
-@@ -144,6 +144,8 @@ void flush_tlb_mm(struct mm_struct *mm)
- {
- 	struct vm_area_struct *mp;
- 
-+	clear_bit(MMF_NEED_FLUSH, mm->flags);
-+
- 	if (Hash == 0) {
- 		_tlbia();
- 		return;
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/ppc/mm/tlb.c 2.6.25-rc9/arch/ppc/mm/tlb.c
---- /home/rossb/local/linux-2.6.25-rc9/arch/ppc/mm/tlb.c	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/arch/ppc/mm/tlb.c	2008-04-14 09:00:18.000000000 -0700
-@@ -144,6 +144,8 @@ void flush_tlb_mm(struct mm_struct *mm)
- {
- 	struct vm_area_struct *mp;
- 
-+	clear_bit(MMF_NEED_FLUSH, mm->flags);
-+
- 	if (Hash == 0) {
- 		_tlbia();
- 		return;
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/sparc/kernel/smp.c 2.6.25-rc9/arch/sparc/kernel/smp.c
---- /home/rossb/local/linux-2.6.25-rc9/arch/sparc/kernel/smp.c	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/arch/sparc/kernel/smp.c	2008-04-14 09:00:18.000000000 -0700
-@@ -163,6 +163,8 @@ void smp_flush_cache_mm(struct mm_struct
- 
- void smp_flush_tlb_mm(struct mm_struct *mm)
- {
-+	clear_bit(MMF_NEED_FLUSH, mm->flags);
-+
- 	if(mm->context != NO_CONTEXT) {
- 		cpumask_t cpu_mask = mm->cpu_vm_mask;
- 		cpu_clear(smp_processor_id(), cpu_mask);
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/sparc64/kernel/smp.c 2.6.25-rc9/arch/sparc64/kernel/smp.c
---- /home/rossb/local/linux-2.6.25-rc9/arch/sparc64/kernel/smp.c	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/arch/sparc64/kernel/smp.c	2008-04-14 09:00:18.000000000 -0700
-@@ -1119,6 +1119,8 @@ void smp_flush_tlb_mm(struct mm_struct *
- 	u32 ctx = CTX_HWBITS(mm->context);
- 	int cpu = get_cpu();
- 
-+	clear_bit(MMF_NEED_FLUSH, mm->flags);
-+
- 	if (atomic_read(&mm->mm_users) == 1) {
- 		mm->cpu_vm_mask = cpumask_of_cpu(cpu);
- 		goto local_flush_and_out;
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/um/kernel/tlb.c 2.6.25-rc9/arch/um/kernel/tlb.c
---- /home/rossb/local/linux-2.6.25-rc9/arch/um/kernel/tlb.c	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/arch/um/kernel/tlb.c	2008-04-14 09:00:18.000000000 -0700
-@@ -517,6 +517,8 @@ void flush_tlb_mm(struct mm_struct *mm)
- {
- 	struct vm_area_struct *vma = mm->mmap;
- 
-+	clear_bit(MMF_NEED_FLUSH, mm->flags);
-+
- 	while (vma != NULL) {
- 		fix_range(mm, vma->vm_start, vma->vm_end, 0);
- 		vma = vma->vm_next;
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/x86/kernel/smp_32.c 2.6.25-rc9/arch/x86/kernel/smp_32.c
---- /home/rossb/local/linux-2.6.25-rc9/arch/x86/kernel/smp_32.c	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/arch/x86/kernel/smp_32.c	2008-04-14 09:00:18.000000000 -0700
-@@ -332,6 +332,8 @@ void smp_invalidate_interrupt(struct pt_
- 		if (per_cpu(cpu_tlbstate, cpu).state == TLBSTATE_OK) {
- 			if (flush_va == TLB_FLUSH_ALL)
- 				local_flush_tlb();
-+			else if (f->flush_va == TLB_RELOAD_ALL)
-+				local_reload_tlb_mm(f->flush_mm);
- 			else
- 				__flush_tlb_one(flush_va);
- 		} else
-@@ -408,10 +410,35 @@ void flush_tlb_current_task(void)
- 	preempt_enable();
- }
- 
-+void reload_tlb_mm(struct mm_struct *mm)
++static inline struct page *alloc_page_table_node(struct mm_struct *mm,
++						 unsigned long addr,
++						 int node,
++						 int page_table_level)
 +{
-+	cpumask_t cpu_mask;
++	switch (page_table_level) {
++	case PAGE_TABLE_PGD:
++		return virt_to_page(pgd_alloc_node(mm, node));
 +
-+	clear_bit(MMF_NEED_RELOAD, &mm->flags);
-+	clear_bit(MMF_NEED_FLUSH, &mm->flags);
++	case PAGE_TABLE_PUD:
++		return virt_to_page(pud_alloc_one_node(mm, addr, node));
 +
-+	preempt_disable();
-+	cpu_mask = mm->cpu_vm_mask;
-+	cpu_clear(smp_processor_id(), cpu_mask);
++	case PAGE_TABLE_PMD:
++		return virt_to_page(pmd_alloc_one_node(mm, addr, node));
 +
-+	if (current->active_mm == mm) {
-+		if (current->mm)
-+			local_reload_tlb_mm(mm);
-+		else
-+			leave_mm(smp_processor_id());
++	case PAGE_TABLE_PTE:
++		return pte_alloc_one_node(mm, addr, node);
++
++	default:
++		BUG();
++		return NULL;
 +	}
-+	if (!cpus_empty(cpu_mask))
-+		flush_tlb_others(cpu_mask, mm, TLB_RELOAD_ALL);
-+
-+	preempt_enable();
-+
 +}
 +
- void flush_tlb_mm (struct mm_struct * mm)
- {
- 	cpumask_t cpu_mask;
++
++#endif /* _ASM_GENERIC_PGALLOC_H */
+diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-generic/pgtable.h 2.6.25-rc9/include/asm-generic/pgtable.h
+--- /home/rossb/local/linux-2.6.25-rc9/include/asm-generic/pgtable.h	2008-04-11 13:32:29.000000000 -0700
++++ 2.6.25-rc9/include/asm-generic/pgtable.h	2008-04-15 07:27:10.000000000 -0700
+@@ -4,6 +4,8 @@
+ #ifndef __ASSEMBLY__
+ #ifdef CONFIG_MMU
  
-+	clear_bit(MMF_NEED_FLUSH, mm->flags);
- 	preempt_disable();
- 	cpu_mask = mm->cpu_vm_mask;
- 	cpu_clear(smp_processor_id(), cpu_mask);
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/x86/kernel/smp_64.c 2.6.25-rc9/arch/x86/kernel/smp_64.c
---- /home/rossb/local/linux-2.6.25-rc9/arch/x86/kernel/smp_64.c	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/arch/x86/kernel/smp_64.c	2008-04-14 09:00:18.000000000 -0700
-@@ -155,6 +155,8 @@ asmlinkage void smp_invalidate_interrupt
- 		if (read_pda(mmu_state) == TLBSTATE_OK) {
- 			if (f->flush_va == TLB_FLUSH_ALL)
- 				local_flush_tlb();
-+			else if (f->flush_va == TLB_RELOAD_ALL)
-+				local_reload_tlb_mm(f->flush_mm);
- 			else
- 				__flush_tlb_one(f->flush_va);
- 		} else
-@@ -228,10 +230,36 @@ void flush_tlb_current_task(void)
- 	preempt_enable();
++#include <linux/sched.h>
++
+ #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
+ /*
+  * Largely same as above, but only sets the access flags (dirty,
+@@ -195,6 +197,54 @@ static inline int pmd_none_or_clear_bad(
+ 	}
+ 	return 0;
  }
- 
-+void reload_tlb_mm(struct mm_struct *mm)
-+{
-+	cpumask_t cpu_mask;
 +
-+	clear_bit(MMF_NEED_RELOAD, &mm->flags);
-+	clear_bit(MMF_NEED_FLUSH, &mm->flags);
 +
-+	preempt_disable();
-+	cpu_mask = mm->cpu_vm_mask;
-+	cpu_clear(smp_processor_id(), cpu_mask);
-+
-+	if (current->active_mm == mm) {
-+		if (current->mm)
-+			local_reload_tlb_mm(mm);
-+		else
-+			leave_mm(smp_processor_id());
-+	}
-+	if (!cpus_empty(cpu_mask))
-+		flush_tlb_others(cpu_mask, mm, TLB_RELOAD_ALL);
-+
-+	preempt_enable();
-+
-+}
-+
- void flush_tlb_mm (struct mm_struct * mm)
- {
- 	cpumask_t cpu_mask;
- 
-+	clear_bit(MMF_NEED_FLUSH, &mm->flags);
-+
- 	preempt_disable();
- 	cpu_mask = mm->cpu_vm_mask;
- 	cpu_clear(smp_processor_id(), cpu_mask);
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/x86/mach-voyager/voyager_smp.c 2.6.25-rc9/arch/x86/mach-voyager/voyager_smp.c
---- /home/rossb/local/linux-2.6.25-rc9/arch/x86/mach-voyager/voyager_smp.c	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/arch/x86/mach-voyager/voyager_smp.c	2008-04-14 09:00:18.000000000 -0700
-@@ -909,6 +909,8 @@ void flush_tlb_mm(struct mm_struct *mm)
- {
- 	unsigned long cpu_mask;
- 
-+	clear_bit(MMF_NEED_FLUSH, mm->flags);
-+
- 	preempt_disable();
- 
- 	cpu_mask = cpus_addr(mm->cpu_vm_mask)[0] & ~(1 << smp_processor_id());
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/arch/xtensa/mm/tlb.c 2.6.25-rc9/arch/xtensa/mm/tlb.c
---- /home/rossb/local/linux-2.6.25-rc9/arch/xtensa/mm/tlb.c	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/arch/xtensa/mm/tlb.c	2008-04-14 09:00:18.000000000 -0700
-@@ -63,6 +63,8 @@ void flush_tlb_all (void)
- 
- void flush_tlb_mm(struct mm_struct *mm)
- {
-+	clear_bit(MMF_NEED_FLUSH, mm->flags);
-+
- 	if (mm == current->active_mm) {
- 		int flags;
- 		local_save_flags(flags);
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-alpha/tlbflush.h 2.6.25-rc9/include/asm-alpha/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-alpha/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-alpha/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -148,4 +148,6 @@ static inline void flush_tlb_kernel_rang
- 	flush_tlb_all();
- }
- 
-+#include <asm-generic/tlbflush.h>
-+
- #endif /* _ALPHA_TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-arm/tlbflush.h 2.6.25-rc9/include/asm-arm/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-arm/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-arm/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -466,5 +466,6 @@ extern void update_mmu_cache(struct vm_a
- #endif
- 
- #endif /* CONFIG_MMU */
-+#include <asm-generic/tlbflush.h>
- 
- #endif
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-avr32/tlbflush.h 2.6.25-rc9/include/asm-avr32/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-avr32/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-avr32/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -29,5 +29,6 @@ extern void flush_tlb_page(struct vm_are
- extern void __flush_tlb_page(unsigned long asid, unsigned long page);
- 
- extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
-+#include <asm-generic/tlbflush.h>
- 
- #endif /* __ASM_AVR32_TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-blackfin/tlbflush.h 2.6.25-rc9/include/asm-blackfin/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-blackfin/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-blackfin/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -53,4 +53,5 @@ static inline void flush_tlb_kernel_page
- 	BUG();
- }
- 
-+#include <asm-generic/tlbflush.h>
- #endif
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-cris/tlbflush.h 2.6.25-rc9/include/asm-cris/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-cris/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-cris/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -44,5 +44,6 @@ static inline void flush_tlb(void)
- }
- 
- #define flush_tlb_kernel_range(start, end) flush_tlb_all()
-+#include <asm-generic/tlbflush.h>
- 
- #endif /* _CRIS_TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-frv/tlbflush.h 2.6.25-rc9/include/asm-frv/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-frv/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-frv/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -68,6 +68,7 @@ do {								\
- #define flush_tlb_kernel_range(start, end)	BUG()
- 
- #endif
-+#include <asm-generic/tlbflush.h>
- 
- 
- #endif /* _ASM_TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-generic/tlbflush.h 2.6.25-rc9/include/asm-generic/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-generic/tlbflush.h	1969-12-31 16:00:00.000000000 -0800
-+++ 2.6.25-rc9/include/asm-generic/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -0,0 +1,102 @@
-+/* include/asm-generic/tlbflush.h
-+ *
-+ *	Generic TLB reload code and page table migration code that
-+ *      depends on it.
-+ *
-+ * Copyright 2008 Google, Inc.
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License as
-+ * published by the Free Software Foundation; version 2 of the
-+ * License.
++/* Used to rewalk the page tables if after we grab the appropriate lock,
++ * we make sure we are not looking at a page table that's just waiting
++ * to go away.
++ * These are only used in the _delimbo* functions in mm/migrate.c
++ * so it's no big deal having them static inline.  Otherwise, they
++ * would just be in there anyway.
++ * XXXXX Why not just copy this into mm/migrate.c?
 + */
-+
-+#ifndef _ASM_GENERIC__TLBFLUSH_H
-+#define _ASM_GENERIC__TLBFLUSH_H
-+
-+#include <asm/pgalloc.h>
-+#include <asm/mmu_context.h>
-+
-+/* flush an mm that we messed with earlier, but delayed the flush
-+   assuming that we would muck with it a whole lot more. */
-+static inline void maybe_flush_tlb_mm(struct mm_struct *mm)
++static inline pgd_t *walk_page_table_pgd(struct mm_struct *mm,
++					  unsigned long addr)
 +{
-+	if (test_and_clear_bit(MMF_NEED_FLUSH, &mm->flags))
-+		flush_tlb_mm(mm);
++	return pgd_offset(mm, addr);
 +}
 +
-+/* possibly flag an mm as needing to be flushed. */
-+static inline int maybe_need_flush_mm(struct mm_struct *mm)
++static inline pud_t *walk_page_table_pud(struct mm_struct *mm,
++					 unsigned long addr) {
++	pgd_t *pgd;
++	pgd = walk_page_table_pgd(mm, addr);
++	BUG_ON(!pgd);
++	return pud_offset(pgd, addr);
++}
++
++static inline pmd_t *walk_page_table_pmd(struct mm_struct *mm,
++					 unsigned long addr)
 +{
-+	if (!cpus_empty(mm->cpu_vm_mask)) {
-+		set_bit(MMF_NEED_FLUSH, &mm->flags);
-+		return 1;
-+	}
-+	return 0;
++	pud_t *pud;
++	pud = walk_page_table_pud(mm, addr);
++	BUG_ON(!pud);
++	return  pmd_offset(pud, addr);
 +}
 +
-+
-+
-+#ifdef ARCH_HAS_RELOAD_TLB
-+static inline void maybe_reload_tlb_mm(struct mm_struct *mm)
++static inline pte_t *walk_page_table_pte(struct mm_struct *mm,
++					 unsigned long addr)
 +{
-+	if (test_and_clear_bit(MMF_NEED_RELOAD, &mm->flags))
-+		reload_tlb_mm(mm);
-+	else
-+		maybe_flush_tlb_mm(mm);
++	pmd_t *pmd;
++	pmd = walk_page_table_pmd(mm, addr);
++	BUG_ON(!pmd);
++	return pte_offset_map(pmd, addr);
 +}
 +
-+static inline int maybe_need_tlb_reload_mm(struct mm_struct *mm)
++static inline pte_t *walk_page_table_huge_pte(struct mm_struct *mm,
++					      unsigned long addr)
 +{
-+	if (!cpus_empty(mm->cpu_vm_mask)) {
-+		set_bit(MMF_NEED_RELOAD, &mm->flags);
-+		return 1;
-+	}
-+	return 0;
++	return (pte_t *)walk_page_table_pmd(mm, addr);
 +}
 +
-+static inline int migrate_top_level_page_table(struct mm_struct *mm,
-+					       struct page *dest,
-+					       struct list_head *old_pages)
-+{
-+	unsigned long flags;
-+	void *dest_ptr;
-+
-+	dest_ptr = page_address(dest);
-+
-+	spin_lock_irqsave(&mm->page_table_lock, flags);
-+	memcpy(dest_ptr, mm->pgd, PAGE_SIZE);
-+
-+	/* Must be done before adding the list to the page to be
-+	 * freed. Should we take the pgd_lock through this entire
-+	 * mess, or is it ok for the pgd to be missing from the list
-+	 * for a bit?
-+	 */
-+	pgd_list_del(mm->pgd);
-+
-+	list_add_tail(&virt_to_page(mm->pgd)->lru, old_pages);
-+
-+	mm->pgd = (pgd_t *)dest_ptr;
-+
-+	maybe_need_tlb_reload_mm(mm);
-+
-+	spin_unlock_irqrestore(&mm->page_table_lock, flags);
-+	return 0;
-+}
-+#else /* ARCH_HAS_RELOAD_TLB */
-+static inline int migrate_top_level_page_table(struct mm_struct *mm,
-+					       struct page *dest,
-+					       struct list_head *old_pages) {
-+	return 1;
-+}
-+
-+static inline void maybe_reload_tlb_mm(struct mm_struct *mm)
-+{
-+	maybe_flush_tlb_mm(mm);
-+}
-+
-+
-+#endif /* ARCH_HAS_RELOAD_TLB */
-+
-+
-+#endif /* _ASM_GENERIC__TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-h8300/tlbflush.h 2.6.25-rc9/include/asm-h8300/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-h8300/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-h8300/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -52,4 +52,6 @@ static inline void flush_tlb_kernel_page
- 	BUG();
- }
- 
-+#include <asm-generic/tlbflush.h>
-+
- #endif /* _H8300_TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-ia64/tlbflush.h 2.6.25-rc9/include/asm-ia64/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-ia64/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-ia64/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -98,4 +98,6 @@ static inline void flush_tlb_kernel_rang
- 	flush_tlb_all();	/* XXX fix me */
- }
- 
-+#include <asm-generic/tlbflush.h>
-+
- #endif /* _ASM_IA64_TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-m32r/tlbflush.h 2.6.25-rc9/include/asm-m32r/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-m32r/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-m32r/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -93,5 +93,6 @@ static __inline__ void __flush_tlb_all(v
- }
- 
- extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t);
-+#include <asm-generic/tlbflush.h>
- 
- #endif	/* _ASM_M32R_TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-m68k/tlbflush.h 2.6.25-rc9/include/asm-m68k/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-m68k/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-m68k/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -215,5 +215,6 @@ static inline void flush_tlb_kernel_page
- }
- 
- #endif
-+#include <asm-generic/tlbflush.h>
- 
- #endif /* _M68K_TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-m68knommu/tlbflush.h 2.6.25-rc9/include/asm-m68knommu/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-m68knommu/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-m68knommu/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -52,4 +52,6 @@ static inline void flush_tlb_kernel_page
- 	BUG();
- }
- 
-+#include <asm-generic/tlbflush.h>
-+
- #endif /* _M68KNOMMU_TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-mips/tlbflush.h 2.6.25-rc9/include/asm-mips/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-mips/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-mips/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -44,4 +44,6 @@ extern void flush_tlb_one(unsigned long 
- 
- #endif /* CONFIG_SMP */
- 
-+#include <asm-generic/tlbflush.h>
-+
- #endif /* __ASM_TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-parisc/tlbflush.h 2.6.25-rc9/include/asm-parisc/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-parisc/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-parisc/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -76,5 +76,6 @@ void __flush_tlb_range(unsigned long sid
- #define flush_tlb_range(vma,start,end) __flush_tlb_range((vma)->vm_mm->context,start,end)
- 
- #define flush_tlb_kernel_range(start, end) __flush_tlb_range(0,start,end)
-+#include <asm-generic/tlbflush.h>
- 
- #endif
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-powerpc/tlbflush.h 2.6.25-rc9/include/asm-powerpc/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-powerpc/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-powerpc/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -173,5 +173,7 @@ extern void __flush_hash_table_range(str
-  */
- extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t);
- 
-+#include <asm-generic/tlbflush.h>
-+
- #endif /*__KERNEL__ */
- #endif /* _ASM_POWERPC_TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-s390/tlbflush.h 2.6.25-rc9/include/asm-s390/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-s390/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-s390/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -126,4 +126,6 @@ static inline void flush_tlb_kernel_rang
- 	__tlb_flush_mm(&init_mm);
- }
- 
-+#include <asm-generic/tlbflush.h>
-+
- #endif /* _S390_TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-sh/tlbflush.h 2.6.25-rc9/include/asm-sh/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-sh/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-sh/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -46,4 +46,6 @@ extern void flush_tlb_one(unsigned long 
- 
- #endif /* CONFIG_SMP */
- 
-+#include <asm-generic/tlbflush.h>
-+
- #endif /* __ASM_SH_TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-sparc/tlbflush.h 2.6.25-rc9/include/asm-sparc/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-sparc/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-sparc/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -57,4 +57,6 @@ static inline void flush_tlb_kernel_rang
- 	flush_tlb_all();
- }
- 
-+#include <asm-generic/tlbflush.h>
-+
- #endif /* _SPARC_TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-sparc64/tlbflush.h 2.6.25-rc9/include/asm-sparc64/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-sparc64/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-sparc64/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -41,4 +41,6 @@ do {	flush_tsb_kernel_range(start,end); 
- 
- #endif /* ! CONFIG_SMP */
- 
-+#include <asm-generic/tlbflush.h>
-+
- #endif /* _SPARC64_TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-um/tlbflush.h 2.6.25-rc9/include/asm-um/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-um/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-um/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -28,4 +28,6 @@ extern void flush_tlb_kernel_vm(void);
- extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
- extern void __flush_tlb_one(unsigned long addr);
- 
-+#include <asm-generic/tlbflush.h>
-+
- #endif
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-v850/tlbflush.h 2.6.25-rc9/include/asm-v850/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-v850/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-v850/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -61,4 +61,6 @@ static inline void flush_tlb_kernel_page
- 	BUG ();
- }
- 
-+#include <asm-generic/tlbflush.h>
-+
- #endif /* __V850_TLBFLUSH_H__ */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-x86/tlbflush.h 2.6.25-rc9/include/asm-x86/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-x86/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-x86/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -35,6 +35,13 @@ static inline void __native_flush_tlb_si
- 	__asm__ __volatile__("invlpg (%0)" ::"r" (addr) : "memory");
- }
- 
-+#define ARCH_HAS_RELOAD_TLB
-+static inline void load_cr3(pgd_t *pgd);
-+static inline void __reload_tlb_mm(struct mm_struct *mm)
-+{
-+	load_cr3(mm->pgd);
-+}
-+
- static inline void __flush_tlb_all(void)
- {
- 	if (cpu_has_pge)
-@@ -53,8 +60,10 @@ static inline void __flush_tlb_one(unsig
- 
- #ifdef CONFIG_X86_32
- # define TLB_FLUSH_ALL	0xffffffff
-+# define TLB_RELOAD_ALL 0xfffffffe
- #else
- # define TLB_FLUSH_ALL	-1ULL
-+# define TLB_RELOAD_ALL -2ULL
- #endif
+ #endif /* CONFIG_MMU */
  
  /*
-@@ -82,6 +91,12 @@ static inline void __flush_tlb_one(unsig
- #define flush_tlb_all() __flush_tlb_all()
- #define local_flush_tlb() __flush_tlb()
+diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-x86/pgalloc_64.h 2.6.25-rc9/include/asm-x86/pgalloc_64.h
+--- /home/rossb/local/linux-2.6.25-rc9/include/asm-x86/pgalloc_64.h	2008-04-11 13:32:29.000000000 -0700
++++ 2.6.25-rc9/include/asm-x86/pgalloc_64.h	2008-04-14 09:00:29.000000000 -0700
+@@ -25,16 +25,6 @@ static inline void pmd_free(struct mm_st
+ 	free_page((unsigned long)pmd);
+ }
  
-+static inline void reload_tlb_mm(struct mm_struct *mm)
+-static inline pmd_t *pmd_alloc_one (struct mm_struct *mm, unsigned long addr)
+-{
+-	return (pmd_t *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT);
+-}
+-
+-static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
+-{
+-	return (pud_t *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT);
+-}
+-
+ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
+ {
+ 	BUG_ON((unsigned long)pud & (PAGE_SIZE-1));
+@@ -61,12 +51,75 @@ static inline void pgd_list_del(pgd_t *p
+ 	spin_unlock_irqrestore(&pgd_lock, flags);
+ }
+ 
+-static inline pgd_t *pgd_alloc(struct mm_struct *mm)
++static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 +{
-+	if (mm == current->active_mm)
-+		__reload_tlb_mm(mm);
++	BUG_ON((unsigned long)pgd & (PAGE_SIZE-1));
++	pgd_list_del(pgd);
++	free_page((unsigned long)pgd);
 +}
 +
- static inline void flush_tlb_mm(struct mm_struct *mm)
++
++/* Should really implement gc for free page table pages. This could be
++   done with a reference count in struct page. */
++
++static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
++{
++	BUG_ON((unsigned long)pte & (PAGE_SIZE-1));
++	free_page((unsigned long)pte);
++}
++
++static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
++{
++	pgtable_page_dtor(pte);
++	__free_page(pte);
++}
++
++#define __pte_free_tlb(tlb,pte)				\
++do {							\
++	pgtable_page_dtor((pte));				\
++	tlb_remove_page((tlb), (pte));			\
++} while (0)
++
++#define __pmd_free_tlb(tlb, x)   tlb_remove_page((tlb), virt_to_page(x))
++#define __pud_free_tlb(tlb, x)   tlb_remove_page((tlb), virt_to_page(x))
++
++#ifdef CONFIG_NUMA
++static inline pud_t *pud_alloc_one_node(struct mm_struct *mm,
++					unsigned long addr,
++					int node)
++{
++	struct page *page;
++
++	page = alloc_pages_node(node, GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
++	if (page)
++		return (pud_t *)page_address(page);
++	return NULL;
++}
++
++static inline pmd_t *pmd_alloc_one_node(struct mm_struct *mm,
++					unsigned long addr,
++					int node)
++{
++	struct page *page;
++
++	page = alloc_pages_node(node, GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
++	if (page)
++		return (pmd_t *)page_address(page);
++	return NULL;
++}
++
++static inline pgd_t *pgd_alloc_node(struct mm_struct *mm, int node)
  {
- 	if (mm == current->active_mm)
-@@ -114,6 +129,10 @@ static inline void native_flush_tlb_othe
- 
- #define local_flush_tlb() __flush_tlb()
- 
-+#define local_reload_tlb_mm(mm) \
-+	__reload_tlb_mm(mm)
+ 	unsigned boundary;
+-	pgd_t *pgd = (pgd_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
+-	if (!pgd)
++	struct page *page;
++	pgd_t *pgd;
 +
-+extern void reload_tlb_mm(struct mm_struct *mm);
- extern void flush_tlb_all(void);
- extern void flush_tlb_current_task(void);
- extern void flush_tlb_mm(struct mm_struct *);
-@@ -155,4 +174,6 @@ static inline void flush_tlb_kernel_rang
- 	flush_tlb_all();
++	page = alloc_pages_node(node, GFP_KERNEL|__GFP_REPEAT, 0);
++	if (!page)
+ 		return NULL;
++
++	pgd = (pgd_t *)page_address(page);
++
+ 	pgd_list_add(pgd);
+ 	/*
+ 	 * Copy kernel pointers in from init.
+@@ -81,11 +134,72 @@ static inline pgd_t *pgd_alloc(struct mm
+ 	return pgd;
  }
  
-+#include <asm-generic/tlbflush.h>
+-static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
++static inline pte_t *pte_alloc_one_kernel_node(struct mm_struct *mm,
++					       unsigned long address,
++					       int node)
+ {
+-	BUG_ON((unsigned long)pgd & (PAGE_SIZE-1));
+-	pgd_list_del(pgd);
+-	free_page((unsigned long)pgd);
++	struct page *page;
 +
- #endif /* _ASM_X86_TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/asm-xtensa/tlbflush.h 2.6.25-rc9/include/asm-xtensa/tlbflush.h
---- /home/rossb/local/linux-2.6.25-rc9/include/asm-xtensa/tlbflush.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/asm-xtensa/tlbflush.h	2008-04-14 09:00:18.000000000 -0700
-@@ -186,6 +186,8 @@ static inline unsigned long read_itlb_tr
- 	return tmp;
- }
- 
-+#include <asm-generic/tlbflush.h>
++	page = alloc_pages_node(node, GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
++	if (page)
++		return (pte_t *)page_address(page);
++	return NULL;
++}
 +
- #endif	/* __ASSEMBLY__ */
- #endif	/* __KERNEL__ */
- #endif	/* _XTENSA_TLBFLUSH_H */
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/linux/mm_types.h 2.6.25-rc9/include/linux/mm_types.h
---- /home/rossb/local/linux-2.6.25-rc9/include/linux/mm_types.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/linux/mm_types.h	2008-04-16 05:53:07.000000000 -0700
-@@ -10,6 +10,8 @@
- #include <linux/rbtree.h>
- #include <linux/rwsem.h>
- #include <linux/completion.h>
-+#include <linux/rcupdate.h>
-+#include <linux/workqueue.h>
- #include <asm/page.h>
- #include <asm/mmu.h>
- 
-@@ -173,7 +176,16 @@ struct mm_struct {
- 	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
- 	int map_count;				/* number of VMAs */
- 	struct rw_semaphore mmap_sem;
-+	unsigned long flags; /* Must use atomic bitops to access the bits */
++static inline struct page *pte_alloc_one_node(struct mm_struct *mm,
++					      unsigned long address,
++					      int node)
++{
++	struct page *page;
++	page = alloc_pages_node(node, GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
++	return page;
++}
 +
- 	spinlock_t page_table_lock;		/* Protects page tables and some counters */
-+#ifdef CONFIG_RELOCATE_PAGE_TABLES
-+	/* The number of page table relocations currently happening on
-+	 * this mm.  Only updated/checked while holding the page_table_lock,
-+	 * so doesn't need to be an atomic_t.
++static inline pgd_t *pgd_alloc(struct mm_struct *mm)
++{
++	return pgd_alloc_node(mm, -1);
++}
++
++static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
++					  unsigned long address)
++{
++	return (pte_t *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT);
++}
++
++static inline pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long addr)
++{
++	return pte_alloc_one_node(mm, addr, -1);
++}
++
++static inline pmd_t *pmd_alloc_one (struct mm_struct *mm, unsigned long addr)
++{
++	return pmd_alloc_one_node(mm, addr, -1);
++}
++
++static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
++{
++	return pud_alloc_one_node(mm, addr, -1);
++}
++
++#else /* !CONFIG_NUMA */
++static inline pgd_t *pgd_alloc(struct mm_struct *mm)
++{
++	unsigned boundary;
++	pgd_t *pgd = (pgd_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
++	if (!pgd)
++		return NULL;
++	pgd_list_add(pgd);
++	/*
++	 * Copy kernel pointers in from init.
++	 * Could keep a freelist or slab cache of those because the kernel
++	 * part never changes.
 +	 */
-+	int page_table_relocation_count;
-+#endif /* CONFIG_RELOCATE_PAGE_TABLES */
++	boundary = pgd_index(__PAGE_OFFSET);
++	memset(pgd, 0, boundary * sizeof(pgd_t));
++	memcpy(pgd + boundary,
++	       init_level4_pgt + boundary,
++	       (PTRS_PER_PGD - boundary) * sizeof(pgd_t));
++	return pgd;
+ }
  
- 	struct list_head mmlist;		/* List of maybe swapped mm's.	These are globally strung
- 						 * together off init_mm.mmlist, and are protected
-@@ -213,8 +225,6 @@ struct mm_struct {
- 	unsigned int token_priority;
- 	unsigned int last_interval;
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
+@@ -106,28 +220,19 @@ static inline pgtable_t pte_alloc_one(st
+ 	return page;
+ }
  
--	unsigned long flags; /* Must use atomic bitops to access the bits */
+-/* Should really implement gc for free page table pages. This could be
+-   done with a reference count in struct page. */
 -
- 	/* coredumping support */
- 	int core_waiters;
- 	struct completion *core_startup_done, core_done;
-diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/linux/sched.h 2.6.25-rc9/include/linux/sched.h
---- /home/rossb/local/linux-2.6.25-rc9/include/linux/sched.h	2008-04-11 13:32:29.000000000 -0700
-+++ 2.6.25-rc9/include/linux/sched.h	2008-04-14 09:00:18.000000000 -0700
-@@ -408,6 +408,16 @@ extern int get_dumpable(struct mm_struct
- #define MMF_DUMP_FILTER_DEFAULT \
- 	((1 << MMF_DUMP_ANON_PRIVATE) |	(1 << MMF_DUMP_ANON_SHARED))
+-static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
++static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+ {
+-	BUG_ON((unsigned long)pte & (PAGE_SIZE-1));
+-	free_page((unsigned long)pte); 
++	return (pmd_t *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT);
+ }
  
-+/* Misc MM flags. */
-+#define MMF_NEED_FLUSH		7
-+#define MMF_NEED_RELOAD		8	/* Only meaningful on some archs. */
+-static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
++static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
+ {
+-	pgtable_page_dtor(pte);
+-	__free_page(pte);
++	return (pud_t *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT);
+ } 
+ 
+-#define __pte_free_tlb(tlb,pte)				\
+-do {							\
+-	pgtable_page_dtor((pte));				\
+-	tlb_remove_page((tlb), (pte));			\
+-} while (0)
++#endif
++
++#include <asm-generic/pgalloc.h>
+ 
+-#define __pmd_free_tlb(tlb,x)   tlb_remove_page((tlb),virt_to_page(x))
+-#define __pud_free_tlb(tlb,x)   tlb_remove_page((tlb),virt_to_page(x))
+ 
+ #endif /* _X86_64_PGALLOC_H */
+diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/linux/migrate.h 2.6.25-rc9/include/linux/migrate.h
+--- /home/rossb/local/linux-2.6.25-rc9/include/linux/migrate.h	2008-04-11 13:32:29.000000000 -0700
++++ 2.6.25-rc9/include/linux/migrate.h	2008-04-14 09:00:29.000000000 -0700
+@@ -6,6 +6,10 @@
+ #include <linux/pagemap.h>
+ 
+ typedef struct page *new_page_t(struct page *, unsigned long private, int **);
++typedef struct page *new_page_table_t(struct mm_struct *,
++				      unsigned long addr,
++				      unsigned long private,
++				      int **, int page_table_level);
+ 
+ #ifdef CONFIG_MIGRATION
+ /* Check if a vma is migratable */
+diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/include/linux/mm.h 2.6.25-rc9/include/linux/mm.h
+--- /home/rossb/local/linux-2.6.25-rc9/include/linux/mm.h	2008-04-11 13:32:29.000000000 -0700
++++ 2.6.25-rc9/include/linux/mm.h	2008-04-15 11:35:05.000000000 -0700
+@@ -12,6 +12,7 @@
+ #include <linux/prio_tree.h>
+ #include <linux/debug_locks.h>
+ #include <linux/mm_types.h>
++#include <asm/pgtable.h>
+ 
+ struct mempolicy;
+ struct anon_vma;
+@@ -921,6 +922,7 @@ static inline void pgtable_page_dtor(str
+ 	pte_t *__pte = pte_offset_map(pmd, address);	\
+ 	*(ptlp) = __ptl;				\
+ 	spin_lock(__ptl);				\
++	delimbo_pte(&__pte, ptlp, &pmd, mm, address);	\
+ 	__pte;						\
+ })
+ 
+@@ -945,6 +947,116 @@ extern void free_area_init(unsigned long
+ extern void free_area_init_node(int nid, pg_data_t *pgdat,
+ 	unsigned long * zones_size, unsigned long zone_start_pfn, 
+ 	unsigned long *zholes_size);
 +
 +#ifdef CONFIG_RELOCATE_PAGE_TABLES
-+#define MMF_NEED_REWALK		9	/* Must rewalk page tables with spin
-+					 * lock held. */
-+#endif /*  CONFIG_RELOCATE_PAGE_TABLES  */
++
++void _delimbo_pte(pte_t **pte, spinlock_t **ptl,  pmd_t **pmd,
++		  struct mm_struct *mm,  unsigned long addr);
++void _delimbo_pte_nested(pte_t **pte, spinlock_t **ptl,
++			 pmd_t **pmd, struct mm_struct *mm,
++			 unsigned long addr, int subclass, spinlock_t *optl);
++void _delimbo_pud(pud_t **pud, struct mm_struct *mm, unsigned long addr);
++void _delimbo_pmd(pmd_t **pmd, struct mm_struct *mm, unsigned long addr);
++void _delimbo_pgd(pgd_t **pgd, struct mm_struct *mm, unsigned long addr);
++void _delimbo_huge_pte(pte_t **pte, struct mm_struct *mm, unsigned long addr);
 +
 +
- struct sighand_struct {
- 	atomic_t		count;
- 	struct k_sigaction	action[_NSIG];
-
-
++static inline void delimbo_pte(pte_t **pte, spinlock_t **ptl,  pmd_t **pmd,
++			  struct mm_struct *mm,
++			  unsigned long addr)
++{
++	/* We don't actually have the correct spinlock here, but it's
++	 * ok since the relocation code won't go mucking with the
++	 * relevant level of the page table while holding the relevant
++	 * spinlock.  This means that while all the page tables
++	 * leading up to this one could get mucked with, the one we
++	 * care about cannot be mucked with without us seeing that
++	 * page_table_relocation_count has be set.
++	 * 
++	 * The code path is something like
++	 * grab page table lock
++	 * increment relocation count
++	 * release page_table lock
++	 *
++	 * At this point, we might have missed the increment
++	 * because we have the wrong lock. 
++	 *
++	 * Grab page table lock.
++	 * Grab split page table lock. <-- This lock saves us.
++	 * muck with page table.
++	 *
++	 * But it's ok, because even if we get interrupted after for a
++	 * long time, the page table we care about won't be mucked
++	 * with until after we drop the spinlock that we do have.
++	 */
++	if (unlikely(mm->page_table_relocation_count))
++		_delimbo_pte(pte, ptl, pmd, mm, addr);
++}
++
++static inline void delimbo_pte_nested(pte_t **pte, spinlock_t **ptl,
++				      pmd_t **pmd, struct mm_struct *mm,
++				      unsigned long addr, int subclass,
++				      spinlock_t *optl)
++{
++	/* same as comment above about the locking issue with
++	 * this test.
++	 */
++	if (unlikely(mm->page_table_relocation_count))
++		_delimbo_pte_nested(pte, ptl, pmd, mm, addr, subclass, optl);
++}
++
++
++static inline void delimbo_pud(pud_t **pud,  struct mm_struct *mm,
++			  unsigned long addr)
++{
++	/* At this point we have the page_table_lock. */
++	if (unlikely(mm->page_table_relocation_count))
++		_delimbo_pud(pud, mm, addr);
++}
++
++static inline void delimbo_pmd(pmd_t **pmd,  struct mm_struct *mm,
++			       unsigned long addr)
++{
++
++	/* we hold the page_table_lock, so this is safe to test. */
++	if (unlikely(mm->page_table_relocation_count))
++		_delimbo_pmd(pmd, mm, addr);
++}
++
++static inline void delimbo_pgd(pgd_t **pgd,  struct mm_struct *mm,
++			       unsigned long addr)
++{
++	/* we hold the page_table_lock. */
++	if (unlikely(mm->page_table_relocation_count))
++		_delimbo_pgd(pgd, mm, addr);
++}
++
++
++static inline void delimbo_huge_pte(pte_t **pte,  struct mm_struct *mm,
++				    unsigned long addr)
++{
++	/* We hold the page_table_lock. */
++	if (unlikely(mm->page_table_relocation_count))
++		_delimbo_huge_pte(pte, mm, addr);
++}
++
++#else /* CONFIG_RELOCATE_PAGE_TABLES */
++static inline void delimbo_pte(pte_t **pte, spinlock_t **ptl,  pmd_t **pmd,
++			       struct mm_struct *mm,  unsigned long addr) {}
++static inline void delimbo_pte_nested(pte_t **pte, spinlock_t **ptl,
++				      pmd_t **pmd, struct mm_struct *mm,
++				      unsigned long addr, int subclass,
++				      spinlock_t *optl) {}
++static inline void delimbo_pud(pud_t **pud,  struct mm_struct *mm,
++			       unsigned long addr) {}
++static inline void delimbo_pmd(pmd_t **pmd, struct mm_struct *mm,
++			       unsigned long addr) {}
++static inline void delimbo_pgd(pgd_t **pgd, struct mm_struct *mm,
++			       unsigned long addr) {}
++static inline void delimbo_huge_pte(pte_t **pte, struct mm_struct *mm,
++				    unsigned long addr) {}
++#endif /* CONFIG_RELOCATE_PAGE_TABLES */
++
+ #ifdef CONFIG_ARCH_POPULATES_NODE_MAP
+ /*
+  * With CONFIG_ARCH_POPULATES_NODE_MAP set, an architecture may initialise its
+diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/kernel/fork.c 2.6.25-rc9/kernel/fork.c
+--- /home/rossb/local/linux-2.6.25-rc9/kernel/fork.c	2008-04-11 13:32:29.000000000 -0700
++++ 2.6.25-rc9/kernel/fork.c	2008-04-15 05:51:53.000000000 -0700
+@@ -360,6 +360,10 @@ static struct mm_struct * mm_init(struct
+ 	mm->cached_hole_size = ~0UL;
+ 	mm_init_cgroup(mm, p);
+ 
++#ifdef CONFIG_RELOCATE_PAGE_TABLES
++	mm->page_table_relocation_count = 0;
++#endif
++
+ 	if (likely(!mm_alloc_pgd(mm))) {
+ 		mm->def_flags = 0;
+ 		return mm;
+diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/mm/Kconfig 2.6.25-rc9/mm/Kconfig
+--- /home/rossb/local/linux-2.6.25-rc9/mm/Kconfig	2008-04-11 13:32:29.000000000 -0700
++++ 2.6.25-rc9/mm/Kconfig	2008-04-14 09:00:29.000000000 -0700
+@@ -143,6 +143,10 @@ config MEMORY_HOTREMOVE
+ 	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
+ 	depends on MIGRATION
+ 
++config RELOCATE_PAGE_TABLES 
++	def_bool y
++	depends on X86_64 && MIGRATION
++
+ # Heavily threaded applications may benefit from splitting the mm-wide
+ # page_table_lock, so that faults on different parts of the user address
+ # space can be handled with less contention: split it at this NR_CPUS.
+diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/mm/hugetlb.c 2.6.25-rc9/mm/hugetlb.c
+--- /home/rossb/local/linux-2.6.25-rc9/mm/hugetlb.c	2008-04-11 13:32:29.000000000 -0700
++++ 2.6.25-rc9/mm/hugetlb.c	2008-04-14 09:01:16.000000000 -0700
+@@ -762,6 +762,8 @@ int copy_hugetlb_page_range(struct mm_st
+ 
+ 		spin_lock(&dst->page_table_lock);
+ 		spin_lock(&src->page_table_lock);
++		delimbo_huge_pte(&src_pte, src, addr);
++		delimbo_huge_pte(&dst_pte, dst, addr);
+ 		if (!pte_none(*src_pte)) {
+ 			if (cow)
+ 				ptep_set_wrprotect(src, addr, src_pte);
+@@ -937,6 +939,7 @@ retry:
+ 	}
+ 
+ 	spin_lock(&mm->page_table_lock);
++	delimbo_huge_pte(&ptep, mm, address);
+ 	size = i_size_read(mapping->host) >> HPAGE_SHIFT;
+ 	if (idx >= size)
+ 		goto backout;
+@@ -994,6 +997,7 @@ int hugetlb_fault(struct mm_struct *mm, 
+ 	ret = 0;
+ 
+ 	spin_lock(&mm->page_table_lock);
++	delimbo_huge_pte(&ptep, mm, address);
+ 	/* Check for a racing update before calling hugetlb_cow */
+ 	if (likely(pte_same(entry, *ptep)))
+ 		if (write_access && !pte_write(entry))
+diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/mm/memory.c 2.6.25-rc9/mm/memory.c
+--- /home/rossb/local/linux-2.6.25-rc9/mm/memory.c	2008-04-11 13:32:29.000000000 -0700
++++ 2.6.25-rc9/mm/memory.c	2008-04-15 08:02:48.000000000 -0700
+@@ -312,6 +312,7 @@ int __pte_alloc(struct mm_struct *mm, pm
+ 		return -ENOMEM;
+ 
+ 	spin_lock(&mm->page_table_lock);
++	delimbo_pmd(&pmd, mm, address);
+ 	if (!pmd_present(*pmd)) {	/* Has another populated it ? */
+ 		mm->nr_ptes++;
+ 		pmd_populate(mm, pmd, new);
+@@ -330,6 +331,7 @@ int __pte_alloc_kernel(pmd_t *pmd, unsig
+ 		return -ENOMEM;
+ 
+ 	spin_lock(&init_mm.page_table_lock);
++	delimbo_pmd(&pmd, &init_mm, address);
+ 	if (!pmd_present(*pmd)) {	/* Has another populated it ? */
+ 		pmd_populate_kernel(&init_mm, pmd, new);
+ 		new = NULL;
+@@ -513,6 +515,9 @@ again:
+ 	src_pte = pte_offset_map_nested(src_pmd, addr);
+ 	src_ptl = pte_lockptr(src_mm, src_pmd);
+ 	spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
++
++	delimbo_pte_nested(&src_pte, &src_ptl, &src_pmd, src_mm, addr,
++			   SINGLE_DEPTH_NESTING, dst_ptl);
+ 	arch_enter_lazy_mmu_mode();
+ 
+ 	do {
+@@ -1488,13 +1493,15 @@ EXPORT_SYMBOL_GPL(apply_to_page_range);
+  * and do_anonymous_page and do_no_page can safely check later on).
+  */
+ static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
+-				pte_t *page_table, pte_t orig_pte)
++				pte_t *page_table, pte_t orig_pte,
++				unsigned long address)
+ {
+ 	int same = 1;
+ #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
+ 	if (sizeof(pte_t) > sizeof(unsigned long)) {
+ 		spinlock_t *ptl = pte_lockptr(mm, pmd);
+ 		spin_lock(ptl);
++		delimbo_pte(&page_table, &ptl, &pmd, mm, address);
+ 		same = pte_same(*page_table, orig_pte);
+ 		spin_unlock(ptl);
+ 	}
+@@ -2021,7 +2028,7 @@ static int do_swap_page(struct mm_struct
+ 	pte_t pte;
+ 	int ret = 0;
+ 
+-	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
++	if (!pte_unmap_same(mm, pmd, page_table, orig_pte, address))
+ 		goto out;
+ 
+ 	entry = pte_to_swp_entry(orig_pte);
+@@ -2100,6 +2107,10 @@ static int do_swap_page(struct mm_struct
+ 	}
+ 
+ 	/* No need to invalidate - it was non-present before */
++	/* Unless of course the cpu might be looking at an old
++	   copy of the pte. */
++	maybe_reload_tlb_mm(mm);
++
+ 	update_mmu_cache(vma, address, pte);
+ unlock:
+ 	pte_unmap_unlock(page_table, ptl);
+@@ -2151,6 +2162,10 @@ static int do_anonymous_page(struct mm_s
+ 	set_pte_at(mm, address, page_table, entry);
+ 
+ 	/* No need to invalidate - it was non-present before */
++	/* Unless of course the cpu might be looking at an old
++	   copy of the pte. */
++	maybe_reload_tlb_mm(mm);
++
+ 	update_mmu_cache(vma, address, entry);
+ unlock:
+ 	pte_unmap_unlock(page_table, ptl);
+@@ -2312,6 +2327,10 @@ static int __do_fault(struct mm_struct *
+ 		}
+ 
+ 		/* no need to invalidate: a not-present page won't be cached */
++		/* Unless of course the cpu could be looking at an old page
++		   table entry. */
++		maybe_reload_tlb_mm(mm);
++
+ 		update_mmu_cache(vma, address, entry);
+ 	} else {
+ 		mem_cgroup_uncharge_page(page);
+@@ -2418,7 +2437,7 @@ static int do_nonlinear_fault(struct mm_
+ 				(write_access ? FAULT_FLAG_WRITE : 0);
+ 	pgoff_t pgoff;
+ 
+-	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
++	if (!pte_unmap_same(mm, pmd, page_table, orig_pte, address))
+ 		return 0;
+ 
+ 	if (unlikely(!(vma->vm_flags & VM_NONLINEAR) ||
+@@ -2477,6 +2496,7 @@ static inline int handle_pte_fault(struc
+ 
+ 	ptl = pte_lockptr(mm, pmd);
+ 	spin_lock(ptl);
++	delimbo_pte(&pte, &ptl, &pmd, mm, address);
+ 	if (unlikely(!pte_same(*pte, entry)))
+ 		goto unlock;
+ 	if (write_access) {
+@@ -2498,6 +2518,12 @@ static inline int handle_pte_fault(struc
+ 		if (write_access)
+ 			flush_tlb_page(vma, address);
+ 	}
++
++	/* if the cpu could be looking at an old page table, we need to
++	   flush out everything. */
++	maybe_reload_tlb_mm(mm);
++
++
+ unlock:
+ 	pte_unmap_unlock(pte, ptl);
+ 	return 0;
+@@ -2547,6 +2573,7 @@ int __pud_alloc(struct mm_struct *mm, pg
+ 		return -ENOMEM;
+ 
+ 	spin_lock(&mm->page_table_lock);
++	delimbo_pgd(&pgd, mm, address);
+ 	if (pgd_present(*pgd))		/* Another has populated it */
+ 		pud_free(mm, new);
+ 	else
+@@ -2568,6 +2595,7 @@ int __pmd_alloc(struct mm_struct *mm, pu
+ 		return -ENOMEM;
+ 
+ 	spin_lock(&mm->page_table_lock);
++	delimbo_pud(&pud, mm, address);
+ #ifndef __ARCH_HAS_4LEVEL_HACK
+ 	if (pud_present(*pud))		/* Another has populated it */
+ 		pmd_free(mm, new);
+diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/mm/mempolicy.c 2.6.25-rc9/mm/mempolicy.c
+--- /home/rossb/local/linux-2.6.25-rc9/mm/mempolicy.c	2008-04-11 13:32:29.000000000 -0700
++++ 2.6.25-rc9/mm/mempolicy.c	2008-04-14 09:00:29.000000000 -0700
+@@ -101,6 +101,12 @@
+ static struct kmem_cache *policy_cache;
+ static struct kmem_cache *sn_cache;
+ 
++#ifdef CONFIG_RELOCATE_PAGE_TABLES
++int migrate_page_tables_mm(struct mm_struct *mm,  int source,
++			   new_page_table_t get_new_page,
++			   unsigned long private);
++#endif
++
+ /* Highest zone. An specific allocation for a zone below that is not
+    policied. */
+ enum zone_type policy_zone = 0;
+@@ -627,6 +633,20 @@ static struct page *new_node_page(struct
+ 	return alloc_pages_node(node, GFP_HIGHUSER_MOVABLE, 0);
+ }
+ 
++#ifdef CONFIG_RELOCATE_PAGE_TABLES
++static struct page *new_node_page_page_tables(struct mm_struct *mm,
++					      unsigned long addr,
++					      unsigned long node,
++					      int **x,
++					      int level)
++{
++	struct page *p;
++	p = alloc_page_table_node(mm, addr, node, level);
++	return p;
++}
++
++#endif /* CONFIG_RELOCATE_PAGE_TABLES  */
++
+ /*
+  * Migrate pages from one node to a target node.
+  * Returns error or the number of pages not migrated.
+@@ -647,6 +667,12 @@ static int migrate_to_node(struct mm_str
+ 	if (!list_empty(&pagelist))
+ 		err = migrate_pages(&pagelist, new_node_page, dest);
+ 
++#ifdef CONFIG_RELOCATE_PAGE_TABLES
++	if (!err)
++		err = migrate_page_tables_mm(mm, source,
++					     new_node_page_page_tables, dest);
++#endif /* CONFIG_RELOCATE_PAGE_TABLES */
++
+ 	return err;
+ }
+ 
+diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/mm/migrate.c 2.6.25-rc9/mm/migrate.c
+--- /home/rossb/local/linux-2.6.25-rc9/mm/migrate.c	2008-04-11 13:32:29.000000000 -0700
++++ 2.6.25-rc9/mm/migrate.c	2008-04-15 08:12:50.000000000 -0700
+@@ -30,9 +30,18 @@
+ #include <linux/vmalloc.h>
+ #include <linux/security.h>
+ #include <linux/memcontrol.h>
++#include <linux/mm.h>
++#include <asm/tlb.h>
++#include <asm/tlbflush.h>
++#include <asm/pgalloc.h>
+ 
+ #include "internal.h"
+ 
++int migrate_page_tables_mm(struct mm_struct *mm, int source,
++			   new_page_table_t get_new_page,
++			   unsigned long private);
++
++
+ #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
+ 
+ /*
+@@ -155,6 +164,7 @@ static void remove_migration_pte(struct 
+ 
+  	ptl = pte_lockptr(mm, pmd);
+  	spin_lock(ptl);
++	delimbo_pte(&ptep, &ptl, &pmd, mm, addr);
+ 	pte = *ptep;
+ 	if (!is_swap_pte(pte))
+ 		goto out;
+@@ -895,9 +905,10 @@ set_status:
+ 		err = migrate_pages(&pagelist, new_page_node,
+ 				(unsigned long)pm);
+ 	else
+-		err = -ENOENT;
++		err = 0;
+ 
+ 	up_read(&mm->mmap_sem);
++
+ 	return err;
+ }
+ 
+@@ -1075,3 +1086,514 @@ int migrate_vmas(struct mm_struct *mm, c
+  	}
+  	return err;
+ }
++
++#ifdef CONFIG_RELOCATE_PAGE_TABLES
++
++/*
++ * Code to relocate live page tables.  The strategy is simple.  We
++ * allow that either the kernel or the cpus could be looking at or
++ * have cached a stale page table.  We just make sure that the kernel
++ * only updates the latest version of the page tables and that we
++ * flush the page table cache anytime a cpu could be looking at a
++ * stale page table and it might matter.
++ *
++ * Since we have to worry about the kernel and cpu's separately,
++ * it's important to distinguish between what the cpu is doing internally
++ * and what the kernel is doing on a cpu.  We use cpu for the former and
++ * thread for the later.
++ *
++ * This is easier than it might seems since most of the code is
++ * already there.  The kernel never updates a page table without first
++ * grabbing an appropriate spinlock.  Then it has to double
++ * check to make sure that another thread hasn't already changed things.
++ * So all we have to do is rewalk all the page tables whenever we
++ * grab the spinlock. Then the existing double check code takes care
++ * of the rest.
++ *
++ * For the cpus, it's just important to fluch the TLB cache whenever it
++ * might be relevant.  To avoid unnecessary TLB cache tharshing, we only
++ * flush the TLB caches when we are done with all the changes, or it could
++ * make a difference.  We already have to flush the TLB caches whenever it
++ * could make a difference, except in the cases where we are updating
++ * something the cpu wouldn't normally cache.  The only place this happens,
++ * is when we have a page was non-present.  The cpu won't cache that
++ * particular entry, but it might be caching stale page tables leading
++ * up to the non-present entry.  So we might need to flush everything
++ * where we didn't have to flush before.
++ *
++ * One last gotcha is that before the only way to change the top-level
++ * page table is to switch tasks.  So we had to add a reload
++ * tlb option.  This is per arch function and is not yet on all arches.
++ * For arches where we cannot reload the tlb, we cannot migrate the
++ * top level page table.
++ */
++
++/* This function rewalks the page tables to make sure that
++ * a thread is not looking at a stale page table entry.
++ */
++void _delimbo_pte(pte_t **pte, spinlock_t **ptl,  pmd_t **pmd,
++		  struct mm_struct *mm,  unsigned long addr)
++{
++#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
++	spin_unlock(*ptl);
++	spin_lock(&mm->page_table_lock);
++#endif
++	/* We could check the page_table_relocation_count again
++	 * to make sure that it hasn't changed, but it's not a big win
++	 * and makes the code more complex since we have to make sure
++	 * we get the correct spinlock.
++	 */
++	pte_unmap(*pte);
++	*pmd = walk_page_table_pmd(mm, addr);
++	*pte = pte_offset_map(*pmd, addr);
++	*ptl = pte_lockptr(mm, *pmd);
++#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
++	spin_lock(*ptl);
++	spin_unlock(&mm->page_table_lock);
++#endif
++}
++
++void _delimbo_pte_nested(pte_t **pte, spinlock_t **ptl, pmd_t **pmd,
++			 struct mm_struct *mm, unsigned long addr,
++			 int subclass, spinlock_t *optl)
++{
++#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
++	if (optl != *ptl)
++		spin_unlock(*ptl);
++	spin_lock(&mm->page_table_lock);
++#endif
++	pte_unmap_nested(*pte);
++	*pmd = walk_page_table_pmd(mm, addr);
++	*pte = pte_offset_map_nested(*pmd, addr);
++	*ptl = pte_lockptr(mm, *pmd);
++
++#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
++	if (optl != *ptl )
++		spin_lock_nested(*ptl, subclass);
++	spin_unlock(&mm->page_table_lock);
++#endif
++}
++
++
++void _delimbo_pud(pud_t **pud, struct mm_struct *mm, unsigned long addr)
++{
++	*pud = walk_page_table_pud(mm, addr);
++}
++
++void _delimbo_pmd(pmd_t **pmd, struct mm_struct *mm, unsigned long addr)
++{
++	*pmd = walk_page_table_pmd(mm, addr);
++}
++
++void _delimbo_pgd(pgd_t **pgd, struct mm_struct *mm, unsigned long addr)
++{
++	*pgd = walk_page_table_pgd(mm, addr);
++}
++
++void _delimbo_huge_pte(pte_t **pte, struct mm_struct *mm, unsigned long addr)
++{
++	*pte = walk_page_table_huge_pte(mm, addr);
++}
++
++/*
++ * Call this function to migrate a pgd to the page dest.
++ * mm is the mm struct that this pgd is part of and
++ * addr is the address for the pgd inside of the mm.
++ * Technically this only moves one page worth of pud's
++ * starting with the pud that represents addr.
++ *
++ * The page that contains the pgd will be added to the
++ * end of old_pages.  It should be freed by an rcu callback
++ * or after a synchronize_rcu.  maybe_reload_tlb_mm also needs
++ * to be called before the pages are freed.
++ *
++ * Returns the number of pages not migrated.
++ */
++int migrate_pgd(pgd_t *pgd, struct mm_struct *mm,
++		unsigned long addr, struct page *dest,
++		struct list_head *old_pages)
++{
++	void *dest_ptr;
++	pud_t *pud;
++
++	spin_lock(&mm->page_table_lock);
++
++	_delimbo_pgd(&pgd, mm, addr);
++
++	pud = pud_offset(pgd, addr);
++	dest_ptr = page_address(dest);
++	memcpy(dest_ptr, pud, PAGE_SIZE);
++
++	list_add_tail(&(pgd_page(*pgd)->lru), old_pages);
++	pgd_populate(mm, pgd, dest_ptr);
++
++	maybe_need_flush_mm(mm);
++
++	spin_unlock(&mm->page_table_lock);
++
++	return 0;
++
++}
++
++/*
++ * Call this function to migrate a pud to the page dest.
++ * mm is the mm struct that this pud is part of and
++ * addr is the address for the pud inside of the mm.
++ * Technically this only moves one page worth of pmd's
++ * starting with the pmd that represents addr.
++ *
++ * The page that contains the pud will be added to the
++ * end of old_pages.  It should be freed by an rcu callback
++ * or after a synchronize_rcu.  maybe_reload_tlb_mm also needs
++ * to be called before the pages are freed.
++ *
++ * Returns the number of pages not migrated.
++ */
++int migrate_pud(pud_t *pud, struct mm_struct *mm, unsigned long addr,
++		struct page *dest, struct list_head *old_pages)
++{
++	void *dest_ptr;
++	pmd_t *pmd;
++
++	spin_lock(&mm->page_table_lock);
++
++	_delimbo_pud(&pud, mm, addr);
++	pmd = pmd_offset(pud, addr);
++
++	dest_ptr = page_address(dest);
++	memcpy(dest_ptr, pmd, PAGE_SIZE);
++
++	list_add_tail(&(pud_page(*pud)->lru), old_pages);
++
++	pud_populate(mm, pud, dest_ptr);
++	maybe_need_flush_mm(mm);
++
++	spin_unlock(&mm->page_table_lock);
++
++	return 0;
++}
++
++/*
++ * Call this function to migrate a pmd to the page dest.
++ * mm is the mm struct that this pmd is part of and
++ * addr is the address for the pud inside of the mm.
++ * Technically this only moves one page worth of pte's
++ * starting with the pte that represents addr.
++ *
++ * The page that contains the pmd will be added to the
++ * end of old_pages.  It should be freed by an rcu callback
++ * or after a synchronize_rcu.  maybe_reload_tlb_mm also needs
++ * to be called before the pages are freed.
++ *
++ * Returns the number of pages not migrated.
++ *
++ * This function cannot be called at interrupt time since
++ * it uses KM_USER0.  To modify it to be usable at interrupt
++ * time requires a change of the KM_.  It may require a
++ * KM_ of its own.  It would be safe to always use the
++ * same KM_, since it's all done inside a spinlock, so there
++ * is no chance of the KM_ getting used twice on the same cpu.
++ */
++
++int migrate_pmd(pmd_t *pmd, struct mm_struct *mm, unsigned long addr,
++		struct page *dest, struct list_head *old_pages)
++{
++	void *dest_ptr;
++	spinlock_t *ptl;
++	pte_t *pte;
++
++	spin_lock(&mm->page_table_lock);
++
++	_delimbo_pmd(&pmd, mm, addr);
++
++	/* this could happen if the page table has been swapped out and we
++	   were looking at the old one. */
++	if (unlikely(!pmd_present(*pmd))) {
++		spin_unlock(&mm->page_table_lock);
++		return 1;
++	}
++
++	ptl = pte_lockptr(mm, pmd);
++
++	/* We need the page lock as well. */
++	if (ptl != &mm->page_table_lock)
++		spin_lock(ptl);
++
++	pte = pte_offset_map(pmd, addr);
++
++	dest_ptr = kmap_atomic(dest, KM_USER0);
++	memcpy(dest_ptr, pte, PAGE_SIZE);
++	list_add_tail(&(pmd_page(*pmd)->lru), old_pages);
++
++	kunmap_atomic(dest, KM_USER0);
++	pte_unmap(pte);
++	pte_lock_init(dest);
++	pmd_populate(mm, pmd, dest);
++
++	maybe_need_flush_mm(mm);
++
++	if (ptl != &mm->page_table_lock)
++		spin_unlock(ptl);
++
++	spin_unlock(&mm->page_table_lock);
++
++	return 0;
++}
++
++/*
++ * There is no migrate_pte since that would be moving the page
++ * pointed to by a pte around.  That's a user page and is equivalent
++ * to swapping and doesn't need to be handled here.
++ */
++
++static int migrate_page_tables_pmd(pmd_t *pmd, struct mm_struct *mm,
++				   unsigned long *address, int source,
++				   new_page_table_t get_new_page,
++				   unsigned long private,
++				   struct list_head *old_pages)
++{
++	int pages_not_migrated = 0;
++	int *result = NULL;
++	struct page *old_page = virt_to_page(pmd);
++	struct page *new_page;
++	int not_migrated;
++
++	if (!pmd_present(*pmd)) {
++		*address +=  (unsigned long)PTRS_PER_PTE * PAGE_SIZE;
++		return 0;
++	}
++
++	if (page_to_nid(old_page) == source) {
++		new_page = get_new_page(mm, *address, private, &result,
++					PAGE_TABLE_PTE);
++		if (!new_page)
++			return -ENOMEM;
++		not_migrated = migrate_pmd(pmd, mm, *address, new_page,
++					   old_pages);
++		if (not_migrated)
++			__free_page(new_page);
++
++		pages_not_migrated += not_migrated;
++	}
++
++
++	*address +=  (unsigned long)PTRS_PER_PTE * PAGE_SIZE;
++
++	return pages_not_migrated;
++}
++
++static int migrate_page_tables_pud(pud_t *pud, struct mm_struct *mm,
++				   unsigned long *address, int source,
++				   new_page_table_t get_new_page,
++				   unsigned long private,
++				   struct list_head *old_pages)
++{
++	int pages_not_migrated = 0;
++	int i;
++	int *result = NULL;
++	struct page *old_page = virt_to_page(pud);
++	struct page *new_page;
++	int not_migrated;
++
++	if (!pud_present(*pud)) {
++		*address += (unsigned long)PTRS_PER_PMD *
++				(unsigned long)PTRS_PER_PTE * PAGE_SIZE;
++		return 0;
++	}
++
++	if (page_to_nid(old_page) == source) {
++		new_page = get_new_page(mm, *address, private, &result,
++					PAGE_TABLE_PMD);
++		if (!new_page)
++			return -ENOMEM;
++
++		not_migrated = migrate_pud(pud, mm, *address, new_page,
++					   old_pages);
++
++		if (not_migrated)
++			__free_page(new_page);
++
++		pages_not_migrated += not_migrated;
++	}
++
++	for (i = 0; i < PTRS_PER_PUD; i++) {
++		int ret;
++		ret = migrate_page_tables_pmd(pmd_offset(pud, *address), mm,
++					      address, source,
++					      get_new_page, private,
++					      old_pages);
++		if (ret < 0)
++			return ret;
++		pages_not_migrated += ret;
++	}
++
++	return pages_not_migrated;
++}
++
++static int migrate_page_tables_pgd(pgd_t *pgd, struct mm_struct *mm,
++				   unsigned long *address, int source,
++				   new_page_table_t get_new_page,
++				   unsigned long private,
++				   struct list_head *old_pages)
++{
++	int pages_not_migrated = 0;
++	int i;
++	int *result = NULL;
++	struct page *old_page = virt_to_page(pgd);
++	struct page *new_page;
++	int not_migrated;
++
++	if (!pgd_present(*pgd)) {
++		*address +=  (unsigned long)PTRS_PER_PUD *
++				(unsigned long)PTRS_PER_PMD *
++				(unsigned long)PTRS_PER_PTE * PAGE_SIZE;
++		return 0;
++	}
++
++	if (page_to_nid(old_page) == source) {
++		new_page = get_new_page(mm, *address,  private, &result,
++					PAGE_TABLE_PUD);
++		if (!new_page)
++			return -ENOMEM;
++
++		not_migrated = migrate_pgd(pgd, mm,  *address, new_page,
++					   old_pages);
++		if (not_migrated)
++			__free_page(new_page);
++
++		pages_not_migrated += not_migrated;
++
++	}
++
++	for (i = 0; i < PTRS_PER_PUD; i++) {
++		int ret;
++		ret = migrate_page_tables_pud(pud_offset(pgd, *address), mm,
++					      address, source,
++					      get_new_page, private,
++					      old_pages);
++		if (ret < 0)
++			return ret;
++		pages_not_migrated += ret;
++	}
++
++	return pages_not_migrated;
++}
++
++/*
++ * Call this before calling any of the page table relocation
++ * functions.  It causes any other threads using this mm
++ * to start checking to see if someone has changed the page
++ * tables out from under it.
++ */
++void enter_page_table_relocation_mode(struct mm_struct *mm)
++{
++	/* Use an int and a spinlock rather than an atomic_t
++	 * beacuse we only check this inside the spinlock,
++	 * so we save a bunch of lock prefixes in a fast_path
++	 * by suffering a little here with a full block spinlock.
++	 * should be a win overall.
++	 *
++	 * One gotcha.  page_table_relocation_count is
++	 * checked with the wrong spinlock held in the case
++	 * of split page table locks.  Since we only muck with
++	 * the lowest level page tables while holding both the
++	 * page_table_lock and the split page table lock,
++	 * we are still ok.
++	 */
++	spin_lock(&mm->page_table_lock);
++	BUG_ON(mm->page_table_relocation_count > INT_MAX/2);
++	mm->page_table_relocation_count++;
++	spin_unlock(&mm->page_table_lock);
++}
++
++void leave_page_table_relocation_mode(struct mm_struct *mm)
++{
++	/* Make sure all the threads are no longer looking at a stale
++	 * copy of a page table before clearing the flag that lets the
++	 * threads know they may be looking at a stale copy of the
++	 * page tables.  synchronize_rcu must be called before this
++	 * function.
++	 */
++	spin_lock(&mm->page_table_lock);
++	mm->page_table_relocation_count--;
++	BUG_ON(mm->page_table_relocation_count < 0);
++	spin_unlock(&mm->page_table_lock);
++}
++
++/* Similiar to migrate pages, but migrates the page tables.
++ * This particular version moves all pages tables away from
++ * the source node to whatever get's allocated by get_new_page.
++ * It's easy to modify the code to reloate other page tables,
++ * or call the migrate_pxx functions directly to move only
++ * a few pages around.  This is meant as a start to test the
++ * migration code and to allow migration between nodes.
++ */
++int migrate_page_tables_mm(struct mm_struct *mm, int source,
++			   new_page_table_t get_new_page,
++			   unsigned long private)
++{
++	int pages_not_migrated = 0;
++	int i;
++	int *result = NULL;
++	struct page *old_page = virt_to_page(mm->pgd);
++	struct page *new_page;
++	unsigned long address = 0UL;
++	int not_migrated;
++	int ret = 0;
++	LIST_HEAD(old_pages);
++
++	if (mm->pgd == NULL)
++		return 0;
++
++	enter_page_table_relocation_mode(mm);
++
++	for (i = 0; i < PTRS_PER_PGD && address < mm->task_size; i++) {
++		ret = migrate_page_tables_pgd(pgd_offset(mm, address), mm,
++					      &address, source,
++					      get_new_page, private,
++					      &old_pages);
++		if (ret < 0)
++			goto out_exit;
++
++		pages_not_migrated += ret;
++	}
++
++	if (page_to_nid(old_page) == source) {
++		new_page = get_new_page(mm, address, private, &result,
++					PAGE_TABLE_PGD);
++		if (!new_page) {
++			ret = -ENOMEM;
++			goto out_exit;
++		}
++
++		not_migrated = migrate_top_level_page_table(mm, new_page,
++							&old_pages);
++		if (not_migrated) {
++			pgd_list_del(page_address(new_page));
++			__free_page(new_page);
++		}
++
++		pages_not_migrated += not_migrated;
++	}
++
++	/* reload or flush the tlbs if necessary. */
++	maybe_reload_tlb_mm(mm);
++
++	/* make sure all threads have stopped looking at stale pages. */
++	synchronize_rcu();
++
++	while (!list_empty(&old_pages)) {
++		old_page = list_first_entry(&old_pages, struct page, lru);
++		list_del_init(&old_page->lru);
++		__free_page(old_page);
++	}
++
++ out_exit:
++	leave_page_table_relocation_mode(mm);
++
++	if (ret < 0)
++		return ret;
++	return pages_not_migrated;
++}
++
++#endif /* CONFIG_RELOCATE_PAGE_TABLES */
+diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/mm/mremap.c 2.6.25-rc9/mm/mremap.c
+--- /home/rossb/local/linux-2.6.25-rc9/mm/mremap.c	2008-04-11 13:32:29.000000000 -0700
++++ 2.6.25-rc9/mm/mremap.c	2008-04-15 08:03:20.000000000 -0700
+@@ -98,6 +98,8 @@ static void move_ptes(struct vm_area_str
+ 	new_ptl = pte_lockptr(mm, new_pmd);
+ 	if (new_ptl != old_ptl)
+ 		spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
++	delimbo_pte_nested(&new_pte, &new_ptl, &new_pmd, mm, new_addr,
++			   SINGLE_DEPTH_NESTING, old_ptl);
+ 	arch_enter_lazy_mmu_mode();
+ 
+ 	for (; old_addr < old_end; old_pte++, old_addr += PAGE_SIZE,
+diff -uprwNBb -X 2.6.25-rc9/Documentation/dontdiff /home/rossb/local/linux-2.6.25-rc9/mm/rmap.c 2.6.25-rc9/mm/rmap.c
+--- /home/rossb/local/linux-2.6.25-rc9/mm/rmap.c	2008-04-11 13:32:29.000000000 -0700
++++ 2.6.25-rc9/mm/rmap.c	2008-04-14 09:00:29.000000000 -0700
+@@ -255,6 +255,7 @@ pte_t *page_check_address(struct page *p
+ 
+ 	ptl = pte_lockptr(mm, pmd);
+ 	spin_lock(ptl);
++	delimbo_pte(&pte, &ptl, &pmd, mm, address);
+ 	if (pte_present(*pte) && page_to_pfn(page) == pte_pfn(*pte)) {
+ 		*ptlp = ptl;
+ 		return pte;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
