@@ -1,72 +1,86 @@
-Date: Tue, 29 Apr 2008 16:16:06 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: [PATCH] slub: #ifdef simplification
-Message-ID: <Pine.LNX.4.64.0804291615130.15436@schroedinger.engr.sgi.com>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3TNmgXu004678
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2008 19:48:42 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3TNmgBv192368
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2008 17:48:42 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3TNmfHr010109
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2008 17:48:41 -0600
+Date: Tue, 29 Apr 2008 16:48:39 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [RFC][PATCH] hugetlb: add information and interface in sysfs
+	[Was Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs
+	ABI]
+Message-ID: <20080429234839.GA10967@us.ibm.com>
+References: <20080423183252.GA10548@us.ibm.com> <20080424071352.GB14543@wotan.suse.de> <20080427034942.GB12129@us.ibm.com> <20080427051029.GA22858@suse.de> <20080428172239.GA24169@us.ibm.com> <20080428172951.GA764@suse.de> <20080429171115.GD24967@us.ibm.com> <20080429172243.GA16176@suse.de> <20080429181415.GF24967@us.ibm.com> <20080429182613.GA17373@suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080429182613.GA17373@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org
+To: Greg KH <gregkh@suse.de>
+Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[Rediffed to current git]
+On 29.04.2008 [11:26:13 -0700], Greg KH wrote:
+> On Tue, Apr 29, 2008 at 11:14:15AM -0700, Nishanth Aravamudan wrote:
+> > On 29.04.2008 [10:22:43 -0700], Greg KH wrote:
+> > > On Tue, Apr 29, 2008 at 10:11:15AM -0700, Nishanth Aravamudan wrote:
+> > > > +struct hstate_attribute {
+> > > > +	struct attribute attr;
+> > > > +	ssize_t (*show)(struct hstate *h, char *buf);
+> > > > +	ssize_t (*store)(struct hstate *h, const char *buf, size_t count);
+> > > > +};
+> > > 
+> > > Do you need your own attribute type with show and store?  Can't you just
+> > > use the "default" kobject attributes?
+> > 
+> > Hrm, I don't know? Probably. Like I said, I was using the
+> > /sys/kernel/slab code as my reference. Can you explain this more? Or
+> > just point me to the source/documentation I should read for info.
+> 
+> Documentation/kobject.txt, with sample examples in samples/kobject/ for
+> you to copy and use.
 
-If we make SLUB_DEBUG depend on SYSFS then we can simplify some
-#ifdefs and avoid others.
+Great thanks!
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-Signed-off-by: Pekka Enberg <penberg@cs.helsinki.fi>
----
- init/Kconfig |    2 +-
- mm/slub.c    |    6 ++----
- 2 files changed, 3 insertions(+), 5 deletions(-)
+> > Are you referring to kobj_attr_show/kobj_attr_store? Should I just be
+> > using kobj_sysfs_ops, then, most likely?
+> 
+> See the above examples for more details.
 
-Index: linux-2.6/init/Kconfig
-===================================================================
---- linux-2.6.orig/init/Kconfig	2008-04-28 21:20:43.641139595 -0700
-+++ linux-2.6/init/Kconfig	2008-04-28 21:22:16.429890363 -0700
-@@ -697,7 +697,7 @@ config VM_EVENT_COUNTERS
- config SLUB_DEBUG
- 	default y
- 	bool "Enable SLUB debugging support" if EMBEDDED
--	depends on SLUB
-+	depends on SLUB && SYSFS
- 	help
- 	  SLUB has extensive debug support features. Disabling these can
- 	  result in significant savings in code size. This also disables
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2008-04-28 21:21:08.983640178 -0700
-+++ linux-2.6/mm/slub.c	2008-04-28 21:22:16.429890363 -0700
-@@ -215,7 +215,7 @@ struct track {
- 
- enum track_item { TRACK_ALLOC, TRACK_FREE };
- 
--#if defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)
-+#ifdef CONFIG_SLUB_DEBUG
- static int sysfs_slab_add(struct kmem_cache *);
- static int sysfs_slab_alias(struct kmem_cache *, const char *);
- static void sysfs_slab_remove(struct kmem_cache *);
-@@ -3243,7 +3243,7 @@ void *__kmalloc_node_track_caller(size_t
- 	return slab_alloc(s, gfpflags, node, caller);
- }
- 
--#if (defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)) || defined(CONFIG_SLABINFO)
-+#ifdef CONFIG_SLUB_DEBUG
- static unsigned long count_partial(struct kmem_cache_node *n,
- 					int (*get_count)(struct page *))
- {
-@@ -3272,9 +3272,7 @@ static int count_free(struct page *page)
- {
- 	return page->objects - page->inuse;
- }
--#endif
- 
--#if defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)
- static int validate_slab(struct kmem_cache *s, struct page *page,
- 						unsigned long *map)
- {
+Will do -- I think we'll need our own store, at least, though, because
+of locking issues? And I'm guessing if we provide our own store, we're
+going to need to provide our own show?
+
+> > > Also, you have no release function for your kobject to be cleaned up,
+> > > that's a major bug.
+> > 
+> > Well, these kobjects never go away? They will be statically initialized
+> > at boot-time and then stick around until the kernel goes away. Looking
+> > at /sys/kernel/slab's code, again, the release() function there does a
+> > kfree() on the containing kmem_cache, but for hugetlb, the hstates are
+> > static... If we do move to dynamic allocations ever (or allow adding
+> > hugepage sizes at run-time somehow), then perhaps we'll need a release
+> > method then?
+> 
+> Yes you will.  Please always create one, what happens when you want to
+> clean them up at shut-down time...
+
+Again, I'm not sure what you want me to clean-up? The examples in
+samples/ are freeing dynamically allocated objects containing the
+kobject in question -- but /sys/kernel/hugepages only dynamically
+allocates the kobject itself... Although, I guess I should free the name
+string since I used kasprintf()...
+
+Thanks,
+Nish
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
