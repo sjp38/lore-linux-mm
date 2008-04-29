@@ -1,76 +1,71 @@
-Message-ID: <4816823D.8000101@cn.fujitsu.com>
-Date: Tue, 29 Apr 2008 10:04:45 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
-MIME-Version: 1.0
+Date: Tue, 29 Apr 2008 11:48:32 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC][PATCH 5/8] memcg: optimize branches
-References: <20080428201900.ae25e086.kamezawa.hiroyu@jp.fujitsu.com> <20080428202810.a8de4468.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080428202810.a8de4468.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20080429114832.dc446b4a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4816823D.8000101@cn.fujitsu.com>
+References: <20080428201900.ae25e086.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080428202810.a8de4468.kamezawa.hiroyu@jp.fujitsu.com>
+	<4816823D.8000101@cn.fujitsu.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Li Zefan <lizf@cn.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "hugh@veritas.com" <hugh@veritas.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> Showing brach direction for obvious conditions.
-> 
+On Tue, 29 Apr 2008 10:04:45 +0800
+Li Zefan <lizf@cn.fujitsu.com> wrote:
 
-Did you compare the compiled objects with and without this patch ?
+> KAMEZAWA Hiroyuki wrote:
+> > Showing brach direction for obvious conditions.
+> > 
+> 
+> Did you compare the compiled objects with and without this patch ?
+> 
+yes, on ia64. (...I attached the result of x86-64 just because it's widely used). 
 
-It seems gcc will take (ptr == NULL) as unlikely without your explicit
-anotation. And likely() and unlikely() should be used in some performance-
-critical path only ?
+> It seems gcc will take (ptr == NULL) as unlikely without your explicit
+> anotation.
+I didn't know that. But plz try this. I don't see what you say.
+==
+#include <stdio.h>
 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+#define unlikely(x)     __builtin_expect(!!(x), 0)
+//#define unlikely(x)   (x)
+
+extern void *allocalter(int size);
+extern void call(int arg);
+void *foo(void)
+{
+        char *ptr;
+        ptr = allocator(1024);
+        if (unlikely(!ptr)) {
+                call(1);
+                call(2);
+        } else {
+                call(3);
+                call(4);
+        }
+        return ptr;
+}
+==
+When I compiled above with -O2 on ia64,
+ - if unlikely is used , call(3),call(4) are on fast path.
+ - if unlikely is not used, call(1), call(3) are on fast path.
+
+In more obvious case, gcc will do some obvious optimization I agree.
+But it's difficult for me to know how gcc will compile it in C-language level.
+
+> And likely() and unlikely() should be used in some performance-
+> critical path only ?
 > 
-> ---
->  mm/memcontrol.c |   10 +++++-----
->  1 file changed, 5 insertions(+), 5 deletions(-)
-> 
-> Index: mm-2.6.25-mm1/mm/memcontrol.c
-> ===================================================================
-> --- mm-2.6.25-mm1.orig/mm/memcontrol.c
-> +++ mm-2.6.25-mm1/mm/memcontrol.c
-> @@ -541,7 +541,7 @@ retry:
->  	 * The page_cgroup exists and
->  	 * the page has already been accounted.
->  	 */
-> -	if (pc) {
-> +	if (unlikely(pc)) {
->  		VM_BUG_ON(pc->page != page);
->  		VM_BUG_ON(!pc->mem_cgroup);
->  		unlock_page_cgroup(page);
-> @@ -550,7 +550,7 @@ retry:
->  	unlock_page_cgroup(page);
->  
->  	pc = kmem_cache_zalloc(page_cgroup_cache, gfp_mask);
-> -	if (pc == NULL)
-> +	if (unlikely(!pc))
->  		goto err;
->  
->  	/*
-> @@ -602,7 +602,7 @@ retry:
->  		pc->flags = PAGE_CGROUP_FLAG_CACHE;
->  
->  	lock_page_cgroup(page);
-> -	if (page_get_page_cgroup(page)) {
-> +	if (unlikely(page_get_page_cgroup(page))) {
->  		unlock_page_cgroup(page);
->  		/*
->  		 * Another charge has been added to this page already.
-> @@ -668,7 +668,7 @@ void __mem_cgroup_uncharge_common(struct
->  	 */
->  	lock_page_cgroup(page);
->  	pc = page_get_page_cgroup(page);
-> -	if (!pc)
-> +	if (unlikely(!pc))
->  		goto unlock;
->  
->  	VM_BUG_ON(pc->page != page);
-> 
-> --
+I think it can be used against busy and obvious path. IMHO, it gives a hint
+not only to a compiler, but also to a developper who read it.
+ 
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
