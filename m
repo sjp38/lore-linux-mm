@@ -1,52 +1,35 @@
-Received: by rn-out-0910.google.com with SMTP id j40so45004rnf.4
-        for <linux-mm@kvack.org>; Tue, 29 Apr 2008 07:52:59 -0700 (PDT)
-Message-ID: <661de9470804290752w1dc0cfb3k72e81d828a45765e@mail.gmail.com>
-Date: Tue, 29 Apr 2008 20:22:58 +0530
-From: "Balbir Singh" <balbir@linux.vnet.ibm.com>
-Subject: Re: Page Faults slower in 2.6.25-rc9 than 2.6.23
-In-Reply-To: <Pine.LNX.4.64.0804291447040.5058@blonde.site>
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: nfs shared mmap performance regression against 2.6.23
+Date: Tue, 29 Apr 2008 17:18:09 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <d43160c70804290610t2135a271hd9b907529e89e74e@mail.gmail.com>
-	 <Pine.LNX.4.64.0804291447040.5058@blonde.site>
+Message-Id: <200804291718.10462.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Ross Biro <rossb@google.com>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+To: linux-nfs@vger.kernel.org
+Cc: Trond.Myklebust@netapp.com, brad.benton@us.ibm.com, jroth@linux.vnet.ibm.com, mkistler@us.ibm.com, adetsch@br.ibm.com, lxie@us.ibm.com, mijo@linux.vnet.ibm.com, gerhard.stenzel@de.ibm.com, uweigand@de.ibm.com, brokensh@us.ibm.com, hannsj_uhl@de.ibm.com, brianh@linux.ibm.com, tstaudt@de.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 29, 2008 at 7:27 PM, Hugh Dickins <hugh@veritas.com> wrote:
-> On Tue, 29 Apr 2008, Ross Biro wrote:
->  > I don't know if this has been noticed before.  I was benchmarking my
->  > page table relocation code and I noticed that on 2.6.25-rc9 page
->  > faults take 10% more time than on 2.6.22.  This is using lmbench
->  > running on an intel x86_64 system.  The good news is that the page
->  > table relocation code now only adds a 1.6% slow down to page faults.
->
->  Do you have CONFIG_CGROUP_MEM_RES_CTLR=y in 2.6.25?
->  That added about 20% to my lmbench "Page Fault" tests (with
->  adverse effect on several others e.g. the fork, exec, sh group).
->
+Hi Trond,
 
-Hmm.. strange.. I don't remember the overhead being so bad (I'll
-relook at my old numbers). I'll try and git-bisect this one
+We had an application writer report a performance regression between
+2.6.23 and later kernels that we ultimately tracked down to your
+patch 94387fb1aa, "NFS: Add the helper nfs_vm_page_mkwrite". It turns
+out the application was accidentally using a writable shared mmap
+between two processes on an NFS mount instead of tmpfs.
 
+The setup is fixed now, but I'm still surprised by the 7x slowdown
+caused by this patch for application runtime when the mmap is shared
+between two processes writing to it. If there is only one process
+that maps the file, there is no measureable slowdown.
 
->  Try the same kernel with boot option "cgroup_disable=memory",
->  that should recoup most (but not quite all) of the slowdown;
->  or rebuild with n to CGROUP_MEM_RES_CTLR.
->
->  But your "Mmap Latency" went up 425% ??
->
+Is that an expected side-effect of your patch, or something that
+should not have happened?
 
-That's really way of the mark
-
->  Hugh
->
-
-Balbir
+	Arnd <><
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
