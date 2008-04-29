@@ -1,45 +1,50 @@
-Received: from zps19.corp.google.com (zps19.corp.google.com [172.25.146.19])
-	by smtp-out.google.com with ESMTP id m3TE8Kfr014384
-	for <linux-mm@kvack.org>; Tue, 29 Apr 2008 15:08:20 +0100
-Received: from fg-out-1718.google.com (fgad23.prod.google.com [10.86.55.23])
-	by zps19.corp.google.com with ESMTP id m3TE8Ijm030559
-	for <linux-mm@kvack.org>; Tue, 29 Apr 2008 07:08:19 -0700
-Received: by fg-out-1718.google.com with SMTP id d23so10369fga.32
-        for <linux-mm@kvack.org>; Tue, 29 Apr 2008 07:08:18 -0700 (PDT)
-Message-ID: <d43160c70804290708t51bdc100j9cc42a8da512aee7@mail.gmail.com>
-Date: Tue, 29 Apr 2008 10:08:18 -0400
-From: "Ross Biro" <rossb@google.com>
-Subject: Re: Page Faults slower in 2.6.25-rc9 than 2.6.23
-In-Reply-To: <Pine.LNX.4.64.0804291447040.5058@blonde.site>
+Message-ID: <48172C72.1000501@cybernetics.com>
+Date: Tue, 29 Apr 2008 10:10:58 -0400
+From: Tony Battersby <tonyb@cybernetics.com>
 MIME-Version: 1.0
+Subject: Re: 2.6.24 regression: deadlock on coredump of big process
+References: <4815E932.1040903@cybernetics.com> <20080429100048.3e78b1ba.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080429100048.3e78b1ba.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <d43160c70804290610t2135a271hd9b907529e89e74e@mail.gmail.com>
-	 <Pine.LNX.4.64.0804291447040.5058@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 29, 2008 at 9:57 AM, Hugh Dickins <hugh@veritas.com> wrote:
->  Do you have CONFIG_CGROUP_MEM_RES_CTLR=y in 2.6.25?
->  That added about 20% to my lmbench "Page Fault" tests (with
->  adverse effect on several others e.g. the fork, exec, sh group).
+KAMEZAWA Hiroyuki wrote:
+> On Mon, 28 Apr 2008 11:11:46 -0400
+> Tony Battersby <tonyb@cybernetics.com> wrote:
+>
+>   
+>> Below is the program that triggers the deadlock; compile with
+>> -D_REENTRANT -lpthread.
+>>
+>>     
+> What happens if you changes size of stack (of pthreads) smaller ?
+> (maybe ulimit -s will work also for threads.)
+>
+> Thanks,
+> -Kame
+>
+>
+>   
 
-I don't have config cgroups set.  I do have fake numa on, but I'm
-pretty sure it was on for 2.6.23 as well.
+If I leave more memory free by changing the argument to
+malloc_all_but_x_mb(), then I have to increase the number of threads
+required to trigger the deadlock.  Changing the thread stack size via
+setrlimit(RLIMIT_STACK) also changes the number of threads that are
+required to trigger the deadlock.  For example, with
+malloc_all_but_x_mb(16) and the default stack size of 8 MB, <= 5 threads
+will coredump successfully, and >= 6 threads will deadlock.  With
+malloc_all_but_x_mb(16) and a reduced stack size of 4096 bytes, <= 8
+threads will coredump successfully, and >= 9 threads will deadlock.
 
-# CONFIG_CGROUPS is not set
-CONFIG_GROUP_SCHED=y
-CONFIG_FAIR_GROUP_SCHED=y
-# CONFIG_RT_GROUP_SCHED is not set
-CONFIG_USER_SCHED=y
-# CONFIG_CGROUP_SCHED is not set
-C
+Also note that the "free" command reports 10 MB free memory while the
+program is running before the segfault is triggered.
 
-    Ross
+Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
