@@ -1,67 +1,105 @@
-Date: Tue, 29 Apr 2008 16:20:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Warning on memory offline (and possible in usual migration?)
-Message-Id: <20080429162016.961aa59d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080423004804.GA14134@wotan.suse.de>
-References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
-	<20080422045205.GH21993@wotan.suse.de>
-	<20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080422094352.GB23770@wotan.suse.de>
-	<Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com>
-	<20080423004804.GA14134@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 29 Apr 2008 10:48:54 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [2/2] vmallocinfo: Add caller information
+Message-ID: <20080429084854.GA14913@elte.hu>
+References: <20080318222701.788442216@sgi.com> <20080318222827.519656153@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080318222827.519656153@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Arjan van de Ven <arjan@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-I myself want to this patch to be included (to next -mm) and put this under
-test. How do you think ? Nick ? Christoph ?
+* Christoph Lameter <clameter@sgi.com> wrote:
 
-Thanks,
--Kame
+> Add caller information so that /proc/vmallocinfo shows where the 
+> allocation request for a slice of vmalloc memory originated.
 
+i _specifically_ objected to the uglification that this patch brings 
+with itself to the modified arch/x86 files (see the diff excerpt below), 
+in:
 
-On Wed, 23 Apr 2008 02:48:04 +0200
-Nick Piggin <npiggin@suse.de> wrote:
-> What was happening is that migrate_page_copy wants to transfer the PG_dirty
-> bit from old page to new page, so what it would do is set_page_dirty(newpage).
-> However set_page_dirty() is used to set the entire page dirty, wheras in
-> this case, only part of the page was dirty, and it also was not uptodate.
-> 
-> Marking the whole page dirty with set_page_dirty would lead to corruption or
-> unresolvable conditions -- a dirty && !uptodate page and dirty && !uptodate
-> buffers.
-> 
-> Possibly we could just ClearPageDirty(oldpage); SetPageDirty(newpage);
-> however in the interests of keeping the change minimal...
-> 
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
-> ---
-> Index: linux-2.6/mm/migrate.c
+    http://lkml.org/lkml/2008/3/19/450
+
+i pointed out how it should be done _much cleaner_ (and much smaller - 
+only a single patch needed) via stack-trace, without changing a dozen 
+architectures, and even gave a patch to make it all easier for you:
+
+    http://lkml.org/lkml/2008/3/19/568
+    http://lkml.org/lkml/2008/3/21/88
+
+in fact, a stacktrace printout is much more informative as well to 
+users, than a punny __builtin_return_address(0)!
+
+but you did not reply to my objections in substance, hence i considered 
+the issue closed - but you apparently went ahead without addressing my 
+concerns (which are rather obvious to anyone doing debug code) and now 
+this ugly code is upstream.
+
+If lockdep can get stacktrace samples from all around the kernel without 
+adding "caller" info parameters to widely used APIs, then the MM is 
+evidently able to do it too. _Saving_ a stacktrace is relatively fast 
+[printing it to the console is what is slow], and vmalloc() is an utter 
+slowpath anyway [and 1 million file descriptors does not count as a 
+fastpath].
+
+If performance is of any concern then make it dependent on 
+CONFIG_DEBUG_VM or whatever debug switch in the MM - that will be 
+_faster_ in the default case than the current 
+pass-parameter-deep-down-the-arch crap you've pushed here. I dont 
+remember the last time i genuinely needed the allocation site of a 
+vmalloc().
+
+I any case, do _NOT_ pollute any architectures with stack debugging 
+hacks (and that holds for future similar patches too), that's why we 
+wrote stacktrace. This needs to be reverted or fixed properly.
+
+	Ingo
+
+> Index: linux-2.6.25-rc5-mm1/arch/x86/mm/ioremap.c
 > ===================================================================
-> --- linux-2.6.orig/mm/migrate.c
-> +++ linux-2.6/mm/migrate.c
-> @@ -383,7 +383,14 @@ static void migrate_page_copy(struct pag
+> --- linux-2.6.25-rc5-mm1.orig/arch/x86/mm/ioremap.c	2008-03-18 12:20:10.803827969 -0700
+> +++ linux-2.6.25-rc5-mm1/arch/x86/mm/ioremap.c	2008-03-18 12:22:09.744570798 -0700
+> @@ -118,8 +118,8 @@ static int ioremap_change_attr(unsigned 
+>   * have to convert them into an offset in a page-aligned mapping, but the
+>   * caller shouldn't need to know that small detail.
+>   */
+> -static void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
+> -			       enum ioremap_mode mode)
+> +static void __iomem *__ioremap_caller(unsigned long phys_addr,
+> +	unsigned long size, enum ioremap_mode mode, void *caller)
+>  {
+>  	unsigned long pfn, offset, last_addr, vaddr;
+>  	struct vm_struct *area;
+> @@ -176,7 +176,7 @@ static void __iomem *__ioremap(unsigned 
+>  	/*
+>  	 * Ok, go for it..
+>  	 */
+> -	area = get_vm_area(size, VM_IOREMAP);
+> +	area = get_vm_area_caller(size, VM_IOREMAP, caller);
+>  	if (!area)
+>  		return NULL;
+>  	area->phys_addr = phys_addr;
+> @@ -217,13 +217,15 @@ static void __iomem *__ioremap(unsigned 
+>   */
+>  void __iomem *ioremap_nocache(unsigned long phys_addr, unsigned long size)
+>  {
+> -	return __ioremap(phys_addr, size, IOR_MODE_UNCACHED);
+> +	return __ioremap_caller(phys_addr, size, IOR_MODE_UNCACHED,
+> +						__builtin_return_address(0));
+>  }
+>  EXPORT_SYMBOL(ioremap_nocache);
 >  
->  	if (PageDirty(page)) {
->  		clear_page_dirty_for_io(page);
-> -		set_page_dirty(newpage);
-> +		/*
-> +		 * Want to mark the page and the radix tree as dirty, and
-> +		 * redo the accounting that clear_page_dirty_for_io undid,
-> +		 * but we can't use set_page_dirty because that function
-> +		 * is actually a signal that all of the page has become dirty.
-> +		 * Wheras only part of our page may be dirty.
-> +		 */
-> +		__set_page_dirty_nobuffers(newpage);
->   	}
->  
->  #ifdef CONFIG_SWAP
+>  void __iomem *ioremap_cache(unsigned long phys_addr, unsigned long size)
+>  {
+> -	return __ioremap(phys_addr, size, IOR_MODE_CACHED);
+> +	return __ioremap_caller(phys_addr, size, IOR_MODE_CACHED,
+> +						__builtin_return_address(0));
+>  }
+>  EXPORT_SYMBOL(ioremap_cache);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
