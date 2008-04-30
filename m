@@ -1,82 +1,79 @@
-Message-Id: <20080430044320.082665180@sgi.com>
+Message-Id: <20080430044319.309218061@sgi.com>
 References: <20080430044251.266380837@sgi.com>
-Date: Tue, 29 Apr 2008 21:42:56 -0700
+Date: Tue, 29 Apr 2008 21:42:53 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [05/11] vcompound: Debugging aid
-Content-Disposition: inline; filename=vcp_debugging_aids
+Subject: [02/11] vcompound: pageflags: Add PageVcompound()
+Content-Disposition: inline; filename=vcp_add_pagevcompound
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Virtualized Compound Pages are rare in practice and thus subtle bugs may
-creep in if we do not test the kernel with Virtualized Compounds.
-CONFIG_VIRTUALIZE_ALWAYS results in virtualizable compound allocation
-requests always result in virtualized compounds.
+Add a page flag that can be used to figure out if a compound page was
+virtually mapped (virtualized). The mark is necessary since we have to
+know when freeing pages if we have to destroy a virtual mapping and
+we need to know that the pages of the compound are not in sequence.
+
+A pageflag is only used if we have lots of available flags
+(PAGEFLAGS_EXTENDED). Otherwise no additional flag is needed by
+combining PG_swapcache together with PG_compound (similar to
+PageHead() and PageTail()).
+
+Overlaying flags has two bad effects:
+
+1. The tests for PageVcompound become more expensive since multiple
+   bits must be tested. There is a potential effect on hot codepaths.
+
+2. Vcompound pages can not be on the LRU since PG_swapcache has
+   another meaning for pages on the LRU.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- lib/Kconfig.debug |   12 ++++++++++++
- mm/vmalloc.c      |   15 +++++++++++++--
- 2 files changed, 25 insertions(+), 2 deletions(-)
+ include/linux/page-flags.h |   16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
-Index: linux-2.6/lib/Kconfig.debug
+Index: linux-2.6/include/linux/page-flags.h
 ===================================================================
---- linux-2.6.orig/lib/Kconfig.debug	2008-04-29 21:27:20.452525154 -0700
-+++ linux-2.6/lib/Kconfig.debug	2008-04-29 21:27:36.533025562 -0700
-@@ -159,6 +159,18 @@ config DETECT_SOFTLOCKUP
- 	   can be detected via the NMI-watchdog, on platforms that
- 	   support it.)
+--- linux-2.6.orig/include/linux/page-flags.h	2008-04-28 14:34:39.953650145 -0700
++++ linux-2.6/include/linux/page-flags.h	2008-04-29 16:45:00.481208036 -0700
+@@ -86,6 +86,7 @@ enum pageflags {
+ #ifdef CONFIG_PAGEFLAGS_EXTENDED
+ 	PG_head,		/* A head page */
+ 	PG_tail,		/* A tail page */
++	PG_vcompound,		/* A virtualized compound page */
+ #else
+ 	PG_compound,		/* A compound page */
+ #endif
+@@ -262,6 +263,7 @@ static inline void set_page_writeback(st
+  */
+ __PAGEFLAG(Head, head)
+ __PAGEFLAG(Tail, tail)
++__PAGEFLAG(Vcompound, vcompound)
  
-+config VIRTUALIZE_ALWAYS
-+	bool "Always allocate virtualized compounds pages"
-+	default y
-+	help
-+	  Virtualized compound pages are only allocated if there is no linear
-+	  memory available. They are a fallback and potential issues created by
-+	  the use of virtual mappings instead of physically linear memory may
-+	  not surface because of the infrequent need to create them. Enabling
-+	  this option makes every allocation of a virtualizable compound page
-+	  generate virtualized compound page. May have a significant
-+	  performance impact. Only for testing.
+ static inline int PageCompound(struct page *page)
+ {
+@@ -305,6 +307,20 @@ static inline void __ClearPageTail(struc
+ 	page->flags &= ~PG_head_tail_mask;
+ }
+ 
++#define PG_vcompound_mask ((1L << PG_compound) | (1L << PG_swapcache))
+++#define PageVcompound(page)	((page->flags & PG_vcompound_mask) \
++					== PG_vcompound_mask)
 +
- config SCHED_DEBUG
- 	bool "Collect scheduler debugging info"
- 	depends on DEBUG_KERNEL && PROC_FS
-Index: linux-2.6/mm/vmalloc.c
-===================================================================
---- linux-2.6.orig/mm/vmalloc.c	2008-04-29 21:27:32.237026026 -0700
-+++ linux-2.6/mm/vmalloc.c	2008-04-29 21:27:36.537025989 -0700
-@@ -1191,6 +1191,11 @@ struct page *alloc_vcompound_node(int no
- 	if (order)
- 		alloc_flags |= __GFP_COMP;
- 
-+#ifdef CONFIG_VIRTUALIZE_ALWAYS
-+	if (system_state == SYSTEM_RUNNING && order)
-+		page = NULL;
-+	else
-+#endif
- 	if (node == -1) {
- 		page = alloc_pages(alloc_flags, order);
- 	} else
-@@ -1212,8 +1217,14 @@ void *__alloc_vcompound(gfp_t flags, int
- 	struct vm_struct *vm;
- 	void *addr;
- 
--	addr = (void *)__get_free_pages(flags | __GFP_NORETRY | __GFP_NOWARN,
--								order);
-+#ifdef CONFIG_VIRTUALIZE_ALWAYS
-+	if (system_state == SYSTEM_RUNNING && order)
-+		addr = NULL;
-+	else
-+#endif
-+		addr = (void *)__get_free_pages(
-+			flags | __GFP_NORETRY | __GFP_NOWARN, order);
++static inline void __SetPageVcompound(struct page *page)
++{
++	page->flags |= PG_vcompound_mask;
++}
 +
- 	if (addr || !order)
- 		return addr;
- 
++static inline void __ClearPageVcompound(struct page *page)
++{
++	page->flags &= ~PG_vcompound_mask;
++}
++
+ #endif /* !PAGEFLAGS_EXTENDED */
+ #endif /* !__GENERATING_BOUNDS_H */
+ #endif	/* PAGE_FLAGS_H */
 
 -- 
 
