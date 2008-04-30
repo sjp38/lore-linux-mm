@@ -1,71 +1,46 @@
-Date: Wed, 30 Apr 2008 12:16:23 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: 2.6.25-mm1: Failing to probe IDE interface
-Message-ID: <20080430111622.GB10831@csn.ul.ie>
-References: <20080417160331.b4729f0c.akpm@linux-foundation.org> <20080429154957.GA19148@csn.ul.ie> <20080429165840.GA24125@csn.ul.ie> <200804292337.57874.bzolnier@gmail.com>
+Date: Wed, 30 Apr 2008 12:33:53 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: Page Faults slower in 2.6.25-rc9 than 2.6.23
+In-Reply-To: <20080430135035.b0b02533.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0804301215080.4651@blonde.site>
+References: <d43160c70804290610t2135a271hd9b907529e89e74e@mail.gmail.com>
+ <20080430135035.b0b02533.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <200804292337.57874.bzolnier@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
-Cc: ink@jurassic.park.msu.ru, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, gregkh@suse.de
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Ross Biro <rossb@google.com>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On (29/04/08 23:37), Bartlomiej Zolnierkiewicz didst pronounce:
-> > <SNIP>
-> > 
-> > The third patch that needed reverting was
-> > gregkh-pci-pci-clean-up-resource-alignment-management.patch (owners added
-> > to cc). The relevant hint in the a diff between a broken and working bootlog was;
-> > 
-> >  system 00:09: ioport range 0x15e0-0x15ef has been reserved
-> > + PCI: bogus alignment of resource 7 [100:1ff] (flags 100) of 0000:00:02.0
-> > + PCI: bogus alignment of resource 8 [100:1ff] (flags 100) of 0000:00:02.0
-> > + PCI: bogus alignment of resource 9 [4000000:7ffffff] (flags 1200) of 0000:00:02.0
-> > + PCI: bogus alignment of resource 10 [4000000:7ffffff] (flags 200) of 0000:00:02.0
-> > + PCI: bogus alignment of resource 7 [100:1ff] (flags 100) of 0000:00:02.1
-> > + PCI: bogus alignment of resource 8 [100:1ff] (flags 100) of 0000:00:02.1
-> > + PCI: bogus alignment of resource 9 [4000000:7ffffff] (flags 1200) of 0000:00:02.1
-> > + PCI: bogus alignment of resource 10 [4000000:7ffffff] (flags 200) of 0000:00:02.1
-> > 
-> > With the resource alignment patch and the two IDE patches reverted, the
-> > laptop is able to boot.
+On Wed, 30 Apr 2008, KAMEZAWA Hiroyuki wrote:
+> On Tue, 29 Apr 2008 09:10:36 -0400
+> "Ross Biro" <rossb@google.com> wrote:
+> > I don't know if this has been noticed before.  I was benchmarking my
+> > page table relocation code and I noticed that on 2.6.25-rc9 page
+> > faults take 10% more time than on 2.6.22.  This is using lmbench
+> > running on an intel x86_64 system.  The good news is that the page
+> > table relocation code now only adds a 1.6% slow down to page faults.
 > 
-> Thanks for tracking it down.
-> 
-> Hmm, it seems that the above patch was merged a week ago:
-> 
-> commit bda0c0afa7a694bb1459fd023515aca681e4d79a
-> Merge: 904e0ab... af40b48...
-> Author: Linus Torvalds <torvalds@linux-foundation.org>
-> Date:   Mon Apr 21 15:58:35 2008 -0700
-> 
->     Merge git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/pci-2.6
-> ...
->       PCI: clean up resource alignment management
-> ...
-> 
-> but it could be that the issue has been already fixed in git tree
-> (could you verify it please?).
-> 
+> It seems lmbench's pagefault program uses 'page fault by READ'.
+> Then, this patch affects. (this patch was added at 2.6.24-rc?.)
+> ==
+> http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=557ed1fa2620dc119adb86b34c614e152a629a80
+> ==
+> By it, ZERO_PAGE is not used for page fault in anonymous mapping.
 
-Latest git boots on the laptop so somewhere along the line, it got fixed.
+I'd wondered about that one too, but no: lmbench lat_pagefault uses
+a shared mmap of an ordinary file (not /dev/zero), so the ZERO_PAGE
+changes should have no effect on it whatsoever.
 
-> BTW according to lspci output you should be able to use piix driver
-> instead of ide_generic on this laptop.
-> 
+I notice that test is expecting msync(,,MS_INVALIDATE) to do something
+it's never done on Linux (a kind of drop caches for the range).  We've
+never done anything with MS_INVALIDATE, beyond permitting the flag:
+I think you find problems however you try to go about implementing
+it (and it might even originate from a UNIX which couldn't do shared
+mmap coherently).  So I wonder if that test is erratic because of it.
 
-I know but the config is a bit minimal for faster building as it's only
-intended for sniff-testing patches.
-
-Thanks for the help.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
