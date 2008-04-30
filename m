@@ -1,46 +1,70 @@
-Date: Wed, 30 Apr 2008 08:17:42 +0200
+Date: Wed, 30 Apr 2008 08:56:11 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc] data race in page table setup/walking?
-Message-ID: <20080430061741.GG27652@wotan.suse.de>
-References: <20080429050054.GC21795@wotan.suse.de> <Pine.LNX.4.64.0804291333540.22025@blonde.site> <20080430060340.GE27652@wotan.suse.de> <20080429.230543.98200575.davem@davemloft.net>
+Subject: Re: Warning on memory offline (and possible in usual migration?)
+Message-ID: <20080430065611.GH27652@wotan.suse.de>
+References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com> <20080422045205.GH21993@wotan.suse.de> <20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com> <20080422094352.GB23770@wotan.suse.de> <Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com> <20080423004804.GA14134@wotan.suse.de> <20080429162016.961aa59d.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080429.230543.98200575.davem@davemloft.net>
+In-Reply-To: <20080429162016.961aa59d.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: hugh@veritas.com, torvalds@linux-foundation.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, benh@kernel.crashing.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Christoph Lameter <clameter@sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 29, 2008 at 11:05:43PM -0700, David Miller wrote:
-> From: Nick Piggin <npiggin@suse.de>
-> Date: Wed, 30 Apr 2008 08:03:40 +0200
-> 
-> > Hardware walkers, I shouldn't worry too much about, except as a thought
-> > exercise to realise that we have lockless readers. I think(?) alpha can
-> > walk the linux ptes in hardware on TLB miss, but surely they will have
-> > to do the requisite barriers in hardware too (otherwise things get
-> > really messy)
-> 
-> My understanding is that all Alpha implementations walk the
-> page tables in PAL code.
+On Tue, Apr 29, 2008 at 04:20:16PM +0900, KAMEZAWA Hiroyuki wrote:
+> I myself want to this patch to be included (to next -mm) and put this under
+> test. How do you think ? Nick ? Christoph ?
 
-Ah OK. I guess that's effectively "hardware" as far as Linux is concerned.
-I guess even x86 really walks the page tables in microcode as well. Basically
-I just mean something that is invisible to, and obvlivious of, Linux's
-locking.
+I think it should go upstream, yes. I imagine Andrew is probably just busy
+with merging at the moment. I guess we should resubmit if it isn't picked
+up in the next few days.
 
- 
-> > Powerpc's find_linux_pte is one of the software walked lockless ones.
-> > That's basically how I imagine hardware walkers essentially should operate.
-> 
-> Sparc64 walks the page tables lockless in it's TLB hash table miss
-> handling.
-> 
-> MIPS does something similar.
+Thanks,
+Nick
 
-Interesting, thanks.
+> 
+> Thanks,
+> -Kame
+> 
+> 
+> On Wed, 23 Apr 2008 02:48:04 +0200
+> Nick Piggin <npiggin@suse.de> wrote:
+> > What was happening is that migrate_page_copy wants to transfer the PG_dirty
+> > bit from old page to new page, so what it would do is set_page_dirty(newpage).
+> > However set_page_dirty() is used to set the entire page dirty, wheras in
+> > this case, only part of the page was dirty, and it also was not uptodate.
+> > 
+> > Marking the whole page dirty with set_page_dirty would lead to corruption or
+> > unresolvable conditions -- a dirty && !uptodate page and dirty && !uptodate
+> > buffers.
+> > 
+> > Possibly we could just ClearPageDirty(oldpage); SetPageDirty(newpage);
+> > however in the interests of keeping the change minimal...
+> > 
+> > Signed-off-by: Nick Piggin <npiggin@suse.de>
+> > ---
+> > Index: linux-2.6/mm/migrate.c
+> > ===================================================================
+> > --- linux-2.6.orig/mm/migrate.c
+> > +++ linux-2.6/mm/migrate.c
+> > @@ -383,7 +383,14 @@ static void migrate_page_copy(struct pag
+> >  
+> >  	if (PageDirty(page)) {
+> >  		clear_page_dirty_for_io(page);
+> > -		set_page_dirty(newpage);
+> > +		/*
+> > +		 * Want to mark the page and the radix tree as dirty, and
+> > +		 * redo the accounting that clear_page_dirty_for_io undid,
+> > +		 * but we can't use set_page_dirty because that function
+> > +		 * is actually a signal that all of the page has become dirty.
+> > +		 * Wheras only part of our page may be dirty.
+> > +		 */
+> > +		__set_page_dirty_nobuffers(newpage);
+> >   	}
+> >  
+> >  #ifdef CONFIG_SWAP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
