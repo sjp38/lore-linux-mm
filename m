@@ -1,86 +1,35 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3TNmgXu004678
-	for <linux-mm@kvack.org>; Tue, 29 Apr 2008 19:48:42 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3TNmgBv192368
-	for <linux-mm@kvack.org>; Tue, 29 Apr 2008 17:48:42 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3TNmfHr010109
-	for <linux-mm@kvack.org>; Tue, 29 Apr 2008 17:48:41 -0600
-Date: Tue, 29 Apr 2008 16:48:39 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [RFC][PATCH] hugetlb: add information and interface in sysfs
-	[Was Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs
-	ABI]
-Message-ID: <20080429234839.GA10967@us.ibm.com>
-References: <20080423183252.GA10548@us.ibm.com> <20080424071352.GB14543@wotan.suse.de> <20080427034942.GB12129@us.ibm.com> <20080427051029.GA22858@suse.de> <20080428172239.GA24169@us.ibm.com> <20080428172951.GA764@suse.de> <20080429171115.GD24967@us.ibm.com> <20080429172243.GA16176@suse.de> <20080429181415.GF24967@us.ibm.com> <20080429182613.GA17373@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080429182613.GA17373@suse.de>
+Subject: Re: [rfc] data race in page table setup/walking?
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Reply-To: benh@kernel.crashing.org
+In-Reply-To: <Pine.LNX.4.64.0804292328110.23470@blonde.site>
+References: <20080429050054.GC21795@wotan.suse.de>
+	 <Pine.LNX.4.64.0804291333540.22025@blonde.site>
+	 <1209505059.18023.193.camel@pasglop>
+	 <Pine.LNX.4.64.0804292328110.23470@blonde.site>
+Content-Type: text/plain
+Date: Wed, 30 Apr 2008 10:09:45 +1000
+Message-Id: <1209514185.18023.202.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Greg KH <gregkh@suse.de>
-Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 29.04.2008 [11:26:13 -0700], Greg KH wrote:
-> On Tue, Apr 29, 2008 at 11:14:15AM -0700, Nishanth Aravamudan wrote:
-> > On 29.04.2008 [10:22:43 -0700], Greg KH wrote:
-> > > On Tue, Apr 29, 2008 at 10:11:15AM -0700, Nishanth Aravamudan wrote:
-> > > > +struct hstate_attribute {
-> > > > +	struct attribute attr;
-> > > > +	ssize_t (*show)(struct hstate *h, char *buf);
-> > > > +	ssize_t (*store)(struct hstate *h, const char *buf, size_t count);
-> > > > +};
-> > > 
-> > > Do you need your own attribute type with show and store?  Can't you just
-> > > use the "default" kobject attributes?
-> > 
-> > Hrm, I don't know? Probably. Like I said, I was using the
-> > /sys/kernel/slab code as my reference. Can you explain this more? Or
-> > just point me to the source/documentation I should read for info.
-> 
-> Documentation/kobject.txt, with sample examples in samples/kobject/ for
-> you to copy and use.
+On Tue, 2008-04-29 at 23:47 +0100, Hugh Dickins wrote:
 
-Great thanks!
+> I am surprised it's enough to patch up the issue.
 
-> > Are you referring to kobj_attr_show/kobj_attr_store? Should I just be
-> > using kobj_sysfs_ops, then, most likely?
-> 
-> See the above examples for more details.
+Well, we get lucky here because there's a data dependency between all
+the loads... the last one needs the result from the previous one etc...
 
-Will do -- I think we'll need our own store, at least, though, because
-of locking issues? And I'm guessing if we provide our own store, we're
-going to need to provide our own show?
+Only alpha is crazy enough to require barriers in that case as far as I
+know :-)
 
-> > > Also, you have no release function for your kobject to be cleaned up,
-> > > that's a major bug.
-> > 
-> > Well, these kobjects never go away? They will be statically initialized
-> > at boot-time and then stick around until the kernel goes away. Looking
-> > at /sys/kernel/slab's code, again, the release() function there does a
-> > kfree() on the containing kmem_cache, but for hugetlb, the hstates are
-> > static... If we do move to dynamic allocations ever (or allow adding
-> > hugepage sizes at run-time somehow), then perhaps we'll need a release
-> > method then?
-> 
-> Yes you will.  Please always create one, what happens when you want to
-> clean them up at shut-down time...
+Cheers,
+Ben.
 
-Again, I'm not sure what you want me to clean-up? The examples in
-samples/ are freeing dynamically allocated objects containing the
-kobject in question -- but /sys/kernel/hugepages only dynamically
-allocates the kobject itself... Although, I guess I should free the name
-string since I used kasprintf()...
-
-Thanks,
-Nish
-
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
