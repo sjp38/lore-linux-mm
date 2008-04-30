@@ -1,16 +1,32 @@
-Received: from shark.he.net ([66.160.160.2]) by xenotime.net for <linux-mm@kvack.org>; Tue, 29 Apr 2008 20:18:12 -0700
-Date: Tue, 29 Apr 2008 20:18:12 -0700 (PDT)
+Received: from shark.he.net ([66.160.160.2]) by xenotime.net for <linux-mm@kvack.org>; Tue, 29 Apr 2008 20:24:13 -0700
+Date: Tue, 29 Apr 2008 20:24:13 -0700 (PDT)
 From: "Randy.Dunlap" <rdunlap@xenotime.net>
-Subject: [PATCH v2] docbook: fix vmalloc missing parameter notation
-Message-ID: <Pine.LNX.4.64.0804292016530.18219@shark.he.net>
+Subject: [PATCH v2] docbook: fix vmalloc missing parameter notation (fwd)
+Message-ID: <Pine.LNX.4.64.0804292023030.18219@shark.he.net>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-From: Randy Dunlap <randy.dunlap@oracle.com>
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
+
+OK, so either pine or the linux-mm mailing list software likes to
+take the first line of body text if it begins with "From:"
+and add that to the mail headers.  I don't recall seeing this
+problem before...
+
+
+-- 
+~Randy
+
+---------- Forwarded message ----------
+Date: Tue, 29 Apr 2008 20:18:12 -0700 (PDT)
+From: Randy.Dunlap <rdunlap@xenotime.net>,
+    Randy Dunlap <randy.dunlap@oracle.com>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org
+Subject: [PATCH v2] docbook: fix vmalloc missing parameter notation
 
 Fix vmalloc kernel-doc warning:
 
@@ -31,6 +47,12 @@ Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
   *
   *	Allocate enough pages to cover @size from the page level
   *	allocator with @gfp_mask flags.  Map them into contiguous
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
