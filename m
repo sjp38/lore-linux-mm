@@ -1,35 +1,36 @@
-Subject: Re: [rfc] data race in page table setup/walking?
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Reply-To: benh@kernel.crashing.org
-In-Reply-To: <Pine.LNX.4.64.0804292328110.23470@blonde.site>
-References: <20080429050054.GC21795@wotan.suse.de>
-	 <Pine.LNX.4.64.0804291333540.22025@blonde.site>
-	 <1209505059.18023.193.camel@pasglop>
-	 <Pine.LNX.4.64.0804292328110.23470@blonde.site>
-Content-Type: text/plain
-Date: Wed, 30 Apr 2008 10:09:45 +1000
-Message-Id: <1209514185.18023.202.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from shark.he.net ([66.160.160.2]) by xenotime.net for <linux-mm@kvack.org>; Tue, 29 Apr 2008 20:14:04 -0700
+Date: Tue, 29 Apr 2008 20:14:04 -0700 (PDT)
+From: "Randy.Dunlap" <rdunlap@xenotime.net>
+Subject: [PATCH] docbook: fix vmalloc missing parameter notation
+Message-ID: <Pine.LNX.4.64.0804292013110.18219@shark.he.net>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
+From: Randy Dunlap <randy.dunlap@oracle.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-04-29 at 23:47 +0100, Hugh Dickins wrote:
+Fix vmalloc kernel-doc warning:
 
-> I am surprised it's enough to patch up the issue.
+Warning(linux-2.6.25-git14//mm/vmalloc.c:555): No description found for parameter 'caller'
 
-Well, we get lucky here because there's a data dependency between all
-the loads... the last one needs the result from the previous one etc...
+Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
+---
+ mm/vmalloc.c |    1 +
+ 1 file changed, 1 insertion(+)
 
-Only alpha is crazy enough to require barriers in that case as far as I
-know :-)
-
-Cheers,
-Ben.
-
+--- linux-2.6.25-git14.orig/mm/vmalloc.c
++++ linux-2.6.25-git14/mm/vmalloc.c
+@@ -545,6 +545,7 @@ void *__vmalloc_area(struct vm_struct *a
+  *	@gfp_mask:	flags for the page level allocator
+  *	@prot:		protection mask for the allocated pages
+  *	@node:		node to use for allocation or -1
++ *	@caller:	caller's return address
+  *
+  *	Allocate enough pages to cover @size from the page level
+  *	allocator with @gfp_mask flags.  Map them into contiguous
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
