@@ -1,60 +1,39 @@
-Received: from zps78.corp.google.com (zps78.corp.google.com [172.25.146.78])
-	by smtp-out.google.com with ESMTP id m3UMFh7C031314
-	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 23:15:43 +0100
-Received: from fg-out-1718.google.com (fgad23.prod.google.com [10.86.55.23])
-	by zps78.corp.google.com with ESMTP id m3UMFKca011535
-	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 15:15:41 -0700
-Received: by fg-out-1718.google.com with SMTP id d23so338619fga.5
-        for <linux-mm@kvack.org>; Wed, 30 Apr 2008 15:15:41 -0700 (PDT)
-Message-ID: <d43160c70804301515i7e02a3d5ha3b84d4b26ae68bd@mail.gmail.com>
-Date: Wed, 30 Apr 2008 18:15:40 -0400
-From: "Ross Biro" <rossb@google.com>
-Subject: Re: [RFC/PATH 1/2] MM: Make Page Tables Relocatable -- conditional flush
-In-Reply-To: <4818CEDA.8000908@goop.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+From: kamezawa.hiroyu@jp.fujitsu.com
+Message-ID: <28073963.1209598183931.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 1 May 2008 08:29:43 +0900 (JST)
+Subject: Re: Re: Warning on memory offline (and possible in usual migration?)
+In-Reply-To: <Pine.LNX.4.64.0804301059570.26173@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080429134254.635FEDC683@localhost> <4818B262.5020909@goop.org>
-	 <d43160c70804301140q16aed710rcafcab95876de078@mail.gmail.com>
-	 <4818CEDA.8000908@goop.org>
+References: <Pine.LNX.4.64.0804301059570.26173@schroedinger.engr.sgi.com>
+ <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
+ <20080422045205.GH21993@wotan.suse.de> <20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20080422094352.GB23770@wotan.suse.de> <Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com>
+ <20080423004804.GA14134@wotan.suse.de> <20080429162016.961aa59d.kamezawa.hiroyu@jp.fujitsu.com>
+ <20080430065611.GH27652@wotan.suse.de> <20080430001249.c07ff5c8.akpm@linux-foundation.org>
+ <20080430072620.GI27652@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, GOTO <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 30, 2008 at 3:56 PM, Jeremy Fitzhardinge <jeremy@goop.org> wrote:
->>> - How does it deal with migrating the accessed/dirty bits in ptes if
->>>  cpus can be using old versions of the pte for a while after the
->>>  copy?  Losing dirty updates can lose data, so explicitly addressing
->>>  this point in code and/or comments is important.
->>>
->>
->> It doesn't currently.  Although it's easy to fix.  Just before the
->> free, we just have to copy the dirty bits again.  Slow, but not in a
->> critical path.
->>
 >
-> But the issue I'm concerned about is what happens if a process writes the
-> page, causing its cpu to mark the (old, in-limbo) pte dirty.  Meanwhile
-> someone else is scanning the pagetables looking for things to evict.  It
-> check the (shiny new) pte, finds it not dirty, and decides to evict the
-> apparently clean page.
+>One issue that I am still not clear on is (in particular for memory 
+>offline) is how exactly to determine if a page is under read I/O. I 
+>initially thought simply checking for PageUptodate would do the trick.
 >
-> What, for that matter, stops a page from being evicted from under a limboed
-> mapping?  Does it get accounted for (I guess the existing tlb flushing
-> should be sufficient to keep it under control).
+All troublesome case I found was "write". In my understanding,
+at generic bufferted file write, xxx_write_begin() -> write -> xxx_write_end()
+ sequence is used. xxx_write_begin locks a page and xxx_write_end unlock it. 
+(and xxx_write_end() set a page to be Uptodate in usual case.)
+So,it seems we can depend on that a page is locked or not.
+But it's complicated....
 
-The delimbo functions can be extended to deal with the dirty bit.
-They already have to be called to make sure the cpu is looking at the
-proper page flags.  The easiest solution to the races is probably to
-make the delimbo pte functions flush the tlb cache to make sure the
-cpu will also be looking at the correct entry to update flags.
-Otherwise the atomic ptep* functions would probably need to be
-modified.
-
-    Ross
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
