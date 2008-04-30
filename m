@@ -1,41 +1,89 @@
-Message-Id: <20080430170521.246745395@symbol.fehenstaub.lan>
-Date: Wed, 30 Apr 2008 19:05:21 +0200
+Message-Id: <20080430170839.835245774@symbol.fehenstaub.lan>
+References: <20080430170521.246745395@symbol.fehenstaub.lan>
+Date: Wed, 30 Apr 2008 19:05:24 +0200
 From: Johannes Weiner <hannes@saeurebad.de>
-Subject: [patch 0/4] Bootmem cleanups
+Subject: [patch 3/4] mm: Normalize internal argument passing of bootmem data
+Content-Disposition: inline; filename=mm-normalize-internal-argument-passing-of-bootmem-data.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ingo Molnar <mingo@elte.hu>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Ingo,
+All _core functions only need the bootmem data, not the whole node
+descriptor.  Adjust the two functions that take the node descriptor
+unneededly.
 
-I now dropped the node-crossing patches from my bootmem series and
-here is what is left over.
+Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
+CC: Ingo Molnar <mingo@elte.hu>
+---
 
-They apply to Linus' current git
-(0ff5ce7f30b45cc2014cec465c0e96c16877116e).
+Index: linux-2.6/mm/bootmem.c
+===================================================================
+--- linux-2.6.orig/mm/bootmem.c
++++ linux-2.6/mm/bootmem.c
+@@ -87,10 +87,9 @@ static unsigned long __init get_mapsize(
+ /*
+  * Called once to set up the allocator itself.
+  */
+-static unsigned long __init init_bootmem_core(pg_data_t *pgdat,
++static unsigned long __init init_bootmem_core(bootmem_data_t *bdata,
+ 	unsigned long mapstart, unsigned long start, unsigned long end)
+ {
+-	bootmem_data_t *bdata = pgdat->bdata;
+ 	unsigned long mapsize;
+ 
+ 	bdata->node_bootmem_map = phys_to_virt(PFN_PHYS(mapstart));
+@@ -371,11 +370,10 @@ found:
+ 	return ret;
+ }
+ 
+-static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
++static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+ {
+ 	struct page *page;
+ 	unsigned long pfn;
+-	bootmem_data_t *bdata = pgdat->bdata;
+ 	unsigned long i, count;
+ 	unsigned long idx;
+ 	unsigned long *map; 
+@@ -440,7 +438,7 @@ static unsigned long __init free_all_boo
+ unsigned long __init init_bootmem_node(pg_data_t *pgdat, unsigned long freepfn,
+ 				unsigned long startpfn, unsigned long endpfn)
+ {
+-	return init_bootmem_core(pgdat, freepfn, startpfn, endpfn);
++	return init_bootmem_core(pgdat->bdata, freepfn, startpfn, endpfn);
+ }
+ 
+ void __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
+@@ -463,14 +461,14 @@ void __init free_bootmem_node(pg_data_t 
+ unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
+ {
+ 	register_page_bootmem_info_node(pgdat);
+-	return free_all_bootmem_core(pgdat);
++	return free_all_bootmem_core(pgdat->bdata);
+ }
+ 
+ unsigned long __init init_bootmem(unsigned long start, unsigned long pages)
+ {
+ 	max_low_pfn = pages;
+ 	min_low_pfn = start;
+-	return init_bootmem_core(NODE_DATA(0), start, 0, pages);
++	return init_bootmem_core(NODE_DATA(0)->bdata, start, 0, pages);
+ }
+ 
+ #ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
+@@ -501,7 +499,7 @@ void __init free_bootmem(unsigned long a
+ 
+ unsigned long __init free_all_bootmem(void)
+ {
+-	return free_all_bootmem_core(NODE_DATA(0));
++	return free_all_bootmem_core(NODE_DATA(0)->bdata);
+ }
+ 
+ void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
 
-Please note that all parts affecting !X86_32_BORING_UMA_BOX are untested!
-
- arch/alpha/mm/numa.c             |    8 ++--
- arch/arm/mm/discontig.c          |   34 ++++++++++-----------
- arch/ia64/mm/discontig.c         |   11 +++----
- arch/m32r/mm/discontig.c         |    4 +--
- arch/m68k/mm/init.c              |    4 +--
- arch/mips/sgi-ip27/ip27-memory.c |    3 +-
- arch/parisc/mm/init.c            |    3 +-
- arch/powerpc/mm/numa.c           |    3 +-
- arch/sh/mm/numa.c                |    5 +--
- arch/sparc64/mm/init.c           |    3 +-
- arch/x86/mm/discontig_32.c       |    3 +-
- arch/x86/mm/numa_64.c            |    6 +---
- include/linux/bootmem.h          |    7 +---
- mm/bootmem.c                     |   59 ++++++++++++++++++-------------------
- mm/page_alloc.c                  |    4 +--
- 15 files changed, 67 insertions(+), 90 deletions(-)
-
-	Hannes
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
