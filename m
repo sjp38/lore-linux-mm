@@ -1,8 +1,8 @@
-Date: Wed, 30 Apr 2008 10:59:21 -0700 (PDT)
+Date: Wed, 30 Apr 2008 11:01:39 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: Warning on memory offline (and possible in usual migration?)
 In-Reply-To: <20080430072620.GI27652@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0804301058440.26132@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0804301059570.26173@schroedinger.engr.sgi.com>
 References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
  <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
  <20080422045205.GH21993@wotan.suse.de> <20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com>
@@ -18,14 +18,11 @@ To: Nick Piggin <npiggin@suse.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, GOTO <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 30 Apr 2008, Nick Piggin wrote:
+One issue that I am still not clear on is (in particular for memory 
+offline) is how exactly to determine if a page is under read I/O. I 
+initially thought simply checking for PageUptodate would do the trick.
 
-> But it was since tested and found to solve the problem (or at least the
-> warning went away). Christoph, do you have a regression test suite or
-> something to run it through?
 
-The numactl package contains a regression suite and also tools for 
-testing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
