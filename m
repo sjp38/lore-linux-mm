@@ -1,52 +1,41 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3UAxx5i011104
-	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 06:59:59 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3UB2eks121512
-	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 05:02:40 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3UB2eca002117
-	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 05:02:40 -0600
-Subject: Re: [PATCH] procfs task exe symlink
-From: Matt Helsley <matthltc@us.ibm.com>
-In-Reply-To: <20080426162458.GJ5882@ZenIV.linux.org.uk>
-References: <1202348669.9062.271.camel@localhost.localdomain>
-	 <20080426091930.ffe4e6a8.akpm@linux-foundation.org>
-	 <20080426162458.GJ5882@ZenIV.linux.org.uk>
-Content-Type: text/plain
-Date: Wed, 30 Apr 2008 04:02:38 -0700
-Message-Id: <1209553358.29759.24.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 30 Apr 2008 12:14:51 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [rfc] data race in page table setup/walking?
+In-Reply-To: <20080430060340.GE27652@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0804301140490.4651@blonde.site>
+References: <20080429050054.GC21795@wotan.suse.de> <Pine.LNX.4.64.0804291333540.22025@blonde.site>
+ <20080430060340.GE27652@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@tv-sign.ru>, David Howells <dhowells@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Christoph Hellwig <chellwig@de.ibm.com>, Hugh Dickins <hugh@veritas.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2008-04-26 at 17:24 +0100, Al Viro wrote:
-> On Sat, Apr 26, 2008 at 09:19:30AM -0700, Andrew Morton wrote:
+On Wed, 30 Apr 2008, Nick Piggin wrote:
 > 
-> > +	set_mm_exe_file(bprm->mm, bprm->file);
-> > +
-> >  	/*
-> >  	 * Release all of the old mmap stuff
-> >  	 */
-> > 
-> > However I'd ask that you conform that this is OK.  If set_mm_exe_file() is
-> > independent of unshare_files() then we're OK.  If however there is some
-> > ordering dependency then we'll need to confirm that the present ordering of the
-> > unshare_files() and set_mm_exe_file() is correct.
-> 
-> No, that's fine (unshare_files() had to go up for a lot of reasons, one
-> of them being that it can fail and de_thread() called just above is
-> very much irreversible).
+> Actually, aside, all those smp_wmb() things in pgtable-3level.h can
+> probably go away if we cared: because we could be sneaky and leverage
+> the assumption that top and bottom will always be in the same cacheline
+> and thus should be shielded from memory consistency problems :)
 
-They are independent. It just needs to be called before exec_mmap() --
-so your fix looks good.
+I've sometimes wondered along those lines.  But it would need
+interrupts disabled, wouldn't it?  And could SMM mess it up?
+And what about another CPU taking the cacheline to modify it
+in between our two accesses?
 
-Cheers,
-	-Matt Helsley
+I don't think we do care in that x86 PAE case, but as a general
+principal, if it can be safely assumed on all architectures (or
+more messily, just on some) under certain conditions, then shouldn't
+we be looking to use that technique (relying on a consistent view of
+separate variables clustered into the same cacheline) in critical
+places, rather than regarding it as sneaky?
+
+But I suspect this is a chimaera, that there's actually no
+safe use to be made of it.  I'd be glad to be shown wrong.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
