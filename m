@@ -1,49 +1,80 @@
-Message-Id: <20080430044320.479850443@sgi.com>
-References: <20080430044251.266380837@sgi.com>
-Date: Tue, 29 Apr 2008 21:42:58 -0700
-From: Christoph Lameter <clameter@sgi.com>
-Subject: [07/11] vcompound: bit waitqueue support
-Content-Disposition: inline; filename=vcp_waitqueue_support
+Date: Wed, 30 Apr 2008 13:50:35 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Page Faults slower in 2.6.25-rc9 than 2.6.23
+Message-Id: <20080430135035.b0b02533.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <d43160c70804290610t2135a271hd9b907529e89e74e@mail.gmail.com>
+References: <d43160c70804290610t2135a271hd9b907529e89e74e@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: Ross Biro <rossb@google.com>
+Cc: linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, "hugh@veritas.com" <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-If bit_waitqueue is passed a vmalloc address then it must use
-vmalloc_head_page() to determine the page struct address.
-vmalloc_head_page will fall back to virt_to_page() for physical
-addresses. For virtual addresses it will perform a page table lookup
-to find the page.
+On Tue, 29 Apr 2008 09:10:36 -0400
+"Ross Biro" <rossb@google.com> wrote:
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
----
- kernel/wait.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+> I don't know if this has been noticed before.  I was benchmarking my
+> page table relocation code and I noticed that on 2.6.25-rc9 page
+> faults take 10% more time than on 2.6.22.  This is using lmbench
+> running on an intel x86_64 system.  The good news is that the page
+> table relocation code now only adds a 1.6% slow down to page faults.
+> 
 
-Index: linux-2.6.25-rc8-mm2/kernel/wait.c
-===================================================================
---- linux-2.6.25-rc8-mm2.orig/kernel/wait.c	2008-04-01 12:44:26.000000000 -0700
-+++ linux-2.6.25-rc8-mm2/kernel/wait.c	2008-04-11 20:23:32.000000000 -0700
-@@ -9,6 +9,7 @@
- #include <linux/mm.h>
- #include <linux/wait.h>
- #include <linux/hash.h>
-+#include <linux/vmalloc.h>
- 
- void init_waitqueue_head(wait_queue_head_t *q)
- {
-@@ -245,7 +246,7 @@ EXPORT_SYMBOL(wake_up_bit);
- wait_queue_head_t *bit_waitqueue(void *word, int bit)
- {
- 	const int shift = BITS_PER_LONG == 32 ? 5 : 6;
--	const struct zone *zone = page_zone(virt_to_page(word));
-+	const struct zone *zone = page_zone(vcompound_head_page(word));
- 	unsigned long val = (unsigned long)word << shift | bit;
- 
- 	return &zone->wait_table[hash_long(val, zone->wait_table_bits)];
+It seems lmbench's pagefault program uses 'page fault by READ'.
+Then, this patch affects. (this patch was added at 2.6.24-rc?.)
+==
+http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=557ed1fa2620dc119adb86b34c614e152a629a80
+==
+By it, ZERO_PAGE is not used for page fault in anonymous mapping.
+So it seems an expexted result.
 
--- 
+Thanks,
+-Kame
+
+>     Ross
+> 
+> 2.6.25-rc9:
+> 
+> File & VM system latencies in microseconds - smaller is better
+> -------------------------------------------------------------------------------
+> Host                 OS   0K File      10K File     Mmap    Prot   Page   100fd
+>                         Create Delete Create Delete Latency Fault  Fault  selct
+> --------- ------------- ------ ------ ------ ------ ------- ----- ------- -----
+> ipnn2     Linux 2.6.25-   13.9 7.6111  103.4 9.7453   926.0 0.711 2.14250 2.552
+> ipnn2     Linux 2.6.25-   13.7 7.6243  310.7 9.6574   932.0 0.750 2.15970 2.555
+> ipnn2     Linux 2.6.25-   13.9 7.6831  192.5   10.0   927.0 0.760 2.21310 2.553
+> ipnn2     Linux 2.6.25-   13.9 7.5739   98.4 9.5330   927.0 0.703 2.17610 2.554
+> ipnn2     Linux 2.6.25-   14.6 7.6429   39.1   10.8   935.0 0.763 2.17250 2.552
+> ipnn2     Linux 2.6.25-   14.1 7.8777  129.8 9.9375   930.0 0.782 2.26460 2.559
+> ipnn2     Linux 2.6.25-   14.8 7.9639  623.8 8.2042   927.0 0.773 2.21510 2.557
+> ipnn2     Linux 2.6.25-   14.4 7.5842  622.3 8.3272   920.0 0.745 2.22210 2.558
+> ipnn2     Linux 2.6.25-   14.2 7.6339   45.7   10.2   935.0 0.675 2.23860 2.554
+> ipnn2     Linux 2.6.25-   14.1 7.7175  263.7   10.1   929.0 0.762 2.22350 2.556
+> ipnn2     Linux 2.6.25-   13.9 8.1230  378.2 9.4343   975.0 0.752 2.25920 2.554
+> 
+> 
+> 2.6.23:
+> File & VM system latencies in microseconds - smaller is better
+> -------------------------------------------------------------------------------
+> Host                 OS   0K File      10K File     Mmap    Prot   Page   100fd
+>                         Create Delete Create Delete Latency Fault  Fault  selct
+> --------- ------------- ------ ------ ------ ------ ------- ----- ------- -----
+> ipnn2     Linux 2.6.23-                               218.0 0.912 1.94010 2.626
+> ipnn2     Linux 2.6.23-                               219.0 1.095 1.96400 2.597
+> ipnn2     Linux 2.6.23-                               219.0 0.774 1.96640 2.603
+> ipnn2     Linux 2.6.23-                               221.0 0.946 1.99950 2.601
+> ipnn2     Linux 2.6.23-                               219.0 0.902 1.99160 2.733
+> ipnn2     Linux 2.6.23-                               217.0 0.904 2.04790 2.601
+> ipnn2     Linux 2.6.23-                               225.0 0.893 1.99620 2.600
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
