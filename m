@@ -1,8 +1,8 @@
-Received: from shark.he.net ([66.160.160.2]) by xenotime.net for <linux-mm@kvack.org>; Tue, 29 Apr 2008 20:14:04 -0700
-Date: Tue, 29 Apr 2008 20:14:04 -0700 (PDT)
+Received: from shark.he.net ([66.160.160.2]) by xenotime.net for <linux-mm@kvack.org>; Tue, 29 Apr 2008 20:18:12 -0700
+Date: Tue, 29 Apr 2008 20:18:12 -0700 (PDT)
 From: "Randy.Dunlap" <rdunlap@xenotime.net>
-Subject: [PATCH] docbook: fix vmalloc missing parameter notation
-Message-ID: <Pine.LNX.4.64.0804292013110.18219@shark.he.net>
+Subject: [PATCH v2] docbook: fix vmalloc missing parameter notation
+Message-ID: <Pine.LNX.4.64.0804292016530.18219@shark.he.net>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
