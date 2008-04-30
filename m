@@ -1,181 +1,57 @@
-Message-Id: <20080430044321.451211400@sgi.com>
+Message-Id: <20080430044321.016890376@sgi.com>
 References: <20080430044251.266380837@sgi.com>
-Date: Tue, 29 Apr 2008 21:43:02 -0700
+Date: Tue, 29 Apr 2008 21:43:00 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [11/11] e1000: Avoid vmalloc through virtualizable compound page
-Content-Disposition: inline; filename=vcp_e1000_buffers
+Subject: [09/11] slub: Use virtualizable compound for buffer
+Content-Disposition: inline; filename=vcp_fallback_slub_buffer
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, netdev@vger.kernel.org
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-Switch all the uses of vmalloc in the e1000 driver to virtualizable compounds.
-This will result in the use of regular memory for the ring buffers etc
-avoiding page tables.
+The caller table can get quite large if there are many call sites for a
+particular slab. Using a virtual compound page allows fallback to vmalloc in
+case the caller table gets too big and memory is fragmented. Currently we
+would fail the operation.
 
-Cc: netdev@vger.kernel.org
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
 ---
- drivers/net/e1000/e1000_main.c |   23 +++++++++++------------
- drivers/net/e1000e/netdev.c    |   12 ++++++------
- 2 files changed, 17 insertions(+), 18 deletions(-)
+ mm/slub.c |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-Index: linux-2.6/drivers/net/e1000e/netdev.c
+Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/drivers/net/e1000e/netdev.c	2008-04-25 16:02:34.973649656 -0700
-+++ linux-2.6/drivers/net/e1000e/netdev.c	2008-04-29 16:47:03.583706293 -0700
-@@ -1103,7 +1103,7 @@ int e1000e_setup_tx_resources(struct e10
- 	int err = -ENOMEM, size;
+--- linux-2.6.orig/mm/slub.c	2008-04-29 16:40:30.851208783 -0700
++++ linux-2.6/mm/slub.c	2008-04-29 16:46:46.471205957 -0700
+@@ -21,6 +21,7 @@
+ #include <linux/ctype.h>
+ #include <linux/kallsyms.h>
+ #include <linux/memory.h>
++#include <linux/vmalloc.h>
  
- 	size = sizeof(struct e1000_buffer) * tx_ring->count;
--	tx_ring->buffer_info = vmalloc(size);
-+	tx_ring->buffer_info = __alloc_vcompound(GFP_KERNEL, get_order(size));
- 	if (!tx_ring->buffer_info)
- 		goto err;
- 	memset(tx_ring->buffer_info, 0, size);
-@@ -1122,7 +1122,7 @@ int e1000e_setup_tx_resources(struct e10
+ /*
+  * Lock order:
+@@ -3689,8 +3690,7 @@ struct loc_track {
+ static void free_loc_track(struct loc_track *t)
+ {
+ 	if (t->max)
+-		free_pages((unsigned long)t->loc,
+-			get_order(sizeof(struct location) * t->max));
++		__free_vcompound(t->loc);
+ }
  
- 	return 0;
- err:
--	vfree(tx_ring->buffer_info);
-+	__free_vcompound(tx_ring->buffer_info);
- 	ndev_err(adapter->netdev,
- 	"Unable to allocate memory for the transmit descriptor ring\n");
- 	return err;
-@@ -1141,7 +1141,7 @@ int e1000e_setup_rx_resources(struct e10
- 	int i, size, desc_len, err = -ENOMEM;
+ static int alloc_loc_track(struct loc_track *t, unsigned long max, gfp_t flags)
+@@ -3700,7 +3700,7 @@ static int alloc_loc_track(struct loc_tr
  
- 	size = sizeof(struct e1000_buffer) * rx_ring->count;
--	rx_ring->buffer_info = vmalloc(size);
-+	rx_ring->buffer_info = __alloc_vcompound(GFP_KERNEL, get_order(size));
- 	if (!rx_ring->buffer_info)
- 		goto err;
- 	memset(rx_ring->buffer_info, 0, size);
-@@ -1177,7 +1177,7 @@ err_pages:
- 		kfree(buffer_info->ps_pages);
- 	}
- err:
--	vfree(rx_ring->buffer_info);
-+	__free_vcompound(rx_ring->buffer_info);
- 	ndev_err(adapter->netdev,
- 	"Unable to allocate memory for the transmit descriptor ring\n");
- 	return err;
-@@ -1224,7 +1224,7 @@ void e1000e_free_tx_resources(struct e10
+ 	order = get_order(sizeof(struct location) * max);
  
- 	e1000_clean_tx_ring(adapter);
+-	l = (void *)__get_free_pages(flags, order);
++	l = __alloc_vcompound(flags, order);
+ 	if (!l)
+ 		return 0;
  
--	vfree(tx_ring->buffer_info);
-+	__free_vcompound(tx_ring->buffer_info);
- 	tx_ring->buffer_info = NULL;
- 
- 	dma_free_coherent(&pdev->dev, tx_ring->size, tx_ring->desc,
-@@ -1251,7 +1251,7 @@ void e1000e_free_rx_resources(struct e10
- 		kfree(rx_ring->buffer_info[i].ps_pages);
- 	}
- 
--	vfree(rx_ring->buffer_info);
-+	__free_vcompound(rx_ring->buffer_info);
- 	rx_ring->buffer_info = NULL;
- 
- 	dma_free_coherent(&pdev->dev, rx_ring->size, rx_ring->desc,
-Index: linux-2.6/drivers/net/e1000/e1000_main.c
-===================================================================
---- linux-2.6.orig/drivers/net/e1000/e1000_main.c	2008-04-24 22:36:01.033639755 -0700
-+++ linux-2.6/drivers/net/e1000/e1000_main.c	2008-04-29 16:47:03.583706293 -0700
-@@ -1604,14 +1604,13 @@ e1000_setup_tx_resources(struct e1000_ad
- 	int size;
- 
- 	size = sizeof(struct e1000_buffer) * txdr->count;
--	txdr->buffer_info = vmalloc(size);
-+	txdr->buffer_info = __alloc_vcompound(GFP_KERNEL | __GFP_ZERO,
-+							get_order(size));
- 	if (!txdr->buffer_info) {
- 		DPRINTK(PROBE, ERR,
- 		"Unable to allocate memory for the transmit descriptor ring\n");
- 		return -ENOMEM;
- 	}
--	memset(txdr->buffer_info, 0, size);
--
- 	/* round up to nearest 4K */
- 
- 	txdr->size = txdr->count * sizeof(struct e1000_tx_desc);
-@@ -1620,7 +1619,7 @@ e1000_setup_tx_resources(struct e1000_ad
- 	txdr->desc = pci_alloc_consistent(pdev, txdr->size, &txdr->dma);
- 	if (!txdr->desc) {
- setup_tx_desc_die:
--		vfree(txdr->buffer_info);
-+		__free_vcompound(txdr->buffer_info);
- 		DPRINTK(PROBE, ERR,
- 		"Unable to allocate memory for the transmit descriptor ring\n");
- 		return -ENOMEM;
-@@ -1648,7 +1647,7 @@ setup_tx_desc_die:
- 			DPRINTK(PROBE, ERR,
- 				"Unable to allocate aligned memory "
- 				"for the transmit descriptor ring\n");
--			vfree(txdr->buffer_info);
-+			__free_vcompound(txdr->buffer_info);
- 			return -ENOMEM;
- 		} else {
- 			/* Free old allocation, new allocation was successful */
-@@ -1821,7 +1820,7 @@ e1000_setup_rx_resources(struct e1000_ad
- 	int size, desc_len;
- 
- 	size = sizeof(struct e1000_buffer) * rxdr->count;
--	rxdr->buffer_info = vmalloc(size);
-+	rxdr->buffer_info = __alloc_vcompound(GFP_KERNEL, get_order(size));
- 	if (!rxdr->buffer_info) {
- 		DPRINTK(PROBE, ERR,
- 		"Unable to allocate memory for the receive descriptor ring\n");
-@@ -1832,7 +1831,7 @@ e1000_setup_rx_resources(struct e1000_ad
- 	rxdr->ps_page = kcalloc(rxdr->count, sizeof(struct e1000_ps_page),
- 	                        GFP_KERNEL);
- 	if (!rxdr->ps_page) {
--		vfree(rxdr->buffer_info);
-+		__free_vcompound(rxdr->buffer_info);
- 		DPRINTK(PROBE, ERR,
- 		"Unable to allocate memory for the receive descriptor ring\n");
- 		return -ENOMEM;
-@@ -1842,7 +1841,7 @@ e1000_setup_rx_resources(struct e1000_ad
- 	                            sizeof(struct e1000_ps_page_dma),
- 	                            GFP_KERNEL);
- 	if (!rxdr->ps_page_dma) {
--		vfree(rxdr->buffer_info);
-+		__free_vcompound(rxdr->buffer_info);
- 		kfree(rxdr->ps_page);
- 		DPRINTK(PROBE, ERR,
- 		"Unable to allocate memory for the receive descriptor ring\n");
-@@ -1865,7 +1864,7 @@ e1000_setup_rx_resources(struct e1000_ad
- 		DPRINTK(PROBE, ERR,
- 		"Unable to allocate memory for the receive descriptor ring\n");
- setup_rx_desc_die:
--		vfree(rxdr->buffer_info);
-+		__free_vcompound(rxdr->buffer_info);
- 		kfree(rxdr->ps_page);
- 		kfree(rxdr->ps_page_dma);
- 		return -ENOMEM;
-@@ -2170,7 +2169,7 @@ e1000_free_tx_resources(struct e1000_ada
- 
- 	e1000_clean_tx_ring(adapter, tx_ring);
- 
--	vfree(tx_ring->buffer_info);
-+	__free_vcompound(tx_ring->buffer_info);
- 	tx_ring->buffer_info = NULL;
- 
- 	pci_free_consistent(pdev, tx_ring->size, tx_ring->desc, tx_ring->dma);
-@@ -2278,9 +2277,9 @@ e1000_free_rx_resources(struct e1000_ada
- 
- 	e1000_clean_rx_ring(adapter, rx_ring);
- 
--	vfree(rx_ring->buffer_info);
-+	__free_vcompound(rx_ring->buffer_info);
- 	rx_ring->buffer_info = NULL;
--	kfree(rx_ring->ps_page);
-+	__free_vcompound(rx_ring->ps_page);
- 	rx_ring->ps_page = NULL;
- 	kfree(rx_ring->ps_page_dma);
- 	rx_ring->ps_page_dma = NULL;
 
 -- 
 
