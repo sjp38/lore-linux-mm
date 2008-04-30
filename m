@@ -1,36 +1,60 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3UL1J79007654
-	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 17:01:19 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3UL19MW086870
-	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 15:01:10 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3UL16mr017449
-	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 15:01:09 -0600
-Subject: Re: [patch 12/18] hugetlbfs: support larger than MAX_ORDER
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20080423015430.965631000@nick.local0.net>
-References: <20080423015302.745723000@nick.local0.net>
-	 <20080423015430.965631000@nick.local0.net>
-Content-Type: text/plain
-Date: Wed, 30 Apr 2008 14:01:03 -0700
-Message-Id: <1209589263.4461.35.camel@nimitz.home.sr71.net>
-Mime-Version: 1.0
+Received: from zps78.corp.google.com (zps78.corp.google.com [172.25.146.78])
+	by smtp-out.google.com with ESMTP id m3UMFh7C031314
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 23:15:43 +0100
+Received: from fg-out-1718.google.com (fgad23.prod.google.com [10.86.55.23])
+	by zps78.corp.google.com with ESMTP id m3UMFKca011535
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 15:15:41 -0700
+Received: by fg-out-1718.google.com with SMTP id d23so338619fga.5
+        for <linux-mm@kvack.org>; Wed, 30 Apr 2008 15:15:41 -0700 (PDT)
+Message-ID: <d43160c70804301515i7e02a3d5ha3b84d4b26ae68bd@mail.gmail.com>
+Date: Wed, 30 Apr 2008 18:15:40 -0400
+From: "Ross Biro" <rossb@google.com>
+Subject: Re: [RFC/PATH 1/2] MM: Make Page Tables Relocatable -- conditional flush
+In-Reply-To: <4818CEDA.8000908@goop.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080429134254.635FEDC683@localhost> <4818B262.5020909@goop.org>
+	 <d43160c70804301140q16aed710rcafcab95876de078@mail.gmail.com>
+	 <4818CEDA.8000908@goop.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, nacc@us.ibm.com, abh@cray.com, wli@holomorphy.com
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-04-23 at 11:53 +1000, npiggin@suse.de wrote:
-> +static int __init alloc_bm_huge_page(struct hstate *h)
+On Wed, Apr 30, 2008 at 3:56 PM, Jeremy Fitzhardinge <jeremy@goop.org> wrote:
+>>> - How does it deal with migrating the accessed/dirty bits in ptes if
+>>>  cpus can be using old versions of the pte for a while after the
+>>>  copy?  Losing dirty updates can lose data, so explicitly addressing
+>>>  this point in code and/or comments is important.
+>>>
+>>
+>> It doesn't currently.  Although it's easy to fix.  Just before the
+>> free, we just have to copy the dirty bits again.  Slow, but not in a
+>> critical path.
+>>
+>
+> But the issue I'm concerned about is what happens if a process writes the
+> page, causing its cpu to mark the (old, in-limbo) pte dirty.  Meanwhile
+> someone else is scanning the pagetables looking for things to evict.  It
+> check the (shiny new) pte, finds it not dirty, and decides to evict the
+> apparently clean page.
+>
+> What, for that matter, stops a page from being evicted from under a limboed
+> mapping?  Does it get accounted for (I guess the existing tlb flushing
+> should be sufficient to keep it under control).
 
-I was just reading one of Jon's patches, and saw this.  Could we expand
-the '_bm_' to '_boot_'?  Or, maybe rename to bootmem_alloc_hpage()?
-'bm' just doesn't seem to register in my teeny brain.
+The delimbo functions can be extended to deal with the dirty bit.
+They already have to be called to make sure the cpu is looking at the
+proper page flags.  The easiest solution to the races is probably to
+make the delimbo pte functions flush the tlb cache to make sure the
+cpu will also be looking at the correct entry to update flags.
+Otherwise the atomic ptep* functions would probably need to be
+modified.
 
--- Dave
+    Ross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
