@@ -1,68 +1,82 @@
-Message-Id: <20080430044320.303065251@sgi.com>
+Message-Id: <20080430044320.082665180@sgi.com>
 References: <20080430044251.266380837@sgi.com>
-Date: Tue, 29 Apr 2008 21:42:57 -0700
+Date: Tue, 29 Apr 2008 21:42:56 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [06/11] sparsemem: Use virtualizable compound page
-Content-Disposition: inline; filename=vcp_sparsemem_fallback
+Subject: [05/11] vcompound: Debugging aid
+Content-Disposition: inline; filename=vcp_debugging_aids
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, apw@shadowen.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Sparsemem currently attempts to allocate a physically contiguous memmap
-and then falls back to vmalloc. The same can now be accomplished
-using a request for a virtualizable compound pages.
+Virtualized Compound Pages are rare in practice and thus subtle bugs may
+creep in if we do not test the kernel with Virtualized Compounds.
+CONFIG_VIRTUALIZE_ALWAYS results in virtualizable compound allocation
+requests always result in virtualized compounds.
 
-Cc: apw@shadowen.org
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- mm/sparse.c |   25 ++-----------------------
- 1 file changed, 2 insertions(+), 23 deletions(-)
+ lib/Kconfig.debug |   12 ++++++++++++
+ mm/vmalloc.c      |   15 +++++++++++++--
+ 2 files changed, 25 insertions(+), 2 deletions(-)
 
-Index: linux-2.6/mm/sparse.c
+Index: linux-2.6/lib/Kconfig.debug
 ===================================================================
---- linux-2.6.orig/mm/sparse.c	2008-04-29 16:50:39.761208362 -0700
-+++ linux-2.6/mm/sparse.c	2008-04-29 17:07:42.773707952 -0700
-@@ -383,24 +383,7 @@ static void free_map_bootmem(struct page
- #else
- static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
- {
--	struct page *page, *ret;
--	unsigned long memmap_size = sizeof(struct page) * nr_pages;
--
--	page = alloc_pages(GFP_KERNEL|__GFP_NOWARN, get_order(memmap_size));
--	if (page)
--		goto got_map_page;
--
--	ret = vmalloc(memmap_size);
--	if (ret)
--		goto got_map_ptr;
--
--	return NULL;
--got_map_page:
--	ret = (struct page *)pfn_to_kaddr(page_to_pfn(page));
--got_map_ptr:
--	memset(ret, 0, memmap_size);
--
--	return ret;
-+	return __alloc_vcompound(GFP_KERNEL, get_order(memmap_size)));
- }
+--- linux-2.6.orig/lib/Kconfig.debug	2008-04-29 21:27:20.452525154 -0700
++++ linux-2.6/lib/Kconfig.debug	2008-04-29 21:27:36.533025562 -0700
+@@ -159,6 +159,18 @@ config DETECT_SOFTLOCKUP
+ 	   can be detected via the NMI-watchdog, on platforms that
+ 	   support it.)
  
- static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
-@@ -411,11 +394,7 @@ static inline struct page *kmalloc_secti
++config VIRTUALIZE_ALWAYS
++	bool "Always allocate virtualized compounds pages"
++	default y
++	help
++	  Virtualized compound pages are only allocated if there is no linear
++	  memory available. They are a fallback and potential issues created by
++	  the use of virtual mappings instead of physically linear memory may
++	  not surface because of the infrequent need to create them. Enabling
++	  this option makes every allocation of a virtualizable compound page
++	  generate virtualized compound page. May have a significant
++	  performance impact. Only for testing.
++
+ config SCHED_DEBUG
+ 	bool "Collect scheduler debugging info"
+ 	depends on DEBUG_KERNEL && PROC_FS
+Index: linux-2.6/mm/vmalloc.c
+===================================================================
+--- linux-2.6.orig/mm/vmalloc.c	2008-04-29 21:27:32.237026026 -0700
++++ linux-2.6/mm/vmalloc.c	2008-04-29 21:27:36.537025989 -0700
+@@ -1191,6 +1191,11 @@ struct page *alloc_vcompound_node(int no
+ 	if (order)
+ 		alloc_flags |= __GFP_COMP;
  
- static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
- {
--	if (is_vmalloc_addr(memmap))
--		vfree(memmap);
--	else
--		free_pages((unsigned long)memmap,
--			   get_order(sizeof(struct page) * nr_pages));
-+	__free_vcompound(memmap);
- }
++#ifdef CONFIG_VIRTUALIZE_ALWAYS
++	if (system_state == SYSTEM_RUNNING && order)
++		page = NULL;
++	else
++#endif
+ 	if (node == -1) {
+ 		page = alloc_pages(alloc_flags, order);
+ 	} else
+@@ -1212,8 +1217,14 @@ void *__alloc_vcompound(gfp_t flags, int
+ 	struct vm_struct *vm;
+ 	void *addr;
  
- static void free_map_bootmem(struct page *page, unsigned long nr_pages)
+-	addr = (void *)__get_free_pages(flags | __GFP_NORETRY | __GFP_NOWARN,
+-								order);
++#ifdef CONFIG_VIRTUALIZE_ALWAYS
++	if (system_state == SYSTEM_RUNNING && order)
++		addr = NULL;
++	else
++#endif
++		addr = (void *)__get_free_pages(
++			flags | __GFP_NORETRY | __GFP_NOWARN, order);
++
+ 	if (addr || !order)
+ 		return addr;
+ 
 
 -- 
 
