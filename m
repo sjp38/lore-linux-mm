@@ -1,39 +1,41 @@
-Date: Wed, 30 Apr 2008 06:46:07 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] more ZERO_PAGE handling ( was 2.6.24 regression: deadlock on coredump of big process)
-Message-ID: <20080430044606.GA24775@wotan.suse.de>
-References: <4815E932.1040903@cybernetics.com> <20080429100048.3e78b1ba.kamezawa.hiroyu@jp.fujitsu.com> <48172C72.1000501@cybernetics.com> <20080430132516.28f1ee0c.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-ID: <4817FDA5.1040702@kolumbus.fi>
+Date: Wed, 30 Apr 2008 08:03:33 +0300
+From: =?ISO-8859-1?Q?Mika_Penttil=E4?= <mika.penttila@kolumbus.fi>
+MIME-Version: 1.0
+Subject: Re: [PATCH] more ZERO_PAGE handling ( was 2.6.24 regression: deadlock
+ on coredump of big process)
+References: <4815E932.1040903@cybernetics.com>	<20080429100048.3e78b1ba.kamezawa.hiroyu@jp.fujitsu.com>	<48172C72.1000501@cybernetics.com> <20080430132516.28f1ee0c.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20080430132516.28f1ee0c.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Tony Battersby <tonyb@cybernetics.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Tony Battersby <tonyb@cybernetics.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 30, 2008 at 01:25:16PM +0900, KAMEZAWA Hiroyuki wrote:
+KAMEZAWA Hiroyuki wrote:
 > On Tue, 29 Apr 2008 10:10:58 -0400
 > Tony Battersby <tonyb@cybernetics.com> wrote:
-> > 
-> > If I leave more memory free by changing the argument to
-> > malloc_all_but_x_mb(), then I have to increase the number of threads
-> > required to trigger the deadlock.  Changing the thread stack size via
-> > setrlimit(RLIMIT_STACK) also changes the number of threads that are
-> > required to trigger the deadlock.  For example, with
-> > malloc_all_but_x_mb(16) and the default stack size of 8 MB, <= 5 threads
-> > will coredump successfully, and >= 6 threads will deadlock.  With
-> > malloc_all_but_x_mb(16) and a reduced stack size of 4096 bytes, <= 8
-> > threads will coredump successfully, and >= 9 threads will deadlock.
-> > 
-> > Also note that the "free" command reports 10 MB free memory while the
-> > program is running before the segfault is triggered.
-> > 
+>   
+>> If I leave more memory free by changing the argument to
+>> malloc_all_but_x_mb(), then I have to increase the number of threads
+>> required to trigger the deadlock.  Changing the thread stack size via
+>> setrlimit(RLIMIT_STACK) also changes the number of threads that are
+>> required to trigger the deadlock.  For example, with
+>> malloc_all_but_x_mb(16) and the default stack size of 8 MB, <= 5 threads
+>> will coredump successfully, and >= 6 threads will deadlock.  With
+>> malloc_all_but_x_mb(16) and a reduced stack size of 4096 bytes, <= 8
+>> threads will coredump successfully, and >= 9 threads will deadlock.
+>>
+>> Also note that the "free" command reports 10 MB free memory while the
+>> program is running before the segfault is triggered.
+>>
+>>     
 > Hmm, my idea is below.
-> 
+>
 > Nick's remove ZERO_PAGE patch includes following change
-> 
+>
 > ==
 > @@ -2252,39 +2158,24 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 >         spinlock_t *ptl;
@@ -49,7 +51,7 @@ On Wed, Apr 30, 2008 at 01:25:16PM +0900, KAMEZAWA Hiroyuki wrote:
 > +               goto oom;
 > +       page = alloc_zeroed_user_highpage_movable(vma, address);
 > ==
-> 
+>
 > above change is for avoiding to use ZERO_PAGE at read-page-fault to anonymous
 > vma. This is reasonable I think. But at coredump, tons of read-but-never-written 
 > pages can be allocated.
@@ -61,31 +63,32 @@ On Wed, Apr 30, 2008 at 01:25:16PM +0900, KAMEZAWA Hiroyuki wrote:
 >                  -> do_anonymous page.
 > ==
 > follow_page() returns ZERO_PAGE only when page table is not avaiable.
-> 
+>
 > So, making follow_page() return ZERO_PAGE can be a fix of extra memory
 > consumpstion at core dump. (Maybe someone can think of other fix.)
-> 
+>
 > how about this patch ? Could you try ?
-> 
-
-Ah, yes I stupidly missed this detail of follow_page. Definitely your
-patch is a good idea, and I think it would be a good idea even when
-we still had ZERO_PAGE, because it would prevent pagetable clearing
-from having to do extra teardown work here.
-
-Good catch, and I agree with your patch. Thanks
-
-
+>
 > (I'm sorry but I'll not be active for a week because my servers are powered off.)
-> 
+>
 > -Kame
-> 
+>
+>   
+
+
+But sure we still have to handle the fault for instance swapped pages, 
+for other uses of get_user_pages();
+
+--Mika
+
+
+
 > ==
 > follow_page() returns ZERO_PAGE if page table is not available.
 > but returns NULL pte is not presentl.
-> 
+>
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
+>
 > Index: linux-2.6.25/mm/memory.c
 > ===================================================================
 > --- linux-2.6.25.orig/mm/memory.c
@@ -131,6 +134,14 @@ Good catch, and I agree with your patch. Thanks
 >  	/*
 >  	 * When core dumping an enormous anonymous area that nobody
 >  	 * has touched so far, we don't want to allocate page tables.
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+>
+>   
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
