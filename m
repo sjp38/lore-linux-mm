@@ -1,77 +1,52 @@
-Date: Wed, 30 Apr 2008 20:15:25 +1000
-From: David Chinner <dgc@sgi.com>
-Subject: Re: correct use of vmtruncate()?
-Message-ID: <20080430101525.GJ108924158@sgi.com>
-References: <20080429100601.GO108924158@sgi.com> <20080430074738.GC7791@skywalker>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m3UAxx5i011104
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 06:59:59 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3UB2eks121512
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 05:02:40 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m3UB2eca002117
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 05:02:40 -0600
+Subject: Re: [PATCH] procfs task exe symlink
+From: Matt Helsley <matthltc@us.ibm.com>
+In-Reply-To: <20080426162458.GJ5882@ZenIV.linux.org.uk>
+References: <1202348669.9062.271.camel@localhost.localdomain>
+	 <20080426091930.ffe4e6a8.akpm@linux-foundation.org>
+	 <20080426162458.GJ5882@ZenIV.linux.org.uk>
+Content-Type: text/plain
+Date: Wed, 30 Apr 2008 04:02:38 -0700
+Message-Id: <1209553358.29759.24.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080430074738.GC7791@skywalker>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: David Chinner <dgc@sgi.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, xfs-oss <xfs@oss.sgi.com>
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@tv-sign.ru>, David Howells <dhowells@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Christoph Hellwig <chellwig@de.ibm.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 30, 2008 at 01:17:38PM +0530, Aneesh Kumar K.V wrote:
-> On Tue, Apr 29, 2008 at 08:06:01PM +1000, David Chinner wrote:
-> > Folks,
-> > 
-> > It appears to me that vmtruncate() is not used correctly in
-> > block_write_begin() and friends. The short summary is that it
-> > appears that the usage in these functions implies that vmtruncate()
-> > should cause truncation of blocks on disk but no filesystem
-> > appears to do this, nor does the documentation imply they should.
+On Sat, 2008-04-26 at 17:24 +0100, Al Viro wrote:
+> On Sat, Apr 26, 2008 at 09:19:30AM -0700, Andrew Morton wrote:
 > 
-> Looking at ext*_truncate, I see we are freeing blocks as a part of vmtruncate.
-> Or did I miss something ?
+> > +	set_mm_exe_file(bprm->mm, bprm->file);
+> > +
+> >  	/*
+> >  	 * Release all of the old mmap stuff
+> >  	 */
+> > 
+> > However I'd ask that you conform that this is OK.  If set_mm_exe_file() is
+> > independent of unshare_files() then we're OK.  If however there is some
+> > ordering dependency then we'll need to confirm that the present ordering of the
+> > unshare_files() and set_mm_exe_file() is correct.
+> 
+> No, that's fine (unshare_files() had to go up for a lot of reasons, one
+> of them being that it can fail and de_thread() called just above is
+> very much irreversible).
 
-No I missed something. I was looking at block_truncate_page() which is
-called by various truncate methods but does not do truncation itself.
-
-Still doesn't help XFS, though, as updating different parts of the
-inode in different transactions will result in non-atomic ->setattr
-updates. Which, given that XFS tends to excel at exposing non-atomic
-modifications in crash recovery, is a really bad thing.
-
-Looking further, doing the truncate operation in ->truncate is
-probably really stupid simply because the interface does not allow
-errors to be returned to the caller. e.g. ufs_setattr() has this
-comment:
-
-/*
- * We don't define our `inode->i_op->truncate', and call it here,
- * because of:
- * - there is no way to know old size
- * - there is no way inform user about error, if it happens in `truncate'
- */
-
-and I've just added a WARN_ON(error) to xfs_vn_truncate() so that
-errors don't get lost silently.
-
-UFS also uses block_write_begin(), so it will have exactly the same
-problem as XFS - blocks beyond EOF don't get truncated away by
-vmtruncate if an error occurs in block_write_begin().
-
-AFAICT, gfs2 is another filesystem that does not have a ->truncate
-callback - truncation is driven through the ->setattr interface.
-However, gfs2_write_begin() calls vmtruncate() like
-block_write_begin() on error from block_prepare_write() and hence
-also has this bug. 
-
-I'm sure there are other filesystems that, like XFS, UFS and GFS2,
-don't do block truncation in ->truncate. Hence it really does seem
-that calling vmtruncate() from anything other than a ->setattr method
-is a bug because to do so is to make a false assumption about how
-filesystems are implemented....
+They are independent. It just needs to be called before exec_mmap() --
+so your fix looks good.
 
 Cheers,
-
-Dave.
--- 
-Dave Chinner
-Principal Engineer
-SGI Australian Software Group
+	-Matt Helsley
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
