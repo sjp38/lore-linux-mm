@@ -1,115 +1,45 @@
-Date: Wed, 30 Apr 2008 13:46:30 +1000
-From: David Chinner <dgc@sgi.com>
-Subject: Re: correct use of vmtruncate()?
-Message-ID: <20080430034630.GY108924158@sgi.com>
-References: <20080429100601.GO108924158@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080429100601.GO108924158@sgi.com>
+Message-Id: <4817F108.40806@mxp.nes.nec.co.jp>
+Date: Wed, 30 Apr 2008 13:09:44 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH] another swap controller for cgroup
+References: <20080317085003.EA4511E7A77@siro.lan> <20080429225047.EC4645A04@siro.lan>
+In-Reply-To: <20080429225047.EC4645A04@siro.lan>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Chinner <dgc@sgi.com>
-Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, xfs-oss <xfs@oss.sgi.com>
+To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+Cc: containers@lists.osdl.org, minoura@valinux.co.jp, hugh@veritas.com, balbir@linux.vnet.ibm.com, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 29, 2008 at 08:06:01PM +1000, David Chinner wrote:
-> Folks,
+YAMAMOTO Takashi wrote:
+>>>> - anonymous objects (shmem) are not accounted.
+>>> IMHO, shmem should be accounted.
+>>> I agree it's difficult in your implementation,
+>>> but are you going to support it?
+>> it should be trivial to track how much swap an anonymous object is using.
+>> i'm not sure how it should be associated with cgroups, tho.
+>>
+>> YAMAMOTO Takashi
 > 
-> It appears to me that vmtruncate() is not used correctly in
-> block_write_begin() and friends. The short summary is that it
-> appears that the usage in these functions implies that vmtruncate()
-> should cause truncation of blocks on disk but no filesystem
-> appears to do this, nor does the documentation imply they should.
+> i implemented shmem swap accounting.  see below.
+> 
+> YAMAMOTO Takashi
+> 
+Hi, YAMAMOTO san.
 
-[snip]
+Thank you for implementing this feature.
+I will review it.
 
-> All in all, I'd prefer the ->setattr() with a "ATTR_NO_LOCK" flag
-> solution as the simplest way to solve this, but maybe there's
-> something that I've missed. Comments, suggestions are welcome....
+BTW, I'm just trying to make my swapcontroller patch
+that is rebased on recent kernel and implemented
+as part of memory controller.
+I'm going to submit it by the middle of May.
 
-And the patch to demonstrate this is below. It does appear to fix
-the problem, so I'd appreciate some feedback from various other fs
-maintainers on whether this will cause problems or not....
 
-Cheers,
-
-Dave.
-
----
- fs/buffer.c                 |   18 ++++++++++++++----
- fs/xfs/linux-2.6/xfs_iops.c |    4 ++++
- include/linux/fs.h          |    1 +
- 3 files changed, 19 insertions(+), 4 deletions(-)
-
-Index: 2.6.x-xfs-new/fs/buffer.c
-===================================================================
---- 2.6.x-xfs-new.orig/fs/buffer.c	2008-04-30 12:32:59.482687869 +1000
-+++ 2.6.x-xfs-new/fs/buffer.c	2008-04-30 12:43:15.595973324 +1000
-@@ -2019,8 +2019,13 @@ int block_write_begin(struct file *file,
- 			 * outside i_size.  Trim these off again. Don't need
- 			 * i_size_read because we hold i_mutex.
- 			 */
--			if (pos + len > inode->i_size)
--				vmtruncate(inode, inode->i_size);
-+			if (pos + len > inode->i_size) {
-+				struct iattr newattrs;
-+
-+				newattrs.ia_size = inode->i_size;
-+				newattrs.ia_valid = ATTR_SIZE | ATTR_NO_LOCK;
-+				notify_change(file->f_dentry, &newattrs);
-+			}
- 		}
- 		goto out;
- 	}
-@@ -2576,8 +2581,13 @@ out_release:
- 	page_cache_release(page);
- 	*pagep = NULL;
- 
--	if (pos + len > inode->i_size)
--		vmtruncate(inode, inode->i_size);
-+	if (pos + len > inode->i_size) {
-+		struct iattr newattrs;
-+
-+		newattrs.ia_size = inode->i_size;
-+		newattrs.ia_valid = ATTR_SIZE | ATTR_NO_LOCK;
-+		notify_change(file->f_dentry, &newattrs);
-+	}
- 
- 	return ret;
- }
-Index: 2.6.x-xfs-new/fs/xfs/linux-2.6/xfs_iops.c
-===================================================================
---- 2.6.x-xfs-new.orig/fs/xfs/linux-2.6/xfs_iops.c	2008-04-30 12:32:59.046743585 +1000
-+++ 2.6.x-xfs-new/fs/xfs/linux-2.6/xfs_iops.c	2008-04-30 12:33:28.946922244 +1000
-@@ -709,6 +709,10 @@ xfs_vn_setattr(
- 
- 	if (ia_valid & (ATTR_MTIME_SET | ATTR_ATIME_SET))
- 		flags |= ATTR_UTIME;
-+
-+	if (ia_valid & ATTR_NO_LOCK)
-+		flags |= ATTR_NOLOCK;
-+
- #ifdef ATTR_NO_BLOCK
- 	if ((ia_valid & ATTR_NO_BLOCK))
- 		flags |= ATTR_NONBLOCK;
-Index: 2.6.x-xfs-new/include/linux/fs.h
-===================================================================
---- 2.6.x-xfs-new.orig/include/linux/fs.h	2008-04-30 12:32:59.094737451 +1000
-+++ 2.6.x-xfs-new/include/linux/fs.h	2008-04-30 12:33:28.998915599 +1000
-@@ -337,6 +337,7 @@ typedef void (dio_iodone_t)(struct kiocb
- #define ATTR_FILE	8192
- #define ATTR_KILL_PRIV	16384
- #define ATTR_OPEN	32768	/* Truncating from open(O_TRUNC) */
-+#define ATTR_NO_LOCK	65536	/* calling with fs locks already held */
- 
- /*
-  * This is the Inode Attributes structure, used for notify_change().  It
-
--- 
-Dave Chinner
-Principal Engineer
-SGI Australian Software Group
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
