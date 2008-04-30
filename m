@@ -1,46 +1,46 @@
-Date: Wed, 30 Apr 2008 12:33:53 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
+Received: from zps38.corp.google.com (zps38.corp.google.com [172.25.146.38])
+	by smtp-out.google.com with ESMTP id m3UDGH6P017746
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 14:16:17 +0100
+Received: from fg-out-1718.google.com (fgg16.prod.google.com [10.86.7.16])
+	by zps38.corp.google.com with ESMTP id m3UDGFlt002910
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 06:16:16 -0700
+Received: by fg-out-1718.google.com with SMTP id 16so149957fgg.23
+        for <linux-mm@kvack.org>; Wed, 30 Apr 2008 06:16:15 -0700 (PDT)
+Message-ID: <d43160c70804300616v6eb89ea8re22af1956b11f012@mail.gmail.com>
+Date: Wed, 30 Apr 2008 09:16:15 -0400
+From: "Ross Biro" <rossb@google.com>
 Subject: Re: Page Faults slower in 2.6.25-rc9 than 2.6.23
-In-Reply-To: <20080430135035.b0b02533.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0804301215080.4651@blonde.site>
-References: <d43160c70804290610t2135a271hd9b907529e89e74e@mail.gmail.com>
- <20080430135035.b0b02533.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <d43160c70804291000k5de1b657sc1f381e08ecaeb07@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <d43160c70804290610t2135a271hd9b907529e89e74e@mail.gmail.com>
+	 <Pine.LNX.4.64.0804291447040.5058@blonde.site>
+	 <661de9470804290752w1dc0cfb3k72e81d828a45765e@mail.gmail.com>
+	 <d43160c70804290821i2bb0bc17m21b0c5838631e0b8@mail.gmail.com>
+	 <Pine.LNX.4.64.0804291629410.23101@blonde.site>
+	 <48175005.90400@linux.vnet.ibm.com>
+	 <d43160c70804291000k5de1b657sc1f381e08ecaeb07@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Ross Biro <rossb@google.com>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
+To: balbir@linux.vnet.ibm.com
+Cc: Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 30 Apr 2008, KAMEZAWA Hiroyuki wrote:
-> On Tue, 29 Apr 2008 09:10:36 -0400
-> "Ross Biro" <rossb@google.com> wrote:
-> > I don't know if this has been noticed before.  I was benchmarking my
-> > page table relocation code and I noticed that on 2.6.25-rc9 page
-> > faults take 10% more time than on 2.6.22.  This is using lmbench
-> > running on an intel x86_64 system.  The good news is that the page
-> > table relocation code now only adds a 1.6% slow down to page faults.
-> 
-> It seems lmbench's pagefault program uses 'page fault by READ'.
-> Then, this patch affects. (this patch was added at 2.6.24-rc?.)
-> ==
-> http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=557ed1fa2620dc119adb86b34c614e152a629a80
-> ==
-> By it, ZERO_PAGE is not used for page fault in anonymous mapping.
+On Tue, Apr 29, 2008 at 1:00 PM, Ross Biro <rossb@google.com> wrote:
+> > Aah.. Yes... but I am definitely interested in figuring out the root cause for
+>  > the regression.
+>
+>  I can't reproduce the 2.6.23 results.  I'm going to run the benchmarks
+>  a few more times, but I'm suspecting something changed with the
+>  hardware.
 
-I'd wondered about that one too, but no: lmbench lat_pagefault uses
-a shared mmap of an ordinary file (not /dev/zero), so the ZERO_PAGE
-changes should have no effect on it whatsoever.
+The 2.6.23 results have been consistant with 2.6.24 results and
+lmbench has crashed my test machine at least once.  I'm guessing some
+sort of memory error causing a lot of ECC and slowing things down.
 
-I notice that test is expecting msync(,,MS_INVALIDATE) to do something
-it's never done on Linux (a kind of drop caches for the range).  We've
-never done anything with MS_INVALIDATE, beyond permitting the flag:
-I think you find problems however you try to go about implementing
-it (and it might even originate from a UNIX which couldn't do shared
-mmap coherently).  So I wonder if that test is erratic because of it.
-
-Hugh
+    Ross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
