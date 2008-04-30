@@ -1,39 +1,40 @@
-Date: Wed, 30 Apr 2008 09:26:20 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: Warning on memory offline (and possible in usual migration?)
-Message-ID: <20080430072620.GI27652@wotan.suse.de>
-References: <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com> <20080422045205.GH21993@wotan.suse.de> <20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com> <20080422094352.GB23770@wotan.suse.de> <Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com> <20080423004804.GA14134@wotan.suse.de> <20080429162016.961aa59d.kamezawa.hiroyu@jp.fujitsu.com> <20080430065611.GH27652@wotan.suse.de> <20080430001249.c07ff5c8.akpm@linux-foundation.org>
-Mime-Version: 1.0
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id m3U7lmQo008181
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 13:17:48 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m3U7lfqs1355818
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 13:17:42 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id m3U7llNM024142
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 07:47:47 GMT
+Date: Wed, 30 Apr 2008 13:17:38 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: correct use of vmtruncate()?
+Message-ID: <20080430074738.GC7791@skywalker>
+References: <20080429100601.GO108924158@sgi.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080430001249.c07ff5c8.akpm@linux-foundation.org>
+In-Reply-To: <20080429100601.GO108924158@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <clameter@sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, GOTO <y-goto@jp.fujitsu.com>
+To: David Chinner <dgc@sgi.com>
+Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, xfs-oss <xfs@oss.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 30, 2008 at 12:12:49AM -0700, Andrew Morton wrote:
-> On Wed, 30 Apr 2008 08:56:11 +0200 Nick Piggin <npiggin@suse.de> wrote:
+On Tue, Apr 29, 2008 at 08:06:01PM +1000, David Chinner wrote:
+> Folks,
 > 
-> > On Tue, Apr 29, 2008 at 04:20:16PM +0900, KAMEZAWA Hiroyuki wrote:
-> > > I myself want to this patch to be included (to next -mm) and put this under
-> > > test. How do you think ? Nick ? Christoph ?
-> > 
-> > I think it should go upstream, yes. I imagine Andrew is probably just busy
-> > with merging at the moment. I guess we should resubmit if it isn't picked
-> > up in the next few days.
-> 
-> Well I'm actually waiting for something which looks like a patch to fly
-> past.  The last thing I saw was labelled "here is my proposed (uncompiled,
-> untested) fix".
+> It appears to me that vmtruncate() is not used correctly in
+> block_write_begin() and friends. The short summary is that it
+> appears that the usage in these functions implies that vmtruncate()
+> should cause truncation of blocks on disk but no filesystem
+> appears to do this, nor does the documentation imply they should.
 
-OK.. I don't have a good setup for testing page migration which is why
-I didn't test it.
+Looking at ext*_truncate, I see we are freeing blocks as a part of vmtruncate.
+Or did I miss something ?
 
-But it was since tested and found to solve the problem (or at least the
-warning went away). Christoph, do you have a regression test suite or
-something to run it through?
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
