@@ -1,68 +1,52 @@
-Date: Wed, 30 Apr 2008 20:08:44 -0700
-From: Greg KH <gregkh@suse.de>
-Subject: Re: [RFC][PATCH] hugetlb: add information and interface in sysfs
-	[Was Re: [RFC][PATCH 4/5] Documentation: add node files to sysfs
-	ABI]
-Message-ID: <20080501030844.GB4911@suse.de>
-References: <20080424071352.GB14543@wotan.suse.de> <20080427034942.GB12129@us.ibm.com> <20080427051029.GA22858@suse.de> <20080428172239.GA24169@us.ibm.com> <20080428172951.GA764@suse.de> <20080429171115.GD24967@us.ibm.com> <20080429172243.GA16176@suse.de> <20080429181415.GF24967@us.ibm.com> <20080429182613.GA17373@suse.de> <20080430191941.GC8597@us.ibm.com>
+Date: Wed, 30 Apr 2008 20:24:48 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [rfc] data race in page table setup/walking?
+In-Reply-To: <20080501002955.GA11312@wotan.suse.de>
+Message-ID: <alpine.LFD.1.10.0804302020050.5994@woody.linux-foundation.org>
+References: <20080429050054.GC21795@wotan.suse.de> <Pine.LNX.4.64.0804291333540.22025@blonde.site> <20080430060340.GE27652@wotan.suse.de> <alpine.LFD.1.10.0804300848390.2997@woody.linux-foundation.org> <20080501002955.GA11312@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080430191941.GC8597@us.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, wli@holomorphy.com, agl@us.ibm.com, luick@cray.com, Lee.Schermerhorn@hp.com, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Hugh Dickins <hugh@veritas.com>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 30, 2008 at 12:19:41PM -0700, Nishanth Aravamudan wrote:
-> On 29.04.2008 [11:26:13 -0700], Greg KH wrote:
-> > On Tue, Apr 29, 2008 at 11:14:15AM -0700, Nishanth Aravamudan wrote:
-> > > On 29.04.2008 [10:22:43 -0700], Greg KH wrote:
-> > > > On Tue, Apr 29, 2008 at 10:11:15AM -0700, Nishanth Aravamudan wrote:
-> > > > > +struct hstate_attribute {
-> > > > > +	struct attribute attr;
-> > > > > +	ssize_t (*show)(struct hstate *h, char *buf);
-> > > > > +	ssize_t (*store)(struct hstate *h, const char *buf, size_t count);
-> > > > > +};
-> > > > 
-> > > > Do you need your own attribute type with show and store?  Can't you just
-> > > > use the "default" kobject attributes?
-> > > 
-> > > Hrm, I don't know? Probably. Like I said, I was using the
-> > > /sys/kernel/slab code as my reference. Can you explain this more? Or
-> > > just point me to the source/documentation I should read for info.
+
+On Thu, 1 May 2008, Nick Piggin wrote:
 > > 
-> > Documentation/kobject.txt, with sample examples in samples/kobject/ for
-> > you to copy and use.
-> > 
-> > > Are you referring to kobj_attr_show/kobj_attr_store? Should I just be
-> > > using kobj_sysfs_ops, then, most likely?
-> > 
-> > See the above examples for more details.
-> > 
-> > > > Also, you have no release function for your kobject to be cleaned up,
-> > > > that's a major bug.
-> > > 
-> > > Well, these kobjects never go away? They will be statically initialized
-> > > at boot-time and then stick around until the kernel goes away. Looking
-> > > at /sys/kernel/slab's code, again, the release() function there does a
-> > > kfree() on the containing kmem_cache, but for hugetlb, the hstates are
-> > > static... If we do move to dynamic allocations ever (or allow adding
-> > > hugepage sizes at run-time somehow), then perhaps we'll need a release
-> > > method then?
-> > 
-> > Yes you will.  Please always create one, what happens when you want to
-> > clean them up at shut-down time...
+> > Of course, on x86, the write ordering is strictly defined, and even if the 
+> > CPU reorders writes they are guaranteed to never show up re-ordered, so 
+> > this is not an issue. But I wanted to point out that memory ordering is 
+> > *not* just about cachelines, and being in the same cacheline is no 
+> > guarantee of anything, even if it can have *some* effects.
 > 
-> Does this look better? I really appreciate the review, Greg.
+> Well it is a guarantee about cache coherency presumably, but I guess
+> you're taking that for granted.
 
-See my previous email, you should not embed a kobject into this
-structure.  Just use a pointer to one, it will shrink this patch a lot.
+Yes, I'm taking cache coherency for granted, I don't think it's worth even 
+worrying about non-coherent cases.
 
-thanks,
+> But I'm surprised that two writes to the same cacheline (different
+> words) can be reordered. Of course write buffers are technically outside
+> the coherency domain, but I would have thought any implementation will
+> actually treat writes to the same line as aliasing. Is there a counter
+> example?
 
-greg k-h
+I don't know if anybody does it, but no, normally I would *not* expect any 
+alias logic to have anything to do with cachelines. Aliasing within a 
+cacheline is so common (spills to the stack, if nothing else) that if the 
+CPU has some write buffer alias logic, I'd expect it to be byte or perhaps 
+word-granular.
+
+So I think that at least in theory it is quite possible that a later write 
+hits the same cacheline first, just because the write data or address got 
+resolved first and the architecture allows out-of-order memory accesses. 
+
+Whether you'll ever see it in practice, I don't know.  Never on x86, of 
+course.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
