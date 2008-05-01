@@ -1,51 +1,26 @@
 From: kamezawa.hiroyu@jp.fujitsu.com
-Message-ID: <19857914.1209630989615.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Thu, 1 May 2008 17:36:29 +0900 (JST)
-Subject: Re: Re: Re: Warning on memory offline (and possible in usual migration?)
-In-Reply-To: <1209602058.27240.4.camel@badari-desktop>
+Message-ID: <32852601.1209631141232.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 1 May 2008 17:39:01 +0900 (JST)
+Subject: Re: Re: [PATCH] more ZERO_PAGE handling ( was 2.6.24 regression: deadlock on coredump of big process)
+In-Reply-To: <48187AE5.4090807@cybernetics.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
-References: <1209602058.27240.4.camel@badari-desktop>
- <Pine.LNX.4.64.0804301059570.26173@schroedinger.engr.sgi.com>
-	 <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
-	 <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
-	 <20080422045205.GH21993@wotan.suse.de>
-	 <20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20080422094352.GB23770@wotan.suse.de>
-	 <Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com>
-	 <20080423004804.GA14134@wotan.suse.de>
-	 <20080429162016.961aa59d.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20080430065611.GH27652@wotan.suse.de>
-	 <20080430001249.c07ff5c8.akpm@linux-foundation.org>
-	 <20080430072620.GI27652@wotan.suse.de>
-	 <28073963.1209598183931.kamezawa.hiroyu@jp.fujitsu.com>
+References: <48187AE5.4090807@cybernetics.com>
+ <4815E932.1040903@cybernetics.com>	<20080429100048.3e78b1ba.kamezawa.hiroyu@jp.fujitsu.com>	<48172C72.1000501@cybernetics.com>	<20080430132516.28f1ee0c.kamezawa.hiroyu@jp.fujitsu.com>	<4817FDA5.1040702@kolumbus.fi>	<20080430141738.e6b80d4b.kamezawa.hiroyu@jp.fujitsu.com>	<20080430051932.GD27652@wotan.suse.de> <20080430143542.2dcf745a.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@gmail.com>
-Cc: kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, GOTO <y-goto@jp.fujitsu.com>
+To: Tony Battersby <tonyb@cybernetics.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Mika Penttil? <mika.penttila@kolumbus.fi>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
------ Original Message -----
->On Thu, 2008-05-01 at 08:29 +0900, kamezawa.hiroyu@jp.fujitsu.com wrote:
->> >
->> >One issue that I am still not clear on is (in particular for memory 
->> >offline) is how exactly to determine if a page is under read I/O. I 
->> >initially thought simply checking for PageUptodate would do the trick.
->> >
->> All troublesome case I found was "write". In my understanding,
->> at generic bufferted file write, xxx_write_begin() -> write -> xxx_write_en
-d()
->>  sequence is used. xxx_write_begin locks a page and xxx_write_end unlock it
-. 
->> (and xxx_write_end() set a page to be Uptodate in usual case.)
->> So,it seems we can depend on that a page is locked or not.
+>This patch fixes the deadlock.  Tested on 2.6.24.5.  Thanks!
 >
->You can wait for PG_writeback to be cleared to wait for IO to finish.
- 
-yes, and migraion(offline) doesn't handle PG_writback page. it waits.
+>Tested-by: Tony Battersby <tonyb@cybernetics.com>
+>
+thank you for test. I'll post this again when I'm back.
 
-Thanks,
+Regards,
 -Kame
 
 --
