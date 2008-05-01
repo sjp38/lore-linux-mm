@@ -1,10 +1,10 @@
-Message-ID: <481A357D.40009@cs.helsinki.fi>
-Date: Fri, 02 May 2008 00:26:21 +0300
+Message-ID: <481A3586.3080705@cs.helsinki.fi>
+Date: Fri, 02 May 2008 00:26:30 +0300
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [PATCH] slabinfo: Support printout of the number of fallbacks
-References: <Pine.LNX.4.64.0804291613470.15436@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0804291613470.15436@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH] slub: #ifdef simplification
+References: <Pine.LNX.4.64.0804291615130.15436@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0804291615130.15436@schroedinger.engr.sgi.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,12 +14,10 @@ Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Christoph Lameter wrote:
-> [Also from your testing tree. Rediffed against current git]
+> [Rediffed to current git]
 > 
-> Add functionality to slabinfo to print out the number of fallbacks
-> that have occurred for each slab cache when the -D option is specified.
-> Also widen the allocation / free field since the numbers became
-> too big after a week.
+> If we make SLUB_DEBUG depend on SYSFS then we can simplify some
+> #ifdefs and avoid others.
 
 Applied, thanks!
 
