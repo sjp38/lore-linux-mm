@@ -1,50 +1,29 @@
-Date: Thu, 1 May 2008 02:35:42 +0200
+Date: Thu, 1 May 2008 03:44:18 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc] data race in page table setup/walking?
-Message-ID: <20080501003542.GB11312@wotan.suse.de>
-References: <20080429050054.GC21795@wotan.suse.de> <Pine.LNX.4.64.0804291333540.22025@blonde.site> <20080430060340.GE27652@wotan.suse.de> <Pine.LNX.4.64.0804301140490.4651@blonde.site>
+Subject: Re: Warning on memory offline (and possible in usual migration?)
+Message-ID: <20080501014418.GB15179@wotan.suse.de>
+References: <20080422045205.GH21993@wotan.suse.de> <20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com> <20080422094352.GB23770@wotan.suse.de> <Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com> <20080423004804.GA14134@wotan.suse.de> <20080429162016.961aa59d.kamezawa.hiroyu@jp.fujitsu.com> <20080430065611.GH27652@wotan.suse.de> <20080430001249.c07ff5c8.akpm@linux-foundation.org> <20080430072620.GI27652@wotan.suse.de> <Pine.LNX.4.64.0804301059570.26173@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0804301140490.4651@blonde.site>
+In-Reply-To: <Pine.LNX.4.64.0804301059570.26173@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, GOTO <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 30, 2008 at 12:14:51PM +0100, Hugh Dickins wrote:
-> On Wed, 30 Apr 2008, Nick Piggin wrote:
-> > 
-> > Actually, aside, all those smp_wmb() things in pgtable-3level.h can
-> > probably go away if we cared: because we could be sneaky and leverage
-> > the assumption that top and bottom will always be in the same cacheline
-> > and thus should be shielded from memory consistency problems :)
-> 
-> I've sometimes wondered along those lines.  But it would need
-> interrupts disabled, wouldn't it?  And could SMM mess it up?
-> And what about another CPU taking the cacheline to modify it
-> in between our two accesses?
+On Wed, Apr 30, 2008 at 11:01:39AM -0700, Christoph Lameter wrote:
+> One issue that I am still not clear on is (in particular for memory 
+> offline) is how exactly to determine if a page is under read I/O. I 
+> initially thought simply checking for PageUptodate would do the trick.
 
-Nothing more than could not already happen with the smp_wmb in there,
-AFAIKS.
+Yes if PageUptodate and the page is locked, then I don't believe
+any read IO should happen.
 
- 
-> I don't think we do care in that x86 PAE case, but as a general
-> principal, if it can be safely assumed on all architectures (or
-> more messily, just on some) under certain conditions, then shouldn't
-> we be looking to use that technique (relying on a consistent view of
-> separate variables clustered into the same cacheline) in critical
-> places, rather than regarding it as sneaky?
-> 
-> But I suspect this is a chimaera, that there's actually no
-> safe use to be made of it.  I'd be glad to be shown wrong.
-
-Well Linus put a dampener on it... but if it actually did work, then
-yeah I guess there are some places it could be used. I suspect that
-on some implementations, being in the same cacheline would actually
-fully order all transactions of a CPU, so if it did make a big
-difference anywhere, we could have smp_*mb_cacheline() or something ;)
+But you definitely do seem to be migrating !PageUptodate pages. In
+that case I think it works because of buffer_migrate_page which takes
+the buffer locks and holds off read IO to buffers too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
