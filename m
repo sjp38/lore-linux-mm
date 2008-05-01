@@ -1,47 +1,54 @@
-Date: Thu, 1 May 2008 13:18:42 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 1/1] mm: add virt to phys debug
-In-Reply-To: <1209669740-10493-1-git-send-email-jirislaby@gmail.com>
-Message-ID: <Pine.LNX.4.64.0805011310390.9288@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0804281322510.31163@schroedinger.engr.sgi.com>
- <1209669740-10493-1-git-send-email-jirislaby@gmail.com>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m41KPNb0001475
+	for <linux-mm@kvack.org>; Thu, 1 May 2008 16:25:23 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m41KPMvs192660
+	for <linux-mm@kvack.org>; Thu, 1 May 2008 14:25:22 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m41KPLpL006999
+	for <linux-mm@kvack.org>; Thu, 1 May 2008 14:25:22 -0600
+Date: Thu, 1 May 2008 13:25:20 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [patch 02/18] hugetlb: factor out huge_new_page
+Message-ID: <20080501202520.GA12354@us.ibm.com>
+References: <20080423015429.834926000@nick.local0.net> <20080424235431.GB4741@us.ibm.com> <20080424235829.GC4741@us.ibm.com> <481183FC.9060408@firstfloor.org> <20080425165424.GA9680@us.ibm.com> <Pine.LNX.4.64.0804251210530.5971@schroedinger.engr.sgi.com> <20080425192942.GB14623@us.ibm.com> <Pine.LNX.4.64.0804301215220.27955@schroedinger.engr.sgi.com> <20080430204428.GC6903@us.ibm.com> <Pine.LNX.4.64.0805011222350.8738@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0805011222350.8738@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jiri Slaby <jirislaby@gmail.com>
-Cc: linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Jeremy Fitzhardinge <jeremy@goop.org>, pageexec@freemail.hu, Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, herbert@gondor.apana.org.au, penberg@cs.helsinki.fi, akpm@linux-foundation.org, linux-ext4@vger.kernel.org, paulmck@linux.vnet.ibm.com, rjw@sisk.pl, zdenek.kabelac@gmail.com, David Miller <davem@davemloft.net>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andi Kleen <andi@firstfloor.org>, npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 1 May 2008, Jiri Slaby wrote:
-
-> Christoph, was you able to compile this somehow? I had to move the code
-> into ioremap along 64-bit variant to allow the checking.
-
-The 64 bit piece works fine here and I used it for debugging the vmalloc 
-work. Not sure about the 32 bit piece.
-
-> A pacth which I created is attached, I've successfully tested it by this
-> module:
-
-Great! Someone else picks this up. You can probably do a more thorough 
-job than I can.
-
-> Add some (configurable) expensive sanity checking to catch wrong address
-> translations on x86.
+On 01.05.2008 [12:23:04 -0700], Christoph Lameter wrote:
+> On Wed, 30 Apr 2008, Nishanth Aravamudan wrote:
 > 
-> - create linux/mmdebug.h file to be able include this file in
->   asm headers to not get unsolvable loops in header files
-> - __phys_addr on x86_32 became a function in ioremap.c since
->   PAGE_OFFSET and is_vmalloc_addr is undefined if declared in
->   page_32.h (again circular dependencies)
-> - add __phys_addr_const for initializing doublefault_tss.__cr3
+> > Sure, my point was that we already have the nid in the caller (because
+> > we specify it along with GFP_THISNODE). So if we pass that nid down into
+> > this new function, we shoulnd't need to do the page_to_nid() call,
+> > right?
+> 
+> Right. But its safer the to page_to_nid() there. In case we do an alloc 
+> without __GFP_THISNODE in the future.
 
-Hmmm.. We could use include/linux/bounds.h to make 
-VMALLOC_START/VMALLOC_END (or whatever you need for checking the memory 
-boundaries) a cpp constant which may allow the use in page_32.h without 
-circular dependencies.
+In this caller, we will require __GFP_THISNODE for the foreseeable
+future. Anything that changes that will be more invasive.
 
+The other callsite can pass the page_to_nid() result as the third
+argument.
+
+I'm pretty sure when I first created alloc_huge_page_node(), you argued
+for me *not* using page_to_nid() on the returned page because we expect
+__GFP_THISNODE to do the right thing.
+
+Thanks,
+Nish
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
