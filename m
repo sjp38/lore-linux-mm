@@ -1,10 +1,10 @@
-Message-ID: <481A3573.3060201@cs.helsinki.fi>
-Date: Fri, 02 May 2008 00:26:11 +0300
+Message-ID: <481A357D.40009@cs.helsinki.fi>
+Date: Fri, 02 May 2008 00:26:21 +0300
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: slub: Whitespace cleanup and use of strict_strtoul
-References: <Pine.LNX.4.64.0804291609380.15406@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0804291609380.15406@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH] slabinfo: Support printout of the number of fallbacks
+References: <Pine.LNX.4.64.0804291613470.15436@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0804291613470.15436@schroedinger.engr.sgi.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,11 +14,12 @@ Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Christoph Lameter wrote:
-> [This is material that I found in your testing tree interspersed with slub 
-> defrag stuff. Separated out. Maybe merge this earlier]
+> [Also from your testing tree. Rediffed against current git]
 > 
-> Fix some issues with wrapping and use strict_strtoul to make parameter
-> passing from sysfs safer.
+> Add functionality to slabinfo to print out the number of fallbacks
+> that have occurred for each slab cache when the -D option is specified.
+> Also widen the allocation / free field since the numbers became
+> too big after a week.
 
 Applied, thanks!
 
