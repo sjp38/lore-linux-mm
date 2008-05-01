@@ -1,61 +1,56 @@
-Date: Thu, 1 May 2008 02:29:55 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc] data race in page table setup/walking?
-Message-ID: <20080501002955.GA11312@wotan.suse.de>
-References: <20080429050054.GC21795@wotan.suse.de> <Pine.LNX.4.64.0804291333540.22025@blonde.site> <20080430060340.GE27652@wotan.suse.de> <alpine.LFD.1.10.0804300848390.2997@woody.linux-foundation.org>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m410YCkA004837
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 20:34:12 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m410YBrv182604
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 18:34:11 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m410YBxM014395
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2008 18:34:11 -0600
+Subject: Re: Re: Warning on memory offline (and possible in usual
+	migration?)
+From: Badari Pulavarty <pbadari@gmail.com>
+In-Reply-To: <28073963.1209598183931.kamezawa.hiroyu@jp.fujitsu.com>
+References: <Pine.LNX.4.64.0804301059570.26173@schroedinger.engr.sgi.com>
+	 <20080414145806.c921c927.kamezawa.hiroyu@jp.fujitsu.com>
+	 <Pine.LNX.4.64.0804141044030.6296@schroedinger.engr.sgi.com>
+	 <20080422045205.GH21993@wotan.suse.de>
+	 <20080422165608.7ab7026b.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20080422094352.GB23770@wotan.suse.de>
+	 <Pine.LNX.4.64.0804221215270.3173@schroedinger.engr.sgi.com>
+	 <20080423004804.GA14134@wotan.suse.de>
+	 <20080429162016.961aa59d.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20080430065611.GH27652@wotan.suse.de>
+	 <20080430001249.c07ff5c8.akpm@linux-foundation.org>
+	 <20080430072620.GI27652@wotan.suse.de>
+	 <28073963.1209598183931.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Wed, 30 Apr 2008 17:34:18 -0700
+Message-Id: <1209602058.27240.4.camel@badari-desktop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.1.10.0804300848390.2997@woody.linux-foundation.org>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Hugh Dickins <hugh@veritas.com>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: kamezawa.hiroyu@jp.fujitsu.com
+Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, GOTO <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 30, 2008 at 08:53:44AM -0700, Linus Torvalds wrote:
-> 
-> 
-> On Wed, 30 Apr 2008, Nick Piggin wrote:
-> > 
-> > Actually, aside, all those smp_wmb() things in pgtable-3level.h can
-> > probably go away if we cared: because we could be sneaky and leverage
-> > the assumption that top and bottom will always be in the same cacheline
-> > and thus should be shielded from memory consistency problems :)
-> 
-> Umm.
-> 
-> Why would we care, since smp_wmb() is a no-op? (Yea, it's a compiler 
-> barrier, big deal, it's not going to cost us anything).
+On Thu, 2008-05-01 at 08:29 +0900, kamezawa.hiroyu@jp.fujitsu.com wrote:
+> >
+> >One issue that I am still not clear on is (in particular for memory 
+> >offline) is how exactly to determine if a page is under read I/O. I 
+> >initially thought simply checking for PageUptodate would do the trick.
+> >
+> All troublesome case I found was "write". In my understanding,
+> at generic bufferted file write, xxx_write_begin() -> write -> xxx_write_end()
+>  sequence is used. xxx_write_begin locks a page and xxx_write_end unlock it. 
+> (and xxx_write_end() set a page to be Uptodate in usual case.)
+> So,it seems we can depend on that a page is locked or not.
 
-Oh there needs to be a compiler barrier there. I was just saying...
-I don't actually think we care (whether or not I'm right).
- 
+You can wait for PG_writeback to be cleared to wait for IO to finish.
 
-> Also, write barriers are not about cacheline access order, they tend to be 
-> more about the write *buffer*, ie before the write even hits the cache 
-> line. And a write coudl easily pass another write in the write buffer if 
-> there is (for example) a dependency on the address.
-> 
-> So even if they are in the same cacheline, if the first write needs an 
-> offset addition, and the second one does not, it could easily be that the 
-> second one hits the write buffer first (together with some alias 
-> detection that re-does the things if they alias).
-> 
-> Of course, on x86, the write ordering is strictly defined, and even if the 
-> CPU reorders writes they are guaranteed to never show up re-ordered, so 
-> this is not an issue. But I wanted to point out that memory ordering is 
-> *not* just about cachelines, and being in the same cacheline is no 
-> guarantee of anything, even if it can have *some* effects.
-
-Well it is a guarantee about cache coherency presumably, but I guess
-you're taking that for granted.
-
-But I'm surprised that two writes to the same cacheline (different
-words) can be reordered. Of course write buffers are technically outside
-the coherency domain, but I would have thought any implementation will
-actually treat writes to the same line as aliasing. Is there a counter
-example?
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
