@@ -1,74 +1,89 @@
-Date: Fri, 2 May 2008 14:16:20 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Warning on memory offline (and possible in usual migration?)
-In-Reply-To: <Pine.LNX.4.64.0805011833480.13697@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0805021411260.21677@schroedinger.engr.sgi.com>
-References: <20080423004804.GA14134@wotan.suse.de>
- <20080429162016.961aa59d.kamezawa.hiroyu@jp.fujitsu.com>
- <20080430065611.GH27652@wotan.suse.de> <20080430001249.c07ff5c8.akpm@linux-foundation.org>
- <20080430072620.GI27652@wotan.suse.de> <Pine.LNX.4.64.0804301059570.26173@schroedinger.engr.sgi.com>
- <20080501014418.GB15179@wotan.suse.de> <Pine.LNX.4.64.0805011224150.8738@schroedinger.engr.sgi.com>
- <20080502004445.GB30768@wotan.suse.de> <Pine.LNX.4.64.0805011805150.13527@schroedinger.engr.sgi.com>
- <20080502012350.GF30768@wotan.suse.de> <Pine.LNX.4.64.0805011833480.13697@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m42Lg2il009503
+	for <linux-mm@kvack.org>; Fri, 2 May 2008 17:42:02 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m42Likjt178596
+	for <linux-mm@kvack.org>; Fri, 2 May 2008 15:44:49 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m42LikF3004364
+	for <linux-mm@kvack.org>; Fri, 2 May 2008 15:44:46 -0600
+Subject: Re: [RFC][PATCH 2/2] Add huge page backed stack support
+From: Eric B Munson <ebmunson@us.ibm.com>
+Reply-To: ebmunson@us.ibm.com
+In-Reply-To: <1209748542.7763.39.camel@nimitz.home.sr71.net>
+References: <1209693109.8483.23.camel@grover.beaverton.ibm.com>
+	 <1209748542.7763.39.camel@nimitz.home.sr71.net>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-xqI1FUYtNyooENdypwEH"
+Date: Fri, 02 May 2008 14:44:45 -0700
+Message-Id: <1209764685.8581.13.camel@grover.beaverton.ibm.com>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, GOTO <y-goto@jp.fujitsu.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, nacc <nacc@linux.vnet.ibm.com>, mel@csn.ul.ie, andyw <andyw@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-I guess we need the following patch to handle !uptodate pages. Wish we had 
-a better solution that would allow the skipping of pages with buffers 
-under read I/O.
+--=-xqI1FUYtNyooENdypwEH
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
+
+On Fri, 2008-05-02 at 10:15 -0700, Dave Hansen wrote:
+> On Thu, 2008-05-01 at 18:51 -0700, Eric B Munson wrote
+> > The GROWSUP and GROWSDOWN VM flags are turned off because a hugetlb bac=
+ked
+> > vma is not resizable, so it will be appropriately sized when created.  =
+When
+> > a process exceeds stack size it recieves a segfault exactly as it would=
+ if it
+> > exceeded the ulimit.
+>=20
+> This one is *really* subtle.  The segfault might behave like breaking a
+> ulimit.  But, unlike a ulimit, you can't really work around this
+> particular limitation very easily.
+
+I must have not articulated the way things are working well enough.  The
+vma that is created for the process stack is sized to hold ulimit /
+HPAGE_SIZE huge pages if ulimit is not unlimited.  If ulimit is
+unlimited it holds 256MB / HPAGE_SIZE pages.  256MB was picked because
+it is a decent comprimise between large stacks and leaving some of a 32
+bit address space available.  The segfault is as easily solved as
+adjusting the ulimit for stack size.  If ulimit is raised the stack vma
+will be bigger to match.  So it does behave exactly as base page stacks
+would when you exceed the ulimit for stack size.
+
+>=20
+> This will really suck for anyone that tries to use 64k huge pages on
+> powerpc, right?
+
+Can you expand on this some, I am not sure what you are getting at.
+
+>=20
+> Are you actually looking to get this included, or are you just trying to
+> play with this?  It is useful as a toy as-is, but I think you should
+> look at fixing stack growing before it gets merged anywhere.
+
+I am looking for comments and eventually to be merged.  What would take
+to get something along this idea merged?  Is anyone completely opposed,
+and if so why?
+
+>=20
+> -- Dave
+>=20
 
 
-Subject: Page migration: Do not migrate page that is not uptodate
+--=-xqI1FUYtNyooENdypwEH
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
 
-If we are migrating pages that are not mapped into a processes address
-space then we may encounter !Uptodate pages. Page migration is now used
-for offlining memory which scans unmapped pages.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
 
-If a page is not uptodate then read I/O may be in progress against it.
-So do not migrate it. On the other hand if the page has buffers then
-read I/O will lock a buffer. In that case we can migrate an !Uptodate
-page but then migration will stall in buffer_migrate_page() until the
-read is complete.
+iD8DBQBIG4tNsnv9E83jkzoRAqZDAJ9Fzlj0XG6qatF0mze6mWKdEHHHfgCdEnad
+cKv0wAoM2rz7Ce4uGLeGdOU=
+=ifAF
+-----END PGP SIGNATURE-----
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
----
- mm/migrate.c |   17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
-
-Index: linux-2.6/mm/migrate.c
-===================================================================
---- linux-2.6.orig/mm/migrate.c	2008-05-02 13:47:45.113707645 -0700
-+++ linux-2.6/mm/migrate.c	2008-05-02 14:08:32.203644985 -0700
-@@ -652,6 +652,23 @@ static int unmap_and_move(new_page_t get
- 			goto unlock;
- 		wait_on_page_writeback(page);
- 	}
-+
-+	/*
-+	 * Page may be under read I/O if its not uptodate and has no buffers.
-+	 * In that case the page contents are not stable and should not be
-+	 * migrated. So we just pass on that page and return -EAGAIN.
-+	 *
-+	 * If a page has buffers then the locks taken on the buffers
-+	 * will indicate that read I/O is in progress. Then PageUptodate does
-+	 * not matter because buffer_migrate_page() will stall until I/O is
-+	 * complete. It would be better if we could catch that here and delay
-+	 * migrating the page because we could migrate a the other pages on the
-+	 * migrate list instead of waiting for I/O to complete on this page
-+	 * (like done for writes in progress).
-+	 */
-+	if (!PageUptodate(page) && !page_has_buffers(page))
-+		goto unlock;
-+
- 	/*
- 	 * By try_to_unmap(), page->mapcount goes down to 0 here. In this case,
- 	 * we cannot notice that anon_vma is freed while we migrates a page.
+--=-xqI1FUYtNyooENdypwEH--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
