@@ -1,19 +1,18 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m421mkBl003764
-	for <linux-mm@kvack.org>; Thu, 1 May 2008 21:48:46 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m421pUew157990
-	for <linux-mm@kvack.org>; Thu, 1 May 2008 19:51:30 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m421pUQ5030455
-	for <linux-mm@kvack.org>; Thu, 1 May 2008 19:51:30 -0600
-Subject: [RFC][PATCH 1/2] Add shared and reserve control to
-	hugetlb_file_setup
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m421pqt5031670
+	for <linux-mm@kvack.org>; Thu, 1 May 2008 21:51:52 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m421pqx7265426
+	for <linux-mm@kvack.org>; Thu, 1 May 2008 21:51:52 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m421ppAM020544
+	for <linux-mm@kvack.org>; Thu, 1 May 2008 21:51:51 -0400
+Subject: [RFC][PATCH 2/2] Add huge page backed stack support
 From: Eric B Munson <ebmunson@us.ibm.com>
 Reply-To: ebmunson@us.ibm.com
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-CMoCLz5bdgTzTvWUMm2m"
-Date: Thu, 01 May 2008 18:51:29 -0700
-Message-Id: <1209693089.8483.22.camel@grover.beaverton.ibm.com>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-1YpyVUA6P1hwR7SZY0bk"
+Date: Thu, 01 May 2008 18:51:49 -0700
+Message-Id: <1209693109.8483.23.camel@grover.beaverton.ibm.com>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -21,22 +20,26 @@ To: linux-mm@kvack.org
 Cc: nacc <nacc@linux.vnet.ibm.com>, mel@csn.ul.ie, andyw <andyw@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
---=-CMoCLz5bdgTzTvWUMm2m
-Content-Type: text/plain
+--=-1YpyVUA6P1hwR7SZY0bk
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 
-In order to back stacks with huge pages, we will want to make hugetlbfs
-files to back them; these will be used to back private mappings.
-Currently hugetlb_file_setup creates files to back shared memory segments.
-Modify this to create both private and shared files, and update callers
-to the new signatures.
+This patch allows a process's stack to be backed by huge pages on request. =
+As
+the stack is setup at exec() time, a personality flag is added to indicate=20
+the use of a hugepage-backed stack. =EF=BB=BFThe personality flag is inheri=
+ted across=20
+exec().
 
-By not reserving requested huge pages for stack areas, we allow many progra=
-ms to
-have vma's which total to more huge pages than available on the system
-without affecting eachother until they attempt to use all the pages.  This
-will be the case with the proposed huge page backed stack patch in this
-series.
+Huge page stacks require stack randomization to be disabled because huge
+ptes are not movable, so the HUGE_PAGE_STACK personality flag implies
+ADDR_NO_RANDOMIZE.  When the hugetlb file is setup to back the stack, it is
+sized to fit the ulimit for stack size or 256 MB if ulimit is unlimited.
+The GROWSUP and GROWSDOWN VM flags are turned off because a hugetlb backed
+vma is not resizable, so it will be appropriately sized when created.  When
+a process exceeds stack size it recieves a segfault exactly as it would if =
+it
+exceeded the ulimit.
 
 Based on 2.6.25
 
@@ -44,199 +47,211 @@ Signed-off-by: Eric Munson <ebmunson@us.ibm.com>
 
 ---
 
- fs/hugetlbfs/inode.c    |   39 +++++++++++++++++++++++++--------------
- include/linux/hugetlb.h |   16 ++++++++++++++--
- ipc/shm.c               |    3 ++-
- 3 files changed, 41 insertions(+), 17 deletions(-)
+ fs/exec.c                   |   87 ++++++++++++++++++++++++++++++++++++++-=
+---
+ include/linux/personality.h |    3 +
+ 2 files changed, 81 insertions(+), 9 deletions(-)
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 6846785..8c0ba46 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -488,7 +488,8 @@ out:
+diff --git a/fs/exec.c b/fs/exec.c
+index b152029..d38ddf0 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -51,6 +51,7 @@
+ #include <linux/tsacct_kern.h>
+ #include <linux/cn_proc.h>
+ #include <linux/audit.h>
++#include <linux/hugetlb.h>
+=20
+ #include <asm/uaccess.h>
+ #include <asm/mmu_context.h>
+@@ -60,6 +61,8 @@
+ #include <linux/kmod.h>
+ #endif
+=20
++#define MB (1024*1024)
++
+ int core_uses_pid;
+ char core_pattern[CORENAME_MAX_SIZE] =3D "core";
+ int suid_dumpable =3D 0;
+@@ -152,6 +155,13 @@ exit:
+ 	goto out;
  }
 =20
- static struct inode *hugetlbfs_get_inode(struct super_block *sb, uid_t uid=
-,=20
--					gid_t gid, int mode, dev_t dev)
-+					gid_t gid, int mode, dev_t dev,
-+					unsigned long creat_flags)
- {
- 	struct inode *inode;
++static unsigned long personality_page_align(unsigned long addr)
++{
++	if (get_personality & HUGE_PAGE_STACK)
++		return HPAGE_ALIGN(addr);
++	return PAGE_ALIGN(addr);
++}
++
+ #ifdef CONFIG_MMU
 =20
-@@ -504,7 +505,9 @@ static struct inode *hugetlbfs_get_inode(struct super_b=
-lock *sb, uid_t uid,
- 		inode->i_atime =3D inode->i_mtime =3D inode->i_ctime =3D CURRENT_TIME;
- 		INIT_LIST_HEAD(&inode->i_mapping->private_list);
- 		info =3D HUGETLBFS_I(inode);
--		mpol_shared_policy_init(&info->policy, MPOL_DEFAULT, NULL);
-+		if (creat_flags & HUGETLB_SHARED)
-+			mpol_shared_policy_init(&info->policy, MPOL_DEFAULT,
-+						NULL);
- 		switch (mode & S_IFMT) {
- 		default:
- 			init_special_inode(inode, mode, dev);
-@@ -545,7 +548,8 @@ static int hugetlbfs_mknod(struct inode *dir,
- 	} else {
- 		gid =3D current->fsgid;
+ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long =
+pos,
+@@ -173,7 +183,12 @@ static struct page *get_arg_page(struct linux_binprm *=
+bprm, unsigned long pos,
+ 		return NULL;
+=20
+ 	if (write) {
+-		unsigned long size =3D bprm->vma->vm_end - bprm->vma->vm_start;
++		/*
++		 * Args are always placed at the high end of the stack space
++		 * so this calculation will give the proper size and it is
++		 * compatible with huge page stacks.
++		 */
++		unsigned long size =3D bprm->vma->vm_end - pos;
+ 		struct rlimit *rlim;
+=20
+ 		/*
+@@ -219,16 +234,57 @@ static void flush_arg_page(struct linux_binprm *bprm,=
+ unsigned long pos,
+ 	flush_cache_page(bprm->vma, pos, page_to_pfn(page));
+ }
+=20
++static struct file *hugetlb_stack_file(int stack_hpages)
++{
++	struct file *hugefile =3D NULL;
++
++	if (!stack_hpages) {
++		set_personality(get_personality & (~HUGE_PAGE_STACK));
++		printk(KERN_DEBUG
++			"Stack rlimit set too low for huge page backed stack.\n");
++		return NULL;
++	}
++
++	hugefile =3D hugetlb_file_setup(HUGETLB_STACK_FILE,
++					HPAGE_SIZE * stack_hpages, 0);
++	if (unlikely(IS_ERR_VALUE(hugefile))) {
++		/*
++		 * If huge pages are not available for this stack fall
++		 * fall back to normal pages for execution instead of
++		 * failing.
++		 */
++		printk(KERN_DEBUG
++			"Huge page backed stack unavailable for process %lu.\n",
++			(unsigned long)current->pid);
++		set_personality(get_personality & (~HUGE_PAGE_STACK));
++		return NULL;
++	}
++	return hugefile;
++}
++
+ static int __bprm_mm_init(struct linux_binprm *bprm)
+ {
+ 	int err =3D -ENOMEM;
+ 	struct vm_area_struct *vma =3D NULL;
+ 	struct mm_struct *mm =3D bprm->mm;
++	struct file *hugefile =3D NULL;
++	struct rlimit *rlim;
++	int stack_hpages =3D 0;
+=20
+ 	bprm->vma =3D vma =3D kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
+ 	if (!vma)
+ 		goto err;
+=20
++	if (get_personality & HUGE_PAGE_STACK) {
++		rlim =3D current->signal->rlim;
++		if (rlim[RLIMIT_STACK].rlim_cur =3D=3D _STK_LIM_MAX)
++			stack_hpages =3D (256 * MB) / HPAGE_SIZE;
++		else
++			stack_hpages =3D rlim[RLIMIT_STACK].rlim_cur / HPAGE_SIZE;
++
++		hugefile =3D hugetlb_stack_file(stack_hpages);
++	}
++
+ 	down_write(&mm->mmap_sem);
+ 	vma->vm_mm =3D mm;
+=20
+@@ -239,9 +295,20 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
+ 	 * configured yet.
+ 	 */
+ 	vma->vm_end =3D STACK_TOP_MAX;
+-	vma->vm_start =3D vma->vm_end - PAGE_SIZE;
+=20
+ 	vma->vm_flags =3D VM_STACK_FLAGS;
++
++	if (hugefile) {
++		vma->vm_flags &=3D ~(VM_GROWSUP|VM_GROWSDOWN);
++		vma->vm_file =3D hugefile;
++		vma->vm_flags |=3D VM_HUGETLB;
++		/* Stack randomization is not supported on huge pages */
++		set_personality(get_personality | ADDR_NO_RANDOMIZE);
++		vma->vm_start =3D vma->vm_end - (HPAGE_SIZE * stack_hpages);
++	} else {
++		vma->vm_start =3D vma->vm_end - PAGE_SIZE;
++	}
++
+ 	vma->vm_page_prot =3D vm_get_page_prot(vma->vm_flags);
+ 	err =3D insert_vm_struct(mm, vma);
+ 	if (err) {
+@@ -593,13 +660,12 @@ int setup_arg_pages(struct linux_binprm *bprm,
+ 	bprm->p =3D vma->vm_end - stack_shift;
+ #else
+ 	stack_top =3D arch_align_stack(stack_top);
+-	stack_top =3D PAGE_ALIGN(stack_top);
++	stack_top =3D personality_page_align(stack_top);
+ 	stack_shift =3D vma->vm_end - stack_top;
+=20
+ 	bprm->p -=3D stack_shift;
+ 	mm->arg_start =3D bprm->p;
+ #endif
+-
+ 	if (bprm->loader)
+ 		bprm->loader -=3D stack_shift;
+ 	bprm->exec -=3D stack_shift;
+@@ -633,14 +699,17 @@ int setup_arg_pages(struct linux_binprm *bprm,
+ 		}
  	}
--	inode =3D hugetlbfs_get_inode(dir->i_sb, current->fsuid, gid, mode, dev);
-+	inode =3D hugetlbfs_get_inode(dir->i_sb, current->fsuid, gid, mode, dev,
-+					HUGETLB_SHARED | HUGETLB_RESERVE);
- 	if (inode) {
- 		dir->i_ctime =3D dir->i_mtime =3D CURRENT_TIME;
- 		d_instantiate(dentry, inode);
-@@ -581,7 +585,8 @@ static int hugetlbfs_symlink(struct inode *dir,
- 		gid =3D current->fsgid;
 =20
- 	inode =3D hugetlbfs_get_inode(dir->i_sb, current->fsuid,
--					gid, S_IFLNK|S_IRWXUGO, 0);
-+					gid, S_IFLNK|S_IRWXUGO, 0,
-+					HUGETLB_SHARED | HUGETLB_RESERVE);
- 	if (inode) {
- 		int l =3D strlen(symname)+1;
- 		error =3D page_symlink(inode, symname, l);
-@@ -845,7 +850,8 @@ hugetlbfs_fill_super(struct super_block *sb, void *data=
-, int silent)
- 	sb->s_op =3D &hugetlbfs_ops;
- 	sb->s_time_gran =3D 1;
- 	inode =3D hugetlbfs_get_inode(sb, config.uid, config.gid,
--					S_IFDIR | config.mode, 0);
-+					S_IFDIR | config.mode, 0,
-+					HUGETLB_SHARED | HUGETLB_RESERVE);
- 	if (!inode)
- 		goto out_free;
-=20
-@@ -910,7 +916,8 @@ static int can_do_hugetlb_shm(void)
- 			can_do_mlock());
- }
-=20
--struct file *hugetlb_file_setup(const char *name, size_t size)
-+struct file *hugetlb_file_setup(const char *name, size_t size,
-+				unsigned long creat_flags)
- {
- 	int error =3D -ENOMEM;
- 	struct file *file;
-@@ -921,11 +928,13 @@ struct file *hugetlb_file_setup(const char *name, siz=
-e_t size)
- 	if (!hugetlbfs_vfsmount)
- 		return ERR_PTR(-ENOENT);
-=20
--	if (!can_do_hugetlb_shm())
--		return ERR_PTR(-EPERM);
-+	if (creat_flags & HUGETLB_SHARED) {
-+		if (!can_do_hugetlb_shm())
-+			return ERR_PTR(-EPERM);
-=20
--	if (!user_shm_lock(size, current->user))
--		return ERR_PTR(-ENOMEM);
-+		if (!user_shm_lock(size, current->user))
-+			return ERR_PTR(-ENOMEM);
++	if (!(get_personality & HUGE_PAGE_STACK)) {
+ #ifdef CONFIG_STACK_GROWSUP
+-	stack_base =3D vma->vm_end + EXTRA_STACK_VM_PAGES * PAGE_SIZE;
++		stack_base =3D vma->vm_end + EXTRA_STACK_VM_PAGES * PAGE_SIZE;
+ #else
+-	stack_base =3D vma->vm_start - EXTRA_STACK_VM_PAGES * PAGE_SIZE;
++		stack_base =3D vma->vm_start - EXTRA_STACK_VM_PAGES * PAGE_SIZE;
+ #endif
+-	ret =3D expand_stack(vma, stack_base);
+-	if (ret)
+-		ret =3D -EFAULT;
++
++		ret =3D expand_stack(vma, stack_base);
++		if (ret)
++			ret =3D -EFAULT;
 +	}
 =20
- 	root =3D hugetlbfs_vfsmount->mnt_root;
- 	quick_string.name =3D name;
-@@ -936,13 +945,14 @@ struct file *hugetlb_file_setup(const char *name, siz=
-e_t size)
- 		goto out_shm_unlock;
-=20
- 	error =3D -ENOSPC;
--	inode =3D hugetlbfs_get_inode(root->d_sb, current->fsuid,
--				current->fsgid, S_IFREG | S_IRWXUGO, 0);
-+	inode =3D hugetlbfs_get_inode(root->d_sb, current->fsuid, current->fsgid,
-+				    S_IFREG | S_IRWXUGO, 0, creat_flags);
- 	if (!inode)
- 		goto out_dentry;
-=20
- 	error =3D -ENOMEM;
--	if (hugetlb_reserve_pages(inode, 0, size >> HPAGE_SHIFT))
-+	if ((creat_flags & HUGETLB_RESERVE) &&
-+		hugetlb_reserve_pages(inode, 0, size >> HPAGE_SHIFT))
- 		goto out_inode;
-=20
- 	d_instantiate(dentry, inode);
-@@ -963,7 +973,8 @@ out_inode:
- out_dentry:
- 	dput(dentry);
- out_shm_unlock:
--	user_shm_unlock(size, current->user);
-+	if (creat_flags & HUGETLB_SHARED)
-+		user_shm_unlock(size, current->user);
- 	return ERR_PTR(error);
- }
-=20
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index addca4c..66b7a2b 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -165,12 +165,24 @@ static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(=
-struct super_block *sb)
-=20
- extern const struct file_operations hugetlbfs_file_operations;
- extern struct vm_operations_struct hugetlb_vm_ops;
--struct file *hugetlb_file_setup(const char *name, size_t);
-+struct file *hugetlb_file_setup(const char *name, size_t,
-+				unsigned long creat_flags);
- int hugetlb_get_quota(struct address_space *mapping, long delta);
- void hugetlb_put_quota(struct address_space *mapping, long delta);
-=20
- #define BLOCKS_PER_HUGEPAGE	(HPAGE_SIZE / 512)
-=20
-+#define HUGETLB_SHARED  0x00000001UL	/* Make the huge pages backed by the
-+					 * file being created shared */
-+
-+#define HUGETLB_RESERVE 0x00000002UL	/* Reserve the huge pages backed by t=
-he
-+					 * new file */
-+
-+#define HUGETLB_STACK_FILE "hugetlb-stack"
-+
-+/* to align the pointer to the (next) huge page boundary */
-+#define HPAGE_ALIGN(addr)	(((addr)+HPAGE_SIZE-1)&HPAGE_MASK)
-+
- static inline int is_file_hugepages(struct file *file)
- {
- 	if (file->f_op =3D=3D &hugetlbfs_file_operations)
-@@ -189,7 +201,7 @@ static inline void set_file_hugepages(struct file *file=
-)
-=20
- #define is_file_hugepages(file)		0
- #define set_file_hugepages(file)	BUG()
--#define hugetlb_file_setup(name,size)	ERR_PTR(-ENOSYS)
-+#define hugetlb_file_setup(name,size,creat_flags)	ERR_PTR(-ENOSYS)
-=20
- #endif /* !CONFIG_HUGETLBFS */
-=20
-diff --git a/ipc/shm.c b/ipc/shm.c
-index cc63fae..38941eb 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -401,7 +401,8 @@ static int newseg(struct ipc_namespace *ns, struct ipc_=
-params *params)
- 	sprintf (name, "SYSV%08x", key);
- 	if (shmflg & SHM_HUGETLB) {
- 		/* hugetlb_file_setup takes care of mlock user accounting */
--		file =3D hugetlb_file_setup(name, size);
-+		file =3D hugetlb_file_setup(name, size,
-+					  HUGETLB_SHARED | HUGETLB_RESERVE);
- 		shp->mlock_user =3D current->user;
- 	} else {
- 		int acctflag =3D VM_ACCOUNT;
+ out_unlock:
+ 	up_write(&mm->mmap_sem);
+diff --git a/include/linux/personality.h b/include/linux/personality.h
+index 012cd55..6ecebdf 100644
+--- a/include/linux/personality.h
++++ b/include/linux/personality.h
+@@ -22,6 +22,9 @@ extern int		__set_personality(unsigned long);
+  * These occupy the top three bytes.
+  */
+ enum {
++	HUGE_PAGE_STACK =3D 	0x0020000,	/* Attempt to use a huge page
++						 * for the process stack
++						 */
+ 	ADDR_NO_RANDOMIZE =3D 	0x0040000,	/* disable randomization of VA space */
+ 	FDPIC_FUNCPTRS =3D	0x0080000,	/* userspace function ptrs point to descrip=
+tors
+ 						 * (signal handling)
 
 
---=-CMoCLz5bdgTzTvWUMm2m
+--=-1YpyVUA6P1hwR7SZY0bk
 Content-Type: application/pgp-signature; name=signature.asc
 Content-Description: This is a digitally signed message part
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.6 (GNU/Linux)
 
-iD8DBQBIGnOhsnv9E83jkzoRAvdpAKCcbk2ykSbQ169lU+VhUgQLME2nEgCfdgEL
-D855frHCoUAIZrT4MfeLUfw=
-=QxY1
+iD8DBQBIGnO1snv9E83jkzoRAoEoAKCVHgZDcGSziR+pvilWMEFsCWhdMgCg9YiP
+Nnwn9dZIix/nxSc4H/nvv5I=
+=GENL
 -----END PGP SIGNATURE-----
 
---=-CMoCLz5bdgTzTvWUMm2m--
+--=-1YpyVUA6P1hwR7SZY0bk--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
