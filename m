@@ -1,33 +1,51 @@
-Date: Fri, 2 May 2008 03:43:37 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc] data race in page table setup/walking?
-Message-ID: <20080502014337.GA11844@wotan.suse.de>
-References: <20080429050054.GC21795@wotan.suse.de> <Pine.LNX.4.64.0804291333540.22025@blonde.site> <20080430060340.GE27652@wotan.suse.de> <alpine.LFD.1.10.0804300848390.2997@woody.linux-foundation.org> <20080501002955.GA11312@wotan.suse.de> <alpine.LFD.1.10.0804302020050.5994@woody.linux-foundation.org> <20080502012006.GD30768@wotan.suse.de> <alpine.LFD.1.10.0805011832010.5994@woody.linux-foundation.org>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m421pIrF020687
+	for <linux-mm@kvack.org>; Thu, 1 May 2008 21:51:18 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m421pIwN196096
+	for <linux-mm@kvack.org>; Thu, 1 May 2008 19:51:18 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m427pIRS029304
+	for <linux-mm@kvack.org>; Fri, 2 May 2008 01:51:18 -0600
+Subject: [RFC][PATCH 0/2] Huge page backed user-space stacks
+From: Eric B Munson <ebmunson@us.ibm.com>
+Reply-To: ebmunson@us.ibm.com
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-t4NLSwivW/otG6l6j2bI"
+Date: Thu, 01 May 2008 18:51:16 -0700
+Message-Id: <1209693076.8483.21.camel@grover.beaverton.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.1.10.0805011832010.5994@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Hugh Dickins <hugh@veritas.com>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: linux-mm@kvack.org
+Cc: nacc <nacc@linux.vnet.ibm.com>, mel@csn.ul.ie, andyw <andyw@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 01, 2008 at 06:33:45PM -0700, Linus Torvalds wrote:
-> 
-> 
-> On Fri, 2 May 2008, Nick Piggin wrote:
-> > 
-> > I guess it is possible. But at least in the case of write address, you'd
-> > have to wait for later stores anyway in order to do the alias detection,
-> > which might be the most common case.
-> 
-> No, just the *address*. The data for the second store may not be ready, 
-> but the address may have been resolved (and checked that it doesn't fault 
-> etc) and the previous store may complete.
+--=-t4NLSwivW/otG6l6j2bI
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-Yes in the case of other dependencies I agreed that it would be possible.
-In the case of just address it doesn't really make sense.
+It is beneficial for certain user space processes to use huge pages for
+their process stacks rather than small pages.
+
+Presently there is no way for a process to do this.  This patch set
+introduces a method for putting user space process stacks on huge pages.
+It adds a personality flag that requests huge page backed stacks.  A
+user space utility will be required to set the personality flag before
+calling exec with for the target process.
+
+--=-t4NLSwivW/otG6l6j2bI
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQBIGnOUsnv9E83jkzoRAnuUAJ0RlXOGXND+/L2TRbuEomOoUREZjwCfaDI3
+djW+o44uDPA+eBh+pmKu6FM=
+=Ya8z
+-----END PGP SIGNATURE-----
+
+--=-t4NLSwivW/otG6l6j2bI--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
