@@ -1,38 +1,31 @@
-Date: Fri, 2 May 2008 03:23:50 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: Warning on memory offline (and possible in usual migration?)
-Message-ID: <20080502012350.GF30768@wotan.suse.de>
-References: <20080423004804.GA14134@wotan.suse.de> <20080429162016.961aa59d.kamezawa.hiroyu@jp.fujitsu.com> <20080430065611.GH27652@wotan.suse.de> <20080430001249.c07ff5c8.akpm@linux-foundation.org> <20080430072620.GI27652@wotan.suse.de> <Pine.LNX.4.64.0804301059570.26173@schroedinger.engr.sgi.com> <20080501014418.GB15179@wotan.suse.de> <Pine.LNX.4.64.0805011224150.8738@schroedinger.engr.sgi.com> <20080502004445.GB30768@wotan.suse.de> <Pine.LNX.4.64.0805011805150.13527@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0805011805150.13527@schroedinger.engr.sgi.com>
+Date: Thu, 1 May 2008 18:28:57 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch] SLQB v2
+In-Reply-To: <20080502012321.GE30768@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0805011825420.13697@schroedinger.engr.sgi.com>
+References: <20080410193137.GB9482@wotan.suse.de> <20080415034407.GA9120@ubuntu>
+ <20080501015418.GC15179@wotan.suse.de> <Pine.LNX.4.64.0805011226410.8738@schroedinger.engr.sgi.com>
+ <20080502004325.GA30768@wotan.suse.de> <Pine.LNX.4.64.0805011813180.13527@schroedinger.engr.sgi.com>
+ <20080502012321.GE30768@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, GOTO <y-goto@jp.fujitsu.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: "Ahmed S. Darwish" <darwish.07@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 01, 2008 at 06:07:43PM -0700, Christoph Lameter wrote:
-> On Fri, 2 May 2008, Nick Piggin wrote:
-> 
-> > On Thu, May 01, 2008 at 12:25:54PM -0700, Christoph Lameter wrote:
-> > > On Thu, 1 May 2008, Nick Piggin wrote:
-> > > 
-> > > > Yes if PageUptodate and the page is locked, then I don't believe
-> > > > any read IO should happen.
-> > > 
-> > > Ok so page migration should check for that and not migrate a page that is 
-> > > !Uptodate?
-> > 
-> > Buffer migration seems to work OK now, why do you need to add the
-> > restriction?
-> 
-> Because we have to protect against read I/O. We cannot migrate 
-> a page that is under I/O and free the memory that is being written to by a 
-> device.
+On Fri, 2 May 2008, Nick Piggin wrote:
 
-The buffer migration path protects against read IO on buffers.
+> But overloading struct page values happens in other places too. Putting
+> everything into struct page is not scalable. We could also make kmalloc
+
+Well lets at least attempt to catch the biggest users. Also makes code 
+clearer if you f.e. use page->first_page instead of page->private for 
+compound pages.
+
+kmalloc is intended to return an arbitrary type. struct page has a defined 
+format that needs to be respected.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
