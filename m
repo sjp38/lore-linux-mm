@@ -1,31 +1,30 @@
-Date: Thu, 1 May 2008 18:28:57 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch] SLQB v2
-In-Reply-To: <20080502012321.GE30768@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0805011825420.13697@schroedinger.engr.sgi.com>
-References: <20080410193137.GB9482@wotan.suse.de> <20080415034407.GA9120@ubuntu>
- <20080501015418.GC15179@wotan.suse.de> <Pine.LNX.4.64.0805011226410.8738@schroedinger.engr.sgi.com>
- <20080502004325.GA30768@wotan.suse.de> <Pine.LNX.4.64.0805011813180.13527@schroedinger.engr.sgi.com>
- <20080502012321.GE30768@wotan.suse.de>
+Date: Thu, 1 May 2008 18:33:45 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [rfc] data race in page table setup/walking?
+In-Reply-To: <20080502012006.GD30768@wotan.suse.de>
+Message-ID: <alpine.LFD.1.10.0805011832010.5994@woody.linux-foundation.org>
+References: <20080429050054.GC21795@wotan.suse.de> <Pine.LNX.4.64.0804291333540.22025@blonde.site> <20080430060340.GE27652@wotan.suse.de> <alpine.LFD.1.10.0804300848390.2997@woody.linux-foundation.org> <20080501002955.GA11312@wotan.suse.de>
+ <alpine.LFD.1.10.0804302020050.5994@woody.linux-foundation.org> <20080502012006.GD30768@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
-Cc: "Ahmed S. Darwish" <darwish.07@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: Hugh Dickins <hugh@veritas.com>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
+
 On Fri, 2 May 2008, Nick Piggin wrote:
+> 
+> I guess it is possible. But at least in the case of write address, you'd
+> have to wait for later stores anyway in order to do the alias detection,
+> which might be the most common case.
 
-> But overloading struct page values happens in other places too. Putting
-> everything into struct page is not scalable. We could also make kmalloc
+No, just the *address*. The data for the second store may not be ready, 
+but the address may have been resolved (and checked that it doesn't fault 
+etc) and the previous store may complete.
 
-Well lets at least attempt to catch the biggest users. Also makes code 
-clearer if you f.e. use page->first_page instead of page->private for 
-compound pages.
-
-kmalloc is intended to return an arbitrary type. struct page has a defined 
-format that needs to be respected.
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
