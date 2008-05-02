@@ -1,10 +1,10 @@
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 10 of 11] export zap_page_range for XPMEM
-Message-Id: <4f462fb3dff614cd7d97.1209740713@duo.random>
+Subject: [PATCH 11 of 11] mmap sems
+Message-Id: <b4bf6df98bc00bfbef94.1209740714@duo.random>
 In-Reply-To: <patchbomb.1209740703@duo.random>
-Date: Fri, 02 May 2008 17:05:13 +0200
+Date: Fri, 02 May 2008 17:05:14 +0200
 From: Andrea Arcangeli <andrea@qumranet.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -15,30 +15,29 @@ List-ID: <linux-mm.kvack.org>
 # HG changeset patch
 # User Andrea Arcangeli <andrea@qumranet.com>
 # Date 1209740229 -7200
-# Node ID 4f462fb3dff614cd7d971219c3feaef0b43359c1
-# Parent  721c3787cd42043734331e54a42eb20c51766f71
-export zap_page_range for XPMEM
+# Node ID b4bf6df98bc00bfbef9423b0dd31cfdba63a5eeb
+# Parent  4f462fb3dff614cd7d971219c3feaef0b43359c1
+mmap sems
 
-XPMEM would have used sys_madvise() except that madvise_dontneed()
-returns an -EINVAL if VM_PFNMAP is set, which is always true for the pages
-XPMEM imports from other partitions and is also true for uncached pages
-allocated locally via the mspec allocator.  XPMEM needs zap_page_range()
-functionality for these types of pages as well as 'normal' pages.
+This patch adds a lock ordering rule to avoid a potential deadlock when
+multiple mmap_sems need to be locked.
 
 Signed-off-by: Dean Nelson <dcn@sgi.com>
 Signed-off-by: Andrea Arcangeli <andrea@qumranet.com>
 
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -954,6 +954,7 @@ unsigned long zap_page_range(struct vm_a
- 
- 	return unmap_vmas(vma, address, end, &nr_accounted, details);
- }
-+EXPORT_SYMBOL_GPL(zap_page_range);
- 
- /*
-  * Do a quick page-table lookup for a single page.
+diff --git a/mm/filemap.c b/mm/filemap.c
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -79,6 +79,9 @@ generic_file_direct_IO(int rw, struct ki
+  *
+  *  ->i_mutex			(generic_file_buffered_write)
+  *    ->mmap_sem		(fault_in_pages_readable->do_page_fault)
++ *
++ *    When taking multiple mmap_sems, one should lock the lowest-addressed
++ *    one first proceeding on up to the highest-addressed one.
+  *
+  *  ->i_mutex
+  *    ->i_alloc_sem             (various)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
