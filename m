@@ -1,46 +1,43 @@
-Date: Sat, 3 May 2008 07:41:35 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 3/4] spufs: convert nopfn to fault
-Message-ID: <20080503054135.GA15552@wotan.suse.de>
-References: <20080502031903.GD11844@wotan.suse.de> <200805021406.38980.jk@ozlabs.org> <20080502044725.GI11844@wotan.suse.de> <200805021943.54638.jk@ozlabs.org>
+Date: Sat, 3 May 2008 06:09:04 -0500
+From: Jack Steiner <steiner@sgi.com>
+Subject: Re: [PATCH 00 of 11] mmu notifier #v15
+Message-ID: <20080503110904.GA19688@sgi.com>
+References: <patchbomb.1209740703@duo.random>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <200805021943.54638.jk@ozlabs.org>
+In-Reply-To: <patchbomb.1209740703@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Kerr <jk@ozlabs.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, jes@trained-monkey.org, cpw@sgi.com
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 02, 2008 at 07:43:53PM +1000, Jeremy Kerr wrote:
-> Hi Nick,
+On Fri, May 02, 2008 at 05:05:03PM +0200, Andrea Arcangeli wrote:
+> Hello everyone,
 > 
-> > > Acked-by: Jeremy Kerr <jk@ozlabs.org>
-> >
-> > Great, thanks very much!
+> 1/11 is the latest version of the mmu-notifier-core patch.
 > 
-> After more testing, it looks like these patches cause a huge increase in 
-> load (ie, system is unresponsive for large amounts of time) for various 
-> tests which depend on the fault path.
+> As usual all later 2-11/11 patches follows but those aren't meant for 2.6.26.
 > 
-> I need to get some quantitative numbers, but it looks like oprofile is 
-> broken at the moment. More debugging coming..
 
-OK, thanks for testing that... It _should_ be 100% equivalent really,
-so it must be some problem in the conversion. Don't worry too much
-about getting exact numbers because any noticable difference would be
-a bug.
+Not sure why -mm is different, but I get compile errors w/o the following...
 
-Hmm, in spufs_mem_mmap_fault, vm_insert_pfn should just take
-address (corrected for 64K), rather than the uncorrected address I
-gave it...
+--- jack
 
-Can't see any other problems though. Is it getting stuck looping in
-faults somehow?
 
-Thanks,
-Nick
+Index: linux/mm/mmu_notifier.c
+===================================================================
+--- linux.orig/mm/mmu_notifier.c	2008-05-02 16:54:52.780576831 -0500
++++ linux/mm/mmu_notifier.c	2008-05-02 16:56:38.817719509 -0500
+@@ -16,6 +16,7 @@
+ #include <linux/srcu.h>
+ #include <linux/rcupdate.h>
+ #include <linux/sched.h>
++#include <linux/rculist.h>
+ 
+ /*
+  * This function can't run concurrently against mmu_notifier_register
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
