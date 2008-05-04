@@ -2,72 +2,108 @@ From: Johannes Weiner <hannes@saeurebad.de>
 Subject: Re: [RFC 0/2] Rootmem: boot-time memory allocator
 References: <20080503152502.191599824@symbol.fehenstaub.lan>
 	<20080503175426.GB5292@elte.hu>
-Date: Sun, 04 May 2008 10:54:45 +0200
-In-Reply-To: <20080503175426.GB5292@elte.hu> (Ingo Molnar's message of "Sat, 3
-	May 2008 19:54:26 +0200")
-Message-ID: <87lk2qv48a.fsf@saeurebad.de>
+	<86802c440805032106t4d020838v39aaf93309003cdb@mail.gmail.com>
+Date: Sun, 04 May 2008 10:57:11 +0200
+In-Reply-To: <86802c440805032106t4d020838v39aaf93309003cdb@mail.gmail.com>
+	(Yinghai Lu's message of "Sat, 3 May 2008 21:06:02 -0700")
+Message-ID: <87hcdev448.fsf@saeurebad.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Yinghai Lu <yhlu.kernel@gmail.com>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-Ingo Molnar <mingo@elte.hu> writes:
+"Yinghai Lu" <yhlu.kernel@gmail.com> writes:
 
-> * Johannes Weiner <hannes@saeurebad.de> wrote:
+> On Sat, May 3, 2008 at 10:54 AM, Ingo Molnar <mingo@elte.hu> wrote:
+>>
+>>  * Johannes Weiner <hannes@saeurebad.de> wrote:
+>>
+>>  > I was spending some time and work on the bootmem allocator the last
+>>  > few weeks and came to the conclusion that its current design is not
+>>  > appropriate anymore.
+>>  >
+>>  > As Ingo said in another email, NUMA technologies will become weirder,
+>>  > nodes whose PFNs span other nodes for example and it makes bootmem
+>>  > code become an unreadable mess.
+>>  >
+>>  > So I sat down two days ago and rewrote the allocator, here is the
+>>  > result: rootmem!
+>>
+>>  hehe :-)
+>>
+>>
+>>  > The biggest difference to the old design is that there is only one
+>>  > bitmap for all PFNs of all nodes together, so the overlapping PFN
+>>  > problems simply dissolve and fun like allocations crossing node
+>>  > boundaries work implicitely.  The new API requires every node used by
+>>  > the allocator to be registered and after that the bitmap gets
+>>  > allocated and the allocator enabled.
+>>  >
+>>  > I chose to add a new allocator rather than replacing bootmem at once
+>>  > because that would have required all callsites to switch in one go,
+>>  > which would be a lot.  The new allocator can be adopted more slowly
+>>  > and I added a compatibility API for everything besides actually
+>>  > setting up the allocator.  When the last user dies, bootmem can be
+>>  > dropped completely (including pgdat->bdata, whee..)
+>>  >
+>>  > The main ideas from bootmem have been stolen^W preserved but the new
+>>  > design allowed me to shrink the code a lot and express things more
+>>  > simple and clear:
+>>  >
+>>  > $ sloc.awk < mm/bootmem.c
+>>  > 455 lines of code, 65 lines of comments (520 lines total)
+>>  >
+>>  > $ sloc.awk < mm/rootmem.c
+>>  > 243 lines of code, 96 lines of comments (339 lines total)
+>>
+>>  amazing!
+>>
+>>  i'd still suggest to keep it all named bootmem though :-/ How about
+>>  bootmem2.c and then renaming it back to bootmem.c, once the last user is
+>>  gone? That would save people from having to rename whole chapters in
+>>  entire books ;-)
 >
->> I was spending some time and work on the bootmem allocator the last 
->> few weeks and came to the conclusion that its current design is not 
->> appropriate anymore.
->> 
->> As Ingo said in another email, NUMA technologies will become weirder, 
->> nodes whose PFNs span other nodes for example and it makes bootmem 
->> code become an unreadable mess.
->> 
->> So I sat down two days ago and rewrote the allocator, here is the 
->> result: rootmem!
->
-> hehe :-)
->
->> The biggest difference to the old design is that there is only one 
->> bitmap for all PFNs of all nodes together, so the overlapping PFN 
->> problems simply dissolve and fun like allocations crossing node 
->> boundaries work implicitely.  The new API requires every node used by 
->> the allocator to be registered and after that the bitmap gets 
->> allocated and the allocator enabled.
->> 
->> I chose to add a new allocator rather than replacing bootmem at once 
->> because that would have required all callsites to switch in one go, 
->> which would be a lot.  The new allocator can be adopted more slowly 
->> and I added a compatibility API for everything besides actually 
->> setting up the allocator.  When the last user dies, bootmem can be 
->> dropped completely (including pgdat->bdata, whee..)
->> 
->> The main ideas from bootmem have been stolen^W preserved but the new 
->> design allowed me to shrink the code a lot and express things more 
->> simple and clear:
->> 
->> $ sloc.awk < mm/bootmem.c
->> 455 lines of code, 65 lines of comments (520 lines total)
->> 
->> $ sloc.awk < mm/rootmem.c
->> 243 lines of code, 96 lines of comments (339 lines total)
->
-> amazing!
->
-> i'd still suggest to keep it all named bootmem though :-/ How about 
-> bootmem2.c and then renaming it back to bootmem.c, once the last user is 
-> gone? That would save people from having to rename whole chapters in 
-> entire books ;-)
+> for spanning support node0:0-2g, 4-6g; node1: 2-4g, 6-8g, could have
+> some problem.
 
-Hehe, I still have bootmem2.c flying around...  I was not sure if the
-migration is easier with the same name or with a different name but the
-API is mostly compatible in the end, so staying with bootmem should be
-possible and it sounds way better...
+Could you eleborate on that?
+
+> +/*
+> + * rootmem_register_node - register a node to rootmem
+> + * @nid: node id
+> + * @start: first pfn on the node
+> + * @end: first pfn after the node
+> + *
+> + * This function must not be called anymore if the allocator
+> + * is already up and running (rootmem_setup() has been called).
+> + */
+> +void __init rootmem_register_node(int nid, unsigned long start,
+> +                       unsigned long end)
+> +{
+> +       BUG_ON(rootmem_functional);
+> +
+> +       if (start < rootmem_min_pfn)
+> +               rootmem_min_pfn = start;
+> +       if (end > rootmem_max_pfn)
+> +               rootmem_max_pfn = end;
+> +
+> +       rootmem_node_pages[nid] = end - start;
+> +       rootmem_node_offsets[nid] = start;
+> +       rootmem_nr_nodes++;
+> +}
+>
+> could change rootmem_node_pages/offsets to be struct array with
+> offset, pages, and nid. and every node could several struct. and whole
+> array should be sorted with nid.
+
+The whole point is to be agnostic about weird NUMA configs.  Right now,
+I am pretty proud of the simple data structures and I would avoid
+blowing them up again unless there is a hard reason to do so.
 
 	Hannes
 
