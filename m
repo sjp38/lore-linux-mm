@@ -1,9 +1,9 @@
-Date: Sun, 04 May 2008 21:58:13 +0900
+Date: Sun, 04 May 2008 21:59:31 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [-mm][PATCH 3/5] change function prototype of shrink_zone()
+Subject: [-mm][PATCH 4/5] core of reclaim throttle
 In-Reply-To: <20080504201343.8F52.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 References: <20080504201343.8F52.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20080504215718.8F5B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080504215819.8F5E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -13,150 +13,171 @@ To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew M
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-change function return type for following enhancement.
-this patch have no behaver change.
+add throttle to shrink_zone() for performance improvement and prevent incorrect oom.
 
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 ---
- mm/vmscan.c |   47 ++++++++++++++++++++++++++++++++---------------
- 1 file changed, 32 insertions(+), 15 deletions(-)
+ include/linux/mmzone.h |    2 +
+ include/linux/sched.h  |    1 
+ mm/Kconfig             |   10 +++++++++
+ mm/page_alloc.c        |    4 +++
+ mm/vmscan.c            |   52 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ 5 files changed, 68 insertions(+), 1 deletion(-)
 
+Index: b/include/linux/mmzone.h
+===================================================================
+--- a/include/linux/mmzone.h	2008-05-03 00:39:44.000000000 +0900
++++ b/include/linux/mmzone.h	2008-05-03 00:44:12.000000000 +0900
+@@ -328,6 +328,8 @@ struct zone {
+ 	unsigned long		spanned_pages;	/* total size, including holes */
+ 	unsigned long		present_pages;	/* amount of memory (excluding holes) */
+ 
++	atomic_t		nr_reclaimers;
++	wait_queue_head_t	reclaim_throttle_waitq;
+ 	/*
+ 	 * rarely used fields:
+ 	 */
+Index: b/mm/page_alloc.c
+===================================================================
+--- a/mm/page_alloc.c	2008-05-03 00:39:44.000000000 +0900
++++ b/mm/page_alloc.c	2008-05-03 00:44:12.000000000 +0900
+@@ -3502,6 +3502,10 @@ static void __paginginit free_area_init_
+ 		zone->nr_scan_inactive = 0;
+ 		zap_zone_vm_stats(zone);
+ 		zone->flags = 0;
++
++		zone->nr_reclaimers = ATOMIC_INIT(0);
++		init_waitqueue_head(&zone->reclaim_throttle_waitq);
++
+ 		if (!size)
+ 			continue;
+ 
 Index: b/mm/vmscan.c
 ===================================================================
---- a/mm/vmscan.c	2008-05-02 23:46:25.000000000 +0900
-+++ b/mm/vmscan.c	2008-05-03 00:00:32.000000000 +0900
-@@ -51,6 +51,9 @@ struct scan_control {
- 	/* Incremented by the number of inactive pages that were scanned */
- 	unsigned long nr_scanned;
+--- a/mm/vmscan.c	2008-05-03 00:43:48.000000000 +0900
++++ b/mm/vmscan.c	2008-05-04 20:56:01.000000000 +0900
+@@ -74,6 +74,11 @@ struct scan_control {
  
-+	/* number of reclaimed pages by this scanning */
-+	unsigned long nr_reclaimed;
+ 	int order;
+ 
++	/* Can shrink be cutted off if other task freeded enough page. */
++	int may_cut_off;
 +
- 	/* This context's GFP mask */
- 	gfp_t gfp_mask;
++	unsigned long was_freed;
++
+ 	/* Which cgroup do we reclaim from */
+ 	struct mem_cgroup *mem_cgroup;
  
-@@ -1177,8 +1180,8 @@ static void shrink_active_list(unsigned 
- /*
-  * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
-  */
--static unsigned long shrink_zone(int priority, struct zone *zone,
--				struct scan_control *sc)
-+static int shrink_zone(int priority, struct zone *zone,
-+		       struct scan_control *sc)
- {
- 	unsigned long nr_active;
+@@ -120,6 +125,7 @@ struct scan_control {
+ int vm_swappiness = 60;
+ long vm_total_pages;	/* The total number of pages which the VM controls */
+ 
++#define MAX_RECLAIM_TASKS CONFIG_NR_MAX_RECLAIM_TASKS_PER_ZONE
+ static LIST_HEAD(shrinker_list);
+ static DECLARE_RWSEM(shrinker_rwsem);
+ 
+@@ -1187,7 +1193,42 @@ static int shrink_zone(int priority, str
  	unsigned long nr_inactive;
-@@ -1236,8 +1239,9 @@ static unsigned long shrink_zone(int pri
- 		}
- 	}
- 
-+	sc->nr_reclaimed += nr_reclaimed;
- 	throttle_vm_writeout(sc->gfp_mask);
--	return nr_reclaimed;
-+	return 0;
- }
- 
- /*
-@@ -1251,18 +1255,23 @@ static unsigned long shrink_zone(int pri
-  * b) The zones may be over pages_high but they must go *over* pages_high to
-  *    satisfy the `incremental min' zone defense algorithm.
-  *
-- * Returns the number of reclaimed pages.
-+ * @priority: reclaim priority
-+ * @zonelist: list of shrinking zones
-+ * @sc: scan control context
-+ * @ret_reclaimed: the number of reclaimed pages.
-+ *
-+ * Returns zonzero if error happend.
-  *
-  * If a zone is deemed to be full of pinned pages then just give it a light
-  * scan then give up on it.
-  */
--static unsigned long shrink_zones(int priority, struct zonelist *zonelist,
--					struct scan_control *sc)
-+static int shrink_zones(int priority, struct zonelist *zonelist,
-+			struct scan_control *sc)
- {
- 	enum zone_type high_zoneidx = gfp_zone(sc->gfp_mask);
--	unsigned long nr_reclaimed = 0;
- 	struct zoneref *z;
- 	struct zone *zone;
+ 	unsigned long nr_to_scan;
+ 	unsigned long nr_reclaimed = 0;
 +	int ret = 0;
- 
- 	sc->all_unreclaimable = 1;
- 	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
-@@ -1291,10 +1300,13 @@ static unsigned long shrink_zones(int pr
- 							priority);
- 		}
- 
--		nr_reclaimed += shrink_zone(priority, zone, sc);
-+		ret = shrink_zone(priority, zone, sc);
-+		if (ret)
-+			goto out;
- 	}
- 
--	return nr_reclaimed;
-+out:
-+	return ret;
- }
-  
- /*
-@@ -1319,12 +1331,12 @@ static unsigned long do_try_to_free_page
- 	int priority;
- 	int ret = 0;
- 	unsigned long total_scanned = 0;
--	unsigned long nr_reclaimed = 0;
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	unsigned long lru_pages = 0;
- 	struct zoneref *z;
- 	struct zone *zone;
- 	enum zone_type high_zoneidx = gfp_zone(sc->gfp_mask);
-+	int err;
- 
- 	if (scan_global_lru(sc))
- 		count_vm_event(ALLOCSTALL);
-@@ -1346,7 +1358,12 @@ static unsigned long do_try_to_free_page
- 		sc->nr_scanned = 0;
- 		if (!priority)
- 			disable_swap_token();
--		nr_reclaimed += shrink_zones(priority, zonelist, sc);
-+		err = shrink_zones(priority, zonelist, sc);
-+		if (err == -EAGAIN) {
-+			ret = 1;
++	int throttle_on = 0;
++	unsigned long freed;
++
++	/* avoid recursing wait_evnet */
++	if (current->flags & PF_RECLAIMING)
++		goto shrinking;
++
++	throttle_on = 1;
++	current->flags |= PF_RECLAIMING;
++	wait_event(zone->reclaim_throttle_waitq,
++		 atomic_add_unless(&zone->nr_reclaimers, 1, MAX_RECLAIM_TASKS));
++
++	/* in some situation (e.g. hibernation), shrink processing shouldn't be
++	   cut off even though large memory freeded.  */
++	if (!sc->may_cut_off)
++		goto shrinking;
++
++	/* kswapd is no related for user latency experience. */
++	if (current->flags & PF_KSWAPD)
++		goto shrinking;
++
++	/* reclaim still necessary? */
++	freed = get_vm_event(PGFREE);
++	if (scan_global_lru(sc) &&
++	    ((freed - sc->was_freed) >= (zone->pages_high*4))) {
++		sc->was_freed = freed;
++
++		if (zone_watermark_ok(zone, sc->order, zone->pages_high,
++				      gfp_zone(sc->gfp_mask), 0)) {
++			ret = -EAGAIN;
 +			goto out;
 +		}
-+
- 		/*
- 		 * Don't shrink slabs when reclaiming memory from
- 		 * over limit cgroups
-@@ -1354,13 +1371,13 @@ static unsigned long do_try_to_free_page
- 		if (scan_global_lru(sc)) {
- 			shrink_slab(sc->nr_scanned, sc->gfp_mask, lru_pages);
- 			if (reclaim_state) {
--				nr_reclaimed += reclaim_state->reclaimed_slab;
-+				sc->nr_reclaimed += reclaim_state->reclaimed_slab;
- 				reclaim_state->reclaimed_slab = 0;
- 			}
- 		}
- 		total_scanned += sc->nr_scanned;
--		if (nr_reclaimed >= sc->swap_cluster_max) {
--			ret = nr_reclaimed;
-+		if (sc->nr_reclaimed >= sc->swap_cluster_max) {
-+			ret = sc->nr_reclaimed;
- 			goto out;
- 		}
++	}
  
-@@ -1383,7 +1400,7 @@ static unsigned long do_try_to_free_page
++shrinking:
+ 	if (scan_global_lru(sc)) {
+ 		/*
+ 		 * Add one to nr_to_scan just to make sure that the kernel
+@@ -1239,9 +1280,16 @@ static int shrink_zone(int priority, str
+ 		}
  	}
- 	/* top priority shrink_caches still had more to do? don't OOM, then */
- 	if (!sc->all_unreclaimable && scan_global_lru(sc))
--		ret = nr_reclaimed;
-+		ret = sc->nr_reclaimed;
- out:
- 	/*
- 	 * Now that we've scanned all the zones at this priority level, note
+ 
++out:
++	if (throttle_on) {
++		current->flags &= ~PF_RECLAIMING;
++		atomic_dec(&zone->nr_reclaimers);
++		wake_up(&zone->reclaim_throttle_waitq);
++	}
++
+ 	sc->nr_reclaimed += nr_reclaimed;
+ 	throttle_vm_writeout(sc->gfp_mask);
+-	return 0;
++	return ret;
+ }
+ 
+ /*
+@@ -1438,6 +1486,8 @@ unsigned long try_to_free_pages(struct z
+ 		.order = order,
+ 		.mem_cgroup = NULL,
+ 		.isolate_pages = isolate_pages_global,
++		.may_cut_off = 1,
++		.was_freed = get_vm_event(PGFREE),
+ 	};
+ 
+ 	return do_try_to_free_pages(zonelist, &sc);
+Index: b/mm/Kconfig
+===================================================================
+--- a/mm/Kconfig	2008-05-03 00:39:44.000000000 +0900
++++ b/mm/Kconfig	2008-05-03 00:44:12.000000000 +0900
+@@ -205,3 +205,13 @@ config NR_QUICK
+ config VIRT_TO_BUS
+ 	def_bool y
+ 	depends on !ARCH_NO_VIRT_TO_BUS
++
++config NR_MAX_RECLAIM_TASKS_PER_ZONE
++	int "maximum number of reclaiming tasks at the same time"
++	default 3
++	help
++	  This value determines the number of threads which can do page reclaim
++	  in a zone simultaneously. If this is too big, performance under heavy memory
++	  pressure will decrease.
++	  If unsure, use default.
++
+Index: b/include/linux/sched.h
+===================================================================
+--- a/include/linux/sched.h	2008-05-03 00:39:44.000000000 +0900
++++ b/include/linux/sched.h	2008-05-03 00:44:12.000000000 +0900
+@@ -1484,6 +1484,7 @@ static inline void put_task_struct(struc
+ #define PF_MEMPOLICY	0x10000000	/* Non-default NUMA mempolicy */
+ #define PF_MUTEX_TESTER	0x20000000	/* Thread belongs to the rt mutex tester */
+ #define PF_FREEZER_SKIP	0x40000000	/* Freezer should not count it as freezeable */
++#define PF_RECLAIMING   0x80000000      /* The task have page reclaim throttling ticket */
+ 
+ /*
+  * Only the _current_ task can read/write to tsk->flags, but other
 
 
 --
