@@ -1,111 +1,110 @@
-From: Johannes Weiner <hannes@saeurebad.de>
-Subject: Re: [RFC 0/2] Rootmem: boot-time memory allocator
-References: <20080503152502.191599824@symbol.fehenstaub.lan>
-	<20080503175426.GB5292@elte.hu>
-	<86802c440805032106t4d020838v39aaf93309003cdb@mail.gmail.com>
-Date: Sun, 04 May 2008 10:57:11 +0200
-In-Reply-To: <86802c440805032106t4d020838v39aaf93309003cdb@mail.gmail.com>
-	(Yinghai Lu's message of "Sat, 3 May 2008 21:06:02 -0700")
-Message-ID: <87hcdev448.fsf@saeurebad.de>
+Date: Sun, 04 May 2008 21:53:16 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [-mm][PATCH 0/5] mm: page reclaim throttle v6
+Message-Id: <20080504201343.8F52.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yinghai Lu <yhlu.kernel@gmail.com>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+changelog
+========================================
+  v5 -> v6
+     o rebase to 2.6.25-mm1
+     o use PGFREE statics instead wall time.
+     o separate function type change patch and introduce throttle patch.
 
-"Yinghai Lu" <yhlu.kernel@gmail.com> writes:
+  v4 -> v5
+     o rebase to 2.6.25-rc8-mm1
 
-> On Sat, May 3, 2008 at 10:54 AM, Ingo Molnar <mingo@elte.hu> wrote:
->>
->>  * Johannes Weiner <hannes@saeurebad.de> wrote:
->>
->>  > I was spending some time and work on the bootmem allocator the last
->>  > few weeks and came to the conclusion that its current design is not
->>  > appropriate anymore.
->>  >
->>  > As Ingo said in another email, NUMA technologies will become weirder,
->>  > nodes whose PFNs span other nodes for example and it makes bootmem
->>  > code become an unreadable mess.
->>  >
->>  > So I sat down two days ago and rewrote the allocator, here is the
->>  > result: rootmem!
->>
->>  hehe :-)
->>
->>
->>  > The biggest difference to the old design is that there is only one
->>  > bitmap for all PFNs of all nodes together, so the overlapping PFN
->>  > problems simply dissolve and fun like allocations crossing node
->>  > boundaries work implicitely.  The new API requires every node used by
->>  > the allocator to be registered and after that the bitmap gets
->>  > allocated and the allocator enabled.
->>  >
->>  > I chose to add a new allocator rather than replacing bootmem at once
->>  > because that would have required all callsites to switch in one go,
->>  > which would be a lot.  The new allocator can be adopted more slowly
->>  > and I added a compatibility API for everything besides actually
->>  > setting up the allocator.  When the last user dies, bootmem can be
->>  > dropped completely (including pgdat->bdata, whee..)
->>  >
->>  > The main ideas from bootmem have been stolen^W preserved but the new
->>  > design allowed me to shrink the code a lot and express things more
->>  > simple and clear:
->>  >
->>  > $ sloc.awk < mm/bootmem.c
->>  > 455 lines of code, 65 lines of comments (520 lines total)
->>  >
->>  > $ sloc.awk < mm/rootmem.c
->>  > 243 lines of code, 96 lines of comments (339 lines total)
->>
->>  amazing!
->>
->>  i'd still suggest to keep it all named bootmem though :-/ How about
->>  bootmem2.c and then renaming it back to bootmem.c, once the last user is
->>  gone? That would save people from having to rename whole chapters in
->>  entire books ;-)
->
-> for spanning support node0:0-2g, 4-6g; node1: 2-4g, 6-8g, could have
-> some problem.
+  v3 -> v4:
+     o fixed recursive shrink_zone problem.
+     o add last_checked variable in shrink_zone for 
+       prevent corner case regression.
 
-Could you eleborate on that?
+  v2 -> v3:
+     o use wake_up() instead wake_up_all()
+     o max reclaimers can be changed Kconfig option and sysctl.
+     o some cleanups
 
-> +/*
-> + * rootmem_register_node - register a node to rootmem
-> + * @nid: node id
-> + * @start: first pfn on the node
-> + * @end: first pfn after the node
-> + *
-> + * This function must not be called anymore if the allocator
-> + * is already up and running (rootmem_setup() has been called).
-> + */
-> +void __init rootmem_register_node(int nid, unsigned long start,
-> +                       unsigned long end)
-> +{
-> +       BUG_ON(rootmem_functional);
-> +
-> +       if (start < rootmem_min_pfn)
-> +               rootmem_min_pfn = start;
-> +       if (end > rootmem_max_pfn)
-> +               rootmem_max_pfn = end;
-> +
-> +       rootmem_node_pages[nid] = end - start;
-> +       rootmem_node_offsets[nid] = start;
-> +       rootmem_nr_nodes++;
-> +}
->
-> could change rootmem_node_pages/offsets to be struct array with
-> offset, pages, and nid. and every node could several struct. and whole
-> array should be sorted with nid.
+  v1 -> v2:
+     o make per zone throttle 
 
-The whole point is to be agnostic about weird NUMA configs.  Right now,
-I am pretty proud of the simple data structures and I would avoid
-blowing them up again unless there is a hard reason to do so.
 
-	Hannes
+
+background
+=====================================
+current VM implementation doesn't has limit of # of parallel reclaim.
+when heavy workload, it bring to 2 bad things
+  - heavy lock contention
+  - unnecessary swap out
+
+The end of last year, KAMEZAWA Hiroyuki proposed the patch of page 
+reclaim throttle and explain it improve reclaim time.
+	http://marc.info/?l=linux-mm&m=119667465917215&w=2
+
+but unfortunately it works only memcgroup reclaim.
+Today, I implement it again for support global reclaim and mesure it.
+
+
+benefit
+=====================================
+<<1. fix the bug of incorrect OOM killer>>
+
+if do following commanc, sometimes OOM killer happened.
+(OOM happend about 10%)
+
+ $ ./hackbench 125 process 1000
+
+because following bad scenario happend.
+
+   1. memory shortage happend.
+   2. many task call shrink_zone at the same time.
+   3. all page are isolated from LRU at the same time.
+   4. the last task can't isolate any page from LRU.
+   5. it cause reclaim failure.
+   6. it cause OOM killer.
+
+my patch is directly solution for that problem.
+
+
+<<2. performance improvement>>
+I mesure various parameter of hackbench.
+
+result number mean seconds (i.e. smaller is better)
+
+    num_group       vanilla      with throttle   
+   --------------------------------------------
+      80              26.22           24.97    
+      85              27.31           25.94    
+      90              29.23           26.77
+      95              30.73           28.40
+     100              32.02           30.62
+     105              33.97           31.93
+     110              35.37           33.19
+     115              36.96           33.68
+     120              74.05           36.25
+     125              41.07           39.30
+     130              86.92           45.74
+     135             234.62           45.99
+     140             291.95           57.82
+     145             425.35           70.31
+     150             766.92          113.28
+
+
+Why this patch imrove performance?
+
+vanilla kernel get unstable performance at swap happend.
+this patch doesn't improvement best case, but be able to prevent worst case.
+thus, The average performance of hackbench increase largely.
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
