@@ -1,39 +1,67 @@
-Date: Sun, 04 May 2008 23:38:43 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [-mm][PATCH 0/5] mm: page reclaim throttle v6
-In-Reply-To: <20080504201343.8F52.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080504201343.8F52.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20080504232854.8F69.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+From: kamezawa.hiroyu@jp.fujitsu.com
+Message-ID: <23630056.1209914669637.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 5 May 2008 00:24:29 +0900 (JST)
+Subject: Re: [-mm][PATCH 0/4] Add rlimit controller to cgroups (v3)
+In-Reply-To: <20080503213726.3140.68845.sendpatchset@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
+References: <20080503213726.3140.68845.sendpatchset@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-page reclaim throttle + split lru series performance is below.
-I think its combination is best.
+>
+>
+>This is the third version of the address space control patches. These
+>patches are against 2.6.25-mm1  and have been tested using KVM in SMP mode,
+>both with and without the config enabled.
+>
+>The first patch adds the user interface. The second patch fixes the
+>cgroup mm_owner_changed callback to pass the task struct, so that
+>accounting can be adjusted on owner changes. The thrid patch adds accounting
+>and control. The fourth patch updates documentation.
+>
+>An earlier post of the patchset can be found at
+>http://lwn.net/Articles/275143/
+>
+>This patch is built on top of the mm owner patches and utilizes that feature
+>to virtually group tasks by mm_struct.
+>
+>Reviews, Comments?
+>
+
+I can't read the whole patch deeply now but this new concept "rlimit-controlle
+r" seems make sense to me.
+
+At quick glance, I have some thoughts.
+
+1. kerner/rlimit_cgroup.c is better for future expansion.
+2. why 
+   "+This controller framework is designed to be extensible to control any
+   "+resource limit (memory related) with little effort."
+   memory only ? Ok, all you want to do is related to memory, but someone
+   may want to limit RLIMIT_CPU by group or RLIMIT_CORE by group or....
+   (I have no plan but they seems useful.;)
+   So, could you add design hint of rlimit contoller to the documentation ?
+   
+3. Rleated to 2. Showing what kind of "rlimit" params are supported by
+   cgroup will be good.
+
+I don't think you have to implement all things at once. Staring from
+"only RLIMIT_AS is supported now" is good. Someone will expand it if
+he needs. But showing basic view of "gerenal purpose rlimit contoller" in _doc
+ument_ or _comments_ or _codes_ is a good thing to do.
+
+If you don't want to provide RLIMIT feature other than address space,
+it's better to avoid using the name of RLIMIT. It's confusing.
+
+Thanks,
+-Kame
 
 
-    num_group       vanilla      with throttle     throttle + split lru
-   -----------------------------------------------------------------
-      80              26.22           24.97           23.75
-      85              27.31           25.94           27.01
-      90              29.23           26.77           26.90
-      95              30.73           28.40           28.81
-     100              32.02           30.62           29.18
-     105              33.97           31.93           32.21
-     110              35.37           33.19           33.10
-     115              36.96           33.68           33.90
-     120              74.05           36.25           36.58
-     125              41.07           39.30           36.64
-     130              86.92           45.74           40.55
-     135             234.62           45.99           47.18
-     140             291.95           57.82           58.91
-     145             425.35           70.31           50.63
-     150             766.92          113.28          105.33
 
 
 
