@@ -1,45 +1,75 @@
-Date: Sat, 3 May 2008 22:29:55 -0700 (PDT)
-From: dean gaudet <dean@arctic.org>
-Subject: Re: [RFC] Reserve huge pages for reliable MAP_PRIVATE hugetlbfs
- mappings
-In-Reply-To: <87hcdsznep.fsf@basil.nowhere.org>
-Message-ID: <alpine.DEB.1.10.0805032227570.27385@twinlark.arctic.org>
-References: <20080421183621.GA13100@csn.ul.ie> <87hcdsznep.fsf@basil.nowhere.org>
+From: Johannes Weiner <hannes@saeurebad.de>
+Subject: Re: [RFC 0/2] Rootmem: boot-time memory allocator
+References: <20080503152502.191599824@symbol.fehenstaub.lan>
+	<20080503175426.GB5292@elte.hu>
+Date: Sun, 04 May 2008 10:54:45 +0200
+In-Reply-To: <20080503175426.GB5292@elte.hu> (Ingo Molnar's message of "Sat, 3
+	May 2008 19:54:26 +0200")
+Message-ID: <87lk2qv48a.fsf@saeurebad.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, wli@holomorphy.com, agl@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 23 Apr 2008, Andi Kleen wrote:
+Hi,
 
-> Mel Gorman <mel@csn.ul.ie> writes:
-> 
-> > MAP_SHARED mappings on hugetlbfs reserve huge pages at mmap() time. This is
-> > so that all future faults will be guaranteed to succeed. Applications are not
-> > expected to use mlock() as this can result in poor NUMA placement.
-> >
-> > MAP_PRIVATE mappings do not reserve pages. This can result in an application
-> > being SIGKILLed later if a large page is not available at fault time. This
-> > makes huge pages usage very ill-advised in some cases as the unexpected
-> > application failure is intolerable. Forcing potential poor placement with
-> > mlock() is not a great solution either.
-> >
-> > This patch reserves huge pages at mmap() time for MAP_PRIVATE mappings similar
-> > to what happens for MAP_SHARED mappings. 
-> 
-> This will break all applications that mmap more hugetlbpages than they
-> actually use. How do you know these don't exist?
+Ingo Molnar <mingo@elte.hu> writes:
 
-such applications couldn't have existed before the change which added 
-HugePages_Rsvd... which i admit was sometime between 2.6.11 and 2.6.18 but 
-from my point of view the inability to actually allocate hugepages without 
-trapping SIGSEGV/etc was a terrible bug introduced when HugePages_Rsvd was 
-introduced.
+> * Johannes Weiner <hannes@saeurebad.de> wrote:
+>
+>> I was spending some time and work on the bootmem allocator the last 
+>> few weeks and came to the conclusion that its current design is not 
+>> appropriate anymore.
+>> 
+>> As Ingo said in another email, NUMA technologies will become weirder, 
+>> nodes whose PFNs span other nodes for example and it makes bootmem 
+>> code become an unreadable mess.
+>> 
+>> So I sat down two days ago and rewrote the allocator, here is the 
+>> result: rootmem!
+>
+> hehe :-)
+>
+>> The biggest difference to the old design is that there is only one 
+>> bitmap for all PFNs of all nodes together, so the overlapping PFN 
+>> problems simply dissolve and fun like allocations crossing node 
+>> boundaries work implicitely.  The new API requires every node used by 
+>> the allocator to be registered and after that the bitmap gets 
+>> allocated and the allocator enabled.
+>> 
+>> I chose to add a new allocator rather than replacing bootmem at once 
+>> because that would have required all callsites to switch in one go, 
+>> which would be a lot.  The new allocator can be adopted more slowly 
+>> and I added a compatibility API for everything besides actually 
+>> setting up the allocator.  When the last user dies, bootmem can be 
+>> dropped completely (including pgdat->bdata, whee..)
+>> 
+>> The main ideas from bootmem have been stolen^W preserved but the new 
+>> design allowed me to shrink the code a lot and express things more 
+>> simple and clear:
+>> 
+>> $ sloc.awk < mm/bootmem.c
+>> 455 lines of code, 65 lines of comments (520 lines total)
+>> 
+>> $ sloc.awk < mm/rootmem.c
+>> 243 lines of code, 96 lines of comments (339 lines total)
+>
+> amazing!
+>
+> i'd still suggest to keep it all named bootmem though :-/ How about 
+> bootmem2.c and then renaming it back to bootmem.c, once the last user is 
+> gone? That would save people from having to rename whole chapters in 
+> entire books ;-)
 
--dean
+Hehe, I still have bootmem2.c flying around...  I was not sure if the
+migration is easier with the same name or with a different name but the
+API is mostly compatible in the end, so staying with bootmem should be
+possible and it sounds way better...
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
