@@ -1,121 +1,41 @@
-From: Johannes Weiner <hannes@saeurebad.de>
-Subject: Re: [RFC 0/2] Rootmem: boot-time memory allocator
-References: <20080503152502.191599824@symbol.fehenstaub.lan>
-	<20080503175426.GB5292@elte.hu>
-	<86802c440805032106t4d020838v39aaf93309003cdb@mail.gmail.com>
-	<87hcdev448.fsf@saeurebad.de>
-Date: Sun, 04 May 2008 16:17:11 +0200
-In-Reply-To: <87hcdev448.fsf@saeurebad.de> (Johannes Weiner's message of "Sun,
-	04 May 2008 10:57:11 +0200")
-Message-ID: <87r6citaqg.fsf@saeurebad.de>
+Date: Sun, 04 May 2008 23:38:43 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [-mm][PATCH 0/5] mm: page reclaim throttle v6
+In-Reply-To: <20080504201343.8F52.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080504201343.8F52.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080504232854.8F69.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yinghai Lu <yhlu.kernel@gmail.com>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Hi Yinghai,
+page reclaim throttle + split lru series performance is below.
+I think its combination is best.
 
-Johannes Weiner <hannes@saeurebad.de> writes:
 
-> Hi,
->
-> "Yinghai Lu" <yhlu.kernel@gmail.com> writes:
->
->> On Sat, May 3, 2008 at 10:54 AM, Ingo Molnar <mingo@elte.hu> wrote:
->>>
->>>  * Johannes Weiner <hannes@saeurebad.de> wrote:
->>>
->>>  > I was spending some time and work on the bootmem allocator the last
->>>  > few weeks and came to the conclusion that its current design is not
->>>  > appropriate anymore.
->>>  >
->>>  > As Ingo said in another email, NUMA technologies will become weirder,
->>>  > nodes whose PFNs span other nodes for example and it makes bootmem
->>>  > code become an unreadable mess.
->>>  >
->>>  > So I sat down two days ago and rewrote the allocator, here is the
->>>  > result: rootmem!
->>>
->>>  hehe :-)
->>>
->>>
->>>  > The biggest difference to the old design is that there is only one
->>>  > bitmap for all PFNs of all nodes together, so the overlapping PFN
->>>  > problems simply dissolve and fun like allocations crossing node
->>>  > boundaries work implicitely.  The new API requires every node used by
->>>  > the allocator to be registered and after that the bitmap gets
->>>  > allocated and the allocator enabled.
->>>  >
->>>  > I chose to add a new allocator rather than replacing bootmem at once
->>>  > because that would have required all callsites to switch in one go,
->>>  > which would be a lot.  The new allocator can be adopted more slowly
->>>  > and I added a compatibility API for everything besides actually
->>>  > setting up the allocator.  When the last user dies, bootmem can be
->>>  > dropped completely (including pgdat->bdata, whee..)
->>>  >
->>>  > The main ideas from bootmem have been stolen^W preserved but the new
->>>  > design allowed me to shrink the code a lot and express things more
->>>  > simple and clear:
->>>  >
->>>  > $ sloc.awk < mm/bootmem.c
->>>  > 455 lines of code, 65 lines of comments (520 lines total)
->>>  >
->>>  > $ sloc.awk < mm/rootmem.c
->>>  > 243 lines of code, 96 lines of comments (339 lines total)
->>>
->>>  amazing!
->>>
->>>  i'd still suggest to keep it all named bootmem though :-/ How about
->>>  bootmem2.c and then renaming it back to bootmem.c, once the last user is
->>>  gone? That would save people from having to rename whole chapters in
->>>  entire books ;-)
->>
->> for spanning support node0:0-2g, 4-6g; node1: 2-4g, 6-8g, could have
->> some problem.
->
-> Could you eleborate on that?
->
->> +/*
->> + * rootmem_register_node - register a node to rootmem
->> + * @nid: node id
->> + * @start: first pfn on the node
->> + * @end: first pfn after the node
->> + *
->> + * This function must not be called anymore if the allocator
->> + * is already up and running (rootmem_setup() has been called).
->> + */
->> +void __init rootmem_register_node(int nid, unsigned long start,
->> +                       unsigned long end)
->> +{
->> +       BUG_ON(rootmem_functional);
->> +
->> +       if (start < rootmem_min_pfn)
->> +               rootmem_min_pfn = start;
->> +       if (end > rootmem_max_pfn)
->> +               rootmem_max_pfn = end;
->> +
->> +       rootmem_node_pages[nid] = end - start;
->> +       rootmem_node_offsets[nid] = start;
->> +       rootmem_nr_nodes++;
->> +}
->>
->> could change rootmem_node_pages/offsets to be struct array with
->> offset, pages, and nid. and every node could several struct. and whole
->> array should be sorted with nid.
->
-> The whole point is to be agnostic about weird NUMA configs.  Right now,
-> I am pretty proud of the simple data structures and I would avoid
-> blowing them up again unless there is a hard reason to do so.
+    num_group       vanilla      with throttle     throttle + split lru
+   -----------------------------------------------------------------
+      80              26.22           24.97           23.75
+      85              27.31           25.94           27.01
+      90              29.23           26.77           26.90
+      95              30.73           28.40           28.81
+     100              32.02           30.62           29.18
+     105              33.97           31.93           32.21
+     110              35.37           33.19           33.10
+     115              36.96           33.68           33.90
+     120              74.05           36.25           36.58
+     125              41.07           39.30           36.64
+     130              86.92           45.74           40.55
+     135             234.62           45.99           47.18
+     140             291.95           57.82           58.91
+     145             425.35           70.31           50.63
+     150             766.92          113.28          105.33
 
-One thing I have found is that __rootmem_alloc_node can not garuantee
-that the memory it returns is on the requested node right now.
 
-I will include the fix in the next version.
-
-	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
