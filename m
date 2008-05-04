@@ -1,195 +1,121 @@
-Date: Sun, 04 May 2008 22:12:12 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [-mm][PATCH 4/5] core of reclaim throttle
-In-Reply-To: <20080504215819.8F5E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080504201343.8F52.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080504215819.8F5E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20080504221043.8F64.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+From: Johannes Weiner <hannes@saeurebad.de>
+Subject: Re: [RFC 0/2] Rootmem: boot-time memory allocator
+References: <20080503152502.191599824@symbol.fehenstaub.lan>
+	<20080503175426.GB5292@elte.hu>
+	<86802c440805032106t4d020838v39aaf93309003cdb@mail.gmail.com>
+	<87hcdev448.fsf@saeurebad.de>
+Date: Sun, 04 May 2008 16:17:11 +0200
+In-Reply-To: <87hcdev448.fsf@saeurebad.de> (Johannes Weiner's message of "Sun,
+	04 May 2008 10:57:11 +0200")
+Message-ID: <87r6citaqg.fsf@saeurebad.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Yinghai Lu <yhlu.kernel@gmail.com>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Agghh!
-I attached old version at last mail, please drop it.
+Hi Yinghai,
 
-right patch is here.
+Johannes Weiner <hannes@saeurebad.de> writes:
 
+> Hi,
+>
+> "Yinghai Lu" <yhlu.kernel@gmail.com> writes:
+>
+>> On Sat, May 3, 2008 at 10:54 AM, Ingo Molnar <mingo@elte.hu> wrote:
+>>>
+>>>  * Johannes Weiner <hannes@saeurebad.de> wrote:
+>>>
+>>>  > I was spending some time and work on the bootmem allocator the last
+>>>  > few weeks and came to the conclusion that its current design is not
+>>>  > appropriate anymore.
+>>>  >
+>>>  > As Ingo said in another email, NUMA technologies will become weirder,
+>>>  > nodes whose PFNs span other nodes for example and it makes bootmem
+>>>  > code become an unreadable mess.
+>>>  >
+>>>  > So I sat down two days ago and rewrote the allocator, here is the
+>>>  > result: rootmem!
+>>>
+>>>  hehe :-)
+>>>
+>>>
+>>>  > The biggest difference to the old design is that there is only one
+>>>  > bitmap for all PFNs of all nodes together, so the overlapping PFN
+>>>  > problems simply dissolve and fun like allocations crossing node
+>>>  > boundaries work implicitely.  The new API requires every node used by
+>>>  > the allocator to be registered and after that the bitmap gets
+>>>  > allocated and the allocator enabled.
+>>>  >
+>>>  > I chose to add a new allocator rather than replacing bootmem at once
+>>>  > because that would have required all callsites to switch in one go,
+>>>  > which would be a lot.  The new allocator can be adopted more slowly
+>>>  > and I added a compatibility API for everything besides actually
+>>>  > setting up the allocator.  When the last user dies, bootmem can be
+>>>  > dropped completely (including pgdat->bdata, whee..)
+>>>  >
+>>>  > The main ideas from bootmem have been stolen^W preserved but the new
+>>>  > design allowed me to shrink the code a lot and express things more
+>>>  > simple and clear:
+>>>  >
+>>>  > $ sloc.awk < mm/bootmem.c
+>>>  > 455 lines of code, 65 lines of comments (520 lines total)
+>>>  >
+>>>  > $ sloc.awk < mm/rootmem.c
+>>>  > 243 lines of code, 96 lines of comments (339 lines total)
+>>>
+>>>  amazing!
+>>>
+>>>  i'd still suggest to keep it all named bootmem though :-/ How about
+>>>  bootmem2.c and then renaming it back to bootmem.c, once the last user is
+>>>  gone? That would save people from having to rename whole chapters in
+>>>  entire books ;-)
+>>
+>> for spanning support node0:0-2g, 4-6g; node1: 2-4g, 6-8g, could have
+>> some problem.
+>
+> Could you eleborate on that?
+>
+>> +/*
+>> + * rootmem_register_node - register a node to rootmem
+>> + * @nid: node id
+>> + * @start: first pfn on the node
+>> + * @end: first pfn after the node
+>> + *
+>> + * This function must not be called anymore if the allocator
+>> + * is already up and running (rootmem_setup() has been called).
+>> + */
+>> +void __init rootmem_register_node(int nid, unsigned long start,
+>> +                       unsigned long end)
+>> +{
+>> +       BUG_ON(rootmem_functional);
+>> +
+>> +       if (start < rootmem_min_pfn)
+>> +               rootmem_min_pfn = start;
+>> +       if (end > rootmem_max_pfn)
+>> +               rootmem_max_pfn = end;
+>> +
+>> +       rootmem_node_pages[nid] = end - start;
+>> +       rootmem_node_offsets[nid] = start;
+>> +       rootmem_nr_nodes++;
+>> +}
+>>
+>> could change rootmem_node_pages/offsets to be struct array with
+>> offset, pages, and nid. and every node could several struct. and whole
+>> array should be sorted with nid.
+>
+> The whole point is to be agnostic about weird NUMA configs.  Right now,
+> I am pretty proud of the simple data structures and I would avoid
+> blowing them up again unless there is a hard reason to do so.
 
-------------------------------------------------------------------------
-add throttle to shrink_zone() for performance improvement and prevent incorrect oom.
+One thing I have found is that __rootmem_alloc_node can not garuantee
+that the memory it returns is on the requested node right now.
 
+I will include the fix in the next version.
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
----
- include/linux/mmzone.h |    2 +
- include/linux/sched.h  |    1 
- mm/Kconfig             |   10 ++++++++
- mm/page_alloc.c        |    4 +++
- mm/vmscan.c            |   56 ++++++++++++++++++++++++++++++++++++++++++++++++-
- 5 files changed, 72 insertions(+), 1 deletion(-)
-
-Index: b/include/linux/mmzone.h
-===================================================================
---- a/include/linux/mmzone.h	2008-05-03 00:39:44.000000000 +0900
-+++ b/include/linux/mmzone.h	2008-05-03 00:44:12.000000000 +0900
-@@ -328,6 +328,8 @@ struct zone {
- 	unsigned long		spanned_pages;	/* total size, including holes */
- 	unsigned long		present_pages;	/* amount of memory (excluding holes) */
- 
-+	atomic_t		nr_reclaimers;
-+	wait_queue_head_t	reclaim_throttle_waitq;
- 	/*
- 	 * rarely used fields:
- 	 */
-Index: b/mm/page_alloc.c
-===================================================================
---- a/mm/page_alloc.c	2008-05-03 00:39:44.000000000 +0900
-+++ b/mm/page_alloc.c	2008-05-03 00:44:12.000000000 +0900
-@@ -3502,6 +3502,10 @@ static void __paginginit free_area_init_
- 		zone->nr_scan_inactive = 0;
- 		zap_zone_vm_stats(zone);
- 		zone->flags = 0;
-+
-+		zone->nr_reclaimers = ATOMIC_INIT(0);
-+		init_waitqueue_head(&zone->reclaim_throttle_waitq);
-+
- 		if (!size)
- 			continue;
- 
-Index: b/mm/vmscan.c
-===================================================================
---- a/mm/vmscan.c	2008-05-03 00:43:48.000000000 +0900
-+++ b/mm/vmscan.c	2008-05-04 22:47:49.000000000 +0900
-@@ -74,6 +74,11 @@ struct scan_control {
- 
- 	int order;
- 
-+	/* Can shrink be cutted off if other task freeded enough page. */
-+	int may_cut_off;
-+
-+	unsigned long was_freed;
-+
- 	/* Which cgroup do we reclaim from */
- 	struct mem_cgroup *mem_cgroup;
- 
-@@ -120,6 +125,7 @@ struct scan_control {
- int vm_swappiness = 60;
- long vm_total_pages;	/* The total number of pages which the VM controls */
- 
-+#define MAX_RECLAIM_TASKS CONFIG_NR_MAX_RECLAIM_TASKS_PER_ZONE
- static LIST_HEAD(shrinker_list);
- static DECLARE_RWSEM(shrinker_rwsem);
- 
-@@ -1187,7 +1193,46 @@ static int shrink_zone(int priority, str
- 	unsigned long nr_inactive;
- 	unsigned long nr_to_scan;
- 	unsigned long nr_reclaimed = 0;
-+	int ret = 0;
-+	int throttle_on = 0;
-+	unsigned long freed;
-+	unsigned long threshold;
-+
-+	/* avoid recursing wait_evnet */
-+	if (current->flags & PF_RECLAIMING)
-+		goto shrinking;
-+
-+	throttle_on = 1;
-+	current->flags |= PF_RECLAIMING;
-+	wait_event(zone->reclaim_throttle_waitq,
-+		 atomic_add_unless(&zone->nr_reclaimers, 1, MAX_RECLAIM_TASKS));
-+
-+	/* in some situation (e.g. hibernation), shrink processing shouldn't be
-+	   cut off even though large memory freeded.  */
-+	if (!sc->may_cut_off)
-+		goto shrinking;
-+
-+	/* kswapd is no related for user latency experience. */
-+	if (current->flags & PF_KSWAPD)
-+		goto shrinking;
-+
-+	/* x4 ratio mean we want rarely check.
-+	   because frequently check decrease performance. */
-+	threshold = ((1 << sc->order) + zone->pages_high) * 4;
-+	freed = get_vm_event(PGFREE);
-+
-+	/* reclaim still necessary? */
-+	if (scan_global_lru(sc) &&
-+	    freed - sc->was_freed >= threshold) {
-+		if (zone_watermark_ok(zone, sc->order, zone->pages_high,
-+				      gfp_zone(sc->gfp_mask), 0)) {
-+			ret = -EAGAIN;
-+			goto out;
-+		}
-+		sc->was_freed = freed;
-+	}
- 
-+shrinking:
- 	if (scan_global_lru(sc)) {
- 		/*
- 		 * Add one to nr_to_scan just to make sure that the kernel
-@@ -1239,9 +1284,16 @@ static int shrink_zone(int priority, str
- 		}
- 	}
- 
-+out:
-+	if (throttle_on) {
-+		current->flags &= ~PF_RECLAIMING;
-+		atomic_dec(&zone->nr_reclaimers);
-+		wake_up(&zone->reclaim_throttle_waitq);
-+	}
-+
- 	sc->nr_reclaimed += nr_reclaimed;
- 	throttle_vm_writeout(sc->gfp_mask);
--	return 0;
-+	return ret;
- }
- 
- /*
-@@ -1438,6 +1490,8 @@ unsigned long try_to_free_pages(struct z
- 		.order = order,
- 		.mem_cgroup = NULL,
- 		.isolate_pages = isolate_pages_global,
-+		.may_cut_off = 1,
-+		.was_freed = get_vm_event(PGFREE),
- 	};
- 
- 	return do_try_to_free_pages(zonelist, &sc);
-Index: b/mm/Kconfig
-===================================================================
---- a/mm/Kconfig	2008-05-03 00:39:44.000000000 +0900
-+++ b/mm/Kconfig	2008-05-03 00:44:12.000000000 +0900
-@@ -205,3 +205,13 @@ config NR_QUICK
- config VIRT_TO_BUS
- 	def_bool y
- 	depends on !ARCH_NO_VIRT_TO_BUS
-+
-+config NR_MAX_RECLAIM_TASKS_PER_ZONE
-+	int "maximum number of reclaiming tasks at the same time"
-+	default 3
-+	help
-+	  This value determines the number of threads which can do page reclaim
-+	  in a zone simultaneously. If this is too big, performance under heavy memory
-+	  pressure will decrease.
-+	  If unsure, use default.
-+
-Index: b/include/linux/sched.h
-===================================================================
---- a/include/linux/sched.h	2008-05-03 00:39:44.000000000 +0900
-+++ b/include/linux/sched.h	2008-05-03 00:44:12.000000000 +0900
-@@ -1484,6 +1484,7 @@ static inline void put_task_struct(struc
- #define PF_MEMPOLICY	0x10000000	/* Non-default NUMA mempolicy */
- #define PF_MUTEX_TESTER	0x20000000	/* Thread belongs to the rt mutex tester */
- #define PF_FREEZER_SKIP	0x40000000	/* Freezer should not count it as freezeable */
-+#define PF_RECLAIMING   0x80000000      /* The task have page reclaim throttling ticket */
- 
- /*
-  * Only the _current_ task can read/write to tsk->flags, but other
-
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
