@@ -1,64 +1,58 @@
-Received: by rv-out-0708.google.com with SMTP id f25so799294rvb.26
-        for <linux-mm@kvack.org>; Mon, 05 May 2008 01:37:10 -0700 (PDT)
-Message-ID: <44c63dc40805050137g372bec5cr6d02eaf35b945629@mail.gmail.com>
-Date: Mon, 5 May 2008 17:37:10 +0900
-From: "minchan Kim" <barrioskmc@gmail.com>
-Subject: Re: [-mm][PATCH 3/5] change function prototype of shrink_zone()
-In-Reply-To: <2f11576a0805050131k6df2c0d6r93edb4893ad655b9@mail.gmail.com>
+Message-ID: <481EC917.6070808@bull.net>
+Date: Mon, 05 May 2008 10:45:11 +0200
+From: Nadia Derbey <Nadia.Derbey@bull.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 1/8] Scaling msgmni to the amount of lowmem
+References: <20080211141646.948191000@bull.net>	 <20080211141813.354484000@bull.net> <12c511ca0804291328v2f0b87csd0f2cf3accc6ad00@mail.gmail.com>
+In-Reply-To: <12c511ca0804291328v2f0b87csd0f2cf3accc6ad00@mail.gmail.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080504201343.8F52.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080504215718.8F5B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <44c63dc40805042142k2e5bc366mffa9e0a22fbe94c9@mail.gmail.com>
-	 <2f11576a0805050131k6df2c0d6r93edb4893ad655b9@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Tony Luck <tony.luck@intel.com>
+Cc: linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, akpm@linux-foundation.org, linux-mm@kvack.org, containers@lists.linux-foundation.org, matthltc@us.ibm.com, cmm@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-OK. I see
-I seemed to be in a hurry without looking over following patches.
-
-On Mon, May 5, 2008 at 5:31 PM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
-> Hi
->
-> >  >  +       sc->nr_reclaimed += nr_reclaimed;
-> >  >         throttle_vm_writeout(sc->gfp_mask);
-> >  >  -       return nr_reclaimed;
-> >  >  +       return 0;
-> >  >   }
-> >
-> >  I am not sure this is right.
-> >  I might be wrong if this patch is depended on another patch.
-> >
-> >  As I see, shrink_zone always return 0 in your patch.
->
-> Yeah, this patch is just preparetion change of [4/5].
-> I use EAGAIN at [4/5].
->
->
-> >  If it is right, I think that return value is useless. It is better
-> >  that we change function return type to "void"
-> >  Also, we have to change functions that call shrink_zone properly. ex)
-> >  balance_pgdat, __zone_reclaim
-> >  That functions still use number of shrink_zone's reclaim page
->
-> this patch is not intent by solo usage.
-> just intent to bisect friendly.
-> thus, We need implement that following patch use freature only.
->
-> Thanks!
->
+Tony Luck wrote:
+> On Mon, Feb 11, 2008 at 7:16 AM,  <Nadia.Derbey@bull.net> wrote:
+> 
+>> Index: linux-2.6.24-mm1/ipc/msg.c
+>> ===================================================================
+>> --- linux-2.6.24-mm1.orig/ipc/msg.c     2008-02-07 15:02:29.000000000 +0100
+>> +++ linux-2.6.24-mm1/ipc/msg.c  2008-02-07 15:24:19.000000000 +0100
+> 
+> ...
+> 
+>> +out_callback:
+>> +
+>> +       printk(KERN_INFO "msgmni has been set to %d for ipc namespace %p\n",
+>> +               ns->msg_ctlmni, ns);
+>> +}
+> 
+> 
+> This patch has now made its way to mainline.  I can see how this printk
+> was really useful to you while developing this patch. But does it add
+> much value in a production system? It just looks like another piece of
+> clutter on the console to my uncontainerized eyes.
+> 
+> -Tony
+> 
+> 
 
 
+Well, this printk had been suggested by somebody (sorry I don't remember 
+who) when I first submitted the patch. Actually I think it might be 
+useful for a sysadmin to be aware of a change in the msgmni value: we 
+have the message not only at boot time, but also each time msgmni is 
+recomputed because of a change in the amount of memory.
+Also, at boot time, I think it's interesting to have the actual msgmni 
+value: it used to unconditionally be set to 16. Some applications that 
+used to need an initialization script setting msgmni to a higher value 
+might not need that script anymore, since the new value might fit their 
+needs.
 
--- 
-Thanks,
-barrios
+Regards,
+Nadia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
