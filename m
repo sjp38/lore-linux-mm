@@ -1,49 +1,50 @@
-Date: Mon, 5 May 2008 17:37:30 +0100 (BST)
+Date: Mon, 5 May 2008 17:57:20 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [patch 2/2] fix SMP data race in pagetable setup vs walking
-In-Reply-To: <alpine.LFD.1.10.0805050828120.32269@woody.linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0805051725140.8230@blonde.site>
+In-Reply-To: <20080505121240.GD5018@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0805051751230.11062@blonde.site>
 References: <20080505112021.GC5018@wotan.suse.de> <20080505121240.GD5018@wotan.suse.de>
- <alpine.LFD.1.10.0805050828120.32269@woody.linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Paul McKenney <paulmck@us.ibm.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Paul McKenney <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 5 May 2008, Linus Torvalds wrote:
-> On Mon, 5 May 2008, Nick Piggin wrote:
-> > 
-> > Index: linux-2.6/include/asm-x86/pgtable_32.h
-> > ===================================================================
-> > --- linux-2.6.orig/include/asm-x86/pgtable_32.h
-> > +++ linux-2.6/include/asm-x86/pgtable_32.h
-> > @@ -133,7 +133,12 @@ extern int pmd_bad(pmd_t pmd);
-> >   * pgd_offset() returns a (pgd_t *)
-> >   * pgd_index() is used get the offset into the pgd page's array of pgd_t's;
-> >   */
-> > -#define pgd_offset(mm, address) ((mm)->pgd + pgd_index((address)))
-> > +#define pgd_offset(mm, address)						\
-> > +({									\
-> > +	pgd_t *ret = ((mm)->pgd + pgd_index((address)));		\
-> > +	smp_read_barrier_depends(); /* see mm/memory.c:__pte_alloc */	\
-> > +	ret;								\
-> > +})
-> 
-> Is there some fundamental reason this needs to be a macro?
-> 
-> It is really ugly, and it would be much nicer to make this an inline 
-> function if at all possible.
-> 
-> Yeah, maybe it requires some more #include's, but ..
+On Mon, 5 May 2008, Nick Piggin wrote:
+> Index: linux-2.6/mm/memory.c
+> ===================================================================
+> --- linux-2.6.orig/mm/memory.c
+> +++ linux-2.6/mm/memory.c
+> @@ -311,6 +311,37 @@ int __pte_alloc(struct mm_struct *mm, pm
+>  	if (!new)
+>  		return -ENOMEM;
+>  
+> +	/*
+> +	 * Ensure all pte setup (eg. pte page lock and page clearing) are
+> +	 * visible before the pte is made visible to other CPUs by being
+> +	 * put into page tables.
+> +	 *
+> +	 * The other side of the story is the pointer chasing in the page
+> +	 * table walking code (when walking the page table without locking;
+> +	 * ie. most of the time). Fortunately, these data accesses consist
+> +	 * of a chain of data-dependent loads, meaning most CPUs (alpha
+> +	 * being the notable exception) will already guarantee loads are
+> +	 * seen in-order. x86 has a "reference" implementation of
+> +	 * smp_read_barrier_depends() barriers in its page table walking
+> +	 * code, even though that barrier is a simple noop on that architecture.
+> +	 * Alpha obviously also has the required barriers.
+> +	 *
+> +	 * It is debatable whether or not the smp_read_barrier_depends()
+> +	 * barriers are required for kernel page tables; it could be that
+> +	 * nowhere in the kernel do we walk those pagetables without taking
+> +	 * init_mm's page_table_lock.
 
-My recollection is that it gets difficult once you reach
-pte_offset_map(), which involved kmap_atomic() (now kmap_atomic_pte()),
-which gets twisty.  Or perhaps my problems arose from doing
-pte_offset_map_lock() in the generic linux/mm.h: harder to
-herd that safely through the different arch builds.
+Just delete "; it could be that ... init_mm's page_table_lock":
+in general (if not everywhere) the architectures do not nowadays
+take init_mm's page_table_lock to walk down those pagetables (blame
+me for removing it, if anyone thinks that was wrong: I stand by it).
 
 Hugh
 
