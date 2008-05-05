@@ -1,44 +1,88 @@
-Received: by wf-out-1314.google.com with SMTP id 28so2959503wfc.11
-        for <linux-mm@kvack.org>; Mon, 05 May 2008 10:05:43 -0700 (PDT)
-From: Denis Cheng <crquan@gmail.com>
-Subject: [PATCH] mm/pdflush.c: merge the same code in two path
-Date: Tue,  6 May 2008 01:05:09 +0800
-Message-Id: <1210007109-15998-1-git-send-email-crquan@gmail.com>
+Date: Mon, 5 May 2008 19:14:34 +0200
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [PATCH 01 of 11] mmu-notifier-core
+Message-ID: <20080505171434.GF8470@duo.random>
+References: <patchbomb.1209740703@duo.random> <1489529e7b53d3f2dab8.1209740704@duo.random> <20080505162113.GA18761@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080505162113.GA18761@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Denis <cr_quan@163.com>
+To: Jack Steiner <steiner@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
----
- mm/pdflush.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+On Mon, May 05, 2008 at 11:21:13AM -0500, Jack Steiner wrote:
+> The GRU does the registration/deregistration of mmu notifiers from mmap/munmap.
+> At this point, the mmap_sem is already held writeable. I hit a deadlock
+> in mm_lock.
 
-diff --git a/mm/pdflush.c b/mm/pdflush.c
-index 1c96cfc..9d834aa 100644
---- a/mm/pdflush.c
-+++ b/mm/pdflush.c
-@@ -207,7 +207,6 @@ int pdflush_operation(void (*fn)(unsigned long), unsigned long arg0)
- 
- 	spin_lock_irqsave(&pdflush_lock, flags);
- 	if (list_empty(&pdflush_list)) {
--		spin_unlock_irqrestore(&pdflush_lock, flags);
- 		ret = -1;
- 	} else {
- 		struct pdflush_work *pdf;
-@@ -219,8 +218,9 @@ int pdflush_operation(void (*fn)(unsigned long), unsigned long arg0)
- 		pdf->fn = fn;
- 		pdf->arg0 = arg0;
- 		wake_up_process(pdf->who);
--		spin_unlock_irqrestore(&pdflush_lock, flags);
- 	}
-+	spin_unlock_irqrestore(&pdflush_lock, flags);
-+
- 	return ret;
- }
- 
--- 
-1.5.5.1
+It'd been better to know about this detail earlier, but frankly this
+is a minor problem, the important thing is we all agree together on
+the more difficult parts ;).
+
+> A quick fix would be to do one of the following:
+> 
+> 	- move the mmap_sem locking to the caller of the [de]registration routines.
+> 	  Since the first/last thing done in mm_lock/mm_unlock is to
+> 	  acquire/release mmap_sem, this change does not cause major changes.
+
+I don't like this solution very much. Nor GRU nor KVM will call
+mmu_notifier_register inside the mmap_sem protected sections, so I
+think the default mmu_notifier_register should be smp safe by itself
+without requiring additional locks to be artificially taken externally
+(especially because the need for mmap_sem in write mode is a very
+mmu_notifier internal detail).
+
+> 	- add a flag to mmu_notifier_[un]register routines to indicate
+> 	  if mmap_sem is already locked.
+
+The interface would change like this:
+
+#define MMU_NOTIFIER_REGISTER_MMAP_SEM (1<<0)
+void mmu_notifier_register(struct mmu_notifier *mn, struct mm_struct *mm,
+			   unsigned long mmu_notifier_flags);
+
+A third solution is to add:
+
+/*
+ * This must can be called instead of mmu_notifier_register after
+ * taking the mmap_sem in write mode (read mode isn't enough).
+ */
+void __mmu_notifier_register(struct mmu_notifier *mn, struct mm_struct *mm);
+
+Do you still prefer the bitflag or you prefer
+__mmu_notifier_register. It's ok either ways, except
+__mmu_notifier_reigster could be removed in a backwards compatible
+way, the bitflag can't.
+
+> I've temporarily deleted the mm_lock locking of mmap_sem and am continuing to
+> test. More later....
+
+Sure! In the meantime go ahead this way.
+
+Another very minor change I've been thinking about is to make
+->release not mandatory. It happens that with KVM ->release isn't
+strictly required because after mm_users reaches 0, no guest could
+possibly run anymore. So I'm using ->release only for debugging by
+placing -1UL in the root shadow pagetable, to be sure ;). So because
+at least one user won't strictly require ->release being consistent in
+having all method optional may be nicer. Alternatively we could make
+them all mandatory and if somebody doesn't need one of the methods it
+should implement it as a dummy function. Both ways have pros and cons,
+but they don't make any difference to us in practice. If I've to
+change the patch for the mmap_sem taken during registration I may as
+well cleanup this minor bit.
+
+Also note the rculist.h patch you sent earlier won't work against
+mainline so I can't incorporate it in my patchset, Andrew will have to
+apply it as mmu-notifier-core-mm after incorporating mmu-notifier-core
+into -mm.
+
+Until a new update is released, mmu-notifier-core v15 remains ok for
+merging, no known bugs, here we're talking about a new and simple
+feature and a tiny cleanup that nobody can notice anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
