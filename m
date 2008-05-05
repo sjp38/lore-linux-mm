@@ -1,48 +1,36 @@
-Received: by wa-out-1112.google.com with SMTP id m28so609973wag.8
-        for <linux-mm@kvack.org>; Mon, 05 May 2008 15:23:18 -0700 (PDT)
-Message-ID: <2f11576a0805051523h730fce0foa51f1fdbf9c46cbe@mail.gmail.com>
-Date: Tue, 6 May 2008 07:23:18 +0900
-From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [-mm][PATCH 4/5] core of reclaim throttle
-In-Reply-To: <20080505175142.7de3f27b@cuia.bos.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Mon, 5 May 2008 15:24:51 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [-mm][PATCH 3/4] Add rlimit controller accounting and control
+Message-Id: <20080505152451.6dceec74.akpm@linux-foundation.org>
+In-Reply-To: <20080503213814.3140.66080.sendpatchset@localhost.localdomain>
+References: <20080503213726.3140.68845.sendpatchset@localhost.localdomain>
+	<20080503213814.3140.66080.sendpatchset@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080504201343.8F52.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080504215819.8F5E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080504221043.8F64.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080505175142.7de3f27b@cuia.bos.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, skumar@linux.vnet.ibm.com, yamamoto@valinux.co.jp, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, rientjes@google.com, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
->  > +     throttle_on = 1;
->  > +     current->flags |= PF_RECLAIMING;
->  > +     wait_event(zone->reclaim_throttle_waitq,
->  > +              atomic_add_unless(&zone->nr_reclaimers, 1, MAX_RECLAIM_TASKS));
->
->  This is a problem.  Processes without __GFP_FS or __GFP_IO cannot wait on
->  processes that have those flags set in their gfp_mask, and tasks that do
->  not have __GFP_IO set cannot wait for tasks with it.  This is because the
->  tasks that have those flags set may grab locks that the tasks without the
->  flag are holding, causing a deadlock.
+On Sun, 04 May 2008 03:08:14 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-hmmm, AFAIK,
-on current kernel, sometimes __GFP_IO task wait for non __GFP_IO task
-by lock_page().
-Is this wrong?
+> +	if (res_counter_charge(&rcg->as_res, (mm->total_vm << PAGE_SHIFT)))
 
-therefore my patch care only recursive reclaim situation.
-I don't object to your opinion. but I hope understand exactly your opinion.
+I worry a bit about all the conversion between page-counts and byte-counts
+in this code.
 
->  The easiest fix would be to only make tasks with both __GFP_FS and __GFP_IO
->  sleep.  Tasks that call try_to_free_pages without those flags are relatively
->  rare and should hopefully not cause any issues.
+For example, what happens if a process sits there increasing its rss with
+sbrk(4095) or sbrk(4097) or all sorts of other scenarios?  Do we get in a
+situation in which the accounting is systematically wrong?
 
-Agreed it's easy.
+Worse, do we risk getting into that situation in the future, as unrelated
+changes are made to the surrounding code?
+
+IOW, have we chosen the best, most maintainable representation for these
+things?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
