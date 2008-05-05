@@ -1,38 +1,53 @@
-Date: Mon, 5 May 2008 08:23:34 -0700 (PDT)
+Date: Mon, 5 May 2008 08:32:30 -0700 (PDT)
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [rfc][patch 0/3] bootmem2: a memory block-oriented boot time
- allocator
-In-Reply-To: <20080505095938.326928514@symbol.fehenstaub.lan>
-Message-ID: <alpine.LFD.1.10.0805050820000.32269@woody.linux-foundation.org>
-References: <20080505095938.326928514@symbol.fehenstaub.lan>
+Subject: Re: [patch 2/2] fix SMP data race in pagetable setup vs walking
+In-Reply-To: <20080505121240.GD5018@wotan.suse.de>
+Message-ID: <alpine.LFD.1.10.0805050828120.32269@woody.linux-foundation.org>
+References: <20080505112021.GC5018@wotan.suse.de> <20080505121240.GD5018@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Johannes Weiner <hannes@saeurebad.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Yinghai Lu <yhlu.kernel@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Hugh Dickins <hugh@veritas.com>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Paul McKenney <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
 
-On Mon, 5 May 2008, Johannes Weiner wrote:
+On Mon, 5 May 2008, Nick Piggin wrote:
 > 
-> here is a bootmem allocator replacement that uses one bitmap for all
-> available pages and works with a model of contiguous memory blocks
-> that reside on nodes instead of nodes only as the current allocator
-> does.
+> Index: linux-2.6/include/asm-x86/pgtable_32.h
+> ===================================================================
+> --- linux-2.6.orig/include/asm-x86/pgtable_32.h
+> +++ linux-2.6/include/asm-x86/pgtable_32.h
+> @@ -133,7 +133,12 @@ extern int pmd_bad(pmd_t pmd);
+>   * pgd_offset() returns a (pgd_t *)
+>   * pgd_index() is used get the offset into the pgd page's array of pgd_t's;
+>   */
+> -#define pgd_offset(mm, address) ((mm)->pgd + pgd_index((address)))
+> +#define pgd_offset(mm, address)						\
+> +({									\
+> +	pgd_t *ret = ((mm)->pgd + pgd_index((address)));		\
+> +	smp_read_barrier_depends(); /* see mm/memory.c:__pte_alloc */	\
+> +	ret;								\
+> +})
 
-Won't this have problems with huge non-contiguous areas?
+Is there some fundamental reason this needs to be a macro?
 
-Some setups have traditionally had node memory separated in physical space 
-by the high bits of the memory address, and using a single bitmap for such 
-things would potentially be basically impossible - even with a single bit 
-per page, the "span" of possible pages is potentially just too high, even 
-if the nodes themselves don't have tons of memory, because the memory is 
-just very spread out - and allocating the initial bitmap may not work 
-reliably.
+It is really ugly, and it would be much nicer to make this an inline 
+function if at all possible.
 
-Now, admittedly I don't know if we even support that kind of thing or if 
-people really do things that way any more, so maybe it's not an issue.
+Yeah, maybe it requires some more #include's, but ..
+
+(Especially since it apparently gets worse, and the pgd load needs a 
+ACCESS_ONCE() too - the code generated is the same, but the source gets 
+more and more involved)
+
+That said, I *also* think that it's sad that you do this at all, since 
+smp_read_barrier_depends() is a no-op on x86, so why should we have it in 
+an x86-specific header file?
+
+In short, I think the fixes are real, but the patch itself is really just 
+confusing things for no apparent good reason.
 
 		Linus
 
