@@ -1,101 +1,81 @@
-Date: Mon, 5 May 2008 15:35:09 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [-mm][PATCH 4/4] Add rlimit controller documentation
-Message-Id: <20080505153509.da667caf.akpm@linux-foundation.org>
-In-Reply-To: <20080503213825.3140.4328.sendpatchset@localhost.localdomain>
-References: <20080503213726.3140.68845.sendpatchset@localhost.localdomain>
-	<20080503213825.3140.4328.sendpatchset@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from zps37.corp.google.com (zps37.corp.google.com [172.25.146.37])
+	by smtp-out.google.com with ESMTP id m45N0H0a018917
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 00:00:17 +0100
+Received: from wx-out-0506.google.com (wxdh26.prod.google.com [10.70.134.26])
+	by zps37.corp.google.com with ESMTP id m45MxbEY021081
+	for <linux-mm@kvack.org>; Mon, 5 May 2008 16:00:12 -0700
+Received: by wx-out-0506.google.com with SMTP id h26so105208wxd.9
+        for <linux-mm@kvack.org>; Mon, 05 May 2008 16:00:11 -0700 (PDT)
+Message-ID: <6599ad830805051600n73109edbx73ca2b5e9377d888@mail.gmail.com>
+Date: Mon, 5 May 2008 16:00:11 -0700
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [-mm][PATCH 2/4] Enhance cgroup mm_owner_changed callback to add task information
+In-Reply-To: <20080503213804.3140.26503.sendpatchset@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080503213726.3140.68845.sendpatchset@localhost.localdomain>
+	 <20080503213804.3140.26503.sendpatchset@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, skumar@linux.vnet.ibm.com, yamamoto@valinux.co.jp, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, rientjes@google.com, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com
+Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 04 May 2008 03:08:25 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+As Andrew suggested, can you improve the documentation? Ideally, there
+should be a paragraph in Documentation/cgroups.txt that describes the
+circumstances (including locking state) in which the callback is
+called.
 
-> 
-> 
-> This is the documentation patch. It describes the rlimit controller and how
-> to build and use it.
-> 
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
-> 
->  Documentation/controllers/rlimit.txt |   29 +++++++++++++++++++++++++++++
->  1 file changed, 29 insertions(+)
-> 
-> diff -puN /dev/null Documentation/controllers/rlimit.txt
-> --- /dev/null	2008-05-03 22:12:13.033285313 +0530
-> +++ linux-2.6.25-balbir/Documentation/controllers/rlimit.txt	2008-05-04 03:06:06.000000000 +0530
-> @@ -0,0 +1,29 @@
-> +This controller is enabled by the CONFIG_CGROUP_RLIMIT_CTLR option. Prior
-> +to reading this documentation please read Documentation/cgroups.txt and
-> +Documentation/controllers/memory.txt. Several of the principles of this
-> +controller are similar to the memory resource controller.
-> +
-> +This controller framework is designed to be extensible to control any
-> +resource limit (memory related) with little effort.
-> +
-> +This new controller, controls the address space expansion of the tasks
-> +belonging to a cgroup. Address space control is provided along the same lines as
-> +RLIMIT_AS control, which is available via getrlimit(2)/setrlimit(2).
-> +The interface for controlling address space is provided through
-> +"rlimit.limit_in_bytes". The file is similar to "limit_in_bytes" w.r.t. the user
-> +interface. Please see section 3 of the memory resource controller documentation
-> +for more details on how to use the user interface to get and set values.
-> +
-> +The "rlimit.usage_in_bytes" file provides information about the total address
-> +space usage of the tasks in the cgroup, in bytes.
+Paul
 
-Finally, with a bit of between-the-line reading, I begin to understand what
-this stuff is actually supposed to do.
-
-It puts an upper limit upon the _total_ address-space size of all the mms
-which are contained within the resource group, yes?
-
-(can am mm be shared by two threads whcih are in different resource groups,
-btw?)
-
-> +Advantages of providing this feature
-> +
-> +1. Control over virtual address space allows for a cgroup to fail gracefully
-> +   i.e., via a malloc or mmap failure as compared to OOM kill when no
-> +   pages can be reclaimed.
-> +2. It provides better control over how many pages can be swapped out when
-> +   the cgroup goes over its limit. A badly setup cgroup can cause excessive
-> +   swapping. Providing control over the address space allocations ensures
-> +   that the system administrator has control over the total swapping that
-> +   can take place.
-
-Here's another missing piece: what is the kernel's behaviour when such a
-limit is increased?  Seems that the sole option is a failure return from
-mmap/brk/sbrk/etc, yes?
-
-This should be spelled out in careful detail, please.  This is a
-newly-proposed kernel<->userspace interface and we care about those very
-much.
-
-Finally, I worry about overflows.  afacit the
-sum-of-address-space-sizes-for-a-cgroup is accounted for in an unsigned
-long?
-
-If so, a 32-bit machine could easily overflow it.
-
-And a 64-bit machine could possibly do so with a bit of effort, perhaps? 
-That's assuming that the code doesn't attempt to avoid duplicate accounting
-due to multiple-mms-mapping-the-same-pages, which afaict appears to be the
-case.  (Then again, perhaps no machine will ever have the pagetable space
-to get that far).
-
-
-
-Ho hum, I had to do rather a lot of guesswork here to try to understand
-your proposed overall design for this feature.  I'd prefer to hear about
-your design via more direct means.
+On Sat, May 3, 2008 at 2:38 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>
+>
+>  This patch adds an additional field to the mm_owner callbacks. This field
+>  is required to get to the mm that changed.
+>
+>  Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+>  ---
+>
+>   include/linux/cgroup.h |    3 ++-
+>   kernel/cgroup.c        |    2 +-
+>   2 files changed, 3 insertions(+), 2 deletions(-)
+>
+>  diff -puN kernel/cgroup.c~cgroup-add-task-to-mm--owner-callbacks kernel/cgroup.c
+>  --- linux-2.6.25/kernel/cgroup.c~cgroup-add-task-to-mm--owner-callbacks 2008-05-04 02:53:05.000000000 +0530
+>  +++ linux-2.6.25-balbir/kernel/cgroup.c 2008-05-04 02:53:05.000000000 +0530
+>  @@ -2772,7 +2772,7 @@ void cgroup_mm_owner_callbacks(struct ta
+>                         if (oldcgrp == newcgrp)
+>                                 continue;
+>                         if (ss->mm_owner_changed)
+>  -                               ss->mm_owner_changed(ss, oldcgrp, newcgrp);
+>  +                               ss->mm_owner_changed(ss, oldcgrp, newcgrp, new);
+>                 }
+>         }
+>   }
+>  diff -puN include/linux/cgroup.h~cgroup-add-task-to-mm--owner-callbacks include/linux/cgroup.h
+>  --- linux-2.6.25/include/linux/cgroup.h~cgroup-add-task-to-mm--owner-callbacks  2008-05-04 02:53:05.000000000 +0530
+>  +++ linux-2.6.25-balbir/include/linux/cgroup.h  2008-05-04 02:53:05.000000000 +0530
+>  @@ -310,7 +310,8 @@ struct cgroup_subsys {
+>          */
+>         void (*mm_owner_changed)(struct cgroup_subsys *ss,
+>                                         struct cgroup *old,
+>  -                                       struct cgroup *new);
+>  +                                       struct cgroup *new,
+>  +                                       struct task_struct *p);
+>         int subsys_id;
+>         int active;
+>         int disabled;
+>  _
+>
+>  --
+>         Warm Regards,
+>         Balbir Singh
+>         Linux Technology Center
+>         IBM, ISTL
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
