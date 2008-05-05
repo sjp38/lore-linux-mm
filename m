@@ -1,78 +1,53 @@
-Date: Mon, 5 May 2008 06:27:51 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: Warning on memory offline (and possible in usual migration?)
-Message-ID: <20080505042751.GB26920@wotan.suse.de>
-References: <20080430001249.c07ff5c8.akpm@linux-foundation.org> <20080430072620.GI27652@wotan.suse.de> <Pine.LNX.4.64.0804301059570.26173@schroedinger.engr.sgi.com> <20080501014418.GB15179@wotan.suse.de> <Pine.LNX.4.64.0805011224150.8738@schroedinger.engr.sgi.com> <20080502004445.GB30768@wotan.suse.de> <Pine.LNX.4.64.0805011805150.13527@schroedinger.engr.sgi.com> <20080502012350.GF30768@wotan.suse.de> <Pine.LNX.4.64.0805011833480.13697@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0805021411260.21677@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: by rv-out-0708.google.com with SMTP id f25so742804rvb.26
+        for <linux-mm@kvack.org>; Sun, 04 May 2008 21:42:47 -0700 (PDT)
+Message-ID: <44c63dc40805042142k2e5bc366mffa9e0a22fbe94c9@mail.gmail.com>
+Date: Mon, 5 May 2008 13:42:47 +0900
+From: "minchan Kim" <barrioskmc@gmail.com>
+Subject: Re: [-mm][PATCH 3/5] change function prototype of shrink_zone()
+In-Reply-To: <20080504215718.8F5B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0805021411260.21677@schroedinger.engr.sgi.com>
+References: <20080504201343.8F52.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080504215718.8F5B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, GOTO <y-goto@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 02, 2008 at 02:16:20PM -0700, Christoph Lameter wrote:
-> I guess we need the following patch to handle !uptodate pages. Wish we had 
-> a better solution that would allow the skipping of pages with buffers 
-> under read I/O.
+>  -static unsigned long shrink_zone(int priority, struct zone *zone,
+>  -                               struct scan_control *sc)
+>  +static int shrink_zone(int priority, struct zone *zone,
+>  +                      struct scan_control *sc)
+>   {
+>         unsigned long nr_active;
+>         unsigned long nr_inactive;
+>  @@ -1236,8 +1239,9 @@ static unsigned long shrink_zone(int pri
+>                 }
+>         }
+>
+>  +       sc->nr_reclaimed += nr_reclaimed;
+>         throttle_vm_writeout(sc->gfp_mask);
+>  -       return nr_reclaimed;
+>  +       return 0;
+>   }
 
- 
-AFAIK, any filesystem which may not lock the page under read IO should
-have PG_private set. In which case, if they don't have buffers they
-should have a releasepage method. Otherwise, how would we ever reclaim
-!uptodate && !buffers pages?
+I am not sure this is right.
+I might be wrong if this patch is depended on another patch.
 
-So I don't think we need this patch.
+As I see, shrink_zone always return 0 in your patch.
 
-> 
-> Subject: Page migration: Do not migrate page that is not uptodate
-> 
-> If we are migrating pages that are not mapped into a processes address
-> space then we may encounter !Uptodate pages. Page migration is now used
-> for offlining memory which scans unmapped pages.
-> 
-> If a page is not uptodate then read I/O may be in progress against it.
-> So do not migrate it. On the other hand if the page has buffers then
-> read I/O will lock a buffer. In that case we can migrate an !Uptodate
-> page but then migration will stall in buffer_migrate_page() until the
-> read is complete.
-> 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> 
-> ---
->  mm/migrate.c |   17 +++++++++++++++++
->  1 file changed, 17 insertions(+)
-> 
-> Index: linux-2.6/mm/migrate.c
-> ===================================================================
-> --- linux-2.6.orig/mm/migrate.c	2008-05-02 13:47:45.113707645 -0700
-> +++ linux-2.6/mm/migrate.c	2008-05-02 14:08:32.203644985 -0700
-> @@ -652,6 +652,23 @@ static int unmap_and_move(new_page_t get
->  			goto unlock;
->  		wait_on_page_writeback(page);
->  	}
-> +
-> +	/*
-> +	 * Page may be under read I/O if its not uptodate and has no buffers.
-> +	 * In that case the page contents are not stable and should not be
-> +	 * migrated. So we just pass on that page and return -EAGAIN.
-> +	 *
-> +	 * If a page has buffers then the locks taken on the buffers
-> +	 * will indicate that read I/O is in progress. Then PageUptodate does
-> +	 * not matter because buffer_migrate_page() will stall until I/O is
-> +	 * complete. It would be better if we could catch that here and delay
-> +	 * migrating the page because we could migrate a the other pages on the
-> +	 * migrate list instead of waiting for I/O to complete on this page
-> +	 * (like done for writes in progress).
-> +	 */
-> +	if (!PageUptodate(page) && !page_has_buffers(page))
-> +		goto unlock;
-> +
->  	/*
->  	 * By try_to_unmap(), page->mapcount goes down to 0 here. In this case,
->  	 * we cannot notice that anon_vma is freed while we migrates a page.
+If it is right, I think that return value is useless. It is better
+that we change function return type to "void"
+Also, we have to change functions that call shrink_zone properly. ex)
+balance_pgdat, __zone_reclaim
+That functions still use number of shrink_zone's reclaim page
+
+-- 
+Thanks,
+barrios
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
