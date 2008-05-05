@@ -1,57 +1,34 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m458DS8e029041
-	for <linux-mm@kvack.org>; Mon, 5 May 2008 04:13:28 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m458Cg2v260454
-	for <linux-mm@kvack.org>; Mon, 5 May 2008 04:12:42 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m458Cffu013558
-	for <linux-mm@kvack.org>; Mon, 5 May 2008 04:12:42 -0400
-Date: Mon, 5 May 2008 01:12:39 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [-mm][PATCH 1/5] fix overflow problem of do_try_to_free_page()
-Message-ID: <20080505081239.GB22105@us.ibm.com>
-References: <20080504201343.8F52.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080504215331.8F55.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: by wa-out-1112.google.com with SMTP id m28so282523wag.8
+        for <linux-mm@kvack.org>; Mon, 05 May 2008 01:24:20 -0700 (PDT)
+Message-ID: <2f11576a0805050124q5b91ff3dm70918f80017cb936@mail.gmail.com>
+Date: Mon, 5 May 2008 17:24:20 +0900
+From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [-mm][PATCH 4/5] core of reclaim throttle
+In-Reply-To: <44c63dc40805042221s4eb347acu6e7d86310696825f@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080504215331.8F55.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080504201343.8F52.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080504215819.8F5E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080504221043.8F64.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <44c63dc40805042221s4eb347acu6e7d86310696825f@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: minchan Kim <barrioskmc@gmail.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On 04.05.2008 [21:55:57 +0900], KOSAKI Motohiro wrote:
-> this patch is not part of reclaim throttle series.
-> it is merely hotfixs.
-> 
-> ---------------------------------------
-> "Smarter retry of costly-order allocations" patch series change 
-> behaver of do_try_to_free_pages().
-> but unfortunately ret variable type unchanged.
-> 
-> thus, overflow problem is possible.
-> 
-> 
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Nishanth Aravamudan <nacc@us.ibm.com>
+>  >  +       /* in some situation (e.g. hibernation), shrink processing shouldn't be
+>  >  +          cut off even though large memory freeded.  */
+>  >  +       if (!sc->may_cut_off)
+>  >  +               goto shrinking;
+>  >  +
+>
+>  where do you initialize may_cut_off ?
+>  Current Implementation, may_cut_off is always "0" so always goto shrinking
 
-Eep, sorry -- my original version had used -EAGAIN to indicate a special
-condition, but this was removed before the final patch. Thanks for the
-catch.
-
-Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
-
-Should go upstream, as well.
-
-Thanks,
-Nish
-
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+please see try_to_free_pages :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
