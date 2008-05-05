@@ -1,55 +1,51 @@
-Date: Mon, 5 May 2008 11:04:43 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [rfc][patch 0/3] bootmem2: a memory block-oriented boot time
-	allocator
-Message-ID: <20080505160443.GG19717@sgi.com>
-References: <20080505095938.326928514@symbol.fehenstaub.lan> <alpine.LFD.1.10.0805050820000.32269@woody.linux-foundation.org>
-MIME-Version: 1.0
+Date: Mon, 5 May 2008 11:21:13 -0500
+From: Jack Steiner <steiner@sgi.com>
+Subject: Re: [PATCH 01 of 11] mmu-notifier-core
+Message-ID: <20080505162113.GA18761@sgi.com>
+References: <patchbomb.1209740703@duo.random> <1489529e7b53d3f2dab8.1209740704@duo.random>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LFD.1.10.0805050820000.32269@woody.linux-foundation.org>
+In-Reply-To: <1489529e7b53d3f2dab8.1209740704@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Johannes Weiner <hannes@saeurebad.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Yinghai Lu <yhlu.kernel@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 05, 2008 at 08:23:34AM -0700, Linus Torvalds wrote:
-> 
-> 
-> On Mon, 5 May 2008, Johannes Weiner wrote:
-> > 
-> > here is a bootmem allocator replacement that uses one bitmap for all
-> > available pages and works with a model of contiguous memory blocks
-> > that reside on nodes instead of nodes only as the current allocator
-> > does.
-> 
-> Won't this have problems with huge non-contiguous areas?
-> 
-> Some setups have traditionally had node memory separated in physical space 
-> by the high bits of the memory address, and using a single bitmap for such 
-> things would potentially be basically impossible - even with a single bit 
-> per page, the "span" of possible pages is potentially just too high, even 
-> if the nodes themselves don't have tons of memory, because the memory is 
-> just very spread out - and allocating the initial bitmap may not work 
-> reliably.
-> 
-> Now, admittedly I don't know if we even support that kind of thing or if 
-> people really do things that way any more, so maybe it's not an issue.
+On Fri, May 02, 2008 at 05:05:04PM +0200, Andrea Arcangeli wrote:
+> # HG changeset patch
+> # User Andrea Arcangeli <andrea@qumranet.com>
+> # Date 1209740175 -7200
+> # Node ID 1489529e7b53d3f2dab8431372aa4850ec821caa
+> # Parent  5026689a3bc323a26d33ad882c34c4c9c9a3ecd8
+> mmu-notifier-core
+ 
 
-SGI sn2 architecture does.  Each DIMM bank is allocated a 16GB range
-of physical addresses.  There are up to four banks per node.  The node
-number is stuck into higher portions of the address, giving a gap between
-nodes of 256GB.  With a potential of 1024 nodes, you would have a very
-large array.
 
-Additionally on our upcoming UV systems, there will potentially be a
-hole between the bulk of memory and a small amount addressable at the
-high end of the address range (slightly short of 16TB) with the typical
-gap being on the order of 15TB.
+I upgraded to the latest mmu notifier patch & hit a deadlock. (Sorry -
+I should have seen this  earlier but I haven't tracked the last couple
+of patches).
 
-Thanks,
-Robin Holt
+The GRU does the registration/deregistration of mmu notifiers from mmap/munmap.
+At this point, the mmap_sem is already held writeable. I hit a deadlock
+in mm_lock.
+
+A quick fix would be to do one of the following:
+
+	- move the mmap_sem locking to the caller of the [de]registration routines.
+	  Since the first/last thing done in mm_lock/mm_unlock is to
+	  acquire/release mmap_sem, this change does not cause major changes.
+
+	- add a flag to mmu_notifier_[un]register routines to indicate
+	  if mmap_sem is already locked.
+
+
+I've temporarily deleted the mm_lock locking of mmap_sem and am continuing to
+test. More later....
+
+
+--- jack
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
