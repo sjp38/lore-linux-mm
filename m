@@ -1,50 +1,59 @@
-Received: by rv-out-0708.google.com with SMTP id f25so742804rvb.26
-        for <linux-mm@kvack.org>; Sun, 04 May 2008 21:42:47 -0700 (PDT)
-Message-ID: <44c63dc40805042142k2e5bc366mffa9e0a22fbe94c9@mail.gmail.com>
-Date: Mon, 5 May 2008 13:42:47 +0900
+Received: by rv-out-0708.google.com with SMTP id f25so751249rvb.26
+        for <linux-mm@kvack.org>; Sun, 04 May 2008 22:21:15 -0700 (PDT)
+Message-ID: <44c63dc40805042221s4eb347acu6e7d86310696825f@mail.gmail.com>
+Date: Mon, 5 May 2008 14:21:15 +0900
 From: "minchan Kim" <barrioskmc@gmail.com>
-Subject: Re: [-mm][PATCH 3/5] change function prototype of shrink_zone()
-In-Reply-To: <20080504215718.8F5B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [-mm][PATCH 4/5] core of reclaim throttle
+In-Reply-To: <20080504221043.8F64.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 References: <20080504201343.8F52.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080504215718.8F5B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080504215819.8F5E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080504221043.8F64.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
->  -static unsigned long shrink_zone(int priority, struct zone *zone,
->  -                               struct scan_control *sc)
->  +static int shrink_zone(int priority, struct zone *zone,
->  +                      struct scan_control *sc)
->   {
->         unsigned long nr_active;
->         unsigned long nr_inactive;
->  @@ -1236,8 +1239,9 @@ static unsigned long shrink_zone(int pri
->                 }
->         }
+>  @@ -120,6 +125,7 @@ struct scan_control {
+>   int vm_swappiness = 60;
+>   long vm_total_pages;   /* The total number of pages which the VM controls */
 >
->  +       sc->nr_reclaimed += nr_reclaimed;
->         throttle_vm_writeout(sc->gfp_mask);
->  -       return nr_reclaimed;
->  +       return 0;
->   }
+>  +#define MAX_RECLAIM_TASKS CONFIG_NR_MAX_RECLAIM_TASKS_PER_ZONE
+>   static LIST_HEAD(shrinker_list);
+>   static DECLARE_RWSEM(shrinker_rwsem);
+>
+>  @@ -1187,7 +1193,46 @@ static int shrink_zone(int priority, str
+>
+>         unsigned long nr_inactive;
+>         unsigned long nr_to_scan;
+>         unsigned long nr_reclaimed = 0;
+>  +       int ret = 0;
+>  +       int throttle_on = 0;
+>  +       unsigned long freed;
+>  +       unsigned long threshold;
+>
+> +
+>  +       /* avoid recursing wait_evnet */
+>  +       if (current->flags & PF_RECLAIMING)
+>  +               goto shrinking;
+>  +
+>  +       throttle_on = 1;
+>  +       current->flags |= PF_RECLAIMING;
+>  +       wait_event(zone->reclaim_throttle_waitq,
+>  +                atomic_add_unless(&zone->nr_reclaimers, 1, MAX_RECLAIM_TASKS));
+>  +
+>  +       /* in some situation (e.g. hibernation), shrink processing shouldn't be
+>  +          cut off even though large memory freeded.  */
+>  +       if (!sc->may_cut_off)
+>  +               goto shrinking;
+>  +
 
-I am not sure this is right.
-I might be wrong if this patch is depended on another patch.
-
-As I see, shrink_zone always return 0 in your patch.
-
-If it is right, I think that return value is useless. It is better
-that we change function return type to "void"
-Also, we have to change functions that call shrink_zone properly. ex)
-balance_pgdat, __zone_reclaim
-That functions still use number of shrink_zone's reclaim page
-
+where do you initialize may_cut_off ?
+Current Implementation, may_cut_off is always "0" so always goto shrinking
 -- 
 Thanks,
 barrios
