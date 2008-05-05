@@ -1,71 +1,48 @@
-Date: Mon, 5 May 2008 15:15:04 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [-mm][PATCH 2/4] Enhance cgroup mm_owner_changed callback to
- add task information
-Message-Id: <20080505151504.98c28f7c.akpm@linux-foundation.org>
-In-Reply-To: <20080503213804.3140.26503.sendpatchset@localhost.localdomain>
-References: <20080503213726.3140.68845.sendpatchset@localhost.localdomain>
-	<20080503213804.3140.26503.sendpatchset@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by wa-out-1112.google.com with SMTP id m28so609973wag.8
+        for <linux-mm@kvack.org>; Mon, 05 May 2008 15:23:18 -0700 (PDT)
+Message-ID: <2f11576a0805051523h730fce0foa51f1fdbf9c46cbe@mail.gmail.com>
+Date: Tue, 6 May 2008 07:23:18 +0900
+From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [-mm][PATCH 4/5] core of reclaim throttle
+In-Reply-To: <20080505175142.7de3f27b@cuia.bos.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080504201343.8F52.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080504215819.8F5E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080504221043.8F64.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080505175142.7de3f27b@cuia.bos.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, skumar@linux.vnet.ibm.com, yamamoto@valinux.co.jp, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, rientjes@google.com, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com
+To: Rik van Riel <riel@redhat.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 04 May 2008 03:08:04 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>  > +     throttle_on = 1;
+>  > +     current->flags |= PF_RECLAIMING;
+>  > +     wait_event(zone->reclaim_throttle_waitq,
+>  > +              atomic_add_unless(&zone->nr_reclaimers, 1, MAX_RECLAIM_TASKS));
+>
+>  This is a problem.  Processes without __GFP_FS or __GFP_IO cannot wait on
+>  processes that have those flags set in their gfp_mask, and tasks that do
+>  not have __GFP_IO set cannot wait for tasks with it.  This is because the
+>  tasks that have those flags set may grab locks that the tasks without the
+>  flag are holding, causing a deadlock.
 
-> 
-> 
-> This patch adds an additional field to the mm_owner callbacks. This field
-> is required to get to the mm that changed.
-> 
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
-> 
->  include/linux/cgroup.h |    3 ++-
->  kernel/cgroup.c        |    2 +-
->  2 files changed, 3 insertions(+), 2 deletions(-)
-> 
-> diff -puN kernel/cgroup.c~cgroup-add-task-to-mm--owner-callbacks kernel/cgroup.c
-> --- linux-2.6.25/kernel/cgroup.c~cgroup-add-task-to-mm--owner-callbacks	2008-05-04 02:53:05.000000000 +0530
-> +++ linux-2.6.25-balbir/kernel/cgroup.c	2008-05-04 02:53:05.000000000 +0530
-> @@ -2772,7 +2772,7 @@ void cgroup_mm_owner_callbacks(struct ta
->  			if (oldcgrp == newcgrp)
->  				continue;
->  			if (ss->mm_owner_changed)
-> -				ss->mm_owner_changed(ss, oldcgrp, newcgrp);
-> +				ss->mm_owner_changed(ss, oldcgrp, newcgrp, new);
->  		}
->  	}
->  }
-> diff -puN include/linux/cgroup.h~cgroup-add-task-to-mm--owner-callbacks include/linux/cgroup.h
-> --- linux-2.6.25/include/linux/cgroup.h~cgroup-add-task-to-mm--owner-callbacks	2008-05-04 02:53:05.000000000 +0530
-> +++ linux-2.6.25-balbir/include/linux/cgroup.h	2008-05-04 02:53:05.000000000 +0530
-> @@ -310,7 +310,8 @@ struct cgroup_subsys {
->  	 */
->  	void (*mm_owner_changed)(struct cgroup_subsys *ss,
->  					struct cgroup *old,
-> -					struct cgroup *new);
-> +					struct cgroup *new,
-> +					struct task_struct *p);
+hmmm, AFAIK,
+on current kernel, sometimes __GFP_IO task wait for non __GFP_IO task
+by lock_page().
+Is this wrong?
 
-If mm_owner_changed() had any documentation I'd suggest that it be updated.
-Sneaky.
+therefore my patch care only recursive reclaim situation.
+I don't object to your opinion. but I hope understand exactly your opinion.
 
-The existing comment:
+>  The easiest fix would be to only make tasks with both __GFP_FS and __GFP_IO
+>  sleep.  Tasks that call try_to_free_pages without those flags are relatively
+>  rare and should hopefully not cause any issues.
 
-	/*
-	 * This routine is called with the task_lock of mm->owner held
-	 */
-	void (*mm_owner_changed)(struct cgroup_subsys *ss,
-					struct cgroup *old,
-					struct cgroup *new);
-
-Is rather mysterious.  To what mm does it refer?
+Agreed it's easy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
