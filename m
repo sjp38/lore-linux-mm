@@ -1,58 +1,41 @@
-Message-ID: <481EC917.6070808@bull.net>
-Date: Mon, 05 May 2008 10:45:11 +0200
-From: Nadia Derbey <Nadia.Derbey@bull.net>
+Date: Mon, 5 May 2008 11:58:27 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [RFC][PATCH 1/2] Add shared and reserve control to hugetlb_file_setup
+Message-ID: <20080505105826.GA11027@csn.ul.ie>
+References: <1209693089.8483.22.camel@grover.beaverton.ibm.com> <1209744977.7763.29.camel@nimitz.home.sr71.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/8] Scaling msgmni to the amount of lowmem
-References: <20080211141646.948191000@bull.net>	 <20080211141813.354484000@bull.net> <12c511ca0804291328v2f0b87csd0f2cf3accc6ad00@mail.gmail.com>
-In-Reply-To: <12c511ca0804291328v2f0b87csd0f2cf3accc6ad00@mail.gmail.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1209744977.7763.29.camel@nimitz.home.sr71.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tony Luck <tony.luck@intel.com>
-Cc: linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, akpm@linux-foundation.org, linux-mm@kvack.org, containers@lists.linux-foundation.org, matthltc@us.ibm.com, cmm@us.ibm.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: ebmunson@us.ibm.com, linux-mm@kvack.org, nacc <nacc@linux.vnet.ibm.com>, andyw <andyw@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Tony Luck wrote:
-> On Mon, Feb 11, 2008 at 7:16 AM,  <Nadia.Derbey@bull.net> wrote:
+On (02/05/08 09:16), Dave Hansen didst pronounce:
+> On Thu, 2008-05-01 at 18:51 -0700, Eric B Munson wrote:
+> > In order to back stacks with huge pages, we will want to make hugetlbfs
+> > files to back them; these will be used to back private mappings.
+> > Currently hugetlb_file_setup creates files to back shared memory segments.
+> > Modify this to create both private and shared files,
 > 
->> Index: linux-2.6.24-mm1/ipc/msg.c
->> ===================================================================
->> --- linux-2.6.24-mm1.orig/ipc/msg.c     2008-02-07 15:02:29.000000000 +0100
->> +++ linux-2.6.24-mm1/ipc/msg.c  2008-02-07 15:24:19.000000000 +0100
-> 
-> ...
-> 
->> +out_callback:
->> +
->> +       printk(KERN_INFO "msgmni has been set to %d for ipc namespace %p\n",
->> +               ns->msg_ctlmni, ns);
->> +}
-> 
-> 
-> This patch has now made its way to mainline.  I can see how this printk
-> was really useful to you while developing this patch. But does it add
-> much value in a production system? It just looks like another piece of
-> clutter on the console to my uncontainerized eyes.
-> 
-> -Tony
-> 
+> Hugetlbfs can currently have private mappings, right?  Why not just use
+> the existing ones instead of creating a new variety with
+> hugetlb_file_setup()?
 > 
 
+hugetlb_file_setup() uses an internal mount to create files just for
+SHM. However, it does the work necessary for MAP_SHARED mappings,
+particularly reserve pages. The account is currently all fouled up to
+deal with a private mapping that has reserves. Teaching
+hugetlb_file_setup() to deal with private and shared mappings does
+appear the most straight-forward route.
 
-Well, this printk had been suggested by somebody (sorry I don't remember 
-who) when I first submitted the patch. Actually I think it might be 
-useful for a sysadmin to be aware of a change in the msgmni value: we 
-have the message not only at boot time, but also each time msgmni is 
-recomputed because of a change in the amount of memory.
-Also, at boot time, I think it's interesting to have the actual msgmni 
-value: it used to unconditionally be set to 16. Some applications that 
-used to need an initialization script setting msgmni to a higher value 
-might not need that script anymore, since the new value might fit their 
-needs.
-
-Regards,
-Nadia
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
