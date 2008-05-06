@@ -1,93 +1,179 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m463iOmU031999
-	for <linux-mm@kvack.org>; Tue, 6 May 2008 13:44:24 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m463ifWk4042906
-	for <linux-mm@kvack.org>; Tue, 6 May 2008 13:44:41 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m463inZF017353
-	for <linux-mm@kvack.org>; Tue, 6 May 2008 13:44:49 +1000
-Message-ID: <481FD3FC.4010407@linux.vnet.ibm.com>
-Date: Tue, 06 May 2008 09:13:56 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Received: by nf-out-0910.google.com with SMTP id c10so2757306nfd.6
+        for <linux-mm@kvack.org>; Mon, 05 May 2008 22:22:03 -0700 (PDT)
+Message-ID: <ab3f9b940805052222o4f4a7dev3f4dce92b3766435@mail.gmail.com>
+Date: Mon, 5 May 2008 22:22:03 -0700
+From: "Tom May" <tom@tommay.com>
+Subject: Re: [PATCH 0/8][for -mm] mem_notify v6
+In-Reply-To: <20080503205732.642F.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [-mm][PATCH 2/4] Enhance cgroup mm_owner_changed callback to
- add task information
-References: <20080503213726.3140.68845.sendpatchset@localhost.localdomain> <20080503213804.3140.26503.sendpatchset@localhost.localdomain> <20080505151504.98c28f7c.akpm@linux-foundation.org>
-In-Reply-To: <20080505151504.98c28f7c.akpm@linux-foundation.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080501232431.F617.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <ab3f9b940805021521o4680116fyde099f16d66a1e5a@mail.gmail.com>
+	 <20080503205732.642F.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, skumar@linux.vnet.ibm.com, yamamoto@valinux.co.jp, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, rientjes@google.com, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: =?ISO-2022-JP?B?RGFuaWVsIFNwGyRCaU8bKEJn?= <daniel.spang@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Sun, 04 May 2008 03:08:04 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
->>
->> This patch adds an additional field to the mm_owner callbacks. This field
->> is required to get to the mm that changed.
->>
->> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
->> ---
->>
->>  include/linux/cgroup.h |    3 ++-
->>  kernel/cgroup.c        |    2 +-
->>  2 files changed, 3 insertions(+), 2 deletions(-)
->>
->> diff -puN kernel/cgroup.c~cgroup-add-task-to-mm--owner-callbacks kernel/cgroup.c
->> --- linux-2.6.25/kernel/cgroup.c~cgroup-add-task-to-mm--owner-callbacks	2008-05-04 02:53:05.000000000 +0530
->> +++ linux-2.6.25-balbir/kernel/cgroup.c	2008-05-04 02:53:05.000000000 +0530
->> @@ -2772,7 +2772,7 @@ void cgroup_mm_owner_callbacks(struct ta
->>  			if (oldcgrp == newcgrp)
->>  				continue;
->>  			if (ss->mm_owner_changed)
->> -				ss->mm_owner_changed(ss, oldcgrp, newcgrp);
->> +				ss->mm_owner_changed(ss, oldcgrp, newcgrp, new);
->>  		}
->>  	}
->>  }
->> diff -puN include/linux/cgroup.h~cgroup-add-task-to-mm--owner-callbacks include/linux/cgroup.h
->> --- linux-2.6.25/include/linux/cgroup.h~cgroup-add-task-to-mm--owner-callbacks	2008-05-04 02:53:05.000000000 +0530
->> +++ linux-2.6.25-balbir/include/linux/cgroup.h	2008-05-04 02:53:05.000000000 +0530
->> @@ -310,7 +310,8 @@ struct cgroup_subsys {
->>  	 */
->>  	void (*mm_owner_changed)(struct cgroup_subsys *ss,
->>  					struct cgroup *old,
->> -					struct cgroup *new);
->> +					struct cgroup *new,
->> +					struct task_struct *p);
-> 
-> If mm_owner_changed() had any documentation I'd suggest that it be updated.
-> Sneaky.
-> 
+All the talk about how what is using memory, whether things are in
+Java or native, etc., is missing the point.  I'm not sure I'm making
+my point, so I'll try again: regardless of memory size, mlock, etc.,
+the interaction between client and /dev/mem_notify can be unstable,
+and is unstable in my case:
 
-No, there's no documentation besides the comments. I'll go ahead and update
-cgroups.txt with some documentation.
+- User-space code page faults in MAP_ANONYMOUS regions until there is
+no free memory.
+- The kernel gives a notification.
+- There kernel frees some cache to satisfy the memory request.
+- The user-space code gets the notification and frees anonymous pages.
+ Concurrently
+with this, some thread(s) in the system may continue to page fault.
+- The cycle repeats.
+- This works well, perhaps hundreds or thousands of cycles, until all
+or most of the cache has been freed and we get an oom handling a page
+fault.
 
-> The existing comment:
-> 
-> 	/*
-> 	 * This routine is called with the task_lock of mm->owner held
-> 	 */
-> 	void (*mm_owner_changed)(struct cgroup_subsys *ss,
-> 					struct cgroup *old,
-> 					struct cgroup *new);
-> 
-> Is rather mysterious.  To what mm does it refer?
+My requirement is to have a stable system, with memory allocated on
+demand to whatever process(es) want it (jvm, web browser, ...) until a
+low memory notification occurs, which causes them to free whatever
+memory they no longer need, then continue, without arbitrary static
+limits on Java heap size, web browser cache size, etc.
 
-This callback is called when the mm->owner field that points to/owns a cgroup
-changes as a result of the owner exiting.
+My workaround to make things stable is to put pages in the cache
+(after releasing anonymous pages and increasing free memory) by
+accessing pages in _text, but that seems silly and expensive.
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+.tom
+
+On Sat, May 3, 2008 at 5:26 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> > >  your memnotify check routine is written by native or java?
+>  >
+>  > Some of each.
+>
+>  Wow!
+>  you have 2 /dev/mem_notify checking routine?
+>  java routine free java memory, native routine free native memory, right?
+>
+>
+>
+>  > >  my point is "on swapless system, /dev/mem_notify checked routine should be mlocked".
+>  >
+>  > mlocking didn't fix things, it just made the oom happen at a different
+>  > time (see graphs below), both in the small test program where I used
+>  > mlockall, and in the jvm where during initialization I read
+>  > /proc/self/maps and mlocked each region of memory that was mapped to a
+>  > file.  Note that without swap, all of the anonymous pages containing
+>  > the java code are effectively locked in memory, too, so everything
+>  > runs without page faults.
+>
+>  okey.
+>
+>
+>
+>  > >  I hope understand your requirement more.
+>  >
+>  > Most simply, I need to get low memory notifications while there is
+>  > still enough memory to handle them before oom.
+>
+>  Ah, That's your implementation idea.
+>  I hope know why don't works well my current implementation at first.
+>
+>
+>
+>  > >  Can I ask your system more?
+>  >
+>  > x86, Linux 2.6.23.9 (with your patches trivially backported), 128MB,
+>  > no swap.  Is there something else I can tell you?
+>  >
+>  > >  I think all java text and data is mapped.
+>  >
+>  > It's not what /proc/meminfo calls "Mapped".  It's in anonymous pages
+>  > with no backing store, i.e., mmap with MAP_ANONYMOUS.
+>
+>  okey.
+>  Mapped of /proc/meminfo mean mapped pages with file backing store.
+>
+>  therefore, that isn't contain anonymous memory(e.g. java).
+>
+>
+>  > >  When cached+mapped+free memory is happend?
+>  > >  and at the time, What is used memory?
+>  >
+>  > Here's a graph of MemFree, Cached, and Mapped over time (I believe
+>  > Mapped is mostly or entirely subset of Cached here, so it's not
+>  > actually important):
+>  >
+>  > http://www.tommay.net/memory.png
+>
+>  I hope know your system memory usage detail.
+>  your system have 128MB, but your graph vertical line represent 0M - 35M.
+>  Who use remain 93MB(128-35)?
+>  We should know who use memory intead decrease cached memory.
+>
+>  So, Can you below operation before mesurement?
+>
+>  # echo 100 > /proc/sys/vm/swappiness
+>  # echo 3 >/proc/sys/vm/drop_caches
+>
+>  and, Can you mesure AnonPages of /proc/meminfo too?
+>  (Can your memory shrinking routine reduce anonymous memory?)
+>
+>  if JVM use memory as anonymous memory and your memory shrinking routine can't
+>  anonymous memory, that isn't mem_notify proble,
+>  that is just poor JVM garbege collection problem.
+>
+>  Why I think that?
+>  mapped page of your graph decrease linearly.
+>  if notification doesn't happened, it doesn't decrease.
+>
+>  thus,
+>  in your system, memory notification is happend rightly.
+>  but your JVM doesn't have enough freeable memory.
+>
+>  if my assumption is right, increase number of memory notification
+>  doesn't solve your problem.
+>
+>  Sould we find way of good interaction to JVM GC and mem_notify shrinker?
+>  Sould mem_notify shrinker kick JVM GC for shrink anonymous memory?
+>
+>
+>
+>
+>  > My thought was to notify only when the threshold is crossed, i.e.,
+>  > edge-triggered not level-triggered.
+>
+>  Hm, interesting..
+>
+>
+>
+>  > But I now think a threshold
+>  > mechanism may be too complicated, and artificially putting pages in
+>  > the cache works just as well.  As a proof-of-concept, I do this, and
+>  > it works well, but is inefficient:
+>  >
+>  >    extern char _text;
+>  >    for (int i = 0; i < bytes; i += 4096) {
+>  >        *((volatile char *)&_text + i);
+>  >    }
+>
+>  you intent populate to .text segment?
+>  if so, you can mamp(MAP_POPULATE), IMHO.
+>
+>
+>
+>  > I think embedded Java is a perfect user of /dev/mem_notify :-) I was
+>  > happy to see your patches and the criteria you used for notification.
+>  > But I'm having a problem in practice :-(
+>
+>  Yeah, absolutely.
+>  I'll try to set up JVM to my test environment tomorrow.
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
