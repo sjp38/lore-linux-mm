@@ -1,42 +1,35 @@
-Date: Tue, 6 May 2008 21:50:15 +0200
-From: Willy Tarreau <w@1wt.eu>
-Subject: Re: bad pmd ffff810000207808(9090909090909090).
-Message-ID: <20080506195014.GS8474@1wt.eu>
-References: <874p9biqwj.fsf@duaron.myhome.or.jp> <alpine.LNX.1.10.0805061424090.16731@fbirervta.pbzchgretzou.qr> <87zlr3zj9x.fsf@duaron.myhome.or.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87zlr3zj9x.fsf@duaron.myhome.or.jp>
+Date: Tue, 6 May 2008 13:06:20 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [PATCH] x86: fix PAE pmd_bad bootup warning
+In-Reply-To: <Pine.LNX.4.64.0805062043580.11647@blonde.site>
+Message-ID: <alpine.LFD.1.10.0805061302080.32269@woody.linux-foundation.org>
+References: <b6a2187b0805051806v25fa1272xb08e0b70b9c3408@mail.gmail.com> <20080506124946.GA2146@elte.hu> <Pine.LNX.4.64.0805061435510.32567@blonde.site> <alpine.LFD.1.10.0805061138580.32269@woody.linux-foundation.org>
+ <Pine.LNX.4.64.0805062043580.11647@blonde.site>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
-Cc: Jan Engelhardt <jengelh@medozas.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Jeff Chua <jeff.chua.linux@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Gabriel C <nix.or.die@googlemail.com>, Hans Rosenfeld <hans.rosenfeld@amd.com>, Arjan van de Ven <arjan@linux.intel.com>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 06, 2008 at 09:52:58PM +0900, OGAWA Hirofumi wrote:
-> Jan Engelhardt <jengelh@medozas.de> writes:
-> 
-> > On Tuesday 2008-05-06 14:00, OGAWA Hirofumi wrote:
-> >
-> >>I've found today the following error in syslog. It seems have a strange
-> >>pattern. And it also happened at a month ago.
-> >>
-> >>Any idea for debuging this?
-> >>
-> >
-> > 90 is NOP on x86, perhaps something got rooted?
-> 
-> I see. I'm not sure, but I didn't notice this soon, maybe it worked as
-> almost usual.
 
-I got immediate same feeling as Jan here. It looks very much like someone
-has tried to inject code into your system. The problem is that you don't
-know if this finally succeeded. Maybe some backdoor is now installed in
-your kernel. If I were you, I would isolate the machine, reboot it on CD
-and check MD5s (particularly the ones of the kernel and modules) before
-rebooting it.
+On Tue, 6 May 2008, Hugh Dickins wrote:
+>
+> Fix Hans' good observation that follow_page() will never find pmd_huge()
+> because that would have already failed the pmd_bad test: test pmd_huge in
+> between the pmd_none and pmd_bad tests.  Tighten x86's pmd_huge() check?
+> No, once it's a hugepage entry, it can get quite far from a good pmd: for
+> example, PROT_NONE leaves it with only ACCESSED of the KERN_PGTABLE bits.
 
-Willy
+I'd much rather have pdm_bad() etc fixed up instead, so that they do a 
+more proper test (not thinking that a PSE page is bad, since it clearly 
+isn't). And then, make them dependent on DEBUG_VM, because doing the 
+proper test will be more expensive.
+
+Hmm?
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
