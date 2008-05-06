@@ -1,63 +1,54 @@
 Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m46J9JBa032207
-	for <linux-mm@kvack.org>; Tue, 6 May 2008 15:09:19 -0400
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m46JBtxf031354
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 15:11:55 -0400
 Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m46J9JPQ161714
-	for <linux-mm@kvack.org>; Tue, 6 May 2008 13:09:19 -0600
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m46JBtcN128078
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 13:11:55 -0600
 Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m46J9JfR003306
-	for <linux-mm@kvack.org>; Tue, 6 May 2008 13:09:19 -0600
-Date: Tue, 6 May 2008 12:09:18 -0700
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m46JBsKV013768
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 13:11:54 -0600
+Date: Tue, 6 May 2008 12:11:53 -0700
 From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [patch 1/2] read_barrier_depends fixlets
-Message-ID: <20080506190917.GA8369@linux.vnet.ibm.com>
+Subject: Re: [patch 2/2] fix SMP data race in pagetable setup vs walking
+Message-ID: <20080506191153.GB8369@linux.vnet.ibm.com>
 Reply-To: paulmck@linux.vnet.ibm.com
-References: <20080505112021.GC5018@wotan.suse.de> <15818.1210087753@redhat.com>
+References: <20080505112021.GC5018@wotan.suse.de> <20080505121240.GD5018@wotan.suse.de> <alpine.LFD.1.10.0805050828120.32269@woody.linux-foundation.org> <20080506095138.GE10141@wotan.suse.de> <alpine.LFD.1.10.0805060750430.32269@woody.linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <15818.1210087753@redhat.com>
+In-Reply-To: <alpine.LFD.1.10.0805060750430.32269@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Howells <dhowells@redhat.com>
-Cc: Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> Nick Piggin <npiggin@suse.de> wrote:
-> 
-> > While considering the impact of read_barrier_depends, it occurred to
-> > me that it should really be really a noop for the compiler.
-> 
-> If you're defining it so, then you need to adjust memory-barriers.txt too.
-> 
-> 	========================
-> 	EXPLICIT KERNEL BARRIERS
-> 	========================
-> 	...
-> 	CPU MEMORY BARRIERS
-> 	-------------------
-> 
-> 	The Linux kernel has eight basic CPU memory barriers:
-> 
-> 		TYPE		MANDATORY		SMP CONDITIONAL
-> 		===============	=======================	===========================
-> 		GENERAL		mb()			smp_mb()
-> 		WRITE		wmb()			smp_wmb()
-> 		READ		rmb()			smp_rmb()
-> 		DATA DEPENDENCY	read_barrier_depends()	smp_read_barrier_depends()
+On Tue, May 06, 2008 at 07:53:23AM -0700, Linus Torvalds wrote:
 > 
 > 
-> 	All CPU memory barriers unconditionally imply compiler barriers.
+> On Tue, 6 May 2008, Nick Piggin wrote:
+> > 
+> > Right. As the comment says, the x86 stuff is kind of a "reference"
+> > implementation, although if you prefer it isn't there, then I I can
+> > easily just make it alpha only.
 > 
-> That last line needs modification, perhaps to say:
+> If there really was a point in teaching people about 
+> "read_barrier_depends()", I'd agree that it's probably good to have it as 
+> a reference in the x86 implementation.
 > 
-> 	General, read and write memory barriers unconditionally imply general
-> 	compiler barriers; data dependency barriers, however, imply a barrier
-> 	only for the specific access being performed due to the fact that the
-> 	instructions must be performed in a specific order.
+> But since alpha is the only one that needs it, and is likely to remain so, 
+> it's not like we ever want to copy that code to anything else, and it 
+> really is better to make it alpha-only if the code is so much uglier.
+> 
+> Maybe just a comment?
+> 
+> As to the ACCESS_ONCE() thing, thinking about it some more, I doubt it 
+> really matters. We're never going to change pgd anyway, so who cares if we 
+> access it once or a hundred times?
 
-And to make sure the compiler preserves the ordering, you also need
-the ACCESS_ONCE() in the general case.
+If we are never going to change mm->pgd, then why do we need the
+smp_read_barrier_depends()?  Is this handling the initialization
+case or some such?
 
 							Thanx, Paul
 
