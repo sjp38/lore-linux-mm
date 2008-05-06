@@ -1,38 +1,64 @@
-Date: Tue, 06 May 2008 12:29:59 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [-mm][PATCH 1/5] fix overflow problem of do_try_to_free_page()
-In-Reply-To: <20080505081239.GB22105@us.ibm.com>
-References: <20080504215331.8F55.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080505081239.GB22105@us.ibm.com>
-Message-Id: <20080506122626.AC58.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m463ettn004854
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 13:40:55 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m463fYtk2965578
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 13:41:34 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m463fglk028923
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 13:41:43 +1000
+Message-ID: <481FD342.2040707@linux.vnet.ibm.com>
+Date: Tue, 06 May 2008 09:10:50 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [-mm][PATCH 1/4] Setup the rlimit controller
+References: <20080503213726.3140.68845.sendpatchset@localhost.localdomain> <20080503213736.3140.83278.sendpatchset@localhost.localdomain> <20080505151142.f52b9d9e.akpm@linux-foundation.org>
+In-Reply-To: <20080505151142.f52b9d9e.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: linux-mm@kvack.org, skumar@linux.vnet.ibm.com, yamamoto@valinux.co.jp, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, rientjes@google.com, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
-
-I'll repost patch 2-5 after refrect reviewer comment.
-but I hope patch [1/5] merge into -mm soon.
-
-Nishanth-san already acked me.
-please.
-
-
-> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > CC: Nishanth Aravamudan <nacc@us.ibm.com>
+Andrew Morton wrote:
+> On Sun, 04 May 2008 03:07:36 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
-> Eep, sorry -- my original version had used -EAGAIN to indicate a special
-> condition, but this was removed before the final patch. Thanks for the
-> catch.
+>> +	*tmp = ((*tmp + PAGE_SIZE) >> PAGE_SHIFT) << PAGE_SHIFT;
 > 
-> Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
+> Whatever this is doing, it should not be doing it this way ;)
 > 
-> Should go upstream, as well.
+> perhaps
+> 
+> 	*tmp = ALIGN(*tmp, PAGE_SIZE);
+> 
+> or even
+> 
+> 	*tmp = PAGE_ALIGN(*tmp);
+> 
+> ?
+> 
 
+Good point, thanks for catching this.
+
+> 
+> <looks at PAGE_ALIGN>
+> 
+> Each architecture implements its own version and they of course do it
+> differently.  It's crying out for a consolidated implementation but we have
+> no include/linux/page.h into which to consolidate it.
+
+May be we can move this to asm-generic/page.h?
+
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
