@@ -1,62 +1,53 @@
-Date: Tue, 06 May 2008 20:02:44 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] mm/cgroup.c add error check
-Message-Id: <20080506195216.4A6D.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+From: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
+Subject: bad pmd ffff810000207808(9090909090909090).
+Date: Tue, 06 May 2008 21:00:12 +0900
+Message-ID: <874p9biqwj.fsf@duaron.myhome.or.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-on heavy workload, call_usermodehelper() may failure
-because it use kzmalloc(GFP_ATOMIC).
+Hi,
 
-but userland want receive release notificcation even heavy workload.
+I've found today the following error in syslog. It seems have a strange
+pattern. And it also happened at a month ago.
 
-thus, We should retry if -ENOMEM happend.
+Any idea for debuging this?
 
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: "Paul Menage" <menage@google.com>
-CC: Li Zefan <lizf@cn.fujitsu.com>
-
----
- kernel/cgroup.c |   10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
-
-Index: b/kernel/cgroup.c
-===================================================================
---- a/kernel/cgroup.c   2008-04-29 18:00:53.000000000 +0900
-+++ b/kernel/cgroup.c   2008-05-06 20:28:23.000000000 +0900
-@@ -3072,6 +3072,8 @@ void __css_put(struct cgroup_subsys_stat
-  */
- static void cgroup_release_agent(struct work_struct *work)
- {
-+       int err;
-+
-        BUG_ON(work != &release_agent_work);
-        mutex_lock(&cgroup_mutex);
-        spin_lock(&release_list_lock);
-@@ -3111,7 +3113,13 @@ static void cgroup_release_agent(struct
-                 * since the exec could involve hitting disk and hence
-                 * be a slow process */
-                mutex_unlock(&cgroup_mutex);
--               call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
-+
-+retry:
-+               err = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
-+               if (err == -ENOMEM) {
-+                       schedule();
-+                       goto retry;
-+               }
-                kfree(pathbuf);
-                mutex_lock(&cgroup_mutex);
-                spin_lock(&release_list_lock);
+Thanks.
 
 
+May  6 07:21:36 duaron kernel: kjournald starting.  Commit interval 5 seconds
+May  6 07:21:36 duaron kernel: EXT3 FS on sda2, internal journal
+May  6 07:21:36 duaron kernel: EXT3-fs: mounted filesystem with ordered data mode.
+May  6 07:21:36 duaron kernel: NET: Registered protocol family 15
+May  6 07:21:36 duaron kernel: /devel/linux/works/linux-2.6/mm/memory.c:127: bad pmd ffff810000207808(9090909090909090).
+May  6 07:21:36 duaron kernel: r8169: eth0: link up
+May  6 07:21:36 duaron kernel: r8169: eth0: link up
+May  6 07:21:36 duaron kernel: scsi 4:0:0:0: Direct-Access     USB2.0   CF  Card Reader   9144 PQ: 0 ANSI: 0
+May  6 07:21:36 duaron kernel: sd 4:0:0:0: [sdc] Attached SCSI removable disk
+May  6 07:21:36 duaron kernel: sd 4:0:0:0: Attached scsi generic sg3 type 0
+May  6 07:21:36 duaron kernel: scsi 4:0:0:1: Direct-Access     USB2.0   CBO Card Reader   9144 PQ: 0 ANSI: 0
+May  6 07:21:36 duaron kernel: sd 4:0:0:1: [sdd] Attached SCSI removable disk
+
+
+Apr  9 03:53:40 duaron kernel: scsi 4:0:0:1: Direct-Access     USB2.0   CBO Card Reader   9144 PQ: 0 ANSI: 0
+Apr  9 03:53:40 duaron kernel: sd 4:0:0:1: [sdd] Attached SCSI removable disk
+Apr  9 03:53:40 duaron kernel: sd 4:0:0:1: Attached scsi generic sg4 type 0
+Apr  9 03:53:40 duaron kernel: usb-storage: device scan complete
+Apr  9 03:53:40 duaron kernel: NET: Registered protocol family 15
+Apr  9 03:53:40 duaron kernel: /devel/linux/works/linux-2.6/mm/memory.c:127: bad pmd ffff810000207208(9090909090909090).
+Apr  9 03:53:40 duaron kernel: r8169: eth0: link up
+Apr  9 03:53:40 duaron kernel: r8169: eth0: link up
+Apr  9 03:53:40 duaron kernel: RPC: Registered udp transport module.
+Apr  9 03:53:40 duaron kernel: RPC: Registered tcp transport module.
+Apr  9 03:53:40 duaron kernel: NET: Registered protocol family 10
+Apr  9 03:53:40 duaron kernel: lo: Disabled Privacy Extensions
+Apr  9 03:53:42 duaron kernel: p4-clockmod: P4/Xeon(TM) CPU On-Demand Clock Modulation available
+-- 
+OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
