@@ -1,47 +1,33 @@
-Date: Tue, 06 May 2008 16:02:09 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: make vmstat cpu-unplug safe
-Message-Id: <20080506154938.AC6B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Date: Tue, 06 May 2008 00:08:03 -0700 (PDT)
+Message-Id: <20080506.000803.80742226.davem@davemloft.net>
+Subject: Re: [patch 2/2] fix SMP data race in pagetable setup vs walking
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20080505121240.GD5018@wotan.suse.de>
+References: <20080505112021.GC5018@wotan.suse.de>
+	<20080505121240.GD5018@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Nick Piggin <npiggin@suse.de>
+Date: Mon, 5 May 2008 14:12:40 +0200
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: npiggin@suse.de
+Cc: torvalds@linux-foundation.org, hugh@veritas.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, paulmck@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-btw: I think all_vm_event() author is Cristoph Lameter, right?
+> I only converted x86 and powerpc. I think comments in x86 are good because
+> that is more or less the reference implementation and is where many VM
+> developers would look to understand mm/ code. Commenting all page table
+> walking in all other architectures is kind of beyond my skill or patience,
+> and maintainers might consider this weird "alpha thingy" is below them ;)
+> But they are quite free to add smp_read_barrier_depends to their own code.
+> 
+> Still would like more acks on this before it is applied.
 
+I've read this over a few times, I think it's OK:
 
---------------------------------------------
-When access cpu_online_map, We should prevent that dynamically 
-change cpu_online_map by get_online_cpus().
-
-Unfortunately, all_vm_events() doesn't it.
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Christoph Lameter <clameter@sgi.com>
-
----
- mm/vmstat.c |    2 ++
- 1 file changed, 2 insertions(+)
-
-Index: b/mm/vmstat.c
-===================================================================
---- a/mm/vmstat.c       2008-05-04 23:00:52.000000000 +0900
-+++ b/mm/vmstat.c       2008-05-06 16:13:32.000000000 +0900
-@@ -42,7 +42,9 @@ static void sum_vm_events(unsigned long
- */
- void all_vm_events(unsigned long *ret)
- {
-+       get_online_cpus();
-        sum_vm_events(ret, &cpu_online_map);
-+       put_online_cpus();
- }
- EXPORT_SYMBOL_GPL(all_vm_events);
-
-
+Acked-by: David S. Miller <davem@davemloft.net>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
