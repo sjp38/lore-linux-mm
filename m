@@ -1,38 +1,86 @@
-Content-class: urn:content-classes:message
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Subject: RE: [PATCH 1/8] Scaling msgmni to the amount of lowmem
-Date: Tue, 6 May 2008 09:42:25 -0700
-Message-ID: <1FE6DD409037234FAB833C420AA843EC014392F9@orsmsx424.amr.corp.intel.com>
-In-Reply-To: <481EC917.6070808@bull.net>
-References: <20080211141646.948191000@bull.net>	 <20080211141813.354484000@bull.net> <12c511ca0804291328v2f0b87csd0f2cf3accc6ad00@mail.gmail.com> <481EC917.6070808@bull.net>
-From: "Luck, Tony" <tony.luck@intel.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m46HNfHo012833
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 13:23:41 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m46HNfim195380
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 13:23:41 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m46HNfpT004245
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 13:23:41 -0400
+Subject: Re: [RFC][PATCH 1/2] Add shared and reserve control to
+	hugetlb_file_setup
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20080505105826.GA11027@csn.ul.ie>
+References: <1209693089.8483.22.camel@grover.beaverton.ibm.com>
+	 <1209744977.7763.29.camel@nimitz.home.sr71.net>
+	 <20080505105826.GA11027@csn.ul.ie>
+Content-Type: text/plain
+Date: Tue, 06 May 2008 10:23:39 -0700
+Message-Id: <1210094619.4747.41.camel@nimitz.home.sr71.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nadia Derbey <Nadia.Derbey@bull.net>
-Cc: linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, akpm@linux-foundation.org, linux-mm@kvack.org, containers@lists.linux-foundation.org, matthltc@us.ibm.com, cmm@us.ibm.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: ebmunson@us.ibm.com, linux-mm@kvack.org, nacc <nacc@linux.vnet.ibm.com>, andyw <andyw@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-> Well, this printk had been suggested by somebody (sorry I don't remember 
-> who) when I first submitted the patch. Actually I think it might be 
-> useful for a sysadmin to be aware of a change in the msgmni value: we 
-> have the message not only at boot time, but also each time msgmni is 
-> recomputed because of a change in the amount of memory.
+On Mon, 2008-05-05 at 11:58 +0100, Mel Gorman wrote:
+> On (02/05/08 09:16), Dave Hansen didst pronounce:
+> > On Thu, 2008-05-01 at 18:51 -0700, Eric B Munson wrote:
+> > > In order to back stacks with huge pages, we will want to make hugetlbfs
+> > > files to back them; these will be used to back private mappings.
+> > > Currently hugetlb_file_setup creates files to back shared memory segments.
+> > > Modify this to create both private and shared files,
+> > 
+> > Hugetlbfs can currently have private mappings, right?  Why not just use
+> > the existing ones instead of creating a new variety with
+> > hugetlb_file_setup()?
+> > 
+> 
+> hugetlb_file_setup() uses an internal mount to create files just for
+> SHM. However, it does the work necessary for MAP_SHARED mappings,
+> particularly reserve pages. The account is currently all fouled up to
+> deal with a private mapping that has reserves. Teaching
+> hugetlb_file_setup() to deal with private and shared mappings does
+> appear the most straight-forward route.
 
-If the message is directed at the system administrator, then it would
-be nice if there were some more meaningful way to show the namespace
-that is affected than just printing the hex address of the kernel structure.
+I agree that this is the most straightforward route, especially for a
+proof of concept like this.  However, I worry that it is not a good
+route for merging since it doesn't really put us on the road to a more
+comprehensive solution.  How easy is it to extend this code for stack
+growth or randomization, for instance?  Can we make this solve any other
+problems?  Is there any way (or reason) to do generic file-backed
+stacks?
 
-As the sysadmin for my test systems, printing the hex address is mildly
-annoying ... I now have to add a new case to my scripts that look at
-dmesg output for unusual activity.
+Does anybody know of any important cases of applications changing their
+rlimits after exec()?
 
-Is there some better "name for a namespace" than the address? Perhaps
-the process id of the process that instantiated the namespace???
+In any case, it looks like I'm the only one objecting to it, so let's
+try to get it a better changelog.  How about this for a summary?
 
--Tony
+There are two kinds of "Shared" hugetlbfs mappings:
+1. using internal vfsmount use ipc/shm.c and shmctl()
+2. mmap() of /hugetlbfs/file with MAP_SHARED
+
+There is one kind of private: mmap() of /hugetlbfs/file file with
+MAP_PRIVATE
+
+(Eric could you fill in what the current reservation and prefaulting
+rules are and what you expect from the new code?)
+
+This patch adds a second class of "private" hugetlb-backed mapping.  But
+we do it by sharing code with the ipc shm.  This is mostly because we
+need to do our stack setup at execve() time and can't go opening files
+from hugetlbfs.  The kernel-internal vfsmount for shm lets us get around
+this.  We truly want anonymous memory, but MAP_PRIVATE is close enough
+for now.
+
+The hugetlb stack VMA is set up at execve() time and is fixed in size.
+We derive the size from looking at the stack ulimit.  The stack pages
+are faulted in as needed, but the stack VMA stays fixed in size.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
