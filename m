@@ -1,35 +1,36 @@
-Date: Tue, 6 May 2008 13:06:20 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH] x86: fix PAE pmd_bad bootup warning
-In-Reply-To: <Pine.LNX.4.64.0805062043580.11647@blonde.site>
-Message-ID: <alpine.LFD.1.10.0805061302080.32269@woody.linux-foundation.org>
-References: <b6a2187b0805051806v25fa1272xb08e0b70b9c3408@mail.gmail.com> <20080506124946.GA2146@elte.hu> <Pine.LNX.4.64.0805061435510.32567@blonde.site> <alpine.LFD.1.10.0805061138580.32269@woody.linux-foundation.org>
- <Pine.LNX.4.64.0805062043580.11647@blonde.site>
+Received: by po-out-1718.google.com with SMTP id y22so178912pof.1
+        for <linux-mm@kvack.org>; Tue, 06 May 2008 13:19:46 -0700 (PDT)
+Message-ID: <2f11576a0805061319w581f69d4ye593416db6a9e80a@mail.gmail.com>
+Date: Wed, 7 May 2008 05:19:45 +0900
+From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] mm/cgroup.c add error check
+In-Reply-To: <4820A431.3000600@firstfloor.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080506195216.4A6D.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <87wsm7bo1n.fsf@basil.nowhere.org>
+	 <2f11576a0805060602gf4cf0f9t85391939146efccf@mail.gmail.com>
+	 <4820A431.3000600@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Jeff Chua <jeff.chua.linux@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Gabriel C <nix.or.die@googlemail.com>, Hans Rosenfeld <hans.rosenfeld@amd.com>, Arjan van de Ven <arjan@linux.intel.com>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-
-On Tue, 6 May 2008, Hugh Dickins wrote:
+>  > but if GFP_KERNEL is used, We still need error check, IMHO.
 >
-> Fix Hans' good observation that follow_page() will never find pmd_huge()
-> because that would have already failed the pmd_bad test: test pmd_huge in
-> between the pmd_none and pmd_bad tests.  Tighten x86's pmd_huge() check?
-> No, once it's a hugepage entry, it can get quite far from a good pmd: for
-> example, PROT_NONE leaves it with only ACCESSED of the KERN_PGTABLE bits.
+>  Yes, but no retry (or if you're sure you cannot fail use __GFP_NOFAIL
+>  too, but that is nasty because it has some risk of deadlock under severe
+>  oom conditions)
 
-I'd much rather have pdm_bad() etc fixed up instead, so that they do a 
-more proper test (not thinking that a PSE page is bad, since it clearly 
-isn't). And then, make them dependent on DEBUG_VM, because doing the 
-proper test will be more expensive.
+in general coding style, you are right.
 
-Hmm?
+but not down-to-earth idea in that case.
+call_usermodehelper() is just wrapper of fork-exec.
 
-		Linus
+I don't hope change largely exec() code patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
