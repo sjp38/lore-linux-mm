@@ -1,48 +1,39 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m46Kh2ov017985
-	for <linux-mm@kvack.org>; Tue, 6 May 2008 16:43:02 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m46Kh2wk212194
-	for <linux-mm@kvack.org>; Tue, 6 May 2008 14:43:02 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m46Kh1BQ001168
-	for <linux-mm@kvack.org>; Tue, 6 May 2008 14:43:02 -0600
-Subject: Re: [PATCH] x86: fix PAE pmd_bad bootup warning
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20080506202201.GB12654@escobedo.amd.com>
-References: <b6a2187b0805051806v25fa1272xb08e0b70b9c3408@mail.gmail.com>
-	 <20080506124946.GA2146@elte.hu>
-	 <Pine.LNX.4.64.0805061435510.32567@blonde.site>
-	 <alpine.LFD.1.10.0805061138580.32269@woody.linux-foundation.org>
-	 <Pine.LNX.4.64.0805062043580.11647@blonde.site>
-	 <20080506202201.GB12654@escobedo.amd.com>
-Content-Type: text/plain
-Date: Tue, 06 May 2008 13:42:59 -0700
-Message-Id: <1210106579.4747.51.camel@nimitz.home.sr71.net>
-Mime-Version: 1.0
+Received: by fg-out-1718.google.com with SMTP id 19so6317fgg.4
+        for <linux-mm@kvack.org>; Tue, 06 May 2008 14:54:53 -0700 (PDT)
+Message-ID: <4820D39E.3090109@gmail.com>
+Date: Tue, 06 May 2008 23:54:38 +0200
+From: Jiri Slaby <jirislaby@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [RFC 1/1] mm: add virt to phys debug
+References: <Pine.LNX.4.64.0804281322510.31163@schroedinger.engr.sgi.com> <1209669740-10493-1-git-send-email-jirislaby@gmail.com> <Pine.LNX.4.64.0805011310390.9288@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0805011310390.9288@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hans Rosenfeld <hans.rosenfeld@amd.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Ingo Molnar <mingo@elte.hu>, Jeff Chua <jeff.chua.linux@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Gabriel C <nix.or.die@googlemail.com>, Arjan van de Ven <arjan@linux.intel.com>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Jeremy Fitzhardinge <jeremy@goop.org>, pageexec@freemail.hu, Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, herbert@gondor.apana.org.au, penberg@cs.helsinki.fi, akpm@linux-foundation.org, linux-ext4@vger.kernel.org, paulmck@linux.vnet.ibm.com, rjw@sisk.pl, zdenek.kabelac@gmail.com, David Miller <davem@davemloft.net>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-05-06 at 22:22 +0200, Hans Rosenfeld wrote:
-> I expected that any hugepage that a process had mmapped would
-> automatically be returned to the system when the process exits. That was
-> not the case, the process exited and the hugepage was lost (unless I
-> changed the program to explicitly munmap the hugepage before exiting).
-> Removing the hugetlbfs file containing the hugepage also didn't free the
-> page.
+On 05/01/2008 10:18 PM, Christoph Lameter wrote:
+> On Thu, 1 May 2008, Jiri Slaby wrote:
+>> Add some (configurable) expensive sanity checking to catch wrong address
+>> translations on x86.
+>>
+>> - create linux/mmdebug.h file to be able include this file in
+>>   asm headers to not get unsolvable loops in header files
+>> - __phys_addr on x86_32 became a function in ioremap.c since
+>>   PAGE_OFFSET and is_vmalloc_addr is undefined if declared in
+>>   page_32.h (again circular dependencies)
+>> - add __phys_addr_const for initializing doublefault_tss.__cr3
+> 
+> Hmmm.. We could use include/linux/bounds.h to make 
+> VMALLOC_START/VMALLOC_END (or whatever you need for checking the memory 
+> boundaries) a cpp constant which may allow the use in page_32.h without 
+> circular dependencies.
 
-Could you post the code you're using to do this?  I have to wonder if
-you're leaving a fd open somewhere.  Even if you rm the hugepage file,
-it'll stay allocated if you have a fd open, or if *someone* is still
-mapping it. 
-
-Can you umount your hugetlbfs?
-
--- Dave
+I like the idea, I'll get back with a patch in few days (sorry, too busy). 
+Anyway bounds.h should be include/asm/ thing though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
