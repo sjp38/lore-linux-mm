@@ -1,33 +1,61 @@
-Date: Tue, 06 May 2008 00:08:03 -0700 (PDT)
-Message-Id: <20080506.000803.80742226.davem@davemloft.net>
-Subject: Re: [patch 2/2] fix SMP data race in pagetable setup vs walking
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20080505121240.GD5018@wotan.suse.de>
-References: <20080505112021.GC5018@wotan.suse.de>
-	<20080505121240.GD5018@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id m4686Nhi003317
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 18:06:23 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m468Aqdx133484
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 18:10:53 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4686gis004920
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 18:06:50 +1000
+Message-ID: <48200FDF.7070408@linux.vnet.ibm.com>
+Date: Tue, 06 May 2008 13:29:27 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [-mm][PATCH 4/4] Add rlimit controller documentation
+References: <20080503213726.3140.68845.sendpatchset@localhost.localdomain> <20080503213825.3140.4328.sendpatchset@localhost.localdomain> <20080505153509.da667caf.akpm@linux-foundation.org> <481FEF28.1000502@linux.vnet.ibm.com> <20080505225434.3f81828b.akpm@linux-foundation.org>
+In-Reply-To: <20080505225434.3f81828b.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Nick Piggin <npiggin@suse.de>
-Date: Mon, 5 May 2008 14:12:40 +0200
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
-Cc: torvalds@linux-foundation.org, hugh@veritas.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, paulmck@us.ibm.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, skumar@linux.vnet.ibm.com, yamamoto@valinux.co.jp, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, rientjes@google.com, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-> I only converted x86 and powerpc. I think comments in x86 are good because
-> that is more or less the reference implementation and is where many VM
-> developers would look to understand mm/ code. Commenting all page table
-> walking in all other architectures is kind of beyond my skill or patience,
-> and maintainers might consider this weird "alpha thingy" is below them ;)
-> But they are quite free to add smp_read_barrier_depends to their own code.
+Andrew Morton wrote:
+> On Tue, 06 May 2008 11:09:52 +0530 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
-> Still would like more acks on this before it is applied.
+>>> Ho hum, I had to do rather a lot of guesswork here to try to understand
+>>> your proposed overall design for this feature.  I'd prefer to hear about
+>>> your design via more direct means.
+>> Do you have any suggestions on how to do that better. Would you like
+>> documentation to be the first patch in the series? I had sent out two RFC's
+>> earlier and got comments and feedback from several people.
+>>
+> 
+> I do like to see the overall what-i-am-setting-out-to-do description in
+> there somewhere - sometimes a Docuemtation/ file is appropriate, other
+> times do it via changelog.
+> 
 
-I've read this over a few times, I think it's OK:
+I think having documentation upfront does make sense in that case. I'll also try
+and make the changelogs more verbose. I usually try to point to the previous
+discussions in the introduction patch.
 
-Acked-by: David S. Miller <davem@davemloft.net>
+> But the first part of the review is reviewing whatever it is which you set
+> out to achieve.  Once that's understood and sounds like a good idea then we
+> can start looking at how you did it.
+> 
+> 
+
+Yes, I agree.
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
