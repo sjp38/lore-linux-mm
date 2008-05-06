@@ -1,8 +1,10 @@
-Message-ID: <4820272C.4060009@cn.fujitsu.com>
-Date: Tue, 06 May 2008 17:38:52 +0800
+Message-ID: <482027E4.6030300@cn.fujitsu.com>
+Date: Tue, 06 May 2008 17:41:56 +0800
 From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH] mm/page_alloc.c: fix a typo
+Subject: Re: [PATCH] mm/page_alloc.c: fix a typo
+References: <4820272C.4060009@cn.fujitsu.com>
+In-Reply-To: <4820272C.4060009@cn.fujitsu.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
