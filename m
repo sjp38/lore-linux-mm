@@ -1,36 +1,40 @@
-Received: by po-out-1718.google.com with SMTP id y22so178912pof.1
-        for <linux-mm@kvack.org>; Tue, 06 May 2008 13:19:46 -0700 (PDT)
-Message-ID: <2f11576a0805061319w581f69d4ye593416db6a9e80a@mail.gmail.com>
-Date: Wed, 7 May 2008 05:19:45 +0900
-From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] mm/cgroup.c add error check
-In-Reply-To: <4820A431.3000600@firstfloor.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Tue, 6 May 2008 22:22:01 +0200
+From: Hans Rosenfeld <hans.rosenfeld@amd.com>
+Subject: Re: [PATCH] x86: fix PAE pmd_bad bootup warning
+Message-ID: <20080506202201.GB12654@escobedo.amd.com>
+References: <b6a2187b0805051806v25fa1272xb08e0b70b9c3408@mail.gmail.com> <20080506124946.GA2146@elte.hu> <Pine.LNX.4.64.0805061435510.32567@blonde.site> <alpine.LFD.1.10.0805061138580.32269@woody.linux-foundation.org> <Pine.LNX.4.64.0805062043580.11647@blonde.site>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <20080506195216.4A6D.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <87wsm7bo1n.fsf@basil.nowhere.org>
-	 <2f11576a0805060602gf4cf0f9t85391939146efccf@mail.gmail.com>
-	 <4820A431.3000600@firstfloor.org>
+In-Reply-To: <Pine.LNX.4.64.0805062043580.11647@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Jeff Chua <jeff.chua.linux@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Gabriel C <nix.or.die@googlemail.com>, Arjan van de Ven <arjan@linux.intel.com>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->  > but if GFP_KERNEL is used, We still need error check, IMHO.
->
->  Yes, but no retry (or if you're sure you cannot fail use __GFP_NOFAIL
->  too, but that is nasty because it has some risk of deadlock under severe
->  oom conditions)
+On Tue, May 06, 2008 at 08:49:23PM +0100, Hugh Dickins wrote:
+> So Hans' original hugepage leak remains unexplained and unfixed.
+> Hans, did you find that hugepage leak with a standard kernel, or were
+> you perhaps trying out some hugepage-using patch of your own, without
+> marking the vma VM_HUGETLB?  Or were you expecting the hugetlbfs file
+> to truncate itself once all mmappers had gone?  If the standard kernel
+> leaks hugepages, I'm surprised the hugetlb guys don't know about it.
 
-in general coding style, you are right.
+I used a standard kernel (well, not quite, I had made some changes to
+the /proc/pid/pagemap code, but nothing that would affect the hugepage
+stuff) and some simple test program that would just mmap a hugepage.
 
-but not down-to-earth idea in that case.
-call_usermodehelper() is just wrapper of fork-exec.
+I expected that any hugepage that a process had mmapped would
+automatically be returned to the system when the process exits. That was
+not the case, the process exited and the hugepage was lost (unless I
+changed the program to explicitly munmap the hugepage before exiting).
+Removing the hugetlbfs file containing the hugepage also didn't free the
+page.
 
-I don't hope change largely exec() code patch.
+
+-- 
+%SYSTEM-F-ANARCHISM, The operating system has been overthrown
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
