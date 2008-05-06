@@ -1,48 +1,54 @@
-Date: Tue, 06 May 2008 14:40:39 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: on CONFIG_MM_OWNER=y, kernel panic is possible.
-Message-Id: <20080506142255.AC5D.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id m465mLnn007462
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 15:48:21 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m465r0VO233810
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 15:53:00 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m465mvPi014480
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 15:48:58 +1000
+Message-ID: <481FF115.8030503@linux.vnet.ibm.com>
+Date: Tue, 06 May 2008 11:18:05 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: on CONFIG_MM_OWNER=y, kernel panic is possible.
+References: <20080506142255.AC5D.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20080506142255.AC5D.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-on CONFIG_MM_OWNER=y (that is automatically turned on by mem-cgroup),
-kernel panic is possible by following scenario in mm_update_next_owner().
+KOSAKI Motohiro wrote:
+> on CONFIG_MM_OWNER=y (that is automatically turned on by mem-cgroup),
+> kernel panic is possible by following scenario in mm_update_next_owner().
+> 
+> 1. mm_update_next_owner() is called.
+> 2. found caller task in do_each_thread() loop.
+> 3. thus, BUG_ON(c == p) is true, it become kernel panic.
+> 
+> end up, We should left out current task.
+> 
+> 
 
-1. mm_update_next_owner() is called.
-2. found caller task in do_each_thread() loop.
-3. thus, BUG_ON(c == p) is true, it become kernel panic.
+That is not possible. If you look at where mm_update_next_owner() is called
+from, we call it from
 
-end up, We should left out current task.
+exit_mm() and exec_mmap()
 
+In both cases, we ensure that the task's mm has changed (to NULL and the new mm
+respectively), before we call mm_update_next_owner(), hence c->mm can never be
+equal to p->mm.
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-CC: Balbir Singh <balbir@linux.vnet.ibm.com>
-
----
- kernel/exit.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-Index: b/kernel/exit.c
-===================================================================
---- a/kernel/exit.c     2008-05-04 22:57:23.000000000 +0900
-+++ b/kernel/exit.c     2008-05-06 15:01:26.000000000 +0900
-@@ -627,7 +627,7 @@ retry:
-         * here often
-         */
-        do_each_thread(g, c) {
--               if (c->mm == mm)
-+               if ((c != p) && (c->mm == mm))
-                        goto assign_new_owner;
-        } while_each_thread(g, c);
-
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
