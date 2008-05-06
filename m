@@ -1,179 +1,68 @@
-Received: by nf-out-0910.google.com with SMTP id c10so2757306nfd.6
-        for <linux-mm@kvack.org>; Mon, 05 May 2008 22:22:03 -0700 (PDT)
-Message-ID: <ab3f9b940805052222o4f4a7dev3f4dce92b3766435@mail.gmail.com>
-Date: Mon, 5 May 2008 22:22:03 -0700
-From: "Tom May" <tom@tommay.com>
-Subject: Re: [PATCH 0/8][for -mm] mem_notify v6
-In-Reply-To: <20080503205732.642F.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp02.in.ibm.com (8.13.1/8.13.1) with ESMTP id m465ZZUS027012
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 11:05:35 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m465ZRlM1417288
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 11:05:27 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.13.1/8.13.3) with ESMTP id m465ZY8r013228
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 11:05:35 +0530
+Message-ID: <481FEDEF.9030901@linux.vnet.ibm.com>
+Date: Tue, 06 May 2008 11:04:39 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
+Subject: Re: [-mm][PATCH 3/4] Add rlimit controller accounting and control
+References: <20080503213726.3140.68845.sendpatchset@localhost.localdomain> <20080503213814.3140.66080.sendpatchset@localhost.localdomain> <20080505152451.6dceec74.akpm@linux-foundation.org>
+In-Reply-To: <20080505152451.6dceec74.akpm@linux-foundation.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080501232431.F617.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <ab3f9b940805021521o4680116fyde099f16d66a1e5a@mail.gmail.com>
-	 <20080503205732.642F.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: =?ISO-2022-JP?B?RGFuaWVsIFNwGyRCaU8bKEJn?= <daniel.spang@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, skumar@linux.vnet.ibm.com, yamamoto@valinux.co.jp, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, rientjes@google.com, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-All the talk about how what is using memory, whether things are in
-Java or native, etc., is missing the point.  I'm not sure I'm making
-my point, so I'll try again: regardless of memory size, mlock, etc.,
-the interaction between client and /dev/mem_notify can be unstable,
-and is unstable in my case:
+Andrew Morton wrote:
+> On Sun, 04 May 2008 03:08:14 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+>> +	if (res_counter_charge(&rcg->as_res, (mm->total_vm << PAGE_SHIFT)))
+> 
+> I worry a bit about all the conversion between page-counts and byte-counts
+> in this code.
+> 
+> For example, what happens if a process sits there increasing its rss with
+> sbrk(4095) or sbrk(4097) or all sorts of other scenarios?  Do we get in a
+> situation in which the accounting is systematically wrong?
+> 
 
-- User-space code page faults in MAP_ANONYMOUS regions until there is
-no free memory.
-- The kernel gives a notification.
-- There kernel frees some cache to satisfy the memory request.
-- The user-space code gets the notification and frees anonymous pages.
- Concurrently
-with this, some thread(s) in the system may continue to page fault.
-- The cycle repeats.
-- This works well, perhaps hundreds or thousands of cycles, until all
-or most of the cache has been freed and we get an oom handling a page
-fault.
+We already do all our accounting in pages for total_vm (field of mm_struct).
+task_vsize() for example multiplies PAGE_SIZE with total_vm before returning the
+result.
 
-My requirement is to have a stable system, with memory allocated on
-demand to whatever process(es) want it (jvm, web browser, ...) until a
-low memory notification occurs, which causes them to free whatever
-memory they no longer need, then continue, without arbitrary static
-limits on Java heap size, web browser cache size, etc.
+> Worse, do we risk getting into that situation in the future, as unrelated
+> changes are made to the surrounding code?
+> 
 
-My workaround to make things stable is to put pages in the cache
-(after releasing anonymous pages and increasing free memory) by
-accessing pages in _text, but that seems silly and expensive.
+I can't see that happening, but I'll look again and request reviewers to help me
+identify any such problems that can occur.
 
-.tom
+> IOW, have we chosen the best, most maintainable representation for these
+> things?
+> 
 
-On Sat, May 3, 2008 at 5:26 AM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
-> > >  your memnotify check routine is written by native or java?
->  >
->  > Some of each.
->
->  Wow!
->  you have 2 /dev/mem_notify checking routine?
->  java routine free java memory, native routine free native memory, right?
->
->
->
->  > >  my point is "on swapless system, /dev/mem_notify checked routine should be mlocked".
->  >
->  > mlocking didn't fix things, it just made the oom happen at a different
->  > time (see graphs below), both in the small test program where I used
->  > mlockall, and in the jvm where during initialization I read
->  > /proc/self/maps and mlocked each region of memory that was mapped to a
->  > file.  Note that without swap, all of the anonymous pages containing
->  > the java code are effectively locked in memory, too, so everything
->  > runs without page faults.
->
->  okey.
->
->
->
->  > >  I hope understand your requirement more.
->  >
->  > Most simply, I need to get low memory notifications while there is
->  > still enough memory to handle them before oom.
->
->  Ah, That's your implementation idea.
->  I hope know why don't works well my current implementation at first.
->
->
->
->  > >  Can I ask your system more?
->  >
->  > x86, Linux 2.6.23.9 (with your patches trivially backported), 128MB,
->  > no swap.  Is there something else I can tell you?
->  >
->  > >  I think all java text and data is mapped.
->  >
->  > It's not what /proc/meminfo calls "Mapped".  It's in anonymous pages
->  > with no backing store, i.e., mmap with MAP_ANONYMOUS.
->
->  okey.
->  Mapped of /proc/meminfo mean mapped pages with file backing store.
->
->  therefore, that isn't contain anonymous memory(e.g. java).
->
->
->  > >  When cached+mapped+free memory is happend?
->  > >  and at the time, What is used memory?
->  >
->  > Here's a graph of MemFree, Cached, and Mapped over time (I believe
->  > Mapped is mostly or entirely subset of Cached here, so it's not
->  > actually important):
->  >
->  > http://www.tommay.net/memory.png
->
->  I hope know your system memory usage detail.
->  your system have 128MB, but your graph vertical line represent 0M - 35M.
->  Who use remain 93MB(128-35)?
->  We should know who use memory intead decrease cached memory.
->
->  So, Can you below operation before mesurement?
->
->  # echo 100 > /proc/sys/vm/swappiness
->  # echo 3 >/proc/sys/vm/drop_caches
->
->  and, Can you mesure AnonPages of /proc/meminfo too?
->  (Can your memory shrinking routine reduce anonymous memory?)
->
->  if JVM use memory as anonymous memory and your memory shrinking routine can't
->  anonymous memory, that isn't mem_notify proble,
->  that is just poor JVM garbege collection problem.
->
->  Why I think that?
->  mapped page of your graph decrease linearly.
->  if notification doesn't happened, it doesn't decrease.
->
->  thus,
->  in your system, memory notification is happend rightly.
->  but your JVM doesn't have enough freeable memory.
->
->  if my assumption is right, increase number of memory notification
->  doesn't solve your problem.
->
->  Sould we find way of good interaction to JVM GC and mem_notify shrinker?
->  Sould mem_notify shrinker kick JVM GC for shrink anonymous memory?
->
->
->
->
->  > My thought was to notify only when the threshold is crossed, i.e.,
->  > edge-triggered not level-triggered.
->
->  Hm, interesting..
->
->
->
->  > But I now think a threshold
->  > mechanism may be too complicated, and artificially putting pages in
->  > the cache works just as well.  As a proof-of-concept, I do this, and
->  > it works well, but is inefficient:
->  >
->  >    extern char _text;
->  >    for (int i = 0; i < bytes; i += 4096) {
->  >        *((volatile char *)&_text + i);
->  >    }
->
->  you intent populate to .text segment?
->  if so, you can mamp(MAP_POPULATE), IMHO.
->
->
->
->  > I think embedded Java is a perfect user of /dev/mem_notify :-) I was
->  > happy to see your patches and the criteria you used for notification.
->  > But I'm having a problem in practice :-(
->
->  Yeah, absolutely.
->  I'll try to set up JVM to my test environment tomorrow.
->
->
->
+That's a good question. From the sustenance point of view, resource counters
+have worked really well so far. Abstracting accounting and tracking from the
+controllers has been a good thing. One of the goals of the rlimit controller is
+to keep it open for extension, so that others can add their own control for
+other resources like mlock'ed pages.
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
