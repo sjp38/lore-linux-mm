@@ -1,50 +1,32 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m468Foi9002389
-	for <linux-mm@kvack.org>; Tue, 6 May 2008 18:15:50 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m468KeD4272152
-	for <linux-mm@kvack.org>; Tue, 6 May 2008 18:20:40 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m468GbYT017568
-	for <linux-mm@kvack.org>; Tue, 6 May 2008 18:16:38 +1000
-Message-ID: <482013B0.5040405@linux.vnet.ibm.com>
-Date: Tue, 06 May 2008 13:45:44 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [-mm][PATCH 1/4] Setup the rlimit controller
-References: <20080503213726.3140.68845.sendpatchset@localhost.localdomain> <20080503213736.3140.83278.sendpatchset@localhost.localdomain> <481FB50D.1070308@cn.fujitsu.com>
-In-Reply-To: <481FB50D.1070308@cn.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Date: Tue, 6 May 2008 10:38:09 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 3/4] spufs: convert nopfn to fault
+Message-ID: <20080506083809.GA10141@wotan.suse.de>
+References: <20080502031903.GD11844@wotan.suse.de> <200805021943.54638.jk@ozlabs.org> <20080503054135.GA15552@wotan.suse.de> <200805061301.26791.jk@ozlabs.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200805061301.26791.jk@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Jeremy Kerr <jk@ozlabs.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, jes@trained-monkey.org, cpw@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Li Zefan wrote:
-> Balbir Singh wrote:
->> +struct cgroup_subsys rlimit_cgroup_subsys;
->> +
->> +struct rlimit_cgroup {
->> +	struct cgroup_subsys_state css;
->> +	struct res_counter as_res;	/* address space counter */
->> +};
->> +
->> +static struct rlimit_cgroup init_rlimit_cgroup;
->> +
->> +struct rlimit_cgroup *rlimit_cgroup_from_cgrp(struct cgroup *cgrp)
+On Tue, May 06, 2008 at 01:01:26PM +1000, Jeremy Kerr wrote:
+> Hi Nick,
 > 
-> It can be static if I don't miss anything.
+> > Hmm, in spufs_mem_mmap_fault, vm_insert_pfn should just take
+> > address (corrected for 64K), rather than the uncorrected address I
+> > gave it...
+> 
+> Yep, using the 'address' var for vm_insert_pfn fixes the problem for me.
 
-Yes, it can be. Thanks!
+Ah, thanks for testing. Will send an updated patch also with the warning
+you noticed fixed.
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
