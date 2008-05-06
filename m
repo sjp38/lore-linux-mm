@@ -1,37 +1,62 @@
-Date: Tue, 6 May 2008 11:56:13 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 2/2] fix SMP data race in pagetable setup vs walking
-Message-ID: <20080506095613.GG10141@wotan.suse.de>
-References: <20080505112021.GC5018@wotan.suse.de> <20080505121240.GD5018@wotan.suse.de> <20080506.000803.80742226.davem@davemloft.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080506.000803.80742226.davem@davemloft.net>
+Date: Tue, 06 May 2008 20:02:44 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH] mm/cgroup.c add error check
+Message-Id: <20080506195216.4A6D.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: torvalds@linux-foundation.org, hugh@veritas.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, paulmck@us.ibm.com
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 06, 2008 at 12:08:03AM -0700, David Miller wrote:
-> From: Nick Piggin <npiggin@suse.de>
-> Date: Mon, 5 May 2008 14:12:40 +0200
-> 
-> > I only converted x86 and powerpc. I think comments in x86 are good because
-> > that is more or less the reference implementation and is where many VM
-> > developers would look to understand mm/ code. Commenting all page table
-> > walking in all other architectures is kind of beyond my skill or patience,
-> > and maintainers might consider this weird "alpha thingy" is below them ;)
-> > But they are quite free to add smp_read_barrier_depends to their own code.
-> > 
-> > Still would like more acks on this before it is applied.
-> 
-> I've read this over a few times, I think it's OK:
-> 
-> Acked-by: David S. Miller <davem@davemloft.net>
+on heavy workload, call_usermodehelper() may failure
+because it use kzmalloc(GFP_ATOMIC).
 
-Thanks a lot for that (and the others who reviewed). Gives me more
-confidence.
+but userland want receive release notificcation even heavy workload.
+
+thus, We should retry if -ENOMEM happend.
+
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: "Paul Menage" <menage@google.com>
+CC: Li Zefan <lizf@cn.fujitsu.com>
+
+---
+ kernel/cgroup.c |   10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+Index: b/kernel/cgroup.c
+===================================================================
+--- a/kernel/cgroup.c   2008-04-29 18:00:53.000000000 +0900
++++ b/kernel/cgroup.c   2008-05-06 20:28:23.000000000 +0900
+@@ -3072,6 +3072,8 @@ void __css_put(struct cgroup_subsys_stat
+  */
+ static void cgroup_release_agent(struct work_struct *work)
+ {
++       int err;
++
+        BUG_ON(work != &release_agent_work);
+        mutex_lock(&cgroup_mutex);
+        spin_lock(&release_list_lock);
+@@ -3111,7 +3113,13 @@ static void cgroup_release_agent(struct
+                 * since the exec could involve hitting disk and hence
+                 * be a slow process */
+                mutex_unlock(&cgroup_mutex);
+-               call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
++
++retry:
++               err = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
++               if (err == -ENOMEM) {
++                       schedule();
++                       goto retry;
++               }
+                kfree(pathbuf);
+                mutex_lock(&cgroup_mutex);
+                spin_lock(&release_list_lock);
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
