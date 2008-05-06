@@ -1,78 +1,39 @@
-Date: Tue, 6 May 2008 16:46:54 +0200
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [PATCH 01 of 11] mmu-notifier-core
-Message-ID: <20080506144654.GD8471@duo.random>
-References: <patchbomb.1209740703@duo.random> <1489529e7b53d3f2dab8.1209740704@duo.random> <20080505162113.GA18761@sgi.com> <20080505171434.GF8470@duo.random> <20080505172506.GA9247@sgi.com> <20080505183405.GI8470@duo.random> <20080505194625.GA17734@sgi.com>
+Date: Tue, 6 May 2008 07:53:23 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [patch 2/2] fix SMP data race in pagetable setup vs walking
+In-Reply-To: <20080506095138.GE10141@wotan.suse.de>
+Message-ID: <alpine.LFD.1.10.0805060750430.32269@woody.linux-foundation.org>
+References: <20080505112021.GC5018@wotan.suse.de> <20080505121240.GD5018@wotan.suse.de> <alpine.LFD.1.10.0805050828120.32269@woody.linux-foundation.org> <20080506095138.GE10141@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080505194625.GA17734@sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Hugh Dickins <hugh@veritas.com>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Paul McKenney <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 05, 2008 at 02:46:25PM -0500, Jack Steiner wrote:
-> If a task fails to unmap a GRU segment, they still exist at the start of
 
-Yes, this will also happen in case the well behaved task receives
-SIGKILL, so you can test it that way too.
-
-> exit. On the ->release callout, I set a flag in the container of my
-> mmu_notifier that exit has started. As VMA are cleaned up, TLB flushes
-> are skipped because of the flag is set. When the GRU VMA is deleted, I free
-
-GRU TLB flushes aren't skipped because your flag is set but because
-__mmu_notifier_release already executed
-list_del_init_rcu(&grunotifier->hlist) before proceeding with
-unmap_vmas.
-
-> my structure containing the notifier.
-
-As long as nobody can write through the already established gru tlbs
-and nobody can establish new tlbs after exit_mmap run you don't
-strictly need ->release.
-
-> I _think_ works. Do you see any problems?
-
-You can remove the flag and ->release and ->clear_flush_young (if you
-keep clear_flush_young implemented it should return 0). The
-synchronize_rcu after mmu_notifier_register can also be dropped thanks
-to mm_lock(). gru_drop_mmu_notifier should be careful with current->mm
-if you're using an fd and if the fd can be passed to a different task
-through unix sockets (you should probably fail any operation if
-current->mm != gru->mm).
-
-The way I use ->release in KVM is to set the root hpa to -1UL
-(invalid) as a debug trap. That's only for debugging because even if
-tlb entries and sptes are still established on the secondary mmu they
-are only relevant when the cpu jumps to guest mode and that can never
-happen again after exit_mmap is started.
-
-> I should also mention that I have an open-coded function that possibly
-> belongs in mmu_notifier.c. A user is allowed to have multiple GRU segments.
-> Each GRU has a couple of data structures linked to the VMA. All, however,
-> need to share the same notifier. I currently open code a function that
-> scans the notifier list to determine if a GRU notifier already exists.
-> If it does, I update a refcnt & use it. Otherwise, I register a new
-> one. All of this is protected by the mmap_sem.
+On Tue, 6 May 2008, Nick Piggin wrote:
 > 
-> Just in case I mangled the above description, I'll attach a copy of the GRU mmuops
-> code.
+> Right. As the comment says, the x86 stuff is kind of a "reference"
+> implementation, although if you prefer it isn't there, then I I can
+> easily just make it alpha only.
 
-Well that function needs fixing w.r.t. srcu. Are you sure you want to
-search for mn->ops == gru_mmuops and not for mn == gmn?  And if you
-search for mn why can't you keep track of the mn being registered or
-unregistered outside of the mmu_notifier layer? Set a bitflag in the
-container after mmu_notifier_register returns and a clear it after
-_unregister returns. I doubt saving one bitflag is worth searching the
-list and your approach make it obvious that you've to protect the
-bitflag and the register/unregister under write-mmap_sem
-yourself. Otherwise the find function will return an object that can
-be freed at any time if somebody calls unregister and
-kfree. (synchronize_srcu in mmu_notifier_unregister won't wait for
-anything but some outstanding srcu_read_lock)
+If there really was a point in teaching people about 
+"read_barrier_depends()", I'd agree that it's probably good to have it as 
+a reference in the x86 implementation.
+
+But since alpha is the only one that needs it, and is likely to remain so, 
+it's not like we ever want to copy that code to anything else, and it 
+really is better to make it alpha-only if the code is so much uglier.
+
+Maybe just a comment?
+
+As to the ACCESS_ONCE() thing, thinking about it some more, I doubt it 
+really matters. We're never going to change pgd anyway, so who cares if we 
+access it once or a hundred times?
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
