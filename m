@@ -1,37 +1,32 @@
-Message-ID: <481FB50D.1070308@cn.fujitsu.com>
-Date: Tue, 06 May 2008 09:31:57 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
+From: Jeremy Kerr <jk@ozlabs.org>
+Subject: Re: [patch 3/4] spufs: convert nopfn to fault
+Date: Tue, 6 May 2008 13:01:26 +1000
+References: <20080502031903.GD11844@wotan.suse.de> <200805021943.54638.jk@ozlabs.org> <20080503054135.GA15552@wotan.suse.de>
+In-Reply-To: <20080503054135.GA15552@wotan.suse.de>
 MIME-Version: 1.0
-Subject: Re: [-mm][PATCH 1/4] Setup the rlimit controller
-References: <20080503213726.3140.68845.sendpatchset@localhost.localdomain> <20080503213736.3140.83278.sendpatchset@localhost.localdomain>
-In-Reply-To: <20080503213736.3140.83278.sendpatchset@localhost.localdomain>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200805061301.26791.jk@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, jes@trained-monkey.org, cpw@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> +struct cgroup_subsys rlimit_cgroup_subsys;
-> +
-> +struct rlimit_cgroup {
-> +	struct cgroup_subsys_state css;
-> +	struct res_counter as_res;	/* address space counter */
-> +};
-> +
-> +static struct rlimit_cgroup init_rlimit_cgroup;
-> +
-> +struct rlimit_cgroup *rlimit_cgroup_from_cgrp(struct cgroup *cgrp)
+Hi Nick,
 
-It can be static if I don't miss anything.
+> Hmm, in spufs_mem_mmap_fault, vm_insert_pfn should just take
+> address (corrected for 64K), rather than the uncorrected address I
+> gave it...
 
-> +{
-> +	return container_of(cgroup_subsys_state(cgrp, rlimit_cgroup_subsys_id),
-> +				struct rlimit_cgroup, css);
-> +}
-> +
+Yep, using the 'address' var for vm_insert_pfn fixes the problem for me.
+
+Cheers,
+
+
+Jeremy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
