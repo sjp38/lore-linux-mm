@@ -1,53 +1,50 @@
-From: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
-Subject: bad pmd ffff810000207808(9090909090909090).
-Date: Tue, 06 May 2008 21:00:12 +0900
-Message-ID: <874p9biqwj.fsf@duaron.myhome.or.jp>
+Date: Tue, 6 May 2008 07:27:49 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [patch 2/4] mspec: convert nopfn to fault
+Message-ID: <20080506122749.GH19717@sgi.com>
+References: <20080502031903.GD11844@wotan.suse.de> <20080502032132.GF11844@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080502032132.GF11844@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, jk@ozlabs.org, jes@trained-monkey.org, cpw@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Sorry, I missed this original post.  Saw the add this morning and went
+back to the archives.
 
-I've found today the following error in syslog. It seems have a strange
-pattern. And it also happened at a month ago.
+> -static unsigned long
+> -mspec_nopfn(struct vm_area_struct *vma, unsigned long address)
+> +static int
+> +mspec_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+>  {
+>  	unsigned long paddr, maddr;
+>  	unsigned long pfn;
+> +	pgoff_t index = vmf->pgoff;
+>  	int index;
 
-Any idea for debuging this?
+I think this will cause problems.  Two definitions of index.  I removed
+the int index and tested.  This appears to work fine.  Sorry for the
+delay.
 
-Thanks.
+Thanks,
+Robin
 
-
-May  6 07:21:36 duaron kernel: kjournald starting.  Commit interval 5 seconds
-May  6 07:21:36 duaron kernel: EXT3 FS on sda2, internal journal
-May  6 07:21:36 duaron kernel: EXT3-fs: mounted filesystem with ordered data mode.
-May  6 07:21:36 duaron kernel: NET: Registered protocol family 15
-May  6 07:21:36 duaron kernel: /devel/linux/works/linux-2.6/mm/memory.c:127: bad pmd ffff810000207808(9090909090909090).
-May  6 07:21:36 duaron kernel: r8169: eth0: link up
-May  6 07:21:36 duaron kernel: r8169: eth0: link up
-May  6 07:21:36 duaron kernel: scsi 4:0:0:0: Direct-Access     USB2.0   CF  Card Reader   9144 PQ: 0 ANSI: 0
-May  6 07:21:36 duaron kernel: sd 4:0:0:0: [sdc] Attached SCSI removable disk
-May  6 07:21:36 duaron kernel: sd 4:0:0:0: Attached scsi generic sg3 type 0
-May  6 07:21:36 duaron kernel: scsi 4:0:0:1: Direct-Access     USB2.0   CBO Card Reader   9144 PQ: 0 ANSI: 0
-May  6 07:21:36 duaron kernel: sd 4:0:0:1: [sdd] Attached SCSI removable disk
-
-
-Apr  9 03:53:40 duaron kernel: scsi 4:0:0:1: Direct-Access     USB2.0   CBO Card Reader   9144 PQ: 0 ANSI: 0
-Apr  9 03:53:40 duaron kernel: sd 4:0:0:1: [sdd] Attached SCSI removable disk
-Apr  9 03:53:40 duaron kernel: sd 4:0:0:1: Attached scsi generic sg4 type 0
-Apr  9 03:53:40 duaron kernel: usb-storage: device scan complete
-Apr  9 03:53:40 duaron kernel: NET: Registered protocol family 15
-Apr  9 03:53:40 duaron kernel: /devel/linux/works/linux-2.6/mm/memory.c:127: bad pmd ffff810000207208(9090909090909090).
-Apr  9 03:53:40 duaron kernel: r8169: eth0: link up
-Apr  9 03:53:40 duaron kernel: r8169: eth0: link up
-Apr  9 03:53:40 duaron kernel: RPC: Registered udp transport module.
-Apr  9 03:53:40 duaron kernel: RPC: Registered tcp transport module.
-Apr  9 03:53:40 duaron kernel: NET: Registered protocol family 10
-Apr  9 03:53:40 duaron kernel: lo: Disabled Privacy Extensions
-Apr  9 03:53:42 duaron kernel: p4-clockmod: P4/Xeon(TM) CPU On-Demand Clock Modulation available
--- 
-OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
+Index: remove_nopfn/drivers/char/mspec.c
+===================================================================
+--- remove_nopfn.orig/drivers/char/mspec.c	2008-05-06 07:07:30.000000000 -0500
++++ remove_nopfn/drivers/char/mspec.c	2008-05-06 07:17:01.784314587 -0500
+@@ -203,7 +203,6 @@ mspec_fault(struct vm_area_struct *vma, 
+ 	unsigned long paddr, maddr;
+ 	unsigned long pfn;
+ 	pgoff_t index = vmf->pgoff;
+-	int index;
+ 	struct vma_data *vdata = vma->vm_private_data;
+ 
+ 	maddr = (volatile unsigned long) vdata->maddr[index];
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
