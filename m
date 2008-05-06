@@ -1,40 +1,38 @@
-Received: by fg-out-1718.google.com with SMTP id 19so558204fgg.4
-        for <linux-mm@kvack.org>; Tue, 06 May 2008 11:28:52 -0700 (PDT)
-Message-ID: <6101e8c40805061128g3150093kbcf0af0958963eea@mail.gmail.com>
-Date: Tue, 6 May 2008 20:28:51 +0200
-From: "Oliver Pinter" <oliver.pntr@gmail.com>
-Subject: Re: [PATCH] mm/page_alloc.c: fix a typo
-In-Reply-To: <Pine.LNX.4.64.0805061123550.23336@schroedinger.engr.sgi.com>
+Message-ID: <4820A431.3000600@firstfloor.org>
+Date: Tue, 06 May 2008 20:32:17 +0200
+From: Andi Kleen <andi@firstfloor.org>
 MIME-Version: 1.0
+Subject: Re: [PATCH] mm/cgroup.c add error check
+References: <20080506195216.4A6D.KOSAKI.MOTOHIRO@jp.fujitsu.com>	 <87wsm7bo1n.fsf@basil.nowhere.org> <2f11576a0805060602gf4cf0f9t85391939146efccf@mail.gmail.com>
+In-Reply-To: <2f11576a0805060602gf4cf0f9t85391939146efccf@mail.gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <4820272C.4060009@cn.fujitsu.com>
-	 <6101e8c40805061118u440cb332vf128085bb7df98c@mail.gmail.com>
-	 <Pine.LNX.4.64.0805061123550.23336@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, stable@kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-sorry,
-when it is not bug
+KOSAKI Motohiro wrote:
+>>  > on heavy workload, call_usermodehelper() may failure
+>>  > because it use kzmalloc(GFP_ATOMIC).
+>>
+>>  Better just fix it to not use GFP_ATOMIC in the first place.
+> 
+> Ah, makes sense.
+> I'll try toi create that patch.
 
+Thanks.
 
-On 5/6/08, Christoph Lameter <clameter@sgi.com> wrote:
-> On Tue, 6 May 2008, Oliver Pinter wrote:
->
-> > CC: stable
->
-> Not a bug, nor a typo so why stable?
->
->
+> 
+> but if GFP_KERNEL is used, We still need error check, IMHO.
 
+Yes, but no retry (or if you're sure you cannot fail use __GFP_NOFAIL
+too, but that is nasty because it has some risk of deadlock under severe
+oom conditions)
 
--- 
-Thanks,
-Oliver
+-Andi
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
