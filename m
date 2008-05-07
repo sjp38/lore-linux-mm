@@ -1,34 +1,45 @@
-From: Roland Dreier <rdreier@cisco.com>
-Subject: Re: [ofa-general] Re: [PATCH 01 of 11] mmu-notifier-core
-References: <patchbomb.1210170950@duo.random>
-	<e20917dcc8284b6a07cf.1210170951@duo.random>
-	<20080507130528.adfd154c.akpm@linux-foundation.org>
-	<alpine.LFD.1.10.0805071324570.3024@woody.linux-foundation.org>
-	<20080507215840.GB8276@duo.random>
-	<alpine.LFD.1.10.0805071509270.3024@woody.linux-foundation.org>
-	<20080507222758.GD8276@duo.random>
-Date: Wed, 07 May 2008 15:31:08 -0700
-In-Reply-To: <20080507222758.GD8276@duo.random> (Andrea Arcangeli's message of
-	"Thu, 8 May 2008 00:27:58 +0200")
-Message-ID: <adaej8du4pf.fsf@cisco.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Wed, 7 May 2008 15:31:03 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
+Message-Id: <20080507153103.237ea5b6.akpm@linux-foundation.org>
+In-Reply-To: <20080507222205.GC8276@duo.random>
+References: <6b384bb988786aa78ef0.1210170958@duo.random>
+	<alpine.LFD.1.10.0805071349200.3024@woody.linux-foundation.org>
+	<20080507212650.GA8276@duo.random>
+	<alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org>
+	<20080507222205.GC8276@duo.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, npiggin@suse.de, chrisw@redhat.com, rusty@rustcorp.com.au, a.p.zijlstra@chello.nl, marcelo@kvack.org, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, steiner@sgi.com, linux-kernel@vger.kernel.org, avi@qumranet.com, aliguori@us.ibm.com, paulmck@us.ibm.com, linux-mm@kvack.org, holt@sgi.com, general@lists.openfabrics.org, hugh@veritas.com, Andrew Morton <akpm@linux-foundation.org>, dada1@cosmosbay.com, clameter@sgi.com
+Cc: torvalds@linux-foundation.org, clameter@sgi.com, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-I think the point you're missing is that any patches written by
-Christoph need a line like
+On Thu, 8 May 2008 00:22:05 +0200
+Andrea Arcangeli <andrea@qumranet.com> wrote:
 
-From: Christoph Lameter <clameter@sgi.com>
+> > No, the simple solution is to just make up a whole new upper-level lock, 
+> > and get that lock *first*. You can then take all the multiple locks at a 
+> > lower level in any order you damn well please. 
+> 
+> Unfortunately the lock you're talking about would be:
+> 
+> static spinlock_t global_lock = ...
+> 
+> There's no way to make it more granular.
+> 
+> So every time before taking any ->i_mmap_lock _and_ any anon_vma->lock
+> we'd need to take that extremely wide spinlock first (and even worse,
+> later it would become a rwsem when XPMEM is selected making the VM
+> even slower than it already becomes when XPMEM support is selected at
+> compile time).
 
-at the top of the body so that Christoph becomes the author when it is
-committed into git.  The Signed-off-by: line needs to be preserved too
-of course, but it is not sufficient by itself.
+Nope.  We only need to take the global lock before taking *two or more* of
+the per-vma locks.
 
- - R.
+I really wish I'd thought of that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
