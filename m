@@ -1,77 +1,50 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m47IC9Nt007682
-	for <linux-mm@kvack.org>; Wed, 7 May 2008 14:12:09 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m47IC95F456220
-	for <linux-mm@kvack.org>; Wed, 7 May 2008 14:12:09 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m47IC9wu026985
-	for <linux-mm@kvack.org>; Wed, 7 May 2008 14:12:09 -0400
-Subject: Re: [PATCH 1/8] Scaling msgmni to the amount of lowmem
-From: Matt Helsley <matthltc@us.ibm.com>
-In-Reply-To: <20080507131712.GA8580@sergelap.austin.ibm.com>
-References: <20080211141646.948191000@bull.net>
-	 <20080211141813.354484000@bull.net>
-	 <12c511ca0804291328v2f0b87csd0f2cf3accc6ad00@mail.gmail.com>
-	 <481EC917.6070808@bull.net>
-	 <1FE6DD409037234FAB833C420AA843EC014392F9@orsmsx424.amr.corp.intel.com>
-	 <20080506180527.GA8315@sergelap.austin.ibm.com> <48214007.7050800@bull.net>
-	 <20080507131712.GA8580@sergelap.austin.ibm.com>
-Content-Type: text/plain
-Date: Wed, 07 May 2008 11:12:07 -0700
-Message-Id: <1210183927.7323.402.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20080507193826.5765.49292.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 0/3] Guarantee faults for processes that call mmap(MAP_PRIVATE) on hugetlbfs v2
+Date: Wed,  7 May 2008 20:38:26 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Serge E. Hallyn" <serue@us.ibm.com>
-Cc: Nadia Derbey <Nadia.Derbey@bull.net>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cmm@us.ibm.com, akpm@linux-foundation.org
+To: linux-mm@kvack.org
+Cc: Mel Gorman <mel@csn.ul.ie>, dean@arctic.org, apw@shadowen.org, linux-kernel@vger.kernel.org, wli@holomorphy.com, dwg@au1.ibm.com, andi@firstfloor.org, kenchen@google.com, agl@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-05-07 at 08:17 -0500, Serge E. Hallyn wrote:
-> Quoting Nadia Derbey (Nadia.Derbey@bull.net):
-> > Serge E. Hallyn wrote:
-> >> Quoting Luck, Tony (tony.luck@intel.com):
-> >>>> Well, this printk had been suggested by somebody (sorry I don't remember 
-> >>>> who) when I first submitted the patch. Actually I think it might be 
-> >>>> useful for a sysadmin to be aware of a change in the msgmni value: we 
-> >>>> have the message not only at boot time, but also each time msgmni is 
-> >>>> recomputed because of a change in the amount of memory.
-> >>>
-> >>> If the message is directed at the system administrator, then it would
-> >>> be nice if there were some more meaningful way to show the namespace
-> >>> that is affected than just printing the hex address of the kernel 
-> >>> structure.
-> >>>
-> >>> As the sysadmin for my test systems, printing the hex address is mildly
-> >>> annoying ... I now have to add a new case to my scripts that look at
-> >>> dmesg output for unusual activity.
-> >>>
-> >>> Is there some better "name for a namespace" than the address? Perhaps
-> >>> the process id of the process that instantiated the namespace???
-> >> I agree with Tony here.  Aside from the nuisance it is to see that
-> >> message on console every time I unshare a namespace, a printk doesn't
-> >> seem like the right way to output the info.
-> >
-> > But you agree that this is happening only because you're doing tests 
-> > related to namespaces, right?
-> 
-> Yup :)
-> 
-> > I don't think that in a "standard" configuration this will happen very 
-> > frequently, but may be I'm wrong.
-> >
-> >>  At most I'd say an audit
-> >> message.
->
-> > That's a good idea. Thanks, Serge. I'll do that.
+MAP_SHARED mappings on hugetlbfs reserve huge pages at mmap() time.
+This guarantees all future faults against the mapping will succeed.
+This allows local allocations at first use improving NUMA locality whilst
+retaining reliability.
 
-	I'm not familiar with kernel policies regarding audit messages. Are
-audit messages treated anything like kernel interfaces when it comes to
-removing/changing them?
+MAP_PRIVATE mappings do not reserve pages. This can result in an application
+being SIGKILLed later if a huge page is not available at fault time. This
+makes huge pages usage very ill-advised in some cases as the unexpected
+application failure cannot be detected and handled as it is immediately fatal.
+Although an application may force instantiation of the pages using mlock(),
+this may lead to poor memory placement and the process may still be killed
+when performing COW.
 
-Cheers,
-	-Matt Helsley
+This patchset introduces a reliability guarantee for the process which creates
+a private mapping, i.e. the process that calls mmap() on a hugetlbfs file
+successfully.  The first patch of the set is purely mechanical code move to
+make later diffs easier to read. The second patch will guarantee faults up
+until the process calls fork(). After patch two, as long as the child keeps
+the mappings, the parent is no longer guaranteed to be reliable. Patch
+3 guarantees that the parent will always successfully COW by unmapping
+the pages from the child in the event there are insufficient pages in the
+hugepage pool in allocate a new page, be it via a static or dynamic pool.
+
+Existing hugepage-aware applications are unlikely to be affected by this
+change. For much of hugetlbfs's history, pages were pre-faulted at mmap()
+time or mmap() failed which acts in a reserve-like manner. If the pool
+is sized correctly already so that parent and child can fault reliably,
+the application will not even notice the reserves. It's only when the pool
+is too small for the application to function perfectly reliably that the
+reserves come into play.
+
+Credit goes to Andy Whitcroft for cleaning up a number of mistakes during
+review before the patches were released.
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
