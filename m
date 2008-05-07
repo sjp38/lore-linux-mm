@@ -1,46 +1,31 @@
-Date: Thu, 8 May 2008 00:37:38 +0200
+Date: Thu, 8 May 2008 00:39:14 +0200
 From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [PATCH 01 of 11] mmu-notifier-core
-Message-ID: <20080507223738.GF8276@duo.random>
-References: <patchbomb.1210170950@duo.random> <e20917dcc8284b6a07cf.1210170951@duo.random> <20080507130528.adfd154c.akpm@linux-foundation.org> <alpine.LFD.1.10.0805071324570.3024@woody.linux-foundation.org> <20080507215840.GB8276@duo.random> <alpine.LFD.1.10.0805071509270.3024@woody.linux-foundation.org> <20080507222758.GD8276@duo.random>
+Subject: Re: [ofa-general] Re: [PATCH 01 of 11] mmu-notifier-core
+Message-ID: <20080507223914.GG8276@duo.random>
+References: <patchbomb.1210170950@duo.random> <e20917dcc8284b6a07cf.1210170951@duo.random> <20080507130528.adfd154c.akpm@linux-foundation.org> <alpine.LFD.1.10.0805071324570.3024@woody.linux-foundation.org> <20080507215840.GB8276@duo.random> <alpine.LFD.1.10.0805071509270.3024@woody.linux-foundation.org> <20080507222758.GD8276@duo.random> <adaej8du4pf.fsf@cisco.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080507222758.GD8276@duo.random>
+In-Reply-To: <adaej8du4pf.fsf@cisco.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, clameter@sgi.com, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
+To: Roland Dreier <rdreier@cisco.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, npiggin@suse.de, chrisw@redhat.com, rusty@rustcorp.com.au, a.p.zijlstra@chello.nl, marcelo@kvack.org, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, steiner@sgi.com, linux-kernel@vger.kernel.org, avi@qumranet.com, aliguori@us.ibm.com, paulmck@us.ibm.com, linux-mm@kvack.org, holt@sgi.com, general@lists.openfabrics.org, hugh@veritas.com, Andrew Morton <akpm@linux-foundation.org>, dada1@cosmosbay.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 08, 2008 at 12:27:58AM +0200, Andrea Arcangeli wrote:
-> I rechecked and I guarantee that the patches where Christoph isn't
-> listed are developed by myself and he didn't write a single line on
-> them. In any case I expect Christoph to review (he's CCed) and to
-> point me to any attribution error. The only mistake I did once in that
-> area was to give too _few_ attribution to myself and he asked me to
-> add myself in the signed-off so I added myself by Christoph own
-> request, but be sure I didn't remove him!
+On Wed, May 07, 2008 at 03:31:08PM -0700, Roland Dreier wrote:
+> I think the point you're missing is that any patches written by
+> Christoph need a line like
+> 
+> From: Christoph Lameter <clameter@sgi.com>
+> 
+> at the top of the body so that Christoph becomes the author when it is
+> committed into git.  The Signed-off-by: line needs to be preserved too
+> of course, but it is not sufficient by itself.
 
-By PM (guess he's scared to post to this thread ;) Chris is telling
-me, what you mean perhaps is I should add a From: Christoph in the
-body of the email if the first signed-off-by is from Christoph, to
-indicate the first signoff was by him and the patch in turn was
-started by him. I thought the order of the signoffs was enough, but if
-that From was mandatory and missing, if there's any error it obviously
-wasn't intentional especially given I only left a signed-off-by:
-christoph on his patches until he asked me to add my signoff
-too. Correcting it is trivial given I carefully ordered the signoff so
-that the author is at the top of the signoff list.
-
-At least for mmu-notifier-core given I obviously am the original
-author of that code, I hope the From: of the email was enough even if
-an additional From: andrea was missing in the body.
-
-Also you can be sure that Christoph and especially Robin (XPMEM) will
-be more than happy if all patches with Christoph at the top of the
-signed-off-by will be merged in 2.6.26 despite there wasn't From:
-christoph at the top of the body ;). So I don't see a big deal here...
+Ok so I see the problem Linus is referring to now (I received the hint
+by PM too), I thought the order of the signed-off-by was relevant, it
+clearly isn't or we're wasting space ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
