@@ -1,37 +1,36 @@
-Date: Wed, 7 May 2008 13:30:39 -0700 (PDT)
+Date: Wed, 7 May 2008 13:56:23 -0700 (PDT)
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH 01 of 11] mmu-notifier-core
-In-Reply-To: <20080507130528.adfd154c.akpm@linux-foundation.org>
-Message-ID: <alpine.LFD.1.10.0805071324570.3024@woody.linux-foundation.org>
-References: <patchbomb.1210170950@duo.random> <e20917dcc8284b6a07cf.1210170951@duo.random> <20080507130528.adfd154c.akpm@linux-foundation.org>
+Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
+In-Reply-To: <6b384bb988786aa78ef0.1210170958@duo.random>
+Message-ID: <alpine.LFD.1.10.0805071349200.3024@woody.linux-foundation.org>
+References: <6b384bb988786aa78ef0.1210170958@duo.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, clameter@sgi.com, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
 
-On Wed, 7 May 2008, Andrew Morton wrote:
+On Wed, 7 May 2008, Andrea Arcangeli wrote:
 > 
-> The patch looks OK to me.
+> Convert the anon_vma spinlock to a rw semaphore. This allows concurrent
+> traversal of reverse maps for try_to_unmap() and page_mkclean(). It also
+> allows the calling of sleeping functions from reverse map traversal as
+> needed for the notifier callbacks. It includes possible concurrency.
 
-As far as I can tell, authorship has been destroyed by at least two of the 
-patches (ie Christoph seems to be the author, but Andrea seems to have 
-dropped that fact).
+This also looks very debatable indeed. The only performance numbers quoted 
+are:
 
-> The proposal is that we sneak this into 2.6.26.  Are there any
-> sufficiently-serious objections to this?
+>   This results in f.e. the Aim9 brk performance test to got down by 10-15%.
 
-Yeah, too late and no upside.
+which just seems like a total disaster.
 
-That "locking" code is also too ugly to live, at least without some 
-serious arguments for why it has to be done that way. Sorting the locks? 
-In a vmalloc'ed area?  And calling this something innocuous like 
-"mm_lock()"? Hell no. 
+The whole series looks bad, in fact. Lack of authorship, bad single-line 
+description, and the code itself sucks so badly that it's not even funny.
 
-That code needs some serious re-thinking.
+NAK NAK NAK. All of it. It stinks.
 
 		Linus
 
