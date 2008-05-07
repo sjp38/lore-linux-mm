@@ -1,26 +1,37 @@
-Date: Wed, 7 May 2008 17:00:15 +0200
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [PATCH 01 of 12] Core of mmu notifiers
-Message-ID: <20080507150014.GI8362@duo.random>
-References: <20080424153943.GJ24536@duo.random> <20080424174145.GM24536@duo.random> <20080426131734.GB19717@sgi.com> <20080427122727.GO9514@duo.random> <Pine.LNX.4.64.0804281332030.31163@schroedinger.engr.sgi.com> <20080429001052.GA8315@duo.random> <Pine.LNX.4.64.0804281819020.2502@schroedinger.engr.sgi.com> <20080429153052.GE8315@duo.random> <20080429155030.GB28944@sgi.com> <20080429160340.GG8315@duo.random>
+Date: Wed, 7 May 2008 10:59:48 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH 02 of 11] get_task_mm
+Message-ID: <20080507155948.GO18857@sgi.com>
+References: <patchbomb.1210170950@duo.random> <c5badbefeee07518d9d1.1210170952@duo.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080429160340.GG8315@duo.random>
+In-Reply-To: <c5badbefeee07518d9d1.1210170952@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, akpm@linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 29, 2008 at 06:03:40PM +0200, Andrea Arcangeli wrote:
-> Christoph if you've interest in evolving anon-vma-sem and i_mmap_sem
-> yourself in this direction, you're very welcome to go ahead while I
+You can drop this patch.
 
-In case you didn't notice this already, for a further explanation of
-why semaphores runs slower for small critical sections and why the
-conversion from spinlock to rwsem should happen under a config option,
-see the "AIM7 40% regression with 2.6.26-rc1" thread.
+This turned out to be a race in xpmem.  It "appeared" as if it were a
+race in get_task_mm, but it really is not.  The current->mm field is
+cleared under the task_lock and the task_lock is grabbed by get_task_mm.
+
+I have been testing you v15 version without this patch and not
+encountere the problem again (now that I fixed my xpmem race).
+
+Thanks,
+Robin
+
+On Wed, May 07, 2008 at 04:35:52PM +0200, Andrea Arcangeli wrote:
+> # HG changeset patch
+> # User Andrea Arcangeli <andrea@qumranet.com>
+> # Date 1210115127 -7200
+> # Node ID c5badbefeee07518d9d1acca13e94c981420317c
+> # Parent  e20917dcc8284b6a07cfcced13dda4cbca850a9c
+> get_task_mm
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
