@@ -1,13 +1,13 @@
-Received: from zps36.corp.google.com (zps36.corp.google.com [172.25.146.36])
-	by smtp-out.google.com with ESMTP id m473HFFo026493
-	for <linux-mm@kvack.org>; Wed, 7 May 2008 04:17:15 +0100
-Received: from an-out-0708.google.com (andd11.prod.google.com [10.100.30.11])
-	by zps36.corp.google.com with ESMTP id m473HD8u015005
-	for <linux-mm@kvack.org>; Tue, 6 May 2008 20:17:14 -0700
-Received: by an-out-0708.google.com with SMTP id d11so27625and.64
-        for <linux-mm@kvack.org>; Tue, 06 May 2008 20:17:13 -0700 (PDT)
-Message-ID: <6599ad830805062017n67d67f19w1469050d45e46ad6@mail.gmail.com>
-Date: Tue, 6 May 2008 20:17:13 -0700
+Received: from zps76.corp.google.com (zps76.corp.google.com [172.25.146.76])
+	by smtp-out.google.com with ESMTP id m473TpMQ003489
+	for <linux-mm@kvack.org>; Wed, 7 May 2008 04:29:51 +0100
+Received: from an-out-0708.google.com (ancc37.prod.google.com [10.100.29.37])
+	by zps76.corp.google.com with ESMTP id m473TnLe020344
+	for <linux-mm@kvack.org>; Tue, 6 May 2008 20:29:50 -0700
+Received: by an-out-0708.google.com with SMTP id c37so73602anc.42
+        for <linux-mm@kvack.org>; Tue, 06 May 2008 20:29:49 -0700 (PDT)
+Message-ID: <6599ad830805062029m37b507dcue737e1affddeb120@mail.gmail.com>
+Date: Tue, 6 May 2008 20:29:49 -0700
 From: "Paul Menage" <menage@google.com>
 Subject: Re: [-mm][PATCH 3/4] Add rlimit controller accounting and control
 In-Reply-To: <20080503213814.3140.66080.sendpatchset@localhost.localdomain>
@@ -24,132 +24,46 @@ Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takas
 List-ID: <linux-mm.kvack.org>
 
 On Sat, May 3, 2008 at 2:38 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->  +
->  +int rlimit_cgroup_charge_as(struct mm_struct *mm, unsigned long nr_pages)
->  +{
->  +       int ret;
->  +       struct rlimit_cgroup *rcg;
->  +
->  +       rcu_read_lock();
->  +       rcg = rlimit_cgroup_from_task(rcu_dereference(mm->owner));
->  +       css_get(&rcg->css);
->  +       rcu_read_unlock();
->  +
->  +       ret = res_counter_charge(&rcg->as_res, (nr_pages << PAGE_SHIFT));
->  +       css_put(&rcg->css);
->  +       return ret;
->  +}
-
-You need to synchronize against mm->owner changing, or
-mm->owner->cgroups changing. How about:
-
-int rlimit_cgroup_charge_as(struct mm_struct *mm, unsigned long nr_pages)
-{
-  int ret;
-  struct rlimit_cgroup *rcg;
-  struct task_struct *owner;
-
-  rcu_read_lock();
- again:
-
-  /* Find and lock the owner of the mm */
-  owner = rcu_dereference(mm->owner);
-  task_lock(owner);
-  if (mm->owner != owner) {
-    task_unlock(owner);
-    goto again;
-  }
-
-  /* Charge the owner's cgroup with the new memory */
-  rcg = rlimit_cgroup_from_task(owner);
-  ret = res_counter_charge(&rcg->as_res, (nr_pages << PAGE_SHIFT));
-  task_unlock(owner);
-  rcu_read_unlock();
-  return ret;
-}
-
->  +
->  +void rlimit_cgroup_uncharge_as(struct mm_struct *mm, unsigned long nr_pages)
->  +{
->  +       struct rlimit_cgroup *rcg;
->  +
->  +       rcu_read_lock();
->  +       rcg = rlimit_cgroup_from_task(rcu_dereference(mm->owner));
->  +       css_get(&rcg->css);
->  +       rcu_read_unlock();
->  +
->  +       res_counter_uncharge(&rcg->as_res, (nr_pages << PAGE_SHIFT));
->  +       css_put(&rcg->css);
->  +}
-
-Can't this be implemented as just a call to charge() with a negative
-value? (Possibly fixing res_counter_charge() to handle negative values
-if necessary) Seems simpler.
-
 >
->  +/*
->  + * TODO: get the attach callbacks to fail and disallow task movement.
->  + */
+>
+>  This patch adds support for accounting and control of virtual address space
+>  limits. The accounting is done via the rlimit_cgroup_(un)charge_as functions.
+>  The core of the accounting takes place during fork time in copy_process(),
+>  may_expand_vm(), remove_vma_list() and exit_mmap(). There are some special
+>  cases that are handled here as well (arch/ia64/kernel/perform.c,
+>  arch/x86/kernel/ptrace.c, insert_special_mapping())
+>
 
-You mean disallow all movement within a hierarchy that has this cgroup
-mounted? Doesn't that make it rather hard to use?
+The basic idea of the patches looks fine (apart from some
+synchronization issues) but Is calling this the "rlimit" controller a
+great idea? That implies that it handles all (or at least many) of the
+things that setrlimit()/getrlimit() handle.
 
->  +static void rlimit_cgroup_move_task(struct cgroup_subsys *ss,
->  +                                       struct cgroup *cgrp,
->  +                                       struct cgroup *old_cgrp,
->  +                                       struct task_struct *p)
->  +{
->  +       struct mm_struct *mm;
->  +       struct rlimit_cgroup *rcg, *old_rcg;
->  +
->  +       mm = get_task_mm(p);
->  +       if (mm == NULL)
->  +               return;
->  +
->  +       rcu_read_lock();
->  +       if (p != rcu_dereference(mm->owner))
->  +               goto out;
->  +
->  +       rcg = rlimit_cgroup_from_cgrp(cgrp);
->  +       old_rcg = rlimit_cgroup_from_cgrp(old_cgrp);
->  +
->  +       if (rcg == old_rcg)
->  +               goto out;
->  +
->  +       if (res_counter_charge(&rcg->as_res, (mm->total_vm << PAGE_SHIFT)))
->  +               goto out;
->  +       res_counter_uncharge(&old_rcg->as_res, (mm->total_vm << PAGE_SHIFT));
->  +out:
->  +       rcu_read_unlock();
->  +       mmput(mm);
->  +}
->  +
+While some of the other rlimit things definitely do make sense as
+cgroup controllers, putting them all in the same controller doesn't
+really - paying for the address-space tracking overhead just to get,
+say, the equivalent of RLIMIT_NPROC (max tasks) isn't a great idea.
 
-Since you need to protect against concurrent charges, and against
-concurrent mm ownership changes, I think you should just do this under
-task_lock(p).
+Can you instead give this a name that somehow refers to virtual
+address space limits, e.g. "va" or "as". That would still fit if you
+expanded it to deal with locked virtual address space limits too.
 
->  +static void rlimit_cgroup_mm_owner_changed(struct cgroup_subsys *ss,
->  +                                               struct cgroup *cgrp,
->  +                                               struct cgroup *old_cgrp,
->  +                                               struct task_struct *p)
->  +{
->  +       struct rlimit_cgroup *rcg, *old_rcg;
->  +       struct mm_struct *mm = get_task_mm(p);
->  +
->  +       BUG_ON(!mm);
->  +       rcg = rlimit_cgroup_from_cgrp(cgrp);
->  +       old_rcg = rlimit_cgroup_from_cgrp(old_cgrp);
->  +       if (res_counter_charge(&rcg->as_res, (mm->total_vm << PAGE_SHIFT)))
->  +               goto out;
->  +       res_counter_uncharge(&old_rcg->as_res, (mm->total_vm << PAGE_SHIFT));
->  +out:
->  +       mmput(mm);
->  +}
->  +
+I think that an "rlimit" controller would probably be best for
+representing just those limits that don't really make sense when
+aggregated across different tasks, but apply separately to each task
+(e.g. RLIMIT_FSIZE, RLIMIT_CORE, RLIMIT_NICE, RLIMIT_NOFILE,
+RLIMIT_RTPRIO, RLIMIT_STACK, RLIMIT_SIGPENDING, and maybe RLIMIT_CPU),
+in order to provide an easy way to change these limits on a group of
+running tasks.
 
-Also needs to task_lock(p) to prevent concurrent charges or cgroup
-reassignments?
+On a separate note for the address-space tracking, ideally the
+subsystem would track whether or not it was bound to a hierarchy, and
+skip charging/uncharging if not. That way there's no (noticeable)
+overhead for compiling in the subsystem but not using it. At the point
+when the subsystem was bound to a hierarchy, it could at that point
+run through all mms and charge each one's existing address space to
+the appropriate cgroup. (Currently that would only be the root cgroup
+in the hierarchy).
 
 Paul
 
