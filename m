@@ -1,74 +1,133 @@
-Date: Wed, 7 May 2008 14:36:57 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
-In-Reply-To: <20080507212650.GA8276@duo.random>
-Message-ID: <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org>
-References: <6b384bb988786aa78ef0.1210170958@duo.random> <alpine.LFD.1.10.0805071349200.3024@woody.linux-foundation.org> <20080507212650.GA8276@duo.random>
+Date: Wed, 7 May 2008 23:58:40 +0200
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [PATCH 01 of 11] mmu-notifier-core
+Message-ID: <20080507215840.GB8276@duo.random>
+References: <patchbomb.1210170950@duo.random> <e20917dcc8284b6a07cf.1210170951@duo.random> <20080507130528.adfd154c.akpm@linux-foundation.org> <alpine.LFD.1.10.0805071324570.3024@woody.linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.1.10.0805071324570.3024@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, clameter@sgi.com, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-
-On Wed, 7 May 2008, Andrea Arcangeli wrote:
+On Wed, May 07, 2008 at 01:30:39PM -0700, Linus Torvalds wrote:
 > 
-> I think the spinlock->rwsem conversion is ok under config option, as
-> you can see I complained myself to various of those patches and I'll
-> take care they're in a mergeable state the moment I submit them. What
-> XPMEM requires are different semantics for the methods, and we never
-> had to do any blocking I/O during vmtruncate before, now we have to.
+> 
+> On Wed, 7 May 2008, Andrew Morton wrote:
+> > 
+> > The patch looks OK to me.
+> 
+> As far as I can tell, authorship has been destroyed by at least two of the 
+> patches (ie Christoph seems to be the author, but Andrea seems to have 
+> dropped that fact).
 
-I really suspect we don't really have to, and that it would be better to 
-just fix the code that does that.
+I can't follow this, please be more specific.
 
-> Please ignore all patches but mmu-notifier-core. I regularly forward
-> _only_ mmu-notifier-core to Andrew, that's the only one that is in
-> merge-ready status, everything else is just so XPMEM can test and we
-> can keep discussing it to bring it in a mergeable state like
-> mmu-notifier-core already is.
+About the patches I merged from Christoph, I didn't touch them at all
+(except for fixing a kernel crashing bug in them plus some reject
+fix). Initially I didn't even add a signed-off-by: andrea, and I only
+had the signed-off-by: christoph. But then he said I had to add my
+signed-off-by too, while I thought at most an acked-by was
+required. So if I got any attribution on Christoph work it's only
+because he explicitly requested it as it was passing through my
+maintenance line. In any case, all patches except mmu-notifier-core
+are irrelevant in this context and I'm entirely fine to give Christoph
+the whole attribution of the whole patchset including the whole
+mmu-notifier-core where most of the code is mine.
 
-The thing is, I didn't like that one *either*. I thought it was the 
-biggest turd in the series (and by "biggest", I literally mean "most lines 
-of turd-ness" rather than necessarily "ugliest per se").
+We had many discussions with Christoph, Robin and Jack, but I can
+assure you nobody had a single problem with regard to attribution.
 
-I literally think that mm_lock() is an unbelievable piece of utter and 
-horrible CRAP.
+About all patches except mmu-notifier-core: Christoph, Robin and
+everyone (especially myself) agrees those patches can't yet be merged
+in 2.6.26.
 
-There's simply no excuse for code like that.
+With regard to the post-2.6.26 material, I think adding a config
+option to make the change at compile time, is ok. And there's no other
+way to deal with it in a clean way, as vmtrunate has to teardown
+pagetables, and if the i_mmap_lock is a spinlock there's no way to
+notify secondary mmus about it, if the ->invalidate_range_start method
+has to allocate an skb, send it through the network and wait for I/O
+completion with schedule().
 
-If you want to avoid the deadlock from taking multiple locks in order, but 
-there is really just a single operation that needs it, there's a really 
-really simple solution.
+> Yeah, too late and no upside.
 
-And that solution is *not* to sort the whole damn f*cking list in a 
-vmalloc'ed data structure prior to locking!
+No upside to all people setting CONFIG_KVM=n true, but no downside
+for them either, that's the important fact!
 
-Damn.
+And for all the people setting CONFIG_KVM!=n, I should provide some
+background here. KVM MM development is halted without this, that
+includes: paging, ballooning, tlb flushing at large, pci-passthrough
+removing page pin as a whole, etc...
 
-No, the simple solution is to just make up a whole new upper-level lock, 
-and get that lock *first*. You can then take all the multiple locks at a 
-lower level in any order you damn well please. 
+Everyone on kvm-devel talks about mmu-notifiers, check the last VT-d
+patch form Intel where Antony (IBM/qemu/kvm) wonders how to handle
+things without mmu notifiers (mlock whatever).
 
-And yes, it's one more lock, and yes, it serializes stuff, but:
+Rusty agreed we had to get mmu notifiers in 2.6.26 so much that he has
+gone as far as writing his own ultrasimple mmu notifier
+implementation, unfortunately too simple as invalidate_range_start was
+missing and we can't remove the page pinning and avoid doing
+spte=invalid;tlbflush;unpin for every group of sptes released without
+it. And without mm_lock invalidate_range_start can't be implemented in
+a generic way (to work for GRU/XPMEM too).
 
- - that code had better not be critical anyway, because if it was, then 
-   the whole "vmalloc+sort+lock+vunmap" sh*t was wrong _anyway_
+> That "locking" code is also too ugly to live, at least without some 
+> serious arguments for why it has to be done that way. Sorting the locks? 
+> In a vmalloc'ed area?  And calling this something innocuous like 
+> "mm_lock()"? Hell no. 
 
- - parallelism is overrated: it doesn't matter one effing _whit_ if 
-   something is a hundred times more parallel, if it's also a hundred 
-   times *SLOWER*.
+That's only invoked in mmu_notifier_register, mm_lock is explicitly
+documented as heavyweight function. In the KVM case it's only called
+when a VM is created, that's irrelevant cpu cost compared to the time
+it takes to the OS to boot in the VM... (especially without real mode
+emulation with direct NPT-like secondary-mmu paging).
 
-So dang it, flush the whole damn series down the toilet and either forget 
-the thing entirely, or re-do it sanely.
+mm_lock solved the fundamental race in the range_start/end
+invalidation model (that will allow GRU to do a single tlb flush for
+the whole range that is going to be freed by
+zap_page_range/unmap_vmas/whatever). Christoph merged mm_lock in his
+EMM versions of mmu notifiers, moments after I released it, I think he
+wouldn't have done it if there was a better way.
 
-And here's an admission that I lied: it wasn't *all* clearly crap. I did 
-like one part, namely list_del_init_rcu(), but that one should have been 
-in a separate patch. I'll happily apply that one.
+> That code needs some serious re-thinking.
 
-		Linus
+Even if you're totally right, with Nick's mmu notifiers, Rusty's mmu
+notifiers, my original mmu notifiers, Christoph's first version of my
+mmu notifiers, with my new mmu notifiers, with christoph EMM version
+of my new mmu notifiers, with my latest mmu notifiers, and all people
+making suggestions and testing the code and needing the code badly,
+and further patches waiting inclusion during 2.6.27 in this area, it
+must be obvious for everyone, that there's zero chance this code won't
+evolve over time to perfection, but we can't wait it to be perfect
+before start using it or we're screwed. Even if it's entirely broken
+this will allow kvm development to continue and then we'll fix it (but
+don't worry it works great at runtime and there are no race
+conditions, Jack and Robin are also using it with zero problems with
+GRU and XPMEM just in case the KVM testing going great isn't enough).
+
+Furthermore the API is freezed for almost months, everyone agrees with
+all fundamental blocks in mmu-notifier-core patch (to be complete
+Christoph would like to replace invalidate_page with an
+invalidate_range_start/end but that's a minor detail).
+
+And most important we need something in now, regardless of which
+API. We can handle a change of API totally fine later.
+
+mm_lock() is not even part of the mmu notifier API, it's just an
+internal implementation detail, so whatever problem it has, or
+whatever better name we can find, isn't an high priority right now.
+
+If you suggest a better name now I'll fix it up immediately. I hope
+the mm_lock name and whatever signed-off-by error in patches after
+mmu-notifier-core won't be really why this doesn't go in.
+
+Thanks a lot for your time to review even if it wasn't as positive as
+I hoped,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
