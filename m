@@ -1,51 +1,99 @@
-Date: Thu, 8 May 2008 01:45:21 +0200
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
-Message-ID: <20080507234521.GN8276@duo.random>
-References: <6b384bb988786aa78ef0.1210170958@duo.random> <alpine.LFD.1.10.0805071349200.3024@woody.linux-foundation.org> <20080507212650.GA8276@duo.random> <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org> <20080507222205.GC8276@duo.random> <20080507153103.237ea5b6.akpm@linux-foundation.org> <20080507224406.GI8276@duo.random> <1210202918.1421.20.camel@pasglop>
+Date: Thu, 08 May 2008 08:55:45 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH] on CONFIG_MM_OWNER=y, kernel panic is possible. take2
+In-Reply-To: <6599ad830805062037n221ef8e2n9ee7ac33417ab499@mail.gmail.com>
+References: <20080506153943.AC69.KOSAKI.MOTOHIRO@jp.fujitsu.com> <6599ad830805062037n221ef8e2n9ee7ac33417ab499@mail.gmail.com>
+Message-Id: <20080508083808.4A78.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1210202918.1421.20.camel@pasglop>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, clameter@sgi.com, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
+To: Paul Menage <menage@google.com>, balbir@linux.vnet.ibm.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 08, 2008 at 09:28:38AM +1000, Benjamin Herrenschmidt wrote:
+> I'd word it as
 > 
-> On Thu, 2008-05-08 at 00:44 +0200, Andrea Arcangeli wrote:
-> > 
-> > Please note, we can't allow a thread to be in the middle of
-> > zap_page_range while mmu_notifier_register runs.
-> 
-> You said yourself that mmu_notifier_register can be as slow as you
-> want ... what about you use stop_machine for it ? I'm not even joking
-> here :-)
+> /*
+>  * "owner" points to a task that is regarded as the canonical
+>  * user/owner of this mm. All of the following must be true in
+>  * order for it to be changed:
+>  *
+>  * current == mm->owner
+>  * current->mm != mm
+>  * new_owner->mm == mm
+>  * new_owner->alloc_lock is held
+>  */
 
-We can put a cap of time + a cap of vmas. It's not important if it
-fails, the only useful case we know it, and it won't be slow at
-all. The failure can happen because the cap of time or the cap of vmas
-or the cap vmas triggers or there's a vmalloc shortage. We handle the
-failure in userland of course. There are zillon of allocations needed
-anyway, any one of them can fail, so this isn't a new fail path, is
-the same fail path that always existed before mmu_notifiers existed.
+Wow, Thank you a lot!
+new version attached.
 
-I can't possibly see how adding a new global wide lock that forces all
-truncate to be serialized against each other, practically eliminating
-the need of the i_mmap_lock, could be superior to an approach that
-doesn't cause the overhead to the VM at all, and only require kvm to
-pay for an additional cost when it startup.
+Cheers!
 
-Furthermore the only reason I had to implement mm_lock was to fix the
-invalidate_range_start/end model, if we go with only invalidate_page
-and invalidate_pages called inside the PT lock and we use the PT lock
-to serialize, we don't need a mm_lock anymore and no new lock from the
-VM either. I tried to push for that, but everyone else wanted
-invalidate_range_start/end. I only did the only possible thing to do:
-to make invalidate_range_start safe to make everyone happy without
-slowing down the VM.
+
+-----------------------------------------------------------
+When mm destruct happend, We should pass mm_update_next_owner() 
+old mm.
+but unfortunately new mm is passed in exec_mmap().
+
+thus, kernel panic is possible when multi thread process use exec().
+
+
+and, owner member comment description is wrong.
+mm->owner don't not necessarily point to thread group leader.
+
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: Balbir Singh <balbir@linux.vnet.ibm.com>
+CC: "Paul Menage" <menage@google.com>
+CC: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+
+---
+ fs/exec.c                |    2 +-
+ include/linux/mm_types.h |   13 +++++++++++--
+ 2 files changed, 12 insertions(+), 3 deletions(-)
+
+Index: b/fs/exec.c
+===================================================================
+--- a/fs/exec.c	2008-05-04 22:57:09.000000000 +0900
++++ b/fs/exec.c	2008-05-06 15:40:35.000000000 +0900
+@@ -735,7 +735,7 @@ static int exec_mmap(struct mm_struct *m
+ 	tsk->active_mm = mm;
+ 	activate_mm(active_mm, mm);
+ 	task_unlock(tsk);
+-	mm_update_next_owner(mm);
++	mm_update_next_owner(old_mm);
+ 	arch_pick_mmap_layout(mm);
+ 	if (old_mm) {
+ 		up_read(&old_mm->mmap_sem);
+Index: b/include/linux/mm_types.h
+===================================================================
+--- a/include/linux/mm_types.h	2008-05-08 09:20:13.000000000 +0900
++++ b/include/linux/mm_types.h	2008-05-08 09:22:13.000000000 +0900
+@@ -231,8 +231,17 @@ struct mm_struct {
+ 	rwlock_t		ioctx_list_lock;	/* aio lock */
+ 	struct kioctx		*ioctx_list;
+ #ifdef CONFIG_MM_OWNER
+-	struct task_struct *owner;	/* The thread group leader that */
+-					/* owns the mm_struct.		*/
++        /*
++         * "owner" points to a task that is regarded as the canonical
++         * user/owner of this mm. All of the following must be true in
++         * order for it to be changed:
++         *
++         * current == mm->owner
++         * current->mm != mm
++         * new_owner->mm == mm
++         * new_owner->alloc_lock is held
++         */
++	struct task_struct *owner;
+ #endif
+ 
+ #ifdef CONFIG_PROC_FS
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
