@@ -1,10 +1,10 @@
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 02 of 11] get_task_mm
-Message-Id: <c5badbefeee07518d9d1.1210170952@duo.random>
+Subject: [PATCH 06 of 11] rwsem contended
+Message-Id: <0621238970155f8ff2d6.1210170956@duo.random>
 In-Reply-To: <patchbomb.1210170950@duo.random>
-Date: Wed, 07 May 2008 16:35:52 +0200
+Date: Wed, 07 May 2008 16:35:56 +0200
 From: Andrea Arcangeli <andrea@qumranet.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -14,37 +14,93 @@ List-ID: <linux-mm.kvack.org>
 
 # HG changeset patch
 # User Andrea Arcangeli <andrea@qumranet.com>
-# Date 1210115127 -7200
-# Node ID c5badbefeee07518d9d1acca13e94c981420317c
-# Parent  e20917dcc8284b6a07cfcced13dda4cbca850a9c
-get_task_mm
+# Date 1210115132 -7200
+# Node ID 0621238970155f8ff2d60ca4996dcdd470f9c6ce
+# Parent  20bc6a66a86ef6bd60919cc77ff51d4af741b057
+rwsem contended
 
-get_task_mm should not succeed if mmput() is running and has reduced
-the mm_users count to zero. This can occur if a processor follows
-a tasks pointer to an mm struct because that pointer is only cleared
-after the mmput().
-
-If get_task_mm() succeeds after mmput() reduced the mm_users to zero then
-we have the lovely situation that one portion of the kernel is doing
-all the teardown work for an mm while another portion is happily using
-it.
+Add a function to rw_semaphores to check if there are any processes
+waiting for the semaphore. Add rwsem_needbreak to sched.h that works
+in the same way as spinlock_needbreak().
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: Andrea Arcangeli <andrea@qumranet.com>
 
-diff --git a/kernel/fork.c b/kernel/fork.c
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -465,7 +465,8 @@ struct mm_struct *get_task_mm(struct tas
- 		if (task->flags & PF_BORROWED_MM)
- 			mm = NULL;
- 		else
--			atomic_inc(&mm->mm_users);
-+			if (!atomic_inc_not_zero(&mm->mm_users))
-+				mm = NULL;
- 	}
- 	task_unlock(task);
- 	return mm;
+diff --git a/include/linux/rwsem.h b/include/linux/rwsem.h
+--- a/include/linux/rwsem.h
++++ b/include/linux/rwsem.h
+@@ -57,6 +57,8 @@ extern void up_write(struct rw_semaphore
+  */
+ extern void downgrade_write(struct rw_semaphore *sem);
+ 
++extern int rwsem_is_contended(struct rw_semaphore *sem);
++
+ #ifdef CONFIG_DEBUG_LOCK_ALLOC
+ /*
+  * nested locking. NOTE: rwsems are not allowed to recurse
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -2030,6 +2030,15 @@ static inline int spin_needbreak(spinloc
+ #endif
+ }
+ 
++static inline int rwsem_needbreak(struct rw_semaphore *sem)
++{
++#ifdef CONFIG_PREEMPT
++	return rwsem_is_contended(sem);
++#else
++	return 0;
++#endif
++}
++
+ /*
+  * Reevaluate whether the task has signals pending delivery.
+  * Wake the task if so.
+diff --git a/lib/rwsem-spinlock.c b/lib/rwsem-spinlock.c
+--- a/lib/rwsem-spinlock.c
++++ b/lib/rwsem-spinlock.c
+@@ -305,6 +305,18 @@ void __downgrade_write(struct rw_semapho
+ 	spin_unlock_irqrestore(&sem->wait_lock, flags);
+ }
+ 
++int rwsem_is_contended(struct rw_semaphore *sem)
++{
++	/*
++	 * Racy check for an empty list. False positives or negatives
++	 * would be okay. False positive may cause a useless dropping of
++	 * locks. False negatives may cause locks to be held a bit
++	 * longer until the next check.
++	 */
++	return !list_empty(&sem->wait_list);
++}
++
++EXPORT_SYMBOL(rwsem_is_contended);
+ EXPORT_SYMBOL(__init_rwsem);
+ EXPORT_SYMBOL(__down_read);
+ EXPORT_SYMBOL(__down_read_trylock);
+diff --git a/lib/rwsem.c b/lib/rwsem.c
+--- a/lib/rwsem.c
++++ b/lib/rwsem.c
+@@ -251,6 +251,18 @@ asmregparm struct rw_semaphore *rwsem_do
+ 	return sem;
+ }
+ 
++int rwsem_is_contended(struct rw_semaphore *sem)
++{
++	/*
++	 * Racy check for an empty list. False positives or negatives
++	 * would be okay. False positive may cause a useless dropping of
++	 * locks. False negatives may cause locks to be held a bit
++	 * longer until the next check.
++	 */
++	return !list_empty(&sem->wait_list);
++}
++
++EXPORT_SYMBOL(rwsem_is_contended);
+ EXPORT_SYMBOL(rwsem_down_read_failed);
+ EXPORT_SYMBOL(rwsem_down_write_failed);
+ EXPORT_SYMBOL(rwsem_wake);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
