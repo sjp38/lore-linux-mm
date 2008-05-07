@@ -1,45 +1,56 @@
-Received: from zps76.corp.google.com (zps76.corp.google.com [172.25.146.76])
-	by smtp-out.google.com with ESMTP id m477hlDe004797
-	for <linux-mm@kvack.org>; Wed, 7 May 2008 08:43:47 +0100
-Received: from an-out-0708.google.com (anab33.prod.google.com [10.100.53.33])
-	by zps76.corp.google.com with ESMTP id m477hkZp007727
-	for <linux-mm@kvack.org>; Wed, 7 May 2008 00:43:46 -0700
-Received: by an-out-0708.google.com with SMTP id b33so48215ana.13
-        for <linux-mm@kvack.org>; Wed, 07 May 2008 00:43:46 -0700 (PDT)
-Message-ID: <6599ad830805070043y4465a32h8e26c5e8890b1100@mail.gmail.com>
-Date: Wed, 7 May 2008 00:43:45 -0700
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [PATCH] mm/cgroup.c add error check
-In-Reply-To: <20080507164526.884208f9.kamezawa.hiroyu@jp.fujitsu.com>
+From: Johannes Weiner <hannes@saeurebad.de>
+Subject: [RFC no patch yet] bootmem2: Another try
+References: <20080505095938.326928514@symbol.fehenstaub.lan>
+Date: Wed, 07 May 2008 14:29:20 +0200
+In-Reply-To: <20080505095938.326928514@symbol.fehenstaub.lan> (Johannes
+	Weiner's message of "Mon, 05 May 2008 11:59:38 +0200")
+Message-ID: <87ve1qcn6n.fsf@saeurebad.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080506195216.4A6D.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <6599ad830805062208if98157cwaca4bafa01b8d097@mail.gmail.com>
-	 <20080507164526.884208f9.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Li Zefan <lizf@cn.fujitsu.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Yinghai Lu <yhlu.kernel@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 7, 2008 at 12:45 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
->  Hmm, but It seems call_usermodehelper()'s fails in silent, no messages.
->  A notify which can be silently dropped is useless.
+Hi,
 
-True, but if we're so short of memory that we can't fork, userspace
-probably won't be able to do much about the notification even if it
-gets it.
+my idea is now as follows:
 
->  Can we add 'printk("notify_on_release: ... is failed")' or some workaround ?
->
+Bootmem2 is block-oriented where a block represents a contiguous range
+of physical memory.  Every block has a bitmap that keeps track of the
+pages on it.
 
-Sounds reasonable for debugging, but don't expect any automated
-middleware to notice it.
+On top of this block interface, bootmem2 implements the node model
+where a node can provide one or more memory blocks.
 
-Paul
+On configurations with multiple blocks per node, the arch code has to
+register each block on its own.
+
+free_bootmem and reserve_bootmem require that the requested range is
+contiguous but they might go across node boundaries (two blocks on two
+nodes can be contiguous).  For example:
+
+node 0: block 0 = 0-2G, block 1 = 4-6G
+node 1: block 2 = 2-4G, block 3 = 6-8G
+
+free_bootmem(1.5G, 3G) is valid here, the range spans two nodes and two
+blocks but is contiguous.
+
+free_bootmem_node and reserve_bootmem_node are more strict, the ranges
+have to be completely within one block of the specified node (two
+blocks on one node are never contiguous).
+
+alloc_bootmem_node tries to get memory between goal and limit from a
+specific node and falls back to any free memory range on that node on
+failure.
+
+alloc_bootmem tries to get memory from between goal and limit and
+falls back to any free memory range in the system on failure.
+
+What do you say?
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
