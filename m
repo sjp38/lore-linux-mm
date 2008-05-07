@@ -1,37 +1,26 @@
-Date: Wed, 7 May 2008 16:00:13 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH 01 of 11] mmu-notifier-core
-In-Reply-To: <20080507222758.GD8276@duo.random>
-Message-ID: <alpine.LFD.1.10.0805071558210.3024@woody.linux-foundation.org>
-References: <patchbomb.1210170950@duo.random> <e20917dcc8284b6a07cf.1210170951@duo.random> <20080507130528.adfd154c.akpm@linux-foundation.org> <alpine.LFD.1.10.0805071324570.3024@woody.linux-foundation.org> <20080507215840.GB8276@duo.random>
- <alpine.LFD.1.10.0805071509270.3024@woody.linux-foundation.org> <20080507222758.GD8276@duo.random>
+Date: Thu, 8 May 2008 01:02:42 +0200
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
+Message-ID: <20080507230242.GL8276@duo.random>
+References: <6b384bb988786aa78ef0.1210170958@duo.random> <alpine.LFD.1.10.0805071349200.3024@woody.linux-foundation.org> <20080507212650.GA8276@duo.random> <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org> <20080507222205.GC8276@duo.random> <alpine.LFD.1.10.0805071540300.3024@woody.linux-foundation.org> <20080507225801.GK8276@duo.random>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080507225801.GK8276@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, clameter@sgi.com, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-
-On Thu, 8 May 2008, Andrea Arcangeli wrote:
->
-> I rechecked and I guarantee that the patches where Christoph isn't
-> listed are developed by myself and he didn't write a single line on
-> them.
-
-How long have you been doing kernel development?
-
-How about you read SubmittingPatches a few times before you show just how 
-clueless you are?
-
-Hint: look for the string that says "From:".
-
-Also look at the section that talks about "summary phrase". You got it all 
-wrong, and you don't even seem to realize that you got it wrong, even when 
-I told you.
-
-		Linus
+To remove mm_lock without adding an horrible system-wide lock before
+every i_mmap_lock etc.. we've to remove
+invalidate_range_begin/end. Then we can return to an older approach of
+doing only invalidate_page and serializing it with the PT lock against
+get_user_pages. That works fine for KVM but GRU will have to flush the
+tlb once every time we drop the PT lock, that means once per each 512
+ptes on x86-64 etc... instead of a single time for the whole range
+regardless how large the range is.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
