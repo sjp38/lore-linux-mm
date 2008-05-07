@@ -1,29 +1,30 @@
-Date: Wed, 7 May 2008 10:30:44 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 1/1] mm: add virt to phys debug
-In-Reply-To: <4820D39E.3090109@gmail.com>
-Message-ID: <Pine.LNX.4.64.0805071030180.3173@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0804281322510.31163@schroedinger.engr.sgi.com>
- <1209669740-10493-1-git-send-email-jirislaby@gmail.com>
- <Pine.LNX.4.64.0805011310390.9288@schroedinger.engr.sgi.com>
- <4820D39E.3090109@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 7 May 2008 13:35:32 -0400
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [PATCH 01 of 11] mmu-notifier-core
+Message-ID: <20080507133532.4a4df89d@bree.surriel.com>
+In-Reply-To: <e20917dcc8284b6a07cf.1210170951@duo.random>
+References: <patchbomb.1210170950@duo.random>
+	<e20917dcc8284b6a07cf.1210170951@duo.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jiri Slaby <jirislaby@gmail.com>
-Cc: linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Jeremy Fitzhardinge <jeremy@goop.org>, pageexec@freemail.hu, Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, herbert@gondor.apana.org.au, penberg@cs.helsinki.fi, akpm@linux-foundation.org, linux-ext4@vger.kernel.org, paulmck@linux.vnet.ibm.com, rjw@sisk.pl, zdenek.kabelac@gmail.com, David Miller <davem@davemloft.net>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 6 May 2008, Jiri Slaby wrote:
+On Wed, 07 May 2008 16:35:51 +0200
+Andrea Arcangeli <andrea@qumranet.com> wrote:
 
-> I like the idea, I'll get back with a patch in few days (sorry, too busy).
-> Anyway bounds.h should be include/asm/ thing though.
+> Signed-off-by: Andrea Arcangeli <andrea@qumranet.com>
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-For arch specific stuff use asm-offsets.h. It would have to be included in 
-page_xx.h.
+Acked-by: Rik van Riel <riel@redhat.com>
 
- 
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
