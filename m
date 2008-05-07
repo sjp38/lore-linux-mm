@@ -1,45 +1,46 @@
-Date: Wed, 7 May 2008 15:31:03 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
-Message-Id: <20080507153103.237ea5b6.akpm@linux-foundation.org>
-In-Reply-To: <20080507222205.GC8276@duo.random>
-References: <6b384bb988786aa78ef0.1210170958@duo.random>
-	<alpine.LFD.1.10.0805071349200.3024@woody.linux-foundation.org>
-	<20080507212650.GA8276@duo.random>
-	<alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org>
-	<20080507222205.GC8276@duo.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 8 May 2008 00:37:38 +0200
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [PATCH 01 of 11] mmu-notifier-core
+Message-ID: <20080507223738.GF8276@duo.random>
+References: <patchbomb.1210170950@duo.random> <e20917dcc8284b6a07cf.1210170951@duo.random> <20080507130528.adfd154c.akpm@linux-foundation.org> <alpine.LFD.1.10.0805071324570.3024@woody.linux-foundation.org> <20080507215840.GB8276@duo.random> <alpine.LFD.1.10.0805071509270.3024@woody.linux-foundation.org> <20080507222758.GD8276@duo.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080507222758.GD8276@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: torvalds@linux-foundation.org, clameter@sgi.com, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, clameter@sgi.com, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 8 May 2008 00:22:05 +0200
-Andrea Arcangeli <andrea@qumranet.com> wrote:
+On Thu, May 08, 2008 at 12:27:58AM +0200, Andrea Arcangeli wrote:
+> I rechecked and I guarantee that the patches where Christoph isn't
+> listed are developed by myself and he didn't write a single line on
+> them. In any case I expect Christoph to review (he's CCed) and to
+> point me to any attribution error. The only mistake I did once in that
+> area was to give too _few_ attribution to myself and he asked me to
+> add myself in the signed-off so I added myself by Christoph own
+> request, but be sure I didn't remove him!
 
-> > No, the simple solution is to just make up a whole new upper-level lock, 
-> > and get that lock *first*. You can then take all the multiple locks at a 
-> > lower level in any order you damn well please. 
-> 
-> Unfortunately the lock you're talking about would be:
-> 
-> static spinlock_t global_lock = ...
-> 
-> There's no way to make it more granular.
-> 
-> So every time before taking any ->i_mmap_lock _and_ any anon_vma->lock
-> we'd need to take that extremely wide spinlock first (and even worse,
-> later it would become a rwsem when XPMEM is selected making the VM
-> even slower than it already becomes when XPMEM support is selected at
-> compile time).
+By PM (guess he's scared to post to this thread ;) Chris is telling
+me, what you mean perhaps is I should add a From: Christoph in the
+body of the email if the first signed-off-by is from Christoph, to
+indicate the first signoff was by him and the patch in turn was
+started by him. I thought the order of the signoffs was enough, but if
+that From was mandatory and missing, if there's any error it obviously
+wasn't intentional especially given I only left a signed-off-by:
+christoph on his patches until he asked me to add my signoff
+too. Correcting it is trivial given I carefully ordered the signoff so
+that the author is at the top of the signoff list.
 
-Nope.  We only need to take the global lock before taking *two or more* of
-the per-vma locks.
+At least for mmu-notifier-core given I obviously am the original
+author of that code, I hope the From: of the email was enough even if
+an additional From: andrea was missing in the body.
 
-I really wish I'd thought of that.
+Also you can be sure that Christoph and especially Robin (XPMEM) will
+be more than happy if all patches with Christoph at the top of the
+signed-off-by will be merged in 2.6.26 despite there wasn't From:
+christoph at the top of the body ;). So I don't see a big deal here...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
