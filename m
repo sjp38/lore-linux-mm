@@ -1,54 +1,40 @@
-Date: Wed, 7 May 2008 16:19:05 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
-In-Reply-To: <20080507155914.d7790069.akpm@linux-foundation.org>
-Message-ID: <alpine.LFD.1.10.0805071610490.3024@woody.linux-foundation.org>
-References: <6b384bb988786aa78ef0.1210170958@duo.random> <alpine.LFD.1.10.0805071349200.3024@woody.linux-foundation.org> <20080507212650.GA8276@duo.random> <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org> <20080507222205.GC8276@duo.random>
- <20080507153103.237ea5b6.akpm@linux-foundation.org> <20080507224406.GI8276@duo.random> <20080507155914.d7790069.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Reply-To: benh@kernel.crashing.org
+In-Reply-To: <20080507224406.GI8276@duo.random>
+References: <6b384bb988786aa78ef0.1210170958@duo.random>
+	 <alpine.LFD.1.10.0805071349200.3024@woody.linux-foundation.org>
+	 <20080507212650.GA8276@duo.random>
+	 <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org>
+	 <20080507222205.GC8276@duo.random>
+	 <20080507153103.237ea5b6.akpm@linux-foundation.org>
+	 <20080507224406.GI8276@duo.random>
+Content-Type: text/plain
+Date: Thu, 08 May 2008 09:28:38 +1000
+Message-Id: <1210202918.1421.20.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, clameter@sgi.com, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, clameter@sgi.com, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-
-On Wed, 7 May 2008, Andrew Morton wrote:
+On Thu, 2008-05-08 at 00:44 +0200, Andrea Arcangeli wrote:
 > 
-> Now, if we need to take both anon_vma->lock AND i_mmap_lock in the newly
-> added mm_lock() thing and we also take both those locks at the same time in
-> regular code, we're probably screwed.
+> Please note, we can't allow a thread to be in the middle of
+> zap_page_range while mmu_notifier_register runs.
 
-No, just use the normal static ordering for that case: one type of lock 
-goes before the other kind. If those locks nest in regular code, you have 
-to do that *anyway*.
+You said yourself that mmu_notifier_register can be as slow as you
+want ... what about you use stop_machine for it ? I'm not even joking
+here :-)
 
-The code that can take many locks, will have to get the global lock *and* 
-order the types, but that's still trivial. It's something like
+> vmtruncate takes 1 single lock, the i_mmap_lock of the inode. Not more
+> than one lock and we've to still take the global-system-wide lock
+> _before_ this single i_mmap_lock and no other lock at all.
 
-	spin_lock(&global_lock);
-	for (vma = mm->mmap; vma; vma = vma->vm_next) {
-		if (vma->anon_vma)
-			spin_lock(&vma->anon_vma->lock);
-	}
-	for (vma = mm->mmap; vma; vma = vma->vm_next) {
-		if (!vma->anon_vma && vma->vm_file && vma->vm_file->f_mapping)
-			spin_lock(&vma->vm_file->f_mapping->i_mmap_lock);
-	}
-	spin_unlock(&global_lock);
+Ben.
 
-and now everybody follows the rule that "anon_vma->lock" precedes 
-"i_mmap_lock". So there can be no ABBA deadlock between the normal users 
-and the many-locks version, and there can be no ABBA deadlock between 
-many-locks-takers because they use the global_lock to serialize.
-
-This really isn't rocket science, guys.
-
-(I really hope and believe that they don't nest anyway, and that you can 
-just use a single for-loop for the many-lock case)
-
-		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
