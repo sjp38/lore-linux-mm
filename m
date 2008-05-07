@@ -1,27 +1,50 @@
-Date: Wed, 7 May 2008 07:37:56 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [RFC no patch yet] bootmem2: Another try
-In-Reply-To: <87ve1qcn6n.fsf@saeurebad.de>
-Message-ID: <alpine.LFD.1.10.0805070737100.32269@woody.linux-foundation.org>
-References: <20080505095938.326928514@symbol.fehenstaub.lan> <87ve1qcn6n.fsf@saeurebad.de>
+Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Subject: [PATCH 02 of 11] get_task_mm
+Message-Id: <c5badbefeee07518d9d1.1210170952@duo.random>
+In-Reply-To: <patchbomb.1210170950@duo.random>
+Date: Wed, 07 May 2008 16:35:52 +0200
+From: Andrea Arcangeli <andrea@qumranet.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Johannes Weiner <hannes@saeurebad.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Yinghai Lu <yhlu.kernel@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
+# HG changeset patch
+# User Andrea Arcangeli <andrea@qumranet.com>
+# Date 1210115127 -7200
+# Node ID c5badbefeee07518d9d1acca13e94c981420317c
+# Parent  e20917dcc8284b6a07cfcced13dda4cbca850a9c
+get_task_mm
 
-On Wed, 7 May 2008, Johannes Weiner wrote:
-> 
-> Bootmem2 is block-oriented where a block represents a contiguous range
-> of physical memory.  Every block has a bitmap that keeps track of the
-> pages on it.
+get_task_mm should not succeed if mmput() is running and has reduced
+the mm_users count to zero. This can occur if a processor follows
+a tasks pointer to an mm struct because that pointer is only cleared
+after the mmput().
 
-Yes, that one sounds fairly sane.
+If get_task_mm() succeeds after mmput() reduced the mm_users to zero then
+we have the lovely situation that one portion of the kernel is doing
+all the teardown work for an mm while another portion is happily using
+it.
 
-		Linus
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Signed-off-by: Andrea Arcangeli <andrea@qumranet.com>
+
+diff --git a/kernel/fork.c b/kernel/fork.c
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -465,7 +465,8 @@ struct mm_struct *get_task_mm(struct tas
+ 		if (task->flags & PF_BORROWED_MM)
+ 			mm = NULL;
+ 		else
+-			atomic_inc(&mm->mm_users);
++			if (!atomic_inc_not_zero(&mm->mm_users))
++				mm = NULL;
+ 	}
+ 	task_unlock(task);
+ 	return mm;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
