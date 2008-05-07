@@ -1,67 +1,41 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m47NdlYL002070
-	for <linux-mm@kvack.org>; Wed, 7 May 2008 19:39:47 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m47NdkHX197218
-	for <linux-mm@kvack.org>; Wed, 7 May 2008 17:39:46 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m47Ndje2031524
-	for <linux-mm@kvack.org>; Wed, 7 May 2008 17:39:46 -0600
-Date: Wed, 7 May 2008 16:39:44 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH] x86: fix PAE pmd_bad bootup warning
-Message-ID: <20080507233944.GG23990@us.ibm.com>
-References: <b6a2187b0805051806v25fa1272xb08e0b70b9c3408@mail.gmail.com> <20080506124946.GA2146@elte.hu> <Pine.LNX.4.64.0805061435510.32567@blonde.site> <alpine.LFD.1.10.0805061138580.32269@woody.linux-foundation.org> <Pine.LNX.4.64.0805062043580.11647@blonde.site> <20080506202201.GB12654@escobedo.amd.com> <Pine.LNX.4.64.0805062132140.17979@blonde.site>
+Date: Wed, 7 May 2008 16:39:39 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
+In-Reply-To: <alpine.LFD.1.10.0805071610490.3024@woody.linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0805071637360.14337@schroedinger.engr.sgi.com>
+References: <6b384bb988786aa78ef0.1210170958@duo.random>
+ <alpine.LFD.1.10.0805071349200.3024@woody.linux-foundation.org>
+ <20080507212650.GA8276@duo.random> <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org>
+ <20080507222205.GC8276@duo.random> <20080507153103.237ea5b6.akpm@linux-foundation.org>
+ <20080507224406.GI8276@duo.random> <20080507155914.d7790069.akpm@linux-foundation.org>
+ <alpine.LFD.1.10.0805071610490.3024@woody.linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0805062132140.17979@blonde.site>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Hans Rosenfeld <hans.rosenfeld@amd.com>, Ingo Molnar <mingo@elte.hu>, Jeff Chua <jeff.chua.linux@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Gabriel C <nix.or.die@googlemail.com>, Arjan van de Ven <arjan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@qumranet.com>, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On 06.05.2008 [21:36:59 +0100], Hugh Dickins wrote:
-> On Tue, 6 May 2008, Hans Rosenfeld wrote:
-> > On Tue, May 06, 2008 at 08:49:23PM +0100, Hugh Dickins wrote:
-> > > So Hans' original hugepage leak remains unexplained and unfixed.
-> > > Hans, did you find that hugepage leak with a standard kernel, or were
-> > > you perhaps trying out some hugepage-using patch of your own, without
-> > > marking the vma VM_HUGETLB?  Or were you expecting the hugetlbfs file
-> > > to truncate itself once all mmappers had gone?  If the standard kernel
-> > > leaks hugepages, I'm surprised the hugetlb guys don't know about it.
-> > 
-> > I used a standard kernel (well, not quite, I had made some changes to
-> > the /proc/pid/pagemap code, but nothing that would affect the hugepage
-> > stuff) and some simple test program that would just mmap a hugepage.
-> > 
-> > I expected that any hugepage that a process had mmapped would
-> > automatically be returned to the system when the process exits. That was
-> > not the case, the process exited and the hugepage was lost (unless I
-> > changed the program to explicitly munmap the hugepage before exiting).
-> > Removing the hugetlbfs file containing the hugepage also didn't free the
-> > page.
+On Wed, 7 May 2008, Linus Torvalds wrote:
+
+> The code that can take many locks, will have to get the global lock *and* 
+> order the types, but that's still trivial. It's something like
 > 
-> Hmm.  That doesn't fit with my experience: I've not found an explicit
-> munmap makes any difference (I wouldn't expect it to), but removing
-> the file once all openers gone does free everything up.  I guess I'm
-> overlooking something more experienced hugepagers will soon light
-> upon.
+> 	spin_lock(&global_lock);
+> 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+> 		if (vma->anon_vma)
+> 			spin_lock(&vma->anon_vma->lock);
+> 	}
+> 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+> 		if (!vma->anon_vma && vma->vm_file && vma->vm_file->f_mapping)
+> 			spin_lock(&vma->vm_file->f_mapping->i_mmap_lock);
+> 	}
+> 	spin_unlock(&global_lock);
 
-Nothing strikes me immediately. What you described is what I expected.
-As Dave pointed out separately, are you able to unmount hugetlbfs at
-this point?
-
-Hans, can you send out a sample application's source? What kernel were
-you testing on?
-
-Thanks,
-Nish
-
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+Multiple vmas may share the same mapping or refer to the same anonymous 
+vma. The above code will deadlock since we may take some locks multiple 
+times.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
