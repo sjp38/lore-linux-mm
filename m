@@ -1,72 +1,59 @@
-Message-ID: <4821057F.8090706@cn.fujitsu.com>
-Date: Wed, 07 May 2008 09:27:27 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm/page_alloc.c: fix a typo
-References: <4820272C.4060009@cn.fujitsu.com>	<482027E4.6030300@cn.fujitsu.com>	<482029E7.6070308@cn.fujitsu.com> <20080506071943.46641c26.akpm@linux-foundation.org>
-In-Reply-To: <20080506071943.46641c26.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Wed, 7 May 2008 11:14:04 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] more ZERO_PAGE handling ( was 2.6.24 regression:
+ deadlock on coredump of big process)
+Message-Id: <20080507111404.871b8990.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080430061125.GF27652@wotan.suse.de>
+References: <4815E932.1040903@cybernetics.com>
+	<20080429100048.3e78b1ba.kamezawa.hiroyu@jp.fujitsu.com>
+	<48172C72.1000501@cybernetics.com>
+	<20080430132516.28f1ee0c.kamezawa.hiroyu@jp.fujitsu.com>
+	<4817FDA5.1040702@kolumbus.fi>
+	<20080430141738.e6b80d4b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080430051932.GD27652@wotan.suse.de>
+	<20080430143542.2dcf745a.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080430061125.GF27652@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: clameter@sgi.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Mika =?UTF-8?B?UGVudHRpbMOk?= <mika.penttila@kolumbus.fi>, Tony Battersby <tonyb@cybernetics.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Tue, 06 May 2008 17:50:31 +0800 Li Zefan <lizf@cn.fujitsu.com> wrote:
+On Wed, 30 Apr 2008 08:11:25 +0200
+Nick Piggin <npiggin@suse.de> wrote:
+  
+> >  	pte = *ptep;
+> > -	if (!pte_present(pte))
+> > +	if (!pte_present(pte)) {
+> > +		if (!(flags & FOLL_WRITE) && pte_none(pte)) {
+> > +			pte_unmap_unlock(ptep, ptl);
+> > +			goto null_or_zeropage;
+> > +		}
+> >  		goto unlock;
+> > +	}
 > 
->> Li Zefan wrote:
->>> ---
->> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
->> ---
->>
->> Sorry for the noise, but the signed-off was eaten. :(
->> Maybe I should leave a blank line before the signed-off.
->>
->> ---
->>
->>  mm/page_alloc.c |    2 +-
->>  1 files changed, 1 insertions(+), 1 deletions(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index bdd5c43..d0ba10d 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -303,7 +303,7 @@ static void destroy_compound_page(struct page *page, unsigned long order)
->>  	for (i = 1; i < nr_pages; i++) {
->>  		struct page *p = page + i;
->>  
->> -		if (unlikely(!PageTail(p) |
->> +		if (unlikely(!PageTail(p) ||
->>  				(p->first_page != page)))
->>  			bad_page(page);
->>  		__ClearPageTail(p);
+> Just a small nitpick: I guess you don't need this FOLL_WRITE test because
+> null_or_zeropage will test FOLL_ANON which implies !FOLL_WRITE. It should give
+> slightly smaller code.
 > 
-> I have a vague memory that the "|" was deliberate.  Most of the time,
-> "!PageTail" will be false so most of the time we won't take the first
+> Otherwise, looks good to me:
+> 
+Hmm, but 
 
-!PageTail will be true if nothing bad happened, corrected me if I'm wrong:
+do_execve()
+  -> copy_strings()
+       -> get_arg_page()
+            -> get_user_pages()
 
-static void prep_compound_page(struct page *page, unsigned long order)
-{
-	...
-	for (i = 1; i < nr_pages; i++) {
-		struct page *p = page + i;
+can do write-page-fault in ANON (and it's a valid ops.)
 
-		__SetPageTail(p);
-		p->first_page = page;
-	}
-}
+So, I think it's safe not to remove FOLL_WRITE check here.
 
-> branch so it's probably worth omitting it and always doing the pointer
-> comparison.
-> 
-> It's a somewhat dopey trick and shouldn't have been done without a comment.
-> 
-> otoh maybe it was a typo.
-> 
-> 
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
