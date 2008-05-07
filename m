@@ -1,59 +1,55 @@
-Received: from zps19.corp.google.com (zps19.corp.google.com [172.25.146.19])
-	by smtp-out.google.com with ESMTP id m473bqAM001846
-	for <linux-mm@kvack.org>; Wed, 7 May 2008 04:37:52 +0100
-Received: from an-out-0708.google.com (anac38.prod.google.com [10.100.54.38])
-	by zps19.corp.google.com with ESMTP id m473boRE023014
-	for <linux-mm@kvack.org>; Tue, 6 May 2008 20:37:51 -0700
-Received: by an-out-0708.google.com with SMTP id c38so27772ana.3
-        for <linux-mm@kvack.org>; Tue, 06 May 2008 20:37:50 -0700 (PDT)
-Message-ID: <6599ad830805062037n221ef8e2n9ee7ac33417ab499@mail.gmail.com>
-Date: Tue, 6 May 2008 20:37:50 -0700
-From: "Paul Menage" <menage@google.com>
-Subject: Re: on CONFIG_MM_OWNER=y, kernel panic is possible.
-In-Reply-To: <20080506153943.AC69.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <482130D6.8020306@cn.fujitsu.com>
+Date: Wed, 07 May 2008 12:32:22 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH] mm/page_alloc.c: fix a typo
+References: <4820272C.4060009@cn.fujitsu.com>	<482027E4.6030300@cn.fujitsu.com>	<482029E7.6070308@cn.fujitsu.com> <20080506071943.46641c26.akpm@linux-foundation.org> <4821057F.8090706@cn.fujitsu.com>
+In-Reply-To: <4821057F.8090706@cn.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080506151510.AC66.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <481FFAAB.3030008@linux.vnet.ibm.com>
-	 <20080506153943.AC69.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: balbir@linux.vnet.ibm.com, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: clameter@sgi.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 5, 2008 at 11:43 PM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
-> > >  #ifdef CONFIG_MM_OWNER
->  > > -       struct task_struct *owner;      /* The thread group leader that */
->  > > -                                       /* owns the mm_struct.          */
->  > > +       struct task_struct *owner;      /* point to one of task that owns the mm_struct. */
->  > >  #endif
->  > >
->  > >  #ifdef CONFIG_PROC_FS
->  >
->  > How about just, the task that owns the mm_struct? One of, implies multiple owners.
->
->  Ah, below is better?
->
->  /* point to any one of task that related the mm_struct. */
+Li Zefan wrote:
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index bdd5c43..d0ba10d 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -303,7 +303,7 @@ static void destroy_compound_page(struct page *page, unsigned long order)
+>>>  	for (i = 1; i < nr_pages; i++) {
+>>>  		struct page *p = page + i;
+>>>  
+>>> -		if (unlikely(!PageTail(p) |
+>>> +		if (unlikely(!PageTail(p) ||
+>>>  				(p->first_page != page)))
+>>>  			bad_page(page);
+>>>  		__ClearPageTail(p);
+>> I have a vague memory that the "|" was deliberate.  Most of the time,
+>> "!PageTail" will be false so most of the time we won't take the first
+> 
+> !PageTail will be true if nothing bad happened, corrected me if I'm wrong:
+> 
 
-I'd word it as
+Silly, I was wrong...
 
-/*
- * "owner" points to a task that is regarded as the canonical
- * user/owner of this mm. All of the following must be true in
- * order for it to be changed:
- *
- * current == mm->owner
- * current->mm != mm
- * new_owner->mm == mm
- * new_owner->alloc_lock is held
- */
+Christoph Lameter wrote:
+> I think the | there was some developers attempt to avoid gcc generating 
+> too many branches. I am fine either way.
+> 
 
-Paul
+Yes, I found out it's 224abf92b2f439a9030f21d2926ec8047d1ffcdb :
+
+[PATCH] mm: bad_page optimisation
+Nick Piggin [Fri, 6 Jan 2006 08:11:11 +0000 (00:11 -0800)]
+
+Cut down size slightly by not passing bad_page the function name (it should be
+able to be determined by dump_stack()).  And cut down the number of printks in
+bad_page.
+
+Also, cut down some branching in the destroy_compound_page path.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
