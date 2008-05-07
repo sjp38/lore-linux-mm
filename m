@@ -1,43 +1,33 @@
-Date: Wed, 7 May 2008 01:21:05 +0200
-From: Willy Tarreau <w@1wt.eu>
-Subject: Re: bad pmd ffff810000207808(9090909090909090).
-Message-ID: <20080506232105.GA22457@1wt.eu>
-References: <874p9biqwj.fsf@duaron.myhome.or.jp> <alpine.LNX.1.10.0805061424090.16731@fbirervta.pbzchgretzou.qr> <87zlr3zj9x.fsf@duaron.myhome.or.jp> <20080506195014.GS8474@1wt.eu> <87abj3nibc.fsf@duaron.myhome.or.jp>
+Date: Wed, 7 May 2008 10:09:35 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [-mm][PATCH 0/4] Add rlimit controller to cgroups (v3)
+Message-Id: <20080507100935.28316ff7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <481E8B3F.3050508@linux.vnet.ibm.com>
+References: <20080503213726.3140.68845.sendpatchset@localhost.localdomain>
+	<23630056.1209914669637.kamezawa.hiroyu@jp.fujitsu.com>
+	<481E8B3F.3050508@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87abj3nibc.fsf@duaron.myhome.or.jp>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
-Cc: Jan Engelhardt <jengelh@medozas.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 07, 2008 at 08:06:47AM +0900, OGAWA Hirofumi wrote:
-> Willy Tarreau <w@1wt.eu> writes:
+On Mon, 05 May 2008 09:51:19 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > 3. Rleated to 2. Showing what kind of "rlimit" params are supported by
+> >    cgroup will be good.
+> > 
 > 
-> >> I see. I'm not sure, but I didn't notice this soon, maybe it worked as
-> >> almost usual.
-> >
-> > I got immediate same feeling as Jan here. It looks very much like someone
-> > has tried to inject code into your system. The problem is that you don't
-> > know if this finally succeeded. Maybe some backdoor is now installed in
-> > your kernel. If I were you, I would isolate the machine, reboot it on CD
-> > and check MD5s (particularly the ones of the kernel and modules) before
-> > rebooting it.
-> 
-> Hm.. I've checked md5sum as far as I can do (/var/lib/dpkg/info/*.md5sums).
-> It seems to have no difference except data files.
-> 
-> And this machine is in back of firewall of other machine, and the kernel
-> is builded from source each every day or a hour or such.
-> 
-> So, it is unlikely...
+> Do you mean in init/Kconfig or documentation?. I should probably rename
+> limit_in_bytes and usage_in_bytes to add an as_ prefix, so that the UI clearly
+> shows what is supported as well.
+I see.
 
-OK. At least it was worth checking!
-
-Regards,
-Willy
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
