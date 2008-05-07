@@ -1,49 +1,85 @@
-Date: Thu, 8 May 2008 00:58:01 +0200
-From: Andrea Arcangeli <andrea@qumranet.com>
+Date: Wed, 7 May 2008 15:59:14 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
-Message-ID: <20080507225801.GK8276@duo.random>
-References: <6b384bb988786aa78ef0.1210170958@duo.random> <alpine.LFD.1.10.0805071349200.3024@woody.linux-foundation.org> <20080507212650.GA8276@duo.random> <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org> <20080507222205.GC8276@duo.random> <alpine.LFD.1.10.0805071540300.3024@woody.linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.1.10.0805071540300.3024@woody.linux-foundation.org>
+Message-Id: <20080507155914.d7790069.akpm@linux-foundation.org>
+In-Reply-To: <20080507224406.GI8276@duo.random>
+References: <6b384bb988786aa78ef0.1210170958@duo.random>
+	<alpine.LFD.1.10.0805071349200.3024@woody.linux-foundation.org>
+	<20080507212650.GA8276@duo.random>
+	<alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org>
+	<20080507222205.GC8276@duo.random>
+	<20080507153103.237ea5b6.akpm@linux-foundation.org>
+	<20080507224406.GI8276@duo.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: torvalds@linux-foundation.org, clameter@sgi.com, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 07, 2008 at 03:44:24PM -0700, Linus Torvalds wrote:
-> 
-> 
-> On Thu, 8 May 2008, Andrea Arcangeli wrote:
+On Thu, 8 May 2008 00:44:06 +0200
+Andrea Arcangeli <andrea@qumranet.com> wrote:
+
+> On Wed, May 07, 2008 at 03:31:03PM -0700, Andrew Morton wrote:
+> > Nope.  We only need to take the global lock before taking *two or more* of
+> > the per-vma locks.
 > > 
-> > Unfortunately the lock you're talking about would be:
-> > 
-> > static spinlock_t global_lock = ...
-> > 
-> > There's no way to make it more granular.
+> > I really wish I'd thought of that.
 > 
-> Right. So what? 
+> I don't see how you can avoid taking the system-wide-global lock
+> before every single anon_vma->lock/i_mmap_lock out there without
+> mm_lock.
 > 
-> It's still about a million times faster than what the code does now.
+> Please note, we can't allow a thread to be in the middle of
+> zap_page_range while mmu_notifier_register runs.
+> 
+> vmtruncate takes 1 single lock, the i_mmap_lock of the inode. Not more
+> than one lock and we've to still take the global-system-wide lock
+> _before_ this single i_mmap_lock and no other lock at all.
+> 
+> Please elaborate, thanks!
 
-mmu_notifier_register only runs when windows or linux or macosx
-boots. Who could ever care of the msec spent in mm_lock compared to
-the time it takes to linux to boot?
 
-What you're proposing is to slowdown AIM and certain benchmarks 20% or
-more for all users, just so you save at most 1msec to start a VM.
+umm...
 
-> Rewrite the code, or not. I don't care. I'll very happily not merge crap 
-> for the rest of my life.
 
-If you want the global lock I'll do it no problem, I just think it's
-obviously inferior solution for 99% of users out there (including kvm
-users that will also have to take that lock while kvm userland runs).
+	CPU0:			CPU1:
 
-In my view the most we should do in this area is to reduce further the
-max number of locks to take if max_map_count already isn't enough.
+	spin_lock(a->lock);	spin_lock(b->lock);
+	spin_lock(b->lock);	spin_lock(a->lock);
+
+bad.
+
+	CPU0:			CPU1:
+
+	spin_lock(global_lock)	spin_lock(global_lock);
+	spin_lock(a->lock);	spin_lock(b->lock);
+	spin_lock(b->lock);	spin_lock(a->lock);
+
+Is OK.
+
+
+	CPU0:			CPU1:
+
+	spin_lock(global_lock)	
+	spin_lock(a->lock);	spin_lock(b->lock);
+	spin_lock(b->lock);	spin_unlock(b->lock);
+				spin_lock(a->lock);
+				spin_unlock(a->lock);
+
+also OK.
+
+As long as all code paths which can take two-or-more locks are all covered
+by the global lock there is no deadlock scenario.  If a thread takes just a
+single instance of one of these locks without taking the global_lock then
+there is also no deadlock.
+
+
+Now, if we need to take both anon_vma->lock AND i_mmap_lock in the newly
+added mm_lock() thing and we also take both those locks at the same time in
+regular code, we're probably screwed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
