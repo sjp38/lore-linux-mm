@@ -1,44 +1,32 @@
-Message-ID: <48213A66.5030502@bull.net>
-Date: Wed, 07 May 2008 07:13:10 +0200
-From: Nadia Derbey <Nadia.Derbey@bull.net>
+Date: Wed, 7 May 2008 06:30:05 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH] x86: fix PAE pmd_bad bootup warning
+In-Reply-To: <b6a2187b0805062140i2546a1a8pc3fa65227a9873ab@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0805070625200.3983@blonde.site>
+References: <b6a2187b0805051806v25fa1272xb08e0b70b9c3408@mail.gmail.com>
+ <20080506124946.GA2146@elte.hu>  <Pine.LNX.4.64.0805061435510.32567@blonde.site>
+  <alpine.LFD.1.10.0805061138580.32269@woody.linux-foundation.org>
+ <Pine.LNX.4.64.0805062043580.11647@blonde.site>
+ <b6a2187b0805062140i2546a1a8pc3fa65227a9873ab@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/8] Scaling msgmni to the amount of lowmem
-References: <20080211141646.948191000@bull.net>		<20080211141813.354484000@bull.net>	<12c511ca0804291328v2f0b87csd0f2cf3accc6ad00@mail.gmail.com>	<481EC917.6070808@bull.net> <1FE6DD409037234FAB833C420AA843EC014392F9@orsmsx424.amr.corp.intel.com>
-In-Reply-To: <1FE6DD409037234FAB833C420AA843EC014392F9@orsmsx424.amr.corp.intel.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cmm@us.ibm.com, akpm@linux-foundation.org
+To: Jeff Chua <jeff.chua.linux@gmail.com>
+Cc: Hans Rosenfeld <hans.rosenfeld@amd.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Gabriel C <nix.or.die@googlemail.com>, Arjan van de Ven <arjan@linux.intel.com>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Luck, Tony wrote:
->>Well, this printk had been suggested by somebody (sorry I don't remember 
->>who) when I first submitted the patch. Actually I think it might be 
->>useful for a sysadmin to be aware of a change in the msgmni value: we 
->>have the message not only at boot time, but also each time msgmni is 
->>recomputed because of a change in the amount of memory.
+On Wed, 7 May 2008, Jeff Chua wrote:
 > 
-> 
-> If the message is directed at the system administrator, then it would
-> be nice if there were some more meaningful way to show the namespace
-> that is affected than just printing the hex address of the kernel structure.
-> 
-> As the sysadmin for my test systems, printing the hex address is mildly
-> annoying ... I now have to add a new case to my scripts that look at
-> dmesg output for unusual activity.
-> 
-> Is there some better "name for a namespace" than the address? Perhaps
-> the process id of the process that instantiated the namespace???
-> 
+> Thanks for the patch. It's in Linus's git now and I just booted 2 Dell
 
-Unfortunately no when we are inside an ipc namespace, we don't have such 
-interesting informations. But I agree with you, an address is not 
-readable enough. I'll try to find a solution.
+Thanks for reporting and reporting back: from your contentment ...
 
-Regards,
-Nadia
+> 2950 and both are no showing the errors.
+                      ^ 
+... I'll assume the missing letter is "t" rather than "w" ;)
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
