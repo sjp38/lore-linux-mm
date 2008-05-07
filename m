@@ -1,31 +1,26 @@
-Date: Thu, 8 May 2008 00:39:14 +0200
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [ofa-general] Re: [PATCH 01 of 11] mmu-notifier-core
-Message-ID: <20080507223914.GG8276@duo.random>
-References: <patchbomb.1210170950@duo.random> <e20917dcc8284b6a07cf.1210170951@duo.random> <20080507130528.adfd154c.akpm@linux-foundation.org> <alpine.LFD.1.10.0805071324570.3024@woody.linux-foundation.org> <20080507215840.GB8276@duo.random> <alpine.LFD.1.10.0805071509270.3024@woody.linux-foundation.org> <20080507222758.GD8276@duo.random> <adaej8du4pf.fsf@cisco.com>
-MIME-Version: 1.0
+Date: Wed, 7 May 2008 17:42:33 -0500
+From: Jack Steiner <steiner@sgi.com>
+Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
+Message-ID: <20080507224232.GA24600@sgi.com>
+References: <6b384bb988786aa78ef0.1210170958@duo.random> <alpine.LFD.1.10.0805071349200.3024@woody.linux-foundation.org> <20080507212650.GA8276@duo.random>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <adaej8du4pf.fsf@cisco.com>
+In-Reply-To: <20080507212650.GA8276@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roland Dreier <rdreier@cisco.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, npiggin@suse.de, chrisw@redhat.com, rusty@rustcorp.com.au, a.p.zijlstra@chello.nl, marcelo@kvack.org, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, steiner@sgi.com, linux-kernel@vger.kernel.org, avi@qumranet.com, aliguori@us.ibm.com, paulmck@us.ibm.com, linux-mm@kvack.org, holt@sgi.com, general@lists.openfabrics.org, hugh@veritas.com, Andrew Morton <akpm@linux-foundation.org>, dada1@cosmosbay.com, clameter@sgi.com
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 07, 2008 at 03:31:08PM -0700, Roland Dreier wrote:
-> I think the point you're missing is that any patches written by
-> Christoph need a line like
-> 
-> From: Christoph Lameter <clameter@sgi.com>
-> 
-> at the top of the body so that Christoph becomes the author when it is
-> committed into git.  The Signed-off-by: line needs to be preserved too
-> of course, but it is not sufficient by itself.
+> And I don't see a problem in making the conversion from
+> spinlock->rwsem only if CONFIG_XPMEM=y as I doubt XPMEM works on
+> anything but ia64.
+ 
+That is currently true but we are also working on XPMEM for x86_64.
+The new XPMEM code should be posted within a few weeks.
 
-Ok so I see the problem Linus is referring to now (I received the hint
-by PM too), I thought the order of the signed-off-by was relevant, it
-clearly isn't or we're wasting space ;)
+--- jack
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
