@@ -1,111 +1,74 @@
-Received: from zps19.corp.google.com (zps19.corp.google.com [172.25.146.19])
-	by smtp-out.google.com with ESMTP id m48LjMZw007376
-	for <linux-mm@kvack.org>; Thu, 8 May 2008 22:45:22 +0100
-Received: from an-out-0708.google.com (anac24.prod.google.com [10.100.54.24])
-	by zps19.corp.google.com with ESMTP id m48LjFl0016181
-	for <linux-mm@kvack.org>; Thu, 8 May 2008 14:45:19 -0700
-Received: by an-out-0708.google.com with SMTP id c24so242632ana.57
-        for <linux-mm@kvack.org>; Thu, 08 May 2008 14:45:14 -0700 (PDT)
-Message-ID: <6599ad830805081445w5991b47cld2861aab26ac6323@mail.gmail.com>
-Date: Thu, 8 May 2008 14:45:13 -0700
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [-mm][PATCH 3/4] Add rlimit controller accounting and control
-In-Reply-To: <48230FBB.20105@linux.vnet.ibm.com>
+Date: Fri, 9 May 2008 00:01:06 +0200
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
+Message-ID: <20080508220106.GF2964@duo.random>
+References: <20080507233953.GM8276@duo.random> <alpine.LFD.1.10.0805071757520.3024@woody.linux-foundation.org> <Pine.LNX.4.64.0805071809170.14935@schroedinger.engr.sgi.com> <20080508025652.GW8276@duo.random> <Pine.LNX.4.64.0805072009230.15543@schroedinger.engr.sgi.com> <20080508034133.GY8276@duo.random> <alpine.LFD.1.10.0805072109430.3024@woody.linux-foundation.org> <20080508052019.GA8276@duo.random> <alpine.LFD.1.10.0805080759430.3024@woody.linux-foundation.org> <alpine.LFD.1.10.0805080907420.3024@woody.linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <20080503213726.3140.68845.sendpatchset@localhost.localdomain>
-	 <20080503213814.3140.66080.sendpatchset@localhost.localdomain>
-	 <6599ad830805062029m37b507dcue737e1affddeb120@mail.gmail.com>
-	 <48230FBB.20105@linux.vnet.ibm.com>
+In-Reply-To: <alpine.LFD.1.10.0805080907420.3024@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 8, 2008 at 7:35 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->
->  I currently intend to use this controller for controlling memory related
->  rlimits, like address space and mlock'ed memory. How about we use something like
->  "memrlimit"?
+On Thu, May 08, 2008 at 09:11:33AM -0700, Linus Torvalds wrote:
+> Btw, this is an issue only on 32-bit x86, because on 64-bit one we already 
+> have the padding due to the alignment of the 64-bit pointers in the 
+> list_head (so there's already empty space there).
+> 
+> On 32-bit, the alignment of list-head is obviously just 32 bits, so right 
+> now the structure is "perfectly packed" and doesn't have any empty space. 
+> But that's just because the spinlock is unnecessarily big.
+> 
+> (Of course, if anybody really uses NR_CPUS >= 256 on 32-bit x86, then the 
+> structure really will grow. That's a very odd configuration, though, and 
+> not one I feel we really need to care about).
 
-Sounds reasonable.
+I see two ways to implement it:
 
->
->  Good suggestion, but it will be hard if not impossible to account the data
->  correctly as it changes, if we do the accounting/summation at bind time. We'll
->  need a really big lock to do it, something I want to avoid. Did you have
->  something else in mind?
+1) use #ifdef and make it zero overhead for 64bit only without playing
+any non obvious trick.
 
-Yes, it'll be tricky but I think worthwhile. I believe it can be done
-without the charge/uncharge code needing to take a global lock, except
-for when we're actually binding/unbinding, with careful use of RCU.
+struct anon_vma {
+       spinlock_t lock;
+#ifdef CONFIG_MMU_NOTIFIER
+       int global_mm_lock:1;
+#endif
 
-My first thought for how to do this was that we have a field
-"bind_transition" that indicates whether we're transitioning between
-bound and unbound, and a bind_mutex. By default the charge/unpath uses
-RCU, but by marking that we're in a transition state, the charge path
-will use the mutex instead. By waiting for all existing chargers that
-are using RCU to exit, we can then take the lock and synchronize with
-the chargers.
+struct address_space {
+       spinlock_t	private_lock;
+#ifdef CONFIG_MMU_NOTIFIER
+       int global_mm_lock:1;
+#endif
 
-So the charge/uncharge path would do:
+2) add a:
 
-  rcu_read_lock();
-  if (ss->tranistioning) {
-    rcu_read_unlock();
-    locked = 1;
-    mutex_lock(&ss->bind_mutex);
-  }
-  if (ss->active) {
-    /* do charge/uncharge stuff, which must not block */
-  }
-  if (locked) {
-    mutex_unlock(&ss->bind_mutex);
-  } else {
-    rcu_read_unlock();
-  }
+#define AS_GLOBAL_MM_LOCK   (__GFP_BITS_SHIFT + 2)	/* global_mm_locked */
 
-and the bind path would do something like:
+and use address_space->flags with bitops
 
-ss->transitioning = 1;
-synchronize_rcu();
-mutex_lock(&ss->bind_mutex);
-for_each_mm(mm) {
-  down_read(&mm->mmap_sem);
-  add_charge_for_mm();
-  up_read(&mm->mmap_sem);
-}
-mutex_unlock(&ss->bind_mutex);
-ss->transitioning = 0;
+And as Andrew pointed me out by PM, for the anon_vma we can use the
+LSB of the list.next/prev because the list can't be browsed when the
+lock is taken, so taking the lock and then setting the bit and
+clearing the bit before unlocking is safe. The LSB will always read 0
+even if it's under list_add modification when the global spinlock isn't
+taken. And after taking the anon_vma lock we can switch it the LSB
+from 0 to 1 without races and the 1 will be protected by the
+global spinlock.
 
-But this would break because we're nesting mmap_sem inside bind_mutex
-in the bind path, but in the charge path we're nesting bind_mutex
-inside mmap_sem. So we'd probably need to define a new bit
-MMF_RLIMIT_ACCOUNTED in mm->flags to indicate whether that mm's
-address space usage is accounted for. Once we've done that, we can use
-mmap_sem to synchronize changes to the per-mm charged status for free,
-since we already hold mmap_sem whenever we're doing the charging,
-right? So it becomes simple:
+The above solution is zero cost for 32bit too, so I prefer it.
 
-charge path:
+So I now agree with you this is a great idea on how to remove sort()
+and vmalloc and especially vfree without increasing the VM footprint.
 
-if (!test_bit(MMF_RLIMIT_ACCOUNTED, &mm->flags))
-  return 0;
-/* do charge/uncharge stuff */
+I'll send an update with this for review very shortly and I hope this
+goes in so KVM will be able to swap and do many other things very well
+starting in 2.6.26.
 
-bind path:
-
-while((mm = find_unaccounted_mm()) {
-  down_write(&mm->mmap_sem);
-  add_charge_for_mm();
-  set_bit(MMF_RLIMIT_ACCOUNTED, &mm->flags);
-  up_write(&mm->mmap_sem);
-}
-
-Paul
+Thanks a lot,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
