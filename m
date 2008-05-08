@@ -1,42 +1,40 @@
-Date: Wed, 7 May 2008 18:32:11 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 8 May 2008 03:34:59 +0200
+From: Andrea Arcangeli <andrea@qumranet.com>
 Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
-In-Reply-To: <Pine.LNX.4.64.0805071809170.14935@schroedinger.engr.sgi.com>
-Message-ID: <alpine.LFD.1.10.0805071828110.3024@woody.linux-foundation.org>
-References: <6b384bb988786aa78ef0.1210170958@duo.random> <alpine.LFD.1.10.0805071349200.3024@woody.linux-foundation.org> <20080507212650.GA8276@duo.random> <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org> <20080507222205.GC8276@duo.random>
- <20080507153103.237ea5b6.akpm@linux-foundation.org> <20080507224406.GI8276@duo.random> <20080507155914.d7790069.akpm@linux-foundation.org> <20080507233953.GM8276@duo.random> <alpine.LFD.1.10.0805071757520.3024@woody.linux-foundation.org>
- <Pine.LNX.4.64.0805071809170.14935@schroedinger.engr.sgi.com>
+Message-ID: <20080508013459.GS8276@duo.random>
+References: <6b384bb988786aa78ef0.1210170958@duo.random> <alpine.LFD.1.10.0805071349200.3024@woody.linux-foundation.org> <20080507212650.GA8276@duo.random> <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org> <20080507222205.GC8276@duo.random> <20080507153103.237ea5b6.akpm@linux-foundation.org> <20080507224406.GI8276@duo.random> <1210202918.1421.20.camel@pasglop> <20080507234521.GN8276@duo.random>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080507234521.GN8276@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, clameter@sgi.com, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
+Sorry for not having completely answered to this. I initially thought
+stop_machine could work when you mentioned it, but I don't think it
+can even removing xpmem block-inside-mmu-notifier-method requirements.
 
-On Wed, 7 May 2008, Christoph Lameter wrote:
-> On Wed, 7 May 2008, Linus Torvalds wrote:
-> > and you're now done. You have your "mm_lock()" (which still needs to be 
-> > renamed - it should be a "mmu_notifier_lock()" or something like that), 
-> > but you don't need the insane sorting. At most you apparently need a way 
-> > to recognize duplicates (so that you don't deadlock on yourself), which 
-> > looks like a simple bit-per-vma.
-> 
-> Andrea's mm_lock could have wider impact. It is the first effective 
-> way that I have seen of temporarily holding off reclaim from an address 
-> space. It sure is a brute force approach.
+For stop_machine to solve this (besides being slower and potentially
+not more safe as running stop_machine in a loop isn't nice), we'd need
+to prevent preemption in between invalidate_range_start/end.
 
-Well, I don't think the naming necessarily has to be about notifiers, but 
-it should be at least a *bit* more scary than "mm_lock()", to make it 
-clear that it's pretty dang expensive. 
+I think there are two ways:
 
-Even without the vmalloc and sorting, if it would be used by "normal" 
-things it would still be very expensive for some cases - running thngs 
-like ElectricFence, for example, will easily generate thousands and 
-thousands of vma's in a process. 
+1) add global lock around mm_lock to remove the sorting
 
-		Linus
+2) remove invalidate_range_start/end, nuke mm_lock as consequence of
+   it, and replace all three with invalidate_pages issued inside the
+   PT lock, one invalidation for each 512 pte_t modified, so
+   serialization against get_user_pages becomes trivial but this will
+   be not ok at all for SGI as it increases a lot their invalidation
+   frequency
+
+For KVM both ways are almost the same.
+
+I'll implement 1 now then we'll see...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
