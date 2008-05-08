@@ -1,37 +1,30 @@
-Date: Wed, 7 May 2008 17:03:30 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
-In-Reply-To: <Pine.LNX.4.64.0805071637360.14337@schroedinger.engr.sgi.com>
-Message-ID: <alpine.LFD.1.10.0805071655100.3024@woody.linux-foundation.org>
-References: <6b384bb988786aa78ef0.1210170958@duo.random> <alpine.LFD.1.10.0805071349200.3024@woody.linux-foundation.org> <20080507212650.GA8276@duo.random> <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org> <20080507222205.GC8276@duo.random>
- <20080507153103.237ea5b6.akpm@linux-foundation.org> <20080507224406.GI8276@duo.random> <20080507155914.d7790069.akpm@linux-foundation.org> <alpine.LFD.1.10.0805071610490.3024@woody.linux-foundation.org>
- <Pine.LNX.4.64.0805071637360.14337@schroedinger.engr.sgi.com>
+Date: Thu, 08 May 2008 09:08:00 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] mm/page_alloc.c: fix a typo
+In-Reply-To: <Pine.LNX.4.64.0805061050110.23336@schroedinger.engr.sgi.com>
+References: <482029E7.6070308@cn.fujitsu.com> <Pine.LNX.4.64.0805061050110.23336@schroedinger.engr.sgi.com>
+Message-Id: <20080508090647.4A7B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@qumranet.com>, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
+Cc: kosaki.motohiro@jp.fujitsu.com, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-
-On Wed, 7 May 2008, Christoph Lameter wrote:
+> > Sorry for the noise, but the signed-off was eaten. :(
+> > Maybe I should leave a blank line before the signed-off.
 > 
-> Multiple vmas may share the same mapping or refer to the same anonymous 
-> vma. The above code will deadlock since we may take some locks multiple 
-> times.
+> I think the | there was some developers attempt to avoid gcc generating 
+> too many branches. I am fine either way.
 
-Ok, so that actually _is_ a problem. It would be easy enough to also add 
-just a flag to the vma (VM_MULTILOCKED), which is still cleaner than doing 
-a vmalloc and a whole sort thing, but if this is really rare, maybe Ben's 
-suggestion of just using stop-machine is actually the right one just 
-because it's _so_ simple.
+Agreed.
+but it is not normal conding style.
+comment adding is better, IMHO.
 
-(That said, we're not running out of vm flags yet, and if we were, we 
-could just add another word. We're already wasting that space right now on 
-64-bit by calling it "unsigned long").
+at first, I think typo too.
 
-		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
