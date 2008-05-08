@@ -1,43 +1,35 @@
-Date: Thu, 8 May 2008 09:11:33 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
-In-Reply-To: <alpine.LFD.1.10.0805080759430.3024@woody.linux-foundation.org>
-Message-ID: <alpine.LFD.1.10.0805080907420.3024@woody.linux-foundation.org>
-References: <20080507153103.237ea5b6.akpm@linux-foundation.org> <20080507224406.GI8276@duo.random> <20080507155914.d7790069.akpm@linux-foundation.org> <20080507233953.GM8276@duo.random> <alpine.LFD.1.10.0805071757520.3024@woody.linux-foundation.org>
- <Pine.LNX.4.64.0805071809170.14935@schroedinger.engr.sgi.com> <20080508025652.GW8276@duo.random> <Pine.LNX.4.64.0805072009230.15543@schroedinger.engr.sgi.com> <20080508034133.GY8276@duo.random> <alpine.LFD.1.10.0805072109430.3024@woody.linux-foundation.org>
- <20080508052019.GA8276@duo.random> <alpine.LFD.1.10.0805080759430.3024@woody.linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 8 May 2008 18:19:25 +0200
+From: Hans Rosenfeld <hans.rosenfeld@amd.com>
+Subject: Re: [PATCH] x86: fix PAE pmd_bad bootup warning
+Message-ID: <20080508161925.GH12654@escobedo.amd.com>
+References: <20080506124946.GA2146@elte.hu> <Pine.LNX.4.64.0805061435510.32567@blonde.site> <alpine.LFD.1.10.0805061138580.32269@woody.linux-foundation.org> <Pine.LNX.4.64.0805062043580.11647@blonde.site> <20080506202201.GB12654@escobedo.amd.com> <1210106579.4747.51.camel@nimitz.home.sr71.net> <20080508143453.GE12654@escobedo.amd.com> <1210258350.7905.45.camel@nimitz.home.sr71.net> <20080508151145.GG12654@escobedo.amd.com> <1210261882.7905.49.camel@nimitz.home.sr71.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1210261882.7905.49.camel@nimitz.home.sr71.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Ingo Molnar <mingo@elte.hu>, Jeff Chua <jeff.chua.linux@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Gabriel C <nix.or.die@googlemail.com>, Arjan van de Ven <arjan@linux.intel.com>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, May 08, 2008 at 08:51:22AM -0700, Dave Hansen wrote:
+> Is there anything in your dmesg?
 
-On Thu, 8 May 2008, Linus Torvalds wrote:
-> 
-> Also, we'd need to make it 
-> 
-> 	unsigned short flag:1;
-> 
-> _and_ change spinlock_types.h to make the spinlock size actually match the 
-> required size (right now we make it an "unsigned int slock" even when we 
-> actually only use 16 bits).
+mm/memory.c:127: bad pmd ffff810076801040(80000000720000e7).
 
-Btw, this is an issue only on 32-bit x86, because on 64-bit one we already 
-have the padding due to the alignment of the 64-bit pointers in the 
-list_head (so there's already empty space there).
+> There was a discussion on LKML in the last couple of days about
+> pmd_bad() triggering on huge pages.  Perhaps we're clearing the mapping
+> with the pmd_none_or_clear_bad(), and *THAT* is leaking the page.
 
-On 32-bit, the alignment of list-head is obviously just 32 bits, so right 
-now the structure is "perfectly packed" and doesn't have any empty space. 
-But that's just because the spinlock is unnecessarily big.
+That makes sense. I remember that explicitly munmapping the huge page
+would still work, but it doesn't. I don't quite remember what I did back
+then to test this, but I probably made some mistake there that led me to
+some false conclusions.
 
-(Of course, if anybody really uses NR_CPUS >= 256 on 32-bit x86, then the 
-structure really will grow. That's a very odd configuration, though, and 
-not one I feel we really need to care about).
 
-			Linus
+-- 
+%SYSTEM-F-ANARCHISM, The operating system has been overthrown
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
