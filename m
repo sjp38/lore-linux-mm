@@ -1,62 +1,75 @@
-Subject: [patch] mm: fix infinite loop in filemap_fault
-Message-Id: <E1JuBeb-0008Hr-0q@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Thu, 08 May 2008 21:19:45 +0200
+Subject: Re: [PATCH] x86: fix PAE pmd_bad bootup warning
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <Pine.LNX.4.64.0805081914210.16611@blonde.site>
+References: <Pine.LNX.4.64.0805062043580.11647@blonde.site>
+	 <20080506202201.GB12654@escobedo.amd.com>
+	 <1210106579.4747.51.camel@nimitz.home.sr71.net>
+	 <20080508143453.GE12654@escobedo.amd.com>
+	 <1210258350.7905.45.camel@nimitz.home.sr71.net>
+	 <20080508151145.GG12654@escobedo.amd.com>
+	 <1210261882.7905.49.camel@nimitz.home.sr71.net>
+	 <20080508161925.GH12654@escobedo.amd.com>
+	 <20080508163352.GN23990@us.ibm.com>
+	 <20080508165111.GI12654@escobedo.amd.com>
+	 <20080508171657.GO23990@us.ibm.com>
+	 <Pine.LNX.4.64.0805081914210.16611@blonde.site>
+Content-Type: text/plain
+Date: Thu, 08 May 2008 14:49:13 -0500
+Message-Id: <1210276153.7018.90.camel@calx>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org, torvalds@linux-foundation.org
-Cc: npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, Hans Rosenfeld <hans.rosenfeld@amd.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Jeff Chua <jeff.chua.linux@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Gabriel C <nix.or.die@googlemail.com>, Arjan van de Ven <arjan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I think this is a pretty obvious fix.  The only thing I don't
-understand, is how did this manage to go unnoticed for almost a year.
-Are persistent read errors *that* rare?
+On Thu, 2008-05-08 at 19:48 +0100, Hugh Dickins wrote:
+> On Thu, 8 May 2008, Nishanth Aravamudan wrote:
+> > 
+> > So, is there any way to either add a is_vm_hugetlb_page(vma) check into
+> > pagemap_read()? Or can we modify walk_page_range to take the a vma and
+> > skip the walking if is_vm_hugetlb_page(vma) is set [to avoid
+> > complications down the road until hugepage walking is fixed]. I guess
+> > the latter isn't possible for pagemap_read(), since we are just looking
+> > at arbitrary addresses in the process space?
+> > 
+> > Dunno, seems quite clear that the bug is in pagemap_read(), not any
+> > hugepage code, and that the simplest fix is to make pagemap_read() do
+> > what the other walker-callers do, and skip hugepage regions.
+> 
+> Yes, I'm afraid it needs an is_vm_hugetlb_page(vma) in there somehow:
+> as you observe, that's what everything else uses to avoid huge issues.
+>
+> A pmd_huge(*pmd) test is tempting, but it only ever says "yes" on x86:
+> we've carefully left it undefined what happens to the pgd/pud/pmd/pte
+> hierarchy in the general arch case, once you're amongst hugepages.
+> 
+> Might follow_huge_addr() be helpful, to avoid the need for a vma?
+> Perhaps, but my reading is that actually we've never really been
+> testing that path's success case (because get_user_pages already
+> skipped is_vm_hugetlb_page), so it might hold further surprises
+> on one architecture or another.
+> 
+> Many thanks to Hans for persisting, and pointing us to pagemap
+> to explain this hugepage leak: yes, the pmd_none_or_clear_bad
+> will be losing it - and corrupting target user address space.
 
+Ouch.
 
-----
-From: Miklos Szeredi <mszeredi@suse.cz>
+> Cc'ed Matt: he may have a view on what he wants his pagewalker
+> to do with hugepages: I fear it would differ from one usage to
+> another.  Skip over them has to be safest, though not ideal.
 
-filemap_fault will go into an infinite loop if ->readpage() fails
-asynchronously.
+There are folks who want to be able to get information about hugepages
+from pagemap. Thanks to Hans, there's room in the output format for it.
 
-AFAICS the bug was introduced by this commit, which removed the wait
-after the final readpage:
+I'd gone to some lengths to pull VMAs out of the picture as it's quite
+ugly to have to simultaneously walk VMAs and pagetables. But I may have
+to concede that living with hugepages requires it.
 
-   commit d00806b183152af6d24f46f0c33f14162ca1262a
-   Author: Nick Piggin <npiggin@suse.de>
-   Date:   Thu Jul 19 01:46:57 2007 -0700
-
-       mm: fix fault vs invalidate race for linear mappings
-
-Fix by reintroducing the wait_on_page_locked() after ->readpage() to
-make sure the page is up-to-date before jumping back to the beginning
-of the function.
-
-I've noticed this while testing nfs exporting on fuse.  The patch
-fixes it.
-
-Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
-CC: Nick Piggin <npiggin@suse.de>
----
- mm/filemap.c |    5 +++++
- 1 file changed, 5 insertions(+)
-
-Index: linux.git/mm/filemap.c
-===================================================================
---- linux.git.orig/mm/filemap.c	2008-05-08 08:17:22.000000000 +0200
-+++ linux.git/mm/filemap.c	2008-05-08 11:55:42.000000000 +0200
-@@ -1461,6 +1461,11 @@ page_not_uptodate:
- 	 */
- 	ClearPageError(page);
- 	error = mapping->a_ops->readpage(file, page);
-+	if (!error) {
-+		wait_on_page_locked(page);
-+		if (!PageUptodate(page))
-+			error = -EIO;
-+	}
- 	page_cache_release(page);
- 
- 	if (!error || error == AOP_TRUNCATED_PAGE)
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
