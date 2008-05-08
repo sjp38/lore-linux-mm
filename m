@@ -1,75 +1,108 @@
-Date: Thu, 8 May 2008 07:56:45 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/3] Guarantee faults for processes that call mmap(MAP_PRIVATE) on hugetlbfs v2
-Message-ID: <20080508065644.GA25077@csn.ul.ie>
-References: <20080507193826.5765.49292.sendpatchset@skynet.skynet.ie> <20080508014822.GE5156@yookeroo.seuss>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20080508014822.GE5156@yookeroo.seuss>
+Date: Thu, 8 May 2008 18:56:26 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] more ZERO_PAGE handling in follow_page() v2
+Message-Id: <20080508185626.e14603d2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080508094057.48df4ce0.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080507163643.d4da0ed0.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080507142539.758d30f6.akpm@linux-foundation.org>
+	<20080508094057.48df4ce0.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Gibson <dwg@au1.ibm.com>, linux-mm@kvack.org, dean@arctic.org, apw@shadowen.org, linux-kernel@vger.kernel.org, wli@holomorphy.com, andi@firstfloor.org, kenchen@google.com, agl@us.ibm.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au, tonyb@cybernetics.com, mika.penttila@kolumbus.fi
 List-ID: <linux-mm.kvack.org>
 
-On (08/05/08 11:48), David Gibson didst pronounce:
-> On Wed, May 07, 2008 at 08:38:26PM +0100, Mel Gorman wrote:
-> > MAP_SHARED mappings on hugetlbfs reserve huge pages at mmap() time.
-> > This guarantees all future faults against the mapping will succeed.
-> > This allows local allocations at first use improving NUMA locality whilst
-> > retaining reliability.
-> > 
-> > MAP_PRIVATE mappings do not reserve pages. This can result in an application
-> > being SIGKILLed later if a huge page is not available at fault time. This
-> > makes huge pages usage very ill-advised in some cases as the unexpected
-> > application failure cannot be detected and handled as it is immediately fatal.
-> > Although an application may force instantiation of the pages using mlock(),
-> > this may lead to poor memory placement and the process may still be killed
-> > when performing COW.
-> > 
-> > This patchset introduces a reliability guarantee for the process which creates
-> > a private mapping, i.e. the process that calls mmap() on a hugetlbfs file
-> > successfully.  The first patch of the set is purely mechanical code move to
-> > make later diffs easier to read. The second patch will guarantee faults up
-> > until the process calls fork(). After patch two, as long as the child keeps
-> > the mappings, the parent is no longer guaranteed to be reliable. Patch
-> > 3 guarantees that the parent will always successfully COW by unmapping
-> > the pages from the child in the event there are insufficient pages in the
-> > hugepage pool in allocate a new page, be it via a static or dynamic pool.
-> 
-> I don't think patch 3 is a good idea.  It's a fair bit of code to
-> implement a pretty bizarre semantic that I really don't think is all
-> that useful.  Patches 1-2 are already sufficient to cover the
-> fork()/exec() case and a fair proportion of fork()/minor
-> frobbing/exit() cases. 
+updated against 2.6.26-rc1-git6.
+Tested on a x86-64 server. No troubles in generated coredump file.
+It seems to work well.
 
-True. It would also cover a parent that called MADV_DONTFORK before
-fork()ing as the child would not hold references to the page. Patch 1-2
-improves the current situation quite a bit.
+Thanks,
+-Kame
+==
+follow_page() is called from get_user_pages(), which returns specified user page
+in the kernel context. follow_page() can return 1) a page or 2) NULL or
+3)ZERO_PAGE.
 
-> If the child also needs to write the hugepage
-> area, chances are it's doing real work and we care about its
-> reliability too.
-> 
+Now, follow_page() to unused pte returns NULL if page table exists. As a result
+get_user_pages() calls handle_mm_fault() and allocate new memory.
+This behavior increases memory consumption at coredump, which does
+read-once-but-never-written page fault.
+By returning ZERO_PAGE() against READ/ANON request, we can avoid it.
 
-The thing is that patch 3 does not prevent the child writing to the mapping as
-it only unmaps the pages when the alternative is to kill the parent (i.e. the
-original mapper). It enforces that the pool must be large enough if a child is
-to do that without failure. I'm guessing that children writing hugepage-backed
-mapping is a case very rarely seen in practice but that a parent writing
-its mappings before a child exits is relatively common. Without patch 3,
-a too-long-lived child can accidently kill its parent simply because the
-parent takes the COW. In the unlikely event a child dies because the pool
-was too small for COW, a message is printed to kern.log with patch 3.
+(Because exec's arguments copy needs to call handle_mm_fault at WRITE/ANON
+ request, we just handle READ/ANON case here.)
 
-The unmapping semantic is unusual but it only comes into play when the pool
-was too small. I'm biased, but I don't think it is a terrible idea and
-closes off an important hole left after patches 1-2.
+Change log:
+  - Rebased agasinst 2.6.26-rc1-git6
+  - Rewrote patch description and Added comments.
+  - fixed to check pte_present()/pte_none() in proper way.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+---
+ mm/memory.c |   18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)
+
+Index: linux-2.6.26-rc1/mm/memory.c
+===================================================================
+--- linux-2.6.26-rc1.orig/mm/memory.c
++++ linux-2.6.26-rc1/mm/memory.c
+@@ -962,15 +962,15 @@ struct page *follow_page(struct vm_area_
+ 	page = NULL;
+ 	pgd = pgd_offset(mm, address);
+ 	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
+-		goto no_page_table;
++		goto null_or_zeropage;
+ 
+ 	pud = pud_offset(pgd, address);
+ 	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
+-		goto no_page_table;
++		goto null_or_zeropage;
+ 	
+ 	pmd = pmd_offset(pud, address);
+ 	if (pmd_none(*pmd))
+-		goto no_page_table;
++		goto null_or_zeropage;
+ 
+ 	if (pmd_huge(*pmd)) {
+ 		BUG_ON(flags & FOLL_GET);
+@@ -979,15 +979,21 @@ struct page *follow_page(struct vm_area_
+ 	}
+ 
+ 	if (unlikely(pmd_bad(*pmd)))
+-		goto no_page_table;
++		goto null_or_zeropage;
+ 
+ 	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
+ 	if (!ptep)
+ 		goto out;
+ 
+ 	pte = *ptep;
+-	if (!pte_present(pte))
++	if (!pte_present(pte)) {
++		/* Read fault to empty pte can return ZERO_PAGE */
++		if (!(flags & FOLL_WRITE) && pte_none(pte)) {
++			pte_unmap_unlock(ptep, ptl);
++			goto null_or_zeropage;
++		}
+ 		goto unlock;
++	}
+ 	if ((flags & FOLL_WRITE) && !pte_write(pte))
+ 		goto unlock;
+ 	page = vm_normal_page(vma, address, pte);
+@@ -1007,7 +1013,7 @@ unlock:
+ out:
+ 	return page;
+ 
+-no_page_table:
++null_or_zeropage:
+ 	/*
+ 	 * When core dumping an enormous anonymous area that nobody
+ 	 * has touched so far, we don't want to allocate page tables.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
