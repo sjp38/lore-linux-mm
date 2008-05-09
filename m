@@ -1,64 +1,46 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate3.de.ibm.com (8.13.8/8.13.8) with ESMTP id m496jDvw228148
-	for <linux-mm@kvack.org>; Fri, 9 May 2008 06:45:13 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m496jDEY2125898
-	for <linux-mm@kvack.org>; Fri, 9 May 2008 08:45:13 +0200
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m496jCbQ018597
-	for <linux-mm@kvack.org>; Fri, 9 May 2008 08:45:12 +0200
-Date: Fri, 9 May 2008 08:45:12 +0200
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: [PATCH] memory_hotplug: always initialize pageblock bitmap.
-Message-ID: <20080509064512.GD9840@osiris.boeblingen.de.ibm.com>
-References: <20080509060609.GB9840@osiris.boeblingen.de.ibm.com> <20080509153910.6b074a30.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Fri, 9 May 2008 18:03:06 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: Re: [PATCH] x86: fix PAE pmd_bad bootup warning
+Message-ID: <20080509090306.GA4221@linux-sh.org>
+References: <1210106579.4747.51.camel@nimitz.home.sr71.net> <20080508143453.GE12654@escobedo.amd.com> <1210258350.7905.45.camel@nimitz.home.sr71.net> <20080508151145.GG12654@escobedo.amd.com> <1210261882.7905.49.camel@nimitz.home.sr71.net> <20080508200239.GJ12654@escobedo.amd.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080509153910.6b074a30.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080508200239.GJ12654@escobedo.amd.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Whitcroft <apw@shadowen.org>, Dave Hansen <haveblue@us.ibm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hans Rosenfeld <hans.rosenfeld@amd.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Jeff Chua <jeff.chua.linux@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Gabriel C <nix.or.die@googlemail.com>, Arjan van de Ven <arjan@linux.intel.com>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 09, 2008 at 03:39:10PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Fri, 9 May 2008 08:06:09 +0200
-> Heiko Carstens <heiko.carstens@de.ibm.com> wrote:
-> 
-> > From: Heiko Carstens <heiko.carstens@de.ibm.com>
+On Thu, May 08, 2008 at 10:02:39PM +0200, Hans Rosenfeld wrote:
+> On Thu, May 08, 2008 at 07:48:51PM +0100, Hugh Dickins wrote:
+> > > Dunno, seems quite clear that the bug is in pagemap_read(), not any
+> > > hugepage code, and that the simplest fix is to make pagemap_read() do
+> > > what the other walker-callers do, and skip hugepage regions.
 > > 
-> > Trying to online a new memory section that was added via memory hotplug
-> > sometimes results in crashes when the new pages are added via
-> > __free_page. Reason for that is that the pageblock bitmap isn't
-> > initialized and hence contains random stuff.
+> > Yes, I'm afraid it needs an is_vm_hugetlb_page(vma) in there somehow:
+> > as you observe, that's what everything else uses to avoid huge issues.
+> > 
+> > A pmd_huge(*pmd) test is tempting, but it only ever says "yes" on x86:
+> > we've carefully left it undefined what happens to the pgd/pud/pmd/pte
+> > hierarchy in the general arch case, once you're amongst hugepages.
 > 
-> Hmm, curious. In my understanding, memmap_init_zone() initializes it.
+> AFAIK the reason for this is that pmd_huge() and pud_huge() are
+> completely x86-specific. When I looked at the huge page support for
+> other archs in Linux the last time, all of them marked hugepages with
+> some page size bits in the PTE, using several PTEs for a single huge
+> page. So for anything but x86, the pgd/pud/pmd/pte hierarchy should work
+> for hugepages, too.
 > 
->  __add_pages()
-> 	-> __add_section()
-> 		-> sparse-add_one_section() // allocate usemap
-> 		-> __add_zone()
-> 			-> memmap_init_zone() // reset pageblock's bitmap 
-> 
-> Can't memmap_init_zone() does proper initialization ?
+s390 also does hugepages at the pmd level, so it's not only x86. And
+while it's not an issue today, it's worth noting that ARM also has the
+same characteristics for larger sizes. Should someone feel compelled to
+implement hugepages there, this will almost certainly come up again -- at
+least in so far as pmd_huge() is concerned.
 
-Well, it just _sets_ some bits. But nobody has initialized the bitmap
-before to zero. It doesn't reset the pageblock's bitmap as your
-comment would indicate.
-
-> ........................
-> Ah, ok. I see. grow_zone_span() is not called at __add_zone(), then,
-> memmap_init_zone() doesn't initialize usemap because memmap is not in zone's
-> range.
-> 
-> Recently, I added a check "zone's start_pfn < pfn < zone's end"
-> to memmap_init_zone()'s usemap initialization for !SPARSEMEM case bug FIX.
-> (and I think the fix itself is sane.)
-> 
-> How about calling grow_pgdat_span()/grow_zone_span() from __add_zone() ?
-
-Dunno.. just fixed a few bugs to get it working.. somehow.. ;)
+At a quick glance, sparc64 also looks like it might need some special
+handling in the pagemap case, too..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
