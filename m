@@ -1,53 +1,64 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m495w4pf004521
-	for <linux-mm@kvack.org>; Fri, 9 May 2008 15:58:04 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4962tHo235578
-	for <linux-mm@kvack.org>; Fri, 9 May 2008 16:02:55 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m495wp5E018773
-	for <linux-mm@kvack.org>; Fri, 9 May 2008 15:58:52 +1000
-Message-ID: <4823E819.1000607@linux.vnet.ibm.com>
-Date: Fri, 09 May 2008 11:28:49 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate7.uk.ibm.com (8.13.8/8.13.8) with ESMTP id m4964RrU511014
+	for <linux-mm@kvack.org>; Fri, 9 May 2008 06:04:27 GMT
+Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4964QZa2633916
+	for <linux-mm@kvack.org>; Fri, 9 May 2008 07:04:27 +0100
+Received: from d06av01.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av01.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4964QmZ014610
+	for <linux-mm@kvack.org>; Fri, 9 May 2008 07:04:26 +0100
+Date: Fri, 9 May 2008 08:04:25 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: [PATCH] memory hotplug: memmap_init_zone called twice.
+Message-ID: <20080509060425.GA9840@osiris.boeblingen.de.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: make global var to be read_mostly
-References: <20080509145631.408a9a67.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080509145631.408a9a67.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
+Subject: [PATCH] memory hotplug: memmap_init_zone called twice.
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "xemul@openvz.org" <xemul@openvz.org>, lizf@cn.fujitsu.com, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> An easy cut out from memcg: performance improvement patch set.
-> Tested on: x86-64/linux-2.6.26-rc1-git6
-> 
-> Thanks,
-> -Kame
-> 
-> ==
-> mem_cgroup_subsys and page_cgroup_cache should be read_mostly and
-> MEM_CGROUP_RECLAIM_RETRIES can be just a fixed number.
-> 
-> Changelog:
->   * makes MEM_CGROUP_RECLAIM_RETRIES to be a macro
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> 
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+__add_zone calls memmap_init_zone twice if memory gets attached to
+an empty zone. Once via init_currently_empty_zone and once explictly
+right after that call.
+Looks like this is currently not a bug, however the call is
+superfluous and might lead to subtle bugs if memmap_init_zone gets
+changed. So make sure it is called only once.
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Cc: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Dave Hansen <haveblue@us.ibm.com>
+Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+---
+ mm/memory_hotplug.c |   10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)
+
+Index: linux-2.6/mm/memory_hotplug.c
+===================================================================
+--- linux-2.6.orig/mm/memory_hotplug.c
++++ linux-2.6/mm/memory_hotplug.c
+@@ -167,13 +167,9 @@ static int __add_zone(struct zone *zone,
+ 	int zone_type;
+ 
+ 	zone_type = zone - pgdat->node_zones;
+-	if (!zone->wait_table) {
+-		int ret = 0;
+-		ret = init_currently_empty_zone(zone, phys_start_pfn,
+-						nr_pages, MEMMAP_HOTPLUG);
+-		if (ret < 0)
+-			return ret;
+-	}
++	if (!zone->wait_table)
++		return init_currently_empty_zone(zone, phys_start_pfn,
++						 nr_pages, MEMMAP_HOTPLUG);
+ 	memmap_init_zone(nr_pages, nid, zone_type,
+ 			 phys_start_pfn, MEMMAP_HOTPLUG);
+ 	return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
