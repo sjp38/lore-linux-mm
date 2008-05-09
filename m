@@ -1,69 +1,53 @@
-Date: Fri, 9 May 2008 14:59:41 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] memcg: avoid unnecessary initialization
-Message-Id: <20080509145941.f68e8f66.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m495w4pf004521
+	for <linux-mm@kvack.org>; Fri, 9 May 2008 15:58:04 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4962tHo235578
+	for <linux-mm@kvack.org>; Fri, 9 May 2008 16:02:55 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m495wp5E018773
+	for <linux-mm@kvack.org>; Fri, 9 May 2008 15:58:52 +1000
+Message-ID: <4823E819.1000607@linux.vnet.ibm.com>
+Date: Fri, 09 May 2008 11:28:49 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH] memcg: make global var to be read_mostly
+References: <20080509145631.408a9a67.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080509145631.408a9a67.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "xemul@openvz.org" <xemul@openvz.org>, lizf@cn.fujitsu.com, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-An easy cut out from memcg: performance improvement patch set.
-Tested on: x86-64/linux-2.6.26-rc1-git6
+KAMEZAWA Hiroyuki wrote:
+> An easy cut out from memcg: performance improvement patch set.
+> Tested on: x86-64/linux-2.6.26-rc1-git6
+> 
+> Thanks,
+> -Kame
+> 
+> ==
+> mem_cgroup_subsys and page_cgroup_cache should be read_mostly and
+> MEM_CGROUP_RECLAIM_RETRIES can be just a fixed number.
+> 
+> Changelog:
+>   * makes MEM_CGROUP_RECLAIM_RETRIES to be a macro
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> 
 
-Thanks,
--Kame
-==
-* remove over-killing initialization (in fast path)
-* makeing the condition for PAGE_CGROUP_FLAG_ACTIVE be more obvious.
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-Signed-off-by: KAMEAZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
----
- mm/memcontrol.c |   11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
-
-Index: linux-2.6.26-rc1/mm/memcontrol.c
-===================================================================
---- linux-2.6.26-rc1.orig/mm/memcontrol.c
-+++ linux-2.6.26-rc1/mm/memcontrol.c
-@@ -296,7 +296,7 @@ static void __mem_cgroup_remove_list(str
- 		MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_INACTIVE) -= 1;
- 
- 	mem_cgroup_charge_statistics(pc->mem_cgroup, pc->flags, false);
--	list_del_init(&pc->lru);
-+	list_del(&pc->lru);
- }
- 
- static void __mem_cgroup_add_list(struct mem_cgroup_per_zone *mz,
-@@ -559,7 +559,7 @@ retry:
- 	}
- 	unlock_page_cgroup(page);
- 
--	pc = kmem_cache_zalloc(page_cgroup_cache, gfp_mask);
-+	pc = kmem_cache_alloc(page_cgroup_cache, gfp_mask);
- 	if (pc == NULL)
- 		goto err;
- 
-@@ -606,9 +606,14 @@ retry:
- 	pc->ref_cnt = 1;
- 	pc->mem_cgroup = mem;
- 	pc->page = page;
--	pc->flags = PAGE_CGROUP_FLAG_ACTIVE;
-+	/*
-+	 * If a page is accounted as a page cache, insert to inactive list.
-+	 * If anon, insert to active list.
-+	 */
- 	if (ctype == MEM_CGROUP_CHARGE_TYPE_CACHE)
- 		pc->flags = PAGE_CGROUP_FLAG_CACHE;
-+	else
-+		pc->flags = PAGE_CGROUP_FLAG_ACTIVE;
- 
- 	lock_page_cgroup(page);
- 	if (page_get_page_cgroup(page)) {
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
