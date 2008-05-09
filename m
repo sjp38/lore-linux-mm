@@ -1,53 +1,58 @@
-Date: Fri, 9 May 2008 14:30:17 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/3] Guarantee faults for processes that call mmap(MAP_PRIVATE) on hugetlbfs v2
-Message-ID: <20080509133016.GA18317@csn.ul.ie>
-References: <20080507193826.5765.49292.sendpatchset@skynet.skynet.ie> <20080508014822.GE5156@yookeroo.seuss> <20080508111408.GB30870@shadowen.org> <20080509000249.GA8552@yookeroo.seuss>
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp03.in.ibm.com (8.13.1/8.13.1) with ESMTP id m49DZ2qJ031743
+	for <linux-mm@kvack.org>; Fri, 9 May 2008 19:05:02 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m49DYrVC938012
+	for <linux-mm@kvack.org>; Fri, 9 May 2008 19:04:53 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id m49DXW47024484
+	for <linux-mm@kvack.org>; Fri, 9 May 2008 19:03:33 +0530
+Message-ID: <48245308.9010401@linux.vnet.ibm.com>
+Date: Fri, 09 May 2008 19:05:04 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20080509000249.GA8552@yookeroo.seuss>
+Subject: Re: [-mm][PATCH 3/4] Add rlimit controller accounting and control
+References: <20080503213726.3140.68845.sendpatchset@localhost.localdomain> <20080503213814.3140.66080.sendpatchset@localhost.localdomain> <6599ad830805062029m37b507dcue737e1affddeb120@mail.gmail.com> <48230FBB.20105@linux.vnet.ibm.com> <6599ad830805081445w5991b47cld2861aab26ac6323@mail.gmail.com>
+In-Reply-To: <6599ad830805081445w5991b47cld2861aab26ac6323@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Gibson <dwg@au1.ibm.com>, Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, dean@arctic.org, linux-kernel@vger.kernel.org, wli@holomorphy.com, andi@firstfloor.org, kenchen@google.com, agl@us.ibm.com
+To: Paul Menage <menage@google.com>
+Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On (09/05/08 10:02), David Gibson didst pronounce:
-> > > <SNIP>
-> > > 
-> > > I don't think patch 3 is a good idea.  It's a fair bit of code to
-> > > implement a pretty bizarre semantic that I really don't think is all
-> > > that useful.  Patches 1-2 are already sufficient to cover the
-> > > fork()/exec() case and a fair proportion of fork()/minor
-> > > frobbing/exit() cases.  If the child also needs to write the hugepage
-> > > area, chances are it's doing real work and we care about its
-> > > reliability too.
-> > 
-> > Without patch 3 the parent is still vunerable during the period the
-> > child exists.  Even if that child does nothing with the pages not even
-> > referencing them, and then execs immediatly.  As soon as we fork any
-> > reference from the parent will trigger a COW, at which point there may
-> > be no pages available and the parent will have to be killed.  That is
-> > regardless of the fact the child is not going to reference the page and
-> > leave the address space shortly.  With patch 3 on COW if we find no memory
-> > available the page may be stolen for the parent saving it, and the _risk_
-> > of reference death moves to the child; the child is killed only should it
-> > then re-reference the page.
+Paul Menage wrote:
+> On Thu, May 8, 2008 at 7:35 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>>  I currently intend to use this controller for controlling memory related
+>>  rlimits, like address space and mlock'ed memory. How about we use something like
+>>  "memrlimit"?
 > 
-> Yes, thinko, sorry.  Forgot that a COW would be triggered even if the
-> child never wrote the pages.  I see the point of patch 3 now.  Damn,
-> but it's still a weird semantic to be implementing though.
+> Sounds reasonable.
+> 
+>>  Good suggestion, but it will be hard if not impossible to account the data
+>>  correctly as it changes, if we do the accounting/summation at bind time. We'll
+>>  need a really big lock to do it, something I want to avoid. Did you have
+>>  something else in mind?
+> 
+> Yes, it'll be tricky but I think worthwhile. I believe it can be done
+> without the charge/uncharge code needing to take a global lock, except
+> for when we're actually binding/unbinding, with careful use of RCU.
 > 
 
-The current semantics without the patches are already pretty weird. I
-still believe having reliable behaviour for the mapper and moving the
-death-by-reference problem to the children when the pool is too small is an
-improvement over what currently exists.
+[snip]
+
+This is an optimization that I am willing to consider later in the project. At
+first I want to focus on functionality. I would like to optimize once I know
+that the functionality has been well tested by a good base of users and make
+sure that the optimization is real.
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
