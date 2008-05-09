@@ -1,46 +1,65 @@
-Date: Fri, 9 May 2008 18:03:06 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: [PATCH] x86: fix PAE pmd_bad bootup warning
-Message-ID: <20080509090306.GA4221@linux-sh.org>
-References: <1210106579.4747.51.camel@nimitz.home.sr71.net> <20080508143453.GE12654@escobedo.amd.com> <1210258350.7905.45.camel@nimitz.home.sr71.net> <20080508151145.GG12654@escobedo.amd.com> <1210261882.7905.49.camel@nimitz.home.sr71.net> <20080508200239.GJ12654@escobedo.amd.com>
+Date: Fri, 9 May 2008 11:31:46 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: Re: [PATCH] sparsemem vmemmap: initialize memmap.
+Message-ID: <20080509103132.GB10210@shadowen.org>
+References: <20080509063856.GC9840@osiris.boeblingen.de.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080508200239.GJ12654@escobedo.amd.com>
+In-Reply-To: <20080509063856.GC9840@osiris.boeblingen.de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hans Rosenfeld <hans.rosenfeld@amd.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Jeff Chua <jeff.chua.linux@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Gabriel C <nix.or.die@googlemail.com>, Arjan van de Ven <arjan@linux.intel.com>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 08, 2008 at 10:02:39PM +0200, Hans Rosenfeld wrote:
-> On Thu, May 08, 2008 at 07:48:51PM +0100, Hugh Dickins wrote:
-> > > Dunno, seems quite clear that the bug is in pagemap_read(), not any
-> > > hugepage code, and that the simplest fix is to make pagemap_read() do
-> > > what the other walker-callers do, and skip hugepage regions.
-> > 
-> > Yes, I'm afraid it needs an is_vm_hugetlb_page(vma) in there somehow:
-> > as you observe, that's what everything else uses to avoid huge issues.
-> > 
-> > A pmd_huge(*pmd) test is tempting, but it only ever says "yes" on x86:
-> > we've carefully left it undefined what happens to the pgd/pud/pmd/pte
-> > hierarchy in the general arch case, once you're amongst hugepages.
+On Fri, May 09, 2008 at 08:38:56AM +0200, Heiko Carstens wrote:
+> From: Heiko Carstens <heiko.carstens@de.ibm.com>
 > 
-> AFAIK the reason for this is that pmd_huge() and pud_huge() are
-> completely x86-specific. When I looked at the huge page support for
-> other archs in Linux the last time, all of them marked hugepages with
-> some page size bits in the PTE, using several PTEs for a single huge
-> page. So for anything but x86, the pgd/pud/pmd/pte hierarchy should work
-> for hugepages, too.
+> Trying to online a new memory section that was added via memory hotplug
+> results in lots of messages of pages in bad page state.
+> Reason is that the alloacted virtual memmap isn't initialized.
+> This is only an issue for memory sections that get added after boot
+> time since for all other memmaps the bootmem allocator was used which
+> returns only initialized memory.
 > 
-s390 also does hugepages at the pmd level, so it's not only x86. And
-while it's not an issue today, it's worth noting that ARM also has the
-same characteristics for larger sizes. Should someone feel compelled to
-implement hugepages there, this will almost certainly come up again -- at
-least in so far as pmd_huge() is concerned.
+> I noticed this on s390 which has its private vmemmap_populate function
+> without using callbacks to the common code. But as far as I can see the
+> generic code has the same bug, so fix it just once.
+> 
+> Cc: Andy Whitcroft <apw@shadowen.org>
+> Cc: Christoph Lameter <clameter@sgi.com>
+> Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+> Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+> ---
+>  mm/sparse-vmemmap.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> Index: linux-2.6/mm/sparse-vmemmap.c
+> ===================================================================
+> --- linux-2.6.orig/mm/sparse-vmemmap.c
+> +++ linux-2.6/mm/sparse-vmemmap.c
+> @@ -154,6 +154,6 @@ struct page * __meminit sparse_mem_map_p
+>  	int error = vmemmap_populate(map, PAGES_PER_SECTION, nid);
+>  	if (error)
+>  		return NULL;
+> -
+> +	memset(map, 0, PAGES_PER_SECTION * sizeof(struct page));
+>  	return map;
+>  }
 
-At a quick glance, sparc64 also looks like it might need some special
-handling in the pagemap case, too..
+The normal expectation is that all allocations are made using
+vmemmap_alloc_block() which allocates from the appropriate place.  Once
+the buddy is up and available it uses:
+
+	struct page *page = alloc_pages_node(node,
+			GFP_KERNEL | __GFP_ZERO, get_order(size));
+
+to get the memory so it should all be zero'd.  So I would expect all
+existing users to be covered by that?  Can you not simply use __GFP_ZERO
+for your allocations or use vmemmap_alloc_block() ?
+
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
