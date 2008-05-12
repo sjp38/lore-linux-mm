@@ -1,40 +1,58 @@
-Received: by wf-out-1314.google.com with SMTP id 28so2907773wfc.11
-        for <linux-mm@kvack.org>; Mon, 12 May 2008 03:32:15 -0700 (PDT)
+Received: by rv-out-0708.google.com with SMTP id f25so2585802rvb.26
+        for <linux-mm@kvack.org>; Mon, 12 May 2008 03:32:09 -0700 (PDT)
 From: Bryan Wu <cooloney@kernel.org>
-Subject: [PATCH 2/4] [NOMMU]: include the problematic mapping in the munmap warning
-Date: Mon, 12 May 2008 18:32:03 +0800
-Message-Id: <1210588325-11027-3-git-send-email-cooloney@kernel.org>
+Subject: [PATCH 1/4] [mm] buddy page allocator: add tunable big order allocation
+Date: Mon, 12 May 2008 18:32:02 +0800
+Message-Id: <1210588325-11027-2-git-send-email-cooloney@kernel.org>
 In-Reply-To: <1210588325-11027-1-git-send-email-cooloney@kernel.org>
 References: <1210588325-11027-1-git-send-email-cooloney@kernel.org>
 Sender: owner-linux-mm@kvack.org
-From: Mike Frysinger <vapier.adi@gmail.com>
+From: Michael Hennerich <michael.hennerich@analog.com>
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dwmw2@infradead.org
-Cc: Mike Frysinger <vapier.adi@gmail.com>, Bryan Wu <cooloney@kernel.org>
+Cc: Michael Hennerich <michael.hennerich@analog.com>, Bryan Wu <cooloney@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Signed-off-by: Mike Frysinger <vapier.adi@gmail.com>
+Signed-off-by: Michael Hennerich <michael.hennerich@analog.com>
 Signed-off-by: Bryan Wu <cooloney@kernel.org>
 ---
- mm/nommu.c |    5 +++--
- 1 files changed, 3 insertions(+), 2 deletions(-)
+ init/Kconfig    |    9 +++++++++
+ mm/page_alloc.c |    2 +-
+ 2 files changed, 10 insertions(+), 1 deletions(-)
 
-diff --git a/mm/nommu.c b/mm/nommu.c
-index ef8c62c..c11e5cc 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -1117,8 +1117,9 @@ int do_munmap(struct mm_struct *mm, unsigned long addr, size_t len)
- 			goto found;
- 	}
+diff --git a/init/Kconfig b/init/Kconfig
+index 6135d07..b6ff75b 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -742,6 +742,15 @@ config SLUB_DEBUG
+ 	  SLUB sysfs support. /sys/slab will not exist and there will be
+ 	  no support for cache validation etc.
  
--	printk("munmap of non-mmaped memory by process %d (%s): %p\n",
--	       current->pid, current->comm, (void *) addr);
-+	printk(KERN_NOTICE "munmap of non-mmaped memory [%p-%p] by process %d (%s)\n",
-+	       (void *)addr, (void *)addr+len, current->pid, current->comm);
++config BIG_ORDER_ALLOC_NOFAIL_MAGIC
++	int "Big Order Allocation No FAIL Magic"
++	depends on EMBEDDED
++	range 3 10
++	default 3
++	help
++	  Let big-order allocations loop until memory gets free. Specified Value
++	  expresses the order.
 +
- 	return -EINVAL;
- 
-  found:
+ choice
+ 	prompt "Choose SLAB allocator"
+ 	default SLUB
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index bdd5c43..71b09b4 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1631,7 +1631,7 @@ nofail_alloc:
+ 	pages_reclaimed += did_some_progress;
+ 	do_retry = 0;
+ 	if (!(gfp_mask & __GFP_NORETRY)) {
+-		if (order <= PAGE_ALLOC_COSTLY_ORDER) {
++		if (order <= CONFIG_BIG_ORDER_ALLOC_NOFAIL_MAGIC) {
+ 			do_retry = 1;
+ 		} else {
+ 			if (gfp_mask & __GFP_REPEAT &&
 -- 
 1.5.5
 
