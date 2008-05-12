@@ -1,58 +1,48 @@
-Received: by rv-out-0708.google.com with SMTP id f25so2585802rvb.26
-        for <linux-mm@kvack.org>; Mon, 12 May 2008 03:32:09 -0700 (PDT)
+Received: by wf-out-1314.google.com with SMTP id 28so2907773wfc.11
+        for <linux-mm@kvack.org>; Mon, 12 May 2008 03:32:22 -0700 (PDT)
 From: Bryan Wu <cooloney@kernel.org>
-Subject: [PATCH 1/4] [mm] buddy page allocator: add tunable big order allocation
-Date: Mon, 12 May 2008 18:32:02 +0800
-Message-Id: <1210588325-11027-2-git-send-email-cooloney@kernel.org>
+Subject: [PATCH 3/4] [mm/nommu]: use copy_to_user_page to call flush icache for [#811] toolchain old bug
+Date: Mon, 12 May 2008 18:32:04 +0800
+Message-Id: <1210588325-11027-4-git-send-email-cooloney@kernel.org>
 In-Reply-To: <1210588325-11027-1-git-send-email-cooloney@kernel.org>
 References: <1210588325-11027-1-git-send-email-cooloney@kernel.org>
 Sender: owner-linux-mm@kvack.org
-From: Michael Hennerich <michael.hennerich@analog.com>
+From: Jie Zhang <jie.zhang@analog.com>
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dwmw2@infradead.org
-Cc: Michael Hennerich <michael.hennerich@analog.com>, Bryan Wu <cooloney@kernel.org>
+Cc: Jie Zhang <jie.zhang@analog.com>, Bryan Wu <cooloney@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Signed-off-by: Michael Hennerich <michael.hennerich@analog.com>
+access_process_vm in mm/memory.c uses copy_to_user_page and
+copy_from_user_page. So for !MMU we'd better do the same thing.
+Other archs with mmu do the cache flush in copy_to_user_page.
+It gives me hint that copy_to_user_page is designed to flush
+the cache. On other side, no archs do the cache flush ptrace.
+
+Signed-off-by: Jie Zhang <jie.zhang@analog.com>
 Signed-off-by: Bryan Wu <cooloney@kernel.org>
 ---
- init/Kconfig    |    9 +++++++++
- mm/page_alloc.c |    2 +-
- 2 files changed, 10 insertions(+), 1 deletions(-)
+ mm/nommu.c |    6 ++++--
+ 1 files changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/init/Kconfig b/init/Kconfig
-index 6135d07..b6ff75b 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -742,6 +742,15 @@ config SLUB_DEBUG
- 	  SLUB sysfs support. /sys/slab will not exist and there will be
- 	  no support for cache validation etc.
+diff --git a/mm/nommu.c b/mm/nommu.c
+index c11e5cc..56bb447 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -1458,9 +1458,11 @@ int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, in
  
-+config BIG_ORDER_ALLOC_NOFAIL_MAGIC
-+	int "Big Order Allocation No FAIL Magic"
-+	depends on EMBEDDED
-+	range 3 10
-+	default 3
-+	help
-+	  Let big-order allocations loop until memory gets free. Specified Value
-+	  expresses the order.
-+
- choice
- 	prompt "Choose SLAB allocator"
- 	default SLUB
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index bdd5c43..71b09b4 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1631,7 +1631,7 @@ nofail_alloc:
- 	pages_reclaimed += did_some_progress;
- 	do_retry = 0;
- 	if (!(gfp_mask & __GFP_NORETRY)) {
--		if (order <= PAGE_ALLOC_COSTLY_ORDER) {
-+		if (order <= CONFIG_BIG_ORDER_ALLOC_NOFAIL_MAGIC) {
- 			do_retry = 1;
- 		} else {
- 			if (gfp_mask & __GFP_REPEAT &&
+ 		/* only read or write mappings where it is permitted */
+ 		if (write && vma->vm_flags & VM_MAYWRITE)
+-			len -= copy_to_user((void *) addr, buf, len);
++			copy_to_user_page(vma, NULL, NULL,
++					  (void *) addr, buf, len);
+ 		else if (!write && vma->vm_flags & VM_MAYREAD)
+-			len -= copy_from_user(buf, (void *) addr, len);
++			copy_from_user_page(vma, NULL, NULL,
++					    buf, (void *) addr, len);
+ 		else
+ 			len = 0;
+ 	} else {
 -- 
 1.5.5
 
