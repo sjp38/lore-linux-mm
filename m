@@ -1,39 +1,29 @@
-Message-ID: <48280DB0.7030608@openvz.org>
-Date: Mon, 12 May 2008 13:28:16 +0400
+Message-ID: <48280DFD.20409@openvz.org>
+Date: Mon, 12 May 2008 13:29:33 +0400
 From: Pavel Emelyanov <xemul@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: make global var to be read_mostly
-References: <20080509145631.408a9a67.kamezawa.hiroyu@jp.fujitsu.com> <4823E819.1000607@linux.vnet.ibm.com>
-In-Reply-To: <4823E819.1000607@linux.vnet.ibm.com>
+Subject: Re: [PATCH] memcg: avoid unnecessary initialization
+References: <20080509145941.f68e8f66.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080509145941.f68e8f66.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, lizf@cn.fujitsu.com, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> KAMEZAWA Hiroyuki wrote:
->> An easy cut out from memcg: performance improvement patch set.
->> Tested on: x86-64/linux-2.6.26-rc1-git6
->>
->> Thanks,
->> -Kame
->>
->> ==
->> mem_cgroup_subsys and page_cgroup_cache should be read_mostly and
->> MEM_CGROUP_RECLAIM_RETRIES can be just a fixed number.
->>
->> Changelog:
->>   * makes MEM_CGROUP_RECLAIM_RETRIES to be a macro
->>
->> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>
->>
+KAMEZAWA Hiroyuki wrote:
+> An easy cut out from memcg: performance improvement patch set.
+> Tested on: x86-64/linux-2.6.26-rc1-git6
 > 
-> Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> Thanks,
+> -Kame
+> ==
+> * remove over-killing initialization (in fast path)
+> * makeing the condition for PAGE_CGROUP_FLAG_ACTIVE be more obvious.
 > 
+> Signed-off-by: KAMEAZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 Acked-by: Pavel Emelyanov <xemul@openvz.org>
 
