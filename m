@@ -1,134 +1,72 @@
-Date: Mon, 12 May 2008 10:55:00 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memory_hotplug: always initialize pageblock bitmap.
-Message-Id: <20080512105500.ff89c0d3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080510124501.GA4796@osiris.boeblingen.de.ibm.com>
-References: <20080509060609.GB9840@osiris.boeblingen.de.ibm.com>
-	<20080509153910.6b074a30.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080510124501.GA4796@osiris.boeblingen.de.ibm.com>
+Date: Sun, 11 May 2008 23:23:44 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: BUG: 2.6.26-rc1-git8: NULL reference in drop_buffers
+Message-Id: <20080511232344.b173ca9f.akpm@linux-foundation.org>
+In-Reply-To: <20080511105429.a5e40721.randy.dunlap@oracle.com>
+References: <20080511105429.a5e40721.randy.dunlap@oracle.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Whitcroft <apw@shadowen.org>, Dave Hansen <haveblue@us.ibm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@ucw.cz>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 10 May 2008 14:45:01 +0200
-Heiko Carstens <heiko.carstens@de.ibm.com> wrote:
-> > Recently, I added a check "zone's start_pfn < pfn < zone's end"
-> > to memmap_init_zone()'s usemap initialization for !SPARSEMEM case bug FIX.
-> > (and I think the fix itself is sane.)
-> 
-> Oh, you broke memory hot-add on -stable ;)
->
-Ah yes, my mistake. Very sorry, (but stable was also broken if !SPARSEMEM)
- 
-> > How about calling grow_pgdat_span()/grow_zone_span() from __add_zone() ?
-> 
-> Like this?
-> 
-> Note that this patch is on top of the other patch I already sent, but
-> reverts it...
-> 
-> This works for me. A final version (if this is acceptable) should move
-> the grow* functions also.
-> 
-> ---
->  mm/memory_hotplug.c |   28 +++++++++++++++++++---------
->  mm/page_alloc.c     |    3 +--
->  2 files changed, 20 insertions(+), 11 deletions(-)
-> 
-> Index: linux-2.6/mm/memory_hotplug.c
-> ===================================================================
-> --- linux-2.6.orig/mm/memory_hotplug.c
-> +++ linux-2.6/mm/memory_hotplug.c
-> @@ -159,17 +159,33 @@ void register_page_bootmem_info_node(str
->  }
->  #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
->  
-> +static void grow_zone_span(struct zone *zone, unsigned long start_pfn,
-> +			   unsigned long end_pfn);
-> +static void grow_pgdat_span(struct pglist_data *pgdat,
-> +			    unsigned long start_pfn, unsigned long end_pfn);
-> +
->  static int __add_zone(struct zone *zone, unsigned long phys_start_pfn)
->  {
->  	struct pglist_data *pgdat = zone->zone_pgdat;
->  	int nr_pages = PAGES_PER_SECTION;
->  	int nid = pgdat->node_id;
->  	int zone_type;
-> +	unsigned long flags;
->  
->  	zone_type = zone - pgdat->node_zones;
-> -	if (!zone->wait_table)
-> -		return init_currently_empty_zone(zone, phys_start_pfn,
-> -						 nr_pages, MEMMAP_HOTPLUG);
-> +	if (!zone->wait_table) {
-> +		int ret;
-> +
-> +		ret = init_currently_empty_zone(zone, phys_start_pfn,
-> +						nr_pages, MEMMAP_HOTPLUG);
-> +		if (ret)
-> +			return ret;
-> +	}
-> +	pgdat_resize_lock(zone->zone_pgdat, &flags);
-> +	grow_zone_span(zone, phys_start_pfn, phys_start_pfn + nr_pages);
-> +	grow_pgdat_span(zone->zone_pgdat, phys_start_pfn,
-> +			phys_start_pfn + nr_pages);
-> +	pgdat_resize_unlock(zone->zone_pgdat, &flags);
->  	memmap_init_zone(nr_pages, nid, zone_type,
->  			 phys_start_pfn, MEMMAP_HOTPLUG);
->  	return 0;
-seems good. I'll try this logic on my ia64 box, which allows
-NUMA-node hotplug.
+On Sun, 11 May 2008 10:54:29 -0700 Randy Dunlap <randy.dunlap@oracle.com> wrote:
 
-Thank you!
--Kame
-
-> @@ -363,7 +379,6 @@ static int online_pages_range(unsigned l
->  
->  int online_pages(unsigned long pfn, unsigned long nr_pages)
->  {
-> -	unsigned long flags;
->  	unsigned long onlined_pages = 0;
->  	struct zone *zone;
->  	int need_zonelists_rebuild = 0;
-> @@ -391,11 +406,6 @@ int online_pages(unsigned long pfn, unsi
->  	 * memory_block->state_mutex.
->  	 */
->  	zone = page_zone(pfn_to_page(pfn));
-> -	pgdat_resize_lock(zone->zone_pgdat, &flags);
-> -	grow_zone_span(zone, pfn, pfn + nr_pages);
-> -	grow_pgdat_span(zone->zone_pgdat, pfn, pfn + nr_pages);
-> -	pgdat_resize_unlock(zone->zone_pgdat, &flags);
-> -
->  	/*
->  	 * If this zone is not populated, then it is not in zonelist.
->  	 * This means the page allocator ignores this zone.
-> Index: linux-2.6/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.orig/mm/page_alloc.c
-> +++ linux-2.6/mm/page_alloc.c
-> @@ -2862,8 +2862,6 @@ __meminit int init_currently_empty_zone(
->  
->  	zone->zone_start_pfn = zone_start_pfn;
->  
-> -	memmap_init(size, pgdat->node_id, zone_idx(zone), zone_start_pfn);
-> -
->  	zone_init_free_lists(zone);
->  
->  	return 0;
-> @@ -3433,6 +3431,7 @@ static void __paginginit free_area_init_
->  		ret = init_currently_empty_zone(zone, zone_start_pfn,
->  						size, MEMMAP_EARLY);
->  		BUG_ON(ret);
-> +		memmap_init(size, nid, j, zone_start_pfn);
->  		zone_start_pfn += size;
->  	}
->  }
+> On x86_64, during testing using "stress" package:
 > 
+> BUG: unable to handle kernel NULL pointer dereference at 0000000000000000
+
+
+> IP: [<ffffffff802ad273>] drop_buffers+0x2f/0xfb
+> PGD 1ee8ad067 PUD 26f19a067 PMD 0
+> Oops: 0000 [1] SMP
+> CPU 3
+> Modules linked in: parport_pc lp parport tg3 cciss ehci_hcd ohci_hcd uhci_hcd
+> Pid: 16860, comm: stress Not tainted 2.6.26-rc1-git8 #1
+> RIP: 0010:[<ffffffff802ad273>]  [<ffffffff802ad273>] drop_buffers+0x2f/0xfb
+> RSP: 0000:ffff81026bc03a08  EFLAGS: 00010203
+> RAX: 0000000000000000 RBX: ffffe20008bae680 RCX: ffff81027f490f00
+> RDX: 0000000000000000 RSI: ffff81026bc03a58 RDI: ffffe20008bae680
+> RBP: ffff81026bc03a38 R08: ffff81026bc03b78 R09: ffff810001103780
+> R10: ffff81026bc03a08 R11: ffff81026bc03c88 R12: ffffe20008bae680
+> R13: ffff81027c412850 R14: ffff81026bc03d58 R15: ffff81026bc03a58
+> FS:  00007fa9e7e416f0(0000) GS:ffff81027f806980(0000) knlGS:00000000f7f856c0
+> CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> CR2: 0000000000000000 CR3: 000000027f973000 CR4: 00000000000006e0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> Process stress (pid: 16860, threadinfo ffff81026bc02000, task ffff81027e424c50)
+> Stack:  ffffe20008bafa68 ffffe20008bae680 ffff81027f490f00 ffff81026bc03a58
+>  ffff81026bc03d58 ffff81026bc03c88 ffff81026bc03a78 ffffffff802ad39f
+>  ffff81027f490f00 ffffe20008b14060 0000000000000000 ffff81027f490f00
+> Call Trace:
+>  [<ffffffff802ad39f>] try_to_free_buffers+0x60/0xa2
+>  [<ffffffff80267f98>] try_to_release_page+0x3b/0x41
+>  [<ffffffff802719bc>] shrink_page_list+0x457/0x562
+>  [<ffffffff80271bed>] shrink_inactive_list+0x126/0x361
+>  [<ffffffff80271f0d>] shrink_zone+0xe5/0x10a
+>  [<ffffffff8027227d>] try_to_free_pages+0x1ef/0x326
+>  [<ffffffff80270f4b>] ? isolate_pages_global+0x0/0x34
+>  [<ffffffff8026d843>] __alloc_pages_internal+0x25a/0x3ad
+>  [<ffffffff8026d9ac>] __alloc_pages+0xb/0xd
+>  [<ffffffff80277759>] handle_mm_fault+0x238/0x6d0
+>  [<ffffffff8053d9c4>] do_page_fault+0x438/0x7de
+>  [<ffffffff8053b999>] error_exit+0x0/0x51
+> 
+> 
+> Code: 41 57 49 89 f7 41 56 41 55 41 54 49 89 fc 53 48 83 ec 08 48 8b 07 25 00 08 00 00 48 85 c0 75 04 0f 0b eb fe 4c 8b 6f 10 4c 89 ea <48> 8b 02 25 00 08 00 00 48 85 c0 74 10 49 8b 44 24 18 48 85 c0
+> RIP  [<ffffffff802ad273>] drop_buffers+0x2f/0xfb
+>  RSP <ffff81026bc03a08>
+> CR2: 0000000000000000
+> Kernel panic - not syncing: Fatal exception
+
+Seems that local variable `bh' is NULL.
+
+I wonder what the heck we did to cause that.  Which filesystems were in
+use?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
