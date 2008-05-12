@@ -1,35 +1,41 @@
-Date: Mon, 12 May 2008 18:19:28 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memory_hotplug: always initialize pageblock bitmap.
-Message-Id: <20080512181928.cd41c055.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080512105500.ff89c0d3.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080509060609.GB9840@osiris.boeblingen.de.ibm.com>
-	<20080509153910.6b074a30.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080510124501.GA4796@osiris.boeblingen.de.ibm.com>
-	<20080512105500.ff89c0d3.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <48280DB0.7030608@openvz.org>
+Date: Mon, 12 May 2008 13:28:16 +0400
+From: Pavel Emelyanov <xemul@openvz.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH] memcg: make global var to be read_mostly
+References: <20080509145631.408a9a67.kamezawa.hiroyu@jp.fujitsu.com> <4823E819.1000607@linux.vnet.ibm.com>
+In-Reply-To: <4823E819.1000607@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Whitcroft <apw@shadowen.org>, Dave Hansen <haveblue@us.ibm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, lizf@cn.fujitsu.com, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 12 May 2008 10:55:00 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> seems good. I'll try this logic on my ia64 box, which allows
-> NUMA-node hotplug.
+Balbir Singh wrote:
+> KAMEZAWA Hiroyuki wrote:
+>> An easy cut out from memcg: performance improvement patch set.
+>> Tested on: x86-64/linux-2.6.26-rc1-git6
+>>
+>> Thanks,
+>> -Kame
+>>
+>> ==
+>> mem_cgroup_subsys and page_cgroup_cache should be read_mostly and
+>> MEM_CGROUP_RECLAIM_RETRIES can be just a fixed number.
+>>
+>> Changelog:
+>>   * makes MEM_CGROUP_RECLAIM_RETRIES to be a macro
+>>
+>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>
+>>
 > 
-I'm sorry but I found memory-hotplug on my box doesn't work now
-maybe because of recent? changes in linux's ACPI. It seems no notifies
-reach to acpi container/memory driver. (maybe another regression...)
-I'll dig...but it may take some amount of time.
+> Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> 
 
-I have no objection to your patch as a result of review.
-
-Thanks,
--Kame
+Acked-by: Pavel Emelyanov <xemul@openvz.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
