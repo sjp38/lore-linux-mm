@@ -1,52 +1,58 @@
-Date: Tue, 13 May 2008 09:55:32 +0200
+Date: Tue, 13 May 2008 10:01:43 +0200
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch 2/2] fix SMP data race in pagetable setup vs walking
-Message-ID: <20080513075532.GA19870@wotan.suse.de>
-References: <20080505112021.GC5018@wotan.suse.de> <20080505121240.GD5018@wotan.suse.de> <20080505143547.GD14809@linux.vnet.ibm.com> <20080506093823.GD10141@wotan.suse.de> <20080506133224.GD9443@linux.vnet.ibm.com>
+Message-ID: <20080513080143.GB19870@wotan.suse.de>
+References: <20080505112021.GC5018@wotan.suse.de> <20080505121240.GD5018@wotan.suse.de> <alpine.LFD.1.10.0805050828120.32269@woody.linux-foundation.org> <20080506095138.GE10141@wotan.suse.de> <alpine.LFD.1.10.0805060750430.32269@woody.linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080506133224.GD9443@linux.vnet.ibm.com>
+In-Reply-To: <alpine.LFD.1.10.0805060750430.32269@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Hugh Dickins <hugh@veritas.com>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Paul McKenney <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Sorry for the delay, was busy or away from keyboard for various reasons...
-
-On Tue, May 06, 2008 at 06:32:24AM -0700, Paul E. McKenney wrote:
-> On Tue, May 06, 2008 at 11:38:24AM +0200, Nick Piggin wrote:
-> > 
-> > I'm wondering about this... and the problem does not only exist in
-> > memory ordering situations, but also just when using a single loaded
-> > value in a lot of times.
-> > 
-> > I'd be slightly worried about requiring this of threaded code. Even
-> > the regular memory ordering bugs we even have in core mm code is kind of
-> > annoying (and it is by no means just this current bug).
-> > 
-> > Is it such an improvement to refetch a pointer versus spilling to stack?
-> > Can we just ask gcc for a -multithreading-for-dummies mode?
+On Tue, May 06, 2008 at 07:53:23AM -0700, Linus Torvalds wrote:
 > 
-> I have thus far not been successful on this one in the general case.
-> It would be nice to be able to tell gcc that you really mean it when
-> you assign to a local variable...
+> 
+> On Tue, 6 May 2008, Nick Piggin wrote:
+> > 
+> > Right. As the comment says, the x86 stuff is kind of a "reference"
+> > implementation, although if you prefer it isn't there, then I I can
+> > easily just make it alpha only.
+> 
+> If there really was a point in teaching people about 
+> "read_barrier_depends()", I'd agree that it's probably good to have it as 
+> a reference in the x86 implementation.
+> 
+> But since alpha is the only one that needs it, and is likely to remain so, 
+> it's not like we ever want to copy that code to anything else, and it 
+> really is better to make it alpha-only if the code is so much uglier.
 
-Yes, exactly...
+No, *everyone* (except arch-only non-alpha developer) needs to know about
+it.
+
+x86 especially is a reference and often is a proving ground for code that
+becomes generic, so I'd say even x86 developers should need to know about
+it too.
 
  
-> > In that case it isn't really an ordering issue between two variables,
-> > but an issue within a single variable. And I'm not exactly sure we want
-> > to go down the path of trying to handle this. At least it probably belongs
-> > in a different patch.
-> 
-> Well, I have seen this sort of thing in real life with gcc, so I can't say
-> that I agree...  I was quite surprised the first time around!
+> Maybe just a comment?
 
-I didn't intend to suggest that you are incorrect, or that ACCESS_ONCE
-is not technically required for correctness. But I question whether it
-is better to try fixing this throughout our source code, or in gcc's.
+At the end of the day I don't care that much. I'm surprised you do,
+but I'll do whatever it takes to get merged ;) 
+
+
+> As to the ACCESS_ONCE() thing, thinking about it some more, I doubt it 
+> really matters. We're never going to change pgd anyway, so who cares if we 
+> access it once or a hundred times?
+
+I will just re-review that I have my pointer following sequence correct,
+it could be that I have one too many... but anyway it is needed for lower
+levels I guess (as a general pattern -- in the actual case of pagetable
+walking, I don't think it matters anywhere if a pointer gets refetched
+after being dereferenced)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
