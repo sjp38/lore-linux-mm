@@ -1,53 +1,74 @@
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
-Date: Tue, 13 May 2008 22:06:44 +1000
-References: <6b384bb988786aa78ef0.1210170958@duo.random> <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org> <20080508003838.GA9878@sgi.com>
-In-Reply-To: <20080508003838.GA9878@sgi.com>
+Date: Tue, 13 May 2008 22:14:24 +1000
+References: <6b384bb988786aa78ef0.1210170958@duo.random> <20080507234521.GN8276@duo.random> <20080508013459.GS8276@duo.random>
+In-Reply-To: <20080508013459.GS8276@duo.random>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200805132206.47655.nickpiggin@yahoo.com.au>
+Message-Id: <200805132214.27510.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrew Morton <akpm@linux-foundation.org>, clameter@sgi.com, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 08 May 2008 10:38, Robin Holt wrote:
-> On Wed, May 07, 2008 at 02:36:57PM -0700, Linus Torvalds wrote:
-> > On Wed, 7 May 2008, Andrea Arcangeli wrote:
-> > > I think the spinlock->rwsem conversion is ok under config option, as
-> > > you can see I complained myself to various of those patches and I'll
-> > > take care they're in a mergeable state the moment I submit them. What
-> > > XPMEM requires are different semantics for the methods, and we never
-> > > had to do any blocking I/O during vmtruncate before, now we have to.
-> >
-> > I really suspect we don't really have to, and that it would be better to
-> > just fix the code that does that.
+On Thursday 08 May 2008 11:34, Andrea Arcangeli wrote:
+> Sorry for not having completely answered to this. I initially thought
+> stop_machine could work when you mentioned it, but I don't think it
+> can even removing xpmem block-inside-mmu-notifier-method requirements.
 >
-> That fix is going to be fairly difficult.  I will argue impossible.
+> For stop_machine to solve this (besides being slower and potentially
+> not more safe as running stop_machine in a loop isn't nice), we'd need
+> to prevent preemption in between invalidate_range_start/end.
 >
-> First, a little background.  SGI allows one large numa-link connected
-> machine to be broken into seperate single-system images which we call
-> partitions.
+> I think there are two ways:
 >
-> XPMEM allows, at its most extreme, one process on one partition to
-> grant access to a portion of its virtual address range to processes on
-> another partition.  Those processes can then fault pages and directly
-> share the memory.
+> 1) add global lock around mm_lock to remove the sorting
 >
-> In order to invalidate the remote page table entries, we need to message
-> (uses XPC) to the remote side.  The remote side needs to acquire the
-> importing process's mmap_sem and call zap_page_range().  Between the
-> messaging and the acquiring a sleeping lock, I would argue this will
-> require sleeping locks in the path prior to the mmu_notifier invalidate_*
-> callouts().
+> 2) remove invalidate_range_start/end, nuke mm_lock as consequence of
+>    it, and replace all three with invalidate_pages issued inside the
+>    PT lock, one invalidation for each 512 pte_t modified, so
+>    serialization against get_user_pages becomes trivial but this will
+>    be not ok at all for SGI as it increases a lot their invalidation
+>    frequency
 
-Why do you need to take mmap_sem in order to shoot down pagetables of
-the process? It would be nice if this can just be done without
-sleeping.
+This is what I suggested to begin with before this crazy locking was
+developed to handle these corner cases... because I wanted the locking
+to match with the tried and tested Linux core mm/ locking rather than
+introducing this new idea.
+
+I don't see why you're bending over so far backwards to accommodate
+this GRU thing that we don't even have numbers for and could actually
+potentially be batched up in other ways (eg. using mmu_gather or
+mmu_gather-like idea).
+
+The bare essential, matches-with-Linux-mm mmu notifiers that I first
+saw of yours was pretty elegant and nice. The idea that "only one
+solution must go in and handle everything perfectly" is stupid because
+it is quite obvious that the sleeping invalidate idea is just an order
+of magnitude or two more complex than the simple atomic invalidates
+needed by you. We should and could easily have had that code upstream
+long ago :(
+
+I'm not saying we ignore the sleeping or batching cases, but we should
+introduce the ideas slowly and carefully and assess the pros and cons
+of each step along the way.
+
+
+
+>
+> For KVM both ways are almost the same.
+>
+> I'll implement 1 now then we'll see...
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
