@@ -1,61 +1,43 @@
-Date: Tue, 13 May 2008 10:48:12 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [patch 2/2] mm: remove nopfn
-Message-ID: <20080513154812.GA23256@sgi.com>
-References: <20080513074723.GB12869@wotan.suse.de> <20080513074829.GC12869@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080513074829.GC12869@wotan.suse.de>
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4DH7LMU009062
+	for <linux-mm@kvack.org>; Tue, 13 May 2008 13:07:21 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4DH7IR31101908
+	for <linux-mm@kvack.org>; Tue, 13 May 2008 13:07:18 -0400
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4DH7E0d012966
+	for <linux-mm@kvack.org>; Tue, 13 May 2008 11:07:14 -0600
+Message-ID: <4829CAC3.30900@us.ibm.com>
+Date: Tue, 13 May 2008 12:07:15 -0500
+From: Jon Tollefson <kniht@us.ibm.com>
+Reply-To: kniht@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: [PATCH 0/6] 16G and multi size hugetlb page support on powerpc
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>, Robin Holt <holt@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@ozlabs.org>
+Cc: Paul Mackerras <paulus@samba.org>, Nick Piggin <npiggin@suse.de>, Nishanth Aravamudan <nacc@us.ibm.com>, Andi Kleen <andi@firstfloor.org>, Adam Litke <agl@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 13, 2008 at 09:48:29AM +0200, Nick Piggin wrote:
-> There are no users of nopfn in the tree. Remove it.
-> 
+This patch set builds on Nick Piggin's patches for multi size and giant 
+hugetlb page support of April 22.  The following set of patches adds 
+support for 16G huge pages on ppc64 and support for multiple huge page 
+sizes at the same time on ppc64.  Thus allowing 64K, 16M, and 16G huge 
+pages given a POWER5+ or later machine.
 
-The SGI mspec driver use to use the nopfn callout. I see that this
-was recently changed but the new code fails with:
+New to this version of my patch is numerous bug fixes and cleanups, but 
+the biggest change is the support for multiple huge page sizes on power.
 
+patch 1: changes to generic hugetlb to enable 16G pages on power
+patch 2: powerpc: adds function for allocating 16G pages
+patch 3: powerpc: setups 16G page locations found in device tree
+patch 4: powerpc: page definition support for 16G pages
+patch 5: check for overflow when user space is 32bit
+patch 6: powerpc: multiple huge page size support
 
-	kernel BUG at mm/memory.c:2278!
-	fop1[5887]: bugcheck! 0 [1]
-	Modules linked in:
-	Call Trace:
-	 [<a000000100012740>] show_stack+0x40/0xa0
-	 [<a000000100013050>] show_regs+0x850/0x8a0
-	 [<a000000100036210>] die+0x1b0/0x2c0
-	 [<a000000100036370>] die_if_kernel+0x50/0x80
-	 [<a000000100037a50>] ia64_bad_break+0x230/0x460
-	 [<a00000010000a2a0>] ia64_leave_kernel+0x0/0x270
-	 [<a000000100141650>] __do_fault+0xb0/0xa20
-	 [<a000000100145a50>] handle_mm_fault+0x2f0/0xf40
-	 [<a000000100059160>] ia64_do_page_fault+0x220/0xa40
-	 [<a00000010000a2a0>] ia64_leave_kernel+0x0/0x270
-
-
-The mspec driver is tripping the bugcheck in __do_fault()
-	BUG_ON(vma->vm_flags & VM_PFNMAP);
-
-The driver does not create pte entries at map time. Instead, it
-relies on the nopfn (now fault) callout to assign resources
-and create the ptes. It is intentionally done this way in order to
-ensure that node-local resources are assigned.
-
-What should the driver be doing to avoid this problem??
-
-
-Also, the new GRU driver will have a similar problem. It currently
-uses the nopfn callout since it needs to be able to assign resources
-at fault, not mmap. The driver is not currently in-tree but will be
-posted as soon as mmu_notifiers are available. I can post the current
-version if it is helpful.....
-
-
---- jack
+Jon
 
 
 --
