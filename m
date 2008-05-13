@@ -1,60 +1,68 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: Proof of concept: sorting per-cpu-page lists to reduce memory fragmentation
-Date: Tue, 13 May 2008 22:22:20 +1000
-References: <480BD01D.4000201@linux.intel.com>
-In-Reply-To: <480BD01D.4000201@linux.intel.com>
+From: Johannes Weiner <hannes@saeurebad.de>
+Subject: Re: [PATCH 0/3] bootmem2 III
+References: <20080509151713.939253437@saeurebad.de>
+	<20080509184044.GA19109@one.firstfloor.org>
+	<87lk2gtzta.fsf@saeurebad.de> <48275493.40601@firstfloor.org>
+Date: Tue, 13 May 2008 14:40:44 +0200
+In-Reply-To: <48275493.40601@firstfloor.org> (Andi Kleen's message of "Sun, 11
+	May 2008 22:18:27 +0200")
+Message-ID: <874p92qsvn.fsf@saeurebad.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200805132222.20538.nickpiggin@yahoo.com.au>
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arjan van de Ven <arjan@linux.intel.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Yinghai Lu <yhlu.kernel@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Monday 21 April 2008 09:22, Arjan van de Ven wrote:
-> Hi,
->
-> Right now, the per-cpu page lists are interfering somewhat with the buddy
-> allocator in terms of keeping the free memory pool unfragmented. This
-> proof-of-concept patch (just to show the idea) tries to improve that
-> situation by sorting the per-cpu page lists by physical address, with the
-> idea that when the pcp list gives a chunk of itself back to the global
-> pool, the chunk it gives back isn't random but actually very localized, if
-> not already containing contiguous parts.. as opposed to pure random
-> ordering.
->
-> Now, there's some issues I need to resolve before I can really propose this
-> for merging: 1) Measuring success. Measuring fragmentation is a *hard*
-> problem. Measurements I've done so far tend to show a little improvement,
-> but that's very subjective since it's basically impossible to get
-> reproducable results. Ideas on how to measure this are VERY welcome 2)
-> Cache locality; the head of the pcp list in theory is cache hot; the
-> current code doesn't take that into account. It's easy to not sort the,
-> say, first 5 pages though; not done in the current implementation
->
-> The patch below implements this, and has a hacky sysreq to print cpu 0's
-> pcp list out (I use this to verify that the sort works).
+Hi,
 
-I really hate the idea of doing stuff in the idle thread. It just
-destroys your predictability and reproduceability.
+Andi Kleen <andi@firstfloor.org> writes:
 
-I'll kick myself for saying this because I dislike the using any CPU
-cycles are on anti-fragmentation heuristics ;) But one idea I had
-that you might want to look into if you're looking into this area is
-to instead check whether a given page is on a pcp list when checking
-for buddies. If it is, then you can perhaps flush anything from all
-pages out of all pcp lists, to just that single page from a given pcp
-list.
+> Johannes Weiner wrote:
+>
+>>> On Fri, May 09, 2008 at 05:17:13PM +0200, Johannes Weiner wrote:
+>>>> here is bootmem2, a memory block-oriented boot time allocator.
+>>>>
+>>>> Recent NUMA topologies broke the current bootmem's assumption that
+>>>> memory nodes provide non-overlapping and contiguous ranges of pages.
+>>> I'm still not sure that's a really good rationale for bootmem2.
+>>> e.g. the non continuous nodes are really special cases and there tends
+>>> to be enough memory at the beginning which is enough for boot time
+>>> use, so for those systems it would be quite reasonably to only 
+>>> put the continuous starts of the nodes into bootmem.
+>> 
+>> Hm, that would put the logic into arch-code.  I have no strong opinion
+>> about it.
+>
+> In fact I suspect the current code will already work like that
+> implicitely. The aliasing is only a problem for the new "arbitary node
+> free_bootmem" right?
 
-For now you could probably use page_count == 0 (&&!PageBuddy) as an
-heuristic. I actually have a patch that I want to merge, which allows
-page allocations without messing with page_count to avoid some atomic
-allocations in things like slab.... so you may eventually need a new
-page flag there if the idea is a success.
+And that alloc_bootmem_node() can not garuantee node-locality which is
+the much worse part, I think.
+
+>>> That said the bootmem code has gotten a little crufty and a clean
+>>> rewrite might be a good idea.
+>> 
+>> I agree completely.
+>
+> The trouble is just that bootmem is used in early boot and early boot is
+> very subtle and getting it working over all architectures could be a
+> challenge. Not wanting to discourage you, but it's not exactly the
+> easiest part of the kernel to hack on.
+
+Bootmem seemed pretty self-contained to me, at least in the beginning.
+The bad thing is that I can test only the most simple configuration with
+it.
+
+I was wondering yesterday if it would be feasible to enforce
+contiguousness for nodes.  So that arch-code does not create one pgdat
+for each node but one for each contiguous block.  I have not yet looked
+deeper into it, but I suspect that other mm code has similar problems
+with nodes spanning other nodes.
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
