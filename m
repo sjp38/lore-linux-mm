@@ -1,74 +1,60 @@
 From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
-Date: Tue, 13 May 2008 22:14:24 +1000
-References: <6b384bb988786aa78ef0.1210170958@duo.random> <20080507234521.GN8276@duo.random> <20080508013459.GS8276@duo.random>
-In-Reply-To: <20080508013459.GS8276@duo.random>
+Subject: Re: Proof of concept: sorting per-cpu-page lists to reduce memory fragmentation
+Date: Tue, 13 May 2008 22:22:20 +1000
+References: <480BD01D.4000201@linux.intel.com>
+In-Reply-To: <480BD01D.4000201@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200805132214.27510.nickpiggin@yahoo.com.au>
+Message-Id: <200805132222.20538.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrew Morton <akpm@linux-foundation.org>, clameter@sgi.com, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
+To: Arjan van de Ven <arjan@linux.intel.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 08 May 2008 11:34, Andrea Arcangeli wrote:
-> Sorry for not having completely answered to this. I initially thought
-> stop_machine could work when you mentioned it, but I don't think it
-> can even removing xpmem block-inside-mmu-notifier-method requirements.
+On Monday 21 April 2008 09:22, Arjan van de Ven wrote:
+> Hi,
 >
-> For stop_machine to solve this (besides being slower and potentially
-> not more safe as running stop_machine in a loop isn't nice), we'd need
-> to prevent preemption in between invalidate_range_start/end.
+> Right now, the per-cpu page lists are interfering somewhat with the buddy
+> allocator in terms of keeping the free memory pool unfragmented. This
+> proof-of-concept patch (just to show the idea) tries to improve that
+> situation by sorting the per-cpu page lists by physical address, with the
+> idea that when the pcp list gives a chunk of itself back to the global
+> pool, the chunk it gives back isn't random but actually very localized, if
+> not already containing contiguous parts.. as opposed to pure random
+> ordering.
 >
-> I think there are two ways:
+> Now, there's some issues I need to resolve before I can really propose this
+> for merging: 1) Measuring success. Measuring fragmentation is a *hard*
+> problem. Measurements I've done so far tend to show a little improvement,
+> but that's very subjective since it's basically impossible to get
+> reproducable results. Ideas on how to measure this are VERY welcome 2)
+> Cache locality; the head of the pcp list in theory is cache hot; the
+> current code doesn't take that into account. It's easy to not sort the,
+> say, first 5 pages though; not done in the current implementation
 >
-> 1) add global lock around mm_lock to remove the sorting
->
-> 2) remove invalidate_range_start/end, nuke mm_lock as consequence of
->    it, and replace all three with invalidate_pages issued inside the
->    PT lock, one invalidation for each 512 pte_t modified, so
->    serialization against get_user_pages becomes trivial but this will
->    be not ok at all for SGI as it increases a lot their invalidation
->    frequency
+> The patch below implements this, and has a hacky sysreq to print cpu 0's
+> pcp list out (I use this to verify that the sort works).
 
-This is what I suggested to begin with before this crazy locking was
-developed to handle these corner cases... because I wanted the locking
-to match with the tried and tested Linux core mm/ locking rather than
-introducing this new idea.
+I really hate the idea of doing stuff in the idle thread. It just
+destroys your predictability and reproduceability.
 
-I don't see why you're bending over so far backwards to accommodate
-this GRU thing that we don't even have numbers for and could actually
-potentially be batched up in other ways (eg. using mmu_gather or
-mmu_gather-like idea).
+I'll kick myself for saying this because I dislike the using any CPU
+cycles are on anti-fragmentation heuristics ;) But one idea I had
+that you might want to look into if you're looking into this area is
+to instead check whether a given page is on a pcp list when checking
+for buddies. If it is, then you can perhaps flush anything from all
+pages out of all pcp lists, to just that single page from a given pcp
+list.
 
-The bare essential, matches-with-Linux-mm mmu notifiers that I first
-saw of yours was pretty elegant and nice. The idea that "only one
-solution must go in and handle everything perfectly" is stupid because
-it is quite obvious that the sleeping invalidate idea is just an order
-of magnitude or two more complex than the simple atomic invalidates
-needed by you. We should and could easily have had that code upstream
-long ago :(
-
-I'm not saying we ignore the sleeping or batching cases, but we should
-introduce the ideas slowly and carefully and assess the pros and cons
-of each step along the way.
-
-
-
->
-> For KVM both ways are almost the same.
->
-> I'll implement 1 now then we'll see...
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+For now you could probably use page_count == 0 (&&!PageBuddy) as an
+heuristic. I actually have a patch that I want to merge, which allows
+page allocations without messing with page_count to avoid some atomic
+allocations in things like slab.... so you may eventually need a new
+page flag there if the idea is a success.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
