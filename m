@@ -1,47 +1,39 @@
-Date: Tue, 13 May 2008 10:32:38 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
-Message-ID: <20080513153238.GL19717@sgi.com>
-References: <6b384bb988786aa78ef0.1210170958@duo.random> <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org> <20080508003838.GA9878@sgi.com> <200805132206.47655.nickpiggin@yahoo.com.au>
+Date: Tue, 13 May 2008 08:45:51 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [patch 2/2] fix SMP data race in pagetable setup vs walking
+In-Reply-To: <20080513080143.GB19870@wotan.suse.de>
+Message-ID: <alpine.LFD.1.10.0805130844000.3019@woody.linux-foundation.org>
+References: <20080505112021.GC5018@wotan.suse.de> <20080505121240.GD5018@wotan.suse.de> <alpine.LFD.1.10.0805050828120.32269@woody.linux-foundation.org> <20080506095138.GE10141@wotan.suse.de> <alpine.LFD.1.10.0805060750430.32269@woody.linux-foundation.org>
+ <20080513080143.GB19870@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200805132206.47655.nickpiggin@yahoo.com.au>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Robin Holt <holt@sgi.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Hugh Dickins <hugh@veritas.com>, linux-arch@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Paul McKenney <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 13, 2008 at 10:06:44PM +1000, Nick Piggin wrote:
-> On Thursday 08 May 2008 10:38, Robin Holt wrote:
-> > In order to invalidate the remote page table entries, we need to message
-> > (uses XPC) to the remote side.  The remote side needs to acquire the
-> > importing process's mmap_sem and call zap_page_range().  Between the
-> > messaging and the acquiring a sleeping lock, I would argue this will
-> > require sleeping locks in the path prior to the mmu_notifier invalidate_*
-> > callouts().
+
+On Tue, 13 May 2008, Nick Piggin wrote:
 > 
-> Why do you need to take mmap_sem in order to shoot down pagetables of
-> the process? It would be nice if this can just be done without
-> sleeping.
+> No, *everyone* (except arch-only non-alpha developer) needs to know about
+> it.
 
-We are trying to shoot down page tables of a different process running
-on a different instance of Linux running on Numa-link connected portions
-of the same machine.
+Umm. In architecture files, by definition, only alpha needs to know about 
+it.
 
-The messaging is clearly going to require sleeping.  Are you suggesting
-we need to rework XPC communications to not require sleeping?  I think
-that is going to be impossible since the transfer engine requires a
-sleeping context.
+That was very much an architecture-specific file: we're talking about 
+asm-x86/pgtable_32.h here.
 
-Additionally, the call to zap_page_range expects to have the mmap_sem
-held.  I suppose we could use something other than zap_page_range and
-atomically clear the process page tables.  Doing that will not alleviate
-the need to sleep for the messaging to the other partitions.
+> x86 especially is a reference and often is a proving ground for code that
+> becomes generic, so I'd say even x86 developers should need to know about
+> it too.
 
-Thanks,
-Robin
+And in reference files that are architecture-specific, there is absolutely 
+*no point* in ever having read_barrier_depends(). Because even if another 
+architecture copies it, it's better off without it.
+
+				Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
