@@ -1,69 +1,60 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4ED6wag017145
-	for <linux-mm@kvack.org>; Wed, 14 May 2008 09:06:58 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4EDA3nt038980
-	for <linux-mm@kvack.org>; Wed, 14 May 2008 07:10:04 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4ED9wpR010263
-	for <linux-mm@kvack.org>; Wed, 14 May 2008 07:10:00 -0600
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Wed, 14 May 2008 18:39:39 +0530
-Message-Id: <20080514130939.24440.73960.sendpatchset@localhost.localdomain>
-In-Reply-To: <20080514130904.24440.23486.sendpatchset@localhost.localdomain>
-References: <20080514130904.24440.23486.sendpatchset@localhost.localdomain>
-Subject: [-mm][PATCH 3/4] cgroup mm owner callback changes to add task info (v4)
+Date: Wed, 14 May 2008 08:15:32 -0500
+From: Jack Steiner <steiner@sgi.com>
+Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
+Message-ID: <20080514131531.GA10393@sgi.com>
+References: <6b384bb988786aa78ef0.1210170958@duo.random> <20080507234521.GN8276@duo.random> <20080508013459.GS8276@duo.random> <200805132214.27510.nickpiggin@yahoo.com.au> <1210743839.8297.55.camel@pasglop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1210743839.8297.55.camel@pasglop>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Pavel Emelianov <xemul@openvz.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, clameter@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-This patch adds an additional field to the mm_owner callbacks. This field
-is required to get to the mm that changed.
+On Tue, May 13, 2008 at 10:43:59PM -0700, Benjamin Herrenschmidt wrote:
+> On Tue, 2008-05-13 at 22:14 +1000, Nick Piggin wrote:
+> > ea.
+> > 
+> > I don't see why you're bending over so far backwards to accommodate
+> > this GRU thing that we don't even have numbers for and could actually
+> > potentially be batched up in other ways (eg. using mmu_gather or
+> > mmu_gather-like idea).
+> 
+> I agree, we're better off generalizing the mmu_gather batching
+> instead...
 
-Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
----
+Unfortunately, we are at least several months away from being able to
+provide numbers to justify batching - assuming it is really needed.  We need
+large systems running real user workloads. I wish we had that available
+right now, but we don't.
 
-Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
----
+It also depends on what you mean by "no batching". If you mean that the
+notifier gets called for each pte that is removed from the page table, then
+the overhead is clearly very high for some operations. Consider the unmap of
+a very large object. A TLB flush per page will be too costly.
 
- include/linux/cgroup.h |    3 ++-
- kernel/cgroup.c        |    2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+However, something based on the mmu_gather seems like it should provide
+exactly what is needed to do efficient flushing of the TLB. The GRU does not
+require that it be called in a sleepable context. As long as the notifier
+callout provides the mmu_gather and vaddr range being flushed, the GRU can
+do the efficiently do the rest.
 
-diff -puN include/linux/cgroup.h~cgroup-add-task-to-mm-owner-callbacks include/linux/cgroup.h
---- linux-2.6.26-rc2/include/linux/cgroup.h~cgroup-add-task-to-mm-owner-callbacks	2008-05-14 18:36:59.000000000 +0530
-+++ linux-2.6.26-rc2-balbir/include/linux/cgroup.h	2008-05-14 18:36:59.000000000 +0530
-@@ -310,7 +310,8 @@ struct cgroup_subsys {
- 	 */
- 	void (*mm_owner_changed)(struct cgroup_subsys *ss,
- 					struct cgroup *old,
--					struct cgroup *new);
-+					struct cgroup *new,
-+					struct task_struct *p);
- 	int subsys_id;
- 	int active;
- 	int disabled;
-diff -puN kernel/cgroup.c~cgroup-add-task-to-mm-owner-callbacks kernel/cgroup.c
---- linux-2.6.26-rc2/kernel/cgroup.c~cgroup-add-task-to-mm-owner-callbacks	2008-05-14 18:36:59.000000000 +0530
-+++ linux-2.6.26-rc2-balbir/kernel/cgroup.c	2008-05-14 18:36:59.000000000 +0530
-@@ -2772,7 +2772,7 @@ void cgroup_mm_owner_callbacks(struct ta
- 			if (oldcgrp == newcgrp)
- 				continue;
- 			if (ss->mm_owner_changed)
--				ss->mm_owner_changed(ss, oldcgrp, newcgrp);
-+				ss->mm_owner_changed(ss, oldcgrp, newcgrp, new);
- 		}
- 	}
- }
-_
+> 
+> I had some never-finished patches to use the mmu_gather for pretty much
+> everything except single page faults, tho various subtle differences
+> between archs and lack of time caused me to let them take the dust and
+> not finish them...
+> 
+> I can try to dig some of that out when I'm back from my current travel,
+> though it's probably worth re-doing from scratch now.
+> 
+> Ben.
+> 
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+
+-- jack
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
