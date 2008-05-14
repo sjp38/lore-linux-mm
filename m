@@ -1,56 +1,53 @@
-Date: Wed, 14 May 2008 08:06:11 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
-Message-ID: <20080514060610.GB30448@wotan.suse.de>
-References: <6b384bb988786aa78ef0.1210170958@duo.random> <20080507234521.GN8276@duo.random> <20080508013459.GS8276@duo.random> <200805132214.27510.nickpiggin@yahoo.com.au> <1210743839.8297.55.camel@pasglop>
+Date: Wed, 14 May 2008 17:02:36 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC/PATCH 0/6] memcg: peformance improvement at el. v3
+Message-Id: <20080514170236.23c9ddd7.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1210743839.8297.55.camel@pasglop>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, clameter@sgi.com, steiner@sgi.com, holt@sgi.com, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "hugh@veritas.com" <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 13, 2008 at 10:43:59PM -0700, Benjamin Herrenschmidt wrote:
-> 
-> On Tue, 2008-05-13 at 22:14 +1000, Nick Piggin wrote:
-> > ea.
-> > 
-> > I don't see why you're bending over so far backwards to accommodate
-> > this GRU thing that we don't even have numbers for and could actually
-> > potentially be batched up in other ways (eg. using mmu_gather or
-> > mmu_gather-like idea).
-> 
-> I agree, we're better off generalizing the mmu_gather batching
-> instead...
+This set is for memory resource controller, reviewer and testers. 
 
-Well, the first thing would be just to get rid of the whole start/end
-idea, which completely departs from the standard Linux system of
-clearing ptes, then flushing TLBs, then freeing memory.
+Updated against 2.6.26-rc2 and added fixes.
 
-The onus would then be on GRU to come up with some numbers to justify
-batching, and a patch which works nicely with the rest of the Linux
-mm. And yes, mmu-gather is *the* obvious first choice of places to
-look if one wanted batching hooks.
+This set does
+ - remove refcnt from page_cgroup. By this, codes can be simplified and
+   we can avoid tons of unnecessary calls just for maintain refcnt.
+ - handle swap-cache, which is now ignored by memory resource controller.
+ - small optimization.
+ - make force_empty to drop pages. (NEW)
+ 
+major changes : v2 -> v3
+ - fixed shared memory handling.
+ - added a call to request recalaim memory from specified memcg (NEW) for shmem.
+ - added drop_all_pages_in_mem_cgroup before calling force_empty()
+ - dropped 3 patches because it's already sent to -mm queue.
 
+ 1/6 -- make force_empty to drop pages. (NEW)
+ 2/6 -- remove refcnt from page_cgroup (shmem handling is fixed.)
+ 3/6 -- handle swap cache
+ 4/6 -- add an interface to reclaim memory from memcg (NEW) (for shmem)
+ 5/6 -- small optimzation with likely()/unlikely()
+ 6/6 -- remove redundant check.
 
-> I had some never-finished patches to use the mmu_gather for pretty much
-> everything except single page faults, tho various subtle differences
-> between archs and lack of time caused me to let them take the dust and
-> not finish them...
-> 
-> I can try to dig some of that out when I'm back from my current travel,
-> though it's probably worth re-doing from scratch now.
+If positive feedback, I'd like to send some of them agaisnt -mm queue.
 
-I always liked the idea as you know. But I don't think that should
-be mixed in with the first iteration of the mmu notifiers patch
-anyway. GRU actually can work without batching, but there is simply
-some (unquantified to me) penalty for not batching it. I think it
-is far better to first put in a clean and simple and working functionality
-first. The idea that we have to unload some monster be-all-and-end-all
-solution onto mainline in a single go seems counter productive to me.
+This is based on
+  - 2.6.26-rc2 
+  - memcg-avoid-unnecessary-initialization.patch (in -mm queue)
+  - memcg-make-global-var-read_mostly.patch (in -mm queue)
+  - memcg-better-migration-handling.patch (in -mm queue)
+tested on x86-64 box. Seems to work very well.
+
+Any comments are welcome.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
