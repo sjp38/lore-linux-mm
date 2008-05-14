@@ -1,117 +1,302 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4EKtD0e032656
-	for <linux-mm@kvack.org>; Wed, 14 May 2008 16:55:13 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4EKtDii152744
-	for <linux-mm@kvack.org>; Wed, 14 May 2008 16:55:13 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4EKtBfa014167
-	for <linux-mm@kvack.org>; Wed, 14 May 2008 16:55:12 -0400
-Subject: Re: [PATCH 3/3] Guarantee that COW faults for a process that
-	called mmap(MAP_PRIVATE) on hugetlbfs will succeed
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4EKvJFs018438
+	for <linux-mm@kvack.org>; Wed, 14 May 2008 16:57:19 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4EKt8Ej126936
+	for <linux-mm@kvack.org>; Wed, 14 May 2008 16:55:08 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4EKt724023569
+	for <linux-mm@kvack.org>; Wed, 14 May 2008 16:55:08 -0400
+Subject: Re: [PATCH 2/3] Reserve huge pages for reliable MAP_PRIVATE
+	hugetlbfs mappings until fork()
 From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <20080507193926.5765.78883.sendpatchset@skynet.skynet.ie>
+In-Reply-To: <20080507193906.5765.34385.sendpatchset@skynet.skynet.ie>
 References: <20080507193826.5765.49292.sendpatchset@skynet.skynet.ie>
-	 <20080507193926.5765.78883.sendpatchset@skynet.skynet.ie>
-Content-Type: text/plain
-Date: Wed, 14 May 2008 15:55:25 -0500
-Message-Id: <1210798525.19507.55.camel@localhost.localdomain>
+	 <20080507193906.5765.34385.sendpatchset@skynet.skynet.ie>
+Content-Type: text/plain; charset=UTF-8
+Date: Wed, 14 May 2008 20:55:20 +0000
+Message-Id: <1210798520.19507.53.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mel Gorman <mel@csn.ul.ie>
 Cc: linux-mm@kvack.org, dean@arctic.org, linux-kernel@vger.kernel.org, wli@holomorphy.com, dwg@au1.ibm.com, andi@firstfloor.org, kenchen@google.com, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-05-07 at 20:39 +0100, Mel Gorman wrote:
+While not perfect, these patches definitely provide improved semantics
+over what we currently have.  This is the best we can do in an
+environment where swapping and/or page size demotion are not
+available.  
 
-> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-mm1-0020-map_private_reserve/mm/hugetlb.c linux-2.6.25-mm1-0030-reliable_parent_faults/mm/hugetlb.c
-> --- linux-2.6.25-mm1-0020-map_private_reserve/mm/hugetlb.c	2008-05-07 18:39:34.000000000 +0100
-> +++ linux-2.6.25-mm1-0030-reliable_parent_faults/mm/hugetlb.c	2008-05-07 20:05:18.000000000 +0100
-> @@ -40,6 +40,9 @@ static int hugetlb_next_nid;
+I don't see anything that would impact performance here and the patches
+pass basic functional testing and work fine with a benchmark I use for
+both functional and performance verification.
+
+On Wed, 2008-05-07 at 20:39 +0100, Mel Gorman wrote:
+> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-mm1-0010-move-hugetlb_acct_memory/include/linux/hugetlb.h linux-2.6.25-mm1-0020-map_private_reserve/include/linux/hugetlb.h
+> --- linux-2.6.25-mm1-0010-move-hugetlb_acct_memory/include/linux/hugetlb.h	2008-04-22 10:30:03.000000000 +0100
+> +++ linux-2.6.25-mm1-0020-map_private_reserve/include/linux/hugetlb.h	2008-05-07 18:29:27.000000000 +0100
+> @@ -17,6 +17,7 @@ static inline int is_vm_hugetlb_page(str
+>  	return vma->vm_flags & VM_HUGETLB;
+>  }
+> 
+> +void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
+>  int hugetlb_sysctl_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
+>  int hugetlb_overcommit_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
+>  int hugetlb_treat_movable_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
+> @@ -30,7 +31,8 @@ int hugetlb_report_node_meminfo(int, cha
+>  unsigned long hugetlb_total_pages(void);
+>  int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>  			unsigned long address, int write_access);
+> -int hugetlb_reserve_pages(struct inode *inode, long from, long to);
+> +int hugetlb_reserve_pages(struct inode *inode, long from, long to,
+> +						struct vm_area_struct *vma);
+>  void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
+> 
+>  extern unsigned long max_huge_pages;
+> @@ -58,6 +60,11 @@ static inline int is_vm_hugetlb_page(str
+>  {
+>  	return 0;
+>  }
+> +
+> +static inline void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
+> +{
+> +}
+
+This is a curious convention.  What purpose do the open and close braces
+serve?  Is this the syntax for saying "please inline me but find the
+real definition of this function elsewhere"?  You already declared it
+further above in hugetlb.h so I am confused.
+
+>  static inline unsigned long hugetlb_total_pages(void)
+>  {
+>  	return 0;
+> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-mm1-0010-move-hugetlb_acct_memory/kernel/fork.c linux-2.6.25-mm1-0020-map_private_reserve/kernel/fork.c
+> --- linux-2.6.25-mm1-0010-move-hugetlb_acct_memory/kernel/fork.c	2008-04-22 10:30:04.000000000 +0100
+> +++ linux-2.6.25-mm1-0020-map_private_reserve/kernel/fork.c	2008-05-07 18:29:27.000000000 +0100
+> @@ -53,6 +53,7 @@
+>  #include <linux/tty.h>
+>  #include <linux/proc_fs.h>
+>  #include <linux/blkdev.h>
+> +#include <linux/hugetlb.h>
+> 
+>  #include <asm/pgtable.h>
+>  #include <asm/pgalloc.h>
+> @@ -282,6 +283,14 @@ static int dup_mmap(struct mm_struct *mm
+>  		}
+> 
+>  		/*
+> +		 * Clear hugetlb-related page reserves for children. This only
+> +		 * affects MAP_PRIVATE mappings. Faults generated by the child
+> +		 * are not guaranteed to succeed, even if read-only
+> +		 */
+> +		if (is_vm_hugetlb_page(tmp))
+> +			reset_vma_resv_huge_pages(tmp);
+> +
+> +		/*
+>  		 * Link in the new vma and copy the page table entries.
+>  		 */
+>  		*pprev = tmp;
+> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-mm1-0010-move-hugetlb_acct_memory/mm/hugetlb.c linux-2.6.25-mm1-0020-map_private_reserve/mm/hugetlb.c
+> --- linux-2.6.25-mm1-0010-move-hugetlb_acct_memory/mm/hugetlb.c	2008-05-07 18:28:28.000000000 +0100
+> +++ linux-2.6.25-mm1-0020-map_private_reserve/mm/hugetlb.c	2008-05-07 18:39:34.000000000 +0100
+> @@ -40,6 +40,45 @@ static int hugetlb_next_nid;
 >   */
 >  static DEFINE_SPINLOCK(hugetlb_lock);
 > 
-> +#define HPAGE_RESV_OWNER    (1UL << (BITS_PER_LONG - 1))
-> +#define HPAGE_RESV_UNMAPPED (1UL << (BITS_PER_LONG - 2))
-> +#define HPAGE_RESV_MASK (HPAGE_RESV_OWNER | HPAGE_RESV_UNMAPPED)
->  /*
->   * These three helpers are used to track how many pages are reserved for
->   * faults in a MAP_PRIVATE mapping. Only the process that called mmap()
-> @@ -49,20 +52,23 @@ static unsigned long vma_resv_huge_pages
->  {
->  	VM_BUG_ON(!is_vm_hugetlb_page(vma));
->  	if (!(vma->vm_flags & VM_SHARED))
-> -		return (unsigned long)vma->vm_private_data;
-> +		return (unsigned long)vma->vm_private_data & ~HPAGE_RESV_MASK;
->  	return 0;
->  }
+> +/*
+> + * These three helpers are used to track how many pages are reserved for
+> + * faults in a MAP_PRIVATE mapping. Only the process that called mmap()
+> + * is guaranteed to have their future faults succeed
+> + */
 
-Ick.  Though I don't really have a suggestion on how to improve it
-unless a half-word is enough room to contain the reservation.  In that
-case we could create a structure which would make this much clearer.
+Should we mention what lock(s) are required when manipulating
+vm_private_data?  What do you think is the actual controlling lock here?
+This all looks safe to me (especially considering the
+hugetlb_instantiation_mutex) but I wouldn't mind identifying a
+finer-grained lock.  I would say hugetlb_lock makes sense given the new
+way we consume resv_huge_pages in i>>?decrement_hugepage_resv_vma().
+Thoughts?
 
-struct hugetlb_vma_reservation {
-	unsigned int flags;
-	unsigned int resv;
-};
-
->  static void adjust_vma_resv_huge_pages(struct vm_area_struct *vma, int delta)
->  {
->  	unsigned long reserve;
-> +	unsigned long flags;
->  	VM_BUG_ON(vma->vm_flags & VM_SHARED);
->  	VM_BUG_ON(!is_vm_hugetlb_page(vma));
-> 
->  	reserve = (unsigned long)vma->vm_private_data + delta;
-> -	vma->vm_private_data = (void *)reserve;
-> +	flags = (unsigned long)vma->vm_private_data & HPAGE_RESV_MASK;
-> +	vma->vm_private_data = (void *)(reserve | flags);
->  }
-> 
-> +/* Reset counters to 0 and clear all HPAGE_RESV_* flags */
->  void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
->  {
->  	VM_BUG_ON(!is_vm_hugetlb_page(vma));
-> @@ -73,10 +79,27 @@ void reset_vma_resv_huge_pages(struct vm
->  static void set_vma_resv_huge_pages(struct vm_area_struct *vma,
->  							unsigned long reserve)
->  {
-> +	unsigned long flags;
-> +
->  	VM_BUG_ON(!is_vm_hugetlb_page(vma));
->  	VM_BUG_ON(vma->vm_flags & VM_SHARED);
-> 
-> -	vma->vm_private_data = (void *)reserve;
-> +	flags = (unsigned long)vma->vm_private_data & HPAGE_RESV_MASK;
-> +	vma->vm_private_data = (void *)(reserve | flags);
-> +}
-> +
-> +static void set_vma_resv_flags(struct vm_area_struct *vma, unsigned long flags)
-> +{
-> +	unsigned long reserveflags = (unsigned long)vma->vm_private_data;
-> +	VM_BUG_ON(!is_vm_hugetlb_page(vma));
-> +	reserveflags |= flags;
-> +	vma->vm_private_data = (void *)reserveflags;
-> +}
-> +
-> +static int is_vma_resv_set(struct vm_area_struct *vma, unsigned long flag)
+> +static unsigned long vma_resv_huge_pages(struct vm_area_struct *vma)
 > +{
 > +	VM_BUG_ON(!is_vm_hugetlb_page(vma));
-> +	return ((unsigned long)vma->vm_private_data & flag) != 0;
->  }
-> 
+> +	if (!(vma->vm_flags & VM_SHARED))
+> +		return (unsigned long)vma->vm_private_data;
+> +	return 0;
+> +}
+
+> +static void adjust_vma_resv_huge_pages(struct vm_area_struct *vma, int delta)
+> +{
+> +	unsigned long reserve;
+> +	VM_BUG_ON(vma->vm_flags & VM_SHARED);
+> +	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+> +
+> +	reserve = (unsigned long)vma->vm_private_data + delta;
+> +	vma->vm_private_data = (void *)reserve;
+> +}
+> +
+> +void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
+> +{
+> +	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+> +	if (!(vma->vm_flags & VM_SHARED))
+> +		vma->vm_private_data = (void *)0;
+> +}
+> +
+> +static void set_vma_resv_huge_pages(struct vm_area_struct *vma,
+> +							unsigned long reserve)
+> +{
+> +	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+> +	VM_BUG_ON(vma->vm_flags & VM_SHARED);
+> +
+> +	vma->vm_private_data = (void *)reserve;
+> +}
+> +
 >  static void clear_huge_page(struct page *page, unsigned long addr)
-> @@ -139,7 +162,7 @@ static void decrement_hugepage_resv_vma(
->  		 * Only the process that called mmap() has reserves for
->  		 * private mappings.
->  		 */
-> -		if (vma_resv_huge_pages(vma)) {
-> +		if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
->  			resv_huge_pages--;
->  			adjust_vma_resv_huge_pages(vma, -1);
+>  {
+>  	int i;
+> @@ -89,6 +128,24 @@ static struct page *dequeue_huge_page(vo
+>  	return page;
+>  }
+> 
+> +/* Decrement the reserved pages in the hugepage pool by one */
+> +static void decrement_hugepage_resv_vma(struct vm_area_struct *vma)
+> +{
+> +	if (vma->vm_flags & VM_SHARED) {
+> +		/* Shared mappings always use reserves */
+> +		resv_huge_pages--;
+> +	} else {
+> +		/*
+> +		 * Only the process that called mmap() has reserves for
+> +		 * private mappings.
+> +		 */
+> +		if (vma_resv_huge_pages(vma)) {
+> +			resv_huge_pages--;
+> +			adjust_vma_resv_huge_pages(vma, -1);
+> +		}
+> +	}
+> +}
+
+>  static struct page *dequeue_huge_page_vma(struct vm_area_struct *vma,
+>  				unsigned long address)
+>  {
+> @@ -101,6 +158,16 @@ static struct page *dequeue_huge_page_vm
+>  	struct zone *zone;
+>  	struct zoneref *z;
+> 
+> +	/*
+> +	 * A child process with MAP_PRIVATE mappings created by their parent
+> +	 * have no page reserves. This check ensures that reservations are
+> +	 * not "stolen". The child may still get SIGKILLed
+> +	 */
+> +	if (!(vma->vm_flags & VM_SHARED) &&
+> +			!vma_resv_huge_pages(vma) &&
+> +			free_huge_pages - resv_huge_pages == 0)
+> +		return NULL;
+> +
+>  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+>  						MAX_NR_ZONES - 1, nodemask) {
+>  		nid = zone_to_nid(zone);
+> @@ -111,8 +178,8 @@ static struct page *dequeue_huge_page_vm
+>  			list_del(&page->lru);
+>  			free_huge_pages--;
+>  			free_huge_pages_node[nid]--;
+> -			if (vma && vma->vm_flags & VM_MAYSHARE)
+> -				resv_huge_pages--;
+> +			decrement_hugepage_resv_vma(vma);
+> +
+>  			break;
 >  		}
+>  	}
+> @@ -461,55 +528,41 @@ static void return_unused_surplus_pages(
+>  	}
+>  }
+> 
+> -
+> -static struct page *alloc_huge_page_shared(struct vm_area_struct *vma,
+> -						unsigned long addr)
+> +static struct page *alloc_huge_page(struct vm_area_struct *vma,
+> +				    unsigned long addr)
+>  {
+>  	struct page *page;
+> +	struct address_space *mapping = vma->vm_file->f_mapping;
+> +	struct inode *inode = mapping->host;
+> +	unsigned int chg = 0;
+> +
+> +	/*
+> +	 * Private mappings belonging to a child will not have their own
+> +	 * reserves, nor will they have taken their quota. Check that
+> +	 * the quota can be made before satisfying the allocation
+> +	 */
+> +	if (!(vma->vm_flags & VM_SHARED) &&
+> +				!vma_resv_huge_pages(vma)) {
+
+I wonder if we should have a helper for this since I've now seen the
+same line-wrapped if-statement twice.  How about something like:
+
+int hugetlb_resv_available(struct vm_area_struct *vma) {
+	if (vma->vm_flags & VM_SHARED)
+		return 1;
+	else if (vma_resv_huge_pages(vma))
+		return 1;
+	return 0;
+}
+
+> +		chg = 1;
+> +		if (hugetlb_get_quota(inode->i_mapping, chg))
+> +			return ERR_PTR(-ENOSPC);
+> +	}
+> 
+>  	spin_lock(&hugetlb_lock);
+>  	page = dequeue_huge_page_vma(vma, addr);
+>  	spin_unlock(&hugetlb_lock);
+> -	return page ? page : ERR_PTR(-VM_FAULT_OOM);
+> -}
+> -
+> -static struct page *alloc_huge_page_private(struct vm_area_struct *vma,
+> -						unsigned long addr)
+> -{
+> -	struct page *page = NULL;
+> 
+> -	if (hugetlb_get_quota(vma->vm_file->f_mapping, 1))
+> -		return ERR_PTR(-VM_FAULT_SIGBUS);
+> -
+> -	spin_lock(&hugetlb_lock);
+> -	if (free_huge_pages > resv_huge_pages)
+> -		page = dequeue_huge_page_vma(vma, addr);
+> -	spin_unlock(&hugetlb_lock);
+>  	if (!page) {
+>  		page = alloc_buddy_huge_page(vma, addr);
+>  		if (!page) {
+> -			hugetlb_put_quota(vma->vm_file->f_mapping, 1);
+> +			hugetlb_put_quota(inode->i_mapping, chg);
+>  			return ERR_PTR(-VM_FAULT_OOM);
+>  		}
+>  	}
+> -	return page;
+> -}
+> 
+> -static struct page *alloc_huge_page(struct vm_area_struct *vma,
+> -				    unsigned long addr)
+> -{
+> -	struct page *page;
+> -	struct address_space *mapping = vma->vm_file->f_mapping;
+> -
+> -	if (vma->vm_flags & VM_MAYSHARE)
+> -		page = alloc_huge_page_shared(vma, addr);
+> -	else
+> -		page = alloc_huge_page_private(vma, addr);
+> +	set_page_refcounted(page);
+> +	set_page_private(page, (unsigned long) mapping);
+> 
+> -	if (!IS_ERR(page)) {
+> -		set_page_refcounted(page);
+> -		set_page_private(page, (unsigned long) mapping);
+> -	}
+>  	return page;
+>  }
+> 
 
 -- 
 Adam Litke - (agl at us.ibm.com)
