@@ -1,70 +1,64 @@
-Date: Wed, 14 May 2008 06:11:22 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
-Message-ID: <20080514041122.GE24516@wotan.suse.de>
-References: <6b384bb988786aa78ef0.1210170958@duo.random> <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org> <20080508003838.GA9878@sgi.com> <200805132206.47655.nickpiggin@yahoo.com.au> <20080513153238.GL19717@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: by ti-out-0910.google.com with SMTP id j3so1095259tid.8
+        for <linux-mm@kvack.org>; Tue, 13 May 2008 21:22:36 -0700 (PDT)
+Message-ID: <386072610805132122l5d017fe1u404c38ea3f05664a@mail.gmail.com>
+Date: Wed, 14 May 2008 12:22:35 +0800
+From: "Bryan Wu" <cooloney@kernel.org>
+Subject: Re: [PATCH 1/4] [mm] buddy page allocator: add tunable big order allocation
+In-Reply-To: <8A42379416420646B9BFAC9682273B6D015F52E4@limkexm3.ad.analog.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080513153238.GL19717@sgi.com>
+References: <1210588325-11027-1-git-send-email-cooloney@kernel.org>
+	 <1210588325-11027-2-git-send-email-cooloney@kernel.org>
+	 <20080513110902.80a87ac9.kamezawa.hiroyu@jp.fujitsu.com>
+	 <8A42379416420646B9BFAC9682273B6D015F52E4@limkexm3.ad.analog.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
+To: "Hennerich, Michael" <Michael.Hennerich@analog.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dwmw2@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 13, 2008 at 10:32:38AM -0500, Robin Holt wrote:
-> On Tue, May 13, 2008 at 10:06:44PM +1000, Nick Piggin wrote:
-> > On Thursday 08 May 2008 10:38, Robin Holt wrote:
-> > > In order to invalidate the remote page table entries, we need to message
-> > > (uses XPC) to the remote side.  The remote side needs to acquire the
-> > > importing process's mmap_sem and call zap_page_range().  Between the
-> > > messaging and the acquiring a sleeping lock, I would argue this will
-> > > require sleeping locks in the path prior to the mmu_notifier invalidate_*
-> > > callouts().
-> > 
-> > Why do you need to take mmap_sem in order to shoot down pagetables of
-> > the process? It would be nice if this can just be done without
-> > sleeping.
-> 
-> We are trying to shoot down page tables of a different process running
-> on a different instance of Linux running on Numa-link connected portions
-> of the same machine.
+On Tue, May 13, 2008 at 7:42 PM, Hennerich, Michael
+<Michael.Hennerich@analog.com> wrote:
+>
+>
+>  >-----Original Message-----
+>  >From: KAMEZAWA Hiroyuki [mailto:kamezawa.hiroyu@jp.fujitsu.com]
+>  >Sent: Dienstag, 13. Mai 2008 04:09
+>  >To: Bryan Wu
+>  >Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org;
+>  dwmw2@infradead.org;
+>  >Michael Hennerich
+>  >Subject: Re: [PATCH 1/4] [mm] buddy page allocator: add tunable big
+>  order
+>  >allocation
+>  >
+>  >On Mon, 12 May 2008 18:32:02 +0800
+>  >Bryan Wu <cooloney@kernel.org> wrote:
+>  >
+>  >> From: Michael Hennerich <michael.hennerich@analog.com>
+>  >>
+>  >> Signed-off-by: Michael Hennerich <michael.hennerich@analog.com>
+>  >> Signed-off-by: Bryan Wu <cooloney@kernel.org>
+>  >
+>  >Does this really solve your problem ? possible hang-up is better than
+>  >page allocation failure ?
+>
+>  On nommu this helped quite a bit, when we run out of memory, eaten up by
+>  the page cache. But yes - with this option it's likely that we sit there
+>  and wait form memory that might never get available.
+>
+>  We now use a better workaround for freeing up "available" memory
+>  currently used as page cache.
+>
+>  I think we should drop this patch.
+>
 
-Right. You can zap page tables without sleeping, if you're careful. I
-don't know that we quite do that for anonymous pages at the moment, but it
-should be possible with a bit of thought, I believe.
+OK, I dropped it. And do you think the limited page_cache patch is the
+replacement of this patch?
 
- 
-> The messaging is clearly going to require sleeping.  Are you suggesting
-> we need to rework XPC communications to not require sleeping?  I think
-> that is going to be impossible since the transfer engine requires a
-> sleeping context.
-
-I guess that you have found a way to perform TLB flushing within coherent
-domains over the numalink interconnect without sleeping. I'm sure it would
-be possible to send similar messages between non coherent domains.
-
-So yes, I'd much rather rework such highly specialized system to fit in
-closer with Linux than rework Linux to fit with these machines (and
-apparently slow everyone else down).
-
- 
-> Additionally, the call to zap_page_range expects to have the mmap_sem
-> held.  I suppose we could use something other than zap_page_range and
-> atomically clear the process page tables.
-
-zap_page_range does not expect to have mmap_sem held. I think for anon
-pages it is always called with mmap_sem, however try_to_unmap_anon is
-not (although it expects page lock to be held, I think we should be able
-to avoid that).
-
-
->  Doing that will not alleviate
-> the need to sleep for the messaging to the other partitions.
-
-No, but I'd venture to guess that is not impossible to implement even
-on your current hardware (maybe a firmware update is needed)?
+-Bryan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
