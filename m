@@ -1,85 +1,41 @@
-Date: Wed, 14 May 2008 14:04:23 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/4] [mm] buddy page allocator: add tunable big order
- allocation
-Message-Id: <20080514140423.4c004019.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <386072610805132122l5d017fe1u404c38ea3f05664a@mail.gmail.com>
-References: <1210588325-11027-1-git-send-email-cooloney@kernel.org>
-	<1210588325-11027-2-git-send-email-cooloney@kernel.org>
-	<20080513110902.80a87ac9.kamezawa.hiroyu@jp.fujitsu.com>
-	<8A42379416420646B9BFAC9682273B6D015F52E4@limkexm3.ad.analog.com>
-	<386072610805132122l5d017fe1u404c38ea3f05664a@mail.gmail.com>
+Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Reply-To: benh@kernel.crashing.org
+In-Reply-To: <200805132214.27510.nickpiggin@yahoo.com.au>
+References: <6b384bb988786aa78ef0.1210170958@duo.random>
+	 <20080507234521.GN8276@duo.random> <20080508013459.GS8276@duo.random>
+	 <200805132214.27510.nickpiggin@yahoo.com.au>
+Content-Type: text/plain
+Date: Tue, 13 May 2008 22:43:59 -0700
+Message-Id: <1210743839.8297.55.camel@pasglop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bryan Wu <cooloney@kernel.org>
-Cc: "Hennerich, Michael" <Michael.Hennerich@analog.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dwmw2@infradead.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, clameter@sgi.com, steiner@sgi.com, holt@sgi.com, npiggin@suse.de, a.p.zijlstra@chello.nl, kvm-devel@lists.sourceforge.net, kanojsarcar@yahoo.com, rdreier@cisco.com, swise@opengridcomputing.com, linux-kernel@vger.kernel.org, avi@qumranet.com, linux-mm@kvack.org, general@lists.openfabrics.org, hugh@veritas.com, rusty@rustcorp.com.au, aliguori@us.ibm.com, chrisw@redhat.com, marcelo@kvack.org, dada1@cosmosbay.com, paulmck@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 14 May 2008 12:22:35 +0800
-"Bryan Wu" <cooloney@kernel.org> wrote:
-
-> On Tue, May 13, 2008 at 7:42 PM, Hennerich, Michael
-> <Michael.Hennerich@analog.com> wrote:
-> >
-> >
-> >  >-----Original Message-----
-> >  >From: KAMEZAWA Hiroyuki [mailto:kamezawa.hiroyu@jp.fujitsu.com]
-> >  >Sent: Dienstag, 13. Mai 2008 04:09
-> >  >To: Bryan Wu
-> >  >Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org;
-> >  dwmw2@infradead.org;
-> >  >Michael Hennerich
-> >  >Subject: Re: [PATCH 1/4] [mm] buddy page allocator: add tunable big
-> >  order
-> >  >allocation
-> >  >
-> >  >On Mon, 12 May 2008 18:32:02 +0800
-> >  >Bryan Wu <cooloney@kernel.org> wrote:
-> >  >
-> >  >> From: Michael Hennerich <michael.hennerich@analog.com>
-> >  >>
-> >  >> Signed-off-by: Michael Hennerich <michael.hennerich@analog.com>
-> >  >> Signed-off-by: Bryan Wu <cooloney@kernel.org>
-> >  >
-> >  >Does this really solve your problem ? possible hang-up is better than
-> >  >page allocation failure ?
-> >
-> >  On nommu this helped quite a bit, when we run out of memory, eaten up by
-> >  the page cache. But yes - with this option it's likely that we sit there
-> >  and wait form memory that might never get available.
-> >
-> >  We now use a better workaround for freeing up "available" memory
-> >  currently used as page cache.
-> >
-> >  I think we should drop this patch.
-> >
+On Tue, 2008-05-13 at 22:14 +1000, Nick Piggin wrote:
+> ea.
 > 
-> OK, I dropped it. And do you think the limited page_cache patch is the
-> replacement of this patch?
-> 
+> I don't see why you're bending over so far backwards to accommodate
+> this GRU thing that we don't even have numbers for and could actually
+> potentially be batched up in other ways (eg. using mmu_gather or
+> mmu_gather-like idea).
 
-I'm not so familiar with nommu environments but have some thoughts.
+I agree, we're better off generalizing the mmu_gather batching
+instead...
 
-one idea is 
- - use memory resource controller.
-   but this eats much amount of GFP_KERNEL memory and maybe not useful ;)
- - use ZONE_MOVABLE and set lowmem_reserve_ratio value to be suitable value.
-   then, the page cache just uses MOVABLE zone...(maybe)
+I had some never-finished patches to use the mmu_gather for pretty much
+everything except single page faults, tho various subtle differences
+between archs and lack of time caused me to let them take the dust and
+not finish them...
 
-Thanks,
--Kame
+I can try to dig some of that out when I'm back from my current travel,
+though it's probably worth re-doing from scratch now.
 
-
-
-
-
-
-
-
-
+Ben.
 
 
 --
