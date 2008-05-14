@@ -1,36 +1,40 @@
-Date: Wed, 14 May 2008 02:44:56 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 2/2] mm: remove nopfn
-Message-ID: <20080514004456.GB24516@wotan.suse.de>
-References: <20080513074723.GB12869@wotan.suse.de> <20080513074829.GC12869@wotan.suse.de> <20080513154812.GA23256@sgi.com> <20080513162046.GA22407@sgi.com>
+Date: Wed, 14 May 2008 09:52:56 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: memory_hotplug: always initialize pageblock bitmap.
+Message-Id: <20080514095256.741fe70a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080513185242.GA6465@osiris.boeblingen.de.ibm.com>
+References: <20080509060609.GB9840@osiris.boeblingen.de.ibm.com>
+	<20080509153910.6b074a30.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080510124501.GA4796@osiris.boeblingen.de.ibm.com>
+	<20080512105500.ff89c0d3.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080512181928.cd41c055.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080513115825.GB12339@osiris.boeblingen.de.ibm.com>
+	<20080513185242.GA6465@osiris.boeblingen.de.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080513162046.GA22407@sgi.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: Robin Holt <holt@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Whitcroft <apw@shadowen.org>, Dave Hansen <haveblue@us.ibm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 13, 2008 at 11:20:46AM -0500, Jack Steiner wrote:
-> On Tue, May 13, 2008 at 10:48:12AM -0500, Jack Steiner wrote:
-> > On Tue, May 13, 2008 at 09:48:29AM +0200, Nick Piggin wrote:
-> > > There are no users of nopfn in the tree. Remove it.
-> > > 
-> > 
-> > The SGI mspec driver use to use the nopfn callout. I see that this
-> > was recently changed but the new code fails with:
+On Tue, 13 May 2008 20:52:42 +0200
+Heiko Carstens <heiko.carstens@de.ibm.com> wrote:
+> Oops... the patch is tested and works for me. However it was not Signed-off
+> by Andrew. And in addition I forgot to add [PATCH] to the subject.
+> Sorry about that!
 > 
-> Wait.... Looks like I missed the patch that deleted the BUG_ON. That should
-> fix the problem (or at least change it).
+> If all agree that this patch is ok it should probably also go into
+> -stable, since it fixes the above mentioned regression.
 > 
-> Retesting.....
+Thank you very much! The patch seems ok to me.
+(But I cannot test this until my box is available...)
 
-Thanks Jack, that would be a great help. Sorry, I should have cc'ed you
-on the first patch as well so that it would be more clear that you have to
-remove the BUG_ON.
+If other memory-hotplug guys say ok, I have no objection to -stable.
 
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
