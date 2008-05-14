@@ -1,102 +1,121 @@
-Date: Wed, 14 May 2008 12:44:55 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [BUG] 2.6.26-rc2-mm1 - kernel bug while bootup at
- __alloc_pages_internal () on x86_64
-Message-Id: <20080514124455.cf7c3097.akpm@linux-foundation.org>
-In-Reply-To: <482B2DB0.9030102@linux.vnet.ibm.com>
-References: <20080514010129.4f672378.akpm@linux-foundation.org>
-	<482ACBFE.9010606@linux.vnet.ibm.com>
-	<20080514103601.32d20889.akpm@linux-foundation.org>
-	<482B2DB0.9030102@linux.vnet.ibm.com>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4EKtD0e032656
+	for <linux-mm@kvack.org>; Wed, 14 May 2008 16:55:13 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4EKtDii152744
+	for <linux-mm@kvack.org>; Wed, 14 May 2008 16:55:13 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4EKtBfa014167
+	for <linux-mm@kvack.org>; Wed, 14 May 2008 16:55:12 -0400
+Subject: Re: [PATCH 3/3] Guarantee that COW faults for a process that
+	called mmap(MAP_PRIVATE) on hugetlbfs will succeed
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <20080507193926.5765.78883.sendpatchset@skynet.skynet.ie>
+References: <20080507193826.5765.49292.sendpatchset@skynet.skynet.ie>
+	 <20080507193926.5765.78883.sendpatchset@skynet.skynet.ie>
+Content-Type: text/plain
+Date: Wed, 14 May 2008 15:55:25 -0500
+Message-Id: <1210798525.19507.55.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, apw@shadowen.org, balbir@linux.vnet.ibm.com, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, dean@arctic.org, linux-kernel@vger.kernel.org, wli@holomorphy.com, dwg@au1.ibm.com, andi@firstfloor.org, kenchen@google.com, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 14 May 2008 23:51:36 +0530
-Kamalesh Babulal <kamalesh@linux.vnet.ibm.com> wrote:
+On Wed, 2008-05-07 at 20:39 +0100, Mel Gorman wrote:
 
-> Andrew Morton wrote:
-> > On Wed, 14 May 2008 16:54:46 +0530 Kamalesh Babulal <kamalesh@linux.vnet.ibm.com> wrote:
-> > 
-> >> Hi Andrew,
-> >>
-> >> The 2.6.26-rc2-mm1 kernel panic's while bootup on the x86_64 machine.
-> >>
-> >>
-> >> BUG: unable to handle kernel paging request at 0000000000001e08
-> >> IP: [<ffffffff8026ac60>] __alloc_pages_internal+0x80/0x470
-> >> PGD 0 
-> >> Oops: 0000 [1] SMP 
-> >> last sysfs file: 
-> >> CPU 31 
-> >> Modules linked in:
-> >> Pid: 1, comm: swapper Not tainted 2.6.26-rc2-mm1-autotest #1
-> >> RIP: 0010:[<ffffffff8026ac60>]  [<ffffffff8026ac60>] __alloc_pages_internal+0x80/0x470
-> >> RSP: 0018:ffff810bf9dbdbc0  EFLAGS: 00010202
-> >> RAX: 0000000000000002 RBX: ffff810bef4786c0 RCX: 0000000000000001
-> >> RDX: 0000000000001e00 RSI: 0000000000000001 RDI: 0000000000001020
-> >> RBP: ffff810bf9dbb6d0 R08: 0000000000001020 R09: 0000000000000000
-> >> R10: 0000000000000008 R11: ffffffff8046d130 R12: 0000000000001020
-> >> R13: 0000000000000001 R14: 0000000000001e00 R15: ffff810bf8d29878
-> >> FS:  0000000000000000(0000) GS:ffff810bf916dec0(0000) knlGS:0000000000000000
-> >> CS:  0010 DS: 0018 ES: 0018 CR0: 000000008005003b
-> >> CR2: 0000000000001e08 CR3: 0000000000201000 CR4: 00000000000006e0
-> >> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> >> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> >> Process swapper (pid: 1, threadinfo ffff810bf9dbc000, task ffff810bf9dbb6d0)
-> >> Stack:  0002102000000000 0000000000000002 0000000000000000 0000000200000000
-> >>  0000000000000000 0000000000000000 0000000000000000 0000000000000000
-> >>  0000000000000000 ffff810bef4786c0 0000000000001020 ffffffffffffffff
-> >> Call Trace:
-> >>  [<ffffffff802112e9>] dma_alloc_coherent+0xa9/0x280
-> >>  [<ffffffff804e8c9e>] tg3_init_one+0xa3e/0x15e0
-> >>  [<ffffffff8028d0e4>] alternate_node_alloc+0x84/0xd0
-> >>  [<ffffffff802286fc>] task_rq_lock+0x4c/0x90
-> >>  [<ffffffff8022de62>] set_cpus_allowed_ptr+0x72/0xf0
-> >>  [<ffffffff802e12fb>] sysfs_addrm_finish+0x1b/0x210
-> >>  [<ffffffff802e0f99>] sysfs_find_dirent+0x29/0x40
-> >>  [<ffffffff8036cc34>] pci_device_probe+0xe4/0x130
-> >>  [<ffffffff803bfc26>] driver_probe_device+0x96/0x1a0
-> >>  [<ffffffff803bfdb9>] __driver_attach+0x89/0x90
-> >>  [<ffffffff803bfd30>] __driver_attach+0x0/0x90
-> >>  [<ffffffff803bf29d>] bus_for_each_dev+0x4d/0x80
-> >>  [<ffffffff8028d676>] kmem_cache_alloc+0x116/0x130
-> >>  [<ffffffff803bf78e>] bus_add_driver+0xae/0x220
-> >>  [<ffffffff803c0046>] driver_register+0x56/0x130
-> >>  [<ffffffff8036cee8>] __pci_register_driver+0x68/0xb0
-> >>  [<ffffffff80708a29>] kernel_init+0x139/0x390
-> >>  [<ffffffff8020c358>] child_rip+0xa/0x12
-> >>  [<ffffffff807088f0>] kernel_init+0x0/0x390
-> >>  [<ffffffff8020c34e>] child_rip+0x0/0x12
-> >>
-> >>
-> >> Code: c9 00 00 02 00 25 00 08 00 00 89 4c 24 04 89 04 24 44 89 e9 b8 01 00 00 00 d3 e0 48 98 48 89 44 24 08 65 48 8b 2c 25 00 00 00 00 <49> 83 7e 08 00 0f 84 9a 03 00 00 44 8b 44 24 1c 48 8b 74 24 10 
-> >> RIP  [<ffffffff8026ac60>] __alloc_pages_internal+0x80/0x470
-> >>  RSP <ffff810bf9dbdbc0>
-> >> CR2: 0000000000001e08
-> >> ---[ end trace 111493bba2b1f3db ]---
-> > 
-> > grumble.  why.  There are lots of patches already which changed the
-> > page allocator.
-> > 
-> > config, please?
-> I have attached the .config file.
+> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-mm1-0020-map_private_reserve/mm/hugetlb.c linux-2.6.25-mm1-0030-reliable_parent_faults/mm/hugetlb.c
+> --- linux-2.6.25-mm1-0020-map_private_reserve/mm/hugetlb.c	2008-05-07 18:39:34.000000000 +0100
+> +++ linux-2.6.25-mm1-0030-reliable_parent_faults/mm/hugetlb.c	2008-05-07 20:05:18.000000000 +0100
+> @@ -40,6 +40,9 @@ static int hugetlb_next_nid;
+>   */
+>  static DEFINE_SPINLOCK(hugetlb_lock);
+> 
+> +#define HPAGE_RESV_OWNER    (1UL << (BITS_PER_LONG - 1))
+> +#define HPAGE_RESV_UNMAPPED (1UL << (BITS_PER_LONG - 2))
+> +#define HPAGE_RESV_MASK (HPAGE_RESV_OWNER | HPAGE_RESV_UNMAPPED)
+>  /*
+>   * These three helpers are used to track how many pages are reserved for
+>   * faults in a MAP_PRIVATE mapping. Only the process that called mmap()
+> @@ -49,20 +52,23 @@ static unsigned long vma_resv_huge_pages
+>  {
+>  	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+>  	if (!(vma->vm_flags & VM_SHARED))
+> -		return (unsigned long)vma->vm_private_data;
+> +		return (unsigned long)vma->vm_private_data & ~HPAGE_RESV_MASK;
+>  	return 0;
+>  }
 
-I cannot reproduce it with your config on my non-numa box.
+Ick.  Though I don't really have a suggestion on how to improve it
+unless a half-word is enough room to contain the reservation.  In that
+case we could create a structure which would make this much clearer.
 
-> > Is it NUMA?
-> It is a NUMA box, with 4 nodes.
+struct hugetlb_vma_reservation {
+	unsigned int flags;
+	unsigned int resv;
+};
 
-Can you bisect it please?
+>  static void adjust_vma_resv_huge_pages(struct vm_area_struct *vma, int delta)
+>  {
+>  	unsigned long reserve;
+> +	unsigned long flags;
+>  	VM_BUG_ON(vma->vm_flags & VM_SHARED);
+>  	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+> 
+>  	reserve = (unsigned long)vma->vm_private_data + delta;
+> -	vma->vm_private_data = (void *)reserve;
+> +	flags = (unsigned long)vma->vm_private_data & HPAGE_RESV_MASK;
+> +	vma->vm_private_data = (void *)(reserve | flags);
+>  }
+> 
+> +/* Reset counters to 0 and clear all HPAGE_RESV_* flags */
+>  void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
+>  {
+>  	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+> @@ -73,10 +79,27 @@ void reset_vma_resv_huge_pages(struct vm
+>  static void set_vma_resv_huge_pages(struct vm_area_struct *vma,
+>  							unsigned long reserve)
+>  {
+> +	unsigned long flags;
+> +
+>  	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+>  	VM_BUG_ON(vma->vm_flags & VM_SHARED);
+> 
+> -	vma->vm_private_data = (void *)reserve;
+> +	flags = (unsigned long)vma->vm_private_data & HPAGE_RESV_MASK;
+> +	vma->vm_private_data = (void *)(reserve | flags);
+> +}
+> +
+> +static void set_vma_resv_flags(struct vm_area_struct *vma, unsigned long flags)
+> +{
+> +	unsigned long reserveflags = (unsigned long)vma->vm_private_data;
+> +	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+> +	reserveflags |= flags;
+> +	vma->vm_private_data = (void *)reserveflags;
+> +}
+> +
+> +static int is_vma_resv_set(struct vm_area_struct *vma, unsigned long flag)
+> +{
+> +	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+> +	return ((unsigned long)vma->vm_private_data & flag) != 0;
+>  }
+> 
+>  static void clear_huge_page(struct page *page, unsigned long addr)
+> @@ -139,7 +162,7 @@ static void decrement_hugepage_resv_vma(
+>  		 * Only the process that called mmap() has reserves for
+>  		 * private mappings.
+>  		 */
+> -		if (vma_resv_huge_pages(vma)) {
+> +		if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
+>  			resv_huge_pages--;
+>  			adjust_vma_resv_huge_pages(vma, -1);
+>  		}
 
-Wrecking the page allocator is a fairly unusual thing to do.  I'd start
-out by looking at *bootmem*.patch and perhaps
-acpi-acpi_numa_init-build-fix.patch.
+-- 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
