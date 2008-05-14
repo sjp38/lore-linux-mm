@@ -1,74 +1,44 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4EIXGRo021393
-	for <linux-mm@kvack.org>; Wed, 14 May 2008 14:33:16 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4EIXG5x149632
-	for <linux-mm@kvack.org>; Wed, 14 May 2008 14:33:16 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4EIXF0G031434
-	for <linux-mm@kvack.org>; Wed, 14 May 2008 14:33:16 -0400
-Subject: Re: [patch 2/2]: introduce fast_gup
-From: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
-In-Reply-To: <20080422094629.GC23770@wotan.suse.de>
-References: <20080328025455.GA8083@wotan.suse.de>
-	 <20080328030023.GC8083@wotan.suse.de> <1208857356.7115.218.camel@twins>
-	 <20080422094629.GC23770@wotan.suse.de>
+Subject: Re: [PATCH] x86: fix PAE pmd_bad bootup warning
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <1210288532.7905.89.camel@nimitz.home.sr71.net>
+References: <1210106579.4747.51.camel@nimitz.home.sr71.net>
+	 <20080508143453.GE12654@escobedo.amd.com>
+	 <1210258350.7905.45.camel@nimitz.home.sr71.net>
+	 <20080508151145.GG12654@escobedo.amd.com>
+	 <1210261882.7905.49.camel@nimitz.home.sr71.net>
+	 <20080508161925  <20080508200239.GJ12654@escobedo.amd.com>
+	 <1210288532.7905.89.camel@nimitz.home.sr71.net>
 Content-Type: text/plain
-Date: Wed, 14 May 2008 13:33:14 -0500
-Message-Id: <1210789994.6377.21.camel@norville.austin.ibm.com>
+Date: Wed, 14 May 2008 14:01:41 -0500
+Message-Id: <1210791701.4093.29.camel@calx>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, axboe@kernel.dk, linux-mm@kvack.org, linux-arch@vger.kernel.org, torvalds@linux-foundation.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Hans Rosenfeld <hans.rosenfeld@amd.com>, Hugh Dickins <hugh@veritas.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Jeff Chua <jeff.chua.linux@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Gabriel C <nix.or.die@googlemail.com>, Arjan van de Ven <arjan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-04-22 at 11:46 +0200, Nick Piggin wrote:
-> On Tue, Apr 22, 2008 at 11:42:36AM +0200, Peter Zijlstra wrote:
-> > On Fri, 2008-03-28 at 04:00 +0100, Nick Piggin wrote:
-> > 
-> > > +static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
-> > > +		unsigned long end, int write, struct page **pages, int *nr)
-> > > +{
-> > > +	unsigned long mask, result;
-> > > +	pte_t *ptep;
-> > > +
-> > > +	result = _PAGE_PRESENT|_PAGE_USER;
-> > > +	if (write)
-> > > +		result |= _PAGE_RW;
-> > > +	mask = result | _PAGE_SPECIAL;
-> > > +
-> > > +	ptep = pte_offset_map(&pmd, addr);
-> > > +	do {
-> > > +		/*
-> > > +		 * XXX: careful. On 3-level 32-bit, the pte is 64 bits, and
-> > > +		 * we need to make sure we load the low word first, then the
-> > > +		 * high. This means _PAGE_PRESENT should be clear if the high
-> > > +		 * word was not valid. Currently, the C compiler can issue
-> > > +		 * the loads in any order, and I don't know of a wrapper
-> > > +		 * function that will do this properly, so it is broken on
-> > > +		 * 32-bit 3-level for the moment.
-> > > +		 */
-> > > +		pte_t pte = *ptep;
-> > > +		struct page *page;
-> > > +
-> > > +		if ((pte_val(pte) & mask) != result)
-> > > +			return 0;
-> > 
-> > This return path fails to unmap the pmd.
+On Thu, 2008-05-08 at 16:15 -0700, Dave Hansen wrote:
+> Here's one quick stab at a solution.  I figured that we already pass
+> that 'private' variable around.  This patch just sticks that variable
+> *in* the mm_walk and also makes the caller fill in an 'mm' as well.
+> Then, we just pass the actual mm_walk around.
 > 
-> Ah good catch. As you can see I haven't done any highmem testing ;)
-> Which I will do so before sending upstream.
+> Maybe we should just stick the VMA in the mm_walk as well, and have the
+> common code keep it up to date with the addresses currently being
+> walked.
+> 
+> Sadly, I didn't quite get enough time to flesh this idea out very far
+> today, and I'll be offline for a couple of days now.  But, if someone
+> wants to go this route, I thought this might be useful.  
 
-Which will be when?  We'd really like to see this in mainline as soon as
-possible and in -mm in the meanwhile.
+This much looks reasonable. But the real test of course is to actually
+teach it about detecting huge pages efficiently. And I suspect that
+means tracking the current VMA all the time in the walk. Am I wrong?
 
-Thanks,
-Shaggy
 -- 
-David Kleikamp
-IBM Linux Technology Center
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
