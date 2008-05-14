@@ -1,119 +1,65 @@
-Date: Wed, 14 May 2008 06:26:25 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
-Message-ID: <20080514112625.GY9878@sgi.com>
-References: <6b384bb988786aa78ef0.1210170958@duo.random> <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org> <20080508003838.GA9878@sgi.com> <200805132206.47655.nickpiggin@yahoo.com.au> <20080513153238.GL19717@sgi.com> <20080514041122.GE24516@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080514041122.GE24516@wotan.suse.de>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4ED9OUJ022685
+	for <linux-mm@kvack.org>; Wed, 14 May 2008 09:09:24 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4ED9Nll054110
+	for <linux-mm@kvack.org>; Wed, 14 May 2008 07:09:23 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4ED9Mvg008073
+	for <linux-mm@kvack.org>; Wed, 14 May 2008 07:09:23 -0600
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Wed, 14 May 2008 18:39:04 +0530
+Message-Id: <20080514130904.24440.23486.sendpatchset@localhost.localdomain>
+Subject: [-mm][PATCH 0/4] Add memrlimit controller (v4)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Robin Holt <holt@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
+To: linux-mm@kvack.org
+Cc: Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Pavel Emelianov <xemul@openvz.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 14, 2008 at 06:11:22AM +0200, Nick Piggin wrote:
-> On Tue, May 13, 2008 at 10:32:38AM -0500, Robin Holt wrote:
-> > On Tue, May 13, 2008 at 10:06:44PM +1000, Nick Piggin wrote:
-> > > On Thursday 08 May 2008 10:38, Robin Holt wrote:
-> > > > In order to invalidate the remote page table entries, we need to message
-> > > > (uses XPC) to the remote side.  The remote side needs to acquire the
-> > > > importing process's mmap_sem and call zap_page_range().  Between the
-> > > > messaging and the acquiring a sleeping lock, I would argue this will
-> > > > require sleeping locks in the path prior to the mmu_notifier invalidate_*
-> > > > callouts().
-> > > 
-> > > Why do you need to take mmap_sem in order to shoot down pagetables of
-> > > the process? It would be nice if this can just be done without
-> > > sleeping.
-> > 
-> > We are trying to shoot down page tables of a different process running
-> > on a different instance of Linux running on Numa-link connected portions
-> > of the same machine.
-> 
-> Right. You can zap page tables without sleeping, if you're careful. I
-> don't know that we quite do that for anonymous pages at the moment, but it
-> should be possible with a bit of thought, I believe.
-> 
->  
-> > The messaging is clearly going to require sleeping.  Are you suggesting
-> > we need to rework XPC communications to not require sleeping?  I think
-> > that is going to be impossible since the transfer engine requires a
-> > sleeping context.
-> 
-> I guess that you have found a way to perform TLB flushing within coherent
-> domains over the numalink interconnect without sleeping. I'm sure it would
-> be possible to send similar messages between non coherent domains.
+This is the fourth version of the address space control patches. These
+patches are against 2.6.26-rc2-mm1  and have been tested using KVM in SMP mode,
+both with and without the config enabled, on a powerpc box and using UML.
+The patches have also been compile tested with the config disabled on a
+powerpc box.
 
-I assume by coherent domains, your are actually talking about system
-images.  Our memory coherence domain on the 3700 family is 512 processors
-on 128 nodes.  On the 4700 family, it is 16,384 processors on 4096 nodes.
-We extend a "Read-Exclusive" mode beyond the coherence domain so any
-processor is able to read any cacheline on the system.  We also provide
-uncached access for certain types of memory beyond the coherence domain.
+The goal of this patch is to implement a virtual address space controller
+using cgroups. The documentation describes the controller, it's goal and
+usage in further details.
 
-For the other partitions, the exporting partition does not know what
-virtual address the imported pages are mapped.  The pages are frequently
-mapped in a different order by the MPI library to help with MPI collective
-operations.
+The first patch adds the user interface. The second patch fixes the
+cgroup mm_owner_changed callback to pass the task struct, so that
+accounting can be adjusted on owner changes. The thrid patch adds accounting
+and control. The fourth patch updates documentation.
 
-For the exporting side to do those TLB flushes, we would need to replicate
-all that importing information back to the exporting side.
+An earlier post of the patchset can be found at
+http://lwn.net/Articles/275143/
 
-Additionally, the hardware that does the TLB flushing is protected
-by a spinlock on each system image.  We would need to change that
-simple spinlock into a type of hardware lock that would work (on 3700)
-outside the processors coherence domain.  The only way to do that is to
-use uncached addresses with our Atomic Memory Operations which do the
-cmpxchg at the memory controller.  The uncached accesses are an order
-of magnitude or more slower.
+This patch is built on top of the mm owner patches and utilizes that feature
+to virtually group tasks by mm_struct.
 
-> So yes, I'd much rather rework such highly specialized system to fit in
-> closer with Linux than rework Linux to fit with these machines (and
-> apparently slow everyone else down).
+Reviews, Comments?
 
-But it isn't that we are having a problem adapting to just the hardware.
-One of the limiting factors is Linux on the other partition.
+Changelog
 
-> > Additionally, the call to zap_page_range expects to have the mmap_sem
-> > held.  I suppose we could use something other than zap_page_range and
-> > atomically clear the process page tables.
-> 
-> zap_page_range does not expect to have mmap_sem held. I think for anon
-> pages it is always called with mmap_sem, however try_to_unmap_anon is
-> not (although it expects page lock to be held, I think we should be able
-> to avoid that).
+1. Add documentation upfront
+2. Refactor the code (error handling and changes to improvde code)
+3. Protect reading of total_vm with mmap_sem
+4. Port to 2.6.26-rc2
+5. Changed the name from rlimit to memrlimit
 
-zap_page_range calls unmap_vmas which walks to vma->next.  Are you saying
-that can be walked without grabbing the mmap_sem at least readably?
-I feel my understanding of list management and locking completely
-shifting.
+Series
 
-> >  Doing that will not alleviate
-> > the need to sleep for the messaging to the other partitions.
-> 
-> No, but I'd venture to guess that is not impossible to implement even
-> on your current hardware (maybe a firmware update is needed)?
+memrlimit-controller-add-documentation.patch
+memrlimit-controller-setup.patch
+cgroup-add-task-to-mm-owner-callbacks.patch
+memrlimit-controller-address-space-accounting-and-control.patch
 
-Are you suggesting the sending side would not need to sleep or the
-receiving side?  Assuming you meant the sender, it spins waiting for the
-remote side to acknowledge the invalidate request?  We place the data
-into a previously agreed upon buffer and send an interrupt.  At this
-point, we would need to start spinning and waiting for completion.
-Let's assume we never run out of buffer space.
-
-The receiving side receives an interrupt.  The interrupt currently wakes
-an XPC thread to do the work of transfering and delivering the message
-to XPMEM.  The transfer of the data which XPC does uses the BTE engine
-which takes up to 28 seconds to timeout (hardware timeout before raising
-and error) and the BTE code automatically does a retry for certain
-types of failure.  We currently need to grab semaphores which _MAY_
-be able to be reworked into other types of locks.
-
-
-Thanks,
-Robin
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
