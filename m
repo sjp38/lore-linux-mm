@@ -1,44 +1,55 @@
-Subject: Re: [PATCH] x86: fix PAE pmd_bad bootup warning
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <1210288532.7905.89.camel@nimitz.home.sr71.net>
-References: <1210106579.4747.51.camel@nimitz.home.sr71.net>
-	 <20080508143453.GE12654@escobedo.amd.com>
-	 <1210258350.7905.45.camel@nimitz.home.sr71.net>
-	 <20080508151145.GG12654@escobedo.amd.com>
-	 <1210261882.7905.49.camel@nimitz.home.sr71.net>
-	 <20080508161925  <20080508200239.GJ12654@escobedo.amd.com>
-	 <1210288532.7905.89.camel@nimitz.home.sr71.net>
-Content-Type: text/plain
-Date: Wed, 14 May 2008 14:01:41 -0500
-Message-Id: <1210791701.4093.29.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+From: Johannes Weiner <hannes@saeurebad.de>
+Subject: Re: [PATCH 0/3] bootmem2 III
+References: <20080509151713.939253437@saeurebad.de>
+	<20080509184044.GA19109@one.firstfloor.org>
+	<87lk2gtzta.fsf@saeurebad.de> <48275493.40601@firstfloor.org>
+	<874p92qsvn.fsf@saeurebad.de> <482990AB.7070905@firstfloor.org>
+Date: Wed, 14 May 2008 21:12:47 +0200
+In-Reply-To: <482990AB.7070905@firstfloor.org> (Andi Kleen's message of "Tue,
+	13 May 2008 14:59:23 +0200")
+Message-ID: <87ve1gpumo.fsf@saeurebad.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Hans Rosenfeld <hans.rosenfeld@amd.com>, Hugh Dickins <hugh@veritas.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Jeff Chua <jeff.chua.linux@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Gabriel C <nix.or.die@googlemail.com>, Arjan van de Ven <arjan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Yinghai Lu <yhlu.kernel@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-05-08 at 16:15 -0700, Dave Hansen wrote:
-> Here's one quick stab at a solution.  I figured that we already pass
-> that 'private' variable around.  This patch just sticks that variable
-> *in* the mm_walk and also makes the caller fill in an 'mm' as well.
-> Then, we just pass the actual mm_walk around.
-> 
-> Maybe we should just stick the VMA in the mm_walk as well, and have the
-> common code keep it up to date with the addresses currently being
-> walked.
-> 
-> Sadly, I didn't quite get enough time to flesh this idea out very far
-> today, and I'll be offline for a couple of days now.  But, if someone
-> wants to go this route, I thought this might be useful.  
+Hi Andi,
 
-This much looks reasonable. But the real test of course is to actually
-teach it about detecting huge pages efficiently. And I suspect that
-means tracking the current VMA all the time in the walk. Am I wrong?
+Andi Kleen <andi@firstfloor.org> writes:
 
--- 
-Mathematics is the supreme nostalgia of our time.
+>> I was wondering yesterday if it would be feasible to enforce
+>> contiguousness for nodes.
+>
+> And lose the memory? That would make people not happy.
+
+No, one node descriptor per contiguous block on the physical node.
+
+So this setup:
+
+node 0: 0-2G, 4-6G
+node 1: 2-4G, 6-8G
+
+would have 4 pgdats.
+
+>> So that arch-code does not create one pgdat
+>> for each node but one for each contiguous block.  I have not yet looked
+>> deeper into it, but I suspect that other mm code has similar problems
+>> with nodes spanning other nodes.
+>
+> I wouldn't think so. At least sparse memory with large holes is not that
+> uncommon in the non x86 world.
+
+I do not quite understand.  Holes are not the problem - the overlapping
+is.
+
+The current bootmem allocator for example might pass the same pfn twice
+to the buddy allocator when two nodes overlap.  And I don't know if
+other mm code has the same problem.
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
