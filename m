@@ -1,257 +1,412 @@
 Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4ED6YiW016780
-	for <linux-mm@kvack.org>; Wed, 14 May 2008 09:06:34 -0400
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4EDAHVZ015765
+	for <linux-mm@kvack.org>; Wed, 14 May 2008 09:10:17 -0400
 Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4ED9k7A062926
-	for <linux-mm@kvack.org>; Wed, 14 May 2008 07:09:47 -0600
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4EDAAC6029500
+	for <linux-mm@kvack.org>; Wed, 14 May 2008 07:10:11 -0600
 Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4ED9kLd009504
-	for <linux-mm@kvack.org>; Wed, 14 May 2008 07:09:46 -0600
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4EDA954011406
+	for <linux-mm@kvack.org>; Wed, 14 May 2008 07:10:09 -0600
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Wed, 14 May 2008 18:39:26 +0530
-Message-Id: <20080514130926.24440.77703.sendpatchset@localhost.localdomain>
+Date: Wed, 14 May 2008 18:39:51 +0530
+Message-Id: <20080514130951.24440.73671.sendpatchset@localhost.localdomain>
 In-Reply-To: <20080514130904.24440.23486.sendpatchset@localhost.localdomain>
 References: <20080514130904.24440.23486.sendpatchset@localhost.localdomain>
-Subject: [-mm][PATCH 2/4] Setup the memrlimit controller (v4)
+Subject: [-mm][PATCH 4/4] Add memrlimit controller accounting and control (v4)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Pavel Emelianov <xemul@openvz.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch sets up the rlimit cgroup controller. It adds the basic create,
-destroy and populate functionality. The user interface provided is very
-similar to the memory resource controller. The rlimit controller can be
-enhanced easily in the future to control mlocked pages.
-
-Changelog v3->v4
-
-1. Use PAGE_ALIGN()
-2. Rename rlimit to memrlimit
-
+This patch adds support for accounting and control of virtual address space
+limits. The accounting is done via the rlimit_cgroup_(un)charge_as functions.
+The core of the accounting takes place during fork time in copy_process(),
+may_expand_vm(), remove_vma_list() and exit_mmap(). There are some special
+cases that are handled here as well (arch/ia64/kernel/perform.c,
+arch/x86/kernel/ptrace.c, insert_special_mapping())
 
 Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
 
- include/linux/cgroup_subsys.h   |    4 +
- include/linux/memrlimitcgroup.h |   19 +++++
- init/Kconfig                    |   10 ++
- mm/Makefile                     |    1 
- mm/memrlimitcgroup.c            |  144 ++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 178 insertions(+)
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
 
-diff -puN include/linux/cgroup_subsys.h~memrlimit-controller-setup include/linux/cgroup_subsys.h
---- linux-2.6.26-rc2/include/linux/cgroup_subsys.h~memrlimit-controller-setup	2008-05-14 18:36:36.000000000 +0530
-+++ linux-2.6.26-rc2-balbir/include/linux/cgroup_subsys.h	2008-05-14 18:36:36.000000000 +0530
-@@ -47,4 +47,8 @@ SUBSYS(mem_cgroup)
- SUBSYS(devices)
- #endif
+ arch/ia64/kernel/perfmon.c      |    6 ++
+ arch/x86/kernel/ptrace.c        |   17 +++++--
+ fs/exec.c                       |    5 ++
+ include/linux/memrlimitcgroup.h |   21 ++++++++
+ kernel/fork.c                   |    8 +++
+ mm/memrlimitcgroup.c            |   94 ++++++++++++++++++++++++++++++++++++++++
+ mm/mmap.c                       |   11 ++++
+ 7 files changed, 157 insertions(+), 5 deletions(-)
+
+diff -puN arch/ia64/kernel/perfmon.c~memrlimit-controller-address-space-accounting-and-control arch/ia64/kernel/perfmon.c
+--- linux-2.6.26-rc2/arch/ia64/kernel/perfmon.c~memrlimit-controller-address-space-accounting-and-control	2008-05-14 18:09:32.000000000 +0530
++++ linux-2.6.26-rc2-balbir/arch/ia64/kernel/perfmon.c	2008-05-14 18:09:32.000000000 +0530
+@@ -40,6 +40,7 @@
+ #include <linux/capability.h>
+ #include <linux/rcupdate.h>
+ #include <linux/completion.h>
++#include <linux/memrlimitcgroup.h>
+ 
+ #include <asm/errno.h>
+ #include <asm/intrinsics.h>
+@@ -2294,6 +2295,9 @@ pfm_smpl_buffer_alloc(struct task_struct
+ 
+ 	DPRINT(("sampling buffer rsize=%lu size=%lu bytes\n", rsize, size));
+ 
++	if (memrlimit_cgroup_charge_as(mm, size >> PAGE_SHIFT))
++		return -ENOMEM;
++
+ 	/*
+ 	 * check requested size to avoid Denial-of-service attacks
+ 	 * XXX: may have to refine this test
+@@ -2313,6 +2317,7 @@ pfm_smpl_buffer_alloc(struct task_struct
+ 	smpl_buf = pfm_rvmalloc(size);
+ 	if (smpl_buf == NULL) {
+ 		DPRINT(("Can't allocate sampling buffer\n"));
++		memrlimit_cgroup_uncharge_as(mm, size >> PAGE_SHIFT);
+ 		return -ENOMEM;
+ 	}
+ 
+@@ -2390,6 +2395,7 @@ pfm_smpl_buffer_alloc(struct task_struct
+ 	return 0;
+ 
+ error:
++	memrlimit_cgroup_uncharge_as(mm, size >> PAGE_SHIFT);
+ 	kmem_cache_free(vm_area_cachep, vma);
+ error_kmem:
+ 	pfm_rvfree(smpl_buf, size);
+diff -puN arch/x86/kernel/ds.c~memrlimit-controller-address-space-accounting-and-control arch/x86/kernel/ds.c
+diff -puN fs/exec.c~memrlimit-controller-address-space-accounting-and-control fs/exec.c
+--- linux-2.6.26-rc2/fs/exec.c~memrlimit-controller-address-space-accounting-and-control	2008-05-14 18:09:32.000000000 +0530
++++ linux-2.6.26-rc2-balbir/fs/exec.c	2008-05-14 18:09:32.000000000 +0530
+@@ -52,6 +52,7 @@
+ #include <linux/tsacct_kern.h>
+ #include <linux/cn_proc.h>
+ #include <linux/audit.h>
++#include <linux/memrlimitcgroup.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/mmu_context.h>
+@@ -230,6 +231,9 @@ static int __bprm_mm_init(struct linux_b
+ 	if (!vma)
+ 		goto err;
+ 
++	if (memrlimit_cgroup_charge_as(mm, 1))
++		goto err;
++
+ 	down_write(&mm->mmap_sem);
+ 	vma->vm_mm = mm;
+ 
+@@ -247,6 +251,7 @@ static int __bprm_mm_init(struct linux_b
+ 	err = insert_vm_struct(mm, vma);
+ 	if (err) {
+ 		up_write(&mm->mmap_sem);
++		memrlimit_cgroup_uncharge_as(mm, 1);
+ 		goto err;
+ 	}
+ 
+diff -puN include/linux/memrlimitcgroup.h~memrlimit-controller-address-space-accounting-and-control include/linux/memrlimitcgroup.h
+--- linux-2.6.26-rc2/include/linux/memrlimitcgroup.h~memrlimit-controller-address-space-accounting-and-control	2008-05-14 18:09:32.000000000 +0530
++++ linux-2.6.26-rc2-balbir/include/linux/memrlimitcgroup.h	2008-05-14 18:09:32.000000000 +0530
+@@ -16,4 +16,25 @@
+ #ifndef LINUX_MEMRLIMITCGROUP_H
+ #define LINUX_MEMRLIMITCGROUP_H
  
 +#ifdef CONFIG_CGROUP_MEMRLIMIT_CTLR
-+SUBSYS(memrlimit_cgroup)
-+#endif
 +
- /* */
-diff -puN /dev/null include/linux/memrlimitcgroup.h
---- /dev/null	2008-05-14 04:27:30.032276540 +0530
-+++ linux-2.6.26-rc2-balbir/include/linux/memrlimitcgroup.h	2008-05-14 18:36:36.000000000 +0530
-@@ -0,0 +1,19 @@
-+/*
-+ * Copyright A(C) International Business Machines  Corp., 2008
-+ *
-+ * Author: Balbir Singh <balbir@linux.vnet.ibm.com>
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License as published by
-+ * the Free Software Foundation; either version 2 of the License, or
-+ * (at your option) any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ */
-+#ifndef LINUX_MEMRLIMITCGROUP_H
-+#define LINUX_MEMRLIMITCGROUP_H
++int memrlimit_cgroup_charge_as(struct mm_struct *mm, unsigned long nr_pages);
++void memrlimit_cgroup_uncharge_as(struct mm_struct *mm, unsigned long nr_pages);
 +
-+#endif /* LINUX_MEMRLIMITCGROUP_H */
-diff -puN init/Kconfig~memrlimit-controller-setup init/Kconfig
---- linux-2.6.26-rc2/init/Kconfig~memrlimit-controller-setup	2008-05-14 18:36:36.000000000 +0530
-+++ linux-2.6.26-rc2-balbir/init/Kconfig	2008-05-14 18:36:36.000000000 +0530
-@@ -407,6 +407,16 @@ config CGROUP_MEM_RES_CTLR
- 	  This config option also selects MM_OWNER config option, which
- 	  could in turn add some fork/exit overhead.
- 
-+config CGROUP_MEMRLIMIT_CTLR
-+	bool "Memory resource limit controls for cgroups"
-+	depends on CGROUPS && RESOURCE_COUNTERS && MMU
-+	select MM_OWNER
-+	help
-+	  Provides resource limits for all the tasks belonging to a
-+	  control group. CGROUP_MEM_RES_CTLR provides support for physical
-+	  memory RSS and Page Cache control. Virtual address space control
-+	  is provided by this controller.
++#else /* !CONFIG_CGROUP_RLIMIT_CTLR */
 +
- config SYSFS_DEPRECATED
- 	bool
- 
-diff -puN mm/Makefile~memrlimit-controller-setup mm/Makefile
---- linux-2.6.26-rc2/mm/Makefile~memrlimit-controller-setup	2008-05-14 18:36:36.000000000 +0530
-+++ linux-2.6.26-rc2-balbir/mm/Makefile	2008-05-14 18:36:36.000000000 +0530
-@@ -34,4 +34,5 @@ obj-$(CONFIG_MIGRATION) += migrate.o
- obj-$(CONFIG_SMP) += allocpercpu.o
- obj-$(CONFIG_QUICKLIST) += quicklist.o
- obj-$(CONFIG_CGROUP_MEM_RES_CTLR) += memcontrol.o
-+obj-$(CONFIG_CGROUP_MEMRLIMIT_CTLR) += memrlimitcgroup.o
- 
-diff -puN /dev/null mm/memrlimitcgroup.c
---- /dev/null	2008-05-14 04:27:30.032276540 +0530
-+++ linux-2.6.26-rc2-balbir/mm/memrlimitcgroup.c	2008-05-14 18:36:36.000000000 +0530
-@@ -0,0 +1,144 @@
-+/*
-+ * Copyright A(C) International Business Machines  Corp., 2008
-+ *
-+ * Author: Balbir Singh <balbir@linux.vnet.ibm.com>
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License as published by
-+ * the Free Software Foundation; either version 2 of the License, or
-+ * (at your option) any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * Provide memory resource limits for tasks in a control group. A lot of code is
-+ * duplicated from the memory controller (this code is common to almost
-+ * all controllers). TODO: Consider writing a tool that can generate this
-+ * code.
-+ */
-+#include <linux/cgroup.h>
-+#include <linux/mm.h>
-+#include <linux/smp.h>
-+#include <linux/rcupdate.h>
-+#include <linux/slab.h>
-+#include <linux/swap.h>
-+#include <linux/spinlock.h>
-+#include <linux/fs.h>
-+#include <linux/res_counter.h>
-+#include <linux/memrlimitcgroup.h>
-+
-+struct cgroup_subsys memrlimit_cgroup_subsys;
-+
-+struct memrlimit_cgroup {
-+	struct cgroup_subsys_state css;
-+	struct res_counter as_res;	/* address space counter */
-+};
-+
-+static struct memrlimit_cgroup init_memrlimit_cgroup;
-+
-+static struct memrlimit_cgroup *memrlimit_cgroup_from_cgrp(struct cgroup *cgrp)
++static inline int
++memrlimit_cgroup_charge_as(struct mm_struct *mm, unsigned long nr_pages)
 +{
-+	return container_of(cgroup_subsys_state(cgrp,
-+				memrlimit_cgroup_subsys_id),
++	return 0;
++}
++
++static inline void
++memrlimit_cgroup_uncharge_as(struct mm_struct *mm, unsigned long nr_pages)
++{
++}
++
++#endif /* CONFIG_CGROUP_RLIMIT_CTLR */
++
++
+ #endif /* LINUX_MEMRLIMITCGROUP_H */
+diff -puN kernel/fork.c~memrlimit-controller-address-space-accounting-and-control kernel/fork.c
+--- linux-2.6.26-rc2/kernel/fork.c~memrlimit-controller-address-space-accounting-and-control	2008-05-14 18:09:32.000000000 +0530
++++ linux-2.6.26-rc2-balbir/kernel/fork.c	2008-05-14 18:09:32.000000000 +0530
+@@ -54,6 +54,7 @@
+ #include <linux/tty.h>
+ #include <linux/proc_fs.h>
+ #include <linux/blkdev.h>
++#include <linux/memrlimitcgroup.h>
+ 
+ #include <asm/pgtable.h>
+ #include <asm/pgalloc.h>
+@@ -267,6 +268,7 @@ static int dup_mmap(struct mm_struct *mm
+ 			mm->total_vm -= pages;
+ 			vm_stat_account(mm, mpnt->vm_flags, mpnt->vm_file,
+ 								-pages);
++			memrlimit_cgroup_uncharge_as(mm, pages);
+ 			continue;
+ 		}
+ 		charge = 0;
+@@ -596,6 +598,12 @@ static int copy_mm(unsigned long clone_f
+ 		atomic_inc(&oldmm->mm_users);
+ 		mm = oldmm;
+ 		goto good_mm;
++	} else {
++		down_read(&oldmm->mmap_sem);
++		retval = memrlimit_cgroup_charge_as(oldmm, oldmm->total_vm);
++		up_read(&oldmm->mmap_sem);
++		if (retval)
++			goto fail_nomem;
+ 	}
+ 
+ 	retval = -ENOMEM;
+diff -puN mm/memrlimitcgroup.c~memrlimit-controller-address-space-accounting-and-control mm/memrlimitcgroup.c
+--- linux-2.6.26-rc2/mm/memrlimitcgroup.c~memrlimit-controller-address-space-accounting-and-control	2008-05-14 18:09:32.000000000 +0530
++++ linux-2.6.26-rc2-balbir/mm/memrlimitcgroup.c	2008-05-14 18:09:32.000000000 +0530
+@@ -45,6 +45,41 @@ static struct memrlimit_cgroup *memrlimi
+ 				struct memrlimit_cgroup, css);
+ }
+ 
++static struct memrlimit_cgroup *
++memrlimit_cgroup_from_task(struct task_struct *p)
++{
++	return container_of(task_subsys_state(p, memrlimit_cgroup_subsys_id),
 +				struct memrlimit_cgroup, css);
 +}
 +
-+static struct cgroup_subsys_state *
-+memrlimit_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cgrp)
++int memrlimit_cgroup_charge_as(struct mm_struct *mm, unsigned long nr_pages)
++{
++	int ret;
++	struct memrlimit_cgroup *memrcg;
++
++	rcu_read_lock();
++	memrcg = memrlimit_cgroup_from_task(rcu_dereference(mm->owner));
++	css_get(&memrcg->css);
++	rcu_read_unlock();
++
++	ret = res_counter_charge(&memrcg->as_res, (nr_pages << PAGE_SHIFT));
++	css_put(&memrcg->css);
++	return ret;
++}
++
++void memrlimit_cgroup_uncharge_as(struct mm_struct *mm, unsigned long nr_pages)
 +{
 +	struct memrlimit_cgroup *memrcg;
 +
-+	if (unlikely(cgrp->parent == NULL))
-+		memrcg = &init_memrlimit_cgroup;
-+	else {
-+		memrcg = kzalloc(sizeof(*memrcg), GFP_KERNEL);
-+		if (!memrcg)
-+			return ERR_PTR(-ENOMEM);
-+	}
-+	res_counter_init(&memrcg->as_res);
-+	return &memrcg->css;
++	rcu_read_lock();
++	memrcg = memrlimit_cgroup_from_task(rcu_dereference(mm->owner));
++	css_get(&memrcg->css);
++	rcu_read_unlock();
++
++	res_counter_uncharge(&memrcg->as_res, (nr_pages << PAGE_SHIFT));
++	css_put(&memrcg->css);
 +}
 +
-+static void memrlimit_cgroup_destroy(struct cgroup_subsys *ss,
-+					struct cgroup *cgrp)
+ static struct cgroup_subsys_state *
+ memrlimit_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cgrp)
+ {
+@@ -134,11 +169,70 @@ static int memrlimit_cgroup_populate(str
+ 				ARRAY_SIZE(memrlimit_cgroup_files));
+ }
+ 
++static void memrlimit_cgroup_move_task(struct cgroup_subsys *ss,
++					struct cgroup *cgrp,
++					struct cgroup *old_cgrp,
++					struct task_struct *p)
 +{
-+	kfree(memrlimit_cgroup_from_cgrp(cgrp));
-+}
++	struct mm_struct *mm;
++	struct memrlimit_cgroup *memrcg, *old_memrcg;
 +
-+static int memrlimit_cgroup_reset(struct cgroup *cgrp, unsigned int event)
-+{
-+	struct memrlimit_cgroup *memrcg;
++	mm = get_task_mm(p);
++	if (mm == NULL)
++		return;
++
++	rcu_read_lock();
++	if (p != rcu_dereference(mm->owner))
++		goto out;
 +
 +	memrcg = memrlimit_cgroup_from_cgrp(cgrp);
-+	switch (event) {
-+	case RES_FAILCNT:
-+		res_counter_reset_failcnt(&memrcg->as_res);
-+		break;
-+	}
-+	return 0;
++	old_memrcg = memrlimit_cgroup_from_cgrp(old_cgrp);
++
++	if (memrcg == old_memrcg)
++		goto out;
++
++	/*
++	 * Hold mmap_sem, so that total_vm does not change underneath us
++	 */
++	down_read(&mm->mmap_sem);
++	if (res_counter_charge(&memrcg->as_res, (mm->total_vm << PAGE_SHIFT)))
++		goto out;
++	res_counter_uncharge(&old_memrcg->as_res, (mm->total_vm << PAGE_SHIFT));
++out:
++	up_read(&mm->mmap_sem);
++	rcu_read_unlock();
++	mmput(mm);
 +}
 +
-+static u64 memrlimit_cgroup_read(struct cgroup *cgrp, struct cftype *cft)
++static void memrlimit_cgroup_mm_owner_changed(struct cgroup_subsys *ss,
++						struct cgroup *cgrp,
++						struct cgroup *old_cgrp,
++						struct task_struct *p)
 +{
-+	return res_counter_read_u64(&memrlimit_cgroup_from_cgrp(cgrp)->as_res,
-+					cft->private);
++	struct memrlimit_cgroup *memrcg, *old_memrcg;
++	struct mm_struct *mm = get_task_mm(p);
++
++	BUG_ON(!mm);
++	memrcg = memrlimit_cgroup_from_cgrp(cgrp);
++	old_memrcg = memrlimit_cgroup_from_cgrp(old_cgrp);
++
++	down_read(&mm->mmap_sem);
++	if (res_counter_charge(&memrcg->as_res, (mm->total_vm << PAGE_SHIFT)))
++		goto out;
++	res_counter_uncharge(&old_memrcg->as_res, (mm->total_vm << PAGE_SHIFT));
++out:
++	up_read(&mm->mmap_sem);
++
++	mmput(mm);
 +}
 +
-+static int memrlimit_cgroup_write_strategy(char *buf, unsigned long long *tmp)
-+{
-+	*tmp = memparse(buf, &buf);
-+	if (*buf != '\0')
-+		return -EINVAL;
+ struct cgroup_subsys memrlimit_cgroup_subsys = {
+ 	.name = "memrlimit",
+ 	.subsys_id = memrlimit_cgroup_subsys_id,
+ 	.create = memrlimit_cgroup_create,
+ 	.destroy = memrlimit_cgroup_destroy,
+ 	.populate = memrlimit_cgroup_populate,
++	.attach = memrlimit_cgroup_move_task,
++	.mm_owner_changed = memrlimit_cgroup_mm_owner_changed,
+ 	.early_init = 0,
+ };
+diff -puN mm/mmap.c~memrlimit-controller-address-space-accounting-and-control mm/mmap.c
+--- linux-2.6.26-rc2/mm/mmap.c~memrlimit-controller-address-space-accounting-and-control	2008-05-14 18:09:32.000000000 +0530
++++ linux-2.6.26-rc2-balbir/mm/mmap.c	2008-05-14 18:09:32.000000000 +0530
+@@ -26,6 +26,7 @@
+ #include <linux/mount.h>
+ #include <linux/mempolicy.h>
+ #include <linux/rmap.h>
++#include <linux/memrlimitcgroup.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/cacheflush.h>
+@@ -1730,6 +1731,7 @@ static void remove_vma_list(struct mm_st
+ 		long nrpages = vma_pages(vma);
+ 
+ 		mm->total_vm -= nrpages;
++		memrlimit_cgroup_uncharge_as(mm, nrpages);
+ 		if (vma->vm_flags & VM_LOCKED)
+ 			mm->locked_vm -= nrpages;
+ 		vm_stat_account(mm, vma->vm_flags, vma->vm_file, -nrpages);
+@@ -2056,6 +2058,7 @@ void exit_mmap(struct mm_struct *mm)
+ 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+ 	end = unmap_vmas(&tlb, vma, 0, -1, &nr_accounted, NULL);
+ 	vm_unacct_memory(nr_accounted);
++	memrlimit_cgroup_uncharge_as(mm, mm->total_vm);
+ 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, 0);
+ 	tlb_finish_mmu(tlb, 0, end);
+ 
+@@ -2174,6 +2177,10 @@ int may_expand_vm(struct mm_struct *mm, 
+ 
+ 	if (cur + npages > lim)
+ 		return 0;
 +
-+	*tmp = PAGE_ALIGN(*tmp);
-+	return 0;
-+}
++	if (memrlimit_cgroup_charge_as(mm, npages))
++		return 0;
 +
-+static ssize_t memrlimit_cgroup_write(struct cgroup *cgrp, struct cftype *cft,
-+					struct file *file,
-+					const char __user *userbuf,
-+					size_t nbytes,
-+					loff_t *ppos)
-+{
-+	return res_counter_write(&memrlimit_cgroup_from_cgrp(cgrp)->as_res,
-+					cft->private, userbuf, nbytes, ppos,
-+					memrlimit_cgroup_write_strategy);
-+}
+ 	return 1;
+ }
+ 
+@@ -2236,6 +2243,9 @@ int install_special_mapping(struct mm_st
+ 	if (unlikely(vma == NULL))
+ 		return -ENOMEM;
+ 
++	if (memrlimit_cgroup_charge_as(mm, len >> PAGE_SHIFT))
++		return -ENOMEM;
 +
-+static struct cftype memrlimit_cgroup_files[] = {
-+	{
-+		.name = "usage_in_bytes",
-+		.private = RES_USAGE,
-+		.read_u64 = memrlimit_cgroup_read,
-+	},
-+	{
-+		.name = "limit_in_bytes",
-+		.private = RES_LIMIT,
-+		.write = memrlimit_cgroup_write,
-+		.read_u64 = memrlimit_cgroup_read,
-+	},
-+	{
-+		.name = "failcnt",
-+		.private = RES_FAILCNT,
-+		.trigger = memrlimit_cgroup_reset,
-+		.read_u64 = memrlimit_cgroup_read,
-+	},
-+};
+ 	vma->vm_mm = mm;
+ 	vma->vm_start = addr;
+ 	vma->vm_end = addr + len;
+@@ -2248,6 +2258,7 @@ int install_special_mapping(struct mm_st
+ 
+ 	if (unlikely(insert_vm_struct(mm, vma))) {
+ 		kmem_cache_free(vm_area_cachep, vma);
++		memrlimit_cgroup_uncharge_as(mm, len >> PAGE_SHIFT);
+ 		return -ENOMEM;
+ 	}
+ 
+diff -puN arch/x86/kernel/ptrace.c~memrlimit-controller-address-space-accounting-and-control arch/x86/kernel/ptrace.c
+--- linux-2.6.26-rc2/arch/x86/kernel/ptrace.c~memrlimit-controller-address-space-accounting-and-control	2008-05-14 18:09:32.000000000 +0530
++++ linux-2.6.26-rc2-balbir/arch/x86/kernel/ptrace.c	2008-05-14 18:09:32.000000000 +0530
+@@ -20,6 +20,7 @@
+ #include <linux/audit.h>
+ #include <linux/seccomp.h>
+ #include <linux/signal.h>
++#include <linux/memrlimitcgroup.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/pgtable.h>
+@@ -782,21 +783,25 @@ static int ptrace_bts_realloc(struct tas
+ 
+ 	current->mm->total_vm  -= old_size;
+ 	current->mm->locked_vm -= old_size;
++	memrlimit_cgroup_uncharge_as(mm, old_size);
+ 
+ 	if (size == 0)
+ 		goto out;
+ 
++	if (memrlimit_cgroup_charge_as(current->mm, size))
++		goto out;
 +
-+static int memrlimit_cgroup_populate(struct cgroup_subsys *ss,
-+					struct cgroup *cgrp)
-+{
-+	return cgroup_add_files(cgrp, ss, memrlimit_cgroup_files,
-+				ARRAY_SIZE(memrlimit_cgroup_files));
-+}
-+
-+struct cgroup_subsys memrlimit_cgroup_subsys = {
-+	.name = "memrlimit",
-+	.subsys_id = memrlimit_cgroup_subsys_id,
-+	.create = memrlimit_cgroup_create,
-+	.destroy = memrlimit_cgroup_destroy,
-+	.populate = memrlimit_cgroup_populate,
-+	.early_init = 0,
-+};
+ 	rlim = current->signal->rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
+ 	vm = current->mm->total_vm  + size;
+ 	if (rlim < vm) {
+ 		ret = -ENOMEM;
+ 
+ 		if (!reduce_size)
+-			goto out;
++			goto out_uncharge;
+ 
+ 		size = rlim - current->mm->total_vm;
+ 		if (size <= 0)
+-			goto out;
++			goto out_uncharge;
+ 	}
+ 
+ 	rlim = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
+@@ -805,21 +810,23 @@ static int ptrace_bts_realloc(struct tas
+ 		ret = -ENOMEM;
+ 
+ 		if (!reduce_size)
+-			goto out;
++			goto out_uncharge;
+ 
+ 		size = rlim - current->mm->locked_vm;
+ 		if (size <= 0)
+-			goto out;
++			goto out_uncharge;
+ 	}
+ 
+ 	ret = ds_allocate((void **)&child->thread.ds_area_msr,
+ 			  size << PAGE_SHIFT);
+ 	if (ret < 0)
+-		goto out;
++		goto out_uncharge;
+ 
+ 	current->mm->total_vm  += size;
+ 	current->mm->locked_vm += size;
+ 
++out_uncharge:
++	memrlimit_cgroup_uncharge_as(mm, size);
+ out:
+ 	if (child->thread.ds_area_msr)
+ 		set_tsk_thread_flag(child, TIF_DS_AREA_MSR);
 _
 
 -- 
