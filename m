@@ -1,53 +1,70 @@
-Received: from zps18.corp.google.com (zps18.corp.google.com [172.25.146.18])
-	by smtp-out.google.com with ESMTP id m4E3S1t5003597
-	for <linux-mm@kvack.org>; Wed, 14 May 2008 04:28:01 +0100
-Received: from yw-out-2324.google.com (ywj3.prod.google.com [10.192.10.3])
-	by zps18.corp.google.com with ESMTP id m4E3RxTm003400
-	for <linux-mm@kvack.org>; Tue, 13 May 2008 20:28:00 -0700
-Received: by yw-out-2324.google.com with SMTP id 3so1457421ywj.23
-        for <linux-mm@kvack.org>; Tue, 13 May 2008 20:27:59 -0700 (PDT)
-Message-ID: <6599ad830805132027w7b258257u82f7ddcf6e8c852b@mail.gmail.com>
-Date: Tue, 13 May 2008 20:27:59 -0700
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [RFC][PATCH] another swap controller for cgroup
-In-Reply-To: <20080514032125.46F7D5A07@siro.lan>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Wed, 14 May 2008 06:11:22 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
+Message-ID: <20080514041122.GE24516@wotan.suse.de>
+References: <6b384bb988786aa78ef0.1210170958@duo.random> <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org> <20080508003838.GA9878@sgi.com> <200805132206.47655.nickpiggin@yahoo.com.au> <20080513153238.GL19717@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <48231FB6.7000206@linux.vnet.ibm.com>
-	 <20080514032125.46F7D5A07@siro.lan>
+In-Reply-To: <20080513153238.GL19717@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: balbir@linux.vnet.ibm.com, minoura@valinux.co.jp, nishimura@mxp.nes.nec.co.jp, linux-mm@kvack.org, containers@lists.osdl.org, hugh@veritas.com
+To: Robin Holt <holt@sgi.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 13, 2008 at 8:21 PM, YAMAMOTO Takashi
-<yamamoto@valinux.co.jp> wrote:
->
->  note that a failure can affect other subsystems which belong to
->  the same hierarchy as well, and, even worse, a back-out attempt can also fail.
->  i'm afraid that we need to play some kind of transaction-commit game,
->  which can make subsystems too complex to implement properly.
->
+On Tue, May 13, 2008 at 10:32:38AM -0500, Robin Holt wrote:
+> On Tue, May 13, 2008 at 10:06:44PM +1000, Nick Piggin wrote:
+> > On Thursday 08 May 2008 10:38, Robin Holt wrote:
+> > > In order to invalidate the remote page table entries, we need to message
+> > > (uses XPC) to the remote side.  The remote side needs to acquire the
+> > > importing process's mmap_sem and call zap_page_range().  Between the
+> > > messaging and the acquiring a sleeping lock, I would argue this will
+> > > require sleeping locks in the path prior to the mmu_notifier invalidate_*
+> > > callouts().
+> > 
+> > Why do you need to take mmap_sem in order to shoot down pagetables of
+> > the process? It would be nice if this can just be done without
+> > sleeping.
+> 
+> We are trying to shoot down page tables of a different process running
+> on a different instance of Linux running on Numa-link connected portions
+> of the same machine.
 
-I was considering something like that - every call to can_attach()
-would be guaranteed to be followed by either a call to attach() or to
-a new method called cancel_attach(). Then the subsystem would just
-need to ensure that nothing could happen which would cause the attach
-to become invalid between the two calls.
+Right. You can zap page tables without sleeping, if you're careful. I
+don't know that we quite do that for anonymous pages at the moment, but it
+should be possible with a bit of thought, I believe.
 
-Or possibly, since for some subsystems that might involve holding a
-spinlock, we should extend it to:
+ 
+> The messaging is clearly going to require sleeping.  Are you suggesting
+> we need to rework XPC communications to not require sleeping?  I think
+> that is going to be impossible since the transfer engine requires a
+> sleeping context.
 
-After a successful call to can_attach(), either abort_attach() or
-commit_attach() will be called; these calls are not allowed to sleep,
-and cgroup.c will not sleep between calls.. If commit_attach() is
-called, it will be followed shortly by attach(), which is allowed to
-sleep.
+I guess that you have found a way to perform TLB flushing within coherent
+domains over the numalink interconnect without sleeping. I'm sure it would
+be possible to send similar messages between non coherent domains.
 
-Paul
+So yes, I'd much rather rework such highly specialized system to fit in
+closer with Linux than rework Linux to fit with these machines (and
+apparently slow everyone else down).
+
+ 
+> Additionally, the call to zap_page_range expects to have the mmap_sem
+> held.  I suppose we could use something other than zap_page_range and
+> atomically clear the process page tables.
+
+zap_page_range does not expect to have mmap_sem held. I think for anon
+pages it is always called with mmap_sem, however try_to_unmap_anon is
+not (although it expects page lock to be held, I think we should be able
+to avoid that).
+
+
+>  Doing that will not alleviate
+> the need to sleep for the messaging to the other partitions.
+
+No, but I'd venture to guess that is not impossible to implement even
+on your current hardware (maybe a firmware update is needed)?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
