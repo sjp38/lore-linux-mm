@@ -1,130 +1,99 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28esmtp07.in.ibm.com (8.13.1/8.13.1) with ESMTP id m4F745j1008119
-	for <linux-mm@kvack.org>; Thu, 15 May 2008 12:34:05 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4F73tG21454250
-	for <linux-mm@kvack.org>; Thu, 15 May 2008 12:33:55 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.13.1/8.13.3) with ESMTP id m4F744ob020982
-	for <linux-mm@kvack.org>; Thu, 15 May 2008 12:34:05 +0530
-Date: Thu, 15 May 2008 12:33:42 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [-mm][PATCH 4/4] Add memrlimit controller accounting and
-	control (v4)
-Message-ID: <20080515070342.GJ31115@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20080514130904.24440.23486.sendpatchset@localhost.localdomain> <20080514130951.24440.73671.sendpatchset@localhost.localdomain> <20080514132529.GA25653@balbir.in.ibm.com> <6599ad830805141925mf8a13daq7309148153a3c2df@mail.gmail.com> <20080515061727.GC31115@balbir.in.ibm.com> <6599ad830805142355ifeeb0e2w86ccfd96aa27aea6@mail.gmail.com>
+Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
+	by smtp-out.google.com with ESMTP id m4F7JfF1017832
+	for <linux-mm@kvack.org>; Thu, 15 May 2008 08:19:41 +0100
+Received: from an-out-0708.google.com (ancc23.prod.google.com [10.100.29.23])
+	by zps75.corp.google.com with ESMTP id m4F7JdNG023838
+	for <linux-mm@kvack.org>; Thu, 15 May 2008 00:19:40 -0700
+Received: by an-out-0708.google.com with SMTP id c23so68108anc.121
+        for <linux-mm@kvack.org>; Thu, 15 May 2008 00:19:39 -0700 (PDT)
+Message-ID: <6599ad830805150019v5ba23fe1xe5a6e8b80bc194f5@mail.gmail.com>
+Date: Thu, 15 May 2008 00:19:39 -0700
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [RFC][PATCH] another swap controller for cgroup
+In-Reply-To: <20080515062318.5F1BA5A07@siro.lan>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <6599ad830805142355ifeeb0e2w86ccfd96aa27aea6@mail.gmail.com>
+References: <6599ad830805140144k583f7426k4024dd17a6cd3eb8@mail.gmail.com>
+	 <20080515062318.5F1BA5A07@siro.lan>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+Cc: minoura@valinux.co.jp, nishimura@mxp.nes.nec.co.jp, linux-mm@kvack.org, containers@lists.osdl.org, hugh@veritas.com, balbir@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-* Paul Menage <menage@google.com> [2008-05-14 23:55:07]:
+On Wed, May 14, 2008 at 11:23 PM, YAMAMOTO Takashi
+<yamamoto@valinux.co.jp> wrote:
+>  > >
+>  >
+>  > You need to be able to sleep in order to take mmap_sem, right?
+>
+>  yes.
 
-> On Wed, May 14, 2008 at 11:17 PM, Balbir Singh
-> <balbir@linux.vnet.ibm.com> wrote:
-> >  >
-> >  > Assuming that we're holding a write lock on mm->mmap_sem here, and we
-> >  > additionally hold mmap_sem for the whole of mm_update_next_owner(),
-> >  > then maybe we don't need any extra synchronization here? Something
-> >  > like simply:
-> >  >
-> >  > int memrlimit_cgroup_charge_as(struct mm_struct *mm, unsigned long nr_pages)
-> >  > {
-> >  >        struct memrlimit_cgroup *memrcg = memrlimit_cgroup_from_task(mm->owner);
-> >  >        return res_counter_charge(&memrcg->as_res, (nr_pages << PAGE_SHIFT));
-> >  > }
-> >
-> >  The charge_as routine is not always called with mmap_sem held, since
-> >  the undo path gets more complicated under the lock. We already have
-> >  our own locking mechanism for the counters.
-> 
-> I'm not worried about the counters themselves being inconsistent - I'm
-> worried about the case where charge_as() is called in the middle of
-> the attach operation, and we account the charge X to the new cgroup's
-> res_counter and update mm->total_vm, and then when we do the move, we
-> charge the whole of mm->total_mm to the new cgroup even though the
-> last charge was already accounted to the new res_counter, not the old
-> one.
-> 
-> That's what I'm hoping to address with the idea of splitting the
-> attach into one update per subsystem, and letting the subsystems
-> control their own synchronization.
-> 
-> > We're not really accessing
-> >  any member of the mm here except the owner. Do we need to be called
-> >  with mmap_sem held?
-> >
-> 
-> Not necessarily mmap_sem, but there needs to be something to ensure
-> that the update to mm->total_vm and the charge/uncharge against the
-> res_counter are an atomic pair with respect to the code that shifts an
-> mm between two cgroups, either due to mm->owner change or due to an
-> attach_task(). Since mmap_sem is held for write on almost all the fast
-> path calls to the rlimit_as charge/uncharge functions, using that for
-> the synchronization avoids the need for any additional synchronization
-> in the fast path.
-> 
-> Can you say more about the complications of holding a write lock on
-> mmap_sem in the cleanup calls to uncharge?
-> 
-> >  >  retry:
-> >  >         mm = get_task_mm(p);
-> >  >         if (mm == NULL) {
-> >  >           task_lock(p);
-> >  >           rcu_assign_ptr(p->cgroups, new_css_set);
-> >
-> >  Will each callback assign p->cgroups to new_css_set?
-> 
-> Yes - but new_css_set will be slightly different for each callback.
-> Specifically, it will differ from the existing set pointed to by
-> p->cgroups in the pointer for this particular subsystem. So the task
-> will move over in a staggered fashion, and each subsystem will get to
-> choose its own synchronization.
-> 
-> >  >         task_lock(p);
-> >  >         if (p->mm != mm) {
-> >  >                 /* We raced */
-> >
-> >  With exit_mmap() or exec_mmap() right?
-> >
-> 
-> Yes.
-> 
-> >  If we agree with the assertion/conclusion above, then a simple lock
-> >  might be able to protect us, assuming that it does not create a
-> >  interwined locking hierarchy.
-> >
-> 
-> Right - and if we can make that lock be the mmap_sem of the mm in
-> question, we avoid introducing a new lock into the fast path.
+OK, well in the thread on balbir's vm limit controller, we discussed
+the idea of having mmap_sem held across calls to
+mm_update_next_owner(), and hence the cgroup callbacks. Would that
+help if mmap_sem were already held when you get the mm_owner_changed()
+callback.
+
+>
+>  > A few comments on the patch:
+>  >
+>  > - you're not really limiting swap usage, you're limiting swapped-out
+>  > address space. So it looks as though if a process has swapped out most
+>  > of its address space, and forks a child, the total "swap" charge for
+>  > the cgroup will double. Is that correct?
+>
+>  yes.
+>
+>
+>  > If so, why is this better
+>  > than charging for actual swap usage?
+>
+>  its behaviour is more determinstic and it uses less memory.
+>  (than nishimura-san's one, which charges for actual swap usage.)
 >
 
-I want to focus on this conclusion/assertion, since it takes care of
-most of the locking related discussion above, unless I missed
-something.
+Using less memory is good, but maybe not worth it if the result isn't so useful.
 
-My concern with using mmap_sem, is that
+I'd say that it's less deterministic than nishimura-san's controller -
+with his you just need to know how much swap is in use (which you can
+tell by observing the app on a real system) but with yours you also
+have to know whether there are any processes sharing anon pages (but
+not mms).
 
-1. It's highly contended (every page fault, vma change, etc)
-2. It's going to make the locking hierarchy deeper and complex
-3. It's not appropriate to call all the accounting callbacks with
-   the mmap_sem() held, since the undo operations _can get_ complicated
-   at the caller.
+Now it's true that if all the apps you need to run do an execve()
+after forking, then the number of swap ptes really does track the
+amount of swap space in use pretty accurately, since there's not going
+to be any sharing of anon memory between mms. And it might be that
+people decide that the reduced memory overhead justifies this
+limitation. But I think it should be made explicit in the patch
+description and documentation that this controller achieves its
+reduced overhead at the cost of giving (IMO) bogus results on a rather
+ancient but still perfectly legitimate class of Unix application. (The
+apache httpd server used to work this way, for instance. It may still
+but I've not looked at it in a while).
 
-I would prefer introducing a new lock, so that other subsystems are
-not affected. 
+>
+>  > - what will happen if someone creates non-NPTL threads, which share an
+>  > mm but not a thread group (so each of them is a thread group leader)?
+>
+>  a thread which is most recently assigned to a cgroup will "win".
+>
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Doesn't that risk triggering the BUG_ON(mm->swap_cgroup != oldscg) in
+swap_cgroup_attach() ?
+
+>
+>  > - if you were to store a pointer in the page rather than the
+>
+>  "a pointer"?  a pointer to what?
+
+Oops, sorry - I meant to say "a pointer to the mm". So from there you
+can get to mm->owner, and hence to mm->owner->cgroups[swap]
+
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
