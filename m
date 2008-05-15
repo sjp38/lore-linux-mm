@@ -1,36 +1,59 @@
-Message-ID: <482C1AA2.20307@qumranet.com>
-Date: Thu, 15 May 2008 14:12:34 +0300
-From: Avi Kivity <avi@qumranet.com>
+Message-Id: <482C2631.1030600@mxp.nes.nec.co.jp>
+Date: Thu, 15 May 2008 21:01:53 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
-Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
-References: <6b384bb988786aa78ef0.1210170958@duo.random> <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org> <20080508003838.GA9878@sgi.com> <200805132206.47655.nickpiggin@yahoo.com.au> <20080513153238.GL19717@sgi.com> <20080514041122.GE24516@wotan.suse.de> <20080514112625.GY9878@sgi.com> <20080515075747.GA7177@wotan.suse.de> <20080515110147.GD10126@sgi.com>
-In-Reply-To: <20080515110147.GD10126@sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [RFC][PATCH] another swap controller for cgroup
+References: <6599ad830805150019v5ba23fe1xe5a6e8b80bc194f5@mail.gmail.com> <20080515085606.7239D5A07@siro.lan>
+In-Reply-To: <20080515085606.7239D5A07@siro.lan>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Nick Piggin <npiggin@suse.de>, Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
+To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+Cc: menage@google.com, minoura@valinux.co.jp, linux-mm@kvack.org, containers@lists.osdl.org, hugh@veritas.com, balbir@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-Robin Holt wrote:
-> Then we need to deposit the information needed to do the invalidate.
->
-> Lastly, we would need to interrupt.  Unfortunately, here we have a
-> thundering herd.  There could be up to 16256 processors interrupting the
-> same processor.  That will be a lot of work.  It will need to look up the
-> mm (without grabbing any sleeping locks in either xpmem or the kernel)
-> and do the tlb invalidates.
->
->   
+On 2008/05/15 17:56 +0900, YAMAMOTO Takashi wrote:
+>>>  > If so, why is this better
+>>>  > than charging for actual swap usage?
+>>>
+>>>  its behaviour is more determinstic and it uses less memory.
+>>>  (than nishimura-san's one, which charges for actual swap usage.)
+>>>
 
-You don't need to interrupt every time.  Place your data in a queue (you 
-do support rmw operations, right?) and interrupt.  Invalidates from 
-other processors will see that the queue hasn't been processed yet and 
-skip the interrupt.
+Consuming more memory cannot be helped for my controller...
 
--- 
-error compiling committee.c: too many arguments to function
+>> Using less memory is good, but maybe not worth it if the result isn't so useful.
+>>
+>> I'd say that it's less deterministic than nishimura-san's controller -
+>> with his you just need to know how much swap is in use (which you can
+>> tell by observing the app on a real system) but with yours you also
+>> have to know whether there are any processes sharing anon pages (but
+>> not mms).
+> 
+> deterministic in the sense that, even when two or more processes
+> from different cgroups are sharing a page, both of them, rather than
+> only unlucky one, are always charged.
+> 
+
+I'm not sure whether this behavior itself is good or bad,
+but I think it's not good idea to make memory controller,
+which charges only one process for a shared page,
+and swap controller behave differently.
+I think it will be confusing for users. At least,
+I would feel it strange.
+
+> another related advantage is that it's possible to move charges
+> quite precisely when moving a task among cgroups.
+> 
+
+Moving charges is one of future todo of my controller.
+But, as you say, it won't be so precise as yours.
+
+
+Thanks,
+Daisuke Nishimura.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
