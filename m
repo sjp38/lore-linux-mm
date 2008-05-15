@@ -1,86 +1,34 @@
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: [PATCH] slob: record page flag overlays explicitly v2
-References: <1210872010.0@pinky>
-Date: Thu, 15 May 2008 18:42:46 +0100
-Message-Id: <1210873366.0@pinky>
+Message-ID: <482C7F70.2020102@qumranet.com>
+Date: Thu, 15 May 2008 21:22:40 +0300
+From: Avi Kivity <avi@qumranet.com>
+MIME-Version: 1.0
+Subject: Re: [-mm][PATCH 1/4] Add memrlimit controller documentation (v4)
+References: <20080514130904.24440.23486.sendpatchset@localhost.localdomain> <20080514130915.24440.56106.sendpatchset@localhost.localdomain>
+In-Reply-To: <20080514130915.24440.56106.sendpatchset@localhost.localdomain>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jeremy Fitzhardinge <jeremy@goop.org>, linux-kernel@vger.kernel.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-SLOB reuses two page bits for internal purposes, it overlays PG_active
-and PG_private.  This is hidden away in slob.c.  Document these overlays
-explicitly in the main page-flags enum along with all the others.
+Balbir Singh wrote:
+> +
+> +Advantages of providing this feature
+> +
+> +1. Control over virtual address space allows for a cgroup to fail gracefully
+> +   i.e., via a malloc or mmap failure as compared to OOM kill when no
+> +   pages can be reclaimed.
+>   
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
----
- include/linux/page-flags.h |    4 ++++
- mm/slob.c                  |   12 ++++++------
- 2 files changed, 10 insertions(+), 6 deletions(-)
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 2e88df6..71aec98 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -104,6 +104,10 @@ enum pageflags {
- 	/* XEN */
- 	PG_pinned = PG_owner_priv_1,
- 
-+	/* SLOB */
-+	PG_slob_page = PG_active,
-+	PG_slob_free = PG_private,
-+
- 	/* SLUB */
- 	PG_slub_frozen = PG_active,
- 	PG_slub_debug = PG_error,
-diff --git a/mm/slob.c b/mm/slob.c
-index 6038cba..0aaf54f 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -130,17 +130,17 @@ static LIST_HEAD(free_slob_large);
-  */
- static inline int slob_page(struct slob_page *sp)
- {
--	return test_bit(PG_active, &sp->flags);
-+	return test_bit(PG_slob_page, &sp->flags);
- }
- 
- static inline void set_slob_page(struct slob_page *sp)
- {
--	__set_bit(PG_active, &sp->flags);
-+	__set_bit(PG_slob_page, &sp->flags);
- }
- 
- static inline void clear_slob_page(struct slob_page *sp)
- {
--	__clear_bit(PG_active, &sp->flags);
-+	__clear_bit(PG_slob_page, &sp->flags);
- }
- 
- /*
-@@ -148,19 +148,19 @@ static inline void clear_slob_page(struct slob_page *sp)
-  */
- static inline int slob_page_free(struct slob_page *sp)
- {
--	return test_bit(PG_private, &sp->flags);
-+	return test_bit(PG_slob_free, &sp->flags);
- }
- 
- static void set_slob_page_free(struct slob_page *sp, struct list_head *list)
- {
- 	list_add(&sp->list, list);
--	__set_bit(PG_private, &sp->flags);
-+	__set_bit(PG_slob_free, &sp->flags);
- }
- 
- static inline void clear_slob_page_free(struct slob_page *sp)
- {
- 	list_del(&sp->list);
--	__clear_bit(PG_private, &sp->flags);
-+	__clear_bit(PG_slob_free, &sp->flags);
- }
- 
- #define SLOB_UNIT sizeof(slob_t)
+Do you mean by this, limiting the number of pagetable pages (that are 
+pinned in memory), this preventing oom by a cgroup that instantiates 
+many pagetables?
+
+
+-- 
+Do not meddle in the internals of kernels, for they are subtle and quick to panic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
