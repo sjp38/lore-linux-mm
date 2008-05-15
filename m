@@ -1,126 +1,81 @@
-Date: Thu, 15 May 2008 18:34:13 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH -mm 5/5] memcg: remove a redundant check
-Message-Id: <20080515183413.e2c008e6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080515182516.763967cc.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080515182516.763967cc.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 15 May 2008 06:01:48 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
+Message-ID: <20080515110147.GD10126@sgi.com>
+References: <6b384bb988786aa78ef0.1210170958@duo.random> <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org> <20080508003838.GA9878@sgi.com> <200805132206.47655.nickpiggin@yahoo.com.au> <20080513153238.GL19717@sgi.com> <20080514041122.GE24516@wotan.suse.de> <20080514112625.GY9878@sgi.com> <20080515075747.GA7177@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080515075747.GA7177@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "hugh@veritas.com" <hugh@veritas.com>, minchan.kim@gmail.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Robin Holt <holt@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Because of remove refcnt patch, it's very rare case to that
-mem_cgroup_charge_common() is called against a page which is accounted.
+We are pursuing Linus' suggestion currently.  This discussion is
+completely unrelated to that work.
 
-mem_cgroup_charge_common() is called when.
- 1. a page is added into file cache.
- 2. an anon page is _newly_ mapped.
+On Thu, May 15, 2008 at 09:57:47AM +0200, Nick Piggin wrote:
+> I'm not sure if you're thinking about what I'm thinking of. With the
+> scheme I'm imagining, all you will need is some way to raise an IPI-like
+> interrupt on the target domain. The IPI target will have a driver to
+> handle the interrupt, which will determine the mm and virtual addresses
+> which are to be invalidated, and will then tear down those page tables
+> and issue hardware TLB flushes within its domain. On the Linux side,
+> I don't see why this can't be done.
 
-A racy case is that a newly-swapped-in anonymous page is referred from
-prural threads in do_swap_page() at the same time.
-(a page is not Locked when mem_cgroup_charge() is called from do_swap_page.)
+We would need to deposit the payload into a central location to do the
+invalidate, correct?  That central location would either need to be
+indexed by physical cpuid (65536 possible currently, UV will push that
+up much higher) or some sort of global id which is difficult because
+remote partitions can reboot giving you a different view of the machine
+and running partitions would need to be updated.  Alternatively, that
+central location would need to be protected by a global lock or atomic
+type operation, but a majority of the machine does not have coherent
+access to other partitions so they would need to use uncached operations.
+Essentially, take away from this paragraph that it is going to be really
+slow or really large.
 
-Another case is shmem. It charges its page before calling add_to_page_cache().
-Then, mem_cgroup_charge_cache() is called twice. This case is handled in
-mem_cgroup_cache_charge(). But this check may be too hacky...
+Then we need to deposit the information needed to do the invalidate.
 
-Changelog v3->v4
- - added shmem's corner case handling in mem_cgroup_charge_cache().
+Lastly, we would need to interrupt.  Unfortunately, here we have a
+thundering herd.  There could be up to 16256 processors interrupting the
+same processor.  That will be a lot of work.  It will need to look up the
+mm (without grabbing any sleeping locks in either xpmem or the kernel)
+and do the tlb invalidates.
+
+Unfortunately, the sending side is not free to continue (in most cases)
+until it knows that the invalidate is completed.  So it will need to spin
+waiting for a completion signal will could be as simple as an uncached
+word.  But how will it handle the possible failure of the other partition?
+How will it detect that failure and recover?  A timeout value could be
+difficult to gauge because the other side may be off doing a considerable
+amount of work and may just be backed up.
+
+> Sure, you obviously would need to rework your code because it's been
+> written with the assumption that it can sleep.
+
+It is an assumption based upon some of the kernel functions we call
+doing things like grabbing mutexes or rw_sems.  That pushes back to us.
+I think the kernel's locking is perfectly reasonable.  The problem we run
+into is we are trying to get from one context in one kernel to a different
+context in another and the in-between piece needs to be sleepable.
+
+> What is XPMEM exactly anyway? I'd assumed it is a Linux driver.
+
+XPMEM allows one process to make a portion of its virtual address range
+directly addressable by another process with the appropriate access.
+The other process can be on other partitions.  As long as Numa-link
+allows access to the memory, we can make it available.  Userland has an
+advantage in that the kernel entrance/exit code contains memory errors
+so we can contain hardware failures (in most cases) to only needing to
+terminate a user program and not lose the partition.  The kernel enjoys
+no such fault containment so it can not safely directly reference memory.
 
 
-Signed-off-by : KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
----
- mm/memcontrol.c |   53 +++++++++++++++++++++++++----------------------------
- 1 file changed, 25 insertions(+), 28 deletions(-)
-
-Index: mm-2.6.26-rc2-mm1/mm/memcontrol.c
-===================================================================
---- mm-2.6.26-rc2-mm1.orig/mm/memcontrol.c
-+++ mm-2.6.26-rc2-mm1/mm/memcontrol.c
-@@ -536,28 +536,6 @@ static int mem_cgroup_charge_common(stru
- 	if (mem_cgroup_subsys.disabled)
- 		return 0;
- 
--	/*
--	 * Should page_cgroup's go to their own slab?
--	 * One could optimize the performance of the charging routine
--	 * by saving a bit in the page_flags and using it as a lock
--	 * to see if the cgroup page already has a page_cgroup associated
--	 * with it
--	 */
--retry:
--	lock_page_cgroup(page);
--	pc = page_get_page_cgroup(page);
--	/*
--	 * The page_cgroup exists and
--	 * the page has already been accounted.
--	 */
--	if (unlikely(pc)) {
--		VM_BUG_ON(pc->page != page);
--		VM_BUG_ON(!pc->mem_cgroup);
--		unlock_page_cgroup(page);
--		goto done;
--	}
--	unlock_page_cgroup(page);
--
- 	pc = kmem_cache_alloc(page_cgroup_cache, gfp_mask);
- 	if (unlikely(pc == NULL))
- 		goto err;
-@@ -618,15 +596,10 @@ retry:
- 	lock_page_cgroup(page);
- 	if (unlikely(page_get_page_cgroup(page))) {
- 		unlock_page_cgroup(page);
--		/*
--		 * Another charge has been added to this page already.
--		 * We take lock_page_cgroup(page) again and read
--		 * page->cgroup, increment refcnt.... just retry is OK.
--		 */
- 		res_counter_uncharge(&mem->res, PAGE_SIZE);
- 		css_put(&mem->css);
- 		kmem_cache_free(page_cgroup_cache, pc);
--		goto retry;
-+		goto done;
- 	}
- 	page_assign_page_cgroup(page, pc);
- 
-@@ -665,8 +638,32 @@ int mem_cgroup_charge(struct page *page,
- int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 				gfp_t gfp_mask)
- {
-+	/*
-+	 * Corner case handling. This is called from add_to_page_cache()
-+	 * in usual. But some FS (shmem) precharges this page before calling it
-+	 * and call add_to_page_cache() with GFP_NOWAIT.
-+	 *
-+	 * For GFP_NOWAIT case, the page may be pre-charged before calling
-+	 * add_to_page_cache(). (See shmem.c) check it here and avoid to call
-+	 * charge twice. (It works but has to pay a bit larger cost.)
-+	 */
-+	if (!(gfp_mask & __GFP_WAIT)) {
-+		struct page_cgroup *pc;
-+
-+		lock_page_cgroup(page);
-+		pc = page_get_page_cgroup(page);
-+		if (pc) {
-+			VM_BUG_ON(pc->page != page);
-+			VM_BUG_ON(!pc->mem_cgroup);
-+			unlock_page_cgroup(page);
-+			return 0;
-+		}
-+		unlock_page_cgroup(page);
-+	}
-+
- 	if (unlikely(!mm))
- 		mm = &init_mm;
-+
- 	return mem_cgroup_charge_common(page, mm, gfp_mask,
- 				MEM_CGROUP_CHARGE_TYPE_CACHE, NULL);
- }
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
