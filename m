@@ -1,36 +1,67 @@
-Date: Thu, 15 May 2008 03:13:57 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 2/2]: introduce fast_gup
-Message-ID: <20080515011357.GF30448@wotan.suse.de>
-References: <20080328025455.GA8083@wotan.suse.de> <20080328030023.GC8083@wotan.suse.de> <1208857356.7115.218.camel@twins> <20080422094629.GC23770@wotan.suse.de> <1210789994.6377.21.camel@norville.austin.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1210789994.6377.21.camel@norville.austin.ibm.com>
+Message-ID: <482B8FE4.4020301@cn.fujitsu.com>
+Date: Thu, 15 May 2008 09:20:36 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [-mm][PATCH 1/4] Add memrlimit controller documentation (v4)
+References: <20080514130904.24440.23486.sendpatchset@localhost.localdomain> <20080514130915.24440.56106.sendpatchset@localhost.localdomain>
+In-Reply-To: <20080514130915.24440.56106.sendpatchset@localhost.localdomain>
+Content-Type: text/plain; charset=GB2312
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, axboe@kernel.dk, linux-mm@kvack.org, linux-arch@vger.kernel.org, torvalds@linux-foundation.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 14, 2008 at 01:33:14PM -0500, Dave Kleikamp wrote:
-> > Ah good catch. As you can see I haven't done any highmem testing ;)
-> > Which I will do so before sending upstream.
+Balbir Singh wrote:
+> Documentation patch - describes the goals and usage of the memrlimit
+> controller.
 > 
-> Which will be when?  We'd really like to see this in mainline as soon as
-> possible and in -mm in the meanwhile.
+> 
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
+> 
+>  Documentation/controllers/memrlimit.txt |   29 +++++++++++++++++++++++++++++
+>  1 file changed, 29 insertions(+)
+> 
+> diff -puN /dev/null Documentation/controllers/memrlimit.txt
+> --- /dev/null	2008-05-14 04:27:30.032276540 +0530
+> +++ linux-2.6.26-rc2-balbir/Documentation/controllers/memrlimit.txt	2008-05-14 18:35:55.000000000 +0530
+> @@ -0,0 +1,29 @@
+> +This controller is enabled by the CONFIG_CGROUP_MEMRLIMIT_CTLR option. Prior
+> +to reading this documentation please read Documentation/cgroups.txt and
+> +Documentation/controllers/memory.txt. Several of the principles of this
+> +controller are similar to the memory resource controller.
+> +
+> +This controller framework is designed to be extensible to control any
+> +memory resource limit with little effort.
+> +
+> +This new controller, controls the address space expansion of the tasks
+> +belonging to a cgroup. Address space control is provided along the same lines as
+> +RLIMIT_AS control, which is available via getrlimit(2)/setrlimit(2).
+> +The interface for controlling address space is provided through
+> +"rlimit.limit_in_bytes". The file is similar to "limit_in_bytes" w.r.t. the user
 
-Well I just got all the "hard" core mm stuff past Linus in this merge
-window, and got a couple of preexisting memory ordering bugs fixed..
-So I am planning to get it into -mm, ready for the next merge window.
+    memrlimit.limit_in_bytes
 
-I'm a little concerned about Peter's instability reports, but maybe
-they're just an -rt thing. But I don't think we've found any holes in
-fast_gup yet (although I think I need to add one last check to ensure
-it won't pick up kernel addresses).
-
-Thanks,
-Nick
+> +interface. Please see section 3 of the memory resource controller documentation
+> +for more details on how to use the user interface to get and set values.
+> +
+> +The "memrlimit.usage_in_bytes" file provides information about the total address
+> +space usage of the tasks in the cgroup, in bytes.
+> +
+> +Advantages of providing this feature
+> +
+> +1. Control over virtual address space allows for a cgroup to fail gracefully
+> +   i.e., via a malloc or mmap failure as compared to OOM kill when no
+> +   pages can be reclaimed.
+> +2. It provides better control over how many pages can be swapped out when
+> +   the cgroup goes over its limit. A badly setup cgroup can cause excessive
+> +   swapping. Providing control over the address space allocations ensures
+> +   that the system administrator has control over the total swapping that
+> +   can take place.
+> _
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
