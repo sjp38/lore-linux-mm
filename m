@@ -1,67 +1,99 @@
-Message-ID: <482B8FE4.4020301@cn.fujitsu.com>
-Date: Thu, 15 May 2008 09:20:36 +0800
+Message-ID: <482B950C.2060408@cn.fujitsu.com>
+Date: Thu, 15 May 2008 09:42:36 +0800
 From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [-mm][PATCH 1/4] Add memrlimit controller documentation (v4)
-References: <20080514130904.24440.23486.sendpatchset@localhost.localdomain> <20080514130915.24440.56106.sendpatchset@localhost.localdomain>
-In-Reply-To: <20080514130915.24440.56106.sendpatchset@localhost.localdomain>
-Content-Type: text/plain; charset=GB2312
+Subject: Re: [RFC/PATCH 2/6] memcg: remove refcnt
+References: <20080514170236.23c9ddd7.kamezawa.hiroyu@jp.fujitsu.com> <20080514170703.db2d9802.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080514170703.db2d9802.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "hugh@veritas.com" <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> Documentation patch - describes the goals and usage of the memrlimit
-> controller.
-> 
-> 
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
-> 
->  Documentation/controllers/memrlimit.txt |   29 +++++++++++++++++++++++++++++
->  1 file changed, 29 insertions(+)
-> 
-> diff -puN /dev/null Documentation/controllers/memrlimit.txt
-> --- /dev/null	2008-05-14 04:27:30.032276540 +0530
-> +++ linux-2.6.26-rc2-balbir/Documentation/controllers/memrlimit.txt	2008-05-14 18:35:55.000000000 +0530
-> @@ -0,0 +1,29 @@
-> +This controller is enabled by the CONFIG_CGROUP_MEMRLIMIT_CTLR option. Prior
-> +to reading this documentation please read Documentation/cgroups.txt and
-> +Documentation/controllers/memory.txt. Several of the principles of this
-> +controller are similar to the memory resource controller.
-> +
-> +This controller framework is designed to be extensible to control any
-> +memory resource limit with little effort.
-> +
-> +This new controller, controls the address space expansion of the tasks
-> +belonging to a cgroup. Address space control is provided along the same lines as
-> +RLIMIT_AS control, which is available via getrlimit(2)/setrlimit(2).
-> +The interface for controlling address space is provided through
-> +"rlimit.limit_in_bytes". The file is similar to "limit_in_bytes" w.r.t. the user
+>  /*
+> - * Uncharging is always a welcome operation, we never complain, simply
+> - * uncharge.
+> + * uncharge if !page_mapped(page)
+>   */
+> -void mem_cgroup_uncharge_page(struct page *page)
+> +void __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 
-    memrlimit.limit_in_bytes
+static void ?
 
-> +interface. Please see section 3 of the memory resource controller documentation
-> +for more details on how to use the user interface to get and set values.
+>  {
+>  	struct page_cgroup *pc;
+>  	struct mem_cgroup *mem;
+> @@ -704,29 +693,41 @@ void mem_cgroup_uncharge_page(struct pag
+>  		goto unlock;
+>  
+
+[..snip..]
+
+> Index: linux-2.6.26-rc2/include/linux/memcontrol.h
+> ===================================================================
+> --- linux-2.6.26-rc2.orig/include/linux/memcontrol.h
+> +++ linux-2.6.26-rc2/include/linux/memcontrol.h
+> @@ -35,6 +35,8 @@ extern int mem_cgroup_charge(struct page
+>  extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+>  					gfp_t gfp_mask);
+>  extern void mem_cgroup_uncharge_page(struct page *page);
+> +extern void mem_cgroup_uncharge_cache_page(struct page *page);
+> +extern int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask);
+
+This function is defined and used in the 4th patch, so the declaration
+should be moved to that patch.
+
+>  extern void mem_cgroup_move_lists(struct page *page, bool active);
+>  extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
+>  					struct list_head *dst,
+> @@ -53,7 +55,6 @@ extern struct mem_cgroup *mem_cgroup_fro
+>  extern int
+>  mem_cgroup_prepare_migration(struct page *page, struct page *newpage);
+>  extern void mem_cgroup_end_migration(struct page *page);
+> -extern int mem_cgroup_getref(struct page *page);
+>  
+>  /*
+>   * For memory reclaim.
+> @@ -97,6 +98,14 @@ static inline int mem_cgroup_cache_charg
+>  static inline void mem_cgroup_uncharge_page(struct page *page)
+>  {
+>  }
+
+need a blank line here
+
+> +static inline void mem_cgroup_uncharge_cache_page(struct page *page)
+> +{
+> +}
 > +
-> +The "memrlimit.usage_in_bytes" file provides information about the total address
-> +space usage of the tasks in the cgroup, in bytes.
-> +
-> +Advantages of providing this feature
-> +
-> +1. Control over virtual address space allows for a cgroup to fail gracefully
-> +   i.e., via a malloc or mmap failure as compared to OOM kill when no
-> +   pages can be reclaimed.
-> +2. It provides better control over how many pages can be swapped out when
-> +   the cgroup goes over its limit. A badly setup cgroup can cause excessive
-> +   swapping. Providing control over the address space allocations ensures
-> +   that the system administrator has control over the total swapping that
-> +   can take place.
-> _
-> 
+
+[..snip..]
+
+>  #ifdef CONFIG_DEBUG_VM
+> Index: linux-2.6.26-rc2/mm/shmem.c
+> ===================================================================
+> --- linux-2.6.26-rc2.orig/mm/shmem.c
+> +++ linux-2.6.26-rc2/mm/shmem.c
+> @@ -961,13 +961,14 @@ found:
+>  		shmem_swp_unmap(ptr);
+>  	spin_unlock(&info->lock);
+>  	radix_tree_preload_end();
+> -uncharge:
+> -	mem_cgroup_uncharge_page(page);
+>  out:
+>  	unlock_page(page);
+>  	page_cache_release(page);
+>  	iput(inode);		/* allows for NULL */
+>  	return error;
+> +uncharge:
+> +	mem_cgroup_uncharge_cache_page(page);
+> +	goto out;
+>  }
+>  
+
+Seems the logic is changed here. is it intended ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
