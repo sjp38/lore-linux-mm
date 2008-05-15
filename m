@@ -1,9 +1,9 @@
-Date: Thu, 15 May 2008 10:26:25 -0700 (PDT)
+Date: Thu, 15 May 2008 10:28:00 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/3] explicitly document overloaded page flags
-In-Reply-To: <exportbomb.1210871946@pinky>
-Message-ID: <Pine.LNX.4.64.0805151026000.18354@schroedinger.engr.sgi.com>
-References: <exportbomb.1210871946@pinky>
+Subject: Re: [PATCH 1/3] page-flags: record page flag overlays explicitly
+In-Reply-To: <1210871989.0@pinky>
+Message-ID: <Pine.LNX.4.64.0805151026410.18354@schroedinger.engr.sgi.com>
+References: <exportbomb.1210871946@pinky> <1210871989.0@pinky>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -14,23 +14,13 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 15 May 2008, Andy Whitcroft wrote:
 
-> With the recent page flag reorganisation we have a single enum which
-> defines the valid page flags and their values, nice and clear.  However
-> there are a number of bits which are overloaded by different subsystems.
-> Firstly there is PG_owner_priv_1 which is used by filesystems and by XEN.
-> Secondly both SLOB and SLUB use a couple of extra page bits to manage
-> internal state for pages they own; both overlay other bits.  All of these
-> "aliases" are scattered about the source making it very hard for a reader
-> to know if the bits are safe to rely on in all contexts; confusion here
-> is bad.
-> 
-> As we now have a single place where the bits are clearly assigned it makes
-> sense to clarify the reuse of bits by making the aliases explicit and
-> visible with the original bit assignments.  This patch creates explicit
-> aliases within the enum itself for the overloaded bits and uses those
-> aliases throughout.
+> Now that we have a single enum to generate the bit orders it makes sense
+> to express overlays in the same place.  So create per use aliases for
+> this bit in the main page-flags enum and use those in the accessors.
 
-Ahh. Great! I considered doing that work too but never got around to it.
+Well I thought it would be better to have the overlays defined when the 
+PAGEFLAGS_xx macro is used. If that is done then every PG_xxx has a unique 
+id. The aliasing is then only through PageXXXX() using a PG_yyy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
