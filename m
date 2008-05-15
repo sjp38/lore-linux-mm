@@ -1,76 +1,47 @@
-Received: from zps35.corp.google.com (zps35.corp.google.com [172.25.146.35])
-	by smtp-out.google.com with ESMTP id m4FFSmYW026487
-	for <linux-mm@kvack.org>; Thu, 15 May 2008 16:28:48 +0100
-Received: from yw-out-1718.google.com (ywm5.prod.google.com [10.192.13.5])
-	by zps35.corp.google.com with ESMTP id m4FFSkVA023485
-	for <linux-mm@kvack.org>; Thu, 15 May 2008 08:28:47 -0700
-Received: by yw-out-1718.google.com with SMTP id 5so234312ywm.22
-        for <linux-mm@kvack.org>; Thu, 15 May 2008 08:28:46 -0700 (PDT)
-Message-ID: <6599ad830805150828i6b61755dk9ce5213607621af7@mail.gmail.com>
-Date: Thu, 15 May 2008 08:28:46 -0700
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [-mm][PATCH 4/4] Add memrlimit controller accounting and control (v4)
-In-Reply-To: <20080515082553.GK31115@balbir.in.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080514130904.24440.23486.sendpatchset@localhost.localdomain>
-	 <20080514130951.24440.73671.sendpatchset@localhost.localdomain>
-	 <20080514132529.GA25653@balbir.in.ibm.com>
-	 <6599ad830805141925mf8a13daq7309148153a3c2df@mail.gmail.com>
-	 <20080515061727.GC31115@balbir.in.ibm.com>
-	 <6599ad830805142355ifeeb0e2w86ccfd96aa27aea6@mail.gmail.com>
-	 <20080515070342.GJ31115@balbir.in.ibm.com>
-	 <6599ad830805150039u76c9002cg6c873fd71e687a69@mail.gmail.com>
-	 <20080515082553.GK31115@balbir.in.ibm.com>
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: [PATCH] buddy: clarify comments describing buddy merge
+Date: Thu, 15 May 2008 17:32:01 +0100
+Message-Id: <1210869121.0@pinky>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com, Paul Menage <menage@google.com>, linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 15, 2008 at 1:25 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->  >
->  > But the only *new* cases of taking the mmap_sem that this would
->  > introduce would be:
->  >
->  > - on a failed vm limit charge
->
->  Why a failed charge? Aren't we talking of moving all charge/uncharge
->  under mmap_sem?
->
+In __free_one_page(), the comment "Move the buddy up one level" appears
+attached to the break and by implication when the break is taken we are
+moving it up one level:
 
-Sorry, I worded that wrongly - I meant "cleaning up a successful
-charge after an expansion fails for other reasons"
+	if (!page_is_buddy(page, buddy, order))
+		break;          /* Move the buddy up one level. */
 
-I thought that all the charges and most of the uncharges were already
-under mmap_sem, and it would just be a few of the cleanup paths that
-needed to take it.
+In reality the inverse is true, we break out when we can no longer merge
+this page with its buddy.  Looking back into pre-history (into the full
+git history) it appears that these two lines accidentally got joined as
+part of another change.
 
->
->  > - when a task moves between two cgroups in the memrlimit hierarchy.
->  >
->
->  Yes, this would nest cgroup_mutex and mmap_sem. Not sure if that would
->  be a bad side-effect.
->
+Move the comment down where it belongs below the if and clarify its
+language.
 
-I think it's already nested that way - e.g. the cpusets code can call
-various migration functions (which take mmap_sem) while holding
-cgroup_mutex.
-
->
->  Refactor the code to try and use mmap_sem and see what I come up
->  with. Basically use mmap_sem for all charge/uncharge operations as
->  well use mmap_sem in read_mode in the move_task() and
->  mm_owner_changed() callbacks. That should take care of the race
->  conditions discussed, unless I missed something.
-
-Sounds good.
-
-Thanks,
-
-Paul
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+---
+ mm/page_alloc.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1575691..20e4c71 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -459,8 +459,9 @@ static inline void __free_one_page(struct page *page,
+ 
+ 		buddy = __page_find_buddy(page, page_idx, order);
+ 		if (!page_is_buddy(page, buddy, order))
+-			break;		/* Move the buddy up one level. */
++			break;
+ 
++		/* Our buddy is free, merge with it and move up one order. */
+ 		list_del(&buddy->lru);
+ 		zone->free_area[order].nr_free--;
+ 		rmv_page_order(buddy);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
