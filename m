@@ -1,30 +1,86 @@
-Date: Thu, 15 May 2008 18:37:37 +0100
 From: Andy Whitcroft <apw@shadowen.org>
-Subject: Re: [PATCH 3/3] slob: record page flag overlays explicitly
-Message-ID: <20080515173737.GA21787@shadowen.org>
-References: <exportbomb.1210871946@pinky> <1210872010.0@pinky>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1210872010.0@pinky>
+Subject: [PATCH] slob: record page flag overlays explicitly v2
+References: <1210872010.0@pinky>
+Date: Thu, 15 May 2008 18:42:46 +0100
+Message-Id: <1210873366.0@pinky>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jeremy Fitzhardinge <jeremy@goop.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 15, 2008 at 06:20:10PM +0100, Andy Whitcroft wrote:
+SLOB reuses two page bits for internal purposes, it overlays PG_active
+and PG_private.  This is hidden away in slob.c.  Document these overlays
+explicitly in the main page-flags enum along with all the others.
 
->  static inline void clear_slob_page(struct slob_page *sp)
->  {
-> -	__clear_bit(PG_active, &sp->flags);
-> +	__clear_bit(PG_slob_free, &sp->flags);
->  }
-
-Bah, this hunk is wrong.  Seems this is not the latest version.  Will
-replace this patch momentarily.
-
--apw
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+---
+ include/linux/page-flags.h |    4 ++++
+ mm/slob.c                  |   12 ++++++------
+ 2 files changed, 10 insertions(+), 6 deletions(-)
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 2e88df6..71aec98 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -104,6 +104,10 @@ enum pageflags {
+ 	/* XEN */
+ 	PG_pinned = PG_owner_priv_1,
+ 
++	/* SLOB */
++	PG_slob_page = PG_active,
++	PG_slob_free = PG_private,
++
+ 	/* SLUB */
+ 	PG_slub_frozen = PG_active,
+ 	PG_slub_debug = PG_error,
+diff --git a/mm/slob.c b/mm/slob.c
+index 6038cba..0aaf54f 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -130,17 +130,17 @@ static LIST_HEAD(free_slob_large);
+  */
+ static inline int slob_page(struct slob_page *sp)
+ {
+-	return test_bit(PG_active, &sp->flags);
++	return test_bit(PG_slob_page, &sp->flags);
+ }
+ 
+ static inline void set_slob_page(struct slob_page *sp)
+ {
+-	__set_bit(PG_active, &sp->flags);
++	__set_bit(PG_slob_page, &sp->flags);
+ }
+ 
+ static inline void clear_slob_page(struct slob_page *sp)
+ {
+-	__clear_bit(PG_active, &sp->flags);
++	__clear_bit(PG_slob_page, &sp->flags);
+ }
+ 
+ /*
+@@ -148,19 +148,19 @@ static inline void clear_slob_page(struct slob_page *sp)
+  */
+ static inline int slob_page_free(struct slob_page *sp)
+ {
+-	return test_bit(PG_private, &sp->flags);
++	return test_bit(PG_slob_free, &sp->flags);
+ }
+ 
+ static void set_slob_page_free(struct slob_page *sp, struct list_head *list)
+ {
+ 	list_add(&sp->list, list);
+-	__set_bit(PG_private, &sp->flags);
++	__set_bit(PG_slob_free, &sp->flags);
+ }
+ 
+ static inline void clear_slob_page_free(struct slob_page *sp)
+ {
+ 	list_del(&sp->list);
+-	__clear_bit(PG_private, &sp->flags);
++	__clear_bit(PG_slob_free, &sp->flags);
+ }
+ 
+ #define SLOB_UNIT sizeof(slob_t)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
