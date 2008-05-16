@@ -1,64 +1,323 @@
-Date: Fri, 16 May 2008 06:50:05 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
-Message-ID: <20080516115005.GC4287@sgi.com>
-References: <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org> <20080508003838.GA9878@sgi.com> <200805132206.47655.nickpiggin@yahoo.com.au> <20080513153238.GL19717@sgi.com> <20080514041122.GE24516@wotan.suse.de> <20080514112625.GY9878@sgi.com> <20080515075747.GA7177@wotan.suse.de> <Pine.LNX.4.64.0805151031250.18708@schroedinger.engr.sgi.com> <20080515235203.GB25305@wotan.suse.de> <20080516112306.GA4287@sgi.com>
+Date: Fri, 16 May 2008 13:11:13 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 2/3] Reserve huge pages for reliable MAP_PRIVATE hugetlbfs mappings until fork()
+Message-ID: <20080516121113.GB2637@csn.ul.ie>
+References: <20080507193826.5765.49292.sendpatchset@skynet.skynet.ie> <20080507193906.5765.34385.sendpatchset@skynet.skynet.ie> <1210798520.19507.53.camel@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20080516112306.GA4287@sgi.com>
+In-Reply-To: <1210798520.19507.53.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, Robin Holt <holt@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Jack Steiner <steiner@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
+To: Adam Litke <agl@us.ibm.com>
+Cc: linux-mm@kvack.org, dean@arctic.org, linux-kernel@vger.kernel.org, wli@holomorphy.com, dwg@au1.ibm.com, andi@firstfloor.org, kenchen@google.com, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 16, 2008 at 06:23:06AM -0500, Robin Holt wrote:
-> On Fri, May 16, 2008 at 01:52:03AM +0200, Nick Piggin wrote:
-> > On Thu, May 15, 2008 at 10:33:57AM -0700, Christoph Lameter wrote:
-> > > On Thu, 15 May 2008, Nick Piggin wrote:
-> > > 
-> > > > Oh, I get that confused because of the mixed up naming conventions
-> > > > there: unmap_page_range should actually be called zap_page_range. But
-> > > > at any rate, yes we can easily zap pagetables without holding mmap_sem.
-> > > 
-> > > How is that synchronized with code that walks the same pagetable. These 
-> > > walks may not hold mmap_sem either. I would expect that one could only 
-> > > remove a portion of the pagetable where we have some sort of guarantee 
-> > > that no accesses occur. So the removal of the vma prior ensures that?
-> >  
-> > I don't really understand the question. If you remove the pte and invalidate
-> > the TLBS on the remote image's process (importing the page), then it can
-> > of course try to refault the page in because it's vma is still there. But
-> > you catch that refault in your driver , which can prevent the page from
-> > being faulted back in.
+On (14/05/08 20:55), Adam Litke didst pronounce:
+> While not perfect, these patches definitely provide improved semantics
+> over what we currently have.  This is the best we can do in an
+> environment where swapping and/or page size demotion are not
+> available.  
 > 
-> I think Christoph's question has more to do with faults that are
-> in flight.  A recently requested fault could have just released the
-> last lock that was holding up the invalidate callout.  It would then
-> begin messaging back the response PFN which could still be in flight.
-> The invalidate callout would then fire and do the interrupt shoot-down
-> while that response was still active (essentially beating the inflight
-> response).  The invalidate would clear up nothing and then the response
-> would insert the PFN after it is no longer the correct PFN.
 
-I just looked over XPMEM.  I think we could make this work.  We already
-have a list of active faults which is protected by a simple spinlock.
-I would need to nest this lock within another lock protected our PFN
-table (currently it is a mutex) and then the invalidate interrupt handler
-would need to mark the fault as invalid (which is also currently there).
+And whatever about page size demotion in the future, I don't think we
+want to go down the swapping route any time soon. 16MB huge pages would
+be one thing but the 1GB pages would be ruinous.
 
-I think my sticking points with the interrupt method remain at fault
-containment and timeout.  The inability of the ia64 processor to handle
-provide predictive failures for the read/write of memory on other
-partitions prevents us from being able to contain the failure.  I don't
-think we can get the information we would need to do the invalidate
-without introducing fault containment issues which has been a continous
-area of concern for our customers.
+> I don't see anything that would impact performance here and the patches
+> pass basic functional testing and work fine with a benchmark I use for
+> both functional and performance verification.
+> 
 
+Thanks.
 
-Thanks,
-Robin
+> On Wed, 2008-05-07 at 20:39 +0100, Mel Gorman wrote:
+> > diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-mm1-0010-move-hugetlb_acct_memory/include/linux/hugetlb.h linux-2.6.25-mm1-0020-map_private_reserve/include/linux/hugetlb.h
+> > --- linux-2.6.25-mm1-0010-move-hugetlb_acct_memory/include/linux/hugetlb.h	2008-04-22 10:30:03.000000000 +0100
+> > +++ linux-2.6.25-mm1-0020-map_private_reserve/include/linux/hugetlb.h	2008-05-07 18:29:27.000000000 +0100
+> > @@ -17,6 +17,7 @@ static inline int is_vm_hugetlb_page(str
+> >  	return vma->vm_flags & VM_HUGETLB;
+> >  }
+> > 
+> > +void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
+> >  int hugetlb_sysctl_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
+> >  int hugetlb_overcommit_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
+> >  int hugetlb_treat_movable_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
+> > @@ -30,7 +31,8 @@ int hugetlb_report_node_meminfo(int, cha
+> >  unsigned long hugetlb_total_pages(void);
+> >  int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> >  			unsigned long address, int write_access);
+> > -int hugetlb_reserve_pages(struct inode *inode, long from, long to);
+> > +int hugetlb_reserve_pages(struct inode *inode, long from, long to,
+> > +						struct vm_area_struct *vma);
+> >  void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
+> > 
+> >  extern unsigned long max_huge_pages;
+> > @@ -58,6 +60,11 @@ static inline int is_vm_hugetlb_page(str
+> >  {
+> >  	return 0;
+> >  }
+> > +
+> > +static inline void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
+> > +{
+> > +}
+> 
+> This is a curious convention.  What purpose do the open and close braces
+> serve?  Is this the syntax for saying "please inline me but find the
+> real definition of this function elsewhere"?  You already declared it
+> further above in hugetlb.h so I am confused.
+
+This is the !CONFIG_HUGETLB_PAGE version where it's a no-op.
+
+> >  static inline unsigned long hugetlb_total_pages(void)
+> >  {
+> >  	return 0;
+> > diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-mm1-0010-move-hugetlb_acct_memory/kernel/fork.c linux-2.6.25-mm1-0020-map_private_reserve/kernel/fork.c
+> > --- linux-2.6.25-mm1-0010-move-hugetlb_acct_memory/kernel/fork.c	2008-04-22 10:30:04.000000000 +0100
+> > +++ linux-2.6.25-mm1-0020-map_private_reserve/kernel/fork.c	2008-05-07 18:29:27.000000000 +0100
+> > @@ -53,6 +53,7 @@
+> >  #include <linux/tty.h>
+> >  #include <linux/proc_fs.h>
+> >  #include <linux/blkdev.h>
+> > +#include <linux/hugetlb.h>
+> > 
+> >  #include <asm/pgtable.h>
+> >  #include <asm/pgalloc.h>
+> > @@ -282,6 +283,14 @@ static int dup_mmap(struct mm_struct *mm
+> >  		}
+> > 
+> >  		/*
+> > +		 * Clear hugetlb-related page reserves for children. This only
+> > +		 * affects MAP_PRIVATE mappings. Faults generated by the child
+> > +		 * are not guaranteed to succeed, even if read-only
+> > +		 */
+> > +		if (is_vm_hugetlb_page(tmp))
+> > +			reset_vma_resv_huge_pages(tmp);
+> > +
+> > +		/*
+> >  		 * Link in the new vma and copy the page table entries.
+> >  		 */
+> >  		*pprev = tmp;
+> > diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.25-mm1-0010-move-hugetlb_acct_memory/mm/hugetlb.c linux-2.6.25-mm1-0020-map_private_reserve/mm/hugetlb.c
+> > --- linux-2.6.25-mm1-0010-move-hugetlb_acct_memory/mm/hugetlb.c	2008-05-07 18:28:28.000000000 +0100
+> > +++ linux-2.6.25-mm1-0020-map_private_reserve/mm/hugetlb.c	2008-05-07 18:39:34.000000000 +0100
+> > @@ -40,6 +40,45 @@ static int hugetlb_next_nid;
+> >   */
+> >  static DEFINE_SPINLOCK(hugetlb_lock);
+> > 
+> > +/*
+> > + * These three helpers are used to track how many pages are reserved for
+> > + * faults in a MAP_PRIVATE mapping. Only the process that called mmap()
+> > + * is guaranteed to have their future faults succeed
+> > + */
+> 
+> Should we mention what lock(s) are required when manipulating
+> vm_private_data? 
+
+I was depending on the existing locking for reserve pages to cover the
+manipulation of private data - i.e. the hugetlb_lock.
+
+> What do you think is the actual controlling lock here?
+> This all looks safe to me (especially considering the
+> hugetlb_instantiation_mutex) but I wouldn't mind identifying a
+> finer-grained lock.  I would say hugetlb_lock makes sense given the new
+> way we consume resv_huge_pages in ???decrement_hugepage_resv_vma().
+> Thoughts?
+
+It's already depending on the hugetlb_lock because that is what is
+required for resv_huge_pages and is the lock taken on those paths. Is
+there something I am missing?
+
+> 
+> > +static unsigned long vma_resv_huge_pages(struct vm_area_struct *vma)
+> > +{
+> > +	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+> > +	if (!(vma->vm_flags & VM_SHARED))
+> > +		return (unsigned long)vma->vm_private_data;
+> > +	return 0;
+> > +}
+> 
+> > +static void adjust_vma_resv_huge_pages(struct vm_area_struct *vma, int delta)
+> > +{
+> > +	unsigned long reserve;
+> > +	VM_BUG_ON(vma->vm_flags & VM_SHARED);
+> > +	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+> > +
+> > +	reserve = (unsigned long)vma->vm_private_data + delta;
+> > +	vma->vm_private_data = (void *)reserve;
+> > +}
+> > +
+> > +void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
+> > +{
+> > +	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+> > +	if (!(vma->vm_flags & VM_SHARED))
+> > +		vma->vm_private_data = (void *)0;
+> > +}
+> > +
+> > +static void set_vma_resv_huge_pages(struct vm_area_struct *vma,
+> > +							unsigned long reserve)
+> > +{
+> > +	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+> > +	VM_BUG_ON(vma->vm_flags & VM_SHARED);
+> > +
+> > +	vma->vm_private_data = (void *)reserve;
+> > +}
+> > +
+> >  static void clear_huge_page(struct page *page, unsigned long addr)
+> >  {
+> >  	int i;
+> > @@ -89,6 +128,24 @@ static struct page *dequeue_huge_page(vo
+> >  	return page;
+> >  }
+> > 
+> > +/* Decrement the reserved pages in the hugepage pool by one */
+> > +static void decrement_hugepage_resv_vma(struct vm_area_struct *vma)
+> > +{
+> > +	if (vma->vm_flags & VM_SHARED) {
+> > +		/* Shared mappings always use reserves */
+> > +		resv_huge_pages--;
+> > +	} else {
+> > +		/*
+> > +		 * Only the process that called mmap() has reserves for
+> > +		 * private mappings.
+> > +		 */
+> > +		if (vma_resv_huge_pages(vma)) {
+> > +			resv_huge_pages--;
+> > +			adjust_vma_resv_huge_pages(vma, -1);
+> > +		}
+> > +	}
+> > +}
+> 
+> >  static struct page *dequeue_huge_page_vma(struct vm_area_struct *vma,
+> >  				unsigned long address)
+> >  {
+> > @@ -101,6 +158,16 @@ static struct page *dequeue_huge_page_vm
+> >  	struct zone *zone;
+> >  	struct zoneref *z;
+> > 
+> > +	/*
+> > +	 * A child process with MAP_PRIVATE mappings created by their parent
+> > +	 * have no page reserves. This check ensures that reservations are
+> > +	 * not "stolen". The child may still get SIGKILLed
+> > +	 */
+> > +	if (!(vma->vm_flags & VM_SHARED) &&
+> > +			!vma_resv_huge_pages(vma) &&
+> > +			free_huge_pages - resv_huge_pages == 0)
+> > +		return NULL;
+> > +
+> >  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+> >  						MAX_NR_ZONES - 1, nodemask) {
+> >  		nid = zone_to_nid(zone);
+> > @@ -111,8 +178,8 @@ static struct page *dequeue_huge_page_vm
+> >  			list_del(&page->lru);
+> >  			free_huge_pages--;
+> >  			free_huge_pages_node[nid]--;
+> > -			if (vma && vma->vm_flags & VM_MAYSHARE)
+> > -				resv_huge_pages--;
+> > +			decrement_hugepage_resv_vma(vma);
+> > +
+> >  			break;
+> >  		}
+> >  	}
+> > @@ -461,55 +528,41 @@ static void return_unused_surplus_pages(
+> >  	}
+> >  }
+> > 
+> > -
+> > -static struct page *alloc_huge_page_shared(struct vm_area_struct *vma,
+> > -						unsigned long addr)
+> > +static struct page *alloc_huge_page(struct vm_area_struct *vma,
+> > +				    unsigned long addr)
+> >  {
+> >  	struct page *page;
+> > +	struct address_space *mapping = vma->vm_file->f_mapping;
+> > +	struct inode *inode = mapping->host;
+> > +	unsigned int chg = 0;
+> > +
+> > +	/*
+> > +	 * Private mappings belonging to a child will not have their own
+> > +	 * reserves, nor will they have taken their quota. Check that
+> > +	 * the quota can be made before satisfying the allocation
+> > +	 */
+> > +	if (!(vma->vm_flags & VM_SHARED) &&
+> > +				!vma_resv_huge_pages(vma)) {
+> 
+> I wonder if we should have a helper for this since I've now seen the
+> same line-wrapped if-statement twice.  How about something like:
+> 
+> int hugetlb_resv_available(struct vm_area_struct *vma) {
+> 	if (vma->vm_flags & VM_SHARED)
+> 		return 1;
+> 	else if (vma_resv_huge_pages(vma))
+> 		return 1;
+> 	return 0;
+> }
+> 
+
+I'll add a helper like this in the next version.
+
+> > +		chg = 1;
+> > +		if (hugetlb_get_quota(inode->i_mapping, chg))
+> > +			return ERR_PTR(-ENOSPC);
+> > +	}
+> > 
+> >  	spin_lock(&hugetlb_lock);
+> >  	page = dequeue_huge_page_vma(vma, addr);
+> >  	spin_unlock(&hugetlb_lock);
+> > -	return page ? page : ERR_PTR(-VM_FAULT_OOM);
+> > -}
+> > -
+> > -static struct page *alloc_huge_page_private(struct vm_area_struct *vma,
+> > -						unsigned long addr)
+> > -{
+> > -	struct page *page = NULL;
+> > 
+> > -	if (hugetlb_get_quota(vma->vm_file->f_mapping, 1))
+> > -		return ERR_PTR(-VM_FAULT_SIGBUS);
+> > -
+> > -	spin_lock(&hugetlb_lock);
+> > -	if (free_huge_pages > resv_huge_pages)
+> > -		page = dequeue_huge_page_vma(vma, addr);
+> > -	spin_unlock(&hugetlb_lock);
+> >  	if (!page) {
+> >  		page = alloc_buddy_huge_page(vma, addr);
+> >  		if (!page) {
+> > -			hugetlb_put_quota(vma->vm_file->f_mapping, 1);
+> > +			hugetlb_put_quota(inode->i_mapping, chg);
+> >  			return ERR_PTR(-VM_FAULT_OOM);
+> >  		}
+> >  	}
+> > -	return page;
+> > -}
+> > 
+> > -static struct page *alloc_huge_page(struct vm_area_struct *vma,
+> > -				    unsigned long addr)
+> > -{
+> > -	struct page *page;
+> > -	struct address_space *mapping = vma->vm_file->f_mapping;
+> > -
+> > -	if (vma->vm_flags & VM_MAYSHARE)
+> > -		page = alloc_huge_page_shared(vma, addr);
+> > -	else
+> > -		page = alloc_huge_page_private(vma, addr);
+> > +	set_page_refcounted(page);
+> > +	set_page_private(page, (unsigned long) mapping);
+> > 
+> > -	if (!IS_ERR(page)) {
+> > -		set_page_refcounted(page);
+> > -		set_page_private(page, (unsigned long) mapping);
+> > -	}
+> >  	return page;
+> >  }
+> > 
+> 
+
+Thanks
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
