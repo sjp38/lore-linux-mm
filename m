@@ -1,705 +1,155 @@
-Date: Fri, 16 May 2008 18:38:28 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: mm notifier: Notifications when pages are unmapped.
-In-Reply-To: <alpine.LFD.1.10.0805141114410.3019@woody.linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0805161835500.2123@schroedinger.engr.sgi.com>
-References: <6b384bb988786aa78ef0.1210170958@duo.random>
- <alpine.LFD.1.10.0805071429170.3024@woody.linux-foundation.org>
- <20080508003838.GA9878@sgi.com> <200805132206.47655.nickpiggin@yahoo.com.au>
- <20080513153238.GL19717@sgi.com> <20080514041122.GE24516@wotan.suse.de>
- <20080514112625.GY9878@sgi.com> <alpine.LFD.1.10.0805140807400.3019@woody.linux-foundation.org>
- <Pine.LNX.4.64.0805141053350.15490@schroedinger.engr.sgi.com>
- <alpine.LFD.1.10.0805141114410.3019@woody.linux-foundation.org>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m4HKG2rd030762
+	for <linux-mm@kvack.org>; Sun, 18 May 2008 06:16:02 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4HKGGDd4067548
+	for <linux-mm@kvack.org>; Sun, 18 May 2008 06:16:16 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4HKGSCm001755
+	for <linux-mm@kvack.org>; Sun, 18 May 2008 06:16:28 +1000
+Date: Sun, 18 May 2008 01:45:45 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [-mm][PATCH 4/4] Add memrlimit controller accounting and
+	control (v4)
+Message-ID: <20080517201545.GA14727@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20080514130904.24440.23486.sendpatchset@localhost.localdomain> <20080514130951.24440.73671.sendpatchset@localhost.localdomain> <20080514132529.GA25653@balbir.in.ibm.com> <6599ad830805141925mf8a13daq7309148153a3c2df@mail.gmail.com> <20080515061727.GC31115@balbir.in.ibm.com> <6599ad830805142355ifeeb0e2w86ccfd96aa27aea6@mail.gmail.com> <20080515070342.GJ31115@balbir.in.ibm.com> <6599ad830805150039u76c9002cg6c873fd71e687a69@mail.gmail.com> <20080515082553.GK31115@balbir.in.ibm.com> <6599ad830805150828i6b61755dk9ce5213607621af7@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <6599ad830805150828i6b61755dk9ce5213607621af7@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Jack Steiner <steiner@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
+To: Paul Menage <menage@google.com>
+Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Implementation of what Linus suggested: Defer the XPMEM processing until 
-after the locks are dropped. Allow immediate action by GRU/KVM.
+* Paul Menage <menage@google.com> [2008-05-15 08:28:46]:
+
+> On Thu, May 15, 2008 at 1:25 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> >  >
+> >  > But the only *new* cases of taking the mmap_sem that this would
+> >  > introduce would be:
+> >  >
+> >  > - on a failed vm limit charge
+> >
+> >  Why a failed charge? Aren't we talking of moving all charge/uncharge
+> >  under mmap_sem?
+> >
+> 
+> Sorry, I worded that wrongly - I meant "cleaning up a successful
+> charge after an expansion fails for other reasons"
+> 
+> I thought that all the charges and most of the uncharges were already
+> under mmap_sem, and it would just be a few of the cleanup paths that
+> needed to take it.
+> 
+> >
+> >  > - when a task moves between two cgroups in the memrlimit hierarchy.
+> >  >
+> >
+> >  Yes, this would nest cgroup_mutex and mmap_sem. Not sure if that would
+> >  be a bad side-effect.
+> >
+> 
+> I think it's already nested that way - e.g. the cpusets code can call
+> various migration functions (which take mmap_sem) while holding
+> cgroup_mutex.
+> 
+> >
+> >  Refactor the code to try and use mmap_sem and see what I come up
+> >  with. Basically use mmap_sem for all charge/uncharge operations as
+> >  well use mmap_sem in read_mode in the move_task() and
+> >  mm_owner_changed() callbacks. That should take care of the race
+> >  conditions discussed, unless I missed something.
+> 
+> Sounds good.
+> 
+> Thanks,
+>
+I've revamped the last two patches. Please review
 
 
-This patch implements a callbacks for device drivers that establish external
-references to pages aside from the Linux rmaps. Those either:
+This patch adds an additional field to the mm_owner callbacks. This field
+is required to get to the mm that changed. Hold mmap_sem in write mode
+before calling the mm_owner_changed callback
 
-1. Do not take a refcount on pages that are mapped from devices. They
-have a TLB cache like handling and must be able to flush external references
-from atomic contexts. These devices do not need to provide the _sync methods.
-
-2. Do take a refcount on pages mapped externally. These are handling by
-marking pages as to be invalidated in atomic contexts. Invalidation
-may be started by the driver. A _sync variant for the individual or
-range unmap is called when we are back in a nonatomic context. At that
-point the device must complete the removal of external references
-and drop its refcount.
-
-With the mm notifier it is possible for the device driver to release external
-references after the page references are removed from a process that made
-them available.
-
-With the notifier it becomes possible to get pages unpinned on request and thus
-avoid issues that come with having a large amount of pinned pages.
-
-A device driver must subscribe to a process using
-
-        mm_register_notifier(struct mm_struct *, struct mm_notifier *)
-
-The VM will then perform callbacks for operations that unmap or change
-permissions of pages in that address space.
-
-When the process terminates then first the ->release method is called to
-remove all pages still mapped to the proces.
-
-Before the mm_struct is freed the ->destroy() method is called which
-should dispose of the mm_notifier structure.
-
-The following callbacks exist:
-
-invalidate_range(notifier, mm_struct *, from , to)
-
-	Invalidate a range of addresses. The invalidation is
-	not required to complete immediately.
-
-invalidate_range_sync(notifier, mm_struct *, from, to)
-
-	This is called after some invalidate_range callouts.
-	The driver may only return when the invalidation of the references
-	is completed. Callback is only called from non atomic contexts.
-	There is no need to provide this callback if the driver can remove
-	references in an atomic context.
-
-invalidate_page(notifier, mm_struct *, struct page *page, unsigned long address)
-
-	Invalidate references to a particular page. The driver may
-	defer the invalidation.
-
-invalidate_page_sync(notifier, mm_struct *,struct *)
-
-	Called after one or more invalidate_page() callbacks. The callback
-	must only return when the external references have been removed.
-	The callback does not need to be provided if the driver can remove
-	references in atomic contexts.
-
-[NOTE] The invalidate_page_sync() callback is weird because it is called for
-	every notifier that supports the invalidate_page_sync() callback
-	if a page has PageNotifier() set. The driver must determine in an efficient
-	way that the page is not of interest. This is because we do not have the
-	mm context after we have dropped the rmap list lock.
-	Drivers incrementing the refcount must set and clear PageNotifier
-	appropriately when establishing and/or dropping a refcount!
-	[These conditions are similar to the rmap notifier that was introduced
-	in my V7 of the mmu_notifier].
-
-There is no support for an aging callback. A device driver may simply set the
-reference bit on the linux pte when the external mapping is referenced if such
-support is desired.
-
-The patch is provisional. All functions are inlined for now. They should be wrapped like
-in Andrea's series. Its probably good to have Andrea review this if we actually
-decide to go this route since he is pretty good as detecting issues with complex
-lock interactions in the vm. mmu notifiers V7 was rejected by Andrew because of the
-strange asymmetry in invalidate_page_sync() (at that time called rmap notifier) and
-we are reintroducing that now in a light weight order to be able to defer freeing
-until after the rmap spinlocks have been dropped.
-
-Jack tested this with the GRU.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
- fs/hugetlbfs/inode.c       |    2 
- include/linux/mm_types.h   |    3 
- include/linux/page-flags.h |    3 
- include/linux/rmap.h       |  161 +++++++++++++++++++++++++++++++++++++++++++++
- kernel/fork.c              |    4 +
- mm/Kconfig                 |    4 +
- mm/filemap_xip.c           |    2 
- mm/fremap.c                |    2 
- mm/hugetlb.c               |    3 
- mm/memory.c                |   38 ++++++++--
- mm/mmap.c                  |    3 
- mm/mprotect.c              |    3 
- mm/mremap.c                |    5 +
- mm/rmap.c                  |   11 ++-
- 14 files changed, 234 insertions(+), 10 deletions(-)
 
-Index: linux-2.6/kernel/fork.c
-===================================================================
---- linux-2.6.orig/kernel/fork.c	2008-05-16 11:28:50.000000000 -0700
-+++ linux-2.6/kernel/fork.c	2008-05-16 16:06:26.000000000 -0700
-@@ -386,6 +386,9 @@ static struct mm_struct * mm_init(struct
- 
- 	if (likely(!mm_alloc_pgd(mm))) {
- 		mm->def_flags = 0;
-+#ifdef CONFIG_MM_NOTIFIER
-+		mm->mm_notifier = NULL;
-+#endif
- 		return mm;
- 	}
- 
-@@ -418,6 +421,7 @@ void __mmdrop(struct mm_struct *mm)
- 	BUG_ON(mm == &init_mm);
- 	mm_free_pgd(mm);
- 	destroy_context(mm);
-+	mm_notifier_destroy(mm);
- 	free_mm(mm);
- }
- EXPORT_SYMBOL_GPL(__mmdrop);
-Index: linux-2.6/mm/filemap_xip.c
-===================================================================
---- linux-2.6.orig/mm/filemap_xip.c	2008-05-16 11:28:49.000000000 -0700
-+++ linux-2.6/mm/filemap_xip.c	2008-05-16 16:06:26.000000000 -0700
-@@ -189,6 +189,7 @@ __xip_unmap (struct address_space * mapp
- 			/* Nuke the page table entry. */
- 			flush_cache_page(vma, address, pte_pfn(*pte));
- 			pteval = ptep_clear_flush(vma, address, pte);
-+			mm_notifier_invalidate_page(mm, page, address);
- 			page_remove_rmap(page, vma);
- 			dec_mm_counter(mm, file_rss);
- 			BUG_ON(pte_dirty(pteval));
-@@ -197,6 +198,7 @@ __xip_unmap (struct address_space * mapp
- 		}
- 	}
- 	spin_unlock(&mapping->i_mmap_lock);
-+	mm_notifier_invalidate_page_sync(page);
- }
- 
- /*
-Index: linux-2.6/mm/fremap.c
-===================================================================
---- linux-2.6.orig/mm/fremap.c	2008-05-16 11:28:49.000000000 -0700
-+++ linux-2.6/mm/fremap.c	2008-05-16 16:06:26.000000000 -0700
-@@ -214,7 +214,9 @@ asmlinkage long sys_remap_file_pages(uns
- 		spin_unlock(&mapping->i_mmap_lock);
- 	}
- 
-+	mm_notifier_invalidate_range(mm, start, start + size);
- 	err = populate_range(mm, vma, start, size, pgoff);
-+	mm_notifier_invalidate_range_sync(mm, start, start + size);
- 	if (!err && !(flags & MAP_NONBLOCK)) {
- 		if (unlikely(has_write_lock)) {
- 			downgrade_write(&mm->mmap_sem);
-Index: linux-2.6/mm/hugetlb.c
-===================================================================
---- linux-2.6.orig/mm/hugetlb.c	2008-05-16 11:28:50.000000000 -0700
-+++ linux-2.6/mm/hugetlb.c	2008-05-16 17:50:31.000000000 -0700
-@@ -14,6 +14,7 @@
- #include <linux/mempolicy.h>
- #include <linux/cpuset.h>
- #include <linux/mutex.h>
-+#include <linux/rmap.h>
- 
- #include <asm/page.h>
- #include <asm/pgtable.h>
-@@ -843,6 +844,7 @@ void __unmap_hugepage_range(struct vm_ar
- 	}
- 	spin_unlock(&mm->page_table_lock);
- 	flush_tlb_range(vma, start, end);
-+	mm_notifier_invalidate_range(mm, start, end);
- 	list_for_each_entry_safe(page, tmp, &page_list, lru) {
- 		list_del(&page->lru);
- 		put_page(page);
-@@ -864,6 +866,7 @@ void unmap_hugepage_range(struct vm_area
- 		spin_lock(&vma->vm_file->f_mapping->i_mmap_lock);
- 		__unmap_hugepage_range(vma, start, end);
- 		spin_unlock(&vma->vm_file->f_mapping->i_mmap_lock);
-+		mm_notifier_invalidate_range_sync(vma->vm_mm, start, end);
- 	}
- }
- 
-Index: linux-2.6/mm/memory.c
-===================================================================
---- linux-2.6.orig/mm/memory.c	2008-05-16 11:28:49.000000000 -0700
-+++ linux-2.6/mm/memory.c	2008-05-16 16:06:26.000000000 -0700
-@@ -527,6 +527,7 @@ copy_one_pte(struct mm_struct *dst_mm, s
+ include/linux/cgroup.h |    3 ++-
+ kernel/cgroup.c        |    4 +++-
+ kernel/exit.c          |    3 +++
+ 3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff -puN include/linux/cgroup.h~cgroup-add-task-to-mm-owner-callbacks include/linux/cgroup.h
+--- linux-2.6.26-rc2/include/linux/cgroup.h~cgroup-add-task-to-mm-owner-callbacks	2008-05-14 18:36:59.000000000 +0530
++++ linux-2.6.26-rc2-balbir/include/linux/cgroup.h	2008-05-14 18:36:59.000000000 +0530
+@@ -310,7 +310,8 @@ struct cgroup_subsys {
  	 */
- 	if (is_cow_mapping(vm_flags)) {
- 		ptep_set_wrprotect(src_mm, addr, src_pte);
-+		mm_notifier_invalidate_range(src_mm, addr, addr + PAGE_SIZE);
- 		pte = pte_wrprotect(pte);
- 	}
- 
-@@ -649,6 +650,7 @@ int copy_page_range(struct mm_struct *ds
- 	unsigned long next;
- 	unsigned long addr = vma->vm_start;
- 	unsigned long end = vma->vm_end;
-+	int ret;
- 
- 	/*
- 	 * Don't copy ptes where a page fault will fill them correctly.
-@@ -664,17 +666,30 @@ int copy_page_range(struct mm_struct *ds
- 	if (is_vm_hugetlb_page(vma))
- 		return copy_hugetlb_page_range(dst_mm, src_mm, vma);
- 
-+	ret = 0;
- 	dst_pgd = pgd_offset(dst_mm, addr);
- 	src_pgd = pgd_offset(src_mm, addr);
- 	do {
- 		next = pgd_addr_end(addr, end);
- 		if (pgd_none_or_clear_bad(src_pgd))
- 			continue;
--		if (copy_pud_range(dst_mm, src_mm, dst_pgd, src_pgd,
--						vma, addr, next))
--			return -ENOMEM;
-+		if (unlikely(copy_pud_range(dst_mm, src_mm, dst_pgd, src_pgd,
-+					    vma, addr, next))) {
-+			ret = -ENOMEM;
-+			break;
-+		}
- 	} while (dst_pgd++, src_pgd++, addr = next, addr != end);
--	return 0;
-+
-+	/*
-+	 * We need to invalidate the secondary MMU mappings only when
-+	 * there could be a permission downgrade on the ptes of the
-+	 * parent mm. And a permission downgrade will only happen if
-+	 * is_cow_mapping() returns true.
-+	 */
-+	if (is_cow_mapping(vma->vm_flags))
-+		mm_notifier_invalidate_range_sync(src_mm, vma->vm_start, end);
-+
-+	return ret;
- }
- 
- static unsigned long zap_pte_range(struct mmu_gather *tlb,
-@@ -913,6 +928,7 @@ unsigned long unmap_vmas(struct mmu_gath
- 			}
- 
- 			tlb_finish_mmu(*tlbp, tlb_start, start);
-+			mm_notifier_invalidate_range(vma->vm_mm, tlb_start, start);
- 
- 			if (need_resched() ||
- 				(i_mmap_lock && spin_needbreak(i_mmap_lock))) {
-@@ -951,8 +967,10 @@ unsigned long zap_page_range(struct vm_a
- 	tlb = tlb_gather_mmu(mm, 0);
- 	update_hiwater_rss(mm);
- 	end = unmap_vmas(&tlb, vma, address, end, &nr_accounted, details);
--	if (tlb)
-+	if (tlb) {
- 		tlb_finish_mmu(tlb, address, end);
-+		mm_notifier_invalidate_range(mm, address, end);
-+	}
- 	return end;
- }
- 
-@@ -1711,7 +1729,6 @@ static int do_wp_page(struct mm_struct *
- 			 */
- 			page_table = pte_offset_map_lock(mm, pmd, address,
- 							 &ptl);
--			page_cache_release(old_page);
- 			if (!pte_same(*page_table, orig_pte))
- 				goto unlock;
- 
-@@ -1729,6 +1746,7 @@ static int do_wp_page(struct mm_struct *
- 		if (ptep_set_access_flags(vma, address, page_table, entry,1))
- 			update_mmu_cache(vma, address, entry);
- 		ret |= VM_FAULT_WRITE;
-+		old_page = NULL;
- 		goto unlock;
- 	}
- 
-@@ -1774,6 +1792,7 @@ gotten:
- 		 * thread doing COW.
- 		 */
- 		ptep_clear_flush(vma, address, page_table);
-+		mm_notifier_invalidate_page(mm, old_page, address);
- 		set_pte_at(mm, address, page_table, entry);
- 		update_mmu_cache(vma, address, entry);
- 		lru_cache_add_active(new_page);
-@@ -1787,10 +1806,13 @@ gotten:
- 
- 	if (new_page)
- 		page_cache_release(new_page);
--	if (old_page)
--		page_cache_release(old_page);
- unlock:
- 	pte_unmap_unlock(page_table, ptl);
-+	if (old_page) {
-+		mm_notifier_invalidate_page_sync(old_page);
-+		page_cache_release(old_page);
-+	}
-+
- 	if (dirty_page) {
- 		if (vma->vm_file)
- 			file_update_time(vma->vm_file);
-Index: linux-2.6/mm/mmap.c
-===================================================================
---- linux-2.6.orig/mm/mmap.c	2008-05-16 11:28:50.000000000 -0700
-+++ linux-2.6/mm/mmap.c	2008-05-16 16:06:26.000000000 -0700
-@@ -1759,6 +1759,8 @@ static void unmap_region(struct mm_struc
- 	free_pgtables(&tlb, vma, prev? prev->vm_end: FIRST_USER_ADDRESS,
- 				 next? next->vm_start: 0);
- 	tlb_finish_mmu(tlb, start, end);
-+	mm_notifier_invalidate_range(mm, start, end);
-+	mm_notifier_invalidate_range_sync(mm, start, end);
- }
- 
- /*
-@@ -2048,6 +2050,7 @@ void exit_mmap(struct mm_struct *mm)
- 
- 	/* mm's last user has gone, and its about to be pulled down */
- 	arch_exit_mmap(mm);
-+	mm_notifier_release(mm);
- 
- 	lru_add_drain();
- 	flush_cache_mm(mm);
-Index: linux-2.6/mm/mprotect.c
-===================================================================
---- linux-2.6.orig/mm/mprotect.c	2008-05-16 11:28:50.000000000 -0700
-+++ linux-2.6/mm/mprotect.c	2008-05-16 16:06:26.000000000 -0700
-@@ -21,6 +21,7 @@
- #include <linux/syscalls.h>
- #include <linux/swap.h>
- #include <linux/swapops.h>
-+#include <linux/rmap.h>
- #include <asm/uaccess.h>
- #include <asm/pgtable.h>
- #include <asm/cacheflush.h>
-@@ -132,6 +133,7 @@ static void change_protection(struct vm_
- 		change_pud_range(mm, pgd, addr, next, newprot, dirty_accountable);
- 	} while (pgd++, addr = next, addr != end);
- 	flush_tlb_range(vma, start, end);
-+	mm_notifier_invalidate_range(vma->vm_mm, start, end);
- }
- 
- int
-@@ -211,6 +213,7 @@ success:
- 		hugetlb_change_protection(vma, start, end, vma->vm_page_prot);
- 	else
- 		change_protection(vma, start, end, vma->vm_page_prot, dirty_accountable);
-+	mm_notifier_invalidate_range_sync(mm, start, end);
- 	vm_stat_account(mm, oldflags, vma->vm_file, -nrpages);
- 	vm_stat_account(mm, newflags, vma->vm_file, nrpages);
- 	return 0;
-Index: linux-2.6/mm/mremap.c
-===================================================================
---- linux-2.6.orig/mm/mremap.c	2008-05-16 11:28:49.000000000 -0700
-+++ linux-2.6/mm/mremap.c	2008-05-16 16:06:26.000000000 -0700
-@@ -18,6 +18,7 @@
- #include <linux/highmem.h>
- #include <linux/security.h>
- #include <linux/syscalls.h>
-+#include <linux/rmap.h>
- 
- #include <asm/uaccess.h>
- #include <asm/cacheflush.h>
-@@ -74,6 +75,7 @@ static void move_ptes(struct vm_area_str
- 	struct mm_struct *mm = vma->vm_mm;
- 	pte_t *old_pte, *new_pte, pte;
- 	spinlock_t *old_ptl, *new_ptl;
-+	unsigned long old_start = old_addr;
- 
- 	if (vma->vm_file) {
- 		/*
-@@ -100,6 +102,7 @@ static void move_ptes(struct vm_area_str
- 		spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
- 	arch_enter_lazy_mmu_mode();
- 
-+	mm_notifier_invalidate_range(mm, old_addr, old_end);
- 	for (; old_addr < old_end; old_pte++, old_addr += PAGE_SIZE,
- 				   new_pte++, new_addr += PAGE_SIZE) {
- 		if (pte_none(*old_pte))
-@@ -116,6 +119,8 @@ static void move_ptes(struct vm_area_str
- 	pte_unmap_unlock(old_pte - 1, old_ptl);
- 	if (mapping)
- 		spin_unlock(&mapping->i_mmap_lock);
-+
-+	mm_notifier_invalidate_range_sync(vma->vm_mm, old_start, old_end);
- }
- 
- #define LATENCY_LIMIT	(64 * PAGE_SIZE)
-Index: linux-2.6/mm/rmap.c
-===================================================================
---- linux-2.6.orig/mm/rmap.c	2008-05-16 11:28:50.000000000 -0700
-+++ linux-2.6/mm/rmap.c	2008-05-16 16:06:26.000000000 -0700
-@@ -52,6 +52,9 @@
- 
- #include <asm/tlbflush.h>
- 
-+struct mm_notifier *mm_notifier_page_sync;
-+DECLARE_RWSEM(mm_notifier_page_sync_sem);
-+
- struct kmem_cache *anon_vma_cachep;
- 
- /* This must be called under the mmap_sem. */
-@@ -458,6 +461,7 @@ static int page_mkclean_one(struct page 
- 
- 		flush_cache_page(vma, address, pte_pfn(*pte));
- 		entry = ptep_clear_flush(vma, address, pte);
-+		mm_notifier_invalidate_page(mm, page, address);
- 		entry = pte_wrprotect(entry);
- 		entry = pte_mkclean(entry);
- 		set_pte_at(mm, address, pte, entry);
-@@ -502,8 +506,8 @@ int page_mkclean(struct page *page)
- 				ret = 1;
- 			}
- 		}
-+		mm_notifier_invalidate_page_sync(page);
- 	}
--
- 	return ret;
- }
- EXPORT_SYMBOL_GPL(page_mkclean);
-@@ -725,6 +729,7 @@ static int try_to_unmap_one(struct page 
- 	/* Nuke the page table entry. */
- 	flush_cache_page(vma, address, page_to_pfn(page));
- 	pteval = ptep_clear_flush(vma, address, pte);
-+	mm_notifier_invalidate_page(mm, page, address);
- 
- 	/* Move the dirty bit to the physical page now the pte is gone. */
- 	if (pte_dirty(pteval))
-@@ -855,6 +860,7 @@ static void try_to_unmap_cluster(unsigne
- 		/* Nuke the page table entry. */
- 		flush_cache_page(vma, address, pte_pfn(*pte));
- 		pteval = ptep_clear_flush(vma, address, pte);
-+		mm_notifier_invalidate_page(mm, page, address);
- 
- 		/* If nonlinear, store the file page offset in the pte. */
- 		if (page->index != linear_page_index(vma, address))
-@@ -1013,8 +1019,9 @@ int try_to_unmap(struct page *page, int 
- 	else
- 		ret = try_to_unmap_file(page, migration);
- 
-+	mm_notifier_invalidate_page_sync(page);
-+
- 	if (!page_mapped(page))
- 		ret = SWAP_SUCCESS;
- 	return ret;
- }
--
-Index: linux-2.6/include/linux/rmap.h
-===================================================================
---- linux-2.6.orig/include/linux/rmap.h	2008-05-16 11:28:49.000000000 -0700
-+++ linux-2.6/include/linux/rmap.h	2008-05-16 18:32:52.000000000 -0700
-@@ -133,4 +133,165 @@ static inline int page_mkclean(struct pa
- #define SWAP_AGAIN	1
- #define SWAP_FAIL	2
- 
-+#ifdef CONFIG_MM_NOTIFIER
-+
-+struct mm_notifier_ops {
-+	void (*invalidate_range)(struct mm_notifier *mn, struct mm_struct *mm,
-+					unsigned long start, unsigned long end);
-+	void (*invalidate_range_sync)(struct mm_notifier *mn, struct mm_struct *mm,
-+					unsigned long start, unsigned long end);
-+	void (*invalidate_page)(struct mm_notifier *mn, struct mm_struct *mm,
-+					struct page *page, unsigned long addr);
-+	void (*invalidate_page_sync)(struct mm_notifier *mn, struct mm_struct *mm,
-+								struct page *page);
-+	void (*release)(struct mm_notifier *mn, struct mm_struct *mm);
-+	void (*destroy)(struct mm_notifier *mn, struct mm_struct *mm);
-+};
-+
-+struct mm_notifier {
-+	struct mm_notifier_ops *ops;
-+	struct mm_struct *mm;
-+	struct mm_notifier *next;
-+	struct mm_notifier *next_page_sync;
-+};
-+
-+extern struct mm_notifier *mm_notifier_page_sync;
-+extern struct rw_semaphore mm_notifier_page_sync_sem;
-+
-+/*
-+ * Must hold mmap_sem when calling mm_notifier_register.
-+ */
-+static inline void mm_notifier_register(struct mm_notifier *mn,
-+						struct mm_struct *mm)
-+{
-+	mn->mm = mm;
-+	mn->next = mm->mm_notifier;
-+	rcu_assign_pointer(mm->mm_notifier, mn);
-+	if (mn->ops->invalidate_page_sync) {
-+		down_write(&mm_notifier_page_sync_sem);
-+		mn->next_page_sync = mm_notifier_page_sync;
-+		mm_notifier_page_sync = mn;
-+		up_write(&mm_notifier_page_sync_sem);
-+	}
-+}
-+
-+/*
-+ * Invalidate remote references in a particular address range
-+ */
-+static inline void mm_notifier_invalidate_range(struct mm_struct *mm,
-+			unsigned long start, unsigned long end)
-+{
-+	struct mm_notifier *mn;
-+
-+	for (mn = rcu_dereference(mm->mm_notifier); mn;
-+					mn = rcu_dereference(mn->next))
-+		mn->ops->invalidate_range(mn, mm, start, end);
-+}
-+
-+/*
-+ * Invalidate remote references in a particular address range.
-+ * Can sleep. Only return if all remote references have been removed.
-+ */
-+static inline void mm_notifier_invalidate_range_sync(struct mm_struct *mm,
-+			unsigned long start, unsigned long end)
-+{
-+	struct mm_notifier *mn;
-+
-+	for (mn = rcu_dereference(mm->mm_notifier); mn;
-+					mn = rcu_dereference(mn->next))
-+		if (mn->ops->invalidate_range_sync)
-+			mn->ops->invalidate_range_sync(mn, mm, start, end);
-+}
-+
-+/*
-+ * Invalidate remote references to a page
-+ */
-+static inline void mm_notifier_invalidate_page(struct mm_struct *mm,
-+					struct page *page, unsigned long addr)
-+{
-+	struct mm_notifier *mn;
-+
-+	for (mn = rcu_dereference(mm->mm_notifier); mn;
-+					mn = rcu_dereference(mn->next))
-+		mn->ops->invalidate_page(mn, mm, page, addr);
-+}
-+
-+/*
-+ * Invalidate remote references to a partioular page. Only return
-+ * if all references have been removed.
+ 	void (*mm_owner_changed)(struct cgroup_subsys *ss,
+ 					struct cgroup *old,
+-					struct cgroup *new);
++					struct cgroup *new,
++					struct task_struct *p);
+ 	int subsys_id;
+ 	int active;
+ 	int disabled;
+diff -puN kernel/cgroup.c~cgroup-add-task-to-mm-owner-callbacks kernel/cgroup.c
+--- linux-2.6.26-rc2/kernel/cgroup.c~cgroup-add-task-to-mm-owner-callbacks	2008-05-14 18:36:59.000000000 +0530
++++ linux-2.6.26-rc2-balbir/kernel/cgroup.c	2008-05-17 22:09:57.000000000 +0530
+@@ -2758,6 +2758,8 @@ void cgroup_fork_callbacks(struct task_s
+  * Called on every change to mm->owner. mm_init_owner() does not
+  * invoke this routine, since it assigns the mm->owner the first time
+  * and does not change it.
 + *
-+ * Note: This is an expensive function since it is not clear at the time
-+ * of call to which mm_struct() the page belongs.. It walks through the
-+ * mmlist  and calls the mmu notifier ops for each address space in the
-+ * system. At some point this needs to be optimized.
-+ */
-+static inline void mm_notifier_invalidate_page_sync(struct page *page)
-+{
-+	struct mm_notifier *mn;
-+
-+	if (!PageNotifier(page))
-+		return;
-+
-+	down_read(&mm_notifier_page_sync_sem);
-+
-+	for (mn = mm_notifier_page_sync; mn; mn = mn->next_page_sync)
-+		if (mn->ops->invalidate_page_sync)
-+				mn->ops->invalidate_page_sync(mn, mn->mm, page);
-+
-+	up_read(&mm_notifier_page_sync_sem);
-+}
-+
-+/*
-+ * Invalidate all remote references before shutdown
-+ */
-+static inline void mm_notifier_release(struct mm_struct *mm)
-+{
-+	struct mm_notifier *mn;
-+
-+	for (mn = rcu_dereference(mm->mm_notifier); mn;
-+					mn = rcu_dereference(mn->next))
-+		mn->ops->release(mn, mm);
-+}
-+
-+/*
-+ * Release resources before freeing mm_struct.
-+ */
-+static inline void mm_notifier_destroy(struct mm_struct *mm)
-+{
-+	struct mm_notifier *mn;
-+
-+	while (mm->mm_notifier) {
-+		mn = mm->mm_notifier;
-+		mm->mm_notifier = mn->next;
-+		if (mn->ops->invalidate_page_sync) {
-+			struct mm_notifier *m;
-+
-+			down_write(&mm_notifier_page_sync_sem);
-+
-+			if (mm_notifier_page_sync != mn) {
-+				for (m = mm_notifier_page_sync; m; m = m->next_page_sync)
-+					if (m->next_page_sync == mn)
-+						break;
-+
-+				m->next_page_sync = mn->next_page_sync;
-+			} else
-+				mm_notifier_page_sync = mn->next_page_sync;
-+
-+			up_write(&mm_notifier_page_sync_sem);
-+		}
-+		mn->ops->destroy(mn, mm);
-+	}
-+}
-+#else
-+static inline void mm_notifier_invalidate_range(struct mm_struct *mm,
-+			unsigned long start, unsigned long end) {}
-+static inline void mm_notifier_invalidate_range_sync(struct mm_struct *mm,
-+			unsigned long start, unsigned long end) {}
-+static inline void mm_notifier_invalidate_page(struct mm_struct *mm,
-+			struct page *page, unsigned long address) {}
-+static inline void mm_notifier_invalidate_page_sync(struct page *page) {}
-+static inline void mm_notifier_release(struct mm_struct *mm) {}
-+static inline void mm_notifier_destroy(struct mm_struct *mm) {}
-+#endif
-+
- #endif	/* _LINUX_RMAP_H */
-Index: linux-2.6/mm/Kconfig
-===================================================================
---- linux-2.6.orig/mm/Kconfig	2008-05-16 11:28:50.000000000 -0700
-+++ linux-2.6/mm/Kconfig	2008-05-16 16:06:26.000000000 -0700
-@@ -205,3 +205,7 @@ config NR_QUICK
- config VIRT_TO_BUS
- 	def_bool y
- 	depends on !ARCH_NO_VIRT_TO_BUS
-+
-+config MM_NOTIFIER
-+	def_bool y
-+
-Index: linux-2.6/include/linux/mm_types.h
-===================================================================
---- linux-2.6.orig/include/linux/mm_types.h	2008-05-16 11:28:49.000000000 -0700
-+++ linux-2.6/include/linux/mm_types.h	2008-05-16 16:06:26.000000000 -0700
-@@ -244,6 +244,9 @@ struct mm_struct {
- 	struct file *exe_file;
- 	unsigned long num_exe_file_vmas;
- #endif
-+#ifdef CONFIG_MM_NOTIFIER
-+	struct mm_notifier *mm_notifier;
-+#endif
- };
- 
- #endif /* _LINUX_MM_TYPES_H */
-Index: linux-2.6/include/linux/page-flags.h
-===================================================================
---- linux-2.6.orig/include/linux/page-flags.h	2008-05-16 11:28:49.000000000 -0700
-+++ linux-2.6/include/linux/page-flags.h	2008-05-16 16:06:26.000000000 -0700
-@@ -93,6 +93,7 @@ enum pageflags {
- 	PG_mappedtodisk,	/* Has blocks allocated on-disk */
- 	PG_reclaim,		/* To be reclaimed asap */
- 	PG_buddy,		/* Page is free, on buddy lists */
-+	PG_notifier,		/* Call notifier when page is changed/unmapped */
- #ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
- 	PG_uncached,		/* Page has been mapped as uncached */
- #endif
-@@ -173,6 +174,8 @@ PAGEFLAG(MappedToDisk, mappedtodisk)
- PAGEFLAG(Reclaim, reclaim) TESTCLEARFLAG(Reclaim, reclaim)
- PAGEFLAG(Readahead, reclaim)		/* Reminder to do async read-ahead */
- 
-+PAGEFLAG(Notifier, notifier);
-+
- #ifdef CONFIG_HIGHMEM
- /*
-  * Must use a macro here due to header dependency issues. page_zone() is not
-Index: linux-2.6/fs/hugetlbfs/inode.c
-===================================================================
---- linux-2.6.orig/fs/hugetlbfs/inode.c	2008-05-16 11:28:49.000000000 -0700
-+++ linux-2.6/fs/hugetlbfs/inode.c	2008-05-16 16:06:55.000000000 -0700
-@@ -442,6 +442,8 @@ hugetlb_vmtruncate_list(struct prio_tree
- 
- 		__unmap_hugepage_range(vma,
- 				vma->vm_start + v_offset, vma->vm_end);
-+		mm_notifier_invalidate_range_sync(vma->vm_mm,
-+				vma->vm_start + v_offset, vma->vm_end);
++ * The callbacks are invoked with mmap_sem held in read mode.
+  */
+ void cgroup_mm_owner_callbacks(struct task_struct *old, struct task_struct *new)
+ {
+@@ -2772,7 +2774,7 @@ void cgroup_mm_owner_callbacks(struct ta
+ 			if (oldcgrp == newcgrp)
+ 				continue;
+ 			if (ss->mm_owner_changed)
+-				ss->mm_owner_changed(ss, oldcgrp, newcgrp);
++				ss->mm_owner_changed(ss, oldcgrp, newcgrp, new);
+ 		}
  	}
  }
+diff -puN kernel/exit.c~cgroup-add-task-to-mm-owner-callbacks kernel/exit.c
+--- linux-2.6.26-rc2/kernel/exit.c~cgroup-add-task-to-mm-owner-callbacks	2008-05-17 22:10:00.000000000 +0530
++++ linux-2.6.26-rc2-balbir/kernel/exit.c	2008-05-17 23:14:44.000000000 +0530
+@@ -621,6 +621,7 @@ retry:
+ assign_new_owner:
+ 	BUG_ON(c == p);
+ 	get_task_struct(c);
++	down_write(&mm->mmap_sem);
+ 	/*
+ 	 * The task_lock protects c->mm from changing.
+ 	 * We always want mm->owner->mm == mm
+@@ -634,12 +635,14 @@ assign_new_owner:
+ 	if (c->mm != mm) {
+ 		task_unlock(c);
+ 		put_task_struct(c);
++		up_write(&mm->mmap_sem);
+ 		goto retry;
+ 	}
+ 	cgroup_mm_owner_callbacks(mm->owner, c);
+ 	mm->owner = c;
+ 	task_unlock(c);
+ 	put_task_struct(c);
++	up_write(&mm->mmap_sem);
+ }
+ #endif /* CONFIG_MM_OWNER */
  
+_
+ 
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
