@@ -1,150 +1,413 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m4HKG2rd030762
-	for <linux-mm@kvack.org>; Sun, 18 May 2008 06:16:02 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4HKGGDd4067548
-	for <linux-mm@kvack.org>; Sun, 18 May 2008 06:16:16 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4HKGSCm001755
-	for <linux-mm@kvack.org>; Sun, 18 May 2008 06:16:28 +1000
-Date: Sun, 18 May 2008 01:45:45 +0530
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m4HKHnKZ030662
+	for <linux-mm@kvack.org>; Sun, 18 May 2008 06:17:49 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4HKMj2L250416
+	for <linux-mm@kvack.org>; Sun, 18 May 2008 06:22:45 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4HKIcmI005450
+	for <linux-mm@kvack.org>; Sun, 18 May 2008 06:18:38 +1000
+Date: Sun, 18 May 2008 01:47:55 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [-mm][PATCH 4/4] Add memrlimit controller accounting and
 	control (v4)
-Message-ID: <20080517201545.GA14727@balbir.in.ibm.com>
+Message-ID: <20080517201755.GB14727@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
-References: <20080514130904.24440.23486.sendpatchset@localhost.localdomain> <20080514130951.24440.73671.sendpatchset@localhost.localdomain> <20080514132529.GA25653@balbir.in.ibm.com> <6599ad830805141925mf8a13daq7309148153a3c2df@mail.gmail.com> <20080515061727.GC31115@balbir.in.ibm.com> <6599ad830805142355ifeeb0e2w86ccfd96aa27aea6@mail.gmail.com> <20080515070342.GJ31115@balbir.in.ibm.com> <6599ad830805150039u76c9002cg6c873fd71e687a69@mail.gmail.com> <20080515082553.GK31115@balbir.in.ibm.com> <6599ad830805150828i6b61755dk9ce5213607621af7@mail.gmail.com>
+References: <20080514130951.24440.73671.sendpatchset@localhost.localdomain> <20080514132529.GA25653@balbir.in.ibm.com> <6599ad830805141925mf8a13daq7309148153a3c2df@mail.gmail.com> <20080515061727.GC31115@balbir.in.ibm.com> <6599ad830805142355ifeeb0e2w86ccfd96aa27aea6@mail.gmail.com> <20080515070342.GJ31115@balbir.in.ibm.com> <6599ad830805150039u76c9002cg6c873fd71e687a69@mail.gmail.com> <20080515082553.GK31115@balbir.in.ibm.com> <6599ad830805150828i6b61755dk9ce5213607621af7@mail.gmail.com> <20080517201545.GA14727@balbir.in.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <6599ad830805150828i6b61755dk9ce5213607621af7@mail.gmail.com>
+In-Reply-To: <20080517201545.GA14727@balbir.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Paul Menage <menage@google.com>, linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-* Paul Menage <menage@google.com> [2008-05-15 08:28:46]:
+* Balbir Singh <balbir@linux.vnet.ibm.com> [2008-05-18 01:45:45]:
 
-> On Thu, May 15, 2008 at 1:25 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> >  >
-> >  > But the only *new* cases of taking the mmap_sem that this would
-> >  > introduce would be:
-> >  >
-> >  > - on a failed vm limit charge
+> * Paul Menage <menage@google.com> [2008-05-15 08:28:46]:
+> 
+> > On Thu, May 15, 2008 at 1:25 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > >  >
+> > >  > But the only *new* cases of taking the mmap_sem that this would
+> > >  > introduce would be:
+> > >  >
+> > >  > - on a failed vm limit charge
+> > >
+> > >  Why a failed charge? Aren't we talking of moving all charge/uncharge
+> > >  under mmap_sem?
+> > >
+> > 
+> > Sorry, I worded that wrongly - I meant "cleaning up a successful
+> > charge after an expansion fails for other reasons"
+> > 
+> > I thought that all the charges and most of the uncharges were already
+> > under mmap_sem, and it would just be a few of the cleanup paths that
+> > needed to take it.
+> > 
+> > >
+> > >  > - when a task moves between two cgroups in the memrlimit hierarchy.
+> > >  >
+> > >
+> > >  Yes, this would nest cgroup_mutex and mmap_sem. Not sure if that would
+> > >  be a bad side-effect.
+> > >
+> > 
+> > I think it's already nested that way - e.g. the cpusets code can call
+> > various migration functions (which take mmap_sem) while holding
+> > cgroup_mutex.
+> > 
+> > >
+> > >  Refactor the code to try and use mmap_sem and see what I come up
+> > >  with. Basically use mmap_sem for all charge/uncharge operations as
+> > >  well use mmap_sem in read_mode in the move_task() and
+> > >  mm_owner_changed() callbacks. That should take care of the race
+> > >  conditions discussed, unless I missed something.
+> > 
+> > Sounds good.
+> > 
+> > Thanks,
 > >
-> >  Why a failed charge? Aren't we talking of moving all charge/uncharge
-> >  under mmap_sem?
-> >
-> 
-> Sorry, I worded that wrongly - I meant "cleaning up a successful
-> charge after an expansion fails for other reasons"
-> 
-> I thought that all the charges and most of the uncharges were already
-> under mmap_sem, and it would just be a few of the cleanup paths that
-> needed to take it.
-> 
-> >
-> >  > - when a task moves between two cgroups in the memrlimit hierarchy.
-> >  >
-> >
-> >  Yes, this would nest cgroup_mutex and mmap_sem. Not sure if that would
-> >  be a bad side-effect.
-> >
-> 
-> I think it's already nested that way - e.g. the cpusets code can call
-> various migration functions (which take mmap_sem) while holding
-> cgroup_mutex.
-> 
-> >
-> >  Refactor the code to try and use mmap_sem and see what I come up
-> >  with. Basically use mmap_sem for all charge/uncharge operations as
-> >  well use mmap_sem in read_mode in the move_task() and
-> >  mm_owner_changed() callbacks. That should take care of the race
-> >  conditions discussed, unless I missed something.
-> 
-> Sounds good.
-> 
-> Thanks,
+> I've revamped the last two patches. Please review
 >
-I've revamped the last two patches. Please review
+
+Here's the last patch for review
 
 
-This patch adds an additional field to the mm_owner callbacks. This field
-is required to get to the mm that changed. Hold mmap_sem in write mode
-before calling the mm_owner_changed callback
+This patch adds support for accounting and control of virtual address space
+limits. The accounting is done via the rlimit_cgroup_(un)charge_as functions.
+The core of the accounting takes place during fork time in copy_process(),
+may_expand_vm(), remove_vma_list() and exit_mmap(). 
+
+Changelog v5->v4
+
+Move specific hooks in code to insert_vm_struct
+Use mmap_sem to protect mm->owner from changing and mm->owner from
+changing cgroups.
 
 Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
 
- include/linux/cgroup.h |    3 ++-
- kernel/cgroup.c        |    4 +++-
- kernel/exit.c          |    3 +++
- 3 files changed, 8 insertions(+), 2 deletions(-)
+ arch/x86/kernel/ptrace.c        |   18 +++++--
+ include/linux/memrlimitcgroup.h |   21 +++++++++
+ kernel/fork.c                   |    8 +++
+ mm/memrlimitcgroup.c            |   92 ++++++++++++++++++++++++++++++++++++++++
+ mm/mmap.c                       |   17 ++++++-
+ 5 files changed, 149 insertions(+), 7 deletions(-)
 
-diff -puN include/linux/cgroup.h~cgroup-add-task-to-mm-owner-callbacks include/linux/cgroup.h
---- linux-2.6.26-rc2/include/linux/cgroup.h~cgroup-add-task-to-mm-owner-callbacks	2008-05-14 18:36:59.000000000 +0530
-+++ linux-2.6.26-rc2-balbir/include/linux/cgroup.h	2008-05-14 18:36:59.000000000 +0530
-@@ -310,7 +310,8 @@ struct cgroup_subsys {
- 	 */
- 	void (*mm_owner_changed)(struct cgroup_subsys *ss,
- 					struct cgroup *old,
--					struct cgroup *new);
-+					struct cgroup *new,
-+					struct task_struct *p);
- 	int subsys_id;
- 	int active;
- 	int disabled;
-diff -puN kernel/cgroup.c~cgroup-add-task-to-mm-owner-callbacks kernel/cgroup.c
---- linux-2.6.26-rc2/kernel/cgroup.c~cgroup-add-task-to-mm-owner-callbacks	2008-05-14 18:36:59.000000000 +0530
-+++ linux-2.6.26-rc2-balbir/kernel/cgroup.c	2008-05-17 22:09:57.000000000 +0530
-@@ -2758,6 +2758,8 @@ void cgroup_fork_callbacks(struct task_s
-  * Called on every change to mm->owner. mm_init_owner() does not
-  * invoke this routine, since it assigns the mm->owner the first time
-  * and does not change it.
-+ *
-+ * The callbacks are invoked with mmap_sem held in read mode.
-  */
- void cgroup_mm_owner_callbacks(struct task_struct *old, struct task_struct *new)
- {
-@@ -2772,7 +2774,7 @@ void cgroup_mm_owner_callbacks(struct ta
- 			if (oldcgrp == newcgrp)
- 				continue;
- 			if (ss->mm_owner_changed)
--				ss->mm_owner_changed(ss, oldcgrp, newcgrp);
-+				ss->mm_owner_changed(ss, oldcgrp, newcgrp, new);
- 		}
- 	}
- }
-diff -puN kernel/exit.c~cgroup-add-task-to-mm-owner-callbacks kernel/exit.c
---- linux-2.6.26-rc2/kernel/exit.c~cgroup-add-task-to-mm-owner-callbacks	2008-05-17 22:10:00.000000000 +0530
-+++ linux-2.6.26-rc2-balbir/kernel/exit.c	2008-05-17 23:14:44.000000000 +0530
-@@ -621,6 +621,7 @@ retry:
- assign_new_owner:
- 	BUG_ON(c == p);
- 	get_task_struct(c);
-+	down_write(&mm->mmap_sem);
- 	/*
- 	 * The task_lock protects c->mm from changing.
- 	 * We always want mm->owner->mm == mm
-@@ -634,12 +635,14 @@ assign_new_owner:
- 	if (c->mm != mm) {
- 		task_unlock(c);
- 		put_task_struct(c);
-+		up_write(&mm->mmap_sem);
- 		goto retry;
- 	}
- 	cgroup_mm_owner_callbacks(mm->owner, c);
- 	mm->owner = c;
- 	task_unlock(c);
- 	put_task_struct(c);
-+	up_write(&mm->mmap_sem);
- }
- #endif /* CONFIG_MM_OWNER */
+diff -puN arch/ia64/kernel/perfmon.c~memrlimit-controller-address-space-accounting-and-control arch/ia64/kernel/perfmon.c
+diff -puN arch/x86/kernel/ds.c~memrlimit-controller-address-space-accounting-and-control arch/x86/kernel/ds.c
+diff -puN fs/exec.c~memrlimit-controller-address-space-accounting-and-control fs/exec.c
+diff -puN include/linux/memrlimitcgroup.h~memrlimit-controller-address-space-accounting-and-control include/linux/memrlimitcgroup.h
+--- linux-2.6.26-rc2/include/linux/memrlimitcgroup.h~memrlimit-controller-address-space-accounting-and-control	2008-05-17 23:14:53.000000000 +0530
++++ linux-2.6.26-rc2-balbir/include/linux/memrlimitcgroup.h	2008-05-17 23:14:53.000000000 +0530
+@@ -16,4 +16,25 @@
+ #ifndef LINUX_MEMRLIMITCGROUP_H
+ #define LINUX_MEMRLIMITCGROUP_H
  
++#ifdef CONFIG_CGROUP_MEMRLIMIT_CTLR
++
++int memrlimit_cgroup_charge_as(struct mm_struct *mm, unsigned long nr_pages);
++void memrlimit_cgroup_uncharge_as(struct mm_struct *mm, unsigned long nr_pages);
++
++#else /* !CONFIG_CGROUP_RLIMIT_CTLR */
++
++static inline int
++memrlimit_cgroup_charge_as(struct mm_struct *mm, unsigned long nr_pages)
++{
++	return 0;
++}
++
++static inline void
++memrlimit_cgroup_uncharge_as(struct mm_struct *mm, unsigned long nr_pages)
++{
++}
++
++#endif /* CONFIG_CGROUP_RLIMIT_CTLR */
++
++
+ #endif /* LINUX_MEMRLIMITCGROUP_H */
+diff -puN kernel/fork.c~memrlimit-controller-address-space-accounting-and-control kernel/fork.c
+--- linux-2.6.26-rc2/kernel/fork.c~memrlimit-controller-address-space-accounting-and-control	2008-05-17 23:14:53.000000000 +0530
++++ linux-2.6.26-rc2-balbir/kernel/fork.c	2008-05-17 23:15:55.000000000 +0530
+@@ -54,6 +54,7 @@
+ #include <linux/tty.h>
+ #include <linux/proc_fs.h>
+ #include <linux/blkdev.h>
++#include <linux/memrlimitcgroup.h>
+ 
+ #include <asm/pgtable.h>
+ #include <asm/pgalloc.h>
+@@ -267,6 +268,7 @@ static int dup_mmap(struct mm_struct *mm
+ 			mm->total_vm -= pages;
+ 			vm_stat_account(mm, mpnt->vm_flags, mpnt->vm_file,
+ 								-pages);
++			memrlimit_cgroup_uncharge_as(mm, pages);
+ 			continue;
+ 		}
+ 		charge = 0;
+@@ -596,6 +598,12 @@ static int copy_mm(unsigned long clone_f
+ 		atomic_inc(&oldmm->mm_users);
+ 		mm = oldmm;
+ 		goto good_mm;
++	} else {
++		down_write(&oldmm->mmap_sem);
++		retval = memrlimit_cgroup_charge_as(oldmm, oldmm->total_vm);
++		up_write(&oldmm->mmap_sem);
++		if (retval)
++			goto fail_nomem;
+ 	}
+ 
+ 	retval = -ENOMEM;
+diff -puN mm/memrlimitcgroup.c~memrlimit-controller-address-space-accounting-and-control mm/memrlimitcgroup.c
+--- linux-2.6.26-rc2/mm/memrlimitcgroup.c~memrlimit-controller-address-space-accounting-and-control	2008-05-17 23:14:53.000000000 +0530
++++ linux-2.6.26-rc2-balbir/mm/memrlimitcgroup.c	2008-05-18 00:47:31.000000000 +0530
+@@ -45,6 +45,38 @@ static struct memrlimit_cgroup *memrlimi
+ 				struct memrlimit_cgroup, css);
+ }
+ 
++static struct memrlimit_cgroup *
++memrlimit_cgroup_from_task(struct task_struct *p)
++{
++	return container_of(task_subsys_state(p, memrlimit_cgroup_subsys_id),
++				struct memrlimit_cgroup, css);
++}
++
++/*
++ * Charge the cgroup for address space usage - mmap(), malloc() (through
++ * brk(), sbrk()), stack expansion, mremap(), etc - called with
++ * mmap_sem held.
++ */
++int memrlimit_cgroup_charge_as(struct mm_struct *mm, unsigned long nr_pages)
++{
++	struct memrlimit_cgroup *memrcg;
++
++	memrcg = memrlimit_cgroup_from_task(mm->owner);
++	return res_counter_charge(&memrcg->as_res, (nr_pages << PAGE_SHIFT));
++}
++
++/*
++ * Uncharge the cgroup, as the address space of one of the tasks is
++ * decreasing - called with mmap_sem held.
++ */
++void memrlimit_cgroup_uncharge_as(struct mm_struct *mm, unsigned long nr_pages)
++{
++	struct memrlimit_cgroup *memrcg;
++
++	memrcg = memrlimit_cgroup_from_task(mm->owner);
++	res_counter_uncharge(&memrcg->as_res, (nr_pages << PAGE_SHIFT));
++}
++
+ static struct cgroup_subsys_state *
+ memrlimit_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cgrp)
+ {
+@@ -134,11 +166,71 @@ static int memrlimit_cgroup_populate(str
+ 				ARRAY_SIZE(memrlimit_cgroup_files));
+ }
+ 
++static void memrlimit_cgroup_move_task(struct cgroup_subsys *ss,
++					struct cgroup *cgrp,
++					struct cgroup *old_cgrp,
++					struct task_struct *p)
++{
++	struct mm_struct *mm;
++	struct memrlimit_cgroup *memrcg, *old_memrcg;
++
++	mm = get_task_mm(p);
++	if (mm == NULL)
++		return;
++
++	/*
++	 * Hold mmap_sem, so that total_vm does not change underneath us
++	 */
++	down_read(&mm->mmap_sem);
++
++	rcu_read_lock();
++	if (p != rcu_dereference(mm->owner))
++		goto out;
++
++	memrcg = memrlimit_cgroup_from_cgrp(cgrp);
++	old_memrcg = memrlimit_cgroup_from_cgrp(old_cgrp);
++
++	if (memrcg == old_memrcg)
++		goto out;
++
++	if (res_counter_charge(&memrcg->as_res, (mm->total_vm << PAGE_SHIFT)))
++		goto out;
++	res_counter_uncharge(&old_memrcg->as_res, (mm->total_vm << PAGE_SHIFT));
++out:
++	rcu_read_unlock();
++	up_read(&mm->mmap_sem);
++	mmput(mm);
++}
++
++/*
++ * This callback is called with mmap_sem held
++ */
++static void memrlimit_cgroup_mm_owner_changed(struct cgroup_subsys *ss,
++						struct cgroup *cgrp,
++						struct cgroup *old_cgrp,
++						struct task_struct *p)
++{
++	struct memrlimit_cgroup *memrcg, *old_memrcg;
++	struct mm_struct *mm = get_task_mm(p);
++
++	BUG_ON(!mm);
++	memrcg = memrlimit_cgroup_from_cgrp(cgrp);
++	old_memrcg = memrlimit_cgroup_from_cgrp(old_cgrp);
++
++	if (res_counter_charge(&memrcg->as_res, (mm->total_vm << PAGE_SHIFT)))
++		goto out;
++	res_counter_uncharge(&old_memrcg->as_res, (mm->total_vm << PAGE_SHIFT));
++out:
++	mmput(mm);
++}
++
+ struct cgroup_subsys memrlimit_cgroup_subsys = {
+ 	.name = "memrlimit",
+ 	.subsys_id = memrlimit_cgroup_subsys_id,
+ 	.create = memrlimit_cgroup_create,
+ 	.destroy = memrlimit_cgroup_destroy,
+ 	.populate = memrlimit_cgroup_populate,
++	.attach = memrlimit_cgroup_move_task,
++	.mm_owner_changed = memrlimit_cgroup_mm_owner_changed,
+ 	.early_init = 0,
+ };
+diff -puN mm/mmap.c~memrlimit-controller-address-space-accounting-and-control mm/mmap.c
+--- linux-2.6.26-rc2/mm/mmap.c~memrlimit-controller-address-space-accounting-and-control	2008-05-17 23:14:53.000000000 +0530
++++ linux-2.6.26-rc2-balbir/mm/mmap.c	2008-05-17 23:14:53.000000000 +0530
+@@ -26,6 +26,7 @@
+ #include <linux/mount.h>
+ #include <linux/mempolicy.h>
+ #include <linux/rmap.h>
++#include <linux/memrlimitcgroup.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/cacheflush.h>
+@@ -1730,6 +1731,7 @@ static void remove_vma_list(struct mm_st
+ 		long nrpages = vma_pages(vma);
+ 
+ 		mm->total_vm -= nrpages;
++		memrlimit_cgroup_uncharge_as(mm, nrpages);
+ 		if (vma->vm_flags & VM_LOCKED)
+ 			mm->locked_vm -= nrpages;
+ 		vm_stat_account(mm, vma->vm_flags, vma->vm_file, -nrpages);
+@@ -2056,6 +2058,7 @@ void exit_mmap(struct mm_struct *mm)
+ 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+ 	end = unmap_vmas(&tlb, vma, 0, -1, &nr_accounted, NULL);
+ 	vm_unacct_memory(nr_accounted);
++	memrlimit_cgroup_uncharge_as(mm, mm->total_vm);
+ 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, 0);
+ 	tlb_finish_mmu(tlb, 0, end);
+ 
+@@ -2078,6 +2081,9 @@ int insert_vm_struct(struct mm_struct * 
+ 	struct vm_area_struct * __vma, * prev;
+ 	struct rb_node ** rb_link, * rb_parent;
+ 
++	if (memrlimit_cgroup_charge_as(mm, vma_pages(vma)))
++		return -ENOMEM;
++
+ 	/*
+ 	 * The vm_pgoff of a purely anonymous vma should be irrelevant
+ 	 * until its first write fault, when page's anon_vma and index
+@@ -2096,12 +2102,15 @@ int insert_vm_struct(struct mm_struct * 
+ 	}
+ 	__vma = find_vma_prepare(mm,vma->vm_start,&prev,&rb_link,&rb_parent);
+ 	if (__vma && __vma->vm_start < vma->vm_end)
+-		return -ENOMEM;
++		goto err;
+ 	if ((vma->vm_flags & VM_ACCOUNT) &&
+ 	     security_vm_enough_memory_mm(mm, vma_pages(vma)))
+-		return -ENOMEM;
++		goto err;
+ 	vma_link(mm, vma, prev, rb_link, rb_parent);
+ 	return 0;
++err:
++	memrlimit_cgroup_uncharge_as(mm, vma_pages(vma));
++	return -ENOMEM;
+ }
+ 
+ /*
+@@ -2174,6 +2183,10 @@ int may_expand_vm(struct mm_struct *mm, 
+ 
+ 	if (cur + npages > lim)
+ 		return 0;
++
++	if (memrlimit_cgroup_charge_as(mm, npages))
++		return 0;
++
+ 	return 1;
+ }
+ 
+diff -puN arch/x86/kernel/ptrace.c~memrlimit-controller-address-space-accounting-and-control arch/x86/kernel/ptrace.c
+--- linux-2.6.26-rc2/arch/x86/kernel/ptrace.c~memrlimit-controller-address-space-accounting-and-control	2008-05-17 23:14:53.000000000 +0530
++++ linux-2.6.26-rc2-balbir/arch/x86/kernel/ptrace.c	2008-05-17 23:14:53.000000000 +0530
+@@ -20,6 +20,7 @@
+ #include <linux/audit.h>
+ #include <linux/seccomp.h>
+ #include <linux/signal.h>
++#include <linux/memrlimitcgroup.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/pgtable.h>
+@@ -782,21 +783,25 @@ static int ptrace_bts_realloc(struct tas
+ 
+ 	current->mm->total_vm  -= old_size;
+ 	current->mm->locked_vm -= old_size;
++	memrlimit_cgroup_uncharge_as(mm, old_size);
+ 
+ 	if (size == 0)
+ 		goto out;
+ 
++	if (memrlimit_cgroup_charge_as(current->mm, size))
++		goto out;
++
+ 	rlim = current->signal->rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
+ 	vm = current->mm->total_vm  + size;
+ 	if (rlim < vm) {
+ 		ret = -ENOMEM;
+ 
+ 		if (!reduce_size)
+-			goto out;
++			goto out_uncharge;
+ 
+ 		size = rlim - current->mm->total_vm;
+ 		if (size <= 0)
+-			goto out;
++			goto out_uncharge;
+ 	}
+ 
+ 	rlim = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
+@@ -805,21 +810,24 @@ static int ptrace_bts_realloc(struct tas
+ 		ret = -ENOMEM;
+ 
+ 		if (!reduce_size)
+-			goto out;
++			goto out_uncharge;
+ 
+ 		size = rlim - current->mm->locked_vm;
+ 		if (size <= 0)
+-			goto out;
++			goto out_uncharge;
+ 	}
+ 
+ 	ret = ds_allocate((void **)&child->thread.ds_area_msr,
+ 			  size << PAGE_SHIFT);
+ 	if (ret < 0)
+-		goto out;
++		goto out_uncharge;
+ 
+ 	current->mm->total_vm  += size;
+ 	current->mm->locked_vm += size;
+ 
++out_uncharge:
++	if (ret < 0)
++		memrlimit_cgroup_uncharge_as(mm, size);
+ out:
+ 	if (child->thread.ds_area_msr)
+ 		set_tsk_thread_flag(child, TIF_DS_AREA_MSR);
 _
  
-
 -- 
 	Warm Regards,
 	Balbir Singh
