@@ -1,7 +1,7 @@
-Date: Sun, 18 May 2008 21:00:54 +0400
+Date: Sun, 18 May 2008 21:00:55 +0400
 From: Oleg Nesterov <oleg@tv-sign.ru>
-Subject: [PATCH 1/3] uml: activate_mm: remove the dead PF_BORROWED_MM check
-Message-ID: <20080518170054.GA25872@tv-sign.ru>
+Subject: [RFC,PATCH 2/3] introduce PF_KTHREAD flag
+Message-ID: <20080518170055.GA25875@tv-sign.ru>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -11,50 +11,74 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@elte.hu>, Jeff Dike <jdike@addtoit.com>, Linus Torvalds <torvalds@linux-foundation.org>, Roland McGrath <roland@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-use_mm() was changed to use switch_mm() instead of activate_mm(), since then
-nobody calls (and nobody should call) activate_mm() with PF_BORROWED_MM bit
-set.
+I am not sure about this patch, PF_KTHREAD is ugly. But hopefully it is less
+ugly and nore useful compared to PF_BORROWED_MM (killed by the next patch).
 
-As Jeff Dike pointed out, we can also remove the "old != new" check, it is
-always true.
+Introduce the new PF_KTHREAD flag to mark the kernel threads. It is set by
+INIT_TASK() and copied to the forked childs (we could set it in kthreadd()
+along with PF_NOFREEZE instead).
+
+daemonize() was changed as well. In that case testing of PF_KTHREAD is racy,
+but daemonize() is hopeless anyway.
+
+This flag is cleared in do_execve(), before search_binary_handler(). Probably
+not the best place, we can do this in exec_mmap() or in start_thread(), or
+clear it along with PF_FORKNOEXEC. But I think this doesn't matter in practice,
+and if do_execve() fails kthread should die soon.
+
+This is the main source of ugliness, there is no exact point when the execing
+kthread loses its "I am a kernel thread" status.
 
 Signed-off-by: Oleg Nesterov <oleg@tv-sign.ru>
 
---- 26-rc2/include/asm-um/mmu_context.h~1_UML_KILL_PFBMM	2008-02-15 16:59:17.000000000 +0300
-+++ 26-rc2/include/asm-um/mmu_context.h	2008-05-18 17:26:37.000000000 +0400
-@@ -22,16 +22,10 @@ extern void force_flush_all(void);
- static inline void activate_mm(struct mm_struct *old, struct mm_struct *new)
- {
- 	/*
--	 * This is called by fs/exec.c and fs/aio.c. In the first case, for an
--	 * exec, we don't need to do anything as we're called from userspace
--	 * and thus going to use a new host PID. In the second, we're called
--	 * from a kernel thread, and thus need to go doing the mmap's on the
--	 * host. Since they're very expensive, we want to avoid that as far as
--	 * possible.
-+	 * This is called by fs/exec.c and sys_unshare()
-+	 * when the new ->mm is used for the first time.
+ include/linux/sched.h     |    1 +
+ include/linux/init_task.h |    2 +-
+ kernel/exit.c             |    2 +-
+ fs/exec.c                 |    1 +
+ 4 files changed, 4 insertions(+), 2 deletions(-)
+
+--- 26-rc2/include/linux/sched.h~2_MAKE_PF_KTHREAD	2008-05-18 15:44:16.000000000 +0400
++++ 26-rc2/include/linux/sched.h	2008-05-18 20:08:13.000000000 +0400
+@@ -1508,6 +1508,7 @@ static inline void put_task_struct(struc
+ #define PF_MEMPOLICY	0x10000000	/* Non-default NUMA mempolicy */
+ #define PF_MUTEX_TESTER	0x20000000	/* Thread belongs to the rt mutex tester */
+ #define PF_FREEZER_SKIP	0x40000000	/* Freezer should not count it as freezeable */
++#define PF_KTHREAD	0x80000000	/* I am a kernel thread */
+ 
+ /*
+  * Only the _current_ task can read/write to tsk->flags, but other
+--- 26-rc2/include/linux/init_task.h~2_MAKE_PF_KTHREAD	2008-05-18 15:44:15.000000000 +0400
++++ 26-rc2/include/linux/init_task.h	2008-05-18 20:14:30.000000000 +0400
+@@ -143,7 +143,7 @@ extern struct group_info init_groups;
+ 	.state		= 0,						\
+ 	.stack		= &init_thread_info,				\
+ 	.usage		= ATOMIC_INIT(2),				\
+-	.flags		= 0,						\
++	.flags		= PF_KTHREAD,					\
+ 	.lock_depth	= -1,						\
+ 	.prio		= MAX_PRIO-20,					\
+ 	.static_prio	= MAX_PRIO-20,					\
+--- 26-rc2/kernel/exit.c~2_MAKE_PF_KTHREAD	2008-05-18 15:44:18.000000000 +0400
++++ 26-rc2/kernel/exit.c	2008-05-18 18:11:13.000000000 +0400
+@@ -416,7 +416,7 @@ void daemonize(const char *name, ...)
+ 	 * We don't want to have TIF_FREEZE set if the system-wide hibernation
+ 	 * or suspend transition begins right now.
  	 */
--	if (old != new && (current->flags & PF_BORROWED_MM))
--		__switch_mm(&new->context.id);
--
-+	__switch_mm(&new->context.id);
- 	arch_dup_mmap(old, new);
- }
+-	current->flags |= PF_NOFREEZE;
++	current->flags |= (PF_NOFREEZE | PF_KTHREAD);
  
---- 26-rc2/fs/aio.c~1_UML_KILL_PFBMM	2008-05-18 15:43:59.000000000 +0400
-+++ 26-rc2/fs/aio.c	2008-05-18 17:20:42.000000000 +0400
-@@ -591,10 +591,6 @@ static void use_mm(struct mm_struct *mm)
- 	atomic_inc(&mm->mm_count);
- 	tsk->mm = mm;
- 	tsk->active_mm = mm;
--	/*
--	 * Note that on UML this *requires* PF_BORROWED_MM to be set, otherwise
--	 * it won't work. Update it accordingly if you change it here
--	 */
- 	switch_mm(active_mm, mm, tsk);
- 	task_unlock(tsk);
+ 	if (current->nsproxy != &init_nsproxy) {
+ 		get_nsproxy(&init_nsproxy);
+--- 26-rc2/fs/exec.c~2_MAKE_PF_KTHREAD	2008-05-18 15:44:00.000000000 +0400
++++ 26-rc2/fs/exec.c	2008-05-18 18:36:30.000000000 +0400
+@@ -1317,6 +1317,7 @@ int do_execve(char * filename,
+ 	if (retval < 0)
+ 		goto out;
  
++	current->flags &= ~PF_KTHREAD;
+ 	retval = search_binary_handler(bprm,regs);
+ 	if (retval >= 0) {
+ 		/* execve success */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
