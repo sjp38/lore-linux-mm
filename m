@@ -1,40 +1,67 @@
-Received: by rv-out-0708.google.com with SMTP id f25so1218863rvb.26
-        for <linux-mm@kvack.org>; Sun, 18 May 2008 10:07:11 -0700 (PDT)
-Message-ID: <2f11576a0805181007n14592bd0r1cf8aec915894ed5@mail.gmail.com>
-Date: Mon, 19 May 2008 02:07:11 +0900
-From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [BUG] 2.6.26-rc2-mm1 - kernel bug while bootup at __alloc_pages_internal () on x86_64
-In-Reply-To: <20080518080013.GA17458@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Mon, 19 May 2008 09:35:25 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: bootmem: Double freeing a PFN on nodes spanning other nodes
+Message-Id: <20080519093525.4867bfb4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <87skwhyj8g.fsf@saeurebad.de>
+References: <87skwhyj8g.fsf@saeurebad.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080514010129.4f672378.akpm@linux-foundation.org>
-	 <482ACBFE.9010606@linux.vnet.ibm.com>
-	 <20080514103601.32d20889.akpm@linux-foundation.org>
-	 <482B2DB0.9030102@linux.vnet.ibm.com>
-	 <20080514124455.cf7c3097.akpm@linux-foundation.org>
-	 <20080518080013.GA17458@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, apw@shadowen.org, balbir@linux.vnet.ibm.com, linux-mm@kvack.org, mingo@elte.hu, kosaki.motohiro@jp.fujitsu.com, kosaki.motohiro@gmail.com
+To: Johannes Weiner <hannes@saeurebad.de>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM Mailing List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> After bisecting, the acpi-acpi_numa_init-build-fix.patch patch seems
-> to be causing the kernel panic during the bootup. Reverting the patch helps
-> in booting up the machine without the panic.
->
-> commit 5dc90c0b2d4bd0127624bab67cec159b2c6c4daf
-> Author: Ingo Molnar <mingo@elte.hu>
-> Date:   Thu May 1 09:51:47 2008 +0000
->
->    acpi-acpi_numa_init-build-fix
+On Sat, 17 May 2008 00:30:55 +0200
+Johannes Weiner <hannes@saeurebad.de> wrote:
 
-this patch break Fujitsu ia64 numa box too.
-after revert, my test environment works well.
+> Hi,
+> 
+> When memory nodes overlap each other, the bootmem allocator is not aware
+> of this and might pass the same page twice to __free_pages_bootmem().
+> 
 
-Thanks.
+1. init_bootmem_node() is called against a node, [start, end). After this,
+   all pages are 'allocated'.
+2. free_bootmem_node() is called against available memory in a node.
+3. bootmem allocator is ready.
+
+memory overlap seems not to be trouble while an arch's code calls
+free_bootmem_node() correctly.
+
+Thanks,
+-Kame
+
+
+
+
+
+> As I traced the code, this should result in bad_page() calls on every
+> boot but noone has yet reported something like this and I am wondering
+> why.
+> 
+> __free_pages_bootmem() boils down to either free_hot_cold_page() or
+> __free_one_page().  Either path should lead to setting the page private
+> or buddy:
+> 
+> free_hot_cold_page() sets ->private to the page block's migratetype (and
+> sets PG_private).
+> 
+> __free_one_page sets ->private to the page's order (and sets PG_private
+> and PG_buddy).
+> 
+> If a page is passed in twice, free_pages_check() should now warn (via
+> bad_page()) on the flags set above.
+> 
+> Am I missing something?  Thanks in advance.
+> 
+> 	Hannes
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
