@@ -1,41 +1,37 @@
-From: Johannes Weiner <hannes@saeurebad.de>
-Subject: Re: bootmem: Double freeing a PFN on nodes spanning other nodes
-References: <87skwhyj8g.fsf@saeurebad.de>
-	<20080519093525.4867bfb4.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 19 May 2008 03:31:10 +0200
-In-Reply-To: <20080519093525.4867bfb4.kamezawa.hiroyu@jp.fujitsu.com>
-	(KAMEZAWA Hiroyuki's message of "Mon, 19 May 2008 09:35:25 +0900")
-Message-ID: <87d4njulk1.fsf@saeurebad.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [RFC][PATCH] another swap controller for cgroup
+In-Reply-To: Your message of "Thu, 15 May 2008 21:01:53 +0900"
+	<482C2631.1030600@mxp.nes.nec.co.jp>
+References: <482C2631.1030600@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Message-Id: <20080519041457.980625A07@siro.lan>
+Date: Mon, 19 May 2008 13:14:57 +0900 (JST)
+From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM Mailing List <linux-mm@kvack.org>
+To: nishimura@mxp.nes.nec.co.jp
+Cc: minoura@valinux.co.jp, linux-mm@kvack.org, containers@lists.osdl.org, hugh@veritas.com, menage@google.com, balbir@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
+> > deterministic in the sense that, even when two or more processes
+> > from different cgroups are sharing a page, both of them, rather than
+> > only unlucky one, are always charged.
+> > 
+> 
+> I'm not sure whether this behavior itself is good or bad,
+> but I think it's not good idea to make memory controller,
+> which charges only one process for a shared page,
+> and swap controller behave differently.
+> I think it will be confusing for users. At least,
+> I would feel it strange.
 
-> On Sat, 17 May 2008 00:30:55 +0200
-> Johannes Weiner <hannes@saeurebad.de> wrote:
->
->> Hi,
->> 
->> When memory nodes overlap each other, the bootmem allocator is not aware
->> of this and might pass the same page twice to __free_pages_bootmem().
->> 
->
-> 1. init_bootmem_node() is called against a node, [start, end). After this,
->    all pages are 'allocated'.
-> 2. free_bootmem_node() is called against available memory in a node.
-> 3. bootmem allocator is ready.
->
-> memory overlap seems not to be trouble while an arch's code calls
-> free_bootmem_node() correctly.
+i agree that yours can be better integrated with the memory controller. 
 
-Ah, I totally overlooked that one.  Thank you very much!
+unlike yours, mine was designed to be independent from
+the memory controller as far as possible.
+(i don't want to complicate the memory controller.)
 
-	Hannes
+YAMAMOTO Takashi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
