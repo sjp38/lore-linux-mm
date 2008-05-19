@@ -1,37 +1,51 @@
-Subject: Re: [RFC][PATCH] another swap controller for cgroup
-In-Reply-To: Your message of "Thu, 15 May 2008 21:01:53 +0900"
-	<482C2631.1030600@mxp.nes.nec.co.jp>
-References: <482C2631.1030600@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20080519041457.980625A07@siro.lan>
-Date: Mon, 19 May 2008 13:14:57 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+Received: by rv-out-0708.google.com with SMTP id f25so1690642rvb.26
+        for <linux-mm@kvack.org>; Mon, 19 May 2008 06:12:14 -0700 (PDT)
+Message-ID: <48317CA8.1080700@gmail.com>
+Date: Mon, 19 May 2008 22:12:08 +0900
+From: MinChan Kim <minchan.kim@gmail.com>
+MIME-Version: 1.0
+Subject: [PATCH] Fix to return wrong pointer in slob
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: nishimura@mxp.nes.nec.co.jp
-Cc: minoura@valinux.co.jp, linux-mm@kvack.org, containers@lists.osdl.org, hugh@veritas.com, menage@google.com, balbir@linux.vnet.ibm.com
+To: linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > deterministic in the sense that, even when two or more processes
-> > from different cgroups are sharing a page, both of them, rather than
-> > only unlucky one, are always charged.
-> > 
-> 
-> I'm not sure whether this behavior itself is good or bad,
-> but I think it's not good idea to make memory controller,
-> which charges only one process for a shared page,
-> and swap controller behave differently.
-> I think it will be confusing for users. At least,
-> I would feel it strange.
+Although slob_alloc return NULL, __kmalloc_node returns NULL + align.
+Because align always can be changed, it is very hard for debugging
+problem of no page if it don't return NULL.
 
-i agree that yours can be better integrated with the memory controller. 
+We have to return NULL in case of no page.
 
-unlike yours, mine was designed to be independent from
-the memory controller as far as possible.
-(i don't want to complicate the memory controller.)
+Signed-off-by: MinChan Kim <minchan.kim@gmail.com>
+---
+ mm/slob.c |    9 ++++++---
+ 1 files changed, 6 insertions(+), 3 deletions(-)
 
-YAMAMOTO Takashi
+diff --git a/mm/slob.c b/mm/slob.c
+index 6038cba..258d76d 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -469,9 +469,12 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+ 			return ZERO_SIZE_PTR;
+ 
+ 		m = slob_alloc(size + align, gfp, align, node);
+-		if (m)
+-			*m = size;
+-		return (void *)m + align;
++		if (!m)
++			return NULL;
++		else {
++			*m = size; 
++			return (void *)m + align;
++		}
+ 	} else {
+ 		void *ret;
+ 
+-- 
+1.5.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
