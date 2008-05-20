@@ -1,102 +1,127 @@
-Date: Tue, 20 May 2008 18:05:52 +0900
+Date: Tue, 20 May 2008 18:08:41 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 1/3] memcg: documentation for controll file
-Message-Id: <20080520180552.601da567.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 2/3] memcg:: seq_ops support for cgroup
+Message-Id: <20080520180841.f292beef.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080520180552.601da567.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080520180552.601da567.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "menage@google.com" <menage@google.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "menage@google.com" <menage@google.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Add a documentation for memory resource controller's files.
+Does anyone have a better idea ?
+==
+ 
+Currently, cgroup's seq_file interface just supports single_open.
+This patch allows arbitrary seq_ops if passed.
+
+For example, "status per cpu, status per node" can be very big
+in general and they tend to use its own start/next/stop ops.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 
-Index: mm-2.6.26-rc2-mm1/Documentation/controllers/memory_files.txt
+---
+ include/linux/cgroup.h |    9 +++++++++
+ kernel/cgroup.c        |   32 +++++++++++++++++++++++++++++---
+ 2 files changed, 38 insertions(+), 3 deletions(-)
+
+Index: mm-2.6.26-rc2-mm1/include/linux/cgroup.h
 ===================================================================
---- /dev/null
-+++ mm-2.6.26-rc2-mm1/Documentation/controllers/memory_files.txt
-@@ -0,0 +1,76 @@
-+Files under memory resource controller and its resource counter.
-+(See controllers/memory.txt about memory resource controller)
+--- mm-2.6.26-rc2-mm1.orig/include/linux/cgroup.h
++++ mm-2.6.26-rc2-mm1/include/linux/cgroup.h
+@@ -232,6 +232,11 @@ struct cftype {
+ 	 */
+ 	int (*read_seq_string) (struct cgroup *cont, struct cftype *cft,
+ 			 struct seq_file *m);
++	/*
++	 * If this is not NULL, read ops will use this instead of
++	 * single_open(). Useful for showing very large data.
++	 */
++	struct seq_operations *seq_ops;
+ 
+ 	ssize_t (*write) (struct cgroup *cgrp, struct cftype *cft,
+ 			  struct file *file,
+@@ -285,6 +290,10 @@ int cgroup_path(const struct cgroup *cgr
+ 
+ int cgroup_task_count(const struct cgroup *cgrp);
+ 
 +
-+* memory.usage_in_bytes
-+  (read)
-+  Currently accounted memory usage under memory controller in bytes.
-+  multiple of PAGE_SIZE.
++struct cgroup *cgroup_of_seqfile(struct seq_file *m);
++struct cftype *cftype_of_seqfile(struct seq_file *m);
 +
-+  Even if there is no tasks under controller, some page caches and
-+  swap caches are still accounted. (See memory.force_empty below.)
+ /* Return true if the cgroup is a descendant of the current cgroup */
+ int cgroup_is_descendant(const struct cgroup *cgrp);
+ 
+Index: mm-2.6.26-rc2-mm1/kernel/cgroup.c
+===================================================================
+--- mm-2.6.26-rc2-mm1.orig/kernel/cgroup.c
++++ mm-2.6.26-rc2-mm1/kernel/cgroup.c
+@@ -1540,6 +1540,16 @@ struct cgroup_seqfile_state {
+ 	struct cgroup *cgroup;
+ };
+ 
++struct cgroup *cgroup_of_seqfile(struct seq_file *m)
++{
++	return ((struct cgroup_seqfile_state *)m->private)->cgroup;
++}
 +
-+  (write)
-+  no write operation
++struct cftype *cftype_of_seqfile(struct seq_file *m)
++{
++	return  ((struct cgroup_seqfile_state *)m->private)->cft;
++}
 +
-+* memory.limit_in_bytes
-+  (read)
-+  Current limit of usage to this memory resource controller in bytes.
-+  (write)
-+  Set limit to this memory resource controller.
-+  A user can use "K', 'M', 'G' to specify the limit.
+ static int cgroup_map_add(struct cgroup_map_cb *cb, const char *key, u64 value)
+ {
+ 	struct seq_file *sf = cb->state;
+@@ -1563,8 +1573,14 @@ static int cgroup_seqfile_show(struct se
+ static int cgroup_seqfile_release(struct inode *inode, struct file *file)
+ {
+ 	struct seq_file *seq = file->private_data;
++	struct cgroup_seqfile_state *state = seq->private;
++	struct cftype *cft = state->cft;
 +
-+  (Example) You can set limit of 400M by following.
-+  % echo 400M > /path to cgroup/memory.limit_in_bytes
+ 	kfree(seq->private);
+-	return single_release(inode, file);
++	if (!cft->seq_ops)
++		return single_release(inode, file);
++	else
++		return seq_release(inode, file);
+ }
+ 
+ static struct file_operations cgroup_seqfile_operations = {
+@@ -1585,7 +1601,7 @@ static int cgroup_file_open(struct inode
+ 	cft = __d_cft(file->f_dentry);
+ 	if (!cft)
+ 		return -ENODEV;
+-	if (cft->read_map || cft->read_seq_string) {
++	if (cft->read_map || cft->read_seq_string || cft->seq_ops) {
+ 		struct cgroup_seqfile_state *state =
+ 			kzalloc(sizeof(*state), GFP_USER);
+ 		if (!state)
+@@ -1593,7 +1609,17 @@ static int cgroup_file_open(struct inode
+ 		state->cft = cft;
+ 		state->cgroup = __d_cgrp(file->f_dentry->d_parent);
+ 		file->f_op = &cgroup_seqfile_operations;
+-		err = single_open(file, cgroup_seqfile_show, state);
 +
-+* memory.max_usage_in_bytes
-+  (read)
-+  Recorded maximum memory usage under this memory controller.
-+
-+  (write)
-+  Reset the record to 0.
-+
-+  (example usage)
-+  1. create a cgroup
-+  % mkdir /path_to_cgroup/my_cgroup.
-+
-+  2. enter the cgroup
-+  % echo $$ > /path_to_cgroup/my_cgroup/tasks.
-+
-+  3. Run your program
-+  % Run......
-+
-+  4. See how much you used.
-+  % cat /path_to_cgroup/my_cgroup/memory.max_usage_in_bytes.
-+
-+  Now you know how much your application will use. Maybe this
-+  can be a good to set  limits_in_bytes to some proper value.
-+
-+* memory.force_empty
-+  (read)
-+  not allowed.
-+  (write)
-+  Drop all charges under cgroup. This can be called only when
-+  there is no task under this cgroup. This is here for debug purpose.
-+
-+* memory.stat
-+  (read)
-+  show 6 values. (will change in future)
-+  cache          .... usage accounted as File-Cache.
-+  anon/swapcache .... usage accounted as anonymous memory or swapcache.
-+  pgpgin         .... # of page-in under this cgroup.
-+  pgpgout        .... # of page-out under this cgroup
-+  active         .... amounts of memory which is treated as 'active' 
-+  inactive       .... amounts of memory which is treated as 'inactive'
-+  (write)
-+  not allowed 
-+
-+* memory.failcnt
-+  (read)
-+  The number of blocked memory allocation.
-+  Until the usage reaches the limit, memory allocation is not blocked.
-+  When it reaches, memory allocation is blocked and try to reclaim memory
-+  from LRU.
-+
-+  (write)
-+  Reset to 0.
-+
++		if (!cft->seq_ops)
++			err = single_open(file, cgroup_seqfile_show, state);
++		else {
++			err = seq_open(file, cft->seq_ops);
++			if (!err) {
++				struct seq_file *sf;
++				sf = ((struct seq_file *)file->private_data);
++				sf->private = state;
++			}
++		}
+ 		if (err < 0)
+ 			kfree(state);
+ 	} else if (cft->open)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
