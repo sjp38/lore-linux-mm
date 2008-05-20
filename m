@@ -1,84 +1,53 @@
-Subject: Re: [PATCH] nommu: Push kobjsize() slab-specific logic down to
-	ksize().
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <Pine.LNX.4.64.0805200944210.6135@schroedinger.engr.sgi.com>
-References: <20080520095935.GB18633@linux-sh.org>
-	 <2373.1211296724@redhat.com>
-	 <Pine.LNX.4.64.0805200944210.6135@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Tue, 20 May 2008 13:23:40 -0500
-Message-Id: <1211307820.18026.190.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 20 May 2008 19:33:22 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: 2.6.25.1: Kernel BUG at mm/rmap.c:669, General Protection Faults,
+ and generic hard locks
+In-Reply-To: <8347f3fb0805200756q294b08b7jff3dfbb8345d004b@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0805201919420.3783@blonde.site>
+References: <8347f3fb0805111721m57ba99e4l21df02d38ca3f41f@mail.gmail.com>
+ <8347f3fb0805121555k266fab9fvf9d006ab2a89dd7a@mail.gmail.com>
+ <Pine.LNX.4.64.0805161110210.565@blonde.site>
+ <8347f3fb0805200756q294b08b7jff3dfbb8345d004b@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: David Howells <dhowells@redhat.com>, Paul Mundt <lethal@linux-sh.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Randy Johnson <theraptor2005@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-05-20 at 09:52 -0700, Christoph Lameter wrote:
-> On Tue, 20 May 2008, David Howells wrote:
+On Tue, 20 May 2008, Randy Johnson wrote:
 > 
-> > Paul Mundt <lethal@linux-sh.org> wrote:
-> > 
-> > > Moving the existing logic in to SLAB's ksize() and simply wrapping in to
-> > > ksize() directly seems to do the right thing in all cases, and allows me
-> > > to boot with any of the slab allocators enabled, rather than simply SLAB
-> > > by itself.
-> > > 
-> > > I've done the same !PageSlab() test in SLAB as SLUB does in its ksize(),
-> > > which also seems to produce the correct results. Hopefully someone more
-> > > familiar with the history of kobjsize()/ksize() interaction can scream if
-> > > this is the wrong thing to do. :-)
-> > 
-> > That seems reasonable.  I can't test it until I get back to the UK next week.
-> 
-> Hmm. That means we are sanctioning using ksize on arbitrary objects? SLUB 
-> supports that but SLAB wont and neither will SLOB. I think we need to stay 
-> with the strict definition that is needed by SLOB.
+> I did manage to steal another complete set of RAM and swapped it in,
+> with no change. This still doesn't rule out potential issues with the
+> MB (slots or controller); I've got a spare board coming in in the next
+> week.
 
-Of course SLUB won't be able to tell you the size of objects allocated
-statically, through bootmem, etc.
+That does indeed reduce the likelihood that it's a hardware issue.
 
-> It seems also that the existing kobjsize function is wrong:
-> 
-> 1. For compound pages the head page needs to be determined.
-> 
-> So do a virt_to_head_page() instead of a virt_to_page().
-> 
-> 2. Why is page->index take as the page order?
-> 
-> Use compound_order instead?
-> 
-> I think the following patch will work for all allocators (can 
-> virt_to_page() really return NULL if the addr is invalid if so we may
-> have to fix virt_to_head_page()?):
-> 
-> ---
->  mm/nommu.c |    8 +++-----
->  1 file changed, 3 insertions(+), 5 deletions(-)
-> 
-> Index: linux-2.6/mm/nommu.c
-> ===================================================================
-> --- linux-2.6.orig/mm/nommu.c	2008-05-20 09:50:25.686495370 -0700
-> +++ linux-2.6/mm/nommu.c	2008-05-20 09:50:51.797745535 -0700
-> @@ -109,16 +109,14 @@ unsigned int kobjsize(const void *objp)
->  	 * If the object we have should not have ksize performed on it,
->  	 * return size of 0
->  	 */
-> -	if (!objp || (unsigned long)objp >= memory_end || !((page = virt_to_page(objp))))
-> +	if (!objp || (unsigned long)objp >= memory_end ||
-> +				!((page = virt_to_head_page(objp))))
+> In the mean time, I've been busy bisecting this one down.
+> Unfortunately, it takes a good hour or two of heavy load to trigger
+> sometimes, and I've got a good 15000 or so commits to get through, so
+> it could still be a while.
 
-I think the real problem here is that nommu is way too intimate with the
-allocator. This makes it even more so. Paul's approach of pushing this
-down into SLAB is a step in the right direction. The next step is
-teaching nommu to distinguish (statically) between
-kmalloced/kmem_cache_alloced/static objects, which is a somewhat bigger
-problem.
+If it is bisectable (rather than just taking much longer to go wrong
+sometimes than others, so you never know when to say "good" or "bad"),
+then that is well worth doing, from my point of view: thank you for
+taking the trouble to do so.  But keep an open mind: if it really is
+down to a hardware issue of some kind, it may turn out to be a waste
+of your time, even though potentially helpful to me.
 
--- 
-Mathematics is the supreme nostalgia of our time.
+> I haven't been keeping any traces from
+> these, even if I could get them (which typically I can't). Would they
+> still be useful even if they're from random commits?
+
+They might be: the more information you can give us the better.
+So if you do get something interesting in the logs, please do send
+it over, with a note of the head commit at that point.  Please then
+also send your .config, and which version of compiler you're using.
+
+Thanks,
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
