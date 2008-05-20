@@ -1,73 +1,129 @@
-Date: Tue, 20 May 2008 05:01:11 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
-Message-ID: <20080520100111.GC30341@sgi.com>
-References: <200805132206.47655.nickpiggin@yahoo.com.au> <20080513153238.GL19717@sgi.com> <20080514041122.GE24516@wotan.suse.de> <20080514112625.GY9878@sgi.com> <20080515075747.GA7177@wotan.suse.de> <Pine.LNX.4.64.0805151031250.18708@schroedinger.engr.sgi.com> <20080515235203.GB25305@wotan.suse.de> <20080516112306.GA4287@sgi.com> <20080516115005.GC4287@sgi.com> <20080520053145.GA19502@wotan.suse.de>
+Date: Tue, 20 May 2008 18:59:35 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: [PATCH] nommu: Push kobjsize() slab-specific logic down to ksize().
+Message-ID: <20080520095935.GB18633@linux-sh.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080520053145.GA19502@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Robin Holt <holt@sgi.com>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Jack Steiner <steiner@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>, David Howells <dhowells@redhat.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 20, 2008 at 07:31:46AM +0200, Nick Piggin wrote:
-> On Fri, May 16, 2008 at 06:50:05AM -0500, Robin Holt wrote:
-> > On Fri, May 16, 2008 at 06:23:06AM -0500, Robin Holt wrote:
-> > > On Fri, May 16, 2008 at 01:52:03AM +0200, Nick Piggin wrote:
-> > > > On Thu, May 15, 2008 at 10:33:57AM -0700, Christoph Lameter wrote:
-> > > > > On Thu, 15 May 2008, Nick Piggin wrote:
-> > > > > 
-> > > > > > Oh, I get that confused because of the mixed up naming conventions
-> > > > > > there: unmap_page_range should actually be called zap_page_range. But
-> > > > > > at any rate, yes we can easily zap pagetables without holding mmap_sem.
-> > > > > 
-> > > > > How is that synchronized with code that walks the same pagetable. These 
-> > > > > walks may not hold mmap_sem either. I would expect that one could only 
-> > > > > remove a portion of the pagetable where we have some sort of guarantee 
-> > > > > that no accesses occur. So the removal of the vma prior ensures that?
-> > > >  
-> > > > I don't really understand the question. If you remove the pte and invalidate
-> > > > the TLBS on the remote image's process (importing the page), then it can
-> > > > of course try to refault the page in because it's vma is still there. But
-> > > > you catch that refault in your driver , which can prevent the page from
-> > > > being faulted back in.
-> > > 
-> > > I think Christoph's question has more to do with faults that are
-> > > in flight.  A recently requested fault could have just released the
-> > > last lock that was holding up the invalidate callout.  It would then
-> > > begin messaging back the response PFN which could still be in flight.
-> > > The invalidate callout would then fire and do the interrupt shoot-down
-> > > while that response was still active (essentially beating the inflight
-> > > response).  The invalidate would clear up nothing and then the response
-> > > would insert the PFN after it is no longer the correct PFN.
-> > 
-> > I just looked over XPMEM.  I think we could make this work.  We already
-> > have a list of active faults which is protected by a simple spinlock.
-> > I would need to nest this lock within another lock protected our PFN
-> > table (currently it is a mutex) and then the invalidate interrupt handler
-> > would need to mark the fault as invalid (which is also currently there).
-> > 
-> > I think my sticking points with the interrupt method remain at fault
-> > containment and timeout.  The inability of the ia64 processor to handle
-> > provide predictive failures for the read/write of memory on other
-> > partitions prevents us from being able to contain the failure.  I don't
-> > think we can get the information we would need to do the invalidate
-> > without introducing fault containment issues which has been a continous
-> > area of concern for our customers.
-> 
-> Really? You can get the information through via a sleeping messaging API,
-> but not a non-sleeping one? What is the difference from the hardware POV?
+Currently SLUB and SLOB both blow up in different ways on shnommu:
 
-That was covered in the early very long discussion about 28 seconds.
-The read timeout for the BTE is 28 seconds and it automatically retried
-for certain failures.  In interrupt context, that is 56 seconds without
-any subsequent interrupts of that or lower priority.
+SLOB:
 
-Thanks,
-Robin
+Freeing unused kernel memory: 620k freed
+------------[ cut here ]------------
+kernel BUG at mm/nommu.c:119!
+Kernel BUG: 003e [#1]
+Modules linked in:
+
+Pid : 1, Comm:                 init
+PC is at kobjsize+0x5c/0x8c
+PC  : 0c04000c SP  : 0c20dd08 SR  : 40000001                   Not tainted
+R0  : 00000000 R1  : 0000000a R2  : 001b8334 R3  : 0c180000
+R4  : 00000840 R5  : 0c3a507c R6  : 000110e2 R7  : 00000020
+R8  : 0c1e5334 R9  : 0c3a5210 R10 : 0c3a5210 R11 : 0c180000
+R12 : 0c3a5250 R13 : 00000000 R14 : 0c20dd08
+MACH: 00000221 MACL: 001b8334 GBR : 00000000 PR  : 0c03fff4
+
+Call trace:
+[<0c0409ca>] do_mmap_pgoff+0x5ea/0x7f0
+[<0c07046a>] load_flat_file+0x326/0x77c
+[<0c07090a>] load_flat_binary+0x4a/0x2c8
+...
+
+
+SLUB:
+
+Freeing unused kernel memory: 624k freed
+Unable to allocate RAM for process text/data, errno 12
+Failed to execute /init
+Unable to allocate RAM for process text/data, errno 12
+Unable to allocate RAM for process text/data, errno 12
+Kernel panic - not syncing: No init found.  Try passing init= option to kernel.
+...
+
+In both cases this is due to kobjsize() failures. By checking PageSlab()
+before calling in to ksize(), SLAB manages to work ok, as it aggressively
+sets these bits across compounds.
+
+In situations where we are setting up private mappings or shared
+anonymous mappings (via do_mmap_private()) and the vm_file mmap() fop
+hands back an -ENOSYS, a new allocation is made and the file contents
+copied over. SLOB's page->index at the time of hitting the above BUG_ON()
+is the value of the non-page-aligned address returned by kmalloc() +
+the read size. page->index itself is otherwise sane when the object to be
+copied is larger than a page in size and aligned.
+
+Both SLOB and SLUB presently have methods to determine whether an object
+passed in to their respective ksize() implementations are their own slab
+pages, or part of a compound page (heavily used by nommu for anonymous
+mappings), leaving only SLAB as the odd one out. The rationale here seems
+to be that SLAB's ksize() will trigger a BUG_ON() if !PageSlab(), and so
+the page->index shift is defaulted to instead for non-slab pages.
+
+Moving the existing logic in to SLAB's ksize() and simply wrapping in to
+ksize() directly seems to do the right thing in all cases, and allows me
+to boot with any of the slab allocators enabled, rather than simply SLAB
+by itself.
+
+I've done the same !PageSlab() test in SLAB as SLUB does in its ksize(),
+which also seems to produce the correct results. Hopefully someone more
+familiar with the history of kobjsize()/ksize() interaction can scream if
+this is the wrong thing to do. :-)
+
+Signed-off-by: Paul Mundt <lethal@linux-sh.org>
+
+---
+
+ mm/nommu.c |    8 +-------
+ mm/slab.c  |    6 ++++++
+ 2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/mm/nommu.c b/mm/nommu.c
+index ef8c62c..3e11814 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -112,13 +112,7 @@ unsigned int kobjsize(const void *objp)
+ 	if (!objp || (unsigned long)objp >= memory_end || !((page = virt_to_page(objp))))
+ 		return 0;
+ 
+-	if (PageSlab(page))
+-		return ksize(objp);
+-
+-	BUG_ON(page->index < 0);
+-	BUG_ON(page->index >= MAX_ORDER);
+-
+-	return (PAGE_SIZE << page->index);
++	return ksize(objp);
+ }
+ 
+ /*
+diff --git a/mm/slab.c b/mm/slab.c
+index 06236e4..7a012bb 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -4472,10 +4472,16 @@ const struct seq_operations slabstats_op = {
+  */
+ size_t ksize(const void *objp)
+ {
++	struct page *page;
++
+ 	BUG_ON(!objp);
+ 	if (unlikely(objp == ZERO_SIZE_PTR))
+ 		return 0;
+ 
++	page = virt_to_head_page(objp);
++	if (unlikely(!PageSlab(page)))
++		return PAGE_SIZE << compound_order(page);
++
+ 	return obj_size(virt_to_cache(objp));
+ }
+ EXPORT_SYMBOL(ksize);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
