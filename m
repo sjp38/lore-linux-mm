@@ -1,33 +1,33 @@
-Date: Tue, 20 May 2008 19:32:35 +0800
-From: Herbert Xu <herbert@gondor.apana.org.au>
-Subject: Re: [PATCH 1/4] block: use ARCH_KMALLOC_MINALIGN as the default dma pad mask
-Message-ID: <20080520113235.GA9801@gondor.apana.org.au>
-References: <1211259514-9131-1-git-send-email-fujita.tomonori@lab.ntt.co.jp> <1211259514-9131-2-git-send-email-fujita.tomonori@lab.ntt.co.jp> <20080520023129.2f921f24.akpm@linux-foundation.org> <20080520093819.GA9147@gondor.apana.org.au> <20080520025231.b88bc71d.akpm@linux-foundation.org>
+Date: Tue, 20 May 2008 14:08:55 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 0/2] panics booting NUMA SPARSEMEM on x86_32 NUMA
+Message-ID: <20080520120855.GA10080@elte.hu>
+References: <exportbomb.1211277639@pinky>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080520025231.b88bc71d.akpm@linux-foundation.org>
+In-Reply-To: <exportbomb.1211277639@pinky>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, jens.axboe@oracle.com, tsbogend@alpha.franken.de, bzolnier@gmail.com, James.Bottomley@HansenPartnership.com, jeff@garzik.org, davem@davemloft.net, linux-mm@kvack.org
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yinghai Lu <yhlu.kernel@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 20, 2008 at 02:52:31AM -0700, Andrew Morton wrote:
+* Andy Whitcroft <apw@shadowen.org> wrote:
+
+> We have been seeing panics booting NUMA SPARSEMEM kernels on x86_32 
+> hardware, while trying to allocate node local memory in early boot. 
+> These are caused by a miss-allocation of the node pgdat structures 
+> when numa remap is disabled.
 > 
-> The comment you have there over the CRYPTO_MINALIGN definition is quite
-> specific.  Is it wrong?
+> Following this email are two patches, the first reenables numa remap 
+> for SPARSEMEM as the underlying bug has now been fixed.  The second 
+> hardens the pgdat allocation in the face of there being no numa remap 
+> for a particular node (which may still occur).
 
-No it's not wrong, but the comment isn't about CRYPTO_MINALIGN.
-The comment is talking about CRYPTO_MINALIGN_ATTR, which uses
-CRYPTO_MINALIGN.
+applied to -tip, thanks Andy.
 
-Cheers,
--- 
-Visit Openswan at http://www.openswan.org/
-Email: Herbert Xu ~{PmV>HI~} <herbert@gondor.apana.org.au>
-Home Page: http://gondor.apana.org.au/~herbert/
-PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
