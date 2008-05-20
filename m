@@ -1,7 +1,7 @@
-Date: Tue, 20 May 2008 18:08:41 +0900
+Date: Tue, 20 May 2008 18:09:55 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 2/3] memcg:: seq_ops support for cgroup
-Message-Id: <20080520180841.f292beef.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 3/3] memcg: per node information
+Message-Id: <20080520180955.70aa5459.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20080520180552.601da567.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080520180552.601da567.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -13,115 +13,122 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "menage@google.com" <menage@google.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Does anyone have a better idea ?
-==
- 
-Currently, cgroup's seq_file interface just supports single_open.
-This patch allows arbitrary seq_ops if passed.
+Show per-node statistics in following format.
 
-For example, "status per cpu, status per node" can be very big
-in general and they tend to use its own start/next/stop ops.
+ node-id total acitve inactive
+
+[root@iridium bench]# cat /opt/cgroup/memory.numa_stat
+0 417611776 99586048 318025728
+1 655360000 0 655360000
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-
 ---
- include/linux/cgroup.h |    9 +++++++++
- kernel/cgroup.c        |   32 +++++++++++++++++++++++++++++---
- 2 files changed, 38 insertions(+), 3 deletions(-)
+ mm/memcontrol.c |   66 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)
 
-Index: mm-2.6.26-rc2-mm1/include/linux/cgroup.h
+Index: mm-2.6.26-rc2-mm1/mm/memcontrol.c
 ===================================================================
---- mm-2.6.26-rc2-mm1.orig/include/linux/cgroup.h
-+++ mm-2.6.26-rc2-mm1/include/linux/cgroup.h
-@@ -232,6 +232,11 @@ struct cftype {
- 	 */
- 	int (*read_seq_string) (struct cgroup *cont, struct cftype *cft,
- 			 struct seq_file *m);
-+	/*
-+	 * If this is not NULL, read ops will use this instead of
-+	 * single_open(). Useful for showing very large data.
-+	 */
-+	struct seq_operations *seq_ops;
- 
- 	ssize_t (*write) (struct cgroup *cgrp, struct cftype *cft,
- 			  struct file *file,
-@@ -285,6 +290,10 @@ int cgroup_path(const struct cgroup *cgr
- 
- int cgroup_task_count(const struct cgroup *cgrp);
- 
-+
-+struct cgroup *cgroup_of_seqfile(struct seq_file *m);
-+struct cftype *cftype_of_seqfile(struct seq_file *m);
-+
- /* Return true if the cgroup is a descendant of the current cgroup */
- int cgroup_is_descendant(const struct cgroup *cgrp);
- 
-Index: mm-2.6.26-rc2-mm1/kernel/cgroup.c
-===================================================================
---- mm-2.6.26-rc2-mm1.orig/kernel/cgroup.c
-+++ mm-2.6.26-rc2-mm1/kernel/cgroup.c
-@@ -1540,6 +1540,16 @@ struct cgroup_seqfile_state {
- 	struct cgroup *cgroup;
- };
- 
-+struct cgroup *cgroup_of_seqfile(struct seq_file *m)
-+{
-+	return ((struct cgroup_seqfile_state *)m->private)->cgroup;
-+}
-+
-+struct cftype *cftype_of_seqfile(struct seq_file *m)
-+{
-+	return  ((struct cgroup_seqfile_state *)m->private)->cft;
-+}
-+
- static int cgroup_map_add(struct cgroup_map_cb *cb, const char *key, u64 value)
- {
- 	struct seq_file *sf = cb->state;
-@@ -1563,8 +1573,14 @@ static int cgroup_seqfile_show(struct se
- static int cgroup_seqfile_release(struct inode *inode, struct file *file)
- {
- 	struct seq_file *seq = file->private_data;
-+	struct cgroup_seqfile_state *state = seq->private;
-+	struct cftype *cft = state->cft;
-+
- 	kfree(seq->private);
--	return single_release(inode, file);
-+	if (!cft->seq_ops)
-+		return single_release(inode, file);
-+	else
-+		return seq_release(inode, file);
+--- mm-2.6.26-rc2-mm1.orig/mm/memcontrol.c
++++ mm-2.6.26-rc2-mm1/mm/memcontrol.c
+@@ -960,6 +960,66 @@ static int mem_control_stat_show(struct 
+ 	return 0;
  }
  
- static struct file_operations cgroup_seqfile_operations = {
-@@ -1585,7 +1601,7 @@ static int cgroup_file_open(struct inode
- 	cft = __d_cft(file->f_dentry);
- 	if (!cft)
- 		return -ENODEV;
--	if (cft->read_map || cft->read_seq_string) {
-+	if (cft->read_map || cft->read_seq_string || cft->seq_ops) {
- 		struct cgroup_seqfile_state *state =
- 			kzalloc(sizeof(*state), GFP_USER);
- 		if (!state)
-@@ -1593,7 +1609,17 @@ static int cgroup_file_open(struct inode
- 		state->cft = cft;
- 		state->cgroup = __d_cgrp(file->f_dentry->d_parent);
- 		file->f_op = &cgroup_seqfile_operations;
--		err = single_open(file, cgroup_seqfile_show, state);
++#ifdef CONFIG_NUMA
++static void *memcg_numastat_start(struct seq_file *m, loff_t *pos)
++{
++	loff_t node = *pos;
++	struct pglist_data *pgdat = first_online_pgdat();
 +
-+		if (!cft->seq_ops)
-+			err = single_open(file, cgroup_seqfile_show, state);
-+		else {
-+			err = seq_open(file, cft->seq_ops);
-+			if (!err) {
-+				struct seq_file *sf;
-+				sf = ((struct seq_file *)file->private_data);
-+				sf->private = state;
-+			}
-+		}
- 		if (err < 0)
- 			kfree(state);
- 	} else if (cft->open)
++	while (pgdat != NULL) {
++		if (!node)
++			break;
++		pgdat = next_online_pgdat(pgdat);
++		node--;
++	}
++	return pgdat;
++}
++
++static void *memcg_numastat_next(struct seq_file *m, void *arg, loff_t *pos)
++{
++	struct pglist_data *pgdat = (struct pglist_data *)arg;
++
++	(*pos)++;
++	return next_online_pgdat(pgdat);
++}
++
++static void memcg_numastat_stop(struct seq_file *m, void *arg)
++{
++}
++
++static int memcg_numastat_show(struct seq_file *m, void *arg)
++{
++	struct pglist_data *pgdat = (struct pglist_data *)arg;
++	int nid = pgdat->node_id;
++	struct cgroup *cgrp = cgroup_of_seqfile(m);
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++	struct mem_cgroup_per_zone *mz;
++	long active, inactive, total;
++	int zid;
++
++	active = 0;
++	inactive = 0;
++
++	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
++		mz = mem_cgroup_zoneinfo(memcg, nid, zid);
++		active += MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_ACTIVE);
++		inactive += MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_INACTIVE);
++	}
++	active *= PAGE_SIZE;
++	inactive *= PAGE_SIZE;
++	total = active + inactive;
++	/* Node Total Active Inactive (Total = Active + Inactive) */
++	return seq_printf(m, "%d %ld %ld %ld\n", nid, total, active, inactive);
++}
++
++struct seq_operations memcg_numastat_op = {
++	.start = memcg_numastat_start,
++	.next  = memcg_numastat_next,
++	.stop  = memcg_numastat_stop,
++	.show  = memcg_numastat_show,
++};
++#endif
++
+ static struct cftype mem_cgroup_files[] = {
+ 	{
+ 		.name = "usage_in_bytes",
+@@ -992,6 +1052,12 @@ static struct cftype mem_cgroup_files[] 
+ 		.name = "stat",
+ 		.read_map = mem_control_stat_show,
+ 	},
++#ifdef CONFIG_NUMA
++	{
++		.name = "numa_stat",
++		.seq_ops = &memcg_numastat_op,
++	},
++#endif
+ };
+ 
+ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+Index: mm-2.6.26-rc2-mm1/Documentation/controllers/memory_files.txt
+===================================================================
+--- mm-2.6.26-rc2-mm1.orig/Documentation/controllers/memory_files.txt
++++ mm-2.6.26-rc2-mm1/Documentation/controllers/memory_files.txt
+@@ -74,3 +74,13 @@ Files under memory resource controller a
+   (write)
+   Reset to 0.
+ 
++* memory.numa_stat
++
++  This file appears only when the kernel is configured as NUMA.
++
++  (read)
++  Show per-node accounting information of acitve/inactive pages.
++  formated as following.
++  nodeid  total active inactive
++
++  total = active + inactive.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
