@@ -1,69 +1,102 @@
-Date: Tue, 20 May 2008 16:02:42 +0900
+Date: Tue, 20 May 2008 18:05:52 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Possible partial miss in pages needed for zone's memory map?
-Message-Id: <20080520160242.9533c2ee.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080519231937.5fee7cf7.akpm@linux-foundation.org>
-References: <87y769f7i4.fsf@saeurebad.de>
-	<20080519231937.5fee7cf7.akpm@linux-foundation.org>
+Subject: [RFC][PATCH 1/3] memcg: documentation for controll file
+Message-Id: <20080520180552.601da567.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@saeurebad.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "menage@google.com" <menage@google.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 19 May 2008 23:19:37 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+Add a documentation for memory resource controller's files.
 
-> On Sat, 17 May 2008 14:19:15 +0200 Johannes Weiner <hannes@saeurebad.de> wrote:
-> 
-> > Hi,
-> > 
-> > I stumbled over the following in the zone initialization code.  Please
-> > let me know if I overlooked something here.
-> > 
-> 
-> hm, no takers.  Let's add linux-mm.
-> 
-> > 
-> > From: Johannes Weiner <hannes@saeurebad.de>
-> > Subject: [PATCH] Don't drop a partial page in a zone's memory map size
-> > 
-> > In a zone's present pages number, account for all pages occupied by the
-> > memory map, including a partial.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
-> > ---
-> > 
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -3378,7 +3378,8 @@ static void __paginginit free_area_init_
-> >  		 * is used by this zone for memmap. This affects the watermark
-> >  		 * and per-cpu initialisations
-> >  		 */
-> > -		memmap_pages = (size * sizeof(struct page)) >> PAGE_SHIFT;
-> > +		memmap_pages =
-> > +			PAGE_ALIGN(size * sizeof(struct page)) >> PAGE_SHIFT;
-> >  		if (realsize >= memmap_pages) {
-> >  			realsize -= memmap_pages;
-> >  			printk(KERN_DEBUG
-> 
-> I looked in there for 30 seconds and collapsed in confusion over which
-> variables are in which units.
-> 
-Hmm, size * sizeof(struct page) is  multiple of PAGE_SIZE in many case.
-Becasue "size" is always alinged to (1 << MAX_ORDER -1) (I believe...).
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-ex.) In x86 case,
-   (1 << (MAX_ORDER(11) - 1)) * 4 (sizeof(long)) = (1 << 12) = PAGE_SIZE.
 
-But not sure on other archs with various params.
-I think above fix is correct.
-
-Thanks,
--Kame
+Index: mm-2.6.26-rc2-mm1/Documentation/controllers/memory_files.txt
+===================================================================
+--- /dev/null
++++ mm-2.6.26-rc2-mm1/Documentation/controllers/memory_files.txt
+@@ -0,0 +1,76 @@
++Files under memory resource controller and its resource counter.
++(See controllers/memory.txt about memory resource controller)
++
++* memory.usage_in_bytes
++  (read)
++  Currently accounted memory usage under memory controller in bytes.
++  multiple of PAGE_SIZE.
++
++  Even if there is no tasks under controller, some page caches and
++  swap caches are still accounted. (See memory.force_empty below.)
++
++  (write)
++  no write operation
++
++* memory.limit_in_bytes
++  (read)
++  Current limit of usage to this memory resource controller in bytes.
++  (write)
++  Set limit to this memory resource controller.
++  A user can use "K', 'M', 'G' to specify the limit.
++
++  (Example) You can set limit of 400M by following.
++  % echo 400M > /path to cgroup/memory.limit_in_bytes
++
++* memory.max_usage_in_bytes
++  (read)
++  Recorded maximum memory usage under this memory controller.
++
++  (write)
++  Reset the record to 0.
++
++  (example usage)
++  1. create a cgroup
++  % mkdir /path_to_cgroup/my_cgroup.
++
++  2. enter the cgroup
++  % echo $$ > /path_to_cgroup/my_cgroup/tasks.
++
++  3. Run your program
++  % Run......
++
++  4. See how much you used.
++  % cat /path_to_cgroup/my_cgroup/memory.max_usage_in_bytes.
++
++  Now you know how much your application will use. Maybe this
++  can be a good to set  limits_in_bytes to some proper value.
++
++* memory.force_empty
++  (read)
++  not allowed.
++  (write)
++  Drop all charges under cgroup. This can be called only when
++  there is no task under this cgroup. This is here for debug purpose.
++
++* memory.stat
++  (read)
++  show 6 values. (will change in future)
++  cache          .... usage accounted as File-Cache.
++  anon/swapcache .... usage accounted as anonymous memory or swapcache.
++  pgpgin         .... # of page-in under this cgroup.
++  pgpgout        .... # of page-out under this cgroup
++  active         .... amounts of memory which is treated as 'active' 
++  inactive       .... amounts of memory which is treated as 'inactive'
++  (write)
++  not allowed 
++
++* memory.failcnt
++  (read)
++  The number of blocked memory allocation.
++  Until the usage reaches the limit, memory allocation is not blocked.
++  When it reaches, memory allocation is blocked and try to reclaim memory
++  from LRU.
++
++  (write)
++  Reset to 0.
++
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
