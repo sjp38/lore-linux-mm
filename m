@@ -1,86 +1,281 @@
 From: Andy Whitcroft <apw@shadowen.org>
-Subject: [PATCH 1/3] record MAP_NORESERVE status on vmas and fix small page mprotect reservations
+Subject: [PATCH 2/3] hugetlb-move-reservation-region-support-earlier
 References: <exportbomb.1211302309@pinky>
-Date: Tue, 20 May 2008 17:55:36 +0100
-Message-Id: <1211302536.0@pinky>
+Date: Tue, 20 May 2008 17:55:47 +0100
+Message-Id: <1211302547.0@pinky>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, agl@us.ibm.com, wli@holomorphy.com, kenchen@google.com, dwg@au1.ibm.com, andi@firstfloor.org, Mel Gorman <mel@csn.ul.ie>, dean@arctic.org, abh@cray.com, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-When a small page mapping is created with mmap() reservations are created
-by default for any memory pages required.  When the region is read/write
-the reservation is increased for every page, no reservation is needed for
-read-only regions (as they implicitly share the zero page).  Reservations
-are tracked via the VM_ACCOUNT vma flag which is present when the region
-has reservation backing it.  When we convert a region from read-only to
-read-write new reservations are aquired and VM_ACCOUNT is set.  However,
-when a read-only map is created with MAP_NORESERVE it is indistinguishable
-from a normal mapping.  When we then convert that to read/write we are
-forced to incorrectly create reservations for it as we have no record of
-the original MAP_NORESERVE.
-
-This patch introduces a new vma flag VM_NORESERVE which records the
-presence of the original MAP_NORESERVE flag.  This allows us to distinguish
-these two circumstances and correctly account the reserve.
-
-As well as fixing this FIXME in the code, this makes it much easier to
-introduce MAP_NORESERVE support for huge pages as this flag is available
-consistantly for the life of the mapping.  VM_ACCOUNT on the other hand
-is heavily used at the generic level in association with small pages.
+The following patch will require use of the reservation regions support.
+Move this earlier in the file.  No changes have been made to this code.
 
 Signed-off-by: Andy Whitcroft <apw@shadowen.org>
 ---
- include/linux/mm.h |    1 +
- mm/mmap.c          |    3 +++
- mm/mprotect.c      |    6 ++----
- 3 files changed, 6 insertions(+), 4 deletions(-)
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0ffed95..c2be4c3 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -100,6 +100,7 @@ extern unsigned int kobjsize(const void *objp);
- #define VM_DONTEXPAND	0x00040000	/* Cannot expand with mremap() */
- #define VM_RESERVED	0x00080000	/* Count as reserved_vm like IO */
- #define VM_ACCOUNT	0x00100000	/* Is a VM accounted object */
-+#define VM_NORESERVE	0x00200000	/* should the VM suppress accounting */
- #define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
- #define VM_NONLINEAR	0x00800000	/* Is non-linear (remap_file_pages) */
- #define VM_MAPPED_COPY	0x01000000	/* T if mapped copy of data (nommu mmap) */
-diff --git a/mm/mmap.c b/mm/mmap.c
-index fac6633..98ab014 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1101,6 +1101,9 @@ munmap_back:
- 	if (!may_expand_vm(mm, len >> PAGE_SHIFT))
- 		return -ENOMEM;
+ mm/hugetlb.c |  242 +++++++++++++++++++++++++++++-----------------------------
+ 1 files changed, 121 insertions(+), 121 deletions(-)
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 3cae97d..9f060f1 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -561,6 +561,127 @@ static void return_unused_surplus_pages(unsigned long unused_resv_pages)
+ 	}
+ }
  
-+	if (flags & MAP_NORESERVE)
-+		vm_flags |= VM_NORESERVE;
++struct file_region {
++	struct list_head link;
++	long from;
++	long to;
++};
 +
- 	if (accountable && (!(flags & MAP_NORESERVE) ||
- 			    sysctl_overcommit_memory == OVERCOMMIT_NEVER)) {
- 		if (vm_flags & VM_SHARED) {
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index a5bf31c..e0d0a6d 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -155,12 +155,10 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
- 	 * If we make a private mapping writable we increase our commit;
- 	 * but (without finer accounting) cannot reduce our commit if we
- 	 * make it unwritable again.
--	 *
--	 * FIXME? We haven't defined a VM_NORESERVE flag, so mprotecting
--	 * a MAP_NORESERVE private mapping to writable will now reserve.
- 	 */
- 	if (newflags & VM_WRITE) {
--		if (!(oldflags & (VM_ACCOUNT|VM_WRITE|VM_SHARED))) {
-+		if (!(oldflags & (VM_ACCOUNT|VM_WRITE|
-+						VM_SHARED|VM_NORESERVE))) {
- 			charged = nrpages;
- 			if (security_vm_enough_memory(charged))
- 				return -ENOMEM;
++static long region_add(struct list_head *head, long f, long t)
++{
++	struct file_region *rg, *nrg, *trg;
++
++	/* Locate the region we are either in or before. */
++	list_for_each_entry(rg, head, link)
++		if (f <= rg->to)
++			break;
++
++	/* Round our left edge to the current segment if it encloses us. */
++	if (f > rg->from)
++		f = rg->from;
++
++	/* Check for and consume any regions we now overlap with. */
++	nrg = rg;
++	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
++		if (&rg->link == head)
++			break;
++		if (rg->from > t)
++			break;
++
++		/* If this area reaches higher then extend our area to
++		 * include it completely.  If this is not the first area
++		 * which we intend to reuse, free it. */
++		if (rg->to > t)
++			t = rg->to;
++		if (rg != nrg) {
++			list_del(&rg->link);
++			kfree(rg);
++		}
++	}
++	nrg->from = f;
++	nrg->to = t;
++	return 0;
++}
++
++static long region_chg(struct list_head *head, long f, long t)
++{
++	struct file_region *rg, *nrg;
++	long chg = 0;
++
++	/* Locate the region we are before or in. */
++	list_for_each_entry(rg, head, link)
++		if (f <= rg->to)
++			break;
++
++	/* If we are below the current region then a new region is required.
++	 * Subtle, allocate a new region at the position but make it zero
++	 * size such that we can guarantee to record the reservation. */
++	if (&rg->link == head || t < rg->from) {
++		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
++		if (!nrg)
++			return -ENOMEM;
++		nrg->from = f;
++		nrg->to   = f;
++		INIT_LIST_HEAD(&nrg->link);
++		list_add(&nrg->link, rg->link.prev);
++
++		return t - f;
++	}
++
++	/* Round our left edge to the current segment if it encloses us. */
++	if (f > rg->from)
++		f = rg->from;
++	chg = t - f;
++
++	/* Check for and consume any regions we now overlap with. */
++	list_for_each_entry(rg, rg->link.prev, link) {
++		if (&rg->link == head)
++			break;
++		if (rg->from > t)
++			return chg;
++
++		/* We overlap with this area, if it extends futher than
++		 * us then we must extend ourselves.  Account for its
++		 * existing reservation. */
++		if (rg->to > t) {
++			chg += rg->to - t;
++			t = rg->to;
++		}
++		chg -= rg->to - rg->from;
++	}
++	return chg;
++}
++
++static long region_truncate(struct list_head *head, long end)
++{
++	struct file_region *rg, *trg;
++	long chg = 0;
++
++	/* Locate the region we are either in or before. */
++	list_for_each_entry(rg, head, link)
++		if (end <= rg->to)
++			break;
++	if (&rg->link == head)
++		return 0;
++
++	/* If we are in the middle of a region then adjust it. */
++	if (end > rg->from) {
++		chg = rg->to - end;
++		rg->to = end;
++		rg = list_entry(rg->link.next, typeof(*rg), link);
++	}
++
++	/* Drop any remaining regions. */
++	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
++		if (&rg->link == head)
++			break;
++		chg += rg->to - rg->from;
++		list_del(&rg->link);
++		kfree(rg);
++	}
++	return chg;
++}
++
+ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 				    unsigned long addr, int avoid_reserve)
+ {
+@@ -1370,127 +1491,6 @@ void hugetlb_change_protection(struct vm_area_struct *vma,
+ 	flush_tlb_range(vma, start, end);
+ }
+ 
+-struct file_region {
+-	struct list_head link;
+-	long from;
+-	long to;
+-};
+-
+-static long region_add(struct list_head *head, long f, long t)
+-{
+-	struct file_region *rg, *nrg, *trg;
+-
+-	/* Locate the region we are either in or before. */
+-	list_for_each_entry(rg, head, link)
+-		if (f <= rg->to)
+-			break;
+-
+-	/* Round our left edge to the current segment if it encloses us. */
+-	if (f > rg->from)
+-		f = rg->from;
+-
+-	/* Check for and consume any regions we now overlap with. */
+-	nrg = rg;
+-	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
+-		if (&rg->link == head)
+-			break;
+-		if (rg->from > t)
+-			break;
+-
+-		/* If this area reaches higher then extend our area to
+-		 * include it completely.  If this is not the first area
+-		 * which we intend to reuse, free it. */
+-		if (rg->to > t)
+-			t = rg->to;
+-		if (rg != nrg) {
+-			list_del(&rg->link);
+-			kfree(rg);
+-		}
+-	}
+-	nrg->from = f;
+-	nrg->to = t;
+-	return 0;
+-}
+-
+-static long region_chg(struct list_head *head, long f, long t)
+-{
+-	struct file_region *rg, *nrg;
+-	long chg = 0;
+-
+-	/* Locate the region we are before or in. */
+-	list_for_each_entry(rg, head, link)
+-		if (f <= rg->to)
+-			break;
+-
+-	/* If we are below the current region then a new region is required.
+-	 * Subtle, allocate a new region at the position but make it zero
+-	 * size such that we can guarantee to record the reservation. */
+-	if (&rg->link == head || t < rg->from) {
+-		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+-		if (!nrg)
+-			return -ENOMEM;
+-		nrg->from = f;
+-		nrg->to   = f;
+-		INIT_LIST_HEAD(&nrg->link);
+-		list_add(&nrg->link, rg->link.prev);
+-
+-		return t - f;
+-	}
+-
+-	/* Round our left edge to the current segment if it encloses us. */
+-	if (f > rg->from)
+-		f = rg->from;
+-	chg = t - f;
+-
+-	/* Check for and consume any regions we now overlap with. */
+-	list_for_each_entry(rg, rg->link.prev, link) {
+-		if (&rg->link == head)
+-			break;
+-		if (rg->from > t)
+-			return chg;
+-
+-		/* We overlap with this area, if it extends futher than
+-		 * us then we must extend ourselves.  Account for its
+-		 * existing reservation. */
+-		if (rg->to > t) {
+-			chg += rg->to - t;
+-			t = rg->to;
+-		}
+-		chg -= rg->to - rg->from;
+-	}
+-	return chg;
+-}
+-
+-static long region_truncate(struct list_head *head, long end)
+-{
+-	struct file_region *rg, *trg;
+-	long chg = 0;
+-
+-	/* Locate the region we are either in or before. */
+-	list_for_each_entry(rg, head, link)
+-		if (end <= rg->to)
+-			break;
+-	if (&rg->link == head)
+-		return 0;
+-
+-	/* If we are in the middle of a region then adjust it. */
+-	if (end > rg->from) {
+-		chg = rg->to - end;
+-		rg->to = end;
+-		rg = list_entry(rg->link.next, typeof(*rg), link);
+-	}
+-
+-	/* Drop any remaining regions. */
+-	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
+-		if (&rg->link == head)
+-			break;
+-		chg += rg->to - rg->from;
+-		list_del(&rg->link);
+-		kfree(rg);
+-	}
+-	return chg;
+-}
+-
+ int hugetlb_reserve_pages(struct inode *inode,
+ 					long from, long to,
+ 					struct vm_area_struct *vma)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
