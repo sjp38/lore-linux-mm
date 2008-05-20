@@ -1,64 +1,37 @@
-Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
-	by mtagate7.uk.ibm.com (8.13.8/8.13.8) with ESMTP id m4KAplvr106132
-	for <linux-mm@kvack.org>; Tue, 20 May 2008 10:51:47 GMT
-Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
-	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4KAplkk2744456
-	for <linux-mm@kvack.org>; Tue, 20 May 2008 11:51:47 +0100
-Received: from d06av01.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av01.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4KApkrX027970
-	for <linux-mm@kvack.org>; Tue, 20 May 2008 11:51:46 +0100
-Date: Tue, 20 May 2008 12:51:45 +0200
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: [PATCH] memory hotplug: fix early allocation handling
-Message-ID: <20080520105145.GA24526@osiris.boeblingen.de.ibm.com>
+Date: Tue, 20 May 2008 06:05:29 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH 08 of 11] anon-vma-rwsem
+Message-ID: <20080520110528.GD30341@sgi.com>
+References: <20080514041122.GE24516@wotan.suse.de> <20080514112625.GY9878@sgi.com> <20080515075747.GA7177@wotan.suse.de> <Pine.LNX.4.64.0805151031250.18708@schroedinger.engr.sgi.com> <20080515235203.GB25305@wotan.suse.de> <20080516112306.GA4287@sgi.com> <20080516115005.GC4287@sgi.com> <20080520053145.GA19502@wotan.suse.de> <20080520100111.GC30341@sgi.com> <20080520105025.GA25791@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20080520105025.GA25791@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Whitcroft <apw@shadowen.org>, Dave Hansen <haveblue@us.ibm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Robin Holt <holt@sgi.com>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Jack Steiner <steiner@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Trying to add memory via add_memory() from within an initcall function
-results in
+On Tue, May 20, 2008 at 12:50:25PM +0200, Nick Piggin wrote:
+> On Tue, May 20, 2008 at 05:01:11AM -0500, Robin Holt wrote:
+> > On Tue, May 20, 2008 at 07:31:46AM +0200, Nick Piggin wrote:
+> > > 
+> > > Really? You can get the information through via a sleeping messaging API,
+> > > but not a non-sleeping one? What is the difference from the hardware POV?
+> > 
+> > That was covered in the early very long discussion about 28 seconds.
+> > The read timeout for the BTE is 28 seconds and it automatically retried
+> > for certain failures.  In interrupt context, that is 56 seconds without
+> > any subsequent interrupts of that or lower priority.
+> 
+> I thought you said it would be possible to get the required invalidate
+> information without using the BTE. Couldn't you use XPMEM pages in
+> the kernel to read the data out of, if nothing else?
 
-bootmem alloc of 163840 bytes failed!
-Kernel panic - not syncing: Out of memory
-
-This is caused by zone_wait_table_init() which uses system_state to
-decide if it should use the bootmem allocator or not.
-When initcalls are handled the system_state is still SYSTEM_BOOTING
-but the bootmem allocator doesn't work anymore. So the allocation
-will fail.
-
-To fix this use slab_is_available() instead as indicator like we do
-it everywhere else.
-
-Cc: Andy Whitcroft <apw@shadowen.org>
-Cc: Dave Hansen <haveblue@us.ibm.com>
-Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Yasunori Goto <y-goto@jp.fujitsu.com>
-Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
----
- mm/page_alloc.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c
-+++ linux-2.6/mm/page_alloc.c
-@@ -2804,7 +2804,7 @@ int zone_wait_table_init(struct zone *zo
- 	alloc_size = zone->wait_table_hash_nr_entries
- 					* sizeof(wait_queue_head_t);
- 
-- 	if (system_state == SYSTEM_BOOTING) {
-+ 	if (!slab_is_available()) {
- 		zone->wait_table = (wait_queue_head_t *)
- 			alloc_bootmem_node(pgdat, alloc_size);
- 	} else {
+I was wrong about that.  I thought it was safe to do an uncached write,
+but it turns out any processor write is uncontained and the MCA that
+surfaces would be fatal.  Likewise for the uncached read.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
