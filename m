@@ -1,33 +1,49 @@
-Date: Tue, 20 May 2008 14:08:55 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 0/2] panics booting NUMA SPARSEMEM on x86_32 NUMA
-Message-ID: <20080520120855.GA10080@elte.hu>
-References: <exportbomb.1211277639@pinky>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <exportbomb.1211277639@pinky>
+Date: Tue, 20 May 2008 22:25:25 +0900
+Subject: Re: [PATCH 1/4] block: use ARCH_KMALLOC_MINALIGN as the default
+ dma pad mask
+From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+In-Reply-To: <20080520093819.GA9147@gondor.apana.org.au>
+References: <1211259514-9131-2-git-send-email-fujita.tomonori@lab.ntt.co.jp>
+	<20080520023129.2f921f24.akpm@linux-foundation.org>
+	<20080520093819.GA9147@gondor.apana.org.au>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-Id: <20080520222531H.tomof@acm.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yinghai Lu <yhlu.kernel@gmail.com>
+To: herbert@gondor.apana.org.au
+Cc: akpm@linux-foundation.org, fujita.tomonori@lab.ntt.co.jp, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, jens.axboe@oracle.com, tsbogend@alpha.franken.de, bzolnier@gmail.com, James.Bottomley@HansenPartnership.com, jeff@garzik.org, davem@davemloft.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Andy Whitcroft <apw@shadowen.org> wrote:
+On Tue, 20 May 2008 17:38:20 +0800
+Herbert Xu <herbert@gondor.apana.org.au> wrote:
 
-> We have been seeing panics booting NUMA SPARSEMEM kernels on x86_32 
-> hardware, while trying to allocate node local memory in early boot. 
-> These are caused by a miss-allocation of the node pgdat structures 
-> when numa remap is disabled.
+> On Tue, May 20, 2008 at 02:31:29AM -0700, Andrew Morton wrote:
+> >
+> > So here you're using it for "dma aligment" whereas crypto is using it
+> > (or ARCH_SLAB_MINALIGN!) for "cpu 64-bit alignment".
 > 
-> Following this email are two patches, the first reenables numa remap 
-> for SPARSEMEM as the underlying bug has now been fixed.  The second 
-> hardens the pgdat allocation in the face of there being no numa remap 
-> for a particular node (which may still occur).
+> No the 64-bit alignment is just an example.  The purpose of
+> CRYPTO_MINALIGN is pretty much the same as ARCH_KMALLOC_MINALIGN,
+> i.e., the minimum alignment guaranteed by kmalloc.  The only
+> reason it exists is because ARCH_KMALLOC_MINALIGN isn't defined
+> on all platforms.
 
-applied to -tip, thanks Andy.
+struct ablkcipher_request {
+	struct crypto_async_request base;
 
-	Ingo
+	unsigned int nbytes;
+
+	void *info;
+
+	struct scatterlist *src;
+	struct scatterlist *dst;
+
+	void *__ctx[] CRYPTO_MINALIGN_ATTR;
+};
+
+Does someone do DMA from/to __ctx?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
