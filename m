@@ -1,30 +1,30 @@
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <20080520095935.GB18633@linux-sh.org>
-References: <20080520095935.GB18633@linux-sh.org>
-Subject: Re: [PATCH] nommu: Push kobjsize() slab-specific logic down to ksize().
-Date: Tue, 20 May 2008 16:18:44 +0100
-Message-ID: <2373.1211296724@redhat.com>
+Date: Tue, 20 May 2008 23:34:24 +0800
+From: Herbert Xu <herbert@gondor.apana.org.au>
+Subject: Re: [PATCH 1/4] block: use ARCH_KMALLOC_MINALIGN as the default dma pad mask
+Message-ID: <20080520153424.GA11687@gondor.apana.org.au>
+References: <1211259514-9131-2-git-send-email-fujita.tomonori@lab.ntt.co.jp> <20080520023129.2f921f24.akpm@linux-foundation.org> <20080520093819.GA9147@gondor.apana.org.au> <20080520222531H.tomof@acm.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080520222531H.tomof@acm.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mundt <lethal@linux-sh.org>
-Cc: dhowells@redhat.com, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <clameter@sgi.com>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+Cc: akpm@linux-foundation.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, jens.axboe@oracle.com, tsbogend@alpha.franken.de, bzolnier@gmail.com, James.Bottomley@HansenPartnership.com, jeff@garzik.org, davem@davemloft.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Paul Mundt <lethal@linux-sh.org> wrote:
+On Tue, May 20, 2008 at 10:25:25PM +0900, FUJITA Tomonori wrote:
+>
+> Does someone do DMA from/to __ctx?
 
-> Moving the existing logic in to SLAB's ksize() and simply wrapping in to
-> ksize() directly seems to do the right thing in all cases, and allows me
-> to boot with any of the slab allocators enabled, rather than simply SLAB
-> by itself.
-> 
-> I've done the same !PageSlab() test in SLAB as SLUB does in its ksize(),
-> which also seems to produce the correct results. Hopefully someone more
-> familiar with the history of kobjsize()/ksize() interaction can scream if
-> this is the wrong thing to do. :-)
+Nobody.
 
-That seems reasonable.  I can't test it until I get back to the UK next week.
-
-David
+Cheers,
+-- 
+Visit Openswan at http://www.openswan.org/
+Email: Herbert Xu ~{PmV>HI~} <herbert@gondor.apana.org.au>
+Home Page: http://gondor.apana.org.au/~herbert/
+PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
