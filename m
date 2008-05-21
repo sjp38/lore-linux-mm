@@ -1,42 +1,29 @@
-Date: Wed, 21 May 2008 21:18:11 +0800
+Date: Wed, 21 May 2008 21:19:06 +0800
 From: Herbert Xu <herbert@gondor.apana.org.au>
 Subject: Re: [PATCH 1/4] block: use ARCH_KMALLOC_MINALIGN as the default dma pad mask
-Message-ID: <20080521131811.GA20212@gondor.apana.org.au>
-References: <20080521112554.GA19558@gondor.apana.org.au> <20080521210956C.tomof@acm.org> <20080521122218.GA19849@gondor.apana.org.au> <20080521214624Y.fujita.tomonori@lab.ntt.co.jp>
+Message-ID: <20080521131906.GB20212@gondor.apana.org.au>
+References: <20080521210956C.tomof@acm.org> <20080521122218.GA19849@gondor.apana.org.au> <20080521214624Y.fujita.tomonori@lab.ntt.co.jp> <20080521215515G.fujita.tomonori@lab.ntt.co.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080521214624Y.fujita.tomonori@lab.ntt.co.jp>
+In-Reply-To: <20080521215515G.fujita.tomonori@lab.ntt.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
 Cc: akpm@linux-foundation.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, jens.axboe@oracle.com, tsbogend@alpha.franken.de, bzolnier@gmail.com, James.Bottomley@HansenPartnership.com, jeff@garzik.org, davem@davemloft.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 21, 2008 at 09:46:24PM +0900, FUJITA Tomonori wrote:
+On Wed, May 21, 2008 at 09:55:15PM +0900, FUJITA Tomonori wrote:
 >
-> No, you misunderstand my question. I meant, software algorithms don't
-> need ARCH_KMALLOC_MINALIGN alignment for __crt_ctx and if we are fine
-> with using the ALIGN hack for crypto hardware every time (like
-> aes_ctx_common), crypto doesn't need ARCH_KMALLOC_MINALIGN alignment
-> for __crt_ctx. Is this right?
+> > crypto hardware, it may be fine to use ALIGN_PTR for the hardware.
+> 
+> I still wonder it's acceptable or not.
 
-The padlock isn't the only hardware device that will require
-such alignment.  Now that we have the async interface there will
-be more.
+Normally I would say yes.  But because the context poitner is
+used on the most performance-critical path of the crypto API,
+I'd rather not use it unless necessary.
 
-> Because there are few architecture that defines
-> ARCH_KMALLOC_MINALIGN. So if crypto hardware needs alignement, it's
-
-You keep going back to ARCH_KMALLOC_MINALIGN.  But this has *nothing*
-to do with ARCH_KMALLOC_MINALIGN.  The only reason it appears at
-all in the crypto code is because it's one of the parameters used
-to calculate the minimum alignment guaranteed by kmalloc.
-
-If there were a macro KMALLOC_MINALIGN which did what its name says
-then I'd gladly use it.
-
-Cheeres,
+Cheers,
 -- 
 Visit Openswan at http://www.openswan.org/
 Email: Herbert Xu ~{PmV>HI~} <herbert@gondor.apana.org.au>
