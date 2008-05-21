@@ -1,73 +1,75 @@
-Subject: Re: [PATCH] nommu: Push kobjsize() slab-specific logic down to
-	ksize().
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <48343884.7060708@cs.helsinki.fi>
-References: <20080520095935.GB18633@linux-sh.org>
-	 <48343884.7060708@cs.helsinki.fi>
-Content-Type: text/plain
-Date: Wed, 21 May 2008 10:06:07 -0500
-Message-Id: <1211382367.18026.239.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4LFUXfZ006354
+	for <linux-mm@kvack.org>; Wed, 21 May 2008 11:30:33 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4LFUXII161196
+	for <linux-mm@kvack.org>; Wed, 21 May 2008 11:30:33 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4LFUWBP032509
+	for <linux-mm@kvack.org>; Wed, 21 May 2008 11:30:33 -0400
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Wed, 21 May 2008 20:59:37 +0530
+Message-Id: <20080521152937.15001.83385.sendpatchset@localhost.localdomain>
+In-Reply-To: <20080521152921.15001.65968.sendpatchset@localhost.localdomain>
+References: <20080521152921.15001.65968.sendpatchset@localhost.localdomain>
+Subject: [-mm][PATCH 1/4] Add memrlimit controller documentation (v5)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Paul Mundt <lethal@linux-sh.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Pavel Emelianov <xemul@openvz.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-05-21 at 17:58 +0300, Pekka Enberg wrote:
-> (Not really sure if we came to a conclusion with the discussion.)
-> 
-> Paul Mundt wrote:
-> > diff --git a/mm/nommu.c b/mm/nommu.c
-> > index ef8c62c..3e11814 100644
-> > --- a/mm/nommu.c
-> > +++ b/mm/nommu.c
-> > @@ -112,13 +112,7 @@ unsigned int kobjsize(const void *objp)
-> >  	if (!objp || (unsigned long)objp >= memory_end || !((page = virt_to_page(objp))))
-> >  		return 0;
-> >  
-> > -	if (PageSlab(page))
-> > -		return ksize(objp);
-> > -
-> > -	BUG_ON(page->index < 0);
-> > -	BUG_ON(page->index >= MAX_ORDER);
-> > -
-> > -	return (PAGE_SIZE << page->index);
-> > +	return ksize(objp);
-> >  }
-> >  
-> >  /*
-> > diff --git a/mm/slab.c b/mm/slab.c
-> > index 06236e4..7a012bb 100644
-> > --- a/mm/slab.c
-> > +++ b/mm/slab.c
-> > @@ -4472,10 +4472,16 @@ const struct seq_operations slabstats_op = {
-> >   */
-> >  size_t ksize(const void *objp)
-> >  {
-> > +	struct page *page;
-> > +
-> >  	BUG_ON(!objp);
-> >  	if (unlikely(objp == ZERO_SIZE_PTR))
-> >  		return 0;
-> >  
-> > +	page = virt_to_head_page(objp);
-> > +	if (unlikely(!PageSlab(page)))
-> > +		return PAGE_SIZE << compound_order(page);
-> > +
-> >  	return obj_size(virt_to_cache(objp));
-> >  }
-> >  EXPORT_SYMBOL(ksize);
-> 
-> The patch looks good to me. Christoph, Matt, NAK/ACK?
 
-I did ack this, as I think it's a step in the right direction and it
-will get nommu running. But I do think nommu's ksize() usage needs a
-major rework.
+Documentation patch - describes the goals and usage of the memrlimit
+controller.
+
+
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
+
+ Documentation/controllers/memrlimit.txt |   29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+
+diff -puN /dev/null Documentation/controllers/memrlimit.txt
+--- /dev/null	2008-05-16 21:23:36.290004010 +0530
++++ linux-2.6.26-rc2-balbir/Documentation/controllers/memrlimit.txt	2008-05-21 20:53:33.000000000 +0530
+@@ -0,0 +1,29 @@
++This controller is enabled by the CONFIG_CGROUP_MEMRLIMIT_CTLR option. Prior
++to reading this documentation please read Documentation/cgroups.txt and
++Documentation/controllers/memory.txt. Several of the principles of this
++controller are similar to the memory resource controller.
++
++This controller framework is designed to be extensible to control any
++memory resource limit with little effort.
++
++This new controller, controls the address space expansion of the tasks
++belonging to a cgroup. Address space control is provided along the same lines as
++RLIMIT_AS control, which is available via getrlimit(2)/setrlimit(2).
++The interface for controlling address space is provided through
++"rlimit.limit_in_bytes". The file is similar to "limit_in_bytes" w.r.t. the user
++interface. Please see section 3 of the memory resource controller documentation
++for more details on how to use the user interface to get and set values.
++
++The "memrlimit.usage_in_bytes" file provides information about the total address
++space usage of the tasks in the cgroup, in bytes.
++
++Advantages of providing this feature
++
++1. Control over virtual address space allows for a cgroup to fail gracefully
++   i.e., via a malloc or mmap failure as compared to OOM kill when no
++   pages can be reclaimed.
++2. It provides better control over how many pages can be swapped out when
++   the cgroup goes over its limit. A badly setup cgroup can cause excessive
++   swapping. Providing control over the address space allocations ensures
++   that the system administrator has control over the total swapping that
++   can take place.
+_
 
 -- 
-Mathematics is the supreme nostalgia of our time.
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
