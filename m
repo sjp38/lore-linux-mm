@@ -1,66 +1,49 @@
-Date: Wed, 21 May 2008 13:59:29 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: [patch 1/2] x86: implement pte_special
-Message-ID: <20080521115929.GB9030@wotan.suse.de>
+Date: Wed, 21 May 2008 21:09:58 +0900
+Subject: Re: [PATCH 1/4] block: use ARCH_KMALLOC_MINALIGN as the default
+ dma pad mask
+From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+In-Reply-To: <20080521112554.GA19558@gondor.apana.org.au>
+References: <20080521100529.GA19077@gondor.apana.org.au>
+	<20080521200104C.tomof@acm.org>
+	<20080521112554.GA19558@gondor.apana.org.au>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-Id: <20080521210956C.tomof@acm.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: shaggy@austin.ibm.com, axboe@oracle.com, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: herbert@gondor.apana.org.au
+Cc: fujita.tomonori@lab.ntt.co.jp, akpm@linux-foundation.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, jens.axboe@oracle.com, tsbogend@alpha.franken.de, bzolnier@gmail.com, James.Bottomley@HansenPartnership.com, jeff@garzik.org, davem@davemloft.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Implement the pte_special bit for x86. This is required to support lockless
-get_user_pages, because we need to know whether or not we can refcount a
-particular page given only its pte (and no vma).
+On Wed, 21 May 2008 19:25:54 +0800
+Herbert Xu <herbert@gondor.apana.org.au> wrote:
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
-Cc: shaggy@austin.ibm.com
-Cc: axboe@oracle.com
-Cc: torvalds@linux-foundation.org
-Cc: linux-mm@kvack.org
-Cc: linux-arch@vger.kernel.org
----
-Index: linux-2.6/include/asm-x86/pgtable.h
-===================================================================
---- linux-2.6.orig/include/asm-x86/pgtable.h
-+++ linux-2.6/include/asm-x86/pgtable.h
-@@ -17,6 +17,7 @@
- #define _PAGE_BIT_UNUSED1	9	/* available for programmer */
- #define _PAGE_BIT_UNUSED2	10
- #define _PAGE_BIT_UNUSED3	11
-+#define _PAGE_BIT_SPECIAL	_PAGE_BIT_UNUSED1
- #define _PAGE_BIT_PAT_LARGE	12	/* On 2MB or 1GB pages */
- #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
- 
-@@ -39,6 +40,8 @@
- #define _PAGE_UNUSED3	(_AC(1, L)<<_PAGE_BIT_UNUSED3)
- #define _PAGE_PAT	(_AC(1, L)<<_PAGE_BIT_PAT)
- #define _PAGE_PAT_LARGE (_AC(1, L)<<_PAGE_BIT_PAT_LARGE)
-+#define _PAGE_SPECIAL	(_AC(1, L)<<_PAGE_BIT_SPECIAL)
-+#define __HAVE_ARCH_PTE_SPECIAL
- 
- #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
- #define _PAGE_NX	(_AC(1, ULL) << _PAGE_BIT_NX)
-@@ -198,7 +201,7 @@ static inline int pte_exec(pte_t pte)
- 
- static inline int pte_special(pte_t pte)
- {
--	return 0;
-+	return pte_val(pte) & _PAGE_SPECIAL;
- }
- 
- static inline int pmd_large(pmd_t pte)
-@@ -264,7 +267,7 @@ static inline pte_t pte_clrglobal(pte_t 
- 
- static inline pte_t pte_mkspecial(pte_t pte)
- {
--	return pte;
-+	return __pte(pte_val(pte) | _PAGE_SPECIAL);
- }
- 
- extern pteval_t __supported_pte_mask;
+> On Wed, May 21, 2008 at 08:01:12PM +0900, FUJITA Tomonori wrote:
+> >
+> > Why do algorithms require alignments bigger than ARCH_KMALLOC_MINALIGN?
+> 
+> Because the hardware may require it.  For example, the VIA Padlock
+> will fault unless the buffers are 16-byte aligned (it being an
+> x86-32 platform).
+
+OK, thanks. So it's about hardware requrement. Let me make sure if I
+understand crypto alignment issue.
+
+__crt_ctx needs ARCH_KMALLOC_MINALIGN alignment only because of crypto
+hardware. If I misunderstand it, can you answer my question in the
+previous mail (it's the part that you cut)? That is, why does
+__crt_ctx need ARCH_KMALLOC_MINALIGN alignment with software
+algorithms.
+
+The VIA Padlock likes 16-byte aligned __crt_ctx. On x86-32 platform,
+ARCH_KMALLOC_MINALIGN is not defined, so __crt_ctx is 8-byte
+aligned. struct aes_ctx of The VIA Padlock may not be aligned so you
+may need ALIGN hack every time.
+
+But ARCH_KMALLOC_MINALIGN is 128 bytes on some architectures. In this
+case, __crt_ctx is 128-byte aligned and struct aes_ctx of The VIA
+Padlock is guaranteed to be aligned nicely.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
