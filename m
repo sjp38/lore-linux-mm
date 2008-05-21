@@ -1,35 +1,71 @@
-Date: Wed, 21 May 2008 16:47:00 +0800
-From: Herbert Xu <herbert@gondor.apana.org.au>
-Subject: Re: [PATCH 1/4] block: use ARCH_KMALLOC_MINALIGN as the default dma pad mask
-Message-ID: <20080521084700.GA18644@gondor.apana.org.au>
-References: <20080521012622.GA15850@gondor.apana.org.au> <20080521103651P.fujita.tomonori@lab.ntt.co.jp> <20080521031646.GA16565@gondor.apana.org.au> <20080521155414D.fujita.tomonori@lab.ntt.co.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080521155414D.fujita.tomonori@lab.ntt.co.jp>
+Received: from de01smr02.am.mot.com (de01smr02.freescale.net [10.208.0.151])
+	by de01egw01.freescale.net (8.12.11/az33egw01) with ESMTP id m4L9N4SZ002243
+	for <linux-mm@kvack.org>; Wed, 21 May 2008 02:23:04 -0700 (MST)
+Received: from zch01exm26.fsl.freescale.net (zch01exm26.ap.freescale.net [10.192.129.221])
+	by de01smr02.am.mot.com (8.13.1/8.13.0) with ESMTP id m4L9N2QO020088
+	for <linux-mm@kvack.org>; Wed, 21 May 2008 04:23:03 -0500 (CDT)
+From: Li Yang <leoli@freescale.com>
+Subject: [PATCH] [mm] limit the min_free_kbytes
+Date: Wed, 21 May 2008 17:34:41 +0800
+Message-Id: <1211362481-2136-1-git-send-email-leoli@freescale.com>
 Sender: owner-linux-mm@kvack.org
+From: Kong Wei <weikong@redflag-linux.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-Cc: akpm@linux-foundation.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, jens.axboe@oracle.com, tsbogend@alpha.franken.de, bzolnier@gmail.com, James.Bottomley@HansenPartnership.com, jeff@garzik.org, davem@davemloft.net, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Kong Wei <weikong@redflag-linux.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 21, 2008 at 03:54:14PM +0900, FUJITA Tomonori wrote:
->
-> As explained, with the current way we define ARCH_KMALLOC_MINALIGN,
-> crypto doesn't need to use it. But to make it clear, we had better
-> clean up these defines, such as renaming it an appropriate name like
-> ARCH_DMA_ALIGN.
+Unlimited of min_free_kbytes is dangerous,
+An user of our company set this value bigger than 3584*1024*K,
+cause the system OOM on DMA.
+And I try a even more bigger number will cause the system hang immediately.
+Limited as 64M may not a good value, but as default in init_per_zone_pages_min.
+And this option may not need again?
 
-No you don't understand the way crypto is using it.  We need to
-know exactly the minimum alignment guaranteed by kmalloc.  Too much
-or too little are both buggy.
+Signed-off-by: Kong Wei <weikong@redflag-linux.com>
+---
+ kernel/sysctl.c |    5 ++++-
+ mm/page_alloc.c |    2 +-
+ 2 files changed, 5 insertions(+), 2 deletions(-)
 
-Cheers,
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 8b7e954..d052522 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -103,6 +103,8 @@ static int minolduid;
+ static int min_percpu_pagelist_fract = 8;
+ 
+ static int ngroups_max = NGROUPS_MAX;
++static int min_min_free_kbytes = 128;
++static int max_min_free_kbytes = 65536;
+ 
+ #ifdef CONFIG_KMOD
+ extern char modprobe_path[];
+@@ -1010,7 +1012,8 @@ static struct ctl_table vm_table[] = {
+ 		.mode		= 0644,
+ 		.proc_handler	= &min_free_kbytes_sysctl_handler,
+ 		.strategy	= &sysctl_intvec,
+-		.extra1		= &zero,
++		.extra1		= &min_min_free_kbytes,
++		.extra2		= &max_min_free_kbytes,
+ 	},
+ 	{
+ 		.ctl_name	= VM_PERCPU_PAGELIST_FRACTION,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 75b9793..52979e9 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4179,7 +4179,7 @@ module_init(init_per_zone_pages_min)
+ int min_free_kbytes_sysctl_handler(ctl_table *table, int write, 
+ 	struct file *file, void __user *buffer, size_t *length, loff_t *ppos)
+ {
+-	proc_dointvec(table, write, file, buffer, length, ppos);
++	proc_dointvec_minmax(table, write, file, buffer, length, ppos);
+ 	if (write)
+ 		setup_per_zone_pages_min();
+ 	return 0;
 -- 
-Visit Openswan at http://www.openswan.org/
-Email: Herbert Xu ~{PmV>HI~} <herbert@gondor.apana.org.au>
-Home Page: http://gondor.apana.org.au/~herbert/
-PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
+1.5.0.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
