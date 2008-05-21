@@ -1,19 +1,32 @@
-Message-ID: <4834732E.3040403@cs.helsinki.fi>
-Date: Wed, 21 May 2008 22:08:30 +0300
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-MIME-Version: 1.0
+Date: Thu, 22 May 2008 08:43:47 +0900
+From: Paul Mundt <lethal@linux-sh.org>
 Subject: Re: [PATCH] nommu: Push kobjsize() slab-specific logic down to ksize().
+Message-ID: <20080521234347.GA32707@linux-sh.org>
 References: <20080520095935.GB18633@linux-sh.org> <Pine.LNX.4.64.0805212009001.20700@sbz-30.cs.Helsinki.FI>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <Pine.LNX.4.64.0805212009001.20700@sbz-30.cs.Helsinki.FI>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mundt <lethal@linux-sh.org>
+To: Pekka J Enberg <penberg@cs.helsinki.fi>
 Cc: David Howells <dhowells@redhat.com>, Christoph Lameter <clameter@sgi.com>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Pekka J Enberg wrote:
+On Wed, May 21, 2008 at 08:13:35PM +0300, Pekka J Enberg wrote:
+> Hi!
+> 
+> On Tue, 20 May 2008, Paul Mundt wrote:
+> > Moving the existing logic in to SLAB's ksize() and simply wrapping in to
+> > ksize() directly seems to do the right thing in all cases, and allows me
+> > to boot with any of the slab allocators enabled, rather than simply SLAB
+> > by itself.
+> > 
+> > I've done the same !PageSlab() test in SLAB as SLUB does in its ksize(),
+> > which also seems to produce the correct results. Hopefully someone more
+> > familiar with the history of kobjsize()/ksize() interaction can scream if
+> > this is the wrong thing to do. :-)
+> 
 > As pointed out by Christoph, it. ksize() works with SLUB and SLOB 
 > accidentally because they do page allocator pass-through and thus need to 
 > deal with non-PageSlab pages. SLAB, however, does not do that which is why 
@@ -23,21 +36,8 @@ Pekka J Enberg wrote:
 > So I suggest we fix up kobjsize() instead. Paul, does the following 
 > untested patch work for you?
 > 
-> diff --git a/mm/nommu.c b/mm/nommu.c
-> index ef8c62c..a573aeb 100644
-> --- a/mm/nommu.c
-> +++ b/mm/nommu.c
-> @@ -115,10 +115,7 @@ unsigned int kobjsize(const void *objp)
->  	if (PageSlab(page))
->  		return ksize(objp);
->  
-> -	BUG_ON(page->index < 0);
-> -	BUG_ON(page->index >= MAX_ORDER);
-> -
-> -	return (PAGE_SIZE << page->index);
-> +	return PAGE_SIZE << compound_order(page);
-
-Hmm, actually this needs more fixing with SLOB as it never sets PageSlab.
+It seems to, but I wonder if compound_order() needs to take a
+virt_to_head_page(objp) instead of virt_to_page()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
