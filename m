@@ -1,70 +1,35 @@
-Date: Wed, 21 May 2008 16:29:14 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [PATCH] memory hotplug: fix early allocation handling
-In-Reply-To: <20080520105145.GA24526@osiris.boeblingen.de.ibm.com>
-References: <20080520105145.GA24526@osiris.boeblingen.de.ibm.com>
-Message-Id: <20080521162657.587A.E1E9C6FF@jp.fujitsu.com>
+Date: Wed, 21 May 2008 16:47:00 +0800
+From: Herbert Xu <herbert@gondor.apana.org.au>
+Subject: Re: [PATCH 1/4] block: use ARCH_KMALLOC_MINALIGN as the default dma pad mask
+Message-ID: <20080521084700.GA18644@gondor.apana.org.au>
+References: <20080521012622.GA15850@gondor.apana.org.au> <20080521103651P.fujita.tomonori@lab.ntt.co.jp> <20080521031646.GA16565@gondor.apana.org.au> <20080521155414D.fujita.tomonori@lab.ntt.co.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080521155414D.fujita.tomonori@lab.ntt.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Whitcroft <apw@shadowen.org>, Dave Hansen <haveblue@us.ibm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+Cc: akpm@linux-foundation.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, jens.axboe@oracle.com, tsbogend@alpha.franken.de, bzolnier@gmail.com, James.Bottomley@HansenPartnership.com, jeff@garzik.org, davem@davemloft.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Looks good to me.
+On Wed, May 21, 2008 at 03:54:14PM +0900, FUJITA Tomonori wrote:
+>
+> As explained, with the current way we define ARCH_KMALLOC_MINALIGN,
+> crypto doesn't need to use it. But to make it clear, we had better
+> clean up these defines, such as renaming it an appropriate name like
+> ARCH_DMA_ALIGN.
 
-Thanks.
+No you don't understand the way crypto is using it.  We need to
+know exactly the minimum alignment guaranteed by kmalloc.  Too much
+or too little are both buggy.
 
-Acked-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-
-
-
-> From: Heiko Carstens <heiko.carstens@de.ibm.com>
-> 
-> Trying to add memory via add_memory() from within an initcall function
-> results in
-> 
-> bootmem alloc of 163840 bytes failed!
-> Kernel panic - not syncing: Out of memory
-> 
-> This is caused by zone_wait_table_init() which uses system_state to
-> decide if it should use the bootmem allocator or not.
-> When initcalls are handled the system_state is still SYSTEM_BOOTING
-> but the bootmem allocator doesn't work anymore. So the allocation
-> will fail.
-> 
-> To fix this use slab_is_available() instead as indicator like we do
-> it everywhere else.
-> 
-> Cc: Andy Whitcroft <apw@shadowen.org>
-> Cc: Dave Hansen <haveblue@us.ibm.com>
-> Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Yasunori Goto <y-goto@jp.fujitsu.com>
-> Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
-> ---
->  mm/page_alloc.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> Index: linux-2.6/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.orig/mm/page_alloc.c
-> +++ linux-2.6/mm/page_alloc.c
-> @@ -2804,7 +2804,7 @@ int zone_wait_table_init(struct zone *zo
->  	alloc_size = zone->wait_table_hash_nr_entries
->  					* sizeof(wait_queue_head_t);
->  
-> - 	if (system_state == SYSTEM_BOOTING) {
-> + 	if (!slab_is_available()) {
->  		zone->wait_table = (wait_queue_head_t *)
->  			alloc_bootmem_node(pgdat, alloc_size);
->  	} else {
-
+Cheers,
 -- 
-Yasunori Goto 
-
+Visit Openswan at http://www.openswan.org/
+Email: Herbert Xu ~{PmV>HI~} <herbert@gondor.apana.org.au>
+Home Page: http://gondor.apana.org.au/~herbert/
+PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
