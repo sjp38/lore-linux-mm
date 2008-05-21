@@ -1,51 +1,46 @@
-Date: Wed, 21 May 2008 15:06:29 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 2/3] memcg:: seq_ops support for cgroup
-Message-Id: <20080521150629.c22cb81e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <6599ad830805202206v334cb933t5b493988e01b3b21@mail.gmail.com>
-References: <20080520180552.601da567.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080520180841.f292beef.kamezawa.hiroyu@jp.fujitsu.com>
-	<6599ad830805201146g5a2a8928l6a2f5adc51b15f15@mail.gmail.com>
-	<20080521092849.c2f0b7e1.kamezawa.hiroyu@jp.fujitsu.com>
-	<6599ad830805202206v334cb933t5b493988e01b3b21@mail.gmail.com>
+Subject: Re: [PATCH 1/4] block: use ARCH_KMALLOC_MINALIGN as the default
+ dma pad mask
+From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+In-Reply-To: <20080521031646.GA16565@gondor.apana.org.au>
+References: <20080521012622.GA15850@gondor.apana.org.au>
+	<20080521103651P.fujita.tomonori@lab.ntt.co.jp>
+	<20080521031646.GA16565@gondor.apana.org.au>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-Id: <20080521155414D.fujita.tomonori@lab.ntt.co.jp>
+Date: Wed, 21 May 2008 15:54:14 +0900
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
+To: herbert@gondor.apana.org.au
+Cc: fujita.tomonori@lab.ntt.co.jp, akpm@linux-foundation.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, jens.axboe@oracle.com, tsbogend@alpha.franken.de, bzolnier@gmail.com, James.Bottomley@HansenPartnership.com, jeff@garzik.org, davem@davemloft.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 20 May 2008 22:06:48 -0700
-"Paul Menage" <menage@google.com> wrote:
+On Wed, 21 May 2008 11:16:46 +0800
+Herbert Xu <herbert@gondor.apana.org.au> wrote:
 
+> On Wed, May 21, 2008 at 10:36:51AM +0900, FUJITA Tomonori wrote:
 > >
-> > And (*read) method isn't useful ;)
-> >
-> > Can we add new stat file dynamically ?
+> > ARCH_KMALLOC_MINALIGN represents DMA alignment since we guarantee
+> > kmalloced buffers can be used for DMA.
 > 
-> Yes, there's no reason we can't do that. Right now it's not possible
-> to remove a control file without deleting the cgroup, but I have a
-> patch that supports removal.
+> That may be why it was created, but that is not its only application.
+
+Currently, it's only applicaiton.
+
+
+> In particular, it forms part of the calculation of the minimum
+> alignment guaranteed by kmalloc which is why it's used in crpyto.
 > 
-Good news. I'll wait for.
+> Of course, if some kind soul would move this calculation into a
+> header file then we wouldn't be having this discussion.
 
-> The question is whether it's better to have one file per CPU/node or
-> one large complex file.
-> 
-For making the kernel simple, one-file-per-entity(cpu/node...) is better.
-For making the applications simple, one big file is better.
+As explained, with the current way we define ARCH_KMALLOC_MINALIGN,
+crypto doesn't need to use it. But to make it clear, we had better
+clean up these defines, such as renaming it an appropriate name like
+ARCH_DMA_ALIGN.
 
-I think recent interfaces uses one-file-per-entity method. So I vote for it
-for this numastat. One concern is size of cpu/node. It can be 1024...4096 depends
-on environment.
-
-open/close 4096 files took some amount of cpu time.
-(And that's why 'ps' command is slow on big system.)
-
-Thanks,
--Kame
+I'll send patches shortly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
