@@ -1,29 +1,28 @@
-Date: Wed, 21 May 2008 10:27:50 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] nommu: Push kobjsize() slab-specific logic down to
- ksize().
-In-Reply-To: <Pine.LNX.4.64.0805212009001.20700@sbz-30.cs.Helsinki.FI>
-Message-ID: <Pine.LNX.4.64.0805211024060.15494@schroedinger.engr.sgi.com>
-References: <20080520095935.GB18633@linux-sh.org>
- <Pine.LNX.4.64.0805212009001.20700@sbz-30.cs.Helsinki.FI>
+Message-ID: <4834732E.3040403@cs.helsinki.fi>
+Date: Wed, 21 May 2008 22:08:30 +0300
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] nommu: Push kobjsize() slab-specific logic down to ksize().
+References: <20080520095935.GB18633@linux-sh.org> <Pine.LNX.4.64.0805212009001.20700@sbz-30.cs.Helsinki.FI>
+In-Reply-To: <Pine.LNX.4.64.0805212009001.20700@sbz-30.cs.Helsinki.FI>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka J Enberg <penberg@cs.helsinki.fi>
-Cc: Paul Mundt <lethal@linux-sh.org>, David Howells <dhowells@redhat.com>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: Paul Mundt <lethal@linux-sh.org>
+Cc: David Howells <dhowells@redhat.com>, Christoph Lameter <clameter@sgi.com>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 21 May 2008, Pekka J Enberg wrote:
-
+Pekka J Enberg wrote:
+> As pointed out by Christoph, it. ksize() works with SLUB and SLOB 
+> accidentally because they do page allocator pass-through and thus need to 
+> deal with non-PageSlab pages. SLAB, however, does not do that which is why 
+> all pages passed to it must have PageSlab set (we ought to add a WARN_ON() 
+> there btw).
+> 
 > So I suggest we fix up kobjsize() instead. Paul, does the following 
 > untested patch work for you?
-
-Regardless of the test : Pekka's patch is a bugfix and should go via 
-stable. kobjsize seems to assume that page->index contains the order
-of a page. For a pagecache page it contains the page number in the 
-mapping. So this should bug frequently if used on arbitrary objects.
-
+> 
 > diff --git a/mm/nommu.c b/mm/nommu.c
 > index ef8c62c..a573aeb 100644
 > --- a/mm/nommu.c
@@ -37,11 +36,8 @@ mapping. So this should bug frequently if used on arbitrary objects.
 > -
 > -	return (PAGE_SIZE << page->index);
 > +	return PAGE_SIZE << compound_order(page);
->  }
->  
->  /*
-> diff --git a/mm/slab.c b/mm/slab.c
-> 
+
+Hmm, actually this needs more fixing with SLOB as it never sets PageSlab.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
