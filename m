@@ -1,68 +1,47 @@
-Date: Wed, 21 May 2008 22:08:33 +0900 (JST)
-Message-Id: <20080521.220833.106490043.taka@valinux.co.jp>
-Subject: Re: [RFC][PATCH 2/3] memcg:: seq_ops support for cgroup
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <6599ad830805202206v334cb933t5b493988e01b3b21@mail.gmail.com>
-References: <6599ad830805201146g5a2a8928l6a2f5adc51b15f15@mail.gmail.com>
-	<20080521092849.c2f0b7e1.kamezawa.hiroyu@jp.fujitsu.com>
-	<6599ad830805202206v334cb933t5b493988e01b3b21@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Date: Wed, 21 May 2008 21:18:11 +0800
+From: Herbert Xu <herbert@gondor.apana.org.au>
+Subject: Re: [PATCH 1/4] block: use ARCH_KMALLOC_MINALIGN as the default dma pad mask
+Message-ID: <20080521131811.GA20212@gondor.apana.org.au>
+References: <20080521112554.GA19558@gondor.apana.org.au> <20080521210956C.tomof@acm.org> <20080521122218.GA19849@gondor.apana.org.au> <20080521214624Y.fujita.tomonori@lab.ntt.co.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080521214624Y.fujita.tomonori@lab.ntt.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: menage@google.com
-Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, xemul@openvz.org, lizf@cn.fujitsu.com, yamamoto@valinux.co.jp
+To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+Cc: akpm@linux-foundation.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, jens.axboe@oracle.com, tsbogend@alpha.franken.de, bzolnier@gmail.com, James.Bottomley@HansenPartnership.com, jeff@garzik.org, davem@davemloft.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed, May 21, 2008 at 09:46:24PM +0900, FUJITA Tomonori wrote:
+>
+> No, you misunderstand my question. I meant, software algorithms don't
+> need ARCH_KMALLOC_MINALIGN alignment for __crt_ctx and if we are fine
+> with using the ALIGN hack for crypto hardware every time (like
+> aes_ctx_common), crypto doesn't need ARCH_KMALLOC_MINALIGN alignment
+> for __crt_ctx. Is this right?
 
-> > With current interface, my concern is hotplug.
-> >
-> > File-per-node method requires delete/add files at hotplug.
-> > A file for all nodes with _maps_ method cannot be used because
-> > maps file says
-> > ==
-> > The key/value pairs (and their ordering) should not
-> >         * change between reboots.
-> > ==
-> 
-> OK, so we may need to extend the interface ...
+The padlock isn't the only hardware device that will require
+such alignment.  Now that we have the async interface there will
+be more.
 
-I also hope it!
+> Because there are few architecture that defines
+> ARCH_KMALLOC_MINALIGN. So if crypto hardware needs alignement, it's
 
-Now I'm working on dm-ioband --- I/O bandwidth controller --- and
-making it be able to work under cgroups.
-I realized it is quite hard to set some specific value to each block
-device because each machine has various number of devices and then
-some of them are hot-added or hot-removed.
+You keep going back to ARCH_KMALLOC_MINALIGN.  But this has *nothing*
+to do with ARCH_KMALLOC_MINALIGN.  The only reason it appears at
+all in the crypto code is because it's one of the parameters used
+to calculate the minimum alignment guaranteed by kmalloc.
 
-So I hope CGROUP will support some method to handle hot-pluggable
-resources.
+If there were a macro KMALLOC_MINALIGN which did what its name says
+then I'd gladly use it.
 
-> The main reason for that restriction (not allowing the set of keys to
-> change) was to simplify and speed up userspace parsing and make any
-> future binary API simpler. But if it's not going to work, we can maybe
-> make that optional instead.
-> >
-> > And (*read) method isn't useful ;)
-> >
-> > Can we add new stat file dynamically ?
-> 
-> Yes, there's no reason we can't do that. Right now it's not possible
-> to remove a control file without deleting the cgroup, but I have a
-> patch that supports removal.
-> 
-> The question is whether it's better to have one file per CPU/node or
-> one large complex file.
-> 
-> Paul
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Cheeres,
+-- 
+Visit Openswan at http://www.openswan.org/
+Email: Herbert Xu ~{PmV>HI~} <herbert@gondor.apana.org.au>
+Home Page: http://gondor.apana.org.au/~herbert/
+PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
