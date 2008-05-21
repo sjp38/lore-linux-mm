@@ -1,34 +1,62 @@
-Date: Wed, 21 May 2008 21:19:06 +0800
-From: Herbert Xu <herbert@gondor.apana.org.au>
-Subject: Re: [PATCH 1/4] block: use ARCH_KMALLOC_MINALIGN as the default dma pad mask
-Message-ID: <20080521131906.GB20212@gondor.apana.org.au>
-References: <20080521210956C.tomof@acm.org> <20080521122218.GA19849@gondor.apana.org.au> <20080521214624Y.fujita.tomonori@lab.ntt.co.jp> <20080521215515G.fujita.tomonori@lab.ntt.co.jp>
+Message-ID: <48343884.7060708@cs.helsinki.fi>
+Date: Wed, 21 May 2008 17:58:12 +0300
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080521215515G.fujita.tomonori@lab.ntt.co.jp>
+Subject: Re: [PATCH] nommu: Push kobjsize() slab-specific logic down to ksize().
+References: <20080520095935.GB18633@linux-sh.org>
+In-Reply-To: <20080520095935.GB18633@linux-sh.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-Cc: akpm@linux-foundation.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, jens.axboe@oracle.com, tsbogend@alpha.franken.de, bzolnier@gmail.com, James.Bottomley@HansenPartnership.com, jeff@garzik.org, davem@davemloft.net, linux-mm@kvack.org
+To: Paul Mundt <lethal@linux-sh.org>, Pekka Enberg <penberg@cs.helsinki.fi>, David Howells <dhowells@redhat.com>, Christoph Lameter <clameter@sgi.com>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 21, 2008 at 09:55:15PM +0900, FUJITA Tomonori wrote:
->
-> > crypto hardware, it may be fine to use ALIGN_PTR for the hardware.
-> 
-> I still wonder it's acceptable or not.
+(Not really sure if we came to a conclusion with the discussion.)
 
-Normally I would say yes.  But because the context poitner is
-used on the most performance-critical path of the crypto API,
-I'd rather not use it unless necessary.
+Paul Mundt wrote:
+> diff --git a/mm/nommu.c b/mm/nommu.c
+> index ef8c62c..3e11814 100644
+> --- a/mm/nommu.c
+> +++ b/mm/nommu.c
+> @@ -112,13 +112,7 @@ unsigned int kobjsize(const void *objp)
+>  	if (!objp || (unsigned long)objp >= memory_end || !((page = virt_to_page(objp))))
+>  		return 0;
+>  
+> -	if (PageSlab(page))
+> -		return ksize(objp);
+> -
+> -	BUG_ON(page->index < 0);
+> -	BUG_ON(page->index >= MAX_ORDER);
+> -
+> -	return (PAGE_SIZE << page->index);
+> +	return ksize(objp);
+>  }
+>  
+>  /*
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 06236e4..7a012bb 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -4472,10 +4472,16 @@ const struct seq_operations slabstats_op = {
+>   */
+>  size_t ksize(const void *objp)
+>  {
+> +	struct page *page;
+> +
+>  	BUG_ON(!objp);
+>  	if (unlikely(objp == ZERO_SIZE_PTR))
+>  		return 0;
+>  
+> +	page = virt_to_head_page(objp);
+> +	if (unlikely(!PageSlab(page)))
+> +		return PAGE_SIZE << compound_order(page);
+> +
+>  	return obj_size(virt_to_cache(objp));
+>  }
+>  EXPORT_SYMBOL(ksize);
 
-Cheers,
--- 
-Visit Openswan at http://www.openswan.org/
-Email: Herbert Xu ~{PmV>HI~} <herbert@gondor.apana.org.au>
-Home Page: http://gondor.apana.org.au/~herbert/
-PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
+The patch looks good to me. Christoph, Matt, NAK/ACK?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
