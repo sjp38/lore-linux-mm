@@ -1,36 +1,62 @@
-Date: Wed, 21 May 2008 11:16:46 +0800
-From: Herbert Xu <herbert@gondor.apana.org.au>
-Subject: Re: [PATCH 1/4] block: use ARCH_KMALLOC_MINALIGN as the default dma pad mask
-Message-ID: <20080521031646.GA16565@gondor.apana.org.au>
-References: <20080520153424.GA11687@gondor.apana.org.au> <20080521010942W.tomof@acm.org> <20080521012622.GA15850@gondor.apana.org.au> <20080521103651P.fujita.tomonori@lab.ntt.co.jp>
+Received: from spaceape7.eur.corp.google.com (spaceape7.eur.corp.google.com [172.28.16.141])
+	by smtp-out.google.com with ESMTP id m4L56nYD002011
+	for <linux-mm@kvack.org>; Wed, 21 May 2008 06:06:50 +0100
+Received: from an-out-0708.google.com (ancc35.prod.google.com [10.100.29.35])
+	by spaceape7.eur.corp.google.com with ESMTP id m4L56mDZ014412
+	for <linux-mm@kvack.org>; Wed, 21 May 2008 06:06:49 +0100
+Received: by an-out-0708.google.com with SMTP id c35so647088anc.119
+        for <linux-mm@kvack.org>; Tue, 20 May 2008 22:06:48 -0700 (PDT)
+Message-ID: <6599ad830805202206v334cb933t5b493988e01b3b21@mail.gmail.com>
+Date: Tue, 20 May 2008 22:06:48 -0700
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [RFC][PATCH 2/3] memcg:: seq_ops support for cgroup
+In-Reply-To: <20080521092849.c2f0b7e1.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080521103651P.fujita.tomonori@lab.ntt.co.jp>
+References: <20080520180552.601da567.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20080520180841.f292beef.kamezawa.hiroyu@jp.fujitsu.com>
+	 <6599ad830805201146g5a2a8928l6a2f5adc51b15f15@mail.gmail.com>
+	 <20080521092849.c2f0b7e1.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-Cc: akpm@linux-foundation.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, jens.axboe@oracle.com, tsbogend@alpha.franken.de, bzolnier@gmail.com, James.Bottomley@HansenPartnership.com, jeff@garzik.org, davem@davemloft.net, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 21, 2008 at 10:36:51AM +0900, FUJITA Tomonori wrote:
+On Tue, May 20, 2008 at 5:28 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> With current interface, my concern is hotplug.
 >
-> ARCH_KMALLOC_MINALIGN represents DMA alignment since we guarantee
-> kmalloced buffers can be used for DMA.
+> File-per-node method requires delete/add files at hotplug.
+> A file for all nodes with _maps_ method cannot be used because
+> maps file says
+> ==
+> The key/value pairs (and their ordering) should not
+>         * change between reboots.
+> ==
 
-That may be why it was created, but that is not its only application.
-In particular, it forms part of the calculation of the minimum
-alignment guaranteed by kmalloc which is why it's used in crpyto.
+OK, so we may need to extend the interface ...
 
-Of course, if some kind soul would move this calculation into a
-header file then we wouldn't be having this discussion.
+The main reason for that restriction (not allowing the set of keys to
+change) was to simplify and speed up userspace parsing and make any
+future binary API simpler. But if it's not going to work, we can maybe
+make that optional instead.
 
-Cheers,
--- 
-Visit Openswan at http://www.openswan.org/
-Email: Herbert Xu ~{PmV>HI~} <herbert@gondor.apana.org.au>
-Home Page: http://gondor.apana.org.au/~herbert/
-PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
+>
+> And (*read) method isn't useful ;)
+>
+> Can we add new stat file dynamically ?
+
+Yes, there's no reason we can't do that. Right now it's not possible
+to remove a control file without deleting the cgroup, but I have a
+patch that supports removal.
+
+The question is whether it's better to have one file per CPU/node or
+one large complex file.
+
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
