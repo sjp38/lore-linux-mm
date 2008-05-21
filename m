@@ -1,46 +1,70 @@
-Subject: Re: [PATCH 1/4] block: use ARCH_KMALLOC_MINALIGN as the default
- dma pad mask
-From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-In-Reply-To: <20080521031646.GA16565@gondor.apana.org.au>
-References: <20080521012622.GA15850@gondor.apana.org.au>
-	<20080521103651P.fujita.tomonori@lab.ntt.co.jp>
-	<20080521031646.GA16565@gondor.apana.org.au>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Date: Wed, 21 May 2008 16:29:14 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [PATCH] memory hotplug: fix early allocation handling
+In-Reply-To: <20080520105145.GA24526@osiris.boeblingen.de.ibm.com>
+References: <20080520105145.GA24526@osiris.boeblingen.de.ibm.com>
+Message-Id: <20080521162657.587A.E1E9C6FF@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Message-Id: <20080521155414D.fujita.tomonori@lab.ntt.co.jp>
-Date: Wed, 21 May 2008 15:54:14 +0900
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: herbert@gondor.apana.org.au
-Cc: fujita.tomonori@lab.ntt.co.jp, akpm@linux-foundation.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, jens.axboe@oracle.com, tsbogend@alpha.franken.de, bzolnier@gmail.com, James.Bottomley@HansenPartnership.com, jeff@garzik.org, davem@davemloft.net, linux-mm@kvack.org
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Whitcroft <apw@shadowen.org>, Dave Hansen <haveblue@us.ibm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 21 May 2008 11:16:46 +0800
-Herbert Xu <herbert@gondor.apana.org.au> wrote:
+Looks good to me.
 
-> On Wed, May 21, 2008 at 10:36:51AM +0900, FUJITA Tomonori wrote:
-> >
-> > ARCH_KMALLOC_MINALIGN represents DMA alignment since we guarantee
-> > kmalloced buffers can be used for DMA.
+Thanks.
+
+Acked-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+
+
+
+> From: Heiko Carstens <heiko.carstens@de.ibm.com>
 > 
-> That may be why it was created, but that is not its only application.
-
-Currently, it's only applicaiton.
-
-
-> In particular, it forms part of the calculation of the minimum
-> alignment guaranteed by kmalloc which is why it's used in crpyto.
+> Trying to add memory via add_memory() from within an initcall function
+> results in
 > 
-> Of course, if some kind soul would move this calculation into a
-> header file then we wouldn't be having this discussion.
+> bootmem alloc of 163840 bytes failed!
+> Kernel panic - not syncing: Out of memory
+> 
+> This is caused by zone_wait_table_init() which uses system_state to
+> decide if it should use the bootmem allocator or not.
+> When initcalls are handled the system_state is still SYSTEM_BOOTING
+> but the bootmem allocator doesn't work anymore. So the allocation
+> will fail.
+> 
+> To fix this use slab_is_available() instead as indicator like we do
+> it everywhere else.
+> 
+> Cc: Andy Whitcroft <apw@shadowen.org>
+> Cc: Dave Hansen <haveblue@us.ibm.com>
+> Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Yasunori Goto <y-goto@jp.fujitsu.com>
+> Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+> ---
+>  mm/page_alloc.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> Index: linux-2.6/mm/page_alloc.c
+> ===================================================================
+> --- linux-2.6.orig/mm/page_alloc.c
+> +++ linux-2.6/mm/page_alloc.c
+> @@ -2804,7 +2804,7 @@ int zone_wait_table_init(struct zone *zo
+>  	alloc_size = zone->wait_table_hash_nr_entries
+>  					* sizeof(wait_queue_head_t);
+>  
+> - 	if (system_state == SYSTEM_BOOTING) {
+> + 	if (!slab_is_available()) {
+>  		zone->wait_table = (wait_queue_head_t *)
+>  			alloc_bootmem_node(pgdat, alloc_size);
+>  	} else {
 
-As explained, with the current way we define ARCH_KMALLOC_MINALIGN,
-crypto doesn't need to use it. But to make it clear, we had better
-clean up these defines, such as renaming it an appropriate name like
-ARCH_DMA_ALIGN.
+-- 
+Yasunori Goto 
 
-I'll send patches shortly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
