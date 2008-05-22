@@ -1,47 +1,48 @@
-Date: Fri, 23 May 2008 00:59:49 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: 2.6.26: x86/kernel/pci_dma.c: gfp |= __GFP_NORETRY ?
-Message-ID: <20080522225949.GE31727@one.firstfloor.org>
-References: <20080521113028.GA24632@xs4all.net> <48341A57.1030505@redhat.com> <20080522084736.GC31727@one.firstfloor.org> <alpine.LFD.1.10.0805222157300.3295@apollo.tec.linutronix.de>
-Mime-Version: 1.0
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4MNuq5U008661
+	for <linux-mm@kvack.org>; Thu, 22 May 2008 19:56:52 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4MNsTdC093770
+	for <linux-mm@kvack.org>; Thu, 22 May 2008 19:54:29 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4MNsT9g003856
+	for <linux-mm@kvack.org>; Thu, 22 May 2008 19:54:29 -0400
+Date: Thu, 22 May 2008 16:54:27 -0700
+From: Tim Pepper <lnxninja@linux.vnet.ibm.com>
+Subject: [PATCH] mm: fix filemap.c's comment re: buffer_head.h inclusion
+	reason
+Message-ID: <20080522235426.GA28518@tpepper-t42p.dolavim.us>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LFD.1.10.0805222157300.3295@apollo.tec.linutronix.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andi Kleen <andi@firstfloor.org>, Glauber Costa <gcosta@redhat.com>, Miquel van Smoorenburg <miquels@cistron.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi-suse@firstfloor.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 22, 2008 at 09:58:11PM +0200, Thomas Gleixner wrote:
-> On Thu, 22 May 2008, Andi Kleen wrote:
-> > On Wed, May 21, 2008 at 09:49:27AM -0300, Glauber Costa wrote:
-> > > probably andi has a better idea on why it was added, since it used to 
-> > > live in his tree?
-> > 
-> > d_a_c() tries a couple of zones, and running the oom killer for each
-> > is inconvenient. Especially for the 16MB DMA zone which is unlikely
-> > to be cleared by the OOM killer anyways because normal user applications
-> > don't put pages in there. There was a real report with some problems
-> > in this area.
-> 
-> Can you give some pointers please ?
+It appears mm/filemap.c's comment on why buffer_head.h is included has
+gotten out of date.  Today generic_osync_inode() is coming from the fs.h
+include and buffer_head.h is providing try_to_free_buffers().
 
-To the bug report? Memory is fuzzy, but I think it was some SUSE bugzilla
-report, might have been for SLES.
+Signed-off-by: Tim Pepper <lnxninja@linux.vnet.ibm.com>
+Cc:            linux-mm@kvack.org
 
-Anyways the reasoning is still valid. Longer term the mask allocator
-would be the right fix, shorter term a new GFP flag as proposed 
-sounds reasonable.
+---
 
-The trick is just that you need different __GFP_ flags for the different
-allocations. e.g. the first the "higher zone" quick try should
-continue to use __GFP_NORETRY. And the 16MB one should too. It would
-only make sense for the main request.
-
-In the mask allocator patchkit kernel it should be also ok already.
-
--Andi
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 1e6a7d3..fe4adf4 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -38,7 +38,7 @@
+ /*
+  * FIXME: remove all knowledge of the buffer layer from the core VM
+  */
+-#include <linux/buffer_head.h> /* for generic_osync_inode */
++#include <linux/buffer_head.h> /* for try_to_free_buffers */
+ 
+ #include <asm/mman.h>
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
