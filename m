@@ -1,26 +1,36 @@
+Message-Id: <4834FC6C.10001@mxp.nes.nec.co.jp>
+Date: Thu, 22 May 2008 13:54:04 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+MIME-Version: 1.0
 Subject: Re: [RFC][PATCH] another swap controller for cgroup
-In-Reply-To: Your message of "Wed, 30 Apr 2008 13:09:44 +0900"
-	<4817F108.40806@mxp.nes.nec.co.jp>
-References: <4817F108.40806@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20080522044656.2FB695A0A@siro.lan>
-Date: Thu, 22 May 2008 13:46:56 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+References: <4817F108.40806@mxp.nes.nec.co.jp> <20080522044656.2FB695A0A@siro.lan>
+In-Reply-To: <20080522044656.2FB695A0A@siro.lan>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: nishimura@mxp.nes.nec.co.jp
+To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
 Cc: containers@lists.osdl.org, minoura@valinux.co.jp, hugh@veritas.com, balbir@linux.vnet.ibm.com, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, m-ikeda@ds.jp.nec.com
 List-ID: <linux-mm.kvack.org>
 
-> BTW, I'm just trying to make my swapcontroller patch
-> that is rebased on recent kernel and implemented
-> as part of memory controller.
-> I'm going to submit it by the middle of May.
+On 2008/05/22 13:46 +0900, YAMAMOTO Takashi wrote:
+>> BTW, I'm just trying to make my swapcontroller patch
+>> that is rebased on recent kernel and implemented
+>> as part of memory controller.
+>> I'm going to submit it by the middle of May.
+> 
+> what's the status of this?
+> 
+> YAMAMOTO Takashi
+> 
 
-what's the status of this?
+Sorry.
 
-YAMAMOTO Takashi
+I will post it very soon.
+Actually, I've been writing mails :-)
+
+
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
