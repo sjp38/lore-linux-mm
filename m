@@ -1,63 +1,47 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id m4MLSkX4025075
-	for <linux-mm@kvack.org>; Fri, 23 May 2008 07:28:46 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4MLSahw3448940
-	for <linux-mm@kvack.org>; Fri, 23 May 2008 07:28:38 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4MLSnfE031892
-	for <linux-mm@kvack.org>; Fri, 23 May 2008 07:28:49 +1000
-Message-ID: <4835E55A.1000308@linux.vnet.ibm.com>
-Date: Fri, 23 May 2008 02:57:54 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] swapcgroup(v2)
-References: <48350F15.9070007@mxp.nes.nec.co.jp>
-In-Reply-To: <48350F15.9070007@mxp.nes.nec.co.jp>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Fri, 23 May 2008 00:59:49 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: 2.6.26: x86/kernel/pci_dma.c: gfp |= __GFP_NORETRY ?
+Message-ID: <20080522225949.GE31727@one.firstfloor.org>
+References: <20080521113028.GA24632@xs4all.net> <48341A57.1030505@redhat.com> <20080522084736.GC31727@one.firstfloor.org> <alpine.LFD.1.10.0805222157300.3295@apollo.tec.linutronix.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.1.10.0805222157300.3295@apollo.tec.linutronix.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andi Kleen <andi@firstfloor.org>, Glauber Costa <gcosta@redhat.com>, Miquel van Smoorenburg <miquels@cistron.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi-suse@firstfloor.org
 List-ID: <linux-mm.kvack.org>
 
-Daisuke Nishimura wrote:
-> Hi.
+On Thu, May 22, 2008 at 09:58:11PM +0200, Thomas Gleixner wrote:
+> On Thu, 22 May 2008, Andi Kleen wrote:
+> > On Wed, May 21, 2008 at 09:49:27AM -0300, Glauber Costa wrote:
+> > > probably andi has a better idea on why it was added, since it used to 
+> > > live in his tree?
+> > 
+> > d_a_c() tries a couple of zones, and running the oom killer for each
+> > is inconvenient. Especially for the 16MB DMA zone which is unlikely
+> > to be cleared by the OOM killer anyways because normal user applications
+> > don't put pages in there. There was a real report with some problems
+> > in this area.
 > 
-> I updated my swapcgroup patch.
-> 
-> Major changes from previous version(*1):
-> - Rebased on 2.6.26-rc2-mm1 + KAMEZAWA-san's performance
->   improvement patchset v4.
-> - Implemented as a add-on to memory cgroup.
->   So, there is no need to add a new member to page_cgroup now.
-> - (NEW)Modified vm_swap_full() to calculate the rate of
->   swap usage per cgroup.
-> 
-> Patchs:
-> - [1/4] add cgroup files
-> - [2/4] add member to swap_info_struct for cgroup
-> - [3/4] implement charge/uncharge
-> - [4/4] modify vm_swap_full for cgroup
-> 
-> ToDo:
-> - handle force_empty.
-> - make it possible for users to select if they use
->   this feature or not, and avoid overhead for users
->   not using this feature.
-> - move charges along with task move between cgroups.
-> 
+> Can you give some pointers please ?
 
-Thanks for looking into this. Yamamoto-San is also looking into a swap
-controller. Is there a consensus on the approach?
+To the bug report? Memory is fuzzy, but I think it was some SUSE bugzilla
+report, might have been for SLES.
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Anyways the reasoning is still valid. Longer term the mask allocator
+would be the right fix, shorter term a new GFP flag as proposed 
+sounds reasonable.
+
+The trick is just that you need different __GFP_ flags for the different
+allocations. e.g. the first the "higher zone" quick try should
+continue to use __GFP_NORETRY. And the 16MB one should too. It would
+only make sense for the main request.
+
+In the mask allocator patchkit kernel it should be also ok already.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
