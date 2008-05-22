@@ -1,62 +1,42 @@
-Date: Thu, 22 May 2008 16:44:21 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 0/4] swapcgroup(v2)
-Message-Id: <20080522164421.84849565.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <48350F15.9070007@mxp.nes.nec.co.jp>
-References: <48350F15.9070007@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Thu, 22 May 2008 17:00:14 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 4/4] swapcgroup: modify vm_swap_full for cgroup
+In-Reply-To: <48351120.6000800@mxp.nes.nec.co.jp>
+References: <48350F15.9070007@mxp.nes.nec.co.jp> <48351120.6000800@mxp.nes.nec.co.jp>
+Message-Id: <20080522165322.F516.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 May 2008 15:13:41 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+Hi,
 
-> Hi.
-> 
-> I updated my swapcgroup patch.
-> 
-seems good in general.
+> +#ifndef CONFIG_CGROUP_SWAP_RES_CTLR
+>  /* Swap 50% full? Release swapcache more aggressively.. */
+> -#define vm_swap_full() (nr_swap_pages*2 < total_swap_pages)
+> +#define vm_swap_full(page) (nr_swap_pages*2 < total_swap_pages)
+> +#else
+> +#define vm_swap_full(page) swap_cgroup_vm_swap_full(page)
+> +#endif
 
+I'd prefer #ifdef rather than #ifndef.
 
-> Major changes from previous version(*1):
-> - Rebased on 2.6.26-rc2-mm1 + KAMEZAWA-san's performance
->   improvement patchset v4.
-> - Implemented as a add-on to memory cgroup.
->   So, there is no need to add a new member to page_cgroup now.
-> - (NEW)Modified vm_swap_full() to calculate the rate of
->   swap usage per cgroup.
-> 
-> Patchs:
-> - [1/4] add cgroup files
-> - [2/4] add member to swap_info_struct for cgroup
-> - [3/4] implement charge/uncharge
-> - [4/4] modify vm_swap_full for cgroup
-> 
-> ToDo:
-> - handle force_empty.
+so...
 
-Without this, we can do rmdir() against cgroup with swap. right ?
+#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
+  your definition
+#else
+  original definition
+#endif
 
-> - make it possible for users to select if they use
->   this feature or not, and avoid overhead for users
->   not using this feature.
-> - move charges along with task move between cgroups.
-> 
-I think memory-controller's anon pages should also do this....
-But how do you think about shared entries ?
+and vm_swap_full() isn't page granularity operation.
+this is memory(or swap) cgroup operation.
 
-
-
-Thanks,
--Kame
-
-
-
+this argument is slightly odd.
 
 
 
