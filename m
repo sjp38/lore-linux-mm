@@ -1,20 +1,21 @@
 Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28smtp05.in.ibm.com (8.13.1/8.13.1) with ESMTP id m4MAEsqR003238
-	for <linux-mm@kvack.org>; Thu, 22 May 2008 15:44:54 +0530
+	by e28esmtp07.in.ibm.com (8.13.1/8.13.1) with ESMTP id m4MAFMgB032502
+	for <linux-mm@kvack.org>; Thu, 22 May 2008 15:45:22 +0530
 Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4MAEgFV1384696
-	for <linux-mm@kvack.org>; Thu, 22 May 2008 15:44:42 +0530
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4MAFAG01188038
+	for <linux-mm@kvack.org>; Thu, 22 May 2008 15:45:10 +0530
 Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id m4MAEKBZ022698
-	for <linux-mm@kvack.org>; Thu, 22 May 2008 15:44:20 +0530
-Message-ID: <4835476A.3020506@linux.vnet.ibm.com>
-Date: Thu, 22 May 2008 15:44:02 +0530
+	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id m4MAEmxL023165
+	for <linux-mm@kvack.org>; Thu, 22 May 2008 15:44:48 +0530
+Message-ID: <4835477D.1020609@linux.vnet.ibm.com>
+Date: Thu, 22 May 2008 15:44:21 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [-mm][PATCH 2/4] Setup the memrlimit controller (v5)
-References: <20080521152921.15001.65968.sendpatchset@localhost.localdomain> <20080521152948.15001.39361.sendpatchset@localhost.localdomain> <20080521211833.bc7c5255.akpm@linux-foundation.org>
-In-Reply-To: <20080521211833.bc7c5255.akpm@linux-foundation.org>
+Subject: Re: [-mm][PATCH 3/4] cgroup mm owner callback changes to add task
+ info (v5)
+References: <20080521152921.15001.65968.sendpatchset@localhost.localdomain> <20080521152959.15001.14495.sendpatchset@localhost.localdomain> <20080521211958.ca4f733c.akpm@linux-foundation.org>
+In-Reply-To: <20080521211958.ca4f733c.akpm@linux-foundation.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,20 +25,25 @@ Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takas
 List-ID: <linux-mm.kvack.org>
 
 Andrew Morton wrote:
-> On Wed, 21 May 2008 20:59:48 +0530 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> On Wed, 21 May 2008 20:59:59 +0530 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
->> +static int memrlimit_cgroup_write_strategy(char *buf, unsigned long long *tmp)
+>> This patch adds an additional field to the mm_owner callbacks. This field
+>> is required to get to the mm that changed. Hold mmap_sem in write mode
+>> before calling the mm_owner_changed callback
+>>
+>> ...
+>>
+>> + * The callbacks are invoked with mmap_sem held in read mode.
 > 
-> grumble.  I think I requested a checkpatch warning whenever it comes
-> across "tmp" or "temp".  Even better would be a gcc coredump.
+> Is that true?
 > 
+>> +	down_write(&mm->mmap_sem);
+>> ...
+>>  	cgroup_mm_owner_callbacks(mm->owner, c);
+> 
+> Looks like write-mode to me?
 
-:-)
-
-> I'm sure there's something more meaningful we could use here?
-
-I'll send a patch to fix this.
-
+Yes, obsolete comment. Will fix.
 
 -- 
 	Warm Regards,
