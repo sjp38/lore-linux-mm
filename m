@@ -1,21 +1,21 @@
 Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28esmtp07.in.ibm.com (8.13.1/8.13.1) with ESMTP id m4MAFMgB032502
-	for <linux-mm@kvack.org>; Thu, 22 May 2008 15:45:22 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4MAFAG01188038
-	for <linux-mm@kvack.org>; Thu, 22 May 2008 15:45:10 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id m4MAEmxL023165
-	for <linux-mm@kvack.org>; Thu, 22 May 2008 15:44:48 +0530
-Message-ID: <4835477D.1020609@linux.vnet.ibm.com>
-Date: Thu, 22 May 2008 15:44:21 +0530
+	by e28esmtp07.in.ibm.com (8.13.1/8.13.1) with ESMTP id m4MAG6Bf000795
+	for <linux-mm@kvack.org>; Thu, 22 May 2008 15:46:06 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4MAFr6t1380444
+	for <linux-mm@kvack.org>; Thu, 22 May 2008 15:45:53 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id m4MAFn0F000895
+	for <linux-mm@kvack.org>; Thu, 22 May 2008 15:45:50 +0530
+Message-ID: <483547B1.6030604@linux.vnet.ibm.com>
+Date: Thu, 22 May 2008 15:45:13 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [-mm][PATCH 3/4] cgroup mm owner callback changes to add task
- info (v5)
-References: <20080521152921.15001.65968.sendpatchset@localhost.localdomain> <20080521152959.15001.14495.sendpatchset@localhost.localdomain> <20080521211958.ca4f733c.akpm@linux-foundation.org>
-In-Reply-To: <20080521211958.ca4f733c.akpm@linux-foundation.org>
+Subject: Re: [-mm][PATCH 4/4] Add memrlimit controller accounting and control
+ (v5)
+References: <20080521152921.15001.65968.sendpatchset@localhost.localdomain> <20080521153012.15001.96490.sendpatchset@localhost.localdomain> <20080521212408.6f535259.akpm@linux-foundation.org>
+In-Reply-To: <20080521212408.6f535259.akpm@linux-foundation.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -25,25 +25,36 @@ Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takas
 List-ID: <linux-mm.kvack.org>
 
 Andrew Morton wrote:
-> On Wed, 21 May 2008 20:59:59 +0530 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> On Wed, 21 May 2008 21:00:12 +0530 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
->> This patch adds an additional field to the mm_owner callbacks. This field
->> is required to get to the mm that changed. Hold mmap_sem in write mode
->> before calling the mm_owner_changed callback
+>> This patch adds support for accounting and control of virtual address space
+>> limits. The accounting is done via the rlimit_cgroup_(un)charge_as functions.
+>> The core of the accounting takes place during fork time in copy_process(),
+>> may_expand_vm(), remove_vma_list() and exit_mmap(). 
+>>
+>> Changelog v5->v4
+>>
+>> Move specific hooks in code to insert_vm_struct
+>> Use mmap_sem to protect mm->owner from changing and mm->owner from
+>> changing cgroups.
 >>
 >> ...
 >>
->> + * The callbacks are invoked with mmap_sem held in read mode.
+>> + * brk(), sbrk()), stack expansion, mremap(), etc - called with
+>> + * mmap_sem held.
+>> + * decreasing - called with mmap_sem held.
+>> + * This callback is called with mmap_sem held
 > 
-> Is that true?
+> It's good to document the locking prerequisites but for rwsems, one
+> should specify whether it must be held for reading or for writing.
 > 
->> +	down_write(&mm->mmap_sem);
->> ...
->>  	cgroup_mm_owner_callbacks(mm->owner, c);
+> Of course, down_write() is a superset of down_read(), so if it's "held
+> for reading" then either mode-of-holding is OK.  But it's best to spell
+> all that out.
 > 
-> Looks like write-mode to me?
 
-Yes, obsolete comment. Will fix.
+Sure, will do
+
 
 -- 
 	Warm Regards,
