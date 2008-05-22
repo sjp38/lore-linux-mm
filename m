@@ -1,45 +1,32 @@
-Date: Thu, 22 May 2008 17:00:14 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/4] swapcgroup: modify vm_swap_full for cgroup
-In-Reply-To: <48351120.6000800@mxp.nes.nec.co.jp>
-References: <48350F15.9070007@mxp.nes.nec.co.jp> <48351120.6000800@mxp.nes.nec.co.jp>
-Message-Id: <20080522165322.F516.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Date: Thu, 22 May 2008 10:47:36 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: 2.6.26: x86/kernel/pci_dma.c: gfp |= __GFP_NORETRY ?
+Message-ID: <20080522084736.GC31727@one.firstfloor.org>
+References: <20080521113028.GA24632@xs4all.net> <48341A57.1030505@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <48341A57.1030505@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: kosaki.motohiro@jp.fujitsu.com, Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Glauber Costa <gcosta@redhat.com>
+Cc: Miquel van Smoorenburg <miquels@cistron.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi-suse@firstfloor.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed, May 21, 2008 at 09:49:27AM -0300, Glauber Costa wrote:
+> probably andi has a better idea on why it was added, since it used to 
+> live in his tree?
 
-> +#ifndef CONFIG_CGROUP_SWAP_RES_CTLR
->  /* Swap 50% full? Release swapcache more aggressively.. */
-> -#define vm_swap_full() (nr_swap_pages*2 < total_swap_pages)
-> +#define vm_swap_full(page) (nr_swap_pages*2 < total_swap_pages)
-> +#else
-> +#define vm_swap_full(page) swap_cgroup_vm_swap_full(page)
-> +#endif
+d_a_c() tries a couple of zones, and running the oom killer for each
+is inconvenient. Especially for the 16MB DMA zone which is unlikely
+to be cleared by the OOM killer anyways because normal user applications
+don't put pages in there. There was a real report with some problems
+in this area. Also for the earlier tries you don't want to really
+bring the system into swap.
 
-I'd prefer #ifdef rather than #ifndef.
+Mask allocator would clean most of that up.
 
-so...
-
-#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-  your definition
-#else
-  original definition
-#endif
-
-and vm_swap_full() isn't page granularity operation.
-this is memory(or swap) cgroup operation.
-
-this argument is slightly odd.
-
-
-
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
