@@ -1,11 +1,10 @@
-Date: Thu, 22 May 2008 16:23:12 +0900
+Date: Thu, 22 May 2008 16:37:48 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/4] swapcgroup: add member to swap_info_struct for
- cgroup
-Message-Id: <20080522162312.a60d914b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4835104B.4040405@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 3/4] swapcgroup: implement charge/uncharge
+Message-Id: <20080522163748.74e9bd4f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <48351095.3040009@mxp.nes.nec.co.jp>
 References: <48350F15.9070007@mxp.nes.nec.co.jp>
-	<4835104B.4040405@mxp.nes.nec.co.jp>
+	<48351095.3040009@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -15,166 +14,138 @@ To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Cc: Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 May 2008 15:18:51 +0900
+On Thu, 22 May 2008 15:20:05 +0900
 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-> This patch add a member to swap_info_struct for cgroup.
-> 
-> This member, array of pointers to mem_cgroup, is used to
-> remember to which cgroup each swap entries are charged.
-> 
-> The memory for this array of pointers is allocated on swapon,
-> and freed on swapoff.
-> 
-Hi, in general, #ifdefs in the middle of functions are not good style.
-I'd like to comment some hints.
-
-> 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 
-> ---
->  include/linux/swap.h |    3 +++
->  mm/swapfile.c        |   32 ++++++++++++++++++++++++++++++++
->  2 files changed, 35 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index de40f16..67de27b 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -141,6 +141,9 @@ struct swap_info_struct {
->  	struct swap_extent *curr_swap_extent;
->  	unsigned old_block_size;
->  	unsigned short * swap_map;
 > +#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-> +	struct mem_cgroup **memcg;
+> +int swap_cgroup_charge(struct page *page,
+> +			struct swap_info_struct *si,
+> +			unsigned long offset)
+> +{
+> +	int ret;
+> +	struct page_cgroup *pc;
+> +	struct mem_cgroup *mem;
+> +
+> +	lock_page_cgroup(page);
+> +	pc = page_get_page_cgroup(page);
+> +	if (unlikely(!pc))
+> +		mem = &init_mem_cgroup;
+> +	else
+> +		mem = pc->mem_cgroup;
+> +	unlock_page_cgroup(page);
+
+If !pc, the page is used before memory controller is available. But is it
+good to be charged to init_mem_cgroup() ?
+How about returning 'failure' in this case ? I think returning 'failure' here
+is not so bad.
+
+
+> +
+> +	css_get(&mem->css);
+
+move this css_get() before unlock_page_cgroup() is safer.
+
+> +	ret = res_counter_charge(&mem->swap_res, PAGE_SIZE);
+> +	if (!ret)
+> +		si->memcg[offset] = mem;
+> +	else
+> +		css_put(&mem->css);
+> +
+> +	return ret;
+> +}
+> +
+> +void swap_cgroup_uncharge(struct swap_info_struct *si,
+> +				unsigned long offset)
+> +{
+> +	struct mem_cgroup *mem = si->memcg[offset];
+> +
+> +	/* "mem" would be NULL:
+> +	 * 1. when get_swap_page() failed at charging swap_cgroup,
+> +	 *    and called swap_entry_free().
+> +	 * 2. when this swap entry had been assigned by
+> +	 *    get_swap_page_of_type() (via SWSUSP?).
+> +	 */
+> +	if (mem) {
+> +		res_counter_uncharge(&mem->swap_res, PAGE_SIZE);
+> +		si->memcg[offset] = NULL;
+> +		css_put(&mem->css);
+> +	}
+> +}
 > +#endif
->  	unsigned int lowest_bit;
->  	unsigned int highest_bit;
->  	unsigned int cluster_next;
+> +
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 95b056d..69f8909 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -1029,7 +1029,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
+>  	 * want to check if there's a redundant swappage to be discarded.
+>  	 */
+>  	if (wbc->for_reclaim)
+> -		swap = get_swap_page();
+> +		swap = get_swap_page(page);
+>  	else
+>  		swap.val = 0;
+>  
+> diff --git a/mm/swap_state.c b/mm/swap_state.c
+> index 676e191..a78d617 100644
+> --- a/mm/swap_state.c
+> +++ b/mm/swap_state.c
+> @@ -130,7 +130,7 @@ int add_to_swap(struct page * page, gfp_t gfp_mask)
+>  	BUG_ON(!PageUptodate(page));
+>  
+>  	for (;;) {
+> -		entry = get_swap_page();
+> +		entry = get_swap_page(page);
+>  		if (!entry.val)
+>  			return 0;
+>  
 > diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index d3caf3a..232bf20 100644
+> index 232bf20..682b71e 100644
 > --- a/mm/swapfile.c
 > +++ b/mm/swapfile.c
-> @@ -1207,6 +1207,9 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
->  {
->  	struct swap_info_struct * p = NULL;
->  	unsigned short *swap_map;
-> +#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-> +	struct mem_cgroup **memcg;
-> +#endif
-Remove #ifdef.
-
- struct mem_cgroup **memcg = NULL;
-
->  	struct file *swap_file, *victim;
->  	struct address_space *mapping;
->  	struct inode *inode;
-> @@ -1309,10 +1312,17 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
->  	p->max = 0;
->  	swap_map = p->swap_map;
->  	p->swap_map = NULL;
-> +#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-> +	memcg = p->memcg;
-> +	p->memcg = NULL;
-> +#endif
-
-
-==
-#ifdef CONFIG_CGROUP_SWAP_RES_CTR
-  void  swap_cgroup_init_memcg(p, memcg)
-  {
-    do something.
-  }
-#else
-   void  swap_cgroup_init_memcg(p, memcg)
-  {
-  }
-#endif
-==
-
->  	p->flags = 0;
->  	spin_unlock(&swap_lock);
->  	mutex_unlock(&swapon_mutex);
->  	vfree(swap_map);
-> +#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-> +	vfree(memcg);
-> +#endif
- if (memcg)
-      vfree(memcg);
-
-
->  	inode = mapping->host;
->  	if (S_ISBLK(inode->i_mode)) {
->  		struct block_device *bdev = I_BDEV(inode);
-> @@ -1456,6 +1466,9 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
->  	unsigned long maxpages = 1;
->  	int swapfilesize;
->  	unsigned short *swap_map;
-> +#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-> +	struct mem_cgroup **memcg;
-> +#endif
-Remove #ifdefs
-
->  	struct page *page = NULL;
->  	struct inode *inode = NULL;
->  	int did_down = 0;
-> @@ -1479,6 +1492,9 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
->  	p->swap_file = NULL;
->  	p->old_block_size = 0;
->  	p->swap_map = NULL;
-> +#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-> +	p->memcg = NULL;
-> +#endif
-
-void init_swap_ctlr_memcg(p);
-
->  	p->lowest_bit = 0;
->  	p->highest_bit = 0;
->  	p->cluster_nr = 0;
-> @@ -1651,6 +1667,15 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
->  				1 /* header page */;
->  		if (error)
->  			goto bad_swap;
-> +
-> +#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-> +		p->memcg = vmalloc(maxpages * sizeof(struct mem_cgroup *));
-> +		if (!p->memcg) {
-> +			error = -ENOMEM;
-> +			goto bad_swap;
-> +		}
-> +		memset(p->memcg, 0, maxpages * sizeof(struct mem_cgroup *));
-> +#endif
-void alloc_swap_ctlr_memcg(p)
-
-But this implies swapon will fail at memory shortage. Is it good ?
-
->  	}
+> @@ -172,7 +172,10 @@ no_page:
+>  	return 0;
+>  }
 >  
->  	if (nr_good_pages) {
-> @@ -1710,11 +1735,18 @@ bad_swap_2:
->  	swap_map = p->swap_map;
->  	p->swap_file = NULL;
->  	p->swap_map = NULL;
-> +#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-> +	memcg = p->memcg;
-> +	p->memcg = NULL;
-> +#endif
->  	p->flags = 0;
->  	if (!(swap_flags & SWAP_FLAG_PREFER))
->  		++least_priority;
->  	spin_unlock(&swap_lock);
->  	vfree(swap_map);
-> +#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-> +	vfree(memcg);
-> +#endif
->  	if (swap_file)
->  		filp_close(swap_file, NULL);
->  out:
+> -swp_entry_t get_swap_page(void)
+> +/* get_swap_page() calls this */
+> +static int swap_entry_free(struct swap_info_struct *, unsigned long);
+> +
+> +swp_entry_t get_swap_page(struct page *page)
+>  {
+>  	struct swap_info_struct *si;
+>  	pgoff_t offset;
+> @@ -201,6 +204,14 @@ swp_entry_t get_swap_page(void)
+>  		swap_list.next = next;
+>  		offset = scan_swap_map(si);
+>  		if (offset) {
+> +			/*
+> +			 * This should be the first use of this swap entry.
+> +			 * So, charge this swap entry here.
+> +			 */
+> +			if (swap_cgroup_charge(page, si, offset)) {
+> +				swap_entry_free(si, offset);
+> +				goto noswap;
+> +			}
+>  			spin_unlock(&swap_lock);
+>  			return swp_entry(type, offset);
+>  		}
+> @@ -285,6 +296,7 @@ static int swap_entry_free(struct swap_info_struct *p, unsigned long offset)
+>  				swap_list.next = p - swap_info;
+>  			nr_swap_pages++;
+>  			p->inuse_pages--;
+> +			swap_cgroup_uncharge(p, offset);
+>  		}
+>  	}
+>  	return count;
 > 
 > 
-
-Thanks,
--Kame
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
