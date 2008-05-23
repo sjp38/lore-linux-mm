@@ -1,44 +1,67 @@
-Date: Fri, 23 May 2008 07:25:46 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 08/18] hugetlb: multi hstate sysctls
-Message-ID: <20080523052546.GH13071@wotan.suse.de>
-References: <20080423015302.745723000@nick.local0.net> <20080423015430.487393000@nick.local0.net> <20080425181430.GG9680@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080425181430.GG9680@us.ibm.com>
+Message-ID: <4836563B.4060603@anu.edu.au>
+Date: Fri, 23 May 2008 15:29:31 +1000
+From: David Singleton <David.Singleton@anu.edu.au>
+Reply-To: David.Singleton@anu.edu.au
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/4] swapcgroup(v2)
+References: <20080523121027.b0eecfa0.kamezawa.hiroyu@jp.fujitsu.com> <4836411B.2030601@linux.vnet.ibm.com> <20080523131812.84F1.KOSAKI.MOTOHIRO@jp.fujitsu.com> <48364D38.7000304@linux.vnet.ibm.com>
+In-Reply-To: <48364D38.7000304@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
+To: balbir@linux.vnet.ibm.com
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, Pavel Emelyanov <xemul@openvz.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 25, 2008 at 11:14:30AM -0700, Nishanth Aravamudan wrote:
-> On 23.04.2008 [11:53:10 +1000], npiggin@suse.de wrote:
-> > Expand the hugetlbfs sysctls to handle arrays for all hstates. This
-> > now allows the removal of global_hstate -- everything is now hstate
-> > aware.
-> > 
-> > - I didn't bother with hugetlb_shm_group and treat_as_movable,
-> > these are still single global.
-> > - Also improve error propagation for the sysctl handlers a bit
+Balbir Singh wrote:
+> KOSAKI Motohiro wrote:
+>>> One option is to limit the virtual address space usage of the cgroup to ensure
+>>> that swap usage of a cgroup will *not* exceed the specified limit. Along with a
+>>> good swap controller, it should provide good control over the cgroup's memory usage.
+>> unfortunately, it doesn't works in real world.
+>> IMHO you said as old good age.
+>>
+>> because, Some JavaVM consume crazy large virtual address space.
+>> it often consume >10x than phycal memory consumption.
+>>
 > 
-> So, I may be mis-remembering, but the hugepages that are gigantic, that
-> is > MAX_ORDER, cannot be allocated or freed at run-time? If so, why do
+> Have you seen any real world example of this? 
 
-Right.
+At the unsophisticated end, there are lots of (Fortran) HPC applications
+with very large static array declarations but only "use" a small fraction
+of that.  Those users know they only need a small fraction and are happy
+to volunteer small physical memory limits that we (admins/queuing
+systems) can apply.
 
-> we need to report them in the sysctl? It's a read-only value, right?
+At the sophisticated end, the use of numerous large memory maps in
+parallel HPC applications to gain visibility into other processes is
+growing.  We have processes with VSZ > 400GB just because they have
+4GB maps into 127 other processes.  Their physical page use is of
+the order 2GB.
 
-I guess for reporting and compatibility.
+Imposing virtual address space limits on these applications is
+meaningless.
 
 
-> Similarly, for the sysfs interface thereto, can I just make them
-> read-only? I guess it would be an arbitrary difference from the other
-> files, but reflects reality?
+The overcommit feature of Linux.
+> We usually by default limit the overcommit to 1.5 times total memory (IIRC).
+> Yes, one can override that value, you get the same flexibility with the virtual
+> address space controller.
+> 
+> I thought java was particular about it with it's heap management options and policy.
+> 
+>> yes, that behaviour is crazy. but it is used widely.
+>> thus, We shouldn't assume virtual address space limitation.
+> 
+> It's useful in many cases to limit the virtual address space - to allow
+> applications to deal with memory failure, rather than
+> 
+> 1. OOM the application later
+> 2. Allow uncontrolled swapping (swap controller would help here)
+> 
 
-For the sysfs interface, I think that would be a fine idea to make
-them readonly if they cannot be changed.
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
