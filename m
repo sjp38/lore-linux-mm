@@ -1,177 +1,86 @@
 Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4NKYldo024719
-	for <linux-mm@kvack.org>; Fri, 23 May 2008 16:34:47 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4NKYlHT137754
-	for <linux-mm@kvack.org>; Fri, 23 May 2008 16:34:47 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4NKYkLp022225
-	for <linux-mm@kvack.org>; Fri, 23 May 2008 16:34:46 -0400
-Date: Fri, 23 May 2008 13:34:44 -0700
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4NKdBmf023568
+	for <linux-mm@kvack.org>; Fri, 23 May 2008 16:39:11 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4NKdBhn142430
+	for <linux-mm@kvack.org>; Fri, 23 May 2008 16:39:11 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4NKdAxc014599
+	for <linux-mm@kvack.org>; Fri, 23 May 2008 16:39:11 -0400
+Date: Fri, 23 May 2008 13:39:08 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [patch 07/18] hugetlbfs: per mount hstates
-Message-ID: <20080523203444.GD23924@us.ibm.com>
-References: <20080423015302.745723000@nick.local0.net> <20080423015430.378900000@nick.local0.net> <20080425180933.GF9680@us.ibm.com> <20080523052425.GG13071@wotan.suse.de>
+Subject: Re: [patch 17/18] x86: add hugepagesz option on 64-bit
+Message-ID: <20080523203908.GE23924@us.ibm.com>
+References: <20080423015302.745723000@nick.local0.net> <20080423015431.462123000@nick.local0.net> <20080430204841.GD6903@us.ibm.com> <20080523054133.GO13071@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080523052425.GG13071@wotan.suse.de>
+In-Reply-To: <20080523054133.GO13071@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
 Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On 23.05.2008 [07:24:25 +0200], Nick Piggin wrote:
-> On Fri, Apr 25, 2008 at 11:09:33AM -0700, Nishanth Aravamudan wrote:
-> > On 23.04.2008 [11:53:09 +1000], npiggin@suse.de wrote:
-> > > Add support to have individual hstates for each hugetlbfs mount
+On 23.05.2008 [07:41:33 +0200], Nick Piggin wrote:
+> On Wed, Apr 30, 2008 at 01:48:41PM -0700, Nishanth Aravamudan wrote:
+> > On 23.04.2008 [11:53:19 +1000], npiggin@suse.de wrote:
+> > > Add an hugepagesz=... option similar to IA64, PPC etc. to x86-64.
 > > > 
-> > > - Add a new pagesize= option to the hugetlbfs mount that allows setting
-> > > the page size
-> > > - Set up pointers to a suitable hstate for the set page size option
-> > > to the super block and the inode and the vma.
-> > > - Change the hstate accessors to use this information
-> > > - Add code to the hstate init function to set parsed_hstate for command
-> > > line processing
-> > > - Handle duplicated hstate registrations to the make command line user proof
-> > > 
-> > > [np: take hstate out of hugetlbfs inode and vma->vm_private_data]
-> > > 
-> > > Signed-off-by: Andi Kleen <ak@suse.de>
-> > > Signed-off-by: Nick Piggin <npiggin@suse.de>
-> > > ---
-> > >  fs/hugetlbfs/inode.c    |   48 ++++++++++++++++++++++++++++++++++++++----------
-> > >  include/linux/hugetlb.h |   14 +++++++++-----
-> > >  mm/hugetlb.c            |   16 +++-------------
-> > >  mm/memory.c             |   18 ++++++++++++++++--
-> > >  4 files changed, 66 insertions(+), 30 deletions(-)
-> > > 
-> > > Index: linux-2.6/include/linux/hugetlb.h
-> > > ===================================================================
+> > > This finally allows to select GB pages for hugetlbfs in x86 now
+> > > that all the infrastructure is in place.
 > > 
-> > <snip>
+> > Another more basic question ... how do we plan on making these hugepages
+> > available to applications. Obviously, an administrator can mount
+> > hugetlbfs with pagesize=1G or whatever and then users (with appropriate
+> > permissions) can mmap() files created therein. But what about
+> > SHM_HUGETLB? It uses a private internal mount of hugetlbfs, which I
+> > don't believe I saw a patch to add a pagesize= parameter for.
 > > 
-> > > @@ -226,19 +228,21 @@ extern struct hstate hstates[HUGE_MAX_HS
-> > > 
-> > >  #define global_hstate (hstates[0])
-> > > 
-> > > -static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
-> > > +static inline struct hstate *hstate_inode(struct inode *i)
-> > >  {
-> > > -	return &global_hstate;
-> > > +	struct hugetlbfs_sb_info *hsb;
-> > > +	hsb = HUGETLBFS_SB(i->i_sb);
-> > > +	return hsb->hstate;
-> > >  }
-> > > 
-> > >  static inline struct hstate *hstate_file(struct file *f)
-> > >  {
-> > > -	return &global_hstate;
-> > > +	return hstate_inode(f->f_dentry->d_inode);
-> > >  }
-> > > 
-> > > -static inline struct hstate *hstate_inode(struct inode *i)
-> > > +static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
-> > >  {
-> > > -	return &global_hstate;
-> > > +	return hstate_file(vma->vm_file);
-> > 
-> > Odd, diff seems to think you've moved these two functions around
-> > (hstate_{vma,inode})...
+> > So SHM_HUGETLB will (for now) always get the "default" hugepagesize,
+> > right, which should be the same as the legacy size? Given that an
+> > architecture may support several hugepage sizes, I have't been able to
+> > come up with a good way to extend shmget() to specify the preferred
+> > hugepagesize when SHM_HUGETLB is specified. I think for libhugetlbfs
+> > purposes, we will probably add another environment variable to control
+> > that...
 > 
-> Yep, one depends on the other...
-
-Yeah, I realized that shortly after. Sorry for that noise.
-
-> > >  static inline unsigned long huge_page_size(struct hstate *h)
-> > > Index: linux-2.6/fs/hugetlbfs/inode.c
-> > > ===================================================================
-> > 
-> > <snip>
-> > 
-> > > @@ -780,17 +784,13 @@ hugetlbfs_parse_options(char *options, s
-> > >  			break;
-> > > 
-> > >  		case Opt_size: {
-> > > - 			unsigned long long size;
-> > >  			/* memparse() will accept a K/M/G without a digit */
-> > >  			if (!isdigit(*args[0].from))
-> > >  				goto bad_val;
-> > >  			size = memparse(args[0].from, &rest);
-> > > -			if (*rest == '%') {
-> > > -				size <<= HPAGE_SHIFT;
-> > > -				size *= max_huge_pages;
-> > > -				do_div(size, 100);
-> > > -			}
-> > > -			pconfig->nr_blocks = (size >> HPAGE_SHIFT);
-> > > +			setsize = SIZE_STD;
-> > > +			if (*rest == '%')
-> > > +				setsize = SIZE_PERCENT;
-> > 
-> > This seems like a change that could be pulled into its own clean-up
-> > patch and merged up quicker?
-> > 
-> > > @@ -801,6 +801,19 @@ hugetlbfs_parse_options(char *options, s
-> > >  			pconfig->nr_inodes = memparse(args[0].from, &rest);
-> > >  			break;
-> > > 
-> > > +		case Opt_pagesize: {
-> > > +			unsigned long ps;
-> > > +			ps = memparse(args[0].from, &rest);
-> > > +			pconfig->hstate = size_to_hstate(ps);
-> > > +			if (!pconfig->hstate) {
-> > > +				printk(KERN_ERR
-> > > +				"hugetlbfs: Unsupported page size %lu MB\n",
-> > > +					ps >> 20);
-> > 
-> > This again will give odd output for pagesizes < 1MB (64k on power).
-> > 
-> > > @@ -808,6 +821,18 @@ hugetlbfs_parse_options(char *options, s
-> > >  			break;
-> > >  		}
-> > >  	}
-> > > +
-> > > +	/* Do size after hstate is set up */
-> > > +	if (setsize > NO_SIZE) {
-> > > +		struct hstate *h = pconfig->hstate;
-> > > +		if (setsize == SIZE_PERCENT) {
-> > > +			size <<= huge_page_shift(h);
-> > > +			size *= h->max_huge_pages;
-> > > +			do_div(size, 100);
-> > > +		}
-> > > +		pconfig->nr_blocks = (size >> huge_page_shift(h));
-> > > +	}
-> > 
-> > Oh, I see. We just moved the percent caclulation down here. Sorry about
-> > that, seems sensible to leave it in this patch then.
-> > 
-> > >  bad_val:
-> > > @@ -832,6 +857,7 @@ hugetlbfs_fill_super(struct super_block 
-> > >  	config.uid = current->fsuid;
-> > >  	config.gid = current->fsgid;
-> > >  	config.mode = 0755;
-> > > +	config.hstate = size_to_hstate(HPAGE_SIZE);
-> > 
-> > So, we still only have one hugepage size, which is why this is written
-> > this way. Seems odd that an early patch adds multiple hugepage size
-> > support, but we don't actually need it in the series until much later...
+> Good question. One thing I like to do in this patch is to make very
+> minimal as possible API changes even if it means userspace doesn't get
+> the full functionality in all corner cases like that.
 > 
-> True, but it is quite a long process and it is nice to have it working
-> each step of the way in small steps... I think the overall way Andi's
-> done the patchset is quite nice.
+> This way we can get the core work in and stabilized, then can take
+> more time to discuss the user apis.
+> 
+> For that matter, I'm almost inclined to submit the patchset with only
+> allow one active hstate specified on the command line, and no changes
+> to any sysctls... just to get the core code merged sooner ;) however
+> it is very valueable for testing and proof of concept to allow
+> multiple active hstates to be configured and run, so I think we have
+> to have that at least in -mm.
+> 
+> We probably have a month or two before the next merge window, so we
+> have enough time to think about api issues I hope.
 
-Yeah, I'm sorry if my review came across as overly critical at the time.
-I really am impressed with the amount of change and how it was
-presented. But, in all honesty, given that I have not seen many patches
-from Andi nor yourself for hugetlbfs code in the past few years, nor do
-I expect to see many in the future, I was trying to keep the code as
-sensible as possible for those of us that do interact with it regularly
-(and its userspace interface, especially !SHM_HUGETLB).
+I think your plan is sensible, and is certainly how I would approach
+adding this support to mainline. That is, all of the core hstate
+functionality can probably go upstream rather quickly, as it's
+functionally equivalent (and should be easy to verify as such with
+libhuge's tests on all supported architectures).
+
+I'm also hoping that once your patches are re-posted and hit -mm, I can
+send out my sysfs patch, after updating/testing it, and that could also
+go into -mm, which might allow the meminfo and sysctl patches to be
+dropped from the series. Depends on your perspective on those, I
+suppose, and might also need some coordination with Andrew to make the
+series build in the right order (so the sysfs patch can be dropped in,
+in place of both of them).
+
+Does that seem reasonable? Also, for -mm coordination, are you going to
+pull Jon's patches into your set, then?
 
 Thanks,
 Nish
-
 
 -- 
 Nishanth Aravamudan <nacc@us.ibm.com>
