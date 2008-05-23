@@ -1,67 +1,60 @@
-Message-ID: <4836563B.4060603@anu.edu.au>
-Date: Fri, 23 May 2008 15:29:31 +1000
-From: David Singleton <David.Singleton@anu.edu.au>
-Reply-To: David.Singleton@anu.edu.au
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] swapcgroup(v2)
-References: <20080523121027.b0eecfa0.kamezawa.hiroyu@jp.fujitsu.com> <4836411B.2030601@linux.vnet.ibm.com> <20080523131812.84F1.KOSAKI.MOTOHIRO@jp.fujitsu.com> <48364D38.7000304@linux.vnet.ibm.com>
-In-Reply-To: <48364D38.7000304@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Fri, 23 May 2008 07:28:56 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 08/18] hugetlb: multi hstate sysctls
+Message-ID: <20080523052856.GI13071@wotan.suse.de>
+References: <20080423015302.745723000@nick.local0.net> <20080423015430.487393000@nick.local0.net> <20080425233536.GA31226@us.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080425233536.GA31226@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, Pavel Emelyanov <xemul@openvz.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> KOSAKI Motohiro wrote:
->>> One option is to limit the virtual address space usage of the cgroup to ensure
->>> that swap usage of a cgroup will *not* exceed the specified limit. Along with a
->>> good swap controller, it should provide good control over the cgroup's memory usage.
->> unfortunately, it doesn't works in real world.
->> IMHO you said as old good age.
->>
->> because, Some JavaVM consume crazy large virtual address space.
->> it often consume >10x than phycal memory consumption.
->>
+On Fri, Apr 25, 2008 at 04:35:36PM -0700, Nishanth Aravamudan wrote:
+> On 23.04.2008 [11:53:10 +1000], npiggin@suse.de wrote:
+> > Expand the hugetlbfs sysctls to handle arrays for all hstates. This
+> > now allows the removal of global_hstate -- everything is now hstate
+> > aware.
+> > 
+> > - I didn't bother with hugetlb_shm_group and treat_as_movable,
+> > these are still single global.
+> > - Also improve error propagation for the sysctl handlers a bit
 > 
-> Have you seen any real world example of this? 
-
-At the unsophisticated end, there are lots of (Fortran) HPC applications
-with very large static array declarations but only "use" a small fraction
-of that.  Those users know they only need a small fraction and are happy
-to volunteer small physical memory limits that we (admins/queuing
-systems) can apply.
-
-At the sophisticated end, the use of numerous large memory maps in
-parallel HPC applications to gain visibility into other processes is
-growing.  We have processes with VSZ > 400GB just because they have
-4GB maps into 127 other processes.  Their physical page use is of
-the order 2GB.
-
-Imposing virtual address space limits on these applications is
-meaningless.
-
-
-The overcommit feature of Linux.
-> We usually by default limit the overcommit to 1.5 times total memory (IIRC).
-> Yes, one can override that value, you get the same flexibility with the virtual
-> address space controller.
+> <snip>
 > 
-> I thought java was particular about it with it's heap management options and policy.
+> > @@ -707,10 +717,25 @@ int hugetlb_sysctl_handler(struct ctl_ta
+> >  			   struct file *file, void __user *buffer,
+> >  			   size_t *length, loff_t *ppos)
+> >  {
+> > -	proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
+> > -	max_huge_pages = set_max_huge_pages(max_huge_pages);
+> > -	global_hstate.max_huge_pages = max_huge_pages;
+> > -	return 0;
+> > +	int err = 0;
+> > +	struct hstate *h;
+> > +
+> > +	err = proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
+> > +	if (err)
+> > +		return err;
+> > +
+> > +	if (write) {
+> > +		for_each_hstate (h) {
+> > +			int tmp;
+> > +
+> > +			h->max_huge_pages = set_max_huge_pages(h,
+> > +					max_huge_pages[h - hstates], &tmp);
+> > +			max_huge_pages[h - hstates] = h->max_huge_pages;
+> > +			if (tmp && !err)
+> > +				err = tmp;
+> > +		}
+> > +	}
 > 
->> yes, that behaviour is crazy. but it is used widely.
->> thus, We shouldn't assume virtual address space limitation.
-> 
-> It's useful in many cases to limit the virtual address space - to allow
-> applications to deal with memory failure, rather than
-> 
-> 1. OOM the application later
-> 2. Allow uncontrolled swapping (swap controller would help here)
-> 
+> Could this same condition be added to the overcommit handler, please?
 
-David
+Sure thing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
