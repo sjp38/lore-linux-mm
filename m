@@ -1,132 +1,57 @@
-Date: Fri, 23 May 2008 08:25:11 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 1/6 v2] allow arch specific function for allocating gigantic pages
-Message-ID: <20080523062511.GA10687@wotan.suse.de>
-References: <4829CAC3.30900@us.ibm.com> <4829CDA8.9070106@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4829CDA8.9070106@us.ibm.com>
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp02.in.ibm.com (8.13.1/8.13.1) with ESMTP id m4N6kDG9008983
+	for <linux-mm@kvack.org>; Fri, 23 May 2008 12:16:13 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4N6k1jN1298436
+	for <linux-mm@kvack.org>; Fri, 23 May 2008 12:16:01 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id m4N6kDnB021596
+	for <linux-mm@kvack.org>; Fri, 23 May 2008 12:16:13 +0530
+Message-ID: <483667FB.1030702@linux.vnet.ibm.com>
+Date: Fri, 23 May 2008 12:15:15 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/4] swapcgroup(v2)
+References: <48364D38.7000304@linux.vnet.ibm.com> <4836563B.4060603@anu.edu.au> <20080523145947.84F4.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20080523145947.84F4.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kniht@linux.vnet.ibm.com
-Cc: linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@ozlabs.org>, Paul Mackerras <paulus@samba.org>, Nishanth Aravamudan <nacc@us.ibm.com>, Andi Kleen <andi@firstfloor.org>, Adam Litke <agl@us.ibm.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: David.Singleton@anu.edu.au, Rik van Riel <riel@redhat.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Linux MM <linux-mm@kvack.org>, Linux Containers <containers@lists.osdl.org>, Hugh Dickins <hugh@veritas.com>, Pavel Emelyanov <xemul@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 13, 2008 at 12:19:36PM -0500, Jon Tollefson wrote:
-> Allow alloc_bm_huge_page() to be overridden by architectures that can't
-> always use bootmem. This requires huge_boot_pages to be available for
-> use by this function. The 16G pages on ppc64 have to be reserved prior
-> to boot-time. The location of these pages are indicated in the device
-> tree.
+KOSAKI Motohiro wrote:
+>>> Have you seen any real world example of this? 
+>> At the unsophisticated end, there are lots of (Fortran) HPC applications
+>> with very large static array declarations but only "use" a small fraction
+>> of that.  Those users know they only need a small fraction and are happy
+>> to volunteer small physical memory limits that we (admins/queuing
+>> systems) can apply.
+>>
+>> At the sophisticated end, the use of numerous large memory maps in
+>> parallel HPC applications to gain visibility into other processes is
+>> growing.  We have processes with VSZ > 400GB just because they have
+>> 4GB maps into 127 other processes.  Their physical page use is of
+>> the order 2GB.
+> 
+> Ah, agreed.
+> Fujitsu HPC user said similar things ago.
 
-That looks fine. I wonder if we should call it something else now?
-Anyway, nevermind naming for the moment.
+OK, so this use case is HPC specific. I am not against the swap controller, but
+overcommit can lead to problems if not controlled - such as OOM kill. The
+virtual address space limit helps applications fail gracefully rather than swap
+out excessively or OOM.
 
+I suspect there'll be applications that swing both ways.
 
-> A BUG_ON in huge_add_hstate is commented out in order to allow 64K huge
-> pages to continue to work on power.
-
-Fine. I'll remove the BUG_ON completely from where it was
-introduced.
-
-
-> Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
-> ---
-> 
-> include/linux/hugetlb.h |   10 ++++++++++
-> mm/hugetlb.c            |   15 ++++++---------
-> 2 files changed, 16 insertions(+), 9 deletions(-)
-> 
-> 
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index 8c47ca7..b550ec7 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -35,6 +35,7 @@ void hugetlb_unreserve_pages(struct inode *inode, long 
-> offset, long freed);
-> extern unsigned long hugepages_treat_as_movable;
-> extern const unsigned long hugetlb_zero, hugetlb_infinity;
-> extern int sysctl_hugetlb_shm_group;
-> +extern struct list_head huge_boot_pages;
-> 
-> /* arch callbacks */
-> 
-> @@ -205,6 +206,14 @@ struct hstate {
-> 	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
-> };
-> 
-> +struct huge_bm_page {
-> +	struct list_head list;
-> +	struct hstate *hstate;
-> +};
-> +
-> +/* arch callback */
-> +int alloc_bm_huge_page(struct hstate *h);
-> +
-> void __init huge_add_hstate(unsigned order);
-> struct hstate *size_to_hstate(unsigned long size);
-> 
-> @@ -256,6 +265,7 @@ extern unsigned long 
-> sysctl_overcommit_huge_pages[HUGE_MAX_HSTATE];
-> 
-> #else
-> struct hstate {};
-> +#define alloc_bm_huge_page(h) NULL
-> #define hstate_file(f) NULL
-> #define hstate_vma(v) NULL
-> #define hstate_inode(i) NULL
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 5273f6c..efb5805 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -27,6 +27,7 @@ unsigned long max_huge_pages[HUGE_MAX_HSTATE];
-> unsigned long sysctl_overcommit_huge_pages[HUGE_MAX_HSTATE];
-> static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
-> unsigned long hugepages_treat_as_movable;
-> +struct list_head huge_boot_pages;
-> 
-> static int max_hstate = 0;
-> 
-> @@ -533,14 +534,8 @@ static struct page *alloc_huge_page(struct 
-> vm_area_struct *vma,
-> 	return page;
-> }
-> 
-> -static __initdata LIST_HEAD(huge_boot_pages);
-> -
-> -struct huge_bm_page {
-> -	struct list_head list;
-> -	struct hstate *hstate;
-> -};
-> -
-> -static int __init alloc_bm_huge_page(struct hstate *h)
-> +/* Can be overriden by architectures */
-> +__attribute__((weak)) int alloc_bm_huge_page(struct hstate *h)
-> {
-> 	struct huge_bm_page *m;
-> 	int nr_nodes = nodes_weight(node_online_map);
-> @@ -583,6 +578,8 @@ static void __init hugetlb_init_hstate(struct hstate *h)
-> 	unsigned long i;
-> 
-> 	/* Don't reinitialize lists if they have been already init'ed */
-> +	if (!huge_boot_pages.next)
-> +		INIT_LIST_HEAD(&huge_boot_pages);
-> 	if (!h->hugepage_freelists[0].next) {
-> 		for (i = 0; i < MAX_NUMNODES; ++i)
-> 			INIT_LIST_HEAD(&h->hugepage_freelists[i]);
-> @@ -664,7 +661,7 @@ void __init huge_add_hstate(unsigned order)
-> 		return;
-> 	}
-> 	BUG_ON(max_hstate >= HUGE_MAX_HSTATE);
-> -	BUG_ON(order < HPAGE_SHIFT - PAGE_SHIFT);
-> +/*	BUG_ON(order < HPAGE_SHIFT - PAGE_SHIFT);*/
-> 	h = &hstates[max_hstate++];
-> 	h->order = order;
-> 	h->mask = ~((1ULL << (order + PAGE_SHIFT)) - 1);
-> 
-> 
-> 
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
