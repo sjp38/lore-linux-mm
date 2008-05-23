@@ -1,39 +1,30 @@
-Date: Fri, 23 May 2008 14:09:35 +0100
-Subject: Re: max_mapnr config option
-Message-ID: <20080523130935.GA23176@shadowen.org>
-References: <1207340609.26869.20.camel@nimitz.home.sr71.net> <20080407091756.GC17915@shadowen.org> <87iqyuhth2.fsf@saeurebad.de> <20080408105137.GD17915@shadowen.org>
-MIME-Version: 1.0
+Date: Fri, 23 May 2008 16:29:56 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [patch 17/18] x86: add hugepagesz option on 64-bit
+Message-ID: <20080523142956.GI31727@one.firstfloor.org>
+References: <20080423015302.745723000@nick.local0.net> <20080423015431.462123000@nick.local0.net> <20080430204841.GD6903@us.ibm.com> <20080523054133.GO13071@wotan.suse.de> <20080523104327.GG31727@one.firstfloor.org> <20080523123436.GA25172@wotan.suse.de>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080408105137.GD17915@shadowen.org>
-From: apw@shadowen.org
+In-Reply-To: <20080523123436.GA25172@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Johannes Weiner <hannes@saeurebad.de>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, Jeremy Fitzhardinge <jeremy@goop.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, Nishanth Aravamudan <nacc@us.ibm.com>, akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 08, 2008 at 11:51:38AM +0100, Andy Whitcroft wrote:
-> On Mon, Apr 07, 2008 at 12:03:53PM +0200, Johannes Weiner wrote:
-> > Hi,
-> > 
-> > Andy Whitcroft <apw@shadowen.org> writes:
-> > 
-> > > BUT.  Looking over the actual references, there is a lot of references
-> > > occuring out of show_mem implementations in the arches which may well break
-> > > unless they follow suit.  We also don't have any show_mem implementation
-> > > for sparsemem.  I will have a look at what can be trivially cleaned
-> > > up here.
-> > 
-> > Perhaps you might be interested in http://lkml.org/lkml/2008/4/4/ .
-> 
-> How annoying is that, you have done the same thing I've just done.  I'll
-> look at your version and base off that.
+> Oh, maybe you misunderstand what I meant: I think the multiple hugepages
+> stuff is nice, and definitely should go in. But I think that if there is
+> any more disagreement over the userspace APIs, then we should just merge
 
-Whatever happened to this series.  I don't see it committed anywhere.
-Do you have a latest stack I could rebase my max_mapnr fixes off?
+What disagreement was there? (sorry didn't notice it)
 
--apw
+AFAIK the patchkit does not change any user interfaces except for adding
+a few numbers to one line of /proc/meminfo and a few other sysctls which seems 
+hardly like a big change
+(and calling that a "API" would be making a mountain out of a molehill)
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
