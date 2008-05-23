@@ -1,36 +1,39 @@
-Date: Fri, 23 May 2008 15:00:42 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 0/4] swapcgroup(v2)
-In-Reply-To: <4836563B.4060603@anu.edu.au>
-References: <48364D38.7000304@linux.vnet.ibm.com> <4836563B.4060603@anu.edu.au>
-Message-Id: <20080523145947.84F4.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Date: Fri, 23 May 2008 08:04:39 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 13/18] hugetlb: support boot allocate different sizes
+Message-ID: <20080523060438.GC4520@wotan.suse.de>
+References: <20080423015302.745723000@nick.local0.net> <20080423015431.027712000@nick.local0.net> <20080425184041.GH9680@us.ibm.com> <20080523053641.GM13071@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080523053641.GM13071@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David.Singleton@anu.edu.au
-Cc: kosaki.motohiro@jp.fujitsu.com, balbir@linux.vnet.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, Pavel Emelyanov <xemul@openvz.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-> > Have you seen any real world example of this? 
+On Fri, May 23, 2008 at 07:36:41AM +0200, Nick Piggin wrote:
+> On Fri, Apr 25, 2008 at 11:40:41AM -0700, Nishanth Aravamudan wrote:
+> > 
+> > So, you made max_huge_pages an array of the same size as the hstates
+> > array, right?
+> > 
+> > So why can't we directly use h->max_huge_pagees everywhere, and *only*
+> > touch max_huge_pages in the sysctl path.
 > 
-> At the unsophisticated end, there are lots of (Fortran) HPC applications
-> with very large static array declarations but only "use" a small fraction
-> of that.  Those users know they only need a small fraction and are happy
-> to volunteer small physical memory limits that we (admins/queuing
-> systems) can apply.
-> 
-> At the sophisticated end, the use of numerous large memory maps in
-> parallel HPC applications to gain visibility into other processes is
-> growing.  We have processes with VSZ > 400GB just because they have
-> 4GB maps into 127 other processes.  Their physical page use is of
-> the order 2GB.
+> It's just to bring up the max_huge_pages array initially for the
+> sysctl read path. I guess the array could be built every time the
+> sysctl handler runs as another option... that might hide away a
+> bit of the ugliness into the sysctl code I suppose. I'll see how
+> it looks.
 
-Ah, agreed.
-Fujitsu HPC user said similar things ago.
-
-
+Hmm, I think we could get into problems with the issue of kernel parameter
+passing vs hstate setup, so things might get a bit fragile. I think
+it is robust at this point in time to retain the max_huge_pages array
+if the hugetlb vs arch hstate registration setup gets revamped, it
+might be something to look at, but I prefer to keep it rather than tinker
+at this point.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
