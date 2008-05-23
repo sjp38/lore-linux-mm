@@ -1,38 +1,59 @@
-Date: Fri, 23 May 2008 07:03:47 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 02/18] hugetlb: factor out huge_new_page
-Message-ID: <20080523050346.GC13071@wotan.suse.de>
-References: <481183FC.9060408@firstfloor.org> <20080425165424.GA9680@us.ibm.com> <Pine.LNX.4.64.0804251210530.5971@schroedinger.engr.sgi.com> <20080425192942.GB14623@us.ibm.com> <Pine.LNX.4.64.0804301215220.27955@schroedinger.engr.sgi.com> <20080430204428.GC6903@us.ibm.com> <Pine.LNX.4.64.0805011222350.8738@schroedinger.engr.sgi.com> <20080501202520.GA12354@us.ibm.com> <Pine.LNX.4.64.0805011333430.9486@schroedinger.engr.sgi.com> <20080501210116.GB12354@us.ibm.com>
+Date: Fri, 23 May 2008 14:23:05 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 0/4] swapcgroup(v2)
+Message-Id: <20080523142305.99c1972b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <48364D38.7000304@linux.vnet.ibm.com>
+References: <20080523121027.b0eecfa0.kamezawa.hiroyu@jp.fujitsu.com>
+	<4836411B.2030601@linux.vnet.ibm.com>
+	<20080523131812.84F1.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<48364D38.7000304@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080501210116.GB12354@us.ibm.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
+To: balbir@linux.vnet.ibm.com
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, Pavel Emelyanov <xemul@openvz.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 01, 2008 at 02:01:16PM -0700, Nishanth Aravamudan wrote:
-> On 01.05.2008 [13:34:23 -0700], Christoph Lameter wrote:
-> > On Thu, 1 May 2008, Nishanth Aravamudan wrote:
+On Fri, 23 May 2008 10:21:04 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+
+> KOSAKI Motohiro wrote:
+> >> One option is to limit the virtual address space usage of the cgroup to ensure
+> >> that swap usage of a cgroup will *not* exceed the specified limit. Along with a
+> >> good swap controller, it should provide good control over the cgroup's memory usage.
 > > 
-> > > I'm pretty sure when I first created alloc_huge_page_node(), you argued
-> > > for me *not* using page_to_nid() on the returned page because we expect
-> > > __GFP_THISNODE to do the right thing.
+> > unfortunately, it doesn't works in real world.
+> > IMHO you said as old good age.
 > > 
-> > I vaguely remember that the issue at that point was that you were trying 
-> > to compensate for __GFP_THISNODE brokenness?
+> > because, Some JavaVM consume crazy large virtual address space.
+> > it often consume >10x than phycal memory consumption.
+> > 
 > 
-> That's a good point -- it was at the time. My point is again here, this
-> particular callpath *is* using __GPF_THISNODE -- and always will as it's
-> a node-specific function call. Other callpaths may not, yes, but they
-> are passing the page in, which means they can call page_to_nid(). Just
-> seems to calculate a nid we already have.
+> Have you seen any real world example of this? 
+I have no objection to that virual-address-space limitation can work well on
+well-controlled-system. But there are more complicated systems in chaos.
 
-Given the discussion, I'll pass in the nid argument and add a comment.
+One example I know was that a team for the system tried to count all vm space
+for setting vm.overcommit_memory to be proper value. The just found they can't
+do it on a server with tens of applications after a month.
 
-Thanks
+One of difficult problem is that a system administrator can't assume the total 
+size of virtual address space of proprietary applications/library. 
+An application designer can estimate "the virutal address usage of an application
+is between XXM to XXXXM. but admin can't esitmate the total.
+
+In above case, the most problematic user of virual adddress space was pthreads.
+Default stack size of pthreads on ia64 was 10M bytes (--; And almost all application
+doesn't answer how small they can set its stack size to. It's crazy to set this value
+per applications.  Then, "stack" of 2000 threads requires 20G bytes of virtual
+address space on 12G system ;) They failed to use overcommit.
+
+Thanks,
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
