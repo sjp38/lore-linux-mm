@@ -1,36 +1,28 @@
-Date: Fri, 23 May 2008 07:29:57 +0200
+Date: Fri, 23 May 2008 07:30:22 +0200
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch 12/18] hugetlbfs: support larger than MAX_ORDER
-Message-ID: <20080523052957.GK13071@wotan.suse.de>
-References: <20080423015302.745723000@nick.local0.net> <20080423015430.965631000@nick.local0.net> <20080425185543.GA14623@us.ibm.com>
+Message-ID: <20080523053022.GL13071@wotan.suse.de>
+References: <20080423015302.745723000@nick.local0.net> <20080423015430.965631000@nick.local0.net> <1209589263.4461.35.camel@nimitz.home.sr71.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080425185543.GA14623@us.ibm.com>
+In-Reply-To: <1209589263.4461.35.camel@nimitz.home.sr71.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, nacc@us.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 25, 2008 at 11:55:43AM -0700, Nishanth Aravamudan wrote:
-> On 23.04.2008 [11:53:14 +1000], npiggin@suse.de wrote:
-> > This is needed on x86-64 to handle GB pages in hugetlbfs, because it is
-> > not practical to enlarge MAX_ORDER to 1GB. 
-> > 
-> >  #include <asm/page.h>
-> >  #include <asm/pgtable.h>
-> > @@ -160,7 +161,7 @@ static void free_huge_page(struct page *
-> >  	INIT_LIST_HEAD(&page->lru);
-> > 
-> >  	spin_lock(&hugetlb_lock);
-> > -	if (h->surplus_huge_pages_node[nid]) {
-> > +	if (h->surplus_huge_pages_node[nid] && h->order < MAX_ORDER) {
+On Wed, Apr 30, 2008 at 02:01:03PM -0700, Dave Hansen wrote:
+> On Wed, 2008-04-23 at 11:53 +1000, npiggin@suse.de wrote:
+> > +static int __init alloc_bm_huge_page(struct hstate *h)
 > 
-> Shouldn't all h->order accesses actually be using the huge_page_order()
-> to be consistent?
+> I was just reading one of Jon's patches, and saw this.  Could we expand
+> the '_bm_' to '_boot_'?  Or, maybe rename to bootmem_alloc_hpage()?
+> 'bm' just doesn't seem to register in my teeny brain.
 
-yes, thanks.
+OK, I agree. They aren't called too often, so I've changed all bm
+to bootmem there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
