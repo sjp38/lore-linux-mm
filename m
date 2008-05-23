@@ -1,28 +1,74 @@
-Date: Fri, 23 May 2008 12:43:27 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [patch 17/18] x86: add hugepagesz option on 64-bit
-Message-ID: <20080523104327.GG31727@one.firstfloor.org>
-References: <20080423015302.745723000@nick.local0.net> <20080423015431.462123000@nick.local0.net> <20080430204841.GD6903@us.ibm.com> <20080523054133.GO13071@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080523054133.GO13071@wotan.suse.de>
+Message-Id: <4836AFFD.3060605@mxp.nes.nec.co.jp>
+Date: Fri, 23 May 2008 20:52:29 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+MIME-Version: 1.0
+Subject: Re: [PATCH 3/4] swapcgroup: implement charge/uncharge
+References: <48350F15.9070007@mxp.nes.nec.co.jp>	<48351095.3040009@mxp.nes.nec.co.jp> <20080522163748.74e9bd4f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080522163748.74e9bd4f.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Nishanth Aravamudan <nacc@us.ibm.com>, akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-> For that matter, I'm almost inclined to submit the patchset with
-> only allow one active hstate specified on the command line, and no
-> changes to any sysctls... just to get the core code merged sooner ;)
+On 2008/05/22 16:37 +0900, KAMEZAWA Hiroyuki wrote:
+> On Thu, 22 May 2008 15:20:05 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> 
+>> +#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
+>> +int swap_cgroup_charge(struct page *page,
+>> +			struct swap_info_struct *si,
+>> +			unsigned long offset)
+>> +{
+>> +	int ret;
+>> +	struct page_cgroup *pc;
+>> +	struct mem_cgroup *mem;
+>> +
+>> +	lock_page_cgroup(page);
+>> +	pc = page_get_page_cgroup(page);
+>> +	if (unlikely(!pc))
+>> +		mem = &init_mem_cgroup;
+>> +	else
+>> +		mem = pc->mem_cgroup;
+>> +	unlock_page_cgroup(page);
+> 
+> If !pc, the page is used before memory controller is available. But is it
+> good to be charged to init_mem_cgroup() ?
+I'm sorry, but I can't understand this situation.
+memory controller is initialized at kernel initialization,
+so aren't processes created after it is initialized?
 
-If you do that you don't really need to bother with the patchset.
-I had an earlier patch for GB pages in hugetlbfs that only supported
-a single page size and it was much much simpler. All the work just came
-from supporting multiple page sizes for binary compatibility.
+> How about returning 'failure' in this case ? I think returning 'failure' here
+> is not so bad.
+> 
+> 
+Which of below do you mean by 'failure'?
 
--Andi
+A. make it fail to get swap entry, so the page cannot be swapped out.
+B. don't charge this swap entry to any cgroup, but the page
+   would be swapped out.
+
+I don't want to do B, because I don't want to make such
+not-charged-to-anywhere entries.
+And I've seen several times this condition(!pc) becomes true,
+so I charged to init_mem_cgroup.
+
+
+BTW, I noticed that almost all of functions I added by this patch set
+should check "mem_cgroup_subsys.disabled" first because it depend on
+memory cgroup.
+
+>> +
+>> +	css_get(&mem->css);
+> 
+> move this css_get() before unlock_page_cgroup() is safer.
+> 
+OK, thanks.
+
+
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
