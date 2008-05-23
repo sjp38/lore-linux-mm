@@ -1,30 +1,36 @@
-Date: Fri, 23 May 2008 16:29:56 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [patch 17/18] x86: add hugepagesz option on 64-bit
-Message-ID: <20080523142956.GI31727@one.firstfloor.org>
-References: <20080423015302.745723000@nick.local0.net> <20080423015431.462123000@nick.local0.net> <20080430204841.GD6903@us.ibm.com> <20080523054133.GO13071@wotan.suse.de> <20080523104327.GG31727@one.firstfloor.org> <20080523123436.GA25172@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080523123436.GA25172@wotan.suse.de>
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: [PATCH 0/3] explicitly document overloaded page flags V2
+Message-ID: <exportbomb.1211560342@pinky>
+Date: Fri, 23 May 2008 17:33:01 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, Nishanth Aravamudan <nacc@us.ibm.com>, akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jeremy Fitzhardinge <jeremy@goop.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> Oh, maybe you misunderstand what I meant: I think the multiple hugepages
-> stuff is nice, and definitely should go in. But I think that if there is
-> any more disagreement over the userspace APIs, then we should just merge
+With the recent page flag reorganisation we have a single enum which
+defines the valid page flags and their values, nice and clear.  However
+there are a number of bits which are overloaded by different subsystems.
+Firstly there is PG_owner_priv_1 which is used by filesystems and by XEN.
+Secondly both SLOB and SLUB use a couple of extra page bits to manage
+internal state for pages they own; both overlay other bits.  All of these
+"aliases" are scattered about the source making it very hard for a reader
+to know if the bits are safe to rely on in all contexts; confusion here
+is bad.
 
-What disagreement was there? (sorry didn't notice it)
+As we now have a single place where the bits are clearly assigned it makes
+sense to clarify the reuse of bits by making the aliases explicit and
+visible with the original bit assignments.  This patch creates explicit
+aliases within the enum itself for the overloaded bits, creates standard
+bit accessors PageFoo etc. and uses those throughout.
 
-AFAIK the patchkit does not change any user interfaces except for adding
-a few numbers to one line of /proc/meminfo and a few other sysctls which seems 
-hardly like a big change
-(and calling that a "API" would be making a mountain out of a molehill)
+This version pulls the bit manipulation out to standard named page bit
+accessors as suggested by Christoph, it retains the explicit mapping to
+the overlayed bits.  A fusion of both ideas.  This has been SLUB and
+SLOB have been compile tested on x86_64 only, and SLUB boot tested.
+If people feel this is worth doing then I can run a fuller set of testing.
 
--Andi
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
