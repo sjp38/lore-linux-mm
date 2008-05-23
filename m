@@ -1,50 +1,36 @@
-Date: Sat, 24 May 2008 00:45:49 +0200
+Date: Sat, 24 May 2008 00:49:58 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 13/18] hugetlb: support boot allocate different sizes
-Message-ID: <20080523224549.GA3144@wotan.suse.de>
-References: <20080423015302.745723000@nick.local0.net> <20080423015431.027712000@nick.local0.net> <20080425184041.GH9680@us.ibm.com> <20080523053641.GM13071@wotan.suse.de> <20080523060438.GC4520@wotan.suse.de> <20080523203228.GC23924@us.ibm.com>
+Subject: Re: [patch 07/18] hugetlbfs: per mount hstates
+Message-ID: <20080523224958.GB3144@wotan.suse.de>
+References: <20080423015302.745723000@nick.local0.net> <20080423015430.378900000@nick.local0.net> <20080425180933.GF9680@us.ibm.com> <20080523052425.GG13071@wotan.suse.de> <20080523203444.GD23924@us.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080523203228.GC23924@us.ibm.com>
+In-Reply-To: <20080523203444.GD23924@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nishanth Aravamudan <nacc@us.ibm.com>
 Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 23, 2008 at 01:32:28PM -0700, Nishanth Aravamudan wrote:
-> On 23.05.2008 [08:04:39 +0200], Nick Piggin wrote:
-> > On Fri, May 23, 2008 at 07:36:41AM +0200, Nick Piggin wrote:
-> > > On Fri, Apr 25, 2008 at 11:40:41AM -0700, Nishanth Aravamudan wrote:
-> > > > 
-> > > > So, you made max_huge_pages an array of the same size as the hstates
-> > > > array, right?
-> > > > 
-> > > > So why can't we directly use h->max_huge_pagees everywhere, and *only*
-> > > > touch max_huge_pages in the sysctl path.
-> > > 
-> > > It's just to bring up the max_huge_pages array initially for the
-> > > sysctl read path. I guess the array could be built every time the
-> > > sysctl handler runs as another option... that might hide away a
-> > > bit of the ugliness into the sysctl code I suppose. I'll see how
-> > > it looks.
-> > 
-> > Hmm, I think we could get into problems with the issue of kernel
-> > parameter passing vs hstate setup, so things might get a bit fragile.
-> > I think it is robust at this point in time to retain the
-> > max_huge_pages array if the hugetlb vs arch hstate registration setup
-> > gets revamped, it might be something to look at, but I prefer to keep
-> > it rather than tinker at this point.
+On Fri, May 23, 2008 at 01:34:44PM -0700, Nishanth Aravamudan wrote:
+> On 23.05.2008 [07:24:25 +0200], Nick Piggin wrote:
+> > On Fri, Apr 25, 2008 at 11:09:33AM -0700, Nishanth Aravamudan wrote:
+> > True, but it is quite a long process and it is nice to have it working
+> > each step of the way in small steps... I think the overall way Andi's
+> > done the patchset is quite nice.
 > 
-> Sure and that's fair.
-> 
-> But I'm approaching it from the perspective that the multi-valued
-> sysctl will go away with the sysfs interface. So perhaps I'll do a
-> cleanup then.
+> Yeah, I'm sorry if my review came across as overly critical at the time.
+> I really am impressed with the amount of change and how it was
+> presented. But, in all honesty, given that I have not seen many patches
+> from Andi nor yourself for hugetlbfs code in the past few years, nor do
+> I expect to see many in the future, I was trying to keep the code as
+> sensible as possible for those of us that do interact with it regularly
+> (and its userspace interface, especially !SHM_HUGETLB).
 
-Yes, that could be one good way to keep the proc API unchanged --
-move it over to sysfs and just put a "default" hugepagesz in proc.
+Yes it's important you're happy with it for that reason. So I have made
+a lot of changes you suggested, and other things if you feel strongly
+about could be changed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
