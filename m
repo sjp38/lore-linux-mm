@@ -1,36 +1,39 @@
-Date: Fri, 23 May 2008 14:34:37 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 17/18] x86: add hugepagesz option on 64-bit
-Message-ID: <20080523123436.GA25172@wotan.suse.de>
-References: <20080423015302.745723000@nick.local0.net> <20080423015431.462123000@nick.local0.net> <20080430204841.GD6903@us.ibm.com> <20080523054133.GO13071@wotan.suse.de> <20080523104327.GG31727@one.firstfloor.org>
-Mime-Version: 1.0
+Date: Fri, 23 May 2008 14:09:35 +0100
+Subject: Re: max_mapnr config option
+Message-ID: <20080523130935.GA23176@shadowen.org>
+References: <1207340609.26869.20.camel@nimitz.home.sr71.net> <20080407091756.GC17915@shadowen.org> <87iqyuhth2.fsf@saeurebad.de> <20080408105137.GD17915@shadowen.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080523104327.GG31727@one.firstfloor.org>
+In-Reply-To: <20080408105137.GD17915@shadowen.org>
+From: apw@shadowen.org
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Nishanth Aravamudan <nacc@us.ibm.com>, akpm@linux-foundation.org, linux-mm@kvack.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
+To: Johannes Weiner <hannes@saeurebad.de>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, Jeremy Fitzhardinge <jeremy@goop.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 23, 2008 at 12:43:27PM +0200, Andi Kleen wrote:
-> > For that matter, I'm almost inclined to submit the patchset with
-> > only allow one active hstate specified on the command line, and no
-> > changes to any sysctls... just to get the core code merged sooner ;)
+On Tue, Apr 08, 2008 at 11:51:38AM +0100, Andy Whitcroft wrote:
+> On Mon, Apr 07, 2008 at 12:03:53PM +0200, Johannes Weiner wrote:
+> > Hi,
+> > 
+> > Andy Whitcroft <apw@shadowen.org> writes:
+> > 
+> > > BUT.  Looking over the actual references, there is a lot of references
+> > > occuring out of show_mem implementations in the arches which may well break
+> > > unless they follow suit.  We also don't have any show_mem implementation
+> > > for sparsemem.  I will have a look at what can be trivially cleaned
+> > > up here.
+> > 
+> > Perhaps you might be interested in http://lkml.org/lkml/2008/4/4/ .
 > 
-> If you do that you don't really need to bother with the patchset.
-> I had an earlier patch for GB pages in hugetlbfs that only supported
-> a single page size and it was much much simpler. All the work just came
-> from supporting multiple page sizes for binary compatibility.
+> How annoying is that, you have done the same thing I've just done.  I'll
+> look at your version and base off that.
 
-Oh, maybe you misunderstand what I meant: I think the multiple hugepages
-stuff is nice, and definitely should go in. But I think that if there is
-any more disagreement over the userspace APIs, then we should just merge
-the patchset anyway just without any changes to the APIs -- at least that
-way we'll have most of the code ready for when an agreement can be
-reached.
+Whatever happened to this series.  I don't see it committed anywhere.
+Do you have a latest stack I could rebase my max_mapnr fixes off?
 
-However I say *almost*, because hopefully we can agree on the API.
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
