@@ -1,56 +1,36 @@
-Date: Fri, 23 May 2008 07:41:33 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 17/18] x86: add hugepagesz option on 64-bit
-Message-ID: <20080523054133.GO13071@wotan.suse.de>
-References: <20080423015302.745723000@nick.local0.net> <20080423015431.462123000@nick.local0.net> <20080430204841.GD6903@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080430204841.GD6903@us.ibm.com>
+Date: Fri, 23 May 2008 15:00:42 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 0/4] swapcgroup(v2)
+In-Reply-To: <4836563B.4060603@anu.edu.au>
+References: <48364D38.7000304@linux.vnet.ibm.com> <4836563B.4060603@anu.edu.au>
+Message-Id: <20080523145947.84F4.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, kniht@linux.vnet.ibm.com, abh@cray.com, wli@holomorphy.com
+To: David.Singleton@anu.edu.au
+Cc: kosaki.motohiro@jp.fujitsu.com, balbir@linux.vnet.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, Pavel Emelyanov <xemul@openvz.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 30, 2008 at 01:48:41PM -0700, Nishanth Aravamudan wrote:
-> On 23.04.2008 [11:53:19 +1000], npiggin@suse.de wrote:
-> > Add an hugepagesz=... option similar to IA64, PPC etc. to x86-64.
-> > 
-> > This finally allows to select GB pages for hugetlbfs in x86 now
-> > that all the infrastructure is in place.
+> > Have you seen any real world example of this? 
 > 
-> Another more basic question ... how do we plan on making these hugepages
-> available to applications. Obviously, an administrator can mount
-> hugetlbfs with pagesize=1G or whatever and then users (with appropriate
-> permissions) can mmap() files created therein. But what about
-> SHM_HUGETLB? It uses a private internal mount of hugetlbfs, which I
-> don't believe I saw a patch to add a pagesize= parameter for.
+> At the unsophisticated end, there are lots of (Fortran) HPC applications
+> with very large static array declarations but only "use" a small fraction
+> of that.  Those users know they only need a small fraction and are happy
+> to volunteer small physical memory limits that we (admins/queuing
+> systems) can apply.
 > 
-> So SHM_HUGETLB will (for now) always get the "default" hugepagesize,
-> right, which should be the same as the legacy size? Given that an
-> architecture may support several hugepage sizes, I have't been able to
-> come up with a good way to extend shmget() to specify the preferred
-> hugepagesize when SHM_HUGETLB is specified. I think for libhugetlbfs
-> purposes, we will probably add another environment variable to control
-> that...
+> At the sophisticated end, the use of numerous large memory maps in
+> parallel HPC applications to gain visibility into other processes is
+> growing.  We have processes with VSZ > 400GB just because they have
+> 4GB maps into 127 other processes.  Their physical page use is of
+> the order 2GB.
 
-Good question. One thing I like to do in this patch is to make very
-minimal as possible API changes even if it means userspace doesn't
-get the full functionality in all corner cases like that.
+Ah, agreed.
+Fujitsu HPC user said similar things ago.
 
-This way we can get the core work in and stabilized, then can take
-more time to discuss the user apis.
 
-For that matter, I'm almost inclined to submit the patchset with
-only allow one active hstate specified on the command line, and no
-changes to any sysctls... just to get the core code merged sooner ;)
-however it is very valueable for testing and proof of concept to
-allow multiple active hstates to be configured and run, so I think
-we have to have that at least in -mm.
-
-We probably have a month or two before the next merge window, so we
-have enough time to think about api issues I hope.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
