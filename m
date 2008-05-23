@@ -1,48 +1,64 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4MNuq5U008661
-	for <linux-mm@kvack.org>; Thu, 22 May 2008 19:56:52 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4MNsTdC093770
-	for <linux-mm@kvack.org>; Thu, 22 May 2008 19:54:29 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4MNsT9g003856
-	for <linux-mm@kvack.org>; Thu, 22 May 2008 19:54:29 -0400
-Date: Thu, 22 May 2008 16:54:27 -0700
-From: Tim Pepper <lnxninja@linux.vnet.ibm.com>
-Subject: [PATCH] mm: fix filemap.c's comment re: buffer_head.h inclusion
-	reason
-Message-ID: <20080522235426.GA28518@tpepper-t42p.dolavim.us>
+Message-Id: <48362795.9020709@mxp.nes.nec.co.jp>
+Date: Fri, 23 May 2008 11:10:29 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [PATCH 0/4] swapcgroup(v2)
+References: <48350F15.9070007@mxp.nes.nec.co.jp> <20080522164421.84849565.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080522164421.84849565.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-It appears mm/filemap.c's comment on why buffer_head.h is included has
-gotten out of date.  Today generic_osync_inode() is coming from the fs.h
-include and buffer_head.h is providing try_to_free_buffers().
-
-Signed-off-by: Tim Pepper <lnxninja@linux.vnet.ibm.com>
-Cc:            linux-mm@kvack.org
-
----
-
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 1e6a7d3..fe4adf4 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -38,7 +38,7 @@
- /*
-  * FIXME: remove all knowledge of the buffer layer from the core VM
-  */
--#include <linux/buffer_head.h> /* for generic_osync_inode */
-+#include <linux/buffer_head.h> /* for try_to_free_buffers */
+On 2008/05/22 16:44 +0900, KAMEZAWA Hiroyuki wrote:
+> On Thu, 22 May 2008 15:13:41 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> 
+>> Hi.
+>>
+>> I updated my swapcgroup patch.
+>>
+> seems good in general.
+> 
+>
+Thanks :-)
  
- #include <asm/mman.h>
- 
+>> ToDo:
+>> - handle force_empty.
+> 
+> Without this, we can do rmdir() against cgroup with swap. right ?
+> 
+You are right.
+
+There are some cases that cgroup dir cannot be removed
+because there remains some swap usage
+even when no tasks remain in the dir.
+In such cases, the only way to remove the dir is currently
+to do swapoff.
+
+So, I think this is the most important todo.
+
+>> - make it possible for users to select if they use
+>>   this feature or not, and avoid overhead for users
+>>   not using this feature.
+>> - move charges along with task move between cgroups.
+>>
+> I think memory-controller's anon pages should also do this....
+
+
+> But how do you think about shared entries ?
+> 
+Yes.
+This is a big problem. I don't have any practical idea yet,
+but at least I think it should be avoided for some shared
+entry to be charged to different groups.
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
