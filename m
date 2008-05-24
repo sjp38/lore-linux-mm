@@ -1,46 +1,45 @@
-Date: Fri, 23 May 2008 18:17:28 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC] Circular include dependencies
-Message-Id: <20080523181728.b30409b2.akpm@linux-foundation.org>
-In-Reply-To: <20080523132034.GB15384@flint.arm.linux.org.uk>
-References: <20080523132034.GB15384@flint.arm.linux.org.uk>
+Subject: Re: 2.6.26: x86/kernel/pci_dma.c: gfp |= __GFP_NORETRY ?
+From: Miquel van Smoorenburg <miquels@cistron.nl>
+In-Reply-To: <1211484343.30678.15.camel@localhost.localdomain>
+References: <20080521113028.GA24632@xs4all.net>
+	 <48341A57.1030505@redhat.com>  <20080522084736.GC31727@one.firstfloor.org>
+	 <1211484343.30678.15.camel@localhost.localdomain>
+Content-Type: text/plain
+Date: Sat, 24 May 2008 21:38:18 +0200
+Message-Id: <1211657898.25661.2.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Russell King <rmk+lkml@arm.linux.org.uk>
-Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Glauber Costa <gcosta@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi-suse@firstfloor.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 23 May 2008 14:20:34 +0100 Russell King <rmk+lkml@arm.linux.org.uk> wrote:
-
-> Hi,
+On Thu, 2008-05-22 at 21:25 +0200, Miquel van Smoorenburg wrote:
+> Most drivers call pci_alloc_consistent() which calls
+> dma_alloc_coherent(.... GFP_ATOMIC) which can dip deep into reserves so
+> it won't fail so easily. Just a handful use dma_alloc_coherent()
+> directly.
 > 
-> Having discovered some circular include dependencies in the ARM header
-> files which were causing build issues, I created a script to walk ARM
-> includes and report any similar issues found - which includes traversing
-> any referenced linux/ includes.
+> However, in 2.6.26-rc1, dpt_i2o.c was updated for 64 bit support, and
+> all it's kmalloc(.... GFP_KERNEL) + virt_to_bus() calls have been
+> replaced by dma_alloc_coherent(.... GFP_KERNEL).
 > 
-> It identified the following two in include/linux/:
-> 
->   linux/mmzone.h <- linux/memory_hotplug.h <- linux/mmzone.h
->   linux/mmzone.h <- linux/topology.h <- linux/mmzone.h
-> 
-> Checking them by hand reveals that these are real.  Whether they're
-> capable of causing a problem or not, I'm not going to comment on.
-> However, they're not a good idea and someone should probably look at
-> resolving the loops.
+> In that case, it's not a very good idea to add __GFP_NORETRY.
+>
+> I think we should do something. How about one of these two patches.
 
-(cc's added).
+And Andi wrote:
 
-Thanks.
+On Fri, 2008-05-23 at 00:59 +0200, Andi Kleen wrote:
+> Anyways the reasoning is still valid. Longer term the mask allocator
+> would be the right fix, shorter term a new GFP flag as proposed 
+> sounds reasonable.
 
-I'm not sure who we could tap for the topology.h one.
+So how about linux-2.6.26-gfp-no-oom.patch (see previous mail) for
+2.6.26 ?
 
-A suitable (and often good) way of solving this is to identify the
-things which a.h needs from b.h and hoist them out into a new c.h and
-include that from both a.h and b.h.
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
