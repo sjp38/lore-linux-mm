@@ -1,40 +1,46 @@
-Date: Sat, 24 May 2008 02:04:05 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 2/2] mm: lockless get_user_pages
-Message-ID: <20080524000404.GE3144@wotan.suse.de>
-References: <20080521115929.GB9030@wotan.suse.de> <20080521121114.GC9030@wotan.suse.de> <20080522102753.GA25370@shadowen.org> <20080523022732.GC30209@wotan.suse.de> <20080523123112.GA9357@shadowen.org> <20080523234432.GD3144@wotan.suse.de>
+Date: Fri, 23 May 2008 18:17:28 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC] Circular include dependencies
+Message-Id: <20080523181728.b30409b2.akpm@linux-foundation.org>
+In-Reply-To: <20080523132034.GB15384@flint.arm.linux.org.uk>
+References: <20080523132034.GB15384@flint.arm.linux.org.uk>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080523234432.GD3144@wotan.suse.de>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: apw@shadowen.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, shaggy@austin.ibm.com, axboe@oracle.com, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Russell King <rmk+lkml@arm.linux.org.uk>
+Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, May 24, 2008 at 01:44:32AM +0200, Nick Piggin wrote:
-> On Fri, May 23, 2008 at 01:31:12PM +0100, apw@shadowen.org wrote:
-> > On Fri, May 23, 2008 at 04:27:33AM +0200, Nick Piggin wrote:
-> 
->  
-> > [...]
-> > > > I did wonder if we could also check _PAGE_BIT_USER bit as by my reading
-> > > > that would only ever be set on user pages, and by rejecting pages without
-> > > > that set we could prevent any kernel pages being returned basically
-> > > > for free.
-> > > 
-> > > I still do want the access_ok check to avoid any possible issues with
-> > > kernel page table modifications... but checking for the user bit would
-> > > be another good sanity check, good idea. 
-> > 
-> > Definatly not advocating removing any checks at all.  Just thinking the
-> > addition is one more safety net should any one of the checks be flawed.
-> > Security being a pig to prove at the best of times.
-> 
-> It isn't a bad idea at all. I'll see what I can do.
+On Fri, 23 May 2008 14:20:34 +0100 Russell King <rmk+lkml@arm.linux.org.uk> wrote:
 
-Oh, hmm, I was already checking the _PAGE_USER bit anyway ;)
+> Hi,
+> 
+> Having discovered some circular include dependencies in the ARM header
+> files which were causing build issues, I created a script to walk ARM
+> includes and report any similar issues found - which includes traversing
+> any referenced linux/ includes.
+> 
+> It identified the following two in include/linux/:
+> 
+>   linux/mmzone.h <- linux/memory_hotplug.h <- linux/mmzone.h
+>   linux/mmzone.h <- linux/topology.h <- linux/mmzone.h
+> 
+> Checking them by hand reveals that these are real.  Whether they're
+> capable of causing a problem or not, I'm not going to comment on.
+> However, they're not a good idea and someone should probably look at
+> resolving the loops.
+
+(cc's added).
+
+Thanks.
+
+I'm not sure who we could tap for the topology.h one.
+
+A suitable (and often good) way of solving this is to identify the
+things which a.h needs from b.h and hoist them out into a new c.h and
+include that from both a.h and b.h.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
