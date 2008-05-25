@@ -1,32 +1,51 @@
-Message-Id: <20080525143452.193337000@nick.local0.net>
+Message-Id: <20080525143453.921204000@nick.local0.net>
 References: <20080525142317.965503000@nick.local0.net>
-Date: Mon, 26 May 2008 00:23:18 +1000
+Date: Mon, 26 May 2008 00:23:34 +1000
 From: npiggin@suse.de
-Subject: [patch 01/23] hugetlb: fix lockdep error
-Content-Disposition: inline; filename=hugetlb-copy-lockdep.patch
+Subject: [patch 17/23] hugetlb: do not always register default HPAGE_SIZE huge page size
+Content-Disposition: inline; filename=hugetlb-non-default-hstate.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: kniht@us.ibm.com, andi@firstfloor.org, nacc@us.ibm.com, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com
 List-ID: <linux-mm.kvack.org>
 
+Allow configurations without the default HPAGE_SIZE size (mainly useful for
+testing -- the final form of the userspace API / cmdline is not quite
+nailed down).
+
+Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
- mm/hugetlb.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ fs/hugetlbfs/inode.c |    2 ++
+ mm/hugetlb.c         |    2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
 
 Index: linux-2.6/mm/hugetlb.c
 ===================================================================
 --- linux-2.6.orig/mm/hugetlb.c
 +++ linux-2.6/mm/hugetlb.c
-@@ -785,7 +785,7 @@ int copy_hugetlb_page_range(struct mm_st
- 			continue;
+@@ -667,7 +667,7 @@ static int __init hugetlb_init(void)
+ {
+ 	BUILD_BUG_ON(HPAGE_SHIFT == 0);
  
- 		spin_lock(&dst->page_table_lock);
--		spin_lock(&src->page_table_lock);
-+		spin_lock_nested(&src->page_table_lock, SINGLE_DEPTH_NESTING);
- 		if (!huge_pte_none(huge_ptep_get(src_pte))) {
- 			if (cow)
- 				huge_ptep_set_wrprotect(src, addr, src_pte);
+-	if (!size_to_hstate(HPAGE_SIZE)) {
++	if (!max_hstate) {
+ 		hugetlb_add_hstate(HUGETLB_PAGE_ORDER);
+ 		parsed_hstate->max_huge_pages = default_hstate_max_huge_pages;
+ 	}
+Index: linux-2.6/fs/hugetlbfs/inode.c
+===================================================================
+--- linux-2.6.orig/fs/hugetlbfs/inode.c
++++ linux-2.6/fs/hugetlbfs/inode.c
+@@ -858,6 +858,8 @@ hugetlbfs_fill_super(struct super_block 
+ 	config.gid = current->fsgid;
+ 	config.mode = 0755;
+ 	config.hstate = size_to_hstate(HPAGE_SIZE);
++	if (!config.hstate)
++		config.hstate = &hstates[0];
+ 	ret = hugetlbfs_parse_options(data, &config);
+ 	if (ret)
+ 		return ret;
 
 -- 
 
