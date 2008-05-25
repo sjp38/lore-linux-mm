@@ -1,46 +1,63 @@
-Message-Id: <20080525143454.453947000@nick.local0.net>
+Message-Id: <20080525143453.051626000@nick.local0.net>
 References: <20080525142317.965503000@nick.local0.net>
-Date: Mon, 26 May 2008 00:23:39 +1000
+Date: Mon, 26 May 2008 00:23:26 +1000
 From: npiggin@suse.de
-Subject: [patch 22/23] fs: check for statfs overflow
-Content-Disposition: inline; filename=fs-check-for-statfs-overflow.patch
+Subject: [patch 09/23] mm: introduce non panic alloc_bootmem
+Content-Disposition: inline; filename=__alloc_bootmem_node_nopanic.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: kniht@us.ibm.com, andi@firstfloor.org, nacc@us.ibm.com, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Jon Tollefson <kniht@linux.vnet.ibm.com>
+Cc: kniht@us.ibm.com, andi@firstfloor.org, nacc@us.ibm.com, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Adds a check for an overflow in the filesystem size so if someone is
-checking with statfs() on a 16G hugetlbfs  in a 32bit binary that it
-will report back EOVERFLOW instead of a size of 0.
+Straight forward variant of the existing __alloc_bootmem_node, only 
+difference is that it doesn't panic on failure.
 
-Are other places that need a similar check?  I had tried a similar
-check in put_compat_statfs64 too but it didn't seem to generate an
-EOVERFLOW in my test case.
-
-Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
+Signed-off-by: Andi Kleen <ak@suse.de>
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
+ include/linux/bootmem.h |    4 ++++
+ mm/bootmem.c            |   12 ++++++++++++
+ 2 files changed, 16 insertions(+)
 
- fs/compat.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-
-Index: linux-2.6/fs/compat.c
+Index: linux-2.6/mm/bootmem.c
 ===================================================================
---- linux-2.6.orig/fs/compat.c
-+++ linux-2.6/fs/compat.c
-@@ -197,8 +197,8 @@ static int put_compat_statfs(struct comp
- {
- 	
- 	if (sizeof ubuf->f_blocks == 4) {
--		if ((kbuf->f_blocks | kbuf->f_bfree | kbuf->f_bavail) &
--		    0xffffffff00000000ULL)
-+		if ((kbuf->f_blocks | kbuf->f_bfree | kbuf->f_bavail |
-+		     kbuf->f_bsize | kbuf->f_frsize) & 0xffffffff00000000ULL)
- 			return -EOVERFLOW;
- 		/* f_files and f_ffree may be -1; it's okay
- 		 * to stuff that into 32 bits */
+--- linux-2.6.orig/mm/bootmem.c
++++ linux-2.6/mm/bootmem.c
+@@ -576,6 +576,18 @@ void * __init alloc_bootmem_section(unsi
+ }
+ #endif
+ 
++void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned long size,
++				   unsigned long align, unsigned long goal)
++{
++	void *ptr;
++
++	ptr = __alloc_bootmem_core(pgdat->bdata, size, align, goal, 0);
++	if (ptr)
++		return ptr;
++
++	return __alloc_bootmem_nopanic(size, align, goal);
++}
++
+ #ifndef ARCH_LOW_ADDRESS_LIMIT
+ #define ARCH_LOW_ADDRESS_LIMIT	0xffffffffUL
+ #endif
+Index: linux-2.6/include/linux/bootmem.h
+===================================================================
+--- linux-2.6.orig/include/linux/bootmem.h
++++ linux-2.6/include/linux/bootmem.h
+@@ -90,6 +90,10 @@ extern void *__alloc_bootmem_node(pg_dat
+ 				  unsigned long size,
+ 				  unsigned long align,
+ 				  unsigned long goal);
++extern void *__alloc_bootmem_node_nopanic(pg_data_t *pgdat,
++				  unsigned long size,
++				  unsigned long align,
++				  unsigned long goal);
+ extern unsigned long init_bootmem_node(pg_data_t *pgdat,
+ 				       unsigned long freepfn,
+ 				       unsigned long startpfn,
 
 -- 
 
