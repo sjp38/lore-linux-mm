@@ -1,113 +1,140 @@
-Message-Id: <20080525143452.625669000@nick.local0.net>
+Message-Id: <20080525143454.237665000@nick.local0.net>
 References: <20080525142317.965503000@nick.local0.net>
-Date: Mon, 26 May 2008 00:23:22 +1000
+Date: Mon, 26 May 2008 00:23:37 +1000
 From: npiggin@suse.de
-Subject: [patch 05/23] hugetlb: multi hstate proc files
-Content-Disposition: inline; filename=hugetlb-proc-hstates.patch
+Subject: [patch 20/23] powerpc: scan device tree for gigantic pages
+Content-Disposition: inline; filename=powerpc-scan-device-tree-and-save-gigantic-page-locations.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: kniht@us.ibm.com, andi@firstfloor.org, nacc@us.ibm.com, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Andi Kleen <ak@suse.de>
+Cc: kniht@us.ibm.com, andi@firstfloor.org, nacc@us.ibm.com, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Jon Tollefson <kniht@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Convert /proc output code over to report multiple hstates
+The 16G huge pages have to be reserved in the HMC prior to boot. The
+location of the pages are placed in the device tree.   This patch adds
+code to scan the device tree during very early boot and save these page
+locations until hugetlbfs is ready for them.
 
-I chose to just report the numbers in a row, in the hope 
-to minimze breakage of existing software. The "compat" page size
-is always the first number.
-
-Signed-off-by: Andi Kleen <ak@suse.de>
+Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
- mm/hugetlb.c |   64 ++++++++++++++++++++++++++++++++++++++---------------------
- 1 file changed, 42 insertions(+), 22 deletions(-)
 
-Index: linux-2.6/mm/hugetlb.c
+ arch/powerpc/mm/hash_utils_64.c  |   44 ++++++++++++++++++++++++++++++++++++++-
+ arch/powerpc/mm/hugetlbpage.c    |   16 ++++++++++++++
+ include/asm-powerpc/mmu-hash64.h |    2 +
+ 3 files changed, 61 insertions(+), 1 deletion(-)
+
+
+
+Index: linux-2.6/arch/powerpc/mm/hash_utils_64.c
 ===================================================================
---- linux-2.6.orig/mm/hugetlb.c
-+++ linux-2.6/mm/hugetlb.c
-@@ -766,39 +766,59 @@ int hugetlb_overcommit_handler(struct ct
+--- linux-2.6.orig/arch/powerpc/mm/hash_utils_64.c
++++ linux-2.6/arch/powerpc/mm/hash_utils_64.c
+@@ -68,6 +68,7 @@
  
- #endif /* CONFIG_SYSCTL */
- 
-+static int dump_field(char *buf, unsigned field)
-+{
-+	int n = 0;
-+	struct hstate *h;
-+	for_each_hstate (h)
-+		n += sprintf(buf + n, " %5lu", *(unsigned long *)((char *)h + field));
-+	buf[n++] = '\n';
-+	return n;
-+}
-+
- int hugetlb_report_meminfo(char *buf)
- {
--	struct hstate *h = &global_hstate;
--	return sprintf(buf,
--			"HugePages_Total: %5lu\n"
--			"HugePages_Free:  %5lu\n"
--			"HugePages_Rsvd:  %5lu\n"
--			"HugePages_Surp:  %5lu\n"
--			"Hugepagesize:    %5lu kB\n",
--			h->nr_huge_pages,
--			h->free_huge_pages,
--			h->resv_huge_pages,
--			h->surplus_huge_pages,
--			1UL << (huge_page_order(h) + PAGE_SHIFT - 10));
-+	struct hstate *h;
-+	int n = 0;
-+	n += sprintf(buf + 0, "HugePages_Total:");
-+	n += dump_field(buf + n, offsetof(struct hstate, nr_huge_pages));
-+	n += sprintf(buf + n, "HugePages_Free: ");
-+	n += dump_field(buf + n, offsetof(struct hstate, free_huge_pages));
-+	n += sprintf(buf + n, "HugePages_Rsvd: ");
-+	n += dump_field(buf + n, offsetof(struct hstate, resv_huge_pages));
-+	n += sprintf(buf + n, "HugePages_Surp: ");
-+	n += dump_field(buf + n, offsetof(struct hstate, surplus_huge_pages));
-+	n += sprintf(buf + n, "Hugepagesize:   ");
-+	for_each_hstate (h)
-+		n += sprintf(buf + n, " %5lu", huge_page_size(h) / 1024);
-+	n += sprintf(buf + n, " kB\n");
-+	return n;
- }
- 
- int hugetlb_report_node_meminfo(int nid, char *buf)
- {
--	struct hstate *h = &global_hstate;
--	return sprintf(buf,
--		"Node %d HugePages_Total: %5u\n"
--		"Node %d HugePages_Free:  %5u\n"
--		"Node %d HugePages_Surp:  %5u\n",
--		nid, h->nr_huge_pages_node[nid],
--		nid, h->free_huge_pages_node[nid],
--		nid, h->surplus_huge_pages_node[nid]);
-+	int n = 0;
-+	n += sprintf(buf, "Node %d HugePages_Total: ", nid);
-+	n += dump_field(buf + n, offsetof(struct hstate,
-+						nr_huge_pages_node[nid]));
-+	n += sprintf(buf + n, "Node %d HugePages_Free: ", nid);
-+	n += dump_field(buf + n, offsetof(struct hstate,
-+						free_huge_pages_node[nid]));
-+	n += sprintf(buf + n, "Node %d HugePages_Surp: ", nid);
-+	n += dump_field(buf + n, offsetof(struct hstate,
-+						surplus_huge_pages_node[nid]));
-+	return n;
- }
- 
- /* Return the number pages of memory we physically have, in PAGE_SIZE units. */
- unsigned long hugetlb_total_pages(void)
- {
--	struct hstate *h = &global_hstate;
--	return h->nr_huge_pages * (1 << huge_page_order(h));
-+	long x = 0;
-+	struct hstate *h;
-+	for_each_hstate (h) {
-+		x += h->nr_huge_pages * (1 << huge_page_order(h));
-+	}
-+	return x;
- }
+ #define KB (1024)
+ #define MB (1024*KB)
++#define GB (1024L*MB)
  
  /*
+  * Note:  pte   --> Linux PTE
+@@ -329,6 +330,44 @@ static int __init htab_dt_scan_page_size
+ 	return 0;
+ }
+ 
++/* Scan for 16G memory blocks that have been set aside for huge pages
++ * and reserve those blocks for 16G huge pages.
++ */
++static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
++					const char *uname, int depth,
++					void *data) {
++	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
++	unsigned long *addr_prop;
++	u32 *page_count_prop;
++	unsigned int expected_pages;
++	long unsigned int phys_addr;
++	long unsigned int block_size;
++
++	/* We are scanning "memory" nodes only */
++	if (type == NULL || strcmp(type, "memory") != 0)
++		return 0;
++
++	/* This property is the log base 2 of the number of virtual pages that
++	 * will represent this memory block. */
++	page_count_prop = of_get_flat_dt_prop(node, "ibm,expected#pages", NULL);
++	if (page_count_prop == NULL)
++		return 0;
++	expected_pages = (1 << page_count_prop[0]);
++	addr_prop = of_get_flat_dt_prop(node, "reg", NULL);
++	if (addr_prop == NULL)
++		return 0;
++	phys_addr = addr_prop[0];
++	block_size = addr_prop[1];
++	if (block_size != (16 * GB))
++		return 0;
++	printk(KERN_INFO "Huge page(16GB) memory: "
++			"addr = 0x%lX size = 0x%lX pages = %d\n",
++			phys_addr, block_size, expected_pages);
++	lmb_reserve(phys_addr, block_size * expected_pages);
++	add_gpage(phys_addr, block_size, expected_pages);
++	return 0;
++}
++
+ static void __init htab_init_page_sizes(void)
+ {
+ 	int rc;
+@@ -418,7 +457,10 @@ static void __init htab_init_page_sizes(
+ 	       );
+ 
+ #ifdef CONFIG_HUGETLB_PAGE
+-	/* Init large page size. Currently, we pick 16M or 1M depending
++	/* Reserve 16G huge page memory sections for huge pages */
++	of_scan_flat_dt(htab_dt_scan_hugepage_blocks, NULL);
++
++/* Init large page size. Currently, we pick 16M or 1M depending
+ 	 * on what is available
+ 	 */
+ 	if (mmu_psize_defs[MMU_PAGE_16M].shift)
+Index: linux-2.6/arch/powerpc/mm/hugetlbpage.c
+===================================================================
+--- linux-2.6.orig/arch/powerpc/mm/hugetlbpage.c
++++ linux-2.6/arch/powerpc/mm/hugetlbpage.c
+@@ -110,6 +110,22 @@ pmd_t *hpmd_alloc(struct mm_struct *mm, 
+ }
+ #endif
+ 
++/* Build list of addresses of gigantic pages.  This function is used in early
++ * boot before the buddy or bootmem allocator is setup.
++ */
++void add_gpage(unsigned long addr, unsigned long page_size,
++	unsigned long number_of_pages)
++{
++	if (!addr)
++		return;
++	while (number_of_pages > 0) {
++		gpage_freearray[nr_gpages] = addr;
++		nr_gpages++;
++		number_of_pages--;
++		addr += page_size;
++	}
++}
++
+ /* Moves the gigantic page addresses from the temporary list to the
+   * huge_boot_pages list.
+  */
+Index: linux-2.6/include/asm-powerpc/mmu-hash64.h
+===================================================================
+--- linux-2.6.orig/include/asm-powerpc/mmu-hash64.h
++++ linux-2.6/include/asm-powerpc/mmu-hash64.h
+@@ -280,6 +280,8 @@ extern int htab_bolt_mapping(unsigned lo
+ 			     unsigned long pstart, unsigned long mode,
+ 			     int psize, int ssize);
+ extern void set_huge_psize(int psize);
++extern void add_gpage(unsigned long addr, unsigned long page_size,
++			  unsigned long number_of_pages);
+ extern void demote_segment_4k(struct mm_struct *mm, unsigned long addr);
+ 
+ extern void htab_initialize(void);
 
 -- 
 
