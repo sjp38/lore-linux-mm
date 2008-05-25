@@ -1,222 +1,166 @@
-Message-Id: <20080525143453.593888000@nick.local0.net>
+Message-Id: <20080525143454.344425000@nick.local0.net>
 References: <20080525142317.965503000@nick.local0.net>
-Date: Mon, 26 May 2008 00:23:31 +1000
+Date: Mon, 26 May 2008 00:23:38 +1000
 From: npiggin@suse.de
-Subject: [patch 14/23] hugetlb: introduce huge_pud
-Content-Disposition: inline; filename=hugetlbfs-huge_pud.patch
+Subject: [patch 21/23] powerpc: define support for 16G hugepages
+Content-Disposition: inline; filename=powerpc-define-page-support-for-16g-hugepages.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: kniht@us.ibm.com, andi@firstfloor.org, nacc@us.ibm.com, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Andi Kleen <ak@suse.de>
+Cc: kniht@us.ibm.com, andi@firstfloor.org, nacc@us.ibm.com, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Jon Tollefson <kniht@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Straight forward extensions for huge pages located in the PUD
-instead of PMDs.
+The huge page size is defined for 16G pages.  If a hugepagesz of 16G is
+specified at boot-time then it becomes the huge page size instead of
+the default 16M.
 
-Signed-off-by: Andi Kleen <ak@suse.de>
+The change in pgtable-64K.h is to the macro
+pte_iterate_hashed_subpages to make the increment to va (the 1
+being shifted) be a long so that it is not shifted to 0.  Otherwise it
+would create an infinite loop when the shift value is for a 16G page
+(when base page size is 64K).
+
+Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
- arch/ia64/mm/hugetlbpage.c    |    6 ++++++
- arch/powerpc/mm/hugetlbpage.c |    5 +++++
- arch/sh/mm/hugetlbpage.c      |    5 +++++
- arch/sparc64/mm/hugetlbpage.c |    5 +++++
- arch/x86/mm/hugetlbpage.c     |   25 ++++++++++++++++++++++++-
- include/linux/hugetlb.h       |    5 +++++
- mm/hugetlb.c                  |    9 +++++++++
- mm/memory.c                   |   10 +++++++++-
- 8 files changed, 68 insertions(+), 2 deletions(-)
 
-Index: linux-2.6/include/linux/hugetlb.h
-===================================================================
---- linux-2.6.orig/include/linux/hugetlb.h
-+++ linux-2.6/include/linux/hugetlb.h
-@@ -45,7 +45,10 @@ struct page *follow_huge_addr(struct mm_
- 			      int write);
- struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 				pmd_t *pmd, int write);
-+struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,
-+				pud_t *pud, int write);
- int pmd_huge(pmd_t pmd);
-+int pud_huge(pud_t pmd);
- void hugetlb_change_protection(struct vm_area_struct *vma,
- 		unsigned long address, unsigned long end, pgprot_t newprot);
- 
-@@ -68,8 +71,10 @@ static inline unsigned long hugetlb_tota
- #define hugetlb_report_meminfo(buf)		0
- #define hugetlb_report_node_meminfo(n, buf)	0
- #define follow_huge_pmd(mm, addr, pmd, write)	NULL
-+#define follow_huge_pud(mm, addr, pud, write)	NULL
- #define prepare_hugepage_range(file, addr, len)	(-EINVAL)
- #define pmd_huge(x)	0
-+#define pud_huge(x)	0
- #define is_hugepage_only_range(mm, addr, len)	0
- #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
- #define hugetlb_fault(mm, vma, addr, write)	({ BUG(); 0; })
-Index: linux-2.6/arch/ia64/mm/hugetlbpage.c
-===================================================================
---- linux-2.6.orig/arch/ia64/mm/hugetlbpage.c
-+++ linux-2.6/arch/ia64/mm/hugetlbpage.c
-@@ -106,6 +106,12 @@ int pmd_huge(pmd_t pmd)
- {
- 	return 0;
- }
-+
-+int pud_huge(pud_t pud)
-+{
-+	return 0;
-+}
-+
- struct page *
- follow_huge_pmd(struct mm_struct *mm, unsigned long address, pmd_t *pmd, int write)
- {
+ arch/powerpc/mm/hugetlbpage.c     |   62 ++++++++++++++++++++++++++------------
+ include/asm-powerpc/pgtable-64k.h |    2 -
+ 2 files changed, 45 insertions(+), 19 deletions(-)
+
 Index: linux-2.6/arch/powerpc/mm/hugetlbpage.c
 ===================================================================
 --- linux-2.6.orig/arch/powerpc/mm/hugetlbpage.c
 +++ linux-2.6/arch/powerpc/mm/hugetlbpage.c
-@@ -368,6 +368,11 @@ int pmd_huge(pmd_t pmd)
- 	return 0;
- }
+@@ -24,8 +24,9 @@
+ #include <asm/cputable.h>
+ #include <asm/spu.h>
  
-+int pud_huge(pud_t pud)
-+{
-+	return 0;
-+}
-+
- struct page *
- follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 		pmd_t *pmd, int write)
-Index: linux-2.6/arch/sh/mm/hugetlbpage.c
-===================================================================
---- linux-2.6.orig/arch/sh/mm/hugetlbpage.c
-+++ linux-2.6/arch/sh/mm/hugetlbpage.c
-@@ -78,6 +78,11 @@ int pmd_huge(pmd_t pmd)
- 	return 0;
- }
+-#define HPAGE_SHIFT_64K	16
+-#define HPAGE_SHIFT_16M	24
++#define PAGE_SHIFT_64K	16
++#define PAGE_SHIFT_16M	24
++#define PAGE_SHIFT_16G	34
  
-+int pud_huge(pud_t pud)
-+{
-+	return 0;
-+}
-+
- struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 			     pmd_t *pmd, int write)
+ #define NUM_LOW_AREAS	(0x100000000UL >> SID_SHIFT)
+ #define NUM_HIGH_AREAS	(PGTABLE_RANGE >> HTLB_AREA_SHIFT)
+@@ -95,7 +96,7 @@ static int __hugepte_alloc(struct mm_str
+ static inline
+ pmd_t *hpmd_offset(pud_t *pud, unsigned long addr)
  {
-Index: linux-2.6/arch/sparc64/mm/hugetlbpage.c
-===================================================================
---- linux-2.6.orig/arch/sparc64/mm/hugetlbpage.c
-+++ linux-2.6/arch/sparc64/mm/hugetlbpage.c
-@@ -294,6 +294,11 @@ int pmd_huge(pmd_t pmd)
- 	return 0;
- }
- 
-+int pud_huge(pud_t pud)
-+{
-+	return 0;
-+}
-+
- struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 			     pmd_t *pmd, int write)
+-	if (HPAGE_SHIFT == HPAGE_SHIFT_64K)
++	if (HPAGE_SHIFT == PAGE_SHIFT_64K)
+ 		return pmd_offset(pud, addr);
+ 	else
+ 		return (pmd_t *) pud;
+@@ -103,7 +104,7 @@ pmd_t *hpmd_offset(pud_t *pud, unsigned 
+ static inline
+ pmd_t *hpmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long addr)
  {
-Index: linux-2.6/arch/x86/mm/hugetlbpage.c
-===================================================================
---- linux-2.6.orig/arch/x86/mm/hugetlbpage.c
-+++ linux-2.6/arch/x86/mm/hugetlbpage.c
-@@ -188,6 +188,11 @@ int pmd_huge(pmd_t pmd)
- 	return 0;
- }
+-	if (HPAGE_SHIFT == HPAGE_SHIFT_64K)
++	if (HPAGE_SHIFT == PAGE_SHIFT_64K)
+ 		return pmd_alloc(mm, pud, addr);
+ 	else
+ 		return (pmd_t *) pud;
+@@ -260,7 +261,7 @@ static void hugetlb_free_pud_range(struc
+ 			continue;
+ 		hugetlb_free_pmd_range(tlb, pud, addr, next, floor, ceiling);
+ #else
+-		if (HPAGE_SHIFT == HPAGE_SHIFT_64K) {
++		if (HPAGE_SHIFT == PAGE_SHIFT_64K) {
+ 			if (pud_none_or_clear_bad(pud))
+ 				continue;
+ 			hugetlb_free_pmd_range(tlb, pud, addr, next, floor, ceiling);
+@@ -591,20 +592,40 @@ void set_huge_psize(int psize)
+ {
+ 	/* Check that it is a page size supported by the hardware and
+ 	 * that it fits within pagetable limits. */
+-	if (mmu_psize_defs[psize].shift && mmu_psize_defs[psize].shift < SID_SHIFT &&
++	if (mmu_psize_defs[psize].shift &&
++		mmu_psize_defs[psize].shift < SID_SHIFT_1T &&
+ 		(mmu_psize_defs[psize].shift > MIN_HUGEPTE_SHIFT ||
+-			mmu_psize_defs[psize].shift == HPAGE_SHIFT_64K)) {
++		 mmu_psize_defs[psize].shift == PAGE_SHIFT_64K ||
++		 mmu_psize_defs[psize].shift == PAGE_SHIFT_16G)) {
++		/* Return if huge page size is the same as the
++		 * base page size. */
++		if (mmu_psize_defs[psize].shift == PAGE_SHIFT)
++			return;
++
+ 		HPAGE_SHIFT = mmu_psize_defs[psize].shift;
+ 		mmu_huge_psize = psize;
+-#ifdef CONFIG_PPC_64K_PAGES
+-		hugepte_shift = (PMD_SHIFT-HPAGE_SHIFT);
+-#else
+-		if (HPAGE_SHIFT == HPAGE_SHIFT_64K)
+-			hugepte_shift = (PMD_SHIFT-HPAGE_SHIFT);
+-		else
+-			hugepte_shift = (PUD_SHIFT-HPAGE_SHIFT);
+-#endif
  
-+int pud_huge(pud_t pud)
-+{
-+	return 0;
-+}
-+
- struct page *
- follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 		pmd_t *pmd, int write)
-@@ -208,6 +213,11 @@ int pmd_huge(pmd_t pmd)
- 	return !!(pmd_val(pmd) & _PAGE_PSE);
++		switch (HPAGE_SHIFT) {
++		case PAGE_SHIFT_64K:
++		    /* We only allow 64k hpages with 4k base page,
++		     * which was checked above, and always put them
++		     * at the PMD */
++		    hugepte_shift = PMD_SHIFT;
++		    break;
++		case PAGE_SHIFT_16M:
++		    /* 16M pages can be at two different levels
++		     * of pagestables based on base page size */
++		    if (PAGE_SHIFT == PAGE_SHIFT_64K)
++			    hugepte_shift = PMD_SHIFT;
++		    else /* 4k base page */
++			    hugepte_shift = PUD_SHIFT;
++		    break;
++		case PAGE_SHIFT_16G:
++		    /* 16G pages are always at PGD level */
++		    hugepte_shift = PGDIR_SHIFT;
++		    break;
++		}
++		hugepte_shift -= HPAGE_SHIFT;
+ 	} else
+ 		HPAGE_SHIFT = 0;
  }
- 
-+int pud_huge(pud_t pud)
-+{
-+	return 0;
-+}
-+
- struct page *
- follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 		pmd_t *pmd, int write)
-@@ -216,9 +226,22 @@ follow_huge_pmd(struct mm_struct *mm, un
- 
- 	page = pte_page(*(pte_t *)pmd);
- 	if (page)
--		page += ((address & ~HPAGE_MASK) >> PAGE_SHIFT);
-+		page += ((address & ~PMD_MASK) >> PAGE_SHIFT);
- 	return page;
- }
-+
-+struct page *
-+follow_huge_pud(struct mm_struct *mm, unsigned long address,
-+		pud_t *pud, int write)
-+{
-+	struct page *page;
-+
-+	page = pte_page(*(pte_t *)pud);
-+	if (page)
-+		page += ((address & ~PUD_MASK) >> PAGE_SHIFT);
-+	return page;
-+}
-+
+@@ -620,17 +641,22 @@ static int __init hugepage_setup_sz(char
+ 	shift = __ffs(size);
+ 	switch (shift) {
+ #ifndef CONFIG_PPC_64K_PAGES
+-	case HPAGE_SHIFT_64K:
++	case PAGE_SHIFT_64K:
+ 		mmu_psize = MMU_PAGE_64K;
+ 		break;
  #endif
+-	case HPAGE_SHIFT_16M:
++	case PAGE_SHIFT_16M:
+ 		mmu_psize = MMU_PAGE_16M;
+ 		break;
++	case PAGE_SHIFT_16G:
++		mmu_psize = MMU_PAGE_16G;
++		break;
+ 	}
  
- /* x86_64 also uses this file */
-Index: linux-2.6/mm/hugetlb.c
-===================================================================
---- linux-2.6.orig/mm/hugetlb.c
-+++ linux-2.6/mm/hugetlb.c
-@@ -1275,6 +1275,15 @@ int hugetlb_fault(struct mm_struct *mm, 
- 	return ret;
- }
- 
-+/* Can be overriden by architectures */
-+__attribute__((weak)) struct page *
-+follow_huge_pud(struct mm_struct *mm, unsigned long address,
-+	       pud_t *pud, int write)
-+{
-+	BUG();
-+	return NULL;
-+}
-+
- int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			struct page **pages, struct vm_area_struct **vmas,
- 			unsigned long *position, int *length, int i,
-Index: linux-2.6/mm/memory.c
-===================================================================
---- linux-2.6.orig/mm/memory.c
-+++ linux-2.6/mm/memory.c
-@@ -998,7 +998,13 @@ struct page *follow_page(struct vm_area_
- 	pud = pud_offset(pgd, address);
- 	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
- 		goto no_page_table;
--	
-+
-+	if (pud_huge(*pud)) {
-+		BUG_ON(flags & FOLL_GET);
-+		page = follow_huge_pud(mm, address, pud, flags & FOLL_WRITE);
-+		goto out;
+-	if (mmu_psize >=0 && mmu_psize_defs[mmu_psize].shift)
++	if (mmu_psize >= 0 && mmu_psize_defs[mmu_psize].shift) {
+ 		set_huge_psize(mmu_psize);
++		hugetlb_add_hstate(shift - PAGE_SHIFT);
 +	}
-+
- 	pmd = pmd_offset(pud, address);
- 	if (pmd_none(*pmd))
- 		goto no_page_table;
-@@ -1534,6 +1540,8 @@ static int apply_to_pmd_range(struct mm_
- 	unsigned long next;
- 	int err;
+ 	else
+ 		printk(KERN_WARNING "Invalid huge page size specified(%llu)\n", size);
  
-+	BUG_ON(pud_huge(*pud));
-+
- 	pmd = pmd_alloc(mm, pud, addr);
- 	if (!pmd)
- 		return -ENOMEM;
+Index: linux-2.6/include/asm-powerpc/pgtable-64k.h
+===================================================================
+--- linux-2.6.orig/include/asm-powerpc/pgtable-64k.h
++++ linux-2.6/include/asm-powerpc/pgtable-64k.h
+@@ -125,7 +125,7 @@ static inline struct subpage_prot_table 
+                 unsigned __split = (psize == MMU_PAGE_4K ||                 \
+ 				    psize == MMU_PAGE_64K_AP);              \
+                 shift = mmu_psize_defs[psize].shift;                        \
+-	        for (index = 0; va < __end; index++, va += (1 << shift)) {  \
++		for (index = 0; va < __end; index++, va += (1L << shift)) { \
+ 		        if (!__split || __rpte_sub_valid(rpte, index)) do { \
+ 
+ #define pte_iterate_hashed_end() } while(0); } } while(0)
 
 -- 
 
