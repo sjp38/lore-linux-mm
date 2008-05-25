@@ -1,58 +1,80 @@
-Message-Id: <20080525143452.345341000@nick.local0.net>
+Message-Id: <20080525143452.945210000@nick.local0.net>
 References: <20080525142317.965503000@nick.local0.net>
-Date: Mon, 26 May 2008 00:23:19 +1000
+Date: Mon, 26 May 2008 00:23:25 +1000
 From: npiggin@suse.de
-Subject: [patch 02/23] hugetlb: factor out huge_new_page
-Content-Disposition: inline; filename=hugetlb-factor-page-prep.patch
+Subject: [patch 08/23] hugetlb: abstract numa round robin selection
+Content-Disposition: inline; filename=hugetlb-abstract-numa-rr.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: kniht@us.ibm.com, andi@firstfloor.org, nacc@us.ibm.com, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Needed to avoid code duplication in follow up patches.
+Need this as a separate function for a future patch.
+
+No behaviour change.
 
 Signed-off-by: Andi Kleen <ak@suse.de>
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
- mm/hugetlb.c |   17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
+ mm/hugetlb.c |   37 ++++++++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)
 
 Index: linux-2.6/mm/hugetlb.c
 ===================================================================
 --- linux-2.6.orig/mm/hugetlb.c
 +++ linux-2.6/mm/hugetlb.c
-@@ -194,6 +194,16 @@ static int adjust_pool_surplus(int delta
- 	return ret;
+@@ -243,6 +243,27 @@ static struct page *alloc_fresh_huge_pag
+ 	return page;
  }
  
-+static void prep_new_huge_page(struct page *page, int nid)
++/*
++ * Use a helper variable to find the next node and then
++ * copy it back to hugetlb_next_nid afterwards:
++ * otherwise there's a window in which a racer might
++ * pass invalid nid MAX_NUMNODES to alloc_pages_node.
++ * But we don't need to use a spin_lock here: it really
++ * doesn't matter if occasionally a racer chooses the
++ * same nid as we do.  Move nid forward in the mask even
++ * if we just successfully allocated a hugepage so that
++ * the next caller gets hugepages on the next node.
++ */
++static int hstate_next_node(struct hstate *h)
 +{
-+	set_compound_page_dtor(page, free_huge_page);
-+	spin_lock(&hugetlb_lock);
-+	nr_huge_pages++;
-+	nr_huge_pages_node[nid]++;
-+	spin_unlock(&hugetlb_lock);
-+	put_page(page); /* free it into the hugepage allocator */
++	int next_nid;
++	next_nid = next_node(h->hugetlb_next_nid, node_online_map);
++	if (next_nid == MAX_NUMNODES)
++		next_nid = first_node(node_online_map);
++	h->hugetlb_next_nid = next_nid;
++	return next_nid;
 +}
 +
- static struct page *alloc_fresh_huge_page_node(int nid)
+ static int alloc_fresh_huge_page(struct hstate *h)
  {
  	struct page *page;
-@@ -207,12 +217,7 @@ static struct page *alloc_fresh_huge_pag
- 			__free_pages(page, HUGETLB_PAGE_ORDER);
- 			return NULL;
- 		}
--		set_compound_page_dtor(page, free_huge_page);
--		spin_lock(&hugetlb_lock);
--		nr_huge_pages++;
--		nr_huge_pages_node[nid]++;
--		spin_unlock(&hugetlb_lock);
--		put_page(page); /* free it into the hugepage allocator */
-+		prep_new_huge_page(page, nid);
- 	}
+@@ -256,21 +277,7 @@ static int alloc_fresh_huge_page(struct 
+ 		page = alloc_fresh_huge_page_node(h, h->hugetlb_next_nid);
+ 		if (page)
+ 			ret = 1;
+-		/*
+-		 * Use a helper variable to find the next node and then
+-		 * copy it back to hugetlb_next_nid afterwards:
+-		 * otherwise there's a window in which a racer might
+-		 * pass invalid nid MAX_NUMNODES to alloc_pages_node.
+-		 * But we don't need to use a spin_lock here: it really
+-		 * doesn't matter if occasionally a racer chooses the
+-		 * same nid as we do.  Move nid forward in the mask even
+-		 * if we just successfully allocated a hugepage so that
+-		 * the next caller gets hugepages on the next node.
+-		 */
+-		next_nid = next_node(h->hugetlb_next_nid, node_online_map);
+-		if (next_nid == MAX_NUMNODES)
+-			next_nid = first_node(node_online_map);
+-		h->hugetlb_next_nid = next_nid;
++		next_nid = hstate_next_node(h);
+ 	} while (!page && h->hugetlb_next_nid != start_nid);
  
- 	return page;
+ 	if (ret)
 
 -- 
 
