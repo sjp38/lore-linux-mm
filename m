@@ -1,140 +1,52 @@
-Message-Id: <20080525143454.237665000@nick.local0.net>
+Message-Id: <20080525143453.161667000@nick.local0.net>
 References: <20080525142317.965503000@nick.local0.net>
-Date: Mon, 26 May 2008 00:23:37 +1000
+Date: Mon, 26 May 2008 00:23:27 +1000
 From: npiggin@suse.de
-Subject: [patch 20/23] powerpc: scan device tree for gigantic pages
-Content-Disposition: inline; filename=powerpc-scan-device-tree-and-save-gigantic-page-locations.patch
+Subject: [patch 10/23] mm: export prep_compound_page to mm
+Content-Disposition: inline; filename=mm-export-prep_compound_page.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: kniht@us.ibm.com, andi@firstfloor.org, nacc@us.ibm.com, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Jon Tollefson <kniht@linux.vnet.ibm.com>
+Cc: kniht@us.ibm.com, andi@firstfloor.org, nacc@us.ibm.com, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-The 16G huge pages have to be reserved in the HMC prior to boot. The
-location of the pages are placed in the device tree.   This patch adds
-code to scan the device tree during very early boot and save these page
-locations until hugetlbfs is ready for them.
+hugetlb will need to get compound pages from bootmem to handle the case of them
+being greater than or equal to MAX_ORDER. Export the constructor function
+needed for this.
 
-Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
+Signed-off-by: Andi Kleen <ak@suse.de>
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
+ mm/internal.h   |    2 ++
+ mm/page_alloc.c |    2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
 
- arch/powerpc/mm/hash_utils_64.c  |   44 ++++++++++++++++++++++++++++++++++++++-
- arch/powerpc/mm/hugetlbpage.c    |   16 ++++++++++++++
- include/asm-powerpc/mmu-hash64.h |    2 +
- 3 files changed, 61 insertions(+), 1 deletion(-)
-
-
-
-Index: linux-2.6/arch/powerpc/mm/hash_utils_64.c
+Index: linux-2.6/mm/internal.h
 ===================================================================
---- linux-2.6.orig/arch/powerpc/mm/hash_utils_64.c
-+++ linux-2.6/arch/powerpc/mm/hash_utils_64.c
-@@ -68,6 +68,7 @@
+--- linux-2.6.orig/mm/internal.h
++++ linux-2.6/mm/internal.h
+@@ -13,6 +13,8 @@
  
- #define KB (1024)
- #define MB (1024*KB)
-+#define GB (1024L*MB)
+ #include <linux/mm.h>
  
- /*
-  * Note:  pte   --> Linux PTE
-@@ -329,6 +330,44 @@ static int __init htab_dt_scan_page_size
- 	return 0;
- }
- 
-+/* Scan for 16G memory blocks that have been set aside for huge pages
-+ * and reserve those blocks for 16G huge pages.
-+ */
-+static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
-+					const char *uname, int depth,
-+					void *data) {
-+	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-+	unsigned long *addr_prop;
-+	u32 *page_count_prop;
-+	unsigned int expected_pages;
-+	long unsigned int phys_addr;
-+	long unsigned int block_size;
++extern void prep_compound_page(struct page *page, unsigned long order);
 +
-+	/* We are scanning "memory" nodes only */
-+	if (type == NULL || strcmp(type, "memory") != 0)
-+		return 0;
-+
-+	/* This property is the log base 2 of the number of virtual pages that
-+	 * will represent this memory block. */
-+	page_count_prop = of_get_flat_dt_prop(node, "ibm,expected#pages", NULL);
-+	if (page_count_prop == NULL)
-+		return 0;
-+	expected_pages = (1 << page_count_prop[0]);
-+	addr_prop = of_get_flat_dt_prop(node, "reg", NULL);
-+	if (addr_prop == NULL)
-+		return 0;
-+	phys_addr = addr_prop[0];
-+	block_size = addr_prop[1];
-+	if (block_size != (16 * GB))
-+		return 0;
-+	printk(KERN_INFO "Huge page(16GB) memory: "
-+			"addr = 0x%lX size = 0x%lX pages = %d\n",
-+			phys_addr, block_size, expected_pages);
-+	lmb_reserve(phys_addr, block_size * expected_pages);
-+	add_gpage(phys_addr, block_size, expected_pages);
-+	return 0;
-+}
-+
- static void __init htab_init_page_sizes(void)
+ static inline void set_page_count(struct page *page, int v)
  {
- 	int rc;
-@@ -418,7 +457,10 @@ static void __init htab_init_page_sizes(
- 	       );
- 
- #ifdef CONFIG_HUGETLB_PAGE
--	/* Init large page size. Currently, we pick 16M or 1M depending
-+	/* Reserve 16G huge page memory sections for huge pages */
-+	of_scan_flat_dt(htab_dt_scan_hugepage_blocks, NULL);
-+
-+/* Init large page size. Currently, we pick 16M or 1M depending
- 	 * on what is available
- 	 */
- 	if (mmu_psize_defs[MMU_PAGE_16M].shift)
-Index: linux-2.6/arch/powerpc/mm/hugetlbpage.c
+ 	atomic_set(&page->_count, v);
+Index: linux-2.6/mm/page_alloc.c
 ===================================================================
---- linux-2.6.orig/arch/powerpc/mm/hugetlbpage.c
-+++ linux-2.6/arch/powerpc/mm/hugetlbpage.c
-@@ -110,6 +110,22 @@ pmd_t *hpmd_alloc(struct mm_struct *mm, 
+--- linux-2.6.orig/mm/page_alloc.c
++++ linux-2.6/mm/page_alloc.c
+@@ -273,7 +273,7 @@ static void free_compound_page(struct pa
+ 	__free_pages_ok(page, compound_order(page));
  }
- #endif
  
-+/* Build list of addresses of gigantic pages.  This function is used in early
-+ * boot before the buddy or bootmem allocator is setup.
-+ */
-+void add_gpage(unsigned long addr, unsigned long page_size,
-+	unsigned long number_of_pages)
-+{
-+	if (!addr)
-+		return;
-+	while (number_of_pages > 0) {
-+		gpage_freearray[nr_gpages] = addr;
-+		nr_gpages++;
-+		number_of_pages--;
-+		addr += page_size;
-+	}
-+}
-+
- /* Moves the gigantic page addresses from the temporary list to the
-   * huge_boot_pages list.
-  */
-Index: linux-2.6/include/asm-powerpc/mmu-hash64.h
-===================================================================
---- linux-2.6.orig/include/asm-powerpc/mmu-hash64.h
-+++ linux-2.6/include/asm-powerpc/mmu-hash64.h
-@@ -280,6 +280,8 @@ extern int htab_bolt_mapping(unsigned lo
- 			     unsigned long pstart, unsigned long mode,
- 			     int psize, int ssize);
- extern void set_huge_psize(int psize);
-+extern void add_gpage(unsigned long addr, unsigned long page_size,
-+			  unsigned long number_of_pages);
- extern void demote_segment_4k(struct mm_struct *mm, unsigned long addr);
- 
- extern void htab_initialize(void);
+-static void prep_compound_page(struct page *page, unsigned long order)
++void prep_compound_page(struct page *page, unsigned long order)
+ {
+ 	int i;
+ 	int nr_pages = 1 << order;
 
 -- 
 
