@@ -1,35 +1,29 @@
-Date: Sun, 25 May 2008 23:02:16 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: 2.6.26: x86/kernel/pci_dma.c: gfp |= __GFP_NORETRY ?
-Message-ID: <20080525230216.1fe1b216@core>
-In-Reply-To: <20080525212350.GB8405@one.firstfloor.org>
-References: <20080521113028.GA24632@xs4all.net>
-	<48341A57.1030505@redhat.com>
-	<20080522084736.GC31727@one.firstfloor.org>
-	<1211484343.30678.15.camel@localhost.localdomain>
-	<1211657898.25661.2.camel@localhost.localdomain>
-	<20080525163539.GA8405@one.firstfloor.org>
-	<20080525205532.3ed5e478@core>
-	<20080525212350.GB8405@one.firstfloor.org>
+Subject: Re: [PATCH 4/4] swapcgroup: modify vm_swap_full for cgroup
+In-Reply-To: Your message of "Thu, 22 May 2008 21:34:50 +0900"
+	<4835686A.9000106@mxp.nes.nec.co.jp>
+References: <4835686A.9000106@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: Text/Plain; charset=us-ascii
+Message-Id: <20080525233532.1EE145A0E@siro.lan>
+Date: Mon, 26 May 2008 08:35:32 +0900 (JST)
+From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Miquel van Smoorenburg <miquels@cistron.nl>, Glauber Costa <gcosta@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi-suse@firstfloor.org
+To: nishimura@mxp.nes.nec.co.jp
+Cc: containers@lists.osdl.org, linux-mm@kvack.org, Lee.Schermerhorn@hp.com, riel@redhat.com, balbir@linux.vnet.ibm.com, kosaki.motohiro@jp.fujitsu.com, hugh@veritas.com, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-> No it doesn't because the lower zone protection basically never puts
-> anything that is not GFP_DMA into the 16MB zone.
+> How about something like this?
 > 
-> Just check yourself on your machine using sysrq.
-> 
-> That was one of the motivations behind the mask allocator design.
+>   :
+> usage = swap_cgroup_read_usage(mem);	//no need to align to number of page
+> limit = swap_cgroup_read_limit(mem);	//no need to align to number of page
+> ret = (usage * 2 > limit) || (nr_swap_pages * 2 < total_swap_pages)
+>   :
 
-Try a 16MB embedded PC 
+it seems reasonable to me.
 
-Alan
+YAMAMOTO Takashi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
