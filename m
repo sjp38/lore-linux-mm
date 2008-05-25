@@ -1,52 +1,222 @@
-Message-Id: <20080525143453.161667000@nick.local0.net>
+Message-Id: <20080525143453.593888000@nick.local0.net>
 References: <20080525142317.965503000@nick.local0.net>
-Date: Mon, 26 May 2008 00:23:27 +1000
+Date: Mon, 26 May 2008 00:23:31 +1000
 From: npiggin@suse.de
-Subject: [patch 10/23] mm: export prep_compound_page to mm
-Content-Disposition: inline; filename=mm-export-prep_compound_page.patch
+Subject: [patch 14/23] hugetlb: introduce huge_pud
+Content-Disposition: inline; filename=hugetlbfs-huge_pud.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: kniht@us.ibm.com, andi@firstfloor.org, nacc@us.ibm.com, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-hugetlb will need to get compound pages from bootmem to handle the case of them
-being greater than or equal to MAX_ORDER. Export the constructor function
-needed for this.
+Straight forward extensions for huge pages located in the PUD
+instead of PMDs.
 
 Signed-off-by: Andi Kleen <ak@suse.de>
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
- mm/internal.h   |    2 ++
- mm/page_alloc.c |    2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ arch/ia64/mm/hugetlbpage.c    |    6 ++++++
+ arch/powerpc/mm/hugetlbpage.c |    5 +++++
+ arch/sh/mm/hugetlbpage.c      |    5 +++++
+ arch/sparc64/mm/hugetlbpage.c |    5 +++++
+ arch/x86/mm/hugetlbpage.c     |   25 ++++++++++++++++++++++++-
+ include/linux/hugetlb.h       |    5 +++++
+ mm/hugetlb.c                  |    9 +++++++++
+ mm/memory.c                   |   10 +++++++++-
+ 8 files changed, 68 insertions(+), 2 deletions(-)
 
-Index: linux-2.6/mm/internal.h
+Index: linux-2.6/include/linux/hugetlb.h
 ===================================================================
---- linux-2.6.orig/mm/internal.h
-+++ linux-2.6/mm/internal.h
-@@ -13,6 +13,8 @@
+--- linux-2.6.orig/include/linux/hugetlb.h
++++ linux-2.6/include/linux/hugetlb.h
+@@ -45,7 +45,10 @@ struct page *follow_huge_addr(struct mm_
+ 			      int write);
+ struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ 				pmd_t *pmd, int write);
++struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,
++				pud_t *pud, int write);
+ int pmd_huge(pmd_t pmd);
++int pud_huge(pud_t pmd);
+ void hugetlb_change_protection(struct vm_area_struct *vma,
+ 		unsigned long address, unsigned long end, pgprot_t newprot);
  
- #include <linux/mm.h>
- 
-+extern void prep_compound_page(struct page *page, unsigned long order);
-+
- static inline void set_page_count(struct page *page, int v)
+@@ -68,8 +71,10 @@ static inline unsigned long hugetlb_tota
+ #define hugetlb_report_meminfo(buf)		0
+ #define hugetlb_report_node_meminfo(n, buf)	0
+ #define follow_huge_pmd(mm, addr, pmd, write)	NULL
++#define follow_huge_pud(mm, addr, pud, write)	NULL
+ #define prepare_hugepage_range(file, addr, len)	(-EINVAL)
+ #define pmd_huge(x)	0
++#define pud_huge(x)	0
+ #define is_hugepage_only_range(mm, addr, len)	0
+ #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
+ #define hugetlb_fault(mm, vma, addr, write)	({ BUG(); 0; })
+Index: linux-2.6/arch/ia64/mm/hugetlbpage.c
+===================================================================
+--- linux-2.6.orig/arch/ia64/mm/hugetlbpage.c
++++ linux-2.6/arch/ia64/mm/hugetlbpage.c
+@@ -106,6 +106,12 @@ int pmd_huge(pmd_t pmd)
  {
- 	atomic_set(&page->_count, v);
-Index: linux-2.6/mm/page_alloc.c
+ 	return 0;
+ }
++
++int pud_huge(pud_t pud)
++{
++	return 0;
++}
++
+ struct page *
+ follow_huge_pmd(struct mm_struct *mm, unsigned long address, pmd_t *pmd, int write)
+ {
+Index: linux-2.6/arch/powerpc/mm/hugetlbpage.c
 ===================================================================
---- linux-2.6.orig/mm/page_alloc.c
-+++ linux-2.6/mm/page_alloc.c
-@@ -273,7 +273,7 @@ static void free_compound_page(struct pa
- 	__free_pages_ok(page, compound_order(page));
+--- linux-2.6.orig/arch/powerpc/mm/hugetlbpage.c
++++ linux-2.6/arch/powerpc/mm/hugetlbpage.c
+@@ -368,6 +368,11 @@ int pmd_huge(pmd_t pmd)
+ 	return 0;
  }
  
--static void prep_compound_page(struct page *page, unsigned long order)
-+void prep_compound_page(struct page *page, unsigned long order)
++int pud_huge(pud_t pud)
++{
++	return 0;
++}
++
+ struct page *
+ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ 		pmd_t *pmd, int write)
+Index: linux-2.6/arch/sh/mm/hugetlbpage.c
+===================================================================
+--- linux-2.6.orig/arch/sh/mm/hugetlbpage.c
++++ linux-2.6/arch/sh/mm/hugetlbpage.c
+@@ -78,6 +78,11 @@ int pmd_huge(pmd_t pmd)
+ 	return 0;
+ }
+ 
++int pud_huge(pud_t pud)
++{
++	return 0;
++}
++
+ struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ 			     pmd_t *pmd, int write)
  {
- 	int i;
- 	int nr_pages = 1 << order;
+Index: linux-2.6/arch/sparc64/mm/hugetlbpage.c
+===================================================================
+--- linux-2.6.orig/arch/sparc64/mm/hugetlbpage.c
++++ linux-2.6/arch/sparc64/mm/hugetlbpage.c
+@@ -294,6 +294,11 @@ int pmd_huge(pmd_t pmd)
+ 	return 0;
+ }
+ 
++int pud_huge(pud_t pud)
++{
++	return 0;
++}
++
+ struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ 			     pmd_t *pmd, int write)
+ {
+Index: linux-2.6/arch/x86/mm/hugetlbpage.c
+===================================================================
+--- linux-2.6.orig/arch/x86/mm/hugetlbpage.c
++++ linux-2.6/arch/x86/mm/hugetlbpage.c
+@@ -188,6 +188,11 @@ int pmd_huge(pmd_t pmd)
+ 	return 0;
+ }
+ 
++int pud_huge(pud_t pud)
++{
++	return 0;
++}
++
+ struct page *
+ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ 		pmd_t *pmd, int write)
+@@ -208,6 +213,11 @@ int pmd_huge(pmd_t pmd)
+ 	return !!(pmd_val(pmd) & _PAGE_PSE);
+ }
+ 
++int pud_huge(pud_t pud)
++{
++	return 0;
++}
++
+ struct page *
+ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ 		pmd_t *pmd, int write)
+@@ -216,9 +226,22 @@ follow_huge_pmd(struct mm_struct *mm, un
+ 
+ 	page = pte_page(*(pte_t *)pmd);
+ 	if (page)
+-		page += ((address & ~HPAGE_MASK) >> PAGE_SHIFT);
++		page += ((address & ~PMD_MASK) >> PAGE_SHIFT);
+ 	return page;
+ }
++
++struct page *
++follow_huge_pud(struct mm_struct *mm, unsigned long address,
++		pud_t *pud, int write)
++{
++	struct page *page;
++
++	page = pte_page(*(pte_t *)pud);
++	if (page)
++		page += ((address & ~PUD_MASK) >> PAGE_SHIFT);
++	return page;
++}
++
+ #endif
+ 
+ /* x86_64 also uses this file */
+Index: linux-2.6/mm/hugetlb.c
+===================================================================
+--- linux-2.6.orig/mm/hugetlb.c
++++ linux-2.6/mm/hugetlb.c
+@@ -1275,6 +1275,15 @@ int hugetlb_fault(struct mm_struct *mm, 
+ 	return ret;
+ }
+ 
++/* Can be overriden by architectures */
++__attribute__((weak)) struct page *
++follow_huge_pud(struct mm_struct *mm, unsigned long address,
++	       pud_t *pud, int write)
++{
++	BUG();
++	return NULL;
++}
++
+ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			struct page **pages, struct vm_area_struct **vmas,
+ 			unsigned long *position, int *length, int i,
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c
++++ linux-2.6/mm/memory.c
+@@ -998,7 +998,13 @@ struct page *follow_page(struct vm_area_
+ 	pud = pud_offset(pgd, address);
+ 	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
+ 		goto no_page_table;
+-	
++
++	if (pud_huge(*pud)) {
++		BUG_ON(flags & FOLL_GET);
++		page = follow_huge_pud(mm, address, pud, flags & FOLL_WRITE);
++		goto out;
++	}
++
+ 	pmd = pmd_offset(pud, address);
+ 	if (pmd_none(*pmd))
+ 		goto no_page_table;
+@@ -1534,6 +1540,8 @@ static int apply_to_pmd_range(struct mm_
+ 	unsigned long next;
+ 	int err;
+ 
++	BUG_ON(pud_huge(*pud));
++
+ 	pmd = pmd_alloc(mm, pud, addr);
+ 	if (!pmd)
+ 		return -ENOMEM;
 
 -- 
 
