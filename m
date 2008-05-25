@@ -1,66 +1,102 @@
-Message-Id: <20080525143454.129909000@nick.local0.net>
+Message-Id: <20080525143454.025813000@nick.local0.net>
 References: <20080525142317.965503000@nick.local0.net>
-Date: Mon, 26 May 2008 00:23:36 +1000
+Date: Mon, 26 May 2008 00:23:35 +1000
 From: npiggin@suse.de
-Subject: [patch 19/23] powerpc: function to allocate gigantic hugepages
-Content-Disposition: inline; filename=powerpc-function-for-gigantic-hugepage-allocation.patch
+Subject: [patch 18/23] hugetlb: allow arch overried hugepage allocation
+Content-Disposition: inline; filename=hugetlb-allow-arch-override-hugepage-allocation.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: kniht@us.ibm.com, andi@firstfloor.org, nacc@us.ibm.com, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Jon Tollefson <kniht@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-The 16G page locations have been saved during early boot in an array.
-The alloc_bootmem_huge_page() function adds a page from here to the
-huge_boot_pages list.
+Allow alloc_bootmem_huge_page() to be overridden by architectures that can't
+always use bootmem. This requires huge_boot_pages to be available for
+use by this function. The 16G pages on ppc64 have to be reserved prior
+to boot-time. The location of these pages are indicated in the device
+tree.
 
 Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
 
- arch/powerpc/mm/hugetlbpage.c |   22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ include/linux/hugetlb.h |   10 ++++++++++
+ mm/hugetlb.c            |   12 ++++--------
+ 2 files changed, 14 insertions(+), 8 deletions(-)
 
-Index: linux-2.6/arch/powerpc/mm/hugetlbpage.c
+
+Index: linux-2.6/include/linux/hugetlb.h
 ===================================================================
---- linux-2.6.orig/arch/powerpc/mm/hugetlbpage.c
-+++ linux-2.6/arch/powerpc/mm/hugetlbpage.c
-@@ -29,6 +29,12 @@
+--- linux-2.6.orig/include/linux/hugetlb.h
++++ linux-2.6/include/linux/hugetlb.h
+@@ -35,6 +35,7 @@ void hugetlb_unreserve_pages(struct inod
+ extern unsigned long hugepages_treat_as_movable;
+ extern const unsigned long hugetlb_zero, hugetlb_infinity;
+ extern int sysctl_hugetlb_shm_group;
++extern struct list_head huge_boot_pages;
  
- #define NUM_LOW_AREAS	(0x100000000UL >> SID_SHIFT)
- #define NUM_HIGH_AREAS	(PGTABLE_RANGE >> HTLB_AREA_SHIFT)
-+#define MAX_NUMBER_GPAGES	1024
+ /* arch callbacks */
+ 
+@@ -176,6 +177,14 @@ struct hstate {
+ 	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
+ };
+ 
++struct huge_bootmem_page {
++	struct list_head list;
++	struct hstate *hstate;
++};
 +
-+/* Tracks the 16G pages after the device tree is scanned and before the
-+ *  huge_boot_pages list is ready.  */
-+static unsigned long gpage_freearray[MAX_NUMBER_GPAGES];
-+static unsigned nr_gpages;
++/* arch callback */
++int __init alloc_bootmem_huge_page(struct hstate *h);
++
+ void __init hugetlb_add_hstate(unsigned order);
+ struct hstate *size_to_hstate(unsigned long size);
  
- unsigned int hugepte_shift;
- #define PTRS_PER_HUGEPTE	(1 << hugepte_shift)
-@@ -104,6 +110,22 @@ pmd_t *hpmd_alloc(struct mm_struct *mm, 
+@@ -237,6 +246,7 @@ extern unsigned long sysctl_overcommit_h
+ 
+ #else
+ struct hstate {};
++#define alloc_bootmem_huge_page(h) NULL
+ #define hstate_file(f) NULL
+ #define hstate_vma(v) NULL
+ #define hstate_inode(i) NULL
+Index: linux-2.6/mm/hugetlb.c
+===================================================================
+--- linux-2.6.orig/mm/hugetlb.c
++++ linux-2.6/mm/hugetlb.c
+@@ -27,6 +27,7 @@ unsigned long max_huge_pages[HUGE_MAX_HS
+ unsigned long sysctl_overcommit_huge_pages[HUGE_MAX_HSTATE];
+ static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
+ unsigned long hugepages_treat_as_movable;
++struct list_head huge_boot_pages;
+ 
+ static int max_hstate = 0;
+ struct hstate hstates[HUGE_MAX_HSTATE];
+@@ -560,14 +561,7 @@ static struct page *alloc_huge_page(stru
+ 	return page;
  }
- #endif
  
-+/* Moves the gigantic page addresses from the temporary list to the
-+  * huge_boot_pages list.
-+ */
-+int alloc_bootmem_huge_page(struct hstate *h)
-+{
-+	struct huge_bootmem_page *m;
-+	if (nr_gpages == 0)
-+		return 0;
-+	m = phys_to_virt(gpage_freearray[--nr_gpages]);
-+	gpage_freearray[nr_gpages] = 0;
-+	list_add(&m->list, &huge_boot_pages);
-+	m->hstate = h;
-+	return 1;
-+}
-+
-+
- /* Modelled after find_linux_pte() */
- pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+-static __initdata LIST_HEAD(huge_boot_pages);
+-
+-struct huge_bootmem_page {
+-	struct list_head list;
+-	struct hstate *hstate;
+-};
+-
+-static int __init alloc_bootmem_huge_page(struct hstate *h)
++__attribute__((weak)) int alloc_bootmem_huge_page(struct hstate *h)
  {
+ 	struct huge_bootmem_page *m;
+ 	int nr_nodes = nodes_weight(node_online_map);
+@@ -610,6 +604,8 @@ static void __init hugetlb_init_one_hsta
+ 	unsigned long i;
+ 
+ 	/* Don't reinitialize lists if they have been already init'ed */
++	if (!huge_boot_pages.next)
++		INIT_LIST_HEAD(&huge_boot_pages);
+ 	if (!h->hugepage_freelists[0].next) {
+ 		for (i = 0; i < MAX_NUMNODES; ++i)
+ 			INIT_LIST_HEAD(&h->hugepage_freelists[i]);
 
 -- 
 
