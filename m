@@ -1,82 +1,57 @@
-Date: Mon, 26 May 2008 09:57:06 +0900
+Date: Mon, 26 May 2008 10:23:09 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/4] swapcgroup: implement charge/uncharge
-Message-Id: <20080526095706.c90a0afb.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4836AFFD.3060605@mxp.nes.nec.co.jp>
-References: <48350F15.9070007@mxp.nes.nec.co.jp>
-	<48351095.3040009@mxp.nes.nec.co.jp>
-	<20080522163748.74e9bd4f.kamezawa.hiroyu@jp.fujitsu.com>
-	<4836AFFD.3060605@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 0/3] explicitly document overloaded page flags V2
+Message-Id: <20080526102309.01b9bc9a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <exportbomb.1211560342@pinky>
+References: <exportbomb.1211560342@pinky>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, "IKEDA, Munehiro" <m-ikeda@ds.jp.nec.com>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jeremy Fitzhardinge <jeremy@goop.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 23 May 2008 20:52:29 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Fri, 23 May 2008 17:33:01 +0100
+Andy Whitcroft <apw@shadowen.org> wrote:
 
-> On 2008/05/22 16:37 +0900, KAMEZAWA Hiroyuki wrote:
-> > On Thu, 22 May 2008 15:20:05 +0900
-> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > 
-> >> +#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-> >> +int swap_cgroup_charge(struct page *page,
-> >> +			struct swap_info_struct *si,
-> >> +			unsigned long offset)
-> >> +{
-> >> +	int ret;
-> >> +	struct page_cgroup *pc;
-> >> +	struct mem_cgroup *mem;
-> >> +
-> >> +	lock_page_cgroup(page);
-> >> +	pc = page_get_page_cgroup(page);
-> >> +	if (unlikely(!pc))
-> >> +		mem = &init_mem_cgroup;
-> >> +	else
-> >> +		mem = pc->mem_cgroup;
-> >> +	unlock_page_cgroup(page);
-> > 
-> > If !pc, the page is used before memory controller is available. But is it
-> > good to be charged to init_mem_cgroup() ?
-> I'm sorry, but I can't understand this situation.
-> memory controller is initialized at kernel initialization,
-> so aren't processes created after it is initialized?
+> With the recent page flag reorganisation we have a single enum which
+> defines the valid page flags and their values, nice and clear.  However
+> there are a number of bits which are overloaded by different subsystems.
+> Firstly there is PG_owner_priv_1 which is used by filesystems and by XEN.
+> Secondly both SLOB and SLUB use a couple of extra page bits to manage
+> internal state for pages they own; both overlay other bits.  All of these
+> "aliases" are scattered about the source making it very hard for a reader
+> to know if the bits are safe to rely on in all contexts; confusion here
+> is bad.
 > 
-I think add_to_page_cache() may be called before late_init..I'll check again.
-(Because I saw some panics related to it, but I noticed this is _swap_ controller
- ...)
+> As we now have a single place where the bits are clearly assigned it makes
+> sense to clarify the reuse of bits by making the aliases explicit and
+> visible with the original bit assignments.  This patch creates explicit
+> aliases within the enum itself for the overloaded bits, creates standard
+> bit accessors PageFoo etc. and uses those throughout.
+> 
+> This version pulls the bit manipulation out to standard named page bit
+> accessors as suggested by Christoph, it retains the explicit mapping to
+> the overlayed bits.  A fusion of both ideas.  This has been SLUB and
+> SLOB have been compile tested on x86_64 only, and SLUB boot tested.
+> If people feel this is worth doing then I can run a fuller set of testing.
+> 
+Thanks, I like this style of page-flags definition.
 
-> > How about returning 'failure' in this case ? I think returning 'failure' here
-> > is not so bad.
-> > 
-> > 
-> Which of below do you mean by 'failure'?
-> 
-> A. make it fail to get swap entry, so the page cannot be swapped out.
-> B. don't charge this swap entry to any cgroup, but the page
->    would be swapped out.
-means A.
-
-
-> 
-> I don't want to do B, because I don't want to make such
-> not-charged-to-anywhere entries.
-> And I've seen several times this condition(!pc) becomes true,
-> so I charged to init_mem_cgroup.
-> 
-> 
-> BTW, I noticed that almost all of functions I added by this patch set
-> should check "mem_cgroup_subsys.disabled" first because it depend on
-> memory cgroup.
-> 
-Ah, yes, please.
+BTW, I have a quiestion as crash-dump user. With this 'enum' style, position of
+each flags in page->flags depends on configs. Can we know what a bit means from
+dump or bad_page()'s message ? (not a big problem now but..)
 
 Thanks,
 -Kame
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
