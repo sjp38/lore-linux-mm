@@ -1,55 +1,81 @@
-Date: Mon, 26 May 2008 12:09:05 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch 14/23] hugetlb: introduce huge_pud
-In-Reply-To: <20080525143453.593888000@nick.local0.net>
-Message-ID: <Pine.LNX.4.64.0805261148130.3720@blonde.site>
-References: <20080525142317.965503000@nick.local0.net>
- <20080525143453.593888000@nick.local0.net>
+Date: Mon, 26 May 2008 22:10:06 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [RFC] Circular include dependencies
+In-Reply-To: <20080523181728.b30409b2.akpm@linux-foundation.org>
+References: <20080523132034.GB15384@flint.arm.linux.org.uk> <20080523181728.b30409b2.akpm@linux-foundation.org>
+Message-Id: <20080526195803.F779.E1E9C6FF@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
-Cc: linux-mm@kvack.org, kniht@us.ibm.com, andi@firstfloor.org, nacc@us.ibm.com, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Andi Kleen <ak@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Russell King <rmk+lkml@arm.linux.org.uk>, Linux Kernel List <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 26 May 2008, npiggin@suse.de wrote:
-> Straight forward extensions for huge pages located in the PUD
-> instead of PMDs.
+> On Fri, 23 May 2008 14:20:34 +0100 Russell King <rmk+lkml@arm.linux.org.uk> wrote:
 > 
-> Signed-off-by: Andi Kleen <ak@suse.de>
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
+> > Hi,
+> > 
+> > Having discovered some circular include dependencies in the ARM header
+> > files which were causing build issues, I created a script to walk ARM
+> > includes and report any similar issues found - which includes traversing
+> > any referenced linux/ includes.
+> > 
+> > It identified the following two in include/linux/:
+> > 
+> >   linux/mmzone.h <- linux/memory_hotplug.h <- linux/mmzone.h
+> >   linux/mmzone.h <- linux/topology.h <- linux/mmzone.h
+> > 
+> > Checking them by hand reveals that these are real.  Whether they're
+> > capable of causing a problem or not, I'm not going to comment on.
+> > However, they're not a good idea and someone should probably look at
+> > resolving the loops.
+> 
+> (cc's added).
+> 
+> Thanks.
+> 
+> I'm not sure who we could tap for the topology.h one.
+> 
+> A suitable (and often good) way of solving this is to identify the
+> things which a.h needs from b.h and hoist them out into a new c.h and
+> include that from both a.h and b.h.
 
-Sorry, I've not looked through all these, but the subject of this one
-(which should say "pud_huge" rather than "huge_pud") led me to check:
-please take a look at commit aeed5fce37196e09b4dac3a1c00d8b7122e040ce,
-I believe your follow_page will need to try pud_huge before pud_bad.
+Kame-san and I reviewed memory_hotplug.h.
+We found its including was not necessary certainly.
 
-Though note in the comment to that commit, I'm dubious whether we
-can ever actually hit that case, or need follow_huge_pmd (or your
-follow_huge_pud) at all: please cross check, you might prefer to
-delete the huge pmd code there rather than add huge pud code,
-if you agree that there's actually no way we need it.
+This is the patch to fix it. I tested on IA64, and checked cross-compile
+on powerpc. Kame-san tested this on x86-64.
 
-Hugh
+Thanks for your report.
 
-> --- linux-2.6.orig/mm/memory.c
-> +++ linux-2.6/mm/memory.c
-> @@ -998,7 +998,13 @@ struct page *follow_page(struct vm_area_
->  	pud = pud_offset(pgd, address);
->  	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
->  		goto no_page_table;
-> -	
-> +
-> +	if (pud_huge(*pud)) {
-> +		BUG_ON(flags & FOLL_GET);
-> +		page = follow_huge_pud(mm, address, pud, flags & FOLL_WRITE);
-> +		goto out;
-> +	}
-> +
->  	pmd = pmd_offset(pud, address);
->  	if (pmd_none(*pmd))
->  		goto no_page_table;
+Bye.
+
+----
+Fix no need including of mmzone.h in memory_hotplug.h
+
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+
+---
+ include/linux/memory_hotplug.h |    1 -
+ 1 file changed, 1 deletion(-)
+
+Index: dptest/include/linux/memory_hotplug.h
+===================================================================
+--- dptest.orig/include/linux/memory_hotplug.h	2008-05-21 10:56:00.000000000 +0900
++++ dptest/include/linux/memory_hotplug.h	2008-05-26 20:32:06.000000000 +0900
+@@ -1,7 +1,6 @@
+ #ifndef __LINUX_MEMORY_HOTPLUG_H
+ #define __LINUX_MEMORY_HOTPLUG_H
+ 
+-#include <linux/mmzone.h>
+ #include <linux/spinlock.h>
+ #include <linux/notifier.h>
+ 
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
