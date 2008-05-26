@@ -1,34 +1,55 @@
-Date: Mon, 26 May 2008 13:41:49 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 3/3] slob: record page flag overlays explicitly
-In-Reply-To: <1211560412.0@pinky>
-References: <exportbomb.1211560342@pinky> <1211560412.0@pinky>
-Message-Id: <20080526134123.4667.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Mon, 26 May 2008 12:09:05 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch 14/23] hugetlb: introduce huge_pud
+In-Reply-To: <20080525143453.593888000@nick.local0.net>
+Message-ID: <Pine.LNX.4.64.0805261148130.3720@blonde.site>
+References: <20080525142317.965503000@nick.local0.net>
+ <20080525143453.593888000@nick.local0.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jeremy Fitzhardinge <jeremy@goop.org>, linux-kernel@vger.kernel.org
+To: npiggin@suse.de
+Cc: linux-mm@kvack.org, kniht@us.ibm.com, andi@firstfloor.org, nacc@us.ibm.com, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 26 May 2008, npiggin@suse.de wrote:
+> Straight forward extensions for huge pages located in the PUD
+> instead of PMDs.
 > 
-> SLOB reuses two page bits for internal purposes, it overlays PG_active
-> and PG_private.  This is hidden away in slob.c.  Document these overlays
-> explicitly in the main page-flags enum along with all the others.
-> 
-> Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+> Signed-off-by: Andi Kleen <ak@suse.de>
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
 
-I dont have SLOB box.
-but My review found no bug.
+Sorry, I've not looked through all these, but the subject of this one
+(which should say "pud_huge" rather than "huge_pud") led me to check:
+please take a look at commit aeed5fce37196e09b4dac3a1c00d8b7122e040ce,
+I believe your follow_page will need to try pud_huge before pud_bad.
 
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Though note in the comment to that commit, I'm dubious whether we
+can ever actually hit that case, or need follow_huge_pmd (or your
+follow_huge_pud) at all: please cross check, you might prefer to
+delete the huge pmd code there rather than add huge pud code,
+if you agree that there's actually no way we need it.
 
+Hugh
 
-Thanks.
-
-
+> --- linux-2.6.orig/mm/memory.c
+> +++ linux-2.6/mm/memory.c
+> @@ -998,7 +998,13 @@ struct page *follow_page(struct vm_area_
+>  	pud = pud_offset(pgd, address);
+>  	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
+>  		goto no_page_table;
+> -	
+> +
+> +	if (pud_huge(*pud)) {
+> +		BUG_ON(flags & FOLL_GET);
+> +		page = follow_huge_pud(mm, address, pud, flags & FOLL_WRITE);
+> +		goto out;
+> +	}
+> +
+>  	pmd = pmd_offset(pud, address);
+>  	if (pmd_none(*pmd))
+>  		goto no_page_table;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
