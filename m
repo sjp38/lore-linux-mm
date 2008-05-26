@@ -1,57 +1,64 @@
-Date: Mon, 26 May 2008 10:23:09 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 0/3] explicitly document overloaded page flags V2
-Message-Id: <20080526102309.01b9bc9a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <exportbomb.1211560342@pinky>
-References: <exportbomb.1211560342@pinky>
+Date: Mon, 26 May 2008 03:40:49 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 2/2] lockless get_user_pages
+Message-ID: <20080526014049.GC30840@wotan.suse.de>
+References: <20080525144847.GB25747@wotan.suse.de> <20080525145227.GC25747@wotan.suse.de> <87fxs6xpyp.fsf@saeurebad.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87fxs6xpyp.fsf@saeurebad.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jeremy Fitzhardinge <jeremy@goop.org>, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@saeurebad.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, shaggy@austin.ibm.com, jens.axboe@oracle.com, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 23 May 2008 17:33:01 +0100
-Andy Whitcroft <apw@shadowen.org> wrote:
-
-> With the recent page flag reorganisation we have a single enum which
-> defines the valid page flags and their values, nice and clear.  However
-> there are a number of bits which are overloaded by different subsystems.
-> Firstly there is PG_owner_priv_1 which is used by filesystems and by XEN.
-> Secondly both SLOB and SLUB use a couple of extra page bits to manage
-> internal state for pages they own; both overlay other bits.  All of these
-> "aliases" are scattered about the source making it very hard for a reader
-> to know if the bits are safe to rely on in all contexts; confusion here
-> is bad.
+On Sun, May 25, 2008 at 07:18:06PM +0200, Johannes Weiner wrote:
+> Hi Nick,
 > 
-> As we now have a single place where the bits are clearly assigned it makes
-> sense to clarify the reuse of bits by making the aliases explicit and
-> visible with the original bit assignments.  This patch creates explicit
-> aliases within the enum itself for the overloaded bits, creates standard
-> bit accessors PageFoo etc. and uses those throughout.
+> Nick Piggin <npiggin@suse.de> writes:
 > 
-> This version pulls the bit manipulation out to standard named page bit
-> accessors as suggested by Christoph, it retains the explicit mapping to
-> the overlayed bits.  A fusion of both ideas.  This has been SLUB and
-> SLOB have been compile tested on x86_64 only, and SLUB boot tested.
-> If people feel this is worth doing then I can run a fuller set of testing.
+> > +static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
+> > +		unsigned long end, int write, struct page **pages, int *nr)
+> > +{
+> > +	unsigned long mask;
+> > +	pte_t *ptep;
+> > +
+> > +	mask = _PAGE_PRESENT|_PAGE_USER;
+> > +	if (write)
+> > +		mask |= _PAGE_RW;
+> > +
+> > +	ptep = pte_offset_map(&pmd, addr);
+> > +	do {
+> > +		pte_t pte = gup_get_pte(ptep);
+> > +		struct page *page;
+> > +
+> > +		if ((pte_val(pte) & (mask | _PAGE_SPECIAL)) != mask)
+> > +			return 0;
 > 
-Thanks, I like this style of page-flags definition.
+> Don't you leak the possbile high mapping here?
 
-BTW, I have a quiestion as crash-dump user. With this 'enum' style, position of
-each flags in page->flags depends on configs. Can we know what a bit means from
-dump or bad_page()'s message ? (not a big problem now but..)
+Hi Johannes,
 
-Thanks,
--Kame
+Right you are. Good spotting.
 
-
-
-
-
-
+--
+Index: linux-2.6/arch/x86/mm/gup.c
+===================================================================
+--- linux-2.6.orig/arch/x86/mm/gup.c
++++ linux-2.6/arch/x86/mm/gup.c
+@@ -80,8 +80,10 @@ static noinline int gup_pte_range(pmd_t 
+ 		pte_t pte = gup_get_pte(ptep);
+ 		struct page *page;
+ 
+-		if ((pte_val(pte) & (mask | _PAGE_SPECIAL)) != mask)
++		if ((pte_val(pte) & (mask | _PAGE_SPECIAL)) != mask) {
++			pte_unmap(ptep);
+ 			return 0;
++		}
+ 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+ 		page = pte_page(pte);
+ 		get_page(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
