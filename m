@@ -1,61 +1,28 @@
-Message-ID: <483BBD8C.3040803@cn.fujitsu.com>
-Date: Tue, 27 May 2008 15:51:40 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
+Date: Tue, 27 May 2008 10:03:50 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH] 2.6.26-rc: x86: pci-dma.c: use __GFP_NO_OOM instead of
+	__GFP_NORETRY
+Message-ID: <20080527080349.GE29246@elte.hu>
+References: <20080526234940.GA1376@xs4all.net>
 MIME-Version: 1.0
-Subject: Re: [RFC 2/4] memcg: high-low watermark
-References: <20080527140116.fb04b06b.kamezawa.hiroyu@jp.fujitsu.com> <20080527140703.97b69ed3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080527140703.97b69ed3.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080526234940.GA1376@xs4all.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "xemul@openvz.org" <xemul@openvz.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>
+To: Miquel van Smoorenburg <mikevs@xs4all.net>
+Cc: Andi Kleen <andi@firstfloor.org>, Glauber Costa <gcosta@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Jesse Barnes <jbarnes@virtuousgeek.org>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> Add high/low watermarks to res_counter.
-> *This patch itself has no behavior changes to memory resource controller.
-> 
-> Changelog: very old one -> this one (v1)
->  - watarmark_state is removed and all state check is done under lock.
->  - changed res_counter_charge() interface. The only user is memory
->    resource controller. Anyway, returning -ENOMEM here is a bit starnge.
->  - Added watermark enable/disable flag for someone don't want watermarks.
->  - Restarted against 2.6.25-mm1.
->  - some subsystem which doesn't want high-low watermark can work withou it.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> From: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-> 
-> ---
->  include/linux/res_counter.h |   41 ++++++++++++++++++++++++---
->  kernel/res_counter.c        |   66 ++++++++++++++++++++++++++++++++++++++++----
->  mm/memcontrol.c             |    2 -
->  3 files changed, 99 insertions(+), 10 deletions(-)
-> 
-> Index: mm-2.6.26-rc2-mm1/include/linux/res_counter.h
-> ===================================================================
-> --- mm-2.6.26-rc2-mm1.orig/include/linux/res_counter.h
-> +++ mm-2.6.26-rc2-mm1/include/linux/res_counter.h
-> @@ -16,6 +16,16 @@
->  #include <linux/cgroup.h>
->  
->  /*
-> + * status of resource coutner's usage.
-> + */
-> +enum res_state {
-> +	RES_BELOW_LOW,	/* usage < lwmark */
+* Miquel van Smoorenburg <mikevs@xs4all.net> wrote:
 
-It seems it's 'usage <= lwmark'
+> Please consider the below patch for 2.6.26 (can somebody from the x86 
+> team pick this up please? Thank you)
 
-> +	RES_BELOW_HIGH,	/* lwmark < usage < hwmark */
+looks good to me in principle - but it should go via -mm as it touches 
+mm/page_alloc.c. Andrew: this fix is for v2.6.26.
 
-and 'lwmark < usage <= hwmark'
-
-> +	RES_BELOW_LIMIT,	/* hwmark < usage < limit. */
-
-and 'hwmark < usage <= limit'
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
