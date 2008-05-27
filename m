@@ -1,28 +1,55 @@
-Date: Tue, 27 May 2008 10:03:50 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH] 2.6.26-rc: x86: pci-dma.c: use __GFP_NO_OOM instead of
-	__GFP_NORETRY
-Message-ID: <20080527080349.GE29246@elte.hu>
-References: <20080526234940.GA1376@xs4all.net>
+Message-Id: <483BC690.6010206@mxp.nes.nec.co.jp>
+Date: Tue, 27 May 2008 17:30:08 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080526234940.GA1376@xs4all.net>
+Subject: Re: [PATCH 0/4] swapcgroup(v2)
+References: <483647AB.8090104@mxp.nes.nec.co.jp> <20080527073118.0D92B5A0E@siro.lan> <483BBB4C.3040501@linux.vnet.ibm.com>
+In-Reply-To: <483BBB4C.3040501@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miquel van Smoorenburg <mikevs@xs4all.net>
-Cc: Andi Kleen <andi@firstfloor.org>, Glauber Costa <gcosta@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Jesse Barnes <jbarnes@virtuousgeek.org>
+To: balbir@linux.vnet.ibm.com, YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+Cc: containers@lists.osdl.org, linux-mm@kvack.org, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, hugh@veritas.com, m-ikeda@ds.jp.nec.com
 List-ID: <linux-mm.kvack.org>
 
-* Miquel van Smoorenburg <mikevs@xs4all.net> wrote:
+On 2008/05/27 16:42 +0900, Balbir Singh wrote:
+> YAMAMOTO Takashi wrote:
+>> hi,
+>>
+>>>> Thanks for looking into this. Yamamoto-San is also looking into a swap
+>>>> controller. Is there a consensus on the approach?
+>>>>
+>>> Not yet, but I think we should have some consensus each other
+>>> before going further.
+>>>
+>>>
+>>> Thanks,
+>>> Daisuke Nishimura.
+>> while nishimura-san's one still seems to have a lot of todo,
+>> it seems good enough as a start point to me.
+>> so i'd like to withdraw mine.
+>>
+>> nishimura-san, is it ok for you?
+>>
+Of cource.
+I'll work hard to make it better.
 
-> Please consider the below patch for 2.6.26 (can somebody from the x86 
-> team pick this up please? Thank you)
+> 
+> I would suggest that me merge the good parts from both into the swap controller.
+> Having said that I'll let the two of you decide on what the good aspects of both
+> are. I cannot see any immediate overlap, but there might be some w.r.t.
+> infrastructure used.
+> 
+Well, you mean you'll make another patch based on yamamoto-san's
+and mine?
 
-looks good to me in principle - but it should go via -mm as it touches 
-mm/page_alloc.c. Andrew: this fix is for v2.6.26.
+Basically, I think it's difficult to merge
+because we charge different objects.
 
-	Ingo
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
