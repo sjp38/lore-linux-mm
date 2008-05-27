@@ -1,47 +1,40 @@
-Date: Tue, 27 May 2008 04:57:25 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 2/2] lockless get_user_pages
-Message-ID: <20080527025725.GC21578@wotan.suse.de>
-References: <20080527095519.4676.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080527022801.GB21578@wotan.suse.de> <20080527114350.4679.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Tue, 27 May 2008 14:01:16 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC 0/4] memcg: background reclaim (v1)
+Message-Id: <20080527140116.fb04b06b.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080527114350.4679.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@saeurebad.de>, Andrew Morton <akpm@linux-foundation.org>, shaggy@austin.ibm.com, jens.axboe@oracle.com, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, apw@shadowen.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "xemul@openvz.org" <xemul@openvz.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>"yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "containers@lists.osdl.org" <containers@lists.osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 27, 2008 at 11:46:27AM +0900, KOSAKI Motohiro wrote:
-> > Aw, nobody likes fast_gup? ;)
-> 
-> Ah, I misunderstood your intention.
-> I thought you disklike fast_gup..
-> 
-> I don't dislike it :()
+This is my current set of add-on patches for memory resource controller.
+This works well but not well tested and not for usual people.
+i.e..request for comments at early stage before being more complicated.
 
-Heh, no I was joking. fast_gup is not such a good name, especially for
-grep or a reader who doesn't know gup is for get_user_pages.
+This set inculdes an implementation of background reclaim to memory resource
+controller. I expect this helps I/O under memory resource controller very much.
+(some good result with "dd")
 
- 
-> > Technically get_user_pages_lockless is wrong: the implementation may
-> > not be lockless so one cannot assume it will not take mmap sem and
-> > ptls.
-> 
-> agreed.
-> 
-> 
-> > But I do like to make it clear that it is related to get_user_pages.
-> > get_current_user_pages(), maybe? Hmm, that's harder to grep for
-> > both then I guess. get_user_pages_current?
-> 
-> Yeah, good name.
- 
-OK, I'll rename it.
+pathces are based on 2.6.26-rc2-mm1 + remove_refcnt patch set (in mm queue)
+So, I don't ask you "pleaset test" ;)
+plz tell me if you don't like the concept or you have better idea.
+
+[1/4] freeing all at force_empty.
+[2/4] high-low watermark to resource counter.
+[3/4] background reclaim for memcg.
+[4/4] background reclaim for memcg, NUMA extension.
+
+Consideration:
+One problem of background reclaim is that it uses CPU. I think it's necessary
+to make them more moderate. But what can I do against kthread rather than
+nice() ?
 
 Thanks,
-Nick
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
