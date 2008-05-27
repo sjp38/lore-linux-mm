@@ -1,47 +1,66 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4RLlJRh029376
-	for <linux-mm@kvack.org>; Tue, 27 May 2008 17:47:19 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4RLlJfN155080
-	for <linux-mm@kvack.org>; Tue, 27 May 2008 17:47:19 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4RLlIbZ025286
-	for <linux-mm@kvack.org>; Tue, 27 May 2008 17:47:19 -0400
-Subject: Re: [patch 20/23] powerpc: scan device tree for gigantic pages
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <20080525143454.237665000@nick.local0.net>
-References: <20080525142317.965503000@nick.local0.net>
-	 <20080525143454.237665000@nick.local0.net>
-Content-Type: text/plain
-Date: Tue, 27 May 2008 16:47:17 -0500
-Message-Id: <1211924838.12036.54.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: [PATCH 0/3] MAP_NORESERVE for hugetlb mappings V3
+Message-ID: <exportbomb.1211929624@pinky>
+Date: Wed, 28 May 2008 00:09:07 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
-Cc: linux-mm@kvack.org, kniht@us.ibm.com, andi-suse@firstfloor.org, nacc@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Jon Tollefson <kniht@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, agl@us.ibm.com, wli@holomorphy.com, kenchen@google.com, dwg@au1.ibm.com, andi@firstfloor.org, Mel Gorman <mel@csn.ul.ie>, dean@arctic.org, abh@cray.com, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-05-26 at 00:23 +1000, npiggin@suse.de wrote:
-> plain text document attachment
-> (powerpc-scan-device-tree-and-save-gigantic-page-locations.patch)
-> The 16G huge pages have to be reserved in the HMC prior to boot. The
-> location of the pages are placed in the device tree.   This patch adds
-> code to scan the device tree during very early boot and save these page
-> locations until hugetlbfs is ready for them.
-> 
-> Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
+This stack is a rebase of the V2 stack onto 2.6.26-rc2-mm1 with
+Mel's "Guarantee faults for processes that call mmap(MAP_PRIVATE) on
+hugetlbfs v4" applied.  This stack allows map users to opt-out of the
+new stricter over-commit handling should those semantics be unsuitable,
+using the standard MAP_NORESERVE mmap flag.
 
-I am not really qualified to pass judgment on the device tree-specific
-parts of this patch, but as for the rest:
+This stack should be seen as complementary to Mel's stack, which it is
+dependant on.
 
-Acked-by: Adam Litke <agl@us.ibm.com>
+Please consider for -mm.
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+-apw
+===
+With Mel's hugetlb private reservation support patches applied, strict
+overcommit semantics are applied to both shared and private huge
+page mappings.  This can be a problem if an application relied on
+unlimited overcommit semantics for private mappings.  An example of this
+would be an application which maps a huge area with the intention of
+using it very sparsely.  These application would benefit from being able
+to opt-out of the strict overcommit.  It should be noted that prior to
+hugetlb supporting demand faulting all mappings were fully populated and
+so applications of this type should be rare.
+
+This patch stack implements the MAP_NORESERVE mmap() flag for huge page
+mappings.  This flag has the same meaning as for small page mappings,
+suppressing reservations for that mapping.
+
+The stack is made up of three patches:
+
+record-MAP_NORESERVE-status-on-vmas-and-fix-small-page-mprotect-reservations --
+  currently when we mprotect a private MAP_NORESERVE mapping read-write
+  we have no choice but to create a reservation for it.  Fix that by
+  introducing a VM_NORESERVE vma flag and checking it before allocating
+  reserve.
+
+hugetlb-move-reservation-region-support-earlier -- simply moves the
+  reservation region support so it can be used earlier.
+
+hugetlb-allow-huge-page-mappings-to-be-created-without-reservations --
+  use the new VM_NORESERVE flag to control the application of hugetlb
+  reservations to new mappings.
+
+This has been functionally tested with a hugetlb reservation test suite.
+
+All against 2.6.26-rc2-mm1 with Mel's private reservation patches:
+
+	Subject: Guarantee faults for processes that call mmap(MAP_PRIVATE)
+	  on hugetlbfs v4
+
+Thanks to Mel Gorman for reviewing a number of early versions of these
+patches.
+
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
