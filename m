@@ -1,56 +1,209 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4RHJIrt030153
-	for <linux-mm@kvack.org>; Tue, 27 May 2008 13:19:18 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4RHJIkR103618
-	for <linux-mm@kvack.org>; Tue, 27 May 2008 11:19:18 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4RHJHf1008238
-	for <linux-mm@kvack.org>; Tue, 27 May 2008 11:19:18 -0600
-Message-ID: <483C42B9.7090102@linux.vnet.ibm.com>
-Date: Tue, 27 May 2008 12:19:53 -0500
-From: Jon Tollefson <kniht@linux.vnet.ibm.com>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id m4RHSYkT014838
+	for <linux-mm@kvack.org>; Wed, 28 May 2008 03:28:34 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4RHRbhg2789416
+	for <linux-mm@kvack.org>; Wed, 28 May 2008 03:27:37 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4RHRpfX029269
+	for <linux-mm@kvack.org>; Wed, 28 May 2008 03:27:52 +1000
+Message-ID: <483C4453.5040800@linux.vnet.ibm.com>
+Date: Tue, 27 May 2008 22:56:43 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [patch 22/23] fs: check for statfs overflow
-References: <20080525142317.965503000@nick.local0.net> <20080525143454.453947000@nick.local0.net> <20080527171452.GJ20709@us.ibm.com>
-In-Reply-To: <20080527171452.GJ20709@us.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [RFC 4/4] memcg: NUMA background reclaim
+References: <20080527140116.fb04b06b.kamezawa.hiroyu@jp.fujitsu.com> <20080527141019.f1d15b95.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080527141019.f1d15b95.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: npiggin@suse.de, linux-mm@kvack.org, andi@firstfloor.org, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Jon Tollefson <kniht@linux.vnet.ibm.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "xemul@openvz.org" <xemul@openvz.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "containers@lists.osdl.org" <containers@lists.osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Nishanth Aravamudan wrote:
-> On 26.05.2008 [00:23:39 +1000], npiggin@suse.de wrote:
->   
->> Adds a check for an overflow in the filesystem size so if someone is
->> checking with statfs() on a 16G hugetlbfs  in a 32bit binary that it
->> will report back EOVERFLOW instead of a size of 0.
->>
->> Are other places that need a similar check?  I had tried a similar
->> check in put_compat_statfs64 too but it didn't seem to generate an
->> EOVERFLOW in my test case.
->>     
->
-> I think this part of the changelog was meant to be a post-"---"
-> question, which I don't have an answer for, but probably shouldn't go in
-> the final changelog?
->   
-You are correct.
->   
->> Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
->> Signed-off-by: Nick Piggin <npiggin@suse.de>
->>     
->
-> Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
->
-> Thanks,
-> Nish
->
->   
-Jon
+KAMEZAWA Hiroyuki wrote:
+> One aspect of difference in reclaim logic between global lru and memcg is 
+>  * global LRU triggers memory reclaim at memory shortage.
+>  * memcg LRU triggers memory reclaim at excess of usage.
+> 
+> Then, global LRU _know_ which node we should start reclaim from.
+>  * start from a node at memory shortage or
+>  * start from a node where memory allocation is waiting
+> 
+> WRT memcg, it's difficult to find where we should start because
+> there is no memory shortage and LRU is splitted.
+> (But per-zone-LRU is definitely necessary for scalability.)
+> 
+> This patch tries to deteremine a node for starting recalim by checking
+> ratio of inactive pages/active pages in a node. And trying to avoid starting
+> from a node with relatively small usage.
+> Better algorithm is welcome.
+> 
+> Singed-off-by: KAMEZAWA Hiruyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Index: mm-2.6.26-rc2-mm1/mm/memcontrol.c
+> ===================================================================
+> --- mm-2.6.26-rc2-mm1.orig/mm/memcontrol.c
+> +++ mm-2.6.26-rc2-mm1/mm/memcontrol.c
+> @@ -578,7 +578,7 @@ retry:
+>  	if (state == RES_OVER_LIMIT) {
+>  		if (!(gfp_mask & __GFP_WAIT))
+>  			goto out;
+> -		if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
+> +		if (try_to_free_mem_cgroup_pages(mem, -1, gfp_mask))
+>  			goto retry;
+>  		/*
+>  		 * try_to_free_mem_cgroup_pages() might not give us a
+> @@ -801,7 +801,7 @@ int mem_cgroup_shrink_usage(struct mm_st
+>  	rcu_read_unlock();
+> 
+>  	do {
+> -		progress = try_to_free_mem_cgroup_pages(mem, gfp_mask);
+> +		progress = try_to_free_mem_cgroup_pages(mem, -1, gfp_mask);
+>  	} while (!progress && --retry);
+> 
+>  	if (!retry)
+> @@ -814,7 +814,7 @@ static void mem_cgroup_drop_all_pages(st
+>  {
+>  	int progress;
+>  	while (!res_counter_empty(&mem->res)) {
+> -		progress = try_to_free_mem_cgroup_pages(mem,
+> +		progress = try_to_free_mem_cgroup_pages(mem, -1,
+>  					GFP_HIGHUSER_MOVABLE);
+>  		if (!progress) /* we did as much as possible */
+>  			break;
+> @@ -912,6 +912,62 @@ out:
+>  /*
+>   * background reclaim daemon.
+>   */
+> +
+> +#ifdef CONFIG_NUMA
+> +/*
+> + * Because memory controller's memory reclaim doesn't come from memory shortage,
+> + * we cannot know which node should be reclaimed in an easy way.
+> + * This routine select a node with inactive pages to be a node for starting
+> + * scanning.
+> + */
+> +int __select_best_node(struct mem_cgroup *mem)
+> +{
+> +	int nid;
+> +	int best_node = -1;
+> +	unsigned long highest_inactive_ratio = 0;
+> +	unsigned long active, inactive, inactive_ratio, total, threshold, flags;
+> +	struct mem_cgroup_per_zone *mz;
+> +	int zid;
+> +
+> +	/*
+> +	 * When a node's memory usage is smaller than 
+> +  	 * total_usage/num_of_node * 75%, we don't select the node
+> +	 */
+> +	total = mem->res.usage >> PAGE_SHIFT;
+> +	threshold = (total / num_node_state(N_HIGH_MEMORY)) * 3 / 4;
+> +
+> +	/*
+> +	 * See nodemask.h, N_HIGH_MEMORY means that a node has memory
+> +	 * can be used for user's memory.(i.e. not means HIGHMEM).
+> +	 */
+> +	for_each_node_state(nid, N_HIGH_MEMORY) {
+> +		active = 0;
+> +		inactive = 0;
+> +
+> +		for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+> +			mz = mem_cgroup_zoneinfo(mem, nid, zid);
+> +			spin_lock_irqsave(&mz->lru_lock, flags);
+> +			active += MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_ACTIVE);
+> +			inactive +=
+> +				MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_INACTIVE);
+> +			spin_unlock_irqrestore(&mz->lru_lock, flags);
+> +		}
+> +
+> +		if (active + inactive < threshold)
+> +			continue;
+> +		inactive_ratio = (inactive * 100) / (active + 1);
+> +		if (inactive_ratio > highest_inactive_ratio)
+> +			best_node = nid;
+
+Shouldn't we update highest_inactive_ration here?
+
+> +	}
+> +	return best_node;
+> +}
+> +#else
+> +int __select_best_node(struct mem_cgroup *mem)
+> +{
+> +	return 0;
+> +}
+> +#endif
+> +
+>  static int mem_cgroup_reclaim_daemon(void *data)
+>  {
+>  	DEFINE_WAIT(wait);
+> @@ -935,13 +991,9 @@ static int mem_cgroup_reclaim_daemon(voi
+>  			continue;
+>  		}
+>  		finish_wait(&mem->daemon.waitq, &wait);
+> -		/*
+> -		 * memory resource controller doesn't see NUMA memory usage
+> -		 * balancing, becasue we cannot know what balancing is good.
+> -		 * TODO: some annotation or heuristics to detect which node
+> -		 * we should start reclaim from.
+> -		 */
+> -		ret = try_to_free_mem_cgroup_pages(mem, GFP_HIGHUSER_MOVABLE);
+> +
+> +		ret = try_to_free_mem_cgroup_pages(mem,
+> +				__select_best_node(mem), GFP_HIGHUSER_MOVABLE);
+> 
+>  		yield();
+>  	}
+> Index: mm-2.6.26-rc2-mm1/mm/vmscan.c
+> ===================================================================
+> --- mm-2.6.26-rc2-mm1.orig/mm/vmscan.c
+> +++ mm-2.6.26-rc2-mm1/mm/vmscan.c
+> @@ -1429,7 +1429,7 @@ unsigned long try_to_free_pages(struct z
+>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+> 
+>  unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+> -						gfp_t gfp_mask)
+> +					   int nid, gfp_t gfp_mask)
+>  {
+>  	struct scan_control sc = {
+>  		.may_writepage = !laptop_mode,
+> @@ -1442,9 +1442,11 @@ unsigned long try_to_free_mem_cgroup_pag
+>  	};
+>  	struct zonelist *zonelist;
+> 
+> +	if (nid == -1)
+> +		nid = numa_node_id();
+>  	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+>  			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+> -	zonelist = NODE_DATA(numa_node_id())->node_zonelists;
+> +	zonelist = NODE_DATA(nid)->node_zonelists;
+>  	return do_try_to_free_pages(zonelist, &sc);
+>  }
+>  #endif
+> Index: mm-2.6.26-rc2-mm1/include/linux/swap.h
+> ===================================================================
+> --- mm-2.6.26-rc2-mm1.orig/include/linux/swap.h
+> +++ mm-2.6.26-rc2-mm1/include/linux/swap.h
+> @@ -184,7 +184,7 @@ extern void swap_setup(void);
+>  extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+>  					gfp_t gfp_mask);
+>  extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
+> -							gfp_t gfp_mask);
+> +						int nid, gfp_t gfp_mask);
+>  extern int __isolate_lru_page(struct page *page, int mode);
+>  extern unsigned long shrink_all_memory(unsigned long nr_pages);
+>  extern int vm_swappiness;
+> 
+
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
