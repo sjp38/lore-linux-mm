@@ -1,7 +1,7 @@
-Date: Tue, 27 May 2008 14:07:03 +0900
+Date: Tue, 27 May 2008 14:08:46 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC 2/4] memcg: high-low watermark
-Message-Id: <20080527140703.97b69ed3.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC 3/4] memcg: background reclaim
+Message-Id: <20080527140846.8c854d04.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20080527140116.fb04b06b.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080527140116.fb04b06b.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -13,237 +13,290 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "xemul@openvz.org" <xemul@openvz.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "containers@lists.osdl.org" <containers@lists.osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Add high/low watermarks to res_counter.
-*This patch itself has no behavior changes to memory resource controller.
+Do background reclaim based on high-low watermarks.
 
-Changelog: very old one -> this one (v1)
- - watarmark_state is removed and all state check is done under lock.
- - changed res_counter_charge() interface. The only user is memory
-   resource controller. Anyway, returning -ENOMEM here is a bit starnge.
- - Added watermark enable/disable flag for someone don't want watermarks.
- - Restarted against 2.6.25-mm1.
- - some subsystem which doesn't want high-low watermark can work withou it.
+This feature helps smooth work of processes under memcg by reclaiming memory
+in the kernel thread. # of limitation failure at mem_cgroup_charge() will
+dramatically reduced. But this also means a CPU is continuously used for
+reclaiming memory.
+
+This one is very simple. Anyway, we need to update this when we add new
+complexity to memcg.
+
+Major logic:
+  - add high-low watermark support to memory resource controller.
+  - create a kernel thread for cgroup when hwmark is changed. (once)
+  - stop a kernel thread at rmdir().
+  - start background reclaim if res_counter is over high-watermark.
+  - stop background reclaim if res_coutner is below low-watermark.
+  - for reclaiiming, just calls try_to_free_mem_cgroup_pages().
+  - kthread for reclaim 's priority is nice(0). default is (-5).
+    (weaker is better ?)
+  - kthread for reclaim calls yield() on each loop.
+
+TODO:
+  - add an interface to start/stop daemon ?
+  - wise numa support
+  - too small "low watermark" targe just consumes CPU. Should we warn ?
+    and what is the best value for hwmark/lwmark in general....?
+
+Chagelog: old one -> this (v1)
+  - start a thread at write of hwmark.
+  
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-From: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
 
 ---
- include/linux/res_counter.h |   41 ++++++++++++++++++++++++---
- kernel/res_counter.c        |   66 ++++++++++++++++++++++++++++++++++++++++----
- mm/memcontrol.c             |    2 -
- 3 files changed, 99 insertions(+), 10 deletions(-)
+ mm/memcontrol.c |  147 +++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 130 insertions(+), 17 deletions(-)
 
-Index: mm-2.6.26-rc2-mm1/include/linux/res_counter.h
-===================================================================
---- mm-2.6.26-rc2-mm1.orig/include/linux/res_counter.h
-+++ mm-2.6.26-rc2-mm1/include/linux/res_counter.h
-@@ -16,6 +16,16 @@
- #include <linux/cgroup.h>
- 
- /*
-+ * status of resource coutner's usage.
-+ */
-+enum res_state {
-+	RES_BELOW_LOW,	/* usage < lwmark */
-+	RES_BELOW_HIGH,	/* lwmark < usage < hwmark */
-+	RES_BELOW_LIMIT,	/* hwmark < usage < limit. */
-+	RES_OVER_LIMIT,		/* only used at chage. */
-+};
-+
-+/*
-  * The core object. the cgroup that wishes to account for some
-  * resource may include this counter into its structures and use
-  * the helpers described beyond
-@@ -39,6 +49,12 @@ struct res_counter {
- 	 */
- 	unsigned long long failcnt;
- 	/*
-+	 * watermarks. needs to keep lwmark <= hwmark <= limit.
-+	 */
-+	unsigned long long hwmark;
-+	unsigned long long lwmark;
-+	int		   use_watermark;
-+	/*
- 	 * the lock to protect all of the above.
- 	 * the routines below consider this to be IRQ-safe
- 	 */
-@@ -76,13 +92,18 @@ enum {
- 	RES_MAX_USAGE,
- 	RES_LIMIT,
- 	RES_FAILCNT,
-+	RES_HWMARK,
-+	RES_LWMARK,
- };
- 
- /*
-  * helpers for accounting
-+ * res_counter_init() ... initialize counter and disable watermarks.
-+ * res_counter_init_wmark() ... initialize counter and enable watermarks.
-  */
- 
- void res_counter_init(struct res_counter *counter);
-+void res_counter_init_wmark(struct res_counter *counter);
- 
- /*
-  * charge - try to consume more resource.
-@@ -93,11 +114,21 @@ void res_counter_init(struct res_counter
-  *
-  * returns 0 on success and <0 if the counter->usage will exceed the
-  * counter->limit _locked call expects the counter->lock to be taken
-+ * return values:
-+ * If watermark is disabled,
-+ * RES_BELOW_LIMIT  --  usage is smaller than limt, success.
-+ * RES_OVER_LIMIT   --  usage is bigger than limit, failed.
-+ *
-+ * If watermark is enabled,
-+ * RES_BELOW_LOW    -- usage is smaller than low watermark, success
-+ * RES_BELOW_HIGH   -- usage is smaller than high watermark, success.
-+ * RES_BELOW_LIMIT  -- usage is smaller than limt, success.
-+ * RES_OVER_LIMIT   -- usage is bigger than limit, failed.
-  */
- 
--int __must_check res_counter_charge_locked(struct res_counter *counter,
--		unsigned long val);
--int __must_check res_counter_charge(struct res_counter *counter,
-+enum res_state __must_check
-+res_counter_charge_locked(struct res_counter *counter, unsigned long val);
-+enum res_state __must_check res_counter_charge(struct res_counter *counter,
- 		unsigned long val);
- 
- /*
-@@ -164,4 +195,7 @@ static inline int res_counter_empty(stru
- 	spin_unlock_irqrestore(&cnt->lock, flags);
- 	return ret;
- }
-+
-+enum res_state res_counter_state(struct res_counter *counter);
-+
- #endif
-Index: mm-2.6.26-rc2-mm1/kernel/res_counter.c
-===================================================================
---- mm-2.6.26-rc2-mm1.orig/kernel/res_counter.c
-+++ mm-2.6.26-rc2-mm1/kernel/res_counter.c
-@@ -18,22 +18,40 @@ void res_counter_init(struct res_counter
- {
- 	spin_lock_init(&counter->lock);
- 	counter->limit = (unsigned long long)LLONG_MAX;
-+	counter->use_watermark = 0;
- }
- 
--int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
-+void res_counter_init_wmark(struct res_counter *counter)
-+{
-+	spin_lock_init(&counter->lock);
-+	counter->limit = (unsigned long long)LLONG_MAX;
-+	counter->hwmark = (unsigned long long)LLONG_MAX;
-+	counter->lwmark = (unsigned long long)LLONG_MAX;
-+	counter->use_watermark = 1;
-+}
-+
-+enum res_state
-+res_counter_charge_locked(struct res_counter *counter, unsigned long val)
- {
- 	if (counter->usage + val > counter->limit) {
- 		counter->failcnt++;
--		return -ENOMEM;
-+		return RES_OVER_LIMIT;
- 	}
- 
- 	counter->usage += val;
- 	if (counter->usage > counter->max_usage)
- 		counter->max_usage = counter->usage;
--	return 0;
-+	if (counter->use_watermark) {
-+		if (counter->usage <= counter->lwmark)
-+			return RES_BELOW_LOW;
-+		if (counter->usage <= counter->hwmark)
-+			return RES_BELOW_HIGH;
-+	}
-+	return RES_BELOW_LIMIT;
- }
- 
--int res_counter_charge(struct res_counter *counter, unsigned long val)
-+enum res_state
-+res_counter_charge(struct res_counter *counter, unsigned long val)
- {
- 	int ret;
- 	unsigned long flags;
-@@ -44,6 +62,23 @@ int res_counter_charge(struct res_counte
- 	return ret;
- }
- 
-+enum res_state res_counter_state(struct res_counter *counter)
-+{
-+	unsigned long flags;
-+	enum res_state ret = RES_BELOW_LIMIT;
-+
-+	spin_lock_irqsave(&counter->lock, flags);
-+	if (counter->use_watermark) {
-+		if (counter->usage <= counter->lwmark)
-+			ret = RES_BELOW_LOW;
-+		else if (counter->usage <= counter->hwmark)
-+			ret = RES_BELOW_HIGH;
-+	}
-+	spin_unlock_irqrestore(&counter->lock, flags);
-+	return ret;
-+}
-+
-+
- void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
- {
- 	if (WARN_ON(counter->usage < val))
-@@ -74,6 +109,10 @@ res_counter_member(struct res_counter *c
- 		return &counter->limit;
- 	case RES_FAILCNT:
- 		return &counter->failcnt;
-+	case RES_HWMARK:
-+		return &counter->hwmark;
-+	case RES_LWMARK:
-+		return &counter->lwmark;
- 	};
- 
- 	BUG();
-@@ -134,10 +173,27 @@ ssize_t res_counter_write(struct res_cou
- 			goto out_free;
- 	}
- 	spin_lock_irqsave(&counter->lock, flags);
-+	switch (member) {
-+		case RES_LIMIT:
-+			if (counter->use_watermark && counter->hwmark > tmp)
-+				goto unlock_free;
-+			break;
-+		case RES_HWMARK:
-+			if (tmp < counter->lwmark  || tmp > counter->limit)
-+				goto unlock_free;
-+			break;
-+		case RES_LWMARK:
-+			if (tmp > counter->hwmark)
-+				goto unlock_free;
-+			break;
-+		default:
-+			break;
-+	}
- 	val = res_counter_member(counter, member);
- 	*val = tmp;
--	spin_unlock_irqrestore(&counter->lock, flags);
- 	ret = nbytes;
-+unlock_free:
-+	spin_unlock_irqrestore(&counter->lock, flags);
- out_free:
- 	kfree(buf);
- out:
 Index: mm-2.6.26-rc2-mm1/mm/memcontrol.c
 ===================================================================
 --- mm-2.6.26-rc2-mm1.orig/mm/memcontrol.c
 +++ mm-2.6.26-rc2-mm1/mm/memcontrol.c
-@@ -559,7 +559,7 @@ static int mem_cgroup_charge_common(stru
+@@ -32,7 +32,8 @@
+ #include <linux/fs.h>
+ #include <linux/seq_file.h>
+ #include <linux/vmalloc.h>
+-
++#include <linux/freezer.h>
++#include <linux/kthread.h>
+ #include <asm/uaccess.h>
+ 
+ struct cgroup_subsys mem_cgroup_subsys __read_mostly;
+@@ -119,10 +120,6 @@ struct mem_cgroup_lru_info {
+  * statistics based on the statistics developed by Rik Van Riel for clock-pro,
+  * to help the administrator determine what knobs to tune.
+  *
+- * TODO: Add a water mark for the memory controller. Reclaim will begin when
+- * we hit the water mark. May be even add a low water mark, such that
+- * no reclaim occurs from a cgroup at it's low water mark, this is
+- * a feature that will be implemented much later in the future.
+  */
+ struct mem_cgroup {
+ 	struct cgroup_subsys_state css;
+@@ -131,6 +128,13 @@ struct mem_cgroup {
+ 	 */
+ 	struct res_counter res;
+ 	/*
++	 * background reclaim.
++	 */
++	struct {
++		wait_queue_head_t waitq;
++		struct task_struct *thread;
++	} daemon;
++	/*
+ 	 * Per cgroup active and inactive list, similar to the
+ 	 * per zone LRU lists.
+ 	 */
+@@ -143,6 +147,7 @@ struct mem_cgroup {
+ 	struct mem_cgroup_stat stat;
+ };
+ static struct mem_cgroup init_mem_cgroup;
++static DEFINE_MUTEX(memcont_daemon_lock);
+ 
+ /*
+  * We use the lower bit of the page->page_cgroup pointer as a bit spin
+@@ -374,6 +379,15 @@ void mem_cgroup_move_lists(struct page *
+ 	unlock_page_cgroup(page);
+ }
+ 
++static void mem_cgroup_schedule_reclaim(struct mem_cgroup *mem)
++{
++	if (!mem->daemon.thread)
++		return;
++	if (!waitqueue_active(&mem->daemon.waitq))
++		return;
++	wake_up_interruptible(&mem->daemon.waitq);
++}
++
+ /*
+  * Calculate mapped_ratio under memory controller. This will be used in
+  * vmscan.c for deteremining we have to reclaim mapped pages.
+@@ -532,6 +546,7 @@ static int mem_cgroup_charge_common(stru
+ 	unsigned long flags;
+ 	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+ 	struct mem_cgroup_per_zone *mz;
++	enum res_state state;
+ 
+ 	if (mem_cgroup_subsys.disabled)
+ 		return 0;
+@@ -558,23 +573,23 @@ static int mem_cgroup_charge_common(stru
+ 		mem = memcg;
  		css_get(&memcg->css);
  	}
- 
--	while (res_counter_charge(&mem->res, PAGE_SIZE)) {
-+	while (res_counter_charge(&mem->res, PAGE_SIZE) == RES_OVER_LIMIT) {
+-
+-	while (res_counter_charge(&mem->res, PAGE_SIZE) == RES_OVER_LIMIT) {
++retry:
++	state = res_counter_charge(&mem->res, PAGE_SIZE);
++	if (state == RES_OVER_LIMIT) {
  		if (!(gfp_mask & __GFP_WAIT))
  			goto out;
+-
+ 		if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
+-			continue;
+-
++			goto retry;
+ 		/*
+-		 * try_to_free_mem_cgroup_pages() might not give us a full
+-		 * picture of reclaim. Some pages are reclaimed and might be
+-		 * moved to swap cache or just unmapped from the cgroup.
+-		 * Check the limit again to see if the reclaim reduced the
+-		 * current usage of the cgroup before giving up
++		 * try_to_free_mem_cgroup_pages() might not give us a
++		 * full picture of reclaim. Some pages are reclaimed
++		 * and might be moved to swap cache or just unmapped
++		 * from the cgroup. Check the limit again to see if
++		 * the reclaim reduced the current usage of the cgroup
++		 * before giving up
+ 		 */
+ 		if (res_counter_check_under_limit(&mem->res))
+-			continue;
++			goto retry;
+ 
+ 		if (!nr_retries--) {
+ 			mem_cgroup_out_of_memory(mem, gfp_mask);
+@@ -609,6 +624,9 @@ static int mem_cgroup_charge_common(stru
+ 	spin_unlock_irqrestore(&mz->lru_lock, flags);
+ 
+ 	unlock_page_cgroup(page);
++
++	if (state > RES_BELOW_HIGH)
++		mem_cgroup_schedule_reclaim(mem);
+ done:
+ 	return 0;
+ out:
+@@ -891,6 +909,74 @@ out:
+ 	css_put(&mem->css);
+ 	return ret;
+ }
++/*
++ * background reclaim daemon.
++ */
++static int mem_cgroup_reclaim_daemon(void *data)
++{
++	DEFINE_WAIT(wait);
++	struct mem_cgroup *mem = data;
++	int ret;
++
++	css_get(&mem->css);
++	current->flags |= PF_SWAPWRITE;
++	/* we don't want to use cpu too much. */
++ 	set_user_nice(current, 0);
++	set_freezable();
++
++	while (!kthread_should_stop()) {
++		prepare_to_wait(&mem->daemon.waitq, &wait, TASK_INTERRUPTIBLE);
++		if (res_counter_state(&mem->res) == RES_BELOW_LOW) {
++			if (!kthread_should_stop()) {
++				schedule();
++				try_to_freeze();
++			}
++			finish_wait(&mem->daemon.waitq, &wait);
++			continue;
++		}
++		finish_wait(&mem->daemon.waitq, &wait);
++		/*
++		 * memory resource controller doesn't see NUMA memory usage
++		 * balancing, becasue we cannot know what balancing is good.
++		 * TODO: some annotation or heuristics to detect which node
++		 * we should start reclaim from.
++		 */
++		ret = try_to_free_mem_cgroup_pages(mem, GFP_HIGHUSER_MOVABLE);
++
++		yield();
++	}
++	css_put(&mem->css);
++	return 0;
++}
++
++static int mem_cgroup_start_daemon(struct mem_cgroup *mem)
++{
++	int ret = 0;
++	struct task_struct *thr;
++
++	mutex_lock(&memcont_daemon_lock);
++	if (!mem->daemon.thread) {
++		thr = kthread_run(mem_cgroup_reclaim_daemon, mem, "memcontd");
++		if (IS_ERR(thr))
++			ret = PTR_ERR(thr);
++		else
++			mem->daemon.thread = thr;
++	}
++	mutex_unlock(&memcont_daemon_lock);
++	return ret;
++}
++
++static void mem_cgroup_stop_daemon(struct mem_cgroup *mem)
++{
++	mutex_lock(&memcont_daemon_lock);
++	if (mem->daemon.thread) {
++		kthread_stop(mem->daemon.thread);
++		mem->daemon.thread = NULL;
++	}
++	mutex_unlock(&memcont_daemon_lock);
++	return;
++}
++
+ 
+ static int mem_cgroup_write_strategy(char *buf, unsigned long long *tmp)
+ {
+@@ -915,6 +1001,19 @@ static ssize_t mem_cgroup_write(struct c
+ 				struct file *file, const char __user *userbuf,
+ 				size_t nbytes, loff_t *ppos)
+ {
++	int ret;
++	/*
++	 * start daemon can fail. But we should start daemon always
++	 * when changes to HWMARK is succeeded. So, we start daemon before
++	 * changes to HWMARK. We don't stop this daemon even if
++	 * res_counter_write fails. To do that, we need ugly codes and
++	 * it's not so big problem.
++	 */
++	if (cft->private == RES_HWMARK) {
++		ret = mem_cgroup_start_daemon(mem_cgroup_from_cont(cont));
++		if (ret)
++			return ret;
++	}
+ 	return res_counter_write(&mem_cgroup_from_cont(cont)->res,
+ 				cft->private, userbuf, nbytes, ppos,
+ 				mem_cgroup_write_strategy);
+@@ -1004,6 +1103,18 @@ static struct cftype mem_cgroup_files[] 
+ 		.read_u64 = mem_cgroup_read,
+ 	},
+ 	{
++		.name = "high_wmark_in_bytes",
++		.private = RES_HWMARK,
++		.write = mem_cgroup_write,
++		.read_u64 = mem_cgroup_read,
++	},
++	{
++		.name = "low_wmark_in_bytes",
++		.private = RES_LWMARK,
++		.write = mem_cgroup_write,
++		.read_u64 = mem_cgroup_read,
++	},
++	{
+ 		.name = "force_empty",
+ 		.trigger = mem_force_empty_write,
+ 	},
+@@ -1087,7 +1198,8 @@ mem_cgroup_create(struct cgroup_subsys *
+ 			return ERR_PTR(-ENOMEM);
+ 	}
+ 
+-	res_counter_init(&mem->res);
++	res_counter_init_wmark(&mem->res);
++	init_waitqueue_head(&mem->daemon.waitq);
+ 
+ 	for_each_node_state(node, N_POSSIBLE)
+ 		if (alloc_mem_cgroup_per_zone_info(mem, node))
+@@ -1106,6 +1218,7 @@ static void mem_cgroup_pre_destroy(struc
+ 					struct cgroup *cont)
+ {
+ 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
++	mem_cgroup_stop_daemon(mem);
+ 	mem_cgroup_force_empty(mem);
+ }
  
 
 --
