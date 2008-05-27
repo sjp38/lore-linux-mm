@@ -1,55 +1,57 @@
-Message-Id: <483BC690.6010206@mxp.nes.nec.co.jp>
-Date: Tue, 27 May 2008 17:30:08 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] swapcgroup(v2)
-References: <483647AB.8090104@mxp.nes.nec.co.jp> <20080527073118.0D92B5A0E@siro.lan> <483BBB4C.3040501@linux.vnet.ibm.com>
-In-Reply-To: <483BBB4C.3040501@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Tue, 27 May 2008 01:47:20 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] 2.6.26-rc: x86: pci-dma.c: use __GFP_NO_OOM instead of
+ __GFP_NORETRY
+Message-Id: <20080527014720.6db68517.akpm@linux-foundation.org>
+In-Reply-To: <20080526234940.GA1376@xs4all.net>
+References: <20080526234940.GA1376@xs4all.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com, YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: containers@lists.osdl.org, linux-mm@kvack.org, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, hugh@veritas.com, m-ikeda@ds.jp.nec.com
+To: Miquel van Smoorenburg <mikevs@xs4all.net>
+Cc: Andi Kleen <andi@firstfloor.org>, Glauber Costa <gcosta@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On 2008/05/27 16:42 +0900, Balbir Singh wrote:
-> YAMAMOTO Takashi wrote:
->> hi,
->>
->>>> Thanks for looking into this. Yamamoto-San is also looking into a swap
->>>> controller. Is there a consensus on the approach?
->>>>
->>> Not yet, but I think we should have some consensus each other
->>> before going further.
->>>
->>>
->>> Thanks,
->>> Daisuke Nishimura.
->> while nishimura-san's one still seems to have a lot of todo,
->> it seems good enough as a start point to me.
->> so i'd like to withdraw mine.
->>
->> nishimura-san, is it ok for you?
->>
-Of cource.
-I'll work hard to make it better.
+On Tue, 27 May 2008 01:49:47 +0200 Miquel van Smoorenburg <mikevs@xs4all.net> wrote:
 
+> Please consider the below patch for 2.6.26 (can somebody from the
+> x86 team pick this up please? Thank you)
 > 
-> I would suggest that me merge the good parts from both into the swap controller.
-> Having said that I'll let the two of you decide on what the good aspects of both
-> are. I cannot see any immediate overlap, but there might be some w.r.t.
-> infrastructure used.
 > 
-Well, you mean you'll make another patch based on yamamoto-san's
-and mine?
+> 
+> [PATCH] 2.6.26-rc: x86: pci-dma.c: use __GFP_NO_OOM instead of __GFP_NORETRY
+> 
+> arch/x86/kernel/pci-dma.c::dma_alloc_coherent() adds __GFP_NORETRY to
+> the gfp flags before calling alloc_pages() to prevent the oom killer
+> from running.
 
-Basically, I think it's difficult to merge
-because we charge different objects.
+Now, why does dma_alloc_coherent() do that?
 
+If __GFP_FS is cleared (most cases) then we won't be calling
+out_of_memory() anyway.
 
-Thanks,
-Daisuke Nishimura.
+If __GFP_FS _is_ set then setting __GFP_NORETRY will do much more than
+avoiding oom-killings.  It will prevent the page allocator from
+retrying and will cause the problems which one assumes (without
+evidence :() you have observed.
+
+So...  why not just remove the setting of __GFP_NORETRY?  Why is it
+wrong to oom-kill things in this case?
+
+> This has the expected side effect that that alloc_pages() doesn't
+> retry anymore. Not really a problem for dma_alloc_coherent(.. GFP_ATOMIC)
+> which is the way most drivers use it (through pci_alloc_consistent())
+> but drivers that call dma_alloc_coherent(.. GFP_KERNEL) directly can get
+> unexpected failures.
+> 
+> Until we have the mask allocator, use a new flag __GFP_NO_OOM
+> instead of __GFP_NORETRY.
+> 
+
+But this change increases the chances of a caller getting stuck in the
+page allocator for ever, unable to make progress?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
