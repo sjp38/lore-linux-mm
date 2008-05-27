@@ -1,43 +1,39 @@
-Date: Tue, 27 May 2008 04:28:01 +0200
-From: Nick Piggin <npiggin@suse.de>
+Date: Tue, 27 May 2008 11:46:27 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: [patch 2/2] lockless get_user_pages
-Message-ID: <20080527022801.GB21578@wotan.suse.de>
-References: <20080525145227.GC25747@wotan.suse.de> <8763t1w1ko.fsf@saeurebad.de> <20080527095519.4676.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080527095519.4676.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20080527022801.GB21578@wotan.suse.de>
+References: <20080527095519.4676.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080527022801.GB21578@wotan.suse.de>
+Message-Id: <20080527114350.4679.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@saeurebad.de>, Andrew Morton <akpm@linux-foundation.org>, shaggy@austin.ibm.com, jens.axboe@oracle.com, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, apw@shadowen.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: kosaki.motohiro@jp.fujitsu.com, Johannes Weiner <hannes@saeurebad.de>, Andrew Morton <akpm@linux-foundation.org>, shaggy@austin.ibm.com, jens.axboe@oracle.com, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 27, 2008 at 09:57:11AM +0900, KOSAKI Motohiro wrote:
-> > > Introduce a new "fast_gup" (for want of a better name right now)
-> > 
-> > Perhaps,
-> > 
-> >   * get_address_space
-> >   * get_address_mappings
-> >   * get_mapped_pages
-> >   * get_page_mappings
-> > 
-> > Or s@get_@ref_@?
+> Aw, nobody likes fast_gup? ;)
+
+Ah, I misunderstood your intention.
+I thought you disklike fast_gup..
+
+I don't dislike it :()
+
 > 
-> Why get_user_pages_lockless() is wrong?
-> or get_my_pages() is better?
-> (because this method assume task is current task)
+> Technically get_user_pages_lockless is wrong: the implementation may
+> not be lockless so one cannot assume it will not take mmap sem and
+> ptls.
 
-Aw, nobody likes fast_gup? ;)
+agreed.
 
-Technically get_user_pages_lockless is wrong: the implementation may
-not be lockless so one cannot assume it will not take mmap sem and
-ptls.
 
-But I do like to make it clear that it is related to get_user_pages.
-get_current_user_pages(), maybe? Hmm, that's harder to grep for
-both then I guess. get_user_pages_current?
+> But I do like to make it clear that it is related to get_user_pages.
+> get_current_user_pages(), maybe? Hmm, that's harder to grep for
+> both then I guess. get_user_pages_current?
+
+Yeah, good name.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
