@@ -1,20 +1,20 @@
 Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id m4RGCWLT008298
-	for <linux-mm@kvack.org>; Wed, 28 May 2008 02:12:32 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4RGGhUA257644
-	for <linux-mm@kvack.org>; Wed, 28 May 2008 02:16:43 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4RGCXie020412
-	for <linux-mm@kvack.org>; Wed, 28 May 2008 02:12:34 +1000
-Message-ID: <483C32AE.1020908@linux.vnet.ibm.com>
-Date: Tue, 27 May 2008 21:41:26 +0530
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m4RGQaTW008119
+	for <linux-mm@kvack.org>; Wed, 28 May 2008 02:26:36 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4RGVbP7276328
+	for <linux-mm@kvack.org>; Wed, 28 May 2008 02:31:37 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4RGRR6p022261
+	for <linux-mm@kvack.org>; Wed, 28 May 2008 02:27:27 +1000
+Message-ID: <483C3629.4080209@linux.vnet.ibm.com>
+Date: Tue, 27 May 2008 21:56:17 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [RFC 1/4] memcg: drop pages at rmdir (v1)
-References: <20080527140116.fb04b06b.kamezawa.hiroyu@jp.fujitsu.com> <20080527140533.b4b6f73f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080527140533.b4b6f73f.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC 2/4] memcg: high-low watermark
+References: <20080527140116.fb04b06b.kamezawa.hiroyu@jp.fujitsu.com> <20080527140703.97b69ed3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080527140703.97b69ed3.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,97 +24,257 @@ Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "yamamoto@valinux.co.jp" <yamamot
 List-ID: <linux-mm.kvack.org>
 
 KAMEZAWA Hiroyuki wrote:
-> Now, when we remove memcg, we call force_empty().
-> This call drops all page_cgroup accounting in this mem_cgroup but doesn't
-> drop pages. So, some page caches can be remaind as "not accounted" memory
-> while they are alive. (because it's accounted only when add_to_page_cache())
-> If they are not used by other memcg, global LRU will drop them.
+> Add high/low watermarks to res_counter.
+> *This patch itself has no behavior changes to memory resource controller.
 > 
-> This patch tries to drop pages at removing memcg. Other memcg will
-> reload and re-account page caches. (but this will increase page-in
-> after rmdir().)
-> 
-
-The approach seems fair, but I am not sure about the overhead of flushing out
-cached pages. Might well be worth it.
-
-> Consideration: should we recharge all pages to the parent at last ?
->                But it's not precise logic.
-> 
-
-We should look into this - I should send out the multi-hierarchy patches soon.
-We should discuss this after that.
-
-> Changelog v1->v2
->  - renamed res_counter_empty().
+> Changelog: very old one -> this one (v1)
+>  - watarmark_state is removed and all state check is done under lock.
+>  - changed res_counter_charge() interface. The only user is memory
+>    resource controller. Anyway, returning -ENOMEM here is a bit starnge.
+>  - Added watermark enable/disable flag for someone don't want watermarks.
+>  - Restarted against 2.6.25-mm1.
+>  - some subsystem which doesn't want high-low watermark can work withou it.
 > 
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> From: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
 > 
+
+The From: line should be the first line IIRC.
+
 > ---
->  include/linux/res_counter.h |   11 +++++++++++
->  mm/memcontrol.c             |   19 +++++++++++++++++++
->  2 files changed, 30 insertions(+)
+>  include/linux/res_counter.h |   41 ++++++++++++++++++++++++---
+>  kernel/res_counter.c        |   66 ++++++++++++++++++++++++++++++++++++++++----
+>  mm/memcontrol.c             |    2 -
+>  3 files changed, 99 insertions(+), 10 deletions(-)
 > 
-> Index: mm-2.6.26-rc2-mm1/mm/memcontrol.c
-> ===================================================================
-> --- mm-2.6.26-rc2-mm1.orig/mm/memcontrol.c
-> +++ mm-2.6.26-rc2-mm1/mm/memcontrol.c
-> @@ -791,6 +791,20 @@ int mem_cgroup_shrink_usage(struct mm_st
->  	return 0;
->  }
-> 
-> +
-> +static void mem_cgroup_drop_all_pages(struct mem_cgroup *mem)
-> +{
-> +	int progress;
-> +	while (!res_counter_empty(&mem->res)) {
-> +		progress = try_to_free_mem_cgroup_pages(mem,
-> +					GFP_HIGHUSER_MOVABLE);
-> +		if (!progress) /* we did as much as possible */
-> +			break;
-> +		cond_resched();
-> +	}
-> +	return;
-> +}
-> +
->  /*
->   * This routine traverse page_cgroup in given list and drop them all.
->   * *And* this routine doesn't reclaim page itself, just removes page_cgroup.
-> @@ -848,7 +862,12 @@ static int mem_cgroup_force_empty(struct
->  	if (mem_cgroup_subsys.disabled)
->  		return 0;
-> 
-> +	if (atomic_read(&mem->css.cgroup->count) > 0)
-> +		goto out;
-> +
->  	css_get(&mem->css);
-> +	/* drop pages as much as possible */
-> +	mem_cgroup_drop_all_pages(mem);
->  	/*
->  	 * page reclaim code (kswapd etc..) will move pages between
->  	 * active_list <-> inactive_list while we don't take a lock.
 > Index: mm-2.6.26-rc2-mm1/include/linux/res_counter.h
 > ===================================================================
 > --- mm-2.6.26-rc2-mm1.orig/include/linux/res_counter.h
 > +++ mm-2.6.26-rc2-mm1/include/linux/res_counter.h
-> @@ -153,4 +153,15 @@ static inline void res_counter_reset_fai
->  	cnt->failcnt = 0;
+> @@ -16,6 +16,16 @@
+>  #include <linux/cgroup.h>
+> 
+>  /*
+> + * status of resource coutner's usage.
+> + */
+> +enum res_state {
+> +	RES_BELOW_LOW,	/* usage < lwmark */
+> +	RES_BELOW_HIGH,	/* lwmark < usage < hwmark */
+> +	RES_BELOW_LIMIT,	/* hwmark < usage < limit. */
+> +	RES_OVER_LIMIT,		/* only used at chage. */
+> +};
+> +
+> +/*
+>   * The core object. the cgroup that wishes to account for some
+>   * resource may include this counter into its structures and use
+>   * the helpers described beyond
+> @@ -39,6 +49,12 @@ struct res_counter {
+>  	 */
+>  	unsigned long long failcnt;
+>  	/*
+> +	 * watermarks. needs to keep lwmark <= hwmark <= limit.
+> +	 */
+> +	unsigned long long hwmark;
+> +	unsigned long long lwmark;
+> +	int		   use_watermark;
+
+Is it routine to comment this way? I prefer not to have spaces in the type and
+the member, makes it easier for my eyes.
+
+> +	/*
+>  	 * the lock to protect all of the above.
+>  	 * the routines below consider this to be IRQ-safe
+>  	 */
+> @@ -76,13 +92,18 @@ enum {
+>  	RES_MAX_USAGE,
+>  	RES_LIMIT,
+>  	RES_FAILCNT,
+> +	RES_HWMARK,
+> +	RES_LWMARK,
+>  };
+> 
+>  /*
+>   * helpers for accounting
+> + * res_counter_init() ... initialize counter and disable watermarks.
+> + * res_counter_init_wmark() ... initialize counter and enable watermarks.
+>   */
+> 
+>  void res_counter_init(struct res_counter *counter);
+> +void res_counter_init_wmark(struct res_counter *counter);
+> 
+>  /*
+>   * charge - try to consume more resource.
+> @@ -93,11 +114,21 @@ void res_counter_init(struct res_counter
+>   *
+>   * returns 0 on success and <0 if the counter->usage will exceed the
+>   * counter->limit _locked call expects the counter->lock to be taken
+> + * return values:
+> + * If watermark is disabled,
+> + * RES_BELOW_LIMIT  --  usage is smaller than limt, success.
+
+						^^^^ typo
+
+> + * RES_OVER_LIMIT   --  usage is bigger than limit, failed.
+> + *
+> + * If watermark is enabled,
+> + * RES_BELOW_LOW    -- usage is smaller than low watermark, success
+> + * RES_BELOW_HIGH   -- usage is smaller than high watermark, success.
+> + * RES_BELOW_LIMIT  -- usage is smaller than limt, success.
+> + * RES_OVER_LIMIT   -- usage is bigger than limit, failed.
+>   */
+> 
+> -int __must_check res_counter_charge_locked(struct res_counter *counter,
+> -		unsigned long val);
+> -int __must_check res_counter_charge(struct res_counter *counter,
+> +enum res_state __must_check
+> +res_counter_charge_locked(struct res_counter *counter, unsigned long val);
+> +enum res_state __must_check res_counter_charge(struct res_counter *counter,
+>  		unsigned long val);
+> 
+>  /*
+> @@ -164,4 +195,7 @@ static inline int res_counter_empty(stru
 >  	spin_unlock_irqrestore(&cnt->lock, flags);
+>  	return ret;
 >  }
-> +/* returns 0 if usage is 0. */
-> +static inline int res_counter_empty(struct res_counter *cnt)
+> +
+> +enum res_state res_counter_state(struct res_counter *counter);
+> +
+>  #endif
+> Index: mm-2.6.26-rc2-mm1/kernel/res_counter.c
+> ===================================================================
+> --- mm-2.6.26-rc2-mm1.orig/kernel/res_counter.c
+> +++ mm-2.6.26-rc2-mm1/kernel/res_counter.c
+> @@ -18,22 +18,40 @@ void res_counter_init(struct res_counter
+>  {
+>  	spin_lock_init(&counter->lock);
+>  	counter->limit = (unsigned long long)LLONG_MAX;
+> +	counter->use_watermark = 0;
+>  }
+> 
+> -int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
+> +void res_counter_init_wmark(struct res_counter *counter)
+> +{
+> +	spin_lock_init(&counter->lock);
+> +	counter->limit = (unsigned long long)LLONG_MAX;
+> +	counter->hwmark = (unsigned long long)LLONG_MAX;
+> +	counter->lwmark = (unsigned long long)LLONG_MAX;
+> +	counter->use_watermark = 1;
+> +}
+> +
+> +enum res_state
+> +res_counter_charge_locked(struct res_counter *counter, unsigned long val)
+>  {
+>  	if (counter->usage + val > counter->limit) {
+>  		counter->failcnt++;
+> -		return -ENOMEM;
+> +		return RES_OVER_LIMIT;
+>  	}
+> 
+>  	counter->usage += val;
+>  	if (counter->usage > counter->max_usage)
+>  		counter->max_usage = counter->usage;
+> -	return 0;
+> +	if (counter->use_watermark) {
+> +		if (counter->usage <= counter->lwmark)
+> +			return RES_BELOW_LOW;
+> +		if (counter->usage <= counter->hwmark)
+> +			return RES_BELOW_HIGH;
+> +	}
+> +	return RES_BELOW_LIMIT;
+>  }
+> 
+> -int res_counter_charge(struct res_counter *counter, unsigned long val)
+> +enum res_state
+> +res_counter_charge(struct res_counter *counter, unsigned long val)
+>  {
+>  	int ret;
+>  	unsigned long flags;
+> @@ -44,6 +62,23 @@ int res_counter_charge(struct res_counte
+>  	return ret;
+>  }
+> 
+> +enum res_state res_counter_state(struct res_counter *counter)
 > +{
 > +	unsigned long flags;
-> +	int ret;
+> +	enum res_state ret = RES_BELOW_LIMIT;
 > +
-> +	spin_lock_irqsave(&cnt->lock, flags);
-> +	ret = (cnt->usage == 0) ? 0 : 1;
-> +	spin_unlock_irqrestore(&cnt->lock, flags);
+> +	spin_lock_irqsave(&counter->lock, flags);
+> +	if (counter->use_watermark) {
+> +		if (counter->usage <= counter->lwmark)
+> +			ret = RES_BELOW_LOW;
+> +		else if (counter->usage <= counter->hwmark)
+> +			ret = RES_BELOW_HIGH;
+> +	}
+> +	spin_unlock_irqrestore(&counter->lock, flags);
 > +	return ret;
 > +}
->  #endif
+> +
+
+When do we return RES_OVER_LIMIT? Are we missing that here?
+
+> +
+>  void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
+>  {
+>  	if (WARN_ON(counter->usage < val))
+> @@ -74,6 +109,10 @@ res_counter_member(struct res_counter *c
+>  		return &counter->limit;
+>  	case RES_FAILCNT:
+>  		return &counter->failcnt;
+> +	case RES_HWMARK:
+> +		return &counter->hwmark;
+> +	case RES_LWMARK:
+> +		return &counter->lwmark;
+>  	};
+> 
+>  	BUG();
+> @@ -134,10 +173,27 @@ ssize_t res_counter_write(struct res_cou
+>  			goto out_free;
+>  	}
+>  	spin_lock_irqsave(&counter->lock, flags);
+> +	switch (member) {
+> +		case RES_LIMIT:
+> +			if (counter->use_watermark && counter->hwmark > tmp)
+> +				goto unlock_free;
+
+We need to document such API changes in the Documentation/controllers/memory.txt
+file.
+
+> +			break;
+> +		case RES_HWMARK:
+> +			if (tmp < counter->lwmark  || tmp > counter->limit)
+> +				goto unlock_free;
+> +			break;
+> +		case RES_LWMARK:
+> +			if (tmp > counter->hwmark)
+> +				goto unlock_free;
+> +			break;
+> +		default:
+> +			break;
+> +	}
+>  	val = res_counter_member(counter, member);
+>  	*val = tmp;
+> -	spin_unlock_irqrestore(&counter->lock, flags);
+>  	ret = nbytes;
+> +unlock_free:
+> +	spin_unlock_irqrestore(&counter->lock, flags);
+>  out_free:
+>  	kfree(buf);
+>  out:
+> Index: mm-2.6.26-rc2-mm1/mm/memcontrol.c
+> ===================================================================
+> --- mm-2.6.26-rc2-mm1.orig/mm/memcontrol.c
+> +++ mm-2.6.26-rc2-mm1/mm/memcontrol.c
+> @@ -559,7 +559,7 @@ static int mem_cgroup_charge_common(stru
+>  		css_get(&memcg->css);
+>  	}
+> 
+> -	while (res_counter_charge(&mem->res, PAGE_SIZE)) {
+> +	while (res_counter_charge(&mem->res, PAGE_SIZE) == RES_OVER_LIMIT) {
+>  		if (!(gfp_mask & __GFP_WAIT))
+>  			goto out;
 > 
 
+Otherwise looks good so far. Need to look at the background reclaim code.
 
 -- 
 	Warm Regards,
