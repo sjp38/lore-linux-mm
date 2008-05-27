@@ -1,36 +1,42 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4RKhKBR010237
-	for <linux-mm@kvack.org>; Tue, 27 May 2008 16:43:20 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4RKhImX076774
-	for <linux-mm@kvack.org>; Tue, 27 May 2008 14:43:18 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4RKhH6o017963
-	for <linux-mm@kvack.org>; Tue, 27 May 2008 14:43:18 -0600
-Subject: Re: [patch 04/23] hugetlb: multiple hstates
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4RKp0Rh025219
+	for <linux-mm@kvack.org>; Tue, 27 May 2008 16:51:00 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4RKp0fY136804
+	for <linux-mm@kvack.org>; Tue, 27 May 2008 16:51:00 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4RKoxJJ016962
+	for <linux-mm@kvack.org>; Tue, 27 May 2008 16:51:00 -0400
+Subject: Re: [patch 06/23] hugetlbfs: per mount hstates
 From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <20080525143452.518017000@nick.local0.net>
+In-Reply-To: <20080525143452.733810000@nick.local0.net>
 References: <20080525142317.965503000@nick.local0.net>
-	 <20080525143452.518017000@nick.local0.net>
+	 <20080525143452.733810000@nick.local0.net>
 Content-Type: text/plain
-Date: Tue, 27 May 2008 15:43:16 -0500
-Message-Id: <1211920997.12036.13.camel@localhost.localdomain>
+Date: Tue, 27 May 2008 15:50:59 -0500
+Message-Id: <1211921459.12036.15.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: npiggin@suse.de
-Cc: linux-mm@kvack.org, kniht@us.ibm.com, andi@firstfloor.org, nacc@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Andi Kleen <ak@suse.de>
+Cc: linux-mm@kvack.org, kniht@us.ibm.com, andi-suse@firstfloor.org, nacc@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 2008-05-26 at 00:23 +1000, npiggin@suse.de wrote:
-> plain text document attachment (hugetlb-multiple-hstates.patch)
-> Add basic support for more than one hstate in hugetlbfs
+> plain text document attachment (hugetlbfs-per-mount-hstate.patch)
+> Add support to have individual hstates for each hugetlbfs mount
 > 
-> - Convert hstates to an array
-> - Add a first default entry covering the standard huge page size
-> - Add functions for architectures to register new hstates
-> - Add basic iterators over hstates
+> - Add a new pagesize= option to the hugetlbfs mount that allows setting
+> the page size
+> - Set up pointers to a suitable hstate for the set page size option
+> to the super block and the inode and the vma.
+> - Change the hstate accessors to use this information
+> - Add code to the hstate init function to set parsed_hstate for command
+> line processing
+> - Handle duplicated hstate registrations to the make command line user proof
+> 
+> [np: take hstate out of hugetlbfs inode and vma->vm_private_data]
 > 
 > Signed-off-by: Andi Kleen <ak@suse.de>
 > Signed-off-by: Nick Piggin <npiggin@suse.de>
