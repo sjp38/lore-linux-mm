@@ -1,73 +1,59 @@
-Message-ID: <483DB6F5.2030101@cs.helsinki.fi>
-Date: Wed, 28 May 2008 22:48:05 +0300
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-MIME-Version: 1.0
-Subject: Re: Subject: Slab allocators: Remove kmem_cache_name() to fix invalid
- frees
-References: <Pine.LNX.4.64.0805281032290.22637@schroedinger.engr.sgi.com> <1211997084.31329.155.camel@calx> <Pine.LNX.4.64.0805281121100.32755@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0805281121100.32755@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Wed, 28 May 2008 21:56:37 +0200
+From: Willy Tarreau <w@1wt.eu>
+Subject: Re: [PATCH] Re: bad pmd ffff810000207238(9090909090909090).
+Message-ID: <20080528195637.GA11662@1wt.eu>
+References: <483CBCDD.10401@lugmen.org.ar> <Pine.LNX.4.64.0805281922530.7959@blonde.site>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0805281922530.7959@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, David Miller <davem@davemloft.net>, acme <acme@redhat.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Fede <fedux@lugmen.org.ar>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Jan Engelhardt <jengelh@medozas.de>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> A draft patch to allow anonymous caches follows. Allowing duplicate names
-> would also be possible. Just need to deal with sysfs. Maybe generate a
-> _x at the end?
+On Wed, May 28, 2008 at 07:36:07PM +0100, Hugh Dickins wrote:
+> On Tue, 27 May 2008, Fede wrote:
+> > 
+> > Today I tried to start a firewalling script and failed due to an unrelated
+> > issue, but when I checked the log I saw this:
+> > 
+> > May 27 20:38:15 kaoz ip_tables: (C) 2000-2006 Netfilter Core Team
+> > May 27 20:38:28 kaoz Netfilter messages via NETLINK v0.30.
+> > May 27 20:38:28 kaoz nf_conntrack version 0.5.0 (16384 buckets, 65536 max)
+> > May 27 20:38:28 kaoz ctnetlink v0.93: registering with nfnetlink.
+> > May 27 20:38:28 kaoz ClusterIP Version 0.8 loaded successfully
+> > May 27 20:38:28 kaoz mm/memory.c:127: bad pmd
+> > ffff810000207238(9090909090909090).
+> > 
+> > I also found another post with a very similar issue. The other post had almost
+> > the same message (*mm*/*memory*.*c*:*127*: *bad* *pmd*
+> > ffff810000207808(9090909090909090).)
+> > 
+> > Does anyone know what is it?
+> 
+> Thanks a lot for re-reporting this: it was fun to work it out.
+> It's not a rootkit, it's harmless, but we ought to fix the noise.
+> Simple patch below, but let me explain more verbosely first.
+> 
+> What was really interesting in your report was that the address
+> is so close to that in OGAWA-San's report.  I had a look at that
+> page on my x86_64 boxes, and they have lots of 0x90s there too.
+> It's just some page alignment filler that x86_64 kernel startup
+> has missed cleaning up - patch below fixes that.  There's no
+> security aspect to it: the entries were already not-present,
+> they just generate this noise by triggering the pmd_bad test.
 
-Or a "cache-" prefix. I don't think we ought to allow duplicate names, 
-though.
+Is there a particular reason we use 0x90 as an alignment filler ?
+If we can put anything else, at least next time it will not get
+confused with NOPs. We could use 0xAF (Alignment Filler) for
+instance.
 
-> Subject: slub: Support anonymous slabs
-> 
-> Slabs really do not need to have a name so one could pass NULL as a name. 
-> The name is only relevant for sysfs support. There we need a unique name.
-> Use the address of the kmem_cache structure as the name.
-> 
-> [Would output "" if debugging is one]
-> 
-> 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> 
-> ---
->  mm/slub.c |   10 ++++++++--
->  1 file changed, 8 insertions(+), 2 deletions(-)
-> 
-> Index: linux-2.6/mm/slub.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slub.c	2008-05-28 11:16:24.000000000 -0700
-> +++ linux-2.6/mm/slub.c	2008-05-28 11:17:33.000000000 -0700
-> @@ -4310,6 +4310,7 @@ static int sysfs_slab_add(struct kmem_ca
->  	int err;
->  	const char *name;
->  	int unmergeable;
-> +	char buf[20];
->  
->  	if (slab_state < SYSFS)
->  		/* Defer until later */
-> @@ -4322,8 +4323,13 @@ static int sysfs_slab_add(struct kmem_ca
->  		 * This is typically the case for debug situations. In that
->  		 * case we can catch duplicate names easily.
->  		 */
-> -		sysfs_remove_link(&slab_kset->kobj, s->name);
-> +		if (s->name)
-> +			sysfs_remove_link(&slab_kset->kobj, s->name);
->  		name = s->name;
-> +		if (!name) {
-> +			sprintf(buf, "%p", s);
-> +			name = buf;
-> +		}
+Well done BTW ;-)
 
-Perhaps add a comment here explaining why we're doing this?
-
-Other than that, looks good to me. Please re-send with proper changelog 
-from the original patch.
-
-		Pekka
+Reagrds,
+Willy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
