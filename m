@@ -1,74 +1,94 @@
-Date: Wed, 28 May 2008 11:23:27 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Subject: Slab allocators: Remove kmem_cache_name() to fix invalid
- frees
-In-Reply-To: <1211997084.31329.155.camel@calx>
-Message-ID: <Pine.LNX.4.64.0805281121100.32755@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0805281032290.22637@schroedinger.engr.sgi.com>
- <1211997084.31329.155.camel@calx>
+Date: Wed, 28 May 2008 19:36:07 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: [PATCH] Re: bad pmd ffff810000207238(9090909090909090).
+In-Reply-To: <483CBCDD.10401@lugmen.org.ar>
+Message-ID: <Pine.LNX.4.64.0805281922530.7959@blonde.site>
+References: <483CBCDD.10401@lugmen.org.ar>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: Pekka J Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, David Miller <davem@davemloft.net>, acme <acme@redhat.com>
+To: Fede <fedux@lugmen.org.ar>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Jan Engelhardt <jengelh@medozas.de>, Willy Tarreau <w@1wt.eu>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-A draft patch to allow anonymous caches follows. Allowing duplicate names
-would also be possible. Just need to deal with sysfs. Maybe generate a
-_x at the end?
+On Tue, 27 May 2008, Fede wrote:
+> 
+> Today I tried to start a firewalling script and failed due to an unrelated
+> issue, but when I checked the log I saw this:
+> 
+> May 27 20:38:15 kaoz ip_tables: (C) 2000-2006 Netfilter Core Team
+> May 27 20:38:28 kaoz Netfilter messages via NETLINK v0.30.
+> May 27 20:38:28 kaoz nf_conntrack version 0.5.0 (16384 buckets, 65536 max)
+> May 27 20:38:28 kaoz ctnetlink v0.93: registering with nfnetlink.
+> May 27 20:38:28 kaoz ClusterIP Version 0.8 loaded successfully
+> May 27 20:38:28 kaoz mm/memory.c:127: bad pmd
+> ffff810000207238(9090909090909090).
+> 
+> I also found another post with a very similar issue. The other post had almost
+> the same message (*mm*/*memory*.*c*:*127*: *bad* *pmd*
+> ffff810000207808(9090909090909090).)
+> 
+> Does anyone know what is it?
 
-Subject: slub: Support anonymous slabs
+Thanks a lot for re-reporting this: it was fun to work it out.
+It's not a rootkit, it's harmless, but we ought to fix the noise.
+Simple patch below, but let me explain more verbosely first.
 
-Slabs really do not need to have a name so one could pass NULL as a name. 
-The name is only relevant for sysfs support. There we need a unique name.
-Use the address of the kmem_cache structure as the name.
+What was really interesting in your report was that the address
+is so close to that in OGAWA-San's report.  I had a look at that
+page on my x86_64 boxes, and they have lots of 0x90s there too.
+It's just some page alignment filler that x86_64 kernel startup
+has missed cleaning up - patch below fixes that.  There's no
+security aspect to it: the entries were already not-present,
+they just generate this noise by triggering the pmd_bad test.
 
-[Would output "" if debugging is one]
+But why do you occasionally see those messages (I never have)?
+I was puzzled awhile because those tests are usually for user
+address space, but this is up in kernel address space: in the
+modules area.  Ah, vmalloc.c uses them: it's almost coincidence,
+but those user space tests do work on the vmalloc and modules
+areas, though they'd fail on many other parts of the kernel
+address space (because of pse and global and nx bits).
 
+Those messages come just occasionally from unloading a module.
+There's a years-old anomaly in vmalloc.c, that the allocation
+routines add an empty guard page slot to the size, then the
+freeing routines include that empty slot.  (I've always thought
+the guard page should be private to vmalloc.c, consistently left
+out of the public size; but that would need wider changes.)  When
+it would occupy the first slot of a new page table, allocation won't
+have assigned one, and freeing will then hit this "bad" pmd entry.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Hugh
 
+[PATCH] x86: fix bad pmd ffff810000207xxx(9090909090909090)
+
+OGAWA Hirofumi and Fede have reported rare pmd_ERROR messages:
+mm/memory.c:127: bad pmd ffff810000207xxx(9090909090909090).
+
+Initialization's cleanup_highmap was leaving alignment filler
+behind in the pmd for MODULES_VADDR: when vmalloc's guard page
+would occupy a new page table, it's not allocated, and then
+module unload's vfree hits the bad 9090 pmd entry left over.
+
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
 ---
- mm/slub.c |   10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
 
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2008-05-28 11:16:24.000000000 -0700
-+++ linux-2.6/mm/slub.c	2008-05-28 11:17:33.000000000 -0700
-@@ -4310,6 +4310,7 @@ static int sysfs_slab_add(struct kmem_ca
- 	int err;
- 	const char *name;
- 	int unmergeable;
-+	char buf[20];
+ arch/x86/mm/init_64.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- 2.6.26-rc4/arch/x86/mm/init_64.c	2008-05-03 21:54:41.000000000 +0100
++++ linux/arch/x86/mm/init_64.c	2008-05-28 17:38:19.000000000 +0100
+@@ -206,7 +206,7 @@ void __init cleanup_highmap(void)
+ 	pmd_t *last_pmd = pmd + PTRS_PER_PMD;
  
- 	if (slab_state < SYSFS)
- 		/* Defer until later */
-@@ -4322,8 +4323,13 @@ static int sysfs_slab_add(struct kmem_ca
- 		 * This is typically the case for debug situations. In that
- 		 * case we can catch duplicate names easily.
- 		 */
--		sysfs_remove_link(&slab_kset->kobj, s->name);
-+		if (s->name)
-+			sysfs_remove_link(&slab_kset->kobj, s->name);
- 		name = s->name;
-+		if (!name) {
-+			sprintf(buf, "%p", s);
-+			name = buf;
-+		}
- 	} else {
- 		/*
- 		 * Create a unique name for the slab as a target
-@@ -4343,7 +4349,7 @@ static int sysfs_slab_add(struct kmem_ca
- 	if (err)
- 		return err;
- 	kobject_uevent(&s->kobj, KOBJ_ADD);
--	if (!unmergeable) {
-+	if (!unmergeable && s->name) {
- 		/* Setup first alias */
- 		sysfs_slab_alias(s, s->name);
- 		kfree(name);
+ 	for (; pmd < last_pmd; pmd++, vaddr += PMD_SIZE) {
+-		if (!pmd_present(*pmd))
++		if (pmd_none(*pmd))
+ 			continue;
+ 		if (vaddr < (unsigned long) _text || vaddr > end)
+ 			set_pmd(pmd, __pmd(0));
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
