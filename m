@@ -1,53 +1,71 @@
-Date: Wed, 28 May 2008 10:40:06 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 03/23] hugetlb: modular state
-Message-ID: <20080528084006.GA2630@wotan.suse.de>
-References: <20080525142317.965503000@nick.local0.net> <20080525143452.408189000@nick.local0.net> <20080527164426.GC20709@us.ibm.com>
+Date: Wed, 28 May 2008 01:40:17 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] 2.6.26-rc: x86: pci-dma.c: use __GFP_NO_OOM instead of
+ __GFP_NORETRY
+Message-Id: <20080528014017.9b3d116f.akpm@linux-foundation.org>
+In-Reply-To: <1211963485.28138.14.camel@localhost.localdomain>
+References: <20080526234940.GA1376@xs4all.net>
+	<20080527014720.6db68517.akpm@linux-foundation.org>
+	<20080528024727.GB20824@one.firstfloor.org>
+	<1211963485.28138.14.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080527164426.GC20709@us.ibm.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: linux-mm@kvack.org, kniht@us.ibm.com, andi@firstfloor.org, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Andi Kleen <ak@suse.de>
+To: Miquel van Smoorenburg <mikevs@xs4all.net>
+Cc: Andi Kleen <andi@firstfloor.org>, Glauber Costa <gcosta@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 27, 2008 at 09:44:26AM -0700, Nishanth Aravamudan wrote:
-> On 26.05.2008 [00:23:20 +1000], npiggin@suse.de wrote:
+On Wed, 28 May 2008 10:31:25 +0200 Miquel van Smoorenburg <mikevs@xs4all.net> wrote:
+
+> > When the 16MB zone overflows (which can be common in some workloads)
+> > calling the OOM killer is pretty useless because it has barely any 
+> > real user data [only exception would be the "only 16MB" case Alan
+> > mentioned]. Killing random processes in this case is bad. 
 > > 
-> >  	might_sleep();
-> > -	for (i = 0; i < HPAGE_SIZE/PAGE_SIZE; i++) {
-> > +	for (i = 0; i < 1 << huge_page_order(h); i++) {
+> > I think for 16MB __GFP_NORETRY is ok because there should be 
+> > nothing freeable in there so looping is useless. Only exception would be the 
+> > "only 16MB total" case again but I'm not sure 2.6 supports that at all
+> > on x86.
+> > 
+> > On the other hand d_a_c() does more allocations than just 16MB, especially
+> > on 64bit and the other zones need different strategies.
 > 
-> So it seems like most (not quite all) users of huge_page_order(h) don't
-> actually care about the order, per se, but want some sense of the
-> underlying pagesize. Either pages_per_huge_page() or huge_page_size().
+> Okay, so how about this then ?
 > 
-> So perhaps it would be sensible to have the helpers defined as such?
-> 
-> huge_page_size(h) -> size in bytes of huge page (corresponds to what was
-> HPAGE_SIZE), which is what I think you currently have
-> 
-> and
-> 
-> pages_per_huge_page(h) -> number of base pages per huge page
-> (corresponds to HPAGE_SIZE / PAGE_SIZE)
-> 
-> ?
+> --- linux-2.6.26-rc4.orig/arch/x86/kernel/pci-dma.c	2008-05-26 20:08:11.000000000 +0200
+> +++ linux-2.6.26-rc4/arch/x86/kernel/pci-dma.c	2008-05-28 10:27:41.000000000 +0200
+> @@ -397,9 +397,6 @@
+>  	if (dev->dma_mask == NULL)
+>  		return NULL;
+>  
+> -	/* Don't invoke OOM killer */
+> -	gfp |= __GFP_NORETRY;
+> -
+>  #ifdef CONFIG_X86_64
+>  	/* Why <=? Even when the mask is smaller than 4GB it is often
+>  	   larger than 16MB and in this case we have a chance of
+> @@ -410,7 +407,9 @@
+>  #endif
+>  
+>   again:
+> -	page = dma_alloc_pages(dev, gfp, get_order(size));
+> +	/* Don't invoke OOM killer or retry in lower 16MB DMA zone */
+> +	page = dma_alloc_pages(dev,
+> +		(gfp & GFP_DMA) ? gfp | __GFP_NORETRY : gfp, get_order(size));
+>  	if (page == NULL)
+>  		return NULL;
 
-I think pages_per_huge_page would be reasonable, yes.
+I guess that's more specifally solving that-which-we-wish-to-solve.
 
- 
-> Also, I noticed that this caller has no parentheses, but the other one
-> does, for (1 << huge_page_order(h))
-> 
-> Neither are huge issues and the first can be a clean-up patch from me,
-> so
-> 
-> Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
+Formally we should be testing __GFP_DMA here, not GFP_DMA - just the
+zone selector field.  They're presently equal, but someone could
+legitimately come along and do
 
-Thanks... I'll do pages_per_huge_page(), it won't be much work.
+#define GFP_DMA (__GFP_DMA|__GFP_HIGH)
+
+or similar.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
