@@ -1,82 +1,103 @@
-Date: Wed, 28 May 2008 12:22:38 +0200
+Date: Wed, 28 May 2008 12:57:59 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 11/23] hugetlb: support larger than MAX_ORDER
-Message-ID: <20080528102238.GF2630@wotan.suse.de>
-References: <20080525142317.965503000@nick.local0.net> <20080525143453.269965000@nick.local0.net> <1211923418.12036.38.camel@localhost.localdomain>
+Subject: Re: [patch 12/23] hugetlb: support boot allocate different sizes
+Message-ID: <20080528105759.GG2630@wotan.suse.de>
+References: <20080525142317.965503000@nick.local0.net> <20080525143453.424711000@nick.local0.net> <1211923735.12036.41.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1211923418.12036.38.camel@localhost.localdomain>
+In-Reply-To: <1211923735.12036.41.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Adam Litke <agl@us.ibm.com>
-Cc: linux-mm@kvack.org, kniht@us.ibm.com, andi-suse@firstfloor.org, nacc@us.ibm.com, abh@cray.com, joachim.deguara@amd.com
+Cc: linux-mm@kvack.org, kniht@us.ibm.com, andi@firstfloor.org, nacc@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 27, 2008 at 04:23:38PM -0500, Adam Litke wrote:
+On Tue, May 27, 2008 at 04:28:55PM -0500, Adam Litke wrote:
+> Seems nice, but what exactly is this patch for?  From reading the code
+> it would seem that this allows more than one >MAX_ORDER hstates to exist
+> and removes assumptions about their positioning withing the hstates
+> array?  A small patch leader would definitely clear up my confusion.
+
+Yes it allows I guess hugetlb_init_one_hstate to be called multiple
+times on an hstate, and also some logic dealing with giant page setup.
+
+Though hmm, possibly it can be made a little cleaner by separating
+hstate init from the actual page allocation a little more. I'll have
+a look but it is kind of tricky... otherwise I can try a changelog.
+
+ 
+> 
 > On Mon, 2008-05-26 at 00:23 +1000, npiggin@suse.de wrote:
-> > @@ -549,6 +560,51 @@ static struct page *alloc_huge_page(stru
-> >  	return page;
+> > plain text document attachment (hugetlb-different-page-sizes.patch)
+> > Acked-by: Andrew Hastings <abh@cray.com>
+> > Signed-off-by: Andi Kleen <ak@suse.de>
+> > Signed-off-by: Nick Piggin <npiggin@suse.de>
+> > ---
+> >  mm/hugetlb.c |   24 +++++++++++++++++++-----
+> >  1 file changed, 19 insertions(+), 5 deletions(-)
+> > 
+> > Index: linux-2.6/mm/hugetlb.c
+> > ===================================================================
+> > --- linux-2.6.orig/mm/hugetlb.c
+> > +++ linux-2.6/mm/hugetlb.c
+> > @@ -609,10 +609,13 @@ static void __init hugetlb_init_one_hsta
+> >  {
+> >  	unsigned long i;
+> > 
+> > -	for (i = 0; i < MAX_NUMNODES; ++i)
+> > -		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
+> > +	/* Don't reinitialize lists if they have been already init'ed */
+> > +	if (!h->hugepage_freelists[0].next) {
+> > +		for (i = 0; i < MAX_NUMNODES; ++i)
+> > +			INIT_LIST_HEAD(&h->hugepage_freelists[i]);
+> > 
+> > -	h->hugetlb_next_nid = first_node(node_online_map);
+> > +		h->hugetlb_next_nid = first_node(node_online_map);
+> > +	}
+> > 
+> >  	for (i = 0; i < h->max_huge_pages; ++i) {
+> >  		if (h->order >= MAX_ORDER) {
+> > @@ -621,7 +624,7 @@ static void __init hugetlb_init_one_hsta
+> >  		} else if (!alloc_fresh_huge_page(h))
+> >  			break;
+> >  	}
+> > -	h->max_huge_pages = h->free_huge_pages = h->nr_huge_pages = i;
+> > +	h->max_huge_pages = i;
 > >  }
 > > 
-> > +static __initdata LIST_HEAD(huge_boot_pages);
+> >  static void __init hugetlb_init_hstates(void)
+> > @@ -629,7 +632,10 @@ static void __init hugetlb_init_hstates(
+> >  	struct hstate *h;
+> > 
+> >  	for_each_hstate(h) {
+> > -		hugetlb_init_one_hstate(h);
+> > +		/* oversize hugepages were init'ed in early boot */
+> > +		if (h->order < MAX_ORDER)
+> > +			hugetlb_init_one_hstate(h);
+> > +		max_huge_pages[h - hstates] = h->max_huge_pages;
+> >  	}
+> >  }
+> > 
+> > @@ -692,6 +698,14 @@ static int __init hugetlb_setup(char *s)
+> >  	if (sscanf(s, "%lu", mhp) <= 0)
+> >  		*mhp = 0;
+> > 
+> > +	/*
+> > +	 * Global state is always initialized later in hugetlb_init.
+> > +	 * But we need to allocate >= MAX_ORDER hstates here early to still
+> > +	 * use the bootmem allocator.
+> > +	 */
+> > +	if (max_hstate > 0 && parsed_hstate->order >= MAX_ORDER)
+> > +		hugetlb_init_one_hstate(parsed_hstate);
 > > +
-> > +struct huge_bootmem_page {
-> > +	struct list_head list;
-> > +	struct hstate *hstate;
-> > +};
-> > +
-> > +static int __init alloc_bootmem_huge_page(struct hstate *h)
-> > +{
-> > +	struct huge_bootmem_page *m;
-> > +	int nr_nodes = nodes_weight(node_online_map);
-> > +
-> > +	while (nr_nodes) {
-> > +		m = __alloc_bootmem_node_nopanic(NODE_DATA(h->hugetlb_next_nid),
-> > +					huge_page_size(h), huge_page_size(h),
-> > +					0);
-> > +		if (m)
-> > +			goto found;
-> > +		hstate_next_node(h);
-> > +		nr_nodes--;
-> > +	}
-> > +	return 0;
-> > +
-> > +found:
-> > +	BUG_ON((unsigned long)virt_to_phys(m) & (huge_page_size(h) - 1));
-> > +	/* Put them into a private list first because mem_map is not up yet */
-> > +	list_add(&m->list, &huge_boot_pages);
-> > +	m->hstate = h;
-> > +	return 1;
-> > +}
-> 
-> At first I was pretty confused by how you are directly using the
-> newly-allocated bootmem page to create a temporary list until the mem
-> map comes up.  Clever.  I bet I would have understood right away if it
-
-Just a note that Andi wrote it.
-
-
-> were written like the following:
-> 
-> void *vaddr;
-> struct huge_bootmem_page *m;
-> 
-> vaddr = __alloc_bootmem_node_nopanic(...);
-> if (vaddr) {
-> 	/*
-> 	 * Use the beginning of this block to store some temporary
-> 	 * meta-data until the mem_map comes up.
-> 	 */
-> 	m = (huge_bootmem_page *) vaddr;
-> 	goto found;
-> }
-> 
-> If you don't like that level of verbosity, could we add a comment just
-> to make it immediately clear to the reader?
-
-
-Yeah OK. 
+> >  	return 1;
+> >  }
+> >  __setup("hugepages=", hugetlb_setup);
+> > 
+> -- 
+> Adam Litke - (agl at us.ibm.com)
+> IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
