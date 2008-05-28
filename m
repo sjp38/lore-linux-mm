@@ -1,86 +1,42 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4SKrPfU000618
-	for <linux-mm@kvack.org>; Wed, 28 May 2008 16:53:25 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4SKrDSq114346
-	for <linux-mm@kvack.org>; Wed, 28 May 2008 14:53:14 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4SKrAUf005755
-	for <linux-mm@kvack.org>; Wed, 28 May 2008 14:53:12 -0600
-Subject: Re: [PATCH 3/3]
-	hugetlb-allow-huge-page-mappings-to-be-created-without-reservations
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <1211929806.0@pinky>
-References: <exportbomb.1211929624@pinky>  <1211929806.0@pinky>
-Content-Type: text/plain
-Date: Wed, 28 May 2008 15:53:10 -0500
-Message-Id: <1212007990.12036.75.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 28 May 2008 23:24:48 +0200 (CEST)
+From: Jan Engelhardt <jengelh@medozas.de>
+Subject: Re: [PATCH] Re: bad pmd ffff810000207238(9090909090909090).
+In-Reply-To: <20080528204356.GA12687@1wt.eu>
+Message-ID: <alpine.LNX.1.10.0805282321050.19264@fbirervta.pbzchgretzou.qr>
+References: <483CBCDD.10401@lugmen.org.ar> <Pine.LNX.4.64.0805281922530.7959@blonde.site> <20080528195637.GA11662@1wt.eu> <alpine.LNX.1.10.0805282210580.19264@fbirervta.pbzchgretzou.qr> <20080528204356.GA12687@1wt.eu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wli@holomorphy.com, kenchen@google.com, dwg@au1.ibm.com, andi@firstfloor.org, Mel Gorman <mel@csn.ul.ie>, dean@arctic.org, abh@cray.com
+To: Willy Tarreau <w@1wt.eu>
+Cc: Hugh Dickins <hugh@veritas.com>, Fede <fedux@lugmen.org.ar>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-05-28 at 00:10 +0100, Andy Whitcroft wrote:
-> By default all shared mappings and most private mappings now
-> have reservations associated with them.  This improves semantics by
-> providing allocation guarentees to the mapper.  However a small number of
-> applications may attempt to make very large sparse mappings, with these
-> strict reservations the system will never be able to honour the mapping.
-> 
-> This patch set brings MAP_NORESERVE support to hugetlb files.
-> This allows new mappings to be made to hugetlbfs files without an
-> associated reservation, for both shared and private mappings.  This allows
-> applications which want to create very sparse mappings to opt-out of the
-> reservation system.  Obviously as there is no reservation they are liable
-> to fault at runtime if the huge page pool becomes exhausted; buyer beware.
-> 
-> Signed-off-by: Andy Whitcroft <apw@shadowen.org>
-> ---
->  mm/hugetlb.c |   60 +++++++++++++++++++++++++++++++++++++++++++++++++++++----
->  1 files changed, 55 insertions(+), 5 deletions(-)
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 90a7f5f..118dc54 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -88,6 +88,9 @@ static int is_vma_resv_set(struct vm_area_struct *vma, unsigned long flag)
->  /* Decrement the reserved pages in the hugepage pool by one */
->  static void decrement_hugepage_resv_vma(struct vm_area_struct *vma)
->  {
-> +	if (vma->vm_flags & VM_NORESERVE)
-> +		return;
-> +
->  	if (vma->vm_flags & VM_SHARED) {
->  		/* Shared mappings always use reserves */
->  		resv_huge_pages--;
-> @@ -682,25 +685,67 @@ static long region_truncate(struct list_head *head, long end)
->  	return chg;
->  }
-> 
-> +/*
-> + * Determine if the huge page at addr within the vma has an associated
-> + * reservation.  Where it does not we will need to logically increase
-> + * reservation and actually increase quota before an allocation can occur.
-> + * Where any new reservation would be required the reservation change is
-> + * prepared, but not committed.  Once the page has been quota'd allocated
-> + * an instantiated the change should be committed via vma_commit_reservation.
-> + * No action is required on failure.
-> + */
-> +static int vma_needs_reservation(struct vm_area_struct *vma, unsigned long addr)
+On Wednesday 2008-05-28 22:43, Willy Tarreau wrote:
+>> >
+>> >Is there a particular reason we use 0x90 as an alignment filler ?
+>> 
+>> Alignment within functions. You could use a JMP to jump over
+>> the alignment, but that would be costly. So in order to
+>> "run through the wall", you need an opcode that does not
+>> do anything, something like 0x90.
+>> 0xAF would map to scasd on x86, and I'd hardly call that a
+>> no-op.
+>
+>OK, I did not understand from Hugh's explanation that it was
+>all about alignment within functions. Of course, 0x90 is fine
+>there (though there are multi-byte NOPs available).
 
-To me, this function has an odd name and led to some confusion when I
-read the patch.  This naming suggests that the function determines
-_whether_or_not_ a particular page requires a reservation when in fact
-it is determining a number of pages required and then (to use your
-wording in the comments) prepares said reservation.  Could we rename it
-to vma_prepare_reservation() or something?  I feel that would also align
-it with vma_commit_reservation() a bit more.
-
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+"All about alignment within functions" -- I am not sure about that,
+you just happened to ask about 0x90 :)
+And if you have a 1-byte NOP (which fits perfectly everywhere),
+which is also a real NOP (and not just a filler byte that could
+possibly be an opcode doing something very different), you've
+got an ideal candidate for padding, no?
+There is probably nothing wrong with padding .data sections
+with 0xAF or even 0xDB and ud2 to catch execute-readonly-data
+cases. To that end, I think something like that should be
+proposed to binutils.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
