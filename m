@@ -1,34 +1,40 @@
-Date: Wed, 28 May 2008 14:54:01 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] 2.6.26-rc: x86: pci-dma.c: use __GFP_NO_OOM instead of __GFP_NORETRY
-Message-ID: <20080528125401.GC20824@one.firstfloor.org>
-References: <20080526234940.GA1376@xs4all.net> <20080527014720.6db68517.akpm@linux-foundation.org> <20080528024727.GB20824@one.firstfloor.org> <1211963485.28138.14.camel@localhost.localdomain> <20080528014017.9b3d116f.akpm@linux-foundation.org>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4SDbmJA018420
+	for <linux-mm@kvack.org>; Wed, 28 May 2008 09:37:48 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4SDbkb8068012
+	for <linux-mm@kvack.org>; Wed, 28 May 2008 07:37:46 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4SDbiB2032149
+	for <linux-mm@kvack.org>; Wed, 28 May 2008 07:37:46 -0600
+Subject: Re: [PATCH 1/3] Move hugetlb_acct_memory()
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <20080527185048.16194.40237.sendpatchset@skynet.skynet.ie>
+References: <20080527185028.16194.57978.sendpatchset@skynet.skynet.ie>
+	 <20080527185048.16194.40237.sendpatchset@skynet.skynet.ie>
+Content-Type: text/plain
+Date: Wed, 28 May 2008 08:37:45 -0500
+Message-Id: <1211981865.12036.56.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080528014017.9b3d116f.akpm@linux-foundation.org>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Miquel van Smoorenburg <mikevs@xs4all.net>, Andi Kleen <andi@firstfloor.org>, Glauber Costa <gcosta@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: akpm@linux-foundation.org, dean@arctic.org, linux-kernel@vger.kernel.org, wli@holomorphy.com, dwg@au1.ibm.com, linux-mm@kvack.org, andi@firstfloor.org, kenchen@google.com, apw@shadowen.org, abh@cray.com
 List-ID: <linux-mm.kvack.org>
 
-> > -	page = dma_alloc_pages(dev, gfp, get_order(size));
-> > +	/* Don't invoke OOM killer or retry in lower 16MB DMA zone */
-> > +	page = dma_alloc_pages(dev,
-> > +		(gfp & GFP_DMA) ? gfp | __GFP_NORETRY : gfp, get_order(size));
-> >  	if (page == NULL)
-> >  		return NULL;
+On Tue, 2008-05-27 at 19:50 +0100, Mel Gorman wrote:
+> A later patch in this set needs to call hugetlb_acct_memory() before it
+> is defined. This patch moves the function without modification. This makes
+> later diffs easier to read.
 > 
-> I guess that's more specifally solving that-which-we-wish-to-solve.
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-Then the allocator could still be stuck in ZONE_DMA32 on 64bit.
+Acked-by: Adam Litke <agl@us.ibm.com>
 
-Also d_a_c() does one "speculative" allocation, as in an allocation
-where it knows the zone is too large for the mask but it tries anyways
-because it often works. In that case too much trying is also not good.
-
--Andi
+-- 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
