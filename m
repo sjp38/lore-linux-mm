@@ -1,33 +1,39 @@
-Date: Wed, 28 May 2008 20:40:06 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH] Re: bad pmd ffff810000207238(9090909090909090).
-Message-ID: <20080528184006.GA14585@elte.hu>
-References: <483CBCDD.10401@lugmen.org.ar> <Pine.LNX.4.64.0805281922530.7959@blonde.site>
+Message-ID: <483DB51B.3010003@cs.helsinki.fi>
+Date: Wed, 28 May 2008 22:40:11 +0300
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0805281922530.7959@blonde.site>
+Subject: Re: slub: Add check for kfree() of non slab objects.
+References: <Pine.LNX.4.64.0805281031120.22637@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0805281031120.22637@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Fede <fedux@lugmen.org.ar>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Jan Engelhardt <jengelh@medozas.de>, Willy Tarreau <w@1wt.eu>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: mpm@selenic.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Hugh Dickins <hugh@veritas.com> wrote:
-
-> [PATCH] x86: fix bad pmd ffff810000207xxx(9090909090909090)
+Christoph Lameter wrote:
+> We can detect kfree()s on non slab objects by checking for PageCompound().
+> Works in the same way as for ksize. This helped me catch an invalid 
+> kfree().
 > 
-> OGAWA Hirofumi and Fede have reported rare pmd_ERROR messages: 
-> mm/memory.c:127: bad pmd ffff810000207xxx(9090909090909090).
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 > 
-> Initialization's cleanup_highmap was leaving alignment filler behind 
-> in the pmd for MODULES_VADDR: when vmalloc's guard page would occupy a 
-> new page table, it's not allocated, and then module unload's vfree 
-> hits the bad 9090 pmd entry left over.
+> Index: linux-2.6/mm/slub.c
+> ===================================================================
+> --- linux-2.6.orig/mm/slub.c	2008-05-27 21:28:55.000000000 -0700
+> +++ linux-2.6/mm/slub.c	2008-05-28 00:04:14.000000000 -0700
+> @@ -2765,6 +2765,7 @@
+>  
+>  	page = virt_to_head_page(x);
+>  	if (unlikely(!PageSlab(page))) {
+> +		BUG_ON(!PageCompound(page));
+>  		put_page(page);
+>  		return;
+>  	}
 
-applied, nice catch!
-
-	Ingo
+Applied, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
