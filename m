@@ -1,69 +1,60 @@
-Received: by fg-out-1718.google.com with SMTP id 19so1915347fgg.4
-        for <linux-mm@kvack.org>; Wed, 28 May 2008 20:48:37 -0700 (PDT)
-Message-ID: <29495f1d0805282048s5c699e70rf4ab1377b18f337e@mail.gmail.com>
-Date: Wed, 28 May 2008 20:48:36 -0700
-From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
-Subject: Re: [patch] hugetlb: fix lockdep error
-In-Reply-To: <20080528201929.cf766924.akpm@linux-foundation.org>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4T4xNi0002772
+	for <linux-mm@kvack.org>; Thu, 29 May 2008 00:59:23 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4T4xNYJ116272
+	for <linux-mm@kvack.org>; Wed, 28 May 2008 22:59:23 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4T4xMrU008589
+	for <linux-mm@kvack.org>; Wed, 28 May 2008 22:59:22 -0600
+Date: Wed, 28 May 2008 21:59:19 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [patch 07/23] hugetlb: multi hstate sysctls
+Message-ID: <20080529045919.GA8963@us.ibm.com>
+References: <20080525142317.965503000@nick.local0.net> <20080525143452.841211000@nick.local0.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <20080529015956.GC3258@wotan.suse.de>
-	 <20080528191657.ba5f283c.akpm@linux-foundation.org>
-	 <20080529022919.GD3258@wotan.suse.de>
-	 <20080528193808.6e053dac.akpm@linux-foundation.org>
-	 <20080529030745.GG3258@wotan.suse.de>
-	 <20080528201929.cf766924.akpm@linux-foundation.org>
+In-Reply-To: <20080525143452.841211000@nick.local0.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, agl@us.ibm.com, nacc@us.ibm.com, Linux Memory Management List <linux-mm@kvack.org>, kosaki.motohiro@jp.fujitsu.com
+To: npiggin@suse.de
+Cc: linux-mm@kvack.org, kniht@us.ibm.com, andi@firstfloor.org, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On 5/28/08, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Thu, 29 May 2008 05:07:45 +0200 Nick Piggin <npiggin@suse.de> wrote:
->
->  > > >  mm/hugetlb.c |    2 +-
->  > > >  1 file changed, 1 insertion(+), 1 deletion(-)
->  > > >
->  > > > Index: linux-2.6/mm/hugetlb.c
->  > > > ===================================================================
->  > > > --- linux-2.6.orig/mm/hugetlb.c
->  > > > +++ linux-2.6/mm/hugetlb.c
->  > > > @@ -785,7 +785,7 @@ int copy_hugetlb_page_range(struct mm_st
->  > > >                   continue;
->  > > >
->  > > >           spin_lock(&dst->page_table_lock);
->  > > > -         spin_lock(&src->page_table_lock);
->  > > > +         spin_lock_nested(&src->page_table_lock, SINGLE_DEPTH_NESTING);
->  > > >           if (!huge_pte_none(huge_ptep_get(src_pte))) {
->  > > >                   if (cow)
->  > > >                           huge_ptep_set_wrprotect(src, addr, src_pte);
->  > >
->  > > Confused.  This code has been there since October 2005.  Why are we
->  > > only seeing lockdep warnings now?
->  >
->  > Can't say. Haven't looked at hugetlb code or tested it much until now.
->  > I am using a recent libhugetlbfs test suite, FWIW.
->
->
-> I don't believe that it's possible that nobody has run that test suite
->  with lockdep enabled at any time in the past three years.
+On 26.05.2008 [00:23:24 +1000], npiggin@suse.de wrote:
+> Expand the hugetlbfs sysctls to handle arrays for all hstates. This
+> now allows the removal of global_hstate -- everything is now hstate
+> aware.
+> 
+> - I didn't bother with hugetlb_shm_group and treat_as_movable,
+> these are still single global.
+> - Also improve error propagation for the sysctl handlers a bit
+> 
+> Signed-off-by: Andi Kleen <ak@suse.de>
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
 
-I can't tell from Nick's mail if the lockdep error is specific to this
-particular testcase or not, but if so, that would make it the past two
-(almost three) months, as that was when this particular testcase was
-added. And I'm not sure when we released the first development
-snapshot that would have included it (for non-git users, that is). In
-any case, I also don't know how we wouldn't have seen this issue on
-our systems and that's a problem. I will make a concerted effort to
-work with the other libhugetlbfs developers to make sure all possible
-debug options are on (as you've pointed out to me elsewhere/when).
+<snip>
 
+>  int hugetlb_treat_movable_handler(struct ctl_table *table, int write,
+>  			struct file *file, void __user *buffer,
+>  			size_t *length, loff_t *ppos)
+>  {
+> + 	table->maxlen = max_hstate * sizeof(int);
+
+Are you sure this is correct? I was just testing my sysfs patch (and the
+removal of the multi-valued proc files) and noticed that
+/proc/sys/vm/hugepages_treat_as_movable was multi-valued (3 values,
+corresponding to the three page sizes on this machine), and the last
+value was garbage. And, in any case, this change seems to conflict with
+the changelog?
 
 Thanks,
 Nish
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
