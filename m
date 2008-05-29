@@ -1,44 +1,69 @@
-Date: Thu, 29 May 2008 05:43:59 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 2/2] lockless get_user_pages
-Message-ID: <20080529034359.GI3258@wotan.suse.de>
-References: <20080527095519.4676.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080527022801.GB21578@wotan.suse.de> <20080527114350.4679.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: by fg-out-1718.google.com with SMTP id 19so1915347fgg.4
+        for <linux-mm@kvack.org>; Wed, 28 May 2008 20:48:37 -0700 (PDT)
+Message-ID: <29495f1d0805282048s5c699e70rf4ab1377b18f337e@mail.gmail.com>
+Date: Wed, 28 May 2008 20:48:36 -0700
+From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
+Subject: Re: [patch] hugetlb: fix lockdep error
+In-Reply-To: <20080528201929.cf766924.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080527114350.4679.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080529015956.GC3258@wotan.suse.de>
+	 <20080528191657.ba5f283c.akpm@linux-foundation.org>
+	 <20080529022919.GD3258@wotan.suse.de>
+	 <20080528193808.6e053dac.akpm@linux-foundation.org>
+	 <20080529030745.GG3258@wotan.suse.de>
+	 <20080528201929.cf766924.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@saeurebad.de>, Andrew Morton <akpm@linux-foundation.org>, shaggy@austin.ibm.com, jens.axboe@oracle.com, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, apw@shadowen.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, agl@us.ibm.com, nacc@us.ibm.com, Linux Memory Management List <linux-mm@kvack.org>, kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 27, 2008 at 11:46:27AM +0900, KOSAKI Motohiro wrote:
-> > Aw, nobody likes fast_gup? ;)
-> 
-> Ah, I misunderstood your intention.
-> I thought you disklike fast_gup..
-> 
-> I don't dislike it :()
-> 
-> > 
-> > Technically get_user_pages_lockless is wrong: the implementation may
-> > not be lockless so one cannot assume it will not take mmap sem and
-> > ptls.
-> 
-> agreed.
-> 
-> 
-> > But I do like to make it clear that it is related to get_user_pages.
-> > get_current_user_pages(), maybe? Hmm, that's harder to grep for
-> > both then I guess. get_user_pages_current?
-> 
-> Yeah, good name.
+On 5/28/08, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Thu, 29 May 2008 05:07:45 +0200 Nick Piggin <npiggin@suse.de> wrote:
+>
+>  > > >  mm/hugetlb.c |    2 +-
+>  > > >  1 file changed, 1 insertion(+), 1 deletion(-)
+>  > > >
+>  > > > Index: linux-2.6/mm/hugetlb.c
+>  > > > ===================================================================
+>  > > > --- linux-2.6.orig/mm/hugetlb.c
+>  > > > +++ linux-2.6/mm/hugetlb.c
+>  > > > @@ -785,7 +785,7 @@ int copy_hugetlb_page_range(struct mm_st
+>  > > >                   continue;
+>  > > >
+>  > > >           spin_lock(&dst->page_table_lock);
+>  > > > -         spin_lock(&src->page_table_lock);
+>  > > > +         spin_lock_nested(&src->page_table_lock, SINGLE_DEPTH_NESTING);
+>  > > >           if (!huge_pte_none(huge_ptep_get(src_pte))) {
+>  > > >                   if (cow)
+>  > > >                           huge_ptep_set_wrprotect(src, addr, src_pte);
+>  > >
+>  > > Confused.  This code has been there since October 2005.  Why are we
+>  > > only seeing lockdep warnings now?
+>  >
+>  > Can't say. Haven't looked at hugetlb code or tested it much until now.
+>  > I am using a recent libhugetlbfs test suite, FWIW.
+>
+>
+> I don't believe that it's possible that nobody has run that test suite
+>  with lockdep enabled at any time in the past three years.
 
-Hmm, although now that I think about it more, fast_gup is not _quite_
-just a get_user_pages for "current". In particular it requires a bit
-of thought as to whether the pages are likely to require page faults
-or not... so I've called it get_user_pages_fast()
+I can't tell from Nick's mail if the lockdep error is specific to this
+particular testcase or not, but if so, that would make it the past two
+(almost three) months, as that was when this particular testcase was
+added. And I'm not sure when we released the first development
+snapshot that would have included it (for non-git users, that is). In
+any case, I also don't know how we wouldn't have seen this issue on
+our systems and that's a problem. I will make a concerted effort to
+work with the other libhugetlbfs developers to make sure all possible
+debug options are on (as you've pointed out to me elsewhere/when).
+
+
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
