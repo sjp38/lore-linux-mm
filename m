@@ -1,20 +1,16 @@
-Message-Id: <20080529122602.557135000@nick.local0.net>
+Message-Id: <20080529122602.443815000@nick.local0.net>
 References: <20080529122050.823438000@nick.local0.net>
-Date: Thu, 29 May 2008 22:20:55 +1000
+Date: Thu, 29 May 2008 22:20:54 +1000
 From: npiggin@suse.de
-Subject: [patch 5/5] splice: use get_user_pages_fast
-Content-Disposition: inline; filename=splice-get_user_pages_fast.patch
+Subject: [patch 4/5] dio: use get_user_pages_fast
+Content-Disposition: inline; filename=dio-get_user_pages_fast.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: shaggy@austin.ibm.com, linux-mm@kvack.org, linux-arch@vger.kernel.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-Use get_user_pages_fast in splice. This reverts some mmap_sem batching there,
-however the biggest problem with mmap_sem tends to be hold times blocking
-out other threads rather than cacheline bouncing. Further: on architectures
-that implement get_user_pages_fast without locks, mmap_sem can be avoided
-completely anyway.
+Use get_user_pages_fast in the common/generic block and fs direct IO paths.
 
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 Cc: shaggy@austin.ibm.com
@@ -23,89 +19,53 @@ Cc: linux-arch@vger.kernel.org
 Cc: apw@shadowen.org
 
 ---
- fs/splice.c |   41 +++--------------------------------------
- 1 file changed, 3 insertions(+), 38 deletions(-)
+ fs/bio.c       |    8 ++------
+ fs/direct-io.c |   10 ++--------
+ 2 files changed, 4 insertions(+), 14 deletions(-)
 
-Index: linux-2.6/fs/splice.c
+Index: linux-2.6/fs/bio.c
 ===================================================================
---- linux-2.6.orig/fs/splice.c
-+++ linux-2.6/fs/splice.c
-@@ -1147,36 +1147,6 @@ static long do_splice(struct file *in, l
- }
- 
- /*
-- * Do a copy-from-user while holding the mmap_semaphore for reading, in a
-- * manner safe from deadlocking with simultaneous mmap() (grabbing mmap_sem
-- * for writing) and page faulting on the user memory pointed to by src.
-- * This assumes that we will very rarely hit the partial != 0 path, or this
-- * will not be a win.
-- */
--static int copy_from_user_mmap_sem(void *dst, const void __user *src, size_t n)
--{
--	int partial;
--
--	if (!access_ok(VERIFY_READ, src, n))
--		return -EFAULT;
--
--	pagefault_disable();
--	partial = __copy_from_user_inatomic(dst, src, n);
--	pagefault_enable();
--
--	/*
--	 * Didn't copy everything, drop the mmap_sem and do a faulting copy
--	 */
--	if (unlikely(partial)) {
--		up_read(&current->mm->mmap_sem);
--		partial = copy_from_user(dst, src, n);
+--- linux-2.6.orig/fs/bio.c
++++ linux-2.6/fs/bio.c
+@@ -713,12 +713,8 @@ static struct bio *__bio_map_user_iov(st
+ 		const int local_nr_pages = end - start;
+ 		const int page_limit = cur_page + local_nr_pages;
+ 		
 -		down_read(&current->mm->mmap_sem);
--	}
+-		ret = get_user_pages(current, current->mm, uaddr,
+-				     local_nr_pages,
+-				     write_to_vm, 0, &pages[cur_page], NULL);
+-		up_read(&current->mm->mmap_sem);
 -
--	return partial;
--}
--
--/*
-  * Map an iov into an array of pages and offset/length tupples. With the
-  * partial_page structure, we can map several non-contiguous ranges into
-  * our ones pages[] map instead of splitting that operation into pieces.
-@@ -1189,8 +1159,6 @@ static int get_iovec_page_array(const st
- {
- 	int buffers = 0, error = 0;
++		ret = get_user_pages_fast(uaddr, local_nr_pages,
++				write_to_vm, &pages[cur_page]);
+ 		if (ret < local_nr_pages) {
+ 			ret = -EFAULT;
+ 			goto out_unmap;
+Index: linux-2.6/fs/direct-io.c
+===================================================================
+--- linux-2.6.orig/fs/direct-io.c
++++ linux-2.6/fs/direct-io.c
+@@ -150,17 +150,11 @@ static int dio_refill_pages(struct dio *
+ 	int nr_pages;
  
+ 	nr_pages = min(dio->total_pages - dio->curr_page, DIO_PAGES);
 -	down_read(&current->mm->mmap_sem);
--
- 	while (nr_vecs) {
- 		unsigned long off, npages;
- 		struct iovec entry;
-@@ -1199,7 +1167,7 @@ static int get_iovec_page_array(const st
- 		int i;
- 
- 		error = -EFAULT;
--		if (copy_from_user_mmap_sem(&entry, iov, sizeof(entry)))
-+		if (copy_from_user(&entry, iov, sizeof(entry)))
- 			break;
- 
- 		base = entry.iov_base;
-@@ -1233,9 +1201,8 @@ static int get_iovec_page_array(const st
- 		if (npages > PIPE_BUFFERS - buffers)
- 			npages = PIPE_BUFFERS - buffers;
- 
--		error = get_user_pages(current, current->mm,
--				       (unsigned long) base, npages, 0, 0,
--				       &pages[buffers], NULL);
-+		error = get_user_pages_fast((unsigned long)base, npages,
-+					0, &pages[buffers]);
- 
- 		if (unlikely(error <= 0))
- 			break;
-@@ -1274,8 +1241,6 @@ static int get_iovec_page_array(const st
- 		iov++;
- 	}
- 
+-	ret = get_user_pages(
+-		current,			/* Task for fault acounting */
+-		current->mm,			/* whose pages? */
++	ret = get_user_pages_fast(
+ 		dio->curr_user_address,		/* Where from? */
+ 		nr_pages,			/* How many pages? */
+ 		dio->rw == READ,		/* Write to memory? */
+-		0,				/* force (?) */
+-		&dio->pages[0],
+-		NULL);				/* vmas */
 -	up_read(&current->mm->mmap_sem);
--
- 	if (buffers)
- 		return buffers;
++		&dio->pages[0]);		/* Put results here */
  
+ 	if (ret < 0 && dio->blocks_available && (dio->rw & WRITE)) {
+ 		struct page *page = ZERO_PAGE(0);
 
 -- 
 
