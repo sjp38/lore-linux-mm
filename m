@@ -1,396 +1,237 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4T6fnI5012123
-	for <linux-mm@kvack.org>; Thu, 29 May 2008 02:41:49 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4T6dJPU158912
-	for <linux-mm@kvack.org>; Thu, 29 May 2008 02:39:19 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4T6dI1s028773
-	for <linux-mm@kvack.org>; Thu, 29 May 2008 02:39:19 -0400
-Date: Wed, 28 May 2008 23:39:15 -0700
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4T6gjZw032098
+	for <linux-mm@kvack.org>; Thu, 29 May 2008 02:42:45 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4T6gjUX067384
+	for <linux-mm@kvack.org>; Thu, 29 May 2008 00:42:45 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4T6gibU000342
+	for <linux-mm@kvack.org>; Thu, 29 May 2008 00:42:45 -0600
+Date: Wed, 28 May 2008 23:42:42 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [RFC][PATCH 1/2] hugetlb: present information in sysfs
-Message-ID: <20080529063915.GC11357@us.ibm.com>
-References: <20080525142317.965503000@nick.local0.net> <20080525143452.841211000@nick.local0.net>
+Subject: [RFC][PATCH 2/2] hugetlb: remove multi-valued proc files.
+Message-ID: <20080529064242.GD11357@us.ibm.com>
+References: <20080525142317.965503000@nick.local0.net> <20080525143452.841211000@nick.local0.net> <20080529063915.GC11357@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080525143452.841211000@nick.local0.net>
+In-Reply-To: <20080529063915.GC11357@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: npiggin@suse.de
-Cc: linux-mm@kvack.org, kniht@us.ibm.com, andi@firstfloor.org, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, greg@kroah.com
+Cc: linux-mm@kvack.org, kniht@us.ibm.com, andi@firstfloor.org, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com
 List-ID: <linux-mm.kvack.org>
 
-While the procfs presentation of the hstate counters has tried to be as
-backwards compatible as possible, I do not believe trying to maintain
-all of the information in the same files is a good long-term plan. This
-particularly matters for architectures that can support many hugepage
-sizes (sparc64 might be one). Even with the three potential pagesizes on
-power (64k, 16m and 16g), I found the proc interface to be a little
-awkward.
+Now that we present the same information in a cleaner way in sysfs, we
+can remove the duplicate information and interfaces from procfs (and
+consider them to be the legacy interface). The proc interface only
+controls the default hugepage size, which is either
 
-Instead, migrate the information to sysfs in a new directory,
-/sys/kernel/hugepages. Underneath that directory there will be a
-directory per-supported hugepage size, e.g.:
+a) the first one specified via hugepagesz= on the kernel command-line, if any
+b) the legacy huge page size, otherwise
 
-/sys/kernel/hugepages/hugepages-64
-/sys/kernel/hugepages/hugepages-16384
-/sys/kernel/hugepages/hugepages-16777216
-
-corresponding to 64k, 16m and 16g respectively. Within each
-hugepages-size directory there are a number of files, corresponding to
-the tracked counters in the hstate, e.g.:
-
-/sys/kernel/hugepages/hugepages-64/nr_hugepages
-/sys/kernel/hugepages/hugepages-64/nr_overcommit_hugepages
-/sys/kernel/hugepages/hugepages-64/free_hugepages
-/sys/kernel/hugepages/hugepages-64/resv_hugepages
-/sys/kernel/hugepages/hugepages-64/surplus_hugepages
-
-Of these files, the first two are read-write and the latter three are
-read-only. The size of the hugepage being manipulated is trivially
-deducible from the enclosing directory and is always expressed in kB (to
-match meminfo).
+All other hugepage size pool manipulations can occur through sysfs.
 
 Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
 ---
-Nick, I tested this patch and the following one at this point the
-series, that is between patches 7 and 8. This does require a few compile
-fixes/patch modifications in the later parts of the series. If we decide
-that 2/2 is undesirable, there will be fewer of those and 1/2 could also
-apply at the end, with less work. I can send you that diff, if you'd
-prefer.
+Note, this does end up making the manipulation and validation of
+multiple hstates impossible without sysfs enabled and mounted. As such,
+I'm not sure if this is the right approach and perhaps we should be
+leaving the multi-valued proc files in place (but not as the preferred
+interface). Or we could present the values in procfs only if SYSFS is
+not enabled in the kernel? I imagine (but am not 100% sure) that the
+only current architecture where this might be important is SUPERH?
 
-Greg, I didn't hear back from you on the last posting of this patch. Not
-intended as a complaint, just an indication of why I didn't make any
-changes relative to that version. Does this seem like a reasonable
-patch as far as using the sysfs API? I realize a follow-on patch will be
-needed to updated Documentation/ABI.
+Nick, this includes the fix to make hugepages_treat_as_movable
+single-valued again, which presumably will get thrown up as a merge
+conflict if it's fixed at the right place in the stack.
+
+Realistically, this patch shouldn't need to exist in the upstream
+patchset, if we decide to not extend the proc files, as we can add the
+sysfs files as a new patch 5 and drop the current patches 5 and 7. I can
+work out how the patch should look if that is what we decide to do (or
+`git-rebase -i` can :).
 
 diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 36624f1..3fe461d 100644
+index 3fe461d..fb7ef81 100644
 --- a/include/linux/hugetlb.h
 +++ b/include/linux/hugetlb.h
-@@ -169,6 +169,7 @@ struct hstate {
- 	unsigned int nr_huge_pages_node[MAX_NUMNODES];
- 	unsigned int free_huge_pages_node[MAX_NUMNODES];
- 	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
-+	char name[32];
- };
+@@ -228,8 +228,8 @@ static inline struct hstate *page_hstate(struct page *page)
+ 	return size_to_hstate(PAGE_SIZE << compound_order(page));
+ }
  
- void __init hugetlb_add_hstate(unsigned order);
+-extern unsigned long max_huge_pages[HUGE_MAX_HSTATE];
+-extern unsigned long sysctl_overcommit_huge_pages[HUGE_MAX_HSTATE];
++extern unsigned long max_huge_pages;
++extern unsigned long sysctl_overcommit_huge_pages;
+ 
+ #else
+ struct hstate {};
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 080f17a..da7a4aa 100644
+index da7a4aa..15b25f0 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -14,6 +14,7 @@
- #include <linux/mempolicy.h>
- #include <linux/cpuset.h>
- #include <linux/mutex.h>
-+#include <linux/sysfs.h>
+@@ -23,8 +23,8 @@
+ #include "internal.h"
  
- #include <asm/page.h>
- #include <asm/pgtable.h>
-@@ -578,67 +579,6 @@ static void __init report_hugepages(void)
+ const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
+-unsigned long max_huge_pages[HUGE_MAX_HSTATE];
+-unsigned long sysctl_overcommit_huge_pages[HUGE_MAX_HSTATE];
++unsigned long max_huge_pages;
++unsigned long sysctl_overcommit_huge_pages;
+ static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
+ unsigned long hugepages_treat_as_movable;
+ 
+@@ -719,7 +719,8 @@ static ssize_t nr_hugepages_store(struct kobject *kobj,
+ 		return 0;
+ 
+ 	h->max_huge_pages = set_max_huge_pages(h, input, &tmp);
+-	max_huge_pages[h - hstates] = h->max_huge_pages;
++	if (h == hstates)
++		max_huge_pages = h->max_huge_pages;
+ 
+ 	return count;
+ }
+@@ -744,7 +745,8 @@ static ssize_t nr_overcommit_hugepages_store(struct kobject *kobj,
+ 
+ 	spin_lock(&hugetlb_lock);
+ 	h->nr_overcommit_huge_pages = input;
+-	sysctl_overcommit_huge_pages[h - hstates] = h->nr_overcommit_huge_pages;
++	if (h == hstates)
++		sysctl_overcommit_huge_pages = h->nr_overcommit_huge_pages;
+ 	spin_unlock(&hugetlb_lock);
+ 
+ 	return count;
+@@ -909,22 +911,18 @@ int hugetlb_sysctl_handler(struct ctl_table *table, int write,
+ {
+ 	int err;
+ 
+-	table->maxlen = max_hstate * sizeof(unsigned long);
+ 	err = proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
+ 	if (err)
+ 		return err;
+ 
+ 	if (write) {
+-		struct hstate *h;
+-		for_each_hstate (h) {
+-			int tmp;
+-
+-			h->max_huge_pages = set_max_huge_pages(h,
+-					max_huge_pages[h - hstates], &tmp);
+-			max_huge_pages[h - hstates] = h->max_huge_pages;
+-			if (tmp && !err)
+-				err = tmp;
+-		}
++		struct hstate *h = hstates;
++		int tmp;
++
++		h->max_huge_pages = set_max_huge_pages(h, max_huge_pages, &tmp);
++		max_huge_pages = h->max_huge_pages;
++		if (tmp && !err)
++			err = tmp;
  	}
+ 	return err;
  }
+@@ -933,7 +931,6 @@ int hugetlb_treat_movable_handler(struct ctl_table *table, int write,
+ 			struct file *file, void __user *buffer,
+ 			size_t *length, loff_t *ppos)
+ {
+- 	table->maxlen = max_hstate * sizeof(int);
+ 	proc_dointvec(table, write, file, buffer, length, ppos);
+ 	if (hugepages_treat_as_movable)
+ 		htlb_alloc_mask = GFP_HIGHUSER_MOVABLE;
+@@ -948,19 +945,15 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
+ {
+ 	int err;
  
--static int __init hugetlb_init(void)
+-	table->maxlen = max_hstate * sizeof(unsigned long);
+ 	err = proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
+ 	if (err)
+ 		return err;
+ 
+ 	if (write) {
+-		struct hstate *h;
++		struct hstate *h = hstates;
+ 
+ 		spin_lock(&hugetlb_lock);
+-		for_each_hstate (h) {
+-			h->nr_overcommit_huge_pages =
+-				sysctl_overcommit_huge_pages[h - hstates];
+-		}
++		h->nr_overcommit_huge_pages = sysctl_overcommit_huge_pages;
+ 		spin_unlock(&hugetlb_lock);
+ 	}
+ 
+@@ -969,48 +962,32 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
+ 
+ #endif /* CONFIG_SYSCTL */
+ 
+-static int dump_field(char *buf, unsigned field)
 -{
--	BUILD_BUG_ON(HPAGE_SHIFT == 0);
--
--	if (!size_to_hstate(HPAGE_SIZE)) {
--		hugetlb_add_hstate(HUGETLB_PAGE_ORDER);
--		parsed_hstate->max_huge_pages = default_hstate_max_huge_pages;
--	}
--
--	hugetlb_init_hstates();
--
--	report_hugepages();
--
--	return 0;
--}
--module_init(hugetlb_init);
--
--/* Should be called on processing a hugepagesz=... option */
--void __init hugetlb_add_hstate(unsigned order)
--{
+-	int n = 0;
 -	struct hstate *h;
--	if (size_to_hstate(PAGE_SIZE << order)) {
--		printk(KERN_WARNING "hugepagesz= specified twice, ignoring\n");
--		return;
--	}
--	BUG_ON(max_hstate >= HUGE_MAX_HSTATE);
--	BUG_ON(order == 0);
--	h = &hstates[max_hstate++];
--	h->order = order;
--	h->mask = ~((1ULL << (order + PAGE_SHIFT)) - 1);
--	hugetlb_init_one_hstate(h);
--	parsed_hstate = h;
+-	for_each_hstate (h)
+-		n += sprintf(buf + n, " %5lu", *(unsigned long *)((char *)h + field));
+-	buf[n++] = '\n';
+-	return n;
 -}
 -
--static int __init hugetlb_setup(char *s)
--{
--	unsigned long *mhp;
--
--	if (!max_hstate)
--		mhp = &default_hstate_max_huge_pages;
--	else
--		mhp = &parsed_hstate->max_huge_pages;
--
--	if (sscanf(s, "%lu", mhp) <= 0)
--		*mhp = 0;
--
--	return 1;
--}
--__setup("hugepages=", hugetlb_setup);
--
--static unsigned int cpuset_mems_nr(unsigned int *array)
--{
--	int node;
--	unsigned int nr = 0;
--
--	for_each_node_mask(node, cpuset_current_mems_allowed)
--		nr += array[node];
--
--	return nr;
--}
--
- #ifdef CONFIG_SYSCTL
- #ifdef CONFIG_HIGHMEM
- static void try_to_free_low(struct hstate *h, unsigned long count)
-@@ -740,6 +680,229 @@ out:
- 	return ret;
+ int hugetlb_report_meminfo(char *buf)
+ {
+-	struct hstate *h;
+-	int n = 0;
+-	n += sprintf(buf + 0, "HugePages_Total:");
+-	n += dump_field(buf + n, offsetof(struct hstate, nr_huge_pages));
+-	n += sprintf(buf + n, "HugePages_Free: ");
+-	n += dump_field(buf + n, offsetof(struct hstate, free_huge_pages));
+-	n += sprintf(buf + n, "HugePages_Rsvd: ");
+-	n += dump_field(buf + n, offsetof(struct hstate, resv_huge_pages));
+-	n += sprintf(buf + n, "HugePages_Surp: ");
+-	n += dump_field(buf + n, offsetof(struct hstate, surplus_huge_pages));
+-	n += sprintf(buf + n, "Hugepagesize:   ");
+-	for_each_hstate (h)
+-		n += sprintf(buf + n, " %5lu", huge_page_size(h) / 1024);
+-	n += sprintf(buf + n, " kB\n");
+-	return n;
++	struct hstate *h = hstates;
++	return sprintf(buf,
++			"HugePages_Total: %5lu\n"
++			"HugePages_Free:  %5lu\n"
++			"HugePages_Rsvd:  %5lu\n"
++			"HugePages_Surp:  %5lu\n"
++			"Hugepagesize:    %5lu kB\n",
++			h->nr_huge_pages,
++			h->free_huge_pages,
++			h->resv_huge_pages,
++			h->surplus_huge_pages,
++			huge_page_size(h) / 1024);
  }
  
-+#ifdef CONFIG_SYSFS
-+#define HSTATE_ATTR_RO(_name) \
-+	static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
-+
-+#define HSTATE_ATTR(_name) \
-+	static struct kobj_attribute _name##_attr = \
-+		__ATTR(_name, 0644, _name##_show, _name##_store)
-+
-+static struct kobject *hugepages_kobj;
-+static struct kobject *hstate_kobjs[HUGE_MAX_HSTATE];
-+
-+static struct hstate *kobj_to_hstate(struct kobject *kobj)
-+{
-+	int i;
-+	for (i = 0; i < HUGE_MAX_HSTATE; i++)
-+		if (hstate_kobjs[i] == kobj)
-+			return &hstates[i];
-+	BUG();
-+	return NULL;
-+}
-+
-+static ssize_t nr_hugepages_show(struct kobject *kobj,
-+					struct kobj_attribute *attr, char *buf)
-+{
-+	struct hstate *h = kobj_to_hstate(kobj);
-+	return sprintf(buf, "%lu\n", h->nr_huge_pages);
-+}
-+static ssize_t nr_hugepages_store(struct kobject *kobj,
-+		struct kobj_attribute *attr, const char *buf, size_t count)
-+{
-+	int tmp, err;
-+	unsigned long input;
-+	struct hstate *h = kobj_to_hstate(kobj);
-+
-+	err = strict_strtoul(buf, 10, &input);
-+	if (err)
-+		return 0;
-+
-+	h->max_huge_pages = set_max_huge_pages(h, input, &tmp);
-+	max_huge_pages[h - hstates] = h->max_huge_pages;
-+
-+	return count;
-+}
-+HSTATE_ATTR(nr_hugepages);
-+
-+static ssize_t nr_overcommit_hugepages_show(struct kobject *kobj,
-+					struct kobj_attribute *attr, char *buf)
-+{
-+	struct hstate *h = kobj_to_hstate(kobj);
-+	return sprintf(buf, "%lu\n", h->nr_overcommit_huge_pages);
-+}
-+static ssize_t nr_overcommit_hugepages_store(struct kobject *kobj,
-+		struct kobj_attribute *attr, const char *buf, size_t count)
-+{
-+	int err;
-+	unsigned long input;
-+	struct hstate *h = kobj_to_hstate(kobj);
-+
-+	err = strict_strtoul(buf, 10, &input);
-+	if (err)
-+		return 0;
-+
-+	spin_lock(&hugetlb_lock);
-+	h->nr_overcommit_huge_pages = input;
-+	sysctl_overcommit_huge_pages[h - hstates] = h->nr_overcommit_huge_pages;
-+	spin_unlock(&hugetlb_lock);
-+
-+	return count;
-+}
-+HSTATE_ATTR(nr_overcommit_hugepages);
-+
-+static ssize_t free_hugepages_show(struct kobject *kobj,
-+					struct kobj_attribute *attr, char *buf)
-+{
-+	struct hstate *h = kobj_to_hstate(kobj);
-+	return sprintf(buf, "%lu\n", h->free_huge_pages);
-+}
-+HSTATE_ATTR_RO(free_hugepages);
-+
-+static ssize_t resv_hugepages_show(struct kobject *kobj,
-+					struct kobj_attribute *attr, char *buf)
-+{
-+	struct hstate *h = kobj_to_hstate(kobj);
-+	return sprintf(buf, "%lu\n", h->resv_huge_pages);
-+}
-+HSTATE_ATTR_RO(resv_hugepages);
-+
-+static ssize_t surplus_hugepages_show(struct kobject *kobj,
-+					struct kobj_attribute *attr, char *buf)
-+{
-+	struct hstate *h = kobj_to_hstate(kobj);
-+	return sprintf(buf, "%lu\n", h->surplus_huge_pages);
-+}
-+HSTATE_ATTR_RO(surplus_hugepages);
-+
-+static struct attribute *hstate_attrs[] = {
-+	&nr_hugepages_attr.attr,
-+	&nr_overcommit_hugepages_attr.attr,
-+	&free_hugepages_attr.attr,
-+	&resv_hugepages_attr.attr,
-+	&surplus_hugepages_attr.attr,
-+	NULL,
-+};
-+
-+static struct attribute_group hstate_attr_group = {
-+	.attrs = hstate_attrs,
-+};
-+
-+static int __init hugetlb_sysfs_add_hstate(struct hstate *h)
-+{
-+	int retval;
-+
-+	hstate_kobjs[h - hstates] = kobject_create_and_add(h->name,
-+							hugepages_kobj);
-+	if (!hstate_kobjs[h - hstates])
-+		return -ENOMEM;
-+
-+	retval = sysfs_create_group(hstate_kobjs[h - hstates],
-+							&hstate_attr_group);
-+	if (retval)
-+		kobject_put(hstate_kobjs[h - hstates]);
-+
-+	return retval;
-+}
-+
-+static void __init hugetlb_sysfs_init(void)
-+{
-+	struct hstate *h;
-+	int err;
-+
-+	hugepages_kobj = kobject_create_and_add("hugepages", kernel_kobj);
-+	if (!hugepages_kobj)
-+		return;
-+
-+	for_each_hstate(h) {
-+		err = hugetlb_sysfs_add_hstate(h);
-+		if (err)
-+			printk(KERN_ERR "Hugetlb: Unable to add hstate %s",
-+								h->name);
-+	}
-+}
-+#else
-+static void __init hugetlb_sysfs_init(void)
-+{
-+}
-+#endif
-+
-+static int __init hugetlb_init(void)
-+{
-+	BUILD_BUG_ON(HPAGE_SHIFT == 0);
-+
-+	if (!size_to_hstate(HPAGE_SIZE)) {
-+		hugetlb_add_hstate(HUGETLB_PAGE_ORDER);
-+		parsed_hstate->max_huge_pages = default_hstate_max_huge_pages;
-+	}
-+
-+	hugetlb_init_hstates();
-+
-+	report_hugepages();
-+
-+	hugetlb_sysfs_init();
-+
-+	return 0;
-+}
-+module_init(hugetlb_init);
-+
-+static void __exit hugetlb_exit(void)
-+{
-+	struct hstate *h;
-+
-+	for_each_hstate(h) {
-+		kobject_put(hstate_kobjs[h - hstates]);
-+	}
-+
-+	kobject_put(hugepages_kobj);
-+}
-+module_exit(hugetlb_exit);
-+
-+/* Should be called on processing a hugepagesz=... option */
-+void __init hugetlb_add_hstate(unsigned order)
-+{
-+	struct hstate *h;
-+	if (size_to_hstate(PAGE_SIZE << order)) {
-+		printk(KERN_WARNING "hugepagesz= specified twice, ignoring\n");
-+		return;
-+	}
-+	BUG_ON(max_hstate >= HUGE_MAX_HSTATE);
-+	BUG_ON(order == 0);
-+	h = &hstates[max_hstate++];
-+	h->order = order;
-+	h->mask = ~((1ULL << (order + PAGE_SHIFT)) - 1);
-+	snprintf(h->name, 32, "hugepages-%lu", huge_page_size(h)/1024);
-+	hugetlb_init_one_hstate(h);
-+	parsed_hstate = h;
-+}
-+
-+static int __init hugetlb_setup(char *s)
-+{
-+	unsigned long *mhp;
-+
-+	if (!max_hstate)
-+		mhp = &default_hstate_max_huge_pages;
-+	else
-+		mhp = &parsed_hstate->max_huge_pages;
-+
-+	if (sscanf(s, "%lu", mhp) <= 0)
-+		*mhp = 0;
-+
-+	return 1;
-+}
-+__setup("hugepages=", hugetlb_setup);
-+
-+static unsigned int cpuset_mems_nr(unsigned int *array)
-+{
-+	int node;
-+	unsigned int nr = 0;
-+
-+	for_each_node_mask(node, cpuset_current_mems_allowed)
-+		nr += array[node];
-+
-+	return nr;
-+}
-+
- int hugetlb_sysctl_handler(struct ctl_table *table, int write,
- 			   struct file *file, void __user *buffer,
- 			   size_t *length, loff_t *ppos)
+ int hugetlb_report_node_meminfo(int nid, char *buf)
+ {
+-	int n = 0;
+-	n += sprintf(buf, "Node %d HugePages_Total: ", nid);
+-	n += dump_field(buf + n, offsetof(struct hstate,
+-						nr_huge_pages_node[nid]));
+-	n += sprintf(buf + n, "Node %d HugePages_Free: ", nid);
+-	n += dump_field(buf + n, offsetof(struct hstate,
+-						free_huge_pages_node[nid]));
+-	n += sprintf(buf + n, "Node %d HugePages_Surp: ", nid);
+-	n += dump_field(buf + n, offsetof(struct hstate,
+-						surplus_huge_pages_node[nid]));
+-	return n;
++	struct hstate *h = hstates;
++	return sprintf(buf,
++			"HugePages_Total: %5u\n"
++			"HugePages_Free:  %5u\n"
++			"HugePages_Surp:  %5u\n",
++			h->nr_huge_pages_node[nid],
++			h->free_huge_pages_node[nid],
++			h->surplus_huge_pages_node[nid]);
+ }
+ 
+ /* Return the number pages of memory we physically have, in PAGE_SIZE units. */
 
 -- 
 Nishanth Aravamudan <nacc@us.ibm.com>
