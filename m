@@ -1,53 +1,48 @@
-Date: Wed, 28 May 2008 18:51:21 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/3]
- hugetlb-allow-huge-page-mappings-to-be-created-without-reservations
-Message-Id: <20080528185121.86805747.akpm@linux-foundation.org>
-In-Reply-To: <1211929806.0@pinky>
-References: <exportbomb.1211929624@pinky>
-	<1211929806.0@pinky>
+Date: Thu, 29 May 2008 04:29:19 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch] hugetlb: fix lockdep error
+Message-ID: <20080529022919.GD3258@wotan.suse.de>
+References: <20080529015956.GC3258@wotan.suse.de> <20080528191657.ba5f283c.akpm@linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080528191657.ba5f283c.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, agl@us.ibm.com, wli@holomorphy.com, kenchen@google.com, dwg@au1.ibm.com, andi@firstfloor.org, Mel Gorman <mel@csn.ul.ie>, dean@arctic.org, abh@cray.com, Michael Kerrisk <mtk.manpages@googlemail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: agl@us.ibm.com, nacc@us.ibm.com, Linux Memory Management List <linux-mm@kvack.org>, kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 May 2008 00:10:06 +0100 Andy Whitcroft <apw@shadowen.org> wrote:
+Hi Andrew,
 
-> +		unsigned long idx = ((addr - vma->vm_start) >> HPAGE_SHIFT) +
-> +				(vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
-> +		return region_chg(&inode->i_mapping->private_list,
-> +							idx, idx + 1);
-> +
-> +	} else {
-> +		if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER))
-> +			return 1;
-> +	}
-> +
-> +	return 0;
-> +}
-> +static void vma_commit_reservation(struct vm_area_struct *vma,
-> +							unsigned long addr)
-> +{
-> +	struct address_space *mapping = vma->vm_file->f_mapping;
-> +	struct inode *inode = mapping->host;
-> +
-> +	if (vma->vm_flags & VM_SHARED) {
-> +		unsigned long idx = ((addr - vma->vm_start) >> HPAGE_SHIFT) +
-> +				(vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
-> +		region_add(&inode->i_mapping->private_list, idx, idx + 1);
+Can you merge this up please? It is helpful in testing to avoid lockdep
+tripping over. I have it at the start of the multiple hugepage size
+patchset, but it doesn't strictly belong there...
 
-There are a couple more users of the little helper function which I
-suggested that Mel add.
+--
+hugetlb: fix lockdep error
 
-They both use ulong too - I do think that pgoff_t has a little
-documentary value.
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Acked-by: Adam Litke <agl@us.ibm.com>
+Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+---
+ mm/hugetlb.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-I guess these changes impact the manpages, but the mmap manpage doesn't
-seem to know about huge pages at all.
+Index: linux-2.6/mm/hugetlb.c
+===================================================================
+--- linux-2.6.orig/mm/hugetlb.c
++++ linux-2.6/mm/hugetlb.c
+@@ -785,7 +785,7 @@ int copy_hugetlb_page_range(struct mm_st
+ 			continue;
+ 
+ 		spin_lock(&dst->page_table_lock);
+-		spin_lock(&src->page_table_lock);
++		spin_lock_nested(&src->page_table_lock, SINGLE_DEPTH_NESTING);
+ 		if (!huge_pte_none(huge_ptep_get(src_pte))) {
+ 			if (cow)
+ 				huge_ptep_set_wrprotect(src, addr, src_pte);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
