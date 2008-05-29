@@ -1,110 +1,55 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m4THL7q3028322
-	for <linux-mm@kvack.org>; Thu, 29 May 2008 13:21:07 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4THL0xq127604
-	for <linux-mm@kvack.org>; Thu, 29 May 2008 13:21:00 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m4THKxNk028519
-	for <linux-mm@kvack.org>; Thu, 29 May 2008 13:21:00 -0400
-Subject: Re: [patch 3/5] x86: lockless get_user_pages_fast
-From: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
-In-Reply-To: <20080529122602.330656000@nick.local0.net>
-References: <20080529122050.823438000@nick.local0.net>
-	 <20080529122602.330656000@nick.local0.net>
-Content-Type: text/plain
-Date: Thu, 29 May 2008 12:20:59 -0500
-Message-Id: <1212081659.6308.10.camel@norville.austin.ibm.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Date: Thu, 29 May 2008 15:50:30 -0400
+Message-Id: <20080529195030.27159.66161.sendpatchset@lts-notebook>
+Subject: [PATCH 00/25] Vm Pageout Scalability Improvements (V8) - continued
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, apw@shadowen.org
+To: linux-kernel@vger.kernel.org
+Cc: Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-05-29 at 22:20 +1000, npiggin@suse.de wrote:
- 
-> +int get_user_pages_fast(unsigned long start, int nr_pages, int write, struct page **pages)
-> +{
-> +	struct mm_struct *mm = current->mm;
-> +	unsigned long end = start + (nr_pages << PAGE_SHIFT);
-> +	unsigned long addr = start;
-> +	unsigned long next;
-> +	pgd_t *pgdp;
-> +	int nr = 0;
-> +
-> +	if (unlikely(!access_ok(write ? VERIFY_WRITE : VERIFY_READ,
-> +					start, nr_pages*PAGE_SIZE)))
-> +		goto slow_irqon;
-> +
-> +	/*
-> +	 * XXX: batch / limit 'nr', to avoid large irq off latency
-> +	 * needs some instrumenting to determine the common sizes used by
-> +	 * important workloads (eg. DB2), and whether limiting the batch size
-> +	 * will decrease performance.
-> +	 *
-> +	 * It seems like we're in the clear for the moment. Direct-IO is
-> +	 * the main guy that batches up lots of get_user_pages, and even
-> +	 * they are limited to 64-at-a-time which is not so many.
-> +	 */
-> +	/*
-> +	 * This doesn't prevent pagetable teardown, but does prevent
-> +	 * the pagetables and pages from being freed on x86.
-> +	 *
-> +	 * So long as we atomically load page table pointers versus teardown
-> +	 * (which we do on x86, with the above PAE exception), we can follow the
-> +	 * address down to the the page and take a ref on it.
-> +	 */
-> +	local_irq_disable();
-> +	pgdp = pgd_offset(mm, addr);
-> +	do {
-> +		pgd_t pgd = *pgdp;
-> +
-> +		next = pgd_addr_end(addr, end);
-> +		if (pgd_none(pgd))
-> +			goto slow;
-> +		if (!gup_pud_range(pgd, addr, next, write, pages, &nr))
-> +			goto slow;
-> +	} while (pgdp++, addr = next, addr != end);
-> +	local_irq_enable();
-> +
-> +	VM_BUG_ON(nr != (end - start) >> PAGE_SHIFT);
-> +	return nr;
-> +
-> +	{
-> +		int i, ret;
-> +
-> +slow:
-> +		local_irq_enable();
-> +slow_irqon:
-> +		/* Try to get the remaining pages with get_user_pages */
-> +		start += nr << PAGE_SHIFT;
-> +		pgaes += nr;
+The patches to follow are a continuation of the V8 "VM pageout scalability
+improvements" series that Rik van Riel posted to LKML on 23May08.  These
+patches apply atop Rik's series with the following overlap:
 
-Typo: s/pgaes/pages/
+Patches 13 through 16 replace the corresponding patches in Rik's posting.
 
-> +
-> +		down_read(&mm->mmap_sem);
-> +		ret = get_user_pages(current, mm, start,
-> +			(end - start) >> PAGE_SHIFT, write, 0, pages, NULL);
-> +		up_read(&mm->mmap_sem);
-> +
-> +		/* Have to be a bit careful with return values */
-> +		if (nr > 0) {
-> +			if (ret < 0)
-> +				ret = nr;
-> +			else
-> +				ret += nr;
-> +		}
-> +
-> +		return ret;
-> +	}
-> +}
+Patch 13, the noreclaim lru infrastructure, now includes Kosaki Motohiro's
+memcontrol enhancements to track nonreclaimable pages.
 
--- 
-David Kleikamp
-IBM Linux Technology Center
+Patches 14 and 15 are largely unchanged, except for refresh.  Includes
+some minor statistics formatting cleanup.
+
+Patch 16 includes a fix for an potential [unobserved] race condition during
+SHM_UNLOCK.
+
+---
+
+Additional patches in this series:
+
+Patches 17 through 20 keep mlocked pages off the normal [in]active LRU
+lists using the noreclaim lru infrastructure.   These patches represent
+a fairly significant rework of an RFC patch originally posted by Nick Piggin.
+
+Patches 21 and 22 are optional, but recommended, enhancements to the overall
+noreclaim series.  
+
+Patches 23 and 24 are optional enhancements useful during debug and testing.
+
+Patch 25 is a rather verbose document describing the noreclaim lru
+infrastructure and the use thereof to keep ramfs, SHM_LOCKED and mlocked
+pages off the normal LRU lists.
+
+---
+
+The entire stack, including Rik's split lru patches, are holding up very
+well under stress loads.  E.g., ran for over 90+ hours over the weekend on
+both x86_64 [32GB, 8core] and ia64 [32GB, 16cpu] platforms without error
+over last weekend.  
+
+I think these are ready for a spin in -mm atop Rik's patches.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
