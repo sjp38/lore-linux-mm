@@ -1,14 +1,11 @@
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Thu, 29 May 2008 15:51:21 -0400
-Message-Id: <20080529195121.27159.50114.sendpatchset@lts-notebook>
+Date: Thu, 29 May 2008 15:51:34 -0400
+Message-Id: <20080529195134.27159.17534.sendpatchset@lts-notebook>
 In-Reply-To: <20080529195030.27159.66161.sendpatchset@lts-notebook>
 References: <20080529195030.27159.66161.sendpatchset@lts-notebook>
-Subject: [PATCH 20/25] Mlocked Pages statistics
+Subject: [PATCH 22/25] Noreclaim and Mlocked pages vm events
 Sender: owner-linux-mm@kvack.org
-From: Nick Piggin <npiggin@suse.de>
-  To: Linux Memory Management <linux-mm@kvack.org>
-  Subject: [patch 4/4] mm: account mlocked pages
-  Date:	Mon, 12 Mar 2007 07:39:14 +0100 (CET)
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
@@ -16,212 +13,227 @@ List-ID: <linux-mm.kvack.org>
 
 Against:  2.6.26-rc2-mm1
 
-V2 -> V3:
-+ rebase to 23-mm1 atop RvR's split lru series
-+ fix definitions of NR_MLOCK to fix build errors when not configured.
+Add some event counters to vmstats for testing noreclaim/mlock.  
+Some of these might be interesting enough to keep around.
 
-V1 -> V2:
-+  new in V2 -- pulled in & reworked from Nick's previous series
-
-Add NR_MLOCK zone page state, which provides a (conservative) count of
-mlocked pages (actually, the number of mlocked pages moved off the LRU).
-
-Reworked by lts to fit in with the modified mlock page support in the
-Reclaim Scalability series.
-
-Signed-off-by: Nick Piggin <npiggin@suse.de>
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Signed-off-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
 
- drivers/base/node.c    |   24 +++++++++++++++---------
- fs/proc/proc_misc.c    |    6 ++++++
- include/linux/mmzone.h |    5 +++++
- mm/internal.h          |   14 +++++++++++---
- mm/mlock.c             |   22 ++++++++++++++++++----
- mm/vmstat.c            |    3 +++
- 6 files changed, 58 insertions(+), 16 deletions(-)
+ include/linux/vmstat.h |   11 +++++++++++
+ mm/internal.h          |    4 +++-
+ mm/mlock.c             |   33 +++++++++++++++++++++++++--------
+ mm/vmscan.c            |   16 +++++++++++++++-
+ mm/vmstat.c            |   12 ++++++++++++
+ 5 files changed, 66 insertions(+), 10 deletions(-)
 
-Index: linux-2.6.26-rc2-mm1/drivers/base/node.c
+Index: linux-2.6.26-rc2-mm1/include/linux/vmstat.h
 ===================================================================
---- linux-2.6.26-rc2-mm1.orig/drivers/base/node.c	2008-05-22 15:24:51.000000000 -0400
-+++ linux-2.6.26-rc2-mm1/drivers/base/node.c	2008-05-22 15:26:49.000000000 -0400
-@@ -69,6 +69,9 @@ static ssize_t node_read_meminfo(struct 
- 		       "Node %d Inactive(file): %8lu kB\n"
- #ifdef CONFIG_NORECLAIM_LRU
- 		       "Node %d Noreclaim:      %8lu kB\n"
-+#ifdef CONFIG_NORECLAIM_MLOCK
-+		       "Node %d Mlocked:        %8lu kB\n"
-+#endif
+--- linux-2.6.26-rc2-mm1.orig/include/linux/vmstat.h	2008-05-28 13:01:13.000000000 -0400
++++ linux-2.6.26-rc2-mm1/include/linux/vmstat.h	2008-05-28 13:03:10.000000000 -0400
+@@ -41,6 +41,17 @@ enum vm_event_item { PGPGIN, PGPGOUT, PS
+ #ifdef CONFIG_HUGETLB_PAGE
+ 		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
  #endif
- #ifdef CONFIG_HIGHMEM
- 		       "Node %d HighTotal:      %8lu kB\n"
-@@ -91,16 +94,19 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(i.totalram),
- 		       nid, K(i.freeram),
- 		       nid, K(i.totalram - i.freeram),
--		       nid, node_page_state(nid, NR_ACTIVE_ANON) +
--				node_page_state(nid, NR_ACTIVE_FILE),
--		       nid, node_page_state(nid, NR_INACTIVE_ANON) +
--				node_page_state(nid, NR_INACTIVE_FILE),
--		       nid, node_page_state(nid, NR_ACTIVE_ANON),
--		       nid, node_page_state(nid, NR_INACTIVE_ANON),
--		       nid, node_page_state(nid, NR_ACTIVE_FILE),
--		       nid, node_page_state(nid, NR_INACTIVE_FILE),
-+		       nid, K(node_page_state(nid, NR_ACTIVE_ANON) +
-+				node_page_state(nid, NR_ACTIVE_FILE)),
-+		       nid, K(node_page_state(nid, NR_INACTIVE_ANON) +
-+				node_page_state(nid, NR_INACTIVE_FILE)),
-+		       nid, K(node_page_state(nid, NR_ACTIVE_ANON)),
-+		       nid, K(node_page_state(nid, NR_INACTIVE_ANON)),
-+		       nid, K(node_page_state(nid, NR_ACTIVE_FILE)),
-+		       nid, K(node_page_state(nid, NR_INACTIVE_FILE)),
- #ifdef CONFIG_NORECLAIM_LRU
--		       nid, node_page_state(nid, NR_NORECLAIM),
-+		       nid, K(node_page_state(nid, NR_NORECLAIM)),
++#ifdef CONFIG_NORECLAIM_LRU
++		NORECL_PGCULLED,	/* culled to noreclaim list */
++		NORECL_PGSCANNED,	/* scanned for reclaimability */
++		NORECL_PGRESCUED,	/* rescued from noreclaim list */
 +#ifdef CONFIG_NORECLAIM_MLOCK
-+		       nid, K(node_page_state(nid, NR_MLOCK)),
++		NORECL_PGMLOCKED,
++		NORECL_PGMUNLOCKED,
++		NORECL_PGCLEARED,
++		NORECL_PGSTRANDED,	/* unable to isolate on unlock */
 +#endif
- #endif
- #ifdef CONFIG_HIGHMEM
- 		       nid, K(i.totalhigh),
-Index: linux-2.6.26-rc2-mm1/fs/proc/proc_misc.c
++#endif
+ 		NR_VM_EVENT_ITEMS
+ };
+ 
+Index: linux-2.6.26-rc2-mm1/mm/vmscan.c
 ===================================================================
---- linux-2.6.26-rc2-mm1.orig/fs/proc/proc_misc.c	2008-05-22 15:24:51.000000000 -0400
-+++ linux-2.6.26-rc2-mm1/fs/proc/proc_misc.c	2008-05-22 15:26:49.000000000 -0400
-@@ -176,6 +176,9 @@ static int meminfo_read_proc(char *page,
- 		"Inactive(file): %8lu kB\n"
- #ifdef CONFIG_NORECLAIM_LRU
- 		"Noreclaim:      %8lu kB\n"
-+#ifdef CONFIG_NORECLAIM_MLOCK
-+		"Mlocked:        %8lu kB\n"
+--- linux-2.6.26-rc2-mm1.orig/mm/vmscan.c	2008-05-28 13:02:55.000000000 -0400
++++ linux-2.6.26-rc2-mm1/mm/vmscan.c	2008-05-28 13:03:10.000000000 -0400
+@@ -453,12 +453,13 @@ int putback_lru_page(struct page *page)
+ {
+ 	int lru;
+ 	int ret = 1;
++	int was_nonreclaimable;
+ 
+ 	VM_BUG_ON(!PageLocked(page));
+ 	VM_BUG_ON(PageLRU(page));
+ 
+ 	lru = !!TestClearPageActive(page);
+-	ClearPageNoreclaim(page);	/* for page_reclaimable() */
++	was_nonreclaimable = TestClearPageNoreclaim(page);
+ 
+ 	if (unlikely(!page->mapping)) {
+ 		/*
+@@ -478,6 +479,10 @@ int putback_lru_page(struct page *page)
+ 		lru += page_file_cache(page);
+ 		lru_cache_add_lru(page, lru);
+ 		mem_cgroup_move_lists(page, lru);
++#ifdef CONFIG_NORECLAIM_LRU
++		if (was_nonreclaimable)
++			count_vm_event(NORECL_PGRESCUED);
 +#endif
- #endif
- #ifdef CONFIG_HIGHMEM
- 		"HighTotal:      %8lu kB\n"
-@@ -214,6 +217,9 @@ static int meminfo_read_proc(char *page,
- 		K(inactive_file),
- #ifdef CONFIG_NORECLAIM_LRU
- 		K(global_page_state(NR_NORECLAIM)),
-+#ifdef CONFIG_NORECLAIM_MLOCK
-+		K(global_page_state(NR_MLOCK)),
+ 	} else {
+ 		/*
+ 		 * Put non-reclaimable pages directly on zone's noreclaim
+@@ -485,6 +490,10 @@ int putback_lru_page(struct page *page)
+ 		 */
+ 		add_page_to_noreclaim_list(page);
+ 		mem_cgroup_move_lists(page, LRU_NORECLAIM);
++#ifdef CONFIG_NORECLAIM_LRU
++		if (!was_nonreclaimable)
++			count_vm_event(NORECL_PGCULLED);
 +#endif
- #endif
- #ifdef CONFIG_HIGHMEM
- 		K(i.totalhigh),
-Index: linux-2.6.26-rc2-mm1/include/linux/mmzone.h
+ 	}
+ 
+ 	put_page(page);		/* drop ref from isolate */
+@@ -2363,6 +2372,7 @@ static void check_move_noreclaim_page(st
+ 		__dec_zone_state(zone, NR_NORECLAIM);
+ 		list_move(&page->lru, &zone->list[l]);
+ 		__inc_zone_state(zone, NR_INACTIVE_ANON + l);
++		__count_vm_event(NORECL_PGRESCUED);
+ 	} else {
+ 		/*
+ 		 * rotate noreclaim list
+@@ -2394,6 +2404,7 @@ void scan_mapping_noreclaim_pages(struct
+ 	while (next < end &&
+ 		pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
+ 		int i;
++		int pg_scanned = 0;
+ 
+ 		zone = NULL;
+ 
+@@ -2402,6 +2413,7 @@ void scan_mapping_noreclaim_pages(struct
+ 			pgoff_t page_index = page->index;
+ 			struct zone *pagezone = page_zone(page);
+ 
++			pg_scanned++;
+ 			if (page_index > next)
+ 				next = page_index;
+ 			next++;
+@@ -2432,6 +2444,8 @@ void scan_mapping_noreclaim_pages(struct
+ 		if (zone)
+ 			spin_unlock_irq(&zone->lru_lock);
+ 		pagevec_release(&pvec);
++
++		count_vm_events(NORECL_PGSCANNED, pg_scanned);
+ 	}
+ 
+ }
+Index: linux-2.6.26-rc2-mm1/mm/vmstat.c
 ===================================================================
---- linux-2.6.26-rc2-mm1.orig/include/linux/mmzone.h	2008-05-22 15:19:31.000000000 -0400
-+++ linux-2.6.26-rc2-mm1/include/linux/mmzone.h	2008-05-22 15:26:49.000000000 -0400
-@@ -90,6 +90,11 @@ enum zone_stat_item {
- #else
- 	NR_NORECLAIM = NR_ACTIVE_FILE, /* avoid compiler errors in dead code */
+--- linux-2.6.26-rc2-mm1.orig/mm/vmstat.c	2008-05-28 13:03:06.000000000 -0400
++++ linux-2.6.26-rc2-mm1/mm/vmstat.c	2008-05-28 13:03:10.000000000 -0400
+@@ -759,6 +759,18 @@ static const char * const vmstat_text[] 
+ 	"htlb_buddy_alloc_success",
+ 	"htlb_buddy_alloc_fail",
  #endif
++
++#ifdef CONFIG_NORECLAIM_LRU
++	"noreclaim_pgs_culled",
++	"noreclaim_pgs_scanned",
++	"noreclaim_pgs_rescued",
 +#ifdef CONFIG_NORECLAIM_MLOCK
-+	NR_MLOCK,		/* mlock()ed pages found and moved off LRU */
-+#else
-+	NR_MLOCK = NR_ACTIVE_FILE,	/* avoid compier errors... */
++	"noreclaim_pgs_mlocked",
++	"noreclaim_pgs_munlocked",
++	"noreclaim_pgs_cleared",
++	"noreclaim_pgs_stranded",
 +#endif
- 	NR_ANON_PAGES,	/* Mapped anonymous pages */
- 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
- 			   only modified from process context */
++#endif
+ #endif
+ };
+ 
 Index: linux-2.6.26-rc2-mm1/mm/mlock.c
 ===================================================================
---- linux-2.6.26-rc2-mm1.orig/mm/mlock.c	2008-05-22 15:26:47.000000000 -0400
-+++ linux-2.6.26-rc2-mm1/mm/mlock.c	2008-05-22 15:26:49.000000000 -0400
-@@ -56,6 +56,7 @@ void __clear_page_mlock(struct page *pag
- {
+--- linux-2.6.26-rc2-mm1.orig/mm/mlock.c	2008-05-28 13:03:06.000000000 -0400
++++ linux-2.6.26-rc2-mm1/mm/mlock.c	2008-05-28 13:03:10.000000000 -0400
+@@ -18,6 +18,7 @@
+ #include <linux/rmap.h>
+ #include <linux/mmzone.h>
+ #include <linux/hugetlb.h>
++#include <linux/vmstat.h>
+ 
+ #include "internal.h"
+ 
+@@ -57,6 +58,7 @@ void __clear_page_mlock(struct page *pag
  	VM_BUG_ON(!PageLocked(page));	/* for LRU islolate/putback */
  
-+	dec_zone_page_state(page, NR_MLOCK);
+ 	dec_zone_page_state(page, NR_MLOCK);
++	count_vm_event(NORECL_PGCLEARED);
  	if (!isolate_lru_page(page)) {
  		putback_lru_page(page);
  	} else {
-@@ -76,8 +77,11 @@ void mlock_vma_page(struct page *page)
- {
- 	BUG_ON(!PageLocked(page));
- 
--	if (!TestSetPageMlocked(page) && !isolate_lru_page(page))
-+	if (!TestSetPageMlocked(page)) {
-+		inc_zone_page_state(page, NR_MLOCK);
-+		if (!isolate_lru_page(page))
+@@ -66,6 +68,8 @@ void __clear_page_mlock(struct page *pag
+ 		lru_add_drain_all();
+ 		if (!isolate_lru_page(page))
  			putback_lru_page(page);
-+	}
- }
- 
- /*
-@@ -102,9 +106,19 @@ static void munlock_vma_page(struct page
- {
- 	BUG_ON(!PageLocked(page));
- 
--	if (TestClearPageMlocked(page) && !isolate_lru_page(page)) {
--		try_to_unlock(page);
--		putback_lru_page(page);
-+	if (TestClearPageMlocked(page)) {
-+		dec_zone_page_state(page, NR_MLOCK);
-+		if (!isolate_lru_page(page)) {
-+			try_to_unlock(page);	/* maybe relock the page */
-+			putback_lru_page(page);
-+		}
-+		/*
-+		 * Else we lost the race.  let try_to_unmap() deal with it.
-+		 * At least we get the page state and mlock stats right.
-+		 * However, page is still on the noreclaim list.  We'll fix
-+		 * that up when the page is eventually freed or we scan the
-+		 * noreclaim list.
-+		 */
++		else if (PageNoreclaim(page))
++			count_vm_event(NORECL_PGSTRANDED);
  	}
  }
  
-Index: linux-2.6.26-rc2-mm1/mm/vmstat.c
-===================================================================
---- linux-2.6.26-rc2-mm1.orig/mm/vmstat.c	2008-05-22 15:24:51.000000000 -0400
-+++ linux-2.6.26-rc2-mm1/mm/vmstat.c	2008-05-22 15:26:49.000000000 -0400
-@@ -702,6 +702,9 @@ static const char * const vmstat_text[] 
- #ifdef CONFIG_NORECLAIM_LRU
- 	"nr_noreclaim",
- #endif
-+#ifdef CONFIG_NORECLAIM_MLOCK
-+	"nr_mlock",
-+#endif
- 	"nr_anon_pages",
- 	"nr_mapped",
- 	"nr_file_pages",
+@@ -79,6 +83,7 @@ void mlock_vma_page(struct page *page)
+ 
+ 	if (!TestSetPageMlocked(page)) {
+ 		inc_zone_page_state(page, NR_MLOCK);
++		count_vm_event(NORECL_PGMLOCKED);
+ 		if (!isolate_lru_page(page))
+ 			putback_lru_page(page);
+ 	}
+@@ -109,16 +114,28 @@ static void munlock_vma_page(struct page
+ 	if (TestClearPageMlocked(page)) {
+ 		dec_zone_page_state(page, NR_MLOCK);
+ 		if (!isolate_lru_page(page)) {
+-			try_to_unlock(page);	/* maybe relock the page */
++			int ret = try_to_unlock(page);
++			/*
++			 * did try_to_unlock() succeed or punt?
++			 */
++			if (ret == SWAP_SUCCESS || ret == SWAP_AGAIN)
++				count_vm_event(NORECL_PGMUNLOCKED);
++
+ 			putback_lru_page(page);
++		} else {
++			/*
++			 * We lost the race.  let try_to_unmap() deal
++			 * with it.  At least we get the page state and
++			 * mlock stats right.  However, page is still on
++			 * the noreclaim list.  We'll fix that up when
++			 * the page is eventually freed or we scan the
++			 * noreclaim list.
++			 */
++			if (PageNoreclaim(page))
++				count_vm_event(NORECL_PGSTRANDED);
++			else
++				count_vm_event(NORECL_PGMUNLOCKED);
+ 		}
+-		/*
+-		 * Else we lost the race.  let try_to_unmap() deal with it.
+-		 * At least we get the page state and mlock stats right.
+-		 * However, page is still on the noreclaim list.  We'll fix
+-		 * that up when the page is eventually freed or we scan the
+-		 * noreclaim list.
+-		 */
+ 	}
+ }
+ 
 Index: linux-2.6.26-rc2-mm1/mm/internal.h
 ===================================================================
---- linux-2.6.26-rc2-mm1.orig/mm/internal.h	2008-05-22 15:26:47.000000000 -0400
-+++ linux-2.6.26-rc2-mm1/mm/internal.h	2008-05-22 15:26:49.000000000 -0400
-@@ -107,7 +107,8 @@ static inline int is_mlocked_vma(struct 
+--- linux-2.6.26-rc2-mm1.orig/mm/internal.h	2008-05-28 13:03:06.000000000 -0400
++++ linux-2.6.26-rc2-mm1/mm/internal.h	2008-05-28 13:03:10.000000000 -0400
+@@ -107,8 +107,10 @@ static inline int is_mlocked_vma(struct 
  	if (likely((vma->vm_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED))
  		return 0;
  
--	SetPageMlocked(page);
-+	if (!TestSetPageMlocked(page))
-+		inc_zone_page_state(page, NR_MLOCK);
+-	if (!TestSetPageMlocked(page))
++	if (!TestSetPageMlocked(page)) {
+ 		inc_zone_page_state(page, NR_MLOCK);
++		count_vm_event(NORECL_PGMLOCKED);
++	}
  	return 1;
  }
- 
-@@ -134,12 +135,19 @@ static inline void clear_page_mlock(stru
- 
- /*
-  * mlock_migrate_page - called only from migrate_page_copy() to
-- * migrate the Mlocked page flag
-+ * migrate the Mlocked page flag; update statistics.
-  */
- static inline void mlock_migrate_page(struct page *newpage, struct page *page)
- {
--	if (TestClearPageMlocked(page))
-+	if (TestClearPageMlocked(page)) {
-+		unsigned long flags;
-+
-+		local_irq_save(flags);
-+		__dec_zone_page_state(page, NR_MLOCK);
- 		SetPageMlocked(newpage);
-+		__inc_zone_page_state(newpage, NR_MLOCK);
-+		local_irq_restore(flags);
-+	}
- }
- 
  
 
 --
