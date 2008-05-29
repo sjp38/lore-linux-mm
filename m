@@ -1,62 +1,47 @@
-Date: Thu, 29 May 2008 10:58:01 +0200
+Date: Thu, 29 May 2008 10:59:16 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] hugetlb: fix lockdep error
-Message-ID: <20080529085801.GA6881@wotan.suse.de>
-References: <20080529015956.GC3258@wotan.suse.de> <20080528191657.ba5f283c.akpm@linux-foundation.org> <20080529022919.GD3258@wotan.suse.de> <20080528193808.6e053dac.akpm@linux-foundation.org> <20080529030745.GG3258@wotan.suse.de> <20080528201929.cf766924.akpm@linux-foundation.org> <29495f1d0805282048s5c699e70rf4ab1377b18f337e@mail.gmail.com>
+Subject: Re: [patch 07/23] hugetlb: multi hstate sysctls
+Message-ID: <20080529085916.GB6881@wotan.suse.de>
+References: <20080525142317.965503000@nick.local0.net> <20080525143452.841211000@nick.local0.net> <20080529045919.GA8963@us.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <29495f1d0805282048s5c699e70rf4ab1377b18f337e@mail.gmail.com>
+In-Reply-To: <20080529045919.GA8963@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nish Aravamudan <nish.aravamudan@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, agl@us.ibm.com, nacc@us.ibm.com, Linux Memory Management List <linux-mm@kvack.org>, kosaki.motohiro@jp.fujitsu.com
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: linux-mm@kvack.org, kniht@us.ibm.com, andi@firstfloor.org, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 28, 2008 at 08:48:36PM -0700, Nish Aravamudan wrote:
-> On 5/28/08, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > On Thu, 29 May 2008 05:07:45 +0200 Nick Piggin <npiggin@suse.de> wrote:
-> >
-> >  > > >  mm/hugetlb.c |    2 +-
-> >  > > >  1 file changed, 1 insertion(+), 1 deletion(-)
-> >  > > >
-> >  > > > Index: linux-2.6/mm/hugetlb.c
-> >  > > > ===================================================================
-> >  > > > --- linux-2.6.orig/mm/hugetlb.c
-> >  > > > +++ linux-2.6/mm/hugetlb.c
-> >  > > > @@ -785,7 +785,7 @@ int copy_hugetlb_page_range(struct mm_st
-> >  > > >                   continue;
-> >  > > >
-> >  > > >           spin_lock(&dst->page_table_lock);
-> >  > > > -         spin_lock(&src->page_table_lock);
-> >  > > > +         spin_lock_nested(&src->page_table_lock, SINGLE_DEPTH_NESTING);
-> >  > > >           if (!huge_pte_none(huge_ptep_get(src_pte))) {
-> >  > > >                   if (cow)
-> >  > > >                           huge_ptep_set_wrprotect(src, addr, src_pte);
-> >  > >
-> >  > > Confused.  This code has been there since October 2005.  Why are we
-> >  > > only seeing lockdep warnings now?
-> >  >
-> >  > Can't say. Haven't looked at hugetlb code or tested it much until now.
-> >  > I am using a recent libhugetlbfs test suite, FWIW.
-> >
-> >
-> > I don't believe that it's possible that nobody has run that test suite
-> >  with lockdep enabled at any time in the past three years.
+On Wed, May 28, 2008 at 09:59:19PM -0700, Nishanth Aravamudan wrote:
+> On 26.05.2008 [00:23:24 +1000], npiggin@suse.de wrote:
+> > Expand the hugetlbfs sysctls to handle arrays for all hstates. This
+> > now allows the removal of global_hstate -- everything is now hstate
+> > aware.
+> > 
+> > - I didn't bother with hugetlb_shm_group and treat_as_movable,
+> > these are still single global.
+> > - Also improve error propagation for the sysctl handlers a bit
+> > 
+> > Signed-off-by: Andi Kleen <ak@suse.de>
+> > Signed-off-by: Nick Piggin <npiggin@suse.de>
 > 
-> I can't tell from Nick's mail if the lockdep error is specific to this
-> particular testcase or not, but if so, that would make it the past two
-> (almost three) months, as that was when this particular testcase was
-> added. And I'm not sure when we released the first development
-> snapshot that would have included it (for non-git users, that is). In
-> any case, I also don't know how we wouldn't have seen this issue on
-> our systems and that's a problem. I will make a concerted effort to
+> <snip>
+> 
+> >  int hugetlb_treat_movable_handler(struct ctl_table *table, int write,
+> >  			struct file *file, void __user *buffer,
+> >  			size_t *length, loff_t *ppos)
+> >  {
+> > + 	table->maxlen = max_hstate * sizeof(int);
+> 
+> Are you sure this is correct? I was just testing my sysfs patch (and the
+> removal of the multi-valued proc files) and noticed that
+> /proc/sys/vm/hugepages_treat_as_movable was multi-valued (3 values,
+> corresponding to the three page sizes on this machine), and the last
+> value was garbage. And, in any case, this change seems to conflict with
+> the changelog?
 
-I didn't check if other tests trigger it (lockdep I think turns off after
-the first message...). But I guess anything which calls fork and has a
-non shared, populated hugepage pagetable entry should trigger it...
-Anyway the good news is that no other lockdep problems ever came up
-after this false positive was fixed, so not much harm done ;)
+Hmm, might have slipped in during a merge. I'll fix it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
