@@ -1,45 +1,56 @@
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <18496.1712.236440.420038@stoffel.org>
-Date: Fri, 30 May 2008 09:52:48 -0400
-From: "John Stoffel" <john@stoffel.org>
+Date: Fri, 30 May 2008 10:29:17 -0400
+From: Rik van Riel <riel@redhat.com>
 Subject: Re: [PATCH 00/25] Vm Pageout Scalability Improvements (V8) -
  continued
-In-Reply-To: <20080529162029.7b942a97@bree.surriel.com>
+Message-ID: <20080530102917.45cbca64@bree.surriel.com>
+In-Reply-To: <18496.1712.236440.420038@stoffel.org>
 References: <20080529195030.27159.66161.sendpatchset@lts-notebook>
 	<20080529131624.60772eb6.akpm@linux-foundation.org>
 	<20080529162029.7b942a97@bree.surriel.com>
+	<18496.1712.236440.420038@stoffel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
+To: John Stoffel <john@stoffel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, eric.whitney@hp.com, linux-mm@kvack.org, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
->>>>> "Rik" == Rik van Riel <riel@redhat.com> writes:
+On Fri, 30 May 2008 09:52:48 -0400
+"John Stoffel" <john@stoffel.org> wrote:
 
-Rik> On Thu, 29 May 2008 13:16:24 -0700
-Rik> Andrew Morton <akpm@linux-foundation.org> wrote:
+> I haven't seen any performance numbers talking about how well this
+> stuff works on single or dual CPU machines with smaller amounts of
+> memory, or whether it's worth using on these machines at all?
+> 
+> The big machines with lots of memory and lots of CPUs are certainly
+> becoming more prevalent, but for my home machine with 4Gb RAM and dual
+> core, what's the advantage?  
+> 
+> Let's not slow down the common case for the sake of the bigger guys if
+> possible.
 
->> I was >this< close to getting onto Rik's patches (honest) but a few
->> other people have been kicking the tyres and seem to have caused some
->> punctures so I'm expecting V9?
+I wouldn't call your home system with 4GB RAM "small".
 
-Rik> If I send you a V9 up to patch 12, you can apply Lee's patches
-Rik> straight over my V9 :)
+After all, the VM that Linux currently has was developed
+mostly on machines with less than 1GB of RAM and later
+encrusted in bandaids to make sure the large systems did
+not fail too badly.
 
-I haven't seen any performance numbers talking about how well this
-stuff works on single or dual CPU machines with smaller amounts of
-memory, or whether it's worth using on these machines at all?
+As for small system performance, I believe that my patch
+series should cause no performance regressions on those
+systems and has a framework that allows us to improve
+performance on those systems too.
 
-The big machines with lots of memory and lots of CPUs are certainly
-becoming more prevalent, but for my home machine with 4Gb RAM and dual
-core, what's the advantage?  
+If you manage to break performance with my patch set
+somehow, please let me know so I can fix it.  Something
+like the VM is very subtle and any change is pretty
+much guaranteed to break something, so I am very interested
+in feedback.
 
-Let's not slow down the common case for the sake of the bigger guys if
-possible.
-
-John
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
