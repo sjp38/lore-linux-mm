@@ -1,64 +1,78 @@
-Received: by an-out-0708.google.com with SMTP id d17so1741and.105
-        for <linux-mm@kvack.org>; Thu, 29 May 2008 18:56:36 -0700 (PDT)
-Message-ID: <28c262360805291856t4dfc226fwbede35778ea528bc@mail.gmail.com>
-Date: Fri, 30 May 2008 10:56:35 +0900
-From: "MinChan Kim" <minchan.kim@gmail.com>
-Subject: Re: [PATCH 00/25] Vm Pageout Scalability Improvements (V8) - continued
-In-Reply-To: <20080529162029.7b942a97@bree.surriel.com>
+Date: Thu, 29 May 2008 19:58:46 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: [RFC][PATCH 1/2] hugetlb: present information in sysfs
+Message-ID: <20080530025846.GC6007@kroah.com>
+References: <20080525142317.965503000@nick.local0.net> <20080525143452.841211000@nick.local0.net> <20080529063915.GC11357@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <20080529195030.27159.66161.sendpatchset@lts-notebook>
-	 <20080529131624.60772eb6.akpm@linux-foundation.org>
-	 <20080529162029.7b942a97@bree.surriel.com>
+In-Reply-To: <20080529063915.GC11357@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, eric.whitney@hp.com, linux-mm@kvack.org, npiggin@suse.de
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: npiggin@suse.de, linux-mm@kvack.org, kniht@us.ibm.com, andi@firstfloor.org, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 30, 2008 at 5:20 AM, Rik van Riel <riel@redhat.com> wrote:
-> On Thu, 29 May 2008 13:16:24 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
->
->> I was >this< close to getting onto Rik's patches (honest) but a few
->> other people have been kicking the tyres and seem to have caused some
->> punctures so I'm expecting V9?
->
-> If I send you a V9 up to patch 12, you can apply Lee's patches
-> straight over my V9 :)
->
+On Wed, May 28, 2008 at 11:39:15PM -0700, Nishanth Aravamudan wrote:
+> While the procfs presentation of the hstate counters has tried to be as
+> backwards compatible as possible, I do not believe trying to maintain
+> all of the information in the same files is a good long-term plan. This
+> particularly matters for architectures that can support many hugepage
+> sizes (sparc64 might be one). Even with the three potential pagesizes on
+> power (64k, 16m and 16g), I found the proc interface to be a little
+> awkward.
+> 
+> Instead, migrate the information to sysfs in a new directory,
+> /sys/kernel/hugepages. Underneath that directory there will be a
+> directory per-supported hugepage size, e.g.:
+> 
+> /sys/kernel/hugepages/hugepages-64
+> /sys/kernel/hugepages/hugepages-16384
+> /sys/kernel/hugepages/hugepages-16777216
+> 
+> corresponding to 64k, 16m and 16g respectively. Within each
+> hugepages-size directory there are a number of files, corresponding to
+> the tracked counters in the hstate, e.g.:
+> 
+> /sys/kernel/hugepages/hugepages-64/nr_hugepages
+> /sys/kernel/hugepages/hugepages-64/nr_overcommit_hugepages
+> /sys/kernel/hugepages/hugepages-64/free_hugepages
+> /sys/kernel/hugepages/hugepages-64/resv_hugepages
+> /sys/kernel/hugepages/hugepages-64/surplus_hugepages
+> 
+> Of these files, the first two are read-write and the latter three are
+> read-only. The size of the hugepage being manipulated is trivially
+> deducible from the enclosing directory and is always expressed in kB (to
+> match meminfo).
+> 
+> Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+> 
+> ---
+> Nick, I tested this patch and the following one at this point the
+> series, that is between patches 7 and 8. This does require a few compile
+> fixes/patch modifications in the later parts of the series. If we decide
+> that 2/2 is undesirable, there will be fewer of those and 1/2 could also
+> apply at the end, with less work. I can send you that diff, if you'd
+> prefer.
+> 
+> Greg, I didn't hear back from you on the last posting of this patch. Not
+> intended as a complaint, just an indication of why I didn't make any
+> changes relative to that version. Does this seem like a reasonable
+> patch as far as using the sysfs API? I realize a follow-on patch will be
+> needed to updated Documentation/ABI.
 
-I failed to patch Lee's patches over your V9.
+I'm sorry, it got lost in the bowels of my inbox, my appologies.
 
-barrios@barrios-desktop:~/linux-2.6$ patch -p1 < /tmp/msg0_13.txt
-patching file mm/Kconfig
-patching file include/linux/page-flags.h
-patching file include/linux/mmzone.h
-patching file mm/page_alloc.c
-patching file include/linux/mm_inline.h
-patching file include/linux/swap.h
-patching file include/linux/pagevec.h
-patching file mm/swap.c
-patching file mm/migrate.c
-patching file mm/vmscan.c
-Hunk #10 FAILED at 1162.
-Hunk #11 succeeded at 1210 (offset 3 lines).
-Hunk #12 succeeded at 1242 (offset 3 lines).
-Hunk #13 succeeded at 1380 (offset 3 lines).
-Hunk #14 succeeded at 1411 (offset 3 lines).
-Hunk #15 succeeded at 1962 (offset 3 lines).
-Hunk #16 succeeded at 2300 (offset 3 lines).
-1 out of 16 hunks FAILED -- saving rejects to file mm/vmscan.c.rej
-patching file mm/mempolicy.c
-patching file mm/internal.h
-patching file mm/memcontrol.c
-patching file include/linux/memcontrol.h
+This looks fine to me, nice job.  And yes, i do want to see the ABI
+addition as well :)
 
--- 
-Kinds regards,
-MinChan Kim
+If you add that, feel free to add an:
+	Acked-by: Greg Kroah-Hartman <gregkh@suse.de>
+to the patch.
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
