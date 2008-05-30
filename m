@@ -1,49 +1,28 @@
-Date: Fri, 30 May 2008 11:27:52 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH 00/25] Vm Pageout Scalability Improvements (V8) -
- continued
-Message-ID: <20080530112752.66b6580f@bree.surriel.com>
-In-Reply-To: <18496.4309.393775.511382@stoffel.org>
-References: <20080529195030.27159.66161.sendpatchset@lts-notebook>
-	<20080529131624.60772eb6.akpm@linux-foundation.org>
-	<20080529162029.7b942a97@bree.surriel.com>
-	<18496.1712.236440.420038@stoffel.org>
-	<20080530102917.45cbca64@bree.surriel.com>
-	<18496.4309.393775.511382@stoffel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: [PATCH 0/2] hugetlb reservations v4/MAP_NORESERVE V3 cleanups
+References: <20080528184246.4753a78b.akpm@linux-foundation.org>
+Message-ID: <exportbomb.1212166524@pinky>
+Date: Fri, 30 May 2008 17:57:21 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: John Stoffel <john@stoffel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, eric.whitney@hp.com, linux-mm@kvack.org, npiggin@suse.de
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, agl@us.ibm.com, wli@holomorphy.com, kenchen@google.com, dwg@au1.ibm.com, andi@firstfloor.org, Mel Gorman <mel@csn.ul.ie>, dean@arctic.org, abh@cray.com, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 30 May 2008 10:36:05 -0400
-"John Stoffel" <john@stoffel.org> wrote:
+Following on from Andrew's feedback here are a couple of update patches
+for hugetlb reservations v4 and MAP_NORESERVE V3.  These introduce a number
+of new helpers and use those throughout.
 
-> Rik> If you manage to break performance with my patch set somehow,
-> Rik> please let me know so I can fix it.  Something like the VM is
-> Rik> very subtle and any change is pretty much guaranteed to break
-> Rik> something, so I am very interested in feedback.
-> 
-> What are you using to test/benchmark your changes as you develop this
-> patchset?  What would you suggest as a test load to help check
-> performance?
+This stack consists of two patches to allow them to be merged into the
+appropriate stacks.
 
-Your normal workload.
+huge-page-private-reservation-review-cleanups -- adds the helpers and
+  utilises them in the base reservations stack, and
 
-I am doing some IO throughput, swap throughput and database tests,
-however those are probably not representative of what YOU throw at
-the VM.
+huge-page-MAP_NORESERVE-review-cleanups -- uses the same helpers in the
+  MAP_NORESERVE stack.
 
-There are no VM benchmarks that cover everything, so what is needed
-most at this point is real world exposure.  I cannot promise that
-the code is perfect; all I can promise is that I will try to fix
-any performance issue that people find.
-
--- 
-All rights reversed.
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
