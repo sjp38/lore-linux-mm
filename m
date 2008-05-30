@@ -1,42 +1,64 @@
-Date: Thu, 29 May 2008 21:46:26 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [RFC][PATCH 0/2] memcg: simple hierarchy (v2)
-Message-ID: <20080529214626.00da9bda@bree.surriel.com>
-In-Reply-To: <20080530104312.4b20cc60.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080530104312.4b20cc60.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by an-out-0708.google.com with SMTP id d17so1741and.105
+        for <linux-mm@kvack.org>; Thu, 29 May 2008 18:56:36 -0700 (PDT)
+Message-ID: <28c262360805291856t4dfc226fwbede35778ea528bc@mail.gmail.com>
+Date: Fri, 30 May 2008 10:56:35 +0900
+From: "MinChan Kim" <minchan.kim@gmail.com>
+Subject: Re: [PATCH 00/25] Vm Pageout Scalability Improvements (V8) - continued
+In-Reply-To: <20080529162029.7b942a97@bree.surriel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080529195030.27159.66161.sendpatchset@lts-notebook>
+	 <20080529131624.60772eb6.akpm@linux-foundation.org>
+	 <20080529162029.7b942a97@bree.surriel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "menage@google.com" <menage@google.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, eric.whitney@hp.com, linux-mm@kvack.org, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 30 May 2008 10:43:12 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Fri, May 30, 2008 at 5:20 AM, Rik van Riel <riel@redhat.com> wrote:
+> On Thu, 29 May 2008 13:16:24 -0700
+> Andrew Morton <akpm@linux-foundation.org> wrote:
+>
+>> I was >this< close to getting onto Rik's patches (honest) but a few
+>> other people have been kicking the tyres and seem to have caused some
+>> punctures so I'm expecting V9?
+>
+> If I send you a V9 up to patch 12, you can apply Lee's patches
+> straight over my V9 :)
+>
 
-> Implemented Policy:
->   - parent overcommits all children
->      parent->usage = resource used by itself + resource moved to children.
->      Of course, parent->limit > parent->usage. 
->   - when child's limit is set, the resouce moves.
->   - no automatic resource moving between parent <-> child
+I failed to patch Lee's patches over your V9.
 
-> Why this is enough ?
->   - A middleware can do various kind of resource balancing only by reseting "limit"
->     in userland.
-
-I like this idea.  The alternative could mean having a page live
-on multiple cgroup LRU lists, not just the zone LRU and the one
-cgroup LRU, and drastically increasing run time overhead.
-
-Swapping memory in and out is horrendously slow anyway, so the
-idea of having a daemon adjust the limits on the fly should work
-just fine.
+barrios@barrios-desktop:~/linux-2.6$ patch -p1 < /tmp/msg0_13.txt
+patching file mm/Kconfig
+patching file include/linux/page-flags.h
+patching file include/linux/mmzone.h
+patching file mm/page_alloc.c
+patching file include/linux/mm_inline.h
+patching file include/linux/swap.h
+patching file include/linux/pagevec.h
+patching file mm/swap.c
+patching file mm/migrate.c
+patching file mm/vmscan.c
+Hunk #10 FAILED at 1162.
+Hunk #11 succeeded at 1210 (offset 3 lines).
+Hunk #12 succeeded at 1242 (offset 3 lines).
+Hunk #13 succeeded at 1380 (offset 3 lines).
+Hunk #14 succeeded at 1411 (offset 3 lines).
+Hunk #15 succeeded at 1962 (offset 3 lines).
+Hunk #16 succeeded at 2300 (offset 3 lines).
+1 out of 16 hunks FAILED -- saving rejects to file mm/vmscan.c.rej
+patching file mm/mempolicy.c
+patching file mm/internal.h
+patching file mm/memcontrol.c
+patching file include/linux/memcontrol.h
 
 -- 
-All rights reversed.
+Kinds regards,
+MinChan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
