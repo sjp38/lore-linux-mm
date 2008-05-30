@@ -1,79 +1,67 @@
-Date: Fri, 30 May 2008 03:14:08 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 22/23] fs: check for statfs overflow
-Message-ID: <20080530011408.GB11715@wotan.suse.de>
-References: <20080525142317.965503000@nick.local0.net> <20080525143454.453947000@nick.local0.net> <20080527171452.GJ20709@us.ibm.com> <483C42B9.7090102@linux.vnet.ibm.com> <20080528090257.GC2630@wotan.suse.de> <20080529235607.GO2985@webber.adilger.int>
+Date: Fri, 30 May 2008 10:43:12 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 0/2] memcg: simple hierarchy (v2)
+Message-Id: <20080530104312.4b20cc60.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080529235607.GO2985@webber.adilger.int>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andreas Dilger <adilger@sun.com>
-Cc: Jon Tollefson <kniht@linux.vnet.ibm.com>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, andi@firstfloor.org, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, linux-fsdevel@vger.kernel.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "menage@google.com" <menage@google.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 29, 2008 at 05:56:07PM -0600, Andreas Dilger wrote:
-> On May 28, 2008  11:02 +0200, Nick Piggin wrote:
-> > fs: check for statfs overflow
-> > 
-> > Adds a check for an overflow in the filesystem size so if someone is
-> > checking with statfs() on a 16G hugetlbfs  in a 32bit binary that it
-> > will report back EOVERFLOW instead of a size of 0.
-> > 
-> > Are other places that need a similar check?  I had tried a similar
-> > check in put_compat_statfs64 too but it didn't seem to generate an
-> > EOVERFLOW in my test case.
-> > 
-> > Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
-> > Signed-off-by: Nick Piggin <npiggin@suse.de>
-> > ---
-> > 
-> >  fs/compat.c |    4 ++--
-> >  1 file changed, 2 insertions(+), 2 deletions(-)
-> > 
-> > 
-> > Index: linux-2.6/fs/compat.c
-> > ===================================================================
-> > --- linux-2.6.orig/fs/compat.c
-> > +++ linux-2.6/fs/compat.c
-> > @@ -197,8 +197,8 @@ static int put_compat_statfs(struct comp
-> >  {
-> >  	
-> >  	if (sizeof ubuf->f_blocks == 4) {
-> > -		if ((kbuf->f_blocks | kbuf->f_bfree | kbuf->f_bavail) &
-> > -		    0xffffffff00000000ULL)
-> > +		if ((kbuf->f_blocks | kbuf->f_bfree | kbuf->f_bavail |
-> > +		     kbuf->f_bsize | kbuf->f_frsize) & 0xffffffff00000000ULL)
-> >  			return -EOVERFLOW;
-> 
-> Hmm, doesn't this check break every filesystem > 16TB on 4kB PAGE_SIZE
-> nodes?  It would be better, IMHO, to scale down f_blocks, f_bfree, and
-> f_bavail and correspondingly scale up f_bsize to fit into the 32-bit
-> statfs structure.
+This is rewritten version of memcg hierarchy handling.
+...and I'm sorry tons of typos in v1.
 
-Oh? Hmm, from my reading, such filesystems will already overflow f_blocks
-check which is already there. Jon's patch only adds checks for f_bsize
-and f_frsize.
+Changelog:
+  - fixed typo.
+  - removed meaningless params (borrow)
+  - renamed structure members.
 
-One thing I'm a little worried about is the _exact_ semantics required
-of the syscall wrt overflow, and  type sizes. In the man page here for
-example, ubuf->f_blocks is a differnt type to f_bsize and f_frsize...
+not-for-test. just for discussion.  (I'll rewrite when our direction is fixed.)
 
+Implemented Policy:
+  - parent overcommits all children
+     parent->usage = resource used by itself + resource moved to children.
+     Of course, parent->limit > parent->usage. 
+  - when child's limit is set, the resouce moves.
+  - no automatic resource moving between parent <-> child
+
+Example)
+  1) Assume a cgroup with 1GB limits. (and no tasks belongs to this, now)
+     - group_A limit=1G,usage=0M.
+
+  2) create group B, C under A.
+     - group A limit=1G, usage=0M
+          - group B limit=0M, usage=0M.
+          - group C limit=0M, usage=0M.
+
+  3) increase group B's limit to 300M.
+     - group A limit=1G, usage=300M.
+          - group B limit=300M, usage=0M.
+          - group C limit=0M, usage=0M.
+
+  4) increase group C's limit to 500M
+     - group A limit=1G, usage=800M.
+          - group B limit=300M, usage=0M.
+          - group C limit=500M, usage=0M.
+
+  5) reduce group B's limit to 100M
+     - group A limit=1G, usage=600M.
+          - group B limit=100M, usage=0M.
+          - group C limit=500M, usage=0M.
+
+Why this is enough ?
+  - A middleware can do various kind of resource balancing only by reseting "limit"
+    in userland.
+
+
+TODO(maybe)
+  - rewrite force_empty to move the resource to the parent.
 
 Thanks,
-Nick
-
-> We did this for several years with Lustre, as the first installation was
-> already larger than 16TB on 32-bit clients at the time.  There was never
-> a problem with statfs returning a larger f_bsize, since applications
-> generally use the fstat() st_blocksize to determine IO size and not the
-> statfs() data.
-> 
-> Returning statfs data accurate to within a few kB is better than failing
-> the request outright, IMHO.
-> 
-> Cheers, Andreas
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
