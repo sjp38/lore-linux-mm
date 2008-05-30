@@ -1,133 +1,69 @@
-Message-Id: <20080530194738.582992063@saeurebad.de>
+Message-Id: <20080530194739.835841447@saeurebad.de>
 References: <20080530194220.286976884@saeurebad.de>
-Date: Fri, 30 May 2008 21:42:27 +0200
+Date: Fri, 30 May 2008 21:42:33 +0200
 From: Johannes Weiner <hannes@saeurebad.de>
-Subject: [PATCH -mm 07/14] bootmem: clean up free_all_bootmem_core
-Content-Disposition: inline; filename=bootmem-cleanup-free_all_bootmem.patch
+Subject: [PATCH -mm 13/14] bootmem: revisit alloc_bootmem_section
+Content-Disposition: inline; filename=bootmem-revisit-alloc_bootmem_section.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Yinghai Lu <yhlu.kernel@gmail.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Ingo Molnar <mingo@elte.hu>, Yinghai Lu <yhlu.kernel@gmail.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Yasunori Goto <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Rewrite the code in a more concise way using less variables.
+Since alloc_bootmem_core does no goal-fallback anymore and just
+returns NULL if the allocation fails, we might now use it in
+alloc_bootmem_section without all the fixup code for a misplaced
+allocation.
+
+Also, the limit can be the first PFN of the next section as the
+semantics is that the limit is _above_ the allocated region, not
+within.
 
 Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
-CC: Ingo Molnar <mingo@elte.hu>
-CC: Yinghai Lu <yhlu.kernel@gmail.com>
-CC: Andi Kleen <andi@firstfloor.org>
+CC: Yasunori Goto <y-goto@jp.fujitsu.com>
 ---
 
- mm/bootmem.c |   83 +++++++++++++++++++++++++++--------------------------------
- 1 file changed, 38 insertions(+), 45 deletions(-)
+ mm/bootmem.c |   27 ++++++---------------------
+ 1 file changed, 6 insertions(+), 21 deletions(-)
 
 --- a/mm/bootmem.c
 +++ b/mm/bootmem.c
-@@ -144,66 +144,59 @@ unsigned long __init init_bootmem(unsign
- 
- static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+@@ -662,29 +662,14 @@ void * __init __alloc_bootmem_low_node(p
+ void * __init alloc_bootmem_section(unsigned long size,
+ 				    unsigned long section_nr)
  {
-+	int aligned;
- 	struct page *page;
--	unsigned long pfn;
--	unsigned long i, count;
--	unsigned long idx, pages;
--	unsigned long *map;
--	int gofast = 0;
+-	void *ptr;
+-	unsigned long limit, goal, start_nr, end_nr, pfn;
+-	struct pglist_data *pgdat;
++	bootmem_data_t *bdata;
++	unsigned long pfn, goal, limit;
+ 
+ 	pfn = section_nr_to_pfn(section_nr);
+-	goal = PFN_PHYS(pfn);
+-	limit = PFN_PHYS(section_nr_to_pfn(section_nr + 1)) - 1;
+-	pgdat = NODE_DATA(early_pfn_to_nid(pfn));
+-	ptr = alloc_bootmem_core(pgdat->bdata, size, SMP_CACHE_BYTES, goal,
+-				limit);
++	goal = pfn << PAGE_SHIFT;
++	limit = section_nr_to_pfn(section_nr + 1) << PAGE_SHIFT;
++	bdata = &bootmem_node_data[early_pfn_to_nid(pfn)];
+ 
+-	if (!ptr)
+-		return NULL;
 -
--	BUG_ON(!bdata->node_bootmem_map);
+-	start_nr = pfn_to_section_nr(PFN_DOWN(__pa(ptr)));
+-	end_nr = pfn_to_section_nr(PFN_DOWN(__pa(ptr) + size));
+-	if (start_nr != section_nr || end_nr != section_nr) {
+-		printk(KERN_WARNING "alloc_bootmem failed on section %ld.\n",
+-		       section_nr);
+-		free_bootmem_node(pgdat, __pa(ptr), size);
+-		ptr = NULL;
+-	}
 -
--	count = 0;
--	/* first extant page of the node */
--	pfn = PFN_DOWN(bdata->node_boot_start);
--	idx = bdata->node_low_pfn - pfn;
--	map = bdata->node_bootmem_map;
-+	unsigned long start, end, pages, count = 0;
-+
-+	if (!bdata->node_bootmem_map)
-+		return 0;
-+
-+	start = PFN_DOWN(bdata->node_boot_start);
-+	end = bdata->node_low_pfn;
-+
- 	/*
--	 * Check if we are aligned to BITS_PER_LONG pages.  If so, we might
--	 * be able to free page orders of that size at once.
-+	 * If the start is aligned to the machines wordsize, we might
-+	 * be able to free pages in bulks of that order.
- 	 */
--	if (!(pfn & (BITS_PER_LONG-1)))
--		gofast = 1;
-+	aligned = !(start & (BITS_PER_LONG - 1));
-+
-+	bdebug("nid=%d start=%lx end=%lx aligned=%d\n",
-+		bdata - bootmem_node_data, start, end, aligned);
-+
-+	while (start < end) {
-+		unsigned long *map, idx, vec;
- 
--	for (i = 0; i < idx; ) {
--		unsigned long v = ~map[i / BITS_PER_LONG];
-+		map = bdata->node_bootmem_map;
-+		idx = start - PFN_DOWN(bdata->node_boot_start);
-+		vec = ~map[idx / BITS_PER_LONG];
- 
--		if (gofast && v == ~0UL) {
--			int order;
-+		if (aligned && vec == ~0UL && start + BITS_PER_LONG < end) {
-+			int order = ilog2(BITS_PER_LONG);
- 
--			page = pfn_to_page(pfn);
-+			__free_pages_bootmem(pfn_to_page(start), order);
- 			count += BITS_PER_LONG;
--			order = ffs(BITS_PER_LONG) - 1;
--			__free_pages_bootmem(page, order);
--			i += BITS_PER_LONG;
--			page += BITS_PER_LONG;
--		} else if (v) {
--			unsigned long m;
--
--			page = pfn_to_page(pfn);
--			for (m = 1; m && i < idx; m<<=1, page++, i++) {
--				if (v & m) {
--					count++;
-+		} else {
-+			unsigned long off = 0;
-+
-+			while (vec && off < BITS_PER_LONG) {
-+				if (vec & 1) {
-+					page = pfn_to_page(start + off);
- 					__free_pages_bootmem(page, 0);
-+					count++;
- 				}
-+				vec >>= 1;
-+				off++;
- 			}
--		} else {
--			i += BITS_PER_LONG;
- 		}
--		pfn += BITS_PER_LONG;
-+		start += BITS_PER_LONG;
- 	}
- 
--	/*
--	 * Now free the allocator bitmap itself, it's not
--	 * needed anymore:
--	 */
- 	page = virt_to_page(bdata->node_bootmem_map);
- 	pages = bdata->node_low_pfn - PFN_DOWN(bdata->node_boot_start);
--	idx = bootmem_bootmap_pages(pages);
--	for (i = 0; i < idx; i++, page++)
--		__free_pages_bootmem(page, 0);
--	count += i;
--	bdata->node_bootmem_map = NULL;
-+	pages = bootmem_bootmap_pages(pages);
-+	count += pages;
-+	while (pages--)
-+		__free_pages_bootmem(page++, 0);
- 
- 	bdebug("nid=%d released=%ld\n", bdata - bootmem_node_data, count);
- 
+-	return ptr;
++	return alloc_bootmem_core(bdata, size, SMP_CACHE_BYTES, goal, limit);
+ }
+ #endif
 
 -- 
 
