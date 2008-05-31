@@ -1,124 +1,161 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28esmtp07.in.ibm.com (8.13.1/8.13.1) with ESMTP id m4VBLpm7004187
-	for <linux-mm@kvack.org>; Sat, 31 May 2008 16:51:51 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m4VBLacv856064
-	for <linux-mm@kvack.org>; Sat, 31 May 2008 16:51:37 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id m4VBLoZc025081
-	for <linux-mm@kvack.org>; Sat, 31 May 2008 16:51:50 +0530
-Message-ID: <48413482.5080409@linux.vnet.ibm.com>
-Date: Sat, 31 May 2008 16:50:34 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Date: Sat, 31 May 2008 13:21:13 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/2] huge page private reservation review cleanups
+Message-ID: <20080531122112.GA423@csn.ul.ie>
+References: <exportbomb.1212166524@pinky> <1212166704.0@pinky>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 1/2] memcg: res_counter hierarchy
-References: <48407DC3.8060001@linux.vnet.ibm.com> <20080530104312.4b20cc60.kamezawa.hiroyu@jp.fujitsu.com> <20080530104515.9afefdbb.kamezawa.hiroyu@jp.fujitsu.com> <25360008.1212199156779.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <25360008.1212199156779.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1212166704.0@pinky>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, xemul@openvz.org, menage@google.com, yamamoto@valinux.co.jp, lizf@cn.fujitsu.com
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, agl@us.ibm.com, wli@holomorphy.com, kenchen@google.com, dwg@au1.ibm.com, andi@firstfloor.org, dean@arctic.org, abh@cray.com
 List-ID: <linux-mm.kvack.org>
 
-kamezawa.hiroyu@jp.fujitsu.com wrote:
->> KAMEZAWA Hiroyuki wrote:
->>> This patch tries to implements _simple_ 'hierarchy policy' in res_counter.
->>>
->>> While several policy of hierarchy can be considered, this patch implements
->>> simple one 
->>>    - the parent includes, over-commits the child
->>>    - there are no shared resource
->> I am not sure if this is desirable. The concept of a hierarchy applies really
->> well when there are shared resources.
->>
->>>    - dynamic hierarchy resource usage management in the kernel is not neces
-> sary
->> Could you please elaborate as to why? I am not sure I understand your point
->>
+On (30/05/08 17:58), Andy Whitcroft didst pronounce:
 > 
-> ok, let's consider a _miiddleware_ wchich has following paramater.
+> Create some new accessors for vma private data to cut down on and contain
+> the casts.  Encapsulates the huge and small page offset calculations.  Also
+> adds a couple of VM_BUG_ONs for consistency.
 > 
-> An expoterd param to the user.
->    - user_memory_limit
-> parameters for co-operation with the kernel
->    - kernel_memory_limit
-> 
-> And here,
->    user_memory_limit >= kernel_memory_limit == cgroup's memory.limits_in_bytes
-> 
-> When a user ask the miidleware to set limit to 1Gbytes
->    user_memory_limit = 1G
->    kernel_memory_limit = 0-1G.
-> It moves kernel_memory_limit dynamically 0 to 1Gbytes and reset limits_in_byte
-> s in dynamic way with checking memory cgroup's statistics.
-> Of course, we can add some kind of interdace , as following
->   - failure_notifier - triggered at failcnt increment.
->   - threshhold_notifier - triggered as usage > threshold.
-> 
->>> works as following.
->>>
->>>  1. create a child. set default child limits to be 0.
->>>  2. set limit to child.
->>>     2-a. before setting limit to child, prepare enough room in parent.
->>>     2-b. increase 'usage' of parent by child's limit.
->> The problem with this is that you are forcing the parent will run into a recl
-> aim
->> loop even if the child is not using the assigned limit to it.
->>
-> That's not problem because it's avoildable by users.
-> But it's ok to limit the sum of child's limit to be below XX % ot the parent.
-> 
->>>  3. the child sets its limit to the val moved from the parent.
->>>     the parent remembers what amount of resource is to the children.
->>>
->> All of this needs to be dynamic
->>
-> As explained, this can be dynamic by middleware.
-> 
->>>  Above means that
->>> 	- a directory's usage implies the sum of all sub directories +
->>>           own usage.
->>> 	- there are no shared resource between parent <-> child.
->>>
->>>  Pros.
->>>   - simple and easy policy.
->>>   - no hierarchy overhead.
->>>   - no resource share among child <-> parent. very suitable for multilevel
->>>     resource isolation.
->> Sharing is an important aspect of hierachies. I am not convinced of this
->> approach. Did you look at the patches I sent out? Was there something
->> fundamentally broken in them?
->>
-> 
-> Yes, I read. And tried to make it faster and found it will be complicated.
-> One problem is overhead of counter itself.
-> Another problem is overhead of shrinking multi-level LRU with feedback.
-> One more problem is that it's hard to implement various kinds of hierarchy
-> policy. I believe there are other hierarhcy policies rather than OpenVZ
-> want to use. Kicking out functions to middleware AMAP is what I'm thinking
-> now.
 
-One way to manage hierarchies other than via limits is to use shares (please see
-the shares used by the cpu controller). Basically, what you've done with limits
-is done with shares
+Things are a bit more readable with the helpers for sure. Thanks for catching
+the missing VM_BUG_ONs as well.
 
-If a parent has 100 shares, then it can decide how many to pass on to it's  children
-based on the shares of the child and your logic would work well. I propose
-assigning top level (high resolution) shares to the root of the cgroup and in a
-hierarchy passing them down to children and sharing it with them. Based on the
-shares, deduce the limit of each node in the hierarchy.
+> Signed-off-by: Andy Whitcroft <apw@shadowen.org>
 
-What do you think?
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
+> ---
+>  mm/hugetlb.c |   56 +++++++++++++++++++++++++++++++++++++++++++-------------
+>  1 files changed, 43 insertions(+), 13 deletions(-)
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 729a830..7a5ac81 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -40,6 +40,26 @@ static int hugetlb_next_nid;
+>   */
+>  static DEFINE_SPINLOCK(hugetlb_lock);
+>  
+> +/*
+> + * Convert the address within this vma to the page offset within
+> + * the mapping, in base page units.
+> + */
+> +pgoff_t vma_page_offset(struct vm_area_struct *vma, unsigned long address)
+> +{
+> +	return ((address - vma->vm_start) >> PAGE_SHIFT) +
+> +					(vma->vm_pgoff >> PAGE_SHIFT);
+> +}
+> +
+> +/*
+> + * Convert the address within this vma to the page offset within
+> + * the mapping, in pagecache page units; huge pages here.
+> + */
+> +pgoff_t vma_pagecache_offset(struct vm_area_struct *vma, unsigned long address)
+> +{
+> +	return ((address - vma->vm_start) >> HPAGE_SHIFT) +
+> +			(vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
+> +}
+> +
+>  #define HPAGE_RESV_OWNER    (1UL << (BITS_PER_LONG - 1))
+>  #define HPAGE_RESV_UNMAPPED (1UL << (BITS_PER_LONG - 2))
+>  #define HPAGE_RESV_MASK (HPAGE_RESV_OWNER | HPAGE_RESV_UNMAPPED)
+> @@ -53,36 +73,48 @@ static DEFINE_SPINLOCK(hugetlb_lock);
+>   * to reset the VMA at fork() time as it is not in use yet and there is no
+>   * chance of the global counters getting corrupted as a result of the values.
+>   */
+> +static unsigned long get_vma_private_data(struct vm_area_struct *vma)
+> +{
+> +	return (unsigned long)vma->vm_private_data;
+> +}
+> +
+> +static void set_vma_private_data(struct vm_area_struct *vma,
+> +							unsigned long value)
+> +{
+> +	vma->vm_private_data = (void *)value;
+> +}
+> +
+>  static unsigned long vma_resv_huge_pages(struct vm_area_struct *vma)
+>  {
+>  	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+>  	if (!(vma->vm_flags & VM_SHARED))
+> -		return (unsigned long)vma->vm_private_data & ~HPAGE_RESV_MASK;
+> +		return get_vma_private_data(vma) & ~HPAGE_RESV_MASK;
+>  	return 0;
+>  }
+>  
+>  static void set_vma_resv_huge_pages(struct vm_area_struct *vma,
+>  							unsigned long reserve)
+>  {
+> -	unsigned long flags;
+>  	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+>  	VM_BUG_ON(vma->vm_flags & VM_SHARED);
+>  
+> -	flags = (unsigned long)vma->vm_private_data & HPAGE_RESV_MASK;
+> -	vma->vm_private_data = (void *)(reserve | flags);
+> +	set_vma_private_data(vma,
+> +		(get_vma_private_data(vma) & HPAGE_RESV_MASK) | reserve);
+>  }
+>  
+>  static void set_vma_resv_flags(struct vm_area_struct *vma, unsigned long flags)
+>  {
+> -	unsigned long reserveflags = (unsigned long)vma->vm_private_data;
+>  	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+> -	vma->vm_private_data = (void *)(reserveflags | flags);
+> +	VM_BUG_ON(vma->vm_flags & VM_SHARED);
+> +
+> +	set_vma_private_data(vma, get_vma_private_data(vma) | flags);
+>  }
+>  
+>  static int is_vma_resv_set(struct vm_area_struct *vma, unsigned long flag)
+>  {
+>  	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+> -	return ((unsigned long)vma->vm_private_data & flag) != 0;
+> +
+> +	return (get_vma_private_data(vma) & flag) != 0;
+>  }
+>  
+>  /* Decrement the reserved pages in the hugepage pool by one */
+> @@ -1150,11 +1182,10 @@ static struct page *hugetlbfs_pagecache_page(struct vm_area_struct *vma,
+>  			unsigned long address)
+>  {
+>  	struct address_space *mapping;
+> -	unsigned long idx;
+> +	pgoff_t idx;
+>  
+>  	mapping = vma->vm_file->f_mapping;
+> -	idx = ((address - vma->vm_start) >> HPAGE_SHIFT)
+> -		+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
+> +	idx = vma_pagecache_offset(vma, address);
+>  
+>  	return find_lock_page(mapping, idx);
+>  }
+> @@ -1163,7 +1194,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  			unsigned long address, pte_t *ptep, int write_access)
+>  {
+>  	int ret = VM_FAULT_SIGBUS;
+> -	unsigned long idx;
+> +	pgoff_t idx;
+>  	unsigned long size;
+>  	struct page *page;
+>  	struct address_space *mapping;
+> @@ -1182,8 +1213,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	}
+>  
+>  	mapping = vma->vm_file->f_mapping;
+> -	idx = ((address - vma->vm_start) >> HPAGE_SHIFT)
+> -		+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
+> +	idx = vma_pagecache_offset(vma, address);
+>  
+>  	/*
+>  	 * Use page lock to guard against racing truncation
+> 
 
 -- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
