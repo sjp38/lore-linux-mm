@@ -1,51 +1,66 @@
 From: kamezawa.hiroyu@jp.fujitsu.com
-Message-ID: <11041923.1212400091150.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 2 Jun 2008 18:48:11 +0900 (JST)
+Message-ID: <28005342.1212400352991.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 2 Jun 2008 18:52:32 +0900 (JST)
 Subject: Re: Re: [RFC][PATCH 1/2] memcg: res_counter hierarchy
-In-Reply-To: <4843903F.1090009@linux.vnet.ibm.com>
+In-Reply-To: <20080602021540.5C6705A0D@siro.lan>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
-References: <4843903F.1090009@linux.vnet.ibm.com>
- <4841886A.1000901@linux.vnet.ibm.com> <48413482.5080409@linux.vnet.ibm.com> <48407DC3.8060001@linux.vnet.ibm.com> <20080530104312.4b20cc60.kamezawa.hiroyu@jp.fujitsu.com> <20080530104515.9afefdbb.kamezawa.hiroyu@jp.fujitsu.com> <25360008.1212199156779.kamezawa.hiroyu@jp.fujitsu.com> <26479923.1212245220415.kamezawa.hiroyu@jp.fujitsu.com> <5049235.1212280513897.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080602021540.5C6705A0D@siro.lan>
+ <20080530104515.9afefdbb.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, xemul@openvz.org, menage@google.com, yamamoto@valinux.co.jp, lizf@cn.fujitsu.com
+To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, balbir@linux.vnet.ibm.com, xemul@openvz.org, menage@google.com, lizf@cn.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
->Why don't we add soft limits, so that we don't have to go to the kernel and
->change limits frequently. One missing piece in the memory controller is that 
-we
->don't shrink the memory controller when limits change or when tasks move. I
->think soft limits is a better solution.
+----- Original Message -----
+
+>> @@ -135,13 +138,118 @@ ssize_t res_counter_write(struct res_cou
+>>  		if (*end != '\0')
+>>  			goto out_free;
+>>  	}
+>> -	spin_lock_irqsave(&counter->lock, flags);
+>> -	val = res_counter_member(counter, member);
+>> -	*val = tmp;
+>> -	spin_unlock_irqrestore(&counter->lock, flags);
+>> -	ret = nbytes;
+>> +	if (member != RES_LIMIT || !callback) {
 >
-My code adds shirinking_at_limit_change. I'm now try to write migrate_resouces
-_at_task_move. (But seems not so easy to be implemented in 
-clean/fast way.)
+>is there any reason to check member != RES_LIMIT here,
+>rather than in callers?
 
-I have no objection to soft-limit if it's easy to be implemented. (I wrote
-my explanation was just an example and we could add more knobs.) 
-_But_ I think that something to control multiple cgroups with regard to hierar
-chy under some policy never be a simple one. Adding some knobs for each cgroup
-s to do soft-limit will be simple one if no hirerachy.
+Hmm...ok. This is messy. I'll rearrange this.
 
-Memory controller's  difference from scheduler's hirerachy is that we have to 
-do multilevel page reclaim with feedback under some policy (not only one..). 
-Even without hierarhcy, we _did_ make the kernel's LRU logic more complicated.
-But we can get a help from the middleware here, I think.
 
-My goal is never to make cgroup slow or complicated. If it's slow, 
-I'd like to say "ok, please use VMware.It's simpler and enough fast for you." 
-"How fast it works rather than Hardware-Virtualization" is the most
-important for me. It should be much more faster.
-
->Thanks for patiently explaining all of this.
 >
-Thanks, I'm sorry for my poor explanation skill.
+>> +/*
+>> + * Move resource to its parent.
+>> + *   child->limit -= val.
+>> + *   parent->usage -= val.
+>> + *   parent->limit -= val.
+>
+>s/limit/for_children/
+>
+>> + */
+>> +
+>> +int res_counter_repay_resource(struct res_counter *child,
+>> +				struct res_counter *parent,
+>> +				unsigned long long val,
+>> +				res_shrink_callback_t callback, int retry)
+>
+>can you reduce gratuitous differences between
+>res_counter_borrow_resource and res_counter_repay_resource?
+>eg. 'success' vs 'done', how to decrement 'retry'.
+>
 
-Regards,
+Ah, sorry. I'll rewrite.
+I'll make next version's quality better.
+
+Thanks,
 -Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
