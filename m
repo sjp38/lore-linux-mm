@@ -1,36 +1,54 @@
-Date: Mon, 2 Jun 2008 17:04:27 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 1/1] SGI UV: TLB shootdown using broadcast assist unit
-Message-ID: <20080602150427.GA16096@elte.hu>
-References: <E1K3AWE-00056Z-83@eag09.americas.sgi.com> <20080602150122.GB6835@elte.hu>
+Message-ID: <48440E15.4080008@goop.org>
+Date: Mon, 02 Jun 2008 16:13:25 +0100
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080602150122.GB6835@elte.hu>
+Subject: Re: [PATCH 8/8] mem_map/max_mapnr are specific to the FLATMEM memory
+ model
+References: <20080410103306.GA29831@shadowen.org> <1207824082.0@pinky>
+In-Reply-To: <1207824082.0@pinky>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Cliff Wickman <cpw@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, the arch/x86 maintainers <x86@kernel.org>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <hannes@saeurebad.de>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-* Ingo Molnar <mingo@elte.hu> wrote:
+Andy Whitcroft wrote:
+> mem_map and max_mapnr are variables used in the FLATMEM memory model
+> only.  Ensure they are only defined when that memory model is enabled.
+>   
 
-> > TLB shootdown for SGI UV.
-> 
-> looks mostly good to me, but there are a few code structure and 
-> stylistic nits:
+Is this series queued to be applied?
 
-i've created a new branch for this in -tip, you can find it in 
-tip/x86/uv, under:
+BTW, how does max_mapnr differ from x86-64's end_pfn?
 
-  http://people.redhat.com/mingo/tip.git/README
+> Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+> ---
+>  mm/memory.c |    3 +--
+>   
 
-this new topic branch is based on tip/x86/irq and this is intended to be 
-a temporary branch until these changes become mergable into tip/x86/irq 
-[where for example the "x86, uv: update macros used by UV platform" 
-commit lives]. Please send fix patches against this branch.
+I think you need to fix the declaration in linux/mm.h as well.
 
-	Ingo
+>  1 files changed, 1 insertions(+), 2 deletions(-)
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 0d14d1e..091324e 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -61,8 +61,7 @@
+>  #include <linux/swapops.h>
+>  #include <linux/elf.h>
+>  
+> -#ifndef CONFIG_NEED_MULTIPLE_NODES
+> -/* use the per-pgdat data instead for discontigmem - mbligh */
+> +#ifdef CONFIG_FLATMEM
+>  unsigned long max_mapnr;
+>  struct page *mem_map;
+>  
+>   
+
+Thanks,
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
