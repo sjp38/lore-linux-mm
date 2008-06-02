@@ -1,111 +1,176 @@
-From: Johannes Weiner <hannes@saeurebad.de>
-Subject: Re: faulting kmalloced buffers into userspace through mmap()
-References: <4842B4C3.1070506@brontes3d.com>
-Date: Mon, 02 Jun 2008 07:38:59 +0200
-In-Reply-To: <4842B4C3.1070506@brontes3d.com> (Daniel Drake's message of "Sun,
-	01 Jun 2008 15:40:03 +0100")
-Message-ID: <87mym4tmz0.fsf@saeurebad.de>
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp03.in.ibm.com (8.13.1/8.13.1) with ESMTP id m526HtxY025530
+	for <linux-mm@kvack.org>; Mon, 2 Jun 2008 11:47:55 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m526He5S671852
+	for <linux-mm@kvack.org>; Mon, 2 Jun 2008 11:47:40 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id m526HsGI016531
+	for <linux-mm@kvack.org>; Mon, 2 Jun 2008 11:47:54 +0530
+Message-ID: <4843903F.1090009@linux.vnet.ibm.com>
+Date: Mon, 02 Jun 2008 11:46:31 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [RFC][PATCH 1/2] memcg: res_counter hierarchy
+References: <4841886A.1000901@linux.vnet.ibm.com> <48413482.5080409@linux.vnet.ibm.com> <48407DC3.8060001@linux.vnet.ibm.com> <20080530104312.4b20cc60.kamezawa.hiroyu@jp.fujitsu.com> <20080530104515.9afefdbb.kamezawa.hiroyu@jp.fujitsu.com> <25360008.1212199156779.kamezawa.hiroyu@jp.fujitsu.com> <26479923.1212245220415.kamezawa.hiroyu@jp.fujitsu.com> <5049235.1212280513897.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <5049235.1212280513897.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Drake <ddrake@brontes3d.com>
-Cc: linux-mm@kvack.org
+To: kamezawa.hiroyu@jp.fujitsu.com
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, xemul@openvz.org, menage@google.com, yamamoto@valinux.co.jp, lizf@cn.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi, Kamezawa-san,
 
-Daniel Drake <ddrake@brontes3d.com> writes:
+kamezawa.hiroyu@jp.fujitsu.com wrote:
+> 
+> It's not problem. We're not developing world-wide eco system.
+> It's good that there are several development groups. It's a way to evolution.
+> Something popular will be defacto standard. 
+> What we have to do is providing proper interfaces for allowing fair race.
+> 
 
-> Hi,
->
-> I am developing a driver for an under-development PCI frame grabber,
-> which will be released as GPL once the hardware is complete.
->
-> The character device driver basically operates as follows:
->  - userspace uses an ioctl to request a certain number of buffers
->  - driver allocates the buffers
->  - userspace calls mmap() to gain direct access to those buffers
->  - driver pushes physical addresses of those buffers to the device,
->    which DMAs data into them and generates interrupts accordingly
->  - userspace uses ioctls to monitor buffer status (i.e. check when
->    frame data has arrived) and then reads the data out.
+I did not claim that we were developing an eco system either :)
+My point is that we should not confuse *Linux* users. Lets do the common/useful
+stuff in the kernel and make it easy for users to use the cgroup subsystem.
 
-Why the first ioctl?  The mmap() handler can set up the buffers.  You
-can also implement a poll handler that sleeps until the interrupt
-handler wakes it up.
+>>> Here is an example. (just an example...)
+>>> Please point out if I'm misunderstanding "share".
+>>>
+>>> root_level/                   = limit 1G.
+>>>           /child_A = share=30
+>>>           /child_B = share=15
+>>>           /child_C = share=5
+>>> (and assume there is no process under root_level for make explanation easy.
+> .)
+>>> 0. At first, before starting to use memory, set all kernel_memory_limit.
+>>> root_level.limit = 1G
+>>>   child_A.limit=64M,usage=0
+>>>   child_B.limit=64M,usage=0
+>>>   child_C.limit=64M,usage=0
+>>>   free_resource=808M 
+>>>
+>> This sounds incorrect, since the limits should be proportional to shares. If 
+> the
+>> maximum shares in the root were 100 (*ideally we want higher resolution than 
+> that)
+>> Then
+>>
+>> child_A.limit = .3 * 1G
+>> child_B.limit = .15 * 1G
+>>
+>> and so on
+>>
+> Above just showing param to the kernel. 
+> From user's view, memory limitation is A:B:C=6:3:1 if memory is fully used.
+> (In above case, usage=0)
+> 
+> In general, "share" works only when the total usage reaches limitation.
+> (See how cpu scheduler works.)
+> When the usage doesn't reach limit, there is no limitatiuon.
+> 
 
-> The buffers are allocated with kmalloc(.., GFP_KERNEL). I use a .fault
-> vm operation to implement mmap. The memory space presented by mmap is
-> as if all the individual buffers were laid out contiguously in memory.
->
-> Fault handler is pretty much as follows:
->
-> static int vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
-> {
-> 	struct page *page;
->
-> 	/* find kernel-virtual address of requested data page */
-> 	unsigned char *addr = find_address(foo);
->
-> 	/* some locking and sanity/safety checks omitted */
->
-> 	page = virt_to_page(addr);
-> 	get_page(page);
-> 	vmf->page = page;
-> 	return 0;
-> }
->
-> The mapping seems to work fine, data is accessible as you'd
-> expect. However, during the munmap() operation, hundreds of bad page
-> state messages are generated:
->
-> Bad page state in process 'lt-capture_fram'
-> page:ffffe20005254300 flags:0x0148300000000084
-> mapping:0000000000000000 mapcount:0 count:0
-> Trying to fix it up, but a reboot is needed
-> Backtrace:
-> Pid: 5603, comm: lt-capture_fram Tainted: P    B    2.6.25.4 #5
->
-> Call Trace:
->  [<ffffffff803e8813>] vt_console_print+0x223/0x310
->  [<ffffffff80266b5d>] bad_page+0x6d/0xb0
->  [<ffffffff802677c8>] free_hot_cold_page+0x178/0x190
->  [<ffffffff8026780a>] __pagevec_free+0x2a/0x40
->  [<ffffffff8026acb1>] release_pages+0x171/0x1b0
->  [<ffffffff8027c66d>] free_pages_and_swap_cache+0x8d/0xb0
->  [<ffffffff80271628>] unmap_vmas+0x578/0x800
->  [<ffffffff8027584a>] unmap_region+0xca/0x160
->  [<ffffffff802767e3>] do_munmap+0x223/0x2d0
->  [<ffffffff80519ca3>] __down_write_nested+0xa3/0xc0
->  [<ffffffff802768d8>] sys_munmap+0x48/0x80
->  [<ffffffff8020c03b>] system_call_after_swapgs+0x7b/0x80
->
-> The bad_page() call comes from the inline function
-> free_pages_check(). It triggers bad_page() because the PG_slab bit is
-> set on the page.
-> Presumably this is set by the __SetPageSlab() call inside slab's
-> kmem_getpages() function, but I haven't traced it. What does this flag
-> indicate?
->
-> I also did an experiment where I kmalloced some memory and then
-> immediately used virt_to_page() to get the struct page pointer for
-> that memory. It already had the PG_slab bit set at that stage, so it
-> does not appear to be later-occurring corruption causing this flag to
-> be set at munmap() time.
+If you are implying that shares imply a soft limit, I agree. But the only
+parameter in the kernel right now is hard limits. We need to add soft limit support.
 
-You broke the abstraction here.  There are no pages from kmalloc(), it
-gives you other memory objects.  And on munmapping the region, the
-kmalloc objects are passed back to the buddy allocator which then blows
-the whistle with bad_page() on it.
+>>> 1. next, a process in child_C start to run and use memory of 600M.
+>>> root_level.limit = 1G
+>>>   child_A.limit=64M
+>>>   child_B.limit=64M
+>>>   child_C.limit=600M,usage=600M
+>>>   free_resource=272M
+>>>
+>> How is that feasible, it's limit was 64M, how did it bump up to 600M? If you
+>> want something like that, child_C should have no limits.
+> 
+> middleware just do when child_C.failcnt hits.
+> echo 64M > childC.memory.limits_in_bytes.
+> and periodically checks A,B,C and allow C to use what it wants becasue
+> A and B doesn't want memory.
+> 
+>>> 2. now, a process in child_A start tu run and use memory of 800M.
+>>>   child_A.limit=800M,usage=800M
+>>>   child_B.limit=64M,usage=0M
+>>>   child_C.limit=136M,usage=136M
+>>>   free_resouce=0,A:C=6:1
+>>>
+>> Not sure I understand this step
+>>
+> Middleware notices that usage in A is growing and moves resources to A.
+> 
+> echo current child_C's limit - 64M > child_C
+> echo current child_A's limit + 64M > child_A
+> do above in step by step with loops for making A:C = 6:1
+> (64M is just an example)
+> 
+>>> 3.Finally, a process in child_B start. and use memory of 500M.
+>>>   child_A.limit=600M,usage=600M
+>>>   child_B.limit=300M,usage=300M
+>>>   child_C.limit=100M,usage=100M
+>>>   free_resouce=0, A:B:C=6:3:1
+>>>
+>> Not sure I understand this step
+>>
+> echo current child_C's limit - 64M > child_C
+> echo current child_A's limit - 64M > child_A
+> echo current child_B's limit + 64M > child_B
+> do above in step by step with loops for making A:B:C = 6:3:1
+> 
+> 
+>>> 4. one more, a process in A exits.
+>>>   child_A.limit=64M, usage=0M
+>>>   child_B.limit=500M, usage=500M
+>>>   child_C.limit=436M, usage=436M
+>>>   free_resouce=0, B:C=3:1 (but B just want to use 500M)
+>>>
+>> Not sure I understand this step
+>>
+> middleware can notice memory pressure from Child_A is reduced.
+> 
+> echo current child_A's limit - 64M > child_A
+> echo current child_C's limit + 64M > child_C
+> echo current child_B's limit + 64M > child_B
+> do above in step by step with loops for making B:C = 3:1 with avoiding
+> the waste of resources.
+> 
+> 
+> 
+>>> This is only an example and the middleware can more pricise "limit"
+>>> contols by checking statistics of memory controller hierarchy based on
+>>> their own policy.
+>>>
+>>> What I think now is what kind of statistics/notifier/controls are
+>>> necessary to implement shares in middleware. How pricise/quick work the
+>>> middleware can do is based on interfaces.
+>>> Maybe the middleware should know "how fast the application runs now" by
+>>> some kind of check or co-operative interface with the application.
+>>> But I'm not sure how the kernel can help it.
+>> I am not sure if I understand your proposal at this point.
+>>
+> 
+> The most important point is cgoups.memory.memory.limit_in_bytes
+> is _just_ a notification to ask the kernel to limit the memory
+> usage of process groups temporally. It changes often.
+> Based on user's notification to the middleware (share or limit),
+> the middleware changes limit_in_bytes to be suitable value
+> and change it dynamically and periodically. 
+> 
 
-> So, am I right in saying that it is not legal to use a page fault
-> handler to remap kmalloced memory in this way? I guess I need to use
-> alloc_pages() or something instead?
+Why don't we add soft limits, so that we don't have to go to the kernel and
+change limits frequently. One missing piece in the memory controller is that we
+don't shrink the memory controller when limits change or when tasks move. I
+think soft limits is a better solution.
 
-Yes.
+Thanks for patiently explaining all of this.
 
-	Hannes
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
