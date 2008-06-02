@@ -1,66 +1,26 @@
-From: kamezawa.hiroyu@jp.fujitsu.com
-Message-ID: <28005342.1212400352991.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 2 Jun 2008 18:52:32 +0900 (JST)
-Subject: Re: Re: [RFC][PATCH 1/2] memcg: res_counter hierarchy
-In-Reply-To: <20080602021540.5C6705A0D@siro.lan>
+Date: Mon, 2 Jun 2008 12:15:30 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 3/5] x86: lockless get_user_pages_fast
+Message-ID: <20080602101530.GA7206@wotan.suse.de>
+References: <20080529122050.823438000@nick.local0.net> <20080529122602.330656000@nick.local0.net> <1212081659.6308.10.camel@norville.austin.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: 7bit
-References: <20080602021540.5C6705A0D@siro.lan>
- <20080530104515.9afefdbb.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1212081659.6308.10.camel@norville.austin.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, balbir@linux.vnet.ibm.com, xemul@openvz.org, menage@google.com, lizf@cn.fujitsu.com
+To: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
------ Original Message -----
-
->> @@ -135,13 +138,118 @@ ssize_t res_counter_write(struct res_cou
->>  		if (*end != '\0')
->>  			goto out_free;
->>  	}
->> -	spin_lock_irqsave(&counter->lock, flags);
->> -	val = res_counter_member(counter, member);
->> -	*val = tmp;
->> -	spin_unlock_irqrestore(&counter->lock, flags);
->> -	ret = nbytes;
->> +	if (member != RES_LIMIT || !callback) {
->
->is there any reason to check member != RES_LIMIT here,
->rather than in callers?
-
-Hmm...ok. This is messy. I'll rearrange this.
+BTW. I do plan to ask Linus to merge this as soon as 2.6.27 opens.
+Hope nobody objects (or if they do please speak up before then)
 
 
->
->> +/*
->> + * Move resource to its parent.
->> + *   child->limit -= val.
->> + *   parent->usage -= val.
->> + *   parent->limit -= val.
->
->s/limit/for_children/
->
->> + */
->> +
->> +int res_counter_repay_resource(struct res_counter *child,
->> +				struct res_counter *parent,
->> +				unsigned long long val,
->> +				res_shrink_callback_t callback, int retry)
->
->can you reduce gratuitous differences between
->res_counter_borrow_resource and res_counter_repay_resource?
->eg. 'success' vs 'done', how to decrement 'retry'.
->
-
-Ah, sorry. I'll rewrite.
-I'll make next version's quality better.
-
-Thanks,
--Kame
-
-
+On Thu, May 29, 2008 at 12:20:59PM -0500, Dave Kleikamp wrote:
+> On Thu, 2008-05-29 at 22:20 +1000, npiggin@suse.de wrote:
+>  
+> > +int get_user_pages_fast(unsigned long start, int nr_pages, int write, struct page **pages)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
