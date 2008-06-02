@@ -1,26 +1,49 @@
-Date: Mon, 2 Jun 2008 12:15:30 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 3/5] x86: lockless get_user_pages_fast
-Message-ID: <20080602101530.GA7206@wotan.suse.de>
-References: <20080529122050.823438000@nick.local0.net> <20080529122602.330656000@nick.local0.net> <1212081659.6308.10.camel@norville.austin.ibm.com>
-Mime-Version: 1.0
+Date: Mon, 2 Jun 2008 12:15:47 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH] 2.6.26-rc: x86: pci-dma.c: use __GFP_NO_OOM instead of
+	__GFP_NORETRY
+Message-ID: <20080602101547.GD7459@elte.hu>
+References: <20080526234940.GA1376@xs4all.net> <20080527014720.6db68517.akpm@linux-foundation.org> <20080528024727.GB20824@one.firstfloor.org> <1211963485.28138.14.camel@localhost.localdomain>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1212081659.6308.10.camel@norville.austin.ibm.com>
+In-Reply-To: <1211963485.28138.14.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, apw@shadowen.org
+To: Miquel van Smoorenburg <mikevs@xs4all.net>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <gcosta@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-BTW. I do plan to ask Linus to merge this as soon as 2.6.27 opens.
-Hope nobody objects (or if they do please speak up before then)
+* Miquel van Smoorenburg <mikevs@xs4all.net> wrote:
 
-
-On Thu, May 29, 2008 at 12:20:59PM -0500, Dave Kleikamp wrote:
-> On Thu, 2008-05-29 at 22:20 +1000, npiggin@suse.de wrote:
+> Okay, so how about this then ?
+> 
+> --- linux-2.6.26-rc4.orig/arch/x86/kernel/pci-dma.c	2008-05-26 20:08:11.000000000 +0200
+> +++ linux-2.6.26-rc4/arch/x86/kernel/pci-dma.c	2008-05-28 10:27:41.000000000 +0200
+> @@ -397,9 +397,6 @@
+>  	if (dev->dma_mask == NULL)
+>  		return NULL;
 >  
-> > +int get_user_pages_fast(unsigned long start, int nr_pages, int write, struct page **pages)
+> -	/* Don't invoke OOM killer */
+> -	gfp |= __GFP_NORETRY;
+> -
+>  #ifdef CONFIG_X86_64
+>  	/* Why <=? Even when the mask is smaller than 4GB it is often
+>  	   larger than 16MB and in this case we have a chance of
+> @@ -410,7 +407,9 @@
+>  #endif
+>  
+>   again:
+> -	page = dma_alloc_pages(dev, gfp, get_order(size));
+> +	/* Don't invoke OOM killer or retry in lower 16MB DMA zone */
+> +	page = dma_alloc_pages(dev,
+> +		(gfp & GFP_DMA) ? gfp | __GFP_NORETRY : gfp, get_order(size));
+>  	if (page == NULL)
+>  		return NULL;
+
+applied to tip/pci-for-jesse for more testing. Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
