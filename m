@@ -1,57 +1,111 @@
-Received: from fe-sfbay-09.sun.com ([192.18.43.129])
-	by sca-es-mail-2.sun.com (8.13.7+Sun/8.12.9) with ESMTP id m523G84E017052
-	for <linux-mm@kvack.org>; Sun, 1 Jun 2008 20:16:08 -0700 (PDT)
-Received: from conversion-daemon.fe-sfbay-09.sun.com by fe-sfbay-09.sun.com
- (Sun Java System Messaging Server 6.2-8.04 (built Feb 28 2007))
- id <0K1T00M01FLRDY00@fe-sfbay-09.sun.com> (original mail from adilger@sun.com)
- for linux-mm@kvack.org; Sun, 01 Jun 2008 20:16:08 -0700 (PDT)
-Date: Sun, 01 Jun 2008 21:16:02 -0600
-From: Andreas Dilger <adilger@sun.com>
-Subject: Re: [patch 22/23] fs: check for statfs overflow
-In-reply-to: <20080530011408.GB11715@wotan.suse.de>
-Message-id: <20080602031602.GA2961@webber.adilger.int>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7BIT
-Content-disposition: inline
-References: <20080525142317.965503000@nick.local0.net>
- <20080525143454.453947000@nick.local0.net> <20080527171452.GJ20709@us.ibm.com>
- <483C42B9.7090102@linux.vnet.ibm.com> <20080528090257.GC2630@wotan.suse.de>
- <20080529235607.GO2985@webber.adilger.int>
- <20080530011408.GB11715@wotan.suse.de>
+From: Johannes Weiner <hannes@saeurebad.de>
+Subject: Re: faulting kmalloced buffers into userspace through mmap()
+References: <4842B4C3.1070506@brontes3d.com>
+Date: Mon, 02 Jun 2008 07:38:59 +0200
+In-Reply-To: <4842B4C3.1070506@brontes3d.com> (Daniel Drake's message of "Sun,
+	01 Jun 2008 15:40:03 +0100")
+Message-ID: <87mym4tmz0.fsf@saeurebad.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Jon Tollefson <kniht@linux.vnet.ibm.com>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, andi@firstfloor.org, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, linux-fsdevel@vger.kernel.org
+To: Daniel Drake <ddrake@brontes3d.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On May 30, 2008  03:14 +0200, Nick Piggin wrote:
-> On Thu, May 29, 2008 at 05:56:07PM -0600, Andreas Dilger wrote:
-> > On May 28, 2008  11:02 +0200, Nick Piggin wrote:
-> > > @@ -197,8 +197,8 @@ static int put_compat_statfs(struct comp
-> > >  	if (sizeof ubuf->f_blocks == 4) {
-> > > +		if ((kbuf->f_blocks | kbuf->f_bfree | kbuf->f_bavail |
-> > > +		     kbuf->f_bsize | kbuf->f_frsize) & 0xffffffff00000000ULL)
-> > >  			return -EOVERFLOW;
-> > 
-> > Hmm, doesn't this check break every filesystem > 16TB on 4kB PAGE_SIZE
-> > nodes?  It would be better, IMHO, to scale down f_blocks, f_bfree, and
-> > f_bavail and correspondingly scale up f_bsize to fit into the 32-bit
-> > statfs structure.
-> 
-> Oh? Hmm, from my reading, such filesystems will already overflow f_blocks
-> check which is already there. Jon's patch only adds checks for f_bsize
-> and f_frsize.
+Hi,
 
-Sorry, you are right - I meant that the whole f_blocks check is broken
-for filesystems > 16TB.  Scaling f_bsize is easy, and prevents gratuitous
-breakage of old applications for a few kB of accuracy.
+Daniel Drake <ddrake@brontes3d.com> writes:
 
-Cheers, Andreas
---
-Andreas Dilger
-Sr. Staff Engineer, Lustre Group
-Sun Microsystems of Canada, Inc.
+> Hi,
+>
+> I am developing a driver for an under-development PCI frame grabber,
+> which will be released as GPL once the hardware is complete.
+>
+> The character device driver basically operates as follows:
+>  - userspace uses an ioctl to request a certain number of buffers
+>  - driver allocates the buffers
+>  - userspace calls mmap() to gain direct access to those buffers
+>  - driver pushes physical addresses of those buffers to the device,
+>    which DMAs data into them and generates interrupts accordingly
+>  - userspace uses ioctls to monitor buffer status (i.e. check when
+>    frame data has arrived) and then reads the data out.
+
+Why the first ioctl?  The mmap() handler can set up the buffers.  You
+can also implement a poll handler that sleeps until the interrupt
+handler wakes it up.
+
+> The buffers are allocated with kmalloc(.., GFP_KERNEL). I use a .fault
+> vm operation to implement mmap. The memory space presented by mmap is
+> as if all the individual buffers were laid out contiguously in memory.
+>
+> Fault handler is pretty much as follows:
+>
+> static int vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+> {
+> 	struct page *page;
+>
+> 	/* find kernel-virtual address of requested data page */
+> 	unsigned char *addr = find_address(foo);
+>
+> 	/* some locking and sanity/safety checks omitted */
+>
+> 	page = virt_to_page(addr);
+> 	get_page(page);
+> 	vmf->page = page;
+> 	return 0;
+> }
+>
+> The mapping seems to work fine, data is accessible as you'd
+> expect. However, during the munmap() operation, hundreds of bad page
+> state messages are generated:
+>
+> Bad page state in process 'lt-capture_fram'
+> page:ffffe20005254300 flags:0x0148300000000084
+> mapping:0000000000000000 mapcount:0 count:0
+> Trying to fix it up, but a reboot is needed
+> Backtrace:
+> Pid: 5603, comm: lt-capture_fram Tainted: P    B    2.6.25.4 #5
+>
+> Call Trace:
+>  [<ffffffff803e8813>] vt_console_print+0x223/0x310
+>  [<ffffffff80266b5d>] bad_page+0x6d/0xb0
+>  [<ffffffff802677c8>] free_hot_cold_page+0x178/0x190
+>  [<ffffffff8026780a>] __pagevec_free+0x2a/0x40
+>  [<ffffffff8026acb1>] release_pages+0x171/0x1b0
+>  [<ffffffff8027c66d>] free_pages_and_swap_cache+0x8d/0xb0
+>  [<ffffffff80271628>] unmap_vmas+0x578/0x800
+>  [<ffffffff8027584a>] unmap_region+0xca/0x160
+>  [<ffffffff802767e3>] do_munmap+0x223/0x2d0
+>  [<ffffffff80519ca3>] __down_write_nested+0xa3/0xc0
+>  [<ffffffff802768d8>] sys_munmap+0x48/0x80
+>  [<ffffffff8020c03b>] system_call_after_swapgs+0x7b/0x80
+>
+> The bad_page() call comes from the inline function
+> free_pages_check(). It triggers bad_page() because the PG_slab bit is
+> set on the page.
+> Presumably this is set by the __SetPageSlab() call inside slab's
+> kmem_getpages() function, but I haven't traced it. What does this flag
+> indicate?
+>
+> I also did an experiment where I kmalloced some memory and then
+> immediately used virt_to_page() to get the struct page pointer for
+> that memory. It already had the PG_slab bit set at that stage, so it
+> does not appear to be later-occurring corruption causing this flag to
+> be set at munmap() time.
+
+You broke the abstraction here.  There are no pages from kmalloc(), it
+gives you other memory objects.  And on munmapping the region, the
+kmalloc objects are passed back to the buddy allocator which then blows
+the whistle with bad_page() on it.
+
+> So, am I right in saying that it is not legal to use a page fault
+> handler to remap kmalloced memory in this way? I guess I need to use
+> alloc_pages() or something instead?
+
+Yes.
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
