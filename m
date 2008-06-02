@@ -1,39 +1,52 @@
-Received: by rv-out-0708.google.com with SMTP id f25so953957rvb.26
-        for <linux-mm@kvack.org>; Sun, 01 Jun 2008 13:09:57 -0700 (PDT)
-Message-ID: <19f34abd0806011309l4eb7aa46tec6e7f6e3b1d05f8@mail.gmail.com>
-Date: Sun, 1 Jun 2008 22:09:57 +0200
-From: "Vegard Nossum" <vegard.nossum@gmail.com>
-Subject: [OT] Ad banners on linux-mm.org
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Subject: Re: [RFC][PATCH 1/2] memcg: res_counter hierarchy
+In-Reply-To: Your message of "Fri, 30 May 2008 10:45:15 +0900"
+	<20080530104515.9afefdbb.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080530104515.9afefdbb.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Message-Id: <20080602021540.5C6705A0D@siro.lan>
+Date: Mon,  2 Jun 2008 11:15:40 +0900 (JST)
+From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: kamezawa.hiroyu@jp.fujitsu.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, balbir@linux.vnet.ibm.com, xemul@openvz.org, menage@google.com, lizf@cn.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+> @@ -135,13 +138,118 @@ ssize_t res_counter_write(struct res_cou
+>  		if (*end != '\0')
+>  			goto out_free;
+>  	}
+> -	spin_lock_irqsave(&counter->lock, flags);
+> -	val = res_counter_member(counter, member);
+> -	*val = tmp;
+> -	spin_unlock_irqrestore(&counter->lock, flags);
+> -	ret = nbytes;
+> +	if (member != RES_LIMIT || !callback) {
 
-Something seems to be wrong with the ad banners on linux-mm.org.
+is there any reason to check member != RES_LIMIT here,
+rather than in callers?
 
-Or is sombody trying to be funny?
+> +/*
+> + * Move resource to its parent.
+> + *   child->limit -= val.
+> + *   parent->usage -= val.
+> + *   parent->limit -= val.
 
-Do you know how many clicks you get from this?
+s/limit/for_children/
 
-Screenshot can be found at:
-http://folk.uio.no/vegardno/linux/linux-mm.png
+> + */
+> +
+> +int res_counter_repay_resource(struct res_counter *child,
+> +				struct res_counter *parent,
+> +				unsigned long long val,
+> +				res_shrink_callback_t callback, int retry)
 
-Thanks.
+can you reduce gratuitous differences between
+res_counter_borrow_resource and res_counter_repay_resource?
+eg. 'success' vs 'done', how to decrement 'retry'.
 
-
-Vegard
-
--- 
-"The animistic metaphor of the bug that maliciously sneaked in while
-the programmer was not looking is intellectually dishonest as it
-disguises that the error is the programmer's own creation."
-	-- E. W. Dijkstra, EWD1036
+YAMAMOTO Takashi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
