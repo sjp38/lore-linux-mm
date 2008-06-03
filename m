@@ -1,60 +1,66 @@
-Message-Id: <20080603100938.344971361@amd.local0.net>
+Message-Id: <20080603100940.341232340@amd.local0.net>
 References: <20080603095956.781009952@amd.local0.net>
-Date: Tue, 03 Jun 2008 19:59:57 +1000
+Date: Tue, 03 Jun 2008 20:00:13 +1000
 From: npiggin@suse.de
-Subject: [patch 01/21] hugetlb: factor out prep_new_huge_page
-Content-Disposition: inline; filename=hugetlb-factor-page-prep.patch
+Subject: [patch 17/21] powerpc: function to allocate gigantic hugepages
+Content-Disposition: inline; filename=powerpc-function-for-gigantic-hugepage-allocation.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
-Cc: Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, Adam Litke <agl@us.ibm.com>, kniht@us.ibm.com, andi@firstfloor.org, abh@cray.com, joachim.deguara@amd.com
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, Adam Litke <agl@us.ibm.com>, Jon Tollefson <kniht@linux.vnet.ibm.com>, kniht@us.ibm.com, andi@firstfloor.org, abh@cray.com, joachim.deguara@amd.com
 List-ID: <linux-mm.kvack.org>
 
-Needed to avoid code duplication in follow up patches.
+The 16G page locations have been saved during early boot in an array.
+The alloc_bootmem_huge_page() function adds a page from here to the
+huge_boot_pages list.
 
 Acked-by: Adam Litke <agl@us.ibm.com>
-Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
-Signed-off-by: Andi Kleen <ak@suse.de>
+Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
- mm/hugetlb.c |   17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
 
-Index: linux-2.6/mm/hugetlb.c
+ arch/powerpc/mm/hugetlbpage.c |   22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+Index: linux-2.6/arch/powerpc/mm/hugetlbpage.c
 ===================================================================
---- linux-2.6.orig/mm/hugetlb.c	2008-06-03 19:52:53.000000000 +1000
-+++ linux-2.6/mm/hugetlb.c	2008-06-03 19:52:57.000000000 +1000
-@@ -331,6 +331,16 @@ static int adjust_pool_surplus(int delta
- 	return ret;
- }
+--- linux-2.6.orig/arch/powerpc/mm/hugetlbpage.c	2008-06-03 19:56:55.000000000 +1000
++++ linux-2.6/arch/powerpc/mm/hugetlbpage.c	2008-06-03 19:57:03.000000000 +1000
+@@ -29,6 +29,12 @@
  
-+static void prep_new_huge_page(struct page *page, int nid)
+ #define NUM_LOW_AREAS	(0x100000000UL >> SID_SHIFT)
+ #define NUM_HIGH_AREAS	(PGTABLE_RANGE >> HTLB_AREA_SHIFT)
++#define MAX_NUMBER_GPAGES	1024
++
++/* Tracks the 16G pages after the device tree is scanned and before the
++ * huge_boot_pages list is ready.  */
++static unsigned long gpage_freearray[MAX_NUMBER_GPAGES];
++static unsigned nr_gpages;
+ 
+ unsigned int hugepte_shift;
+ #define PTRS_PER_HUGEPTE	(1 << hugepte_shift)
+@@ -104,6 +110,21 @@ pmd_t *hpmd_alloc(struct mm_struct *mm, 
+ }
+ #endif
+ 
++/* Moves the gigantic page addresses from the temporary list to the
++ * huge_boot_pages list.  */
++int alloc_bootmem_huge_page(struct hstate *h)
 +{
-+	set_compound_page_dtor(page, free_huge_page);
-+	spin_lock(&hugetlb_lock);
-+	nr_huge_pages++;
-+	nr_huge_pages_node[nid]++;
-+	spin_unlock(&hugetlb_lock);
-+	put_page(page); /* free it into the hugepage allocator */
++	struct huge_bootmem_page *m;
++	if (nr_gpages == 0)
++		return 0;
++	m = phys_to_virt(gpage_freearray[--nr_gpages]);
++	gpage_freearray[nr_gpages] = 0;
++	list_add(&m->list, &huge_boot_pages);
++	m->hstate = h;
++	return 1;
 +}
 +
- static struct page *alloc_fresh_huge_page_node(int nid)
++
+ /* Modelled after find_linux_pte() */
+ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
  {
- 	struct page *page;
-@@ -344,12 +354,7 @@ static struct page *alloc_fresh_huge_pag
- 			__free_pages(page, HUGETLB_PAGE_ORDER);
- 			return NULL;
- 		}
--		set_compound_page_dtor(page, free_huge_page);
--		spin_lock(&hugetlb_lock);
--		nr_huge_pages++;
--		nr_huge_pages_node[nid]++;
--		spin_unlock(&hugetlb_lock);
--		put_page(page); /* free it into the hugepage allocator */
-+		prep_new_huge_page(page, nid);
- 	}
- 
- 	return page;
 
 -- 
 
