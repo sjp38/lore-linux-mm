@@ -1,53 +1,82 @@
-Message-Id: <20080603100939.220982006@amd.local0.net>
+Message-Id: <20080603100938.973546655@amd.local0.net>
 References: <20080603095956.781009952@amd.local0.net>
-Date: Tue, 03 Jun 2008 20:00:04 +1000
+Date: Tue, 03 Jun 2008 20:00:02 +1000
 From: npiggin@suse.de
-Subject: [patch 08/21] mm: export prep_compound_page to mm
-Content-Disposition: inline; filename=mm-export-prep_compound_page.patch
+Subject: [patch 06/21] hugetlb: abstract numa round robin selection
+Content-Disposition: inline; filename=hugetlb-abstract-numa-rr.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, Adam Litke <agl@us.ibm.com>, kniht@us.ibm.com, andi@firstfloor.org, abh@cray.com, joachim.deguara@amd.com
 List-ID: <linux-mm.kvack.org>
 
-hugetlb will need to get compound pages from bootmem to handle the case of them
-being greater than or equal to MAX_ORDER. Export the constructor function
-needed for this.
+Need this as a separate function for a future patch.
+
+No behaviour change.
 
 Acked-by: Adam Litke <agl@us.ibm.com>
+Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
 Signed-off-by: Andi Kleen <ak@suse.de>
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
- mm/internal.h   |    2 ++
- mm/page_alloc.c |    2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ mm/hugetlb.c |   37 ++++++++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)
 
-Index: linux-2.6/mm/internal.h
+Index: linux-2.6/mm/hugetlb.c
 ===================================================================
---- linux-2.6.orig/mm/internal.h	2008-06-03 19:52:49.000000000 +1000
-+++ linux-2.6/mm/internal.h	2008-06-03 19:56:48.000000000 +1000
-@@ -16,6 +16,8 @@
- void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
- 		unsigned long floor, unsigned long ceiling);
- 
-+extern void prep_compound_page(struct page *page, unsigned long order);
-+
- static inline void set_page_count(struct page *page, int v)
- {
- 	atomic_set(&page->_count, v);
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c	2008-06-03 19:52:49.000000000 +1000
-+++ linux-2.6/mm/page_alloc.c	2008-06-03 19:56:48.000000000 +1000
-@@ -288,7 +288,7 @@ static void free_compound_page(struct pa
- 	__free_pages_ok(page, compound_order(page));
+--- linux-2.6.orig/mm/hugetlb.c	2008-06-03 19:56:43.000000000 +1000
++++ linux-2.6/mm/hugetlb.c	2008-06-03 19:56:45.000000000 +1000
+@@ -383,6 +383,27 @@ static struct page *alloc_fresh_huge_pag
+ 	return page;
  }
  
--static void prep_compound_page(struct page *page, unsigned long order)
-+void prep_compound_page(struct page *page, unsigned long order)
++/*
++ * Use a helper variable to find the next node and then
++ * copy it back to hugetlb_next_nid afterwards:
++ * otherwise there's a window in which a racer might
++ * pass invalid nid MAX_NUMNODES to alloc_pages_node.
++ * But we don't need to use a spin_lock here: it really
++ * doesn't matter if occasionally a racer chooses the
++ * same nid as we do.  Move nid forward in the mask even
++ * if we just successfully allocated a hugepage so that
++ * the next caller gets hugepages on the next node.
++ */
++static int hstate_next_node(struct hstate *h)
++{
++	int next_nid;
++	next_nid = next_node(h->hugetlb_next_nid, node_online_map);
++	if (next_nid == MAX_NUMNODES)
++		next_nid = first_node(node_online_map);
++	h->hugetlb_next_nid = next_nid;
++	return next_nid;
++}
++
+ static int alloc_fresh_huge_page(struct hstate *h)
  {
- 	int i;
- 	int nr_pages = 1 << order;
+ 	struct page *page;
+@@ -396,21 +417,7 @@ static int alloc_fresh_huge_page(struct 
+ 		page = alloc_fresh_huge_page_node(h, h->hugetlb_next_nid);
+ 		if (page)
+ 			ret = 1;
+-		/*
+-		 * Use a helper variable to find the next node and then
+-		 * copy it back to hugetlb_next_nid afterwards:
+-		 * otherwise there's a window in which a racer might
+-		 * pass invalid nid MAX_NUMNODES to alloc_pages_node.
+-		 * But we don't need to use a spin_lock here: it really
+-		 * doesn't matter if occasionally a racer chooses the
+-		 * same nid as we do.  Move nid forward in the mask even
+-		 * if we just successfully allocated a hugepage so that
+-		 * the next caller gets hugepages on the next node.
+-		 */
+-		next_nid = next_node(h->hugetlb_next_nid, node_online_map);
+-		if (next_nid == MAX_NUMNODES)
+-			next_nid = first_node(node_online_map);
+-		h->hugetlb_next_nid = next_nid;
++		next_nid = hstate_next_node(h);
+ 	} while (!page && h->hugetlb_next_nid != start_nid);
+ 
+ 	if (ret)
 
 -- 
 
