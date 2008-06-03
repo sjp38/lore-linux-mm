@@ -1,59 +1,89 @@
-Message-Id: <20080603095956.781009952@amd.local0.net>
-Date: Tue, 03 Jun 2008 19:59:56 +1000
+Message-Id: <20080603100939.967775671@amd.local0.net>
+References: <20080603095956.781009952@amd.local0.net>
+Date: Tue, 03 Jun 2008 20:00:10 +1000
 From: npiggin@suse.de
-Subject: [patch 00/21] hugetlb multi size, giant hugetlb support, etc
+Subject: [patch 14/21] x86: add hugepagesz option on 64-bit
+Content-Disposition: inline; filename=x86-64-implement-hugepagesz.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, kniht@us.ibm.com, andi@firstfloor.org, abh@cray.com, joachim.deguara@amd.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Add an hugepagesz=... option similar to IA64, PPC etc. to x86-64.
 
-Here is my submission to be merged in -mm. Given the amount of hunks this
-patchset has, and the recent flurry of hugetlb development work, I'd hope to
-get this merged up provided there aren't major issues (I would prefer to fix
-minor ones with incremental patches). It's just a lot of error prone work to
-track -mm when multiple concurrent development is happening.
+This finally allows to select GB pages for hugetlbfs in x86 now
+that all the infrastructure is in place.
 
-Patch against latest mmotm.
+Signed-off-by: Andi Kleen <ak@suse.de>
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+---
+ Documentation/kernel-parameters.txt |   11 +++++++++--
+ arch/x86/mm/hugetlbpage.c           |   17 +++++++++++++++++
+ include/asm-x86/page.h              |    2 ++
+ 3 files changed, 28 insertions(+), 2 deletions(-)
 
+Index: linux-2.6/arch/x86/mm/hugetlbpage.c
+===================================================================
+--- linux-2.6.orig/arch/x86/mm/hugetlbpage.c	2008-06-03 19:56:56.000000000 +1000
++++ linux-2.6/arch/x86/mm/hugetlbpage.c	2008-06-03 19:56:57.000000000 +1000
+@@ -425,3 +425,20 @@ hugetlb_get_unmapped_area(struct file *f
+ 
+ #endif /*HAVE_ARCH_HUGETLB_UNMAPPED_AREA*/
+ 
++#ifdef CONFIG_X86_64
++static __init int setup_hugepagesz(char *opt)
++{
++	unsigned long ps = memparse(opt, &opt);
++	if (ps == PMD_SIZE) {
++		hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT);
++	} else if (ps == PUD_SIZE && cpu_has_gbpages) {
++		hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
++	} else {
++		printk(KERN_ERR "hugepagesz: Unsupported page size %lu M\n",
++			ps >> 20);
++		return 0;
++	}
++	return 1;
++}
++__setup("hugepagesz=", setup_hugepagesz);
++#endif
+Index: linux-2.6/include/asm-x86/page.h
+===================================================================
+--- linux-2.6.orig/include/asm-x86/page.h	2008-06-03 19:52:47.000000000 +1000
++++ linux-2.6/include/asm-x86/page.h	2008-06-03 19:56:57.000000000 +1000
+@@ -29,6 +29,8 @@
+ #define HPAGE_MASK		(~(HPAGE_SIZE - 1))
+ #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
+ 
++#define HUGE_MAX_HSTATE 2
++
+ /* to align the pointer to the (next) page boundary */
+ #define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+ 
+Index: linux-2.6/Documentation/kernel-parameters.txt
+===================================================================
+--- linux-2.6.orig/Documentation/kernel-parameters.txt	2008-06-03 19:52:47.000000000 +1000
++++ linux-2.6/Documentation/kernel-parameters.txt	2008-06-03 19:56:58.000000000 +1000
+@@ -765,8 +765,15 @@ and is between 256 and 4096 characters. 
+ 	hisax=		[HW,ISDN]
+ 			See Documentation/isdn/README.HiSax.
+ 
+-	hugepages=	[HW,X86-32,IA-64] Maximal number of HugeTLB pages.
+-	hugepagesz=	[HW,IA-64,PPC] The size of the HugeTLB pages.
++	hugepages=	[HW,X86-32,IA-64] HugeTLB pages to allocate at boot.
++	hugepagesz=	[HW,IA-64,PPC,X86-64] The size of the HugeTLB pages.
++			On x86 this option can be specified multiple times
++			interleaved with hugepages= to reserve huge pages
++			of different sizes. Valid pages sizes on x86-64
++			are 2M (when the CPU supports "pse") and 1G (when the
++			CPU supports the "pdpe1gb" cpuinfo flag)
++			Note that 1GB pages can only be allocated at boot time
++			using hugepages= and not freed afterwards.
+ 
+ 	i8042.direct	[HW] Put keyboard port into non-translated mode
+ 	i8042.dumbkbd	[HW] Pretend that controller can only read data from
 
-What I have done for the user API issues with this release is to take the
-safe way out and just maintain the existing hugepages user interfaces
-unchanged. I've integrated Nish's sysfs API to control the other huge
-page sizes.
-
-I had initially opted to drop the /proc/sys/vm/* parts of the changes, but
-I found that the libhugetlbfs suite continued to have failures, so I
-decided to revert the multi column /proc/meminfo changes too, for now.
-
-I say for now, because it is very easy to subsequently agree on some
-extention to the API, but it is much harder to revert such an extention once
-it has been made. I also think the main thing at this point is to get the
-existing patchset merged. User API changes I really don't want to worry
-with at the moment... point is: the infrastructure changes are a lot of
-work to code, but not so hard to get right; the user API changes are
-easy to code but harder to get right.
-
-New to this patchset: I have implemented a default_hugepagesz= boot option
-(defaulting to the arch's HPAGE_SIZE if unspecified), which can be used to
-specify the default hugepage size for all /proc/* files, SHM, and default
-hugetlbfs mount size. This is the best compromise I could find to keep back
-compatibility while allowing the possibility to try different sizes with
-legacy code.
-
-One thing I worry about is whether the sysfs API is going to be foward
-compatible with NUMA allocation changes that might be in the pipe.
-This need not hold up a merge into -mm, but I'd like some reassurances
-that thought is put in before it goes upstream.
-
-Lastly, embarassingly, I'm not the best source of information for the
-sysfs tunables, so incremental patches against Documentation/ABI would
-be welcome :P
-
-Thanks,
-Nick
 -- 
 
 --
