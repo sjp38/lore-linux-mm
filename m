@@ -1,66 +1,86 @@
-Date: Tue, 3 Jun 2008 14:46:18 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: [patch 3/5] x86: lockless get_user_pages_fast
-Message-Id: <20080603144618.0a4dcfc8.sfr@canb.auug.org.au>
-In-Reply-To: <20080603023419.GC5527@wotan.suse.de>
-References: <20080529122050.823438000@nick.local0.net>
-	<20080529122602.330656000@nick.local0.net>
-	<1212081659.6308.10.camel@norville.austin.ibm.com>
-	<20080602101530.GA7206@wotan.suse.de>
-	<20080602212833.226146bc.sfr@canb.auug.org.au>
-	<20080603023419.GC5527@wotan.suse.de>
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate2.de.ibm.com (8.13.8/8.13.8) with ESMTP id m5386Rtr239398
+	for <linux-mm@kvack.org>; Tue, 3 Jun 2008 08:06:27 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m5386RcS4038750
+	for <linux-mm@kvack.org>; Tue, 3 Jun 2008 10:06:27 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5386RwX031418
+	for <linux-mm@kvack.org>; Tue, 3 Jun 2008 10:06:27 +0200
+Subject: Re: [PATCH] Optimize page_remove_rmap for anon pages
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Reply-To: schwidefsky@de.ibm.com
+In-Reply-To: <200806030957.49069.nickpiggin@yahoo.com.au>
+References: <1212069392.16984.25.camel@localhost>
+	 <200806030957.49069.nickpiggin@yahoo.com.au>
+Content-Type: text/plain
+Date: Tue, 03 Jun 2008 10:06:03 +0200
+Message-Id: <1212480363.7746.19.camel@localhost>
 Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
- micalg="PGP-SHA1";
- boundary="Signature=_Tue__3_Jun_2008_14_46_18_+1000_g1njvM6w4ycl2OqB"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Dave Kleikamp <shaggy@linux.vnet.ibm.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, apw@shadowen.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---Signature=_Tue__3_Jun_2008_14_46_18_+1000_g1njvM6w4ycl2OqB
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On Tue, 2008-06-03 at 09:57 +1000, Nick Piggin wrote:
 
-Hi Nick,
+First of all: thanks for looking into this. Games with the dirty bit are
+scary and any change needs careful consideration.
 
-On Tue, 3 Jun 2008 04:34:20 +0200 Nick Piggin <npiggin@suse.de> wrote:
->
-> Thanks for the offer... I was hoping for Andrew to pick it up (which
-> he now has).
->=20
-> I'm not sure how best to do mm/ related stuff, but I suspect we have
-> gone as smoothly as we are in large part due to Andrew's reviewing
-> and martialling mm patches so well.
+> I don't know if it is that simple, is it?
 
-Yeah, that is the correct and best way to go.
+It should be analog to the fact that for the two place the page_zap_rmap
+function is supposed to be used the pte dirty bit isn't checked as well.
 
-> For other developments I'll keep linux-next in mind. I guess it will
-> be useful for me eg in the case where I change an arch defined prototype
-> that requires a big sweep of the tree.
+> I don't know how you are guaranteeing the given page ceases to exist.
+> Even checking for the last mapper of the page (which you don't appear
+> to do anyway) isn't enough because there could be a swapcount, in which
+> case you should still have to mark the page as dirty.
+> 
+> For example (I think, unless s390 somehow propogates the dirty page
+> bit some other way that I've missed), wouldn't the following break:
+> 
+> process p1 allocates anonymous page A
+> p1 dirties A
+> p1 forks p2, A now has a mapcount of 2
+> p2 VM_LOCKs A (something to prevent it being swapped)
+> page reclaim unmaps p1's pte, fails on p2
+> p2 exits, page_dirty does not get checked because of this patch
+> page has mapcount 0, PG_dirty is clear
+> Page reclaim can drop it without writing it to swap
 
-Yep, linux-next is idea for that because you find out all the places you
-step on other people's toes :-)
+Indeed, this would break. Even without the VM_LOCK there is a race of
+try_to_unmap vs. process exit. 
 
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-http://www.canb.auug.org.au/~sfr/
+> As far as the general idea goes, it might be possible to avoid the
+> check somehow, but you'd want to be pretty sure of yourself before
+> diverging the s390 path further from the common code base, no?
 
---Signature=_Tue__3_Jun_2008_14_46_18_+1000_g1njvM6w4ycl2OqB
-Content-Type: application/pgp-signature
+I don't want to diverge more than necessary. But the performance gains
+of the SSKE/ISKE avoidance makes it worthwhile for s390, no?
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
+> The "easy" way to do it might be just unconditionally mark the page
+> as dirty in this path (if the pte was writeable), so you can avoid
+> the page_test_dirty check and be sure of not missing the dirty bit.
 
-iD8DBQFIRMydTgG2atn1QN8RAvtDAJsHNRYgIzPGkVsAUYUNcZN+Eyh3+ACfeitJ
-QSzEQ1WU09+zvIpUu+MtNWA=
-=sMhS
------END PGP SIGNATURE-----
+Hmm, but then an mprotect() can change the pte to read-ony and we'd miss
+the dirty bit again. Back to the drawing board.
 
---Signature=_Tue__3_Jun_2008_14_46_18_+1000_g1njvM6w4ycl2OqB--
+By the way there is another SSKE I want to get rid of: __SetPageUptodate
+does a page_clear_dirty(). For all uses of __SetPageUptodate the page
+will be dirty after the application did its first write. To clear the
+page dirty bit only to have it set again shortly after doesn't make much
+sense to me. Has there been any particular reason for the
+page_clear_dirty in __SetPageUptodate ?
+
+-- 
+blue skies,
+  Martin.
+
+"Reality continues to ruin my life." - Calvin.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
