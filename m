@@ -1,111 +1,73 @@
-Date: Tue, 3 Jun 2008 09:26:05 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH 001/001] mmu-notifier-core v17
-In-Reply-To: <20080509193230.GH7710@duo.random>
-Message-ID: <alpine.LFD.1.10.0806030909030.3473@woody.linux-foundation.org>
-References: <20080509193230.GH7710@duo.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from fe-sfbay-09.sun.com ([192.18.43.129])
+	by sca-es-mail-2.sun.com (8.13.7+Sun/8.12.9) with ESMTP id m53HHFpZ023534
+	for <linux-mm@kvack.org>; Tue, 3 Jun 2008 10:17:15 -0700 (PDT)
+Received: from conversion-daemon.fe-sfbay-09.sun.com by fe-sfbay-09.sun.com
+ (Sun Java System Messaging Server 6.2-8.04 (built Feb 28 2007))
+ id <0K1W00701D24P200@fe-sfbay-09.sun.com> (original mail from adilger@sun.com)
+ for linux-mm@kvack.org; Tue, 03 Jun 2008 10:17:15 -0700 (PDT)
+Date: Tue, 03 Jun 2008 11:17:01 -0600
+From: Andreas Dilger <adilger@sun.com>
+Subject: Re: [patch 22/23] fs: check for statfs overflow
+In-reply-to: <20080603032715.GB17089@wotan.suse.de>
+Message-id: <20080603171701.GX2961@webber.adilger.int>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7BIT
+Content-disposition: inline
+References: <20080525142317.965503000@nick.local0.net>
+ <20080525143454.453947000@nick.local0.net> <20080527171452.GJ20709@us.ibm.com>
+ <483C42B9.7090102@linux.vnet.ibm.com> <20080528090257.GC2630@wotan.suse.de>
+ <20080529235607.GO2985@webber.adilger.int>
+ <20080530011408.GB11715@wotan.suse.de>
+ <20080602031602.GA2961@webber.adilger.int>
+ <20080603032715.GB17089@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Jon Tollefson <kniht@linux.vnet.ibm.com>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, andi@firstfloor.org, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Fri, 9 May 2008, Andrea Arcangeli wrote:
+On Jun 03, 2008  05:27 +0200, Nick Piggin wrote:
+> On Sun, Jun 01, 2008 at 09:16:02PM -0600, Andreas Dilger wrote:
+> > On May 30, 2008  03:14 +0200, Nick Piggin wrote:
+> > > Oh? Hmm, from my reading, such filesystems will already overflow f_blocks
+> > > check which is already there. Jon's patch only adds checks for f_bsize
+> > > and f_frsize.
+> > 
+> > Sorry, you are right - I meant that the whole f_blocks check is broken
+> > for filesystems > 16TB.  Scaling f_bsize is easy, and prevents gratuitous
+> > breakage of old applications for a few kB of accuracy.
 > 
-> At least for KVM without this patch it's impossible to swap guests
-> reliably. And having this feature and removing the page pin allows
-> several other optimizations that simplify life considerably.
+> Oh... hmm OK but they do have stat64 I guess, although maybe they aren't
+> coded for it.
 
-Ok, this looks ok as far as I'm concerned. I did not look at any details, 
-so obviously other VM people need to ack the parts they care about, but at 
-least I think this one is fine from a "big picture".
+Right - we had this problem with all of the tools with some older distros
+being compiled against the old statfs syscall and we had to put the statfs
+scaling inside Lustre to avoid the 16TB overflow.
 
-I do have some small nits that are just about trivial stuff.
+The problem with the current kernel VFS interface is that the filesystem
+doesn't know whether the 32-bit or 64-bit statfs interface is being called,
+and rather than returning an error to an application we'd prefer to return
+scaled statfs results (with some small amount of rounding error).  Even
+for 20PB filesystems (the largest planned for this year) the free/used/avail
+space would only be rounded to 4MB sizes, which isn't so bad.
 
-> 1) Introduces list_del_init_rcu and documents it (fixes a comment for
->    list_del_rcu too)
+> Anyway, point is noted, but I'm not the person (nor is this the patchset)
+> to make such changes.
 
-I think this should go in separately, and be split up into a patch of its 
-own, just because it's really an independent area. So make it [1/3].
+Right...
 
-> 2) mm_take_all_locks() to register the mmu notifier when the whole VM
->    isn't doing anything with "mm". This allows mmu notifier users to
->    keep track if the VM is in the middle of the
->    invalidate_range_begin/end critical section with an atomic counter
->    incraese in range_begin and decreased in range_end.
+> Do you agree that if we have these checks in coimpat_statfs, then we
+> should put the same ones in the non-compat as well as the 64 bit
+> versions?
 
-Similarly, even without any users, I think this can be posted as an 
-independent patch, just for setting things up, and to make the whole thing 
-easier to look through and review. So make this [2/3].
+If it only affects hugetlbfs then I'm not too concerned.
 
-But before doing that, can you split up the low-level single-vma anon/file 
-locking/unlocking, please?
-
-In other words, your 'mm_take_all_locks()' rigth now looks like it _works_ 
-correctly, but it nests too deeply considering the complexity of it. 
-There's really subtle things going on inside that for-loop, and I think it 
-would be much better to split those low-level locking rules out.
-
-IOW, instead of:
-
-> +int mm_take_all_locks(struct mm_struct *mm)
-> +{
-> +	struct vm_area_struct *vma;
-> +	int ret = -EINTR;
-> +
-> +	BUG_ON(down_read_trylock(&mm->mmap_sem));
-> +
-> +	mutex_lock(&mm_all_locks_mutex);
-> +
-> +	for (vma = mm->mmap; vma; vma = vma->vm_next) {
-> +		struct file *filp;
-> +		if (signal_pending(current))
-> +			goto out_unlock;
-> +		if (vma->anon_vma && !test_bit(0, (unsigned long *)
-> +					       &vma->anon_vma->head.next)) {
-> +			/*
-> +			 * The LSB of head.next can't change from
-> +			 * under us because we hold the
-> +			 * global_mm_spinlock.
-> +			 */
-> +			spin_lock(&vma->anon_vma->lock);
-...
-
-ie, can you please make it be
-
-	for (vma = mm->mmap; vma; vma = vma->vm_next) {
-		if (signal_pending(current))
-			goto out_unlock;
-		if (vma->anon_vma)
-			vm_lock_anon_vma(vma->anon_vma);
-		if (vma->vm_file && vma->vm_file->f_mapping)
-			vm_lock_mapping(vma->vm_file->f_mapping);
-	}
-
-and the same thing for unlocking.. Doesn't that look more obvious and 
-easier to understand from a high-level standpoing (and then the individual 
-locking rules for mappings/anon_vma's will also be more obvious, just 
-because they are separated from the higher-level code).
-
-The comments are fine, but even with the comments I'd prefer you to write 
-the code so that you don't need to break up the conditionals over multiple 
-lines etc.
-
-Anyway - I didn't look very much at the actual _notifier_ stuff (ie the 
-thing that I think should be [patch 3/3]), so I don't have any real 
-comments about that part - but I don't really care either. Becasue as long 
-as it doesn't mess up the core VM logic, I no longer have any real 
-objections.
-
-I'd obviously want to see ack's by people like Andrew, Hugh and Nick, but 
-as far as I am concerned, if you just do the trivial cleanup/split, you 
-can add an "Acked-by: Linus Torvalds <torvalds@linux-foundation.org>" to 
-at least the two first patches of the split-up series.
-
-		Linus
+Cheers, Andreas
+--
+Andreas Dilger
+Sr. Staff Engineer, Lustre Group
+Sun Microsystems of Canada, Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
