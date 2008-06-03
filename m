@@ -1,53 +1,66 @@
-Date: Tue, 3 Jun 2008 05:27:15 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 22/23] fs: check for statfs overflow
-Message-ID: <20080603032715.GB17089@wotan.suse.de>
-References: <20080525142317.965503000@nick.local0.net> <20080525143454.453947000@nick.local0.net> <20080527171452.GJ20709@us.ibm.com> <483C42B9.7090102@linux.vnet.ibm.com> <20080528090257.GC2630@wotan.suse.de> <20080529235607.GO2985@webber.adilger.int> <20080530011408.GB11715@wotan.suse.de> <20080602031602.GA2961@webber.adilger.int>
+Date: Tue, 3 Jun 2008 14:46:18 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [patch 3/5] x86: lockless get_user_pages_fast
+Message-Id: <20080603144618.0a4dcfc8.sfr@canb.auug.org.au>
+In-Reply-To: <20080603023419.GC5527@wotan.suse.de>
+References: <20080529122050.823438000@nick.local0.net>
+	<20080529122602.330656000@nick.local0.net>
+	<1212081659.6308.10.camel@norville.austin.ibm.com>
+	<20080602101530.GA7206@wotan.suse.de>
+	<20080602212833.226146bc.sfr@canb.auug.org.au>
+	<20080603023419.GC5527@wotan.suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080602031602.GA2961@webber.adilger.int>
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA1";
+ boundary="Signature=_Tue__3_Jun_2008_14_46_18_+1000_g1njvM6w4ycl2OqB"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andreas Dilger <adilger@sun.com>
-Cc: Jon Tollefson <kniht@linux.vnet.ibm.com>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, andi@firstfloor.org, agl@us.ibm.com, abh@cray.com, joachim.deguara@amd.com, linux-fsdevel@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Dave Kleikamp <shaggy@linux.vnet.ibm.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jun 01, 2008 at 09:16:02PM -0600, Andreas Dilger wrote:
-> On May 30, 2008  03:14 +0200, Nick Piggin wrote:
-> > On Thu, May 29, 2008 at 05:56:07PM -0600, Andreas Dilger wrote:
-> > > On May 28, 2008  11:02 +0200, Nick Piggin wrote:
-> > > > @@ -197,8 +197,8 @@ static int put_compat_statfs(struct comp
-> > > >  	if (sizeof ubuf->f_blocks == 4) {
-> > > > +		if ((kbuf->f_blocks | kbuf->f_bfree | kbuf->f_bavail |
-> > > > +		     kbuf->f_bsize | kbuf->f_frsize) & 0xffffffff00000000ULL)
-> > > >  			return -EOVERFLOW;
-> > > 
-> > > Hmm, doesn't this check break every filesystem > 16TB on 4kB PAGE_SIZE
-> > > nodes?  It would be better, IMHO, to scale down f_blocks, f_bfree, and
-> > > f_bavail and correspondingly scale up f_bsize to fit into the 32-bit
-> > > statfs structure.
-> > 
-> > Oh? Hmm, from my reading, such filesystems will already overflow f_blocks
-> > check which is already there. Jon's patch only adds checks for f_bsize
-> > and f_frsize.
-> 
-> Sorry, you are right - I meant that the whole f_blocks check is broken
-> for filesystems > 16TB.  Scaling f_bsize is easy, and prevents gratuitous
-> breakage of old applications for a few kB of accuracy.
+--Signature=_Tue__3_Jun_2008_14_46_18_+1000_g1njvM6w4ycl2OqB
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Oh... hmm OK but they do have stat64 I guess, although maybe they aren't
-coded for it.
+Hi Nick,
 
-Anyway, point is noted, but I'm not the person (nor is this the patchset)
-to make such changes.
+On Tue, 3 Jun 2008 04:34:20 +0200 Nick Piggin <npiggin@suse.de> wrote:
+>
+> Thanks for the offer... I was hoping for Andrew to pick it up (which
+> he now has).
+>=20
+> I'm not sure how best to do mm/ related stuff, but I suspect we have
+> gone as smoothly as we are in large part due to Andrew's reviewing
+> and martialling mm patches so well.
 
-Do you agree that if we have these checks in coimpat_statfs, then we
-should put the same ones in the non-compat as well as the 64 bit
-versions?
+Yeah, that is the correct and best way to go.
 
-Thanks,
-Nick
+> For other developments I'll keep linux-next in mind. I guess it will
+> be useful for me eg in the case where I change an arch defined prototype
+> that requires a big sweep of the tree.
+
+Yep, linux-next is idea for that because you find out all the places you
+step on other people's toes :-)
+
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
+
+--Signature=_Tue__3_Jun_2008_14_46_18_+1000_g1njvM6w4ycl2OqB
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQFIRMydTgG2atn1QN8RAvtDAJsHNRYgIzPGkVsAUYUNcZN+Eyh3+ACfeitJ
+QSzEQ1WU09+zvIpUu+MtNWA=
+=sMhS
+-----END PGP SIGNATURE-----
+
+--Signature=_Tue__3_Jun_2008_14_46_18_+1000_g1njvM6w4ycl2OqB--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
