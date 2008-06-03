@@ -1,68 +1,98 @@
-Message-Id: <20080603100940.341232340@amd.local0.net>
+Date: Tue, 3 Jun 2008 12:29:02 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch 1/1] x86: get_user_pages_lockless support 1GB hugepages
+Message-ID: <20080603102902.GA23454@wotan.suse.de>
 References: <20080603095956.781009952@amd.local0.net>
-Date: Tue, 03 Jun 2008 20:00:13 +1000
-From: npiggin@suse.de
-Subject: [patch 17/21] powerpc: function to allocate gigantic hugepages
-Content-Disposition: inline; filename=powerpc-function-for-gigantic-hugepage-allocation.patch
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080603095956.781009952@amd.local0.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
-Cc: Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, Adam Litke <agl@us.ibm.com>, Jon Tollefson <kniht@linux.vnet.ibm.com>, kniht@us.ibm.com, andi@firstfloor.org, abh@cray.com, joachim.deguara@amd.com
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, kniht@us.ibm.com, andi@firstfloor.org, abh@cray.com, joachim.deguara@amd.com, Dave Kleikamp <shaggy@austin.ibm.com>, Andy Whitcroft <apw@shadowen.org>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Badari Pulavarty <pbadari@us.ibm.com>, Zach Brown <zach.brown@oracle.com>, Jens Axboe <jens.axboe@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-The 16G page locations have been saved during early boot in an array.
-The alloc_bootmem_huge_page() function adds a page from here to the
-huge_boot_pages list.
+Hi,
 
-Acked-by: Adam Litke <agl@us.ibm.com>
-Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
-Signed-off-by: Nick Piggin <npiggin@suse.de>
+This patch couples lockless get_user_pages with the 1GB hugepages for
+x86: if one is merged upstream first, this patch has to be merged with
+the other.
+
 ---
 
- arch/powerpc/mm/hugetlbpage.c |   22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+x86: support 1GB hugepages with get_user_pages_lockless()
 
-Index: linux-2.6/arch/powerpc/mm/hugetlbpage.c
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+
+Index: linux-2.6/arch/x86/mm/gup.c
 ===================================================================
---- linux-2.6.orig/arch/powerpc/mm/hugetlbpage.c	2008-06-03 19:56:55.000000000 +1000
-+++ linux-2.6/arch/powerpc/mm/hugetlbpage.c	2008-06-03 19:57:03.000000000 +1000
-@@ -29,6 +29,12 @@
+--- linux-2.6.orig/arch/x86/mm/gup.c
++++ linux-2.6/arch/x86/mm/gup.c
+@@ -122,7 +122,7 @@ static noinline int gup_huge_pmd(pmd_t p
  
- #define NUM_LOW_AREAS	(0x100000000UL >> SID_SHIFT)
- #define NUM_HIGH_AREAS	(PGTABLE_RANGE >> HTLB_AREA_SHIFT)
-+#define MAX_NUMBER_GPAGES	1024
-+
-+/* Tracks the 16G pages after the device tree is scanned and before the
-+ * huge_boot_pages list is ready.  */
-+static unsigned long gpage_freearray[MAX_NUMBER_GPAGES];
-+static unsigned nr_gpages;
- 
- unsigned int hugepte_shift;
- #define PTRS_PER_HUGEPTE	(1 << hugepte_shift)
-@@ -104,6 +110,21 @@ pmd_t *hpmd_alloc(struct mm_struct *mm, 
+ 	refs = 0;
+ 	head = pte_page(pte);
+-	page = head + ((addr & ~HPAGE_MASK) >> PAGE_SHIFT);
++	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
+ 	do {
+ 		VM_BUG_ON(compound_head(page) != head);
+ 		pages[*nr] = page;
+@@ -160,6 +160,38 @@ static int gup_pmd_range(pud_t pud, unsi
+ 	return 1;
  }
- #endif
  
-+/* Moves the gigantic page addresses from the temporary list to the
-+ * huge_boot_pages list.  */
-+int alloc_bootmem_huge_page(struct hstate *h)
++static noinline int gup_huge_pud(pud_t pud, unsigned long addr,
++		unsigned long end, int write, struct page **pages, int *nr)
 +{
-+	struct huge_bootmem_page *m;
-+	if (nr_gpages == 0)
++	unsigned long mask;
++	pte_t pte = *(pte_t *)&pud;
++	struct page *head, *page;
++	int refs;
++
++	mask = _PAGE_PRESENT|_PAGE_USER;
++	if (write)
++		mask |= _PAGE_RW;
++	if ((pte_val(pte) & mask) != mask)
 +		return 0;
-+	m = phys_to_virt(gpage_freearray[--nr_gpages]);
-+	gpage_freearray[nr_gpages] = 0;
-+	list_add(&m->list, &huge_boot_pages);
-+	m->hstate = h;
++	/* hugepages are never "special" */
++	VM_BUG_ON(pte_val(pte) & _PAGE_SPECIAL);
++	VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
++
++	refs = 0;
++	head = pte_page(pte);
++	page = head + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
++	do {
++		VM_BUG_ON(compound_head(page) != head);
++		pages[*nr] = page;
++		(*nr)++;
++		page++;
++		refs++;
++	} while (addr += PAGE_SIZE, addr != end);
++	get_head_page_multiple(head, refs);
++
 +	return 1;
 +}
 +
-+
- /* Modelled after find_linux_pte() */
- pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+ static int gup_pud_range(pgd_t pgd, unsigned long addr, unsigned long end, int write, struct page **pages, int *nr)
  {
-
--- 
+ 	unsigned long next;
+@@ -172,8 +204,13 @@ static int gup_pud_range(pgd_t pgd, unsi
+ 		next = pud_addr_end(addr, end);
+ 		if (pud_none(pud))
+ 			return 0;
+-		if (!gup_pmd_range(pud, addr, next, write, pages, nr))
+-			return 0;
++		if (unlikely(pud_large(pud))) {
++			if (!gup_huge_pud(pud, addr, next, write, pages, nr))
++				return 0;
++		} else {
++			if (!gup_pmd_range(pud, addr, next, write, pages, nr))
++				return 0;
++		}
+ 	} while (pudp++, addr = next, addr != end);
+ 
+ 	return 1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
