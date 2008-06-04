@@ -1,7 +1,7 @@
-Date: Wed, 4 Jun 2008 14:01:53 +0900
+Date: Wed, 4 Jun 2008 14:03:29 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 1/2] memcg: res_counter hierarchy
-Message-Id: <20080604140153.fec6cc99.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 2/2] memcg: hardwall hierarhcy for memcg
+Message-Id: <20080604140329.8db1b67e.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20080604135815.498eaf82.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080604135815.498eaf82.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -13,422 +13,301 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "menage@google.com" <menage@google.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-A simple hard-wall hierarhcy support for res_counter.
+Hard-Wall hierarchy support for memcg.
+ - new member hierarchy_model is added to memcg.
+
+Only root cgroup can modify this only when there is no children.
+
+Adds following functions for supporting HARDWALL hierarchy.
+ - try to reclaim memory at the change of "limit".
+ - try to reclaim all memory at force_empty
+ - returns resources to the parent at destroy.
 
 Changelog v2->v3
- - changed the name and arguments of functions.
- - rewrote to be read easily.
- - named as HardWall hierarchy.
+ - added documentation.
+ - hierarhcy_model parameter is added.
 
-This implements following model
- - A cgroup's tree means hierarchy of resource.
- - All child's resource is moved from its parents.
- - The resource moved to children is charged as parent's usage.
- - The resource moves when child->limit is changed.
- - The sum of resource for children and its own usage is limited by "limit".
- 
-This implies
- - No dynamic automatic hierarhcy balancing in the kernel.
- - Each resource is isolated completely.
- - The kernel just supports resource-move-at-change-in-limit.
- - The user (middle-ware) is responsible to make hierarhcy balanced well.
-   Good balance can be achieved by changing limit from user land.
-
-
-Background:
- Recently, there are popular resource isolation technique widely used,
- i.e. Hardware-Virtualization. We can do hierarchical resource isolation
- by using cgroup on it. But supporting hierarchy management in croups
- has some advantages of performance, unity and costs of management.
-
- There are good resource management in other OSs, they support some kind of
- hierarchical resource management. We wonder what kind of hierarchy policy
- is good for Linux. And there is an another point. Hierarchical system can be
- implemented by the kernel and user-land co-operation.  So, there are various
- choices to do in the kernel. Doing all in the kernel or export some proper
- interfaces to the user-land. Middle-wares are tend to be used for management.
- I hope there will be Open Source one.
-
- At supporting hierarchy in cgroup, several aspects of characteristics of
- policy of hierarchy can be considered. Some needs automatic balancing
- between several groups.
-
-  - fairness    ... how fairness is kept under policy
-
-  - performance ... should be _fast_. multi-level resource balancing tend
-                 to use much amount of CPU and can cause soft lockup.
-
-  - predictability ... resource management are usually used for resource
-                 isolation. the kernel must not break the isolation and
-                 predictability of users against application's progress.
-
-  - flexibility ... some sophisticated dynamic resource balancing with
- 		 soft-limit is welcomed when the user doesn't want strict
-		 resource isolation or when the user cannot estimate how much
-		 they want correctly.
-
-Hard Wall Hierarchy.
-
- This patch implements a hard-wall model of hierarchy for resources.
- Works well for users who want strict resource isolation.
-
- This model allows the move of resource only between a parent and its children.
- The resource is moved to a child when it declares the amount of resources to be
- used. (by limit)
- Automatic resource balancing is not supported in this code.  
- (But users can do non-automatic by changing limit dynamically.)
-
- - fairness    ... good. no resource sharing. works as specified by users.
- - performance ... good. each resources are capsuled to its own level.
- - predictability ... good. resources are completely isolated. balancing only
-		occurs at the event of changes in limit.
- - flexibility ... bad. no flexibility and scheduling in the kernel level.
-	        need middle-ware's help.
-
-Considerations:
- - This implementation uses "limit" == "current_available_resource".
-   This should be revisited when Soft-Limit one is implemented.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 ---
- Documentation/controllers/resource_counter.txt |   41 +++++++++
- include/linux/res_counter.h                    |   90 +++++++++++++++++++-
- kernel/res_counter.c                           |  112 +++++++++++++++++++++++--
- 3 files changed, 235 insertions(+), 8 deletions(-)
+ Documentation/controllers/memory.txt |   27 +++++-
+ mm/memcontrol.c                      |  156 ++++++++++++++++++++++++++++++++++-
+ 2 files changed, 178 insertions(+), 5 deletions(-)
 
-Index: temp-2.6.26-rc2-mm1/include/linux/res_counter.h
+Index: temp-2.6.26-rc2-mm1/mm/memcontrol.c
 ===================================================================
---- temp-2.6.26-rc2-mm1.orig/include/linux/res_counter.h
-+++ temp-2.6.26-rc2-mm1/include/linux/res_counter.h
-@@ -38,6 +38,16 @@ struct res_counter {
- 	 * the number of unsuccessful attempts to consume the resource
- 	 */
- 	unsigned long long failcnt;
+--- temp-2.6.26-rc2-mm1.orig/mm/memcontrol.c
++++ temp-2.6.26-rc2-mm1/mm/memcontrol.c
+@@ -137,6 +137,8 @@ struct mem_cgroup {
+ 	struct mem_cgroup_lru_info info;
+ 
+ 	int	prev_priority;	/* for recording reclaim priority */
 +
-+	/*
-+	 * hierarchy support: the parent of this resource.
-+	 */
-+	struct res_counter *parent;
-+	/*
-+	 * the amount of resources assigned to children.
-+	 */
-+	unsigned long long for_children;
-+
++	int	hierarchy_model; /* used hierarchical policy */
  	/*
- 	 * the lock to protect all of the above.
- 	 * the routines below consider this to be IRQ-safe
-@@ -63,9 +73,20 @@ u64 res_counter_read_u64(struct res_coun
- ssize_t res_counter_read(struct res_counter *counter, int member,
- 		const char __user *buf, size_t nbytes, loff_t *pos,
- 		int (*read_strategy)(unsigned long long val, char *s));
+ 	 * statistics.
+ 	 */
+@@ -144,6 +146,10 @@ struct mem_cgroup {
+ };
+ static struct mem_cgroup init_mem_cgroup;
+ 
 +
-+/*
-+ * An interface for setting res_counter's member (ex. limit)
-+ * the new parameter is passed by *buf and translated by write_strategy().
-+ * Then, it is applied to member under the control of set_strategy().
-+ * If write_strategy() and set_strategy() can be NULL. see res_counter.c
-+ */
++#define MEMCG_NO_HIERARCHY	(0)
++#define MEMCG_HARDWALL_HIERARCHY	(1)
 +
- ssize_t res_counter_write(struct res_counter *counter, int member,
--		const char __user *buf, size_t nbytes, loff_t *pos,
--		int (*write_strategy)(char *buf, unsigned long long *val));
-+	const char __user *buf, size_t nbytes, loff_t *pos,
-+        int (*write_strategy)(char *buf, unsigned long long *val),
-+	int (*set_strategy)(struct res_counter *res, unsigned long long val,
-+			    int what),
-+	);
+ /*
+  * We use the lower bit of the page->page_cgroup pointer as a bit spin
+  * lock.  We need to ensure that page->page_cgroup is at least two
+@@ -792,6 +798,89 @@ int mem_cgroup_shrink_usage(struct mm_st
+ }
  
  /*
-  * the field descriptors. one for each member of res_counter
-@@ -76,15 +97,33 @@ enum {
- 	RES_MAX_USAGE,
- 	RES_LIMIT,
- 	RES_FAILCNT,
-+	RES_FOR_CHILDREN,
++ * Memory Controller hierarchy support.
++ */
++
++/*
++ * shrink usage to be res->usage + val < res->limit.
++ */
++
++int memcg_shrink_val(struct res_counter *cnt, unsigned long long val)
++{
++	struct mem_cgroup *memcg = container_of(cnt, struct mem_cgroup, res);
++	unsigned long flags;
++	int ret = 1;
++	int progress = 1;
++
++retry:
++	spin_lock_irqsave(&cnt->lock, flags);
++	/* Need to shrink ? */
++	if (cnt->usage + val <= cnt->limit)
++		ret = 0;
++	spin_unlock_irqrestore(&cnt->lock, flags);
++
++	if (!ret)
++		return 0;
++
++	if (!progress)
++		return 1;
++	progress = try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL);
++
++	goto retry;
++}
++
++/*
++ * For Hard Wall Hierarchy.
++ */
++
++int mem_cgroup_resize_callback(struct res_counter *cnt,
++			unsigned long long val, int what)
++{
++	unsigned long flags, borrow;
++	unsigned long long diffs;
++	int ret = 0;
++
++	BUG_ON(what != RES_LIMIT);
++
++	/* Is this under hierarchy ? */
++	if (!cnt->parent) {
++		spin_lock_irqsave(&cnt->lock, flags);
++		cnt->limit = val;
++		spin_unlock_irqrestore(&cnt->lock, flags);
++		return 0;
++	}
++
++	spin_lock_irqsave(&cnt->lock, flags);
++	if (val > cnt->limit) {
++		diffs = val - cnt->limit;
++		borrow = 1;
++	} else {
++		diffs = cnt->limit - val;
++		borrow = 0;
++	}
++	spin_unlock_irqrestore(&cnt->lock, flags);
++
++	if (borrow)
++		ret = res_counter_move_resource(cnt,diffs,
++					memcg_shrink_val,
++					MEM_CGROUP_RECLAIM_RETRIES);
++	else
++		ret = res_counter_return_resource(cnt, diffs,
++					memcg_shrink_val,
++					MEM_CGROUP_RECLAIM_RETRIES);
++	return ret;
++}
++
++
++void memcg_shrink_all(struct mem_cgroup *mem)
++{
++	unsigned long long val;
++
++	val = res_counter_read_u64(&mem->res, RES_LIMIT);
++	memcg_shrink_val(&mem->res, val);
++}
++
++/*
+  * This routine traverse page_cgroup in given list and drop them all.
+  * *And* this routine doesn't reclaim page itself, just removes page_cgroup.
+  */
+@@ -848,6 +937,8 @@ static int mem_cgroup_force_empty(struct
+ 	if (mem_cgroup_subsys.disabled)
+ 		return 0;
+ 
++	memcg_shrink_all(mem);
++
+ 	css_get(&mem->css);
+ 	/*
+ 	 * page reclaim code (kswapd etc..) will move pages between
+@@ -896,11 +987,44 @@ static ssize_t mem_cgroup_write(struct c
+ 				struct file *file, const char __user *userbuf,
+ 				size_t nbytes, loff_t *ppos)
+ {
+-	return res_counter_write(&mem_cgroup_from_cont(cont)->res,
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
++
++	if (cft->private != RES_LIMIT
++		|| !cont->parent
++		|| memcg->hierarchy_model == MEMCG_NO_HIERARCHY)
++		return res_counter_write(&memcg->res, cft->private, userbuf,
++			nbytes, ppos, mem_cgroup_write_strategy, NULL);
++	else
++		return res_counter_write(&memcg->res,
+ 				cft->private, userbuf, nbytes, ppos,
+-				mem_cgroup_write_strategy);
++				mem_cgroup_write_strategy,
++				mem_cgroup_resize_callback);
++}
++
++
++static u64 mem_cgroup_read_hierarchy(struct cgroup *cgrp, struct cftype *cft)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++	return memcg->hierarchy_model;
++}
++
++static int mem_cgroup_write_hierarchy(struct cgroup *cgrp, struct cftype *cft,
++				u64 val)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++	/* chage policy is allowed to ROOT cgroup && no children */
++	if (cgrp->parent)
++		return -EINVAL;
++	if (!list_empty(&cgrp->children))
++		return -EINVAL;
++	if (val == 0 || val == 1) {
++		memcg->hierarchy_model = val;
++		return 0;
++	}
++	return -EINVAL;
+ }
+ 
++
+ static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
+ {
+ 	struct mem_cgroup *mem;
+@@ -992,6 +1116,16 @@ static struct cftype mem_cgroup_files[] 
+ 		.name = "stat",
+ 		.read_map = mem_control_stat_show,
+ 	},
++	{
++		.name = "hierarchy_model",
++		.read_u64 = mem_cgroup_read_hierarchy,
++		.write_u64 = mem_cgroup_write_hierarchy,
++	},
++	{
++		.name = "assigned_to_child",
++		.private = RES_FOR_CHILDREN,
++		.read_u64 = mem_cgroup_read,
++	},
  };
  
- /*
-  * helpers for accounting
-  */
- 
-+/*
-+ * initialize res_counter.
-+ * @counter : the counter
-+ *
-+ * initialize res_counter and set default limit to very big value(unlimited)
-+ */
-+
- void res_counter_init(struct res_counter *counter);
- 
- /*
-+ * initialize res_counter under hierarchy.
-+ * @counter : the counter
-+ * @parent : the parent of the counter
-+ *
-+ * initialize res_counter and set default limit to 0. and set "parent".
-+ */
-+void res_counter_init_hierarchy(struct res_counter *counter,
-+				struct res_counter *parent);
-+
-+/*
-  * charge - try to consume more resource.
-  *
-  * @counter: the counter
-@@ -153,4 +192,51 @@ static inline void res_counter_reset_fai
- 	cnt->failcnt = 0;
- 	spin_unlock_irqrestore(&cnt->lock, flags);
- }
-+
-+/**
-+ * Move resources from a parent to a child.
-+ * At success,
-+ *           parent->usage += val.
-+ *           parent->for_children += val.
-+ *           child->limit += val.
-+ *
-+ * @child:    an entity to set res->limit. The parent is child->parent.
-+ * @val:      the amount of resource to be moved.
-+ * @callback: called when the parent's free resource is not enough to be moved.
-+ *            this can be NULL if no callback is necessary.
-+ * @retry:    limit for the number of trying to callback.
-+ *            -1 means infinite loop. At each retry, yield() is called.
-+ * Returns 0 at success, !0 at failure.
-+ *
-+ * The callback returns 0 at success, !0 at failure.
-+ *
-+ */
-+
-+int res_counter_move_resource(struct res_counter *child,
-+	unsigned long long val,
-+        int (*callback)(struct res_counter *res, unsigned long long val),
-+	int retry);
-+
-+
-+/**
-+ * Return resource to its parent.
-+ * At success,
-+ *           parent->usage  -= val.
-+ *           parent->for_children -= val.
-+ *           child->limit -= val.
-+ *
-+ * @child:   entry to resize. The parent is child->parent.
-+ * @val  :   How much does child repay to parent ? -1 means 'all'
-+ * @callback: A callback for decreasing resource usage of child before
-+ *            returning. If NULL, just deceases child's limit.
-+ * @retry:   # of retries at calling callback for freeing resource.
-+ *            -1 means infinite loop. At each retry, yield() is called.
-+ * Returns 0 at success.
-+ */
-+
-+int res_counter_return_resource(struct res_counter *child,
-+	unsigned long long val,
-+	int (*callback)(struct res_counter *res, unsigned long long val),
-+	int retry);
-+
- #endif
-Index: temp-2.6.26-rc2-mm1/Documentation/controllers/resource_counter.txt
-===================================================================
---- temp-2.6.26-rc2-mm1.orig/Documentation/controllers/resource_counter.txt
-+++ temp-2.6.26-rc2-mm1/Documentation/controllers/resource_counter.txt
-@@ -44,6 +44,13 @@ to work with it.
-  	Protects changes of the above values.
- 
- 
-+ f. struct res_counter *parent
-+
-+	Parent res_counter under hierarchy.
-+
-+ g. unsigned long long for_children
-+
-+	Resources assigned to children. This is included in usage.
- 
- 2. Basic accounting routines
- 
-@@ -179,3 +186,37 @@ counter fields. They are recommended to 
-     still can help with it).
- 
-  c. Compile and run :)
-+
-+
-+6. Hierarchy
-+ a. No Hierarchy
-+   each cgroup can use its own private resource.
-+
-+ b. Hard-wall Hierarhcy
-+   A simple hierarchical tree system for resource isolation.
-+   Allows moving resources only between a parent and its children.
-+   A parent can move its resource to children and remember the amount to
-+   for_children member. A child can get new resource only from its parent.
-+   Limit of a child is the amount of resource which is moved from its parent.
-+
-+   When add "val" to a child,
-+	parent->usage += val
-+	parent->for_children += val
-+	child->limit += val
-+   When a child returns its resource
-+	parent->usage -= val
-+	parent->for_children -= val
-+	child->limit -= val.
-+
-+   This implements resource isolation among each group. This works very well
-+   when you want to use strict resource isolation.
-+
-+   Usage Hint:
-+   This seems for static resource assignment but dynamic resource re-assignment
-+   can be done by resetting "limit" of groups. When you consider "limit" as
-+   the amount of allowed _current_ resource, a sophisticated resource management
-+   system based on strict resource isolation can be implemented.
-+
-+c. Soft-wall Hierarchy
-+   TBD.
-+
-Index: temp-2.6.26-rc2-mm1/kernel/res_counter.c
-===================================================================
---- temp-2.6.26-rc2-mm1.orig/kernel/res_counter.c
-+++ temp-2.6.26-rc2-mm1/kernel/res_counter.c
-@@ -20,6 +20,14 @@ void res_counter_init(struct res_counter
- 	counter->limit = (unsigned long long)LLONG_MAX;
- }
- 
-+void res_counter_init_hierarchy(struct res_counter *counter,
-+		struct res_counter *parent)
-+{
-+	spin_lock_init(&counter->lock);
-+	counter->limit = 0;
-+	counter->parent = parent;
-+}
-+
- int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
+ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+@@ -1056,19 +1190,27 @@ static void mem_cgroup_free(struct mem_c
+ static struct cgroup_subsys_state *
+ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
  {
- 	if (counter->usage + val > counter->limit) {
-@@ -74,6 +82,8 @@ res_counter_member(struct res_counter *c
- 		return &counter->limit;
- 	case RES_FAILCNT:
- 		return &counter->failcnt;
-+	case RES_FOR_CHILDREN:
-+		return &counter->for_children;
- 	};
+-	struct mem_cgroup *mem;
++	struct mem_cgroup *mem, *parent;
+ 	int node;
  
- 	BUG();
-@@ -104,7 +114,9 @@ u64 res_counter_read_u64(struct res_coun
- 
- ssize_t res_counter_write(struct res_counter *counter, int member,
- 		const char __user *userbuf, size_t nbytes, loff_t *pos,
--		int (*write_strategy)(char *st_buf, unsigned long long *val))
-+		int (*write_strategy)(char *st_buf, unsigned long long *val),
-+		int (*set_strategy)(struct res_counter *res,
-+			unsigned long long val, int what))
- {
- 	int ret;
- 	char *buf, *end;
-@@ -133,13 +145,101 @@ ssize_t res_counter_write(struct res_cou
- 		if (*end != '\0')
- 			goto out_free;
+ 	if (unlikely((cont->parent) == NULL)) {
+ 		mem = &init_mem_cgroup;
+ 		page_cgroup_cache = KMEM_CACHE(page_cgroup, SLAB_PANIC);
++		parent = NULL;
+ 	} else {
+ 		mem = mem_cgroup_alloc();
+ 		if (!mem)
+ 			return ERR_PTR(-ENOMEM);
++		parent = mem_cgroup_from_cont(cont->parent);
  	}
--	spin_lock_irqsave(&counter->lock, flags);
--	val = res_counter_member(counter, member);
--	*val = tmp;
--	spin_unlock_irqrestore(&counter->lock, flags);
--	ret = nbytes;
-+	if (set_strategy) {
-+		ret = set_strategy(res, tmp, member);
-+		if (!ret)
-+			ret = nbytes;
+ 
+-	res_counter_init(&mem->res);
++	if (!parent || parent->hierarchy_model == MEMCG_NO_HIERARCHY) {
++		res_counter_init(&mem->res);
++		mem->hierarchy_model = MEMCG_NO_HIERARCHY;
 +	} else {
-+		spin_lock_irqsave(&counter->lock, flags);
-+		val = res_counter_member(counter, member);
-+		*val = tmp;
-+		spin_unlock_irqrestore(&counter->lock, flags);
-+		ret = nbytes;
++		res_counter_init_hierarchy(&mem->res, &parent->res);
++		mem->hierarchy_model = parent->hierarchy_model;
 +	}
- out_free:
- 	kfree(buf);
- out:
- 	return ret;
- }
-+
-+
-+int res_counter_move_resource(struct res_counter *child,
-+				unsigned long long val,
-+	int (*callback)(struct res_counter *res, unsigned long long val),
-+	int retry)
-+{
-+	struct res_counter *parent = child->parent;
-+	unsigned long flags;
-+
-+	BUG_ON(!parent);
-+
-+	while (1) {
-+		spin_lock_irqsave(&parent->lock, flags);
-+		if (parent->usage + val < parent->limit) {
-+			parent->for_children += val;
-+			parent->usage += val;
-+			break;
-+		}
-+		spin_unlock_irqrestore(&parent->lock, flags);
-+
-+		if (!retry || !callback)
-+			goto failed;
-+		/* -1 means  infinite loop */
-+		if (retry != -1)
-+			--retry;
-+		yield();
-+		callback(parent, val);
+ 
+ 	for_each_node_state(node, N_POSSIBLE)
+ 		if (alloc_mem_cgroup_per_zone_info(mem, node))
+@@ -1096,6 +1238,12 @@ static void mem_cgroup_destroy(struct cg
+ 	int node;
+ 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+ 
++	if (cont->parent &&
++	    mem->hierarchy_model == MEMCG_HARDWALL_HIERARCHY) {
++		/* we did what we can...just returns what we borrow */
++		res_counter_return_resource(&mem->res, -1, NULL, 0);
 +	}
-+	spin_unlock_irqrestore(&parent->lock, flags);
 +
-+	spin_lock_irqsave(&child->lock, flags);
-+	child->limit += val;
-+	spin_unlock_irqrestore(&child->lock, flags);
-+	return 0;
-+fail:
-+	return 1;
-+}
+ 	for_each_node_state(node, N_POSSIBLE)
+ 		free_mem_cgroup_per_zone_info(mem, node);
+ 
+Index: temp-2.6.26-rc2-mm1/Documentation/controllers/memory.txt
+===================================================================
+--- temp-2.6.26-rc2-mm1.orig/Documentation/controllers/memory.txt
++++ temp-2.6.26-rc2-mm1/Documentation/controllers/memory.txt
+@@ -237,12 +237,37 @@ cgroup might have some charge associated
+ tasks have migrated away from it. Such charges are automatically dropped at
+ rmdir() if there are no tasks.
+ 
+-5. TODO
++5. Hierarchy Model
++  the kernel supports following kinds of hierarchy models.
++  (your middle-ware may support others based on this.)
++
++  5-a. Independent Hierarchy
++  There are no relationship between any cgroups, even among a parent and
++  children. This is the default mode. To use this hierarchy, write 0
++  to root cgroup's memory.hierarchy_model
++  echo 0 > .../memory.hierarchy_model.
++
++  5-b. Hardwall Hierarchy.
++  The resource has to be moved from the parent to the child before use it.
++  When a child's limit is set to 'val', val of the resource is moved from
++  the parent to the child. the parent's usage += val.
++  The amount of children's usage is reported by the file
++
++  - memory.assigned_to_child
++
++  This policy doesn't provide sophisticated automatic resource balancing in
++  the kernel. But this is very good for strict resource isolation. Users
++  can get high predictability of behavior of applications if this is used
++  under proper environments.
 +
 +
-+int res_counter_return_resource(struct res_counter *child,
-+				unsigned long long val,
-+	int (*callback)(struct res_counter *res, unsigned long long val),
-+	int retry)
-+{
-+	unsigned long flags;
-+	struct res_counter *parent = child->parent;
-+
-+	BUG_ON(!parent);
-+
-+	while (1) {
-+		spin_lock_irqsave(&child->lock, flags);
-+		if (val == (unsigned long long) -1) {
-+			val = child->limit;
-+			child->limit = 0;
-+			break;
-+		} else if (child->usage <= child->limit - val) {
-+			child->limit -= val;
-+			break;
-+		}
-+		spin_unlock_irqrestore(&child->lock, flags);
-+
-+		if (!retry)
-+			goto fail;
-+		/* -1 means infinite loop */
-+		if (retry != -1)
-+			--retry;
-+		yield();
-+		callback(parent, val);
-+	}
-+	spin_unlock_irqrestore(&child->lock, flags);
-+
-+	spin_lock_irqsave(&parent->lock, flags);
-+	BUG_ON(parent->for_children < val);
-+	BUG_ON(parent->usage < val);
-+	parent->for_children -= val;
-+	parent->usage -= val;
-+	spin_unlock_irqrestore(&parent->lock, flags);
-+	return 0;
-+fail:
-+	return 1;
-+}
++6. TODO
+ 
+ 1. Add support for accounting huge pages (as a separate controller)
+ 2. Make per-cgroup scanner reclaim not-shared pages first
+ 3. Teach controller to account for shared-pages
+ 4. Start reclamation when the limit is lowered
++   (this is already done in Hardwall Hierarchy)
+ 5. Start reclamation in the background when the limit is
+    not yet hit but the usage is getting closer
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
