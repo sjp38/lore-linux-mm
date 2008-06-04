@@ -1,55 +1,50 @@
-Date: Wed, 4 Jun 2008 23:46:22 +0900
-From: Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
-Subject: Collision of SLUB unique ID
-Message-Id: <20080604234622.4b73289c.yoichi_yuasa@tripeaks.co.jp>
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m54G2CSW006654
+	for <linux-mm@kvack.org>; Wed, 4 Jun 2008 12:02:12 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m54G228K072544
+	for <linux-mm@kvack.org>; Wed, 4 Jun 2008 10:02:03 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m54G1wri009556
+	for <linux-mm@kvack.org>; Wed, 4 Jun 2008 10:01:59 -0600
+Subject: Re: [patch 14/21] x86: add hugepagesz option on 64-bit
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20080604010428.GB30863@wotan.suse.de>
+References: <20080603095956.781009952@amd.local0.net>
+	 <20080603100939.967775671@amd.local0.net>
+	 <1212515282.8505.19.camel@nimitz.home.sr71.net>
+	 <20080603182413.GJ20824@one.firstfloor.org>
+	 <1212519555.8505.33.camel@nimitz.home.sr71.net>
+	 <20080603205752.GK20824@one.firstfloor.org>
+	 <1212528479.7567.28.camel@nimitz.home.sr71.net>
+	 <4845DC72.5080206@firstfloor.org>  <20080604010428.GB30863@wotan.suse.de>
+Content-Type: text/plain
+Date: Wed, 04 Jun 2008 09:01:55 -0700
+Message-Id: <1212595315.7567.41.camel@nimitz.home.sr71.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: yoichi_yuasa@tripeaks.co.jp, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, kniht@us.ibm.com, abh@cray.com, joachim.deguara@amd.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed, 2008-06-04 at 03:04 +0200, Nick Piggin wrote:
+> So I won't oppose this being tinkered with once it is in -mm or upstream.
+> So long as we try to make changes carefully. For example, there should
+> be no reason why we can't subsequently have a patch to register all
+> huge page sizes on boot, or if it is really important somebody might
+> write a patch to return the 1GB pages to the buddy allocator etc.
+> 
+> I'm basically just trying to follow the path of least resistance ;) So
+> I'm hoping that nobody is too upset with the current set of patches,
+> and from there I am very happy for people to submit incremental patches
+> to the user apis..
 
-I'm testing SLUB on Cobalt(MIPS machine).
-I got the following error messages at the boot time.
+That sounds like a good plan to me.  Let's see how the patches look on
+top of what you have here.
 
-The Cobalt's ARCH_KMALLOC_MINALIGN is 128.
-At this time, kmalloc-192 unique ID has collided with kmalloc-256.
-
-kobject_add_internal failed for :0000256 with -EEXIST, don't try to register things with the same name in the same directory.
-Call Trace:
-[<80086f34>] dump_stack+0x8/0x34
-[<801d4dbc>] kobject_add_internal+0x20c/0x214
-[<801d51cc>] kobject_init_and_add+0x40/0x58
-[<800fdbfc>] sysfs_slab_add+0x148/0x204
-[<803ac1b0>] slab_sysfs_init+0x80/0x158
-[<803a46c4>] kernel_init+0xa4/0x2e4
-[<800830dc>] kernel_thread_helper+0x10/0x18
-
-Bad page state in process 'swapper'
-page:81001d00 flags:0x00000400 mapping:00000000 mapcount:0 count:0
-Trying to fix it up, but a reboot is needed
-Backtrace:
-Call Trace:
-[<80086f34>] dump_stack+0x8/0x34
-[<800dadc4>] bad_page+0x74/0xb4
-[<800db874>] free_hot_cold_page+0x21c/0x22c
-[<801d4aa8>] kobject_release+0x58/0xb4
-[<801d5b38>] kref_put+0x68/0xac
-[<800fdc0c>] sysfs_slab_add+0x158/0x204
-[<803ac1b0>] slab_sysfs_init+0x80/0x158
-[<803a46c4>] kernel_init+0xa4/0x2e4
-[<800830dc>] kernel_thread_helper+0x10/0x18
-
-SLUB: Unable to add boot slab kmalloc-192 to sysfs
-
-
-Thanks,
-
-Yoichi
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
