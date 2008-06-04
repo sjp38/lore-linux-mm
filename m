@@ -1,58 +1,83 @@
-Date: Wed, 4 Jun 2008 21:53:34 +0900
-From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
-Subject: Re: [RFC][PATCH 2/2] memcg: hardwall hierarhcy for memcg
-Message-Id: <20080604215334.9f3a249b.d-nishimura@mtf.biglobe.ne.jp>
-In-Reply-To: <20080604182626.fcc26e24.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080604135815.498eaf82.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080604140329.8db1b67e.kamezawa.hiroyu@jp.fujitsu.com>
-	<6599ad830806040159w1026003fhe3212beac895927a@mail.gmail.com>
-	<20080604182626.fcc26e24.kamezawa.hiroyu@jp.fujitsu.com>
-Reply-To: nishimura@mxp.nes.nec.co.jp
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <48469C5B.4070307@goop.org>
+Date: Wed, 04 Jun 2008 14:44:59 +0100
+From: Jeremy Fitzhardinge <jeremy@goop.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/1] SGI UV: TLB shootdown using broadcast assist unit
+References: <E1K3fF0-00056O-HE@eag09.americas.sgi.com>
+In-Reply-To: <E1K3fF0-00056O-HE@eag09.americas.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Paul Menage <menage@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
+To: Cliff Wickman <cpw@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > > @@ -1096,6 +1238,12 @@ static void mem_cgroup_destroy(struct cg
-> > >        int node;
-> > >        struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
-> > >
-> > > +       if (cont->parent &&
-> > > +           mem->hierarchy_model == MEMCG_HARDWALL_HIERARCHY) {
-> > > +               /* we did what we can...just returns what we borrow */
-> > > +               res_counter_return_resource(&mem->res, -1, NULL, 0);
-> > > +       }
-> > > +
-> > 
-> > Should we also re-account any remaining child usage to the parent?
-> > 
-> When this is called, there are no process in this group. Then, remaining
-> resources in this level is
->   - file cache
->   - swap cache (if shared)
->   - shmem
-> 
-> And the biggest usage will be "file cache".
-> So, I don't think it's necessary to move child's usage to the parent,
-> in hurry. But maybe shmem is worth to be moved.
-> 
-> I'd like to revisit this when I implements "usage move at task move"
-> logic. (currenty, memory usage doesn't move to new cgroup at task_attach.)
-> 
-> It will help me to implement the logic "move remaining usage to the parent"
-> in clean way.
-> 
+Cliff Wickman wrote:
+> Signed-off-by: Cliff Wickman <cpw@sgi.com>
+> ---
+>  arch/x86/kernel/Makefile    |    2 
+>  arch/x86/kernel/entry_64.S  |    4 
+>  arch/x86/kernel/tlb_64.c    |    5 
+>  arch/x86/kernel/tlb_uv.c    |  785 ++++++++++++++++++++++++++++++++++++++++++++
+>  include/asm-x86/atomic_64.h |   30 +
+>   
 
-I agree that "usage move at task move" is needed before
-"move remaining usage to the parent".
+The atomic_64.h changes should be a separate patch.
+
+> Index: 080602.ingo/include/asm-x86/atomic_64.h
+> ===================================================================
+> --- 080602.ingo.orig/include/asm-x86/atomic_64.h
+> +++ 080602.ingo/include/asm-x86/atomic_64.h
+> @@ -425,6 +425,36 @@ static inline int atomic64_add_unless(at
+>  	return c != (u);
+>  }
+>  
+> +/**
+> + * atomic_inc_short - increment of a short integer
+> + * @v: pointer to type int
+> + *
+> + * Atomically adds 1 to @v
+> + * Returns the new value of @u
+> + */
+> +static inline short int atomic_inc_short(short int *v)
+> +{
+> +	asm volatile("movw $1, %%cx; lock; xaddw %%cx, %0\n"
+> +		: "+m" (*v) : : "cx");
+> +		/* clobbers counter register cx */
+> +	return *v;
+> +}
+>   
+Why?  Why not just:
+
+	asm("lock add $1, %0" : "+m" (*v));
+
+Does xaddw buy anything here?
+
+> +
+> +/**
+> + * atomic_or_long - OR of two long integers
+> + * @v1: pointer to type unsigned long
+> + * @v2: pointer to type unsigned long
+> + *
+> + * Atomically ORs @v1 and @v2
+> + * Returns the result of the OR
+> + */
+> +static inline void atomic_or_long(unsigned long *v1, unsigned long v2)
+> +{
+> +	asm volatile("movq %1, %%rax; lock; orq %%rax, %0\n"
+> +		: "+m" (*v1) : "g" (v2): "rax");
+> +		/* clobbers accumulator register ax */
+>   
+
+How about:
+
+	asm("lock or %1, %0" : "+m" (*v1), "r" (v2));
+
+No need to force %rax, is there?
 
 
-Thanks,
-Daisuke Nishimura.
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
