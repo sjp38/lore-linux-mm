@@ -1,64 +1,43 @@
-Date: Wed, 4 Jun 2008 18:14:31 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: Re: [patch 1/5] x86: implement pte_special
-Message-ID: <20080604171431.GD26120@shadowen.org>
-References: <20080529122050.823438000@nick.local0.net> <20080529122602.062780000@nick.local0.net> <20080602165847.dd19ddb1.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080602165847.dd19ddb1.akpm@linux-foundation.org>
+Date: Wed, 4 Jun 2008 11:39:11 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 00/21] hugetlb multi size, giant hugetlb support, etc
+Message-Id: <20080604113911.e5395f1d.akpm@linux-foundation.org>
+In-Reply-To: <48468343.2010006@firstfloor.org>
+References: <20080603095956.781009952@amd.local0.net>
+	<20080604012938.53b1003c.akpm@linux-foundation.org>
+	<48468343.2010006@firstfloor.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: npiggin@suse.de, shaggy@austin.ibm.com, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: npiggin@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, kniht@us.ibm.com, abh@cray.com, joachim.deguara@amd.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 02, 2008 at 04:58:47PM -0700, Andrew Morton wrote:
-> On Thu, 29 May 2008 22:20:51 +1000
-> npiggin@suse.de wrote:
-> 
-> > Implement the pte_special bit for x86. This is required to support lockless
-> > get_user_pages, because we need to know whether or not we can refcount a
-> > particular page given only its pte (and no vma).
-> 
-> Spits this reject:
-> 
-> ***************
-> *** 39,44 ****
->   #define _PAGE_UNUSED3	(_AC(1, L)<<_PAGE_BIT_UNUSED3)
->   #define _PAGE_PAT	(_AC(1, L)<<_PAGE_BIT_PAT)
->   #define _PAGE_PAT_LARGE (_AC(1, L)<<_PAGE_BIT_PAT_LARGE)
->   
->   #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
->   #define _PAGE_NX	(_AC(1, ULL) << _PAGE_BIT_NX)
-> --- 40,47 ----
->   #define _PAGE_UNUSED3	(_AC(1, L)<<_PAGE_BIT_UNUSED3)
->   #define _PAGE_PAT	(_AC(1, L)<<_PAGE_BIT_PAT)
->   #define _PAGE_PAT_LARGE (_AC(1, L)<<_PAGE_BIT_PAT_LARGE)
-> + #define _PAGE_SPECIAL	(_AC(1, L)<<_PAGE_BIT_SPECIAL)
-> + #define __HAVE_ARCH_PTE_SPECIAL
->   
->   #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
->   #define _PAGE_NX	(_AC(1, ULL) << _PAGE_BIT_NX)
-> 
-> Which I fixed thusly:
-> 
-> #define _PAGE_PAT	(_AT(pteval_t, 1) << _PAGE_BIT_PAT)
-> #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
-> #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
-> #define __HAVE_ARCH_PTE_SPECIAL
-> 
-> 
-> OK?
-> 
-> 
-> (Also please check the bunch of checkpatch fixes, a warning fix and a
-> compile fix).
+On Wed, 04 Jun 2008 13:57:55 +0200 Andi Kleen <andi@firstfloor.org> wrote:
 
-That looks a sane merge to me.  I had a quick look over the various
-fixes and they all look fine to me.
+> > 
+> > All pretty straightforward stuff, unless I'm missing something.  But
+> > please do spell it out because surely there's stuff in here which I
+> > will miss from the implementation and the skimpy changelog.
+> 
+> It was spelled out in the original 0/0
+> 
+> Here's a copy
+> ftp://ftp.firstfloor.org/pub/ak/gbpages/patches/intro
 
--apw
+yeah, like that.
+
+> > Please don't think I'm being anal here - changelogging matters.  It
+> > makes review more effective and it allows reviewers to find problems
+> > which they would otherwise have overlooked.  btdt, lots of times.
+> 
+> Hmm, perhaps we need dummy commits for 0/0s. I guess the intro could
+> be added to the changelog of the first patch.
+
+Yup.  I always copy the 0/n text into 1/n.  For some reason I often forget
+to do it until after I've committed the 1/n.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
