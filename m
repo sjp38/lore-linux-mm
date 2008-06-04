@@ -1,43 +1,66 @@
-Date: Wed, 4 Jun 2008 11:39:11 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 00/21] hugetlb multi size, giant hugetlb support, etc
-Message-Id: <20080604113911.e5395f1d.akpm@linux-foundation.org>
-In-Reply-To: <48468343.2010006@firstfloor.org>
-References: <20080603095956.781009952@amd.local0.net>
-	<20080604012938.53b1003c.akpm@linux-foundation.org>
-	<48468343.2010006@firstfloor.org>
+Date: Wed, 4 Jun 2008 10:51:30 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: [patch 14/21] x86: add hugepagesz option on 64-bit
+Message-Id: <20080604105130.cc4ca4e8.randy.dunlap@oracle.com>
+In-Reply-To: <20080604113112.777819936@amd.local0.net>
+References: <20080604112939.789444496@amd.local0.net>
+	<20080604113112.777819936@amd.local0.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: npiggin@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, kniht@us.ibm.com, abh@cray.com, joachim.deguara@amd.com
+To: npiggin@suse.de
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 04 Jun 2008 13:57:55 +0200 Andi Kleen <andi@firstfloor.org> wrote:
+On Wed, 04 Jun 2008 21:29:53 +1000 npiggin@suse.de wrote:
 
-> > 
-> > All pretty straightforward stuff, unless I'm missing something.  But
-> > please do spell it out because surely there's stuff in here which I
-> > will miss from the implementation and the skimpy changelog.
+> Add an hugepagesz=... option similar to IA64, PPC etc. to x86-64.
 > 
-> It was spelled out in the original 0/0
+> This finally allows to select GB pages for hugetlbfs in x86 now
+> that all the infrastructure is in place.
 > 
-> Here's a copy
-> ftp://ftp.firstfloor.org/pub/ak/gbpages/patches/intro
-
-yeah, like that.
-
-> > Please don't think I'm being anal here - changelogging matters.  It
-> > makes review more effective and it allows reviewers to find problems
-> > which they would otherwise have overlooked.  btdt, lots of times.
+> Signed-off-by: Andi Kleen <ak@suse.de>
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
+> ---
+>  Documentation/kernel-parameters.txt |   11 +++++++++--
+>  arch/x86/mm/hugetlbpage.c           |   17 +++++++++++++++++
+>  include/asm-x86/page.h              |    2 ++
+>  3 files changed, 28 insertions(+), 2 deletions(-)
 > 
-> Hmm, perhaps we need dummy commits for 0/0s. I guess the intro could
-> be added to the changelog of the first patch.
+> Index: linux-2.6/Documentation/kernel-parameters.txt
+> ===================================================================
+> --- linux-2.6.orig/Documentation/kernel-parameters.txt	2008-06-04 20:47:33.000000000 +1000
+> +++ linux-2.6/Documentation/kernel-parameters.txt	2008-06-04 20:51:24.000000000 +1000
+> @@ -765,8 +765,15 @@ and is between 256 and 4096 characters. 
+>  	hisax=		[HW,ISDN]
+>  			See Documentation/isdn/README.HiSax.
+>  
+> -	hugepages=	[HW,X86-32,IA-64] Maximal number of HugeTLB pages.
+> -	hugepagesz=	[HW,IA-64,PPC] The size of the HugeTLB pages.
+> +	hugepages=	[HW,X86-32,IA-64] HugeTLB pages to allocate at boot.
+> +	hugepagesz=	[HW,IA-64,PPC,X86-64] The size of the HugeTLB pages.
+> +			On x86 this option can be specified multiple times
 
-Yup.  I always copy the 0/n text into 1/n.  For some reason I often forget
-to do it until after I've committed the 1/n.
+Change this x86 to x86-64 like it is both above and below here?
+
+> +			interleaved with hugepages= to reserve huge pages
+> +			of different sizes. Valid pages sizes on x86-64
+> +			are 2M (when the CPU supports "pse") and 1G (when the
+> +			CPU supports the "pdpe1gb" cpuinfo flag)
+
+			                                   flag).
+
+> +			Note that 1GB pages can only be allocated at boot time
+> +			using hugepages= and not freed afterwards.
+>  
+>  	i8042.direct	[HW] Put keyboard port into non-translated mode
+>  	i8042.dumbkbd	[HW] Pretend that controller can only read data from
+
+
+---
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
