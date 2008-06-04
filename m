@@ -1,10 +1,12 @@
-Date: Wed, 4 Jun 2008 21:32:35 +0900
+Date: Wed, 4 Jun 2008 21:53:34 +0900
 From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
 Subject: Re: [RFC][PATCH 2/2] memcg: hardwall hierarhcy for memcg
-Message-Id: <20080604213235.defb1d01.d-nishimura@mtf.biglobe.ne.jp>
-In-Reply-To: <20080604140329.8db1b67e.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20080604215334.9f3a249b.d-nishimura@mtf.biglobe.ne.jp>
+In-Reply-To: <20080604182626.fcc26e24.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080604135815.498eaf82.kamezawa.hiroyu@jp.fujitsu.com>
 	<20080604140329.8db1b67e.kamezawa.hiroyu@jp.fujitsu.com>
+	<6599ad830806040159w1026003fhe3212beac895927a@mail.gmail.com>
+	<20080604182626.fcc26e24.kamezawa.hiroyu@jp.fujitsu.com>
 Reply-To: nishimura@mxp.nes.nec.co.jp
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -12,28 +14,41 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "menage@google.com" <menage@google.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
+Cc: Paul Menage <menage@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Hi.
+> > > @@ -1096,6 +1238,12 @@ static void mem_cgroup_destroy(struct cg
+> > >        int node;
+> > >        struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+> > >
+> > > +       if (cont->parent &&
+> > > +           mem->hierarchy_model == MEMCG_HARDWALL_HIERARCHY) {
+> > > +               /* we did what we can...just returns what we borrow */
+> > > +               res_counter_return_resource(&mem->res, -1, NULL, 0);
+> > > +       }
+> > > +
+> > 
+> > Should we also re-account any remaining child usage to the parent?
+> > 
+> When this is called, there are no process in this group. Then, remaining
+> resources in this level is
+>   - file cache
+>   - swap cache (if shared)
+>   - shmem
+> 
+> And the biggest usage will be "file cache".
+> So, I don't think it's necessary to move child's usage to the parent,
+> in hurry. But maybe shmem is worth to be moved.
+> 
+> I'd like to revisit this when I implements "usage move at task move"
+> logic. (currenty, memory usage doesn't move to new cgroup at task_attach.)
+> 
+> It will help me to implement the logic "move remaining usage to the parent"
+> in clean way.
+> 
 
-> @@ -848,6 +937,8 @@ static int mem_cgroup_force_empty(struct
->  	if (mem_cgroup_subsys.disabled)
->  		return 0;
->  
-> +	memcg_shrink_all(mem);
-> +
->  	css_get(&mem->css);
->  	/*
->  	 * page reclaim code (kswapd etc..) will move pages between
-
-Shouldn't it be called after verifying there remains no task
-in this group?
-
-If called via mem_cgroup_pre_destroy, it has been verified
-that there remains no task already, but if called via
-mem_force_empty_wrte, there may remain some tasks and
-this means many and many pages are swaped out, doesn't it?
+I agree that "usage move at task move" is needed before
+"move remaining usage to the parent".
 
 
 Thanks,
