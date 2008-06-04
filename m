@@ -1,51 +1,29 @@
-Message-ID: <484662E3.40902@brontes3d.com>
-Date: Wed, 04 Jun 2008 10:39:47 +0100
-From: Daniel Drake <ddrake@brontes3d.com>
-MIME-Version: 1.0
-Subject: Re: faulting kmalloced buffers into userspace through mmap()
-References: <4842B4C3.1070506@brontes3d.com> <87mym4tmz0.fsf@saeurebad.de>
-In-Reply-To: <87mym4tmz0.fsf@saeurebad.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Wed, 4 Jun 2008 02:46:48 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 00/21] hugetlb multi size, giant hugetlb support, etc
+Message-Id: <20080604024648.b05424df.akpm@linux-foundation.org>
+In-Reply-To: <20080604093517.GA32654@wotan.suse.de>
+References: <20080603095956.781009952@amd.local0.net>
+	<20080604012938.53b1003c.akpm@linux-foundation.org>
+	<20080604093517.GA32654@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Johannes Weiner <hannes@saeurebad.de>
-Cc: linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, kniht@us.ibm.com, andi@firstfloor.org, abh@cray.com, joachim.deguara@amd.com
 List-ID: <linux-mm.kvack.org>
 
-Hi Johannes,
+On Wed, 4 Jun 2008 11:35:17 +0200 Nick Piggin <npiggin@suse.de> wrote:
 
-Johannes Weiner wrote:
-> You broke the abstraction here.  There are no pages from kmalloc(), it
-> gives you other memory objects.  And on munmapping the region, the
-> kmalloc objects are passed back to the buddy allocator which then blows
-> the whistle with bad_page() on it.
+> OK, well I'm keen to get it into mm so it's not holding up (or being
+> busted by) other work... can I just try replying with improved
+> changelogs? Or do you want me to resend the full series?
 
-Thanks for the explanation, I attempted to document this here:
-http://linux-mm.org/DeviceDriverMmap
-Comments/edits are welcome!
-
-One more quick question: if pages that were mapped are "passed back to 
-the buddy allocator" during munmap() does that mean that the pages get 
-freed too?
-
-i.e. if I allocate some pages with alloc_pages(), remap them into 
-userspace in my VM .fault handler, and then userspace munmaps them, is 
-it still legal for my driver to use those pages internally after the 
-munmap? Do I still need to call __free_pages() on them when done?
-
-
-Also, it is possible to get the physical address of a kmalloc region 
-with virt_to_phys(). Is it also illegal to pass this physical address to 
-remap_pfn_range() to implement mmap in that fashion? Can't find any 
-in-kernel code that does this, but google brings up a few hits such as 
-http://www.opentech.at/papers/embedded_resources/node21.html
-
-Thanks!
--- 
-Daniel Drake
-Brontes Technologies, A 3M Company
-http://www.brontes3d.com/opensource/
+Full resend please - if I'm going to spend an hour with my nose stuck
+in this, there's not much point in getting all confused about what goes
+with what.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
