@@ -1,50 +1,83 @@
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m54G2CSW006654
-	for <linux-mm@kvack.org>; Wed, 4 Jun 2008 12:02:12 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m54G228K072544
-	for <linux-mm@kvack.org>; Wed, 4 Jun 2008 10:02:03 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m54G1wri009556
-	for <linux-mm@kvack.org>; Wed, 4 Jun 2008 10:01:59 -0600
-Subject: Re: [patch 14/21] x86: add hugepagesz option on 64-bit
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20080604010428.GB30863@wotan.suse.de>
-References: <20080603095956.781009952@amd.local0.net>
-	 <20080603100939.967775671@amd.local0.net>
-	 <1212515282.8505.19.camel@nimitz.home.sr71.net>
-	 <20080603182413.GJ20824@one.firstfloor.org>
-	 <1212519555.8505.33.camel@nimitz.home.sr71.net>
-	 <20080603205752.GK20824@one.firstfloor.org>
-	 <1212528479.7567.28.camel@nimitz.home.sr71.net>
-	 <4845DC72.5080206@firstfloor.org>  <20080604010428.GB30863@wotan.suse.de>
-Content-Type: text/plain
-Date: Wed, 04 Jun 2008 09:01:55 -0700
-Message-Id: <1212595315.7567.41.camel@nimitz.home.sr71.net>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+In-reply-to: <20080604163412.GL16572@duck.suse.cz> (message from Jan Kara on
+	Wed, 4 Jun 2008 18:34:12 +0200)
+Subject: Re: Two questions on VFS/mm
+References: <20080604163412.GL16572@duck.suse.cz>
+Message-Id: <E1K3wVW-0001Hv-QD@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Wed, 04 Jun 2008 19:10:42 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, kniht@us.ibm.com, abh@cray.com, joachim.deguara@amd.com
+To: jack@suse.cz
+Cc: linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-06-04 at 03:04 +0200, Nick Piggin wrote:
-> So I won't oppose this being tinkered with once it is in -mm or upstream.
-> So long as we try to make changes carefully. For example, there should
-> be no reason why we can't subsequently have a patch to register all
-> huge page sizes on boot, or if it is really important somebody might
-> write a patch to return the 1GB pages to the buddy allocator etc.
+(Added some CCs)
+
+>   could some kind soul knowledgable in VFS/mm help me with the following
+> two questions? I've spotted them when testing some ext4 for patches...
+>   1) In write_cache_pages() we do:
+> ...
+> 	lock_page(page);
+> 	...
+> 	if (!wbc->range_cyclic && page->index > end) {
+>                    done = 1;
+>                    unlock_page(page);
+>                    continue;
+>         }
+> 	...
+> 	ret = (*writepage)(page, wbc, data);
 > 
-> I'm basically just trying to follow the path of least resistance ;) So
-> I'm hoping that nobody is too upset with the current set of patches,
-> and from there I am very happy for people to submit incremental patches
-> to the user apis..
+>   Now the problem is that if range_cyclic is set, it can happen that the
+> page we give to the filesystem is beyond the current end of file (and can
+> be already processed by invalidatepage()). Is the filesystem supposed to
+> handle this (what would it be good for to give such a page to the fs?) or
+> is it just a bug in write_cache_pages()?
 
-That sounds like a good plan to me.  Let's see how the patches look on
-top of what you have here.
+There may be a bug somewhere, but write_cache_pages() looks correct.
+It locks the page then checks for page->mapping to make sure the page
+wasn't truncated.  And truncation (including invalidatepage()) happens
+with the page locked, so that can't race with page writeback.
 
--- Dave
+However the do_invalidatepage() in block_write_full_page() looks
+suspicious.  It calls invalidatepage(), but doesn't perform all the
+other things needed for truncation.  Maybe there's a valid reason for
+that, but I really don't have any idea what.
+
+Miklos
+
+> 
+>   2) I have the following problem with page_mkwrite() when blocksize <
+> pagesize. What we want to do is to fill in a potential hole under a page
+> somebody wants to write to. But consider following scenario with a
+> filesystem with 1k blocksize:
+>   truncate("file", 1024);
+>   ptr = mmap("file");
+>   *ptr = 'a'
+>      -> page_mkwrite() is called.
+>         but "file" is only 1k large and we cannot really allocate blocks
+>         beyond end of file. So we allocate just one 1k block.
+>   truncate("file", 4096);
+>   *(ptr + 2048) = 'a'
+>      - nothing is called and later during writepage() time we are surprised
+>        we have a dirty page which is not backed by a filesystem block.
+> 
+>   How to solve this? One idea I have here is that when we handle truncate(),
+> we mark the original last page (if it is partial) as read-only again so
+> that page_mkwrite() is called on the next write to it. Is something like
+> this possible? Pointers to code doing something similar are welcome, I don't
+> really know these things ;).
+> 
+> 								Thanks
+> 									Honza
+> -- 
+> Jan Kara <jack@suse.cz>
+> SUSE Labs, CR
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
