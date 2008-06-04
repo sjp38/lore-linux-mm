@@ -1,63 +1,47 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: faulting kmalloced buffers into userspace through mmap()
-Date: Wed, 4 Jun 2008 21:00:39 +1000
-References: <4842B4C3.1070506@brontes3d.com> <87mym4tmz0.fsf@saeurebad.de> <484662E3.40902@brontes3d.com>
-In-Reply-To: <484662E3.40902@brontes3d.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Date: Wed, 4 Jun 2008 13:04:38 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 00/21] hugetlb multi size, giant hugetlb support, etc
+Message-ID: <20080604110438.GB32654@wotan.suse.de>
+References: <20080603095956.781009952@amd.local0.net> <20080604012938.53b1003c.akpm@linux-foundation.org> <20080604093517.GA32654@wotan.suse.de> <20080604024648.b05424df.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200806042100.39345.nickpiggin@yahoo.com.au>
+In-Reply-To: <20080604024648.b05424df.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Drake <ddrake@brontes3d.com>
-Cc: Johannes Weiner <hannes@saeurebad.de>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, kniht@us.ibm.com, andi@firstfloor.org, abh@cray.com, joachim.deguara@amd.com
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 04 June 2008 19:39, Daniel Drake wrote:
-> Hi Johannes,
->
-> Johannes Weiner wrote:
-> > You broke the abstraction here.  There are no pages from kmalloc(), it
-> > gives you other memory objects.  And on munmapping the region, the
-> > kmalloc objects are passed back to the buddy allocator which then blows
-> > the whistle with bad_page() on it.
->
-> Thanks for the explanation, I attempted to document this here:
-> http://linux-mm.org/DeviceDriverMmap
-> Comments/edits are welcome!
+On Wed, Jun 04, 2008 at 02:46:48AM -0700, Andrew Morton wrote:
+> On Wed, 4 Jun 2008 11:35:17 +0200 Nick Piggin <npiggin@suse.de> wrote:
+> 
+> > OK, well I'm keen to get it into mm so it's not holding up (or being
+> > busted by) other work... can I just try replying with improved
+> > changelogs? Or do you want me to resend the full series?
+> 
+> Full resend please - if I'm going to spend an hour with my nose stuck
+> in this, there's not much point in getting all confused about what goes
+> with what.
 
-You can map it with a pfn mapping / vm_insert_pfn / remap_pfn_range etc.
-which does not touch the underlying struct pages. You must then ensure
-you deallocate the memory yourself after it is finished with.
+OK, coming right up...
 
+Firstly, you need to fix hugetlb building with CONFIG_HUGETLB off...
 
-> One more quick question: if pages that were mapped are "passed back to
-> the buddy allocator" during munmap() does that mean that the pages get
-> freed too?
-
-They get their refcount decremented if they were inserted with
-vm_insert_page or ->fault page fault handler.
-
-
-> i.e. if I allocate some pages with alloc_pages(), remap them into
-> userspace in my VM .fault handler, and then userspace munmaps them, is
-> it still legal for my driver to use those pages internally after the
-> munmap? Do I still need to call __free_pages() on them when done?
-
-Provided you increment the refcount on the pages in your fault
-handler, munmap will not free them, and it is still legal for
-your driver to touch them (and must free them itself).
-
-
-> Also, it is possible to get the physical address of a kmalloc region
-> with virt_to_phys(). Is it also illegal to pass this physical address to
-> remap_pfn_range() to implement mmap in that fashion? Can't find any
-> in-kernel code that does this, but google brings up a few hits such as
-> http://www.opentech.at/papers/embedded_resources/node21.html
-
-I think (__pa(address) >> PAGE_SIZE) should get you the pfn.
+---
+Index: linux-2.6/include/linux/hugetlb.h
+===================================================================
+--- linux-2.6.orig/include/linux/hugetlb.h	2008-06-03 20:44:40.000000000 +1000
++++ linux-2.6/include/linux/hugetlb.h	2008-06-03 20:45:07.000000000 +1000
+@@ -76,7 +76,7 @@ static inline unsigned long hugetlb_tota
+ #define follow_huge_addr(mm, addr, write)	ERR_PTR(-EINVAL)
+ #define copy_hugetlb_page_range(src, dst, vma)	({ BUG(); 0; })
+ #define hugetlb_prefault(mapping, vma)		({ BUG(); 0; })
+-#define unmap_hugepage_range(vma, start, end)	BUG()
++#define unmap_hugepage_range(vma, start, end, page)	BUG()
+ #define hugetlb_report_meminfo(buf)		0
+ #define hugetlb_report_node_meminfo(n, buf)	0
+ #define follow_huge_pmd(mm, addr, pmd, write)	NULL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
