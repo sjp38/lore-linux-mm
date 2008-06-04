@@ -1,53 +1,97 @@
-Message-Id: <20080604113112.023145620@amd.local0.net>
+Message-Id: <20080604113113.026345633@amd.local0.net>
 References: <20080604112939.789444496@amd.local0.net>
-Date: Wed, 04 Jun 2008 21:29:47 +1000
+Date: Wed, 04 Jun 2008 21:29:55 +1000
 From: npiggin@suse.de
-Subject: [patch 08/21] mm: export prep_compound_page to mm
-Content-Disposition: inline; filename=mm-export-prep_compound_page.patch
+Subject: [patch 16/21] hugetlb: allow arch overried hugepage allocation
+Content-Disposition: inline; filename=hugetlb-allow-arch-override-hugepage-allocation.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-hugetlb will need to get compound pages from bootmem to handle the case of them
-being greater than or equal to MAX_ORDER. Export the constructor function
-needed for this.
+Allow alloc_bootmem_huge_page() to be overridden by architectures that can't
+always use bootmem. This requires huge_boot_pages to be available for
+use by this function.
+
+This is required for powerpc 16G pages, which have to be reserved prior
+to boot-time. The location of these pages are indicated in the device
+tree.
 
 Acked-by: Adam Litke <agl@us.ibm.com>
-Signed-off-by: Andi Kleen <ak@suse.de>
+Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
- mm/internal.h   |    2 ++
- mm/page_alloc.c |    2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
 
-Index: linux-2.6/mm/internal.h
+ include/linux/hugetlb.h |   10 ++++++++++
+ mm/hugetlb.c            |   12 ++++--------
+ 2 files changed, 14 insertions(+), 8 deletions(-)
+
+
+Index: linux-2.6/include/linux/hugetlb.h
 ===================================================================
---- linux-2.6.orig/mm/internal.h	2008-06-04 20:47:34.000000000 +1000
-+++ linux-2.6/mm/internal.h	2008-06-04 20:51:21.000000000 +1000
-@@ -16,6 +16,8 @@
- void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
- 		unsigned long floor, unsigned long ceiling);
+--- linux-2.6.orig/include/linux/hugetlb.h	2008-06-04 20:51:23.000000000 +1000
++++ linux-2.6/include/linux/hugetlb.h	2008-06-04 20:51:25.000000000 +1000
+@@ -39,6 +39,7 @@ void hugetlb_unreserve_pages(struct inod
+ extern unsigned long hugepages_treat_as_movable;
+ extern const unsigned long hugetlb_zero, hugetlb_infinity;
+ extern int sysctl_hugetlb_shm_group;
++extern struct list_head huge_boot_pages;
  
-+extern void prep_compound_page(struct page *page, unsigned long order);
+ /* arch callbacks */
+ 
+@@ -188,6 +189,14 @@ struct hstate {
+ 	char name[HSTATE_NAME_LEN];
+ };
+ 
++struct huge_bootmem_page {
++	struct list_head list;
++	struct hstate *hstate;
++};
 +
- static inline void set_page_count(struct page *page, int v)
- {
- 	atomic_set(&page->_count, v);
-Index: linux-2.6/mm/page_alloc.c
++/* arch callback */
++int __init alloc_bootmem_huge_page(struct hstate *h);
++
+ void __init hugetlb_add_hstate(unsigned order);
+ struct hstate *size_to_hstate(unsigned long size);
+ 
+@@ -256,6 +265,7 @@ static inline struct hstate *page_hstate
+ 
+ #else
+ struct hstate {};
++#define alloc_bootmem_huge_page(h) NULL
+ #define hstate_file(f) NULL
+ #define hstate_vma(v) NULL
+ #define hstate_inode(i) NULL
+Index: linux-2.6/mm/hugetlb.c
 ===================================================================
---- linux-2.6.orig/mm/page_alloc.c	2008-06-04 20:47:34.000000000 +1000
-+++ linux-2.6/mm/page_alloc.c	2008-06-04 20:51:21.000000000 +1000
-@@ -288,7 +288,7 @@ static void free_compound_page(struct pa
- 	__free_pages_ok(page, compound_order(page));
+--- linux-2.6.orig/mm/hugetlb.c	2008-06-04 20:51:24.000000000 +1000
++++ linux-2.6/mm/hugetlb.c	2008-06-04 20:51:25.000000000 +1000
+@@ -31,6 +31,8 @@ static int max_hstate = 0;
+ unsigned int default_hstate_idx;
+ struct hstate hstates[HUGE_MAX_HSTATE];
+ 
++__initdata LIST_HEAD(huge_boot_pages);
++
+ /* for command line parsing */
+ static struct hstate * __initdata parsed_hstate = NULL;
+ static unsigned long __initdata default_hstate_max_huge_pages = 0;
+@@ -850,14 +852,7 @@ static struct page *alloc_huge_page(stru
+ 	return page;
  }
  
--static void prep_compound_page(struct page *page, unsigned long order)
-+void prep_compound_page(struct page *page, unsigned long order)
+-static __initdata LIST_HEAD(huge_boot_pages);
+-
+-struct huge_bootmem_page {
+-	struct list_head list;
+-	struct hstate *hstate;
+-};
+-
+-static int __init alloc_bootmem_huge_page(struct hstate *h)
++__attribute__((weak)) int alloc_bootmem_huge_page(struct hstate *h)
  {
- 	int i;
- 	int nr_pages = 1 << order;
+ 	struct huge_bootmem_page *m;
+ 	int nr_nodes = nodes_weight(node_online_map);
 
 -- 
 
