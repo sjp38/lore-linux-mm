@@ -1,8 +1,8 @@
-Date: Thu, 5 Jun 2008 16:32:20 -0700
+Date: Thu, 5 Jun 2008 16:33:38 -0700
 From: Keika Kobayashi <kobayashi.kk@ncos.nec.co.jp>
-Subject: [PATCH 2/3 v2] per-task-delay-accounting: update taskstats for
- memory reclaim delay
-Message-Id: <20080605163220.8397bed6.kobayashi.kk@ncos.nec.co.jp>
+Subject: [PATCH 3/3 v2] per-task-delay-accounting: update document and
+ getdelays.c for memory reclaim
+Message-Id: <20080605163338.8880eb7f.kobayashi.kk@ncos.nec.co.jp>
 In-Reply-To: <20080605162759.a6adf291.kobayashi.kk@ncos.nec.co.jp>
 References: <20080605162759.a6adf291.kobayashi.kk@ncos.nec.co.jp>
 Mime-Version: 1.0
@@ -14,46 +14,83 @@ To: Keika Kobayashi <kobayashi.kk@ncos.nec.co.jp>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, nagar@watson.ibm.com, balbir@in.ibm.com, sekharan@us.ibm.com, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Add members for memory reclaim delay to taskstats,
-and accumulate them in __delayacct_add_tsk() .
+Update document and make getdelays.c show delay accounting for memory reclaim.
+
+For making a distinction between "swapping in pages" and "memory reclaim"
+in getdelays.c, MEM is changed to SWAP.
 
 Signed-off-by: Keika Kobayashi <kobayashi.kk@ncos.nec.co.jp>
 ---
- include/linux/taskstats.h |    4 ++++
- kernel/delayacct.c        |    3 +++
- 2 files changed, 7 insertions(+), 0 deletions(-)
+ Documentation/accounting/delay-accounting.txt |   11 ++++++++---
+ Documentation/accounting/getdelays.c          |    8 ++++++--
+ 2 files changed, 14 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/taskstats.h b/include/linux/taskstats.h
-index 5d69c07..87aae21 100644
---- a/include/linux/taskstats.h
-+++ b/include/linux/taskstats.h
-@@ -81,6 +81,10 @@ struct taskstats {
- 	__u64	swapin_count;
- 	__u64	swapin_delay_total;
+diff --git a/Documentation/accounting/delay-accounting.txt b/Documentation/accounting/delay-accounting.txt
+index 1443cd7..8a12f07 100644
+--- a/Documentation/accounting/delay-accounting.txt
++++ b/Documentation/accounting/delay-accounting.txt
+@@ -11,6 +11,7 @@ the delays experienced by a task while
+ a) waiting for a CPU (while being runnable)
+ b) completion of synchronous block I/O initiated by the task
+ c) swapping in pages
++d) memory reclaim
  
-+	/* Delay waiting for memory reclaim */
-+	__u64	freepages_count;
-+	__u64	freepages_delay_total;
-+
- 	/* cpu "wall-clock" running time
- 	 * On some architectures, value will adjust for cpu time stolen
- 	 * from the kernel in involuntary waits due to virtualization.
-diff --git a/kernel/delayacct.c b/kernel/delayacct.c
-index 84b6782..b3179da 100644
---- a/kernel/delayacct.c
-+++ b/kernel/delayacct.c
-@@ -145,8 +145,11 @@ int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
- 	d->blkio_delay_total = (tmp < d->blkio_delay_total) ? 0 : tmp;
- 	tmp = d->swapin_delay_total + tsk->delays->swapin_delay;
- 	d->swapin_delay_total = (tmp < d->swapin_delay_total) ? 0 : tmp;
-+	tmp = d->freepages_delay_total + tsk->delays->freepages_delay;
-+	d->freepages_delay_total = (tmp < d->freepages_delay_total) ? 0 : tmp;
- 	d->blkio_count += tsk->delays->blkio_count;
- 	d->swapin_count += tsk->delays->swapin_count;
-+	d->freepages_count += tsk->delays->freepages_count;
- 	spin_unlock_irqrestore(&tsk->delays->lock, flags);
+ and makes these statistics available to userspace through
+ the taskstats interface.
+@@ -41,7 +42,7 @@ this structure. See
+      include/linux/taskstats.h
+ for a description of the fields pertaining to delay accounting.
+ It will generally be in the form of counters returning the cumulative
+-delay seen for cpu, sync block I/O, swapin etc.
++delay seen for cpu, sync block I/O, swapin, memory reclaim etc.
  
- done:
+ Taking the difference of two successive readings of a given
+ counter (say cpu_delay_total) for a task will give the delay
+@@ -94,7 +95,9 @@ CPU	count	real total	virtual total	delay total
+ 	7876	92005750	100000000	24001500
+ IO	count	delay total
+ 	0	0
+-MEM	count	delay total
++SWAP	count	delay total
++	0	0
++RECLAIM	count	delay total
+ 	0	0
+ 
+ Get delays seen in executing a given simple command
+@@ -108,5 +111,7 @@ CPU	count	real total	virtual total	delay total
+ 	6	4000250		4000000		0
+ IO	count	delay total
+ 	0	0
+-MEM	count	delay total
++SWAP	count	delay total
++	0	0
++RECLAIM	count	delay total
+ 	0	0
+diff --git a/Documentation/accounting/getdelays.c b/Documentation/accounting/getdelays.c
+index 40121b5..3f7755f 100644
+--- a/Documentation/accounting/getdelays.c
++++ b/Documentation/accounting/getdelays.c
+@@ -196,14 +196,18 @@ void print_delayacct(struct taskstats *t)
+ 	       "      %15llu%15llu%15llu%15llu\n"
+ 	       "IO    %15s%15s\n"
+ 	       "      %15llu%15llu\n"
+-	       "MEM   %15s%15s\n"
++	       "SWAP  %15s%15s\n"
++	       "      %15llu%15llu\n"
++	       "RECLAIM  %12s%15s\n"
+ 	       "      %15llu%15llu\n",
+ 	       "count", "real total", "virtual total", "delay total",
+ 	       t->cpu_count, t->cpu_run_real_total, t->cpu_run_virtual_total,
+ 	       t->cpu_delay_total,
+ 	       "count", "delay total",
+ 	       t->blkio_count, t->blkio_delay_total,
+-	       "count", "delay total", t->swapin_count, t->swapin_delay_total);
++	       "count", "delay total", t->swapin_count, t->swapin_delay_total,
++	       "count", "delay total",
++	       t->freepages_count, t->freepages_delay_total);
+ }
+ 
+ void task_context_switch_counts(struct taskstats *t)
 -- 
 1.5.0.6
 
