@@ -1,91 +1,59 @@
-Date: Thu, 05 Jun 2008 10:29:41 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/5] introduce get_vm_event().
-In-Reply-To: <20080605021504.502113040@jp.fujitsu.com>
-References: <20080605021211.871673550@jp.fujitsu.com> <20080605021504.502113040@jp.fujitsu.com>
-Message-Id: <20080605102647.9C26.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Date: Thu, 5 Jun 2008 04:01:06 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 14/21] x86: add hugepagesz option on 64-bit
+Message-ID: <20080605020106.GA11811@wotan.suse.de>
+References: <20080604112939.789444496@amd.local0.net> <20080604113112.777819936@amd.local0.net> <20080604105130.cc4ca4e8.randy.dunlap@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080604105130.cc4ca4e8.randy.dunlap@oracle.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kosaki.motohiro@jp.fujitsu.com
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> introduce get_vm_event() new function for easy use vm statics.
+On Wed, Jun 04, 2008 at 10:51:30AM -0700, Randy Dunlap wrote:
+> On Wed, 04 Jun 2008 21:29:53 +1000 npiggin@suse.de wrote:
 > 
+> > Add an hugepagesz=... option similar to IA64, PPC etc. to x86-64.
+> > 
+> > This finally allows to select GB pages for hugetlbfs in x86 now
+> > that all the infrastructure is in place.
+> > 
+> > Signed-off-by: Andi Kleen <ak@suse.de>
+> > Signed-off-by: Nick Piggin <npiggin@suse.de>
+> > ---
+> >  Documentation/kernel-parameters.txt |   11 +++++++++--
+> >  arch/x86/mm/hugetlbpage.c           |   17 +++++++++++++++++
+> >  include/asm-x86/page.h              |    2 ++
+> >  3 files changed, 28 insertions(+), 2 deletions(-)
+> > 
+> > Index: linux-2.6/Documentation/kernel-parameters.txt
+> > ===================================================================
+> > --- linux-2.6.orig/Documentation/kernel-parameters.txt	2008-06-04 20:47:33.000000000 +1000
+> > +++ linux-2.6/Documentation/kernel-parameters.txt	2008-06-04 20:51:24.000000000 +1000
+> > @@ -765,8 +765,15 @@ and is between 256 and 4096 characters. 
+> >  	hisax=		[HW,ISDN]
+> >  			See Documentation/isdn/README.HiSax.
+> >  
+> > -	hugepages=	[HW,X86-32,IA-64] Maximal number of HugeTLB pages.
+> > -	hugepagesz=	[HW,IA-64,PPC] The size of the HugeTLB pages.
+> > +	hugepages=	[HW,X86-32,IA-64] HugeTLB pages to allocate at boot.
+> > +	hugepagesz=	[HW,IA-64,PPC,X86-64] The size of the HugeTLB pages.
+> > +			On x86 this option can be specified multiple times
 > 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Change this x86 to x86-64 like it is both above and below here?
+> 
+> > +			interleaved with hugepages= to reserve huge pages
+> > +			of different sizes. Valid pages sizes on x86-64
+> > +			are 2M (when the CPU supports "pse") and 1G (when the
+> > +			CPU supports the "pdpe1gb" cpuinfo flag)
+> 
+> 			                                   flag).
 
-sorry, this patch already get Rik-san's ACK.
-I'll append it and resend by this mail.
 
-------------------------------------
-introduce get_vm_event() new function for easy use vm statics.
-
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-
----
- include/linux/vmstat.h |    7 ++++++-
- mm/vmstat.c            |   16 ++++++++++++++++
- 2 files changed, 22 insertions(+), 1 deletion(-)
-
-Index: b/include/linux/vmstat.h
-===================================================================
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -98,6 +98,8 @@ static inline void vm_events_fold_cpu(in
- }
- #endif
- 
-+unsigned long get_vm_event(enum vm_event_item event_type);
-+
- #else
- 
- /* Disable counters */
-@@ -119,7 +121,10 @@ static inline void all_vm_events(unsigne
- static inline void vm_events_fold_cpu(int cpu)
- {
- }
--
-+static inline unsigned long get_vm_event(enum vm_event_item event_type)
-+{
-+	return 0;
-+}
- #endif /* CONFIG_VM_EVENT_COUNTERS */
- 
- #define __count_zone_vm_events(item, zone, delta) \
-Index: b/mm/vmstat.c
-===================================================================
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -49,6 +49,22 @@ void all_vm_events(unsigned long *ret)
- }
- EXPORT_SYMBOL_GPL(all_vm_events);
- 
-+unsigned long get_vm_event(enum vm_event_item event_type)
-+{
-+	int cpu;
-+	unsigned long ret = 0;
-+
-+	get_online_cpus();
-+	for_each_online_cpu(cpu) {
-+		struct vm_event_state *this = &per_cpu(vm_event_states, cpu);
-+
-+		ret += this->event[event_type];
-+	}
-+	put_online_cpus();
-+
-+	return ret;
-+}
-+
- #ifdef CONFIG_HOTPLUG
- /*
-  * Fold the foreign cpu events into our own.
-
+OK.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
