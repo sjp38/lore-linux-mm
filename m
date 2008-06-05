@@ -1,32 +1,33 @@
-Date: Thu, 5 Jun 2008 18:51:04 +0200
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: [PATCH 001/001] mmu-notifier-core v17
-Message-ID: <20080605165104.GI15502@duo.random>
-References: <20080509193230.GH7710@duo.random> <20080516190752.GK11333@linux.vnet.ibm.com>
+Date: Thu, 5 Jun 2008 10:33:15 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [patch 0/7] speculative page references, lockless pagecache,
+ lockless gup
+In-Reply-To: <20080605094300.295184000@nick.local0.net>
+Message-ID: <alpine.LFD.1.10.0806051031580.3473@woody.linux-foundation.org>
+References: <20080605094300.295184000@nick.local0.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080516190752.GK11333@linux.vnet.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm-devel@lists.sourceforge.net, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>
+To: npiggin@suse.de
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 16, 2008 at 12:07:52PM -0700, Paul E. McKenney wrote:
-> The hlist_del_init_rcu() primitive looks good.
+
+On Thu, 5 Jun 2008, npiggin@suse.de wrote:
 > 
-> The rest of the RCU code looks fine assuming that "mn->ops->release()"
-> either does call_rcu() to defer actual removal, or that the actual
-> removal is deferred until after mmu_notifier_release() returns.
+> I've decided to submit the speculative page references patch to get merged.
+> I think I've now got enough reasons to get it merged. Well... I always
+> thought I did, I just didn't think anyone else thought I did. If you know
+> what I mean.
 
-Yes, actual removal is deferred until after mmu_notifier_release()
-returns.
+So I'd certainly like to see these early in the 2.6.27 series. 
 
-> Acked-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+Nick, will you just re-send them once 2.6.26 is out? Or do they cause 
+problems for Andrew and he wants to be part of the chain? I'm fine with 
+either.
 
-Thanks for the review Paul! I should also have added your precious
-Acked-by to the 1/3 and 3/3 but the important is the ack by email ;)
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
