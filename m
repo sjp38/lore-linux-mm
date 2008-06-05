@@ -1,143 +1,65 @@
-Date: Thu, 5 Jun 2008 11:06:37 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 0/5] page reclaim throttle v7
-Message-Id: <20080605110637.d50af953.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080605021211.871673550@jp.fujitsu.com>
-References: <20080605021211.871673550@jp.fujitsu.com>
+Date: Thu, 5 Jun 2008 04:01:45 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 1/5] x86: implement pte_special
+Message-ID: <20080605020145.GB11811@wotan.suse.de>
+References: <20080529122050.823438000@nick.local0.net> <20080529122602.062780000@nick.local0.net> <20080602165847.dd19ddb1.akpm@linux-foundation.org> <20080604171431.GD26120@shadowen.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080604171431.GD26120@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kosaki.motohiro@jp.fujitsu.com
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, shaggy@austin.ibm.com, linux-mm@kvack.org, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 05 Jun 2008 11:12:11 +0900
-kosaki.motohiro@jp.fujitsu.com wrote:
+On Wed, Jun 04, 2008 at 06:14:31PM +0100, Andy Whitcroft wrote:
+> On Mon, Jun 02, 2008 at 04:58:47PM -0700, Andrew Morton wrote:
+> > On Thu, 29 May 2008 22:20:51 +1000
+> > npiggin@suse.de wrote:
+> > 
+> > > Implement the pte_special bit for x86. This is required to support lockless
+> > > get_user_pages, because we need to know whether or not we can refcount a
+> > > particular page given only its pte (and no vma).
+> > 
+> > Spits this reject:
+> > 
+> > ***************
+> > *** 39,44 ****
+> >   #define _PAGE_UNUSED3	(_AC(1, L)<<_PAGE_BIT_UNUSED3)
+> >   #define _PAGE_PAT	(_AC(1, L)<<_PAGE_BIT_PAT)
+> >   #define _PAGE_PAT_LARGE (_AC(1, L)<<_PAGE_BIT_PAT_LARGE)
+> >   
+> >   #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
+> >   #define _PAGE_NX	(_AC(1, ULL) << _PAGE_BIT_NX)
+> > --- 40,47 ----
+> >   #define _PAGE_UNUSED3	(_AC(1, L)<<_PAGE_BIT_UNUSED3)
+> >   #define _PAGE_PAT	(_AC(1, L)<<_PAGE_BIT_PAT)
+> >   #define _PAGE_PAT_LARGE (_AC(1, L)<<_PAGE_BIT_PAT_LARGE)
+> > + #define _PAGE_SPECIAL	(_AC(1, L)<<_PAGE_BIT_SPECIAL)
+> > + #define __HAVE_ARCH_PTE_SPECIAL
+> >   
+> >   #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
+> >   #define _PAGE_NX	(_AC(1, ULL) << _PAGE_BIT_NX)
+> > 
+> > Which I fixed thusly:
+> > 
+> > #define _PAGE_PAT	(_AT(pteval_t, 1) << _PAGE_BIT_PAT)
+> > #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
+> > #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
+> > #define __HAVE_ARCH_PTE_SPECIAL
+> > 
+> > 
+> > OK?
+> > 
+> > 
+> > (Also please check the bunch of checkpatch fixes, a warning fix and a
+> > compile fix).
+> 
+> That looks a sane merge to me.  I had a quick look over the various
+> fixes and they all look fine to me.
 
-> Hi
-> 
-> I post latest version of page reclaim patch series.
-> 
-> This patch is holding up very well under usex stress test
-> over 24+ hours :)
-> 
-> 
-> Against: 2.6.26-rc2-mm1
-> 
-I like this series and I'd like to support this under memcg when
-this goes to mainline. (it seems better to test this for a while
-before adding some memcg-related changes.)
-
-Then, please give me inputs.
-What do you think do I have to do for supporting this in memcg ?
-Handling the case of scan_global_lru(sc)==false is enough ?
-
-
-Thanks,
--Kame
-
-
-> 
-> changelog
-> ========================================
->   v6 -> v7
->      o rebase to 2.6.26-rc2-mm1
->      o get_vm_stat: make cpu-unplug safety.
->      o mark vm_max_nr_task_per_zone __read_mostly.
->      o add check __GFP_FS, __GFP_IO for avoid deadlock.
->      o fixed compile error on x86_64.
-> 
->   v5 -> v6
->      o rebase to 2.6.25-mm1
->      o use PGFREE statics instead wall time.
->      o separate function type change patch and introduce throttle patch.
-> 
->   v4 -> v5
->      o rebase to 2.6.25-rc8-mm1
-> 
->   v3 -> v4:
->      o fixed recursive shrink_zone problem.
->      o add last_checked variable in shrink_zone for 
->        prevent corner case regression.
-> 
->   v2 -> v3:
->      o use wake_up() instead wake_up_all()
->      o max reclaimers can be changed Kconfig option and sysctl.
->      o some cleanups
-> 
->   v1 -> v2:
->      o make per zone throttle 
-> 
-> 
-> 
-> background
-> =====================================
-> current VM implementation doesn't has limit of # of parallel reclaim.
-> when heavy workload, it bring to 2 bad things
->   - heavy lock contention
->   - unnecessary swap out
-> 
-> at end of last year, KAMEZAWA Hiroyuki proposed the patch of page 
-> reclaim throttle and explain it improve reclaim time.
-> 	http://marc.info/?l=linux-mm&m=119667465917215&w=2
-> 
-> but unfortunately it works only memcgroup reclaim.
-> since, I implement it again for support global reclaim and mesure it.
-> 
-> 
-> benefit
-> =====================================
-> <<1. fix the bug of incorrect OOM killer>>
-> 
-> if do following commanc, sometimes OOM killer happened.
-> (OOM happend about 10%)
-> 
->  $ ./hackbench 125 process 1000
-> 
-> because following bad scenario is happend.
-> 
->    1. memory shortage happend.
->    2. many task call shrink_zone at the same time.
->    3. thus, All page are isolated from LRU at the same time.
->    4. the last task can't isolate any page from LRU.
->    5. it cause reclaim failure.
->    6. it cause OOM killer.
-> 
-> my patch is directly solution for that problem.
-> 
-> 
-> <<2. performance improvement>>
-> I mesure RvR Split LRU series + page reclaim throttle series performance by hackbench.
-> 
-> result number mean seconds (i.e. smaller is better)
-> 
-> 
->                                 + split_lru   improvement
->    num_group   2.6.26-rc2-mm1   + throttle    ratio
->    -----------------------------------------------------------------
->    100         28.383           28.247
->    110         31.237           30.83
->    120         33.282           33.473
->    130         36.530           37.356
->    140        101.041           44.873         >200%  
->    150        795.020           96.265         >800%
-> 
-> 
-> Why this patch imrove performance?
-> 
-> vanilla kernel get unstable performance at swap happend because
-> unnecessary swap out happend freqently.
-> this patch doesn't improvement best case, but be able to prevent worst case.
-> thus, The average performance of hackbench increase largely.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+That means we can put your reviewed-by: back? ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
