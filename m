@@ -1,84 +1,61 @@
-Message-Id: <20080605021505.694195095@jp.fujitsu.com>
-References: <20080605021211.871673550@jp.fujitsu.com>
-Date: Thu, 05 Jun 2008 11:12:16 +0900
-From: kosaki.motohiro@jp.fujitsu.com
-Subject: [PATCH 5/5] introduce sysctl of throttle
-Content-Disposition: inline; filename=05-reclaim-throttle-sysctl-v7.patch
+Date: Thu, 05 Jun 2008 10:26:44 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/5] fix incorrect variable type of do_try_to_free_pages()
+In-Reply-To: <20080605021504.134644327@jp.fujitsu.com>
+References: <20080605021211.871673550@jp.fujitsu.com> <20080605021504.134644327@jp.fujitsu.com>
+Message-Id: <20080605102500.9C23.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: kosaki.motohiro@jp.fujitsu.com
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-introduce sysctl parameter of max task of throttle.
+> "Smarter retry of costly-order allocations" patch series change behaver of do_try_to_free_pages().
+> but unfortunately ret variable tyep unchanged.
+> 
+> thus, overflow problem is possible.
+> 
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-<usage>
- # echo 5 > /proc/sys/vm/max_nr_task_per_zone
-</usage>
+sorry, this patch already get Nishanth-san's ACK.
+I'll append it and resend by this mail.
 
+
+----------------------------
+fix incorrect variable type of do_try_to_free_pages() 
+
+"Smarter retry of costly-order allocations" patch series change behaver of do_try_to_free_pages().
+but unfortunately ret variable tyep unchanged.
+
+thus, overflow problem is possible.
 
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
+Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
 ---
- include/linux/swap.h |    2 ++
- kernel/sysctl.c      |    9 +++++++++
- mm/vmscan.c          |    4 +++-
- 3 files changed, 14 insertions(+), 1 deletion(-)
+ mm/vmscan.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 Index: b/mm/vmscan.c
 ===================================================================
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -125,9 +125,11 @@ struct scan_control {
- int vm_swappiness = 60;
- long vm_total_pages;	/* The total number of pages which the VM controls */
- 
--#define MAX_RECLAIM_TASKS CONFIG_NR_MAX_RECLAIM_TASKS_PER_ZONE
-+#define MAX_RECLAIM_TASKS vm_max_nr_task_per_zone
- static LIST_HEAD(shrinker_list);
- static DECLARE_RWSEM(shrinker_rwsem);
-+int vm_max_nr_task_per_zone __read_mostly
-+       = CONFIG_NR_MAX_RECLAIM_TASKS_PER_ZONE;
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR
- #define scan_global_lru(sc)	(!(sc)->mem_cgroup)
-Index: b/include/linux/swap.h
-===================================================================
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -206,6 +206,8 @@ static inline int zone_reclaim(struct zo
- 
- extern int kswapd_run(int nid);
- 
-+extern int vm_max_nr_task_per_zone;
-+
- #ifdef CONFIG_MMU
- /* linux/mm/shmem.c */
- extern int shmem_unuse(swp_entry_t entry, struct page *page);
-Index: b/kernel/sysctl.c
-===================================================================
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1151,6 +1151,15 @@ static struct ctl_table vm_table[] = {
- 		.extra2		= &one,
- 	},
- #endif
-+	{
-+		.ctl_name       = CTL_UNNUMBERED,
-+		.procname       = "max_nr_task_per_zone",
-+		.data           = &vm_max_nr_task_per_zone,
-+		.maxlen         = sizeof(vm_max_nr_task_per_zone),
-+		.mode           = 0644,
-+		.proc_handler   = &proc_dointvec,
-+		.strategy       = &sysctl_intvec,
-+	},
- /*
-  * NOTE: do not add new entries to this table unless you have read
-  * Documentation/sysctl/ctl_unnumbered.txt
+@@ -1317,7 +1317,7 @@ static unsigned long do_try_to_free_page
+ 					struct scan_control *sc)
+ {
+ 	int priority;
+-	int ret = 0;
++	unsigned long ret = 0;
+ 	unsigned long total_scanned = 0;
+ 	unsigned long nr_reclaimed = 0;
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
 
--- 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
