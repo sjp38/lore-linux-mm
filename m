@@ -1,34 +1,35 @@
-Subject: Re: [patch 1/5] x86: implement pte_special
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20080529122602.062780000@nick.local0.net>
-References: <20080529122050.823438000@nick.local0.net>
-	 <20080529122602.062780000@nick.local0.net>
-Content-Type: text/plain
-Date: Fri, 06 Jun 2008 23:35:40 +0200
-Message-Id: <1212788140.19205.76.camel@lappy.programming.kicks-ass.net>
-Mime-Version: 1.0
+Message-ID: <4849B2EC.5070405@ct.jp.nec.com>
+Date: Fri, 06 Jun 2008 14:58:04 -0700
+From: Hiroshi Shimamoto <h-shimamoto@ct.jp.nec.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/3 v2] per-task-delay-accounting: update taskstats for
+ memory reclaim delay
+References: <20080605162759.a6adf291.kobayashi.kk@ncos.nec.co.jp> <20080605163220.8397bed6.kobayashi.kk@ncos.nec.co.jp> <4848B983.4030502@linux.vnet.ibm.com>
+In-Reply-To: <4848B983.4030502@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
-Cc: akpm@linux-foundation.org, shaggy@austin.ibm.com, linux-mm@kvack.org, linux-arch@vger.kernel.org, apw@shadowen.org
+To: balbir@linux.vnet.ibm.com
+Cc: Keika Kobayashi <kobayashi.kk@ncos.nec.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, nagar@watson.ibm.com, balbir@in.ibm.com, sekharan@us.ibm.com, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-05-29 at 22:20 +1000, npiggin@suse.de wrote:
-> plain text document attachment (x86-implement-pte_special.patch)
-> Implement the pte_special bit for x86. This is required to support lockless
-> get_user_pages, because we need to know whether or not we can refcount a
-> particular page given only its pte (and no vma).
+Balbir Singh wrote:
+> Keika Kobayashi wrote:
+>> Add members for memory reclaim delay to taskstats,
+>> and accumulate them in __delayacct_add_tsk() .
+>>
+>> Signed-off-by: Keika Kobayashi <kobayashi.kk@ncos.nec.co.jp>
 > 
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
-> Cc: shaggy@austin.ibm.com
-> Cc: linux-mm@kvack.org
-> Cc: linux-arch@vger.kernel.org
-> Cc: apw@shadowen.org
+> Two suggested changes
+> 
+> 1. Please add all fields at the end (otherwise we risk breaking compatibility)
+> 2. please also update Documentation/accounting/taskstats-struct.txt
+> 
+And update TASKSTATS_VERSION, right?
 
-Full series:
-
-Reviewed-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Thanks,
+Hiroshi Shimamoto
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
