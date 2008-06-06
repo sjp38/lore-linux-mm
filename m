@@ -1,54 +1,52 @@
-Date: Fri, 6 Jun 2008 18:27:55 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 3/7] mm: speculative page references
-Message-ID: <20080606162754.GC23939@wotan.suse.de>
-References: <20080605094300.295184000@nick.local0.net> <20080605094825.699347000@nick.local0.net> <1212762004.23439.119.camel@twins>
-Mime-Version: 1.0
+Date: Fri, 6 Jun 2008 18:12:54 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: Re: [patch 00/21] hugetlb multi size, giant hugetlb support, etc
+Message-ID: <20080606171254.GA4000@shadowen.org>
+References: <20080603095956.781009952@amd.local0.net> <20080603105721.GB23454@wotan.suse.de>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1212762004.23439.119.camel@twins>
+In-Reply-To: <20080603105721.GB23454@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, Paul E McKenney <paulmck@linux.vnet.ibm.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, kniht@us.ibm.com, andi@firstfloor.org, abh@cray.com, joachim.deguara@amd.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 06, 2008 at 04:20:04PM +0200, Peter Zijlstra wrote:
-> On Thu, 2008-06-05 at 19:43 +1000, npiggin@suse.de wrote:
-> > plain text document attachment (mm-speculative-get_page-hugh.patch)
+On Tue, Jun 03, 2008 at 12:57:21PM +0200, Nick Piggin wrote:
+> On Tue, Jun 03, 2008 at 07:59:56PM +1000, npiggin@suse.de wrote:
+> > Hi,
+> > 
+> > Here is my submission to be merged in -mm. Given the amount of hunks this
+> > patchset has, and the recent flurry of hugetlb development work, I'd hope to
+> > get this merged up provided there aren't major issues (I would prefer to fix
+> > minor ones with incremental patches). It's just a lot of error prone work to
+> > track -mm when multiple concurrent development is happening.
+> > 
+> > Patch against latest mmotm.
 > 
-> > +static inline int page_cache_get_speculative(struct page *page)
-> > +{
-> > +	VM_BUG_ON(in_interrupt());
-> > +
-> > +#ifndef CONFIG_SMP
-> > +# ifdef CONFIG_PREEMPT
-> > +	VM_BUG_ON(!in_atomic());
-> > +# endif
-> > +	/*
-> > +	 * Preempt must be disabled here - we rely on rcu_read_lock doing
-> > +	 * this for us.
+> Ah, missed a couple of things required to compile with hugetlbfs configured
+> out. Here is a patch against mmotm, I will also send out a rediffed patch
+> in the series.
 > 
-> Preemptible RCU is already in the tree, so I guess you'll have to
-> explcitly disable preemption if you require it.
-> 
+> ---
+> Index: linux-2.6/include/linux/hugetlb.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/hugetlb.h	2008-06-03 20:44:40.000000000 +1000
+> +++ linux-2.6/include/linux/hugetlb.h	2008-06-03 20:45:07.000000000 +1000
+> @@ -76,7 +76,7 @@ static inline unsigned long hugetlb_tota
+>  #define follow_huge_addr(mm, addr, write)	ERR_PTR(-EINVAL)
+>  #define copy_hugetlb_page_range(src, dst, vma)	({ BUG(); 0; })
+>  #define hugetlb_prefault(mapping, vma)		({ BUG(); 0; })
+> -#define unmap_hugepage_range(vma, start, end)	BUG()
+> +#define unmap_hugepage_range(vma, start, end, page)	BUG()
+>  #define hugetlb_report_meminfo(buf)		0
+>  #define hugetlb_report_node_meminfo(n, buf)	0
+>  #define follow_huge_pmd(mm, addr, pmd, write)	NULL
 
-And here is the fix for patch 7/7
+Acked-by: Andy Whitcroft <apw@shadowen.org>
 
---
-Index: linux-2.6/include/linux/pagemap.h
-===================================================================
---- linux-2.6.orig/include/linux/pagemap.h
-+++ linux-2.6/include/linux/pagemap.h
-@@ -149,7 +149,7 @@ static inline int page_cache_add_specula
- {
- 	VM_BUG_ON(in_interrupt());
- 
--#ifndef CONFIG_SMP
-+#if !defined(CONFIG_SMP) && defined(CONFIG_CLASSIC_RCU)
- # ifdef CONFIG_PREEMPT
- 	VM_BUG_ON(!in_atomic());
- # endif
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
