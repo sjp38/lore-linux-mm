@@ -1,48 +1,84 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id m563pSLj020135
-	for <linux-mm@kvack.org>; Fri, 6 Jun 2008 13:51:28 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m563uDdo041656
-	for <linux-mm@kvack.org>; Fri, 6 Jun 2008 13:56:13 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m563q1dG024688
-	for <linux-mm@kvack.org>; Fri, 6 Jun 2008 13:52:02 +1000
-Message-ID: <4848B406.3000909@linux.vnet.ibm.com>
-Date: Fri, 06 Jun 2008 09:20:30 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/3 v2] per-task-delay-accounting: add memory reclaim
- delay
-References: <20080605162759.a6adf291.kobayashi.kk@ncos.nec.co.jp> <20080605163111.8877ecb7.kobayashi.kk@ncos.nec.co.jp>
-In-Reply-To: <20080605163111.8877ecb7.kobayashi.kk@ncos.nec.co.jp>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [patch 6/7] powerpc: implement pte_special
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Reply-To: benh@kernel.crashing.org
+In-Reply-To: <20080605094826.023234000@nick.local0.net>
+References: <20080605094300.295184000@nick.local0.net>
+	 <20080605094826.023234000@nick.local0.net>
+Content-Type: text/plain
+Date: Fri, 06 Jun 2008 14:04:53 +1000
+Message-Id: <1212725093.12464.0.camel@pasglop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Keika Kobayashi <kobayashi.kk@ncos.nec.co.jp>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, nagar@watson.ibm.com, balbir@in.ibm.com, sekharan@us.ibm.com, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com
+To: npiggin@suse.de
+Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, paulus@samba.org
 List-ID: <linux-mm.kvack.org>
 
-Keika Kobayashi wrote:
-> Sometimes, application responses become bad under heavy memory load.
-> Applications take a bit time to reclaim memory.
-> The statistics, how long memory reclaim takes, will be useful to
-> measure memory usage.
+On Thu, 2008-06-05 at 19:43 +1000, npiggin@suse.de wrote:
+> plain text document attachment (powerpc-implement-pte_special.patch)
+> Implement PTE_SPECIAL for powerpc. At the moment I only have a spare bit for
+> the 4k pages config, but Ben has freed up another one for 64k pages that I
+> can use, so this patch should include that before it goes upstream.
 > 
-> This patch adds accounting memory reclaim to per-task-delay-accounting
-> for accounting the time of do_try_to_free_pages().
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
+
+Ack that bit. _PAGE_SPECIAL will replace _PAGE_HASHPTE on 64K (ie.
+0x400). The patch that frees that bit should get into powerpc.git (and
+from there -mm) as soon as paulus catches up with his backlog :-)
+
+Cheers,
+Ben.
+
+> ---
+> Index: linux-2.6/include/asm-powerpc/pgtable-ppc64.h
+> ===================================================================
+> --- linux-2.6.orig/include/asm-powerpc/pgtable-ppc64.h
+> +++ linux-2.6/include/asm-powerpc/pgtable-ppc64.h
+> @@ -239,7 +239,7 @@ static inline int pte_write(pte_t pte) {
+>  static inline int pte_dirty(pte_t pte) { return pte_val(pte) & _PAGE_DIRTY;}
+>  static inline int pte_young(pte_t pte) { return pte_val(pte) & _PAGE_ACCESSED;}
+>  static inline int pte_file(pte_t pte) { return pte_val(pte) & _PAGE_FILE;}
+> -static inline int pte_special(pte_t pte) { return 0; }
+> +static inline int pte_special(pte_t pte) { return pte_val(pte) & _PAGE_SPECIAL; }
+>  
+>  static inline void pte_uncache(pte_t pte) { pte_val(pte) |= _PAGE_NO_CACHE; }
+>  static inline void pte_cache(pte_t pte)   { pte_val(pte) &= ~_PAGE_NO_CACHE; }
+> @@ -259,7 +259,7 @@ static inline pte_t pte_mkyoung(pte_t pt
+>  static inline pte_t pte_mkhuge(pte_t pte) {
+>  	return pte; }
+>  static inline pte_t pte_mkspecial(pte_t pte) {
+> -	return pte; }
+> +	pte_val(pte) |= _PAGE_SPECIAL; return pte; }
+>  
+>  /* Atomic PTE updates */
+>  static inline unsigned long pte_update(struct mm_struct *mm,
+> Index: linux-2.6/include/asm-powerpc/pgtable-4k.h
+> ===================================================================
+> --- linux-2.6.orig/include/asm-powerpc/pgtable-4k.h
+> +++ linux-2.6/include/asm-powerpc/pgtable-4k.h
+> @@ -45,6 +45,8 @@
+>  #define _PAGE_GROUP_IX  0x7000 /* software: HPTE index within group */
+>  #define _PAGE_F_SECOND  _PAGE_SECONDARY
+>  #define _PAGE_F_GIX     _PAGE_GROUP_IX
+> +#define _PAGE_SPECIAL	0x10000 /* software: special page */
+> +#define __HAVE_ARCH_PTE_SPECIAL
+>  
+>  /* PTE flags to conserve for HPTE identification */
+>  #define _PAGE_HPTEFLAGS (_PAGE_BUSY | _PAGE_HASHPTE | \
+> Index: linux-2.6/include/asm-powerpc/pgtable-64k.h
+> ===================================================================
+> --- linux-2.6.orig/include/asm-powerpc/pgtable-64k.h
+> +++ linux-2.6/include/asm-powerpc/pgtable-64k.h
+> @@ -74,6 +74,7 @@ static inline struct subpage_prot_table 
+>  #define _PAGE_HPTE_SUB0	0x08000000 /* combo only: first sub page */
+>  #define _PAGE_COMBO	0x10000000 /* this is a combo 4k page */
+>  #define _PAGE_4K_PFN	0x20000000 /* PFN is for a single 4k page */
+> +#define _PAGE_SPECIAL	0x0	   /* don't have enough room for this yet */
+>  
+>  /* Note the full page bits must be in the same location as for normal
+>   * 4k pages as the same asssembly will be used to insert 64K pages
 > 
-
-Looks good to me
-
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
