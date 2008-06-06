@@ -1,38 +1,38 @@
-Message-ID: <4849AC21.5090301@brontes3d.com>
-Date: Fri, 06 Jun 2008 22:29:05 +0100
-From: Daniel Drake <ddrake@brontes3d.com>
-MIME-Version: 1.0
-Subject: Re: faulting kmalloced buffers into userspace through mmap()
-References: <4842B4C3.1070506@brontes3d.com> <87mym4tmz0.fsf@saeurebad.de> <484662E3.40902@brontes3d.com> <200806042100.39345.nickpiggin@yahoo.com.au>
-In-Reply-To: <200806042100.39345.nickpiggin@yahoo.com.au>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [patch 0/7] speculative page references, lockless pagecache,
+	lockless gup
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20080605094300.295184000@nick.local0.net>
+References: <20080605094300.295184000@nick.local0.net>
+Content-Type: text/plain
+Date: Fri, 06 Jun 2008 23:32:44 +0200
+Message-Id: <1212787964.19205.74.camel@lappy.programming.kicks-ass.net>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Johannes Weiner <hannes@saeurebad.de>, linux-mm@kvack.org
+To: npiggin@suse.de
+Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> You can map it with a pfn mapping / vm_insert_pfn / remap_pfn_range etc.
-> which does not touch the underlying struct pages. You must then ensure
-> you deallocate the memory yourself after it is finished with.
+On Thu, 2008-06-05 at 19:43 +1000, npiggin@suse.de wrote:
+> Hi,
+> 
+> I've decided to submit the speculative page references patch to get merged.
+> I think I've now got enough reasons to get it merged. Well... I always
+> thought I did, I just didn't think anyone else thought I did. If you know
+> what I mean.
+> 
+> cc'ing the powerpc guys specifically because everyone else who probably
+> cares should be on linux-mm...
+> 
+> So speculative page references are required to support lockless pagecache and
+> lockless get_user_pages (on architectures that can't use the x86 trick). Other
+> uses for speculative page references could also pop up, it is a pretty useful
+> concept. Doesn't need to be pagecache pages either.
 
-Ah, excellent, I wasn't aware of pfn mappings or vm_insert_pfn. I should 
-have read further than LDD3 :)
+For patches 1-5
 
-I have brushed up the section I wrote earlier:
-http://linux-mm.org/DeviceDriverMmap
-
-Hopefully someone else will find it useful.
-
-Since I'm working with 2.6.25 I've implemented a nopfn handler which 
-works perfectly using vm_insert_pfn(). Thanks for all your great work in 
-this area!
--- 
-Daniel Drake
-Brontes Technologies, A 3M Company
-http://www.brontes3d.com/opensource/
+Reviewed-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
