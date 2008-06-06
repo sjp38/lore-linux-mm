@@ -1,62 +1,44 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m56GA41v004790
-	for <linux-mm@kvack.org>; Fri, 6 Jun 2008 12:10:04 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m56GA4S7170122
-	for <linux-mm@kvack.org>; Fri, 6 Jun 2008 10:10:04 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m56GA3I3026031
-	for <linux-mm@kvack.org>; Fri, 6 Jun 2008 10:10:03 -0600
-Subject: Re: [patch 14/21] x86: add hugepagesz option on 64-bit
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <1212595315.7567.41.camel@nimitz.home.sr71.net>
-References: <20080603095956.781009952@amd.local0.net>
-	 <20080603100939.967775671@amd.local0.net>
-	 <1212515282.8505.19.camel@nimitz.home.sr71.net>
-	 <20080603182413.GJ20824@one.firstfloor.org>
-	 <1212519555.8505.33.camel@nimitz.home.sr71.net>
-	 <20080603205752.GK20824@one.firstfloor.org>
-	 <1212528479.7567.28.camel@nimitz.home.sr71.net>
-	 <4845DC72.5080206@firstfloor.org>  <20080604010428.GB30863@wotan.suse.de>
-	 <1212595315.7567.41.camel@nimitz.home.sr71.net>
-Content-Type: text/plain
-Date: Fri, 06 Jun 2008 09:09:59 -0700
-Message-Id: <1212768599.7837.15.camel@nimitz>
-Mime-Version: 1.0
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id m56GOI1Q009567
+	for <linux-mm@kvack.org>; Sat, 7 Jun 2008 02:24:18 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m56GOjmb4640924
+	for <linux-mm@kvack.org>; Sat, 7 Jun 2008 02:24:46 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m56GP2I2007492
+	for <linux-mm@kvack.org>; Sat, 7 Jun 2008 02:25:03 +1000
+Message-ID: <484964D6.8060108@linux.vnet.ibm.com>
+Date: Fri, 06 Jun 2008 21:54:54 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: memcg: bad page at page migration
+References: <20080606221124.623847aa.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20080606221124.623847aa.nishimura@mxp.nes.nec.co.jp>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, kniht@us.ibm.com, abh@cray.com, joachim.deguara@amd.com
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, xemul@openvz.org, lizf@cn.fujitsu.com, yamamoto@valinux.co.jp, hugh@veritas.com, minchan.kim@gmail.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-06-04 at 09:01 -0700, Dave Hansen wrote:
-> On Wed, 2008-06-04 at 03:04 +0200, Nick Piggin wrote:
-> > So I won't oppose this being tinkered with once it is in -mm or upstream.
-> > So long as we try to make changes carefully. For example, there should
-> > be no reason why we can't subsequently have a patch to register all
-> > huge page sizes on boot, or if it is really important somebody might
-> > write a patch to return the 1GB pages to the buddy allocator etc.
-> > 
-> > I'm basically just trying to follow the path of least resistance ;) So
-> > I'm hoping that nobody is too upset with the current set of patches,
-> > and from there I am very happy for people to submit incremental patches
-> > to the user apis..
+Daisuke Nishimura wrote:
 > 
-> That sounds like a good plan to me.  Let's see how the patches look on
-> top of what you have here.
+> All the logs I've seen include the line "cgroup:*******", so it seems that
+> page->page_cgroup is not cleared.
+> 
+> Do you have any ideas?
+> 
 
-I managed to implement most of this, but I'm not happy how it came out.
-It's not quite functional, yet.
+As you've already mentioned, this problem is not reproducible in mainline (I
+tried with 2.6.26-rc4). I should also try against mmotm
 
-I don't think it is horribly worth doing unless it can simplify some of
-what is there already, which this can't.  I basically ended up having to
-write another little allocator to break down the large pages into
-smaller ones.  That's sure to have bugs.
-
-http://userweb.kernel.org/~daveh/boot-time-hugetlb-reservations.patch
-
--- Dave
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
