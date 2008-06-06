@@ -1,7 +1,7 @@
-Date: Fri, 6 Jun 2008 18:26:03 +0200
+Date: Fri, 6 Jun 2008 18:27:55 +0200
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch 3/7] mm: speculative page references
-Message-ID: <20080606162603.GB23939@wotan.suse.de>
+Message-ID: <20080606162754.GC23939@wotan.suse.de>
 References: <20080605094300.295184000@nick.local0.net> <20080605094825.699347000@nick.local0.net> <1212762004.23439.119.camel@twins>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -31,23 +31,16 @@ On Fri, Jun 06, 2008 at 04:20:04PM +0200, Peter Zijlstra wrote:
 > 
 > Preemptible RCU is already in the tree, so I guess you'll have to
 > explcitly disable preemption if you require it.
- 
-Oh, of course, I forget about preempt RCU, lucky for the comment.
-Good spotting.
+> 
+
+And here is the fix for patch 7/7
 
 --
-As per the comment here, we can only use that shortcut if rcu_read_lock
-disabled preemption. It would be somewhat annoying to have to put
-preempt_disable/preempt_enable around all callers in order to support
-this, but preempt RCU isn't going to be hugely performance critical
-anyway (and actually it actively trades performance for fewer preempt off
-sections), so it can use the slightly slower path quite happily.
-
 Index: linux-2.6/include/linux/pagemap.h
 ===================================================================
 --- linux-2.6.orig/include/linux/pagemap.h
 +++ linux-2.6/include/linux/pagemap.h
-@@ -111,7 +111,7 @@ static inline int page_cache_get_specula
+@@ -149,7 +149,7 @@ static inline int page_cache_add_specula
  {
  	VM_BUG_ON(in_interrupt());
  
