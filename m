@@ -1,40 +1,33 @@
-Date: Fri, 6 Jun 2008 02:08:22 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 0/7] speculative page references, lockless pagecache, lockless gup
-Message-ID: <20080606000822.GA16356@wotan.suse.de>
-References: <20080605094300.295184000@nick.local0.net> <alpine.LFD.1.10.0806051031580.3473@woody.linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.1.10.0806051031580.3473@woody.linux-foundation.org>
+Message-ID: <484884EF.7070400@firstfloor.org>
+Date: Fri, 06 Jun 2008 02:29:35 +0200
+From: Andi Kleen <andi@firstfloor.org>
+MIME-Version: 1.0
+Subject: Re: [patch 14/21] x86: add hugepagesz option on 64-bit
+References: <20080603095956.781009952@amd.local0.net> <20080603100939.967775671@amd.local0.net> <1212515282.8505.19.camel@nimitz.home.sr71.net> <20080603182413.GJ20824@one.firstfloor.org> <1212519555.8505.33.camel@nimitz.home.sr71.net> <20080603205752.GK20824@one.firstfloor.org> <1212528479.7567.28.camel@nimitz.home.sr71.net> <4845DC72.5080206@firstfloor.org> <20080605231519.GD31534@us.ibm.com>
+In-Reply-To: <20080605231519.GD31534@us.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, kniht@us.ibm.com, abh@cray.com, joachim.deguara@amd.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 05, 2008 at 10:33:15AM -0700, Linus Torvalds wrote:
-> 
-> 
-> On Thu, 5 Jun 2008, npiggin@suse.de wrote:
-> > 
-> > I've decided to submit the speculative page references patch to get merged.
-> > I think I've now got enough reasons to get it merged. Well... I always
-> > thought I did, I just didn't think anyone else thought I did. If you know
-> > what I mean.
-> 
-> So I'd certainly like to see these early in the 2.6.27 series. 
- 
-Oh good ;) So would I!
+> I really don't want to get involved in this discussion, but let me just
+> say: "Hugepages are *right now* strictly a harder-to-use optimization".
+> libhugetlbfs helps quite a bit (in my opinion) as far as making
+> hugepages easier to use. And Adam's dynamic pool work does as well. It's
+> progress, slow and steady as it may be. I don't really appreciate the
+> entire hugepage area being pigeon-holed into what you've experienced.
 
+That is how Linus wanted hugepages to be done initially. Otherwise
+we would have never gotten the separate hugetlbfs.
 
-> Nick, will you just re-send them once 2.6.26 is out? Or do they cause 
-> problems for Andrew and he wants to be part of the chain? I'm fine with 
-> either.
+If you want a complete second VM that does everything in variable page
+sizes then please redesign the original VM instead instead of recreating
+all its code in mm/hugetlb.c. Thank you.
 
-Andrew has picked them up by the looks, and he's my favoured channel to
-get mm work merged. Let's see how things go between now and 2.6.26,
-which I assume should be a few weeks away?
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
