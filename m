@@ -1,46 +1,142 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id m564G9RJ013561
-	for <linux-mm@kvack.org>; Fri, 6 Jun 2008 14:16:09 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m564G0OU4620302
-	for <linux-mm@kvack.org>; Fri, 6 Jun 2008 14:16:00 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m564GHZb020886
-	for <linux-mm@kvack.org>; Fri, 6 Jun 2008 14:16:17 +1000
-Message-ID: <4848B9B7.2000208@linux.vnet.ibm.com>
-Date: Fri, 06 Jun 2008 09:44:47 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Received: by fg-out-1718.google.com with SMTP id 19so574331fgg.4
+        for <linux-mm@kvack.org>; Fri, 06 Jun 2008 00:19:10 -0700 (PDT)
+Message-ID: <4848E49B.8060505@gmail.com>
+Date: Fri, 06 Jun 2008 09:17:47 +0200
+From: Jiri Slaby <jirislaby@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3 v2] per-task-delay-accounting: update document and
- getdelays.c for memory reclaim
-References: <20080605162759.a6adf291.kobayashi.kk@ncos.nec.co.jp> <20080605163338.8880eb7f.kobayashi.kk@ncos.nec.co.jp>
-In-Reply-To: <20080605163338.8880eb7f.kobayashi.kk@ncos.nec.co.jp>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [rfc][patch] mm: vmap rewrite
+References: <20080605102015.GA11366@wotan.suse.de>
+In-Reply-To: <20080605102015.GA11366@wotan.suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Keika Kobayashi <kobayashi.kk@ncos.nec.co.jp>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, nagar@watson.ibm.com, balbir@in.ibm.com, sekharan@us.ibm.com, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Keika Kobayashi wrote:
-> Update document and make getdelays.c show delay accounting for memory reclaim.
-> 
-> For making a distinction between "swapping in pages" and "memory reclaim"
-> in getdelays.c, MEM is changed to SWAP.
-> 
-> Signed-off-by: Keika Kobayashi <kobayashi.kk@ncos.nec.co.jp>
+On 06/05/2008 12:20 PM, Nick Piggin wrote:
+> Rewrite the vmap allocator to use rbtrees and lazy tlb flushing, and provide a
+> fast, scalable percpu frontend for small vmaps.
+[...]
+> ===================================================================
+> Index: linux-2.6/mm/vmalloc.c
+> ===================================================================
+> --- linux-2.6.orig/mm/vmalloc.c
+> +++ linux-2.6/mm/vmalloc.c
+[...]
+> @@ -18,16 +19,17 @@
+[...]
+> -DEFINE_RWLOCK(vmlist_lock);
+> -struct vm_struct *vmlist;
+> -
+> -static void *__vmalloc_node(unsigned long size, gfp_t gfp_mask, pgprot_t prot,
+> -			    int node, void *caller);
+> +/** Page table manipulation functions **/
 
-Looks good
+Do not use /** for non-kdoc comments.
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+>  static void vunmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end)
+>  {
+[...]
+> @@ -103,18 +95,24 @@ static int vmap_pte_range(pmd_t *pmd, un
+>  	if (!pte)
+>  		return -ENOMEM;
+>  	do {
+> -		struct page *page = **pages;
+> -		WARN_ON(!pte_none(*pte));
+> -		if (!page)
+> +		struct page *page = pages[*nr];
+> +
+> +		if (unlikely(!pte_none(*pte))) {
+> +			WARN_ON(1);
+> +			return -EBUSY;
+> +		}
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+this just may be
+if (WARN_ON(!pte_none(*pte)))
+   return -EBUSY;
+
+> +		if (unlikely(!page)) {
+> +			WARN_ON(1);
+>  			return -ENOMEM;
+> +		}
+
+same here
+
+>  		set_pte_at(&init_mm, addr, pte, mk_pte(page, prot));
+> -		(*pages)++;
+> +		(*nr)++;
+>  	} while (pte++, addr += PAGE_SIZE, addr != end);
+>  	return 0;
+>  }
+[...]
+> -static struct vm_struct *
+> -__get_vm_area_node(unsigned long size, unsigned long flags, unsigned long start,
+> -		unsigned long end, int node, gfp_t gfp_mask, void *caller)
+> +
+> +/** Global kva allocator **/
+
+here too
+
+> +static struct vmap_area *__find_vmap_area(unsigned long addr)
+>  {
+> -	struct vm_struct **p, *tmp, *area;
+> -	unsigned long align = 1;
+> +        struct rb_node *n = vmap_area_root.rb_node;
+
+It's padded by spaces here.
+
+> +
+> +        while (n) {
+> +		struct vmap_area *va;
+> +
+> +                va = rb_entry(n, struct vmap_area, rb_node);
+> +                if (addr < va->va_start)
+> +                        n = n->rb_left;
+> +                else if (addr > va->va_start)
+> +                        n = n->rb_right;
+> +                else
+> +                        return va;
+> +        }
+> +
+> +        return NULL;
+> +}
+[...]
+> +/** Per cpu kva allocator **/
+
+standard /* comment */
+
+> +#define ULONG_BITS		(8*sizeof(unsigned long))
+> +#if BITS_PER_LONG < 64
+
+Can these 2 differ?
+
+> +/*
+> + * vmap space is limited on 32 bit architectures. Ensure there is room for at
+> + * least 16 percpu vmap blocks per CPU.
+> + */
+> +#define VMAP_BBMAP_BITS		min(1024, (128*1024*1024 / PAGE_SIZE / NR_CPUS / 16))
+> +#define VMAP_BBMAP_BITS		(1024) /* 4MB with 4K pages */
+> +#define VMAP_BBMAP_LONGS	BITS_TO_LONGS(VMAP_BBMAP_BITS)
+> +#define VMAP_BLOCK_SIZE		(VMAP_BBMAP_BITS * PAGE_SIZE)
+> +
+> +struct vmap_block_queue {
+> +	spinlock_t lock;
+> +	struct list_head free;
+> +	struct list_head dirty;
+> +	unsigned int nr_dirty;
+> +};
+> +
+> +struct vmap_block {
+> +	spinlock_t lock;
+> +	struct vmap_area *va;
+> +	struct vmap_block_queue *vbq;
+> +	unsigned long free, dirty;
+> +	unsigned long alloc_map[VMAP_BBMAP_LONGS];
+> +	unsigned long dirty_map[VMAP_BBMAP_LONGS];
+
+DECLARE_BITMAP(x, VMAP_BBMAP_BITS)?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
