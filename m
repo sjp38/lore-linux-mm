@@ -1,142 +1,110 @@
-Received: by fg-out-1718.google.com with SMTP id 19so574331fgg.4
-        for <linux-mm@kvack.org>; Fri, 06 Jun 2008 00:19:10 -0700 (PDT)
-Message-ID: <4848E49B.8060505@gmail.com>
-Date: Fri, 06 Jun 2008 09:17:47 +0200
-From: Jiri Slaby <jirislaby@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [rfc][patch] mm: vmap rewrite
-References: <20080605102015.GA11366@wotan.suse.de>
-In-Reply-To: <20080605102015.GA11366@wotan.suse.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Fri, 6 Jun 2008 22:11:24 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: memcg: bad page at page migration
+Message-Id: <20080606221124.623847aa.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, balbir@linux.vnet.ibm.com, xemul@openvz.org, lizf@cn.fujitsu.com, yamamoto@valinux.co.jp, hugh@veritas.com, minchan.kim@gmail.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 06/05/2008 12:20 PM, Nick Piggin wrote:
-> Rewrite the vmap allocator to use rbtrees and lazy tlb flushing, and provide a
-> fast, scalable percpu frontend for small vmaps.
-[...]
-> ===================================================================
-> Index: linux-2.6/mm/vmalloc.c
-> ===================================================================
-> --- linux-2.6.orig/mm/vmalloc.c
-> +++ linux-2.6/mm/vmalloc.c
-[...]
-> @@ -18,16 +19,17 @@
-[...]
-> -DEFINE_RWLOCK(vmlist_lock);
-> -struct vm_struct *vmlist;
-> -
-> -static void *__vmalloc_node(unsigned long size, gfp_t gfp_mask, pgprot_t prot,
-> -			    int node, void *caller);
-> +/** Page table manipulation functions **/
+Hi, Kamezawa-san.
 
-Do not use /** for non-kdoc comments.
+I found a bad page problem with your performance improvement
+patch set v4(*1), which have been already in -mm queue.
+This problem doesn't happen on original 2.6.26-rc2-mm1.
 
->  static void vunmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end)
->  {
-[...]
-> @@ -103,18 +95,24 @@ static int vmap_pte_range(pmd_t *pmd, un
->  	if (!pte)
->  		return -ENOMEM;
->  	do {
-> -		struct page *page = **pages;
-> -		WARN_ON(!pte_none(*pte));
-> -		if (!page)
-> +		struct page *page = pages[*nr];
-> +
-> +		if (unlikely(!pte_none(*pte))) {
-> +			WARN_ON(1);
-> +			return -EBUSY;
-> +		}
+It happens when trying to migrate pages(I used memory_migrate
+of cpuset).
 
-this just may be
-if (WARN_ON(!pte_none(*pte)))
-   return -EBUSY;
+How to reproduce:
+  I tested on fake numa on x86_64 hvm guest of xen(4cpus, 2nodes
+  1GB/node).
 
-> +		if (unlikely(!page)) {
-> +			WARN_ON(1);
->  			return -ENOMEM;
-> +		}
+  - mount cgroups and set parameters
 
-same here
+      # mount -t cgroup -o memory memory /cgroup/memory
+      # mkdir /cgroup/memory/01
+      # echo 32M >/cgroup/memory/01/memory.limit_in_bytes
 
->  		set_pte_at(&init_mm, addr, pte, mk_pte(page, prot));
-> -		(*pages)++;
-> +		(*nr)++;
->  	} while (pte++, addr += PAGE_SIZE, addr != end);
->  	return 0;
->  }
-[...]
-> -static struct vm_struct *
-> -__get_vm_area_node(unsigned long size, unsigned long flags, unsigned long start,
-> -		unsigned long end, int node, gfp_t gfp_mask, void *caller)
-> +
-> +/** Global kva allocator **/
+      # mount -t cgroup -o cpuset cpuset /cgroup/cpuset
+      # mkdir /cgroup/cpuset/01
+      # echo 0-1 >/cgroup/cpuset/01/cpuset.cpus
+      # echo 0 >/cgroup/cpuset/01/cpuset.mems
+      # echo 1 >/cgroup/cpuset/01/cpuset.memory_migrate
+      # mkdir /cgroup/cpuset/02
+      # echo 2-3 >/cgroup/cpuset/02/cpuset.cpus
+      # echo 1 >/cgroup/cpuset/02/cpuset.mems
+      # echo 1 >/cgroup/cpuset/02/cpuset.memory_migrate
 
-here too
+  - echo pid
 
-> +static struct vmap_area *__find_vmap_area(unsigned long addr)
->  {
-> -	struct vm_struct **p, *tmp, *area;
-> -	unsigned long align = 1;
-> +        struct rb_node *n = vmap_area_root.rb_node;
+      # echo $$ >/cgroup/memory/01/tasks
+      # echo $$ >/cgroup/cpuset/01/tasks
 
-It's padded by spaces here.
+  - run program
+    I used "page01" of LTP.
 
-> +
-> +        while (n) {
-> +		struct vmap_area *va;
-> +
-> +                va = rb_entry(n, struct vmap_area, rb_node);
-> +                if (addr < va->va_start)
-> +                        n = n->rb_left;
-> +                else if (addr > va->va_start)
-> +                        n = n->rb_right;
-> +                else
-> +                        return va;
-> +        }
-> +
-> +        return NULL;
-> +}
-[...]
-> +/** Per cpu kva allocator **/
+      # while true; do ./testcases/bin/page01 4718592 1; done &
 
-standard /* comment */
+    This allocate 18M memory, write to it, read from it, and exit.
 
-> +#define ULONG_BITS		(8*sizeof(unsigned long))
-> +#if BITS_PER_LONG < 64
+    This problem seems to happen easily when using enough memory
+    to cause some swap in/out.
 
-Can these 2 differ?
+  - trigger memory migration
+    Run a easy script(on top cgroup) to echo pids in /cgroup/cpuset/01/tasks
+    to /cgroup/cpuset/02/tasks, and vice versa for several times.
 
-> +/*
-> + * vmap space is limited on 32 bit architectures. Ensure there is room for at
-> + * least 16 percpu vmap blocks per CPU.
-> + */
-> +#define VMAP_BBMAP_BITS		min(1024, (128*1024*1024 / PAGE_SIZE / NR_CPUS / 16))
-> +#define VMAP_BBMAP_BITS		(1024) /* 4MB with 4K pages */
-> +#define VMAP_BBMAP_LONGS	BITS_TO_LONGS(VMAP_BBMAP_BITS)
-> +#define VMAP_BLOCK_SIZE		(VMAP_BBMAP_BITS * PAGE_SIZE)
-> +
-> +struct vmap_block_queue {
-> +	spinlock_t lock;
-> +	struct list_head free;
-> +	struct list_head dirty;
-> +	unsigned int nr_dirty;
-> +};
-> +
-> +struct vmap_block {
-> +	spinlock_t lock;
-> +	struct vmap_area *va;
-> +	struct vmap_block_queue *vbq;
-> +	unsigned long free, dirty;
-> +	unsigned long alloc_map[VMAP_BBMAP_LONGS];
-> +	unsigned long dirty_map[VMAP_BBMAP_LONGS];
+Log:
+  Many and many bad page logs like below are displayed in syslog.
 
-DECLARE_BITMAP(x, VMAP_BBMAP_BITS)?
+---
+Bad page state in process 'switch.sh'
+page:ffffe20001f89300 flags:0x050000000000000c mapping:0000000000000000 mapcount:0 count:0
+cgroup:ffff8100314c6528
+Trying to fix it up, but a reboot is needed
+Backtrace:
+Pid: 5542, comm: switch.sh Tainted: G    B     2.6.26-rc2-mm1-kame #2
+
+Call Trace:
+ [<ffffffff80272b42>] bad_page+0x97/0x131
+ [<ffffffff802738fa>] free_hot_cold_page+0x9f/0x156
+ [<ffffffff802739d2>] __pagevec_free+0x21/0x2e
+ [<ffffffff80277056>] release_pages+0x165/0x177
+ [<ffffffff80297349>] remove_migration_ptes+0x4b/0xf0
+ [<ffffffff80277204>] __pagevec_lru_add+0xbf/0xcf
+ [<ffffffff80297a2e>] migrate_pages+0x326/0x465
+ [<ffffffff8028c60a>] new_node_page+0x0/0x5e
+ [<ffffffff8028d449>] do_migrate_pages+0x19b/0x1e7
+ [<ffffffff8022fec9>] set_cpus_allowed_ptr+0xe6/0xf3
+ [<ffffffff802a3567>] __link_path_walk+0x13b/0xd02
+ [<ffffffff8025b03d>] cpuset_migrate_mm+0x58/0x90
+ [<ffffffff8025b5aa>] cpuset_attach+0x8b/0x9e
+ [<ffffffff8032aed8>] sscanf+0x49/0x51
+ [<ffffffff80258a97>] cgroup_attach_task+0x3a3/0x3f5
+ [<ffffffff802595ad>] cgroup_common_file_write+0x150/0x1dc
+ [<ffffffff8025919c>] cgroup_file_write+0x54/0x150
+ [<ffffffff8029b445>] vfs_write+0xad/0x136
+ [<ffffffff8029b982>] sys_write+0x45/0x6e
+ [<ffffffff8020bee2>] tracesys+0xd5/0xda
+---
+
+All the logs I've seen include the line "cgroup:*******", so it seems that
+page->page_cgroup is not cleared.
+
+Do you have any ideas?
+
+
+Thanks,
+Daisuke Nishimura.
+
+*1
+http://lkml.org/lkml/2008/5/15/73
+http://lkml.org/lkml/2008/5/20/30
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
