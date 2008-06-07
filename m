@@ -1,30 +1,42 @@
-Date: Sat, 07 Jun 2008 15:47:17 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: clean up checking of  the disabled flag
-In-Reply-To: <4848955D.2020302@cn.fujitsu.com>
-References: <4848955D.2020302@cn.fujitsu.com>
-Message-Id: <20080607154422.9C61.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <484AC779.1070803@goop.org>
+Date: Sat, 07 Jun 2008 18:38:01 +0100
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [rfc][patch] mm: vmap rewrite
+References: <20080605102015.GA11366@wotan.suse.de>
+In-Reply-To: <20080605102015.GA11366@wotan.suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Paul Menage <menage@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> Those checks are unnecessary, because when the subsystem is disabled
-> it can't be mounted, so those functions won't get called.
-> 
-> The check is needed in functions which will be called in other places
-> except cgroup.
-> 
-> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
+Nick Piggin wrote:
+> Hi. RFC.
+>
+> Rewrite the vmap allocator to use rbtrees and lazy tlb flushing, and provide a
+> fast, scalable percpu frontend for small vmaps.
+>
+> XEN and PAT and such do not like deferred TLB flushing. They just need to call
+> vm_unmap_aliases() in order to flush any deferred mappings.  That call is very
+> expensive (well, actually not a lot more expensive than a single vunmap under
+> the old scheme), however it should be OK if not called too often.
+>   
 
-nice.
-	Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+What are the performance characteristics?  Can it be fast-pathed if 
+there are no outstanding aliases?
 
+For Xen, I'd need to do the alias unmap each time it allocates a page 
+for use in a pagetable.  For initial process construction that could be 
+deferred, but creating mappings on a live process could get fairly 
+expensive as a result.  The ideal interface for me would be a way of 
+testing if a given page has vmap aliases, so that we need only do the 
+unmap if really necessary.  I'm guessing that goes into "need a new page 
+flag" territory though...
 
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
