@@ -1,30 +1,43 @@
-Date: Sat, 07 Jun 2008 13:40:29 +0900
+Date: Sat, 07 Jun 2008 13:44:07 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/3 v2] per-task-delay-accounting: add memory reclaim delay
-In-Reply-To: <20080605163111.8877ecb7.kobayashi.kk@ncos.nec.co.jp>
-References: <20080605162759.a6adf291.kobayashi.kk@ncos.nec.co.jp> <20080605163111.8877ecb7.kobayashi.kk@ncos.nec.co.jp>
-Message-Id: <20080607133921.9C3D.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [PATCH 2/3 v2] per-task-delay-accounting: update taskstats for memory reclaim delay
+In-Reply-To: <20080606172437.bcd7d98a.kobayashi.kk@ncos.nec.co.jp>
+References: <4848B983.4030502@linux.vnet.ibm.com> <20080606172437.bcd7d98a.kobayashi.kk@ncos.nec.co.jp>
+Message-Id: <20080607134129.9C40.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Keika Kobayashi <kobayashi.kk@ncos.nec.co.jp>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, nagar@watson.ibm.com, balbir@in.ibm.com, sekharan@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com
+Cc: kosaki.motohiro@jp.fujitsu.com, balbir@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, nagar@watson.ibm.com, balbir@in.ibm.com, sekharan@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-> Sometimes, application responses become bad under heavy memory load.
-> Applications take a bit time to reclaim memory.
-> The statistics, how long memory reclaim takes, will be useful to
-> measure memory usage.
+> Add members for memory reclaim delay to taskstats,
+> and accumulate them in __delayacct_add_tsk() .
 > 
-> This patch adds accounting memory reclaim to per-task-delay-accounting
-> for accounting the time of do_try_to_free_pages().
+> Signed-off-by: Keika Kobayashi <kobayashi.kk@ncos.nec.co.jp>
+> ---
+> 
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+> > Two suggested changes
+> >
+> > 1. Please add all fields at the end (otherwise we risk breaking compatibility)
+> > 2. please also update Documentation/accounting/taskstats-struct.txt
+> >
+> 
+> Thanks for your suggestion.
+> Update version is here.
+> 
+> In taskstats-struct.txt, there was not a discription for "Time accounting for SMT machines".
+> This patch was made after the following patch had been applied.
+> http://lkml.org/lkml/2008/6/6/436 .
 
-looks good to me.
+The code of this patch looks good to me.
+but this change log isn't so good.
 
-	Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujistu.com>
-
+Do you want remain email bare discssion on git log?
 
 
 --
