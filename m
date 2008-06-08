@@ -1,36 +1,30 @@
-Date: Sat, 7 Jun 2008 21:32:10 -0700
-From: Greg KH <greg@kroah.com>
-Subject: Re: [PATCH -mm 15/25] Ramfs and Ram Disk pages are non-reclaimable
-Message-ID: <20080608043210.GB21251@kroah.com>
-References: <20080606202838.390050172@redhat.com> <20080606202859.408662219@redhat.com> <20080606180510.87a49e19.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080606180510.87a49e19.akpm@linux-foundation.org>
+Date: Sun, 8 Jun 2008 11:59:41 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 05/21] hugetlb: new sysfs interface
+Message-Id: <20080608115941.746732a5.akpm@linux-foundation.org>
+In-Reply-To: <20080604113111.647714612@amd.local0.net>
+References: <20080604112939.789444496@amd.local0.net>
+	<20080604113111.647714612@amd.local0.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, eric.whitney@hp.com
+To: npiggin@suse.de
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 06, 2008 at 06:05:10PM -0700, Andrew Morton wrote:
+On Wed, 04 Jun 2008 21:29:44 +1000 npiggin@suse.de wrote:
+
+> Provide new hugepages user APIs that are more suited to multiple hstates in
+> sysfs. There is a new directory, /sys/kernel/hugepages. Underneath that
+> directory there will be a directory per-supported hugepage size, e.g.:
 > 
-> Also, I expect there are a whole host of pseudo-filesystems (sysfs?)
-> which have this problem.  Does the patch address all of them?  If not,
-> can we come up with something which _does_ address them all without
-> having to hunt down and change every such fs?
+> /sys/kernel/hugepages/hugepages-64kB
+> /sys/kernel/hugepages/hugepages-16384kB
+> /sys/kernel/hugepages/hugepages-16777216kB
 
-sysfs used to have this issue, until the people at IBM rewrote the whole
-backing store for sysfs so that now it is reclaimable and pages out
-quite nicely when there is memory pressure.  That's how they run 20,000
-disks on the s390 boxes with no memory :)
-
-But it would be nice to solve the issue "generically" for ram based
-filesystems, if possible (usbfs, securityfs, debugfs, etc.)
-
-thanks,
-
-greg k-h
+Maybe /sys/mm or /sys/vm would be a more appropriate place.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
