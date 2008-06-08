@@ -1,42 +1,36 @@
-Message-ID: <484AC779.1070803@goop.org>
-Date: Sat, 07 Jun 2008 18:38:01 +0100
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Date: Sat, 7 Jun 2008 21:32:10 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH -mm 15/25] Ramfs and Ram Disk pages are non-reclaimable
+Message-ID: <20080608043210.GB21251@kroah.com>
+References: <20080606202838.390050172@redhat.com> <20080606202859.408662219@redhat.com> <20080606180510.87a49e19.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [rfc][patch] mm: vmap rewrite
-References: <20080605102015.GA11366@wotan.suse.de>
-In-Reply-To: <20080605102015.GA11366@wotan.suse.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080606180510.87a49e19.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Hi. RFC.
->
-> Rewrite the vmap allocator to use rbtrees and lazy tlb flushing, and provide a
-> fast, scalable percpu frontend for small vmaps.
->
-> XEN and PAT and such do not like deferred TLB flushing. They just need to call
-> vm_unmap_aliases() in order to flush any deferred mappings.  That call is very
-> expensive (well, actually not a lot more expensive than a single vunmap under
-> the old scheme), however it should be OK if not called too often.
->   
+On Fri, Jun 06, 2008 at 06:05:10PM -0700, Andrew Morton wrote:
+> 
+> Also, I expect there are a whole host of pseudo-filesystems (sysfs?)
+> which have this problem.  Does the patch address all of them?  If not,
+> can we come up with something which _does_ address them all without
+> having to hunt down and change every such fs?
 
-What are the performance characteristics?  Can it be fast-pathed if 
-there are no outstanding aliases?
+sysfs used to have this issue, until the people at IBM rewrote the whole
+backing store for sysfs so that now it is reclaimable and pages out
+quite nicely when there is memory pressure.  That's how they run 20,000
+disks on the s390 boxes with no memory :)
 
-For Xen, I'd need to do the alias unmap each time it allocates a page 
-for use in a pagetable.  For initial process construction that could be 
-deferred, but creating mappings on a live process could get fairly 
-expensive as a result.  The ideal interface for me would be a way of 
-testing if a given page has vmap aliases, so that we need only do the 
-unmap if really necessary.  I'm guessing that goes into "need a new page 
-flag" territory though...
+But it would be nice to solve the issue "generically" for ram based
+filesystems, if possible (usbfs, securityfs, debugfs, etc.)
 
-    J
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
