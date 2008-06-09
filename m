@@ -1,69 +1,356 @@
-Date: Mon, 9 Jun 2008 03:41:26 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 15/21] hugetlb: override default huge page size
-Message-Id: <20080609034126.cf4e8df4.akpm@linux-foundation.org>
-In-Reply-To: <20080604113112.902971712@amd.local0.net>
-References: <20080604112939.789444496@amd.local0.net>
-	<20080604113112.902971712@amd.local0.net>
-Mime-Version: 1.0
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp05.in.ibm.com (8.13.1/8.13.1) with ESMTP id m59Auimn017127
+	for <linux-mm@kvack.org>; Mon, 9 Jun 2008 16:26:44 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m59AuStl1519672
+	for <linux-mm@kvack.org>; Mon, 9 Jun 2008 16:26:29 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id m59Auiti005150
+	for <linux-mm@kvack.org>; Mon, 9 Jun 2008 16:26:44 +0530
+Message-ID: <484D0C66.5060000@linux.vnet.ibm.com>
+Date: Mon, 09 Jun 2008 16:26:38 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 2/2] memcg: hardwall hierarhcy for memcg
+References: <20080604135815.498eaf82.kamezawa.hiroyu@jp.fujitsu.com> <20080604140329.8db1b67e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080604140329.8db1b67e.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
-Cc: linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 04 Jun 2008 21:29:54 +1000 npiggin@suse.de wrote:
-
-> Allow configurations with the default huge page size which is different to
-> the traditional HPAGE_SIZE size. The default huge page size is the one
-> represented in the legacy /proc ABIs, SHM, and which is defaulted to when
-> mounting hugetlbfs filesystems.
+KAMEZAWA Hiroyuki wrote:
+> Hard-Wall hierarchy support for memcg.
+>  - new member hierarchy_model is added to memcg.
 > 
-> This is implemented with a new kernel option default_hugepagesz=, which
-> defaults to HPAGE_SIZE if not specified.
+> Only root cgroup can modify this only when there is no children.
 > 
-> ...
->
-> --- linux-2.6.orig/mm/hugetlb.c	2008-06-04 20:51:23.000000000 +1000
-> +++ linux-2.6/mm/hugetlb.c	2008-06-04 20:51:24.000000000 +1000
-> @@ -34,6 +34,7 @@ struct hstate hstates[HUGE_MAX_HSTATE];
->  /* for command line parsing */
->  static struct hstate * __initdata parsed_hstate = NULL;
->  static unsigned long __initdata default_hstate_max_huge_pages = 0;
-> +static unsigned long __initdata default_hstate_size = HPAGE_SIZE;
 
-ia64:
+Sounds like the correct thing TODO and also maintains compatibility
 
-mm/hugetlb.c:39: error: initializer element is not constant
+> Adds following functions for supporting HARDWALL hierarchy.
+>  - try to reclaim memory at the change of "limit".
+>  - try to reclaim all memory at force_empty
+>  - returns resources to the parent at destroy.
+> 
+> Changelog v2->v3
+>  - added documentation.
+>  - hierarhcy_model parameter is added.
+> 
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> ---
+>  Documentation/controllers/memory.txt |   27 +++++-
+>  mm/memcontrol.c                      |  156 ++++++++++++++++++++++++++++++++++-
+>  2 files changed, 178 insertions(+), 5 deletions(-)
+> 
+> Index: temp-2.6.26-rc2-mm1/mm/memcontrol.c
+> ===================================================================
+> --- temp-2.6.26-rc2-mm1.orig/mm/memcontrol.c
+> +++ temp-2.6.26-rc2-mm1/mm/memcontrol.c
+> @@ -137,6 +137,8 @@ struct mem_cgroup {
+>  	struct mem_cgroup_lru_info info;
+> 
+>  	int	prev_priority;	/* for recording reclaim priority */
+> +
+> +	int	hierarchy_model; /* used hierarchical policy */
 
-(wtf?)
+Could we enumerate what these policies are?
+
+>  	/*
+>  	 * statistics.
+>  	 */
+> @@ -144,6 +146,10 @@ struct mem_cgroup {
+>  };
+>  static struct mem_cgroup init_mem_cgroup;
+> 
+> +
+> +#define MEMCG_NO_HIERARCHY	(0)
+
+Nice to indent with the #define below
+
+> +#define MEMCG_HARDWALL_HIERARCHY	(1)
+> +
+>  /*
+>   * We use the lower bit of the page->page_cgroup pointer as a bit spin
+>   * lock.  We need to ensure that page->page_cgroup is at least two
+> @@ -792,6 +798,89 @@ int mem_cgroup_shrink_usage(struct mm_st
+>  }
+> 
+>  /*
+> + * Memory Controller hierarchy support.
+> + */
+> +
+> +/*
+> + * shrink usage to be res->usage + val < res->limit.
+> + */
+> +
+> +int memcg_shrink_val(struct res_counter *cnt, unsigned long long val)
+> +{
+> +	struct mem_cgroup *memcg = container_of(cnt, struct mem_cgroup, res);
+> +	unsigned long flags;
+> +	int ret = 1;
+> +	int progress = 1;
+> +
+> +retry:
+> +	spin_lock_irqsave(&cnt->lock, flags);
+> +	/* Need to shrink ? */
+> +	if (cnt->usage + val <= cnt->limit)
+> +		ret = 0;
+> +	spin_unlock_irqrestore(&cnt->lock, flags);
+> +
+
+We have res_counter_check_under_limit(), may be we could re-use that here by
+adding parameters.
+
+> +	if (!ret)
+> +		return 0;
+> +
+> +	if (!progress)
+> +		return 1;
+> +	progress = try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL);
+> +
+> +	goto retry;
+> +}
+> +
+> +/*
+> + * For Hard Wall Hierarchy.
+> + */
+> +
+> +int mem_cgroup_resize_callback(struct res_counter *cnt,
+> +			unsigned long long val, int what)
+> +{
+> +	unsigned long flags, borrow;
+> +	unsigned long long diffs;
+> +	int ret = 0;
+> +
+> +	BUG_ON(what != RES_LIMIT);
+> +
+> +	/* Is this under hierarchy ? */
+> +	if (!cnt->parent) {
+> +		spin_lock_irqsave(&cnt->lock, flags);
+> +		cnt->limit = val;
+
+I know callback is called from the two functions specified in patch 1/2 (move
+and return resource). I don't understand why it is OK to force the limit to be
+val, if it is the root node?
+
+> +		spin_unlock_irqrestore(&cnt->lock, flags);
+> +		return 0;
+> +	}
+> +
+> +	spin_lock_irqsave(&cnt->lock, flags);
+> +	if (val > cnt->limit) {
+> +		diffs = val - cnt->limit;
+> +		borrow = 1;
+> +	} else {
+> +		diffs = cnt->limit - val;
+> +		borrow = 0;
+> +	}
+> +	spin_unlock_irqrestore(&cnt->lock, flags);
+> +
+> +	if (borrow)
+> +		ret = res_counter_move_resource(cnt,diffs,
+> +					memcg_shrink_val,
+> +					MEM_CGROUP_RECLAIM_RETRIES);
+> +	else
+> +		ret = res_counter_return_resource(cnt, diffs,
+> +					memcg_shrink_val,
+> +					MEM_CGROUP_RECLAIM_RETRIES);
+> +	return ret;
+> +}
+> +
+> +
+> +void memcg_shrink_all(struct mem_cgroup *mem)
+> +{
+
+memcg_shrink_to_limit?
+
+> +	unsigned long long val;
+> +
+> +	val = res_counter_read_u64(&mem->res, RES_LIMIT);
+> +	memcg_shrink_val(&mem->res, val);
+> +}
+> +
+> +/*
+>   * This routine traverse page_cgroup in given list and drop them all.
+>   * *And* this routine doesn't reclaim page itself, just removes page_cgroup.
+>   */
+> @@ -848,6 +937,8 @@ static int mem_cgroup_force_empty(struct
+>  	if (mem_cgroup_subsys.disabled)
+>  		return 0;
+> 
+> +	memcg_shrink_all(mem);
+> +
+>  	css_get(&mem->css);
+>  	/*
+>  	 * page reclaim code (kswapd etc..) will move pages between
+> @@ -896,11 +987,44 @@ static ssize_t mem_cgroup_write(struct c
+>  				struct file *file, const char __user *userbuf,
+>  				size_t nbytes, loff_t *ppos)
+>  {
+> -	return res_counter_write(&mem_cgroup_from_cont(cont)->res,
+> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+> +
+> +	if (cft->private != RES_LIMIT
+> +		|| !cont->parent
+> +		|| memcg->hierarchy_model == MEMCG_NO_HIERARCHY)
+> +		return res_counter_write(&memcg->res, cft->private, userbuf,
+> +			nbytes, ppos, mem_cgroup_write_strategy, NULL);
+> +	else
+> +		return res_counter_write(&memcg->res,
+>  				cft->private, userbuf, nbytes, ppos,
+> -				mem_cgroup_write_strategy);
+> +				mem_cgroup_write_strategy,
+> +				mem_cgroup_resize_callback);
+> +}
+> +
+> +
+> +static u64 mem_cgroup_read_hierarchy(struct cgroup *cgrp, struct cftype *cft)
+> +{
+> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> +	return memcg->hierarchy_model;
+> +}
+> +
+> +static int mem_cgroup_write_hierarchy(struct cgroup *cgrp, struct cftype *cft,
+> +				u64 val)
+> +{
+> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> +	/* chage policy is allowed to ROOT cgroup && no children */
+> +	if (cgrp->parent)
+> +		return -EINVAL;
+> +	if (!list_empty(&cgrp->children))
+> +		return -EINVAL;
+> +	if (val == 0 || val == 1) {
+> +		memcg->hierarchy_model = val;
+> +		return 0;
+> +	}
+> +	return -EINVAL;
+>  }
+> 
+> +
+>  static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
+>  {
+>  	struct mem_cgroup *mem;
+> @@ -992,6 +1116,16 @@ static struct cftype mem_cgroup_files[] 
+>  		.name = "stat",
+>  		.read_map = mem_control_stat_show,
+>  	},
+> +	{
+> +		.name = "hierarchy_model",
+> +		.read_u64 = mem_cgroup_read_hierarchy,
+> +		.write_u64 = mem_cgroup_write_hierarchy,
+> +	},
+> +	{
+> +		.name = "assigned_to_child",
+> +		.private = RES_FOR_CHILDREN,
+> +		.read_u64 = mem_cgroup_read,
+> +	},
+>  };
+> 
+>  static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+> @@ -1056,19 +1190,27 @@ static void mem_cgroup_free(struct mem_c
+>  static struct cgroup_subsys_state *
+>  mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+>  {
+> -	struct mem_cgroup *mem;
+> +	struct mem_cgroup *mem, *parent;
+>  	int node;
+> 
+>  	if (unlikely((cont->parent) == NULL)) {
+>  		mem = &init_mem_cgroup;
+>  		page_cgroup_cache = KMEM_CACHE(page_cgroup, SLAB_PANIC);
+> +		parent = NULL;
+>  	} else {
+>  		mem = mem_cgroup_alloc();
+>  		if (!mem)
+>  			return ERR_PTR(-ENOMEM);
+> +		parent = mem_cgroup_from_cont(cont->parent);
+>  	}
+> 
+> -	res_counter_init(&mem->res);
+> +	if (!parent || parent->hierarchy_model == MEMCG_NO_HIERARCHY) {
+> +		res_counter_init(&mem->res);
+> +		mem->hierarchy_model = MEMCG_NO_HIERARCHY;
+> +	} else {
+> +		res_counter_init_hierarchy(&mem->res, &parent->res);
+> +		mem->hierarchy_model = parent->hierarchy_model;
+> +	}
+> 
+>  	for_each_node_state(node, N_POSSIBLE)
+>  		if (alloc_mem_cgroup_per_zone_info(mem, node))
+> @@ -1096,6 +1238,12 @@ static void mem_cgroup_destroy(struct cg
+>  	int node;
+>  	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+> 
+> +	if (cont->parent &&
+> +	    mem->hierarchy_model == MEMCG_HARDWALL_HIERARCHY) {
+> +		/* we did what we can...just returns what we borrow */
+> +		res_counter_return_resource(&mem->res, -1, NULL, 0);
+> +	}
+> +
+>  	for_each_node_state(node, N_POSSIBLE)
+>  		free_mem_cgroup_per_zone_info(mem, node);
+> 
+> Index: temp-2.6.26-rc2-mm1/Documentation/controllers/memory.txt
+> ===================================================================
+> --- temp-2.6.26-rc2-mm1.orig/Documentation/controllers/memory.txt
+> +++ temp-2.6.26-rc2-mm1/Documentation/controllers/memory.txt
+> @@ -237,12 +237,37 @@ cgroup might have some charge associated
+>  tasks have migrated away from it. Such charges are automatically dropped at
+>  rmdir() if there are no tasks.
+> 
+> -5. TODO
+> +5. Hierarchy Model
+> +  the kernel supports following kinds of hierarchy models.
+> +  (your middle-ware may support others based on this.)
+> +
+> +  5-a. Independent Hierarchy
+> +  There are no relationship between any cgroups, even among a parent and
+> +  children. This is the default mode. To use this hierarchy, write 0
+> +  to root cgroup's memory.hierarchy_model
+> +  echo 0 > .../memory.hierarchy_model.
+> +
+> +  5-b. Hardwall Hierarchy.
+> +  The resource has to be moved from the parent to the child before use it.
+> +  When a child's limit is set to 'val', val of the resource is moved from
+> +  the parent to the child. the parent's usage += val.
+> +  The amount of children's usage is reported by the file
+> +
+> +  - memory.assigned_to_child
+> +
+> +  This policy doesn't provide sophisticated automatic resource balancing in
+> +  the kernel. But this is very good for strict resource isolation. Users
+> +  can get high predictability of behavior of applications if this is used
+> +  under proper environments.
+> +
+> +
+> +6. TODO
+> 
+>  1. Add support for accounting huge pages (as a separate controller)
+>  2. Make per-cgroup scanner reclaim not-shared pages first
+>  3. Teach controller to account for shared-pages
+>  4. Start reclamation when the limit is lowered
+> +   (this is already done in Hardwall Hierarchy)
+
+Excellent! May be we should split this patch out?
+
+>  5. Start reclamation in the background when the limit is
+>     not yet hit but the usage is getting closer
+> 
+> 
 
 
-Hopefully this'll fix it.
-
---- a/mm/hugetlb.c~hugetlb-override-default-huge-page-size-ia64-build
-+++ a/mm/hugetlb.c
-@@ -34,7 +34,7 @@ struct hstate hstates[HUGE_MAX_HSTATE];
- /* for command line parsing */
- static struct hstate * __initdata parsed_hstate;
- static unsigned long __initdata default_hstate_max_huge_pages;
--static unsigned long __initdata default_hstate_size = HPAGE_SIZE;
-+static unsigned long __initdata default_hstate_size;
- 
- #define for_each_hstate(h) \
- 	for ((h) = hstates; (h) < &hstates[max_hstate]; (h)++)
-@@ -1208,6 +1208,8 @@ static int __init hugetlb_init(void)
- {
- 	BUILD_BUG_ON(HPAGE_SHIFT == 0);
- 
-+	default_hstate_size = HPAGE_SIZE;
-+
- 	if (!size_to_hstate(default_hstate_size)) {
- 		default_hstate_size = HPAGE_SIZE;
- 		if (!size_to_hstate(default_hstate_size))
-_
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
