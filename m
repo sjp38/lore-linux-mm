@@ -1,43 +1,49 @@
-Date: Mon, 9 Jun 2008 01:32:04 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 7/7] powerpc: lockless get_user_pages_fast
-Message-Id: <20080609013204.7c291b68.akpm@linux-foundation.org>
-In-Reply-To: <20080605094826.128415000@nick.local0.net>
-References: <20080605094300.295184000@nick.local0.net>
-	<20080605094826.128415000@nick.local0.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id m599U4BR005608
+	for <linux-mm@kvack.org>; Mon, 9 Jun 2008 19:30:04 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id m599UKjB2498724
+	for <linux-mm@kvack.org>; Mon, 9 Jun 2008 19:30:20 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m599UcRD008382
+	for <linux-mm@kvack.org>; Mon, 9 Jun 2008 19:30:39 +1000
+Message-ID: <484CF82E.1010508@linux.vnet.ibm.com>
+Date: Mon, 09 Jun 2008 15:00:22 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 0/2] memcg: hierarchy support (v3)
+References: <20080604135815.498eaf82.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080604135815.498eaf82.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
-Cc: torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 05 Jun 2008 19:43:07 +1000 npiggin@suse.de wrote:
-
-> Implement lockless get_user_pages_fast for powerpc. Page table existence is
-> guaranteed with RCU, and speculative page references are used to take a
-> reference to the pages without having a prior existence guarantee on them.
+KAMEZAWA Hiroyuki wrote:
+> Hi, this is third version.
+> 
+> While small changes in codes, the whole _tone_ of code is changed.
+> I'm not in hurry, any comments are welcome.
+> 
+> based on 2.6.26-rc2-mm1 + memcg patches in -mm queue.
 > 
 
-arch/powerpc/mm/gup.c: In function `get_user_pages_fast':
-arch/powerpc/mm/gup.c:156: error: `SLICE_LOW_TOP' undeclared (first use in this function)
-arch/powerpc/mm/gup.c:156: error: (Each undeclared identifier is reported only once
-arch/powerpc/mm/gup.c:156: error: for each function it appears in.)
-arch/powerpc/mm/gup.c:178: error: implicit declaration of function `get_slice_psize'
-arch/powerpc/mm/gup.c:178: error: `mmu_huge_psize' undeclared (first use in this function)
-arch/powerpc/mm/gup.c:182: error: implicit declaration of function `huge_pte_offset'
-arch/powerpc/mm/gup.c:182: warning: assignment makes pointer from integer without a cast
+Hi, Kamezawa-San,
 
-with
+Sorry for the delay in responding. Like we discussed last time, I'd prefer a
+shares based approach for hierarchial memcg management. I'll review/try these
+patches and provide more feedback.
 
-http://userweb.kernel.org/~akpm/config-g5.txt
 
-I don't immediately know why - adding asm/page.h to gup.c doesn't help.
-I'm suspecting a recursive include problem somewhere.
-
-I'll drop it, sorry - too much other stuff to fix over here.
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
