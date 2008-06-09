@@ -1,118 +1,72 @@
-Received: by ug-out-1314.google.com with SMTP id h3so1218577ugf.29
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2008 14:44:09 -0700 (PDT)
-Date: Tue, 10 Jun 2008 01:40:02 +0400
-From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: Re: 2.6.26-rc5-mm1: kernel BUG at mm/filemap.c:575!
-Message-ID: <20080609214002.GA4932@martell.zuzino.mipt.ru>
-References: <20080609053908.8021a635.akpm@linux-foundation.org> <20080609204559.GA4863@martell.zuzino.mipt.ru>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080609204559.GA4863@martell.zuzino.mipt.ru>
+Date: Mon, 9 Jun 2008 14:48:34 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: 2.6.26-rc5-mm1
+Message-Id: <20080609144834.c6fcb625.akpm@linux-foundation.org>
+In-Reply-To: <200806092114.54467.m.kozlowski@tuxland.pl>
+References: <20080609053908.8021a635.akpm@linux-foundation.org>
+	<484D67EF.5090203@linux.vnet.ibm.com>
+	<200806092114.54467.m.kozlowski@tuxland.pl>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mariusz Kozlowski <m.kozlowski@tuxland.pl>
+Cc: balbir@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 10, 2008 at 12:45:59AM +0400, Alexey Dobriyan wrote:
-> This happened after LTP run finished.
+On Mon, 9 Jun 2008 21:14:54 +0200
+Mariusz Kozlowski <m.kozlowski@tuxland.pl> wrote:
+
+> Hello Balbir,
 > 
-> ------------[ cut here ]------------
-> kernel BUG at mm/filemap.c:575!
+> > Andrew Morton wrote:
+> > > Temporarily at
+> > > 
+> > >   http://userweb.kernel.org/~akpm/2.6.26-rc5-mm1/
+> > > 
+> > 
+> > I've hit a segfault, the last few lines on my console are
+> > 
+> > 
+> > Testing -fstack-protector-all feature
+> > registered taskstats version 1
+> > debug: unmapping init memory ffffffff80c03000..ffffffff80dd8000
+> > init[1]: segfault at 7fff701fe880 ip 7fff701fee5e sp 7fff7006e6d0 error 7
+> > 
+> > With absolutely no stack trace. I'll dig deeper.
+> 
+> Hey, I see something similar and I actually have a stack trace. Here it goes:
+> 
+> bash[498] segfault at ffffffff80868b58 ip ffffffffff600412 sp 7fffa3d010f0 error 7
+> init[1] segfault at ffffffff80868b58 ip ffffffffff600412 sp 7fff9e97f640 error 7
+> init[1] segfault at ffffffff80868b58 ip ffffffffff600412 sp 7fff9e97eed0 error 7
+> Kernel panic - not syncing: Attemted to kill init!
+> Pid 1, comm: init Not tainted 2.6.26-rc5-mm1 #1
+> 
+> Call Trace:
+> [<ffffffff80254632>] panic+0xe2/0x260
+> [<ffffffff802fa8ba>] ? __slab_free+0x10a/0x630
+> [<ffffffff80265a8e>] ? __sigqueue_free+0x5e/0x70
+> [<ffffffff802851eb>] ? trace_hardirqs_off+0x1b/0x30
+> [<ffffffff802851eb>] ? trace_hardirqs_off+0x1b/0x30
+> [<ffffffff80259b54>] do_exit+0xb84/0xc30
+> [<ffffffff80259c5a>] do_group_exit+0x5a/0x110
+> [<ffffffff8026a3b5>] get_signal_to_deliver+0x2c5/0x620
+> [<ffffffff8020bb3b>] do_notify_resume+0x11b/0xd10
+> [<ffffffff8028da5b>] ? trace_hardirqs_on+0x1b/0x30
+> [<ffffffff805cd0f3>] ? _spin_unlock_irqrestore+0x93/0x130
+> [<ffffffff8026865c>] ? force_sig_info+0x10c/0x130
+> [<ffffffff8022fb9c>] ? force_sig_info_fault+0x2c/0x40
+> [<ffffffff802dd7dd>] ? print_vma_addr+0x10d/0x1d0
+> [<ffffffff805cbb67>] ? trace_hardirqs_on_thunk+0x3a/0x3f
+> [<ffffffff8028d8da>] ? trace_hardirqs_on_caller+0x15a/0x2c0
+> [<ffffffff8020d4c9>] retint_signal+0x46/0x8d
+> 
+> This was copied manually so typos are possible.
+> 
 
-Easily reproducible and .config snippets:
-
-CONFIG_64BIT=y
-# CONFIG_X86_32 is not set
-CONFIG_X86_64=y
-CONFIG_X86=y
-CONFIG_X86_SMP=y
-CONFIG_X86_64_SMP=y
-CONFIG_X86_HT=y
-CONFIG_SWAP=y
-CONFIG_SHMEM=y
-CONFIG_VM_EVENT_COUNTERS=y
-CONFIG_SLUB_DEBUG=y
-CONFIG_SLUB=y
-
-# CONFIG_PROC_PAGE_MONITOR is not set
-CONFIG_SLABINFO=y
-CONFIG_SMP=y
-CONFIG_X86_PC=y
-CONFIG_MCORE2=y
-CONFIG_GART_IOMMU=y
-CONFIG_SWIOTLB=y
-CONFIG_IOMMU_HELPER=y
-# CONFIG_MAXSMP is not set
-CONFIG_NR_CPUS=2
-CONFIG_SCHED_MC=y
-CONFIG_PREEMPT=y
-CONFIG_PREEMPT_RCU=y
-CONFIG_ARCH_SPARSEMEM_DEFAULT=y
-CONFIG_ARCH_SPARSEMEM_ENABLE=y
-CONFIG_ARCH_SELECT_MEMORY_MODEL=y
-CONFIG_ILLEGAL_POINTER_VALUE=0xffffc10000000000
-CONFIG_SELECT_MEMORY_MODEL=y
-# CONFIG_FLATMEM_MANUAL is not set
-# CONFIG_DISCONTIGMEM_MANUAL is not set
-CONFIG_SPARSEMEM_MANUAL=y
-CONFIG_SPARSEMEM=y
-CONFIG_HAVE_MEMORY_PRESENT=y
-# CONFIG_SPARSEMEM_STATIC is not set
-CONFIG_SPARSEMEM_EXTREME=y
-CONFIG_SPARSEMEM_VMEMMAP_ENABLE=y
-CONFIG_SPARSEMEM_VMEMMAP=y
-# CONFIG_MEMORY_HOTPLUG is not set
-CONFIG_PAGEFLAGS_EXTENDED=y
-CONFIG_SPLIT_PTLOCK_CPUS=4
-CONFIG_RESOURCES_64BIT=y
-CONFIG_ZONE_DMA_FLAG=1
-CONFIG_BOUNCE=y
-CONFIG_VIRT_TO_BUS=y
-# CONFIG_NORECLAIM_LRU is not set
-CONFIG_MTRR=y
-# CONFIG_MTRR_SANITIZER is not set
-CONFIG_X86_PAT=y
-CONFIG_HZ=1000
-CONFIG_SCHED_HRTICK=y
-
-CONFIG_EXT3_FS=y
-CONFIG_JBD=y
-CONFIG_TMPFS=y
-
-CONFIG_TRACE_IRQFLAGS_SUPPORT=y
-CONFIG_PRINTK_TIME=y
-CONFIG_DEBUG_KERNEL=y
-CONFIG_DEBUG_SHIRQ=y
-CONFIG_DETECT_SOFTLOCKUP=y
-CONFIG_DEBUG_OBJECTS=y
-CONFIG_DEBUG_OBJECTS_FREE=y
-CONFIG_DEBUG_OBJECTS_TIMERS=y
-CONFIG_SLUB_DEBUG_ON=y
-CONFIG_DEBUG_PREEMPT=y
-CONFIG_DEBUG_RT_MUTEXES=y
-CONFIG_DEBUG_PI_LIST=y
-CONFIG_DEBUG_SPINLOCK=y
-CONFIG_DEBUG_MUTEXES=y
-CONFIG_DEBUG_LOCK_ALLOC=y
-CONFIG_PROVE_LOCKING=y
-CONFIG_LOCKDEP=y
-CONFIG_TRACE_IRQFLAGS=y
-CONFIG_DEBUG_SPINLOCK_SLEEP=y
-CONFIG_STACKTRACE=y
-CONFIG_DEBUG_BUGVERBOSE=y
-CONFIG_DEBUG_VM=y
-CONFIG_DEBUG_WRITECOUNT=y
-CONFIG_DEBUG_MEMORY_INIT=y
-CONFIG_DEBUG_LIST=y
-CONFIG_DEBUG_SG=y
-CONFIG_FRAME_POINTER=y
-CONFIG_HAVE_FTRACE=y
-CONFIG_HAVE_DYNAMIC_FTRACE=y
-CONFIG_DEBUG_PAGEALLOC=y
-CONFIG_DEBUG_PER_CPU_MAPS=y
-CONFIG_DEBUG_RODATA=y
+Thanks.  Could someone send a config please?  Or a bisection result ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
