@@ -1,31 +1,32 @@
-Date: Mon, 09 Jun 2008 09:38:58 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/5] add throttle to shrink_zone()
-In-Reply-To: <20080608131203.e8cd69b7.akpm@linux-foundation.org>
-References: <20080605021505.306358710@jp.fujitsu.com> <20080608131203.e8cd69b7.akpm@linux-foundation.org>
-Message-Id: <20080609093741.7868.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Date: Mon, 9 Jun 2008 09:54:10 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH] memcg fix handle swap cache (was Re: memcg: bad page at
+ page migration)
+Message-Id: <20080609095410.d3cd5c22.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20080607152309.a003b181.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080606221124.623847aa.nishimura@mxp.nes.nec.co.jp>
+	<20080607152309.a003b181.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, balbir@linux.vnet.ibm.com, xemul@openvz.org, lizf@cn.fujitsu.com, yamamoto@valinux.co.jp, hugh@veritas.com, minchan.kim@gmail.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > add throttle to shrink_zone() for performance improvement and prevent incorrect oom.
+On Sat, 7 Jun 2008 15:23:09 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> Nishimura-san, thank you for your precise report!.
 > 
-> We should have a description of how all this works, please.  I thought
-> that was present in earlier iterations of this patchset.
+> I think this is a fix. could you try ?
 > 
-> It's quite hard and quite unreliable to reverse engineer both the
-> design and your thinking from the implementation.
+Thank you for tracking it down!
 
-Oh, sorry.
-I'll write properly description soon.
+I'll test and report it back later.
 
-Thans.
 
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
