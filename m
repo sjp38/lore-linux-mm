@@ -1,72 +1,69 @@
-Date: Mon, 9 Jun 2008 03:29:28 -0700
+Date: Mon, 9 Jun 2008 03:41:26 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 2/5] mm: introduce get_user_pages_fast
-Message-Id: <20080609032928.e3270194.akpm@linux-foundation.org>
-In-Reply-To: <20080529122602.208851000@nick.local0.net>
-References: <20080529122050.823438000@nick.local0.net>
-	<20080529122602.208851000@nick.local0.net>
+Subject: Re: [patch 15/21] hugetlb: override default huge page size
+Message-Id: <20080609034126.cf4e8df4.akpm@linux-foundation.org>
+In-Reply-To: <20080604113112.902971712@amd.local0.net>
+References: <20080604112939.789444496@amd.local0.net>
+	<20080604113112.902971712@amd.local0.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: npiggin@suse.de
-Cc: shaggy@austin.ibm.com, linux-mm@kvack.org, linux-arch@vger.kernel.org, apw@shadowen.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 May 2008 22:20:52 +1000 npiggin@suse.de wrote:
+On Wed, 04 Jun 2008 21:29:54 +1000 npiggin@suse.de wrote:
 
-> Introduce a new get_user_pages_fast mm API, which is basically a get_user_pages
-> with a less general API (but still tends to be suited to the common case):
+> Allow configurations with the default huge page size which is different to
+> the traditional HPAGE_SIZE size. The default huge page size is the one
+> represented in the legacy /proc ABIs, SHM, and which is defaulted to when
+> mounting hugetlbfs filesystems.
 > 
-> - task and mm are always current and current->mm
-> - force is always 0
-> - pages is always non-NULL
-> - don't pass back vmas
-> 
-> This restricted API can be implemented in a much more scalable way on
-> many architectures when the ptes are present, by walking the page tables
-> locklessly (no mmap_sem or page table locks). When the ptes are not
-> populated, get_user_pages_fast() could be slower.
-> 
-> This is implemented locklessly on x86, and used in some key direct IO call
-> sites, in later patches, which provides nearly 10% performance improvement
-> on a threaded database workload.
-> 
-> Lots of other code could use this too, depending on use cases (eg. grep
-> drivers/). And it might inspire some new and clever ways to use it.
+> This is implemented with a new kernel option default_hugepagesz=, which
+> defaults to HPAGE_SIZE if not specified.
 > 
 > ...
 >
-> --- linux-2.6.orig/include/linux/mm.h
-> +++ linux-2.6/include/linux/mm.h
-> @@ -12,6 +12,7 @@
->  #include <linux/prio_tree.h>
->  #include <linux/debug_locks.h>
->  #include <linux/mm_types.h>
-> +#include <linux/uaccess.h> /* for __HAVE_ARCH_GET_USER_PAGES_FAST */
->  
+> --- linux-2.6.orig/mm/hugetlb.c	2008-06-04 20:51:23.000000000 +1000
+> +++ linux-2.6/mm/hugetlb.c	2008-06-04 20:51:24.000000000 +1000
+> @@ -34,6 +34,7 @@ struct hstate hstates[HUGE_MAX_HSTATE];
+>  /* for command line parsing */
+>  static struct hstate * __initdata parsed_hstate = NULL;
+>  static unsigned long __initdata default_hstate_max_huge_pages = 0;
+> +static unsigned long __initdata default_hstate_size = HPAGE_SIZE;
 
-That breaks ia64:
+ia64:
 
-In file included from include/linux/mm.h:15,
-                 from include/asm/uaccess.h:39,
-                 from include/linux/poll.h:13,
-                 from include/linux/rtc.h:113,
-                 from include/linux/efi.h:19,
-                 from include/asm/sal.h:40,
-                 from include/asm-ia64/mca.h:20,
-                 from arch/ia64/kernel/asm-offsets.c:17:
-include/linux/uaccess.h: In function `__copy_from_user_inatomic_nocache':
-include/linux/uaccess.h:46: error: implicit declaration of function `__copy_from_user_inatomic'
-include/linux/uaccess.h: In function `__copy_from_user_nocache':
-include/linux/uaccess.h:52: error: implicit declaration of function `__copy_from_user'
+mm/hugetlb.c:39: error: initializer element is not constant
+
+(wtf?)
 
 
-It shouldn't have been a __HAVE_ARCH_whatever anyway - it should have
-been a CONFIG_whatever.
+Hopefully this'll fix it.
 
-I'll fix it.
+--- a/mm/hugetlb.c~hugetlb-override-default-huge-page-size-ia64-build
++++ a/mm/hugetlb.c
+@@ -34,7 +34,7 @@ struct hstate hstates[HUGE_MAX_HSTATE];
+ /* for command line parsing */
+ static struct hstate * __initdata parsed_hstate;
+ static unsigned long __initdata default_hstate_max_huge_pages;
+-static unsigned long __initdata default_hstate_size = HPAGE_SIZE;
++static unsigned long __initdata default_hstate_size;
+ 
+ #define for_each_hstate(h) \
+ 	for ((h) = hstates; (h) < &hstates[max_hstate]; (h)++)
+@@ -1208,6 +1208,8 @@ static int __init hugetlb_init(void)
+ {
+ 	BUILD_BUG_ON(HPAGE_SHIFT == 0);
+ 
++	default_hstate_size = HPAGE_SIZE;
++
+ 	if (!size_to_hstate(default_hstate_size)) {
+ 		default_hstate_size = HPAGE_SIZE;
+ 		if (!size_to_hstate(default_hstate_size))
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
