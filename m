@@ -1,52 +1,36 @@
-From: Johannes Weiner <hannes@saeurebad.de>
-Subject: Re: 2.6.26-rc5-mm2  compile error in vmscan.c
+Date: Tue, 10 Jun 2008 08:34:27 -0400
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: 2.6.26-rc5-mm2
+Message-ID: <20080610083427.4262d0ab@bree.surriel.com>
+In-Reply-To: <20080610021519.52af66f5.akpm@linux-foundation.org>
 References: <20080609223145.5c9a2878.akpm@linux-foundation.org>
-	<484E6A68.4060203@aitel.hist.no>
-Date: Tue, 10 Jun 2008 14:23:26 +0200
-In-Reply-To: <484E6A68.4060203@aitel.hist.no> (Helge Hafting's message of
-	"Tue, 10 Jun 2008 13:50:00 +0200")
-Message-ID: <87hcc1jx6p.fsf@saeurebad.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+	<200806101728.27486.nickpiggin@yahoo.com.au>
+	<20080610013427.aa20a29b.akpm@linux-foundation.org>
+	<200806101848.22237.nickpiggin@yahoo.com.au>
+	<20080610021519.52af66f5.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Helge Hafting <helge.hafting@aitel.hist.no>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, 10 Jun 2008 02:15:19 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-Helge Hafting <helge.hafting@aitel.hist.no> writes:
+> We need to convince ourselves that these changes are the right way to
+> fix <whatever they fix>.  We need to review and test the crap out of
+> them.  The 64-bit-only thing is a concern.  I wonder about whether
+> we've "fixed" anon pages but didn't do anything about file-backed
+> mapped pages.
 
-> Andrew Morton wrote:
->> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.26-rc5/2.6.26-rc5-mm2/
->>
->> - This is a bugfixed version of 2.6.26-rc5-mm1 - mainly to repair a
->>   vmscan.c bug which would have prevented testing of the other vmscan.c
->>   bugs^Wchanges.
->>
->
-> Interesting to try out, but I got this:
->
->  $ make
->   CHK     include/linux/version.h
->   CHK     include/linux/utsrelease.h
->   CALL    scripts/checksyscalls.sh
->   CHK     include/linux/compile.h
->   CC      mm/vmscan.o
-> mm/vmscan.c: In function 'show_page_path':
-> mm/vmscan.c:2419: error: 'struct mm_struct' has no member named 'owner'
-> make[1]: *** [mm/vmscan.o] Error 1
-> make: *** [mm] Error 2
->
->
-> I then tried to configure with "Track page owner", but that did not
-> change anything.
+Quite possible.  The reclaim policy for file-backed pages has not
+changed.  We don't know yet whether we'll have to change that, too.
 
-CONFIG_PAGE_OWNER is something else, owner is only active if
-CONFIG_MM_OWNER is set.
-
-	Hannes
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
