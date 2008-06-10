@@ -1,43 +1,43 @@
-Date: Tue, 10 Jun 2008 14:57:06 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm 17/25] Mlocked Pages are non-reclaimable
-Message-Id: <20080610145706.4a921cfa.akpm@linux-foundation.org>
-In-Reply-To: <1213134197.6872.49.camel@lts-notebook>
-References: <20080606202838.390050172@redhat.com>
-	<20080606202859.522708682@redhat.com>
-	<20080606180746.6c2b5288.akpm@linux-foundation.org>
-	<20080610033130.GK19404@wotan.suse.de>
-	<20080610171400.149886cf@cuia.bos.redhat.com>
-	<1213134197.6872.49.camel@lts-notebook>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5AM0upA020374
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2008 18:00:56 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5AM0uQ3212980
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2008 18:00:56 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5AM0uv9013737
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2008 18:00:56 -0400
+Date: Tue, 10 Jun 2008 18:00:55 -0400
+From: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
+Message-Id: <20080610220055.10257.84465.sendpatchset@norville.austin.ibm.com>
+Subject: [RFC:PATCH 00/06] Strong Access Ordering page attributes for POWER7
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: riel@redhat.com, npiggin@suse.de, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, eric.whitney@hp.com
+To: linuxppc-dev list <Linuxppc-dev@ozlabs.org>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Jun 2008 17:43:17 -0400
-Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+Allow an application to enable Strong Access Ordering on specific pages of
+memory on Power 7 hardware. Currently, power has a weaker memory model than
+x86. Implementing a stronger memory model allows an emulator to more
+efficiently translate x86 code into power code, resulting in faster code
+execution.
 
-> Couple of related items:
-> 
-> + 26-rc5-mm1 + a small fix to the double unlock_page() in
-> shrink_page_list() has been running for a couple of hours on my 32G,
-> 16cpu ia64 numa platform w/o error.  Seems to have survived the merge
-> into -mm, despite the issues Andrew has raised.
+On Power 7 hardware, storing 0b1110 in the WIMG bits of the hpte enables
+strong access ordering mode for the memory page.  This patchset allows a
+user to specify which pages are thus enabled by passing a new protection
+bit through mmap() and mprotect().  I have tentatively defined this bit,
+PROT_SAO, as 0x10.
 
-oh goody, thanks.  Johannes's bootmem rewrite is holding up
-surprisingly well.
+In order to accomplish this, I had to modify the architecture-independent
+code to allow the architecture to deal with additional protection bits.
 
-gee test.kernel.org takes a long time.
+Patches built against 2.6.26-rc5.
 
-> + on same platform, Mel Gorman's mminit debug code is reporting that
-> we're using 22 page flags with Noreclaim, Mlock and PAGEFLAGS_EXTENDED
-> configured.
+Any and all suggestions, complaints, flames, insults, etc. are appreciated.
 
-what is "Mel Gorman's mminit debug code"?
+Thanks,
+Shaggy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
