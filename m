@@ -1,12 +1,11 @@
-From: Grant Coady <grant_lkml@dodo.com.au>
-Subject: Re: 2.6.26-rc5-mm2 lockup up on Intel G33+ICH9R+Core2Duo, -mm1 okay
-Date: Tue, 10 Jun 2008 20:20:09 +1000
-Reply-To: Grant Coady <gcoady.lk@gmail.com>
-Message-ID: <73ls44tntnv8ro57chp1on2crsqkoilmkj@4ax.com>
+Message-ID: <484E6A68.4060203@aitel.hist.no>
+Date: Tue, 10 Jun 2008 13:50:00 +0200
+From: Helge Hafting <helge.hafting@aitel.hist.no>
+MIME-Version: 1.0
+Subject: Re: 2.6.26-rc5-mm2  compile error in vmscan.c
 References: <20080609223145.5c9a2878.akpm@linux-foundation.org>
 In-Reply-To: <20080609223145.5c9a2878.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -14,28 +13,32 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Jun 2008 22:31:45 -0700, Andrew Morton <akpm@linux-foundation.org> wrote:
+Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.26-rc5/2.6.26-rc5-mm2/
+> 
+> - This is a bugfixed version of 2.6.26-rc5-mm1 - mainly to repair a
+>   vmscan.c bug which would have prevented testing of the other vmscan.c
+>   bugs^Wchanges.
+> 
 
->
->ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.26-rc5/2.6.26-rc5-mm2/
->
->- This is a bugfixed version of 2.6.26-rc5-mm1 - mainly to repair a
->  vmscan.c bug which would have prevented testing of the other vmscan.c
->  bugs^Wchanges.
+Interesting to try out, but I got this:
 
-No it's not :)
+  $ make
+   CHK     include/linux/version.h
+   CHK     include/linux/utsrelease.h
+   CALL    scripts/checksyscalls.sh
+   CHK     include/linux/compile.h
+   CC      mm/vmscan.o
+mm/vmscan.c: In function 'show_page_path':
+mm/vmscan.c:2419: error: 'struct mm_struct' has no member named 'owner'
+make[1]: *** [mm/vmscan.o] Error 1
+make: *** [mm] Error 2
 
--mm1 worked fine here but -mm2 locks up just after saying:
-agpgart: Detected 7164K stolen memory.
 
-Nothing in logs (session not recorded - hit reset to restart).
+I then tried to configure with "Track page owner", but that did not 
+change anything.
 
-config and dmseg for -mm1 at (same .config for mm2):
-
-  http://bugsplatter.mine.nu/test/boxen/pooh/config-2.6.26-rc5-mm1a.gz
-  http://bugsplatter.mine.nu/test/boxen/pooh/dmesg-2.6.26-rc5-mm1a.gz
-
-Grant.
+Helge Hafting
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
