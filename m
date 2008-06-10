@@ -1,88 +1,45 @@
-Date: Tue, 10 Jun 2008 05:12:43 +0200
+Date: Tue, 10 Jun 2008 05:15:26 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 20/21] fs: check for statfs overflow
-Message-ID: <20080610031243.GG19404@wotan.suse.de>
-References: <20080604112939.789444496@amd.local0.net> <20080604113113.523542750@amd.local0.net> <20080608120645.270bc581.akpm@linux-foundation.org>
+Subject: Re: [patch 7/7] powerpc: lockless get_user_pages_fast
+Message-ID: <20080610031526.GH19404@wotan.suse.de>
+References: <20080605094300.295184000@nick.local0.net> <20080605094826.128415000@nick.local0.net> <20080609013204.7c291b68.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080608120645.270bc581.akpm@linux-foundation.org>
+In-Reply-To: <20080609013204.7c291b68.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+Cc: torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jun 08, 2008 at 12:06:45PM -0700, Andrew Morton wrote:
-> On Wed, 04 Jun 2008 21:29:59 +1000 npiggin@suse.de wrote:
+On Mon, Jun 09, 2008 at 01:32:04AM -0700, Andrew Morton wrote:
+> On Thu, 05 Jun 2008 19:43:07 +1000 npiggin@suse.de wrote:
 > 
-> > Adds a check for an overflow in the filesystem size so if someone is
-> > checking with statfs() on a 16G hugetlbfs in a 32bit binary that it
-> > will report back EOVERFLOW instead of a size of 0.
+> > Implement lockless get_user_pages_fast for powerpc. Page table existence is
+> > guaranteed with RCU, and speculative page references are used to take a
+> > reference to the pages without having a prior existence guarantee on them.
+> > 
 > 
-> -ENOUNDERSTAND.
+> arch/powerpc/mm/gup.c: In function `get_user_pages_fast':
+> arch/powerpc/mm/gup.c:156: error: `SLICE_LOW_TOP' undeclared (first use in this function)
+> arch/powerpc/mm/gup.c:156: error: (Each undeclared identifier is reported only once
+> arch/powerpc/mm/gup.c:156: error: for each function it appears in.)
+> arch/powerpc/mm/gup.c:178: error: implicit declaration of function `get_slice_psize'
+> arch/powerpc/mm/gup.c:178: error: `mmu_huge_psize' undeclared (first use in this function)
+> arch/powerpc/mm/gup.c:182: error: implicit declaration of function `huge_pte_offset'
+> arch/powerpc/mm/gup.c:182: warning: assignment makes pointer from integer without a cast
 > 
-> Why won't a 16G filesystem work on a 32-bit binary?
-
-
-Well it should work, but if it calls statfs then it will overflow the
-f_bsize... ah, that should say 16G *block size* hugetlbfs. A 16G
-hugetlbfs with 2M blocks should work just fine.
-
-
-
+> with
 > 
-> > Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
-> > Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
-> > Signed-off-by: Nick Piggin <npiggin@suse.de>
-> > ---
-> > 
-> >  fs/compat.c |    4 ++--
-> >  1 file changed, 2 insertions(+), 2 deletions(-)
-> > 
-> > 
-> > Index: linux-2.6/fs/compat.c
-> > ===================================================================
-> > --- linux-2.6.orig/fs/compat.c	2008-06-04 20:47:31.000000000 +1000
-> > +++ linux-2.6/fs/compat.c	2008-06-04 20:51:28.000000000 +1000
-> > @@ -197,8 +197,8 @@ static int put_compat_statfs(struct comp
-> >  {
-> >  	
-> >  	if (sizeof ubuf->f_blocks == 4) {
-> > -		if ((kbuf->f_blocks | kbuf->f_bfree | kbuf->f_bavail) &
-> > -		    0xffffffff00000000ULL)
-> > +		if ((kbuf->f_blocks | kbuf->f_bfree | kbuf->f_bavail |
-> > +		     kbuf->f_bsize | kbuf->f_frsize) & 0xffffffff00000000ULL)
-> >  			return -EOVERFLOW;
-> >  		/* f_files and f_ffree may be -1; it's okay
-> >  		 * to stuff that into 32 bits */
-> > @@ -271,8 +271,8 @@ out:
-> >  static int put_compat_statfs64(struct compat_statfs64 __user *ubuf, struct kstatfs *kbuf)
-> >  {
-> >  	if (sizeof ubuf->f_blocks == 4) {
-> > -		if ((kbuf->f_blocks | kbuf->f_bfree | kbuf->f_bavail) &
-> > -		    0xffffffff00000000ULL)
-> > +		if ((kbuf->f_blocks | kbuf->f_bfree | kbuf->f_bavail |
-> > +		     kbuf->f_bsize | kbuf->f_frsize) & 0xffffffff00000000ULL)
-> >  			return -EOVERFLOW;
-> >  		/* f_files and f_ffree may be -1; it's okay
-> >  		 * to stuff that into 32 bits */
-> > Index: linux-2.6/fs/open.c
-> > ===================================================================
-> > --- linux-2.6.orig/fs/open.c	2008-06-04 20:47:31.000000000 +1000
-> > +++ linux-2.6/fs/open.c	2008-06-04 20:51:28.000000000 +1000
-> > @@ -63,7 +63,8 @@ static int vfs_statfs_native(struct dent
-> >  		memcpy(buf, &st, sizeof(st));
-> >  	else {
-> >  		if (sizeof buf->f_blocks == 4) {
-> > -			if ((st.f_blocks | st.f_bfree | st.f_bavail) &
-> > +			if ((st.f_blocks | st.f_bfree | st.f_bavail |
-> > +			     st.f_bsize | st.f_frsize) &
-> >  			    0xffffffff00000000ULL)
-> >  				return -EOVERFLOW;
-> >  			/*
-> > 
-> > -- 
+> http://userweb.kernel.org/~akpm/config-g5.txt
+> 
+> I don't immediately know why - adding asm/page.h to gup.c doesn't help.
+> I'm suspecting a recursive include problem somewhere.
+> 
+> I'll drop it, sorry - too much other stuff to fix over here.
+
+No problem. Likely a clash with the hugepage patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
