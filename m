@@ -1,53 +1,142 @@
-Date: Tue, 10 Jun 2008 15:37:02 -0400
+Date: Tue, 10 Jun 2008 16:09:20 -0400
 From: Rik van Riel <riel@redhat.com>
 Subject: Re: [PATCH -mm 13/25] Noreclaim LRU Infrastructure
-Message-ID: <20080610153702.4019e042@cuia.bos.redhat.com>
-In-Reply-To: <Pine.LNX.4.64.0806101214190.17798@schroedinger.engr.sgi.com>
+Message-ID: <20080610160920.74a0da14@cuia.bos.redhat.com>
+In-Reply-To: <20080606180506.081f686a.akpm@linux-foundation.org>
 References: <20080606202838.390050172@redhat.com>
 	<20080606202859.291472052@redhat.com>
 	<20080606180506.081f686a.akpm@linux-foundation.org>
-	<20080608163413.08d46427@bree.surriel.com>
-	<20080608135704.a4b0dbe1.akpm@linux-foundation.org>
-	<20080608173244.0ac4ad9b@bree.surriel.com>
-	<20080608162208.a2683a6c.akpm@linux-foundation.org>
-	<20080608193420.2a9cc030@bree.surriel.com>
-	<20080608165434.67c87e5c.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0806101214190.17798@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, eric.whitney@hp.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Jun 2008 12:17:23 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+On Fri, 6 Jun 2008 18:05:06 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> On Sun, 8 Jun 2008, Andrew Morton wrote:
+> > +config NORECLAIM_LRU
+> > +	bool "Add LRU list to track non-reclaimable pages (EXPERIMENTAL, 64BIT only)"
+> > +	depends on EXPERIMENTAL && 64BIT
+> > +	help
+> > +	  Supports tracking of non-reclaimable pages off the [in]active lists
+> > +	  to avoid excessive reclaim overhead on large memory systems.  Pages
+> > +	  may be non-reclaimable because:  they are locked into memory, they
+> > +	  are anonymous pages for which no swap space exists, or they are anon
+> > +	  pages that are expensive to unmap [long anon_vma "related vma" list.]
 > 
-> > And it will take longer to get those problems sorted out if 32-bt
-> > machines aren't even compiing the new code in.
-> 
-> The problem is going to be less if we dependedn on 
-> CONFIG_PAGEFLAGS_EXTENDED instead of 64 bit. This means that only certain 
-> 32bit NUMA/sparsemem configs cannot do this due to lack of page flags.
-> 
-> I did the pageflags rework in part because of Rik's project.
+> Aunt Tillie might be struggling with some of that.
 
-I think your pageflags work freed up a number of bits on 32
-bit systems, unless someone compiles a 32 bit system with
-support for 4 memory zones (2 bits ZONE_SHIFT) and 64 NUMA
-nodes (6 bits NODE_SHIFT), in which case we should still
-have 24 bits for flags.
+I have now Aunt Tillified the description:
 
-Of course, having 64 NUMA nodes and a ZONE_SHIFT of 2 on
-a 32 bit system is probably total insanity already.  I
-suspect very few people compile 32 bit with NUMA at all,
-except if it is an architecture that uses DISCONTIGMEM
-instead of zones, in which case ZONE_SHIFT is 0, which
-will free up space too :)
++++ linux-2.6.26-rc5-mm2/mm/Kconfig     2008-06-10 14:56:19.000000000 -0400
+@@ -205,3 +205,13 @@ config NR_QUICK
+ config VIRT_TO_BUS
+        def_bool y
+        depends on !ARCH_NO_VIRT_TO_BUS
++
++config UNEVICTABLE_LRU
++       bool "Add LRU list to track non-evictable pages"
++       default y
++       help
++         Keeps unevictable pages off of the active and inactive pageout
++         lists, so kswapd will not waste CPU time or have its balancing
++         algorithms thrown off by scanning these pages.  Selecting this
++         will use one page flag and increase the code size a little,
++         say Y unless you know what you are doing.
+ 
+> Can we think of a new term which uniquely describes this new concept
+> and use that, rather than flogging the old horse?
+
+I have also switched to "unevictable".
+
+> > +/**
+> > + * add_page_to_noreclaim_list
+> > + * @page:  the page to be added to the noreclaim list
+> > + *
+> > + * Add page directly to its zone's noreclaim list.  To avoid races with
+> > + * tasks that might be making the page reclaimble while it's not on the
+> > + * lru, we want to add the page while it's locked or otherwise "invisible"
+> > + * to other tasks.  This is difficult to do when using the pagevec cache,
+> > + * so bypass that.
+> > + */
+> 
+> How does a task "make a page reclaimable"?  munlock()?  fsync()? 
+> exit()?
+> 
+> Choice of terminology matters...
+
+I have added a linuxdoc function description here and
+amended the comment to specify the ways in which a task
+can make a page evictable.
+
+> > +		VM_BUG_ON(PageActive(page) || PageNoreclaim(page));
+> 
+> If this ever triggers, you'll wish that it had been coded with two
+> separate assertions.
+
+Good catch.  I separated these.
+ 
+> > +/**
+> > + * putback_lru_page
+> > + * @page to be put back to appropriate lru list
+
+> The kerneldoc function description is missing.
+
+Added this one, as well as a few others that were missing.
+ 
+> > +	} else if (page_reclaimable(page, NULL)) {
+> > +		/*
+> > +		 * For reclaimable pages, we can use the cache.
+> > +		 * In event of a race, worst case is we end up with a
+> > +		 * non-reclaimable page on [in]active list.
+> > +		 * We know how to handle that.
+> > +		 */
+> > +		lru += page_file_cache(page);
+> > +		lru_cache_add_lru(page, lru);
+> > +		mem_cgroup_move_lists(page, lru);
+
+> <stares for a while>
+> 
+> <penny drops>
+> 
+> So THAT'S what the magical "return 2" is doing in page_file_cache()!
+> 
+> <looks>
+> 
+> OK, after all the patches are applied, the "2" becomes LRU_FILE and the
+> enumeration of `enum lru_list' reflects that.
+
+In most places I have turned this into a call to page_lru(page).
+ 
+> > +static inline void cull_nonreclaimable_page(struct page *page)
+
+> Did you check whether all these inlined functions really should have
+> been inlined?  Even ones like this are probably too large.
+
+Turned this into just a "static void" and renamed it
+to cull_unevictable_page.
+ 
+> > +	/*
+> > +	 * Non-reclaimable pages shouldn't make it onto either the active
+> > +	 * nor the inactive list. However, when doing lumpy reclaim of
+> > +	 * higher order pages we can still run into them.
+> 
+> I guess that something along the lines of "when this function is being
+> called for lumpy reclaim we can still .." would be clearer.
+
++       /*
++        * When this function is being called for lumpy reclaim, we
++        * initially look into all LRU pages, active, inactive and
++        * unreclaimable; only give shrink_page_list evictable pages.
++        */
++       if (PageUnevictable(page))
++               return ret;
+
+... on to the next patch!
 
 -- 
 All Rights Reversed
