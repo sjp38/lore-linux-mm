@@ -1,43 +1,84 @@
-Date: Tue, 10 Jun 2008 08:50:11 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH -mm 17/25] Mlocked Pages are non-reclaimable
-Message-ID: <20080610085011.15bd481e@bree.surriel.com>
-In-Reply-To: <20080610033130.GK19404@wotan.suse.de>
-References: <20080606202838.390050172@redhat.com>
-	<20080606202859.522708682@redhat.com>
-	<20080606180746.6c2b5288.akpm@linux-foundation.org>
-	<20080610033130.GK19404@wotan.suse.de>
+Subject: Re: [RFD][PATCH] memcg: Move Usage at Task Move
+In-Reply-To: Your message of "Tue, 10 Jun 2008 17:13:48 +0900"
+	<20080610171348.fb7aa360.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080610171348.fb7aa360.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: Text/Plain; charset=us-ascii
+Message-Id: <20080610125703.9E6CE5A11@siro.lan>
+Date: Tue, 10 Jun 2008 21:57:03 +0900 (JST)
+From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, eric.whitney@hp.com
+To: kamezawa.hiroyu@jp.fujitsu.com
+Cc: nishimura@mxp.nes.nec.co.jp, linux-mm@kvack.org, containers@lists.osdl.org, menage@google.com, balbir@linux.vnet.ibm.com, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Jun 2008 05:31:30 +0200
-Nick Piggin <npiggin@suse.de> wrote:
-
-> It should definitely be enabled for 32-bit machines, and enabled by default.
-> The argument is that 32 bit machines won't have much memory so it won't
-> be a problem, but a) it also has to work well on other machines without
-> much memory, and b) it is a nightmare to have significant behaviour changes
-> like this. For kernel development as well as kernel running.
+> On Tue, 10 Jun 2008 14:50:32 +0900 (JST)
+> yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
 > 
-> If we eventually run out of page flags on 32 bit, then sure this might be
-> one we could look at geting rid of. Once the code has proven itself.
+> > >  3. Use Lazy Manner
+> > >       When the task moves, we can mark the pages used by it as
+> > >       "Wrong Charge, Should be dropped", and add them some penalty in the LRU.
+> > >     Pros.
+> > >       - no complicated ones.
+> > >       - the pages will be gradually moved at memory pressure.
+> > >     Cons.
+> > >       - A task's usage can exceed the limit for a while.
+> > >       - can't handle mlocked() memory in proper way.
+> > > 
+> > >  4. Allow Half-moved state and abandon rollback.
+> > >     Pros.
+> > >       - no complicated ones in the code.
+> > >     Cons.
+> > >       - the users will be in chaos.
+> > 
+> > how about:
+> > 
+> > 5. try to move charges as your patch does.
+> >    if the target cgroup's usage is going to exceed the limit,
+> >    try to shrink it.  if it failed, just leave it exceeded.
+> >    (ie. no rollback)
+> >    for the memory subsystem, which can use its OOM killer,
+> >    the failure should be rare.
+> > 
+> 
+> Hmm, allowing exceed and cause OOM kill ?
+> 
+> One difficult point is that the users cannot know they can move task
+> without any risk. How to handle the risk can be a point. 
+> I don't like that approarch in general because I don't like "exceed"
+> status. But implementation will be easy.
 
-Alternatively, we tell the 32 bit people not to compile their kernel
-with support for 64 NUMA nodes :)
+regardless of how to handle task moves,
+it's important to provide information to help users
+to avoid unreasonable cgroup/task placement.
+otherwise, they will be surprised by OOM-killer etc anyway.
 
-The number of page flags on 32 bits is (32 - ZONE_SHIFT - NODE_SHIFT)
-after Christoph's cleanup and no longer a fixed number.
+having said that, if you decide to put too large tasks into
+a cgroup with too small limit, i don't think that there are
+many choices besides OOM-kill and allowing "exceed".
 
-Does anyone compile a 32 bit kernel with a large (ZONE_SHIFT + NODE_SHIFT)?
+actually, i think that #3 and #5 are somewhat similar.
+a big difference is that, while #5 shrinks the cgroup immediately,
+#3 does it later.  in case we need to do OOM-kill, i prefer to do it
+sooner than later.
 
--- 
-All rights reversed.
+> > > After writing this patch, for me, "3" is attractive. now.
+> > > (or using Lazy manner and allow moving of usage instead of freeing it.)
+> > > 
+> > > One reasone is that I think a typical usage of memory controller is
+> > > fork()->move->exec(). (by libcg ?) and exec() will flush the all usage.
+> > 
+> > i guess that moving long-running applications can be desirable
+> > esp. for not so well-designed systems.
+> > 
+> 
+> hmm, for not so well-designed systems....true.
+> But "5" has the same kind of risks for not so well-desgined systems ;)
+
+i don't claim that #5 is a perfect solution for everyone. :)
+
+YAMAMOTO Takashi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
