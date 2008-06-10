@@ -1,33 +1,40 @@
-Date: Tue, 10 Jun 2008 08:34:27 -0400
+Date: Tue, 10 Jun 2008 08:50:11 -0400
 From: Rik van Riel <riel@redhat.com>
-Subject: Re: 2.6.26-rc5-mm2
-Message-ID: <20080610083427.4262d0ab@bree.surriel.com>
-In-Reply-To: <20080610021519.52af66f5.akpm@linux-foundation.org>
-References: <20080609223145.5c9a2878.akpm@linux-foundation.org>
-	<200806101728.27486.nickpiggin@yahoo.com.au>
-	<20080610013427.aa20a29b.akpm@linux-foundation.org>
-	<200806101848.22237.nickpiggin@yahoo.com.au>
-	<20080610021519.52af66f5.akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm 17/25] Mlocked Pages are non-reclaimable
+Message-ID: <20080610085011.15bd481e@bree.surriel.com>
+In-Reply-To: <20080610033130.GK19404@wotan.suse.de>
+References: <20080606202838.390050172@redhat.com>
+	<20080606202859.522708682@redhat.com>
+	<20080606180746.6c2b5288.akpm@linux-foundation.org>
+	<20080610033130.GK19404@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Jun 2008 02:15:19 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Tue, 10 Jun 2008 05:31:30 +0200
+Nick Piggin <npiggin@suse.de> wrote:
 
-> We need to convince ourselves that these changes are the right way to
-> fix <whatever they fix>.  We need to review and test the crap out of
-> them.  The 64-bit-only thing is a concern.  I wonder about whether
-> we've "fixed" anon pages but didn't do anything about file-backed
-> mapped pages.
+> It should definitely be enabled for 32-bit machines, and enabled by default.
+> The argument is that 32 bit machines won't have much memory so it won't
+> be a problem, but a) it also has to work well on other machines without
+> much memory, and b) it is a nightmare to have significant behaviour changes
+> like this. For kernel development as well as kernel running.
+> 
+> If we eventually run out of page flags on 32 bit, then sure this might be
+> one we could look at geting rid of. Once the code has proven itself.
 
-Quite possible.  The reclaim policy for file-backed pages has not
-changed.  We don't know yet whether we'll have to change that, too.
+Alternatively, we tell the 32 bit people not to compile their kernel
+with support for 64 NUMA nodes :)
+
+The number of page flags on 32 bits is (32 - ZONE_SHIFT - NODE_SHIFT)
+after Christoph's cleanup and no longer a fixed number.
+
+Does anyone compile a 32 bit kernel with a large (ZONE_SHIFT + NODE_SHIFT)?
 
 -- 
 All rights reversed.
