@@ -1,189 +1,43 @@
-From: Grant Coady <grant_lkml@dodo.com.au>
-Subject: Re: 2.6.26-rc5-mm2 lockup up on Intel G33+ICH9R+Core2Duo, -mm1 okay
-Date: Wed, 11 Jun 2008 07:48:17 +1000
-Reply-To: Grant Coady <gcoady.lk@gmail.com>
-Message-ID: <dhtt4410opmgivvoo9rdk6chbhfbb2g5pd@4ax.com>
-References: <20080609223145.5c9a2878.akpm@linux-foundation.org> <73ls44tntnv8ro57chp1on2crsqkoilmkj@4ax.com> <20080610111832.736519d2.akpm@linux-foundation.org>
-In-Reply-To: <20080610111832.736519d2.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Tue, 10 Jun 2008 14:57:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm 17/25] Mlocked Pages are non-reclaimable
+Message-Id: <20080610145706.4a921cfa.akpm@linux-foundation.org>
+In-Reply-To: <1213134197.6872.49.camel@lts-notebook>
+References: <20080606202838.390050172@redhat.com>
+	<20080606202859.522708682@redhat.com>
+	<20080606180746.6c2b5288.akpm@linux-foundation.org>
+	<20080610033130.GK19404@wotan.suse.de>
+	<20080610171400.149886cf@cuia.bos.redhat.com>
+	<1213134197.6872.49.camel@lts-notebook>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Grant Coady <gcoady.lk@gmail.com>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, Keith Packard <keithp@keithp.com>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: riel@redhat.com, npiggin@suse.de, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Jun 2008 11:18:32 -0700, Andrew Morton <akpm@linux-foundation.org> wrote:
+On Tue, 10 Jun 2008 17:43:17 -0400
+Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
 
->On Tue, 10 Jun 2008 20:20:09 +1000 Grant Coady <grant_lkml@dodo.com.au> wrote:
->
->> On Mon, 9 Jun 2008 22:31:45 -0700, Andrew Morton <akpm@linux-foundation.org> wrote:
->> 
->> >
->> >ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.26-rc5/2.6.26-rc5-mm2/
->> >
->> >- This is a bugfixed version of 2.6.26-rc5-mm1 - mainly to repair a
->> >  vmscan.c bug which would have prevented testing of the other vmscan.c
->> >  bugs^Wchanges.
->> 
->> No it's not :)
->> 
->> -mm1 worked fine here but -mm2 locks up just after saying:
->> agpgart: Detected 7164K stolen memory.
->> 
->> Nothing in logs (session not recorded - hit reset to restart).
->> 
->> config and dmseg for -mm1 at (same .config for mm2):
->> 
->>   http://bugsplatter.mine.nu/test/boxen/pooh/config-2.6.26-rc5-mm1a.gz
->>   http://bugsplatter.mine.nu/test/boxen/pooh/dmesg-2.6.26-rc5-mm1a.gz
->> 
->> Grant.
->
->hm, intel-agp gtt stuff.
->
->Can you please see whether reverting Keith's stuff fixes it?
+> Couple of related items:
+> 
+> + 26-rc5-mm1 + a small fix to the double unlock_page() in
+> shrink_page_list() has been running for a couple of hours on my 32G,
+> 16cpu ia64 numa platform w/o error.  Seems to have survived the merge
+> into -mm, despite the issues Andrew has raised.
 
-Yes, it does :)
+oh goody, thanks.  Johannes's bootmem rewrite is holding up
+surprisingly well.
 
-config + dmesg at: http://bugsplatter.mine.nu/test/boxen/pooh/ (*-mm2b.gz)
+gee test.kernel.org takes a long time.
 
-Grant.
->
-> drivers/char/agp/agp.h       |    3 ---
-> drivers/char/agp/backend.c   |    2 --
-> drivers/char/agp/generic.c   |   28 ----------------------------
-> drivers/char/agp/intel-agp.c |    5 -----
-> include/linux/agp_backend.h  |    5 -----
-> 5 files changed, 43 deletions(-)
->
->diff -puN drivers/char/agp/agp.h~revert-intel-agp-rewrite-gtt-on-resume drivers/char/agp/agp.h
->--- a/drivers/char/agp/agp.h~revert-intel-agp-rewrite-gtt-on-resume
->+++ a/drivers/char/agp/agp.h
->@@ -148,9 +148,6 @@ struct agp_bridge_data {
-> 	char minor_version;
-> 	struct list_head list;
-> 	u32 apbase_config;
->-	/* list of agp_memory mapped to the aperture */
->-	struct list_head mapped_list;
->-	spinlock_t mapped_lock;
-> };
-> 
-> #define KB(x)	((x) * 1024)
->diff -puN drivers/char/agp/backend.c~revert-intel-agp-rewrite-gtt-on-resume drivers/char/agp/backend.c
->--- a/drivers/char/agp/backend.c~revert-intel-agp-rewrite-gtt-on-resume
->+++ a/drivers/char/agp/backend.c
->@@ -183,8 +183,6 @@ static int agp_backend_initialize(struct
-> 		rc = -EINVAL;
-> 		goto err_out;
-> 	}
->-	INIT_LIST_HEAD(&bridge->mapped_list);
->-	spin_lock_init(&bridge->mapped_lock);
-> 
-> 	return 0;
-> 
->diff -puN drivers/char/agp/generic.c~revert-intel-agp-rewrite-gtt-on-resume drivers/char/agp/generic.c
->--- a/drivers/char/agp/generic.c~revert-intel-agp-rewrite-gtt-on-resume
->+++ a/drivers/char/agp/generic.c
->@@ -426,10 +426,6 @@ int agp_bind_memory(struct agp_memory *c
-> 
-> 	curr->is_bound = TRUE;
-> 	curr->pg_start = pg_start;
->-	spin_lock(&agp_bridge->mapped_lock);
->-	list_add(&curr->mapped_list, &agp_bridge->mapped_list);
->-	spin_unlock(&agp_bridge->mapped_lock);
->-
-> 	return 0;
-> }
-> EXPORT_SYMBOL(agp_bind_memory);
->@@ -462,34 +458,10 @@ int agp_unbind_memory(struct agp_memory 
-> 
-> 	curr->is_bound = FALSE;
-> 	curr->pg_start = 0;
->-	spin_lock(&curr->bridge->mapped_lock);
->-	list_del(&curr->mapped_list);
->-	spin_unlock(&curr->bridge->mapped_lock);
-> 	return 0;
-> }
-> EXPORT_SYMBOL(agp_unbind_memory);
-> 
->-/**
->- *	agp_rebind_emmory  -  Rewrite the entire GATT, useful on resume
->- */
->-int agp_rebind_memory(void)
->-{
->-	struct agp_memory *curr;
->-	int ret_val = 0;
->-
->-	spin_lock(&agp_bridge->mapped_lock);
->-	list_for_each_entry(curr, &agp_bridge->mapped_list, mapped_list) {
->-		ret_val = curr->bridge->driver->insert_memory(curr,
->-							      curr->pg_start,
->-							      curr->type);
->-		if (ret_val != 0)
->-			break;
->-	}
->-	spin_unlock(&agp_bridge->mapped_lock);
->-	return ret_val;
->-}
->-EXPORT_SYMBOL(agp_rebind_memory);
->-
-> /* End - Routines for handling swapping of agp_memory into the GATT */
-> 
-> 
->diff -puN drivers/char/agp/intel-agp.c~revert-intel-agp-rewrite-gtt-on-resume drivers/char/agp/intel-agp.c
->--- a/drivers/char/agp/intel-agp.c~revert-intel-agp-rewrite-gtt-on-resume
->+++ a/drivers/char/agp/intel-agp.c
->@@ -2176,7 +2176,6 @@ static void __devexit agp_intel_remove(s
-> static int agp_intel_resume(struct pci_dev *pdev)
-> {
-> 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
->-	int ret_val;
-> 
-> 	pci_restore_state(pdev);
-> 
->@@ -2204,10 +2203,6 @@ static int agp_intel_resume(struct pci_d
-> 	else if (bridge->driver == &intel_i965_driver)
-> 		intel_i915_configure();
-> 
->-	ret_val = agp_rebind_memory();
->-	if (ret_val != 0)
->-		return ret_val;
->-
-> 	return 0;
-> }
-> #endif
->diff -puN include/linux/agp_backend.h~revert-intel-agp-rewrite-gtt-on-resume include/linux/agp_backend.h
->--- a/include/linux/agp_backend.h~revert-intel-agp-rewrite-gtt-on-resume
->+++ a/include/linux/agp_backend.h
->@@ -30,8 +30,6 @@
-> #ifndef _AGP_BACKEND_H
-> #define _AGP_BACKEND_H 1
-> 
->-#include <linux/list.h>
->-
-> #ifndef TRUE
-> #define TRUE 1
-> #endif
->@@ -88,8 +86,6 @@ struct agp_memory {
-> 	u8 is_bound;
-> 	u8 is_flushed;
->         u8 vmalloc_flag;
->-	/* list of agp_memory mapped to the aperture */
->-	struct list_head mapped_list;
-> };
-> 
-> #define AGP_NORMAL_MEMORY 0
->@@ -108,7 +104,6 @@ extern struct agp_memory *agp_allocate_m
-> extern int agp_copy_info(struct agp_bridge_data *, struct agp_kern_info *);
-> extern int agp_bind_memory(struct agp_memory *, off_t);
-> extern int agp_unbind_memory(struct agp_memory *);
->-extern int agp_rebind_memory(void);
-> extern void agp_enable(struct agp_bridge_data *, u32);
-> extern struct agp_bridge_data *agp_backend_acquire(struct pci_dev *);
-> extern void agp_backend_release(struct agp_bridge_data *);
->_
+> + on same platform, Mel Gorman's mminit debug code is reporting that
+> we're using 22 page flags with Noreclaim, Mlock and PAGEFLAGS_EXTENDED
+> configured.
+
+what is "Mel Gorman's mminit debug code"?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
