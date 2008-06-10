@@ -1,10 +1,10 @@
-Date: Tue, 10 Jun 2008 12:00:48 -0700 (PDT)
+Date: Tue, 10 Jun 2008 12:08:27 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 7/7] powerpc: lockless get_user_pages_fast
-In-Reply-To: <20080605094826.128415000@nick.local0.net>
-Message-ID: <Pine.LNX.4.64.0806101159110.17798@schroedinger.engr.sgi.com>
+Subject: Re: [patch 3/7] mm: speculative page references
+In-Reply-To: <20080605094825.699347000@nick.local0.net>
+Message-ID: <Pine.LNX.4.64.0806101205480.17798@schroedinger.engr.sgi.com>
 References: <20080605094300.295184000@nick.local0.net>
- <20080605094826.128415000@nick.local0.net>
+ <20080605094825.699347000@nick.local0.net>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -15,22 +15,19 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 5 Jun 2008, npiggin@suse.de wrote:
 
-> Index: linux-2.6/include/linux/mm.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/mm.h
-> +++ linux-2.6/include/linux/mm.h
-> @@ -244,7 +244,7 @@ static inline int put_page_testzero(stru
->   */
->  static inline int get_page_unless_zero(struct page *page)
->  {
-> -	VM_BUG_ON(PageTail(page));
-> +	VM_BUG_ON(PageCompound(page));
->  	return atomic_inc_not_zero(&page->_count);
->  }
+> +		 * do the right thing (see comments above).
+> +		 */
+> +		return 0;
+> +	}
+> +#endif
+> +	VM_BUG_ON(PageCompound(page) && (struct page *)page_private(page) != page);
 
-This is reversing the modification to make get_page_unless_zero() usable 
-with compound page heads. Will break the slab defrag patchset.
+This is easier written as:
 
+== VM_BUG_ON(PageTail(page)
+
+And its also slightly incorrect since page_private(page) is not pointing 
+to the head page for PageHead(page).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
