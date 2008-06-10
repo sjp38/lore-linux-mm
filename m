@@ -1,110 +1,85 @@
-Received: by mu-out-0910.google.com with SMTP id i2so1705434mue.6
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2008 23:20:51 -0700 (PDT)
-Message-ID: <484E1D03.7050400@gmail.com>
-Date: Tue, 10 Jun 2008 08:19:47 +0200
-From: Jiri Slaby <jirislaby@gmail.com>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: 2.6.26-rc5-mm2
+Date: Tue, 10 Jun 2008 17:28:27 +1000
+References: <20080609223145.5c9a2878.akpm@linux-foundation.org>
+In-Reply-To: <20080609223145.5c9a2878.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: sock lockup -> process in D state [Was: 2.6.26-rc5-mm1]
-References: <20080609053908.8021a635.akpm@linux-foundation.org>	<484DAF9D.5080702@gmail.com> <20080609160154.218f3e69.akpm@linux-foundation.org>
-In-Reply-To: <20080609160154.218f3e69.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200806101728.27486.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 06/10/2008 01:01 AM, Andrew Morton wrote:
-> On Tue, 10 Jun 2008 00:33:01 +0200
-> Jiri Slaby <jirislaby@gmail.com> wrote:
-> 
->> On 06/09/2008 02:39 PM, Andrew Morton wrote:
->>>   ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.26-rc5/2.6.26-rc5-mm1/
->> I don't know how to reproduce it so far, but posting anyway:
->>
->> httpd2-prefor D 00000000ffffffff     0  3697   2811
->>   ffff810055bd7198 0000000000000046 ffff810055bd7160 ffff810055bd715c
->>   ffffffff80728000 ffff810063896700 ffff81007d093380 ffff810063896980
->>   00000001781e1700 00000001005585a6 ffff810063896980 0000000000000600
->> Call Trace:
->>   [<ffffffff8049d6fd>] lock_sock_nested+0x8d/0xd0
-[...]
-> 
-> Looks like it tried to go BUG then deadlocked.  Didn't it print BUG
-> stuff into the logs?
-> 
-> And I'd guess that you hit the unlock_page() BUG (Subject: Re:
-> 2.6.26-rc5-mm1: kernel BUG at mm/filemap.c:575!).
+On Tuesday 10 June 2008 15:31, Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.26-rc5/2.
+>6.26-rc5-mm2/
+>
 
-Yeah, you're right. I didn't notice it earlier, since 2 unsuccessful suspends 
-tainted logs with task stacks.
-
-This is the first Oops. The same with httpd is in the logs too.
+BTW. would be trying to test this more myself, but last mm I based the
+lockless patches on didn't boot, and this one dies pretty quickly when
+you try to get into reclaim:
 
 ------------[ cut here ]------------
-kernel BUG at /home/l/latest/xxx/mm/filemap.c:575!
-invalid opcode: 0000 [1] SMP
-last sysfs file: /sys/devices/virtual/net/tun0/statistics/collisions
-CPU 0
-Modules linked in: usbhid hid ohci1394 floppy ff_memless ieee1394 rtc_cmos evdev 
-[last unloaded: freq_table]
-Pid: 27195, comm: find Not tainted 2.6.26-rc5-mm1_64 #417
-RIP: 0010:[<ffffffff80277ec7>]  [<ffffffff80277ec7>] unlock_page+0x17/0x40
-RSP: 0018:ffff810059851618  EFLAGS: 00010246
-RAX: 0000000000000000 RBX: ffffe20000679b70 RCX: 0000000000000035
-RDX: 0000000000000000 RSI: ffffe20000679b70 RDI: ffffe20000679b70
-RBP: ffff810059851628 R08: db80000000000000 R09: e000000000000000
-R10: ffffe20000a494c8 R11: ffff81002f05fa50 R12: ffffe20000679b98
-R13: ffff810059851898 R14: ffff8100598519b8 R15: 0000000000000000
-FS:  00007fa7478a56f0(0000) GS:ffffffff806d2300(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 00007f62ec2fe000 CR3: 00000000591ac000 CR4: 00000000000006e0
+kernel BUG at mm/swap_state.c:77!
+invalid opcode: 0000 [1] SMP DEBUG_PAGEALLOC
+last sysfs file: /sys/devices/system/cpu/cpu7/cache/index2/shared_cpu_map
+CPU 7
+Modules linked in:
+Pid: 13550, comm: sh Not tainted 2.6.26-rc5-mm2-dirty #412
+RIP: 0010:[<ffffffff80288689>]  [<ffffffff80288689>] 
+add_to_swap_cache+0xd9/0x120
+RSP: 0018:ffff81010c62d8a8  EFLAGS: 00010246
+RAX: 2000000000020009 RBX: ffffe2000107da88 RCX: c000000000000000
+RDX: 0000000000000020 RSI: 000000000000eea2 RDI: ffffe2000107da88
+RBP: ffff81010c62d8c8 R08: fffffffffa48016e R09: 0000000000000000
+R10: ffffffff80857fa0 R11: 2222222222222222 R12: ffff81012e126520
+R13: 000000000000eea2 R14: ffff8100727bea20 R15: ffff81010c62d9b8
+FS:  00002b5b33cafdc0(0000) GS:ffff81012ff07800(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+CR2: 000000000175e280 CR3: 000000012e292000 CR4: 00000000000006e0
 DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
 DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-Process find (pid: 27195, threadinfo ffff810059850000, task ffff810078346700)
-Stack:  ffff810059851628 ffffe20000679b70 ffff810059851768 ffffffff8028386d
-  ffff810059851728 ffff8100598516e8 ffff810059851658 0000000000000000
-  0000001400000000 0000000000000002 0000000000000002 0000000000000001
+Process sh (pid: 13550, threadinfo ffff81010c62c000, task ffff810116b01110)
+Stack:  ffff81010c62d8c8 ffffe2000107da88 ffff81012e126520 ffff81012e126400
+ ffff81010c62d908 ffffffff80292851 000000000000eea2 ffff81012e126708
+ ffffe2000107da88 ffffffff80701420 ffff81010c62db68 ffff81010c62dc88
 Call Trace:
-  [<ffffffff8028386d>] shrink_page_list+0x2fd/0x720
-  [<ffffffff80282ad3>] ? isolate_pages_global+0x1c3/0x270
-  [<ffffffff80283ed0>] shrink_list+0x240/0x5e0
-  [<ffffffff802844c3>] shrink_zone+0x253/0x330
-  [<ffffffff80285441>] try_to_free_pages+0x251/0x3e0
-  [<ffffffff80282910>] ? isolate_pages_global+0x0/0x270
-  [<ffffffff8027e8ff>] __alloc_pages_internal+0x20f/0x4e0
-  [<ffffffff802a0e04>] __slab_alloc+0x6d4/0x6f0
-  [<ffffffff80308a45>] ? ext3_alloc_inode+0x15/0x40
-  [<ffffffff802a1165>] kmem_cache_alloc+0x95/0xa0
-  [<ffffffff80308a45>] ext3_alloc_inode+0x15/0x40
-  [<ffffffff802bbdac>] alloc_inode+0x1c/0x1b0
-  [<ffffffff802bbfb0>] iget_locked+0x70/0x170
-  [<ffffffff802ffd87>] ext3_iget+0x17/0x3f0
-  [<ffffffff80306cf8>] ext3_lookup+0xa8/0x100
-  [<ffffffff802ba6c3>] ? d_alloc+0x123/0x1b0
-  [<ffffffff802adb36>] do_lookup+0x1c6/0x220
-  [<ffffffff802af4bb>] __link_path_walk+0x37b/0x1030
-  [<ffffffff8029ee95>] ? check_object+0x265/0x270
-  [<ffffffff8029e6c0>] ? init_object+0x50/0x90
-  [<ffffffff802b01d6>] path_walk+0x66/0xd0
-  [<ffffffff802b0492>] do_path_lookup+0xa2/0x240
-  [<ffffffff802b142c>] __user_walk_fd+0x4c/0x80
-  [<ffffffff802a89cb>] vfs_lstat_fd+0x2b/0x70
-  [<ffffffff802a8ba3>] ? cp_new_stat+0xe3/0xf0
-  [<ffffffff802c011a>] ? mntput_no_expire+0x2a/0x190
-  [<ffffffff802a8c0c>] sys_newfstatat+0x5c/0x80
-  [<ffffffff802a640d>] ? fput+0x1d/0x30
-  [<ffffffff802a2b9b>] ? filp_close+0x5b/0x90
-  [<ffffffff802a2c7d>] ? sys_close+0xad/0x100
-  [<ffffffff8020c42b>] system_call_after_swapgs+0x7b/0x80
+ [<ffffffff80292851>] shmem_writepage+0x121/0x200
+ [<ffffffff80277479>] shrink_page_list+0x559/0x6b0
+ [<ffffffff802777ec>] shrink_list+0x21c/0x520
+ [<ffffffff80273365>] ? determine_dirtyable_memory+0x15/0x30
+ [<ffffffff802733a2>] ? get_dirty_limits+0x22/0x2a0
+ [<ffffffff80277d31>] shrink_zone+0x241/0x330
+ [<ffffffff80278207>] try_to_free_pages+0x237/0x3a0
+ [<ffffffff80276530>] ? isolate_pages_global+0x0/0x270
+ [<ffffffff80272546>] __alloc_pages_internal+0x206/0x4b0
+ [<ffffffff8028dfd7>] alloc_pages_current+0x87/0xd0
+ [<ffffffff802714fe>] __get_free_pages+0xe/0x60
+ [<ffffffff802343ca>] copy_process+0xba/0x1240
+ [<ffffffff80235682>] do_fork+0x82/0x2a0
+ [<ffffffff8025a03d>] ? trace_hardirqs_on+0xd/0x10
+ [<ffffffff805177ab>] ? _spin_unlock_irq+0x2b/0x40
+ [<ffffffff8051703f>] ? trace_hardirqs_on_thunk+0x3a/0x3f
+ [<ffffffff8020b6cb>] ? system_call_after_swapgs+0x7b/0x80
+ [<ffffffff80209853>] sys_clone+0x23/0x30
 
-Code: 1f 44 00 00 eb c5 66 66 66 66 66 2e 0f 1f 84 00 00 00 00 00 55 48 89 e5 53 
-48 89 fb 48 83 ec 08 f0 0f ba 37 00 19 c0 85 c0 75 04 <0f> 0b eb fe e8 f0 ee ff 
-ff 48 89 de 48 89 c7 31 d2 e8 c3 60 fd
-RIP  [<ffffffff80277ec7>] unlock_page+0x17/0x40
-  RSP <ffff810059851618>
----[ end trace 2a52a1962aabcbb2 ]---
+The tmpfs PageSwapBacked stuff seems rather broken. For
+them write_begin/write_end path, it is filemap.c, not shmem.c,
+which allocates the page, so its no wonder it goes bug. Will
+try to do more testing without shmem.
+
+Also, just noticed
+mm/memory.c:do_wp_page
+//TODO:  is this safe?  do_anonymous_page() does it this way.
+
+That's a bit disheartening. Surely a question like that has to
+be answered definitively? (hopefully whatever is doing the
+asking won't get merged until answered)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
