@@ -1,68 +1,35 @@
-Date: Tue, 10 Jun 2008 11:37:33 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: 2.6.26-rc5-mm2  compile error in vmscan.c
-Message-Id: <20080610113733.8d924c0e.akpm@linux-foundation.org>
-In-Reply-To: <484E6A68.4060203@aitel.hist.no>
-References: <20080609223145.5c9a2878.akpm@linux-foundation.org>
-	<484E6A68.4060203@aitel.hist.no>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 10 Jun 2008 12:00:48 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 7/7] powerpc: lockless get_user_pages_fast
+In-Reply-To: <20080605094826.128415000@nick.local0.net>
+Message-ID: <Pine.LNX.4.64.0806101159110.17798@schroedinger.engr.sgi.com>
+References: <20080605094300.295184000@nick.local0.net>
+ <20080605094826.128415000@nick.local0.net>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Helge Hafting <helge.hafting@aitel.hist.no>
-Cc: linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+To: npiggin@suse.de
+Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Jun 2008 13:50:00 +0200 Helge Hafting <helge.hafting@aitel.hist.no> wrote:
+On Thu, 5 Jun 2008, npiggin@suse.de wrote:
 
-> Andrew Morton wrote:
-> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.26-rc5/2.6.26-rc5-mm2/
-> > 
-> > - This is a bugfixed version of 2.6.26-rc5-mm1 - mainly to repair a
-> >   vmscan.c bug which would have prevented testing of the other vmscan.c
-> >   bugs^Wchanges.
-> > 
-> 
-> Interesting to try out, but I got this:
-> 
->   $ make
->    CHK     include/linux/version.h
->    CHK     include/linux/utsrelease.h
->    CALL    scripts/checksyscalls.sh
->    CHK     include/linux/compile.h
->    CC      mm/vmscan.o
-> mm/vmscan.c: In function 'show_page_path':
-> mm/vmscan.c:2419: error: 'struct mm_struct' has no member named 'owner'
-> make[1]: *** [mm/vmscan.o] Error 1
-> make: *** [mm] Error 2
-> 
-> 
-> I then tried to configure with "Track page owner", but that did not 
-> change anything.
-> 
+> Index: linux-2.6/include/linux/mm.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/mm.h
+> +++ linux-2.6/include/linux/mm.h
+> @@ -244,7 +244,7 @@ static inline int put_page_testzero(stru
+>   */
+>  static inline int get_page_unless_zero(struct page *page)
+>  {
+> -	VM_BUG_ON(PageTail(page));
+> +	VM_BUG_ON(PageCompound(page));
+>  	return atomic_inc_not_zero(&page->_count);
+>  }
 
-Thanks.  I guess this will get you going.
-
---- a/mm/vmscan.c~mm-only-vmscan-noreclaim-lru-scan-sysctl-fix
-+++ a/mm/vmscan.c
-@@ -2400,6 +2400,7 @@ static void show_page_path(struct page *
- 		       dentry_path(dentry, buf, 256), pgoff);
- 		spin_unlock(&mapping->i_mmap_lock);
- 	} else {
-+#ifdef CONFG_MM_OWNER
- 		struct anon_vma *anon_vma;
- 		struct vm_area_struct *vma;
- 
-@@ -2413,6 +2414,7 @@ static void show_page_path(struct page *
- 			break;
- 		}
- 		page_unlock_anon_vma(anon_vma);
-+#endif
- 	}
- }
- 
-_
+This is reversing the modification to make get_page_unless_zero() usable 
+with compound page heads. Will break the slab defrag patchset.
 
 
 --
