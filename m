@@ -1,97 +1,165 @@
-Date: Tue, 10 Jun 2008 05:31:30 +0200
+Date: Tue, 10 Jun 2008 05:45:36 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH -mm 17/25] Mlocked Pages are non-reclaimable
-Message-ID: <20080610033130.GK19404@wotan.suse.de>
-References: <20080606202838.390050172@redhat.com> <20080606202859.522708682@redhat.com> <20080606180746.6c2b5288.akpm@linux-foundation.org>
+Subject: Re: [rfc][patch] mm: vmap rewrite
+Message-ID: <20080610034536.GA4115@wotan.suse.de>
+References: <20080605102015.GA11366@wotan.suse.de> <4848E49B.8060505@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080606180746.6c2b5288.akpm@linux-foundation.org>
+In-Reply-To: <4848E49B.8060505@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, eric.whitney@hp.com
+To: Jiri Slaby <jirislaby@gmail.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 06, 2008 at 06:07:46PM -0700, Andrew Morton wrote:
-> On Fri, 06 Jun 2008 16:28:55 -0400
-> Rik van Riel <riel@redhat.com> wrote:
+On Fri, Jun 06, 2008 at 09:17:47AM +0200, Jiri Slaby wrote:
+> On 06/05/2008 12:20 PM, Nick Piggin wrote:
+> >Rewrite the vmap allocator to use rbtrees and lazy tlb flushing, and 
+> >provide a
+> >fast, scalable percpu frontend for small vmaps.
+> [...]
+> >===================================================================
+> >Index: linux-2.6/mm/vmalloc.c
+> >===================================================================
+> >--- linux-2.6.orig/mm/vmalloc.c
+> >+++ linux-2.6/mm/vmalloc.c
+> [...]
+> >@@ -18,16 +19,17 @@
+> [...]
+> >-DEFINE_RWLOCK(vmlist_lock);
+> >-struct vm_struct *vmlist;
+> >-
+> >-static void *__vmalloc_node(unsigned long size, gfp_t gfp_mask, pgprot_t 
+> >prot,
+> >-			    int node, void *caller);
+> >+/** Page table manipulation functions **/
 > 
-> > Originally
-> > From: Nick Piggin <npiggin@suse.de>
-> > 
-> > Against:  2.6.26-rc2-mm1
-> > 
-> > This patch:
-> > 
-> > 1) defines the [CONFIG_]NORECLAIM_MLOCK sub-option and the
-> >    stub version of the mlock/noreclaim APIs when it's
-> >    not configured.  Depends on [CONFIG_]NORECLAIM_LRU.
-> 
-> Oh sob.
-> 
-> akpm:/usr/src/25> find . -name '*.[ch]' | xargs grep CONFIG_NORECLAIM | wc -l
-> 51
-> 
-> why oh why?  Must we really really do this to ourselves?  Cheerfully
-> unchangeloggedly?
-> 
-> > 2) add yet another page flag--PG_mlocked--to indicate that
-> >    the page is locked for efficient testing in vmscan and,
-> >    optionally, fault path.  This allows early culling of
-> >    nonreclaimable pages, preventing them from getting to
-> >    page_referenced()/try_to_unmap().  Also allows separate
-> >    accounting of mlock'd pages, as Nick's original patch
-> >    did.
-> > 
-> >    Note:  Nick's original mlock patch used a PG_mlocked
-> >    flag.  I had removed this in favor of the PG_noreclaim
-> >    flag + an mlock_count [new page struct member].  I
-> >    restored the PG_mlocked flag to eliminate the new
-> >    count field.  
-> 
-> How many page flags are left?  I keep on asking this and I end up
-> either a) not being told or b) forgetting.  I thought that we had
-> a whopping big comment somewhere which describes how all these
-> flags are allocated but I can't immediately locate it.
-> 
-> > 3) add the mlock/noreclaim infrastructure to mm/mlock.c,
-> >    with internal APIs in mm/internal.h.  This is a rework
-> >    of Nick's original patch to these files, taking into
-> >    account that mlocked pages are now kept on noreclaim
-> >    LRU list.
-> > 
-> > 4) update vmscan.c:page_reclaimable() to check PageMlocked()
-> >    and, if vma passed in, the vm_flags.  Note that the vma
-> >    will only be passed in for new pages in the fault path;
-> >    and then only if the "cull nonreclaimable pages in fault
-> >    path" patch is included.
-> > 
-> > 5) add try_to_unlock() to rmap.c to walk a page's rmap and
-> >    ClearPageMlocked() if no other vmas have it mlocked.  
-> >    Reuses as much of try_to_unmap() as possible.  This
-> >    effectively replaces the use of one of the lru list links
-> >    as an mlock count.  If this mechanism let's pages in mlocked
-> >    vmas leak through w/o PG_mlocked set [I don't know that it
-> >    does], we should catch them later in try_to_unmap().  One
-> >    hopes this will be rare, as it will be relatively expensive.
-> > 
-> > 6) Kosaki:  added munlock page table walk to avoid using
-> >    get_user_pages() for unlock.  get_user_pages() is unreliable
-> >    for some vma protections.
-> >    Lee:  modified to wait for in-flight migration to complete
-> >    to close munlock/migration race that could strand pages.
-> 
-> None of which is available on 32-bit machines.  That's pretty significant.
+> Do not use /** for non-kdoc comments.
 
-It should definitely be enabled for 32-bit machines, and enabled by default.
-The argument is that 32 bit machines won't have much memory so it won't
-be a problem, but a) it also has to work well on other machines without
-much memory, and b) it is a nightmare to have significant behaviour changes
-like this. For kernel development as well as kernel running.
+OK, sure. What about /*** ?
 
-If we eventually run out of page flags on 32 bit, then sure this might be
-one we could look at geting rid of. Once the code has proven itself.
+
+> > static void vunmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned 
+> > long end)
+> > {
+> [...]
+> >@@ -103,18 +95,24 @@ static int vmap_pte_range(pmd_t *pmd, un
+> > 	if (!pte)
+> > 		return -ENOMEM;
+> > 	do {
+> >-		struct page *page = **pages;
+> >-		WARN_ON(!pte_none(*pte));
+> >-		if (!page)
+> >+		struct page *page = pages[*nr];
+> >+
+> >+		if (unlikely(!pte_none(*pte))) {
+> >+			WARN_ON(1);
+> >+			return -EBUSY;
+> >+		}
+> 
+> this just may be
+> if (WARN_ON(!pte_none(*pte)))
+>   return -EBUSY;
+> 
+> >+		if (unlikely(!page)) {
+> >+			WARN_ON(1);
+> > 			return -ENOMEM;
+> >+		}
+> 
+> same here
+
+Noted, but I actually don't like the syntax at all, so I won't change it.
+
+ 
+> > 		set_pte_at(&init_mm, addr, pte, mk_pte(page, prot));
+> >-		(*pages)++;
+> >+		(*nr)++;
+> > 	} while (pte++, addr += PAGE_SIZE, addr != end);
+> > 	return 0;
+> > }
+> [...]
+> >-static struct vm_struct *
+> >-__get_vm_area_node(unsigned long size, unsigned long flags, unsigned long 
+> >start,
+> >-		unsigned long end, int node, gfp_t gfp_mask, void *caller)
+> >+
+> >+/** Global kva allocator **/
+> 
+> here too
+> 
+> >+static struct vmap_area *__find_vmap_area(unsigned long addr)
+> > {
+> >-	struct vm_struct **p, *tmp, *area;
+> >-	unsigned long align = 1;
+> >+        struct rb_node *n = vmap_area_root.rb_node;
+> 
+> It's padded by spaces here.
+
+Hmm, thanks will fix.
+
+ 
+> >+
+> >+        while (n) {
+> >+		struct vmap_area *va;
+> >+
+> >+                va = rb_entry(n, struct vmap_area, rb_node);
+> >+                if (addr < va->va_start)
+> >+                        n = n->rb_left;
+> >+                else if (addr > va->va_start)
+> >+                        n = n->rb_right;
+> >+                else
+> >+                        return va;
+> >+        }
+> >+
+> >+        return NULL;
+> >+}
+> [...]
+> >+/** Per cpu kva allocator **/
+> 
+> standard /* comment */
+> 
+> >+#define ULONG_BITS		(8*sizeof(unsigned long))
+> >+#if BITS_PER_LONG < 64
+> 
+> Can these 2 differ?
+
+Hmm, not sure what I was thinking there... should just use BITS_PER_LONG
+I guess.
+
+ 
+> >+/*
+> >+ * vmap space is limited on 32 bit architectures. Ensure there is room 
+> >for at
+> >+ * least 16 percpu vmap blocks per CPU.
+> >+ */
+> >+#define VMAP_BBMAP_BITS		min(1024, (128*1024*1024 / PAGE_SIZE 
+> >/ NR_CPUS / 16))
+> >+#define VMAP_BBMAP_BITS		(1024) /* 4MB with 4K pages */
+> >+#define VMAP_BBMAP_LONGS	BITS_TO_LONGS(VMAP_BBMAP_BITS)
+> >+#define VMAP_BLOCK_SIZE		(VMAP_BBMAP_BITS * PAGE_SIZE)
+> >+
+> >+struct vmap_block_queue {
+> >+	spinlock_t lock;
+> >+	struct list_head free;
+> >+	struct list_head dirty;
+> >+	unsigned int nr_dirty;
+> >+};
+> >+
+> >+struct vmap_block {
+> >+	spinlock_t lock;
+> >+	struct vmap_area *va;
+> >+	struct vmap_block_queue *vbq;
+> >+	unsigned long free, dirty;
+> >+	unsigned long alloc_map[VMAP_BBMAP_LONGS];
+> >+	unsigned long dirty_map[VMAP_BBMAP_LONGS];
+> 
+> DECLARE_BITMAP(x, VMAP_BBMAP_BITS)?
+
+Yeah, that's nicer.
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
