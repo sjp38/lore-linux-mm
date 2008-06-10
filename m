@@ -1,72 +1,37 @@
-Subject: Re: [RFD][PATCH] memcg: Move Usage at Task Move
-In-Reply-To: Your message of "Fri, 6 Jun 2008 10:52:35 +0900"
-	<20080606105235.3c94daaf.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080606105235.3c94daaf.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20080610055032.A8AB25A0E@siro.lan>
-Date: Tue, 10 Jun 2008 14:50:32 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: 2.6.26-rc5-mm2
+Date: Tue, 10 Jun 2008 16:12:14 +1000
+References: <20080609223145.5c9a2878.akpm@linux-foundation.org>
+In-Reply-To: <20080609223145.5c9a2878.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200806101612.15041.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: linux-mm@kvack.org, containers@lists.osdl.org, balbir@linux.vnet.ibm.com, xemul@openvz.org, nishimura@mxp.nes.nec.co.jp, menage@google.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> For avoiding complicated rollbacks,
-> I think of following ways of policy for task moving (you can add here.)
-> 
->  1. Before moving usage, reserve usage in the new cgroup and old cgroup.
->     Pros.
->      - rollback will be very easy.
->     Cons.
->      - A task will use twice of its own usage virtaually for a while.
->      - some amount of cpu time will be necessary to move _Big_ apps.
->      - It's difficut to move _Big_ apps to small memcg.
->      - we have to add "special case" handling.
-> 
->  2. Don't move any usage at task move. (current implementation.)
->     Pros.
->       - no complication in the code.
->     Cons.
->       - A task's usage is chareged to wrong cgroup.
->       - Not sure, but I believe the users don't want this.
-> 
->  3. Use Lazy Manner
->       When the task moves, we can mark the pages used by it as
->       "Wrong Charge, Should be dropped", and add them some penalty in the LRU.
->     Pros.
->       - no complicated ones.
->       - the pages will be gradually moved at memory pressure.
->     Cons.
->       - A task's usage can exceed the limit for a while.
->       - can't handle mlocked() memory in proper way.
-> 
->  4. Allow Half-moved state and abandon rollback.
->     Pros.
->       - no complicated ones in the code.
->     Cons.
->       - the users will be in chaos.
+On Tuesday 10 June 2008 15:31, Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.26-rc5/2.
+>6.26-rc5-mm2/
+>
+> - This is a bugfixed version of 2.6.26-rc5-mm1 - mainly to repair a
+>   vmscan.c bug which would have prevented testing of the other vmscan.c
+>   bugs^Wchanges.
 
-how about:
+BTW. this is known to be broken with x86 1GB pages and direct-IO, due
+to interaction between huge pages patchset and lockless get_user_pages.
 
-5. try to move charges as your patch does.
-   if the target cgroup's usage is going to exceed the limit,
-   try to shrink it.  if it failed, just leave it exceeded.
-   (ie. no rollback)
-   for the memory subsystem, which can use its OOM killer,
-   the failure should be rare.
+My fault. I was away from the screen over the long weekend here, and
+didn't give Andrew the heads-up in time.
 
-> After writing this patch, for me, "3" is attractive. now.
-> (or using Lazy manner and allow moving of usage instead of freeing it.)
-> 
-> One reasone is that I think a typical usage of memory controller is
-> fork()->move->exec(). (by libcg ?) and exec() will flush the all usage.
-
-i guess that moving long-running applications can be desirable
-esp. for not so well-designed systems.
-
-YAMAMOTO Takashi
+This isn't going to be a problem unless you explicitly enable GB pages
+and run direct IO (or splice) into or out of them. I can give a fixup
+patch to anyone interested in doing so.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
