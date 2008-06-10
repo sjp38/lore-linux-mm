@@ -1,80 +1,108 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5AM1DSs015823
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2008 18:01:13 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5AM1Hfd018873
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2008 18:01:17 -0400
 Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5AM1DaB213264
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2008 18:01:13 -0400
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5AM17iv237874
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2008 18:01:07 -0400
 Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5AM1DA2015491
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2008 18:01:13 -0400
-Date: Tue, 10 Jun 2008 18:01:12 -0400
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5AM17QP015317
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2008 18:01:07 -0400
+Date: Tue, 10 Jun 2008 18:01:07 -0400
 From: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
-Message-Id: <20080610220112.10257.48747.sendpatchset@norville.austin.ibm.com>
+Message-Id: <20080610220106.10257.69841.sendpatchset@norville.austin.ibm.com>
 In-Reply-To: <20080610220055.10257.84465.sendpatchset@norville.austin.ibm.com>
 References: <20080610220055.10257.84465.sendpatchset@norville.austin.ibm.com>
-Subject: [RFC:PATCH 03/06] powerpc: Define flags for Strong Access Ordering
+Subject: [RFC:PATCH 02/06] mm: Allow architectures to define additional protection bits
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linuxppc-dev list <Linuxppc-dev@ozlabs.org>
 Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-This patch defines:
+This patch allows architectures to define functions to deal with
+additional protections bits for mmap() and mprotect().
 
-- PROT_SAO, which is passed into mmap() and mprotect() in the prot field
-- VM_SAO in vma->vm_flags, and
-- _PAGE_SAO, the combination of WIMG bits in the pte that enables strong
-access ordering for the page.
+arch_calc_vm_prot_bits() maps additonal protection bits to vm_flags
+arch_vm_get_page_prot() maps additional vm_flags to the vma's vm_page_prot
+arch_validate_prot() checks for valid values of the protection bits
 
-NOTE: There doesn't seem to be a precedent for architecture-dependent vm_flags.
-It may be better to define VM_SAO somewhere in include/asm-powerpc/.  Since
-vm_flags is a long, defining it in the high-order word would help prevent a
-collision with any newly added values in architecture-independent code.
+Note: vm_get_page_prot() is now pretty ugly.  Suggestions?
 
 Signed-off-by: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
 ---
 
- include/asm-powerpc/mman.h          |    2 ++
- include/asm-powerpc/pgtable-ppc64.h |    3 +++
- include/linux/mm.h                  |    1 +
- 3 files changed, 6 insertions(+)
+ include/linux/mman.h |   23 ++++++++++++++++++++++-
+ mm/mmap.c            |    5 +++--
+ mm/mprotect.c        |    2 +-
+ 3 files changed, 26 insertions(+), 4 deletions(-)
 
-diff -Nurp linux002/include/asm-powerpc/mman.h linux003/include/asm-powerpc/mman.h
---- linux002/include/asm-powerpc/mman.h	2008-04-16 21:49:44.000000000 -0500
-+++ linux003/include/asm-powerpc/mman.h	2008-06-10 16:48:59.000000000 -0500
-@@ -10,6 +10,8 @@
-  * 2 of the License, or (at your option) any later version.
-  */
+diff -Nurp linux001/include/linux/mman.h linux002/include/linux/mman.h
+--- linux001/include/linux/mman.h	2008-06-05 10:08:01.000000000 -0500
++++ linux002/include/linux/mman.h	2008-06-10 16:48:59.000000000 -0500
+@@ -34,6 +34,26 @@ static inline void vm_unacct_memory(long
+ }
  
-+#define PROT_SAO	0x10		/* Strong Access Ordering */
+ /*
++ * Allow architectures to handle additional protection bits
++ */
 +
- #define MAP_RENAME      MAP_ANONYMOUS   /* In SunOS terminology */
- #define MAP_NORESERVE   0x40            /* don't reserve swap pages */
- #define MAP_LOCKED	0x80
-diff -Nurp linux002/include/asm-powerpc/pgtable-ppc64.h linux003/include/asm-powerpc/pgtable-ppc64.h
---- linux002/include/asm-powerpc/pgtable-ppc64.h	2008-06-05 10:07:56.000000000 -0500
-+++ linux003/include/asm-powerpc/pgtable-ppc64.h	2008-06-10 16:48:59.000000000 -0500
-@@ -94,6 +94,9 @@
- #define _PAGE_HASHPTE	0x0400 /* software: pte has an associated HPTE */
- #define _PAGE_BUSY	0x0800 /* software: PTE & hash are busy */
- 
-+/* Strong Access Ordering */
-+#define _PAGE_SAO	(_PAGE_WRITETHRU | _PAGE_NO_CACHE | _PAGE_COHERENT)
++#ifndef HAVE_ARCH_PROT_BITS
++#define arch_calc_vm_prot_bits(prot) 0
++#define arch_vm_get_page_prot(vm_flags) __pgprot(0)
 +
- #define _PAGE_BASE	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_COHERENT)
++/*
++ * This is called from mprotect().  PROT_GROWSDOWN and PROT_GROWSUP have
++ * already been masked out.
++ *
++ * Returns true if the prot flags are valid
++ */
++static inline int arch_validate_prot(unsigned long prot)
++{
++	return (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM)) == 0;
++}
++#endif /* HAVE_ARCH_PROT_BITS */
++
++/*
+  * Optimisation macro.  It is equivalent to:
+  *      (x & bit1) ? bit2 : 0
+  * but this version is faster.
+@@ -51,7 +71,8 @@ calc_vm_prot_bits(unsigned long prot)
+ {
+ 	return _calc_vm_trans(prot, PROT_READ,  VM_READ ) |
+ 	       _calc_vm_trans(prot, PROT_WRITE, VM_WRITE) |
+-	       _calc_vm_trans(prot, PROT_EXEC,  VM_EXEC );
++	       _calc_vm_trans(prot, PROT_EXEC,  VM_EXEC) |
++	       arch_calc_vm_prot_bits(prot);
+ }
  
- #define _PAGE_WRENABLE	(_PAGE_RW | _PAGE_DIRTY)
-diff -Nurp linux002/include/linux/mm.h linux003/include/linux/mm.h
---- linux002/include/linux/mm.h	2008-06-05 10:08:01.000000000 -0500
-+++ linux003/include/linux/mm.h	2008-06-10 16:48:59.000000000 -0500
-@@ -108,6 +108,7 @@ extern unsigned int kobjsize(const void 
+ /*
+diff -Nurp linux001/mm/mmap.c linux002/mm/mmap.c
+--- linux001/mm/mmap.c	2008-06-05 10:08:03.000000000 -0500
++++ linux002/mm/mmap.c	2008-06-10 16:48:59.000000000 -0500
+@@ -72,8 +72,9 @@ pgprot_t protection_map[16] = {
  
- #define VM_CAN_NONLINEAR 0x08000000	/* Has ->fault & does nonlinear pages */
- #define VM_MIXEDMAP	0x10000000	/* Can contain "struct page" and pure PFN pages */
-+#define VM_SAO		0x20000000	/* Strong Access Ordering (powerpc) */
+ pgprot_t vm_get_page_prot(unsigned long vm_flags)
+ {
+-	return protection_map[vm_flags &
+-				(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)];
++	return __pgprot(pgprot_val(protection_map[vm_flags &
++				(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]) |
++			pgprot_val(arch_vm_get_page_prot(vm_flags)));
+ }
+ EXPORT_SYMBOL(vm_get_page_prot);
  
- #ifndef VM_STACK_DEFAULT_FLAGS		/* arch can override this */
- #define VM_STACK_DEFAULT_FLAGS VM_DATA_DEFAULT_FLAGS
+diff -Nurp linux001/mm/mprotect.c linux002/mm/mprotect.c
+--- linux001/mm/mprotect.c	2008-06-05 10:08:03.000000000 -0500
++++ linux002/mm/mprotect.c	2008-06-10 16:48:59.000000000 -0500
+@@ -239,7 +239,7 @@ sys_mprotect(unsigned long start, size_t
+ 	end = start + len;
+ 	if (end <= start)
+ 		return -ENOMEM;
+-	if (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM))
++	if (!arch_validate_prot(prot))
+ 		return -EINVAL;
+ 
+ 	reqprot = prot;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
