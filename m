@@ -1,57 +1,127 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5AM5cdA007497
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2008 18:05:38 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5AM5coB174796
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2008 16:05:38 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5AM5bNj015032
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2008 16:05:38 -0600
-Subject: Re: [PATCH -mm 13/25] Noreclaim LRU Infrastructure
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20080610143334.c53d7d8a.akpm@linux-foundation.org>
-References: <20080606202838.390050172@redhat.com>
-	 <20080606202859.291472052@redhat.com>
-	 <20080606180506.081f686a.akpm@linux-foundation.org>
-	 <20080608163413.08d46427@bree.surriel.com>
-	 <20080608135704.a4b0dbe1.akpm@linux-foundation.org>
-	 <20080608173244.0ac4ad9b@bree.surriel.com>
-	 <20080608162208.a2683a6c.akpm@linux-foundation.org>
-	 <20080608193420.2a9cc030@bree.surriel.com>
-	 <20080608165434.67c87e5c.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0806101214190.17798@schroedinger.engr.sgi.com>
-	 <20080610153702.4019e042@cuia.bos.redhat.com>
-	 <20080610143334.c53d7d8a.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Tue, 10 Jun 2008 15:05:35 -0700
-Message-Id: <1213135535.7261.10.camel@nimitz>
+Date: Tue, 10 Jun 2008 15:14:23 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC:PATCH 02/06] mm: Allow architectures to define additional
+ protection bits
+Message-Id: <20080610151423.a6e68632.akpm@linux-foundation.org>
+In-Reply-To: <20080610220106.10257.69841.sendpatchset@norville.austin.ibm.com>
+References: <20080610220055.10257.84465.sendpatchset@norville.austin.ibm.com>
+	<20080610220106.10257.69841.sendpatchset@norville.austin.ibm.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, clameter@sgi.com, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, eric.whitney@hp.com, Paul Mundt <lethal@linux-sh.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Andy Whitcroft <apw@shadowen.org>
+To: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
+Cc: Linuxppc-dev@ozlabs.org, linux-mm@kvack.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-06-10 at 14:33 -0700, Andrew Morton wrote:
-> Maybe it's time to bite the bullet and kill i386 NUMA support.  afaik
-> it's just NUMAQ and a 2-node NUMAish machine which IBM made (as400?)
+On Tue, 10 Jun 2008 18:01:07 -0400
+Dave Kleikamp <shaggy@linux.vnet.ibm.com> wrote:
 
-Yeah, IBM sold a couple of these "interesting" 32-bit NUMA machines:
+> mm: Allow architectures to define additional protection bits
+> 
+> This patch allows architectures to define functions to deal with
+> additional protections bits for mmap() and mprotect().
+> 
+> arch_calc_vm_prot_bits() maps additonal protection bits to vm_flags
+> arch_vm_get_page_prot() maps additional vm_flags to the vma's vm_page_prot
+> arch_validate_prot() checks for valid values of the protection bits
+> 
+> Note: vm_get_page_prot() is now pretty ugly.  Suggestions?
 
-https://www.redbooks.ibm.com/Redbooks.nsf/RedbookAbstracts/tips0267.html?Open
+It didn't get any better, no ;)
 
-I think those maxed out at 8 nodes, ever.  But, no distro ever turned
-NUMA on for i386, so no one actually depends on it working.  We do have
-a bunch of systems that we use for testing and so forth.  It'd be a
-shame to make these suck *too* much.  The NUMA-Q is probably also so
-intertwined with CONFIG_NUMA that we'd likely never get it running
-again.
+I wonder if we can do the ORing after doing the protection_map[]
+lookup.  I guess that's illogical even if it happens to work.
 
-I'd rather just bloat page->flags on these platforms or move the
-sparsemem/zone/node bits elsewhere than kill NUMA support.  
+> Signed-off-by: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
+> ---
+> 
+>  include/linux/mman.h |   23 ++++++++++++++++++++++-
+>  mm/mmap.c            |    5 +++--
+>  mm/mprotect.c        |    2 +-
+>  3 files changed, 26 insertions(+), 4 deletions(-)
+> 
+> diff -Nurp linux001/include/linux/mman.h linux002/include/linux/mman.h
+> --- linux001/include/linux/mman.h	2008-06-05 10:08:01.000000000 -0500
+> +++ linux002/include/linux/mman.h	2008-06-10 16:48:59.000000000 -0500
+> @@ -34,6 +34,26 @@ static inline void vm_unacct_memory(long
+>  }
+>  
+>  /*
+> + * Allow architectures to handle additional protection bits
+> + */
+> +
+> +#ifndef HAVE_ARCH_PROT_BITS
+> +#define arch_calc_vm_prot_bits(prot) 0
+> +#define arch_vm_get_page_prot(vm_flags) __pgprot(0)
+> +
+> +/*
+> + * This is called from mprotect().  PROT_GROWSDOWN and PROT_GROWSUP have
+> + * already been masked out.
+> + *
+> + * Returns true if the prot flags are valid
+> + */
+> +static inline int arch_validate_prot(unsigned long prot)
+> +{
+> +	return (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM)) == 0;
+> +}
+> +#endif /* HAVE_ARCH_PROT_BITS */
 
--- Dave
+argh, another HAVE_ARCH_foo.
+
+A good (but verbose) way of doing this is to nuke the ifdefs and just
+go and define these three things for each architecture.  That can be
+done via copy-n-paste into include/asm-*/mman.h or #include
+<asm-generic/arch-mman.h>(?) within each asm/mman.h.
+
+Another way would be
+
+#ifndef arch_calc_vm_prot_bits
+#define arch_calc_vm_prot_bits(prot) ...
+
+
+> +/*
+>   * Optimisation macro.  It is equivalent to:
+>   *      (x & bit1) ? bit2 : 0
+>   * but this version is faster.
+> @@ -51,7 +71,8 @@ calc_vm_prot_bits(unsigned long prot)
+>  {
+>  	return _calc_vm_trans(prot, PROT_READ,  VM_READ ) |
+>  	       _calc_vm_trans(prot, PROT_WRITE, VM_WRITE) |
+> -	       _calc_vm_trans(prot, PROT_EXEC,  VM_EXEC );
+> +	       _calc_vm_trans(prot, PROT_EXEC,  VM_EXEC) |
+> +	       arch_calc_vm_prot_bits(prot);
+>  }
+>  
+>  /*
+> diff -Nurp linux001/mm/mmap.c linux002/mm/mmap.c
+> --- linux001/mm/mmap.c	2008-06-05 10:08:03.000000000 -0500
+> +++ linux002/mm/mmap.c	2008-06-10 16:48:59.000000000 -0500
+> @@ -72,8 +72,9 @@ pgprot_t protection_map[16] = {
+>  
+>  pgprot_t vm_get_page_prot(unsigned long vm_flags)
+>  {
+> -	return protection_map[vm_flags &
+> -				(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)];
+> +	return __pgprot(pgprot_val(protection_map[vm_flags &
+> +				(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]) |
+> +			pgprot_val(arch_vm_get_page_prot(vm_flags)));
+>  }
+>  EXPORT_SYMBOL(vm_get_page_prot);
+>  
+> diff -Nurp linux001/mm/mprotect.c linux002/mm/mprotect.c
+> --- linux001/mm/mprotect.c	2008-06-05 10:08:03.000000000 -0500
+> +++ linux002/mm/mprotect.c	2008-06-10 16:48:59.000000000 -0500
+> @@ -239,7 +239,7 @@ sys_mprotect(unsigned long start, size_t
+>  	end = start + len;
+>  	if (end <= start)
+>  		return -ENOMEM;
+> -	if (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM))
+> +	if (!arch_validate_prot(prot))
+>  		return -EINVAL;
+>  
+>  	reqprot = prot;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
