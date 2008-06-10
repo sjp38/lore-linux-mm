@@ -1,98 +1,204 @@
-Date: Mon, 9 Jun 2008 22:01:49 -0700
+Date: Mon, 9 Jun 2008 22:31:45 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: 2.6.26-rc5-mm1
-Message-Id: <20080609220149.d930d141.akpm@linux-foundation.org>
-In-Reply-To: <200806100657.02863.m.kozlowski@tuxland.pl>
-References: <20080609053908.8021a635.akpm@linux-foundation.org>
-	<200806092114.54467.m.kozlowski@tuxland.pl>
-	<20080609144834.c6fcb625.akpm@linux-foundation.org>
-	<200806100657.02863.m.kozlowski@tuxland.pl>
+Subject: 2.6.26-rc5-mm2
+Message-Id: <20080609223145.5c9a2878.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mariusz Kozlowski <m.kozlowski@tuxland.pl>
-Cc: balbir@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
+To: linux-kernel@vger.kernel.org
+Cc: kernel-testers@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Jun 2008 06:57:02 +0200 Mariusz Kozlowski <m.kozlowski@tuxland.pl> wrote:
+ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.26-rc5/2.6.26-rc5-mm2/
 
-> Witam, 
-> 
-> > On Mon, 9 Jun 2008 21:14:54 +0200
-> > Mariusz Kozlowski <m.kozlowski@tuxland.pl> wrote:
-> > 
-> > > Hello Balbir,
-> > > 
-> > > > Andrew Morton wrote:
-> > > > > Temporarily at
-> > > > > 
-> > > > >   http://userweb.kernel.org/~akpm/2.6.26-rc5-mm1/
-> > > > > 
-> > > > 
-> > > > I've hit a segfault, the last few lines on my console are
-> > > > 
-> > > > 
-> > > > Testing -fstack-protector-all feature
-> > > > registered taskstats version 1
-> > > > debug: unmapping init memory ffffffff80c03000..ffffffff80dd8000
-> > > > init[1]: segfault at 7fff701fe880 ip 7fff701fee5e sp 7fff7006e6d0 error 7
-> > > > 
-> > > > With absolutely no stack trace. I'll dig deeper.
-> > > 
-> > > Hey, I see something similar and I actually have a stack trace. Here it goes:
-> > > 
-> > > bash[498] segfault at ffffffff80868b58 ip ffffffffff600412 sp 7fffa3d010f0 error 7
-> > > init[1] segfault at ffffffff80868b58 ip ffffffffff600412 sp 7fff9e97f640 error 7
-> > > init[1] segfault at ffffffff80868b58 ip ffffffffff600412 sp 7fff9e97eed0 error 7
-> > > Kernel panic - not syncing: Attemted to kill init!
-> > > Pid 1, comm: init Not tainted 2.6.26-rc5-mm1 #1
-> > > 
-> > > Call Trace:
-> > > [<ffffffff80254632>] panic+0xe2/0x260
-> > > [<ffffffff802fa8ba>] ? __slab_free+0x10a/0x630
-> > > [<ffffffff80265a8e>] ? __sigqueue_free+0x5e/0x70
-> > > [<ffffffff802851eb>] ? trace_hardirqs_off+0x1b/0x30
-> > > [<ffffffff802851eb>] ? trace_hardirqs_off+0x1b/0x30
-> > > [<ffffffff80259b54>] do_exit+0xb84/0xc30
-> > > [<ffffffff80259c5a>] do_group_exit+0x5a/0x110
-> > > [<ffffffff8026a3b5>] get_signal_to_deliver+0x2c5/0x620
-> > > [<ffffffff8020bb3b>] do_notify_resume+0x11b/0xd10
-> > > [<ffffffff8028da5b>] ? trace_hardirqs_on+0x1b/0x30
-> > > [<ffffffff805cd0f3>] ? _spin_unlock_irqrestore+0x93/0x130
-> > > [<ffffffff8026865c>] ? force_sig_info+0x10c/0x130
-> > > [<ffffffff8022fb9c>] ? force_sig_info_fault+0x2c/0x40
-> > > [<ffffffff802dd7dd>] ? print_vma_addr+0x10d/0x1d0
-> > > [<ffffffff805cbb67>] ? trace_hardirqs_on_thunk+0x3a/0x3f
-> > > [<ffffffff8028d8da>] ? trace_hardirqs_on_caller+0x15a/0x2c0
-> > > [<ffffffff8020d4c9>] retint_signal+0x46/0x8d
-> > > 
-> > > This was copied manually so typos are possible.
-> > > 
-> > 
-> > Thanks.  Could someone send a config please?  Or a bisection result ;)
-> 
-> In my case it turns out to be gcov patches - in which I'm interested
-> in to see (and play with) the tests coverage.
-> 
-> #
-> # gcov
-> #
-> kernel-call-constructors.patch
-> kernel-introduce-gcc_version_lower-macro.patch
-> seq_file-add-function-to-write-binary-data.patch
-> GOOD
-> gcov-add-gcov-profiling-infrastructure.patch
-> GOOD
-> gcov-create-links-to-gcda-files-in-build-directory.patch
-> gcov-architecture-specific-compile-flag-adjustments.patch
-> BAD
-> 
-> I can not bisect between the last two due to build error. Config is attached.
-> 
+- This is a bugfixed version of 2.6.26-rc5-mm1 - mainly to repair a
+  vmscan.c bug which would have prevented testing of the other vmscan.c
+  bugs^Wchanges.
 
-(cc Peter)
+
+Boilerplate:
+
+- See the `hot-fixes' directory for any important updates to this patchset.
+
+- To fetch an -mm tree using git, use (for example)
+
+  git-fetch git://git.kernel.org/pub/scm/linux/kernel/git/smurf/linux-trees.git tag v2.6.16-rc2-mm1
+  git-checkout -b local-v2.6.16-rc2-mm1 v2.6.16-rc2-mm1
+
+- -mm kernel commit activity can be reviewed by subscribing to the
+  mm-commits mailing list.
+
+        echo "subscribe mm-commits" | mail majordomo@vger.kernel.org
+
+- If you hit a bug in -mm and it is not obvious which patch caused it, it is
+  most valuable if you can perform a bisection search to identify which patch
+  introduced the bug.  Instructions for this process are at
+
+        http://www.zip.com.au/~akpm/linux/patches/stuff/bisecting-mm-trees.txt
+
+  But beware that this process takes some time (around ten rebuilds and
+  reboots), so consider reporting the bug first and if we cannot immediately
+  identify the faulty patch, then perform the bisection search.
+
+- When reporting bugs, please try to Cc: the relevant maintainer and mailing
+  list on any email.
+
+- When reporting bugs in this kernel via email, please also rewrite the
+  email Subject: in some manner to reflect the nature of the bug.  Some
+  developers filter by Subject: when looking for messages to read.
+
+- Occasional snapshots of the -mm lineup are uploaded to
+  ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/mm/ and are announced on
+  the mm-commits list.  These probably are at least compilable.
+
+- More-than-daily -mm snapshots may be found at
+  http://userweb.kernel.org/~akpm/mmotm/.  These are almost certainly not
+  compileable.
+
+
+
+Changes since 2.6.26-rc5-mm1:
+
+ origin.patch
+ linux-next.patch
+ git-jg-misc.patch
+ git-leds.patch
+ git-libata-all.patch
+ git-battery.patch
+ git-parisc.patch
+ git-regulator.patch
+ git-scsi-misc-fix-scsi_dh-build-errors.patch
+ git-unionfs.patch
+ git-logfs.patch
+ git-unprivileged-mounts.patch
+ git-xtensa.patch
+ git-orion.patch
+ git-pekka.patch
+
+ git trees
+
++cpusets-provide-another-web-page-url-in-maintainers-file.patch
++maintainers-update-pppoe-maintainer-address.patch
++proc_fsh-move-struct-mm_struct-forward-declaration.patch
+
+ 2.6.26 queue
+
+-drivers-net-wireless-iwlwifi-iwl-4965-rsc-config_iwl4965_ht=n-hack.patch
+
+ Unneeded
+
++drivers-mtd-nand-nandsimc-needs-div64h.patch
+
+ mtd fix
+
+-intel-agp-rewrite-gtt-on-resume-update.patch
+-intel-agp-rewrite-gtt-on-resume-update-checkpatch-fixes.patch
+
+ Folded into intel-agp-rewrite-gtt-on-resume.patch
+
++intel-agp-rewrite-gtt-on-resume-fix.patch
++intel-agp-rewrite-gtt-on-resume-fix-fix.patch
+
+ Fix it some more.
+
+-powerpc-fix-for-oprofile-callgraph-for-power-64-bit-user-apps.patch
+
+ Dropped
+
+-arch-powerpc-platforms-pseries-eeh_driverc-fix-warning-checkpatch-fixes.patch
+
+ Folded into arch-powerpc-platforms-pseries-eeh_driverc-fix-warning.patch
+
+-bluetooth-hci_bcspc-small-cleanups-api-users-fix.patch
+
+ Folded into bluetooth-hci_bcspc-small-cleanups-api-users.patch
+
+-net-sh_eth-add-support-for-renesas-superh-ethernet-checkpatch-fixes.patch
+
+ Folded into net-sh_eth-add-support-for-renesas-superh-ethernet.patch
+
++selinux-change-handling-of-invalid-classes.patch
+
+ selinux fix
+
+-usb-host-use-get-put_unaligned_-helpers-to-fix-more-potential-unaligned-issues-fix.patch
+-usb-host-use-get-put_unaligned_-helpers-to-fix-more-potential-unaligned-issues-fix-2.patch
+
+ Folded into
+ usb-host-use-get-put_unaligned_-helpers-to-fix-more-potential-unaligned-issues.patch
+
+-at91sam9-cap9-watchdog-driver.patch
+
+ Dropped
+
+-watchdog-pcwd-clean-up-unlocked_ioctl-usage-fix.patch
+
+ Folded into watchdog-pcwd-clean-up-unlocked_ioctl-usage.patch
+
+-watchdog-wdt501-pci-clean-up-coding-style-and-switch-to-unlocked_ioctl-fix.patch
+
+ Folded into
+ watchdog-wdt501-pci-clean-up-coding-style-and-switch-to-unlocked_ioctl.patch
+
++iwlwifi-remove-iwl4965_ht-config.patch
+
+ wireless fix
+
++drivers-isdn-sc-ioctlc-add-missing-kfree.patch
+
+ ISDM fix
+
+-mtd-m25p80-fix-bug-atmel-spi-flash-fails-to-be-copied-to-fix-up.patch
+
+ Folded into mtd-m25p80-fix-bug-atmel-spi-flash-fails-to-be-copied-to.patch
+
+-pnpacpi-fix-irq-flag-decoding-comment-fix.patch
+
+ Folded into pnpacpi-fix-irq-flag-decoding.patch
+
+-vfs-utimensat-fix-error-checking-for-utime_nowutime_omit-case-cleanup.patch
+
+ Folded into
+ vfs-utimensat-fix-error-checking-for-utime_nowutime_omit-case.patch
+
+-jbd-strictly-check-for-write-errors-on-data-buffers.patch
+-jbd-ordered-data-integrity-fix.patch
+-jbd-abort-when-failed-to-log-metadata-buffers.patch
+-jbd-fix-error-handling-for-checkpoint-io.patch
+-ext3-abort-ext3-if-the-journal-has-aborted.patch
+-ext3-abort-ext3-if-the-journal-has-aborted-warning-fix.patch
+
+ Dropped
+
++memrlimit-add-memrlimit-controller-accounting-and-control-fix.patch
+
+ Fix memrlimit-add-memrlimit-controller-accounting-and-control.patch
+
++memstick-use-fully-asynchronous-request-processing-fix.patch
+
+ Folded into memstick-use-fully-asynchronous-request-processing.patch
+
+-x86-lockless-get_user_pages_fast-fix-2-fix.patch
+
+ Folded into other patches
+
++mm-speculative-page-references-fix-fix.patch
+
+ Fix mm-speculative-page-references-fix.patch
+
++reiser4-tree_lock-fixes-fix.patch
+
+ More reiser4 repairs
+
+
+1354 commits in 931 patch files
+
+All patches:
+
+ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.26-rc5/2.6.26-rc5-mm2/patch-list
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
