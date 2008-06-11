@@ -1,88 +1,92 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m5BDGwKS025824
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 23:16:58 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5BDHtdU220368
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 23:17:55 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5BDDiIC024538
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 23:13:44 +1000
-Message-ID: <484FCF82.1050100@linux.vnet.ibm.com>
-Date: Wed, 11 Jun 2008 18:43:38 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: 2.6.26-rc5-mm2: OOM with 1G free swap
+Date: Wed, 11 Jun 2008 23:44:17 +1000
+References: <20080609223145.5c9a2878.akpm@linux-foundation.org> <20080610232705.3aaf5c06.akpm@linux-foundation.org> <20080611085724.1c18164f@bree.surriel.com>
+In-Reply-To: <20080611085724.1c18164f@bree.surriel.com>
 MIME-Version: 1.0
-Subject: Re: [RFD][PATCH] memcg: Move Usage at Task Move
-References: <20080611212126.317a95f7.d-nishimura@mtf.biglobe.ne.jp> <20080606105235.3c94daaf.kamezawa.hiroyu@jp.fujitsu.com> <6599ad830806110017t5ebeda78id1914d179a018422@mail.gmail.com> <484F8C76.4080300@linux.vnet.ibm.com> <22652920.1213188663353.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <22652920.1213188663353.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: Multipart/Mixed;
+  boundary="Boundary-00=_xa9TItkcit2Pj1U"
+Message-Id: <200806112344.17627.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: nishimura@mxp.nes.nec.co.jp, Paul Menage <menage@google.com>, linux-mm@kvack.org, containers@lists.osdl.org, xemul@openvz.org, yamamoto@valinux.co.jp
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-kamezawa.hiroyu@jp.fujitsu.com wrote:
-> ----- Original Message -----
->> On Wed, 11 Jun 2008 13:57:34 +0530
->> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->>
->> (snip)
->>
->>>>>  2. Don't move any usage at task move. (current implementation.)
->>>>>    Pros.
->>>>>      - no complication in the code.
->>>>>    Cons.
->>>>>      - A task's usage is chareged to wrong cgroup.
->>>>>      - Not sure, but I believe the users don't want this.
->>>> I'd say stick with this unless there a strong arguments in favour of
->>>> changing, based on concrete needs.
->>>>
->>>>> One reasone is that I think a typical usage of memory controller is
->>>>> fork()->move->exec(). (by libcg ?) and exec() will flush the all usage.
->>>> Exactly - this is a good reason *not* to implement move - because then
->>>> you drag all the usage of the middleware daemon into the new cgroup.
->>>>
->>> Yes. The other thing is that charges will eventually fade away. Please see 
-> the
->>> cgroup implementation of page_referenced() and mark_page_accessed(). The
->>> original group on memory pressure will drop pages that were left behind by 
-> a
->>> task that migrates. The new group will pick it up if referenced.
->>>
->> Hum..
->> So, it seems that some kind of "Lazy Mode"(#3 of Kamezawa-san's)
->> has been implemented already.
->>
->> But, one of the reason that I think usage should be moved
->> is to make the usage as accurate as possible, that is
->> the size of memory used by processes in the group at the moment.
->>
->> I agree that statistics is not the purpose of memcg(and swap),
->> but, IMHO, it's useful feature of memcg.
->> Administrators can know how busy or idle each groups are by it.
->>
-> One more point. This kinds of lazy "drop" approach canoot works well when
-> there are mlocked processes. lazy "move" approarch is better if we do in lazy
-> way. And how quickly they drops depends on vm.swappiness.
-> 
-> Anyway, I don't like complicated logic in the kernel.
-> So, let's see how simple "move" can be implemented. Then, it will be just a
-> trade-off problem, IMHO.
-> If policy is fixed, implementation itself will not be complicated, I think.
-> 
+--Boundary-00=_xa9TItkcit2Pj1U
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-I agree with you that it is a trade-off problem and we should keep move as
-simple as possible.
+On Wednesday 11 June 2008 22:57, Rik van Riel wrote:
+> On Tue, 10 Jun 2008 23:27:05 -0700
+>
+> Andrew Morton <akpm@linux-foundation.org> wrote:
+> > Well I assume that Rik ran LTP.  Perhaps a merge problem.
+> >
+> > Zero pages on active_anon and inactive_anon.  I suspect we lost those
+> > pages.
+>
+> Known problem.  I fixed this one in the updates I sent you last night.
+
+Oh good. Yeah I was just running some tests, and got as far as verifying
+that the upstream kernel + lockless pagecache patches reclaims file pages
+like a dream, but -mm2 sucks very badly at it.
+
+During which, I also did find by inspection a little problem with my
+speculative references patch. Andrew please apply this fix.
 
 
+--Boundary-00=_xa9TItkcit2Pj1U
+Content-Type: text/x-diff;
+  charset="iso-8859-1";
+  name="mm-speculative-page-references-hugh-fix3.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+	filename="mm-speculative-page-references-hugh-fix3.patch"
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Fix the VM_BUG_ON assertion check to actually do what I want, noted by
+Christoph.
+
+Also, fix an error-path-leak type issue with frozen refcount not being
+unfrozen. Found by review. In practice, this check is very rare to hit
+because a page dirtier is likely to hold the refcount elevated for much
+longer than it takes to check and non-racy-recheck. So it doesn't pose
+a big problem for users of -mm, but of course needs fixing.
+
+---
+Index: linux-2.6/mm/vmscan.c
+===================================================================
+--- linux-2.6.orig/mm/vmscan.c	2008-06-11 23:36:07.000000000 +1000
++++ linux-2.6/mm/vmscan.c	2008-06-11 23:36:18.000000000 +1000
+@@ -415,8 +415,10 @@ static int __remove_mapping(struct addre
+ 	if (!page_freeze_refs(page, 2))
+ 		goto cannot_free;
+ 	/* note: atomic_cmpxchg in page_freeze_refs provides the smp_rmb */
+-	if (unlikely(PageDirty(page)))
++	if (unlikely(PageDirty(page))) {
++		page_unfreeze_refs(page, 2);
+ 		goto cannot_free;
++	}
+ 
+ 	if (PageSwapCache(page)) {
+ 		swp_entry_t swap = { .val = page_private(page) };
+Index: linux-2.6/include/linux/pagemap.h
+===================================================================
+--- linux-2.6.orig/include/linux/pagemap.h	2008-06-11 23:36:07.000000000 +1000
++++ linux-2.6/include/linux/pagemap.h	2008-06-11 23:36:18.000000000 +1000
+@@ -165,7 +165,7 @@ static inline int page_cache_get_specula
+ 		return 0;
+ 	}
+ #endif
+-	VM_BUG_ON(PageCompound(page) && (struct page *)page_private(page) != page);
++	VM_BUG_ON(PageTail(page));
+ 
+ 	return 1;
+ }
+
+--Boundary-00=_xa9TItkcit2Pj1U--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
