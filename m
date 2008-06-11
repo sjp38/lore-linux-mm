@@ -1,45 +1,72 @@
-Received: by fg-out-1718.google.com with SMTP id 19so2100654fgg.4
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2008 11:48:51 -0700 (PDT)
-Message-ID: <48501E1B.70703@gmail.com>
-Date: Wed, 11 Jun 2008 20:48:59 +0200
-From: Andrea Righi <righi.andrea@gmail.com>
-Reply-To: righi.andrea@gmail.com
+Date: Wed, 11 Jun 2008 20:03:11 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: Re: [PATCH -mm 13/25] Noreclaim LRU Infrastructure
+Message-ID: <20080611190311.GA30958@shadowen.org>
+References: <20080606180506.081f686a.akpm@linux-foundation.org> <20080608163413.08d46427@bree.surriel.com> <20080608135704.a4b0dbe1.akpm@linux-foundation.org> <20080608173244.0ac4ad9b@bree.surriel.com> <20080608162208.a2683a6c.akpm@linux-foundation.org> <20080608193420.2a9cc030@bree.surriel.com> <20080608165434.67c87e5c.akpm@linux-foundation.org> <Pine.LNX.4.64.0806101214190.17798@schroedinger.engr.sgi.com> <20080610153702.4019e042@cuia.bos.redhat.com> <20080610143334.c53d7d8a.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [-mm][PATCH 2/4] Setup the memrlimit controller (v5)
-References: <20080521152921.15001.65968.sendpatchset@localhost.localdomain> <20080521152948.15001.39361.sendpatchset@localhost.localdomain> <4850070F.6060305@gmail.com> <48500C66.7040807@linux.vnet.ibm.com>
-In-Reply-To: <48500C66.7040807@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080610143334.c53d7d8a.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, clameter@sgi.com, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, eric.whitney@hp.com, Paul Mundt <lethal@linux-sh.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> Andrea Righi wrote:
->> Balbir Singh wrote:
->>> +static int memrlimit_cgroup_write_strategy(char *buf, unsigned long
->>> long *tmp)
->>> +{
->>> +    *tmp = memparse(buf, &buf);
->>> +    if (*buf != '\0')
->>> +        return -EINVAL;
->>> +
->>> +    *tmp = PAGE_ALIGN(*tmp);
->>> +    return 0;
->>> +}
->> We shouldn't use PAGE_ALIGN() here, otherwise we limit the address space
->> to 4GB on 32-bit architectures (that could be reasonable, because this
->> is a per-cgroup limit and not per-process).
->>
+On Tue, Jun 10, 2008 at 02:33:34PM -0700, Andrew Morton wrote:
+> On Tue, 10 Jun 2008 15:37:02 -0400
+> Rik van Riel <riel@redhat.com> wrote:
 > 
-> You mean un-reasonable?
+> > On Tue, 10 Jun 2008 12:17:23 -0700 (PDT)
+> > Christoph Lameter <clameter@sgi.com> wrote:
+> > 
+> > > On Sun, 8 Jun 2008, Andrew Morton wrote:
+> > > 
+> > > > And it will take longer to get those problems sorted out if 32-bt
+> > > > machines aren't even compiing the new code in.
+> > > 
+> > > The problem is going to be less if we dependedn on 
+> > > CONFIG_PAGEFLAGS_EXTENDED instead of 64 bit. This means that only certain 
+> > > 32bit NUMA/sparsemem configs cannot do this due to lack of page flags.
+> > > 
+> > > I did the pageflags rework in part because of Rik's project.
+> > 
+> > I think your pageflags work freed up a number of bits on 32
+> > bit systems, unless someone compiles a 32 bit system with
+> > support for 4 memory zones (2 bits ZONE_SHIFT) and 64 NUMA
+> > nodes (6 bits NODE_SHIFT), in which case we should still
+> > have 24 bits for flags.
+> > 
+> > Of course, having 64 NUMA nodes and a ZONE_SHIFT of 2 on
+> > a 32 bit system is probably total insanity already.  I
+> > suspect very few people compile 32 bit with NUMA at all,
+> > except if it is an architecture that uses DISCONTIGMEM
+> > instead of zones, in which case ZONE_SHIFT is 0, which
+> > will free up space too :)
+> 
+> Maybe it's time to bite the bullet and kill i386 NUMA support.  afaik
+> it's just NUMAQ and a 2-node NUMAish machine which IBM made (as400?)
+> 
+> arch/sh uses NUMA for 32-bit, I believe. But I don't know what its
+> maximum node count is.  The default for sh NODES_SHIFT is 3.  
 
-well... I mean, there would be no reason to apply this fix if it was a
-limit per-task on 32-bit. ;-)
+I think we can say that although NUMAQ can have up to 64 NUMA nodes, in
+fact I don't think we have any more with more than 4 nodes left.  From
+the other discussion it sounds like we have a maximum if 8 nodes on
+other sub-arches.  So it would not be unreasonable to reduce the shift
+to 3.  Which might allow us to reduce the size of the reserve.
 
--Andrea
+The problem will come with SPARSEMEM as that stores the section number
+in the reserved field.  Which can mean we need the whole reserve, and
+there is currently no simple way to remove that.
+
+I have been wondering whether we could make more use of the dynamic
+nature of the page bits.  As bits only need to exist when used, whether
+we could consider letting the page flags grow to 64 bits if necessary.
+However, at a quick count we are still only using about 19 bits, and if
+memory serves we have 23/24 after the reserve on 32 bit.
+
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
