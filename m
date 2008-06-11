@@ -1,55 +1,46 @@
-Date: Wed, 11 Jun 2008 14:09:02 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: 2.6.26-rc5-mm2
-Message-ID: <20080611140902.544e59ec@bree.surriel.com>
-In-Reply-To: <200806101848.22237.nickpiggin@yahoo.com.au>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5BISQf0022191
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 14:28:26 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5BISLUp159430
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 12:28:21 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5BISL6h019169
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 12:28:21 -0600
+Subject: Re: [BUG] 2.6.26-rc5-mm2 - kernel BUG at
+	arch/x86/kernel/setup.c:388!
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <485011DF.9050606@linux.vnet.ibm.com>
 References: <20080609223145.5c9a2878.akpm@linux-foundation.org>
-	<200806101728.27486.nickpiggin@yahoo.com.au>
-	<20080610013427.aa20a29b.akpm@linux-foundation.org>
-	<200806101848.22237.nickpiggin@yahoo.com.au>
+	 <485011DF.9050606@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=UTF-8
+Date: Wed, 11 Jun 2008 11:28:17 -0700
+Message-Id: <1213208897.20475.19.camel@nimitz>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org
+To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Vegard Nossum <vegard.nossum@gmail.com>, Mike Travis <travis@sgi.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Jun 2008 18:48:21 +1000
-Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-
-> > > The tmpfs PageSwapBacked stuff seems rather broken. For
-> > > them write_begin/write_end path, it is filemap.c, not shmem.c,
-> > > which allocates the page, so its no wonder it goes bug. Will
-> > > try to do more testing without shmem.
-
-Fun, so what does shmem_alloc_page do?
-
-> > rikstuff.  Could be that the merge caused a problem?
+On Wed, 2008-06-11 at 23:26 +0530, Kamalesh Babulal wrote:
+> Hi Andrew,
 > 
-> Doesn't look like it, but I hadn't followed the changes too closely:
-> rather they just need to test loopback over tmpfs.
+> The 2.6.26-rc5-mm2 kernel panic's, while booting up on the x86_64
+> box with the attached .config file.
 
-Does loopback over tmpfs use a different allocation path?
+Just to save everyone the trouble, it looks like this is a new BUG_ON().
+i>>?
+http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.26-rc5/2.6.26-rc5-mm2/broken-out/fix-x86_64-splat.patch
 
-> Is the plan to merge all reclaim changes in a big hit, rather than
-> slowly trickle in the different independent changes?
+The machine in question is a single-node machine, but with
+CONFIG_NUMA=y.
 
-My original plan was to merge them incrementally, but Andrew is
-right that we should give the whole set as much testing as
-possible.
 
-I have done all the cleanups Andrew asked and fixed the bugs
-that I found after that merge/cleanup.  Your bug is the one
-I still need to fix before giving Andrew a whole new set of
-split LRU patches to merge.
 
-(afterwards, I will go incremental fixes only - the cleanups
-he asked for were just too big to do as incrementals)
 
--- 
-All rights reversed.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
