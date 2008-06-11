@@ -1,73 +1,52 @@
-Received: from spaceape7.eur.corp.google.com (spaceape7.eur.corp.google.com [172.28.16.141])
-	by smtp-out.google.com with ESMTP id m5BKUkbu031037
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 21:30:46 +0100
-Received: from rv-out-0708.google.com (rvbk29.prod.google.com [10.140.87.29])
-	by spaceape7.eur.corp.google.com with ESMTP id m5BKUjsU021965
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 21:30:46 +0100
-Received: by rv-out-0708.google.com with SMTP id k29so4062806rvb.8
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2008 13:30:45 -0700 (PDT)
-Message-ID: <485035E7.3000103@google.com>
-Date: Wed, 11 Jun 2008 13:30:31 -0700
-From: Paul Menage <menage@google.com>
-MIME-Version: 1.0
-Subject: [PATCH] Fix 32-bit truncation of segment sizes in /proc/sysvipc/shm
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5BKUBsc020356
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 16:30:11 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5BKYPTR139388
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 14:34:25 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5BKYODK019737
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 14:34:25 -0600
+Subject: Re: [v4][PATCH 2/2] fix large pages in pagemap
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20080611131108.61389481.akpm@linux-foundation.org>
+References: <20080611180228.12987026@kernel>
+	 <20080611180230.7459973B@kernel>
+	 <20080611123724.3a79ea61.akpm@linux-foundation.org>
+	 <1213213980.20045.116.camel@calx>
+	 <20080611131108.61389481.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Wed, 11 Jun 2008 13:34:22 -0700
+Message-Id: <1213216462.20475.36.camel@nimitz>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mike Waychison <mikew@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matt Mackall <mpm@selenic.com>, hans.rosenfeld@amd.com, linux-mm@kvack.org, hugh@veritas.com, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-sysvipc_shm_proc_show() picks between format strings (based on the
-expected maximum length of a SHM segment) in a way that prevents 
-gcc from performing format checks on the seq_printf() parameters. This
-hid two format errors - shp->shm_segsz and shp->shm_nattach are both
-unsigned long, but were being printed as unsigned int and signed int
-respectively. This leads to 32-bit truncation of SHM segment sizes 
-reported in /proc/sysvipc/shm. (And for nattach, but that's less of a
-problem for most users).
+On Wed, 2008-06-11 at 13:11 -0700, Andrew Morton wrote:
+> Really?  There already a couple of pmd_huge() tests in mm/memory.c and
+> Rik's access_process_vm-device-memory-infrastructure.patch adds
+> another one.
 
-This patch makes the format string directly visible to gcc's format
-specifier checker, and fixes the two broken format specifiers.
+We're not supposed to ever hit the one in follow_page() because there
+are:
 
-Signed-off-by: Paul Menage <menage@google.com>
+                if (is_vm_hugetlb_page(vma)) {
+                        i = follow_hugetlb_page(mm, vma, pages, vmas,
+                                                &start, &len, i, write);
+                        continue;
+                }
 
----
+checks before them like in get_user_pages();
 
+The other mm/memory.c call is under alloc_vm_area(), and that's
+supposedly only used on kernel addresses.  I don't think we even have
+Linux pagetables for kernel addresses on ppc.
 
- ipc/shm.c |   16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
-
-Index: shm-2.6.26-rc5-mm2/ipc/shm.c
-===================================================================
---- shm-2.6.26-rc5-mm2.orig/ipc/shm.c
-+++ shm-2.6.26-rc5-mm2/ipc/shm.c
-@@ -1062,16 +1062,16 @@ asmlinkage long sys_shmdt(char __user *s
- static int sysvipc_shm_proc_show(struct seq_file *s, void *it)
- {
- 	struct shmid_kernel *shp = it;
--	char *format;
- 
--#define SMALL_STRING "%10d %10d  %4o %10u %5u %5u  %5d %5u %5u %5u %5u %10lu %10lu %10lu\n"
--#define BIG_STRING   "%10d %10d  %4o %21u %5u %5u  %5d %5u %5u %5u %5u %10lu %10lu %10lu\n"
-+#if BITS_PER_LONG <= 32
-+#define SIZE_SPEC "%10lu"
-+#else
-+#define SIZE_SPEC "%21lu"
-+#endif
- 
--	if (sizeof(size_t) <= sizeof(int))
--		format = SMALL_STRING;
--	else
--		format = BIG_STRING;
--	return seq_printf(s, format,
-+	return seq_printf(s,
-+			  "%10d %10d  %4o " SIZE_SPEC " %5u %5u  "
-+			  "%5lu %5u %5u %5u %5u %10lu %10lu %10lu\n",
- 			  shp->shm_perm.key,
- 			  shp->shm_perm.id,
- 			  shp->shm_perm.mode,
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
