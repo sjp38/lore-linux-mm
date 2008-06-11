@@ -1,92 +1,58 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: 2.6.26-rc5-mm2: OOM with 1G free swap
-Date: Wed, 11 Jun 2008 23:44:17 +1000
-References: <20080609223145.5c9a2878.akpm@linux-foundation.org> <20080610232705.3aaf5c06.akpm@linux-foundation.org> <20080611085724.1c18164f@bree.surriel.com>
-In-Reply-To: <20080611085724.1c18164f@bree.surriel.com>
+Message-ID: <484FDCAB.9020002@firstfloor.org>
+Date: Wed, 11 Jun 2008 16:09:47 +0200
+From: Andi Kleen <andi@firstfloor.org>
 MIME-Version: 1.0
-Content-Type: Multipart/Mixed;
-  boundary="Boundary-00=_xa9TItkcit2Pj1U"
-Message-Id: <200806112344.17627.nickpiggin@yahoo.com.au>
+Subject: Removing node flags from page->flags was Re: [PATCH -mm 13/25] Noreclaim
+ LRU Infrastructure II
+References: <20080606180506.081f686a.akpm@linux-foundation.org>	<20080608163413.08d46427@bree.surriel.com>	<20080608135704.a4b0dbe1.akpm@linux-foundation.org>	<20080608173244.0ac4ad9b@bree.surriel.com>	<20080608162208.a2683a6c.akpm@linux-foundation.org>	<20080608193420.2a9cc030@bree.surriel.com>	<20080608165434.67c87e5c.akpm@linux-foundation.org>	<Pine.LNX.4.64.0806101214190.17798@schroedinger.engr.sgi.com>	<20080610153702.4019e042@cuia.bos.redhat.com>	<20080610143334.c53d7d8a.akpm@linux-foundation.org>	<20080611050914.GA27488@linux-sh.org> <20080610231642.6b4b5a53.akpm@linux-foundation.org>
+In-Reply-To: <20080610231642.6b4b5a53.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Paul Mundt <lethal@linux-sh.org>, Rik van Riel <riel@redhat.com>, clameter@sgi.com, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, eric.whitney@hp.com, Ingo Molnar <mingo@elte.hu>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
---Boundary-00=_xa9TItkcit2Pj1U
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+After some comptemplation I don't think we need to do anything for this.
+Just add more page flags. The ifdef jungle in mm.h should handle it already.
 
-On Wednesday 11 June 2008 22:57, Rik van Riel wrote:
-> On Tue, 10 Jun 2008 23:27:05 -0700
->
-> Andrew Morton <akpm@linux-foundation.org> wrote:
-> > Well I assume that Rik ran LTP.  Perhaps a merge problem.
-> >
-> > Zero pages on active_anon and inactive_anon.  I suspect we lost those
-> > pages.
->
-> Known problem.  I fixed this one in the updates I sent you last night.
-
-Oh good. Yeah I was just running some tests, and got as far as verifying
-that the upstream kernel + lockless pagecache patches reclaims file pages
-like a dream, but -mm2 sucks very badly at it.
-
-During which, I also did find by inspection a little problem with my
-speculative references patch. Andrew please apply this fix.
+#if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT <= BITS_PER_LONG - NR_PAGEFLAGS
+#define NODES_WIDTH             NODES_SHIFT
+#else
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+#error "Vmemmap: No space for nodes field in page flags"
+#endif
+#define NODES_WIDTH             0
+#endif
 
 
---Boundary-00=_xa9TItkcit2Pj1U
-Content-Type: text/x-diff;
-  charset="iso-8859-1";
-  name="mm-speculative-page-references-hugh-fix3.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
-	filename="mm-speculative-page-references-hugh-fix3.patch"
+[btw the vmemmap case could be handled easily too by going through
+the zone, but it's not used on 32bit]
 
-Fix the VM_BUG_ON assertion check to actually do what I want, noted by
-Christoph.
+and then
 
-Also, fix an error-path-leak type issue with frozen refcount not being
-unfrozen. Found by review. In practice, this check is very rare to hit
-because a page dirtier is likely to hold the refcount elevated for much
-longer than it takes to check and non-racy-recheck. So it doesn't pose
-a big problem for users of -mm, but of course needs fixing.
+#if !(NODES_WIDTH > 0 || NODES_SHIFT == 0)
+#define NODE_NOT_IN_PAGE_FLAGS
+#endif
 
----
-Index: linux-2.6/mm/vmscan.c
-===================================================================
---- linux-2.6.orig/mm/vmscan.c	2008-06-11 23:36:07.000000000 +1000
-+++ linux-2.6/mm/vmscan.c	2008-06-11 23:36:18.000000000 +1000
-@@ -415,8 +415,10 @@ static int __remove_mapping(struct addre
- 	if (!page_freeze_refs(page, 2))
- 		goto cannot_free;
- 	/* note: atomic_cmpxchg in page_freeze_refs provides the smp_rmb */
--	if (unlikely(PageDirty(page)))
-+	if (unlikely(PageDirty(page))) {
-+		page_unfreeze_refs(page, 2);
- 		goto cannot_free;
-+	}
- 
- 	if (PageSwapCache(page)) {
- 		swp_entry_t swap = { .val = page_private(page) };
-Index: linux-2.6/include/linux/pagemap.h
-===================================================================
---- linux-2.6.orig/include/linux/pagemap.h	2008-06-11 23:36:07.000000000 +1000
-+++ linux-2.6/include/linux/pagemap.h	2008-06-11 23:36:18.000000000 +1000
-@@ -165,7 +165,7 @@ static inline int page_cache_get_specula
- 		return 0;
- 	}
- #endif
--	VM_BUG_ON(PageCompound(page) && (struct page *)page_private(page) != page);
-+	VM_BUG_ON(PageTail(page));
- 
- 	return 1;
- }
 
---Boundary-00=_xa9TItkcit2Pj1U--
+and then
+
+#ifdef NODE_NOT_IN_PAGE_FLAGS
+extern int page_to_nid(struct page *page);
+#else
+static inline int page_to_nid(struct page *page)
+{
+        return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
+}
+#endif
+
+and the sparse.c page_to_nid does a hash lookup.
+
+So if NR_PAGEFLAGS is big enough it should work.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
