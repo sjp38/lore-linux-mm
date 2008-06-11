@@ -1,61 +1,71 @@
-Subject: Re: [v4][PATCH 2/2] fix large pages in pagemap
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <1213219435.20475.44.camel@nimitz>
-References: <20080611180228.12987026@kernel>
-	 <20080611180230.7459973B@kernel>
-	 <20080611123724.3a79ea61.akpm@linux-foundation.org>
-	 <1213213980.20045.116.camel@calx>
-	 <20080611131108.61389481.akpm@linux-foundation.org>
-	 <1213216462.20475.36.camel@nimitz>
-	 <20080611135207.32a46267.akpm@linux-foundation.org>
-	 <1213219435.20475.44.camel@nimitz>
-Content-Type: text/plain
-Date: Wed, 11 Jun 2008 17:37:05 -0500
-Message-Id: <1213223825.20045.138.camel@calx>
-Mime-Version: 1.0
+Received: by fg-out-1718.google.com with SMTP id 19so2157803fgg.4
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2008 15:47:18 -0700 (PDT)
+Message-ID: <485055FF.9020500@gmail.com>
+Date: Thu, 12 Jun 2008 00:47:27 +0200
+From: Andrea Righi <righi.andrea@gmail.com>
+Reply-To: righi.andrea@gmail.com
+MIME-Version: 1.0
+Subject: Re: [-mm][PATCH 2/4] Setup the memrlimit controller (v5)
+References: <20080521152921.15001.65968.sendpatchset@localhost.localdomain>	<20080521152948.15001.39361.sendpatchset@localhost.localdomain>	<4850070F.6060305@gmail.com>	<20080611121510.d91841a3.akpm@linux-foundation.org>	<485032C8.4010001@gmail.com> <20080611134323.936063d3.akpm@linux-foundation.org>
+In-Reply-To: <20080611134323.936063d3.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=US-ASCII; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, hans.rosenfeld@amd.com, linux-mm@kvack.org, hugh@veritas.com, riel@redhat.com, nacc <nacc@linux.vnet.ibm.com>, Adam Litke <agl@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: balbir@linux.vnet.ibm.com, linux-mm@kvack.org, skumar@linux.vnet.ibm.com, yamamoto@valinux.co.jp, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-06-11 at 14:23 -0700, Dave Hansen wrote:
-> On Wed, 2008-06-11 at 13:52 -0700, Andrew Morton wrote:
-> > access_process_vm-device-memory-infrastructure.patch is a powerpc
-> > feature, and it uses pmd_huge().
+Andrew Morton wrote:
+>> At least we could add something like:
+>>
+>> #ifdef CONFIG_32BIT
+>> #define PAGE_ALIGN64(addr) (((((addr)+PAGE_SIZE-1))>>PAGE_SHIFT)<<PAGE_SHIFT)
+>> #else
+>> #define PAGE_ALIGN64(addr) PAGE_ALIGN(addr)
+>> #endif
+>>
+>> But IMHO the single PAGE_ALIGN64() implementation is more clear.
 > 
-> I think that's bogus.  It probably needs to check the VMA in
-> generic_access_phys() if it wants to be safe.  I don't see any way that
-> pmd_huge() can give anything back other than 0 on ppc:
+> No, we should just fix PAGE_ALIGN.  It should work correctly when
+> passed a long-long.  Otherwse it's just a timebomb.
 > 
-> arch/powerpc/mm/hugetlbpage.c:
+> This:
 > 
-> 	int pmd_huge(pmd_t pmd)
-> 	{
-> 	        return 0;
-> 	}
+> #define PAGE_ALIGN(addr) ({				\
+> 	typeof(addr) __size = PAGE_SIZE;		\
+> 	typeof(addr) __mask = PAGE_MASK;		\
+> 	(addr + __size - 1) & __mask;			\
+> })
 > 
-> or in include/linux/hugetlb.h:
+> (with a suitable comment) does what we want.  I didn't check to see
+> whether this causes the compiler to generate larger code, but it
+> shouldn't.
 > 
-> 	#define pmd_huge(x)     0
-> 
-> > Am I missing something, or is pmd_huge() a whopping big grenade for x86
-> > developers to toss at non-x86 architectures?  It seems quite dangerous.
-> 
-> Yeah, it isn't really usable outside of arch code, although it kinda
-> looks like it.
 
-That begs the question: if we can't use it reliably outside of arch
-code, why do other arches even bother defining it?
+No, it doesn't work. The problem seems to be in the PAGE_MASK definition
+(from include/asm-x86/page.h for example):
 
-And the answer seems to be because of the two uses in mm/memory.c. The
-first seems like it could be avoided with an implementation of
-follow_huge_addr on x86. The second is either bogus (only works on x86)
-or superfluous (not needed at all), no?
+/* PAGE_SHIFT determines the page size */
+#define PAGE_SHIFT      12
+#define PAGE_SIZE       (_AC(1,UL) << PAGE_SHIFT)
+#define PAGE_MASK       (~(PAGE_SIZE-1))
 
--- 
-Mathematics is the supreme nostalgia of our time.
+The "~" is performed on a 32-bit value, so everything in "and" with
+PAGE_MASK greater than 4GB will be truncated to the 32-bit boundary.
+
+What do you think about the following?
+
+#define PAGE_SIZE64 (1ULL << PAGE_SHIFT)
+#define PAGE_MASK64 (~(PAGE_SIZE64 - 1))
+
+#define PAGE_ALIGN(addr) ({					\
+	typeof(addr) __size = PAGE_SIZE;			\
+	typeof(addr) __ret = (addr) + __size - 1;		\
+	__ret > -1UL ? __ret & PAGE_MASK64 : __ret & PAGE_MASK;	\
+})
+
+-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
