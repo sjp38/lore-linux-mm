@@ -1,54 +1,59 @@
+Date: Wed, 11 Jun 2008 13:11:08 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [v4][PATCH 2/2] fix large pages in pagemap
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <20080611123724.3a79ea61.akpm@linux-foundation.org>
+Message-Id: <20080611131108.61389481.akpm@linux-foundation.org>
+In-Reply-To: <1213213980.20045.116.camel@calx>
 References: <20080611180228.12987026@kernel>
-	 <20080611180230.7459973B@kernel>
-	 <20080611123724.3a79ea61.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Wed, 11 Jun 2008 14:53:00 -0500
-Message-Id: <1213213980.20045.116.camel@calx>
+	<20080611180230.7459973B@kernel>
+	<20080611123724.3a79ea61.akpm@linux-foundation.org>
+	<1213213980.20045.116.camel@calx>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, hans.rosenfeld@amd.com, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+To: Matt Mackall <mpm@selenic.com>
+Cc: dave@linux.vnet.ibm.com, hans.rosenfeld@amd.com, linux-mm@kvack.org, hugh@veritas.com, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-[adding Hugh to the cc:]
+On Wed, 11 Jun 2008 14:53:00 -0500
+Matt Mackall <mpm@selenic.com> wrote:
 
-On Wed, 2008-06-11 at 12:37 -0700, Andrew Morton wrote:
-> On Wed, 11 Jun 2008 11:02:31 -0700
-> Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+> [adding Hugh to the cc:]
 > 
+> On Wed, 2008-06-11 at 12:37 -0700, Andrew Morton wrote:
+> > On Wed, 11 Jun 2008 11:02:31 -0700
+> > Dave Hansen <dave@linux.vnet.ibm.com> wrote:
 > > 
-> > We were walking right into huge page areas in the pagemap
-> > walker, and calling the pmds pmd_bad() and clearing them.
+> > > 
+> > > We were walking right into huge page areas in the pagemap
+> > > walker, and calling the pmds pmd_bad() and clearing them.
+> > > 
+> > > That leaked huge pages.  Bad.
+> > > 
+> > > This patch at least works around that for now.  It ignores
+> > > huge pages in the pagemap walker for the time being, and
+> > > won't leak those pages.
+> > > 
 > > 
-> > That leaked huge pages.  Bad.
+> > I don't get it.   Why can't we just stick a
 > > 
-> > This patch at least works around that for now.  It ignores
-> > huge pages in the pagemap walker for the time being, and
-> > won't leak those pages.
+> > 	if (pmd_huge(pmd))
+> > 		continue;
 > > 
+> > into pagemap_pte_range()?  Or something like that.
 > 
-> I don't get it.   Why can't we just stick a
+> That's certainly what you'd hope to be able to do, yes.
 > 
-> 	if (pmd_huge(pmd))
-> 		continue;
-> 
-> into pagemap_pte_range()?  Or something like that.
+> If I recall the earlier discussion, some arches with huge pages can only
+> identify them via a VMA. Obviously, any arch with hardware that walks
+> our pagetables directly must be able to identify huge pages directly
+> from those tables, but I think PPC and a couple others that don't have
+> hardware TLB fill fail to store such a bit in the tables at all.
 
-That's certainly what you'd hope to be able to do, yes.
-
-If I recall the earlier discussion, some arches with huge pages can only
-identify them via a VMA. Obviously, any arch with hardware that walks
-our pagetables directly must be able to identify huge pages directly
-from those tables, but I think PPC and a couple others that don't have
-hardware TLB fill fail to store such a bit in the tables at all.
-
--- 
-Mathematics is the supreme nostalgia of our time.
+Really?  There already a couple of pmd_huge() tests in mm/memory.c and
+Rik's access_process_vm-device-memory-infrastructure.patch adds another
+one.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
