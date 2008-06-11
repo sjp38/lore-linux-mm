@@ -1,46 +1,58 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5BISQf0022191
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 14:28:26 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5BISLUp159430
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 12:28:21 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5BISL6h019169
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 12:28:21 -0600
-Subject: Re: [BUG] 2.6.26-rc5-mm2 - kernel BUG at
-	arch/x86/kernel/setup.c:388!
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <485011DF.9050606@linux.vnet.ibm.com>
+Received: by rv-out-0708.google.com with SMTP id f25so4524242rvb.26
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2008 11:37:09 -0700 (PDT)
+Message-ID: <19f34abd0806111137t4291b9fkb66951aa8f4d456f@mail.gmail.com>
+Date: Wed, 11 Jun 2008 20:37:09 +0200
+From: "Vegard Nossum" <vegard.nossum@gmail.com>
+Subject: Re: [BUG] 2.6.26-rc5-mm2 - kernel BUG at arch/x86/kernel/setup.c:388!
+In-Reply-To: <1213208897.20475.19.camel@nimitz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
+Content-Disposition: inline
 References: <20080609223145.5c9a2878.akpm@linux-foundation.org>
 	 <485011DF.9050606@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=UTF-8
-Date: Wed, 11 Jun 2008 11:28:17 -0700
-Message-Id: <1213208897.20475.19.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+	 <1213208897.20475.19.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Vegard Nossum <vegard.nossum@gmail.com>, Mike Travis <travis@sgi.com>, Ingo Molnar <mingo@elte.hu>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Mike Travis <travis@sgi.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-06-11 at 23:26 +0530, Kamalesh Babulal wrote:
-> Hi Andrew,
-> 
-> The 2.6.26-rc5-mm2 kernel panic's, while booting up on the x86_64
-> box with the attached .config file.
-
-Just to save everyone the trouble, it looks like this is a new BUG_ON().
-i>>?
-http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.26-rc5/2.6.26-rc5-mm2/broken-out/fix-x86_64-splat.patch
-
-The machine in question is a single-node machine, but with
-CONFIG_NUMA=y.
-
-
-
-
-
+T24gNi8xMS8wOCwgRGF2ZSBIYW5zZW4gPGRhdmVAbGludXgudm5ldC5pYm0uY29tPiB3cm90ZToK
+PiBPbiBXZWQsIDIwMDgtMDYtMTEgYXQgMjM6MjYgKzA1MzAsIEthbWFsZXNoIEJhYnVsYWwgd3Jv
+dGU6Cj4gID4gSGkgQW5kcmV3LAo+ICA+Cj4gID4gVGhlIDIuNi4yNi1yYzUtbW0yIGtlcm5lbCBw
+YW5pYydzLCB3aGlsZSBib290aW5nIHVwIG9uIHRoZSB4ODZfNjQKPiAgPiBib3ggd2l0aCB0aGUg
+YXR0YWNoZWQgLmNvbmZpZyBmaWxlLgo+Cj4KPiBKdXN0IHRvIHNhdmUgZXZlcnlvbmUgdGhlIHRy
+b3VibGUsIGl0IGxvb2tzIGxpa2UgdGhpcyBpcyBhIG5ldyBCVUdfT04oKS4KPiAg77u/Cj4gIGh0
+dHA6Ly93d3cua2VybmVsLm9yZy9wdWIvbGludXgva2VybmVsL3Blb3BsZS9ha3BtL3BhdGNoZXMv
+Mi42LzIuNi4yNi1yYzUvMi42LjI2LXJjNS1tbTIvYnJva2VuLW91dC9maXgteDg2XzY0LXNwbGF0
+LnBhdGNoCj4KPiAgVGhlIG1hY2hpbmUgaW4gcXVlc3Rpb24gaXMgYSBzaW5nbGUtbm9kZSBtYWNo
+aW5lLCBidXQgd2l0aAo+ICBDT05GSUdfTlVNQT15Lgo+CgpZZXMuIFNvcnJ5LCBJIGFscmVhZHkg
+cmVzcG9uZGVkIGluIGEgc2VwYXJhdGUgZS1tYWlsIChzZWUgYmVsb3cpLCBidXQKdGhhdCBvYnZp
+b3VzbHkgbWlzc2VkIGFsbCB0aGUgQ2NzLiBTbyBoZXJlIGl0IGdvZXMgYWdhaW4uLi46CgpJJ20g
+YmV0dGluZwoKY29tbWl0IGE5NTNlNDU5N2FiZDUxYjc0Yzk5ZTBlM2I3MDc0NTMyYTYwZmQwMzEK
+QXV0aG9yOiBNaWtlIFRyYXZpcyA8dHJhdmlzQHNnaS5jb20+CkRhdGU6ICAgTW9uIE1heSAxMiAy
+MToyMToxMiAyMDA4ICswMjAwCgogICAgc2NoZWQ6IHJlcGxhY2UgTUFYX05VTU5PREVTIHdpdGgg
+bnJfbm9kZV9pZHMgaW4ga2VybmVsL3NjaGVkLmMKCndpbGwgZml4IHRoaXMgaWYgaXQncyBub3Qg
+aW4gLW1tMiBhbHJlYWR5LgoKVGhlIEJVRygpIGlzIHNpbXBseSB0aGVyZSB0byBwcmV2ZW50IHNp
+bGVudCBjb3JydXB0aW9uLiBNaWtlIGFscmVhZHkKaGFzIGEgcGF0Y2ggdGhhdCBjaGFuZ2VzIGl0
+IHRvIGEgV0FSTigpLCBidXQgaXQgb2J2aW91c2x5IGRpZG4ndCBnZXQKdGhyb3VnaCAoZWl0aGVy
+KS4uLgoKClZlZ2FyZAoKCk9uIDYvMTEvMDgsIFZlZ2FyZCBOb3NzdW0gPHZlZ2FyZC5ub3NzdW1A
+Z21haWwuY29tPiB3cm90ZToKPiBPbiA2LzkvMDgsIEthbWFsZXNoIEJhYnVsYWwgPGthbWFsZXNo
+QGxpbnV4LnZuZXQuaWJtLmNvbT4gd3JvdGU6Cj4gID4gSGkgQW5kcmV3LAo+ICA+Cj4gID4gVGhl
+IDIuNi4yNi1yYzUtbW0yIGtlcm5lbCBwYW5pYydzLCB3aGlsZSBib290aW5nIHVwIG9uIHRoZSB4
+ODZfNjQKPiAgPiBib3ggd2l0aCB0aGUgYXR0YWNoZWQgLmNvbmZpZyBmaWxlLgo+Cj4gIChQbGVh
+c2UgYXBvbG9naXplIGZvciB0aGUgc3RyYW5nZSB3YXkgb2YgcmVwbHlpbmcgdG8gdGhpcyBtZXNz
+YWdlLiBJdAo+ICBzZWVtcyB0aGF0IExLTUwgZ2F2ZSB1cCBkZWxpdmVyaW5nIHRvIG15IGFkZHJl
+c3MsIHNvIEknbSBjdXJyZW50bHkKPiAgcmVhZGluZyBvZmYgbGttbC5vcmcuKQo+Cj4gIFRoaXMg
+c2hvdWxkIGFscmVhZHkgYmUgZml4ZWQsIGJ1dCBBbmRyZXcgcmVmdXNlZCB0byBhcHBseSB0aGUg
+cGF0Y2gKPiAgYmVmb3JlIHJlbGVhc2luZyB0aGUgLW1tMSAoYW5kIC1tbTIgYXBwYXJlbnRseSku
+IEknbSBhdHRhY2hpbmcgdGhlCj4gIHBhdGNoLCBjYW4geW91IHNlZSBpZiBpdCBoZWxwcz8KPgo+
+ICBUaGFua3MuCj4KPgo+ICBWZWdhcmQKCi0tIAoiVGhlIGFuaW1pc3RpYyBtZXRhcGhvciBvZiB0
+aGUgYnVnIHRoYXQgbWFsaWNpb3VzbHkgc25lYWtlZCBpbiB3aGlsZQp0aGUgcHJvZ3JhbW1lciB3
+YXMgbm90IGxvb2tpbmcgaXMgaW50ZWxsZWN0dWFsbHkgZGlzaG9uZXN0IGFzIGl0CmRpc2d1aXNl
+cyB0aGF0IHRoZSBlcnJvciBpcyB0aGUgcHJvZ3JhbW1lcidzIG93biBjcmVhdGlvbi4iCgktLSBF
+LiBXLiBEaWprc3RyYSwgRVdEMTAzNgo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
