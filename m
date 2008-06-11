@@ -1,61 +1,61 @@
-Message-ID: <4850070F.6060305@gmail.com>
-From: Andrea Righi <righi.andrea@gmail.com>
-Reply-To: righi.andrea@gmail.com
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id m5BHXhcH023576
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2008 03:33:43 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5BHbijM210032
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2008 03:37:44 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5BHXWrh025315
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2008 03:33:33 +1000
+Message-ID: <48500C66.7040807@linux.vnet.ibm.com>
+Date: Wed, 11 Jun 2008 23:03:26 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
 Subject: Re: [-mm][PATCH 2/4] Setup the memrlimit controller (v5)
-References: <20080521152921.15001.65968.sendpatchset@localhost.localdomain> <20080521152948.15001.39361.sendpatchset@localhost.localdomain>
-In-Reply-To: <20080521152948.15001.39361.sendpatchset@localhost.localdomain>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+References: <20080521152921.15001.65968.sendpatchset@localhost.localdomain> <20080521152948.15001.39361.sendpatchset@localhost.localdomain> <4850070F.6060305@gmail.com>
+In-Reply-To: <4850070F.6060305@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Date: Wed, 11 Jun 2008 19:10:40 +0200 (MEST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
+To: righi.andrea@gmail.com
 Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> +static int memrlimit_cgroup_write_strategy(char *buf, unsigned long long *tmp)
-> +{
-> +	*tmp = memparse(buf, &buf);
-> +	if (*buf != '\0')
-> +		return -EINVAL;
-> +
-> +	*tmp = PAGE_ALIGN(*tmp);
-> +	return 0;
-> +}
+Andrea Righi wrote:
+> Balbir Singh wrote:
+>> +static int memrlimit_cgroup_write_strategy(char *buf, unsigned long
+>> long *tmp)
+>> +{
+>> +    *tmp = memparse(buf, &buf);
+>> +    if (*buf != '\0')
+>> +        return -EINVAL;
+>> +
+>> +    *tmp = PAGE_ALIGN(*tmp);
+>> +    return 0;
+>> +}
+> 
+> We shouldn't use PAGE_ALIGN() here, otherwise we limit the address space
+> to 4GB on 32-bit architectures (that could be reasonable, because this
+> is a per-cgroup limit and not per-process).
+> 
 
-We shouldn't use PAGE_ALIGN() here, otherwise we limit the address space
-to 4GB on 32-bit architectures (that could be reasonable, because this
-is a per-cgroup limit and not per-process).
+You mean un-reasonable?
 
-Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
----
- mm/memrlimitcgroup.c |    4 +++-
- 1 files changed, 3 insertions(+), 1 deletions(-)
+> Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
 
-diff --git a/mm/memrlimitcgroup.c b/mm/memrlimitcgroup.c
-index 9a03d7d..2d42ff3 100644
---- a/mm/memrlimitcgroup.c
-+++ b/mm/memrlimitcgroup.c
-@@ -29,6 +29,8 @@
- #include <linux/res_counter.h>
- #include <linux/memrlimitcgroup.h>
- 
-+#define PAGE_ALIGN64(addr) (((((addr)+PAGE_SIZE-1))>>PAGE_SHIFT)<<PAGE_SHIFT)
-+
- struct cgroup_subsys memrlimit_cgroup_subsys;
- 
- struct memrlimit_cgroup {
-@@ -124,7 +126,7 @@ static int memrlimit_cgroup_write_strategy(char *buf, unsigned long long *tmp)
- 	if (*buf != '\0')
- 		return -EINVAL;
- 
--	*tmp = PAGE_ALIGN(*tmp);
-+	*tmp = PAGE_ALIGN64(*tmp);
- 	return 0;
- }
- 
+Seems fair enough.
+
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+
+
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
