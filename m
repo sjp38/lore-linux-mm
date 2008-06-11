@@ -1,105 +1,66 @@
-Date: Wed, 11 Jun 2008 12:03:45 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFD][PATCH] memcg: Move Usage at Task Move
-Message-Id: <20080611120345.07ddadc6.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20080610172637.39ffff5c.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080606105235.3c94daaf.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080610163550.65c97f6a.nishimura@mxp.nes.nec.co.jp>
-	<20080610172637.39ffff5c.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5B38UrE008324
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2008 23:08:30 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5B3CiOf174054
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2008 21:12:44 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5B3CiWQ007665
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2008 21:12:44 -0600
+Subject: Re: [RFC:PATCH 06/06] powerpc: Don't clear _PAGE_COHERENT when
+	_PAGE_SAO is set
+From: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
+In-Reply-To: <484EFF86.1030709@ru.mvista.com>
+References: <20080610220055.10257.84465.sendpatchset@norville.austin.ibm.com>
+	 <20080610220129.10257.69024.sendpatchset@norville.austin.ibm.com>
+	 <484EFF86.1030709@ru.mvista.com>
+Content-Type: text/plain
+Date: Tue, 10 Jun 2008 22:12:42 -0500
+Message-Id: <1213153962.6714.0.camel@norville.austin.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "menage@google.com" <menage@google.com>
+To: Sergei Shtylyov <sshtylyov@ru.mvista.com>
+Cc: linuxppc-dev list <Linuxppc-dev@ozlabs.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Jun 2008 17:26:37 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > This is a trial to move "usage" from old cg to new cg at task move.
-> > > Finally, you'll see the problems we have to handle are failure and rollback.
-> > > 
-> > > This one's Basic algorithm is
-> > > 
-> > >      0. can_attach() is called.
-> > >      1. count movable pages by scanning page table. isolate all pages from LRU.
-> > >      2. try to create enough room in new memory cgroup
-> > >      3. start moving page accouing
-> > >      4. putback pages to LRU.
-> > >      5. can_attach() for other cgroups are called.
-> > > 
-> > You isolate pages and move charges of them by can_attach(),
-> > but it means that pages that are allocated between page isolation
-> > and moving tsk->cgroups remains charged to old group, right?
-> yes.
+On Wed, 2008-06-11 at 02:26 +0400, Sergei Shtylyov wrote:
+> Hello.
 > 
-> > 
-> > I think it would be better if possible to move charges by attach()
-> > as cpuset migrates pages by cpuset_attach().
-> > But one of the problem of it is that attch() does not return
-> > any value, so there is no way to notify failure...
-> > 
-> yes, here again. it makes roll-back more difficult.
+> Dave Kleikamp wrote:
+> > powerpc: Don't clear _PAGE_COHERENT when _PAGE_SAO is set
+> >
+> > This is a placeholder.  Benh tells me that he will come up with a better fix.
+> >
+> > Signed-off-by: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
+> > ---
+> >
+> >  arch/powerpc/platforms/pseries/lpar.c |    3 ++-
+> >  1 file changed, 2 insertions(+), 1 deletion(-)
+> >
+> > diff -Nurp linux005/arch/powerpc/platforms/pseries/lpar.c linux006/arch/powerpc/platforms/pseries/lpar.c
+> > --- linux005/arch/powerpc/platforms/pseries/lpar.c	2008-06-05 10:07:34.000000000 -0500
+> > +++ linux006/arch/powerpc/platforms/pseries/lpar.c	2008-06-10 16:48:59.000000000 -0500
+> > @@ -305,7 +305,8 @@ static long pSeries_lpar_hpte_insert(uns
+> >  	flags = 0;
+> >  
+> >  	/* Make pHyp happy */
+> > -	if (rflags & (_PAGE_GUARDED|_PAGE_NO_CACHE))
+> > +	if ((rflags & _PAGE_GUARDED) ||
+> > +	    ((rflags & _PAGE_NO_CACHE) & !(rflags & _PAGE_WRITETHRU)))
+> >   
+>    I don't think you really meant bitwise AND here. I suppose the second 
+> expression just will never be true.
+
+You're right.  That should be &&.  Thanks.
+
+> WBR, Sergei
 > 
-I think so too. That's why I said "one of the problem".
-
-> > > A case study.
-> > > 
-> > >   group_A -> limit=1G, task_X's usage= 800M.
-> > >   group_B -> limit=1G, usage=500M.
-> > > 
-> > > For moving task_X from group_A to group_B.
-> > >   - group_B  should be reclaimed or have enough room.
-> > > 
-> > > While moving task_X from group_A to group_B.
-> > >   - group_B's memory usage can be changed
-> > >   - group_A's memory usage can be changed
-> > > 
-> > >   We accounts the resouce based on pages. Then, we can't move all resource
-> > >   usage at once.
-> > > 
-> > >   If group_B has no more room when we've moved 700M of task_X to group_B,
-> > >   we have to move 700M of task_X back to group_A. So I implemented roll-back.
-> > >   But other process may use up group_A's available resource at that point.
-> > >   
-> > >   For avoiding that, preserve 800M in group_B before moving task_X means that
-> > >   task_X can occupy 1600M of resource at moving. (So I don't do in this patch.)
-> > > 
-> > >   This patch uses Best-Effort rollback. Failure in rollback is ignored and
-> > >   the usage is just leaked.
-> > > 
-> > If implement rollback in kernel, I think it must not fail to prevent
-> > leak of usage.
-> > How about using "charge_force" for rollbak?
-> > 
-> means allowing to exceed limit ?
 > 
-Yes.
-I agree that exceeding limit is not good, but I
-just feel that it's better than leaking usage.
-Of cource, I think usage should be decreased later
-by some methods.
-
-> > Or, instead of implementing rollback in kernel,
-> > how about making user(or middle ware?) re-echo pid to rollbak
-> > on failure?
-> > 
-> 
-> "If the users does well, the system works in better way" is O.K.
-> "If the users doesn't well, the system works in broken way" is very bad.
-> 
-Hum...
-
-I think users must know what they are doing.
-
-They must know that moving a process to another group
-that doesn't have enough room for it may fail with half state,
-if it is the behavior of kernel.
-And they should handle the error by themselves, IMHO.
-
-
-Thanks,
-Daisuke Nishimura.
+-- 
+David Kleikamp
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
