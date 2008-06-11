@@ -1,72 +1,95 @@
-Date: Wed, 11 Jun 2008 20:03:11 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: Re: [PATCH -mm 13/25] Noreclaim LRU Infrastructure
-Message-ID: <20080611190311.GA30958@shadowen.org>
-References: <20080606180506.081f686a.akpm@linux-foundation.org> <20080608163413.08d46427@bree.surriel.com> <20080608135704.a4b0dbe1.akpm@linux-foundation.org> <20080608173244.0ac4ad9b@bree.surriel.com> <20080608162208.a2683a6c.akpm@linux-foundation.org> <20080608193420.2a9cc030@bree.surriel.com> <20080608165434.67c87e5c.akpm@linux-foundation.org> <Pine.LNX.4.64.0806101214190.17798@schroedinger.engr.sgi.com> <20080610153702.4019e042@cuia.bos.redhat.com> <20080610143334.c53d7d8a.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080610143334.c53d7d8a.akpm@linux-foundation.org>
+Date: Wed, 11 Jun 2008 12:07:49 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] ext2: Use page_mkwrite vma_operations to get mmap write
+ notification.
+Message-Id: <20080611120749.d0c5a7de.akpm@linux-foundation.org>
+In-Reply-To: <20080611150845.GA21910@skywalker>
+References: <1212685513-32237-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	<20080605123045.445e380a.akpm@linux-foundation.org>
+	<20080611150845.GA21910@skywalker>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, clameter@sgi.com, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, eric.whitney@hp.com, Paul Mundt <lethal@linux-sh.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: cmm@us.ibm.com, jack@suse.cz, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 10, 2008 at 02:33:34PM -0700, Andrew Morton wrote:
-> On Tue, 10 Jun 2008 15:37:02 -0400
-> Rik van Riel <riel@redhat.com> wrote:
-> 
-> > On Tue, 10 Jun 2008 12:17:23 -0700 (PDT)
-> > Christoph Lameter <clameter@sgi.com> wrote:
+On Wed, 11 Jun 2008 20:38:45 +0530
+"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+
+> On Thu, Jun 05, 2008 at 12:30:45PM -0700, Andrew Morton wrote:
+> > On Thu,  5 Jun 2008 22:35:12 +0530
+> > "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
 > > 
-> > > On Sun, 8 Jun 2008, Andrew Morton wrote:
+> > > We would like to get notified when we are doing a write on mmap
+> > > section.  The changes are needed to handle ENOSPC when writing to an
+> > > mmap section of files with holes.
 > > > 
-> > > > And it will take longer to get those problems sorted out if 32-bt
-> > > > machines aren't even compiing the new code in.
-> > > 
-> > > The problem is going to be less if we dependedn on 
-> > > CONFIG_PAGEFLAGS_EXTENDED instead of 64 bit. This means that only certain 
-> > > 32bit NUMA/sparsemem configs cannot do this due to lack of page flags.
-> > > 
-> > > I did the pageflags rework in part because of Rik's project.
 > > 
-> > I think your pageflags work freed up a number of bits on 32
-> > bit systems, unless someone compiles a 32 bit system with
-> > support for 4 memory zones (2 bits ZONE_SHIFT) and 64 NUMA
-> > nodes (6 bits NODE_SHIFT), in which case we should still
-> > have 24 bits for flags.
+> > Whoa.  You didn't copy anything like enough mailing lists for a change
+> > of this magnitude.  I added some.
 > > 
-> > Of course, having 64 NUMA nodes and a ZONE_SHIFT of 2 on
-> > a 32 bit system is probably total insanity already.  I
-> > suspect very few people compile 32 bit with NUMA at all,
-> > except if it is an architecture that uses DISCONTIGMEM
-> > instead of zones, in which case ZONE_SHIFT is 0, which
-> > will free up space too :)
+> > This is a large change in behaviour!
+> > 
+> > a) applications will now get a synchronous SIGBUS when modifying a
+> >    page over an ENOSPC filesystem.  Whereas previously they could have
+> >    proceeded to completion and then detected the error via an fsync().
 > 
-> Maybe it's time to bite the bullet and kill i386 NUMA support.  afaik
-> it's just NUMAQ and a 2-node NUMAish machine which IBM made (as400?)
+> Or not detect the error at all if we don't call fsync() right ? Isn't a
+> synchronous SIGBUS the right behaviour ?
+>
+
+Not according to POSIX.  Or at least posix-several-years-ago, when this
+last was discussed.  The spec doesn't have much useful to say about any
+of this.
+
+It's a significant change in the userspace interface.
+
 > 
-> arch/sh uses NUMA for 32-bit, I believe. But I don't know what its
-> maximum node count is.  The default for sh NODES_SHIFT is 3.  
+> > 
+> >    It's going to take more than one skimpy little paragraph to
+> >    justify this, and to demonstrate that it is preferable, and to
+> >    convince us that nothing will break from this user-visible behaviour
+> >    change.
+> > 
+> > b) we're now doing fs operations (and some I/O) in the pagefault
+> >    code.  This has several implications:
+> > 
+> >    - performance changes
+> > 
+> >    - potential for deadlocks when a process takes the fault from
+> >      within a copy_to_user() in, say, mm/filemap.c
+> > 
+> >    - performing additional memory allocations within that
+> >      copy_to_user().  Possibility that these will reenter the
+> >      filesystem.
+> > 
+> > And that's just ext2.
+> > 
+> > For ext3 things are even more complex, because we have the
+> > journal_start/journal_end pair which is effectively another "lock" for
+> > ranking/deadlock purposes.  And now we're taking i_alloc_sem and
+> > lock_page and we're doing ->writepage() and its potential
+> > journal_start(), all potentially within the context of a
+> > copy_to_user().
+> 
+> One of the reason why we would need this in ext3/ext4 is that we cannot
+> do block allocation in the writepage with the recent locking changes.
 
-I think we can say that although NUMAQ can have up to 64 NUMA nodes, in
-fact I don't think we have any more with more than 4 nodes left.  From
-the other discussion it sounds like we have a maximum if 8 nodes on
-other sub-arches.  So it would not be unreasonable to reduce the shift
-to 3.  Which might allow us to reduce the size of the reserve.
+Perhaps those recent locking changes were wrong.
 
-The problem will come with SPARSEMEM as that stores the section number
-in the reserved field.  Which can mean we need the whole reserve, and
-there is currently no simple way to remove that.
+> The locking changes involve changing the locking order of journal_start
+> and page_lock. With writepage we are already called with page_lock and
+> we can't start new transaction needed for block allocation.
 
-I have been wondering whether we could make more use of the dynamic
-nature of the page bits.  As bits only need to exist when used, whether
-we could consider letting the page flags grow to 64 bits if necessary.
-However, at a quick count we are still only using about 19 bits, and if
-memory serves we have 23/24 after the reserve on 32 bit.
+ext3_write_begin() has journal_start() nesting inside the lock_page().
 
--apw
+> But if we agree that we should not do block allocation in page_mkwrite
+> we need to add writepages and allocate blocks in writepages.
+
+I'm not sure what writepages has to do with pagefaults?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
