@@ -1,100 +1,63 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5BFlGXc014025
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 11:47:17 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5BFlCBt073550
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 09:47:12 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5BFlCA4007293
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 09:47:12 -0600
-Subject: Re: [RFC:PATCH 02/06] mm: Allow architectures to define additional
-	protection bits
-From: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
-In-Reply-To: <20080610151423.a6e68632.akpm@linux-foundation.org>
-References: <20080610220055.10257.84465.sendpatchset@norville.austin.ibm.com>
-	 <20080610220106.10257.69841.sendpatchset@norville.austin.ibm.com>
-	 <20080610151423.a6e68632.akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm 17/25] Mlocked Pages are non-reclaimable
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20080610145706.4a921cfa.akpm@linux-foundation.org>
+References: <20080606202838.390050172@redhat.com>
+	 <20080606202859.522708682@redhat.com>
+	 <20080606180746.6c2b5288.akpm@linux-foundation.org>
+	 <20080610033130.GK19404@wotan.suse.de>
+	 <20080610171400.149886cf@cuia.bos.redhat.com>
+	 <1213134197.6872.49.camel@lts-notebook>
+	 <20080610145706.4a921cfa.akpm@linux-foundation.org>
 Content-Type: text/plain
-Date: Wed, 11 Jun 2008 10:47:09 -0500
-Message-Id: <1213199229.6483.10.camel@norville.austin.ibm.com>
+Date: Wed, 11 Jun 2008 12:01:24 -0400
+Message-Id: <1213200084.6436.31.camel@lts-notebook>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linuxppc-dev@ozlabs.org, linux-mm@kvack.org, torvalds@linux-foundation.org
+Cc: riel@redhat.com, npiggin@suse.de, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-06-10 at 15:14 -0700, Andrew Morton wrote:
-> On Tue, 10 Jun 2008 18:01:07 -0400
-> Dave Kleikamp <shaggy@linux.vnet.ibm.com> wrote:
+On Tue, 2008-06-10 at 14:57 -0700, Andrew Morton wrote:
+> On Tue, 10 Jun 2008 17:43:17 -0400
+> Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
 > 
-> > mm: Allow architectures to define additional protection bits
+> > Couple of related items:
 > > 
-> > This patch allows architectures to define functions to deal with
-> > additional protections bits for mmap() and mprotect().
-> > 
-> > arch_calc_vm_prot_bits() maps additonal protection bits to vm_flags
-> > arch_vm_get_page_prot() maps additional vm_flags to the vma's vm_page_prot
-> > arch_validate_prot() checks for valid values of the protection bits
-> > 
-> > Note: vm_get_page_prot() is now pretty ugly.  Suggestions?
+> > + 26-rc5-mm1 + a small fix to the double unlock_page() in
+> > shrink_page_list() has been running for a couple of hours on my 32G,
+> > 16cpu ia64 numa platform w/o error.  Seems to have survived the merge
+> > into -mm, despite the issues Andrew has raised.
 > 
-> It didn't get any better, no ;)
+> oh goody, thanks.  
+
+I should have mentioned that it's running a fairly heavy stress load to
+exercise the vm scalability changes.  Lots of IO, page cache activity,
+swapping, mlocking and shmlocking various sized regions, up to 16GB on
+32GB machine, migrating of mlocked/shmlocked segments between
+nodes,  ...   So far today, the load has been up for ~19.5 hours with no
+errors, no softlockups, no oom-kills or such.  
+
+> Johannes's bootmem rewrite is holding up
+> surprisingly well.
+
+Well, I am seeing a lot of "potential offnode page_structs" messages for
+our funky cache-line interleaved pseudo-node.  I had to limit the prints
+to boot at all.  Still investigating.  Looks like slub can't allocate
+its initial per node data on that node either.
+
 > 
-> I wonder if we can do the ORing after doing the protection_map[]
-> lookup.  I guess that's illogical even if it happens to work.
-
-I guess we can live with it.  Just holding out hope that someone might
-see a nicer way to do it.
-
-> > diff -Nurp linux001/include/linux/mman.h linux002/include/linux/mman.h
-> > --- linux001/include/linux/mman.h	2008-06-05 10:08:01.000000000 -0500
-> > +++ linux002/include/linux/mman.h	2008-06-10 16:48:59.000000000 -0500
-> > @@ -34,6 +34,26 @@ static inline void vm_unacct_memory(long
-> >  }
-> >  
-> >  /*
-> > + * Allow architectures to handle additional protection bits
-> > + */
-> > +
-> > +#ifndef HAVE_ARCH_PROT_BITS
-> > +#define arch_calc_vm_prot_bits(prot) 0
-> > +#define arch_vm_get_page_prot(vm_flags) __pgprot(0)
-> > +
-> > +/*
-> > + * This is called from mprotect().  PROT_GROWSDOWN and PROT_GROWSUP have
-> > + * already been masked out.
-> > + *
-> > + * Returns true if the prot flags are valid
-> > + */
-> > +static inline int arch_validate_prot(unsigned long prot)
-> > +{
-> > +	return (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM)) == 0;
-> > +}
-> > +#endif /* HAVE_ARCH_PROT_BITS */
+> gee test.kernel.org takes a long time.
 > 
-> argh, another HAVE_ARCH_foo.
-
-Sorry.  I didn't realize HAVE_ARCH_foo was so evil.
-
-> A good (but verbose) way of doing this is to nuke the ifdefs and just
-> go and define these three things for each architecture.  That can be
-> done via copy-n-paste into include/asm-*/mman.h or #include
-> <asm-generic/arch-mman.h>(?) within each asm/mman.h.
+> > + on same platform, Mel Gorman's mminit debug code is reporting that
+> > we're using 22 page flags with Noreclaim, Mlock and PAGEFLAGS_EXTENDED
+> > configured.
 > 
-> Another way would be
-> 
-> #ifndef arch_calc_vm_prot_bits
-> #define arch_calc_vm_prot_bits(prot) ...
+> what is "Mel Gorman's mminit debug code"?
 
-I think I prefer this method.  I'll get rid of HAVE_ARCH_PROT_BITS.
-
-Thanks,
-Shaggy
--- 
-David Kleikamp
-IBM Linux Technology Center
+mminit_loglevel={0|1|2}  [I use 3 :)]  shows page flag layout, zone
+lists, ...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
