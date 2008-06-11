@@ -1,70 +1,73 @@
-Subject: Re: [v4][PATCH 2/2] fix large pages in pagemap
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <20080611131108.61389481.akpm@linux-foundation.org>
-References: <20080611180228.12987026@kernel>
-	 <20080611180230.7459973B@kernel>
-	 <20080611123724.3a79ea61.akpm@linux-foundation.org>
-	 <1213213980.20045.116.camel@calx>
-	 <20080611131108.61389481.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Date: Wed, 11 Jun 2008 15:21:15 -0500
-Message-Id: <1213215675.20045.119.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from spaceape7.eur.corp.google.com (spaceape7.eur.corp.google.com [172.28.16.141])
+	by smtp-out.google.com with ESMTP id m5BKUkbu031037
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 21:30:46 +0100
+Received: from rv-out-0708.google.com (rvbk29.prod.google.com [10.140.87.29])
+	by spaceape7.eur.corp.google.com with ESMTP id m5BKUjsU021965
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 21:30:46 +0100
+Received: by rv-out-0708.google.com with SMTP id k29so4062806rvb.8
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2008 13:30:45 -0700 (PDT)
+Message-ID: <485035E7.3000103@google.com>
+Date: Wed, 11 Jun 2008 13:30:31 -0700
+From: Paul Menage <menage@google.com>
+MIME-Version: 1.0
+Subject: [PATCH] Fix 32-bit truncation of segment sizes in /proc/sysvipc/shm
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: dave@linux.vnet.ibm.com, hans.rosenfeld@amd.com, linux-mm@kvack.org, hugh@veritas.com, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Mike Waychison <mikew@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-06-11 at 13:11 -0700, Andrew Morton wrote:
-> On Wed, 11 Jun 2008 14:53:00 -0500
-> Matt Mackall <mpm@selenic.com> wrote:
-> 
-> > [adding Hugh to the cc:]
-> > 
-> > On Wed, 2008-06-11 at 12:37 -0700, Andrew Morton wrote:
-> > > On Wed, 11 Jun 2008 11:02:31 -0700
-> > > Dave Hansen <dave@linux.vnet.ibm.com> wrote:
-> > > 
-> > > > 
-> > > > We were walking right into huge page areas in the pagemap
-> > > > walker, and calling the pmds pmd_bad() and clearing them.
-> > > > 
-> > > > That leaked huge pages.  Bad.
-> > > > 
-> > > > This patch at least works around that for now.  It ignores
-> > > > huge pages in the pagemap walker for the time being, and
-> > > > won't leak those pages.
-> > > > 
-> > > 
-> > > I don't get it.   Why can't we just stick a
-> > > 
-> > > 	if (pmd_huge(pmd))
-> > > 		continue;
-> > > 
-> > > into pagemap_pte_range()?  Or something like that.
-> > 
-> > That's certainly what you'd hope to be able to do, yes.
-> > 
-> > If I recall the earlier discussion, some arches with huge pages can only
-> > identify them via a VMA. Obviously, any arch with hardware that walks
-> > our pagetables directly must be able to identify huge pages directly
-> > from those tables, but I think PPC and a couple others that don't have
-> > hardware TLB fill fail to store such a bit in the tables at all.
-> 
-> Really?  There already a couple of pmd_huge() tests in mm/memory.c and
-> Rik's access_process_vm-device-memory-infrastructure.patch adds another
-> one.
+sysvipc_shm_proc_show() picks between format strings (based on the
+expected maximum length of a SHM segment) in a way that prevents 
+gcc from performing format checks on the seq_printf() parameters. This
+hid two format errors - shp->shm_segsz and shp->shm_nattach are both
+unsigned long, but were being printed as unsigned int and signed int
+respectively. This leads to 32-bit truncation of SHM segment sizes 
+reported in /proc/sysvipc/shm. (And for nattach, but that's less of a
+problem for most users).
 
-Quoting Hugh:
+This patch makes the format string directly visible to gcc's format
+specifier checker, and fixes the two broken format specifiers.
 
-i>>?A pmd_huge(*pmd) test is tempting, but it only ever says "yes" on x86:
-we've carefully left it undefined what happens to the pgd/pud/pmd/pte
-hierarchy in the general arch case, once you're amongst hugepages.
+Signed-off-by: Paul Menage <menage@google.com>
 
--- 
-Mathematics is the supreme nostalgia of our time.
+---
+
+
+ ipc/shm.c |   16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+Index: shm-2.6.26-rc5-mm2/ipc/shm.c
+===================================================================
+--- shm-2.6.26-rc5-mm2.orig/ipc/shm.c
++++ shm-2.6.26-rc5-mm2/ipc/shm.c
+@@ -1062,16 +1062,16 @@ asmlinkage long sys_shmdt(char __user *s
+ static int sysvipc_shm_proc_show(struct seq_file *s, void *it)
+ {
+ 	struct shmid_kernel *shp = it;
+-	char *format;
+ 
+-#define SMALL_STRING "%10d %10d  %4o %10u %5u %5u  %5d %5u %5u %5u %5u %10lu %10lu %10lu\n"
+-#define BIG_STRING   "%10d %10d  %4o %21u %5u %5u  %5d %5u %5u %5u %5u %10lu %10lu %10lu\n"
++#if BITS_PER_LONG <= 32
++#define SIZE_SPEC "%10lu"
++#else
++#define SIZE_SPEC "%21lu"
++#endif
+ 
+-	if (sizeof(size_t) <= sizeof(int))
+-		format = SMALL_STRING;
+-	else
+-		format = BIG_STRING;
+-	return seq_printf(s, format,
++	return seq_printf(s,
++			  "%10d %10d  %4o " SIZE_SPEC " %5u %5u  "
++			  "%5lu %5u %5u %5u %5u %10lu %10lu %10lu\n",
+ 			  shp->shm_perm.key,
+ 			  shp->shm_perm.id,
+ 			  shp->shm_perm.mode,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
