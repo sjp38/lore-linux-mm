@@ -1,94 +1,62 @@
-Date: Wed, 11 Jun 2008 16:24:23 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: [RFC][PATCH 2/2] memcg: hardwall hierarhcy for memcg
-Message-Id: <20080611162423.3ba183b4.randy.dunlap@oracle.com>
-In-Reply-To: <20080604140329.8db1b67e.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080604135815.498eaf82.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080604140329.8db1b67e.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: 2.6.26-rc5-mm2
+Date: Thu, 12 Jun 2008 09:58:38 +1000
+References: <20080609223145.5c9a2878.akpm@linux-foundation.org> <200806101848.22237.nickpiggin@yahoo.com.au> <20080611140902.544e59ec@bree.surriel.com>
+In-Reply-To: <20080611140902.544e59ec@bree.surriel.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200806120958.38545.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "menage@google.com" <menage@google.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 4 Jun 2008 14:03:29 +0900 KAMEZAWA Hiroyuki wrote:
+On Thursday 12 June 2008 04:09, Rik van Riel wrote:
+> On Tue, 10 Jun 2008 18:48:21 +1000
+>
+> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> > > > The tmpfs PageSwapBacked stuff seems rather broken. For
+> > > > them write_begin/write_end path, it is filemap.c, not shmem.c,
+> > > > which allocates the page, so its no wonder it goes bug. Will
+> > > > try to do more testing without shmem.
+>
+> Fun, so what does shmem_alloc_page do?
+>
+> > > rikstuff.  Could be that the merge caused a problem?
+> >
+> > Doesn't look like it, but I hadn't followed the changes too closely:
+> > rather they just need to test loopback over tmpfs.
+>
+> Does loopback over tmpfs use a different allocation path?
 
-> ---
->  Documentation/controllers/memory.txt |   27 +++++-
->  mm/memcontrol.c                      |  156 ++++++++++++++++++++++++++++++++++-
->  2 files changed, 178 insertions(+), 5 deletions(-)
-> 
+I'm sorry, hmm I didn't look closely enough and forgot that
+write_begin/write_end requires the callee to allocate the page
+as well, and that Hugh had nicely unified most of that.
 
-> Index: temp-2.6.26-rc2-mm1/Documentation/controllers/memory.txt
-> ===================================================================
-> --- temp-2.6.26-rc2-mm1.orig/Documentation/controllers/memory.txt
-> +++ temp-2.6.26-rc2-mm1/Documentation/controllers/memory.txt
-> @@ -237,12 +237,37 @@ cgroup might have some charge associated
->  tasks have migrated away from it. Such charges are automatically dropped at
->  rmdir() if there are no tasks.
->  
-> -5. TODO
-> +5. Hierarchy Model
-> +  the kernel supports following kinds of hierarchy models.
+So maybe it's not that. It's pretty easy to hit I found with
+ext2 mounted over loopback on a tmpfs file.
 
-     The kernel supports the following kinds ....
 
-> +  (your middle-ware may support others based on this.)
+> > Is the plan to merge all reclaim changes in a big hit, rather than
+> > slowly trickle in the different independent changes?
+>
+> My original plan was to merge them incrementally, but Andrew is
+> right that we should give the whole set as much testing as
+> possible.
+>
+> I have done all the cleanups Andrew asked and fixed the bugs
+> that I found after that merge/cleanup.  Your bug is the one
+> I still need to fix before giving Andrew a whole new set of
+> split LRU patches to merge.
+>
+> (afterwards, I will go incremental fixes only - the cleanups
+> he asked for were just too big to do as incrementals)
 
-     (Your
-> +
-> +  5-a. Independent Hierarchy
-> +  There are no relationship between any cgroups, even among a parent and
-
-           is
-
-> +  children. This is the default mode. To use this hierarchy, write 0
-> +  to root cgroup's memory.hierarchy_model
-> +  echo 0 > .../memory.hierarchy_model.
-> +
-> +  5-b. Hardwall Hierarchy.
-> +  The resource has to be moved from the parent to the child before use it.
-
-                                                                      using it.
-
-> +  When a child's limit is set to 'val', val of the resource is moved from
-> +  the parent to the child. the parent's usage += val.
-
-                              The parent's usage is incremented by val.
-(if that's what you mean)
-
-> +  The amount of children's usage is reported by the file
-> +
-> +  - memory.assigned_to_child
-> +
-> +  This policy doesn't provide sophisticated automatic resource balancing in
-> +  the kernel. But this is very good for strict resource isolation. Users
-
-         kernel, but this ...
-
-> +  can get high predictability of behavior of applications if this is used
-> +  under proper environments.
-> +
-> +
-> +6. TODO
->  
->  1. Add support for accounting huge pages (as a separate controller)
->  2. Make per-cgroup scanner reclaim not-shared pages first
->  3. Teach controller to account for shared-pages
->  4. Start reclamation when the limit is lowered
-> +   (this is already done in Hardwall Hierarchy)
->  5. Start reclamation in the background when the limit is
->     not yet hit but the usage is getting closer
-> --
-
----
-~Randy
-'"Daemon' is an old piece of jargon from the UNIX operating system,
-where it referred to a piece of low-level utility software, a
-fundamental part of the operating system."
+OK.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
