@@ -1,138 +1,157 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id m5C46mEn005563
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2008 14:06:48 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5C46c854485188
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2008 14:06:39 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5C46wcB013050
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2008 14:06:58 +1000
-Date: Thu, 12 Jun 2008 09:36:43 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH] ext2: Use page_mkwrite vma_operations to get mmap
-	write notification.
-Message-ID: <20080612040643.GA5518@skywalker>
-References: <1212685513-32237-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20080605123045.445e380a.akpm@linux-foundation.org> <20080611150845.GA21910@skywalker> <20080611120749.d0c5a7de.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080611120749.d0c5a7de.akpm@linux-foundation.org>
+Date: Thu, 12 Jun 2008 13:59:49 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 1/2] memcg: res_counter hierarchy
+Message-Id: <20080612135949.6e2ab327.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080611162427.3ef63098.randy.dunlap@oracle.com>
+References: <20080604135815.498eaf82.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080604140153.fec6cc99.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080611162427.3ef63098.randy.dunlap@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: cmm@us.ibm.com, jack@suse.cz, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "menage@google.com" <menage@google.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 11, 2008 at 12:07:49PM -0700, Andrew Morton wrote:
-> On Wed, 11 Jun 2008 20:38:45 +0530
-> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+On Wed, 11 Jun 2008 16:24:27 -0700
+Randy Dunlap <randy.dunlap@oracle.com> wrote:
+> >  /*
+> >   * helpers for accounting
+> >   */
+> >  
+> > +/*
+> > + * initialize res_counter.
+> > + * @counter : the counter
+> > + *
+> > + * initialize res_counter and set default limit to very big value(unlimited)
+> > + */
+> > +
+> >  void res_counter_init(struct res_counter *counter);
 > 
-> > On Thu, Jun 05, 2008 at 12:30:45PM -0700, Andrew Morton wrote:
-> > > On Thu,  5 Jun 2008 22:35:12 +0530
-> > > "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
-> > > 
-> > > > We would like to get notified when we are doing a write on mmap
-> > > > section.  The changes are needed to handle ENOSPC when writing to an
-> > > > mmap section of files with holes.
-> > > > 
-> > > 
-> > > Whoa.  You didn't copy anything like enough mailing lists for a change
-> > > of this magnitude.  I added some.
-> > > 
-> > > This is a large change in behaviour!
-> > > 
-> > > a) applications will now get a synchronous SIGBUS when modifying a
-> > >    page over an ENOSPC filesystem.  Whereas previously they could have
-> > >    proceeded to completion and then detected the error via an fsync().
-> > 
-> > Or not detect the error at all if we don't call fsync() right ? Isn't a
-> > synchronous SIGBUS the right behaviour ?
-> >
+> For these non-static (non-private) functions, please use kernel-doc notation
+> (see Documentation/kernel-doc-nano-HOWTO.txt and/or examples in other source files).
+> Also, we prefer for the function documentation to be above its definition (implementation)
+> rather than above its declaration, so the kernel-doc should be moved to .c files
+> instead of living in .h files.
 > 
-> Not according to POSIX.  Or at least posix-several-years-ago, when this
-> last was discussed.  The spec doesn't have much useful to say about any
-> of this.
-> 
-> It's a significant change in the userspace interface.
-> 
-> > 
-> > > 
-> > >    It's going to take more than one skimpy little paragraph to
-> > >    justify this, and to demonstrate that it is preferable, and to
-> > >    convince us that nothing will break from this user-visible behaviour
-> > >    change.
-> > > 
-> > > b) we're now doing fs operations (and some I/O) in the pagefault
-> > >    code.  This has several implications:
-> > > 
-> > >    - performance changes
-> > > 
-> > >    - potential for deadlocks when a process takes the fault from
-> > >      within a copy_to_user() in, say, mm/filemap.c
-> > > 
-> > >    - performing additional memory allocations within that
-> > >      copy_to_user().  Possibility that these will reenter the
-> > >      filesystem.
-> > > 
-> > > And that's just ext2.
-> > > 
-> > > For ext3 things are even more complex, because we have the
-> > > journal_start/journal_end pair which is effectively another "lock" for
-> > > ranking/deadlock purposes.  And now we're taking i_alloc_sem and
-> > > lock_page and we're doing ->writepage() and its potential
-> > > journal_start(), all potentially within the context of a
-> > > copy_to_user().
-> > 
-> > One of the reason why we would need this in ext3/ext4 is that we cannot
-> > do block allocation in the writepage with the recent locking changes.
-> 
-> Perhaps those recent locking changes were wrong.
-> 
-> > The locking changes involve changing the locking order of journal_start
-> > and page_lock. With writepage we are already called with page_lock and
-> > we can't start new transaction needed for block allocation.
-> 
-> ext3_write_begin() has journal_start() nesting inside the lock_page().
-> 
-
-All those are changed as a part of lock inversion changes.
+Ah, sorry. I'll do so in the next version. Maybe I should move other comments
+in res_counter.h to res_counter.c
 
 
-
-> > But if we agree that we should not do block allocation in page_mkwrite
-> > we need to add writepages and allocate blocks in writepages.
 > 
-> I'm not sure what writepages has to do with pagefaults?
+> >  
+> >  /*
+> > + * initialize res_counter under hierarchy.
+> > + * @counter : the counter
+> > + * @parent : the parent of the counter
+> > + *
+> > + * initialize res_counter and set default limit to 0. and set "parent".
+> > + */
+> > +void res_counter_init_hierarchy(struct res_counter *counter,
+> > +				struct res_counter *parent);
+> > +
+> > +/*
+> >   * charge - try to consume more resource.
+> >   *
+> >   * @counter: the counter
+> > @@ -153,4 +192,51 @@ static inline void res_counter_reset_fai
+> >  	cnt->failcnt = 0;
+> >  	spin_unlock_irqrestore(&cnt->lock, flags);
+> >  }
+> > +
+> > +/**
+> > + * Move resources from a parent to a child.
+> > + * At success,
+> > + *           parent->usage += val.
+> > + *           parent->for_children += val.
+> > + *           child->limit += val.
+> > + *
+> > + * @child:    an entity to set res->limit. The parent is child->parent.
+> > + * @val:      the amount of resource to be moved.
+> > + * @callback: called when the parent's free resource is not enough to be moved.
+> > + *            this can be NULL if no callback is necessary.
+> > + * @retry:    limit for the number of trying to callback.
+> > + *            -1 means infinite loop. At each retry, yield() is called.
+> > + * Returns 0 at success, !0 at failure.
+> > + *
+> > + * The callback returns 0 at success, !0 at failure.
+> > + *
+> > + */
+> > +
+> > +int res_counter_move_resource(struct res_counter *child,
+> > +	unsigned long long val,
+> > +        int (*callback)(struct res_counter *res, unsigned long long val),
+> > +	int retry);
+> > +
+> > +
+> > +/**
+> > + * Return resource to its parent.
+> > + * At success,
+> > + *           parent->usage  -= val.
+> > + *           parent->for_children -= val.
+> > + *           child->limit -= val.
+> > + *
+> > + * @child:   entry to resize. The parent is child->parent.
+> > + * @val  :   How much does child repay to parent ? -1 means 'all'
+> > + * @callback: A callback for decreasing resource usage of child before
+> > + *            returning. If NULL, just deceases child's limit.
+> > + * @retry:   # of retries at calling callback for freeing resource.
+> > + *            -1 means infinite loop. At each retry, yield() is called.
+> > + * Returns 0 at success.
+> > + */
+> > +
+> > +int res_counter_return_resource(struct res_counter *child,
+> > +	unsigned long long val,
+> > +	int (*callback)(struct res_counter *res, unsigned long long val),
+> > +	int retry);
+> > +
+> >  #endif
+> > Index: temp-2.6.26-rc2-mm1/Documentation/controllers/resource_counter.txt
+> > ===================================================================
+> > --- temp-2.6.26-rc2-mm1.orig/Documentation/controllers/resource_counter.txt
+> > +++ temp-2.6.26-rc2-mm1/Documentation/controllers/resource_counter.txt
+> > @@ -179,3 +186,37 @@ counter fields. They are recommended to 
+> >      still can help with it).
+> >  
+> >   c. Compile and run :)
+> > +
+> > +
+> > +6. Hierarchy
+> > + a. No Hierarchy
+> > +   each cgroup can use its own private resource.
+> > +
+> > + b. Hard-wall Hierarhcy
+> > +   A simple hierarchical tree system for resource isolation.
+> > +   Allows moving resources only between a parent and its children.
+> > +   A parent can move its resource to children and remember the amount to
+> > +   for_children member. A child can get new resource only from its parent.
+> > +   Limit of a child is the amount of resource which is moved from its parent.
+> > +
+> > +   When add "val" to a child,
+> > +	parent->usage += val
+> > +	parent->for_children += val
+> > +	child->limit += val
+> > +   When a child returns its resource
+> > +	parent->usage -= val
+> > +	parent->for_children -= val
+> > +	child->limit -= val.
+> > +
+> > +   This implements resource isolation among each group. This works very well
+> > +   when you want to use strict resource isolation.
+> > +
+> > +   Usage Hint:
+> > +   This seems for static resource assignment but dynamic resource re-assignment
 > 
+>            seems to be?
+> 
+will fix.
 
-The idea is to have ext3/4_writepages. In writepages start a transaction
-and iterate over the pages take the lock and do block allocation. With
-that change we should be able to not do block allocation in the
-page_mkwrite path. We may still want to do block reservation there.
+Thank you for review!
 
-Something like.
-
-ext4_writepages()
-{
-	journal_start()
-	for_each_page()
-	lock_page
-	if (bh_unmapped()...)
-		block_alloc()
-	unlock_page
-	journal_stop()
-
-}
-
-ext4_writepage()
-{
-	for_each_buffer_head()
-		if (bh_unmapped()) {
-			redirty_page
-			unlock_page
-			return;
-		}
-}
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
