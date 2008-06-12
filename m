@@ -1,56 +1,31 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m5C6DO59009968
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2008 16:13:24 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5C6Dak82035768
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2008 16:13:36 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5C6Ds2D009440
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2008 16:13:55 +1000
-Message-ID: <4850BE9B.5030504@linux.vnet.ibm.com>
-Date: Thu, 12 Jun 2008 11:43:47 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [-mm][PATCH 2/4] Setup the memrlimit controller (v5)
-References: <20080521152921.15001.65968.sendpatchset@localhost.localdomain> <20080521152948.15001.39361.sendpatchset@localhost.localdomain> <4850070F.6060305@gmail.com> <20080611121510.d91841a3.akpm@linux-foundation.org> <485032C8.4010001@gmail.com> <20080611134323.936063d3.akpm@linux-foundation.org> <485055FF.9020500@gmail.com> <20080611155530.099a54d6.akpm@linux-foundation.org>
-In-Reply-To: <20080611155530.099a54d6.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Wed, 11 Jun 2008 23:34:49 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: repeatable slab corruption with LTP msgctl08
+Message-Id: <20080611233449.08e6eaa0.akpm@linux-foundation.org>
+In-Reply-To: <20080611221324.42270ef2.akpm@linux-foundation.org>
+References: <20080611221324.42270ef2.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: righi.andrea@gmail.com, linux-mm@kvack.org, skumar@linux.vnet.ibm.com, yamamoto@valinux.co.jp, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com
+To: Nadia Derbey <Nadia.Derbey@bull.net>, Manfred Spraul <manfred@colorfullife.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
+On Wed, 11 Jun 2008 22:13:24 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+
+> Running current mainline on my old 2-way PIII.  Distro is RH FC1.  LTP
+> version is ltp-full-20070228 (lots of retro-computing there).
 > 
-> #define PAGE_ALIGN(addr) ALIGN(addr, PAGE_SIZE)
+> Config is at http://userweb.kernel.org/~akpm/config-vmm.txt
 > 
-> ?
 > 
-> afaict ALIGN() tries to do the right thing, and if it doesn't, we
-> should fix ALIGN().
-> 
+> ./testcases/bin/msgctl08 crashes after ten minutes or so:
 
-That should do the right thing, provided there are no duplicate ALIGN defintions
-elsewhere
+ah, it runs to completion in about ten seconds on 2.6.25, so it'll be
+easy for someone to bisect it.
 
-kernel.h has
-
-
-#define ALIGN(x,a)              __ALIGN_MASK(x,(typeof(x))(a)-1)
-#define __ALIGN_MASK(x,mask)    (((x)+(mask))&~(mask))
-
-Which seems like the correct thing, since we use typeof(x) for (a) - 1.
-
-
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+What's that?  Sigh.  OK.  I wasn't doing anything much anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
