@@ -1,58 +1,72 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5C1Bpkd012104
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 21:11:51 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5C1Bpgg127588
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 19:11:51 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5C1Bp36031510
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 19:11:51 -0600
-Date: Wed, 11 Jun 2008 19:11:49 -0600
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [patch 05/21] hugetlb: new sysfs interface
-Message-ID: <20080612011149.GA21542@us.ibm.com>
-References: <20080604112939.789444496@amd.local0.net> <20080604113111.647714612@amd.local0.net> <20080608115941.746732a5.akpm@linux-foundation.org> <20080610030234.GE19404@wotan.suse.de>
-MIME-Version: 1.0
+Date: Thu, 12 Jun 2008 03:22:01 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [rfc][patch] mm: vmap rewrite
+Message-ID: <20080612012201.GB29611@wotan.suse.de>
+References: <20080605102015.GA11366@wotan.suse.de> <484AC779.1070803@goop.org> <20080610025312.GC19404@wotan.suse.de> <48501D7C.5050600@goop.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080610030234.GE19404@wotan.suse.de>
+In-Reply-To: <48501D7C.5050600@goop.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Greg KH <gregkh@suse.de>
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 10.06.2008 [05:02:34 +0200], Nick Piggin wrote:
-> On Sun, Jun 08, 2008 at 11:59:41AM -0700, Andrew Morton wrote:
-> > On Wed, 04 Jun 2008 21:29:44 +1000 npiggin@suse.de wrote:
-> > 
-> > > Provide new hugepages user APIs that are more suited to multiple hstates in
-> > > sysfs. There is a new directory, /sys/kernel/hugepages. Underneath that
-> > > directory there will be a directory per-supported hugepage size, e.g.:
-> > > 
-> > > /sys/kernel/hugepages/hugepages-64kB
-> > > /sys/kernel/hugepages/hugepages-16384kB
-> > > /sys/kernel/hugepages/hugepages-16777216kB
-> > 
-> > Maybe /sys/mm or /sys/vm would be a more appropriate place.
+On Wed, Jun 11, 2008 at 07:46:20PM +0100, Jeremy Fitzhardinge wrote:
+> Nick Piggin wrote:
+> >It's harder than that even, because we don't own the page flags, so then
+> >clearing the PG_kalias bit would require that we make all page flags ops
+> >atomic in all parts of the kernel. Obviously not going to happen.
+> >
+> >The other thing we could do is have vmap layer keep some p->v translations
+> >around (actually it doesn't even need to go all the way to v, just a single
+> >bit would suffice) So I guess this would be like another page flag, but
+> >without the atomicity problem and without me getting angry at using another
+> >flag ;) Still, I'd rather not do this and slow everything else down.
+> >  
 > 
-> I'm thinking all the random kernel subsystems under /sys/ should
-> rather be moved to /sys/kernel/. Imagine how much crap will be
-> under the root directory if every kernel subsystem goes there.
+> Yeah.  It's a bit awkward to maintain a secondary structure just to deal 
+> with the confluence of two edge cases (running Xen + reusing an aliased 
+> page in a pagetable).
+
+It would be possible though. Even if it were something we make conditional
+on Xen. So it is something to keep in mind.
+
+ 
+> >It could be switched on at runtime if Xen is running perhaps. Or the other
+> >thing Xen could do is keep a cache of unaliased page table pages. You
+> >could fill it up N pages at a time, and just do a single unmap_aliases call
+> >to sanitize them all; also, clean pages returned from pagetables could be
+> >reused. Like the quicklists things.
+> >  
 > 
-> The system is the kernel, afterall, the subsystems should be under
-> there (arguably /sys/kernel/mm/hugepages/ would be better again, in
-> fact yes Nish can we do that?).
+> Hm, that wouldn't be too bad (so long as it doesn't end up hiding 
+> gigabytes of memory away from the rest of the system ;).
 
-It should be pretty easy. Just need to allocate and add an appropriate
-kobject like kernel_kobj somewhere in the main vm initialization path
-and then change the parent in my patch to be that one rather than
-kernel_kobj.
+Well, it obviously has to be implemented properly ;) Another thing to keep
+in mind. If we end up with a huge number of vmap users (which I don't
+really anticipate, but maybe), then it might be more common to have aliased
+pages, in which case simply detecting them quickly doesn't help if we have
+to flush. So this approach would go some way to solving that situation.
 
-I won't have a chance to do this for a few weeks, though :/
+ 
+> >Or: doesn't the host have to do its own alias check anyway? In case of an
+> >AWOL guest? Why not just reuse that and trap back into the guest to fix it
+> >up?
+> 
+> That's possible, but awkward.  In many cases these updates will be 
+> batched, so it would become a matter of issuing a batch, then picking 
+> through the results to see what worked and what failed.  I suppose I 
+> could just do the simple flush and then if that turns out too expensive, 
+> do the submit-and-retry approach.
 
-Thanks,
-Nish
+OK. Again, this is more of the "fast detection" approach, rather than
+avoiding aliasing pages. But it's good to have so many options :)
+
+Anyway, option #4 is just to wait and see. I don't think Xen should
+significantly slow down after this patch, it just may be able to go
+faster with more tweaking.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
