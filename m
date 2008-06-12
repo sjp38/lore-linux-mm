@@ -1,72 +1,138 @@
-Date: Thu, 12 Jun 2008 03:22:01 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch] mm: vmap rewrite
-Message-ID: <20080612012201.GB29611@wotan.suse.de>
-References: <20080605102015.GA11366@wotan.suse.de> <484AC779.1070803@goop.org> <20080610025312.GC19404@wotan.suse.de> <48501D7C.5050600@goop.org>
-Mime-Version: 1.0
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id m5C46mEn005563
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2008 14:06:48 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5C46c854485188
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2008 14:06:39 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5C46wcB013050
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2008 14:06:58 +1000
+Date: Thu, 12 Jun 2008 09:36:43 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] ext2: Use page_mkwrite vma_operations to get mmap
+	write notification.
+Message-ID: <20080612040643.GA5518@skywalker>
+References: <1212685513-32237-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20080605123045.445e380a.akpm@linux-foundation.org> <20080611150845.GA21910@skywalker> <20080611120749.d0c5a7de.akpm@linux-foundation.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <48501D7C.5050600@goop.org>
+In-Reply-To: <20080611120749.d0c5a7de.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: cmm@us.ibm.com, jack@suse.cz, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 11, 2008 at 07:46:20PM +0100, Jeremy Fitzhardinge wrote:
-> Nick Piggin wrote:
-> >It's harder than that even, because we don't own the page flags, so then
-> >clearing the PG_kalias bit would require that we make all page flags ops
-> >atomic in all parts of the kernel. Obviously not going to happen.
+On Wed, Jun 11, 2008 at 12:07:49PM -0700, Andrew Morton wrote:
+> On Wed, 11 Jun 2008 20:38:45 +0530
+> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+> 
+> > On Thu, Jun 05, 2008 at 12:30:45PM -0700, Andrew Morton wrote:
+> > > On Thu,  5 Jun 2008 22:35:12 +0530
+> > > "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+> > > 
+> > > > We would like to get notified when we are doing a write on mmap
+> > > > section.  The changes are needed to handle ENOSPC when writing to an
+> > > > mmap section of files with holes.
+> > > > 
+> > > 
+> > > Whoa.  You didn't copy anything like enough mailing lists for a change
+> > > of this magnitude.  I added some.
+> > > 
+> > > This is a large change in behaviour!
+> > > 
+> > > a) applications will now get a synchronous SIGBUS when modifying a
+> > >    page over an ENOSPC filesystem.  Whereas previously they could have
+> > >    proceeded to completion and then detected the error via an fsync().
+> > 
+> > Or not detect the error at all if we don't call fsync() right ? Isn't a
+> > synchronous SIGBUS the right behaviour ?
 > >
-> >The other thing we could do is have vmap layer keep some p->v translations
-> >around (actually it doesn't even need to go all the way to v, just a single
-> >bit would suffice) So I guess this would be like another page flag, but
-> >without the atomicity problem and without me getting angry at using another
-> >flag ;) Still, I'd rather not do this and slow everything else down.
-> >  
 > 
-> Yeah.  It's a bit awkward to maintain a secondary structure just to deal 
-> with the confluence of two edge cases (running Xen + reusing an aliased 
-> page in a pagetable).
-
-It would be possible though. Even if it were something we make conditional
-on Xen. So it is something to keep in mind.
-
- 
-> >It could be switched on at runtime if Xen is running perhaps. Or the other
-> >thing Xen could do is keep a cache of unaliased page table pages. You
-> >could fill it up N pages at a time, and just do a single unmap_aliases call
-> >to sanitize them all; also, clean pages returned from pagetables could be
-> >reused. Like the quicklists things.
-> >  
+> Not according to POSIX.  Or at least posix-several-years-ago, when this
+> last was discussed.  The spec doesn't have much useful to say about any
+> of this.
 > 
-> Hm, that wouldn't be too bad (so long as it doesn't end up hiding 
-> gigabytes of memory away from the rest of the system ;).
-
-Well, it obviously has to be implemented properly ;) Another thing to keep
-in mind. If we end up with a huge number of vmap users (which I don't
-really anticipate, but maybe), then it might be more common to have aliased
-pages, in which case simply detecting them quickly doesn't help if we have
-to flush. So this approach would go some way to solving that situation.
-
- 
-> >Or: doesn't the host have to do its own alias check anyway? In case of an
-> >AWOL guest? Why not just reuse that and trap back into the guest to fix it
-> >up?
+> It's a significant change in the userspace interface.
 > 
-> That's possible, but awkward.  In many cases these updates will be 
-> batched, so it would become a matter of issuing a batch, then picking 
-> through the results to see what worked and what failed.  I suppose I 
-> could just do the simple flush and then if that turns out too expensive, 
-> do the submit-and-retry approach.
+> > 
+> > > 
+> > >    It's going to take more than one skimpy little paragraph to
+> > >    justify this, and to demonstrate that it is preferable, and to
+> > >    convince us that nothing will break from this user-visible behaviour
+> > >    change.
+> > > 
+> > > b) we're now doing fs operations (and some I/O) in the pagefault
+> > >    code.  This has several implications:
+> > > 
+> > >    - performance changes
+> > > 
+> > >    - potential for deadlocks when a process takes the fault from
+> > >      within a copy_to_user() in, say, mm/filemap.c
+> > > 
+> > >    - performing additional memory allocations within that
+> > >      copy_to_user().  Possibility that these will reenter the
+> > >      filesystem.
+> > > 
+> > > And that's just ext2.
+> > > 
+> > > For ext3 things are even more complex, because we have the
+> > > journal_start/journal_end pair which is effectively another "lock" for
+> > > ranking/deadlock purposes.  And now we're taking i_alloc_sem and
+> > > lock_page and we're doing ->writepage() and its potential
+> > > journal_start(), all potentially within the context of a
+> > > copy_to_user().
+> > 
+> > One of the reason why we would need this in ext3/ext4 is that we cannot
+> > do block allocation in the writepage with the recent locking changes.
+> 
+> Perhaps those recent locking changes were wrong.
+> 
+> > The locking changes involve changing the locking order of journal_start
+> > and page_lock. With writepage we are already called with page_lock and
+> > we can't start new transaction needed for block allocation.
+> 
+> ext3_write_begin() has journal_start() nesting inside the lock_page().
+> 
 
-OK. Again, this is more of the "fast detection" approach, rather than
-avoiding aliasing pages. But it's good to have so many options :)
+All those are changed as a part of lock inversion changes.
 
-Anyway, option #4 is just to wait and see. I don't think Xen should
-significantly slow down after this patch, it just may be able to go
-faster with more tweaking.
+
+
+> > But if we agree that we should not do block allocation in page_mkwrite
+> > we need to add writepages and allocate blocks in writepages.
+> 
+> I'm not sure what writepages has to do with pagefaults?
+> 
+
+The idea is to have ext3/4_writepages. In writepages start a transaction
+and iterate over the pages take the lock and do block allocation. With
+that change we should be able to not do block allocation in the
+page_mkwrite path. We may still want to do block reservation there.
+
+Something like.
+
+ext4_writepages()
+{
+	journal_start()
+	for_each_page()
+	lock_page
+	if (bh_unmapped()...)
+		block_alloc()
+	unlock_page
+	journal_stop()
+
+}
+
+ext4_writepage()
+{
+	for_each_buffer_head()
+		if (bh_unmapped()) {
+			redirty_page
+			unlock_page
+			return;
+		}
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
