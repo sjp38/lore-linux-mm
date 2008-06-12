@@ -1,102 +1,79 @@
-Date: Thu, 12 Jun 2008 14:00:48 +0900
+Date: Thu, 12 Jun 2008 14:08:06 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 2/2] memcg: hardwall hierarhcy for memcg
-Message-Id: <20080612140048.0051feb2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080611162423.3ba183b4.randy.dunlap@oracle.com>
-References: <20080604135815.498eaf82.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080604140329.8db1b67e.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080611162423.3ba183b4.randy.dunlap@oracle.com>
+Subject: Re: [RFD][PATCH] memcg: Move Usage at Task Move
+Message-Id: <20080612140806.dc161c77.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <6599ad830806110148v65df67f8ge0ccdd56c21c89e0@mail.gmail.com>
+References: <20080606105235.3c94daaf.kamezawa.hiroyu@jp.fujitsu.com>
+	<6599ad830806110017t5ebeda78id1914d179a018422@mail.gmail.com>
+	<20080611164544.94047336.kamezawa.hiroyu@jp.fujitsu.com>
+	<6599ad830806110104n99cdc7h80063e91d16bf0a5@mail.gmail.com>
+	<20080611172714.018aa68c.kamezawa.hiroyu@jp.fujitsu.com>
+	<6599ad830806110148v65df67f8ge0ccdd56c21c89e0@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <randy.dunlap@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "menage@google.com" <menage@google.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
+To: Paul Menage <menage@google.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Thank you. will fix.
+On Wed, 11 Jun 2008 01:48:20 -0700
+"Paul Menage" <menage@google.com> wrote:
 
+> On Wed, Jun 11, 2008 at 1:27 AM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > Sorry. try another sentense..
+> >
+> > I think cgroup itself is designed to be able to be used without middleware.
+> 
+> True, but it shouldn't be hostile to middleware, since I think that
+> automated use will be much more common. (And certainly if you count
+> the number of servers :-) )
+> 
+> > IOW, whether using middleware or not is the matter of users not of developpers.
+> > There will be a system that system admin controlles all and move tasks by hand.
+> > ex)...personal notebooks etc..
+> >
+> 
+> You think so? I think that at the very least users will be using tools
+> based around config scripts, rule engines and libcgroup, if not a
+> persistent daemon.
+> 
+I believe some users will never use middlewares because of their special
+usage of linux.
+
+
+
+> >> If the common mode for middleware starting a new cgroup is fork() /
+> >> move / exec() then after the fork(), the child will be sharing pages
+> >> with the main daemon process. So the move will pull all the daemon's
+> >> memory into the new cgroup
+> >>
+> > My patch (this patch) just moves Private Anon page to new cgroup. (of mapcount=1)
+> 
+> OK, well that makes it more reasonable regarding the above problem.
+> But I can still see problems if, say, a single thread moves into a new
+> cgroup, you move the entire memory. Perhaps you should only do so if
+> the mm->owner changes task?
+> 
+
+Thank you for pointing out. I'll add mm->owner check.
+
+BTW, should we have a cgroup for SYSVIPC resource controller and devide it
+from memory resource controller ?  I think that per-task on-demand usage
+accounting is not suitable for shmem (and hugepage).
+per-creater (caller of shmget()) accounting seems to be better for me.
+
+Just a question:
+What happens when a thread (not thread-group-leader) changes its ns by
+ns-cgroup ? not-allowed ?
+
+
+Thanks,
 -Kame
 
-On Wed, 11 Jun 2008 16:24:23 -0700
-Randy Dunlap <randy.dunlap@oracle.com> wrote:
 
-> On Wed, 4 Jun 2008 14:03:29 +0900 KAMEZAWA Hiroyuki wrote:
-> 
-> > ---
-> >  Documentation/controllers/memory.txt |   27 +++++-
-> >  mm/memcontrol.c                      |  156 ++++++++++++++++++++++++++++++++++-
-> >  2 files changed, 178 insertions(+), 5 deletions(-)
-> > 
-> 
-> > Index: temp-2.6.26-rc2-mm1/Documentation/controllers/memory.txt
-> > ===================================================================
-> > --- temp-2.6.26-rc2-mm1.orig/Documentation/controllers/memory.txt
-> > +++ temp-2.6.26-rc2-mm1/Documentation/controllers/memory.txt
-> > @@ -237,12 +237,37 @@ cgroup might have some charge associated
-> >  tasks have migrated away from it. Such charges are automatically dropped at
-> >  rmdir() if there are no tasks.
-> >  
-> > -5. TODO
-> > +5. Hierarchy Model
-> > +  the kernel supports following kinds of hierarchy models.
-> 
->      The kernel supports the following kinds ....
-> 
-> > +  (your middle-ware may support others based on this.)
-> 
->      (Your
-> > +
-> > +  5-a. Independent Hierarchy
-> > +  There are no relationship between any cgroups, even among a parent and
-> 
->            is
-> 
-> > +  children. This is the default mode. To use this hierarchy, write 0
-> > +  to root cgroup's memory.hierarchy_model
-> > +  echo 0 > .../memory.hierarchy_model.
-> > +
-> > +  5-b. Hardwall Hierarchy.
-> > +  The resource has to be moved from the parent to the child before use it.
-> 
->                                                                       using it.
-> 
-> > +  When a child's limit is set to 'val', val of the resource is moved from
-> > +  the parent to the child. the parent's usage += val.
-> 
->                               The parent's usage is incremented by val.
-> (if that's what you mean)
-> 
-> > +  The amount of children's usage is reported by the file
-> > +
-> > +  - memory.assigned_to_child
-> > +
-> > +  This policy doesn't provide sophisticated automatic resource balancing in
-> > +  the kernel. But this is very good for strict resource isolation. Users
-> 
->          kernel, but this ...
-> 
-> > +  can get high predictability of behavior of applications if this is used
-> > +  under proper environments.
-> > +
-> > +
-> > +6. TODO
-> >  
-> >  1. Add support for accounting huge pages (as a separate controller)
-> >  2. Make per-cgroup scanner reclaim not-shared pages first
-> >  3. Teach controller to account for shared-pages
-> >  4. Start reclamation when the limit is lowered
-> > +   (this is already done in Hardwall Hierarchy)
-> >  5. Start reclamation in the background when the limit is
-> >     not yet hit but the usage is getting closer
-> > --
-> 
-> ---
-> ~Randy
-> '"Daemon' is an old piece of jargon from the UNIX operating system,
-> where it referred to a piece of low-level utility software, a
-> fundamental part of the operating system."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
