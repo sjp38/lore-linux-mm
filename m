@@ -1,43 +1,53 @@
-Date: Thu, 12 Jun 2008 02:08:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: repeatable slab corruption with LTP msgctl08
-Message-Id: <20080612020846.c77761cd.akpm@linux-foundation.org>
-In-Reply-To: <87mylrnj84.fsf@basil.nowhere.org>
-References: <20080611221324.42270ef2.akpm@linux-foundation.org>
-	<20080611233449.08e6eaa0.akpm@linux-foundation.org>
-	<20080612010200.106df621.akpm@linux-foundation.org>
-	<20080612011537.6146c41d.akpm@linux-foundation.org>
-	<87mylrnj84.fsf@basil.nowhere.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <4850E866.9030609@gmail.com>
+From: Andrea Righi <righi.andrea@gmail.com>
+Reply-To: righi.andrea@gmail.com
+MIME-Version: 1.0
+Subject: Re: [-mm][PATCH 2/4] Setup the memrlimit controller (v5)
+References: <20080521152921.15001.65968.sendpatchset@localhost.localdomain>	<20080521152948.15001.39361.sendpatchset@localhost.localdomain>	<4850070F.6060305@gmail.com>	<20080611121510.d91841a3.akpm@linux-foundation.org>	<485032C8.4010001@gmail.com>	<20080611134323.936063d3.akpm@linux-foundation.org>	<485055FF.9020500@gmail.com>	<20080611155530.099a54d6.akpm@linux-foundation.org>	<4850BE9B.5030504@linux.vnet.ibm.com>	<4850E3BC.308@gmail.com> <20080612020235.29a81d7c.akpm@linux-foundation.org>
+In-Reply-To: <20080612020235.29a81d7c.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=US-ASCII; format=flowed
 Content-Transfer-Encoding: 7bit
+Date: Thu, 12 Jun 2008 11:12:06 +0200 (MEST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Nadia Derbey <Nadia.Derbey@bull.net>, Manfred Spraul <manfred@colorfullife.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: balbir@linux.vnet.ibm.com, linux-mm@kvack.org, skumar@linux.vnet.ibm.com, yamamoto@valinux.co.jp, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Jun 2008 10:35:55 +0200 Andi Kleen <andi@firstfloor.org> wrote:
+Andrew Morton wrote:
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -9,6 +9,7 @@
+>>  #include <linux/list.h>
+>>  #include <linux/mmzone.h>
+>>  #include <linux/rbtree.h>
+>> +#include <linux/kernel.h>
+>>  #include <linux/prio_tree.h>
+>>  #include <linux/debug_locks.h>
+>>  #include <linux/mm_types.h>
+>> @@ -41,6 +42,9 @@ extern unsigned long mmap_min_addr;
+>>  
+>>  #define nth_page(page,n) pfn_to_page(page_to_pfn((page)) + (n))
+>>  
+>> +/* to align the pointer to the (next) page boundary */
+>> +#define PAGE_ALIGN(addr) ALIGN(addr, PAGE_SIZE)
+>> +
+>>  /*
+>>   * Linux kernel virtual memory manager primitives.
+>>   * The idea being to have a "virtual" mm in the same way
+> 
+> You don't really need the #include <linux/kernel.h> there.  As long as
+> all callsites which _use_ PAGE_ALIGN are including kernel.h via some
+> means (and they surely will be) then things will work OK.
 
-> Andrew Morton <akpm@linux-foundation.org> writes:
-> >
-> > Doing the same thing on 2.6.26-rc5-mm3, msgctl08 also runs to
-> > completion, in 20.9 seconds.  So
-> >
-> > - it got slower
-> 
-> That is because it scales itself to the number of available msg queues.
-> So with Nadia's patch there are more and it runs slower.
-> 
-> In fact it seems to start one process per message queue, so perhaps it's 
-> just running out of processes or something. Ok it should not segfault.
-> 
-> BTW a great way to debug slab corruptions with LTP faster is to run with
-> a slab thrasher stress module like http://firstfloor.org/~andi/crasher-26.diff
-> 
+OK, testing without linux/kernel.h inclusion.
 
-Something like that might be needed.  I ran it again and it took 49
-minutes to crash.
+-Andrea
+
+> 
+> But it won't hurt.  We're already picking up kernel.h there via
+> mmzone.h->spinlock.h and probably 100 other routes.  One more won't
+> make a lot of difference ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
