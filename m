@@ -1,48 +1,44 @@
-Date: Thu, 12 Jun 2008 12:20:09 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: repeatable slab corruption with LTP msgctl08
-Message-Id: <20080612122009.f4d3a82a.akpm@linux-foundation.org>
-In-Reply-To: <48517456.5000901@colorfullife.com>
-References: <20080611221324.42270ef2.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0806121332130.11556@sbz-30.cs.Helsinki.FI>
-	<48516BF3.8050805@colorfullife.com>
-	<20080612114152.18895d6c.akpm@linux-foundation.org>
-	<48517456.5000901@colorfullife.com>
+Date: Thu, 12 Jun 2008 15:29:05 -0400
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: 2.6.26-rc5-mm2
+Message-ID: <20080612152905.6cb294ae@cuia.bos.redhat.com>
+In-Reply-To: <200806120958.38545.nickpiggin@yahoo.com.au>
+References: <20080609223145.5c9a2878.akpm@linux-foundation.org>
+	<200806101848.22237.nickpiggin@yahoo.com.au>
+	<20080611140902.544e59ec@bree.surriel.com>
+	<200806120958.38545.nickpiggin@yahoo.com.au>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: penberg@cs.helsinki.fi, Nadia.Derbey@bull.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, clameter@sgi.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Jun 2008 21:09:10 +0200
-Manfred Spraul <manfred@colorfullife.com> wrote:
+On Thu, 12 Jun 2008 09:58:38 +1000
+Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 
-> Either someone does a set_bit() or your cpu is breaking down.
-
-Well.  It is about ten years old.  But this is the first sign of a
-problem and it's always msgctl08.
-
->  From looking at the the msgctl08 test: it shouldn't produce any races, 
-> it just does lots of bulk msgsnd()/msgrcv() operations. Always one 
-> thread sends, one thread receives on each queue. It's probably more a 
-> scheduler stresstest than anything else.
+> > Does loopback over tmpfs use a different allocation path?
 > 
-> Attached is a completely untested patch:
-> - add 8 bytes to each slabp struct: This changes the alignment of the 
-> bufctl entries.
-> - add a hexdump of the redzone bytes.
+> I'm sorry, hmm I didn't look closely enough and forgot that
+> write_begin/write_end requires the callee to allocate the page
+> as well, and that Hugh had nicely unified most of that.
+> 
+> So maybe it's not that. It's pretty easy to hit I found with
+> ext2 mounted over loopback on a tmpfs file.
 
-OK, I'll try that this evening (eight hours hence).
+Turns out the loopback driver uses splice, which moves
+the pages from one place to another.  This is why you
+were seeing the problem with loopback, but not with
+just a really big file on tmpfs.
 
-I'll also try increasing /proc/sys/kernel/msgmni under 2.6.25.
+I'm trying to make sense of all the splice code now
+and will send fix as soon as I know how to fix this
+problem in a nice way.
 
-> Andrew: how do you log the oops? 
-> it might scroll of the screen.
-
-netconsole-to-disk.
+-- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
