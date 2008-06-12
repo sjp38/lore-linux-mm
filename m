@@ -1,49 +1,51 @@
-Date: Thu, 12 Jun 2008 03:24:42 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Date: Thu, 12 Jun 2008 13:35:20 +0300 (EEST)
+From: Pekka J Enberg <penberg@cs.helsinki.fi>
 Subject: Re: repeatable slab corruption with LTP msgctl08
-Message-Id: <20080612032442.930e62e4.akpm@linux-foundation.org>
-In-Reply-To: <87mylrnj84.fsf@basil.nowhere.org>
+In-Reply-To: <20080611221324.42270ef2.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0806121332130.11556@sbz-30.cs.Helsinki.FI>
 References: <20080611221324.42270ef2.akpm@linux-foundation.org>
-	<20080611233449.08e6eaa0.akpm@linux-foundation.org>
-	<20080612010200.106df621.akpm@linux-foundation.org>
-	<20080612011537.6146c41d.akpm@linux-foundation.org>
-	<87mylrnj84.fsf@basil.nowhere.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Nadia Derbey <Nadia.Derbey@bull.net>, Manfred Spraul <manfred@colorfullife.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nadia Derbey <Nadia.Derbey@bull.net>, Manfred Spraul <manfred@colorfullife.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Jun 2008 10:35:55 +0200 Andi Kleen <andi@firstfloor.org> wrote:
+Hi Andrew,
 
-> BTW a great way to debug slab corruptions with LTP faster is to run with
-> a slab thrasher stress module like http://firstfloor.org/~andi/crasher-26.diff
+On Wed, 11 Jun 2008, Andrew Morton wrote:
+> version is ltp-full-20070228 (lots of retro-computing there).
+> 
+> Config is at http://userweb.kernel.org/~akpm/config-vmm.txt
+> 
+> ./testcases/bin/msgctl08 crashes after ten minutes or so:
+> 
+> slab: Internal list corruption detected in cache 'size-128'(26), slabp f2905000(20). Hexdump:
+> 
+> 000: 00 e0 12 f2 88 32 c0 f7 88 00 00 00 88 50 90 f2
+> 010: 14 00 00 00 0f 00 00 00 00 00 00 00 ff ff ff ff
+> 020: fd ff ff ff fd ff ff ff fd ff ff ff fd ff ff ff
+> 030: fd ff ff ff fd ff ff ff fd ff ff ff fd ff ff ff
+> 040: fd ff ff ff fd ff ff ff 00 00 00 00 fd ff ff ff
+> 050: fd ff ff ff fd ff ff ff 19 00 00 00 17 00 00 00
+> 060: fd ff ff ff fd ff ff ff 0b 00 00 00 fd ff ff ff
+> 070: fd ff ff ff fd ff ff ff fd ff ff ff fd ff ff ff
+> 080: 10 00 00 00
 
-Well I tried that.  It didn't actually seem to do much (no CPU time
-consumed) so I revved it up a bit: 
+Looking at the above dump, slabp->free is 0x0f and the bufctl it points to 
+is 0xff ("BUFCTL_END") which marks the last element in the chain. This is 
+wrong as the total number of objects in the slab (cachep->num) is 26 but 
+the number of objects in use (slabp->inuse) is 20. So somehow you have 
+managed to lost 6 objects from the bufctl chain.
 
---- a/drivers/char/crasher.c~crasher-26-speedup
-+++ a/drivers/char/crasher.c
-@@ -59,7 +59,7 @@ struct mem_buf {
- static unsigned long crasher_random(void)
- {
-         rand_seed = rand_seed*69069L+1;
--        return rand_seed^jiffies;
-+        return (rand_seed^jiffies) & 3;
- }
- 
- void crasher_srandom(unsigned long entropy)
-_
+I really don't understand how your bufctl chains has so many BUFCTL_END 
+elements in the first place. It's doesn't look like the memory has been 
+stomped on (slab->s_mem, for example, is 0xf2906088), so I'd look for a 
+double kfree() of size 128 somewhere...
 
-
-But it hasn't crashed after 57 minutes.
-
-I don't think that is how we should fix this bug ;)
-
-I'm pretty much out of time on this one.
+		Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
