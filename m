@@ -1,59 +1,58 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH -mm 14/24] Ramfs and Ram Disk pages are unevictable
-Date: Thu, 12 Jun 2008 10:54:18 +1000
-References: <20080611184214.605110868@redhat.com> <20080611184339.693975681@redhat.com>
-In-Reply-To: <20080611184339.693975681@redhat.com>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5C1Bpkd012104
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 21:11:51 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5C1Bpgg127588
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 19:11:51 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5C1Bp36031510
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2008 19:11:51 -0600
+Date: Wed, 11 Jun 2008 19:11:49 -0600
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [patch 05/21] hugetlb: new sysfs interface
+Message-ID: <20080612011149.GA21542@us.ibm.com>
+References: <20080604112939.789444496@amd.local0.net> <20080604113111.647714612@amd.local0.net> <20080608115941.746732a5.akpm@linux-foundation.org> <20080610030234.GE19404@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200806121054.19253.nickpiggin@yahoo.com.au>
+In-Reply-To: <20080610030234.GE19404@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Eric Whitney <eric.whitney@hp.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Greg KH <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 12 June 2008 04:42, Rik van Riel wrote:
-> From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
->
-> Christoph Lameter pointed out that ram disk pages also clutter the
-> LRU lists.  When vmscan finds them dirty and tries to clean them,
-> the ram disk writeback function just redirties the page so that it
-> goes back onto the active list.  Round and round she goes...
+On 10.06.2008 [05:02:34 +0200], Nick Piggin wrote:
+> On Sun, Jun 08, 2008 at 11:59:41AM -0700, Andrew Morton wrote:
+> > On Wed, 04 Jun 2008 21:29:44 +1000 npiggin@suse.de wrote:
+> > 
+> > > Provide new hugepages user APIs that are more suited to multiple hstates in
+> > > sysfs. There is a new directory, /sys/kernel/hugepages. Underneath that
+> > > directory there will be a directory per-supported hugepage size, e.g.:
+> > > 
+> > > /sys/kernel/hugepages/hugepages-64kB
+> > > /sys/kernel/hugepages/hugepages-16384kB
+> > > /sys/kernel/hugepages/hugepages-16777216kB
+> > 
+> > Maybe /sys/mm or /sys/vm would be a more appropriate place.
+> 
+> I'm thinking all the random kernel subsystems under /sys/ should
+> rather be moved to /sys/kernel/. Imagine how much crap will be
+> under the root directory if every kernel subsystem goes there.
+> 
+> The system is the kernel, afterall, the subsystems should be under
+> there (arguably /sys/kernel/mm/hugepages/ would be better again, in
+> fact yes Nish can we do that?).
 
+It should be pretty easy. Just need to allocate and add an appropriate
+kobject like kernel_kobj somewhere in the main vm initialization path
+and then change the parent in my patch to be that one rather than
+kernel_kobj.
 
-> Index: linux-2.6.26-rc5-mm2/drivers/block/brd.c
-> ===================================================================
-> --- linux-2.6.26-rc5-mm2.orig/drivers/block/brd.c	2008-06-10
-> 10:46:18.000000000 -0400 +++
-> linux-2.6.26-rc5-mm2/drivers/block/brd.c	2008-06-10 16:47:23.000000000
-> -0400 @@ -374,8 +374,21 @@ static int brd_ioctl(struct inode *inode
->  	return error;
->  }
->
-> +/*
-> + * brd_open():
-> + * Just mark the mapping as containing unevictable pages
-> + */
-> +static int brd_open(struct inode *inode, struct file *filp)
-> +{
-> +	struct address_space *mapping = inode->i_mapping;
-> +
-> +	mapping_set_unevictable(mapping);
-> +	return 0;
-> +}
-> +
->  static struct block_device_operations brd_fops = {
->  	.owner =		THIS_MODULE,
-> +	.open  =		brd_open,
->  	.ioctl =		brd_ioctl,
->  #ifdef CONFIG_BLK_DEV_XIP
->  	.direct_access =	brd_direct_access,
+I won't have a chance to do this for a few weeks, though :/
 
-This isn't the case for brd any longer. It doesn't use the buffer
-cache as its backing store, so the buffer cache is reclaimable.
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
