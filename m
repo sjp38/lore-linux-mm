@@ -1,50 +1,45 @@
-Message-ID: <485178A8.2040002@cs.helsinki.fi>
-Date: Thu, 12 Jun 2008 22:27:36 +0300
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Date: Thu, 12 Jun 2008 22:36:40 +0300
+From: Adrian Bunk <bunk@kernel.org>
+Subject: Re: [RFC PATCH 2/2] Update defconfigs for CONFIG_HUGETLB
+Message-ID: <20080612193638.GB17231@cs181133002.pp.htv.fi>
+References: <1213296540.17108.8.camel@localhost.localdomain> <1213296945.17108.13.camel@localhost.localdomain>
 MIME-Version: 1.0
-Subject: Re: repeatable slab corruption with LTP msgctl08
-References: <20080611221324.42270ef2.akpm@linux-foundation.org> <Pine.LNX.4.64.0806121332130.11556@sbz-30.cs.Helsinki.FI> <48516BF3.8050805@colorfullife.com>
-In-Reply-To: <48516BF3.8050805@colorfullife.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <1213296945.17108.13.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nadia Derbey <Nadia.Derbey@bull.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
+To: Adam Litke <agl@us.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>, npiggin@suse.de, nacc@us.ibm.com, mel@csn.ul.ie, Eric B Munson <ebmunson@us.ibm.com>, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@ozlabs.org, sparclinux@vger.kernel.org, linux-sh@vger.kernel.org, linux-s390@vger.kernel.org, linux-mips@linux-mips.org
 List-ID: <linux-mm.kvack.org>
 
-Manfred Spraul wrote:
-> Hmm. double kfree() should be cached by the redzone code.
-> And I disagree with your link interpretation:
-> 
-> 000: 00 e0 12 f2 88 32 c0 f7 88 00 00 00 88 50 90 f2
-> 010:
-> inuse: 14 00 00 00 (20 entries in use, 6 should be free)
-> free:  0f 00 00 00
-> nodeid: 00 00 00 00
-> bufctl[0x00] ff ff ff ff 020: fd ff ff ff fd ff ff ff fd ff ff ff
-> bufctl[0x4] fd ff ff ff  030: fd ff ff ff fd ff ff ff fd ff ff ff
-> bufctl[0x8] fd ff ff ff  040: fd ff ff ff fd ff ff ff 00 00 00 00
-> bufctl[0x0c] fd ff ff ff 050: fd ff ff ff fd ff ff ff 19 00 00 00
-> bufctl[0x10] 17 00 00 00 060: fd ff ff ff fd ff ff ff 0b 00 00 00
-> bufctl[0x14] fd ff ff ff 070: fd ff ff ff fd ff ff ff fd ff ff ff
-> bufctl[0x18] fd ff ff ff 080: 10 00 00 00
-> 
-> free: points to entry 0x0f.
-> bufctl[0x0f] is 0x19, i.e. it points to entry 0x19
-> 0x19 points to 0x10
-> 0x10 points to 0x17
-> 0x17 is a BUFCTL_ACTIVE - that's a bug.
-> but: 0x13 is a valid link entry, is points to 0x0b
-> 0x0b points to 0x00, which is BUFCTL_END.
-> 
-> IMHO the most probable bug is a single bit error:
-> bufctl[0x10] should be 0x13 instead of 0x17.
+On Thu, Jun 12, 2008 at 02:55:45PM -0400, Adam Litke wrote:
+> Update all defconfigs that specify a default configuration for hugetlbfs.
+> There is now only one option: CONFIG_HUGETLB.  Replace the old
+> CONFIG_HUGETLB_PAGE and CONFIG_HUGETLBFS options with the new one.  I found no
+> cases where CONFIG_HUGETLBFS and CONFIG_HUGETLB_PAGE had different values so
+> this patch is large but completely mechanical:
+>...
+>  335 files changed, 335 insertions(+), 385 deletions(-)
+>...
 
-Ah, you're, of course, right. For some reason I was looking at 8-bit 
-bufctls when they are, in fact, 32-bit.
+Please don't do this kind of patches - it doesn't bring any advantage 
+but can create tons of patch conflicts.
 
-		Pekka
+The next time a defconfig gets updated it will anyway automatically be 
+fixed, and for defconfigs that aren't updated it doesn't create any 
+problems to keep them as they are today until they might one day get 
+updated.
+
+cu
+Adrian
+
+-- 
+
+       "Is there not promise of rain?" Ling Tan asked suddenly out
+        of the darkness. There had been need of rain for many days.
+       "Only a promise," Lao Er said.
+                                       Pearl S. Buck - Dragon Seed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
