@@ -1,31 +1,43 @@
-Date: Wed, 11 Jun 2008 23:34:49 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: repeatable slab corruption with LTP msgctl08
-Message-Id: <20080611233449.08e6eaa0.akpm@linux-foundation.org>
-In-Reply-To: <20080611221324.42270ef2.akpm@linux-foundation.org>
-References: <20080611221324.42270ef2.akpm@linux-foundation.org>
+Date: Thu, 12 Jun 2008 15:51:41 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFD][PATCH] memcg: Move Usage at Task Move
+Message-Id: <20080612155141.80e4050d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080612052033.ED6FD5A0D@siro.lan>
+References: <20080611131437.76961fc3.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080612052033.ED6FD5A0D@siro.lan>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nadia Derbey <Nadia.Derbey@bull.net>, Manfred Spraul <manfred@colorfullife.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <clameter@sgi.com>
+To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+Cc: nishimura@mxp.nes.nec.co.jp, linux-mm@kvack.org, containers@lists.osdl.org, menage@google.com, balbir@linux.vnet.ibm.com, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Jun 2008 22:13:24 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+On Thu, 12 Jun 2008 14:20:33 +0900 (JST)
+yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
 
-> Running current mainline on my old 2-way PIII.  Distro is RH FC1.  LTP
-> version is ltp-full-20070228 (lots of retro-computing there).
+> > > i think that you can redirect new charges in TASK to DEST
+> > > so that usage_of_task(TASK) will not grow.
+> > > 
+> > 
+> > Hmm, to do that, we have to handle complicated cgroup's attach ops.
+> > 
+> > at this moving, memcg is pointed by
+> >  - TASK->cgroup->memcg(CURR)
+> > after move
+> >  - TASK->another_cgroup->memcg(DEST)
+> > 
+> > This move happens before cgroup is replaced by another_cgroup.
 > 
-> Config is at http://userweb.kernel.org/~akpm/config-vmm.txt
+> currently cgroup_attach_task calls ->attach callbacks after
+> assigning tsk->cgroups.  are you talking about something else?
 > 
-> 
-> ./testcases/bin/msgctl08 crashes after ten minutes or so:
 
-ah, it runs to completion in about ten seconds on 2.6.25, so it'll be
-easy for someone to bisect it.
+Sorry, I move all in can_attach().  s/attach/can_attach
 
-What's that?  Sigh.  OK.  I wasn't doing anything much anyway.
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
