@@ -1,55 +1,112 @@
-From: kamezawa.hiroyu@jp.fujitsu.com
-Message-ID: <27043861.1213277688814.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Thu, 12 Jun 2008 22:34:48 +0900 (JST)
-Subject: Re: Re: [RFD][PATCH] memcg: Move Usage at Task Move
-In-Reply-To: <20080612131748.GB8453@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: 7bit
-References: <20080612131748.GB8453@us.ibm.com>
- <20080606105235.3c94daaf.kamezawa.hiroyu@jp.fujitsu.com> <6599ad830806110017t5ebeda78id1914d179a018422@mail.gmail.com> <20080611164544.94047336.kamezawa.hiroyu@jp.fujitsu.com> <6599ad830806110104n99cdc7h80063e91d16bf0a5@mail.gmail.com> <20080611172714.018aa68c.kamezawa.hiroyu@jp.fujitsu.com> <6599ad830806110148v65df67f8ge0ccdd56c21c89e0@mail.gmail.com> <20080612140806.dc161c77.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 12 Jun 2008 18:17:06 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] ext2: Use page_mkwrite vma_operations to get mmap
+	write notification.
+Message-ID: <20080612161706.GB12367@duck.suse.cz>
+References: <1212685513-32237-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20080605123045.445e380a.akpm@linux-foundation.org> <20080611150845.GA21910@skywalker> <20080611120749.d0c5a7de.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080611120749.d0c5a7de.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Serge E. Hallyn" <serue@us.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Menage <menage@google.com>, yamamoto@valinux.co.jp, nishimura@mxp.nes.nec.co.jp, linux-mm@kvack.org, containers@lists.osdl.org, balbir@linux.vnet.ibm.com, xemul@openvz.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, cmm@us.ibm.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
------ Original Message -----
->> Just a question:
->> What happens when a thread (not thread-group-leader) changes its ns by
->> ns-cgroup ? not-allowed ?
->
->I don't quite understand the question.  I assume you're asking whether
->your cgroup, when composed with ns, will refuse a task in cgroup /cg/1/2
->from being able to
->
->	mkdir /cg/1/2/3
->	echo $$ > /cg/1/2/3/tasks
->
->or
->
->	unshare(CLONE_NEWNS)
->
->which the ns cgroup would allow, and what your cgroup would do in that
->case.  If your question ("not-allowed ?") is about ns cgroup behavior
->then please rephrase.
+On Wed 11-06-08 12:07:49, Andrew Morton wrote:
+> On Wed, 11 Jun 2008 20:38:45 +0530
+> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+> 
+> > On Thu, Jun 05, 2008 at 12:30:45PM -0700, Andrew Morton wrote:
+> > > On Thu,  5 Jun 2008 22:35:12 +0530
+> > > "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+> > > 
+> > > > We would like to get notified when we are doing a write on mmap
+> > > > section.  The changes are needed to handle ENOSPC when writing to an
+> > > > mmap section of files with holes.
+> > > > 
+> > > 
+> > > Whoa.  You didn't copy anything like enough mailing lists for a change
+> > > of this magnitude.  I added some.
+> > > 
+> > > This is a large change in behaviour!
+> > > 
+> > > a) applications will now get a synchronous SIGBUS when modifying a
+> > >    page over an ENOSPC filesystem.  Whereas previously they could have
+> > >    proceeded to completion and then detected the error via an fsync().
+> > 
+> > Or not detect the error at all if we don't call fsync() right ? Isn't a
+> > synchronous SIGBUS the right behaviour ?
+> >
+> 
+> Not according to POSIX.  Or at least posix-several-years-ago, when this
+> last was discussed.  The spec doesn't have much useful to say about any
+> of this.
+> 
+> It's a significant change in the userspace interface.
+> 
+> > 
+> > > 
+> > >    It's going to take more than one skimpy little paragraph to
+> > >    justify this, and to demonstrate that it is preferable, and to
+> > >    convince us that nothing will break from this user-visible behaviour
+> > >    change.
+> > > 
+> > > b) we're now doing fs operations (and some I/O) in the pagefault
+> > >    code.  This has several implications:
+> > > 
+> > >    - performance changes
+> > > 
+> > >    - potential for deadlocks when a process takes the fault from
+> > >      within a copy_to_user() in, say, mm/filemap.c
+> > > 
+> > >    - performing additional memory allocations within that
+> > >      copy_to_user().  Possibility that these will reenter the
+> > >      filesystem.
+> > > 
+> > > And that's just ext2.
+> > > 
+> > > For ext3 things are even more complex, because we have the
+> > > journal_start/journal_end pair which is effectively another "lock" for
+> > > ranking/deadlock purposes.  And now we're taking i_alloc_sem and
+> > > lock_page and we're doing ->writepage() and its potential
+> > > journal_start(), all potentially within the context of a
+> > > copy_to_user().
+> > 
+> > One of the reason why we would need this in ext3/ext4 is that we cannot
+> > do block allocation in the writepage with the recent locking changes.
+> 
+> Perhaps those recent locking changes were wrong.
+  Well, the locking changes are those reverting locking ordering of
+transaction start and page lock - we have them in ext4 and Aneesh seems 
+to be looking into porting them to ext3 (at least ordered mode rewrite
+needs them). I wouldn't say they are wrong in principle.
+  It's easier to use page_mkwrite() to allocate blocks so that
+later in writepage() we don't have to do block allocation which needs to
+start a transaction (because that means unlocking the page which gets
+quickly nasty to handle properly...).
+  BTW: XFS, OCFS2 or GFS2 define page_mkwrite() in this manner so they do
+return SIGBUS when you run out of space when writing to mmapped hole. So
+it's not like this change is introducing completely new behavior... I can
+understand that we might not want to change the behavior for ext2 or ext3
+but ext4 is IMO definitely free to choose.
 
-Ah, sorry. I'm just curious. (and I should read the code before making
-quiestion.)
+> > The locking changes involve changing the locking order of journal_start
+> > and page_lock. With writepage we are already called with page_lock and
+> > we can't start new transaction needed for block allocation.
+> 
+> ext3_write_begin() has journal_start() nesting inside the lock_page().
+> 
+> > But if we agree that we should not do block allocation in page_mkwrite
+> > we need to add writepages and allocate blocks in writepages.
+> 
+> I'm not sure what writepages has to do with pagefaults?
 
-Assume a thread group contains threadA, threadB, threadC.
-
-I wanted to ask "Can threadA, and threadB, and threadC
-be in different cgroups ? And if so, how ns cgroup handles it ?"
-
-Maybe I don't understand ns cgroup.
-
-Thanks,
--Kame
-
-
-
-
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
