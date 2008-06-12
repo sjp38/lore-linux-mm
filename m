@@ -1,71 +1,87 @@
-Date: Thu, 12 Jun 2008 01:57:46 -0700
+Date: Thu, 12 Jun 2008 02:02:35 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [BUG] 2.6.26-rc5-mm3 kernel BUG at mm/filemap.c:575!
-Message-Id: <20080612015746.172c4b56.akpm@linux-foundation.org>
-In-Reply-To: <4850E1E5.90806@linux.vnet.ibm.com>
-References: <20080611225945.4da7bb7f.akpm@linux-foundation.org>
-	<4850E1E5.90806@linux.vnet.ibm.com>
+Subject: Re: [-mm][PATCH 2/4] Setup the memrlimit controller (v5)
+Message-Id: <20080612020235.29a81d7c.akpm@linux-foundation.org>
+In-Reply-To: <4850E3BC.308@gmail.com>
+References: <20080521152921.15001.65968.sendpatchset@localhost.localdomain>
+	<20080521152948.15001.39361.sendpatchset@localhost.localdomain>
+	<4850070F.6060305@gmail.com>
+	<20080611121510.d91841a3.akpm@linux-foundation.org>
+	<485032C8.4010001@gmail.com>
+	<20080611134323.936063d3.akpm@linux-foundation.org>
+	<485055FF.9020500@gmail.com>
+	<20080611155530.099a54d6.akpm@linux-foundation.org>
+	<4850BE9B.5030504@linux.vnet.ibm.com>
+	<4850E3BC.308@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Andy Whitcroft <apw@shadowen.org>
+To: righi.andrea@gmail.com
+Cc: balbir@linux.vnet.ibm.com, linux-mm@kvack.org, skumar@linux.vnet.ibm.com, yamamoto@valinux.co.jp, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Jun 2008 14:14:21 +0530 Kamalesh Babulal <kamalesh@linux.vnet.ibm.com> wrote:
+On Thu, 12 Jun 2008 10:52:13 +0200 (MEST) Andrea Righi <righi.andrea@gmail.com> wrote:
 
-> Hi Andrew,
+> Balbir Singh wrote:
+> > Andrew Morton wrote:
+> >> #define PAGE_ALIGN(addr) ALIGN(addr, PAGE_SIZE)
+> >>
+> >> ?
+> >>
+> >> afaict ALIGN() tries to do the right thing, and if it doesn't, we
+> >> should fix ALIGN().
+> >>
+> > 
+> > That should do the right thing, provided there are no duplicate ALIGN defintions
+> > elsewhere
+> > 
+> > kernel.h has
+> > 
+> > 
+> > #define ALIGN(x,a)              __ALIGN_MASK(x,(typeof(x))(a)-1)
+> > #define __ALIGN_MASK(x,mask)    (((x)+(mask))&~(mask))
+> > 
+> > Which seems like the correct thing, since we use typeof(x) for (a) - 1.
 > 
-> 2.6.26-rc5-mm3 kernel panics while booting up on the x86_64
-> machine. Sorry the console is bit overwritten for the first few lines.
-> 
-> ------------[ cut here ]------------
-> ot fs
-> no fstab.kernel BUG at mm/filemap.c:575!
-> sys, mounting ininvalid opcode: 0000 [1] ternal defaultsSMP 
-> Switching to ne
-> w root and runnilast sysfs file: /sys/block/dm-3/removable
-> ng init.
-> unmounCPU 3 ting old /dev
-> u
-> nmounting old /pModules linked in:roc
-> unmounting 
-> old /sys
-> Pid: 1, comm: init Not tainted 2.6.26-rc5-mm3-autotest #1
-> RIP: 0010:[<ffffffff80268155>]  [<ffffffff80268155>] unlock_page+0xf/0x26
-> RSP: 0018:ffff81003f9e1dc8  EFLAGS: 00010246
-> RAX: 0000000000000000 RBX: ffffe20000f63080 RCX: 0000000000000036
-> RDX: 0000000000000000 RSI: ffffe20000f63080 RDI: ffffe20000f63080
-> RBP: 0000000000000000 R08: ffff81003f9a5727 R09: ffffc10000200200
-> R10: ffffc10000100100 R11: 000000000000000e R12: 0000000000000000
-> R13: 0000000000000000 R14: ffff81003f47aed8 R15: 0000000000000000
-> FS:  000000000066d870(0063) GS:ffff81003f99fa80(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> CR2: 000000000065afa0 CR3: 000000003d580000 CR4: 00000000000006e0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> Process init (pid: 1, threadinfo ffff81003f9e0000, task ffff81003f9d8000)
-> Stack:  ffffe20000f63080 ffffffff80270d9c 0000000000000000 ffffffffffffffff
->  000000000000000e 0000000000000000 ffffe20000f63080 ffffe20000f630c0
->  ffffe20000f63100 ffffe20000f63140 ffffe20000f63180 ffffe20000f631c0
-> Call Trace:
->  [<ffffffff80270d9c>] truncate_inode_pages_range+0xc5/0x305
->  [<ffffffff802a7177>] generic_delete_inode+0xc9/0x133
->  [<ffffffff8029e3cd>] do_unlinkat+0xf0/0x160
->  [<ffffffff8020bd0b>] system_call_after_swapgs+0x7b/0x80
-> 
-> 
-> Code: 00 00 48 85 c0 74 0b 48 8b 40 10 48 85 c0 74 02 ff d0 e8 75 ec 32 00 41 5b 31 c0 c3 53 48 89 fb f0 0f ba 37 00 19 c0 85 c0 75 04 <0f> 0b eb fe e8 56 f5 ff ff 48 89 de 48 89 c7 31 d2 5b e9 47 be 
-> RIP  [<ffffffff80268155>] unlock_page+0xf/0x26
->  RSP <ffff81003f9e1dc8>
-> ---[ end trace 27b1d01b03af7c12 ]---
+> OK, I'm going to do some builds and tests on my i386 and x86_64 boxes
+> with the following patch. I'm sure this will break something and I don't
+> know if moving PAGE_ALIGN() out of asm-*/page.h is the right way.
 
-Another unlock of an unlocked page.  Presumably when reclaim hadn't
-done anything yet. 
+Thanks.  Looks good from here.
 
-Don't know, sorry.  Strange.
+>
+> ...
+>
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -9,6 +9,7 @@
+>  #include <linux/list.h>
+>  #include <linux/mmzone.h>
+>  #include <linux/rbtree.h>
+> +#include <linux/kernel.h>
+>  #include <linux/prio_tree.h>
+>  #include <linux/debug_locks.h>
+>  #include <linux/mm_types.h>
+> @@ -41,6 +42,9 @@ extern unsigned long mmap_min_addr;
+>  
+>  #define nth_page(page,n) pfn_to_page(page_to_pfn((page)) + (n))
+>  
+> +/* to align the pointer to the (next) page boundary */
+> +#define PAGE_ALIGN(addr) ALIGN(addr, PAGE_SIZE)
+> +
+>  /*
+>   * Linux kernel virtual memory manager primitives.
+>   * The idea being to have a "virtual" mm in the same way
+
+You don't really need the #include <linux/kernel.h> there.  As long as
+all callsites which _use_ PAGE_ALIGN are including kernel.h via some
+means (and they surely will be) then things will work OK.
+
+But it won't hurt.  We're already picking up kernel.h there via
+mmzone.h->spinlock.h and probably 100 other routes.  One more won't
+make a lot of difference ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
