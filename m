@@ -1,53 +1,39 @@
-Date: Thu, 12 Jun 2008 01:02:00 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: repeatable slab corruption with LTP msgctl08
-Message-Id: <20080612010200.106df621.akpm@linux-foundation.org>
-In-Reply-To: <20080611233449.08e6eaa0.akpm@linux-foundation.org>
-References: <20080611221324.42270ef2.akpm@linux-foundation.org>
-	<20080611233449.08e6eaa0.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 12 Jun 2008 09:08:12 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: Re: [patch 16/21] hugetlb: allow arch overried hugepage allocation
+Message-ID: <20080612080812.GC30958@shadowen.org>
+References: <20080604112939.789444496@amd.local0.net> <20080604113113.026345633@amd.local0.net> <20080608121445.168fb358.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080608121445.168fb358.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nadia Derbey <Nadia.Derbey@bull.net>, Manfred Spraul <manfred@colorfullife.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <clameter@sgi.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: npiggin@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Jun 2008 23:34:49 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Wed, 11 Jun 2008 22:13:24 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+On Sun, Jun 08, 2008 at 12:14:45PM -0700, Andrew Morton wrote:
+> On Wed, 04 Jun 2008 21:29:55 +1000 npiggin@suse.de wrote:
 > 
-> > Running current mainline on my old 2-way PIII.  Distro is RH FC1.  LTP
-> > version is ltp-full-20070228 (lots of retro-computing there).
-> > 
-> > Config is at http://userweb.kernel.org/~akpm/config-vmm.txt
-> > 
-> > 
-> > ./testcases/bin/msgctl08 crashes after ten minutes or so:
+> > Subject: [patch 16/21] hugetlb: allow arch overried hugepage allocation
 > 
-> ah, it runs to completion in about ten seconds on 2.6.25, so it'll be
-> easy for someone to bisect it.
+> I assumed that this was supposed to read "overridden".
 > 
-> What's that?  Sigh.  OK.  I wasn't doing anything much anyway.
+> >  
+> > +__initdata LIST_HEAD(huge_boot_pages);
+> 
+> WARNING: externs should be avoided in .c files
+> #61: FILE: mm/hugetlb.c:34:
+> +__initdata LIST_HEAD(huge_boot_pages);
+> 
+> checkpatch got confused.
 
-Oh drat.  git-bisect tells me that this one-year-old msgctl08's
-execution time vastly increased when we added
+Yes, I caught that one too.  We stupidly convert a known modifier into a
+type.  Sorted in my next block of changes.  Will be with you today I
+hope.
 
-commit f7bf3df8be72d98afa84f5ff183e14c1ba1e560d
-Author: Nadia Derbey <Nadia.Derbey@bull.net>
-Date:   Tue Apr 29 01:00:39 2008 -0700
-
-    ipc: scale msgmni to the amount of lowmem
-    
-
-But we already knew that, and LTP got changed to fix it.
-
-So I was wrong in assuming that the long-execution-time correlates with
-the slab-corruption bug.
-
-And the slab corruption bug takes half an hour to reproduce and an
-unknown amount of time to not-reproduce.  I don't think I'll be able to
-complete this before I disappear for over a week.
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
