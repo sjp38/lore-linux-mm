@@ -1,77 +1,56 @@
-Date: Fri, 13 Jun 2008 13:45:07 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: 2.6.26-rc5-mm2 (swap_state.c:77)
-Message-ID: <20080613134507.3f08820e@cuia.bos.redhat.com>
-In-Reply-To: <Pine.LNX.4.64.0806122131330.10415@blonde.site>
-References: <20080609223145.5c9a2878.akpm@linux-foundation.org>
-	<200806101848.22237.nickpiggin@yahoo.com.au>
-	<20080611140902.544e59ec@bree.surriel.com>
-	<200806120958.38545.nickpiggin@yahoo.com.au>
-	<20080612152905.6cb294ae@cuia.bos.redhat.com>
-	<Pine.LNX.4.64.0806122131330.10415@blonde.site>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5DIC9gU020186
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2008 14:12:09 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5DIC9Ik208860
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2008 14:12:09 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5DIC9LR024039
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2008 14:12:09 -0400
+Subject: Re: [RFC PATCH 2/2] Update defconfigs for CONFIG_HUGETLB
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <20080612193638.GB17231@cs181133002.pp.htv.fi>
+References: <1213296540.17108.8.camel@localhost.localdomain>
+	 <1213296945.17108.13.camel@localhost.localdomain>
+	 <20080612193638.GB17231@cs181133002.pp.htv.fi>
+Content-Type: text/plain
+Date: Fri, 13 Jun 2008 14:12:08 -0400
+Message-Id: <1213380728.15016.8.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org
+To: Adrian Bunk <bunk@kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, npiggin@suse.de, nacc@us.ibm.com, mel@csn.ul.ie, Eric B Munson <ebmunson@us.ibm.com>, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@ozlabs.org, sparclinux@vger.kernel.org, linux-sh@vger.kernel.org, linux-s390@vger.kernel.org, linux-mips@linux-mips.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Jun 2008 22:15:54 +0100 (BST)
-Hugh Dickins <hugh@veritas.com> wrote:
-
-> > I'm trying to make sense of all the splice code now
-> > and will send fix as soon as I know how to fix this
-> > problem in a nice way.
+On Thu, 2008-06-12 at 22:36 +0300, Adrian Bunk wrote:
+> On Thu, Jun 12, 2008 at 02:55:45PM -0400, Adam Litke wrote:
+> > Update all defconfigs that specify a default configuration for hugetlbfs.
+> > There is now only one option: CONFIG_HUGETLB.  Replace the old
+> > CONFIG_HUGETLB_PAGE and CONFIG_HUGETLBFS options with the new one.  I found no
+> > cases where CONFIG_HUGETLBFS and CONFIG_HUGETLB_PAGE had different values so
+> > this patch is large but completely mechanical:
+> >...
+> >  335 files changed, 335 insertions(+), 385 deletions(-)
+> >...
 > 
-> There's no need to make sense of all the splice code, it's just
-> that it's doing add_to_page_cache_lru (on a page not marked as
-> SwapBacked), then shmem and swap_state consistency relies on it
-> as having been marked as SwapBacked.  Normally, yes, shmem_getpage
-> is the one that allocates the page, but in this case it's already
-> been done outside, awkward (and long predates loop's use of splice).
+> Please don't do this kind of patches - it doesn't bring any advantage 
+> but can create tons of patch conflicts.
 > 
-> It's remarkably hard to correct the LRU of a page once it's been
-> launched towards one.  Is it still on this cpu's pagevec?  Have we
-> been preempted and it's on another cpu's pagevec?  If it's reached
-> the LRU, has vmscan whisked it off for a moment, even though it's
-> PageLocked?  Until now it's been that the LRUs are self-correcting,
-> but these patches move away from that.
-> 
-> I don't know how to fix this problem in a nice way.  For the moment,
-> to proceed with testing, I'm using the hack below.  But perhaps that
-> screws things up for the other !mapping_cap_account_dirty filesystems
-> e.g. ramfs, I just haven't tried them yet - nor shall in the next
-> couple of days.
+> The next time a defconfig gets updated it will anyway automatically be 
+> fixed, and for defconfigs that aren't updated it doesn't create any 
+> problems to keep them as they are today until they might one day get 
+> updated.
 
-Yeah, it will break ramfs.  Also, we need to take care of
-splice going in the opposite direction (moving a page from
-SwapBacked to filesystem backed).
-
-I guess we'll need per-mapping flags to help determine where
-a page goes at add_to_page_cache_lru() time.
-
-This does not remove our need for the page flags, because
-those need to survive until the del_page_from_lru() call
-in __page_cache_release(), by which time the page->mapping
-will be long gone.
-
-> Am I right to think that the memcontrol stuff is now all broken,
-> because memcontrol.c hasn't yet been converted to the more LRUs?
-> Certainly I'm now hanging when trying to run in a restricted memcg.
-
-I believe memcontrol has been converted.  Of course, maybe
-they changed some stuff under me that I didn't notice :(
- 
-> Unrelated fix to compiler warning and silly /proc/meminfo numbers
-> below too, that one raises fewer questions!
-
-I sent the fix for that one to Andrew already.  I believe
-it's in his mmotm tree.
+Thanks for taking a look.  I am not sure if I have ever seen a defconfig
+patch hit the mailing list before and I was wondering how those changes
+happen.  In any case I am perfectly happy to drop this huge patch and
+stick with just the first one.
 
 -- 
-All Rights Reversed
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
