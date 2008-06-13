@@ -1,8 +1,8 @@
-Date: Fri, 13 Jun 2008 09:34:36 +0900
+Date: Fri, 13 Jun 2008 09:41:00 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFD][PATCH] memcg: Move Usage at Task Move
-Message-Id: <20080613093436.ca1a6ded.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080612210812.GA22948@us.ibm.com>
+Message-Id: <20080613094100.b552079d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080613093436.ca1a6ded.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080612131748.GB8453@us.ibm.com>
 	<20080606105235.3c94daaf.kamezawa.hiroyu@jp.fujitsu.com>
 	<6599ad830806110017t5ebeda78id1914d179a018422@mail.gmail.com>
@@ -13,46 +13,27 @@ References: <20080612131748.GB8453@us.ibm.com>
 	<20080612140806.dc161c77.kamezawa.hiroyu@jp.fujitsu.com>
 	<27043861.1213277688814.kamezawa.hiroyu@jp.fujitsu.com>
 	<20080612210812.GA22948@us.ibm.com>
+	<20080613093436.ca1a6ded.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Serge E. Hallyn" <serue@us.ibm.com>
-Cc: Paul Menage <menage@google.com>, yamamoto@valinux.co.jp, nishimura@mxp.nes.nec.co.jp, linux-mm@kvack.org, containers@lists.osdl.org, balbir@linux.vnet.ibm.com, xemul@openvz.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "Serge E. Hallyn" <serue@us.ibm.com>, Paul Menage <menage@google.com>, yamamoto@valinux.co.jp, nishimura@mxp.nes.nec.co.jp, linux-mm@kvack.org, containers@lists.osdl.org, balbir@linux.vnet.ibm.com, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Jun 2008 16:08:12 -0500
-"Serge E. Hallyn" <serue@us.ibm.com> wrote:
+On Fri, 13 Jun 2008 09:34:36 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> Thank you for kindly explanation. I'll take this into account. I confirmed
+> memory resouce controller should not get tasks's cgroup directly from "task"
+> and should get it from "mm->owner".
+> 
+And this means the whole thread group's memory related cgroup can be changed
+when mm->owner is changed. I'm not sure this is not a problem but it seems
+complex.
 
-> > Assume a thread group contains threadA, threadB, threadC.
-> > 
-> > I wanted to ask "Can threadA, and threadB, and threadC
-> > be in different cgroups ? And if so, how ns cgroup handles it ?"
-> > 
-> > Maybe I don't understand ns cgroup.
-> 
-> In part yes, but nonetheless a very interesting question when it comes
-> to composition of cgroups!
-> 
-> Yes, you can have threads in different cgroups.  The ns cgroup just
-> tracks nsproxy unshares.  So if you run the attached program and look
-> around, you'll see the first thread is in /cg/taskpid while the second
-> one is in /cg/taskpid/secondthreadpid.
-> 
-> Clearly, composing this with a cgroup which needs to keep threads in the
-> same cgroup becomes problematic!
-> 
-> Interesting :)
-> 
-
-Thank you for kindly explanation. I'll take this into account. I confirmed
-memory resouce controller should not get tasks's cgroup directly from "task"
-and should get it from "mm->owner".
-
-Thank you.
-
-Regards,
+Thanks,
 -Kame
 
 --
