@@ -1,7 +1,7 @@
-Date: Fri, 13 Jun 2008 18:34:02 +0900
+Date: Fri, 13 Jun 2008 18:36:56 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 4/6] res_counter: basic hierarchy support
-Message-Id: <20080613183402.4f31eb96.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 5/6] res_counter: HARDWALL hierarchy
+Message-Id: <20080613183656.55520100.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20080613182714.265fe6d2.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080613182714.265fe6d2.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -13,255 +13,297 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Add a hierarhy support to res_counter. This patch itself just supports
-"No Hierarchy" hierarchy, as a default/basic hierarchy system.
+This patch adds new hierarchy model, called Hardwall Hierarchy, to res_counter.
 
-Changelog: v3 -> v4.
-  - cut out from hardwall hierarchy patch set.
-  - just support "No hierarchy" model.
+Change log v3 -> v4.
+ - restructured the whole set, cut out from memcg hierarchy patch set.
+ - just handles HardWall Hierarchy.
+ - renamed variables and functions, again.
+
+HardWall implements following model
+ - A cgroup's tree means hierarchy of resource.
+ - All child's resource is moved from its parents.
+ - The resource moved to children is charged as parent's usage.
+ - The resource moves when child->limit is changed.
+ - The sum of resource for children and its own usage is limited by "limit".
+
+This implies
+ - No dynamic automatic hierarhcy balancing in the kernel.
+ - Each resource is isolated completely.
+ - The kernel just supports resource-move-at-change-in-limit.
+ - The user (middle-ware) is responsible to make hierarhcy balanced well.
+   Good balance can be achieved by changing limit from user land.
+
+I think there are 4 characteristics of hierarchy.
+
+  - fairness    ... how fairness is kept under policy
+
+  - performance ... should be _fast_. multi-level resource balancing tend
+                 to use much amount of CPU and can cause soft lockup.
+
+  - predictability ... resource management are usually used for resource
+                 isolation. the kernel must not break the isolation and
+                 predictability of users against application's progress.
+
+  - flexibility ... some sophisticated dynamic resource balancing with
+                 soft-limit is welcomed when the user doesn't want strict
+                 resource isolation or when the user cannot estimate how much
+                 they want correctly.
+
+ This model allows the move of resource only between a parent and its children.
+ The resource is moved to a child when it declares the amount of resources
+ to be used. (by limit)
+ Automatic resource balancing is not supported in this code. This means
+ this model is useful when a user want strict resource isolation under
+ hierarchy.
+
+ - fairness    ... ???  no resource sharing. works as specified by users.
+ - performance ... good. each resources are capsuled to its own level.
+ - predictability ... good. resources are completely isolated. balancing only
+                occurs at the event of changes in limit.
+ - flexibility ... bad. no flexibility and scheduling in the kernel level.
+                need middle-ware's help.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
 ---
- Documentation/controllers/resource_counter.txt |   27 +++++-
- include/linux/res_counter.h                    |   15 +++
- kernel/res_counter.c                           |  107 ++++++++++++++++++++-----
- mm/memcontrol.c                                |    1 
- 4 files changed, 129 insertions(+), 21 deletions(-)
+ Documentation/controllers/resource_counter.txt |    9 +
+ include/linux/res_counter.h                    |    6 +
+ kernel/res_counter.c                           |  140 ++++++++++++++++++++++++-
+ 3 files changed, 154 insertions(+), 1 deletion(-)
 
 Index: linux-2.6.26-rc5-mm3/include/linux/res_counter.h
 ===================================================================
 --- linux-2.6.26-rc5-mm3.orig/include/linux/res_counter.h
 +++ linux-2.6.26-rc5-mm3/include/linux/res_counter.h
-@@ -21,8 +21,13 @@
-  * the helpers described beyond
-  */
+@@ -23,6 +23,7 @@
  
-+enum res_cont_hierarchy_model {
-+	RES_CONT_NO_HIERARCHY,
-+};
-+
+ enum res_cont_hierarchy_model {
+ 	RES_CONT_NO_HIERARCHY,
++	RES_CONT_HARDWALL_HIERARCHY,
+ };
+ 
  struct res_counter;
- struct res_counter_ops {
-+	enum res_cont_hierarchy_model hierarchy_model;
- 	/* called when the subsystem has to reduce the usage. */
- 	int (*shrink_usage)(struct res_counter *cnt, unsigned long long val,
- 			    int retry_count);
-@@ -46,6 +51,10 @@ struct res_counter {
+@@ -55,6 +56,10 @@ struct res_counter {
  	 */
- 	unsigned long long failcnt;
+ 	struct res_counter *parent;
  	/*
-+	 * parent of this counter in hierarchy. if root, this is NULL.
++	 * resources assigned to children.
 +	 */
-+	struct res_counter *parent;
++	unsigned long long used_by_children;
 +	/*
  	 * registered callbacks etc...for res_counter.
  	 */
  	struct res_counter_ops ops;
-@@ -101,6 +110,12 @@ static inline void res_counter_init(stru
- 	res_counter_init_ops(counter, NULL);
- }
+@@ -96,6 +101,7 @@ enum {
+ 	RES_MAX_USAGE,
+ 	RES_LIMIT,
+ 	RES_FAILCNT,
++	RES_USED_BY_CHILDREN,
+ };
  
-+void res_counter_init_hierarchy(struct res_counter *counter,
-+					struct res_counter *parent);
-+
-+int res_counter_set_ops(struct res_counter *counter,
-+				struct res_counter_ops *ops);
-+
  /*
-  * charge - try to consume more resource.
-  *
 Index: linux-2.6.26-rc5-mm3/kernel/res_counter.c
 ===================================================================
 --- linux-2.6.26-rc5-mm3.orig/kernel/res_counter.c
 +++ linux-2.6.26-rc5-mm3/kernel/res_counter.c
-@@ -30,8 +30,70 @@ void res_counter_init_ops(struct res_cou
- 	counter->limit = (unsigned long long)LLONG_MAX;
- 	if (ops)
- 		counter->ops = *ops;
-+	counter->parent = NULL;
-+}
-+
-+void __res_counter_init_hierarchy_core(struct res_counter *counter)
-+{
-+	switch (counter->ops.hierarchy_model) {
-+	case RES_CONT_NO_HIERARCHY:
-+		counter->limit = (unsigned long long)LLONG_MAX;
+@@ -39,6 +39,10 @@ void __res_counter_init_hierarchy_core(s
+ 	case RES_CONT_NO_HIERARCHY:
+ 		counter->limit = (unsigned long long)LLONG_MAX;
+ 		break;
++	case RES_CONT_HARDWALL_HIERARCHY:
++		counter->limit = 0;
++		counter->used_by_children = 0;
 +		break;
-+	default:
-+		break;
-+	}
-+	return;
-+}
-+
-+
-+/**
-+ * res_counter_init_hierarchy() -- initialize res_counter under some hierarchy.
-+ * @counter: a counter will be initialized.
-+ * @parent: parent of counter.
-+ *
-+ * parent->ops is copied to counter->ops and counter will be initialized
-+ * to be suitable style for the hierarchy model.
-+ */
-+void res_counter_init_hierarchy(struct res_counter *counter,
-+					struct res_counter *parent)
-+{
-+	struct res_counter_ops *ops = NULL;
-+
-+	if (parent)
-+		ops = &parent->ops;
-+	res_counter_init_ops(counter, ops);
-+	counter->parent = parent;
-+
-+	__res_counter_init_hierarchy_core(counter);
+ 	default:
+ 		break;
+ 	}
+@@ -148,6 +152,8 @@ res_counter_member(struct res_counter *c
+ 		return &counter->limit;
+ 	case RES_FAILCNT:
+ 		return &counter->failcnt;
++	case RES_USED_BY_CHILDREN:
++		return &counter->used_by_children;
+ 	};
+ 
+ 	BUG();
+@@ -177,6 +183,114 @@ u64 res_counter_read_u64(struct res_coun
  }
  
-+/**
-+ * res_counter_set_ops() -- reset res->counter.ops to be passed ops.
-+ * @coutner: a counter to be set ops.
-+ * @ops: res_counter_ops
+ /*
++ * Move resource from a parent to a child.
++ *  parent->usage        += val
++ *  parent->used_by_children += val
++ *  child->limit         += val
++ * To do this, ops->shrink_usage() is called against parent.
 + *
-+ * This operations is allowed only when there is no parent or parent's
-+ * hierarchy_model == RES_CONT_NO_HIERARCHY. returns 0 at success.
++ * Returns 0 at success.
++ * Returns -EBUSY or return code of ops->shrink_usage().
 + */
-+
-+int res_counter_set_ops(struct res_counter *counter,
-+				struct res_counter_ops *ops)
++static int res_counter_borrow_resource(struct res_counter *child,
++				unsigned long long val)
 +{
-+	struct res_counter *parent;
-+	/*
-+	 * This operation is allowed only when parents's hierarchy
-+	 * is NO_HIERARCHY or this is ROOT.
-+	 */
-+	parent = counter->parent;
-+	if (parent && parent->ops.hierarchy_model != RES_CONT_NO_HIERARCHY)
-+		return -EINVAL;
++	struct res_counter *parent = child->parent;
++	unsigned long flags;
++	unsigned long long diff;
++	int ret;
++	int retry_count = 0;
 +
-+	counter->ops = *ops;
++	BUG_ON(!parent);
 +
-+	return 0;
++	spin_lock_irqsave(&child->lock, flags);
++	diff = val - child->limit;
++	spin_unlock_irqrestore(&child->lock, flags);
++
++	while (1) {
++		ret = -EBUSY;
++		spin_lock_irqsave(&parent->lock, flags);
++		if (parent->usage + diff <= parent->limit) {
++			parent->used_by_children += diff;
++			parent->usage += diff;
++			break;
++		}
++		spin_unlock_irqrestore(&parent->lock, flags);
++
++		if (!parent->ops.shrink_usage)
++			goto fail;
++		cond_resched();
++		ret = parent->ops.shrink_usage(parent, val, retry_count);
++		if (ret)
++			goto fail;
++		retry_count++;
++	}
++	ret = 0;
++	spin_unlock_irqrestore(&parent->lock, flags);
++
++	spin_lock_irqsave(&child->lock, flags);
++	child->limit = val;
++	spin_unlock_irqrestore(&child->lock, flags);
++fail:
++	return ret;
 +}
 +
 +
- int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
- {
- 	if (counter->usage + val > counter->limit) {
-@@ -125,30 +187,39 @@ static int res_counter_resize_limit(stru
++/*
++ * Move resource from a child to a parent.
++ *  parent->usage        -= val
++ *  parent->used_by_children -= val
++ *  child->limit         -= val
++ * To do this, ops->shrink_usage() is called against child.
++ *
++ * Returns 0 at success.
++ * Returns -EBUSY or return code passed by ops->shrink_usage().
++ */
++
++static int res_counter_return_resource(struct res_counter *child,
++				unsigned long long val)
++
++{
++	unsigned long flags;
++	struct res_counter *parent = child->parent;
++	int retry_count = 0;
++	unsigned long long diff;
++	int ret;
++
++	BUG_ON(!parent);
++
++	while (1) {
++		ret = -EBUSY;
++		spin_lock_irqsave(&child->lock, flags);
++		if (child->usage  <= val) {
++			diff = child->limit - val;
++			child->limit = val;
++			break;
++		}
++		spin_unlock_irqrestore(&child->lock, flags);
++
++		if (!child->ops.shrink_usage)
++			goto fail;
++
++		ret = child->ops.shrink_usage(child, val, retry_count);
++		if (ret)
++			goto fail;
++		retry_count++;
++	}
++	ret = 0;
++	spin_unlock_irqrestore(&child->lock, flags);
++
++	spin_lock_irqsave(&parent->lock, flags);
++	BUG_ON(parent->used_by_children < val);
++	BUG_ON(parent->usage < val);
++	parent->used_by_children -= diff;
++	parent->usage -= diff;
++	spin_unlock_irqrestore(&parent->lock, flags);
++fail:
++	return ret;
++}
++
++/*
+  * Called when the limit changes if res_counter has ops->shrink_usage.
+  * This function uses shrink usage to below new limit. returns 0 at success.
+  */
+@@ -187,10 +301,15 @@ static int res_counter_resize_limit(stru
  	int retry_count = 0;
  	int ret = -EBUSY;
  	unsigned long flags;
-+	enum model = RES_CONT_NO_HIERARCHY;
+-	enum model = RES_CONT_NO_HIERARCHY;
++	enum res_cont_hierarchy_model model = RES_CONT_NO_HIERARCHY;
++	struct res_counter *parent;
  
  	BUG_ON(!cnt->ops.shrink_usage);
--	while (1) {
--		spin_lock_irqsave(&cnt->lock, flags);
--		if (cnt->usage <= val) {
--			cnt->limit = val;
--			ret = 0;
--			spin_unlock_irqrestore(&cnt->lock, flags);
--			break;
--		}
--		BUG_ON(val > cnt->limit);
--		spin_unlock_irqrestore(&cnt->lock, flags);
  
-+	switch (model) {
-+	case RES_CONT_NO_HIERARCHY:
++	parent = cnt->parent;
++	if (parent)
++		model = parent->ops.hierarchy_model;
++
+ 	switch (model) {
+ 	case RES_CONT_NO_HIERARCHY:
  		/*
--		 * Rest before calling callback().... rest after callback
--		 * tends to add difference between the result of callback and
--		 * the check in next loop.
-+		 * shrink usage to be below the new limit.
- 		 */
--		cond_resched();
-+		while (1) {
+@@ -218,6 +337,25 @@ static int res_counter_resize_limit(stru
+ 			retry_count++;
+ 		}
+ 		break;
++	case RES_CONT_HARDWALL_HIERARCHY:
++		/*
++		 * Both of increasing/decreasing limit have to interact with
++		 * parent.
++		 */
++		{
++			int direction;
 +			spin_lock_irqsave(&cnt->lock, flags);
-+			if (cnt->usage <= val) {
-+				cnt->limit = val;
-+				ret = 0;
-+			}
++			if (val > cnt->limit)
++				direction = 1; /* increase */
++			else
++				direction = 0; /* decrease */
 +			spin_unlock_irqrestore(&cnt->lock, flags);
-+			if (!ret)
-+				break;
-+			/*
-+			 * Rest before calling callback().... rest after
-+			 * callback tends to add difference between the result
-+			 * of callback and the check in next loop.
-+			 */
-+			cond_resched();
- 
--		ret = cnt->ops.shrink_usage(cnt, val, retry_count);
--		if (!ret)
--			break;
--		retry_count++;
-+			ret = cnt->ops.shrink_usage(cnt, val, retry_count);
-+			if (!ret)
-+				break;
-+			retry_count++;
++			if (direction)
++				ret = res_counter_borrow_resource(cnt, val);
++			else
++				ret = res_counter_return_resource(cnt, val);
 +		}
 +		break;
-+	default:
-+		BUG();
+ 	default:
+ 		BUG();
  	}
- 	return ret;
- }
 Index: linux-2.6.26-rc5-mm3/Documentation/controllers/resource_counter.txt
 ===================================================================
 --- linux-2.6.26-rc5-mm3.orig/Documentation/controllers/resource_counter.txt
 +++ linux-2.6.26-rc5-mm3/Documentation/controllers/resource_counter.txt
-@@ -39,11 +39,14 @@ to work with it.
-  	The failcnt stands for "failures counter". This is the number of
- 	resource allocation attempts that failed.
+@@ -177,6 +177,15 @@ counter fields. They are recommended to 
+  a. Independent hierarchy (RES_CONT_NO_HIERARCHY) model
+    This is no relationship between parent and children.
  
-- e. res_counter_ops.
-+ e. parent
-+	parent of this res_counter under hierarchy.
-+
-+ f. res_counter_ops.
- 	Callbacks for helping resource_counter per each subsystem.
- 	- shrink_usage() .... called at limit change (decrease).
++ b. Strict Hard-limit (RES_CONT_HARDWALL_HIERARCHY) model
++   This model allows strict resource isolation under hierarchy.
++   The rule is.
++    - A cgroup's tree means hierarchy of resource.
++    - All child's resource is moved from its parents.
++    - The resource moved to children is charged as parent's usage.
++    - The resource moves when child->limit is changed.
++    - The sum of resource for children and its own usage is limited by "limit".
++   See controllers/memory.txt if unsure. There will be an example.
  
-- f. spinlock_t lock
-+ g. spinlock_t lock
- 
-  	Protects changes of the above values.
- 
-@@ -157,7 +160,25 @@ counter fields. They are recommended to 
-      Returns 0 at success. Any error code is acceptable but -EBUSY will be
-      suitable to show "the kernel can't shrink usage."
- 
--6. Usage example
-+6. Hierarchy
-+
-+   Groups of res_counter can be controlled under some tree (cgroup tree).
-+   Taking the tree into account, res_counter can be under some hierarchical
-+   control. THe res_counter itself supports hierarchy_model and calls
-+   registered callbacks at suitable events.
-+
-+   For keeping sanity of hierarchy, hierarchy_model of a res_counter can be
-+   changed when parent's hierarchy_model is RES_CONT_NO_HIERARCHY.
-+   res_counter doesn't count # of children by itself but some subysystem should
-+   be aware that it has no children if necessary.
-+   (don't want to fully duplicate cgroup's hierarchy. Cost of remembering parent
-+    is cheap.)
-+
-+ a. Independent hierarchy (RES_CONT_NO_HIERARCHY) model
-+   This is no relationship between parent and children.
-+
-+
-+7. Usage example
- 
-  a. Declare a task group (take a look at cgroups subsystem for this) and
-     fold a res_counter into it
-Index: linux-2.6.26-rc5-mm3/mm/memcontrol.c
-===================================================================
---- linux-2.6.26-rc5-mm3.orig/mm/memcontrol.c
-+++ linux-2.6.26-rc5-mm3/mm/memcontrol.c
-@@ -1086,6 +1086,7 @@ static void mem_cgroup_free(struct mem_c
- }
- 
- struct res_counter_ops root_ops = {
-+	.hierarchy_model = RES_CONT_NO_HIERARCHY,
- 	.shrink_usage = mem_cgroup_shrink_usage_to,
- };
+ 7. Usage example
  
 
 --
