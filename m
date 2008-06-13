@@ -1,225 +1,52 @@
-Date: Fri, 13 Jun 2008 18:37:41 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 6/6] memcg: HARDWALL hierarchy
-Message-Id: <20080613183741.5e2f7fda.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080613182714.265fe6d2.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080613182714.265fe6d2.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28esmtp07.in.ibm.com (8.13.1/8.13.1) with ESMTP id m5D9bFOA020309
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2008 15:07:15 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5D9aVoe815330
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2008 15:06:31 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id m5D9bESG029077
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2008 15:07:15 +0530
+Message-ID: <48523FC5.4040900@linux.vnet.ibm.com>
+Date: Fri, 13 Jun 2008 15:07:09 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH -mm] PAGE_ALIGN(): correctly handle 64-bit values on 32-bit
+ architectures
+References: <20080521152921.15001.65968.sendpatchset@localhost.localdomain>	<20080521152948.15001.39361.sendpatchset@localhost.localdomain>	<4850070F.6060305@gmail.com>	<20080611121510.d91841a3.akpm@linux-foundation.org>	<485032C8.4010001@gmail.com>	<20080611134323.936063d3.akpm@linux-foundation.org>	<485055FF.9020500@gmail.com>	<20080611155530.099a54d6.akpm@linux-foundation.org>	<4850BE9B.5030504@linux.vnet.ibm.com>	<4850E3BC.308@gmail.com> <20080612020235.29a81d7c.akpm@linux-foundation.org> <485156B8.5070709@gmail.com>
+In-Reply-To: <485156B8.5070709@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
+To: righi.andrea@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, yamamoto@valinux.co.jp, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Support hardwall hierarchy (and no-hierarchy) in memcg.
+Andrea Righi wrote:
+> I've tested the following patch on a i386 box with my usual .config and
+> everything seems fine. I also tested allmodconfig and some randconfig
+> builds and
+> I've not seen any evident error.
+> 
+> I'll repeat the tests tonight on a x86_64. Other architectures should be
+> tested
+> as well...
+> 
+> Patch is against 2.6.25-rc5-mm3.
 
-Change log: v3->v4
- - cut out from memcg hierarchy patch set v4.
- - no major changes, but some amount of functions are moved to res_counter.
-   and be more gneric.
+Hi, Andrea,
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+CC'ing linux-arch. I have a power box, but it's busy. I'll try and test your
+patch on it as soon as I can get hold of it.
 
----
- Documentation/controllers/memory.txt |   57 +++++++++++++++++++++++++++++-
- mm/memcontrol.c                      |   65 +++++++++++++++++++++++++++++++++--
- 2 files changed, 118 insertions(+), 4 deletions(-)
 
-Index: linux-2.6.26-rc5-mm3/mm/memcontrol.c
-===================================================================
---- linux-2.6.26-rc5-mm3.orig/mm/memcontrol.c
-+++ linux-2.6.26-rc5-mm3/mm/memcontrol.c
-@@ -941,6 +941,48 @@ static int mem_force_empty_write(struct 
- 	return mem_cgroup_force_empty(mem_cgroup_from_cont(cont));
- }
- 
-+
-+static u64 mem_cgroup_hierarchy_read(struct cgroup *cgrp, struct cftype *cft)
-+{
-+	struct mem_cgroup *mem;
-+
-+	mem = mem_cgroup_from_cont(cgrp);
-+
-+	return mem->res.ops.hierarchy_model;
-+}
-+
-+static int
-+mem_cgroup_hierarchy_write(struct cgroup *cgrp, struct cftype *cft, u64 val)
-+{
-+	struct mem_cgroup *mem;
-+	struct res_counter_ops ops;
-+	int ret = -EBUSY;
-+
-+	mem = mem_cgroup_from_cont(cgrp);
-+
-+	if (!list_empty(&cgrp->children))
-+		return ret;
-+
-+	switch ((int)val) {
-+	case RES_CONT_NO_HIERARCHY:
-+		ops.hierarchy_model = RES_CONT_NO_HIERARCHY;
-+		ops.shrink_usage = mem_cgroup_shrink_usage_to;
-+		ret = res_counter_set_ops(&mem->res, &ops);
-+		break;
-+	case RES_CONT_HARDWALL_HIERARCHY:
-+		ops.hierarchy_model = RES_CONT_HARDWALL_HIERARCHY;
-+		ops.shrink_usage = mem_cgroup_shrink_usage_to;
-+		ret = res_counter_set_ops(&mem->res, &ops);
-+		break;
-+	default:
-+		ret = -EINVAL;
-+		break;
-+	}
-+
-+	return ret;
-+}
-+
-+
- static const struct mem_cgroup_stat_desc {
- 	const char *msg;
- 	u64 unit;
-@@ -951,6 +993,9 @@ static const struct mem_cgroup_stat_desc
- 	[MEM_CGROUP_STAT_PGPGOUT_COUNT] = {"pgpgout", 1, },
- };
- 
-+
-+
-+
- static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
- 				 struct cgroup_map_cb *cb)
- {
-@@ -1024,6 +1069,16 @@ static struct cftype mem_cgroup_files[] 
- 		.name = "stat",
- 		.read_map = mem_control_stat_show,
- 	},
-+	{
-+		.name = "used_by_children",
-+		.private = RES_USED_BY_CHILDREN,
-+		.read_u64 = mem_cgroup_read,
-+	},
-+	{
-+		.name = "hierarchy_model",
-+		.write_u64 = mem_cgroup_hierarchy_write,
-+		.read_u64 = mem_cgroup_hierarchy_read,
-+	},
- };
- 
- static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
-@@ -1093,18 +1148,23 @@ struct res_counter_ops root_ops = {
- static struct cgroup_subsys_state *
- mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
- {
--	struct mem_cgroup *mem;
-+	struct mem_cgroup *mem, *parent;
- 	int node;
- 	if (unlikely((cont->parent) == NULL)) {
- 		mem = &init_mem_cgroup;
- 		page_cgroup_cache = KMEM_CACHE(page_cgroup, SLAB_PANIC);
-+		parent = NULL;
- 	} else {
- 		mem = mem_cgroup_alloc();
- 		if (!mem)
- 			return ERR_PTR(-ENOMEM);
-+		parent = mem_cgroup_from_cont(cont->parent);
- 	}
- 
--	res_counter_init_ops(&mem->res, &root_ops);
-+	if (!parent)
-+		res_counter_init_ops(&mem->res, &root_ops);
-+	else
-+		res_counter_init_hierarchy(&mem->res, &parent->res);
- 
- 	for_each_node_state(node, N_POSSIBLE)
- 		if (alloc_mem_cgroup_per_zone_info(mem, node))
-@@ -1124,6 +1184,7 @@ static void mem_cgroup_pre_destroy(struc
- {
- 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
- 	mem_cgroup_force_empty(mem);
-+	res_counter_reset_limit(&mem->res);
- }
- 
- static void mem_cgroup_destroy(struct cgroup_subsys *ss,
-Index: linux-2.6.26-rc5-mm3/Documentation/controllers/memory.txt
-===================================================================
---- linux-2.6.26-rc5-mm3.orig/Documentation/controllers/memory.txt
-+++ linux-2.6.26-rc5-mm3/Documentation/controllers/memory.txt
-@@ -154,7 +154,7 @@ The memory controller uses the following
- 
- 0. Configuration
- 
--a. Enable CONFIG_CGROUPS
-+a. Enable CONFESS_CGROUPS
- b. Enable CONFIG_RESOURCE_COUNTERS
- c. Enable CONFIG_CGROUP_MEM_RES_CTLR
- 
-@@ -237,7 +237,58 @@ cgroup might have some charge associated
- tasks have migrated away from it. Such charges are automatically dropped at
- rmdir() if there are no tasks.
- 
--5. TODO
-+5. Supported Hierarchy Model
-+
-+Currently, memory controller supports following models of hierarchy in the
-+kernel. (see also resource_counter.txt)
-+
-+2 files are related to hierarchy.
-+ - memory.hierarchy_model
-+ - memory.for_children
-+
-+Basic Rule.
-+  - Hierarchy can be set per cgroup.
-+  - A child inherits parent's hierarchy model at creation.
-+  - A child can change its hierarchy only when the parent's hierarchy is
-+    NO_HIERARCY and it has no children.
-+
-+
-+5.1. NO_HIERARCHY
-+  - Each cgroup is independent from other ones.
-+  - When memory.hierarchy_model is 0, NO_HIERARCHY is used.
-+    Under this model, there is no controls based on tree of cgroups.
-+    This is the default model of root cgroup.
-+
-+5.2 HARDWALL_HIERARCHY
-+  - A child is a isolated portion of the parent.
-+  - When memory.hierarchy_model is 1, HARDWALL_HIERARCHY is used.
-+    In this model a child's limit is charged as parent's usage.
-+
-+  Hard-Wall Hierarchy Example)
-+  1) Assume a cgroup with 1GB limits. (and no tasks belongs to this, now)
-+     - group_A limit=1G,usage=0M.
-+
-+  2) create group B, C under A.
-+     - group A limit=1G, usage=0M, for_childre=0M
-+          - group B limit=0M, usage=0M.
-+          - group C limit=0M, usage=0M.
-+
-+  3) increase group B's limit to 300M.
-+     - group A limit=1G, usage=300M, for_children=300M
-+          - group B limit=300M, usage=0M.
-+          - group C limit=0M, usage=0M.
-+
-+  4) increase group C's limit to 500M
-+     - group A limit=1G, usage=800M, for_children=800M
-+          - group B limit=300M, usage=0M.
-+          - group C limit=500M, usage=0M.
-+
-+  5) reduce group B's limit to 100M
-+     - group A limit=1G, usage=600M, for_children=600M.
-+          - group B limit=100M, usage=0M.
-+          - group C limit=500M, usage=0M.
-+
-+6. TODO
- 
- 1. Add support for accounting huge pages (as a separate controller)
- 2. Make per-cgroup scanner reclaim not-shared pages first
-@@ -274,3 +325,5 @@ References
-     http://lkml.org/lkml/2007/8/17/69
- 12. Corbet, Jonathan, Controlling memory use in cgroups,
-     http://lwn.net/Articles/243795/
-+
-+ LocalWords:  lru CONFIG CTLR
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
