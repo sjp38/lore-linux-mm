@@ -1,74 +1,60 @@
-Subject: Re: [BUG] 2.6.26-rc5-mm3 kernel BUG at mm/filemap.c:575!
-In-Reply-To: Your message of "Thu, 12 Jun 2008 14:14:21 +0530."
-             <4850E1E5.90806@linux.vnet.ibm.com>
+Subject: Re: [PATCH] fix double unlock_page() in 2.6.26-rc5-mm3 kernel BUG at mm/filemap.c:575!
+In-Reply-To: Your message of "Fri, 13 Jun 2008 10:44:44 +0900."
+             <20080613104444.63bd242f.kamezawa.hiroyu@jp.fujitsu.com>
 From: Valdis.Kletnieks@vt.edu
-References: <20080611225945.4da7bb7f.akpm@linux-foundation.org>
-            <4850E1E5.90806@linux.vnet.ibm.com>
+References: <20080611225945.4da7bb7f.akpm@linux-foundation.org> <4850E1E5.90806@linux.vnet.ibm.com> <20080612015746.172c4b56.akpm@linux-foundation.org> <20080612202003.db871cac.kamezawa.hiroyu@jp.fujitsu.com>
+            <20080613104444.63bd242f.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1213330723_2983P";
+Content-Type: multipart/signed; boundary="==_Exmh_1213331673_4969P";
 	 micalg=pgp-sha1; protocol="application/pgp-signature"
 Content-Transfer-Encoding: 7bit
-Date: Fri, 13 Jun 2008 00:18:43 -0400
-Message-ID: <4041.1213330723@turing-police.cc.vt.edu>
+Date: Fri, 13 Jun 2008 00:34:33 -0400
+Message-ID: <5289.1213331673@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Andy Whitcroft <apw@shadowen.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Andy Whitcroft <apw@shadowen.org>, "riel@redhat.com" <riel@redhat.com>, "Lee.Schermerhorn@hp.com" <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_1213330723_2983P
+--==_Exmh_1213331673_4969P
 Content-Type: text/plain; charset=us-ascii
 
-On Thu, 12 Jun 2008 14:14:21 +0530, Kamalesh Babulal said:
-> Hi Andrew,
+On Fri, 13 Jun 2008 10:44:44 +0900, KAMEZAWA Hiroyuki said:
+
+> quick fix for double unlock_page();
 > 
-> 2.6.26-rc5-mm3 kernel panics while booting up on the x86_64
-> machine. Sorry the console is bit overwritten for the first few lines.
+> Signed-off-by: KAMEZAWA Hiroyuki <kamewzawa.hiroyu@jp.fujitsu.com>
+> Index: linux-2.6.26-rc5-mm3/mm/truncate.c
+> ===================================================================
+> --- linux-2.6.26-rc5-mm3.orig/mm/truncate.c
+> +++ linux-2.6.26-rc5-mm3/mm/truncate.c
+> @@ -104,8 +104,8 @@ truncate_complete_page(struct address_sp
+>  
+>  	cancel_dirty_page(page, PAGE_CACHE_SIZE);
+>  
+> -	remove_from_page_cache(page);
+>  	clear_page_mlock(page);
+> +	remove_from_page_cache(page);
+>  	ClearPageUptodate(page);
+>  	ClearPageMappedToDisk(page);
+>  	page_cache_release(page);	/* pagecache ref */
 
-> no fstab.kernel BUG at mm/filemap.c:575!
+Confirming this quick fix works on my laptop that was hitting this crash -
+am now up and running on -rc5-mm3.
 
-For whatever it's worth, I'm seeing the same thing on my x86_64 laptop.
--rc5-mm2 works OK, I'm going to try to bisect it tonight.
-
-% diff -u /usr/src/linux-2.6.26-rc5-mm[23]/.config
---- /usr/src/linux-2.6.26-rc5-mm2/.config       2008-06-10 22:21:13.000000000 -0400
-+++ /usr/src/linux-2.6.26-rc5-mm3/.config       2008-06-12 22:20:25.000000000 -0400
-@@ -1,7 +1,7 @@
- #
- # Automatically generated make config: don't edit
--# Linux kernel version: 2.6.26-rc5-mm2
--# Tue Jun 10 22:21:13 2008
-+# Linux kernel version: 2.6.26-rc5-mm3
-+# Thu Jun 12 22:20:25 2008
- #
- CONFIG_64BIT=y
- # CONFIG_X86_32 is not set
-@@ -275,7 +275,7 @@
- CONFIG_ZONE_DMA_FLAG=1
- CONFIG_BOUNCE=y
- CONFIG_VIRT_TO_BUS=y
--# CONFIG_NORECLAIM_LRU is not set
-+CONFIG_UNEVICTABLE_LRU=y
- CONFIG_MTRR=y
- CONFIG_MTRR_SANITIZER=y
- CONFIG_MTRR_SANITIZER_ENABLE_DEFAULT=0
-
-Not much changed there...
-
-
---==_Exmh_1213330723_2983P
+--==_Exmh_1213331673_4969P
 Content-Type: application/pgp-signature
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.9 (GNU/Linux)
 Comment: Exmh version 2.5 07/13/2001
 
-iD8DBQFIUfUjcC3lWbTT17ARAkfUAJ0WQuV/bFRJGjGypxnucvdZEPw12QCeK3tg
-zb9aq6aIr8XgW+lmCicdQ/Y=
-=aeWO
+iD8DBQFIUfjZcC3lWbTT17ARAl94AJkBoB3dPLHaq1a+dfK29jmkGakJigCfaIDJ
+B55Awuo3IiE4YPeXEEoK928=
+=ioU1
 -----END PGP SIGNATURE-----
 
---==_Exmh_1213330723_2983P--
+--==_Exmh_1213331673_4969P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
