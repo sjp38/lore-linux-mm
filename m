@@ -1,163 +1,108 @@
-Date: Sat, 14 Jun 2008 21:22:44 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch](memory hotplug)Allocate usemap on the section with pgdat (take 2)
-Message-Id: <20080614211216.76B0.E1E9C6FF@jp.fujitsu.com>
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28esmtp07.in.ibm.com (8.13.1/8.13.1) with ESMTP id m5EDWl1K010833
+	for <linux-mm@kvack.org>; Sat, 14 Jun 2008 19:02:47 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5EDW03m802888
+	for <linux-mm@kvack.org>; Sat, 14 Jun 2008 19:02:01 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id m5EDWjBZ019833
+	for <linux-mm@kvack.org>; Sat, 14 Jun 2008 19:02:46 +0530
+Message-ID: <4853C87B.7050602@linux.vnet.ibm.com>
+Date: Sat, 14 Jun 2008 19:02:43 +0530
+From: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [PATCH] fix double unlock_page() in 2.6.26-rc5-mm3 kernel BUG
+ at mm/filemap.c:575!
+References: <20080611225945.4da7bb7f.akpm@linux-foundation.org> <4850E1E5.90806@linux.vnet.ibm.com> <20080612015746.172c4b56.akpm@linux-foundation.org> <20080612202003.db871cac.kamezawa.hiroyu@jp.fujitsu.com> <20080613104444.63bd242f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080613104444.63bd242f.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>, Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>, Tony Breeds <tony@bakeyournoodle.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Andy Whitcroft <apw@shadowen.org>, "riel@redhat.com" <riel@redhat.com>, "Lee.Schermerhorn@hp.com" <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello.
+KAMEZAWA Hiroyuki wrote:
+> This is reproducer of panic. "quick fix" is attached.
+> But I think putback_lru_page() should be re-designed.
+> 
+> ==
+> #include <stdio.h>
+> #include <sys/types.h>
+> #include <sys/stat.h>
+> #include <fcntl.h>
+> #include <sys/mman.h>
+> #include <unistd.h>
+> #include <errno.h>
+> 
+> int main(int argc, char *argv[])
+> {
+>         int fd;
+>         char *filename = argv[1];
+>         char buffer[4096];
+>         char *addr;
+>         int len;
+> 
+>         fd = open(filename, O_CREAT | O_EXCL | O_RDWR, S_IRWXU);
+> 
+>         if (fd < 0) {
+>                 perror("open");
+>                 exit(1);
+>         }
+>         len = write(fd, buffer, sizeof(buffer));
+> 
+>         if (len < 0) {
+>                 perror("write");
+>                 exit(1);
+>         }
+> 
+>         addr = mmap(NULL, 4096, PROT_WRITE, MAP_SHARED|MAP_LOCKED, fd, 0);
+>         if (addr == MAP_FAILED) {
+>                 perror("mmap");
+>                 exit(1);
+>         }
+>         munmap(addr, 4096);
+>         close(fd);
+> 
+>         unlink(filename);
+> }
+> ==
+> you'll see panic.
+> 
+> Fix is here
+> ==
+Hi Kame,
 
-I update the patch which was cause of regression at bootmem.
-This version allows normal allocation if alloc_bootmem_section() fails.
-So, previous regression will not occur.
+Thanks, The patch fixes the kernel panic.
 
-I tested on my box. But it's not sparc, s390, nor powerpc.
-If there is any trouble by this patch, please let me know.
+Tested-by: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+> 
+> quick fix for double unlock_page();
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamewzawa.hiroyu@jp.fujitsu.com>
+> Index: linux-2.6.26-rc5-mm3/mm/truncate.c
+> ===================================================================
+> --- linux-2.6.26-rc5-mm3.orig/mm/truncate.c
+> +++ linux-2.6.26-rc5-mm3/mm/truncate.c
+> @@ -104,8 +104,8 @@ truncate_complete_page(struct address_sp
+> 
+>  	cancel_dirty_page(page, PAGE_CACHE_SIZE);
+> 
+> -	remove_from_page_cache(page);
+>  	clear_page_mlock(page);
+> +	remove_from_page_cache(page);
+>  	ClearPageUptodate(page);
+>  	ClearPageMappedToDisk(page);
+>  	page_cache_release(page);	/* pagecache ref */
+> 
 
-If no trouble, please apply.
-
-Thanks.
-
----
-
-Usemaps are allocated on the section which has pgdat by this.
-
-Because usemap size is very small, many other sections usemaps
-are allocated on only one page. If a section has usemap, it
-can't be removed until removing other sections.
-This dependency is not desirable for memory removing.
-
-Pgdat has similar feature. When a section has pgdat area, it 
-must be the last section for removing on the node.
-So, if section A has pgdat and section B has usemap for section A,
-Both sections can't be removed due to dependency each other.
-
-To solve this issue, this patch collects usemap on same
-section with pgdat as much as possible.
-If other sections doesn't have any dependency, this section will
-be able to be removed finally.
-
-Change log of take 2.
- - This feature becomes effective only when CONFIG_MEMORY_HOTREMOVE is on.
-   If hotremove is off, this feature is not necessary.
- - Allow allocation on other section if alloc_bootmem_section() fails.
-   This avoids previous regression.
- - Show message if allocation on same section fails.
-
-Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-
----
-
- mm/sparse.c |   77 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 76 insertions(+), 1 deletion(-)
-
-Index: current/mm/sparse.c
-===================================================================
---- current.orig/mm/sparse.c	2008-06-14 19:03:23.000000000 +0900
-+++ current/mm/sparse.c	2008-06-14 20:41:39.000000000 +0900
-@@ -269,16 +269,91 @@
- }
- #endif /* CONFIG_MEMORY_HOTPLUG */
- 
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+static unsigned long * __init
-+sparse_early_usemap_alloc_section(unsigned long pnum)
-+{
-+	unsigned long section_nr;
-+	struct mem_section *ms = __nr_to_section(pnum);
-+	int nid = sparse_early_nid(ms);
-+ 	struct pglist_data *pgdat = NODE_DATA(nid);
-+
-+	/*
-+	 * Usemap's page can't be freed until freeing other sections
-+	 * which use it. And, pgdat has same feature.
-+	 * If section A has pgdat and section B has usemap for other
-+	 * sections (includes section A), both sections can't be removed,
-+	 * because there is the dependency each other.
-+	 * To solve above issue, this collects all usemap on the same section
-+	 * which has pgdat as much as possible.
-+	 */
-+	section_nr = pfn_to_section_nr(__pa(pgdat) >> PAGE_SHIFT);
-+	return alloc_bootmem_section(usemap_size(), section_nr);
-+}
-+
-+static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
-+{
-+	unsigned long usemap_snr, pgdat_snr;
-+	static unsigned long old_usemap_snr = NR_MEM_SECTIONS;
-+	static unsigned long old_pgdat_snr = NR_MEM_SECTIONS;
-+	struct pglist_data *pgdat = NODE_DATA(nid);
-+	int usemap_nid;
-+
-+	usemap_snr = pfn_to_section_nr(__pa(usemap) >> PAGE_SHIFT);
-+	pgdat_snr = pfn_to_section_nr(__pa(pgdat) >> PAGE_SHIFT);
-+	if (usemap_snr == pgdat_snr)
-+		return;
-+
-+	if (old_usemap_snr == usemap_snr && old_pgdat_snr == pgdat_snr)
-+		/* skip redundant message */
-+		return;
-+
-+	old_usemap_snr = usemap_snr;
-+	old_pgdat_snr = pgdat_snr;
-+
-+	usemap_nid = sparse_early_nid(__nr_to_section(usemap_snr));
-+	if (usemap_nid != nid) {
-+		printk("node %d must be removed before remove section %ld\n",
-+		       nid, usemap_snr);
-+		return;
-+	}
-+	/*
-+	 * There is a dependency deadlock.
-+	 * Some platforms allow un-removable section because they will just
-+	 * gather other removable sections for dynamic partitioning.
-+	 * Just notify un-removable section's number here.
-+	 */
-+	printk(KERN_INFO "section %ld and %ld", usemap_snr, pgdat_snr);
-+	printk(" can't be hotremoved due to dependency each other.\n");
-+}
-+#else
-+static unsigned long * __init
-+sparse_early_usemap_alloc_section(unsigned long pnum)
-+{
-+	return NULL;
-+}
-+
-+static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
-+{
-+}
-+#endif /* CONFIG_MEMORY_HOTREMOVE */
-+
- static unsigned long *__init sparse_early_usemap_alloc(unsigned long pnum)
- {
- 	unsigned long *usemap;
- 	struct mem_section *ms = __nr_to_section(pnum);
- 	int nid = sparse_early_nid(ms);
- 
--	usemap = alloc_bootmem_node(NODE_DATA(nid), usemap_size());
-+	usemap = sparse_early_usemap_alloc_section(pnum);
- 	if (usemap)
- 		return usemap;
- 
-+	usemap = alloc_bootmem_node(NODE_DATA(nid), usemap_size());
-+	if (usemap) {
-+		check_usemap_section_nr(nid, usemap);
-+		return usemap;
-+	}
-+
- 	/* Stupid: suppress gcc warning for SPARSEMEM && !NUMA */
- 	nid = 0;
- 
 
 -- 
-Yasunori Goto 
-
+Thanks & Regards,
+Kamalesh Babulal,
+Linux Technology Center,
+IBM, ISTL.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
