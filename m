@@ -1,50 +1,49 @@
-Received: by ti-out-0910.google.com with SMTP id j3so1535919tid.8
-        for <linux-mm@kvack.org>; Mon, 16 Jun 2008 01:08:59 -0700 (PDT)
-Message-ID: <a8e1da0806160108x3de46eafp545275eb9dfd4f98@mail.gmail.com>
-Date: Mon, 16 Jun 2008 16:08:59 +0800
-From: "Dave Young" <hidave.darkstar@gmail.com>
-Subject: Re: [PATCH] kernel parameter vmalloc size fix
-In-Reply-To: <20080616080131.GC25632@elte.hu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+From: kamezawa.hiroyu@jp.fujitsu.com
+Message-ID: <11930674.1213604250738.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 16 Jun 2008 17:17:30 +0900 (JST)
+Subject: Re: Re: [PATCH 1/6] res_counter:  handle limit change
+In-Reply-To: <48561B68.6060503@openvz.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080616042528.GA3003@darkstar.te-china.tietoenator.com>
-	 <20080616080131.GC25632@elte.hu>
+References: <48561B68.6060503@openvz.org>
+ <48560A7C.9050501@openvz.org> <20080613182714.265fe6d2.kamezawa.hiroyu@jp.fujitsu.com> <20080613182924.c73fe9eb.kamezawa.hiroyu@jp.fujitsu.com> <33011576.1213601977563.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, hpa@zytor.com, the arch/x86 maintainers <x86@kernel.org>
+To: Pavel Emelyanov <xemul@openvz.org>
+Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, menage@google.com, balbir@linux.vnet.ibm.com, yamamoto@valinux.co.jp, nishimura@mxp.nes.nec.co.jp, lizf@cn.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 16, 2008 at 4:01 PM, Ingo Molnar <mingo@elte.hu> wrote:
->
-> * Dave Young <hidave.darkstar@gmail.com> wrote:
->
->> booting kernel with vmalloc=[any size<=16m] will oops.
->>
->> It's due to the vm area hole.
->>
->> In include/asm-x86/pgtable_32.h:
->> #define VMALLOC_OFFSET        (8 * 1024 * 1024)
->> #define VMALLOC_START (((unsigned long)high_memory + 2 * VMALLOC_OFFSET - 1) \
->>                        & ~(VMALLOC_OFFSET - 1))
->>
->> BUG_ON in arch/x86/mm/init_32.c will be triggered:
->> BUG_ON((unsigned long)high_memory             > VMALLOC_START);
->>
->> Fixed by return -EINVAL for invalid parameter
->
-> hm. Why dont we instead add the size of the hole to the
-> __VMALLOC_RESERVE value instead? There's nothing inherently bad about
-> using vmalloc=16m. The VM area hole is really a kernel-internal
-> abstraction that should not be visible in the usage of the parameter.
+----- Original Message -----
 
-Good suggestion, thanks. I will rewrite the patch and send.
+>> I think when I did all in memcg, someone will comment that "why do that
+>> all in memcg ? please implement generic one to avoid code duplication"
+>
+>Hm... But we're choosing between
+>
+>sys_write->xxx_cgroup_write->res_counter_set_limit->xxx_cgroup_call
+>
+>and
+>
+>sys_write->xxx_cgroup_write->res_counter_set_limit
+>                           ->xxx_cgroup_call
+>
+>With the sizeof(void *)-bytes difference in res_counter, nNo?
+>
+I can't catch what you mean. What is res_counter_set_limit here ?
+(my patche's ?) and what is sizeof(void *)-bytes ?
 
--- 
-Regards
-dave
+Is it so strange to add following algorithm in res_counter?
+==
+set_limit -> fail -> shrink -> set limit -> fail ->shrink
+-> success -> return 0
+==
+I think this is enough generic.
+
+Thanks,
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
