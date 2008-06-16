@@ -1,61 +1,88 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id m5GCTLxI026721
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2008 22:29:21 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5GCTvkY304154
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2008 22:29:57 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5GCTusq018133
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2008 22:29:57 +1000
-Message-ID: <48565CBA.2040309@linux.vnet.ibm.com>
-Date: Mon, 16 Jun 2008 17:59:46 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Date: Mon, 16 Jun 2008 22:18:40 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [Patch 003/005](memory hotplug) make alloc_bootmem_section()
+In-Reply-To: <20080616103231.GF17016@shadowen.org>
+References: <20080407214639.8876.E1E9C6FF@jp.fujitsu.com> <20080616103231.GF17016@shadowen.org>
+Message-Id: <20080616213951.9EA3.E1E9C6FF@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/6] res_counter:  handle limit change
-References: <48562AFF.9050804@linux.vnet.ibm.com> <20080613182714.265fe6d2.kamezawa.hiroyu@jp.fujitsu.com> <20080613182924.c73fe9eb.kamezawa.hiroyu@jp.fujitsu.com> <400765.1213607050433.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <400765.1213607050433.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, menage@google.com, xemul@openvz.org, yamamoto@valinux.co.jp, nishimura@mxp.nes.nec.co.jp, lizf@cn.fujitsu.com
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Yinghai Lu <yhlu.kernel@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-kamezawa.hiroyu@jp.fujitsu.com wrote:
-> ----- Original Message -----
->> KAMEZAWA Hiroyuki wrote:
->>> Add a support to shrink_usage_at_limit_change feature to res_counter.
->>> memcg will use this to drop pages.
->>>
->>> Change log: xxx -> v4 (new file.)
->>>  - cut out the limit-change part from hierarchy patch set.
->>>  - add "retry_count" arguments to shrink_usage(). This allows that we don't
->>>    have to set the default retry loop count.
->>>  - res_counter_check_under_val() is added to support subsystem.
->>>  - res_counter_init() is res_counter_init_ops(cnt, NULL)
->>>
->>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>>
->> Does shrink_usage() really belong to res_counters? Could a task limiter, a
->> CPU/IO bandwidth controller use this callback? Resource Counters were designe
-> d
->> to be generic and work across controllers. Isn't the memory controller a bett
-> er
->> place for such ops.
->>
-> Definitely No. I think counters which cannot be shrink should return -EBUSY
-> by shrink_usage() when it cannot do it. 
+> On Mon, Apr 07, 2008 at 09:47:29PM +0900, Yasunori Goto wrote:
+> > alloc_bootmem_section() can allocate specified section's area.
+> > This is used for usemap to keep same section with pgdat by later patch.
+> > 
+> > Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+> > 
+> > ---
+> >  include/linux/bootmem.h |    2 ++
+> >  mm/bootmem.c            |   31 +++++++++++++++++++++++++++++++
+> >  2 files changed, 33 insertions(+)
+> > 
+> > Index: current/include/linux/bootmem.h
+> > ===================================================================
+> > --- current.orig/include/linux/bootmem.h	2008-04-07 19:18:44.000000000 +0900
+> > +++ current/include/linux/bootmem.h	2008-04-07 19:30:08.000000000 +0900
+> > @@ -101,6 +101,8 @@
+> >  extern void free_bootmem_node(pg_data_t *pgdat,
+> >  			      unsigned long addr,
+> >  			      unsigned long size);
+> > +extern void *alloc_bootmem_section(unsigned long size,
+> > +				   unsigned long section_nr);
+> >  
+> >  #ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
+> >  #define alloc_bootmem_node(pgdat, x) \
+> > Index: current/mm/bootmem.c
+> > ===================================================================
+> > --- current.orig/mm/bootmem.c	2008-04-07 19:18:44.000000000 +0900
+> > +++ current/mm/bootmem.c	2008-04-07 19:30:08.000000000 +0900
+> > @@ -540,6 +540,37 @@
+> >  	return __alloc_bootmem(size, align, goal);
+> >  }
+> >  
+> > +#ifdef CONFIG_SPARSEMEM
+> > +void * __init alloc_bootmem_section(unsigned long size,
+> > +				    unsigned long section_nr)
+> > +{
+> > +	void *ptr;
+> > +	unsigned long limit, goal, start_nr, end_nr, pfn;
+> > +	struct pglist_data *pgdat;
+> > +
+> > +	pfn = section_nr_to_pfn(section_nr);
+> > +	goal = PFN_PHYS(pfn);
+> > +	limit = PFN_PHYS(section_nr_to_pfn(section_nr + 1)) - 1;
+> > +	pgdat = NODE_DATA(early_pfn_to_nid(pfn));
+> > +	ptr = __alloc_bootmem_core(pgdat->bdata, size, SMP_CACHE_BYTES, goal,
+> > +				   limit);
+> > +
+> > +	if (!ptr)
+> > +		return NULL;
+> > +
+> This also indicates a failure allocating within the section, and yet we
+> do not report it here.
+> 
+> > +	start_nr = pfn_to_section_nr(PFN_DOWN(__pa(ptr)));
+> > +	end_nr = pfn_to_section_nr(PFN_DOWN(__pa(ptr) + size));
+> > +	if (start_nr != section_nr || end_nr != section_nr) {
+> > +		printk(KERN_WARNING "alloc_bootmem failed on section %ld.\n",
+> > +		       section_nr);
+> > +		free_bootmem_core(pgdat->bdata, __pa(ptr), size);
+> 
+> But we do here.  I think we should report both if this is worth
+> reporting.
 
-Wouldn't that be all counters except for the memory controller RSS counter? I
-can't see anyone besides the memory controller supporting shrink_usage().
+Here is already removed from newest -mm.
+(Bootmem code is rewritten by Johannes Weiner recently.)
+Please check the newest -mm code.
 
 -- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
