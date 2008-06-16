@@ -1,57 +1,100 @@
-From: kamezawa.hiroyu@jp.fujitsu.com
-Message-ID: <31111909.1213606437203.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 16 Jun 2008 17:53:57 +0900 (JST)
-Subject: Re: Re: Re: [PATCH 1/6] res_counter:  handle limit change
-In-Reply-To: <11930674.1213604250738.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="iso-2022-jp"
+Message-ID: <485625D9.6040508@gmail.com>
+From: Andrea Righi <righi.andrea@gmail.com>
+Reply-To: righi.andrea@gmail.com
+MIME-Version: 1.0
+Subject: Re: [PATCH -mm] PAGE_ALIGN(): correctly handle 64-bit values on 32-bit
+ architectures (v2)
+References: <1213543436-15254-1-git-send-email-righi.andrea@gmail.com> <18517.39513.867328.171299@cargo.ozlabs.ibm.com>
+In-Reply-To: <18517.39513.867328.171299@cargo.ozlabs.ibm.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-References: <11930674.1213604250738.kamezawa.hiroyu@jp.fujitsu.com>
- <48561B68.6060503@openvz.org>
- <48560A7C.9050501@openvz.org> <20080613182714.265fe6d2.kamezawa.hiroyu@jp.fujitsu.com> <20080613182924.c73fe9eb.kamezawa.hiroyu@jp.fujitsu.com> <33011576.1213601977563.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 16 Jun 2008 10:35:37 +0200 (MEST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: Pavel Emelyanov <xemul@openvz.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, menage@google.com, balbir@linux.vnet.ibm.com, yamamoto@valinux.co.jp, nishimura@mxp.nes.nec.co.jp, lizf@cn.fujitsu.com
+To: Paul Mackerras <paulus@samba.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, Sudhir Kumar <skumar@linux.vnet.ibm.com>, yamamoto@valinux.co.jp, menage@google.com, linux-kernel@vger.kernel.org, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
------ Original Message -----
->>> I think when I did all in memcg, someone will comment that "why do that
->>> all in memcg ? please implement generic one to avoid code duplication"
->>
->>Hm... But we're choosing between
->>
->>sys_write->xxx_cgroup_write->res_counter_set_limit->xxx_cgroup_call
->>
->>and
->>
->>sys_write->xxx_cgroup_write->res_counter_set_limit
->>                           ->xxx_cgroup_call
->>
->>With the sizeof(void *)-bytes difference in res_counter, nNo?
->>
->I can't catch what you mean. What is res_counter_set_limit here ?
->(my patche's ?) and what is sizeof(void *)-bytes ?
->
->Is it so strange to add following algorithm in res_counter?
->==
->set_limit -> fail -> shrink -> set limit -> fail ->shrink
->-> success -> return 0
->==
->I think this is enough generic.
->
-This was previous request from Paul. (to hierarchy patch set)
+Paul Mackerras wrote:
+> Andrea Righi writes:
+> 
+>> Also move the PAGE_ALIGN() definitions out of include/asm-*/page.h in
+>> include/linux/mm.h.
+> 
+> I'd rather see it in some other place than this, because
+> include/linux/mm.h is a large header that includes quite a lot of
+> other stuff.  What's wrong with leaving it in each arch's page.h and
+> only changing it on those archs that have both 32-bit and 64-bit
+> variants?  Or perhaps there is some other, lower-level header in
+> include/linux where it could go?
 
-http://marc.info/?l=linux-mm&m=121257010530546&w=2
+I think the only evident advantage of this is to have a single
+implementation, instead of dealing with (potentially) N different
+implementations.
 
-I think this version meets his request. and I like this.
+Maybe a different place could be linux/mm_types.h, it's not so small,
+but at least it's smaller than linux/mm.h. However, it's a bit ugly to
+put a "function" in a file called mm_types.h.
 
-I don't want to waste more weeks. Then, what is bad ?
-removing res_counter_ops is okay ?
+Anyway, I've to say that fixing PAGE_ALIGN and leaving it in each page.h
+for now would be surely a simpler solution and would introduce less
+potential errors.
+
+> 
+>> diff --git a/arch/powerpc/boot/of.c b/arch/powerpc/boot/of.c
+>> index 61d9899..6bc72b1 100644
+>> --- a/arch/powerpc/boot/of.c
+>> +++ b/arch/powerpc/boot/of.c
+>> @@ -8,6 +8,7 @@
+>>   */
+>>  #include <stdarg.h>
+>>  #include <stddef.h>
+>> +#include <linux/mm.h>
+>>  #include "types.h"
+>>  #include "elf.h"
+>>  #include "string.h"
+>> diff --git a/arch/powerpc/boot/page.h b/arch/powerpc/boot/page.h
+>> index 14eca30..aa42298 100644
+>> --- a/arch/powerpc/boot/page.h
+>> +++ b/arch/powerpc/boot/page.h
+>> @@ -28,7 +28,4 @@
+>>  /* align addr on a size boundary - adjust address up if needed */
+>>  #define _ALIGN(addr,size)     _ALIGN_UP(addr,size)
+>>  
+>> -/* to align the pointer to the (next) page boundary */
+>> -#define PAGE_ALIGN(addr)	_ALIGN(addr, PAGE_SIZE)
+>> -
+>>  #endif				/* _PPC_BOOT_PAGE_H */
+> 
+> These parts are NAKed, because arch/powerpc/boot is a separate program
+> that doesn't use the kernel include files.
+
+OK, so we also shouldn't use the linux/kernel.h's ALIGN() here, but leave
+the local _ALIGN() definition, right?
+
+> 
+>> diff --git a/include/asm-powerpc/page.h b/include/asm-powerpc/page.h
+>> index cffdf0e..e088545 100644
+>> --- a/include/asm-powerpc/page.h
+>> +++ b/include/asm-powerpc/page.h
+>> @@ -119,9 +119,6 @@ extern phys_addr_t kernstart_addr;
+>>  /* align addr on a size boundary - adjust address up if needed */
+>>  #define _ALIGN(addr,size)     _ALIGN_UP(addr,size)
+>>  
+>> -/* to align the pointer to the (next) page boundary */
+>> -#define PAGE_ALIGN(addr)	_ALIGN(addr, PAGE_SIZE)
+>> -
+>>  /*
+>>   * Don't compare things with KERNELBASE or PAGE_OFFSET to test for
+>>   * "kernelness", use is_kernel_addr() - it should do what you want.
+> 
+> We had already come across this issue on powerpc, and we fixed it by
+> making sure that the type of PAGE_MASK was int, not unsigned int.
+> However, I have no objection to using the ALIGN() macro from
+> include/linux/kernel.h instead.
 
 Thanks,
--Kame
-
+-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
