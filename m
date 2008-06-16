@@ -1,105 +1,102 @@
-Date: Mon, 16 Jun 2008 23:09:02 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [Patch 005/005](memory hotplug) free memmaps allocated by bootmem
-In-Reply-To: <20080616104434.GG17016@shadowen.org>
-References: <20080407214844.887A.E1E9C6FF@jp.fujitsu.com> <20080616104434.GG17016@shadowen.org>
-Message-Id: <20080616220228.9EA5.E1E9C6FF@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [PATCH] fix double unlock_page() in 2.6.26-rc5-mm3 kernel BUG
+	at mm/filemap.c:575!
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <1213371046.9670.12.camel@lts-notebook>
+References: <20080611225945.4da7bb7f.akpm@linux-foundation.org>
+	 <4850E1E5.90806@linux.vnet.ibm.com>
+	 <20080612015746.172c4b56.akpm@linux-foundation.org>
+	 <20080612202003.db871cac.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20080613104444.63bd242f.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20080612191311.1331f337.akpm@linux-foundation.org>
+	 <1213371046.9670.12.camel@lts-notebook>
+Content-Type: text/plain
+Date: Mon, 16 Jun 2008 10:49:02 -0400
+Message-Id: <1213627742.6538.7.camel@lts-notebook>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Yinghai Lu <yhlu.kernel@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Andy Whitcroft <apw@shadowen.org>, "riel@redhat.com" <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> > Index: current/mm/sparse.c
-> > ===================================================================
-> > --- current.orig/mm/sparse.c	2008-04-07 20:13:25.000000000 +0900
-> > +++ current/mm/sparse.c	2008-04-07 20:27:20.000000000 +0900
-> > @@ -8,6 +8,7 @@
-> >  #include <linux/module.h>
-> >  #include <linux/spinlock.h>
-> >  #include <linux/vmalloc.h>
-> > +#include "internal.h"
-> >  #include <asm/dma.h>
-> >  #include <asm/pgalloc.h>
-> >  #include <asm/pgtable.h>
-> > @@ -360,6 +361,9 @@
-> >  {
-> >  	return; /* XXX: Not implemented yet */
-> >  }
-> > +static void free_map_bootmem(struct page *page, unsigned long nr_pages)
-> > +{
-> > +}
-> >  #else
-> >  static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
-> >  {
-> > @@ -397,17 +401,47 @@
-> >  		free_pages((unsigned long)memmap,
-> >  			   get_order(sizeof(struct page) * nr_pages));
-> >  }
-> > +
-> > +static void free_map_bootmem(struct page *page, unsigned long nr_pages)
-> > +{
-> > +	unsigned long maps_section_nr, removing_section_nr, i;
-> > +	int magic;
-> > +
-> > +	for (i = 0; i < nr_pages; i++, page++) {
-> > +		magic = atomic_read(&page->_mapcount);
-> > +
-> > +		BUG_ON(magic == NODE_INFO);
+On Fri, 2008-06-13 at 11:30 -0400, Lee Schermerhorn wrote:
+> On Thu, 2008-06-12 at 19:13 -0700, Andrew Morton wrote:
+> > On Fri, 13 Jun 2008 10:44:44 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > 
+> > > This is reproducer of panic. "quick fix" is attached.
+> > 
+> > Thanks - I put that in
+> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.26-rc5/2.6.26-rc5-mm3/hot-fixes/
+> > 
+> > > But I think putback_lru_page() should be re-designed.
+> > 
+> > Yes, it sounds that way.
 > 
-> Are we sure the node area was big enough to never allocate usemap's into
-> it and change the magic to MIX?  I saw you make the section information
-> page sized but not the others.
-
-I don't think this is finish for removing whole of node. Just preparing.
-I would like to make section removing at first rather than node.
-
-> > +
-> > +		maps_section_nr = pfn_to_section_nr(page_to_pfn(page));
-> > +		removing_section_nr = page->private;
-> > +
-> > +		/*
-> > +		 * When this function is called, the removing section is
-> > +		 * logical offlined state. This means all pages are isolated
-> > +		 * from page allocator. If removing section's memmap is placed
-> > +		 * on the same section, it must not be freed.
-> > +		 * If it is freed, page allocator may allocate it which will
-> > +		 * be removed physically soon.
-> > +		 */
-> > +		if (maps_section_nr != removing_section_nr)
-> > +			put_page_bootmem(page);
+> Here's a proposed replacement patch that reworks putback_lru_page()
+> slightly and cleans up the call sites.  I still want to balance the
+> get_page() in isolate_lru_page() with a put_page() in putback_lru_page()
+> for the primary users--vmscan and page migration.  So, I need to drop
+> the lock before the put_page() when handed a page with null mapping and
+> a single reference count as the page will be freed on put_page() and a
+> locked page would bug out in free_pages_check()/bad_page().  
 > 
-> Would the section memmap have its own get_page_bootmem reference here?
-> Would that not protect it from release?
 
-It's not protected.
+Below is a fix to the "proposed replacement patch" posted on Friday.
+Incorrect test for page->mapping().
 
+Lee
 
+Against:  2.6.26-rc5-mm3 
 
-> > Index: current/mm/page_alloc.c
-> > ===================================================================
-> > --- current.orig/mm/page_alloc.c	2008-04-07 20:12:55.000000000 +0900
-> > +++ current/mm/page_alloc.c	2008-04-07 20:13:29.000000000 +0900
-> > @@ -568,7 +568,7 @@
-> >  /*
-> >   * permit the bootmem allocator to evade page validation on high-order frees
-> >   */
-> > -void __init __free_pages_bootmem(struct page *page, unsigned int order)
-> > +void __free_pages_bootmem(struct page *page, unsigned int order)
-> 
-> not __meminit or something?
+Incremental fix to my proposed patch to "fix double unlock_page() in
+2.6.26-rc5-mm3 kernel BUG at mm/filemap.c:575".
 
-Ah, yes. I'll fix it.
+"page_mapping(page)" should be "page->mapping" in VM_BUG_ON()s
+introduced to m[un]lock_vma_page().
 
-Thanks for comments.
+Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-Bye.
+ mm/mlock.c |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
--- 
-Yasunori Goto 
+Index: linux-2.6.26-rc5-mm3/mm/mlock.c
+===================================================================
+--- linux-2.6.26-rc5-mm3.orig/mm/mlock.c	2008-06-16 09:47:28.000000000 -0400
++++ linux-2.6.26-rc5-mm3/mm/mlock.c	2008-06-16 09:48:27.000000000 -0400
+@@ -80,12 +80,12 @@ void __clear_page_mlock(struct page *pag
+  * Mark page as mlocked if not already.
+  * If page on LRU, isolate and putback to move to unevictable list.
+  *
+- * Called with page locked and page_mapping() != NULL.
++ * Called with page locked and page->mapping != NULL.
+  */
+ void mlock_vma_page(struct page *page)
+ {
+ 	BUG_ON(!PageLocked(page));
+-	VM_BUG_ON(!page_mapping(page));
++	VM_BUG_ON(!page->mapping);
+ 
+ 	if (!TestSetPageMlocked(page)) {
+ 		inc_zone_page_state(page, NR_MLOCK);
+@@ -98,7 +98,7 @@ void mlock_vma_page(struct page *page)
+ /*
+  * called from munlock()/munmap() path with page supposedly on the LRU.
+  *
+- * Called with page locked and page_mapping() != NULL.
++ * Called with page locked and page->mapping != NULL.
+  *
+  * Note:  unlike mlock_vma_page(), we can't just clear the PageMlocked
+  * [in try_to_munlock()] and then attempt to isolate the page.  We must
+@@ -118,7 +118,7 @@ void mlock_vma_page(struct page *page)
+ static void munlock_vma_page(struct page *page)
+ {
+ 	BUG_ON(!PageLocked(page));
+-	VM_BUG_ON(!page_mapping(page));
++	VM_BUG_ON(!page->mapping);
+ 
+ 	if (TestClearPageMlocked(page)) {
+ 		dec_zone_page_state(page, NR_MLOCK);
 
 
 --
