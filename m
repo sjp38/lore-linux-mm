@@ -1,59 +1,45 @@
-Date: Mon, 16 Jun 2008 22:26:29 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [Patch 002/005](memory hotplug) align memmap to page size
-In-Reply-To: <20080616102616.GE17016@shadowen.org>
-References: <20080407214514.8872.E1E9C6FF@jp.fujitsu.com> <20080616102616.GE17016@shadowen.org>
-Message-Id: <20080616211035.9EA1.E1E9C6FF@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+From: kamezawa.hiroyu@jp.fujitsu.com
+Message-ID: <32834312.1213622802513.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 16 Jun 2008 22:26:42 +0900 (JST)
+Subject: Re: Re: [PATCH 1/6] res_counter:  handle limit change
+In-Reply-To: <48565CBA.2040309@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
+References: <48565CBA.2040309@linux.vnet.ibm.com>
+ <48562AFF.9050804@linux.vnet.ibm.com> <20080613182714.265fe6d2.kamezawa.hiroyu@jp.fujitsu.com> <20080613182924.c73fe9eb.kamezawa.hiroyu@jp.fujitsu.com> <400765.1213607050433.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Yinghai Lu <yhlu.kernel@gmail.com>
+To: balbir@linux.vnet.ibm.com
+Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, menage@google.com, xemul@openvz.org, yamamoto@valinux.co.jp, nishimura@mxp.nes.nec.co.jp, lizf@cn.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-> On Mon, Apr 07, 2008 at 09:46:19PM +0900, Yasunori Goto wrote:
-> > To free memmap easier, this patch aligns it to page size.
-> > Bootmem allocater may mix some objects in one pages.
-> > It's not good for freeing memmap of memory hot-remove.
-> > 
-> > 
-> > Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-> > 
-> > ---
-> >  mm/sparse.c |    4 ++--
-> >  1 file changed, 2 insertions(+), 2 deletions(-)
-> > 
-> > Index: current/mm/sparse.c
-> > ===================================================================
-> > --- current.orig/mm/sparse.c	2008-04-07 19:18:50.000000000 +0900
-> > +++ current/mm/sparse.c	2008-04-07 20:08:13.000000000 +0900
-> > @@ -265,8 +265,8 @@
-> >  	if (map)
-> >  		return map;
-> >  
-> > -	map = alloc_bootmem_node(NODE_DATA(nid),
-> > -			sizeof(struct page) * PAGES_PER_SECTION);
-> > +	map = alloc_bootmem_pages_node(NODE_DATA(nid),
-> > +		       PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION));
-> >  	return map;
-> >  }
-> >  #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
-> 
-> Ahh ok, we do makes sure the mmap uses up the rest of the space.  That
-> though is a shame as we cannot slip the usemap in the end of the space
-> any more (assuming we could).
+----- Original Message -----
 
-I thought we could merge memmap and usemap page in same pages. However,
-if memmap' size equals page size correctly, one page must be used for
-only one usemap in the end. 
+>> Definitely No. I think counters which cannot be shrink should return -EBUSY
+>> by shrink_usage() when it cannot do it. 
+>
+>Wouldn't that be all counters except for the memory controller RSS counter? I
+>can't see anyone besides the memory controller supporting shrink_usage().
+>
+Slab_counter is a candidate. But ok, if everyone doesn't like this,
+I'll abandon the whole and rewrite it as v3. 
 
-Bye.
+And condidering your point, my high-low-watermark patch set should be
+implemented within memcg and adding high/low to res_counter is too bad.
+I'll change my plan. But res_counter is less useful rather than I thought of ;
+)
+Besides it doesn't support any feedbacks, it just restricts the access to para
+meters.
 
--- 
-Yasunori Goto 
+BTW, I believe current res_counter's behavior to return success
+at usage > limit case is very bad. I'd like to return -EBUSY.
+How do you think ?
+(And I also think res_counter_charge returns -ENOMEM is BUG. It should be
+ -EBUSY.)
 
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
