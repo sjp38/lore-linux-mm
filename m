@@ -1,9 +1,11 @@
-Date: Tue, 17 Jun 2008 16:35:01 +0900
+Date: Tue, 17 Jun 2008 16:47:09 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [PATCH][RFC] fix kernel BUG at mm/migrate.c:719! in 2.6.26-rc5-mm3
-Message-Id: <20080617163501.7cf411ee.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20080611225945.4da7bb7f.akpm@linux-foundation.org>
+Subject: [Bad page] trying to free locked page? (Re: [PATCH][RFC] fix kernel
+ BUG at mm/migrate.c:719! in 2.6.26-rc5-mm3)
+Message-Id: <20080617164709.de4db070.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20080617163501.7cf411ee.nishimura@mxp.nes.nec.co.jp>
 References: <20080611225945.4da7bb7f.akpm@linux-foundation.org>
+	<20080617163501.7cf411ee.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -13,154 +15,104 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi.
+On Tue, 17 Jun 2008 16:35:01 +0900, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> Hi.
+> 
+> I got this bug while migrating pages only a few times
+> via memory_migrate of cpuset.
+> 
+> Unfortunately, even if this patch is applied,
+> I got bad_page problem after hundreds times of page migration
+> (I'll report it in another mail).
+> But I believe something like this patch is needed anyway.
+> 
 
-I got this bug while migrating pages only a few times
-via memory_migrate of cpuset.
+I got bad_page after hundreds times of page migration.
+It seems that a locked page is being freed.
 
-Unfortunately, even if this patch is applied,
-I got bad_page problem after hundreds times of page migration
-(I'll report it in another mail).
-But I believe something like this patch is needed anyway.
 
+Bad page state in process 'switch.sh'
+page:ffffe20001ee8f40 flags:0x0500000000080019 mapping:0000000000000000 mapcount:0 count:0
+Trying to fix it up, but a reboot is needed
+Backtrace:
+Pid: 23283, comm: switch.sh Not tainted 2.6.26-rc5-mm3-test6-lee #1
+
+Call Trace:
+ [<ffffffff802747b0>] bad_page+0x97/0x131
+ [<ffffffff80275ae6>] free_hot_cold_page+0xd4/0x19c
+ [<ffffffff8027a5c3>] putback_lru_page+0xf4/0xfb
+ [<ffffffff8029b210>] putback_lru_pages+0x46/0x74
+ [<ffffffff8029bc5b>] migrate_pages+0x3f4/0x468
+ [<ffffffff80290797>] new_node_page+0x0/0x2f
+ [<ffffffff80291631>] do_migrate_pages+0x19b/0x1e7
+ [<ffffffff8025c827>] cpuset_migrate_mm+0x58/0x8f
+ [<ffffffff8025d0fd>] cpuset_attach+0x8b/0x9e
+ [<ffffffff8032ffdc>] sscanf+0x49/0x51
+ [<ffffffff8025a3e1>] cgroup_attach_task+0x3a3/0x3f5
+ [<ffffffff80489a90>] __mutex_lock_slowpath+0x64/0x93
+ [<ffffffff8025af06>] cgroup_common_file_write+0x150/0x1dd
+ [<ffffffff8025aaf4>] cgroup_file_write+0x54/0x150
+ [<ffffffff8029f855>] vfs_write+0xad/0x136
+ [<ffffffff8029fd92>] sys_write+0x45/0x6e
+ [<ffffffff8020bef2>] tracesys+0xd5/0xda
+
+Hexdump:
+000: 28 00 08 00 00 00 00 05 02 00 00 00 01 00 00 00
+010: 00 00 00 00 00 00 00 00 41 3b 41 2f 00 81 ff ff
+020: 46 01 00 00 00 00 00 00 e8 17 e6 01 00 e2 ff ff
+030: e8 4b e6 01 00 e2 ff ff 00 00 00 00 00 00 00 00
+040: 19 00 08 00 00 00 00 05 00 00 00 00 ff ff ff ff
+050: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+060: ba 06 00 00 00 00 00 00 00 01 10 00 00 c1 ff ff
+070: 00 02 20 00 00 c1 ff ff 00 00 00 00 00 00 00 00
+080: 28 00 08 00 00 00 00 05 01 00 00 00 00 00 00 00
+090: 00 00 00 00 00 00 00 00 01 3d 41 2f 00 81 ff ff
+0a0: bb c3 55 f7 07 00 00 00 68 c4 f0 01 00 e2 ff ff
+0b0: e8 8f ee 01 00 e2 ff ff 00 00 00 00 00 00 00 00
 ------------[ cut here ]------------
-kernel BUG at mm/migrate.c:719!
+kernel BUG at mm/filemap.c:575!
 invalid opcode: 0000 [1] SMP
 last sysfs file: /sys/devices/system/cpu/cpu3/cache/index1/shared_cpu_map
-CPU 0
-Modules linked in: ipv6 autofs4 hidp rfcomm l2cap bluetooth sunrpc dm_mirror dm_log dm_multipath dm_mod sbs sbshc button battery acpi_memhotplug ac parport_pc lp parport floppy serio_raw rtc_cmos rtc_core rtc_lib 8139too pcspkr 8139cp mii ata_piix libata sd_mod scsi_mod ext3 jbd ehci_hcd ohci_hcd uhci_hcd [last unloaded: microcode]
-Pid: 3096, comm: switch.sh Not tainted 2.6.26-rc5-mm3 #1
-RIP: 0010:[<ffffffff8029bb85>]  [<ffffffff8029bb85>] migrate_pages+0x33e/0x49f
-RSP: 0018:ffff81002f463bb8  EFLAGS: 00010202
-RAX: 0000000000000000 RBX: ffffe20000c17500 RCX: 0000000000000034
-RDX: ffffe20000c17500 RSI: ffffe200010003c0 RDI: ffffe20000c17528
-RBP: ffffe200010003c0 R08: 8000000000000000 R09: 304605894800282f
-R10: 282f87058b480028 R11: 0028304005894800 R12: ffff81003f90a5d8
-R13: 0000000000000000 R14: ffffe20000bf4cc0 R15: ffff81002f463c88
-FS:  00007ff9386576f0(0000) GS:ffffffff8061d800(0000) knlGS:0000000000000000
+CPU 1
+Modules linked in: nfs lockd nfs_acl ipv6 autofs4 hidp rfcomm l2cap bluetooth sunrpc dm_mirror dm_log dm_multipath dm_mod sbs sbshc button battery acpi_memhotplug ac parport_pc lp parport floppy serio_raw rtc_cmos 8139too rtc_core rtc_lib 8139cp mii pcspkr ata_piix libata sd_mod scsi_mod ext3 jbd ehci_hcd ohci_hcd uhci_hcd [last unloaded: microcode]
+Pid: 23283, comm: switch.sh Tainted: G    B     2.6.26-rc5-mm3-test6-lee #1
+RIP: 0010:[<ffffffff80270bfe>]  [<ffffffff80270bfe>] unlock_page+0xf/0x26
+RSP: 0018:ffff8100396e7b78  EFLAGS: 00010246
+RAX: 0000000000000000 RBX: ffffe20001ee8f40 RCX: 000000000000005a
+RDX: 0000000000000006 RSI: 0000000000000003 RDI: ffffe20001ee8f40
+RBP: ffffe20001f3e9c0 R08: 0000000000000008 R09: ffff810001101780
+R10: 0000000000000002 R11: 0000000000000000 R12: 0000000000000004
+R13: ffff8100396e7c88 R14: ffffe20001e8d080 R15: ffff8100396e7c88
+FS:  00007fd4597fb6f0(0000) GS:ffff81007f98d280(0000) knlGS:0000000000000000
 CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-CR2: 00007ff938669000 CR3: 000000002f458000 CR4: 00000000000006e0
+CR2: 0000000000418498 CR3: 000000003e9ac000 CR4: 00000000000006e0
 DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
 DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-Process switch.sh (pid: 3096, threadinfo ffff81002f462000, task ffff81003e99cf10)
-Stack:  0000000000000001 ffffffff80290777 0000000000000000 0000000000000000
- ffff81002f463c88 ffff81000000ea18 ffff81002f463c88 000000000000000c
- ffff81002f463ca8 00007ffffffff000 00007fff649f6000 0000000000000004
+Process switch.sh (pid: 23283, threadinfo ffff8100396e6000, task ffff8100318a64a0)
+Stack:  ffffe20001ee8f40 ffffffff8029b21c ffffe20001e98e40 ffff8100396e7c60
+ ffffe20000665140 ffff8100314fd581 0000000000000000 ffffffff8029bc5b
+ 0000000000000000 ffffffff80290797 0000000000000000 0000000000000001
 Call Trace:
- [<ffffffff80290777>] ? new_node_page+0x0/0x2f
- [<ffffffff80291611>] ? do_migrate_pages+0x19b/0x1e7
- [<ffffffff802315c7>] ? set_cpus_allowed_ptr+0xe6/0xf3
+ [<ffffffff8029b21c>] ? putback_lru_pages+0x52/0x74
+ [<ffffffff8029bc5b>] ? migrate_pages+0x3f4/0x468
+ [<ffffffff80290797>] ? new_node_page+0x0/0x2f
+ [<ffffffff80291631>] ? do_migrate_pages+0x19b/0x1e7
  [<ffffffff8025c827>] ? cpuset_migrate_mm+0x58/0x8f
  [<ffffffff8025d0fd>] ? cpuset_attach+0x8b/0x9e
+ [<ffffffff8032ffdc>] ? sscanf+0x49/0x51
  [<ffffffff8025a3e1>] ? cgroup_attach_task+0x3a3/0x3f5
- [<ffffffff80276cb5>] ? __alloc_pages_internal+0xe2/0x3d1
+ [<ffffffff80489a90>] ? __mutex_lock_slowpath+0x64/0x93
  [<ffffffff8025af06>] ? cgroup_common_file_write+0x150/0x1dd
  [<ffffffff8025aaf4>] ? cgroup_file_write+0x54/0x150
- [<ffffffff8029f839>] ? vfs_write+0xad/0x136
- [<ffffffff8029fd76>] ? sys_write+0x45/0x6e
+ [<ffffffff8029f855>] ? vfs_write+0xad/0x136
+ [<ffffffff8029fd92>] ? sys_write+0x45/0x6e
  [<ffffffff8020bef2>] ? tracesys+0xd5/0xda
 
 
-Code: 4c 48 8d 7b 28 e8 cc 87 09 00 48 83 7b 18 00 75 30 48 8b 03 48 89 da 25 00 40 00 00 48 85 c0 74 04 48 8b 53 10 83 7a 08 01 74 04 <0f> 0b eb fe 48 89 df e8 5e 50 fd ff 48 89 df e8 7d d6 fd ff eb
-RIP  [<ffffffff8029bb85>] migrate_pages+0x33e/0x49f
- RSP <ffff81002f463bb8>
-Clocksource tsc unstable (delta = 438246251 ns)
----[ end trace ce4e6053f7b9bba1 ]---
-
-
-This bug is caused by VM_BUG_ON() in unmap_and_move().
-
-unmap_and_move()
-    710         if (rc != -EAGAIN) {
-    711                 /*
-    712                  * A page that has been migrated has all references
-    713                  * removed and will be freed. A page that has not been
-    714                  * migrated will have kepts its references and be
-    715                  * restored.
-    716                  */
-    717                 list_del(&page->lru);
-    718                 if (!page->mapping) {
-    719                         VM_BUG_ON(page_count(page) != 1);
-    720                         unlock_page(page);
-    721                         put_page(page);         /* just free the old page */
-    722                         goto end_migration;
-    723                 } else
-    724                         unlock = putback_lru_page(page);
-    725         }
-
-I think the page count is not necessarily 1 here, because
-migration_entry_wait increases page count and waits for the
-page to be unlocked.
-So, if the old page is accessed between migrate_page_move_mapping,
-which checks the page count, and remove_migration_ptes, page count
-would not be 1 here.
-
-Actually, just commenting out get/put_page from migration_entry_wait
-works well in my environment(succeeded in hundreds times of page migration),
-but modifying migration_entry_wait this way is not good, I think.
-
-
-This patch depends on Lee Schermerhorn's fix for double unlock_page.
-
-This patch also fixes a race between migrate_entry_wait and
-page_freeze_refs in migrate_page_move_mapping.
-
-
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-
----
-diff -uprN linux-2.6.26-rc5-mm3/mm/migrate.c linux-2.6.26-rc5-mm3-test/mm/migrate.c
---- linux-2.6.26-rc5-mm3/mm/migrate.c	2008-06-17 15:31:23.000000000 +0900
-+++ linux-2.6.26-rc5-mm3-test/mm/migrate.c	2008-06-17 13:59:15.000000000 +0900
-@@ -232,6 +232,7 @@ void migration_entry_wait(struct mm_stru
- 	swp_entry_t entry;
- 	struct page *page;
- 
-+retry:
- 	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
- 	pte = *ptep;
- 	if (!is_swap_pte(pte))
-@@ -243,11 +244,20 @@ void migration_entry_wait(struct mm_stru
- 
- 	page = migration_entry_to_page(entry);
- 
--	get_page(page);
--	pte_unmap_unlock(ptep, ptl);
--	wait_on_page_locked(page);
--	put_page(page);
--	return;
-+	/*
-+	 * page count might be set to zero by page_freeze_refs()
-+	 * in migrate_page_move_mapping().
-+	 */
-+	if (get_page_unless_zero(page)) {
-+		pte_unmap_unlock(ptep, ptl);
-+		wait_on_page_locked(page);
-+		put_page(page);
-+		return;
-+	} else {
-+		pte_unmap_unlock(ptep, ptl);
-+		goto retry;
-+	}
-+
- out:
- 	pte_unmap_unlock(ptep, ptl);
- }
-@@ -715,13 +725,7 @@ unlock:
-  		 * restored.
-  		 */
-  		list_del(&page->lru);
--		if (!page->mapping) {
--			VM_BUG_ON(page_count(page) != 1);
--			unlock_page(page);
--			put_page(page);		/* just free the old page */
--			goto end_migration;
--		} else
--			unlock = putback_lru_page(page);
-+		unlock = putback_lru_page(page);
- 	}
- 
- 	if (unlock)
+Code: 40 58 48 85 c0 74 0b 48 8b 40 10 48 85 c0 74 02 ff d0 e8 7b 89 21 00 41 5b 31 c0 c3 53 48 89 fb f0 0f ba 37 00 19 c0 85 c0 75 04 <0f> 0b eb fe e8 01 f5 ff ff 48 89 de 48 89 c7 31 d2 5b e9 ea 5e
+RIP  [<ffffffff80270bfe>] unlock_page+0xf/0x26
+ RSP <ffff8100396e7b78>
+---[ end trace 4ab171fcf075cf2e ]---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
