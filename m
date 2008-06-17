@@ -1,95 +1,188 @@
-Subject: [PATCH] unevictable mlocked pages:  initialize mm member of
-	munlock mm_walk structure
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <1213727385.8707.53.camel@lts-notebook>
-References: <20080611225945.4da7bb7f.akpm@linux-foundation.org>
-	 <20080617163501.7cf411ee.nishimura@mxp.nes.nec.co.jp>
-	 <20080617164709.de4db070.nishimura@mxp.nes.nec.co.jp>
-	 <20080617180314.2d1b0efa.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20080617181527.5bcbbccc.nishimura@mxp.nes.nec.co.jp>
-	 <1213727385.8707.53.camel@lts-notebook>
-Content-Type: text/plain
-Date: Tue, 17 Jun 2008 16:00:43 -0400
-Message-Id: <1213732843.8707.70.camel@lts-notebook>
-Mime-Version: 1.0
+From: Mariusz Kozlowski <m.kozlowski@tuxland.pl>
+Subject: Re: 2.6.26-rc5-mm1
+Date: Wed, 18 Jun 2008 00:26:27 +0200
+References: <OF18B05E59.2D95953A-ONC1257464.00296BEB-C1257464.002F94B3@de.ibm.com>
+In-Reply-To: <OF18B05E59.2D95953A-ONC1257464.00296BEB-C1257464.002F94B3@de.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200806180026.27247.m.kozlowski@tuxland.pl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Rik van Riel <riel@redhat.com>, Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org
+To: Peter 1 Oberparleiter <Peter.Oberparleiter@de.ibm.com>
+Cc: linux-mm@kvack.org, balbir@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-kernel BUG at mm/migrate.c:719! in 2.6.26-rc5-mm3)
+Hello,
 
-On Tue, 2008-06-17 at 14:29 -0400, Lee Schermerhorn wrote:
-> On Tue, 2008-06-17 at 18:15 +0900, Daisuke Nishimura wrote:
-> > On Tue, 17 Jun 2008 18:03:14 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > On Tue, 17 Jun 2008 16:47:09 +0900
-> > > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> Andrew Morton <akpm@linux-foundation.org> wrote on 10.06.2008 07:01:49:
+> > On Tue, 10 Jun 2008 06:57:02 +0200 Mariusz Kozlowski <m.
+> > kozlowski@tuxland.pl> wrote:
+> > 
+> > > Witam, 
 > > > 
-> > > > On Tue, 17 Jun 2008 16:35:01 +0900, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > > > > Hi.
+> > > > On Mon, 9 Jun 2008 21:14:54 +0200
+> > > > Mariusz Kozlowski <m.kozlowski@tuxland.pl> wrote:
+> > > > 
+> > > > > Hello Balbir,
 > > > > > 
-> > > > > I got this bug while migrating pages only a few times
-> > > > > via memory_migrate of cpuset.
+> > > > > > Andrew Morton wrote:
+> > > > > > > Temporarily at
+> > > > > > > 
+> > > > > > >   http://userweb.kernel.org/~akpm/2.6.26-rc5-mm1/
+> > > > > > > 
+> > > > > > 
+> > > > > > I've hit a segfault, the last few lines on my console are
+> > > > > > 
+> > > > > > 
+> > > > > > Testing -fstack-protector-all feature
+> > > > > > registered taskstats version 1
+> > > > > > debug: unmapping init memory ffffffff80c03000..ffffffff80dd8000
+> > > > > > init[1]: segfault at 7fff701fe880 ip 7fff701fee5e sp 
+> > 7fff7006e6d0 error 7
+> > > > > > 
+> > > > > > With absolutely no stack trace. I'll dig deeper.
 > > > > > 
-> > > > > Unfortunately, even if this patch is applied,
-> > > > > I got bad_page problem after hundreds times of page migration
-> > > > > (I'll report it in another mail).
-> > > > > But I believe something like this patch is needed anyway.
+> > > > > Hey, I see something similar and I actually have a stack 
+> > trace. Here it goes:
+> > > > > 
+> > > > > bash[498] segfault at ffffffff80868b58 ip ffffffffff600412 sp 
+> > 7fffa3d010f0 error 7
+> > > > > init[1] segfault at ffffffff80868b58 ip ffffffffff600412 sp 
+> > 7fff9e97f640 error 7
+> > > > > init[1] segfault at ffffffff80868b58 ip ffffffffff600412 sp 
+> > 7fff9e97eed0 error 7
+> > > > > Kernel panic - not syncing: Attemted to kill init!
+> > > > > Pid 1, comm: init Not tainted 2.6.26-rc5-mm1 #1
+> > > > > 
+> > > > > Call Trace:
+> > > > > [<ffffffff80254632>] panic+0xe2/0x260
+> > > > > [<ffffffff802fa8ba>] ? __slab_free+0x10a/0x630
+> > > > > [<ffffffff80265a8e>] ? __sigqueue_free+0x5e/0x70
+> > > > > [<ffffffff802851eb>] ? trace_hardirqs_off+0x1b/0x30
+> > > > > [<ffffffff802851eb>] ? trace_hardirqs_off+0x1b/0x30
+> > > > > [<ffffffff80259b54>] do_exit+0xb84/0xc30
+> > > > > [<ffffffff80259c5a>] do_group_exit+0x5a/0x110
+> > > > > [<ffffffff8026a3b5>] get_signal_to_deliver+0x2c5/0x620
+> > > > > [<ffffffff8020bb3b>] do_notify_resume+0x11b/0xd10
+> > > > > [<ffffffff8028da5b>] ? trace_hardirqs_on+0x1b/0x30
+> > > > > [<ffffffff805cd0f3>] ? _spin_unlock_irqrestore+0x93/0x130
+> > > > > [<ffffffff8026865c>] ? force_sig_info+0x10c/0x130
+> > > > > [<ffffffff8022fb9c>] ? force_sig_info_fault+0x2c/0x40
+> > > > > [<ffffffff802dd7dd>] ? print_vma_addr+0x10d/0x1d0
+> > > > > [<ffffffff805cbb67>] ? trace_hardirqs_on_thunk+0x3a/0x3f
+> > > > > [<ffffffff8028d8da>] ? trace_hardirqs_on_caller+0x15a/0x2c0
+> > > > > [<ffffffff8020d4c9>] retint_signal+0x46/0x8d
+> > > > > 
+> > > > > This was copied manually so typos are possible.
 > > > > > 
 > > > > 
-> > > > I got bad_page after hundreds times of page migration.
-> > > > It seems that a locked page is being freed.
+> > > > Thanks.  Could someone send a config please?  Or a bisection result 
+> ;)
+> > > 
+> > > In my case it turns out to be gcov patches - in which I'm interested
+> > > in to see (and play with) the tests coverage.
+> > > 
+> > > #
+> > > # gcov
+> > > #
+> > > kernel-call-constructors.patch
+> > > kernel-introduce-gcc_version_lower-macro.patch
+> > > seq_file-add-function-to-write-binary-data.patch
+> > > GOOD
+> > > gcov-add-gcov-profiling-infrastructure.patch
+> > > GOOD
+> > > gcov-create-links-to-gcda-files-in-build-directory.patch
+> > > gcov-architecture-specific-compile-flag-adjustments.patch
+> > > BAD
+> > > 
+> > > I can not bisect between the last two due to build error. Config 
+> > is attached.
+> > > 
+> > 
+> > (cc Peter)
+
+Sorry for the delay. Unfortunately I don't have as much time for this
+as I'd like to.
+
+> Thanks for the report. These look like the "known architecture problems"
+> that I've hinted at in the gcov announcement post (I'm assuming this is
+> x86_64 as I've seem similar reports in the past).
 > 
-> I'm seeing *mlocked* pages [PG_mlocked] being freed now with my stress
-> load, with just the "if(!page->mapping) { } clause removed, as proposed
-> in your rfc patch in previous mail.  Need to investigate this...
+> Possible reasons:
 > 
-<snip>
+> 1) initrd overwrites kernel: When kernel and initrd are loaded to static
+> addresses, the oversized gcov kernel may overlap with the initrd load
+> address. Solution: move initrd loading address.
 
-This [freeing of mlocked pages] also occurs in unpatched 26-rc5-mm3.
+Not using initrd.
 
-Fixed by the following:
+> 2) out-of-memory: Kernel plus profiling code may just not fit into a
+> minimal memory configuration any more. Solution: add memory.
 
-PATCH:  fix munlock page table walk - now requires 'mm'
+2G is ok I assume.
 
-Against 2.6.26-rc5-mm3.
+> 3) write-protection of kernel code: gcc keeps profiling code and data
+> close together in the .text section. Solution: any mechanism that
+> protects .text against writes should be disabled when running a
+> profiled kernel.
 
-Incremental fix for: mlock-mlocked-pages-are-unevictable-fix.patch 
+Not using it.
 
-Initialize the 'mm' member of the mm_walk structure, else the
-page table walk doesn't occur, and mlocked pages will not be
-munlocked.  This is visible in the vmstats:  
+> 4) as of yet undiscovered incompatibilities between arch-dependent code
+> and gcc's -fprofile-arcs option. Examples would be:
+> 
+>  * code which is run before memory access preparations were made
+>  * hard coded section sizes
+>  * relative address displacements which are out of range
+> 
+> Unfortunately I neither have access to a machine nor the skill to debug
+> 4) myself, so if 1)-3) can be ruled out,
 
-	noreclaim_pgs_munlocked - should equal noreclaim_pgs_mlocked
-	  less (nr_mlock + noreclaim_pgs_cleared), but is always zero 
-	  [munlock_vma_page() never called]
+Yes they can be ruled out.
 
-	noreclaim_pgs_mlockfreed - should be zero [for debug only],
-	  but == noreclaim_pgs_mlocked - (nr_mlock + noreclaim_pgs_cleared)
+> I'd like to ask for more help 
+> on this one:
+> 
+> First off, someone needs to track down the offending file(s). This is
+> done by putting a line containing "GCOV := n" in all Makefiles below
+> arch/x86_64 (or go one step further back and set
+> CONFIG_GCOV_PROFILE_ALL=n). If my assumption is correct, then the
+> kernel should boot fine afterwards. In that case, remove the lines
+> again one-by-one, while compiling and booting after each change. If the
+> problem can be narrowed down to a single Makefile, replace the single
+> "GCOV := n" line with multiple "GCOV_file.o := n" lines, one for each
+> generated object file. Then again, same approach as before: remove
+> those lines, compile and boot until it breaks. Finally post your
+> results.
+
+After a few hours and tons of reboots I narrowed it down to
+arch/x86/kernel/Makefile:
+
+a) works
+	obj-y                   += tsc_$(BITS).o io_delay.o rtc.o
+	GCOV_tsc_$(BITS).o      := n
+	#GCOV_io_delay.o        := n
+	#GCOV_rtc.o     := n
+
+b) doesn't work
+	obj-y                   += tsc_$(BITS).o io_delay.o rtc.o
+	#GCOV_tsc_$(BITS).o     := n
+	#GCOV_io_delay.o        := n
+	#GCOV_rtc.o     := n
+
+and that points to arch/x86/kernel/tsc_64.c
+
+> At this point we would need someone with x86_64 arch skills to look at
+> the file and find out why this code is broken with "-fprofile-arcs"
+> enabled (on s390 we discovered at least one actual code bug this way,
+> so the analysis might just be of general use). Alternatively we can
+> just keep these files from being profiled.
 
 
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- mm/mlock.c |    2 ++
- 1 file changed, 2 insertions(+)
-
-Index: linux-2.6.26-rc5-mm3/mm/mlock.c
-===================================================================
---- linux-2.6.26-rc5-mm3.orig/mm/mlock.c	2008-06-17 15:20:57.000000000 -0400
-+++ linux-2.6.26-rc5-mm3/mm/mlock.c	2008-06-17 15:23:17.000000000 -0400
-@@ -318,6 +318,8 @@ static void __munlock_vma_pages_range(st
- 	VM_BUG_ON(start < vma->vm_start);
- 	VM_BUG_ON(end > vma->vm_end);
- 
-+	munlock_page_walk.mm = mm;
-+
- 	lru_add_drain_all();	/* push cached pages to LRU */
- 	walk_page_range(start, end, &munlock_page_walk);
- 	lru_add_drain_all();	/* to update stats */
-
-
+	Mariusz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
