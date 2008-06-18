@@ -1,407 +1,242 @@
-Subject: Re: [Experimental][PATCH] putback_lru_page rework
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20080618184000.a855dfe0.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080611225945.4da7bb7f.akpm@linux-foundation.org>
-	 <20080617163501.7cf411ee.nishimura@mxp.nes.nec.co.jp>
-	 <20080617164709.de4db070.nishimura@mxp.nes.nec.co.jp>
-	 <20080618184000.a855dfe0.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Wed, 18 Jun 2008 14:21:06 -0400
-Message-Id: <1213813266.6497.14.camel@lts-notebook>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+From: Jiri Slaby <jirislaby@gmail.com>
+Subject: [PATCH v2] MM: virtual address debug
+Date: Wed, 18 Jun 2008 20:35:36 +0200
+Message-Id: <1213814136-10812-1-git-send-email-jirislaby@gmail.com>
+In-Reply-To: <20080618135928.GA12803@elte.hu>
+References: <20080618135928.GA12803@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org
+To: Ingo Molnar <mingo@redhat.com>
+Cc: tglx@linutronix.de, hpa@zytor.com, Mike Travis <travis@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jiri Slaby <jirislaby@gmail.com>, Andi Kleen <andi@firstfloor.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-06-18 at 18:40 +0900, KAMEZAWA Hiroyuki wrote:
-> Lee-san, how about this ?
-> Tested on x86-64 and tried Nisimura-san's test at el. works good now.
+I've removed the test from phys_to_nid and made a function from __phys_addr
+only when the debugging is enabled (on x86_32).
+--
 
-I have been testing with my work load on both ia64 and x86_64 and it
-seems to be working well.  I'll let them run for a day or so.
+Add some (configurable) expensive sanity checking to catch wrong address
+translations on x86.
 
-> -Kame
-> ==
-> putback_lru_page()/unevictable page handling rework.
-> 
-> Now, putback_lru_page() requires that the page is locked.
-> And in some special case, implicitly unlock it.
-> 
-> This patch tries to make putback_lru_pages() to be lock_page() free.
-> (Of course, some callers must take the lock.)
-> 
-> The main reason that putback_lru_page() assumes that page is locked
-> is to avoid the change in page's status among Mlocked/Not-Mlocked.
-> 
-> Once it is added to unevictable list, the page is removed from
-> unevictable list only when page is munlocked. (there are other special
-> case. but we ignore the special case.)
-> So, status change during putback_lru_page() is fatal and page should 
-> be locked.
-> 
-> putback_lru_page() in this patch has a new concepts.
-> When it adds page to unevictable list, it checks the status is 
-> changed or not again. if changed, retry to putback.
+- create linux/mmdebug.h file to be able include this file in
+  asm headers to not get unsolvable loops in header files
+- __phys_addr on x86_32 became a function (on DEBUG_VIRTUAL) in
+  ioremap.c since PAGE_OFFSET, is_vmalloc_addr and VMALLOC_*
+  non-constasts are undefined if declared in page_32.h
+- add __phys_addr_const for initializing doublefault_tss.__cr3 (x86_32)
+- remove "(addr >> memnode_shift) >= memnodemapsize" test from phys_to_nid
+  since the memnodemapsize is not available on non-fake numas
 
-Given that the race that would activate this retry is likely quite rare,
-this approach makes sense.  
+Tested on 386, 386pae, x86_64 and x86_64 numa=fake=2.
 
-> 
-> This patche changes also caller side and cleaning up lock/unlock_page().
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroy@jp.fujitsu.com>
+Contains Andi's enable numa virtual address debug patch.
 
-A couple of minor comments below, but:
+Signed-off-by: Jiri Slaby <jirislaby@gmail.com>
+Cc: Andi Kleen <andi@firstfloor.org>
+---
+ arch/x86/kernel/doublefault_32.c |    2 +-
+ arch/x86/mm/ioremap.c            |   33 ++++++++++++++++++++++++++-------
+ include/asm-x86/mmzone_64.h      |    3 +--
+ include/asm-x86/page_32.h        |    5 +++++
+ include/linux/mm.h               |    7 +------
+ include/linux/mmdebug.h          |   18 ++++++++++++++++++
+ lib/Kconfig.debug                |    9 +++++++++
+ mm/vmalloc.c                     |    5 +++++
+ 8 files changed, 66 insertions(+), 16 deletions(-)
+ create mode 100644 include/linux/mmdebug.h
 
-Acked-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-
-> 
-> ---
->  mm/internal.h |    2 -
->  mm/migrate.c  |   23 +++----------
->  mm/mlock.c    |   24 +++++++-------
->  mm/vmscan.c   |   96 +++++++++++++++++++++++++---------------------------------
->  4 files changed, 61 insertions(+), 84 deletions(-)
-> 
-> Index: test-2.6.26-rc5-mm3/mm/vmscan.c
-> ===================================================================
-> --- test-2.6.26-rc5-mm3.orig/mm/vmscan.c
-> +++ test-2.6.26-rc5-mm3/mm/vmscan.c
-> @@ -486,73 +486,63 @@ int remove_mapping(struct address_space 
->   * Page may still be unevictable for other reasons.
->   *
->   * lru_lock must not be held, interrupts must be enabled.
-> - * Must be called with page locked.
-> - *
-> - * return 1 if page still locked [not truncated], else 0
->   */
-> -int putback_lru_page(struct page *page)
-> +#ifdef CONFIG_UNEVICTABLE_LRU
-> +void putback_lru_page(struct page *page)
->  {
->  	int lru;
-> -	int ret = 1;
->  	int was_unevictable;
->  
-> -	VM_BUG_ON(!PageLocked(page));
->  	VM_BUG_ON(PageLRU(page));
->  
-> -	lru = !!TestClearPageActive(page);
->  	was_unevictable = TestClearPageUnevictable(page); /* for page_evictable() */
->  
-> -	if (unlikely(!page->mapping)) {
-> -		/*
-> -		 * page truncated.  drop lock as put_page() will
-> -		 * free the page.
-> -		 */
-> -		VM_BUG_ON(page_count(page) != 1);
-> -		unlock_page(page);
-> -		ret = 0;
-> -	} else if (page_evictable(page, NULL)) {
-> -		/*
-> -		 * For evictable pages, we can use the cache.
-> -		 * In event of a race, worst case is we end up with an
-> -		 * unevictable page on [in]active list.
-> -		 * We know how to handle that.
-> -		 */
-> +redo:
-> +	lru = !!TestClearPageActive(page);
-> +	if (page_evictable(page, NULL)) {
->  		lru += page_is_file_cache(page);
->  		lru_cache_add_lru(page, lru);
-> -		mem_cgroup_move_lists(page, lru);
-> -#ifdef CONFIG_UNEVICTABLE_LRU
-> -		if (was_unevictable)
-> -			count_vm_event(NORECL_PGRESCUED);
-> -#endif
->  	} else {
-> -		/*
-> -		 * Put unevictable pages directly on zone's unevictable
-> -		 * list.
-> -		 */
-> +		lru = LRU_UNEVICTABLE;
->  		add_page_to_unevictable_list(page);
-> -		mem_cgroup_move_lists(page, LRU_UNEVICTABLE);
-> -#ifdef CONFIG_UNEVICTABLE_LRU
-> -		if (!was_unevictable)
-> -			count_vm_event(NORECL_PGCULLED);
-> -#endif
->  	}
-> +	mem_cgroup_move_lists(page, lru);
-> +
-> +	/*
-> +	 * page's status can change while we move it among lru. If an evictable
-> +	 * page is on unevictable list, it never be freed. To avoid that,
-> +	 * check after we added it to the list, again.
-> +	 */
-> +	if (lru == LRU_UNEVICTABLE && page_evictable(page, NULL)) {
-> +		if (!isolate_lru_page(page)) {
-> +			put_page(page);
-> +			goto redo;
-> +		}
-> +		/* This means someone else dropped this page from LRU
-> +		 * So, it will be freed or putback to LRU again. There is
-> +		 * nothing to do here.
-> +		 */
-> +	}
-> +
-> +	if (was_unevictable && lru != LRU_UNEVICTABLE)
-> +		count_vm_event(NORECL_PGRESCUED);
-> +	else if (!was_unevictable && lru == LRU_UNEVICTABLE)
-> +		count_vm_event(NORECL_PGCULLED);
->  
->  	put_page(page);		/* drop ref from isolate */
-> -	return ret;		/* ret => "page still locked" */
->  }
-> -
-> -/*
-> - * Cull page that shrink_*_list() has detected to be unevictable
-> - * under page lock to close races with other tasks that might be making
-> - * the page evictable.  Avoid stranding an evictable page on the
-> - * unevictable list.
-> - */
-> -static void cull_unevictable_page(struct page *page)
-> +#else
-> +void putback_lru_page(struct page *page)
->  {
-> -	lock_page(page);
-> -	if (putback_lru_page(page))
-> -		unlock_page(page);
-> +	int lru;
-> +	VM_BUG_ON(PageLRU(page));
-> +
-> +	lru = !!TestClearPageActive(page) + page_is_file_cache(page);
-> +	lru_cache_add_lru(page, lru);
-> +	mem_cgroup_move_lists(page, lru);
-> +	put_page(page);
->  }
-> +#endif
->  
->  /*
->   * shrink_page_list() returns the number of reclaimed pages
-> @@ -746,8 +736,8 @@ free_it:
->  		continue;
->  
->  cull_mlocked:
-> -		if (putback_lru_page(page))
-> -			unlock_page(page);
-> +		unlock_page(page);
-> +		putback_lru_page(page);
->  		continue;
->  
->  activate_locked:
-> @@ -1127,7 +1117,7 @@ static unsigned long shrink_inactive_lis
->  			list_del(&page->lru);
->  			if (unlikely(!page_evictable(page, NULL))) {
->  				spin_unlock_irq(&zone->lru_lock);
-> -				cull_unevictable_page(page);
-> +				putback_lru_page(page);
->  				spin_lock_irq(&zone->lru_lock);
->  				continue;
->  			}
-> @@ -1231,7 +1221,7 @@ static void shrink_active_list(unsigned 
->  		list_del(&page->lru);
->  
->  		if (unlikely(!page_evictable(page, NULL))) {
-> -			cull_unevictable_page(page);
-> +			putback_lru_page(page);
->  			continue;
->  		}
->  
-> @@ -2393,8 +2383,6 @@ int zone_reclaim(struct zone *zone, gfp_
->  int page_evictable(struct page *page, struct vm_area_struct *vma)
->  {
->  
-> -	VM_BUG_ON(PageUnevictable(page));
-> -
->  	if (mapping_unevictable(page_mapping(page)))
->  		return 0;
->  
-> Index: test-2.6.26-rc5-mm3/mm/mlock.c
-> ===================================================================
-> --- test-2.6.26-rc5-mm3.orig/mm/mlock.c
-> +++ test-2.6.26-rc5-mm3/mm/mlock.c
-> @@ -55,7 +55,6 @@ EXPORT_SYMBOL(can_do_mlock);
->   */
->  void __clear_page_mlock(struct page *page)
->  {
-> -	VM_BUG_ON(!PageLocked(page));	/* for LRU isolate/putback */
->  
->  	dec_zone_page_state(page, NR_MLOCK);
->  	count_vm_event(NORECL_PGCLEARED);
-> @@ -79,7 +78,6 @@ void __clear_page_mlock(struct page *pag
->   */
->  void mlock_vma_page(struct page *page)
->  {
-> -	BUG_ON(!PageLocked(page));
->  
->  	if (!TestSetPageMlocked(page)) {
->  		inc_zone_page_state(page, NR_MLOCK);
-> @@ -109,7 +107,6 @@ void mlock_vma_page(struct page *page)
->   */
->  static void munlock_vma_page(struct page *page)
->  {
-> -	BUG_ON(!PageLocked(page));
->  
->  	if (TestClearPageMlocked(page)) {
->  		dec_zone_page_state(page, NR_MLOCK);
-> @@ -169,7 +166,8 @@ static int __mlock_vma_pages_range(struc
->  
->  		/*
->  		 * get_user_pages makes pages present if we are
-> -		 * setting mlock.
-> +		 * setting mlock. and this extra reference count will
-> +		 * disable migration of this page.
->  		 */
->  		ret = get_user_pages(current, mm, addr,
->  				min_t(int, nr_pages, ARRAY_SIZE(pages)),
-> @@ -197,14 +195,8 @@ static int __mlock_vma_pages_range(struc
->  		for (i = 0; i < ret; i++) {
->  			struct page *page = pages[i];
->  
-> -			/*
-> -			 * page might be truncated or migrated out from under
-> -			 * us.  Check after acquiring page lock.
-> -			 */
-> -			lock_page(page);
-
-Hmmm.  Still thinking about this.  No need to protect against in flight
-truncation or migration?
-
-> -			if (page->mapping)
-> +			if (page_mapcount(page))
->  				mlock_vma_page(page);
-> -			unlock_page(page);
->  			put_page(page);		/* ref from get_user_pages() */
->  
->  			/*
-> @@ -240,6 +232,9 @@ static int __munlock_pte_handler(pte_t *
->  	struct page *page;
->  	pte_t pte;
->  
-> +	/*
-> +	 * page is never be unmapped by page-reclaim. we lock this page now.
-> +	 */
-
-I don't understand what you're trying to say here.  That is, what the
-point of this comment is...
-
->  retry:
->  	pte = *ptep;
->  	/*
-> @@ -261,7 +256,15 @@ retry:
->  		goto out;
->  
->  	lock_page(page);
-> -	if (!page->mapping) {
-> +	/*
-> +	 * Because we lock page here, we have to check 2 cases.
-> +	 * - the page is migrated.
-> +	 * - the page is truncated (file-cache only)
-> +	 * Note: Anonymous page doesn't clear page->mapping even if it
-> +	 * is removed from rmap.
-> +	 */
-> +	if (!page->mapping ||
-> +	     (PageAnon(page) && !page_mapcount(page))) {
->  		unlock_page(page);
->  		goto retry;
->  	}
-> Index: test-2.6.26-rc5-mm3/mm/migrate.c
-> ===================================================================
-> --- test-2.6.26-rc5-mm3.orig/mm/migrate.c
-> +++ test-2.6.26-rc5-mm3/mm/migrate.c
-> @@ -67,9 +67,7 @@ int putback_lru_pages(struct list_head *
->  
->  	list_for_each_entry_safe(page, page2, l, lru) {
->  		list_del(&page->lru);
-> -		lock_page(page);
-> -		if (putback_lru_page(page))
-> -			unlock_page(page);
-> +		putback_lru_page(page);
->  		count++;
->  	}
->  	return count;
-> @@ -571,7 +569,6 @@ static int fallback_migrate_page(struct 
->  static int move_to_new_page(struct page *newpage, struct page *page)
->  {
->  	struct address_space *mapping;
-> -	int unlock = 1;
->  	int rc;
->  
->  	/*
-> @@ -610,12 +607,11 @@ static int move_to_new_page(struct page 
->  		 * Put back on LRU while holding page locked to
->  		 * handle potential race with, e.g., munlock()
->  		 */
-> -		unlock = putback_lru_page(newpage);
-> +		putback_lru_page(newpage);
->  	} else
->  		newpage->mapping = NULL;
->  
-> -	if (unlock)
-> -		unlock_page(newpage);
-> +	unlock_page(newpage);
->  
->  	return rc;
->  }
-> @@ -632,7 +628,6 @@ static int unmap_and_move(new_page_t get
->  	struct page *newpage = get_new_page(page, private, &result);
->  	int rcu_locked = 0;
->  	int charge = 0;
-> -	int unlock = 1;
->  
->  	if (!newpage)
->  		return -ENOMEM;
-> @@ -713,6 +708,7 @@ rcu_unlock:
->  		rcu_read_unlock();
->  
->  unlock:
-> +	unlock_page(page);
->  
->  	if (rc != -EAGAIN) {
->   		/*
-> @@ -722,18 +718,9 @@ unlock:
->   		 * restored.
->   		 */
->   		list_del(&page->lru);
-> -		if (!page->mapping) {
-> -			VM_BUG_ON(page_count(page) != 1);
-> -			unlock_page(page);
-> -			put_page(page);		/* just free the old page */
-> -			goto end_migration;
-> -		} else
-> -			unlock = putback_lru_page(page);
-> +		putback_lru_page(page);
->  	}
->  
-> -	if (unlock)
-> -		unlock_page(page);
-> -
->  end_migration:
->  	if (!charge)
->  		mem_cgroup_end_migration(newpage);
-> Index: test-2.6.26-rc5-mm3/mm/internal.h
-> ===================================================================
-> --- test-2.6.26-rc5-mm3.orig/mm/internal.h
-> +++ test-2.6.26-rc5-mm3/mm/internal.h
-> @@ -43,7 +43,7 @@ static inline void __put_page(struct pag
->   * in mm/vmscan.c:
->   */
->  extern int isolate_lru_page(struct page *page);
-> -extern int putback_lru_page(struct page *page);
-> +extern void putback_lru_page(struct page *page);
->  
->  /*
->   * in mm/page_alloc.c
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/arch/x86/kernel/doublefault_32.c b/arch/x86/kernel/doublefault_32.c
+index a47798b..395acb1 100644
+--- a/arch/x86/kernel/doublefault_32.c
++++ b/arch/x86/kernel/doublefault_32.c
+@@ -66,6 +66,6 @@ struct tss_struct doublefault_tss __cacheline_aligned = {
+ 		.ds		= __USER_DS,
+ 		.fs		= __KERNEL_PERCPU,
+ 
+-		.__cr3		= __pa(swapper_pg_dir)
++		.__cr3		= __phys_addr_const((unsigned long)swapper_pg_dir)
+ 	}
+ };
+diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+index c0d4958..f673121 100644
+--- a/arch/x86/mm/ioremap.c
++++ b/arch/x86/mm/ioremap.c
+@@ -24,18 +24,26 @@
+ 
+ #ifdef CONFIG_X86_64
+ 
+-unsigned long __phys_addr(unsigned long x)
++static inline int phys_addr_valid(unsigned long addr)
+ {
+-	if (x >= __START_KERNEL_map)
+-		return x - __START_KERNEL_map + phys_base;
+-	return x - PAGE_OFFSET;
++	return addr < (1UL << boot_cpu_data.x86_phys_bits);
+ }
+-EXPORT_SYMBOL(__phys_addr);
+ 
+-static inline int phys_addr_valid(unsigned long addr)
++unsigned long __phys_addr(unsigned long x)
+ {
+-	return addr < (1UL << boot_cpu_data.x86_phys_bits);
++	if (x >= __START_KERNEL_map) {
++		x -= __START_KERNEL_map;
++		VIRTUAL_BUG_ON(x >= KERNEL_IMAGE_SIZE);
++		x += phys_base;
++	} else {
++		VIRTUAL_BUG_ON(x < PAGE_OFFSET);
++		x -= PAGE_OFFSET;
++		VIRTUAL_BUG_ON(system_state == SYSTEM_BOOTING ? x > MAXMEM :
++					!phys_addr_valid(x));
++	}
++	return x;
+ }
++EXPORT_SYMBOL(__phys_addr);
+ 
+ #else
+ 
+@@ -44,6 +52,17 @@ static inline int phys_addr_valid(unsigned long addr)
+ 	return 1;
+ }
+ 
++#ifdef CONFIG_DEBUG_VIRTUAL
++unsigned long __phys_addr(unsigned long x)
++{
++	/* VMALLOC_* aren't constants; not available at the boot time */
++	VIRTUAL_BUG_ON(x < PAGE_OFFSET || (system_state != SYSTEM_BOOTING &&
++					is_vmalloc_addr((void *)x)));
++	return x - PAGE_OFFSET;
++}
++EXPORT_SYMBOL(__phys_addr);
++#endif
++
+ #endif
+ 
+ int page_is_ram(unsigned long pagenr)
+diff --git a/include/asm-x86/mmzone_64.h b/include/asm-x86/mmzone_64.h
+index 594bd0d..5e3a6cb 100644
+--- a/include/asm-x86/mmzone_64.h
++++ b/include/asm-x86/mmzone_64.h
+@@ -7,7 +7,7 @@
+ 
+ #ifdef CONFIG_NUMA
+ 
+-#define VIRTUAL_BUG_ON(x)
++#include <linux/mmdebug.h>
+ 
+ #include <asm/smp.h>
+ 
+@@ -29,7 +29,6 @@ static inline __attribute__((pure)) int phys_to_nid(unsigned long addr)
+ {
+ 	unsigned nid;
+ 	VIRTUAL_BUG_ON(!memnodemap);
+-	VIRTUAL_BUG_ON((addr >> memnode_shift) >= memnodemapsize);
+ 	nid = memnodemap[addr >> memnode_shift];
+ 	VIRTUAL_BUG_ON(nid >= MAX_NUMNODES || !node_data[nid]);
+ 	return nid;
+diff --git a/include/asm-x86/page_32.h b/include/asm-x86/page_32.h
+index 50b33eb..4510f21 100644
+--- a/include/asm-x86/page_32.h
++++ b/include/asm-x86/page_32.h
+@@ -72,7 +72,12 @@ typedef struct page *pgtable_t;
+ #endif
+ 
+ #ifndef __ASSEMBLY__
++#define __phys_addr_const(x)	((x) - PAGE_OFFSET)
++#ifdef CONFIG_DEBUG_VIRTUAL
++extern unsigned long __phys_addr(unsigned long);
++#else
+ #define __phys_addr(x)		((x) - PAGE_OFFSET)
++#endif
+ #define __phys_reloc_hide(x)	RELOC_HIDE((x), 0)
+ 
+ #ifdef CONFIG_FLATMEM
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 460128d..b898b49 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -7,6 +7,7 @@
+ 
+ #include <linux/gfp.h>
+ #include <linux/list.h>
++#include <linux/mmdebug.h>
+ #include <linux/mmzone.h>
+ #include <linux/rbtree.h>
+ #include <linux/prio_tree.h>
+@@ -220,12 +221,6 @@ struct inode;
+  */
+ #include <linux/page-flags.h>
+ 
+-#ifdef CONFIG_DEBUG_VM
+-#define VM_BUG_ON(cond) BUG_ON(cond)
+-#else
+-#define VM_BUG_ON(condition) do { } while(0)
+-#endif
+-
+ /*
+  * Methods to modify the page usage count.
+  *
+diff --git a/include/linux/mmdebug.h b/include/linux/mmdebug.h
+new file mode 100644
+index 0000000..860ed1a
+--- /dev/null
++++ b/include/linux/mmdebug.h
+@@ -0,0 +1,18 @@
++#ifndef LINUX_MM_DEBUG_H
++#define LINUX_MM_DEBUG_H 1
++
++#include <linux/autoconf.h>
++
++#ifdef CONFIG_DEBUG_VM
++#define VM_BUG_ON(cond) BUG_ON(cond)
++#else
++#define VM_BUG_ON(cond) do { } while(0)
++#endif
++
++#ifdef CONFIG_DEBUG_VIRTUAL
++#define VIRTUAL_BUG_ON(cond) BUG_ON(cond)
++#else
++#define VIRTUAL_BUG_ON(cond) do { } while(0)
++#endif
++
++#endif
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index f9f210d..5f15fb8 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -470,6 +470,15 @@ config DEBUG_VM
+ 
+ 	  If unsure, say N.
+ 
++config DEBUG_VIRTUAL
++	bool "Debug VM translations"
++	depends on DEBUG_KERNEL && X86
++	help
++	  Enable some costly sanity checks in virtual to page code. This can
++	  catch mistakes with virt_to_page() and friends.
++
++	  If unsure, say N.
++
+ config DEBUG_WRITECOUNT
+ 	bool "Debug filesystem writers count"
+ 	depends on DEBUG_KERNEL
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 35f2938..cba7d27 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -180,6 +180,11 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
+ 	pmd_t *pmd;
+ 	pte_t *ptep, pte;
+ 
++	/* XXX we might need to change this if we add VIRTUAL_BUG_ON for
++	 * architectures that do not vmalloc module space */
++	VIRTUAL_BUG_ON(!is_vmalloc_addr(vmalloc_addr) &&
++			!is_module_address(addr));
++
+ 	if (!pgd_none(*pgd)) {
+ 		pud = pud_offset(pgd, addr);
+ 		if (!pud_none(*pud)) {
+-- 
+1.5.5.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
