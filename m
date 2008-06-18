@@ -1,37 +1,41 @@
-Date: Wed, 18 Jun 2008 14:12:21 +0200
-From: Ingo Molnar <mingo@elte.hu>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 Subject: Re: [PATCH 1/1] MM: virtual address debug
-Message-ID: <20080618121221.GB13714@elte.hu>
+Date: Wed, 18 Jun 2008 22:51:02 +1000
 References: <1213271800-1556-1-git-send-email-jirislaby@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <1213271800-1556-1-git-send-email-jirislaby@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200806182251.02486.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Jiri Slaby <jirislaby@gmail.com>
-Cc: Ingo Molnar <mingo@redhat.com>, tglx@linutronix.de, hpa@zytor.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, the arch/x86 maintainers <x86@kernel.org>
+Cc: Ingo Molnar <mingo@redhat.com>, tglx@linutronix.de, hpa@zytor.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
 List-ID: <linux-mm.kvack.org>
 
-* Jiri Slaby <jirislaby@gmail.com> wrote:
-
+On Thursday 12 June 2008 21:56, Jiri Slaby wrote:
 > Add some (configurable) expensive sanity checking to catch wrong address
 > translations on x86.
-> 
+>
 > - create linux/mmdebug.h file to be able include this file in
 >   asm headers to not get unsolvable loops in header files
 > - __phys_addr on x86_32 became a function in ioremap.c since
 >   PAGE_OFFSET, is_vmalloc_addr and VMALLOC_* non-constasts are undefined
 >   if declared in page_32.h
-> - add __phys_addr_const for initializing doublefault_tss.__cr3
 
-applied, thanks Jiri. I have created a new tip/x86/mm-debug topic for 
-this because the patch touches mm/vmalloc.c and other MM bits.
+Uh, I have to disagree with this. __phys_addr is used in some really
+performance critical parts of the kernel, and the function calls are
+free mindset is just wrong. Even for modern x86 CPUs, the function
+call return might take 10 cycles or more when you include all costs.
 
-Andrew, is that fine for you, can we push it into linux-next via 
-auto-x86-next if it passes testing?
+And for something like this
 
-	Ingo
+#define __phys_addr(x)         ((x) - PAGE_OFFSET)
+
+the code to call the function is probably bigger than inline generated
+code anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
