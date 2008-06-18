@@ -1,82 +1,114 @@
-Date: Wed, 18 Jun 2008 16:54:01 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH][-mm] remove redundant page->mapping check
-In-Reply-To: <20080618134128.828156bc.nishimura@mxp.nes.nec.co.jp>
-References: <20080618105400.b9f1b664.nishimura@mxp.nes.nec.co.jp> <20080618134128.828156bc.nishimura@mxp.nes.nec.co.jp>
-Message-Id: <20080618164349.37B6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate4.de.ibm.com (8.13.8/8.13.8) with ESMTP id m5I8ZPtb100234
+	for <linux-mm@kvack.org>; Wed, 18 Jun 2008 08:35:25 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5I8ZPph3129528
+	for <linux-mm@kvack.org>; Wed, 18 Jun 2008 10:35:25 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5I8ZOr7013180
+	for <linux-mm@kvack.org>; Wed, 18 Jun 2008 10:35:25 +0200
+Message-ID: <4858C8CC.4040407@de.ibm.com>
+Date: Wed, 18 Jun 2008 10:35:24 +0200
+From: Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: 2.6.26-rc5-mm1
+References: <OF18B05E59.2D95953A-ONC1257464.00296BEB-C1257464.002F94B3@de.ibm.com> <200806180026.27247.m.kozlowski@tuxland.pl>
+In-Reply-To: <200806180026.27247.m.kozlowski@tuxland.pl>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org
+To: Mariusz Kozlowski <m.kozlowski@tuxland.pl>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, balbir@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, Peter Oberparleiter <oberparleiter@googlemail.com>
 List-ID: <linux-mm.kvack.org>
 
-> > > this part is really necessary?
-> > > I tryed to remove it, but any problem doesn't happend.
-> > > 
-> > I made this part first, and added a fix for migration_entry_wait later.
-> > 
-> > So, I haven't test without this part, and I think it will cause
-> > VM_BUG_ON() here without this part.
-> > 
-> > Anyway, I will test it.
-> > 
-> I got this VM_BUG_ON() as expected only by doing:
+Mariusz Kozlowski wrote:
+> After a few hours and tons of reboots I narrowed it down to
+> arch/x86/kernel/Makefile:
 > 
->   # echo $$ >/cgroup/cpuset/02/tasks
+> a) works
+> 	obj-y                   += tsc_$(BITS).o io_delay.o rtc.o
+> 	GCOV_tsc_$(BITS).o      := n
+> 	#GCOV_io_delay.o        := n
+> 	#GCOV_rtc.o     := n
 > 
-> So, I beleive that both fixes for migration_entry_wait and
-> unmap_and_move (and, of course, removal VM_BUG_ON from
-> putback_lru_page) are needed.
+> b) doesn't work
+> 	obj-y                   += tsc_$(BITS).o io_delay.o rtc.o
+> 	#GCOV_tsc_$(BITS).o     := n
+> 	#GCOV_io_delay.o        := n
+> 	#GCOV_rtc.o     := n
+> 
+> and that points to arch/x86/kernel/tsc_64.c
 
-OK, I confirmed this part.
+Excellent work! 
 
-Andrew, please pick.
+I had a quick look at that file and couldn't identify any obvious reason
+(for a non-x84 developer) why it shouldn't work with -fprofile-arcs.
+There are some comments in the corresponding Makefile though that
+indicate that tsc_64.o is a bit picky with regards to CFLAGS (no -pg,
+-fno-stack-protector) so I think it's safe to simply exclude those
+files from profiling.
 
+Based on your findings, the following patch should be applied to -mm.
+Thanks again for your effort.
 
-==================================================
+--
+[PATCH] gcov: fix run-time error on x86_64
 
-Against: 2.6.26-rc5-mm3
+From: Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
 
-remove redundant mapping check.
+Disable profiling of tsc_$(BITS).o to fix a run-time error when using
+CONFIG_GCOV_PROFILE_ALL on x86_64:
 
-we'd be doing exactly what putback_lru_page() is doing.  So, this code
-as always unnecessary, duplicate code.
-So, just let putback_lru_page() handle this condition and conditionally
-unlock_page().
+bash[498] segfault at ffffffff80868b58 ip ffffffffff600412
+          sp 7fffa3d010f0 error 7
+init[1] segfault at ffffffff80868b58 ip ffffffffff600412
+        sp 7fff9e97f640 error 7
+init[1] segfault at ffffffff80868b58 ip ffffffffff600412
+        sp 7fff9e97eed0 error 7
+Kernel panic - not syncing: Attemted to kill init!
+Pid 1, comm: init Not tainted 2.6.26-rc5-mm1 #1
 
+m.kozlowski@tuxland.pl wrote:
+> After a few hours and tons of reboots I narrowed it down to
+> arch/x86/kernel/Makefile:
+>
+> a) works
+>	obj-y                   += tsc_$(BITS).o io_delay.o rtc.o
+> 	GCOV_tsc_$(BITS).o      := n
+> 	#GCOV_io_delay.o        := n
+> 	#GCOV_rtc.o     := n
+>
+> b) doesn't work
+> 	obj-y                   += tsc_$(BITS).o io_delay.o rtc.o
+> 	#GCOV_tsc_$(BITS).o     := n
+> 	#GCOV_io_delay.o        := n
+>	#GCOV_rtc.o     := n
+>
+> and that points to arch/x86/kernel/tsc_64.c
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by:      Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Reported-by: Mariusz Kozlowski <m.kozlowski@tuxland.pl>
+Reported-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Signed-off-by: Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
 
 ---
- mm/migrate.c |    8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ arch/x86/kernel/Makefile |    3 +++
+ 1 file changed, 3 insertions(+)
 
-Index: b/mm/migrate.c
+Index: linux-2.6.26-rc5-mm3/arch/x86/kernel/Makefile
 ===================================================================
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -716,13 +716,7 @@ unlock:
-  		 * restored.
-  		 */
-  		list_del(&page->lru);
--		if (!page->mapping) {
--			VM_BUG_ON(page_count(page) != 1);
--			unlock_page(page);
--			put_page(page);		/* just free the old page */
--			goto end_migration;
--		} else
--			unlock = putback_lru_page(page);
-+		unlock = putback_lru_page(page);
- 	}
+--- linux-2.6.26-rc5-mm3.orig/arch/x86/kernel/Makefile
++++ linux-2.6.26-rc5-mm3/arch/x86/kernel/Makefile
+@@ -13,6 +13,9 @@ CFLAGS_REMOVE_tsc_32.o = -pg
+ CFLAGS_REMOVE_rtc.o = -pg
+ endif
  
- 	if (unlock)
-
-
++GCOV_tsc_32.o := n
++GCOV_tsc_64.o := n
++
+ #
+ # vsyscalls (which work on the user stack) should have
+ # no stack-protector checks:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
