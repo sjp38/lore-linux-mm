@@ -1,78 +1,61 @@
-Date: Wed, 18 Jun 2008 12:33:02 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] unevictable mlocked pages:  initialize mm member of munlock mm_walk structure
-In-Reply-To: <1213732843.8707.70.camel@lts-notebook>
-References: <1213727385.8707.53.camel@lts-notebook> <1213732843.8707.70.camel@lts-notebook>
-Message-Id: <20080618122828.37A0.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Date: Wed, 18 Jun 2008 13:41:28 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH][RFC] fix kernel BUG at mm/migrate.c:719! in
+ 2.6.26-rc5-mm3
+Message-Id: <20080618134128.828156bc.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20080618105400.b9f1b664.nishimura@mxp.nes.nec.co.jp>
+References: <20080611225945.4da7bb7f.akpm@linux-foundation.org>
+	<20080617163501.7cf411ee.nishimura@mxp.nes.nec.co.jp>
+	<20080618003129.DE27.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<20080618105400.b9f1b664.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> PATCH:  fix munlock page table walk - now requires 'mm'
+On Wed, 18 Jun 2008 10:54:00 +0900, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> On Wed, 18 Jun 2008 00:33:18 +0900, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > > @@ -715,13 +725,7 @@ unlock:
+> > >   		 * restored.
+> > >   		 */
+> > >   		list_del(&page->lru);
+> > > -		if (!page->mapping) {
+> > > -			VM_BUG_ON(page_count(page) != 1);
+> > > -			unlock_page(page);
+> > > -			put_page(page);		/* just free the old page */
+> > > -			goto end_migration;
+> > > -		} else
+> > > -			unlock = putback_lru_page(page);
+> > > +		unlock = putback_lru_page(page);
+> > >  	}
+> > >  
+> > >  	if (unlock)
+> > 
+> > this part is really necessary?
+> > I tryed to remove it, but any problem doesn't happend.
+> > 
+> I made this part first, and added a fix for migration_entry_wait later.
 > 
-> Against 2.6.26-rc5-mm3.
+> So, I haven't test without this part, and I think it will cause
+> VM_BUG_ON() here without this part.
 > 
-> Incremental fix for: mlock-mlocked-pages-are-unevictable-fix.patch 
+> Anyway, I will test it.
 > 
-> Initialize the 'mm' member of the mm_walk structure, else the
-> page table walk doesn't occur, and mlocked pages will not be
-> munlocked.  This is visible in the vmstats:  
+I got this VM_BUG_ON() as expected only by doing:
 
-Yup, Dave Hansen changed page_walk interface recently.
-thus, his and ours patch is conflicted ;)
+  # echo $$ >/cgroup/cpuset/02/tasks
 
-below patch is just nit cleanups.
-
-
-===========================================
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-
-This [freeing of mlocked pages] also occurs in unpatched 26-rc5-mm3.
-
-Fixed by the following:
-
-PATCH:  fix munlock page table walk - now requires 'mm'
-
-Against 2.6.26-rc5-mm3.
-
-Incremental fix for: mlock-mlocked-pages-are-unevictable-fix.patch 
-
-Initialize the 'mm' member of the mm_walk structure, else the
-page table walk doesn't occur, and mlocked pages will not be
-munlocked.  This is visible in the vmstats:  
-
-	noreclaim_pgs_munlocked - should equal noreclaim_pgs_mlocked
-	  less (nr_mlock + noreclaim_pgs_cleared), but is always zero 
-	  [munlock_vma_page() never called]
-
-	noreclaim_pgs_mlockfreed - should be zero [for debug only],
-	  but == noreclaim_pgs_mlocked - (nr_mlock + noreclaim_pgs_cleared)
+So, I beleive that both fixes for migration_entry_wait and
+unmap_and_move (and, of course, removal VM_BUG_ON from
+putback_lru_page) are needed.
 
 
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
- mm/mlock.c |    1 +
- 1 file changed, 1 insertion(+)
-
-Index: b/mm/mlock.c
-===================================================================
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -310,6 +310,7 @@ static void __munlock_vma_pages_range(st
- 		.pmd_entry = __munlock_pmd_handler,
- 		.pte_entry = __munlock_pte_handler,
- 		.private = &mpw,
-+		.mm = mm,
- 	};
- 
- 	VM_BUG_ON(start & ~PAGE_MASK || end & ~PAGE_MASK);
-
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
