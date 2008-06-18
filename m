@@ -1,43 +1,116 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5IMXV2K007657
-	for <linux-mm@kvack.org>; Wed, 18 Jun 2008 18:33:31 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5IMXU6Z178212
-	for <linux-mm@kvack.org>; Wed, 18 Jun 2008 16:33:30 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5IMXUnZ024235
-	for <linux-mm@kvack.org>; Wed, 18 Jun 2008 16:33:30 -0600
-Message-Id: <20080618223329.644300254@linux.vnet.ibm.com>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5IMXUpP011043
+	for <linux-mm@kvack.org>; Wed, 18 Jun 2008 18:33:30 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5IMXUxU231334
+	for <linux-mm@kvack.org>; Wed, 18 Jun 2008 18:33:30 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5IMXTSf009940
+	for <linux-mm@kvack.org>; Wed, 18 Jun 2008 18:33:30 -0400
+Message-Id: <20080618223328.856102092@linux.vnet.ibm.com>
 References: <20080618223254.966080905@linux.vnet.ibm.com>
-Date: Wed, 18 Jun 2008 17:33:00 -0500
+Date: Wed, 18 Jun 2008 17:32:55 -0500
 From: shaggy@linux.vnet.ibm.com
-Subject: [patch 6/6] powerpc: Dont clear _PAGE_COHERENT when _PAGE_SAO is set
-Content-Disposition: inline; filename=dont_clobber_M.patch
+Subject: [patch 1/6] mm: Allow architectures to define additional protection bits
+Content-Disposition: inline; filename=arch_prot.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Paul Mackerras <paulus@au1.ibm.com>, linux-mm@kvack.org, Linuxppc-dev@ozlabs.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Paul Mackerras <paulus@au1.ibm.com>, linux-mm@kvack.org, Linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
+This patch allows architectures to define functions to deal with
+additional protections bits for mmap() and mprotect().
+
+arch_calc_vm_prot_bits() maps additonal protection bits to vm_flags
+arch_vm_get_page_prot() maps additional vm_flags to the vma's vm_page_prot
+arch_validate_prot() checks for valid values of the protection bits
+
+Note: vm_get_page_prot() is now pretty ugly.  Suggestions?
+
+Signed-off-by: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
 ---
 
- arch/powerpc/platforms/pseries/lpar.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ include/linux/mman.h |   28 +++++++++++++++++++++++++++-
+ mm/mmap.c            |    5 +++--
+ mm/mprotect.c        |    2 +-
+ 3 files changed, 31 insertions(+), 4 deletions(-)
 
-Index: linux-2.6.26-rc5/arch/powerpc/platforms/pseries/lpar.c
+Index: linux-2.6.26-rc5/include/linux/mman.h
 ===================================================================
---- linux-2.6.26-rc5.orig/arch/powerpc/platforms/pseries/lpar.c
-+++ linux-2.6.26-rc5/arch/powerpc/platforms/pseries/lpar.c
-@@ -305,7 +305,8 @@ static long pSeries_lpar_hpte_insert(uns
- 	flags = 0;
+--- linux-2.6.26-rc5.orig/include/linux/mman.h
++++ linux-2.6.26-rc5/include/linux/mman.h
+@@ -34,6 +34,31 @@ static inline void vm_unacct_memory(long
+ }
  
- 	/* Make pHyp happy */
--	if (rflags & (_PAGE_GUARDED|_PAGE_NO_CACHE))
-+	if ((rflags & _PAGE_GUARDED) ||
-+	    ((rflags & _PAGE_NO_CACHE) & !(rflags & _PAGE_WRITETHRU)))
- 		hpte_r &= ~_PAGE_COHERENT;
+ /*
++ * Allow architectures to handle additional protection bits
++ */
++
++#ifndef arch_calc_vm_prot_bits
++#define arch_calc_vm_prot_bits(prot) 0
++#endif
++
++#ifndef arch_vm_get_page_prot
++#define arch_vm_get_page_prot(vm_flags) __pgprot(0)
++#endif
++
++#ifndef arch_validate_prot
++/*
++ * This is called from mprotect().  PROT_GROWSDOWN and PROT_GROWSUP have
++ * already been masked out.
++ *
++ * Returns true if the prot flags are valid
++ */
++static inline int arch_validate_prot(unsigned long prot)
++{
++	return (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM)) == 0;
++}
++#endif
++
++/*
+  * Optimisation macro.  It is equivalent to:
+  *      (x & bit1) ? bit2 : 0
+  * but this version is faster.
+@@ -51,7 +76,8 @@ calc_vm_prot_bits(unsigned long prot)
+ {
+ 	return _calc_vm_trans(prot, PROT_READ,  VM_READ ) |
+ 	       _calc_vm_trans(prot, PROT_WRITE, VM_WRITE) |
+-	       _calc_vm_trans(prot, PROT_EXEC,  VM_EXEC );
++	       _calc_vm_trans(prot, PROT_EXEC,  VM_EXEC) |
++	       arch_calc_vm_prot_bits(prot);
+ }
  
- 	lpar_rc = plpar_pte_enter(flags, hpte_group, hpte_v, hpte_r, &slot);
+ /*
+Index: linux-2.6.26-rc5/mm/mmap.c
+===================================================================
+--- linux-2.6.26-rc5.orig/mm/mmap.c
++++ linux-2.6.26-rc5/mm/mmap.c
+@@ -72,8 +72,9 @@ pgprot_t protection_map[16] = {
+ 
+ pgprot_t vm_get_page_prot(unsigned long vm_flags)
+ {
+-	return protection_map[vm_flags &
+-				(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)];
++	return __pgprot(pgprot_val(protection_map[vm_flags &
++				(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]) |
++			pgprot_val(arch_vm_get_page_prot(vm_flags)));
+ }
+ EXPORT_SYMBOL(vm_get_page_prot);
+ 
+Index: linux-2.6.26-rc5/mm/mprotect.c
+===================================================================
+--- linux-2.6.26-rc5.orig/mm/mprotect.c
++++ linux-2.6.26-rc5/mm/mprotect.c
+@@ -239,7 +239,7 @@ sys_mprotect(unsigned long start, size_t
+ 	end = start + len;
+ 	if (end <= start)
+ 		return -ENOMEM;
+-	if (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM))
++	if (!arch_validate_prot(prot))
+ 		return -EINVAL;
+ 
+ 	reqprot = prot;
 
 -- 
 
