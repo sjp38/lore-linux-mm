@@ -1,29 +1,25 @@
-Date: Thu, 19 Jun 2008 18:15:40 +0900
+Date: Thu, 19 Jun 2008 18:17:03 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [-mm][PATCH 3/5] collect lru meminfo statistics from correct offset
+Subject: [-mm][PATCH 4/5]  fix incorrect Mlocked field of /proc/meminfo.
 In-Reply-To: <20080619172241.E7FC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 References: <20080619172241.E7FC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20080619181406.E808.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080619181543.E80B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-PATCH collect lru meminfo statistics from correct offset
+Mlocked field of /proc/meminfo display silly number.
+because trivial mistake exist in meminfo_read_proc().
 
-Against:  2.6.26-rc5-mm3
-
-Offset 'lru' by 'NR_LRU_BASE' to obtain global page state for
-lru list 'lru'.
-
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
+---
  fs/proc/proc_misc.c |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
@@ -31,15 +27,15 @@ Index: b/fs/proc/proc_misc.c
 ===================================================================
 --- a/fs/proc/proc_misc.c
 +++ b/fs/proc/proc_misc.c
-@@ -158,7 +158,7 @@ static int meminfo_read_proc(char *page,
- 	get_vmalloc_info(&vmi);
- 
- 	for (lru = LRU_BASE; lru < NR_LRU_LISTS; lru++)
--		pages[lru] = global_page_state(lru);
-+		pages[lru] = global_page_state(NR_LRU_BASE + lru);
- 
- 	/*
- 	 * Tagged format, for easy grepping and expansion.
+@@ -216,7 +216,7 @@ static int meminfo_read_proc(char *page,
+ 		K(pages[LRU_INACTIVE_FILE]),
+ #ifdef CONFIG_UNEVICTABLE_LRU
+ 		K(pages[LRU_UNEVICTABLE]),
+-		K(pages[NR_MLOCK]),
++		K(global_page_state(NR_MLOCK)),
+ #endif
+ #ifdef CONFIG_HIGHMEM
+ 		K(i.totalhigh),
 
 
 --
