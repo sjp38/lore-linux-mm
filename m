@@ -1,53 +1,63 @@
-Date: Thu, 19 Jun 2008 18:08:54 +0900
+Date: Thu, 19 Jun 2008 18:13:59 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [-mm][PATCH 1/5]  fix munlock page table walk
+Subject: [-mm][PATCH 2/5] migration_entry_wait fix.
 In-Reply-To: <20080619172241.E7FC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 References: <20080619172241.E7FC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20080619180721.E802.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080619180856.E805.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-PATCH:  fix munlock page table walk - now requires 'mm'
+In speculative page cache lookup protocol, page_count(page) is set to 0
+while radix-tree modification is going on, truncation, migration, etc...
 
-Against 2.6.26-rc5-mm3.
+While page migration, a page fault to page under migration should wait
+unlock_page() and migration_entry_wait() waits for the page from its
+pte entry. It does get_page() -> wait_on_page_locked() -> put_page() now.
 
-Initialize the 'mm' member of the mm_walk structure, else the
-page table walk doesn't occur, and mlocked pages will not be
-munlocked.  This is visible in the vmstats:  
+In page migration, page_freeze_refs() -> page_unfreeze_refs() is called.
 
-	noreclaim_pgs_munlocked - should equal noreclaim_pgs_mlocked
-	  less (nr_mlock + noreclaim_pgs_cleared), but is always zero 
-	  [munlock_vma_page() never called]
+Here, page_unfreeze_refs() expects page_count(page) == 0 and panics
+if page_count(page) != 0. To avoid this, we shouldn't touch page_count()
+if it is zero. This patch uses page_cache_get_speculative() to avoid
+the panic.
 
-	noreclaim_pgs_mlockfreed - should be zero [for debug only],
-	  but == noreclaim_pgs_mlocked - (nr_mlock + noreclaim_pgs_cleared)
-
-
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Acked-by: Nick Piggin <npiggin@suse.de>
 
- mm/mlock.c |    1 +
- 1 file changed, 1 insertion(+)
+---
+ mm/migrate.c |   10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
 
-Index: b/mm/mlock.c
+Index: b/mm/migrate.c
 ===================================================================
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -301,6 +301,7 @@ static void __munlock_vma_pages_range(st
- 		.pmd_entry = __munlock_pmd_handler,
- 		.pte_entry = __munlock_pte_handler,
- 		.private = &mpw,
-+		.mm = mm,
- 	};
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -243,7 +243,15 @@ void migration_entry_wait(struct mm_stru
  
- 	VM_BUG_ON(start & ~PAGE_MASK || end & ~PAGE_MASK);
+ 	page = migration_entry_to_page(entry);
+ 
+-	get_page(page);
++	/*
++	 * Once radix-tree replacement of page migration started, page_count
++	 * *must* be zero. And, we don't want to call wait_on_page_locked()
++	 * against a page without get_page().
++	 * So, we use get_page_unless_zero(), here. Even failed, page fault
++	 * will occur again.
++	 */
++	if (!get_page_unless_zero(page))
++		goto out;
+ 	pte_unmap_unlock(ptep, ptl);
+ 	wait_on_page_locked(page);
+ 	put_page(page);
 
 
 --
