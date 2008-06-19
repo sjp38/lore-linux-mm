@@ -1,44 +1,49 @@
-Date: Thu, 19 Jun 2008 18:31:44 +0900
+Date: Thu, 19 Jun 2008 18:38:16 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [-mm][PATCH 5/5] putback_lru_page()/unevictable page handling rework v2
-In-Reply-To: <20080619181707.E80E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080619172241.E7FC.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080619181707.E80E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20080619182415.E811.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [-mm][PATCH 0/5] memory related bugfix set for 2.6.26-rc5-mm3 
+In-Reply-To: <20080619172241.E7FC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080619172241.E7FC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080619183230.E814.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Ah, sorry.
-I forgot to write changelog.
+Andrew,
 
-V1 -> V2
-   o undo unintented comment killing.
-   o move putback_lru_page() from move_to_new_page() to unmap_and_move().
-   o folded depend patch
-       http://marc.info/?l=linux-mm&m=121337119621958&w=2
-       http://marc.info/?l=linux-kernel&m=121362782406478&w=2
-       http://marc.info/?l=linux-mm&m=121377572909776&w=2
+the mailing list manager of linux-mm dropped "From:" line 
+at beginning of the mail ;)
+
+the patches are writed by below person.
+please pay attention.
+
+1/5 fix munlock page table walk
+	-> From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+2/5 migration_entry_wait fix.
+	-> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+3/5 collect lru meminfo statistics from correct offset
+	-> From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+4/5 fix incorrect Mlocked field of /proc/meminfo.
+	-> Hugh Dickins <hugh@veritas.com>
+5/5 putback_lru_page()/unevictable page handling rework
+	-> From: KAMEZAWA Hiroyuki <kamezawa.hiroy@jp.fujitsu.com>
 
 
-> this patch is folding several patches and obsolete to
+
+> Hi, Andrew and -mm guys!
 > 
-> Lee's  "fix double unlock_page()" patches
+> Unfortunately, linux-2.6.26-rc5-mm3 has several bugs and 
+> some bugs depend on each other.
 > 
->    http://marc.info/?l=linux-mm&m=121337119621958&w=2
->    http://marc.info/?l=linux-kernel&m=121362782406478&w=2
+> thus, I collect, sort, and fold these patchs..
+> this patchset surve on my stress workload >5H.
 > 
-> and Nishimura-san's "remove redundant page->mapping check" patch.
-> 
->    http://marc.info/?l=linux-mm&m=121377572909776&w=2
-> 
-> 
-> -----------------------------------------
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroy@jp.fujitsu.com>
+> enjoy!
+
 
 
 --
