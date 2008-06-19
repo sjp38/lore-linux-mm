@@ -1,68 +1,52 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: Can get_user_pages( ,write=1, force=1, ) result in a read-only pte and _count=2?
-Date: Thu, 19 Jun 2008 13:34:32 +1000
-References: <20080618164158.GC10062@sgi.com> <Pine.LNX.4.64.0806182209320.16252@blonde.site> <200806191331.32056.nickpiggin@yahoo.com.au>
-In-Reply-To: <200806191331.32056.nickpiggin@yahoo.com.au>
+Received: from mlsv7.hitachi.co.jp (unknown [133.144.234.166])
+	by mail9.hitachi.co.jp (Postfix) with ESMTP id 4EC1437C92
+	for <linux-mm@kvack.org>; Thu, 19 Jun 2008 16:00:11 +0900 (JST)
+Message-ID: <485A03E6.2090509@hitachi.com>
+Date: Thu, 19 Jun 2008 15:59:50 +0900
+From: Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: [BUG][PATCH -mm] avoid BUG() in __stop_machine_run()
+References: <20080611225945.4da7bb7f.akpm@linux-foundation.org>
+In-Reply-To: <20080611225945.4da7bb7f.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200806191334.32418.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Robin Holt <holt@sgi.com>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, sugita <yumiko.sugita.yf@hitachi.com>, Satoshi OSHIMA <satoshi.oshima.fk@hitachi.com>, rusty@rustcorp.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 19 June 2008 13:31, Nick Piggin wrote:
-> On Thursday 19 June 2008 07:46, Hugh Dickins wrote:
-> > contain COWs - I used to rail against it for that reason, but in the
-> > end did an audit and couldn't find any place where that violation of
-> > our assumptions actually mattered enough to get so excited.
->
-> Still, they're slightly troublesome, as our get_user_pages problems
-> demonstrate :)
->
-> > Hugh
-> >
-> > --- 2.6.26-rc6/mm/memory.c	2008-05-26 20:00:39.000000000 +0100
-> > +++ linux/mm/memory.c	2008-06-18 22:06:46.000000000 +0100
-> > @@ -1152,9 +1152,15 @@ int get_user_pages(struct task_struct *t
-> >  				 * do_wp_page has broken COW when necessary,
-> >  				 * even if maybe_mkwrite decided not to set
-> >  				 * pte_write. We can thus safely do subsequent
-> > -				 * page lookups as if they were reads.
-> > +				 * page lookups as if they were reads. But only
-> > +				 * do so when looping for pte_write is futile:
-> > +				 * in some cases userspace may also be wanting
-> > +				 * to write to the gotten user page, which a
-> > +				 * read fault here might prevent (a readonly
-> > +				 * page would get reCOWed by userspace write).
-> >  				 */
-> > -				if (ret & VM_FAULT_WRITE)
-> > +				if ((ret & VM_FAULT_WRITE) &&
-> > +				    !(vma->vm_flags & VM_WRITE))
-> >  					foll_flags &= ~FOLL_WRITE;
-> >
-> >  				cond_resched();
->
-> Hmm, doesn't this give the same problem for !VM_WRITE vmas? If you
-> called get_user_pages again, isn't that going to cause another COW
-> on the already-COWed page that we're hoping to write into? (not sure
-> about mprotect either, could that be used to make the vma writeable
-> afterwards and then write to it?)
->
-> I would rather (if my reading of the code is correct) make the
-> trylock page into a full lock_page. The indeterminism of the trylock
-> has always bugged me anyway... Shouldn't that cause a swap page not
-> to get reCOWed if we have the only mapping to it?
+When a process loads a kernel module, __stop_machine_run() is called, and
+it calls sched_setscheduler() to give newly created kernel threads highest
+priority.  However, the process can have no CAP_SYS_NICE which required
+for sched_setscheduler() to increase the priority.  For example, SystemTap
+loads its module with only CAP_SYS_MODULE.  In this case,
+sched_setscheduler() returns -EPERM, then BUG() is called.
 
-Although, I have to qualify that. I do like this patch if nothing
-else than because it avoids this crazy corner case completely for
-the common force=0 case. So I would like to see this patch go in
-(hopefully it doesn't just push the obscure bugs further under the
-radar!)
+Failure of sched_setscheduler() wouldn't be a real problem, so this
+patch just ignores it.
+Or, should we give the CAP_SYS_NICE capability temporarily?
+
+Signed-off-by: Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>
+---
+ kernel/stop_machine.c |    3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+Index: linux-2.6.26-rc5-mm3/kernel/stop_machine.c
+===================================================================
+--- linux-2.6.26-rc5-mm3.orig/kernel/stop_machine.c
++++ linux-2.6.26-rc5-mm3/kernel/stop_machine.c
+@@ -143,8 +143,7 @@ int __stop_machine_run(int (*fn)(void *)
+ 		kthread_bind(threads[i], i);
+ 
+ 		/* Make it highest prio. */
+-		if (sched_setscheduler(threads[i], SCHED_FIFO, &param) != 0)
+-			BUG();
++		sched_setscheduler(threads[i], SCHED_FIFO, &param);
+ 	}
+ 
+ 	/* We've created all the threads.  Wake them all: hold this CPU so one
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
