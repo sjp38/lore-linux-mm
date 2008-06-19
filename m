@@ -1,80 +1,70 @@
-Date: Thu, 19 Jun 2008 19:22:27 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Question : memrlimit cgroup's task_move (2.6.26-rc5-mm3)
-Message-Id: <20080619192227.972ded64.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080619122429.138a1d32.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080619121435.f868c110.kamezawa.hiroyu@jp.fujitsu.com>
-	<4859CEE7.9030505@linux.vnet.ibm.com>
-	<20080619122429.138a1d32.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 19 Jun 2008 12:09:15 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: Can get_user_pages( ,write=1, force=1, ) result in a read-only
+ pte and _count=2?
+In-Reply-To: <200806191307.04499.nickpiggin@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0806191154270.7324@blonde.site>
+References: <20080618164158.GC10062@sgi.com> <200806190329.30622.nickpiggin@yahoo.com.au>
+ <Pine.LNX.4.64.0806181944080.4968@blonde.site> <200806191307.04499.nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "menage@google.com" <menage@google.com>, "containers@lists.osdl.org" <containers@lists.osdl.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Robin Holt <holt@sgi.com>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Jun 2008 12:24:29 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> On Thu, 19 Jun 2008 08:43:43 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Thu, 19 Jun 2008, Nick Piggin wrote:
+> On Thursday 19 June 2008 05:01, Hugh Dickins wrote:
+> > On Thu, 19 Jun 2008, Nick Piggin wrote:
 > 
+> > > But although that feels a bit unclean, I don't think it would cause
+> > > a problem because the previous VM_FAULT_WRITE (while under mmap_sem)
+> > > ensures our swap page should still be valid to write into via get
+> > > user pages (and a subsequent write access should cause do_wp_page to
+> > > go through the proper reuse logic and now COW).
 > >
-> > > I think the charge of the new group goes to minus. right ?
-> > > (and old group's charge never goes down.)
-> > > I don't think this is "no problem".
-> > > 
-> > > What kind of patch is necessary to fix this ?
-> > > task_attach() should be able to fail in future ?
-> > > 
-> > > I'm sorry if I misunderstand something or this is already in TODO list.
-> > > 
-> > 
-> > It's already on the TODO list. Thanks for keeping me reminded about it.
-> > 
-> Okay, I'm looking foward to see how can_attach and roll-back(if necessary)
-> is implemnted.
-> As you know, I'm interested in how to handle failure of task move.
+> > I think perhaps Robin is wanting to write into the page both from the
+> > kernel (hence the get_user_pages) and from userspace: but finding that
+> > the attempt to write from userspace breaks COW again (because gup
+> > raised the page count and it's a readonly pte), so they end up
+> > writing into different pages.  We know that COW didn't need to
+> > be broken a second time, but do_wp_page doesn't know that.
 > 
-One more thing...
-Now, charge is done at
+> I'm having trouble seeing the path that leads to this situation. I
+> can't see what the significance of the elevated page count is?
 
- - vm is inserted (special case?)
- - vm is expanded (mmap is called, stack growth...)
+The trouble is, you're looking at what can_share_swap_page actually
+does, instead of letting your mind regress a few years to what it
+used to do before we had page_mapcount ;)
 
-And uncharge is done at
- - vm is removed (success of munmap)
- - exit_mm is called (exit of process)
+Yes, sorry, my page count "explanation" is nonsense.
 
-But it seems charging at may_expand_vm() is not good.
-The mmap can fail after may_expand_vm() because of various reason,
-but charge is already done at may_expand_vm()....and no roll-back.
+> 
+> We're talking about swap pages, as in do_swap_page? Then AFAIKS it
+> is only the mapcount that is taken into account, and get_user_pages
+> will first break COW, but that should set mapcount back to 1, in
+> which case the userspace access should notice that in do_swap_page
+> and prevent the 2nd COW from happening.
 
-== an easy example of leak in stack growth handling ==
-[root@iridium kamezawa]# cat /opt/cgroup/test/memrlimit.usage_in_bytes
-71921664
-[root@iridium kamezawa]# ulimit -s 3
-[root@iridium kamezawa]# ls
-Killed
-[root@iridium kamezawa]# ls
-Killed
-[root@iridium kamezawa]# ls
-Killed
-[root@iridium kamezawa]# ls
-Killed
-[root@iridium kamezawa]# ls
-Killed
-[root@iridium kamezawa]# ulimit -s unlimited
-[root@iridium kamezawa]# cat /opt/cgroup/test/memrlimit.usage_in_bytes
-72368128
-[root@iridium kamezawa]#
-==
+(I assume Robin is not forking, we do know that causes this kind
+of problem, but he didn't mention any forking so I assume not.)
 
-Thanks,
--Kame
+> 
+> Unless, hmm no it can also be called directly via handle_pte_fault,
+> and if it happens to fail the trylock_page, I think I do see how it
+> can be COWed. But it doesn't seem to have anything to do with page
+> count so I don't know if I'm on the right track or maybe missing the
+> obvious...
 
+The !TestSetPageLocked (there, now I'm looking at the source!).
+Yes, I suppose if it goes the wrong way on that, it would account
+for it; though it'd be nice to have some confirmation that's what's
+happening.
+
+Over to your next mail...
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
