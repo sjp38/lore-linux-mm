@@ -1,26 +1,53 @@
-Date: Thu, 19 Jun 2008 18:07:05 +0900
+Date: Thu, 19 Jun 2008 18:08:54 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [-mm][PATCH 0/5] memory related bugfix set for 2.6.26-rc5-mm3 
-Message-Id: <20080619172241.E7FC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: [-mm][PATCH 1/5]  fix munlock page table walk
+In-Reply-To: <20080619172241.E7FC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080619172241.E7FC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080619180721.E802.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Hi, Andrew and -mm guys!
+PATCH:  fix munlock page table walk - now requires 'mm'
 
-Unfortunately, linux-2.6.26-rc5-mm3 has several bugs and 
-some bugs depend on each other.
+Against 2.6.26-rc5-mm3.
 
-thus, I collect, sort, and fold these patchs..
-this patchset surve on my stress workload >5H.
+Initialize the 'mm' member of the mm_walk structure, else the
+page table walk doesn't occur, and mlocked pages will not be
+munlocked.  This is visible in the vmstats:  
 
-enjoy!
+	noreclaim_pgs_munlocked - should equal noreclaim_pgs_mlocked
+	  less (nr_mlock + noreclaim_pgs_cleared), but is always zero 
+	  [munlock_vma_page() never called]
 
+	noreclaim_pgs_mlockfreed - should be zero [for debug only],
+	  but == noreclaim_pgs_mlocked - (nr_mlock + noreclaim_pgs_cleared)
+
+
+Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+ mm/mlock.c |    1 +
+ 1 file changed, 1 insertion(+)
+
+Index: b/mm/mlock.c
+===================================================================
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -301,6 +301,7 @@ static void __munlock_vma_pages_range(st
+ 		.pmd_entry = __munlock_pmd_handler,
+ 		.pte_entry = __munlock_pte_handler,
+ 		.private = &mpw,
++		.mm = mm,
+ 	};
+ 
+ 	VM_BUG_ON(start & ~PAGE_MASK || end & ~PAGE_MASK);
 
 
 --
