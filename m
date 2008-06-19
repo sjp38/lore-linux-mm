@@ -1,37 +1,24 @@
-Date: Thu, 19 Jun 2008 18:16:44 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: Re: 2.6.26-rc5-mm3: BUG large value for HugePages_Rsvd
-Message-ID: <20080619171644.GC13275@shadowen.org>
-References: <20080611225945.4da7bb7f.akpm@linux-foundation.org> <485A8903.9030808@linux.vnet.ibm.com>
+Date: Thu, 19 Jun 2008 10:48:15 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Can get_user_pages( ,write=1, force=1, ) result in a read-only
+ pte and _count=2?
+In-Reply-To: <200806192221.34103.nickpiggin@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0806191047490.7815@schroedinger.engr.sgi.com>
+References: <20080618164158.GC10062@sgi.com> <Pine.LNX.4.64.0806191209370.7324@blonde.site>
+ <200806192207.40838.nickpiggin@yahoo.com.au> <200806192221.34103.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <485A8903.9030808@linux.vnet.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jon Tollefson <kniht@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@linux.vnet.ibm.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Hugh Dickins <hugh@veritas.com>, Robin Holt <holt@sgi.com>, Ingo Molnar <mingo@elte.hu>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 19, 2008 at 11:27:47AM -0500, Jon Tollefson wrote:
-> After running some of the libhugetlbfs tests the value for
-> /proc/meminfo/HugePages_Rsvd becomes really large.  It looks like it has
-> wrapped backwards from zero.
-> Below is the sequence I used to run one of the tests that causes this;
-> the tests passes for what it is intended to test but leaves a large
-> value for reserved pages and that seemed strange to me.
-> test run on ppc64 with 16M huge pages
+On Thu, 19 Jun 2008, Nick Piggin wrote:
 
-Yes Adam reported that here yesterday, he found it in his hugetlfs testing.
-I have done some investigation on it and it is being triggered by a bug in
-the private reservation tracking patches.  It is triggered by the hugetlb
-test which causes some complex vma splits to occur on a private mapping.
+> You could always use another page flag, of course ;)
 
-I believe I have the underlying problem nailed and do have some nearly
-complete patches for this and they should be in a postable state by
-tommorrow.
-
--apw
+Some are available now. If you are fast you will get one...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
