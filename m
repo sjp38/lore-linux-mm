@@ -1,37 +1,36 @@
-Date: Thu, 19 Jun 2008 08:35:50 -0500
+Date: Thu, 19 Jun 2008 08:38:09 -0500
 From: Robin Holt <holt@sgi.com>
 Subject: Re: Can get_user_pages( ,write=1, force=1, ) result in a read-only
 	pte and _count=2?
-Message-ID: <20080619133550.GB10123@sgi.com>
-References: <20080618164158.GC10062@sgi.com> <200806192207.40838.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0806191321030.15095@blonde.site> <200806192253.16880.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0806191413450.23991@blonde.site>
+Message-ID: <20080619133809.GC10123@sgi.com>
+References: <20080618164158.GC10062@sgi.com> <200806190329.30622.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0806181944080.4968@blonde.site> <200806191307.04499.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0806191154270.7324@blonde.site>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0806191413450.23991@blonde.site>
+In-Reply-To: <Pine.LNX.4.64.0806191154270.7324@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
 Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Robin Holt <holt@sgi.com>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 19, 2008 at 02:25:10PM +0100, Hugh Dickins wrote:
+On Thu, Jun 19, 2008 at 12:09:15PM +0100, Hugh Dickins wrote:
 > On Thu, 19 Jun 2008, Nick Piggin wrote:
-> > On Thursday 19 June 2008 22:34, Hugh Dickins wrote:
+> > On Thursday 19 June 2008 05:01, Hugh Dickins wrote:
+> > > On Thu, 19 Jun 2008, Nick Piggin wrote:
 
-> > Oh, I missed that. You're now thinking they do have VM_WRITE on
-> > the vma and hence your patch isn't going to work (and neither
-> > force=0). OK, that sounds right to me.
+> > We're talking about swap pages, as in do_swap_page? Then AFAIKS it
+> > is only the mapcount that is taken into account, and get_user_pages
+> > will first break COW, but that should set mapcount back to 1, in
+> > which case the userspace access should notice that in do_swap_page
+> > and prevent the 2nd COW from happening.
 > 
-> I'm still confused.  I thought all along that they have VM_WRITE on
-> the vma, which Robin has (by implication) confirmed when he says that
-> userspace is trying to write to the same page - I don't think he'd
-> expect it to be able to do so without VM_WRITE.
+> (I assume Robin is not forking, we do know that causes this kind
+> of problem, but he didn't mention any forking so I assume not.)
 
-It does have VM_WRITE set.  I do expect this patch to at least change
-the problem.  I am also working on testing (seperately) with force=0 to
-verify that does not introduce other regressions.  I am doing this
-testing against a sles10 kernel and not Linus' latest and greatest.  I
-will try to test Linus' kernel later, but that will take more time.
+There has been a fork long before this mapping was created.  There was a
+hole at this location and the mapping gets established and pages populated
+following all ranks of the MPI job getting initialized.
 
 Thanks,
 Robin
