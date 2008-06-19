@@ -1,42 +1,66 @@
-Date: Thu, 19 Jun 2008 14:49:50 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: Can get_user_pages( ,write=1, force=1, ) result in a read-only
- pte and _count=2?
-In-Reply-To: <20080619133809.GC10123@sgi.com>
-Message-ID: <Pine.LNX.4.64.0806191441040.25832@blonde.site>
-References: <20080618164158.GC10062@sgi.com> <200806190329.30622.nickpiggin@yahoo.com.au>
- <Pine.LNX.4.64.0806181944080.4968@blonde.site> <200806191307.04499.nickpiggin@yahoo.com.au>
- <Pine.LNX.4.64.0806191154270.7324@blonde.site> <20080619133809.GC10123@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: 2.6.26-rc5-mm3
+From: Daniel Walker <dwalker@mvista.com>
+In-Reply-To: <20080619091337.GA15228@elte.hu>
+References: <20080611225945.4da7bb7f.akpm@linux-foundation.org>
+	 <alpine.DEB.1.00.0806130006490.14928@gamma>
+	 <1213811751.11203.73.camel@localhost.localdomain>
+	 <20080619091337.GA15228@elte.hu>
+Content-Type: text/plain
+Date: Thu, 19 Jun 2008 07:39:30 -0700
+Message-Id: <1213886370.11203.80.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Byron Bradley <byron.bbradley@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, Hua Zhong <hzhong@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Jun 2008, Robin Holt wrote:
-> On Thu, Jun 19, 2008 at 12:09:15PM +0100, Hugh Dickins wrote:
-> > 
-> > (I assume Robin is not forking, we do know that causes this kind
-> > of problem, but he didn't mention any forking so I assume not.)
+On Thu, 2008-06-19 at 11:13 +0200, Ingo Molnar wrote:
+
+> the better fix would be to add likely_prof.o to this list of exceptions 
+> in lib/Makefile:
 > 
-> There has been a fork long before this mapping was created.  There was a
-> hole at this location and the mapping gets established and pages populated
-> following all ranks of the MPI job getting initialized.
+>  ifdef CONFIG_FTRACE
+>  # Do not profile string.o, since it may be used in early boot or vdso
+>  CFLAGS_REMOVE_string.o = -pg
+>  # Also do not profile any debug utilities
+>  CFLAGS_REMOVE_spinlock_debug.o = -pg
+>  CFLAGS_REMOVE_list_debug.o = -pg
+>  CFLAGS_REMOVE_debugobjects.o = -pg
+>  endif
+> 
+> instead of adding notrace to the source.
+> 
+> 	Ingo
 
-There's usually been a fork somewhen in the past!  That's no problem.
+Here's the fix mentioned above.
 
-The fork problem comes when someone has done a get_user_pages to break
-all the COWs, then another thread does a fork which writeprotects and
-raises page_mapcount, so the next write from userspace breaks COW again
-and writes to a different page from that which the kernel is holding.
+--
 
-That one kept on coming up, but I've not heard of it again since we
-added madvise MADV_DONTFORK so apps could exclude such parts of the
-address space from copy_page_range.
+Remove tracing from likely profiling since it could cause recursion if
+ftrace uses likely/unlikely macro's internally.
 
-Hugh
+Signed-off-by: Daniel Walker <dwalker@mvista.com>
+
+---
+ lib/Makefile |    2 ++
+ 1 file changed, 2 insertions(+)
+
+Index: linux-2.6.25/lib/Makefile
+===================================================================
+--- linux-2.6.25.orig/lib/Makefile
++++ linux-2.6.25/lib/Makefile
+@@ -15,6 +15,8 @@ CFLAGS_REMOVE_string.o = -pg
+ CFLAGS_REMOVE_spinlock_debug.o = -pg
+ CFLAGS_REMOVE_list_debug.o = -pg
+ CFLAGS_REMOVE_debugobjects.o = -pg
++# likely profiling can cause recursion in ftrace, so don't trace it.
++CFLAGS_REMOVE_likely_prof.o = -pg
+ endif
+ 
+ lib-$(CONFIG_MMU) += ioremap.o
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
