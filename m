@@ -1,54 +1,40 @@
-Date: Thu, 19 Jun 2008 14:25:10 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
+Date: Thu, 19 Jun 2008 08:35:50 -0500
+From: Robin Holt <holt@sgi.com>
 Subject: Re: Can get_user_pages( ,write=1, force=1, ) result in a read-only
- pte and _count=2?
-In-Reply-To: <200806192253.16880.nickpiggin@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0806191413450.23991@blonde.site>
-References: <20080618164158.GC10062@sgi.com> <200806192207.40838.nickpiggin@yahoo.com.au>
- <Pine.LNX.4.64.0806191321030.15095@blonde.site> <200806192253.16880.nickpiggin@yahoo.com.au>
+	pte and _count=2?
+Message-ID: <20080619133550.GB10123@sgi.com>
+References: <20080618164158.GC10062@sgi.com> <200806192207.40838.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0806191321030.15095@blonde.site> <200806192253.16880.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0806191413450.23991@blonde.site>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0806191413450.23991@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Robin Holt <holt@sgi.com>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Robin Holt <holt@sgi.com>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Jun 2008, Nick Piggin wrote:
-> On Thursday 19 June 2008 22:34, Hugh Dickins wrote:
-> >
-> > I doubt it's an accurate swapcount, just a case where one can be
-> > sure of !page_swapcount.  It's certainly not something to take on
-> > trust, patches I need to be sceptical about and refresh my mind on.
+On Thu, Jun 19, 2008 at 02:25:10PM +0100, Hugh Dickins wrote:
+> On Thu, 19 Jun 2008, Nick Piggin wrote:
+> > On Thursday 19 June 2008 22:34, Hugh Dickins wrote:
+
+> > Oh, I missed that. You're now thinking they do have VM_WRITE on
+> > the vma and hence your patch isn't going to work (and neither
+> > force=0). OK, that sounds right to me.
 > 
-> I don't know if you can be sure of that, because after checking
-> page_mapcount, but before checking page_swapcount, can't another
-> process have moved their swapcount to mapcount?
+> I'm still confused.  I thought all along that they have VM_WRITE on
+> the vma, which Robin has (by implication) confirmed when he says that
+> userspace is trying to write to the same page - I don't think he'd
+> expect it to be able to do so without VM_WRITE.
 
-Obviously that's the concern.  I need to go over the whole patch
-and refresh my mind on this area before I can give you an answer.
+It does have VM_WRITE set.  I do expect this patch to at least change
+the problem.  I am also working on testing (seperately) with force=0 to
+verify that does not introduce other regressions.  I am doing this
+testing against a sles10 kernel and not Linus' latest and greatest.  I
+will try to test Linus' kernel later, but that will take more time.
 
-> > > I expect Robin could just as well fix it for
-> > > their code in the meantime by using force=0...
-> >
-> > Sorry, please explain, I don't see that: though their driver happens
-> > to say force=1, I don't think it's needed and I don't think it's
-> > making any difference in this case.
-> 
-> Oh, I missed that. You're now thinking they do have VM_WRITE on
-> the vma and hence your patch isn't going to work (and neither
-> force=0). OK, that sounds right to me.
-
-I'm still confused.  I thought all along that they have VM_WRITE on
-the vma, which Robin has (by implication) confirmed when he says that
-userspace is trying to write to the same page - I don't think he'd
-expect it to be able to do so without VM_WRITE.
-
-And my gup patch may (I'm unsure, I haven't tried to picture the whole
-sequence again) still be useful in the case that they do have VM_WRITE,
-but it would make no difference if they didn't have VM_WRITE.
-
-Hugh
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
