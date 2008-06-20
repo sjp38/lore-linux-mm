@@ -1,129 +1,103 @@
-Date: Fri, 20 Jun 2008 10:13:52 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [Experimental][PATCH] putback_lru_page rework
-Message-Id: <20080620101352.e1200b8e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1213886722.6398.29.camel@lts-notebook>
-References: <20080611225945.4da7bb7f.akpm@linux-foundation.org>
-	<20080617163501.7cf411ee.nishimura@mxp.nes.nec.co.jp>
-	<20080617164709.de4db070.nishimura@mxp.nes.nec.co.jp>
-	<20080618184000.a855dfe0.kamezawa.hiroyu@jp.fujitsu.com>
-	<1213813266.6497.14.camel@lts-notebook>
-	<20080619092242.79648592.kamezawa.hiroyu@jp.fujitsu.com>
-	<1213886722.6398.29.camel@lts-notebook>
+Date: Thu, 19 Jun 2008 21:51:05 -0500
+From: Jack Steiner <steiner@sgi.com>
+Subject: [PATCH] - Fix stack overflow for large values of MAX_APICS
+Message-ID: <20080620025104.GA25571@sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org
+To: mingo@elte.hu, tglx@linutronix.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Lee-san, this is an additonal one..
-Not-tested-yet, just by review.
+physid_mask_of_physid() causes a huge stack (12k) to be created if the
+number of APICS is large. Replace physid_mask_of_physid() with a
+new function that does not create large stacks. This is a problem only
+on large x86_64 systems.
 
-Fixing page_lock() <-> zone->lock nesting of bad-behavior.
-
-Before:
-      lock_page()(TestSetPageLocked())
-      spin_lock(zone->lock)
-      unlock_page()
-      spin_unlock(zone->lock)  
-After:
-      spin_lock(zone->lock)
-      spin_unlock(zone->lock)
-
-Including nit-pick fix. (I'll ask Kosaki-san to merge this to his 5/5)
-
-Hmm...
+Signed-off-by: Jack Steiner <steiner@sgi.com>
 
 ---
- mm/vmscan.c |   25 +++++--------------------
- 1 file changed, 5 insertions(+), 20 deletions(-)
 
-Index: test-2.6.26-rc5-mm3/mm/vmscan.c
+Ingo - the "Increase MAX_APICS patch" can now works. Do you
+want me to resend???
+
+
+
+ arch/x86/kernel/apic_32.c |    2 +-
+ arch/x86/kernel/apic_64.c |    2 +-
+ arch/x86/kernel/smpboot.c |    5 ++---
+ include/asm-x86/mpspec.h  |    7 +++++++
+ 4 files changed, 11 insertions(+), 5 deletions(-)
+
+Index: linux/arch/x86/kernel/apic_32.c
 ===================================================================
---- test-2.6.26-rc5-mm3.orig/mm/vmscan.c
-+++ test-2.6.26-rc5-mm3/mm/vmscan.c
-@@ -1106,7 +1106,7 @@ static unsigned long shrink_inactive_lis
- 		if (nr_taken == 0)
- 			goto done;
+--- linux.orig/arch/x86/kernel/apic_32.c	2008-06-19 11:50:07.000000000 -0500
++++ linux/arch/x86/kernel/apic_32.c	2008-06-19 19:28:04.000000000 -0500
+@@ -1267,7 +1267,7 @@ int __init APIC_init_uniprocessor(void)
+ #ifdef CONFIG_CRASH_DUMP
+ 	boot_cpu_physical_apicid = GET_APIC_ID(read_apic_id());
+ #endif
+-	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_physical_apicid);
++	physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
  
--		spin_lock(&zone->lru_lock);
-+		spin_lock_irq(&zone->lru_lock);
- 		/*
- 		 * Put back any unfreeable pages.
- 		 */
-@@ -1136,9 +1136,8 @@ static unsigned long shrink_inactive_lis
- 			}
- 		}
-   	} while (nr_scanned < max_scan);
--	spin_unlock(&zone->lru_lock);
-+	spin_unlock_irq(&zone->lru_lock);
- done:
--	local_irq_enable();
- 	pagevec_release(&pvec);
- 	return nr_reclaimed;
- }
-@@ -2438,7 +2437,7 @@ static void show_page_path(struct page *
-  */
- static void check_move_unevictable_page(struct page *page, struct zone *zone)
- {
--
-+retry:
- 	ClearPageUnevictable(page); /* for page_evictable() */
- 	if (page_evictable(page, NULL)) {
- 		enum lru_list l = LRU_INACTIVE_ANON + page_is_file_cache(page);
-@@ -2455,6 +2454,8 @@ static void check_move_unevictable_page(
- 		 */
- 		SetPageUnevictable(page);
- 		list_move(&page->lru, &zone->lru[LRU_UNEVICTABLE].list);
-+		if (page_evictable(page, NULL))
-+			goto retry;
- 	}
- }
+ 	setup_local_APIC();
  
-@@ -2494,16 +2495,6 @@ void scan_mapping_unevictable_pages(stru
- 				next = page_index;
- 			next++;
+Index: linux/arch/x86/kernel/apic_64.c
+===================================================================
+--- linux.orig/arch/x86/kernel/apic_64.c	2008-06-19 15:59:58.000000000 -0500
++++ linux/arch/x86/kernel/apic_64.c	2008-06-19 19:25:18.000000000 -0500
+@@ -920,7 +920,7 @@ int __init APIC_init_uniprocessor(void)
  
--			if (TestSetPageLocked(page)) {
--				/*
--				 * OK, let's do it the hard way...
--				 */
--				if (zone)
--					spin_unlock_irq(&zone->lru_lock);
--				zone = NULL;
--				lock_page(page);
--			}
--
- 			if (pagezone != zone) {
- 				if (zone)
- 					spin_unlock_irq(&zone->lru_lock);
-@@ -2514,8 +2505,6 @@ void scan_mapping_unevictable_pages(stru
- 			if (PageLRU(page) && PageUnevictable(page))
- 				check_move_unevictable_page(page, zone);
+ 	connect_bsp_APIC();
  
--			unlock_page(page);
--
- 		}
- 		if (zone)
- 			spin_unlock_irq(&zone->lru_lock);
-@@ -2551,15 +2540,11 @@ void scan_zone_unevictable_pages(struct 
- 		for (scan = 0;  scan < batch_size; scan++) {
- 			struct page *page = lru_to_page(l_unevictable);
+-	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_physical_apicid);
++	physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
+ 	apic_write(APIC_ID, SET_APIC_ID(boot_cpu_physical_apicid));
  
--			if (TestSetPageLocked(page))
--				continue;
--
- 			prefetchw_prev_lru_page(page, l_unevictable, flags);
+ 	setup_local_APIC();
+Index: linux/arch/x86/kernel/smpboot.c
+===================================================================
+--- linux.orig/arch/x86/kernel/smpboot.c	2008-06-19 19:06:00.000000000 -0500
++++ linux/arch/x86/kernel/smpboot.c	2008-06-19 19:37:37.000000000 -0500
+@@ -1042,10 +1042,9 @@ static __init void disable_smp(void)
+ 	smpboot_clear_io_apic_irqs();
  
- 			if (likely(PageLRU(page) && PageUnevictable(page)))
- 				check_move_unevictable_page(page, zone);
+ 	if (smp_found_config)
+-		phys_cpu_present_map =
+-				physid_mask_of_physid(boot_cpu_physical_apicid);
++		physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
+ 	else
+-		phys_cpu_present_map = physid_mask_of_physid(0);
++		physid_set_mask_of_physid(0, &phys_cpu_present_map);
+ 	map_cpu_to_logical_apicid();
+ 	cpu_set(0, per_cpu(cpu_sibling_map, 0));
+ 	cpu_set(0, per_cpu(cpu_core_map, 0));
+Index: linux/include/asm-x86/mpspec.h
+===================================================================
+--- linux.orig/include/asm-x86/mpspec.h	2008-06-19 11:50:09.000000000 -0500
++++ linux/include/asm-x86/mpspec.h	2008-06-19 19:39:11.000000000 -0500
+@@ -122,6 +122,7 @@ typedef struct physid_mask physid_mask_t
+ 		__physid_mask;						\
+ 	})
  
--			unlock_page(page);
- 		}
- 		spin_unlock_irq(&zone->lru_lock);
++/* Note: will create very large stack frames if physid_mask_t is big */
+ #define physid_mask_of_physid(physid)					\
+ 	({								\
+ 		physid_mask_t __physid_mask = PHYSID_MASK_NONE;		\
+@@ -129,6 +130,12 @@ typedef struct physid_mask physid_mask_t
+ 		__physid_mask;						\
+ 	})
+ 
++static inline void physid_set_mask_of_physid(int physid, physid_mask_t *map)
++{
++	physids_clear(*map);
++	physid_set(physid, *map);
++}
++
+ #define PHYSID_MASK_ALL		{ {[0 ... PHYSID_ARRAY_SIZE-1] = ~0UL} }
+ #define PHYSID_MASK_NONE	{ {[0 ... PHYSID_ARRAY_SIZE-1] = 0UL} }
  
 
 --
