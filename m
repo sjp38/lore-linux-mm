@@ -1,62 +1,91 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5KF2Bg6004340
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2008 11:02:11 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5KF26TH028854
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2008 09:02:09 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5KF25QF028601
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2008 09:02:06 -0600
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Fri, 20 Jun 2008 20:31:52 +0530
-Message-Id: <20080620150152.16094.76790.sendpatchset@localhost.localdomain>
-In-Reply-To: <20080620150132.16094.29151.sendpatchset@localhost.localdomain>
-References: <20080620150132.16094.29151.sendpatchset@localhost.localdomain>
-Subject: [2/2] memrlimit fix usage of tmp as a parameter name
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5KFJ2tM006943
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2008 11:19:02 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5KFJ2Hx117640
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2008 11:19:02 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5KFJ1Pt001440
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2008 11:19:02 -0400
+Subject: Re: [patch 05/21] hugetlb: new sysfs interface
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20080604113111.647714612@amd.local0.net>
+References: <20080604112939.789444496@amd.local0.net>
+	 <20080604113111.647714612@amd.local0.net>
+Content-Type: text/plain
+Date: Fri, 20 Jun 2008 08:18:58 -0700
+Message-Id: <1213975138.7512.33.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: npiggin@suse.de
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, "Serge E. Hallyn" <serue@us.ibm.com>, kathys <kathys@au1.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
+This one seems to be causing some compilation errors with SYSFS=n.
 
-Fix the variable tmp being used in write_strategy. This patch replaces tmp
-with val, the fact that it is an output parameter can be interpreted from
-the pass by reference.
+>> /scratch/kathys/containers/kernel_trees/upstream/mm/hugetlb.c: In  
+>> function 'hugetlb_exit':
+>> /scratch/kathys/containers/kernel_trees/upstream/mm/hugetlb.c:1234:  
+>> error: 'hstate_kobjs' undeclared (first use in this function)
+>> /scratch/kathys/containers/kernel_trees/upstream/mm/hugetlb.c:1234:  
+>> error: (Each undeclared identifier is reported only once
+>> /scratch/kathys/containers/kernel_trees/upstream/mm/hugetlb.c:1234:  
+>> error: for each function it appears in.)
+>> /scratch/kathys/containers/kernel_trees/upstream/mm/hugetlb.c:1237:  
+>> error: 'hugepages_kobj' undeclared (first use in this function)
+>> make[2]: *** [mm/hugetlb.o] Error 1
+>> make[1]: *** [mm] Error 2
+>> make: *** [sub-make] Error 2
 
-Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
----
+Should we just move hugetlb_exit() inside the sysfs #ifdef with
+everything else?
 
- mm/memrlimitcgroup.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-diff -puN mm/memrlimitcgroup.c~memrlimit-cgroup-simple-cleanup mm/memrlimitcgroup.c
---- linux-2.6.26-rc5/mm/memrlimitcgroup.c~memrlimit-cgroup-simple-cleanup	2008-06-20 20:14:00.000000000 +0530
-+++ linux-2.6.26-rc5-balbir/mm/memrlimitcgroup.c	2008-06-20 20:22:08.000000000 +0530
-@@ -118,13 +118,13 @@ static u64 memrlimit_cgroup_read(struct 
- 					cft->private);
+--- linux-2.6.git-mm//mm/hugetlb.c.orig	2008-06-20 08:07:39.000000000 -0700
++++ linux-2.6.git-mm//mm/hugetlb.c	2008-06-20 08:14:36.000000000 -0700
+@@ -1193,6 +1193,19 @@
+ 								h->name);
+ 	}
  }
- 
--static int memrlimit_cgroup_write_strategy(char *buf, unsigned long long *tmp)
-+static int memrlimit_cgroup_write_strategy(char *buf, unsigned long long *val)
++
++static void __exit hugetlb_exit(void)
++{
++	struct hstate *h;
++
++	for_each_hstate(h) {
++		kobject_put(hstate_kobjs[h - hstates]);
++	}
++
++	kobject_put(hugepages_kobj);
++}
++module_exit(hugetlb_exit);
++
+ #else
+ static void __init hugetlb_sysfs_init(void)
  {
--	*tmp = memparse(buf, &buf);
-+	*val = memparse(buf, &buf);
- 	if (*buf != '\0')
- 		return -EINVAL;
- 
--	*tmp = PAGE_ALIGN(*tmp);
-+	*val = PAGE_ALIGN(*val);
- 	return 0;
+@@ -1226,18 +1239,6 @@
  }
+ module_init(hugetlb_init);
  
-_
+-static void __exit hugetlb_exit(void)
+-{
+-	struct hstate *h;
+-
+-	for_each_hstate(h) {
+-		kobject_put(hstate_kobjs[h - hstates]);
+-	}
+-
+-	kobject_put(hugepages_kobj);
+-}
+-module_exit(hugetlb_exit);
+-
+ /* Should be called on processing a hugepagesz=... option */
+ void __init hugetlb_add_hstate(unsigned order)
+ {
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
