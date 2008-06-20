@@ -1,7 +1,7 @@
-Date: Fri, 20 Jun 2008 12:27:33 +0200
+Date: Fri, 20 Jun 2008 12:39:21 +0200
 From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [PATCH] - Fix stack overflow for large values of MAX_APICS
-Message-ID: <20080620102733.GB32500@elte.hu>
+Message-ID: <20080620103921.GC32500@elte.hu>
 References: <20080620025104.GA25571@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -10,7 +10,7 @@ In-Reply-To: <20080620025104.GA25571@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Jack Steiner <steiner@sgi.com>
-Cc: tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, the arch/x86 maintainers <x86@kernel.org>
+Cc: tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 * Jack Steiner <steiner@sgi.com> wrote:
@@ -20,13 +20,19 @@ List-ID: <linux-mm.kvack.org>
 > function that does not create large stacks. This is a problem only on 
 > large x86_64 systems.
 
-ah, that indeed makes sense. Applied to tip/x86/uv - thanks Jack.
+this indeed fixes the crash i reported here:
 
-> Ingo - the "Increase MAX_APICS patch" can now works. Do you want me to 
-> resend???
+   http://lkml.org/lkml/2008/6/19/98
 
-no need, i have reactivated it in tip/x86/uv. (after your 
-physid_mask_of_physid() patch, so that it's still all bisectable)
+so i've added both this and the MAXAPICS patch to tip/x86/uv, and will 
+test it some more. Lets hope it goes all well this time :-)
+
+btw., it would be nice to have an ftrace plugin that prints out the 
+worst-case stack footprint and generates an assert if we overflow the 
+stack. -rt's kernel/latency_trace.c used to have that feature. That way 
+incidents like this would be detected on the spot by -tip's 
+auto-testing. The code in question is in kernel/trace/ftrace.c (and 
+other nearby code).
 
 	Ingo
 
