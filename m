@@ -1,59 +1,77 @@
-From: kamezawa.hiroyu@jp.fujitsu.com
-Message-ID: <33021525.1213944281400.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Fri, 20 Jun 2008 15:44:41 +0900 (JST)
-Subject: Re: Re: [PATCH 2/2] memcg: reduce usage at change limit
-In-Reply-To: <6599ad830806192216m41027e09r7605b9f85c283ae8@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="iso-2022-jp"
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: Can get_user_pages( ,write=1, force=1, ) result in a read-only pte and _count=2?
+Date: Fri, 20 Jun 2008 19:23:11 +1000
+References: <20080618164158.GC10062@sgi.com> <Pine.LNX.4.64.0806182209320.16252@blonde.site> <20080619163258.GD10062@sgi.com>
+In-Reply-To: <20080619163258.GD10062@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-References: <6599ad830806192216m41027e09r7605b9f85c283ae8@mail.gmail.com>
- <20080617123144.ce5a74fa.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20080617123604.c8cb1bd5.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Disposition: inline
+Message-Id: <200806201923.11914.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, balbir@linux.vnet.ibm.com, xemul@openvz.org, lizf@cn.fujitsu.com, yamamoto@valinux.co.jp, nishimura@mxp.nes.nec.co.jp, Andrew Morton <akpm@linux-foundation.org>
+To: Robin Holt <holt@sgi.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
------ Original Message -----
->Date: 	Thu, 19 Jun 2008 22:16:07 -0700
->From: "Paul Menage" <menage@google.com>
->> Reduce the usage of res_counter at the change of limit.
->>
->> Changelog v4 -> v5.
->>  - moved "feedback" alogrithm from res_counter to memcg.
+On Friday 20 June 2008 02:32, Robin Holt wrote:
+> On Wed, Jun 18, 2008 at 10:46:09PM +0100, Hugh Dickins wrote:
+> > On Wed, 18 Jun 2008, Robin Holt wrote:
+> > > On Wed, Jun 18, 2008 at 08:01:48PM +0100, Hugh Dickins wrote:
+> >
+> > --- 2.6.26-rc6/mm/memory.c	2008-05-26 20:00:39.000000000 +0100
+> > +++ linux/mm/memory.c	2008-06-18 22:06:46.000000000 +0100
+> > @@ -1152,9 +1152,15 @@ int get_user_pages(struct task_struct *t
+> >  				 * do_wp_page has broken COW when necessary,
+> >  				 * even if maybe_mkwrite decided not to set
+> >  				 * pte_write. We can thus safely do subsequent
+> > -				 * page lookups as if they were reads.
+> > +				 * page lookups as if they were reads. But only
+> > +				 * do so when looping for pte_write is futile:
+> > +				 * in some cases userspace may also be wanting
+> > +				 * to write to the gotten user page, which a
+> > +				 * read fault here might prevent (a readonly
+> > +				 * page would get reCOWed by userspace write).
+> >  				 */
+> > -				if (ret & VM_FAULT_WRITE)
+> > +				if ((ret & VM_FAULT_WRITE) &&
+> > +				    !(vma->vm_flags & VM_WRITE))
+> >  					foll_flags &= ~FOLL_WRITE;
+> >
+> >  				cond_resched();
 >
->FWIW, I really thought it was much better having it in the generic res_counte
-r.
->
-Hmm ;)
+> I applied the equivalent of this to the sles10 kernel and still saw the
+> problem.
 
-Balbir and Pavel pointed out that
+If you were able to test my hypothesis, that might help while Hugh
+comes up with a more efficient solution (this adds 3 atomic ops in
+the do_wp_page path for anonymous)...
 
-the resouce which can shrink if necessary is
- - user's memory usage
- - kernel memory (slab) if it can. (not implemented)
-
-And there are other users of res_counter which cannot shrink.
-(I think -EBUSY should be returned)
-
-Now, my idea is
-- implement "feedback" in memcg because it is an only user
-- fix res_counter to return -EBUSY
-
-I think we can revisit later "implement generic feedback in res_counter".
-And such kind of implementation change will not big.(I think)
-
-Another point is I don't want to make res_counter big. To support
-generic ops in res_counter (handle limit, hierarchy, high-low watermark...)
-res_counter must be bigger that it is. And most of users of res_counder doesn'
-t want such ops.
-
-To be honest, both way is okay to me. But I'd like to start from not-invasive
-one.
-
-Thanks,
--Kame
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c  2008-06-20 19:16:20.000000000 +1000
++++ linux-2.6/mm/memory.c       2008-06-20 19:19:08.000000000 +1000
+@@ -1677,10 +1677,15 @@
+         * not dirty accountable.
+         */
+        if (PageAnon(old_page)) {
+-               if (!TestSetPageLocked(old_page)) {
+-                       reuse = can_share_swap_page(old_page);
+-                       unlock_page(old_page);
+-               }
++               page_cache_get(old_page);
++               pte_unmap_unlock(page_table, ptl);
++               lock_page(old_page);
++               reuse = can_share_swap_page(old_page);
++               unlock_page(old_page);
++               page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
++               page_cache_release(old_page);
++               if (!pte_same(*page_table, orig_pte))
++                       goto unlock;
+        } else if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
+                                        (VM_WRITE|VM_SHARED))) {
+                /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
