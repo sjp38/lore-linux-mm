@@ -1,104 +1,55 @@
-Date: Thu, 19 Jun 2008 21:51:05 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: [PATCH] - Fix stack overflow for large values of MAX_APICS
-Message-ID: <20080620025104.GA25571@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5K3IQSE029717
+	for <linux-mm@kvack.org>; Thu, 19 Jun 2008 23:18:26 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5K3IPKh122866
+	for <linux-mm@kvack.org>; Thu, 19 Jun 2008 21:18:25 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5K3IPXe009664
+	for <linux-mm@kvack.org>; Thu, 19 Jun 2008 21:18:25 -0600
+Message-ID: <485B2180.10507@us.ibm.com>
+Date: Thu, 19 Jun 2008 22:18:24 -0500
+From: Jon Tollefson <kniht@us.ibm.com>
+Reply-To: kniht@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: 2.6.26-rc5-mm3: BUG large value for HugePages_Rsvd
+References: <20080611225945.4da7bb7f.akpm@linux-foundation.org> <485A8903.9030808@linux.vnet.ibm.com> <20080619171644.GC13275@shadowen.org>
+In-Reply-To: <20080619171644.GC13275@shadowen.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mingo@elte.hu, tglx@linutronix.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Jon Tollefson <kniht@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-physid_mask_of_physid() causes a huge stack (12k) to be created if the
-number of APICS is large. Replace physid_mask_of_physid() with a
-new function that does not create large stacks. This is a problem only
-on large x86_64 systems.
+Andy Whitcroft wrote:
+> On Thu, Jun 19, 2008 at 11:27:47AM -0500, Jon Tollefson wrote:
+>   
+>> After running some of the libhugetlbfs tests the value for
+>> /proc/meminfo/HugePages_Rsvd becomes really large.  It looks like it has
+>> wrapped backwards from zero.
+>> Below is the sequence I used to run one of the tests that causes this;
+>> the tests passes for what it is intended to test but leaves a large
+>> value for reserved pages and that seemed strange to me.
+>> test run on ppc64 with 16M huge pages
+>>     
+>
+> Yes Adam reported that here yesterday, he found it in his hugetlfs testing.
+> I have done some investigation on it and it is being triggered by a bug in
+> the private reservation tracking patches.  It is triggered by the hugetlb
+> test which causes some complex vma splits to occur on a private mapping.
+>   
+sorry I missed that
 
-Signed-off-by: Jack Steiner <steiner@sgi.com>
-
----
-
-Ingo - the "Increase MAX_APICS patch" can now works. Do you
-want me to resend???
-
-
-
- arch/x86/kernel/apic_32.c |    2 +-
- arch/x86/kernel/apic_64.c |    2 +-
- arch/x86/kernel/smpboot.c |    5 ++---
- include/asm-x86/mpspec.h  |    7 +++++++
- 4 files changed, 11 insertions(+), 5 deletions(-)
-
-Index: linux/arch/x86/kernel/apic_32.c
-===================================================================
---- linux.orig/arch/x86/kernel/apic_32.c	2008-06-19 11:50:07.000000000 -0500
-+++ linux/arch/x86/kernel/apic_32.c	2008-06-19 19:28:04.000000000 -0500
-@@ -1267,7 +1267,7 @@ int __init APIC_init_uniprocessor(void)
- #ifdef CONFIG_CRASH_DUMP
- 	boot_cpu_physical_apicid = GET_APIC_ID(read_apic_id());
- #endif
--	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_physical_apicid);
-+	physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
- 
- 	setup_local_APIC();
- 
-Index: linux/arch/x86/kernel/apic_64.c
-===================================================================
---- linux.orig/arch/x86/kernel/apic_64.c	2008-06-19 15:59:58.000000000 -0500
-+++ linux/arch/x86/kernel/apic_64.c	2008-06-19 19:25:18.000000000 -0500
-@@ -920,7 +920,7 @@ int __init APIC_init_uniprocessor(void)
- 
- 	connect_bsp_APIC();
- 
--	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_physical_apicid);
-+	physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
- 	apic_write(APIC_ID, SET_APIC_ID(boot_cpu_physical_apicid));
- 
- 	setup_local_APIC();
-Index: linux/arch/x86/kernel/smpboot.c
-===================================================================
---- linux.orig/arch/x86/kernel/smpboot.c	2008-06-19 19:06:00.000000000 -0500
-+++ linux/arch/x86/kernel/smpboot.c	2008-06-19 19:37:37.000000000 -0500
-@@ -1042,10 +1042,9 @@ static __init void disable_smp(void)
- 	smpboot_clear_io_apic_irqs();
- 
- 	if (smp_found_config)
--		phys_cpu_present_map =
--				physid_mask_of_physid(boot_cpu_physical_apicid);
-+		physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
- 	else
--		phys_cpu_present_map = physid_mask_of_physid(0);
-+		physid_set_mask_of_physid(0, &phys_cpu_present_map);
- 	map_cpu_to_logical_apicid();
- 	cpu_set(0, per_cpu(cpu_sibling_map, 0));
- 	cpu_set(0, per_cpu(cpu_core_map, 0));
-Index: linux/include/asm-x86/mpspec.h
-===================================================================
---- linux.orig/include/asm-x86/mpspec.h	2008-06-19 11:50:09.000000000 -0500
-+++ linux/include/asm-x86/mpspec.h	2008-06-19 19:39:11.000000000 -0500
-@@ -122,6 +122,7 @@ typedef struct physid_mask physid_mask_t
- 		__physid_mask;						\
- 	})
- 
-+/* Note: will create very large stack frames if physid_mask_t is big */
- #define physid_mask_of_physid(physid)					\
- 	({								\
- 		physid_mask_t __physid_mask = PHYSID_MASK_NONE;		\
-@@ -129,6 +130,12 @@ typedef struct physid_mask physid_mask_t
- 		__physid_mask;						\
- 	})
- 
-+static inline void physid_set_mask_of_physid(int physid, physid_mask_t *map)
-+{
-+	physids_clear(*map);
-+	physid_set(physid, *map);
-+}
-+
- #define PHYSID_MASK_ALL		{ {[0 ... PHYSID_ARRAY_SIZE-1] = ~0UL} }
- #define PHYSID_MASK_NONE	{ {[0 ... PHYSID_ARRAY_SIZE-1] = 0UL} }
- 
+> I believe I have the underlying problem nailed and do have some nearly
+> complete patches for this and they should be in a postable state by
+> tommorrow.
+>   
+Cool.
+> -apw
+>   
+Jon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
