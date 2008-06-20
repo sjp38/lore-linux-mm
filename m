@@ -1,91 +1,82 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5KFJ2tM006943
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2008 11:19:02 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5KFJ2Hx117640
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2008 11:19:02 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5KFJ1Pt001440
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2008 11:19:02 -0400
-Subject: Re: [patch 05/21] hugetlb: new sysfs interface
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20080604113111.647714612@amd.local0.net>
-References: <20080604112939.789444496@amd.local0.net>
-	 <20080604113111.647714612@amd.local0.net>
+Subject: Re: Re: [Experimental][PATCH] putback_lru_page rework
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <24280609.1213889550357.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1213886722.6398.29.camel@lts-notebook>
+	 <20080611225945.4da7bb7f.akpm@linux-foundation.org>
+	 <20080617163501.7cf411ee.nishimura@mxp.nes.nec.co.jp>
+	 <20080617164709.de4db070.nishimura@mxp.nes.nec.co.jp>
+	 <20080618184000.a855dfe0.kamezawa.hiroyu@jp.fujitsu.com>
+	 <1213813266.6497.14.camel@lts-notebook>
+	 <20080619092242.79648592.kamezawa.hiroyu@jp.fujitsu.com>
+	 <24280609.1213889550357.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain
-Date: Fri, 20 Jun 2008 08:18:58 -0700
-Message-Id: <1213975138.7512.33.camel@nimitz>
+Date: Fri, 20 Jun 2008 12:24:19 -0400
+Message-Id: <1213979059.6474.41.camel@lts-notebook>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, "Serge E. Hallyn" <serue@us.ibm.com>, kathys <kathys@au1.ibm.com>
+To: kamezawa.hiroyu@jp.fujitsu.com
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This one seems to be causing some compilation errors with SYSFS=n.
+On Fri, 2008-06-20 at 00:32 +0900, kamezawa.hiroyu@jp.fujitsu.com wrote:
+> ----- Original Message -----
+> >Subject: Re: [Experimental][PATCH] putback_lru_page rework
+> >From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+> 
+> >On Thu, 2008-06-19 at 09:22 +0900, KAMEZAWA Hiroyuki wrote:
+> >> On Wed, 18 Jun 2008 14:21:06 -0400
+> >> Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+> >> 
+> >> > On Wed, 2008-06-18 at 18:40 +0900, KAMEZAWA Hiroyuki wrote:
+> >> > > Lee-san, how about this ?
+> >> > > Tested on x86-64 and tried Nisimura-san's test at el. works good now.
+> >> > 
+> >> > I have been testing with my work load on both ia64 and x86_64 and it
+> >> > seems to be working well.  I'll let them run for a day or so.
+> >> > 
+> >> thank you.
+> >> <snip>
+> >
+> >Update:
+> >
+> >On x86_64 [32GB, 4xdual-core Opteron], my work load has run for ~20:40
+> >hours.  Still running.
+> >
+> >On ia64 [32G, 16cpu, 4 node], the system started going into softlockup
+> >after ~7 hours.  Stack trace [below] indicates zone-lru lock in
+> >__page_cache_release() called from put_page().  Either heavy contention
+> >or failure to unlock.  Note that previous run, with patches to
+> >putback_lru_page() and unmap_and_move(), the same load ran for ~18 hours
+> >before I shut it down to try these patches.
+> >
+> Thanks, then there are more troubles should be shooted down.
+> 
+> 
+> >I'm going to try again with the collected patches posted by Kosaki-san
+> >[for which, Thanks!].  If it occurs again, I'll deconfig the unevictable
+> >lru feature and see if I can reproduce it there.  It may be unrelated to
+> >the unevictable lru patches.
+> >
+> I hope so...Hmm..I'll dig tomorrow. 
 
->> /scratch/kathys/containers/kernel_trees/upstream/mm/hugetlb.c: In  
->> function 'hugetlb_exit':
->> /scratch/kathys/containers/kernel_trees/upstream/mm/hugetlb.c:1234:  
->> error: 'hstate_kobjs' undeclared (first use in this function)
->> /scratch/kathys/containers/kernel_trees/upstream/mm/hugetlb.c:1234:  
->> error: (Each undeclared identifier is reported only once
->> /scratch/kathys/containers/kernel_trees/upstream/mm/hugetlb.c:1234:  
->> error: for each function it appears in.)
->> /scratch/kathys/containers/kernel_trees/upstream/mm/hugetlb.c:1237:  
->> error: 'hugepages_kobj' undeclared (first use in this function)
->> make[2]: *** [mm/hugetlb.o] Error 1
->> make[1]: *** [mm] Error 2
->> make: *** [sub-make] Error 2
+Another update--with the collected patches:
 
-Should we just move hugetlb_exit() inside the sysfs #ifdef with
-everything else?
+Again, the x86_64 ran for > 22 hours w/o error before I shut it down.
 
---- linux-2.6.git-mm//mm/hugetlb.c.orig	2008-06-20 08:07:39.000000000 -0700
-+++ linux-2.6.git-mm//mm/hugetlb.c	2008-06-20 08:14:36.000000000 -0700
-@@ -1193,6 +1193,19 @@
- 								h->name);
- 	}
- }
-+
-+static void __exit hugetlb_exit(void)
-+{
-+	struct hstate *h;
-+
-+	for_each_hstate(h) {
-+		kobject_put(hstate_kobjs[h - hstates]);
-+	}
-+
-+	kobject_put(hugepages_kobj);
-+}
-+module_exit(hugetlb_exit);
-+
- #else
- static void __init hugetlb_sysfs_init(void)
- {
-@@ -1226,18 +1239,6 @@
- }
- module_init(hugetlb_init);
- 
--static void __exit hugetlb_exit(void)
--{
--	struct hstate *h;
--
--	for_each_hstate(h) {
--		kobject_put(hstate_kobjs[h - hstates]);
--	}
--
--	kobject_put(hugepages_kobj);
--}
--module_exit(hugetlb_exit);
--
- /* Should be called on processing a hugepagesz=... option */
- void __init hugetlb_add_hstate(unsigned order)
- {
+And, again, the ia64 went into soft lockup--same stack traces.  This
+time after > 17 hours of running.  It is possible that a BUG started
+this, but it has long scrolled out of my terminal buffer by the time I
+see the system.
 
+I'm now trying the ia64 platform with 26-rc5-mm3 + collected patches
+with UNEVICTABLE_LRU de-configured.  I'll start that up today and let it
+run over the weekend [with panic_on_oops set] if it hasn't hit the
+problem before I leave.
 
--- Dave
+Regards,
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
