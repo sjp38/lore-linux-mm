@@ -1,190 +1,322 @@
-Received: by wx-out-0506.google.com with SMTP id h29so688029wxd.11
-        for <linux-mm@kvack.org>; Sat, 21 Jun 2008 05:57:39 -0700 (PDT)
-Message-ID: <a4423d670806210557k1e8fcee1le3526f62962799e@mail.gmail.com>
-Date: Sat, 21 Jun 2008 16:57:38 +0400
-From: "Alexander Beregalov" <a.beregalov@gmail.com>
-Subject: Re: 2.6.26-rc: nfsd hangs for a few sec
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Message-Id: <20080621154726.494538562@szeredi.hu>
+References: <20080621154607.154640724@szeredi.hu>
+Date: Sat, 21 Jun 2008 17:46:10 +0200
+From: Miklos Szeredi <miklos@szeredi.hu>
+Subject: [rfc patch 3/4] splice: remove confirm from pipe_buf_operations
+Content-Disposition: inline; filename=splice_remove_confirm.patch
 Sender: owner-linux-mm@kvack.org
+From: Miklos Szeredi <mszeredi@suse.cz>
 Return-Path: <owner-linux-mm@kvack.org>
-To: kernel-testers@vger.kernel.org, kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <clameter@sgi.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, bfields@fieldses.org, neilb@suse.de, linux-nfs@vger.kernel.org
+To: jens.axboe@oracle.com
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-One more try, added some CC's.
+The 'confirm' operation was only used for splicing from page cache, to
+wait for read on a page to finish.  But generic_file_splice_read()
+already blocks on readahead reads, so it seems logical to block on the
+rare and slow single page reads too.
 
-2008/6/12 Alexander Beregalov <a.beregalov@gmail.com>:
-> I have bisected it and it seems introduced here:
-> How could it be?
->
-> 54a6eb5c4765aa573a030ceeba2c14e3d2ea5706 is first bad commit
-> commit 54a6eb5c4765aa573a030ceeba2c14e3d2ea5706
-> Author: Mel Gorman <mel@csn.ul.ie>
-> Date:   Mon Apr 28 02:12:16 2008 -0700
->
->    mm: use two zonelist that are filtered by GFP mask
->
->    Currently a node has two sets of zonelists, one for each zone type in the
->    system and a second set for GFP_THISNODE allocations.  Based on the zones
->    allowed by a gfp mask, one of these zonelists is selected.  All of these
->    zonelists consume memory and occupy cache lines.
->
->    This patch replaces the multiple zonelists per-node with two zonelists.  The
->    first contains all populated zones in the system, ordered by distance, for
->    fallback allocations when the target/preferred node has no free pages.  The
->    second contains all populated zones in the node suitable for GFP_THISNODE
->    allocations.
->
->    An iterator macro is introduced called for_each_zone_zonelist()
-> that interates
->    through each zone allowed by the GFP flags in the selected zonelist.
->
->    Signed-off-by: Mel Gorman <mel@csn.ul.ie>
->    Acked-by: Christoph Lameter <clameter@sgi.com>
->    Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
->    Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->    Cc: Mel Gorman <mel@csn.ul.ie>
->    Cc: Christoph Lameter <clameter@sgi.com>
->    Cc: Hugh Dickins <hugh@veritas.com>
->    Cc: Nick Piggin <nickpiggin@yahoo.com.au>
->    Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
->    Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
->
-> :040000 040000 89cdad93d855fa839537454113f2716011ca0e26
-> 57aa307f4bddd264e70c759a2fb2076bfde363eb M      arch
-> :040000 040000 4add802178c0088a85d3738b42ec42ca33e07d60
-> 126d3b170424a18b60074a7901c4e9b98f3bdee5 M      fs
-> :040000 040000 9d215d6248382dab53003d230643f0169f3e3e84
-> 67d196d890a27d2211b3bf7e833e6366addba739 M      include
-> :040000 040000 6502d185e8ea6338953027c29cc3ab960d6f9bad
-> c818e0fc538cdc40016e2d5fe33661c9c54dc8a5 M      mm
->
+So wait for readpage to finish inside __generic_file_splice_read() and
+remove the 'confirm' method.
 
-> I remind the log message (it still happens on -rc5):
-> Machine hangs for few seconds.
-> I can caught such thing during the first hour of running.
->
->  [ INFO: possible circular locking dependency detected ]
->  2.6.26-rc5-00084-g39b945a #3
->  -------------------------------------------------------
->  nfsd/3457 is trying to acquire lock:
->  (iprune_mutex){--..}, at: [<c016fb6c>] shrink_icache_memory+0x38/0x19b
->
->  but task is already holding lock:
->  (&(&ip->i_iolock)->mr_lock){----}, at: [<c021108f>] xfs_ilock+0xa2/0xd6
->
->  which lock already depends on the new lock.
->
->
->  the existing dependency chain (in reverse order) is:
->
->  -> #1 (&(&ip->i_iolock)->mr_lock){----}:
->        [<c0135416>] __lock_acquire+0xa0c/0xbc6
->        [<c013563a>] lock_acquire+0x6a/0x86
->        [<c012c4f2>] down_write_nested+0x33/0x6a
->        [<c0211068>] xfs_ilock+0x7b/0xd6
->        [<c02111e1>] xfs_ireclaim+0x1d/0x59
->        [<c022f342>] xfs_finish_reclaim+0x173/0x195
->        [<c0231496>] xfs_reclaim+0xb3/0x138
->        [<c023ba0f>] xfs_fs_clear_inode+0x55/0x8e
->        [<c016f830>] clear_inode+0x83/0xd2
->        [<c016faaf>] dispose_list+0x3c/0xc1
->        [<c016fca7>] shrink_icache_memory+0x173/0x19b
->        [<c014a7fa>] shrink_slab+0xda/0x153
->        [<c014aa53>] try_to_free_pages+0x1e0/0x2a1
->        [<c0146ad7>] __alloc_pages_internal+0x23f/0x3a7
->        [<c0146c56>] __alloc_pages+0xa/0xc
->        [<c015b8c2>] __slab_alloc+0x1c7/0x513
->        [<c015beef>] kmem_cache_alloc+0x45/0xb3
->        [<c01a5afe>] reiserfs_alloc_inode+0x12/0x23
->        [<c016f308>] alloc_inode+0x14/0x1a9
->        [<c016f5ed>] iget5_locked+0x47/0x133
->        [<c019dffd>] reiserfs_iget+0x29/0x7d
->        [<c019b655>] reiserfs_lookup+0xb1/0xee
->        [<c01657c2>] do_lookup+0xa9/0x146
->        [<c0166deb>] __link_path_walk+0x734/0xb2f
->        [<c016722f>] path_walk+0x49/0x96
->        [<c01674e0>] do_path_lookup+0x12f/0x149
->        [<c0167d08>] __user_walk_fd+0x2f/0x48
->        [<c0162157>] vfs_lstat_fd+0x16/0x3d
->        [<c01621e9>] vfs_lstat+0x11/0x13
->        [<c01621ff>] sys_lstat64+0x14/0x28
->        [<c0102bb9>] sysenter_past_esp+0x6a/0xb1
->        [<ffffffff>] 0xffffffff
->
->  -> #0 (iprune_mutex){--..}:
->        [<c0135333>] __lock_acquire+0x929/0xbc6
->        [<c013563a>] lock_acquire+0x6a/0x86
->        [<c037db3e>] mutex_lock_nested+0xba/0x232
->        [<c016fb6c>] shrink_icache_memory+0x38/0x19b
->        [<c014a7fa>] shrink_slab+0xda/0x153
->        [<c014aa53>] try_to_free_pages+0x1e0/0x2a1
->        [<c0146ad7>] __alloc_pages_internal+0x23f/0x3a7
->        [<c0146c56>] __alloc_pages+0xa/0xc
->        [<c01484f2>] __do_page_cache_readahead+0xaa/0x16a
->        [<c01487ac>] ondemand_readahead+0x119/0x127
->        [<c014880c>] page_cache_async_readahead+0x52/0x5d
->        [<c0179410>] generic_file_splice_read+0x290/0x4a8
->        [<c023a46a>] xfs_splice_read+0x4b/0x78
->        [<c0237c78>] xfs_file_splice_read+0x24/0x29
->        [<c0178712>] do_splice_to+0x45/0x63
->        [<c017899e>] splice_direct_to_actor+0xc3/0x190
->        [<c01ceddd>] nfsd_vfs_read+0x1ed/0x2d0
->        [<c01cf24c>] nfsd_read+0x82/0x99
->        [<c01d47b8>] nfsd3_proc_read+0xdf/0x12a
->        [<c01cb907>] nfsd_dispatch+0xcf/0x19e
->        [<c036356c>] svc_process+0x3b3/0x68b
->        [<c01cbe35>] nfsd+0x168/0x26b
->        [<c01037db>] kernel_thread_helper+0x7/0x10
->        [<ffffffff>] 0xffffffff
->
->  other info that might help us debug this:
->
->  3 locks held by nfsd/3457:
->  #0:  (hash_sem){..--}, at: [<c01d1a34>] exp_readlock+0xd/0xf
->  #1:  (&(&ip->i_iolock)->mr_lock){----}, at: [<c021108f>] xfs_ilock+0xa2/0xd6
->  #2:  (shrinker_rwsem){----}, at: [<c014a744>] shrink_slab+0x24/0x153
->
->  stack backtrace:
->  Pid: 3457, comm: nfsd Not tainted 2.6.26-rc5-00084-g39b945a #3
->  [<c01335c8>] print_circular_bug_tail+0x5a/0x65
->  [<c0133ec9>] ? print_circular_bug_header+0xa8/0xb3
->  [<c0135333>] __lock_acquire+0x929/0xbc6
->  [<c013563a>] lock_acquire+0x6a/0x86
->  [<c016fb6c>] ? shrink_icache_memory+0x38/0x19b
->  [<c037db3e>] mutex_lock_nested+0xba/0x232
->  [<c016fb6c>] ? shrink_icache_memory+0x38/0x19b
->  [<c016fb6c>] ? shrink_icache_memory+0x38/0x19b
->  [<c016fb6c>] shrink_icache_memory+0x38/0x19b
->  [<c014a7fa>] shrink_slab+0xda/0x153
->  [<c014aa53>] try_to_free_pages+0x1e0/0x2a1
->  [<c0149993>] ? isolate_pages_global+0x0/0x3e
->  [<c0146ad7>] __alloc_pages_internal+0x23f/0x3a7
->  [<c0146c56>] __alloc_pages+0xa/0xc
->  [<c01484f2>] __do_page_cache_readahead+0xaa/0x16a
->  [<c01487ac>] ondemand_readahead+0x119/0x127
->  [<c014880c>] page_cache_async_readahead+0x52/0x5d
->  [<c0179410>] generic_file_splice_read+0x290/0x4a8
->  [<c037f425>] ? _spin_unlock+0x27/0x3c
->  [<c025140d>] ? _atomic_dec_and_lock+0x25/0x30
->  [<c01355b4>] ? __lock_acquire+0xbaa/0xbc6
->  [<c01787d5>] ? spd_release_page+0x0/0xf
->  [<c023a46a>] xfs_splice_read+0x4b/0x78
->  [<c0237c78>] xfs_file_splice_read+0x24/0x29
->  [<c0178712>] do_splice_to+0x45/0x63
->  [<c017899e>] splice_direct_to_actor+0xc3/0x190
->  [<c01ceec0>] ? nfsd_direct_splice_actor+0x0/0xf
->  [<c01ceddd>] nfsd_vfs_read+0x1ed/0x2d0
->  [<c01cf24c>] nfsd_read+0x82/0x99
->  [<c01d47b8>] nfsd3_proc_read+0xdf/0x12a
->  [<c01cb907>] nfsd_dispatch+0xcf/0x19e
->  [<c036356c>] svc_process+0x3b3/0x68b
->  [<c01cbe35>] nfsd+0x168/0x26b
->  [<c01cbccd>] ? nfsd+0x0/0x26b
->  [<c01037db>] kernel_thread_helper+0x7/0x10
->  =======================
+This also fixes short return counts when the filesystem (e.g. fuse)
+invalidates the page between insertation and removal.
+
+Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
+---
+ drivers/block/loop.c      |    5 ---
+ fs/nfsd/vfs.c             |    9 ------
+ fs/pipe.c                 |   27 ------------------
+ fs/splice.c               |   69 +++++-----------------------------------------
+ include/linux/pipe_fs_i.h |   22 +-------------
+ kernel/relay.c            |    1 
+ net/core/skbuff.c         |    1 
+ 7 files changed, 11 insertions(+), 123 deletions(-)
+
+Index: linux-2.6/drivers/block/loop.c
+===================================================================
+--- linux-2.6.orig/drivers/block/loop.c	2008-06-21 11:46:52.000000000 +0200
++++ linux-2.6/drivers/block/loop.c	2008-06-21 11:51:39.000000000 +0200
+@@ -395,11 +395,6 @@ lo_splice_actor(struct pipe_inode_info *
+ 	struct page *page = buf->page;
+ 	sector_t IV;
+ 	size_t size;
+-	int ret;
+-
+-	ret = buf->ops->confirm(pipe, buf);
+-	if (unlikely(ret))
+-		return ret;
+ 
+ 	IV = ((sector_t) page->index << (PAGE_CACHE_SHIFT - 9)) +
+ 							(buf->offset >> 9);
+Index: linux-2.6/fs/pipe.c
+===================================================================
+--- linux-2.6.orig/fs/pipe.c	2008-06-21 11:46:52.000000000 +0200
++++ linux-2.6/fs/pipe.c	2008-06-21 11:47:09.000000000 +0200
+@@ -223,26 +223,10 @@ void generic_pipe_buf_get(struct pipe_in
+ 	page_cache_get(buf->page);
+ }
+ 
+-/**
+- * generic_pipe_buf_confirm - verify contents of the pipe buffer
+- * @info:	the pipe that the buffer belongs to
+- * @buf:	the buffer to confirm
+- *
+- * Description:
+- *	This function does nothing, because the generic pipe code uses
+- *	pages that are always good when inserted into the pipe.
+- */
+-int generic_pipe_buf_confirm(struct pipe_inode_info *info,
+-			     struct pipe_buffer *buf)
+-{
+-	return 0;
+-}
+-
+ static const struct pipe_buf_operations anon_pipe_buf_ops = {
+ 	.can_merge = 1,
+ 	.map = generic_pipe_buf_map,
+ 	.unmap = generic_pipe_buf_unmap,
+-	.confirm = generic_pipe_buf_confirm,
+ 	.release = anon_pipe_buf_release,
+ 	.get = generic_pipe_buf_get,
+ };
+@@ -281,13 +265,6 @@ pipe_read(struct kiocb *iocb, const stru
+ 			if (chars > total_len)
+ 				chars = total_len;
+ 
+-			error = ops->confirm(pipe, buf);
+-			if (error) {
+-				if (!ret)
+-					error = ret;
+-				break;
+-			}
+-
+ 			atomic = !iov_fault_in_pages_write(iov, chars);
+ redo:
+ 			addr = ops->map(pipe, buf, atomic);
+@@ -402,10 +379,6 @@ pipe_write(struct kiocb *iocb, const str
+ 			int error, atomic = 1;
+ 			void *addr;
+ 
+-			error = ops->confirm(pipe, buf);
+-			if (error)
+-				goto out;
+-
+ 			iov_fault_in_pages_read(iov, chars);
+ redo1:
+ 			addr = ops->map(pipe, buf, atomic);
+Index: linux-2.6/fs/splice.c
+===================================================================
+--- linux-2.6.orig/fs/splice.c	2008-06-21 11:46:52.000000000 +0200
++++ linux-2.6/fs/splice.c	2008-06-21 11:49:52.000000000 +0200
+@@ -37,53 +37,10 @@ static void page_cache_pipe_buf_release(
+ 	buf->flags &= ~PIPE_BUF_FLAG_LRU;
+ }
+ 
+-/*
+- * Check whether the contents of buf is OK to access. Since the content
+- * is a page cache page, IO may be in flight.
+- */
+-static int page_cache_pipe_buf_confirm(struct pipe_inode_info *pipe,
+-				       struct pipe_buffer *buf)
+-{
+-	struct page *page = buf->page;
+-	int err;
+-
+-	if (!PageUptodate(page)) {
+-		lock_page(page);
+-
+-		/*
+-		 * Page got truncated/unhashed. This will cause a 0-byte
+-		 * splice, if this is the first page.
+-		 */
+-		if (!page->mapping) {
+-			err = -ENODATA;
+-			goto error;
+-		}
+-
+-		/*
+-		 * Uh oh, read-error from disk.
+-		 */
+-		if (!PageUptodate(page)) {
+-			err = -EIO;
+-			goto error;
+-		}
+-
+-		/*
+-		 * Page is ok afterall, we are done.
+-		 */
+-		unlock_page(page);
+-	}
+-
+-	return 0;
+-error:
+-	unlock_page(page);
+-	return err;
+-}
+-
+ static const struct pipe_buf_operations page_cache_pipe_buf_ops = {
+ 	.can_merge = 0,
+ 	.map = generic_pipe_buf_map,
+ 	.unmap = generic_pipe_buf_unmap,
+-	.confirm = page_cache_pipe_buf_confirm,
+ 	.release = page_cache_pipe_buf_release,
+ 	.get = generic_pipe_buf_get,
+ };
+@@ -92,7 +49,6 @@ static const struct pipe_buf_operations 
+ 	.can_merge = 0,
+ 	.map = generic_pipe_buf_map,
+ 	.unmap = generic_pipe_buf_unmap,
+-	.confirm = generic_pipe_buf_confirm,
+ 	.release = page_cache_pipe_buf_release,
+ 	.get = generic_pipe_buf_get,
+ };
+@@ -349,6 +305,11 @@ __generic_file_splice_read(struct file *
+ 
+ 				break;
+ 			}
++			wait_on_page_locked(page);
++			if (!PageUptodate(page)) {
++				error = -EIO;
++				break;
++			}
+ 		}
+ fill_it:
+ 		/*
+@@ -451,13 +412,10 @@ static int pipe_to_sendpage(struct pipe_
+ 	loff_t pos = sd->pos;
+ 	int ret, more;
+ 
+-	ret = buf->ops->confirm(pipe, buf);
+-	if (!ret) {
+-		more = (sd->flags & SPLICE_F_MORE) || sd->len < sd->total_len;
++	more = (sd->flags & SPLICE_F_MORE) || sd->len < sd->total_len;
+ 
+-		ret = file->f_op->sendpage(file, buf->page, buf->offset,
+-					   sd->len, &pos, more);
+-	}
++	ret = file->f_op->sendpage(file, buf->page, buf->offset,
++				   sd->len, &pos, more);
+ 
+ 	return ret;
+ }
+@@ -492,13 +450,6 @@ static int pipe_to_file(struct pipe_inod
+ 	void *fsdata;
+ 	int ret;
+ 
+-	/*
+-	 * make sure the data in this buffer is uptodate
+-	 */
+-	ret = buf->ops->confirm(pipe, buf);
+-	if (unlikely(ret))
+-		return ret;
+-
+ 	offset = sd->pos & ~PAGE_CACHE_MASK;
+ 
+ 	this_len = sd->len;
+@@ -1231,10 +1182,6 @@ static int pipe_to_user(struct pipe_inod
+ 	char *src;
+ 	int ret;
+ 
+-	ret = buf->ops->confirm(pipe, buf);
+-	if (unlikely(ret))
+-		return ret;
+-
+ 	/*
+ 	 * See if we can use the atomic maps, by prefaulting in the
+ 	 * pages and doing an atomic copy
+Index: linux-2.6/include/linux/pipe_fs_i.h
+===================================================================
+--- linux-2.6.orig/include/linux/pipe_fs_i.h	2008-06-21 11:46:52.000000000 +0200
++++ linux-2.6/include/linux/pipe_fs_i.h	2008-06-21 11:47:09.000000000 +0200
+@@ -58,16 +58,8 @@ struct pipe_inode_info {
+ };
+ 
+ /*
+- * Note on the nesting of these functions:
+- *
+- * ->confirm()
+- *	->map()
+- *	...
+- *	->unmap()
+- *
+- * That is, ->map() must be called on a confirmed buffer. See below
+- * for the meaning of each operation. Also see kerneldoc in fs/pipe.c
+- * for the pipe and generic variants of these hooks.
++ * Also see kerneldoc in fs/pipe.c for the pipe and generic variants
++ * of these hooks.
+  */
+ struct pipe_buf_operations {
+ 	/*
+@@ -97,15 +89,6 @@ struct pipe_buf_operations {
+ 	void (*unmap)(struct pipe_inode_info *, struct pipe_buffer *, void *);
+ 
+ 	/*
+-	 * ->confirm() verifies that the data in the pipe buffer is there
+-	 * and that the contents are good. If the pages in the pipe belong
+-	 * to a file system, we may need to wait for IO completion in this
+-	 * hook. Returns 0 for good, or a negative error value in case of
+-	 * error.
+-	 */
+-	int (*confirm)(struct pipe_inode_info *, struct pipe_buffer *);
+-
+-	/*
+ 	 * When the contents of this pipe buffer has been completely
+ 	 * consumed by a reader, ->release() is called.
+ 	 */
+@@ -132,6 +115,5 @@ void __free_pipe_info(struct pipe_inode_
+ void *generic_pipe_buf_map(struct pipe_inode_info *, struct pipe_buffer *, int);
+ void generic_pipe_buf_unmap(struct pipe_inode_info *, struct pipe_buffer *, void *);
+ void generic_pipe_buf_get(struct pipe_inode_info *, struct pipe_buffer *);
+-int generic_pipe_buf_confirm(struct pipe_inode_info *, struct pipe_buffer *);
+ 
+ #endif
+Index: linux-2.6/kernel/relay.c
+===================================================================
+--- linux-2.6.orig/kernel/relay.c	2008-06-21 11:47:05.000000000 +0200
++++ linux-2.6/kernel/relay.c	2008-06-21 11:47:09.000000000 +0200
+@@ -1079,7 +1079,6 @@ static struct pipe_buf_operations relay_
+ 	.can_merge = 0,
+ 	.map = generic_pipe_buf_map,
+ 	.unmap = generic_pipe_buf_unmap,
+-	.confirm = generic_pipe_buf_confirm,
+ 	.release = relay_pipe_buf_release,
+ 	.get = generic_pipe_buf_get,
+ };
+Index: linux-2.6/net/core/skbuff.c
+===================================================================
+--- linux-2.6.orig/net/core/skbuff.c	2008-06-21 11:46:52.000000000 +0200
++++ linux-2.6/net/core/skbuff.c	2008-06-21 11:47:09.000000000 +0200
+@@ -93,7 +93,6 @@ static struct pipe_buf_operations sock_p
+ 	.can_merge = 0,
+ 	.map = generic_pipe_buf_map,
+ 	.unmap = generic_pipe_buf_unmap,
+-	.confirm = generic_pipe_buf_confirm,
+ 	.release = sock_pipe_buf_release,
+ 	.get = sock_pipe_buf_get,
+ };
+Index: linux-2.6/fs/nfsd/vfs.c
+===================================================================
+--- linux-2.6.orig/fs/nfsd/vfs.c	2008-06-19 14:58:10.000000000 +0200
++++ linux-2.6/fs/nfsd/vfs.c	2008-06-21 11:50:57.000000000 +0200
+@@ -839,14 +839,7 @@ nfsd_splice_actor(struct pipe_inode_info
+ 	struct svc_rqst *rqstp = sd->u.data;
+ 	struct page **pp = rqstp->rq_respages + rqstp->rq_resused;
+ 	struct page *page = buf->page;
+-	size_t size;
+-	int ret;
+-
+-	ret = buf->ops->confirm(pipe, buf);
+-	if (unlikely(ret))
+-		return ret;
+-
+-	size = sd->len;
++	size_t size = sd->len;
+ 
+ 	if (rqstp->rq_res.page_len == 0) {
+ 		get_page(page);
+
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
