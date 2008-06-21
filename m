@@ -1,629 +1,190 @@
-Date: Sat, 21 Jun 2008 19:00:45 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [RFC][PATCH] putback_lru_page()/unevictable page handling rework v3
-Message-Id: <20080621185408.E832.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: by wx-out-0506.google.com with SMTP id h29so688029wxd.11
+        for <linux-mm@kvack.org>; Sat, 21 Jun 2008 05:57:39 -0700 (PDT)
+Message-ID: <a4423d670806210557k1e8fcee1le3526f62962799e@mail.gmail.com>
+Date: Sat, 21 Jun 2008 16:57:38 +0400
+From: "Alexander Beregalov" <a.beregalov@gmail.com>
+Subject: Re: 2.6.26-rc: nfsd hangs for a few sec
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: kernel-testers@vger.kernel.org, kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <clameter@sgi.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, bfields@fieldses.org, neilb@suse.de, linux-nfs@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+One more try, added some CC's.
 
-I merged kamezawa-san's SHMEM related fix.
-this patch works well >2H.
-and, I am going to test on stress workload during this week end.
+2008/6/12 Alexander Beregalov <a.beregalov@gmail.com>:
+> I have bisected it and it seems introduced here:
+> How could it be?
+>
+> 54a6eb5c4765aa573a030ceeba2c14e3d2ea5706 is first bad commit
+> commit 54a6eb5c4765aa573a030ceeba2c14e3d2ea5706
+> Author: Mel Gorman <mel@csn.ul.ie>
+> Date:   Mon Apr 28 02:12:16 2008 -0700
+>
+>    mm: use two zonelist that are filtered by GFP mask
+>
+>    Currently a node has two sets of zonelists, one for each zone type in the
+>    system and a second set for GFP_THISNODE allocations.  Based on the zones
+>    allowed by a gfp mask, one of these zonelists is selected.  All of these
+>    zonelists consume memory and occupy cache lines.
+>
+>    This patch replaces the multiple zonelists per-node with two zonelists.  The
+>    first contains all populated zones in the system, ordered by distance, for
+>    fallback allocations when the target/preferred node has no free pages.  The
+>    second contains all populated zones in the node suitable for GFP_THISNODE
+>    allocations.
+>
+>    An iterator macro is introduced called for_each_zone_zonelist()
+> that interates
+>    through each zone allowed by the GFP flags in the selected zonelist.
+>
+>    Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+>    Acked-by: Christoph Lameter <clameter@sgi.com>
+>    Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+>    Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>    Cc: Mel Gorman <mel@csn.ul.ie>
+>    Cc: Christoph Lameter <clameter@sgi.com>
+>    Cc: Hugh Dickins <hugh@veritas.com>
+>    Cc: Nick Piggin <nickpiggin@yahoo.com.au>
+>    Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>    Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+>
+> :040000 040000 89cdad93d855fa839537454113f2716011ca0e26
+> 57aa307f4bddd264e70c759a2fb2076bfde363eb M      arch
+> :040000 040000 4add802178c0088a85d3738b42ec42ca33e07d60
+> 126d3b170424a18b60074a7901c4e9b98f3bdee5 M      fs
+> :040000 040000 9d215d6248382dab53003d230643f0169f3e3e84
+> 67d196d890a27d2211b3bf7e833e6366addba739 M      include
+> :040000 040000 6502d185e8ea6338953027c29cc3ab960d6f9bad
+> c818e0fc538cdc40016e2d5fe33661c9c54dc8a5 M      mm
+>
 
-but I hope recieve review at first.
-thus I post it now.
-
-Thanks.
-
-
-V2 -> V3
-   o remove lock_page() from scan_mapping_unevictable_pages() and
-     scan_zone_unevictable_pages().
-   o revert ipc/shm.c mm/shmem.c change of SHMEM unevictable patch.
-     it become unnecessary by this patch.
-
-V1 -> V2
-   o undo unintented comment killing.
-   o move putback_lru_page() from move_to_new_page() to unmap_and_move().
-   o folded depend patch
-       http://marc.info/?l=linux-mm&m=121337119621958&w=2
-       http://marc.info/?l=linux-kernel&m=121362782406478&w=2
-       http://marc.info/?l=linux-mm&m=121377572909776&w=2
-
-
-From: KAMEZAWA Hiroyuki <kamezawa.hiroy@jp.fujitsu.com>
-
-putback_lru_page()/unevictable page handling rework.
-
-Now, putback_lru_page() requires that the page is locked.
-And in some special case, implicitly unlock it.
-
-This patch tries to make putback_lru_pages() to be lock_page() free.
-(Of course, some callers must take the lock.)
-
-The main reason that putback_lru_page() assumes that page is locked
-is to avoid the change in page's status among Mlocked/Not-Mlocked.
-
-Once it is added to unevictable list, the page is removed from
-unevictable list only when page is munlocked. (there are other special
-case. but we ignore the special case.)
-So, status change during putback_lru_page() is fatal and page should 
-be locked.
-
-putback_lru_page() in this patch has a new concepts.
-When it adds page to unevictable list, it checks the status is 
-changed or not again. if changed, retry to putback.
-
-This patche changes also caller side and cleaning up lock/unlock_page().
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroy@jp.fujitsu.com>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
----
- ipc/shm.c     |   16 +-------
- mm/internal.h |    2 -
- mm/migrate.c  |   60 ++++++++++---------------------
- mm/mlock.c    |   51 +++++++++++++++-----------
- mm/shmem.c    |    9 ++--
- mm/vmscan.c   |  111 +++++++++++++++++++++++++---------------------------------
- 6 files changed, 104 insertions(+), 145 deletions(-)
-
-Index: b/mm/vmscan.c
-===================================================================
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -486,31 +486,21 @@ int remove_mapping(struct address_space 
-  * Page may still be unevictable for other reasons.
-  *
-  * lru_lock must not be held, interrupts must be enabled.
-- * Must be called with page locked.
-- *
-- * return 1 if page still locked [not truncated], else 0
-  */
--int putback_lru_page(struct page *page)
-+#ifdef CONFIG_UNEVICTABLE_LRU
-+void putback_lru_page(struct page *page)
- {
- 	int lru;
--	int ret = 1;
- 	int was_unevictable;
- 
--	VM_BUG_ON(!PageLocked(page));
- 	VM_BUG_ON(PageLRU(page));
- 
-+	was_unevictable = TestClearPageUnevictable(page);
-+
-+redo:
- 	lru = !!TestClearPageActive(page);
--	was_unevictable = TestClearPageUnevictable(page); /* for page_evictable() */
- 
--	if (unlikely(!page->mapping)) {
--		/*
--		 * page truncated.  drop lock as put_page() will
--		 * free the page.
--		 */
--		VM_BUG_ON(page_count(page) != 1);
--		unlock_page(page);
--		ret = 0;
--	} else if (page_evictable(page, NULL)) {
-+	if (page_evictable(page, NULL)) {
- 		/*
- 		 * For evictable pages, we can use the cache.
- 		 * In event of a race, worst case is we end up with an
-@@ -519,11 +509,6 @@ int putback_lru_page(struct page *page)
- 		 */
- 		lru += page_is_file_cache(page);
- 		lru_cache_add_lru(page, lru);
--		mem_cgroup_move_lists(page, lru);
--#ifdef CONFIG_UNEVICTABLE_LRU
--		if (was_unevictable)
--			count_vm_event(NORECL_PGRESCUED);
--#endif
- 	} else {
- 		/*
- 		 * Put unevictable pages directly on zone's unevictable
-@@ -531,28 +516,47 @@ int putback_lru_page(struct page *page)
- 		 */
- 		add_page_to_unevictable_list(page);
- 		mem_cgroup_move_lists(page, LRU_UNEVICTABLE);
--#ifdef CONFIG_UNEVICTABLE_LRU
--		if (!was_unevictable)
--			count_vm_event(NORECL_PGCULLED);
--#endif
- 	}
- 
-+	mem_cgroup_move_lists(page, lru);
-+
-+	/*
-+	 * page's status can change while we move it among lru. If an evictable
-+	 * page is on unevictable list, it never be freed. To avoid that,
-+	 * check after we added it to the list, again.
-+	 */
-+	if (lru == LRU_UNEVICTABLE && page_evictable(page, NULL)) {
-+		if (!isolate_lru_page(page)) {
-+			put_page(page);
-+			goto redo;
-+		}
-+		/* This means someone else dropped this page from LRU
-+		 * So, it will be freed or putback to LRU again. There is
-+		 * nothing to do here.
-+		 */
-+	}
-+
-+	if (was_unevictable && lru != LRU_UNEVICTABLE)
-+		count_vm_event(NORECL_PGRESCUED);
-+	else if (!was_unevictable && lru == LRU_UNEVICTABLE)
-+		count_vm_event(NORECL_PGCULLED);
-+
- 	put_page(page);		/* drop ref from isolate */
--	return ret;		/* ret => "page still locked" */
- }
- 
--/*
-- * Cull page that shrink_*_list() has detected to be unevictable
-- * under page lock to close races with other tasks that might be making
-- * the page evictable.  Avoid stranding an evictable page on the
-- * unevictable list.
-- */
--static void cull_unevictable_page(struct page *page)
-+#else
-+
-+void putback_lru_page(struct page *page)
- {
--	lock_page(page);
--	if (putback_lru_page(page))
--		unlock_page(page);
-+	int lru;
-+	VM_BUG_ON(PageLRU(page));
-+
-+	lru = !!TestClearPageActive(page) + page_is_file_cache(page);
-+	lru_cache_add_lru(page, lru);
-+	mem_cgroup_move_lists(page, lru);
-+	put_page(page);
- }
-+#endif
- 
- /*
-  * shrink_page_list() returns the number of reclaimed pages
-@@ -746,8 +750,8 @@ free_it:
- 		continue;
- 
- cull_mlocked:
--		if (putback_lru_page(page))
--			unlock_page(page);
-+		unlock_page(page);
-+		putback_lru_page(page);
- 		continue;
- 
- activate_locked:
-@@ -1127,7 +1131,7 @@ static unsigned long shrink_inactive_lis
- 			list_del(&page->lru);
- 			if (unlikely(!page_evictable(page, NULL))) {
- 				spin_unlock_irq(&zone->lru_lock);
--				cull_unevictable_page(page);
-+				putback_lru_page(page);
- 				spin_lock_irq(&zone->lru_lock);
- 				continue;
- 			}
-@@ -1231,7 +1235,7 @@ static void shrink_active_list(unsigned 
- 		list_del(&page->lru);
- 
- 		if (unlikely(!page_evictable(page, NULL))) {
--			cull_unevictable_page(page);
-+			putback_lru_page(page);
- 			continue;
- 		}
- 
-@@ -2392,9 +2396,6 @@ int zone_reclaim(struct zone *zone, gfp_
-  */
- int page_evictable(struct page *page, struct vm_area_struct *vma)
- {
--
--	VM_BUG_ON(PageUnevictable(page));
--
- 	if (mapping_unevictable(page_mapping(page)))
- 		return 0;
- 
-@@ -2450,8 +2451,8 @@ static void show_page_path(struct page *
-  */
- static void check_move_unevictable_page(struct page *page, struct zone *zone)
- {
--
--	ClearPageUnevictable(page); /* for page_evictable() */
-+retry:
-+	ClearPageUnevictable(page);
- 	if (page_evictable(page, NULL)) {
- 		enum lru_list l = LRU_INACTIVE_ANON + page_is_file_cache(page);
- 
-@@ -2467,6 +2468,8 @@ static void check_move_unevictable_page(
- 		 */
- 		SetPageUnevictable(page);
- 		list_move(&page->lru, &zone->lru[LRU_UNEVICTABLE].list);
-+		if (page_evictable(page, NULL))
-+			goto retry;
- 	}
- }
- 
-@@ -2506,16 +2509,6 @@ void scan_mapping_unevictable_pages(stru
- 				next = page_index;
- 			next++;
- 
--			if (TestSetPageLocked(page)) {
--				/*
--				 * OK, let's do it the hard way...
--				 */
--				if (zone)
--					spin_unlock_irq(&zone->lru_lock);
--				zone = NULL;
--				lock_page(page);
--			}
--
- 			if (pagezone != zone) {
- 				if (zone)
- 					spin_unlock_irq(&zone->lru_lock);
-@@ -2525,9 +2518,6 @@ void scan_mapping_unevictable_pages(stru
- 
- 			if (PageLRU(page) && PageUnevictable(page))
- 				check_move_unevictable_page(page, zone);
--
--			unlock_page(page);
--
- 		}
- 		if (zone)
- 			spin_unlock_irq(&zone->lru_lock);
-@@ -2563,15 +2553,10 @@ void scan_zone_unevictable_pages(struct 
- 		for (scan = 0;  scan < batch_size; scan++) {
- 			struct page *page = lru_to_page(l_unevictable);
- 
--			if (TestSetPageLocked(page))
--				continue;
--
- 			prefetchw_prev_lru_page(page, l_unevictable, flags);
- 
- 			if (likely(PageLRU(page) && PageUnevictable(page)))
- 				check_move_unevictable_page(page, zone);
--
--			unlock_page(page);
- 		}
- 		spin_unlock_irq(&zone->lru_lock);
- 
-Index: b/mm/mlock.c
-===================================================================
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -55,21 +55,22 @@ EXPORT_SYMBOL(can_do_mlock);
-  */
- void __clear_page_mlock(struct page *page)
- {
--	VM_BUG_ON(!PageLocked(page));	/* for LRU isolate/putback */
- 
- 	dec_zone_page_state(page, NR_MLOCK);
- 	count_vm_event(NORECL_PGCLEARED);
--	if (!isolate_lru_page(page)) {
--		putback_lru_page(page);
--	} else {
--		/*
--		 * Page not on the LRU yet.  Flush all pagevecs and retry.
--		 */
--		lru_add_drain_all();
--		if (!isolate_lru_page(page))
-+	if (page->mapping) {	/* truncated ? */
-+		if (!isolate_lru_page(page)) {
- 			putback_lru_page(page);
--		else if (PageUnevictable(page))
--			count_vm_event(NORECL_PGSTRANDED);
-+		} else {
-+			/*
-+			 *Page not on the LRU yet. Flush all pagevecs and retry.
-+			 */
-+			lru_add_drain_all();
-+			if (!isolate_lru_page(page))
-+				putback_lru_page(page);
-+			else if (PageUnevictable(page))
-+				count_vm_event(NORECL_PGSTRANDED);
-+		}
- 	}
- }
- 
-@@ -79,7 +80,7 @@ void __clear_page_mlock(struct page *pag
-  */
- void mlock_vma_page(struct page *page)
- {
--	BUG_ON(!PageLocked(page));
-+	VM_BUG_ON(!page->mapping);
- 
- 	if (!TestSetPageMlocked(page)) {
- 		inc_zone_page_state(page, NR_MLOCK);
-@@ -109,7 +110,7 @@ void mlock_vma_page(struct page *page)
-  */
- static void munlock_vma_page(struct page *page)
- {
--	BUG_ON(!PageLocked(page));
-+	VM_BUG_ON(!page->mapping);
- 
- 	if (TestClearPageMlocked(page)) {
- 		dec_zone_page_state(page, NR_MLOCK);
-@@ -169,7 +170,8 @@ static int __mlock_vma_pages_range(struc
- 
- 		/*
- 		 * get_user_pages makes pages present if we are
--		 * setting mlock.
-+		 * setting mlock. and this extra reference count will
-+		 * disable migration of this page.
- 		 */
- 		ret = get_user_pages(current, mm, addr,
- 				min_t(int, nr_pages, ARRAY_SIZE(pages)),
-@@ -197,14 +199,8 @@ static int __mlock_vma_pages_range(struc
- 		for (i = 0; i < ret; i++) {
- 			struct page *page = pages[i];
- 
--			/*
--			 * page might be truncated or migrated out from under
--			 * us.  Check after acquiring page lock.
--			 */
--			lock_page(page);
--			if (page->mapping)
-+			if (page_mapcount(page))
- 				mlock_vma_page(page);
--			unlock_page(page);
- 			put_page(page);		/* ref from get_user_pages() */
- 
- 			/*
-@@ -240,6 +236,9 @@ static int __munlock_pte_handler(pte_t *
- 	struct page *page;
- 	pte_t pte;
- 
-+	/*
-+	 * page is never be unmapped by page-reclaim. we lock this page now.
-+	 */
- retry:
- 	pte = *ptep;
- 	/*
-@@ -261,7 +260,15 @@ retry:
- 		goto out;
- 
- 	lock_page(page);
--	if (!page->mapping) {
-+	/*
-+	 * Because we lock page here, we have to check 2 cases.
-+	 * - the page is migrated.
-+	 * - the page is truncated (file-cache only)
-+	 * Note: Anonymous page doesn't clear page->mapping even if it
-+	 * is removed from rmap.
-+	 */
-+	if (!page->mapping ||
-+	     (PageAnon(page) && !page_mapcount(page))) {
- 		unlock_page(page);
- 		goto retry;
- 	}
-Index: b/mm/migrate.c
-===================================================================
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -67,9 +67,7 @@ int putback_lru_pages(struct list_head *
- 
- 	list_for_each_entry_safe(page, page2, l, lru) {
- 		list_del(&page->lru);
--		lock_page(page);
--		if (putback_lru_page(page))
--			unlock_page(page);
-+		putback_lru_page(page);
- 		count++;
- 	}
- 	return count;
-@@ -572,7 +570,6 @@ static int fallback_migrate_page(struct 
- static int move_to_new_page(struct page *newpage, struct page *page)
- {
- 	struct address_space *mapping;
--	int unlock = 1;
- 	int rc;
- 
- 	/*
-@@ -607,16 +604,10 @@ static int move_to_new_page(struct page 
- 
- 	if (!rc) {
- 		remove_migration_ptes(page, newpage);
--		/*
--		 * Put back on LRU while holding page locked to
--		 * handle potential race with, e.g., munlock()
--		 */
--		unlock = putback_lru_page(newpage);
- 	} else
- 		newpage->mapping = NULL;
- 
--	if (unlock)
--		unlock_page(newpage);
-+	unlock_page(newpage);
- 
- 	return rc;
- }
-@@ -633,19 +624,18 @@ static int unmap_and_move(new_page_t get
- 	struct page *newpage = get_new_page(page, private, &result);
- 	int rcu_locked = 0;
- 	int charge = 0;
--	int unlock = 1;
- 
- 	if (!newpage)
- 		return -ENOMEM;
- 
- 	if (page_count(page) == 1)
- 		/* page was freed from under us. So we are done. */
--		goto end_migration;
-+		goto move_newpage;
- 
- 	charge = mem_cgroup_prepare_migration(page, newpage);
- 	if (charge == -ENOMEM) {
- 		rc = -ENOMEM;
--		goto end_migration;
-+		goto move_newpage;
- 	}
- 	/* prepare cgroup just returns 0 or -ENOMEM */
- 	BUG_ON(charge);
-@@ -653,7 +643,7 @@ static int unmap_and_move(new_page_t get
- 	rc = -EAGAIN;
- 	if (TestSetPageLocked(page)) {
- 		if (!force)
--			goto end_migration;
-+			goto move_newpage;
- 		lock_page(page);
- 	}
- 
-@@ -714,39 +704,29 @@ rcu_unlock:
- 		rcu_read_unlock();
- 
- unlock:
-+	unlock_page(page);
- 
- 	if (rc != -EAGAIN) {
-  		/*
-- 		 * A page that has been migrated has all references
-- 		 * removed and will be freed. A page that has not been
-- 		 * migrated will have kepts its references and be
-- 		 * restored.
-- 		 */
-- 		list_del(&page->lru);
--		if (!page->mapping) {
--			VM_BUG_ON(page_count(page) != 1);
--			unlock_page(page);
--			put_page(page);		/* just free the old page */
--			goto end_migration;
--		} else
--			unlock = putback_lru_page(page);
-+		 * A page that has been migrated has all references
-+		 * removed and will be freed. A page that has not been
-+		 * migrated will have kepts its references and be
-+		 * restored.
-+		 */
-+		list_del(&page->lru);
-+		putback_lru_page(page);
- 	}
- 
--	if (unlock)
--		unlock_page(page);
--
--end_migration:
-+move_newpage:
- 	if (!charge)
- 		mem_cgroup_end_migration(newpage);
- 
--	if (!newpage->mapping) {
--		/*
--		 * Migration failed or was never attempted.
--		 * Free the newpage.
--		 */
--		VM_BUG_ON(page_count(newpage) != 1);
--		put_page(newpage);
--	}
-+	/*
-+	 * Move the new page to the LRU. If migration was not successful
-+	 * then this will free the page.
-+	 */
-+	putback_lru_page(newpage);
-+
- 	if (result) {
- 		if (rc)
- 			*result = rc;
-Index: b/mm/internal.h
-===================================================================
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -43,7 +43,7 @@ static inline void __put_page(struct pag
-  * in mm/vmscan.c:
-  */
- extern int isolate_lru_page(struct page *page);
--extern int putback_lru_page(struct page *page);
-+extern void putback_lru_page(struct page *page);
- 
- /*
-  * in mm/page_alloc.c
-Index: b/ipc/shm.c
-===================================================================
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -737,7 +737,6 @@ asmlinkage long sys_shmctl(int shmid, in
- 	case SHM_LOCK:
- 	case SHM_UNLOCK:
- 	{
--		struct address_space *mapping = NULL;
- 		struct file *uninitialized_var(shm_file);
- 
- 		lru_add_drain_all();  /* drain pagevecs to lru lists */
-@@ -769,29 +768,18 @@ asmlinkage long sys_shmctl(int shmid, in
- 		if(cmd==SHM_LOCK) {
- 			struct user_struct * user = current->user;
- 			if (!is_file_hugepages(shp->shm_file)) {
--				mapping = shmem_lock(shp->shm_file, 1, user);
--				if (IS_ERR(mapping))
--					err = PTR_ERR(mapping);
--				mapping = NULL;
-+				err = shmem_lock(shp->shm_file, 1, user);
- 				if (!err && !(shp->shm_perm.mode & SHM_LOCKED)){
- 					shp->shm_perm.mode |= SHM_LOCKED;
- 					shp->mlock_user = user;
- 				}
- 			}
- 		} else if (!is_file_hugepages(shp->shm_file)) {
--			mapping = shmem_lock(shp->shm_file, 0, shp->mlock_user);
-+			shmem_lock(shp->shm_file, 0, shp->mlock_user);
- 			shp->shm_perm.mode &= ~SHM_LOCKED;
- 			shp->mlock_user = NULL;
--			if (mapping) {
--				shm_file = shp->shm_file;
--				get_file(shm_file);	/* hold across unlock */
--			}
- 		}
- 		shm_unlock(shp);
--		if (mapping) {
--			scan_mapping_unevictable_pages(mapping);
--			fput(shm_file);
--		}
- 		goto out;
- 	}
- 	case IPC_RMID:
-Index: b/mm/shmem.c
-===================================================================
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1474,12 +1474,11 @@ static struct mempolicy *shmem_get_polic
- }
- #endif
- 
--struct address_space *shmem_lock(struct file *file, int lock,
--				 struct user_struct *user)
-+int shmem_lock(struct file *file, int lock, struct user_struct *user)
- {
- 	struct inode *inode = file->f_path.dentry->d_inode;
- 	struct shmem_inode_info *info = SHMEM_I(inode);
--	struct address_space *retval = ERR_PTR(-ENOMEM);
-+	int retval = -ENOMEM;
- 
- 	spin_lock(&info->lock);
- 	if (lock && !(info->flags & VM_LOCKED)) {
-@@ -1487,14 +1486,14 @@ struct address_space *shmem_lock(struct 
- 			goto out_nomem;
- 		info->flags |= VM_LOCKED;
- 		mapping_set_unevictable(file->f_mapping);
--		retval = NULL;
- 	}
- 	if (!lock && (info->flags & VM_LOCKED) && user) {
- 		user_shm_unlock(inode->i_size, user);
- 		info->flags &= ~VM_LOCKED;
- 		mapping_clear_unevictable(file->f_mapping);
--		retval = file->f_mapping;
-+		scan_mapping_unevictable_pages(file->f_mapping);
- 	}
-+	retval = 0;
- out_nomem:
- 	spin_unlock(&info->lock);
- 	return retval;
-
+> I remind the log message (it still happens on -rc5):
+> Machine hangs for few seconds.
+> I can caught such thing during the first hour of running.
+>
+>  [ INFO: possible circular locking dependency detected ]
+>  2.6.26-rc5-00084-g39b945a #3
+>  -------------------------------------------------------
+>  nfsd/3457 is trying to acquire lock:
+>  (iprune_mutex){--..}, at: [<c016fb6c>] shrink_icache_memory+0x38/0x19b
+>
+>  but task is already holding lock:
+>  (&(&ip->i_iolock)->mr_lock){----}, at: [<c021108f>] xfs_ilock+0xa2/0xd6
+>
+>  which lock already depends on the new lock.
+>
+>
+>  the existing dependency chain (in reverse order) is:
+>
+>  -> #1 (&(&ip->i_iolock)->mr_lock){----}:
+>        [<c0135416>] __lock_acquire+0xa0c/0xbc6
+>        [<c013563a>] lock_acquire+0x6a/0x86
+>        [<c012c4f2>] down_write_nested+0x33/0x6a
+>        [<c0211068>] xfs_ilock+0x7b/0xd6
+>        [<c02111e1>] xfs_ireclaim+0x1d/0x59
+>        [<c022f342>] xfs_finish_reclaim+0x173/0x195
+>        [<c0231496>] xfs_reclaim+0xb3/0x138
+>        [<c023ba0f>] xfs_fs_clear_inode+0x55/0x8e
+>        [<c016f830>] clear_inode+0x83/0xd2
+>        [<c016faaf>] dispose_list+0x3c/0xc1
+>        [<c016fca7>] shrink_icache_memory+0x173/0x19b
+>        [<c014a7fa>] shrink_slab+0xda/0x153
+>        [<c014aa53>] try_to_free_pages+0x1e0/0x2a1
+>        [<c0146ad7>] __alloc_pages_internal+0x23f/0x3a7
+>        [<c0146c56>] __alloc_pages+0xa/0xc
+>        [<c015b8c2>] __slab_alloc+0x1c7/0x513
+>        [<c015beef>] kmem_cache_alloc+0x45/0xb3
+>        [<c01a5afe>] reiserfs_alloc_inode+0x12/0x23
+>        [<c016f308>] alloc_inode+0x14/0x1a9
+>        [<c016f5ed>] iget5_locked+0x47/0x133
+>        [<c019dffd>] reiserfs_iget+0x29/0x7d
+>        [<c019b655>] reiserfs_lookup+0xb1/0xee
+>        [<c01657c2>] do_lookup+0xa9/0x146
+>        [<c0166deb>] __link_path_walk+0x734/0xb2f
+>        [<c016722f>] path_walk+0x49/0x96
+>        [<c01674e0>] do_path_lookup+0x12f/0x149
+>        [<c0167d08>] __user_walk_fd+0x2f/0x48
+>        [<c0162157>] vfs_lstat_fd+0x16/0x3d
+>        [<c01621e9>] vfs_lstat+0x11/0x13
+>        [<c01621ff>] sys_lstat64+0x14/0x28
+>        [<c0102bb9>] sysenter_past_esp+0x6a/0xb1
+>        [<ffffffff>] 0xffffffff
+>
+>  -> #0 (iprune_mutex){--..}:
+>        [<c0135333>] __lock_acquire+0x929/0xbc6
+>        [<c013563a>] lock_acquire+0x6a/0x86
+>        [<c037db3e>] mutex_lock_nested+0xba/0x232
+>        [<c016fb6c>] shrink_icache_memory+0x38/0x19b
+>        [<c014a7fa>] shrink_slab+0xda/0x153
+>        [<c014aa53>] try_to_free_pages+0x1e0/0x2a1
+>        [<c0146ad7>] __alloc_pages_internal+0x23f/0x3a7
+>        [<c0146c56>] __alloc_pages+0xa/0xc
+>        [<c01484f2>] __do_page_cache_readahead+0xaa/0x16a
+>        [<c01487ac>] ondemand_readahead+0x119/0x127
+>        [<c014880c>] page_cache_async_readahead+0x52/0x5d
+>        [<c0179410>] generic_file_splice_read+0x290/0x4a8
+>        [<c023a46a>] xfs_splice_read+0x4b/0x78
+>        [<c0237c78>] xfs_file_splice_read+0x24/0x29
+>        [<c0178712>] do_splice_to+0x45/0x63
+>        [<c017899e>] splice_direct_to_actor+0xc3/0x190
+>        [<c01ceddd>] nfsd_vfs_read+0x1ed/0x2d0
+>        [<c01cf24c>] nfsd_read+0x82/0x99
+>        [<c01d47b8>] nfsd3_proc_read+0xdf/0x12a
+>        [<c01cb907>] nfsd_dispatch+0xcf/0x19e
+>        [<c036356c>] svc_process+0x3b3/0x68b
+>        [<c01cbe35>] nfsd+0x168/0x26b
+>        [<c01037db>] kernel_thread_helper+0x7/0x10
+>        [<ffffffff>] 0xffffffff
+>
+>  other info that might help us debug this:
+>
+>  3 locks held by nfsd/3457:
+>  #0:  (hash_sem){..--}, at: [<c01d1a34>] exp_readlock+0xd/0xf
+>  #1:  (&(&ip->i_iolock)->mr_lock){----}, at: [<c021108f>] xfs_ilock+0xa2/0xd6
+>  #2:  (shrinker_rwsem){----}, at: [<c014a744>] shrink_slab+0x24/0x153
+>
+>  stack backtrace:
+>  Pid: 3457, comm: nfsd Not tainted 2.6.26-rc5-00084-g39b945a #3
+>  [<c01335c8>] print_circular_bug_tail+0x5a/0x65
+>  [<c0133ec9>] ? print_circular_bug_header+0xa8/0xb3
+>  [<c0135333>] __lock_acquire+0x929/0xbc6
+>  [<c013563a>] lock_acquire+0x6a/0x86
+>  [<c016fb6c>] ? shrink_icache_memory+0x38/0x19b
+>  [<c037db3e>] mutex_lock_nested+0xba/0x232
+>  [<c016fb6c>] ? shrink_icache_memory+0x38/0x19b
+>  [<c016fb6c>] ? shrink_icache_memory+0x38/0x19b
+>  [<c016fb6c>] shrink_icache_memory+0x38/0x19b
+>  [<c014a7fa>] shrink_slab+0xda/0x153
+>  [<c014aa53>] try_to_free_pages+0x1e0/0x2a1
+>  [<c0149993>] ? isolate_pages_global+0x0/0x3e
+>  [<c0146ad7>] __alloc_pages_internal+0x23f/0x3a7
+>  [<c0146c56>] __alloc_pages+0xa/0xc
+>  [<c01484f2>] __do_page_cache_readahead+0xaa/0x16a
+>  [<c01487ac>] ondemand_readahead+0x119/0x127
+>  [<c014880c>] page_cache_async_readahead+0x52/0x5d
+>  [<c0179410>] generic_file_splice_read+0x290/0x4a8
+>  [<c037f425>] ? _spin_unlock+0x27/0x3c
+>  [<c025140d>] ? _atomic_dec_and_lock+0x25/0x30
+>  [<c01355b4>] ? __lock_acquire+0xbaa/0xbc6
+>  [<c01787d5>] ? spd_release_page+0x0/0xf
+>  [<c023a46a>] xfs_splice_read+0x4b/0x78
+>  [<c0237c78>] xfs_file_splice_read+0x24/0x29
+>  [<c0178712>] do_splice_to+0x45/0x63
+>  [<c017899e>] splice_direct_to_actor+0xc3/0x190
+>  [<c01ceec0>] ? nfsd_direct_splice_actor+0x0/0xf
+>  [<c01ceddd>] nfsd_vfs_read+0x1ed/0x2d0
+>  [<c01cf24c>] nfsd_read+0x82/0x99
+>  [<c01d47b8>] nfsd3_proc_read+0xdf/0x12a
+>  [<c01cb907>] nfsd_dispatch+0xcf/0x19e
+>  [<c036356c>] svc_process+0x3b3/0x68b
+>  [<c01cbe35>] nfsd+0x168/0x26b
+>  [<c01cbccd>] ? nfsd+0x0/0x26b
+>  [<c01037db>] kernel_thread_helper+0x7/0x10
+>  =======================
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
