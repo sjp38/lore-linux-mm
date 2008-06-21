@@ -1,38 +1,45 @@
-Message-Id: <20080621154722.879182964@szeredi.hu>
-References: <20080621154607.154640724@szeredi.hu>
-Date: Sat, 21 Jun 2008 17:46:08 +0200
+Message-Id: <20080621154607.154640724@szeredi.hu>
+Date: Sat, 21 Jun 2008 17:46:07 +0200
 From: Miklos Szeredi <miklos@szeredi.hu>
-Subject: [rfc patch 1/4] splice: fix comment
-Content-Disposition: inline; filename=splice_fix_comment.patch
+Subject: [rfc patch 0/4] splice: cleanups and fixes
 Sender: owner-linux-mm@kvack.org
-From: Miklos Szeredi <mszeredi@suse.cz>
 Return-Path: <owner-linux-mm@kvack.org>
 To: jens.axboe@oracle.com
 Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Clearing SPLICE_F_NONBLOCK means: block.
+Brian Wang reported some problems with NFS export of fuse filesystems,
+which turned out to be bad interaction between splice (used by nfsd)
+and page cache invalidation.
 
-Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
----
- fs/splice.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+I looked at the splice code, and found quite a bit of dead code,
+duplication, and unnecessary complication.  This patchset attempts to
+resolve those, in addition to fixing the invalidation issues.  Some
+optimizations are lost in the process like the gang page lookup for
+the fully cached case, and I can't really tell if these are important
+enough to warrant the extra complexity.
 
-Index: linux-2.6/fs/splice.c
-===================================================================
---- linux-2.6.orig/fs/splice.c	2008-06-19 14:58:10.000000000 +0200
-+++ linux-2.6/fs/splice.c	2008-06-20 13:12:37.000000000 +0200
-@@ -978,7 +978,7 @@ ssize_t splice_direct_to_actor(struct fi
- 	flags = sd->flags;
- 
- 	/*
--	 * Don't block on output, we have to drain the direct pipe.
-+	 * Block on output, we have to drain the direct pipe.
- 	 */
- 	sd->flags &= ~SPLICE_F_NONBLOCK;
- 
+I did minimal testing to verify that splice(2) on regular files still
+works.  And since generic_file_splice_read() now shares most of its
+code with generic_file_aio_read(), there's not much to go wrong in
+there.  That said, it needs more testing...
 
+Comments?
+
+Thanks,
+Miklos
 --
+
+ drivers/block/loop.c      |    5 
+ fs/nfsd/vfs.c             |    9 -
+ fs/pipe.c                 |   58 -------
+ fs/splice.c               |  371 +++++-----------------------------------------
+ include/linux/fs.h        |    2 
+ include/linux/pipe_fs_i.h |   36 ----
+ kernel/relay.c            |    2 
+ mm/filemap.c              |    2 
+ net/core/skbuff.c         |    9 -
+ 9 files changed, 47 insertions(+), 447 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
