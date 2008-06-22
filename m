@@ -1,101 +1,54 @@
-Date: Sun, 22 Jun 2008 17:30:35 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: [patch] mm: fix race in COW logic
-Message-ID: <20080622153035.GA31114@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Sun, 22 Jun 2008 18:07:05 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: 2.6.26-rc: nfsd hangs for a few sec
+Message-ID: <20080622170704.GB625@csn.ul.ie>
+References: <a4423d670806210557k1e8fcee1le3526f62962799e@mail.gmail.com> <20080621224135.GD4692@csn.ul.ie> <Pine.LNX.4.64.0806211711470.18719@schroedinger.engr.sgi.com> <20080622013801.GE4692@csn.ul.ie> <Pine.LNX.4.64.0806212107510.18908@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0806212107510.18908@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Memory Management List <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Alexander Beregalov <a.beregalov@gmail.com>, kernel-testers@vger.kernel.org, kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Lee Schermerhorn <lee.schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, bfields@fieldses.org, neilb@suse.de, linux-nfs@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On (21/06/08 21:13), Christoph Lameter didst pronounce:
+> On Sun, 22 Jun 2008, Mel Gorman wrote:
+> 
+> > > Before the change we walk all zones of the zonelist.
+> > > 
+> > 
+> > Yeah, but the zonelist is for GFP_KERNEL so it should not include the HIGHMEM
+> > zones, right? The key change is that after the patch there are fewer zonelists
+> > than get filtered.
+> 
+> But the HIGHMEM zones etc were included before. There was no check for 
+> HIGHMEM etc there. The gfpmask was ignored.
+>  
 
-Can someone please review my thinking here? (no this is not a fix for
-Robin's recent issue, but something completely different)
+Well, the mask is not totally ignored, it's part of the scan_control and
+used later when deciding what can and can't be done as part of reclaim.
+However, you are right in that it is apparently ignored for zone
+selection.
 
-Thanks,
-Nick
+However, try_to_free_pages() received a struct zone **zones which was
+a zonelist which is a zonelist->zones selected based on the gfp_mask in
+__alloc_pages. By the time shrink_zones() is called, it can ignore the
+mask because only relevant zones are in there. For GFP_KERNEL, that would
+exclude HIGHMEM.
 
-
-There is a race in the COW logic. It contains a shortcut to avoid the
-COW and reuse the page if we have the sole reference on the page, however it
-is possible to have two racing do_wp_page()ers with one causing the other to
-mistakenly believe it is safe to take the shortcut when it is not. This could
-lead to data corruption.
-
-Process 1 and process2 each have a wp pte of the same anon page (ie. one
-forked the other). The page's mapcount is 2. Then they both attempt to write
-to it around the same time...
-
-  proc1				proc2 thr1			proc2 thr2
-  CPU0				CPU1				CPU3
-  do_wp_page()			do_wp_page()
-				 trylock_page()
-				  can_share_swap_page()
-				   load page mapcount (==2)
-				  reuse = 0
-				 pte unlock
-				 copy page to new_page
-				 pte lock
-				 page_remove_rmap(page);
-   trylock_page()	
-    can_share_swap_page()
-     load page mapcount (==1)
-    reuse = 1
-   ptep_set_access_flags (allow W)
-
-  write private key into page
-								read from page
-				ptep_clear_flush()
-				set_pte_at(pte of new_page)
+> > I think the effect of that patch is that zones get shrunk that have
+> > nothing to do with the requestors requirements. Right?
+> 
+> Right. AFAICT That was the behavior before the change.
+> 
 
 
-Fix this by moving the page_remove_rmap of the old page after the pte clear
-and flush. Potentially the entire branch could be moved down here, but in
-order to stay consistent, I won't (should probably move all the *_mm_counter
-stuff with one patch).
-
-Signed-off-by: Nick Piggin <npiggin@suse.de>
----
-Index: linux-2.6/mm/memory.c
-===================================================================
---- linux-2.6.orig/mm/memory.c
-+++ linux-2.6/mm/memory.c
-@@ -1766,7 +1766,6 @@ gotten:
- 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
- 	if (likely(pte_same(*page_table, orig_pte))) {
- 		if (old_page) {
--			page_remove_rmap(old_page, vma);
- 			if (!PageAnon(old_page)) {
- 				dec_mm_counter(mm, file_rss);
- 				inc_mm_counter(mm, anon_rss);
-@@ -1788,6 +1787,24 @@ gotten:
- 		lru_cache_add_active(new_page);
- 		page_add_new_anon_rmap(new_page, vma, address);
- 
-+		if (old_page) {
-+			/*
-+			 * Only after switching the pte to the new page may
-+			 * we remove the mapcount here. Otherwise another
-+			 * process may come and find the rmap count decremented
-+			 * before the pte is switched to the new page, and
-+			 * "reuse" the old page writing into it while our pte
-+			 * here still points into it and can be read by other
-+			 * threads.
-+			 *
-+			 * The ptep_clear_flush should be enough to prevent
-+			 * any possible reordering making the old page visible
-+			 * to other threads afterwards, so just executing
-+			 * after it is fine.
-+			 */
-+			page_remove_rmap(old_page, vma);
-+		}
-+
- 		/* Free the old page.. */
- 		new_page = old_page;
- 		ret |= VM_FAULT_WRITE;
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
