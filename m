@@ -1,80 +1,401 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: strategies for nicely handling large amount of uc/wc allocations.
-Date: Mon, 23 Jun 2008 16:57:51 +1000
-References: <21d7e9970806222210s8fec8acybb2b5af17256d555@mail.gmail.com> <200806231603.49642.nickpiggin@yahoo.com.au> <21d7e9970806222318q5faa3007ga79531a7bb899303@mail.gmail.com>
-In-Reply-To: <21d7e9970806222318q5faa3007ga79531a7bb899303@mail.gmail.com>
+Date: Mon, 23 Jun 2008 08:33:12 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 2/2] hugetlb reservations: fix hugetlb MAP_PRIVATE reservations across vma splits
+Message-ID: <20080623073312.GI21597@csn.ul.ie>
+References: <1213989474-5586-1-git-send-email-apw@shadowen.org> <1213989474-5586-3-git-send-email-apw@shadowen.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Message-Id: <200806231657.51851.nickpiggin@yahoo.com.au>
+In-Reply-To: <1213989474-5586-3-git-send-email-apw@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Airlie <airlied@gmail.com>
-Cc: Linux Memory Management <linux-mm@kvack.org>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Jon Tollefson <kniht@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Monday 23 June 2008 16:18, Dave Airlie wrote:
-> On Mon, Jun 23, 2008 at 4:03 PM, Nick Piggin <nickpiggin@yahoo.com.au> 
-wrote:
-> > On Monday 23 June 2008 15:10, Dave Airlie wrote:
-> >> The issues I'm seeing with just doing my own pool of uncached pages
-> >> like the ia64 uncached allocator, is how do I deal with swapping
-> >> objects to disk and memory pressure.
-> >
-> > set_shrinker is the way to go for a first-pass approach.
-> >
-> >> considering GPU applications do a lot of memory allocations I can't
-> >> really just ignore swap.
-> >
-> > It might be kind of nice to be able to use other things than
-> > swap too. I've always wondered whether there is a problem with
-> > having a userspace program allocate the memory and then register
-> > it with the GPU allocator. This way you might be able to mmap a
-> > file, or allocate anonymous memory or whatever you like. OTOH I
-> > haven't thought through all the details this would require.
->
-> We've thought about that a few times, but really I'd rather avoid have
-> to have a userspace anything running
-> in order to suspend/resume.
+On (20/06/08 20:17), Andy Whitcroft didst pronounce:
+> When a hugetlb mapping with a reservation is split, a new VMA is cloned
+> from the original.  This new VMA is a direct copy of the original
+> including the reservation count.  When this pair of VMAs are unmapped
+> we will incorrect double account the unused reservation and the overall
+> reservation count will be incorrect, in extreme cases it will wrap.
+> 
 
-It wouldn't have to be running, it would just have to provide some
-virtual memory area for get_user_pages to work on. Presumably does
-not have to do anything when suspending and resuming?
+D'oh. It's not even that extreme, it's fairly straight-forward
+to trigger as it turns out as this crappy application shows
+http://www.csn.ul.ie/~mel/postings/apw-20080622/hugetlbfs-unmap-private-test.c
+. This runs on x86 and can wrap the rsvd counters. I believe the other tests
+I was running had already used the reserves and missed this test case.
 
+> The problem occurs when we split an existing VMA say to unmap a page in
+> the middle.  split_vma() will create a new VMA copying all fields from
+> the original.  As we are storing our reservation count in vm_private_data
+> this is also copies, endowing the new VMA with a duplicate of the original
+> VMA's reservation.  Neither of the new VMAs can exhaust these reservations
+> as they are too small, but when we unmap and close these VMAs we will
+> incorrect credit the remainder twice and resv_huge_pages will become
+> out of sync.  This can lead to allocation failures on mappings with
+> reservations and even to resv_huge_pages wrapping which prevents all
+> subsequent hugepage allocations.
+> 
 
-> We are trying to move away from having 
-> something like X controlling the world. Also a single program
-> brings with it a single program VMs space issues, we have GPUs with
-> 1GB of RAM, thats a lot of backing store to have in one apps VM space
-> along with the objects in the GART.
+Yeah, that does sound as if it would occur all right and running the
+test program confirms it.
 
-I guess you could just ask for your own shmem inode from the kernel
-and operate on that. It just seemed more flexible to pass in any
-type of memory to register. But maybe it gets tricky as you have to
-change the cache attributes.
+> The simple fix would be to correctly apportion the remaining reservation
+> count when the split is made.  However the only hook we have vm_ops->open
+> only has the new VMA we do not know the identity of the preceeding VMA.
+> Also even if we did have that VMA to hand we do not know how much of the
+> reservation was consumed each side of the split.
+> 
+> This patch therefore takes a different tack.  We know that the whole of any
+> private mapping (which has a reservation) has a reservation over its whole
+> size.  Any present pages represent consumed reservation.  Therefore if
+> we track the instantiated pages we can calculate the remaining reservation.
+> 
+> This patch reuses the existing regions code to track the regions for which
+> we have consumed reservation (ie. the instantiated pages), as each page
+> is faulted in we record the consumption of reservation for the new page.
 
+Clever. The additional nice thing is that it makes private mappings less of
+a special case in comparison to shared mappings. My impression right now is
+that with the path, shared mappings track reservations based on the underlying
+file and the private mappings are generally tracked per-mapping and only share
+due to unmap-related-splits or forks().  That seems a bit more consistent.
 
-> > Please start small and then we can see what works and what doesn't.
-> > Start by not touching the VM at all, and just do what any other
-> > driver would do and use .fault and/or ioctl+get_user_pages etc,
-> > and set_shrinker to return pages back to the allocator.
->
-> But this loses the requirement of using shmfs, which one of the
-> current GPU driver is doing,
-> and what I'd like to have re-used. but maybe that just isn't worth it
-> at the moment.
->
-> We've actually done a few prototypes at this stage outside shmfs, and
-> the shmfs implementation (using cached pages) is quite neat.
-> It would be nice to try and go down the same road for the uncached
-> page required systems.
+> When we need to return unused reservations at unmap time we simply count
+> the consumed reservation region subtracting that from the whole of the map.
+> During a VMA split the newly opened VMA will point to the same region map,
+> as this map is offset oriented it remains valid for both of the split VMAs.
+> This map is referenced counted so that it is removed when all VMAs which
+> are part of the mmap are gone.
+> 
 
-Well before you worry about swapping, you I guess you should at least
-have an allocator that caches the UC pages and has a set_shrinker that
-can be used to release unused pages under memory pressure? Do you have
-that in yet?
+This looks sensible and applying the patches and running the test program
+means that the reserve counter does not wrap when the program exists which
+is very nice.  I also tested a parent-child scenario where the pool is of
+insufficient size and the child gets killed as expected. Thanks a million
+for cleaning this up.
+
+Some comments below but they are relatively minor.
+
+> Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+> ---
+>  mm/hugetlb.c |  151 ++++++++++++++++++++++++++++++++++++++++++++++++----------
+>  1 files changed, 126 insertions(+), 25 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index d701e39..ecff986 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -171,6 +171,30 @@ static long region_truncate(struct list_head *head, long end)
+>  	return chg;
+>  }
+>  
+> +static long region_count(struct list_head *head, long f, long t)
+> +{
+> +	struct file_region *rg;
+> +	long chg = 0;
+> +
+> +	/* Locate each segment we overlap with, and count that overlap. */
+> +	list_for_each_entry(rg, head, link) {
+> +		int seg_from;
+> +		int seg_to;
+> +
+> +		if (rg->to <= f)
+> +			continue;
+> +		if (rg->from >= t)
+> +			break;
+> +
+> +		seg_from = max(rg->from, f);
+> +		seg_to = min(rg->to, t);
+> +
+> +		chg += seg_to - seg_from;
+> +	}
+> +
+> +	return chg;
+> +}
+
+Ok, seems straight forward. The tuples track pages that already exist so
+by counting the overlaps in a given range, you know how many hugepages
+have been faulted. The size of the VMA minus the overlap is the
+required reservation.
+
+> +
+>  /*
+>   * Convert the address within this vma to the page offset within
+>   * the mapping, in base page units.
+> @@ -193,9 +217,14 @@ static pgoff_t vma_pagecache_offset(struct hstate *h,
+>  			(vma->vm_pgoff >> huge_page_order(h));
+>  }
+>  
+> -#define HPAGE_RESV_OWNER    (1UL << (BITS_PER_LONG - 1))
+> -#define HPAGE_RESV_UNMAPPED (1UL << (BITS_PER_LONG - 2))
+> +/*
+> + * Flags for MAP_PRIVATE reservations.  These are stored in the bottom
+> + * bits of the reservation map pointer.
+> + */
+> +#define HPAGE_RESV_OWNER    (1UL << 0)
+> +#define HPAGE_RESV_UNMAPPED (1UL << 1)
+>  #define HPAGE_RESV_MASK (HPAGE_RESV_OWNER | HPAGE_RESV_UNMAPPED)
+> +
+
+The bits move here but for good reason. private_data is now a pointer and
+we pack flags into bits that are available due to alignment.  Right?
+
+>  /*
+>   * These helpers are used to track how many pages are reserved for
+>   * faults in a MAP_PRIVATE mapping. Only the process that called mmap()
+> @@ -205,6 +234,15 @@ static pgoff_t vma_pagecache_offset(struct hstate *h,
+>   * the reserve counters are updated with the hugetlb_lock held. It is safe
+>   * to reset the VMA at fork() time as it is not in use yet and there is no
+>   * chance of the global counters getting corrupted as a result of the values.
+> + *
+> + * The private mapping reservation is represented in a subtly different
+> + * manner to a shared mapping.  A shared mapping has a region map associated
+> + * with the underlying file, this region map represents the backing file
+> + * pages which have had a reservation taken and this persists even after
+> + * the page is instantiated.  A private mapping has a region map associated
+> + * with the original mmap which is attached to all VMAs which reference it,
+> + * this region map represents those offsets which have consumed reservation
+> + * ie. where pages have been instantiated.
+>   */
+>  static unsigned long get_vma_private_data(struct vm_area_struct *vma)
+>  {
+> @@ -217,22 +255,44 @@ static void set_vma_private_data(struct vm_area_struct *vma,
+>  	vma->vm_private_data = (void *)value;
+>  }
+>  
+> -static unsigned long vma_resv_huge_pages(struct vm_area_struct *vma)
+> +struct resv_map {
+> +	struct kref refs;
+> +	struct list_head regions;
+> +};
+> +
+> +struct resv_map *resv_map_alloc(void)
+> +{
+> +	struct resv_map *resv_map = kmalloc(sizeof(*resv_map), GFP_KERNEL);
+> +	if (!resv_map)
+> +		return NULL;
+> +
+> +	kref_init(&resv_map->refs);
+> +	INIT_LIST_HEAD(&resv_map->regions);
+> +
+> +	return resv_map;
+> +}
+> +
+> +void resv_map_release(struct kref *ref)
+> +{
+> +        struct resv_map *resv_map = container_of(ref, struct resv_map, refs);
+> +
+
+tabs vs space problem here.
+
+> +	region_truncate(&resv_map->regions, 0);
+> +	kfree(resv_map);
+> +}
+
+Otherwise, looks right. The region_truncate() looked a bit odd but you
+have call it or memory would leak so well thought out there.
+
+> +
+> +static struct resv_map *vma_resv_map(struct vm_area_struct *vma)
+>  {
+>  	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+>  	if (!(vma->vm_flags & VM_SHARED))
+> -		return get_vma_private_data(vma) & ~HPAGE_RESV_MASK;
+> +		return (struct resv_map *)(get_vma_private_data(vma) &
+> +							~HPAGE_RESV_MASK);
+>  	return 0;
+>  }
+>  
+> -static void set_vma_resv_huge_pages(struct vm_area_struct *vma,
+> -							unsigned long reserve)
+> +static void set_vma_resv_map(struct vm_area_struct *vma, struct resv_map *map)
+>  {
+> -	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+> -	VM_BUG_ON(vma->vm_flags & VM_SHARED);
+> -
+> -	set_vma_private_data(vma,
+> -		(get_vma_private_data(vma) & HPAGE_RESV_MASK) | reserve);
+> +	set_vma_private_data(vma, (get_vma_private_data(vma) &
+> +				HPAGE_RESV_MASK) | (unsigned long)map);
+>  }
+
+The VM_BUG_ON checks are removed here. Is that intentional? They still
+seem valid but maybe I am missing something.
+
+>  
+>  static void set_vma_resv_flags(struct vm_area_struct *vma, unsigned long flags)
+> @@ -251,11 +311,11 @@ static int is_vma_resv_set(struct vm_area_struct *vma, unsigned long flag)
+>  }
+>  
+>  /* Decrement the reserved pages in the hugepage pool by one */
+> -static void decrement_hugepage_resv_vma(struct hstate *h,
+> -			struct vm_area_struct *vma)
+> +static int decrement_hugepage_resv_vma(struct hstate *h,
+> +			struct vm_area_struct *vma, unsigned long address)
+>  {
+
+The comment needs an update here to explain what the return value means.
+I believe the reason is below.
+
+>  	if (vma->vm_flags & VM_NORESERVE)
+> -		return;
+> +		return 0;
+>  
+>  	if (vma->vm_flags & VM_SHARED) {
+>  		/* Shared mappings always use reserves */
+> @@ -266,14 +326,19 @@ static void decrement_hugepage_resv_vma(struct hstate *h,
+>  		 * private mappings.
+>  		 */
+>  		if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
+> -			unsigned long flags, reserve;
+> +			unsigned long idx = vma_pagecache_offset(h,
+> +							vma, address);
+> +			struct resv_map *reservations = vma_resv_map(vma);
+> +
+>  			h->resv_huge_pages--;
+> -			flags = (unsigned long)vma->vm_private_data &
+> -							HPAGE_RESV_MASK;
+> -			reserve = (unsigned long)vma->vm_private_data - 1;
+> -			vma->vm_private_data = (void *)(reserve | flags);
+> +
+> +			/* Mark this page used in the map. */
+> +			if (region_chg(&reservations->regions, idx, idx + 1) < 0)
+> +				return -1;
+> +			region_add(&reservations->regions, idx, idx + 1);
+
+There is an incredibly remote possibility that a fault would fail for a
+mapping that had reserved huge pages because the kmalloc() in region_chg
+failed. The system would have to be in terrible shape though. Should a
+KERN_WARNING be printed here if this failure path is entered?  Otherwise it
+will just mainfest as a SIGKILLd application.
+
+>  		}
+>  	}
+> +	return 0;
+>  }
+>  
+>  /* Reset counters to 0 and clear all HPAGE_RESV_* flags */
+> @@ -289,7 +354,7 @@ static int vma_has_private_reserves(struct vm_area_struct *vma)
+>  {
+>  	if (vma->vm_flags & VM_SHARED)
+>  		return 0;
+> -	if (!vma_resv_huge_pages(vma))
+> +	if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER))
+>  		return 0;
+>  	return 1;
+>  }
+> @@ -376,15 +441,16 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+>  		nid = zone_to_nid(zone);
+>  		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask) &&
+>  		    !list_empty(&h->hugepage_freelists[nid])) {
+> +			if (!avoid_reserve &&
+> +			    decrement_hugepage_resv_vma(h, vma, address) < 0)
+> +				return NULL;
+> +
+>  			page = list_entry(h->hugepage_freelists[nid].next,
+>  					  struct page, lru);
+>  			list_del(&page->lru);
+>  			h->free_huge_pages--;
+>  			h->free_huge_pages_node[nid]--;
+>  
+> -			if (!avoid_reserve)
+> -				decrement_hugepage_resv_vma(h, vma);
+> -
+>  			break;
+>  		}
+>  	}
+> @@ -1456,10 +1522,39 @@ out:
+>  	return ret;
+>  }
+>  
+> +static void hugetlb_vm_op_open(struct vm_area_struct *vma)
+> +{
+> + 	struct resv_map *reservations = vma_resv_map(vma);
+> +
+> +	/*
+> +	 * This new VMA will share its siblings reservation map.  The open
+> +	 * vm_op is only called for newly created VMAs which have been made
+> +	 * from another, still existing VMA.  As that VMA has a reference to
+> +	 * this reservation map the reservation map cannot disappear until
+> +	 * after this open completes.  It is therefore safe to take a new
+> +	 * reference here without additional locking.
+> +	 */
+> +	if (reservations)
+> +		kref_get(&reservations->refs);
+> +}
+
+This comment is a tad misleading. The open call is also called at fork()
+time. However, in the case of fork, the private_data will be cleared.
+Maybe something like;
+
+====
+The open vm_op is called when new VMAs are created but only VMAs which
+have been made from another, still existing VMA will have a
+reservation....
+====
+
+?
+
+> +
+>  static void hugetlb_vm_op_close(struct vm_area_struct *vma)
+>  {
+>  	struct hstate *h = hstate_vma(vma);
+> -	unsigned long reserve = vma_resv_huge_pages(vma);
+> + 	struct resv_map *reservations = vma_resv_map(vma);
+> +	unsigned long reserve = 0;
+> +	unsigned long start;
+> +	unsigned long end;
+> +
+> +	if (reservations) {
+> +		start = vma_pagecache_offset(h, vma, vma->vm_start);
+> +		end = vma_pagecache_offset(h, vma, vma->vm_end);
+> +
+> +		reserve = (end - start) -
+> +			region_count(&reservations->regions, start, end);
+> +
+> +		kref_put(&reservations->refs, resv_map_release);
+> +	}
+>  
+
+Clever. So, a split VMA will have the reference map for portions of the
+mapping outside its range but region_count() ensures that we decrement
+by the correct amount.
+
+>  	if (reserve)
+>  		hugetlb_acct_memory(h, -reserve);
+> @@ -1479,6 +1574,7 @@ static int hugetlb_vm_op_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+>  
+>  struct vm_operations_struct hugetlb_vm_ops = {
+>  	.fault = hugetlb_vm_op_fault,
+> +	.open = hugetlb_vm_op_open,
+>  	.close = hugetlb_vm_op_close,
+>  };
+>  
+> @@ -2037,8 +2133,13 @@ int hugetlb_reserve_pages(struct inode *inode,
+>  	if (!vma || vma->vm_flags & VM_SHARED)
+>  		chg = region_chg(&inode->i_mapping->private_list, from, to);
+>  	else {
+> +		struct resv_map *resv_map = resv_map_alloc();
+> +		if (!resv_map)
+> +			return -ENOMEM;
+> +
+>  		chg = to - from;
+> -		set_vma_resv_huge_pages(vma, chg);
+> +
+> +		set_vma_resv_map(vma, resv_map);
+>  		set_vma_resv_flags(vma, HPAGE_RESV_OWNER);
+>  	}
+
+Overall, this is a really clever idea and I like that it brings private
+mappings closer to shared mappings in a number of respects. 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
