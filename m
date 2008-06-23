@@ -1,10 +1,10 @@
-Date: Mon, 23 Jun 2008 15:37:47 -0700
+Date: Mon, 23 Jun 2008 15:40:43 -0700
 From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: [PATCH 4/6] res_counter: basic hierarchy support
-Message-Id: <20080623153747.e20a0485.randy.dunlap@oracle.com>
-In-Reply-To: <20080613183402.4f31eb96.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/6] res_counter:  handle limit change
+Message-Id: <20080623154043.c4d68d62.randy.dunlap@oracle.com>
+In-Reply-To: <20080613182924.c73fe9eb.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080613182714.265fe6d2.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080613183402.4f31eb96.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080613182924.c73fe9eb.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -14,112 +14,54 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 13 Jun 2008 18:34:02 +0900 KAMEZAWA Hiroyuki wrote:
+On Fri, 13 Jun 2008 18:29:24 +0900 KAMEZAWA Hiroyuki wrote:
 
-> Add a hierarhy support to res_counter. This patch itself just supports
-> "No Hierarchy" hierarchy, as a default/basic hierarchy system.
+> Add a support to shrink_usage_at_limit_change feature to res_counter.
+> memcg will use this to drop pages.
 > 
-> Changelog: v3 -> v4.
->   - cut out from hardwall hierarchy patch set.
->   - just support "No hierarchy" model.
+> Change log: xxx -> v4 (new file.)
+>  - cut out the limit-change part from hierarchy patch set.
+>  - add "retry_count" arguments to shrink_usage(). This allows that we don't
+>    have to set the default retry loop count.
+>  - res_counter_check_under_val() is added to support subsystem.
+>  - res_counter_init() is res_counter_init_ops(cnt, NULL)
 > 
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  Documentation/controllers/resource_counter.txt |   27 +++++-
->  include/linux/res_counter.h                    |   15 +++
->  kernel/res_counter.c                           |  107 ++++++++++++++++++++-----
->  mm/memcontrol.c                                |    1 
->  4 files changed, 129 insertions(+), 21 deletions(-)
 > 
-> Index: linux-2.6.26-rc5-mm3/kernel/res_counter.c
-> ===================================================================
-> --- linux-2.6.26-rc5-mm3.orig/kernel/res_counter.c
-> +++ linux-2.6.26-rc5-mm3/kernel/res_counter.c
-> +
->  
-> +/**
-> + * res_counter_set_ops() -- reset res->counter.ops to be passed ops.
-> + * @coutner: a counter to be set ops.
-
-typo:
-    * @counter:
-
-> + * @ops: res_counter_ops
-> + *
-> + * This operations is allowed only when there is no parent or parent's
-> + * hierarchy_model == RES_CONT_NO_HIERARCHY. returns 0 at success.
-> + */
-> +
-> +int res_counter_set_ops(struct res_counter *counter,
-> +				struct res_counter_ops *ops)
-> +{
-> +	struct res_counter *parent;
-> +	/*
-> +	 * This operation is allowed only when parents's hierarchy
-> +	 * is NO_HIERARCHY or this is ROOT.
-> +	 */
-> +	parent = counter->parent;
-> +	if (parent && parent->ops.hierarchy_model != RES_CONT_NO_HIERARCHY)
-> +		return -EINVAL;
-> +
-> +	counter->ops = *ops;
-> +
-> +	return 0;
-> +}
-> +
-> +
->  int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
->  {
->  	if (counter->usage + val > counter->limit) {
-
+> ---
+>  Documentation/controllers/resource_counter.txt |   19 +++++-
+>  include/linux/res_counter.h                    |   33 ++++++++++-
+>  kernel/res_counter.c                           |   74 ++++++++++++++++++++++++-
+>  3 files changed, 121 insertions(+), 5 deletions(-)
+> 
 > Index: linux-2.6.26-rc5-mm3/Documentation/controllers/resource_counter.txt
 > ===================================================================
 > --- linux-2.6.26-rc5-mm3.orig/Documentation/controllers/resource_counter.txt
 > +++ linux-2.6.26-rc5-mm3/Documentation/controllers/resource_counter.txt
-> @@ -39,11 +39,14 @@ to work with it.
->   	The failcnt stands for "failures counter". This is the number of
->  	resource allocation attempts that failed.
+> @@ -141,8 +145,19 @@ counter fields. They are recommended to 
+>  	failcnt		reset to zero
 >  
-> - e. res_counter_ops.
-> + e. parent
-> +	parent of this res_counter under hierarchy.
-> +
-> + f. res_counter_ops.
->  	Callbacks for helping resource_counter per each subsystem.
->  	- shrink_usage() .... called at limit change (decrease).
 >  
-> - f. spinlock_t lock
-> + g. spinlock_t lock
+> +5. res_counter_ops (Callbacks)
 >  
->   	Protects changes of the above values.
->  
-> @@ -157,7 +160,25 @@ counter fields. They are recommended to 
->       Returns 0 at success. Any error code is acceptable but -EBUSY will be
->       suitable to show "the kernel can't shrink usage."
->  
-> -6. Usage example
-> +6. Hierarchy
-> +
-> +   Groups of res_counter can be controlled under some tree (cgroup tree).
-> +   Taking the tree into account, res_counter can be under some hierarchical
-> +   control. THe res_counter itself supports hierarchy_model and calls
+> -5. Usage example
+> +   res_counter_ops is for implementing feedback control from res_counter
+> +   to subsystem. Each one has each own purpose and the subsystem doesn't
 
-               The 
+                                                                    isn't
 
-> +   registered callbacks at suitable events.
+> +   necessary to provide all callbacks. Just implement necessary ones.
+
+      required
+
 > +
-> +   For keeping sanity of hierarchy, hierarchy_model of a res_counter can be
-> +   changed when parent's hierarchy_model is RES_CONT_NO_HIERARCHY.
-> +   res_counter doesn't count # of children by itself but some subysystem should
-> +   be aware that it has no children if necessary.
-> +   (don't want to fully duplicate cgroup's hierarchy. Cost of remembering parent
-> +    is cheap.)
+> +   - shrink_usage(res_counter, newlimit, retry)
+> +     Called for reducing usage to newlimit, retry is incremented per
+> +     loop. (See memory resource controller as example.)
+> +     Returns 0 at success. Any error code is acceptable but -EBUSY will be
+> +     suitable to show "the kernel can't shrink usage."
 > +
-> + a. Independent hierarchy (RES_CONT_NO_HIERARCHY) model
-> +   This is no relationship between parent and children.
-> +
-> +
-> +7. Usage example
+> +6. Usage example
 >  
 >   a. Declare a task group (take a look at cgroups subsystem for this) and
 >      fold a res_counter into it
