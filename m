@@ -1,89 +1,32 @@
-Date: Mon, 23 Jun 2008 04:48:25 +0200
-From: Nick Piggin <npiggin@suse.de>
+Date: Sun, 22 Jun 2008 20:31:26 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [patch 05/21] hugetlb: new sysfs interface
-Message-ID: <20080623024825.GE29413@wotan.suse.de>
-References: <20080604112939.789444496@amd.local0.net> <20080604113111.647714612@amd.local0.net> <1213975138.7512.33.camel@nimitz>
+Message-Id: <20080622203126.955b9d02.akpm@linux-foundation.org>
+In-Reply-To: <20080623024825.GE29413@wotan.suse.de>
+References: <20080604112939.789444496@amd.local0.net>
+	<20080604113111.647714612@amd.local0.net>
+	<1213975138.7512.33.camel@nimitz>
+	<20080623024825.GE29413@wotan.suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1213975138.7512.33.camel@nimitz>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, "Serge E. Hallyn" <serue@us.ibm.com>, kathys <kathys@au1.ibm.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, "Serge E. Hallyn" <serue@us.ibm.com>, kathys <kathys@au1.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 20, 2008 at 08:18:58AM -0700, Dave Hansen wrote:
-> This one seems to be causing some compilation errors with SYSFS=n.
-> 
-> >> /scratch/kathys/containers/kernel_trees/upstream/mm/hugetlb.c: In  
-> >> function 'hugetlb_exit':
-> >> /scratch/kathys/containers/kernel_trees/upstream/mm/hugetlb.c:1234:  
-> >> error: 'hstate_kobjs' undeclared (first use in this function)
-> >> /scratch/kathys/containers/kernel_trees/upstream/mm/hugetlb.c:1234:  
-> >> error: (Each undeclared identifier is reported only once
-> >> /scratch/kathys/containers/kernel_trees/upstream/mm/hugetlb.c:1234:  
-> >> error: for each function it appears in.)
-> >> /scratch/kathys/containers/kernel_trees/upstream/mm/hugetlb.c:1237:  
-> >> error: 'hugepages_kobj' undeclared (first use in this function)
-> >> make[2]: *** [mm/hugetlb.o] Error 1
-> >> make[1]: *** [mm] Error 2
-> >> make: *** [sub-make] Error 2
-> 
-> Should we just move hugetlb_exit() inside the sysfs #ifdef with
-> everything else?
+On Mon, 23 Jun 2008 04:48:25 +0200 Nick Piggin <npiggin@suse.de> wrote:
 
-Yeah, thanks for testing that (I always forget to testall permutations
-of these things...)
+> I think the patch looks fine. Andrew, can you queue it?
 
-I think the patch looks fine. Andrew, can you queue it?
+uh, yeah, appended.  The patch-related backlog appears to number
+800-900 emails.  It's gonna be a fun week.
 
+btw, I'm rather concerned about -mm's MM changes from you and Rik - I
+saw a lot of emails go by but it's unclear that there was enough stuff
+there to get all of this stabilised.  Were you paying much attention?
 
-> 
-> --- linux-2.6.git-mm//mm/hugetlb.c.orig	2008-06-20 08:07:39.000000000 -0700
-> +++ linux-2.6.git-mm//mm/hugetlb.c	2008-06-20 08:14:36.000000000 -0700
-> @@ -1193,6 +1193,19 @@
->  								h->name);
->  	}
->  }
-> +
-> +static void __exit hugetlb_exit(void)
-> +{
-> +	struct hstate *h;
-> +
-> +	for_each_hstate(h) {
-> +		kobject_put(hstate_kobjs[h - hstates]);
-> +	}
-> +
-> +	kobject_put(hugepages_kobj);
-> +}
-> +module_exit(hugetlb_exit);
-> +
->  #else
->  static void __init hugetlb_sysfs_init(void)
->  {
-> @@ -1226,18 +1239,6 @@
->  }
->  module_init(hugetlb_init);
->  
-> -static void __exit hugetlb_exit(void)
-> -{
-> -	struct hstate *h;
-> -
-> -	for_each_hstate(h) {
-> -		kobject_put(hstate_kobjs[h - hstates]);
-> -	}
-> -
-> -	kobject_put(hugepages_kobj);
-> -}
-> -module_exit(hugetlb_exit);
-> -
->  /* Should be called on processing a hugepagesz=... option */
->  void __init hugetlb_add_hstate(unsigned order)
->  {
-> 
-> 
-> -- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
