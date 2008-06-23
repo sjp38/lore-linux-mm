@@ -1,148 +1,81 @@
-Date: Mon, 23 Jun 2008 16:39:05 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch] mm: fix race in COW logic
-In-Reply-To: <20080623123030.GB26555@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0806231621070.11290@blonde.site>
-References: <20080622153035.GA31114@wotan.suse.de> <Pine.LNX.4.64.0806221742330.31172@blonde.site>
- <alpine.LFD.1.10.0806221033200.2926@woody.linux-foundation.org>
- <Pine.LNX.4.64.0806221854050.5466@blonde.site> <20080623014940.GA29413@wotan.suse.de>
- <Pine.LNX.4.64.0806231015140.3513@blonde.site> <20080623121831.GA26555@wotan.suse.de>
- <20080623123030.GB26555@wotan.suse.de>
+Date: Mon, 23 Jun 2008 10:54:00 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: Can get_user_pages( ,write=1, force=1, ) result in a read-only
+	pte and _count=2?
+Message-ID: <20080623155400.GH10123@sgi.com>
+References: <20080618164158.GC10062@sgi.com> <200806190329.30622.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0806181944080.4968@blonde.site> <200806191307.04499.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0806191154270.7324@blonde.site> <20080619133809.GC10123@sgi.com> <Pine.LNX.4.64.0806191441040.25832@blonde.site>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0806191441040.25832@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Robin Holt <holt@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 23 Jun 2008, Nick Piggin wrote:
-> On Mon, Jun 23, 2008 at 02:18:31PM +0200, Nick Piggin wrote:
-> > On Mon, Jun 23, 2008 at 11:04:31AM +0100, Hugh Dickins wrote:
-> > > moving the page_remove_rmap down was to be fully effective, it needed
-> > > to move through a suitable barrier; it hadn't occurred to me that it
-> > > was carrying the suitable barrier with it.  But if that is indeed
-> > > correct, I think it would be better to rely upon that, than resort
-> > > to more difficult arguments.
+On Thu, Jun 19, 2008 at 02:49:50PM +0100, Hugh Dickins wrote:
+> On Thu, 19 Jun 2008, Robin Holt wrote:
+> > On Thu, Jun 19, 2008 at 12:09:15PM +0100, Hugh Dickins wrote:
+> > > 
+> > > (I assume Robin is not forking, we do know that causes this kind
+> > > of problem, but he didn't mention any forking so I assume not.)
 > > 
-> > No I actually think you make a good point, and I'll resubmit the
-> > patch with a replacement comment to say we've got the ordering
-> > covered if nothing else then by the atomic op in rmap.
+> > There has been a fork long before this mapping was created.  There was a
+> > hole at this location and the mapping gets established and pages populated
+> > following all ranks of the MPI job getting initialized.
 > 
-> OK, this is a new comment. I don't actually know if it is any good.
-> It is hard to be coherent if you write these things in English.
+> There's usually been a fork somewhen in the past!  That's no problem.
+> 
+> The fork problem comes when someone has done a get_user_pages to break
+> all the COWs, then another thread does a fork which writeprotects and
+> raises page_mapcount, so the next write from userspace breaks COW again
+> and writes to a different page from that which the kernel is holding.
+> 
+> That one kept on coming up, but I've not heard of it again since we
+> added madvise MADV_DONTFORK so apps could exclude such parts of the
+> address space from copy_page_range.
 
-Thanks for this.
+I finally tracked this down.  I think it is a problem specific to XPMEM
+on the SLES10 kernel and will not be a problem once Andrea's mmu_notifier
+is in the kernel.  It is a problem, as far as I can tell, specific to
+the way XPMEM works.
 
-Very hard, and pretty good, I think.  I wouldn't want to swear to the
-rightness of every sentence (and there's a few slight typos that don't
-bother me).  And although you're right to say it could lead to data
-corruption (because something is read which should never have been
-seen, and gets wrongly incorporated into the data), it's easier to
-understand if you concentrate on the "read private key" aspect.
+I will open a SuSE bugzilla to work the issue directly with them.
 
-> Maybe it is best to illustrate with the interleaving diagram in the
-> changelog?
+Prior to the transition event, we have a page of memory that was
+pre-faulted by a process.  The process has exported (via XPMEM) a
+window of its own address space.  A remote process has attached and
+touched the page of memory.  The fault will call into XPMEM which does
+the get_user_pages.
 
-Oh, no, I think just leave that to the changelog.  The longer that
-comment gets, the more it distracts from the rest of the function:
-if it weren't for trying to avoid multiple "if (old_page)"s, we
-might very well have positioned the page_remove_rmap there in the
-first place, with no comment whatsoever.
+At this point, both processes have a writable PTE entry to the same
+page and XPMEM has one additional reference count (_count) on the page
+acquired via get_user_pages().
 
-Linus was inclined to move the dec/inc mm_counters too, but you
-perceive some reason to leave them in place: I've not followed
-that up.  So far as I'm concerned...
+Memory pressure causes swap_page to get called.  It clears the two
+process's page table entries, returns the _count values, etc.  The only
+thing that remains different from normal at this point is XPMEM retains
+a reference.
 
-Acked-by: Hugh Dickins <hugh@veritas.com>
+Both processes then read-fault the page which results in readable PTEs
+being installed.
 
-> 
-> --
-> There is a race in the COW logic. It contains a shortcut to avoid the
-> COW and reuse the page if we have the sole reference on the page, however it
-> is possible to have two racing do_wp_page()ers with one causing the other to
-> mistakenly believe it is safe to take the shortcut when it is not. This could
-> lead to data corruption.
-> 
-> Process 1 and process2 each have a wp pte of the same anon page (ie. one
-> forked the other). The page's mapcount is 2. Then they both attempt to write
-> to it around the same time...
-> 
->   proc1				proc2 thr1			proc2 thr2
->   CPU0				CPU1				CPU3
->   do_wp_page()			do_wp_page()
-> 				 trylock_page()
-> 				  can_share_swap_page()
-> 				   load page mapcount (==2)
-> 				  reuse = 0
-> 				 pte unlock
-> 				 copy page to new_page
-> 				 pte lock
-> 				 page_remove_rmap(page);
->    trylock_page()	
->     can_share_swap_page()
->      load page mapcount (==1)
->     reuse = 1
->    ptep_set_access_flags (allow W)
-> 
->   write private key into page
-> 								read from page
-> 				ptep_clear_flush()
-> 				set_pte_at(pte of new_page)
-> 
-> 
-> Fix this by moving the page_remove_rmap of the old page after the pte clear
-> and flush. Potentially the entire branch could be moved down here, but in
-> order to stay consistent, I won't (should probably move all the *_mm_counter
-> stuff with one patch).
-> 
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
-> ---
-> Index: linux-2.6/mm/memory.c
-> ===================================================================
-> --- linux-2.6.orig/mm/memory.c
-> +++ linux-2.6/mm/memory.c
-> @@ -1766,7 +1766,6 @@ gotten:
->  	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
->  	if (likely(pte_same(*page_table, orig_pte))) {
->  		if (old_page) {
-> -			page_remove_rmap(old_page, vma);
->  			if (!PageAnon(old_page)) {
->  				dec_mm_counter(mm, file_rss);
->  				inc_mm_counter(mm, anon_rss);
-> @@ -1788,6 +1787,32 @@ gotten:
->  		lru_cache_add_active(new_page);
->  		page_add_new_anon_rmap(new_page, vma, address);
->  
-> +		if (old_page) {
-> +			/*
-> +			 * Only after switching the pte to the new page may
-> +			 * we remove the mapcount here. Otherwise another
-> +			 * process may come and find the rmap count decremented
-> +			 * before the pte is switched to the new page, and
-> +			 * "reuse" the old page writing into it while our pte
-> +			 * here still points into it and can be read by other
-> +			 * threads.
-> +			 *
-> +			 * The critical issue is to order this
-> +			 * page_remove_rmap with the ptp_clear_flush above.
-> +			 * Those stores are ordered by (if nothing else,)
-> +			 * the barrier present in the atomic_add_negative
-> +			 * in page_remove_rmap.
-> +			 *
-> +			 * Then the TLB flush in ptep_clear_flush ensures that
-> +			 * no process can access the old page before the
-> +			 * decremented mapcount is visible. And the old page
-> +			 * cannot be reused until after the decremented
-> +			 * mapcount is visible. So transitively, TLBs to
-> +			 * old page will be flushed before it can be reused.
-> +			 */
-> +			page_remove_rmap(old_page, vma);
-> +		}
-> +
->  		/* Free the old page.. */
->  		new_page = old_page;
->  		ret |= VM_FAULT_WRITE;
+The failure point comes when either process write faults the page.
+At that point, a COW is initiated and now the two processes are looking
+at seperate pages.
+
+The scenario would be different in the case of mmu_notifiers.
+The notifier callout when the readable PTE was being replaced with a
+writable PTE would result in the remote page table getting cleared and
+XPMEM releasing the _count.
+
+
+All that said, I think the race we discussed earlier in the thread is
+a legitimate one and believe Hugh's fix is correct.
+
+Thank you for all your patience,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
