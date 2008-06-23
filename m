@@ -1,66 +1,94 @@
-Received: by fk-out-0910.google.com with SMTP id z22so2181086fkz.6
-        for <linux-mm@kvack.org>; Sun, 22 Jun 2008 22:10:55 -0700 (PDT)
-Message-ID: <21d7e9970806222210s8fec8acybb2b5af17256d555@mail.gmail.com>
-Date: Mon, 23 Jun 2008 15:10:55 +1000
-From: "Dave Airlie" <airlied@gmail.com>
-Subject: strategies for nicely handling large amount of uc/wc allocations.
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Mon, 23 Jun 2008 14:53:41 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [bad page] memcg: another bad page at page migration
+ (2.6.26-rc5-mm3 + patch collection)
+Message-Id: <20080623145341.0a365c67.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Memory Management <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: kamezawa.hiroyu@jp.fujitsu.com, balbir@linux.vnet.ibm.com, xemul@openvz.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi linux-mm hackers,
+Hi.
 
-So the situation I'm currently pondering has the following requirements.
+It seems the current -mm has been gradually stabilized,
+but I encounter another bad page problem in my test(*1)
+on 2.6.26-rc5-mm3 + patch collection(*2).
 
-1. Would like to re-use as much of shmfs as possible, it deals with
-swap etc already.
-2. Would like to allocate pages into shmfs vmas from a pool of pages
-suitable for using in uc/wc mappings (without causing aliasing).
-(either pages with no mappings or pages with their kernel mappings
-already changed).
-3. Would like the uc/wc page pool to grow/shrink with allocations and
-memory pressure respectively.
+Compared to previous probrems fixed by the patch collection,
+the frequency is law.
 
-An object allocated with this system can be in one of 3 states:
+- 1 time in 1 hour running(1'st one was seen after 30 minutes)
+- 3 times in 16 hours running(1'st one was seen after 4 hours)
+- 10 times in 70 hours running(1'st one was seen after 8 hours)
 
-1. not in use by the GPU at all - pages mapped into user VMA, or even
-swapped out.
-2. mapped into the GPU GART - all pages locked into memory and all
-mappings are uc/wc.
-3. acting as backing store for a memory region in GPU VRAM - swap area
-reserved, but may not need any pages in RAM,
-any pages need to only have uc/wc mappings as to be migrated from VRAM
-may involve mapping the backing store into the GART and blitting.
+All bad pages show similar message like below:
 
-The issues I'm seeing with just doing my own pool of uncached pages
-like the ia64 uncached allocator, is how do I deal with swapping
-objects to disk and memory pressure.
-considering GPU applications do a lot of memory allocations I can't
-really just ignore swap.
+---
+Bad page state in process 'switch.sh'
+page:ffffe2000c8e59c0 flags:0x0200000000080018 mapping:000
+0000000000000 mapcount:0 count:0
+cgroup:ffff81062a817050
+Trying to fix it up, but a reboot is needed
+Backtrace:
+Pid: 14980, comm: switch.sh Not tainted 2.6.26-rc5-mm3-mem
+fix #1
+Jun 19 20:10:23 opteron kernel:
+Call Trace:
+ [<ffffffff802747b0>] bad_page+0x97/0x131
+ [<ffffffff80275ae6>] free_hot_cold_page+0xd4/0x19c
+ [<ffffffff80275bcf>] __pagevec_free+0x21/0x2e
+ [<ffffffff80278d51>] release_pages+0x18d/0x19f
+ [<ffffffff80278e58>] ____pagevec_lru_add+0xf5/0x106
+ [<ffffffff8027a5ea>] putback_lru_page+0x52/0xe9
+ [<ffffffff8029baec>] migrate_pages+0x331/0x42a
+ [<ffffffff8029070f>] new_node_page+0x0/0x2f
+ [<ffffffff802915a9>] do_migrate_pages+0x19b/0x1e7
+ [<ffffffff8025c827>] cpuset_migrate_mm+0x58/0x8f
+ [<ffffffff8025d0fd>] cpuset_attach+0x8b/0x9e
+ [<ffffffff8025a3e1>] cgroup_attach_task+0x3a3/0x3f5
+ [<ffffffff8029db71>] __dentry_open+0x154/0x238
+ [<ffffffff8025af06>] cgroup_common_file_write+0x150/0x1dd
+ [<ffffffff8025aaf4>] cgroup_file_write+0x54/0x150
+ [<ffffffff8030a335>] selinux_file_permission+0x56/0x117
+ [<ffffffff8029f74d>] vfs_write+0xad/0x136
+ [<ffffffff8029fc8a>] sys_write+0x45/0x6e
+ [<ffffffff8020bef2>] tracesys+0xd5/0xda
+Jun 19 20:10:23 opteron kernel:
+Hexdump:
+000: 28 00 08 00 00 00 00 02 01 00 00 00 00 00 00 00
+010: 00 00 00 00 00 00 00 00 a1 f1 08 25 03 81 ff ff
+020: 6e 06 90 f5 07 00 00 00 68 59 8e 0c 00 e2 ff ff
+030: a8 a5 8c 0c 00 e2 ff ff 00 cf 11 25 03 81 ff ff
+040: 18 00 08 00 00 00 00 02 00 00 00 00 ff ff ff ff
+050: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+060: c0 08 00 00 00 00 00 00 00 01 10 00 00 c1 ff ff
+070: 00 02 20 00 00 c1 ff ff 00 00 00 00 00 00 00 00
+080: 08 00 04 00 00 00 00 02 00 00 00 00 ff ff ff ff
+090: 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0a0: 7e 99 7a f6 07 00 00 00 28 9c 8d 0c 00 e2 ff ff
+0b0: 28 16 86 0c 00 e2 ff ff 00 00 00 00 00 00 00 00
+---
 
-I think ideally I'd like a zone for these sort of pages to become a
-first class member of the VM, so that I can set a VMA to have an
-uncached/wc bit,
-then it sets a GFP uncached bit, and alloc_page goes and fetch
-suitable pages from either the highmem zone, or from a resizeable
-piece of normal zone.
-This zone wouldn't be required to be a fixed size, and we could
-migrate chunks of RAM into the zone as needed and flush them back out
-under memory pressure. The big problem is we can't afford to migrate
-pages at a time from the normal zone as the overhead is too much, so
-it would have to be done in large blocks (probably around 1MB or so).
+- page flags are 0x...80018, PG_uptodate/PG_dirty/PG_swapbacked,
+  and count/map_count/mapping are all 0(no pproblem).
+- contains "cgroup:..." line. this is the cause of bad page.
 
-So I know this mail is probably a bit incoherent but I'm going around
-in circles here on the best way to do this nicely, so I'm hoping
-someone will either say this is crazy or point out something I've
-missed.
+So, some pages that have not been uncharged by memcg
+are beeing freed(I don't mount memcg, but don't specify
+"cgroup_disable=memory").
+I have not found yet the path where this can happen,
+and I'm digging more.
 
-Dave.
+
+Thanks,
+Daisuke Nishimura.
+
+*1 http://lkml.org/lkml/2008/6/17/367
+*2 http://lkml.org/lkml/2008/6/19/62
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
