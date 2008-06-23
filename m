@@ -1,52 +1,55 @@
-Date: Mon, 23 Jun 2008 09:30:58 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [Experimental][PATCH] putback_lru_page rework
-Message-Id: <20080623093058.9976359f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080621175458.E82A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <1213981843.6474.68.camel@lts-notebook>
-	<1213994489.6474.127.camel@lts-notebook>
-	<20080621175458.E82A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <485EF481.30409@ah.jp.nec.com>
+Date: Mon, 23 Jun 2008 09:55:29 +0900
+From: Takenori Nagano <t-nagano@ah.jp.nec.com>
+MIME-Version: 1.0
+Subject: [patch] memory reclaim more  efficiently
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Keiichi KII <kii@linux.bs1.fc.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 21 Jun 2008 17:56:17 +0900
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+Hi,
 
-> > Quick update:  
-> > 
-> > With this patch applied, at ~ 1.5 hours into the test, my system panic'd
-> > [panic_on_oops set] with a BUG in __find_get_block() -- looks like the
-> > BUG_ON() in check_irqs_on() called from bh_lru_install() inlined by
-> > __find_get_block().  Before the panic occurred, I saw warnings from
-> > native_smp_call_function_mask() [arch/x86/kernel/smp.c]--also because
-> > irqs_disabled().
-> > 
-> > I'll back out the changes [spin_[un]lock() => spin_[un]lock_irq()] to
-> > shrink_inactive_list() and try again.  Just a hunch.
-> 
-> Yup.
-> Kamezawa-san's patch remove local_irq_enable(), but don't remove
-> local_irq_disable().
-> thus, irq is never enabled.
-> 
+Efficiency of memory reclaim is recently one of the hot topics. (LRU splitting,
+pageout throttling, etc...) I would like to contribute it and I made this patch.
 
-Sorry,
--Kame
+In shrink_zone(), system can not return to user mode before it finishes to
+search LRU list. IMHO, it is very wasteful, since the user processes stay
+unnecessarily long time in shrink_zone() loop and application response time
+becomes relatively bad. This patch changes shrink_zone() that it finishes memory
+reclaim when it reclaims enough memory.
+
+the conditions to end searching:
+
+1. order of request page is 0
+2. process is not kswapd.
+3. satisfy the condition to return try_to_free_pages()
+   # nr_reclaim > SWAP_CLUSTER_MAX
 
 
-> > -	spin_unlock(&zone->lru_lock);
-> > +	spin_unlock_irq(&zone->lru_lock);
-> >  done:
-> > -	local_irq_enable();
-> 
-> 
-> 
+Signed-off-by: Takenori Nagano <t-nagano@ah.jp.nec.com>
+Signed-off-by: Keiichi Kii <k-keiichi@bx.jp.nec.com>
+
+---
+diff -uprN linux-2.6.26-rc6.orig/mm/vmscan.c linux-2.6.26-rc6/mm/vmscan.c
+--- linux-2.6.26-rc6.orig/mm/vmscan.c	2008-06-13 06:22:24.000000000 +0900
++++ linux-2.6.26-rc6/mm/vmscan.c	2008-06-20 15:05:03.492700863 +0900
+@@ -1224,6 +1224,9 @@ static unsigned long shrink_zone(int pri
+ 			nr_reclaimed += shrink_inactive_list(nr_to_scan, zone,
+ 								sc);
+ 		}
++		if (nr_reclaimed > sc->swap_cluster_max && !sc->order
++						&& !current_is_kswapd())
++			break;
+ 	}
+ 
+ 	throttle_vm_writeout(sc->gfp_mask);
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
