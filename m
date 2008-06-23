@@ -1,100 +1,44 @@
-Date: Mon, 23 Jun 2008 17:48:17 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: Can get_user_pages( ,write=1, force=1, ) result in a read-only
- pte and _count=2?
-In-Reply-To: <20080623155400.GH10123@sgi.com>
-Message-ID: <Pine.LNX.4.64.0806231718460.16782@blonde.site>
-References: <20080618164158.GC10062@sgi.com> <200806190329.30622.nickpiggin@yahoo.com.au>
- <Pine.LNX.4.64.0806181944080.4968@blonde.site> <200806191307.04499.nickpiggin@yahoo.com.au>
- <Pine.LNX.4.64.0806191154270.7324@blonde.site> <20080619133809.GC10123@sgi.com>
- <Pine.LNX.4.64.0806191441040.25832@blonde.site> <20080623155400.GH10123@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: [RFC] hugetlb reservations -- MAP_PRIVATE fixes for split vmas V2
+Date: Mon, 23 Jun 2008 18:35:31 +0100
+Message-Id: <1214242533-12104-1-git-send-email-apw@shadowen.org>
+In-Reply-To: <485A8903.9030808@linux.vnet.ibm.com>
+References: <485A8903.9030808@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
+To: Jon Tollefson <kniht@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 23 Jun 2008, Robin Holt wrote:
-> 
-> I finally tracked this down.  I think it is a problem specific to XPMEM
-> on the SLES10 kernel and will not be a problem once Andrea's mmu_notifier
-> is in the kernel.  It is a problem, as far as I can tell, specific to
-> the way XPMEM works.
-> 
-> I will open a SuSE bugzilla to work the issue directly with them.
-> 
-> Prior to the transition event, we have a page of memory that was
-> pre-faulted by a process.  The process has exported (via XPMEM) a
-> window of its own address space.  A remote process has attached and
-> touched the page of memory.  The fault will call into XPMEM which does
-> the get_user_pages.
-> 
-> At this point, both processes have a writable PTE entry to the same
-> page and XPMEM has one additional reference count (_count) on the page
-> acquired via get_user_pages().
-> 
-> Memory pressure causes swap_page to get called.  It clears the two
-> process's page table entries, returns the _count values, etc.  The only
-> thing that remains different from normal at this point is XPMEM retains
-> a reference.
-> 
-> Both processes then read-fault the page which results in readable PTEs
-> being installed.
-> 
-> The failure point comes when either process write faults the page.
-> At that point, a COW is initiated and now the two processes are looking
-> at seperate pages.
+As reported by Adam Litke and Jon Tollefson one of the libhugetlbfs
+regression tests triggers a negative overall reservation count.  When
+this occurs where there is no dynamic pool enabled tests will fail.
 
-A COW is initiated because memory pressure happens to have the page
-locked at the instant do_wp_page is looking to reuse it?  That's the
-scenario we were assuming before (once Nick had swept away my page
-count mismemories), but it's not specific to XPMEM.  Well, I suppose
-it is specific to a small proportion of get_user_pages callers, and it
-might be that all the rest have by now worked around the issue somehow.
+Following this email are two patches to address this issue:
 
-> 
-> The scenario would be different in the case of mmu_notifiers.
-> The notifier callout when the readable PTE was being replaced with a
-> writable PTE would result in the remote page table getting cleared and
-> XPMEM releasing the _count.
+hugetlb reservations: move region tracking earlier -- simply moves the
+  region tracking code earlier so we do not have to supply prototypes, and
 
-But XPMEM's contribution to the _count shouldn't matter.
+hugetlb reservations: fix hugetlb MAP_PRIVATE reservations across vma
+  splits -- which moves us to tracking the consumed reservation so that
+  we can correctly calculate the remaining reservations at vma close time.
 
-> 
-> All that said, I think the race we discussed earlier in the thread is
-> a legitimate one and believe Hugh's fix is correct.
+This stack is against the top of v2.6.25-rc6-mm3, should this solution
+prove acceptable it would need slipping underneath Nick's multiple hugepage
+size patches and those updated.  I have a modified stack prepared for that.
 
-My fix?  Would that be the get_user_pages VM_WRITE test before clearing
-FOLL_WRITE - which I believe didn't fix you at all?  Or the grand new
-reuse test in do_wp_page that I'm still working on - of which Nick sent
-a lock_page approximation for you to try?  Would you still be able to
-try mine when I'm ready, or does it now appear irrelevant to you?
+This version incorporates Mel's feedback (both cosmetic, and an allocation
+under spinlock issue) and has an improved layout.
 
-(Nick questioned the page_swapcount test in the lines I sent out, and
-he was absolutely right: at the time I thought that once I looked at
-the page_swapcount end of the patch, I'd find it taking page_mapcount
-into account under swap_lock; but when I got there, found I had moved
-away to other work before actually completing that end of it.  Probably
-got stalled on deciding function names, that's taken most of my time!)
+Changes in V2:
+ - commentry updates
+ - pull allocations out from under hugetlb_lock
+ - refactor to match shared code layout
+ - reinstate BUG_ON's
 
-> 
-> Thank you for all your patience,
-> Robin
+Jon could you have a test on this and see if it works out for you.
 
-Not at all, thank you for raising a real issue: all the better
-if you can get around it without a targeted fix for now.
-
-If you're interested, by the way, in the earlier discussion
-I mentioned, a window into it can be found at
-
-	http://lkml.org/lkml/2006/9/14/384
-
-but it's a broken thread, with misunderstanding on all sides,
-so rather hard to get a grasp of it.
-
-Hugh
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
