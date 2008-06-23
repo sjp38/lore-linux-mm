@@ -1,342 +1,58 @@
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: [PATCH 2/2] hugetlb reservations: fix hugetlb MAP_PRIVATE reservations across vma splits V2
-Date: Mon, 23 Jun 2008 18:35:33 +0100
-Message-Id: <1214242533-12104-3-git-send-email-apw@shadowen.org>
-In-Reply-To: <1214242533-12104-1-git-send-email-apw@shadowen.org>
-References: <1214242533-12104-1-git-send-email-apw@shadowen.org>
+Date: Mon, 23 Jun 2008 12:52:03 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: Can get_user_pages( ,write=1, force=1, ) result in a read-only
+	pte and _count=2?
+Message-ID: <20080623175203.GI10123@sgi.com>
+References: <20080618164158.GC10062@sgi.com> <200806190329.30622.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0806181944080.4968@blonde.site> <200806191307.04499.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0806191154270.7324@blonde.site> <20080619133809.GC10123@sgi.com> <Pine.LNX.4.64.0806191441040.25832@blonde.site> <20080623155400.GH10123@sgi.com> <Pine.LNX.4.64.0806231718460.16782@blonde.site>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0806231718460.16782@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jon Tollefson <kniht@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Robin Holt <holt@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When a hugetlb mapping with a reservation is split, a new VMA is cloned
-from the original.  This new VMA is a direct copy of the original
-including the reservation count.  When this pair of VMAs are unmapped
-we will incorrect double account the unused reservation and the overall
-reservation count will be incorrect, in extreme cases it will wrap.
+On Mon, Jun 23, 2008 at 05:48:17PM +0100, Hugh Dickins wrote:
+> On Mon, 23 Jun 2008, Robin Holt wrote:
+> > All that said, I think the race we discussed earlier in the thread is
+> > a legitimate one and believe Hugh's fix is correct.
+> 
+> My fix?  Would that be the get_user_pages VM_WRITE test before clearing
+> FOLL_WRITE - which I believe didn't fix you at all?  Or the grand new
 
-The problem occurs when we split an existing VMA say to unmap a page in
-the middle.  split_vma() will create a new VMA copying all fields from
-the original.  As we are storing our reservation count in vm_private_data
-this is also copies, endowing the new VMA with a duplicate of the original
-VMA's reservation.  Neither of the new VMAs can exhaust these reservations
-as they are too small, but when we unmap and close these VMAs we will
-incorrect credit the remainder twice and resv_huge_pages will become
-out of sync.  This can lead to allocation failures on mappings with
-reservations and even to resv_huge_pages wrapping which prevents all
-subsequent hugepage allocations.
+It did not fix the problem I was seeing, but I believe it is a possible
+race condition.  I certainly admit to not having a complete enough
+understanding and there may be something which prevents that from being
+a problem, but I currently still think there is a problem, just not one
+I can reproduce.
 
-The simple fix would be to correctly apportion the remaining reservation
-count when the split is made.  However the only hook we have vm_ops->open
-only has the new VMA we do not know the identity of the preceeding VMA.
-Also even if we did have that VMA to hand we do not know how much of the
-reservation was consumed each side of the split.
+> reuse test in do_wp_page that I'm still working on - of which Nick sent
+> a lock_page approximation for you to try?  Would you still be able to
+> try mine when I'm ready, or does it now appear irrelevant to you?
 
-This patch therefore takes a different tack.  We know that the whole of any
-private mapping (which has a reservation) has a reservation over its whole
-size.  Any present pages represent consumed reservation.  Therefore if
-we track the instantiated pages we can calculate the remaining reservation.
+Before your response, I had convinced myself my problem was specific to
+XPMEM, but I see your point and may agree that it is a problem for all
+get_user_pages() users.
 
-This patch reuses the existing regions code to track the regions for which
-we have consumed reservation (ie. the instantiated pages), as each page
-is faulted in we record the consumption of reservation for the new page.
-When we need to return unused reservations at unmap time we simply count
-the consumed reservation region subtracting that from the whole of the map.
-During a VMA split the newly opened VMA will point to the same region map,
-as this map is offset oriented it remains valid for both of the split VMAs.
-This map is referenced counted so that it is removed when all VMAs which
-are part of the mmap are gone.
+I can certainly test when you have it ready.
 
-Thanks to Adam Litke and Mel Gorman for their review feedback.
+I had confused myself about Nick's first patch.  I will give that
+another look over and see if it fixes the problem.
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
----
- mm/hugetlb.c |  171 ++++++++++++++++++++++++++++++++++++++++++++++++---------
- 1 files changed, 144 insertions(+), 27 deletions(-)
+> 	http://lkml.org/lkml/2006/9/14/384
+> 
+> but it's a broken thread, with misunderstanding on all sides,
+> so rather hard to get a grasp of it.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index d701e39..7ba6d4d 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -49,6 +49,16 @@ static DEFINE_SPINLOCK(hugetlb_lock);
- /*
-  * Region tracking -- allows tracking of reservations and instantiated pages
-  *                    across the pages in a mapping.
-+ *
-+ * The region data structures are protected by a combination of the mmap_sem
-+ * and the hugetlb_instantion_mutex.  To access or modify a region the caller
-+ * must either hold the mmap_sem for write, or the mmap_sem for read and
-+ * the hugetlb_instantiation mutex:
-+ *
-+ * 	down_write(&mm->mmap_sem);
-+ * or
-+ * 	down_read(&mm->mmap_sem);
-+ * 	mutex_lock(&hugetlb_instantiation_mutex);
-  */
- struct file_region {
- 	struct list_head link;
-@@ -171,6 +181,30 @@ static long region_truncate(struct list_head *head, long end)
- 	return chg;
- }
- 
-+static long region_count(struct list_head *head, long f, long t)
-+{
-+	struct file_region *rg;
-+	long chg = 0;
-+
-+	/* Locate each segment we overlap with, and count that overlap. */
-+	list_for_each_entry(rg, head, link) {
-+		int seg_from;
-+		int seg_to;
-+
-+		if (rg->to <= f)
-+			continue;
-+		if (rg->from >= t)
-+			break;
-+
-+		seg_from = max(rg->from, f);
-+		seg_to = min(rg->to, t);
-+
-+		chg += seg_to - seg_from;
-+	}
-+
-+	return chg;
-+}
-+
- /*
-  * Convert the address within this vma to the page offset within
-  * the mapping, in base page units.
-@@ -193,9 +227,15 @@ static pgoff_t vma_pagecache_offset(struct hstate *h,
- 			(vma->vm_pgoff >> huge_page_order(h));
- }
- 
--#define HPAGE_RESV_OWNER    (1UL << (BITS_PER_LONG - 1))
--#define HPAGE_RESV_UNMAPPED (1UL << (BITS_PER_LONG - 2))
-+/*
-+ * Flags for MAP_PRIVATE reservations.  These are stored in the bottom
-+ * bits of the reservation map pointer, which are always clear due to
-+ * alignment.
-+ */
-+#define HPAGE_RESV_OWNER    (1UL << 0)
-+#define HPAGE_RESV_UNMAPPED (1UL << 1)
- #define HPAGE_RESV_MASK (HPAGE_RESV_OWNER | HPAGE_RESV_UNMAPPED)
-+
- /*
-  * These helpers are used to track how many pages are reserved for
-  * faults in a MAP_PRIVATE mapping. Only the process that called mmap()
-@@ -205,6 +245,15 @@ static pgoff_t vma_pagecache_offset(struct hstate *h,
-  * the reserve counters are updated with the hugetlb_lock held. It is safe
-  * to reset the VMA at fork() time as it is not in use yet and there is no
-  * chance of the global counters getting corrupted as a result of the values.
-+ *
-+ * The private mapping reservation is represented in a subtly different
-+ * manner to a shared mapping.  A shared mapping has a region map associated
-+ * with the underlying file, this region map represents the backing file
-+ * pages which have ever had a reservation assigned which this persists even
-+ * after the page is instantiated.  A private mapping has a region map
-+ * associated with the original mmap which is attached to all VMAs which
-+ * reference it, this region map represents those offsets which have consumed
-+ * reservation ie. where pages have been instantiated.
-  */
- static unsigned long get_vma_private_data(struct vm_area_struct *vma)
- {
-@@ -217,22 +266,48 @@ static void set_vma_private_data(struct vm_area_struct *vma,
- 	vma->vm_private_data = (void *)value;
- }
- 
--static unsigned long vma_resv_huge_pages(struct vm_area_struct *vma)
-+struct resv_map {
-+	struct kref refs;
-+	struct list_head regions;
-+};
-+
-+struct resv_map *resv_map_alloc(void)
-+{
-+	struct resv_map *resv_map = kmalloc(sizeof(*resv_map), GFP_KERNEL);
-+	if (!resv_map)
-+		return NULL;
-+
-+	kref_init(&resv_map->refs);
-+	INIT_LIST_HEAD(&resv_map->regions);
-+
-+	return resv_map;
-+}
-+
-+void resv_map_release(struct kref *ref)
-+{
-+	struct resv_map *resv_map = container_of(ref, struct resv_map, refs);
-+
-+	/* Clear out any active regions before we release the map. */
-+	region_truncate(&resv_map->regions, 0);
-+	kfree(resv_map);
-+}
-+
-+static struct resv_map *vma_resv_map(struct vm_area_struct *vma)
- {
- 	VM_BUG_ON(!is_vm_hugetlb_page(vma));
- 	if (!(vma->vm_flags & VM_SHARED))
--		return get_vma_private_data(vma) & ~HPAGE_RESV_MASK;
-+		return (struct resv_map *)(get_vma_private_data(vma) &
-+							~HPAGE_RESV_MASK);
- 	return 0;
- }
- 
--static void set_vma_resv_huge_pages(struct vm_area_struct *vma,
--							unsigned long reserve)
-+static void set_vma_resv_map(struct vm_area_struct *vma, struct resv_map *map)
- {
- 	VM_BUG_ON(!is_vm_hugetlb_page(vma));
- 	VM_BUG_ON(vma->vm_flags & VM_SHARED);
- 
--	set_vma_private_data(vma,
--		(get_vma_private_data(vma) & HPAGE_RESV_MASK) | reserve);
-+	set_vma_private_data(vma, (get_vma_private_data(vma) &
-+				HPAGE_RESV_MASK) | (unsigned long)map);
- }
- 
- static void set_vma_resv_flags(struct vm_area_struct *vma, unsigned long flags)
-@@ -260,19 +335,12 @@ static void decrement_hugepage_resv_vma(struct hstate *h,
- 	if (vma->vm_flags & VM_SHARED) {
- 		/* Shared mappings always use reserves */
- 		h->resv_huge_pages--;
--	} else {
-+	} else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
- 		/*
- 		 * Only the process that called mmap() has reserves for
- 		 * private mappings.
- 		 */
--		if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
--			unsigned long flags, reserve;
--			h->resv_huge_pages--;
--			flags = (unsigned long)vma->vm_private_data &
--							HPAGE_RESV_MASK;
--			reserve = (unsigned long)vma->vm_private_data - 1;
--			vma->vm_private_data = (void *)(reserve | flags);
--		}
-+		h->resv_huge_pages--;
- 	}
- }
- 
-@@ -289,7 +357,7 @@ static int vma_has_private_reserves(struct vm_area_struct *vma)
- {
- 	if (vma->vm_flags & VM_SHARED)
- 		return 0;
--	if (!vma_resv_huge_pages(vma))
-+	if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER))
- 		return 0;
- 	return 1;
- }
-@@ -794,12 +862,19 @@ static int vma_needs_reservation(struct hstate *h,
- 		return region_chg(&inode->i_mapping->private_list,
- 							idx, idx + 1);
- 
--	} else {
--		if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER))
--			return 1;
--	}
-+	} else if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
-+		return 1;
- 
--	return 0;
-+	} else  {
-+		int err;
-+		pgoff_t idx = vma_pagecache_offset(h, vma, addr);
-+		struct resv_map *reservations = vma_resv_map(vma);
-+
-+		err = region_chg(&reservations->regions, idx, idx + 1);
-+		if (err < 0)
-+			return err;
-+		return 0;
-+	}
- }
- static void vma_commit_reservation(struct hstate *h,
- 			struct vm_area_struct *vma, unsigned long addr)
-@@ -810,6 +885,13 @@ static void vma_commit_reservation(struct hstate *h,
- 	if (vma->vm_flags & VM_SHARED) {
- 		pgoff_t idx = vma_pagecache_offset(h, vma, addr);
- 		region_add(&inode->i_mapping->private_list, idx, idx + 1);
-+
-+	} else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
-+		pgoff_t idx = vma_pagecache_offset(h, vma, addr);
-+		struct resv_map *reservations = vma_resv_map(vma);
-+
-+		/* Mark this page used in the map. */
-+		region_add(&reservations->regions, idx, idx + 1);
- 	}
- }
- 
-@@ -1456,13 +1538,42 @@ out:
- 	return ret;
- }
- 
-+static void hugetlb_vm_op_open(struct vm_area_struct *vma)
-+{
-+	struct resv_map *reservations = vma_resv_map(vma);
-+
-+	/*
-+	 * This new VMA should share its siblings reservation map if present.
-+	 * The VMA will only ever have a valid reservation map pointer where
-+	 * it is being copied for another still existing VMA.  As that VMA
-+	 * has a reference to the reservation map it cannot dissappear until
-+	 * after this open call completes.  It is therefore safe to take a
-+	 * new reference here without additional locking.
-+	 */
-+	if (reservations)
-+		kref_get(&reservations->refs);
-+}
-+
- static void hugetlb_vm_op_close(struct vm_area_struct *vma)
- {
- 	struct hstate *h = hstate_vma(vma);
--	unsigned long reserve = vma_resv_huge_pages(vma);
-+	struct resv_map *reservations = vma_resv_map(vma);
-+	unsigned long reserve;
-+	unsigned long start;
-+	unsigned long end;
- 
--	if (reserve)
--		hugetlb_acct_memory(h, -reserve);
-+	if (reservations) {
-+		start = vma_pagecache_offset(h, vma, vma->vm_start);
-+		end = vma_pagecache_offset(h, vma, vma->vm_end);
-+
-+		reserve = (end - start) -
-+			region_count(&reservations->regions, start, end);
-+
-+		kref_put(&reservations->refs, resv_map_release);
-+
-+		if (reserve)
-+			hugetlb_acct_memory(h, -reserve);
-+	}
- }
- 
- /*
-@@ -1479,6 +1590,7 @@ static int hugetlb_vm_op_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- 
- struct vm_operations_struct hugetlb_vm_ops = {
- 	.fault = hugetlb_vm_op_fault,
-+	.open = hugetlb_vm_op_open,
- 	.close = hugetlb_vm_op_close,
- };
- 
-@@ -2037,8 +2149,13 @@ int hugetlb_reserve_pages(struct inode *inode,
- 	if (!vma || vma->vm_flags & VM_SHARED)
- 		chg = region_chg(&inode->i_mapping->private_list, from, to);
- 	else {
-+		struct resv_map *resv_map = resv_map_alloc();
-+		if (!resv_map)
-+			return -ENOMEM;
-+
- 		chg = to - from;
--		set_vma_resv_huge_pages(vma, chg);
-+
-+		set_vma_resv_map(vma, resv_map);
- 		set_vma_resv_flags(vma, HPAGE_RESV_OWNER);
- 	}
- 
--- 
-1.5.6.205.g7ca3a
+That is extremely similar to the issue I am seeing.  I think that if
+Infiniband were using the mmu_notifier stuff, they would be closer, but
+IIRC, there are significant hardware restrictions which prevent demand
+paging for working on some IB devices.
+
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
