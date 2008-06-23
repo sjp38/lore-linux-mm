@@ -1,10 +1,10 @@
-Date: Mon, 23 Jun 2008 15:29:41 -0700
+Date: Mon, 23 Jun 2008 15:37:47 -0700
 From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: [PATCH 6/6] memcg: HARDWALL hierarchy
-Message-Id: <20080623152941.1283ecce.randy.dunlap@oracle.com>
-In-Reply-To: <20080613183741.5e2f7fda.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 4/6] res_counter: basic hierarchy support
+Message-Id: <20080623153747.e20a0485.randy.dunlap@oracle.com>
+In-Reply-To: <20080613183402.4f31eb96.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080613182714.265fe6d2.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080613183741.5e2f7fda.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080613183402.4f31eb96.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -14,115 +14,115 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 13 Jun 2008 18:37:41 +0900 KAMEZAWA Hiroyuki wrote:
+On Fri, 13 Jun 2008 18:34:02 +0900 KAMEZAWA Hiroyuki wrote:
 
-> Support hardwall hierarchy (and no-hierarchy) in memcg.
+> Add a hierarhy support to res_counter. This patch itself just supports
+> "No Hierarchy" hierarchy, as a default/basic hierarchy system.
 > 
-> Change log: v3->v4
->  - cut out from memcg hierarchy patch set v4.
->  - no major changes, but some amount of functions are moved to res_counter.
->    and be more gneric.
+> Changelog: v3 -> v4.
+>   - cut out from hardwall hierarchy patch set.
+>   - just support "No hierarchy" model.
 > 
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
 > ---
->  Documentation/controllers/memory.txt |   57 +++++++++++++++++++++++++++++-
->  mm/memcontrol.c                      |   65 +++++++++++++++++++++++++++++++++--
->  2 files changed, 118 insertions(+), 4 deletions(-)
+>  Documentation/controllers/resource_counter.txt |   27 +++++-
+>  include/linux/res_counter.h                    |   15 +++
+>  kernel/res_counter.c                           |  107 ++++++++++++++++++++-----
+>  mm/memcontrol.c                                |    1 
+>  4 files changed, 129 insertions(+), 21 deletions(-)
 > 
-> Index: linux-2.6.26-rc5-mm3/Documentation/controllers/memory.txt
+> Index: linux-2.6.26-rc5-mm3/kernel/res_counter.c
 > ===================================================================
-> --- linux-2.6.26-rc5-mm3.orig/Documentation/controllers/memory.txt
-> +++ linux-2.6.26-rc5-mm3/Documentation/controllers/memory.txt
-> @@ -154,7 +154,7 @@ The memory controller uses the following
+> --- linux-2.6.26-rc5-mm3.orig/kernel/res_counter.c
+> +++ linux-2.6.26-rc5-mm3/kernel/res_counter.c
+> +
 >  
->  0. Configuration
+> +/**
+> + * res_counter_set_ops() -- reset res->counter.ops to be passed ops.
+> + * @coutner: a counter to be set ops.
 
-I apologize if you have already corrected these.  I'm a bit behind
-on doc reviews.
+typo:
+    * @counter:
 
+> + * @ops: res_counter_ops
+> + *
+> + * This operations is allowed only when there is no parent or parent's
+> + * hierarchy_model == RES_CONT_NO_HIERARCHY. returns 0 at success.
+> + */
+> +
+> +int res_counter_set_ops(struct res_counter *counter,
+> +				struct res_counter_ops *ops)
+> +{
+> +	struct res_counter *parent;
+> +	/*
+> +	 * This operation is allowed only when parents's hierarchy
+> +	 * is NO_HIERARCHY or this is ROOT.
+> +	 */
+> +	parent = counter->parent;
+> +	if (parent && parent->ops.hierarchy_model != RES_CONT_NO_HIERARCHY)
+> +		return -EINVAL;
+> +
+> +	counter->ops = *ops;
+> +
+> +	return 0;
+> +}
+> +
+> +
+>  int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
+>  {
+>  	if (counter->usage + val > counter->limit) {
 
-> -a. Enable CONFIG_CGROUPS
-> +a. Enable CONFESS_CGROUPS
-
-Really?  Looks odd and backwards.
-
->  b. Enable CONFIG_RESOURCE_COUNTERS
->  c. Enable CONFIG_CGROUP_MEM_RES_CTLR
+> Index: linux-2.6.26-rc5-mm3/Documentation/controllers/resource_counter.txt
+> ===================================================================
+> --- linux-2.6.26-rc5-mm3.orig/Documentation/controllers/resource_counter.txt
+> +++ linux-2.6.26-rc5-mm3/Documentation/controllers/resource_counter.txt
+> @@ -39,11 +39,14 @@ to work with it.
+>   	The failcnt stands for "failures counter". This is the number of
+>  	resource allocation attempts that failed.
 >  
-> @@ -237,7 +237,58 @@ cgroup might have some charge associated
->  tasks have migrated away from it. Such charges are automatically dropped at
->  rmdir() if there are no tasks.
+> - e. res_counter_ops.
+> + e. parent
+> +	parent of this res_counter under hierarchy.
+> +
+> + f. res_counter_ops.
+>  	Callbacks for helping resource_counter per each subsystem.
+>  	- shrink_usage() .... called at limit change (decrease).
 >  
-> -5. TODO
-> +5. Supported Hierarchy Model
+> - f. spinlock_t lock
+> + g. spinlock_t lock
+>  
+>   	Protects changes of the above values.
+>  
+> @@ -157,7 +160,25 @@ counter fields. They are recommended to 
+>       Returns 0 at success. Any error code is acceptable but -EBUSY will be
+>       suitable to show "the kernel can't shrink usage."
+>  
+> -6. Usage example
+> +6. Hierarchy
 > +
-> +Currently, memory controller supports following models of hierarchy in the
-> +kernel. (see also resource_counter.txt)
+> +   Groups of res_counter can be controlled under some tree (cgroup tree).
+> +   Taking the tree into account, res_counter can be under some hierarchical
+> +   control. THe res_counter itself supports hierarchy_model and calls
+
+               The 
+
+> +   registered callbacks at suitable events.
 > +
-> +2 files are related to hierarchy.
-> + - memory.hierarchy_model
-> + - memory.for_children
+> +   For keeping sanity of hierarchy, hierarchy_model of a res_counter can be
+> +   changed when parent's hierarchy_model is RES_CONT_NO_HIERARCHY.
+> +   res_counter doesn't count # of children by itself but some subysystem should
+> +   be aware that it has no children if necessary.
+> +   (don't want to fully duplicate cgroup's hierarchy. Cost of remembering parent
+> +    is cheap.)
 > +
-> +Basic Rule.
-> +  - Hierarchy can be set per cgroup.
-> +  - A child inherits parent's hierarchy model at creation.
-> +  - A child can change its hierarchy only when the parent's hierarchy is
-> +    NO_HIERARCY and it has no children.
-
-       NO_HIERARCHY
-
+> + a. Independent hierarchy (RES_CONT_NO_HIERARCHY) model
+> +   This is no relationship between parent and children.
 > +
 > +
-> +5.1. NO_HIERARCHY
-> +  - Each cgroup is independent from other ones.
-> +  - When memory.hierarchy_model is 0, NO_HIERARCHY is used.
-> +    Under this model, there is no controls based on tree of cgroups.
-
-	                 there are no controls
-
-> +    This is the default model of root cgroup.
-> +
-> +5.2 HARDWALL_HIERARCHY
-> +  - A child is a isolated portion of the parent.
-
-               is an
-
-> +  - When memory.hierarchy_model is 1, HARDWALL_HIERARCHY is used.
-> +    In this model a child's limit is charged as parent's usage.
-> +
-> +  Hard-Wall Hierarchy Example)
-
-Drop ')'.
-
-> +  1) Assume a cgroup with 1GB limits. (and no tasks belongs to this, now)
-> +     - group_A limit=1G,usage=0M.
-
-	                  , usage=0M.
-
-> +
-> +  2) create group B, C under A.
-> +     - group A limit=1G, usage=0M, for_childre=0M
-
-	                              for_children=0M
-
-> +          - group B limit=0M, usage=0M.
-> +          - group C limit=0M, usage=0M.
-> +
-> +  3) increase group B's limit to 300M.
-> +     - group A limit=1G, usage=300M, for_children=300M
-> +          - group B limit=300M, usage=0M.
-> +          - group C limit=0M, usage=0M.
-> +
-> +  4) increase group C's limit to 500M
-> +     - group A limit=1G, usage=800M, for_children=800M
-> +          - group B limit=300M, usage=0M.
-> +          - group C limit=500M, usage=0M.
-> +
-> +  5) reduce group B's limit to 100M
-> +     - group A limit=1G, usage=600M, for_children=600M.
-> +          - group B limit=100M, usage=0M.
-> +          - group C limit=500M, usage=0M.
+> +7. Usage example
+>  
+>   a. Declare a task group (take a look at cgroups subsystem for this) and
+>      fold a res_counter into it
 
 
 ---
