@@ -1,61 +1,136 @@
-Date: Mon, 23 Jun 2008 20:44:48 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [bad page] memcg: another bad page at page migration
- (2.6.26-rc5-mm3 + patch collection)
-Message-Id: <20080623204448.2c4326ab.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20080623202111.f2c54e21.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080623145341.0a365c67.nishimura@mxp.nes.nec.co.jp>
-	<20080623150817.628aef9f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080623202111.f2c54e21.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 23 Jun 2008 14:18:31 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] mm: fix race in COW logic
+Message-ID: <20080623121831.GA26555@wotan.suse.de>
+References: <20080622153035.GA31114@wotan.suse.de> <Pine.LNX.4.64.0806221742330.31172@blonde.site> <alpine.LFD.1.10.0806221033200.2926@woody.linux-foundation.org> <Pine.LNX.4.64.0806221854050.5466@blonde.site> <20080623014940.GA29413@wotan.suse.de> <Pine.LNX.4.64.0806231015140.3513@blonde.site>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0806231015140.3513@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, balbir@linux.vnet.ibm.com, xemul@openvz.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 23 Jun 2008 20:21:11 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Mon, 23 Jun 2008 15:08:17 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Mon, Jun 23, 2008 at 11:04:31AM +0100, Hugh Dickins wrote:
+> On Mon, 23 Jun 2008, Nick Piggin wrote:
+> > On Sun, Jun 22, 2008 at 07:10:41PM +0100, Hugh Dickins wrote:
+> > > On Sun, 22 Jun 2008, Linus Torvalds wrote:
+> > > > On Sun, 22 Jun 2008, Hugh Dickins wrote:
+> > > > 
+> > > > > One thing though, in moving the page_remove_rmap in that way, aren't
+> > > > > you assuming that there's an appropriate wmbarrier between the two
+> > > > > locations?  If that is necessarily so (there's plenty happening in
+> > > > > between), it may deserve a comment to say just where that barrier is.
+> ...
+> > I was initially thinking an smp_wmb might have been in order (excuse the pun),
+> > but then I rethought it and added the 2d paragraph to my comment.
 > 
-> > On Mon, 23 Jun 2008 14:53:41 +0900
-> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > 
-> > > Hi.
-> > > 
-> > > It seems the current -mm has been gradually stabilized,
-> > > but I encounter another bad page problem in my test(*1)
-> > > on 2.6.26-rc5-mm3 + patch collection(*2).
-> > > 
-> > > Compared to previous probrems fixed by the patch collection,
-> > > the frequency is law.
-> > > 
-> > > - 1 time in 1 hour running(1'st one was seen after 30 minutes)
-> > > - 3 times in 16 hours running(1'st one was seen after 4 hours)
-> > > - 10 times in 70 hours running(1'st one was seen after 8 hours)
-> > > 
-> > > All bad pages show similar message like below:
-> > > 
-> > Thank you. I'll dig this.
-> > 
-> > 
-> Here is one possibilty. But if your test doesn't migrate any shmem, 
-> I'll have to dig more ;)
-> Anyway, I'll schedule this patch.
+> First off, I've a bewildering and shameful confession and apology
+> to make: I made that suggestion that you add a comment without even
+> reading through the comment you had made!  Ugh (at myself)!  Sorry
+> for that.  I've a suspicion that the longer a comment is, the more
+> likely my eye will skip over it...
+
+No need for that :) You miss less than most, I think...
+
+ 
+> > But I may
+> > still have been wrong. Let's ignore the barriers implicit in the rmap
+> > functions for now, and if we find they are required we can add a nice
+> > /* smp_wmb() for ..., provided by ...! */
 > 
-Thank you for your investigation and a patch!
+> Well, okay, but we're discussing a minuscule likelihood on top of the
+> minuscule likelihood of the race you astutely identified.  So I don't
+> want to waste anyone's time with an academic exercise; but if any of
+> us learn something from it, then it may be worth it.
 
-I don't use shmem explicitly, but I'll test this patch anyway
-and report the result.
+No, I don't think it's a waste of time at all. Although we've already
+established the atomic operation in the rmap operation should be
+enough, understanding and properly commenting this will I think help
+maintain this and other code too.
 
-Considering the frequency of the problem, it will take long time 
-to tell whether this patch fixes the problem, so please wait :)
+BTW. Yes, the race identified is pretty slim, requiring a lot to happen
+on other CPUs between a small non-preemptible window of instructions,
+it *might* actually happen in practice on larger systems where cachelines
+might be highly contended or take a long time to get from one place to
+another... and the -rt patchset where I assume ptl is preemptible too.
 
 
-Thanks,
-Daisuke Nishimura.
+> > Now. The critical memory operations AFAIKS are:
+> > 
+> > 			dec page->mapcount
+> > load page->mapcount (== 1)
+> > store pte (RW)
+> > store via pte
+> > 							load via pte
+> > 			ptep_clear_flush
+> > 			store new pte
+> > 
+> > Note that I don't believe the page_add_new_anon_rmap is part of the critical
+> > ordering. Unless that is for a different issue?
+> 
+> Agreed, the page_add_new_anon_rmap is irrelevant to this, it only got
+> mentioned when I was trying to make sense of the mail Linus retracted.
+
+OK, good.
+
+
+> > Now if we move the decrement of page->mapcount to below the ptep_clear_flush,
+> > then our TLB shootdown protocol *should* guarantee that nothing may load via
+> > that pte after page->mapcount has been decremented, right?
+> 
+> Via that old pte, yes.  But page->_mapcount is not held at a
+> virtual address affected by the TLB shootdown, so I don't see how the
+> ptep_clear_flush would give a guarantee on the visibility of the mapcount
+> change.  Besides which, the shootdown hits the right hand CPU not the left.
+ 
+Right. Yes, I am just assuming that the TLB shootdown guarantees this,
+and it may even be true for all implementations, but you're probably
+right that it is wrong to rely on it...
+
+
+> I think it likely that any implementation of ptep_clear_flush would
+> include instructions which give that guarantee (particularly since
+> it has to do something inter-CPU to handle the CPU on the right);
+> but I don't see how ptep_clear_flush gives that guarantee itself.
+> 
+> > 
+> > Now we only have pairwise barrier semantics, so if the leftmost process is
+> > not part of the TLB shootdown (which it is not), then it is possible that
+> > it may see the store to decrement the mapcount before the store to clear the
+> > pte. Maybe. I was hoping causality would not allow a subsequent store through
+> > the pte to be seen by the rightmost guy before the TLB flush. But maybe I
+> > was wrong?
+> 
+> If you're amidst the maybes, imagine the darkness I'm in!
+> And I'm not adding much to the argument with that remark,
+> so please don't feel obliged to respond.
+> 
+> > (at any rate, page_remove_rmap gives us smp_wmb if required, so
+> > the code is not technically wrong)
+> 
+> Originally I came at the question because it seemed to me that if
+> moving the page_remove_rmap down was to be fully effective, it needed
+> to move through a suitable barrier; it hadn't occurred to me that it
+> was carrying the suitable barrier with it.  But if that is indeed
+> correct, I think it would be better to rely upon that, than resort
+> to more difficult arguments.
+
+No I actually think you make a good point, and I'll resubmit the
+patch with a replacement comment to say we've got the ordering
+covered if nothing else then by the atomic op in rmap.
+ 
+
+> I would love to find a sure-footed way to think about memory barriers,
+> but I don't think I'll ever get the knack; particularly when even you
+> and Paul and Linus can sometimes be caught in doubt.
+
+Actually it can get pretty hard if you try to handwave about some
+abstract higher level operation like "TLB flushing" (like I was).
+It's a good idea to first distil out all the critical load and
+store instructions before trying to reason with ordering issues.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
