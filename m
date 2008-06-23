@@ -1,82 +1,207 @@
-Date: Mon, 23 Jun 2008 14:12:29 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: Can get_user_pages( ,write=1, force=1, ) result in a read-only
-	pte and _count=2?
-Message-ID: <20080623191229.GH10062@sgi.com>
-References: <20080618164158.GC10062@sgi.com> <200806190329.30622.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0806181944080.4968@blonde.site> <200806191307.04499.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0806191154270.7324@blonde.site> <20080619133809.GC10123@sgi.com> <Pine.LNX.4.64.0806191441040.25832@blonde.site> <20080623191135.GG10062@sgi.com>
+Date: Mon, 23 Jun 2008 21:49:34 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [Patch](memory hotplug)Allocate usemap on the section with pgdat (take 3)
+Message-ID: <20080623204934.GB1824@csn.ul.ie>
+References: <20080616104500.GD2232@shadowen.org> <20080616220705.9EA7.E1E9C6FF@jp.fujitsu.com> <20080617195653.C200.E1E9C6FF@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20080623191135.GG10062@sgi.com>
+In-Reply-To: <20080617195653.C200.E1E9C6FF@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Robin Holt <holt@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, Badari Pulavarty <pbadari@us.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>, Tony Breeds <tony@bakeyournoodle.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Ooops, this was a draft I meant to throw away.  Please ignore.
+On (17/06/08 20:07), Yasunori Goto didst pronounce:
+> 
+> Here is take 3 for usemap allocation on pgdat section.
+> 
+> If there is any trouble, please let me know.
+> 
+> If no trouble, please apply.
+> 
+> Thanks.
+> 
 
-Sorry for the confusion,
-Robin
+This boot-tested successfully on a few machines. I wasn't able to get
+many machines but at first take, it seems ok.
 
-On Mon, Jun 23, 2008 at 02:11:35PM -0500, Robin Holt wrote:
-> On Thu, Jun 19, 2008 at 02:49:50PM +0100, Hugh Dickins wrote:
-> > On Thu, 19 Jun 2008, Robin Holt wrote:
-> > > On Thu, Jun 19, 2008 at 12:09:15PM +0100, Hugh Dickins wrote:
-> > > > 
-> > > > (I assume Robin is not forking, we do know that causes this kind
-> > > > of problem, but he didn't mention any forking so I assume not.)
-> > > 
-> > > There has been a fork long before this mapping was created.  There was a
-> > > hole at this location and the mapping gets established and pages populated
-> > > following all ranks of the MPI job getting initialized.
-> > 
-> > There's usually been a fork somewhen in the past!  That's no problem.
-> > 
-> > The fork problem comes when someone has done a get_user_pages to break
-> > all the COWs, then another thread does a fork which writeprotects and
-> > raises page_mapcount, so the next write from userspace breaks COW again
-> > and writes to a different page from that which the kernel is holding.
-> > 
-> > That one kept on coming up, but I've not heard of it again since we
-> > added madvise MADV_DONTFORK so apps could exclude such parts of the
-> > address space from copy_page_range.
+> ---
 > 
-> I think you still have a hole.  Here is what I _think_ I was actually
-> running into.  A range of memory was exported with xpmem.  This is on
-> a sles10 kernel which has no mmu_notifier equivalent functionality.
-> The exporting process has write faulted a range of addresses which
-> it plans on using for a functionality validation test which verifies
-> its results.
+> Usemaps are allocated on the section which has pgdat by this.
 > 
-> The address range is then imported by the other MPI ranks (128 ranks
-> total) and pages are faulted in.
+> Because usemap size is very small, many other sections usemaps
+> are allocated on only one page. If a section has usemap, it
+> can't be removed until removing other sections.
+> This dependency is not desirable for memory removing.
 > 
-> At this time, the system comes under severe memory pressure.  The swap
-> code makes a swap entry and replaces both process's PTE with the swap
-> entry.  XPMEM is holding an extra reference (_count) on the page.
+
+True. I have a report complaining that a node cannot be removed because
+of some reserved pages at the start of the node. I have not looked
+closely yet but it is possible that it is a page containing usemaps for
+another section that is in there.
+
+> Pgdat has similar feature. When a section has pgdat area, it 
+> must be the last section for removing on the node.
+> So, if section A has pgdat and section B has usemap for section A,
+> Both sections can't be removed due to dependency each other.
 > 
-> The imported now faults the page again (either read or write, does not
-> matter, merely that it faults first).  After that, the exporter read
-> faults the address and then write faults.  The read followed by write
-> seems to be the key.  At that point, the _count and _mapcount are both
-> elevated to the point where the page will be COW'd.
+> To solve this issue, this patch collects usemap on same
+> section with pgdat as much as possible.
+> If other sections doesn't have any dependency, this section will
+> be able to be removed finally.
 > 
-> To verify that it was _something_ like this, I had inserted a BUG_ON when
-> we return from get_user_pages() to verify the _mapcount is 1 or greater
-> and the _count is 2 or greater.  Additionally, I walked the process page
-> tables at this point and verified pte_write was true.
+> Change log of take 3.
+>  - Change dependency message and comment.
+>   (Thanks! > Andy Whitcroft-san)
 > 
-> I also added a page flag (just a kludge to verify).  When XPMEM exports
-> the page, I set the page flag.  In can_share_swap_page, I made the return
-> (count == 1) && test_bit(27, &page->flags);
+> Change log of take 2.
+>  - This feature becomes effective only when CONFIG_MEMORY_HOTREMOVE is on.
+>    If hotremove is off, this feature is not necessary.
+>  - Allow allocation on other section if alloc_bootmem_section() fails.
+>    This removes previous regression.
+>  - Show message if allocation on same section fails.
 > 
-> I clearly messed something up, but it does indicate I am finally in
-> the right neighborhood.  The test program completes with success.
-> I definitely messed up the clearing of bit 27 because the machine will
-> no longer launch new executables after the job completes.  If I reboot,
-> I can rerun the job to successful completion again.
+> Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 > 
+> ---
+> 
+>  mm/sparse.c |   78 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+>  1 file changed, 77 insertions(+), 1 deletion(-)
+> 
+> Index: current/mm/sparse.c
+> ===================================================================
+> --- current.orig/mm/sparse.c	2008-06-17 15:34:29.000000000 +0900
+> +++ current/mm/sparse.c	2008-06-17 18:35:02.000000000 +0900
+> @@ -269,16 +269,92 @@
+>  }
+>  #endif /* CONFIG_MEMORY_HOTPLUG */
+>  
+> +#ifdef CONFIG_MEMORY_HOTREMOVE
+> +static unsigned long * __init
+> +sparse_early_usemap_alloc_section(unsigned long pnum)
+> +{
+> +	unsigned long section_nr;
+> +	struct mem_section *ms = __nr_to_section(pnum);
+> +	int nid = sparse_early_nid(ms);
+> + 	struct pglist_data *pgdat = NODE_DATA(nid);
+> +
+
+It's not a major deal but the only caller of
+sparse_early_usemap_alloc_section() has the nid already. If you looked up
+the pgdat there and passed it in, it would involve fewer lookups. Granted,
+this is not performance critical or anything so it's not a major deal.
+
+> +	/*
+> +	 * Usemap's page can't be freed until freeing other sections
+> +	 * which use it. And, pgdat has same feature.
+> +	 * If section A has pgdat and section B has usemap for other
+> +	 * sections (includes section A), both sections can't be removed,
+> +	 * because there is the dependency each other.
+> +	 * To solve above issue, this collects all usemap on the same section
+> +	 * which has pgdat as much as possible.
+> +	 */
+
+The comment is a bit tricky to read. How about?
+
+	/*
+	 * A page may contain usemaps for other sections preventing the
+	 * the page being freed and making a section unremovable while
+	 * other sections referencing the usemap remain active. Similarly,
+	 * a pgdat can prevent a section being removed. If section A
+	 * contains a pgdat and section B contains the usemap, both
+	 * sections become inter-dependent. This allocates usemaps
+	 * from the same section as the pgdat where possible to avoid
+	 * this problem.
+	 */
+
+> +	section_nr = pfn_to_section_nr(__pa(pgdat) >> PAGE_SHIFT);
+> +	return alloc_bootmem_section(usemap_size(), section_nr);
+> +}
+> +
+> +static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
+> +{
+> +	unsigned long usemap_snr, pgdat_snr;
+> +	static unsigned long old_usemap_snr = NR_MEM_SECTIONS;
+> +	static unsigned long old_pgdat_snr = NR_MEM_SECTIONS;
+> +	struct pglist_data *pgdat = NODE_DATA(nid);
+> +	int usemap_nid;
+> +
+> +	usemap_snr = pfn_to_section_nr(__pa(usemap) >> PAGE_SHIFT);
+> +	pgdat_snr = pfn_to_section_nr(__pa(pgdat) >> PAGE_SHIFT);
+> +	if (usemap_snr == pgdat_snr)
+> +		return;
+> +
+> +	if (old_usemap_snr == usemap_snr && old_pgdat_snr == pgdat_snr)
+> +		/* skip redundant message */
+> +		return;
+> +
+> +	old_usemap_snr = usemap_snr;
+> +	old_pgdat_snr = pgdat_snr;
+> +
+> +	usemap_nid = sparse_early_nid(__nr_to_section(usemap_snr));
+> +	if (usemap_nid != nid) {
+> +		printk("node %d must be removed before remove section %ld\n",
+> +		       nid, usemap_snr);
+> +		return;
+
+no kernel log level here
+
+> +	}
+> +	/*
+> +	 * There is a circular dependency.
+> +	 * Some platforms allow un-removable section because they will just
+> +	 * gather other removable sections for dynamic partitioning.
+> +	 * Just notify un-removable section's number here.
+> +	 */
+> +	printk(KERN_INFO "Section %ld and %ld (node %d)",
+> +	       usemap_snr, pgdat_snr, nid);
+> +	printk(" have a circular dependency on usemap and pgdat allocations\n");
+
+a follow-on printk like this should use KERN_CONT
+
+> +}
+> +#else
+> +static unsigned long * __init
+> +sparse_early_usemap_alloc_section(unsigned long pnum)
+> +{
+> +	return NULL;
+> +}
+> +
+> +static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
+> +{
+> +}
+> +#endif /* CONFIG_MEMORY_HOTREMOVE */
+> +
+>  static unsigned long *__init sparse_early_usemap_alloc(unsigned long pnum)
+>  {
+>  	unsigned long *usemap;
+>  	struct mem_section *ms = __nr_to_section(pnum);
+>  	int nid = sparse_early_nid(ms);
+>  
+> -	usemap = alloc_bootmem_node(NODE_DATA(nid), usemap_size());
+> +	usemap = sparse_early_usemap_alloc_section(pnum);
+>  	if (usemap)
+>  		return usemap;
+>  
+> +	usemap = alloc_bootmem_node(NODE_DATA(nid), usemap_size());
+> +	if (usemap) {
+> +		check_usemap_section_nr(nid, usemap);
+> +		return usemap;
+> +	}
+> +
+>  	/* Stupid: suppress gcc warning for SPARSEMEM && !NUMA */
+>  	nid = 0;
+>  
+
+Just a few minor things that need cleaning up there. Otherwise, the idea
+seems sound.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
