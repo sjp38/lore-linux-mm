@@ -1,20 +1,16 @@
-Date: Tue, 24 Jun 2008 14:22:58 +0200
-From: Jens Axboe <jens.axboe@oracle.com>
+In-reply-to: <200806242216.41548.nickpiggin@yahoo.com.au> (message from Nick
+	Piggin on Tue, 24 Jun 2008 22:16:41 +1000)
 Subject: Re: [rfc patch 3/4] splice: remove confirm from pipe_buf_operations
-Message-ID: <20080624122258.GR20851@kernel.dk>
 References: <20080621154607.154640724@szeredi.hu> <20080624111913.GP20851@kernel.dk> <E1KB6p9-0001Gq-Fd@pomaz-ex.szeredi.hu> <200806242216.41548.nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200806242216.41548.nickpiggin@yahoo.com.au>
+Message-Id: <E1KB88B-0001Ts-Ht@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 24 Jun 2008 15:00:19 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
+To: nickpiggin@yahoo.com.au
+Cc: miklos@szeredi.hu, jens.axboe@oracle.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 24 2008, Nick Piggin wrote:
-> On Tuesday 24 June 2008 21:36, Miklos Szeredi wrote:
 > > > It's an unfortunate side effect of the read-ahead, I'd much rather just
 > > > get rid of that. It _should_ behave like the non-ra case, when a page is
 > > > added it merely has IO started on it. So we want to have that be
@@ -37,10 +33,11 @@ On Tue, Jun 24 2008, Nick Piggin wrote:
 > loop out of generic_file_splice_read and into
 > page_cache_pipe_buf_confirm. 
 
-That's a good point, moving those blocks of code to the other end makes
-a lot of sense. Or just kill the read-ahead, or at least do it
-differently. It's definitely an oversight/bug having splice from file
-block on the pages it just issued read-ahead for.
+The problem with that second loop (which started this thing) is that
+if a page is invalidated by the filesystem, then it doesn't redo the
+lookup/read like the plain cached read does.
+
+And that can't be done in page_cache_pipe_buf_confirm() at all.
 
 > > What's the use case where it matters that splice-in should not block
 > > on the read?
@@ -48,21 +45,14 @@ block on the pages it just issued read-ahead for.
 > It just makes it generally less able to pipeline IO and computation,
 > doesn't it?
 
-Precisely!
+Maybe.  I don't really see how splice might be used that would be
+helped by this.  Do you have a concrete example?
 
-> > And note, after the pipe is full it will block no matter what, since
-> > the consumer will have to wait until the page is brought uptodate, and
-> > can only then commence with getting the data out from the pipe.
-> 
-> True, but (especially with patches to variably size the pipe buffer)
-> I imagine programs could be designed fairly carefully to the size of
-> the buffer (and not just things that blast bulk data down the pipe...)
+In fact I don't really know at all what splice is being used for
+(other than the in kernel uses: nfsd, sendfile).  
 
-Yep, that's the whole premise for the dynpipe branch I've been carrying
-around for some time.
-
--- 
-Jens Axboe
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
