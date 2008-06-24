@@ -1,43 +1,47 @@
-In-reply-to: <alpine.LFD.1.10.0806241246240.2926@woody.linux-foundation.org>
-	(message from Linus Torvalds on Tue, 24 Jun 2008 12:47:27 -0700 (PDT))
-Subject: Re: [rfc patch 3/4] splice: remove confirm from
- pipe_buf_operations
-References: <20080621154607.154640724@szeredi.hu> <20080621154726.494538562@szeredi.hu> <20080624080440.GJ20851@kernel.dk> <E1KB4Id-0000un-PV@pomaz-ex.szeredi.hu> <20080624111913.GP20851@kernel.dk> <E1KB6p9-0001Gq-Fd@pomaz-ex.szeredi.hu>
- <alpine.LFD.1.10.0806241022120.2926@woody.linux-foundation.org> <E1KBDBg-0002XZ-DG@pomaz-ex.szeredi.hu> <alpine.LFD.1.10.0806241129590.2926@woody.linux-foundation.org> <E1KBDpg-0002bR-3X@pomaz-ex.szeredi.hu> <alpine.LFD.1.10.0806241216350.2926@woody.linux-foundation.org>
- <E1KBE7p-0002eT-CJ@pomaz-ex.szeredi.hu> <E1KBEA8-0002ey-II@pomaz-ex.szeredi.hu> <E1KBEFY-0002fh-5m@pomaz-ex.szeredi.hu> <alpine.LFD.1.10.0806241246240.2926@woody.linux-foundation.org>
-Message-Id: <E1KBEmA-0002m2-EF@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Tue, 24 Jun 2008 22:06:02 +0200
+Date: Tue, 24 Jun 2008 21:19:37 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: Can get_user_pages( ,write=1, force=1, ) result in a read-only
+ pte and _count=2?
+In-Reply-To: <20080624151908.GO10062@sgi.com>
+Message-ID: <Pine.LNX.4.64.0806242106230.21305@blonde.site>
+References: <200806190329.30622.nickpiggin@yahoo.com.au>
+ <Pine.LNX.4.64.0806181944080.4968@blonde.site> <200806191307.04499.nickpiggin@yahoo.com.au>
+ <Pine.LNX.4.64.0806191154270.7324@blonde.site> <20080619133809.GC10123@sgi.com>
+ <Pine.LNX.4.64.0806191441040.25832@blonde.site> <20080623155400.GH10123@sgi.com>
+ <Pine.LNX.4.64.0806231718460.16782@blonde.site> <20080623175203.GI10123@sgi.com>
+ <Pine.LNX.4.64.0806232134330.19691@blonde.site> <20080624151908.GO10062@sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: torvalds@linux-foundation.org
-Cc: miklos@szeredi.hu, jens.axboe@oracle.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Robin Holt <holt@sgi.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > 
-> > Or it can only happen if there was an I/O error on reading the page.
-> 
-> Now, IO errors are something else. They should have the PG_error bit set, 
-> and we should just return EIO or something.
+On Tue, 24 Jun 2008, Robin Holt wrote:
+> OK.  I just gave it a try and I still get a failure with this patch
+> applied.
 
-Linus, you're right (as always), but see where this is going?  A rare
-problem (splice() returning short count because of an invalidated
-page) is becoming an even more rare problem (splice() returning
-rubbish instead of an error, if ->readpage() failed, and filesystem
-forgot to set PG_error).  And it won't show up in any other paths,
-because the generic_file_aio_read() path will just check
-PageUptodate(), and return -EIO if not.
+Thanks a lot for trying.  That's disappointing, I don't understand it.
+Would it be possible for you to debug what is actually happening when
+this page is COWed?  It seems to me that there's something else going
+on that we don't yet know about.
 
-OK, maybe we should add a WARN_ON(!PageError()) for the
-!PageUptodate() case in generic_file_aio_read(), but that could still
-leave some filesystems broken for a long time which experience I/O
-errors rarely.
+> I can't help wondering if we (XPMEM, IB, etc) shouldn't be setting a
+> page flag indicating that the attempt to swap this page out should not
+> even be tried.  I would guess this has already been discussed to death.
+> If so, I am sorry, but I missed those discussions.
 
-So I think the only sane solution here is to remove
-ClearPageUptodate().  But that's a VM people's call, I don't have
-enough insight into that.
+No, I don't think there's been any such discussion,
+apart from the http://lkml.org/lkml/2006/9/14/384
+threads I indicated before.  get_user_pages has always been very
+much about pinning a page in memory, despite attempts to swap it out.
 
-Miklos
+If you want to prevent the page from being pulled out of its pagetable,
+then use mlock(2); but it shouldn't be necessary, once we have that
+fix to the PageLocked case.  Unless there's something else going on.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
