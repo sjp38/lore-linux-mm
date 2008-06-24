@@ -1,56 +1,33 @@
-Date: Tue, 24 Jun 2008 10:55:27 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC][PATCH] putback_lru_page()/unevictable page handling
- rework v3
-Message-Id: <20080624105527.d9e9eba0.akpm@linux-foundation.org>
-In-Reply-To: <1214327453.6563.14.camel@lts-notebook>
-References: <20080621185408.E832.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20080624114006.D81C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<1214327453.6563.14.camel@lts-notebook>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by rv-out-0708.google.com with SMTP id f25so10916080rvb.26
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2008 11:19:29 -0700 (PDT)
+Message-ID: <2f11576a0806241119h64c46b0dt251980056fc94353@mail.gmail.com>
+Date: Wed, 25 Jun 2008 03:19:29 +0900
+From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] fix to putback_lru_page()/unevictable page handling rework v3
+In-Reply-To: <1214329708.6563.43.camel@lts-notebook>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080621185408.E832.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080624184122.D838.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <1214327987.6563.22.camel@lts-notebook>
+	 <2f11576a0806241035p45a440e1gb798091ef39cffc8@mail.gmail.com>
+	 <1214329708.6563.43.camel@lts-notebook>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 24 Jun 2008 13:10:53 -0400 Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+>> but I still happend panic on usex and nishimura-san's cpuset migration test.
+>>   -> http://marc.info/?l=linux-mm&m=121375647720110&w=2
+>
+> I saw the description of the cpuset migration test.  Have you wrapped
+> this in a script suitable for running under usex?
 
-> On Tue, 2008-06-24 at 11:43 +0900, KOSAKI Motohiro wrote:
-> > Hi
-> > 
-> > > I merged kamezawa-san's SHMEM related fix.
-> > > this patch works well >2H.
-> > > and, I am going to test on stress workload during this week end.
-> > > 
-> > > but I hope recieve review at first.
-> > > thus I post it now.
-> > 
-> > Unfortunately, my machine crashed last night ;-)
-> > I'll dig it.
-> 
-> 
-> I ran 26-rc5-mm3 with 5 split/unevictable lru patches that you posted on
-> 19june.  I replaced patch 5 of that series with the subject patch
-> [rework v3, merged SHMEM fix].  This kernel ran my 'usex' stress load
-> overnight for 23+ hours on both ia64 and x86_64 platforms with no
-> problems.  I evidently did not hit the problem you did.
-> 
-> I'm rebuilding with a patch to a small problem that I discovered along
-> with your recent patch to "prevent incorrect oom...".  I'll let you know
-> how that goes as well.
-> 
-> I'll send along two additional patches shortly.
-> 
-
-My chances of working out which patches I need to apply to -mm are
-near-zero.  I'm working through my vacation backlog in reverse order
-and haven't got up to this topic yet.
-
-As you've been paying attention it would be appreciated if you could
-send me some stuff, please.
+Ah, no. sorry.
+I use multiple console by cpuset test and usex.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
