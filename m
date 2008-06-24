@@ -1,40 +1,67 @@
-Date: Tue, 24 Jun 2008 18:59:28 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] putback_lru_page()/unevictable page handling
- rework v3
-Message-Id: <20080624185928.e06a79f7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080624184122.D838.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080621185408.E832.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20080624184122.D838.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 24 Jun 2008 12:24:01 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: [bug] Re: [PATCH] - Fix stack overflow for large values of
+	MAX_APICS
+Message-ID: <20080624102401.GA27614@elte.hu>
+References: <20080620025104.GA25571@sgi.com> <20080620103921.GC32500@elte.hu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080620103921.GC32500@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jack Steiner <steiner@sgi.com>
+Cc: tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Travis <travis@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 24 Jun 2008 18:49:05 +0900
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+* Ingo Molnar <mingo@elte.hu> wrote:
 
-> > +	mem_cgroup_move_lists(page, lru);
-> > +
-> > +	/*
-> > +	 * page's status can change while we move it among lru. If an evictable
-> > +	 * page is on unevictable list, it never be freed. To avoid that,
-> > +	 * check after we added it to the list, again.
-> > +	 */
-> > +	if (lru == LRU_UNEVICTABLE && page_evictable(page, NULL)) {
-> > +		if (!isolate_lru_page(page)) {
-> > +			put_page(page);
-> > +			goto redo;
+> * Jack Steiner <steiner@sgi.com> wrote:
 > 
-> at this point, We should call ClearPageUnevictable().
-> otherwise, BUG() is called on isolate_lru_pages().
+> > physid_mask_of_physid() causes a huge stack (12k) to be created if 
+> > the number of APICS is large. Replace physid_mask_of_physid() with a 
+> > new function that does not create large stacks. This is a problem 
+> > only on large x86_64 systems.
 > 
-Sure. thanks,
--Kame
+> this indeed fixes the crash i reported here:
+> 
+>    http://lkml.org/lkml/2008/6/19/98
+> 
+> so i've added both this and the MAXAPICS patch to tip/x86/uv, and will 
+> test it some more. Lets hope it goes all well this time :-)
+
+-tip auto-testing found a new boot failure on x86 which happens if 
+NR_CPUS is changed from 8 to 4096. The hang goes like this:
+
+ Linux version 2.6.26-rc7-tip (mingo@dione) (gcc version 4.2.3) #10233 SMP
+ Tue Jun 24 12:13:46 CEST 2008
+ [...]
+ initcall init_mnt_writers+0x0/0x8c returned 0 after 0 msecs
+ calling  eventpoll_init+0x0/0x9a
+ initcall eventpoll_init+0x0/0x9a returned 0 after 0 msecs
+ calling  anon_inode_init+0x0/0x11a
+ initcall anon_inode_init+0x0/0x11a returned 0 after 0 msecs
+ calling  pcie_aspm_init+0x0/0x27
+ initcall pcie_aspm_init+0x0/0x27 returned 0 after 0 msecs
+ calling  acpi_event_init+0x0/0x57
+ [... hard hang ...]
+
+on a good bootup, it would continue like this:
+
+ initcall acpi_event_init+0x0/0x57 returned 0 after 38 msecs
+ calling  pnp_system_init+0x0/0x17
+ [...]
+
+the config, full bootlog and reproducer bzImage is at:
+
+  http://redhat.com/~mingo/misc/config-Tue_Jun_24_07_44_17_CEST_2008.bad
+  http://redhat.com/~mingo/misc/log-Tue_Jun_24_07_44_17_CEST_2008.bad
+  http://redhat.com/~mingo/misc/bzImage-Tue_Jun_24_07_44_17_CEST_2008.bad
+
+changing CONFIG_NR_CPUS from 4096 to 8 causes the system to boot up 
+fine.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
