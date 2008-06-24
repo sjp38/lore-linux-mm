@@ -1,48 +1,55 @@
-In-reply-to: <20080624080440.GJ20851@kernel.dk> (message from Jens Axboe on
-	Tue, 24 Jun 2008 10:04:41 +0200)
-Subject: Re: [rfc patch 3/4] splice: remove confirm from pipe_buf_operations
-References: <20080621154607.154640724@szeredi.hu> <20080621154726.494538562@szeredi.hu> <20080624080440.GJ20851@kernel.dk>
-Message-Id: <E1KB4Id-0000un-PV@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Tue, 24 Jun 2008 10:54:51 +0200
+Date: Tue, 24 Jun 2008 18:49:05 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] putback_lru_page()/unevictable page handling rework v3
+In-Reply-To: <20080621185408.E832.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080621185408.E832.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080624184122.D838.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: jens.axboe@oracle.com
-Cc: miklos@szeredi.hu, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> > The 'confirm' operation was only used for splicing from page cache, to
-> > wait for read on a page to finish.  But generic_file_splice_read()
-> > already blocks on readahead reads, so it seems logical to block on the
-> > rare and slow single page reads too.
-> > 
-> > So wait for readpage to finish inside __generic_file_splice_read() and
-> > remove the 'confirm' method.
-> > 
-> > This also fixes short return counts when the filesystem (e.g. fuse)
-> > invalidates the page between insertation and removal.
-> 
-> One of the basic goals of splice is to allow the pipe buffer to only be
-> consisten when a consumer asks for it, otherwise the filling will always
-> be sync. There should be no blocking on reads in the splice-in path,
-> only on consumption for splice-out.
+I found one bug ;)
 
-What you are ignoring (and I've mentioned in the changelog) is that it
-is *already* sync.  Look at the code: this starts I/O:
+> -int putback_lru_page(struct page *page)
+> +#ifdef CONFIG_UNEVICTABLE_LRU
+> +void putback_lru_page(struct page *page)
+>  {
+>  	int lru;
+> -	int ret = 1;
+>  	int was_unevictable;
+>  
+> -	VM_BUG_ON(!PageLocked(page));
+>  	VM_BUG_ON(PageLRU(page));
+>  
+> +	was_unevictable = TestClearPageUnevictable(page);
+> +
+> +redo:
+>  	lru = !!TestClearPageActive(page);
+> -	was_unevictable = TestClearPageUnevictable(page); /* for page_evictable() */
 
-		page_cache_sync_readahead(mapping, &in->f_ra, in,
-				index, req_pages - spd.nr_pages);
+(snip)
 
-And this waits for it to finish:
+> +	mem_cgroup_move_lists(page, lru);
+> +
+> +	/*
+> +	 * page's status can change while we move it among lru. If an evictable
+> +	 * page is on unevictable list, it never be freed. To avoid that,
+> +	 * check after we added it to the list, again.
+> +	 */
+> +	if (lru == LRU_UNEVICTABLE && page_evictable(page, NULL)) {
+> +		if (!isolate_lru_page(page)) {
+> +			put_page(page);
+> +			goto redo;
 
-		if (!PageUptodate(page)) {
-			...
-				lock_page(page);
+at this point, We should call ClearPageUnevictable().
+otherwise, BUG() is called on isolate_lru_pages().
 
-The only way it will be async, is if there's no readahead.  But do we
-want to optmize that case?
 
-Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
