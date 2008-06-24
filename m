@@ -1,153 +1,71 @@
-Date: Tue, 24 Jun 2008 12:37:15 +0900
+Date: Tue, 24 Jun 2008 14:51:27 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 6/6] memcg: HARDWALL hierarchy
-Message-Id: <20080624123715.15bd3cb5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080623152941.1283ecce.randy.dunlap@oracle.com>
-References: <20080613182714.265fe6d2.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080613183741.5e2f7fda.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080623152941.1283ecce.randy.dunlap@oracle.com>
+Subject: [PATCH] memcg: end migration fix (was  [bad page] memcg: another
+ bad page at page migration (2.6.26-rc5-mm3 + patch collection))
+Message-Id: <20080624145127.539eb5ff.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080623145341.0a365c67.nishimura@mxp.nes.nec.co.jp>
+References: <20080623145341.0a365c67.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <randy.dunlap@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm@kvack.org, balbir@linux.vnet.ibm.com, xemul@openvz.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+Hi, Nishimura-san. thank you for all your help. 
 
-On Mon, 23 Jun 2008 15:29:41 -0700
-Randy Dunlap <randy.dunlap@oracle.com> wrote:
+I think this one is......hopefully.
 
-> On Fri, 13 Jun 2008 18:37:41 +0900 KAMEZAWA Hiroyuki wrote:
-> 
-> > Support hardwall hierarchy (and no-hierarchy) in memcg.
-> > 
-> > Change log: v3->v4
-> >  - cut out from memcg hierarchy patch set v4.
-> >  - no major changes, but some amount of functions are moved to res_counter.
-> >    and be more gneric.
-> > 
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > ---
-> >  Documentation/controllers/memory.txt |   57 +++++++++++++++++++++++++++++-
-> >  mm/memcontrol.c                      |   65 +++++++++++++++++++++++++++++++++--
-> >  2 files changed, 118 insertions(+), 4 deletions(-)
-> > 
-> > Index: linux-2.6.26-rc5-mm3/Documentation/controllers/memory.txt
-> > ===================================================================
-> > --- linux-2.6.26-rc5-mm3.orig/Documentation/controllers/memory.txt
-> > +++ linux-2.6.26-rc5-mm3/Documentation/controllers/memory.txt
-> > @@ -154,7 +154,7 @@ The memory controller uses the following
-> >  
-> >  0. Configuration
-> 
-> I apologize if you have already corrected these.  I'm a bit behind
-> on doc reviews.
-> 
-Thank you for all your help. I'll check my set again especially
-'s' and 'a/an'.
+==
+
+In general, mem_cgroup's charge on ANON page is removed when page_remove_rmap()
+is called.
+
+At migration, the newpage is remapped again by remove_migration_ptes(). But
+pte may be already changed (by task exits).
+It is charged at page allocation but have no chance to be uncharged in that
+case because it is never added to rmap.
+
+Handle that corner case in mem_cgroup_end_migration().
 
 
-> 
-> > -a. Enable CONFIG_CGROUPS
-> > +a. Enable CONFESS_CGROUPS
-> 
-> Really?  Looks odd and backwards.
-> 
-my mistake..
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Thanks,
--Kame
 
-> >  b. Enable CONFIG_RESOURCE_COUNTERS
-> >  c. Enable CONFIG_CGROUP_MEM_RES_CTLR
-> >  
-> > @@ -237,7 +237,58 @@ cgroup might have some charge associated
-> >  tasks have migrated away from it. Such charges are automatically dropped at
-> >  rmdir() if there are no tasks.
-> >  
-> > -5. TODO
-> > +5. Supported Hierarchy Model
-> > +
-> > +Currently, memory controller supports following models of hierarchy in the
-> > +kernel. (see also resource_counter.txt)
-> > +
-> > +2 files are related to hierarchy.
-> > + - memory.hierarchy_model
-> > + - memory.for_children
-> > +
-> > +Basic Rule.
-> > +  - Hierarchy can be set per cgroup.
-> > +  - A child inherits parent's hierarchy model at creation.
-> > +  - A child can change its hierarchy only when the parent's hierarchy is
-> > +    NO_HIERARCY and it has no children.
-> 
->        NO_HIERARCHY
-> 
-sure
+---
+ mm/memcontrol.c |   14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
 
-> > +
-> > +
-> > +5.1. NO_HIERARCHY
-> > +  - Each cgroup is independent from other ones.
-> > +  - When memory.hierarchy_model is 0, NO_HIERARCHY is used.
-> > +    Under this model, there is no controls based on tree of cgroups.
-> 
-> 	                 there are no controls
-> 
-Oh, thanks.
-
-> > +    This is the default model of root cgroup.
-> > +
-> > +5.2 HARDWALL_HIERARCHY
-> > +  - A child is a isolated portion of the parent.
-> 
->                is an
-> 
-> > +  - When memory.hierarchy_model is 1, HARDWALL_HIERARCHY is used.
-> > +    In this model a child's limit is charged as parent's usage.
-> > +
-> > +  Hard-Wall Hierarchy Example)
-> 
-> Drop ')'.
-> 
-> > +  1) Assume a cgroup with 1GB limits. (and no tasks belongs to this, now)
-> > +     - group_A limit=1G,usage=0M.
-> 
-> 	                  , usage=0M.
-> 
-> > +
-> > +  2) create group B, C under A.
-> > +     - group A limit=1G, usage=0M, for_childre=0M
-> 
-> 	                              for_children=0M
-> 
-> > +          - group B limit=0M, usage=0M.
-> > +          - group C limit=0M, usage=0M.
-> > +
-> > +  3) increase group B's limit to 300M.
-> > +     - group A limit=1G, usage=300M, for_children=300M
-> > +          - group B limit=300M, usage=0M.
-> > +          - group C limit=0M, usage=0M.
-> > +
-> > +  4) increase group C's limit to 500M
-> > +     - group A limit=1G, usage=800M, for_children=800M
-> > +          - group B limit=300M, usage=0M.
-> > +          - group C limit=500M, usage=0M.
-> > +
-> > +  5) reduce group B's limit to 100M
-> > +     - group A limit=1G, usage=600M, for_children=600M.
-> > +          - group B limit=100M, usage=0M.
-> > +          - group C limit=500M, usage=0M.
-> 
-> 
-> ---
-> ~Randy
-> Linux Plumbers Conference, 17-19 September 2008, Portland, Oregon USA
-> http://linuxplumbersconf.org/
-> 
+Index: test2-2.6.26-rc5-mm3/mm/memcontrol.c
+===================================================================
+--- test2-2.6.26-rc5-mm3.orig/mm/memcontrol.c
++++ test2-2.6.26-rc5-mm3/mm/memcontrol.c
+@@ -747,10 +747,22 @@ int mem_cgroup_prepare_migration(struct 
+ /* remove redundant charge if migration failed*/
+ void mem_cgroup_end_migration(struct page *newpage)
+ {
+-	/* At success, page->mapping is not NULL and nothing to do. */
++	/*
++	 * At success, page->mapping is not NULL.
++	 * special rollback care is necessary when
++	 * 1. at migration failure. (newpage->mapping is cleared in this case)
++	 * 2. the newpage was moved but not remapped again because the task
++	 *    exits and the newpage is obsolete. In this case, the new page
++	 *    may be a swapcache. So, we just call mem_cgroup_uncharge_page()
++	 *    always for avoiding mess. The  page_cgroup will be removed if
++	 *    unnecessary. File cache pages is still on radix-tree. Don't
++	 *    care it.
++	 */
+ 	if (!newpage->mapping)
+ 		__mem_cgroup_uncharge_common(newpage,
+ 					 MEM_CGROUP_CHARGE_TYPE_FORCE);
++	else if (PageAnon(newpage))
++		mem_cgroup_uncharge_page(newpage);
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
