@@ -1,53 +1,56 @@
-Subject: Re: [PATCH] fix to putback_lru_page()/unevictable page handling
-	rework v3
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <2f11576a0806241035p45a440e1gb798091ef39cffc8@mail.gmail.com>
+Date: Tue, 24 Jun 2008 10:55:27 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC][PATCH] putback_lru_page()/unevictable page handling
+ rework v3
+Message-Id: <20080624105527.d9e9eba0.akpm@linux-foundation.org>
+In-Reply-To: <1214327453.6563.14.camel@lts-notebook>
 References: <20080621185408.E832.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080624184122.D838.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <1214327987.6563.22.camel@lts-notebook>
-	 <2f11576a0806241035p45a440e1gb798091ef39cffc8@mail.gmail.com>
-Content-Type: text/plain
-Date: Tue, 24 Jun 2008 13:48:28 -0400
-Message-Id: <1214329708.6563.43.camel@lts-notebook>
+	<20080624114006.D81C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<1214327453.6563.14.camel@lts-notebook>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-06-25 at 02:35 +0900, KOSAKI Motohiro wrote:
-> > 'lru' was not being set to 'UNEVICTABLE when page was, in fact,
-> > unevictable [really "nonreclaimable" :-)], so retry would never
-> > happen, and culled pages never counted.
-> >
-> > Also, redundant mem_cgroup_move_lists()--one with incorrect 'lru',
-> > in the case of unevictable pages--messes up memcontroller tracking [I think].
+On Tue, 24 Jun 2008 13:10:53 -0400 Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+
+> On Tue, 2008-06-24 at 11:43 +0900, KOSAKI Motohiro wrote:
+> > Hi
+> > 
+> > > I merged kamezawa-san's SHMEM related fix.
+> > > this patch works well >2H.
+> > > and, I am going to test on stress workload during this week end.
+> > > 
+> > > but I hope recieve review at first.
+> > > thus I post it now.
+> > 
+> > Unfortunately, my machine crashed last night ;-)
+> > I'll dig it.
 > 
-> indeed.
-> sorry, I forgot to send this fix.
 > 
-> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> I ran 26-rc5-mm3 with 5 split/unevictable lru patches that you posted on
+> 19june.  I replaced patch 5 of that series with the subject patch
+> [rework v3, merged SHMEM fix].  This kernel ran my 'usex' stress load
+> overnight for 23+ hours on both ia64 and x86_64 platforms with no
+> problems.  I evidently did not hit the problem you did.
 > 
-> but I still happend panic on usex and nishimura-san's cpuset migration test.
->   -> http://marc.info/?l=linux-mm&m=121375647720110&w=2
+> I'm rebuilding with a patch to a small problem that I discovered along
+> with your recent patch to "prevent incorrect oom...".  I'll let you know
+> how that goes as well.
+> 
+> I'll send along two additional patches shortly.
 > 
 
-I saw the description of the cpuset migration test.  Have you wrapped
-this in a script suitable for running under usex?  If so, I would like
-to get a copy.  Actually, please send me any automation you have for
-this test and I'll incorporate it into the usex load.  Meanwhile, I'll
-take a cut at adding such a test to the load.  However, we know that
-your version can provoke the panic, so I'd like to get that.
+My chances of working out which patches I need to apply to -mm are
+near-zero.  I'm working through my vacation backlog in reverse order
+and haven't got up to this topic yet.
 
-> 
-> I'll  investigate it tommorow.
-
-Later, then,
-Lee
-
-
+As you've been paying attention it would be appreciated if you could
+send me some stuff, please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
