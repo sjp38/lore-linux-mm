@@ -1,134 +1,178 @@
-Date: Tue, 24 Jun 2008 17:31:54 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [RFC][PATCH] prevent incorrect oom under split_lru
-Message-Id: <20080624171816.D835.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Tue, 24 Jun 2008 17:41:23 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [Patch](memory hotplug)Allocate usemap on the section with pgdat (take 4)
+In-Reply-To: <20080624113345.E1B8.E1E9C6FF@jp.fujitsu.com>
+References: <20080623204934.GB1824@csn.ul.ie> <20080624113345.E1B8.E1E9C6FF@jp.fujitsu.com>
+Message-Id: <20080624173302.E1C2.E1E9C6FF@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
+Cc: Andy Whitcroft <apw@shadowen.org>, David Miller <davem@davemloft.net>, Badari Pulavarty <pbadari@us.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>, Tony Breeds <tony@bakeyournoodle.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Rik,
+Hi.
 
-I encounted strange OOM when ran stress workload.
-oom-killer happned but swappable page exist many.
+Here is take 4.
+Mel-san's comments are refrected. (some cleanups)
 
-I guess this is split_lru related bug.
-what do you think below patch?
+At present, there is no regression report after take 3.
+I wish this patch would be merged into -next or -mm.
 
--------------
-page01 invoked oom-killer: gfp_mask=0x1201d2, order=0, oomkilladj=0
+Please apply.
 
-Call Trace:
- [<a0000001000175e0>] show_stack+0x80/0xa0
-                                sp=e00001600e1ffae0 bsp=e00001600e1f1598
- [<a000000100017630>] dump_stack+0x30/0x60
-                                sp=e00001600e1ffcb0 bsp=e00001600e1f1580
- [<a000000100133f10>] oom_kill_process+0x250/0x4c0
-                                sp=e00001600e1ffcb0 bsp=e00001600e1f1518
- [<a000000100134db0>] out_of_memory+0x3f0/0x520
-                                sp=e00001600e1ffcc0 bsp=e00001600e1f14b8
- [<a00000010013f650>] __alloc_pages_internal+0x6b0/0x860
-                                sp=e00001600e1ffd60 bsp=e00001600e1f13e8
- [<a00000010018ae80>] alloc_pages_current+0x120/0x1c0
-                                sp=e00001600e1ffd70 bsp=e00001600e1f13b0
- [<a00000010012cad0>] __page_cache_alloc+0x130/0x160
-                                sp=e00001600e1ffd70 bsp=e00001600e1f1390
- [<a000000100144270>] __do_page_cache_readahead+0x150/0x580
-                                sp=e00001600e1ffd70 bsp=e00001600e1f12f8
- [<a0000001001451d0>] do_page_cache_readahead+0xf0/0x120
-                                sp=e00001600e1ffd80 bsp=e00001600e1f12c0
- [<a000000100132250>] filemap_fault+0x430/0x8e0
-                                sp=e00001600e1ffd80 bsp=e00001600e1f1208
- [<a000000100158900>] __do_fault+0xa0/0xc80
-                                sp=e00001600e1ffd80 bsp=e00001600e1f1178
- [<a00000010015d740>] handle_mm_fault+0x260/0x1240
-                                sp=e00001600e1ffda0 bsp=e00001600e1f10f0
- [<a0000001007aaab0>] ia64_do_page_fault+0x6f0/0xb00
-                                sp=e00001600e1ffda0 bsp=e00001600e1f1090
- [<a00000010000c4e0>] ia64_native_leave_kernel+0x0/0x270
-                                sp=e00001600e1ffe30 bsp=e00001600e1f1090
-Node 2 DMA per-cpu:
-CPU    0: hi:    6, btch:   1 usd:   5
-CPU    1: hi:    6, btch:   1 usd:   5
-CPU    2: hi:    6, btch:   1 usd:   5
-CPU    3: hi:    6, btch:   1 usd:   5
-CPU    4: hi:    6, btch:   1 usd:   5
-CPU    5: hi:    6, btch:   1 usd:   5
-CPU    6: hi:    6, btch:   1 usd:   5
-CPU    7: hi:    6, btch:   1 usd:   5
-Node 2 Normal per-cpu:
-CPU    0: hi:    6, btch:   1 usd:   5
-CPU    1: hi:    6, btch:   1 usd:   5
-CPU    2: hi:    6, btch:   1 usd:   5
-CPU    3: hi:    6, btch:   1 usd:   5
-CPU    4: hi:    6, btch:   1 usd:   5
-CPU    5: hi:    6, btch:   1 usd:   5
-CPU    6: hi:    6, btch:   1 usd:   5
-CPU    7: hi:    6, btch:   1 usd:   5
-Node 3 Normal per-cpu:
-CPU    0: hi:    6, btch:   1 usd:   5
-CPU    1: hi:    6, btch:   1 usd:   5
-CPU    2: hi:    6, btch:   1 usd:   2
-CPU    3: hi:    6, btch:   1 usd:   2
-CPU    4: hi:    6, btch:   1 usd:   4
-CPU    5: hi:    6, btch:   1 usd:   5
-CPU    6: hi:    6, btch:   1 usd:   4
-CPU    7: hi:    6, btch:   1 usd:   5
-Active_anon:53395 active_file:141 inactive_anon18042
- inactive_file:544 unevictable:12288 dirty:494 writeback:365 unstable:0
- free:288 slab:28313 mapped:83 pagetables:663 bounce:0
-Node 2 DMA free:8128kB min:2624kB low:3264kB high:3904kB active_anon:753536kB inactive_anon:587840kB active_file:2176kB inactive_file:8064kB unevictable:0kB present:1863168kB pages_scanned:3934 all_unreclaimable? no
-lowmem_reserve[]: 0 110 110
-Node 2 Normal free:6464kB min:2560kB low:3200kB high:3840kB active_anon:198400kB inactive_anon:73472kB active_file:1664kB inactive_file:18816kB unevictable:0kB present:1802240kB pages_scanned:64 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-Node 3 Normal free:3840kB min:5888kB low:7360kB high:8832kB active_anon:2465344kB inactive_anon:493376kB active_file:5184kB inactive_file:7936kB unevictable:786432kB present:4124224kB pages_scanned:872 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-Node 2 DMA: 61*64kB 1*128kB 1*256kB 0*512kB 0*1024kB 1*2048kB 0*4096kB 0*8192kB 0*16384kB 0*32768kB 0*65536kB 0*131072kB 0*262144kB 0*524288kB 0*1048576kB 0*2097152kB 0*4194304kB = 6336kB
-Node 2 Normal: 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB 0*8192kB 0*16384kB 0*32768kB 0*65536kB 0*131072kB 0*262144kB 0*524288kB 0*1048576kB 0*2097152kB 0*4194304kB = 0kB
-Node 3 Normal: 57*64kB 6*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB 0*8192kB 0*16384kB 0*32768kB 0*65536kB 0*131072kB 0*262144kB 0*524288kB 0*1048576kB 0*2097152kB 0*4194304kB = 4416kB
-1158 total pagecache pages
-Swap cache: add 525, delete 283, find 0/0
-Free swap  = 1997888kB
-Total swap = 2031488kB
-Out of memory: kill process 56203 (usex) score 2837 or a child
-Killed process 56309 (usex)
-
-
-
-----------------------
-if zone->recent_scanned parameter become inbalanceing anon and file,
-OOM killer can happened although swappable page exist.
-
-So, if priority==0, We should try to reclaim all page for prevent OOM.
-
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Thanks.
 
 ---
- mm/vmscan.c |    6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
 
-Index: b/mm/vmscan.c
+Usemaps are allocated on the section which has pgdat by this.
+
+Because usemap size is very small, many other sections usemaps
+are allocated on only one page. If a section has usemap, it
+can't be removed until removing other sections.
+This dependency is not desirable for memory removing.
+
+Pgdat has similar feature. When a section has pgdat area, it 
+must be the last section for removing on the node.
+So, if section A has pgdat and section B has usemap for section A,
+Both sections can't be removed due to dependency each other.
+
+To solve this issue, this patch collects usemap on same
+section with pgdat as much as possible.
+If other sections doesn't have any dependency, this section will
+be able to be removed finally.
+
+Change log of take 4.
+ - Some cleanups.
+   * Add KERN_INFO and KERN_CONT for printk messages.
+   * Remove redundant nid calculation in 
+     sparse_early_usemap_alloc_section().
+     pgdat is passed directly, and function name is changed to
+     sparse_early_usemap_alloc_pgdat_section(pgdat).
+     (Because argument becomes pgdat, not pnum).
+   * Comment was changed to be read easier.
+
+Change log of take 3.
+ - Change dependency message and comment.
+  (Thanks! > Andy Whitcroft-san)
+
+Change log of take 2.
+ - This feature becomes effective only when CONFIG_MEMORY_HOTREMOVE is on.
+   If hotremove is off, this feature is not necessary.
+ - Allow allocation on other section if alloc_bootmem_section() fails.
+   This removes previous regression.
+ - Show message if allocation on same section fails.
+
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+
+---
+
+ mm/sparse.c |   78 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 77 insertions(+), 1 deletion(-)
+
+Index: current/mm/sparse.c
 ===================================================================
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1464,8 +1464,10 @@ static unsigned long shrink_zone(int pri
- 			 * kernel will slowly sift through each list.
- 			 */
- 			scan = zone_page_state(zone, NR_LRU_BASE + l);
--			scan >>= priority;
--			scan = (scan * percent[file]) / 100;
-+			if (priority) {
-+				scan >>= priority;
-+				scan = (scan * percent[file]) / 100;
-+			}
- 			zone->lru[l].nr_scan += scan + 1;
- 			nr[l] = zone->lru[l].nr_scan;
- 			if (nr[l] >= sc->swap_cluster_max)
+--- current.orig/mm/sparse.c	2008-06-17 15:34:29.000000000 +0900
++++ current/mm/sparse.c	2008-06-24 15:29:21.000000000 +0900
+@@ -269,16 +269,92 @@
+ }
+ #endif /* CONFIG_MEMORY_HOTPLUG */
+ 
++#ifdef CONFIG_MEMORY_HOTREMOVE
++static unsigned long * __init
++sparse_early_usemap_alloc_pgdat_section(struct pglist_data *pgdat)
++{
++	unsigned long section_nr;
++
++	/*
++	 * A page may contain usemaps for other sections preventing the
++	 * page being freed and making a section unremovable while
++	 * other sections referencing the usemap retmain active. Similarly,
++	 * a pgdat can prevent a section being removed. If section A
++	 * contains a pgdat and section B contains the usemap, both
++	 * sections become inter-dependent. This allocates usemaps
++	 * from the same section as the pgdat where possible to avoid
++	 * this problem.
++	 */
++	section_nr = pfn_to_section_nr(__pa(pgdat) >> PAGE_SHIFT);
++	return alloc_bootmem_section(usemap_size(), section_nr);
++}
++
++static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
++{
++	unsigned long usemap_snr, pgdat_snr;
++	static unsigned long old_usemap_snr = NR_MEM_SECTIONS;
++	static unsigned long old_pgdat_snr = NR_MEM_SECTIONS;
++	struct pglist_data *pgdat = NODE_DATA(nid);
++	int usemap_nid;
++
++	usemap_snr = pfn_to_section_nr(__pa(usemap) >> PAGE_SHIFT);
++	pgdat_snr = pfn_to_section_nr(__pa(pgdat) >> PAGE_SHIFT);
++	if (usemap_snr == pgdat_snr)
++		return;
++
++	if (old_usemap_snr == usemap_snr && old_pgdat_snr == pgdat_snr)
++		/* skip redundant message */
++		return;
++
++	old_usemap_snr = usemap_snr;
++	old_pgdat_snr = pgdat_snr;
++
++	usemap_nid = sparse_early_nid(__nr_to_section(usemap_snr));
++	if (usemap_nid != nid) {
++		printk(KERN_INFO
++		       "node %d must be removed before remove section %ld\n",
++		       nid, usemap_snr);
++		return;
++	}
++	/*
++	 * There is a circular dependency.
++	 * Some platforms allow un-removable section because they will just
++	 * gather other removable sections for dynamic partitioning.
++	 * Just notify un-removable section's number here.
++	 */
++	printk(KERN_INFO "Section %ld and %ld (node %d)", usemap_snr,
++	       pgdat_snr, nid);
++	printk(KERN_CONT
++	       " have a circular dependency on usemap and pgdat allocations\n");
++}
++#else
++static unsigned long * __init
++sparse_early_usemap_alloc_pgdat_section(struct pglist_data *pgdat)
++{
++	return NULL;
++}
++
++static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
++{
++}
++#endif /* CONFIG_MEMORY_HOTREMOVE */
++
+ static unsigned long *__init sparse_early_usemap_alloc(unsigned long pnum)
+ {
+ 	unsigned long *usemap;
+ 	struct mem_section *ms = __nr_to_section(pnum);
+ 	int nid = sparse_early_nid(ms);
+ 
+-	usemap = alloc_bootmem_node(NODE_DATA(nid), usemap_size());
++	usemap = sparse_early_usemap_alloc_pgdat_section(NODE_DATA(nid));
+ 	if (usemap)
+ 		return usemap;
+ 
++	usemap = alloc_bootmem_node(NODE_DATA(nid), usemap_size());
++	if (usemap) {
++		check_usemap_section_nr(nid, usemap);
++		return usemap;
++	}
++
+ 	/* Stupid: suppress gcc warning for SPARSEMEM && !NUMA */
+ 	nid = 0;
+ 
+
+-- 
+Yasunori Goto 
 
 
 --
