@@ -1,52 +1,55 @@
-Subject: [PATCH] fix to putback_lru_page()/unevictable page handling rework
-	v3
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20080624184122.D838.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080621185408.E832.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080624184122.D838.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Tue, 24 Jun 2008 13:19:47 -0400
-Message-Id: <1214327987.6563.22.camel@lts-notebook>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 24 Jun 2008 10:30:21 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [rfc patch 3/4] splice: remove confirm from
+ pipe_buf_operations
+In-Reply-To: <E1KB6p9-0001Gq-Fd@pomaz-ex.szeredi.hu>
+Message-ID: <alpine.LFD.1.10.0806241022120.2926@woody.linux-foundation.org>
+References: <20080621154607.154640724@szeredi.hu> <20080621154726.494538562@szeredi.hu> <20080624080440.GJ20851@kernel.dk> <E1KB4Id-0000un-PV@pomaz-ex.szeredi.hu> <20080624111913.GP20851@kernel.dk> <E1KB6p9-0001Gq-Fd@pomaz-ex.szeredi.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: jens.axboe@oracle.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-PATCH fix to rework of putback_lru_page locking.
 
-Against:  26-rc5-mm3 atop Kosaki Motohiro's v3 rework of Kamezawa
-Hiroyuki's putback_lru_page rework patch.
+On Tue, 24 Jun 2008, Miklos Szeredi wrote:
+> 
+> OK it could be done, possibly at great pain.  But why is it important?
+> What's the use case where it matters that splice-in should not block
+> on the read?
 
-'lru' was not being set to 'UNEVICTABLE when page was, in fact,
-unevictable [really "nonreclaimable" :-)], so retry would never
-happen, and culled pages never counted.
+If you're splicing from one file to another, the _goal_ you should have is 
+that you want to have a mode where you can literally steal the page, and 
+never _ever_ be IO-synchronous (well, meta-data accesses will be, you 
+can't really avoid that sanely).
 
-Also, redundant mem_cgroup_move_lists()--one with incorrect 'lru',
-in the case of unevictable pages--messes up memcontroller tracking [I think].
+IOW, it should be possible to do a
 
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+ - splice() file->pipe with SPLICE_STEAL
+	don't even wait for the read to finish!
 
- mm/vmscan.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ - splice() pipe->file
+	insert the page into the destination page cache, mark it dirty
 
-Index: linux-2.6.26-rc5-mm3/mm/vmscan.c
-===================================================================
---- linux-2.6.26-rc5-mm3.orig/mm/vmscan.c	2008-06-23 11:45:26.000000000 -0400
-+++ linux-2.6.26-rc5-mm3/mm/vmscan.c	2008-06-24 12:45:15.000000000 -0400
-@@ -514,8 +514,8 @@ redo:
- 		 * Put unevictable pages directly on zone's unevictable
- 		 * list.
- 		 */
-+		lru = LRU_UNEVICTABLE;
- 		add_page_to_unevictable_list(page);
--		mem_cgroup_move_lists(page, LRU_UNEVICTABLE);
- 	}
- 
- 	mem_cgroup_move_lists(page, lru);
+an no, we probably do not support that yet (for example, I wouldn't be 
+surprised if "dirty + !uptodate" is considered an error for the VM even 
+though the page should still be locked from the read), but it really was a 
+design goal.
 
+Also, asynchronous is important even when you "just" want to overlap IO 
+with CPU, so even if it's going to the network, then if you can delay the 
+"wait for IO to complete" until the last possible moment (ie the _second_ 
+splice, when you end up copying it into an SKB, then both your throughput 
+and your latency are likely going to be noticeably better, because you've 
+now been able to do a lot of the costly CPU work (system exit + entry at 
+the least, but hopefully a noticeable portion of the TCP stack too) 
+overlapped with the disk seeking.
+
+So asynchronous ops was really one of the big goals for splice. 
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
