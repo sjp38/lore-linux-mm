@@ -1,62 +1,96 @@
-In-reply-to: <alpine.LFD.1.10.0806241129590.2926@woody.linux-foundation.org>
-	(message from Linus Torvalds on Tue, 24 Jun 2008 11:31:33 -0700 (PDT))
-Subject: Re: [rfc patch 3/4] splice: remove confirm from
- pipe_buf_operations
-References: <20080621154607.154640724@szeredi.hu> <20080621154726.494538562@szeredi.hu> <20080624080440.GJ20851@kernel.dk> <E1KB4Id-0000un-PV@pomaz-ex.szeredi.hu> <20080624111913.GP20851@kernel.dk> <E1KB6p9-0001Gq-Fd@pomaz-ex.szeredi.hu>
- <alpine.LFD.1.10.0806241022120.2926@woody.linux-foundation.org> <E1KBDBg-0002XZ-DG@pomaz-ex.szeredi.hu> <alpine.LFD.1.10.0806241129590.2926@woody.linux-foundation.org>
-Message-Id: <E1KBDpg-0002bR-3X@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Tue, 24 Jun 2008 21:05:36 +0200
+Subject: Re: [RFC][PATCH] putback_lru_page()/unevictable page handling
+	rework v3
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20080624105527.d9e9eba0.akpm@linux-foundation.org>
+References: <20080621185408.E832.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080624114006.D81C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <1214327453.6563.14.camel@lts-notebook>
+	 <20080624105527.d9e9eba0.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
+Date: Tue, 24 Jun 2008 15:11:29 -0400
+Message-Id: <1214334689.6563.63.camel@lts-notebook>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: torvalds@linux-foundation.org
-Cc: miklos@szeredi.hu, jens.axboe@oracle.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 24 Jun 2008, Miklos Szeredi wrote:
+On Tue, 2008-06-24 at 10:55 -0700, Andrew Morton wrote:
+> On Tue, 24 Jun 2008 13:10:53 -0400 Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+> 
+> > On Tue, 2008-06-24 at 11:43 +0900, KOSAKI Motohiro wrote:
+> > > Hi
+> > > 
+> > > > I merged kamezawa-san's SHMEM related fix.
+> > > > this patch works well >2H.
+> > > > and, I am going to test on stress workload during this week end.
+> > > > 
+> > > > but I hope recieve review at first.
+> > > > thus I post it now.
+> > > 
+> > > Unfortunately, my machine crashed last night ;-)
+> > > I'll dig it.
 > > 
-> > OK.  But currently we have an implementation that
 > > 
-> >  1) doesn't do any of this, unless readahead is disabled
+> > I ran 26-rc5-mm3 with 5 split/unevictable lru patches that you posted on
+> > 19june.  I replaced patch 5 of that series with the subject patch
+> > [rework v3, merged SHMEM fix].  This kernel ran my 'usex' stress load
+> > overnight for 23+ hours on both ia64 and x86_64 platforms with no
+> > problems.  I evidently did not hit the problem you did.
+> > 
+> > I'm rebuilding with a patch to a small problem that I discovered along
+> > with your recent patch to "prevent incorrect oom...".  I'll let you know
+> > how that goes as well.
+> > 
+> > I'll send along two additional patches shortly.
+> > 
 > 
-> Sure. But removing even the conceptual support? Not a good idea.
+> My chances of working out which patches I need to apply to -mm are
+> near-zero.  I'm working through my vacation backlog in reverse order
+> and haven't got up to this topic yet.
 > 
-> > And in addition, splice-in and splice-out can return a short count or
-> > even zero count if the filesystem invalidates the cached pages during
-> > the splicing (data became stale for example).  Are these the right
-> > semantics?  I'm not sure.
-> 
-> What does that really have with splice() and removing the features? Why 
-> don't you just fix that issue? 
+> As you've been paying attention it would be appreciated if you could
+> send me some stuff, please.
 
-Because it's freakin' difficult, and I'm lazy, that's why :)
+I saw your prior mail to Rik about this, but seem to have deleted it :(.
 
-Let's start with page_cache_pipe_buf_confirm().  How should we deal
-with finding an invalidated page (!PageUptodate(page) &&
-!page->mapping)?
+The stack that I'm currently running atop 26-rc5-mm3 contains the
+following:
 
-We could return zero to use the contents even though it was
-invalidated, not good, but if the page was originally uptodate, then
-it should be OK to use the stale data.  But it could have been
-invalidated before becoming uptodate, so the contents could be total
-crap, and that's not good.  So now we have to tweak page invalidation
-to differentiate between was-uptodate and was-never-uptodate pages.
+>From Kosaki Motohiro ~19jun:
+[-mm][PATCH 1/5]  fix munlock page table walk
+[-mm][PATCH 2/5] migration_entry_wait fix.
+[-mm][PATCH 3/5] collect lru meminfo statistics from correct offset
+[-mm][PATCH 4/5]  fix incorrect Mlocked field of /proc/meminfo.
+The following patch replaces 5/5:
+[RFC][PATCH] putback_lru_page()/unevictable page handling rework v3
+The following "rfc" was acked by Rik:
+[RFC][PATCH] prevent incorrect oom under split_lru
 
-The other is __generic_file_splice_read().  Currently it just bails
-out if it finds an invalidated page.  That could be rewritten to throw
-away the page, look it up again in the radix tree, etc, etc...  Lots
-of added complexity in an already not-too-simple function.
+Two that I posted today [24Jun]--fixes to the "rework v3" patch:
+[PATCH] fix to putback_lru_page()/unevictable page handling rework
+[PATCH] fix2 to putback_lru_page()/unevictable page handling
+i>>?
+The resulting kernel has been running well on my largish ia64 and x86_64
+platforms under a work load that I use to stress reclaim, swapping,
+mlocking, ...  However, Kosaki-san is apparently still experiencing
+panics with a cpuset migration scenario discovered by i>>?Daisuke
+Nishimura.  We're still investigating the crash, but the patches listed
+above, despite the "rfc" on a couple of them, are an improvement over
+26-rc5-mm3.
 
-All for what?  To be able to keep the async-on-no-readahead behavior
-of generic_file_splice_read()?  The current implementation is not even
-close to what would be required to do the async splicing properly.
+I believe that Rik has at least one other fix related to "loopback over
+tmpfs" or such.
 
-Conclusion: I think we are better off with a simple
-do_generic_file_read() based implementation until someone gives this
-the proper thought and effort, than to leave all the complex and dead
-code to rot and cause people (me) headaches... :)
+Is the list above sufficient to extract the patches from your mail
+backlog, or would you prefer that we resend them?
 
-Miklos
+I'll also send along a patch to update the document to match the
+reworked lru handling methodology that Kamezawa Hiroyuki did.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
