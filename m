@@ -1,18 +1,26 @@
-Date: Wed, 25 Jun 2008 19:11:18 +0900
+Date: Wed, 25 Jun 2008 19:14:54 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [-mm][PATCH 10/10] putback_lru_page()/unevictable page handling rework v4
-In-Reply-To: <20080625185717.D84C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080625185717.D84C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20080625191014.D86A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [-mm][PATCH 10/10] putback_lru_page()/unevictable page handling rework v4
+In-Reply-To: <20080625191014.D86A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080625185717.D84C.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080625191014.D86A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080625191237.D86D.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroy@jp.fujitsu.com>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroy@jp.fujitsu.com>
+
+Agghh, typo to kamezawa-san's e-mail.
+resend this patch.
+
+
+===========================================================
+putback_lru_page()/unevictable page handling rework.
 
 Changelog
 ================
@@ -56,7 +64,7 @@ changed or not again. if changed, retry to putback.
 
 This patche changes also caller side and cleaning up lock/unlock_page().
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroy@jp.fujitsu.com>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 ---
