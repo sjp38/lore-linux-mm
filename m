@@ -1,43 +1,48 @@
-Date: Wed, 25 Jun 2008 19:06:35 +0900
+Date: Wed, 25 Jun 2008 19:07:47 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [-mm][PATCH 6/10] fix incorrect Mlocked field of /proc/meminfo
+Subject: [-mm][PATCH 7/10]  prevent incorrect oom under split_lru
 In-Reply-To: <20080625185717.D84C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 References: <20080625185717.D84C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20080625190542.D85E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080625190639.D861.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh@veritas.com>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Against: 2.6.26-rc5-mm3
+if zone->recent_scanned parameter become inbalanceing anon and file,
+OOM killer can happened although swappable page exist.
 
-Mlocked field of /proc/meminfo display silly number.
-because trivial mistake exist in meminfo_read_proc().
+So, if priority==0, We should try to reclaim all page for prevent OOM.
 
-Signed-off-by: Hugh Dickins <hugh@veritas.com>
+
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 
 ---
- fs/proc/proc_misc.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/vmscan.c |    6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-Index: b/fs/proc/proc_misc.c
+Index: b/mm/vmscan.c
 ===================================================================
---- a/fs/proc/proc_misc.c
-+++ b/fs/proc/proc_misc.c
-@@ -216,7 +216,7 @@ static int meminfo_read_proc(char *page,
- 		K(pages[LRU_INACTIVE_FILE]),
- #ifdef CONFIG_UNEVICTABLE_LRU
- 		K(pages[LRU_UNEVICTABLE]),
--		K(pages[NR_MLOCK]),
-+		K(global_page_state(NR_MLOCK)),
- #endif
- #ifdef CONFIG_HIGHMEM
- 		K(i.totalhigh),
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1460,8 +1460,10 @@ static unsigned long shrink_zone(int pri
+ 			 * kernel will slowly sift through each list.
+ 			 */
+ 			scan = zone_page_state(zone, NR_LRU_BASE + l);
+-			scan >>= priority;
+-			scan = (scan * percent[file]) / 100;
++			if (priority) {
++				scan >>= priority;
++				scan = (scan * percent[file]) / 100;
++			}
+ 			zone->lru[l].nr_scan += scan + 1;
+ 			nr[l] = zone->lru[l].nr_scan;
+ 			if (nr[l] >= sc->swap_cluster_max)
 
 
 --
