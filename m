@@ -1,54 +1,60 @@
-In-reply-to: <20080625141654.GA4803@2ka.mipt.ru> (message from Evgeniy
-	Polyakov on Wed, 25 Jun 2008 18:16:55 +0400)
-Subject: Re: [patch 1/2] mm: dont clear PG_uptodate in invalidate_complete_page2()
-References: <20080625124038.103406301@szeredi.hu> <20080625124121.839734708@szeredi.hu> <20080625131117.GA28136@2ka.mipt.ru> <E1KBV7H-0005nv-Gl@pomaz-ex.szeredi.hu> <20080625141654.GA4803@2ka.mipt.ru>
-Message-Id: <E1KBWBK-0006Lp-03@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Wed, 25 Jun 2008 16:41:10 +0200
+Subject: Re: [-mm][PATCH 0/10]  memory related bugfix set for
+	2.6.26-rc5-mm3 v2
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20080625185717.D84C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080625185717.D84C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Wed, 25 Jun 2008 11:09:31 -0400
+Message-Id: <1214406571.7010.21.camel@lts-notebook>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: johnpol@2ka.mipt.ru
-Cc: miklos@szeredi.hu, jens.axboe@oracle.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, hugh@veritas.com, nickpiggin@yahoo.com.au
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> > > Like __block_prepare_write()?
-> > 
-> > That's called with the page locked and page->mapping verified.
+On Wed, 2008-06-25 at 18:59 +0900, KOSAKI Motohiro wrote:
+> Hi, Andrew and mm guys!
 > 
-> Only when called via standard codepath.
-
-It would be a grave error to call it without the page lock.
-
-> > I want the page fully invalidated, and I also want splice and nfs
-> > exporting to work as for other filesystems.
+> this is mm related fixes patchset for 2.6.26-rc5-mm3 v2.
 > 
-> Fully invalidated page can not be uptodate, doesnt' it? :)
+> Unfortunately, this version has several bugs and 
+> some bugs depend on each other.
+> So, I collect, sort, and fold these patchs.
+> 
+> 
+> btw: I wrote "this patch still crashed" last midnight.
+> but it works well today.
+> umm.. I was dreaming?
 
-That's just a question of how we interpret PG_uptodate.  If it means:
-the page contains data that is valid, or was valid at some point in
-time, then an invalidated or truncated page can be uptodate.
+Yes.  I ran my stress load with Nishimura-san's cpuset migration test on
+x86_64 and ia64 platforms overnight.  I didn't have all of the memcgroup
+patches applied--just the unevictable lru related patches.  Tests ran
+for ~19 hours--including 70k-80k passes through the cpuset migration
+test--until I shut them down w/o error.  
 
-> You destroy existing functionality just because there are some obscure
-> places, where it is used, so instead of fixing that places, you treat
-> the symptom. After writing previous mail I found a way to workaround it
-> even with your changes, but the whole approach of changing
-> invalidate_complete_page2() is not correct imho.
+OK, I did see two oom kills on the ia64.  My stress load was already
+pretty close to edge, but they look suspect because I still had a couple
+of MB free on each node according to the console logs.  The system did
+seem to choose a reasonable task to kill, tho'--a memtoy test that locks
+down 10s of GB of memory.
 
-You rely on page being !PageUptodate() after being invalidated?  Why
-can't you check page->mapping instead (as everything else does)?
+> 
+> Anyway, I believe this patchset improve robustness and
+> provide better testing baseline.
+> 
+> enjoy!
 
-> Is this nfs/fuse problem you described:
-> http://marc.info/?l=linux-fsdevel&m=121396920822693&w=2
+I'll restart the tests with this series.
 
-Yes.
-
-> Instead of returning error when reading from invalid page, now you
-> return old content of it?
-
-No, instead of returning a short count, it is now returning old
-content.
-
-Miklos
+> 
+> 
+> Andrew, this patchset is my silver-spoon.
+> if you like it, I'm glad too.
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
