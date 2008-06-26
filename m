@@ -1,18 +1,18 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5Q9OAqW010897
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2008 05:24:10 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5Q9SwlB176982
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2008 03:28:58 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5Q9Svsu021865
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2008 03:28:57 -0600
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5Q9TL8t018240
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2008 05:29:21 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5Q9TKvX221346
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2008 05:29:20 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5Q9TKI9014329
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2008 05:29:20 -0400
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Thu, 26 Jun 2008 14:58:55 +0530
-Message-Id: <20080626092855.16841.52723.sendpatchset@balbir-laptop>
+Date: Thu, 26 Jun 2008 14:59:18 +0530
+Message-Id: <20080626092918.16841.74883.sendpatchset@balbir-laptop>
 In-Reply-To: <20080626092815.16841.54817.sendpatchset@balbir-laptop>
 References: <20080626092815.16841.54817.sendpatchset@balbir-laptop>
-Subject: [3/5] memrlimit fix sleep inside sleeplock in mm_update_next_owner()
+Subject: [5/5] memrlimit correct mremap and move_vma accounting
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -20,56 +20,48 @@ Cc: Hugh Dickins <hugh@veritas.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, 
 List-ID: <linux-mm.kvack.org>
 
 
-We have a sleep inside a spinlock (read side locking of tasklist_lock). We
-try to acquire mmap_sem without releasing the read_lock. Since we have
-the task_struct of the new process, we can release the read_lock, before
-acquiring the task_lock of the chosen one.
-
-Reported-by: Hugh Dickins <hugh@veritas.com>
-
-
+The memrlimit patches did not account for move_vma() since we account for
+address space usage in do_mremap(). The code flow actually increments
+total_vm twice (once in do_mremap() and once in move_vma()), the excess
+is removed in remove_vma_list() via do_munmap(). Since we did not do the
+duplicate accounting, the code was seeing the extra uncharge, causing
+our accounting to break. This patch fixes the problem
 
 Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
 
- kernel/exit.c |   10 +++-------
- 1 file changed, 3 insertions(+), 7 deletions(-)
+ mm/mremap.c |    9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
 
-diff -puN kernel/exit.c~memrlimit-fix-sleep-in-spinlock-bug kernel/exit.c
---- linux-2.6.26-rc5/kernel/exit.c~memrlimit-fix-sleep-in-spinlock-bug	2008-06-26 14:48:21.000000000 +0530
-+++ linux-2.6.26-rc5-balbir/kernel/exit.c	2008-06-26 14:48:21.000000000 +0530
-@@ -636,28 +636,24 @@ retry:
- assign_new_owner:
- 	BUG_ON(c == p);
- 	get_task_struct(c);
-+	read_unlock(&tasklist_lock);
- 	down_write(&mm->mmap_sem);
- 	/*
- 	 * The task_lock protects c->mm from changing.
- 	 * We always want mm->owner->mm == mm
- 	 */
- 	task_lock(c);
--	/*
--	 * Delay read_unlock() till we have the task_lock()
--	 * to ensure that c does not slip away underneath us
--	 */
--	read_unlock(&tasklist_lock);
- 	if (c->mm != mm) {
- 		task_unlock(c);
--		put_task_struct(c);
- 		up_write(&mm->mmap_sem);
-+		put_task_struct(c);
- 		goto retry;
- 	}
- 	cgroup_mm_owner_callbacks(mm->owner, c);
- 	mm->owner = c;
- 	task_unlock(c);
--	put_task_struct(c);
- 	up_write(&mm->mmap_sem);
-+	put_task_struct(c);
- }
- #endif /* CONFIG_MM_OWNER */
+diff -puN mm/mremap.c~memrlimit-fix-move-vma-accounting mm/mremap.c
+--- linux-2.6.26-rc5/mm/mremap.c~memrlimit-fix-move-vma-accounting	2008-06-26 14:48:25.000000000 +0530
++++ linux-2.6.26-rc5-balbir/mm/mremap.c	2008-06-26 14:48:25.000000000 +0530
+@@ -177,10 +177,15 @@ static unsigned long move_vma(struct vm_
+ 	if (mm->map_count >= sysctl_max_map_count - 3)
+ 		return -ENOMEM;
  
++	if (memrlimit_cgroup_charge_as(mm, new_len >> PAGE_SHIFT))
++		return -ENOMEM;
++
+ 	new_pgoff = vma->vm_pgoff + ((old_addr - vma->vm_start) >> PAGE_SHIFT);
+ 	new_vma = copy_vma(&vma, new_addr, new_len, new_pgoff);
+-	if (!new_vma)
++	if (!new_vma) {
++		memrlimit_cgroup_uncharge_as(mm, new_len >> PAGE_SHIFT);
+ 		return -ENOMEM;
++	}
+ 
+ 	moved_len = move_page_tables(vma, old_addr, new_vma, new_addr, old_len);
+ 	if (moved_len < old_len) {
+@@ -386,6 +391,8 @@ unsigned long do_mremap(unsigned long ad
+ 		}
+ 	}
+ 
++	memrlimit_cgroup_uncharge_as(mm, (new_len - old_len) >> PAGE_SHIFT);
++
+ 	/*
+ 	 * We weren't able to just expand or shrink the area,
+ 	 * we need to create a new one and move it..
 _
 
 -- 
