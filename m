@@ -1,9 +1,10 @@
-Date: Thu, 26 Jun 2008 10:19:39 -0700 (PDT)
+Date: Thu, 26 Jun 2008 10:23:17 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 0/5] [RFC] Conversion of reverse map locks to semaphores
-In-Reply-To: <20080626005315.GB6938@duo.random>
-Message-ID: <Pine.LNX.4.64.0806261018190.7392@schroedinger.engr.sgi.com>
-References: <20080626003632.049547282@sgi.com> <20080626005315.GB6938@duo.random>
+Subject: Re: [patch 5/5] Convert anon_vma spinlock to rw semaphore
+In-Reply-To: <20080626010510.GC6938@duo.random>
+Message-ID: <Pine.LNX.4.64.0806261019440.7392@schroedinger.engr.sgi.com>
+References: <20080626003632.049547282@sgi.com> <20080626003833.966166360@sgi.com>
+ <20080626010510.GC6938@duo.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -14,11 +15,13 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 26 Jun 2008, Andrea Arcangeli wrote:
 
-> Ah great, so you're maintaining those! Just a moment before seeing
+> You dropped the benchmark numbers from the comment, that was useful
+> data. You may want to re-run the benchmark on different hardware just
+> to be sure it was valid though (just to be sure it's a significant
+> regression for AIM).
 
-clameter@sgi.com will cease to exist soon. Sorry. Maybe Robin?
-
-
+I could not reproduce it with the recent versions. The degradation was 
+less than expected.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
