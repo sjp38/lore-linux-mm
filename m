@@ -1,42 +1,110 @@
-Date: Thu, 26 Jun 2008 09:36:01 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] prevent incorrect oom under split_lru
-In-Reply-To: <1214395885.15232.17.camel@twins>
-References: <28c262360806242356n3f7e02abwfee1f6acf0fd2c61@mail.gmail.com> <1214395885.15232.17.camel@twins>
-Message-Id: <20080626093338.FCF7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Message-Id: <20080626003833.399527531@sgi.com>
+References: <20080626003632.049547282@sgi.com>
+Date: Wed, 25 Jun 2008 17:36:35 -0700
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [patch 3/5] Add capability to check if rwsems are contended.
+Content-Disposition: inline; filename=rwsem_is_contended
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, MinChan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, akpm@linux-foundation.org, Takenori Nagano <t-nagano@ah.jp.nec.com>
+To: linux-mm@kvack.org
+Cc: apw@shadowen.org, Andrea Arcangeli <andrea@qumranet.com>, Hugh Dickins <hugh@veritas.com>, holt@sgi.com, steiner@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-> > But if such emergency happen in embedded system, application can't be
-> > executed for some time.
-> > I am not sure how long time it take.
-> > But In some application, schedule period is very important than memory
-> > reclaim latency.
-> > 
-> > Now, In your patch, when such emergency happen, it continue to reclaim
-> > page until it will scan entire page of lru list.
-> > It
-> 
-> IMHO embedded real-time apps shoud mlockall() and not do anything that
-> can result in memory allocations in their fast (deterministic) paths.
+Add a function to rw_semaphores to check if there are any processes
+waiting for the semaphore. Add rwsem_needbreak() to sched.h that works
+in the same way as spinlock_needbreak().
 
-Indeed.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Signed-off-by: Andrea Arcangeli <andrea@qumranet.com>
 
-> The much more important case is desktop usage - that is where we run non
-> real-time code, but do expect 'low' latency due to user-interaction.
-> 
-> >From hitting swap on my 512M laptop (rather frequent occurance) I know
-> we can do better here,..
+---
+ include/linux/rwsem.h |    2 ++
+ include/linux/sched.h |    9 +++++++++
+ lib/rwsem-spinlock.c  |   12 ++++++++++++
+ lib/rwsem.c           |   12 ++++++++++++
+ 4 files changed, 35 insertions(+)
 
-nice suggestion.
-thanks.
+Index: linux-2.6/include/linux/rwsem.h
+===================================================================
+--- linux-2.6.orig/include/linux/rwsem.h	2008-06-09 20:20:59.037591344 -0700
++++ linux-2.6/include/linux/rwsem.h	2008-06-09 20:28:47.359341232 -0700
+@@ -57,6 +57,8 @@ extern void up_write(struct rw_semaphore
+  */
+ extern void downgrade_write(struct rw_semaphore *sem);
+ 
++extern int rwsem_is_contended(struct rw_semaphore *sem);
++
+ #ifdef CONFIG_DEBUG_LOCK_ALLOC
+ /*
+  * nested locking. NOTE: rwsems are not allowed to recurse
+Index: linux-2.6/include/linux/sched.h
+===================================================================
+--- linux-2.6.orig/include/linux/sched.h	2008-06-09 20:20:59.045591415 -0700
++++ linux-2.6/include/linux/sched.h	2008-06-09 20:28:47.389841510 -0700
+@@ -2071,6 +2071,15 @@ static inline int spin_needbreak(spinloc
+ #endif
+ }
+ 
++static inline int rwsem_needbreak(struct rw_semaphore *sem)
++{
++#ifdef CONFIG_PREEMPT
++	return rwsem_is_contended(sem);
++#else
++	return 0;
++#endif
++}
++
+ /*
+  * Reevaluate whether the task has signals pending delivery.
+  * Wake the task if so.
+Index: linux-2.6/lib/rwsem-spinlock.c
+===================================================================
+--- linux-2.6.orig/lib/rwsem-spinlock.c	2008-06-09 20:20:59.053591561 -0700
++++ linux-2.6/lib/rwsem-spinlock.c	2008-06-09 20:28:47.402091148 -0700
+@@ -305,6 +305,18 @@ void __downgrade_write(struct rw_semapho
+ 	spin_unlock_irqrestore(&sem->wait_lock, flags);
+ }
+ 
++int rwsem_is_contended(struct rw_semaphore *sem)
++{
++	/*
++	 * Racy check for an empty list. False positives or negatives
++	 * would be okay. False positive may cause a useless dropping of
++	 * locks. False negatives may cause locks to be held a bit
++	 * longer until the next check.
++	 */
++	return !list_empty(&sem->wait_list);
++}
++
++EXPORT_SYMBOL(rwsem_is_contended);
+ EXPORT_SYMBOL(__init_rwsem);
+ EXPORT_SYMBOL(__down_read);
+ EXPORT_SYMBOL(__down_read_trylock);
+Index: linux-2.6/lib/rwsem.c
+===================================================================
+--- linux-2.6.orig/lib/rwsem.c	2008-06-09 20:20:59.061591425 -0700
++++ linux-2.6/lib/rwsem.c	2008-06-09 20:28:47.402091148 -0700
+@@ -251,6 +251,18 @@ asmregparm struct rw_semaphore *rwsem_do
+ 	return sem;
+ }
+ 
++int rwsem_is_contended(struct rw_semaphore *sem)
++{
++	/*
++	 * Racy check for an empty list. False positives or negatives
++	 * would be okay. False positive may cause a useless dropping of
++	 * locks. False negatives may cause locks to be held a bit
++	 * longer until the next check.
++	 */
++	return !list_empty(&sem->wait_list);
++}
++
++EXPORT_SYMBOL(rwsem_is_contended);
+ EXPORT_SYMBOL(rwsem_down_read_failed);
+ EXPORT_SYMBOL(rwsem_down_write_failed);
+ EXPORT_SYMBOL(rwsem_wake);
 
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
