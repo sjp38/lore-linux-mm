@@ -1,98 +1,104 @@
-Date: Thu, 26 Jun 2008 14:14:30 +0200
+Date: Thu, 26 Jun 2008 14:32:31 +0200
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH] kernel parameter vmalloc size fix
-Message-ID: <20080626121430.GK29619@elte.hu>
-References: <20080616042528.GA3003@darkstar.te-china.tietoenator.com> <20080616080131.GC25632@elte.hu> <a8e1da0806232249s36eb90c7la517a40ccfe839ea@mail.gmail.com>
+Subject: Re: [bug] Re: [PATCH] - Fix stack overflow for large values of
+	MAX_APICS
+Message-ID: <20080626123231.GP29619@elte.hu>
+References: <20080620025104.GA25571@sgi.com> <20080620103921.GC32500@elte.hu> <20080624102401.GA27614@elte.hu> <20080625205628.GA17411@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <a8e1da0806232249s36eb90c7la517a40ccfe839ea@mail.gmail.com>
+In-Reply-To: <20080625205628.GA17411@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Young <hidave.darkstar@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, hpa@zytor.com, the arch/x86 maintainers <x86@kernel.org>, Yinghai Lu <yhlu.kernel@gmail.com>
+To: Jack Steiner <steiner@sgi.com>
+Cc: tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Travis <travis@sgi.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-* Dave Young <hidave.darkstar@gmail.com> wrote:
+* Jack Steiner <steiner@sgi.com> wrote:
 
-> I do some test about this last weekend, there's some questions, could 
-> you help to fix it?
+> >> I added trace code & isolated the hang to a call to 
+> >> synchronize_rcu(). Usually from netlink_change_ngroups().
+> >> 
+> >> If I boot with "maxcpus=1, it never hangs (obviously) but always fails
+> >> to mount /root.
+> >> 
+> >> Next I changed NR_CPUS to 128. I still see random hangs.
+> >> 
+> >> 
+> >> I'll chase this more tomorrow. Has anyone else seen any failures that might be
+> >> related???
+> >> 
+> >> 
 > 
-> 1. MAXMEM :
->  (-__PAGE_OFFSET - __VMALLOC_RESERVE).
-> The space after VMALLOC_END is included as well, seting it to
-> (VMALLOC_END - PAGE_OFFSET - __VMALLOC_RESERVE), is it right?
+> Is this already fixed? I see a number of patches to this area have been merged
+> since the failure occurred.
 > 
-> 2. VMALLOC_OFFSET is not considered in __VMALLOC_RESERVE
-> Should fixed by adding VMALLOC_OFFSET to it.
+> I added enough hacks to get backtraces on threads at the time a hang occurs.
+> show_state() shows 79 "kstopmachine" tasks. Most have one of the following backtraces:
 > 
-> 3. VMALLOC_START :
->  (((unsigned long)high_memory + 2 * VMALLOC_OFFSET - 1) & ~(VMALLOC_OFFSET - 1))
-> So it's not always 8M, bigger than 8M possible.
-> Set it to ((unsigned long)high_memory + VMALLOC_OFFSET), is it right?
 > 
-> Attached the proposed patch. please give some advice.
+> 	<6>kstopmachine  R  running task     6400   375    369
+> 	 ffff8101ad28bd80 ffffffff8068c5c6 ffff8101ad28bb20 0000000000000002
+> 	 0000000000000046 0000000000000000 0000000000002f42 ffff8101ad28c8b8
+> 	 ffff8101ad28bb90 ffffffff80254fac 0000000100000000 0000000000000000
+> 	Call Trace:
+> 	   [<ffffffff8068c5c6>] ? thread_return+0x4d/0xbd
+> 	   [<ffffffff80254fac>] ? __lock_acquire+0x643/0x6ad
+> 	   [<ffffffff80212507>] ? sched_clock+0x9/0xc
+> 	   [<ffffffff8022cf41>] ? update_curr_rt+0x111/0x11a
+> 	   [<ffffffff80212507>] ? sched_clock+0x9/0xc
+> 	   [<ffffffff8068c5f2>] ? thread_return+0x79/0xbd
+> 	   [<ffffffff8068ef48>] ? _spin_unlock_irq+0x2b/0x37
+> 	   [<ffffffff8068c5f2>] ? thread_return+0x79/0xbd
+> 	   [<ffffffff80254fac>] ? __lock_acquire+0x643/0x6ad
+> 	   [<ffffffff80212507>] ? sched_clock+0x9/0xc
+> 	   [<ffffffff8068c806>] wait_for_common+0x150/0x160
+> 	   [<ffffffff8068ef48>] ? _spin_unlock_irq+0x2b/0x37
+> 	   [<ffffffff80254fac>] ? __lock_acquire+0x643/0x6ad
+> 	   [<ffffffff80212507>] ? sched_clock+0x9/0xc
+> 	   [<ffffffff8023422b>] ? sys_sched_yield+0x0/0x6e
+> 	   [<ffffffff8026736d>] ? stopmachine+0xaf/0xda
+> 	   [<ffffffff8020d558>] ? child_rip+0xa/0x12
+> 	   [<ffffffff802672be>] ? stopmachine+0x0/0xda
+> 	   [<ffffffff8020d54e>] ? child_rip+0x0/0x12
+> 
+> 	<6>kstopmachine  ? 0000000000000000  6400   367      1
+> 	  ffff8101af9b9ee0 0000000000000046 0000000000000000 0000000000000000
+> 	  0000000000000000 ffff8101af9b4000 ffff8101afdc0000 ffff8101af9b4540
+> 	  0000000600000000 00000000ffff909f ffffffffffffffff ffffffffffffffff
+> 	Call Trace:
+> 	     [<ffffffff8023be98>] do_exit+0x6fe/0x702
+> 	     [<ffffffff8020d55f>] child_rip+0x11/0x12
+> 	     [<ffffffff802672be>] ? stopmachine+0x0/0xda
+> 	     [<ffffffff8020d54e>] ? child_rip+0x0/0x12
+> 
+> 
+> The boot thread shows:
+> 	 <6>swapper       D 0000000000000002  2640     1      0
+> 	  ffff8101afc3fcd0 0000000000000046 ffffffff807d8341 0000000000000200
+> 	  ffffffff807d8335 ffff8101afc40000 ffff8101ad284000 ffff8101afc40540
+> 	  00000005afc3faa0 ffffffff8021e837 ffff8101afc3fab0 ffff8101afc3fd50
+> 
+> 	 [<ffffffff8068c961>] schedule_timeout+0x27/0xb9
+> 	 [<ffffffff8068ef48>] ? _spin_unlock_irq+0x2b/0x37
+> 	 [<ffffffff8068c79c>] wait_for_common+0xe6/0x160
+> 	 [<ffffffff8022d88a>] ? default_wake_function+0x0/0xf
+> 	 [<ffffffff8068c8a0>] wait_for_completion+0x18/0x1a
+> 	 [<ffffffff8024981a>] synchronize_rcu+0x3a/0x41
+> 	 [<ffffffff802498a3>] ? wakeme_after_rcu+0x0/0x15
+> 	 [<ffffffff805d8e1b>] netlink_change_ngroups+0xce/0xfc
+> 	 [<ffffffff805da2c9>] genl_register_mc_group+0xfd/0x160
+> 	 [<ffffffff80ac6d5d>] ? acpi_event_init+0x0/0x57
+> 	 [<ffffffff80ac6d92>] acpi_event_init+0x35/0x57
+> 	 [<ffffffff80aaca8c>] kernel_init+0x1c5/0x31f
+> 
+> 
+> Is this hang already fixed or should I dig deeper?
 
-i've ported it to tip/master, see the patch below. Yinghai, what do you 
-think about this change?
+there's no known hang in tip/master. I.e. removing your MAX_APICS patch 
+clearly resolved that crash.
 
 	Ingo
-
----
- arch/x86/mm/pgtable_32.c     |    3 ++-
- include/asm-x86/page_32.h    |    1 -
- include/asm-x86/pgtable_32.h |    5 +++--
- 3 files changed, 5 insertions(+), 4 deletions(-)
-
-Index: tip/arch/x86/mm/pgtable_32.c
-===================================================================
---- tip.orig/arch/x86/mm/pgtable_32.c
-+++ tip/arch/x86/mm/pgtable_32.c
-@@ -171,7 +171,8 @@ static int __init parse_vmalloc(char *ar
- 	if (!arg)
- 		return -EINVAL;
- 
--	__VMALLOC_RESERVE = memparse(arg, &arg);
-+	/* Add VMALLOC_OFFSET to the parsed value due to vm area guard hole*/
-+	__VMALLOC_RESERVE = memparse(arg, &arg) + VMALLOC_OFFSET;
- 	return 0;
- }
- early_param("vmalloc", parse_vmalloc);
-Index: tip/include/asm-x86/page_32.h
-===================================================================
---- tip.orig/include/asm-x86/page_32.h
-+++ tip/include/asm-x86/page_32.h
-@@ -95,7 +95,6 @@ extern unsigned int __VMALLOC_RESERVE;
- extern int sysctl_legacy_va_layout;
- 
- #define VMALLOC_RESERVE		((unsigned long)__VMALLOC_RESERVE)
--#define MAXMEM			(-__PAGE_OFFSET - __VMALLOC_RESERVE)
- 
- extern void find_low_pfn_range(void);
- extern unsigned long init_memory_mapping(unsigned long start,
-Index: tip/include/asm-x86/pgtable_32.h
-===================================================================
---- tip.orig/include/asm-x86/pgtable_32.h
-+++ tip/include/asm-x86/pgtable_32.h
-@@ -56,8 +56,7 @@ void paging_init(void);
-  * area for the same reason. ;)
-  */
- #define VMALLOC_OFFSET	(8 * 1024 * 1024)
--#define VMALLOC_START	(((unsigned long)high_memory + 2 * VMALLOC_OFFSET - 1) \
--			 & ~(VMALLOC_OFFSET - 1))
-+#define VMALLOC_START	((unsigned long)high_memory + VMALLOC_OFFSET)
- #ifdef CONFIG_X86_PAE
- #define LAST_PKMAP 512
- #else
-@@ -73,6 +72,8 @@ void paging_init(void);
- # define VMALLOC_END	(FIXADDR_START - 2 * PAGE_SIZE)
- #endif
- 
-+#define MAXMEM	(VMALLOC_END - PAGE_OFFSET - __VMALLOC_RESERVE)
-+
- /*
-  * Define this if things work differently on an i386 and an i486:
-  * it will (on an i486) warn about kernel memory accesses that are
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
