@@ -1,30 +1,45 @@
-Date: Thu, 26 Jun 2008 10:31:31 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [-mm][PATCH 10/10] putback_lru_page()/unevictable page handling rework v4
-In-Reply-To: <20080625151316.58ed195e.akpm@linux-foundation.org>
-References: <20080625191237.D86D.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080625151316.58ed195e.akpm@linux-foundation.org>
-Message-Id: <20080626103000.FCFC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <4862F5BB.9030200@ah.jp.nec.com>
+Date: Thu, 26 Jun 2008 10:49:47 +0900
+From: Takenori Nagano <t-nagano@ah.jp.nec.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [RFC][PATCH] prevent incorrect oom under split_lru
+References: <20080624092824.4f0440ca@bree.surriel.com>	 <28c262360806242259k3ac308c4n7cee29b72456e95b@mail.gmail.com>	 <20080625150141.D845.KOSAKI.MOTOHIRO@jp.fujitsu.com>	 <28c262360806242356n3f7e02abwfee1f6acf0fd2c61@mail.gmail.com>	 <1214395885.15232.17.camel@twins> <28c262360806250605le31ba48ma8bb16f996783142@mail.gmail.com>
+In-Reply-To: <28c262360806250605le31ba48ma8bb16f996783142@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee.Schermerhorn@hp.com, riel@redhat.com, kamezawa.hiroyu@jp.fujitsu.com
+To: MinChan Kim <minchan.kim@gmail.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-> And that's kind-of OK.  It's messy, but we could live with it.  However
-> as I expect there will be more fixes to these patches before all this
-> work goes into mainline, this particular patch will become more of a
-> problem as it will make the whole body of work more messy and harder to
-> review and understand.
+MinChan Kim wrote:
+> Hi peter,
 > 
-> So.  Can this patch be simplified in any way?  Or split up into
-> finer-grained patches or something like that?
+> I agree with you.  but if application's virtual address space is big,
+> we have a hard problem with mlockall since memory pressure might be a
+> big.
+> Of course, It will be a RT application design problem.
+> 
+>> The much more important case is desktop usage - that is where we run non
+>> real-time code, but do expect 'low' latency due to user-interaction.
+>>
+>> >From hitting swap on my 512M laptop (rather frequent occurance) I know
+>> we can do better here,..
+>>
+> 
+> Absolutely. It is another example. So, I suggest following patch.
+> It's based on idea of Takenori Nagano's memory reclaim more efficiently.
 
-Yes, sir!
-I'll do it.
+Hi Kim-san,
 
+Thank you for agreeing with me.
+
+I have one question.
+My patch don't mind priority. Why do you need "priority == 0"?
+
+Thanks,
+  Takenori
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
