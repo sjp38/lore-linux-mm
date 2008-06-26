@@ -1,108 +1,112 @@
-Message-Id: <20080626003833.399527531@sgi.com>
+Message-Id: <20080626003832.789231631@sgi.com>
 References: <20080626003632.049547282@sgi.com>
-Date: Wed, 25 Jun 2008 17:36:35 -0700
+Date: Wed, 25 Jun 2008 17:36:33 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 3/5] Add capability to check if rwsems are contended.
-Content-Disposition: inline; filename=rwsem_is_contended
+Subject: [patch 1/5] Move tlb handling into free_pgtables()
+Content-Disposition: inline; filename=move_tlb_flushing_into_free_pgtables
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: apw@shadowen.org, Andrea Arcangeli <andrea@qumranet.com>, Hugh Dickins <hugh@veritas.com>, holt@sgi.com, steiner@sgi.com
+Cc: apw@shadowen.org, Hugh Dickins <hugh@veritas.com>, holt@sgi.com, steiner@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Add a function to rw_semaphores to check if there are any processes
-waiting for the semaphore. Add rwsem_needbreak() to sched.h that works
-in the same way as spinlock_needbreak().
+Move the tlb_gather/tlb_finish call into the free_pgtables() function so
+that tlb_gather/finish is done for each vma separately.
+This may add a number of tlb flushes depending on the
+number of vmas that survive the coalescing scan.
+
+The first pointer argument to free_pgtables() can then be dropped.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
-Signed-off-by: Andrea Arcangeli <andrea@qumranet.com>
 
 ---
- include/linux/rwsem.h |    2 ++
- include/linux/sched.h |    9 +++++++++
- lib/rwsem-spinlock.c  |   12 ++++++++++++
- lib/rwsem.c           |   12 ++++++++++++
- 4 files changed, 35 insertions(+)
+ include/linux/mm.h |    4 ++--
+ mm/memory.c        |   13 +++++++++----
+ mm/mmap.c          |    6 +++---
+ 3 files changed, 14 insertions(+), 9 deletions(-)
 
-Index: linux-2.6/include/linux/rwsem.h
+Index: linux-2.6/include/linux/mm.h
 ===================================================================
---- linux-2.6.orig/include/linux/rwsem.h	2008-06-09 20:20:59.037591344 -0700
-+++ linux-2.6/include/linux/rwsem.h	2008-06-09 20:28:47.359341232 -0700
-@@ -57,6 +57,8 @@ extern void up_write(struct rw_semaphore
-  */
- extern void downgrade_write(struct rw_semaphore *sem);
+--- linux-2.6.orig/include/linux/mm.h	2008-06-09 20:20:58.770505275 -0700
++++ linux-2.6/include/linux/mm.h	2008-06-09 20:22:59.845841566 -0700
+@@ -772,8 +772,8 @@ int walk_page_range(const struct mm_stru
+ 		    void *private);
+ void free_pgd_range(struct mmu_gather **tlb, unsigned long addr,
+ 		unsigned long end, unsigned long floor, unsigned long ceiling);
+-void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *start_vma,
+-		unsigned long floor, unsigned long ceiling);
++void free_pgtables(struct vm_area_struct *start_vma, unsigned long floor,
++						unsigned long ceiling);
+ int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 			struct vm_area_struct *vma);
+ void unmap_mapping_range(struct address_space *mapping,
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c	2008-06-09 20:20:58.806841642 -0700
++++ linux-2.6/mm/memory.c	2008-06-09 20:22:59.845841566 -0700
+@@ -271,9 +271,11 @@ void free_pgd_range(struct mmu_gather **
+ 	} while (pgd++, addr = next, addr != end);
+ }
  
-+extern int rwsem_is_contended(struct rw_semaphore *sem);
+-void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *vma,
+-		unsigned long floor, unsigned long ceiling)
++void free_pgtables(struct vm_area_struct *vma, unsigned long floor,
++							unsigned long ceiling)
+ {
++	struct mmu_gather *tlb;
 +
- #ifdef CONFIG_DEBUG_LOCK_ALLOC
+ 	while (vma) {
+ 		struct vm_area_struct *next = vma->vm_next;
+ 		unsigned long addr = vma->vm_start;
+@@ -285,7 +287,8 @@ void free_pgtables(struct mmu_gather **t
+ 		unlink_file_vma(vma);
+ 
+ 		if (is_vm_hugetlb_page(vma)) {
+-			hugetlb_free_pgd_range(tlb, addr, vma->vm_end,
++			tlb = tlb_gather_mmu(vma->vm_mm, 0);
++			hugetlb_free_pgd_range(&tlb, addr, vma->vm_end,
+ 				floor, next? next->vm_start: ceiling);
+ 		} else {
+ 			/*
+@@ -298,9 +301,11 @@ void free_pgtables(struct mmu_gather **t
+ 				anon_vma_unlink(vma);
+ 				unlink_file_vma(vma);
+ 			}
+-			free_pgd_range(tlb, addr, vma->vm_end,
++			tlb = tlb_gather_mmu(vma->vm_mm, 0);
++			free_pgd_range(&tlb, addr, vma->vm_end,
+ 				floor, next? next->vm_start: ceiling);
+ 		}
++		tlb_finish_mmu(tlb, addr, vma->vm_end);
+ 		vma = next;
+ 	}
+ }
+Index: linux-2.6/mm/mmap.c
+===================================================================
+--- linux-2.6.orig/mm/mmap.c	2008-06-09 20:20:58.821591534 -0700
++++ linux-2.6/mm/mmap.c	2008-06-09 20:22:59.845841566 -0700
+@@ -1762,9 +1762,9 @@ static void unmap_region(struct mm_struc
+ 	update_hiwater_rss(mm);
+ 	unmap_vmas(&tlb, vma, start, end, &nr_accounted, NULL);
+ 	vm_unacct_memory(nr_accounted);
+-	free_pgtables(&tlb, vma, prev? prev->vm_end: FIRST_USER_ADDRESS,
+-				 next? next->vm_start: 0);
+ 	tlb_finish_mmu(tlb, start, end);
++	free_pgtables(vma, prev? prev->vm_end: FIRST_USER_ADDRESS,
++				 next? next->vm_start: 0);
+ }
+ 
  /*
-  * nested locking. NOTE: rwsems are not allowed to recurse
-Index: linux-2.6/include/linux/sched.h
-===================================================================
---- linux-2.6.orig/include/linux/sched.h	2008-06-09 20:20:59.045591415 -0700
-+++ linux-2.6/include/linux/sched.h	2008-06-09 20:28:47.389841510 -0700
-@@ -2071,6 +2071,15 @@ static inline int spin_needbreak(spinloc
- #endif
- }
+@@ -2062,8 +2062,8 @@ void exit_mmap(struct mm_struct *mm)
+ 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+ 	end = unmap_vmas(&tlb, vma, 0, -1, &nr_accounted, NULL);
+ 	vm_unacct_memory(nr_accounted);
+-	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, 0);
+ 	tlb_finish_mmu(tlb, 0, end);
++	free_pgtables(vma, FIRST_USER_ADDRESS, 0);
  
-+static inline int rwsem_needbreak(struct rw_semaphore *sem)
-+{
-+#ifdef CONFIG_PREEMPT
-+	return rwsem_is_contended(sem);
-+#else
-+	return 0;
-+#endif
-+}
-+
- /*
-  * Reevaluate whether the task has signals pending delivery.
-  * Wake the task if so.
-Index: linux-2.6/lib/rwsem-spinlock.c
-===================================================================
---- linux-2.6.orig/lib/rwsem-spinlock.c	2008-06-09 20:20:59.053591561 -0700
-+++ linux-2.6/lib/rwsem-spinlock.c	2008-06-09 20:28:47.402091148 -0700
-@@ -305,6 +305,18 @@ void __downgrade_write(struct rw_semapho
- 	spin_unlock_irqrestore(&sem->wait_lock, flags);
- }
- 
-+int rwsem_is_contended(struct rw_semaphore *sem)
-+{
-+	/*
-+	 * Racy check for an empty list. False positives or negatives
-+	 * would be okay. False positive may cause a useless dropping of
-+	 * locks. False negatives may cause locks to be held a bit
-+	 * longer until the next check.
-+	 */
-+	return !list_empty(&sem->wait_list);
-+}
-+
-+EXPORT_SYMBOL(rwsem_is_contended);
- EXPORT_SYMBOL(__init_rwsem);
- EXPORT_SYMBOL(__down_read);
- EXPORT_SYMBOL(__down_read_trylock);
-Index: linux-2.6/lib/rwsem.c
-===================================================================
---- linux-2.6.orig/lib/rwsem.c	2008-06-09 20:20:59.061591425 -0700
-+++ linux-2.6/lib/rwsem.c	2008-06-09 20:28:47.402091148 -0700
-@@ -251,6 +251,18 @@ asmregparm struct rw_semaphore *rwsem_do
- 	return sem;
- }
- 
-+int rwsem_is_contended(struct rw_semaphore *sem)
-+{
-+	/*
-+	 * Racy check for an empty list. False positives or negatives
-+	 * would be okay. False positive may cause a useless dropping of
-+	 * locks. False negatives may cause locks to be held a bit
-+	 * longer until the next check.
-+	 */
-+	return !list_empty(&sem->wait_list);
-+}
-+
-+EXPORT_SYMBOL(rwsem_is_contended);
- EXPORT_SYMBOL(rwsem_down_read_failed);
- EXPORT_SYMBOL(rwsem_down_write_failed);
- EXPORT_SYMBOL(rwsem_wake);
+ 	/*
+ 	 * Walk the list again, actually closing and freeing it,
 
 -- 
 
