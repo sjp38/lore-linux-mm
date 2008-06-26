@@ -1,65 +1,342 @@
-Message-Id: <20080626003632.049547282@sgi.com>
-Date: Wed, 25 Jun 2008 17:36:32 -0700
+Message-Id: <20080626003833.966166360@sgi.com>
+References: <20080626003632.049547282@sgi.com>
+Date: Wed, 25 Jun 2008 17:36:37 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 0/5] [RFC] Conversion of reverse map locks to semaphores
+Subject: [patch 5/5] Convert anon_vma spinlock to rw semaphore
+Content-Disposition: inline; filename=anon_vma_sem
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: apw@shadowen.org, Hugh Dickins <hugh@veritas.com>, holt@sgi.com, steiner@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-(This is going to be the last patchset that I post from clameter@sgi.com.
-Please use cl@linux-foundation.org in the future.)
+Convert the anon_vma spinlock to a rw semaphore. This allows concurrent
+traversal of reverse maps for try_to_unmap() and page_mkclean(). It also
+allows the calling of sleeping functions from reverse map traversal as
+needed for the notifier callbacks. It includes possible concurrency.
 
-Having semaphores there instead of spinlocks is useful since it
-allows sleeping in various code paths. That sleeping is useful
-if one wants to implement callbacks to remove external mapping
-(like done in the mmu notifier).
+Rcu is used in some context to guarantee the presence of the anon_vma
+(try_to_unmap) while we acquire the anon_vma lock. We cannot take a
+semaphore within an rcu critical section. Add a refcount to the anon_vma
+structure which allow us to give an existence guarantee for the anon_vma
+structure independent of the spinlock or the list contents.
 
-Also it seems that a semaphore helps RT and should avoid busy spinning
-on systems where these locks experience significant contention.
+The refcount can then be taken within the RCU section. If it has been
+taken successfully then the refcount guarantees the existence of the
+anon_vma. The refcount in anon_vma also allows us to fix a nasty
+issue in page migration where we fudged by using rcu for a long code
+path to guarantee the existence of the anon_vma. I think this is a bug
+because the anon_vma may become empty and get scheduled to be freed
+but then we increase the refcount again when the migration entries are
+removed.
 
-The first patches move tlb flushing around in such a way that
-the _lock's can always be taken in preemptible contexts.
+The refcount in general allows a shortening of RCU critical sections since
+we can do a rcu_unlock after taking the refcount. This is particularly
+relevant if the anon_vma chains contain hundreds of entries.
 
-The i_mmap_sem used to be present until someone switched it to a spinlock in
-2004 due to scaling concerns on NUMA with a benchmark called SDET. I was not
-able to locate that benchmark (but Andi Whitcroft has access and promised me
-some results).
+Prerequisite: i_mmap_lock->sem conversion patches applied.
 
-AIM9 results (3 samples) anon_vma conversion not applied:
+However:
+- Atomic overhead increases in situations where a new reference
+  to the anon_vma has to be established or removed. Overhead also increases
+  when a speculative reference is used (try_to_unmap,
+  page_mkclean, page migration).
+- There is the potential for more frequent processor change due to up_xxx
+  letting waiting tasks run first.
 
- 5 exec_test    1048.95 1025.50     -23.45 -2.24% Program Loads/second
- 6 fork_test    4775.22 4945.16     169.94  3.56% Task Creations/second
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
- 5 exec_test    1057.00 1019.00     -38.00 -3.60% Program Loads/second
- 6 fork_test    4930.14 4760.00    -170.14 -3.45% Task Creations/second
+---
+ include/linux/rmap.h |   20 ++++++++++++++++---
+ mm/migrate.c         |   26 ++++++++++---------------
+ mm/mmap.c            |    4 +--
+ mm/rmap.c            |   53 +++++++++++++++++++++++++++++----------------------
+ 4 files changed, 61 insertions(+), 42 deletions(-)
 
- 5 exec_test    1047.50 1038.96      -8.54 -0.82% Program Loads/second
- 6 fork_test    4760.48 4925.07     164.59  3.46% Task Creations/second
-
-Loads per second seem to have down tendency. Task creations are up. Not sure
-how much jitter gets into it.
-
-The old page fault performance test on file backed pages
-(anon_vma conversion not applied, 250k per process):
-
-Before:
- Gb Rep Thr CLine  User      System   Wall  flt/cpu/s fault/wsec
-  0  3    1   1    0.00s      0.08s   0.00s261555.860 246536.848
-  0  3    2   1    0.00s      0.09s   0.00s219709.015 357800.362
-  0  3    4   1    0.19s      0.13s   0.01s 67810.629 218846.742
-  0  3    8   1    1.04s      0.21s   0.02s 17548.427 104461.093
-
-After:
- Gb Rep Thr CLine  User      System   Wall  flt/cpu/s fault/wsec
-  0  3    1   1    0.00s      0.09s   0.00s238813.108 243323.477
-  0  3    2   1    0.00s      0.10s   0.00s219706.818 354671.772
-  0  3    4   1    0.20s      0.13s   0.00s 64619.728 225528.586
-  0  3    8   1    1.09s      0.22s   0.02s 16644.421 101027.423
-
-A slight performance degradation in most regimes, just 4 processors
-is a bright spot.
+Index: linux-2.6/include/linux/rmap.h
+===================================================================
+--- linux-2.6.orig/include/linux/rmap.h	2008-06-13 11:20:52.973643292 -0700
++++ linux-2.6/include/linux/rmap.h	2008-06-13 11:21:40.401643310 -0700
+@@ -25,7 +25,8 @@
+  * pointing to this anon_vma once its vma list is empty.
+  */
+ struct anon_vma {
+-	spinlock_t lock;	/* Serialize access to vma list */
++	atomic_t refcount;	/* vmas on the list */
++	struct rw_semaphore sem;/* Serialize access to vma list */
+ 	struct list_head head;	/* List of private "related" vmas */
+ };
+ 
+@@ -43,18 +44,31 @@ static inline void anon_vma_free(struct 
+ 	kmem_cache_free(anon_vma_cachep, anon_vma);
+ }
+ 
++struct anon_vma *grab_anon_vma_page(struct page *page);
++
++static inline void get_anon_vma(struct anon_vma *anon_vma)
++{
++	atomic_inc(&anon_vma->refcount);
++}
++
++static inline void put_anon_vma(struct anon_vma *anon_vma)
++{
++	if (atomic_dec_and_test(&anon_vma->refcount))
++		anon_vma_free(anon_vma);
++}
++
+ static inline void anon_vma_lock(struct vm_area_struct *vma)
+ {
+ 	struct anon_vma *anon_vma = vma->anon_vma;
+ 	if (anon_vma)
+-		spin_lock(&anon_vma->lock);
++		down_write(&anon_vma->sem);
+ }
+ 
+ static inline void anon_vma_unlock(struct vm_area_struct *vma)
+ {
+ 	struct anon_vma *anon_vma = vma->anon_vma;
+ 	if (anon_vma)
+-		spin_unlock(&anon_vma->lock);
++		up_write(&anon_vma->sem);
+ }
+ 
+ /*
+Index: linux-2.6/mm/migrate.c
+===================================================================
+--- linux-2.6.orig/mm/migrate.c	2008-06-13 11:20:52.977643185 -0700
++++ linux-2.6/mm/migrate.c	2008-06-13 11:21:40.438642920 -0700
+@@ -235,15 +235,16 @@ static void remove_anon_migration_ptes(s
+ 		return;
+ 
+ 	/*
+-	 * We hold the mmap_sem lock. So no need to call page_lock_anon_vma.
++	 * We hold either the mmap_sem lock or a reference on the
++	 * anon_vma. So no need to call page_lock_anon_vma.
+ 	 */
+ 	anon_vma = (struct anon_vma *) (mapping - PAGE_MAPPING_ANON);
+-	spin_lock(&anon_vma->lock);
++	down_read(&anon_vma->sem);
+ 
+ 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
+ 		remove_migration_pte(vma, old, new);
+ 
+-	spin_unlock(&anon_vma->lock);
++	up_read(&anon_vma->sem);
+ }
+ 
+ /*
+@@ -630,7 +631,7 @@ static int unmap_and_move(new_page_t get
+ 	int rc = 0;
+ 	int *result = NULL;
+ 	struct page *newpage = get_new_page(page, private, &result);
+-	int rcu_locked = 0;
++	struct anon_vma *anon_vma = NULL;
+ 	int charge = 0;
+ 
+ 	if (!newpage)
+@@ -654,16 +655,14 @@ static int unmap_and_move(new_page_t get
+ 	}
+ 	/*
+ 	 * By try_to_unmap(), page->mapcount goes down to 0 here. In this case,
+-	 * we cannot notice that anon_vma is freed while we migrates a page.
++	 * we cannot notice that anon_vma is freed while we migrate a page.
+ 	 * This rcu_read_lock() delays freeing anon_vma pointer until the end
+ 	 * of migration. File cache pages are no problem because of page_lock()
+ 	 * File Caches may use write_page() or lock_page() in migration, then,
+ 	 * just care Anon page here.
+ 	 */
+-	if (PageAnon(page)) {
+-		rcu_read_lock();
+-		rcu_locked = 1;
+-	}
++	if (PageAnon(page))
++		anon_vma = grab_anon_vma_page(page);
+ 
+ 	/*
+ 	 * Corner case handling:
+@@ -681,10 +680,7 @@ static int unmap_and_move(new_page_t get
+ 		if (!PageAnon(page) && PagePrivate(page)) {
+ 			/*
+ 			 * Go direct to try_to_free_buffers() here because
+-			 * a) that's what try_to_release_page() would do anyway
+-			 * b) we may be under rcu_read_lock() here, so we can't
+-			 *    use GFP_KERNEL which is what try_to_release_page()
+-			 *    needs to be effective.
++			 * that's what try_to_release_page() would do anyway
+ 			 */
+ 			try_to_free_buffers(page);
+ 		}
+@@ -705,8 +701,8 @@ static int unmap_and_move(new_page_t get
+ 	} else if (charge)
+  		mem_cgroup_end_migration(newpage);
+ rcu_unlock:
+-	if (rcu_locked)
+-		rcu_read_unlock();
++	if (anon_vma)
++		put_anon_vma(anon_vma);
+ 
+ unlock:
+ 
+Index: linux-2.6/mm/mmap.c
+===================================================================
+--- linux-2.6.orig/mm/mmap.c	2008-06-13 11:20:52.985643796 -0700
++++ linux-2.6/mm/mmap.c	2008-06-13 11:21:40.438642920 -0700
+@@ -573,7 +573,7 @@ again:			remove_next = 1 + (end > next->
+ 	if (vma->anon_vma)
+ 		anon_vma = vma->anon_vma;
+ 	if (anon_vma) {
+-		spin_lock(&anon_vma->lock);
++		down_write(&anon_vma->sem);
+ 		/*
+ 		 * Easily overlooked: when mprotect shifts the boundary,
+ 		 * make sure the expanding vma has anon_vma set if the
+@@ -627,7 +627,7 @@ again:			remove_next = 1 + (end > next->
+ 	}
+ 
+ 	if (anon_vma)
+-		spin_unlock(&anon_vma->lock);
++		up_write(&anon_vma->sem);
+ 	if (mapping)
+ 		up_write(&mapping->i_mmap_sem);
+ 
+Index: linux-2.6/mm/rmap.c
+===================================================================
+--- linux-2.6.orig/mm/rmap.c	2008-06-13 11:20:53.017643368 -0700
++++ linux-2.6/mm/rmap.c	2008-06-13 11:21:40.438642920 -0700
+@@ -68,7 +68,7 @@ int anon_vma_prepare(struct vm_area_stru
+ 		if (anon_vma) {
+ 			allocated = NULL;
+ 			locked = anon_vma;
+-			spin_lock(&locked->lock);
++			down_write(&locked->sem);
+ 		} else {
+ 			anon_vma = anon_vma_alloc();
+ 			if (unlikely(!anon_vma))
+@@ -80,6 +80,7 @@ int anon_vma_prepare(struct vm_area_stru
+ 		/* page_table_lock to protect against threads */
+ 		spin_lock(&mm->page_table_lock);
+ 		if (likely(!vma->anon_vma)) {
++			get_anon_vma(anon_vma);
+ 			vma->anon_vma = anon_vma;
+ 			list_add_tail(&vma->anon_vma_node, &anon_vma->head);
+ 			allocated = NULL;
+@@ -87,7 +88,7 @@ int anon_vma_prepare(struct vm_area_stru
+ 		spin_unlock(&mm->page_table_lock);
+ 
+ 		if (locked)
+-			spin_unlock(&locked->lock);
++			up_write(&locked->sem);
+ 		if (unlikely(allocated))
+ 			anon_vma_free(allocated);
+ 	}
+@@ -98,14 +99,17 @@ void __anon_vma_merge(struct vm_area_str
+ {
+ 	BUG_ON(vma->anon_vma != next->anon_vma);
+ 	list_del(&next->anon_vma_node);
++	put_anon_vma(vma->anon_vma);
+ }
+ 
+ void __anon_vma_link(struct vm_area_struct *vma)
+ {
+ 	struct anon_vma *anon_vma = vma->anon_vma;
+ 
+-	if (anon_vma)
++	if (anon_vma) {
++		get_anon_vma(anon_vma);
+ 		list_add_tail(&vma->anon_vma_node, &anon_vma->head);
++	}
+ }
+ 
+ void anon_vma_link(struct vm_area_struct *vma)
+@@ -113,36 +117,32 @@ void anon_vma_link(struct vm_area_struct
+ 	struct anon_vma *anon_vma = vma->anon_vma;
+ 
+ 	if (anon_vma) {
+-		spin_lock(&anon_vma->lock);
++		get_anon_vma(anon_vma);
++		down_write(&anon_vma->sem);
+ 		list_add_tail(&vma->anon_vma_node, &anon_vma->head);
+-		spin_unlock(&anon_vma->lock);
++		up_write(&anon_vma->sem);
+ 	}
+ }
+ 
+ void anon_vma_unlink(struct vm_area_struct *vma)
+ {
+ 	struct anon_vma *anon_vma = vma->anon_vma;
+-	int empty;
+ 
+ 	if (!anon_vma)
+ 		return;
+ 
+-	spin_lock(&anon_vma->lock);
++	down_write(&anon_vma->sem);
+ 	list_del(&vma->anon_vma_node);
+-
+-	/* We must garbage collect the anon_vma if it's empty */
+-	empty = list_empty(&anon_vma->head);
+-	spin_unlock(&anon_vma->lock);
+-
+-	if (empty)
+-		anon_vma_free(anon_vma);
++	up_write(&anon_vma->sem);
++	put_anon_vma(anon_vma);
+ }
+ 
+ static void anon_vma_ctor(struct kmem_cache *cachep, void *data)
+ {
+ 	struct anon_vma *anon_vma = data;
+ 
+-	spin_lock_init(&anon_vma->lock);
++	init_rwsem(&anon_vma->sem);
++	atomic_set(&anon_vma->refcount, 0);
+ 	INIT_LIST_HEAD(&anon_vma->head);
+ }
+ 
+@@ -156,9 +156,9 @@ void __init anon_vma_init(void)
+  * Getting a lock on a stable anon_vma from a page off the LRU is
+  * tricky: page_lock_anon_vma rely on RCU to guard against the races.
+  */
+-static struct anon_vma *page_lock_anon_vma(struct page *page)
++struct anon_vma *grab_anon_vma_page(struct page *page)
+ {
+-	struct anon_vma *anon_vma;
++	struct anon_vma *anon_vma = NULL;
+ 	unsigned long anon_mapping;
+ 
+ 	rcu_read_lock();
+@@ -169,17 +169,26 @@ static struct anon_vma *page_lock_anon_v
+ 		goto out;
+ 
+ 	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
+-	spin_lock(&anon_vma->lock);
+-	return anon_vma;
++	if (!atomic_inc_not_zero(&anon_vma->refcount))
++		anon_vma = NULL;
+ out:
+ 	rcu_read_unlock();
+-	return NULL;
++	return anon_vma;
++}
++
++static struct anon_vma *page_lock_anon_vma(struct page *page)
++{
++	struct anon_vma *anon_vma = grab_anon_vma_page(page);
++
++	if (anon_vma)
++		down_read(&anon_vma->sem);
++	return anon_vma;
+ }
+ 
+ static void page_unlock_anon_vma(struct anon_vma *anon_vma)
+ {
+-	spin_unlock(&anon_vma->lock);
+-	rcu_read_unlock();
++	up_read(&anon_vma->sem);
++	put_anon_vma(anon_vma);
+ }
+ 
+ /*
 
 -- 
 
