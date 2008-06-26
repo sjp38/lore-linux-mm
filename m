@@ -1,71 +1,42 @@
-Date: Thu, 26 Jun 2008 17:08:57 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [-mm][PATCH 10/10] putback_lru_page()/unevictable page handling rework v4
-In-Reply-To: <1214411395.7010.34.camel@lts-notebook>
-References: <20080625191014.D86A.KOSAKI.MOTOHIRO@jp.fujitsu.com> <1214411395.7010.34.camel@lts-notebook>
-Message-Id: <20080626170614.FD0E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5Q9SLNd008513
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2008 05:28:21 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5Q9SKFt169866
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2008 03:28:20 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5Q9SKZc020896
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2008 03:28:20 -0600
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Thu, 26 Jun 2008 14:58:15 +0530
+Message-Id: <20080626092815.16841.54817.sendpatchset@balbir-laptop>
+Subject: [0/5] memrlimit fixes
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroy@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hugh@veritas.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-> I'm updating the unevictable-lru doc in Documentation/vm.
-> I have a question, below, on the removal of page_lock() from
-> __mlock_vma_pages_range().  The document discusses how we hold the page
-> lock when calling mlock_vma_page() to prevent races with migration
-> [addressed by putback_lru_page() rework] and truncation.  I'm wondering
-> if we're properly protected from truncation now...
+Hi, Andrew,
 
-Thanks for careful review.
-I'll fix it and split into sevaral patches for easy review.
+These are fixes for the memrlimit cgroup controller. Patch 1, improve
+error handling has been redone. Detailed changelog can be found in every
+patch. I've tested the patches by running kernbench in a memrlimit
+controlled cgroup.
 
+series
+------
+memrlimit-cgroup-add-better-error-handling
+memrlimit-cgroup-fix-attach-task
+memrlimit-fix-sleep-in-spinlock-bug
+memrlimit-improve-fork-error-handling
+memrlimit-fix-move-vma-accounting
 
-> > @@ -79,7 +80,7 @@ void __clear_page_mlock(struct page *pag
-> >   */
-> >  void mlock_vma_page(struct page *page)
-> >  {
-> > -	BUG_ON(!PageLocked(page));
-> > +	VM_BUG_ON(!page->mapping);
-> 
-> If we're not holding the page locked here, can the page be truncated out
-> from under us?  If so, I think we could hit this BUG or, if we just miss
-> it, we could end up setting PageMlocked on a truncated page, and end up
-> freeing an mlocked page.
-
-this is obiously folding mistake by me ;)
-this VM_BUG_ON() should be removed.
-
-
-
-> > @@ -169,7 +170,8 @@ static int __mlock_vma_pages_range(struc
-> >  
-> >  		/*
-> >  		 * get_user_pages makes pages present if we are
-> > -		 * setting mlock.
-> > +		 * setting mlock. and this extra reference count will
-> > +		 * disable migration of this page.
-> >  		 */
-> >  		ret = get_user_pages(current, mm, addr,
-> >  				min_t(int, nr_pages, ARRAY_SIZE(pages)),
-> > @@ -197,14 +199,8 @@ static int __mlock_vma_pages_range(struc
-> >  		for (i = 0; i < ret; i++) {
-> >  			struct page *page = pages[i];
-> >  
-> > -			/*
-> > -			 * page might be truncated or migrated out from under
-> > -			 * us.  Check after acquiring page lock.
-> > -			 */
-> > -			lock_page(page);
-> Safe to remove the locking?  I.e., page can't be truncated here?
-
-you are right.
-this lock_page() is necessary.
-
-
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
