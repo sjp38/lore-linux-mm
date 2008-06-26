@@ -1,74 +1,71 @@
-Message-ID: <48634DD5.5050200@ah.jp.nec.com>
-Date: Thu, 26 Jun 2008 17:05:41 +0900
-From: Takenori Nagano <t-nagano@ah.jp.nec.com>
+Date: Thu, 26 Jun 2008 17:08:57 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [-mm][PATCH 10/10] putback_lru_page()/unevictable page handling rework v4
+In-Reply-To: <1214411395.7010.34.camel@lts-notebook>
+References: <20080625191014.D86A.KOSAKI.MOTOHIRO@jp.fujitsu.com> <1214411395.7010.34.camel@lts-notebook>
+Message-Id: <20080626170614.FD0E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] prevent incorrect oom under split_lru
-References: <20080624092824.4f0440ca@bree.surriel.com>	 <28c262360806242259k3ac308c4n7cee29b72456e95b@mail.gmail.com>	 <20080625150141.D845.KOSAKI.MOTOHIRO@jp.fujitsu.com>	 <28c262360806242356n3f7e02abwfee1f6acf0fd2c61@mail.gmail.com>	 <1214395885.15232.17.camel@twins>	 <28c262360806250605le31ba48ma8bb16f996783142@mail.gmail.com>	 <4862F5BB.9030200@ah.jp.nec.com>	 <28c262360806252137j78a90480n6c3973cd489c1ef2@mail.gmail.com>	 <486327F9.6030004@ah.jp.nec.com> <28c262360806252337o3ef22ddl7331ecc79d49e72b@mail.gmail.com>
-In-Reply-To: <28c262360806252337o3ef22ddl7331ecc79d49e72b@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: MinChan Kim <minchan.kim@gmail.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, akpm@linux-foundation.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroy@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-MinChan Kim wrote:
-> On Thu, Jun 26, 2008 at 2:24 PM, Takenori Nagano <t-nagano@ah.jp.nec.com> wrote:
->> MinChan Kim wrote:
->>> On Thu, Jun 26, 2008 at 10:49 AM, Takenori Nagano
->>> <t-nagano@ah.jp.nec.com> wrote:
->>>> MinChan Kim wrote:
->>>>> Hi peter,
->>>>>
->>>>> I agree with you.  but if application's virtual address space is big,
->>>>> we have a hard problem with mlockall since memory pressure might be a
->>>>> big.
->>>>> Of course, It will be a RT application design problem.
->>>>>
->>>>>> The much more important case is desktop usage - that is where we run non
->>>>>> real-time code, but do expect 'low' latency due to user-interaction.
->>>>>>
->>>>>> >From hitting swap on my 512M laptop (rather frequent occurance) I know
->>>>>> we can do better here,..
->>>>>>
->>>>> Absolutely. It is another example. So, I suggest following patch.
->>>>> It's based on idea of Takenori Nagano's memory reclaim more efficiently.
->>>> Hi Kim-san,
->>>>
->>>> Thank you for agreeing with me.
->>>>
->>>> I have one question.
->>>> My patch don't mind priority. Why do you need "priority == 0"?
->>> Hi, Takenori-san.
->>>
->>> Now, Kosaiki-san's patch didn't consider application latency.
->>> That patch scan all lru[x] pages when memory pressure is very high.
->>> (ie, priority == 0)
->>> It will cause application latency to high as peter and me notice that.
->>> We need a idea which prevent big scanning overhead
->>> I modified your idea to prevent big scanning overhead only when memory
->>> pressure is very big.
->> Hi, Kim-san.
->>
->> Thank you for your explanation.
->> I understand your opinion.
->>
->> But...your patch is not enough for me. :-(
->> Our Xeon box has 128GB memory, application latency will be very large if
->> priority goes to be zero.
->> So, I would like to use "cut off" on every priority.
-> 
-> I am not sure it will be a regression.
-> We don't have any enough data.
-> 
-> My intention is just to prevent kosaki-san's patch's corner case.
+> I'm updating the unevictable-lru doc in Documentation/vm.
+> I have a question, below, on the removal of page_lock() from
+> __mlock_vma_pages_range().  The document discusses how we hold the page
+> lock when calling mlock_vma_page() to prevent races with migration
+> [addressed by putback_lru_page() rework] and truncation.  I'm wondering
+> if we're properly protected from truncation now...
 
-OK.
-I'll try to test to make enough data. :-)
+Thanks for careful review.
+I'll fix it and split into sevaral patches for easy review.
 
-Thanks,
-  Takenori
+
+> > @@ -79,7 +80,7 @@ void __clear_page_mlock(struct page *pag
+> >   */
+> >  void mlock_vma_page(struct page *page)
+> >  {
+> > -	BUG_ON(!PageLocked(page));
+> > +	VM_BUG_ON(!page->mapping);
+> 
+> If we're not holding the page locked here, can the page be truncated out
+> from under us?  If so, I think we could hit this BUG or, if we just miss
+> it, we could end up setting PageMlocked on a truncated page, and end up
+> freeing an mlocked page.
+
+this is obiously folding mistake by me ;)
+this VM_BUG_ON() should be removed.
+
+
+
+> > @@ -169,7 +170,8 @@ static int __mlock_vma_pages_range(struc
+> >  
+> >  		/*
+> >  		 * get_user_pages makes pages present if we are
+> > -		 * setting mlock.
+> > +		 * setting mlock. and this extra reference count will
+> > +		 * disable migration of this page.
+> >  		 */
+> >  		ret = get_user_pages(current, mm, addr,
+> >  				min_t(int, nr_pages, ARRAY_SIZE(pages)),
+> > @@ -197,14 +199,8 @@ static int __mlock_vma_pages_range(struc
+> >  		for (i = 0; i < ret; i++) {
+> >  			struct page *page = pages[i];
+> >  
+> > -			/*
+> > -			 * page might be truncated or migrated out from under
+> > -			 * us.  Check after acquiring page lock.
+> > -			 */
+> > -			lock_page(page);
+> Safe to remove the locking?  I.e., page can't be truncated here?
+
+you are right.
+this lock_page() is necessary.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
