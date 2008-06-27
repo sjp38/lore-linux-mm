@@ -1,119 +1,94 @@
-Received: by ti-out-0910.google.com with SMTP id j3so136840tid.8
-        for <linux-mm@kvack.org>; Thu, 26 Jun 2008 18:55:34 -0700 (PDT)
-Message-ID: <a8e1da0806261855l172a1e55k8bad10aa62e92521@mail.gmail.com>
-Date: Fri, 27 Jun 2008 09:55:33 +0800
-From: "Dave Young" <hidave.darkstar@gmail.com>
-Subject: Re: [PATCH] kernel parameter vmalloc size fix
-In-Reply-To: <20080626121430.GK29619@elte.hu>
+Received: by an-out-0708.google.com with SMTP id d17so78341and.105
+        for <linux-mm@kvack.org>; Thu, 26 Jun 2008 22:08:08 -0700 (PDT)
+Message-ID: <28c262360806262208i6791d67at446f7323ded16206@mail.gmail.com>
+Date: Fri, 27 Jun 2008 14:08:08 +0900
+From: "MinChan Kim" <minchan.kim@gmail.com>
+Subject: Re: [-mm][PATCH 8/10] fix shmem page migration incorrectness on memcgroup
+In-Reply-To: <20080625190750.D864.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <20080616042528.GA3003@darkstar.te-china.tietoenator.com>
-	 <20080616080131.GC25632@elte.hu>
-	 <a8e1da0806232249s36eb90c7la517a40ccfe839ea@mail.gmail.com>
-	 <20080626121430.GK29619@elte.hu>
+References: <20080625185717.D84C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080625190750.D864.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, hpa@zytor.com, the arch/x86 maintainers <x86@kernel.org>, Yinghai Lu <yhlu.kernel@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 26, 2008 at 8:14 PM, Ingo Molnar <mingo@elte.hu> wrote:
->
-> * Dave Young <hidave.darkstar@gmail.com> wrote:
->
->> I do some test about this last weekend, there's some questions, could
->> you help to fix it?
->>
->> 1. MAXMEM :
->>  (-__PAGE_OFFSET - __VMALLOC_RESERVE).
->> The space after VMALLOC_END is included as well, seting it to
->> (VMALLOC_END - PAGE_OFFSET - __VMALLOC_RESERVE), is it right?
->>
->> 2. VMALLOC_OFFSET is not considered in __VMALLOC_RESERVE
->> Should fixed by adding VMALLOC_OFFSET to it.
->>
->> 3. VMALLOC_START :
->>  (((unsigned long)high_memory + 2 * VMALLOC_OFFSET - 1) & ~(VMALLOC_OFFSET - 1))
->> So it's not always 8M, bigger than 8M possible.
->> Set it to ((unsigned long)high_memory + VMALLOC_OFFSET), is it right?
->>
->> Attached the proposed patch. please give some advice.
->
-> i've ported it to tip/master, see the patch below. Yinghai, what do you
-> think about this change?
+Hi, KAMEZAWA-san.
 
-Thanks. If there's no objections please add my signed-off line
+I have one question.
+It's just curious.
 
-Signed-off-by: Dave Young <hidave.darkstar@gmail.com>
-
+On Wed, Jun 25, 2008 at 7:09 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
 >
->        Ingo
+> =
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+> mem_cgroup_uncharge() against old page is done after radix-tree-replacement.
+> And there were special handling to ingore swap-cache page. But, shmem can
+> be swap-cache and file-cache at the same time. Chekcing PageSwapCache() is
+> not correct here. Check PageAnon() instead.
+
+When/How shmem can be both swap-cache and file-cache ?
+I can't understand that situation.
+
+Thanks. :)
+
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 >
 > ---
->  arch/x86/mm/pgtable_32.c     |    3 ++-
->  include/asm-x86/page_32.h    |    1 -
->  include/asm-x86/pgtable_32.h |    5 +++--
->  3 files changed, 5 insertions(+), 4 deletions(-)
+>  mm/migrate.c |   11 +++++++++--
+>  1 file changed, 9 insertions(+), 2 deletions(-)
 >
-> Index: tip/arch/x86/mm/pgtable_32.c
+> Index: b/mm/migrate.c
 > ===================================================================
-> --- tip.orig/arch/x86/mm/pgtable_32.c
-> +++ tip/arch/x86/mm/pgtable_32.c
-> @@ -171,7 +171,8 @@ static int __init parse_vmalloc(char *ar
->        if (!arg)
->                return -EINVAL;
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -332,7 +332,13 @@ static int migrate_page_move_mapping(str
+>        __inc_zone_page_state(newpage, NR_FILE_PAGES);
 >
-> -       __VMALLOC_RESERVE = memparse(arg, &arg);
-> +       /* Add VMALLOC_OFFSET to the parsed value due to vm area guard hole*/
-> +       __VMALLOC_RESERVE = memparse(arg, &arg) + VMALLOC_OFFSET;
->        return 0;
->  }
->  early_param("vmalloc", parse_vmalloc);
-> Index: tip/include/asm-x86/page_32.h
-> ===================================================================
-> --- tip.orig/include/asm-x86/page_32.h
-> +++ tip/include/asm-x86/page_32.h
-> @@ -95,7 +95,6 @@ extern unsigned int __VMALLOC_RESERVE;
->  extern int sysctl_legacy_va_layout;
->
->  #define VMALLOC_RESERVE                ((unsigned long)__VMALLOC_RESERVE)
-> -#define MAXMEM                 (-__PAGE_OFFSET - __VMALLOC_RESERVE)
->
->  extern void find_low_pfn_range(void);
->  extern unsigned long init_memory_mapping(unsigned long start,
-> Index: tip/include/asm-x86/pgtable_32.h
-> ===================================================================
-> --- tip.orig/include/asm-x86/pgtable_32.h
-> +++ tip/include/asm-x86/pgtable_32.h
-> @@ -56,8 +56,7 @@ void paging_init(void);
->  * area for the same reason. ;)
->  */
->  #define VMALLOC_OFFSET (8 * 1024 * 1024)
-> -#define VMALLOC_START  (((unsigned long)high_memory + 2 * VMALLOC_OFFSET - 1) \
-> -                        & ~(VMALLOC_OFFSET - 1))
-> +#define VMALLOC_START  ((unsigned long)high_memory + VMALLOC_OFFSET)
->  #ifdef CONFIG_X86_PAE
->  #define LAST_PKMAP 512
->  #else
-> @@ -73,6 +72,8 @@ void paging_init(void);
->  # define VMALLOC_END   (FIXADDR_START - 2 * PAGE_SIZE)
->  #endif
->
-> +#define MAXMEM (VMALLOC_END - PAGE_OFFSET - __VMALLOC_RESERVE)
+>        spin_unlock_irq(&mapping->tree_lock);
+> -       if (!PageSwapCache(newpage))
 > +
->  /*
->  * Define this if things work differently on an i386 and an i486:
->  * it will (on an i486) warn about kernel memory accesses that are
+> +       /*
+> +        * The page is removed from radix-tree implicitly.
+> +        * We uncharge it here but swap cache of anonymous page should be
+> +        * uncharged by mem_cgroup_ucharge_page().
+> +        */
+> +       if (!PageAnon(newpage))
+>                mem_cgroup_uncharge_cache_page(page);
 >
+>        return 0;
+> @@ -381,7 +387,8 @@ static void migrate_page_copy(struct pag
+>                /*
+>                 * SwapCache is removed implicitly. Uncharge against swapcache
+>                 * should be called after ClearPageSwapCache() because
+> -                * mem_cgroup_uncharge_page checks the flag.
+> +                * mem_cgroup_uncharge_page checks the flag. shmem's swap cache
+> +                * is uncharged before here.
+>                 */
+>                mem_cgroup_uncharge_page(page);
+>        }
+>
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 >
 
 
 
 -- 
-Regards
-dave
+Kinds regards,
+MinChan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
