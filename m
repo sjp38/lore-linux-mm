@@ -1,96 +1,62 @@
-Received: from spaceape24.eur.corp.google.com (spaceape24.eur.corp.google.com [172.28.16.76])
-	by smtp-out.google.com with ESMTP id m5RG9CUv023084
-	for <linux-mm@kvack.org>; Fri, 27 Jun 2008 17:09:12 +0100
-Received: from an-out-0708.google.com (andd30.prod.google.com [10.100.30.30])
-	by spaceape24.eur.corp.google.com with ESMTP id m5RG9BJG012161
-	for <linux-mm@kvack.org>; Fri, 27 Jun 2008 17:09:11 +0100
-Received: by an-out-0708.google.com with SMTP id d30so114663and.30
-        for <linux-mm@kvack.org>; Fri, 27 Jun 2008 09:09:11 -0700 (PDT)
-Message-ID: <6599ad830806270909w6a2c26d8mcf406856c06c5da@mail.gmail.com>
-Date: Fri, 27 Jun 2008 09:09:10 -0700
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [RFC 5/5] Memory controller soft limit reclaim on contention
-In-Reply-To: <20080627151906.31664.7247.sendpatchset@balbir-laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [patch 0/5] [RFC] Conversion of reverse map locks to semaphores
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <Pine.LNX.4.64.0806270844040.12950@schroedinger.engr.sgi.com>
+References: <20080626003632.049547282@sgi.com>
+	 <1214556789.2801.19.camel@twins.programming.kicks-ass.net>
+	 <Pine.LNX.4.64.0806270844040.12950@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Fri, 27 Jun 2008 18:38:07 +0200
+Message-Id: <1214584687.12348.8.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080627151808.31664.36047.sendpatchset@balbir-laptop>
-	 <20080627151906.31664.7247.sendpatchset@balbir-laptop>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, apw@shadowen.org, Ingo Molnar <mingo@elte.hu>, David Howells <dhowells@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 27, 2008 at 8:19 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> +/*
-> + * Create a heap of memory controller structures. The heap is reverse
-> + * sorted by size. This heap is used for implementing soft limits. Our
-> + * current heap implementation does not allow dynamic heap updates, but
-> + * eventually, the costliest controller (over it's soft limit should
+On Fri, 2008-06-27 at 08:46 -0700, Christoph Lameter wrote:
+> On Fri, 27 Jun 2008, Peter Zijlstra wrote:
+> 
+> > > Also it seems that a semaphore helps RT and should avoid busy spinning
+> > > on systems where these locks experience significant contention.
+> > 
+> > Please be careful with the wording here. Semaphores are evil esp for RT.
+> > But luckily you're referring to a sleeping RW lock, which we call
+> > RW-semaphore (but is not an actual semaphore).
+> > 
+> > You really scared some people saying this ;-)
+> 
+> Well we use the term semaphore for sleeping locks in the kernel it seems.
 
-it's -> its
+We have an actual mutex implementation, which is oddly enough called a
+mutex, not binary-semaphore-with-owner-semantics.
 
-> +                       old_mem = heap_insert(&mem_cgroup_heap, mem,
-> +                                               HEAP_REP_LEAF);
-> +                       mem->on_heap = 1;
-> +                       if (old_mem)
-> +                               old_mem->on_heap = 0;
+> Maybe you could get a patch done that renames the struct to 
+> sleeping_rw_lock or so? That would finally clear the air. This is the 
+> second or third time we talk about a semaphore not truly being a 
+> semaphore.
 
-Maybe a comment here that mem might == old_mem?
+Yes indeed. It mainly comes from the fact that some people drop the rw
+prefix, creating the implession they talk about an actual semaphore
+(which we also still have).
 
-> + * When the soft limit is exceeded, look through the heap and start
-> + * reclaiming from all groups over thier soft limit
+About that rename - it's come up before, and while I would not mind to
+do such a rename, we've failed to come up with a decent name. I think
+people will object to the length of your proposed one.
 
-thier -> their
+We could of course go for the oxymoron: rw_mutex, but I think that was
+shot down once before.
 
-> +               if (!res_counter_check_under_soft_limit(&mem->res)) {
-> +                       /*
-> +                        * The current task might already be over it's soft
-> +                        * limit and trying to aggressively grow. We check to
-> +                        * see if it the memory group associated with the
-> +                        * current task is on the heap when the current group
-> +                        * is over it's soft limit. If not, we add it
-> +                        */
-> +                       if (!mem->on_heap) {
-> +                               struct mem_cgroup *old_mem;
-> +
-> +                               old_mem = heap_insert(&mem_cgroup_heap, mem,
-> +                                                       HEAP_REP_LEAF);
-> +                               mem->on_heap = 1;
-> +                               if (old_mem)
-> +                                       old_mem->on_heap = 0;
-> +                       }
-> +               }
+> > Depending on the contention stats you could try an adaptive spin on the
+> > readers. I doubt adaptive spins on the writer would work out well, with
+> > the natural plenty-ness of readers..
+> 
+> That depends on the frequency of lock taking and the contention. If you 
+> have a rw lock then you would assume that writers are rare so this is 
+> likely okay.
 
-This and the other similar code for adding to the heap should be
-refactored into a separate function.
-
->
-> +static int mem_cgroup_compare_soft_limits(void *p1, void *p2)
-> +{
-> +       struct mem_cgroup *mem1 = (struct mem_cgroup *)p1;
-> +       struct mem_cgroup *mem2 = (struct mem_cgroup *)p2;
-> +       unsigned long long delta1, delta2;
-> +
-> +       delta1 = res_counter_soft_limit_delta(&mem1->res);
-> +       delta2 = res_counter_soft_limit_delta(&mem2->res);
-> +
-> +       return delta1 > delta2;
-> +}
-
-This isn't a valid comparator, since it isn't a constant function of
-its two input pointers - calling mem_cgroup_compare_soft_limits(m1,
-m2) can give different results at different times. So your heap
-invariant will become invalid over time.
-
-I think if you want to do this, you're going to need to periodically
-take a snapshot of each cgroup's excess and use that snapshot in the
-comparator; whenever you update the snapshots, you'll need to restore
-the heap invariant.
-
-Paul
+Agreed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
