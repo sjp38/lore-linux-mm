@@ -1,51 +1,64 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5RFIAV2026325
-	for <linux-mm@kvack.org>; Fri, 27 Jun 2008 11:18:10 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5RFI9Xu217564
-	for <linux-mm@kvack.org>; Fri, 27 Jun 2008 11:18:10 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5RFI96V032317
-	for <linux-mm@kvack.org>; Fri, 27 Jun 2008 11:18:09 -0400
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5RFIUfV018033
+	for <linux-mm@kvack.org>; Fri, 27 Jun 2008 11:18:30 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5RFIK2I152950
+	for <linux-mm@kvack.org>; Fri, 27 Jun 2008 09:18:26 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5RFIJ6p024801
+	for <linux-mm@kvack.org>; Fri, 27 Jun 2008 09:18:20 -0600
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Fri, 27 Jun 2008 20:48:08 +0530
-Message-Id: <20080627151808.31664.36047.sendpatchset@balbir-laptop>
-Subject: [RFC 0/5] Memory controller soft limit introduction (v3)
+Date: Fri, 27 Jun 2008 20:48:18 +0530
+Message-Id: <20080627151818.31664.69486.sendpatchset@balbir-laptop>
+In-Reply-To: <20080627151808.31664.36047.sendpatchset@balbir-laptop>
+References: <20080627151808.31664.36047.sendpatchset@balbir-laptop>
+Subject: [RFC 1/5] Memory controller soft limit documentation
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-This patchset implements the basic changes required to implement soft limits
-in the memory controller. A soft limit is a variation of the currently
-supported hard limit feature. A memory cgroup can exceed it's soft limit
-provided there is no contention for memory.
 
-These patches were tested on a x86_64 box, by running a programs in parallel,
-and checking their behaviour for various soft limit values.
+Add documentation for the soft limit feature.
 
-These patches were developed on top of 2.6.26-rc5-mm3. Comments, suggestions,
-criticism are all welcome!
+Changelog v2 (Thanks to the review by Randy Dunlap)
+1. Change several misuses of it's to its
+2. Fix spelling errors and punctuation
 
-A previous version of the patch can be found at
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
 
-http://kerneltrap.org/mailarchive/linux-kernel/2008/2/19/904114
+ Documentation/controllers/memory.txt |   16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
-TODOs:
-
-1. Distribute the excessive (non-contended) resources between groups
-   in the ratio of their soft limits
-2. Merge with KAMEZAWA's and YAMAMOTO's water mark and background reclaim
-   patches in the long-term
-
-series
-------
-memory-controller-soft-limit-add-documentation.patch
-prio_heap_delete_max.patch
-prio_heap_replace_leaf.patch
-memory-controller-soft-limit-res-counter-updates.patch
-memory-controller-soft-limit-reclaim-on-contention.patch
+diff -puN Documentation/controllers/memory.txt~memory-controller-soft-limit-add-documentation Documentation/controllers/memory.txt
+--- linux-2.6.26-rc5/Documentation/controllers/memory.txt~memory-controller-soft-limit-add-documentation	2008-06-27 20:43:04.000000000 +0530
++++ linux-2.6.26-rc5-balbir/Documentation/controllers/memory.txt	2008-06-27 20:43:04.000000000 +0530
+@@ -205,6 +205,22 @@ The memory.force_empty gives an interfac
+ 
+ will drop all charges in cgroup. Currently, this is maintained for test.
+ 
++The file memory.soft_limit_in_bytes allows users to set soft limits. A soft
++limit is set in a manner similar to limit. The limit feature described
++earlier is a hard limit. A group can never exceed its hard limit. A soft
++limit on the other hand can be exceeded. A group will be shrunk back
++to its soft limit, when there is memory pressure/contention.
++
++Ideally the soft limit should always be set to a value smaller than the
++hard limit. However, the code does not force the user to do so. The soft
++limit can be greater than the hard limit; then the soft limit has
++no meaning in that setup, since the group will always be restrained to its
++hard limit.
++
++Example setting of soft limit
++
++# echo 100M > memory.soft_limit_in_bytes
++
+ 4. Testing
+ 
+ Balbir posted lmbench, AIM9, LTP and vmmstress results [10] and [11].
+_
 
 -- 
 	Warm Regards,
