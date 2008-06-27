@@ -1,52 +1,57 @@
-From: kamezawa.hiroyu@jp.fujitsu.com
-Message-ID: <11849640.1214569478380.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Fri, 27 Jun 2008 21:24:38 +0900 (JST)
-Subject: Re: Re: [-mm][PATCH 8/10] fix shmem page migration incorrectness on memcgroup
-In-Reply-To: <20080627182952.f8d2b0c3.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: 7bit
-References: <20080627182952.f8d2b0c3.nishimura@mxp.nes.nec.co.jp>
- <20080625190750.D864.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<28c262360806262208i6791d67at446f7323ded16206@mail.gmail.com>
-	<20080627142950.7A83.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<28c262360806270057w2b2d3e56ob4dde9aacf42327b@mail.gmail.com>
-	<20080627175201.cbe86a06.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m5RFIAV2026325
+	for <linux-mm@kvack.org>; Fri, 27 Jun 2008 11:18:10 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5RFI9Xu217564
+	for <linux-mm@kvack.org>; Fri, 27 Jun 2008 11:18:10 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5RFI96V032317
+	for <linux-mm@kvack.org>; Fri, 27 Jun 2008 11:18:09 -0400
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Fri, 27 Jun 2008 20:48:08 +0530
+Message-Id: <20080627151808.31664.36047.sendpatchset@balbir-laptop>
+Subject: [RFC 0/5] Memory controller soft limit introduction (v3)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, MinChan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
------ Original Message -----
+This patchset implements the basic changes required to implement soft limits
+in the memory controller. A soft limit is a variation of the currently
+supported hard limit feature. A memory cgroup can exceed it's soft limit
+provided there is no contention for memory.
 
->> But situation is a bit complicated.
->> - shmem's page is charged as file-cache.
->> - shmem's swap cache is still charged by mem_cgroup_cache_charge() because
->>   it's implicitly (to memcg) converted to swap cache. 
->> - anon's swap cache is charged by mem_cgroup_uncharge_cache_page()
->> 
->I'm sorry if I misunderstand something.
->
->I think anon's swap cache is:
->
->- charged by nowhere as "cache".
-yes.
->  If anon pages are also on swap cache, charges for them remain charged
->  even when mem_cgroup_uncharge_page() is called, because it checks PG_swapca
-che.
->  So, as a result, anon's swap cache is charged.
-yes.
+These patches were tested on a x86_64 box, by running a programs in parallel,
+and checking their behaviour for various soft limit values.
 
->- uncharged by memcgroup_uncharge_page() in __delete_from_swap_cache()
->  after clearing PG_swapcache.
->
->right?
->
-You're right. Sorry for confusion.
+These patches were developed on top of 2.6.26-rc5-mm3. Comments, suggestions,
+criticism are all welcome!
 
-Thanks,
--Kame
+A previous version of the patch can be found at
+
+http://kerneltrap.org/mailarchive/linux-kernel/2008/2/19/904114
+
+TODOs:
+
+1. Distribute the excessive (non-contended) resources between groups
+   in the ratio of their soft limits
+2. Merge with KAMEZAWA's and YAMAMOTO's water mark and background reclaim
+   patches in the long-term
+
+series
+------
+memory-controller-soft-limit-add-documentation.patch
+prio_heap_delete_max.patch
+prio_heap_replace_leaf.patch
+memory-controller-soft-limit-res-counter-updates.patch
+memory-controller-soft-limit-reclaim-on-contention.patch
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
