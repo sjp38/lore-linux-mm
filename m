@@ -1,20 +1,20 @@
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28esmtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id m5U3gjgC030487
-	for <linux-mm@kvack.org>; Mon, 30 Jun 2008 09:12:45 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5U3fZP8966894
-	for <linux-mm@kvack.org>; Mon, 30 Jun 2008 09:11:35 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id m5U3gjtc006800
-	for <linux-mm@kvack.org>; Mon, 30 Jun 2008 09:12:45 +0530
-Message-ID: <48685640.5080408@linux.vnet.ibm.com>
-Date: Mon, 30 Jun 2008 09:12:56 +0530
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id m5U3lFYI026374
+	for <linux-mm@kvack.org>; Mon, 30 Jun 2008 13:47:15 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m5U3kLWp3809302
+	for <linux-mm@kvack.org>; Mon, 30 Jun 2008 13:46:21 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m5U3kjUO023420
+	for <linux-mm@kvack.org>; Mon, 30 Jun 2008 13:46:45 +1000
+Message-ID: <4868572B.5070006@linux.vnet.ibm.com>
+Date: Mon, 30 Jun 2008 09:16:51 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [RFC 5/5] Memory controller soft limit reclaim on contention
-References: <20080627151808.31664.36047.sendpatchset@balbir-laptop> <20080627151906.31664.7247.sendpatchset@balbir-laptop> <6599ad830806270909w6a2c26d8mcf406856c06c5da@mail.gmail.com>
-In-Reply-To: <6599ad830806270909w6a2c26d8mcf406856c06c5da@mail.gmail.com>
+Subject: Re: [RFC 3/5] Replacement policy on heap overfull
+References: <20080627151808.31664.36047.sendpatchset@balbir-laptop> <20080627151838.31664.51492.sendpatchset@balbir-laptop> <6599ad830806270837t5f9df61cn665a88d3dd8746d4@mail.gmail.com>
+In-Reply-To: <6599ad830806270837t5f9df61cn665a88d3dd8746d4@mail.gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,84 +24,70 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, YAMAMOTO Takashi <yamamoto@valinu
 List-ID: <linux-mm.kvack.org>
 
 Paul Menage wrote:
-> On Fri, Jun 27, 2008 at 8:19 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->> +/*
->> + * Create a heap of memory controller structures. The heap is reverse
->> + * sorted by size. This heap is used for implementing soft limits. Our
->> + * current heap implementation does not allow dynamic heap updates, but
->> + * eventually, the costliest controller (over it's soft limit should
+> On Fri, Jun 27, 2008 at 8:18 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>>
+>> This patch adds a policy parameter to heap_insert. While inserting an element
+>> if the heap is full, the policy determines which element to replace.
+>> The default earlier is now obtained by passing the policy as HEAP_REP_TOP.
+>> The new HEAP_REP_LEAF policy, replaces a leaf node (the last element).
+>>
+>> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+>> ---
+>>
+>>  include/linux/prio_heap.h |    9 ++++++++-
+>>  kernel/cgroup.c           |    2 +-
+>>  lib/prio_heap.c           |   31 +++++++++++++++++++++++--------
+>>  3 files changed, 32 insertions(+), 10 deletions(-)
+>>
+>> diff -puN include/linux/prio_heap.h~prio_heap_replace_leaf include/linux/prio_heap.h
+>> --- linux-2.6.26-rc5/include/linux/prio_heap.h~prio_heap_replace_leaf   2008-06-27 20:43:09.000000000 +0530
+>> +++ linux-2.6.26-rc5-balbir/include/linux/prio_heap.h   2008-06-27 20:43:09.000000000 +0530
+>> @@ -22,6 +22,11 @@ struct ptr_heap {
+>>        int (*gt)(void *, void *);
+>>  };
+>>
+>> +enum heap_replacement_policy {
+>> +       HEAP_REP_LEAF,
+>> +       HEAP_REP_TOP,
+>> +};
 > 
-> it's -> its
+> Maybe "drop" rather than "replace"? HEAP_REP_TOP doesn't replace the
+> top element if you insert a new higher element, it drops the top.
+> 
+> How about HEAP_DROP_LEAF and HEAP_DROP_MAX? You could also provide a
+> HEAP_DROP_MIN with the caveat that it would take linear time.
+> 
+> Add comments here about what these mean?
 > 
 
-Yes
+Sure, will do
 
->> +                       old_mem = heap_insert(&mem_cgroup_heap, mem,
->> +                                               HEAP_REP_LEAF);
->> +                       mem->on_heap = 1;
->> +                       if (old_mem)
->> +                               old_mem->on_heap = 0;
+>> +       if (policy == HEAP_REP_TOP)
 > 
-> Maybe a comment here that mem might == old_mem?
-> 
->> + * When the soft limit is exceeded, look through the heap and start
->> + * reclaiming from all groups over thier soft limit
-> 
-> thier -> their
+> switch() here?
 > 
 
-Will fix
+Can switch over
 
->> +               if (!res_counter_check_under_soft_limit(&mem->res)) {
->> +                       /*
->> +                        * The current task might already be over it's soft
->> +                        * limit and trying to aggressively grow. We check to
->> +                        * see if it the memory group associated with the
->> +                        * current task is on the heap when the current group
->> +                        * is over it's soft limit. If not, we add it
->> +                        */
->> +                       if (!mem->on_heap) {
->> +                               struct mem_cgroup *old_mem;
+>> +               if (heap->gt(p, ptrs[0]))
+>> +                       return p;
 >> +
->> +                               old_mem = heap_insert(&mem_cgroup_heap, mem,
->> +                                                       HEAP_REP_LEAF);
->> +                               mem->on_heap = 1;
->> +                               if (old_mem)
->> +                                       old_mem->on_heap = 0;
->> +                       }
->> +               }
+>> +       if (policy == HEAP_REP_LEAF) {
+>> +               /* Heap insertion */
+>> +               int pos = heap->size - 1;
+>> +               res = ptrs[pos];
+>> +               heap_insert_at(heap, p, pos);
+>> +               return res;
+>> +       }
+>>
+>>        /* Replace the current max and heapify */
+>>        res = ptrs[0];
 > 
-> This and the other similar code for adding to the heap should be
-> refactored into a separate function.
-> 
+> This should probably be in the arm dealing with
+> HEAP_REP_TOP/HEAP_DROP_MAX since we only get here in that case.
 
-OK, I can look into that.
-
->> +static int mem_cgroup_compare_soft_limits(void *p1, void *p2)
->> +{
->> +       struct mem_cgroup *mem1 = (struct mem_cgroup *)p1;
->> +       struct mem_cgroup *mem2 = (struct mem_cgroup *)p2;
->> +       unsigned long long delta1, delta2;
->> +
->> +       delta1 = res_counter_soft_limit_delta(&mem1->res);
->> +       delta2 = res_counter_soft_limit_delta(&mem2->res);
->> +
->> +       return delta1 > delta2;
->> +}
-> 
-> This isn't a valid comparator, since it isn't a constant function of
-> its two input pointers - calling mem_cgroup_compare_soft_limits(m1,
-> m2) can give different results at different times. So your heap
-> invariant will become invalid over time.
-> 
-> I think if you want to do this, you're going to need to periodically
-> take a snapshot of each cgroup's excess and use that snapshot in the
-> comparator; whenever you update the snapshots, you'll need to restore
-> the heap invariant.
-> 
-
-I'll fix it by taking snapshots only before inserting an element into the heap
-(I think I responded to this one in another email, but missed out on the typos).
+I can do that, I'll need to rearrange the code and merge the condition above
+with the ->gt check into HEAP_DROP_MAX
 
 -- 
 	Warm Regards,
