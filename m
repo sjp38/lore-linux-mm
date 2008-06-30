@@ -1,55 +1,58 @@
-Date: Mon, 30 Jun 2008 20:03:23 +0200
-From: Pierre Ossman <drzeus-list@drzeus.cx>
-Subject: How to alloc highmem page below 4GB on i386?
-Message-ID: <20080630200323.2a5992cd@mjolnir.drzeus.cx>
-Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature"; micalg=PGP-SHA1; boundary="=_freyr.drzeus.cx-10147-1214848374-0001-2"
+Date: Mon, 30 Jun 2008 20:00:04 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH] mm: fix uninitialized variables for find_vma_prepare
+ callers
+In-Reply-To: <1214844882-22560-1-git-send-email-bhalevy@panasas.com>
+Message-ID: <Pine.LNX.4.64.0806301942220.22984@blonde.site>
+References: <1214844882-22560-1-git-send-email-bhalevy@panasas.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Benny Halevy <bhalevy@panasas.com>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This is a MIME-formatted message.  If you see this text it means that your
-E-mail software does not support MIME-formatted messages.
+On Mon, 30 Jun 2008, Benny Halevy wrote:
+> gcc 4.3.0 correctly emits the following warnings.
+> When a vma covering addr is found, find_vma_prepare indeed returns without
+> setting pprev, rb_link, and rb_parent.
 
---=_freyr.drzeus.cx-10147-1214848374-0001-2
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+That's amusing, thank you.
 
-Simple question. How do I allocate a page from highmem, that's still
-within 32 bits? x86_64 has the DMA32 zone, but i386 has just HIGHMEM.
-As most devices can't DMA above 32 bit, I have 3 GB of memory that's
-not getting decent usage (or results in needless bouncing). What to do?
+You may wonder how the vma rb_tree has been working all these years
+despite that.  The answer is that we only use find_vma_prepare when
+about to insert a new vma: if there's anything already there, it's
+either an error condition, or we go off and unmap the overlap without
+taking any interest in those uninitialized values for linking.
 
-I tried just enabling CONFIG_DMA32 for i386, but there is some guard
-against too many memory zones. I'm assuming this is there for a good
-reason?
+It would be nicer to initialize them, and your patch is certainly
+nice and simple.  Would it have the effect, that it returns with
+vma == *pprev when addr falls within an existing vma?
+That would be a sensible outcome, I think.
 
---=20
-     -- Pierre Ossman
+Hugh
 
-  Linux kernel, MMC maintainer        http://www.kernel.org
-  rdesktop, core developer          http://www.rdesktop.org
-
-  WARNING: This correspondence is being monitored by the
-  Swedish government. Make sure your server uses encryption
-  for SMTP traffic and consider using PGP for end-to-end
-  encryption.
-
---=_freyr.drzeus.cx-10147-1214848374-0001-2
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment; filename=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.9 (GNU/Linux)
-
-iEYEARECAAYFAkhpH/EACgkQ7b8eESbyJLj7XQCgl6dThmKpkBEYOHfHkQfZmL1R
-NGUAn2yb6QHeq9lLk/w+HJUIIM5afRJ/
-=cOPe
------END PGP SIGNATURE-----
-
---=_freyr.drzeus.cx-10147-1214848374-0001-2--
+> [warnings snipped]
+> 
+> Signed-off-by: Benny Halevy <bhalevy@panasas.com>
+> ---
+>  mm/mmap.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 3354fdd..81b9873 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -366,7 +366,7 @@ find_vma_prepare(struct mm_struct *mm, unsigned long addr,
+>  		if (vma_tmp->vm_end > addr) {
+>  			vma = vma_tmp;
+>  			if (vma_tmp->vm_start <= addr)
+> -				return vma;
+> +				break;
+>  			__rb_link = &__rb_parent->rb_left;
+>  		} else {
+>  			rb_prev = __rb_parent;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
