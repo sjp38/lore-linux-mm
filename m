@@ -1,41 +1,152 @@
-Date: Tue, 1 Jul 2008 09:38:40 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [resend][PATCH -mm] split_lru: fix pagevec_move_tail() doesn't
- treat unevictable page
-Message-ID: <20080701093840.07b48ced@bree.surriel.com>
-In-Reply-To: <20080701172223.3801.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080701155749.37F8.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20080701172223.3801.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m61Dt1CK001098
+	for <linux-mm@kvack.org>; Tue, 1 Jul 2008 09:55:01 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m61Dt1Vt226674
+	for <linux-mm@kvack.org>; Tue, 1 Jul 2008 09:55:01 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m61Dt08T016278
+	for <linux-mm@kvack.org>; Tue, 1 Jul 2008 09:55:01 -0400
+Subject: Re: [patch 1/6] mm: Allow architectures to define additional
+	protection bits
+From: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
+In-Reply-To: <20080701015301.3dc8749b.akpm@linux-foundation.org>
+References: <20080618223254.966080905@linux.vnet.ibm.com>
+	 <20080618223328.856102092@linux.vnet.ibm.com>
+	 <20080701015301.3dc8749b.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Tue, 01 Jul 2008 13:54:59 +0000
+Message-Id: <1214920499.18690.10.camel@norville.austin.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, MinChan Kim <minchan.kim@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Paul Mackerras <paulus@au1.ibm.com>, linux-mm@kvack.org, Linuxppc-dev@ozlabs.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 01 Jul 2008 17:26:51 +0900
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Tue, 2008-07-01 at 01:53 -0700, Andrew Morton wrote:
+> On Wed, 18 Jun 2008 17:32:55 -0500 shaggy@linux.vnet.ibm.com wrote:
+> 
+> > This patch allows architectures to define functions to deal with
+> > additional protections bits for mmap() and mprotect().
+> > 
+> > arch_calc_vm_prot_bits() maps additonal protection bits to vm_flags
+> > arch_vm_get_page_prot() maps additional vm_flags to the vma's vm_page_prot
+> > arch_validate_prot() checks for valid values of the protection bits
+> 
+> It'd be simpler if Paul were to merge this.  It doesn't conflict with
+> any pending work.
 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+That works for me.  Paul, I'll send you an updated patchset.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+> Acked-by: Andrew Morton <akpm@linux-foundation.org>
+> 
+> > Note: vm_get_page_prot() is now pretty ugly.
+> 
+> It is.  But afacit it generates the same code for non-powerpc.
+> 
+> > Suggestions?
+> 
+> nfi.  Let us rub the Hugh-summoning lamp.
+> 
+> > Signed-off-by: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
+> > ---
+> > 
+> >  include/linux/mman.h |   28 +++++++++++++++++++++++++++-
+> >  mm/mmap.c            |    5 +++--
+> >  mm/mprotect.c        |    2 +-
+> >  3 files changed, 31 insertions(+), 4 deletions(-)
+> > 
+> > Index: linux-2.6.26-rc5/include/linux/mman.h
+> > ===================================================================
+> > --- linux-2.6.26-rc5.orig/include/linux/mman.h
+> > +++ linux-2.6.26-rc5/include/linux/mman.h
+> > @@ -34,6 +34,31 @@ static inline void vm_unacct_memory(long
+> >  }
+> >  
+> >  /*
+> > + * Allow architectures to handle additional protection bits
+> > + */
+> > +
+> > +#ifndef arch_calc_vm_prot_bits
+> > +#define arch_calc_vm_prot_bits(prot) 0
+> > +#endif
+> > +
+> > +#ifndef arch_vm_get_page_prot
+> > +#define arch_vm_get_page_prot(vm_flags) __pgprot(0)
+> > +#endif
+> > +
+> > +#ifndef arch_validate_prot
+> > +/*
+> > + * This is called from mprotect().  PROT_GROWSDOWN and PROT_GROWSUP have
+> > + * already been masked out.
+> > + *
+> > + * Returns true if the prot flags are valid
+> > + */
+> > +static inline int arch_validate_prot(unsigned long prot)
+> > +{
+> > +	return (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM)) == 0;
+> > +}
+> 
+> Officially we should now have
+> 
+> #define arch_validate_prot arch_validate_prot
+> 
+> here.
 
-Good catch!
- 
-> @@ -116,7 +116,7 @@ static void pagevec_move_tail(struct pag
->  			zone = pagezone;
->  			spin_lock(&zone->lru_lock);
->  		}
-> -		if (PageLRU(page) && !PageActive(page)) {
-> +		if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
->  			int lru = page_is_file_cache(page);
->  			list_move_tail(&page->lru, &zone->lru[lru].list);
->  			pgmoved++;
+No problem.
 
+> > +#endif
+> > +
+> > +/*
+> >   * Optimisation macro.  It is equivalent to:
+> >   *      (x & bit1) ? bit2 : 0
+> >   * but this version is faster.
+> > @@ -51,7 +76,8 @@ calc_vm_prot_bits(unsigned long prot)
+> >  {
+> >  	return _calc_vm_trans(prot, PROT_READ,  VM_READ ) |
+> >  	       _calc_vm_trans(prot, PROT_WRITE, VM_WRITE) |
+> > -	       _calc_vm_trans(prot, PROT_EXEC,  VM_EXEC );
+> > +	       _calc_vm_trans(prot, PROT_EXEC,  VM_EXEC) |
+> > +	       arch_calc_vm_prot_bits(prot);
+> >  }
+> >  
+> >  /*
+> > Index: linux-2.6.26-rc5/mm/mmap.c
+> > ===================================================================
+> > --- linux-2.6.26-rc5.orig/mm/mmap.c
+> > +++ linux-2.6.26-rc5/mm/mmap.c
+> > @@ -72,8 +72,9 @@ pgprot_t protection_map[16] = {
+> >  
+> >  pgprot_t vm_get_page_prot(unsigned long vm_flags)
+> >  {
+> > -	return protection_map[vm_flags &
+> > -				(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)];
+> > +	return __pgprot(pgprot_val(protection_map[vm_flags &
+> > +				(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]) |
+> > +			pgprot_val(arch_vm_get_page_prot(vm_flags)));
+> >  }
+> >  EXPORT_SYMBOL(vm_get_page_prot);
+> >  
+> > Index: linux-2.6.26-rc5/mm/mprotect.c
+> > ===================================================================
+> > --- linux-2.6.26-rc5.orig/mm/mprotect.c
+> > +++ linux-2.6.26-rc5/mm/mprotect.c
+> > @@ -239,7 +239,7 @@ sys_mprotect(unsigned long start, size_t
+> >  	end = start + len;
+> >  	if (end <= start)
+> >  		return -ENOMEM;
+> > -	if (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM))
+> > +	if (!arch_validate_prot(prot))
+> >  		return -EINVAL;
+> >  
+> >  	reqprot = prot;
+> > 
+> > -- 
 -- 
-All rights reversed.
+David Kleikamp
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
