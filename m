@@ -1,107 +1,168 @@
+Date: Tue, 1 Jul 2008 18:58:55 +0100
 From: Andy Whitcroft <apw@shadowen.org>
-Subject: [PATCH 2/4] pull out zone cpuset and watermark checks for reuse
-Date: Tue,  1 Jul 2008 18:58:40 +0100
-Message-Id: <1214935122-20828-3-git-send-email-apw@shadowen.org>
-In-Reply-To: <1214935122-20828-1-git-send-email-apw@shadowen.org>
-References: <1214935122-20828-1-git-send-email-apw@shadowen.org>
+Subject: Re: [problem] raid performance loss with 2.6.26-rc8 on 32-bit x86 (bisected)
+Message-ID: <20080701175855.GI32727@shadowen.org>
+References: <1214877439.7885.40.camel@dwillia2-linux.ch.intel.com> <20080701080910.GA10865@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080701080910.GA10865@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, NeilBrown <neilb@suse.de>, babydr@baby-dragons.com, cl@linux-foundation.org, lee.schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-When allocating we need to confirm that the zone we are about to allocate
-from is acceptable to the CPUSET we are in, and that it does not violate
-the zone watermarks.  Pull these checks out so we can reuse them in a
-later patch.
+On Tue, Jul 01, 2008 at 09:09:11AM +0100, Mel Gorman wrote:
+> (Christoph's address corrected and Andys added to cc)
+> 
+> On (30/06/08 18:57), Dan Williams didst pronounce:
+> > Hello,
+> > 
+> > Prompted by a report from a user I have bisected a performance loss
+> > apparently introduced by commit 54a6eb5c (mm: use two zonelist that are
+> > filtered by GFP mask).  The test is simple sequential writes to a 4 disk
+> > raid5 array.  Performance should be about 20% greater than 2.6.25 due to
+> > commit 8b3e6cdc (md: introduce get_priority_stripe() to improve raid456
+> > write performance).  The sample data below shows sporadic performance
+> > starting at 54a6eb5c.  The '+' indicates where I hand applied 8b3e6cdc.
+> > 
+> > revision   2.6.25.8-fc8 2.6.25.9+ dac1d27b+ 18ea7e71+ 54a6eb5c+ 2.6.26-rc1 2.6.26-rc8
+> >            138          168       169       167       177       149        144
+> >            140          168       172       170       109       138        142
+> >            142          165       169       164       119       138        129
+> >            144          168       169       171       120       139        135
+> >            142          165       174       166       165       122        154
+> > MB/s (avg) 141          167       171       168       138       137        141
+> > % change   0%           18%       21%       19%       -2%       -3%        0%
+> > result     base         good      good      good      [bad]     bad        bad
+> > 
+> 
+> That is not good at all as this patch is not a straight-forward revert but
+> the second time it's come under suspicion.
+> 
+> > Notable observations:
+> > 1/ This problem does not reproduce when ARCH=x86_64, i.e. 2.6.26-rc8 and
+> > 54a6eb5c show consistent performance at 170MB/s.
+> 
+> I'm very curious as to why this doesn't affect x86_64. HIGHMEM is one
+> possibility if GFP_KERNEL is a major factor and it has to scan over the
+> unusable zone a lot. However, another remote possibility is that many function
+> calls are more expensive on x86 than on x86_64 (this is a wild guess based
+> on the registers available). Spectulative patch is below.
+> 
+> If 8b3e6cdc is reverted from 2.6.26-rc8, what do the figures look like?
+> i.e. is the zonelist filtering looking like a performance regression or is
+> it just somehow negating the benefits of the raid patch?
+> 
+> > 2/ Single drive performance appears to be unaffected
+> > 3/ A quick test shows that raid0 performance is also sporadic:
+> >    2147483648 bytes (2.1 GB) copied, 7.72408 s, 278 MB/s
+> >    2147483648 bytes (2.1 GB) copied, 7.78478 s, 276 MB/s
+> >    2147483648 bytes (2.1 GB) copied, 11.0323 s, 195 MB/s
+> >    2147483648 bytes (2.1 GB) copied, 8.41244 s, 255 MB/s
+> >    2147483648 bytes (2.1 GB) copied, 30.7649 s, 69.8 MB/s
+> > 
+> 
+> Are these synced writes? i.e. is it possible the performance at the end
+> is dropped because memory becomes full of dirty pages at that point?
+> 
+> > System/Test configuration:
+> > (2) Intel(R) Xeon(R) CPU 5150
+> > mem=1024M
+> > CONFIG_HIGHMEM4G=y (full config attached)
+> > mdadm --create /dev/md0 /dev/sd[b-e] -n 4 -l 5 --assume-clean
+> > for i in `seq 1 5`; do dd if=/dev/zero of=/dev/md0 bs=1024k count=2048; done
+> > 
+> > Neil suggested CONFIG_NOHIGHMEM=y, I will give that a shot tomorrow.
+> > Other suggestions / experiments?
+> > 
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
----
- mm/page_alloc.c |   62 ++++++++++++++++++++++++++++++++++++++----------------
- 1 files changed, 43 insertions(+), 19 deletions(-)
+Looking at the commit in question (54a6eb5c) there is one slight anomoly
+in the conversion.  When nr_free_zone_pages() was converted to the new
+iterators it started using the offset parameter to limit the zones
+traversed; which is not unreasonable as that appears to be the
+parameters purpose.  However, if we look at the original implementation
+of this function (reproduced below) we can see it actually did nothing
+with this parameter:
+
+static unsigned int nr_free_zone_pages(int offset)
+{
+	/* Just pick one node, since fallback list is circular */
+	unsigned int sum = 0;
+
+	struct zonelist *zonelist = node_zonelist(numa_node_id(), GFP_KERNEL);
+	struct zone **zonep = zonelist->zones;
+	struct zone *zone;
+
+	for (zone = *zonep++; zone; zone = *zonep++) {
+		unsigned long size = zone->present_pages;
+		unsigned long high = zone->pages_high;
+		if (size > high)
+			sum += size - high;
+	}
+
+	return sum;
+}
+
+This version of the routine would only ever accumulate the free space as
+found on zones in the GFP_KERNEL zonelist, all zones other than HIGHMEM,
+regardless of its parameters.
+
+Looking at its callers, there are only two:
+
+    unsigned int nr_free_buffer_pages(void)
+    {
+	return nr_free_zone_pages(gfp_zone(GFP_USER));
+    }
+    unsigned int nr_free_pagecache_pages(void)
+    {
+	return nr_free_zone_pages(gfp_zone(GFP_HIGHUSER_MOVABLE));
+    }
+
+Before this commit both would return the same value.  Following it,
+nr_free_pagecache_pages() would now contain the number of pages in
+HIGHMEM as well.  This is used to initialise vm_total_pages, which is
+used in a number of the heuristics related to reclaim.
+
+        vm_total_pages = nr_free_pagecache_pages();
+
+If the issue was low memory pressure (which would not be an unreasonable
+conjecture given the large number of internal I/O's we may generate
+with RAID) we may well make different reclaim decisions before and after
+this commit.  It should also be noted that as this discrepancy would only
+appear where there is HIGHMEM we might expect different behaviour on i386
+either side of this commit but not so on x86_64.
+
+All that said, the simple way to confirm/eliminate this would be to
+test at the first bad commit, with the patch below.  This patch 'fixes'
+nr_free_pagecache_pages to return the original value.  It is not clear
+whether this is the right behaviour, but worth testing to see if this
+the root cause or not.
+
+-apw
+
+=== 8< ===
+debug raid slowdown
+
+There is a small difference in the calculations leading to the value of
+vm_total_pages once two zone lists is applied on i386 architectures with
+HIGHMEM present.  Bodge nr_free_pagecache_pages() to return the (arguably
+incorrect) value it did before this change.
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 758ecf1..4d9c4e8 100644
+index 2f55295..5ceef27 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1248,6 +1248,44 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
- 	return 1;
+@@ -1745,7 +1745,7 @@ EXPORT_SYMBOL_GPL(nr_free_buffer_pages);
+  */
+ unsigned int nr_free_pagecache_pages(void)
+ {
+-	return nr_free_zone_pages(gfp_zone(GFP_HIGHUSER_MOVABLE));
++	return nr_free_zone_pages(gfp_zone(GFP_USER));
  }
  
-+/*
-+ * Return 1 if this zone is an acceptable source given the cpuset
-+ * constraints.
-+ */
-+static inline int zone_cpuset_ok(struct zone *zone,
-+					int alloc_flags, gfp_t gfp_mask)
-+{
-+	if ((alloc_flags & ALLOC_CPUSET) &&
-+	    !cpuset_zone_allowed_softwall(zone, gfp_mask))
-+		return 0;
-+	return 1;
-+}
-+
-+/*
-+ * Return 1 if this zone is within the watermarks specified by the
-+ * allocation flags.
-+ */
-+static inline int zone_alloc_ok(struct zone *zone, int order,
-+			int classzone_idx, int alloc_flags, gfp_t gfp_mask)
-+{
-+	if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
-+		unsigned long mark;
-+		if (alloc_flags & ALLOC_WMARK_MIN)
-+			mark = zone->pages_min;
-+		else if (alloc_flags & ALLOC_WMARK_LOW)
-+			mark = zone->pages_low;
-+		else
-+			mark = zone->pages_high;
-+		if (!zone_watermark_ok(zone, order, mark,
-+			    classzone_idx, alloc_flags)) {
-+			if (!zone_reclaim_mode ||
-+					!zone_reclaim(zone, gfp_mask, order))
-+				return 0;
-+		}
-+	}
-+	return 1;
-+}
-+
- #ifdef CONFIG_NUMA
- /*
-  * zlc_setup - Setup for "zonelist cache".  Uses cached zone data to
-@@ -1401,25 +1439,11 @@ zonelist_scan:
- 		if (NUMA_BUILD && zlc_active &&
- 			!zlc_zone_worth_trying(zonelist, z, allowednodes))
- 				continue;
--		if ((alloc_flags & ALLOC_CPUSET) &&
--			!cpuset_zone_allowed_softwall(zone, gfp_mask))
--				goto try_next_zone;
--
--		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
--			unsigned long mark;
--			if (alloc_flags & ALLOC_WMARK_MIN)
--				mark = zone->pages_min;
--			else if (alloc_flags & ALLOC_WMARK_LOW)
--				mark = zone->pages_low;
--			else
--				mark = zone->pages_high;
--			if (!zone_watermark_ok(zone, order, mark,
--				    classzone_idx, alloc_flags)) {
--				if (!zone_reclaim_mode ||
--				    !zone_reclaim(zone, gfp_mask, order))
--					goto this_zone_full;
--			}
--		}
-+		if (!zone_cpuset_ok(zone, alloc_flags, gfp_mask))
-+			goto try_next_zone;
-+		if (!zone_alloc_ok(zone, order, classzone_idx,
-+							alloc_flags, gfp_mask))
-+			goto this_zone_full;
- 
- 		page = buffered_rmqueue(preferred_zone, zone, order, gfp_mask);
- 		if (page)
--- 
-1.5.6.1.201.g3e7d3
+ static inline void show_node(struct zone *zone)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
