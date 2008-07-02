@@ -1,63 +1,93 @@
-Message-ID: <486B0B0F.5010605@qumranet.com>
-Date: Wed, 02 Jul 2008 07:58:55 +0300
-From: Avi Kivity <avi@qumranet.com>
+Received: by rv-out-0708.google.com with SMTP id f25so219656rvb.26
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2008 22:00:25 -0700 (PDT)
+Message-ID: <28c262360807012200x27711a0fq280504b00096f7e6@mail.gmail.com>
+Date: Wed, 2 Jul 2008 14:00:25 +0900
+From: "MinChan Kim" <minchan.kim@gmail.com>
+Subject: Re: [resend][PATCH -mm] split_lru: fix pagevec_move_tail() doesn't treat unevictable page
+In-Reply-To: <20080702122850.380B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0 of 3] mmu notifier v18 for -mm
-References: <patchbomb.1214440016@duo.random> <20080701214415.b3f93706.akpm@linux-foundation.org>
-In-Reply-To: <20080701214415.b3f93706.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080701093840.07b48ced@bree.surriel.com>
+	 <28c262360807011739w5668920buf7880de6ed30f912@mail.gmail.com>
+	 <20080702122850.380B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, Robin Holt <holt@sgi.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm@vger.kernel.org, Kanoj Sarcar <kanojsarcar@yahoo.com>, Roland Dreier <rdreier@cisco.com>, Steve Wise <swise@opengridcomputing.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, general@lists.openfabrics.org, Hugh Dickins <hugh@veritas.com>, Rusty Russell <rusty@rustcorp.com.au>, Anthony Liguori <aliguori@us.ibm.com>, Chris Wright <chrisw@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, Eric Dumazet <dada1@cosmosbay.com>, "Paul E. McKenney" <paulmck@us.ibm.com>, Izik Eidus <izike@qumranet.com>, Rik van Riel <riel@redhat.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Thu, 26 Jun 2008 02:26:56 +0200 Andrea Arcangeli <andrea@qumranet.com> wrote:
+On Wed, Jul 2, 2008 at 12:30 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> Hi Kim-san,
 >
->   
->> Hello,
+>> Hi, Rik and Kosaki-san
 >>
->> Christoph suggested me to repost v18 for merging in -mm, to give it more
->> exposure before the .27 merge window opens. There's no code change compared to
->> the previous v18 submission (the only change is the correction in the comment
->> in the mm_take_all_locks patch rightfully pointed out by Linus).
+>> I want to know exact race situation for remaining git log.
+>> As you know, git log is important for me who is newbie to understand source
 >>
->> Full patchset including other XPMEM support patches can be found here:
+>> There are many possibility in this race problem.
 >>
->> 	http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.26-rc7/mmu-notifier-v18
->>
->> Only the three patches of the patchset I'm submitting here by email are ready
->> for merging, the rest you can find in the website is not ready for merging yet
->> for various performance degradations, lots of the XPMEM patches needs to be
->> elaborated to avoid any slowdown for the non-XPMEM case, but I keep
->> maintaining them to make life easier to XPMEM current development and later we
->> can keep work on them to make them suitable for inclusion to avoid any
->> performance degradation risk.
->>     
+>> Did you use hugepage in this test ?
+>> I think that If you used hugepage, it seems to happen following race.
 >
-> I'm a bit concerned about merging the first three patches when there
-> are eleven more patches of which some, afacit, are required to make
-> these three actually useful.  Committing these three would be signing a
-> blank cheque.
+> I don't use hugepage. but use SYSV-shmem.
+> so following scenario is very reasonable.
+
+It is not reasonable if you don't use hugepage.
+That's because file's address_space is still unevictable.
+Am I missing your point?
+
+I think following case is more reasonable rather than it,
+Please, Let you review this scenario.
+---
+
+CPU1							CPU2
+
+shrink_[in]active_list
+cull_unevictable_page
+putback_lru_page
+TestClearPageUnevicetable
+						rotate_reclaimable_page
+						!PageUnevictable(page)
+add_page_to_unevictable_list
+						pagevec_move_tail
+
+
+
+> OK.
+> I resend my patch with following description.
 >
->   
-
-The first three are useful for kvm, gru, and likely drm and rdma nics.
-
-It is only xpmem which requires the other eleven patches.
-
-> Because if we hit strong objections with the later patches we end up in a
-> cant-go-forward, cant-go-backward situation.
 >
->   
+>>
+>> --------------
+>>
+>> CPU1                                                           CPU2
+>>
+>> shm_unlock
+>> scan_mapping_unevictable_pages
+>> check_move_unevictable_page
+>> ClearPageUnevictable                                 rotate_reclaimable_page
+>>
+>> PageUnevictable(page) return 0
+>> SetPageUnevictable
+>> list_move(LRU_UNEVICTABLE)
+>>
+>> local_irq_save
+>>
+>> pagevec_move_tail
+>>
+>> Do you think it is possible ?
+>
+>
+>
 
-No, we end up in a some-people-are-happy, 
-some-have-to-redo-their-homework situation.
+
 
 -- 
-Do not meddle in the internals of kernels, for they are subtle and quick to panic.
+Kinds regards,
+MinChan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
