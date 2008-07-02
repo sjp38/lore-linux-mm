@@ -1,44 +1,44 @@
-Date: Wed, 2 Jul 2008 15:44:06 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: Re: [PATCH 4/4] capture pages freed during direct reclaim for allocation by the reclaimer
-Message-ID: <20080702144406.GB16591@shadowen.org>
-References: <1214935122-20828-1-git-send-email-apw@shadowen.org> <1214935122-20828-5-git-send-email-apw@shadowen.org> <20080702182909.D163.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: by rv-out-0708.google.com with SMTP id f25so428661rvb.26
+        for <linux-mm@kvack.org>; Wed, 02 Jul 2008 09:31:16 -0700 (PDT)
+Message-ID: <2f11576a0807020931n3a67e898od45d5f6e34a8f47@mail.gmail.com>
+Date: Thu, 3 Jul 2008 01:31:16 +0900
+From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC][-mm] [0/7] misc memcg patch set
+In-Reply-To: <20080702232315.51080aac.nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080702182909.D163.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20080702232315.51080aac.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "hugh@veritas.com" <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 02, 2008 at 09:01:59PM +0900, KOSAKI Motohiro wrote:
-> Hi Andy,
-> 
-> I feel this is interesting patch.
-> 
-> but I'm worry about it become increase OOM occur.
-> What do you think?
+Hi Nishimura-san,
 
-We do hold onto some nearly free pages for a while longer but only in
-direct reclaim, assuming kswapd is running its pages should not get
-captured.  I am pushing our machines in test pretty hard, to the
-unusable stage mostly without OOM'ing but that is still an artifical
-test.  The amount of memory under capture is proportional to the size of
-the allocations at the time of capture so one would hope this would only
-be significant at very high orders.
+>> - swap_controller (Maybe Nishimura works on.)
+>>   The world may change after this...cgroup without swap can appears easily.
+>>
+> Yes, and sorry for delaying submitting the next version of it.
+>
+> I used most of my time in testing -mm itself last month,
+> but I'm testing the next version now and goint to submit it
+> in a few days.
 
-> and, Why don't you make patch against -mm tree?
+sorry for that ;-)
 
-That is historical mostly as there was major churn in the same place when
-I was originally making these patches, plus -mm was not bootable on any
-of my test systems..  I am not sure if that is still true.  I will have
-a look at a recent -mm and see if they will rebase and boot.
+but your recent activity improvement -mm stabilization largely.
+thank you.
+I'm continuously working to stabilize -mm too.
 
-Thanks for looking.
+> I hope to have some discussion on this topic too
+> at OLS and LinuxFoundationSyposiumJapan ;)
 
--apw
+I hope hear your swap controller development plan too.
+I'm looking forward to meet you :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
