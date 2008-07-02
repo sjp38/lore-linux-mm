@@ -1,125 +1,98 @@
-Date: Wed, 2 Jul 2008 06:18:00 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [problem] raid performance loss with 2.6.26-rc8 on 32-bit x86 (bisected)
-Message-ID: <20080702051759.GA26338@csn.ul.ie>
-References: <1214877439.7885.40.camel@dwillia2-linux.ch.intel.com> <20080701080910.GA10865@csn.ul.ie> <20080701175855.GI32727@shadowen.org> <20080701190741.GB16501@csn.ul.ie> <1214944175.26855.18.camel@dwillia2-linux.ch.intel.com>
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28esmtp04.in.ibm.com (8.13.1/8.13.1) with ESMTP id m626Pdux019012
+	for <linux-mm@kvack.org>; Wed, 2 Jul 2008 11:55:39 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m626OPMA888854
+	for <linux-mm@kvack.org>; Wed, 2 Jul 2008 11:54:25 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id m626Pc9N028394
+	for <linux-mm@kvack.org>; Wed, 2 Jul 2008 11:55:38 +0530
+Message-ID: <486B1F60.1030608@linux.vnet.ibm.com>
+Date: Wed, 02 Jul 2008 11:55:36 +0530
+From: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1214944175.26855.18.camel@dwillia2-linux.ch.intel.com>
+Subject: [BUG] 2.6.26-rc8-git2 - kernel BUG at mm/page_alloc.c:585
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, NeilBrown <neilb@suse.de>, babydr@baby-dragons.com, cl@linux-foundation.org, lee.schermerhorn@hp.com
+To: kernel list <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, linuxppc-dev@ozlabs.org, kernel-testers@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andy Whitcroft <apw@shadowen.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On (01/07/08 13:29), Dan Williams didst pronounce:
-> 
-> On Tue, 2008-07-01 at 12:07 -0700, Mel Gorman wrote:
-> > On (01/07/08 18:58), Andy Whitcroft didst pronounce:
-> > > > > Neil suggested CONFIG_NOHIGHMEM=y, I will give that a shot tomorrow.
-> > > > > Other suggestions / experiments?
-> > > > >
-> > >
-> > > Looking at the commit in question (54a6eb5c) there is one slight anomoly
-> > > in the conversion.  When nr_free_zone_pages() was converted to the new
-> > > iterators it started using the offset parameter to limit the zones
-> > > traversed; which is not unreasonable as that appears to be the
-> > > parameters purpose.  However, if we look at the original implementation
-> > > of this function (reproduced below) we can see it actually did nothing
-> > > with this parameter:
-> > >
-> > > static unsigned int nr_free_zone_pages(int offset)
-> > > {
-> > >       /* Just pick one node, since fallback list is circular */
-> > >       unsigned int sum = 0;
-> > >
-> > >       struct zonelist *zonelist = node_zonelist(numa_node_id(), GFP_KERNEL);
-> > >       struct zone **zonep = zonelist->zones;
-> > >       struct zone *zone;
-> > >
-> > >       for (zone = *zonep++; zone; zone = *zonep++) {
-> > >               unsigned long size = zone->present_pages;
-> > >               unsigned long high = zone->pages_high;
-> > >               if (size > high)
-> > >                       sum += size - high;
-> > >       }
-> > >
-> > >       return sum;
-> > > }
-> > >
-> > 
-> > This looks kinda promising and depends heavily on how this patch was
-> > tested in isolation. Dan, can you post the patch you use on 2.6.25
-> > because the commit in question should not have applied cleanly please?
-> > 
-> > To be clear, 2.6.25 used the offset parameter correctly to get a zonelist with
-> > the right zones in it. However, with two-zonelist, there is only one that
-> > gets filtered so using GFP_KERNEL to find a zone is equivilant as it gets
-> > filtered based on offset.  However, if this patch was tested in isolation,
-> > it could result in bogus values of vm_total_pages. Dan, can you confirm
-> > in your dmesg logs that the line like the following has similar values
-> > please?
-> > 
-> > Built 1 zonelists in Zone order, mobility grouping on.  Total pages: 258544
-> 
-> The system is booted with mem=1024M on the kernel command line and with
-> or without Andy's patch this reports:
-> 
-> 	Built 1 zonelists in Zone order, mobility grouping on.  Total pages: 227584
-> 
-> Performance is still sporadic with the change.  Moreover this condition
-> is reproducing even with CONFIG_NOHIGHMEM=y.
-> 
-> Let us take commit 8b3e6cdc out of the equation and just look at raid0 
-> performance:
-> 
-> revision   2.6.25.8-fc8 54a6eb5c 54a6eb5c-nohighmem 2.6.26-rc8
->            279          278      273                277
->            281          278      275                277
->            281          113      68.7               66.8
->            279          69.2     277                73.7
->            278          75.6     62.5               80.3
-> MB/s (avg) 280          163      191                155
-> % change   0%           -42%     -32%               -45%
-> result     base         bad      bad                bad
-> 
+Hi,
 
-Ok, based on your other mail, 54a6eb5c here is a bisection point. The good
-figures are on par with the "good" kernel with some disasterous runs leading
-to a bad average. The thing is, the bad results are way worse than could be
-accounted for by two-zonelist alone. In fact, the figures look suspiciously
-like only 1 disk is in use as they are roughly quartered. Can you think of
-anything that would explain that? Can you also confirm that using a bisection
-point before two-zonelist runs steadily and with high performance as expected
-please? This is to rule out some other RAID patch being a factor.
+when running kernbench on powerpc box booted with the 2.6.26-rc8-git2
+kernel the machine drops to xmon with the kernel BUG
 
-It would be worth running vmstat during the tests so we can see if IO
-rates are dropping from an overall system perspective. If possible,
-oprofile data from the same time would be helpful to see does it show up
-where we are getting stuck.
-
-> These numbers are taken from the results of:
-> for i in `seq 1 5`; do dd if=/dev/zero of=/dev/md0 bs=1024k count=2048; done
-> 
-> Where md0 is created by:
-> mdadm --create /dev/md0 /dev/sd[b-e] -n 4 -l 0
-> 
-> I will try your debug patch next Mel, and then try to collect more data
-> with blktrace.
-> 
-
-I tried reproducing this but I don't have the necessary hardware to even
-come close to reproducing your test case :( .  I got some dbench results
-with oprofile but found no significant differences between 2.6.25 and
-2.6.26-rc8. However, I did find the results of dbench varied less between
-runs with the "repork" patch that made next_zones_zonelist() an inline
-function. Have you tried that patch yet?
+kernel BUG at mm/page_alloc.c:585!
+cpu 0x0: Vector: 700 (Program Check) at [c0000000c389ed50]
+    pc: c0000000000e22ec: .__rmqueue+0x178/0x25c
+    lr: c0000000000e22ec: .__rmqueue+0x178/0x25c
+    sp: c0000000c389efd0
+   msr: 8000000000029032
+  current = 0xc0000000f6e0e790
+  paca    = 0xc000000000873480
+    pid   = 3421, comm = tar
+kernel BUG at mm/page_alloc.c:585!
+enter ? for help
+[c0000000c389efd0] c0000000000e22d0 .__rmqueue+0x15c/0x25c (unreliable)
+[c0000000c389f0a0] c0000000000e2438 .rmqueue_bulk+0x68/0xf0
+[c0000000c389f170] c0000000000e43cc .get_page_from_freelist+0x2d0/0x848
+[c0000000c389f2b0] c0000000000e4abc .__alloc_pages_internal+0x12c/0x494
+[c0000000c389f3c0] c0000000000e4e6c .__alloc_pages+0x1c/0x30
+[c0000000c389f440] c0000000001107d8 .kmem_getpages+0x90/0x198
+[c0000000c389f4e0] c000000000111200 .fallback_alloc+0x190/0x26c
+[c0000000c389f5b0] c000000000111478 .____cache_alloc_node+0x19c/0x1d0
+[c0000000c389f660] c000000000111e90 .kmem_cache_alloc+0x150/0x1f8
+[c0000000c389f710] d00000000019fb50 .ext3_alloc_inode+0x2c/0x74 [ext3]
+[c0000000c389f790] c00000000013725c .alloc_inode+0x58/0x278
+[c0000000c389f830] c0000000001374b4 .new_inode+0x38/0xd4
+[c0000000c389f8d0] d000000000193930 .ext3_new_inode+0x90/0xc64 [ext3]
+[c0000000c389f9f0] d00000000019dc28 .ext3_create+0xc4/0x16c [ext3]
+[c0000000c389fab0] c000000000127944 .vfs_create+0x12c/0x1d4
+[c0000000c389fb60] c00000000012b54c .do_filp_open+0x210/0x8b4
+[c0000000c389fd00] c0000000001191f8 .do_sys_open+0x80/0x144
+[c0000000c389fdb0] c00000000015f5d8 .compat_sys_open+0x2c/0x44
+[c0000000c389fe30] c0000000000086dc syscall_exit+0x0/0x40
+--- Exception: c00 (System Call) at 000000000ff0e6d4
+SP (ffd3f5a0) is in userspace
+0:mon> r
+R00 = 00000000f0008d00   R16 = 0000000000000001
+R01 = c0000000c389efd0   R17 = 0000000000000044
+R02 = c0000000007e74e0   R18 = 0000000000000001
+R03 = 0000000000000001   R19 = c00000010ffff828
+R04 = f000000000069000   R20 = c00000010ffff800
+R05 = 0000000000000003   R21 = c0000001ffff5700
+R06 = 0000000000000008   R22 = 0000000000000000
+R07 = 0000000000000000   R23 = 0000000000000001
+R08 = 0000000000001180   R24 = 0000000000000007
+R09 = 00000000f0008cff   R25 = 0000000000000007
+R10 = c0000001ffff5700   R26 = 0000000000000080
+R11 = c000000000885df8   R27 = c0000001ffff5e28
+R12 = c000000010010080   R28 = f000000000066000
+R13 = c000000000873480   R29 = f000000000069000
+R14 = 0000000000000001   R30 = c000000000791ce0
+R15 = 0000000000000001   R31 = c0000000c389efd0
+pc  = c0000000000e22ec .__rmqueue+0x178/0x25c
+lr  = c0000000000e22ec .__rmqueue+0x178/0x25c
+msr = 8000000000029032   cr  = 24000442
+ctr = 0000000000000003   xer = 0000000020000000   trap =  700
+0:mon> u
+SLB contents of cpu 0
+00 c000000008000000 40004f7ca3000510  1T  ESID=   c00000  VSID=       4f7ca3 LLP:110 
+01 d000000008000000 4000eb71b0000510  1T  ESID=   d00000  VSID=       eb71b0 LLP:110 
+11 0000000008000000 000020b2b24a4d90 256M ESID=        0  VSID=    20b2b24a4 LLP:110 
+12 00000000f8000000 00002bea2a039d90 256M ESID=        f  VSID=    2bea2a039 LLP:110 
+13 0000000048000000 000023b06bd10d90 256M ESID=        4  VSID=    23b06bd10 LLP:110 
+14 0000000018000000 0000217220abfd90 256M ESID=        1  VSID=    217220abf LLP:110 
+38 f000000008000000 4000235bcc000500  1T  ESID=   f00000  VSID=       235bcc LLP:100 
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Thanks & Regards,
+Kamalesh Babulal,
+Linux Technology Center,
+IBM, ISTL.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
