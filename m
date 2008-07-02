@@ -1,93 +1,125 @@
-Received: by rv-out-0708.google.com with SMTP id f25so219656rvb.26
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2008 22:00:25 -0700 (PDT)
-Message-ID: <28c262360807012200x27711a0fq280504b00096f7e6@mail.gmail.com>
-Date: Wed, 2 Jul 2008 14:00:25 +0900
-From: "MinChan Kim" <minchan.kim@gmail.com>
-Subject: Re: [resend][PATCH -mm] split_lru: fix pagevec_move_tail() doesn't treat unevictable page
-In-Reply-To: <20080702122850.380B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Wed, 2 Jul 2008 06:18:00 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [problem] raid performance loss with 2.6.26-rc8 on 32-bit x86 (bisected)
+Message-ID: <20080702051759.GA26338@csn.ul.ie>
+References: <1214877439.7885.40.camel@dwillia2-linux.ch.intel.com> <20080701080910.GA10865@csn.ul.ie> <20080701175855.GI32727@shadowen.org> <20080701190741.GB16501@csn.ul.ie> <1214944175.26855.18.camel@dwillia2-linux.ch.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-References: <20080701093840.07b48ced@bree.surriel.com>
-	 <28c262360807011739w5668920buf7880de6ed30f912@mail.gmail.com>
-	 <20080702122850.380B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <1214944175.26855.18.camel@dwillia2-linux.ch.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, NeilBrown <neilb@suse.de>, babydr@baby-dragons.com, cl@linux-foundation.org, lee.schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 2, 2008 at 12:30 PM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
-> Hi Kim-san,
->
->> Hi, Rik and Kosaki-san
->>
->> I want to know exact race situation for remaining git log.
->> As you know, git log is important for me who is newbie to understand source
->>
->> There are many possibility in this race problem.
->>
->> Did you use hugepage in this test ?
->> I think that If you used hugepage, it seems to happen following race.
->
-> I don't use hugepage. but use SYSV-shmem.
-> so following scenario is very reasonable.
+On (01/07/08 13:29), Dan Williams didst pronounce:
+> 
+> On Tue, 2008-07-01 at 12:07 -0700, Mel Gorman wrote:
+> > On (01/07/08 18:58), Andy Whitcroft didst pronounce:
+> > > > > Neil suggested CONFIG_NOHIGHMEM=y, I will give that a shot tomorrow.
+> > > > > Other suggestions / experiments?
+> > > > >
+> > >
+> > > Looking at the commit in question (54a6eb5c) there is one slight anomoly
+> > > in the conversion.  When nr_free_zone_pages() was converted to the new
+> > > iterators it started using the offset parameter to limit the zones
+> > > traversed; which is not unreasonable as that appears to be the
+> > > parameters purpose.  However, if we look at the original implementation
+> > > of this function (reproduced below) we can see it actually did nothing
+> > > with this parameter:
+> > >
+> > > static unsigned int nr_free_zone_pages(int offset)
+> > > {
+> > >       /* Just pick one node, since fallback list is circular */
+> > >       unsigned int sum = 0;
+> > >
+> > >       struct zonelist *zonelist = node_zonelist(numa_node_id(), GFP_KERNEL);
+> > >       struct zone **zonep = zonelist->zones;
+> > >       struct zone *zone;
+> > >
+> > >       for (zone = *zonep++; zone; zone = *zonep++) {
+> > >               unsigned long size = zone->present_pages;
+> > >               unsigned long high = zone->pages_high;
+> > >               if (size > high)
+> > >                       sum += size - high;
+> > >       }
+> > >
+> > >       return sum;
+> > > }
+> > >
+> > 
+> > This looks kinda promising and depends heavily on how this patch was
+> > tested in isolation. Dan, can you post the patch you use on 2.6.25
+> > because the commit in question should not have applied cleanly please?
+> > 
+> > To be clear, 2.6.25 used the offset parameter correctly to get a zonelist with
+> > the right zones in it. However, with two-zonelist, there is only one that
+> > gets filtered so using GFP_KERNEL to find a zone is equivilant as it gets
+> > filtered based on offset.  However, if this patch was tested in isolation,
+> > it could result in bogus values of vm_total_pages. Dan, can you confirm
+> > in your dmesg logs that the line like the following has similar values
+> > please?
+> > 
+> > Built 1 zonelists in Zone order, mobility grouping on.  Total pages: 258544
+> 
+> The system is booted with mem=1024M on the kernel command line and with
+> or without Andy's patch this reports:
+> 
+> 	Built 1 zonelists in Zone order, mobility grouping on.  Total pages: 227584
+> 
+> Performance is still sporadic with the change.  Moreover this condition
+> is reproducing even with CONFIG_NOHIGHMEM=y.
+> 
+> Let us take commit 8b3e6cdc out of the equation and just look at raid0 
+> performance:
+> 
+> revision   2.6.25.8-fc8 54a6eb5c 54a6eb5c-nohighmem 2.6.26-rc8
+>            279          278      273                277
+>            281          278      275                277
+>            281          113      68.7               66.8
+>            279          69.2     277                73.7
+>            278          75.6     62.5               80.3
+> MB/s (avg) 280          163      191                155
+> % change   0%           -42%     -32%               -45%
+> result     base         bad      bad                bad
+> 
 
-It is not reasonable if you don't use hugepage.
-That's because file's address_space is still unevictable.
-Am I missing your point?
+Ok, based on your other mail, 54a6eb5c here is a bisection point. The good
+figures are on par with the "good" kernel with some disasterous runs leading
+to a bad average. The thing is, the bad results are way worse than could be
+accounted for by two-zonelist alone. In fact, the figures look suspiciously
+like only 1 disk is in use as they are roughly quartered. Can you think of
+anything that would explain that? Can you also confirm that using a bisection
+point before two-zonelist runs steadily and with high performance as expected
+please? This is to rule out some other RAID patch being a factor.
 
-I think following case is more reasonable rather than it,
-Please, Let you review this scenario.
----
+It would be worth running vmstat during the tests so we can see if IO
+rates are dropping from an overall system perspective. If possible,
+oprofile data from the same time would be helpful to see does it show up
+where we are getting stuck.
 
-CPU1							CPU2
+> These numbers are taken from the results of:
+> for i in `seq 1 5`; do dd if=/dev/zero of=/dev/md0 bs=1024k count=2048; done
+> 
+> Where md0 is created by:
+> mdadm --create /dev/md0 /dev/sd[b-e] -n 4 -l 0
+> 
+> I will try your debug patch next Mel, and then try to collect more data
+> with blktrace.
+> 
 
-shrink_[in]active_list
-cull_unevictable_page
-putback_lru_page
-TestClearPageUnevicetable
-						rotate_reclaimable_page
-						!PageUnevictable(page)
-add_page_to_unevictable_list
-						pagevec_move_tail
-
-
-
-> OK.
-> I resend my patch with following description.
->
->
->>
->> --------------
->>
->> CPU1                                                           CPU2
->>
->> shm_unlock
->> scan_mapping_unevictable_pages
->> check_move_unevictable_page
->> ClearPageUnevictable                                 rotate_reclaimable_page
->>
->> PageUnevictable(page) return 0
->> SetPageUnevictable
->> list_move(LRU_UNEVICTABLE)
->>
->> local_irq_save
->>
->> pagevec_move_tail
->>
->> Do you think it is possible ?
->
->
->
-
-
+I tried reproducing this but I don't have the necessary hardware to even
+come close to reproducing your test case :( .  I got some dbench results
+with oprofile but found no significant differences between 2.6.25 and
+2.6.26-rc8. However, I did find the results of dbench varied less between
+runs with the "repork" patch that made next_zones_zonelist() an inline
+function. Have you tried that patch yet?
 
 -- 
-Kinds regards,
-MinChan Kim
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
