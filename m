@@ -1,48 +1,35 @@
-Date: Thu, 3 Jul 2008 08:56:58 +0900
+Date: Thu, 3 Jul 2008 08:57:41 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][-mm] [0/7] misc memcg patch set
-Message-Id: <20080703085658.4ab695d5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080702232315.51080aac.nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][-mm] [6/7] res_counter distance to limit
+Message-Id: <20080703085741.1cf105b0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <6599ad830807021219u1cc48e9fx4ebbcab7961a7408@mail.gmail.com>
 References: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080702232315.51080aac.nishimura@mxp.nes.nec.co.jp>
+	<20080702211510.6f1fe470.kamezawa.hiroyu@jp.fujitsu.com>
+	<6599ad830807021219u1cc48e9fx4ebbcab7961a7408@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "hugh@veritas.com" <hugh@veritas.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Paul Menage <menage@google.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "hugh@veritas.com" <hugh@veritas.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2 Jul 2008 23:23:15 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Wed, 2 Jul 2008 12:19:24 -0700
+"Paul Menage" <menage@google.com> wrote:
 
-> Hi, Kamezawa-san.
+> On Wed, Jul 2, 2008 at 5:15 AM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > I wonder wheher there is better name rather than "distance"...
+> > give me a hint ;)
 > 
-> > - swap_controller (Maybe Nishimura works on.)
-> >   The world may change after this...cgroup without swap can appears easily.
-> > 
-> Yes, and sorry for delaying submitting the next version of it.
+> How about res_counter_report_spare() and res_counter_charge_and_report_spare() ?
 > 
-> I used most of my time in testing -mm itself last month,
-> but I'm testing the next version now and goint to submit it
-> in a few days.
-> 
-Your test was very helpful, thank you!.
+seems better. thank you.
 
-
-> I hope to have some discussion on this topic too
-> at OLS and LinuxFoundationSyposiumJapan ;)
-> 
-me, too
-
-Thanks,
 -Kame
 
-> 
-> Thanks,
-> Daisuke Nishimura.
-> 
+> Paul
 > 
 
 --
