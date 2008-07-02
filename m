@@ -1,46 +1,35 @@
-Date: Wed, 02 Jul 2008 22:19:24 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [resend][PATCH] fix lru_cache_add_active_or_unevictable
-Message-Id: <20080702221101.D16A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Date: Wed, 2 Jul 2008 23:23:15 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][-mm] [0/7] misc memcg patch set
+Message-Id: <20080702232315.51080aac.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: nishimura@mxp.nes.nec.co.jp, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "hugh@veritas.com" <hugh@veritas.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-I found I forgot insert below patch to my patchset for 2.6.26-rc5-mm3 today.
-So, I resend it.
+Hi, Kamezawa-san.
 
-enjoy!
+> - swap_controller (Maybe Nishimura works on.)
+>   The world may change after this...cgroup without swap can appears easily.
+> 
+Yes, and sorry for delaying submitting the next version of it.
+
+I used most of my time in testing -mm itself last month,
+but I'm testing the next version now and goint to submit it
+in a few days.
+
+I hope to have some discussion on this topic too
+at OLS and LinuxFoundationSyposiumJapan ;)
 
 
--------------------------
-From: Rik van Riel <riel@redhat.com>
-
-Undo an overzealous code cleanup to lru_cache_add_active_or_unevictable.
-The callers do not set PageActive so the page would get added to the
-wrong list.
-
-Signed-off-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
-Index: linux-2.6.26-rc5-mm3/mm/swap.c
-===================================================================
---- linux-2.6.26-rc5-mm3.orig/mm/swap.c	2008-07-01 18:47:04.000000000 +0900
-+++ linux-2.6.26-rc5-mm3/mm/swap.c	2008-07-01 19:28:43.000000000 +0900
-@@ -259,7 +259,7 @@
- 					struct vm_area_struct *vma)
- {
- 	if (page_evictable(page, vma))
--		lru_cache_add_lru(page, page_lru(page));
-+		lru_cache_add_lru(page, LRU_ACTIVE + page_is_file_cache(page));
- 	else
- 		add_page_to_unevictable_list(page);
- }
-
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
