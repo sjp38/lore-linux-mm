@@ -1,7 +1,7 @@
-Date: Wed, 2 Jul 2008 21:13:08 +0900
+Date: Wed, 2 Jul 2008 21:15:10 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][-mm] [5/7] reduce usage at limit change
-Message-Id: <20080702211308.75360235.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][-mm] [6/7] res_counter distance to limit
+Message-Id: <20080702211510.6f1fe470.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -13,99 +13,95 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "hugh@veritas.com" <hugh@veritas.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Shrinking memory usage at limit change.
+I wonder wheher there is better name rather than "distance"...
+give me a hint ;)
+==
+Charge the val to res_counter and returns distance to the limit.
 
-Changelog: v1 -> v2
-  - adjusted to be based on write_string() patch set
-  - removed backword goto.
-  - removed unneccesary cond_resched().
-
+Useful when a controller (memory controller) want to implement background
+feedback ops depends on the rest of resource.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
- Documentation/controllers/memory.txt |    3 --
- mm/memcontrol.c                      |   43 +++++++++++++++++++++++++++++++----
- 2 files changed, 40 insertions(+), 6 deletions(-)
+ include/linux/res_counter.h |   21 ++++++++++++++++++++-
+ kernel/res_counter.c        |   27 +++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 1 deletion(-)
 
-Index: test-2.6.26-rc5-mm3++/mm/memcontrol.c
+Index: test-2.6.26-rc5-mm3++/include/linux/res_counter.h
 ===================================================================
---- test-2.6.26-rc5-mm3++.orig/mm/memcontrol.c
-+++ test-2.6.26-rc5-mm3++/mm/memcontrol.c
-@@ -834,6 +834,26 @@ int mem_cgroup_shrink_usage(struct mm_st
- 	return 0;
+--- test-2.6.26-rc5-mm3++.orig/include/linux/res_counter.h
++++ test-2.6.26-rc5-mm3++/include/linux/res_counter.h
+@@ -104,7 +104,8 @@ int __must_check res_counter_charge_lock
+ 		unsigned long val);
+ int __must_check res_counter_charge(struct res_counter *counter,
+ 		unsigned long val);
+-
++int __must_check res_counter_charge_distance(struct res_counter *counter,
++	unsigned long val, unsigned long long *distance);
+ /*
+  * uncharge - tell that some portion of the resource is released
+  *
+@@ -173,4 +174,22 @@ static inline int res_counter_set_limit(
+ 	spin_unlock_irqrestore(&cnt->lock, flags);
+ 	return ret;
+ }
++
++/*
++ * Returns limit - usage. if usage > limit, returns 0.
++ */
++
++static inline unsigned long long
++res_counter_distance_to_limit(struct res_counter *cnt)
++{
++	unsigned long flags;
++	unsigned long long distance = 0;
++
++	spin_lock_irqsave(&cnt->lock, flags);
++	if (cnt->usage < cnt->limit)
++		distance = cnt->limit - cnt->usage;
++	spin_unlock_irqrestore(&cnt->lock, flags);
++	return distance;
++}
++
+ #endif
+Index: test-2.6.26-rc5-mm3++/kernel/res_counter.c
+===================================================================
+--- test-2.6.26-rc5-mm3++.orig/kernel/res_counter.c
++++ test-2.6.26-rc5-mm3++/kernel/res_counter.c
+@@ -44,6 +44,33 @@ int res_counter_charge(struct res_counte
+ 	return ret;
  }
  
-+int mem_cgroup_resize_limit(struct mem_cgroup *memcg, unsigned long long val)
++/*
++ * res_counter_charge_distance - do res_counter_charge and returns distance to
++ * limit.
++ * @counter: the counter
++ * @val: the amount of the resource. each controller defines its own units.
++ * @distance: the rest of resource to the limit.
++ *
++ * returns 0 on success and <0 if the counter->usage will exceed the
++ * counter->limit.
++ */
++
++int res_counter_charge_distance(struct res_counter *counter, unsigned long val,
++	unsigned long long *distance)
 +{
++	int ret;
++	unsigned long flags;
 +
-+	int retry_count = MEM_CGROUP_RECLAIM_RETRIES;
-+	int progress;
-+	int ret = 0;
-+
-+	while (res_counter_set_limit(&memcg->res, val)) {
-+		if (!retry_count) {
-+			ret = -EBUSY;
-+			break;
-+		}
-+		progress = try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL);
-+		if (!progress)
-+			retry_count--;
-+	}
++	spin_lock_irqsave(&counter->lock, flags);
++	ret = res_counter_charge_locked(counter, val);
++	if (!ret)
++		*distance = counter->limit - counter->usage;
++	spin_unlock_irqrestore(&counter->lock, flags);
 +	return ret;
 +}
 +
 +
- /*
-  * This routine traverse page_cgroup in given list and drop them all.
-  * *And* this routine doesn't reclaim page itself, just removes page_cgroup.
-@@ -914,13 +934,29 @@ static u64 mem_cgroup_read(struct cgroup
- 	return res_counter_read_u64(&mem_cgroup_from_cont(cont)->res,
- 				    cft->private);
- }
--
-+/*
-+ * The user of this function is...
-+ * RES_LIMIT.
-+ */
- static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
- 			    const char *buffer)
- {
--	return res_counter_write(&mem_cgroup_from_cont(cont)->res,
--				 cft->private, buffer,
--				 res_counter_memparse_write_strategy);
-+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-+	unsigned long long val;
-+	int ret;
 +
-+        switch (cft->private) {
-+	case RES_LIMIT:
-+		/* This function does all necessary parse...reuse it */
-+		ret = res_counter_memparse_write_strategy(buffer, &val);
-+		if (!ret)
-+			ret = mem_cgroup_resize_limit(memcg, val);
-+		break;
-+	default:
-+		ret = -EINVAL; /* should be BUG() ? */
-+		break;
-+	}
-+	return ret;
- }
- 
- static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
-Index: test-2.6.26-rc5-mm3++/Documentation/controllers/memory.txt
-===================================================================
---- test-2.6.26-rc5-mm3++.orig/Documentation/controllers/memory.txt
-+++ test-2.6.26-rc5-mm3++/Documentation/controllers/memory.txt
-@@ -242,8 +242,7 @@ rmdir() if there are no tasks.
- 1. Add support for accounting huge pages (as a separate controller)
- 2. Make per-cgroup scanner reclaim not-shared pages first
- 3. Teach controller to account for shared-pages
--4. Start reclamation when the limit is lowered
--5. Start reclamation in the background when the limit is
-+4. Start reclamation in the background when the limit is
-    not yet hit but the usage is getting closer
- 
- Summary
+ void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
+ {
+ 	if (WARN_ON(counter->usage < val))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
