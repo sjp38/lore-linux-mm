@@ -1,141 +1,77 @@
-Date: Wed, 02 Jul 2008 21:01:59 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/4] capture pages freed during direct reclaim for allocation by the reclaimer
-In-Reply-To: <1214935122-20828-5-git-send-email-apw@shadowen.org>
-References: <1214935122-20828-1-git-send-email-apw@shadowen.org> <1214935122-20828-5-git-send-email-apw@shadowen.org>
-Message-Id: <20080702182909.D163.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Date: Wed, 2 Jul 2008 21:08:58 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][-mm] [2/7] delete FLAG_CACHE
+Message-Id: <20080702210858.ecea377f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "hugh@veritas.com" <hugh@veritas.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Andy,
+split-lru defines PAGE_CGROUP_FLAG_FILE...and memcg uses PAGE_CGROUP_FLAG_CACHE.
+It seems there are no major difference between 2 flags.
 
-I feel this is interesting patch.
+This patch takes FLAG_FILE and delete FLAG_CACHE.
 
-but I'm worry about it become increase OOM occur.
-What do you think?
-
-and, Why don't you make patch against -mm tree?
-
-
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index d73e1e1..1ac703d 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -410,6 +410,51 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
->   * -- wli
->   */
->  
-> +static inline void __capture_one_page(struct list_head *capture_list,
-> +		struct page *page, struct zone *zone, unsigned int order)
-> +{
-> +	unsigned long page_idx;
-> +	unsigned long order_size = 1UL << order;
-> +
-> +	if (unlikely(PageCompound(page)))
-> +		destroy_compound_page(page, order);
-> +
-> +	page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
-> +
-> +	VM_BUG_ON(page_idx & (order_size - 1));
-> +	VM_BUG_ON(bad_range(zone, page));
-> +
-> +	while (order < MAX_ORDER-1) {
-> +		unsigned long combined_idx;
-> +		struct page *buddy;
-> +
-> +		buddy = __page_find_buddy(page, page_idx, order);
-> +		if (!page_is_buddy(page, buddy, order))
-> +			break;
-> +
-> +		/* Our buddy is free, merge with it and move up one order. */
-> +		list_del(&buddy->lru);
-> +		if (PageBuddyCapture(buddy)) {
-> +			buddy->buddy_free = 0;
-> +			__ClearPageBuddyCapture(buddy);
-> +		} else {
-> +			zone->free_area[order].nr_free--;
-> +			__mod_zone_page_state(zone,
-> +					NR_FREE_PAGES, -(1UL << order));
-> +		}
-> +		rmv_page_order(buddy);
-> +		combined_idx = __find_combined_index(page_idx, order);
-> +		page = page + (combined_idx - page_idx);
-> +		page_idx = combined_idx;
-> +		order++;
-> +	}
-> +	set_page_order(page, order);
-> +	__SetPageBuddyCapture(page);
-> +	page->buddy_free = capture_list;
-> +
-> +	list_add(&page->lru, capture_list);
-> +}
-
-if we already have enough size page, 
-shoudn't we release page to buddy list?
-
-otherwise, increase oom risk.
-or, Am I misunderstanding?
-
-
->  static inline void __free_one_page(struct page *page,
->  		struct zone *zone, unsigned int order)
->  {
-> @@ -433,6 +478,12 @@ static inline void __free_one_page(struct page *page,
->  		buddy = __page_find_buddy(page, page_idx, order);
->  		if (!page_is_buddy(page, buddy, order))
->  			break;
-> +		if (PageBuddyCapture(buddy)) {
-> +			__mod_zone_page_state(zone,
-> +					NR_FREE_PAGES, -(1UL << order));
-> +			return __capture_one_page(buddy->buddy_free,
-> +							page, zone, order);
-> +		}
-
-shouldn't you make captured page's zonestat?
-otherwise, administrator can't trouble shooting.
-
-
->  	/* Can pages be swapped as part of reclaim? */
-> @@ -78,6 +80,12 @@ struct scan_control {
->  			unsigned long *scanned, int order, int mode,
->  			struct zone *z, struct mem_cgroup *mem_cont,
->  			int active);
-> +
-> +	/* Captured page. */
-> +	struct page **capture;
-> +	
-> +	/* Nodemask for acceptable allocations. */
-> +	nodemask_t *nodemask;
->  };
-
-please more long comment.
-anybody think about scan_control is reclaim purpose structure.
-So, probably they think "Why is this member needed?".
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 
 
-
-> @@ -1314,8 +1360,14 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
->  	unsigned long lru_pages = 0;
->  	struct zoneref *z;
->  	struct zone *zone;
-> +	struct zone *preferred_zone;
->  	enum zone_type high_zoneidx = gfp_zone(sc->gfp_mask);
->  
-> +	/* This should never fail as we should be scanning a real zonelist. */
-> +	(void)first_zones_zonelist(zonelist, high_zoneidx, sc->nodemask,
-> +							&preferred_zone);
-
-nit.
-(void) is unnecessary.
-
-
+Index: test-2.6.26-rc5-mm3++/mm/memcontrol.c
+===================================================================
+--- test-2.6.26-rc5-mm3++.orig/mm/memcontrol.c
++++ test-2.6.26-rc5-mm3++/mm/memcontrol.c
+@@ -160,10 +160,9 @@ struct page_cgroup {
+ 	struct mem_cgroup *mem_cgroup;
+ 	int flags;
+ };
+-#define PAGE_CGROUP_FLAG_CACHE	   (0x1)	/* charged as cache */
++#define PAGE_CGROUP_FLAG_FILE	   (0x1)	/* charged as cache */
+ #define PAGE_CGROUP_FLAG_ACTIVE    (0x2)	/* page is active in this cgroup */
+-#define PAGE_CGROUP_FLAG_FILE	   (0x4)	/* page is file system backed */
+-#define PAGE_CGROUP_FLAG_UNEVICTABLE (0x8)	/* page is unevictableable */
++#define PAGE_CGROUP_FLAG_UNEVICTABLE (0x4)	/* page is unevictableable */
+ 
+ static int page_cgroup_nid(struct page_cgroup *pc)
+ {
+@@ -191,7 +190,7 @@ static void mem_cgroup_charge_statistics
+ 	struct mem_cgroup_stat *stat = &mem->stat;
+ 
+ 	VM_BUG_ON(!irqs_disabled());
+-	if (flags & PAGE_CGROUP_FLAG_CACHE)
++	if (flags & PAGE_CGROUP_FLAG_FILE)
+ 		__mem_cgroup_stat_add_safe(stat, MEM_CGROUP_STAT_CACHE, val);
+ 	else
+ 		__mem_cgroup_stat_add_safe(stat, MEM_CGROUP_STAT_RSS, val);
+@@ -573,11 +572,9 @@ static int mem_cgroup_charge_common(stru
+ 	 * If a page is accounted as a page cache, insert to inactive list.
+ 	 * If anon, insert to active list.
+ 	 */
+-	if (ctype == MEM_CGROUP_CHARGE_TYPE_CACHE) {
+-		pc->flags = PAGE_CGROUP_FLAG_CACHE;
+-		if (page_is_file_cache(page))
+-			pc->flags |= PAGE_CGROUP_FLAG_FILE;
+-	} else
++	if (ctype == MEM_CGROUP_CHARGE_TYPE_CACHE)
++		pc->flags = PAGE_CGROUP_FLAG_FILE;
++	else
+ 		pc->flags = PAGE_CGROUP_FLAG_ACTIVE;
+ 
+ 	lock_page_cgroup(page);
+@@ -772,7 +769,7 @@ int mem_cgroup_prepare_migration(struct 
+ 	if (pc) {
+ 		mem = pc->mem_cgroup;
+ 		css_get(&mem->css);
+-		if (pc->flags & PAGE_CGROUP_FLAG_CACHE)
++		if (pc->flags & PAGE_CGROUP_FLAG_FILE)
+ 			ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+ 	}
+ 	unlock_page_cgroup(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
