@@ -1,76 +1,90 @@
-Date: Wed, 2 Jul 2008 21:03:22 +0900
+Date: Wed, 2 Jul 2008 21:07:45 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][-mm] [0/7] misc memcg patch set
-Message-Id: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][-mm] [1/7] shmem swapcache fix
+Message-Id: <20080702210745.cd405a28.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "hugh@veritas.com" <hugh@veritas.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "hugh@veritas.com" <hugh@veritas.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi, it seems vmm-related bugs in -mm is reduced to some safe level.
-I restarted my patches for memcg.
+SwapCache handling fix.
 
-This mail is just for dumping patches on my stack.
-(I'll resend one by one later.)
+shmem's swapcache behavior is a little different from anonymous's one and
+memcg failed to handle it. This patch tries to fix it.
 
-based on 2.6.26-rc5-mm3
-+ kosaki's fixes + cgroup write_string set + Hugh Dickins's fixes for shmem
-(All patches are in -mm queue.)
+After this:
 
-Any comments are welcome (but 7/7 patch is not so neat...)
+Any page marked as SwapCache is not uncharged. (delelte_from_swap_cache()
+delete the flag.) Because SwapCache is accounted, this is not a good change
+for performance of shmem/tmpfs under memcg. (But meory was leaked.)
+We need additional fix of background-job, dirty_ratio, etc..
 
-[1/7] swapcache handle fix for shmem.
-[2/7] adjust to split-lru: remove PAGE_CGROUP_FLAG_CACHE flag. 
-[3/7] adjust to split-lru: push shmem's page to active list
-      (Imported from Hugh Dickins's work.)
-[4/7] reduce usage at change limit. res_counter part.
-[5/7] reduce usage at change limit. memcg part.
-[6/7] memcg-background-job.           res_coutner part
-[7/7] memcg-background-job            memcg part.
+To check a page is alive shmem-page-cache or not we use
+ page->mapping && !PageAnon(page) instead of
+ pc->flags & PAGE_CGROUP_FLAG_CACHE.
 
-Balbir, I'd like to import your idea of soft-limit to memcg-background-job
-patch set. (Maybe better than adding hooks to very generic part.)
-How do you think ?
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Other patches in plan (including other guy's)
-- soft-limit (Balbir works.)
-  I myself think memcg-background-job patches can copperative with this.
-
-- dirty_ratio for memcg. (haven't written at all)
-  Support dirty_ratio for memcg. This will improve OOM avoidance.
-
-- swapiness for memcg (had patches..but have to rewrite.)
-  Support swapiness per memcg. (of no use ?)
-
-- swap_controller (Maybe Nishimura works on.)
-  The world may change after this...cgroup without swap can appears easily.
-
-- hierarchy (needs more discussion. maybe after OLS?)
-  have some pathes, but not in hurry.
-
-- more performance improvements (we need some trick.)
-  = Can we remove lock_page_cgroup() ?
-  = Can we reduce spinlocks ?
-
-- move resource at task move (needs helps from cgroup)
-  We need some magical way. It seems impossible to implement this only by memcg.
-
-- NUMA statistics (needs helps from cgroup)
-  It seems dynamic file creation feature or some rule to show array of
-  statistics should be defined.
-
-- memory guarantee (soft-mlock.)
-  guard parameter against global LRU for saying "Don't reclaim from me more ;("
-  Maybe HA Linux people will want this....
-
-Do you have others ?
-
-Thanks,
--Kame
+Index: test-2.6.26-rc5-mm3++/mm/memcontrol.c
+===================================================================
+--- test-2.6.26-rc5-mm3++.orig/mm/memcontrol.c	2008-07-02 09:29:52.000000000 +0900
++++ test-2.6.26-rc5-mm3++/mm/memcontrol.c	2008-07-02 10:58:15.000000000 +0900
+@@ -685,11 +685,45 @@
+ 
+ 	VM_BUG_ON(pc->page != page);
+ 
+-	if ((ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
+-	    && ((pc->flags & PAGE_CGROUP_FLAG_CACHE)
+-		|| page_mapped(page)
+-		|| PageSwapCache(page)))
++	/*
++	 * File Cache
++	 * If called with MEM_CGROUP_CHARGE_TYPE_MAPPED, check page->mapping.
++	 * add_to_page_cache() .... charged before inserting radix-tree.
++	 * remove_from_page_cache() .... uncharged at removing from radix-tree.
++	 * page->mapping && !PageAnon(page) catches file cache.
++	 *
++	 * Anon/Shmem.....We check PageSwapCache(page).
++	 * Anon .... charged before mapped.
++	 * Shmem .... charged at add_to_page_cache() as usual File Cache.
++	 *
++	 * This page will be finally uncharged when removed from swap-cache
++	 *
++	 * we treat 2 cases here.
++	 * A. anonymous page  B. shmem.
++	 * We never uncharge if page is marked as SwapCache.
++	 * add_to_swap_cache() have nothing to do with charge/uncharge.
++	 * SwapCache flag is deleted before delete_from_swap_cache() calls this
++	 *
++	 * shmem's behavior is following. (see shmem.c/swap_state.c also)
++	 * at swap-out:
++	 * 	0. add_to_page_cache()//charged at page creation.
++	 * 	1. add_to_swap_cache() (marked as SwapCache)
++	 *	2. remove_from_page_cache().  (calls this.)
++	 *	(finally) delete_from_swap_cache(). (calls this.)
++	 * at swap-in:
++	 * 	3. add_to_swap_cache() (no charge here.)
++	 * 	4. add_to_page_cache() (charged here.)
++	 * 	5. delete_from_swap_cache() (calls this.)
++	 * PageSwapCache(page) catches "2".
++	 * page->mapping && !PageAnon() catches "5" and avoid uncharging.
++	 */
++	if (PageSwapCache(page))
+ 		goto unlock;
++	/* called from unmap or delete_from_swap_cache() */
++	if ((ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
++		&& (page_mapped(page)
++		    || (page->mapping && !PageAnon(page))))/* alive cache ? */
++			goto unlock;
+ 
+ 	mz = page_cgroup_zoneinfo(pc);
+ 	spin_lock_irqsave(&mz->lru_lock, flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
