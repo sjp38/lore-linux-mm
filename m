@@ -1,35 +1,44 @@
-Date: Wed, 2 Jul 2008 23:23:15 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC][-mm] [0/7] misc memcg patch set
-Message-Id: <20080702232315.51080aac.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 2 Jul 2008 15:44:06 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: Re: [PATCH 4/4] capture pages freed during direct reclaim for allocation by the reclaimer
+Message-ID: <20080702144406.GB16591@shadowen.org>
+References: <1214935122-20828-1-git-send-email-apw@shadowen.org> <1214935122-20828-5-git-send-email-apw@shadowen.org> <20080702182909.D163.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080702182909.D163.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: nishimura@mxp.nes.nec.co.jp, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "hugh@veritas.com" <hugh@veritas.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Kamezawa-san.
-
-> - swap_controller (Maybe Nishimura works on.)
->   The world may change after this...cgroup without swap can appears easily.
+On Wed, Jul 02, 2008 at 09:01:59PM +0900, KOSAKI Motohiro wrote:
+> Hi Andy,
 > 
-Yes, and sorry for delaying submitting the next version of it.
+> I feel this is interesting patch.
+> 
+> but I'm worry about it become increase OOM occur.
+> What do you think?
 
-I used most of my time in testing -mm itself last month,
-but I'm testing the next version now and goint to submit it
-in a few days.
+We do hold onto some nearly free pages for a while longer but only in
+direct reclaim, assuming kswapd is running its pages should not get
+captured.  I am pushing our machines in test pretty hard, to the
+unusable stage mostly without OOM'ing but that is still an artifical
+test.  The amount of memory under capture is proportional to the size of
+the allocations at the time of capture so one would hope this would only
+be significant at very high orders.
 
-I hope to have some discussion on this topic too
-at OLS and LinuxFoundationSyposiumJapan ;)
+> and, Why don't you make patch against -mm tree?
 
+That is historical mostly as there was major churn in the same place when
+I was originally making these patches, plus -mm was not bootable on any
+of my test systems..  I am not sure if that is still true.  I will have
+a look at a recent -mm and see if they will rebase and boot.
 
-Thanks,
-Daisuke Nishimura.
+Thanks for looking.
+
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
