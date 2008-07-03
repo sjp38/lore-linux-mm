@@ -1,81 +1,85 @@
-Date: Thu, 3 Jul 2008 18:16:10 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] Do not clobber pgdat->nr_zones during memory initialisation
-Message-ID: <20080703171610.GG18055@csn.ul.ie>
-References: <1214944175.26855.18.camel@dwillia2-linux.ch.intel.com> <20080702051759.GA26338@csn.ul.ie> <1215049766.2840.43.camel@dwillia2-linux.ch.intel.com> <20080703042750.GB14614@csn.ul.ie> <alpine.LFD.1.10.0807022135360.18105@woody.linux-foundation.org> <20080703050036.GD14614@csn.ul.ie> <1215064455.15797.4.camel@dwillia2-linux.ch.intel.com> <486CD623.8030906@linux-foundation.org> <20080703163638.GC18055@csn.ul.ie> <alpine.LFD.1.10.0807030942440.18105@woody.linux-foundation.org>
+Date: Thu, 3 Jul 2008 18:25:25 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [-mm] BUG: sleeping function called from invalid context at
+ include/linux/pagemap.h:290
+In-Reply-To: <486C9FBD.9000800@cn.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0807031747470.14783@blonde.site>
+References: <486C74B1.3000007@cn.fujitsu.com> <20080703183913.D6DF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+ <486C9FBD.9000800@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.1.10.0807030942440.18105@woody.linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, NeilBrown <neilb@suse.de>, babydr@baby-dragons.com, lee.schermerhorn@hp.com, a.beregalov@gmail.com, akpm@linux-foundation.org
+To: Li Zefan <lizf@cn.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, npiggin@suse.de, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik Van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On (03/07/08 09:44), Linus Torvalds didst pronounce:
-> 
-> 
-> On Thu, 3 Jul 2008, Mel Gorman wrote:
+On Thu, 3 Jul 2008, Li Zefan wrote:
+> KOSAKI Motohiro wrote:
+> >> Seems the problematic patch is :
+> >> mmap-handle-mlocked-pages-during-map-remap-unmap.patch
+> >>
+> >> I'm using mmotm uploaded yesterday by Andrew, so I guess this bug
+> >> has not been fixed ?
+> >>
+> >> BUG: sleeping function called from invalid context at include/linux/pagemap.h:290
+> >> in_atomic():1, irqs_disabled():0
+> >> no locks held by gpg-agent/2134.
 > > 
-> > Subject: [PATCH] Do not clobber pgdat->nr_zones during memory initialisation
+> > Li-san, I tested 2.6.26-rc8-mm1 on x86_64.
+> > but I can't reproduce it.
+> > 
+> > Could you explain detail of reproduce way?
+> > 
 > 
-> Heh. I already applied it as ObviouslyCorrect(tm), but did the 
-> simplification I already pointed out (and which your second version 
-> already had) and rewrote your commit message a bit. So it's now committed 
-> as follows..
+> Nothing special. I booted the system up, and entered KDE, and opened xterm,
+> and typed "dmesg".
 > 
+> .config attached.
 
-Perfect. The log even looks like it was written by a sane person. Thanks
-for that.
+The reason you're seeing it and others not is because your
+CONFIG_HIGHPTE=y
+is making the issue visible.
 
-> 		Linus
-> 
-> ---
-> commit 494de90098784b8e2797598cefdd34188884ec2e
-> Author: Mel Gorman <mel@csn.ul.ie>
-> Date:   Thu Jul 3 05:27:51 2008 +0100
-> 
->     Do not overwrite nr_zones on !NUMA when initialising zlcache_ptr
->     
->     The non-NUMA case of build_zonelist_cache() would initialize the
->     zlcache_ptr for both node_zonelists[] to NULL.
->     
->     Which is problematic, since non-NUMA only has a single node_zonelists[]
->     entry, and trying to zero the non-existent second one just overwrote the
->     nr_zones field instead.
->     
->     As kswapd uses this value to determine what reclaim work is necessary,
->     the result is that kswapd never reclaims.  This causes processes to
->     stall frequently in low-memory situations as they always direct reclaim.
->     This patch initialises zlcache_ptr correctly.
->     
->     Signed-off-by: Mel Gorman <mel@csn.ul.ie>
->     Tested-by: Dan Williams <dan.j.williams@intel.com>
->     [ Simplified patch a bit ]
->     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-> ---
->  mm/page_alloc.c |    1 -
->  1 files changed, 0 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 2f55295..f32fae3 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2328,7 +2328,6 @@ static void build_zonelists(pg_data_t *pgdat)
->  static void build_zonelist_cache(pg_data_t *pgdat)
->  {
->  	pgdat->node_zonelists[0].zlcache_ptr = NULL;
-> -	pgdat->node_zonelists[1].zlcache_ptr = NULL;
->  }
->  
->  #endif	/* CONFIG_NUMA */
-> 
+__munlock_pte_handler is trying to lock_page (or migration_entry_wait)
+while using the per-cpu kmap_atomic from walk_pte_range's pte_offset_map.
+Sleeping functions called from atomic context.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+There's quite a lot to worry about there.
+
+That page table walker was originally written to gather some info
+for /proc display, not to act upon the page table contents in any
+serious way.  So it's just doing pte_offset_map when every(?) other
+page table walk would be required to pte_offset_map_lock.  If it
+were doing pte_offset_map_lock, then lots more people would have
+seen the problem sooner.
+
+Does this usage need to pte_offset_map_lock?  I think to the extent
+that it needs to lock_page, it needs to pte_offset_map_lock: both
+are because file truncation (or more commonly reclaim, but without
+looking into it too carefully, I dare say reclaim isn't a problem
+in this context) could interfere with page->mapping and pte at any
+instant.
+
+Conveniently, we have not one but two attempts at a generic page
+walker (sigh!): the other one, apply_to_page_range in mm/memory.c,
+does do the lock; it also allocates a page table if it's not there,
+I guess that aspect wouldn't be a problem on an mlocked area.  Maybe
+using apply_to_page_range would be better here, and sidestep the
+issue of not having CONFIG_PAGE_WALKER.
+
+But if it does pte_offset_map_lock, look, migration_entry_wait does
+so too; well, never mind the lock, it'll kunmap_atomic 
+Obviously that part cries out for refactoring.
+
+And how do you manage the lock_page?  Offhand, I don't know, I'm
+just reporting on the obvious.  Would trylocking be good enough?
+
+(I do dislike "generic page walkers" because they encourage this
+kind of oversight; and I hate to think of the latency problems
+they might be introducing - no sign of a cond_resched in either.)
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
