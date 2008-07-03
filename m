@@ -1,82 +1,79 @@
-Date: Wed, 2 Jul 2008 22:36:52 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [-mm][PATCH 1/10] fix UNEVICTABLE_LRU and !PROC_PAGE_MONITOR
- build
-Message-Id: <20080702223652.3b57dc4b.akpm@linux-foundation.org>
-In-Reply-To: <20080625185950.D84F.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080625185717.D84C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20080625185950.D84F.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [problem] raid performance loss with 2.6.26-rc8 on 32-bit x86
+	(bisected)
+From: Dan Williams <dan.j.williams@intel.com>
+In-Reply-To: <20080703050036.GD14614@csn.ul.ie>
+References: <1214877439.7885.40.camel@dwillia2-linux.ch.intel.com>
+	 <20080701080910.GA10865@csn.ul.ie> <20080701175855.GI32727@shadowen.org>
+	 <20080701190741.GB16501@csn.ul.ie>
+	 <1214944175.26855.18.camel@dwillia2-linux.ch.intel.com>
+	 <20080702051759.GA26338@csn.ul.ie>
+	 <1215049766.2840.43.camel@dwillia2-linux.ch.intel.com>
+	 <20080703042750.GB14614@csn.ul.ie>
+	 <alpine.LFD.1.10.0807022135360.18105@woody.linux-foundation.org>
+	 <20080703050036.GD14614@csn.ul.ie>
+Content-Type: text/plain
+Date: Wed, 02 Jul 2008 22:54:15 -0700
+Message-Id: <1215064455.15797.4.camel@dwillia2-linux.ch.intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Benjamin Kidwell <benjkidwell@yahoo.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, NeilBrown <neilb@suse.de>, babydr@baby-dragons.com, cl@linux-foundation.org, lee.schermerhorn@hp.com, a.beregalov@gmail.com, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Jun 2008 19:01:40 +0900 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Wed, 2008-07-02 at 22:00 -0700, Mel Gorman wrote:
 
+> Subject: [PATCH] Do not overwrite nr_zones on !NUMA when initialising zlcache_ptr
 > 
-> =
-> From: Rik van Riel <riel@redhat.com>
+> With the two-zonelist patches on !NUMA machines, there really is only one
+> zonelist as __GFP_THISNODE is meaningless. However, during initialisation, the
+> assumption is made that two zonelists exist when initialising zlcache_ptr. The
+> result is that pgdat->nr_zones is always 0. As kswapd uses this value to
+> determine what reclaim work is necessary, the result is that kswapd never
+> reclaims. This causes processes to stall frequently in low-memory situations
+> as they always direct reclaim.  This patch initialises zlcache_ptr correctly.
 > 
-> Both CONFIG_PROC_PAGE_MONITOR and CONFIG_UNEVICTABLE_LRU depend on
-> mm/pagewalk.c being built.  Create a CONFIG_PAGE_WALKER Kconfig
-> variable that is automatically selected if needed.
-> 
-> Debugged-by: Benjamin Kidwell <benjkidwell@yahoo.com>
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-> Signed-off-by: KOSAKI Motohiro <kosaki@jp.fujitsu.com>
-> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 > ---
->  init/Kconfig |    1 +
->  mm/Kconfig   |    5 +++++
->  mm/Makefile  |    2 +-
->  3 files changed, 7 insertions(+), 1 deletion(-)
+>  page_alloc.c |    1 -
+>  1 file changed, 1 deletion(-)
 > 
-> Index: b/init/Kconfig
-> ===================================================================
-> --- a/init/Kconfig
-> +++ b/init/Kconfig
-> @@ -803,6 +803,7 @@ source "arch/Kconfig"
->  config PROC_PAGE_MONITOR
->   	default y
->  	depends on PROC_FS && MMU
-> +	select PAGE_WALKER
->  	bool "Enable /proc page monitoring" if EMBEDDED
->   	help
->  	  Various /proc files exist to monitor process memory utilization:
+> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.26-rc8-clean/mm/page_alloc.c linux-2.6.26-rc8-fix-kswapd-on-numa/mm/page_alloc.c
+> --- linux-2.6.26-rc8-clean/mm/page_alloc.c      2008-06-24 18:58:20.000000000 -0700
+> +++ linux-2.6.26-rc8-fix-kswapd-on-numa/mm/page_alloc.c 2008-07-02 21:49:09.000000000 -0700
+> @@ -2328,7 +2328,6 @@ static void build_zonelists(pg_data_t *p
+>  static void build_zonelist_cache(pg_data_t *pgdat)
+>  {
+>         pgdat->node_zonelists[0].zlcache_ptr = NULL;
+> -       pgdat->node_zonelists[1].zlcache_ptr = NULL;
+>  }
+> 
+>  #endif /* CONFIG_NUMA */
+> 
 
-You used select!  With the usual consequences.
+Bug squished.
 
-mm/pagewalk.c: In function `walk_pud_range':
-mm/pagewalk.c:64: error: implicit declaration of function `pud_none_or_clear_bad'
-mm/pagewalk.c: In function `walk_page_range':
-mm/pagewalk.c:119: error: implicit declaration of function `pgd_addr_end'
-mm/pagewalk.c:120: error: implicit declaration of function `pgd_none_or_clear_ba
+# for i in `seq 1 5`; do dd if=/dev/zero of=/dev/md0 bs=1024k count=2048; done
+2048+0 records in
+2048+0 records out
+2147483648 bytes (2.1 GB) copied, 7.73352 s, 278 MB/s
+2048+0 records in
+2048+0 records out
+2147483648 bytes (2.1 GB) copied, 7.6845 s, 279 MB/s
+2048+0 records in
+2048+0 records out
+2147483648 bytes (2.1 GB) copied, 7.74428 s, 277 MB/s
+2048+0 records in
+2048+0 records out
+2147483648 bytes (2.1 GB) copied, 7.65959 s, 280 MB/s
+2048+0 records in
+2048+0 records out
+2147483648 bytes (2.1 GB) copied, 7.73107 s, 278 MB/s
 
-That's SuperH allmodconfig.  I expect all nommu builds are busted.
+Tested-by: Dan Williams <dan.j.williams@intel.com>
 
-> Index: b/mm/Kconfig
-> ===================================================================
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -209,9 +209,14 @@ config VIRT_TO_BUS
->  	def_bool y
->  	depends on !ARCH_NO_VIRT_TO_BUS
->  
-> +# automatically selected by UNEVICTABLE_LRU or PROC_PAGE_MONITOR
-> +config PAGE_WALKER
-> +	def_bool n
-> +
->  config UNEVICTABLE_LRU
->  	bool "Add LRU list to track non-evictable pages"
->  	default y
-> +	select PAGE_WALKER
 
-So what do we do?  Make UNEVICTABLE_LRU depend on CONFIG_MMU?  That
-would be even worse than what we have now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
