@@ -1,27 +1,54 @@
-Message-ID: <486CC533.6080302@buttersideup.com>
-Date: Thu, 03 Jul 2008 13:25:23 +0100
-From: Tim Small <tim@buttersideup.com>
+Date: Thu, 3 Jul 2008 14:04:36 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
+In-Reply-To: <486CC440.9030909@garzik.org>
+Message-ID: <Pine.LNX.4.64.0807031353030.11033@blonde.site>
+References: <20080703020236.adaa51fa.akpm@linux-foundation.org>
+ <20080703205548.D6E5.KOSAKI.MOTOHIRO@jp.fujitsu.com> <486CC440.9030909@garzik.org>
 MIME-Version: 1.0
-Subject: Failing memory auto-hotremove support?
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: bluesmoke-devel@lists.sourceforge.net, linux-mm@kvack.org
+To: Jeff Garzik <jeff@garzik.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, David Woodhouse <dwmw2@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Thu, 3 Jul 2008, Jeff Garzik wrote:
+> KOSAKI Motohiro wrote:
+> > Hi Michael,
+> > 
+> > my server output following error message on 2.6.26-rc8-mm1.
+> > Is this a bug?
+> > 
+> > ------------------------------------------------------------------
+> > tg3.c:v3.93 (May 22, 2008)
+> > GSI 72 (level, low) -> CPU 0 (0x0001) vector 51
+> > tg3 0000:06:01.0: PCI INT A -> GSI 72 (level, low) -> IRQ 51
+> > firmware: requesting tigon/tg3_tso.bin
+> > tg3: Failed to load firmware "tigon/tg3_tso.bin"
+> > tg3 0000:06:01.0: PCI INT A disabled
+> > GSI 72 (level, low) -> CPU 0 (0x0001) vector 51 unregistered
+> > tg3: probe of 0000:06:01.0 failed with error -2
+> > GSI 73 (level, low) -> CPU 0 (0x0001) vector 51
+> > tg3 0000:06:01.1: PCI INT B -> GSI 73 (level, low) -> IRQ 52
+> > firmware: requesting tigon/tg3_tso.bin
+> 
+> This change did not come from the network developers or Broadcom, so someone
+> else broke tg3 in -mm...
 
-I just noticed that there is memory hotplug / hotremove support in the 
-kernel.org kernel now.
+I think it's a consequence of not choosing CONFIG_FIRMWARE_IN_KERNEL=y.
 
-I was thinking that it may be desirable (e.g. on large NUMA systems) to 
-automatically trigger the removal of memory modules (or just take a 
-section of the memory module out of use, if applicable), if a memory 
-module exceeded a pre-set correctable error rate (or RIGHT-NOW, if an 
-uncorrectable memory error was detected).
+That caught me out on PowerMac G5 trying mmotm yesterday, it just hung
+for a few minutes in earlyish boot with a message about tg3_tso.bin,
+and then proceeded to boot up but without the network.  I was unclear
+whether I'd been stupid, or the FIRMWARE_IN_KERNEL Kconfigery was poor.
 
-Tim.
+I avoid initrd, and have tigon3 built in, if that's of any relevance.
+
+I wonder if that's Andrew's problem with 2.6.26-rc8-mm1 on his G5:
+mine here boots up fine (now I know to CONFIG_FIRMWARE_IN_KERNEL=y).
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
