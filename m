@@ -1,113 +1,52 @@
-Date: Thu, 3 Jul 2008 23:28:21 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC][-mm] [3/7] add shmem page to active list.
-In-Reply-To: <20080703164320.1087f758.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0807032306350.22975@blonde.site>
-References: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
- <20080702211057.7a7cf3dc.kamezawa.hiroyu@jp.fujitsu.com>
- <20080703091144.93465ba5.kamezawa.hiroyu@jp.fujitsu.com>
- <20080703132730.b64dcd19.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0807030750110.22097@blonde.site>
- <20080703164320.1087f758.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 3 Jul 2008 23:25:54 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
+Message-ID: <20080703232554.7271d645@lxorguk.ukuu.org.uk>
+In-Reply-To: <486D511A.9020405@garzik.org>
+References: <20080703020236.adaa51fa.akpm@linux-foundation.org>
+	<20080703205548.D6E5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<486CC440.9030909@garzik.org>
+	<Pine.LNX.4.64.0807031353030.11033@blonde.site>
+	<486CCFED.7010308@garzik.org>
+	<1215091999.10393.556.camel@pmac.infradead.org>
+	<486CD654.4020605@garzik.org>
+	<1215093175.10393.567.camel@pmac.infradead.org>
+	<20080703173040.GB30506@mit.edu>
+	<1215111362.10393.651.camel@pmac.infradead.org>
+	<486D3E88.9090900@garzik.org>
+	<486D4596.60005@infradead.org>
+	<486D511A.9020405@garzik.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Jeff Garzik <jeff@garzik.org>
+Cc: David Woodhouse <dwmw2@infradead.org>, Theodore Tso <tytso@mit.edu>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Jul 2008, KAMEZAWA Hiroyuki wrote:
-> On Thu, 3 Jul 2008 08:03:17 +0100 (BST)
-> Hugh Dickins <hugh@veritas.com> wrote:
-> 
-> > On Thu, 3 Jul 2008, KAMEZAWA Hiroyuki wrote:
-> > > 
-> > > BTW, is there a way to see the RSS usage of shmem from /proc or somewhere ?
-> > 
-> > No, it's just been a (very weirdly backed!) filesystem until these
-> > -mm developments.  If you add such stats (for more than temporary
-> > debugging), you'll need to use per_cpu counters for it: more global
-> > locking or atomic ops on those paths would be sure to upset SGI.
-> 
-> like zone stat ?
+O
+> Further, all current kernel build and test etc. scripts are unaware of 
+> 'make firmware_install', and it is unfair to everybody to force a 
+> flag-day build process change on people, just to keep their drivers in 
+> the same working state today as it was yesterday.
 
-Like that, yes.  I had been going to suggest adding another couple
-of stats to that (one for in memory, one for on swap, or heading
-to or from swap); but noticed that everything there is an event,
-with the comment "Counters should only be incremented", so it
-would be an abuse to add shmem page counts there.
+IMHO we want firmware built in as the default for the moment. If the
+firmware model makes sense (as I think it does) then the distributions
+will catch up, turn it on and sort out the default behaviour - exactly as
+they did all those years ago with modules, more recently with "use an
+initrd" and so on.
 
-> but I think struct address_space->nr_pages is updated and
-> shmem's inode has alloced/swapped paremeters.
+> as "making no sense".  All these are real world examples where users 
+> FOLLOWING THEIR NORMAL, PROSCRIBED KERNEL PROCESSES will produce 
 
-Per inode, yes.
+I hope you mean "prescribed" ;)
 
-> 
-> It seems alloced == address_space->nr_pages + info->swapped, right ?
+> The only valid assumption here is to assume that the user is /unaware/ 
+> of these new steps they must take in order to continue to have a working 
+> system.
 
-That's right (and you'll have read the comment that they can get
-out of synch because of undirtied pages getting dropped: I don't
-see that as any problem to worry about in your counts).
-
-> 
-> I just wanted to ask whether they are exported or not.
-> (Or can I get that information by some ioctl ?)
-
-info->swapped is not available outside mm/shmem.c, but I suppose
-mapping->nr_pages is available.  But those are not what you want,
-are they?  You want totals, not counts per inode.  Totalling them
-up over all the inodes in all the tmpfs'es, that could be a big
-job; we don't even have a list of all the inodes at present (and
-more overhead to link them into and unlink them from that list).
-
-> 
-> BTW,  current meminfo is following.
-> ==
-> [kamezawa@blackonyx test-2.6.26-rc5-mm3++]$ cat /proc/meminfo
-> MemTotal:       49471980 kB
-> MemFree:        44448528 kB
-> Buffers:          472412 kB
-> Cached:          3721388 kB
-> SwapCached:        22616 kB
-> Active:           658480 kB
-> Inactive:        3609828 kB
-> Active(anon):      14900 kB
-> Inactive(anon):    64496 kB
-> Active(file):     643580 kB
-> Inactive(file):  3545332 kB
-> Unevictable:        2020 kB
-> Mlocked:            2020 kB
-> SwapTotal:       2031608 kB
-> SwapFree:        1982656 kB
-> Dirty:                60 kB
-> Writeback:             0 kB
-> AnonPages:         62476 kB
-> Mapped:            32092 kB
-> Slab:             548584 kB
-> SReclaimable:     490284 kB
-> SUnreclaim:        58300 kB
-> PageTables:        12648 kB
-> NFS_Unstable:          0 kB
-> Bounce:                0 kB
-> WritebackTmp:          0 kB
-> ==
-> 
-> Cached = filesystem + shmem
-> Active(anon) = anon-active + shmem-active
-> Inactive(anon) = anon-inactive + shmem-inactive
-> Active(file) = file cache-active
-> Inactive(file) = file cache-inactive.
-> 
-> Right ?
-
-Yes, I believe so; with the complication that SwapCached
-shares pages with Active(anon) and Inactive(anon), but
-includes shmem pages not at that moment counted in Cached
-or Active(anon) or Inactive(anon), and includes pages which
-haven't yet been identified with really-anon or shmem.
-
-Hugh
+To a large extent not the user but their distro - consider "make install"
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
