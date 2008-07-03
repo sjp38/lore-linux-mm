@@ -1,70 +1,113 @@
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-Date: Fri, 4 Jul 2008 00:27:16 +0200
-References: <20080703020236.adaa51fa.akpm@linux-foundation.org> <200807032352.35056.rjw@sisk.pl> <486D4A92.2060004@infradead.org>
-In-Reply-To: <486D4A92.2060004@infradead.org>
+Date: Thu, 3 Jul 2008 23:28:21 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [RFC][-mm] [3/7] add shmem page to active list.
+In-Reply-To: <20080703164320.1087f758.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0807032306350.22975@blonde.site>
+References: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
+ <20080702211057.7a7cf3dc.kamezawa.hiroyu@jp.fujitsu.com>
+ <20080703091144.93465ba5.kamezawa.hiroyu@jp.fujitsu.com>
+ <20080703132730.b64dcd19.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0807030750110.22097@blonde.site>
+ <20080703164320.1087f758.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200807040027.17750.rjw@sisk.pl>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Woodhouse <dwmw2@infradead.org>
-Cc: Jeff Garzik <jeff@garzik.org>, Theodore Tso <tytso@mit.edu>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday, 3 of July 2008, David Woodhouse wrote:
-> Rafael J. Wysocki wrote:
-> > On Thursday, 3 of July 2008, David Woodhouse wrote:
-> >> Rafael J. Wysocki wrote:
-> >>> Still, maybe we can add some kbuild magic to build the blobs along with
-> >>> their modules and to install them under /lib/firmware (by default) when the
-> >>> modules are installed in /lib/modules/... ?
-> >> Something like appending this to Makefile?
-> >>
-> >> firmware_and_modules_install: firmware_install modules_install
-> >>
-> >> (I'm still wondering if we should make 'firmware_install' install to 
-> >> /lib/firmware by default, instead of into the build tree as 
-> >> 'headers_install' does. The Aunt Tillie answer would definitely be 
-> >> 'yes', although that means it requires root privs; like modules_install 
-> >> does.)
-> > 
-> > I would prefer 'make firmware_install' to just copy the blobs into specific
-> > location in analogy with 'make modules_install', so that you can build the
-> > blobs as a normal user (for example, on an NFS server) and then put them
-> > into the right place as root (for example, on an NFS client that has no write
-> > privilege on the server).
+On Thu, 3 Jul 2008, KAMEZAWA Hiroyuki wrote:
+> On Thu, 3 Jul 2008 08:03:17 +0100 (BST)
+> Hugh Dickins <hugh@veritas.com> wrote:
 > 
-> Not entirely sure which you mean. You _can't_ run 'make modules_install' 
-> as a normal user, unless you override $(INSTALL_MOD_PATH) on the command 
-> line.
+> > On Thu, 3 Jul 2008, KAMEZAWA Hiroyuki wrote:
+> > > 
+> > > BTW, is there a way to see the RSS usage of shmem from /proc or somewhere ?
+> > 
+> > No, it's just been a (very weirdly backed!) filesystem until these
+> > -mm developments.  If you add such stats (for more than temporary
+> > debugging), you'll need to use per_cpu counters for it: more global
+> > locking or atomic ops on those paths would be sure to upset SGI.
+> 
+> like zone stat ?
 
-Yes, I know that.
+Like that, yes.  I had been going to suggest adding another couple
+of stats to that (one for in memory, one for on swap, or heading
+to or from swap); but noticed that everything there is an event,
+with the comment "Counters should only be incremented", so it
+would be an abuse to add shmem page counts there.
 
-> Do you want 'make firmware_install' to be the same?
+> but I think struct address_space->nr_pages is updated and
+> shmem's inode has alloced/swapped paremeters.
 
-Yes, I'd prefer it to behave in the same way as 'make modules_install'.
+Per inode, yes.
 
-I'd use a config option like BUILD_FIRMWARE_BLOBS that, if set, would make
-the build system create firmware bin files in the same directories where the
-driver's .o files are located.  Then, 'make firmware_install' would only copy
-those bin files to wherever was appropriate (eg. /lib/firmware/).
+> 
+> It seems alloced == address_space->nr_pages + info->swapped, right ?
 
-Of course, there still would be a problem if there already were such firmware
-files at the destination, but that would have to be resolved anyway by the user
-wanting to install the new kernel along with the new firmware blobs.
+That's right (and you'll have read the comment that they can get
+out of synch because of undirtied pages getting dropped: I don't
+see that as any problem to worry about in your counts).
 
-> It isn't at the moment -- it installs to a subdirectory of the kernel build tree, like 
-> 'make headers_install' does. But I'm not sure which is better.
+> 
+> I just wanted to ask whether they are exported or not.
+> (Or can I get that information by some ioctl ?)
 
-IMO 'make headers_install' is used for a different purpose.  You don't have to
-run it to be able to use the kernel in a usual way.
+info->swapped is not available outside mm/shmem.c, but I suppose
+mapping->nr_pages is available.  But those are not what you want,
+are they?  You want totals, not counts per inode.  Totalling them
+up over all the inodes in all the tmpfs'es, that could be a big
+job; we don't even have a list of all the inodes at present (and
+more overhead to link them into and unlink them from that list).
 
-OTOH, everyone is familiar with the 'make modules_install' mechanics and it
-seems natural to use analogous mechanics for firmware blobs.
+> 
+> BTW,  current meminfo is following.
+> ==
+> [kamezawa@blackonyx test-2.6.26-rc5-mm3++]$ cat /proc/meminfo
+> MemTotal:       49471980 kB
+> MemFree:        44448528 kB
+> Buffers:          472412 kB
+> Cached:          3721388 kB
+> SwapCached:        22616 kB
+> Active:           658480 kB
+> Inactive:        3609828 kB
+> Active(anon):      14900 kB
+> Inactive(anon):    64496 kB
+> Active(file):     643580 kB
+> Inactive(file):  3545332 kB
+> Unevictable:        2020 kB
+> Mlocked:            2020 kB
+> SwapTotal:       2031608 kB
+> SwapFree:        1982656 kB
+> Dirty:                60 kB
+> Writeback:             0 kB
+> AnonPages:         62476 kB
+> Mapped:            32092 kB
+> Slab:             548584 kB
+> SReclaimable:     490284 kB
+> SUnreclaim:        58300 kB
+> PageTables:        12648 kB
+> NFS_Unstable:          0 kB
+> Bounce:                0 kB
+> WritebackTmp:          0 kB
+> ==
+> 
+> Cached = filesystem + shmem
+> Active(anon) = anon-active + shmem-active
+> Inactive(anon) = anon-inactive + shmem-inactive
+> Active(file) = file cache-active
+> Inactive(file) = file cache-inactive.
+> 
+> Right ?
+
+Yes, I believe so; with the complication that SwapCached
+shares pages with Active(anon) and Inactive(anon), but
+includes shmem pages not at that moment counted in Cached
+or Active(anon) or Inactive(anon), and includes pages which
+haven't yet been identified with really-anon or shmem.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
