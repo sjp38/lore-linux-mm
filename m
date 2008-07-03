@@ -1,59 +1,58 @@
-Date: Thu, 03 Jul 2008 13:34:28 -0700 (PDT)
-Message-Id: <20080703.133428.22854563.davem@davemloft.net>
-Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <486CCFED.7010308@garzik.org>
-References: <486CC440.9030909@garzik.org>
-	<Pine.LNX.4.64.0807031353030.11033@blonde.site>
-	<486CCFED.7010308@garzik.org>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Date: Thu, 3 Jul 2008 21:50:31 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: [PATCH 2.6.26-rc8-mm1] memrlimit: fix mmap_sem deadlock
+Message-ID: <Pine.LNX.4.64.0807032143110.10641@blonde.site>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-From: Jeff Garzik <jeff@garzik.org>
-Date: Thu, 03 Jul 2008 09:11:09 -0400
 Return-Path: <owner-linux-mm@kvack.org>
-To: jeff@garzik.org
-Cc: hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, dwmw2@infradead.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> dwmw2 has been told repeatedly that his changes will cause PRECISELY 
-> these problems, but he refuses to take the simple steps necessary to 
-> ensure people can continue to boot their kernels after his changes go in.
-> 
-> Presently his tg3 changes have been nak'd, in part, because of this 
-> obviously, forseeable, work-around-able breakage.
+"ps -f" hung after "killall make" of make -j20 kernel builds.  It's
+generally considered bad manners to down_write something you already
+have down_read.  exit_mm up_reads before calling mm_update_next_owner,
+so I guess exec_mmap can safely do so too.  (And with that repositioning
+there's not much point in mm_need_new_owner allowing for NULL mm.)
 
-I agree with Jeff, obviously.
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+---
+Fix to memrlimit-cgroup-mm-owner-callback-changes-to-add-task-info.patch
+quite independent of its recent sleeping-inside-spinlock fix; could even
+be applied to 2.6.26, though no deadlock there.  Gosh, I see those patches
+have spawned "Reviewed-by" tags in my name: sorry, no, just "Bug-found-by".
 
-We both saw this song and dance coming.  Now the reports are coming in
-from confused people who are losing their network.  It is no surprise.
+ fs/exec.c     |    2 +-
+ kernel/exit.c |    2 --
+ 2 files changed, 1 insertion(+), 3 deletions(-)
 
-And the person who introduced this swath of regressions acts like it's
-some kind of chore to enforce the obviously correct default behavior.
-
-Why is it such a big deal to make "obviously working" the default?
-
-In effect, you lied to us, in that you said that by default users
-wouldn't have to do anything to keep getting a working setup.  But
-that is provably not true, look at all of these reports.  Are you
-saying these people are idiots and don't know how to configure their
-kernel?  Every single one of them?
-
-So don't be surprised how pissed off some of us are about these
-changes.  You are inflicting pain on driver maintainers because now
-they have to sift through these "firmware not found" reports in
-addition to their normal workload.
-
-And David make it seem like it's inconvenient for him to implement the
-correct default, which in particular pisses me personally off the
-most.  It's totally irresponsible, and I don't care what the legal or
-ideological motivation is.
-
-Given that, how in the world can you be surprised that the effected
-driver maintainers have no interest in reviewing the substance of
-these patches?  You don't piss people off, then say "help me review
-this stuff."  It doesn't work like that.
+--- 2.6.26-rc8-mm1/fs/exec.c	2008-07-03 11:35:20.000000000 +0100
++++ linux/fs/exec.c	2008-07-03 20:27:20.000000000 +0100
+@@ -738,11 +738,11 @@ static int exec_mmap(struct mm_struct *m
+ 	tsk->active_mm = mm;
+ 	activate_mm(active_mm, mm);
+ 	task_unlock(tsk);
+-	mm_update_next_owner(old_mm);
+ 	arch_pick_mmap_layout(mm);
+ 	if (old_mm) {
+ 		up_read(&old_mm->mmap_sem);
+ 		BUG_ON(active_mm != old_mm);
++		mm_update_next_owner(old_mm);
+ 		mmput(old_mm);
+ 		return 0;
+ 	}
+--- 2.6.26-rc8-mm1/kernel/exit.c	2008-07-03 11:35:37.000000000 +0100
++++ linux/kernel/exit.c	2008-07-03 20:28:35.000000000 +0100
+@@ -588,8 +588,6 @@ mm_need_new_owner(struct mm_struct *mm, 
+ 	 * If there are other users of the mm and the owner (us) is exiting
+ 	 * we need to find a new owner to take on the responsibility.
+ 	 */
+-	if (!mm)
+-		return 0;
+ 	if (atomic_read(&mm->mm_users) <= 1)
+ 		return 0;
+ 	if (mm->owner != p)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
