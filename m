@@ -1,82 +1,46 @@
-Date: Thu, 03 Jul 2008 16:21:20 -0700 (PDT)
-Message-Id: <20080703.162120.206258339.davem@davemloft.net>
-Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <1215111362.10393.651.camel@pmac.infradead.org>
-References: <1215093175.10393.567.camel@pmac.infradead.org>
-	<20080703173040.GB30506@mit.edu>
-	<1215111362.10393.651.camel@pmac.infradead.org>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+From: Grant Coady <grant_lkml@dodo.com.au>
+Subject: Re: 2.6.26-rc8-mm1--No e100 :( logs say missing formware
+Date: Fri, 04 Jul 2008 09:35:43 +1000
+Reply-To: Grant Coady <gcoady.lk@gmail.com>
+Message-ID: <29oq64tdu2lqj5pprhk42siri6f3qh4gr2@4ax.com>
+References: <20080703020236.adaa51fa.akpm@linux-foundation.org>
+In-Reply-To: <20080703020236.adaa51fa.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: David Woodhouse <dwmw2@infradead.org>
-Date: Thu, 03 Jul 2008 19:56:02 +0100
 Return-Path: <owner-linux-mm@kvack.org>
-To: dwmw2@infradead.org
-Cc: tytso@mit.edu, jeff@garzik.org, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> It's wrong to change the CONFIG_FIRMWARE_IN_KERNEL default to 'Y',
-> because the _normal_ setting for that option _really_ should be 'N'.
+On Thu, 3 Jul 2008 02:02:36 -0700, Andrew Morton <akpm@linux-foundation.org> wrote:
 
-On what basis?  From a "obviously works" basis, the default should be
-'y'.
+>ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.26-rc8/2.6.26-rc8-mm1/
 
-> What we're doing now is just cleaning up the older drivers which don't
-> use request_firmware(), to conform to what is now common practice.
+Hi, it booted up on a Core2Duo box but failed to connect via e100 NIC 
+to localnet.
 
-You say "conform" I say "break".
+/var/log/messages:
 
-> In the meantime, it would be useful if Jeff would quit throwing his toys
-> out of the pram on that issue and actually review the _code_ changes. In
-> particular, are the reports correct that the device operates just fine
-> without the TSO firmware loaded? Should we change the request_firmware()
-> error path to just disable TSO and continue with the initialisation?
+Jul  4 09:14:13 pooh kernel: firmware: requesting e100/d102e_ucode.bin
+Jul  4 09:14:13 pooh firmware.sh[1666]: Cannot find  firmware file 'e100/d102e_ucode.bin'
 
-No!
+/var/log/syslog:
 
-The 5701 A0 firmware is necessary to load in order to work around
-hardware and existing firmware bugs on those cards.  It's an issue of
-basic functionality, not just optimizations.
+Jul  4 09:14:13 pooh kernel: e100: eth0: e100_request_firmware: Failed to load firmware "e100/d1
+02e_ucode.bin": -2
+Jul  4 09:14:13 pooh kernel: e100: eth0: e100_request_firmware: Failed to load firmware "e100/d1
+02e_ucode.bin": -2
+Jul  4 09:17:17 pooh kernel: e100: eth0: e100_request_firmware: Failed to load firmware "e100/d1
+02e_ucode.bin": -2
+Jul  4 09:17:30 pooh last message repeated 3 times
 
-5701 A0 tg3 chips cannot operate at all without the firmware being
-present in the driver.
+So where did the firmware go? -- I been using these e100 NICs for years, 
+2.4 & 2.6 kernels, never seen this kind of failure...
 
-Therefore, if you can't load the firmware, the card is not going to
-work.
-
-> Less of the ad hominem, please. Especially when it's so misdirected.
-
-No, it is properly directed, you are breaking the tree for users.
-
-> Updating these drivers to remove large blobs of static unswappable data
-> from the kernel, and having it provided from userspace on demand as
-> modern Linux drivers do, is a perfectly sensible technical goal all on
-> its own.
-
-I disagree.
-
-> And given the GPL's explicit provisions with regard to collective works
-> there are also entirely reasonable, non-"fundamentalist" grounds for
-> believing that it _may_ pose a licensing problem, and for wanting to err
-> on the side of caution in that respect too.
-
-So now the real truth is revealed.  You have no technical basis for
-this stuff you are ramming down everyone's throats.
-
-You want to choose a default based upon your legal agenda.
-
-That explains all of the bullshit that is attached to your work, and
-all of the bullshit arguments you make wrt. choosing defaults that
-break things for users.
-
-It's all about agendas rather than any real technical objectives.
-
-If it was purely technical, you wouldn't be choosing defaults that
-break things for users by default.  Jeff and I warned you about this
-from day one, you did not listen, and now we have at least 10 reports
-just today of people with broken networking.
+Thanks,
+Grant.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
