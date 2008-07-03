@@ -1,7 +1,7 @@
-Date: Thu, 3 Jul 2008 11:38:28 +0900
+Date: Thu, 3 Jul 2008 12:06:43 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC][-mm] [0/7] misc memcg patch set
-Message-Id: <20080703113828.f541d562.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20080703120643.e74552d9.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -16,50 +16,30 @@ List-ID: <linux-mm.kvack.org>
 On Wed, 2 Jul 2008 21:03:22 +0900
 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> Other patches in plan (including other guy's)
-> - soft-limit (Balbir works.)
->   I myself think memcg-background-job patches can copperative with this.
+> Hi, it seems vmm-related bugs in -mm is reduced to some safe level.
+> I restarted my patches for memcg.
 > 
-> - dirty_ratio for memcg. (haven't written at all)
->   Support dirty_ratio for memcg. This will improve OOM avoidance.
+> This mail is just for dumping patches on my stack.
+> (I'll resend one by one later.)
 > 
-> - swapiness for memcg (had patches..but have to rewrite.)
->   Support swapiness per memcg. (of no use ?)
+> based on 2.6.26-rc5-mm3
+> + kosaki's fixes + cgroup write_string set + Hugh Dickins's fixes for shmem
+> (All patches are in -mm queue.)
 > 
-> - swap_controller (Maybe Nishimura works on.)
->   The world may change after this...cgroup without swap can appears easily.
+> Any comments are welcome (but 7/7 patch is not so neat...)
 > 
-> - hierarchy (needs more discussion. maybe after OLS?)
->   have some pathes, but not in hurry.
-> 
-> - more performance improvements (we need some trick.)
->   = Can we remove lock_page_cgroup() ?
->   = Can we reduce spinlocks ?
-> 
-> - move resource at task move (needs helps from cgroup)
->   We need some magical way. It seems impossible to implement this only by memcg.
-> 
-> - NUMA statistics (needs helps from cgroup)
->   It seems dynamic file creation feature or some rule to show array of
->   statistics should be defined.
-> 
-> - memory guarantee (soft-mlock.)
->   guard parameter against global LRU for saying "Don't reclaim from me more ;("
->   Maybe HA Linux people will want this....
-> 
-> Do you have others ?
-> 
+> [1/7] swapcache handle fix for shmem.
+> [2/7] adjust to split-lru: remove PAGE_CGROUP_FLAG_CACHE flag. 
+> [3/7] adjust to split-lru: push shmem's page to active list
+>       (Imported from Hugh Dickins's work.)
+> [4/7] reduce usage at change limit. res_counter part.
+> [5/7] reduce usage at change limit. memcg part.
+> [6/7] memcg-background-job.           res_coutner part
+> [7/7] memcg-background-job            memcg part.
 
-+ hugepage handling.
-  Currently hugepage is charged as PAGE_SIZE page....it's a BUG.
-  At first, it seems we have to avoid charging PG_compund page.
-  (until multi-size page cache is introduced.)
-
-  I think hugepage itself is an other resource than memcg deals with. The total
-  amount ot it is controlled by sysctl.
- 
-  Should we add hugepage controller or memrlimit controller will handle it ?
-  Or just ignore hugepage ?
+I decied to rewrite 7/7, totally. 
+And add more sophisticated memcg-threadpool. (like pdflush)
+So, please ignore 7/7.
 
 Thanks,
 -Kame
