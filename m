@@ -1,46 +1,41 @@
-From: Grant Coady <grant_lkml@dodo.com.au>
-Subject: Re: 2.6.26-rc8-mm1--No e100 :( logs say missing formware
-Date: Fri, 04 Jul 2008 09:35:43 +1000
-Reply-To: Grant Coady <gcoady.lk@gmail.com>
-Message-ID: <29oq64tdu2lqj5pprhk42siri6f3qh4gr2@4ax.com>
-References: <20080703020236.adaa51fa.akpm@linux-foundation.org>
-In-Reply-To: <20080703020236.adaa51fa.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [patch 0/6] Strong Access Ordering page attributes for POWER7
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Reply-To: benh@kernel.crashing.org
+In-Reply-To: <20080618223254.966080905@linux.vnet.ibm.com>
+References: <20080618223254.966080905@linux.vnet.ibm.com>
+Content-Type: text/plain
+Date: Fri, 04 Jul 2008 09:39:52 +1000
+Message-Id: <1215128392.7960.7.camel@pasglop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: shaggy@linux.vnet.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Paul Mackerras <paulus@au1.ibm.com>, Linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Jul 2008 02:02:36 -0700, Andrew Morton <akpm@linux-foundation.org> wrote:
+On Wed, 2008-06-18 at 17:32 -0500, shaggy@linux.vnet.ibm.com wrote:
+> Andrew,
+> 
+> The first patch in this series hits architecture independent code, but the
+> rest is contained in the powerpc subtree.  Could you pick up the first
+> patch into -mm?  I can send the rest of them through the powerpc git tree.
+> The first patch and the rest of the set are independent and can be merged
+> in either order.
 
->ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.26-rc8/2.6.26-rc8-mm1/
+ ../..
 
-Hi, it booted up on a Core2Duo box but failed to connect via e100 NIC 
-to localnet.
+I was wondering... how do we inform userspace that this is available ?
+Same question with adding the endian bit on 4xx which I plan to do using
+your infrastructure...
 
-/var/log/messages:
+We haven't defined a user-visible feature bit (and besides, we're really
+getting short on these...). This is becoming a bit of concern btw (the
+running out of bits). Maybe we should start defining an AT_HWCAP2 for
+powerpc and get libc updated to pick it up ?
 
-Jul  4 09:14:13 pooh kernel: firmware: requesting e100/d102e_ucode.bin
-Jul  4 09:14:13 pooh firmware.sh[1666]: Cannot find  firmware file 'e100/d102e_ucode.bin'
+Ben.
 
-/var/log/syslog:
-
-Jul  4 09:14:13 pooh kernel: e100: eth0: e100_request_firmware: Failed to load firmware "e100/d1
-02e_ucode.bin": -2
-Jul  4 09:14:13 pooh kernel: e100: eth0: e100_request_firmware: Failed to load firmware "e100/d1
-02e_ucode.bin": -2
-Jul  4 09:17:17 pooh kernel: e100: eth0: e100_request_firmware: Failed to load firmware "e100/d1
-02e_ucode.bin": -2
-Jul  4 09:17:30 pooh last message repeated 3 times
-
-So where did the firmware go? -- I been using these e100 NICs for years, 
-2.4 & 2.6 kernels, never seen this kind of failure...
-
-Thanks,
-Grant.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
