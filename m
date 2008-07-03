@@ -1,45 +1,82 @@
-Date: Fri, 4 Jul 2008 00:02:06 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Date: Thu, 03 Jul 2008 16:21:20 -0700 (PDT)
+Message-Id: <20080703.162120.206258339.davem@davemloft.net>
 Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-Message-ID: <20080704000206.259475a0@lxorguk.ukuu.org.uk>
-In-Reply-To: <486D5D4F.9060000@garzik.org>
-References: <20080703020236.adaa51fa.akpm@linux-foundation.org>
-	<20080703205548.D6E5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<486CC440.9030909@garzik.org>
-	<Pine.LNX.4.64.0807031353030.11033@blonde.site>
-	<486CCFED.7010308@garzik.org>
-	<1215091999.10393.556.camel@pmac.infradead.org>
-	<486CD654.4020605@garzik.org>
-	<1215093175.10393.567.camel@pmac.infradead.org>
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <1215111362.10393.651.camel@pmac.infradead.org>
+References: <1215093175.10393.567.camel@pmac.infradead.org>
 	<20080703173040.GB30506@mit.edu>
 	<1215111362.10393.651.camel@pmac.infradead.org>
-	<486D3E88.9090900@garzik.org>
-	<486D4596.60005@infradead.org>
-	<486D511A.9020405@garzik.org>
-	<20080703232554.7271d645@lxorguk.ukuu.org.uk>
-	<486D5D4F.9060000@garzik.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: David Woodhouse <dwmw2@infradead.org>
+Date: Thu, 03 Jul 2008 19:56:02 +0100
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jeff@garzik.org>
-Cc: David Woodhouse <dwmw2@infradead.org>, Theodore Tso <tytso@mit.edu>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: dwmw2@infradead.org
+Cc: tytso@mit.edu, jeff@garzik.org, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> Actually, I was tossing that about in my head:
-> 
-> Is it a better idea to eliminate 'make firmware_install' completely, and 
-> instead implement it silently via 'make install'?
-> 
-> 'make install' is already a big fat distro hook...
+> It's wrong to change the CONFIG_FIRMWARE_IN_KERNEL default to 'Y',
+> because the _normal_ setting for that option _really_ should be 'N'.
 
-make firmware_install can encapsulate a lot of kernel specific knowledge
-so I think it belongs in the kernel tree to avoid problems in future. The
-use of make firmware_install belongs in the distro make install hooks.
+On what basis?  From a "obviously works" basis, the default should be
+'y'.
 
-Otherwise we will mess up the distro stuff if we have to change the
-innards of make firmware_install in future, as may well occur.
+> What we're doing now is just cleaning up the older drivers which don't
+> use request_firmware(), to conform to what is now common practice.
+
+You say "conform" I say "break".
+
+> In the meantime, it would be useful if Jeff would quit throwing his toys
+> out of the pram on that issue and actually review the _code_ changes. In
+> particular, are the reports correct that the device operates just fine
+> without the TSO firmware loaded? Should we change the request_firmware()
+> error path to just disable TSO and continue with the initialisation?
+
+No!
+
+The 5701 A0 firmware is necessary to load in order to work around
+hardware and existing firmware bugs on those cards.  It's an issue of
+basic functionality, not just optimizations.
+
+5701 A0 tg3 chips cannot operate at all without the firmware being
+present in the driver.
+
+Therefore, if you can't load the firmware, the card is not going to
+work.
+
+> Less of the ad hominem, please. Especially when it's so misdirected.
+
+No, it is properly directed, you are breaking the tree for users.
+
+> Updating these drivers to remove large blobs of static unswappable data
+> from the kernel, and having it provided from userspace on demand as
+> modern Linux drivers do, is a perfectly sensible technical goal all on
+> its own.
+
+I disagree.
+
+> And given the GPL's explicit provisions with regard to collective works
+> there are also entirely reasonable, non-"fundamentalist" grounds for
+> believing that it _may_ pose a licensing problem, and for wanting to err
+> on the side of caution in that respect too.
+
+So now the real truth is revealed.  You have no technical basis for
+this stuff you are ramming down everyone's throats.
+
+You want to choose a default based upon your legal agenda.
+
+That explains all of the bullshit that is attached to your work, and
+all of the bullshit arguments you make wrt. choosing defaults that
+break things for users.
+
+It's all about agendas rather than any real technical objectives.
+
+If it was purely technical, you wouldn't be choosing defaults that
+break things for users by default.  Jeff and I warned you about this
+from day one, you did not listen, and now we have at least 10 reports
+just today of people with broken networking.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
