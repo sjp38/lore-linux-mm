@@ -1,58 +1,138 @@
-Date: Thu, 3 Jul 2008 13:27:30 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][-mm] [3/7] add shmem page to active list.
-Message-Id: <20080703132730.b64dcd19.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080703091144.93465ba5.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080702210322.518f6c43.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080702211057.7a7cf3dc.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080703091144.93465ba5.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 3 Jul 2008 05:27:51 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [problem] raid performance loss with 2.6.26-rc8 on 32-bit x86 (bisected)
+Message-ID: <20080703042750.GB14614@csn.ul.ie>
+References: <1214877439.7885.40.camel@dwillia2-linux.ch.intel.com> <20080701080910.GA10865@csn.ul.ie> <20080701175855.GI32727@shadowen.org> <20080701190741.GB16501@csn.ul.ie> <1214944175.26855.18.camel@dwillia2-linux.ch.intel.com> <20080702051759.GA26338@csn.ul.ie> <1215049766.2840.43.camel@dwillia2-linux.ch.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1215049766.2840.43.camel@dwillia2-linux.ch.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "hugh@veritas.com" <hugh@veritas.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, NeilBrown <neilb@suse.de>, babydr@baby-dragons.com, cl@linux-foundation.org, lee.schermerhorn@hp.com, a.beregalov@gmail.com, torvalds@linux-foundation.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Jul 2008 09:11:44 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > add shmem's page to active list when we link it to memcg's lru.
-> > need discussion ?
+patch is below
+
+On (02/07/08 18:49), Dan Williams didst pronounce:
+> On Tue, 2008-07-01 at 22:18 -0700, Mel Gorman wrote:
+> > > Let us take commit 8b3e6cdc out of the equation and just look at raid0
+> > > performance:
+> > >
+> > > revision   2.6.25.8-fc8 54a6eb5c 54a6eb5c-nohighmem 2.6.26-rc8
+> > >            279          278      273                277
+> > >            281          278      275                277
+> > >            281          113      68.7               66.8
+> > >            279          69.2     277                73.7
+> > >            278          75.6     62.5               80.3
+> > > MB/s (avg) 280          163      191                155
+> > > % change   0%           -42%     -32%               -45%
+> > > result     base         bad      bad                bad
+> > >
 > > 
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >  mm/memcontrol.c |    5 ++++-
-> >  1 file changed, 4 insertions(+), 1 deletion(-)
-> > 
-> > Index: test-2.6.26-rc5-mm3++/mm/memcontrol.c
-> > ===================================================================
-> > --- test-2.6.26-rc5-mm3++.orig/mm/memcontrol.c
-> > +++ test-2.6.26-rc5-mm3++/mm/memcontrol.c
-> > @@ -575,7 +575,10 @@ static int mem_cgroup_charge_common(stru
-> >  	if (ctype == MEM_CGROUP_CHARGE_TYPE_CACHE)
-> >  		pc->flags = PAGE_CGROUP_FLAG_FILE;
-> >  	else
-> > -		pc->flags = PAGE_CGROUP_FLAG_ACTIVE;
-> > +		pc->flags = 0;
-> > +	/* anonymous page and shmem pages are started from active list */
-> > +	if (!page_is_file_cache(page))
-> > +		pc->flags |= PAGE_CGROUP_FLAG_ACTIVE;
-> >  
-> This was wrong ;(
+> > Ok, based on your other mail, 54a6eb5c here is a bisection point. The good
+> > figures are on par with the "good" kernel with some disasterous runs leading
+> > to a bad average. The thing is, the bad results are way worse than could be
+> > accounted for by two-zonelist alone.  In fact, the figures look suspiciously
+> > like only 1 disk is in use as they are roughly quartered. Can you think of
+> > anything that would explain that?
 > 
->        if (page_is_file_cache(page))
->                 pc->flags = PAGE_CGROUP_FLAG_FILE;
->         else
->                 pc->flags = PAGE_CGROUP_ACTIVE;
-> 
-> will be a correct one. And this will change the shmem's accounting attribute
-> from CACHE to ANON. Does anyone have strong demand to account shmem as CACHE ?
+> raid0 in contrast to raid5 is fairly simple it just remaps the bio.
+> Then it is up to the block layer to do some merging before it hits the
+> block device driver.  Not much room for error, especially since single
+> drive performance seems to be unaffected.  The data seems to show that
+> the vm is not queuing pages to be written back fast enough.
 > 
 
-BTW, is there a way to see the RSS usage of shmem from /proc or somewhere ?
+That is exactly the case but I think I know why now.
 
-Thanks,
--Kame
+> > Can you also confirm that using a bisection
+> > point before two-zonelist runs steadily and with high performance as expected
+> > please? This is to rule out some other RAID patch being a factor.
+> 
+> The immediately preceeding commit 18ea7e71 always runs with high
+> performance, and raid0 was virtually untouched during the merge window:
+> 
+> $ git shortlog v2.6.25..v2.6.26-rc8 drivers/md/raid0.c
+> Neil Brown (1):
+>       Remove blkdev warning triggered by using md
+> 
+> > It would be worth running vmstat during the tests so we can see if IO
+> > rates are dropping from an overall system perspective. If possible,
+> > oprofile data from the same time would be helpful to see does it show up
+> > where we are getting stuck.
+> 
+> I watched /proc/vmstat during a dd run, and in the good case
+> nr_writeback never drops below 21,000.  In the bad case it may briefly
+> break a few hundred pages.
+> 
+> This picture generated by seekwatcher shows that there are gaps in i/o
+> submission:
+> 
+> 	http://userweb.kernel.org/~djbw/md0-bad2.png
+> 
+> Compared to a good run:
+> 
+> 	http://userweb.kernel.org/~djbw/md0-good.png
+> 
+> What is interesting is that I was only able to get this data with the
+> following command:
+> 
+> ./seekwatcher -W -t md0.trace -o md0-bad2.png -p 'dd if=/dev/zero of=/dev/md0 bs=1024k count=2048' -d /dev/md0 -d /dev/sdb
+> 
+> When I tried to watch all four disks, i.e. 5 blktrace tasks running
+> instead of 2:
+> 
+> ./seekwatcher -W -t md0.trace -o md0-bad2.png -p 'dd if=/dev/zero of=/dev/md0 bs=1024k count=2048' -d /dev/md0 -d /dev/sdb -d /dev/sdc -d /dev/sdd -d /dev/sde
+> 
+> ...it always measured good performance, as if having more tasks running
+> stimulates the vm to keep writeback going at a high rate.  Could
+> writeback be getting stalled on one cpu or more cpu's?
+> 
+
+Yes, we're stalling because the two-zonelist patch is breaking kswapd on
+!NUMA machines. The impact is that kswapd never reclaims and processes always
+directly reclaim. The result is you see large stalls.
+
+Alexander, I believe this may also be why lockdep is triggering and you're
+seeing periodic stalls in the XFS tests. The lockdep warning is a red herring
+but the fact it's easier to trigger could be because kswapd is not working
+and direct reclaim triggers the warning easily.
+
+Alexander and Dan, could you test the patch below and let me know if it
+fixes your respective problems please?
+
+===
+
+Subject: [PATCH] Do not overwrite nr_zones on !NUMA when initialising zlcache_ptr
+
+With the two-zonelist patches on !NUMA machines, there really is only one
+zonelist as __GFP_THISNODE is meaningless. However, during initialisation, the
+assumption is made that two zonelists exist when initialising zlcache_ptr. The
+result is that pgdat->nr_zones is always 0. As kswapd uses this value to
+determine what reclaim work is necessary, the result is that kswapd never
+reclaims. This causes processes to stall frequently in low-memory situations
+as they always direct reclaim.  This patch initialises zlcache_ptr correctly.
+
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+--- 
+ page_alloc.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.26-rc8-clean/mm/page_alloc.c linux-2.6.26-rc8-fix-kswapd-on-numa/mm/page_alloc.c
+--- linux-2.6.26-rc8-clean/mm/page_alloc.c	2008-06-24 18:58:20.000000000 -0700
++++ linux-2.6.26-rc8-fix-kswapd-on-numa/mm/page_alloc.c	2008-07-02 21:14:16.000000000 -0700
+@@ -2328,7 +2328,8 @@ static void build_zonelists(pg_data_t *p
+ static void build_zonelist_cache(pg_data_t *pgdat)
+ {
+ 	pgdat->node_zonelists[0].zlcache_ptr = NULL;
+-	pgdat->node_zonelists[1].zlcache_ptr = NULL;
++	if (NUMA_BUILD)
++		pgdat->node_zonelists[1].zlcache_ptr = NULL;
+ }
+ 
+ #endif	/* CONFIG_NUMA */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
