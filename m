@@ -1,58 +1,68 @@
-Date: Thu, 3 Jul 2008 21:50:31 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH 2.6.26-rc8-mm1] memrlimit: fix mmap_sem deadlock
-Message-ID: <Pine.LNX.4.64.0807032143110.10641@blonde.site>
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
+Date: Thu, 3 Jul 2008 22:52:36 +0200
+References: <20080703020236.adaa51fa.akpm@linux-foundation.org> <92840.1215113467@turing-police.cc.vt.edu> <1215114540.10393.659.camel@pmac.infradead.org>
+In-Reply-To: <1215114540.10393.659.camel@pmac.infradead.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200807032252.37992.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Woodhouse <dwmw2@infradead.org>
+Cc: Valdis.Kletnieks@vt.edu, Theodore Tso <tytso@mit.edu>, Jeff Garzik <jeff@garzik.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-"ps -f" hung after "killall make" of make -j20 kernel builds.  It's
-generally considered bad manners to down_write something you already
-have down_read.  exit_mm up_reads before calling mm_update_next_owner,
-so I guess exec_mmap can safely do so too.  (And with that repositioning
-there's not much point in mm_need_new_owner allowing for NULL mm.)
+On Thursday, 3 of July 2008, David Woodhouse wrote:
+> On Thu, 2008-07-03 at 15:31 -0400, Valdis.Kletnieks@vt.edu wrote:
+> > On Thu, 03 Jul 2008 19:56:02 BST, David Woodhouse said:
+> > 
+> > > They had to 'make oldconfig' and then actually _choose_ to say 'no' to
+> > > an option which is fairly clearly documented, that they are the
+> > > relatively unusual position of wanting to have said 'yes' to. You're
+> > > getting into Aunt Tillie territory, when you complain about that.
+> > 
+> > Note that some of us chose 'no' because we *thought* that we already *had*
+> > everything in /lib/firmware that we needed (in my case, the iwl3945 wireless
+> > firmware and the Intel cpu microcode).  The first that I realized that
+> > the tg3 *had* firmware was when I saw the failure message, because before
+> > that, the binary blob was inside the kernel.  And then, it wasn't trivially
+> > obvious how to get firmware loaded if the tg3 driver was builtin rather
+> > than a module.
+> > 
+> > And based on some of the other people who apparently got bit by this same
+> > exact behavior change on this same exact "builtin but no firmware in kernel"
+> > config with this same exact driver, it's obvious that one of two things is true:
+> > 
+> > 1) Several of the highest-up maintainers are Aunt Tillies.
+> > or
+> > 2) This is sufficiently subtle and complicated that far more experienced
+> > people than Aunt Tillie will Get It Very Wrong.
+> 
+> Not really. It's just a transitional thing. As you said, you know
+> perfectly well that modern Linux drivers like iwl3945 handle their
+> firmware separately through request_firmware() rather than including it
+> in unswappable memory in the static kernel. We're just updating some of
+> the older drivers to match.
+> 
+> I've often managed to configure a kernel which doesn't boot, when I've
+> updated and not paid attention to the questions which 'oldconfig' asks
+> me. It's fairly easy to do. But I don't advocate that 'allyesconfig'
+> should be the default, just in case someone needs one of the options...
+> 
+> But as I said, I'm content to let Linus make that decision. In the
+> meantime, I'd prefer to get back to the simple business of updating
+> drivers to use request_firmware() as they should, and have maintainers
+> actually respond to the _patches_ rather than refusing to even look at
+> the code changes because they disagree with the default setting for the
+> CONFIG_FIRMWARE_IN_KERNEL option.
 
-Signed-off-by: Hugh Dickins <hugh@veritas.com>
----
-Fix to memrlimit-cgroup-mm-owner-callback-changes-to-add-task-info.patch
-quite independent of its recent sleeping-inside-spinlock fix; could even
-be applied to 2.6.26, though no deadlock there.  Gosh, I see those patches
-have spawned "Reviewed-by" tags in my name: sorry, no, just "Bug-found-by".
+Hm, well, but if the driver in question is in a module, then whether or not
+this option is set really doesn't matter, does it?
 
- fs/exec.c     |    2 +-
- kernel/exit.c |    2 --
- 2 files changed, 1 insertion(+), 3 deletions(-)
-
---- 2.6.26-rc8-mm1/fs/exec.c	2008-07-03 11:35:20.000000000 +0100
-+++ linux/fs/exec.c	2008-07-03 20:27:20.000000000 +0100
-@@ -738,11 +738,11 @@ static int exec_mmap(struct mm_struct *m
- 	tsk->active_mm = mm;
- 	activate_mm(active_mm, mm);
- 	task_unlock(tsk);
--	mm_update_next_owner(old_mm);
- 	arch_pick_mmap_layout(mm);
- 	if (old_mm) {
- 		up_read(&old_mm->mmap_sem);
- 		BUG_ON(active_mm != old_mm);
-+		mm_update_next_owner(old_mm);
- 		mmput(old_mm);
- 		return 0;
- 	}
---- 2.6.26-rc8-mm1/kernel/exit.c	2008-07-03 11:35:37.000000000 +0100
-+++ linux/kernel/exit.c	2008-07-03 20:28:35.000000000 +0100
-@@ -588,8 +588,6 @@ mm_need_new_owner(struct mm_struct *mm, 
- 	 * If there are other users of the mm and the owner (us) is exiting
- 	 * we need to find a new owner to take on the responsibility.
- 	 */
--	if (!mm)
--		return 0;
- 	if (atomic_read(&mm->mm_users) <= 1)
- 		return 0;
- 	if (mm->owner != p)
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
