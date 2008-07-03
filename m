@@ -1,45 +1,57 @@
-Date: Thu, 3 Jul 2008 16:01:17 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2.6.26-rc8-mm1] memrlimit: fix mmap_sem deadlock
-Message-Id: <20080703160117.b3781463.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0807032143110.10641@blonde.site>
-References: <Pine.LNX.4.64.0807032143110.10641@blonde.site>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <486D5D4F.9060000@garzik.org>
+Date: Thu, 03 Jul 2008 19:14:23 -0400
+From: Jeff Garzik <jeff@garzik.org>
+MIME-Version: 1.0
+Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
+References: <20080703020236.adaa51fa.akpm@linux-foundation.org>	<20080703205548.D6E5.KOSAKI.MOTOHIRO@jp.fujitsu.com>	<486CC440.9030909@garzik.org>	<Pine.LNX.4.64.0807031353030.11033@blonde.site>	<486CCFED.7010308@garzik.org>	<1215091999.10393.556.camel@pmac.infradead.org>	<486CD654.4020605@garzik.org>	<1215093175.10393.567.camel@pmac.infradead.org>	<20080703173040.GB30506@mit.edu>	<1215111362.10393.651.camel@pmac.infradead.org>	<486D3E88.9090900@garzik.org>	<486D4596.60005@infradead.org>	<486D511A.9020405@garzik.org> <20080703232554.7271d645@lxorguk.ukuu.org.uk>
+In-Reply-To: <20080703232554.7271d645@lxorguk.ukuu.org.uk>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: balbir@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: David Woodhouse <dwmw2@infradead.org>, Theodore Tso <tytso@mit.edu>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Jul 2008 21:50:31 +0100 (BST)
-Hugh Dickins <hugh@veritas.com> wrote:
-
-> "ps -f" hung after "killall make" of make -j20 kernel builds.  It's
-> generally considered bad manners to down_write something you already
-> have down_read.  exit_mm up_reads before calling mm_update_next_owner,
-> so I guess exec_mmap can safely do so too.  (And with that repositioning
-> there's not much point in mm_need_new_owner allowing for NULL mm.)
+Alan Cox wrote:
+>> Further, all current kernel build and test etc. scripts are unaware of 
+>> 'make firmware_install', and it is unfair to everybody to force a 
+>> flag-day build process change on people, just to keep their drivers in 
+>> the same working state today as it was yesterday.
 > 
+> IMHO we want firmware built in as the default for the moment. If the
+> firmware model makes sense (as I think it does) then the distributions
+> will catch up, turn it on and sort out the default behaviour - exactly as
+> they did all those years ago with modules, more recently with "use an
+> initrd" and so on.
 
-thanks
+Agreed.
 
-> ---
-> Fix to memrlimit-cgroup-mm-owner-callback-changes-to-add-task-info.patch
-> quite independent of its recent sleeping-inside-spinlock fix; could even
-> be applied to 2.6.26, though no deadlock there.  Gosh, I see those patches
-> have spawned "Reviewed-by" tags in my name: sorry, no, just "Bug-found-by".
 
-I switched
-memrlimit-add-memrlimit-controller-accounting-and-control-memrlimit-improve-fork-and-error-handling.patch
-and
-memrlimit-cgroup-mm-owner-callback-changes-to-add-task-info-memrlimit-fix-sleep-inside-sleeplock-in-mm_update_next_owner.patch
-to Cc:you.
+>> as "making no sense".  All these are real world examples where users 
+>> FOLLOWING THEIR NORMAL, PROSCRIBED KERNEL PROCESSES will produce 
+> 
+> I hope you mean "prescribed" ;)
 
-There doesn't seem to have been much discussion regarding your recent
-objections to the memrlimit patches.  But it caused me to put a big
-black mark on them.  Perhaps sending it all again would be helpful.
+heh, *cough* yes
+
+
+>> The only valid assumption here is to assume that the user is /unaware/ 
+>> of these new steps they must take in order to continue to have a working 
+>> system.
+> 
+> To a large extent not the user but their distro - consider "make install"
+
+Actually, I was tossing that about in my head:
+
+Is it a better idea to eliminate 'make firmware_install' completely, and 
+instead implement it silently via 'make install'?
+
+'make install' is already a big fat distro hook...
+
+	Jeff
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
