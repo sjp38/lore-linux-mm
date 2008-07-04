@@ -1,97 +1,63 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate3.de.ibm.com (8.13.8/8.13.8) with ESMTP id m64Ex1Qn094594
-	for <linux-mm@kvack.org>; Fri, 4 Jul 2008 14:59:01 GMT
-Received: from d12av04.megacenter.de.ibm.com (d12av04.megacenter.de.ibm.com [9.149.165.229])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m64Ex0If2883684
-	for <linux-mm@kvack.org>; Fri, 4 Jul 2008 16:59:00 +0200
-Received: from d12av04.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av04.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m64Ewx0d016674
-	for <linux-mm@kvack.org>; Fri, 4 Jul 2008 16:59:00 +0200
-Subject: [PATCH] Make CONFIG_MIGRATION available for s390
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Content-Type: text/plain
-Date: Fri, 04 Jul 2008 16:58:59 +0200
-Message-Id: <1215183539.4834.12.camel@localhost.localdomain>
+Date: Fri, 4 Jul 2008 19:58:00 +0200
+From: Pierre Ossman <drzeus-list@drzeus.cx>
+Subject: Re: How to alloc highmem page below 4GB on i386?
+Message-ID: <20080704195800.4ef6e00a@mjolnir.drzeus.cx>
+In-Reply-To: <20080630200323.2a5992cd@mjolnir.drzeus.cx>
+References: <20080630200323.2a5992cd@mjolnir.drzeus.cx>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; protocol="application/pgp-signature"; micalg=PGP-SHA1; boundary="=_freyr.drzeus.cx-876-1215193601-0001-2"
 Sender: owner-linux-mm@kvack.org
-Subject: [PATCH] Make CONFIG_MIGRATION available for s390
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+This is a MIME-formatted message.  If you see this text it means that your
+E-mail software does not support MIME-formatted messages.
 
-We'd like to support CONFIG_MEMORY_HOTREMOVE on s390, which depends on
-CONFIG_MIGRATION. So far, CONFIG_MIGRATION is only available with NUMA
-support.
+--=_freyr.drzeus.cx-876-1215193601-0001-2
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-This patch makes CONFIG_MIGRATION selectable for s390. When MIGRATION
-is enabled w/o NUMA, the kernel won't compile because of a missing
-"migrate" member in vm_operations_struct and a missing "policy_zone"
-definition. To avoid this, those are moved from an "#ifdef CONFIG_NUMA"
-section to "#ifdef CONFIG_MIGRATION".
+On Mon, 30 Jun 2008 20:03:23 +0200
+Pierre Ossman <drzeus-list@drzeus.cx> wrote:
 
-Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
----
+> Simple question. How do I allocate a page from highmem, that's still
+> within 32 bits? x86_64 has the DMA32 zone, but i386 has just HIGHMEM.
+> As most devices can't DMA above 32 bit, I have 3 GB of memory that's
+> not getting decent usage (or results in needless bouncing). What to do?
+>=20
+> I tried just enabling CONFIG_DMA32 for i386, but there is some guard
+> against too many memory zones. I'm assuming this is there for a good
+> reason?
+>=20
 
- include/linux/mempolicy.h |    6 ++++--
- include/linux/mm.h        |    2 ++
- mm/Kconfig                |    2 +-
- 3 files changed, 7 insertions(+), 3 deletions(-)
+Anyone?
 
-Index: mylinux-git/include/linux/mempolicy.h
-===================================================================
---- mylinux-git.orig/include/linux/mempolicy.h
-+++ mylinux-git/include/linux/mempolicy.h
-@@ -62,6 +62,10 @@ enum {
- 
- struct mm_struct;
- 
-+#ifdef CONFIG_MIGRATION
-+extern enum zone_type policy_zone;
-+#endif
-+
- #ifdef CONFIG_NUMA
- 
- /*
-@@ -202,8 +206,6 @@ extern struct zonelist *huge_zonelist(st
- 				struct mempolicy **mpol, nodemask_t **nodemask);
- extern unsigned slab_node(struct mempolicy *policy);
- 
--extern enum zone_type policy_zone;
--
- static inline void check_highest_zone(enum zone_type k)
- {
- 	if (k > policy_zone && k != ZONE_MOVABLE)
-Index: mylinux-git/include/linux/mm.h
-===================================================================
---- mylinux-git.orig/include/linux/mm.h
-+++ mylinux-git/include/linux/mm.h
-@@ -193,6 +193,8 @@ struct vm_operations_struct {
- 	 */
- 	struct mempolicy *(*get_policy)(struct vm_area_struct *vma,
- 					unsigned long addr);
-+#endif
-+#ifdef CONFIG_MIGRATION
- 	int (*migrate)(struct vm_area_struct *vma, const nodemask_t *from,
- 		const nodemask_t *to, unsigned long flags);
- #endif
-Index: mylinux-git/mm/Kconfig
-===================================================================
---- mylinux-git.orig/mm/Kconfig
-+++ mylinux-git/mm/Kconfig
-@@ -174,7 +174,7 @@ config SPLIT_PTLOCK_CPUS
- config MIGRATION
- 	bool "Page migration"
- 	def_bool y
--	depends on NUMA
-+	depends on NUMA || S390
- 	help
- 	  Allows the migration of the physical location of pages of processes
- 	  while the virtual addresses are not changed. This is useful for
+--=20
+     -- Pierre Ossman
 
+  Linux kernel, MMC maintainer        http://www.kernel.org
+  rdesktop, core developer          http://www.rdesktop.org
+
+  WARNING: This correspondence is being monitored by the
+  Swedish government. Make sure your server uses encryption
+  for SMTP traffic and consider using PGP for end-to-end
+  encryption.
+
+--=_freyr.drzeus.cx-876-1215193601-0001-2
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.9 (GNU/Linux)
+
+iEYEARECAAYFAkhuZLAACgkQ7b8eESbyJLi5dgCeIw6rCoDUDfvdqEZ6lwQFtT70
+hpoAn3RAVQ0OFZMSSF3OnMYq4U/aHtI0
+=NFbH
+-----END PGP SIGNATURE-----
+
+--=_freyr.drzeus.cx-876-1215193601-0001-2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
