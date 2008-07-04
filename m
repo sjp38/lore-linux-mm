@@ -1,7 +1,7 @@
-Date: Fri, 4 Jul 2008 15:17:47 +0900
+Date: Fri, 4 Jul 2008 15:18:51 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [PATCH -mm 1/5] swapcgroup (v3): add cgroup files
-Message-Id: <20080704151747.470d62a3.nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH -mm 2/5] swapcgroup (v3): add a member to swap_info_struct
+Message-Id: <20080704151851.bcd1c371.nishimura@mxp.nes.nec.co.jp>
 In-Reply-To: <20080704151536.e5384231.nishimura@mxp.nes.nec.co.jp>
 References: <20080704151536.e5384231.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
@@ -13,161 +13,194 @@ To: Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>
 Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, IKEDA Munehiro <m-ikeda@ds.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-Even if limiting memory usage by memory cgroup,
-swap space is shared, so resource isolation is not enough.
-If one group uses up most of the swap space, it can affect
-other groups anyway.
+This patch add a member to swap_info_struct for cgroup.
 
-The purpose of swapcgroup is limiting swap usage per group
-as memory cgroup limits the RSS memory usage.
-It's now implemented as a add-on to memory cgroup.
+This member, array of pointers to mem_cgroup, is used to
+remember to which cgroup each swap entries are charged.
 
-
-This patch adds cgroup files(and a member to struct mem_cgroup)
-for swapcgroup.
-
-Files to be added by this patch are:
-
-- memory.swap_usage_in_bytes
-- memory.swap_max_usage_in_bytes
-- memory.swap_limit_in_bytes
-- memory.swap_failcnt
-
-The meaning of those files are the same as memory cgroup.
+The memory for this array of pointers is allocated on swapon,
+and freed on swapoff.
 
 
 Change log
 v2->v3
-- Rebased on 2.6.26-rc5-mm3.
+- Rebased on 2.6.26-rc5-mm3
+- add helper functions and removed #ifdef from sys_swapon()/sys_swapoff().
+- add check on mem_cgroup_subsys.disabled
 v1->v2
-- Rebased on 2.6.26-rc2-mm1.
+- Rebased on 2.6.26-rc2-mm1
 - Implemented as a add-on to memory cgroup.
 
 
 Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
 ---
- init/Kconfig    |    7 +++++
- mm/memcontrol.c |   67 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 74 insertions(+), 0 deletions(-)
+ include/linux/memcontrol.h |   20 +++++++++++++++++++-
+ include/linux/swap.h       |    3 +++
+ mm/memcontrol.c            |   36 ++++++++++++++++++++++++++++++++++++
+ mm/swapfile.c              |   11 +++++++++++
+ 4 files changed, 69 insertions(+), 1 deletions(-)
 
-diff --git a/init/Kconfig b/init/Kconfig
-index 847931a..c604b6d 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -418,6 +418,13 @@ config CGROUP_MEMRLIMIT_CTLR
- 	  memory RSS and Page Cache control. Virtual address space control
- 	  is provided by this controller.
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index ee1b2fc..b6ff509 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -24,6 +24,7 @@ struct mem_cgroup;
+ struct page_cgroup;
+ struct page;
+ struct mm_struct;
++struct swap_info_struct;
  
-+config CGROUP_SWAP_RES_CTLR
-+	bool "Swap Resource Controller for Control Groups"
-+	depends on CGROUP_MEM_RES_CTLR && SWAP
-+	help
-+	  Provides a swap resource controller that manages and limits swap usage.
-+	  Implemented as a add-on to Memory Resource Controller.
-+
- config SYSFS_DEPRECATED
- 	bool
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR
  
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b8fe33c..ddc842b 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -133,6 +133,12 @@ struct mem_cgroup {
- 	 * statistics.
- 	 */
- 	struct mem_cgroup_stat stat;
-+#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-+	/*
-+	 * the counter to account for swap usage
-+	 */
-+	struct res_counter swap_res;
-+#endif
- };
- static struct mem_cgroup init_mem_cgroup;
- 
-@@ -953,6 +959,39 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
- 	return 0;
+@@ -165,5 +166,22 @@ static inline long mem_cgroup_calc_reclaim(struct mem_cgroup *mem,
  }
+ #endif /* CONFIG_CGROUP_MEM_CONT */
  
+-#endif /* _LINUX_MEMCONTROL_H */
 +#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-+static u64 swap_cgroup_read(struct cgroup *cont, struct cftype *cft)
++extern struct mem_cgroup **swap_info_clear_memcg(struct swap_info_struct *p);
++extern int swap_info_alloc_memcg(struct swap_info_struct *p,
++				unsigned long maxpages);
++#else
++static inline
++struct mem_cgroup **swap_info_clear_memcg(struct swap_info_struct *p)
 +{
-+	return res_counter_read_u64(&mem_cgroup_from_cont(cont)->swap_res,
-+				    cft->private);
++	return NULL;
 +}
-+
-+static ssize_t swap_cgroup_write(struct cgroup *cont, struct cftype *cft,
-+				struct file *file, const char __user *userbuf,
-+				size_t nbytes, loff_t *ppos)
+ 
++static inline
++int swap_info_alloc_memcg(struct swap_info_struct *p, unsigned long maxpages)
 +{
-+	return res_counter_write(&mem_cgroup_from_cont(cont)->swap_res,
-+				cft->private, userbuf, nbytes, ppos,
-+				mem_cgroup_write_strategy);
-+}
-+
-+static int swap_cgroup_reset(struct cgroup *cont, unsigned int event)
-+{
-+	struct mem_cgroup *mem;
-+
-+	mem = mem_cgroup_from_cont(cont);
-+	switch (event) {
-+	case RES_MAX_USAGE:
-+		res_counter_reset_max(&mem->swap_res);
-+		break;
-+	case RES_FAILCNT:
-+		res_counter_reset_failcnt(&mem->swap_res);
-+		break;
-+	}
 +	return 0;
 +}
 +#endif
 +
- static struct cftype mem_cgroup_files[] = {
- 	{
- 		.name = "usage_in_bytes",
-@@ -985,6 +1024,31 @@ static struct cftype mem_cgroup_files[] = {
- 		.name = "stat",
- 		.read_map = mem_control_stat_show,
- 	},
++#endif /* _LINUX_MEMCONTROL_H */
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index a3af95b..6e1b03d 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -142,6 +142,9 @@ struct swap_info_struct {
+ 	struct swap_extent *curr_swap_extent;
+ 	unsigned old_block_size;
+ 	unsigned short * swap_map;
 +#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-+	{
-+		.name = "swap_usage_in_bytes",
-+		.private = RES_USAGE,
-+		.read_u64 = swap_cgroup_read,
-+	},
-+	{
-+		.name = "swap_max_usage_in_bytes",
-+		.private = RES_MAX_USAGE,
-+		.trigger = swap_cgroup_reset,
-+		.read_u64 = swap_cgroup_read,
-+	},
-+	{
-+		.name = "swap_limit_in_bytes",
-+		.private = RES_LIMIT,
-+		.write = swap_cgroup_write,
-+		.read_u64 = swap_cgroup_read,
-+	},
-+	{
-+		.name = "swap_failcnt",
-+		.private = RES_FAILCNT,
-+		.trigger = swap_cgroup_reset,
-+		.read_u64 = swap_cgroup_read,
-+	},
++	struct mem_cgroup **memcg;
 +#endif
+ 	unsigned int lowest_bit;
+ 	unsigned int highest_bit;
+ 	unsigned int cluster_next;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ddc842b..81bb7fa 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1209,3 +1209,39 @@ struct cgroup_subsys mem_cgroup_subsys = {
+ 	.attach = mem_cgroup_move_task,
+ 	.early_init = 0,
  };
- 
- static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
-@@ -1063,6 +1127,9 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
++
++#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
++/* called with swap_lock held */
++struct mem_cgroup **swap_info_clear_memcg(struct swap_info_struct *p)
++{
++	struct mem_cgroup **mem;
++
++	/* just clear p->memcg, without checking mem_cgroup_subsys.disabled */
++	mem = p->memcg;
++	p->memcg = NULL;
++
++	return mem;
++}
++
++/* called without swap_lock held */
++int swap_info_alloc_memcg(struct swap_info_struct *p, unsigned long maxpages)
++{
++	int ret = 0;
++
++	if (mem_cgroup_subsys.disabled)
++		goto out;
++
++	p->memcg = vmalloc(maxpages * sizeof(struct mem_cgroup *));
++	if (!p->memcg) {
++		/* make swapon fail */
++		printk(KERN_ERR "Unable to allocate memory for memcg\n");
++		ret = -ENOMEM;
++		goto out;
++	}
++	memset(p->memcg, 0, maxpages * sizeof(struct mem_cgroup *));
++
++out:
++	return ret;
++}
++#endif
++
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index bf7d13d..312c573 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -1228,6 +1228,7 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
+ 	unsigned short *swap_map;
+ 	struct file *swap_file, *victim;
+ 	struct address_space *mapping;
++	struct mem_cgroup **memcg = NULL;
+ 	struct inode *inode;
+ 	char * pathname;
+ 	int i, type, prev;
+@@ -1328,10 +1329,12 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
+ 	p->max = 0;
+ 	swap_map = p->swap_map;
+ 	p->swap_map = NULL;
++	memcg = swap_info_clear_memcg(p);
+ 	p->flags = 0;
+ 	spin_unlock(&swap_lock);
+ 	mutex_unlock(&swapon_mutex);
+ 	vfree(swap_map);
++	vfree(memcg);
+ 	inode = mapping->host;
+ 	if (S_ISBLK(inode->i_mode)) {
+ 		struct block_device *bdev = I_BDEV(inode);
+@@ -1475,6 +1478,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
+ 	unsigned long maxpages = 1;
+ 	int swapfilesize;
+ 	unsigned short *swap_map;
++	struct mem_cgroup **memcg = NULL;
+ 	struct page *page = NULL;
+ 	struct inode *inode = NULL;
+ 	int did_down = 0;
+@@ -1498,6 +1502,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
+ 	p->swap_file = NULL;
+ 	p->old_block_size = 0;
+ 	p->swap_map = NULL;
++	swap_info_clear_memcg(p);
+ 	p->lowest_bit = 0;
+ 	p->highest_bit = 0;
+ 	p->cluster_nr = 0;
+@@ -1670,6 +1675,10 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
+ 				1 /* header page */;
+ 		if (error)
+ 			goto bad_swap;
++
++		error = swap_info_alloc_memcg(p, maxpages);
++		if (error)
++			goto bad_swap;
  	}
  
- 	res_counter_init(&mem->res);
-+#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-+	res_counter_init(&mem->swap_res);
-+#endif
- 
- 	for_each_node_state(node, N_POSSIBLE)
- 		if (alloc_mem_cgroup_per_zone_info(mem, node))
+ 	if (nr_good_pages) {
+@@ -1729,11 +1738,13 @@ bad_swap_2:
+ 	swap_map = p->swap_map;
+ 	p->swap_file = NULL;
+ 	p->swap_map = NULL;
++	memcg = swap_info_clear_memcg(p);
+ 	p->flags = 0;
+ 	if (!(swap_flags & SWAP_FLAG_PREFER))
+ 		++least_priority;
+ 	spin_unlock(&swap_lock);
+ 	vfree(swap_map);
++	vfree(memcg);
+ 	if (swap_file)
+ 		filp_close(swap_file, NULL);
+ out:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
