@@ -1,76 +1,105 @@
-Date: Thu, 3 Jul 2008 20:18:56 -0400
-From: Theodore Tso <tytso@mit.edu>
-Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-Message-ID: <20080704001855.GJ30506@mit.edu>
-References: <1215093175.10393.567.camel@pmac.infradead.org> <20080703173040.GB30506@mit.edu> <1215111362.10393.651.camel@pmac.infradead.org> <20080703.162120.206258339.davem@davemloft.net>
+Message-ID: <486D6DDB.4010205@infradead.org>
+Date: Fri, 04 Jul 2008 01:24:59 +0100
+From: David Woodhouse <dwmw2@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
+References: <1215093175.10393.567.camel@pmac.infradead.org>	<20080703173040.GB30506@mit.edu>	<1215111362.10393.651.camel@pmac.infradead.org> <20080703.162120.206258339.davem@davemloft.net>
 In-Reply-To: <20080703.162120.206258339.davem@davemloft.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: David Miller <davem@davemloft.net>
-Cc: dwmw2@infradead.org, jeff@garzik.org, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+Cc: tytso@mit.edu, jeff@garzik.org, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 03, 2008 at 04:21:20PM -0700, David Miller wrote:
-> > And given the GPL's explicit provisions with regard to collective works
-> > there are also entirely reasonable, non-"fundamentalist" grounds for
-> > believing that it _may_ pose a licensing problem, and for wanting to err
-> > on the side of caution in that respect too.
+David Miller wrote:
+> From: David Woodhouse <dwmw2@infradead.org>
+> Date: Thu, 03 Jul 2008 19:56:02 +0100
 > 
-> So now the real truth is revealed.  You have no technical basis for
-> this stuff you are ramming down everyone's throats.
+>> It's wrong to change the CONFIG_FIRMWARE_IN_KERNEL default to 'Y',
+>> because the _normal_ setting for that option _really_ should be 'N'.
 > 
-> You want to choose a default based upon your legal agenda.
+> On what basis?  From a "obviously works" basis, the default should be
+> 'y'.
 
-Yep, legal agenda.  As I suspected, licensing religious fundamentalism.  :-)
+I already changed it to 'y'.
 
-People who care can change the defaults.  People who are real
-religious nuts won't even let the firmware live in the same source
-tarball.  But I hope you agree we clearly don't have consensus to take
-*that* step (rip out all firmware and make a whole bunch of drivers
-non-functional and forcing users to go on a treasure-hunt to find some
-new tarball they have to install on their existing system).  So given
-that we're not ready to take that step, why not just leave the default
-as "yes" for now?
+>> What we're doing now is just cleaning up the older drivers which don't
+>> use request_firmware(), to conform to what is now common practice.
+> 
+> You say "conform" I say "break".
 
-The staged approach means that if you really want to do this ASAP,
-then start assembling the firmware tarball *now*, and for a while
-(read: at least 9-18 months) we can distribute firmware both in the
-kernel source tarball as well as separately in the
-licensing-religion-firmware tarball.  See if you can get distros
-willing to ship it by default in most user's systems, and give people
-plenty of time to understand that we are trying to decouple firmware
-from the kernel sources.  If we need to institute better versioning
-regimes between the drivers and firmware release levels, that will
-also give people a chance to get that all right.  Then 6-9 months
-later, we can turn the default to 'no', and then maybe another 6-9
-months after that, we can talk about removing the firmware modules.
-But it seems to me that you are skipping a few steps by arguing that
-the default should be changed here-and-now.
+You mean...
+	"What we're doing now is just cleaning up the older drivers
+	 which don't use request_firmware(), to break to what is now
+	 common practice."
+?
 
-We've been shipping firmware in the kernel for over a ***decade***; in
-fact, probably over 15 years.  For people who are legal freaks/geeks,
-look up the legal terms "Estoppel" and "Laches".  That provides a
-fairly large amount of protection right there.  For people who aren't
-legal geeks, we've been doing this for well over a decade; another
-year or two really isn't a big deal.  It certainly doesn't justify
-breaking users by default just to try to hurry up this process.
+Doesn't really scan, does it?
 
-> If it was purely technical, you wouldn't be choosing defaults that
-> break things for users by default.  Jeff and I warned you about this
-> from day one, you did not listen, and now we have at least 10 reports
-> just today of people with broken networking.
+Common practice in modern Linux drivers is to use request_firmware(). 
+I'm just going through and fixing up the older ones to do that too.
 
-Not 15 minutes after David posted his note, we're now up to 11
-reports; and this is only from an -mm patch series.  Can you imagine
-the number of bug reports if this were allowed to ship in a mainline
-kernel.org release?  One good thing is that we can definitely show
-that there people that are downloading, compiling and trying to build
-the -mm kernel.  :-)
+(After making it possible to build that firmware _into_ the kernel so 
+that we aren't forcing people to use an initrd where they didn't before, 
+of course.)
 
-						- Ted
+The word for that is definitely 'conform'. I know you don't _like_ the 
+modern accepted practice, but that's _your_ windmill to tilt at. I have 
+my own :)
+
+>> In the meantime, it would be useful if Jeff would quit throwing his toys
+>> out of the pram on that issue and actually review the _code_ changes. In
+>> particular, are the reports correct that the device operates just fine
+>> without the TSO firmware loaded? Should we change the request_firmware()
+>> error path to just disable TSO and continue with the initialisation?
+> 
+> No!
+> 
+> The 5701 A0 firmware is necessary to load in order to work around
+> hardware and existing firmware bugs on those cards.  It's an issue of
+> basic functionality, not just optimizations.
+> 
+> 5701 A0 tg3 chips cannot operate at all without the firmware being
+> present in the driver.
+> 
+> Therefore, if you can't load the firmware, the card is not going to
+> work.
+
+Neat avoidance of question there... it was fairly clear that the 5701_A0 
+firmware was going to be mandatory; I was asking about the TSO firmware.
+
+Does anyone _else_ actually want to give a straight answer to a simple 
+question? Someone who wouldn't have to follow it with an apology because 
+of all their shouting about 'breakage' when the firmware in question is 
+actually optional anyway, perhaps?
+
+
+ > If it was purely technical, you wouldn't be choosing defaults that
+ > break things for users by default.
+
+Actually, the beauty of Linux is that we _can_ change things where a 
+minor short-term inconvenience leads to a better situation in the long term.
+
+ > Jeff and I warned you about this from day one, you did not listen, and
+ > now we have at least 10 reports just today of people with broken
+ > networking.
+
+Out of interest... of those, what proportion would be 'fixed' if they'd 
+just paid attention when running 'make oldconfig', which is now 
+addressed because I've changed the FIRMWARE_IN_KERNEL default to 'y'?
+
+And how many would be 'fixed' if someone had given me a straight answer 
+when I asked about the TSO firmware, and that failure path no longer 
+aborted the driver initialisation but instead just fell back to non-TSO?
+
+I'll look at making the requirement for 'make firmware_install' more 
+obvious, or even making it happen automatically as part of 
+'modules_install'.
+
+-- 
+dwmw2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
