@@ -1,40 +1,36 @@
+Date: Fri, 4 Jul 2008 14:27:53 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-From: David Woodhouse <dwmw2@infradead.org>
-In-Reply-To: <486E28BB.1030205@garzik.org>
-References: <20080703020236.adaa51fa.akpm@linux-foundation.org>
-	 <20080703205548.D6E5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <486CC440.9030909@garzik.org>
-	 <Pine.LNX.4.64.0807031353030.11033@blonde.site>
-	 <s5hmykxc3ja.wl%tiwai@suse.de>
-	 <1215177471.10393.753.camel@pmac.infradead.org>
-	 <s5hej69lqzk.wl%tiwai@suse.de>  <486E28BB.1030205@garzik.org>
-Content-Type: text/plain
-Date: Fri, 04 Jul 2008 14:45:26 +0100
-Message-Id: <1215179126.10393.771.camel@pmac.infradead.org>
+Message-ID: <20080704142753.27848ff8@lxorguk.ukuu.org.uk>
+In-Reply-To: <486E2818.1060003@garzik.org>
+References: <1215093175.10393.567.camel@pmac.infradead.org>
+	<20080703173040.GB30506@mit.edu>
+	<1215111362.10393.651.camel@pmac.infradead.org>
+	<20080703.162120.206258339.davem@davemloft.net>
+	<486D6DDB.4010205@infradead.org>
+	<87ej6armez.fsf@basil.nowhere.org>
+	<1215177044.10393.743.camel@pmac.infradead.org>
+	<486E2260.5050503@garzik.org>
+	<1215178035.10393.763.camel@pmac.infradead.org>
+	<486E2818.1060003@garzik.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Jeff Garzik <jeff@garzik.org>
-Cc: Takashi Iwai <tiwai@suse.de>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org
+Cc: David Woodhouse <dwmw2@infradead.org>, Andi Kleen <andi@firstfloor.org>, David Miller <davem@davemloft.net>, tytso@mit.edu, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-07-04 at 09:42 -0400, Jeff Garzik wrote:
-> mkinitrd and similar scripts must be updated, so that drivers that 
-> worked prior to dwmw2's changes will continue to work after dwmw2's
-> changes.
+> Why is it so difficult to see the value of KEEPING STUFF WORKING AS IT 
+> WORKS TODAY?
 
-> If you fail to update some script somewhere, then the driver will be 
-> copied into the initramfs, but not the firmware, with obvious results.
+Sure Jeff. Lets delete libata, that caused all sorts of problems when it
+was being added. We could freeze on linux 1.2.13-lmp, that was a good
+release - why break it ?
 
-No, mkinitrd works fine, because a whole boatload of drivers _already_
-require it to work that way and have done for a long time.
-
-Either you are severely mistaken, or you are being deliberately
-misleading.
-
--- 
-dwmw2
+There are good sound reasons for having a firmware tree, the fact tg3 is
+a bit of dinosaur in this area doesn't make it wrong.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
