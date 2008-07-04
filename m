@@ -1,7 +1,7 @@
-Date: Fri, 4 Jul 2008 15:18:51 +0900
+Date: Fri, 4 Jul 2008 15:20:14 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [PATCH -mm 2/5] swapcgroup (v3): add a member to swap_info_struct
-Message-Id: <20080704151851.bcd1c371.nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH -mm 3/5] swapcgroup (v3): implement charge and uncharge
+Message-Id: <20080704152014.75724a31.nishimura@mxp.nes.nec.co.jp>
 In-Reply-To: <20080704151536.e5384231.nishimura@mxp.nes.nec.co.jp>
 References: <20080704151536.e5384231.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
@@ -13,19 +13,31 @@ To: Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>
 Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, IKEDA Munehiro <m-ikeda@ds.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch add a member to swap_info_struct for cgroup.
+This patch implements charge and uncharge of swapcgroup.
 
-This member, array of pointers to mem_cgroup, is used to
-remember to which cgroup each swap entries are charged.
+- what will be charged ?
+  charge the number of swap entries in bytes.
 
-The memory for this array of pointers is allocated on swapon,
-and freed on swapoff.
+- when to charge/uncharge ?
+  charge at get_swap_entry(), and uncharge at swap_entry_free().
+
+- to what group charge the swap entry ?
+  To determine to what mem_cgroup the swap entry should be charged,
+  I changed the argument of get_swap_entry() from (void) to
+  (struct page *). As a result, get_swap_entry() can determine
+  to what mem_cgroup it should charge the swap entry
+  by referring to page->page_cgroup->mem_cgroup.
+
+- from what group uncharge the swap entry ?
+  I added in previous patch to swap_info_struct a member
+  'struct swap_cgroup **', array of pointer to which swap_cgroup
+  the swap entry is charged.
 
 
 Change log
 v2->v3
 - Rebased on 2.6.26-rc5-mm3
-- add helper functions and removed #ifdef from sys_swapon()/sys_swapoff().
+- make swap_cgroup_charge() fail when !pc.
 - add check on mem_cgroup_subsys.disabled
 v1->v2
 - Rebased on 2.6.26-rc2-mm1
@@ -35,172 +47,198 @@ v1->v2
 Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
 ---
- include/linux/memcontrol.h |   20 +++++++++++++++++++-
- include/linux/swap.h       |    3 +++
- mm/memcontrol.c            |   36 ++++++++++++++++++++++++++++++++++++
- mm/swapfile.c              |   11 +++++++++++
- 4 files changed, 69 insertions(+), 1 deletions(-)
+ include/linux/memcontrol.h |   17 ++++++++++++++
+ include/linux/swap.h       |    4 +-
+ mm/memcontrol.c            |   53 ++++++++++++++++++++++++++++++++++++++++++++
+ mm/shmem.c                 |    2 +-
+ mm/swap_state.c            |    2 +-
+ mm/swapfile.c              |   13 ++++++++++-
+ 6 files changed, 86 insertions(+), 5 deletions(-)
 
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index ee1b2fc..b6ff509 100644
+index b6ff509..f3c84f7 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -24,6 +24,7 @@ struct mem_cgroup;
- struct page_cgroup;
- struct page;
- struct mm_struct;
-+struct swap_info_struct;
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR
- 
-@@ -165,5 +166,22 @@ static inline long mem_cgroup_calc_reclaim(struct mem_cgroup *mem,
+@@ -170,6 +170,11 @@ static inline long mem_cgroup_calc_reclaim(struct mem_cgroup *mem,
+ extern struct mem_cgroup **swap_info_clear_memcg(struct swap_info_struct *p);
+ extern int swap_info_alloc_memcg(struct swap_info_struct *p,
+ 				unsigned long maxpages);
++extern int swap_cgroup_charge(struct page *page,
++			struct swap_info_struct *si,
++			unsigned long offset);
++extern void swap_cgroup_uncharge(struct swap_info_struct *si,
++				unsigned long offset);
+ #else
+ static inline
+ struct mem_cgroup **swap_info_clear_memcg(struct swap_info_struct *p)
+@@ -182,6 +187,18 @@ int swap_info_alloc_memcg(struct swap_info_struct *p, unsigned long maxpages)
+ {
+ 	return 0;
  }
- #endif /* CONFIG_CGROUP_MEM_CONT */
- 
--#endif /* _LINUX_MEMCONTROL_H */
-+#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-+extern struct mem_cgroup **swap_info_clear_memcg(struct swap_info_struct *p);
-+extern int swap_info_alloc_memcg(struct swap_info_struct *p,
-+				unsigned long maxpages);
-+#else
-+static inline
-+struct mem_cgroup **swap_info_clear_memcg(struct swap_info_struct *p)
-+{
-+	return NULL;
-+}
- 
-+static inline
-+int swap_info_alloc_memcg(struct swap_info_struct *p, unsigned long maxpages)
++
++static inline int swap_cgroup_charge(struct page *page,
++			struct swap_info_struct *si,
++			unsigned long offset)
 +{
 +	return 0;
 +}
-+#endif
 +
-+#endif /* _LINUX_MEMCONTROL_H */
++static inline void swap_cgroup_uncharge(struct swap_info_struct *si,
++				unsigned long offset)
++{
++}
+ #endif
+ 
+ #endif /* _LINUX_MEMCONTROL_H */
 diff --git a/include/linux/swap.h b/include/linux/swap.h
-index a3af95b..6e1b03d 100644
+index 6e1b03d..f80255b 100644
 --- a/include/linux/swap.h
 +++ b/include/linux/swap.h
-@@ -142,6 +142,9 @@ struct swap_info_struct {
- 	struct swap_extent *curr_swap_extent;
- 	unsigned old_block_size;
- 	unsigned short * swap_map;
-+#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-+	struct mem_cgroup **memcg;
-+#endif
- 	unsigned int lowest_bit;
- 	unsigned int highest_bit;
- 	unsigned int cluster_next;
+@@ -298,7 +298,7 @@ extern struct page *swapin_readahead(swp_entry_t, gfp_t,
+ /* linux/mm/swapfile.c */
+ extern long total_swap_pages;
+ extern void si_swapinfo(struct sysinfo *);
+-extern swp_entry_t get_swap_page(void);
++extern swp_entry_t get_swap_page(struct page *);
+ extern swp_entry_t get_swap_page_of_type(int);
+ extern int swap_duplicate(swp_entry_t);
+ extern int valid_swaphandles(swp_entry_t, unsigned long *);
+@@ -405,7 +405,7 @@ static inline int remove_exclusive_swap_page_ref(struct page *page)
+ 	return 0;
+ }
+ 
+-static inline swp_entry_t get_swap_page(void)
++static inline swp_entry_t get_swap_page(struct page *page)
+ {
+ 	swp_entry_t entry;
+ 	entry.val = 0;
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index ddc842b..81bb7fa 100644
+index 81bb7fa..d16d0a5 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1209,3 +1209,39 @@ struct cgroup_subsys mem_cgroup_subsys = {
- 	.attach = mem_cgroup_move_task,
- 	.early_init = 0,
- };
+@@ -1243,5 +1243,58 @@ int swap_info_alloc_memcg(struct swap_info_struct *p, unsigned long maxpages)
+ out:
+ 	return ret;
+ }
 +
-+#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-+/* called with swap_lock held */
-+struct mem_cgroup **swap_info_clear_memcg(struct swap_info_struct *p)
++int swap_cgroup_charge(struct page *page,
++			struct swap_info_struct *si,
++			unsigned long offset)
 +{
-+	struct mem_cgroup **mem;
-+
-+	/* just clear p->memcg, without checking mem_cgroup_subsys.disabled */
-+	mem = p->memcg;
-+	p->memcg = NULL;
-+
-+	return mem;
-+}
-+
-+/* called without swap_lock held */
-+int swap_info_alloc_memcg(struct swap_info_struct *p, unsigned long maxpages)
-+{
-+	int ret = 0;
++	int ret;
++	struct page_cgroup *pc;
++	struct mem_cgroup *mem;
 +
 +	if (mem_cgroup_subsys.disabled)
-+		goto out;
++		return 0;
 +
-+	p->memcg = vmalloc(maxpages * sizeof(struct mem_cgroup *));
-+	if (!p->memcg) {
-+		/* make swapon fail */
-+		printk(KERN_ERR "Unable to allocate memory for memcg\n");
-+		ret = -ENOMEM;
-+		goto out;
++	lock_page_cgroup(page);
++	pc = page_get_page_cgroup(page);
++	if (unlikely(!pc)) {
++		/* make get_swap_page fail */
++		unlock_page_cgroup(page);
++		return -ENOMEM;
++	} else {
++		mem = pc->mem_cgroup;
++		css_get(&mem->css);
 +	}
-+	memset(p->memcg, 0, maxpages * sizeof(struct mem_cgroup *));
++	unlock_page_cgroup(page);
 +
-+out:
++	ret = res_counter_charge(&mem->swap_res, PAGE_SIZE);
++	if (!ret)
++		si->memcg[offset] = mem;
++	else
++		css_put(&mem->css);
++
 +	return ret;
 +}
-+#endif
 +
++void swap_cgroup_uncharge(struct swap_info_struct *si,
++				unsigned long offset)
++{
++	struct mem_cgroup *mem = si->memcg[offset];
++
++	if (mem_cgroup_subsys.disabled)
++		return;
++
++	/* "mem" would be NULL:
++	 * 1. when get_swap_page() failed at charging swap_cgroup,
++	 *    and called swap_entry_free().
++	 * 2. when this swap entry had been assigned by
++	 *    get_swap_page_of_type() (via SWSUSP?).
++	 */
++	if (mem) {
++		res_counter_uncharge(&mem->swap_res, PAGE_SIZE);
++		si->memcg[offset] = NULL;
++		css_put(&mem->css);
++	}
++}
+ #endif
+ 
+diff --git a/mm/shmem.c b/mm/shmem.c
+index bed732c..958e041 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1029,7 +1029,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
+ 	 * want to check if there's a redundant swappage to be discarded.
+ 	 */
+ 	if (wbc->for_reclaim)
+-		swap = get_swap_page();
++		swap = get_swap_page(page);
+ 	else
+ 		swap.val = 0;
+ 
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index ca43e64..ad5d85c 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -138,7 +138,7 @@ int add_to_swap(struct page * page, gfp_t gfp_mask)
+ 	BUG_ON(!PageUptodate(page));
+ 
+ 	for (;;) {
+-		entry = get_swap_page();
++		entry = get_swap_page(page);
+ 		if (!entry.val)
+ 			return 0;
+ 
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index bf7d13d..312c573 100644
+index 312c573..57798c5 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -1228,6 +1228,7 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
- 	unsigned short *swap_map;
- 	struct file *swap_file, *victim;
- 	struct address_space *mapping;
-+	struct mem_cgroup **memcg = NULL;
- 	struct inode *inode;
- 	char * pathname;
- 	int i, type, prev;
-@@ -1328,10 +1329,12 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
- 	p->max = 0;
- 	swap_map = p->swap_map;
- 	p->swap_map = NULL;
-+	memcg = swap_info_clear_memcg(p);
- 	p->flags = 0;
- 	spin_unlock(&swap_lock);
- 	mutex_unlock(&swapon_mutex);
- 	vfree(swap_map);
-+	vfree(memcg);
- 	inode = mapping->host;
- 	if (S_ISBLK(inode->i_mode)) {
- 		struct block_device *bdev = I_BDEV(inode);
-@@ -1475,6 +1478,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
- 	unsigned long maxpages = 1;
- 	int swapfilesize;
- 	unsigned short *swap_map;
-+	struct mem_cgroup **memcg = NULL;
- 	struct page *page = NULL;
- 	struct inode *inode = NULL;
- 	int did_down = 0;
-@@ -1498,6 +1502,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
- 	p->swap_file = NULL;
- 	p->old_block_size = 0;
- 	p->swap_map = NULL;
-+	swap_info_clear_memcg(p);
- 	p->lowest_bit = 0;
- 	p->highest_bit = 0;
- 	p->cluster_nr = 0;
-@@ -1670,6 +1675,10 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
- 				1 /* header page */;
- 		if (error)
- 			goto bad_swap;
-+
-+		error = swap_info_alloc_memcg(p, maxpages);
-+		if (error)
-+			goto bad_swap;
- 	}
+@@ -172,7 +172,9 @@ no_page:
+ 	return 0;
+ }
  
- 	if (nr_good_pages) {
-@@ -1729,11 +1738,13 @@ bad_swap_2:
- 	swap_map = p->swap_map;
- 	p->swap_file = NULL;
- 	p->swap_map = NULL;
-+	memcg = swap_info_clear_memcg(p);
- 	p->flags = 0;
- 	if (!(swap_flags & SWAP_FLAG_PREFER))
- 		++least_priority;
- 	spin_unlock(&swap_lock);
- 	vfree(swap_map);
-+	vfree(memcg);
- 	if (swap_file)
- 		filp_close(swap_file, NULL);
- out:
+-swp_entry_t get_swap_page(void)
++/* get_swap_page() calls this */
++static int swap_entry_free(struct swap_info_struct *, unsigned long);
++swp_entry_t get_swap_page(struct page *page)
+ {
+ 	struct swap_info_struct *si;
+ 	pgoff_t offset;
+@@ -201,6 +203,14 @@ swp_entry_t get_swap_page(void)
+ 		swap_list.next = next;
+ 		offset = scan_swap_map(si);
+ 		if (offset) {
++			/*
++			 * This should be the first use of this swap entry.
++			 * So, charge this swap entry here.
++			 */
++			if (swap_cgroup_charge(page, si, offset)) {
++				swap_entry_free(si, offset);
++				goto noswap;
++			}
+ 			spin_unlock(&swap_lock);
+ 			return swp_entry(type, offset);
+ 		}
+@@ -285,6 +295,7 @@ static int swap_entry_free(struct swap_info_struct *p, unsigned long offset)
+ 				swap_list.next = p - swap_info;
+ 			nr_swap_pages++;
+ 			p->inuse_pages--;
++			swap_cgroup_uncharge(p, offset);
+ 		}
+ 	}
+ 	return count;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
