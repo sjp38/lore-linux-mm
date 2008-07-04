@@ -1,68 +1,50 @@
-Date: Thu, 3 Jul 2008 19:01:23 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2.6.26-rc8-mm1] memrlimit: fix mmap_sem deadlock
-Message-Id: <20080703190123.1d72e9d1.akpm@linux-foundation.org>
-In-Reply-To: <486D81B9.9030704@linux.vnet.ibm.com>
-References: <Pine.LNX.4.64.0807032143110.10641@blonde.site>
-	<20080703160117.b3781463.akpm@linux-foundation.org>
-	<486D81B9.9030704@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <18541.35720.223976.231701@harpo.it.uu.se>
+Date: Fri, 4 Jul 2008 04:31:36 +0200
+From: Mikael Pettersson <mikpe@it.uu.se>
+Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
+In-Reply-To: <20080703232554.7271d645@lxorguk.ukuu.org.uk>
+References: <20080703020236.adaa51fa.akpm@linux-foundation.org>
+	<20080703205548.D6E5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<486CC440.9030909@garzik.org>
+	<Pine.LNX.4.64.0807031353030.11033@blonde.site>
+	<486CCFED.7010308@garzik.org>
+	<1215091999.10393.556.camel@pmac.infradead.org>
+	<486CD654.4020605@garzik.org>
+	<1215093175.10393.567.camel@pmac.infradead.org>
+	<20080703173040.GB30506@mit.edu>
+	<1215111362.10393.651.camel@pmac.infradead.org>
+	<486D3E88.9090900@garzik.org>
+	<486D4596.60005@infradead.org>
+	<486D511A.9020405@garzik.org>
+	<20080703232554.7271d645@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Hugh Dickins <hugh@veritas.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Jeff Garzik <jeff@garzik.org>, David Woodhouse <dwmw2@infradead.org>, Theodore Tso <tytso@mit.edu>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 04 Jul 2008 07:19:45 +0530 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+Alan Cox writes:
+ > > The only valid assumption here is to assume that the user is /unaware/ 
+ > > of these new steps they must take in order to continue to have a working 
+ > > system.
+ > 
+ > To a large extent not the user but their distro - consider "make install"
+ > --
 
-> Andrew Morton wrote:
-> > There doesn't seem to have been much discussion regarding your recent
-> > objections to the memrlimit patches.  But it caused me to put a big
-> > black mark on them.  Perhaps sending it all again would be helpful.
-> 
-> Black marks are not good, but there have been some silly issues found with them.
-> I have been addressing/answering concerns raised so far. Would you like me to
-> fold all patches and fixes and send them out for review again?
-> 
-> 
+Last time I checked only x86 had 'make install'. I regularly build
+natively on ppc(32|64) and sparc64, and none of them implement
+'make install' AFAIK. And on ARM I move the kernels over to a tftp
+server for network boots, again w/o 'make install'.
 
-I was referring to the below (which is where the conversation ended).
+Not that 'make install' is difficult. All it does it hand over to
+/sbin/installkernel or something like that.
 
-It questions the basis of the whole feature.
-
-
-On Wed, 25 Jun 2008 06:31:05 +0530 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> Hugh Dickins wrote:
-> 
-> ...
->
-> > (In passing, I'll add that I'm not a great fan of these memrlimits:
-> > to me it's loony to be charging people for virtual address space,
-> > it's _virtual_, and process A can have as much as it likes without
-> > affecting process B in any way.  You're following the lead of RLIMIT_AS,
-> > but I've always thought RLIMIT_AS a lame attempt to move into the mmap
-> > decade, after RLIMIT_DATA and RLIMIT_STACK no longer made sense.
-> > 
-> > Taking Alan Cox's Committed_AS as a limited resource charged per mm makes
-> > much more sense to me: but yes, it's not perfect, and it is a lot harder
-> > to get its accounting right, and to maintain that down the line.  Okay,
-> > you've gone for the easier option of tracking total_vm, getting that
-> > right is a more achievable target.  And I accept that I may be too
-> > pessimistic about it: total_vm may often enough give a rough
-> > approximation to something else worth limiting.)
-> 
-> You seem to have read my mind, my motivation for memrlimits is
-> 
-> 1. Administrators to set a limit and be sure that a cgroup cannot consume more
-> swap + RSS than the assigned virtual memory limit
-> 2. It allows applications to fail gracefully or decide what parts to free up
-> to get more memory or change their allocation pattern (a scientific application
-> deciding what size of matrix to allocate for example).
-> 
-
+In the context of .config changes, 'make oldconfig' with 'select the
+default' must IMO result in a working kernel similar to the previous
+one. Anything else is madness or arrogance.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
