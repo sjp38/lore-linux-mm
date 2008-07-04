@@ -1,25 +1,37 @@
-Date: Fri, 04 Jul 2008 13:39:02 -0700 (PDT)
-Message-Id: <20080704.133902.259762422.davem@davemloft.net>
+Date: Fri, 4 Jul 2008 13:42:08 -0700
+From: Arjan van de Ven <arjan@infradead.org>
 Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <486E2818.1060003@garzik.org>
-References: <486E2260.5050503@garzik.org>
+Message-ID: <20080704134208.6c712031@infradead.org>
+In-Reply-To: <20080704.133721.98729739.davem@davemloft.net>
+References: <1215177044.10393.743.camel@pmac.infradead.org>
+	<486E2260.5050503@garzik.org>
 	<1215178035.10393.763.camel@pmac.infradead.org>
-	<486E2818.1060003@garzik.org>
+	<20080704.133721.98729739.davem@davemloft.net>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Jeff Garzik <jeff@garzik.org>
-Date: Fri, 04 Jul 2008 09:39:36 -0400
 Return-Path: <owner-linux-mm@kvack.org>
-To: jeff@garzik.org
-Cc: dwmw2@infradead.org, andi@firstfloor.org, tytso@mit.edu, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: David Miller <davem@davemloft.net>
+Cc: dwmw2@infradead.org, jeff@garzik.org, andi@firstfloor.org, tytso@mit.edu, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> Stop forcing your choices down our throats.
+On Fri, 04 Jul 2008 13:37:21 -0700 (PDT)
+David Miller <davem@davemloft.net> wrote:
 
-I completely agree with Jeff.
+> It seems your employer is telling you to work on this in order to sort
+> out some perceived legal issue.  And that's the only reason you're
+> investing any effort into this.
+
+I assume you meant Davids previous employer (Red Hat) with this, not
+his current one (Intel). I seriously doubt (and know for sure we never
+asked/told David anything around this) that Intel cares about what
+happens in tg3.
+
+-- 
+If you want to reach me at my work email, use arjan@linux.intel.com
+For development, discussion and tips for power savings, 
+visit http://www.lesswatts.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
