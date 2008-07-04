@@ -1,7 +1,7 @@
-Date: Fri, 4 Jul 2008 15:20:14 +0900
+Date: Fri, 4 Jul 2008 15:22:44 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [PATCH -mm 3/5] swapcgroup (v3): implement charge and uncharge
-Message-Id: <20080704152014.75724a31.nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH -mm 4/5] swapcgroup (v3): modify vm_swap_full()
+Message-Id: <20080704152244.7fc2ccd1.nishimura@mxp.nes.nec.co.jp>
 In-Reply-To: <20080704151536.e5384231.nishimura@mxp.nes.nec.co.jp>
 References: <20080704151536.e5384231.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
@@ -10,235 +10,224 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, IKEDA Munehiro <m-ikeda@ds.jp.nec.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, IKEDA Munehiro <m-ikeda@ds.jp.nec.com>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch implements charge and uncharge of swapcgroup.
+This patch modifies vm_swap_full() to calculate
+the rate of swap usage per cgroup.
 
-- what will be charged ?
-  charge the number of swap entries in bytes.
+The purpose of this change is to free freeable swap caches
+(that is, swap entries) per cgroup, so that swap_cgroup_charge()
+fails less frequently.
 
-- when to charge/uncharge ?
-  charge at get_swap_entry(), and uncharge at swap_entry_free().
-
-- to what group charge the swap entry ?
-  To determine to what mem_cgroup the swap entry should be charged,
-  I changed the argument of get_swap_entry() from (void) to
-  (struct page *). As a result, get_swap_entry() can determine
-  to what mem_cgroup it should charge the swap entry
-  by referring to page->page_cgroup->mem_cgroup.
-
-- from what group uncharge the swap entry ?
-  I added in previous patch to swap_info_struct a member
-  'struct swap_cgroup **', array of pointer to which swap_cgroup
-  the swap entry is charged.
+I tested whether this patch can reduce the swap usage or not,
+by running qsbench (8 x 40M) 10 times in mem:128M/swap:256M group
+and mem:256M/swap:128M group.
+And I confirmed that this patch can keep swap usage to
+(half of the limit < usage < the limit),
+whereas without this patch, swap usage tends to keep near to the limit.
 
 
 Change log
 v2->v3
 - Rebased on 2.6.26-rc5-mm3
-- make swap_cgroup_charge() fail when !pc.
+- take into account global swap usage.
+- change arg of vm_swap_full from page to memcg.
 - add check on mem_cgroup_subsys.disabled
 v1->v2
-- Rebased on 2.6.26-rc2-mm1
-- Implemented as a add-on to memory cgroup.
+- new patch
 
 
 Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
 ---
- include/linux/memcontrol.h |   17 ++++++++++++++
- include/linux/swap.h       |    4 +-
- mm/memcontrol.c            |   53 ++++++++++++++++++++++++++++++++++++++++++++
- mm/shmem.c                 |    2 +-
- mm/swap_state.c            |    2 +-
- mm/swapfile.c              |   13 ++++++++++-
- 6 files changed, 86 insertions(+), 5 deletions(-)
+ include/linux/memcontrol.h |   12 ++++++++++++
+ include/linux/swap.h       |    4 +++-
+ mm/memcontrol.c            |   18 ++++++++++++++++++
+ mm/memory.c                |    4 +++-
+ mm/swapfile.c              |   38 +++++++++++++++++++++++++++++++++++++-
+ mm/vmscan.c                |    6 +++---
+ 6 files changed, 76 insertions(+), 6 deletions(-)
 
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index b6ff509..f3c84f7 100644
+index f3c84f7..1e6eb0c 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -170,6 +170,11 @@ static inline long mem_cgroup_calc_reclaim(struct mem_cgroup *mem,
- extern struct mem_cgroup **swap_info_clear_memcg(struct swap_info_struct *p);
- extern int swap_info_alloc_memcg(struct swap_info_struct *p,
- 				unsigned long maxpages);
-+extern int swap_cgroup_charge(struct page *page,
-+			struct swap_info_struct *si,
-+			unsigned long offset);
-+extern void swap_cgroup_uncharge(struct swap_info_struct *si,
-+				unsigned long offset);
+@@ -175,6 +175,8 @@ extern int swap_cgroup_charge(struct page *page,
+ 			unsigned long offset);
+ extern void swap_cgroup_uncharge(struct swap_info_struct *si,
+ 				unsigned long offset);
++extern struct mem_cgroup *page_to_memcg(struct page *page);
++extern int swap_cgroup_vm_swap_full(struct mem_cgroup *memcg);
  #else
  static inline
  struct mem_cgroup **swap_info_clear_memcg(struct swap_info_struct *p)
-@@ -182,6 +187,18 @@ int swap_info_alloc_memcg(struct swap_info_struct *p, unsigned long maxpages)
+@@ -199,6 +201,16 @@ static inline void swap_cgroup_uncharge(struct swap_info_struct *si,
+ 				unsigned long offset)
  {
- 	return 0;
  }
 +
-+static inline int swap_cgroup_charge(struct page *page,
-+			struct swap_info_struct *si,
-+			unsigned long offset)
++static inline struct mem_cgroup *page_to_memcg(struct page *page)
 +{
-+	return 0;
++	return NULL;
 +}
 +
-+static inline void swap_cgroup_uncharge(struct swap_info_struct *si,
-+				unsigned long offset)
++static inline int swap_cgroup_vm_swap_full(struct mem_cgroup *memcg)
 +{
++	return 0;
 +}
  #endif
  
  #endif /* _LINUX_MEMCONTROL_H */
 diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 6e1b03d..f80255b 100644
+index f80255b..2b95df9 100644
 --- a/include/linux/swap.h
 +++ b/include/linux/swap.h
-@@ -298,7 +298,7 @@ extern struct page *swapin_readahead(swp_entry_t, gfp_t,
- /* linux/mm/swapfile.c */
- extern long total_swap_pages;
- extern void si_swapinfo(struct sysinfo *);
--extern swp_entry_t get_swap_page(void);
-+extern swp_entry_t get_swap_page(struct page *);
- extern swp_entry_t get_swap_page_of_type(int);
- extern int swap_duplicate(swp_entry_t);
- extern int valid_swaphandles(swp_entry_t, unsigned long *);
-@@ -405,7 +405,7 @@ static inline int remove_exclusive_swap_page_ref(struct page *page)
- 	return 0;
- }
+@@ -161,7 +161,9 @@ struct swap_list_t {
+ };
  
--static inline swp_entry_t get_swap_page(void)
-+static inline swp_entry_t get_swap_page(struct page *page)
- {
- 	swp_entry_t entry;
- 	entry.val = 0;
+ /* Swap 50% full? Release swapcache more aggressively.. */
+-#define vm_swap_full() (nr_swap_pages*2 < total_swap_pages)
++#define vm_swap_full(memcg) ((nr_swap_pages*2 < total_swap_pages) \
++				|| swap_cgroup_vm_swap_full(memcg))
++
+ 
+ /* linux/mm/page_alloc.c */
+ extern unsigned long totalram_pages;
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 81bb7fa..d16d0a5 100644
+index d16d0a5..160fca1 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1243,5 +1243,58 @@ int swap_info_alloc_memcg(struct swap_info_struct *p, unsigned long maxpages)
- out:
- 	return ret;
+@@ -1296,5 +1296,23 @@ void swap_cgroup_uncharge(struct swap_info_struct *si,
+ 		css_put(&mem->css);
+ 	}
  }
 +
-+int swap_cgroup_charge(struct page *page,
-+			struct swap_info_struct *si,
-+			unsigned long offset)
++int swap_cgroup_vm_swap_full(struct mem_cgroup *memcg)
 +{
-+	int ret;
-+	struct page_cgroup *pc;
-+	struct mem_cgroup *mem;
++	u64 usage;
++	u64 limit;
 +
-+	if (mem_cgroup_subsys.disabled)
++	if (memcg)
++		css_get(&memcg->css);
++	else
 +		return 0;
 +
-+	lock_page_cgroup(page);
-+	pc = page_get_page_cgroup(page);
-+	if (unlikely(!pc)) {
-+		/* make get_swap_page fail */
-+		unlock_page_cgroup(page);
-+		return -ENOMEM;
-+	} else {
-+		mem = pc->mem_cgroup;
-+		css_get(&mem->css);
-+	}
-+	unlock_page_cgroup(page);
++	usage = res_counter_read_u64(&memcg->swap_res, RES_USAGE);
++	limit = res_counter_read_u64(&memcg->swap_res, RES_LIMIT);
 +
-+	ret = res_counter_charge(&mem->swap_res, PAGE_SIZE);
-+	if (!ret)
-+		si->memcg[offset] = mem;
-+	else
-+		css_put(&mem->css);
++	css_put(&memcg->css);
 +
-+	return ret;
-+}
-+
-+void swap_cgroup_uncharge(struct swap_info_struct *si,
-+				unsigned long offset)
-+{
-+	struct mem_cgroup *mem = si->memcg[offset];
-+
-+	if (mem_cgroup_subsys.disabled)
-+		return;
-+
-+	/* "mem" would be NULL:
-+	 * 1. when get_swap_page() failed at charging swap_cgroup,
-+	 *    and called swap_entry_free().
-+	 * 2. when this swap entry had been assigned by
-+	 *    get_swap_page_of_type() (via SWSUSP?).
-+	 */
-+	if (mem) {
-+		res_counter_uncharge(&mem->swap_res, PAGE_SIZE);
-+		si->memcg[offset] = NULL;
-+		css_put(&mem->css);
-+	}
++	return usage * 2 > limit;
 +}
  #endif
  
-diff --git a/mm/shmem.c b/mm/shmem.c
-index bed732c..958e041 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1029,7 +1029,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
- 	 * want to check if there's a redundant swappage to be discarded.
- 	 */
- 	if (wbc->for_reclaim)
--		swap = get_swap_page();
-+		swap = get_swap_page(page);
- 	else
- 		swap.val = 0;
+diff --git a/mm/memory.c b/mm/memory.c
+index 536d748..afcf737 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2230,7 +2230,9 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	page_add_anon_rmap(page, vma, address);
  
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index ca43e64..ad5d85c 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -138,7 +138,7 @@ int add_to_swap(struct page * page, gfp_t gfp_mask)
- 	BUG_ON(!PageUptodate(page));
- 
- 	for (;;) {
--		entry = get_swap_page();
-+		entry = get_swap_page(page);
- 		if (!entry.val)
- 			return 0;
+ 	swap_free(entry);
+-	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
++	if (vm_swap_full(page_to_memcg(page))
++		|| (vma->vm_flags & VM_LOCKED)
++		|| PageMlocked(page))
+ 		remove_exclusive_swap_page(page);
+ 	unlock_page(page);
  
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 312c573..57798c5 100644
+index 57798c5..6a863bc 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -172,7 +172,9 @@ no_page:
- 	return 0;
- }
+@@ -28,6 +28,7 @@
+ #include <linux/capability.h>
+ #include <linux/syscalls.h>
+ #include <linux/memcontrol.h>
++#include <linux/cgroup.h>
  
--swp_entry_t get_swap_page(void)
-+/* get_swap_page() calls this */
-+static int swap_entry_free(struct swap_info_struct *, unsigned long);
-+swp_entry_t get_swap_page(struct page *page)
- {
- 	struct swap_info_struct *si;
- 	pgoff_t offset;
-@@ -201,6 +203,14 @@ swp_entry_t get_swap_page(void)
- 		swap_list.next = next;
- 		offset = scan_swap_map(si);
- 		if (offset) {
-+			/*
-+			 * This should be the first use of this swap entry.
-+			 * So, charge this swap entry here.
-+			 */
-+			if (swap_cgroup_charge(page, si, offset)) {
-+				swap_entry_free(si, offset);
-+				goto noswap;
-+			}
- 			spin_unlock(&swap_lock);
- 			return swp_entry(type, offset);
+ #include <asm/pgtable.h>
+ #include <asm/tlbflush.h>
+@@ -447,7 +448,8 @@ void free_swap_and_cache(swp_entry_t entry)
+ 		/* Only cache user (+us), or swap space full? Free it! */
+ 		/* Also recheck PageSwapCache after page is locked (above) */
+ 		if (PageSwapCache(page) && !PageWriteback(page) &&
+-					(one_user || vm_swap_full())) {
++					(one_user
++					|| vm_swap_full(page_to_memcg(page)))) {
+ 			delete_from_swap_cache(page);
+ 			SetPageDirty(page);
  		}
-@@ -285,6 +295,7 @@ static int swap_entry_free(struct swap_info_struct *p, unsigned long offset)
- 				swap_list.next = p - swap_info;
- 			nr_swap_pages++;
- 			p->inuse_pages--;
-+			swap_cgroup_uncharge(p, offset);
- 		}
- 	}
- 	return count;
+@@ -1889,3 +1891,37 @@ int valid_swaphandles(swp_entry_t entry, unsigned long *offset)
+ 	*offset = ++toff;
+ 	return nr_pages? ++nr_pages: 0;
+ }
++
++#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
++/*
++ * returns mem_cgroup to which the swap cache page is charged as swap.
++ * should be called with the page locked.
++ */
++struct mem_cgroup *page_to_memcg(struct page *page)
++{
++	struct swap_info_struct *p;
++	struct mem_cgroup *mem = NULL;
++	swp_entry_t entry;
++
++	BUG_ON(!PageLocked(page));
++
++	if (mem_cgroup_subsys.disabled)
++		goto out;
++
++	if (!PageSwapCache(page))
++		goto out;
++
++	entry.val = page_private(page);
++	p = swap_info_get(entry);
++	if (!p)
++		goto out;
++
++	mem = p->memcg[swp_offset(entry)];
++
++	spin_unlock(&swap_lock);
++
++out:
++	return mem;
++}
++#endif
++
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9a5e423..ac45993 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -752,7 +752,7 @@ cull_mlocked:
+ 
+ activate_locked:
+ 		/* Not a candidate for swapping, so reclaim swap space. */
+-		if (PageSwapCache(page) && vm_swap_full())
++		if (PageSwapCache(page) && vm_swap_full(page_to_memcg(page)))
+ 			remove_exclusive_swap_page_ref(page);
+ 		VM_BUG_ON(PageActive(page));
+ 		SetPageActive(page);
+@@ -1317,7 +1317,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+ 			__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
+ 			pgmoved = 0;
+ 			spin_unlock_irq(&zone->lru_lock);
+-			if (vm_swap_full())
++			if (vm_swap_full(sc->mem_cgroup))
+ 				pagevec_swap_free(&pvec);
+ 			__pagevec_release(&pvec);
+ 			spin_lock_irq(&zone->lru_lock);
+@@ -1328,7 +1328,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+ 	__count_zone_vm_events(PGREFILL, zone, pgscanned);
+ 	__count_vm_events(PGDEACTIVATE, pgdeactivate);
+ 	spin_unlock_irq(&zone->lru_lock);
+-	if (vm_swap_full())
++	if (vm_swap_full(sc->mem_cgroup))
+ 		pagevec_swap_free(&pvec);
+ 
+ 	pagevec_release(&pvec);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
