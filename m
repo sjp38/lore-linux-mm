@@ -1,67 +1,95 @@
-Date: Fri, 04 Jul 2008 13:37:21 -0700 (PDT)
-Message-Id: <20080704.133721.98729739.davem@davemloft.net>
-Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <1215178035.10393.763.camel@pmac.infradead.org>
-References: <1215177044.10393.743.camel@pmac.infradead.org>
-	<486E2260.5050503@garzik.org>
-	<1215178035.10393.763.camel@pmac.infradead.org>
+Date: Fri, 4 Jul 2008 13:37:33 -0700
+From: Arjan van de Ven <arjan@infradead.org>
+Subject: Re: How to alloc highmem page below 4GB on i386?
+Message-ID: <20080704133733.278b6458@infradead.org>
+In-Reply-To: <20080704222323.68afbe88@mjolnir.drzeus.cx>
+References: <20080630200323.2a5992cd@mjolnir.drzeus.cx>
+	<20080704195800.4ef6e00a@mjolnir.drzeus.cx>
+	<20080704111224.68266afc@infradead.org>
+	<20080704222323.68afbe88@mjolnir.drzeus.cx>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: David Woodhouse <dwmw2@infradead.org>
-Date: Fri, 04 Jul 2008 14:27:15 +0100
 Return-Path: <owner-linux-mm@kvack.org>
-To: dwmw2@infradead.org
-Cc: jeff@garzik.org, andi@firstfloor.org, tytso@mit.edu, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: Pierre Ossman <drzeus-list@drzeus.cx>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Your argument makes about as much sense as an argument that we should
-> link b43.ko with mac80211.ko so that the 802.11 core code "rides along
-> in the module's .ko file". It's just silly.
+On Fri, 4 Jul 2008 22:23:23 +0200
+Pierre Ossman <drzeus-list@drzeus.cx> wrote:
 
-I totally disagree with you.  Jeff is right and you are wrong.
+> On Fri, 4 Jul 2008 11:12:24 -0700
+> Arjan van de Ven <arjan@infradead.org> wrote:
+> 
+> > On Fri, 4 Jul 2008 19:58:00 +0200
+> > Pierre Ossman <drzeus-list@drzeus.cx> wrote:
+> > 
+> > > On Mon, 30 Jun 2008 20:03:23 +0200
+> > > Pierre Ossman <drzeus-list@drzeus.cx> wrote:
+> > > 
+> > > > Simple question. How do I allocate a page from highmem, that's
+> > > > still within 32 bits? x86_64 has the DMA32 zone, but i386 has
+> > > > just HIGHMEM. As most devices can't DMA above 32 bit, I have 3
+> > > > GB of memory that's not getting decent usage (or results in
+> > > > needless bouncing). What to do?
+> > > > 
+> > > > I tried just enabling CONFIG_DMA32 for i386, but there is some
+> > > > guard against too many memory zones. I'm assuming this is there
+> > > > for a good reason?
+> > > > 
+> > > 
+> > > Anyone?
+> > > 
+> > 
+> > well... the assumption sort of is that all high-perf devices are 64
+> > bit capable. For the rest... well you get what you get. There's
+> > IOMMU's in modern systems from Intel (and soon AMD) that help you
+> > avoid the bounce if you really care. 
+> 
+> I was under the impression that the PCI bus was utterly incapable of
+> any larger address than 32 bits? But perhaps you only consider PCIE
+> stuff high-perf. :)
 
-We have a large set of drivers which you are basically breaking.
+actually your impression is not correct. There's a difference between
+how many physical bits the bus has, and the logical data. Specifically,
+PCI (and PCIE etc) have something that's called "Dual Address Cycle",
+which is a pci bus transaction that sends the 64 bit address using 2
+cycles on the bus even if the buswidth is 32 bit (logically).
 
-You keep harping on this "current best practices" crap but it's simply
-that, crap.  The only argument behind why you're doing this is a legal
-one.
 
-And for one, I have consistently argued that this "best practice" is
-the "worst practice" from a technical perspective.  It is the worst
-because it means mistakes are possible to make between driver and
-firmware versions.  Even with versioning it is not fool proof.
-Whereas if you link the firmware into the driver, it's impossible to
-get wrong.
+> > The second assumption sort of is that you don't have 'too much'
+> > above 4Gb; once you're over 16Gb or so people assume you will run
+> > the 64 bit kernel instead...
+> 
+> Unfortunately some proprietary crud keeps migration somewhat annoying.
+> And in my case it's a 4 GB system, where 1 GB gets mapped up to make
+> room for devices, so it's not that uncommon.
 
-It's the difference between "might get it wrong" and "impossible
-to get wrong."  And what you're doing is swaying these drivers
-away from the latter and towards the former.
+4Gb systems are entirely reasonably still with 32 bit kernels (I'm
+typing on one right now ;-); it gets problematic in the 12-16Gb range.
 
-That to me is a strong technical argument against your changes.
+> 
+> The strange thing is that I keep getting pages from > 4GB all the
+> time, even on a loaded system. I would have expected mostly getting
+> pages below that limit as that's where most of the memory is. Do you
+> have any insight into which areas tend to fill up first?
 
-So stop bringing up this "best practices" garbage.  It's "best
-practices" from someone's legal perspective, not from a kernel
-technical one, and you know it.
+ok this is tricky and goes way deep into buddy allocator internals.
+On the highest level (2Mb chunks iirc, but it could be a bit or
+two bigger now) we allocate top down. But once we split such a top level
+chunk up, inside the chunk we allocate bottom up (so that the scatter
+gather IOs tend to group nicer). 
+In addition, the kernel will prefer allocating userspace/pagecache
+memory from highmem over lowmem, out of an effort to keep memory
+pressure in the lowmem zones lower.
 
-Tell me, would you even invest one single second of your time on this
-bogus set of changes without the legal impetus?  Would you sit here
-and listen to Jeff, myself, and the others scream at you for breaking
-things on people for what you claim are "technical" reasons?
 
-No, you would absolutely not work on this without the legal incentive.
-There would be no reason to, since everything works perfectly fine now.
 
-I want you to be completely honest about the real reason why you're
-making any of these decisions the way you are, RIGHT NOW.  I don't
-want to hear any more of this "best practices" request_firmware()
-crap, because that's just nonsense.
-
-It seems your employer is telling you to work on this in order to sort
-out some perceived legal issue.  And that's the only reason you're
-investing any effort into this.
+-- 
+If you want to reach me at my work email, use arjan@linux.intel.com
+For development, discussion and tips for power savings, 
+visit http://www.lesswatts.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
