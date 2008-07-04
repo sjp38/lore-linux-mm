@@ -1,94 +1,62 @@
-From: Grant Coady <grant_lkml@dodo.com.au>
+Date: Thu, 3 Jul 2008 21:47:05 -0400
+From: Theodore Tso <tytso@mit.edu>
 Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-Date: Fri, 04 Jul 2008 11:28:32 +1000
-Reply-To: Grant Coady <gcoady.lk@gmail.com>
-Message-ID: <6ktq649flosf8ppncg9c482j4e04097kfv@4ax.com>
-References: <1215093175.10393.567.camel@pmac.infradead.org>	<20080703173040.GB30506@mit.edu>	<1215111362.10393.651.camel@pmac.infradead.org> <20080703.162120.206258339.davem@davemloft.net> <486D6DDB.4010205@infradead.org>
-In-Reply-To: <486D6DDB.4010205@infradead.org>
+Message-ID: <20080704014705.GM30506@mit.edu>
+References: <1215093175.10393.567.camel@pmac.infradead.org> <20080703173040.GB30506@mit.edu> <1215111362.10393.651.camel@pmac.infradead.org> <20080703.162120.206258339.davem@davemloft.net> <20080704001855.GJ30506@mit.edu> <486D783B.6040904@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <486D783B.6040904@infradead.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: David Woodhouse <dwmw2@infradead.org>
-Cc: David Miller <davem@davemloft.net>, tytso@mit.edu, jeff@garzik.org, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+Cc: David Miller <davem@davemloft.net>, jeff@garzik.org, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 04 Jul 2008 01:24:59 +0100, David Woodhouse <dwmw2@infradead.org> wrote:
-...
->I'll look at making the requirement for 'make firmware_install' more 
->obvious, or even making it happen automatically as part of 
->'modules_install'.
+On Fri, Jul 04, 2008 at 02:09:15AM +0100, David Woodhouse wrote:
+> But there's no need to do it _now_. It can wait until the basic stuff is  
+> in Linus' tree and it can automatically derive from that. There's no  
+> particular rush, is there?
 
-I like this one:  Automagically part of modules_install.  No break existing 
-kernel build scripts for the expected-by-user build sequence? 
+The only rush if the main agenda is to extirpate all firmware from the
+mainline kernel sources.  I don't think we can start the timer for
+doing that until the firmware tarball is created and it starts being
+used as the default way of delivering firmware for what you call
+"legacy" drivers.  If there's no particular rush to finally rm the
+firmware for trivers such as tg3 from the source tree (and I
+personally don't think there should be any rush), or any rush to
+change the default for CONFIG_FIRMWARE_IN_KERNEL to "no", then I don't
+see any rush in creating the firmware tarball.  
 
-And please put 'make firmware_install' into 'make help' if that's the way 
-you go.  
+If *you* think there is a rush in making CONFIG_FIRMWARE_IN_KERNEL
+default to "no", then you might want to decide to create the firmware
+tarball sooner, and get distro's everywhere to start using it, and to
+get everyone to understand that they should start including it in
+their systems.  (Remember, not everyone uses the popular distributions
+like Fedora, Debian, Ubuntu, Open SuSE, etc.)
 
-And another point, at the moment I seem to get all sorts of odd things 
-built I didn't know were there?
+But heck, that's up to you.  :-)
 
-root@pooh:/home/grant/linux/linux-2.6.26-rc8-mm1a# make firmware_install
-  HOSTCC  firmware/ihex2fw
-  IHEX2FW firmware/atmsar11.fw
-  INSTALL usr/lib/firmware/atmsar11.fw
-  IHEX2FW firmware/dabusb/firmware.fw
-  INSTALL usr/lib/firmware/dabusb/firmware.fw
-  IHEX2FW firmware/emi26/loader.fw
-  INSTALL usr/lib/firmware/emi26/loader.fw
-  IHEX2FW firmware/emi26/firmware.fw
-  INSTALL usr/lib/firmware/emi26/firmware.fw
-  IHEX2FW firmware/emi26/bitstream.fw
-  INSTALL usr/lib/firmware/emi26/bitstream.fw
-  IHEX2FW firmware/emi62/loader.fw
-  INSTALL usr/lib/firmware/emi62/loader.fw
-  IHEX2FW firmware/emi62/bitstream.fw
-  INSTALL usr/lib/firmware/emi62/bitstream.fw
-  IHEX2FW firmware/emi62/spdif.fw
-  INSTALL usr/lib/firmware/emi62/spdif.fw
-  IHEX2FW firmware/emi62/midi.fw
-  INSTALL usr/lib/firmware/emi62/midi.fw
-  IHEX2FW firmware/keyspan/mpr.fw
-  INSTALL usr/lib/firmware/keyspan/mpr.fw
-  IHEX2FW firmware/keyspan/usa18x.fw
-  INSTALL usr/lib/firmware/keyspan/usa18x.fw
-  IHEX2FW firmware/keyspan/usa19.fw
-  INSTALL usr/lib/firmware/keyspan/usa19.fw
-  IHEX2FW firmware/keyspan/usa19qi.fw
-  INSTALL usr/lib/firmware/keyspan/usa19qi.fw
-  IHEX2FW firmware/keyspan/usa19qw.fw
-  INSTALL usr/lib/firmware/keyspan/usa19qw.fw
-  IHEX2FW firmware/keyspan/usa19w.fw
-  INSTALL usr/lib/firmware/keyspan/usa19w.fw
-  IHEX2FW firmware/keyspan/usa28.fw
-  INSTALL usr/lib/firmware/keyspan/usa28.fw
-  IHEX2FW firmware/keyspan/usa28xa.fw
-  INSTALL usr/lib/firmware/keyspan/usa28xa.fw
-  IHEX2FW firmware/keyspan/usa28xb.fw
-  INSTALL usr/lib/firmware/keyspan/usa28xb.fw
-  IHEX2FW firmware/keyspan/usa28x.fw
-  INSTALL usr/lib/firmware/keyspan/usa28x.fw
-  IHEX2FW firmware/keyspan/usa49w.fw
-  INSTALL usr/lib/firmware/keyspan/usa49w.fw
-  IHEX2FW firmware/keyspan/usa49wlc.fw
-  INSTALL usr/lib/firmware/keyspan/usa49wlc.fw
-  IHEX2FW firmware/whiteheat_loader.fw
-  INSTALL usr/lib/firmware/whiteheat_loader.fw
-  IHEX2FW firmware/whiteheat.fw
-  INSTALL usr/lib/firmware/whiteheat.fw
-  IHEX2FW firmware/keyspan_pda/keyspan_pda.fw
-  INSTALL usr/lib/firmware/keyspan_pda/keyspan_pda.fw
-  IHEX2FW firmware/keyspan_pda/xircom_pgs.fw
-  INSTALL usr/lib/firmware/keyspan_pda/xircom_pgs.fw
-  H16TOFW firmware/vicam/firmware.fw
-  INSTALL usr/lib/firmware/vicam/firmware.fw
+>> and for a while (read: at least 9-18 months) we can distribute firmware
+> > both in the kernel source tarball as well as separately
+>
+> That makes a certain amount of sense.
 
-The .config and dmesg are at:
-  http://bugsplatter.mine.nu/test/boxen/pooh/config-2.6.26-rc8-mm1a.gz
-  http://bugsplatter.mine.nu/test/boxen/pooh/dmesg-2.6.26-rc8-mm1a.gz
+Glad we agree.
 
-Grant.
+>> in the licensing-religion-firmware tarball. 
+>
+> Please don't be gratuitously offensive, Ted. It's not polite, and it's  
+> not a particularly good debating technique either. I expect better from 
+> you.
+
+Well, I think it's offensive to break users who have happily been
+using drivers that have been including firmware for a long, long, LONG
+time, and I expected better of you.
+
+So there.  :-)
+
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
