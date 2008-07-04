@@ -1,55 +1,97 @@
-Date: Fri, 4 Jul 2008 15:38:22 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-Message-ID: <20080704153822.4db2f325@lxorguk.ukuu.org.uk>
-In-Reply-To: <486E2E9B.20200@garzik.org>
-References: <1215093175.10393.567.camel@pmac.infradead.org>
-	<20080703173040.GB30506@mit.edu>
-	<1215111362.10393.651.camel@pmac.infradead.org>
-	<20080703.162120.206258339.davem@davemloft.net>
-	<486D6DDB.4010205@infradead.org>
-	<87ej6armez.fsf@basil.nowhere.org>
-	<1215177044.10393.743.camel@pmac.infradead.org>
-	<486E2260.5050503@garzik.org>
-	<1215178035.10393.763.camel@pmac.infradead.org>
-	<486E2818.1060003@garzik.org>
-	<1215179161.10393.773.camel@pmac.infradead.org>
-	<486E2E9B.20200@garzik.org>
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate3.de.ibm.com (8.13.8/8.13.8) with ESMTP id m64Ex1Qn094594
+	for <linux-mm@kvack.org>; Fri, 4 Jul 2008 14:59:01 GMT
+Received: from d12av04.megacenter.de.ibm.com (d12av04.megacenter.de.ibm.com [9.149.165.229])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m64Ex0If2883684
+	for <linux-mm@kvack.org>; Fri, 4 Jul 2008 16:59:00 +0200
+Received: from d12av04.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av04.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m64Ewx0d016674
+	for <linux-mm@kvack.org>; Fri, 4 Jul 2008 16:59:00 +0200
+Subject: [PATCH] Make CONFIG_MIGRATION available for s390
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Content-Type: text/plain
+Date: Fri, 04 Jul 2008 16:58:59 +0200
+Message-Id: <1215183539.4834.12.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+Subject: [PATCH] Make CONFIG_MIGRATION available for s390
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jeff@garzik.org>
-Cc: David Woodhouse <dwmw2@infradead.org>, Andi Kleen <andi@firstfloor.org>, David Miller <davem@davemloft.net>, tytso@mit.edu, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 04 Jul 2008 10:07:23 -0400
-Jeff Garzik <jeff@garzik.org> wrote:
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
 
-> David Woodhouse wrote:
-> > On Fri, 2008-07-04 at 09:39 -0400, Jeff Garzik wrote:
-> >> You have been told repeatedly that cp(1) and scp(1) are commonly used
-> >> to transport the module David and I care about -- tg3.  It's been a
-> >> single file module since birth, and people take advantage of that
-> >> fact.
-> > 
-> > And you can _continue_ to do that. You'd need to install the firmware
-> > just once, and that's all. It's a non-issue, and it isn't _worth_ the
-> > added complexity of building the firmware into the module.
-> 
-> We can stop there.  Real-world examples are apparently non-issues not 
-> worth your time.
+We'd like to support CONFIG_MEMORY_HOTREMOVE on s390, which depends on
+CONFIG_MIGRATION. So far, CONFIG_MIGRATION is only available with NUMA
+support.
 
-Jeff - real world issues and gains are measured on a scale across the
-userbase not "Jeff's having a tantrum because his specific usage case
-requires one extra copy once"
+This patch makes CONFIG_MIGRATION selectable for s390. When MIGRATION
+is enabled w/o NUMA, the kernel won't compile because of a missing
+"migrate" member in vm_operations_struct and a missing "policy_zone"
+definition. To avoid this, those are moved from an "#ifdef CONFIG_NUMA"
+section to "#ifdef CONFIG_MIGRATION".
 
-And we had the same argument over ten years ago about those evil module
-things which stopped you just using scp to copy the kernel in one go.
-Fortunately the nay sayers lost so we have modules.
+Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+---
 
-Alan
+ include/linux/mempolicy.h |    6 ++++--
+ include/linux/mm.h        |    2 ++
+ mm/Kconfig                |    2 +-
+ 3 files changed, 7 insertions(+), 3 deletions(-)
+
+Index: mylinux-git/include/linux/mempolicy.h
+===================================================================
+--- mylinux-git.orig/include/linux/mempolicy.h
++++ mylinux-git/include/linux/mempolicy.h
+@@ -62,6 +62,10 @@ enum {
+ 
+ struct mm_struct;
+ 
++#ifdef CONFIG_MIGRATION
++extern enum zone_type policy_zone;
++#endif
++
+ #ifdef CONFIG_NUMA
+ 
+ /*
+@@ -202,8 +206,6 @@ extern struct zonelist *huge_zonelist(st
+ 				struct mempolicy **mpol, nodemask_t **nodemask);
+ extern unsigned slab_node(struct mempolicy *policy);
+ 
+-extern enum zone_type policy_zone;
+-
+ static inline void check_highest_zone(enum zone_type k)
+ {
+ 	if (k > policy_zone && k != ZONE_MOVABLE)
+Index: mylinux-git/include/linux/mm.h
+===================================================================
+--- mylinux-git.orig/include/linux/mm.h
++++ mylinux-git/include/linux/mm.h
+@@ -193,6 +193,8 @@ struct vm_operations_struct {
+ 	 */
+ 	struct mempolicy *(*get_policy)(struct vm_area_struct *vma,
+ 					unsigned long addr);
++#endif
++#ifdef CONFIG_MIGRATION
+ 	int (*migrate)(struct vm_area_struct *vma, const nodemask_t *from,
+ 		const nodemask_t *to, unsigned long flags);
+ #endif
+Index: mylinux-git/mm/Kconfig
+===================================================================
+--- mylinux-git.orig/mm/Kconfig
++++ mylinux-git/mm/Kconfig
+@@ -174,7 +174,7 @@ config SPLIT_PTLOCK_CPUS
+ config MIGRATION
+ 	bool "Page migration"
+ 	def_bool y
+-	depends on NUMA
++	depends on NUMA || S390
+ 	help
+ 	  Allows the migration of the physical location of pages of processes
+ 	  while the virtual addresses are not changed. This is useful for
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
