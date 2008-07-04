@@ -1,72 +1,41 @@
-Date: Fri, 4 Jul 2008 16:56:05 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH -mm 5/5] swapcgroup (v3): implement force_empty
-Message-Id: <20080704165605.ca69850b.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20080704074828.330DC5A19@siro.lan>
-References: <20080704162629.b06b6810.nishimura@mxp.nes.nec.co.jp>
-	<20080704074828.330DC5A19@siro.lan>
+Date: Fri, 4 Jul 2008 18:02:26 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: memcg: lru scan fix (Was: 2.6.26-rc8-mm1
+Message-Id: <20080704180226.46436432.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080703020236.adaa51fa.akpm@linux-foundation.org>
+References: <20080703020236.adaa51fa.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: nishimura@mxp.nes.nec.co.jp, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, containers@lists.osdl.org, hugh@veritas.com, balbir@linux.vnet.ibm.com, xemul@openvz.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "riel@redhat.com" <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri,  4 Jul 2008 16:48:28 +0900 (JST), yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
-> > Hi, Yamamoto-san.
-> > 
-> > Thank you for your comment.
-> > 
-> > On Fri,  4 Jul 2008 15:54:31 +0900 (JST), yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
-> > > hi,
-> > > 
-> > > > +/*
-> > > > + * uncharge all the entries that are charged to the group.
-> > > > + */
-> > > > +void __swap_cgroup_force_empty(struct mem_cgroup *mem)
-> > > > +{
-> > > > +	struct swap_info_struct *p;
-> > > > +	int type;
-> > > > +
-> > > > +	spin_lock(&swap_lock);
-> > > > +	for (type = swap_list.head; type >= 0; type = swap_info[type].next) {
-> > > > +		p = swap_info + type;
-> > > > +
-> > > > +		if ((p->flags & SWP_ACTIVE) == SWP_ACTIVE) {
-> > > > +			unsigned int i = 0;
-> > > > +
-> > > > +			spin_unlock(&swap_lock);
-> > > 
-> > > what prevents the device from being swapoff'ed while you drop swap_lock?
-> > > 
-> > Nothing.
-> > 
-> > After searching the entry to be uncharged(find_next_to_unuse below),
-> > I recheck under swap_lock whether the entry is charged to the group.
-> > Even if the device is swapoff'ed, swap_off must have uncharged the entry,
-> > so I don't think it's needed anyway.
-> > 
-> > > YAMAMOTO Takashi
-> > > 
-> > > > +			while ((i = find_next_to_unuse(p, i, mem)) != 0) {
-> > > > +				spin_lock(&swap_lock);
-> > > > +				if (p->swap_map[i] && p->memcg[i] == mem)
-> > Ah, I think it should be added !p->swap_map to check the device has not
-> > been swapoff'ed.
-> 
-> find_next_to_unuse seems to have fragile assumptions and
-> can dereference p->swap_map as well.
-> 
-You're right.
-Thank you for pointing it out!
+Since rc5-mm3, memcg easily goes into OOM when limit was low.
+This is a fix to split-lru to fix OOM.
 
-I'll consider more.
+==
+Under memcg, active anon tend not to go to inactive anon.
+This will cause OOM in memcg easily when tons of anon was used at once.
+This check was lacked in split-lru.
 
+Signed-off-by:KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Thanks,
-Daisuke Nishimura.
+Index: test-2.6.26-rc8-mm1/mm/vmscan.c
+===================================================================
+--- test-2.6.26-rc8-mm1.orig/mm/vmscan.c
++++ test-2.6.26-rc8-mm1/mm/vmscan.c
+@@ -1501,6 +1501,8 @@ static unsigned long shrink_zone(int pri
+ 	 */
+ 	if (scan_global_lru(sc) && inactive_anon_is_low(zone))
+ 		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
++	else if (!scan_global_lru(sc))
++		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
+ 
+ 	throttle_vm_writeout(sc->gfp_mask);
+ 	return nr_reclaimed;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
