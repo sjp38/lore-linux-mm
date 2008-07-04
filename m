@@ -1,43 +1,38 @@
-Date: Fri, 4 Jul 2008 22:10:15 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+From: Grant Coady <grant_lkml@dodo.com.au>
 Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-Message-ID: <20080704221015.54bdc8d2@lxorguk.ukuu.org.uk>
-In-Reply-To: <20080704.135150.250580915.davem@davemloft.net>
-References: <1215178035.10393.763.camel@pmac.infradead.org>
-	<20080704.133721.98729739.davem@davemloft.net>
-	<20080704134208.6c712031@infradead.org>
-	<20080704.135150.250580915.davem@davemloft.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Sat, 05 Jul 2008 07:34:16 +1000
+Reply-To: Grant Coady <gcoady.lk@gmail.com>
+Message-ID: <9l5t64tlov332uf2vfqvop9hh6ctvh067v@4ax.com>
+References: <20080703173040.GB30506@mit.edu> <1215111362.10393.651.camel@pmac.infradead.org> <20080703.162120.206258339.davem@davemloft.net> <486D6DDB.4010205@infradead.org>	<87ej6armez.fsf@basil.nowhere.org> <1215177044.10393.743.camel@pmac.infradead.org> <486E2260.5050503@garzik.org> <1215178035.10393.763.camel@pmac.infradead.org> <20080704141014.GA23215@mit.edu> <s5habgxloct.wl%tiwai@suse.de> <486E3622.1000900@suse.de> <1215182557.10393.808.camel@pmac.infradead.org>
+In-Reply-To: <1215182557.10393.808.camel@pmac.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: arjan@infradead.org, dwmw2@infradead.org, jeff@garzik.org, andi@firstfloor.org, tytso@mit.edu, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: David Woodhouse <dwmw2@infradead.org>
+Cc: Hannes Reinecke <hare@suse.de>, Takashi Iwai <tiwai@suse.de>, Theodore Tso <tytso@mit.edu>, Jeff Garzik <jeff@garzik.org>, Andi Kleen <andi@firstfloor.org>, David Miller <davem@davemloft.net>, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> It seems your employer is telling you to work on this in order to sort
-> out some perceived legal issue.  And that's the only reason you're
-> investing any effort into this.
+On Fri, 04 Jul 2008 15:42:37 +0100, David Woodhouse <dwmw2@infradead.org> wrote:
 
-To point out the blindingly obvious
+>On Fri, 2008-07-04 at 16:39 +0200, Hannes Reinecke wrote:
+>> Firmware loading is just a matter of copying the file at the correct
+>> location (ie /lib/firmware) and with the name the fw loader expects.
+>> mkinitrd should do it correctly.
+>> But I wasn't aware that the tg3 has external firmware, so I doubt
+>> we have any rpm for it.
+>
+>It doesn't yet; that patch is in linux-next. The firmware is shipped as
+>part of the kernel source tree, and you currently need to run 'make
+>firmware_install' to put it in /lib/firmware, although we're looking at
+>making that easier because apparently having to run 'make
+>firmware_install' is too hard...
 
-1. - David has had *two* different employers while working on this project
+Oh come on now -- not a case of too hard, it's a case of breaking _all_ 
+existing kernel build scripts.
 
-2. - I think you could reasonably assume that if your employers legal
-team had reached a specific conclusion that there was a compliance issue
-they would have directed you to do something about it as well, not
-operated a mysterious conspiracy (in conjunction one assumes with David's
-current employer) to change it.
-
-And it's worth remembering that the 'lunatic fringe' you seem to be
-trying to associate David with don't care about the firmware changes
-because their view is that you shouldn't even have drivers for such
-hardware as it cannot be used in a free way (just as they argue not to
-write java without free interpreters). [1]
-
-Alan
-[1] No I don't know where they get their free x86 engine from either ;)
+Grant.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
