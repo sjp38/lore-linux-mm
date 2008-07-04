@@ -1,45 +1,64 @@
-Message-ID: <486E2F68.2000707@garzik.org>
-Date: Fri, 04 Jul 2008 10:10:48 -0400
-From: Jeff Garzik <jeff@garzik.org>
-MIME-Version: 1.0
+Date: Fri, 4 Jul 2008 10:10:14 -0400
+From: Theodore Tso <tytso@mit.edu>
 Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-References: <20080703020236.adaa51fa.akpm@linux-foundation.org>	 <20080703205548.D6E5.KOSAKI.MOTOHIRO@jp.fujitsu.com>	 <486CC440.9030909@garzik.org>	 <Pine.LNX.4.64.0807031353030.11033@blonde.site>	 <s5hmykxc3ja.wl%tiwai@suse.de>	 <1215177471.10393.753.camel@pmac.infradead.org>	 <s5hej69lqzk.wl%tiwai@suse.de>  <486E28BB.1030205@garzik.org> <1215179126.10393.771.camel@pmac.infradead.org>
-In-Reply-To: <1215179126.10393.771.camel@pmac.infradead.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20080704141014.GA23215@mit.edu>
+References: <1215093175.10393.567.camel@pmac.infradead.org> <20080703173040.GB30506@mit.edu> <1215111362.10393.651.camel@pmac.infradead.org> <20080703.162120.206258339.davem@davemloft.net> <486D6DDB.4010205@infradead.org> <87ej6armez.fsf@basil.nowhere.org> <1215177044.10393.743.camel@pmac.infradead.org> <486E2260.5050503@garzik.org> <1215178035.10393.763.camel@pmac.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1215178035.10393.763.camel@pmac.infradead.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: David Woodhouse <dwmw2@infradead.org>
-Cc: Takashi Iwai <tiwai@suse.de>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org
+Cc: Jeff Garzik <jeff@garzik.org>, Andi Kleen <andi@firstfloor.org>, David Miller <davem@davemloft.net>, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-David Woodhouse wrote:
-> On Fri, 2008-07-04 at 09:42 -0400, Jeff Garzik wrote:
->> mkinitrd and similar scripts must be updated, so that drivers that 
->> worked prior to dwmw2's changes will continue to work after dwmw2's
->> changes.
+On Fri, Jul 04, 2008 at 02:27:15PM +0100, David Woodhouse wrote:
 > 
->> If you fail to update some script somewhere, then the driver will be 
->> copied into the initramfs, but not the firmware, with obvious results.
+> That's the way it has been for a _long_ time anyway, for any modern
+> driver which uses request_firmware(). The whole point about modules is
+> _modularity_. Yes, that means that sometimes they depend on _other_
+> modules, or on firmware. 
 > 
-> No, mkinitrd works fine, because a whole boatload of drivers _already_
-> require it to work that way and have done for a long time.
-> 
-> Either you are severely mistaken, or you are being deliberately
-> misleading.
+> The scripts which handle that kind of thing have handled inter-module
+> dependencies, and MODULE_FIRMWARE(), for a long time now.
 
-It is a fact that mkinitrd, today, is unaware of your new system of 
-obtaining firmware from the kernel source[or build] tree.
+FYI, at least Ubuntu Hardy's initramfs does not seem to deal with
+firmware for modules correctly.  
 
-Certainly it is aware of the need to copy firmware in general, but that 
-doesn't change the fact that the tg3 firmware will not make it into 
-initramfs, without additional steps taken.
+https://bugs.launchpad.net/ubuntu/+source/initramfs-tools/+bug/180544
 
-So, no, it doesn't "work fine" -- the firmware doesn't make it into the 
-initramfs.
+And remember, kernel/userspace interfaces are things which are far
+more careful about than kernel ABI interfaces....
 
-	Jeff
+You can flame about Ubuntu being broken (and I predict you will :-),
+but there are a large number of users who do use Ubuntu.  And so
+adding more breakages when it is *known* the distro's aren't moving as
+quickly as you think is reasonable for quote, modern, unquote, drivers
+is something you can flame about, but at the end of the day, *you* are
+the one introducing changes that is causing more breakages.  
 
+Userspace interfaces (and this includes things like
+mkinitramfs/mkinitrd, since we made the design decision --- in my
+opinion a very bad decision --- to make initrd/initramfs creation it a
+distro-specific thing instead of somethign where the kernel supplies
+the scripts) by their very nature move much more slowly than things
+which are inside the "shipped by the kernel" boundary.
+
+And sometimes people like to take a RHEL4 or RHEL5 (or Ubuntu Hardy)
+kernel and compile and build a much newer kernel from kernel.org, and
+it is *highly* unfortunate when this breaks.  After all, for people
+who care to test our kernel.org kernels, we want to encourage them,
+yes?  More testers of kernel.org testers is something which I've heard
+akpm claim is a good thing....
+
+I do think your idea of including "make firmware_install" into "make
+modules_install" does make a lot of sense, because it will reduce the
+number of breakages.  It won't eliminate them, but it will reduce them.
+
+Regards,
+
+       	  	      	       		       - Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
