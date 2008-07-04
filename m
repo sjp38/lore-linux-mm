@@ -1,62 +1,46 @@
-Date: Thu, 3 Jul 2008 21:47:05 -0400
-From: Theodore Tso <tytso@mit.edu>
-Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-Message-ID: <20080704014705.GM30506@mit.edu>
-References: <1215093175.10393.567.camel@pmac.infradead.org> <20080703173040.GB30506@mit.edu> <1215111362.10393.651.camel@pmac.infradead.org> <20080703.162120.206258339.davem@davemloft.net> <20080704001855.GJ30506@mit.edu> <486D783B.6040904@infradead.org>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m641mb3l019910
+	for <linux-mm@kvack.org>; Fri, 4 Jul 2008 11:48:37 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m641n9BA4710490
+	for <linux-mm@kvack.org>; Fri, 4 Jul 2008 11:49:09 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m641nYGC030648
+	for <linux-mm@kvack.org>; Fri, 4 Jul 2008 11:49:34 +1000
+Message-ID: <486D81B1.1020609@linux.vnet.ibm.com>
+Date: Fri, 04 Jul 2008 07:19:37 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <486D783B.6040904@infradead.org>
+Subject: Re: [PATCH 2.6.26-rc8-mm1] memrlimit: fix mmap_sem deadlock
+References: <Pine.LNX.4.64.0807032143110.10641@blonde.site>
+In-Reply-To: <Pine.LNX.4.64.0807032143110.10641@blonde.site>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Woodhouse <dwmw2@infradead.org>
-Cc: David Miller <davem@davemloft.net>, jeff@garzik.org, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 04, 2008 at 02:09:15AM +0100, David Woodhouse wrote:
-> But there's no need to do it _now_. It can wait until the basic stuff is  
-> in Linus' tree and it can automatically derive from that. There's no  
-> particular rush, is there?
+Hugh Dickins wrote:
+> "ps -f" hung after "killall make" of make -j20 kernel builds.  It's
+> generally considered bad manners to down_write something you already
+> have down_read.  exit_mm up_reads before calling mm_update_next_owner,
+> so I guess exec_mmap can safely do so too.  (And with that repositioning
+> there's not much point in mm_need_new_owner allowing for NULL mm.)
+> 
+> Signed-off-by: Hugh Dickins <hugh@veritas.com>
 
-The only rush if the main agenda is to extirpate all firmware from the
-mainline kernel sources.  I don't think we can start the timer for
-doing that until the firmware tarball is created and it starts being
-used as the default way of delivering firmware for what you call
-"legacy" drivers.  If there's no particular rush to finally rm the
-firmware for trivers such as tg3 from the source tree (and I
-personally don't think there should be any rush), or any rush to
-change the default for CONFIG_FIRMWARE_IN_KERNEL to "no", then I don't
-see any rush in creating the firmware tarball.  
+Thanks!
 
-If *you* think there is a rush in making CONFIG_FIRMWARE_IN_KERNEL
-default to "no", then you might want to decide to create the firmware
-tarball sooner, and get distro's everywhere to start using it, and to
-get everyone to understand that they should start including it in
-their systems.  (Remember, not everyone uses the popular distributions
-like Fedora, Debian, Ubuntu, Open SuSE, etc.)
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-But heck, that's up to you.  :-)
-
->> and for a while (read: at least 9-18 months) we can distribute firmware
-> > both in the kernel source tarball as well as separately
->
-> That makes a certain amount of sense.
-
-Glad we agree.
-
->> in the licensing-religion-firmware tarball. 
->
-> Please don't be gratuitously offensive, Ted. It's not polite, and it's  
-> not a particularly good debating technique either. I expect better from 
-> you.
-
-Well, I think it's offensive to break users who have happily been
-using drivers that have been including firmware for a long, long, LONG
-time, and I expected better of you.
-
-So there.  :-)
-
-						- Ted
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
