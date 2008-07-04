@@ -1,220 +1,101 @@
-Date: Fri, 4 Jul 2008 18:58:45 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mm 4/5] swapcgroup (v3): modify vm_swap_full()
-Message-Id: <20080704185845.0baaca76.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080704152244.7fc2ccd1.nishimura@mxp.nes.nec.co.jp>
-References: <20080704151536.e5384231.nishimura@mxp.nes.nec.co.jp>
-	<20080704152244.7fc2ccd1.nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
+From: David Woodhouse <dwmw2@infradead.org>
+In-Reply-To: <alpine.DEB.1.10.0807031938260.7820@asgard.lang.hm>
+References: <1215093175.10393.567.camel@pmac.infradead.org>
+	 <20080703173040.GB30506@mit.edu>
+	 <1215111362.10393.651.camel@pmac.infradead.org>
+	 <20080703.162120.206258339.davem@davemloft.net>
+	 <486D6DDB.4010205@infradead.org>
+	 <alpine.DEB.1.10.0807031938260.7820@asgard.lang.hm>
+Content-Type: text/plain
+Date: Fri, 04 Jul 2008 11:07:25 +0100
+Message-Id: <1215166045.10393.738.camel@pmac.infradead.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Hugh Dickins <hugh@veritas.com>, IKEDA Munehiro <m-ikeda@ds.jp.nec.com>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: david@lang.hm
+Cc: David Miller <davem@davemloft.net>, tytso@mit.edu, jeff@garzik.org, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 Jul 2008 15:22:44 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
->  /* Swap 50% full? Release swapcache more aggressively.. */
-> -#define vm_swap_full() (nr_swap_pages*2 < total_swap_pages)
-> +#define vm_swap_full(memcg) ((nr_swap_pages*2 < total_swap_pages) \
-> +				|| swap_cgroup_vm_swap_full(memcg))
-> +
->  
-Maybe nitpick but I like 
-==
-  vm_swap_full(page)	((nr_swap_pages *2 < total_swap_pages)
-				|| swap_cgroup_vm_swap_full_page(page))
-==
-rather than vm_swap_full(memcg)
-
-And could you change this to inline funcition ?
-
->  /* linux/mm/page_alloc.c */
->  extern unsigned long totalram_pages;
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index d16d0a5..160fca1 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1296,5 +1296,23 @@ void swap_cgroup_uncharge(struct swap_info_struct *si,
->  		css_put(&mem->css);
->  	}
->  }
-> +
-> +int swap_cgroup_vm_swap_full(struct mem_cgroup *memcg)
-> +{
-> +	u64 usage;
-> +	u64 limit;
-> +
-> +	if (memcg)
-> +		css_get(&memcg->css);
-> +	else
-> +		return 0;
-> +
-> +	usage = res_counter_read_u64(&memcg->swap_res, RES_USAGE);
-> +	limit = res_counter_read_u64(&memcg->swap_res, RES_LIMIT);
-> +
-> +	css_put(&memcg->css);
-> +
-> +	return usage * 2 > limit;
-> +}
->  #endif
->  
-
-How about this under above my changes ?
-==
-int memcg_swap_full(struct mem_cgroup *mem)
-{
-	if (!mem)
-		return 0;
-	usage = res_counter_read_u64(&memcg->swap_res, RES_USAGE);
-	limit = res_counter_read_u64(&memcg->swap_res, RES_LIMIT);
-	
-	return (usage *2 > limit);
-}
-
-int swap_cgroup_vm_swap_full_page(struct page *page)
-{
-	struct page_cgroup *pc;
-	int ret = 0;
-
-	if (mem_cgroup_subsys.disabled)
-		return 0;
-
-	if (!PageSwapCache(page))
-		return 0;
-
-	entry.val = page_private(page);
-	p = swap_info_get(entry);
-	if (!p)
-		goto out;
-	
-	mem = p->memcg[swp_offset(entry)];
-	/* becasue we get swap_lock here, access to memcg is safe.*/
-	ret = memcg_swap_full(mem);
-	spin_unlock(&swap_lock);
-out:
-	return ret;
-} 
-==
-
-Thanks,
--Kame
-
-
-
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 536d748..afcf737 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2230,7 +2230,9 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	page_add_anon_rmap(page, vma, address);
->  
->  	swap_free(entry);
-> -	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
-> +	if (vm_swap_full(page_to_memcg(page))
-> +		|| (vma->vm_flags & VM_LOCKED)
-> +		|| PageMlocked(page))
->  		remove_exclusive_swap_page(page);
->  	unlock_page(page);
->  
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 57798c5..6a863bc 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -28,6 +28,7 @@
->  #include <linux/capability.h>
->  #include <linux/syscalls.h>
->  #include <linux/memcontrol.h>
-> +#include <linux/cgroup.h>
->  
->  #include <asm/pgtable.h>
->  #include <asm/tlbflush.h>
-> @@ -447,7 +448,8 @@ void free_swap_and_cache(swp_entry_t entry)
->  		/* Only cache user (+us), or swap space full? Free it! */
->  		/* Also recheck PageSwapCache after page is locked (above) */
->  		if (PageSwapCache(page) && !PageWriteback(page) &&
-> -					(one_user || vm_swap_full())) {
-> +					(one_user
-> +					|| vm_swap_full(page_to_memcg(page)))) {
->  			delete_from_swap_cache(page);
->  			SetPageDirty(page);
->  		}
-> @@ -1889,3 +1891,37 @@ int valid_swaphandles(swp_entry_t entry, unsigned long *offset)
->  	*offset = ++toff;
->  	return nr_pages? ++nr_pages: 0;
->  }
-> +
-> +#ifdef CONFIG_CGROUP_SWAP_RES_CTLR
-> +/*
-> + * returns mem_cgroup to which the swap cache page is charged as swap.
-> + * should be called with the page locked.
-> + */
-> +struct mem_cgroup *page_to_memcg(struct page *page)
-> +{
-> +	struct swap_info_struct *p;
-> +	struct mem_cgroup *mem = NULL;
-> +	swp_entry_t entry;
-> +
-> +	BUG_ON(!PageLocked(page));
-> +
-> +	if (mem_cgroup_subsys.disabled)
-> +		goto out;
-> +
-> +	if (!PageSwapCache(page))
-> +		goto out;
-> +
-> +	entry.val = page_private(page);
-> +	p = swap_info_get(entry);
-> +	if (!p)
-> +		goto out;
-> +
-> +	mem = p->memcg[swp_offset(entry)];
-> +
-> +	spin_unlock(&swap_lock);
-> +
-> +out:
-> +	return mem;
-> +}
-
-
-
-> +#endif
-> +
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 9a5e423..ac45993 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -752,7 +752,7 @@ cull_mlocked:
->  
->  activate_locked:
->  		/* Not a candidate for swapping, so reclaim swap space. */
-> -		if (PageSwapCache(page) && vm_swap_full())
-> +		if (PageSwapCache(page) && vm_swap_full(page_to_memcg(page)))
->  			remove_exclusive_swap_page_ref(page);
->  		VM_BUG_ON(PageActive(page));
->  		SetPageActive(page);
-> @@ -1317,7 +1317,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
->  			__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
->  			pgmoved = 0;
->  			spin_unlock_irq(&zone->lru_lock);
-> -			if (vm_swap_full())
-> +			if (vm_swap_full(sc->mem_cgroup))
->  				pagevec_swap_free(&pvec);
->  			__pagevec_release(&pvec);
->  			spin_lock_irq(&zone->lru_lock);
-> @@ -1328,7 +1328,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
->  	__count_zone_vm_events(PGREFILL, zone, pgscanned);
->  	__count_vm_events(PGDEACTIVATE, pgdeactivate);
->  	spin_unlock_irq(&zone->lru_lock);
-> -	if (vm_swap_full())
-> +	if (vm_swap_full(sc->mem_cgroup))
->  		pagevec_swap_free(&pvec);
->  
->  	pagevec_release(&pvec);
+On Thu, 2008-07-03 at 19:42 -0700, david@lang.hm wrote:
+> > (After making it possible to build that firmware _into_ the kernel so that we 
+> > aren't forcing people to use an initrd where they didn't before, of course.)
 > 
+> has this taken place yet? (and if so, what kernel version first included 
+> this fix)
+
+It's in linux-next now. See the CONFIG_EXTRA_FIRMWARE option.
+
+That's one of the reasons Ted's ranting about 'religious fundamentalism'
+is so funny -- I've actually made it _easier_ for you to combine
+arbitrary firmware files into your kernel.
+
+> >> If it was purely technical, you wouldn't be choosing defaults that
+> >> break things for users by default.
+> >
+> > Actually, the beauty of Linux is that we _can_ change things where a minor 
+> > short-term inconvenience leads to a better situation in the long term.
+> 
+> but doing so should not be a easy and quick decision, and it needs to be 
+> made very clear exactly what breakage is going to take place and why 
+> (along with the explination of why the breakage couldn't be avoided)
+
+All forms of change introduce _some_ risk of breakage, of course. In
+this case, as usual, I've tried to be careful to avoid regressions. The
+most important part, obviously, was having a way to build firmware into
+the static kernel.
+
+When it comes to _modules_, doing that would introduce a certain amount
+of complexity which just doesn't seem necessary -- if you can load
+modules, then you have userspace, and you can use hotplug for firmware
+too. Especially given that so many modern drivers already _require_ you
+to do that, so the users understand it, and the tools like mkinitrd
+already cope with it -- checking MODULE_FIRMWARE() for the modules they
+include and including the appropriate files automatically.
+
+The alleged problem with modules seems to be _just_ about the fact that
+people need to run 'make firmware_install', and need to have their
+firmware installed. Something which all modern drivers require _anyway_,
+and people are used to in the general case already. It's not exactly
+hard; there's just the initial step of realising that the driver _you_
+are using has now been updated to behave like all the others.
+
+That step is _minor_, and it doesn't actually get any easier _however_
+long you postpone it. Yes, you might get 10 people in the first day
+tripping over it, and I'll look to see if I can make it clearer. But
+it's still a very minor, short-term thing.
+
+I suspect that the best option is just to hold off on updating the net
+drivers until later, when people already _know_ that they need to run
+'make firmware_install', (or it happens automatically or something, if
+we go down that route). That way, Dave and Jeff shouldn't be affected by
+the initial transition period.
+
+There's plenty of other drivers which need updating, after all. And most
+maintainers are _happy_ to see the patches to bring their drivers in
+line with best current practice.
+
+> > I'll look at making the requirement for 'make firmware_install' more obvious, 
+> > or even making it happen automatically as part of 'modules_install'.
+> 
+> I won't mind this as long as I can get a working kernel without doing make 
+> firmware_install or make modules_install
+
+You can. You need to stay sober for long enough to say 'Y' when it asks
+you if you want to build the required firmware into the kernel. And we
+even made that the _default_ now, for the benefit of those who can't
+stay sober that long. (Perhaps we'll make 'allyesconfig' the default
+next?)
+
+>  (I almost never use modules, my laptop is one of the few exceptions,
+> and even there it's mostly becouse of the intel wireless driver
+> needing userspace for firmware)
+
+You don't need to do that any more :)
+
+-- 
+dwmw2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
