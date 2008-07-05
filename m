@@ -1,41 +1,56 @@
-Date: Sat, 5 Jul 2008 00:52:15 -0300
-From: Henrique de Moraes Holschuh <hmh@hmh.eng.br>
-Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-Message-ID: <20080705035215.GA15899@khazad-dum.debian.net>
-References: <1215177044.10393.743.camel@pmac.infradead.org> <486E2260.5050503@garzik.org> <1215178035.10393.763.camel@pmac.infradead.org> <20080704141014.GA23215@mit.edu> <s5habgxloct.wl%tiwai@suse.de> <486E3622.1000900@suse.de> <1215182557.10393.808.camel@pmac.infradead.org> <20080704231322.GA4410@dspnet.fr.eu.org> <20080704235839.GA5649@khazad-dum.debian.net> <Pine.LNX.4.64.0807041742500.13075@t2.domain.actdsltmp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0807041742500.13075@t2.domain.actdsltmp>
+Date: Sat, 5 Jul 2008 12:59:45 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: memcg: lru scan fix (Was: 2.6.26-rc8-mm1
+Message-Id: <20080705125945.39c40e0a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080704122459.c309ae1c.akpm@linux-foundation.org>
+References: <20080703020236.adaa51fa.akpm@linux-foundation.org>
+	<20080704180226.46436432.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080704151656.7745bfab@bree.surriel.com>
+	<20080704122459.c309ae1c.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Trent Piepho <tpiepho@freescale.com>
-Cc: Olivier Galibert <galibert@pobox.com>, David Woodhouse <dwmw2@infradead.org>, Hannes Reinecke <hare@suse.de>, Takashi Iwai <tiwai@suse.de>, Theodore Tso <tytso@mit.edu>, Jeff Garzik <jeff@garzik.org>, Andi Kleen <andi@firstfloor.org>, David Miller <davem@davemloft.net>, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 04 Jul 2008, Trent Piepho wrote:
-> On Fri, 4 Jul 2008, Henrique de Moraes Holschuh wrote:
-> > On Sat, 05 Jul 2008, Olivier Galibert wrote:
-> >> Won't that break multiple kernel installs on any binary packaging
-> >> system that cares about file collisions?  Multiple kernel rpms
-> >> providing the same /lib/firmware files would break things wouldn't
-> >> they ?
-> >
-> > We will probably need per-kernel directories, exactly like what is done for
-> > modules.  And since there are (now) both kernel-version-specific, and
-> > non-kernel-version-specific firmware, this means the firmware loader should
-> > look first on the version-specific directory (say, /lib/firmware/$(uname
-> > -r)/), then if not found, on the general directory (/lib/firmware).
+On Fri, 4 Jul 2008 12:24:59 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
+
+> On Fri, 4 Jul 2008 15:16:56 -0400 Rik van Riel <riel@redhat.com> wrote:
 > 
-> How about /lib/modules/`uname -r`/firmware
+> > On Fri, 4 Jul 2008 18:02:26 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > 
+> > > Index: test-2.6.26-rc8-mm1/mm/vmscan.c
+> > > ===================================================================
+> > > --- test-2.6.26-rc8-mm1.orig/mm/vmscan.c
+> > > +++ test-2.6.26-rc8-mm1/mm/vmscan.c
+> > > @@ -1501,6 +1501,8 @@ static unsigned long shrink_zone(int pri
+> > >  	 */
+> > >  	if (scan_global_lru(sc) && inactive_anon_is_low(zone))
+> > >  		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
+> > > +	else if (!scan_global_lru(sc))
+> > > +		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
+> > 
+> > Makes sense.
+> > 
+> > Acked-by: Rik van Riel <riel@redhat.com>
+> > 
+> 
+> Thanks.  Poor old me needs to work out which patch this patch fixes. 
+> It's always appreciated if others tell me :)
+> 
 
-I am fine with it, it certainly has a few advantages.
+Maybe mine is against this one.
+http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.26-rc8/2.6.26-rc8-mm1/broken-out/vmscan-second-chance-replacement-for-anonymous-pages.patch
 
--- 
-  "One disk to rule them all, One disk to find them. One disk to bring
-  them all and in the darkness grind them. In the Land of Redmond
-  where the shadows lie." -- The Silicon Valley Tarot
-  Henrique Holschuh
+This adds inactive_anon_is_low() logic.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
