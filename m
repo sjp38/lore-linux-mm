@@ -1,64 +1,61 @@
-Message-ID: <486EFA28.9040105@garzik.org>
-Date: Sat, 05 Jul 2008 00:35:52 -0400
-From: Jeff Garzik <jeff@garzik.org>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m655eGEG031495
+	for <linux-mm@kvack.org>; Sat, 5 Jul 2008 15:40:16 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m655el8I979140
+	for <linux-mm@kvack.org>; Sat, 5 Jul 2008 15:40:48 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m655fDOM004011
+	for <linux-mm@kvack.org>; Sat, 5 Jul 2008 15:41:14 +1000
+Message-ID: <486F0976.7010104@linux.vnet.ibm.com>
+Date: Sat, 05 Jul 2008 11:11:10 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-References: <1215093175.10393.567.camel@pmac.infradead.org> <20080703173040.GB30506@mit.edu> <1215111362.10393.651.camel@pmac.infradead.org> <20080703.162120.206258339.davem@davemloft.net> <486D6DDB.4010205@infradead.org> <87ej6armez.fsf@basil.nowhere.org> <1215177044.10393.743.camel@pmac.infradead.org> <486E2260.5050503@garzik.org> <1215178035.10393.763.camel@pmac.infradead.org> <486E2818.1060003@garzik.org> <20080704143058.GB23215@mit.edu>
-In-Reply-To: <20080704143058.GB23215@mit.edu>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH] memcg: handle shmem's swap cache (Was 2.6.26-rc8-mm1
+References: <20080703020236.adaa51fa.akpm@linux-foundation.org> <20080704180913.bb1a3fc6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080704180913.bb1a3fc6.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Theodore Tso <tytso@mit.edu>, David Woodhouse <dwmw2@infradead.org>, Andi Kleen <andi@firstfloor.org>, David Miller <davem@davemloft.net>, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "hugh@veritas.com" <hugh@veritas.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Theodore Tso wrote:
-> On Fri, Jul 04, 2008 at 09:39:36AM -0400, Jeff Garzik wrote:
->> You have been told repeatedly that cp(1) and scp(1) are commonly used to  
->> transport the module David and I care about -- tg3.  It's been a single  
->> file module since birth, and people take advantage of that fact.
+KAMEZAWA Hiroyuki wrote:
+> My swapcache accounting under memcg patch failed to catch tmpfs(shmem)'s one.
+> Can I test this under -mm tree ?
+> (If -mm is busy, I'm not in hurry.)
+> This patch works well in my box.
+> =
+> SwapCache handling fix.
 > 
-> Here, I think I'll have to respectly disagree with you and say that
-> you are taking things too far.  I don't think scp'ing individual
-> modules around counts as an "exported user interface" the same way,
-> say "make install; make modules_install" is a commonly understand and
-> used interface by users and scripts (i.e., such as Debian's make-kpkg,
-> which does NOT know about "make firmware_install", BTW).
+> shmem's swapcache behavior is a little different from anonymous's one and
+> memcg failed to handle it. This patch tries to fix it.
+> 
+> After this:
+> 
+> Any page marked as SwapCache is not uncharged. (delelte_from_swap_cache()
+> delete the SwapCache flag.)
+> 
+> To check a shmem-page-cache is alive or not we use
+>  page->mapping && !PageAnon(page) instead of
+>  pc->flags & PAGE_CGROUP_FLAG_CACHE.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-It's not just netdev developers that use that method, root (notably 
-router) image and driver disk build scripts use it too.  They've been 
-able to skate around module dependencies because network drivers rarely 
-have module dependencies or require big multi-module systems.
+Though I am not opposed to this, I do sit up and think if keeping the reference
+count around could avoid this complexity and from my point, the maintenance
+overhead of this logic/code (I fear there might be more special cases :( )
 
-Example -- the driver disk kit that RH informally gave out, which was 
-widely used, but does not use normal kernel build processes:
+The trade-off is complexity versus the overhead of reference counting.
 
-	http://people.redhat.com/dledford/mod_devel_kit.tgz
-
-Even if one modifies 'make modules_install' as discussed[1], kits like 
-these will report "100% success! driver disk created", yet ship a dead 
-driver disk.
-
-That is why putting the firmware in the kernel image, as dwmw2 has done, 
-does not fix regressions here:  driver disk authors do not necessarily 
-have the luxury of updating the kernel.
-
-Conclusion - we should not build a system today that /excludes/ the 
-possibility of building drivers as they are built today -- with the 
-firmware inside the module [if CONFIG_FOO=m] or kernel image [if 
-CONFIG_FOO=y].
-
-That is the only path that gives everyone a chance to deal with this 
-transition.
-
-	Jeff
-
-
-
-
-
-[1] a laudable and useful thing to do, and it sounds like it is being 
-accomplished.  great!
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
