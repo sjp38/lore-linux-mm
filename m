@@ -1,80 +1,245 @@
-Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-From: David Woodhouse <dwmw2@infradead.org>
-In-Reply-To: <20080705144445.GA17319@dspnet.fr.eu.org>
-References: <s5habgxloct.wl%tiwai@suse.de> <486E3622.1000900@suse.de>
-	 <1215182557.10393.808.camel@pmac.infradead.org>
-	 <20080704231322.GA4410@dspnet.fr.eu.org> <s5h4p746am3.wl%tiwai@suse.de>
-	 <20080705105317.GA44773@dspnet.fr.eu.org> <486F596C.8050109@firstfloor.org>
-	 <20080705120221.GC44773@dspnet.fr.eu.org> <486F6494.8020108@firstfloor.org>
-	 <1215260166.10393.816.camel@pmac.infradead.org>
-	 <20080705144445.GA17319@dspnet.fr.eu.org>
-Content-Type: text/plain
-Date: Sat, 05 Jul 2008 16:10:32 +0100
-Message-Id: <1215270632.10393.864.camel@pmac.infradead.org>
-Mime-Version: 1.0
+Received: by fk-out-0910.google.com with SMTP id z22so923475fkz.6
+        for <linux-mm@kvack.org>; Sat, 05 Jul 2008 09:37:30 -0700 (PDT)
+From: Denys Vlasenko <vda.linux@googlemail.com>
+Subject: [PATCH] Deinline a few functions in mmap.c
+Date: Sat, 5 Jul 2008 18:37:30 +0200
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200807051837.30219.vda.linux@googlemail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Olivier Galibert <galibert@pobox.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Takashi Iwai <tiwai@suse.de>, Hannes Reinecke <hare@suse.de>, Theodore Tso <tytso@mit.edu>, Jeff Garzik <jeff@garzik.org>, David Miller <davem@davemloft.net>, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2008-07-05 at 16:44 +0200, Olivier Galibert wrote:
-> On Sat, Jul 05, 2008 at 01:16:06PM +0100, David Woodhouse wrote:
-> > It almost never happens that you have kernel versions which _need_
-> > different firmware installed. In almost all cases, the older driver will
-> > continue to work just fine with the newer firmware (and its bug-fixes).
-> 
-> I'm not sure which planet you're from, but it's one without ipw2200
-> chips in it.  And in any case, the file names change.
+__vma_link_file and expand_downwards functions are not small,
+yeat they are marked inline. They probably had one callsite
+sometime in the past, but now they have more.
+In order to prevent similar thing, I also deinlined
+expand_upwards, despite it having only pne callsite.
+Nowadays gcc auto-inlines such static functions anyway.
+In find_extend_vma, I removed one extra level of indirection.
 
-I was speaking of the firmware which is currently in-kernel. ipw2200 is
-a recent driver and uses request_firmware() already, so isn't affected
-at all when I update other, older drivers. As such, it's not
-particularly relevant to this discussion.
+Patch is deliberately generated with -U $BIGNUM to make
+it easier to see that functions are big.
 
-The drivers which we're updating to use request_firmware() have _not_
-changed their firmware very often at all -- and even _less_ frequently
-have they done so in an incompatible fashion.
+Result:
 
-> > The ABI between driver and firmware rarely changes in such a fashion
-> > that you have to update the driver in lock-step -- and even on the
-> > occasions that it does, it's not hard to simply change the name of the
-> > "new-style" firmware so that it doesn't stomp on the old one (Think of
-> > it like an soname).
-> 
-> Ah, I see, you just didn't read the thread you're replying to.  Let's
-> do it again one more time.
-> 
-> The question is, how do you sanely distribute the kernel-tree
-> generated firmware in a binary distribution, knowing that you want to
-> be able to have multiple working kernels installed simultaneously?
+# size */*/mmap.o */vmlinux
+   text    data     bss     dec     hex filename
+   9514     188      16    9718    25f6 0.org/mm/mmap.o
+   9237     188      16    9441    24e1 deinline/mm/mmap.o
+6124402  858996  389480 7372878  70804e 0.org/vmlinux
+6124113  858996  389480 7372589  707f2d deinline/vmlinux
 
- <...>
+Signed-off-by: Denys Vlasenko <vda.linux@googlemail.com>
+--
+vda
 
-> Solution 2: in a package by itself
-
-Probably this one. That package can be seeded from a git repo which is
-automatically derived from the contents of the firmware/ directory in
-Linus' tree, and can add the other firmware blobs which are available in
-various places -- the ones that the owners won't let us include in the
-kernel tree due to the GPL, but _will_ allow us to distribute in a
-separate firmware repository.
-
->  -> You either break compatibility with kernel versions that happened
->     before a firmware change, or you accumulate tons of files over
->     time.  The accumulated form gets hard to create from source.
-
-On the rare occasions that a firmware changes incompatibly, you'd want
-to keep both old and new versions in the firmware tree for a reasonable
-period of time. But since that doesn't happen very often, it isn't a
-particularly difficult issue to handle. I strongly believe that you are
-overestimating the scale of the problem -- and it would only be a
-problem for the person maintaining the firmware repository anyway. I'm
-perfectly content to do that job.
-
--- 
-dwmw2
+--- 0.org/mm/mmap.c	Wed Jul  2 00:40:52 2008
++++ deinline/mm/mmap.c	Sat Jul  5 16:19:30 2008
+@@ -389,41 +389,41 @@
+ 	if (prev) {
+ 		vma->vm_next = prev->vm_next;
+ 		prev->vm_next = vma;
+ 	} else {
+ 		mm->mmap = vma;
+ 		if (rb_parent)
+ 			vma->vm_next = rb_entry(rb_parent,
+ 					struct vm_area_struct, vm_rb);
+ 		else
+ 			vma->vm_next = NULL;
+ 	}
+ }
+ 
+ void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		struct rb_node **rb_link, struct rb_node *rb_parent)
+ {
+ 	rb_link_node(&vma->vm_rb, rb_parent, rb_link);
+ 	rb_insert_color(&vma->vm_rb, &mm->mm_rb);
+ }
+ 
+-static inline void __vma_link_file(struct vm_area_struct *vma)
++static void __vma_link_file(struct vm_area_struct *vma)
+ {
+ 	struct file * file;
+ 
+ 	file = vma->vm_file;
+ 	if (file) {
+ 		struct address_space *mapping = file->f_mapping;
+ 
+ 		if (vma->vm_flags & VM_DENYWRITE)
+ 			atomic_dec(&file->f_path.dentry->d_inode->i_writecount);
+ 		if (vma->vm_flags & VM_SHARED)
+ 			mapping->i_mmap_writable++;
+ 
+ 		flush_dcache_mmap_lock(mapping);
+ 		if (unlikely(vma->vm_flags & VM_NONLINEAR))
+ 			vma_nonlinear_insert(vma, &mapping->i_mmap_nonlinear);
+ 		else
+ 			vma_prio_tree_insert(vma, &mapping->i_mmap);
+ 		flush_dcache_mmap_unlock(mapping);
+ 	}
+ }
+@@ -1558,41 +1558,41 @@
+ 	 * Overcommit..  This must be the final test, as it will
+ 	 * update security statistics.
+ 	 */
+ 	if (security_vm_enough_memory(grow))
+ 		return -ENOMEM;
+ 
+ 	/* Ok, everything looks good - let it rip */
+ 	mm->total_vm += grow;
+ 	if (vma->vm_flags & VM_LOCKED)
+ 		mm->locked_vm += grow;
+ 	vm_stat_account(mm, vma->vm_flags, vma->vm_file, grow);
+ 	return 0;
+ }
+ 
+ #if defined(CONFIG_STACK_GROWSUP) || defined(CONFIG_IA64)
+ /*
+  * PA-RISC uses this for its stack; IA64 for its Register Backing Store.
+  * vma is the last one with address > vma->vm_end.  Have to extend vma.
+  */
+ #ifndef CONFIG_IA64
+-static inline
++static
+ #endif
+ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
+ {
+ 	int error;
+ 
+ 	if (!(vma->vm_flags & VM_GROWSUP))
+ 		return -EFAULT;
+ 
+ 	/*
+ 	 * We must make sure the anon_vma is allocated
+ 	 * so that the anon_vma locking is not a noop.
+ 	 */
+ 	if (unlikely(anon_vma_prepare(vma)))
+ 		return -ENOMEM;
+ 	anon_vma_lock(vma);
+ 
+ 	/*
+ 	 * vma->vm_start/vm_end cannot change under us because the caller
+ 	 * is required to hold the mmap_sem in read mode.  We need the
+ 	 * anon_vma lock to serialize against concurrent expand_stacks.
+@@ -1608,41 +1608,41 @@
+ 
+ 	/* Somebody else might have raced and expanded it already */
+ 	if (address > vma->vm_end) {
+ 		unsigned long size, grow;
+ 
+ 		size = address - vma->vm_start;
+ 		grow = (address - vma->vm_end) >> PAGE_SHIFT;
+ 
+ 		error = acct_stack_growth(vma, size, grow);
+ 		if (!error)
+ 			vma->vm_end = address;
+ 	}
+ 	anon_vma_unlock(vma);
+ 	return error;
+ }
+ #endif /* CONFIG_STACK_GROWSUP || CONFIG_IA64 */
+ 
+ /*
+  * vma is the first one with address < vma->vm_start.  Have to extend vma.
+  */
+-static inline int expand_downwards(struct vm_area_struct *vma,
++static int expand_downwards(struct vm_area_struct *vma,
+ 				   unsigned long address)
+ {
+ 	int error;
+ 
+ 	/*
+ 	 * We must make sure the anon_vma is allocated
+ 	 * so that the anon_vma locking is not a noop.
+ 	 */
+ 	if (unlikely(anon_vma_prepare(vma)))
+ 		return -ENOMEM;
+ 
+ 	address &= PAGE_MASK;
+ 	error = security_file_mmap(NULL, 0, 0, 0, address, 1);
+ 	if (error)
+ 		return error;
+ 
+ 	anon_vma_lock(vma);
+ 
+ 	/*
+ 	 * vma->vm_start/vm_end cannot change under us because the caller
+@@ -1670,68 +1670,68 @@
+ int expand_stack_downwards(struct vm_area_struct *vma, unsigned long address)
+ {
+ 	return expand_downwards(vma, address);
+ }
+ 
+ #ifdef CONFIG_STACK_GROWSUP
+ int expand_stack(struct vm_area_struct *vma, unsigned long address)
+ {
+ 	return expand_upwards(vma, address);
+ }
+ 
+ struct vm_area_struct *
+ find_extend_vma(struct mm_struct *mm, unsigned long addr)
+ {
+ 	struct vm_area_struct *vma, *prev;
+ 
+ 	addr &= PAGE_MASK;
+ 	vma = find_vma_prev(mm, addr, &prev);
+ 	if (vma && (vma->vm_start <= addr))
+ 		return vma;
+-	if (!prev || expand_stack(prev, addr))
++	if (!prev || expand_upwards(prev, addr))
+ 		return NULL;
+ 	if (prev->vm_flags & VM_LOCKED)
+ 		make_pages_present(addr, prev->vm_end);
+ 	return prev;
+ }
+ #else
+ int expand_stack(struct vm_area_struct *vma, unsigned long address)
+ {
+ 	return expand_downwards(vma, address);
+ }
+ 
+ struct vm_area_struct *
+ find_extend_vma(struct mm_struct * mm, unsigned long addr)
+ {
+ 	struct vm_area_struct * vma;
+ 	unsigned long start;
+ 
+ 	addr &= PAGE_MASK;
+ 	vma = find_vma(mm,addr);
+ 	if (!vma)
+ 		return NULL;
+ 	if (vma->vm_start <= addr)
+ 		return vma;
+ 	if (!(vma->vm_flags & VM_GROWSDOWN))
+ 		return NULL;
+ 	start = vma->vm_start;
+-	if (expand_stack(vma, addr))
++	if (expand_downwards(vma, addr))
+ 		return NULL;
+ 	if (vma->vm_flags & VM_LOCKED)
+ 		make_pages_present(addr, start);
+ 	return vma;
+ }
+ #endif
+ 
+ /*
+  * Ok - we have the memory areas we should free on the vma list,
+  * so release them, and do the vma updates.
+  *
+  * Called with the mm semaphore held.
+  */
+ static void remove_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
+ {
+ 	/* Update high watermark before we lower total_vm */
+ 	update_hiwater_vm(mm);
+ 	do {
+ 		long nrpages = vma_pages(vma);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
