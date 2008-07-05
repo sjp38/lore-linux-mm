@@ -1,74 +1,27 @@
-Date: Sat, 5 Jul 2008 15:11:46 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: handle shmem's swap cache (Was 2.6.26-rc8-mm1
-Message-Id: <20080705151146.206071a4.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <486F0976.7010104@linux.vnet.ibm.com>
-References: <20080703020236.adaa51fa.akpm@linux-foundation.org>
-	<20080704180913.bb1a3fc6.kamezawa.hiroyu@jp.fujitsu.com>
-	<486F0976.7010104@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <486F112E.5090001@garzik.org>
+Date: Sat, 05 Jul 2008 02:14:06 -0400
+From: Jeff Garzik <jeff@garzik.org>
+MIME-Version: 1.0
+Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
+References: <20080703020236.adaa51fa.akpm@linux-foundation.org>	 <20080703205548.D6E5.KOSAKI.MOTOHIRO@jp.fujitsu.com>	 <486CC440.9030909@garzik.org>	 <Pine.LNX.4.64.0807031353030.11033@blonde.site>	 <s5hmykxc3ja.wl%tiwai@suse.de>	 <1215177471.10393.753.camel@pmac.infradead.org>	 <s5hej69lqzk.wl%tiwai@suse.de>  <486E28BB.1030205@garzik.org>	 <1215179126.10393.771.camel@pmac.infradead.org>	 <486E2F68.2000707@garzik.org> <1215180802.10393.783.camel@pmac.infradead.org>
+In-Reply-To: <1215180802.10393.783.camel@pmac.infradead.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "hugh@veritas.com" <hugh@veritas.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
+To: David Woodhouse <dwmw2@infradead.org>
+Cc: Takashi Iwai <tiwai@suse.de>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 05 Jul 2008 11:11:10 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+David Woodhouse wrote:
+> I'm working on making the required firmware get installed as part of
+> 'make modules_install'.
 
-> KAMEZAWA Hiroyuki wrote:
-> > My swapcache accounting under memcg patch failed to catch tmpfs(shmem)'s one.
-> > Can I test this under -mm tree ?
-> > (If -mm is busy, I'm not in hurry.)
-> > This patch works well in my box.
-> > =
-> > SwapCache handling fix.
-> > 
-> > shmem's swapcache behavior is a little different from anonymous's one and
-> > memcg failed to handle it. This patch tries to fix it.
-> > 
-> > After this:
-> > 
-> > Any page marked as SwapCache is not uncharged. (delelte_from_swap_cache()
-> > delete the SwapCache flag.)
-> > 
-> > To check a shmem-page-cache is alive or not we use
-> >  page->mapping && !PageAnon(page) instead of
-> >  pc->flags & PAGE_CGROUP_FLAG_CACHE.
-> > 
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> Though I am not opposed to this, I do sit up and think if keeping the reference
-> count around could avoid this complexity and from my point, the maintenance
-> overhead of this logic/code (I fear there might be more special cases :( )
+Great!  That will definitely reduce silent regressions due to build 
+process changes.
 
-yes, to me. but we have to fix..
+	Jeff
 
-But I don't like old code's refcnt handling which does
-   - increment
-     - does this increment was really neccesary ?
-       No? ok, decrement it again.
-
-This was much more complex to me than current code.
-
-And old ones will needs the check at treating swap-cache. (it couldn't but if we want)
-
-> 
-> The trade-off is complexity versus the overhead of reference counting.
-> 
-refcnt was also very complex ;)
-
-Thanks,
--Kame
-
-> -- 
-> 	Warm Regards,
-> 	Balbir Singh
-> 	Linux Technology Center
-> 	IBM, ISTL
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
