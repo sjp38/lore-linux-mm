@@ -1,61 +1,38 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m655eGEG031495
-	for <linux-mm@kvack.org>; Sat, 5 Jul 2008 15:40:16 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m655el8I979140
-	for <linux-mm@kvack.org>; Sat, 5 Jul 2008 15:40:48 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m655fDOM004011
-	for <linux-mm@kvack.org>; Sat, 5 Jul 2008 15:41:14 +1000
-Message-ID: <486F0976.7010104@linux.vnet.ibm.com>
-Date: Sat, 05 Jul 2008 11:11:10 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: handle shmem's swap cache (Was 2.6.26-rc8-mm1
-References: <20080703020236.adaa51fa.akpm@linux-foundation.org> <20080704180913.bb1a3fc6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080704180913.bb1a3fc6.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
+From: Jaswinder Singh <jaswinder@infradead.org>
+Content-Type: text/plain
+Date: Sat, 05 Jul 2008 11:19:18 +0530
+Message-Id: <1215236958.4136.6.camel@jaswinder.satnam>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "hugh@veritas.com" <hugh@veritas.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
+To: David Miller <davem@davemloft.net>, dwmw2@infradead.org, jeff@garzik.org, andi@firstfloor.org, tytso@mit.edu, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> My swapcache accounting under memcg patch failed to catch tmpfs(shmem)'s one.
-> Can I test this under -mm tree ?
-> (If -mm is busy, I'm not in hurry.)
-> This patch works well in my box.
-> =
-> SwapCache handling fix.
-> 
-> shmem's swapcache behavior is a little different from anonymous's one and
-> memcg failed to handle it. This patch tries to fix it.
-> 
-> After this:
-> 
-> Any page marked as SwapCache is not uncharged. (delelte_from_swap_cache()
-> delete the SwapCache flag.)
-> 
-> To check a shmem-page-cache is alive or not we use
->  page->mapping && !PageAnon(page) instead of
->  pc->flags & PAGE_CGROUP_FLAG_CACHE.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Respected Sirs,
 
-Though I am not opposed to this, I do sit up and think if keeping the reference
-count around could avoid this complexity and from my point, the maintenance
-overhead of this logic/code (I fear there might be more special cases :( )
+On Sat, Jul 5, 2008 at 2:07 AM, David Miller <davem@davemloft.net>
+wrote:
+> From: David Woodhouse <dwmw2@infradead.org>
+> Date: Fri, 04 Jul 2008 14:27:15 +0100
+>
+>> Your argument makes about as much sense as an argument that we should
+>> link b43.ko with mac80211.ko so that the 802.11 core code "rides
+along
+>> in the module's .ko file". It's just silly.
+>
+> I totally disagree with you.  Jeff is right and you are wrong.
+>
 
-The trade-off is complexity versus the overhead of reference counting.
+Please let me know, if you found the BUG in the tg3 firmare patch :-
+http://git.infradead.org/users/dwmw2/firmware-2.6.git?a=commitdiff;h=be4e9388e35b22d6f8aa104baf39f8339825424e
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+I will try to fix it.
+
+Thank you,
+
+Jaswinder Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
