@@ -1,26 +1,31 @@
-Message-ID: <486F112E.5090001@garzik.org>
-Date: Sat, 05 Jul 2008 02:14:06 -0400
-From: Jeff Garzik <jeff@garzik.org>
+Date: Sat, 05 Jul 2008 15:14:31 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [PATCH] Make CONFIG_MIGRATION available for s390
+In-Reply-To: <20080705130203.e7df168c.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1215183539.4834.12.camel@localhost.localdomain> <20080705130203.e7df168c.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20080705150659.024F.E1E9C6FF@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-References: <20080703020236.adaa51fa.akpm@linux-foundation.org>	 <20080703205548.D6E5.KOSAKI.MOTOHIRO@jp.fujitsu.com>	 <486CC440.9030909@garzik.org>	 <Pine.LNX.4.64.0807031353030.11033@blonde.site>	 <s5hmykxc3ja.wl%tiwai@suse.de>	 <1215177471.10393.753.camel@pmac.infradead.org>	 <s5hej69lqzk.wl%tiwai@suse.de>  <486E28BB.1030205@garzik.org>	 <1215179126.10393.771.camel@pmac.infradead.org>	 <486E2F68.2000707@garzik.org> <1215180802.10393.783.camel@pmac.infradead.org>
-In-Reply-To: <1215180802.10393.783.camel@pmac.infradead.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Woodhouse <dwmw2@infradead.org>
-Cc: Takashi Iwai <tiwai@suse.de>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-David Woodhouse wrote:
-> I'm working on making the required firmware get installed as part of
-> 'make modules_install'.
+> >  config MIGRATION
+> >  	bool "Page migration"
+> >  	def_bool y
+> > -	depends on NUMA
+> > +	depends on NUMA || S390
 
-Great!  That will definitely reduce silent regressions due to build 
-process changes.
+Hmm. I think ARCH_ENABLE_MEMORY_HOTREMOVE is better than S390.
 
-	Jeff
+Bye.
+
+
+-- 
+Yasunori Goto 
 
 
 --
