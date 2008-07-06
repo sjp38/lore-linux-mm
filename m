@@ -1,52 +1,72 @@
-Message-ID: <487153B3.80002@garzik.org>
-Date: Sun, 06 Jul 2008 19:22:27 -0400
+Message-ID: <48715807.8070605@garzik.org>
+Date: Sun, 06 Jul 2008 19:40:55 -0400
 From: Jeff Garzik <jeff@garzik.org>
 MIME-Version: 1.0
 Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-References: <1215178035.10393.763.camel@pmac.infradead.org>	 <486E2818.1060003@garzik.org> <20080704142753.27848ff8@lxorguk.ukuu.org.uk>	 <20080704.134329.209642254.davem@davemloft.net>	 <20080704220444.011e7e61@lxorguk.ukuu.org.uk>	 <alpine.DEB.1.10.0807061311030.11010@asgard.lang.hm>	 <1215376034.3189.127.camel@shinybook.infradead.org>	 <alpine.DEB.1.10.0807061351040.11010@asgard.lang.hm>	 <1215377814.3189.137.camel@shinybook.infradead.org>	 <48713B73.6030708@garzik.org> <1215382225.3189.174.camel@shinybook.infradead.org>
-In-Reply-To: <1215382225.3189.174.camel@shinybook.infradead.org>
+References: <1215093175.10393.567.camel@pmac.infradead.org>	<20080703173040.GB30506@mit.edu>	<1215111362.10393.651.camel@pmac.infradead.org>	<20080703.162120.206258339.davem@davemloft.net>	<486D6DDB.4010205@infradead.org>	<87ej6armez.fsf@basil.nowhere.org>	<1215177044.10393.743.camel@pmac.infradead.org>	<486E2260.5050503@garzik.org>	<1215178035.10393.763.camel@pmac.infradead.org>	<486E2818.1060003@garzik.org>	<1215179161.10393.773.camel@pmac.infradead.org>	<486E2E9B.20200@garzik.org> <20080704153822.4db2f325@lxorguk.ukuu.org.uk>
+In-Reply-To: <20080704153822.4db2f325@lxorguk.ukuu.org.uk>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Woodhouse <dwmw2@infradead.org>
-Cc: david@lang.hm, Alan Cox <alan@lxorguk.ukuu.org.uk>, David Miller <davem@davemloft.net>, andi@firstfloor.org, tytso@mit.edu, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: David Woodhouse <dwmw2@infradead.org>, Andi Kleen <andi@firstfloor.org>, David Miller <davem@davemloft.net>, tytso@mit.edu, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-David Woodhouse wrote:
-> On Sun, 2008-07-06 at 17:38 -0400, Jeff Garzik wrote:
->> David Woodhouse wrote:
->>> On Sun, 2008-07-06 at 13:52 -0700, david@lang.hm wrote:
->>>> On Sun, 6 Jul 2008, David Woodhouse wrote:
->>>>
->>>>> On Sun, 2008-07-06 at 13:17 -0700, david@lang.hm wrote:
->>>>>> if David W were to make it possible to not use the load_firmware() call to
->>>>>> userspace and build the firmware into the driver (be it in a monolithic
->>>>>> kernel or the module that contains the driver)
->>>>> You _can_ build the firmware into the kernel.
->>>> right, but not into a module. you have half of the answer in place, but 
->>>> not all of it.
->>> The useful half. If you have userspace to load modules, you have
->>> userspace to load firmware too.
->> Existing examples have already been provided where this logic fails.
+Alan Cox wrote:
+> On Fri, 04 Jul 2008 10:07:23 -0400
+> Jeff Garzik <jeff@garzik.org> wrote:
 > 
-> I even provided such an example, where your script greps the module for
-> 'request_firmware' and fails if there's a match. I don't think any of
-> the other provided examples were _much_ more sensible than that...
+>> David Woodhouse wrote:
+>>> On Fri, 2008-07-04 at 09:39 -0400, Jeff Garzik wrote:
+>>>> You have been told repeatedly that cp(1) and scp(1) are commonly used
+>>>> to transport the module David and I care about -- tg3.  It's been a
+>>>> single file module since birth, and people take advantage of that
+>>>> fact.
+>>> And you can _continue_ to do that. You'd need to install the firmware
+>>> just once, and that's all. It's a non-issue, and it isn't _worth_ the
+>>> added complexity of building the firmware into the module.
+>> We can stop there.  Real-world examples are apparently non-issues not 
+>> worth your time.
+> 
+> Jeff - real world issues and gains are measured on a scale across the
+> userbase not "Jeff's having a tantrum because his specific usage case
+> requires one extra copy once"
 
-That makes the false presumption that scripts have been updated to avoid 
-the obvious case -- non-working drivers.
+Please look at the example as an example of an entire _class_ of usage 
+that dwmw2 wishes to hand-wave away.
 
-Why is it so difficult to follow a simple principle:
+There are many cases where you have the freedom to update the module, 
+but not the kernel itself -- see vendor kernels and driver update disks, 
+or the typical usage of the upstream kernel's out-of-tree-module build 
+support.
 
-	Keep things working tomorrow, that work today.
+It is trivial to think for five minutes and come up with other examples, 
+because the simple fact is, there is a failure to follow a basic 
+principle of kernel development:  no regressions.
 
-hmmm?
+All I'm asking for: what works today, should continue to work tomorrow.
 
-That's how kernel module support was integrated, so many years ago.
+Why is that so wrong?
+
+We applied that principle with libata -- if you did not turn it on, you 
+didn't even have to know it was there.
+
+We applied that principle with kernel modules -- if you do not turn them 
+on, you have the static kernel you've always had.
+
+
+> And we had the same argument over ten years ago about those evil module
+> things which stopped you just using scp to copy the kernel in one go.
+> Fortunately the nay sayers lost so we have modules.
+
+Broken analogy.
+
+When modules were added, you were given the option to use them, or not.
+
+dwmw2's conversion is not providing analogous choices.
 
 	Jeff
-
 
 
 --
