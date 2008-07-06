@@ -1,94 +1,47 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate7.de.ibm.com (8.13.8/8.13.8) with ESMTP id m66EZxAm079612
-	for <linux-mm@kvack.org>; Sun, 6 Jul 2008 14:35:59 GMT
-Received: from d12av04.megacenter.de.ibm.com (d12av04.megacenter.de.ibm.com [9.149.165.229])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m66EZx7M2641980
-	for <linux-mm@kvack.org>; Sun, 6 Jul 2008 16:35:59 +0200
-Received: from d12av04.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av04.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m66EZxNm013131
-	for <linux-mm@kvack.org>; Sun, 6 Jul 2008 16:35:59 +0200
-Subject: [PATCH] Make CONFIG_MIGRATION available for s390
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Reply-To: gerald.schaefer@de.ibm.com
-Content-Type: text/plain
-Date: Sun, 06 Jul 2008 16:35:57 +0200
-Message-Id: <1215354957.9842.19.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Sun, 6 Jul 2008 13:17:51 -0700 (PDT)
+From: david@lang.hm
+Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
+In-Reply-To: <20080704220444.011e7e61@lxorguk.ukuu.org.uk>
+Message-ID: <alpine.DEB.1.10.0807061311030.11010@asgard.lang.hm>
+References: <1215178035.10393.763.camel@pmac.infradead.org> <486E2818.1060003@garzik.org> <20080704142753.27848ff8@lxorguk.ukuu.org.uk> <20080704.134329.209642254.davem@davemloft.net> <20080704220444.011e7e61@lxorguk.ukuu.org.uk>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
-Subject: [PATCH] Make CONFIG_MIGRATION available for s390
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: David Miller <davem@davemloft.net>, jeff@garzik.org, dwmw2@infradead.org, andi@firstfloor.org, tytso@mit.edu, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+On Fri, 4 Jul 2008, Alan Cox wrote:
 
-We'd like to support CONFIG_MEMORY_HOTREMOVE on s390, which depends on
-CONFIG_MIGRATION. So far, CONFIG_MIGRATION is only available with NUMA
-support.
+>> External firmware is by design an error prone system, even with
+>> versioning.  But by being built and linked into the driver, it
+>> is fool proof.
+>>
+>> On a technical basis alone, we would never disconnect a crucial
+>> component such as firmware, from the driver.  The only thing
+>> charging these transoformations, from day one, is legal concerns.
+>
+> As I said: We had this argument ten years ago (more than that now
+> actually). People said the same thing about modules.
+>
 
-This patch makes CONFIG_MIGRATION selectable for architectures that define
-ARCH_ENABLE_MEMORY_HOTREMOVE. When MIGRATION is enabled w/o NUMA, the kernel
-won't compile because of a missing migrate() function in vm_operations_struct
-and a missing policy_zone reference in vma_migratable(). To avoid this,
-"#ifdef CONFIG_NUMA" is added to vma_migratable() and the vm_ops migrate()
-definition is moved from "#ifdef CONFIG_NUMA" to "#ifdef CONFIG_MIGRATION".
+and they were right then as well. Fortunantly,at that time the kernel 
+developers listened and retained the possibility to not use modules.
 
-Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
----
+if David W were to make it possible to not use the load_firmware() call to 
+userspace and build the firmware into the driver (be it in a monolithic 
+kernel or the module that contains the driver) this would not be a 
+problem. the default could be to build in the firmware (avoiding breakage) 
+and those people and distros that see a reason to seperate the firmware 
+would be able to by changing that setting.
 
- include/linux/migrate.h |    2 ++
- include/linux/mm.h      |    2 ++
- mm/Kconfig              |    2 +-
- 3 files changed, 5 insertions(+), 1 deletion(-)
+we have also had the same argument about initrd/initramfs where people 
+have wanted to make them mandatory by moving things (like partition 
+detection) out of the kernel. so far this hasn't happened, and I hope it 
+doesn't.
 
-Index: linux-2.6/include/linux/migrate.h
-===================================================================
---- linux-2.6.orig/include/linux/migrate.h
-+++ linux-2.6/include/linux/migrate.h
-@@ -13,6 +13,7 @@ static inline int vma_migratable(struct 
- {
- 	if (vma->vm_flags & (VM_IO|VM_HUGETLB|VM_PFNMAP|VM_RESERVED))
- 		return 0;
-+#ifdef CONFIG_NUMA
- 	/*
- 	 * Migration allocates pages in the highest zone. If we cannot
- 	 * do so then migration (at least from node to node) is not
-@@ -22,6 +23,7 @@ static inline int vma_migratable(struct 
- 		gfp_zone(mapping_gfp_mask(vma->vm_file->f_mapping))
- 								< policy_zone)
- 			return 0;
-+#endif
- 	return 1;
- }
- 
-Index: linux-2.6/include/linux/mm.h
-===================================================================
---- linux-2.6.orig/include/linux/mm.h
-+++ linux-2.6/include/linux/mm.h
-@@ -193,6 +193,8 @@ struct vm_operations_struct {
- 	 */
- 	struct mempolicy *(*get_policy)(struct vm_area_struct *vma,
- 					unsigned long addr);
-+#endif
-+#ifdef CONFIG_MIGRATION
- 	int (*migrate)(struct vm_area_struct *vma, const nodemask_t *from,
- 		const nodemask_t *to, unsigned long flags);
- #endif
-Index: linux-2.6/mm/Kconfig
-===================================================================
---- linux-2.6.orig/mm/Kconfig
-+++ linux-2.6/mm/Kconfig
-@@ -174,7 +174,7 @@ config SPLIT_PTLOCK_CPUS
- config MIGRATION
- 	bool "Page migration"
- 	def_bool y
--	depends on NUMA
-+	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE
- 	help
- 	  Allows the migration of the physical location of pages of processes
- 	  while the virtual addresses are not changed. This is useful for
+David Lang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
