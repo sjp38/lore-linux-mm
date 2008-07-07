@@ -1,63 +1,81 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m67E5gAP011736
-	for <linux-mm@kvack.org>; Mon, 7 Jul 2008 10:05:42 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m67E5g0d173922
-	for <linux-mm@kvack.org>; Mon, 7 Jul 2008 10:05:42 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m67E5f7m001690
-	for <linux-mm@kvack.org>; Mon, 7 Jul 2008 10:05:42 -0400
-Subject: Re: [patch 0/6] Strong Access Ordering page attributes for POWER7
-From: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
-In-Reply-To: <1215128392.7960.7.camel@pasglop>
-References: <20080618223254.966080905@linux.vnet.ibm.com>
-	 <1215128392.7960.7.camel@pasglop>
-Content-Type: text/plain
-Date: Mon, 07 Jul 2008 09:05:40 -0500
-Message-Id: <1215439540.16098.15.camel@norville.austin.ibm.com>
-Mime-Version: 1.0
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch 1/2] mm: dont clear PG_uptodate in invalidate_complete_page2()
+Date: Tue, 8 Jul 2008 00:28:00 +1000
+References: <20080625124038.103406301@szeredi.hu> <200807072217.57509.nickpiggin@yahoo.com.au> <E1KFqD4-0001vq-3F@pomaz-ex.szeredi.hu>
+In-Reply-To: <E1KFqD4-0001vq-3F@pomaz-ex.szeredi.hu>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200807080028.00642.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: benh@kernel.crashing.org, Joel Schopp <jschopp@austin.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Paul Mackerras <paulus@au1.ibm.com>, Linuxppc-dev@ozlabs.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: jamie@shareable.org, torvalds@linux-foundation.org, jens.axboe@oracle.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-07-04 at 09:39 +1000, Benjamin Herrenschmidt wrote:
-> On Wed, 2008-06-18 at 17:32 -0500, shaggy@linux.vnet.ibm.com wrote:
-> > Andrew,
-> > 
-> > The first patch in this series hits architecture independent code, but the
-> > rest is contained in the powerpc subtree.  Could you pick up the first
-> > patch into -mm?  I can send the rest of them through the powerpc git tree.
-> > The first patch and the rest of the set are independent and can be merged
-> > in either order.
-> 
->  ../..
-> 
-> I was wondering... how do we inform userspace that this is available ?
-> Same question with adding the endian bit on 4xx which I plan to do using
-> your infrastructure...
+On Monday 07 July 2008 22:52, Miklos Szeredi wrote:
+> On Mon, 7 Jul 2008, Nick Piggin wrote:
+> > On Monday 07 July 2008 22:03, Miklos Szeredi wrote:
+> > > Case 3: page is invalidated while in the pipe
+> > >
+> > >   This can happen on pages in the middle of the file, and splice-out
+> > >   can return a zero count.  This is *BAD*, callers of splice really
+> > >   should be able to assume, that a zero return means EOF.
+> > >
+> > > Page invalidation (the invalidate_inode_pages2 kind) is done by only a
+> > > few filesystems (FUSE, NFS, AFS, 9P), and by O_DIRECT hackery.  So
+> > > case 3 only affects these, and only fuse can be re-exported by nfsd
+> > > (and that's only in -mm yet), hence this is very unlikely to be hit
+> > > for any of the others.
+> >
+> > Things that are using invalidate_complete_page2 are probably
+> > also subtly broken if they allow mmap of the same pages, BTW.
+> > It is easy to get wrong. If they have to handle the case of
+> > invalidation failure _anyway_, then we really should have them
+> > just use the safe invalidate...
+>
+> No, if the file changed remotely, then we really want to invalidate
+> _all_ cached pages.
+>
+> The only way invalidate_complete_page2() can fail is if the page is
+> dirty.  But we call ->launder_page() for exactly that reason.  Now if
+> ->launder_page() leaves the page dirty, that's bad, but that shouldn't
+> normally happen.
 
-I hadn't really given it much thought.  Is there a simple way to
-determine if the cpu is power 7 or newer?
+If dirty can't happen, the caller should just use the truncate.
+The creation of this "invalidate 2" thing was just papering over
+problems in the callers.
 
-It's not elegant, but a program could call mmap() with PROT_SAO set and
-check for errno == EINVAL.  Then call again without PROT_SAO, if it
-needs to.
+But anyway your point is taken -- caller doesn't really handle failure.
 
-> We haven't defined a user-visible feature bit (and besides, we're really
-> getting short on these...). This is becoming a bit of concern btw (the
-> running out of bits). Maybe we should start defining an AT_HWCAP2 for
-> powerpc and get libc updated to pick it up ?
 
-Joel,
-Any thoughts?
+> > That would "solve" the splice issue... Although if they handle
+> > failure with a wait/retry loop, then it probably opens a window
+> > to DoS by leaving your pipe filled. In theory one could have a
+> > slowpath function triggered when invalidate fails which copies
+> > the page data and then replaces them with copies in the pipe.
+> > The hard part I suspect is to walk through everybodies pipes and
+> > going through all pages. Probably not realistically solveable.
+>
+> Right.  I think leaving PG_uptodate on invalidation is actually a
+> rather clean solution compared to the alternatives.
 
-Shaggy
--- 
-David Kleikamp
-IBM Linux Technology Center
+Note that files can be truncated in the middle too, so you can't
+just fix one case that happens to hit you, you'd have to fix things
+consistently.
+
+But...
+
+
+> Well, other than my original proposal, which would just have reused
+> the do_generic_file_read() infrastructure for splice.  I still don't
+> see why we shouldn't use that, until the whole async splice-in thing
+> is properly figured out.
+
+Given the alternatives, perhaps this is for the best, at least for
+now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
