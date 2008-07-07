@@ -1,49 +1,36 @@
-Date: Mon, 07 Jul 2008 13:48:32 -0700 (PDT)
-Message-Id: <20080707.134832.189558582.davem@davemloft.net>
-Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20080707193008.17795d61@the-village.bc.nu>
-References: <20080707191359.11f6297f@the-village.bc.nu>
-	<48726734.7080601@garzik.org>
-	<20080707193008.17795d61@the-village.bc.nu>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Date: Mon, 7 Jul 2008 23:03:49 +0200
+From: Andrea Arcangeli <andrea@qumranet.com>
+Subject: Re: [patch 12/13] GRU Driver V3 -  export is_uv_system(),
+	zap_page_range() & follow_page()
+Message-ID: <20080707210349.GK7834@duo.random>
+References: <20080703213348.489120321@attica.americas.sgi.com> <20080703213633.890647632@attica.americas.sgi.com> <20080704073926.GA1449@infradead.org> <20080707143916.GA5209@sgi.com> <Pine.LNX.4.64.0807071657450.17825@blonde.site> <20080707115844.5ee43343@infradead.org> <20080707192923.GA32706@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080707192923.GA32706@sgi.com>
 Sender: owner-linux-mm@kvack.org
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Date: Mon, 7 Jul 2008 19:30:08 +0100
 Return-Path: <owner-linux-mm@kvack.org>
-To: alan@lxorguk.ukuu.org.uk
-Cc: jeff@garzik.org, dwmw2@infradead.org, andi@firstfloor.org, tytso@mit.edu, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: Jack Steiner <steiner@sgi.com>
+Cc: Arjan van de Ven <arjan@infradead.org>, Hugh Dickins <hugh@veritas.com>, Christoph Hellwig <hch@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, cl@linux-foundation.org, akpm@osdl.org, linux-kernel@vger.kernel.org, mingo@elte.hu, tglx@linutronix.de, holt@sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> I don't see why it should be David's job to add every conceivable feature
-> to the code.
+On Mon, Jul 07, 2008 at 02:29:23PM -0500, Jack Steiner wrote:
+> The GRU is not actually very invasive into the VM. It will use the
+> new MMU-notifier callbacks. Aside from the need to translate
+> virt->physical & zap ptes belonging to the GRU, it works fine as a module.
+> No other core changes are needed.
+> 
+> An additional advantage in keeping it as a module is that I expect it
+> to under a number of changes as the hardware matures. It is easier to
+> update the GRU if it is a module.
 
-David's changes prevent something from working, which works today.
-
-Usually we refer to that as a regression.
-
-And usually, we rely on the patch author to fix regressions they add,
-and failing that we revert their work.
-
-Bringing up this SATA scarecrow and trying to make Jeff look
-inconsistent is not winning your arguments any extra points.
-Especially not with me.
-
-You also mentioned something about how similar arguments as ours
-were made when modules were proposed as a feature.  Well, I can
-say only two things about that:
-
-1) I could still build a static kernel image and use it as-is after
-   the changes to support modules were added to the kernel.  In fact I
-   still largely do not use modules at all during my own kernel work.
-
-   This is completely unlike what David is doing here, where the
-   previous status quo will cease working.
-
-2) You cannot deny the fine mess we have with proprietary modules and
-   such these days.  It has been quite the pandora's box over time.
+Agreed, same applies to kvm mmu.c which also is heavily modularized
+and hidden to the main Linux VM. The whole point of the mmu notifiers
+is to allow all those secondary MMUs to interact fully with the main
+Linux VM and get all the benefits from it, but without having to
+pollute and mess with it at every hardware change, plus allowing
+multiple secondary MMUs to work on the same "mm" simultaneously and
+transparently to each other.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
