@@ -1,78 +1,56 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+In-reply-to: <200807072101.58963.nickpiggin@yahoo.com.au> (message from Nick
+	Piggin on Mon, 7 Jul 2008 21:01:58 +1000)
 Subject: Re: [patch 1/2] mm: dont clear PG_uptodate in invalidate_complete_page2()
-Date: Mon, 7 Jul 2008 21:01:58 +1000
-References: <20080625124038.103406301@szeredi.hu> <E1KFmuc-0001VS-RS@pomaz-ex.szeredi.hu> <E1KFniG-0001cS-Rb@pomaz-ex.szeredi.hu>
-In-Reply-To: <E1KFniG-0001cS-Rb@pomaz-ex.szeredi.hu>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200807072101.58963.nickpiggin@yahoo.com.au>
+References: <20080625124038.103406301@szeredi.hu> <E1KFmuc-0001VS-RS@pomaz-ex.szeredi.hu> <E1KFniG-0001cS-Rb@pomaz-ex.szeredi.hu> <200807072101.58963.nickpiggin@yahoo.com.au>
+Message-Id: <E1KFpRL-0001pA-Aq@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Mon, 07 Jul 2008 14:03:31 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: jamie@shareable.org, torvalds@linux-foundation.org, jens.axboe@oracle.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, hugh@veritas.com
+To: nickpiggin@yahoo.com.au
+Cc: miklos@szeredi.hu, jamie@shareable.org, torvalds@linux-foundation.org, jens.axboe@oracle.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Monday 07 July 2008 20:12, Miklos Szeredi wrote:
-> On Mon, 07 Jul 2008, Miklos Szeredi wrote:
-> > On Mon, 7 Jul 2008, Nick Piggin wrote:
-> > > I don't know what became of this thread, but I agree with everyone else
-> > > you should not skip clearing PG_uptodate here. If nothing else, it
-> > > weakens some important assertions in the VM. But I agree that splice
-> > > should really try harder to work with it and we should be a little
-> > > careful about just changing things like this.
-> >
-> > Sure, that's why I rfc'ed.
-> >
-> > But I'd still like to know, what *are* those assumptions in the VM
-> > that would be weakened by this?
->
-> For one, currently some of the generic VM code assumes that after
-> synchronously reading in a page (i.e. ->readpage() then lock_page())
-> !PageUptodate() necessarily means an I/O error:
+On Mon, 7 Jul 2008, Nick Piggin wrote:
+> And it isn't just a fuse problem is it? Other places can invalidate
+> and truncate pages which might be spliced into a pipe, can't they?
 
-Yes, the error paths in the vm/fs layer can be pretty crappy.
+Yes.  There are several different problems here actually, and it's not
+completely clear how splice should handle them:
 
+Case 1: page is completely truncated while in the pipe
 
-> /**
->  * read_cache_page - read into page cache, fill it if needed
-> ...
->  * If the page does not get brought uptodate, return -EIO.
->  */
->
-> Which is wrong, the page could be invalidated between being broough
-> uptodate and being examined for being uptodate.  Then we'd be
-> returning EIO, which is definitely wrong.
->
-> AFAICS this could be a real (albeit rare) bug in NFS's readdir().
+  Currently splice() will detect this and return a short read count on
+  the splice-out.  Which sounds sane, and consistent with the fact
+  that a zero return value can happen on EOF.
 
-Actually this bug is known for a long time and exists in the
-generic mapping read code too. And it doesn't even need to be
-invalidated as such, but even truncated. It can be hard to get
-people excited about "theoretical" bugs :(
+Case 2: page is partially truncated while in the pipe
 
+  Splice doesn't detect this, and returns the contents of the whole
+  page on splice-out, which will contain the zeroed-out part as well.
+  This is not so nice, but other than some elaborate COW schemes, I
+  don't see how this could be fixed.
 
-> This is easily fixable in read_cache_page(), but what I'm trying to
-> say is that assumptions about PG_uptodate aren't all that clear to
-> begin with, so it would perhaps be useful to first think about this a
-> bit more.
+Case 3: page is invalidated while in the pipe
 
-PG_uptodate should be set if we can return data to userspace
-from it. I wouldn't worry about the error path bugs like this:
-they should all be testing PG_error for -EIOness rather than
-!PageUptodate. However I don't want to skip clearing PG_uptodate
-in invalidate just yet if possible.
+  This can happen on pages in the middle of the file, and splice-out
+  can return a zero count.  This is *BAD*, callers of splice really
+  should be able to assume, that a zero return means EOF.
 
-It seems to be a documented and known issue from day 0, so if
-we can't see a really easy way to fix it without leave PG_uptodate
-hanging around, can we put the burden on the callers to handle
-the case correctly rather than put it on the VM to handle it?
-(which we will then have to support for T < infinity)
+Page invalidation (the invalidate_inode_pages2 kind) is done by only a
+few filesystems (FUSE, NFS, AFS, 9P), and by O_DIRECT hackery.  So
+case 3 only affects these, and only fuse can be re-exported by nfsd
+(and that's only in -mm yet), hence this is very unlikely to be hit
+for any of the others.
 
-And it isn't just a fuse problem is it? Other places can invalidate
-and truncate pages which might be spliced into a pipe, can't they?
+But it's bad despite being rare, because once it hits it can cause
+data corruption (like with fuse/nfsd) and could be very hard to debug.
+OK, case 2 could also cause corruption if caller is not expecting it.
+
+Splice is a cool concept, but it isn't easy to get the implementation
+right...
+
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
