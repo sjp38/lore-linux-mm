@@ -1,51 +1,65 @@
-In-reply-to: <E1KFmuc-0001VS-RS@pomaz-ex.szeredi.hu> (message from Miklos
-	Szeredi on Mon, 07 Jul 2008 11:21:34 +0200)
-Subject: Re: [patch 1/2] mm: dont clear PG_uptodate in invalidate_complete_page2()
-References: <20080625124038.103406301@szeredi.hu> <20080625173837.GA10005@shareable.org> <E1KBZqG-0008OZ-Pw@pomaz-ex.szeredi.hu> <200807071638.32955.nickpiggin@yahoo.com.au> <E1KFmuc-0001VS-RS@pomaz-ex.szeredi.hu>
-Message-Id: <E1KFniG-0001cS-Rb@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Mon, 07 Jul 2008 12:12:52 +0200
+Date: Mon, 07 Jul 2008 19:24:06 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [PATCH] Make CONFIG_MIGRATION available for s390
+In-Reply-To: <20080707090635.GA6797@shadowen.org>
+References: <1215354957.9842.19.camel@localhost.localdomain> <20080707090635.GA6797@shadowen.org>
+Message-Id: <20080707185433.5A5D.E1E9C6FF@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: nickpiggin@yahoo.com.au
-Cc: miklos@szeredi.hu, jamie@shareable.org, torvalds@linux-foundation.org, jens.axboe@oracle.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, hugh@veritas.com
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 07 Jul 2008, Miklos Szeredi wrote:
-> On Mon, 7 Jul 2008, Nick Piggin wrote:
-> > I don't know what became of this thread, but I agree with everyone else
-> > you should not skip clearing PG_uptodate here. If nothing else, it
-> > weakens some important assertions in the VM. But I agree that splice
-> > should really try harder to work with it and we should be a little
-> > careful about just changing things like this.
+> > Index: linux-2.6/include/linux/migrate.h
+> > ===================================================================
+> > --- linux-2.6.orig/include/linux/migrate.h
+> > +++ linux-2.6/include/linux/migrate.h
+> > @@ -13,6 +13,7 @@ static inline int vma_migratable(struct 
+> >  {
+> >  	if (vma->vm_flags & (VM_IO|VM_HUGETLB|VM_PFNMAP|VM_RESERVED))
+> >  		return 0;
+> > +#ifdef CONFIG_NUMA
+> >  	/*
+> >  	 * Migration allocates pages in the highest zone. If we cannot
+> >  	 * do so then migration (at least from node to node) is not
+> > @@ -22,6 +23,7 @@ static inline int vma_migratable(struct 
+> >  		gfp_zone(mapping_gfp_mask(vma->vm_file->f_mapping))
+> >  								< policy_zone)
+> >  			return 0;
+> > +#endif
 > 
-> Sure, that's why I rfc'ed.
+> include/linux/mempolicy.h already has a !NUMA section could we not just
+> define policy_zone as 0 in that and leave this code unconditionally
+> compiled?  Perhaps also adding a NUMA_BUILD && to this 'if' should that
+> be clearer.
 > 
-> But I'd still like to know, what *are* those assumptions in the VM
-> that would be weakened by this?
+Ah, yes. It's better. :-)
 
-For one, currently some of the generic VM code assumes that after
-synchronously reading in a page (i.e. ->readpage() then lock_page())
-!PageUptodate() necessarily means an I/O error:
 
-/**
- * read_cache_page - read into page cache, fill it if needed
-...
- * If the page does not get brought uptodate, return -EIO.
- */
+> But this does make me feel uneasy.  Are we really saying all memory on
+> an s390 is migratable.  That seems unlikely. As I understand the NUMA
+> case, we only allow migration of memory in the last zone (last two if we
+> have a MOVABLE zone) why are things different just because we have a
+> single 'node'.  Hmmm.  I suspect strongly that something is missnamed
+> more than there is a problem.
 
-Which is wrong, the page could be invalidated between being broough
-uptodate and being examined for being uptodate.  Then we'd be
-returning EIO, which is definitely wrong.
+If my understanding is correct, even if this policy_zone check is removed,
+page isolation will just fail due to some busy pages.
+In hotplug case, it means giving up of hotremoving,
+and kernel must be rollback to make same condition of previous
+starting offline_pages().
+This check means just "early" check, but not so effective for hotremoving,
+I think....
 
-AFAICS this could be a real (albeit rare) bug in NFS's readdir().
 
-This is easily fixable in read_cache_page(), but what I'm trying to
-say is that assumptions about PG_uptodate aren't all that clear to
-begin with, so it would perhaps be useful to first think about this a
-bit more.
+Thanks.
 
-Miklos
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
