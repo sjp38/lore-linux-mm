@@ -1,40 +1,59 @@
-Date: Mon, 7 Jul 2008 16:53:33 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-Message-ID: <20080707165333.6347f564@the-village.bc.nu>
-In-Reply-To: <48715807.8070605@garzik.org>
-References: <1215093175.10393.567.camel@pmac.infradead.org>
-	<20080703173040.GB30506@mit.edu>
-	<1215111362.10393.651.camel@pmac.infradead.org>
-	<20080703.162120.206258339.davem@davemloft.net>
-	<486D6DDB.4010205@infradead.org>
-	<87ej6armez.fsf@basil.nowhere.org>
-	<1215177044.10393.743.camel@pmac.infradead.org>
-	<486E2260.5050503@garzik.org>
-	<1215178035.10393.763.camel@pmac.infradead.org>
-	<486E2818.1060003@garzik.org>
-	<1215179161.10393.773.camel@pmac.infradead.org>
-	<486E2E9B.20200@garzik.org>
-	<20080704153822.4db2f325@lxorguk.ukuu.org.uk>
-	<48715807.8070605@garzik.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 7 Jul 2008 17:29:54 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch 12/13] GRU Driver V3 -  export is_uv_system(), zap_page_range()
+ & follow_page()
+In-Reply-To: <20080707143916.GA5209@sgi.com>
+Message-ID: <Pine.LNX.4.64.0807071657450.17825@blonde.site>
+References: <20080703213348.489120321@attica.americas.sgi.com>
+ <20080703213633.890647632@attica.americas.sgi.com> <20080704073926.GA1449@infradead.org>
+ <20080707143916.GA5209@sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jeff@garzik.org>
-Cc: David Woodhouse <dwmw2@infradead.org>, Andi Kleen <andi@firstfloor.org>, David Miller <davem@davemloft.net>, tytso@mit.edu, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: Jack Steiner <steiner@sgi.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, cl@linux-foundation.org, akpm@osdl.org, linux-kernel@vger.kernel.org, mingo@elte.hu, tglx@linutronix.de, holt@sgi.com, andrea@qumranet.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > And we had the same argument over ten years ago about those evil module
-> > things which stopped you just using scp to copy the kernel in one go.
-> > Fortunately the nay sayers lost so we have modules.
+On Mon, 7 Jul 2008, Jack Steiner wrote:
+> > > +EXPORT_SYMBOL_GPL(follow_page);
+> > 
+> > NACK.
+> > 
+> > These should never be called by a driver and suggest you need to rething
+> > your VM integration in this driver.
 > 
-> Broken analogy.
-> 
-> When modules were added, you were given the option to use them, or not.
+> Can you provide some additional details on the type of kernel API
+> that could be exported to provide a pte lookup in atomic context?
 
-You can still choose to compile firmware in. Did you read the patches ?
+I don't see EXPORT_SYMBOL_GPL(follow_page) as objectionable myself:
+it rather seems rather to complement EXPORT_SYMBOL(vm_insert_page)
+and EXPORT_SYMBOL(vmalloc_to_page); though I'd agree that it's
+sufficiently sensitive to need that _GPL on it.
+
+...
+
+> Currently, the driver calls follow_page() in interrupt context.
+
+However, that's a problem, isn't it, given the pte_offset_map_lock
+in follow_page?  To avoid the possibility of deadlock, wouldn't we
+have to change all the page table locking to irq-disabling variants?
+Which I think we'd have reason to prefer not to do.
+
+Maybe study the assumptions Nick is making in his arch/x86/mm/gup.c
+in mm, and do something similar in your GRU driver (falling back to
+the slow method when anything's not quite right).  It's not nice to
+have such code out in a driver, but GRU is going to be exceptional,
+and it may be better to have it out there than pretence of generality
+in the core mm exporting it.
+
+Note that even the unlocked pte_offset_map which gup_pte_range uses,
+is in general unsafe at interrupt time: because of using a KM_PTE0
+atomic kmap which might be in use at the time of the interrupt.  But
+I doubt your GRU driver is intended for use in HIGHMEM architectures,
+so that may be enough to excuse it.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
