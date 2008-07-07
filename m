@@ -1,71 +1,67 @@
-Date: Mon, 7 Jul 2008 15:48:30 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH -mm 0/5] swapcgroup (v3)
-Message-Id: <20080707154830.55c52d65.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <486F1A29.4020407@linux.vnet.ibm.com>
-References: <20080704151536.e5384231.nishimura@mxp.nes.nec.co.jp>
-	<486F1A29.4020407@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by wf-out-1314.google.com with SMTP id 28so2388672wfc.11
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2008 00:32:42 -0700 (PDT)
+Message-ID: <19f34abd0807070032wb6a2d50s99de5950132016f5@mail.gmail.com>
+Date: Mon, 7 Jul 2008 09:32:41 +0200
+From: "Vegard Nossum" <vegard.nossum@gmail.com>
+Subject: Re: next-0704: WARNING: at kernel/sched.c:4254 add_preempt_count; PANIC
+In-Reply-To: <487159DA.708@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <487159DA.708@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: nishimura@mxp.nes.nec.co.jp, Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hugh@veritas.com>, Pavel Emelyanov <xemul@openvz.org>
+To: Alexander Beregalov <a.beregalov@gmail.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-next@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, Balbir-san.
+On Mon, Jul 7, 2008 at 1:48 AM, Alexander Beregalov
+<a.beregalov@gmail.com> wrote:
+> Hi
+>
+> WARNING: at kernel/sched.c:4254 add_preempt_count+0x61/0x63()
+> Modules linked in: i2c_nforce2
+> Pid: 3620, comm: rtorrent Not tainted 2.6.26-rc8-next-20080704 #5
+>  [<c038e436>] ? printk+0xf/0x11
+>  [<c011b681>] warn_on_slowpath+0x41/0x7b
+>  [<c0157a94>] ? mmap_region+0x1c5/0x414
+>  [<c0156499>] ? remove_vma+0x50/0x56
+>  [<c0159836>] ? anon_vma_prepare+0x52/0xc5
+...
 
-On Sat, 05 Jul 2008 12:22:25 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> Daisuke Nishimura wrote:
-> > Hi.
-> > 
-> > This is new version of swapcgroup.
-> > 
-> > Major changes from previous version
-> > - Rebased on 2.6.26-rc5-mm3.
-> >   The new -mm has been released, but these patches
-> >   can be applied on 2.6.26-rc8-mm1 too with only some offset warnings.
-> >   I tested these patches on 2.6.26-rc5-mm3 with some fixes about memory,
-> >   and it seems to work fine.
-> > - (NEW) Implemented force_empty.
-> >   Currently, it simply uncharges all the charges from the group.
-> > 
-> > Patches
-> > - [1/5] add cgroup files
-> > - [2/5] add a member to swap_info_struct
-> > - [3/5] implement charge and uncharge
-> > - [4/5] modify vm_swap_full() 
-> > - [5/5] implement force_empty
-> > 
-> > ToDo(in my thought. Feel free to add some others here.)
-> > - need some documentation
-> >   Add to memory.txt? or create a new documentation file?
-> > 
-> 
-> I think memory.txt is good. But then, we'll need to add a Table of Contents to
-> it, so that swap controller documentation can be located easily.
-> 
-I think memory.txt is a self-closed documentation,
-so I don't want to change it, honestlly.
+> BUG: unable to handle kernel paging request at fffef4f1
+> IP: [<c0103c53>] dump_trace+0xa5/0xe2
+> *pde = 00007067 *pte = 00000000
+> Oops: 0000 [#1] PREEMPT DEBUG_PAGEALLOC
+> last sysfs file: /sys/devices/pci0000:00/0000:00:1e.0/0000:02:00.1/class
+> Modules linked in: i2c_nforce2
+>
+> Pid: 3620, comm: rtorrent Not tainted (2.6.26-rc8-next-20080704 #5)
+> EIP: 0060:[<c0103c53>] EFLAGS: 00210097 CPU: 0
+> EIP is at dump_trace+0xa5/0xe2
+> EAX: fffefffc EBX: fffef4f1 ECX: c0396978 EDX: c0455a08
+> ESI: 5a5a5a5a EDI: f4d4c084 EBP: f4d4bf34 ESP: f4d4bf14
 
-I'll write a documentation for swap as a new file first for review.
+^--- POISON_INUSE
 
-> > - add option to disable only this feature
-> >   I'm wondering if this option is needed.
-> >   memcg has already the boot option to disable it.
-> >   Is there any case where memory should be accounted but swap should not?
-> > 
-> 
-> That depends on what use case you are trying to provide. Let's say I needed
-> backward compatibility with 2.6.25, then I would account for memory and leave
-> out swap (even though we have swap controller).
-> 
-O.K. I'll add option.
+But I don't know if this is really significant, given that it's not
+the first error you're getting. It may also be just a remnant of the
+memset() that marks the SLUB objects as such. (Or something like
+that.)
+
+Too bad the recursive page fault stops us from getting the Code: line.
+
+Config would be nice :-)
 
 
-Thanks,
-Daisuke Nishimura.
+Vegard
+
+-- 
+"The animistic metaphor of the bug that maliciously sneaked in while
+the programmer was not looking is intellectually dishonest as it
+disguises that the error is the programmer's own creation."
+	-- E. W. Dijkstra, EWD1036
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
