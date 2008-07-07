@@ -1,194 +1,107 @@
-Received: by wx-out-0506.google.com with SMTP id h29so1483806wxd.11
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2008 00:46:52 -0700 (PDT)
-Message-ID: <a4423d670807070046l7d7c6fd0yfdd11efad1decc29@mail.gmail.com>
-Date: Mon, 7 Jul 2008 11:46:51 +0400
-From: "Alexander Beregalov" <a.beregalov@gmail.com>
-Subject: Re: next-0704: WARNING: at kernel/sched.c:4254 add_preempt_count; PANIC
-In-Reply-To: <19f34abd0807070032wb6a2d50s99de5950132016f5@mail.gmail.com>
+Date: Mon, 7 Jul 2008 10:16:38 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: Re: [PATCH] Make CONFIG_MIGRATION available for s390
+Message-ID: <20080707090635.GA6797@shadowen.org>
+References: <1215354957.9842.19.camel@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: multipart/mixed;
-	boundary="----=_Part_3013_22826961.1215416811957"
-References: <487159DA.708@gmail.com>
-	 <19f34abd0807070032wb6a2d50s99de5950132016f5@mail.gmail.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1215354957.9842.19.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Vegard Nossum <vegard.nossum@gmail.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-next@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-------=_Part_3013_22826961.1215416811957
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+On Sun, Jul 06, 2008 at 04:35:57PM +0200, Gerald Schaefer wrote:
+> From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+> 
+> We'd like to support CONFIG_MEMORY_HOTREMOVE on s390, which depends on
+> CONFIG_MIGRATION. So far, CONFIG_MIGRATION is only available with NUMA
+> support.
+> 
+> This patch makes CONFIG_MIGRATION selectable for architectures that define
+> ARCH_ENABLE_MEMORY_HOTREMOVE. When MIGRATION is enabled w/o NUMA, the kernel
+> won't compile because of a missing migrate() function in vm_operations_struct
+> and a missing policy_zone reference in vma_migratable(). To avoid this,
+> "#ifdef CONFIG_NUMA" is added to vma_migratable() and the vm_ops migrate()
+> definition is moved from "#ifdef CONFIG_NUMA" to "#ifdef CONFIG_MIGRATION".
+> 
+> Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+> ---
+> 
+>  include/linux/migrate.h |    2 ++
+>  include/linux/mm.h      |    2 ++
+>  mm/Kconfig              |    2 +-
+>  3 files changed, 5 insertions(+), 1 deletion(-)
+> 
+> Index: linux-2.6/include/linux/migrate.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/migrate.h
+> +++ linux-2.6/include/linux/migrate.h
+> @@ -13,6 +13,7 @@ static inline int vma_migratable(struct 
+>  {
+>  	if (vma->vm_flags & (VM_IO|VM_HUGETLB|VM_PFNMAP|VM_RESERVED))
+>  		return 0;
+> +#ifdef CONFIG_NUMA
+>  	/*
+>  	 * Migration allocates pages in the highest zone. If we cannot
+>  	 * do so then migration (at least from node to node) is not
+> @@ -22,6 +23,7 @@ static inline int vma_migratable(struct 
+>  		gfp_zone(mapping_gfp_mask(vma->vm_file->f_mapping))
+>  								< policy_zone)
+>  			return 0;
+> +#endif
 
-2008/7/7 Vegard Nossum <vegard.nossum@gmail.com>:
-> Config would be nice :-)
-Sure
+include/linux/mempolicy.h already has a !NUMA section could we not just
+define policy_zone as 0 in that and leave this code unconditionally
+compiled?  Perhaps also adding a NUMA_BUILD && to this 'if' should that
+be clearer.
 
-------=_Part_3013_22826961.1215416811957
-Content-Type: application/x-gzip; name=tor-config.gz
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_ficrrn4p0
-Content-Disposition: attachment; filename=tor-config.gz
+But this does make me feel uneasy.  Are we really saying all memory on
+an s390 is migratable.  That seems unlikely.  As I understand the NUMA
+case, we only allow migration of memory in the last zone (last two if we
+have a MOVABLE zone) why are things different just because we have a
+single 'node'.  Hmmm.  I suspect strongly that something is missnamed
+more than there is a problem.
 
-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
-------=_Part_3013_22826961.1215416811957--
+>  	return 1;
+>  }
+>  
+> Index: linux-2.6/include/linux/mm.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/mm.h
+> +++ linux-2.6/include/linux/mm.h
+> @@ -193,6 +193,8 @@ struct vm_operations_struct {
+>  	 */
+>  	struct mempolicy *(*get_policy)(struct vm_area_struct *vma,
+>  					unsigned long addr);
+> +#endif
+> +#ifdef CONFIG_MIGRATION
+>  	int (*migrate)(struct vm_area_struct *vma, const nodemask_t *from,
+>  		const nodemask_t *to, unsigned long flags);
+>  #endif
+> Index: linux-2.6/mm/Kconfig
+> ===================================================================
+> --- linux-2.6.orig/mm/Kconfig
+> +++ linux-2.6/mm/Kconfig
+> @@ -174,7 +174,7 @@ config SPLIT_PTLOCK_CPUS
+>  config MIGRATION
+>  	bool "Page migration"
+>  	def_bool y
+> -	depends on NUMA
+> +	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE
+>  	help
+>  	  Allows the migration of the physical location of pages of processes
+>  	  while the virtual addresses are not changed. This is useful for
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
