@@ -1,38 +1,30 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m67LNQc6029350
-	for <linux-mm@kvack.org>; Mon, 7 Jul 2008 17:23:26 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m67LNGA0214606
-	for <linux-mm@kvack.org>; Mon, 7 Jul 2008 17:23:16 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m67LNFeu025676
-	for <linux-mm@kvack.org>; Mon, 7 Jul 2008 17:23:16 -0400
-Message-ID: <48728942.6050007@austin.ibm.com>
-Date: Mon, 07 Jul 2008 16:23:14 -0500
-From: Joel Schopp <jschopp@austin.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [patch 0/6] Strong Access Ordering page attributes for POWER7
-References: <20080618223254.966080905@linux.vnet.ibm.com>	 <1215128392.7960.7.camel@pasglop> <1215439540.16098.15.camel@norville.austin.ibm.com>
-In-Reply-To: <1215439540.16098.15.camel@norville.austin.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Mon, 07 Jul 2008 14:45:05 -0700 (PDT)
+Message-Id: <20080707.144505.67398603.davem@davemloft.net>
+Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20080707214218.055bcb35@the-village.bc.nu>
+References: <20080707193008.17795d61@the-village.bc.nu>
+	<20080707.134832.189558582.davem@davemloft.net>
+	<20080707214218.055bcb35@the-village.bc.nu>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Date: Mon, 7 Jul 2008 21:42:18 +0100
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Paul Mackerras <paulus@au1.ibm.com>, Linuxppc-dev@ozlabs.org
+To: alan@lxorguk.ukuu.org.uk
+Cc: jeff@garzik.org, dwmw2@infradead.org, andi@firstfloor.org, tytso@mit.edu, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
->> We haven't defined a user-visible feature bit (and besides, we're really
->> getting short on these...). This is becoming a bit of concern btw (the
->> running out of bits). Maybe we should start defining an AT_HWCAP2 for
->> powerpc and get libc updated to pick it up ?
->>     
->
-> Joel,
-> Any thoughts?
-Is it a required or optional feature of the 2.06 architecture spec?  If it's required you could just use that.  It doesn't solve the problem more generically if other archs decide to implement it though.
+> > 2) You cannot deny the fine mess we have with proprietary modules and
+> >    such these days.  It has been quite the pandora's box over time.
+> 
+> You seem to be trying to conflate legal and technical issues here.
 
+Exactly like the patches we are current discussing.
 
+Thanks for walking right into that. :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
