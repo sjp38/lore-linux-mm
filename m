@@ -1,47 +1,66 @@
-Date: Mon, 07 Jul 2008 14:58:19 -0700 (PDT)
-Message-Id: <20080707.145819.209342070.davem@davemloft.net>
-Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20080707221427.163c4a30@the-village.bc.nu>
-References: <20080707214218.055bcb35@the-village.bc.nu>
-	<20080707.144505.67398603.davem@davemloft.net>
-	<20080707221427.163c4a30@the-village.bc.nu>
+Subject: Re: [patch 1/6] mm: Allow architectures to define additional
+	protection bits
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Reply-To: benh@kernel.crashing.org
+In-Reply-To: <Pine.LNX.4.64.0807072143200.27181@blonde.site>
+References: <20080618223254.966080905@linux.vnet.ibm.com>
+	 <20080618223328.856102092@linux.vnet.ibm.com>
+	 <20080701015301.3dc8749b.akpm@linux-foundation.org>
+	 <1214920499.18690.10.camel@norville.austin.ibm.com>
+	 <1215409956.8970.82.camel@pasglop>
+	 <Pine.LNX.4.64.0807072143200.27181@blonde.site>
+Content-Type: text/plain
+Date: Tue, 08 Jul 2008 08:24:28 +1000
+Message-Id: <1215469468.8970.143.camel@pasglop>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Date: Mon, 7 Jul 2008 22:14:27 +0100
 Return-Path: <owner-linux-mm@kvack.org>
-To: alan@lxorguk.ukuu.org.uk
-Cc: jeff@garzik.org, dwmw2@infradead.org, andi@firstfloor.org, tytso@mit.edu, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Dave Kleikamp <shaggy@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Paul Mackerras <paulus@au1.ibm.com>, Linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-> > > You seem to be trying to conflate legal and technical issues here.
-> > 
-> > Exactly like the patches we are current discussing.
-> > 
-> > Thanks for walking right into that. :-)
+On Mon, 2008-07-07 at 22:11 +0100, Hugh Dickins wrote:
+> Sorry, Andrew got the wrong pantomime: I was appearing in Aladdin
+> a couple of years ago, but this year I'm the Sleeping Beauty.
+> (Did I hear a grumble of dissent from the back stalls?)
+
+No comment :-)
+
+> I don't find Dave's patch very handsome, but it gets the job done
+> so I'd better not carp.  The ugliness in vm_get_page_prot is just
+> an inevitable consequence of growing beyond the traditional neat
+> pairing of VM_xxx flags with VM_MAYxxx flags, along with the way
+> that opaque pgprot_t type becomes occasionally tiresome, as such
+> opaque types do: I don't think there's a better way of handling
+> it than Dave has done.
+
+That was also my conclusion. It didn't look pretty but I couldn't come
+up with something prettier.
+ 
+> There is a little inconsistency, that arch_calc_vm_prot_bits
+> and arch_vm_get_page_prot just handle the exceptional flag (SAO),
+> whereas arch_validate_prot handles all of them; but I don't feel
+> so strongly about that to suggest resubmission.
 > 
-> No - the patches are for technical reasons, 
+> And regarding VM_SAO added to include/linux/mm.h in 3/6: although
+> it's odd to be weaving back and forth between arch-specific and
+> common, it's already the case that mman definitions and pgtable
+> definitions are arch-specific but mm.h common: I'm much happier
+> to have VM_SAO defined once there as Dave has it, than get into
+> arch-specific vm_flags.
+> 
+> Is someone going to be asking for PROT_WC shortly?
 
-Which are?  Consistent use of request_firmware()?
+I'll definitely come with PROT_ENDIAN soon :-) (ie, some powerpc
+processors can have a per-page endian flag that when set causes all
+load/store instructions on this are to be byte-flipped, support for this
+feature has been requested for some time, and now I have the
+infrastructure to do it).
 
-That's pure bullox as far as I can see.  Why provide the means to
-do something nobody has had a need for in 6+ years?  Who needs
-to load different firmware for the tg3 driver?
+Cheers,
+Ben.
 
-Who needs that capability? Distribution vendors?  What for?
-In what case will they need to load different firmware from
-what the driver maintainer tested as a unit?
-
-Rather, they want separation.  I can see no other real impetus.
-
-And, btw, who has the right to enforce this new burdon upon driver
-maintainers when they have had a working and maintainable system for
-so long?
-
-I can only see it being about separation, pure and simple.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
