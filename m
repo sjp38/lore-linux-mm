@@ -1,59 +1,53 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m68I8Wt8008417
-	for <linux-mm@kvack.org>; Tue, 8 Jul 2008 14:08:32 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m68I8Ujv064074
-	for <linux-mm@kvack.org>; Tue, 8 Jul 2008 12:08:30 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m68I8TZM014529
-	for <linux-mm@kvack.org>; Tue, 8 Jul 2008 12:08:30 -0600
-Date: Tue, 8 Jul 2008 11:08:26 -0700
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m68IDSMU005603
+	for <linux-mm@kvack.org>; Tue, 8 Jul 2008 14:13:28 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m68IDRw7198952
+	for <linux-mm@kvack.org>; Tue, 8 Jul 2008 14:13:27 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m68IDR4C019831
+	for <linux-mm@kvack.org>; Tue, 8 Jul 2008 14:13:27 -0400
+Date: Tue, 8 Jul 2008 11:13:25 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [RFC PATCH 4/4] hugetlb: remove CONFIG_SYSFS dependency
-Message-ID: <20080708180826.GF14908@us.ibm.com>
-References: <20080708180348.GB14908@us.ibm.com> <20080708180542.GC14908@us.ibm.com> <20080708180644.GD14908@us.ibm.com> <20080708180751.GE14908@us.ibm.com>
+Subject: Re: [RFC PATCH 0/4] -mm-only hugetlb updates
+Message-ID: <20080708181325.GG14908@us.ibm.com>
+References: <20080708180348.GB14908@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080708180751.GE14908@us.ibm.com>
+In-Reply-To: <20080708180348.GB14908@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: npiggin@suse.de
-Cc: mel@csn.ul.ie, agl@us.ibm.com, akpm@linux-foudation.org, linux-mm@kvack.org
+Cc: mel@csn.ul.ie, agl@us.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I incorrectly made the hugetlb kobject functionality depend on SYSFS,
-when, in fact, the kobject functions fully work even with out sysfs.
-Without sysfs, there is no interface to manipulate the attributes of the
-various hugetlb kobjects, but they still exist.
+On 08.07.2008 [11:03:48 -0700], Nishanth Aravamudan wrote:
+> As Nick requested, I've moved /sys/kernel/hugepages to
+> /sys/kernel/mm/hugepages. I put the creation of the /sys/kernel/mm
+> kobject in mm_init.c and that required removing the conditional
+> compilation of that file. This also necessitated a bit of Documentation
+> updates (and the addition of the /sys/kernel/mm ABI file). Finally, I
+> realized that kobject usage doesn't require CONFIG_SYSFS, so I was able
+> to remove one ifdef from hugetlb.c.
+> 
+> Andrew, I believe these patches, if acceptable, should be folded in
+> place, if possible, in the hugetlb series (that is, the sysfs location
+> should only ever have appeared to be /sys/kernel/mm/hugepages). The ease
+> with which that can occur I guess depends on where Mel's
+> DEBUG_MEMORY_INIT patches are in the series.
+> 
+> 1/4: mm: remove mm_init compilation dependency on CONFIG_DEBUG_MEMORY_INIT
+> 2/4: mm: create /sys/kernel/mm
+> 3/4: hugetlb: hang off of /sys/kernel/mm rather than /sys/kernel
+> 4/4: hugetlb: remove CONFIG_SYSFS dependency
 
-Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+Sorry, stupid typo in Andrew's e-mail address. Andrew, will you grab the
+patches (if acceptable) from the mailing list, or would you prefer I
+resend?
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 9c24f8f..a432889 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1130,7 +1130,6 @@ out:
- 	return ret;
- }
- 
--#ifdef CONFIG_SYSFS
- #define HSTATE_ATTR_RO(_name) \
- 	static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
- 
-@@ -1282,12 +1281,6 @@ static void __exit hugetlb_exit(void)
- }
- module_exit(hugetlb_exit);
- 
--#else
--static void __init hugetlb_sysfs_init(void)
--{
--}
--#endif
--
- static int __init hugetlb_init(void)
- {
- 	BUILD_BUG_ON(HPAGE_SHIFT == 0);
+Thanks,
+Nish
 
 -- 
 Nishanth Aravamudan <nacc@us.ibm.com>
