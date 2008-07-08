@@ -1,41 +1,39 @@
-Subject: Re: [patch 0/6] Strong Access Ordering page attributes for POWER7
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Reply-To: benh@kernel.crashing.org
-In-Reply-To: <48728942.6050007@austin.ibm.com>
-References: <20080618223254.966080905@linux.vnet.ibm.com>
-	 <1215128392.7960.7.camel@pasglop>
-	 <1215439540.16098.15.camel@norville.austin.ibm.com>
-	 <48728942.6050007@austin.ibm.com>
-Content-Type: text/plain
-Date: Tue, 08 Jul 2008 08:27:57 +1000
-Message-Id: <1215469677.8970.148.camel@pasglop>
-Mime-Version: 1.0
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch 12/13] GRU Driver V3 -  export is_uv_system(), zap_page_range() & follow_page()
+Date: Tue, 8 Jul 2008 12:16:21 +1000
+References: <20080703213348.489120321@attica.americas.sgi.com> <Pine.LNX.4.64.0807071657450.17825@blonde.site> <20080707165358.GA16420@sgi.com>
+In-Reply-To: <20080707165358.GA16420@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200807081216.22029.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Joel Schopp <jschopp@austin.ibm.com>
-Cc: Dave Kleikamp <shaggy@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Paul Mackerras <paulus@au1.ibm.com>, Linuxppc-dev@ozlabs.org
+To: Jack Steiner <steiner@sgi.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Christoph Hellwig <hch@infradead.org>, cl@linux-foundation.org, akpm@osdl.org, linux-kernel@vger.kernel.org, mingo@elte.hu, tglx@linutronix.de, holt@sgi.com, andrea@qumranet.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-07-07 at 16:23 -0500, Joel Schopp wrote:
-> >> We haven't defined a user-visible feature bit (and besides, we're really
-> >> getting short on these...). This is becoming a bit of concern btw (the
-> >> running out of bits). Maybe we should start defining an AT_HWCAP2 for
-> >> powerpc and get libc updated to pick it up ?
-> >>     
-> >
-> > Joel,
-> > Any thoughts?
-> Is it a required or optional feature of the 2.06 architecture spec?  If it's required you could just use that.  It doesn't solve the problem more generically if other archs decide to implement it though.
+On Tuesday 08 July 2008 02:53, Jack Steiner wrote:
+> On Mon, Jul 07, 2008 at 05:29:54PM +0100, Hugh Dickins wrote:
 
-And then we start having to expose 2.06S vs. 2.06E .. nah.
+> > Maybe study the assumptions Nick is making in his arch/x86/mm/gup.c
+> > in mm, and do something similar in your GRU driver (falling back to
+> > the slow method when anything's not quite right).  It's not nice to
+> > have such code out in a driver, but GRU is going to be exceptional,
+> > and it may be better to have it out there than pretence of generality
+> > in the core mm exporting it.
+>
+> Ok, I'll take this approach. Open code a pagetable walker into the GRU
+> driver using the ideas of fast_gup(). This has the added benefit of being
+> able to optimize for exactly what is needed for the GRU. For example,
+> nr_pages is always 1 (at least in the current design).
 
-I think for now, for SAO, the idea that one can "try" and if -EINVAL,
-try again without might work fine.
-
-Cheers,
-Ben.
-
+Well... err, it's pretty tied to the arch and mm design. I'd rather
+if you could just make another entry point to gup.c (perhaps, one
+which doesn't automatically fall back to the get_user_pages slowpath
+for you) rather than code it again in your driver.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
