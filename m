@@ -1,7 +1,7 @@
-Date: Tue, 8 Jul 2008 11:38:12 -0500
+Date: Tue, 8 Jul 2008 11:38:09 -0500
 From: Jack Steiner <steiner@sgi.com>
-Subject: [PATCH 2/2] - Unmap driver ptes - GRU 
-Message-ID: <20080708163812.GA20127@sgi.com>
+Subject: [PATCH 1/2] - Unmap driver ptes
+Message-ID: <20080708163809.GA19366@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -11,27 +11,68 @@ To: akpm@osdl.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Change the GRU driver to use the new zap_vma_ptes() interface.
+Add function to unmap driver ptes.
+
+zap_vma_ptes() is intended to be used by drivers to unmap
+ptes assigned to the driver private vmas. This interface is
+similar to zap_page_range() but is less general & less likely to
+be abused.
+
 
 Signed-off-by: Jack Steiner <steiner@sgi.com>
 
 ---
- drivers/misc/sgi-gru/grumain.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ include/linux/mm.h |    2 ++
+ mm/memory.c        |   23 +++++++++++++++++++++++
+ 2 files changed, 25 insertions(+)
 
-Index: linux/drivers/misc/sgi-gru/grumain.c
+Index: linux/include/linux/mm.h
 ===================================================================
---- linux.orig/drivers/misc/sgi-gru/grumain.c	2008-07-07 12:16:23.000000000 -0500
-+++ linux/drivers/misc/sgi-gru/grumain.c	2008-07-07 12:21:14.321933793 -0500
-@@ -489,7 +489,7 @@ void gru_unload_context(struct gru_threa
- 	struct gru_context_configuration_handle *cch;
- 	int ctxnum = gts->ts_ctxnum;
+--- linux.orig/include/linux/mm.h	2008-07-07 12:22:17.809892803 -0500
++++ linux/include/linux/mm.h	2008-07-07 12:22:56.126695482 -0500
+@@ -742,6 +742,8 @@ struct zap_details {
+ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+ 		pte_t pte);
  
--	zap_page_range(gts->ts_vma, UGRUADDR(gts), GRU_GSEG_PAGESIZE, NULL);
-+	zap_vma_ptes(gts->ts_vma, UGRUADDR(gts), GRU_GSEG_PAGESIZE);
- 	cch = get_cch(gru->gs_gru_base_vaddr, ctxnum);
++int zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
++		unsigned long size);
+ unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
+ 		unsigned long size, struct zap_details *);
+ unsigned long unmap_vmas(struct mmu_gather **tlb,
+Index: linux/mm/memory.c
+===================================================================
+--- linux.orig/mm/memory.c	2008-07-07 12:22:18.357961503 -0500
++++ linux/mm/memory.c	2008-07-07 12:31:51.097688882 -0500
+@@ -978,6 +978,29 @@ unsigned long zap_page_range(struct vm_a
+ }
+ EXPORT_SYMBOL_GPL(zap_page_range);
  
- 	lock_cch_handle(cch);
++/**
++ * zap_vma_ptes - remove ptes mapping the vma
++ * @vma: vm_area_struct holding ptes to be zapped
++ * @address: starting address of pages to zap
++ * @size: number of bytes to zap
++ *
++ * This function only unmaps ptes assigned to VM_PFNMAP vmas.
++ *
++ * The entire address range must be fully contained within the vma.
++ *
++ * Returns 0 if successful.
++ */
++int zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
++		unsigned long size)
++{
++	if (address < vma->vm_start || address + size > vma->vm_end ||
++	    		!(vma->vm_flags & VM_PFNMAP))
++		return -1;
++	zap_page_range(vma, address, size, NULL);
++	return 0;
++}
++EXPORT_SYMBOL_GPL(zap_vma_ptes);
++
+ /*
+  * Do a quick page-table lookup for a single page.
+  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
