@@ -1,58 +1,47 @@
-Subject: Re: [patch 1/6] mm: Allow architectures to define additional
-	protection bits
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Reply-To: benh@kernel.crashing.org
-In-Reply-To: <1215469468.8970.143.camel@pasglop>
-References: <20080618223254.966080905@linux.vnet.ibm.com>
-	 <20080618223328.856102092@linux.vnet.ibm.com>
-	 <20080701015301.3dc8749b.akpm@linux-foundation.org>
-	 <1214920499.18690.10.camel@norville.austin.ibm.com>
-	 <1215409956.8970.82.camel@pasglop>
-	 <Pine.LNX.4.64.0807072143200.27181@blonde.site>
-	 <1215469468.8970.143.camel@pasglop>
-Content-Type: text/plain
-Date: Tue, 08 Jul 2008 16:18:49 +1000
-Message-Id: <1215497929.8970.207.camel@pasglop>
+Date: Tue, 8 Jul 2008 07:36:37 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: [bug?] tg3: Failed to load firmware "tigon/tg3_tso.bin"
+Message-ID: <20080708073637.32037c76@the-village.bc.nu>
+In-Reply-To: <20080707.145819.209342070.davem@davemloft.net>
+References: <20080707214218.055bcb35@the-village.bc.nu>
+	<20080707.144505.67398603.davem@davemloft.net>
+	<20080707221427.163c4a30@the-village.bc.nu>
+	<20080707.145819.209342070.davem@davemloft.net>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Dave Kleikamp <shaggy@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Paul Mackerras <paulus@au1.ibm.com>, Linuxppc-dev@ozlabs.org
+To: David Miller <davem@davemloft.net>
+Cc: jeff@garzik.org, dwmw2@infradead.org, andi@firstfloor.org, tytso@mit.edu, hugh@veritas.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, mchan@broadcom.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-07-08 at 08:24 +1000, Benjamin Herrenschmidt wrote:
-> > There is a little inconsistency, that arch_calc_vm_prot_bits
-> > and arch_vm_get_page_prot just handle the exceptional flag (SAO),
-> > whereas arch_validate_prot handles all of them; but I don't feel
-> > so strongly about that to suggest resubmission.
-> > 
-> > And regarding VM_SAO added to include/linux/mm.h in 3/6: although
-> > it's odd to be weaving back and forth between arch-specific and
-> > common, it's already the case that mman definitions and pgtable
-> > definitions are arch-specific but mm.h common: I'm much happier
-> > to have VM_SAO defined once there as Dave has it, than get into
-> > arch-specific vm_flags.
-> > 
-> > Is someone going to be asking for PROT_WC shortly?
-> 
-> I'll definitely come with PROT_ENDIAN soon :-) (ie, some powerpc
-> processors can have a per-page endian flag that when set causes all
-> load/store instructions on this are to be byte-flipped, support for
-> this
-> feature has been requested for some time, and now I have the
-> infrastructure to do it).
+> That's pure bullox as far as I can see.  Why provide the means to
+> do something nobody has had a need for in 6+ years?  Who needs
+> to load different firmware for the tg3 driver?
 
-BTW. Do we have your ack ?
+Who needs modules, nobody needed it for years ... you are repeating
+historically failed arguments still.
 
-Andrew, what tree should this go via ? I have further powerpc patches
-depending on this one... so on one hand I'd be happy to take it, but
-on the other hand, it's more likely to clash with other things...
+> Who needs that capability? Distribution vendors?  What for?
+> In what case will they need to load different firmware from
+> what the driver maintainer tested as a unit?
 
-Maybe I should check how it applies on top of linux-next.
+For some drivers yes. Maybe not tg3.
 
-Ben.
+> And, btw, who has the right to enforce this new burdon upon driver
+> maintainers when they have had a working and maintainable system for
+> so long?
 
+The module argument again - see my comment about the sound driver history.
+
+> I can only see it being about separation, pure and simple.
+
+Separation - of firmware that can be paged from code that cannot. Of
+stuff that doesn't change from stuff that does. That happens to be good
+engineering.
+
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
