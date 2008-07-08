@@ -1,47 +1,58 @@
-Content-class: urn:content-classes:message
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 8BIT
-Subject: Kmem_cache handling in linux-2.6.2x kernel
-Date: Tue, 8 Jul 2008 13:15:26 +0800
-Message-ID: <31E09F73562D7A4D82119D7F6C17298604696CEA@sinse303.ap.infineon.com>
-From: <KokHow.Teh@infineon.com>
+Subject: Re: [patch 1/6] mm: Allow architectures to define additional
+	protection bits
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Reply-To: benh@kernel.crashing.org
+In-Reply-To: <1215469468.8970.143.camel@pasglop>
+References: <20080618223254.966080905@linux.vnet.ibm.com>
+	 <20080618223328.856102092@linux.vnet.ibm.com>
+	 <20080701015301.3dc8749b.akpm@linux-foundation.org>
+	 <1214920499.18690.10.camel@norville.austin.ibm.com>
+	 <1215409956.8970.82.camel@pasglop>
+	 <Pine.LNX.4.64.0807072143200.27181@blonde.site>
+	 <1215469468.8970.143.camel@pasglop>
+Content-Type: text/plain
+Date: Tue, 08 Jul 2008 16:18:49 +1000
+Message-Id: <1215497929.8970.207.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Dave Kleikamp <shaggy@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Paul Mackerras <paulus@au1.ibm.com>, Linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-Hi list;
-	I have a question about kmem_cache implemented in Linux-2.6.2x
-kernel. I have an application that allocates and free 64KByte chunks of
-memory (32-byte aligned) quite often. Therefore, I create a lookaside
-cache for that purpose and use kmem_cache_alloc(), kmem_cache_free() to
-allocate and free the caches. The application works very well in this
-model. However, my concern here is if kmem_cache_free() does return the
-cache to the system-wide pool so that it could be used by other
-applications when need arises; when system is low in memory resources,
-for instance. This is a question about the internal workings of the
-memory management system of the Linux-2.6.2x kernel as to how efficient
-it manages this lookasie caches. The concern is valid because if this
-lookaside cache is not managed well, i.e, it is not returned to the
-system-wide free memory pools to be used by other applications, this
-will penalize the performace and throughput of the whole system due to
-the dynamic behaviour of the utilization of system memory resources. For
-example, other applications might be swapping in and out of the harddisk
-and if the kmem_cache_free()'ed memory objects could be used by these
-applications, it will help in this case to reduce the number of swaps
-that happen, thereby freeing the CPU and/or DMA from doing the swapping
-to do other critical tasks.
+On Tue, 2008-07-08 at 08:24 +1000, Benjamin Herrenschmidt wrote:
+> > There is a little inconsistency, that arch_calc_vm_prot_bits
+> > and arch_vm_get_page_prot just handle the exceptional flag (SAO),
+> > whereas arch_validate_prot handles all of them; but I don't feel
+> > so strongly about that to suggest resubmission.
+> > 
+> > And regarding VM_SAO added to include/linux/mm.h in 3/6: although
+> > it's odd to be weaving back and forth between arch-specific and
+> > common, it's already the case that mman definitions and pgtable
+> > definitions are arch-specific but mm.h common: I'm much happier
+> > to have VM_SAO defined once there as Dave has it, than get into
+> > arch-specific vm_flags.
+> > 
+> > Is someone going to be asking for PROT_WC shortly?
+> 
+> I'll definitely come with PROT_ENDIAN soon :-) (ie, some powerpc
+> processors can have a per-page endian flag that when set causes all
+> load/store instructions on this are to be byte-flipped, support for
+> this
+> feature has been requested for some time, and now I have the
+> infrastructure to do it).
 
-	On the other hand, if the caches are returned to the system-wide
-free memory pool, what are the advantages of using kmem_cache_t compared
-to the conventional kmalloc()/kfree()?
+BTW. Do we have your ack ?
 
-	Any insight and advice is appreciated.
+Andrew, what tree should this go via ? I have further powerpc patches
+depending on this one... so on one hand I'd be happy to take it, but
+on the other hand, it's more likely to clash with other things...
 
-Regards,
-KH
+Maybe I should check how it applies on top of linux-next.
+
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
