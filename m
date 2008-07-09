@@ -1,46 +1,23 @@
-Message-ID: <2282.10.16.10.158.1215615048.squirrel@mail.serc.iisc.ernet.in>
-In-Reply-To: <4874CAE7.80600@linux-foundation.org>
-References: <2206.10.16.10.158.1215613660.squirrel@mail.serc.iisc.ernet.in>
-    <4874CAE7.80600@linux-foundation.org>
-Date: Wed, 9 Jul 2008 20:20:48 +0530 (IST)
-Subject: [Bug]: Oops on ppc64 2.6.5-7.244-pseries64 in mm/objrmap.c
-From: kiran@serc.iisc.ernet.in
+Message-ID: <4874D232.800@linux-foundation.org>
+Date: Wed, 09 Jul 2008 09:58:58 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7BIT
+Subject: Re: [Bug]: Oops on ppc64 2.6.5-7.244-pseries64 in mm/objrmap.c
+References: <2206.10.16.10.158.1215613660.squirrel@mail.serc.iisc.ernet.in>    <4874CAE7.80600@linux-foundation.org> <2282.10.16.10.158.1215615048.squirrel@mail.serc.iisc.ernet.in>
+In-Reply-To: <2282.10.16.10.158.1215615048.squirrel@mail.serc.iisc.ernet.in>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
+To: kiran@serc.iisc.ernet.in
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently we don't have support from Novell.
-Is it a bug or hardware error? Please help us.
+kiran@serc.iisc.ernet.in wrote:
+> Currently we don't have support from Novell.
+> Is it a bug or hardware error? Please help us.
 
-Thanking you,
-regards,
-kiran
-
-> kiran@serc.iisc.ernet.in wrote:
->
->> We have IBM open power p720 cluster, running SLES 9
->> SP3.
->
-> Ummm... Novell wont help you?
->
-> --
-> This message has been scanned for viruses and
-> dangerous content by MailScanner, and is
-> believed to be clean.
->
->
-
-
-
--- 
-This message has been scanned for viruses and
-dangerous content by MailScanner, and is
-believed to be clean.
+Can you reproduce the problem with 2.6.26-rc9?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
