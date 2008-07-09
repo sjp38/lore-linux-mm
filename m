@@ -1,12 +1,12 @@
-Date: Wed, 9 Jul 2008 07:51:55 +0200
+Date: Wed, 9 Jul 2008 08:02:04 +0200
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 1/2] - Map UV chipset space - pagetable
-Message-ID: <20080709055155.GC9760@elte.hu>
-References: <20080701194532.GA28405@sgi.com>
+Subject: Re: [PATCH 2/2] - Map UV chipset space - UV support
+Message-ID: <20080709060204.GD9760@elte.hu>
+References: <20080701194538.GA28410@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080701194532.GA28405@sgi.com>
+In-Reply-To: <20080701194538.GA28410@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Jack Steiner <steiner@sgi.com>
@@ -15,8 +15,8 @@ List-ID: <linux-mm.kvack.org>
 
 * Jack Steiner <steiner@sgi.com> wrote:
 
-> Add boot-time function for creating additional 2MB page table entries 
-> for mapping chipset specific cached/uncached ranges.
+> Create page table entries to map the SGI UV chipset GRU. local MMR & 
+> global MMR ranges.
 
 applied to tip/x86/core, thanks Jack.
 
