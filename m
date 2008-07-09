@@ -1,88 +1,47 @@
-Message-Id: <20080709150046.031555160@polymtl.ca>
-References: <20080709145929.352201601@polymtl.ca>
-Date: Wed, 09 Jul 2008 10:59:37 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: [patch 08/15] LTTng instrumentation - filemap
-Content-Disposition: inline; filename=lttng-instrumentation-filemap.patch
+Message-ID: <2323.10.16.10.158.1215617532.squirrel@mail.serc.iisc.ernet.in>
+In-Reply-To: <4874D232.800@linux-foundation.org>
+References: <2206.10.16.10.158.1215613660.squirrel@mail.serc.iisc.ernet.in>
+    <4874CAE7.80600@linux-foundation.org>
+    <2282.10.16.10.158.1215615048.squirrel@mail.serc.iisc.ernet.in>
+    <4874D232.800@linux-foundation.org>
+Date: Wed, 9 Jul 2008 21:02:12 +0530 (IST)
+Subject: [Bug]: Oops on ppc64 2.6.5-7.244-pseries64 in mm/objrmap.c
+From: kiran@serc.iisc.ernet.in
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org
-Cc: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>, Masami Hiramatsu <mhiramat@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Frank Ch. Eigler" <fche@redhat.com>, Hideo AOKI <haoki@redhat.com>, Takashi Nishiie <t-nishiie@np.css.fujitsu.com>, Steven Rostedt <rostedt@goodmis.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Instrumentation of waits caused by memory accesses on mmap regions.
+No, since the machines are in production, we cannot change OS. If it
+surely solves the problem we can upgrade.
 
-Those tracepoints are used by LTTng.
+Any information,can we get from the call traces which i have sent...?
+Any where this same problem reported?
 
-About the performance impact of tracepoints (which is comparable to markers),
-even without immediate values optimizations, tests done by Hideo Aoki on ia64
-show no regression. His test case was using hackbench on a kernel where
-scheduler instrumentation (about 5 events in code scheduler code) was added.
-See the "Tracepoints" patch header for performance result detail.
 
-Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-CC: linux-mm@kvack.org
-CC: Dave Hansen <haveblue@us.ibm.com>
-CC: Masami Hiramatsu <mhiramat@redhat.com>
-CC: 'Peter Zijlstra' <peterz@infradead.org>
-CC: "Frank Ch. Eigler" <fche@redhat.com>
-CC: 'Ingo Molnar' <mingo@elte.hu>
-CC: 'Hideo AOKI' <haoki@redhat.com>
-CC: Takashi Nishiie <t-nishiie@np.css.fujitsu.com>
-CC: 'Steven Rostedt' <rostedt@goodmis.org>
-CC: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
----
- mm/filemap-trace.h |   13 +++++++++++++
- mm/filemap.c       |    3 +++
- 2 files changed, 16 insertions(+)
+> kiran@serc.iisc.ernet.in wrote:
+>> Currently we don't have support from Novell.
+>> Is it a bug or hardware error? Please help us.
+>
+> Can you reproduce the problem with 2.6.26-rc9?
+>
+> --
+> This message has been scanned for viruses and
+> dangerous content by MailScanner, and is
+> believed to be clean.
+>
+>
 
-Index: linux-2.6-lttng/mm/filemap.c
-===================================================================
---- linux-2.6-lttng.orig/mm/filemap.c	2008-07-09 10:55:46.000000000 -0400
-+++ linux-2.6-lttng/mm/filemap.c	2008-07-09 10:58:27.000000000 -0400
-@@ -33,6 +33,7 @@
- #include <linux/cpuset.h>
- #include <linux/hardirq.h> /* for BUG_ON(!in_atomic()) only */
- #include <linux/memcontrol.h>
-+#include "filemap-trace.h"
- #include "internal.h"
- 
- /*
-@@ -541,9 +542,11 @@ void wait_on_page_bit(struct page *page,
- {
- 	DEFINE_WAIT_BIT(wait, &page->flags, bit_nr);
- 
-+	trace_filemap_wait_start(page, bit_nr);
- 	if (test_bit(bit_nr, &page->flags))
- 		__wait_on_bit(page_waitqueue(page), &wait, sync_page,
- 							TASK_UNINTERRUPTIBLE);
-+	trace_filemap_wait_end(page, bit_nr);
- }
- EXPORT_SYMBOL(wait_on_page_bit);
- 
-Index: linux-2.6-lttng/mm/filemap-trace.h
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6-lttng/mm/filemap-trace.h	2008-07-09 10:58:27.000000000 -0400
-@@ -0,0 +1,13 @@
-+#ifndef _FILEMAP_TRACE_H
-+#define _FILEMAP_TRACE_H
-+
-+#include <linux/tracepoint.h>
-+
-+DEFINE_TRACE(filemap_wait_start,
-+	TPPROTO(struct page *page, int bit_nr),
-+	TPARGS(page, bit_nr));
-+DEFINE_TRACE(filemap_wait_end,
-+	TPPROTO(struct page *page, int bit_nr),
-+	TPARGS(page, bit_nr));
-+
-+#endif
+
 
 -- 
-Mathieu Desnoyers
-Computer Engineering Ph.D. Student, Ecole Polytechnique de Montreal
-OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
+This message has been scanned for viruses and
+dangerous content by MailScanner, and is
+believed to be clean.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
