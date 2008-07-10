@@ -1,41 +1,39 @@
-Date: Thu, 10 Jul 2008 10:57:30 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 1/2] - Map UV chipset space - pagetable
-Message-ID: <20080710085730.GC19918@elte.hu>
-References: <20080701194532.GA28405@sgi.com> <20080710013533.e059f556.akpm@linux-foundation.org>
+Received: by wf-out-1314.google.com with SMTP id 28so3709439wfc.11
+        for <linux-mm@kvack.org>; Thu, 10 Jul 2008 03:54:26 -0700 (PDT)
+Message-ID: <19f34abd0807100354o4f79b75bo174d756da8459d37@mail.gmail.com>
+Date: Thu, 10 Jul 2008 12:54:26 +0200
+From: "Vegard Nossum" <vegard.nossum@gmail.com>
+Subject: swapon/swapoff in a loop -- ever-decreasing priority field
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080710013533.e059f556.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jack Steiner <steiner@sgi.com>, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Andrew Morton <akpm@linux-foundation.org> wrote:
+Hi,
 
-> On Tue, 1 Jul 2008 14:45:32 -0500 Jack Steiner <steiner@sgi.com> wrote:
-> 
-> > +	BUG_ON((phys & ~PMD_MASK) || (size & ~PMD_MASK));
-> 
-> BUG_ON(A || B) is usually a bad idea.  If it goes bang, you'll really wish
-> that it had been
-> 
-> 	BUG_ON(A);
-> 	BUG_ON(B);
+I find that running swapon/swapoff in a loop will decrement the
+"Priority" field of the swap partition once per iteration. This
+doesn't seem quite correct, as it will eventually lead to an
+underflow.
 
-if you check how it's used:
+(Though, by my calculations, it would take around 620 days of constant
+swapoff/swapon to reach this condition, so it's hardly a real-life
+problem.)
 
-+       init_extra_mapping_uc(UV_GLOBAL_MMR32_BASE, UV_GLOBAL_MMR32_SIZE);
-+       init_extra_mapping_uc(UV_LOCAL_MMR_BASE, UV_LOCAL_MMR_SIZE);
+Is this something that should be fixed, though?
 
-those base/size pairs are really supposed to be aligned on 2MB. I.e. 
-this is a really 'impossible' scenario that is not really driven by any 
-external factor (hw or driver detail) and a compact check for it is 
-acceptable too.
 
-	Ingo
+Vegard
+
+-- 
+"The animistic metaphor of the bug that maliciously sneaked in while
+the programmer was not looking is intellectually dishonest as it
+disguises that the error is the programmer's own creation."
+	-- E. W. Dijkstra, EWD1036
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
