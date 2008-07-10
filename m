@@ -1,64 +1,78 @@
-Date: Thu, 10 Jul 2008 11:33:29 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [patch 12/13] GRU Driver V3 -  export is_uv_system(), zap_page_range() & follow_page()
-Message-ID: <20080710163329.GB1860@sgi.com>
-References: <20080703213348.489120321@attica.americas.sgi.com> <200807101731.54910.nickpiggin@yahoo.com.au> <20080710132903.GA17830@sgi.com> <200807110021.29392.nickpiggin@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Thu, 10 Jul 2008 17:35:52 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [RFC PATCH 1/4] mm: remove mm_init compilation dependency on CONFIG_DEBUG_MEMORY_INIT
+Message-ID: <20080710163552.GE6664@csn.ul.ie>
+References: <20080708180348.GB14908@us.ibm.com> <20080708180542.GC14908@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <200807110021.29392.nickpiggin@yahoo.com.au>
+In-Reply-To: <20080708180542.GC14908@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Hugh Dickins <hugh@veritas.com>, Christoph Hellwig <hch@infradead.org>, cl@linux-foundation.org, akpm@osdl.org, linux-kernel@vger.kernel.org, mingo@elte.hu, tglx@linutronix.de, holt@sgi.com, andrea@qumranet.com, linux-mm@kvack.org
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: npiggin@suse.de, agl@us.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 11, 2008 at 12:21:28AM +1000, Nick Piggin wrote:
-> On Thursday 10 July 2008 23:29, Jack Steiner wrote:
-> > On Thu, Jul 10, 2008 at 05:31:54PM +1000, Nick Piggin wrote:
-> > > On Thursday 10 July 2008 05:11, Jack Steiner wrote:
+On (08/07/08 11:05), Nishanth Aravamudan didst pronounce:
+> Towards the end of putting all core mm initialization in mm_init.c, I
+> plan on putting the creation of a mm kobject in a function in that file.
+> However, the file is currently only compiled if CONFIG_DEBUG_MEMORY_INIT
+> is set. Remove this dependency, but put the code under an #ifdef on the
+> same config option. This should result in no functional changes.
 > 
-> > > > I'll post the new GRU patch in a few minutes.
-> > >
-> > > It looks broken to me. How does it determine whether it has a
-> > > normal page or not?
-> >
-> > Right. Hugepages are not currently supported by the GRU. There is code that
-> > I know is missing/broken in this path. I'm trying to get the core driver
-> > accepted, then I'll get the portion dealing with hugepages working.
+> Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
 > 
-> Oh, I meant "normal" pages as in vm_normal_page(), or is there some
-> other reason this codepath is exempt from them?
 
-Maybe...
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-The GRU deals with cacheable memory only (the check is currently missing).
-What is the proper way to catch a reference to a PTE that maps something
-other than normal cacheable memory. Note that we support XPMEM. Some cacheable
-memory that is valid for GRU references will be memory located on other
-partitions. No page struct entries will exist nor will the physical address ranges
-be known to the kernel. (Not in efi/e820 tables).
-
-One idea that I had was to use the attributes of the PTE. Is there
-better way. vm_flags? ???
-
-Ideas???
-
+> diff --git a/mm/Makefile b/mm/Makefile
+> index f54232d..cbe29d2 100644
+> --- a/mm/Makefile
+> +++ b/mm/Makefile
+> @@ -11,7 +11,7 @@ obj-y			:= bootmem.o filemap.o mempool.o oom_kill.o fadvise.o \
+>  			   maccess.o page_alloc.o page-writeback.o pdflush.o \
+>  			   readahead.o swap.o truncate.o vmscan.o \
+>  			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
+> -			   page_isolation.o $(mmu-y)
+> +			   page_isolation.o mm_init.o $(mmu-y)
+>  
+>  obj-$(CONFIG_PAGE_WALKER) += pagewalk.o
+>  obj-$(CONFIG_BOUNCE)	+= bounce.o
+> @@ -26,7 +26,6 @@ obj-$(CONFIG_TMPFS_POSIX_ACL) += shmem_acl.o
+>  obj-$(CONFIG_TINY_SHMEM) += tiny-shmem.o
+>  obj-$(CONFIG_SLOB) += slob.o
+>  obj-$(CONFIG_SLAB) += slab.o
+> -obj-$(CONFIG_DEBUG_MEMORY_INIT) += mm_init.o
+>  obj-$(CONFIG_SLUB) += slub.o
+>  obj-$(CONFIG_MEMORY_HOTPLUG) += memory_hotplug.o
+>  obj-$(CONFIG_FS_XIP) += filemap_xip.o
+> diff --git a/mm/mm_init.c b/mm/mm_init.c
+> index ce445ca..eaf0d3b 100644
+> --- a/mm/mm_init.c
+> +++ b/mm/mm_init.c
+> @@ -9,6 +9,7 @@
+>  #include <linux/init.h>
+>  #include "internal.h"
+>  
+> +#ifdef CONFIG_DEBUG_MEMORY_INIT
+>  int __meminitdata mminit_loglevel;
+>  
+>  /* The zonelists are simply reported, validation is manual. */
+> @@ -132,3 +133,4 @@ static __init int set_mminit_loglevel(char *str)
+>  	return 0;
+>  }
+>  early_param("mminit_loglevel", set_mminit_loglevel);
+> +#endif /* CONFIG_DEBUG_MEMORY_INIT */
 > 
-> Using gup.c code I don't think will prevent your driver from getting
-> accepted. Conversely, I would not like the open coded page table walk
-> to go upstream...
+> -- 
+> Nishanth Aravamudan <nacc@us.ibm.com>
+> IBM Linux Technology Center
+> 
 
-If that is the concensus, that is ok. How certain are we that gup.c will
-go into 2.6.27. Initially, I though it was cleaner to decouple the GRU
-from gup.c & to wait until I had all the hugepage & ia64 issues resolved before
-trying to push the walker into the kernel. (The driver runs ok as long
-as huge pages are not referenced. It detects attempts to reference hugepages
-and gives the user an error).
-
-We would also need a gup.c for ia64.
-
---- jack
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
