@@ -1,39 +1,57 @@
-Received: by wf-out-1314.google.com with SMTP id 28so3709439wfc.11
-        for <linux-mm@kvack.org>; Thu, 10 Jul 2008 03:54:26 -0700 (PDT)
-Message-ID: <19f34abd0807100354o4f79b75bo174d756da8459d37@mail.gmail.com>
-Date: Thu, 10 Jul 2008 12:54:26 +0200
-From: "Vegard Nossum" <vegard.nossum@gmail.com>
-Subject: swapon/swapoff in a loop -- ever-decreasing priority field
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Date: Thu, 10 Jul 2008 15:11:41 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [RFC PATCH 0/4] -mm-only hugetlb updates
+Message-ID: <20080710131141.GB6832@wotan.suse.de>
+References: <20080708180348.GB14908@us.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20080708180348.GB14908@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: mel@csn.ul.ie, agl@us.ibm.com, akpm@linux-foudation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, Jul 08, 2008 at 11:03:48AM -0700, Nishanth Aravamudan wrote:
+> As Nick requested, I've moved /sys/kernel/hugepages to
+> /sys/kernel/mm/hugepages. I put the creation of the /sys/kernel/mm
+> kobject in mm_init.c and that required removing the conditional
+> compilation of that file. This also necessitated a bit of Documentation
+> updates (and the addition of the /sys/kernel/mm ABI file). Finally, I
+> realized that kobject usage doesn't require CONFIG_SYSFS, so I was able
+> to remove one ifdef from hugetlb.c.
+> 
+> Andrew, I believe these patches, if acceptable, should be folded in
+> place, if possible, in the hugetlb series (that is, the sysfs location
+> should only ever have appeared to be /sys/kernel/mm/hugepages). The ease
+> with which that can occur I guess depends on where Mel's
+> DEBUG_MEMORY_INIT patches are in the series.
+> 
+> 1/4: mm: remove mm_init compilation dependency on CONFIG_DEBUG_MEMORY_INIT
+> 2/4: mm: create /sys/kernel/mm
+> 3/4: hugetlb: hang off of /sys/kernel/mm rather than /sys/kernel
+> 4/4: hugetlb: remove CONFIG_SYSFS dependency
 
-I find that running swapon/swapoff in a loop will decrement the
-"Priority" field of the swap partition once per iteration. This
-doesn't seem quite correct, as it will eventually lead to an
-underflow.
+Hi Nish,
 
-(Though, by my calculations, it would take around 620 days of constant
-swapoff/swapon to reach this condition, so it's hardly a real-life
-problem.)
+Thanks for this. Yes I believe this is a much better layout, thank you.
+To answer an earlier question you asked: yes, I believe a lot of existing
+kernel subsystems aren't really in appropriate location and there probably
+hasn't been a lot of thought into placement of some of them.
 
-Is this something that should be fixed, though?
+Imagine if every subsystem just goes into /sys/kernel/ directory, then it
+might look something like `ls /proc/sys/*` all in one directory :P
 
+I'm not sure what we can do about existing things (maybe they can get links
+and eventually put under one of those compat sysfs layout thingies). But
+definitely for new entries we should try to keep the namespace nice and
+modular.
 
-Vegard
+Acked-by: Nick Piggin < npiggin@suse.de> for all patches.
 
--- 
-"The animistic metaphor of the bug that maliciously sneaked in while
-the programmer was not looking is intellectually dishonest as it
-disguises that the error is the programmer's own creation."
-	-- E. W. Dijkstra, EWD1036
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
