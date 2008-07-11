@@ -1,60 +1,45 @@
-Received: by rv-out-0708.google.com with SMTP id f25so4283462rvb.26
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2008 01:49:27 -0700 (PDT)
-Message-ID: <84144f020807110149v4806404fjdb9c3e4af3cfdb70@mail.gmail.com>
-Date: Fri, 11 Jul 2008 11:49:27 +0300
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [RFC PATCH 3/5] kmemtrace: SLAB hooks.
-In-Reply-To: <20080710210611.7c194a70@linux360.ro>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Fri, 11 Jul 2008 20:02:28 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH -mm 1/5] swapcgroup (v3): add cgroup files
+Message-Id: <20080711200228.6eb145ca.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <1215722136.9398.59.camel@nimitz>
+References: <20080704151536.e5384231.nishimura@mxp.nes.nec.co.jp>
+	<20080704151747.470d62a3.nishimura@mxp.nes.nec.co.jp>
+	<1215722136.9398.59.camel@nimitz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <1215712946-23572-1-git-send-email-eduard.munteanu@linux360.ro>
-	 <1215712946-23572-2-git-send-email-eduard.munteanu@linux360.ro>
-	 <1215712946-23572-3-git-send-email-eduard.munteanu@linux360.ro>
-	 <20080710210611.7c194a70@linux360.ro>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: nishimura@mxp.nes.nec.co.jp, Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hugh@veritas.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Eduard-Gabriel,
+Hi, Dave-san.
 
-On Thu, Jul 10, 2008 at 9:06 PM, Eduard - Gabriel Munteanu
-<eduard.munteanu@linux360.ro> wrote:
-> This adds hooks for the SLAB allocator, to allow tracing with kmemtrace.
->
-> Signed-off-by: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
->  static inline void *kmalloc(size_t size, gfp_t flags)
->  {
-> +       void *ret;
-> +
->        if (__builtin_constant_p(size)) {
->                int i = 0;
->
-> @@ -50,10 +53,17 @@ static inline void *kmalloc(size_t size, gfp_t flags)
->  found:
->  #ifdef CONFIG_ZONE_DMA
->                if (flags & GFP_DMA)
-> -                       return kmem_cache_alloc(malloc_sizes[i].cs_dmacachep,
-> -                                               flags);
-> +                       ret = kmem_cache_alloc(malloc_sizes[i].cs_dmacachep,
-> +                                              flags | __GFP_NOTRACE);
-> +               else
->  #endif
-> -               return kmem_cache_alloc(malloc_sizes[i].cs_cachep, flags);
-> +                       ret = kmem_cache_alloc(malloc_sizes[i].cs_cachep,
-> +                                              flags | __GFP_NOTRACE);
-> +
-> +               kmemtrace_mark_alloc(KMEMTRACE_KIND_KERNEL, _THIS_IP_, ret,
-> +                                    size, malloc_sizes[i].cs_size, flags);
-> +
-> +               return ret;
+On Thu, 10 Jul 2008 13:35:36 -0700, Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+> On Fri, 2008-07-04 at 15:17 +0900, Daisuke Nishimura wrote:
+> > +config CGROUP_SWAP_RES_CTLR
+> > +       bool "Swap Resource Controller for Control Groups"
+> > +       depends on CGROUP_MEM_RES_CTLR && SWAP
+> > +       help
+> > +         Provides a swap resource controller that manages and limits swap usage.
+> > +         Implemented as a add-on to Memory Resource Controller.
+> 
+> Could you make this just plain depend on 'CGROUP_MEM_RES_CTLR && SWAP'
+> and not make it configurable?  I don't think the resource usage really
+> justifies yet another .config knob to tune and break. :)
+> 
 
-I think this would be cleaner if you'd simply add a new
-__kmem_cache_alloc() entry point in SLAB that takes the "kind" as an
-argument. That way you wouldn't have to play tricks with GFP flags.
+I don't stick to using kernel config option.
+
+As I said in my ToDo, I'm going to implement another method
+(boot option or something) to disable(or enable?) this feature,
+so I can make this config not configurable after it.
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
