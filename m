@@ -1,41 +1,89 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m6AKUQRZ030097
-	for <linux-mm@kvack.org>; Thu, 10 Jul 2008 16:30:26 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m6AKZcBI038750
-	for <linux-mm@kvack.org>; Thu, 10 Jul 2008 14:35:44 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m6AKZcM9015399
-	for <linux-mm@kvack.org>; Thu, 10 Jul 2008 14:35:38 -0600
-Subject: Re: [PATCH -mm 1/5] swapcgroup (v3): add cgroup files
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20080704151747.470d62a3.nishimura@mxp.nes.nec.co.jp>
-References: <20080704151536.e5384231.nishimura@mxp.nes.nec.co.jp>
-	 <20080704151747.470d62a3.nishimura@mxp.nes.nec.co.jp>
-Content-Type: text/plain
-Date: Thu, 10 Jul 2008 13:35:36 -0700
-Message-Id: <1215722136.9398.59.camel@nimitz>
-Mime-Version: 1.0
+Date: Fri, 11 Jul 2008 12:17:04 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: swapon/swapoff in a loop -- ever-decreasing priority field
+In-Reply-To: <19f34abd0807100354o4f79b75bo174d756da8459d37@mail.gmail.com>
+References: <19f34abd0807100354o4f79b75bo174d756da8459d37@mail.gmail.com>
+Message-Id: <20080711121227.F694.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hugh@veritas.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>
+To: Vegard Nossum <vegard.nossum@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-07-04 at 15:17 +0900, Daisuke Nishimura wrote:
-> +config CGROUP_SWAP_RES_CTLR
-> +       bool "Swap Resource Controller for Control Groups"
-> +       depends on CGROUP_MEM_RES_CTLR && SWAP
-> +       help
-> +         Provides a swap resource controller that manages and limits swap usage.
-> +         Implemented as a add-on to Memory Resource Controller.
+> Hi,
+> 
+> I find that running swapon/swapoff in a loop will decrement the
+> "Priority" field of the swap partition once per iteration. This
+> doesn't seem quite correct, as it will eventually lead to an
+> underflow.
+> 
+> (Though, by my calculations, it would take around 620 days of constant
+> swapoff/swapon to reach this condition, so it's hardly a real-life
+> problem.)
+> 
+> Is this something that should be fixed, though?
 
-Could you make this just plain depend on 'CGROUP_MEM_RES_CTLR && SWAP'
-and not make it configurable?  I don't think the resource usage really
-justifies yet another .config knob to tune and break. :)
+I am not sure about your intention.
+Do following patch fill your requirement?
 
--- Dave
+
+
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+---
+ mm/swapfile.c |   13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)
+
+Index: b/mm/swapfile.c
+===================================================================
+--- a/mm/swapfile.c	2008-07-10 22:58:44.000000000 +0900
++++ b/mm/swapfile.c	2008-07-10 23:22:42.000000000 +0900
+@@ -49,6 +49,8 @@ static struct swap_info_struct swap_info
+ 
+ static DEFINE_MUTEX(swapon_mutex);
+ 
++static int least_priority;
++
+ /*
+  * We need this because the bdev->unplug_fn can sleep and we cannot
+  * hold swap_lock while calling the unplug_fn. And swap_lock
+@@ -1232,6 +1234,7 @@ asmlinkage long sys_swapoff(const char _
+ 	char * pathname;
+ 	int i, type, prev;
+ 	int err;
++	int min_prio;
+ 	
+ 	if (!capable(CAP_SYS_ADMIN))
+ 		return -EPERM;
+@@ -1329,6 +1332,15 @@ asmlinkage long sys_swapoff(const char _
+ 	swap_map = p->swap_map;
+ 	p->swap_map = NULL;
+ 	p->flags = 0;
++	p->prio = 0;
++
++	min_prio = 0;
++	for (i = 0; i < MAX_SWAPFILES; i++) {
++		if (min_prio > swap_info[i].prio)
++			min_prio = swap_info[i].prio;
++	}
++	least_priority = min_prio;
++
+ 	spin_unlock(&swap_lock);
+ 	mutex_unlock(&swapon_mutex);
+ 	vfree(swap_map);
+@@ -1466,7 +1478,6 @@ asmlinkage long sys_swapon(const char __
+ 	unsigned int type;
+ 	int i, prev;
+ 	int error;
+-	static int least_priority;
+ 	union swap_header *swap_header = NULL;
+ 	int swap_header_version;
+ 	unsigned int nr_good_pages = 0;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
