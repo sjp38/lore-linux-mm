@@ -1,61 +1,39 @@
-Subject: Re: SL*B: drop kmem cache argument from constructor
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <20080711122228.eb40247f.akpm@linux-foundation.org>
-References: <20080710011132.GA8327@martell.zuzino.mipt.ru>
-	 <48763C60.9020805@linux.vnet.ibm.com>
-	 <20080711122228.eb40247f.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Fri, 11 Jul 2008 14:38:34 -0500
-Message-Id: <1215805114.4800.55.camel@calx>
+Date: Fri, 11 Jul 2008 22:56:00 +0300
+From: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+Subject: Re: [RFC PATCH 2/5] Add new GFP flag __GFP_NOTRACE.
+Message-ID: <20080711225600.6532b9cf@linux360.ro>
+In-Reply-To: <48777110.3000104@linux-foundation.org>
+References: <1215712946-23572-1-git-send-email-eduard.munteanu@linux360.ro>
+	<1215712946-23572-2-git-send-email-eduard.munteanu@linux360.ro>
+	<20080710210606.65e240f4@linux360.ro>
+	<48777110.3000104@linux-foundation.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jon Tollefson <kniht@linux.vnet.ibm.com>, Alexey Dobriyan <adobriyan@gmail.com>, penberg@cs.helsinki.fi, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cl@linux-foundation.org, Nick Piggin <nickpiggin@yahoo.com.au>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: penberg@cs.helsinki.fi, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-07-11 at 12:22 -0700, Andrew Morton wrote:
-> On Thu, 10 Jul 2008 11:44:16 -0500 Jon Tollefson <kniht@linux.vnet.ibm.com> wrote:
+On Fri, 11 Jul 2008 09:41:20 -0500
+Christoph Lameter <cl@linux-foundation.org> wrote:
+
+> Eduard - Gabriel Munteanu wrote:
 > 
-> > Alexey Dobriyan wrote:
-> > > Kmem cache passed to constructor is only needed for constructors that are
-> > > themselves multiplexeres. Nobody uses this "feature", nor does anybody uses
-> > > passed kmem cache in non-trivial way, so pass only pointer to object.
-> > >
-> > > Non-trivial places are:
-> > > 	arch/powerpc/mm/init_64.c
-> > > 	arch/powerpc/mm/hugetlbpage.c
-> > >   
-> > ...<snip>...
-> > > --- a/arch/powerpc/mm/hugetlbpage.c
-> > > +++ b/arch/powerpc/mm/hugetlbpage.c
-> > > @@ -595,9 +595,9 @@ static int __init hugepage_setup_sz(char *str)
-> > >  }
-> > >  __setup("hugepagesz=", hugepage_setup_sz);
-> > >
-> > > -static void zero_ctor(struct kmem_cache *cache, void *addr)
-> > > +static void zero_ctor(void *addr)
-> > >  {
-> > > -	memset(addr, 0, kmem_cache_size(cache));
-> > > +	memset(addr, 0, HUGEPTE_TABLE_SIZE);
-> > >   
-> > This isn't going to work with the multiple huge page size support.  The
-> > HUGEPTE_TABLE_SIZE macro now takes a parameter with of the mmu psize
-> > index to indicate the size of page.
-> > 
+> > This is used by kmemtrace to correctly classify different kinds of
+> > allocations, without recording one event multiple times. Example:
+> > SLAB's kmalloc() calls kmem_cache_alloc(), but we want to record
+> > this only as a kmalloc.
 > 
-> hrm.  I suppose we could hold our noses and use ksize(), assuming that
-> we're ready to use ksize() at this stage in the object's lifetime.
+> Well then I guess we need to put the recording logic into
+> kmem_cache_alloc?
 
-ksize() on non-kmalloced objects is considered harmful. Doesn't work on SLOB.
+Okay, will do it another way. I thought there may be other legitimate
+uses of something like __GFP_NOTRACE.
 
-> Better would be to just use kmem_cache_zalloc()?
 
-I'd say so.
-
--- 
-Mathematics is the supreme nostalgia of our time.
+	Eduard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
