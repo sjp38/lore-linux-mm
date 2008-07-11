@@ -1,211 +1,129 @@
-Received: from [172.20.23.243]([172.20.23.243]) (7138 bytes) by megami.veritas.com
-	via sendmail with P:esmtp/R:smart_host/T:smtp
-	(sender: <hugh@veritas.com>)
-	id <m1KHQ6B-00011zC@megami.veritas.com>
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2008 14:24:15 -0700 (PDT)
-	(Smail-3.2.0.101 1997-Dec-17 #15 built 2001-Aug-30)
-Date: Fri, 11 Jul 2008 22:25:06 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: swapon/swapoff in a loop -- ever-decreasing priority field
-In-Reply-To: <20080711121227.F694.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0807112214240.25357@blonde.site>
-References: <19f34abd0807100354o4f79b75bo174d756da8459d37@mail.gmail.com>
- <20080711121227.F694.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m6BLee5s023440
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2008 17:40:40 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m6BLeeHZ134354
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2008 15:40:40 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m6BLedWI021609
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2008 15:40:39 -0600
+Message-ID: <4877D35E.8080209@linux.vnet.ibm.com>
+Date: Fri, 11 Jul 2008 16:40:46 -0500
+From: Jon Tollefson <kniht@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: SL*B: drop kmem cache argument from constructor
+References: <20080710011132.GA8327@martell.zuzino.mipt.ru> <48763C60.9020805@linux.vnet.ibm.com> <20080711122228.eb40247f.akpm@linux-foundation.org>
+In-Reply-To: <20080711122228.eb40247f.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Vegard Nossum <vegard.nossum@gmail.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Alexey Dobriyan <adobriyan@gmail.com>, penberg@cs.helsinki.fi, mpm@selenic.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cl@linux-foundation.org, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 11 Jul 2008, KOSAKI Motohiro wrote:
-> > 
-> > I find that running swapon/swapoff in a loop will decrement the
-> > "Priority" field of the swap partition once per iteration. This
-> > doesn't seem quite correct, as it will eventually lead to an
-> > underflow.
-> > 
-> > (Though, by my calculations, it would take around 620 days of constant
-> > swapoff/swapon to reach this condition, so it's hardly a real-life
-> > problem.)
-> > 
-> > Is this something that should be fixed, though?
-> 
-> I am not sure about your intention.
-> Do following patch fill your requirement?
+Andrew Morton wrote:
+> On Thu, 10 Jul 2008 11:44:16 -0500 Jon Tollefson <kniht@linux.vnet.ibm.com> wrote:
+>
+>   
+>> Alexey Dobriyan wrote:
+>>     
+>>> Kmem cache passed to constructor is only needed for constructors that are
+>>> themselves multiplexeres. Nobody uses this "feature", nor does anybody uses
+>>> passed kmem cache in non-trivial way, so pass only pointer to object.
+>>>
+>>> Non-trivial places are:
+>>> 	arch/powerpc/mm/init_64.c
+>>> 	arch/powerpc/mm/hugetlbpage.c
+>>>   
+>>>       
+>> ...<snip>...
+>>     
+>>> --- a/arch/powerpc/mm/hugetlbpage.c
+>>> +++ b/arch/powerpc/mm/hugetlbpage.c
+>>> @@ -595,9 +595,9 @@ static int __init hugepage_setup_sz(char *str)
+>>>  }
+>>>  __setup("hugepagesz=", hugepage_setup_sz);
+>>>
+>>> -static void zero_ctor(struct kmem_cache *cache, void *addr)
+>>> +static void zero_ctor(void *addr)
+>>>  {
+>>> -	memset(addr, 0, kmem_cache_size(cache));
+>>> +	memset(addr, 0, HUGEPTE_TABLE_SIZE);
+>>>   
+>>>       
+>> This isn't going to work with the multiple huge page size support.  The
+>> HUGEPTE_TABLE_SIZE macro now takes a parameter with of the mmu psize
+>> index to indicate the size of page.
+>>
+>>     
+>
+> hrm.  I suppose we could hold our noses and use ksize(), assuming that
+> we're ready to use ksize() at this stage in the object's lifetime.
+>
+> Better would be to just use kmem_cache_zalloc()?
+>
+> --- a/arch/powerpc/mm/hugetlbpage.c~slb-drop-kmem-cache-argument-from-constructor-fix
+> +++ a/arch/powerpc/mm/hugetlbpage.c
+> @@ -113,7 +113,7 @@ static inline pte_t *hugepte_offset(huge
+>  static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
+>  			   unsigned long address, unsigned int psize)
+>  {
+> -	pte_t *new = kmem_cache_alloc(huge_pgtable_cache(psize),
+> +	pte_t *new = kmem_cache_zalloc(huge_pgtable_cache(psize),
+>  				      GFP_KERNEL|__GFP_REPEAT);
+>
+>  	if (! new)
+> @@ -730,11 +730,6 @@ static int __init hugepage_setup_sz(char
+>  }
+>  __setup("hugepagesz=", hugepage_setup_sz);
+>
+> -static void zero_ctor(void *addr)
+> -{
+> -	memset(addr, 0, HUGEPTE_TABLE_SIZE);
+> -}
+> -
+>  static int __init hugetlbpage_init(void)
+>  {
+>  	unsigned int psize;
+> @@ -756,7 +751,7 @@ static int __init hugetlbpage_init(void)
+>  						HUGEPTE_TABLE_SIZE(psize),
+>  						HUGEPTE_TABLE_SIZE(psize),
+>  						0,
+> -						zero_ctor);
+> +						NULL);
+>  			if (!huge_pgtable_cache(psize))
+>  				panic("hugetlbpage_init(): could not create %s"\
+>  				      "\n", HUGEPTE_CACHE_NAME(psize));
+> _
+>
+>
+> btw, Nick, what's with that dopey
+>
+> 	huge_pgtable_cache(psize) = kmem_cache_create(...
+>
+> trick?  The result of a function call is not an lvalue, and writing a
+> macro which pretends to be a function and then using it in some manner
+> in which a function cannot be used is seven ways silly :(
+>   
+That silliness came from me.
+It came from my simplistic translation of the existing code to handle
+multiple huge page sizes.  I would agree it would be easier to read and
+more straight forward to just have the indexed array directly on the
+left side instead of a macro.  I can send out a patch that makes that
+change if desired.
+Something such as
 
-I believe that only handles a simple swapon/swapoff of one area:
-once you have a pair of them (which is very useful for swapoff
-testing: swapon Y before swapoff X so you can be sure there will
-be enough space) their priorities will again decrement indefinitely.
-Here's my version...
++#define HUGE_PGTABLE_INDEX(psize) (HUGEPTE_CACHE_NUM + psize - 1)
 
-[PATCH] mm: fix ever-decreasing swap priority
+-huge_pgtable_cache(psize) = kmem_cache_create(...
++pgtable_cache[HUGE_PGTABLE_INDEX(psize)] = kmem_cache_create(...
 
-Vegard Nossum has noticed the ever-decreasing negative priority in a swapon
-/swapoff loop, which eventually would misprioritize when int wraps positive.
-Not worth spending much code on, but probably better fixed.
 
-It's easy to handle the swapping on and off of just one area, but there's
-not much point if a pair or more still misbehave.  To handle the general
-case, swapoff should compact negative priorities, keeping them always from
--1 to -MAX_SWAPFILES.  That's a change, but should cause no regression,
-since these negative (unspecified) priorities are disjoint from the
-positive specified priorities 0 to 32767.
+or if there is a more accepted way of handling this situation I can
+amend it differently.
 
-One small functional difference, which seems appropriate: when swapoff
-fails to free all swap from a negative priority area, that area is now
-reinserted at lowest priority, rather than at its original priority.
-
-In moving down swapon's setting of priority, I notice that an area is
-visible to /proc/swaps when it has swap_map set, yet that was being
-set before all the visible fields were properly filled in: corrected.
-
-Signed-off-by: Hugh Dickins <hugh@veritas.com>
----
-
- mm/swapfile.c |   49 ++++++++++++++++++++++++------------------------
- 1 file changed, 25 insertions(+), 24 deletions(-)
-
---- 2.6.26-rc9/mm/swapfile.c	2008-05-03 21:55:12.000000000 +0100
-+++ linux/mm/swapfile.c	2008-07-11 17:25:41.000000000 +0100
-@@ -37,6 +37,7 @@ DEFINE_SPINLOCK(swap_lock);
- unsigned int nr_swapfiles;
- long total_swap_pages;
- static int swap_overflow;
-+static int least_priority;
- 
- static const char Bad_file[] = "Bad swap file entry ";
- static const char Unused_file[] = "Unused swap file entry ";
-@@ -1260,6 +1261,11 @@ asmlinkage long sys_swapoff(const char _
- 		/* just pick something that's safe... */
- 		swap_list.next = swap_list.head;
- 	}
-+	if (p->prio < 0) {
-+		for (i = p->next; i >= 0; i = swap_info[i].next)
-+			swap_info[i].prio = p->prio--;
-+		least_priority++;
-+	}
- 	nr_swap_pages -= p->pages;
- 	total_swap_pages -= p->pages;
- 	p->flags &= ~SWP_WRITEOK;
-@@ -1272,9 +1278,14 @@ asmlinkage long sys_swapoff(const char _
- 	if (err) {
- 		/* re-insert swap space back into swap_list */
- 		spin_lock(&swap_lock);
--		for (prev = -1, i = swap_list.head; i >= 0; prev = i, i = swap_info[i].next)
-+		if (p->prio < 0)
-+			p->prio = --least_priority;
-+		prev = -1;
-+		for (i = swap_list.head; i >= 0; i = swap_info[i].next) {
- 			if (p->prio >= swap_info[i].prio)
- 				break;
-+			prev = i;
-+		}
- 		p->next = i;
- 		if (prev < 0)
- 			swap_list.head = swap_list.next = p - swap_info;
-@@ -1447,7 +1458,6 @@ asmlinkage long sys_swapon(const char __
- 	unsigned int type;
- 	int i, prev;
- 	int error;
--	static int least_priority;
- 	union swap_header *swap_header = NULL;
- 	int swap_header_version;
- 	unsigned int nr_good_pages = 0;
-@@ -1455,7 +1465,7 @@ asmlinkage long sys_swapon(const char __
- 	sector_t span;
- 	unsigned long maxpages = 1;
- 	int swapfilesize;
--	unsigned short *swap_map;
-+	unsigned short *swap_map = NULL;
- 	struct page *page = NULL;
- 	struct inode *inode = NULL;
- 	int did_down = 0;
-@@ -1474,22 +1484,10 @@ asmlinkage long sys_swapon(const char __
- 	}
- 	if (type >= nr_swapfiles)
- 		nr_swapfiles = type+1;
-+	memset(p, 0, sizeof(*p));
- 	INIT_LIST_HEAD(&p->extent_list);
- 	p->flags = SWP_USED;
--	p->swap_file = NULL;
--	p->old_block_size = 0;
--	p->swap_map = NULL;
--	p->lowest_bit = 0;
--	p->highest_bit = 0;
--	p->cluster_nr = 0;
--	p->inuse_pages = 0;
- 	p->next = -1;
--	if (swap_flags & SWAP_FLAG_PREFER) {
--		p->prio =
--		  (swap_flags & SWAP_FLAG_PRIO_MASK)>>SWAP_FLAG_PRIO_SHIFT;
--	} else {
--		p->prio = --least_priority;
--	}
- 	spin_unlock(&swap_lock);
- 	name = getname(specialfile);
- 	error = PTR_ERR(name);
-@@ -1632,19 +1630,20 @@ asmlinkage long sys_swapon(const char __
- 			goto bad_swap;
- 
- 		/* OK, set up the swap map and apply the bad block list */
--		if (!(p->swap_map = vmalloc(maxpages * sizeof(short)))) {
-+		swap_map = vmalloc(maxpages * sizeof(short));
-+		if (!swap_map) {
- 			error = -ENOMEM;
- 			goto bad_swap;
- 		}
- 
- 		error = 0;
--		memset(p->swap_map, 0, maxpages * sizeof(short));
-+		memset(swap_map, 0, maxpages * sizeof(short));
- 		for (i = 0; i < swap_header->info.nr_badpages; i++) {
- 			int page_nr = swap_header->info.badpages[i];
- 			if (page_nr <= 0 || page_nr >= swap_header->info.last_page)
- 				error = -EINVAL;
- 			else
--				p->swap_map[page_nr] = SWAP_MAP_BAD;
-+				swap_map[page_nr] = SWAP_MAP_BAD;
- 		}
- 		nr_good_pages = swap_header->info.last_page -
- 				swap_header->info.nr_badpages -
-@@ -1654,7 +1653,7 @@ asmlinkage long sys_swapon(const char __
- 	}
- 
- 	if (nr_good_pages) {
--		p->swap_map[0] = SWAP_MAP_BAD;
-+		swap_map[0] = SWAP_MAP_BAD;
- 		p->max = maxpages;
- 		p->pages = nr_good_pages;
- 		nr_extents = setup_swap_extents(p, &span);
-@@ -1672,6 +1671,12 @@ asmlinkage long sys_swapon(const char __
- 
- 	mutex_lock(&swapon_mutex);
- 	spin_lock(&swap_lock);
-+	if (swap_flags & SWAP_FLAG_PREFER)
-+		p->prio =
-+		  (swap_flags & SWAP_FLAG_PRIO_MASK) >> SWAP_FLAG_PRIO_SHIFT;
-+	else
-+		p->prio = --least_priority;
-+	p->swap_map = swap_map;
- 	p->flags = SWP_ACTIVE;
- 	nr_swap_pages += nr_good_pages;
- 	total_swap_pages += nr_good_pages;
-@@ -1707,12 +1712,8 @@ bad_swap:
- 	destroy_swap_extents(p);
- bad_swap_2:
- 	spin_lock(&swap_lock);
--	swap_map = p->swap_map;
- 	p->swap_file = NULL;
--	p->swap_map = NULL;
- 	p->flags = 0;
--	if (!(swap_flags & SWAP_FLAG_PREFER))
--		++least_priority;
- 	spin_unlock(&swap_lock);
- 	vfree(swap_map);
- 	if (swap_file)
+Jon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
