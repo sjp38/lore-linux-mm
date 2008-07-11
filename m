@@ -1,45 +1,44 @@
-Date: Fri, 11 Jul 2008 20:02:28 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH -mm 1/5] swapcgroup (v3): add cgroup files
-Message-Id: <20080711200228.6eb145ca.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <1215722136.9398.59.camel@nimitz>
-References: <20080704151536.e5384231.nishimura@mxp.nes.nec.co.jp>
-	<20080704151747.470d62a3.nishimura@mxp.nes.nec.co.jp>
-	<1215722136.9398.59.camel@nimitz>
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate3.uk.ibm.com (8.13.8/8.13.8) with ESMTP id m6BD5qji305504
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2008 13:05:52 GMT
+Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m6BD5q94663766
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2008 14:05:52 +0100
+Received: from d06av03.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av03.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m6BD5pnP027463
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2008 14:05:51 +0100
+Subject: Re: [PATCH] Make CONFIG_MIGRATION available w/o NUMA
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+In-Reply-To: <48736D0F.5080208@linux-foundation.org>
+References: <1215354957.9842.19.camel@localhost.localdomain>
+	 <4872319B.9040809@linux-foundation.org>
+	 <1215451689.8431.80.camel@localhost.localdomain>
+	 <48725480.1060808@linux-foundation.org>
+	 <1215455148.8431.108.camel@localhost.localdomain>
+	 <48726158.9010308@linux-foundation.org>
+	 <1215514245.4832.7.camel@localhost.localdomain>
+	 <48736D0F.5080208@linux-foundation.org>
+Content-Type: text/plain
+Date: Fri, 11 Jul 2008 15:05:50 +0200
+Message-Id: <1215781550.4746.1.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: nishimura@mxp.nes.nec.co.jp, Linux Containers <containers@lists.osdl.org>, Linux MM <linux-mm@kvack.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hugh@veritas.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Dave-san.
-
-On Thu, 10 Jul 2008 13:35:36 -0700, Dave Hansen <dave@linux.vnet.ibm.com> wrote:
-> On Fri, 2008-07-04 at 15:17 +0900, Daisuke Nishimura wrote:
-> > +config CGROUP_SWAP_RES_CTLR
-> > +       bool "Swap Resource Controller for Control Groups"
-> > +       depends on CGROUP_MEM_RES_CTLR && SWAP
-> > +       help
-> > +         Provides a swap resource controller that manages and limits swap usage.
-> > +         Implemented as a add-on to Memory Resource Controller.
+On Tue, 2008-07-08 at 08:35 -0500, Christoph Lameter wrote:
+> Acked-by: Christoph Lameter <cl@linux-foundation.org>
 > 
-> Could you make this just plain depend on 'CGROUP_MEM_RES_CTLR && SWAP'
-> and not make it configurable?  I don't think the resource usage really
-> justifies yet another .config knob to tune and break. :)
-> 
+> Small nit: It now looks as if the vma_migratable() function belongs into mempolicy.h and not migrate.h
 
-I don't stick to using kernel config option.
-
-As I said in my ToDo, I'm going to implement another method
-(boot option or something) to disable(or enable?) this feature,
-so I can make this config not configurable after it.
-
+Right, I'll send a new patch that moves vma_migratable() to mempolicy.h
 
 Thanks,
-Daisuke Nishimura.
+Gerald
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
