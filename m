@@ -1,38 +1,32 @@
-Received: by rv-out-0708.google.com with SMTP id f25so4280334rvb.26
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2008 01:33:53 -0700 (PDT)
-Message-ID: <84144f020807110133y693987e0mdeb8e90d87e46ea2@mail.gmail.com>
-Date: Fri, 11 Jul 2008 11:33:53 +0300
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [RFC PATCH 2/5] Add new GFP flag __GFP_NOTRACE.
-In-Reply-To: <20080710210606.65e240f4@linux360.ro>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <1215712946-23572-1-git-send-email-eduard.munteanu@linux360.ro>
-	 <1215712946-23572-2-git-send-email-eduard.munteanu@linux360.ro>
-	 <20080710210606.65e240f4@linux360.ro>
+Subject: Re: [PATCH][RFC] dirty balancing for cgroups
+In-Reply-To: Your message of "Fri, 11 Jul 2008 16:13:49 +0900"
+	<20080711161349.c5831081.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080711161349.c5831081.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Message-Id: <20080711083446.AC5425A22@siro.lan>
+Date: Fri, 11 Jul 2008 17:34:46 +0900 (JST)
+From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>
+To: kamezawa.hiroyu@jp.fujitsu.com
+Cc: linux-mm@kvack.org, menage@google.com, containers@lists.linux-foundation.org, a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Eduard-Gabriel,
+hi,
 
-On Thu, Jul 10, 2008 at 9:06 PM, Eduard - Gabriel Munteanu
-<eduard.munteanu@linux360.ro> wrote:
-> __GFP_NOTRACE turns off allocator tracing for that particular allocation.
->
-> This is used by kmemtrace to correctly classify different kinds of
-> allocations, without recording one event multiple times. Example: SLAB's
-> kmalloc() calls kmem_cache_alloc(), but we want to record this only as a
-> kmalloc.
->
-> Signed-off-by: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+> > my patch penalizes heavy-writer cgroups as task_dirty_limit does
+> > for heavy-writer tasks.  i don't think that it's necessary to be
+> > tied to the memory subsystem because i merely want to group writers.
+> > 
+> Hmm, maybe what I need is different from this ;)
+> Does not seem to be a help for memory reclaim under memcg.
 
-I don't like this approach. I think you can just place the hooks in
-the proper place in SLAB to avoid this?
+to implement what you need, i think that we need to keep track of
+the numbers of dirty-pages in each memory cgroups as a first step.
+do you agree?
+
+YAMAMOTO Takashi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
