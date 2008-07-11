@@ -1,73 +1,75 @@
-Date: Fri, 11 Jul 2008 16:13:49 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH][RFC] dirty balancing for cgroups
-Message-Id: <20080711161349.c5831081.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080711055926.9AF4F5A03@siro.lan>
-References: <20080711141511.515e69a5.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080711055926.9AF4F5A03@siro.lan>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 11 Jul 2008 09:16:13 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: Re: [PATCH 1/2] [PATCH] Fix a hugepage reservation check for MAP_SHARED
+Message-ID: <20080711081600.GN7410@shadowen.org>
+References: <20080710173001.16433.87538.sendpatchset@skynet.skynet.ie> <20080710173021.16433.90661.sendpatchset@skynet.skynet.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080710173021.16433.90661.sendpatchset@skynet.skynet.ie>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: a.p.zijlstra@chello.nl, linux-mm@kvack.org, menage@google.com, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, agl@us.ibm.com, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 11 Jul 2008 14:59:26 +0900 (JST)
-yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
-
-> > > >  - This looks simple but, could you merge this into memory resource controller ?
-> > > 
-> > > why?
-> > > 
-> > 3 points.
-> >  1. Is this useful if used alone ?
+On Thu, Jul 10, 2008 at 06:30:21PM +0100, Mel Gorman wrote:
 > 
-> it can be.  why not?
+> When removing a huge page from the hugepage pool for a fault the system
+> checks to see if the mapping requires additional pages to be reserved, and
+> if it does whether there are any unreserved pages remaining.  If not, the
+> allocation fails without even attempting to get a page. In order to determine
+> whether to apply this check we call vma_has_private_reserves() which tells us
+> if this vma is MAP_PRIVATE and is the owner.  This incorrectly triggers the
+> remaining reservation test for MAP_SHARED mappings which prevents allocation
+> of the final page in the pool even though it is reserved for this mapping.
 > 
-> >  2. memcg requires this kind of feature, basically.
-> > 
-> >  3. I wonder I need more work to make this work well under memcg.
+> In reality we only want to check this for MAP_PRIVATE mappings where the
+> process is not the original mapper.  Replace vma_has_private_reserves() with
+> vma_has_reserves() which indicates whether further reserves are required,
+> and update the caller.
+
+Acked-by: Andy Whitcroft <apw@shadowen.org>
+
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ---
 > 
-> i'm not sure if i understand these points.  can you explain a bit?
+>  mm/hugetlb.c |   12 ++++++------
+>  1 file changed, 6 insertions(+), 6 deletions(-)
 > 
-In my understanding, dirty_ratio is for helping memory (reclaim) subsystem.
+> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.26-rc8-mm1-clean/mm/hugetlb.c linux-2.6.26-rc8-mm1-fix-needsreserve-check/mm/hugetlb.c
+> --- linux-2.6.26-rc8-mm1-clean/mm/hugetlb.c	2008-07-08 11:54:34.000000000 -0700
+> +++ linux-2.6.26-rc8-mm1-fix-needsreserve-check/mm/hugetlb.c	2008-07-08 12:41:36.000000000 -0700
+> @@ -343,13 +343,13 @@ void reset_vma_resv_huge_pages(struct vm
+>  }
+>  
+>  /* Returns true if the VMA has associated reserve pages */
+> -static int vma_has_private_reserves(struct vm_area_struct *vma)
+> +static int vma_has_reserves(struct vm_area_struct *vma)
+>  {
+>  	if (vma->vm_flags & VM_SHARED)
+> -		return 0;
+> -	if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER))
+> -		return 0;
+> -	return 1;
+> +		return 1;
+> +	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER))
+> +		return 1;
+> +	return 0;
+>  }
+>  
+>  static void clear_huge_page(struct page *page,
+> @@ -421,7 +421,7 @@ static struct page *dequeue_huge_page_vm
+>  	 * have no page reserves. This check ensures that reservations are
+>  	 * not "stolen". The child may still get SIGKILLed
+>  	 */
+> -	if (!vma_has_private_reserves(vma) &&
+> +	if (!vma_has_reserves(vma) &&
+>  			h->free_huge_pages - h->resv_huge_pages == 0)
+>  		return NULL;
+>  
 
-See comments in fs/page-writeback.c:: determin_dirtyable_memory()
-==
-/*
- * Work out the current dirty-memory clamping and background writeout
- * thresholds.
- *
- * The main aim here is to lower them aggressively if there is a lot of mapped
- * memory around.  To avoid stressing page reclaim with lots of unreclaimable
- * pages.  It is better to clamp down on writers than to start swapping, and
- * performing lots of scanning.
- *
- * We only allow 1/2 of the currently-unmapped memory to be dirtied.
- *
- * We don't permit the clamping level to fall below 5% - that is getting rather
- * excessive.
- *
- * We make sure that the background writeout level is below the adjusted
- * clamping level.
-==
-
-"To avoid stressing page reclaim with lots of unreclaimable pages"
-
-Then, I think memcg should support this for helping relcaim under memcg.
-
-> my patch penalizes heavy-writer cgroups as task_dirty_limit does
-> for heavy-writer tasks.  i don't think that it's necessary to be
-> tied to the memory subsystem because i merely want to group writers.
-> 
-Hmm, maybe what I need is different from this ;)
-Does not seem to be a help for memory reclaim under memcg.
-
-
-Thanks,
--Kame
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
