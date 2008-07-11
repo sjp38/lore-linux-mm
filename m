@@ -1,31 +1,36 @@
-Date: Fri, 11 Jul 2008 12:17:36 -0700
+Date: Fri, 11 Jul 2008 12:19:19 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] - GRU virtual -> physical translation
-Message-Id: <20080711121736.18687570.akpm@linux-foundation.org>
-In-Reply-To: <20080709191439.GA7307@sgi.com>
-References: <20080709191439.GA7307@sgi.com>
+Subject: Re: [PATCH 1/2] - Unmap driver ptes
+Message-Id: <20080711121919.dd1a9801.akpm@linux-foundation.org>
+In-Reply-To: <20080708163809.GA19366@sgi.com>
+References: <20080708163809.GA19366@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Jack Steiner <steiner@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linuxfoundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 Jul 2008 14:14:39 -0500 Jack Steiner <steiner@sgi.com> wrote:
+On Tue, 8 Jul 2008 11:38:09 -0500 Jack Steiner <steiner@sgi.com> wrote:
 
-> Open code the equivalent to follow_page(). This eliminates the
-> requirement for an EXPORT of follow_page().
+> Subject: [PATCH 1/2] - Unmap driver ptes
 
-I'd prefer to export follow_page() - copying-n-pasting just to avoid
-exporting the darn thing is silly.
+Sigh.  Please do promise to spend a minimum of 45 seconds thinking up and
+typing in nice, meaningful patch titles?  It's a little thing, but this
+stuff is forever.
 
-> In addition, the code
-> is optimized for the specific case that is needed by the GRU and only
-> supports architectures supported by the GRU (ia64 & x86_64).
+Also, please expunge akpm@linuxfoundation.org from any address book in
+which he might appear.  That rewriting was a transient brainfart by the
+linux-foundation.org admins for half a day a few weeks back and it is
+hanging around like its non-brain namesake in a small room, causing me
+to get duplicate emails, send emails to myself, etc.
 
-Unless you think that this alone justifies the patch?
+Thanks.
+
+<remembers to nuke akpm@linuxfoundation.org from the cc list before
+sending.  Phew>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
