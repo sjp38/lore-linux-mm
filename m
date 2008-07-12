@@ -1,50 +1,33 @@
-Date: Sat, 12 Jul 2008 15:28:39 +0900
+Date: Sat, 12 Jul 2008 16:15:55 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: swapon/swapoff in a loop -- ever-decreasing priority field
-In-Reply-To: <Pine.LNX.4.64.0807112214240.25357@blonde.site>
-References: <20080711121227.F694.KOSAKI.MOTOHIRO@jp.fujitsu.com> <Pine.LNX.4.64.0807112214240.25357@blonde.site>
-Message-Id: <20080712152050.F69F.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [BUG] 2.6.26-rc8-mm1 - sleeping function called from invalid context at include/linux/pagemap.h:291
+In-Reply-To: <48737CBE.4010301@linux.vnet.ibm.com>
+References: <20080703020236.adaa51fa.akpm@linux-foundation.org> <48737CBE.4010301@linux.vnet.ibm.com>
+Message-Id: <20080712161058.F6A5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Vegard Nossum <vegard.nossum@gmail.com>, linux-mm@kvack.org
+To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-testers@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Andy Whitcroft <apw@shadowen.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Fri, 11 Jul 2008, KOSAKI Motohiro wrote:
-> > > 
-> > > I find that running swapon/swapoff in a loop will decrement the
-> > > "Priority" field of the swap partition once per iteration. This
-> > > doesn't seem quite correct, as it will eventually lead to an
-> > > underflow.
-> > > 
-> > > (Though, by my calculations, it would take around 620 days of constant
-> > > swapoff/swapon to reach this condition, so it's hardly a real-life
-> > > problem.)
-> > > 
-> > > Is this something that should be fixed, though?
-> > 
-> > I am not sure about your intention.
-> > Do following patch fill your requirement?
+Hi Kamalesh,
+
+> Hi Andrew,
 > 
-> I believe that only handles a simple swapon/swapoff of one area:
-> once you have a pair of them (which is very useful for swapoff
-> testing: swapon Y before swapoff X so you can be sure there will
-> be enough space) their priorities will again decrement indefinitely.
-> Here's my version...
+> While booting up and shutting down, x86 machine with 2.6.26-rc8-mm1 kernel,
+> kernel bug call trace is shows up in the logs
 
-Yeah, I ignored intentionally its corner case.
-I thought it is artificial issue, not real problem.
-but yes, two swap test should be allowed.
+That is known bug.
+please turn off CONFIG_UNEVICTABLE_LRU.
 
-your patch is better, of cource.
-it works well on my sevarl test and I found no bug in my review.
+and see below thread.
 
-Thanks!
+	[-mm] BUG: sleeping function called from invalid context at include/linux/pagemap.h:290
 
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
 
 
 
