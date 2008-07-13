@@ -1,171 +1,180 @@
-Date: Mon, 14 Jul 2008 00:38:47 +0100 (BST)
+Date: Mon, 14 Jul 2008 00:42:36 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH mm] mm: speculative page references fix add_to_page_cache
-Message-ID: <Pine.LNX.4.64.0807140031220.30686@blonde.site>
+Subject: [PATCH mm] mm: fix ever-decreasing swap priority
+Message-ID: <Pine.LNX.4.64.0807140038540.30686@blonde.site>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Vegard Nossum <vegard.nossum@gmail.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The speculative page references patch actually depends on another patch
-of Nick's which he hasn't supplied this time around: an atomic-avoiding
-__set_page_locked patch: see http://lkml.org/lkml/2007/11/10/5
+Vegard Nossum has noticed the ever-decreasing negative priority in a swapon
+/swapoff loop, which eventually would misprioritize when int wraps positive.
+Not worth spending much code on, but probably better fixed.
 
-This showed up when shmem_unuse_inode's add_to_page_cache failed: the
-page was passed in locked and should remain locked, but speculative's
-add_to_page_cache had unlocked it already, so the subsequent unlock_page
-BUGged.  add_to_page_cache indeed should set and clear the page lock, but
-shmem/tmpfs needs an add_to_page_cache_locked entry point to avoid that.
+It's easy to handle the swapping on and off of just one area, but there's
+not much point if a pair or more still misbehave.  To handle the general
+case, swapoff should compact negative priorities, keeping them always from
+-1 to -MAX_SWAPFILES.  That's a change, but should cause no regression,
+since these negative (unspecified) priorities are disjoint from the
+the positive specified priorities 0 to 32767.
 
-This fix patch below extracts and updates what's needed from Nick's
-original, including his comments, but leaving out the atomic-avoidance.
+One small functional difference, which seems appropriate: when swapoff
+fails to free all swap from a negative priority area, that area is now
+reinserted at lowest priority, rather than at its original priority.
 
-(Do speculative page references actually need the page locked before
-it's entered into the page cache?  I'm not sure myself, suspect that
-if everywhere else handled PageUptodate and PageError correctly then
-it might not be necessary; but we're pretty sure there are gaps in
-that error handling, so I agree with Nick that we should lock before.
-He may well be able to supply a stronger reason why it's necessary.)
-
-I apologize for not finding this sooner, my testing coverage weaker
-than I'd thought: only hit this in checking the swap priority patch.
+In moving down swapon's setting of priority, I notice that an area is
+visible to /proc/swaps when it has swap_map set, yet that was being
+set before all the visible fields were properly filled in: corrected.
 
 Signed-off-by: Hugh Dickins <hugh@veritas.com>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
-Should follow mmotm's mm-speculative-page-references-hugh-fix3.patch
+This one could go anywhere in the mm series, nothing worse than fuzz.
 
- include/linux/pagemap.h |   18 +++++++++++++++++-
- mm/filemap.c            |   19 +++++++++----------
- mm/shmem.c              |    4 ++--
- mm/swap_state.c         |    2 +-
- 4 files changed, 29 insertions(+), 14 deletions(-)
+ mm/swapfile.c |   49 ++++++++++++++++++++++++------------------------
+ 1 file changed, 25 insertions(+), 24 deletions(-)
 
---- mmotm.orig/include/linux/pagemap.h	2008-07-12 21:36:26.000000000 +0100
-+++ mmotm/include/linux/pagemap.h	2008-07-12 21:36:40.000000000 +0100
-@@ -227,7 +227,7 @@ static inline struct page *read_mapping_
- 	return read_cache_page(mapping, index, filler, data);
- }
+--- 2.6.26-rc9/mm/swapfile.c	2008-05-03 21:55:12.000000000 +0100
++++ linux/mm/swapfile.c	2008-07-11 17:25:41.000000000 +0100
+@@ -37,6 +37,7 @@ DEFINE_SPINLOCK(swap_lock);
+ unsigned int nr_swapfiles;
+ long total_swap_pages;
+ static int swap_overflow;
++static int least_priority;
  
--int add_to_page_cache(struct page *page, struct address_space *mapping,
-+int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
- 				pgoff_t index, gfp_t gfp_mask);
- int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
- 				pgoff_t index, gfp_t gfp_mask);
-@@ -235,6 +235,22 @@ extern void remove_from_page_cache(struc
- extern void __remove_from_page_cache(struct page *page);
+ static const char Bad_file[] = "Bad swap file entry ";
+ static const char Unused_file[] = "Unused swap file entry ";
+@@ -1260,6 +1261,11 @@ asmlinkage long sys_swapoff(const char _
+ 		/* just pick something that's safe... */
+ 		swap_list.next = swap_list.head;
+ 	}
++	if (p->prio < 0) {
++		for (i = p->next; i >= 0; i = swap_info[i].next)
++			swap_info[i].prio = p->prio--;
++		least_priority++;
++	}
+ 	nr_swap_pages -= p->pages;
+ 	total_swap_pages -= p->pages;
+ 	p->flags &= ~SWP_WRITEOK;
+@@ -1272,9 +1278,14 @@ asmlinkage long sys_swapoff(const char _
+ 	if (err) {
+ 		/* re-insert swap space back into swap_list */
+ 		spin_lock(&swap_lock);
+-		for (prev = -1, i = swap_list.head; i >= 0; prev = i, i = swap_info[i].next)
++		if (p->prio < 0)
++			p->prio = --least_priority;
++		prev = -1;
++		for (i = swap_list.head; i >= 0; i = swap_info[i].next) {
+ 			if (p->prio >= swap_info[i].prio)
+ 				break;
++			prev = i;
++		}
+ 		p->next = i;
+ 		if (prev < 0)
+ 			swap_list.head = swap_list.next = p - swap_info;
+@@ -1447,7 +1458,6 @@ asmlinkage long sys_swapon(const char __
+ 	unsigned int type;
+ 	int i, prev;
+ 	int error;
+-	static int least_priority;
+ 	union swap_header *swap_header = NULL;
+ 	int swap_header_version;
+ 	unsigned int nr_good_pages = 0;
+@@ -1455,7 +1465,7 @@ asmlinkage long sys_swapon(const char __
+ 	sector_t span;
+ 	unsigned long maxpages = 1;
+ 	int swapfilesize;
+-	unsigned short *swap_map;
++	unsigned short *swap_map = NULL;
+ 	struct page *page = NULL;
+ 	struct inode *inode = NULL;
+ 	int did_down = 0;
+@@ -1474,22 +1484,10 @@ asmlinkage long sys_swapon(const char __
+ 	}
+ 	if (type >= nr_swapfiles)
+ 		nr_swapfiles = type+1;
++	memset(p, 0, sizeof(*p));
+ 	INIT_LIST_HEAD(&p->extent_list);
+ 	p->flags = SWP_USED;
+-	p->swap_file = NULL;
+-	p->old_block_size = 0;
+-	p->swap_map = NULL;
+-	p->lowest_bit = 0;
+-	p->highest_bit = 0;
+-	p->cluster_nr = 0;
+-	p->inuse_pages = 0;
+ 	p->next = -1;
+-	if (swap_flags & SWAP_FLAG_PREFER) {
+-		p->prio =
+-		  (swap_flags & SWAP_FLAG_PRIO_MASK)>>SWAP_FLAG_PRIO_SHIFT;
+-	} else {
+-		p->prio = --least_priority;
+-	}
+ 	spin_unlock(&swap_lock);
+ 	name = getname(specialfile);
+ 	error = PTR_ERR(name);
+@@ -1632,19 +1630,20 @@ asmlinkage long sys_swapon(const char __
+ 			goto bad_swap;
  
- /*
-+ * Like add_to_page_cache_locked, but used to add newly allocated pages:
-+ * the page is new, so we can just run SetPageLocked() against it.
-+ */
-+static inline int add_to_page_cache(struct page *page,
-+		struct address_space *mapping, pgoff_t offset, gfp_t gfp_mask)
-+{
-+	int error;
-+
-+	SetPageLocked(page);
-+	error = add_to_page_cache_locked(page, mapping, offset, gfp_mask);
-+	if (unlikely(error))
-+		ClearPageLocked(page);
-+	return error;
-+}
-+
-+/*
-  * Return byte-offset into filesystem object for page.
-  */
- static inline loff_t page_offset(struct page *page)
---- mmotm.orig/mm/filemap.c	2008-07-12 21:36:26.000000000 +0100
-+++ mmotm/mm/filemap.c	2008-07-12 21:36:40.000000000 +0100
-@@ -442,22 +442,23 @@ int filemap_write_and_wait_range(struct 
- }
- 
- /**
-- * add_to_page_cache - add newly allocated pagecache pages
-+ * add_to_page_cache_locked - add newly allocated pagecache pages
-  * @page:	page to add
-  * @mapping:	the page's address_space
-  * @offset:	page index
-  * @gfp_mask:	page allocation mode
-  *
-- * This function is used to add newly allocated pagecache pages;
-- * the page is new, so we can just run SetPageLocked() against it.
-- * The other page state flags were set by rmqueue().
-- *
-+ * This function is used to add a page to the pagecache. It must be locked.
-  * This function does not add the page to the LRU.  The caller must do that.
-  */
--int add_to_page_cache(struct page *page, struct address_space *mapping,
-+int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
- 		pgoff_t offset, gfp_t gfp_mask)
- {
--	int error = mem_cgroup_cache_charge(page, current->mm,
-+	int error;
-+
-+	VM_BUG_ON(!PageLocked(page));
-+
-+	error = mem_cgroup_cache_charge(page, current->mm,
- 					gfp_mask & ~__GFP_HIGHMEM);
- 	if (error)
- 		goto out;
-@@ -465,7 +466,6 @@ int add_to_page_cache(struct page *page,
- 	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
- 	if (error == 0) {
- 		page_cache_get(page);
--		SetPageLocked(page);
- 		page->mapping = mapping;
- 		page->index = offset;
- 
-@@ -476,7 +476,6 @@ int add_to_page_cache(struct page *page,
- 			__inc_zone_page_state(page, NR_FILE_PAGES);
- 		} else {
- 			page->mapping = NULL;
--			ClearPageLocked(page);
- 			mem_cgroup_uncharge_cache_page(page);
- 			page_cache_release(page);
+ 		/* OK, set up the swap map and apply the bad block list */
+-		if (!(p->swap_map = vmalloc(maxpages * sizeof(short)))) {
++		swap_map = vmalloc(maxpages * sizeof(short));
++		if (!swap_map) {
+ 			error = -ENOMEM;
+ 			goto bad_swap;
  		}
-@@ -488,7 +487,7 @@ int add_to_page_cache(struct page *page,
- out:
- 	return error;
- }
--EXPORT_SYMBOL(add_to_page_cache);
-+EXPORT_SYMBOL(add_to_page_cache_locked);
  
- int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
- 				pgoff_t offset, gfp_t gfp_mask)
---- mmotm.orig/mm/shmem.c	2008-07-12 21:25:56.000000000 +0100
-+++ mmotm/mm/shmem.c	2008-07-12 21:36:40.000000000 +0100
-@@ -936,7 +936,7 @@ found:
- 	spin_lock(&info->lock);
- 	ptr = shmem_swp_entry(info, idx, NULL);
- 	if (ptr && ptr->val == entry.val) {
--		error = add_to_page_cache(page, inode->i_mapping,
-+		error = add_to_page_cache_locked(page, inode->i_mapping,
- 						idx, GFP_NOWAIT);
- 		/* does mem_cgroup_uncharge_cache_page on error */
- 	} else	/* we must compensate for our precharge above */
-@@ -1301,7 +1301,7 @@ repeat:
- 			SetPageUptodate(filepage);
- 			set_page_dirty(filepage);
- 			swap_free(swap);
--		} else if (!(error = add_to_page_cache(
-+		} else if (!(error = add_to_page_cache_locked(
- 				swappage, mapping, idx, GFP_NOWAIT))) {
- 			info->flags |= SHMEM_PAGEIN;
- 			shmem_swp_set(info, entry, 0);
---- mmotm.orig/mm/swap_state.c	2008-07-12 21:36:26.000000000 +0100
-+++ mmotm/mm/swap_state.c	2008-07-12 21:36:40.000000000 +0100
-@@ -64,7 +64,7 @@ void show_swap_cache_info(void)
- }
+ 		error = 0;
+-		memset(p->swap_map, 0, maxpages * sizeof(short));
++		memset(swap_map, 0, maxpages * sizeof(short));
+ 		for (i = 0; i < swap_header->info.nr_badpages; i++) {
+ 			int page_nr = swap_header->info.badpages[i];
+ 			if (page_nr <= 0 || page_nr >= swap_header->info.last_page)
+ 				error = -EINVAL;
+ 			else
+-				p->swap_map[page_nr] = SWAP_MAP_BAD;
++				swap_map[page_nr] = SWAP_MAP_BAD;
+ 		}
+ 		nr_good_pages = swap_header->info.last_page -
+ 				swap_header->info.nr_badpages -
+@@ -1654,7 +1653,7 @@ asmlinkage long sys_swapon(const char __
+ 	}
  
- /*
-- * add_to_swap_cache resembles add_to_page_cache on swapper_space,
-+ * add_to_swap_cache resembles add_to_page_cache_locked on swapper_space,
-  * but sets SwapCache flag and private instead of mapping and index.
-  */
- int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
+ 	if (nr_good_pages) {
+-		p->swap_map[0] = SWAP_MAP_BAD;
++		swap_map[0] = SWAP_MAP_BAD;
+ 		p->max = maxpages;
+ 		p->pages = nr_good_pages;
+ 		nr_extents = setup_swap_extents(p, &span);
+@@ -1672,6 +1671,12 @@ asmlinkage long sys_swapon(const char __
+ 
+ 	mutex_lock(&swapon_mutex);
+ 	spin_lock(&swap_lock);
++	if (swap_flags & SWAP_FLAG_PREFER)
++		p->prio =
++		  (swap_flags & SWAP_FLAG_PRIO_MASK) >> SWAP_FLAG_PRIO_SHIFT;
++	else
++		p->prio = --least_priority;
++	p->swap_map = swap_map;
+ 	p->flags = SWP_ACTIVE;
+ 	nr_swap_pages += nr_good_pages;
+ 	total_swap_pages += nr_good_pages;
+@@ -1707,12 +1712,8 @@ bad_swap:
+ 	destroy_swap_extents(p);
+ bad_swap_2:
+ 	spin_lock(&swap_lock);
+-	swap_map = p->swap_map;
+ 	p->swap_file = NULL;
+-	p->swap_map = NULL;
+ 	p->flags = 0;
+-	if (!(swap_flags & SWAP_FLAG_PREFER))
+-		++least_priority;
+ 	spin_unlock(&swap_lock);
+ 	vfree(swap_map);
+ 	if (swap_file)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
