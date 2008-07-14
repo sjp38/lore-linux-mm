@@ -1,9 +1,9 @@
-Date: Tue, 15 Jul 2008 04:12:22 +0900
+Date: Tue, 15 Jul 2008 04:13:44 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [mmotm][PATCH 3/9] revert migration change of unevictable lru infrastructure
+Subject: [mmotm][PATCH 4/9] revert shm change of shm_locked pages are unevictable patch
 In-Reply-To: <20080715040402.F6EF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 References: <20080715040402.F6EF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20080715041051.F6F8.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080715041226.F6FB.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -13,128 +13,185 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <Lee.Sc
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Patch title: unevictable-lru-infrastructure-revert-migration-change.patch
-Against:  mmotm Jul 14
-Applies after: unevictable-lru-infrastructure-kill-unnecessary-lock_page.patch
+Patch title: shm_locked-pages-are-unevictable-revert-shm-change.patch
+Against: mmotm Jul 14
+Applies after: shm_locked-pages-are-unevictable.patch
 
 
-Unevictable LRU Infrastructure patch changed several migration code because
-Old version putback_lru_page() had needed to page lock.
+shm_locked-pages-are-unevictable.patch changed several shmem code
+because that putback_lru_page() had needed page lock.
 
 it has little performance degression and isn't necessary now.
 So, reverting is better.
 
+fixup to handle changes to putback_lru_page() change.  Add retry to
+loop check_move_unevictable_page().
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
 
- mm/migrate.c |   38 +++++++++++---------------------------
- 1 file changed, 11 insertions(+), 27 deletions(-)
 
-Index: b/mm/migrate.c
+ include/linux/mm.h |    9 ++++-----
+ ipc/shm.c          |   16 ++--------------
+ mm/shmem.c         |   10 +++++-----
+ mm/vmscan.c        |   19 +++++--------------
+ 4 files changed, 16 insertions(+), 38 deletions(-)
+
+Index: b/include/linux/mm.h
 ===================================================================
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -67,11 +67,7 @@ int putback_lru_pages(struct list_head *
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -709,13 +709,12 @@ static inline int page_mapped(struct pag
+ extern void show_free_areas(void);
  
- 	list_for_each_entry_safe(page, page2, l, lru) {
- 		list_del(&page->lru);
--		get_page(page);
--		lock_page(page);
- 		putback_lru_page(page);
--		unlock_page(page);
--		put_page(page);
- 		count++;
- 	}
- 	return count;
-@@ -583,8 +579,6 @@ static int move_to_new_page(struct page 
- 	struct address_space *mapping;
- 	int rc;
- 
--	get_page(newpage); /* for prevent page release under lock_page() */
--
- 	/*
- 	 * Block others from accessing the page when we get around to
- 	 * establishing additional references. We are the only one
-@@ -617,12 +611,10 @@ static int move_to_new_page(struct page 
- 
- 	if (!rc) {
- 		remove_migration_ptes(page, newpage);
--		putback_lru_page(newpage);
- 	} else
- 		newpage->mapping = NULL;
- 
- 	unlock_page(newpage);
--	put_page(newpage);
- 
- 	return rc;
+ #ifdef CONFIG_SHMEM
+-extern struct address_space *shmem_lock(struct file *file, int lock,
+-					struct user_struct *user);
++extern int shmem_lock(struct file *file, int lock, struct user_struct *user);
+ #else
+-static inline struct address_space *shmem_lock(struct file *file, int lock,
+-					struct user_struct *user)
++static inline int shmem_lock(struct file *file, int lock,
++			    struct user_struct *user)
+ {
+-	return NULL;
++	return 0;
  }
-@@ -645,16 +637,13 @@ static int unmap_and_move(new_page_t get
+ #endif
+ struct file *shmem_file_setup(char *name, loff_t size, unsigned long flags);
+Index: b/ipc/shm.c
+===================================================================
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -737,7 +737,6 @@ asmlinkage long sys_shmctl(int shmid, in
+ 	case SHM_LOCK:
+ 	case SHM_UNLOCK:
+ 	{
+-		struct address_space *mapping = NULL;
+ 		struct file *uninitialized_var(shm_file);
  
- 	if (page_count(page) == 1) {
- 		/* page was freed from under us. So we are done. */
--		get_page(page);
--		goto end_migration;
-+		goto move_newpage;
+ 		lru_add_drain_all();  /* drain pagevecs to lru lists */
+@@ -769,29 +768,18 @@ asmlinkage long sys_shmctl(int shmid, in
+ 		if(cmd==SHM_LOCK) {
+ 			struct user_struct * user = current->user;
+ 			if (!is_file_hugepages(shp->shm_file)) {
+-				mapping = shmem_lock(shp->shm_file, 1, user);
+-				if (IS_ERR(mapping))
+-					err = PTR_ERR(mapping);
+-				mapping = NULL;
++				err = shmem_lock(shp->shm_file, 1, user);
+ 				if (!err && !(shp->shm_perm.mode & SHM_LOCKED)){
+ 					shp->shm_perm.mode |= SHM_LOCKED;
+ 					shp->mlock_user = user;
+ 				}
+ 			}
+ 		} else if (!is_file_hugepages(shp->shm_file)) {
+-			mapping = shmem_lock(shp->shm_file, 0, shp->mlock_user);
++			shmem_lock(shp->shm_file, 0, shp->mlock_user);
+ 			shp->shm_perm.mode &= ~SHM_LOCKED;
+ 			shp->mlock_user = NULL;
+-			if (mapping) {
+-				shm_file = shp->shm_file;
+-				get_file(shm_file);	/* hold across unlock */
+-			}
+ 		}
+ 		shm_unlock(shp);
+-		if (mapping) {
+-			scan_mapping_unevictable_pages(mapping);
+-			fput(shm_file);
+-		}
+ 		goto out;
  	}
+ 	case IPC_RMID:
+Index: b/mm/shmem.c
+===================================================================
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1468,12 +1468,11 @@ static struct mempolicy *shmem_get_polic
+ }
+ #endif
  
--	get_page(page);
--
- 	charge = mem_cgroup_prepare_migration(page, newpage);
- 	if (charge == -ENOMEM) {
- 		rc = -ENOMEM;
--		goto end_migration;
-+		goto move_newpage;
+-struct address_space *shmem_lock(struct file *file, int lock,
+-				 struct user_struct *user)
++int shmem_lock(struct file *file, int lock, struct user_struct *user)
+ {
+ 	struct inode *inode = file->f_path.dentry->d_inode;
+ 	struct shmem_inode_info *info = SHMEM_I(inode);
+-	struct address_space *retval = ERR_PTR(-ENOMEM);
++	int retval = -ENOMEM;
+ 
+ 	spin_lock(&info->lock);
+ 	if (lock && !(info->flags & VM_LOCKED)) {
+@@ -1481,14 +1480,15 @@ struct address_space *shmem_lock(struct 
+ 			goto out_nomem;
+ 		info->flags |= VM_LOCKED;
+ 		mapping_set_unevictable(file->f_mapping);
+-		retval = NULL;
  	}
- 	/* prepare cgroup just returns 0 or -ENOMEM */
- 	BUG_ON(charge);
-@@ -662,7 +651,7 @@ static int unmap_and_move(new_page_t get
- 	rc = -EAGAIN;
- 	if (TestSetPageLocked(page)) {
- 		if (!force)
--			goto end_migration;
-+			goto move_newpage;
- 		lock_page(page);
+ 	if (!lock && (info->flags & VM_LOCKED) && user) {
+ 		user_shm_unlock(inode->i_size, user);
+ 		info->flags &= ~VM_LOCKED;
+ 		mapping_clear_unevictable(file->f_mapping);
+-		retval = file->f_mapping;
++		scan_mapping_unevictable_pages(file->f_mapping);
  	}
- 
-@@ -723,6 +712,7 @@ rcu_unlock:
- 		rcu_read_unlock();
- 
- unlock:
-+	unlock_page(page);
- 
- 	if (rc != -EAGAIN) {
-  		/*
-@@ -735,22 +725,16 @@ unlock:
- 		putback_lru_page(page);
- 	}
- 
--	unlock_page(page);
--
--end_migration:
--	put_page(page);
--
-+move_newpage:
- 	if (!charge)
- 		mem_cgroup_end_migration(newpage);
- 
--	if (!newpage->mapping) {
--		/*
--		 * Migration failed or was never attempted.
--		 * Free the newpage.
--		 */
--		VM_BUG_ON(page_count(newpage) != 1);
--		put_page(newpage);
--	}
-+	/*
-+	 * Move the new page to the LRU. If migration was not successful
-+	 * then this will free the page.
-+	 */
-+	putback_lru_page(newpage);
++	retval = 0;
 +
- 	if (result) {
- 		if (rc)
- 			*result = rc;
+ out_nomem:
+ 	spin_unlock(&info->lock);
+ 	return retval;
+Index: b/mm/vmscan.c
+===================================================================
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2454,8 +2454,10 @@ static void show_page_path(struct page *
+  */
+ static void check_move_unevictable_page(struct page *page, struct zone *zone)
+ {
++	VM_BUG_ON(PageActive(page));
+ 
+-	ClearPageUnevictable(page); /* for page_evictable() */
++retry:
++	ClearPageUnevictable(page);
+ 	if (page_evictable(page, NULL)) {
+ 		enum lru_list l = LRU_INACTIVE_ANON + page_is_file_cache(page);
+ 
+@@ -2471,6 +2473,8 @@ static void check_move_unevictable_page(
+ 		 */
+ 		SetPageUnevictable(page);
+ 		list_move(&page->lru, &zone->lru[LRU_UNEVICTABLE].list);
++		if (page_evictable(page, NULL))
++			goto retry;
+ 	}
+ }
+ 
+@@ -2510,16 +2514,6 @@ void scan_mapping_unevictable_pages(stru
+ 				next = page_index;
+ 			next++;
+ 
+-			if (TestSetPageLocked(page)) {
+-				/*
+-				 * OK, let's do it the hard way...
+-				 */
+-				if (zone)
+-					spin_unlock_irq(&zone->lru_lock);
+-				zone = NULL;
+-				lock_page(page);
+-			}
+-
+ 			if (pagezone != zone) {
+ 				if (zone)
+ 					spin_unlock_irq(&zone->lru_lock);
+@@ -2529,9 +2523,6 @@ void scan_mapping_unevictable_pages(stru
+ 
+ 			if (PageLRU(page) && PageUnevictable(page))
+ 				check_move_unevictable_page(page, zone);
+-
+-			unlock_page(page);
+-
+ 		}
+ 		if (zone)
+ 			spin_unlock_irq(&zone->lru_lock);
 
 
 --
