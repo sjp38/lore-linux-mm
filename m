@@ -1,63 +1,53 @@
-Date: Tue, 15 Jul 2008 01:20:38 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [mmotm] fix build error caused by !NUMA migration
-Message-Id: <20080715011230.F6EB.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Date: Mon, 14 Jul 2008 09:24:51 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] - GRU virtual -> physical translation
+Message-Id: <20080714092451.2c81a472.akpm@linux-foundation.org>
+In-Reply-To: <20080714145255.GA23173@sgi.com>
+References: <20080709191439.GA7307@sgi.com>
+	<20080711121736.18687570.akpm@linux-foundation.org>
+	<20080714145255.GA23173@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Jack Steiner <steiner@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>
 List-ID: <linux-mm.kvack.org>
 
-Patch title: mm-make-config_migration-available-w-o-config_numa-fix.patch
-Against: mmotm Jul 14
-Applies after: mm-make-config_migration-available-w-o-config_numa.patch
+On Mon, 14 Jul 2008 09:52:55 -0500 Jack Steiner <steiner@sgi.com> wrote:
 
-"Make CONFIG_MIGRATION available w/o CONFIG_NUMA" patch add pagemap.h inclusion.
+> On Fri, Jul 11, 2008 at 12:17:36PM -0700, Andrew Morton wrote:
+> > On Wed, 9 Jul 2008 14:14:39 -0500 Jack Steiner <steiner@sgi.com> wrote:
+> > 
+> > > Open code the equivalent to follow_page(). This eliminates the
+> > > requirement for an EXPORT of follow_page().
+> > 
+> > I'd prefer to export follow_page() - copying-n-pasting just to avoid
+> > exporting the darn thing is silly.
+> 
+> If follow_page() can be EXPORTed, I think that may make the most sense for
+> now.
 
-Unfortunately, mempolicy.h is userland exported header, but pagemap.h isn't.
-then it cause build error on IA64 && CONFIG_DISCONTIGMEM environment.
+What was Christoph's reason for objecting to the export?
 
+> > 
+> > > In addition, the code
+> > > is optimized for the specific case that is needed by the GRU and only
+> > > supports architectures supported by the GRU (ia64 & x86_64).
+> > 
+> > Unless you think that this alone justifies the patch?
+> 
+> No, at least not now. We don't have enough data yet to know if the additional
+> performance is worth having an optimized lookup routine. Currently the
+> focus is in making the driver functionally correct. Performance optimization
+> will be done later when we have a better understanding of the user apps that
+> will use the GRU.
+> 
+> _IF_ we agree to the export, what is the best way to send you the patches.
+> Incremental or an entirely new GRU V3 patch with all issues resolved?
 
-    CHECK   include/linux (342 files)
-      linux-2.6.26-rc9-mmotm-0714/usr/include/linux/mempolicy.h:5: included file 'linux/pagemap.h' is not exported
-      make[3]: *** [linux-2.6.26-rc9-mmotm-0714/usr/include/linux/.check] Error 1
-
-
-
-Signed-off-by: KOSAKI Motorhiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Christoph Lameter <cl@linux-foundation.org>
-CC: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-
----
- include/linux/mempolicy.h |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-Index: b/include/linux/mempolicy.h
-===================================================================
---- a/include/linux/mempolicy.h
-+++ b/include/linux/mempolicy.h
-@@ -2,7 +2,6 @@
- #define _LINUX_MEMPOLICY_H 1
- 
- #include <linux/errno.h>
--#include <linux/pagemap.h>
- 
- /*
-  * NUMA memory policies for Linux.
-@@ -60,6 +59,7 @@ enum {
- #include <linux/rbtree.h>
- #include <linux/spinlock.h>
- #include <linux/nodemask.h>
-+#include <linux/pagemap.h>
- 
- struct mm_struct;
- 
-
+Incremental would be preferred, please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
