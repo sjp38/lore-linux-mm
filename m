@@ -1,53 +1,38 @@
-Date: Mon, 14 Jul 2008 09:24:51 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] - GRU virtual -> physical translation
-Message-Id: <20080714092451.2c81a472.akpm@linux-foundation.org>
-In-Reply-To: <20080714145255.GA23173@sgi.com>
-References: <20080709191439.GA7307@sgi.com>
-	<20080711121736.18687570.akpm@linux-foundation.org>
-	<20080714145255.GA23173@sgi.com>
+Subject: Re: [PATCH] kmemtrace: SLAB hooks.
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <1215889471-5734-1-git-send-email-eduard.munteanu@linux360.ro>
+References: <84144f020807110149v4806404fjdb9c3e4af3cfdb70@mail.gmail.com>
+	 <1215889471-5734-1-git-send-email-eduard.munteanu@linux360.ro>
+Content-Type: text/plain; charset=UTF-8
+Date: Mon, 14 Jul 2008 19:28:13 +0300
+Message-Id: <1216052893.6762.3.camel@penberg-laptop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>
+To: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 Jul 2008 09:52:55 -0500 Jack Steiner <steiner@sgi.com> wrote:
+Hi Eduard-Gabriel,
 
-> On Fri, Jul 11, 2008 at 12:17:36PM -0700, Andrew Morton wrote:
-> > On Wed, 9 Jul 2008 14:14:39 -0500 Jack Steiner <steiner@sgi.com> wrote:
-> > 
-> > > Open code the equivalent to follow_page(). This eliminates the
-> > > requirement for an EXPORT of follow_page().
-> > 
-> > I'd prefer to export follow_page() - copying-n-pasting just to avoid
-> > exporting the darn thing is silly.
+On Sat, 2008-07-12 at 22:04 +0300, Eduard - Gabriel Munteanu wrote:
+> This adds hooks for the SLAB allocator, to allow tracing with kmemtrace.
 > 
-> If follow_page() can be EXPORTed, I think that may make the most sense for
-> now.
+> Signed-off-by: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+> @@ -28,8 +29,20 @@ extern struct cache_sizes malloc_sizes[];
+>  void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
+>  void *__kmalloc(size_t size, gfp_t flags);
+>  
+> +#ifdef CONFIG_KMEMTRACE
+> +extern void *__kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags);
+> +#else
+> +static inline void *__kmem_cache_alloc(struct kmem_cache *cachep,
+> +				       gfp_t flags)
+> +{
+> +	return __kmem_cache_alloc(cachep, flags);
 
-What was Christoph's reason for objecting to the export?
-
-> > 
-> > > In addition, the code
-> > > is optimized for the specific case that is needed by the GRU and only
-> > > supports architectures supported by the GRU (ia64 & x86_64).
-> > 
-> > Unless you think that this alone justifies the patch?
-> 
-> No, at least not now. We don't have enough data yet to know if the additional
-> performance is worth having an optimized lookup routine. Currently the
-> focus is in making the driver functionally correct. Performance optimization
-> will be done later when we have a better understanding of the user apps that
-> will use the GRU.
-> 
-> _IF_ we agree to the export, what is the best way to send you the patches.
-> Incremental or an entirely new GRU V3 patch with all issues resolved?
-
-Incremental would be preferred, please.
+Looks as if the function calls itself i>>?recursively?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
