@@ -1,51 +1,59 @@
-Date: Mon, 14 Jul 2008 19:56:23 +0900
+Date: Mon, 14 Jul 2008 20:01:47 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [mmotm] mm-create-sys-kernel-mm fix
-Message-Id: <20080714195446.F6DC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: [mmotm] adapt vmscan-unevictable-lru-scan-sysctl.patch  to new sysfs API
+Message-Id: <20080714195638.F6DE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Hugh Dickins <hugh@veritas.com>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Greg Kroah-Hartman <gregkh@suse.de>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Patch title: mm-create-sys-kernel-mm-fix.patch
-Against: mmotm Jul 13
-Applies after: mm-create-sys-kernel-mm.patch
+Patch title: vmscan-unevictable-lru-scan-sysctl-add-sys_device-parameter.patch
+Against: mmotm Jul 14
+Applies after: vmscan-unevictable-lru-scan-sysctl-nommu-fix.patch
 
-Recently, Nishanth Aravamudan introduce /sys/kernel/mm and
-add EXPORT_SYMBOL_GPL() to mm_init.c.
-then module.h should be included.
 
-otherwise following warning happend.
+The second attribute parameter is missing in
+read_scan_unevictable_node()/write_scan_unevictable_node().
+which has been added recently.
 
-  mm/mm_init.c:140: warning: data definition has no type or storage class
-  mm/mm_init.c:140: warning: type defaults to 'int' in declaration of 'EXPORT_SYMBOL_GPL'
-  mm/mm_init.c:140: warning: parameter names (without types) in function declaration
+	mm/vmscan.c:2654: warning: initialization from incompatible pointer type
+	mm/vmscan.c:2654: warning: initialization from incompatible pointer type
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Mel Gorman <mel@csn.ul.ie>
-
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+CC: Andi Kleen <ak@linux.intel.com>
+CC: Greg Kroah-Hartman <gregkh@suse.de>
+CC: Lee Schermerhorn <lee.schermerhorn@hp.com>
+CC: Rik van Riel <riel@redhat.com>
 ---
- mm/mm_init.c |    1 +
- 1 file changed, 1 insertion(+)
+ mm/vmscan.c |    5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-Index: b/mm/mm_init.c
+Index: b/mm/vmscan.c
 ===================================================================
---- a/mm/mm_init.c
-+++ b/mm/mm_init.c
-@@ -8,6 +8,7 @@
- #include <linux/kernel.h>
- #include <linux/init.h>
- #include <linux/kobject.h>
-+#include <linux/module.h>
- #include "internal.h"
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2626,12 +2626,15 @@ int scan_unevictable_handler(struct ctl_
+  * a specified node's per zone unevictable lists for evictable pages.
+  */
  
- #ifdef CONFIG_DEBUG_MEMORY_INIT
+-static ssize_t read_scan_unevictable_node(struct sys_device *dev, char *buf)
++static ssize_t read_scan_unevictable_node(struct sys_device *dev,
++					  struct sysdev_attribute *attr,
++					  char *buf)
+ {
+ 	return sprintf(buf, "0\n");	/* always zero; should fit... */
+ }
+ 
+ static ssize_t write_scan_unevictable_node(struct sys_device *dev,
++					   struct sysdev_attribute *attr,
+ 					const char *buf, size_t count)
+ {
+ 	struct zone *node_zones = NODE_DATA(dev->id)->node_zones;
 
 
 --
