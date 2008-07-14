@@ -1,100 +1,49 @@
-Date: Tue, 15 Jul 2008 04:27:48 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [mmotm][PATCH 9/9] restore patch failure of vmstat-unevictable-and-mlocked-pages-vm-events.patch
-In-Reply-To: <20080715040402.F6EF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080715040402.F6EF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20080715042620.F70A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Mon, 14 Jul 2008 14:50:18 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH] - GRU virtual -> physical translation
+Message-ID: <20080714195018.GD8534@sgi.com>
+References: <20080709191439.GA7307@sgi.com> <20080711121736.18687570.akpm@linux-foundation.org> <20080714145255.GA23173@sgi.com> <20080714092451.2c81a472.akpm@linux-foundation.org> <20080714163107.GA936@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080714163107.GA936@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Jack Steiner <steiner@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>
 List-ID: <linux-mm.kvack.org>
 
-Patch title:  vmstat-unevictable-and-mlocked-pages-vm-events-restore-patch-failure-hunk.patch
-Against: mmotm Jul 14
-Applies after: vmstat-unevictable-and-mlocked-pages-vm-events.patch
+On Mon, Jul 14, 2008 at 11:31:07AM -0500, Jack Steiner wrote:
+> On Mon, Jul 14, 2008 at 09:24:51AM -0700, Andrew Morton wrote:
+> > On Mon, 14 Jul 2008 09:52:55 -0500 Jack Steiner <steiner@sgi.com> wrote:
+> > 
+> > > On Fri, Jul 11, 2008 at 12:17:36PM -0700, Andrew Morton wrote:
+> > > > On Wed, 9 Jul 2008 14:14:39 -0500 Jack Steiner <steiner@sgi.com> wrote:
+> > > > 
+> > > > > Open code the equivalent to follow_page(). This eliminates the
+> > > > > requirement for an EXPORT of follow_page().
+> > > > 
+> > > > I'd prefer to export follow_page() - copying-n-pasting just to avoid
+> > > > exporting the darn thing is silly.
+> > > 
+> > > If follow_page() can be EXPORTed, I think that may make the most sense for
+> > > now.
+> > 
+> > What was Christoph's reason for objecting to the export?
+> 
+> No clue. Just a NACK.
+> 
+> Christoph???
 
-unevictable-lru-infrastructure-putback_lru_page-rework.patch makes following patch failure hunk.
+Maybe I missed part of the discussion, but I thought follow_page() would
+not work because you need this to function in the interrupt context and
+locks would then need to be made irqsave/irqrestore.
 
-	---------------------------------------------------------
-	@@ -486,6 +486,7 @@ int putback_lru_page(struct page *page)
-	 {
-	 	int lru;
-	 	int ret = 1;
-	+	int was_unevictable;
-	 
-	 	VM_BUG_ON(!PageLocked(page));
-	 	VM_BUG_ON(PageLRU(page));
-	
-	 	lru = !!TestClearPageActive(page);
-	-	ClearPageUnevictable(page);	/* for page_evictable() */
-	+	was_unevictable = TestClearPageUnevictable(page); /* for page_evictable() */
-	 
-	 	if (unlikely(!page->mapping)) {
-	 		/*
-	@@ -511,6 +512,10 @@ int putback_lru_page(struct page *page)
-	 		lru += page_is_file_cache(page);
-	 		lru_cache_add_lru(page, lru);
-	 		mem_cgroup_move_lists(page, lru);
-	+#ifdef CONFIG_UNEVICTABLE_LRU
-	+		if (was_unevictable)
-	+			count_vm_event(NORECL_PGRESCUED);
-	+#endif
-	 	} else {
-	 		/*
-	 		 * Put unevictable pages directly on zone's unevictable
-	@@ -518,7 +523,10 @@ int putback_lru_page(struct page *page)
- 			 */
- 			add_page_to_unevictable_list(page);
-	 		mem_cgroup_move_lists(page, LRU_UNEVICTABLE);
-	+#ifdef CONFIG_UNEVICTABLE_LRU
-	+		if (!was_unevictable)
-	+			count_vm_event(NORECL_PGCULLED);
-	+#endif
-	 	}
-	 
-	 	put_page(page);		/* drop ref from isolate */
-	---------------------------------------------------------
+This, of course does not in any way answer the question about why
+follow_page() can not be exported.
 
-This patch restore it properly.
-
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
----
- mm/vmscan.c |    7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
-
-Index: b/mm/vmscan.c
-===================================================================
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -483,7 +483,7 @@ int remove_mapping(struct address_space 
- void putback_lru_page(struct page *page)
- {
- 	int lru;
--	int ret = 1;
-+	int was_unevictable = PageUnevictable(page);
- 
- 	VM_BUG_ON(PageLRU(page));
- 
-@@ -526,6 +526,11 @@ redo:
- 		 */
- 	}
- 
-+	if (was_unevictable && lru != LRU_UNEVICTABLE)
-+		count_vm_event(NORECL_PGRESCUED);
-+	else if (!was_unevictable && lru == LRU_UNEVICTABLE)
-+		count_vm_event(NORECL_PGCULLED);
-+
- 	put_page(page);		/* drop ref from isolate */
- }
- 
-
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
