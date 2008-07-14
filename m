@@ -1,59 +1,55 @@
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 Subject: Re: SL*B: drop kmem cache argument from constructor
-Date: Mon, 14 Jul 2008 14:44:57 +1000
-References: <20080710011132.GA8327@martell.zuzino.mipt.ru> <48763C60.9020805@linux.vnet.ibm.com> <20080711122228.eb40247f.akpm@linux-foundation.org>
-In-Reply-To: <20080711122228.eb40247f.akpm@linux-foundation.org>
+Date: Mon, 14 Jul 2008 14:48:21 +1000
+References: <20080710011132.GA8327@martell.zuzino.mipt.ru> <20080711122228.eb40247f.akpm@linux-foundation.org> <4877D35E.8080209@linux.vnet.ibm.com>
+In-Reply-To: <4877D35E.8080209@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200807141444.57802.nickpiggin@yahoo.com.au>
+Message-Id: <200807141448.22233.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jon Tollefson <kniht@linux.vnet.ibm.com>, Alexey Dobriyan <adobriyan@gmail.com>, penberg@cs.helsinki.fi, mpm@selenic.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cl@linux-foundation.org
+To: Jon Tollefson <kniht@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>, penberg@cs.helsinki.fi, mpm@selenic.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Saturday 12 July 2008 05:22, Andrew Morton wrote:
-> On Thu, 10 Jul 2008 11:44:16 -0500 Jon Tollefson <kniht@linux.vnet.ibm.com> 
-wrote:
-> > Alexey Dobriyan wrote:
-> > > Kmem cache passed to constructor is only needed for constructors that
-> > > are themselves multiplexeres. Nobody uses this "feature", nor does
-> > > anybody uses passed kmem cache in non-trivial way, so pass only pointer
-> > > to object.
-> > >
-> > > Non-trivial places are:
-> > > 	arch/powerpc/mm/init_64.c
-> > > 	arch/powerpc/mm/hugetlbpage.c
-> >
-> > ...<snip>...
-> >
-> > > --- a/arch/powerpc/mm/hugetlbpage.c
-> > > +++ b/arch/powerpc/mm/hugetlbpage.c
-> > > @@ -595,9 +595,9 @@ static int __init hugepage_setup_sz(char *str)
-> > >  }
-> > >  __setup("hugepagesz=", hugepage_setup_sz);
-> > >
-> > > -static void zero_ctor(struct kmem_cache *cache, void *addr)
-> > > +static void zero_ctor(void *addr)
-> > >  {
-> > > -	memset(addr, 0, kmem_cache_size(cache));
-> > > +	memset(addr, 0, HUGEPTE_TABLE_SIZE);
-> >
-> > This isn't going to work with the multiple huge page size support.  The
-> > HUGEPTE_TABLE_SIZE macro now takes a parameter with of the mmu psize
-> > index to indicate the size of page.
->
-> hrm.  I suppose we could hold our noses and use ksize(), assuming that
-> we're ready to use ksize() at this stage in the object's lifetime.
->
-> Better would be to just use kmem_cache_zalloc()?
+On Saturday 12 July 2008 07:40, Jon Tollefson wrote:
+> Andrew Morton wrote:
 
-As this is hugepages we're talking about, probably yes. But note that
-page tables are one of those things where we (I?) think constructors are
-probably a good idea -- they tend to be very sparse.
+> > btw, Nick, what's with that dopey
+> >
+> > 	huge_pgtable_cache(psize) = kmem_cache_create(...
+> >
+> > trick?  The result of a function call is not an lvalue, and writing a
+> > macro which pretends to be a function and then using it in some manner
+> > in which a function cannot be used is seven ways silly :(
+
+I agree it isn't nice.
+
+
+> That silliness came from me.
+> It came from my simplistic translation of the existing code to handle
+> multiple huge page sizes.  I would agree it would be easier to read and
+> more straight forward to just have the indexed array directly on the
+> left side instead of a macro.  I can send out a patch that makes that
+> change if desired.
+> Something such as
+>
+> +#define HUGE_PGTABLE_INDEX(psize) (HUGEPTE_CACHE_NUM + psize - 1)
+>
+> -huge_pgtable_cache(psize) = kmem_cache_create(...
+> +pgtable_cache[HUGE_PGTABLE_INDEX(psize)] = kmem_cache_create(...
+>
+>
+> or if there is a more accepted way of handling this situation I can
+> amend it differently.
+
+If it is a once off initialization (which it is), that's probably fine
+like that. Otherwise, the convention is to have a set_huge_pgtable_cache
+function as well. But whatever you prefer. Yes if you can send a patch,
+that would be good, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
