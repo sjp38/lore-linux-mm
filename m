@@ -1,17 +1,17 @@
-Message-Id: <20080715222748.214360024@polymtl.ca>
+Message-Id: <20080715222748.433063591@polymtl.ca>
 References: <20080715222604.331269462@polymtl.ca>
-Date: Tue, 15 Jul 2008 18:26:14 -0400
+Date: Tue, 15 Jul 2008 18:26:15 -0400
 From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: [patch 10/17] LTTng instrumentation - swap
-Content-Disposition: inline; filename=lttng-instrumentation-swap.patch
+Subject: [patch 11/17] LTTng instrumentation - memory page faults
+Content-Disposition: inline; filename=lttng-instrumentation-memory.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Masami Hiramatsu <mhiramat@redhat.com>
-Cc: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>, "Frank Ch. Eigler" <fche@redhat.com>, Hideo AOKI <haoki@redhat.com>, Takashi Nishiie <t-nishiie@np.css.fujitsu.com>, Steven Rostedt <rostedt@goodmis.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+Cc: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, Andi Kleen <andi-suse@firstfloor.org>, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>, "Frank Ch. Eigler" <fche@redhat.com>, Hideo AOKI <haoki@redhat.com>, Takashi Nishiie <t-nishiie@np.css.fujitsu.com>, Steven Rostedt <rostedt@goodmis.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
 List-ID: <linux-mm.kvack.org>
 
-Instrumentation of waits caused by swap activity. Also instrumentation
-swapon/swapoff events to keep track of active swap partitions.
+Instrument the page fault entry and exit. Useful to detect delays caused by page
+faults and bad memory usage patterns.
 
 Those tracepoints are used by LTTng.
 
@@ -22,6 +22,7 @@ scheduler instrumentation (about 5 events in code scheduler code) was added.
 See the "Tracepoints" patch header for performance result detail.
 
 Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+CC: Andi Kleen <andi-suse@firstfloor.org>
 CC: linux-mm@kvack.org
 CC: Dave Hansen <haveblue@us.ibm.com>
 CC: Masami Hiramatsu <mhiramat@redhat.com>
@@ -33,111 +34,93 @@ CC: Takashi Nishiie <t-nishiie@np.css.fujitsu.com>
 CC: 'Steven Rostedt' <rostedt@goodmis.org>
 CC: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
 ---
- include/trace/swap.h |   20 ++++++++++++++++++++
- mm/memory.c          |    2 ++
- mm/page_io.c         |    2 ++
- mm/swapfile.c        |    4 ++++
- 4 files changed, 28 insertions(+)
+ include/trace/memory.h |   14 ++++++++++++++
+ mm/memory.c            |   33 ++++++++++++++++++++++++---------
+ 2 files changed, 38 insertions(+), 9 deletions(-)
 
 Index: linux-2.6-lttng/mm/memory.c
 ===================================================================
---- linux-2.6-lttng.orig/mm/memory.c	2008-07-15 13:54:46.000000000 -0400
-+++ linux-2.6-lttng/mm/memory.c	2008-07-15 14:02:54.000000000 -0400
-@@ -51,6 +51,7 @@
- #include <linux/init.h>
- #include <linux/writeback.h>
- #include <linux/memcontrol.h>
-+#include <trace/swap.h>
+--- linux-2.6-lttng.orig/mm/memory.c	2008-07-15 14:02:54.000000000 -0400
++++ linux-2.6-lttng/mm/memory.c	2008-07-15 14:03:47.000000000 -0400
+@@ -61,6 +61,7 @@
  
- #include <asm/pgalloc.h>
- #include <asm/uaccess.h>
-@@ -2213,6 +2214,7 @@ static int do_swap_page(struct mm_struct
- 		/* Had to read the page from swap area: Major fault */
- 		ret = VM_FAULT_MAJOR;
- 		count_vm_event(PGMAJFAULT);
-+		trace_swap_in(page, entry);
- 	}
- 
- 	if (mem_cgroup_charge(page, mm, GFP_KERNEL)) {
-Index: linux-2.6-lttng/mm/page_io.c
-===================================================================
---- linux-2.6-lttng.orig/mm/page_io.c	2008-07-15 13:54:46.000000000 -0400
-+++ linux-2.6-lttng/mm/page_io.c	2008-07-15 14:02:54.000000000 -0400
-@@ -17,6 +17,7 @@
- #include <linux/bio.h>
  #include <linux/swapops.h>
- #include <linux/writeback.h>
-+#include <trace/swap.h>
- #include <asm/pgtable.h>
+ #include <linux/elf.h>
++#include <trace/memory.h>
  
- static struct bio *get_swap_bio(gfp_t gfp_flags, pgoff_t index,
-@@ -114,6 +115,7 @@ int swap_writepage(struct page *page, st
- 		rw |= (1 << BIO_RW_SYNC);
- 	count_vm_event(PSWPOUT);
- 	set_page_writeback(page);
-+	trace_swap_out(page);
- 	unlock_page(page);
- 	submit_bio(rw, bio);
- out:
-Index: linux-2.6-lttng/mm/swapfile.c
-===================================================================
---- linux-2.6-lttng.orig/mm/swapfile.c	2008-07-15 13:54:46.000000000 -0400
-+++ linux-2.6-lttng/mm/swapfile.c	2008-07-15 14:02:54.000000000 -0400
-@@ -32,6 +32,7 @@
- #include <asm/pgtable.h>
- #include <asm/tlbflush.h>
- #include <linux/swapops.h>
-+#include <trace/swap.h>
- 
- DEFINE_SPINLOCK(swap_lock);
- unsigned int nr_swapfiles;
-@@ -1310,6 +1311,7 @@ asmlinkage long sys_swapoff(const char _
- 	swap_map = p->swap_map;
- 	p->swap_map = NULL;
- 	p->flags = 0;
-+	trace_swap_file_close(swap_file);
- 	spin_unlock(&swap_lock);
- 	mutex_unlock(&swapon_mutex);
- 	vfree(swap_map);
-@@ -1695,6 +1697,7 @@ asmlinkage long sys_swapon(const char __
- 	} else {
- 		swap_info[prev].next = p - swap_info;
- 	}
-+	trace_swap_file_open(swap_file, name);
- 	spin_unlock(&swap_lock);
- 	mutex_unlock(&swapon_mutex);
- 	error = 0;
-@@ -1796,6 +1799,7 @@ get_swap_info_struct(unsigned type)
+ #ifndef CONFIG_NEED_MULTIPLE_NODES
+ /* use the per-pgdat data instead for discontigmem - mbligh */
+@@ -2664,30 +2665,44 @@ unlock:
+ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		unsigned long address, int write_access)
  {
- 	return &swap_info[type];
- }
-+EXPORT_SYMBOL_GPL(get_swap_info_struct);
++	int res;
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+ 	pmd_t *pmd;
+ 	pte_t *pte;
  
- /*
-  * swap_lock prevents swap_map being freed. Don't grab an extra
-Index: linux-2.6-lttng/include/trace/swap.h
++	trace_memory_handle_fault_entry(mm, vma, address, write_access);
++
+ 	__set_current_state(TASK_RUNNING);
+ 
+ 	count_vm_event(PGFAULT);
+ 
+-	if (unlikely(is_vm_hugetlb_page(vma)))
+-		return hugetlb_fault(mm, vma, address, write_access);
++	if (unlikely(is_vm_hugetlb_page(vma))) {
++		res = hugetlb_fault(mm, vma, address, write_access);
++		goto end;
++	}
+ 
+ 	pgd = pgd_offset(mm, address);
+ 	pud = pud_alloc(mm, pgd, address);
+-	if (!pud)
+-		return VM_FAULT_OOM;
++	if (!pud) {
++		res = VM_FAULT_OOM;
++		goto end;
++	}
+ 	pmd = pmd_alloc(mm, pud, address);
+-	if (!pmd)
+-		return VM_FAULT_OOM;
++	if (!pmd) {
++		res = VM_FAULT_OOM;
++		goto end;
++	}
+ 	pte = pte_alloc_map(mm, pmd, address);
+-	if (!pte)
+-		return VM_FAULT_OOM;
++	if (!pte) {
++		res = VM_FAULT_OOM;
++		goto end;
++	}
+ 
+-	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
++	res = handle_pte_fault(mm, vma, address, pte, pmd, write_access);
++end:
++	trace_memory_handle_fault_exit(res);
++	return res;
+ }
+ 
+ #ifndef __PAGETABLE_PUD_FOLDED
+Index: linux-2.6-lttng/include/trace/memory.h
 ===================================================================
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6-lttng/include/trace/swap.h	2008-07-15 14:02:54.000000000 -0400
-@@ -0,0 +1,20 @@
-+#ifndef _TRACE_SWAP_H
-+#define _TRACE_SWAP_H
++++ linux-2.6-lttng/include/trace/memory.h	2008-07-15 14:03:47.000000000 -0400
+@@ -0,0 +1,14 @@
++#ifndef _TRACE_MEMORY_H
++#define _TRACE_MEMORY_H
 +
-+#include <linux/swap.h>
 +#include <linux/tracepoint.h>
 +
-+DEFINE_TRACE(swap_in,
-+	TPPROTO(struct page *page, swp_entry_t entry),
-+	TPARGS(page, entry));
-+DEFINE_TRACE(swap_out,
-+	TPPROTO(struct page *page),
-+	TPARGS(page));
-+DEFINE_TRACE(swap_file_open,
-+	TPPROTO(struct file *file, char *filename),
-+	TPARGS(file, filename));
-+DEFINE_TRACE(swap_file_close,
-+	TPPROTO(struct file *file),
-+	TPARGS(file));
++DEFINE_TRACE(memory_handle_fault_entry,
++	TPPROTO(struct mm_struct *mm, struct vm_area_struct *vma,
++		unsigned long address, int write_access),
++	TPARGS(mm, vma, address, write_access));
++DEFINE_TRACE(memory_handle_fault_exit,
++	TPPROTO(int res),
++	TPARGS(res));
 +
 +#endif
 
