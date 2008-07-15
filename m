@@ -1,133 +1,106 @@
-Message-Id: <20080715222748.433063591@polymtl.ca>
-References: <20080715222604.331269462@polymtl.ca>
-Date: Tue, 15 Jul 2008 18:26:15 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: [patch 11/17] LTTng instrumentation - memory page faults
-Content-Disposition: inline; filename=lttng-instrumentation-memory.patch
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m6FMnARZ027865
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2008 18:49:10 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m6FMnAnU228360
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2008 18:49:10 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m6FMnAuC031425
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2008 18:49:10 -0400
+Message-ID: <487D2982.90109@linux.vnet.ibm.com>
+Date: Tue, 15 Jul 2008 17:49:38 -0500
+From: Jon Tollefson <kniht@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: [patch v2] powerpc: hugetlb pgtable cache access cleanup
+References: <20080604112939.789444496@amd.local0.net> <20080604113113.648031825@amd.local0.net> <487B7F96.70305@linux.vnet.ibm.com> <20080714155659.b4fab697.akpm@linux-foundation.org>
+In-Reply-To: <20080714155659.b4fab697.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Masami Hiramatsu <mhiramat@redhat.com>
-Cc: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, Andi Kleen <andi-suse@firstfloor.org>, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>, "Frank Ch. Eigler" <fche@redhat.com>, Hideo AOKI <haoki@redhat.com>, Takashi Nishiie <t-nishiie@np.css.fujitsu.com>, Steven Rostedt <rostedt@goodmis.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: npiggin@suse.de, adobriyan@gmail.com, penberg@cs.helsinki.fi, mpm@selenic.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Instrument the page fault entry and exit. Useful to detect delays caused by page
-faults and bad memory usage patterns.
-
-Those tracepoints are used by LTTng.
-
-About the performance impact of tracepoints (which is comparable to markers),
-even without immediate values optimizations, tests done by Hideo Aoki on ia64
-show no regression. His test case was using hackbench on a kernel where
-scheduler instrumentation (about 5 events in code scheduler code) was added.
-See the "Tracepoints" patch header for performance result detail.
-
-Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-CC: Andi Kleen <andi-suse@firstfloor.org>
-CC: linux-mm@kvack.org
-CC: Dave Hansen <haveblue@us.ibm.com>
-CC: Masami Hiramatsu <mhiramat@redhat.com>
-CC: 'Peter Zijlstra' <peterz@infradead.org>
-CC: "Frank Ch. Eigler" <fche@redhat.com>
-CC: 'Ingo Molnar' <mingo@elte.hu>
-CC: 'Hideo AOKI' <haoki@redhat.com>
-CC: Takashi Nishiie <t-nishiie@np.css.fujitsu.com>
-CC: 'Steven Rostedt' <rostedt@goodmis.org>
-CC: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+Andrew Morton wrote:
+> On Mon, 14 Jul 2008 11:32:22 -0500
+> Jon Tollefson <kniht@linux.vnet.ibm.com> wrote:
+>
+>   
+>> Cleaned up use of macro.  We now reference the pgtable_cache array directly instead of using a macro.
+>>     
+>
+> This clashes rather a lot with all the other hugetlb things which we
+> have queued.
+>
+>   
+oops.  new version below here should be based on mmotm.
 ---
- include/trace/memory.h |   14 ++++++++++++++
- mm/memory.c            |   33 ++++++++++++++++++++++++---------
- 2 files changed, 38 insertions(+), 9 deletions(-)
 
-Index: linux-2.6-lttng/mm/memory.c
-===================================================================
---- linux-2.6-lttng.orig/mm/memory.c	2008-07-15 14:02:54.000000000 -0400
-+++ linux-2.6-lttng/mm/memory.c	2008-07-15 14:03:47.000000000 -0400
-@@ -61,6 +61,7 @@
+
+Cleaned up use of macro.  We now reference the pgtable_cache array directly instead of using a macro.
+
+
+Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
+---
+
+ arch/powerpc/mm/hugetlbpage.c |   22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)
+
+
+--- a/arch/powerpc/mm/hugetlbpage.c	2008-07-15 17:17:42.741035616 -0500
++++ b/arch/powerpc/mm/hugetlbpage.c	2008-07-15 17:36:48.959015872 -0500
+@@ -53,8 +53,7 @@
  
- #include <linux/swapops.h>
- #include <linux/elf.h>
-+#include <trace/memory.h>
+ /* Subtract one from array size because we don't need a cache for 4K since
+  * is not a huge page size */
+-#define huge_pgtable_cache(psize)	(pgtable_cache[HUGEPTE_CACHE_NUM \
+-							+ psize-1])
++#define HUGE_PGTABLE_INDEX(psize)	(HUGEPTE_CACHE_NUM + psize - 1)
+ #define HUGEPTE_CACHE_NAME(psize)	(huge_pgtable_cache_name[psize])
  
- #ifndef CONFIG_NEED_MULTIPLE_NODES
- /* use the per-pgdat data instead for discontigmem - mbligh */
-@@ -2664,30 +2665,44 @@ unlock:
- int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long address, int write_access)
+ static const char *huge_pgtable_cache_name[MMU_PAGE_COUNT] = {
+@@ -113,7 +112,7 @@
+ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
+ 			   unsigned long address, unsigned int psize)
  {
-+	int res;
- 	pgd_t *pgd;
- 	pud_t *pud;
- 	pmd_t *pmd;
- 	pte_t *pte;
+-	pte_t *new = kmem_cache_zalloc(huge_pgtable_cache(psize),
++	pte_t *new = kmem_cache_zalloc(pgtable_cache[HUGE_PGTABLE_INDEX(psize)],
+ 				      GFP_KERNEL|__GFP_REPEAT);
  
-+	trace_memory_handle_fault_entry(mm, vma, address, write_access);
-+
- 	__set_current_state(TASK_RUNNING);
+ 	if (! new)
+@@ -121,7 +120,7 @@
  
- 	count_vm_event(PGFAULT);
+ 	spin_lock(&mm->page_table_lock);
+ 	if (!hugepd_none(*hpdp))
+-		kmem_cache_free(huge_pgtable_cache(psize), new);
++		kmem_cache_free(pgtable_cache[HUGE_PGTABLE_INDEX(psize)], new);
+ 	else
+ 		hpdp->pd = (unsigned long)new | HUGEPD_OK;
+ 	spin_unlock(&mm->page_table_lock);
+@@ -746,13 +745,14 @@
  
--	if (unlikely(is_vm_hugetlb_page(vma)))
--		return hugetlb_fault(mm, vma, address, write_access);
-+	if (unlikely(is_vm_hugetlb_page(vma))) {
-+		res = hugetlb_fault(mm, vma, address, write_access);
-+		goto end;
-+	}
- 
- 	pgd = pgd_offset(mm, address);
- 	pud = pud_alloc(mm, pgd, address);
--	if (!pud)
--		return VM_FAULT_OOM;
-+	if (!pud) {
-+		res = VM_FAULT_OOM;
-+		goto end;
-+	}
- 	pmd = pmd_alloc(mm, pud, address);
--	if (!pmd)
--		return VM_FAULT_OOM;
-+	if (!pmd) {
-+		res = VM_FAULT_OOM;
-+		goto end;
-+	}
- 	pte = pte_alloc_map(mm, pmd, address);
--	if (!pte)
--		return VM_FAULT_OOM;
-+	if (!pte) {
-+		res = VM_FAULT_OOM;
-+		goto end;
-+	}
- 
--	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
-+	res = handle_pte_fault(mm, vma, address, pte, pmd, write_access);
-+end:
-+	trace_memory_handle_fault_exit(res);
-+	return res;
- }
- 
- #ifndef __PAGETABLE_PUD_FOLDED
-Index: linux-2.6-lttng/include/trace/memory.h
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6-lttng/include/trace/memory.h	2008-07-15 14:03:47.000000000 -0400
-@@ -0,0 +1,14 @@
-+#ifndef _TRACE_MEMORY_H
-+#define _TRACE_MEMORY_H
-+
-+#include <linux/tracepoint.h>
-+
-+DEFINE_TRACE(memory_handle_fault_entry,
-+	TPPROTO(struct mm_struct *mm, struct vm_area_struct *vma,
-+		unsigned long address, int write_access),
-+	TPARGS(mm, vma, address, write_access));
-+DEFINE_TRACE(memory_handle_fault_exit,
-+	TPPROTO(int res),
-+	TPARGS(res));
-+
-+#endif
+ 	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {
+ 		if (mmu_huge_psizes[psize]) {
+-			huge_pgtable_cache(psize) = kmem_cache_create(
+-						HUGEPTE_CACHE_NAME(psize),
+-						HUGEPTE_TABLE_SIZE(psize),
+-						HUGEPTE_TABLE_SIZE(psize),
+-						0,
+-						NULL);
+-			if (!huge_pgtable_cache(psize))
++			pgtable_cache[HUGE_PGTABLE_INDEX(psize)] =
++				kmem_cache_create(
++					HUGEPTE_CACHE_NAME(psize),
++					HUGEPTE_TABLE_SIZE(psize),
++					HUGEPTE_TABLE_SIZE(psize),
++					0,
++					NULL);
++			if (!pgtable_cache[HUGE_PGTABLE_INDEX(psize)])
+ 				panic("hugetlbpage_init(): could not create %s"\
+ 				      "\n", HUGEPTE_CACHE_NAME(psize));
+ 		}
 
--- 
-Mathieu Desnoyers
-Computer Engineering Ph.D. Student, Ecole Polytechnique de Montreal
-OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
