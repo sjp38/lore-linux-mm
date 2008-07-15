@@ -1,36 +1,39 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: xfs bug in 2.6.26-rc9
-Date: Tue, 15 Jul 2008 16:17:58 +1000
-References: <alpine.DEB.1.10.0807110939520.30192@uplift.swm.pp.se> <487B019B.9090401@sgi.com> <20080714121332.GX29319@disturbed>
-In-Reply-To: <20080714121332.GX29319@disturbed>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [RESEND PATCH] kmemtrace: SLAB hooks.
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <20080714183734.GB3960@localhost>
+References: <487B7F99.4060004@linux-foundation.org>
+	 <1216057334-27239-1-git-send-email-eduard.munteanu@linux360.ro>
+	 <1216059588.6762.20.camel@penberg-laptop> <20080714183734.GB3960@localhost>
+Date: Tue, 15 Jul 2008 10:17:18 +0300
+Message-Id: <1216106238.6762.22.camel@penberg-laptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200807151617.58329.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Lachlan McIlroy <lachlan@sgi.com>, Mikael Abrahamsson <swmike@swm.pp.se>, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, linux-mm@kvack.org
+To: eduard.munteanu@linux360.ro
+Cc: cl@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Monday 14 July 2008 22:13, Dave Chinner wrote:
+On Mon, 2008-07-14 at 21:37 +0300, eduard.munteanu@linux360.ro wrote:
+> > I'm okay with this approach but then you need to do
+> > s/__kmem_cache_alloc/kmem_cache_alloc_trace/ or similar. In the kernel,
+> > it's always the *upper* level function that doesn't have the
+> > underscores.
+> 
+> Hmm, doesn't really make sense:
+> 1. This should be called kmem_cache_alloc_notrace, not *_trace.
+> __kmem_cache_alloc() _disables_ tracing.
 
-> Christoph and I were contemplating this problem with ->page_mkwrite
-> reecently. The problem is that we can't, right now, return an
-> EAGAIN-like error to ->page_mkwrite() and have it retry the
-> page fault. Other parts of the page faulting code can do this,
-> so it seems like a solvable problem.
->
-> The basic concept is that if we can return a EAGAIN result we can
-> try-lock the inode and hold the locks necessary to avoid this race
-> or prevent the page fault from dirtying the page until the
-> filesystem is unfrozen.
->
-> Added linux-mm to the cc list for discussion.
+kmem_cache_alloc_notrace() sounds good to me.
 
-It would be easily possible to do, yes.
+> 2. __kmem_cache_alloc is not really upper level now, since it's called
+> only in kmalloc. So it's an internal function which is not supposed to
+> be used by other kernel code.
+> 
+> Are you sure I should do this?
+
+Yes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
