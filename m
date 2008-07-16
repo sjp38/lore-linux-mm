@@ -1,26 +1,57 @@
-Message-ID: <487E09DB.3000205@linux-foundation.org>
-Date: Wed, 16 Jul 2008 09:46:51 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH][RFC] slub: increasing order reduces memory usage of some
- key caches
-References: <1216211371.3122.46.camel@castor.localdomain>	 <487DF5D4.9070101@linux-foundation.org>	 <1216216730.3122.60.camel@castor.localdomain>	 <487DFFBE.5050407@linux-foundation.org> <19f34abd0807160733q2594bd9fk268703d2aedc8254@mail.gmail.com>
-In-Reply-To: <19f34abd0807160733q2594bd9fk268703d2aedc8254@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Date: Wed, 16 Jul 2008 10:50:25 -0400
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: madvise(2) MADV_SEQUENTIAL behavior
+Message-ID: <20080716105025.2daf5db2@cuia.bos.redhat.com>
+In-Reply-To: <1216210495.5232.47.camel@twins>
+References: <1216163022.3443.156.camel@zenigma>
+	<1216210495.5232.47.camel@twins>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Vegard Nossum <vegard.nossum@gmail.com>
-Cc: Richard Kennedy <richard@rsk.demon.co.uk>, penberg@cs.helsinki.fi, mpm@selenic.com, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Eric Rannaud <eric.rannaud@gmail.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Vegard Nossum wrote:
+On Wed, 16 Jul 2008 14:14:55 +0200
+Peter Zijlstra <peterz@infradead.org> wrote:
 
-> Hm, I don't think so? I thought that those 1 and 2 were not orders,
-> but in fact the number of pages. Which seems correct, since now you
-> have 4096 / 208 = 19 :-)
+> On Tue, 2008-07-15 at 23:03 +0000, Eric Rannaud wrote:
+> > mm/madvise.c and madvise(2) say:
+> > 
+> >  *  MADV_SEQUENTIAL - pages in the given range will probably be accessed
+> >  *		once, so they can be aggressively read ahead, and
+> >  *		can be freed soon after they are accessed.
+> > 
+> > 
+> > But as the sample program at the end of this post shows, and as I
+> > understand the code in mm/filemap.c, MADV_SEQUENTIAL will only increase
+> > the amount of read ahead for the specified page range, but will not
+> > influence the rate at which the pages just read will be freed from
+> > memory.
+> 
+> Correct, various attempts have been made to actually implement this, but
+> non made it through.
+> 
+> My last attempt was:
+>   http://lkml.org/lkml/2007/7/21/219
+> 
+> Rik recently tried something else based on his split-lru series:
+>   http://lkml.org/lkml/2008/7/15/465
 
-Makes sense. So the problem is that for some reason his kernel chose order 0 for dentries. Mine choose order 1 and everything was fine. Maybe related to the number of processors (my box has 8)? We added some logic in 2.6.26 to increase slab sizes if lots of processors are present.
+M patch is not going to help with mmap, though.
+
+I believe that for mmap MADV_SEQUENTIAL, we will have to do
+an unmap-behind from the fault path.  Not every time, but
+maybe once per megabyte, unmapping the megabyte behind us.
+
+That way the normal page cache policies (use once, etc) can
+take care of page eviction, which should help if the file
+is also in use by another process.
+
+-- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
