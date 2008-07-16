@@ -1,117 +1,62 @@
-Date: Wed, 16 Jul 2008 20:52:37 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH][RFC] slub: increasing order reduces memory usage of some key caches
-Message-ID: <20080716195237.GA9127@csn.ul.ie>
-References: <1216211371.3122.46.camel@castor.localdomain> <487DF5D4.9070101@linux-foundation.org>
+Message-ID: <487E628A.3050207@redhat.com>
+Date: Wed, 16 Jul 2008 17:05:14 -0400
+From: Chris Snook <csnook@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <487DF5D4.9070101@linux-foundation.org>
+Subject: Re: madvise(2) MADV_SEQUENTIAL behavior
+References: <1216163022.3443.156.camel@zenigma>	<1216210495.5232.47.camel@twins> <20080716105025.2daf5db2@cuia.bos.redhat.com>
+In-Reply-To: <20080716105025.2daf5db2@cuia.bos.redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Richard Kennedy <richard@rsk.demon.co.uk>, penberg@cs.helsinki.fi, mpm@selenic.com, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Eric Rannaud <eric.rannaud@gmail.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On (16/07/08 08:21), Christoph Lameter didst pronounce:
-> Richard Kennedy wrote:
+Rik van Riel wrote:
+> On Wed, 16 Jul 2008 14:14:55 +0200
+> Peter Zijlstra <peterz@infradead.org> wrote:
 > 
+>> On Tue, 2008-07-15 at 23:03 +0000, Eric Rannaud wrote:
+>>> mm/madvise.c and madvise(2) say:
+>>>
+>>>  *  MADV_SEQUENTIAL - pages in the given range will probably be accessed
+>>>  *		once, so they can be aggressively read ahead, and
+>>>  *		can be freed soon after they are accessed.
+>>>
+>>>
+>>> But as the sample program at the end of this post shows, and as I
+>>> understand the code in mm/filemap.c, MADV_SEQUENTIAL will only increase
+>>> the amount of read ahead for the specified page range, but will not
+>>> influence the rate at which the pages just read will be freed from
+>>> memory.
+>> Correct, various attempts have been made to actually implement this, but
+>> non made it through.
+>>
+>> My last attempt was:
+>>   http://lkml.org/lkml/2007/7/21/219
+>>
+>> Rik recently tried something else based on his split-lru series:
+>>   http://lkml.org/lkml/2008/7/15/465
 > 
-> > on my amd64 3 gb ram desktop typical numbers :-
-> > 
-> > [kernel,objects,pages/slab,slabs,total pages,diff]
-> > radix_tree_node
-> > 2.6.26 33922,2,2423 	4846
-> > +patch 33541,4,1165	4660,-186
-> > dentry
-> > 2.6.26	82136,1,4323	4323
-> > +patch	79482,2,2038	4076,-247
-> > the extra dentries would use 136 pages but that still leaves a saving of
-> > 111 pages.
+> M patch is not going to help with mmap, though.
 > 
-> Good numbers....
+> I believe that for mmap MADV_SEQUENTIAL, we will have to do
+> an unmap-behind from the fault path.  Not every time, but
+> maybe once per megabyte, unmapping the megabyte behind us.
 > 
-
-Indeed. clearly internal fragmentation is a problem.
-
-> > Can anyone suggest any other tests that would be useful to run?
-> > & Is there any way to measure what impact this is having on
-> > fragmentation?
-> 
-> Mel would be able to tell you that but I think we better figure out what went wrong first.
-> 
-
-For internal fragmentation, there is this crappy script:
-http://www.csn.ul.ie/~mel/intfrag_stat
-
-run it as intfrag_stat -a and it should tell you what precentage of
-memory is being wasted for dentries. The patch should show a difference
-for the dentries.
-
-How it would affect external fragmentation is harder to guess. It will
-put more pressure for high-order allocations but at a glance, dentries
-are using GFP_KERNEL so it should not be a major problem.
-/proc/pagetypeinfo is the file to watch. If the count for "reclaimable"
-arenas is higher and climbing over time, it will indiate that external
-fragmentation would eventually become a problem.
-
-> 
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > index 315c392..c365b04 100644
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -2301,6 +2301,14 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
-> >  	if (order < 0)
-> >  		return 0;
-> >  
-> > +	if (order < slub_max_order ) {
-> > +		unsigned long waste = (PAGE_SIZE << order) % size;
-> > +		if ( waste *2 >= size ) {
-> > +			order++;
-> > +			printk ( KERN_INFO "SLUB: increasing order %s->[%d] [%ld]\n",s->name,order,size);
-> > +		}
-> > +	}
-> > +
-> >  	s->allocflags = 0;
-> >  	if (order)
-> >  		s->allocflags |= __GFP_COMP;
-> 
-> The order and waste calculation occurs in slab_order(). If modifications are needed then they need to occur in that function.
-> 
-> Looks like the existing code is not doing the best thing for dentries on your box?
-> 
-> On my 64 bit box dentries are 208 bytes long, 39 objects per page and 84 bytes
-> are lost per order 1 page. So this would not trigger your patch at all. There must be something special to your configuration.
-> 
-> 
-> /linux-2.6$ slabinfo dentry
-> 
-> Slabcache: dentry                Aliases:  0 Order :  1 Objects: 554209
-> ** Reclaim accounting active
-> 
-> Sizes (bytes)     Slabs              Debug                Memory
-> ------------------------------------------------------------------------
-> Object :     208  Total  :   14215   Sanity Checks : Off  Total: 116449280
-> SlabObj:     208  Full   :   14179   Redzoning     : Off  Used : 115275472
-> SlabSiz:    8192  Partial:      32   Poisoning     : Off  Loss : 1173808
-> Loss   :       0  CpuSlab:       4   Tracking      : Off  Lalig:       0
-> Align  :       8  Objects:      39   Tracing       : Off  Lpadd: 1137200
-> 
-> 
-> Can you post the slabinfo information about the caches that you are concerned with? Please a before and after state.
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> That way the normal page cache policies (use once, etc) can
+> take care of page eviction, which should help if the file
+> is also in use by another process.
 > 
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Wouldn't it just be easier to not move pages to the active list when 
+they're referenced via an MADV_SEQUENTIAL mapping?  If we keep them on 
+the inactive list, they'll be candidates for reclaiming, but they'll 
+still be in pagecache when another task scans through, as long as we're 
+not under memory pressure.
+
+-- Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
