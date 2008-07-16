@@ -1,48 +1,30 @@
-Received: from toip6.srvr.bell.ca ([209.226.175.125])
-          by tomts10-srv.bellnexxia.net
-          (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
-          id <20080716161715.TMWN1721.tomts10-srv.bellnexxia.net@toip6.srvr.bell.ca>
-          for <linux-mm@kvack.org>; Wed, 16 Jul 2008 12:17:15 -0400
-Date: Wed, 16 Jul 2008 12:17:14 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: Re: [patch 10/17] LTTng instrumentation - swap
-Message-ID: <20080716161714.GA31889@Krystal>
-References: <1216219654.5232.55.camel@twins> <20080716150046.GI24546@Krystal> <20080717004734.1579.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Mime-Version: 1.0
+Date: Wed, 16 Jul 2008 18:28:00 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH] - Fix kernel_physical_mapping_init() for large x86
+	systems
+Message-ID: <20080716162800.GB19566@elte.hu>
+References: <20080716161159.GA23870@sgi.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080717004734.1579.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20080716161159.GA23870@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, akpm@linux-foundation.org, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Masami Hiramatsu <mhiramat@redhat.com>, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>, "Frank Ch. Eigler" <fche@redhat.com>, Hideo AOKI <haoki@redhat.com>, Takashi Nishiie <t-nishiie@np.css.fujitsu.com>, Steven Rostedt <rostedt@goodmis.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+To: Jack Steiner <steiner@sgi.com>
+Cc: tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Yinghai Lu <yhlu.kernel@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-* KOSAKI Motohiro (kosaki.motohiro@jp.fujitsu.com) wrote:
-> Hi
-> 
-> > > > Would it make more sense to turn get_swap_info_struct into a static
-> > > > inline in swap.h ?
-> > > 
-> > > Seeing a consumer of it would go a long way towards discussing it ;-)
-> > 
-> > The LTTng probe which connects to this tracepoint looks like :
-> 
-> I have no objection to this exporting.
-> 
-> However, This is LTTng requirement.
-> but tracepoint is tracer independent mechanism.
-> then, split out is better IMHO.
-> 
+* Jack Steiner <steiner@sgi.com> wrote:
 
-Good point. I'll move it to my following lttng-specific patches.
+> Fix bug in kernel_physical_mapping_init() that causes kernel page 
+> table to be built incorrectly for systems with greater than 512GB of 
+> memory.
+> 
+> Signed-off-by: Jack Steiner <steiner@sgi.com>
 
-Mathieu
+applied to tip/x86/urgent - thanks Jack.
 
--- 
-Mathieu Desnoyers
-OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
