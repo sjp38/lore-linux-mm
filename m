@@ -1,54 +1,113 @@
-Received: by el-out-1112.google.com with SMTP id y26so1419533ele.26
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2008 07:33:54 -0700 (PDT)
-Message-ID: <19f34abd0807160733q2594bd9fk268703d2aedc8254@mail.gmail.com>
-Date: Wed, 16 Jul 2008 16:33:53 +0200
-From: "Vegard Nossum" <vegard.nossum@gmail.com>
-Subject: Re: [PATCH][RFC] slub: increasing order reduces memory usage of some key caches
-In-Reply-To: <487DFFBE.5050407@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Received: from toip3.srvr.bell.ca ([209.226.175.86])
+          by tomts22-srv.bellnexxia.net
+          (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
+          id <20080716143720.BRAN1527.tomts22-srv.bellnexxia.net@toip3.srvr.bell.ca>
+          for <linux-mm@kvack.org>; Wed, 16 Jul 2008 10:37:20 -0400
+Date: Wed, 16 Jul 2008 10:37:19 -0400
+From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Subject: Re: [patch 09/17] LTTng instrumentation - filemap
+Message-ID: <20080716143719.GF24546@Krystal>
+References: <20080715222604.331269462@polymtl.ca> <20080715222748.002421557@polymtl.ca> <1216197334.5232.24.camel@twins>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <1216211371.3122.46.camel@castor.localdomain>
-	 <487DF5D4.9070101@linux-foundation.org>
-	 <1216216730.3122.60.camel@castor.localdomain>
-	 <487DFFBE.5050407@linux-foundation.org>
+In-Reply-To: <1216197334.5232.24.camel@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Richard Kennedy <richard@rsk.demon.co.uk>, penberg@cs.helsinki.fi, mpm@selenic.com, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: akpm@linux-foundation.org, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Masami Hiramatsu <mhiramat@redhat.com>, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>, "Frank Ch. Eigler" <fche@redhat.com>, Hideo AOKI <haoki@redhat.com>, Takashi Nishiie <t-nishiie@np.css.fujitsu.com>, Steven Rostedt <rostedt@goodmis.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 16, 2008 at 4:03 PM, Christoph Lameter
-<cl@linux-foundation.org> wrote:
-> Richard Kennedy wrote:
->
->> before
->> dentry             82136  82137    208   19    1 : tunables    0    0    0 : slabdata   4323   4323      0
->> after
->> dentry             79482  79482    208   39    2 : tunables    0    0    0 : slabdata   2038   2038      0
->
-> 19 objects with an order 1 alloc and 208 byte size? Urgh. 8192/208 = 39 and not 19.
->
-> Kmemcheck or something else active? We seem to be loosing 50% of our memory.
+* Peter Zijlstra (peterz@infradead.org) wrote:
+> On Tue, 2008-07-15 at 18:26 -0400, Mathieu Desnoyers wrote:
+> > plain text document attachment (lttng-instrumentation-filemap.patch)
+> > Instrumentation of waits caused by memory accesses on mmap regions.
+> > 
+> > Those tracepoints are used by LTTng.
+> > 
+> > About the performance impact of tracepoints (which is comparable to markers),
+> > even without immediate values optimizations, tests done by Hideo Aoki on ia64
+> > show no regression. His test case was using hackbench on a kernel where
+> > scheduler instrumentation (about 5 events in code scheduler code) was added.
+> > See the "Tracepoints" patch header for performance result detail.
+> > 
+> > Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+> > CC: linux-mm@kvack.org
+> > CC: Dave Hansen <haveblue@us.ibm.com>
+> > CC: Masami Hiramatsu <mhiramat@redhat.com>
+> > CC: 'Peter Zijlstra' <peterz@infradead.org>
+> > CC: "Frank Ch. Eigler" <fche@redhat.com>
+> > CC: 'Ingo Molnar' <mingo@elte.hu>
+> > CC: 'Hideo AOKI' <haoki@redhat.com>
+> > CC: Takashi Nishiie <t-nishiie@np.css.fujitsu.com>
+> > CC: 'Steven Rostedt' <rostedt@goodmis.org>
+> > CC: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+> > ---
+> >  include/trace/filemap.h |   13 +++++++++++++
+> >  mm/filemap.c            |    3 +++
+> >  2 files changed, 16 insertions(+)
+> > 
+> > Index: linux-2.6-lttng/mm/filemap.c
+> > ===================================================================
+> > --- linux-2.6-lttng.orig/mm/filemap.c	2008-07-15 14:51:50.000000000 -0400
+> > +++ linux-2.6-lttng/mm/filemap.c	2008-07-15 15:14:46.000000000 -0400
+> > @@ -33,6 +33,7 @@
+> >  #include <linux/cpuset.h>
+> >  #include <linux/hardirq.h> /* for BUG_ON(!in_atomic()) only */
+> >  #include <linux/memcontrol.h>
+> > +#include <trace/filemap.h>
+> >  #include "internal.h"
+> >  
+> >  /*
+> > @@ -541,9 +542,11 @@ void wait_on_page_bit(struct page *page,
+> >  {
+> >  	DEFINE_WAIT_BIT(wait, &page->flags, bit_nr);
+> >  
+> > +	trace_filemap_wait_start(page, bit_nr);
+> >  	if (test_bit(bit_nr, &page->flags))
+> >  		__wait_on_bit(page_waitqueue(page), &wait, sync_page,
+> >  							TASK_UNINTERRUPTIBLE);
+> > +	trace_filemap_wait_end(page, bit_nr);
+> >  }
+> >  EXPORT_SYMBOL(wait_on_page_bit);
+> 
+> I don't like the trace_filemap_wait_* naming..
+> 
 
-Hm, I don't think so? I thought that those 1 and 2 were not orders,
-but in fact the number of pages. Which seems correct, since now you
-have 4096 / 208 = 19 :-)
+Me neither :)
 
-(His patch bumps order from 0 to 1, so the number of pages were bumped
-from 1 to 2.)
+> trace_wait_on_page_* might make more sense
+> 
 
-Or..?
+Yep, agreed,
 
+Mathieu
 
-Vegard
+> > Index: linux-2.6-lttng/include/trace/filemap.h
+> > ===================================================================
+> > --- /dev/null	1970-01-01 00:00:00.000000000 +0000
+> > +++ linux-2.6-lttng/include/trace/filemap.h	2008-07-15 15:14:46.000000000 -0400
+> > @@ -0,0 +1,13 @@
+> > +#ifndef _TRACE_FILEMAP_H
+> > +#define _TRACE_FILEMAP_H
+> > +
+> > +#include <linux/tracepoint.h>
+> > +
+> > +DEFINE_TRACE(filemap_wait_start,
+> > +	TPPROTO(struct page *page, int bit_nr),
+> > +	TPARGS(page, bit_nr));
+> > +DEFINE_TRACE(filemap_wait_end,
+> > +	TPPROTO(struct page *page, int bit_nr),
+> > +	TPARGS(page, bit_nr));
+> > +
+> > +#endif
+> > 
+> 
 
 -- 
-"The animistic metaphor of the bug that maliciously sneaked in while
-the programmer was not looking is intellectually dishonest as it
-disguises that the error is the programmer's own creation."
-	-- E. W. Dijkstra, EWD1036
+Mathieu Desnoyers
+OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
