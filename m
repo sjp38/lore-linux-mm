@@ -1,45 +1,37 @@
-Message-ID: <487F89AE.9070007@redhat.com>
-Date: Thu, 17 Jul 2008 14:04:30 -0400
-From: Chris Snook <csnook@redhat.com>
+Received: by ag-out-0708.google.com with SMTP id 22so6414022agd.8
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2008 11:07:40 -0700 (PDT)
+Date: Thu, 17 Jul 2008 21:06:16 +0300
+From: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+Subject: Re: [RFC PATCH 3/4] kmemtrace: SLUB hooks.
+Message-ID: <20080717180615.GA5360@localhost>
+References: <cover.1216255034.git.eduard.munteanu@linux360.ro> <017a63e6be64502c36ede4733f0cc4e5ede75db2.1216255035.git.eduard.munteanu@linux360.ro> <84144f020807170046j2fae2f41k7c80dba4e388677b@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: madvise(2) MADV_SEQUENTIAL behavior
-References: <1216163022.3443.156.camel@zenigma>	<487E628A.3050207@redhat.com>	<1216252910.3443.247.camel@zenigma>	<200807171614.29594.nickpiggin@yahoo.com.au> <20080717102148.6bc52e94@cuia.bos.redhat.com>
-In-Reply-To: <20080717102148.6bc52e94@cuia.bos.redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <84144f020807170046j2fae2f41k7c80dba4e388677b@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Eric Rannaud <eric.rannaud@gmail.com>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> On Thu, 17 Jul 2008 16:14:29 +1000
-> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+On Thu, Jul 17, 2008 at 10:46:51AM +0300, Pekka Enberg wrote:
+> On Thu, Jul 17, 2008 at 3:46 AM, Eduard - Gabriel Munteanu
+> <eduard.munteanu@linux360.ro> wrote:
+> > This adds hooks for the SLUB allocator, to allow tracing with kmemtrace.
+> >
+> > Signed-off-by: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+> > ---
+> >  include/linux/slub_def.h |    9 +++++++-
+> >  mm/slub.c                |   47 ++++++++++++++++++++++++++++++++++++++++-----
+> >  2 files changed, 49 insertions(+), 7 deletions(-)
 > 
->>> It might encourage user space applications to start using
->>> FADV_SEQUENTIAL or FADV_NOREUSE more often (as it would become
->>> worthwhile to do so), and if they do (especially cron jobs), the problem
->>> of the slow desktop in the morning would progressively solve itself.
->> The slow desktop in the morning should not happen even without such a
->> call, because the kernel should not throw out frequently used data (even
->> if it is not quite so recent) in favour of streaming data.
->>
->> OK, I figure it doesn't do such a good job now, which is sad, 
-> 
-> Do you have any tests in mind that we could use to decide
-> whether the patch I posted Tuesday would do a decent job
-> at protecting frequently used data from streaming data?
-> 
-> http://lkml.org/lkml/2008/7/15/465
-> 
+> What are these casts doing here? I think you can just drop them, no?
 
-1) start up a memory-hogging Java app
-2) run a full-system backup
+Yes, I should cut all these casts off. Will resubmit soon.
 
-If it works well, the Java app shouldn't slow down much.
 
--- Chris
+	Eduard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
