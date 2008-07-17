@@ -1,132 +1,181 @@
-Received: by rv-out-0708.google.com with SMTP id f25so6817801rvb.26
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2008 00:43:14 -0700 (PDT)
-Message-ID: <84144f020807170043w725769e5i7c24402613711690@mail.gmail.com>
-Date: Thu, 17 Jul 2008 10:43:14 +0300
+Received: by py-out-1112.google.com with SMTP id f31so1522014pyh.20
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2008 00:46:52 -0700 (PDT)
+Message-ID: <84144f020807170046j2fae2f41k7c80dba4e388677b@mail.gmail.com>
+Date: Thu, 17 Jul 2008 10:46:51 +0300
 From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [RFC PATCH 4/4] kmemtrace: SLOB hooks.
-In-Reply-To: <9e4ab51fe29754243e4577dec4649c5522ddd4f8.1216255036.git.eduard.munteanu@linux360.ro>
+Subject: Re: [RFC PATCH 3/4] kmemtrace: SLUB hooks.
+In-Reply-To: <017a63e6be64502c36ede4733f0cc4e5ede75db2.1216255035.git.eduard.munteanu@linux360.ro>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 References: <cover.1216255034.git.eduard.munteanu@linux360.ro>
-	 <9e4ab51fe29754243e4577dec4649c5522ddd4f8.1216255036.git.eduard.munteanu@linux360.ro>
+	 <017a63e6be64502c36ede4733f0cc4e5ede75db2.1216255035.git.eduard.munteanu@linux360.ro>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-Cc: cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>
+Cc: cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
-
-Hi,
-
-[Adding Matt as cc.]
 
 On Thu, Jul 17, 2008 at 3:46 AM, Eduard - Gabriel Munteanu
 <eduard.munteanu@linux360.ro> wrote:
-> This adds hooks for the SLOB allocator, to allow tracing with kmemtrace.
+> This adds hooks for the SLUB allocator, to allow tracing with kmemtrace.
 >
 > Signed-off-by: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-
-Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
-
 > ---
->  mm/slob.c |   37 +++++++++++++++++++++++++++++++------
->  1 files changed, 31 insertions(+), 6 deletions(-)
+>  include/linux/slub_def.h |    9 +++++++-
+>  mm/slub.c                |   47 ++++++++++++++++++++++++++++++++++++++++-----
+>  2 files changed, 49 insertions(+), 7 deletions(-)
 >
-> diff --git a/mm/slob.c b/mm/slob.c
-> index a3ad667..0335c01 100644
-> --- a/mm/slob.c
-> +++ b/mm/slob.c
-> @@ -65,6 +65,7 @@
->  #include <linux/module.h>
->  #include <linux/rcupdate.h>
->  #include <linux/list.h>
+> diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+> index d117ea2..0cef121 100644
+> --- a/include/linux/slub_def.h
+> +++ b/include/linux/slub_def.h
+> @@ -10,6 +10,7 @@
+>  #include <linux/gfp.h>
+>  #include <linux/workqueue.h>
+>  #include <linux/kobject.h>
 > +#include <linux/kmemtrace.h>
->  #include <asm/atomic.h>
+>
+>  enum stat_item {
+>        ALLOC_FASTPATH,         /* Allocation from cpu slab */
+> @@ -205,7 +206,13 @@ void *__kmalloc(size_t size, gfp_t flags);
+>
+>  static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
+>  {
+> -       return (void *)__get_free_pages(flags | __GFP_COMP, get_order(size));
+> +       unsigned int order = get_order(size);
+> +       void *ret = (void *) __get_free_pages(flags, order);
+> +
+> +       kmemtrace_mark_alloc(KMEMTRACE_TYPE_KERNEL, _THIS_IP_, ret,
+> +                            size, PAGE_SIZE << order, flags);
+> +
+> +       return ret;
+>  }
+>
+>  static __always_inline void *kmalloc(size_t size, gfp_t flags)
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 315c392..a6f930f 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -23,6 +23,7 @@
+>  #include <linux/kallsyms.h>
+>  #include <linux/memory.h>
+>  #include <linux/math64.h>
+> +#include <linux/kmemtrace.h>
 >
 >  /*
-> @@ -463,27 +464,38 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+>  * Lock order:
+> @@ -1652,14 +1653,25 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
+>
+>  void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
 >  {
->        unsigned int *m;
->        int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+> -       return slab_alloc(s, gfpflags, -1, __builtin_return_address(0));
+> +       void *ret = slab_alloc(s, gfpflags, -1, __builtin_return_address(0));
+> +
+> +       kmemtrace_mark_alloc(KMEMTRACE_TYPE_CACHE, _RET_IP_, ret,
+> +                            s->objsize, s->size, gfpflags);
+> +
+> +       return ret;
+>  }
+>  EXPORT_SYMBOL(kmem_cache_alloc);
+>
+>  #ifdef CONFIG_NUMA
+>  void *kmem_cache_alloc_node(struct kmem_cache *s, gfp_t gfpflags, int node)
+>  {
+> -       return slab_alloc(s, gfpflags, node, __builtin_return_address(0));
+> +       void *ret = slab_alloc(s, gfpflags, node,
+> +                              __builtin_return_address(0));
+> +
+> +       kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_CACHE, _RET_IP_, ret,
+> +                                 s->objsize, s->size, gfpflags, node);
+> +
+> +       return ret;
+>  }
+>  EXPORT_SYMBOL(kmem_cache_alloc_node);
+>  #endif
+> @@ -1771,6 +1783,8 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
+>        page = virt_to_head_page(x);
+>
+>        slab_free(s, page, x, __builtin_return_address(0));
+> +
+> +       kmemtrace_mark_free(KMEMTRACE_TYPE_CACHE, _RET_IP_, x);
+>  }
+>  EXPORT_SYMBOL(kmem_cache_free);
+>
+> @@ -2676,6 +2690,7 @@ static struct kmem_cache *get_slab(size_t size, gfp_t flags)
+>  void *__kmalloc(size_t size, gfp_t flags)
+>  {
+>        struct kmem_cache *s;
 > +       void *ret;
 >
->        if (size < PAGE_SIZE - align) {
->                if (!size)
->                        return ZERO_SIZE_PTR;
+>        if (unlikely(size > PAGE_SIZE))
+>                return kmalloc_large(size, flags);
+> @@ -2685,7 +2700,12 @@ void *__kmalloc(size_t size, gfp_t flags)
+>        if (unlikely(ZERO_OR_NULL_PTR(s)))
+>                return s;
 >
->                m = slob_alloc(size + align, gfp, align, node);
+> -       return slab_alloc(s, flags, -1, __builtin_return_address(0));
+> +       ret = slab_alloc(s, flags, -1, __builtin_return_address(0));
 > +
->                if (!m)
->                        return NULL;
->                *m = size;
-> -               return (void *)m + align;
-> +               ret = (void *)m + align;
+> +       kmemtrace_mark_alloc(KMEMTRACE_TYPE_KERNEL, _RET_IP_, ret,
+> +                            size, (size_t) s->size, (unsigned long) flags);
+
+What are these casts doing here? I think you can just drop them, no?
+
 > +
-> +               kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_KERNEL,
-> +                                         _RET_IP_, ret,
-> +                                         size, size + align, gfp, node);
->        } else {
-> -               void *ret;
-> +               unsigned int order = get_order(size);
+> +       return ret;
+>  }
+>  EXPORT_SYMBOL(__kmalloc);
 >
-> -               ret = slob_new_page(gfp | __GFP_COMP, get_order(size), node);
-> +               ret = slob_new_page(gfp | __GFP_COMP, order, node);
->                if (ret) {
->                        struct page *page;
->                        page = virt_to_page(ret);
->                        page->private = size;
->                }
-> -               return ret;
+> @@ -2704,16 +2724,29 @@ static void *kmalloc_large_node(size_t size, gfp_t flags, int node)
+>  void *__kmalloc_node(size_t size, gfp_t flags, int node)
+>  {
+>        struct kmem_cache *s;
+> +       void *ret;
+>
+> -       if (unlikely(size > PAGE_SIZE))
+> -               return kmalloc_large_node(size, flags, node);
+> +       if (unlikely(size > PAGE_SIZE)) {
+> +               ret = kmalloc_large_node(size, flags, node);
 > +
-> +               kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_KERNEL,
-> +                                         _RET_IP_, ret,
-> +                                         size, PAGE_SIZE << order, gfp, node);
->        }
+> +               kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_KERNEL, _RET_IP_, ret,
+> +                                         size, PAGE_SIZE << get_order(size),
+> +                                         (unsigned long) flags, node);
+
+Don't cast flags to unsigned long. The kmemtrace core should use gfp_t
+as the parameter type.
+
+> +
+> +               return ret;
+> +       }
+>
+>        s = get_slab(size, flags);
+>
+>        if (unlikely(ZERO_OR_NULL_PTR(s)))
+>                return s;
+>
+> -       return slab_alloc(s, flags, node, __builtin_return_address(0));
+> +       ret = slab_alloc(s, flags, node, __builtin_return_address(0));
+> +
+> +       kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_KERNEL, _RET_IP_, ret,
+> +                                 size, s->size, (unsigned long) flags, node);
+
+Another cast here.
+
 > +
 > +       return ret;
 >  }
 >  EXPORT_SYMBOL(__kmalloc_node);
->
-> @@ -501,6 +513,8 @@ void kfree(const void *block)
->                slob_free(m, *m + align);
->        } else
->                put_page(&sp->page);
+>  #endif
+> @@ -2771,6 +2804,8 @@ void kfree(const void *x)
+>                return;
+>        }
+>        slab_free(page->slab, page, object, __builtin_return_address(0));
 > +
-> +       kmemtrace_mark_free(KMEMTRACE_TYPE_KERNEL, _RET_IP_, block);
+> +       kmemtrace_mark_free(KMEMTRACE_TYPE_KERNEL, _RET_IP_, x);
 >  }
 >  EXPORT_SYMBOL(kfree);
->
-> @@ -569,10 +583,19 @@ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
->  {
->        void *b;
->
-> -       if (c->size < PAGE_SIZE)
-> +       if (c->size < PAGE_SIZE) {
->                b = slob_alloc(c->size, flags, c->align, node);
-> -       else
-> +               kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_CACHE,
-> +                                         _RET_IP_, b, c->size,
-> +                                         SLOB_UNITS(c->size) * SLOB_UNIT,
-> +                                         flags, node);
-> +       } else {
->                b = slob_new_page(flags, get_order(c->size), node);
-> +               kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_CACHE,
-> +                                         _RET_IP_, b, c->size,
-> +                                         PAGE_SIZE << get_order(c->size),
-> +                                         flags, node);
-> +       }
->
->        if (c->ctor)
->                c->ctor(c, b);
-> @@ -608,6 +631,8 @@ void kmem_cache_free(struct kmem_cache *c, void *b)
->        } else {
->                __kmem_cache_free(b, c->size);
->        }
-> +
-> +       kmemtrace_mark_free(KMEMTRACE_TYPE_CACHE, _RET_IP_, b);
->  }
->  EXPORT_SYMBOL(kmem_cache_free);
 >
 > --
 > 1.5.6.1
