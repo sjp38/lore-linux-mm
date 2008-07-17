@@ -1,69 +1,72 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id m6HJI4m3013894
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2008 05:18:04 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m6HJHbjI1593590
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2008 05:17:38 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m6HJHb8X000497
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2008 05:17:37 +1000
-Message-ID: <487F9ACB.3080109@linux.vnet.ibm.com>
-Date: Thu, 17 Jul 2008 14:17:31 -0500
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [mmtom][BUGFIX] vmscan-second-chance-replacement-for-anonymous-pages-fix.patch
-References: <20080717122751.92525032.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080717122751.92525032.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Thu, 17 Jul 2008 13:23:17 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bugme-new] [Bug 11110] New: Core dumps do not include writable
+ unmodified MAP_PRIVATE maps
+Message-Id: <20080717132317.96e73124.akpm@linux-foundation.org>
+In-Reply-To: <bug-11110-10286@http.bugzilla.kernel.org/>
+References: <bug-11110-10286@http.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "riel@redhat.com" <riel@redhat.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: linux-mm@kvack.org
+Cc: bugme-daemon@bugzilla.kernel.org, drow@false.org, Roland McGrath <roland@redhat.com>, Oleg Nesterov <oleg@tv-sign.ru>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Neil Horman <nhorman@tuxdriver.com>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> Under memcg, active anon tend not to go to inactive anon.
-> This will cause OOM in memcg easily when tons of anon was used at once.
-> This check was lacked in split-lru.
-> 
-> This patch is a fix agaisnt
-> vmscan-second-chance-replacement-for-anonymous-pages.patch
-> 
-> 
-> Changelog: v1 -> v2:
->  - avoid adding "else".
-> 
-> Signed-off-by:KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> 
->  mm/vmscan.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> Index: mmtom-stamp-2008-07-15-15-39/mm/vmscan.c
-> ===================================================================
-> --- mmtom-stamp-2008-07-15-15-39.orig/mm/vmscan.c
-> +++ mmtom-stamp-2008-07-15-15-39/mm/vmscan.c
-> @@ -1351,7 +1351,7 @@ static unsigned long shrink_zone(int pri
->  	 * Even if we did not try to evict anon pages at all, we want to
->  	 * rebalance the anon lru active/inactive ratio.
->  	 */
-> -	if (scan_global_lru(sc) && inactive_anon_is_low(zone))
-> +	if (!scan_global_lru(sc) || inactive_anon_is_low(zone))
->  		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
-> 
->  	throttle_vm_writeout(sc->gfp_mask);
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
 
-I have not seen this, but looks good to me
+On Thu, 17 Jul 2008 11:57:08 -0700 (PDT) bugme-daemon@bugzilla.kernel.org wrote:
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> http://bugzilla.kernel.org/show_bug.cgi?id=11110
+> 
+>            Summary: Core dumps do not include writable unmodified
+>                     MAP_PRIVATE maps
+>            Product: Process Management
+>            Version: 2.5
+>      KernelVersion: 2.6.26
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Other
+>         AssignedTo: process_other@kernel-bugs.osdl.org
+>         ReportedBy: drow@false.org
+>                 CC: davem@davemloft.net
+> 
+> 
+> Latest working kernel version: Not sure.
+> Earliest failing kernel version: Been failing at least since April 2006. 
+> Passed at some point previous to that, probably 2.4.
+> Distribution: Debian
+> Hardware Environment: x86_64 SMP
+> Software Environment: GDB testsuite
+> Problem Description:
+> 
+> The test corefile.exp fails because it maps a file and then core dumps,
+> expecting the mapped contents to be in the core dump.  The mapping is made with
+> these options:
+> 
+>   buf2 = (char *) mmap (0, MAPSIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd,
+> 0);
+> 
+> Any page that has been touched will be dumped, any unmodified page will not be.
+> 
+> I've discussed this with David Miller a couple of times; last time I recall was
+> in January 2007.
+> 
+> Steps to reproduce:
+> 
+>   Run coremaker from the GDB testsuite (attached).  Load the core file into GDB
+> and try to print buf2.
+> 
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Does anyone recall whether this is deliberate behaviour, or did we just goof?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
