@@ -1,56 +1,45 @@
-Subject: Re: [PATCH][RFC] slub: increasing order reduces memory usage of
-	some key caches
-From: Richard Kennedy <richard@rsk.demon.co.uk>
-In-Reply-To: <487E1ACF.3030603@linux-foundation.org>
-References: <1216211371.3122.46.camel@castor.localdomain>
-	 <487E1ACF.3030603@linux-foundation.org>
-Content-Type: text/plain
-Date: Thu, 17 Jul 2008 11:09:08 +0100
-Message-Id: <1216289348.3061.16.camel@castor.localdomain>
+Date: Thu, 17 Jul 2008 10:20:25 -0400
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: madvise(2) MADV_SEQUENTIAL behavior
+Message-ID: <20080717102025.6b7f0e40@cuia.bos.redhat.com>
+In-Reply-To: <487E628A.3050207@redhat.com>
+References: <1216163022.3443.156.camel@zenigma>
+	<1216210495.5232.47.camel@twins>
+	<20080716105025.2daf5db2@cuia.bos.redhat.com>
+	<487E628A.3050207@redhat.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: penberg@cs.helsinki.fi, linux-mm <linux-mm@kvack.org>
+To: Chris Snook <csnook@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Eric Rannaud <eric.rannaud@gmail.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-07-16 at 10:59 -0500, Christoph Lameter wrote:
-> Patch to do this the right way in slub:
+On Wed, 16 Jul 2008 17:05:14 -0400
+Chris Snook <csnook@redhat.com> wrote:
+
+> > I believe that for mmap MADV_SEQUENTIAL, we will have to do
+> > an unmap-behind from the fault path.  Not every time, but
+> > maybe once per megabyte, unmapping the megabyte behind us.
+> > 
+> > That way the normal page cache policies (use once, etc) can
+> > take care of page eviction, which should help if the file
+> > is also in use by another process.
 > 
-> Index: linux-2.6/mm/slub.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slub.c	2008-07-16 10:42:07.000000000 -0500
-> +++ linux-2.6/mm/slub.c	2008-07-16 10:53:36.000000000 -0500
-> @@ -1860,6 +1860,10 @@
->  
->  		rem = slab_size % size;
->  
-> +		/* Never waste more than half of the size of an object*/
-> +		if (rem > size / 2)
-> +			continue;
-> +
->  		if (rem <= slab_size / fract_leftover)
->  			break;
+> Wouldn't it just be easier to not move pages to the active list when 
+> they're referenced via an MADV_SEQUENTIAL mapping?  
 
-Thanks, I'll give that a try.
+You want to check the MADV_SEQUENTIAL hint at pageout time and
+discard the referenced bit from the pte?
 
-Do we need to limit the number of times this applies though?
+> If we keep them on the inactive list, they'll be candidates for
+> reclaiming
 
-for example, 216 byte structures will give
+Only if we ignore the referenced bit.  Which I guess we can do.
 
-order:objs/slab:waste
-0 :  18 :208
-1 :  37 :200
-2 :  75 :184
-3 : 151 :152
-4 : 303 : 88
-
-I'm not sure where the balance point between efficient memory usage &
-fragmentation pressure lies, but my gut feeling is that order 4 is just
-too big for a structure this small.  
-
-Richard
+-- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
