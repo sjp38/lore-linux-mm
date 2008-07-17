@@ -1,40 +1,47 @@
-Subject: Re: [PATCH][RFC] dirty balancing for cgroups
-In-Reply-To: Your message of "Mon, 14 Jul 2008 15:49:04 +0200"
-	<1216043344.12595.89.camel@twins>
-References: <1216043344.12595.89.camel@twins>
+Date: Thu, 17 Jul 2008 12:27:51 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [mmtom][BUGFIX]
+ vmscan-second-chance-replacement-for-anonymous-pages-fix.patch
+Message-Id: <20080717122751.92525032.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20080717014335.ED78A5A22@siro.lan>
-Date: Thu, 17 Jul 2008 10:43:35 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: a.p.zijlstra@chello.nl
-Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, menage@google.com, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "riel@redhat.com" <riel@redhat.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-hi,
+Under memcg, active anon tend not to go to inactive anon.
+This will cause OOM in memcg easily when tons of anon was used at once.
+This check was lacked in split-lru.
 
-> Now the problem this patch tries to address...
-> 
-> As you can see you'd need p_{bdi,cgroup,task} for it to work, and the
-> obvious approximation p_bdi * p_cgroup * p_task will get even more
-> coarse.
-> 
-> You could possibly attempt to do p_{bdi,cgroup} * p_task since the bdi
-> and cgroup set are pretty static, but still that would be painful.
+This patch is a fix agaisnt
+vmscan-second-chance-replacement-for-anonymous-pages.patch
 
-i chose min(p_bdi * p_cgroup, p_bdi * p_task) because i couldn't imagine
-a case where p_bdi * p_cgroup * p_task is better.
 
-> So, could you please give some more justification for this work, I'm not
-> seeing the value in complicating all this just yet.
+Changelog: v1 -> v2:
+ - avoid adding "else".
 
-a simple example for which my patch can make some sense is:
+Signed-off-by:KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 
-	while :;do dd if=/dev/zero of=file conv=notrunc bs=4096 count=1;done
+ mm/vmscan.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-YAMAMOTO Takashi
+Index: mmtom-stamp-2008-07-15-15-39/mm/vmscan.c
+===================================================================
+--- mmtom-stamp-2008-07-15-15-39.orig/mm/vmscan.c
++++ mmtom-stamp-2008-07-15-15-39/mm/vmscan.c
+@@ -1351,7 +1351,7 @@ static unsigned long shrink_zone(int pri
+ 	 * Even if we did not try to evict anon pages at all, we want to
+ 	 * rebalance the anon lru active/inactive ratio.
+ 	 */
+-	if (scan_global_lru(sc) && inactive_anon_is_low(zone))
++	if (!scan_global_lru(sc) || inactive_anon_is_low(zone))
+ 		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
+ 
+ 	throttle_vm_writeout(sc->gfp_mask);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
