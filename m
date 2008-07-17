@@ -1,188 +1,85 @@
-Date: Thu, 17 Jul 2008 12:45:56 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [mmtom] please drop memcg-handle-swap-cache set (memcg handle swap
- cache rework).
-Message-Id: <20080717124556.3e4b6e20.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: madvise(2) MADV_SEQUENTIAL behavior
+Date: Thu, 17 Jul 2008 16:14:29 +1000
+References: <1216163022.3443.156.camel@zenigma> <487E628A.3050207@redhat.com> <1216252910.3443.247.camel@zenigma>
+In-Reply-To: <1216252910.3443.247.camel@zenigma>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200807171614.29594.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "hugh@veritas.com" <hugh@veritas.com>
+To: Eric Rannaud <eric.rannaud@gmail.com>
+Cc: Chris Snook <csnook@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Now, SwapCache is handled by memcg (in -mm) but it became complicated than I thought of.
+On Thursday 17 July 2008 10:01, Eric Rannaud wrote:
+> On Wed, 2008-07-16 at 17:05 -0400, Chris Snook wrote:
+> > Rik van Riel wrote:
+> > > I believe that for mmap MADV_SEQUENTIAL, we will have to do
+> > > an unmap-behind from the fault path.  Not every time, but
+> > > maybe once per megabyte, unmapping the megabyte behind us.
+> >
+> > Wouldn't it just be easier to not move pages to the active list when
+> > they're referenced via an MADV_SEQUENTIAL mapping?  If we keep them on
+> > the inactive list, they'll be candidates for reclaiming, but they'll
+> > still be in pagecache when another task scans through, as long as we're
+> > not under memory pressure.
+>
+> This approach, instead of invalidating the pages right away would
+> provide a middle ground: a way to tell the kernel "these pages are not
+> too important".
+>
+> Whereas if MADV_SEQUENTIAL just invalidates the pages once per megabyte
+> (say), then it's only doing what is already possible using MADV_DONTNEED
+> ("drop this pages now"). It would automate the process, but it would not
+> provide a more subtle hint, which could be quite useful.
+>
+> As I see it, there are two basic concepts here:
+> - no_reuse (like FADV_NOREUSE)
+> - more_ra (more readahead)
+> (DONTNEED being another different concept)
+>
+> Then:
+> MADV_SEQUENTIAL = more_ra | no_reuse
+> FADV_SEQUENTIAL = more_ra | no_reuse
+> FADV_NOREUSE = no_reuse
+>
+> Right now, only the 'more_ra' part is implemented. 'no_reuse' could be
+> implemented as Chris suggests.
+>
+> It looks like the disagreement a year ago around Peter's approach was
+> mostly around the question of whether using read ahead as a heuristic
+> for "drop behind" was safe for all workloads.
+>
+> Would it be less controversial to remove the heuristic (ra->size ==
+> ra->ra_pages), and to do something only if the user asked for
+> _SEQUENTIAL or _NOREUSE?
 
-followings are queued in -mm now.
-  memcg-handle-swap-cache.patch
-  memcg-handle-swap-cache-fix.patch
-  memcg-handle-swap-cache-fix-shmem-page-migration-incorrectness-on-memcgroup.patch
+It's far far easier to tell the kernel "I am no longer using these
+pages" than to say "I will not use these pages sometime in the future
+after I have used them". The former can be done synchronously and with
+a much higher efficiency than it takes to scan through LRU lists to
+figure this out.
 
-And I have memcg-handle-shmem-swap-cache-fix.patch....
-
-Balbir argued that "This is too complicated!", ok, let's rework.
-
-Andrew, could you drop above 3 patches ? I'd like to retry with clear logic.
-
-I'm testing this new version now. Basic logic is not changed but corner case
-handling is clearer than previous one. If there is something unclear, 
-please tell me.  I'd like to write easy-to-understand one.
-
-==
-This patch tries to catch SwapCache usage by memcg in following Rule.
-
-1. just ignore add_to_swap_cache()
-2. if a page is uncharged,
-	(a) don't uncharge when PageSwapCache(page)
-	(b) don't uncharge when the page is mapped.
-	(c) don't uncharge when the page is still on radix-tree.
-            This can be checked by (page->mapping && !PageAnon(page))
-
-3. __delete_from_swap_cache() calles uncharge after clearing PageSwapCache flag.
-4. mem_cgroup_uncharge_cache() is called only after page->mapping is cleared.
-5. migration has some corner case and handled.
-
-This is a replacement for
-  memcg-handle-swap-cache.patch
-  memcg-handle-swap-cache-fix.patch
-  memcg-handle-swap-cache-fix-shmem-page-migration-incorrectness-on-memcgroup.patch
-
-And includes enhancements to cache shmem's SwapCache.
-
-Changes:
-  - leave "rss" as "rss" (better name ?)
-  - for !page->mapping test (c), placement of callers of
-    mem_cgroup_uncharge_cache_page() is changed.
-  - add VM_BUG_ON(page->mapping) to mem_cgroup_uncharge_cache_page()
-  - shmem's SwapCache is also handled in sane way.
-
-Concerns:
-  - shmem.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+We should be using the SEQUENTIAL to open up readahead windows, and ask
+userspace applications to use DONTNEED to drop if it is important. IMO.
 
 
- mm/filemap.c    |    2 +-
- mm/memcontrol.c |   14 ++++++++------
- mm/migrate.c    |   22 +++++++++++++++++-----
- mm/swap_state.c |    1 +
- 4 files changed, 27 insertions(+), 12 deletions(-)
+> It might encourage user space applications to start using
+> FADV_SEQUENTIAL or FADV_NOREUSE more often (as it would become
+> worthwhile to do so), and if they do (especially cron jobs), the problem
+> of the slow desktop in the morning would progressively solve itself.
 
-Index: mmtom-stamp-2008-07-15-15-39/mm/filemap.c
-===================================================================
---- mmtom-stamp-2008-07-15-15-39.orig/mm/filemap.c
-+++ mmtom-stamp-2008-07-15-15-39/mm/filemap.c
-@@ -115,11 +115,11 @@ void __remove_from_page_cache(struct pag
- {
- 	struct address_space *mapping = page->mapping;
- 
--	mem_cgroup_uncharge_cache_page(page);
- 	radix_tree_delete(&mapping->page_tree, page->index);
- 	page->mapping = NULL;
- 	mapping->nrpages--;
- 	__dec_zone_page_state(page, NR_FILE_PAGES);
-+	mem_cgroup_uncharge_cache_page(page);
- 	BUG_ON(page_mapped(page));
- 
- 	/*
-Index: mmtom-stamp-2008-07-15-15-39/mm/memcontrol.c
-===================================================================
---- mmtom-stamp-2008-07-15-15-39.orig/mm/memcontrol.c
-+++ mmtom-stamp-2008-07-15-15-39/mm/memcontrol.c
-@@ -44,10 +44,10 @@ static struct kmem_cache *page_cgroup_ca
-  */
- enum mem_cgroup_stat_index {
- 	/*
--	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
-+	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss + swapcache.
- 	 */
- 	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
--	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as rss */
-+	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as rss/swapcache */
- 	MEM_CGROUP_STAT_PGPGIN_COUNT,	/* # of pages paged in */
- 	MEM_CGROUP_STAT_PGPGOUT_COUNT,	/* # of pages paged out */
- 
-@@ -697,10 +697,11 @@ __mem_cgroup_uncharge_common(struct page
- 		goto unlock;
- 
- 	VM_BUG_ON(pc->page != page);
--
--	if ((ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
--	    && ((pc->flags & PAGE_CGROUP_FLAG_CACHE)
--		|| page_mapped(page)))
-+	/* When this is called for removing a page cache in radix-tree,
-+	   page->mapping must be NULL before here. */
-+	if (likely(ctype != MEM_CGROUP_CHARGE_TYPE_FORCE))
-+	    if (PageSwapCache(page) || page_mapped(page)
-+	        || (page->mapping && !PageAnon(page)))
- 		goto unlock;
- 
- 	mz = page_cgroup_zoneinfo(pc);
-@@ -729,6 +730,7 @@ void mem_cgroup_uncharge_page(struct pag
- void mem_cgroup_uncharge_cache_page(struct page *page)
- {
- 	VM_BUG_ON(page_mapped(page));
-+	VM_BUG_ON(page->mapping);
- 	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
- }
- 
-Index: mmtom-stamp-2008-07-15-15-39/mm/migrate.c
-===================================================================
---- mmtom-stamp-2008-07-15-15-39.orig/mm/migrate.c
-+++ mmtom-stamp-2008-07-15-15-39/mm/migrate.c
-@@ -358,9 +358,6 @@ static int migrate_page_move_mapping(str
- 	__inc_zone_page_state(newpage, NR_FILE_PAGES);
- 
- 	write_unlock_irq(&mapping->tree_lock);
--	if (!PageSwapCache(newpage)) {
--		mem_cgroup_uncharge_cache_page(page);
--	}
- 
- 	return 0;
- }
-@@ -398,12 +395,27 @@ static void migrate_page_copy(struct pag
-  	}
- 
- #ifdef CONFIG_SWAP
--	ClearPageSwapCache(page);
-+	if (PageSwapCache(page)) {
-+		/*
-+		 * SwapCache is removed implicitly. To uncharge SwapCache,
-+		 * SwapCache flag should be cleared.
-+		 */
-+		ClearPageSwapCache(page);
-+		mem_cgroup_uncharge_page(page);
-+	}
- #endif
- 	ClearPageActive(page);
- 	ClearPagePrivate(page);
- 	set_page_private(page, 0);
--	page->mapping = NULL;
-+
-+	if (!PageAnon(page)) {
-+		/*
-+		 * This page was removed from radix-tree implicitly.
-+		 */
-+		page->mapping = NULL;
-+		mem_cgroup_uncharge_cache_page(page);
-+	} else
-+		page->mapping = NULL;
- 
- 	/*
- 	 * If any waiters have accumulated on the new page then
-Index: mmtom-stamp-2008-07-15-15-39/mm/swap_state.c
-===================================================================
---- mmtom-stamp-2008-07-15-15-39.orig/mm/swap_state.c
-+++ mmtom-stamp-2008-07-15-15-39/mm/swap_state.c
-@@ -110,6 +110,7 @@ void __delete_from_swap_cache(struct pag
- 	total_swapcache_pages--;
- 	__dec_zone_page_state(page, NR_FILE_PAGES);
- 	INC_CACHE_INFO(del_total);
-+	mem_cgroup_uncharge_page(page);
- }
- 
- /**
+The slow desktop in the morning should not happen even without such a
+call, because the kernel should not throw out frequently used data (even
+if it is not quite so recent) in favour of streaming data.
+
+OK, I figure it doesn't do such a good job now, which is sad, but making
+all apps micromanage the pagecache to get reasonable performance on a
+2GB+ desktop system is even more sad ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
