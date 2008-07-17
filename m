@@ -1,42 +1,40 @@
-Date: Thu, 17 Jul 2008 10:20:25 -0400
+Date: Thu, 17 Jul 2008 10:21:48 -0400
 From: Rik van Riel <riel@redhat.com>
 Subject: Re: madvise(2) MADV_SEQUENTIAL behavior
-Message-ID: <20080717102025.6b7f0e40@cuia.bos.redhat.com>
-In-Reply-To: <487E628A.3050207@redhat.com>
+Message-ID: <20080717102148.6bc52e94@cuia.bos.redhat.com>
+In-Reply-To: <200807171614.29594.nickpiggin@yahoo.com.au>
 References: <1216163022.3443.156.camel@zenigma>
-	<1216210495.5232.47.camel@twins>
-	<20080716105025.2daf5db2@cuia.bos.redhat.com>
 	<487E628A.3050207@redhat.com>
+	<1216252910.3443.247.camel@zenigma>
+	<200807171614.29594.nickpiggin@yahoo.com.au>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Snook <csnook@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Eric Rannaud <eric.rannaud@gmail.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Eric Rannaud <eric.rannaud@gmail.com>, Chris Snook <csnook@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Jul 2008 17:05:14 -0400
-Chris Snook <csnook@redhat.com> wrote:
+On Thu, 17 Jul 2008 16:14:29 +1000
+Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 
-> > I believe that for mmap MADV_SEQUENTIAL, we will have to do
-> > an unmap-behind from the fault path.  Not every time, but
-> > maybe once per megabyte, unmapping the megabyte behind us.
-> > 
-> > That way the normal page cache policies (use once, etc) can
-> > take care of page eviction, which should help if the file
-> > is also in use by another process.
+> > It might encourage user space applications to start using
+> > FADV_SEQUENTIAL or FADV_NOREUSE more often (as it would become
+> > worthwhile to do so), and if they do (especially cron jobs), the problem
+> > of the slow desktop in the morning would progressively solve itself.
 > 
-> Wouldn't it just be easier to not move pages to the active list when 
-> they're referenced via an MADV_SEQUENTIAL mapping?  
+> The slow desktop in the morning should not happen even without such a
+> call, because the kernel should not throw out frequently used data (even
+> if it is not quite so recent) in favour of streaming data.
+> 
+> OK, I figure it doesn't do such a good job now, which is sad, 
 
-You want to check the MADV_SEQUENTIAL hint at pageout time and
-discard the referenced bit from the pte?
+Do you have any tests in mind that we could use to decide
+whether the patch I posted Tuesday would do a decent job
+at protecting frequently used data from streaming data?
 
-> If we keep them on the inactive list, they'll be candidates for
-> reclaiming
-
-Only if we ignore the referenced bit.  Which I guess we can do.
+http://lkml.org/lkml/2008/7/15/465
 
 -- 
 All Rights Reversed
