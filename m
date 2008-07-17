@@ -1,89 +1,39 @@
-Date: Thu, 17 Jul 2008 16:39:30 -0400
-From: Neil Horman <nhorman@tuxdriver.com>
-Subject: Re: [Bugme-new] [Bug 11110] New: Core dumps do not include writable unmodified MAP_PRIVATE maps
-Message-ID: <20080717203930.GA24299@hmsendeavour.rdu.redhat.com>
-References: <bug-11110-10286@http.bugzilla.kernel.org/> <20080717132317.96e73124.akpm@linux-foundation.org>
+Date: Thu, 17 Jul 2008 17:20:23 -0400
+From: Daniel Jacobowitz <drow@false.org>
+Subject: Re: [Bugme-new] [Bug 11110] New: Core dumps do not include
+	writable unmodified MAP_PRIVATE maps
+Message-ID: <20080717212023.GA20584@caradoc.them.org>
+References: <bug-11110-10286@http.bugzilla.kernel.org/> <20080717132317.96e73124.akpm@linux-foundation.org> <20080717203930.GA24299@hmsendeavour.rdu.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080717132317.96e73124.akpm@linux-foundation.org>
+In-Reply-To: <20080717203930.GA24299@hmsendeavour.rdu.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, bugme-daemon@bugzilla.kernel.org, drow@false.org, Roland McGrath <roland@redhat.com>, Oleg Nesterov <oleg@tv-sign.ru>, Alan Cox <alan@lxorguk.ukuu.org.uk>
+To: Neil Horman <nhorman@tuxdriver.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugme-daemon@bugzilla.kernel.org, Roland McGrath <roland@redhat.com>, Oleg Nesterov <oleg@tv-sign.ru>, Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 17, 2008 at 01:23:17PM -0700, Andrew Morton wrote:
-> 
-> (switched to email.  Please respond via emailed reply-to-all, not via the
-> bugzilla web interface).
-> 
-> On Thu, 17 Jul 2008 11:57:08 -0700 (PDT) bugme-daemon@bugzilla.kernel.org wrote:
-> 
-> > http://bugzilla.kernel.org/show_bug.cgi?id=11110
-> > 
-> >            Summary: Core dumps do not include writable unmodified
-> >                     MAP_PRIVATE maps
-> >            Product: Process Management
-> >            Version: 2.5
-> >      KernelVersion: 2.6.26
-> >           Platform: All
-> >         OS/Version: Linux
-> >               Tree: Mainline
-> >             Status: NEW
-> >           Severity: normal
-> >           Priority: P1
-> >          Component: Other
-> >         AssignedTo: process_other@kernel-bugs.osdl.org
-> >         ReportedBy: drow@false.org
-> >                 CC: davem@davemloft.net
-> > 
-> > 
-> > Latest working kernel version: Not sure.
-> > Earliest failing kernel version: Been failing at least since April 2006. 
-> > Passed at some point previous to that, probably 2.4.
-> > Distribution: Debian
-> > Hardware Environment: x86_64 SMP
-> > Software Environment: GDB testsuite
-> > Problem Description:
-> > 
-> > The test corefile.exp fails because it maps a file and then core dumps,
-> > expecting the mapped contents to be in the core dump.  The mapping is made with
-> > these options:
-> > 
-> >   buf2 = (char *) mmap (0, MAPSIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd,
-> > 0);
-> > 
-> > Any page that has been touched will be dumped, any unmodified page will not be.
-> > 
-> > I've discussed this with David Miller a couple of times; last time I recall was
-> > in January 2007.
-> > 
-> > Steps to reproduce:
-> > 
-> >   Run coremaker from the GDB testsuite (attached).  Load the core file into GDB
-> > and try to print buf2.
-> > 
-> 
-> Does anyone recall whether this is deliberate behaviour, or did we just goof?
-> 
-> Thanks.
+On Thu, Jul 17, 2008 at 04:39:30PM -0400, Neil Horman wrote:
+> I'm not 100% sure, and I can see why the kernel might skip over untouched pages,
+> but that seems like a bug to me.  The memory is mapped, it should be readable by
+> gdb after a core dump, and since its a mapped file, it can't be assumed to be
+> zero, like heap memory that hasn't been faulted in yet.
 
-I'm not 100% sure, and I can see why the kernel might skip over untouched pages,
-but that seems like a bug to me.  The memory is mapped, it should be readable by
-gdb after a core dump, and since its a mapped file, it can't be assumed to be
-zero, like heap memory that hasn't been faulted in yet.
+I'm guessing this is an attempt not to dump shared library text
+segments.  We can't do it solely based on permissions; if I remember
+right there's a readonly page in the application or ld.so associated
+with the shared library list that is mprotected to read-only after
+initialization (-z relro).
 
-Just my $0.02
-Neil
+In April 2006 Dave M suggested only skipping if VM_EXEC.  This will
+dump some text segment bits (e.g. anything that had a software
+breakpoint inserted), but not most; writable data is usually written
+to (at least mostly).
 
 -- 
-/***************************************************
- *Neil Horman
- *nhorman@tuxdriver.com
- *gpg keyid: 1024D / 0x92A74FA1
- *http://pgp.mit.edu
- ***************************************************/
+Daniel Jacobowitz
+CodeSourcery
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
