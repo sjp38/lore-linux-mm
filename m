@@ -1,37 +1,29 @@
-Received: by ag-out-0708.google.com with SMTP id 22so6414022agd.8
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2008 11:07:40 -0700 (PDT)
-Date: Thu, 17 Jul 2008 21:06:16 +0300
-From: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-Subject: Re: [RFC PATCH 3/4] kmemtrace: SLUB hooks.
-Message-ID: <20080717180615.GA5360@localhost>
-References: <cover.1216255034.git.eduard.munteanu@linux360.ro> <017a63e6be64502c36ede4733f0cc4e5ede75db2.1216255035.git.eduard.munteanu@linux360.ro> <84144f020807170046j2fae2f41k7c80dba4e388677b@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <84144f020807170046j2fae2f41k7c80dba4e388677b@mail.gmail.com>
+Subject: Re: madvise(2) MADV_SEQUENTIAL behavior
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <487F89AE.9070007@redhat.com>
+References: <1216163022.3443.156.camel@zenigma>
+	 <487E628A.3050207@redhat.com>	<1216252910.3443.247.camel@zenigma>
+	 <200807171614.29594.nickpiggin@yahoo.com.au>
+	 <20080717102148.6bc52e94@cuia.bos.redhat.com> <487F89AE.9070007@redhat.com>
+Content-Type: text/plain
+Date: Thu, 17 Jul 2008 20:09:31 +0200
+Message-Id: <1216318171.5232.98.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Chris Snook <csnook@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Eric Rannaud <eric.rannaud@gmail.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 17, 2008 at 10:46:51AM +0300, Pekka Enberg wrote:
-> On Thu, Jul 17, 2008 at 3:46 AM, Eduard - Gabriel Munteanu
-> <eduard.munteanu@linux360.ro> wrote:
-> > This adds hooks for the SLUB allocator, to allow tracing with kmemtrace.
-> >
-> > Signed-off-by: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-> > ---
-> >  include/linux/slub_def.h |    9 +++++++-
-> >  mm/slub.c                |   47 ++++++++++++++++++++++++++++++++++++++++-----
-> >  2 files changed, 49 insertions(+), 7 deletions(-)
-> 
-> What are these casts doing here? I think you can just drop them, no?
+Sorry can't resist...
 
-Yes, I should cut all these casts off. Will resubmit soon.
+On Thu, 2008-07-17 at 14:04 -0400, Chris Snook wrote:
 
+> 1) start up a memory-hogging Java app
 
-	Eduard
+Is there any other kind? :-)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
