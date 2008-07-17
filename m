@@ -1,85 +1,43 @@
 From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: madvise(2) MADV_SEQUENTIAL behavior
-Date: Thu, 17 Jul 2008 16:14:29 +1000
-References: <1216163022.3443.156.camel@zenigma> <487E628A.3050207@redhat.com> <1216252910.3443.247.camel@zenigma>
-In-Reply-To: <1216252910.3443.247.camel@zenigma>
+Subject: Re: [patch 09/17] LTTng instrumentation - filemap
+Date: Thu, 17 Jul 2008 16:25:24 +1000
+References: <20080715222604.331269462@polymtl.ca> <20080715222748.002421557@polymtl.ca>
+In-Reply-To: <20080715222748.002421557@polymtl.ca>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200807171614.29594.nickpiggin@yahoo.com.au>
+Message-Id: <200807171625.25302.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Rannaud <eric.rannaud@gmail.com>
-Cc: Chris Snook <csnook@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Cc: akpm@linux-foundation.org, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Masami Hiramatsu <mhiramat@redhat.com>, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>, "Frank Ch. Eigler" <fche@redhat.com>, Hideo AOKI <haoki@redhat.com>, Takashi Nishiie <t-nishiie@np.css.fujitsu.com>, Steven Rostedt <rostedt@goodmis.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 17 July 2008 10:01, Eric Rannaud wrote:
-> On Wed, 2008-07-16 at 17:05 -0400, Chris Snook wrote:
-> > Rik van Riel wrote:
-> > > I believe that for mmap MADV_SEQUENTIAL, we will have to do
-> > > an unmap-behind from the fault path.  Not every time, but
-> > > maybe once per megabyte, unmapping the megabyte behind us.
-> >
-> > Wouldn't it just be easier to not move pages to the active list when
-> > they're referenced via an MADV_SEQUENTIAL mapping?  If we keep them on
-> > the inactive list, they'll be candidates for reclaiming, but they'll
-> > still be in pagecache when another task scans through, as long as we're
-> > not under memory pressure.
+On Wednesday 16 July 2008 08:26, Mathieu Desnoyers wrote:
+> Instrumentation of waits caused by memory accesses on mmap regions.
 >
-> This approach, instead of invalidating the pages right away would
-> provide a middle ground: a way to tell the kernel "these pages are not
-> too important".
+> Those tracepoints are used by LTTng.
 >
-> Whereas if MADV_SEQUENTIAL just invalidates the pages once per megabyte
-> (say), then it's only doing what is already possible using MADV_DONTNEED
-> ("drop this pages now"). It would automate the process, but it would not
-> provide a more subtle hint, which could be quite useful.
->
-> As I see it, there are two basic concepts here:
-> - no_reuse (like FADV_NOREUSE)
-> - more_ra (more readahead)
-> (DONTNEED being another different concept)
->
-> Then:
-> MADV_SEQUENTIAL = more_ra | no_reuse
-> FADV_SEQUENTIAL = more_ra | no_reuse
-> FADV_NOREUSE = no_reuse
->
-> Right now, only the 'more_ra' part is implemented. 'no_reuse' could be
-> implemented as Chris suggests.
->
-> It looks like the disagreement a year ago around Peter's approach was
-> mostly around the question of whether using read ahead as a heuristic
-> for "drop behind" was safe for all workloads.
->
-> Would it be less controversial to remove the heuristic (ra->size ==
-> ra->ra_pages), and to do something only if the user asked for
-> _SEQUENTIAL or _NOREUSE?
+> About the performance impact of tracepoints (which is comparable to
+> markers), even without immediate values optimizations, tests done by Hideo
+> Aoki on ia64 show no regression. His test case was using hackbench on a
+> kernel where scheduler instrumentation (about 5 events in code scheduler
+> code) was added. See the "Tracepoints" patch header for performance result
+> detail.
 
-It's far far easier to tell the kernel "I am no longer using these
-pages" than to say "I will not use these pages sometime in the future
-after I have used them". The former can be done synchronously and with
-a much higher efficiency than it takes to scan through LRU lists to
-figure this out.
+BTW. this sort of test is practically useless to measure overhead. If
+a modern CPU is executing out of primed insn/data and branch prediction
+cache, then yes this sort of thing is pretty well free.
 
-We should be using the SEQUENTIAL to open up readahead windows, and ask
-userspace applications to use DONTNEED to drop if it is important. IMO.
+I see *real* workloads that have got continually and incrementally slower
+eg from 2.6.5 to 2.6.20+ as "features" get added. Surprisingly, none of
+them ever showed up individually on a microbenchmark.
 
-
-> It might encourage user space applications to start using
-> FADV_SEQUENTIAL or FADV_NOREUSE more often (as it would become
-> worthwhile to do so), and if they do (especially cron jobs), the problem
-> of the slow desktop in the morning would progressively solve itself.
-
-The slow desktop in the morning should not happen even without such a
-call, because the kernel should not throw out frequently used data (even
-if it is not quite so recent) in favour of streaming data.
-
-OK, I figure it doesn't do such a good job now, which is sad, but making
-all apps micromanage the pagecache to get reasonable performance on a
-2GB+ desktop system is even more sad ;)
+OK, for this case if you can configure it out, I guess that's fine. But
+let's not pretend that adding code and branches and function calls are
+ever free.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
