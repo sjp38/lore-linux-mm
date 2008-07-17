@@ -1,28 +1,45 @@
-Message-ID: <487F79B8.9050104@linux-foundation.org>
-Date: Thu, 17 Jul 2008 11:56:24 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
+Message-ID: <487F89AE.9070007@redhat.com>
+Date: Thu, 17 Jul 2008 14:04:30 -0400
+From: Chris Snook <csnook@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH][RFC] slub: increasing order reduces memory usage of	some
- key caches
-References: <1216211371.3122.46.camel@castor.localdomain>	 <487E1ACF.3030603@linux-foundation.org> <1216289348.3061.16.camel@castor.localdomain>
-In-Reply-To: <1216289348.3061.16.camel@castor.localdomain>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: madvise(2) MADV_SEQUENTIAL behavior
+References: <1216163022.3443.156.camel@zenigma>	<487E628A.3050207@redhat.com>	<1216252910.3443.247.camel@zenigma>	<200807171614.29594.nickpiggin@yahoo.com.au> <20080717102148.6bc52e94@cuia.bos.redhat.com>
+In-Reply-To: <20080717102148.6bc52e94@cuia.bos.redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Richard Kennedy <richard@rsk.demon.co.uk>
-Cc: penberg@cs.helsinki.fi, linux-mm <linux-mm@kvack.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Eric Rannaud <eric.rannaud@gmail.com>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Richard Kennedy wrote:
-
-> Thanks, I'll give that a try.
+Rik van Riel wrote:
+> On Thu, 17 Jul 2008 16:14:29 +1000
+> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 > 
-> Do we need to limit the number of times this applies though?
+>>> It might encourage user space applications to start using
+>>> FADV_SEQUENTIAL or FADV_NOREUSE more often (as it would become
+>>> worthwhile to do so), and if they do (especially cron jobs), the problem
+>>> of the slow desktop in the morning would progressively solve itself.
+>> The slow desktop in the morning should not happen even without such a
+>> call, because the kernel should not throw out frequently used data (even
+>> if it is not quite so recent) in favour of streaming data.
+>>
+>> OK, I figure it doesn't do such a good job now, which is sad, 
+> 
+> Do you have any tests in mind that we could use to decide
+> whether the patch I posted Tuesday would do a decent job
+> at protecting frequently used data from streaming data?
+> 
+> http://lkml.org/lkml/2008/7/15/465
+> 
 
-Well so far I am not sure that it is useful to tune caches based on a waste calculation that is object size based. We know that larger page sizes are beneficial for performance so the results are not that surprising.
+1) start up a memory-hogging Java app
+2) run a full-system backup
 
-We could rethink the automatic slab size configuration. Maybe add a memory size based component? If we have more than 512M then double slub_min_objects?
+If it works well, the Java app shouldn't slow down much.
+
+-- Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
