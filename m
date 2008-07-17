@@ -1,67 +1,261 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [patch 09/17] LTTng instrumentation - filemap
-Date: Thu, 17 Jul 2008 17:11:50 +1000
-References: <20080715222604.331269462@polymtl.ca> <200807171625.25302.nickpiggin@yahoo.com.au> <20080717070207.GA30312@Krystal>
-In-Reply-To: <20080717070207.GA30312@Krystal>
+Received: by py-out-1112.google.com with SMTP id f31so1520218pyh.20
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2008 00:38:50 -0700 (PDT)
+Message-ID: <84144f020807170038p67614992j256f1507f14d0ba0@mail.gmail.com>
+Date: Thu, 17 Jul 2008 10:38:49 +0300
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [RFC PATCH 2/4] kmemtrace: SLAB hooks.
+In-Reply-To: <99a4b0edd280049b57a400b5934714ad66ea5788.1216255035.git.eduard.munteanu@linux360.ro>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200807171711.51214.nickpiggin@yahoo.com.au>
+References: <cover.1216255034.git.eduard.munteanu@linux360.ro>
+	 <99a4b0edd280049b57a400b5934714ad66ea5788.1216255035.git.eduard.munteanu@linux360.ro>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Cc: akpm@linux-foundation.org, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Masami Hiramatsu <mhiramat@redhat.com>, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>, "Frank Ch. Eigler" <fche@redhat.com>, Hideo AOKI <haoki@redhat.com>, Takashi Nishiie <t-nishiie@np.css.fujitsu.com>, Steven Rostedt <rostedt@goodmis.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+To: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+Cc: cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 17 July 2008 17:02, Mathieu Desnoyers wrote:
-> * Nick Piggin (nickpiggin@yahoo.com.au) wrote:
-> > On Wednesday 16 July 2008 08:26, Mathieu Desnoyers wrote:
-> > > Instrumentation of waits caused by memory accesses on mmap regions.
-> > >
-> > > Those tracepoints are used by LTTng.
-> > >
-> > > About the performance impact of tracepoints (which is comparable to
-> > > markers), even without immediate values optimizations, tests done by
-> > > Hideo Aoki on ia64 show no regression. His test case was using
-> > > hackbench on a kernel where scheduler instrumentation (about 5 events
-> > > in code scheduler code) was added. See the "Tracepoints" patch header
-> > > for performance result detail.
-> >
-> > BTW. this sort of test is practically useless to measure overhead. If
-> > a modern CPU is executing out of primed insn/data and branch prediction
-> > cache, then yes this sort of thing is pretty well free.
-> >
-> > I see *real* workloads that have got continually and incrementally slower
-> > eg from 2.6.5 to 2.6.20+ as "features" get added. Surprisingly, none of
-> > them ever showed up individually on a microbenchmark.
-> >
-> > OK, for this case if you can configure it out, I guess that's fine. But
-> > let's not pretend that adding code and branches and function calls are
-> > ever free.
+Hi Eduard-Gabriel,
+
+On Thu, Jul 17, 2008 at 3:46 AM, Eduard - Gabriel Munteanu
+<eduard.munteanu@linux360.ro> wrote:
+> This adds hooks for the SLAB allocator, to allow tracing with kmemtrace.
 >
-> I never pretended anything like that. Actually, that's what the
+> Signed-off-by: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+> ---
+>  include/linux/slab_def.h |   56 +++++++++++++++++++++++++++++++++++++-----
+>  mm/slab.c                |   61 +++++++++++++++++++++++++++++++++++++++++----
+>  2 files changed, 104 insertions(+), 13 deletions(-)
+>
+> diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
+> index 39c3a5e..77b8045 100644
+> --- a/include/linux/slab_def.h
+> +++ b/include/linux/slab_def.h
+> @@ -14,6 +14,7 @@
+>  #include <asm/page.h>          /* kmalloc_sizes.h needs PAGE_SIZE */
+>  #include <asm/cache.h>         /* kmalloc_sizes.h needs L1_CACHE_BYTES */
+>  #include <linux/compiler.h>
+> +#include <linux/kmemtrace.h>
+>
+>  /* Size description struct for general caches. */
+>  struct cache_sizes {
+> @@ -28,8 +29,20 @@ extern struct cache_sizes malloc_sizes[];
+>  void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
+>  void *__kmalloc(size_t size, gfp_t flags);
+>
+> +#ifdef CONFIG_KMEMTRACE
+> +extern void *kmem_cache_alloc_notrace(struct kmem_cache *cachep, gfp_t flags);
+> +#else
+> +static inline void *kmem_cache_alloc_notrace(struct kmem_cache *cachep,
+> +                                            gfp_t flags)
+> +{
+> +       return kmem_cache_alloc(cachep, flags);
+> +}
+> +#endif
+> +
+>  static inline void *kmalloc(size_t size, gfp_t flags)
+>  {
+> +       void *ret;
+> +
+>        if (__builtin_constant_p(size)) {
+>                int i = 0;
+>
+> @@ -50,10 +63,17 @@ static inline void *kmalloc(size_t size, gfp_t flags)
+>  found:
+>  #ifdef CONFIG_ZONE_DMA
+>                if (flags & GFP_DMA)
+> -                       return kmem_cache_alloc(malloc_sizes[i].cs_dmacachep,
+> -                                               flags);
+> +                       ret = kmem_cache_alloc_notrace(
+> +                               malloc_sizes[i].cs_dmacachep, flags);
+> +               else
+>  #endif
+> -               return kmem_cache_alloc(malloc_sizes[i].cs_cachep, flags);
+> +                       ret = kmem_cache_alloc_notrace(
+> +                               malloc_sizes[i].cs_cachep, flags);
+> +
+> +               kmemtrace_mark_alloc(KMEMTRACE_TYPE_KERNEL, _THIS_IP_, ret,
+> +                                    size, malloc_sizes[i].cs_size, flags);
 
-OK but saying "there is no detectable impact when running hackbench" is
-basically meaningless.
+We have malloc_sizes[i].cs_size here as the _allocated_ size (which
+seems wrong to be btw).
 
+> +
+> +               return ret;
+>        }
+>        return __kmalloc(size, flags);
+>  }
+> @@ -62,8 +82,23 @@ found:
+>  extern void *__kmalloc_node(size_t size, gfp_t flags, int node);
+>  extern void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
+>
+> +#ifdef CONFIG_KMEMTRACE
+> +extern void *kmem_cache_alloc_node_notrace(struct kmem_cache *cachep,
+> +                                          gfp_t flags,
+> +                                          int nodeid);
+> +#else
+> +static inline void *kmem_cache_alloc_node_notrace(struct kmem_cache *cachep,
+> +                                                 gfp_t flags,
+> +                                                 int nodeid)
+> +{
+> +       return kmem_cache_alloc_node(cachep, flags, nodeid);
+> +}
+> +#endif
+> +
+>  static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+>  {
+> +       void *ret;
+> +
+>        if (__builtin_constant_p(size)) {
+>                int i = 0;
+>
+> @@ -84,11 +119,18 @@ static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+>  found:
+>  #ifdef CONFIG_ZONE_DMA
+>                if (flags & GFP_DMA)
+> -                       return kmem_cache_alloc_node(malloc_sizes[i].cs_dmacachep,
+> -                                               flags, node);
+> +                       ret = kmem_cache_alloc_node_notrace(
+> +                               malloc_sizes[i].cs_dmacachep, flags, node);
+> +               else
+>  #endif
+> -               return kmem_cache_alloc_node(malloc_sizes[i].cs_cachep,
+> -                                               flags, node);
+> +                       ret = kmem_cache_alloc_node_notrace(
+> +                               malloc_sizes[i].cs_cachep, flags, node);
+> +
+> +               kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_KERNEL, _THIS_IP_,
+> +                                         ret, size, malloc_sizes[i].cs_size,
+> +                                         flags, node);
 
-> "immediate values" are for : they allow to patch load immediate value
-> instead of a memory read to decrease d-cache impact. They now allow to
-> patch a jump instead of the memory read/immediate value read + test +
-> conditional branch to skip the function call with fairly minimal impact.
-> I agree with you that eating precious d-cache and jump prediction buffer
-> entries can eventually slow down the system. But this will be _hard_ to
-> show on a single macro benchmark, and the microbenchmark showing it will
-> have to be taken in conditions which will exacerbate the d-cache and BPB
-> impact.
+And here.
 
-I'm not saying you have to reproduce it (although Intel's Oracle OLTP
-benchmark is very sensitive to that kind of thing and schedule() is near
-the top). But just acknowledge that it adds some cost. OK you're one of
-the few people really trying hard to count every cycle so I don't mean to
-pick on this code in particular.
+> +
+> +               return ret;
+>        }
+>        return __kmalloc_node(size, flags, node);
+>  }
+>
+> +#ifdef CONFIG_KMEMTRACE
+> +void *kmem_cache_alloc_node_notrace(struct kmem_cache *cachep,
+> +                                   gfp_t flags,
+> +                                   int nodeid)
+> +{
+> +       return __cache_alloc_node(cachep, flags, nodeid,
+> +                                 __builtin_return_address(0));
+> +}
+> +EXPORT_SYMBOL(kmem_cache_alloc_node_notrace);
+> +#endif
+> +
+>  static __always_inline void *
+>  __do_kmalloc_node(size_t size, gfp_t flags, int node, void *caller)
+>  {
+>        struct kmem_cache *cachep;
+> +       void *ret;
+>
+>        cachep = kmem_find_general_cachep(size, flags);
+>        if (unlikely(ZERO_OR_NULL_PTR(cachep)))
+>                return cachep;
+> -       return kmem_cache_alloc_node(cachep, flags, node);
+> +       ret = kmem_cache_alloc_node_notrace(cachep, flags, node);
+> +
+> +       kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_KERNEL,
+> +                                 (unsigned long) caller, ret,
+> +                                 size, cachep->buffer_size, flags, node);
+
+But here we use cachep->buffer_size and...
+
+> +
+> +       return ret;
+>  }
+>
+>  #ifdef CONFIG_DEBUG_SLAB
+> @@ -3718,6 +3756,7 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
+>                                          void *caller)
+>  {
+>        struct kmem_cache *cachep;
+> +       void *ret;
+>
+>        /* If you want to save a few bytes .text space: replace
+>         * __ with kmem_.
+> @@ -3727,11 +3766,17 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
+>        cachep = __find_general_cachep(size, flags);
+>        if (unlikely(ZERO_OR_NULL_PTR(cachep)))
+>                return cachep;
+> -       return __cache_alloc(cachep, flags, caller);
+> +       ret = __cache_alloc(cachep, flags, caller);
+> +
+> +       kmemtrace_mark_alloc(KMEMTRACE_TYPE_KERNEL,
+> +                            (unsigned long) caller, ret,
+> +                            size, cachep->buffer_size, flags);
+
+...here as well. Why?
+
+Also,
+
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 046607f..e9a61ac 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -111,6 +111,7 @@
+>  #include       <linux/rtmutex.h>
+>  #include       <linux/reciprocal_div.h>
+>  #include       <linux/debugobjects.h>
+> +#include       <linux/kmemtrace.h>
+>
+>  #include       <asm/cacheflush.h>
+>  #include       <asm/tlbflush.h>
+> @@ -3621,10 +3622,23 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp)
+>  */
+>  void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
+>  {
+> -       return __cache_alloc(cachep, flags, __builtin_return_address(0));
+> +       void *ret = __cache_alloc(cachep, flags, __builtin_return_address(0));
+> +
+> +       kmemtrace_mark_alloc(KMEMTRACE_TYPE_CACHE, _RET_IP_, ret,
+> +                            obj_size(cachep), obj_size(cachep), flags);
+
+Here....
+
+> +
+> +       return ret;
+>  }
+>  EXPORT_SYMBOL(kmem_cache_alloc);
+>
+> +#ifdef CONFIG_KMEMTRACE
+> +void *kmem_cache_alloc_notrace(struct kmem_cache *cachep, gfp_t flags)
+> +{
+> +       return __cache_alloc(cachep, flags, __builtin_return_address(0));
+> +}
+> +EXPORT_SYMBOL(kmem_cache_alloc_notrace);
+> +#endif
+> +
+>  /**
+>  * kmem_ptr_validate - check if an untrusted pointer might be a slab entry.
+>  * @cachep: the cache we're checking against
+> @@ -3669,20 +3683,44 @@ out:
+>  #ifdef CONFIG_NUMA
+>  void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+>  {
+> -       return __cache_alloc_node(cachep, flags, nodeid,
+> -                       __builtin_return_address(0));
+> +       void *ret = __cache_alloc_node(cachep, flags, nodeid,
+> +                                      __builtin_return_address(0));
+> +
+> +       kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_CACHE, _RET_IP_, ret,
+> +                                 obj_size(cachep), obj_size(cachep),
+> +                                 flags, nodeid);
+
+...and here, we use obj_size().
+
+> +
+> +       return ret;
+>  }
+>  EXPORT_SYMBOL(kmem_cache_alloc_node);
+
+AFAICT, you should always use ->buffer_size as the_allocated_ size. Hmm?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
