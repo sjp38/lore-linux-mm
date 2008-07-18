@@ -1,62 +1,52 @@
-Received: by ti-out-0910.google.com with SMTP id j3so234698tid.8
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2008 03:14:51 -0700 (PDT)
-Date: Fri, 18 Jul 2008 13:13:26 +0300
-From: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-Subject: Re: [RFC PATCH 1/4] kmemtrace: Core implementation.
-Message-ID: <20080718101326.GB5193@localhost>
-References: <cover.1216255034.git.eduard.munteanu@linux360.ro> <4472a3f883b0d9026bb2d8c490233b3eadf9b55e.1216255035.git.eduard.munteanu@linux360.ro> <84144f020807170101x25c9be11qd6e1996460bb24fc@mail.gmail.com> <20080717183206.GC5360@localhost> <Pine.LNX.4.64.0807181140400.3739@sbz-30.cs.Helsinki.FI>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0807181140400.3739@sbz-30.cs.Helsinki.FI>
+Subject: Re: [PATCH][RFC] slub: increasing order reduces memory usage
+	of	some key caches
+From: Richard Kennedy <richard@rsk.demon.co.uk>
+In-Reply-To: <487F79B8.9050104@linux-foundation.org>
+References: <1216211371.3122.46.camel@castor.localdomain>
+	 <487E1ACF.3030603@linux-foundation.org>
+	 <1216289348.3061.16.camel@castor.localdomain>
+	 <487F79B8.9050104@linux-foundation.org>
+Content-Type: text/plain
+Date: Fri, 18 Jul 2008 11:17:39 +0100
+Message-Id: <1216376259.3082.22.camel@castor.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka J Enberg <penberg@cs.helsinki.fi>
-Cc: cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Matt Mackall <mpm@selenic.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: penberg@cs.helsinki.fi, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 18, 2008 at 11:48:03AM +0300, Pekka J Enberg wrote:
-> Hi Eduard-Gabriel,
+On Thu, 2008-07-17 at 11:56 -0500, Christoph Lameter wrote:
+> Richard Kennedy wrote:
 > 
-> On Thu, 17 Jul 2008, Eduard - Gabriel Munteanu wrote:
-> > > > +struct kmemtrace_event {
-> > > 
-> > > So why don't we have the ABI version embedded here like blktrace has
-> > > so that user-space can check if the format matches its expectations?
-> > > That should be future-proof as well: as long as y ou keep the existing
-> > > fields where they're at now, you can always add new fields at the end
-> > > of the struct.
+> > Thanks, I'll give that a try.
 > > 
-> > You can't add fields at the end, because the struct size will change and
-> > reads will be erroneous. Also, stamping every 'packet' with ABI version
-> > looks like a huge waste of space.
+> > Do we need to limit the number of times this applies though?
 > 
-> It's an ABI so you want to make it backwards compatible and extensible. 
-> Yes, it's just for debugging, so the rules are bit more relaxed here but 
-> that's not an excuse for not designing the ABI properly.
+> Well so far I am not sure that it is useful to tune caches based on a
+> waste calculation that is object size based. We know that larger page
+> sizes are beneficial for performance so the results are not that
+> surprising.
+> 
+> We could rethink the automatic slab size configuration. Maybe add a
+> memory size based component? If we have more than 512M then double
+> slub_min_objects?
 
-I do expect to keep things source-compatible, but even
-binary-compatible? Developers debug and write patches on the latest kernel,
-not on a 6-month-old kernel. Isn't it reasonable that they would
-recompile kmemtrace along with the kernel?
+That should help :)  
 
-I would deem one ABI or another stable, but then we have to worry about
-not breaking it, which leads to either bloating the kernel, or keeping
-improvements away from kmemtrace. Should we do it just because this is an ABI?
+I just wonder if it's too simple though? There's such a wide range of
+hardware configurations & workloads it could be difficult to pick a
+one-size-fits-all solution.
 
-> I really wish we would follow the example set by blktrace here. It uses a 
-> fixed-length header that knows the length of the rest of the packet.
+I wonder if something more dynamic is needed ?
 
-I'd rather export the header length through a separate debugfs entry,
-rather than add this to every packet. I don't think we need variable
-length packets, unless we intend to export the whole stack trace, for
-example.
+Slub is already smart enough to handle variable order slabs, so could it
+pick the order based on the rate of growth of a cache & the free memory
+available?
+But tuning such an algorithm might be fun! ;)
 
-By the way, do you anticipate the need for such a stack trace? It would seem
-nice, but is it worth the trouble? (/me writes this down as a possible
-future improvement)
-
-> 		Pekka
+Richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
