@@ -1,76 +1,58 @@
-Received: by rv-out-0708.google.com with SMTP id f25so369858rvb.26
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2008 07:38:04 -0700 (PDT)
-Message-ID: <84144f020807180738m768a3ebana5ebc10999f22f50@mail.gmail.com>
-Date: Fri, 18 Jul 2008 17:38:04 +0300
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [RFC PATCH 1/4] kmemtrace: Core implementation.
-In-Reply-To: <20080718101326.GB5193@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH][RFC] slub: increasing order reduces memory
+	usage	of	some key caches
+From: Richard Kennedy <richard@rsk.demon.co.uk>
+In-Reply-To: <4880A694.1000100@linux-foundation.org>
+References: <1216211371.3122.46.camel@castor.localdomain>
+	 <487DF5D4.9070101@linux-foundation.org>
+	 <1216216730.3122.60.camel@castor.localdomain>
+	 <487DFFBE.5050407@linux-foundation.org>
+	 <1216375025.3082.7.camel@castor.localdomain>
+	 <4880A694.1000100@linux-foundation.org>
+Content-Type: text/plain
+Date: Fri, 18 Jul 2008 15:42:57 +0100
+Message-Id: <1216392177.3082.27.camel@castor.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <cover.1216255034.git.eduard.munteanu@linux360.ro>
-	 <4472a3f883b0d9026bb2d8c490233b3eadf9b55e.1216255035.git.eduard.munteanu@linux360.ro>
-	 <84144f020807170101x25c9be11qd6e1996460bb24fc@mail.gmail.com>
-	 <20080717183206.GC5360@localhost>
-	 <Pine.LNX.4.64.0807181140400.3739@sbz-30.cs.Helsinki.FI>
-	 <20080718101326.GB5193@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-Cc: cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Matt Mackall <mpm@selenic.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: penberg@cs.helsinki.fi, mpm@selenic.com, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Hi Eduard-Gabriel,
+On Fri, 2008-07-18 at 09:20 -0500, Christoph Lameter wrote:
+> Richard Kennedy wrote:
+> 
+> > Slabcache: radix_tree_node       Aliases:  0 Order :  1 Objects: 33564
+> 
+> Argh. Should this not be the dentry cache? Wrong numbers?
+> 
+> 
+sorry -- yes I cut & pasted the wrong set.
 
-On Fri, Jul 18, 2008 at 11:48:03AM +0300, Pekka J Enberg wrote:
->> It's an ABI so you want to make it backwards compatible and extensible.
->> Yes, it's just for debugging, so the rules are bit more relaxed here but
->> that's not an excuse for not designing the ABI properly.
+**2.6.26
+Slabcache: dentry                Aliases:  0 Order :  0 Objects: 22553
+** Reclaim accounting active
 
-On Fri, Jul 18, 2008 at 1:13 PM, Eduard - Gabriel Munteanu
-<eduard.munteanu@linux360.ro> wrote:
-> I do expect to keep things source-compatible, but even
-> binary-compatible? Developers debug and write patches on the latest kernel,
-> not on a 6-month-old kernel. Isn't it reasonable that they would
-> recompile kmemtrace along with the kernel?
+Sizes (bytes)     Slabs              Debug                Memory
+------------------------------------------------------------------------
+Object :     208  Total  :    1188   Sanity Checks : Off  Total: 4866048
+SlabObj:     208  Full   :    1186   Redzoning     : Off  Used : 4691024
+SlabSiz:    4096  Partial:       0   Poisoning     : Off  Loss :  175024
+Loss   :       0  CpuSlab:       2   Tracking      : Off  Lalig:       0
+Align  :       8  Objects:      19   Tracing       : Off  Lpadd:  171072
 
-Yes, I do think it's unreasonable. I, for one, am hoping distributions
-will pick up the kmemtrace userspace at some point after which I don't
-need to ever compile it myself.
+**after make
+Slabcache: dentry                Aliases:  0 Order :  0 Objects: 80076
+** Reclaim accounting active
 
-On Fri, Jul 18, 2008 at 1:13 PM, Eduard - Gabriel Munteanu
-<eduard.munteanu@linux360.ro> wrote:
-> I would deem one ABI or another stable, but then we have to worry about
-> not breaking it, which leads to either bloating the kernel, or keeping
-> improvements away from kmemtrace. Should we do it just because this is an ABI?
+Sizes (bytes)     Slabs              Debug                Memory
+------------------------------------------------------------------------
+Object :     208  Total  :    4215   Sanity Checks : Off  Total: 17264640
+SlabObj:     208  Full   :    4205   Redzoning     : Off  Used : 16655808
+SlabSiz:    4096  Partial:       8   Poisoning     : Off  Loss :  608832
+Loss   :       0  CpuSlab:       2   Tracking      : Off  Lalig:       0
+Align  :       8  Objects:      19   Tracing       : Off  Lpadd:  606960
 
-Like I've said before, it's debugging/tracing infrastructure so the
-rules are bit more relaxed. That said, what we should do is (1) make
-the ABI as future-proof as we can, (2) explicitly mark it as unstable
-by documenting it in Documentation/ABI/testing and (3) at some point
-in time move it in Documentation/ABI/stable and hopefully never break
-it again. But sure, we probably don't need to keep any "bloat" around
-like we do with the syscall interface, for example.
-
-And hopefully, the ABI is good enough to allow adding *new* tracing
-events while retaining the old ones nicely in a backwards compatible
-way.
-
-On Fri, Jul 18, 2008 at 11:48:03AM +0300, Pekka J Enberg wrote:
->> I really wish we would follow the example set by blktrace here. It uses a
->> fixed-length header that knows the length of the rest of the packet.
-
-On Fri, Jul 18, 2008 at 1:13 PM, Eduard - Gabriel Munteanu
-<eduard.munteanu@linux360.ro> wrote:
-> I'd rather export the header length through a separate debugfs entry,
-> rather than add this to every packet. I don't think we need variable
-> length packets, unless we intend to export the whole stack trace, for
-> example.
-
-Sure, makes sense.
-
-                                      Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
