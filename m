@@ -1,81 +1,44 @@
-Date: Fri, 18 Jul 2008 17:26:54 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [mmtom] please drop memcg-handle-swap-cache set (memcg handle
- swap cache rework).
-Message-Id: <20080718172654.109018db.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20080718152232.31d36e0b.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080717124556.3e4b6e20.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080718141511.a28d1ba1.nishimura@mxp.nes.nec.co.jp>
-	<20080718152232.31d36e0b.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Fri, 18 Jul 2008 11:48:03 +0300 (EEST)
+From: Pekka J Enberg <penberg@cs.helsinki.fi>
+Subject: Re: [RFC PATCH 1/4] kmemtrace: Core implementation.
+In-Reply-To: <20080717183206.GC5360@localhost>
+Message-ID: <Pine.LNX.4.64.0807181140400.3739@sbz-30.cs.Helsinki.FI>
+References: <cover.1216255034.git.eduard.munteanu@linux360.ro>
+ <4472a3f883b0d9026bb2d8c490233b3eadf9b55e.1216255035.git.eduard.munteanu@linux360.ro>
+ <84144f020807170101x25c9be11qd6e1996460bb24fc@mail.gmail.com>
+ <20080717183206.GC5360@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: nishimura@mxp.nes.nec.co.jp, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "hugh@veritas.com" <hugh@veritas.com>
+To: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+Cc: cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-> > > @@ -398,12 +395,27 @@ static void migrate_page_copy(struct pag
-> > >   	}
-> > >  
-> > >  #ifdef CONFIG_SWAP
-> > > -	ClearPageSwapCache(page);
-> > > +	if (PageSwapCache(page)) {
-> > > +		/*
-> > > +		 * SwapCache is removed implicitly. To uncharge SwapCache,
-> > > +		 * SwapCache flag should be cleared.
-> > > +		 */
-> > > +		ClearPageSwapCache(page);
-> > > +		mem_cgroup_uncharge_page(page);
-> > > +	}
-> > >  #endif
-> > >  	ClearPageActive(page);
-> > >  	ClearPagePrivate(page);
-> > >  	set_page_private(page, 0);
-> > > -	page->mapping = NULL;
-> > > +
-> > > +	if (!PageAnon(page)) {
-> > > +		/*
-> > > +		 * This page was removed from radix-tree implicitly.
-> > > +		 */
-> > > +		page->mapping = NULL;
-> > > +		mem_cgroup_uncharge_cache_page(page);
-> > > +	} else
-> > > +		page->mapping = NULL;
-> > >  
+Hi Eduard-Gabriel,
+
+On Thu, 17 Jul 2008, Eduard - Gabriel Munteanu wrote:
+> > > +struct kmemtrace_event {
 > > 
-> > page->mapping will be cleared anyway, so I prefer:
-> > 
-> > ===
-> > 	page->mapping = NULL;
-> > 
-> > 	if (!PageAnon(page))
-> > 		/*
-> > 		 * This page was removed from radix-tree implicitly.
-> > 		 */
-> > 		mem_cgroup_uncharge_cache_page(page);
-> > ===
-> > 
-> Ah.., PageAnon(page) check (page->mapping & 0x1) so, we cant do this.
+> > So why don't we have the ABI version embedded here like blktrace has
+> > so that user-space can check if the format matches its expectations?
+> > That should be future-proof as well: as long as y ou keep the existing
+> > fields where they're at now, you can always add new fields at the end
+> > of the struct.
 > 
-Ooops! Sorry for saying stupid thing.
+> You can't add fields at the end, because the struct size will change and
+> reads will be erroneous. Also, stamping every 'packet' with ABI version
+> looks like a huge waste of space.
 
-> Hmm, like this ?
-> ==
-> anon = PageAnon(page);
-> page->mapping = NULL;
-> if (anon)
-> 	mem_cgroup_....
-> ==
-> 
-Looks good.
-But I don't have any objection to your original code.
-I just thought 2 lines of "page->mapping = NULL" was verbose.
+It's an ABI so you want to make it backwards compatible and extensible. 
+Yes, it's just for debugging, so the rules are bit more relaxed here but 
+that's not an excuse for not designing the ABI properly.
 
+I really wish we would follow the example set by blktrace here. It uses a 
+fixed-length header that knows the length of the rest of the packet.
 
-Thanks,
-Daisuke Nishimura.
+		Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
