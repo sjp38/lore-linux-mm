@@ -1,44 +1,98 @@
-Date: Fri, 18 Jul 2008 11:48:03 +0300 (EEST)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [RFC PATCH 1/4] kmemtrace: Core implementation.
-In-Reply-To: <20080717183206.GC5360@localhost>
-Message-ID: <Pine.LNX.4.64.0807181140400.3739@sbz-30.cs.Helsinki.FI>
-References: <cover.1216255034.git.eduard.munteanu@linux360.ro>
- <4472a3f883b0d9026bb2d8c490233b3eadf9b55e.1216255035.git.eduard.munteanu@linux360.ro>
- <84144f020807170101x25c9be11qd6e1996460bb24fc@mail.gmail.com>
- <20080717183206.GC5360@localhost>
+Subject: Re: [PATCH][RFC] slub: increasing order reduces memory usage
+	of	some key caches
+From: Richard Kennedy <richard@rsk.demon.co.uk>
+In-Reply-To: <487DFFBE.5050407@linux-foundation.org>
+References: <1216211371.3122.46.camel@castor.localdomain>
+	 <487DF5D4.9070101@linux-foundation.org>
+	 <1216216730.3122.60.camel@castor.localdomain>
+	 <487DFFBE.5050407@linux-foundation.org>
+Content-Type: text/plain
+Date: Fri, 18 Jul 2008 10:57:05 +0100
+Message-Id: <1216375025.3082.7.camel@castor.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-Cc: cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Matt Mackall <mpm@selenic.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: penberg@cs.helsinki.fi, mpm@selenic.com, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Hi Eduard-Gabriel,
-
-On Thu, 17 Jul 2008, Eduard - Gabriel Munteanu wrote:
-> > > +struct kmemtrace_event {
-> > 
-> > So why don't we have the ABI version embedded here like blktrace has
-> > so that user-space can check if the format matches its expectations?
-> > That should be future-proof as well: as long as y ou keep the existing
-> > fields where they're at now, you can always add new fields at the end
-> > of the struct.
+On Wed, 2008-07-16 at 09:03 -0500, Christoph Lameter wrote:
+> Richard Kennedy wrote:
 > 
-> You can't add fields at the end, because the struct size will change and
-> reads will be erroneous. Also, stamping every 'packet' with ABI version
-> looks like a huge waste of space.
+> > before
+> > dentry             82136  82137    208   19    1 : tunables    0    0    0 : slabdata   4323   4323      0
+> > after
+> > dentry             79482  79482    208   39    2 : tunables    0    0    0 : slabdata   2038   2038      0
+> 
+> 19 objects with an order 1 alloc and 208 byte size? Urgh. 8192/208 = 39 and not 19.
+> 
+> Kmemcheck or something else active? We seem to be loosing 50% of our memory.
+> 
+> Pekka: Is the slabinfo emulation somehow broken?
+> 
+> I'd really like to see the output of slabinfo dentry.
+> 
 
-It's an ABI so you want to make it backwards compatible and extensible. 
-Yes, it's just for debugging, so the rules are bit more relaxed here but 
-that's not an excuse for not designing the ABI properly.
+here's that slabinfo for dentry
 
-I really wish we would follow the example set by blktrace here. It uses a 
-fixed-length header that knows the length of the rest of the packet.
+on 2.6.26
+after booting & starting X
 
-		Pekka
+Slabcache: dentry                Aliases:  0 Order :  0 Objects: 22553
+** Reclaim accounting active
+
+Sizes (bytes)     Slabs              Debug                Memory
+------------------------------------------------------------------------
+Object :     208  Total  :    1188   Sanity Checks : Off  Total: 4866048
+SlabObj:     208  Full   :    1186   Redzoning     : Off  Used : 4691024
+SlabSiz:    4096  Partial:       0   Poisoning     : Off  Loss :  175024
+Loss   :       0  CpuSlab:       2   Tracking      : Off  Lalig:       0
+Align  :       8  Objects:      19   Tracing       : Off  Lpadd:  171072
+
+and after a make kernel & a small delay
+
+dentry: No NUMA information available.
+
+Slabcache: radix_tree_node       Aliases:  0 Order :  1 Objects: 33564
+** Reclaim accounting active
+
+Sizes (bytes)     Slabs              Debug                Memory
+------------------------------------------------------------------------
+Object :     552  Total  :    2399   Sanity Checks : Off  Total: 19652608
+SlabObj:     560  Full   :    2391   Redzoning     : Off  Used : 18527328
+SlabSiz:    8192  Partial:       6   Poisoning     : Off  Loss : 1125280
+Loss   :       8  CpuSlab:       2   Tracking      : Off  Lalig:  268512
+Align  :       0  Objects:      14   Tracing       : Off  Lpadd:  844448
+
+*************
+on 2.6.26 + my patch
+
+Slabcache: dentry                Aliases:  0 Order :  1 Objects: 22581
+** Reclaim accounting active
+
+Sizes (bytes)     Slabs              Debug                Memory
+------------------------------------------------------------------------
+Object :     208  Total  :     579   Sanity Checks : Off  Total: 4743168
+SlabObj:     208  Full   :     577   Redzoning     : Off  Used : 4696848
+SlabSiz:    8192  Partial:       0   Poisoning     : Off  Loss :   46320
+Loss   :       0  CpuSlab:       2   Tracking      : Off  Lalig:       0
+Align  :       8  Objects:      39   Tracing       : Off  Lpadd:   46320
+
+after the make
+Slabcache: dentry                Aliases:  0 Order :  1 Objects: 80168
+** Reclaim accounting active
+
+Sizes (bytes)     Slabs              Debug                Memory
+------------------------------------------------------------------------
+Object :     208  Total  :    2056   Sanity Checks : Off  Total: 16842752
+SlabObj:     208  Full   :    2043   Redzoning     : Off  Used : 16674944
+SlabSiz:    8192  Partial:      11   Poisoning     : Off  Loss :  167808
+Loss   :       0  CpuSlab:       2   Tracking      : Off  Lalig:       0
+Align  :       8  Objects:      39   Tracing       : Off  Lpadd:  164480
+
+
+Richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
