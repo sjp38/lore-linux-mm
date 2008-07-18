@@ -1,52 +1,47 @@
-Subject: Re: [PATCH][RFC] slub: increasing order reduces memory usage
-	of	some key caches
-From: Richard Kennedy <richard@rsk.demon.co.uk>
-In-Reply-To: <487F79B8.9050104@linux-foundation.org>
-References: <1216211371.3122.46.camel@castor.localdomain>
-	 <487E1ACF.3030603@linux-foundation.org>
-	 <1216289348.3061.16.camel@castor.localdomain>
-	 <487F79B8.9050104@linux-foundation.org>
-Content-Type: text/plain
-Date: Fri, 18 Jul 2008 11:17:39 +0100
-Message-Id: <1216376259.3082.22.camel@castor.localdomain>
-Mime-Version: 1.0
+Message-ID: <4880A613.1060002@linux-foundation.org>
+Date: Fri, 18 Jul 2008 09:17:55 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH][RFC] slub: increasing order reduces memory usage	of	some
+ key caches
+References: <1216211371.3122.46.camel@castor.localdomain>	 <487DF5D4.9070101@linux-foundation.org>	 <1216216730.3122.60.camel@castor.localdomain>	 <487DFFBE.5050407@linux-foundation.org> <1216375025.3082.7.camel@castor.localdomain>
+In-Reply-To: <1216375025.3082.7.camel@castor.localdomain>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: penberg@cs.helsinki.fi, linux-mm <linux-mm@kvack.org>
+To: Richard Kennedy <richard@rsk.demon.co.uk>
+Cc: penberg@cs.helsinki.fi, mpm@selenic.com, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-07-17 at 11:56 -0500, Christoph Lameter wrote:
-> Richard Kennedy wrote:
+Richard Kennedy wrote:
+
+> Slabcache: dentry                Aliases:  0 Order :  0 Objects: 22553
+> ** Reclaim accounting active
 > 
-> > Thanks, I'll give that a try.
-> > 
-> > Do we need to limit the number of times this applies though?
-> 
-> Well so far I am not sure that it is useful to tune caches based on a
-> waste calculation that is object size based. We know that larger page
-> sizes are beneficial for performance so the results are not that
-> surprising.
-> 
-> We could rethink the automatic slab size configuration. Maybe add a
-> memory size based component? If we have more than 512M then double
-> slub_min_objects?
+> Sizes (bytes)     Slabs              Debug                Memory
+> ------------------------------------------------------------------------
+> Object :     208  Total  :    1188   Sanity Checks : Off  Total: 4866048
+> SlabObj:     208  Full   :    1186   Redzoning     : Off  Used : 4691024
+> SlabSiz:    4096  Partial:       0   Poisoning     : Off  Loss :  175024
+> Loss   :       0  CpuSlab:       2   Tracking      : Off  Lalig:       0
+> Align  :       8  Objects:      19   Tracing       : Off  Lpadd:  171072
 
-That should help :)  
+So we are using 1188 pages before make
 
-I just wonder if it's too simple though? There's such a wide range of
-hardware configurations & workloads it could be difficult to pick a
-one-size-fits-all solution.
+> and after a make kernel & a small delay
 
-I wonder if something more dynamic is needed ?
+2399 pages after make
 
-Slub is already smart enough to handle variable order slabs, so could it
-pick the order based on the rate of growth of a cache & the free memory
-available?
-But tuning such an algorithm might be fun! ;)
+> on 2.6.26 + my patch
 
-Richard
+579 * 2 = 1158 (saved 30 pages even before doing anything) before make
+
+
+> after the make
+
+2025 *2 = 4050 pages which are much more than the 2399 with order 0.
+So we are wasting a lot more space. You'd probably need to run slab defrag to get that memory back.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
