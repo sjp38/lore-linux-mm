@@ -1,46 +1,92 @@
-Message-ID: <4881B303.2010407@cn.fujitsu.com>
-Date: Sat, 19 Jul 2008 17:25:23 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [-mm][splitlru][PATCH 0/3] munlock rework
-References: <20080719084213.588795788@jp.fujitsu.com>
-In-Reply-To: <20080719084213.588795788@jp.fujitsu.com>
-Content-Type: text/plain; charset=GB2312
-Content-Transfer-Encoding: 8bit
+Message-Id: <20080719133159.391969845@jp.fujitsu.com>
+References: <20080719132959.550229715@jp.fujitsu.com>
+Date: Sat, 19 Jul 2008 22:30:00 +0900
+From: kosaki.motohiro@jp.fujitsu.com
+Subject: [PATCH 1/3] introduce get_vm_event()
+Content-Disposition: inline; filename=01-get_vm_event.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kosaki.motohiro@jp.fujitsu.com
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-kosaki.motohiro@jp.fujitsu.com D'uA:
-> old munlock processing of unevictable-lru use pagewalk.
-> because get_user_pages() can't grab PROT_NONE page.
-> 
-> then, current -mm has two problem.
->   - build error on nommu machine
->   - runtime error on HIGHPTE machine.
-> 
-> So, I hope rework below concept
-> 
-> 	Old implementation
-> 	   - use pagewalk
-> 
-> 	New implementation
-> 	   - use __get_user_pages()
-> 
-> 
-> I tested this patch on
->   IA64:                 >24H stress workload
->   x86_64:               ditto
->   x86_32 with HIGHPTE:  only half hour
-> 
-> 
-> 
-> Li-san, Could you please try to this patch on your 32bit machine?
+changelog
+========================================
+  v7 -> v8
+     o no change
 
-I've tested this patchset, the bug disappeared and it survived the
-ltp tests :) .
+  v6 -> v7
+     o get_vm_stat: make cpu-unplug safety.
+
+  v5 -> v6
+     o created
+
+
+introduce get_vm_event() new function for easy use vm statics.
+
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+
+---
+ include/linux/vmstat.h |    7 ++++++-
+ mm/vmstat.c            |   16 ++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)
+
+Index: b/include/linux/vmstat.h
+===================================================================
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -108,6 +108,8 @@ static inline void vm_events_fold_cpu(in
+ }
+ #endif
+ 
++unsigned long get_vm_event(enum vm_event_item event_type);
++
+ #else
+ 
+ /* Disable counters */
+@@ -129,7 +131,10 @@ static inline void all_vm_events(unsigne
+ static inline void vm_events_fold_cpu(int cpu)
+ {
+ }
+-
++static inline unsigned long get_vm_event(enum vm_event_item event_type)
++{
++	return 0;
++}
+ #endif /* CONFIG_VM_EVENT_COUNTERS */
+ 
+ #define __count_zone_vm_events(item, zone, delta) \
+Index: b/mm/vmstat.c
+===================================================================
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -49,6 +49,22 @@ void all_vm_events(unsigned long *ret)
+ }
+ EXPORT_SYMBOL_GPL(all_vm_events);
+ 
++unsigned long get_vm_event(enum vm_event_item event_type)
++{
++	int cpu;
++	unsigned long ret = 0;
++
++	get_online_cpus();
++	for_each_online_cpu(cpu) {
++		struct vm_event_state *this = &per_cpu(vm_event_states, cpu);
++
++		ret += this->event[event_type];
++	}
++	put_online_cpus();
++
++	return ret;
++}
++
+ #ifdef CONFIG_HOTPLUG
+ /*
+  * Fold the foreign cpu events into our own.
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
