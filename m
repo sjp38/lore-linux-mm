@@ -1,38 +1,54 @@
-Date: Sat, 19 Jul 2008 13:59:30 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH -mm] mm: more likely reclaim MADV_SEQUENTIAL mappings
-Message-ID: <20080719135930.3b55381b@bree.surriel.com>
-In-Reply-To: <87y73x4w6y.fsf@saeurebad.de>
-References: <87y73x4w6y.fsf@saeurebad.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by fg-out-1718.google.com with SMTP id 19so3276759fgg.4
+        for <linux-mm@kvack.org>; Sun, 20 Jul 2008 08:15:29 -0700 (PDT)
+Message-ID: <6101e8c40807200815x68da6731t210b8fbbbe510673@mail.gmail.com>
+Date: Sun, 20 Jul 2008 17:15:29 +0200
+From: "Oliver Pinter" <oliver.pntr@gmail.com>
+Subject: [RFC] x86 fix for stable
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Johannes Weiner <hannes@saeurebad.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Nossum <vegard.nossum@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: stable@kernel.org
+Cc: Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 19 Jul 2008 19:31:49 +0200
-Johannes Weiner <hannes@saeurebad.de> wrote:
+git id: e22146e610bb7aed63282148740ab1d1b91e1d90
 
-> File pages accessed only once through sequential-read mappings between
-> fault and scan time are perfect candidates for reclaim.
-> 
-> This patch makes page_referenced() ignore these singular references and
-> the pages stay on the inactive list where they likely fall victim to the
-> next reclaim phase.
+commit e22146e610bb7aed63282148740ab1d1b91e1d90
+Author: Jack Steiner <steiner@sgi.com>
+Date:   Wed Jul 16 11:11:59 2008 -0500
 
-Which is exactly what the madvise man page says about pages in
-MADV_SEQUENTIAL ranges.  Yay.
+    x86: fix kernel_physical_mapping_init() for large x86 systems
 
-       MADV_SEQUENTIAL
-              Expect  page  references  in sequential order.  (Hence, pages in
-              the given range can be aggressively read ahead, and may be freed
-              soon after they are accessed.)
+    Fix bug in kernel_physical_mapping_init() that causes kernel
+    page table to be built incorrectly for systems with greater
+    than 512GB of memory.
+
+    Signed-off-by: Jack Steiner <steiner@sgi.com>
+    Cc: linux-mm@kvack.org
+    Signed-off-by: Ingo Molnar <mingo@elte.hu>
+
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 27de243..306049e 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -644,7 +644,7 @@ static unsigned long __init
+kernel_physical_mapping_init(unsigned long start,
+ 		unsigned long pud_phys;
+ 		pud_t *pud;
+
+-		next = start + PGDIR_SIZE;
++		next = (start + PGDIR_SIZE) & PGDIR_MASK;
+ 		if (next > end)
+ 			next = end;
+
+
 
 -- 
-All rights reversed.
+Thanks,
+Oliver
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
