@@ -1,162 +1,45 @@
-Received: by ti-out-0910.google.com with SMTP id j3so992596tid.8
-        for <linux-mm@kvack.org>; Tue, 22 Jul 2008 11:33:34 -0700 (PDT)
-From: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-Subject: [RFC PATCH 4/4] kmemtrace: SLOB hooks.
-Date: Tue, 22 Jul 2008 21:31:33 +0300
-Message-Id: <1216751493-13785-5-git-send-email-eduard.munteanu@linux360.ro>
-In-Reply-To: <1216751493-13785-4-git-send-email-eduard.munteanu@linux360.ro>
-References: <1216751493-13785-1-git-send-email-eduard.munteanu@linux360.ro>
- <1216751493-13785-2-git-send-email-eduard.munteanu@linux360.ro>
- <1216751493-13785-3-git-send-email-eduard.munteanu@linux360.ro>
- <1216751493-13785-4-git-send-email-eduard.munteanu@linux360.ro>
+Received: by qw-out-1920.google.com with SMTP id 9so293357qwj.44
+        for <linux-mm@kvack.org>; Tue, 22 Jul 2008 11:36:23 -0700 (PDT)
+Message-ID: <8fb5fa2d0807221136v2b92a34cv2c1fe4a5e9a126bc@mail.gmail.com>
+Date: Tue, 22 Jul 2008 11:36:22 -0700
+From: "Buddy Lumpkin" <buddy.lumpkin@gmail.com>
+Subject: measuring memory pressure, expose freepages and zone watermarks under /proc perhaps?
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: penberg@cs.helsinki.fi
-Cc: cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rdunlap@xenotime.net, mpm@selenic.co
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This adds hooks for the SLOB allocator, to allow tracing with kmemtrace.
+Hi All,
 
-Signed-off-by: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
----
- include/linux/slob_def.h |    9 +++++----
- mm/slob.c                |   37 +++++++++++++++++++++++++++++++------
- 2 files changed, 36 insertions(+), 10 deletions(-)
+Would it be possible to expose the value of the zone watermarks and
+freepages for each zone under /proc in order to present a clear
+picture of what the memory pressure on a system looks like?
 
-diff --git a/include/linux/slob_def.h b/include/linux/slob_def.h
-index 59a3fa4..0ec00b3 100644
---- a/include/linux/slob_def.h
-+++ b/include/linux/slob_def.h
-@@ -3,14 +3,15 @@
- 
- void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
- 
--static inline void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
-+static __always_inline void *kmem_cache_alloc(struct kmem_cache *cachep,
-+					      gfp_t flags)
- {
- 	return kmem_cache_alloc_node(cachep, flags, -1);
- }
- 
- void *__kmalloc_node(size_t size, gfp_t flags, int node);
- 
--static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
-+static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
- {
- 	return __kmalloc_node(size, flags, node);
- }
-@@ -23,12 +24,12 @@ static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
-  * kmalloc is the normal method of allocating memory
-  * in the kernel.
-  */
--static inline void *kmalloc(size_t size, gfp_t flags)
-+static __always_inline void *kmalloc(size_t size, gfp_t flags)
- {
- 	return __kmalloc_node(size, flags, -1);
- }
- 
--static inline void *__kmalloc(size_t size, gfp_t flags)
-+static __always_inline void *__kmalloc(size_t size, gfp_t flags)
- {
- 	return kmalloc(size, flags);
- }
-diff --git a/mm/slob.c b/mm/slob.c
-index a3ad667..23375ed 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -65,6 +65,7 @@
- #include <linux/module.h>
- #include <linux/rcupdate.h>
- #include <linux/list.h>
-+#include <linux/kmemtrace.h>
- #include <asm/atomic.h>
- 
- /*
-@@ -463,27 +464,38 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
- {
- 	unsigned int *m;
- 	int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
-+	void *ret;
- 
- 	if (size < PAGE_SIZE - align) {
- 		if (!size)
- 			return ZERO_SIZE_PTR;
- 
- 		m = slob_alloc(size + align, gfp, align, node);
-+
- 		if (!m)
- 			return NULL;
- 		*m = size;
--		return (void *)m + align;
-+		ret = (void *)m + align;
-+
-+		kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_KMALLOC,
-+					  _RET_IP_, ret,
-+					  size, size + align, gfp, node);
- 	} else {
--		void *ret;
-+		unsigned int order = get_order(size);
- 
--		ret = slob_new_page(gfp | __GFP_COMP, get_order(size), node);
-+		ret = slob_new_page(gfp | __GFP_COMP, order, node);
- 		if (ret) {
- 			struct page *page;
- 			page = virt_to_page(ret);
- 			page->private = size;
- 		}
--		return ret;
-+
-+		kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_KMALLOC,
-+					  _RET_IP_, ret,
-+					  size, PAGE_SIZE << order, gfp, node);
- 	}
-+
-+	return ret;
- }
- EXPORT_SYMBOL(__kmalloc_node);
- 
-@@ -501,6 +513,8 @@ void kfree(const void *block)
- 		slob_free(m, *m + align);
- 	} else
- 		put_page(&sp->page);
-+
-+	kmemtrace_mark_free(KMEMTRACE_TYPE_KMALLOC, _RET_IP_, block);
- }
- EXPORT_SYMBOL(kfree);
- 
-@@ -569,10 +583,19 @@ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
- {
- 	void *b;
- 
--	if (c->size < PAGE_SIZE)
-+	if (c->size < PAGE_SIZE) {
- 		b = slob_alloc(c->size, flags, c->align, node);
--	else
-+		kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_CACHE,
-+					  _RET_IP_, b, c->size,
-+					  SLOB_UNITS(c->size) * SLOB_UNIT,
-+					  flags, node);
-+	} else {
- 		b = slob_new_page(flags, get_order(c->size), node);
-+		kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_CACHE,
-+					  _RET_IP_, b, c->size,
-+					  PAGE_SIZE << get_order(c->size),
-+					  flags, node);
-+	}
- 
- 	if (c->ctor)
- 		c->ctor(c, b);
-@@ -608,6 +631,8 @@ void kmem_cache_free(struct kmem_cache *c, void *b)
- 	} else {
- 		__kmem_cache_free(b, c->size);
- 	}
-+
-+	kmemtrace_mark_free(KMEMTRACE_TYPE_CACHE, _RET_IP_, b);
- }
- EXPORT_SYMBOL(kmem_cache_free);
- 
--- 
-1.5.6.1
+Running: watch -n1 cat /proc/meminfo,  you can get a pretty good feel
+for how much memory pressure each zone is under by watching HighFree
+and LowFree fall to a certain point, and then increase in a cyclical
+fashion, but it would be absolutely wonderful if some metrics could be
+exposed that give us a better view into the amount of memory pressure
+a system is under.
+
+In my case, I would like to write an agent that distills this
+information in a way that allows users to set alarm thresholds for
+their applications. The allocstall metric in /proc/vmstat is nice for
+indicating whether a 2.6 kernel has fallen under extreme memory
+pressure, but I have applications that are affected noticeably by even
+modest amounts of memory pressure make a very noticeable difference in
+latency.
+
+Lastly, if anyone knows of a good method for measuring various levels
+of memory pressure on 2.4 and/or 2.6 kernels, please share them.
+
+Thanks in advance,
+
+--Buddy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
