@@ -1,46 +1,48 @@
-Date: Tue, 22 Jul 2008 02:37:04 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Deinline a few functions in mmap.c
-Message-Id: <20080722023704.944efd72.akpm@linux-foundation.org>
-In-Reply-To: <200807051837.30219.vda.linux@googlemail.com>
-References: <200807051837.30219.vda.linux@googlemail.com>
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate7.uk.ibm.com (8.13.8/8.13.8) with ESMTP id m6MGtKeS474538
+	for <linux-mm@kvack.org>; Tue, 22 Jul 2008 16:55:20 GMT
+Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m6MGtKpN2265220
+	for <linux-mm@kvack.org>; Tue, 22 Jul 2008 17:55:20 +0100
+Received: from d06av02.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av02.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m6MGtJBE014937
+	for <linux-mm@kvack.org>; Tue, 22 Jul 2008 17:55:20 +0100
+Subject: memory hotplug: hot-remove fails on lowest chunk in ZONE_MOVABLE
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Content-Type: text/plain
+Date: Tue, 22 Jul 2008 18:55:19 +0200
+Message-Id: <1216745719.4871.8.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Denys Vlasenko <vda.linux@googlemail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 5 Jul 2008 18:37:30 +0200 Denys Vlasenko <vda.linux@googlemail.com> wrote:
+I've been testing memory hotplug on s390, on a system that starts w/o
+memory in ZONE_MOVABLE at first, and then some memory chunks will be
+added to ZONE_MOVABLE via memory hot-add. Now I observe the following
+problem:
 
-> __vma_link_file and expand_downwards functions are not small,
-> yeat they are marked inline. They probably had one callsite
-> sometime in the past, but now they have more.
-> In order to prevent similar thing, I also deinlined
-> expand_upwards, despite it having only pne callsite.
-> Nowadays gcc auto-inlines such static functions anyway.
-> In find_extend_vma, I removed one extra level of indirection.
-> 
-> Patch is deliberately generated with -U $BIGNUM to make
-> it easier to see that functions are big.
-> 
-> Result:
-> 
-> # size */*/mmap.o */vmlinux
->    text    data     bss     dec     hex filename
->    9514     188      16    9718    25f6 0.org/mm/mmap.o
->    9237     188      16    9441    24e1 deinline/mm/mmap.o
-> 6124402  858996  389480 7372878  70804e 0.org/vmlinux
-> 6124113  858996  389480 7372589  707f2d deinline/vmlinux
-> 
+Memory hot-remove of the lowest memory chunk in ZONE_MOVABLE will fail
+because of some reserved pages at the beginning of each zone
+(MIGRATE_RESERVED).
 
-So I left this so long that the patch doesn't vaguely apply any more on
--mm, at least.  The large amounts of context didn't help.
+During memory hot-add, setup_per_zone_pages_min() will be called from
+online_pages() to redistribute/recalculate the reserved page blocks.
+This will mark some page blocks at the beginning of each zone as
+MIGRATE_RESERVE. Now, the memory chunk containing these blocks cannot
+be set offline again, because only MIGRATE_MOVABLE pages can be isolated
+(offline_pages -> start_isolate_page_range).
 
-I had a go at fixing it, but I can't even compile test it because this
-morning's linux-next pull was a complete wreck.  Maybe tomorrow...
+So you cannot remove all the memory chunks that have been added via
+memory hotplug. I'm not sure if I am missing something here, or if this
+really is a bug. Any thoughts?
+
+Thanks,
+Gerald
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
