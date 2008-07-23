@@ -1,54 +1,62 @@
-Date: Wed, 23 Jul 2008 11:48:00 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: memory hotplug: hot-remove fails on lowest chunk in ZONE_MOVABLE
-In-Reply-To: <1216745719.4871.8.camel@localhost.localdomain>
-References: <1216745719.4871.8.camel@localhost.localdomain>
-Message-Id: <20080723105318.81BC.E1E9C6FF@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Date: Wed, 23 Jul 2008 06:06:44 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch] hugetlb: override default huge page size non-const fix
+Message-ID: <20080723040644.GA18119@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jon Tollefson <kniht@linux.vnet.ibm.com>, Adam Litke <agl@us.ibm.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi.
+Hi,
 
+I revisited the multi-size hugetlb patches, and realised I forgot one small
+outstanding issue. Your
+hugetlb-override-default-huge-page-size-ia64-build.patch
+fix basically disallows overriding of the default hugetlb size, because we
+always set the default back to HPAGE_SIZE.
 
-> I've been testing memory hotplug on s390, on a system that starts w/o
-> memory in ZONE_MOVABLE at first, and then some memory chunks will be
-> added to ZONE_MOVABLE via memory hot-add. Now I observe the following
-> problem:
-> 
-> Memory hot-remove of the lowest memory chunk in ZONE_MOVABLE will fail
-> because of some reserved pages at the beginning of each zone
-> (MIGRATE_RESERVED).
-> 
-> During memory hot-add, setup_per_zone_pages_min() will be called from
-> online_pages() to redistribute/recalculate the reserved page blocks.
-> This will mark some page blocks at the beginning of each zone as
-> MIGRATE_RESERVE. Now, the memory chunk containing these blocks cannot
-> be set offline again, because only MIGRATE_MOVABLE pages can be isolated
-> (offline_pages -> start_isolate_page_range).
-> 
-> So you cannot remove all the memory chunks that have been added via
-> memory hotplug. I'm not sure if I am missing something here, or if this
-> really is a bug. Any thoughts?
+A better fix I think is just to initialize the default_hstate_size to an
+invalid value, which the init code checks for and reverts to HPAGE_SIZE
+anyway. So please replace that patch with this one.
 
-I believe you are right. Current hot-remove code is NOT perfect.
-You may remove some sections, but may not other sections,
-because there are some un-removable pages by some reasons
-(not only MIGRATE_RESERVED).
+Overriding of the default hugepage size is not of major importance, but it
+can allow legacy code (providing it is well written), including the hugetlb
+regression suite to be run with different hugepage sizes (so actually it is
+quite important for developers at least).
 
-I think MIGRATE_RESERVED pages should be move to MIGRATE_MOVABLE when 
-those pages must be removed, and should recalculate MIGRATE_RESERVED pages.
+I don't have access to such a machine, but I hope (with this patch), the
+powerpc developers can run the libhugetlb regression suite one last time
+against a range of page sizes and ensure the results look reasonable.
 
-Bye.
+Thanks,
+Nick
 
--- 
-Yasunori Goto 
+--
 
+If HPAGE_SIZE is not constant (eg. on ia64), then the initialiser does not
+work. Fix this by making default_hstate_size == 0, then if it isn't set
+from the cmdline, hugetlb_init will still do the right thing and set up the
+default hstate as (the now initialized) HPAGE_SIZE.
+
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+---
+Index: linux-2.6/mm/hugetlb.c
+===================================================================
+--- linux-2.6.orig/mm/hugetlb.c
++++ linux-2.6/mm/hugetlb.c
+@@ -34,7 +34,7 @@ struct hstate hstates[HUGE_MAX_HSTATE];
+ /* for command line parsing */
+ static struct hstate * __initdata parsed_hstate;
+ static unsigned long __initdata default_hstate_max_huge_pages;
+-static unsigned long __initdata default_hstate_size = HPAGE_SIZE;
++static unsigned long __initdata default_hstate_size = 0;
+ 
+ #define for_each_hstate(h) \
+ 	for ((h) = hstates; (h) < &hstates[max_hstate]; (h)++)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
