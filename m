@@ -1,33 +1,44 @@
-Received: by fg-out-1718.google.com with SMTP id 19so6355256fgg.4
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2008 02:40:00 -0700 (PDT)
-Message-ID: <4886FBEF.5030706@gmail.com>
-Date: Wed, 23 Jul 2008 11:37:51 +0200
-From: Jiri Slaby <jirislaby@gmail.com>
+Date: Wed, 23 Jul 2008 20:55:25 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [mmotm][PATCH 5/9] mlock-mlocked-pages-are-unevictable.patch
+In-Reply-To: <20080723020704.3310e65f.akpm@linux-foundation.org>
+References: <20080715041349.F6FE.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080723020704.3310e65f.akpm@linux-foundation.org>
+Message-Id: <20080723203704.BFBD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: WARNING: at arch/x86/mm/pageattr.c:591 __change_page_attr_set_clr
- [mmotm]
-References: <4886FA7C.8060809@gmail.com>
-In-Reply-To: <4886FA7C.8060809@gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On 07/23/2008 11:31 AM, Jiri Slaby wrote:
-> mmotm 2008-07-15-15-39 while booting:
-> 
-> EXT3 FS on dm-0, internal journal
-> EXT3-fs: mounted filesystem with ordered data mode.
-> ------------[ cut here ]------------
-> WARNING: at arch/x86/mm/pageattr.c:591 
-> __change_page_attr_set_clr+0x627/0x990()
-> CPA: called for zero pte. vaddr = ffff88007d5b0000 cpa->vaddr = 
-> ffff88007d5b0000
+> > Patch name: mlock-mlocked-pages-are-unevictable.patch
+> > Against: mmotm Jul 14
 
-Hmm, I think it's known:
-http://marc.info/?l=linux-acpi&m=121607842728729&w=2
+ok.
+this patch is the resending of a part of split-lru patch series.
+
+
+> > unevictable-lru-infrastructure-putback_lru_page-rework.patch and unevictable-lru-infrastructure-kill-unnecessary-lock_page.patch
+> > makes following patch failure.
+> 
+> This patch (or one nearby) breaks nommu:
+> 
+> mm/built-in.o(.text+0x1bb70): In function `truncate_complete_page':
+> : undefined reference to `__clear_page_mlock'
+> mm/built-in.o(.text+0x1ca90): In function `__invalidate_mapping_pages':
+> : undefined reference to `__clear_page_mlock'
+> mm/built-in.o(.text+0x1d29c): In function `invalidate_inode_pages2_range':
+> : undefined reference to `__clear_page_mlock'
+
+sorry, I have very limited code viewing environment on this week because OLS.
+Lee-san, Could you review code today?
+
+I guess __clear_page_mlock() written in wrong ifdef..
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
