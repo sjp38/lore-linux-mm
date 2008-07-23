@@ -1,62 +1,36 @@
-Date: Wed, 23 Jul 2008 06:06:44 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: [patch] hugetlb: override default huge page size non-const fix
-Message-ID: <20080723040644.GA18119@wotan.suse.de>
+Date: Wed, 23 Jul 2008 02:07:04 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [mmotm][PATCH 5/9] mlock-mlocked-pages-are-unevictable.patch
+Message-Id: <20080723020704.3310e65f.akpm@linux-foundation.org>
+In-Reply-To: <20080715041349.F6FE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080715040402.F6EF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<20080715041349.F6FE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jon Tollefson <kniht@linux.vnet.ibm.com>, Adam Litke <agl@us.ibm.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, 15 Jul 2008 04:19:07 +0900 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-I revisited the multi-size hugetlb patches, and realised I forgot one small
-outstanding issue. Your
-hugetlb-override-default-huge-page-size-ia64-build.patch
-fix basically disallows overriding of the default hugetlb size, because we
-always set the default back to HPAGE_SIZE.
+> Patch name: mlock-mlocked-pages-are-unevictable.patch
+> Against: mmotm Jul 14
+> 
+> 
+> unevictable-lru-infrastructure-putback_lru_page-rework.patch and unevictable-lru-infrastructure-kill-unnecessary-lock_page.patch
+> makes following patch failure.
 
-A better fix I think is just to initialize the default_hstate_size to an
-invalid value, which the init code checks for and reverts to HPAGE_SIZE
-anyway. So please replace that patch with this one.
+This patch (or one nearby) breaks nommu:
 
-Overriding of the default hugepage size is not of major importance, but it
-can allow legacy code (providing it is well written), including the hugetlb
-regression suite to be run with different hugepage sizes (so actually it is
-quite important for developers at least).
-
-I don't have access to such a machine, but I hope (with this patch), the
-powerpc developers can run the libhugetlb regression suite one last time
-against a range of page sizes and ensure the results look reasonable.
-
-Thanks,
-Nick
-
---
-
-If HPAGE_SIZE is not constant (eg. on ia64), then the initialiser does not
-work. Fix this by making default_hstate_size == 0, then if it isn't set
-from the cmdline, hugetlb_init will still do the right thing and set up the
-default hstate as (the now initialized) HPAGE_SIZE.
-
-Signed-off-by: Nick Piggin <npiggin@suse.de>
----
-Index: linux-2.6/mm/hugetlb.c
-===================================================================
---- linux-2.6.orig/mm/hugetlb.c
-+++ linux-2.6/mm/hugetlb.c
-@@ -34,7 +34,7 @@ struct hstate hstates[HUGE_MAX_HSTATE];
- /* for command line parsing */
- static struct hstate * __initdata parsed_hstate;
- static unsigned long __initdata default_hstate_max_huge_pages;
--static unsigned long __initdata default_hstate_size = HPAGE_SIZE;
-+static unsigned long __initdata default_hstate_size = 0;
- 
- #define for_each_hstate(h) \
- 	for ((h) = hstates; (h) < &hstates[max_hstate]; (h)++)
+mm/built-in.o(.text+0x1bb70): In function `truncate_complete_page':
+: undefined reference to `__clear_page_mlock'
+mm/built-in.o(.text+0x1ca90): In function `__invalidate_mapping_pages':
+: undefined reference to `__clear_page_mlock'
+mm/built-in.o(.text+0x1d29c): In function `invalidate_inode_pages2_range':
+: undefined reference to `__clear_page_mlock'
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
