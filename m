@@ -1,47 +1,54 @@
-Date: Tue, 22 Jul 2008 21:26:11 -0400
-From: "Frank Ch. Eigler" <fche@redhat.com>
-Subject: Re: [RFC PATCH 1/4] kmemtrace: Core implementation.
-Message-ID: <20080723012611.GB28486@redhat.com>
-References: <1216751493-13785-1-git-send-email-eduard.munteanu@linux360.ro> <1216751493-13785-2-git-send-email-eduard.munteanu@linux360.ro> <y0mvdyx7gnj.fsf@ton.toronto.redhat.com> <20080723005002.GA5206@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080723005002.GA5206@localhost>
+Date: Wed, 23 Jul 2008 11:48:00 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: memory hotplug: hot-remove fails on lowest chunk in ZONE_MOVABLE
+In-Reply-To: <1216745719.4871.8.camel@localhost.localdomain>
+References: <1216745719.4871.8.camel@localhost.localdomain>
+Message-Id: <20080723105318.81BC.E1E9C6FF@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-Cc: penberg@cs.helsinki.fi, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rdunlap@xenotime.net, mpm@selenic.com
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi -
+Hi.
 
 
-On Wed, Jul 23, 2008 at 03:50:02AM +0300, Eduard - Gabriel Munteanu wrote:
+> I've been testing memory hotplug on s390, on a system that starts w/o
+> memory in ZONE_MOVABLE at first, and then some memory chunks will be
+> added to ZONE_MOVABLE via memory hot-add. Now I observe the following
+> problem:
+> 
+> Memory hot-remove of the lowest memory chunk in ZONE_MOVABLE will fail
+> because of some reserved pages at the beginning of each zone
+> (MIGRATE_RESERVED).
+> 
+> During memory hot-add, setup_per_zone_pages_min() will be called from
+> online_pages() to redistribute/recalculate the reserved page blocks.
+> This will mark some page blocks at the beginning of each zone as
+> MIGRATE_RESERVE. Now, the memory chunk containing these blocks cannot
+> be set offline again, because only MIGRATE_MOVABLE pages can be isolated
+> (offline_pages -> start_isolate_page_range).
+> 
+> So you cannot remove all the memory chunks that have been added via
+> memory hotplug. I'm not sure if I am missing something here, or if this
+> really is a bug. Any thoughts?
 
-> [...]  Sounds like a good idea, but I'd like to get rid of markers
-> and use Mathieu Desnoyers' tracepoints instead. I'm just waiting for
-> tracepoints to get closer to inclusion in mainline/-mm.
+I believe you are right. Current hot-remove code is NOT perfect.
+You may remove some sections, but may not other sections,
+because there are some un-removable pages by some reasons
+(not only MIGRATE_RESERVED).
 
-OK.
+I think MIGRATE_RESERVED pages should be move to MIGRATE_MOVABLE when 
+those pages must be removed, and should recalculate MIGRATE_RESERVED pages.
 
-> It would be great if tracepoints completely replaced markers, so
-> SystemTap would use those instead.
+Bye.
 
-Raw tracepoints are problematic as they require a per-tracepoint C
-function signature to be synthesized by the tool (or hard-coded in the
-tool or elsewhere).  We haven't worked out how best do to this.  OTOH,
-markers don't require such hard-coding, so are simpler for a general
-tool to interface to.
+-- 
+Yasunori Goto 
 
-
-> However, if tracepoints are not ready when kmemtrace is to be merged,
-> I'll take your advice and mention markers and SystemTap.
-
-Thanks either way - I'm glad you found an existing tracing mechanism
-usable and didn't choose/need to invent your own.
-
-
-- FChE
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
