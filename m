@@ -1,42 +1,52 @@
-From: Johannes Weiner <hannes@saeurebad.de>
-Subject: Re: [RFC][PATCH -mm] vmscan: fix swapout on sequential IO
-References: <20080723144115.72803eb8@bree.surriel.com>
-	<87zlo8mo7p.fsf@saeurebad.de>
-	<20080723152924.752339dd@bree.surriel.com>
-Date: Wed, 23 Jul 2008 21:38:34 +0200
-In-Reply-To: <20080723152924.752339dd@bree.surriel.com> (Rik van Riel's
-	message of "Wed, 23 Jul 2008 15:29:24 -0400")
-Message-ID: <87vdywmlvp.fsf@saeurebad.de>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: GRU driver feedback
+Date: Thu, 24 Jul 2008 12:41:50 +1000
+References: <20080723141229.GB13247@wotan.suse.de>
+In-Reply-To: <20080723141229.GB13247@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200807241241.50299.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@surriel.com>
-Cc: linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Jack Steiner <steiner@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Thursday 24 July 2008 00:12, Nick Piggin wrote:
 
-Rik van Riel <riel@surriel.com> writes:
-
-> On Wed, 23 Jul 2008 20:48:10 +0200
-> Johannes Weiner <hannes@saeurebad.de> wrote:
+> Meanwhile, I hope that gives a bit to go on. I'm sorry it has come
+> relatively late in the game, but I had a week off a while back then had
+> (have) some important work work I'm starting to get a handle on...
 >
->> > -			zone->lru[l].nr_scan += scan + 1;
->> > +			zone->lru[l].nr_scan += scan + force_scan;
->> 
->> The accumulation aspect is not gone, though.  If the system has reached
->> the force-scan priority swap_cluster_max times, the next scan, even if
->> long after the last scan, will scan bogus lists.
->
-> Which I suspect is the desired behaviour.
->
-> Better go out of balance a little, than risk an OOM kill.
+> Thanks,
+> Nick
 
-Okay, I agree with that.  It will at least keep the balance for some
-longer :)
+Couple of other things I noticed today before I launch into the mmu
+notifier and TLB invalidate code proper.
 
-	Hannes
+- gru_invalidate_range_end -- atomic_dec can filter into wake_up_all, past
+  the spin_lock in __wake_up, and past the loading of the list of tasks. So
+  you can lose a wakeup I believe (not on x86, but on ia64 with release
+  ordering spinlocks it would be possible). atomic_dec_and_test should do
+  the trick, and you might also want to consider memory ordering of the
+  atomic_inc (haven't really looked, but it seems quite suspicious to allow
+  it be reordered).
+
+- you seem to be using cache flushes and memory barriers in different ways
+  but each to push out things to the GRU device. For example start_instruction
+  does a wmb() then a store, then a CPU cache flush.
+
+  I'm lost as to how the mmio protocol actually works (not the low level
+  protocol, but exactly what cache attributes are used, and how the CPU
+  pushes things to the device and vice versa).
+
+  For example, if you are using wmb(), this I think implies you are using
+  UC or WC memory to map the device, in which case I don't see why you need
+  the gru_flush_cache (which would suggest WB memory). Is this documented
+  somewhere?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
