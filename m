@@ -1,349 +1,297 @@
-Message-Id: <20080724141531.256597744@chello.nl>
+Message-Id: <20080724141530.344513717@chello.nl>
 References: <20080724140042.408642539@chello.nl>
-Date: Thu, 24 Jul 2008 16:01:09 +0200
+Date: Thu, 24 Jul 2008 16:00:57 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 27/30] nfs: teach the NFS client how to treat PG_swapcache pages
-Content-Disposition: inline; filename=nfs-swapcache.patch
+Subject: [PATCH 15/30] net: packet split receive api
+Content-Disposition: inline; filename=net-ps_rx.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Neil Brown <neilb@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Replace all relevant occurences of page->index and page->mapping in the NFS
-client with the new page_file_index() and page_file_mapping() functions.
+Add some packet-split receive hooks.
+
+For one this allows to do NUMA node affine page allocs. Later on these hooks
+will be extended to do emergency reserve allocations for fragments.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/nfs/file.c     |    6 +++---
- fs/nfs/internal.h |    7 ++++---
- fs/nfs/pagelist.c |    6 +++---
- fs/nfs/read.c     |    6 +++---
- fs/nfs/write.c    |   53 +++++++++++++++++++++++++++--------------------------
- 5 files changed, 40 insertions(+), 38 deletions(-)
+ drivers/net/bnx2.c             |    8 +++-----
+ drivers/net/e1000/e1000_main.c |    8 ++------
+ drivers/net/e1000e/netdev.c    |    7 ++-----
+ drivers/net/igb/igb_main.c     |    8 ++------
+ drivers/net/ixgbe/ixgbe_main.c |   10 +++-------
+ drivers/net/sky2.c             |   16 ++++++----------
+ include/linux/skbuff.h         |   23 +++++++++++++++++++++++
+ net/core/skbuff.c              |   20 ++++++++++++++++++++
+ 8 files changed, 61 insertions(+), 39 deletions(-)
 
-Index: linux-2.6/fs/nfs/file.c
+Index: linux-2.6/drivers/net/e1000/e1000_main.c
 ===================================================================
---- linux-2.6.orig/fs/nfs/file.c
-+++ linux-2.6/fs/nfs/file.c
-@@ -413,7 +413,7 @@ static void nfs_invalidate_page(struct p
- 	if (offset != 0)
- 		return;
- 	/* Cancel any unstarted writes on this page */
--	nfs_wb_page_cancel(page->mapping->host, page);
-+	nfs_wb_page_cancel(page_file_mapping(page)->host, page);
- }
+--- linux-2.6.orig/drivers/net/e1000/e1000_main.c
++++ linux-2.6/drivers/net/e1000/e1000_main.c
+@@ -4492,12 +4492,8 @@ e1000_clean_rx_irq_ps(struct e1000_adapt
+ 			pci_unmap_page(pdev, ps_page_dma->ps_page_dma[j],
+ 					PAGE_SIZE, PCI_DMA_FROMDEVICE);
+ 			ps_page_dma->ps_page_dma[j] = 0;
+-			skb_fill_page_desc(skb, j, ps_page->ps_page[j], 0,
+-			                   length);
++			skb_add_rx_frag(skb, j, ps_page->ps_page[j], 0, length);
+ 			ps_page->ps_page[j] = NULL;
+-			skb->len += length;
+-			skb->data_len += length;
+-			skb->truesize += length;
+ 		}
  
- static int nfs_release_page(struct page *page, gfp_t gfp)
-@@ -426,7 +426,7 @@ static int nfs_release_page(struct page 
- 
- static int nfs_launder_page(struct page *page)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 
- 	dfprintk(PAGECACHE, "NFS: launder_page(%ld, %llu)\n",
- 		inode->i_ino, (long long)page_offset(page));
-@@ -462,7 +462,7 @@ static int nfs_vm_page_mkwrite(struct vm
- 		(long long)page_offset(page));
- 
- 	lock_page(page);
--	mapping = page->mapping;
-+	mapping = page_file_mapping(page);
- 	if (mapping != dentry->d_inode->i_mapping)
- 		goto out_unlock;
- 
-Index: linux-2.6/fs/nfs/pagelist.c
+ 		/* strip the ethernet crc, problem is we're using pages now so
+@@ -4705,7 +4701,7 @@ e1000_alloc_rx_buffers_ps(struct e1000_a
+ 			if (j < adapter->rx_ps_pages) {
+ 				if (likely(!ps_page->ps_page[j])) {
+ 					ps_page->ps_page[j] =
+-						alloc_page(GFP_ATOMIC);
++						netdev_alloc_page(netdev);
+ 					if (unlikely(!ps_page->ps_page[j])) {
+ 						adapter->alloc_rx_buff_failed++;
+ 						goto no_buffers;
+Index: linux-2.6/include/linux/skbuff.h
 ===================================================================
---- linux-2.6.orig/fs/nfs/pagelist.c
-+++ linux-2.6/fs/nfs/pagelist.c
-@@ -76,11 +76,11 @@ nfs_create_request(struct nfs_open_conte
- 	 * update_nfs_request below if the region is not locked. */
- 	req->wb_page    = page;
- 	atomic_set(&req->wb_complete, 0);
--	req->wb_index	= page->index;
-+	req->wb_index	= page_file_index(page);
- 	page_cache_get(page);
- 	BUG_ON(PagePrivate(page));
- 	BUG_ON(!PageLocked(page));
--	BUG_ON(page->mapping->host != inode);
-+	BUG_ON(page_file_mapping(page)->host != inode);
- 	req->wb_offset  = offset;
- 	req->wb_pgbase	= offset;
- 	req->wb_bytes   = count;
-@@ -376,7 +376,7 @@ void nfs_pageio_cond_complete(struct nfs
-  * nfs_scan_list - Scan a list for matching requests
-  * @nfsi: NFS inode
-  * @dst: Destination list
-- * @idx_start: lower bound of page->index to scan
-+ * @idx_start: lower bound of page_file_index(page) to scan
-  * @npages: idx_start + npages sets the upper bound to scan.
-  * @tag: tag to scan for
-  *
-Index: linux-2.6/fs/nfs/read.c
+--- linux-2.6.orig/include/linux/skbuff.h
++++ linux-2.6/include/linux/skbuff.h
+@@ -824,6 +824,9 @@ static inline void skb_fill_page_desc(st
+ 	skb_shinfo(skb)->nr_frags = i + 1;
+ }
+ 
++extern void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page,
++			    int off, int size);
++
+ #define SKB_PAGE_ASSERT(skb) 	BUG_ON(skb_shinfo(skb)->nr_frags)
+ #define SKB_FRAG_ASSERT(skb) 	BUG_ON(skb_shinfo(skb)->frag_list)
+ #define SKB_LINEAR_ASSERT(skb)  BUG_ON(skb_is_nonlinear(skb))
+@@ -1238,6 +1241,26 @@ static inline struct sk_buff *netdev_all
+ 	return __netdev_alloc_skb(dev, length, GFP_ATOMIC);
+ }
+ 
++extern struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask);
++
++/**
++ *	netdev_alloc_page - allocate a page for ps-rx on a specific device
++ *	@dev: network device to receive on
++ *
++ * 	Allocate a new page node local to the specified device.
++ *
++ * 	%NULL is returned if there is no free memory.
++ */
++static inline struct page *netdev_alloc_page(struct net_device *dev)
++{
++	return __netdev_alloc_page(dev, GFP_ATOMIC);
++}
++
++static inline void netdev_free_page(struct net_device *dev, struct page *page)
++{
++	__free_page(page);
++}
++
+ /**
+  *	skb_clone_writable - is the header of a clone writable
+  *	@skb: buffer to check
+Index: linux-2.6/net/core/skbuff.c
 ===================================================================
---- linux-2.6.orig/fs/nfs/read.c
-+++ linux-2.6/fs/nfs/read.c
-@@ -474,11 +474,11 @@ static const struct rpc_call_ops nfs_rea
- int nfs_readpage(struct file *file, struct page *page)
- {
- 	struct nfs_open_context *ctx;
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	int		error;
+--- linux-2.6.orig/net/core/skbuff.c
++++ linux-2.6/net/core/skbuff.c
+@@ -263,6 +263,26 @@ struct sk_buff *__netdev_alloc_skb(struc
+ 	return skb;
+ }
  
- 	dprintk("NFS: nfs_readpage (%p %ld@%lu)\n",
--		page, PAGE_CACHE_SIZE, page->index);
-+		page, PAGE_CACHE_SIZE, page_file_index(page));
- 	nfs_inc_stats(inode, NFSIOS_VFSREADPAGE);
- 	nfs_add_stats(inode, NFSIOS_READPAGES, 1);
- 
-@@ -525,7 +525,7 @@ static int
- readpage_async_filler(void *data, struct page *page)
- {
- 	struct nfs_readdesc *desc = (struct nfs_readdesc *)data;
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	struct nfs_page *new;
- 	unsigned int len;
- 	int error;
-Index: linux-2.6/fs/nfs/write.c
++struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask)
++{
++	int node = dev->dev.parent ? dev_to_node(dev->dev.parent) : -1;
++	struct page *page;
++
++	page = alloc_pages_node(node, gfp_mask, 0);
++	return page;
++}
++EXPORT_SYMBOL(__netdev_alloc_page);
++
++void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page, int off,
++		int size)
++{
++	skb_fill_page_desc(skb, i, page, off, size);
++	skb->len += size;
++	skb->data_len += size;
++	skb->truesize += size;
++}
++EXPORT_SYMBOL(skb_add_rx_frag);
++
+ /**
+  *	dev_alloc_skb - allocate an skbuff for receiving
+  *	@length: length to allocate
+Index: linux-2.6/drivers/net/sky2.c
 ===================================================================
---- linux-2.6.orig/fs/nfs/write.c
-+++ linux-2.6/fs/nfs/write.c
-@@ -115,7 +115,7 @@ static struct nfs_page *nfs_page_find_re
- 
- static struct nfs_page *nfs_page_find_request(struct page *page)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	struct nfs_page *req = NULL;
- 
- 	spin_lock(&inode->i_lock);
-@@ -127,13 +127,13 @@ static struct nfs_page *nfs_page_find_re
- /* Adjust the file length if we're writing beyond the end */
- static void nfs_grow_file(struct page *page, unsigned int offset, unsigned int count)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	loff_t end, i_size = i_size_read(inode);
- 	pgoff_t end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
- 
--	if (i_size > 0 && page->index < end_index)
-+	if (i_size > 0 && page_file_index(page) < end_index)
- 		return;
--	end = ((loff_t)page->index << PAGE_CACHE_SHIFT) + ((loff_t)offset+count);
-+	end = page_file_offset(page) + ((loff_t)offset+count);
- 	if (i_size >= end)
- 		return;
- 	nfs_inc_stats(inode, NFSIOS_EXTENDWRITE);
-@@ -146,7 +146,7 @@ static void nfs_grow_file(struct page *p
- static void nfs_set_pageerror(struct page *page)
- {
- 	SetPageError(page);
--	nfs_zap_mapping(page->mapping->host, page->mapping);
-+	nfs_zap_mapping(page_file_mapping(page)->host, page_file_mapping(page));
- }
- 
- /* We can set the PG_uptodate flag if we see that a write request
-@@ -187,7 +187,7 @@ static int nfs_set_page_writeback(struct
- 	int ret = test_set_page_writeback(page);
- 
- 	if (!ret) {
--		struct inode *inode = page->mapping->host;
-+		struct inode *inode = page_file_mapping(page)->host;
- 		struct nfs_server *nfss = NFS_SERVER(inode);
- 
- 		if (atomic_long_inc_return(&nfss->writeback) >
-@@ -199,7 +199,7 @@ static int nfs_set_page_writeback(struct
- 
- static void nfs_end_page_writeback(struct page *page)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	struct nfs_server *nfss = NFS_SERVER(inode);
- 
- 	end_page_writeback(page);
-@@ -214,7 +214,7 @@ static void nfs_end_page_writeback(struc
- static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
- 				struct page *page)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	struct nfs_page *req;
- 	int ret;
- 
-@@ -257,12 +257,12 @@ static int nfs_page_async_flush(struct n
- 
- static int nfs_do_writepage(struct page *page, struct writeback_control *wbc, struct nfs_pageio_descriptor *pgio)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 
- 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
- 	nfs_add_stats(inode, NFSIOS_WRITEPAGES, 1);
- 
--	nfs_pageio_cond_complete(pgio, page->index);
-+	nfs_pageio_cond_complete(pgio, page_file_index(page));
- 	return nfs_page_async_flush(pgio, page);
- }
- 
-@@ -274,7 +274,7 @@ static int nfs_writepage_locked(struct p
- 	struct nfs_pageio_descriptor pgio;
- 	int err;
- 
--	nfs_pageio_init_write(&pgio, page->mapping->host, wb_priority(wbc));
-+	nfs_pageio_init_write(&pgio, page_file_mapping(page)->host, wb_priority(wbc));
- 	err = nfs_do_writepage(page, wbc, &pgio);
- 	nfs_pageio_complete(&pgio);
- 	if (err < 0)
-@@ -403,7 +403,8 @@ nfs_mark_request_commit(struct nfs_page 
- 			NFS_PAGE_TAG_COMMIT);
- 	spin_unlock(&inode->i_lock);
- 	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
--	inc_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_RECLAIMABLE);
-+	inc_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
-+			BDI_RECLAIMABLE);
- 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
- }
- 
-@@ -414,7 +415,7 @@ nfs_clear_request_commit(struct nfs_page
- 
- 	if (test_and_clear_bit(PG_CLEAN, &(req)->wb_flags)) {
- 		dec_zone_page_state(page, NR_UNSTABLE_NFS);
--		dec_bdi_stat(page->mapping->backing_dev_info, BDI_RECLAIMABLE);
-+		dec_bdi_stat(page_file_mapping(page)->backing_dev_info, BDI_RECLAIMABLE);
- 		return 1;
- 	}
- 	return 0;
-@@ -520,7 +521,7 @@ static void nfs_cancel_commit_list(struc
-  * nfs_scan_commit - Scan an inode for commit requests
-  * @inode: NFS inode to scan
-  * @dst: destination list
-- * @idx_start: lower bound of page->index to scan.
-+ * @idx_start: lower bound of page_file_index(page) to scan.
-  * @npages: idx_start + npages sets the upper bound to scan.
-  *
-  * Moves requests from the inode's 'commit' request list.
-@@ -631,7 +632,7 @@ out_err:
- static struct nfs_page * nfs_setup_write_request(struct nfs_open_context* ctx,
- 		struct page *page, unsigned int offset, unsigned int bytes)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	struct nfs_page	*req;
- 	int error;
- 
-@@ -686,7 +687,7 @@ int nfs_flush_incompatible(struct file *
- 		nfs_release_request(req);
- 		if (!do_flush)
- 			return 0;
--		status = nfs_wb_page(page->mapping->host, page);
-+		status = nfs_wb_page(page_file_mapping(page)->host, page);
- 	} while (status == 0);
- 	return status;
- }
-@@ -712,7 +713,7 @@ int nfs_updatepage(struct file *file, st
- 		unsigned int offset, unsigned int count)
- {
- 	struct nfs_open_context *ctx = nfs_file_open_context(file);
--	struct inode	*inode = page->mapping->host;
-+	struct inode	*inode = page_file_mapping(page)->host;
- 	int		status = 0;
- 
- 	nfs_inc_stats(inode, NFSIOS_VFSUPDATEPAGE);
-@@ -720,7 +721,7 @@ int nfs_updatepage(struct file *file, st
- 	dprintk("NFS:       nfs_updatepage(%s/%s %d@%lld)\n",
- 		file->f_path.dentry->d_parent->d_name.name,
- 		file->f_path.dentry->d_name.name, count,
--		(long long)(page_offset(page) + offset));
-+		(long long)(page_file_offset(page) + offset));
- 
- 	/* If we're not using byte range locks, and we know the page
- 	 * is up to date, it may be more efficient to extend the write
-@@ -995,7 +996,7 @@ static void nfs_writeback_release_partia
+--- linux-2.6.orig/drivers/net/sky2.c
++++ linux-2.6/drivers/net/sky2.c
+@@ -1343,7 +1343,7 @@ static struct sk_buff *sky2_rx_alloc(str
  	}
  
- 	if (nfs_write_need_commit(data)) {
--		struct inode *inode = page->mapping->host;
-+		struct inode *inode = page_file_mapping(page)->host;
+ 	for (i = 0; i < sky2->rx_nfrags; i++) {
+-		struct page *page = alloc_page(GFP_ATOMIC);
++		struct page *page = netdev_alloc_page(sky2->netdev);
  
- 		spin_lock(&inode->i_lock);
- 		if (test_bit(PG_NEED_RESCHED, &req->wb_flags)) {
-@@ -1256,7 +1257,7 @@ nfs_commit_list(struct inode *inode, str
- 		nfs_list_remove_request(req);
- 		nfs_mark_request_commit(req);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
--		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
-+		dec_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
- 				BDI_RECLAIMABLE);
- 		nfs_clear_page_tag_locked(req);
- 	}
-@@ -1447,10 +1448,10 @@ int nfs_wb_nocommit(struct inode *inode)
- int nfs_wb_page_cancel(struct inode *inode, struct page *page)
- {
- 	struct nfs_page *req;
--	loff_t range_start = page_offset(page);
-+	loff_t range_start = page_file_offset(page);
- 	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
- 	struct writeback_control wbc = {
--		.bdi = page->mapping->backing_dev_info,
-+		.bdi = page_file_mapping(page)->backing_dev_info,
- 		.sync_mode = WB_SYNC_ALL,
- 		.nr_to_write = LONG_MAX,
- 		.range_start = range_start,
-@@ -1483,7 +1484,7 @@ int nfs_wb_page_cancel(struct inode *ino
- 	}
- 	if (!PagePrivate(page))
- 		return 0;
--	ret = nfs_sync_mapping_wait(page->mapping, &wbc, FLUSH_INVALIDATE);
-+	ret = nfs_sync_mapping_wait(page_file_mapping(page), &wbc, FLUSH_INVALIDATE);
- out:
- 	return ret;
+ 		if (!page)
+ 			goto free_partial;
+@@ -2217,8 +2217,8 @@ static struct sk_buff *receive_copy(stru
  }
-@@ -1491,10 +1492,10 @@ out:
- static int nfs_wb_page_priority(struct inode *inode, struct page *page,
- 				int how)
- {
--	loff_t range_start = page_offset(page);
-+	loff_t range_start = page_file_offset(page);
- 	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
- 	struct writeback_control wbc = {
--		.bdi = page->mapping->backing_dev_info,
-+		.bdi = page_file_mapping(page)->backing_dev_info,
- 		.sync_mode = WB_SYNC_ALL,
- 		.nr_to_write = LONG_MAX,
- 		.range_start = range_start,
-@@ -1509,7 +1510,7 @@ static int nfs_wb_page_priority(struct i
- 				goto out_error;
- 		} else if (!PagePrivate(page))
- 			break;
--		ret = nfs_sync_mapping_wait(page->mapping, &wbc, how);
-+		ret = nfs_sync_mapping_wait(page_file_mapping(page), &wbc, how);
- 		if (ret < 0)
- 			goto out_error;
- 	} while (PagePrivate(page));
-Index: linux-2.6/fs/nfs/internal.h
-===================================================================
---- linux-2.6.orig/fs/nfs/internal.h
-+++ linux-2.6/fs/nfs/internal.h
-@@ -253,13 +253,14 @@ void nfs_super_set_maxbytes(struct super
- static inline
- unsigned int nfs_page_length(struct page *page)
- {
--	loff_t i_size = i_size_read(page->mapping->host);
-+	loff_t i_size = i_size_read(page_file_mapping(page)->host);
  
- 	if (i_size > 0) {
-+		pgoff_t page_index = page_file_index(page);
- 		pgoff_t end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
--		if (page->index < end_index)
-+		if (page_index < end_index)
- 			return PAGE_CACHE_SIZE;
--		if (page->index == end_index)
-+		if (page_index == end_index)
- 			return ((i_size - 1) & ~PAGE_CACHE_MASK) + 1;
+ /* Adjust length of skb with fragments to match received data */
+-static void skb_put_frags(struct sk_buff *skb, unsigned int hdr_space,
+-			  unsigned int length)
++static void skb_put_frags(struct sky2_port *sky2, struct sk_buff *skb,
++			  unsigned int hdr_space, unsigned int length)
+ {
+ 	int i, num_frags;
+ 	unsigned int size;
+@@ -2235,15 +2235,11 @@ static void skb_put_frags(struct sk_buff
+ 
+ 		if (length == 0) {
+ 			/* don't need this page */
+-			__free_page(frag->page);
++			netdev_free_page(sky2->netdev, frag->page);
+ 			--skb_shinfo(skb)->nr_frags;
+ 		} else {
+ 			size = min(length, (unsigned) PAGE_SIZE);
+-
+-			frag->size = size;
+-			skb->data_len += size;
+-			skb->truesize += size;
+-			skb->len += size;
++			skb_add_rx_frag(skb, i, frag->page, 0, size);
+ 			length -= size;
+ 		}
  	}
- 	return 0;
+@@ -2270,7 +2266,7 @@ static struct sk_buff *receive_new(struc
+ 	sky2_rx_map_skb(sky2->hw->pdev, re, hdr_space);
+ 
+ 	if (skb_shinfo(skb)->nr_frags)
+-		skb_put_frags(skb, hdr_space, length);
++		skb_put_frags(sky2, skb, hdr_space, length);
+ 	else
+ 		skb_put(skb, length);
+ 	return skb;
+Index: linux-2.6/drivers/net/bnx2.c
+===================================================================
+--- linux-2.6.orig/drivers/net/bnx2.c
++++ linux-2.6/drivers/net/bnx2.c
+@@ -2466,7 +2466,7 @@ bnx2_alloc_rx_page(struct bnx2 *bp, stru
+ 	struct sw_pg *rx_pg = &rxr->rx_pg_ring[index];
+ 	struct rx_bd *rxbd =
+ 		&rxr->rx_pg_desc_ring[RX_RING(index)][RX_IDX(index)];
+-	struct page *page = alloc_page(GFP_ATOMIC);
++	struct page *page = netdev_alloc_page(bp->dev);
+ 
+ 	if (!page)
+ 		return -ENOMEM;
+@@ -2491,7 +2491,7 @@ bnx2_free_rx_page(struct bnx2 *bp, struc
+ 	pci_unmap_page(bp->pdev, pci_unmap_addr(rx_pg, mapping), PAGE_SIZE,
+ 		       PCI_DMA_FROMDEVICE);
+ 
+-	__free_page(page);
++	netdev_free_page(bp->dev, page);
+ 	rx_pg->page = NULL;
+ }
+ 
+@@ -2816,9 +2816,7 @@ bnx2_rx_skb(struct bnx2 *bp, struct bnx2
+ 			}
+ 
+ 			frag_size -= frag_len;
+-			skb->data_len += frag_len;
+-			skb->truesize += frag_len;
+-			skb->len += frag_len;
++			skb_add_rx_frag(skb, i, rx_pg->page, 0, frag_len);
+ 
+ 			pg_prod = NEXT_RX_BD(pg_prod);
+ 			pg_cons = RX_PG_RING_IDX(NEXT_RX_BD(pg_cons));
+Index: linux-2.6/drivers/net/e1000e/netdev.c
+===================================================================
+--- linux-2.6.orig/drivers/net/e1000e/netdev.c
++++ linux-2.6/drivers/net/e1000e/netdev.c
+@@ -257,7 +257,7 @@ static void e1000_alloc_rx_buffers_ps(st
+ 				continue;
+ 			}
+ 			if (!ps_page->page) {
+-				ps_page->page = alloc_page(GFP_ATOMIC);
++				ps_page->page = netdev_alloc_page(netdev);
+ 				if (!ps_page->page) {
+ 					adapter->alloc_rx_buff_failed++;
+ 					goto no_buffers;
+@@ -816,11 +816,8 @@ static bool e1000_clean_rx_irq_ps(struct
+ 			pci_unmap_page(pdev, ps_page->dma, PAGE_SIZE,
+ 				       PCI_DMA_FROMDEVICE);
+ 			ps_page->dma = 0;
+-			skb_fill_page_desc(skb, j, ps_page->page, 0, length);
++			skb_add_rx_frag(skb, j, ps_page->page, 0, length);
+ 			ps_page->page = NULL;
+-			skb->len += length;
+-			skb->data_len += length;
+-			skb->truesize += length;
+ 		}
+ 
+ copydone:
+Index: linux-2.6/drivers/net/igb/igb_main.c
+===================================================================
+--- linux-2.6.orig/drivers/net/igb/igb_main.c
++++ linux-2.6/drivers/net/igb/igb_main.c
+@@ -3526,13 +3526,9 @@ static bool igb_clean_rx_irq_adv(struct 
+ 			pci_unmap_page(pdev, buffer_info->page_dma,
+ 				PAGE_SIZE, PCI_DMA_FROMDEVICE);
+ 			buffer_info->page_dma = 0;
+-			skb_fill_page_desc(skb, j, buffer_info->page,
+-						0, length);
++			skb_add_rx_frag(skb, j, buffer_info->page, 0, length);
+ 			buffer_info->page = NULL;
+ 
+-			skb->len += length;
+-			skb->data_len += length;
+-			skb->truesize += length;
+ 			rx_desc->wb.upper.status_error = 0;
+ 			if (staterr & E1000_RXD_STAT_EOP)
+ 				break;
+@@ -3634,7 +3630,7 @@ static void igb_alloc_rx_buffers_adv(str
+ 		rx_desc = E1000_RX_DESC_ADV(*rx_ring, i);
+ 
+ 		if (adapter->rx_ps_hdr_size && !buffer_info->page) {
+-			buffer_info->page = alloc_page(GFP_ATOMIC);
++			buffer_info->page = netdev_alloc_page(netdev);
+ 			if (!buffer_info->page) {
+ 				adapter->alloc_rx_buff_failed++;
+ 				goto no_buffers;
+Index: linux-2.6/drivers/net/ixgbe/ixgbe_main.c
+===================================================================
+--- linux-2.6.orig/drivers/net/ixgbe/ixgbe_main.c
++++ linux-2.6/drivers/net/ixgbe/ixgbe_main.c
+@@ -486,7 +486,7 @@ static void ixgbe_alloc_rx_buffers(struc
+ 
+ 		if (!rx_buffer_info->page &&
+ 				(adapter->flags & IXGBE_FLAG_RX_PS_ENABLED)) {
+-			rx_buffer_info->page = alloc_page(GFP_ATOMIC);
++			rx_buffer_info->page = netdev_alloc_page(netdev);
+ 			if (!rx_buffer_info->page) {
+ 				adapter->alloc_rx_page_failed++;
+ 				goto no_buffers;
+@@ -607,13 +607,9 @@ static bool ixgbe_clean_rx_irq(struct ix
+ 			pci_unmap_page(pdev, rx_buffer_info->page_dma,
+ 				       PAGE_SIZE, PCI_DMA_FROMDEVICE);
+ 			rx_buffer_info->page_dma = 0;
+-			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
+-					   rx_buffer_info->page, 0, upper_len);
++			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
++					rx_buffer_info->page, 0, upper_len);
+ 			rx_buffer_info->page = NULL;
+-
+-			skb->len += upper_len;
+-			skb->data_len += upper_len;
+-			skb->truesize += upper_len;
+ 		}
+ 
+ 		i++;
 
 -- 
 
