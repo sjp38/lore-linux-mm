@@ -1,170 +1,165 @@
-Message-Id: <20080724141529.560025894@chello.nl>
+Message-Id: <20080724141531.178291263@chello.nl>
 References: <20080724140042.408642539@chello.nl>
-Date: Thu, 24 Jul 2008 16:00:46 +0200
+Date: Thu, 24 Jul 2008 16:01:08 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 04/30] mm: slub: trivial cleanups
-Content-Disposition: inline; filename=cleanup-slub.patch
+Subject: [PATCH 26/30] nfs: remove mempools
+Content-Disposition: inline; filename=nfs-no-mempool.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Neil Brown <neilb@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Some cleanups....
+With the introduction of the shared dirty page accounting in .19, NFS should
+not be able to surpise the VM with all dirty pages. Thus it should always be
+able to free some memory. Hence no more need for mempools.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/slub_def.h |    7 ++++++-
- mm/slub.c                |   40 ++++++++++++++++++----------------------
- 2 files changed, 24 insertions(+), 23 deletions(-)
+ fs/nfs/read.c  |   15 +++------------
+ fs/nfs/write.c |   27 +++++----------------------
+ 2 files changed, 8 insertions(+), 34 deletions(-)
 
-Index: linux-2.6/mm/slub.c
+Index: linux-2.6/fs/nfs/read.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c
-+++ linux-2.6/mm/slub.c
-@@ -27,7 +27,7 @@
- /*
-  * Lock order:
-  *   1. slab_lock(page)
-- *   2. slab->list_lock
-+ *   2. node->list_lock
-  *
-  *   The slab_lock protects operations on the object of a particular
-  *   slab and its metadata in the page struct. If the slab lock
-@@ -163,11 +163,11 @@ static struct notifier_block slab_notifi
- #endif
+--- linux-2.6.orig/fs/nfs/read.c
++++ linux-2.6/fs/nfs/read.c
+@@ -33,13 +33,10 @@ static const struct rpc_call_ops nfs_rea
+ static const struct rpc_call_ops nfs_read_full_ops;
  
- static enum {
--	DOWN,		/* No slab functionality available */
-+	DOWN = 0,	/* No slab functionality available */
- 	PARTIAL,	/* kmem_cache_open() works but kmalloc does not */
- 	UP,		/* Everything works but does not show up in sysfs */
- 	SYSFS		/* Sysfs up */
--} slab_state = DOWN;
-+} slab_state;
+ static struct kmem_cache *nfs_rdata_cachep;
+-static mempool_t *nfs_rdata_mempool;
+-
+-#define MIN_POOL_READ	(32)
  
- /* A list of all slab caches on the system */
- static DECLARE_RWSEM(slub_lock);
-@@ -288,21 +288,22 @@ static inline int slab_index(void *p, st
- static inline struct kmem_cache_order_objects oo_make(int order,
- 						unsigned long size)
+ struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
  {
--	struct kmem_cache_order_objects x = {
--		(order << 16) + (PAGE_SIZE << order) / size
--	};
-+	struct kmem_cache_order_objects x;
-+
-+	x.order = order;
-+	x.objects = (PAGE_SIZE << order) / size;
+-	struct nfs_read_data *p = mempool_alloc(nfs_rdata_mempool, GFP_NOFS);
++	struct nfs_read_data *p = kmem_cache_alloc(nfs_rdata_cachep, GFP_NOFS);
  
- 	return x;
+ 	if (p) {
+ 		memset(p, 0, sizeof(*p));
+@@ -50,7 +47,7 @@ struct nfs_read_data *nfs_readdata_alloc
+ 		else {
+ 			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
+ 			if (!p->pagevec) {
+-				mempool_free(p, nfs_rdata_mempool);
++				kmem_cache_free(nfs_rdata_cachep, p);
+ 				p = NULL;
+ 			}
+ 		}
+@@ -62,7 +59,7 @@ static void nfs_readdata_free(struct nfs
+ {
+ 	if (p && (p->pagevec != &p->page_array[0]))
+ 		kfree(p->pagevec);
+-	mempool_free(p, nfs_rdata_mempool);
++	kmem_cache_free(nfs_rdata_cachep, p);
  }
  
- static inline int oo_order(struct kmem_cache_order_objects x)
- {
--	return x.x >> 16;
-+	return x.order;
+ void nfs_readdata_release(void *data)
+@@ -614,16 +611,10 @@ int __init nfs_init_readpagecache(void)
+ 	if (nfs_rdata_cachep == NULL)
+ 		return -ENOMEM;
+ 
+-	nfs_rdata_mempool = mempool_create_slab_pool(MIN_POOL_READ,
+-						     nfs_rdata_cachep);
+-	if (nfs_rdata_mempool == NULL)
+-		return -ENOMEM;
+-
+ 	return 0;
  }
  
- static inline int oo_objects(struct kmem_cache_order_objects x)
+ void nfs_destroy_readpagecache(void)
  {
--	return x.x & ((1 << 16) - 1);
-+	return x.objects;
+-	mempool_destroy(nfs_rdata_mempool);
+ 	kmem_cache_destroy(nfs_rdata_cachep);
  }
- 
- #ifdef CONFIG_SLUB_DEBUG
-@@ -1076,8 +1077,7 @@ static struct page *allocate_slab(struct
- 
- 	flags |= s->allocflags;
- 
--	page = alloc_slab_page(flags | __GFP_NOWARN | __GFP_NORETRY, node,
--									oo);
-+	page = alloc_slab_page(flags | __GFP_NOWARN | __GFP_NORETRY, node, oo);
- 	if (unlikely(!page)) {
- 		oo = s->min;
- 		/*
-@@ -1099,8 +1099,7 @@ static struct page *allocate_slab(struct
- 	return page;
- }
- 
--static void setup_object(struct kmem_cache *s, struct page *page,
--				void *object)
-+static void setup_object(struct kmem_cache *s, struct page *page, void *object)
- {
- 	setup_object_debug(s, page, object);
- 	if (unlikely(s->ctor))
-@@ -1157,8 +1156,7 @@ static void __free_slab(struct kmem_cach
- 		void *p;
- 
- 		slab_pad_check(s, page);
--		for_each_object(p, s, page_address(page),
--						page->objects)
-+		for_each_object(p, s, page_address(page), page->objects)
- 			check_object(s, page, p, 0);
- 		__ClearPageSlubDebug(page);
- 	}
-@@ -1224,8 +1222,7 @@ static __always_inline int slab_trylock(
- /*
-  * Management of partially allocated slabs
-  */
--static void add_partial(struct kmem_cache_node *n,
--				struct page *page, int tail)
-+static void add_partial(struct kmem_cache_node *n, struct page *page, int tail)
- {
- 	spin_lock(&n->list_lock);
- 	n->nr_partial++;
-@@ -1251,8 +1248,8 @@ static void remove_partial(struct kmem_c
-  *
-  * Must hold list_lock.
-  */
--static inline int lock_and_freeze_slab(struct kmem_cache_node *n,
--							struct page *page)
-+static inline
-+int lock_and_freeze_slab(struct kmem_cache_node *n, struct page *page)
- {
- 	if (slab_trylock(page)) {
- 		list_del(&page->lru);
-@@ -1799,11 +1796,11 @@ static int slub_nomerge;
-  * slub_max_order specifies the order where we begin to stop considering the
-  * number of objects in a slab as critical. If we reach slub_max_order then
-  * we try to keep the page order as low as possible. So we accept more waste
-- * of space in favor of a small page order.
-+ * of space in favour of a small page order.
-  *
-  * Higher order allocations also allow the placement of more objects in a
-  * slab and thereby reduce object handling overhead. If the user has
-- * requested a higher mininum order then we start with that one instead of
-+ * requested a higher minimum order then we start with that one instead of
-  * the smallest order which will fit the object.
-  */
- static inline int slab_order(int size, int min_objects,
-@@ -1816,8 +1813,7 @@ static inline int slab_order(int size, i
- 	if ((PAGE_SIZE << min_order) / size > 65535)
- 		return get_order(size * 65535) - 1;
- 
--	for (order = max(min_order,
--				fls(min_objects * size - 1) - PAGE_SHIFT);
-+	for (order = max(min_order, fls(min_objects * size - 1) - PAGE_SHIFT);
- 			order <= max_order; order++) {
- 
- 		unsigned long slab_size = PAGE_SIZE << order;
-Index: linux-2.6/include/linux/slub_def.h
+Index: linux-2.6/fs/nfs/write.c
 ===================================================================
---- linux-2.6.orig/include/linux/slub_def.h
-+++ linux-2.6/include/linux/slub_def.h
-@@ -60,7 +60,12 @@ struct kmem_cache_node {
-  * given order would contain.
-  */
- struct kmem_cache_order_objects {
--	unsigned long x;
-+	union {
-+		u32 x;
-+		struct {
-+			u16 order, objects;
-+		};
-+	};
- };
+--- linux-2.6.orig/fs/nfs/write.c
++++ linux-2.6/fs/nfs/write.c
+@@ -28,9 +28,6 @@
  
+ #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
+ 
+-#define MIN_POOL_WRITE		(32)
+-#define MIN_POOL_COMMIT		(4)
+-
  /*
+  * Local function declarations
+  */
+@@ -45,12 +42,10 @@ static const struct rpc_call_ops nfs_wri
+ static const struct rpc_call_ops nfs_commit_ops;
+ 
+ static struct kmem_cache *nfs_wdata_cachep;
+-static mempool_t *nfs_wdata_mempool;
+-static mempool_t *nfs_commit_mempool;
+ 
+ struct nfs_write_data *nfs_commitdata_alloc(void)
+ {
+-	struct nfs_write_data *p = mempool_alloc(nfs_commit_mempool, GFP_NOFS);
++	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
+ 
+ 	if (p) {
+ 		memset(p, 0, sizeof(*p));
+@@ -63,12 +58,12 @@ void nfs_commit_free(struct nfs_write_da
+ {
+ 	if (p && (p->pagevec != &p->page_array[0]))
+ 		kfree(p->pagevec);
+-	mempool_free(p, nfs_commit_mempool);
++	kmem_cache_free(nfs_wdata_cachep, p);
+ }
+ 
+ struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
+ {
+-	struct nfs_write_data *p = mempool_alloc(nfs_wdata_mempool, GFP_NOFS);
++	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
+ 
+ 	if (p) {
+ 		memset(p, 0, sizeof(*p));
+@@ -79,7 +74,7 @@ struct nfs_write_data *nfs_writedata_all
+ 		else {
+ 			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
+ 			if (!p->pagevec) {
+-				mempool_free(p, nfs_wdata_mempool);
++				kmem_cache_free(nfs_wdata_cachep, p);
+ 				p = NULL;
+ 			}
+ 		}
+@@ -91,7 +86,7 @@ static void nfs_writedata_free(struct nf
+ {
+ 	if (p && (p->pagevec != &p->page_array[0]))
+ 		kfree(p->pagevec);
+-	mempool_free(p, nfs_wdata_mempool);
++	kmem_cache_free(nfs_wdata_cachep, p);
+ }
+ 
+ void nfs_writedata_release(void *data)
+@@ -1552,16 +1547,6 @@ int __init nfs_init_writepagecache(void)
+ 	if (nfs_wdata_cachep == NULL)
+ 		return -ENOMEM;
+ 
+-	nfs_wdata_mempool = mempool_create_slab_pool(MIN_POOL_WRITE,
+-						     nfs_wdata_cachep);
+-	if (nfs_wdata_mempool == NULL)
+-		return -ENOMEM;
+-
+-	nfs_commit_mempool = mempool_create_slab_pool(MIN_POOL_COMMIT,
+-						      nfs_wdata_cachep);
+-	if (nfs_commit_mempool == NULL)
+-		return -ENOMEM;
+-
+ 	/*
+ 	 * NFS congestion size, scale with available memory.
+ 	 *
+@@ -1587,8 +1572,6 @@ int __init nfs_init_writepagecache(void)
+ 
+ void nfs_destroy_writepagecache(void)
+ {
+-	mempool_destroy(nfs_commit_mempool);
+-	mempool_destroy(nfs_wdata_mempool);
+ 	kmem_cache_destroy(nfs_wdata_cachep);
+ }
+ 
 
 -- 
 
