@@ -1,194 +1,72 @@
-Subject: Re: [PATCH 26/30] nfs: remove mempools
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <200807250046.10392.nickpiggin@yahoo.com.au>
-References: <20080724140042.408642539@chello.nl>
-	 <20080724141531.178291263@chello.nl>
-	 <200807250046.10392.nickpiggin@yahoo.com.au>
-Content-Type: text/plain
-Date: Thu, 24 Jul 2008 16:53:01 +0200
-Message-Id: <1216911181.7257.340.camel@twins>
+Date: Thu, 24 Jul 2008 12:26:42 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bugme-new] [Bug 11156] New: Old kernels copy memory faster
+ than new
+Message-Id: <20080724122642.b8ef2ac6.akpm@linux-foundation.org>
+In-Reply-To: <bug-11156-10286@http.bugzilla.kernel.org/>
+References: <bug-11156-10286@http.bugzilla.kernel.org/>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Neil Brown <neilb@suse.de>
+To: linux-mm@kvack.org
+Cc: bugme-daemon@bugzilla.kernel.org, smal.root@gmail.com, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-07-25 at 00:46 +1000, Nick Piggin wrote:
-> On Friday 25 July 2008 00:01, Peter Zijlstra wrote:
-> > With the introduction of the shared dirty page accounting in .19, NFS
-> > should not be able to surpise the VM with all dirty pages. Thus it should
-> > always be able to free some memory. Hence no more need for mempools.
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
+
+On Thu, 24 Jul 2008 10:57:42 -0700 (PDT) bugme-daemon@bugzilla.kernel.org wrote:
+
+> http://bugzilla.kernel.org/show_bug.cgi?id=11156
 > 
-> It seems like a very backward step to me to go from a hard guarantee
-> to some heuristic that could break for someone in some particular
-> setup.
+>            Summary: Old kernels copy memory faster than new
+>            Product: IO/Storage
+>            Version: 2.5
+>      KernelVersion: 2.6.24, 2.6.25
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Block Layer
+>         AssignedTo: axboe@kernel.dk
+>         ReportedBy: smal.root@gmail.com
 > 
-> Filling with dirty pages isn't the only way to exaust free reclaimable
-> memory remember, it can also happen maybe due to mlock or kernel
-> allocations.
 > 
-> Is there pressing reason to remove them?
+> Latest working kernel version: 2.6.25
+> Earliest failing kernel version: 2.6.24
+> Distribution: Slackware 10-12
+> 
+> First machine:
+> CPU - AMD Athlon3600+(2______)
+> Chipset - nForce 6150(MCP51)
+> RAM - 3G DDR2
+> Video - internal GeForce6150
+> Kernel - 2.6.25.4(own built)
+> Copy speed - 1.7GByte/s
+> 
+> on another kernel:
+> Kernel - 2.6.23.5(own built)
+> Copy speed - 43.5GByte/s
+> --------------------------------------------
+> Second machine:
+> CPU - PII-350
+> MB i440BX
+> RAM - 128M SDRAM
+> Video - 3DFX Voodoo3
+> Kernel - 2.6.21.5(Vanila from slackware distribution)
+> Copy speed - 11.3GByte/s
+> 
+> Steps to reproduce:
+> dd if=/dev/zero of=/dev/null bs=16M count=10000
+> 
 
-There was some funny interaction between mempools and PF_MEMALLOC as
-used to write out swap pages iirc.
+lol.  OK, who did that?
 
-Specifially, the mempool would strip it and not provide memory even
-though we needed it.
-
-I've never hit a deadlock due to this patch in my testing, although
-admittedly there might be a hole in my testing.
-
-I can either 'fix' mempools, or replace it with the reserve framework
-introduced earlier in this patch-set.
-
-> > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > ---
-> >  fs/nfs/read.c  |   15 +++------------
-> >  fs/nfs/write.c |   27 +++++----------------------
-> >  2 files changed, 8 insertions(+), 34 deletions(-)
-> >
-> > Index: linux-2.6/fs/nfs/read.c
-> > ===================================================================
-> > --- linux-2.6.orig/fs/nfs/read.c
-> > +++ linux-2.6/fs/nfs/read.c
-> > @@ -33,13 +33,10 @@ static const struct rpc_call_ops nfs_rea
-> >  static const struct rpc_call_ops nfs_read_full_ops;
-> >
-> >  static struct kmem_cache *nfs_rdata_cachep;
-> > -static mempool_t *nfs_rdata_mempool;
-> > -
-> > -#define MIN_POOL_READ	(32)
-> >
-> >  struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
-> >  {
-> > -	struct nfs_read_data *p = mempool_alloc(nfs_rdata_mempool, GFP_NOFS);
-> > +	struct nfs_read_data *p = kmem_cache_alloc(nfs_rdata_cachep, GFP_NOFS);
-> >
-> >  	if (p) {
-> >  		memset(p, 0, sizeof(*p));
-> > @@ -50,7 +47,7 @@ struct nfs_read_data *nfs_readdata_alloc
-> >  		else {
-> >  			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
-> >  			if (!p->pagevec) {
-> > -				mempool_free(p, nfs_rdata_mempool);
-> > +				kmem_cache_free(nfs_rdata_cachep, p);
-> >  				p = NULL;
-> >  			}
-> >  		}
-> > @@ -62,7 +59,7 @@ static void nfs_readdata_free(struct nfs
-> >  {
-> >  	if (p && (p->pagevec != &p->page_array[0]))
-> >  		kfree(p->pagevec);
-> > -	mempool_free(p, nfs_rdata_mempool);
-> > +	kmem_cache_free(nfs_rdata_cachep, p);
-> >  }
-> >
-> >  void nfs_readdata_release(void *data)
-> > @@ -614,16 +611,10 @@ int __init nfs_init_readpagecache(void)
-> >  	if (nfs_rdata_cachep == NULL)
-> >  		return -ENOMEM;
-> >
-> > -	nfs_rdata_mempool = mempool_create_slab_pool(MIN_POOL_READ,
-> > -						     nfs_rdata_cachep);
-> > -	if (nfs_rdata_mempool == NULL)
-> > -		return -ENOMEM;
-> > -
-> >  	return 0;
-> >  }
-> >
-> >  void nfs_destroy_readpagecache(void)
-> >  {
-> > -	mempool_destroy(nfs_rdata_mempool);
-> >  	kmem_cache_destroy(nfs_rdata_cachep);
-> >  }
-> > Index: linux-2.6/fs/nfs/write.c
-> > ===================================================================
-> > --- linux-2.6.orig/fs/nfs/write.c
-> > +++ linux-2.6/fs/nfs/write.c
-> > @@ -28,9 +28,6 @@
-> >
-> >  #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
-> >
-> > -#define MIN_POOL_WRITE		(32)
-> > -#define MIN_POOL_COMMIT		(4)
-> > -
-> >  /*
-> >   * Local function declarations
-> >   */
-> > @@ -45,12 +42,10 @@ static const struct rpc_call_ops nfs_wri
-> >  static const struct rpc_call_ops nfs_commit_ops;
-> >
-> >  static struct kmem_cache *nfs_wdata_cachep;
-> > -static mempool_t *nfs_wdata_mempool;
-> > -static mempool_t *nfs_commit_mempool;
-> >
-> >  struct nfs_write_data *nfs_commitdata_alloc(void)
-> >  {
-> > -	struct nfs_write_data *p = mempool_alloc(nfs_commit_mempool, GFP_NOFS);
-> > +	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
-> >
-> >  	if (p) {
-> >  		memset(p, 0, sizeof(*p));
-> > @@ -63,12 +58,12 @@ void nfs_commit_free(struct nfs_write_da
-> >  {
-> >  	if (p && (p->pagevec != &p->page_array[0]))
-> >  		kfree(p->pagevec);
-> > -	mempool_free(p, nfs_commit_mempool);
-> > +	kmem_cache_free(nfs_wdata_cachep, p);
-> >  }
-> >
-> >  struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
-> >  {
-> > -	struct nfs_write_data *p = mempool_alloc(nfs_wdata_mempool, GFP_NOFS);
-> > +	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
-> >
-> >  	if (p) {
-> >  		memset(p, 0, sizeof(*p));
-> > @@ -79,7 +74,7 @@ struct nfs_write_data *nfs_writedata_all
-> >  		else {
-> >  			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
-> >  			if (!p->pagevec) {
-> > -				mempool_free(p, nfs_wdata_mempool);
-> > +				kmem_cache_free(nfs_wdata_cachep, p);
-> >  				p = NULL;
-> >  			}
-> >  		}
-> > @@ -91,7 +86,7 @@ static void nfs_writedata_free(struct nf
-> >  {
-> >  	if (p && (p->pagevec != &p->page_array[0]))
-> >  		kfree(p->pagevec);
-> > -	mempool_free(p, nfs_wdata_mempool);
-> > +	kmem_cache_free(nfs_wdata_cachep, p);
-> >  }
-> >
-> >  void nfs_writedata_release(void *data)
-> > @@ -1552,16 +1547,6 @@ int __init nfs_init_writepagecache(void)
-> >  	if (nfs_wdata_cachep == NULL)
-> >  		return -ENOMEM;
-> >
-> > -	nfs_wdata_mempool = mempool_create_slab_pool(MIN_POOL_WRITE,
-> > -						     nfs_wdata_cachep);
-> > -	if (nfs_wdata_mempool == NULL)
-> > -		return -ENOMEM;
-> > -
-> > -	nfs_commit_mempool = mempool_create_slab_pool(MIN_POOL_COMMIT,
-> > -						      nfs_wdata_cachep);
-> > -	if (nfs_commit_mempool == NULL)
-> > -		return -ENOMEM;
-> > -
-> >  	/*
-> >  	 * NFS congestion size, scale with available memory.
-> >  	 *
-> > @@ -1587,8 +1572,6 @@ int __init nfs_init_writepagecache(void)
-> >
-> >  void nfs_destroy_writepagecache(void)
-> >  {
-> > -	mempool_destroy(nfs_commit_mempool);
-> > -	mempool_destroy(nfs_wdata_mempool);
-> >  	kmem_cache_destroy(nfs_wdata_cachep);
-> >  }
+Perhaps ZERO_PAGE changes?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
