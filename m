@@ -1,165 +1,241 @@
-Message-Id: <20080724141531.178291263@chello.nl>
+Message-Id: <20080724141529.716339226@chello.nl>
 References: <20080724140042.408642539@chello.nl>
-Date: Thu, 24 Jul 2008 16:01:08 +0200
+Date: Thu, 24 Jul 2008 16:00:48 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 26/30] nfs: remove mempools
-Content-Disposition: inline; filename=nfs-no-mempool.patch
+Subject: [PATCH 06/30] mm: kmem_alloc_estimate()
+Content-Disposition: inline; filename=mm-kmem_estimate_pages.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Neil Brown <neilb@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-With the introduction of the shared dirty page accounting in .19, NFS should
-not be able to surpise the VM with all dirty pages. Thus it should always be
-able to free some memory. Hence no more need for mempools.
+Provide a method to get the upper bound on the pages needed to allocate
+a given number of objects from a given kmem_cache.
+
+This lays the foundation for a generic reserve framework as presented in
+a later patch in this series. This framework needs to convert object demand
+(kmalloc() bytes, kmem_cache_alloc() objects) to pages.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/nfs/read.c  |   15 +++------------
- fs/nfs/write.c |   27 +++++----------------------
- 2 files changed, 8 insertions(+), 34 deletions(-)
+ include/linux/slab.h |    4 ++
+ mm/slab.c            |   75 +++++++++++++++++++++++++++++++++++++++++++
+ mm/slub.c            |   87 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 166 insertions(+)
 
-Index: linux-2.6/fs/nfs/read.c
+Index: linux-2.6/include/linux/slab.h
 ===================================================================
---- linux-2.6.orig/fs/nfs/read.c
-+++ linux-2.6/fs/nfs/read.c
-@@ -33,13 +33,10 @@ static const struct rpc_call_ops nfs_rea
- static const struct rpc_call_ops nfs_read_full_ops;
+--- linux-2.6.orig/include/linux/slab.h
++++ linux-2.6/include/linux/slab.h
+@@ -65,6 +65,8 @@ void kmem_cache_free(struct kmem_cache *
+ unsigned int kmem_cache_size(struct kmem_cache *);
+ const char *kmem_cache_name(struct kmem_cache *);
+ int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
++unsigned kmem_alloc_estimate(struct kmem_cache *cachep,
++			gfp_t flags, int objects);
  
- static struct kmem_cache *nfs_rdata_cachep;
--static mempool_t *nfs_rdata_mempool;
--
--#define MIN_POOL_READ	(32)
- 
- struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
- {
--	struct nfs_read_data *p = mempool_alloc(nfs_rdata_mempool, GFP_NOFS);
-+	struct nfs_read_data *p = kmem_cache_alloc(nfs_rdata_cachep, GFP_NOFS);
- 
- 	if (p) {
- 		memset(p, 0, sizeof(*p));
-@@ -50,7 +47,7 @@ struct nfs_read_data *nfs_readdata_alloc
- 		else {
- 			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
- 			if (!p->pagevec) {
--				mempool_free(p, nfs_rdata_mempool);
-+				kmem_cache_free(nfs_rdata_cachep, p);
- 				p = NULL;
- 			}
- 		}
-@@ -62,7 +59,7 @@ static void nfs_readdata_free(struct nfs
- {
- 	if (p && (p->pagevec != &p->page_array[0]))
- 		kfree(p->pagevec);
--	mempool_free(p, nfs_rdata_mempool);
-+	kmem_cache_free(nfs_rdata_cachep, p);
- }
- 
- void nfs_readdata_release(void *data)
-@@ -614,16 +611,10 @@ int __init nfs_init_readpagecache(void)
- 	if (nfs_rdata_cachep == NULL)
- 		return -ENOMEM;
- 
--	nfs_rdata_mempool = mempool_create_slab_pool(MIN_POOL_READ,
--						     nfs_rdata_cachep);
--	if (nfs_rdata_mempool == NULL)
--		return -ENOMEM;
--
- 	return 0;
- }
- 
- void nfs_destroy_readpagecache(void)
- {
--	mempool_destroy(nfs_rdata_mempool);
- 	kmem_cache_destroy(nfs_rdata_cachep);
- }
-Index: linux-2.6/fs/nfs/write.c
-===================================================================
---- linux-2.6.orig/fs/nfs/write.c
-+++ linux-2.6/fs/nfs/write.c
-@@ -28,9 +28,6 @@
- 
- #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
- 
--#define MIN_POOL_WRITE		(32)
--#define MIN_POOL_COMMIT		(4)
--
  /*
-  * Local function declarations
+  * Please use this macro to create slab caches. Simply specify the
+@@ -99,6 +101,8 @@ int kmem_ptr_validate(struct kmem_cache 
+ void * __must_check krealloc(const void *, size_t, gfp_t);
+ void kfree(const void *);
+ size_t ksize(const void *);
++unsigned kmalloc_estimate_fixed(size_t, gfp_t, int);
++unsigned kmalloc_estimate_variable(gfp_t, size_t);
+ 
+ /*
+  * Allocator specific definitions. These are mainly used to establish optimized
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c
++++ linux-2.6/mm/slub.c
+@@ -2412,6 +2412,42 @@ const char *kmem_cache_name(struct kmem_
+ }
+ EXPORT_SYMBOL(kmem_cache_name);
+ 
++/*
++ * Calculate the upper bound of pages required to sequentially allocate
++ * @objects objects from @cachep.
++ *
++ * We should use s->min_objects because those are the least efficient.
++ */
++unsigned kmem_alloc_estimate(struct kmem_cache *s, gfp_t flags, int objects)
++{
++	unsigned long pages;
++	struct kmem_cache_order_objects x;
++
++	if (WARN_ON(!s) || WARN_ON(!oo_objects(s->min)))
++		return 0;
++
++	x = s->min;
++	pages = DIV_ROUND_UP(objects, oo_objects(x)) << oo_order(x);
++
++	/*
++	 * Account the possible additional overhead if the slab holds more that
++	 * one object. Use s->max_objects because that's the worst case.
++	 */
++	x = s->oo;
++	if (oo_objects(x) > 1) {
++		/*
++		 * Account the possible additional overhead if per cpu slabs
++		 * are currently empty and have to be allocated. This is very
++		 * unlikely but a possible scenario immediately after
++		 * kmem_cache_shrink.
++		 */
++		pages += num_online_cpus() << oo_order(x);
++	}
++
++	return pages;
++}
++EXPORT_SYMBOL_GPL(kmem_alloc_estimate);
++
+ static void list_slab_objects(struct kmem_cache *s, struct page *page,
+ 							const char *text)
+ {
+@@ -2789,6 +2825,57 @@ void kfree(const void *x)
+ EXPORT_SYMBOL(kfree);
+ 
+ /*
++ * Calculate the upper bound of pages required to sequentially allocate
++ * @count objects of @size bytes from kmalloc given @flags.
++ */
++unsigned kmalloc_estimate_fixed(size_t size, gfp_t flags, int count)
++{
++	struct kmem_cache *s = get_slab(size, flags);
++	if (!s)
++		return 0;
++
++	return kmem_alloc_estimate(s, flags, count);
++
++}
++EXPORT_SYMBOL_GPL(kmalloc_estimate_fixed);
++
++/*
++ * Calculate the upper bound of pages requires to sequentially allocate @bytes
++ * from kmalloc in an unspecified number of allocations of nonuniform size.
++ */
++unsigned kmalloc_estimate_variable(gfp_t flags, size_t bytes)
++{
++	int i;
++	unsigned long pages;
++
++	/*
++	 * multiply by two, in order to account the worst case slack space
++	 * due to the power-of-two allocation sizes.
++	 */
++	pages = DIV_ROUND_UP(2 * bytes, PAGE_SIZE);
++
++	/*
++	 * add the kmem_cache overhead of each possible kmalloc cache
++	 */
++	for (i = 1; i < PAGE_SHIFT; i++) {
++		struct kmem_cache *s;
++
++#ifdef CONFIG_ZONE_DMA
++		if (unlikely(flags & SLUB_DMA))
++			s = dma_kmalloc_cache(i, flags);
++		else
++#endif
++			s = &kmalloc_caches[i];
++
++		if (s)
++			pages += kmem_alloc_estimate(s, flags, 0);
++	}
++
++	return pages;
++}
++EXPORT_SYMBOL_GPL(kmalloc_estimate_variable);
++
++/*
+  * kmem_cache_shrink removes empty slabs from the partial lists and sorts
+  * the remaining slabs by the number of items in use. The slabs with the
+  * most items in use come first. New allocations will then fill those up
+Index: linux-2.6/mm/slab.c
+===================================================================
+--- linux-2.6.orig/mm/slab.c
++++ linux-2.6/mm/slab.c
+@@ -3854,6 +3854,81 @@ const char *kmem_cache_name(struct kmem_
+ EXPORT_SYMBOL_GPL(kmem_cache_name);
+ 
+ /*
++ * Calculate the upper bound of pages required to sequentially allocate
++ * @objects objects from @cachep.
++ */
++unsigned kmem_alloc_estimate(struct kmem_cache *cachep,
++		gfp_t flags, int objects)
++{
++	/*
++	 * (1) memory for objects,
++	 */
++	unsigned nr_slabs = DIV_ROUND_UP(objects, cachep->num);
++	unsigned nr_pages = nr_slabs << cachep->gfporder;
++
++	/*
++	 * (2) memory for each per-cpu queue (nr_cpu_ids),
++	 * (3) memory for each per-node alien queues (nr_cpu_ids), and
++	 * (4) some amount of memory for the slab management structures
++	 *
++	 * XXX: truely account these
++	 */
++	nr_pages += 1 + ilog2(nr_pages);
++
++	return nr_pages;
++}
++
++/*
++ * Calculate the upper bound of pages required to sequentially allocate
++ * @count objects of @size bytes from kmalloc given @flags.
++ */
++unsigned kmalloc_estimate_fixed(size_t size, gfp_t flags, int count)
++{
++	struct kmem_cache *s = kmem_find_general_cachep(size, flags);
++	if (!s)
++		return 0;
++
++	return kmem_alloc_estimate(s, flags, count);
++}
++EXPORT_SYMBOL_GPL(kmalloc_estimate_fixed);
++
++/*
++ * Calculate the upper bound of pages requires to sequentially allocate @bytes
++ * from kmalloc in an unspecified number of allocations of nonuniform size.
++ */
++unsigned kmalloc_estimate_variable(gfp_t flags, size_t bytes)
++{
++	unsigned long pages;
++	struct cache_sizes *csizep = malloc_sizes;
++
++	/*
++	 * multiply by two, in order to account the worst case slack space
++	 * due to the power-of-two allocation sizes.
++	 */
++	pages = DIV_ROUND_UP(2 * bytes, PAGE_SIZE);
++
++	/*
++	 * add the kmem_cache overhead of each possible kmalloc cache
++	 */
++	for (csizep = malloc_sizes; csizep->cs_cachep; csizep++) {
++		struct kmem_cache *s;
++
++#ifdef CONFIG_ZONE_DMA
++		if (unlikely(flags & __GFP_DMA))
++			s = csizep->cs_dmacachep;
++		else
++#endif
++			s = csizep->cs_cachep;
++
++		if (s)
++			pages += kmem_alloc_estimate(s, flags, 0);
++	}
++
++	return pages;
++}
++EXPORT_SYMBOL_GPL(kmalloc_estimate_variable);
++
++/*
+  * This initializes kmem_list3 or resizes various caches for all nodes.
   */
-@@ -45,12 +42,10 @@ static const struct rpc_call_ops nfs_wri
- static const struct rpc_call_ops nfs_commit_ops;
- 
- static struct kmem_cache *nfs_wdata_cachep;
--static mempool_t *nfs_wdata_mempool;
--static mempool_t *nfs_commit_mempool;
- 
- struct nfs_write_data *nfs_commitdata_alloc(void)
- {
--	struct nfs_write_data *p = mempool_alloc(nfs_commit_mempool, GFP_NOFS);
-+	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
- 
- 	if (p) {
- 		memset(p, 0, sizeof(*p));
-@@ -63,12 +58,12 @@ void nfs_commit_free(struct nfs_write_da
- {
- 	if (p && (p->pagevec != &p->page_array[0]))
- 		kfree(p->pagevec);
--	mempool_free(p, nfs_commit_mempool);
-+	kmem_cache_free(nfs_wdata_cachep, p);
- }
- 
- struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
- {
--	struct nfs_write_data *p = mempool_alloc(nfs_wdata_mempool, GFP_NOFS);
-+	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
- 
- 	if (p) {
- 		memset(p, 0, sizeof(*p));
-@@ -79,7 +74,7 @@ struct nfs_write_data *nfs_writedata_all
- 		else {
- 			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
- 			if (!p->pagevec) {
--				mempool_free(p, nfs_wdata_mempool);
-+				kmem_cache_free(nfs_wdata_cachep, p);
- 				p = NULL;
- 			}
- 		}
-@@ -91,7 +86,7 @@ static void nfs_writedata_free(struct nf
- {
- 	if (p && (p->pagevec != &p->page_array[0]))
- 		kfree(p->pagevec);
--	mempool_free(p, nfs_wdata_mempool);
-+	kmem_cache_free(nfs_wdata_cachep, p);
- }
- 
- void nfs_writedata_release(void *data)
-@@ -1552,16 +1547,6 @@ int __init nfs_init_writepagecache(void)
- 	if (nfs_wdata_cachep == NULL)
- 		return -ENOMEM;
- 
--	nfs_wdata_mempool = mempool_create_slab_pool(MIN_POOL_WRITE,
--						     nfs_wdata_cachep);
--	if (nfs_wdata_mempool == NULL)
--		return -ENOMEM;
--
--	nfs_commit_mempool = mempool_create_slab_pool(MIN_POOL_COMMIT,
--						      nfs_wdata_cachep);
--	if (nfs_commit_mempool == NULL)
--		return -ENOMEM;
--
- 	/*
- 	 * NFS congestion size, scale with available memory.
- 	 *
-@@ -1587,8 +1572,6 @@ int __init nfs_init_writepagecache(void)
- 
- void nfs_destroy_writepagecache(void)
- {
--	mempool_destroy(nfs_commit_mempool);
--	mempool_destroy(nfs_wdata_mempool);
- 	kmem_cache_destroy(nfs_wdata_cachep);
- }
- 
+ static int alloc_kmemlist(struct kmem_cache *cachep)
 
 -- 
 
