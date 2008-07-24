@@ -1,271 +1,236 @@
-Message-Id: <20080724141530.498632763@chello.nl>
+Message-Id: <20080724141529.924040910@chello.nl>
 References: <20080724140042.408642539@chello.nl>
-Date: Thu, 24 Jul 2008 16:00:59 +0200
+Date: Thu, 24 Jul 2008 16:00:51 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 17/30] netvm: network reserve infrastructure
-Content-Disposition: inline; filename=netvm-reserve.patch
+Subject: [PATCH 09/30] mm: emergency pool
+Content-Disposition: inline; filename=mm-page_alloc-emerg.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Neil Brown <neilb@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Provide the basic infrastructure to reserve and charge/account network memory.
+Provide means to reserve a specific amount of pages.
 
-We provide the following reserve tree:
-
-1)  total network reserve
-2)    network TX reserve
-3)      protocol TX pages
-4)    network RX reserve
-5)      SKB data reserve
-
-[1] is used to make all the network reserves a single subtree, for easy
-manipulation.
-
-[2] and [4] are merely for eastetic reasons.
-
-The TX pages reserve [3] is assumed bounded by it being the upper bound of
-memory that can be used for sending pages (not quite true, but good enough)
-
-The SKB reserve [5] is an aggregate reserve, which is used to charge SKB data
-against in the fallback path.
-
-The consumers for these reserves are sockets marked with:
-  SOCK_MEMALLOC
-
-Such sockets are to be used to service the VM (iow. to swap over). They
-must be handled kernel side, exposing such a socket to user-space is a BUG.
+The emergency pool is separated from the min watermark because ALLOC_HARDER
+and ALLOC_HIGH modify the watermark in a relative way and thus do not ensure
+a strict minimum.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/net/sock.h |   43 ++++++++++++++++++++-
- net/Kconfig        |    3 +
- net/core/sock.c    |  107 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 152 insertions(+), 1 deletion(-)
+ include/linux/mmzone.h |    6 ++-
+ mm/page_alloc.c        |   84 +++++++++++++++++++++++++++++++++++++++++++------
+ mm/vmstat.c            |    6 +--
+ 3 files changed, 82 insertions(+), 14 deletions(-)
 
-Index: linux-2.6/include/net/sock.h
+Index: linux-2.6/include/linux/mmzone.h
 ===================================================================
---- linux-2.6.orig/include/net/sock.h
-+++ linux-2.6/include/net/sock.h
-@@ -51,6 +51,7 @@
- #include <linux/skbuff.h>	/* struct sk_buff */
- #include <linux/mm.h>
- #include <linux/security.h>
-+#include <linux/reserve.h>
+--- linux-2.6.orig/include/linux/mmzone.h
++++ linux-2.6/include/linux/mmzone.h
+@@ -265,7 +265,10 @@ enum zone_type {
  
- #include <linux/filter.h>
+ struct zone {
+ 	/* Fields commonly accessed by the page allocator */
+-	unsigned long		pages_min, pages_low, pages_high;
++	unsigned long		pages_high;	/* we stop kswapd */
++	unsigned long		pages_low;	/* we wake up kswapd */
++	unsigned long		pages_min;	/* we enter direct reclaim */
++	unsigned long		pages_emerg;	/* emergency pool */
+ 	/*
+ 	 * We don't know if the memory that we're going to allocate will be freeable
+ 	 * or/and it will be released eventually, so to avoid totally wasting several
+@@ -751,6 +754,7 @@ int sysctl_min_unmapped_ratio_sysctl_han
+ 			struct file *, void __user *, size_t *, loff_t *);
+ int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *, int,
+ 			struct file *, void __user *, size_t *, loff_t *);
++int adjust_memalloc_reserve(int pages);
  
-@@ -406,6 +407,7 @@ enum sock_flags {
- 	SOCK_RCVTSTAMPNS, /* %SO_TIMESTAMPNS setting */
- 	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
- 	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
-+	SOCK_MEMALLOC, /* the VM depends on us - make sure we're serviced */
- };
+ extern int numa_zonelist_order_handler(struct ctl_table *, int,
+ 			struct file *, void __user *, size_t *, loff_t *);
+Index: linux-2.6/mm/page_alloc.c
+===================================================================
+--- linux-2.6.orig/mm/page_alloc.c
++++ linux-2.6/mm/page_alloc.c
+@@ -120,6 +120,8 @@ static char * const zone_names[MAX_NR_ZO
  
- static inline void sock_copy_flags(struct sock *nsk, struct sock *osk)
-@@ -428,9 +430,48 @@ static inline int sock_flag(struct sock 
- 	return test_bit(flag, &sk->sk_flags);
- }
+ static DEFINE_SPINLOCK(min_free_lock);
+ int min_free_kbytes = 1024;
++static DEFINE_MUTEX(var_free_mutex);
++int var_free_kbytes;
  
-+static inline int sk_has_memalloc(struct sock *sk)
-+{
-+	return sock_flag(sk, SOCK_MEMALLOC);
-+}
-+
-+extern struct mem_reserve net_rx_reserve;
-+extern struct mem_reserve net_skb_reserve;
-+
-+#ifdef CONFIG_NETVM
-+/*
-+ * Guestimate the per request queue TX upper bound.
-+ *
-+ * Max packet size is 64k, and we need to reserve that much since the data
-+ * might need to bounce it. Double it to be on the safe side.
-+ */
-+#define TX_RESERVE_PAGES DIV_ROUND_UP(2*65536, PAGE_SIZE)
-+
-+extern int memalloc_socks;
-+
-+static inline int sk_memalloc_socks(void)
-+{
-+	return memalloc_socks;
-+}
-+
-+extern int sk_adjust_memalloc(int socks, long tx_reserve_pages);
-+extern int sk_set_memalloc(struct sock *sk);
-+extern int sk_clear_memalloc(struct sock *sk);
-+#else
-+static inline int sk_memalloc_socks(void)
-+{
-+	return 0;
-+}
-+
-+static inline int sk_clear_memalloc(struct sock *sk)
-+{
-+	return 0;
-+}
-+#endif
-+
- static inline gfp_t sk_allocation(struct sock *sk, gfp_t gfp_mask)
+ unsigned long __meminitdata nr_kernel_pages;
+ unsigned long __meminitdata nr_all_pages;
+@@ -1235,7 +1237,7 @@ int zone_watermark_ok(struct zone *z, in
+ 	if (alloc_flags & ALLOC_HARDER)
+ 		min -= min / 4;
+ 
+-	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
++	if (free_pages <= min+z->lowmem_reserve[classzone_idx]+z->pages_emerg)
+ 		return 0;
+ 	for (o = 0; o < order; o++) {
+ 		/* At the next order, this order's pages become unavailable */
+@@ -1558,7 +1560,7 @@ __alloc_pages_internal(gfp_t gfp_mask, u
+ 	struct reclaim_state reclaim_state;
+ 	struct task_struct *p = current;
+ 	int do_retry;
+-	int alloc_flags;
++	int alloc_flags = 0;
+ 	unsigned long did_some_progress;
+ 	unsigned long pages_reclaimed = 0;
+ 
+@@ -1724,8 +1726,8 @@ nofail_alloc:
+ nopage:
+ 	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit()) {
+ 		printk(KERN_WARNING "%s: page allocation failure."
+-			" order:%d, mode:0x%x\n",
+-			p->comm, order, gfp_mask);
++			" order:%d, mode:0x%x, alloc_flags:0x%x, pflags:0x%x\n",
++			p->comm, order, gfp_mask, alloc_flags, p->flags);
+ 		dump_stack();
+ 		show_mem();
+ 	}
+@@ -2008,9 +2010,9 @@ void show_free_areas(void)
+ 			"\n",
+ 			zone->name,
+ 			K(zone_page_state(zone, NR_FREE_PAGES)),
+-			K(zone->pages_min),
+-			K(zone->pages_low),
+-			K(zone->pages_high),
++			K(zone->pages_emerg + zone->pages_min),
++			K(zone->pages_emerg + zone->pages_low),
++			K(zone->pages_emerg + zone->pages_high),
+ 			K(zone_page_state(zone, NR_ACTIVE_ANON)),
+ 			K(zone_page_state(zone, NR_INACTIVE_ANON)),
+ 			K(zone_page_state(zone, NR_ACTIVE_FILE)),
+@@ -4284,7 +4286,7 @@ static void calculate_totalreserve_pages
+ 			}
+ 
+ 			/* we treat pages_high as reserved pages. */
+-			max += zone->pages_high;
++			max += zone->pages_high + zone->pages_emerg;
+ 
+ 			if (max > zone->present_pages)
+ 				max = zone->present_pages;
+@@ -4341,7 +4343,8 @@ static void setup_per_zone_lowmem_reserv
+  */
+ static void __setup_per_zone_pages_min(void)
  {
--	return gfp_mask;
-+	return gfp_mask | (sk->sk_allocation & __GFP_MEMALLOC);
+-	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
++	unsigned pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
++	unsigned pages_emerg = var_free_kbytes >> (PAGE_SHIFT - 10);
+ 	unsigned long lowmem_pages = 0;
+ 	struct zone *zone;
+ 	unsigned long flags;
+@@ -4353,11 +4356,13 @@ static void __setup_per_zone_pages_min(v
+ 	}
+ 
+ 	for_each_zone(zone) {
+-		u64 tmp;
++		u64 tmp, tmp_emerg;
+ 
+ 		spin_lock_irqsave(&zone->lru_lock, flags);
+ 		tmp = (u64)pages_min * zone->present_pages;
+ 		do_div(tmp, lowmem_pages);
++		tmp_emerg = (u64)pages_emerg * zone->present_pages;
++		do_div(tmp_emerg, lowmem_pages);
+ 		if (is_highmem(zone)) {
+ 			/*
+ 			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
+@@ -4376,12 +4381,14 @@ static void __setup_per_zone_pages_min(v
+ 			if (min_pages > 128)
+ 				min_pages = 128;
+ 			zone->pages_min = min_pages;
++			zone->pages_emerg = 0;
+ 		} else {
+ 			/*
+ 			 * If it's a lowmem zone, reserve a number of pages
+ 			 * proportionate to the zone's size.
+ 			 */
+ 			zone->pages_min = tmp;
++			zone->pages_emerg = tmp_emerg;
+ 		}
+ 
+ 		zone->pages_low   = zone->pages_min + (tmp >> 2);
+@@ -4443,6 +4450,63 @@ void setup_per_zone_pages_min(void)
+ 	spin_unlock_irqrestore(&min_free_lock, flags);
  }
  
- static inline void sk_acceptq_removed(struct sock *sk)
-Index: linux-2.6/net/core/sock.c
-===================================================================
---- linux-2.6.orig/net/core/sock.c
-+++ linux-2.6/net/core/sock.c
-@@ -112,6 +112,7 @@
- #include <linux/tcp.h>
- #include <linux/init.h>
- #include <linux/highmem.h>
-+#include <linux/reserve.h>
- 
- #include <asm/uaccess.h>
- #include <asm/system.h>
-@@ -213,6 +214,105 @@ __u32 sysctl_rmem_default __read_mostly 
- /* Maximal space eaten by iovec or ancilliary data plus some space */
- int sysctl_optmem_max __read_mostly = sizeof(unsigned long)*(2*UIO_MAXIOV+512);
- 
-+static struct mem_reserve net_reserve;
-+struct mem_reserve net_rx_reserve;
-+EXPORT_SYMBOL_GPL(net_rx_reserve); /* modular ipv6 only */
-+struct mem_reserve net_skb_reserve;
-+EXPORT_SYMBOL_GPL(net_skb_reserve); /* modular ipv6 only */
-+static struct mem_reserve net_tx_reserve;
-+static struct mem_reserve net_tx_pages;
++static void __adjust_memalloc_reserve(int pages)
++{
++	var_free_kbytes += pages << (PAGE_SHIFT - 10);
++	BUG_ON(var_free_kbytes < 0);
++	setup_per_zone_pages_min();
++}
 +
-+#ifdef CONFIG_NETVM
-+static DEFINE_MUTEX(memalloc_socks_lock);
-+int memalloc_socks;
++static int test_reserve_limits(void)
++{
++	struct zone *zone;
++	int node;
++
++	for_each_zone(zone)
++		wakeup_kswapd(zone, 0);
++
++	for_each_online_node(node) {
++		struct page *page = alloc_pages_node(node, GFP_KERNEL, 0);
++		if (!page)
++			return -ENOMEM;
++
++		__free_page(page);
++	}
++
++	return 0;
++}
 +
 +/**
-+ *	sk_adjust_memalloc - adjust the global memalloc reserve for critical RX
-+ *	@socks: number of new %SOCK_MEMALLOC sockets
-+ *	@tx_resserve_pages: number of pages to (un)reserve for TX
++ *	adjust_memalloc_reserve - adjust the memalloc reserve
++ *	@pages: number of pages to add
 + *
-+ *	This function adjusts the memalloc reserve based on system demand.
-+ *	The RX reserve is a limit, and only added once, not for each socket.
++ *	It adds a number of pages to the memalloc reserve; if
++ *	the number was positive it kicks reclaim into action to
++ *	satisfy the higher watermarks.
 + *
-+ *	NOTE:
-+ *	   @tx_reserve_pages is an upper-bound of memory used for TX hence
-+ *	   we need not account the pages like we do for RX pages.
++ *	returns -ENOMEM when it failed to satisfy the watermarks.
 + */
-+int sk_adjust_memalloc(int socks, long tx_reserve_pages)
++int adjust_memalloc_reserve(int pages)
 +{
-+	int err;
++	int err = 0;
 +
-+	mutex_lock(&memalloc_socks_lock);
-+	err = mem_reserve_pages_add(&net_tx_pages, tx_reserve_pages);
-+	if (err)
-+		goto unlock;
-+
-+	/*
-+	 * either socks is positive and we need to check for 0 -> !0
-+	 * transition and connect the reserve tree when we observe it.
-+	 */
-+	if (!memalloc_socks && socks > 0) {
-+		err = mem_reserve_connect(&net_reserve, &mem_reserve_root);
++	mutex_lock(&var_free_mutex);
++	__adjust_memalloc_reserve(pages);
++	if (pages > 0) {
++		err = test_reserve_limits();
 +		if (err) {
-+			/*
-+			 * if we failed to connect the tree, undo the tx
-+			 * reserve so that failure has no side effects.
-+			 */
-+			mem_reserve_pages_add(&net_tx_pages, -tx_reserve_pages);
++			__adjust_memalloc_reserve(-pages);
 +			goto unlock;
 +		}
 +	}
-+	memalloc_socks += socks;
-+	/*
-+	 * or socks is negative and we must observe the !0 -> 0 transition
-+	 * and disconnect the reserve tree.
-+	 */
-+	if (!memalloc_socks && socks)
-+		mem_reserve_disconnect(&net_reserve);
++	printk(KERN_DEBUG "Emergency reserve: %d\n", var_free_kbytes);
 +
 +unlock:
-+	mutex_unlock(&memalloc_socks_lock);
-+
++	mutex_unlock(&var_free_mutex);
 +	return err;
 +}
-+EXPORT_SYMBOL_GPL(sk_adjust_memalloc);
++EXPORT_SYMBOL_GPL(adjust_memalloc_reserve);
 +
-+/**
-+ *	sk_set_memalloc - sets %SOCK_MEMALLOC
-+ *	@sk: socket to set it on
-+ *
-+ *	Set %SOCK_MEMALLOC on a socket and increase the memalloc reserve
-+ *	accordingly.
-+ */
-+int sk_set_memalloc(struct sock *sk)
-+{
-+	int set = sock_flag(sk, SOCK_MEMALLOC);
-+
-+	if (!set) {
-+		int err = sk_adjust_memalloc(1, 0);
-+		if (err)
-+			return err;
-+
-+		sock_set_flag(sk, SOCK_MEMALLOC);
-+		sk->sk_allocation |= __GFP_MEMALLOC;
-+	}
-+	return !set;
-+}
-+EXPORT_SYMBOL_GPL(sk_set_memalloc);
-+
-+int sk_clear_memalloc(struct sock *sk)
-+{
-+	int set = sock_flag(sk, SOCK_MEMALLOC);
-+	if (set) {
-+		sk_adjust_memalloc(-1, 0);
-+		sock_reset_flag(sk, SOCK_MEMALLOC);
-+		sk->sk_allocation &= ~__GFP_MEMALLOC;
-+	}
-+	return set;
-+}
-+EXPORT_SYMBOL_GPL(sk_clear_memalloc);
-+#endif
-+
- static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
- {
- 	struct timeval tv;
-@@ -968,6 +1068,7 @@ void sk_free(struct sock *sk)
- {
- 	struct sk_filter *filter;
- 
-+	sk_clear_memalloc(sk);
- 	if (sk->sk_destruct)
- 		sk->sk_destruct(sk);
- 
-@@ -1095,6 +1196,12 @@ void __init sk_init(void)
- 		sysctl_wmem_max = 131071;
- 		sysctl_rmem_max = 131071;
- 	}
-+
-+	mem_reserve_init(&net_reserve, "total network reserve", NULL);
-+	mem_reserve_init(&net_rx_reserve, "network RX reserve", &net_reserve);
-+	mem_reserve_init(&net_skb_reserve, "SKB data reserve", &net_rx_reserve);
-+	mem_reserve_init(&net_tx_reserve, "network TX reserve", &net_reserve);
-+	mem_reserve_init(&net_tx_pages, "protocol TX pages", &net_tx_reserve);
- }
- 
  /*
-Index: linux-2.6/net/Kconfig
+  * Initialise min_free_kbytes.
+  *
+Index: linux-2.6/mm/vmstat.c
 ===================================================================
---- linux-2.6.orig/net/Kconfig
-+++ linux-2.6/net/Kconfig
-@@ -250,6 +250,9 @@ endmenu
- source "net/rfkill/Kconfig"
- source "net/9p/Kconfig"
- 
-+config NETVM
-+	def_bool n
-+
- endif   # if NET
- endmenu # Networking
- 
+--- linux-2.6.orig/mm/vmstat.c
++++ linux-2.6/mm/vmstat.c
+@@ -785,9 +785,9 @@ static void zoneinfo_show_print(struct s
+ 		   "\n        spanned  %lu"
+ 		   "\n        present  %lu",
+ 		   zone_page_state(zone, NR_FREE_PAGES),
+-		   zone->pages_min,
+-		   zone->pages_low,
+-		   zone->pages_high,
++		   zone->pages_emerg + zone->pages_min,
++		   zone->pages_emerg + zone->pages_low,
++		   zone->pages_emerg + zone->pages_high,
+ 		   zone->pages_scanned,
+ 		   zone->lru[LRU_ACTIVE_ANON].nr_scan,
+ 		   zone->lru[LRU_INACTIVE_ANON].nr_scan,
 
 -- 
 
