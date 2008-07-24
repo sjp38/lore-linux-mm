@@ -1,102 +1,177 @@
-Message-Id: <20080724140042.408642539@chello.nl>
-Date: Thu, 24 Jul 2008 16:00:42 +0200
+Message-Id: <20080724141530.420643154@chello.nl>
+References: <20080724140042.408642539@chello.nl>
+Date: Thu, 24 Jul 2008 16:00:58 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 00/30] Swap over NFS -v18
+Subject: [PATCH 16/30] net: sk_allocation() - concentrate socket related allocations
+Content-Disposition: inline; filename=net-sk_allocation.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Neil Brown <neilb@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Latest version of the swap over nfs work.
+Introduce sk_allocation(), this function allows to inject sock specific
+flags to each sock related allocation.
 
-Patches are against: v2.6.26-rc8-mm1
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ include/net/sock.h    |    5 +++++
+ net/ipv4/tcp.c        |    3 ++-
+ net/ipv4/tcp_output.c |   12 +++++++-----
+ net/ipv6/tcp_ipv6.c   |   17 ++++++++++++-----
+ 4 files changed, 26 insertions(+), 11 deletions(-)
 
-I still need to write some more comments in the reservation code.
+Index: linux-2.6/net/ipv4/tcp_output.c
+===================================================================
+--- linux-2.6.orig/net/ipv4/tcp_output.c
++++ linux-2.6/net/ipv4/tcp_output.c
+@@ -2088,7 +2088,8 @@ void tcp_send_fin(struct sock *sk)
+ 	} else {
+ 		/* Socket is locked, keep trying until memory is available. */
+ 		for (;;) {
+-			skb = alloc_skb_fclone(MAX_TCP_HEADER, GFP_KERNEL);
++			skb = alloc_skb_fclone(MAX_TCP_HEADER,
++					       sk_allocation(sk, GFP_KERNEL));
+ 			if (skb)
+ 				break;
+ 			yield();
+@@ -2114,7 +2115,7 @@ void tcp_send_active_reset(struct sock *
+ 	struct sk_buff *skb;
+ 
+ 	/* NOTE: No TCP options attached and we never retransmit this. */
+-	skb = alloc_skb(MAX_TCP_HEADER, priority);
++	skb = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, priority));
+ 	if (!skb) {
+ 		NET_INC_STATS(LINUX_MIB_TCPABORTFAILED);
+ 		return;
+@@ -2183,7 +2184,8 @@ struct sk_buff *tcp_make_synack(struct s
+ 	__u8 *md5_hash_location;
+ #endif
+ 
+-	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15, 1, GFP_ATOMIC);
++	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15, 1,
++			sk_allocation(sk, GFP_ATOMIC));
+ 	if (skb == NULL)
+ 		return NULL;
+ 
+@@ -2441,7 +2443,7 @@ void tcp_send_ack(struct sock *sk)
+ 	 * tcp_transmit_skb() will set the ownership to this
+ 	 * sock.
+ 	 */
+-	buff = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
++	buff = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, GFP_ATOMIC));
+ 	if (buff == NULL) {
+ 		inet_csk_schedule_ack(sk);
+ 		inet_csk(sk)->icsk_ack.ato = TCP_ATO_MIN;
+@@ -2476,7 +2478,7 @@ static int tcp_xmit_probe_skb(struct soc
+ 	struct sk_buff *skb;
+ 
+ 	/* We don't queue it, tcp_transmit_skb() sets ownership. */
+-	skb = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
++	skb = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, GFP_ATOMIC));
+ 	if (skb == NULL)
+ 		return -1;
+ 
+Index: linux-2.6/include/net/sock.h
+===================================================================
+--- linux-2.6.orig/include/net/sock.h
++++ linux-2.6/include/net/sock.h
+@@ -435,6 +435,11 @@ static inline int sock_flag(struct sock 
+ 	return test_bit(flag, &sk->sk_flags);
+ }
+ 
++static inline gfp_t sk_allocation(struct sock *sk, gfp_t gfp_mask)
++{
++	return gfp_mask;
++}
++
+ static inline void sk_acceptq_removed(struct sock *sk)
+ {
+ 	sk->sk_ack_backlog--;
+Index: linux-2.6/net/ipv6/tcp_ipv6.c
+===================================================================
+--- linux-2.6.orig/net/ipv6/tcp_ipv6.c
++++ linux-2.6/net/ipv6/tcp_ipv6.c
+@@ -580,7 +580,8 @@ static int tcp_v6_md5_do_add(struct sock
+ 	} else {
+ 		/* reallocate new list if current one is full. */
+ 		if (!tp->md5sig_info) {
+-			tp->md5sig_info = kzalloc(sizeof(*tp->md5sig_info), GFP_ATOMIC);
++			tp->md5sig_info = kzalloc(sizeof(*tp->md5sig_info),
++					sk_allocation(sk, GFP_ATOMIC));
+ 			if (!tp->md5sig_info) {
+ 				kfree(newkey);
+ 				return -ENOMEM;
+@@ -593,7 +594,8 @@ static int tcp_v6_md5_do_add(struct sock
+ 		}
+ 		if (tp->md5sig_info->alloced6 == tp->md5sig_info->entries6) {
+ 			keys = kmalloc((sizeof (tp->md5sig_info->keys6[0]) *
+-				       (tp->md5sig_info->entries6 + 1)), GFP_ATOMIC);
++				       (tp->md5sig_info->entries6 + 1)),
++				       sk_allocation(sk, GFP_ATOMIC));
+ 
+ 			if (!keys) {
+ 				tcp_free_md5sig_pool();
+@@ -717,7 +719,8 @@ static int tcp_v6_parse_md5_keys (struct
+ 		struct tcp_sock *tp = tcp_sk(sk);
+ 		struct tcp_md5sig_info *p;
+ 
+-		p = kzalloc(sizeof(struct tcp_md5sig_info), GFP_KERNEL);
++		p = kzalloc(sizeof(struct tcp_md5sig_info),
++				   sk_allocation(sk, GFP_KERNEL));
+ 		if (!p)
+ 			return -ENOMEM;
+ 
+@@ -920,6 +923,7 @@ static void tcp_v6_send_reset(struct soc
+ #ifdef CONFIG_TCP_MD5SIG
+ 	struct tcp_md5sig_key *key;
+ #endif
++	gfp_t gfp_mask = GFP_ATOMIC;
+ 
+ 	if (th->rst)
+ 		return;
+@@ -937,13 +941,16 @@ static void tcp_v6_send_reset(struct soc
+ 		tot_len += TCPOLEN_MD5SIG_ALIGNED;
+ #endif
+ 
++	if (sk)
++		gfp_mask = sk_allocation(skb->sk, gfp_mask);
++
+ 	/*
+ 	 * We need to grab some memory, and put together an RST,
+ 	 * and then put it into the queue to be sent.
+ 	 */
+ 
+ 	buff = alloc_skb(MAX_HEADER + sizeof(struct ipv6hdr) + tot_len,
+-			 GFP_ATOMIC);
++			 sk_allocation(sk, GFP_ATOMIC));
+ 	if (buff == NULL)
+ 		return;
+ 
+@@ -1032,7 +1039,7 @@ static void tcp_v6_send_ack(struct sk_bu
+ #endif
+ 
+ 	buff = alloc_skb(MAX_HEADER + sizeof(struct ipv6hdr) + tot_len,
+-			 GFP_ATOMIC);
++			 gfp_mask);
+ 	if (buff == NULL)
+ 		return;
+ 
+Index: linux-2.6/net/ipv4/tcp.c
+===================================================================
+--- linux-2.6.orig/net/ipv4/tcp.c
++++ linux-2.6/net/ipv4/tcp.c
+@@ -637,7 +637,8 @@ struct sk_buff *sk_stream_alloc_skb(stru
+ 	/* The TCP header must be at least 32-bit aligned.  */
+ 	size = ALIGN(size, 4);
+ 
+-	skb = alloc_skb_fclone(size + sk->sk_prot->max_header, gfp);
++	skb = alloc_skb_fclone(size + sk->sk_prot->max_header,
++			       sk_allocation(sk, gfp));
+ 	if (skb) {
+ 		if (sk_wmem_schedule(sk, skb->truesize)) {
+ 			/*
 
-Pekka, it uses ksize(), please have a look.
-
-This version also deals with network namespaces.
-Two things where I could do with some suggestsion:
-
-  - currently the sysctl code uses current->nrproxy.net_ns to obtain
-    the current network namespace
-
-  - the ipv6 route cache code has some initialization order issues
-
-Thanks,
-
-Peter - who hopes we can someday merge this - Zijlstra
-
---
- Documentation/filesystems/Locking |   22 +
- Documentation/filesystems/vfs.txt |   18 +
- Documentation/network-swap.txt    |  270 +++++++++++++++++
- drivers/net/bnx2.c                |    8
- drivers/net/e1000/e1000_main.c    |    8
- drivers/net/e1000e/netdev.c       |    7
- drivers/net/igb/igb_main.c        |    8
- drivers/net/ixgbe/ixgbe_main.c    |   10
- drivers/net/sky2.c                |   16 -
- fs/Kconfig                        |   17 +
- fs/nfs/file.c                     |   24 +
- fs/nfs/inode.c                    |    6
- fs/nfs/internal.h                 |    7
- fs/nfs/pagelist.c                 |    8
- fs/nfs/read.c                     |   21 -
- fs/nfs/write.c                    |  175 +++++++----
- include/linux/buffer_head.h       |    2
- include/linux/fs.h                |    9
- include/linux/gfp.h               |    3
- include/linux/mm.h                |   25 +
- include/linux/mm_types.h          |    2
- include/linux/mmzone.h            |    6
- include/linux/nfs_fs.h            |    2
- include/linux/pagemap.h           |    5
- include/linux/reserve.h           |  146 +++++++++
- include/linux/sched.h             |    7
- include/linux/skbuff.h            |   46 ++
- include/linux/slab.h              |   24 -
- include/linux/slub_def.h          |    8
- include/linux/sunrpc/xprt.h       |    5
- include/linux/swap.h              |    4
- include/net/inet_frag.h           |    7
- include/net/netns/ipv6.h          |    4
- include/net/sock.h                |   63 +++-
- include/net/tcp.h                 |    2
- kernel/softirq.c                  |    3
- mm/Makefile                       |    2
- mm/internal.h                     |   10
- mm/page_alloc.c                   |  207 +++++++++----
- mm/page_io.c                      |   52 +++
- mm/reserve.c                      |  594 ++++++++++++++++++++++++++++++++++++++
- mm/slab.c                         |  135 ++++++++
- mm/slub.c                         |  159 ++++++++--
- mm/swap_state.c                   |    4
- mm/swapfile.c                     |   51 +++
- mm/vmstat.c                       |    6
- net/Kconfig                       |    3
- net/core/dev.c                    |   59 +++
- net/core/filter.c                 |    3
- net/core/skbuff.c                 |  147 +++++++--
- net/core/sock.c                   |  129 ++++++++
- net/ipv4/inet_fragment.c          |    3
- net/ipv4/ip_fragment.c            |   89 +++++
- net/ipv4/route.c                  |   72 ++++
- net/ipv4/tcp.c                    |    5
- net/ipv4/tcp_input.c              |   12
- net/ipv4/tcp_output.c             |   12
- net/ipv4/tcp_timer.c              |    2
- net/ipv6/af_inet6.c               |   20 +
- net/ipv6/reassembly.c             |   88 +++++
- net/ipv6/route.c                  |   66 ++++
- net/ipv6/tcp_ipv6.c               |   17 -
- net/netfilter/core.c              |    3
- net/sctp/ulpevent.c               |    2
- net/sunrpc/sched.c                |    9
- net/sunrpc/xprtsock.c             |   73 ++++
- security/selinux/avc.c            |    2
- 67 files changed, 2720 insertions(+), 314 deletions(-)
-
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
