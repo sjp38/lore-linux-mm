@@ -1,9 +1,9 @@
-Date: Fri, 25 Jul 2008 18:39:43 +0900
+Date: Fri, 25 Jul 2008 19:46:59 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 11/30] mm: __GFP_MEMALLOC
-In-Reply-To: <1216978535.7257.356.camel@twins>
-References: <20080725180305.86A9.KOSAKI.MOTOHIRO@jp.fujitsu.com> <1216978535.7257.356.camel@twins>
-Message-Id: <20080725183835.86AC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [PATCH 30/30] nfs: fix various memory recursions possible with swap over NFS.
+In-Reply-To: <20080724141531.486682621@chello.nl>
+References: <20080724140042.408642539@chello.nl> <20080724141531.486682621@chello.nl>
+Message-Id: <20080725194517.86BB.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -13,38 +13,17 @@ To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: kosaki.motohiro@jp.fujitsu.com, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Neil Brown <neilb@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-> On Fri, 2008-07-25 at 18:29 +0900, KOSAKI Motohiro wrote:
-> > Hi Peter,
-> > 
-> > > __GFP_MEMALLOC will allow the allocation to disregard the watermarks, 
-> > > much like PF_MEMALLOC.
-> > > 
-> > > It allows one to pass along the memalloc state in object related allocation
-> > > flags as opposed to task related flags, such as sk->sk_allocation.
-> > 
-> > Is this properly name?
-> > page alloc is always "mem alloc".
-> > 
-> > you wrote comment as "Use emergency reserves" and 
-> > this flag works to turn on ALLOC_NO_WATERMARKS.
-> > 
-> > then, __GFP_NO_WATERMARK or __GFP_EMERGENCY are better?
-> 
-> We've been through this pick a better name thing several times :-/
-> 
-> Yes I agree, __GFP_MEMALLOC is a misnomer, however its consistent with
-> PF_MEMALLOC and __GFP_NOMEMALLOC - of which people know the semantics.
-> 
-> Creating a new name with similar semantics can only serve to confuse.
+> GFP_NOFS is not enough, since swap traffic is IO, hence fall back to GFP_NOIO.
 
-Ah, understand.
-Thanks.
+this comment imply turn on GFP_NOIO, but the code is s/NOFS/NOIO/. why?
 
-Agreed to __GFP_MEMALLOC.
 
-> 
-> So unless enough people think its worth renaming all of them, I think
-> we're better off with this name.
+
+>  struct nfs_write_data *nfs_commitdata_alloc(void)
+>  {
+> -	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
+> +	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOIO);
+
 
 
 
