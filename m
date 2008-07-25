@@ -1,72 +1,88 @@
-Date: Thu, 24 Jul 2008 12:26:42 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bugme-new] [Bug 11156] New: Old kernels copy memory faster
- than new
-Message-Id: <20080724122642.b8ef2ac6.akpm@linux-foundation.org>
-In-Reply-To: <bug-11156-10286@http.bugzilla.kernel.org/>
-References: <bug-11156-10286@http.bugzilla.kernel.org/>
+Date: Thu, 24 Jul 2008 22:25:10 -0400
+From: Rik van Riel <riel@redhat.com>
+Subject: PERF: performance tests with the split LRU VM in -mm
+Message-ID: <20080724222510.3bbbbedc@bree.surriel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: bugme-daemon@bugzilla.kernel.org, smal.root@gmail.com, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
+In order to get the performance of the split LRU VM (in -mm) better,
+I have performed several performance tests with the following kernels:
+- 2.6.26                                                    "2.6.26"
+- 2.6.26-rc8-mm1                                            "-mm"
+- 2.6.26-rc8-mm1 w/ "evict streaming IO cache first" patch  "stream"
+      Patch at: http://lkml.org/lkml/2008/7/15/465
+- 2.6.26-rc8-mm1 w/ "fix swapout on sequential IO" patch    "noforce"
+      Patch at: http://marc.info/?l=linux-mm&m=121683855132630&w=2
 
-On Thu, 24 Jul 2008 10:57:42 -0700 (PDT) bugme-daemon@bugzilla.kernel.org wrote:
+I have run the performance tests on a Dell pe1950 system
+with 2 quad-core CPUs, 16GB of RAM and a hardware RAID 1
+array of 146GB disks.
 
-> http://bugzilla.kernel.org/show_bug.cgi?id=11156
-> 
->            Summary: Old kernels copy memory faster than new
->            Product: IO/Storage
->            Version: 2.5
->      KernelVersion: 2.6.24, 2.6.25
->           Platform: All
->         OS/Version: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: Block Layer
->         AssignedTo: axboe@kernel.dk
->         ReportedBy: smal.root@gmail.com
-> 
-> 
-> Latest working kernel version: 2.6.25
-> Earliest failing kernel version: 2.6.24
-> Distribution: Slackware 10-12
-> 
-> First machine:
-> CPU - AMD Athlon3600+(2______)
-> Chipset - nForce 6150(MCP51)
-> RAM - 3G DDR2
-> Video - internal GeForce6150
-> Kernel - 2.6.25.4(own built)
-> Copy speed - 1.7GByte/s
-> 
-> on another kernel:
-> Kernel - 2.6.23.5(own built)
-> Copy speed - 43.5GByte/s
-> --------------------------------------------
-> Second machine:
-> CPU - PII-350
-> MB i440BX
-> RAM - 128M SDRAM
-> Video - 3DFX Voodoo3
-> Kernel - 2.6.21.5(Vanila from slackware distribution)
-> Copy speed - 11.3GByte/s
-> 
-> Steps to reproduce:
-> dd if=/dev/zero of=/dev/null bs=16M count=10000
-> 
+The tests are fairly simple, but took a fair amount of time to
+run due to the size of the data set involved (full disk for dd,
+55GB innodb file for the database tests).
 
-lol.  OK, who did that?
 
-Perhaps ZERO_PAGE changes?
+  TEST 1: dd if=/dev/sda of=/dev/null bs=1M
+
+kernel  speed    swap used
+
+2.6.26  111MB/s  500kB
+-mm     110MB/s  59MB     (ouch, system noticably slower)
+noforce	111MB/s  128kB
+stream  108MB/s  0        (slight regression, not sure why yet)
+
+This patch shows that the split LRU VM in -mm has a problem
+with large streaming IOs: the working set gets pushed out of
+memory, which makes doing anything else during the big streaming
+IO kind of painful.
+
+However, either of the two patches posted fixes that problem,
+though at a slight performance penalty for the "stream" patch.
+
+
+  TEST 2: sysbench & linear query
+
+In this test, I run sysbench in parallel with "SELECT COUNT(*) FROM sbtest;"
+on a 240,000,000 row sysbench database.  In the first columns, MySQL has
+been started up with its default memory allocation; the second set of
+results has innodb_buffer_pool_size=12G, allocating 75% of system memory
+as innodb buffer.   The sysbench performance number is the number of
+transactions per second (tps), while the linear query simply has its
+time measured.
+
+         default memory        12GB innodb buffer
+kernel   tps   SELECT COUNT    tps   SELECT COUNT   swapped out
+
+2.6.26   100   42 min 6 sec    142   1 hour 20 min  5GB (constant swap IO!)
+-mm      109   33 min 25 sec   210   22 min 26 sec  <70MB
+noforce  101   34 min 48 sec   207   22 min 16 sec  <70MB
+stream   111   32 min 5 sec    209   22 min 22 sec  <70MB
+
+These results show that increasing the database buffer helps
+sysbench performance, even in 2.6.26 which is constantly swapping
+the database buffer in and out. However, the large linear query
+really suffers in the upstream VM.
+
+The upstream VM constantly swaps mysql innodb buffer in and
+out, with the amount of swap space in use hovering about half
+full (5GB).  This probably indicates that the kernel keeps
+cycling mysql in and out of swap, freeing up swap space at
+swapin time.
+
+Neither of the patches I proposed for -mm seem to make much of
+a performance difference for this test, but they do solve the
+interactivity problem during large streaming IO.
+
+The split LRU VM in the -mm kernel really improves the performance
+of databases in the presence of streaming IO, which is a real
+performance issue for Linux users at the moment.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
