@@ -1,68 +1,76 @@
-Date: Sat, 26 Jul 2008 15:35:25 +0200
+Date: Sat, 26 Jul 2008 15:49:15 +0200
 From: Andrea Arcangeli <andrea@qumranet.com>
 Subject: Re: MMU notifiers review and some proposals
-Message-ID: <20080726133525.GC9598@duo.random>
-References: <20080724143949.GB12897@wotan.suse.de> <20080725214552.GB21150@duo.random> <20080726030810.GA18896@wotan.suse.de> <20080726113813.GD21150@duo.random> <20080726122826.GA17958@wotan.suse.de> <20080726130202.GA9598@duo.random> <20080726131015.GB21820@wotan.suse.de>
+Message-ID: <20080726134915.GD9598@duo.random>
+References: <20080724143949.GB12897@wotan.suse.de> <20080725214552.GB21150@duo.random> <20080726030810.GA18896@wotan.suse.de> <20080726113813.GD21150@duo.random> <20080726122826.GA17958@wotan.suse.de> <20080726130202.GA9598@duo.random> <20080726131450.GC21820@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080726131015.GB21820@wotan.suse.de>
+In-Reply-To: <20080726131450.GC21820@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org, steiner@sgi.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jul 26, 2008 at 03:10:15PM +0200, Nick Piggin wrote:
-> I am talking about a number of threads starving another thread of the
-> same process, but that isn't shooting themselves in the foot because
-> they might be doing simple normal operations that don't expect the
-> kernel to cause starvation.
+On Sat, Jul 26, 2008 at 03:14:50PM +0200, Nick Piggin wrote:
+> BTW. has anyone else actually looked at mmu notifiers or have an
+> opinion on this? It might be helpful for me to get someone else's
+> perspective.
 
-I thought you worried about security issues sorry.
+My last submission was for -mm on 26 Jun, and all these developers and
+lists were in CC:
 
-Note that each user is free to implement the locks as it wants. Given
-what you describe is a feature and not a bug for KVM, we use readonly
-locks and that can't lead to security issues either as you agreed
-above.
+	Linus Torvalds <torvalds@linux-foundation.org>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Christoph Lameter <clameter@sgi.com>,
+        Jack Steiner <steiner@sgi.com>, Robin Holt <holt@sgi.com>,
+        Nick Piggin <npiggin@suse.de>,
+        Peter Zijlstra <a.p.zijlstra@chello.nl>, kvm@vger.kernel.org,
+        Kanoj Sarcar <kanojsarcar@yahoo.com>,
+        Roland Dreier <rdreier@cisco.com>,
+        Steve Wise <swise@opengridcomputing.com>,
+        linux-kernel@vger.kernel.org, Avi Kivity <avi@qumranet.com>,
+        linux-mm@kvack.org, general@lists.openfabrics.org,
+        Hugh Dickins <hugh@veritas.com>,
+        Rusty Russell <rusty@rustcorp.com.au>,
+        Anthony Liguori <aliguori@us.ibm.com>,
+        Chris Wright <chrisw@redhat.com>,
+        Marcelo Tosatti <marcelo@kvack.org>,
+        Eric Dumazet <dada1@cosmosbay.com>,
+        "Paul E. McKenney" <paulmck@us.ibm.com>,
+        Izik Eidus <izike@qumranet.com>,
+        Anthony Liguori <aliguori@us.ibm.com>,
+        Rik van Riel <riel@redhat.com>
 
-But nothing prevents you to use a spinlock or rwlock and take the read
-side of it from the page fault and the write side of it from the
-range_start/end. Careful with the rwlock though because that is a
-read-starved lock so it won't buy you anything, it was just to make an
-example ;). Surely you can build a fair rwlock if that is what your
-app requires. For KVM we want to go unfair and purely readonly in the
-kvm page fault because we know the address space is almost never
-mangled and that makes it a perfect fit as it'll never starve for all
-remotely useful cases, and it can't be exploited either.
+The ones explicitly agreeing (about all or part depending on the areas
+of interest, and not just of the first patch adding the new list.h
+function which is mostly unrelated) were Linus, Christoph, Jack,
+Robin, Avi, Marcelo, Rik and last but not the least Paul.
 
-So you're actually commenting on the kvm implementation of the
-lowlevel methods, but we're not forcing that implementation to all
-users. You surely can use the mmu notifiers in -mm, to have the
-secondary mmu page fault block and takeover from the range_start/end
-and take range_start/end out of the game.
+Everyone else in the list implicitly agrees I assume, hope they're not
+all waiting 1 month before commenting on it like you did ;).
 
-So really this isn't a valid complaint... infact the same issue exists
-for invalidate_page or your invalidate_range. It's up to each user to
-decide if to make the page fault slower but 100% fair and higher
-priority than the munmap flood coming from the other threads of the
-same mm.
+Avi, me, Jack and Robin are the main users of the feature (or at least
+the main users that are brave enough to be visible on lkml) so that
+surely speaks well for the happiness of the mmu notifier users about
+what is in -mm. Infact it is almost a sure thing that the users will
+always prefer the current patches compared to the minimal notifier.
 
-> What's the problem with patching asm-*/tlb.h? They're just other files,
-> but they all form part os the same tlb flushing design.
+But I also wear a VM (as in virtual memory not virtual machine ;) hat
+not just a KVM hat, so I surely wouldn't have submitted something that
+I think is bad for the VM. Infact I opposed certain patches made
+specifically for XPMEM that could hurt the VM a micro-bit (mostly
+thinking at UP cellphones). Still I offered to support XPMEM but with
+a lower priority and done right.
 
-Nothing fundamental, but at least for the last half an year apparently
-moving mmu notifier invalidate calls into arch pte/tlb flushing code
-was considered a negative in layering terms (I did that initially with
-ptep_clear_flush).
-
-I suggest you make another patch that actually works so we've a better
-picture of how the changes to tlb-gather looks like. I think the idea
-of calling invalidate_page before every tlb_remove_page should be
-rejected.
-
-Hope also this shows how those discussions are endless and pointless
-if there's nothing we can deploy to the KVM users in the first place.
+I don't happen to dislike mm_take_all_locks, as it's totally localized
+and _can_never_run_ unless you load one of those kvm or gru
+modules. I'd rather prefer mmu notifiers to be invisible to the
+tlb-gather logic, surely it'd be orders of magnitude simpler to delete
+mm_take_all_locks than to undo the changes to the tlb-gather logic. So
+if something we should go with -mm first, and then evaluate if the
+tlb-gather changes are better/worse.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
