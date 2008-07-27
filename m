@@ -1,37 +1,45 @@
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: How to get a sense of VM pressure
-Date: Sun, 27 Jul 2008 16:43:31 +1000
-References: <488A1398.7020004@goop.org>
-In-Reply-To: <488A1398.7020004@goop.org>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Date: Sun, 27 Jul 2008 02:45:20 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: MMU notifiers review and some proposals
+Message-Id: <20080727024520.7dd12bf0.akpm@linux-foundation.org>
+In-Reply-To: <20080724143949.GB12897@wotan.suse.de>
+References: <20080724143949.GB12897@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200807271643.32338.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: virtualization@lists.linux-foundation.org
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Virtualization Mailing List <virtualization@lists.osdl.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org, andrea@qumranet.com, steiner@sgi.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Saturday 26 July 2008 03:55:36 Jeremy Fitzhardinge wrote:
-> So I guess what I need is some measurement of "memory use" which is
-> perhaps akin to a system-wide RSS; a measure of the number of pages
-> being actively used, that if non-resident would cause a large amount of
-> paging.  If you shrink the domain down to that number of pages + some
-> padding (x%?), then the system will run happily in a stable state.  If
-> that number increases, then the system will need new memory soon, to
-> stop it from thrashing.  And if that number goes way below the domain's
-> actual memory allocation, then it has "too much" memory.
+On Thu, 24 Jul 2008 16:39:49 +0200 Nick Piggin <npiggin@suse.de> wrote:
 
-Like everyone, I've thought about this.  The shrinker callbacks seem like a 
-candidate here; have you played with them at all?
+> I think everybody is hoping to have a workable mmu notifier scheme
+> merged in 2.6.27 (myself included). However I do have some concerns
+> about the implementation proposed (in -mm).
+> 
+> I apologise for this late review, before anybody gets too upset,
+> most of my concerns have been raised before, but I'd like to state
+> my case again and involving everyone.
 
-Some dynamic tension between the shrinker callback and slow feed of pages to 
-the balloon seems like it should work...
+Nick, having read through this discussion and the code (yet again) I
+think I'll go ahead and send it all in to Linus.  On the basis that
 
-Rusty.
+- the code is fairly short and simple
+
+- has no known bugs
+
+- seems to be needed by some folks ;)
+
+- you already have a protopatch which partially addresses your
+  concerns and afaik there's nothing blocking future improvements to
+  this implementation?
+
+
+And a late-breaking review comment: given that about 0.000000000000001%
+of people will actually use mm_take_all_locks(), could we make its
+compilation conditional on something?  Such as CONFIG_MMU_NOTIFIER?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
