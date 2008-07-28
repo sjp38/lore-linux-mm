@@ -1,19 +1,20 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m6SKXa0i021200
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 16:33:36 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m6SKXQM9039300
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 14:33:26 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m6SKXQd3008838
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 14:33:26 -0600
-Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m6SKbllH027864
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 16:37:47 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m6SKbeDv159944
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 16:37:40 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m6SKbdqS008889
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 16:37:39 -0400
+Subject: Re: [PATCH 4/5 V2] Build hugetlb backed process stacks
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <cover.1216928613.git.ebmunson@us.ibm.com>
+In-Reply-To: <34bf5c7a2116bc6bd16b4235bc1cf84395ee561e.1216928613.git.ebmunson@us.ibm.com>
 References: <cover.1216928613.git.ebmunson@us.ibm.com>
+	 <34bf5c7a2116bc6bd16b4235bc1cf84395ee561e.1216928613.git.ebmunson@us.ibm.com>
 Content-Type: text/plain
-Date: Mon, 28 Jul 2008 13:33:24 -0700
-Message-Id: <1217277204.23502.36.camel@nimitz>
+Date: Mon, 28 Jul 2008 13:37:38 -0700
+Message-Id: <1217277458.23502.39.camel@nimitz>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,15 +25,33 @@ List-ID: <linux-mm.kvack.org>
 
 On Mon, 2008-07-28 at 12:17 -0700, Eric Munson wrote:
 > 
-> This patch stack introduces a personality flag that indicates the
-> kernel
-> should setup the stack as a hugetlbfs-backed region. A userspace
-> utility
-> may set this flag then exec a process whose stack is to be backed by
-> hugetlb pages.
+> +static int move_to_huge_pages(struct linux_binprm *bprm,
+> +                               struct vm_area_struct *vma, unsigned
+> long shift)
+> +{
+> +       struct mm_struct *mm = vma->vm_mm;
+> +       struct vm_area_struct *new_vma;
+> +       unsigned long old_end = vma->vm_end;
+> +       unsigned long old_start = vma->vm_start;
+> +       unsigned long new_end = old_end - shift;
+> +       unsigned long new_start, length;
+> +       unsigned long arg_size = new_end - bprm->p;
+> +       unsigned long flags = vma->vm_flags;
+> +       struct file *hugefile = NULL;
+> +       unsigned int stack_hpages = 0;
+> +       struct page **from_pages = NULL;
+> +       struct page **to_pages = NULL;
+> +       unsigned long num_pages = (arg_size / PAGE_SIZE) + 1;
+> +       int ret;
+> +       int i;
+> +
+> +#ifdef CONFIG_STACK_GROWSUP
 
-I didn't see it mentioned here, but these stacks are fixed-size, right?
-They can't actually grow and are fixed in size at exec() time, right?
+Why do you have the #ifdef for the CONFIG_STACK_GROWSUP=y case in that
+first patch if you don't support CONFIG_STACK_GROWSUP=y?
+
+I think it might be worth some time to break this up a wee little bit.
+16 local variables is a big on the beefy side. :)
 
 -- Dave
 
