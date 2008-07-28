@@ -1,87 +1,71 @@
-Date: Mon, 28 Jul 2008 22:16:16 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: + mm-remove-find_max_pfn_with_active_regions.patch added to -mm tree
-Message-ID: <20080728211616.GB29548@csn.ul.ie>
-References: <20080728091655.GC7965@csn.ul.ie> <86802c440807280415j5605822brb8836412a5c95825@mail.gmail.com> <20080728113836.GE7965@csn.ul.ie> <86802c440807281125g7d424f17v4b7c512929f45367@mail.gmail.com> <20080728191518.GA5352@csn.ul.ie> <86802c440807281238u63770318s8e665754f666c602@mail.gmail.com> <20080728200054.GB5352@csn.ul.ie> <86802c440807281314k56752cdcqcac542b6f1564036@mail.gmail.com> <20080728203959.GA29548@csn.ul.ie> <20080728135521.12b1b041.akpm@linux-foundation.org>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m6SLO04u016513
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 17:24:00 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m6SLO0GI240074
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 17:24:00 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m6SLO0OK004447
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 17:24:00 -0400
+Date: Mon, 28 Jul 2008 14:23:54 -0700
+From: Eric B Munson <ebmunson@us.ibm.com>
+Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
+Message-ID: <20080728212354.GB8450@us.ibm.com>
+References: <cover.1216928613.git.ebmunson@us.ibm.com> <1217277204.23502.36.camel@nimitz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="wq9mPyueHGvFACwf"
 Content-Disposition: inline
-In-Reply-To: <20080728135521.12b1b041.akpm@linux-foundation.org>
+In-Reply-To: <1217277204.23502.36.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: yhlu.kernel@gmail.com, linux-mm@kvack.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On (28/07/08 13:55), Andrew Morton didst pronounce:
-> On Mon, 28 Jul 2008 21:40:00 +0100
-> Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > > how about KERN_DEBUG?
-> > > 
-> > > please check
-> > > 
-> > 
-> > Still NAK due to the noise.
-> 
-> blah.  I changed the patch to this:
-> 
+--wq9mPyueHGvFACwf
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Seems reasonable, thanks. I'll keep a closer eye on the next -mm release to
-make sure the discontig mem boot tests are still ok.
+On Mon, 28 Jul 2008, Dave Hansen wrote:
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+> On Mon, 2008-07-28 at 12:17 -0700, Eric Munson wrote:
+> >=20
+> > This patch stack introduces a personality flag that indicates the
+> > kernel
+> > should setup the stack as a hugetlbfs-backed region. A userspace
+> > utility
+> > may set this flag then exec a process whose stack is to be backed by
+> > hugetlb pages.
+>=20
+> I didn't see it mentioned here, but these stacks are fixed-size, right?
+> They can't actually grow and are fixed in size at exec() time, right?
+>=20
+> -- Dave
 
-> --- a/include/linux/mm.h~mm-remove-find_max_pfn_with_active_regions
-> +++ a/include/linux/mm.h
-> @@ -1041,7 +1041,6 @@ extern unsigned long absent_pages_in_ran
->  extern void get_pfn_range_for_nid(unsigned int nid,
->  			unsigned long *start_pfn, unsigned long *end_pfn);
->  extern unsigned long find_min_pfn_with_active_regions(void);
-> -extern unsigned long find_max_pfn_with_active_regions(void);
->  extern void free_bootmem_with_active_regions(int nid,
->  						unsigned long max_low_pfn);
->  typedef int (*work_fn_t)(unsigned long, unsigned long, void *);
-> diff -puN mm/page_alloc.c~mm-remove-find_max_pfn_with_active_regions mm/page_alloc.c
-> --- a/mm/page_alloc.c~mm-remove-find_max_pfn_with_active_regions
-> +++ a/mm/page_alloc.c
-> @@ -3753,23 +3753,6 @@ unsigned long __init find_min_pfn_with_a
->  	return find_min_pfn_for_node(MAX_NUMNODES);
->  }
->  
-> -/**
-> - * find_max_pfn_with_active_regions - Find the maximum PFN registered
-> - *
-> - * It returns the maximum PFN based on information provided via
-> - * add_active_range().
-> - */
-> -unsigned long __init find_max_pfn_with_active_regions(void)
-> -{
-> -	int i;
-> -	unsigned long max_pfn = 0;
-> -
-> -	for (i = 0; i < nr_nodemap_entries; i++)
-> -		max_pfn = max(max_pfn, early_node_map[i].end_pfn);
-> -
-> -	return max_pfn;
-> -}
-> -
->  /*
->   * early_calculate_totalpages()
->   * Sum pages in active regions for movable zone.
-> _
-> 
-> 
-> Which is what it should always have been.  Only do one thing per patch,
-> please.  The presence of the work "also" in the changelog is usually a
-> big hint that it should be split up.
-> 
-> 
+The stack VMA is a fixed size but the pages will be faulted in as needed.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+--=20
+Eric B Munson
+IBM Linux Technology Center
+ebmunson@us.ibm.com
+
+
+--wq9mPyueHGvFACwf
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQFIjjjqsnv9E83jkzoRAugvAKD36x3OyfiN/GtGM+x0LJ6SL7e7TgCdHOOf
+OGGM1jiwgdCWkwRUj/Gd/Fg=
+=5CJt
+-----END PGP SIGNATURE-----
+
+--wq9mPyueHGvFACwf--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
