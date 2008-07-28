@@ -1,169 +1,187 @@
-Subject: Re: [RFC PATCH 4/4] kmemtrace: SLOB hooks.
+Subject: Re: [PATCH 04/30] mm: slub: trivial cleanups
 From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <1216751808-14428-5-git-send-email-eduard.munteanu@linux360.ro>
-References: <1216751808-14428-1-git-send-email-eduard.munteanu@linux360.ro>
-	 <1216751808-14428-2-git-send-email-eduard.munteanu@linux360.ro>
-	 <1216751808-14428-3-git-send-email-eduard.munteanu@linux360.ro>
-	 <1216751808-14428-4-git-send-email-eduard.munteanu@linux360.ro>
-	 <1216751808-14428-5-git-send-email-eduard.munteanu@linux360.ro>
-Date: Mon, 28 Jul 2008 12:41:38 +0300
-Message-Id: <1217238098.7813.13.camel@penberg-laptop>
+In-Reply-To: <20080724141529.560025894@chello.nl>
+References: <20080724140042.408642539@chello.nl>
+	 <20080724141529.560025894@chello.nl>
+Date: Mon, 28 Jul 2008 12:43:43 +0300
+Message-Id: <1217238223.7813.16.camel@penberg-laptop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-Cc: cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rdunlap@xenotime.net, mpm@selenic.com
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Neil Brown <neilb@suse.de>, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-07-22 at 21:36 +0300, Eduard - Gabriel Munteanu wrote:
-> This adds hooks for the SLOB allocator, to allow tracing with kmemtrace.
-> 
+Hi Peter,
 
-The patch description could be little less terse and maybe explain the
-__always_inline changes but:
+Could you perhaps send this patch separately?
+
+On Thu, 2008-07-24 at 16:00 +0200, Peter Zijlstra wrote:
+> plain text document attachment (cleanup-slub.patch)
+> Some cleanups....
+> 
 
 Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
-> Signed-off-by: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+Christoph?
+
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 > ---
->  include/linux/slob_def.h |    9 +++++----
->  mm/slob.c                |   37 +++++++++++++++++++++++++++++++------
->  2 files changed, 36 insertions(+), 10 deletions(-)
+>  include/linux/slub_def.h |    7 ++++++-
+>  mm/slub.c                |   40 ++++++++++++++++++----------------------
+>  2 files changed, 24 insertions(+), 23 deletions(-)
 > 
-> diff --git a/include/linux/slob_def.h b/include/linux/slob_def.h
-> index 59a3fa4..0ec00b3 100644
-> --- a/include/linux/slob_def.h
-> +++ b/include/linux/slob_def.h
-> @@ -3,14 +3,15 @@
+> Index: linux-2.6/mm/slub.c
+> ===================================================================
+> --- linux-2.6.orig/mm/slub.c
+> +++ linux-2.6/mm/slub.c
+> @@ -27,7 +27,7 @@
+>  /*
+>   * Lock order:
+>   *   1. slab_lock(page)
+> - *   2. slab->list_lock
+> + *   2. node->list_lock
+>   *
+>   *   The slab_lock protects operations on the object of a particular
+>   *   slab and its metadata in the page struct. If the slab lock
+> @@ -163,11 +163,11 @@ static struct notifier_block slab_notifi
+>  #endif
 >  
->  void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
+>  static enum {
+> -	DOWN,		/* No slab functionality available */
+> +	DOWN = 0,	/* No slab functionality available */
+>  	PARTIAL,	/* kmem_cache_open() works but kmalloc does not */
+>  	UP,		/* Everything works but does not show up in sysfs */
+>  	SYSFS		/* Sysfs up */
+> -} slab_state = DOWN;
+> +} slab_state;
 >  
-> -static inline void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
-> +static __always_inline void *kmem_cache_alloc(struct kmem_cache *cachep,
-> +					      gfp_t flags)
+>  /* A list of all slab caches on the system */
+>  static DECLARE_RWSEM(slub_lock);
+> @@ -288,21 +288,22 @@ static inline int slab_index(void *p, st
+>  static inline struct kmem_cache_order_objects oo_make(int order,
+>  						unsigned long size)
 >  {
->  	return kmem_cache_alloc_node(cachep, flags, -1);
+> -	struct kmem_cache_order_objects x = {
+> -		(order << 16) + (PAGE_SIZE << order) / size
+> -	};
+> +	struct kmem_cache_order_objects x;
+> +
+> +	x.order = order;
+> +	x.objects = (PAGE_SIZE << order) / size;
+>  
+>  	return x;
 >  }
 >  
->  void *__kmalloc_node(size_t size, gfp_t flags, int node);
->  
-> -static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
-> +static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+>  static inline int oo_order(struct kmem_cache_order_objects x)
 >  {
->  	return __kmalloc_node(size, flags, node);
+> -	return x.x >> 16;
+> +	return x.order;
 >  }
-> @@ -23,12 +24,12 @@ static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
->   * kmalloc is the normal method of allocating memory
->   * in the kernel.
+>  
+>  static inline int oo_objects(struct kmem_cache_order_objects x)
+>  {
+> -	return x.x & ((1 << 16) - 1);
+> +	return x.objects;
+>  }
+>  
+>  #ifdef CONFIG_SLUB_DEBUG
+> @@ -1076,8 +1077,7 @@ static struct page *allocate_slab(struct
+>  
+>  	flags |= s->allocflags;
+>  
+> -	page = alloc_slab_page(flags | __GFP_NOWARN | __GFP_NORETRY, node,
+> -									oo);
+> +	page = alloc_slab_page(flags | __GFP_NOWARN | __GFP_NORETRY, node, oo);
+>  	if (unlikely(!page)) {
+>  		oo = s->min;
+>  		/*
+> @@ -1099,8 +1099,7 @@ static struct page *allocate_slab(struct
+>  	return page;
+>  }
+>  
+> -static void setup_object(struct kmem_cache *s, struct page *page,
+> -				void *object)
+> +static void setup_object(struct kmem_cache *s, struct page *page, void *object)
+>  {
+>  	setup_object_debug(s, page, object);
+>  	if (unlikely(s->ctor))
+> @@ -1157,8 +1156,7 @@ static void __free_slab(struct kmem_cach
+>  		void *p;
+>  
+>  		slab_pad_check(s, page);
+> -		for_each_object(p, s, page_address(page),
+> -						page->objects)
+> +		for_each_object(p, s, page_address(page), page->objects)
+>  			check_object(s, page, p, 0);
+>  		__ClearPageSlubDebug(page);
+>  	}
+> @@ -1224,8 +1222,7 @@ static __always_inline int slab_trylock(
+>  /*
+>   * Management of partially allocated slabs
 >   */
-> -static inline void *kmalloc(size_t size, gfp_t flags)
-> +static __always_inline void *kmalloc(size_t size, gfp_t flags)
+> -static void add_partial(struct kmem_cache_node *n,
+> -				struct page *page, int tail)
+> +static void add_partial(struct kmem_cache_node *n, struct page *page, int tail)
 >  {
->  	return __kmalloc_node(size, flags, -1);
->  }
+>  	spin_lock(&n->list_lock);
+>  	n->nr_partial++;
+> @@ -1251,8 +1248,8 @@ static void remove_partial(struct kmem_c
+>   *
+>   * Must hold list_lock.
+>   */
+> -static inline int lock_and_freeze_slab(struct kmem_cache_node *n,
+> -							struct page *page)
+> +static inline
+> +int lock_and_freeze_slab(struct kmem_cache_node *n, struct page *page)
+>  {
+>  	if (slab_trylock(page)) {
+>  		list_del(&page->lru);
+> @@ -1799,11 +1796,11 @@ static int slub_nomerge;
+>   * slub_max_order specifies the order where we begin to stop considering the
+>   * number of objects in a slab as critical. If we reach slub_max_order then
+>   * we try to keep the page order as low as possible. So we accept more waste
+> - * of space in favor of a small page order.
+> + * of space in favour of a small page order.
+>   *
+>   * Higher order allocations also allow the placement of more objects in a
+>   * slab and thereby reduce object handling overhead. If the user has
+> - * requested a higher mininum order then we start with that one instead of
+> + * requested a higher minimum order then we start with that one instead of
+>   * the smallest order which will fit the object.
+>   */
+>  static inline int slab_order(int size, int min_objects,
+> @@ -1816,8 +1813,7 @@ static inline int slab_order(int size, i
+>  	if ((PAGE_SIZE << min_order) / size > 65535)
+>  		return get_order(size * 65535) - 1;
 >  
-> -static inline void *__kmalloc(size_t size, gfp_t flags)
-> +static __always_inline void *__kmalloc(size_t size, gfp_t flags)
->  {
->  	return kmalloc(size, flags);
->  }
-> diff --git a/mm/slob.c b/mm/slob.c
-> index a3ad667..23375ed 100644
-> --- a/mm/slob.c
-> +++ b/mm/slob.c
-> @@ -65,6 +65,7 @@
->  #include <linux/module.h>
->  #include <linux/rcupdate.h>
->  #include <linux/list.h>
-> +#include <linux/kmemtrace.h>
->  #include <asm/atomic.h>
+> -	for (order = max(min_order,
+> -				fls(min_objects * size - 1) - PAGE_SHIFT);
+> +	for (order = max(min_order, fls(min_objects * size - 1) - PAGE_SHIFT);
+>  			order <= max_order; order++) {
+>  
+>  		unsigned long slab_size = PAGE_SIZE << order;
+> Index: linux-2.6/include/linux/slub_def.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/slub_def.h
+> +++ linux-2.6/include/linux/slub_def.h
+> @@ -60,7 +60,12 @@ struct kmem_cache_node {
+>   * given order would contain.
+>   */
+>  struct kmem_cache_order_objects {
+> -	unsigned long x;
+> +	union {
+> +		u32 x;
+> +		struct {
+> +			u16 order, objects;
+> +		};
+> +	};
+>  };
 >  
 >  /*
-> @@ -463,27 +464,38 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
->  {
->  	unsigned int *m;
->  	int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
-> +	void *ret;
->  
->  	if (size < PAGE_SIZE - align) {
->  		if (!size)
->  			return ZERO_SIZE_PTR;
->  
->  		m = slob_alloc(size + align, gfp, align, node);
-> +
->  		if (!m)
->  			return NULL;
->  		*m = size;
-> -		return (void *)m + align;
-> +		ret = (void *)m + align;
-> +
-> +		kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_KMALLOC,
-> +					  _RET_IP_, ret,
-> +					  size, size + align, gfp, node);
->  	} else {
-> -		void *ret;
-> +		unsigned int order = get_order(size);
->  
-> -		ret = slob_new_page(gfp | __GFP_COMP, get_order(size), node);
-> +		ret = slob_new_page(gfp | __GFP_COMP, order, node);
->  		if (ret) {
->  			struct page *page;
->  			page = virt_to_page(ret);
->  			page->private = size;
->  		}
-> -		return ret;
-> +
-> +		kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_KMALLOC,
-> +					  _RET_IP_, ret,
-> +					  size, PAGE_SIZE << order, gfp, node);
->  	}
-> +
-> +	return ret;
->  }
->  EXPORT_SYMBOL(__kmalloc_node);
->  
-> @@ -501,6 +513,8 @@ void kfree(const void *block)
->  		slob_free(m, *m + align);
->  	} else
->  		put_page(&sp->page);
-> +
-> +	kmemtrace_mark_free(KMEMTRACE_TYPE_KMALLOC, _RET_IP_, block);
->  }
->  EXPORT_SYMBOL(kfree);
->  
-> @@ -569,10 +583,19 @@ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
->  {
->  	void *b;
->  
-> -	if (c->size < PAGE_SIZE)
-> +	if (c->size < PAGE_SIZE) {
->  		b = slob_alloc(c->size, flags, c->align, node);
-> -	else
-> +		kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_CACHE,
-> +					  _RET_IP_, b, c->size,
-> +					  SLOB_UNITS(c->size) * SLOB_UNIT,
-> +					  flags, node);
-> +	} else {
->  		b = slob_new_page(flags, get_order(c->size), node);
-> +		kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_CACHE,
-> +					  _RET_IP_, b, c->size,
-> +					  PAGE_SIZE << get_order(c->size),
-> +					  flags, node);
-> +	}
->  
->  	if (c->ctor)
->  		c->ctor(c, b);
-> @@ -608,6 +631,8 @@ void kmem_cache_free(struct kmem_cache *c, void *b)
->  	} else {
->  		__kmem_cache_free(b, c->size);
->  	}
-> +
-> +	kmemtrace_mark_free(KMEMTRACE_TYPE_CACHE, _RET_IP_, b);
->  }
->  EXPORT_SYMBOL(kmem_cache_free);
->  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
