@@ -1,28 +1,33 @@
-Message-ID: <488D7EF9.2020500@goop.org>
-Date: Mon, 28 Jul 2008 01:10:33 -0700
+Message-ID: <488D7F79.40102@goop.org>
+Date: Mon, 28 Jul 2008 01:12:41 -0700
 From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
 Subject: Re: How to get a sense of VM pressure
-References: <488A1398.7020004@goop.org> <200807261425.26318.nickpiggin@yahoo.com.au>
-In-Reply-To: <200807261425.26318.nickpiggin@yahoo.com.au>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+References: <488A1398.7020004@goop.org> <1217230570.6331.6.camel@twins>
+In-Reply-To: <1217230570.6331.6.camel@twins>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
+To: Peter Zijlstra <peterz@infradead.org>
 Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Virtualization Mailing List <virtualization@lists.osdl.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> A good start would be to register a "shrinker" (look at dcache or inode
-> cache for examples). Start off by allocating pages, and slow down or
-> stop or even release some of the pages back as you start getting feedback
-> back through your shrinker callback.
+Peter Zijlstra wrote:
+> Have a peek at this:
 >
-> Not perfect, but it should prevent livelocks.
+>   http://people.redhat.com/~riel/riel-OLS2006.pdf
+>
+> The refault patches have been posted several times, but nobody really
+> tried to use them for your problem.
 >   
 
-Thanks, that's a good starting place.
+Yep, Rik pointed the paper and patches out to me.  Seems like an 
+interesting approach to play with.  The refaulting measure is nice 
+because it should give a fairly good idea of how much memory you need to 
+add to get the fault rate down below some particular level.  It doesn't 
+help with shrinking, other than telling you you've gone too far, and how 
+much too far, which is definitely useful to know.
 
     J
 
