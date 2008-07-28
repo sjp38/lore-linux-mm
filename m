@@ -1,56 +1,50 @@
-Date: Mon, 28 Jul 2008 18:13:06 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [Bugme-new] [Bug 11156] New: Old kernels copy memory faster than
- new
-In-Reply-To: <20080724122642.b8ef2ac6.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0807281740580.12931@blonde.site>
-References: <bug-11156-10286@http.bugzilla.kernel.org/>
- <20080724122642.b8ef2ac6.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from edge04.upc.biz ([192.168.13.239]) by viefep17-int.chello.at
+          (InterMail vM.7.08.02.00 201-2186-121-20061213) with ESMTP
+          id <20080728171357.GQTF24448.viefep17-int.chello.at@edge04.upc.biz>
+          for <linux-mm@kvack.org>; Mon, 28 Jul 2008 19:13:57 +0200
+Subject: Re: [PATCH 12/30] mm: memory reserve management
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <1217264374.15724.42.camel@calx>
+References: <20080724140042.408642539@chello.nl>
+	 <20080724141530.127530749@chello.nl>
+	 <1217239564.7813.36.camel@penberg-laptop>  <1217240224.6331.32.camel@twins>
+	 <1217240994.7813.53.camel@penberg-laptop>  <1217241541.6331.42.camel@twins>
+	 <1217264374.15724.42.camel@calx>
+Content-Type: text/plain; charset=utf-8
+Date: Mon, 28 Jul 2008 19:13:46 +0200
+Message-Id: <1217265226.18049.24.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: smal.root@gmail.com
-Cc: linux-mm@kvack.org, bugme-daemon@bugzilla.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>
+To: Matt Mackall <mpm@selenic.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Neil Brown <neilb@suse.de>, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 24 Jul 2008, Andrew Morton wrote:
-> > http://bugzilla.kernel.org/show_bug.cgi?id=11156
-> > 
-> > Kernel - 2.6.25.4(own built)
-> > Copy speed - 1.7GByte/s
-> > 
-> > Kernel - 2.6.23.5(own built)
-> > Copy speed - 43.5GByte/s
-> > 
-> > Steps to reproduce:
-> > dd if=/dev/zero of=/dev/null bs=16M count=10000
+On Mon, 2008-07-28 at 11:59 -0500, Matt Mackall wrote:
+> On Mon, 2008-07-28 at 12:39 +0200, Peter Zijlstra wrote:
+> > Also, you might have noticed, I still need to do everything SLOB. The
+> > last time I rewrote all this code I was still hoping Linux would 'soon'
+> > have a single slab allocator, but evidently we're still going with 3 for
+> > now.. :-/
+> >
+> > So I guess I can no longer hide behind that and will have to bite the
+> > bullet and write the SLOB bits..
 > 
-> lol.  OK, who did that?
-> 
-> Perhaps ZERO_PAGE changes?
+> i>>?I haven't seen the rest of this thread, but I presume this is part of
+> your OOM-avoidance for network I/O framework?
 
-Yes, the ZERO_PAGE changes: readprofile clearly shows lots of time
-in clear_user() on 2.6.24 onwards, clearing each page instead of
-using the ZERO_PAGE.
+Yes indeed.
 
-I see Nick has already answered this, and the bug is now closed
-(guess he's on 2.6.23 whereas I'm on later ;).  I agree with him,
-copying from /dev/zero to /dev/null is not an operation which
-deserves VM tricks to optimize; but I wanted to add one point.
+> SLOB can be pretty easily expanded to handle a notion of independent
+> allocation arenas as there are only a couple global variables to switch
+> between. i>>?kfree will also return allocations to the page list (and
+> therefore arena) from whence they came. That may make it pretty simple
+> to create and prepopulate reserve pools.
 
-The particular awfulness of those dd rates (on machines I've
-tried I see new kernels as 10 to 30 times worse than old kernels
-at that test) owes a lot to the large blocksize (16M) being used.
-
-That blocksize will not fit in the processor's memory cache, so
-repeatedly clearing the pages is very slow.  Bring the blocksize
-down to something that easily fits in the L2 cache, perhaps 1M or
-256k, and new kernels then appear only twice(ish) as bad as old.
-
-Nothing to be proud of, but not nearly so bad as the bs=16M case.
-
-Hugh
+Right - currently we let all the reserves sit on the free page list. The
+advantage there is that it also helps the anti-frag stuff, due to having
+larger free lists.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
