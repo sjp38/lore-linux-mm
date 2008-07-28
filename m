@@ -1,95 +1,35 @@
-Date: Mon, 28 Jul 2008 21:40:00 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: + mm-remove-find_max_pfn_with_active_regions.patch added to -mm tree
-Message-ID: <20080728203959.GA29548@csn.ul.ie>
-References: <200807280313.m6S3DHDk017400@imap1.linux-foundation.org> <20080728091655.GC7965@csn.ul.ie> <86802c440807280415j5605822brb8836412a5c95825@mail.gmail.com> <20080728113836.GE7965@csn.ul.ie> <86802c440807281125g7d424f17v4b7c512929f45367@mail.gmail.com> <20080728191518.GA5352@csn.ul.ie> <86802c440807281238u63770318s8e665754f666c602@mail.gmail.com> <20080728200054.GB5352@csn.ul.ie> <86802c440807281314k56752cdcqcac542b6f1564036@mail.gmail.com>
+Message-ID: <488E3020.1040701@goop.org>
+Date: Mon, 28 Jul 2008 13:46:24 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <86802c440807281314k56752cdcqcac542b6f1564036@mail.gmail.com>
+Subject: Re: [PATCH 1/1] mm: unify pmd_free() implementation
+References: <alpine.LFD.1.10.0807280851130.3486@nehalem.linux-foundation.org>	<488DF119.2000004@gmail.com>	<20080729012656.566F.KOSAKI.MOTOHIRO@jp.fujitsu.com>	<488DFFB0.1090107@gmail.com> <20080728133030.8b29fa5a.akpm@linux-foundation.org>
+In-Reply-To: <20080728133030.8b29fa5a.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yinghai Lu <yhlu.kernel@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: righi.andrea@gmail.com, kosaki.motohiro@jp.fujitsu.com, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On (28/07/08 13:14), Yinghai Lu didst pronounce:
-> > <SNIP>
-> >
-> > I'm not seeing what different a rename of the parameter will do. Even if
-> > the parameter was renamed, it does not mean current trace information during
-> > memory initialisation needs to be outputted as KERN_INFO which is what this
-> > patch is doing. I am still failing to understand why you want this information
-> > to be generally available.
-> 
-> how about KERN_DEBUG?
-> 
-> please check
-> 
+Andrew Morton wrote:
+> I can second that.  See
+> http://userweb.kernel.org/~akpm/mmotm/broken-out/include-asm-generic-pgtable-nopmdh-macros-are-noxious-reason-435.patch
+>
+> Ingo cruelly ignored it.  Probably he's used to ignoring the comit
+> storm which I send in his direction - I'll need to resend it sometime.
+>
+> I'd consider that patch to be partial - we should demacroize the
+> surrounding similar functions too.  But that will require a bit more
+> testing.
 
-Still NAK due to the noise. Admittedly, I introduced the noise
-in the first place but it was complained about then as well. See
-http://lkml.org/lkml/2006/11/27/124 and later this
-http://lkml.org/lkml/2006/11/27/134 . 
+Its immediate neighbours should be easy enough (pmd_alloc_one, 
+__pmd_free_tlb), but any of the ones involving pmd_t risk #include hell 
+(though the earlier references to pud_t in inline functions suggest it 
+will work).  And pmd_addr_end is just ugly.
 
-At the risk of repeating myself, I am still failing to understand why you want
-this information to be generally available at any loglevel. My expectation is
-that the information is only of relevance when debugging memory initialisation
-problems in which case mminit_loglevel can be used.
-
-> Index: linux-2.6/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.orig/mm/page_alloc.c
-> +++ linux-2.6/mm/page_alloc.c
-> @@ -3418,8 +3418,7 @@ static void __paginginit free_area_init_
->                         PAGE_ALIGN(size * sizeof(struct page)) >> PAGE_SHIFT;
->                 if (realsize >= memmap_pages) {
->                         realsize -= memmap_pages;
-> -                       mminit_dprintk(MMINIT_TRACE, "memmap_init",
-> -                               "%s zone: %lu pages used for memmap\n",
-> +                       printk(KERN_DEBUG "%s zone: %lu pages used for
-> memmap\n",
->                                 zone_names[j], memmap_pages);
->                 } else
->                         printk(KERN_WARNING
-> @@ -3429,8 +3428,7 @@ static void __paginginit free_area_init_
->                 /* Account for reserved pages */
->                 if (j == 0 && realsize > dma_reserve) {
->                         realsize -= dma_reserve;
-> -                       mminit_dprintk(MMINIT_TRACE, "memmap_init",
-> -                                       "%s zone: %lu pages reserved\n",
-> +                       printk(KERN_DEBUG "%s zone: %lu pages reserved\n",
->                                         zone_names[0], dma_reserve);
->                 }
-> 
-> @@ -3572,8 +3570,7 @@ void __init add_active_range(unsigned in
->  {
->         int i;
-> 
-> -       mminit_dprintk(MMINIT_TRACE, "memory_register",
-> -                       "Entering add_active_range(%d, %#lx, %#lx) "
-> +       printk(KERN_DEBUG "Adding active range (%d, %#lx, %#lx) "
->                         "%d entries of %d used\n",
->                         nid, start_pfn, end_pfn,
->                         nr_nodemap_entries, MAX_ACTIVE_REGIONS);
-> @@ -3635,7 +3632,7 @@ void __init remove_active_range(unsigned
->         int i, j;
->         int removed = 0;
-> 
-> -       printk(KERN_DEBUG "remove_active_range (%d, %lu, %lu)\n",
-> +       printk(KERN_DEBUG "Removing active range (%d, %#lx, %#lx)\n",
->                           nid, start_pfn, end_pfn);
-> 
->         /* Find the old active region end and shrink */
-> 
-> 
-> YH
-> 
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
