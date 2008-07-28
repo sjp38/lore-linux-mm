@@ -1,69 +1,296 @@
-Subject: Re: [2.6 patch] unexport ksize
+Subject: Re: [RFC PATCH 2/4] kmemtrace: SLAB hooks.
 From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <20080722172116.GW14846@cs181140183.pp.htv.fi>
-References: <20080722172116.GW14846@cs181140183.pp.htv.fi>
-Date: Mon, 28 Jul 2008 12:33:26 +0300
-Message-Id: <1217237607.7813.6.camel@penberg-laptop>
+In-Reply-To: <1216751808-14428-3-git-send-email-eduard.munteanu@linux360.ro>
+References: <1216751808-14428-1-git-send-email-eduard.munteanu@linux360.ro>
+	 <1216751808-14428-2-git-send-email-eduard.munteanu@linux360.ro>
+	 <1216751808-14428-3-git-send-email-eduard.munteanu@linux360.ro>
+Date: Mon, 28 Jul 2008 12:37:14 +0300
+Message-Id: <1217237834.7813.9.camel@penberg-laptop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adrian Bunk <bunk@kernel.org>
-Cc: cl@linux-foundation.org, mpm@selenic.com, linux-mm@kvack.org
+To: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+Cc: cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rdunlap@xenotime.net, mpm@selenic.com, vegard.nossum@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-07-22 at 20:21 +0300, Adrian Bunk wrote:
-> This patch removes the obsolete and no longer used exports of ksize.
-
-Looks good to me.
-
-Christoph, Matt, ACK/NAK?
-
-> Signed-off-by: Adrian Bunk <bunk@kernel.org>
+On Tue, 2008-07-22 at 21:36 +0300, Eduard - Gabriel Munteanu wrote:
+> This adds hooks for the SLAB allocator, to allow tracing with kmemtrace.
 > 
+> Signed-off-by: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
 > ---
+>  include/linux/slab_def.h |   68 ++++++++++++++++++++++++++++++++++++++------
+>  mm/slab.c                |   71 +++++++++++++++++++++++++++++++++++++++++----
+>  2 files changed, 123 insertions(+), 16 deletions(-)
 > 
->  mm/slab.c |    1 -
->  mm/slob.c |    1 -
->  mm/slub.c |    1 -
->  3 files changed, 3 deletions(-)
-> 
-> 1e0e054cd28415dd8d1ed5443085469fcc6633ac 
+> diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
+> index 39c3a5e..7555ce9 100644
+> --- a/include/linux/slab_def.h
+> +++ b/include/linux/slab_def.h
+> @@ -14,6 +14,7 @@
+>  #include <asm/page.h>		/* kmalloc_sizes.h needs PAGE_SIZE */
+>  #include <asm/cache.h>		/* kmalloc_sizes.h needs L1_CACHE_BYTES */
+>  #include <linux/compiler.h>
+> +#include <linux/kmemtrace.h>
+>  
+>  /* Size description struct for general caches. */
+>  struct cache_sizes {
+> @@ -28,8 +29,26 @@ extern struct cache_sizes malloc_sizes[];
+>  void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
+>  void *__kmalloc(size_t size, gfp_t flags);
+>  
+> -static inline void *kmalloc(size_t size, gfp_t flags)
+> +#ifdef CONFIG_KMEMTRACE
+> +extern void *kmem_cache_alloc_notrace(struct kmem_cache *cachep, gfp_t flags);
+> +extern size_t slab_buffer_size(struct kmem_cache *cachep);
+> +#else
+> +static __always_inline void *
+> +kmem_cache_alloc_notrace(struct kmem_cache *cachep, gfp_t flags)
+>  {
+> +	return kmem_cache_alloc(cachep, flags);
+> +}
+> +static inline size_t slab_buffer_size(struct kmem_cache *cachep)
+> +{
+> +	return 0;
+> +}
+
+You're introducing this to work around the fact that struct kmem_cache
+is defined in mm/slab.c? Please note that for kmemcheck we already moved
+struct kmem_cache to a header file so we should be able to use the same
+approach.
+
+> +#endif
+> +
+> +static __always_inline void *kmalloc(size_t size, gfp_t flags)
+> +{
+> +	struct kmem_cache *cachep;
+> +	void *ret;
+> +
+>  	if (__builtin_constant_p(size)) {
+>  		int i = 0;
+>  
+> @@ -50,10 +69,17 @@ static inline void *kmalloc(size_t size, gfp_t flags)
+>  found:
+>  #ifdef CONFIG_ZONE_DMA
+>  		if (flags & GFP_DMA)
+> -			return kmem_cache_alloc(malloc_sizes[i].cs_dmacachep,
+> -						flags);
+> +			cachep = malloc_sizes[i].cs_dmacachep;
+> +		else
+>  #endif
+> -		return kmem_cache_alloc(malloc_sizes[i].cs_cachep, flags);
+> +			cachep = malloc_sizes[i].cs_cachep;
+> +
+> +		ret = kmem_cache_alloc_notrace(cachep, flags);
+> +
+> +		kmemtrace_mark_alloc(KMEMTRACE_TYPE_KMALLOC, _THIS_IP_, ret,
+> +				     size, slab_buffer_size(cachep), flags);
+> +
+> +		return ret;
+>  	}
+>  	return __kmalloc(size, flags);
+>  }
+> @@ -62,8 +88,25 @@ found:
+>  extern void *__kmalloc_node(size_t size, gfp_t flags, int node);
+>  extern void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
+>  
+> -static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+> +#ifdef CONFIG_KMEMTRACE
+> +extern void *kmem_cache_alloc_node_notrace(struct kmem_cache *cachep,
+> +					   gfp_t flags,
+> +					   int nodeid);
+> +#else
+> +static __always_inline void *
+> +kmem_cache_alloc_node_notrace(struct kmem_cache *cachep,
+> +			      gfp_t flags,
+> +			      int nodeid)
+> +{
+> +	return kmem_cache_alloc_node(cachep, flags, nodeid);
+> +}
+> +#endif
+> +
+> +static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+>  {
+> +	struct kmem_cache *cachep;
+> +	void *ret;
+> +
+>  	if (__builtin_constant_p(size)) {
+>  		int i = 0;
+>  
+> @@ -84,11 +127,18 @@ static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+>  found:
+>  #ifdef CONFIG_ZONE_DMA
+>  		if (flags & GFP_DMA)
+> -			return kmem_cache_alloc_node(malloc_sizes[i].cs_dmacachep,
+> -						flags, node);
+> +			cachep = malloc_sizes[i].cs_dmacachep;
+> +		else
+>  #endif
+> -		return kmem_cache_alloc_node(malloc_sizes[i].cs_cachep,
+> -						flags, node);
+> +			cachep = malloc_sizes[i].cs_cachep;
+> +
+> +		ret = kmem_cache_alloc_node_notrace(cachep, flags, node);
+> +
+> +		kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_KMALLOC, _THIS_IP_,
+> +					  ret, size, slab_buffer_size(cachep),
+> +					  flags, node);
+> +
+> +		return ret;
+>  	}
+>  	return __kmalloc_node(size, flags, node);
+>  }
 > diff --git a/mm/slab.c b/mm/slab.c
-> index 052e7d6..06bc560 100644
+> index 046607f..1496962 100644
 > --- a/mm/slab.c
 > +++ b/mm/slab.c
-> @@ -4473,4 +4473,3 @@ size_t ksize(const void *objp)
+> @@ -111,6 +111,7 @@
+>  #include	<linux/rtmutex.h>
+>  #include	<linux/reciprocal_div.h>
+>  #include	<linux/debugobjects.h>
+> +#include	<linux/kmemtrace.h>
 >  
->  	return obj_size(virt_to_cache(objp));
->  }
-> -EXPORT_SYMBOL(ksize);
-> diff --git a/mm/slob.c b/mm/slob.c
-> index a3ad667..0e22be9 100644
-> --- a/mm/slob.c
-> +++ b/mm/slob.c
-> @@ -519,7 +519,6 @@ size_t ksize(const void *block)
->  	else
->  		return sp->page.private;
->  }
-> -EXPORT_SYMBOL(ksize);
+>  #include	<asm/cacheflush.h>
+>  #include	<asm/tlbflush.h>
+> @@ -567,6 +568,14 @@ static void **dbg_userword(struct kmem_cache *cachep, void *objp)
 >  
->  struct kmem_cache {
->  	unsigned int size, align;
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 6d4a49c..8a2cb94 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -2746,7 +2746,6 @@ size_t ksize(const void *object)
->  	 */
->  	return s->size;
->  }
-> -EXPORT_SYMBOL(ksize);
+>  #endif
 >  
->  void kfree(const void *x)
+> +#ifdef CONFIG_KMEMTRACE
+> +size_t slab_buffer_size(struct kmem_cache *cachep)
+> +{
+> +	return cachep->buffer_size;
+> +}
+> +EXPORT_SYMBOL(slab_buffer_size);
+> +#endif
+> +
+>  /*
+>   * Do not go above this order unless 0 objects fit into the slab.
+>   */
+> @@ -3621,10 +3630,23 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp)
+>   */
+>  void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 >  {
+> -	return __cache_alloc(cachep, flags, __builtin_return_address(0));
+> +	void *ret = __cache_alloc(cachep, flags, __builtin_return_address(0));
+> +
+> +	kmemtrace_mark_alloc(KMEMTRACE_TYPE_CACHE, _RET_IP_, ret,
+> +			     obj_size(cachep), cachep->buffer_size, flags);
+> +
+> +	return ret;
+>  }
+>  EXPORT_SYMBOL(kmem_cache_alloc);
+>  
+> +#ifdef CONFIG_KMEMTRACE
+> +void *kmem_cache_alloc_notrace(struct kmem_cache *cachep, gfp_t flags)
+> +{
+> +	return __cache_alloc(cachep, flags, __builtin_return_address(0));
+> +}
+> +EXPORT_SYMBOL(kmem_cache_alloc_notrace);
+> +#endif
+> +
+>  /**
+>   * kmem_ptr_validate - check if an untrusted pointer might be a slab entry.
+>   * @cachep: the cache we're checking against
+> @@ -3669,23 +3691,47 @@ out:
+>  #ifdef CONFIG_NUMA
+>  void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+>  {
+> -	return __cache_alloc_node(cachep, flags, nodeid,
+> -			__builtin_return_address(0));
+> +	void *ret = __cache_alloc_node(cachep, flags, nodeid,
+> +				       __builtin_return_address(0));
+> +
+> +	kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_CACHE, _RET_IP_, ret,
+> +				  obj_size(cachep), cachep->buffer_size,
+> +				  flags, nodeid);
+> +
+> +	return ret;
+>  }
+>  EXPORT_SYMBOL(kmem_cache_alloc_node);
+>  
+> +#ifdef CONFIG_KMEMTRACE
+> +void *kmem_cache_alloc_node_notrace(struct kmem_cache *cachep,
+> +				    gfp_t flags,
+> +				    int nodeid)
+> +{
+> +	return __cache_alloc_node(cachep, flags, nodeid,
+> +				  __builtin_return_address(0));
+> +}
+> +EXPORT_SYMBOL(kmem_cache_alloc_node_notrace);
+> +#endif
+> +
+>  static __always_inline void *
+>  __do_kmalloc_node(size_t size, gfp_t flags, int node, void *caller)
+>  {
+>  	struct kmem_cache *cachep;
+> +	void *ret;
+>  
+>  	cachep = kmem_find_general_cachep(size, flags);
+>  	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
+>  		return cachep;
+> -	return kmem_cache_alloc_node(cachep, flags, node);
+> +	ret = kmem_cache_alloc_node_notrace(cachep, flags, node);
+> +
+> +	kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_KMALLOC,
+> +				  (unsigned long) caller, ret,
+> +				  size, cachep->buffer_size, flags, node);
+> +
+> +	return ret;
+>  }
+>  
+> -#ifdef CONFIG_DEBUG_SLAB
+> +#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_KMEMTRACE)
+>  void *__kmalloc_node(size_t size, gfp_t flags, int node)
+>  {
+>  	return __do_kmalloc_node(size, flags, node,
+> @@ -3718,6 +3764,7 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
+>  					  void *caller)
+>  {
+>  	struct kmem_cache *cachep;
+> +	void *ret;
+>  
+>  	/* If you want to save a few bytes .text space: replace
+>  	 * __ with kmem_.
+> @@ -3727,11 +3774,17 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
+>  	cachep = __find_general_cachep(size, flags);
+>  	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
+>  		return cachep;
+> -	return __cache_alloc(cachep, flags, caller);
+> +	ret = __cache_alloc(cachep, flags, caller);
+> +
+> +	kmemtrace_mark_alloc(KMEMTRACE_TYPE_KMALLOC,
+> +			     (unsigned long) caller, ret,
+> +			     size, cachep->buffer_size, flags);
+> +
+> +	return ret;
+>  }
+>  
 > 
+> -#ifdef CONFIG_DEBUG_SLAB
+> +#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_KMEMTRACE)
+>  void *__kmalloc(size_t size, gfp_t flags)
+>  {
+>  	return __do_kmalloc(size, flags, __builtin_return_address(0));
+> @@ -3770,6 +3823,8 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
+>  		debug_check_no_obj_freed(objp, obj_size(cachep));
+>  	__cache_free(cachep, objp);
+>  	local_irq_restore(flags);
+> +
+> +	kmemtrace_mark_free(KMEMTRACE_TYPE_CACHE, _RET_IP_, objp);
+>  }
+>  EXPORT_SYMBOL(kmem_cache_free);
+>  
+> @@ -3796,6 +3851,8 @@ void kfree(const void *objp)
+>  	debug_check_no_obj_freed(objp, obj_size(c));
+>  	__cache_free(c, (void *)objp);
+>  	local_irq_restore(flags);
+> +
+> +	kmemtrace_mark_free(KMEMTRACE_TYPE_KMALLOC, _RET_IP_, objp);
+>  }
+>  EXPORT_SYMBOL(kfree);
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
