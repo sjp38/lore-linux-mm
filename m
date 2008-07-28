@@ -1,225 +1,47 @@
-Received: by rv-out-0708.google.com with SMTP id f25so4970139rvb.26
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2008 13:14:11 -0700 (PDT)
-Message-ID: <86802c440807281314k56752cdcqcac542b6f1564036@mail.gmail.com>
-Date: Mon, 28 Jul 2008 13:14:11 -0700
-From: "Yinghai Lu" <yhlu.kernel@gmail.com>
-Subject: Re: + mm-remove-find_max_pfn_with_active_regions.patch added to -mm tree
-In-Reply-To: <20080728200054.GB5352@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Mon, 28 Jul 2008 13:30:30 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/1] mm: unify pmd_free() implementation
+Message-Id: <20080728133030.8b29fa5a.akpm@linux-foundation.org>
+In-Reply-To: <488DFFB0.1090107@gmail.com>
+References: <alpine.LFD.1.10.0807280851130.3486@nehalem.linux-foundation.org>
+	<488DF119.2000004@gmail.com>
+	<20080729012656.566F.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<488DFFB0.1090107@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <200807280313.m6S3DHDk017400@imap1.linux-foundation.org>
-	 <20080728091655.GC7965@csn.ul.ie>
-	 <86802c440807280415j5605822brb8836412a5c95825@mail.gmail.com>
-	 <20080728113836.GE7965@csn.ul.ie>
-	 <86802c440807281125g7d424f17v4b7c512929f45367@mail.gmail.com>
-	 <20080728191518.GA5352@csn.ul.ie>
-	 <86802c440807281238u63770318s8e665754f666c602@mail.gmail.com>
-	 <20080728200054.GB5352@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: righi.andrea@gmail.com
+Cc: kosaki.motohiro@jp.fujitsu.com, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 28, 2008 at 1:00 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> On (28/07/08 12:38), Yinghai Lu didst pronounce:
->> On Mon, Jul 28, 2008 at 12:15 PM, Mel Gorman <mel@csn.ul.ie> wrote:
->> > On (28/07/08 11:25), Yinghai Lu didst pronounce:
->> >> On Mon, Jul 28, 2008 at 4:38 AM, Mel Gorman <mel@csn.ul.ie> wrote:
->> >> > On (28/07/08 04:15), Yinghai Lu didst pronounce:
->> >> >> On Mon, Jul 28, 2008 at 2:16 AM, Mel Gorman <mel@csn.ul.ie> wrote:
->> >> >> > On (27/07/08 20:13), akpm@linux-foundation.org didst pronounce:
->> >> >> >>
->> >> >> >> The patch titled
->> >> >> >>      mm: remove find_max_pfn_with_active_regions
->> >> >> >> has been added to the -mm tree.  Its filename is
->> >> >> >>      mm-remove-find_max_pfn_with_active_regions.patch
->> >> >> >>
->> >> >> >> Before you just go and hit "reply", please:
->> >> >> >>    a) Consider who else should be cc'ed
->> >> >> >>    b) Prefer to cc a suitable mailing list as well
->> >> >> >>    c) Ideally: find the original patch on the mailing list and do a
->> >> >> >>       reply-to-all to that, adding suitable additional cc's
->> >> >> >>
->> >> >> >> *** Remember to use Documentation/SubmitChecklist when testing your code ***
->> >> >> >>
->> >> >> >> See http://www.zip.com.au/~akpm/linux/patches/stuff/added-to-mm.txt to find
->> >> >> >> out what to do about this
->> >> >> >>
->> >> >> >> The current -mm tree may be found at http://userweb.kernel.org/~akpm/mmotm/
->> >> >> >>
->> >> >> >> ------------------------------------------------------
->> >> >> >> Subject: mm: remove find_max_pfn_with_active_regions
->> >> >> >> From: Yinghai Lu <yhlu.kernel@gmail.com>
->> >> >> >>
->> >> >> >> It has no user now
->> >> >> >>
->> >> >> >> Also print out info about adding/removing active regions.
->> >> >> >>
->> >> >> >> Signed-off-by: Yinghai Lu <yhlu.kernel@gmail.com>
->> >> >> >> Cc: Mel Gorman <mel@csn.ul.ie>
->> >> >> >> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
->> >> >> >> ---
->> >> >> >>
->> >> >> >>  include/linux/mm.h |    1 -
->> >> >> >>  mm/page_alloc.c    |   22 ++--------------------
->> >> >> >>  2 files changed, 2 insertions(+), 21 deletions(-)
->> >> >> >>
->> >> >> >> diff -puN include/linux/mm.h~mm-remove-find_max_pfn_with_active_regions include/linux/mm.h
->> >> >> >> --- a/include/linux/mm.h~mm-remove-find_max_pfn_with_active_regions
->> >> >> >> +++ a/include/linux/mm.h
->> >> >> >> @@ -1041,7 +1041,6 @@ extern unsigned long absent_pages_in_ran
->> >> >> >>  extern void get_pfn_range_for_nid(unsigned int nid,
->> >> >> >>                       unsigned long *start_pfn, unsigned long *end_pfn);
->> >> >> >>  extern unsigned long find_min_pfn_with_active_regions(void);
->> >> >> >> -extern unsigned long find_max_pfn_with_active_regions(void);
->> >> >> >>  extern void free_bootmem_with_active_regions(int nid,
->> >> >> >>                                               unsigned long max_low_pfn);
->> >> >> >>  typedef int (*work_fn_t)(unsigned long, unsigned long, void *);
->> >> >> >> diff -puN mm/page_alloc.c~mm-remove-find_max_pfn_with_active_regions mm/page_alloc.c
->> >> >> >> --- a/mm/page_alloc.c~mm-remove-find_max_pfn_with_active_regions
->> >> >> >> +++ a/mm/page_alloc.c
->> >> >> >> @@ -3572,8 +3572,7 @@ void __init add_active_range(unsigned in
->> >> >> >>  {
->> >> >> >>       int i;
->> >> >> >>
->> >> >> >> -     mminit_dprintk(MMINIT_TRACE, "memory_register",
->> >> >> >> -                     "Entering add_active_range(%d, %#lx, %#lx) "
->> >> >> >> +     printk(KERN_INFO "Adding active range (%d, %#lx, %#lx) "
->> >> >> >>                       "%d entries of %d used\n",
->> >> >> >>                       nid, start_pfn, end_pfn,
->> >> >> >>                       nr_nodemap_entries, MAX_ACTIVE_REGIONS);
->> >> >> >
->> >> >> > Why are the mminit_dprintk() calls being converted to printk(KERN_INFO)?  On
->> >> >> > some machines, this will be very noisy. For example, some POWER configurations
->> >> >> > will print out one line for every 16MB of memory with this patch.
->> >> >>
->> >> >> I don't know, on x86 esp the first node, that is some informative.
->> >> >> or change that back to printk(KERN_DEBUG) ?
->> >> >>
->> >> >> hope the user put debug on command_line to get enough info.
->> >> >>
->> >> >> otherwise without "mminit_loglevel=" will get that debug info.
->> >> >>
->> >> >
->> >> > It's the type of information that is only useful when debugging memory
->> >> > initialisation problems. The more friendly information can be found at
->> >> > the lines starting with
->> >> >
->> >> > early_node_map[1] active PFN ranges
->> >> >
->> >> > and this is already logged. The fact that mminit_loglevel needs loglevel
->> >> > needs to be at KERN_DEBUG level is already documented for the mminit_loglevel=
->> >> > parameter. I still am not convinced that these needs to be logged at
->> >> > KERN_INFO level.
->> >>
->> >> I hope: when ask user to append "debug" we can get enough debug info
->> >> without other extra ...
->> >>
->> >
->> > I disagree. The memory init output is very verbose, which is why the
->> > mminit_debug framework was made quiet by default.  In the event it is useful,
->> > it is because memory initialisation broken and at that point, it's simple
->> > enough to request the user to add the necessary options. It shouldn't be
->> > visible by default. This is similar in principal to acpi.debug_level for
->> > example.
->>
->> not that verbose,  on my 8 sockets system
->>
->
-> Sure, on that system it's fine, but on others it is noisy. As I pointed
-> out already, on certain PPC64 machines (all LPARS for example), this will
-> output one line per 16MB of memory in the system which is excessive for a
-> system that is booting correctly.  On IA-64, it'll be at least 1 line per
-> node which gets noisy. This http://lkml.org/lkml/2006/4/18/206 is a log of
-> an IA-64 machine with an early version of arch-independent zone-sizing. See
-> how it is outputting 4 lines per node on the system.
->
->> <dmesg log snipped>
->>
->
-> I'm not sure what I'm meant to be getting from this log. Glancing through,
-> it appeared to be printing out what was expected with the mminit_loglevel
-> settings.
->
->> BTW, please check if mminit_loglevel=3 and mminit_loglevel=4 is the same?
->>
->
-> Based on this definition,
->
-> enum mminit_level {
->        MMINIT_WARNING,
->        MMINIT_VERIFY,
->        MMINIT_TRACE
-> };
->
-> I'd expect it to be the same. I guess the documentation should have said
-> "3" and not "4" although it doesn't make much of a difference in terms of
-> what the user gets with either value.
->
->> suggest to switch to mminit_debug, and that will be used in addition
->> to "debug" to print out spew info for ...
->>
->
-> I'm not seeing what different a rename of the parameter will do. Even if
-> the parameter was renamed, it does not mean current trace information during
-> memory initialisation needs to be outputted as KERN_INFO which is what this
-> patch is doing. I am still failing to understand why you want this information
-> to be generally available.
+On Mon, 28 Jul 2008 19:19:44 +0200
+Andrea Righi <righi.andrea@gmail.com> wrote:
 
-how about KERN_DEBUG?
+> KOSAKI Motohiro wrote:
+> >> yep! clear.
+> >>
+> >> Ok, in this case wouldn't be better at least to define pud_free() as:
+> >>
+> >> static inline pud_free(struct mm_struct *mm, pmd_t *pmd)
+> >> {
+> >> }
+> > 
+> > I also like this :)
+> 
+> ok, a simpler patch using the inline function will follow.
+> 
 
-please check
+I can second that.  See
+http://userweb.kernel.org/~akpm/mmotm/broken-out/include-asm-generic-pgtable-nopmdh-macros-are-noxious-reason-435.patch
 
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c
-+++ linux-2.6/mm/page_alloc.c
-@@ -3418,8 +3418,7 @@ static void __paginginit free_area_init_
-                        PAGE_ALIGN(size * sizeof(struct page)) >> PAGE_SHIFT;
-                if (realsize >= memmap_pages) {
-                        realsize -= memmap_pages;
--                       mminit_dprintk(MMINIT_TRACE, "memmap_init",
--                               "%s zone: %lu pages used for memmap\n",
-+                       printk(KERN_DEBUG "%s zone: %lu pages used for
-memmap\n",
-                                zone_names[j], memmap_pages);
-                } else
-                        printk(KERN_WARNING
-@@ -3429,8 +3428,7 @@ static void __paginginit free_area_init_
-                /* Account for reserved pages */
-                if (j == 0 && realsize > dma_reserve) {
-                        realsize -= dma_reserve;
--                       mminit_dprintk(MMINIT_TRACE, "memmap_init",
--                                       "%s zone: %lu pages reserved\n",
-+                       printk(KERN_DEBUG "%s zone: %lu pages reserved\n",
-                                        zone_names[0], dma_reserve);
-                }
+Ingo cruelly ignored it.  Probably he's used to ignoring the comit
+storm which I send in his direction - I'll need to resend it sometime.
 
-@@ -3572,8 +3570,7 @@ void __init add_active_range(unsigned in
- {
-        int i;
-
--       mminit_dprintk(MMINIT_TRACE, "memory_register",
--                       "Entering add_active_range(%d, %#lx, %#lx) "
-+       printk(KERN_DEBUG "Adding active range (%d, %#lx, %#lx) "
-                        "%d entries of %d used\n",
-                        nid, start_pfn, end_pfn,
-                        nr_nodemap_entries, MAX_ACTIVE_REGIONS);
-@@ -3635,7 +3632,7 @@ void __init remove_active_range(unsigned
-        int i, j;
-        int removed = 0;
-
--       printk(KERN_DEBUG "remove_active_range (%d, %lu, %lu)\n",
-+       printk(KERN_DEBUG "Removing active range (%d, %#lx, %#lx)\n",
-                          nid, start_pfn, end_pfn);
-
-        /* Find the old active region end and shrink */
-
-
-YH
+I'd consider that patch to be partial - we should demacroize the
+surrounding similar functions too.  But that will require a bit more
+testing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
