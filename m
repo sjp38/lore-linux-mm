@@ -1,125 +1,80 @@
-Date: Mon, 28 Jul 2008 18:34:07 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [rfc][patch 1/3] mm: vmap rewrite
-Message-ID: <20080728233407.GB10501@sgi.com>
-References: <20080728123438.GA13926@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080728123438.GA13926@wotan.suse.de>
+Date: Mon, 28 Jul 2008 16:41:24 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: PERF: performance tests with the split LRU VM in -mm
+Message-Id: <20080728164124.8240eabe.akpm@linux-foundation.org>
+In-Reply-To: <20080728105742.50d6514e@cuia.bos.redhat.com>
+References: <20080724222510.3bbbbedc@bree.surriel.com>
+	<20080728105742.50d6514e@cuia.bos.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, xfs@oss.sgi.com, xen-devel@lists.xensource.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, dri-devel@lists.sourceforge.net
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> After:
->  78406 total                                      0.0081
->  40053 default_idle                              89.4040
->  33576 ia64_spinlock_contention                 349.7500 
->   1650 _spin_lock                                17.1875
+On Mon, 28 Jul 2008 10:57:42 -0400
+Rik van Riel <riel@redhat.com> wrote:
 
-Here is a patch that will unroll those two sample and let you see which
-function is hitting the contention.  This has been submitted and
-rejected at least once a few years ago.  I keep and old copy around
-because it is often very handy.
+> On Thu, 24 Jul 2008 22:25:10 -0400
+> Rik van Riel <riel@redhat.com> wrote:
+> 
+> >   TEST 1: dd if=/dev/sda of=/dev/null bs=1M
+> > 
+> > kernel  speed    swap used
+> > 
+> > 2.6.26  111MB/s  500kB
+> > -mm     110MB/s  59MB     (ouch, system noticably slower)
+> > noforce	111MB/s  128kB
+> > stream  108MB/s  0        (slight regression, not sure why yet)
+> > 
+> > This patch shows that the split LRU VM in -mm has a problem
+> > with large streaming IOs: the working set gets pushed out of
+> > memory, which makes doing anything else during the big streaming
+> > IO kind of painful.
+> > 
+> > However, either of the two patches posted fixes that problem,
+> > though at a slight performance penalty for the "stream" patch.
+> 
+> OK, the throughput number with this test turns out not to mean
+> nearly as much as I thought.
+> 
+> Switching off CPU frequency scaling, pinning the CPUs at the
+> highest speed, resulted in a throughput of only 102MB/s.
+> 
+> My suspicion is that faster running code on the CPU results
+> in IOs being sent down to the device faster, resulting in
+> smaller IOs and lower throughput.
+> 
+> This would be promising for the "stream" patch, which makes
+> choosing between the two patches harder :)
+> 
+> Andrew, what is your preference between:
+> 	http://lkml.org/lkml/2008/7/15/465
+> and
+> 	http://marc.info/?l=linux-mm&m=121683855132630&w=2
+> 
 
-I have not tested it in a couple years (usually working on performance with
-a SLES kernel).  It applied with a couple minor fixups so I assume it
-works.  If not, please let me know.
+Boy.  They both seem rather hacky special-cases.  But that doesn't mean
+that they're undesirable hacky special-cases.  I guess the second one
+looks a bit more "algorithmic" and a bit less hacky-special-case.  But
+it all depends on testing..
 
+On a different topic, these:
 
+vmscan-give-referenced-active-and-unmapped-pages-a-second-trip-around-the-lru.patch
+vm-dont-run-touch_buffer-during-buffercache-lookups.patch
 
-Index: ia64_spinlock_contention/arch/ia64/kernel/head.S
-===================================================================
---- ia64_spinlock_contention.orig/arch/ia64/kernel/head.S	2008-07-28 17:35:21.000000000 -0500
-+++ ia64_spinlock_contention/arch/ia64/kernel/head.S	2008-07-28 17:35:51.000000000 -0500
-@@ -1137,6 +1137,8 @@ GLOBAL_ENTRY(ia64_spinlock_contention_pr
- 	tbit.nz p15,p0=r27,IA64_PSR_I_BIT
- 	.restore sp		// pop existing prologue after next insn
- 	mov b6 = r28
-+	.global ia64_spinlock_contention_pre3_4_beg	// for kernprof
-+ia64_spinlock_contention_pre3_4_beg:
- 	.prologue
- 	.save ar.pfs, r0
- 	.altrp b6
-@@ -1185,6 +1187,8 @@ GLOBAL_ENTRY(ia64_spinlock_contention)
- (p14)	br.cond.sptk.few .wait
- 
- 	br.ret.sptk.many b6	// lock is now taken
-+	.global ia64_spinlock_contention_end	// for determining if we are in ia64_spinlock_contention code.
-+ia64_spinlock_contention_end:
- END(ia64_spinlock_contention)
- 
- #endif
-Index: ia64_spinlock_contention/arch/ia64/kernel/ia64_ksyms.c
-===================================================================
---- ia64_spinlock_contention.orig/arch/ia64/kernel/ia64_ksyms.c	2008-07-28 17:35:21.000000000 -0500
-+++ ia64_spinlock_contention/arch/ia64/kernel/ia64_ksyms.c	2008-07-28 17:35:51.000000000 -0500
-@@ -95,6 +95,10 @@ EXPORT_SYMBOL(unw_init_running);
-  */
- extern char ia64_spinlock_contention_pre3_4;
- EXPORT_SYMBOL(ia64_spinlock_contention_pre3_4);
-+extern char ia64_spinlock_contention_pre3_4_beg;
-+EXPORT_SYMBOL(ia64_spinlock_contention_pre3_4_beg);
-+extern char ia64_spinlock_contention_pre3_4_end;
-+EXPORT_SYMBOL(ia64_spinlock_contention_pre3_4_end);
- #  else
- /*
-  * This is not a normal routine and we don't want a function descriptor for it, so we use
-@@ -102,6 +106,8 @@ EXPORT_SYMBOL(ia64_spinlock_contention_p
-  */
- extern char ia64_spinlock_contention;
- EXPORT_SYMBOL(ia64_spinlock_contention);
-+extern char ia64_spinlock_contention_end;
-+EXPORT_SYMBOL(ia64_spinlock_contention_end);
- #  endif
- # endif
- #endif
-Index: ia64_spinlock_contention/arch/ia64/kernel/perfmon_default_smpl.c
-===================================================================
---- ia64_spinlock_contention.orig/arch/ia64/kernel/perfmon_default_smpl.c	2008-07-28 17:35:21.000000000 -0500
-+++ ia64_spinlock_contention/arch/ia64/kernel/perfmon_default_smpl.c	2008-07-28 18:18:56.000000000 -0500
-@@ -11,6 +11,7 @@
- #include <linux/init.h>
- #include <asm/delay.h>
- #include <linux/smp.h>
-+#include <linux/spinlock.h>
- 
- #include <asm/perfmon.h>
- #include <asm/perfmon_default_smpl.h>
-@@ -98,6 +99,16 @@ default_init(struct task_struct *task, v
- 	return 0;
- }
- 
-+#ifdef CONFIG_SMP
-+#if __GNUC__ < 3 || (__GNUC__ == 3 && __GNUC_MINOR__ < 3)
-+extern char ia64_spinlock_contention_pre3_4_beg[], ia64_spinlock_contention_pre3_4_end[];
-+#define ia64_spinlock_contention		ia64_spinlock_contention_pre3_4_beg
-+#define ia64_spinlock_contention_end		ia64_spinlock_contention_pre3_4_end
-+#else
-+extern char ia64_spinlock_contention[], ia64_spinlock_contention_end[];
-+#endif
-+#endif
-+
- static int
- default_handler(struct task_struct *task, void *buf, pfm_ovfl_arg_t *arg, struct pt_regs *regs, unsigned long stamp)
- {
-@@ -164,6 +175,14 @@ default_handler(struct task_struct *task
- 	 * where did the fault happen (includes slot number)
- 	 */
- 	ent->ip = regs->cr_iip | ((regs->cr_ipsr >> 41) & 0x3);
-+#ifdef CONFIG_SMP
-+	/* Fix up the ip for code in the spinlock contention path. */
-+	if ((ent->ip >= (unsigned long)ia64_spinlock_contention) &&
-+	    (ent->ip < (unsigned long)ia64_spinlock_contention_end))
-+		ent->ip = regs->b6;
-+#endif
-+	if (in_lock_functions(ent->ip))
-+		ent->ip = regs->r28;
- 
- 	ent->tstamp    = stamp;
- 	ent->cpu       = smp_processor_id();
+have been floating about in -mm for ages, awaiting demonstration that
+they're a net benefit.  But all of this new page-reclaim rework was
+built on top of those two patches and incorporates and retains them.
+
+I could toss them out, but that would require some rework and would
+partially invalidate previous testing and who knows, they _might_ be
+good patches.  Or they might not be.
+
+What are your thoughts?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
