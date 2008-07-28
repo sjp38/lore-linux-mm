@@ -1,47 +1,40 @@
-Date: Mon, 28 Jul 2008 13:30:30 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/1] mm: unify pmd_free() implementation
-Message-Id: <20080728133030.8b29fa5a.akpm@linux-foundation.org>
-In-Reply-To: <488DFFB0.1090107@gmail.com>
-References: <alpine.LFD.1.10.0807280851130.3486@nehalem.linux-foundation.org>
-	<488DF119.2000004@gmail.com>
-	<20080729012656.566F.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<488DFFB0.1090107@gmail.com>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m6SKXa0i021200
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 16:33:36 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m6SKXQM9039300
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 14:33:26 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m6SKXQd3008838
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 14:33:26 -0600
+Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <cover.1216928613.git.ebmunson@us.ibm.com>
+References: <cover.1216928613.git.ebmunson@us.ibm.com>
+Content-Type: text/plain
+Date: Mon, 28 Jul 2008 13:33:24 -0700
+Message-Id: <1217277204.23502.36.camel@nimitz>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: righi.andrea@gmail.com
-Cc: kosaki.motohiro@jp.fujitsu.com, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>
+To: Eric Munson <ebmunson@us.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Jul 2008 19:19:44 +0200
-Andrea Righi <righi.andrea@gmail.com> wrote:
-
-> KOSAKI Motohiro wrote:
-> >> yep! clear.
-> >>
-> >> Ok, in this case wouldn't be better at least to define pud_free() as:
-> >>
-> >> static inline pud_free(struct mm_struct *mm, pmd_t *pmd)
-> >> {
-> >> }
-> > 
-> > I also like this :)
+On Mon, 2008-07-28 at 12:17 -0700, Eric Munson wrote:
 > 
-> ok, a simpler patch using the inline function will follow.
-> 
+> This patch stack introduces a personality flag that indicates the
+> kernel
+> should setup the stack as a hugetlbfs-backed region. A userspace
+> utility
+> may set this flag then exec a process whose stack is to be backed by
+> hugetlb pages.
 
-I can second that.  See
-http://userweb.kernel.org/~akpm/mmotm/broken-out/include-asm-generic-pgtable-nopmdh-macros-are-noxious-reason-435.patch
+I didn't see it mentioned here, but these stacks are fixed-size, right?
+They can't actually grow and are fixed in size at exec() time, right?
 
-Ingo cruelly ignored it.  Probably he's used to ignoring the comit
-storm which I send in his direction - I'll need to resend it sometime.
-
-I'd consider that patch to be partial - we should demacroize the
-surrounding similar functions too.  But that will require a bit more
-testing.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
